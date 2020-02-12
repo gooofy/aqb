@@ -1,0 +1,1149 @@
+#include "parser.h"
+
+#include "scanner.h"
+#include "errormsg.h"
+
+const char *P_filename = NULL;
+
+// we need to keep track of declared subs and functions during parsing
+// so we can distinguish between calls and subscripts in identStmt
+
+static map_t declared_procs;
+
+/*******************************************************************
+ *
+ * nested statements
+ *
+ * because of the way basic handles loops (forBegin/forEnd etc),
+ * these have to be kept on an explicit stack
+ *
+ *******************************************************************/
+
+typedef struct P_SLE_          *P_SLE;
+struct P_SLE_ 
+{
+    enum { P_forLoop, P_whileLoop, P_loop, P_if, P_sub, P_function } kind;
+    A_pos       pos;
+    A_stmtList  stmtList;
+    P_SLE       prev;
+    union
+    {
+        struct
+        {
+            A_var    var;
+            A_exp    from_exp, to_exp, step_exp;
+        } forLoop;
+        A_exp whileExp;
+        struct
+        {
+            A_exp      test;
+            A_stmtList thenStmts;
+        } ifStmt;
+        A_proc proc;
+    } u;
+};
+
+static P_SLE g_sleStack = NULL;
+
+static P_SLE slePush(void)
+{
+    P_SLE s=checked_malloc(sizeof(*s));
+
+    s->stmtList = A_StmtList();
+    s->prev     = g_sleStack;
+
+    g_sleStack = s;
+    return s;
+}
+
+static P_SLE slePop(void)
+{
+    P_SLE s = g_sleStack;
+    g_sleStack = s->prev;
+    return s;
+}
+
+// logicalNewline ::= ( EOL | ':' )
+static bool logicalNewline(void)
+{
+    if (S_token == S_EOL || S_token == S_COLON)
+    {
+        S_getsym();
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static bool expression(A_exp *exp);
+
+// atom ::= ident [ '(' procParamList ')' ] | numLiteral | stringLiteral | '(' expression ')
+static bool atom(A_exp *exp)
+{
+    A_pos pos = S_getpos();
+
+    switch (S_token)
+    {
+        case S_IDENT:
+        {
+            S_symbol sym = S_Symbol(String(S_str));
+            *exp = A_VarExp(pos, A_SimpleVar (pos, sym));
+            S_getsym();
+
+            if (S_token == S_LPAREN)
+                return EM_err("Sorry, funtion calls are not supported yet."); // FIXME
+            // FIXME: array support
+
+            break;
+        }
+        case S_INUM:
+            *exp = A_IntExp(pos, S_inum);
+            S_getsym();
+            break;
+        case S_STRING:
+            *exp = A_StringExp(pos, S_str);
+            S_getsym();
+            break;
+        case S_LPAREN:
+            S_getsym();
+            if (!expression(exp))
+                return FALSE;
+            if (S_token != S_RPAREN)
+                return EM_err(") expected here.");
+            S_getsym();
+            break;
+
+        default:
+            return EM_err("Syntax error. (found token: %d)", S_token);
+    }
+
+    return TRUE;
+}
+
+static bool expExpression(A_exp *exp);
+static bool relExpression(A_exp *exp);
+
+// negNotExpression  ::= ( ( '-' | '+' ) expExpression | NOT relExpression | atom )
+static bool negNotExpression(A_exp *exp)
+{
+
+    A_pos  pos = S_getpos();
+    switch (S_token)
+    {
+        case S_MINUS:
+            S_getsym();
+            if (!expExpression(exp))
+                return FALSE;
+            *exp = A_OpExp(pos, A_negOp, *exp, NULL);
+            break;
+        case S_PLUS:
+            S_getsym();
+            if (!expExpression(exp))
+                return FALSE;
+            break;
+        case S_NOT:
+            S_getsym();
+            if (!relExpression(exp))
+                return FALSE;
+            *exp = A_OpExp(pos, A_notOp, *exp, NULL);
+            break;
+        default:
+            if (!atom(exp))
+                return FALSE;
+            break;
+    }
+
+    return TRUE;
+}
+
+// expExpression ::= negNotExpression ( '^' negNotExpression )* .
+static bool expExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!negNotExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_EXP:
+                oper = A_expOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!negNotExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// multExpression    ::= expExpression ( ('*' | '/') expExpression )* .
+static bool multExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!expExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_ASTERISK:
+                oper = A_mulOp;
+                S_getsym();
+                break;
+            case S_SLASH:
+                oper = A_divOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!expExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// intDivExpression  ::= multExpression ( '\' multExpression )*
+static bool intDivExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!multExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_BACKSLASH:
+                oper = A_intDivOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!multExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// modExpression     ::= intDivExpression ( MOD intDivExpression )* 
+static bool modExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!intDivExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_MOD:
+                oper = A_modOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!intDivExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// addExpression     ::= modExpression ( ('+' | '-') modExpression )*
+static bool addExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!modExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_PLUS:
+                oper = A_addOp;
+                S_getsym();
+                break;
+            case S_MINUS:
+                oper = A_subOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!modExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// relExpression ::= addExpression ( ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) addExpression )* 
+static bool relExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!addExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_EQUALS:
+                oper = A_eqOp;
+                S_getsym();
+                break;
+            case S_GREATER:
+                oper = A_gtOp;
+                S_getsym();
+                break;
+            case S_LESS:
+                oper = A_ltOp;
+                S_getsym();
+                break;
+            case S_NOTEQ:
+                oper = A_neqOp;
+                S_getsym();
+                break;
+            case S_LESSEQ:
+                oper = A_leOp;
+                S_getsym();
+                break;
+            case S_GREATEREQ:
+                oper = A_geOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!addExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// logAndExpression  ::= relExpression ( AND relExpression )* .
+static bool logAndExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!relExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        switch (S_token)
+        {
+            case S_AND:
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!relExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, A_andOp, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// logOrExpression   ::= logAndExpression ( OR logAndExpression )* .
+static bool logOrExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!logAndExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        switch (S_token)
+        {
+            case S_OR:
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!logAndExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, A_orOp, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// expression ::= logOrExpression ( (XOR | EQV | IMP) logOrExpression )*
+static bool expression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!logOrExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_XOR:
+                oper = A_xorOp;
+                S_getsym();
+                break;
+            case S_EQV:
+                oper = A_eqvOp;
+                S_getsym();
+                break;
+            case S_IMP:
+                oper = A_impOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!logOrExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// expressionList ::= expression ( ',' expression )*
+static bool expressionList(A_expList *expList)
+{
+    A_exp     exp;
+
+    if (!expression(&exp))
+        return FALSE;
+
+    A_ExpListAppend(*expList, exp);
+
+    while (S_token == S_COMMA)
+    {
+        S_getsym();
+        if (!expression(&exp))
+            return FALSE;
+        A_ExpListAppend(*expList, exp);
+    }
+    return TRUE;
+}
+
+// print ::= PRINT  [ expression ( ( ';' | ',' ) expression )* ]
+static bool stmtPrint(void)
+{
+    A_pos pos = S_getpos();
+
+    S_getsym();
+
+    if (logicalNewline())
+    {
+        A_StmtListAppend (g_sleStack->stmtList, A_PrintNLStmt(pos));
+        return TRUE;
+    }
+
+    while (TRUE)
+    {
+        A_exp exp;
+
+        switch (S_token)
+        {
+            case S_SEMICOLON:
+                S_getsym();
+                if (S_token == S_EOL)
+                {
+                    S_getsym();
+                    return TRUE;
+                }
+                break;
+
+            case S_EOL:
+                A_StmtListAppend (g_sleStack->stmtList, A_PrintNLStmt(pos));
+                return TRUE;
+
+            case S_COMMA:
+                S_getsym();
+                A_StmtListAppend (g_sleStack->stmtList, A_PrintTABStmt(pos));
+                break;
+        }
+
+        if (!expression(&exp))
+            return FALSE;
+
+        A_StmtListAppend (g_sleStack->stmtList, A_PrintStmt(pos, exp));
+    }
+}
+
+// lValue ::= ident [ "(" subscriptList ")" ]
+static bool lValue(A_var *v)
+{
+    A_pos    pos = S_getpos();
+    S_symbol sym = S_Symbol(String(S_strlc));
+
+    S_getsym();
+
+    if (S_token == S_LPAREN) 
+    {
+        return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
+    }
+
+    *v = A_SimpleVar (pos, sym);
+    return TRUE;
+}
+
+// assignmentStmt ::= LET lValue "=" expression  
+static bool stmtLet(void)
+{
+    A_var v;
+    A_exp exp;
+    A_pos pos = S_getpos();
+
+    if (!lValue(&v))
+        return FALSE;
+
+    if (S_token != S_EQUALS)
+        return EM_err ("= expected.");
+
+    S_getsym();
+
+    if (!expression(&exp))
+        return FALSE;
+
+    A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
+
+    return TRUE;
+}
+
+// forBegin ::= FOR ident "=" expression TO expression [ STEP expression ]
+static bool stmtForBegin(void)
+{
+    A_var    var;
+    A_exp    from_exp, to_exp, step_exp;
+    A_pos    pos = S_getpos();
+    P_SLE    sle;
+
+    S_getsym(); // consume "FOR"
+
+    if (S_token != S_IDENT)
+        return EM_err ("variable name expected here.");
+    var = A_SimpleVar (pos, S_Symbol(String(S_strlc)));
+    S_getsym(); 
+
+    if (S_token != S_EQUALS)
+        return EM_err ("= expected.");
+    S_getsym();
+
+    if (!expression(&from_exp))
+        return FALSE;
+
+    if (S_token != S_TO)
+        return EM_err ("TO expected.");
+    S_getsym();
+
+    if (!expression(&to_exp))
+        return FALSE;
+
+    if (S_token == S_STEP)
+    {
+        S_getsym();
+        if (!expression(&step_exp))
+            return FALSE;
+    }
+    else
+    {
+        step_exp = NULL;
+    }
+
+    sle = slePush();
+
+    sle->kind = P_forLoop;
+    sle->pos  = pos;
+
+    sle->u.forLoop.var      = var;
+    sle->u.forLoop.from_exp = from_exp;
+    sle->u.forLoop.to_exp   = to_exp;
+    sle->u.forLoop.step_exp = step_exp;
+
+    return TRUE;
+}
+
+static bool stmtForEnd_(A_pos pos, char *varId)
+{
+    P_SLE sle = g_sleStack;
+    if (sle->kind != P_forLoop)
+    {
+        EM_error(sle->pos, "NEXT used outside of a FOR-loop context");
+        return FALSE;
+    }
+    slePop();
+
+    if (varId)
+    {
+        S_symbol sym2 = S_Symbol(varId);
+        if (sym2 != sle->u.forLoop.var->u.simple)
+        {
+            EM_error(pos, "FOR/NEXT loop variable mismatch (found: %s, expected: %d)", varId, S_name(sle->u.forLoop.var->u.simple));
+            return FALSE;
+        }
+    }
+
+    A_StmtListAppend (g_sleStack->stmtList, 
+                      A_ForStmt(pos, 
+                                sle->u.forLoop.var,
+                                sle->u.forLoop.from_exp,
+                                sle->u.forLoop.to_exp,
+                                sle->u.forLoop.step_exp,
+                                sle->stmtList));
+
+    return TRUE;
+}
+
+// forEnd ::= NEXT [ ident ( ',' ident )* ]
+static bool stmtForEnd(void)
+{
+    A_pos pos = S_getpos();
+
+    S_getsym(); // consume "NEXT"
+
+    if (S_token == S_IDENT)
+    {
+        if (!stmtForEnd_(pos, S_strlc))
+            return FALSE;
+        S_getsym();
+        while (S_token == S_COMMA)
+        {
+            S_getsym();
+            if (S_token != S_IDENT)
+                return EM_err("variable name expected here");
+            if (!stmtForEnd_(pos, S_strlc))
+                return FALSE;
+            S_getsym();
+        }
+    }
+    else
+    {
+        if (!stmtForEnd_(pos, NULL))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+// IfBegin ::=  IF Expression ( GOTO ( numLiteral | ident ) 
+//                            | THEN ( NEWLINE 
+//                                   | [ GOTO ] ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ] 
+//                                   ) 
+//                            )
+
+static bool stmtIfBegin(void)
+{
+    A_exp    exp;
+    A_pos    pos = S_getpos();
+    P_SLE    sle;
+
+    S_getsym(); // consume "IF"
+
+    if (!expression(&exp))
+        return FALSE;
+
+    if (S_token == S_GOTO)
+        return EM_err ("Sorry, single-line if statements are not supported yet."); // FIXME
+
+    if (S_token != S_THEN)
+        return EM_err ("THEN expected. (token %d found)", S_token);
+    S_getsym();
+
+    if (S_token != S_EOL)
+        return EM_err ("Sorry, single-line if statements are not supported yet."); // FIXME
+    
+    sle = slePush();
+
+    sle->kind = P_if;
+    sle->pos  = pos;
+
+    sle->u.ifStmt.test = exp;
+
+    return TRUE;
+}
+
+// IfElse  ::= ELSEIF Expression THEN
+//             |  ELSE .
+static bool stmtIfElse(void)
+{
+    if (S_token == S_ELSEIF)
+        return EM_err ("Sorry, ELSEIF is not supported yet."); // FIXME
+
+    S_getsym(); // consume "ELSE"
+
+    P_SLE sle = g_sleStack;
+    if (sle->kind != P_if)
+    {
+        EM_err("ELSE used outside of an IF-statement context");
+        return FALSE;
+    }
+
+    sle->u.ifStmt.thenStmts = sle->stmtList;
+    sle->stmtList           = A_StmtList();
+
+    return TRUE;
+}
+
+static void stmtIfEnd_(void)
+{
+    P_SLE sle = g_sleStack;
+    slePop();
+
+    A_stmtList thenStmts = sle->u.ifStmt.thenStmts ? sle->u.ifStmt.thenStmts : sle->stmtList;
+    A_stmtList elseStmts = sle->u.ifStmt.thenStmts ? sle->stmtList : NULL;
+
+    A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.test, thenStmts, elseStmts));
+}
+
+// IfEnd ::= ENDIF .
+static bool stmtIfEnd(void)
+{
+    if (S_token == S_ENDIF)
+    {
+        S_getsym(); 
+    }
+    else 
+    {
+        S_getsym(); 
+        if (S_token != S_IF)
+            return EM_err("END IF expected here.");
+        S_getsym();
+    }
+
+    P_SLE sle = g_sleStack;
+    if (sle->kind != P_if)
+    {
+        EM_error(sle->pos, "ENDIF used outside of an IF-statement context");
+        return FALSE;
+    }
+
+    stmtIfEnd_();
+    return TRUE;
+}
+
+// paramDecl ::= [ BYVAL | BYREF ] ident [ AS ident ]
+static bool paramDecl(A_paramList paramList)
+{
+    bool     byval = FALSE;
+    bool     byref = FALSE;
+    S_symbol name;
+    S_symbol ty = NULL;
+    A_pos    pos = S_getpos();
+
+    if (S_token == S_BYVAL)
+    {
+        byval = TRUE;
+        S_getsym();
+    } 
+    else
+    {
+        if (S_token == S_BYREF)
+        {
+            byref = TRUE;
+            S_getsym();
+        }
+    }
+    if (S_token != S_IDENT)
+        return EM_err("identifier expected here.");
+    name = S_Symbol(String(S_strlc));
+    S_getsym();
+   
+    if (S_token == S_AS)
+    {
+        S_getsym();
+        if (S_token != S_IDENT)
+            return EM_err("type identifier expected here.");
+
+        ty = S_Symbol(String(S_strlc));
+        S_getsym();
+    }
+
+    A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty));
+
+    return TRUE;
+}
+
+// parameterList ::= '(' [ paramDecl ( ',' paramDecl )* ]  ')' 
+static bool parameterList(A_paramList paramList)
+{
+    S_getsym(); // consume "("
+
+    if (S_token != S_RPAREN)
+    {
+        if (!paramDecl(paramList))
+            return FALSE;
+
+        while (S_token == S_COMMA)
+        {
+            S_getsym();
+            if (!paramDecl(paramList))
+                return FALSE;
+        }
+    }
+
+    if (S_token != S_RPAREN)
+        return EM_err(") expected.");
+    S_getsym();
+
+    return TRUE;
+}
+
+// procHeader ::= ident [ parameterList ] [ STATIC ]
+static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
+{
+    S_symbol    name;
+    bool        isStatic = FALSE;
+    A_paramList paramList = A_ParamList();
+
+    if (S_token != S_IDENT)
+        return EM_err("identifier expected here.");
+    name = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    if (S_token == S_LPAREN)
+    {
+        if (!parameterList(paramList))
+            return FALSE;
+    }
+
+    if (S_token == S_STATIC)
+    {
+        isStatic = TRUE;
+        S_getsym();
+    }
+
+    *proc = A_Proc (pos, name, isFunction, isStatic, paramList);
+
+    return TRUE;
+}
+
+
+// procStmtBegin ::=  ( SUB | FUNCTION ) procHeader 
+static bool stmtProcBegin(void)
+{
+    A_proc   proc;
+    A_pos    pos = S_getpos();
+    bool     isFunction = S_token == S_FUNCTION;
+    P_SLE    sle;
+
+    S_getsym(); // consume "SUB" | "FUNCTION"
+
+    if (!procHeader(pos, isFunction, &proc))
+        return FALSE;
+
+    sle = slePush();
+
+    sle->kind   = isFunction ? P_function : P_sub ;
+    sle->pos    = pos;
+
+    sle->u.proc = proc;
+
+    hashmap_put(declared_procs, S_name(proc->name), proc);
+
+    return TRUE;
+}
+
+static void stmtProcEnd_(void)
+{
+    P_SLE sle   = g_sleStack;
+    A_proc proc = sle->u.proc;
+
+    slePop();
+
+    proc->body = sle->stmtList;
+
+    A_StmtListAppend (g_sleStack->stmtList, A_ProcStmt(proc->pos, proc));
+}
+
+// stmtEnd  ::=  END ( SUB | FUNCTION | IF ) 
+static bool stmtEnd(void)
+{
+    S_getsym();  // consume "END"
+
+    P_SLE sle = g_sleStack;
+
+    switch (S_token)
+    {
+        case S_SUB:
+            if (sle->kind != P_sub)
+                return EM_err("END SUB used outside of a SUB context");
+            S_getsym();
+            stmtProcEnd_();
+            break;
+        case S_FUNCTION:
+            if (sle->kind != P_function)
+                return EM_err("END FUNCTION used outside of a FUNCTION context");
+            S_getsym();
+            stmtProcEnd_();
+            break;
+        case S_IF:
+            if (sle->kind != P_if)
+                return EM_err("END IF used outside of an IF-statement context");
+            S_getsym();
+            stmtIfEnd_();
+            break;
+        default:
+            return EM_err("SUB | FUNCTION | IF expected here.");
+    }
+
+    return TRUE;
+}
+
+
+
+// identStmt ::= ident ( [ "(" subscriptList ")" ] "=" expression   ; assignment
+//                     | ":"                                        ; label
+//                     | expressionList )                           ; call
+static bool stmtIdent(void)
+{
+    A_pos    pos = S_getpos();
+    S_symbol sym = S_Symbol(String(S_strlc));
+    A_proc   proc;
+
+    S_getsym();
+
+    // is this a declared proc?
+
+    if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+    {
+        A_expList args = A_ExpList();
+        if (!expressionList(&args))
+            return FALSE;
+        A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc->name, args));
+        return TRUE;
+    }
+
+    switch (S_token)
+    {
+        case S_LPAREN:      // assignment with array subscript
+            return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
+            break;
+
+        case S_EQUALS:      // assignment
+        {
+            A_var v;
+            A_exp exp;
+            v = A_SimpleVar (pos, sym);
+            S_getsym();
+            if (!expression(&exp))
+                return FALSE;
+            A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
+            break;
+        }
+
+        case S_COLON:       // label
+            return EM_err ("Sorry, labels are not supported yet."); // FIXME
+            break;
+
+        default:
+            return EM_err ("Unexpected token %d.", S_token);
+    }
+
+    return TRUE;
+}
+
+// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader 
+// FIXME
+
+
+// statementBody ::= ( dim | doHeader | else | endIf | forBegin | forEnd | if | whileHeader | loopOrWend | 
+//                     circle |cls | comment | data | end | exit | goSub | goto | input | print | randomize | read | return | screen | stop | trace
+//                     assignmentStmt )
+
+static bool statementBody(void)
+{
+    switch (S_token)
+    {
+        case S_IDENT:
+            return stmtIdent(); // could be a label, assignment or call
+        case S_LET:
+            return stmtLet();
+        case S_PRINT:
+            return stmtPrint();
+        case S_FOR:
+            return stmtForBegin();
+        case S_NEXT:
+            return stmtForEnd();
+        case S_IF:
+            return stmtIfBegin();
+        case S_ELSE:
+        case S_ELSEIF:
+            return stmtIfElse();
+        case S_ENDIF:
+            return stmtIfEnd();
+        case S_END:
+            return stmtEnd();
+        // FIXME: many others!
+        default:
+            return EM_err ("unexpected token");
+    }
+
+}
+
+// statement ::= (UnsignedInteger | identifier ':' ) statementBody
+static bool statement(void)
+{
+    switch (S_token)
+    {
+        case S_INUM:
+            // FIXME ---> line number support
+            return EM_err ("Sorry, line numbers are not supported yet."); 
+        // case S_IDENT: // FIXME: label support / scanner pushback?
+        default:
+            return statementBody();
+    }
+}
+
+// bodyStatement ::= ( optionStmt | statement | subDefinition | functionDefinition )
+static bool bodyStatement(A_sourceProgram sourceProgram)
+{
+    switch (S_token)
+    {
+        case S_SUB:
+        case S_FUNCTION:
+            return stmtProcBegin();
+        case S_OPTION:
+            return EM_err ("Sorry, option statement is not supported yet."); // FIXME
+        case S_EOF:
+            return TRUE;
+        case S_ERROR:
+            return EM_err ("Lexer error.");
+        default:
+        {
+            if (!statement ())
+                return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+// sourceProgramBody ::= logicalNewline*  bodyStatement ( logicalNewline+  bodyStement )* 
+static bool sourceProgramBody(A_sourceProgram *sourceProgram)
+{
+    slePush();
+
+    while (logicalNewline()) ;
+
+    *sourceProgram = A_SourceProgram(S_getpos(), "_main", g_sleStack->stmtList);
+
+    if (!bodyStatement(*sourceProgram))
+        return FALSE;
+
+    while (logicalNewline())
+    {
+        while (logicalNewline());
+        if (!bodyStatement(*sourceProgram))
+            return FALSE;
+    }
+
+    if (S_token != S_EOF)
+        return EM_err("syntax error (unexpected token: %d).", S_token);
+
+    slePop();
+
+    return TRUE;
+}
+
+
+// [ optionStmt logicalNewline ] sourceProgramBody
+bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourceProgram)
+{
+    P_filename = filename;
+    EM_init();
+    S_init (inf);
+    S_symbol_init();
+    declared_procs = hashmap_new();
+
+    return sourceProgramBody(sourceProgram);
+}
+
+
+
