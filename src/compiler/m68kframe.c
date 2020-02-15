@@ -357,7 +357,7 @@ T_exp F_Exp(F_access acc, T_exp framePtr)
     {
         return T_Temp(F_accessReg(acc));
     }
-    return T_Mem(T_Binop(T_plus, framePtr, T_Const(F_accessOffset(acc))));
+    return T_Mem(T_Binop(T_s4plus, framePtr, T_ConstS4(F_accessOffset(acc))));
 }
 
 #if 0

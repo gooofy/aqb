@@ -32,36 +32,37 @@ F_fragList    Tr_getResult(void);
 
 /* Tree Expressions */
 
-Tr_exp        Tr_zeroEx();
-Tr_exp        Tr_oneExp();
+Tr_exp        Tr_zeroExp(Ty_ty ty);
+Tr_exp        Tr_oneExp(Ty_ty ty);
 
 Tr_exp        Tr_nullCx();
 Tr_exp        Tr_nullNx();
 
-Tr_exp Tr_seqExp(Tr_expList el);
+Tr_exp        Tr_seqExp(Tr_expList el);
 
-Tr_exp Tr_intExp(A_exp e);
-Tr_exp Tr_stringExp(string str);
+Tr_exp        Tr_intExp(A_exp e, Ty_ty ty);
+Tr_exp        Tr_stringExp(string str);
 
-Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp);
+Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty);
 
-Tr_exp Tr_simpleVar(Tr_access a);
+Tr_exp        Tr_simpleVar(Tr_access a);
 #if 0
 Tr_exp Tr_fieldVar(Tr_exp var, int fieldIndex, Tr_level l);
 Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l);
 #endif
 
-Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right);
-Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right);
-Tr_exp Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right);
-Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee, Ty_ty ifty);
+Tr_exp        Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
+Tr_exp        Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
+Tr_exp        Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right);
+Tr_exp        Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee);
+Tr_exp        Tr_castExp(T_castOp op, Tr_exp exp);
 
 #if 0
 Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl);
 #endif
 
 // Tr_exp Tr_forExp(Tr_access i, Tr_level lv, Tr_exp explo, Tr_exp exphi, Tr_exp body, Temp_label breaklbl);
-Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
+Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
 
 #if 0
 Tr_exp Tr_breakExp(Temp_label breaklbl);

@@ -4,7 +4,7 @@ CFLAGS = -Wall -g
 .PHONY: clean all
 all:	aqb
 clean: 
-	rm -f *.o
+	rm -f *.o aqb
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@

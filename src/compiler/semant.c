@@ -143,6 +143,158 @@ static S_symbol protect_sym(S_symbol s)
 }
 #endif
 
+// given two types, try to come up with a type that covers both value ranges
+static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
+{
+    if (ty1 == ty2)
+    {
+        *res = ty1;
+        return TRUE;
+    }
+
+    switch (ty1->kind)
+    {
+        case Ty_integer:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                    *res = ty1;
+                    return TRUE;
+                case Ty_long:
+                case Ty_single: 
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_string:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_long:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                    *res = ty1;
+                    return TRUE;
+                case Ty_long:
+                case Ty_single: 
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_string: 
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_single: 
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single: 
+                    *res = ty1;
+                    return TRUE;
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_string: 
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_double:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single: 
+                case Ty_double:
+                    *res = ty1;
+                    return TRUE;
+                case Ty_string: 
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_string: 
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single: 
+                case Ty_double:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                    *res = ty1;
+                    return FALSE;
+                case Ty_string: 
+                    *res = ty1;
+                    return TRUE;
+            }
+        case Ty_array:
+            *res = ty1;
+            return FALSE;
+        case Ty_record:
+            *res = ty1;
+            return FALSE;
+        case Ty_void:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single: 
+                case Ty_double:
+                case Ty_string: 
+                case Ty_array:
+                case Ty_record:
+                    *res = ty1;
+                    return FALSE;
+                case Ty_void:
+                    *res = ty1;
+                    return TRUE;
+            }
+    }
+    *res = ty1;
+    return FALSE;
+}
+
+static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
+{
+    Ty_ty ty1 = exp.ty;
+
+    if (ty1 == ty2)
+    {
+        *res = exp;
+        return TRUE;
+    }
+
+    switch (ty1->kind)
+    {
+        case Ty_long:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                    *res = expTy(Tr_castExp(T_castS4S2, exp.exp), Ty_integer);
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
+        default:
+            return FALSE;
+    }
+
+    return FALSE;
+}
 
 /* Compare types strictly (FIXME: BASIC semantics!!) */
 static int compare_ty(Ty_ty ty1, Ty_ty ty2) 
@@ -180,16 +332,40 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
           return expTy(Tr_zeroEx(), Ty_Void());
 #endif
         case A_intExp:
-            return expTy(Tr_intExp(a), Ty_Long());
+        {
+            Ty_ty ty;
+            if ( (a->u.intt < 32768) && (a->u.intt > -32769) )
+                ty = Ty_Integer();
+            else
+                ty = Ty_Long();
+            return expTy(Tr_intExp(a, ty), ty);
+        }
         case A_stringExp:
             if (a->u.stringg == NULL)
                 EM_error(a->pos, "string required");
             return expTy(Tr_stringExp(a->u.stringg), Ty_String());
+
         case A_opExp: 
         {
             A_oper oper = a->u.op.oper;
             expty left = transExp(level, venv, tenv, a->u.op.left, breaklbl);
-            expty right = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, breaklbl) : expTy(Tr_zeroEx(), Ty_Long());
+            expty right = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, breaklbl) : expTy(Tr_zeroExp(left.ty), left.ty);
+            Ty_ty resTy;
+            expty e1, e2;
+            if (!coercion(left.ty, right.ty, &resTy)) {
+                EM_error(a->u.op.left->pos, "type mismatch");
+                return expTy(Tr_nullCx(), Ty_Integer());
+            }
+            if (!convert_ty(left, resTy, &e1))
+            {
+                EM_error(a->u.op.left->pos, "type mismatch");
+                return expTy(Tr_nullCx(), Ty_Integer());
+            }
+            if (!convert_ty(right, resTy, &e2))
+            {
+                EM_error(a->u.op.left->pos, "type mismatch");
+                return expTy(Tr_nullCx(), Ty_Integer());
+            }
             switch (oper) 
             {
                 case A_addOp:
@@ -207,48 +383,22 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 case A_andOp:
                 case A_orOp:
                 {
-                    if (left.ty->kind != Ty_long)
-                        EM_error(a->u.op.left->pos, "long required");
-                    if (right.ty->kind != Ty_long)
-                        EM_error(a->u.op.right->pos, "long required");
-                    return expTy(Tr_arOpExp(oper, left.exp, right.exp), Ty_Long());
+                    return expTy(Tr_arOpExp(oper, e1.exp, e2.exp, resTy), resTy);
                 }
                 case A_eqOp:
                 case A_neqOp: 
                 {
-                    if (!compare_ty(left.ty, right.ty)) 
-                    {
-                        EM_error(a->u.op.right->pos, "same type required");
-                        return expTy(Tr_nullCx(), Ty_Long());
-                    }
                     if (left.ty->kind == Ty_string)
-                        return expTy(Tr_strOpExp(oper, left.exp, right.exp), Ty_Long());
+                        return expTy(Tr_strOpExp(oper, e1.exp, e2.exp), Ty_Integer());
                     else
-                        return expTy(Tr_condOpExp(oper, left.exp, right.exp), Ty_Long());
+                        return expTy(Tr_condOpExp(oper, e1.exp, e2.exp, resTy), Ty_Integer());
                 }
                 case A_ltOp:
                 case A_leOp:
                 case A_gtOp:
                 case A_geOp:
                 {
-                    Ty_ty leftTy = left.ty;
-                    Ty_ty rightTy = right.ty;
-                    if (leftTy->kind != Ty_long && leftTy->kind != Ty_string)
-                        EM_error(a->u.op.left->pos, "string or integer required");
-                    if (leftTy->kind == Ty_long) 
-                    {
-                        if (rightTy->kind != Ty_long)
-                            EM_error(a->u.op.right->pos, "same type required");
-                        return expTy(Tr_condOpExp(oper, left.exp, right.exp), Ty_Long());
-                    }
-                    if (leftTy->kind == Ty_string) 
-                    {
-                        if (rightTy->kind != Ty_string)
-                            EM_error(a->u.op.right->pos, "same type required");
-                        return expTy(Tr_strOpExp(oper, left.exp, right.exp), Ty_Long());
-                    }
-                    /* Error recovery */
-                    return expTy(Tr_zeroEx(), Ty_Long());
+                    return expTy(Tr_condOpExp(oper, e1.exp, e2.exp, resTy), Ty_Integer());
                 }
             }
         }
@@ -418,7 +568,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
         default:
             EM_error(a->pos, "*** internal error: unsupported expression type.");
     }
-    return expTy(Tr_zeroEx(), Ty_Void());
+    return expTy(Tr_zeroExp(Ty_Void()), Ty_Void());
 }
 
 static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
@@ -508,38 +658,41 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
         {
             expty var = transVar(level, venv, tenv, stmt->u.assign.var, breaklbl);
             expty exp = transExp(level, venv, tenv, stmt->u.assign.exp, breaklbl);
-            if (!compare_ty(var.ty, exp.ty))        // FIXME: auto conversion?
+            expty convexp;
+
+            if (!convert_ty(exp, var.ty, &convexp))
                 EM_error(stmt->pos, "type mismtach.");
-  
-            return expTy(Tr_assignExp(var.exp, exp.exp), Ty_Void());
+
+            return expTy(Tr_assignExp(var.exp, convexp.exp, var.ty), Ty_Void());
         }
         case A_forStmt: 
         {
             E_enventry var = autovar (level, venv, stmt->u.forr.var);
+            Ty_ty varty = var->u.var.ty;
 
-            //expty var       = transVar(level, venv, tenv, stmt->u.forr.var, breaklbl);
             expty from_exp  = transExp(level, venv, tenv, stmt->u.forr.from_exp, breaklbl);
             expty to_exp    = transExp(level, venv, tenv, stmt->u.forr.to_exp, breaklbl);
             expty step_exp  = stmt->u.forr.step_exp ? 
                                 transExp(level, venv, tenv, stmt->u.forr.step_exp, breaklbl) : 
-                                expTy(Tr_oneExp(), Ty_Long());
+                                expTy(Tr_oneExp(varty), varty);
 
-            if (!compare_ty(var->u.var.ty, from_exp.ty))        // FIXME: auto conversion?
-                EM_error(stmt->pos, "type mismtach.");
-            if (!compare_ty(var->u.var.ty, to_exp.ty))          // FIXME: auto conversion?
-                EM_error(stmt->pos, "type mismtach.");
-            if (!compare_ty(var->u.var.ty, step_exp.ty))        // FIXME: auto conversion?
-                EM_error(stmt->pos, "type mismtach.");
+            expty conv_from_exp, conv_to_exp, conv_step_exp;
+
+            if (!convert_ty(from_exp, varty, &conv_from_exp))
+                EM_error(stmt->pos, "type mismtach (from expression).");
+            if (!convert_ty(to_exp,   varty, &conv_to_exp))
+                EM_error(stmt->pos, "type mismtach (to expression).");
+            if (!convert_ty(step_exp, varty, &conv_step_exp))
+                EM_error(stmt->pos, "type mismtach (step expression).");
 
             Temp_label forbreak = Temp_newlabel();
             expty body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak);
 
-            return expTy(Tr_forExp(var->u.var.access, from_exp.exp, to_exp.exp, step_exp.exp, body.exp, forbreak), Ty_Void());
+            return expTy(Tr_forExp(var->u.var.access, varty, conv_from_exp.exp, conv_to_exp.exp, conv_step_exp.exp, body.exp, forbreak), Ty_Void());
         }
         case A_ifStmt: 
         {
             expty test, then, elsee;
-            Ty_ty ifty = Ty_Void();  /* Type of the if expression, as a statement if type is void */
             test = transExp(level, venv, tenv, stmt->u.ifr.test, breaklbl);
             if (test.ty->kind != Ty_long)
                 EM_error(stmt->u.ifr.test->pos, "expression must be integer");
@@ -555,7 +708,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
                 elsee.ty = Ty_Void();
             }
   
-            return expTy(Tr_ifExp(test.exp, then.exp, elsee.exp, ifty), then.ty);
+            return expTy(Tr_ifExp(test.exp, then.exp, elsee.exp), then.ty);
         }
         case A_procStmt: 
         {
@@ -607,13 +760,13 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             if (proc == NULL) 
             {
                 EM_error(stmt->pos, "undefined sub %s", S_name(stmt->u.callr.func));
-                return expTy(Tr_zeroEx(), Ty_Void());
+                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
             }
   
             if (proc->kind != E_funEntry) 
             {
                 EM_error(stmt->pos, "%s is not a sub", S_name(stmt->u.callr.func));
-                return expTy(Tr_zeroEx(), Ty_Void());
+                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
             }
   
             /* check parameter types */
@@ -644,7 +797,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
     }
-    return expTy(Tr_zeroEx(), Ty_Void());
+    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
 }
 
 static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl) 
@@ -692,7 +845,7 @@ static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_
             else 
             {
                 EM_error(v->pos, "this is not a variable: %s", S_name(v->u.simple));
-                return expTy(Tr_zeroEx(), Ty_Long());
+                return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
             }
         }
 #if 0
@@ -737,7 +890,7 @@ static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_
         default:
             EM_error (v->pos, "*** internal error: variable kind %d not implemented yet!", v->kind);
     }
-    return expTy(Tr_zeroEx(), Ty_Void());
+    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
 }
 
 #if 0
