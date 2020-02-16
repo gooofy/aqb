@@ -37,8 +37,6 @@ typedef enum
 	T_s2ult, T_s2ule, T_s2ugt, T_s2uge
 } T_relOp;
 
-typedef enum {T_castS4S2, T_castS2S4 } T_castOp;
-
 struct T_stm_ 
 {
     enum {T_SEQ, T_LABEL, T_JUMP, T_CJUMP, 
@@ -56,18 +54,18 @@ struct T_stm_
 
 struct T_exp_ 
 {
-    enum { T_BINOP, T_MEM, T_TEMP, T_ESEQ, T_NAME,
-		   T_CONSTS4, T_CONSTS2, T_CALL, T_CAST } kind;
+    enum { T_BINOP, T_MEMS2, T_MEMS4, T_TEMP, T_ESEQ, T_NAME,
+		   T_CONSTS4, T_CONSTS2, T_CALL, T_CASTS4S2, T_CASTS2S4 } kind;
 	union 
     {
         struct {T_binOp op; T_exp left, right;} BINOP;
-         T_exp MEM;
-	     Temp_temp TEMP;
-	     struct {T_stm stm; T_exp exp;} ESEQ;
-	     Temp_label NAME;
-	     int CONST;
-	     struct {T_exp fun; T_expList args;} CALL;
-	     struct {T_exp exp; T_castOp op;} CAST;
+        T_exp MEM;
+	    Temp_temp TEMP;
+	    struct {T_stm stm; T_exp exp;} ESEQ;
+	    Temp_label NAME;
+	    int CONST;
+	    struct {T_exp fun; T_expList args;} CALL;
+	    T_exp CAST;
 	} u;
 };
 
@@ -83,14 +81,16 @@ T_stm T_MoveS2(T_exp, T_exp);
 T_stm T_Exp(T_exp);
 
 T_exp T_Binop(T_binOp, T_exp, T_exp);
-T_exp T_Mem(T_exp);
+T_exp T_MemS4(T_exp);
+T_exp T_MemS2(T_exp);
 T_exp T_Temp(Temp_temp);
 T_exp T_Eseq(T_stm, T_exp);
 T_exp T_Name(Temp_label);
 T_exp T_ConstS4(int);
 T_exp T_ConstS2(int);
 T_exp T_Call(T_exp, T_expList);
-T_exp T_Cast(T_castOp op, T_exp exp);
+T_exp T_CastS4S2(T_exp exp);
+T_exp T_CastS2S4(T_exp exp);
 
 T_relOp T_notRel(T_relOp);  /* a op b    ==     not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b    ==    b commute(op) a       */

@@ -44,11 +44,14 @@
  *   :                           :
  */
 
-struct F_access_ {
+struct F_access_ 
+{
     enum {inFrame, inReg} kind;
-    union {
-      int offset;		/* InFrame */
-      Temp_temp reg;	/* InReg */
+    Ty_ty ty;
+    union 
+    {
+        int offset;		/* InFrame */
+        Temp_temp reg;	/* InReg */
     } u;
 };
 
@@ -62,10 +65,13 @@ struct F_frame_
     bool          global;
 };
 
-static F_access InFrame(int offset) {
+static F_access InFrame(int offset, Ty_ty ty) {
     F_access a = checked_malloc(sizeof(*a));
-    a->kind = inFrame;
+
+    a->kind     = inFrame;
+    a->ty       = ty;
     a->u.offset = offset;
+
     return a;
 }
 
@@ -78,7 +84,7 @@ static F_access InReg(Temp_temp reg) {
 }
 #endif
 
-F_frame F_newFrame(Temp_label name, int num_formals, bool global) {
+F_frame F_newFrame(Temp_label name, Ty_tyList formalTys, bool global) {
     F_frame f = checked_malloc(sizeof(*f));
 
     f->name   = name;
@@ -89,10 +95,12 @@ F_frame F_newFrame(Temp_label name, int num_formals, bool global) {
     // Local variables start from -4(a4/a5) downwards
     int offset = 8;
     F_accessList formals = NULL;
-    for (int i=0; i<num_formals; i++)
+    
+    for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
     {
-        formals = F_AccessList(InFrame(offset), formals);
-        offset += 4;
+        formals = F_AccessList(InFrame(offset, tyl->head), formals);
+        // offset += Ty_size(tyl->head);
+        offset += 4; // gcc seems to push 4 bytes regardless of type (int, long, ...)
     }
   
     f->formals       = formals;
@@ -111,27 +119,38 @@ F_accessList F_formals(F_frame f) {
   return f->formals;
 }
 
-F_access F_allocLocal(F_frame f) {
-    F_access l = InFrame(f->locals_offset);
-    f->locals = F_AccessList(l, f->locals);
-    f->locals_offset -= 4;
+F_access F_allocLocal(F_frame f, Ty_ty ty) 
+{
+    F_access l = InFrame(f->locals_offset, ty);
+
+    f->locals         = F_AccessList(l, f->locals);
+    f->locals_offset -= Ty_size(ty);
+
     return l;
 }
 
-int F_accessOffset(F_access a) {
-  if (a->kind != inFrame) {
-    EM_error(0, "Offset of a reg access is invalid");
-  }
-
-  return a->u.offset;
+int F_accessOffset(F_access a) 
+{
+    if (a->kind != inFrame) 
+    {
+        EM_error(0, "Offset of a reg access is invalid");
+    }
+  
+    return a->u.offset;
 }
 
-Temp_temp F_accessReg(F_access a) {
-  if (a->kind != inReg) {
-    EM_error(0, "Reg of a frame access is invalid");
-  }
+Temp_temp F_accessReg(F_access a) 
+{
+    if (a->kind != inReg) {
+        EM_error(0, "Reg of a frame access is invalid");
+    }
 
-  return a->u.reg;
+    return a->u.reg;
+}
+
+Ty_ty F_accessType(F_access a)
+{
+    return a->ty;
 }
 
 F_accessList F_AccessList(F_access head, F_accessList tail) {
@@ -275,18 +294,18 @@ Temp_temp F_D7(void) { return d7; }
 
 void F_initRegisters(void)
 {
-    gp = Temp_newtemp();
-    fp = Temp_newtemp();
-    sp = Temp_newtemp();
+    gp = Temp_newtemp(NULL);
+    fp = Temp_newtemp(NULL);
+    sp = Temp_newtemp(NULL);
   
-    d0 = Temp_newtemp();
-    d1 = Temp_newtemp();
-    d2 = Temp_newtemp();
-    d3 = Temp_newtemp();
-    d4 = Temp_newtemp();
-    d5 = Temp_newtemp();
-    d6 = Temp_newtemp();
-    d7 = Temp_newtemp();
+    d0 = Temp_newtemp(NULL);
+    d1 = Temp_newtemp(NULL);
+    d2 = Temp_newtemp(NULL);
+    d3 = Temp_newtemp(NULL);
+    d4 = Temp_newtemp(NULL);
+    d5 = Temp_newtemp(NULL);
+    d6 = Temp_newtemp(NULL);
+    d7 = Temp_newtemp(NULL);
 }
 
 Temp_map F_initialRegisters(F_frame f) {
@@ -353,11 +372,27 @@ string F_getlabel(F_frame frame)
 
 T_exp F_Exp(F_access acc, T_exp framePtr) 
 {
+    Ty_ty ty;
     if (acc->kind == inReg) 
     {
         return T_Temp(F_accessReg(acc));
     }
-    return T_Mem(T_Binop(T_s4plus, framePtr, T_ConstS4(F_accessOffset(acc))));
+    ty = F_accessType(acc);
+    switch (ty->kind)
+    {
+        case Ty_integer:
+            return T_MemS2(T_Binop(T_s4plus, framePtr, T_ConstS4(F_accessOffset(acc))));
+        case Ty_long:
+        case Ty_single:
+        case Ty_string: 
+        case Ty_array:
+        case Ty_record: 
+        case Ty_void:
+            return T_MemS4(T_Binop(T_s4plus, framePtr, T_ConstS4(F_accessOffset(acc))));
+        default:
+            assert(0); // FIXME
+    }
+    return NULL;
 }
 
 #if 0

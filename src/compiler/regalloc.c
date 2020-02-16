@@ -123,124 +123,135 @@ static Temp_tempList aliased(Temp_tempList tl, G_graph ig,
   return tempUnion(al, NULL);
 };
 
-struct RA_result RA_regAlloc(F_frame f, AS_instrList il) {
-  //your code here.
-  struct RA_result ret;
-
-  G_graph flow;
-  struct Live_graph live;
-  Temp_map initial;
-  struct COL_result col;
-  AS_instrList rewriteList;
-
-  int try = 0;
-  while (++try < 7) {
-    flow = FG_AssemFlowGraph(il, f);
-    // G_show(stdout, G_nodes(flow), printInst);
-    live = Live_liveness(flow);
-    // G_show(stdout, G_nodes(live.graph), printTemp);
-    initial = F_initialRegisters(f);
-    col = COL_color(live.graph, initial, F_registers(),
-                    live.worklistMoves, live.moveList, live.spillCost);
-
-    if (col.spills == NULL) {
-      break;
-    }
-
-    Temp_tempList spilled = col.spills;
-    rewriteList = NULL;
-    
-    // Assign locals in memory
-    Temp_tempList tl;
-    TAB_table spilledLocal = TAB_empty();
-    for (tl = spilled; tl; tl = tl->tail) {
-      F_access local = F_allocLocal(f);
-      TAB_enter(spilledLocal, tl->head, local);
-    }
-
-    // Rewrite instructions
-    for (; il; il = il->tail) {
-      AS_instr inst = il->head;
-      Temp_tempList useSpilled = tempIntersect(
-                                  aliased(inst_use(inst), live.graph, col.alias, col.coalescedNodes),
-                                  spilled);
-      Temp_tempList defSpilled = tempIntersect(
-                                  aliased(inst_def(inst), live.graph, col.alias, col.coalescedNodes),
-                                  spilled);
-      Temp_tempList tempSpilled = tempUnion(useSpilled, defSpilled);
-
-      // Skip unspilled instructions
-      if (tempSpilled == NULL) {
-        rewriteList = AS_InstrList(inst, rewriteList);
-        continue;
-      }
-
-      for (tl = useSpilled; tl; tl = tl->tail) {
-        char buf[128];
-        Temp_temp temp = tl->head;
-        F_access local = (F_access)TAB_look(spilledLocal, temp);
-        sprintf(buf, "movl %d(`s0), `d0  # spilled\n", F_accessOffset(local));
-        rewriteList = AS_InstrList(
-            AS_Oper(String(buf), L(temp, NULL), L(F_FP(), NULL), NULL), rewriteList);
-      }
-
-      rewriteList = AS_InstrList(inst, rewriteList);
-
-      for (tl = defSpilled; tl; tl = tl->tail) {
-        char buf[128];
-        Temp_temp temp = tl->head;
-        F_access local = (F_access)TAB_look(spilledLocal, temp);
-        sprintf(buf, "movl `s0, %d(`s1)  # spilled\n", F_accessOffset(local));
-        rewriteList = AS_InstrList(
-            AS_Oper(String(buf), NULL, L(temp, L(F_FP(), NULL)), NULL), rewriteList);
-      }
-    }
-
-    il = reverseInstrList(rewriteList);
-  }
-
-  if (col.spills != NULL) {
-    EM_error(0, "fail to allocate registers");
-  }
-
-  if (col.coalescedMoves != NULL) {
-    rewriteList = NULL;
-    for (; il; il = il->tail) {
-      AS_instr inst = il->head;
-
-      // Remove coalesced moves
-      if (instIn(inst, col.coalescedMoves)) {
-        char buf[1024];
-        sprintf(buf, "# ");
-        strcat(buf, inst->u.OPER.assem);
-        inst->u.OPER.assem = String(buf);
-        //continue;
-      }
-
-      rewriteList = AS_InstrList(inst, rewriteList);
-    }
-
-    il = reverseInstrList(rewriteList);
-  }
-
-  ret.coloring = col.coloring;
-  ret.il = il;
-
-  // Temp_tempList precolored = NULL;
-  // Temp_tempList initial = NULL;
-  // Temp_tempList simplifyWorklist = NULL;
-  // Temp_tempList freezeWorklist = NULL;
-  // Temp_tempList spillWorklist = NULL;
-  // Temp_tempList spilledNodes = NULL;
-  // Temp_tempList coalescedNodes = NULL;   // Coalesce
-  // Temp_tempList coloredNodes = NULL;
-  // Temp_tempList selectStack = NULL;
-
-  // Temp_tempList worklistMoves = NULL; // Coalesce
-
-  // do {
-
-  // } while (simplifyWorklist != NULL || worklistMoves != NULL);
+struct RA_result RA_regAlloc(F_frame f, AS_instrList il) 
+{
+    struct RA_result ret;
   
-  return ret;
+    G_graph flow;
+    struct Live_graph live;
+    Temp_map initial;
+    struct COL_result col;
+    AS_instrList rewriteList;
+  
+    int try = 0;
+    while (++try < 7) 
+    {
+        flow = FG_AssemFlowGraph(il, f);
+        // G_show(stdout, G_nodes(flow), printInst);
+        live = Live_liveness(flow);
+        // G_show(stdout, G_nodes(live.graph), printTemp);
+        initial = F_initialRegisters(f);
+        col = COL_color(live.graph, initial, F_registers(),
+                        live.worklistMoves, live.moveList, live.spillCost);
+  
+        if (col.spills == NULL) 
+        {
+            break;
+        }
+  
+        Temp_tempList spilled = col.spills;
+        rewriteList = NULL;
+        
+        // Assign locals in memory
+        Temp_tempList tl;
+        TAB_table spilledLocal = TAB_empty();
+        for (tl = spilled; tl; tl = tl->tail) 
+        {
+            F_access local = F_allocLocal(f, Temp_ty(tl->head));
+            TAB_enter(spilledLocal, tl->head, local);
+        }
+  
+        // Rewrite instructions
+        for (; il; il = il->tail) 
+        {
+            AS_instr inst = il->head;
+            Temp_tempList useSpilled = tempIntersect(
+                                        aliased(inst_use(inst), live.graph, col.alias, col.coalescedNodes),
+                                        spilled);
+            Temp_tempList defSpilled = tempIntersect(
+                                        aliased(inst_def(inst), live.graph, col.alias, col.coalescedNodes),
+                                        spilled);
+            Temp_tempList tempSpilled = tempUnion(useSpilled, defSpilled);
+  
+            // Skip unspilled instructions
+            if (tempSpilled == NULL) 
+            {
+                rewriteList = AS_InstrList(inst, rewriteList);
+                continue;
+            }
+  
+            for (tl = useSpilled; tl; tl = tl->tail) 
+            {
+                char buf[128];
+                Temp_temp temp = tl->head;
+                F_access local = (F_access)TAB_look(spilledLocal, temp);
+                sprintf(buf, "movl %d(`s0), `d0  # spilled\n", F_accessOffset(local));
+                rewriteList = AS_InstrList(
+                    AS_Oper(String(buf), L(temp, NULL), L(F_FP(), NULL), NULL), rewriteList);
+            }
+  
+            rewriteList = AS_InstrList(inst, rewriteList);
+  
+            for (tl = defSpilled; tl; tl = tl->tail) 
+            {
+                char buf[128];
+                Temp_temp temp = tl->head;
+                F_access local = (F_access)TAB_look(spilledLocal, temp);
+                sprintf(buf, "movl `s0, %d(`s1)  # spilled\n", F_accessOffset(local));
+                rewriteList = AS_InstrList(
+                    AS_Oper(String(buf), NULL, L(temp, L(F_FP(), NULL)), NULL), rewriteList);
+            }
+        }
+  
+        il = reverseInstrList(rewriteList);
+    }
+  
+    if (col.spills != NULL) 
+    {
+        EM_error(0, "fail to allocate registers");
+    }
+  
+    if (col.coalescedMoves != NULL) 
+    {
+        rewriteList = NULL;
+        for (; il; il = il->tail) 
+        {
+            AS_instr inst = il->head;
+  
+            // Remove coalesced moves
+            if (instIn(inst, col.coalescedMoves)) 
+            {
+                char buf[1024];
+                sprintf(buf, "# ");
+                strcat(buf, inst->u.OPER.assem);
+                inst->u.OPER.assem = String(buf);
+                //continue;
+            }
+  
+            rewriteList = AS_InstrList(inst, rewriteList);
+        }
+  
+        il = reverseInstrList(rewriteList);
+    }
+  
+    ret.coloring = col.coloring;
+    ret.il = il;
+  
+    // Temp_tempList precolored = NULL;
+    // Temp_tempList initial = NULL;
+    // Temp_tempList simplifyWorklist = NULL;
+    // Temp_tempList freezeWorklist = NULL;
+    // Temp_tempList spillWorklist = NULL;
+    // Temp_tempList spilledNodes = NULL;
+    // Temp_tempList coalescedNodes = NULL;   // Coalesce
+    // Temp_tempList coloredNodes = NULL;
+    // Temp_tempList selectStack = NULL;
+  
+    // Temp_tempList worklistMoves = NULL; // Coalesce
+  
+    // do {
+  
+    // } while (simplifyWorklist != NULL || worklistMoves != NULL);
+    
+    return ret;
 }

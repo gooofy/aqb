@@ -73,8 +73,12 @@ static void pr_tree_exp(FILE *out, T_exp exp, int d)
             pr_tree_exp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
             pr_tree_exp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
             break;
-        case T_MEM:
-            indent(out,d); fprintf(out, "MEM");
+        case T_MEMS4:
+            indent(out,d); fprintf(out, "MEMS4");
+            fprintf(out, "(\n"); pr_tree_exp(out, exp->u.MEM,d+1); fprintf(out, ")");
+            break;
+        case T_MEMS2:
+            indent(out,d); fprintf(out, "MEMS2");
             fprintf(out, "(\n"); pr_tree_exp(out, exp->u.MEM,d+1); fprintf(out, ")");
             break;
         case T_TEMP:
@@ -107,10 +111,13 @@ static void pr_tree_exp(FILE *out, T_exp exp, int d)
             fprintf(out, ")");
             break;
         }
-        case T_CAST:
-            indent(out,d); fprintf(out, "CAST(\n");
-            pr_tree_exp(out, exp->u.CAST.exp, d+1);
-
+        case T_CASTS4S2:
+            indent(out,d); fprintf(out, "CASTS4S2(\n");
+            pr_tree_exp(out, exp->u.CAST, d+1);
+            break;
+        case T_CASTS2S4:
+            indent(out,d); fprintf(out, "CASTS2S4(\n");
+            pr_tree_exp(out, exp->u.CAST, d+1);
             break;
     } /* end of switch */
 }

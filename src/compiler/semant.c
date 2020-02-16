@@ -73,7 +73,7 @@ static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
         char *s = S_name(v->u.simple);
         Ty_ty t = infer_var_type(s);
 
-        x = E_VarEntry(Tr_allocLocal(level), t);
+        x = E_VarEntry(Tr_allocLocal(level, t), t);
         S_enter(venv, v->u.simple, x);
     }
     return x;
@@ -279,11 +279,21 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
 
     switch (ty1->kind)
     {
+        case Ty_integer:
+            switch (ty2->kind)
+            {
+                case Ty_long:
+                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
         case Ty_long:
             switch (ty2->kind)
             {
                 case Ty_integer:
-                    *res = expTy(Tr_castExp(T_castS4S2, exp.exp), Ty_integer);
+                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -353,17 +363,17 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             Ty_ty resTy;
             expty e1, e2;
             if (!coercion(left.ty, right.ty, &resTy)) {
-                EM_error(a->u.op.left->pos, "type mismatch");
+                EM_error(a->u.op.left->pos, "operands type mismatch");
                 return expTy(Tr_nullCx(), Ty_Integer());
             }
             if (!convert_ty(left, resTy, &e1))
             {
-                EM_error(a->u.op.left->pos, "type mismatch");
+                EM_error(a->u.op.left->pos, "operand type mismatch (left)");
                 return expTy(Tr_nullCx(), Ty_Integer());
             }
             if (!convert_ty(right, resTy, &e2))
             {
-                EM_error(a->u.op.left->pos, "type mismatch");
+                EM_error(a->u.op.left->pos, "operand type mismatch (right)");
                 return expTy(Tr_nullCx(), Ty_Integer());
             }
             switch (oper) 
@@ -503,7 +513,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
           expty exp, body;
           exp = transExp(level, venv, tenv, a->u.whilee.test, breaklbl);
           if (exp.ty->kind != Ty_long)
-            EM_error(a->u.whilee.test->pos, "expression must be integer");
+            EM_error(a->u.whilee.test->pos, "while expression must be integer");
   
           Temp_label whilebreak = Temp_newlabel();
   
@@ -584,10 +594,8 @@ static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
 }
 
 /* Type list generation of a sub or function */
-static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList params, int *numParams) 
+static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList params) 
 {
-    *numParams = 0;
-
     Ty_tyList tys = NULL, last_tys = NULL;
     for (A_param param = params->first; param; param = param->next) 
     {
@@ -608,7 +616,6 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
             last_tys->tail = Ty_TyList(ty, NULL);
             last_tys = last_tys->tail;
         }
-        *numParams = *numParams + 1;
     }
     return tys;
 }
@@ -627,8 +634,11 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
                 case Ty_string:
                     fsym = S_Symbol("_lowlevel_puts");
                     break;
+                case Ty_integer:
+                    fsym = S_Symbol("_puts2"); 
+                    break;
                 case Ty_long:
-                    fsym = S_Symbol("_putdec"); 
+                    fsym = S_Symbol("_puts4"); 
                     break;
                 default:
                     EM_error(stmt->pos, "unsupported type in print expression list.");
@@ -661,7 +671,10 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             expty convexp;
 
             if (!convert_ty(exp, var.ty, &convexp))
-                EM_error(stmt->pos, "type mismtach.");
+            {
+                EM_error(stmt->pos, "type mismatch (assign).");
+                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+            }
 
             return expTy(Tr_assignExp(var.exp, convexp.exp, var.ty), Ty_Void());
         }
@@ -679,11 +692,20 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             expty conv_from_exp, conv_to_exp, conv_step_exp;
 
             if (!convert_ty(from_exp, varty, &conv_from_exp))
-                EM_error(stmt->pos, "type mismtach (from expression).");
+            {
+                EM_error(stmt->pos, "type mismatch (from expression).");
+                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+            }
             if (!convert_ty(to_exp,   varty, &conv_to_exp))
-                EM_error(stmt->pos, "type mismtach (to expression).");
+            {
+                EM_error(stmt->pos, "type mismatch (to expression).");
+                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+            }
             if (!convert_ty(step_exp, varty, &conv_step_exp))
-                EM_error(stmt->pos, "type mismtach (step expression).");
+            {
+                EM_error(stmt->pos, "type mismatch (step expression).");
+                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+            }
 
             Temp_label forbreak = Temp_newlabel();
             expty body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak);
@@ -694,8 +716,8 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
         {
             expty test, then, elsee;
             test = transExp(level, venv, tenv, stmt->u.ifr.test, breaklbl);
-            if (test.ty->kind != Ty_long)
-                EM_error(stmt->u.ifr.test->pos, "expression must be integer");
+            if (test.ty->kind != Ty_integer)
+                EM_error(stmt->u.ifr.test->pos, "if expression must be integer (is %d)", test.ty->kind);
   
             then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, breaklbl);
             if (stmt->u.ifr.elseStmts != NULL)
@@ -714,8 +736,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
         {
             A_proc     proc       = stmt->u.proc;
             Ty_ty      resultTy   = proc->isFunction ? infer_var_type(S_name(proc->name)) : Ty_Void();
-            int        numParams;
-            Ty_tyList  formalTys  = makeParamTyList(level, tenv, proc->paramList, &numParams);
+            Ty_tyList  formalTys  = makeParamTyList(level, tenv, proc->paramList);
             S_scope    lenv;
 
             // if (S_look(venv, f->name)) // FIXME
@@ -725,7 +746,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
                 EM_error(proc->pos, "*** internal error: static subs/functions are not supported yet."); // FIXME
 
             Temp_label label      = Temp_namedlabel(S_name(proc->name));
-            E_enventry e          = E_FunEntry(Tr_newLevel(level, label, numParams), label, formalTys, resultTy);
+            E_enventry e          = E_FunEntry(Tr_newLevel(level, label, formalTys), label, formalTys, resultTy);
             S_enter(venv, proc->name, e);
 
             Tr_level funlv = e->u.fun.level;
@@ -777,13 +798,15 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             for (tl = proc->u.fun.formals, en = stmt->u.callr.args->first;
                  tl && en; tl = tl->tail, en = en->next) 
             {
+                expty conv_actual;
                 exp = transExp(level, venv, tenv, en->exp, breaklbl);
-                if (!compare_ty(tl->head, exp.ty)) 
+                if (!convert_ty(exp, tl->head, &conv_actual))
+                // if (!compare_ty(tl->head, exp.ty)) FIXME: remove
                 {
                     EM_error(en->exp->pos, "parameter type mismatch");
                     break;
                 }
-                explist = Tr_ExpList(exp.exp, explist);
+                explist = Tr_ExpList(conv_actual.exp, explist);
             }
   
             if (en)

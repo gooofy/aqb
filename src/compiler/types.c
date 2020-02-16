@@ -111,3 +111,22 @@ void TyList_print(Ty_tyList list)
     }
 }
 
+int Ty_size(Ty_ty t)
+{
+    switch (t->kind)
+    {
+        case Ty_integer:
+                 return 2;
+        case Ty_long:
+        case Ty_single:
+        case Ty_string: 
+        case Ty_array:
+        case Ty_record: 
+        case Ty_void:
+                 return 4;
+        case Ty_double:
+                 return 8;
+    }
+    return 4;
+}
+

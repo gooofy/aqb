@@ -4,6 +4,7 @@
 #include "tree.h"
 #include "temp.h"
 #include "assem.h"
+#include "types.h"
 
 /* declaration for frames */
 typedef struct F_frame_ *F_frame;
@@ -12,8 +13,9 @@ typedef struct F_access_ *F_access;
 typedef struct F_accessList_ *F_accessList;
 struct F_accessList_ {F_access head; F_accessList tail;};
 
-int F_accessOffset(F_access a);
+int       F_accessOffset(F_access a);
 Temp_temp F_accessReg(F_access a);
+Ty_ty     F_accessType(F_access a);
 
 F_accessList F_AccessList(F_access head, F_accessList tail);
 
@@ -42,15 +44,8 @@ extern Temp_map F_tempMap;
 Temp_tempList F_registers(void);
 string        F_getlabel(F_frame frame);
 T_exp         F_Exp(F_access acc, T_exp framePtr);
-#if 0
-T_exp F_ExpWithStaticLink(F_access acc, T_exp staticLink);
-T_exp F_FPExp(T_exp framePtr);
-T_exp F_upperStaticLinkExp(T_exp staticLink);
-T_exp F_staticLinkExp(T_exp framePtr);
-T_exp F_staticLink2FP(T_exp staticLink);
-#endif
 
-F_access      F_allocLocal(F_frame f);
+F_access      F_allocLocal(F_frame f, Ty_ty ty);
 F_accessList  F_formals(F_frame f);
 Temp_label    F_name(F_frame f);
 
@@ -73,7 +68,7 @@ Temp_temp     F_D7(void);
 Temp_tempList F_callersaves(void);
 Temp_tempList F_calleesaves(void);
 
-F_frame       F_newFrame(Temp_label name, int num_formals, bool global);
+F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys, bool global);
 T_exp         F_externalCall(string s, T_expList args);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);

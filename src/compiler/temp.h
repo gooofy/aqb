@@ -6,8 +6,11 @@
 #ifndef TEMP_H
 #define TEMP_H
 
+#include "types.h"
+
 typedef struct Temp_temp_ *Temp_temp;
-Temp_temp Temp_newtemp(void);
+Temp_temp Temp_newtemp(Ty_ty ty);
+Ty_ty Temp_ty(Temp_temp t);
 
 typedef struct Temp_tempList_ *Temp_tempList;
 struct Temp_tempList_ { Temp_temp head; Temp_tempList tail;};

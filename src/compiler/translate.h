@@ -22,9 +22,9 @@ Tr_accessList Tr_accessListTail(Tr_accessList al);
 
 Tr_level      Tr_global(void);
 
-Tr_level      Tr_newLevel(Tr_level parent, Temp_label name, int num_formals);
+Tr_level      Tr_newLevel(Tr_level parent, Temp_label name, Ty_tyList formalTys);
 Tr_accessList Tr_formals(Tr_level level);
-Tr_access     Tr_allocLocal(Tr_level level);
+Tr_access     Tr_allocLocal(Tr_level level, Ty_ty ty);
 
 void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals);
 
@@ -55,7 +55,7 @@ Tr_exp        Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
 Tr_exp        Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
 Tr_exp        Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right);
 Tr_exp        Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee);
-Tr_exp        Tr_castExp(T_castOp op, Tr_exp exp);
+Tr_exp        Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty);
 
 #if 0
 Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl);

@@ -87,11 +87,24 @@ T_exp T_Binop(T_binOp op, T_exp left, T_exp right)
  return p;
 }
  
-T_exp T_Mem(T_exp exp)
-{T_exp p = (T_exp) checked_malloc(sizeof *p);
- p->kind=T_MEM;
- p->u.MEM=exp;
- return p;
+T_exp T_MemS4(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind  = T_MEMS4;
+    p->u.MEM = exp;
+
+    return p;
+}
+ 
+T_exp T_MemS2(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind  = T_MEMS2;
+    p->u.MEM = exp;
+
+    return p;
 }
  
 T_exp T_Temp(Temp_temp temp)
@@ -147,13 +160,22 @@ T_exp T_Call(T_exp fun, T_expList args)
     return p;
 }
 
-T_exp T_Cast(T_castOp op, T_exp exp)
+T_exp T_CastS4S2(T_exp exp)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind       = T_CAST;
-    p->u.CAST.op  = op;
-    p->u.CAST.exp = exp;
+    p->kind    = T_CASTS4S2;
+    p->u.CAST  = exp;
+
+    return p;
+}
+
+T_exp T_CastS2S4(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind    = T_CASTS2S4;
+    p->u.CAST  = exp;
 
     return p;
 }

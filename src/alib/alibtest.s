@@ -32,24 +32,24 @@ _main:
     move.l (sp)+,d1
     move.l (sp)+,d0
 
-# test putdec
+# test puts4
 
     move.l d0,-(sp)
     move.l d1,-(sp)
     move.l #1987, d6
     move.l d6,-(sp)
-    jsr _putdec
+    jsr _puts4
     add.l #4, sp
     move.l (sp)+,d1
     move.l (sp)+,d0
 
-# test putdec
+# test puts2
 
     move.l d0,-(sp)
     move.l d1,-(sp)
-    move.l #42, d6
+    move.w #1987, d6
     move.l d6,-(sp)
-    jsr _putdec
+    jsr _puts4
     add.l #4, sp
     move.l (sp)+,d1
     move.l (sp)+,d0

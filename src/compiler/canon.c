@@ -61,7 +61,7 @@ static T_stm reorder(expRefList rlist)
     {
         if ((*rlist->head)->kind==T_CALL) 
         {
-            Temp_temp t = Temp_newtemp();
+            Temp_temp t = Temp_newtemp(Ty_Long());
             *rlist->head = T_Eseq(T_MoveS4(T_Temp(t),*rlist->head),T_Temp(t));
             return reorder(rlist);
         }
@@ -76,7 +76,7 @@ static T_stm reorder(expRefList rlist)
             } 
             else 
             {
-                Temp_temp t = Temp_newtemp();
+                Temp_temp t = Temp_newtemp(Ty_Long());
                 *rlist->head=T_Temp(t);
                 return seq(hd.s, seq(T_MoveS4(T_Temp(t),hd.e), s));
             }
@@ -111,7 +111,8 @@ static struct stmExp do_exp(T_exp exp)
             return StmExp(reorder(ExpRefList(&exp->u.BINOP.left, 
                      ExpRefList(&exp->u.BINOP.right, NULL))),
                 exp);
-        case T_MEM: 
+        case T_MEMS4: 
+        case T_MEMS2: 
             return StmExp(reorder(ExpRefList(&exp->u.MEM, NULL)), exp);
         case T_ESEQ:
         {
@@ -120,8 +121,11 @@ static struct stmExp do_exp(T_exp exp)
         }
         case T_CALL:    
             return StmExp(reorder(get_call_rlist(exp)), exp);
+        case T_CASTS4S2: 
+        case T_CASTS2S4: 
+            return StmExp(reorder(ExpRefList(&exp->u.CAST, NULL)), exp);
         default:
-          return StmExp(reorder(NULL), exp);
+            return StmExp(reorder(NULL), exp);
     }
 }
 
@@ -143,7 +147,7 @@ static T_stm do_stm(T_stm stm)
                 return seq(reorder(get_call_rlist(stm->u.MOVE.src)), stm);
             else if (stm->u.MOVE.dst->kind == T_TEMP)
                 return seq(reorder(ExpRefList(&stm->u.MOVE.src, NULL)), stm);
-            else if (stm->u.MOVE.dst->kind == T_MEM)
+            else if ((stm->u.MOVE.dst->kind == T_MEMS4) || (stm->u.MOVE.dst->kind == T_MEMS2))
                 return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM, 
                      ExpRefList(&stm->u.MOVE.src, NULL))), stm);
             else if (stm->u.MOVE.dst->kind == T_ESEQ) {

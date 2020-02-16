@@ -13,37 +13,50 @@
 #include "temp.h"
 #include "table.h"
 
-struct Temp_temp_ {int num;};
+struct Temp_temp_ {int num; Ty_ty ty;};
 
 string Temp_labelstring(Temp_label s)
-{return S_name(s);
+{
+    return S_name(s);
 }
 
 static int labels = 0;
 
 Temp_label Temp_newlabel(void)
-{char buf[100];
- sprintf(buf,"L%d",labels++);
- return Temp_namedlabel(String(buf));
+{
+    char buf[100];
+    sprintf(buf,"L%d",labels++);
+    return Temp_namedlabel(String(buf));
 }
 
 /* The label will be created only if it is not found. */
 Temp_label Temp_namedlabel(string s)
-{return S_Symbol(s);
+{
+    return S_Symbol(s);
 }
 
 static int temps = 100;
 
-Temp_temp Temp_newtemp(void)
-{Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
- p->num=temps++;
- {char r[16];
-  sprintf(r, "%d", p->num);
-  Temp_enter(Temp_name(), p, String(r));
- }
- return p;
+Temp_temp Temp_newtemp(Ty_ty ty)
+{
+    Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
+
+    p->ty  = ty;
+    p->num = temps++;
+
+    {
+        char r[16];
+        sprintf(r, "%d", p->num);
+        Temp_enter(Temp_name(), p, String(r));
+    }
+
+    return p;
 }
 
+Ty_ty Temp_ty(Temp_temp t)
+{
+    return t->ty;
+}
 
 
 struct Temp_map_ {TAB_table tab; Temp_map under;};

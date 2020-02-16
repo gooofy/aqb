@@ -43,10 +43,16 @@ S_scope E_base_venv(void)
               Temp_namedlabel("_lowlevel_puts"),
               Ty_TyList(Ty_String(), NULL),
               Ty_Void()));
-    S_enter(t, S_Symbol("_putdec"),
+    S_enter(t, S_Symbol("_puts2"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_putdec"),
+              Temp_namedlabel("_puts2"),
+              Ty_TyList(Ty_Integer(), NULL),
+              Ty_Void()));
+    S_enter(t, S_Symbol("_puts4"),
+            E_FunEntry(
+              Tr_global(),
+              Temp_namedlabel("_puts2"),
               Ty_TyList(Ty_Long(), NULL),
               Ty_Void()));
     S_enter(t, S_Symbol("_putnl"),
