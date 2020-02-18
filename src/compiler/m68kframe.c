@@ -95,12 +95,25 @@ F_frame F_newFrame(Temp_label name, Ty_tyList formalTys, bool global) {
     // Local variables start from -4(a4/a5) downwards
     int offset = 8;
     F_accessList formals = NULL;
-    
+    F_accessList flast = NULL;
+
     for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
     {
-        formals = F_AccessList(InFrame(offset, tyl->head), formals);
-        // offset += Ty_size(tyl->head);
-        offset += 4; // gcc seems to push 4 bytes regardless of type (int, long, ...)
+        int size = Ty_size(tyl->head);
+        // gcc seems to push 4 bytes regardless of type (int, long, ...)
+        offset += 4-size;
+        if (flast)
+        {
+            flast->tail = F_AccessList(InFrame(offset, tyl->head), NULL);
+            flast = flast->tail;
+        }
+        else 
+        {
+            formals = F_AccessList(InFrame(offset, tyl->head), NULL);
+            flast = formals;
+        }
+        offset += size;
+        /// offset += 4; // gcc seems to push 4 bytes regardless of type (int, long, ...)
     }
   
     f->formals       = formals;

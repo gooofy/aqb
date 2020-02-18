@@ -253,6 +253,19 @@ static Temp_temp munchExp(T_exp e)
                 return r;
 
             } 
+            else if (e->u.BINOP.op == T_s2mul)
+            {
+                /* BINOP(S2MUL,e1,e2) */
+                T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
+                Temp_temp r = Temp_newtemp(resty);
+                Temp_temp r1 = munchExp(e1);
+                Temp_temp r2 = munchExp(e2);
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
+                emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
+                sprintf(inst2, "muls.w `s0, `d0\n");
+                emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
+                return r;
+            } 
             else if ( (e->u.BINOP.op == T_s4div) || (e->u.BINOP.op == T_s4intDiv) )
             {
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
@@ -284,6 +297,21 @@ static Temp_temp munchExp(T_exp e)
                 emit(AS_Move(inst2, L(r, NULL), L(F_RV(), NULL)));
                 return r;
             } 
+            else if ((e->u.BINOP.op == T_s2div) || (e->u.BINOP.op == T_s2intDiv))
+            {
+                /* BINOP(S2DIV,e1,e2) */
+                T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
+                Temp_temp r = Temp_newtemp(resty);
+                Temp_temp r1 = munchExp(e1);
+                Temp_temp r2 = munchExp(e2);
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
+                emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
+                sprintf(inst2, "andi.l #0x0000ffff, `d0\n");
+                emit(AS_Oper(inst2, L(r, NULL), L(r, NULL), NULL));
+                sprintf(inst3, "divs.w `s0, `d0\n");
+                emit(AS_Oper(inst3, L(r, NULL), L(r2, L(r, NULL)), NULL));
+                return r;
+            } 
             else if (e->u.BINOP.op == T_s4mod)
             {
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
@@ -296,6 +324,21 @@ static Temp_temp munchExp(T_exp e)
                 munchCallerRestore(l);
                 sprintf(inst2, "move.l `s0, `d0\n");
                 emit(AS_Move(inst2, L(r, NULL), L(F_RV(), NULL)));
+                return r;
+            } 
+            else if (e->u.BINOP.op == T_s2mod)
+            {
+                /* BINOP(S2MOD,e1,e2) */
+                T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
+                Temp_temp r = Temp_newtemp(resty);
+                Temp_temp r1 = munchExp(e1);
+                Temp_temp r2 = munchExp(e2);
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
+                emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
+                sprintf(inst2, "divs.w `s0, `d0\n");
+                emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
+                sprintf(inst3, "swap `d0\n");
+                emit(AS_Oper(inst3, L(r, NULL), L(r, NULL), NULL));
                 return r;
             } 
             else if ( (e->u.BINOP.op == T_s4neg) || (e->u.BINOP.op == T_s2neg) )
@@ -321,6 +364,20 @@ static Temp_temp munchExp(T_exp e)
                 emit(AS_Oper("jsr ___pow_i4\n", L(F_RV(), F_callersaves()), l, NULL));
                 munchCallerRestore(l);
                 sprintf(inst2, "move.l `s0, `d0\n");
+                emit(AS_Move(inst2, L(r, NULL), L(F_RV(), NULL)));
+                return r;
+            } 
+            else if (e->u.BINOP.op == T_s2power) 
+            {
+                T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
+                Temp_temp r = Temp_newtemp(resty);
+
+                munchCallerSave();
+                T_expList args  = T_ExpList(e1, T_ExpList(e2, NULL));
+                Temp_tempList l = munchArgs(0, args);
+                emit(AS_Oper("jsr ___pow_i2\n", L(F_RV(), F_callersaves()), l, NULL));
+                munchCallerRestore(l);
+                sprintf(inst2, "move.w `s0, `d0\n");
                 emit(AS_Move(inst2, L(r, NULL), L(F_RV(), NULL)));
                 return r;
             } 

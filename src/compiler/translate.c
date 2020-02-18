@@ -459,12 +459,12 @@ Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
         case Ty_integer:
             switch (o) 
             {
-                case A_eqOp:   op = T_s4eq;   break;
-                case A_neqOp:  op = T_s4ne;   break;
-                case A_ltOp:   op = T_s4lt;   break;
-                case A_leOp:   op = T_s4le;   break;
-                case A_gtOp:   op = T_s4gt;   break;
-                case A_geOp:   op = T_s4ge;   break;
+                case A_eqOp:   op = T_s2eq;   break;
+                case A_neqOp:  op = T_s2ne;   break;
+                case A_ltOp:   op = T_s2lt;   break;
+                case A_leOp:   op = T_s2le;   break;
+                case A_gtOp:   op = T_s2gt;   break;
+                case A_geOp:   op = T_s2ge;   break;
                 default:
                     EM_error(0, "*** translate.c: internal error: unhandled conditional operation: %d", o);
             }
@@ -714,6 +714,7 @@ Tr_exp Tr_letExp(Tr_expList el, Tr_exp body) {
 Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
                   Temp_label name, Tr_expList rawel) 
 {
+#if 0
     T_expList el = NULL, last_el = NULL;
     for (; rawel; rawel = rawel->tail) 
     {
@@ -723,6 +724,13 @@ Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
             last_el->tail = T_ExpList(unEx(rawel->head), NULL);
             last_el = last_el->tail;
         }
+    }
+#endif
+    // cdecl calling convention (right-to-left order)
+    T_expList el = NULL;
+    for (; rawel; rawel = rawel->tail) 
+    {
+        el = T_ExpList(unEx(rawel->head), el);
     }
   
     return Tr_Ex(T_Call(T_Name(name), el));

@@ -1,20 +1,28 @@
 
-SUB assertTrue ( b%, msg$ )
-    IF b% = 0 THEN
-        PRINT "*** ASSERTION FAILED:", msg$
+SUB assertEquals ( a%, b%, msg$ )
+    IF a% <> b% THEN
+        PRINT "*** ASSERTION FAILED:", msg$, a%, "vs", b%
     ELSE
         PRINT "    ASSERTION OK    :", msg$
     END IF
+    '  PRINT a%, b%, msg$
 END SUB
 
-SUB assertFalse ( b%, msg$ )
-    IF b% <> 0 THEN
-        PRINT "*** ASSERTION FAILED:", msg$
-    ELSE
-        PRINT "    ASSERTION OK    :", msg$
-    END IF
-END SUB
-
+' SUB assertTrue ( b%, msg$ )
+'     IF b% = 0 THEN
+'         PRINT "*** ASSERTION FAILED:", msg$
+'     ELSE
+'         PRINT "    ASSERTION OK    :", msg$
+'     END IF
+' END SUB
+' 
+' SUB assertFalse ( b%, msg$ )
+'     IF b% <> 0 THEN
+'         PRINT "*** ASSERTION FAILED:", msg$
+'     ELSE
+'         PRINT "    ASSERTION OK    :", msg$
+'     END IF
+' END SUB
 
 a% = 23
 b% = 42
@@ -23,13 +31,46 @@ b% = 42
 ' A_addOp, A_subOp,    A_mulOp, A_divOp,
 ' A_expOp, A_intDivOp, A_modOp, A_negOp
 
-assertTrue  (a%  +  b%) =    65, "+"
-assertTrue  (a%  -  b%) =   -19, "-"
+assertEquals a% + b%,  65, "+"
+assertEquals a% - b%, -19, "-"
+assertEquals a% * b%, 966, "*"
+assertEquals b% / a%,   1, "/"
+
+' assertTrue  (a%  +  b%) =    65, "+"
+' assertTrue  (a%  -  b%) =   -19, "-"
 ' assertTrue  (a%  *  b%) =   966, "*"
+' print a% * b%
 ' assertTrue  (b%  /  a%) =     1, "/"
+
+' c% = b% / a%
+' print 42/23
+' print c%
+' print 42/23
+' print b% / a%
+' 
+' a%=10
+' b%=2
+' print a%/b%
+' a% = 23
+' b% = 42
+' print b%/a%
+' print b%/a%
+' print b%/a%
+
+
+' c% = b%/a%
+' print c%
+' print a%
+' print b%
+' print 0
+' print 42
+
 ' assertTrue  (a%  ^   3) = 12167, "^"
+' print a% ^ 3
 ' assertTrue  (b%  \  a%) =     1, "\\"
+' print b% \ a%
 ' assertTrue  (b% MOD a%) =    19, "MOD"
+' print a% MOD b%
 
 ' logical operators
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp

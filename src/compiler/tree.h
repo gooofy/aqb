@@ -18,13 +18,13 @@ struct T_stmList_ {T_stm head; T_stmList tail;};
 typedef enum 
 {
     /* long ops (signed 4 byte operands) */
-    T_s4plus,  T_s4minus,  T_s4mul, T_s4div,
-    T_s4xor,   T_s4eqv,    T_s4imp, T_s4neg, T_s4not, T_s4and, T_s4or,
-    T_s4power, T_s4intDiv, T_s4mod,
+    T_s4plus=1,   T_s4minus,  T_s4mul, T_s4div,
+    T_s4xor,      T_s4eqv,    T_s4imp, T_s4neg, T_s4not, T_s4and, T_s4or,
+    T_s4power,    T_s4intDiv, T_s4mod,
     /* int ops  (signed 2 byte operands) */
-    T_s2plus,  T_s2minus,  T_s2mul, T_s2div,
-    T_s2xor,   T_s2eqv,    T_s2imp, T_s2neg, T_s2not, T_s2and, T_s2or,
-    T_s2power, T_s2intDiv, T_s2mod
+    T_s2plus=20,  T_s2minus,  T_s2mul, T_s2div,
+    T_s2xor,      T_s2eqv,    T_s2imp, T_s2neg, T_s2not, T_s2and, T_s2or,
+    T_s2power,    T_s2intDiv, T_s2mod
 } T_binOp;
 
 typedef enum  

@@ -43,27 +43,19 @@ void puts2(short num)
     lowlevel_puts(buf);
 }
 
-short baz (void);
-
-void bar(short a, short b, short c, short d, short e)
-{
-    puts2(a);
-    puts2(b);
-    puts2(c);
-    puts2(d);
-    puts2(e);
-}
+#if 0
+extern short bar(void);
 
 void foo(void)
 {
     short s, t;
 
-    s = baz();
-    t = baz();
+    s = bar();
+    t = bar();
 
-    puts2(s);
-    bar(s,t,3,4,5);
+    puts2(s/t);
 }
+#endif
 
 void puthex(int num)
 {
