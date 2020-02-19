@@ -432,11 +432,11 @@ static Temp_temp munchExp(T_exp e)
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.w `s0, `d0\n", isz);
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "not.w `s0\n", isz);
+                sprintf(inst2, "not.%s `s0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r, NULL), NULL));
-                sprintf(inst3, "or.w `s0, `d0\n", isz);
+                sprintf(inst3, "or.%s `s0, `d0\n", isz);
                 emit(AS_Oper(inst3, L(r, NULL), L(r2, L(r, NULL)), NULL));
                 return r;
             }
