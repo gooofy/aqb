@@ -72,6 +72,7 @@ static Temp_temp munchExp(T_exp e)
     char *inst = checked_malloc(sizeof(char) * 120);
     char *inst2 = checked_malloc(sizeof(char) * 120);
     char *inst3 = checked_malloc(sizeof(char) * 120);
+    char *inst4 = checked_malloc(sizeof(char) * 120);
     switch (e->kind) 
     {
         case T_MEMS4: 
@@ -306,7 +307,7 @@ static Temp_temp munchExp(T_exp e)
                 Temp_temp r2 = munchExp(e2);
                 sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "andi.l #0x0000ffff, `d0\n");
+                sprintf(inst2, "ext.l `d0\n");
                 emit(AS_Oper(inst2, L(r, NULL), L(r, NULL), NULL));
                 sprintf(inst3, "divs.w `s0, `d0\n");
                 emit(AS_Oper(inst3, L(r, NULL), L(r2, L(r, NULL)), NULL));
@@ -333,12 +334,14 @@ static Temp_temp munchExp(T_exp e)
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.%s `s0, `d0\n", isz);
+                sprintf(inst, "move.w `s0, `d0\n");
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "divs.w `s0, `d0\n");
-                emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
-                sprintf(inst3, "swap `d0\n");
-                emit(AS_Oper(inst3, L(r, NULL), L(r, NULL), NULL));
+                sprintf(inst2, "ext.l `d0\n");
+                emit(AS_Oper(inst2, L(r, NULL), L(r, NULL), NULL));
+                sprintf(inst3, "divs.w `s0, `d0\n");
+                emit(AS_Oper(inst3, L(r, NULL), L(r2, L(r, NULL)), NULL));
+                sprintf(inst4, "swap `d0\n");
+                emit(AS_Oper(inst4, L(r, NULL), L(r, NULL), NULL));
                 return r;
             } 
             else if ( (e->u.BINOP.op == T_s4neg) || (e->u.BINOP.op == T_s2neg) )
@@ -381,84 +384,84 @@ static Temp_temp munchExp(T_exp e)
                 emit(AS_Move(inst2, L(r, NULL), L(F_RV(), NULL)));
                 return r;
             } 
-            else if (e->u.BINOP.op == T_s4and) 
+            else if ((e->u.BINOP.op == T_s4and) || (e->u.BINOP.op == T_s2and))
             {
                 /* BINOP(AND,e1,e2) FIXME: take advantage of constant ops! */
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.l `s0, `d0\n");
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "and.l `s0, `d0\n");
+                sprintf(inst2, "and.%s `s0, `d0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
                 return r;
             } 
-            else if (e->u.BINOP.op == T_s4xor) 
+            else if ((e->u.BINOP.op == T_s4xor) || (e->u.BINOP.op == T_s2xor))
             {
                 /* BINOP(XOR,e1,e2) FIXME: take advantage of constant ops! */
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.l `s0, `d0\n");
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "eor.l `s0, `d0\n");
+                sprintf(inst2, "eor.%s `s0, `d0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
                 return r;
             } 
-            else if (e->u.BINOP.op == T_s4eqv) 
+            else if ((e->u.BINOP.op == T_s4eqv) || (e->u.BINOP.op == T_s2eqv))
             {
                 /* BINOP(EQV,e1,e2) FIXME: take advantage of constant ops! */
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.l `s0, `d0\n");
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "eor.l `s0, `d0\n");
+                sprintf(inst2, "eor.%s `s0, `d0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
-                sprintf(inst3, "not.l `d0\n");
+                sprintf(inst3, "not.%s `d0\n", isz);
                 emit(AS_Oper(inst3, L(r, NULL), L(r, NULL), NULL));
                 return r;
             }
-            else if (e->u.BINOP.op == T_s4imp) 
+            else if ((e->u.BINOP.op == T_s4imp) || (e->u.BINOP.op == T_s2imp))
             {
                 /* BINOP(IMP,e1,e2) FIXME: take advantage of constant ops! */
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.l `s0, `d0\n");
+                sprintf(inst, "move.w `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "not.l `s0\n");
+                sprintf(inst2, "not.w `s0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r, NULL), NULL));
-                sprintf(inst3, "or.l `s0, `d0\n");
+                sprintf(inst3, "or.w `s0, `d0\n", isz);
                 emit(AS_Oper(inst3, L(r, NULL), L(r2, L(r, NULL)), NULL));
                 return r;
             }
-            else if (e->u.BINOP.op == T_s4not) 
+            else if ((e->u.BINOP.op == T_s4not) || (e->u.BINOP.op == T_s2not))
             {
                 /* BINOP(NOT,e1,NULL) */
                 T_exp e1 = e->u.BINOP.left;
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
-                sprintf(inst, "move.l `s0, `d0\n");
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "not.l `d0\n");
+                sprintf(inst2, "not.%s `d0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r1, NULL), NULL));
                 return r;
             } 
-            else if (e->u.BINOP.op == T_s4or) 
+            else if ((e->u.BINOP.op == T_s4or) || (e->u.BINOP.op == T_s2or))
             {
                 /* BINOP(OR,e1,e2) FIXME: take advantage of constant ops! */
                 T_exp e1 = e->u.BINOP.left, e2 = e->u.BINOP.right;
                 Temp_temp r = Temp_newtemp(resty);
                 Temp_temp r1 = munchExp(e1);
                 Temp_temp r2 = munchExp(e2);
-                sprintf(inst, "move.l `s0, `d0\n");
+                sprintf(inst, "move.%s `s0, `d0\n", isz);
                 emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-                sprintf(inst2, "or.l `s0, `d0\n");
+                sprintf(inst2, "or.%s `s0, `d0\n", isz);
                 emit(AS_Oper(inst2, L(r, NULL), L(r2, L(r, NULL)), NULL));
                 return r;
             } 
