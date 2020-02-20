@@ -1,5 +1,5 @@
 
-#include "atoi.h"
+#include "astring.h"
 
 #define MAXBUF 40
 

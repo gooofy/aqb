@@ -17,7 +17,7 @@ all: _alib.a alibtest startup.o
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
-_alib.a: io.o lowlevel_io.o atoi.o math.o
+_alib.a: io.o lowlevel_io.o astring.o math.o
 	$(AR) -crs _alib.a $^
 
 alibtest: startup.o alibtest.o _alib.a 

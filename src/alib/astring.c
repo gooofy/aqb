@@ -1,7 +1,5 @@
-
-#define bool char
-#define TRUE 1
-#define FALSE 0
+#include "astring.h"
+#include "autil.h"
 
 /* A utility function to reverse a string  */
 static void reverse(char *str, int length) 
@@ -56,5 +54,4 @@ void itoa(int num, char* str, int base)
     // Reverse the string 
     reverse(str, i); 
 } 
-
 
