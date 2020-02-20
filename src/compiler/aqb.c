@@ -146,7 +146,7 @@ int main (int argc, char *argv[])
 	FILE           *sourcef;
     A_sourceProgram sourceProgram;
     F_fragList      frags, fl;
-    char            outfile[1024];
+    char            asmfn[1024];
     FILE           *out;
 
     printf("AQB V" VERSION "\n");
@@ -158,6 +158,17 @@ int main (int argc, char *argv[])
 	}
 
 	sourcefn = argv[1];
+    /* filename.bas -> filename.s */
+    {
+        int l = strlen(sourcefn);
+        if (l>1024)
+            l = 1024;
+        if (l<4)
+            l = 4;
+        strncpy(asmfn, sourcefn, 1024);
+        asmfn[l-3] = 's';
+        asmfn[l-2] = 0;
+    }
 
     /*
      * parsing
@@ -197,9 +208,7 @@ int main (int argc, char *argv[])
      * generate target assembly code
      */
 
-    /* convert the filename */
-    sprintf(outfile, "%s.s", argv[1]);
-    out = fopen(outfile, "w");
+    out = fopen(asmfn, "w");
 
     fprintf(out, ".globl _main\n\n");
     /* Chapter 8, 9, 10, 11 & 12 */

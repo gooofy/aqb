@@ -55,8 +55,13 @@ Mkfile.old
 dkms.conf
 
 .vscode/
-aqb
 src/alib/alibtest
 src/alib/io.s
 src/alib/old/
+src/compiler/aqb
+tests/*.bin
+tests/*.s
 
+# FIXME: cleanup. commit.
+doc/
+examples/
