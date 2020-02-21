@@ -17,10 +17,10 @@ all: _alib.a alibtest startup.o
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
-_alib.a: io.o lowlevel_io.o astring.o math.o
+_alib.a: io.o lowlevel_io.o astring.o math.o awindow.o aos.o autil.o
 	$(AR) -crs _alib.a $^
 
-alibtest: startup.o alibtest.o _alib.a 
+alibtest: startup.o alibtest.o clibtest.o _alib.a 
 	$(LD) $^ -o $@
 	cp $@ /home/guenter/media/emu/amiga/a500/hdd/system/x/
 	# $(CC) $(CFLAGS) $(CPPFLAGS) -mcrt=nix13 -O alibtest.c -o alibtest

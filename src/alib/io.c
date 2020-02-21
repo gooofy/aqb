@@ -1,9 +1,8 @@
 
 #include "astring.h"
+#include "io.h"
 
 #define MAXBUF 40
-
-void lowlevel_puts(char *str);
 
 void puts4(int num)
 {
@@ -11,17 +10,17 @@ void puts4(int num)
 
     if (num<0)
     {
-        lowlevel_puts("-");
+        aputs("-");
         num *= -1;
     }
     else
     {
-        lowlevel_puts(" ");
+        aputs(" ");
     }
 
     itoa(num, buf, 10);
 
-    lowlevel_puts(buf);
+    aputs(buf);
 }
 
 void puts2(short num)
@@ -30,17 +29,17 @@ void puts2(short num)
 
     if (num<0)
     {
-        lowlevel_puts("-");
+        aputs("-");
         num *= -1;
     }
     else
     {
-        lowlevel_puts(" ");
+        aputs(" ");
     }
 
     itoa(num, buf, 10);
 
-    lowlevel_puts(buf);
+    aputs(buf);
 }
 
 #if 0
@@ -63,7 +62,7 @@ void puthex(int num)
 
     itoa(num, buf, 16);
 
-    lowlevel_puts(buf);
+    aputs(buf);
 }
 
 void putbin(int num)
@@ -72,6 +71,6 @@ void putbin(int num)
 
     itoa(num, buf, 2);
 
-    lowlevel_puts(buf);
+    aputs(buf);
 }
 

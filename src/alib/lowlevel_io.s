@@ -6,8 +6,8 @@ LVOCloseLibrary = -414
 LVOOutput       = -60
 LVOWrite        = -48
 
-    .globl  _lowlevel_puts
-_lowlevel_puts:
+    .globl  _aputs
+_aputs:
     link a5, #0
     move.l d2,-(sp)
     move.l d3,-(sp)

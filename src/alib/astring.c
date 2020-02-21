@@ -1,6 +1,9 @@
 #include "astring.h"
 #include "autil.h"
 
+#include <exec/memory.h>
+#include <clib/exec_protos.h>
+
 /* A utility function to reverse a string  */
 static void reverse(char *str, int length) 
 { 
@@ -19,7 +22,7 @@ static void reverse(char *str, int length)
 void itoa(int num, char* str, int base) 
 { 
     int i = 0; 
-    bool isNegative = FALSE; 
+    BOOL isNegative = FALSE; 
   
     /* Handle 0 explicitely, otherwise empty string is printed for 0 */
     if (num == 0) 
@@ -54,4 +57,23 @@ void itoa(int num, char* str, int base)
     // Reverse the string 
     reverse(str, i); 
 } 
+
+ULONG astrlen(char *str)
+{
+    int l = 0;
+    while (*str)
+    {
+        str++;
+        l++;
+    }
+    return l;
+}
+
+char *astrdup(char* str)
+{
+    ULONG l = astrlen(str);
+    char *str2 = ralloc(l+1, MEMF_ANY);
+    CopyMem((APTR)str, (APTR)str2, l+1);
+    return str2;
+}
 

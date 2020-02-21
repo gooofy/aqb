@@ -37,10 +37,10 @@ S_scope E_base_tenv(void) {
 S_scope E_base_venv(void) 
 {
     S_scope t = S_beginScope(NULL);
-    S_enter(t, S_Symbol("_lowlevel_puts"),
+    S_enter(t, S_Symbol("_aputs"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_lowlevel_puts"),
+              Temp_namedlabel("_aputs"),
               Ty_TyList(Ty_String(), NULL),
               Ty_Void()));
     S_enter(t, S_Symbol("_puts2"),

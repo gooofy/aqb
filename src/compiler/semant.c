@@ -632,7 +632,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             switch (exp.ty->kind)
             {
                 case Ty_string:
-                    fsym = S_Symbol("_lowlevel_puts");
+                    fsym = S_Symbol("_aputs");
                     break;
                 case Ty_integer:
                     fsym = S_Symbol("_puts2"); 
