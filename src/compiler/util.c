@@ -24,6 +24,17 @@ string String(const char *s)
     return p;
 }
 
+string strconcat(const char *s1, const char*s2)
+{
+    int l1 = strlen(s1);
+    int l2 = strlen(s2);
+    char *buf = checked_malloc(l1+l2+1);
+    memcpy(buf, s1, l1);
+    memcpy(buf+l1, s2, l2);
+    buf[l1+l2] = 0;
+    return buf;
+}
+
 U_list U_List(void)
 {
     U_list list = checked_malloc(sizeof(*list));

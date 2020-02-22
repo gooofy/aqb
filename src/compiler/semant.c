@@ -397,12 +397,6 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 }
                 case A_eqOp:
                 case A_neqOp: 
-                {
-                    if (left.ty->kind == Ty_string)
-                        return expTy(Tr_strOpExp(oper, e1.exp, e2.exp), Ty_Integer());
-                    else
-                        return expTy(Tr_condOpExp(oper, e1.exp, e2.exp, resTy), Ty_Integer());
-                }
                 case A_ltOp:
                 case A_leOp:
                 case A_gtOp:
@@ -733,45 +727,62 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             return expTy(Tr_ifExp(test.exp, then.exp, elsee.exp), then.ty);
         }
         case A_procStmt: 
+        case A_procDeclStmt: 
         {
             A_proc     proc       = stmt->u.proc;
             Ty_ty      resultTy   = proc->isFunction ? infer_var_type(S_name(proc->name)) : Ty_Void();
             Ty_tyList  formalTys  = makeParamTyList(level, tenv, proc->paramList);
             S_scope    lenv;
+            E_enventry edecl;
 
-            // if (S_look(venv, f->name)) // FIXME
-            //     EM_error(f->pos, "two functions have the same name");
+            edecl = S_look(venv, proc->name);
+            if (edecl) 
+            {
+                if ( (stmt->kind == A_procDeclStmt) || !edecl->u.fun.forward)
+                {
+                    EM_error(proc->pos, "Proc %s declared more than once.", S_name(proc->name));
+                    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                }
+                EM_error(proc->pos, "*** internal error: forward declaration of procs is not implemented yet."); // FIXME
+                assert(0);
+            }
    
             if (proc->isStatic)
+            {
                 EM_error(proc->pos, "*** internal error: static subs/functions are not supported yet."); // FIXME
+                assert(0);
+            }
 
-            Temp_label label      = Temp_namedlabel(S_name(proc->name));
-            E_enventry e          = E_FunEntry(Tr_newLevel(level, label, formalTys), label, formalTys, resultTy);
+            Temp_label label      = Temp_namedlabel(strconcat("_", S_name(proc->name)));
+            E_enventry e          = E_FunEntry(Tr_newLevel(level, label, formalTys), label, formalTys, resultTy, stmt->kind==A_procDeclStmt);
             S_enter(venv, proc->name, e);
 
-            Tr_level funlv = e->u.fun.level;
-    
-            lenv = S_beginScope(venv);
+            if (!e->u.fun.forward)
             {
-                Tr_accessList acl = Tr_formals(funlv);
-                A_param param;
-                Ty_tyList t;
-                for (param = proc->paramList->first, t = e->u.fun.formals;
-                     param; param = param->next, t = t->tail, acl = Tr_accessListTail(acl))
-                    S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head));
+                Tr_level funlv = e->u.fun.level;
+        
+                lenv = S_beginScope(venv);
+                {
+                    Tr_accessList acl = Tr_formals(funlv);
+                    A_param param;
+                    Ty_tyList t;
+                    for (param = proc->paramList->first, t = e->u.fun.formals;
+                         param; param = param->next, t = t->tail, acl = Tr_accessListTail(acl))
+                        S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head));
+                }
+        
+                expty body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl);
+                if (!compare_ty(body.ty, e->u.fun.result))
+                {
+                    if (e->u.fun.result->kind == Ty_void)
+                        EM_error(proc->pos, "procedure returns value");
+                    else 
+                        EM_error(proc->pos, "function body return type mismatch: %s", S_name(proc->name));
+                }
+                S_endScope(lenv);
+        
+                Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv));
             }
-    
-            expty body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl);
-            if (!compare_ty(body.ty, e->u.fun.result))
-            {
-                if (e->u.fun.result->kind == Ty_void)
-                    EM_error(proc->pos, "procedure returns value");
-                else 
-                    EM_error(proc->pos, "function body return type mismatch: %s", S_name(proc->name));
-            }
-            S_endScope(lenv);
-    
-            Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv));
 
             break;
         }
@@ -781,13 +792,13 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             if (proc == NULL) 
             {
                 EM_error(stmt->pos, "undefined sub %s", S_name(stmt->u.callr.func));
-                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                break;
             }
   
             if (proc->kind != E_funEntry) 
             {
                 EM_error(stmt->pos, "%s is not a sub", S_name(stmt->u.callr.func));
-                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                break;
             }
   
             /* check parameter types */
@@ -801,10 +812,9 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
                 expty conv_actual;
                 exp = transExp(level, venv, tenv, en->exp, breaklbl);
                 if (!convert_ty(exp, tl->head, &conv_actual))
-                // if (!compare_ty(tl->head, exp.ty)) FIXME: remove
                 {
                     EM_error(en->exp->pos, "parameter type mismatch");
-                    break;
+                    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
                 }
                 explist = Tr_ExpList(conv_actual.exp, explist);
             }
@@ -819,6 +829,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
+            assert(0);
     }
     return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
 }

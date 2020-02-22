@@ -9,9 +9,9 @@ void clibtestmain (void)
 {
     int i;
 
-    _awindow_open(1, "AQB Main Window", 0, 0, 619, 189, AW_FLAG_SIZE | AW_FLAG_DRAG | AW_FLAG_DEPTH | AW_FLAG_CLOSE | AW_FLAG_REFRESH, 0);
+    window(1, "AQB Main Window", 0, 0, 619, 189, AW_FLAG_SIZE | AW_FLAG_DRAG | AW_FLAG_DEPTH | AW_FLAG_CLOSE | AW_FLAG_REFRESH, 0);
 
-    _autil_sleep(5);
+    delay(5);
 
     _aio_puts("clibtestmain:\n");
     _aio_puts("puts4: "); _aio_puts4(12345678); _aio_putnl();

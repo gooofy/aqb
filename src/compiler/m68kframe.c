@@ -432,12 +432,12 @@ T_exp F_upperStaticLinkExp(T_exp staticLink) {
 T_exp F_staticLink2FP(T_exp staticLink) {
   return T_Binop(T_minus, T_Mem(staticLink), T_Const(2 * F_wordSize));
 }
-#endif
 
 T_exp F_externalCall(string s, T_expList args) 
 {
     return T_Call(T_Name(Temp_namedlabel(s)), args);
 }
+#endif
 
 static void F_printAccessList(FILE* out, F_accessList al)
 {

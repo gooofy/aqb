@@ -69,7 +69,7 @@ Temp_tempList F_callersaves(void);
 Temp_tempList F_calleesaves(void);
 
 F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys, bool global);
-T_exp         F_externalCall(string s, T_expList args);
+// T_exp         F_externalCall(string s, T_expList args);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);
 

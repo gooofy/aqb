@@ -916,6 +916,9 @@ static bool stmtProcBegin(void)
 
     S_getsym(); // consume "SUB" | "FUNCTION"
 
+    if (S_token != S_IDENT)
+        return EM_err("identifier expected here.");
+
     if (!procHeader(pos, isFunction, &proc))
         return FALSE;
 
@@ -1030,10 +1033,6 @@ static bool stmtIdent(void)
     return TRUE;
 }
 
-// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader 
-// FIXME
-
-
 // statementBody ::= ( dim | doHeader | else | endIf | forBegin | forEnd | if | whileHeader | loopOrWend | 
 //                     circle |cls | comment | data | end | exit | goSub | goto | input | print | randomize | read | return | screen | stop | trace
 //                     assignmentStmt )
@@ -1082,7 +1081,39 @@ static bool statement(void)
     }
 }
 
-// bodyStatement ::= ( optionStmt | statement | subDefinition | functionDefinition )
+// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader 
+static bool stmtProcDecl(void)
+{
+    A_proc   proc;
+    A_pos    pos = S_getpos();
+    bool     isFunction;
+
+    S_getsym(); // consume "DECLARE"
+
+    switch (S_token)
+    {
+        case S_FUNCTION:
+            isFunction = TRUE;
+            break;
+        case S_SUB:
+            isFunction = FALSE;
+            break;
+        default:
+            return EM_err("SUB or FUNCTION expected here.");
+    }
+
+    S_getsym(); // consume "SUB" | "FUNCTION"
+
+    if (!procHeader(pos, isFunction, &proc))
+        return FALSE;
+
+    hashmap_put(declared_procs, S_name(proc->name), proc);
+    A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
+
+    return TRUE;
+}
+
+// bodyStatement ::= ( optionStmt | procBegin | procDecl )
 static bool bodyStatement(A_sourceProgram sourceProgram)
 {
     switch (S_token)
@@ -1090,6 +1121,8 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
         case S_SUB:
         case S_FUNCTION:
             return stmtProcBegin();
+        case S_DECLARE:
+            return stmtProcDecl();
         case S_OPTION:
             return EM_err ("Sorry, option statement is not supported yet."); // FIXME
         case S_EOF:
@@ -1144,6 +1177,4 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
 
     return sourceProgramBody(sourceProgram);
 }
-
-
 

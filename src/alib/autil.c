@@ -26,7 +26,8 @@ void _autil_shutdown(void)
     if (g_rl) FreeRemember(&g_rl, TRUE);
 }
 
-void _autil_sleep(ULONG seconds)
+// BASIC: DELAY <seconds>
+void delay(ULONG seconds)
 {
     Delay(seconds * 50L);
 }

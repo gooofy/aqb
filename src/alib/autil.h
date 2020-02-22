@@ -18,7 +18,7 @@ extern USHORT g_errcode;
 
 void _autil_exit(void); // implemented in startup.s
 
-void _autil_sleep(ULONG seconds);
+void delay(ULONG seconds);
 
 #if 0  // exec has these already
 

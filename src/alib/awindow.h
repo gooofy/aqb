@@ -11,7 +11,7 @@
 
 void _awindow_init(void);
 
-BOOL _awindow_open(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id);
+BOOL window(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id);
 
 void _awindow_shutdown(void);
 

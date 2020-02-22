@@ -104,6 +104,17 @@ A_stmt A_ProcStmt (A_pos pos, A_proc proc)
     return p;
 }
 
+A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind         = A_procDeclStmt;
+    p->pos          = pos;
+    p->u.proc       = proc;
+
+    return p;
+}
+
 A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
 {
     A_stmt p = checked_malloc(sizeof(*p));

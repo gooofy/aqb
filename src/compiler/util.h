@@ -12,6 +12,8 @@ void *checked_malloc(int);
 
 string String(const char *); // allocs mem + copies string
 
+string strconcat(const char *s1, const char*s2); // allocates mem for concatenated string
+
 /* generic doubly linked list */
 
 typedef struct U_listNode_ *U_listNode;

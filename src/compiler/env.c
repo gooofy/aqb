@@ -14,13 +14,14 @@ E_enventry E_VarEntry(Tr_access access, Ty_ty ty) {
 }
 
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
-                    Ty_tyList formals, Ty_ty result) {
+                    Ty_tyList formals, Ty_ty result, bool forward) {
     E_enventry p = checked_malloc(sizeof(*p));
     p->kind          = E_funEntry;
     p->u.fun.level   = level;
     p->u.fun.label   = label;
     p->u.fun.formals = formals;
     p->u.fun.result  = result;
+    p->u.fun.forward = forward;
     return p;
 }
 
@@ -42,31 +43,31 @@ S_scope E_base_venv(void)
               Tr_global(),
               Temp_namedlabel("__aio_puts"),
               Ty_TyList(Ty_String(), NULL),
-              Ty_Void()));
+              Ty_Void(), TRUE));
     S_enter(t, S_Symbol("__aio_puts2"),
             E_FunEntry(
               Tr_global(),
               Temp_namedlabel("__aio_puts2"),
               Ty_TyList(Ty_Integer(), NULL),
-              Ty_Void()));
+              Ty_Void(), TRUE));
     S_enter(t, S_Symbol("__aio_puts4"),
             E_FunEntry(
               Tr_global(),
               Temp_namedlabel("__aio_puts2"),
               Ty_TyList(Ty_Long(), NULL),
-              Ty_Void()));
+              Ty_Void(), TRUE));
     S_enter(t, S_Symbol("__aio_putnl"),
             E_FunEntry(
               Tr_global(),
               Temp_namedlabel("__aio_putnl"),
               NULL,
-              Ty_Void()));
+              Ty_Void(), TRUE));
     S_enter(t, S_Symbol("__aio_puttab"),
             E_FunEntry(
               Tr_global(),
               Temp_namedlabel("__aio_puttab"),
               NULL,
-              Ty_Void()));
+              Ty_Void(), TRUE));
 #if 0
     S_enter(t, S_Symbol("getchar"),
             E_FunEntry(

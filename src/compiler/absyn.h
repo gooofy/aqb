@@ -33,7 +33,7 @@ struct A_sourceProgram_
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
-           A_procStmt, A_callStmt } kind;
+           A_procStmt, A_callStmt, A_procDeclStmt } kind;
     A_pos pos;
 	union 
     {
@@ -144,6 +144,7 @@ A_stmt          A_AssignStmt      (A_pos pos, A_var var, A_exp exp);
 A_stmt          A_ForStmt         (A_pos pos, A_var var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
+A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);

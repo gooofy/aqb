@@ -493,6 +493,7 @@ Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
     return Tr_Cx(trues, falses, s);
 }
 
+#if 0
 Tr_exp Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right) 
 {
     T_relOp op;
@@ -506,12 +507,13 @@ Tr_exp Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right)
         case A_neqOp:
             op = T_s2ne;
             break;
-
         default:
             EM_error(0, "*** translate.c: internal error: only string equality are supported yet.");
             assert(0);  
     }
 
+
+#if 0
     T_exp e = F_externalCall("stringEqual",
                 T_ExpList(unEx(left), T_ExpList(unEx(right), NULL)));
     s = T_Cjump(op, e, T_ConstS2(1), NULL, NULL);
@@ -519,7 +521,9 @@ Tr_exp Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right)
     patchList trues = PatchList(&s->u.CJUMP.true, NULL);
     patchList falses = PatchList(&s->u.CJUMP.false, NULL);
     return Tr_Cx(trues, falses, s);
+#endif
 }
+#endif
 
 Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty) {
     switch (ty->kind)
