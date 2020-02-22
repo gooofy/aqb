@@ -1,13 +1,14 @@
 
 .text
-    .globl  _main
-_main:
+    .globl  __aqb_main
+
+__aqb_main:
 
 # run clibtestmain
     move.l d0,-(sp)
     move.l d1,-(sp)
     jsr _clibtestmain
-    add.l #4, sp
+    # add.l #4, sp
     move.l (sp)+,d1
     move.l (sp)+,d0
 
@@ -30,5 +31,5 @@ _main:
 #    move.l (sp)+,d1
 #    move.l (sp)+,d0
 
-    rts
 
+    rts

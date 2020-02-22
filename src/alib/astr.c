@@ -1,4 +1,4 @@
-#include "astring.h"
+#include "astr.h"
 #include "autil.h"
 
 #include <exec/memory.h>
@@ -19,7 +19,7 @@ static void reverse(char *str, int length)
     } 
 } 
   
-void itoa(int num, char* str, int base) 
+void _astr_itoa(int num, char* str, int base) 
 { 
     int i = 0; 
     BOOL isNegative = FALSE; 
@@ -58,7 +58,7 @@ void itoa(int num, char* str, int base)
     reverse(str, i); 
 } 
 
-ULONG astrlen(char *str)
+ULONG _astr_len(char *str)
 {
     int l = 0;
     while (*str)
@@ -69,10 +69,10 @@ ULONG astrlen(char *str)
     return l;
 }
 
-char *astrdup(char* str)
+char *_astr_dup(char* str)
 {
-    ULONG l = astrlen(str);
-    char *str2 = ralloc(l+1, MEMF_ANY);
+    ULONG l = _astr_len(str);
+    char *str2 = _autil_alloc(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
 }

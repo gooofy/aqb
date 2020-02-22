@@ -1,7 +1,7 @@
 #include "awindow.h"
 #include "autil.h"
-#include "astring.h"
-#include "io.h"
+#include "astr.h"
+#include "aio.h"
 
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
@@ -41,7 +41,7 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
  *
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
  */
-BOOL AW_open(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id)
+BOOL _awindow_open(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id)
 {
     USHORT w, h;
 
@@ -59,7 +59,7 @@ BOOL AW_open(short id, char *title, short x1, short y1, short x2, short y2, shor
     g_nw.TopEdge  = y1;
     g_nw.Width    = w;
     g_nw.Height   = h;
-    g_nw.Title    = title ? (UBYTE *) astrdup(title) : NULL;
+    g_nw.Title    = title ? (UBYTE *) _astr_dup(title) : NULL;
 
     g_nw.Flags    = GIMMEZEROZERO | ACTIVATE;     
     
@@ -89,12 +89,19 @@ BOOL AW_open(short id, char *title, short x1, short y1, short x2, short y2, shor
     return TRUE;
 }
 
-void AW_shutdown(void)
+void _awindow_init(void)
 {
+    // nothing yet.
+}
+
+void _awindow_shutdown(void)
+{
+    //_aio_puts("_awindow_shutdown ...\n");
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
         if (g_winlist[i])
             CloseWindow(g_winlist[i]);
     }
+    //_aio_puts("_awindow_shutdown ... done.\n");
 }
 

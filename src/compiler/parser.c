@@ -1112,7 +1112,7 @@ static bool sourceProgramBody(A_sourceProgram *sourceProgram)
 
     while (logicalNewline()) ;
 
-    *sourceProgram = A_SourceProgram(S_getpos(), "_main", g_sleStack->stmtList);
+    *sourceProgram = A_SourceProgram(S_getpos(), "__aqb_main", g_sleStack->stmtList);
 
     if (!bodyStatement(*sourceProgram))
         return FALSE;

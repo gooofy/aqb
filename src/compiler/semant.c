@@ -632,13 +632,13 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             switch (exp.ty->kind)
             {
                 case Ty_string:
-                    fsym = S_Symbol("_aputs");
+                    fsym = S_Symbol("__aio_puts");
                     break;
                 case Ty_integer:
-                    fsym = S_Symbol("_puts2"); 
+                    fsym = S_Symbol("__aio_puts2"); 
                     break;
                 case Ty_long:
-                    fsym = S_Symbol("_puts4"); 
+                    fsym = S_Symbol("__aio_puts4"); 
                     break;
                 default:
                     EM_error(stmt->pos, "unsupported type in print expression list.");
@@ -652,14 +652,14 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
         }
         case A_printNLStmt:
         {
-            S_symbol fsym   = S_Symbol("_putnl");
+            S_symbol fsym   = S_Symbol("__aio_putnl");
             E_enventry func = S_look(venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL);
             return expTy(tr_exp, Ty_Void());
         }
         case A_printTABStmt:
         {
-            S_symbol fsym   = S_Symbol("_puttab");
+            S_symbol fsym   = S_Symbol("__aio_puttab");
             E_enventry func = S_look(venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL);
             return expTy(tr_exp, Ty_Void());

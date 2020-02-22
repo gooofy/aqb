@@ -5,16 +5,20 @@
 
 // AllocRemember wrapper
 
-APTR ralloc(ULONG size, ULONG flags);
+APTR _autil_alloc(ULONG size, ULONG flags);
 
-void autil_init(void);
-void autil_shutdown(void);
+void _autil_init(void);
+void _autil_shutdown(void);
 
 // BASIC error handling
 
 #define AE_WIN_OPEN 1
 
 extern USHORT g_errcode;
+
+void _autil_exit(void); // implemented in startup.s
+
+void _autil_sleep(ULONG seconds);
 
 #if 0  // exec has these already
 

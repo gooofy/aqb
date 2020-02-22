@@ -37,34 +37,34 @@ S_scope E_base_tenv(void) {
 S_scope E_base_venv(void) 
 {
     S_scope t = S_beginScope(NULL);
-    S_enter(t, S_Symbol("_aputs"),
+    S_enter(t, S_Symbol("__aio_puts"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_aputs"),
+              Temp_namedlabel("__aio_puts"),
               Ty_TyList(Ty_String(), NULL),
               Ty_Void()));
-    S_enter(t, S_Symbol("_puts2"),
+    S_enter(t, S_Symbol("__aio_puts2"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_puts2"),
+              Temp_namedlabel("__aio_puts2"),
               Ty_TyList(Ty_Integer(), NULL),
               Ty_Void()));
-    S_enter(t, S_Symbol("_puts4"),
+    S_enter(t, S_Symbol("__aio_puts4"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_puts2"),
+              Temp_namedlabel("__aio_puts2"),
               Ty_TyList(Ty_Long(), NULL),
               Ty_Void()));
-    S_enter(t, S_Symbol("_putnl"),
+    S_enter(t, S_Symbol("__aio_putnl"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_putnl"),
+              Temp_namedlabel("__aio_putnl"),
               NULL,
               Ty_Void()));
-    S_enter(t, S_Symbol("_puttab"),
+    S_enter(t, S_Symbol("__aio_puttab"),
             E_FunEntry(
               Tr_global(),
-              Temp_namedlabel("_puttab"),
+              Temp_namedlabel("__aio_puttab"),
               NULL,
               Ty_Void()));
 #if 0

@@ -14,9 +14,6 @@ LVOCloseWindow   = -72
 LVOAllocRemember = -396
 LVOFreeRemember  = -408
 
-/* dos */
-LVODelay         = -198
-
     .globl  _OpenLibrary
 _OpenLibrary:
     link a5, #0
@@ -96,6 +93,37 @@ _FreeRemember:
     move.l 12(a5),d0            /* reallyForget      */
     movea.l _IntuitionBase,a6   /* intuition base    */
     jsr     LVOFreeRemember(a6)
+
+    unlk a5
+    rts
+
+/* 
+ * dos 
+ */
+
+LVOWrite  = -48
+LVOOutput = -60
+LVODelay  = -198
+
+    .globl _Write
+_Write:
+    link a5, #0
+
+    move.l  8(a5),d1            /* file              */
+    move.l 12(a5),d2            /* buffer            */
+    move.l 16(a5),d3            /* length            */
+    movea.l _DOSBase,a6         /* dos base          */
+    jsr     LVOWrite(a6)
+
+    unlk a5
+    rts
+
+    .globl _Output
+_Output:
+    link a5, #0
+
+    movea.l _DOSBase,a6         /* dos base          */
+    jsr     LVOOutput(a6)
 
     unlk a5
     rts

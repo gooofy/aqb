@@ -210,7 +210,7 @@ int main (int argc, char *argv[])
 
     out = fopen(asmfn, "w");
 
-    fprintf(out, ".globl _main\n\n");
+    fprintf(out, ".globl __aqb_main\n\n");
     /* Chapter 8, 9, 10, 11 & 12 */
     fprintf(out, ".text\n\n");
     for (fl=frags; fl; fl=fl->tail)

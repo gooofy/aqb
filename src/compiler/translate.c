@@ -109,7 +109,7 @@ Tr_level Tr_global(void) {
     if (global_level == NULL) {
         global_level = checked_malloc(sizeof(*global_level));
         global_level->global = TRUE;
-        global_level->frame = F_newFrame(Temp_namedlabel("_main"), 0, TRUE);
+        global_level->frame = F_newFrame(Temp_namedlabel("__aqb_main"), 0, TRUE);
     }
     return global_level;
 }

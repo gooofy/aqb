@@ -9,9 +9,11 @@
 #define AW_FLAG_CLOSE    8
 #define AW_FLAG_REFRESH 16
 
-BOOL AW_open(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id);
+void _awindow_init(void);
 
-void AW_shutdown(void);
+BOOL _awindow_open(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id);
+
+void _awindow_shutdown(void);
 
 #endif
 
