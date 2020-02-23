@@ -113,7 +113,7 @@ static bool atom(A_exp *exp)
             break;
 
         default:
-            return EM_err("Syntax error. (found token: %d)", S_token);
+            return FALSE;
     }
 
     return TRUE;
@@ -493,21 +493,28 @@ static bool expression(A_exp *exp)
     return TRUE;
 }
 
-// expressionList ::= expression ( ',' expression )*
+// expressionList ::= [ expression ( ',' [ expression ] )* ]
 static bool expressionList(A_expList *expList)
 {
     A_exp     exp;
 
     if (!expression(&exp))
-        return FALSE;
+        return TRUE;
 
     A_ExpListAppend(*expList, exp);
 
     while (S_token == S_COMMA)
     {
         S_getsym();
+
+        if (S_token == S_COMMA)
+        {
+            A_ExpListAppend(*expList, NULL);
+            continue;
+        }
+
         if (!expression(&exp))
-            return FALSE;
+            return EM_err("expression expected here");
         A_ExpListAppend(*expList, exp);
     }
     return TRUE;
@@ -552,7 +559,7 @@ static bool stmtPrint(void)
         }
 
         if (!expression(&exp))
-            return FALSE;
+            return EM_err("expression expected here.");
 
         A_StmtListAppend (g_sleStack->stmtList, A_PrintStmt(pos, exp));
     }
@@ -591,7 +598,7 @@ static bool stmtLet(void)
     S_getsym();
 
     if (!expression(&exp))
-        return FALSE;
+        return EM_err("expression expected here.");
 
     A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
 
@@ -618,20 +625,20 @@ static bool stmtForBegin(void)
     S_getsym();
 
     if (!expression(&from_exp))
-        return FALSE;
+        return EM_err("FOR: from expression expected here.");
 
     if (S_token != S_TO)
         return EM_err ("TO expected.");
     S_getsym();
 
     if (!expression(&to_exp))
-        return FALSE;
+        return EM_err("FOR: to expression expected here.");
 
     if (S_token == S_STEP)
     {
         S_getsym();
         if (!expression(&step_exp))
-            return FALSE;
+            return EM_err("FOR: step expression expected here.");
     }
     else
     {
@@ -728,7 +735,7 @@ static bool stmtIfBegin(void)
     S_getsym(); // consume "IF"
 
     if (!expression(&exp))
-        return FALSE;
+        return EM_err("if expression expected here.");
 
     if (S_token == S_GOTO)
         return EM_err ("Sorry, single-line if statements are not supported yet."); // FIXME
@@ -750,7 +757,7 @@ static bool stmtIfBegin(void)
     return TRUE;
 }
 
-// IfElse  ::= ELSEIF Expression THEN
+// ifElse  ::= ELSEIF expression THEN
 //             |  ELSE .
 static bool stmtIfElse(void)
 {
@@ -783,7 +790,7 @@ static void stmtIfEnd_(void)
     A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.test, thenStmts, elseStmts));
 }
 
-// IfEnd ::= ENDIF .
+// ifEnd ::= ENDIF .
 static bool stmtIfEnd(void)
 {
     if (S_token == S_ENDIF)
@@ -809,7 +816,7 @@ static bool stmtIfEnd(void)
     return TRUE;
 }
 
-// paramDecl ::= [ BYVAL | BYREF ] ident [ AS ident ]
+// paramDecl ::= [ BYVAL | BYREF ] ident [ AS ident ] [ = expression ]
 static bool paramDecl(A_paramList paramList)
 {
     bool     byval = FALSE;
@@ -817,6 +824,7 @@ static bool paramDecl(A_paramList paramList)
     S_symbol name;
     S_symbol ty = NULL;
     A_pos    pos = S_getpos();
+    A_exp    defaultExp = NULL;
 
     if (S_token == S_BYVAL)
     {
@@ -846,7 +854,14 @@ static bool paramDecl(A_paramList paramList)
         S_getsym();
     }
 
-    A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty));
+    if (S_token == S_EQUALS)
+    {
+        S_getsym();
+        if (!expression(&defaultExp))
+            return EM_err("default expression expected here.");
+    }
+
+    A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, defaultExp));
 
     return TRUE;
 }
@@ -1017,7 +1032,7 @@ static bool stmtIdent(void)
             v = A_SimpleVar (pos, sym);
             S_getsym();
             if (!expression(&exp))
-                return FALSE;
+                return EM_err("expression expected here.");
             A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
             break;
         }

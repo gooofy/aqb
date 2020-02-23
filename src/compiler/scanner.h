@@ -56,6 +56,7 @@
 #define S_STATIC   125
 #define S_DECLARE  126
 #define S_LET      127
+#define S_WINDOW   128
 
 #define S_MAX_STRING 1024
 

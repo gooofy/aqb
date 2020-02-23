@@ -55,6 +55,7 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "static",   (void *) S_STATIC);
     hashmap_put (g_tokens, "declare",  (void *) S_DECLARE);
     hashmap_put (g_tokens, "let",      (void *) S_LET);
+    hashmap_put (g_tokens, "window",   (void *) S_WINDOW);
 }
 
 A_pos S_getpos(void)
@@ -146,12 +147,65 @@ static void number(bool negative)
 }
 
 
+int S_identifier(void)
+{
+    int l = 0;
+    int t;
+    S_token = S_IDENT;
+
+    S_str[l] = g_ch;
+    S_strlc[l] = tolower(g_ch);
+    l++;
+    getch();
+    while (is_idcont() && !g_eof)
+    {
+        S_str[l] = g_ch;
+        S_strlc[l] = tolower(g_ch);
+        l++;
+        getch();
+    }
+
+    // type marker?
+    switch (g_ch)
+    {
+        case '%':
+        case '&':
+        case '!':
+        case '#':
+        case '$':
+            S_str[l] = g_ch;
+            S_strlc[l] = g_ch;
+            l++;
+            getch();
+            break;
+    }
+    S_str[l] = '\0';
+    S_strlc[l] = '\0';
+    // is this a known token?
+    if (hashmap_get(g_tokens, S_strlc, (any_t *)&t) == MAP_OK)
+        S_token = t;
+    if (g_verbose)
+        printf("[%d %s]", S_token, S_str);
+    return S_token;
+}
+
 int S_getsym(void)
 {
-    // skip whitespace
-    while (is_whitespace() && !g_eof)
+    // skip whitespace, line continuations
+    while ((is_whitespace() || g_ch=='_') && !g_eof)
     {
-        getch();
+        if (g_ch=='_')
+        {
+            getch();
+            if (g_ch == '\r')
+                getch();
+            if (g_ch != '\n')
+                break;
+        }
+        else
+        {
+            getch();
+        }
     }
 
     // skip line comments
@@ -172,43 +226,7 @@ int S_getsym(void)
 
     if (is_idstart())
     {
-        int l = 0;
-        int t;
-        S_token = S_IDENT;
-        S_str[l] = g_ch;
-        S_strlc[l] = tolower(g_ch);
-        l++;
-        getch();
-        while (is_idcont() && !g_eof)
-        {
-            S_str[l] = g_ch;
-            S_strlc[l] = tolower(g_ch);
-            l++;
-            getch();
-        }
-
-        // type marker?
-        switch (g_ch)
-        {
-            case '%':
-            case '&':
-            case '!':
-            case '#':
-            case '$':
-                S_str[l] = g_ch;
-                S_strlc[l] = g_ch;
-                l++;
-                getch();
-                break;
-        }
-        S_str[l] = '\0';
-        S_strlc[l] = '\0';
-        // is this a known token?
-        if (hashmap_get(g_tokens, S_strlc, (any_t *)&t) == MAP_OK)
-            S_token = t;
-        if (g_verbose)
-    	 	printf("[%d %s]", S_token, S_str);
-        return S_token;
+        return S_identifier();
     }
     if (is_digit())
     {

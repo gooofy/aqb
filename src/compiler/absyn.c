@@ -409,16 +409,17 @@ A_dec A_FunctionDec(A_pos pos, A_fundecList function)
 }
 #endif
 
-A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty)
+A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, A_exp defaultExp)
 {
     A_param p = checked_malloc(sizeof(*p));
 
-    p->next    = NULL;
-    p->pos     = pos;
-    p->byval   = byval;
-    p->byref   = byref;
-    p->name    = name;
-    p->ty      = ty;
+    p->next       = NULL;
+    p->pos        = pos;
+    p->byval      = byval;
+    p->byref      = byref;
+    p->name       = name;
+    p->ty         = ty;
+    p->defaultExp = defaultExp;
 
     return p;
 }

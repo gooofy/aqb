@@ -116,6 +116,7 @@ struct A_param_
     bool     byref;
     S_symbol name;
     S_symbol ty;
+    A_exp    defaultExp;
 };
 
 struct A_paramList_ 
@@ -156,7 +157,7 @@ A_expList       A_ExpList         (void);
 void            A_ExpListAppend   (A_expList list, A_exp exp);
 A_var           A_SimpleVar       (A_pos pos, S_symbol sym);
 A_proc          A_Proc            (A_pos pos, S_symbol name, bool isFunction, bool isStatic, A_paramList paramList);
-A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty);
+A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
 

@@ -184,9 +184,12 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, ")");
             break;
         case A_procStmt:
+        case A_procDeclStmt:
         {
             A_param par;
             indent(out, d);
+            if (stmt->kind == A_procDeclStmt)
+                fprintf(out, "DECLARE ");
             if (stmt->u.proc->isFunction)
                 fprintf(out, "FUNCTION %s(", S_name(stmt->u.proc->name));
             else
@@ -197,11 +200,15 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 if (par->next)
                     fprintf(out,",");
             }
-            fprintf(out, "){\n");
-            pr_stmtList(out, stmt->u.proc->body, d+1);
-            fprintf(out, "\n");
-            indent(out, d);
-            fprintf(out, "}");
+            fprintf(out, ")");
+            if (stmt->kind == A_procStmt)
+            {
+                fprintf(out, "{\n");
+                pr_stmtList(out, stmt->u.proc->body, d+1);
+                fprintf(out, "\n");
+                indent(out, d);
+                fprintf(out, "}");
+            }
             break;
         }
         case A_callStmt:
@@ -214,6 +221,7 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         }
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
+            assert(0);
     }
 }
 

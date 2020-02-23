@@ -184,6 +184,12 @@ int main (int argc, char *argv[])
 	if (!P_sourceProgram(sourcef, sourcefn, &sourceProgram))
         exit(3);
 
+    if (EM_anyErrors)
+    {
+        printf ("\n\nparing failed.\n");
+        exit(4);
+    }
+
     printf ("\n\nparsing worked.\n");
 
     pr_sourceProgram(stdout, sourceProgram, 0);
