@@ -65,3 +65,4 @@ tests/*.s
 # FIXME: cleanup. commit.
 doc/
 examples/
+old
