@@ -35,8 +35,8 @@ F_fragList    Tr_getResult(void);
 Tr_exp        Tr_zeroExp(Ty_ty ty);
 Tr_exp        Tr_oneExp(Ty_ty ty);
 
-Tr_exp        Tr_nullCx();
-Tr_exp        Tr_nullNx();
+// Tr_exp        Tr_nullCx();
+Tr_exp        Tr_nopNx();
 
 Tr_exp        Tr_seqExp(Tr_expList el);
 
@@ -62,7 +62,7 @@ Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl);
 #endif
 
 // Tr_exp Tr_forExp(Tr_access i, Tr_level lv, Tr_exp explo, Tr_exp exphi, Tr_exp body, Temp_label breaklbl);
-Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
+Tr_exp        Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
 
 #if 0
 Tr_exp Tr_breakExp(Temp_label breaklbl);
@@ -73,6 +73,8 @@ Tr_exp Tr_recordExp(Tr_expList el, int fieldCount);
 Tr_exp Tr_letExp(Tr_expList el, Tr_exp body);
 #endif 
 
-Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList);
+Tr_exp        Tr_callSExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList);
+
+void Tr_printExp(FILE *out, Tr_exp exp, int d);
 
 #endif

@@ -63,60 +63,76 @@ static G_node findLabeledNode(Temp_label lab, G_nodeList nl, Temp_labelList ll) 
   return result;
 }
 
-G_graph FG_AssemFlowGraph(AS_instrList il, F_frame f) {
-  //your code here.
-  G_graph g = G_Graph();
-  G_nodeList nl = NULL, jumpnl = NULL;
-  Temp_labelList ll = NULL, jl = NULL;
-  G_node n = NULL, last_n = NULL, jump_n = NULL;
-  AS_instr inst = NULL, last_inst = NULL, last_nonlbl_inst = NULL;
-
-  // Iterate and add instructions to graph
-  for (; il; il = il->tail) {
-    inst = il->head;
-    if (inst->kind != I_LABEL) {
-      n = G_Node(g, (void*)inst);
-      
-      if (last_inst) {
-        if (last_inst->kind == I_LABEL) {
-          nl = G_NodeList(n, nl);
-          ll = Temp_LabelList(last_inst->u.LABEL.label, ll);
-          if (last_nonlbl_inst) {
-            G_addEdge(last_n, n);
-          }
-        } else if (last_inst->kind == I_OPER && last_inst->u.OPER.jumps != NULL) {
-          // add edge for conditional jumps
-          if (strstr(last_inst->u.OPER.assem, "jmp") != last_inst->u.OPER.assem) {
-            G_addEdge(last_n, n);
-          }
-        } else {
-          G_addEdge(last_n, n);
+G_graph FG_AssemFlowGraph(AS_instrList il, F_frame f) 
+{
+    G_graph g = G_Graph();
+    G_nodeList nl = NULL, jumpnl = NULL;
+    Temp_labelList ll = NULL, jl = NULL;
+    G_node n = NULL, last_n = NULL, jump_n = NULL;
+    AS_instr inst = NULL, last_inst = NULL, last_nonlbl_inst = NULL;
+  
+    // Iterate and add instructions to graph
+    for (; il; il = il->tail) 
+    {
+        inst = il->head;
+        if (inst->kind != I_LABEL) 
+        {
+            n = G_Node(g, (void*)inst);
+            
+            if (last_inst) 
+            {
+                if (last_inst->kind == I_LABEL) 
+                {
+                    nl = G_NodeList(n, nl);
+                    ll = Temp_LabelList(last_inst->u.LABEL.label, ll);
+                    if (last_nonlbl_inst) 
+                    {
+                        G_addEdge(last_n, n);
+                    }
+                } 
+                else 
+                {
+                    if (last_inst->kind == I_OPER && last_inst->u.OPER.target != NULL) 
+                    {
+                        // add edge for conditional jumps
+                        if (strstr(last_inst->u.OPER.assem, "jmp") != last_inst->u.OPER.assem) 
+                        {
+                            G_addEdge(last_n, n);
+                        }
+                    } 
+                    else 
+                    {
+                        G_addEdge(last_n, n);
+                    }
+                }
+            }
+            
+            if (inst->kind == I_OPER && inst->u.OPER.target != NULL) 
+            {
+                jumpnl = G_NodeList(n, jumpnl);
+            }
+  
+            last_n = n;
+            last_nonlbl_inst = inst;
         }
-      }
-      
-      if (inst->kind == I_OPER && inst->u.OPER.jumps != NULL) {
-        jumpnl = G_NodeList(n, jumpnl);
-      }
-
-      last_n = n;
-      last_nonlbl_inst = inst;
+        last_inst = inst;
     }
-    last_inst = inst;
-  }
-
-  // Handle jump instructions
-  for (; jumpnl; jumpnl = jumpnl->tail) {
-    n = jumpnl->head;
-    inst = (AS_instr)G_nodeInfo(n);
-    for (jl = inst->u.OPER.jumps->labels; jl; jl = jl->tail) {
-      jump_n = findLabeledNode(jl->head, nl, ll);
-      if (jump_n) {
-        G_addEdge(n, jump_n);
-      } else {
-        EM_error(0, "fail to find node for label %s", Temp_labelstring(jl->head));
-      }
+  
+    // Handle jump instructions
+    for (; jumpnl; jumpnl = jumpnl->tail) 
+    {
+        n = jumpnl->head;
+        inst = (AS_instr) G_nodeInfo(n);
+        jump_n = findLabeledNode(inst->u.OPER.target, nl, ll);
+        if (jump_n) 
+        {
+            G_addEdge(n, jump_n);
+        } 
+        else 
+        {
+            EM_error(0, "fail to find node for label %s", Temp_labelstring(jl->head));
+        }
     }
-  }
-
-  return g;
+  
+    return g;
 }

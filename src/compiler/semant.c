@@ -337,10 +337,6 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             expty exp = transVar(level, venv, tenv, a->u.var, breaklbl);
             return expTy(exp.exp, exp.ty);
         } 
-#if 0
-        case A_nilExp:
-          return expTy(Tr_zeroEx(), Ty_Void());
-#endif
         case A_intExp:
         {
             Ty_ty ty;
@@ -352,7 +348,10 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
         }
         case A_stringExp:
             if (a->u.stringg == NULL)
+            {
                 EM_error(a->pos, "string required");
+                break;
+            }
             return expTy(Tr_stringExp(a->u.stringg), Ty_String());
 
         case A_opExp: 
@@ -364,17 +363,17 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             expty e1, e2;
             if (!coercion(left.ty, right.ty, &resTy)) {
                 EM_error(a->u.op.left->pos, "operands type mismatch");
-                return expTy(Tr_nullCx(), Ty_Integer());
+                break;
             }
             if (!convert_ty(left, resTy, &e1))
             {
                 EM_error(a->u.op.left->pos, "operand type mismatch (left)");
-                return expTy(Tr_nullCx(), Ty_Integer());
+                break;
             }
             if (!convert_ty(right, resTy, &e2))
             {
                 EM_error(a->u.op.left->pos, "operand type mismatch (right)");
-                return expTy(Tr_nullCx(), Ty_Integer());
+                break;
             }
             switch (oper) 
             {
@@ -480,7 +479,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
           return expTy(Tr_recordExp(tel, fieldCount), t);
         }
         case A_seqExp: {
-          expty exp = expTy(Tr_nullNx(), Ty_Void());
+          expty exp = expTy(Tr_nopNx(), Ty_Void());
           Tr_expList el = NULL;
           A_expList list;
           for (list = a->u.seq; list != NULL; list = list->tail) {
@@ -572,7 +571,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
         default:
             EM_error(a->pos, "*** internal error: unsupported expression type.");
     }
-    return expTy(Tr_zeroExp(Ty_Void()), Ty_Void());
+    return expTy(Tr_nopNx(), Ty_Void());
 }
 
 static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
@@ -614,7 +613,7 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
     return tys;
 }
 
-static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Temp_label breaklbl)
+static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Temp_label breaklbl)
 {
     switch (stmt->kind)
     {
@@ -640,23 +639,23 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             if (fsym)
             {
                 E_enventry func = S_look(venv, fsym);
-                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist);
-                return expTy(tr_exp, Ty_Void());
+                Tr_exp tr_exp = Tr_callSExp(func->u.fun.level, level, func->u.fun.label, arglist);
+                return tr_exp;
             }
         }
         case A_printNLStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_putnl");
             E_enventry func = S_look(venv, fsym);
-            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL);
-            return expTy(tr_exp, Ty_Void());
+            Tr_exp tr_exp = Tr_callSExp(func->u.fun.level, level, func->u.fun.label, NULL);
+            return tr_exp;
         }
         case A_printTABStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_puttab");
             E_enventry func = S_look(venv, fsym);
-            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL);
-            return expTy(tr_exp, Ty_Void());
+            Tr_exp tr_exp = Tr_callSExp(func->u.fun.level, level, func->u.fun.label, NULL);
+            return tr_exp;
         }
         case A_assignStmt: 
         {
@@ -667,10 +666,10 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             if (!convert_ty(exp, var.ty, &convexp))
             {
                 EM_error(stmt->pos, "type mismatch (assign).");
-                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                break;
             }
 
-            return expTy(Tr_assignExp(var.exp, convexp.exp, var.ty), Ty_Void());
+            return Tr_assignExp(var.exp, convexp.exp, var.ty);
         }
         case A_forStmt: 
         {
@@ -688,23 +687,23 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             if (!convert_ty(from_exp, varty, &conv_from_exp))
             {
                 EM_error(stmt->pos, "type mismatch (from expression).");
-                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                break;
             }
             if (!convert_ty(to_exp,   varty, &conv_to_exp))
             {
                 EM_error(stmt->pos, "type mismatch (to expression).");
-                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                break;
             }
             if (!convert_ty(step_exp, varty, &conv_step_exp))
             {
                 EM_error(stmt->pos, "type mismatch (step expression).");
-                return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                break;
             }
 
             Temp_label forbreak = Temp_newlabel();
             expty body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak);
 
-            return expTy(Tr_forExp(var->u.var.access, varty, conv_from_exp.exp, conv_to_exp.exp, conv_step_exp.exp, body.exp, forbreak), Ty_Void());
+            return Tr_forExp(var->u.var.access, varty, conv_from_exp.exp, conv_to_exp.exp, conv_step_exp.exp, body.exp, forbreak);
         }
         case A_ifStmt: 
         {
@@ -720,11 +719,11 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             } 
             else 
             {
-                elsee.exp = Tr_nullNx();
+                elsee.exp = Tr_nopNx();
                 elsee.ty = Ty_Void();
             }
   
-            return expTy(Tr_ifExp(test.exp, then.exp, elsee.exp), then.ty);
+            return Tr_ifExp(test.exp, then.exp, elsee.exp);
         }
         case A_procStmt: 
         case A_procDeclStmt: 
@@ -741,7 +740,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
                 if ( (stmt->kind == A_procDeclStmt) || !edecl->u.fun.forward)
                 {
                     EM_error(proc->pos, "Proc %s declared more than once.", S_name(proc->name));
-                    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                    break;
                 }
                 EM_error(proc->pos, "*** internal error: forward declaration of procs is not implemented yet."); // FIXME
                 assert(0);
@@ -814,7 +813,7 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
                 if (!convert_ty(exp, tl->head, &conv_actual))
                 {
                     EM_error(en->exp->pos, "parameter type mismatch");
-                    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+                    return Tr_nopNx();
                 }
                 explist = Tr_ExpList(conv_actual.exp, explist);
             }
@@ -824,24 +823,27 @@ static expty transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, 
             if (tl)
                 EM_error(stmt->pos, "too few params for sub %s", S_name(stmt->u.callr.func));
   
-            return expTy(Tr_callExp(proc->u.fun.level, level,
-                                    proc->u.fun.label, explist), proc->u.fun.result);
+            return Tr_callSExp(proc->u.fun.level, level, proc->u.fun.label, explist);
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);
     }
-    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+    return NULL;
 }
 
 static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl) 
 {
-    
     Tr_expList el = NULL;
     A_stmtListNode node;
     for (node = stmtList->first; node != NULL; node = node->next) {
-        expty exp = transStmt(level, venv, tenv, node->stmt, breaklbl);
-        el = Tr_ExpList(exp.exp, el);
+        Tr_exp exp = transStmt(level, venv, tenv, node->stmt, breaklbl);
+        if (!exp)   // declarations will not produce statements
+            continue;
+
+        Tr_printExp(stdout, exp, 0); 
+
+        el = Tr_ExpList(exp, el);
     }
 
     return expTy(Tr_seqExp(el), Ty_Void());

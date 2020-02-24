@@ -104,18 +104,20 @@ void G_rmEdge(G_node from, G_node to) {
  /**
   * Print a human-readable dump for debugging.
   */
-void G_show(FILE *out, G_nodeList p, void showInfo(void *)) {
-  for (; p!=NULL; p=p->tail) {
-    G_node n = p->head;
-    G_nodeList q;
-    assert(n);
-    if (showInfo) 
-      showInfo(n->info);
-    fprintf(out, " (%d): ", n->mykey); 
-    for(q=G_succ(n); q!=NULL; q=q->tail) 
-           fprintf(out, "%d ", q->head->mykey);
-    fprintf(out, "\n");
-  }
+void G_show(FILE *out, G_nodeList p, void showInfo(void *)) 
+{
+    for (; p!=NULL; p=p->tail) 
+    {
+        G_node n = p->head;
+        G_nodeList q;
+        assert(n);
+        if (showInfo) 
+            showInfo(n->info);
+        fprintf(out, " (%d) -> ", n->mykey); 
+        for(q=G_succ(n); q!=NULL; q=q->tail) 
+            fprintf(out, "%d ", q->head->mykey);
+        fprintf(out, "\n");
+    }
 }
 
 G_nodeList G_succ(G_node n) { assert(n); return n->succs; }

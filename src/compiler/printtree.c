@@ -9,12 +9,11 @@
 #include "tree.h"
 #include "printtree.h"
 
-/* local function prototype */
-static void pr_tree_exp(FILE *out, T_exp exp, int d);
-
-static void indent(FILE *out, int d) {
- int i;
- for (i = 0; i <= d; i++) fprintf(out, " ");
+static void indent(FILE *out, int d) 
+{
+    int i;
+    for (i = 0; i <= d; i++) 
+        fprintf(out, " ");
 }
 
 static char bin_oper[][12] = {
@@ -37,61 +36,63 @@ void printStm(FILE *out, T_stm stm, int d)
         indent(out,d); fprintf(out, "LABEL %s", S_name(stm->u.LABEL));
         break;
     case T_JUMP:
-        indent(out,d); fprintf(out, "JUMP(\n"); pr_tree_exp(out, stm->u.JUMP.exp,d+1); 
-        fprintf(out, ")");
+        indent(out,d); fprintf(out, "JUMP(%s)", S_name(stm->u.JUMP));
         break;
     case T_CJUMP:
         indent(out,d); fprintf(out, "CJUMP(%s,\n", rel_oper[stm->u.CJUMP.op]);
-        pr_tree_exp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",\n"); 
-        pr_tree_exp(out, stm->u.CJUMP.right,d+1); fprintf(out, ",\n");
+        printExp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",\n"); 
+        printExp(out, stm->u.CJUMP.right,d+1); fprintf(out, ",\n");
         indent(out,d+1); fprintf(out, "%s,", S_name(stm->u.CJUMP.true));
         fprintf(out, "%s", S_name(stm->u.CJUMP.false)); fprintf(out, ")");
         break;
     case T_MOVES4:
-        indent(out,d); fprintf(out, "MOVES4(\n"); pr_tree_exp(out, stm->u.MOVE.dst,d+1); 
+        indent(out,d); fprintf(out, "MOVES4(\n"); printExp(out, stm->u.MOVE.dst,d+1); 
         fprintf(out, ",\n");
-        pr_tree_exp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
+        printExp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
         break;
     case T_MOVES2:
-        indent(out,d); fprintf(out, "MOVES2(\n"); pr_tree_exp(out, stm->u.MOVE.dst,d+1); 
+        indent(out,d); fprintf(out, "MOVES2(\n"); printExp(out, stm->u.MOVE.dst,d+1); 
         fprintf(out, ",\n");
-        pr_tree_exp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
+        printExp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
+        break;
+    case T_NOP:
+        indent(out,d); fprintf(out, "NOP ");
         break;
     case T_EXP:
-        indent(out,d); fprintf(out, "EXP(\n"); pr_tree_exp(out, stm->u.EXP,d+1); 
+        indent(out,d); fprintf(out, "EXP(\n"); printExp(out, stm->u.EXP, d+1); 
         fprintf(out, ")");
         break;
     }
 }
 
-static void pr_tree_exp(FILE *out, T_exp exp, int d)
+void printExp(FILE *out, T_exp exp, int d)
 {
     switch (exp->kind) 
     {
         case T_BINOP:
             indent(out,d); fprintf(out, "BINOP(%s,\n", bin_oper[exp->u.BINOP.op]); 
-            pr_tree_exp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
-            pr_tree_exp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
+            printExp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
+            printExp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
             break;
         case T_MEMS4:
             indent(out,d); fprintf(out, "MEMS4");
-            fprintf(out, "(\n"); pr_tree_exp(out, exp->u.MEM,d+1); fprintf(out, ")");
+            fprintf(out, "(\n"); printExp(out, exp->u.MEM,d+1); fprintf(out, ")");
             break;
         case T_MEMS2:
             indent(out,d); fprintf(out, "MEMS2");
-            fprintf(out, "(\n"); pr_tree_exp(out, exp->u.MEM,d+1); fprintf(out, ")");
+            fprintf(out, "(\n"); printExp(out, exp->u.MEM,d+1); fprintf(out, ")");
             break;
         case T_TEMP:
             indent(out,d); fprintf(out, "TEMP t%s", 
   	      		   Temp_look(Temp_name(), exp->u.TEMP));
             break;
+        case T_HEAP:
+            indent(out,d); fprintf(out, "HEAP %s", S_name(exp->u.HEAP));
+            break;
         case T_ESEQ:
             indent(out,d); fprintf(out, "ESEQ(\n"); printStm(out, exp->u.ESEQ.stm,d+1); 
             fprintf(out, ",\n");
-            pr_tree_exp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
-            break;
-        case T_NAME:
-            indent(out,d); fprintf(out, "NAME %s", S_name(exp->u.NAME));
+            printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
         case T_CONSTS4:
             indent(out,d); fprintf(out, "CONSTS4 %d", exp->u.CONST);
@@ -99,25 +100,28 @@ static void pr_tree_exp(FILE *out, T_exp exp, int d)
         case T_CONSTS2:
             indent(out,d); fprintf(out, "CONSTS2 %d", exp->u.CONST);
             break;
-        case T_CALL:
+        case T_CALLF:
         {
-            T_expList args = exp->u.CALL.args;
-            indent(out,d); fprintf(out, "CALL(\n"); pr_tree_exp(out, exp->u.CALL.fun,d+1);
+            T_expList args = exp->u.CALLF.args;
+            indent(out,d); 
+            fprintf(out, "CALLF(%s\n", S_name(exp->u.CALLF.fun)); 
             for (;args; args=args->tail) 
             {
-                fprintf(out, ",\n"); 
-                pr_tree_exp(out, args->head,d+2);
+                printExp(out, args->head,d+2);
+                if (args->tail)
+                    fprintf(out, ",\n"); 
             }
+            indent(out,d); 
             fprintf(out, ")");
             break;
         }
         case T_CASTS4S2:
             indent(out,d); fprintf(out, "CASTS4S2(\n");
-            pr_tree_exp(out, exp->u.CAST, d+1);
+            printExp(out, exp->u.CAST, d+1);
             break;
         case T_CASTS2S4:
             indent(out,d); fprintf(out, "CASTS2S4(\n");
-            pr_tree_exp(out, exp->u.CAST, d+1);
+            printExp(out, exp->u.CAST, d+1);
             break;
     } /* end of switch */
 }

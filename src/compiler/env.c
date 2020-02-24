@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+
 #include "util.h"
 #include "symbol.h"
 #include "types.h"
@@ -35,91 +37,65 @@ S_scope E_base_tenv(void) {
     return scope;
 }
 
+/*
+ * argtypes is a string, each char corresponds to one argument type:
+ * i : integer (2 byte signed short)
+ * l : long    (4 byte signed long)
+ * s : string  (string pointer)
+ */
+
+static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return_type)
+{
+    Ty_tyList tyl=NULL, tylast=NULL;
+    int l = strlen(argtypes);
+
+    for (int i = 0; i<l; i++) 
+    {
+        Ty_ty ty;
+        switch (argtypes[i])
+        {
+            case 'i':
+                ty = Ty_Integer();
+                break;
+            case 'l':
+                ty = Ty_Long();
+                break;
+            case 's':
+                ty = Ty_String();
+                break;
+            default:
+                assert(0);
+        }
+        if (tyl)
+        {
+            tylast->tail = Ty_TyList(ty, NULL);
+            tylast = tylast->tail;
+        } 
+        else 
+        {
+            tyl    = Ty_TyList(ty, NULL);
+            tylast = tyl;
+        }
+    }
+    
+    S_enter(t, S_Symbol(name),
+            E_FunEntry(
+              Tr_global(),
+              Temp_namedlabel(name),
+              tyl,
+              return_type, TRUE));
+}
+
 S_scope E_base_venv(void) 
 {
     S_scope t = S_beginScope(NULL);
-    S_enter(t, S_Symbol("__aio_puts"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("__aio_puts"),
-              Ty_TyList(Ty_String(), NULL),
-              Ty_Void(), TRUE));
-    S_enter(t, S_Symbol("__aio_puts2"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("__aio_puts2"),
-              Ty_TyList(Ty_Integer(), NULL),
-              Ty_Void(), TRUE));
-    S_enter(t, S_Symbol("__aio_puts4"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("__aio_puts2"),
-              Ty_TyList(Ty_Long(), NULL),
-              Ty_Void(), TRUE));
-    S_enter(t, S_Symbol("__aio_putnl"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("__aio_putnl"),
-              NULL,
-              Ty_Void(), TRUE));
-    S_enter(t, S_Symbol("__aio_puttab"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("__aio_puttab"),
-              NULL,
-              Ty_Void(), TRUE));
-#if 0
-    S_enter(t, S_Symbol("getchar"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("getchar"),
-              NULL,
-              Ty_String()));
-    S_enter(t, S_Symbol("ord"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("ord"),
-              Ty_TyList(Ty_String(), NULL),
-              Ty_Long()));
-    S_enter(t, S_Symbol("chr"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("chr"),
-              Ty_TyList(Ty_Long(), NULL),
-              Ty_String()));
-    S_enter(t, S_Symbol("size"),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel("size"),
-              Ty_TyList(Ty_String(), NULL),
-              Ty_Long()));
-    S_enter(t, S_Symbol("substring"),
-      E_FunEntry(
-        Tr_global(),
-        Temp_namedlabel("substring"),
-        Ty_TyList(Ty_String(),
-          Ty_TyList(Ty_Long(),
-            Ty_TyList(Ty_Long(), NULL))),
-        Ty_String()));
-    S_enter(t, S_Symbol("concat"),
-      E_FunEntry(
-        Tr_global(),
-        Temp_namedlabel("concat"),
-        Ty_TyList(Ty_String(),
-          Ty_TyList(Ty_String(), NULL)),
-        Ty_String()));
-    S_enter(t, S_Symbol("not"),
-      E_FunEntry(
-        Tr_global(),
-        Temp_namedlabel("not"),
-        Ty_TyList(Ty_Long(), NULL),
-        Ty_Long()));
-    S_enter(t, S_Symbol("exit"),
-      E_FunEntry(
-        Tr_global(),
-        Temp_namedlabel("exit"),
-        Ty_TyList(Ty_Long(), NULL),
-        Ty_Void()));
-#endif
+
+    declare_builtin(t, "__aqb_window_open", "isiiiili", Ty_Void());
+    declare_builtin(t, "__aio_puts",        "s",        Ty_Void());
+    declare_builtin(t, "__aio_puts2",       "i",        Ty_Void());
+    declare_builtin(t, "__aio_puts4",       "l",        Ty_Void());
+    declare_builtin(t, "__aio_putnl",       "",         Ty_Void());
+    declare_builtin(t, "__aio_puttab",      "",         Ty_Void());
+
     return t;
 }

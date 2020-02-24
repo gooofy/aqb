@@ -16,15 +16,20 @@
 #include "table.h"
 #include "errormsg.h"
 
-// static void printTemp(void* t) {
-//   Temp_map m = Temp_name();
-//   printf("node: %s\n", Temp_look(m, (Temp_temp)t));
-// }
+#define ENABLE_DEBUG
 
-// static void printInst(void *info) {
-//   AS_instr inst = (AS_instr)info;
-//   AS_print(stdout, inst, Temp_name());
-// }
+#ifdef ENABLE_DEBUG
+static void printTemp(void* t) {
+   Temp_map m = Temp_name();
+   printf("node: %s\n", Temp_look(m, (Temp_temp)t));
+}
+
+static void printInst(void *info) 
+{
+    AS_instr inst = (AS_instr)info;
+    AS_print(stdout, inst, Temp_name());
+}
+#endif
 
 static AS_instrList reverseInstrList(AS_instrList il) {
   AS_instrList rl = NULL;
@@ -137,9 +142,17 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
     while (++try < 7) 
     {
         flow = FG_AssemFlowGraph(il, f);
-        // G_show(stdout, G_nodes(flow), printInst);
+#ifdef ENABLE_DEBUG
+        printf("try #%d flow graph:\n", try);
+        printf("-----------------------\n");
+        G_show(stdout, G_nodes(flow), printInst);
+#endif
         live = Live_liveness(flow);
-        // G_show(stdout, G_nodes(live.graph), printTemp);
+#ifdef ENABLE_DEBUG
+        printf("try #%d liveness graph:\n", try);
+        printf("-----------------------\n");
+        G_show(stdout, G_nodes(live.graph), printTemp);
+#endif
         initial = F_initialRegisters(f);
         col = COL_color(live.graph, initial, F_registers(),
                         live.worklistMoves, live.moveList, live.spillCost);
@@ -185,7 +198,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
                 char buf[128];
                 Temp_temp temp = tl->head;
                 F_access local = (F_access)TAB_look(spilledLocal, temp);
-                sprintf(buf, "movl %d(`s0), `d0  # spilled\n", F_accessOffset(local));
+                sprintf(buf, "move.l %d(`s0), `d0  /* spilled */\n", F_accessOffset(local));
                 rewriteList = AS_InstrList(
                     AS_Oper(String(buf), L(temp, NULL), L(F_FP(), NULL), NULL), rewriteList);
             }
@@ -197,7 +210,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
                 char buf[128];
                 Temp_temp temp = tl->head;
                 F_access local = (F_access)TAB_look(spilledLocal, temp);
-                sprintf(buf, "movl `s0, %d(`s1)  # spilled\n", F_accessOffset(local));
+                sprintf(buf, "move.l `s0, %d(`s1)  /* spilled */\n", F_accessOffset(local));
                 rewriteList = AS_InstrList(
                     AS_Oper(String(buf), NULL, L(temp, L(F_FP(), NULL)), NULL), rewriteList);
             }

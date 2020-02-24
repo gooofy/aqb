@@ -31,12 +31,14 @@ T_stm T_Label(Temp_label label)
  return p;
 }
  
-T_stm T_Jump(T_exp exp, Temp_labelList labels)
-{T_stm p = (T_stm) checked_malloc(sizeof *p);
- p->kind=T_JUMP;
- p->u.JUMP.exp=exp;
- p->u.JUMP.jumps=labels;
- return p;
+T_stm T_Jump(Temp_label label)
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+
+    p->kind   = T_JUMP;
+    p->u.JUMP = label;
+
+    return p;
 }
 
 T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, 
@@ -70,12 +72,22 @@ T_stm T_MoveS2(T_exp dst, T_exp src)
 
     return p;
 }
- 
+
+T_stm T_Nop(void)
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+
+    p->kind         = T_NOP;
+
+    return p;
+}
+
 T_stm T_Exp(T_exp exp)
-{T_stm p = (T_stm) checked_malloc(sizeof *p);
- p->kind=T_EXP;
- p->u.EXP=exp;
- return p;
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+    p->kind=T_EXP;
+    p->u.EXP=exp;
+    return p;
 }
  
 T_exp T_Binop(T_binOp op, T_exp left, T_exp right)
@@ -108,27 +120,34 @@ T_exp T_MemS2(T_exp exp)
 }
  
 T_exp T_Temp(Temp_temp temp)
-{T_exp p = (T_exp) checked_malloc(sizeof *p);
- p->kind=T_TEMP;
- p->u.TEMP=temp;
- return p;
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+    p->kind=T_TEMP;
+    p->u.TEMP=temp;
+    return p;
 }
- 
-T_exp T_Eseq(T_stm stm, T_exp exp)
-{T_exp p = (T_exp) checked_malloc(sizeof *p);
- p->kind=T_ESEQ;
- p->u.ESEQ.stm=stm;
- p->u.ESEQ.exp=exp;
- return p;
+
+T_exp T_Heap(Temp_label heap_pos)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind   = T_HEAP;
+    p->u.HEAP = heap_pos;
+
+    return p;
 }
- 
-T_exp T_Name(Temp_label name)
-{T_exp p = (T_exp) checked_malloc(sizeof *p);
- p->kind=T_NAME;
- p->u.NAME=name;
- return p;
+
+T_exp T_Eseq(T_stm s, T_exp e)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind       = T_ESEQ;
+    p->u.ESEQ.stm = s;
+    p->u.ESEQ.exp = e;
+
+    return p;
 }
- 
+
 T_exp T_ConstS4(int consti)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
@@ -149,13 +168,13 @@ T_exp T_ConstS2(int consti)
     return p;
 }
  
-T_exp T_Call(T_exp fun, T_expList args)
+T_exp T_CallF(Temp_label fun, T_expList args)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind=T_CALL;
-    p->u.CALL.fun=fun;
-    p->u.CALL.args=args;
+    p->kind         = T_CALLF;
+    p->u.CALLF.fun  = fun;
+    p->u.CALLF.args = args;
 
     return p;
 }

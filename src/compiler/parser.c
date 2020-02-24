@@ -565,6 +565,147 @@ static bool stmtPrint(void)
     }
 }
 
+// rectangle ::= (x1,y1)-(x2,y2)
+static bool rectangle(A_exp *x1, A_exp*y1, A_exp *x2, A_exp*y2)
+{
+    if (S_token != S_LPAREN)
+        return EM_err("( expected here.");
+    S_getsym();
+    if (!expression(x1))
+        return EM_err("window: x1 coordinate expected here.");
+    if (S_token != S_COMMA)
+        return EM_err(", expected here.");
+    S_getsym();
+    if (!expression(y1))
+        return EM_err("window: y1 coordinate expected here.");
+    if (S_token != S_RPAREN)
+        return EM_err(") expected here.");
+    S_getsym();
+    if (S_token != S_MINUS)
+        return EM_err("- expected here.");
+    S_getsym();
+    if (S_token != S_LPAREN)
+        return EM_err("( expected here.");
+    S_getsym();
+    if (!expression(x2))
+        return EM_err("window: x1 coordinate expected here.");
+    if (S_token != S_COMMA)
+        return EM_err(", expected here.");
+    S_getsym();
+    if (!expression(y2))
+        return EM_err("window: y1 coordinate expected here.");
+    if (S_token != S_RPAREN)
+        return EM_err(") expected here.");
+    return TRUE;
+}
+
+// window ::= WINDOW (
+//                       CLOSE id | ON | OFF | STOP | OUTPUT id
+//                     | id[,[title-string][,[rectangle][,[type][,screen-id]]]]
+//                   )
+
+static bool stmtWindow(void)
+{
+    A_pos pos          = S_getpos();
+    A_expList args     = A_ExpList();
+    S_symbol  fun_name = NULL;
+
+    S_getsym();
+
+    switch (S_token)
+    {
+        case S_CLOSE:
+        {
+            A_exp win_id;
+
+            S_getsym();
+
+            if (!expression (&win_id))
+                return EM_err("window id expected here.");
+            A_ExpListAppend (args, win_id);
+
+            fun_name = S_Symbol("__aqb_window_close");
+
+            break;
+        }
+        case S_ON:
+            S_getsym();
+            fun_name = S_Symbol("__aqb_window_on");
+            break;
+        case S_OFF:
+            S_getsym();
+            fun_name = S_Symbol("__aqb_window_off");
+            break;
+        case S_STOP:
+            S_getsym();
+            fun_name = S_Symbol("__aqb_window_stop");
+            break;
+        default:
+        {
+            A_exp win_id;
+            A_exp title    = A_StringExp(pos, "");
+            A_exp x1       = A_IntExp(pos, -1);
+            A_exp y1       = A_IntExp(pos, -1);
+            A_exp x2       = A_IntExp(pos, -1);
+            A_exp y2       = A_IntExp(pos, -1);
+            A_exp win_type = A_IntExp(pos, 31);
+            A_exp s_id     = A_IntExp(pos, -1);
+
+            if (!expression (&win_id))
+                return EM_err("window id expected here.");
+            A_ExpListAppend (args, win_id);
+
+            if (S_token == S_COMMA) 
+            {
+                S_getsym();
+                if (S_token != S_COMMA)
+                {
+                    if (!expression(&title))
+                        return EM_err("window title expected here.");
+                }
+                if (S_token == S_COMMA)
+                {
+                    S_getsym();
+                    if (S_token != S_COMMA)
+                    {
+                        if (!rectangle(&x1, &y1, &x2, &y2))
+                            return EM_err("window position and size expected here.");
+                    }
+                    if (S_token == S_COMMA)
+                    {
+                        S_getsym();
+                        if (S_token != S_COMMA)
+                        {
+                            if (!expression(&win_type))
+                                return EM_err("window type expected here.");
+                        }
+                        if (S_token == S_COMMA)
+                        {
+                            S_getsym();
+                            if (!expression(&s_id))
+                                return EM_err("screen id expected here.");
+                        }
+                    }
+                }
+            }
+
+            A_ExpListAppend (args, title);
+            A_ExpListAppend (args, x1);
+            A_ExpListAppend (args, y1);
+            A_ExpListAppend (args, x2);
+            A_ExpListAppend (args, y2);
+            A_ExpListAppend (args, win_type);
+            A_ExpListAppend (args, s_id);
+            fun_name = S_Symbol("__aqb_window_open");
+
+            break;
+        }
+    }
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, fun_name, args));
+    return TRUE;
+}
+
 // lValue ::= ident [ "(" subscriptList ")" ]
 static bool lValue(A_var *v)
 {
@@ -1062,6 +1203,8 @@ static bool statementBody(void)
             return stmtLet();
         case S_PRINT:
             return stmtPrint();
+        case S_WINDOW:
+            return stmtWindow();
         case S_FOR:
             return stmtForBegin();
         case S_NEXT:

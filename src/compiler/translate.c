@@ -228,6 +228,7 @@ static T_exp unEx(Tr_exp e)
 
         case Tr_nx:
             return T_Eseq(e->u.nx, T_ConstS2(0));
+            break;
     }
     return NULL;
 }
@@ -241,6 +242,7 @@ static T_stm unNx(Tr_exp e)
         case Tr_nx:
             return e->u.nx;
         case Tr_cx: 
+        #if 0
         {
             Temp_temp r = Temp_newtemp(Ty_Integer());
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
@@ -253,6 +255,8 @@ static T_stm unNx(Tr_exp e)
                           T_Seq(T_Label(t),
                                   T_Exp(T_Temp(r)))))));
         }
+        #endif
+            assert(0); // FIXME
     }
     EM_error(0, "*** internal error: unknown Tr_exp kind in unNx");
     return NULL;
@@ -263,7 +267,7 @@ static struct Cx nullCx(void)
     struct Cx cx;
     cx.trues  = NULL;
     cx.falses = NULL;
-    cx.stm    = T_Exp(T_ConstS2(0));
+    cx.stm    = NULL;
     return cx;
 }
 
@@ -284,10 +288,12 @@ static struct Cx unCx(Tr_exp e)
         case Tr_nx: 
         {
             EM_error(0, "Unable to unpack nx to cx");
+            assert(0);
             return nullCx();
         }
     }
     EM_error(0, "unCx: internal error, unknown expression kind %d", e->kind);
+    assert(0);
     return nullCx();
 }
 
@@ -335,14 +341,17 @@ Tr_exp Tr_oneExp(Ty_ty ty) {
     }
 }
 
+#if 0
 Tr_exp Tr_nullCx() 
 {
-    return Tr_Cx(NULL, NULL, T_Exp(T_ConstS2(0)));
+    // return Tr_Cx(NULL, NULL, T_Exp(T_ConstS2(0)));
+    return Tr_Cx(NULL, NULL, NULL);
 }
 
-Tr_exp Tr_nullNx() 
+#endif
+Tr_exp Tr_nopNx() 
 {
-    return Tr_Nx(T_Exp(T_ConstS4(0)));
+    return Tr_Nx(T_Nop());
 }
 
 Tr_exp Tr_intExp(A_exp e, Ty_ty ty) 
@@ -370,7 +379,7 @@ Tr_exp Tr_stringExp(string str)
     F_frag frag = F_StringFrag(strpos, str);
     fragList = F_FragList(frag, fragList);
   
-    return Tr_Ex(T_Name(strpos));
+    return Tr_Ex(T_Heap(strpos));
 }
 
 Tr_exp Tr_simpleVar(Tr_access a) 
@@ -561,7 +570,7 @@ Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee)
     T_stm s = T_Seq(unCx(test).stm,
                 T_Seq(T_Label(t),
                   T_Seq(unNx(then),
-                    T_Seq(T_Jump(T_Name(m), Temp_LabelList(m, NULL)),
+                    T_Seq(T_Jump(m),
                       T_Seq(T_Label(f),
                         T_Seq(unNx(elsee),
                           T_Label(m)))))));
@@ -643,7 +652,7 @@ Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp e
                       T_Seq(T_Label(loopstart),
                         T_Seq(unNx(body),
                           T_Seq(incStm,
-                            T_Seq(T_Jump(T_Name(test), Temp_LabelList(test, NULL)),
+                            T_Seq(T_Jump(test),
                               T_Label(done)))))))));
     return Tr_Nx(s);
 }
@@ -693,16 +702,40 @@ Tr_exp Tr_recordExp(Tr_expList el, int fieldCount) {
 
 Tr_exp Tr_seqExp(Tr_expList el) 
 {
+    T_stm stm = NULL;
+    for (; el; el = el->tail) 
+    {
+        if (stm)
+        {
+            stm = T_Seq(stm, unNx(el->head));
+        }
+        else
+        {
+            stm = unNx(el->head);
+        }
+    }
+#if 0
     Tr_expList resEl = NULL;
-    for (; el; el = el->tail) {
+    for (; el; el = el->tail) 
+    {
         resEl = Tr_ExpList(el->head, resEl);
     }
-  
+ 
+    T_stm stm = NULL;
+    for (; resEl; resEl = resEl->tail) 
+    {
+        T_seq(
+        seq = T_Eseq(T_Exp(seq), unEx(resEl->head));
+    }
+
     T_exp seq = T_ConstS4(0); // FIXME
-    for (; resEl; resEl = resEl->tail) {
+    for (; resEl; resEl = resEl->tail) 
+    {
         seq = T_Eseq(T_Exp(seq), unEx(resEl->head));
     }
     return Tr_Ex(seq);
+#endif
+    return Tr_Nx(stm);
 }
 
 #if 0
@@ -715,8 +748,8 @@ Tr_exp Tr_letExp(Tr_expList el, Tr_exp body) {
 }
 #endif
 
-Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
-                  Temp_label name, Tr_expList rawel) 
+Tr_exp Tr_callSExp(Tr_level funclv, Tr_level lv,
+                   Temp_label name, Tr_expList rawel) 
 {
 #if 0
     T_expList el = NULL, last_el = NULL;
@@ -737,7 +770,7 @@ Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
         el = T_ExpList(unEx(rawel->head), el);
     }
   
-    return Tr_Ex(T_Call(T_Name(name), el));
+    return Tr_Ex(T_CallF(name, el));
 }
 
 
@@ -776,3 +809,31 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
     return NULL;
 }
 
+static void indent(FILE *out, int d) 
+{
+    int i;
+    for (i = 0; i <= d; i++) 
+        fprintf(out, " ");
+}
+
+void Tr_printExp(FILE *out, Tr_exp exp, int d)
+{
+    switch (exp->kind)
+    {
+        case Tr_ex:
+            indent(out, d); fprintf(out, "ex(");
+            printExp(out, exp->u.ex, d+1);
+            fprintf(out,")\n");
+            break;
+        case Tr_nx:
+            indent(out, d); fprintf(out, "nx(\n");
+            printStm(out, exp->u.nx, d+1);
+            fprintf(out,")\n");
+            break;
+        case Tr_cx:
+            indent(out, d); fprintf(out, "cx(");
+            printStm(out, exp->u.cx.stm, d+1);
+            fprintf(out,")\n");
+            break;
+    }
+}

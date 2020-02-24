@@ -40,31 +40,31 @@ typedef enum
 struct T_stm_ 
 {
     enum {T_SEQ, T_LABEL, T_JUMP, T_CJUMP, 
-          T_MOVES4, T_MOVES2, T_EXP} kind;
+          T_MOVES4, T_MOVES2, T_NOP, T_EXP} kind;
 	union 
     {
         struct {T_stm left, right;} SEQ;
         Temp_label LABEL;
-        struct {T_exp exp; Temp_labelList jumps;} JUMP;
+        Temp_label JUMP;
         struct {T_relOp op; T_exp left, right; Temp_label true, false;} CJUMP;
         struct {T_exp dst, src;} MOVE;
-        T_exp EXP;
+        T_exp EXP; // execute exp for side effects, ignore the result
     } u;
 };
 
 struct T_exp_ 
 {
-    enum { T_BINOP, T_MEMS2, T_MEMS4, T_TEMP, T_ESEQ, T_NAME,
-		   T_CONSTS4, T_CONSTS2, T_CALL, T_CASTS4S2, T_CASTS2S4 } kind;
+    enum { T_BINOP, T_MEMS2, T_MEMS4, T_HEAP, T_ESEQ, T_TEMP,
+		   T_CONSTS4, T_CONSTS2, T_CALLF, T_CASTS4S2, T_CASTS2S4 } kind;
 	union 
     {
         struct {T_binOp op; T_exp left, right;} BINOP;
         T_exp MEM;
+        Temp_label HEAP;
 	    Temp_temp TEMP;
 	    struct {T_stm stm; T_exp exp;} ESEQ;
-	    Temp_label NAME;
 	    int CONST;
-	    struct {T_exp fun; T_expList args;} CALL;
+	    struct {Temp_label fun; T_expList args;} CALLF;
 	    T_exp CAST;
 	} u;
 };
@@ -74,21 +74,22 @@ T_stmList T_StmList (T_stm head, T_stmList tail);
 
 T_stm T_Seq(T_stm left, T_stm right);
 T_stm T_Label(Temp_label);
-T_stm T_Jump(T_exp exp, Temp_labelList labels);
+T_stm T_Jump(Temp_label label);
 T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label true, Temp_label false);
 T_stm T_MoveS4(T_exp, T_exp);
 T_stm T_MoveS2(T_exp, T_exp);
-T_stm T_Exp(T_exp);
+T_stm T_Nop(void);
+T_stm T_Exp(T_exp exp);
 
 T_exp T_Binop(T_binOp, T_exp, T_exp);
 T_exp T_MemS4(T_exp);
 T_exp T_MemS2(T_exp);
 T_exp T_Temp(Temp_temp);
+T_exp T_Heap(Temp_label heap_pos);
 T_exp T_Eseq(T_stm, T_exp);
-T_exp T_Name(Temp_label);
 T_exp T_ConstS4(int);
 T_exp T_ConstS2(int);
-T_exp T_Call(T_exp, T_expList);
+T_exp T_CallF(Temp_label fun, T_expList args);
 T_exp T_CastS4S2(T_exp exp);
 T_exp T_CastS2S4(T_exp exp);
 

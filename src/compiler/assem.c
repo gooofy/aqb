@@ -1,6 +1,6 @@
 /*
- * mipscodegen.c - Functions to translate to Assem-instructions for
- *             the Jouette assembly language using Maximal Munch.
+ * assem.c - Functions to translate to Assem-instructions for
+ *           the 68k assembly language using Maximal Munch.
  */
 
 #include <stdio.h>
@@ -16,20 +16,17 @@
 #include "frame.h"
 #include "errormsg.h"
 
-AS_targets AS_Targets(Temp_labelList labels) {
-   AS_targets p = checked_malloc (sizeof *p);
-   p->labels=labels;
-   return p;
-}
+AS_instr AS_Oper(string a, Temp_tempList d, Temp_tempList s, Temp_label t) 
+{
+    AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
-AS_instr AS_Oper(string a, Temp_tempList d, Temp_tempList s, AS_targets j) {
-  AS_instr p = (AS_instr) checked_malloc (sizeof *p);
-  p->kind = I_OPER;
-  p->u.OPER.assem=a; 
-  p->u.OPER.dst=d; 
-  p->u.OPER.src=s; 
-  p->u.OPER.jumps=j;
-  return p;
+    p->kind          = I_OPER;
+    p->u.OPER.assem  = a; 
+    p->u.OPER.dst    = d; 
+    p->u.OPER.src    = s; 
+    p->u.OPER.target = t;
+
+    return p;
 }
 
 AS_instr AS_Label(string a, Temp_label label) {
@@ -143,75 +140,83 @@ static Temp_temp nthTemp(Temp_tempList list, int i) {
   else return nthTemp(list->tail,i-1);
 }
 
-static Temp_label nthLabel(Temp_labelList list, int i) {
-  assert(list);
-  if (i==0) return list->head;
-  else return nthLabel(list->tail,i-1);
-}
-
-
 /* first param is string created by this function by reading 'assem' string
  * and replacing `d `s and `j stuff.
  * Last param is function to use to determine what to do with each temp.
  */
 static void format(char *result, string assem, 
-		   Temp_tempList dst, Temp_tempList src,
-		   AS_targets jumps, Temp_map m)
+		           Temp_tempList dst, Temp_tempList src,
+		           Temp_label target, Temp_map m)
 {
-
-  // fprintf(stdout, "a format: assem=%s, dst=%p, src=%p\n", assem, dst, src);
-  char *p;
-  int i = 0; /* offset to result string */
-  for(p = assem; p && *p != '\0'; p++){
-    if (*p == '`') {
-      switch(*(++p)) {
-      case 's': {int n = atoi(++p);
-		 string s = Temp_look(m, nthTemp(src,n));
-		 strcpy(result+i, s);
-		 i += strlen(s);
-	       }
-	break;
-      case 'd': {int n = atoi(++p);
-		 string s = Temp_look(m, nthTemp(dst,n));
-		 strcpy(result+i, s);
-		 i += strlen(s);
-	       }
-	break;
-      case 'j': assert(jumps); 
-	       {int n = atoi(++p);
-		 string s = Temp_labelstring(nthLabel(jumps->labels,n));
-		 strcpy(result+i, s);
-		 i += strlen(s);
-	       }
-	break;
-      case '`': result[i] = '`'; i++; 
-	break;
-      default: assert(0);
-      }}
-    else {result[i] = *p; i++; }}
-  result[i] = '\0';
-  //fprintf(stdout, "    %s\n", result);
+    // fprintf(stdout, "a format: assem=%s, dst=%p, src=%p\n", assem, dst, src);
+    char *p;
+    int i = 0; /* offset to result string */
+    for (p = assem; p && *p != '\0'; p++)
+    {
+        if (*p == '`') 
+        {
+            switch(*(++p)) 
+            {
+                case 's': 
+                {
+                    int n = atoi(++p);
+  	                string s = Temp_look(m, nthTemp(src,n));
+  	                strcpy(result+i, s);
+  	                i += strlen(s);
+  	                break;
+  	            }
+                case 'd': 
+                {
+                    int n = atoi(++p);
+  	                string s = Temp_look(m, nthTemp(dst,n));
+  	                strcpy(result+i, s);
+  	                i += strlen(s);
+  	                break;
+  	            }
+                case 'j': 
+                {
+                    string s = Temp_labelstring(target);
+  	                strcpy(result+i, s);
+  	                i += strlen(s);
+  	                break;
+  	            }
+                case '`': 
+                    result[i] = '`'; 
+                    i++; 
+  	                break;
+                default: 
+                    assert(0);
+            }
+        }
+        else 
+        {
+            result[i] = *p; i++; 
+        }
+    }
+    result[i] = '\0';
+    //fprintf(stdout, "    %s\n", result);
 }
 
 
 void AS_print(FILE *out, AS_instr i, Temp_map m)
 {
-  char r[200]; /* result */
-  switch (i->kind) {
-  case I_OPER:
-    format(r, i->u.OPER.assem, i->u.OPER.dst, i->u.OPER.src, i->u.OPER.jumps, m);
-    fprintf(out, "    %s", r);
-    break;
-  case I_LABEL:
-    format(r, i->u.LABEL.assem, NULL, NULL, NULL, m); 
-    fprintf(out, "%s", r); 
-    /* i->u.LABEL->label); */
-    break;
-  case I_MOVE:
-    format(r, i->u.MOVE.assem, i->u.MOVE.dst, i->u.MOVE.src, NULL, m);
-    fprintf(out, "    %s", r);
-    break;
-  }
+    char r[200]; /* result */
+    switch (i->kind) 
+    {
+        case I_OPER:
+            format(r, i->u.OPER.assem, i->u.OPER.dst, i->u.OPER.src, i->u.OPER.target, m);
+            fprintf(out, "    %s", r);
+            break;
+        case I_LABEL:
+            format(r, i->u.LABEL.assem, NULL, NULL, NULL, m); 
+            fprintf(out, "%s", r); 
+            /* i->u.LABEL->label); */
+            break;
+        case I_MOVE:
+            format(r, i->u.MOVE.assem, i->u.MOVE.dst, i->u.MOVE.src, NULL, m);
+            fprintf(out, "    %s", r);
+            break;
+    }
 }
 
 /* c should be COL_color; temporarily it is not */
