@@ -834,16 +834,22 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
 static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl) 
 {
-    Tr_expList el = NULL;
+    Tr_expList el = NULL, last=NULL;
     A_stmtListNode node;
     for (node = stmtList->first; node != NULL; node = node->next) {
         Tr_exp exp = transStmt(level, venv, tenv, node->stmt, breaklbl);
         if (!exp)   // declarations will not produce statements
             continue;
 
-        Tr_printExp(stdout, exp, 0); 
-
-        el = Tr_ExpList(exp, el);
+        // Tr_printExp(stdout, exp, 0); 
+        if (last)
+        {
+            last = last->tail = Tr_ExpList(exp, NULL);
+        } 
+        else
+        {
+            el = last = Tr_ExpList(exp, NULL);
+        }
     }
 
     return expTy(Tr_seqExp(el), Ty_Void());

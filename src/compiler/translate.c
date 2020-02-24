@@ -53,12 +53,6 @@ struct Tr_exp_
     } u;
 };
 
-struct Tr_expList_ 
-{
-    Tr_exp head;
-    Tr_expList tail;
-};
-
 Tr_expList Tr_ExpList(Tr_exp head, Tr_expList tail) 
 {
     Tr_expList el = checked_malloc(sizeof(*el));
@@ -714,39 +708,8 @@ Tr_exp Tr_seqExp(Tr_expList el)
             stm = unNx(el->head);
         }
     }
-#if 0
-    Tr_expList resEl = NULL;
-    for (; el; el = el->tail) 
-    {
-        resEl = Tr_ExpList(el->head, resEl);
-    }
- 
-    T_stm stm = NULL;
-    for (; resEl; resEl = resEl->tail) 
-    {
-        T_seq(
-        seq = T_Eseq(T_Exp(seq), unEx(resEl->head));
-    }
-
-    T_exp seq = T_ConstS4(0); // FIXME
-    for (; resEl; resEl = resEl->tail) 
-    {
-        seq = T_Eseq(T_Exp(seq), unEx(resEl->head));
-    }
-    return Tr_Ex(seq);
-#endif
     return Tr_Nx(stm);
 }
-
-#if 0
-Tr_exp Tr_letExp(Tr_expList el, Tr_exp body) {
-  T_exp exp = unEx(body);
-  for (; el; el = el->tail) {
-    exp = T_Eseq(unNx(el->head), exp);
-  }
-  return Tr_Ex(exp);
-}
-#endif
 
 Tr_exp Tr_callSExp(Tr_level funclv, Tr_level lv,
                    Temp_label name, Tr_expList rawel) 

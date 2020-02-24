@@ -12,6 +12,12 @@ typedef struct Tr_exp_        *Tr_exp;
 typedef struct Tr_expList_    *Tr_expList;
 typedef struct Tr_accessList_ *Tr_accessList;
 
+struct Tr_expList_ 
+{
+    Tr_exp head;
+    Tr_expList tail;
+};
+
 Tr_expList    Tr_ExpList(Tr_exp head, Tr_expList tail);
 Tr_exp        Tr_expListHead(Tr_expList el);
 Tr_expList    Tr_expListTail(Tr_expList el);

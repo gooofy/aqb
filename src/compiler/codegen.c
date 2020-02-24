@@ -765,10 +765,10 @@ static void munchStm(T_stm s)
             sprintf(inst, "%s `s1, `s0\n", cmpinstr);
             emit(AS_Oper(inst, NULL, L(r1, L(r2, NULL)), NULL));
 
-            sprintf(inst2, "%s `j0\n", branchinstr);
+            sprintf(inst2, "%s `j\n", branchinstr);
             emit(AS_Oper(inst2, NULL, NULL, jt));
     
-            sprintf(inst3, "jmp `j0\n");
+            sprintf(inst3, "jmp `j\n");
             emit(AS_Oper(inst3, NULL, NULL, jf));
             break;
         }
