@@ -90,12 +90,12 @@ S_scope E_base_venv(void)
 {
     S_scope t = S_beginScope(NULL);
 
-    declare_builtin(t, "__aqb_window_open", "isiiiili", Ty_Void());
-    declare_builtin(t, "__aio_puts",        "s",        Ty_Void());
-    declare_builtin(t, "__aio_puts2",       "i",        Ty_Void());
-    declare_builtin(t, "__aio_puts4",       "l",        Ty_Void());
-    declare_builtin(t, "__aio_putnl",       "",         Ty_Void());
-    declare_builtin(t, "__aio_puttab",      "",         Ty_Void());
+    declare_builtin(t, "___aqb_window_open", "isiiiili", Ty_Void());
+    declare_builtin(t, "__aio_puts",         "s",        Ty_Void());
+    declare_builtin(t, "__aio_puts2",        "i",        Ty_Void());
+    declare_builtin(t, "__aio_puts4",        "l",        Ty_Void());
+    declare_builtin(t, "__aio_putnl",        "",         Ty_Void());
+    declare_builtin(t, "__aio_puttab",       "",         Ty_Void());
 
     return t;
 }

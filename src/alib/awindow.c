@@ -41,7 +41,7 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
  *
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
  */
-BOOL window(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id)
+BOOL __aqb_window_open(short id, char *title, short x1, short y1, short x2, short y2, short flags, short scr_id)
 {
     USHORT w, h;
 
@@ -52,8 +52,30 @@ BOOL window(short id, char *title, short x1, short y1, short x2, short y2, short
         return FALSE;
     }
 
-    w  = x2 - x1;
-    h  = y2 - y1;
+    if (x1>=0)
+    {
+        w  = x2 - x1;
+        h  = y2 - y1;
+    }
+    else
+    {
+        struct Screen sc;
+
+        // get workbench screen size, calculate inner size for a fullscreen window
+        if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
+        {
+            g_errcode = AE_WIN_OPEN;
+            return FALSE;
+        }
+
+        x1 = 0;
+        y1 = 0;
+
+        // w = sc.Width  - sc.WBorLeft - sc.WBorRight;
+        // h = sc.Height - sc.WBorTop  - sc.WBorBottom;
+        w = sc.Width;
+        h = sc.Height;
+    }
 
     g_nw.LeftEdge = x1;
     g_nw.TopEdge  = y1;
@@ -91,7 +113,9 @@ BOOL window(short id, char *title, short x1, short y1, short x2, short y2, short
 
 void _awindow_init(void)
 {
-    // nothing yet.
+    // get workbench screen size info
+
+
 }
 
 void _awindow_shutdown(void)
@@ -104,4 +128,28 @@ void _awindow_shutdown(void)
     }
     //_aio_puts("_awindow_shutdown ... done.\n");
 }
+
+
+#if 0
+
+    *((ULONG *)(&scbox.Left)) = (ULONG) 0;
+    *((ULONG *)(&scbox.Width)) = *((ULONG *)(&sc->Width));
+
+    /*
+     * new "inner" dimensions processing
+     * (you probably want AUTOADJUST).
+     */
+    if ( ( inner = GetUserTagData( WA_InnerWidth, -1, tags ) ) != -1 )
+    {
+    DOW( printf("doing inner width\n") );
+    wbox.Width = inner + window->BorderLeft + window->BorderRight;
+    }
+    if ( ( inner = GetUserTagData( WA_InnerHeight, -1, tags ) ) != -1 )
+    {
+    DOW( printf("doing inner height\n") );
+    wbox.Height = inner + window->BorderTop + window->BorderBottom;
+    }
+
+
+#endif
 

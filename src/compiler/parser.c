@@ -696,7 +696,7 @@ static bool stmtWindow(void)
             A_ExpListAppend (args, y2);
             A_ExpListAppend (args, win_type);
             A_ExpListAppend (args, s_id);
-            fun_name = S_Symbol("__aqb_window_open");
+            fun_name = S_Symbol("___aqb_window_open");
 
             break;
         }

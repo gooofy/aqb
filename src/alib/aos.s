@@ -13,6 +13,7 @@ LVOOpenWindow    = -204
 LVOCloseWindow   = -72
 LVOAllocRemember = -396
 LVOFreeRemember  = -408
+LVOGetScreenData = -426
 
     .globl  _OpenLibrary
 _OpenLibrary:
@@ -93,6 +94,20 @@ _FreeRemember:
     move.l 12(a5),d0            /* reallyForget      */
     movea.l _IntuitionBase,a6   /* intuition base    */
     jsr     LVOFreeRemember(a6)
+
+    unlk a5
+    rts
+
+    .globl _GetScreenData
+_GetScreenData:
+    link a5, #0
+
+    move.l  8(a5),a0            /* buffer            */
+    move.l 12(a5),d0            /* size              */
+    move.l 16(a5),d1            /* type              */
+    move.l 20(a5),a1            /* screen            */
+    movea.l _IntuitionBase,a6   /* intuition base    */
+    jsr     LVOGetScreenData(a6)
 
     unlk a5
     rts
