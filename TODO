@@ -1,0 +1,39 @@
+
+*NOTE*: this is list itself is very incomplete.
+
+- implement defaul proc parameter semantics
+
+- true global vars on HEAP
+
+- REM
+
+- labels
+
+- goto
+
+- gosub
+
+- expressions: support for function calls
+
+- float type
+
+- array type
+
+- record type
+
+- byte type
+
+- bool type, short-circuit evaluation for boolean expressions
+
+- while / wen
+
+- startup code: command line args, workbench startup
+
+- code generator
+    - get rid of unneccesary jumps / nop statements
+    - proc calls: only save registers that carry live values
+    - use movem to save/restore registers
+    - constant propagation
+    - take full advantage of constants in code generation
+    - peephole optimizer
+
