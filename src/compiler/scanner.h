@@ -61,6 +61,8 @@
 #define S_ON       130
 #define S_OFF      131
 #define S_STOP     132
+#define S_INPUT    133
+#define S_LINE     134
 
 #define S_MAX_STRING 1024
 

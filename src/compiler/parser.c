@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "parser.h"
 
 #include "scanner.h"
@@ -706,6 +708,123 @@ static bool stmtWindow(void)
     return TRUE;
 }
 
+// line ::= LINE ( INPUT #fn , varid
+//               | [ [ STEP ] ( x1 , y1 ) ] - [ STEP ] ( x2 , y2 ) [, [ Color ]  [, flag ] ]
+//               )
+
+static bool stmtLine(void)
+{
+    A_exp     x1, y1, x2, y2;
+    A_pos     pos   = S_getpos();
+    A_exp     color = A_IntExp(pos, -1);
+    A_expList args  = A_ExpList();
+    int       flags = 0;
+
+    S_getsym();
+
+    if (S_token == S_INPUT)
+        return EM_err("Sorry, LINE INPUT is not supported yet."); // FIXME
+
+    if (S_token == S_STEP)
+    {
+        S_getsym();
+        flags |= 1;
+
+        if (S_token != S_LPAREN)
+            return EM_err("( expected here.");
+    }
+
+    if (S_token == S_LPAREN)
+    {
+        S_getsym();
+        if (!expression(&x1))
+            return EM_err("x1 expression expected here.");
+        if (S_token != S_COMMA)
+            return EM_err(", expected here.");
+        S_getsym();
+        if (!expression(&y1))
+            return EM_err("y1 expression expected here.");
+        if (S_token != S_RPAREN)
+            return EM_err(") expected here.");
+        S_getsym();
+    }
+    else
+    {
+        flags |= 1;
+        x1    = A_IntExp(pos, 0);
+        y1    = A_IntExp(pos, 0);
+    }
+
+    if (S_token != S_MINUS)
+        return EM_err("- expected here."); 
+    S_getsym();
+
+    if (S_token == S_STEP)
+    {
+        S_getsym();
+        flags |= 2;
+    }
+
+    if (S_token != S_LPAREN)
+        return EM_err("( expected here."); 
+    S_getsym();
+
+    if (!expression(&x2))
+        return EM_err("x2 expression expected here.");
+    if (S_token != S_COMMA)
+        return EM_err(", expected here.");
+    S_getsym();
+    if (!expression(&y2))
+        return EM_err("y2 expression expected here.");
+    if (S_token != S_RPAREN)
+        return EM_err(") expected here.");
+    S_getsym();
+
+    if (S_token == S_COMMA)
+    {
+        S_getsym();
+        if (!expression(&color)) 
+        {
+            if (S_token != S_COMMA)
+                return EM_err("color expression or , expected here.");
+            color = A_IntExp(pos, -1);
+        }
+        if (S_token == S_COMMA)
+        {
+            S_getsym();
+            if (S_token != S_IDENT)
+                return EM_err("B or BF expected here.");
+
+            if (!strcmp(S_strlc, "b"))
+            {
+                flags |= 4;
+            }
+            else
+            {
+                if (!strcmp(S_strlc, "bf"))
+                {
+                    flags |= 12;
+                }
+                else
+                {
+                    return EM_err("B or BF expected here.");
+                }
+            }
+        }
+    }
+
+    A_ExpListAppend (args, x1);
+    A_ExpListAppend (args, y1);
+    A_ExpListAppend (args, x2);
+    A_ExpListAppend (args, y2);
+    A_ExpListAppend (args, A_IntExp(pos, flags));
+    A_ExpListAppend (args, color);
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, S_Symbol("___aqb_line"), args));
+
+    return TRUE;
+}
+
 // lValue ::= ident [ "(" subscriptList ")" ]
 static bool lValue(A_var *v)
 {
@@ -1205,6 +1324,8 @@ static bool statementBody(void)
             return stmtPrint();
         case S_WINDOW:
             return stmtWindow();
+        case S_LINE:
+            return stmtLine();
         case S_FOR:
             return stmtForBegin();
         case S_NEXT:

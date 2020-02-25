@@ -7,6 +7,7 @@
 #include <intuition/intuitionbase.h>
 #include <clib/intuition_protos.h>
 #include <exec/memory.h>
+#include <clib/graphics_protos.h>
 
 static struct NewWindow g_nw =
 {
@@ -35,6 +36,8 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL,
     NULL,NULL,NULL,NULL
 };
+
+static struct RastPort *g_rp=NULL;
 
 /*
  * BASIC:
@@ -103,10 +106,10 @@ BOOL __aqb_window_open(short id, char *title, short x1, short y1, short x2, shor
     }
 
     g_winlist[id-1] = win;
+    g_rp            = win->RPort;
 
-    // FIXME: set first drawing position
-    // Move(RPort,0,RPort->Font->tf_YSize - 2);
-    // SetAPen(RPort,1L);
+    Move(g_rp, 0, g_rp->Font->tf_YSize - 2);
+    SetAPen(g_rp, 1L);
 
     return TRUE;
 }
@@ -129,27 +132,58 @@ void _awindow_shutdown(void)
     //_aio_puts("_awindow_shutdown ... done.\n");
 }
 
-
+/*
+ * BASIC:
+ *
+ * LINE [ [ STEP ] ( x1 , y1 ) ] - [ STEP ] ( x2 , y2 ) [, [ Color ]  [, flag ] ]
+ */
+BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color)
+{
 #if 0
-
-    *((ULONG *)(&scbox.Left)) = (ULONG) 0;
-    *((ULONG *)(&scbox.Width)) = *((ULONG *)(&sc->Width));
-
-    /*
-     * new "inner" dimensions processing
-     * (you probably want AUTOADJUST).
-     */
-    if ( ( inner = GetUserTagData( WA_InnerWidth, -1, tags ) ) != -1 )
-    {
-    DOW( printf("doing inner width\n") );
-    wbox.Width = inner + window->BorderLeft + window->BorderRight;
-    }
-    if ( ( inner = GetUserTagData( WA_InnerHeight, -1, tags ) ) != -1 )
-    {
-    DOW( printf("doing inner height\n") );
-    wbox.Height = inner + window->BorderTop + window->BorderBottom;
-    }
-
-
+    _aio_puts("x1: "); _aio_puts4(x1);
+    _aio_puts(", y1: "); _aio_puts4(y1);
+    _aio_puts(", x2: "); _aio_puts4(x2);
+    _aio_puts(", y2: "); _aio_puts4(y2);    
+    _aio_puts(", flags: "); _aio_puts4(flags);
+    _aio_puts(", color: "); _aio_puts4(color);
+    _aio_putnl();
 #endif
+
+    if (flags & AW_LINE_STEP_1)
+    {
+        x1 += g_rp->cp_x;
+        y1 += g_rp->cp_y;
+    }
+    if (flags & AW_LINE_STEP_2)
+    {
+        x2 += g_rp->cp_x;
+        y2 += g_rp->cp_y;
+    }
+    if (flags & AW_LINE_FLAG_BOX)
+    {
+        // FIXME
+        if (flags & AW_LINE_FLAG_FILL)
+        {
+            RectFill (g_rp, x1, y1, x2, y2);
+        }
+        else
+        {
+            Move (g_rp, x1, y1);
+            Draw (g_rp, x2, y1);
+            Draw (g_rp, x2, y2);
+            Draw (g_rp, x1, y2);
+            Draw (g_rp, x1, y1);
+        }
+    }
+    else
+    {
+        Move (g_rp, x1, y1);
+        Draw (g_rp, x2, y2);
+    }
+#if 0
+    Move (g_rp, 10, 10);
+    Draw (g_rp, 15, 15);
+#endif
+    return TRUE;
+}
 

@@ -9,10 +9,13 @@ AR = m68k-amigaos-ar
 
 .PHONY: clean all diss
 
-all: _alib.a alibtest startup.o
+all: _alib.a alibtest startup.o clibtest.s
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+# clibtest.s:	clibtest.c
+# 	$(CC) -S $(CFLAGS) $(CPPFLAGS) $< -o $@
 
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
