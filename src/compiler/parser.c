@@ -810,6 +810,7 @@ static bool stmtLine(void)
                     return EM_err("B or BF expected here.");
                 }
             }
+            S_getsym();
         }
     }
 
