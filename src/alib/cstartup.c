@@ -7,6 +7,7 @@
  */
 
 #include "aio.h"
+#include "astr.h"
 #include "autil.h"
 #include "awindow.h"
 
@@ -28,6 +29,8 @@
 struct DOSBase       *DOSBase       = NULL;
 struct IntuitionBase *IntuitionBase = NULL;
 struct GfxBase       *GfxBase       = NULL;
+struct MathBase      *MathBase      = NULL;
+struct MathTransBase *MathTransBase = NULL;
 
 static BOOL awindow_init_done = FALSE;
 static BOOL autil_init_done   = FALSE;
@@ -51,6 +54,10 @@ static void _cshutdown (char *msg)
         CloseLibrary( (struct Library *)GfxBase);
     if (IntuitionBase) 
         CloseLibrary( (struct Library *)IntuitionBase);
+    if (MathTransBase) 
+        CloseLibrary( (struct Library *)MathTransBase);
+    if (MathBase) 
+        CloseLibrary( (struct Library *)MathBase);
 
     // _aio_puts ("closing dos.library, exiting...\n");
 
@@ -67,6 +74,12 @@ void _cstartup (void)
     if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
         _cshutdown("*** error: failed to open dos.library!\n");
 
+    if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
+        _cshutdown("*** error: failed to open mathffp.library!\n");
+
+    if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
+        _cshutdown("*** error: failed to open mathtrans.library!\n");
+
     if (!(IntuitionBase = (struct IntuitionBase *)OpenLibrary((CONST_STRPTR) "intuition.library", 0)))
         _cshutdown("*** error: failed to open intuition.library!\n");
 
@@ -75,6 +88,8 @@ void _cstartup (void)
 
     _autil_init();
     autil_init_done = TRUE;
+
+    _astr_init();
 
     _aio_init();
     aio_init_done = TRUE;

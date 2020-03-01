@@ -91,3 +91,22 @@ void _aio_putbin(int num)
     _aio_puts(buf);
 }
 
+void _aio_putuhex(ULONG l)
+{
+    char  buf[MAXBUF];
+    ULONG digit;
+
+    for (int i = 7; i>=0; i--)
+    {
+        digit = (l >> (4*i)) & 0xf;
+
+        if (digit < 10)
+            buf[7-i] = '0' + digit;
+        else
+            buf[7-i] = 'a' + (digit-10);
+    }
+    buf[8] = 0;
+
+    _aio_puts(buf);
+}
+
