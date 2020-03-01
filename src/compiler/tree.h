@@ -17,14 +17,9 @@ struct T_stmList_ {T_stm head; T_stmList tail;};
 
 typedef enum 
 {
-    /* long ops (signed 4 byte operands) */
-    T_s4plus=1,   T_s4minus,  T_s4mul, T_s4div,
-    T_s4xor,      T_s4eqv,    T_s4imp, T_s4neg, T_s4not, T_s4and, T_s4or,
-    T_s4power,    T_s4intDiv, T_s4mod,
-    /* int ops  (signed 2 byte operands) */
-    T_s2plus=20,  T_s2minus,  T_s2mul, T_s2div,
-    T_s2xor,      T_s2eqv,    T_s2imp, T_s2neg, T_s2not, T_s2and, T_s2or,
-    T_s2power,    T_s2intDiv, T_s2mod
+    T_plus,  T_minus,  T_mul, T_div,
+    T_xor,   T_eqv,    T_imp, T_neg, T_not, T_and, T_or,
+    T_power, T_intDiv, T_mod,
 } T_binOp;
 
 typedef enum  
@@ -55,10 +50,11 @@ struct T_stm_
 struct T_exp_ 
 {
     enum { T_BINOP, T_MEMS2, T_MEMS4, T_HEAP, T_ESEQ, T_TEMP,
-		   T_CONSTS4, T_CONSTS2, T_CALLF, T_CASTS4S2, T_CASTS2S4 } kind;
+		   T_CONSTS4, T_CONSTS2, T_CALLF, 
+           T_CASTS4S2, T_CASTS2S4, T_CASTS4F, T_CASTS2F, T_CASTFS2, T_CASTFS4 } kind;
 	union 
     {
-        struct {T_binOp op; T_exp left, right;} BINOP;
+        struct {T_binOp op; T_exp left, right; Ty_ty ty;} BINOP;
         T_exp MEM;
         Temp_label HEAP;
 	    Temp_temp TEMP;
@@ -81,7 +77,7 @@ T_stm T_MoveS2(T_exp, T_exp);
 T_stm T_Nop(void);
 T_stm T_Exp(T_exp exp);
 
-T_exp T_Binop(T_binOp, T_exp, T_exp);
+T_exp T_Binop(T_binOp, T_exp, T_exp, Ty_ty);
 T_exp T_MemS4(T_exp);
 T_exp T_MemS2(T_exp);
 T_exp T_Temp(Temp_temp);
@@ -92,6 +88,10 @@ T_exp T_ConstS2(int);
 T_exp T_CallF(Temp_label fun, T_expList args);
 T_exp T_CastS4S2(T_exp exp);
 T_exp T_CastS2S4(T_exp exp);
+T_exp T_CastS4F(T_exp exp);
+T_exp T_CastS2F(T_exp exp);
+T_exp T_CastFS4(T_exp exp);
+T_exp T_CastFS2(T_exp exp);
 
 T_relOp T_notRel(T_relOp);  /* a op b    ==     not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b    ==    b commute(op) a       */

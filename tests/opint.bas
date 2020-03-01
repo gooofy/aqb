@@ -33,13 +33,19 @@ assertEquals a% + b%,      65, "+"
 assertEquals a% - b%,     -19, "-"
 assertEquals a% * b%,     966, "*"
 assertEquals b% / a%,       1, "/"
-
 assertEquals a%  ^   3, 12167, "^"
-' print a% ^ 3
 assertEquals b%  \  a%,     1, "\\"
-' print b% \ a%
 assertEquals b% MOD a%,    19, "MOD"
-' print a% MOD b%
+
+' same but using constants
+
+assertEquals a% + 42,      65, "+"
+assertEquals 42 + a%,      65, "+"
+assertEquals a% - 42,     -19, "-"
+assertEquals a% * 42,     966, "*"
+assertEquals 42 * a%,     966, "*"
+assertEquals b% / 23,       1, "/"
+assertEquals b% MOD 23,    19, "MOD"
 
 ' logical operators
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp

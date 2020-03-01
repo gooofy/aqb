@@ -283,6 +283,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
             switch (ty2->kind)
             {
                 case Ty_long:
+                case Ty_single:
                     *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
                     return TRUE;
                 default:
@@ -293,6 +294,18 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
             switch (ty2->kind)
             {
                 case Ty_integer:
+                case Ty_single:
+                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
+        case Ty_single:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
                     *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
                     return TRUE;
                 default:
@@ -633,8 +646,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 case Ty_long:
                     fsym = S_Symbol("__aio_puts4"); 
                     break;
+                case Ty_single:
+                    fsym = S_Symbol("__aio_putf"); 
+                    break;
                 default:
-                    EM_error(stmt->pos, "unsupported type in print expression list.");
+                    EM_error(stmt->pos, "unsupported type %d in print expression list.", exp.ty->kind);
+                    assert(0);
             }
             if (fsym)
             {

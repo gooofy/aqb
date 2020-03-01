@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+
 #include "util.h"
 
 void *checked_malloc(int len)
@@ -57,5 +59,25 @@ void U_ListAppend(U_list list, U_listNode node)
         list->last->next = node;
         list->last       = node;
     }
+}
+
+#define MAXBUF 1024
+
+string strprintf(const char *format, ...)
+{
+    char    buf[MAXBUF];
+    va_list args;
+    int     l;
+    char   *res;
+     
+    va_start (args, format);
+    vsnprintf (buf, MAXBUF, format, args);
+    va_end (args);
+
+    l = strlen(buf);
+    res = checked_malloc(l+1);
+    res[l] = 0;
+    memcpy(res, buf, l);
+    return res;
 }
 

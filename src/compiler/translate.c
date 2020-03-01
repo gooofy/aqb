@@ -402,56 +402,28 @@ Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l) {
 Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty) 
 {
     T_binOp op;
-    switch (ty->kind)
+    switch (o) 
     {
-        case Ty_integer:
-            switch (o) 
-            {
-                case A_addOp   : op = T_s2plus;     break;
-                case A_subOp   : op = T_s2minus;    break;
-                case A_mulOp   : op = T_s2mul;      break;
-                case A_divOp   : op = T_s2div;      break;
-                case A_xorOp   : op = T_s2xor;      break;
-                case A_eqvOp   : op = T_s2eqv;      break;
-                case A_impOp   : op = T_s2imp;      break;
-                case A_negOp   : op = T_s2neg;      break;
-                case A_notOp   : op = T_s2not;      break;
-                case A_andOp   : op = T_s2and;      break;
-                case A_orOp    : op = T_s2or;       break;
-                case A_expOp   : op = T_s2power;    break;
-                case A_intDivOp: op = T_s2intDiv;   break;
-                case A_modOp   : op = T_s2mod;      break;
-                default:
-                    EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
-            }
-            break;
-        case Ty_long:
-            switch (o) 
-            {
-                case A_addOp   : op = T_s4plus;     break;
-                case A_subOp   : op = T_s4minus;    break;
-                case A_mulOp   : op = T_s4mul;      break;
-                case A_divOp   : op = T_s4div;      break;
-                case A_xorOp   : op = T_s4xor;      break;
-                case A_eqvOp   : op = T_s4eqv;      break;
-                case A_impOp   : op = T_s4imp;      break;
-                case A_negOp   : op = T_s4neg;      break;
-                case A_notOp   : op = T_s4not;      break;
-                case A_andOp   : op = T_s4and;      break;
-                case A_orOp    : op = T_s4or;       break;
-                case A_expOp   : op = T_s4power;    break;
-                case A_intDivOp: op = T_s4intDiv;   break;
-                case A_modOp   : op = T_s4mod;      break;
-                default:
-                    EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
-            }
-            break;
+        case A_addOp   : op = T_plus;     break;
+        case A_subOp   : op = T_minus;    break;
+        case A_mulOp   : op = T_mul;      break;
+        case A_divOp   : op = T_div;      break;
+        case A_xorOp   : op = T_xor;      break;
+        case A_eqvOp   : op = T_eqv;      break;
+        case A_impOp   : op = T_imp;      break;
+        case A_negOp   : op = T_neg;      break;
+        case A_notOp   : op = T_not;      break;
+        case A_andOp   : op = T_and;      break;
+        case A_orOp    : op = T_or;       break;
+        case A_expOp   : op = T_power;    break;
+        case A_intDivOp: op = T_intDiv;   break;
+        case A_modOp   : op = T_mod;      break;
         default:
-            EM_error(0, "*** translate.c:Tr_arOpExp: internal error");
+            EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
             assert(0);
     }
 
-    return Tr_Ex(T_Binop(op, unEx(left), unEx(right)));
+    return Tr_Ex(T_Binop(op, unEx(left), unEx(right), ty));
 }
 
 Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty) 
@@ -535,8 +507,10 @@ Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty) {
             return Tr_Nx(T_MoveS2(unEx(var), unEx(exp)));
         case Ty_long:
             return Tr_Nx(T_MoveS4(unEx(var), unEx(exp)));
+        case Ty_single:
+            return Tr_Nx(T_MoveS4(unEx(var), unEx(exp)));
         default:
-            EM_error(0, "*** translate.c:Tr_assignExp: internal error");
+            EM_error(0, "*** translate.c: Tr_assignExp: unknown type %d!", ty->kind);
             assert(0);
     }
 }
@@ -624,13 +598,13 @@ Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp e
     {
         case Ty_integer:
             initStm  = T_MoveS2(loopv, unEx(exp_from));
-            incStm   = T_MoveS2(loopv, T_Binop(T_s2plus, loopv, unEx(exp_step)));
+            incStm   = T_MoveS2(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()));
             limitStm = T_MoveS2(T_Temp(limit), unEx(exp_to));
             relOp    = T_s2le;
             break;
         case Ty_long:
             initStm  = T_MoveS4(loopv, unEx(exp_from));
-            incStm   = T_MoveS4(loopv, T_Binop(T_s4plus, loopv, unEx(exp_step)));
+            incStm   = T_MoveS4(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Long()));
             limitStm = T_MoveS4(T_Temp(limit), unEx(exp_to));
             relOp    = T_s4le;
             break;
@@ -748,8 +722,10 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     return exp;
                 case Ty_long:
                     return Tr_Ex(T_CastS2S4(unEx(exp)));
+                case Ty_single:
+                    return Tr_Ex(T_CastS2F(unEx(exp)));
                 default:
-                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %s", to_ty->kind);
+                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                     assert(0);
             }
             break;
@@ -760,13 +736,29 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     return Tr_Ex(T_CastS4S2(unEx(exp)));
                 case Ty_long:
                     return exp;
+                case Ty_single:
+                    return Tr_Ex(T_CastS4F(unEx(exp)));
                 default:
-                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %s", to_ty->kind);
+                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                    assert(0);
+            }
+            break;
+        case Ty_single:
+            switch (to_ty->kind)
+            {
+                case Ty_integer:
+                    return Tr_Ex(T_CastFS2(unEx(exp)));
+                case Ty_long:
+                    return Tr_Ex(T_CastFS4(unEx(exp)));
+                case Ty_single:
+                    return exp;
+                default:
+                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                     assert(0);
             }
             break;
         default:
-            EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %s", from_ty->kind);
+            EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
             assert(0);
     }
     return NULL;

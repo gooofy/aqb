@@ -394,14 +394,14 @@ T_exp F_Exp(F_access acc, T_exp framePtr)
     switch (ty->kind)
     {
         case Ty_integer:
-            return T_MemS2(T_Binop(T_s4plus, framePtr, T_ConstS4(F_accessOffset(acc))));
+            return T_MemS2(T_Binop(T_plus, framePtr, T_ConstS4(F_accessOffset(acc)), Ty_Long()));
         case Ty_long:
         case Ty_single:
         case Ty_string: 
         case Ty_array:
         case Ty_record: 
         case Ty_void:
-            return T_MemS4(T_Binop(T_s4plus, framePtr, T_ConstS4(F_accessOffset(acc))));
+            return T_MemS4(T_Binop(T_plus, framePtr, T_ConstS4(F_accessOffset(acc)), Ty_Long()));
         default:
             assert(0); // FIXME
     }

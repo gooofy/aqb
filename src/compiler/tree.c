@@ -90,13 +90,17 @@ T_stm T_Exp(T_exp exp)
     return p;
 }
  
-T_exp T_Binop(T_binOp op, T_exp left, T_exp right)
-{T_exp p = (T_exp) checked_malloc(sizeof *p);
- p->kind=T_BINOP;
- p->u.BINOP.op=op;
- p->u.BINOP.left=left;
- p->u.BINOP.right=right;
- return p;
+T_exp T_Binop(T_binOp op, T_exp left, T_exp right, Ty_ty ty)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+ 
+    p->kind          = T_BINOP;
+    p->u.BINOP.op    = op;
+    p->u.BINOP.left  = left;
+    p->u.BINOP.right = right;
+    p->u.BINOP.ty    = ty;
+
+    return p;
 }
  
 T_exp T_MemS4(T_exp exp)
@@ -194,6 +198,46 @@ T_exp T_CastS2S4(T_exp exp)
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind    = T_CASTS2S4;
+    p->u.CAST  = exp;
+
+    return p;
+}
+
+T_exp T_CastS2F(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind    = T_CASTS2F;
+    p->u.CAST  = exp;
+
+    return p;
+}
+
+T_exp T_CastS4F(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind    = T_CASTS4F;
+    p->u.CAST  = exp;
+
+    return p;
+}
+
+T_exp T_CastFS2(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind    = T_CASTFS2;
+    p->u.CAST  = exp;
+
+    return p;
+}
+
+T_exp T_CastFS4(T_exp exp)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind    = T_CASTFS4;
     p->u.CAST  = exp;
 
     return p;

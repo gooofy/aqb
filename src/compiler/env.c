@@ -41,6 +41,7 @@ S_scope E_base_tenv(void) {
  * argtypes is a string, each char corresponds to one argument type:
  * i : integer (2 byte signed short)
  * l : long    (4 byte signed long)
+ * f : float   (single precision float)
  * s : string  (string pointer)
  */
 
@@ -59,6 +60,9 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
                 break;
             case 'l':
                 ty = Ty_Long();
+                break;
+            case 'f':
+                ty = Ty_Single();
                 break;
             case 's':
                 ty = Ty_String();
@@ -95,6 +99,7 @@ S_scope E_base_venv(void)
     declare_builtin(t, "__aio_puts",         "s",        Ty_Void());
     declare_builtin(t, "__aio_puts2",        "i",        Ty_Void());
     declare_builtin(t, "__aio_puts4",        "l",        Ty_Void());
+    declare_builtin(t, "__aio_putf",         "f",        Ty_Void());
     declare_builtin(t, "__aio_putnl",        "",         Ty_Void());
     declare_builtin(t, "__aio_puttab",       "",         Ty_Void());
 
