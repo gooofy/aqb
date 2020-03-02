@@ -75,6 +75,17 @@ F_frag        F_newProcFrag(T_stm body, F_frame frame);
 
 AS_proc       F_procEntryExitAS(F_frame frame, AS_instrList body);
 
+// RAL: register association list
+typedef struct F_ral_ *F_ral;
+struct F_ral_ 
+{
+    Temp_temp arg;
+    Temp_temp reg;
+    F_ral     next;
+};
+
+F_ral         F_RAL(Temp_temp arg, Temp_temp reg, F_ral next);
+
 void          F_printtree(FILE *out, F_fragList frags);
 
 #endif

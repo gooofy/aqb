@@ -129,9 +129,8 @@ static struct stmExp do_exp(T_exp exp)
         }
         case T_CALLF:
             return StmExp(reorder(get_call_rlist(exp)), exp);
-        case T_CASTS4S2: 
-        case T_CASTS2S4: 
-            return StmExp(reorder(ExpRefList(&exp->u.CAST, NULL)), exp);
+        case T_CAST: 
+            return StmExp(reorder(ExpRefList(&exp->u.CAST.exp, NULL)), exp);
         default:
             return StmExp(reorder(NULL), exp);
     }

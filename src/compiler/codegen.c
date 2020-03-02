@@ -11,6 +11,20 @@
 #include "codegen.h"
 #include "table.h"
 
+#define LVOSPFix      -30
+#define LVOSPFlt      -36
+#define LVOSPCmp      -42
+#define LVOSPTst      -48
+#define LVOSPAbs      -54
+#define LVOSPNeg      -60
+#define LVOSPAdd      -66
+#define LVOSPSub      -72
+#define LVOSPMul      -78
+#define LVOSPDiv      -84
+#define LVOSPFloor    -90
+#define LVOSPCeil     -96
+
+
 static AS_instrList iList = NULL, last = NULL;
 static bool lastIsLabel = FALSE;  // reserved for "nop"
 static void emit(AS_instr inst) 
@@ -169,7 +183,6 @@ static Temp_temp munchBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
     T_exp     e_left  = e->u.BINOP.left;
     T_exp     e_right = e->u.BINOP.right;
     Temp_temp r       = Temp_newtemp(resty);
-    char     *isz     = ty_isz(resty);
 
 #if 0
     //Temp_temp r1 = munchExp(e1);
@@ -192,6 +205,28 @@ static Temp_temp munchBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
 
     emitMove(F_RV(), r, "l");
     return r;
+}
+
+static void emitLibCall(string libBaseName, int lvo, Temp_temp r, F_ral ral)
+{
+    Temp_tempList argTempList = NULL;
+
+    emit(AS_Oper(String("move.l a6,-(sp)\n"), NULL, NULL, NULL));
+
+    // move args into their associated registers:
+
+    for (;ral;ral = ral->next)
+    {
+        emitMove(ral->arg, ral->reg, "l");
+        argTempList = L(ral->reg, argTempList);
+    }
+
+    emit(AS_Oper(strprintf("movea.l %s,a6\n", libBaseName), NULL, NULL, NULL));
+    emit(AS_Oper(strprintf("jsr %d(a6)\n", lvo), L(F_RV(), F_callersaves()), argTempList, NULL));
+
+	emit(AS_Oper(String("move.l (sp)+,a6\n"), NULL, NULL, NULL));
+
+    emitMove(F_RV(), r, "l");
 }
 
 static Temp_temp munchExp(T_exp e, bool ignore_result) 
@@ -261,7 +296,6 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         case T_BINOP: 
         {
             Ty_ty resty = e->u.BINOP.ty;
-
             switch (resty->kind)
             {
                 case Ty_integer:
@@ -353,7 +387,43 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             assert(0);
                     }
                     break;
+                case Ty_single:
+                {
+                    Temp_temp r = Temp_newtemp(resty);
+                    switch (e->u.BINOP.op)
+                    {
+                        case T_plus:
+                            emitLibCall("_MathBase", LVOSPAdd, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                            break;
+                        case T_minus:
+                            emitLibCall("_MathBase", LVOSPSub, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                            break;
+                        case T_mul:
+                            emitLibCall("_MathBase", LVOSPMul, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                            break;
+                        case T_div:
+                            emitLibCall("_MathBase", LVOSPDiv, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                            break;
+                        case T_neg:
+                            emitLibCall("_MathBase", LVOSPNeg, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), NULL));
+                            break;
+                        default:
+                            EM_error(0, "*** codegen.c: unhandled single binOp %d!", e->u.BINOP.op);
+                            assert(0);
+                    }
+                    return r;
+                }
                 default:
+                    EM_error(0, "*** codegen.c: unhandled type kind %d!", resty->kind);
                     assert(0);
                     break;
             }
@@ -417,22 +487,56 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             }
             return NULL;
         }
-        case T_CASTS2S4: 
+        case T_CAST: 
         {
-            Temp_temp r = Temp_newtemp(Ty_Long());
-            Temp_temp r1 = munchExp(e->u.CAST, FALSE);
-            sprintf(inst, "move.w `s0, `d0\n");
-            emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
-            sprintf(inst2, "ext.l `s0\n");
-            emit(AS_Oper(inst2, L(r, NULL), L(r, NULL), NULL));
-            return r;
-        }
-        case T_CASTS4S2: 
-        {
-            Temp_temp r = Temp_newtemp(Ty_Long());
-            Temp_temp r1 = munchExp(e->u.CAST, FALSE);
-            sprintf(inst, "move.w `s0, `d0\n");
-            emit(AS_Move(inst, L(r, NULL), L(r1, NULL)));
+            Temp_temp r = Temp_newtemp(e->u.CAST.ty_to);
+            Temp_temp r1 = munchExp(e->u.CAST.exp, FALSE);
+
+            switch (e->u.CAST.ty_from->kind)
+            {
+                case Ty_integer:
+                    switch (e->u.CAST.ty_to->kind)
+                    {
+                        case Ty_long:
+                            emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.l `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            break;
+                        case Ty_single:
+                            emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.l `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emitLibCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
+                            break;
+                        default:
+                            assert(0);
+                    }
+                    break;
+                case Ty_long:
+                    switch (e->u.CAST.ty_to->kind)
+                    {
+                        case Ty_integer:
+                            emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            break;
+                        case Ty_single:
+                            emitLibCall("_MathBase", LVOSPFlt, r, F_RAL(r1, F_D0(), NULL));
+                            break;
+                        default:
+                            assert(0);
+                    }
+                    break;
+                case Ty_single:
+                    switch (e->u.CAST.ty_to->kind)
+                    {
+                        case Ty_integer:
+                        case Ty_long:
+                            emitLibCall("_MathBase", LVOSPFix, r, F_RAL(r1, F_D0(), NULL));
+                            break;
+                        default:
+                            assert(0);
+                    }
+                    break;
+                default:
+                    assert(0);
+            }
             return r;
         }
         default:

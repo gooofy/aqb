@@ -16,19 +16,12 @@ static void indent(FILE *out, int d)
         fprintf(out, " ");
 }
 
-static char bin_oper[][12] = {
-   "S4PLUS",  "S4MINUS",  "S4MUL", "S4DIV", 
-   "S4XOR",   "S4EQV",    "S4IMP", "S4NEG", "S4NOT", "S4AND", "S4OR",
-   "S4POWER", "S4INTDIV", "S4MOD",
-   "S2PLUS",  "S2MINUS",  "S2MUL", "S2DIV", 
-   "S2XOR",   "S2EQV",    "S2IMP", "S2NEG", "S2NOT", "S2AND", "S2OR",
-   "S2POWER", "S2INTDIV", "S2MOD",
-   "FPLUS",  "FMINUS",  "FMUL", "FDIV", 
-   "FNEG",
-   "FPOWER", "FINTDIV", "FMOD"
-};
+static char bin_oper[][14] = {
+   "PLUS",  "MINUS",  "MUL", "DIV", 
+   "XOR",   "EQV",    "IMP", "NEG", "NOT", "AND", "OR",
+   "POWER", "INTDIV", "MOD"};
 
-static char rel_oper[][12] = {
+static char rel_oper[][10] = {
   "EQ", "NE", "LT", "GT", "LE", "GE", "ULT", "ULE", "UGT", "UGE"};
  
 void printStm(FILE *out, T_stm stm, int d)
@@ -122,29 +115,13 @@ void printExp(FILE *out, T_exp exp, int d)
             fprintf(out, ")");
             break;
         }
-        case T_CASTS4S2:
-            indent(out,d); fprintf(out, "CASTS4S2(\n");
-            printExp(out, exp->u.CAST, d+1);
-            break;
-        case T_CASTS2S4:
-            indent(out,d); fprintf(out, "CASTS2S4(\n");
-            printExp(out, exp->u.CAST, d+1);
-            break;
-        case T_CASTS4F:
-            indent(out,d); fprintf(out, "CASTS4F(\n");
-            printExp(out, exp->u.CAST, d+1);
-            break;
-        case T_CASTS2F:
-            indent(out,d); fprintf(out, "CASTS2F(\n");
-            printExp(out, exp->u.CAST, d+1);
-            break;
-        case T_CASTFS2:
-            indent(out,d); fprintf(out, "CASTFS2(\n");
-            printExp(out, exp->u.CAST, d+1);
-            break;
-        case T_CASTFS4:
-            indent(out,d); fprintf(out, "CASTFS4(\n");
-            printExp(out, exp->u.CAST, d+1);
+        case T_CAST:
+            indent(out,d); fprintf(out, "CAST(");
+            Ty_print(exp->u.CAST.ty_from);
+            fprintf(out, "->");
+            Ty_print(exp->u.CAST.ty_to);
+            fprintf(out, "\n");
+            printExp(out, exp->u.CAST.exp, d+1);
             break;
     } /* end of switch */
 }

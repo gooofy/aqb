@@ -37,13 +37,16 @@ AS_instr AS_Label(string a, Temp_label label) {
   return p;
 }
 
-AS_instr AS_Move(string a, Temp_tempList d, Temp_tempList s) {
-  AS_instr p = (AS_instr) checked_malloc (sizeof *p);
-  p->kind = I_MOVE;
-  p->u.MOVE.assem=a; 
-  p->u.MOVE.dst=d; 
-  p->u.MOVE.src=s; 
-  return p;
+AS_instr AS_Move(string a, Temp_tempList d, Temp_tempList s) 
+{
+    AS_instr p = (AS_instr) checked_malloc (sizeof *p);
+
+    p->kind         = I_MOVE;
+    p->u.MOVE.assem = a; 
+    p->u.MOVE.dst   = d; 
+    p->u.MOVE.src   = s; 
+
+    return p;
 }
 
 AS_instrList AS_InstrList(AS_instr head, AS_instrList tail)

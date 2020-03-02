@@ -51,7 +51,7 @@ struct T_exp_
 {
     enum { T_BINOP, T_MEMS2, T_MEMS4, T_HEAP, T_ESEQ, T_TEMP,
 		   T_CONSTS4, T_CONSTS2, T_CALLF, 
-           T_CASTS4S2, T_CASTS2S4, T_CASTS4F, T_CASTS2F, T_CASTFS2, T_CASTFS4 } kind;
+           T_CAST } kind;
 	union 
     {
         struct {T_binOp op; T_exp left, right; Ty_ty ty;} BINOP;
@@ -61,7 +61,7 @@ struct T_exp_
 	    struct {T_stm stm; T_exp exp;} ESEQ;
 	    int CONST;
 	    struct {Temp_label fun; T_expList args;} CALLF;
-	    T_exp CAST;
+	    struct {T_exp exp; Ty_ty ty_from, ty_to;} CAST;
 	} u;
 };
 
@@ -86,12 +86,7 @@ T_exp T_Eseq(T_stm, T_exp);
 T_exp T_ConstS4(int);
 T_exp T_ConstS2(int);
 T_exp T_CallF(Temp_label fun, T_expList args);
-T_exp T_CastS4S2(T_exp exp);
-T_exp T_CastS2S4(T_exp exp);
-T_exp T_CastS4F(T_exp exp);
-T_exp T_CastS2F(T_exp exp);
-T_exp T_CastFS4(T_exp exp);
-T_exp T_CastFS2(T_exp exp);
+T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
 
 T_relOp T_notRel(T_relOp);  /* a op b    ==     not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b    ==    b commute(op) a       */

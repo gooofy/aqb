@@ -12,29 +12,35 @@
 #include "table.h"
 
 
-Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail) {
+Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail) 
+{
 	Live_moveList lm = (Live_moveList) checked_malloc(sizeof(*lm));
-	lm->src = src;
-	lm->dst = dst;
+
+    lm->src  = src;
+	lm->dst  = dst;
 	lm->tail = tail;
+
 	return lm;
 }
 
-Temp_temp Live_gtemp(G_node n) {
-	//your code here.
-  return (Temp_temp)G_nodeInfo(n);
+Temp_temp Live_gtemp(G_node n) 
+{
+    return (Temp_temp)G_nodeInfo(n);
 }
 
-static bool tempEqual(Temp_tempList ta, Temp_tempList tb) {
-  return Temp_equal(ta, tb);
+static bool tempEqual(Temp_tempList ta, Temp_tempList tb) 
+{
+    return Temp_equal(ta, tb);
 }
 
-static Temp_tempList tempMinus(Temp_tempList ta, Temp_tempList tb) {
-  return Temp_minus(ta, tb);
+static Temp_tempList tempMinus(Temp_tempList ta, Temp_tempList tb) 
+{
+    return Temp_minus(ta, tb);
 }
 
-static Temp_tempList tempUnion(Temp_tempList ta, Temp_tempList tb) {
-  return Temp_union(ta, tb);
+static Temp_tempList tempUnion(Temp_tempList ta, Temp_tempList tb) 
+{
+    return Temp_union(ta, tb);
 }
 
 #if 0
@@ -335,16 +341,15 @@ static void solveLiveness2(struct Live_graph *lg,
 }
 #endif
 
-struct Live_graph Live_liveness(G_graph flow) {
-	//your code here.
+struct Live_graph Live_liveness(G_graph flow) 
+{
+    // Construct liveness graph
+    G_table in = G_empty(), out = G_empty();
+    getLiveMap(flow, in, out);
 
-	// Construct liveness graph
-  G_table in = G_empty(), out = G_empty();
-	getLiveMap(flow, in, out);
-
-  // Construct interference graph
-	struct Live_graph lg;
-  solveLiveness(&lg, flow, in, out);
+    // Construct interference graph
+    struct Live_graph lg;
+    solveLiveness(&lg, flow, in, out);
 
 	return lg;
 }

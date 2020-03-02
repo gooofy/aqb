@@ -166,75 +166,87 @@ Ty_ty F_accessType(F_access a)
     return a->ty;
 }
 
-F_accessList F_AccessList(F_access head, F_accessList tail) {
-  F_accessList l = checked_malloc(sizeof(*l));
-  l->head = head;
-  l->tail = tail;
-  return l;
+F_accessList F_AccessList(F_access head, F_accessList tail) 
+{
+    F_accessList l = checked_malloc(sizeof(*l));
+    l->head = head;
+    l->tail = tail;
+    return l;
 }
 
-F_frag F_StringFrag(Temp_label label, string str) {
-  F_frag f = checked_malloc(sizeof(*f));
-  f->kind = F_stringFrag;
-  f->u.stringg.label = label;
-  f->u.stringg.str = String(str);
-  return f;
+F_frag F_StringFrag(Temp_label label, string str) 
+{
+    F_frag f = checked_malloc(sizeof(*f));
+    f->kind = F_stringFrag;
+    f->u.stringg.label = label;
+    f->u.stringg.str = String(str);
+    return f;
 }
 
-F_frag F_ProcFrag(T_stm body, F_frame frame) {
-  F_frag f = checked_malloc(sizeof(*f));
-  f->kind = F_procFrag;
-  f->u.proc.body = body;
-  f->u.proc.frame = frame;
-  return f;
+F_frag F_ProcFrag(T_stm body, F_frame frame) 
+{
+    F_frag f = checked_malloc(sizeof(*f));
+    f->kind = F_procFrag;
+    f->u.proc.body = body;
+    f->u.proc.frame = frame;
+    return f;
 }
 
-F_frag F_newProcFrag(T_stm body, F_frame frame) {
-  return F_ProcFrag(body, frame);
+F_frag F_newProcFrag(T_stm body, F_frame frame) 
+{
+    return F_ProcFrag(body, frame);
 }
 
-string F_string(Temp_label lab, string str) {
-  string buf = (string)checked_malloc(sizeof(char) * (strlen(str) + 100));
-  sprintf(buf, "%s: .ascii \"%s\"\n", Temp_labelstring(lab), str);
-  return buf;
+string F_string(Temp_label lab, string str) 
+{
+    string buf = (string)checked_malloc(sizeof(char) * (strlen(str) + 100));
+    sprintf(buf, "%s: .ascii \"%s\"\n", Temp_labelstring(lab), str);
+    return buf;
 }
 
-static Temp_tempList L(Temp_temp h, Temp_tempList t) {
-  return Temp_TempList(h, t);
+static Temp_tempList L(Temp_temp h, Temp_tempList t) 
+{
+    return Temp_TempList(h, t);
 }
 
-F_fragList F_FragList(F_frag head, F_fragList tail) {
-  F_fragList l = checked_malloc(sizeof(*l));
-  l->head = head;
-  l->tail = tail;
-  return l;
+F_fragList F_FragList(F_frag head, F_fragList tail) 
+{
+    F_fragList l = checked_malloc(sizeof(*l));
+    l->head = head;
+    l->tail = tail;
+    return l;
 }
 
-static AS_instrList appendCalleeSave(AS_instrList il) {
-  Temp_tempList calleesaves = Temp_reverseList(F_calleesaves());
-  AS_instrList ail = il;
-  for (; calleesaves; calleesaves = calleesaves->tail) {
-    ail = AS_InstrList(
-            AS_Oper("move.l `s0,-(sp)\n", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
-  }
-
-  return ail;
+static AS_instrList appendCalleeSave(AS_instrList il) 
+{
+    Temp_tempList calleesaves = Temp_reverseList(F_calleesaves());
+    AS_instrList ail = il;
+    for (; calleesaves; calleesaves = calleesaves->tail) 
+    {
+        ail = AS_InstrList(
+                AS_Oper("move.l `s0,-(sp)\n", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
+    }
+  
+    return ail;
 }
 
-static AS_instrList restoreCalleeSave(AS_instrList il) {
-  Temp_tempList calleesaves = F_calleesaves();
-  AS_instrList ail = NULL;
-  for (; calleesaves; calleesaves = calleesaves->tail) {
-    ail = AS_InstrList(
-            AS_Oper("move.l (sp)+,`s0\n", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
-  }
-
-  return AS_splice(ail, il);
+static AS_instrList restoreCalleeSave(AS_instrList il) 
+{
+    Temp_tempList calleesaves = F_calleesaves();
+    AS_instrList ail = NULL;
+    for (; calleesaves; calleesaves = calleesaves->tail) 
+    {
+        ail = AS_InstrList(
+                AS_Oper("move.l (sp)+,`s0\n", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
+    }
+  
+    return AS_splice(ail, il);
 }
 
 static Temp_tempList returnSink = NULL;
 
-AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body) {
+AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body) 
+{
     int frame_size = -frame->locals_offset;
     char inst_comment[128];
     char inst_link[128];
@@ -439,6 +451,15 @@ T_exp F_externalCall(string s, T_expList args)
 }
 #endif
 
+F_ral F_RAL(Temp_temp arg, Temp_temp reg, F_ral next)
+{
+    F_ral ral = checked_malloc(sizeof(*ral));
+    ral->arg = arg;
+    ral->reg = reg;
+    ral->next = next;
+    return ral;
+}
+
 static void F_printAccessList(FILE* out, F_accessList al)
 {
     F_accessList l = al;
@@ -492,6 +513,5 @@ void F_printtree(FILE *out, F_fragList frags)
 
         fl = fl->tail;
     }
-
 }
 

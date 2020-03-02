@@ -29,7 +29,6 @@ Temp_tempList FG_def(G_node n)
 }
 
 Temp_tempList FG_use(G_node n) {
-  //your code here.
   AS_instr inst = (AS_instr)G_nodeInfo(n);
   switch (inst->kind) {
     case I_OPER:
@@ -42,10 +41,10 @@ Temp_tempList FG_use(G_node n) {
   return NULL;
 }
 
-bool FG_isMove(G_node n) {
-  //your code here.
-  AS_instr inst = (AS_instr)G_nodeInfo(n);
-  return (inst->kind == I_MOVE);
+bool FG_isMove(G_node n) 
+{
+    AS_instr inst = (AS_instr)G_nodeInfo(n);
+    return (inst->kind == I_MOVE);
 }
 
 AS_instr FG_inst(G_node n) {

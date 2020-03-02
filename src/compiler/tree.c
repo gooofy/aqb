@@ -183,62 +183,14 @@ T_exp T_CallF(Temp_label fun, T_expList args)
     return p;
 }
 
-T_exp T_CastS4S2(T_exp exp)
+T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind    = T_CASTS4S2;
-    p->u.CAST  = exp;
-
-    return p;
-}
-
-T_exp T_CastS2S4(T_exp exp)
-{
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CASTS2S4;
-    p->u.CAST  = exp;
-
-    return p;
-}
-
-T_exp T_CastS2F(T_exp exp)
-{
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CASTS2F;
-    p->u.CAST  = exp;
-
-    return p;
-}
-
-T_exp T_CastS4F(T_exp exp)
-{
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CASTS4F;
-    p->u.CAST  = exp;
-
-    return p;
-}
-
-T_exp T_CastFS2(T_exp exp)
-{
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CASTFS2;
-    p->u.CAST  = exp;
-
-    return p;
-}
-
-T_exp T_CastFS4(T_exp exp)
-{
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CASTFS4;
-    p->u.CAST  = exp;
+    p->kind           = T_CAST;
+    p->u.CAST.exp     = exp;
+    p->u.CAST.ty_from = ty_from;
+    p->u.CAST.ty_to   = ty_to;
 
     return p;
 }

@@ -720,10 +720,9 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             {
                 case Ty_integer:
                     return exp;
-                case Ty_long:
-                    return Tr_Ex(T_CastS2S4(unEx(exp)));
                 case Ty_single:
-                    return Tr_Ex(T_CastS2F(unEx(exp)));
+                case Ty_long:
+                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                 default:
                     EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                     assert(0);
@@ -732,12 +731,11 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
         case Ty_long:
             switch (to_ty->kind)
             {
+                case Ty_single:
                 case Ty_integer:
-                    return Tr_Ex(T_CastS4S2(unEx(exp)));
+                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                 case Ty_long:
                     return exp;
-                case Ty_single:
-                    return Tr_Ex(T_CastS4F(unEx(exp)));
                 default:
                     EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                     assert(0);
@@ -747,9 +745,8 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             switch (to_ty->kind)
             {
                 case Ty_integer:
-                    return Tr_Ex(T_CastFS2(unEx(exp)));
                 case Ty_long:
-                    return Tr_Ex(T_CastFS4(unEx(exp)));
+                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                 case Ty_single:
                     return exp;
                 default:
