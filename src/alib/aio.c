@@ -110,3 +110,10 @@ void _aio_putuhex(ULONG l)
     _aio_puts(buf);
 }
 
+void _aio_putf(FLOAT f)
+{
+    char buf[40];
+    _astr_ftoa(f, buf);
+    _aio_puts(buf);
+}
+

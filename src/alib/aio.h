@@ -11,6 +11,7 @@ void _aio_puts2(short num);
 void _aio_puthex(int num);
 void _aio_putuhex(ULONG l);
 void _aio_putbin(int num);
+void _aio_putf(FLOAT f);
 
 void _aio_puts(char *str);
 

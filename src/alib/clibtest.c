@@ -13,13 +13,6 @@
 #include <exec/memory.h>
 #include <clib/exec_protos.h>
 
-void _aio_putf(FLOAT f)
-{
-    char buf[40];
-    _astr_ftoa(f, buf);
-    _aio_puts(buf);
-}
-
 void clibtestmain (void)
 {
     int i;
