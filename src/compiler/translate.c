@@ -212,17 +212,16 @@ static T_exp unEx(Tr_exp e)
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
-            return T_Eseq(T_MoveS2(T_Temp(r), T_ConstS2(1)),
+            return T_Eseq(T_MoveS2(T_Temp(r), T_ConstInt(1, Ty_Integer())),
                     T_Eseq(e->u.cx.stm,
                       T_Eseq(T_Label(f),
-                        T_Eseq(T_MoveS2(T_Temp(r), T_ConstS2(0)),
+                        T_Eseq(T_MoveS2(T_Temp(r), T_ConstInt(0, Ty_Integer())),
                           T_Eseq(T_Label(t),
                                   T_Temp(r))))));
         }
 
         case Tr_nx:
-            return T_Eseq(e->u.nx, T_ConstS2(0));
-            break;
+            return T_Eseq(e->u.nx, T_ConstInt(0, Ty_Integer()));
     }
     return NULL;
 }
@@ -271,7 +270,7 @@ static struct Cx unCx(Tr_exp e)
     {
         case Tr_ex: 
         {
-            T_stm s = T_Cjump(T_s2ne, unEx(e), T_ConstS2(0), NULL, NULL);
+            T_stm s = T_Cjump(T_s2ne, unEx(e), T_ConstInt(0, Ty_Integer()), NULL, NULL);
             patchList trues = PatchList(&s->u.CJUMP.true, NULL);
             patchList falses = PatchList(&s->u.CJUMP.false, NULL);
             Tr_exp cx = Tr_Cx(trues, falses, s);
@@ -313,9 +312,8 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_integer:
-            return Tr_Ex(T_ConstS2(0));
         case Ty_long:
-            return Tr_Ex(T_ConstS4(0));
+            return Tr_Ex(T_ConstInt(0, ty));
         default:
             EM_error(0, "*** translate.c:Tr_zeroExp: internal error");
             assert(0);
@@ -326,9 +324,8 @@ Tr_exp Tr_oneExp(Ty_ty ty) {
     switch (ty->kind)
     {
         case Ty_integer:
-            return Tr_Ex(T_ConstS2(1));
         case Ty_long:
-            return Tr_Ex(T_ConstS4(1));
+            return Tr_Ex(T_ConstInt(1, ty));
         default:
             EM_error(0, "*** translate.c:Tr_oneExp: internal error");
             assert(0);
@@ -348,23 +345,14 @@ Tr_exp Tr_nopNx()
     return Tr_Nx(T_Nop());
 }
 
-Tr_exp Tr_intExp(A_exp e, Ty_ty ty) 
+Tr_exp Tr_intExp(int i, Ty_ty ty)
 {
-    switch (ty->kind)
-    {
-        case Ty_integer:
-            return Tr_Ex(T_ConstS2(e->u.intt));
-        case Ty_long:
-            return Tr_Ex(T_ConstS4(e->u.intt));
-        default:
-            EM_error(0, "*** translate.c:Tr_intExp: internal error");
-            assert(0);
-    }
+    return Tr_Ex(T_ConstInt(i, ty));
 }
 
-Tr_exp Tr_intS2Exp(A_exp e) 
+Tr_exp Tr_floatExp(double f, Ty_ty ty)
 {
-    return Tr_Ex(T_ConstS2(e->u.intt));
+    return Tr_Ex(T_ConstFloat(f, ty));
 }
 
 Tr_exp Tr_stringExp(string str) 
@@ -428,7 +416,7 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
 
 Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty) 
 {
-    T_binOp op;
+    T_binOp op = T_s2eq;
     switch (ty->kind)
     {
         case Ty_integer:

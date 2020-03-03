@@ -357,7 +357,12 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 ty = Ty_Integer();
             else
                 ty = Ty_Long();
-            return expTy(Tr_intExp(a, ty), ty);
+            return expTy(Tr_intExp(a->u.intt, ty), ty);
+        }
+        case A_floatExp:
+        {
+            Ty_ty ty = Ty_Single();
+            return expTy(Tr_floatExp(a->u.floatt, ty), ty);
         }
         case A_stringExp:
             if (a->u.stringg == NULL)
@@ -583,6 +588,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
 #endif
         default:
             EM_error(a->pos, "*** internal error: unsupported expression type.");
+            assert(0);
     }
     return expTy(Tr_nopNx(), Ty_Void());
 }

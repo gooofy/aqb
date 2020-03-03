@@ -13,20 +13,21 @@
 #define S_SEMICOLON 13
 #define S_COMMA     14
 #define S_INUM      15
-#define S_MINUS     16
-#define S_LPAREN    17
-#define S_RPAREN    18
-#define S_EQUALS    19
-#define S_EXP       20
-#define S_ASTERISK  21
-#define S_SLASH     22
-#define S_BACKSLASH 23
-#define S_PLUS      24
-#define S_GREATER   25
-#define S_LESS      26
-#define S_NOTEQ     27
-#define S_LESSEQ    28
-#define S_GREATEREQ 29
+#define S_FNUM      16
+#define S_MINUS     17
+#define S_LPAREN    18
+#define S_RPAREN    19
+#define S_EQUALS    20
+#define S_EXP       21
+#define S_ASTERISK  22
+#define S_SLASH     23
+#define S_BACKSLASH 24
+#define S_PLUS      25
+#define S_GREATER   26
+#define S_LESS      27
+#define S_NOTEQ     28
+#define S_LESSEQ    29
+#define S_GREATEREQ 30
 
 #define S_PRINT    100
 #define S_OPTION   101
@@ -66,18 +67,19 @@
 
 #define S_MAX_STRING 1024
 
-typedef int A_pos; // 32 bits: cccc cccc llll llll
+typedef int   A_pos; // 32 bits: cccc cccc llll llll
 
-extern int  S_token, S_inum;
-extern char S_str[S_MAX_STRING];
-extern char S_strlc[S_MAX_STRING]; // S_str converted to lower case
+extern int    S_token, S_inum;
+extern double S_fnum;
+extern char   S_str[S_MAX_STRING];
+extern char   S_strlc[S_MAX_STRING]; // S_str converted to lower case
 
-void S_init(FILE *fin);
+void  S_init(FILE *fin);
 
-int S_getsym(void);
+int   S_getsym(void);
 
 A_pos S_getpos(void);
-int S_getline(A_pos pos);
-int S_getcol(A_pos pos);
+int   S_getline(A_pos pos);
+int   S_getcol(A_pos pos);
 
 #endif

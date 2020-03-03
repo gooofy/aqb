@@ -101,6 +101,10 @@ static bool atom(A_exp *exp)
             *exp = A_IntExp(pos, S_inum);
             S_getsym();
             break;
+        case S_FNUM:
+            *exp = A_FloatExp(pos, S_fnum);
+            S_getsym();
+            break;
         case S_STRING:
             *exp = A_StringExp(pos, S_str);
             S_getsym();
@@ -846,7 +850,7 @@ static bool lValue(A_var *v)
 // assignmentStmt ::= LET lValue "=" expression  
 static bool stmtLet(void)
 {
-    A_var v;
+    A_var v = NULL;
     A_exp exp;
     A_pos pos = S_getpos();
 

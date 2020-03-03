@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "scanner.h"
 #include "hashmap.h"
@@ -17,9 +18,10 @@ static int  S_line, S_col;
 
 // scanner globals available to other modules
 
-int  S_token, S_inum;
-char S_str[S_MAX_STRING];
-char S_strlc[S_MAX_STRING]; // S_str converted to lower case
+int    S_token, S_inum;
+double S_fnum;
+char   S_str[S_MAX_STRING];
+char   S_strlc[S_MAX_STRING]; // S_str converted to lower case
 
 static void init_tokens(void)
 {
@@ -150,8 +152,47 @@ static void number(bool negative)
     S_token = S_INUM;
     if (negative)
         S_inum *= -1;
+    if (g_ch == '.')
+    {
+        double m = 0.1;
+        S_token = S_FNUM;
+        S_fnum = S_inum;
+        getch();
+        while (isdigit(g_ch)) {
+            S_fnum += ((double)(g_ch - '0')) * m;
+            m /= 10.0;
+            getch();
+        }
+    }
+    if ( (g_ch == 'e') || (g_ch == 'E') )
+    {
+        bool negative = FALSE;
+        if (S_token == S_INUM)
+        {
+            S_token = S_FNUM;
+            S_fnum = S_inum;
+        }
+        getch();
+        if (g_ch=='-')
+        {
+            negative = TRUE;
+            getch();
+        }
+        else
+        {
+           if (g_ch=='+')
+            getch();
+        }
+        int e = 0;
+        while (isdigit(g_ch)) {
+            e = (g_ch - '0') + e*10;
+            getch();
+        }
+        if (negative)
+            e = -1 * e;
+        S_fnum *= pow(10, e);
+    }
 }
-
 
 int S_identifier(void)
 {

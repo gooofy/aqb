@@ -94,11 +94,20 @@ void printExp(FILE *out, T_exp exp, int d)
             fprintf(out, ",\n");
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
-        case T_CONSTS4:
-            indent(out,d); fprintf(out, "CONSTS4 %d", exp->u.CONST);
-            break;
-        case T_CONSTS2:
-            indent(out,d); fprintf(out, "CONSTS2 %d", exp->u.CONST);
+        case T_CONST:
+            switch (exp->u.CONST.ty->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
+                    indent(out, d); fprintf(out, "CONST %d", exp->u.CONST.i);
+                    break;
+                case Ty_single:
+                case Ty_double:
+                    indent(out, d); fprintf(out, "CONST %f", exp->u.CONST.f);
+                    break;
+                default:
+                    assert(0);
+            }
             break;
         case T_CALLF:
         {

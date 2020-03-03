@@ -152,22 +152,24 @@ T_exp T_Eseq(T_stm s, T_exp e)
     return p;
 }
 
-T_exp T_ConstS4(int consti)
+T_exp T_ConstInt(int i, Ty_ty ty)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind=T_CONSTS4;
-    p->u.CONST=consti;
+    p->kind       = T_CONST;
+    p->u.CONST.i  = i;
+    p->u.CONST.ty = ty;
 
     return p;
 }
  
-T_exp T_ConstS2(int consti)
+T_exp T_ConstFloat(double f, Ty_ty ty)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind=T_CONSTS2;
-    p->u.CONST=consti;
+    p->kind       = T_CONST;
+    p->u.CONST.f  = f;
+    p->u.CONST.ty = ty;
 
     return p;
 }

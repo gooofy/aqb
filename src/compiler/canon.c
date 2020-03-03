@@ -25,11 +25,6 @@ static expRefList ExpRefList(T_exp *head, expRefList tail)
     return p;
 }
 
-static bool isConst(int kind)
-{
-    return ( kind == T_CONSTS4 ) || ( kind == T_CONSTS2 ) ;
-}
-
 static bool isNop(T_stm x) 
 {  
     return x->kind == T_NOP;
@@ -45,7 +40,7 @@ static T_stm seq(T_stm x, T_stm y)
 static bool commute(T_stm x, T_exp y)
 {
     if (isNop(x)) return TRUE;
-    if (y->kind == T_HEAP || isConst(y->kind)) return TRUE;
+    if (y->kind == T_HEAP || (y->kind == T_CONST)) return TRUE;
     return FALSE;
 }
 

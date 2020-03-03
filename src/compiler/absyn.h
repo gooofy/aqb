@@ -65,11 +65,12 @@ typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
 
 struct A_exp_
 {
-    enum { A_intExp, A_stringExp, A_varExp, A_opExp } kind;
+    enum { A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp } kind;
     A_pos      pos;
     union 
     {
 	    int     intt;
+        double  floatt;
 	    string  stringg;
         A_var   var;
 	    struct { A_oper oper; A_exp left; A_exp right; } op;
@@ -151,6 +152,7 @@ A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (A_pos pos, const char *str);
 A_exp           A_IntExp          (A_pos pos, int i);
+A_exp           A_FloatExp        (A_pos pos, double f);
 A_exp           A_VarExp          (A_pos pos, A_var var);
 A_exp           A_OpExp           (A_pos pos, A_oper oper, A_exp left, A_exp right);
 A_expList       A_ExpList         (void);

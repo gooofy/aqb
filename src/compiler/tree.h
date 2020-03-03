@@ -50,7 +50,7 @@ struct T_stm_
 struct T_exp_ 
 {
     enum { T_BINOP, T_MEMS2, T_MEMS4, T_HEAP, T_ESEQ, T_TEMP,
-		   T_CONSTS4, T_CONSTS2, T_CALLF, 
+		   T_CONST, T_CALLF, 
            T_CAST } kind;
 	union 
     {
@@ -59,7 +59,7 @@ struct T_exp_
         Temp_label HEAP;
 	    Temp_temp TEMP;
 	    struct {T_stm stm; T_exp exp;} ESEQ;
-	    int CONST;
+	    struct {int i; double f; Ty_ty ty;} CONST;
 	    struct {Temp_label fun; T_expList args;} CALLF;
 	    struct {T_exp exp; Ty_ty ty_from, ty_to;} CAST;
 	} u;
@@ -83,8 +83,8 @@ T_exp T_MemS2(T_exp);
 T_exp T_Temp(Temp_temp);
 T_exp T_Heap(Temp_label heap_pos);
 T_exp T_Eseq(T_stm, T_exp);
-T_exp T_ConstS4(int);
-T_exp T_ConstS2(int);
+T_exp T_ConstInt(int i, Ty_ty ty);
+T_exp T_ConstFloat(double f, Ty_ty ty);
 T_exp T_CallF(Temp_label fun, T_expList args);
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
 

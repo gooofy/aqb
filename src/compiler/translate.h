@@ -46,7 +46,8 @@ Tr_exp        Tr_nopNx();
 
 Tr_exp        Tr_seqExp(Tr_expList el);
 
-Tr_exp        Tr_intExp(A_exp e, Ty_ty ty);
+Tr_exp        Tr_intExp(int i, Ty_ty ty);
+Tr_exp        Tr_floatExp(double f, Ty_ty ty);
 Tr_exp        Tr_stringExp(string str);
 
 Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty);

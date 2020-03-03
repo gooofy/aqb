@@ -150,6 +150,17 @@ A_exp A_IntExp (A_pos pos, int i)
     return p;
 }
 
+A_exp A_FloatExp (A_pos pos, double f)
+{
+    A_exp p = checked_malloc(sizeof(*p));
+
+    p->kind     = A_floatExp;
+    p->pos      = pos;
+    p->u.floatt = f;
+
+    return p;
+}
+
 A_exp A_OpExp (A_pos pos, A_oper oper, A_exp left, A_exp right)
 {
     A_exp p = checked_malloc(sizeof(*p));

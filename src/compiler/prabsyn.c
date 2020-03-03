@@ -46,6 +46,9 @@ static void pr_exp(FILE *out, A_exp exp)
         case A_intExp:
             fprintf(out, "intExp(%d)", exp->u.intt);
             break;
+        case A_floatExp:
+            fprintf(out, "floatExp(%f)", exp->u.floatt);
+            break;
         case A_stringExp:
             fprintf(out, "stringExp(%s)", exp->u.stringg);
             break;
