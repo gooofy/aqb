@@ -1,3 +1,6 @@
+#include <exec/types.h>
+#include <clib/mathffp_protos.h>
+
 /*
  * ___mulsi3
  *
@@ -177,5 +180,11 @@ short __pow_s2(short base, short exp)
     }
 
     return result;
+}
+
+FLOAT __mod_ffp(FLOAT divident, FLOAT divisor)
+{
+    FLOAT q = SPFlt(SPFix(SPDiv(divident, divisor)));
+    return SPSub(divident, SPMul(q, divisor));
 }
 

@@ -21,8 +21,7 @@ static char bin_oper[][14] = {
    "XOR",   "EQV",    "IMP", "NEG", "NOT", "AND", "OR",
    "POWER", "INTDIV", "MOD"};
 
-static char rel_oper[][10] = {
-  "EQ", "NE", "LT", "GT", "LE", "GE", "ULT", "ULE", "UGT", "UGE"};
+static char rel_oper[][6] = { "EQ", "NE", "LT", "GT", "LE", "GE"};
  
 void printStm(FILE *out, T_stm stm, int d)
 {
@@ -42,8 +41,8 @@ void printStm(FILE *out, T_stm stm, int d)
         indent(out,d); fprintf(out, "CJUMP(%s,\n", rel_oper[stm->u.CJUMP.op]);
         printExp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",\n"); 
         printExp(out, stm->u.CJUMP.right,d+1); fprintf(out, ",\n");
-        indent(out,d+1); fprintf(out, "%s,", S_name(stm->u.CJUMP.true));
-        fprintf(out, "%s", S_name(stm->u.CJUMP.false)); fprintf(out, ")");
+        indent(out,d+1); fprintf(out, "%s,", S_name(stm->u.CJUMP.ltrue));
+        fprintf(out, "%s", S_name(stm->u.CJUMP.lfalse)); fprintf(out, ")");
         break;
     case T_MOVE:
         indent(out,d); fprintf(out, "MOVE(\n"); printExp(out, stm->u.MOVE.dst,d+1); 

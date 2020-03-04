@@ -151,11 +151,10 @@ static Temp_temp munchUnaryOp(T_exp e, string opc, Ty_ty resty)
 }
 
 /* emit a binary op that requires calling a subrouting */
-static Temp_temp munchBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
+static void emitBinOpJsr(T_exp e, string sub_name, Ty_ty resty, Temp_temp r)
 {
     T_exp     e_left  = e->u.BINOP.left;
     T_exp     e_right = e->u.BINOP.right;
-    Temp_temp r       = Temp_newtemp(resty);
 
     T_expList args    = T_ExpList(e_left, T_ExpList(e_right, NULL));
     int       arg_cnt = munchArgsStack(0, args);
@@ -163,7 +162,6 @@ static Temp_temp munchBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
     munchCallerRestoreStack(arg_cnt);
 
     emitMove(F_RV(), r, "l");
-    return r;
 }
 
 /*
@@ -207,7 +205,6 @@ static void emitRegCall(string strName, int lvo, Temp_temp r, F_ral ral)
 static Temp_temp munchExp(T_exp e, bool ignore_result) 
 {
     char *inst = checked_malloc(sizeof(char) * 120);
-    char *inst2 = checked_malloc(sizeof(char) * 120);
     switch (e->kind) 
     {
         case T_MEM: 
@@ -311,7 +308,11 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case T_not:
                             return munchUnaryOp(e, "not.w", resty);
                         case T_power:
-                            return munchBinOpJsr (e, "___pow_s2", resty);
+                        {
+                            Temp_temp r = Temp_newtemp(resty);
+                            emitBinOpJsr (e, "___pow_s2", resty, r);
+                            return r;
+                        }
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -373,7 +374,11 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case T_not:
                             return munchUnaryOp(e, "not.l", resty);
                         case T_power:
-                            return munchBinOpJsr (e, "___pow_s4", resty);
+                        {
+                            Temp_temp r = Temp_newtemp(resty);
+                            emitBinOpJsr (e, "___pow_s4", resty, r);
+                            return r;
+                        }
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -386,28 +391,94 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case T_plus:
                             emitRegCall("_MathBase", LVOSPAdd, r, 
-                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
-                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
                             break;
                         case T_minus:
                             emitRegCall("_MathBase", LVOSPSub, r, 
-                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
-                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
                             break;
                         case T_mul:
                             emitRegCall("_MathBase", LVOSPMul, r, 
-                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
-                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
                             break;
                         case T_div:
                             emitRegCall("_MathBase", LVOSPDiv, r, 
-                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
-                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
+                            break;
+                        case T_intDiv:
+                            emitRegCall("_MathBase", LVOSPDiv, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
+                            emitRegCall("_MathBase", LVOSPFix, r, F_RAL(r, F_D0(), NULL));
+                            emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
+                            break;
+                        case T_mod:
+                            emitBinOpJsr (e, "___mod_ffp", resty, r);
                             break;
                         case T_neg:
                             emitRegCall("_MathBase", LVOSPNeg, r, 
                              F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), NULL));
                             break;
+                        case T_power:
+                            emitRegCall("_MathTransBase", LVOSPPow, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
+                            break;
+                        case T_and:
+                        case T_or:
+                        case T_xor:
+                        case T_eqv:
+                        case T_imp:
+                        {
+                            T_exp     e_left  = e->u.BINOP.left;
+                            T_exp     e_right = e->u.BINOP.right;
+
+                            Temp_temp r2 = Temp_newtemp(Ty_Long());
+                            Temp_temp r  = Temp_newtemp(resty);
+
+                            emitRegCall("_MathBase", LVOSPFix, r, F_RAL(munchExp(e_left,  FALSE), F_D0(), NULL));
+                            emitRegCall("_MathBase", LVOSPFix, r2, F_RAL(munchExp(e_right, FALSE), F_D0(), NULL));
+
+                            switch (e->u.BINOP.op)
+                            {
+                                case T_and:
+                                    emit(AS_Oper(strprintf("and.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    break;
+                                case T_or:
+                                    emit(AS_Oper(strprintf("or.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    break;
+                                case T_xor:
+                                    emit(AS_Oper(strprintf("eor.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    break;
+                                case T_eqv:
+                                    emit(AS_Oper(strprintf("eor.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    emit(AS_Oper(strprintf("not.l `d0\n"), L(r, NULL), L(r, NULL), NULL));
+                                    break;
+                                case T_imp:
+                                    emit(AS_Oper(String("not.l `d0\n"), L(r, NULL), L(r, NULL), NULL));
+                                    emit(AS_Oper(String("or.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    break;
+                                default:
+                                    assert(0);
+                            }
+                            emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
+                            return r;
+                        }
+                        case T_not:
+                        {
+                            T_exp     e_left  = e->u.BINOP.left;
+
+                            Temp_temp r  = Temp_newtemp(resty);
+
+                            emitRegCall("_MathBase", LVOSPFix, r, F_RAL(munchExp(e_left,  FALSE), F_D0(), NULL));
+                            emit(AS_Oper(String("not.l `d0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
+                            return r;
+                        }
                         default:
                             EM_error(0, "*** codegen.c: unhandled single binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -461,8 +532,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             if (!ignore_result)
             {
                 Temp_temp t = Temp_newtemp(Ty_Long());
-                sprintf(inst2, "move.l `s0, `d0\n");
-                emit(AS_Move(inst2, L(t, NULL), L(F_RV(), NULL)));
+                emit(AS_Move(String("move.l `s0, `d0\n"), L(t, NULL), L(F_RV(), NULL)));
                 return t;
             }
             return NULL;
@@ -530,8 +600,6 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
 static void munchStm(T_stm s) 
 {
     char *inst = checked_malloc(sizeof(char) * 120);
-    char *inst2 = checked_malloc(sizeof(char) * 120);
-    char *inst3 = checked_malloc(sizeof(char) * 120);
     switch (s->kind) 
     {
         case T_MOVE: 
@@ -595,8 +663,7 @@ static void munchStm(T_stm s)
                           Temp_temp r = Temp_newtemp(resty);
                           sprintf(inst, "move.%s (`s0), `d0\n", isz);
                           emit(AS_Oper(inst, L(r, NULL), L(munchExp(e2, FALSE), NULL), NULL));
-                          sprintf(inst2, "move.%s `s0, (`s1)\n", isz);
-                          emit(AS_Oper(inst2, NULL, L(r, L(munchExp(e1, FALSE), NULL)), NULL));
+                          emit(AS_Oper(strprintf("move.%s `s0, (`s1)\n", isz), NULL, L(r, L(munchExp(e1, FALSE), NULL)), NULL));
                         } 
                         else 
                         {
@@ -701,50 +768,68 @@ static void munchStm(T_stm s)
         case T_CJUMP: 
         {
             /* CJUMP(op,e1,e2,jt,jf) */
-            T_relOp op = s->u.CJUMP.op;
-            T_exp e1 = s->u.CJUMP.left;
-            T_exp e2 = s->u.CJUMP.right;
-            Temp_temp r1 = munchExp(e1, FALSE);
-            Temp_temp r2 = munchExp(e2, FALSE);
-            // Temp_temp r3 = Temp_newtemp();
-            // Temp_temp r4 = Temp_newtemp();
-            Temp_label jt = s->u.CJUMP.true;
-            Temp_label jf = s->u.CJUMP.false;
-            // emit(AS_Move("move.l `s0, `d0\n", L(r3, NULL), L(r1, NULL)));
-            // emit(AS_Move("move.l `s0, `d0\n", L(r4, NULL), L(r2, NULL)));
+            T_relOp op    = s->u.CJUMP.op;
+            T_exp e1      = s->u.CJUMP.left;
+            T_exp e2      = s->u.CJUMP.right;
+            Ty_ty ty      = e1->ty;
+            Temp_temp r1  = munchExp(e1, FALSE);
+            Temp_temp r2  = munchExp(e2, FALSE);
+            Temp_label jt = s->u.CJUMP.ltrue;
+            Temp_label jf = s->u.CJUMP.lfalse;
     
-            char* branchinstr = "";
-            char* cmpinstr = "";
-            switch (op) {
-                case T_s4eq:  branchinstr = "beq"; cmpinstr = "cmp.l"; break;
-                case T_s4ne:  branchinstr = "bne"; cmpinstr = "cmp.l"; break;
-                case T_s4lt:  branchinstr = "blt"; cmpinstr = "cmp.l"; break;
-                case T_s4gt:  branchinstr = "bgt"; cmpinstr = "cmp.l"; break;
-                case T_s4le:  branchinstr = "ble"; cmpinstr = "cmp.l"; break;
-                case T_s4ge:  branchinstr = "bge"; cmpinstr = "cmp.l"; break;
-                case T_s4ult: branchinstr = "blo"; cmpinstr = "cmp.l"; break;
-                case T_s4ule: branchinstr = "bls"; cmpinstr = "cmp.l"; break;
-                case T_s4ugt: branchinstr = "bhi"; cmpinstr = "cmp.l"; break;
-                case T_s4uge: branchinstr = "bhs"; cmpinstr = "cmp.l"; break;
-                case T_s2eq:  branchinstr = "beq"; cmpinstr = "cmp.w"; break;
-                case T_s2ne:  branchinstr = "bne"; cmpinstr = "cmp.w"; break;
-                case T_s2lt:  branchinstr = "blt"; cmpinstr = "cmp.w"; break;
-                case T_s2gt:  branchinstr = "bgt"; cmpinstr = "cmp.w"; break;
-                case T_s2le:  branchinstr = "ble"; cmpinstr = "cmp.w"; break;
-                case T_s2ge:  branchinstr = "bge"; cmpinstr = "cmp.w"; break;
-                case T_s2ult: branchinstr = "blo"; cmpinstr = "cmp.w"; break;
-                case T_s2ule: branchinstr = "bls"; cmpinstr = "cmp.w"; break;
-                case T_s2ugt: branchinstr = "bhi"; cmpinstr = "cmp.w"; break;
-                case T_s2uge: branchinstr = "bhs"; cmpinstr = "cmp.w"; break;
+            char* branchinstr = NULL;
+            char* cmpinstr    = NULL;
+            int   cmplvo      = 0;
+            switch (ty->kind)
+            {
+                case Ty_integer:
+                    switch (op) {
+                        case T_eq:  branchinstr = "beq"; cmpinstr = "cmp.w"; break;
+                        case T_ne:  branchinstr = "bne"; cmpinstr = "cmp.w"; break;
+                        case T_lt:  branchinstr = "blt"; cmpinstr = "cmp.w"; break;
+                        case T_gt:  branchinstr = "bgt"; cmpinstr = "cmp.w"; break;
+                        case T_le:  branchinstr = "ble"; cmpinstr = "cmp.w"; break;
+                        case T_ge:  branchinstr = "bge"; cmpinstr = "cmp.w"; break;
+                    }
+                    break;
+                case Ty_long:
+                    switch (op) {
+                        case T_eq:  branchinstr = "beq"; cmpinstr = "cmp.l"; break;
+                        case T_ne:  branchinstr = "bne"; cmpinstr = "cmp.l"; break;
+                        case T_lt:  branchinstr = "blt"; cmpinstr = "cmp.l"; break;
+                        case T_gt:  branchinstr = "bgt"; cmpinstr = "cmp.l"; break;
+                        case T_le:  branchinstr = "ble"; cmpinstr = "cmp.l"; break;
+                        case T_ge:  branchinstr = "bge"; cmpinstr = "cmp.l"; break;
+                    }
+                    break;
+                case Ty_single:
+                    switch (op) {
+                        case T_eq:  branchinstr = "beq"; cmplvo = LVOSPCmp; break;
+                        case T_ne:  branchinstr = "bne"; cmplvo = LVOSPCmp; break;
+                        case T_lt:  branchinstr = "blt"; cmplvo = LVOSPCmp; break;
+                        case T_gt:  branchinstr = "bgt"; cmplvo = LVOSPCmp; break;
+                        case T_le:  branchinstr = "ble"; cmplvo = LVOSPCmp; break;
+                        case T_ge:  branchinstr = "bge"; cmplvo = LVOSPCmp; break;
+                    }
+                    break;
+                default:
+                    assert(0);
             }
-            sprintf(inst, "%s `s1, `s0\n", cmpinstr);
-            emit(AS_Oper(inst, NULL, L(r1, L(r2, NULL)), NULL));
 
-            sprintf(inst2, "%s `j\n", branchinstr);
-            emit(AS_Oper(inst2, NULL, NULL, jt));
+            if (cmplvo)
+            {
+                Temp_temp r = Temp_newtemp(Ty_Integer());
+                emitRegCall("_MathBase", cmplvo, r, F_RAL(r1, F_D1(), F_RAL(r2, F_D0(), NULL)));
+                emit(AS_Oper(strprintf("tst.w `s0\n"), NULL, L(r, NULL), NULL));
+            }
+            else
+            {
+                emit(AS_Oper(strprintf("%s `s1, `s0\n", cmpinstr), NULL, L(r1, L(r2, NULL)), NULL));
+            }
+
+            emit(AS_Oper(strprintf("%s `j\n", branchinstr), NULL, NULL, jt));
     
-            sprintf(inst3, "jmp `j\n");
-            emit(AS_Oper(inst3, NULL, NULL, jf));
+            emit(AS_Oper(String("jmp `j\n"), NULL, NULL, jf));
             break;
         }
 		case T_EXP:

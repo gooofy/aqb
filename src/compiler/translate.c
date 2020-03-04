@@ -271,10 +271,11 @@ static struct Cx unCx(Tr_exp e)
     {
         case Tr_ex: 
         {
-            T_stm s = T_Cjump(T_s2ne, unEx(e), T_ConstInt(0, Ty_Integer()), NULL, NULL);
-            patchList trues = PatchList(&s->u.CJUMP.true, NULL);
-            patchList falses = PatchList(&s->u.CJUMP.false, NULL);
-            Tr_exp cx = Tr_Cx(trues, falses, s);
+            T_exp te         = unEx(e);
+            T_stm s          = T_Cjump(T_ne, te, unEx(Tr_zeroExp(te->ty)), NULL, NULL); // FIXME: bool type
+            patchList trues  = PatchList(&s->u.CJUMP.ltrue, NULL);
+            patchList falses = PatchList(&s->u.CJUMP.lfalse, NULL);
+            Tr_exp cx        = Tr_Cx(trues, falses, s);
             return cx->u.cx;
         }
         case Tr_cx:
@@ -428,77 +429,25 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
 
 Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty) 
 {
-    T_binOp op = T_s2eq;
-    switch (ty->kind)
+    T_binOp op = T_eq;
+    switch (o) 
     {
-        case Ty_integer:
-            switch (o) 
-            {
-                case A_eqOp:   op = T_s2eq;   break;
-                case A_neqOp:  op = T_s2ne;   break;
-                case A_ltOp:   op = T_s2lt;   break;
-                case A_leOp:   op = T_s2le;   break;
-                case A_gtOp:   op = T_s2gt;   break;
-                case A_geOp:   op = T_s2ge;   break;
-                default:
-                    EM_error(0, "*** translate.c: internal error: unhandled conditional operation: %d", o);
-            }
-            break;
-        case Ty_long:
-            switch (o) 
-            {
-                case A_eqOp:   op = T_s4eq;   break;
-                case A_neqOp:  op = T_s4ne;   break;
-                case A_ltOp:   op = T_s4lt;   break;
-                case A_leOp:   op = T_s4le;   break;
-                case A_gtOp:   op = T_s4gt;   break;
-                case A_geOp:   op = T_s4ge;   break;
-                default:
-                    EM_error(0, "*** translate.c: internal error: unhandled conditional operation: %d", o);
-            }
-            break;
+        case A_eqOp:  op = T_eq; break;
+        case A_neqOp: op = T_ne; break;
+        case A_ltOp:  op = T_lt; break;
+        case A_leOp:  op = T_le; break;
+        case A_gtOp:  op = T_gt; break;
+        case A_geOp:  op = T_ge; break;
         default:
-            EM_error(0, "*** translate.c:Tr_condOpExp: internal error: unhandled type %d!", ty->kind);
+            EM_error(0, "*** translate.c: internal error: unhandled conditional operation: %d", o);
             assert(0);
     }
   
     T_stm s = T_Cjump(op, unEx(left), unEx(right), NULL, NULL);
-    patchList trues = PatchList(&s->u.CJUMP.true, NULL);
-    patchList falses = PatchList(&s->u.CJUMP.false, NULL);
+    patchList trues = PatchList(&s->u.CJUMP.ltrue, NULL);
+    patchList falses = PatchList(&s->u.CJUMP.lfalse, NULL);
     return Tr_Cx(trues, falses, s);
 }
-
-#if 0
-Tr_exp Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right) 
-{
-    T_relOp op;
-    T_stm   s;
-
-    switch (o)
-    {
-        case A_eqOp:
-            op = T_s2eq;
-            break;
-        case A_neqOp:
-            op = T_s2ne;
-            break;
-        default:
-            EM_error(0, "*** translate.c: internal error: only string equality are supported yet.");
-            assert(0);  
-    }
-
-
-#if 0
-    T_exp e = F_externalCall("stringEqual",
-                T_ExpList(unEx(left), T_ExpList(unEx(right), NULL)));
-    s = T_Cjump(op, e, T_ConstS2(1), NULL, NULL);
-    
-    patchList trues = PatchList(&s->u.CJUMP.true, NULL);
-    patchList falses = PatchList(&s->u.CJUMP.false, NULL);
-    return Tr_Cx(trues, falses, s);
-#endif
-}
-#endif
 
 Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty) {
     return Tr_Nx(T_Move(unEx(var), unEx(exp), ty));
@@ -580,30 +529,14 @@ Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp e
     Temp_temp limit      = Temp_newtemp(loopVarType);
     T_exp loopv          = unEx(Tr_simpleVar(loopVar));
   
-    T_stm   initStm, incStm, limitStm;
-    T_relOp relOp;
-
-    initStm  = T_Move(loopv, unEx(exp_from), loopVarType);
-    incStm   = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()), loopVarType);
-    limitStm = T_Move(T_Temp(limit, loopVarType), unEx(exp_to), loopVarType);
-
-    switch (loopVarType->kind)
-    {
-        case Ty_integer:
-            relOp    = T_s2le;
-            break;
-        case Ty_long:
-            relOp    = T_s4le;
-            break;
-        default:
-            EM_error(0, "*** translate.c:Tr_forExp: internal error");
-            assert(0);
-    }
+    T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarType);
+    T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()), loopVarType);
+    T_stm limitStm       = T_Move(T_Temp(limit, loopVarType), unEx(exp_to), loopVarType);
 
     T_stm s = T_Seq(initStm,
                 T_Seq(T_Label(test),
                   T_Seq(limitStm,
-                    T_Seq(T_Cjump(relOp, loopv, T_Temp(limit, loopVarType), loopstart, done),
+                    T_Seq(T_Cjump(T_le, loopv, T_Temp(limit, loopVarType), loopstart, done),
                       T_Seq(T_Label(loopstart),
                         T_Seq(unNx(body),
                           T_Seq(incStm,

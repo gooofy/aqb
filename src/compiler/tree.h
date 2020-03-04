@@ -24,12 +24,7 @@ typedef enum
 
 typedef enum  
 {
-    /* long ops (signed 4 byte operands) */
-    T_s4eq,  T_s4ne,  T_s4lt,  T_s4gt, T_s4le, T_s4ge,
-	T_s4ult, T_s4ule, T_s4ugt, T_s4uge,
-    /* int ops (signed 2 byte operands) */
-    T_s2eq,  T_s2ne,  T_s2lt,  T_s2gt, T_s2le, T_s2ge,
-	T_s2ult, T_s2ule, T_s2ugt, T_s2uge
+    T_eq,  T_ne,  T_lt,  T_gt, T_le, T_ge
 } T_relOp;
 
 struct T_stm_ 
@@ -41,7 +36,7 @@ struct T_stm_
         struct {T_stm left, right;} SEQ;
         Temp_label LABEL;
         Temp_label JUMP;
-        struct {T_relOp op; T_exp left, right; Temp_label true, false;} CJUMP;
+        struct {T_relOp op; T_exp left, right; Temp_label ltrue, lfalse;} CJUMP;
         struct {T_exp dst, src; Ty_ty ty;} MOVE;
         T_exp EXP; // execute exp for side effects, ignore the result
     } u;
@@ -87,7 +82,7 @@ T_exp T_ConstFloat(double f, Ty_ty ty);
 T_exp T_CallF(Temp_label fun, T_expList args, Ty_ty ty_ret);
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
 
-T_relOp T_notRel(T_relOp);  /* a op b    ==     not(a notRel(op) b)  */
-T_relOp T_commute(T_relOp); /* a op b    ==    b commute(op) a       */
+T_relOp T_notRel(T_relOp);  /* a op b  ==  not(a notRel(op) b)  */
+T_relOp T_commute(T_relOp); /* a op b  ==  b commute(op) a      */
 
 #endif

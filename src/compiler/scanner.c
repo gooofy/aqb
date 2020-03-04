@@ -152,45 +152,54 @@ static void number(bool negative)
     S_token = S_INUM;
     if (negative)
         S_inum *= -1;
-    if (g_ch == '.')
+    if (g_ch == '!')
     {
-        double m = 0.1;
+        getch();
         S_token = S_FNUM;
         S_fnum = S_inum;
-        getch();
-        while (isdigit(g_ch)) {
-            S_fnum += ((double)(g_ch - '0')) * m;
-            m /= 10.0;
-            getch();
-        }
     }
-    if ( (g_ch == 'e') || (g_ch == 'E') )
+    else
     {
-        bool negative = FALSE;
-        if (S_token == S_INUM)
+        if (g_ch == '.')
         {
+            double m = 0.1;
             S_token = S_FNUM;
             S_fnum = S_inum;
+            getch();
+            while (isdigit(g_ch)) {
+                S_fnum += ((double)(g_ch - '0')) * m;
+                m /= 10.0;
+                getch();
+            }
         }
-        getch();
-        if (g_ch=='-')
+        if ( (g_ch == 'e') || (g_ch == 'E') )
         {
-            negative = TRUE;
+            bool negative = FALSE;
+            if (S_token == S_INUM)
+            {
+                S_token = S_FNUM;
+                S_fnum = S_inum;
+            }
             getch();
+            if (g_ch=='-')
+            {
+                negative = TRUE;
+                getch();
+            }
+            else
+            {
+               if (g_ch=='+')
+                getch();
+            }
+            int e = 0;
+            while (isdigit(g_ch)) {
+                e = (g_ch - '0') + e*10;
+                getch();
+            }
+            if (negative)
+                e = -1 * e;
+            S_fnum *= pow(10, e);
         }
-        else
-        {
-           if (g_ch=='+')
-            getch();
-        }
-        int e = 0;
-        while (isdigit(g_ch)) {
-            e = (g_ch - '0') + e*10;
-            getch();
-        }
-        if (negative)
-            e = -1 * e;
-        S_fnum *= pow(10, e);
     }
 }
 

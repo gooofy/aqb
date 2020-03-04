@@ -59,12 +59,12 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label 
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
-    p->kind=T_CJUMP;
-    p->u.CJUMP.op    = op;
-    p->u.CJUMP.left  = left; 
-    p->u.CJUMP.right = right;
-    p->u.CJUMP.true  = ltrue;
-    p->u.CJUMP.false = lfalse;
+    p->kind           = T_CJUMP;
+    p->u.CJUMP.op     = op;
+    p->u.CJUMP.left   = left; 
+    p->u.CJUMP.right  = right;
+    p->u.CJUMP.ltrue  = ltrue;
+    p->u.CJUMP.lfalse = lfalse;
 
     return p;
 }
@@ -244,26 +244,12 @@ T_relOp T_notRel(T_relOp r)
 {
     switch(r)
     {
-        case T_s4eq:  return T_s4ne;
-        case T_s4ne:  return T_s4eq;
-        case T_s4lt:  return T_s4ge;
-        case T_s4ge:  return T_s4lt;
-        case T_s4gt:  return T_s4le;
-        case T_s4le:  return T_s4gt;
-        case T_s4ult: return T_s4uge;
-        case T_s4uge: return T_s4ult;
-        case T_s4ule: return T_s4ugt ;
-        case T_s4ugt: return T_s4ule;
-        case T_s2eq:  return T_s2ne;
-        case T_s2ne:  return T_s2eq;
-        case T_s2lt:  return T_s2ge;
-        case T_s2ge:  return T_s2lt;
-        case T_s2gt:  return T_s2le;
-        case T_s2le:  return T_s2gt;
-        case T_s2ult: return T_s2uge;
-        case T_s2uge: return T_s2ult;
-        case T_s2ule: return T_s2ugt ;
-        case T_s2ugt: return T_s2ule;
+        case T_eq:  return T_ne;
+        case T_ne:  return T_eq;
+        case T_lt:  return T_ge;
+        case T_ge:  return T_lt;
+        case T_gt:  return T_le;
+        case T_le:  return T_gt;
     }
     assert(0); 
     return 0;
@@ -273,29 +259,14 @@ T_relOp T_commute(T_relOp r)
 {
     switch(r) 
     {
-        case T_s4eq:  return T_s4eq;
-        case T_s4ne:  return T_s4ne;
-        case T_s4lt:  return T_s4gt;
-        case T_s4ge:  return T_s4le;
-        case T_s4gt:  return T_s4lt ;
-        case T_s4le:  return T_s4ge;
-        case T_s4ult: return T_s4ugt;
-        case T_s4uge: return T_s4ule;
-        case T_s4ule: return T_s4uge ;
-        case T_s4ugt: return T_s4ult;
-        case T_s2eq:  return T_s2eq;
-        case T_s2ne:  return T_s2ne;
-        case T_s2lt:  return T_s2gt;
-        case T_s2ge:  return T_s2le;
-        case T_s2gt:  return T_s2lt ;
-        case T_s2le:  return T_s2ge;
-        case T_s2ult: return T_s2ugt;
-        case T_s2uge: return T_s2ule;
-        case T_s2ule: return T_s2uge ;
-        case T_s2ugt: return T_s2ult;
+        case T_eq:  return T_eq;
+        case T_ne:  return T_ne;
+        case T_lt:  return T_gt;
+        case T_ge:  return T_le;
+        case T_gt:  return T_lt;
+        case T_le:  return T_ge;
     }
     assert(0); 
     return 0;
 }
-
 

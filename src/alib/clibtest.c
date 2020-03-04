@@ -13,12 +13,11 @@
 #include <exec/memory.h>
 #include <clib/exec_protos.h>
 
+FLOAT __mod_ffp(FLOAT divident, FLOAT divisor);
+
 void clibtestmain (void)
 {
-    int i;
     FLOAT a, b, c, d, e, f;
-    ULONG l;
-    LONG exp;
 
     __aqb_line (1, 2, 3, 4, 255, 6);
 
@@ -60,29 +59,6 @@ void clibtestmain (void)
     _aio_puts(", f: "); _aio_puts4(SPFix(f)); 
     _aio_putnl();
 
-    _aio_puts("a: "); _aio_putuhex(*((ULONG*)&a)); 
-    _aio_puts(", b: "); _aio_putuhex(*((ULONG*)&b)); 
-    _aio_puts(", c: "); _aio_putuhex(*((ULONG*)&c)); 
-    _aio_puts(", d: "); _aio_putuhex(*((ULONG*)&d)); 
-    _aio_puts(", e: "); _aio_putuhex(*((ULONG*)&e)); 
-    _aio_puts(", f: "); _aio_putuhex(*((ULONG*)&f)); 
-    _aio_putnl();
-
-
-    l = *((ULONG*)&e);
-    exp = (l & 0xff) - 64;
-    _aio_puts("exp of e:"); _aio_puts4(exp); 
-    _aio_puts(", mantissa e:"); _aio_puts4(l >> 8); 
-    _aio_putnl();
-
-#if 0
-    for (i=0; i<10; i++)
-    {
-        e = SPMul(e, f);
-        _aio_puts("e:"); _aio_puts4(SPFix(e)); _aio_puts(" -> 0x"); _aio_putuhex(*((ULONG*)&e));
-        _aio_putnl();
-    }
-#endif
 
     e = SPMul(SPFlt(68000), SPFlt(10000));
 
@@ -93,7 +69,7 @@ void clibtestmain (void)
     _aio_puts("e: "); _aio_putf(e); _aio_putnl();
     _aio_puts("f: "); _aio_putf(f); _aio_putnl();
     _aio_puts("-1/3: "); _aio_putf(SPDiv(SPFlt(-1), SPFlt(3))); _aio_putnl();
+    _aio_puts("27 MOD 11: "); _aio_putf(__mod_ffp(SPFlt(27), SPFlt(11))); _aio_putnl();
 
     //delay(5);
 }
-
