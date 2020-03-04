@@ -6,11 +6,12 @@
  */
 asm(
 "		.globl	___mulsi3;"
+"		.globl	___mulsi4;"
 
 /* D0 = D0 * D1 */
 
 "___mulsi3:	moveml	sp@(4),d0/d1;"
-"		movel	d3,sp@-;"
+"___mulsi4: movel	d3,sp@-;"
 "		movel	d2,sp@-;"
 "		movew	d1,d2;"
 "		mulu	d0,d2;"
@@ -39,13 +40,14 @@ asm(
  */
 asm(
 "		.globl	___umodsi3;"
+"		.globl	___umodsi4;"
 "		.globl	___udivsi3;"
 "		.globl	___udivsi4;"
 
 /* D1.L = D0.L % D1.L unsigned */
 
 "___umodsi3:	moveml	sp@(4:W),d0/d1;"
-"		jbsr	___udivsi4;"
+"___umodsi4:	jbsr	___udivsi4;"
 "		movel	d1,d0;"
 "		rts;"
 
@@ -99,12 +101,14 @@ asm(
 "		.globl	_div;"
 "		.globl	_ldiv;"
 "		.globl	___modsi3;"
+"		.globl	___modsi4;"
 "		.globl	___divsi3;"
+"		.globl	___divsi4;"
 
 /* D1.L = D0.L % D1.L signed */
 
 "___modsi3:	moveml	sp@(4:W),d0/d1;"
-"		jbsr	___divsi4;"
+"___modsi4:	jbsr	___divsi4;"
 "		movel	d1,d0;"
 "		rts;"
 
@@ -138,12 +142,12 @@ asm(
 );
 
 /*
- * __pow_i4 / __pow_i2
+ * __pow_s4 / __pow_s2
  *
  * source: stackoverflow
  */
 
-int __pow_i4(int base, int exp)
+int __pow_s4(int base, int exp)
 {
     int result = 1;
     for (;;)
@@ -159,7 +163,7 @@ int __pow_i4(int base, int exp)
     return result;
 }
 
-short __pow_i2(short base, short exp)
+short __pow_s2(short base, short exp)
 {
     short result = 1;
     for (;;)

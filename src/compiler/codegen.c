@@ -157,20 +157,6 @@ static Temp_temp munchBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
     T_exp     e_right = e->u.BINOP.right;
     Temp_temp r       = Temp_newtemp(resty);
 
-#if 0
-    //Temp_temp r1 = munchExp(e1);
-    //Temp_temp r2 = munchExp(e2);
-    // ___divsi3: D0.L = D0.L / D1.L signed 
-    Temp_label lab = Temp_namedlabel("___divsi3"); 
-    // FIXME: register argument passing code - not in use so far
-    emit(AS_Move("move.l `s0, `d0\n", L(F_D0(), NULL), L(r1, NULL)));
-    emit(AS_Move("move.l `s0, `d0\n", L(F_D1(), NULL), L(r2, NULL)));
-    sprintf(inst, "jsr %s\n", Temp_labelstring(lab));
-    emit(AS_Oper(inst, L(F_RV(), L(F_D1(), NULL)), L(F_D0(), L(F_D1(), NULL)), NULL));
-    sprintf(inst2, "move.l `s0, `d0\n");
-    emit(AS_Move(inst2, L(r, NULL), L(F_RV(), NULL)));
-#endif
-
     T_expList args    = T_ExpList(e_left, T_ExpList(e_right, NULL));
     int       arg_cnt = munchArgsStack(0, args);
     emit(AS_Oper(strprintf("jsr %s\n", sub_name), L(F_RV(), F_callersaves()), NULL, NULL));
@@ -180,11 +166,18 @@ static Temp_temp munchBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
     return r;
 }
 
-static void emitLibCall(string libBaseName, int lvo, Temp_temp r, F_ral ral)
+/*
+ * emit a subroutine call passing arguments in processor registers
+ *
+ * lvo != 0 -> amiga library call, i.e. jsr lvo(strName)
+ * lvo == 0 -> subroutine call jsr strName
+ */
+static void emitRegCall(string strName, int lvo, Temp_temp r, F_ral ral)
 {
     Temp_tempList argTempList = NULL;
 
-    emit(AS_Oper(String("move.l a6,-(sp)\n"), NULL, NULL, NULL));
+    if (lvo)
+        emit(AS_Oper(String("move.l a6,-(sp)\n"), NULL, NULL, NULL));
 
     // move args into their associated registers:
 
@@ -194,10 +187,18 @@ static void emitLibCall(string libBaseName, int lvo, Temp_temp r, F_ral ral)
         argTempList = L(ral->reg, argTempList);
     }
 
-    emit(AS_Oper(strprintf("movea.l %s,a6\n", libBaseName), NULL, NULL, NULL));
-    emit(AS_Oper(strprintf("jsr %d(a6)\n", lvo), L(F_RV(), F_callersaves()), argTempList, NULL));
-
-	emit(AS_Oper(String("move.l (sp)+,a6\n"), NULL, NULL, NULL));
+    if (lvo)
+    {
+        // amiga lib call
+        emit(AS_Oper(strprintf("movea.l %s,a6\n", strName), NULL, NULL, NULL));
+        emit(AS_Oper(strprintf("jsr %d(a6)\n", lvo), L(F_RV(), F_callersaves()), argTempList, NULL));
+        emit(AS_Oper(String("move.l (sp)+,a6\n"), NULL, NULL, NULL));
+    }
+    else
+    {
+        // subroutine call
+        emit(AS_Oper(strprintf("jsr %s\n", strName), L(F_RV(), F_callersaves()), argTempList, NULL));
+    }
 
     emitMove(F_RV(), r, "l");
 }
@@ -338,7 +339,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case T_not:
                             return munchUnaryOp(e, "not.w", resty);
                         case T_power:
-                            return munchBinOpJsr (e, "___pow_i2", resty);
+                            return munchBinOpJsr (e, "___pow_s2", resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -351,12 +352,30 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case T_minus:
                             return munchBinOp (e, "sub.l"  , NULL     , "sub.l"  , NULL   , NULL   , resty);
                         case T_mul:
-                            return munchBinOpJsr (e, "___mulsi3", resty);
+                        {
+                            Temp_temp r = Temp_newtemp(resty);
+                            emitRegCall("___mulsi4", 0, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
+                            return r;
+                        }
                         case T_intDiv:
                         case T_div:
-                            return munchBinOpJsr (e, "___divsi3", resty);
+                        {
+                            Temp_temp r = Temp_newtemp(resty);
+                            emitRegCall("___divsi4", 0, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
+                            return r;
+                        }
                         case T_mod:
-                            return munchBinOpJsr (e, "___modsi3", resty);
+                        {
+                            Temp_temp r = Temp_newtemp(resty);
+                            emitRegCall("___modsi4", 0, r, 
+                             F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), 
+                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)));
+                            return r;
+                        }
                         case T_and:
                             return munchBinOp (e, "and.l"  , "and.l"  , "and.l"  , NULL   , NULL   , resty);
                         case T_or:
@@ -382,7 +401,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case T_not:
                             return munchUnaryOp(e, "not.l", resty);
                         case T_power:
-                            return munchBinOpJsr (e, "___pow_i4", resty);
+                            return munchBinOpJsr (e, "___pow_s4", resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -394,27 +413,27 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     switch (e->u.BINOP.op)
                     {
                         case T_plus:
-                            emitLibCall("_MathBase", LVOSPAdd, r, 
+                            emitRegCall("_MathBase", LVOSPAdd, r, 
                              F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
                                  F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
                             break;
                         case T_minus:
-                            emitLibCall("_MathBase", LVOSPSub, r, 
+                            emitRegCall("_MathBase", LVOSPSub, r, 
                              F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
                                  F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
                             break;
                         case T_mul:
-                            emitLibCall("_MathBase", LVOSPMul, r, 
+                            emitRegCall("_MathBase", LVOSPMul, r, 
                              F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
                                  F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
                             break;
                         case T_div:
-                            emitLibCall("_MathBase", LVOSPDiv, r, 
+                            emitRegCall("_MathBase", LVOSPDiv, r, 
                              F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D1(), 
                                  F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D0(), NULL)));
                             break;
                         case T_neg:
-                            emitLibCall("_MathBase", LVOSPNeg, r, 
+                            emitRegCall("_MathBase", LVOSPNeg, r, 
                              F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), NULL));
                             break;
                         default:
@@ -504,7 +523,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_single:
                             emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
                             emit(AS_Oper(String("ext.l `s0\n"), L(r, NULL), L(r, NULL), NULL));
-                            emitLibCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
+                            emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
                             break;
                         default:
                             assert(0);
@@ -517,7 +536,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
                             break;
                         case Ty_single:
-                            emitLibCall("_MathBase", LVOSPFlt, r, F_RAL(r1, F_D0(), NULL));
+                            emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r1, F_D0(), NULL));
                             break;
                         default:
                             assert(0);
@@ -528,7 +547,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_integer:
                         case Ty_long:
-                            emitLibCall("_MathBase", LVOSPFix, r, F_RAL(r1, F_D0(), NULL));
+                            emitRegCall("_MathBase", LVOSPFix, r, F_RAL(r1, F_D0(), NULL));
                             break;
                         default:
                             assert(0);
