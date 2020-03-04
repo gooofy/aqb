@@ -74,13 +74,9 @@ void printExp(FILE *out, T_exp exp, int d)
             printExp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
             printExp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
             break;
-        case T_MEMS4:
-            indent(out,d); fprintf(out, "MEMS4");
-            fprintf(out, "(\n"); printExp(out, exp->u.MEM,d+1); fprintf(out, ")");
-            break;
-        case T_MEMS2:
-            indent(out,d); fprintf(out, "MEMS2");
-            fprintf(out, "(\n"); printExp(out, exp->u.MEM,d+1); fprintf(out, ")");
+        case T_MEM:
+            indent(out,d); fprintf(out, "MEM");
+            fprintf(out, "(\n"); printExp(out, exp->u.MEM.exp,d+1); fprintf(out, ")");
             break;
         case T_TEMP:
             indent(out,d); fprintf(out, "TEMP t%s", 

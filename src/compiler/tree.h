@@ -49,13 +49,13 @@ struct T_stm_
 
 struct T_exp_ 
 {
-    enum { T_BINOP, T_MEMS2, T_MEMS4, T_HEAP, T_ESEQ, T_TEMP,
+    enum { T_BINOP, T_MEM, T_HEAP, T_ESEQ, T_TEMP,
 		   T_CONST, T_CALLF, 
            T_CAST } kind;
 	union 
     {
         struct {T_binOp op; T_exp left, right; Ty_ty ty;} BINOP;
-        T_exp MEM;
+        struct {T_exp exp; Ty_ty ty;} MEM;
         Temp_label HEAP;
 	    Temp_temp TEMP;
 	    struct {T_stm stm; T_exp exp;} ESEQ;
@@ -78,8 +78,7 @@ T_stm T_Nop(void);
 T_stm T_Exp(T_exp exp);
 
 T_exp T_Binop(T_binOp, T_exp, T_exp, Ty_ty);
-T_exp T_MemS4(T_exp);
-T_exp T_MemS2(T_exp);
+T_exp T_Mem(T_exp exp, Ty_ty ty);
 T_exp T_Temp(Temp_temp);
 T_exp T_Heap(Temp_label heap_pos);
 T_exp T_Eseq(T_stm, T_exp);

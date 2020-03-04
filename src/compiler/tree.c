@@ -103,22 +103,13 @@ T_exp T_Binop(T_binOp op, T_exp left, T_exp right, Ty_ty ty)
     return p;
 }
  
-T_exp T_MemS4(T_exp exp)
+T_exp T_Mem(T_exp exp, Ty_ty ty)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind  = T_MEMS4;
-    p->u.MEM = exp;
-
-    return p;
-}
- 
-T_exp T_MemS2(T_exp exp)
-{
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind  = T_MEMS2;
-    p->u.MEM = exp;
+    p->kind      = T_MEM;
+    p->u.MEM.exp = exp;
+    p->u.MEM.ty  = ty;
 
     return p;
 }
