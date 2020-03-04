@@ -45,13 +45,8 @@ void printStm(FILE *out, T_stm stm, int d)
         indent(out,d+1); fprintf(out, "%s,", S_name(stm->u.CJUMP.true));
         fprintf(out, "%s", S_name(stm->u.CJUMP.false)); fprintf(out, ")");
         break;
-    case T_MOVES4:
-        indent(out,d); fprintf(out, "MOVES4(\n"); printExp(out, stm->u.MOVE.dst,d+1); 
-        fprintf(out, ",\n");
-        printExp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
-        break;
-    case T_MOVES2:
-        indent(out,d); fprintf(out, "MOVES2(\n"); printExp(out, stm->u.MOVE.dst,d+1); 
+    case T_MOVE:
+        indent(out,d); fprintf(out, "MOVE(\n"); printExp(out, stm->u.MOVE.dst,d+1); 
         fprintf(out, ",\n");
         printExp(out, stm->u.MOVE.src,d+1); fprintf(out, ")");
         break;
@@ -91,19 +86,7 @@ void printExp(FILE *out, T_exp exp, int d)
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
         case T_CONST:
-            switch (exp->u.CONST.ty->kind)
-            {
-                case Ty_integer:
-                case Ty_long:
-                    indent(out, d); fprintf(out, "CONST %d", exp->u.CONST.i);
-                    break;
-                case Ty_single:
-                case Ty_double:
-                    indent(out, d); fprintf(out, "CONST %f", exp->u.CONST.f);
-                    break;
-                default:
-                    assert(0);
-            }
+            indent(out, d); fprintf(out, "CONST %d", exp->u.CONST);
             break;
         case T_CALLF:
         {
@@ -124,7 +107,7 @@ void printExp(FILE *out, T_exp exp, int d)
             indent(out,d); fprintf(out, "CAST(");
             Ty_print(exp->u.CAST.ty_from);
             fprintf(out, "->");
-            Ty_print(exp->u.CAST.ty_to);
+            Ty_print(exp->ty);
             fprintf(out, "\n");
             printExp(out, exp->u.CAST.exp, d+1);
             break;

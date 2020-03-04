@@ -397,12 +397,11 @@ string F_getlabel(F_frame frame)
 
 T_exp F_Exp(F_access acc, T_exp framePtr) 
 {
-    Ty_ty ty;
+    Ty_ty ty = F_accessType(acc);
     if (acc->kind == inReg) 
     {
-        return T_Temp(F_accessReg(acc));
+        return T_Temp(F_accessReg(acc), ty);
     }
-    ty = F_accessType(acc);
     return T_Mem(T_Binop(T_plus, framePtr, T_ConstInt(F_accessOffset(acc), Ty_Long()), Ty_Long()), ty);
 }
 

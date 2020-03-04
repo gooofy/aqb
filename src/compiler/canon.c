@@ -54,10 +54,11 @@ static T_stm reorder(expRefList rlist)
     }
     else 
     {
+        Ty_ty ty = (*rlist->head)->ty;
         if ((*rlist->head)->kind==T_CALLF) 
         {
-            Temp_temp t = Temp_newtemp(Ty_Long());
-            *rlist->head = T_Eseq(T_MoveS4(T_Temp(t),*rlist->head),T_Temp(t));
+            Temp_temp t = Temp_newtemp(ty);
+            *rlist->head = T_Eseq(T_Move(T_Temp(t, ty), *rlist->head, ty), T_Temp(t, ty), ty);
             return reorder(rlist);
         }
         else 
@@ -71,9 +72,9 @@ static T_stm reorder(expRefList rlist)
             } 
             else 
             {
-                Temp_temp t = Temp_newtemp(Ty_Long());
-                *rlist->head=T_Temp(t);
-                return seq(hd.s, seq(T_MoveS4(T_Temp(t),hd.e), s));
+                Temp_temp t = Temp_newtemp(ty);
+                *rlist->head = T_Temp(t, ty);
+                return seq(hd.s, seq(T_Move(T_Temp(t, ty), hd.e, ty), s));
             }
         }
     }
@@ -115,7 +116,7 @@ static struct stmExp do_exp(T_exp exp)
                      ExpRefList(&exp->u.BINOP.right, NULL))),
                 exp);
         case T_MEM: 
-            return StmExp(reorder(ExpRefList(&exp->u.MEM, NULL)), exp);
+            return StmExp(reorder(ExpRefList(&exp->u.MEM.exp, NULL)), exp);
         case T_ESEQ:
         {
             struct stmExp x = do_exp(exp->u.ESEQ.exp);
@@ -140,14 +141,13 @@ static T_stm do_stm(T_stm stm)
         case T_CJUMP:
             return seq(reorder(ExpRefList(&stm->u.CJUMP.left, 
                         ExpRefList(&stm->u.CJUMP.right,NULL))), stm);
-        case T_MOVES4:
-        case T_MOVES2:
+        case T_MOVE:
             if (stm->u.MOVE.dst->kind == T_TEMP && stm->u.MOVE.src->kind == T_CALLF)
                 return seq(reorder(get_call_rlist(stm->u.MOVE.src)), stm);
             else if (stm->u.MOVE.dst->kind == T_TEMP)
                 return seq(reorder(ExpRefList(&stm->u.MOVE.src, NULL)), stm);
             else if (stm->u.MOVE.dst->kind == T_MEM)
-                return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM, 
+                return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM.exp, 
                      ExpRefList(&stm->u.MOVE.src, NULL))), stm);
             else if (stm->u.MOVE.dst->kind == T_ESEQ) {
                 T_stm s = stm->u.MOVE.dst->u.ESEQ.stm;

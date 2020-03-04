@@ -662,7 +662,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (fsym)
             {
                 E_enventry func = S_look(venv, fsym);
-                Tr_exp tr_exp = Tr_callSExp(func->u.fun.level, level, func->u.fun.label, arglist);
+                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
                 return tr_exp;
             }
         }
@@ -670,14 +670,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             S_symbol fsym   = S_Symbol("__aio_putnl");
             E_enventry func = S_look(venv, fsym);
-            Tr_exp tr_exp = Tr_callSExp(func->u.fun.level, level, func->u.fun.label, NULL);
+            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
             return tr_exp;
         }
         case A_printTABStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_puttab");
             E_enventry func = S_look(venv, fsym);
-            Tr_exp tr_exp = Tr_callSExp(func->u.fun.level, level, func->u.fun.label, NULL);
+            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
             return tr_exp;
         }
         case A_assignStmt: 
@@ -803,7 +803,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 S_endScope(lenv);
         
-                Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv));
+                Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv), e->u.fun.result);
             }
 
             break;
@@ -846,7 +846,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (tl)
                 EM_error(stmt->pos, "too few params for sub %s", S_name(stmt->u.callr.func));
   
-            return Tr_callSExp(proc->u.fun.level, level, proc->u.fun.label, explist);
+            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result);
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
@@ -890,7 +890,7 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram)
     // FIXME: remove ? base_venv = E_base_venv();
     
     expty prog = transStmtList(lv, venv, tenv, sourceProgram->stmtList, NULL);
-    Tr_procEntryExit(lv, prog.exp, NULL);
+    Tr_procEntryExit(lv, prog.exp, NULL, Ty_Void());
     
     return Tr_getResult();
 }

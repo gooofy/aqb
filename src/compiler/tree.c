@@ -5,30 +5,44 @@
 #include "tree.h"
 
 T_expList T_ExpList(T_exp head, T_expList tail)
-{T_expList p = (T_expList) checked_malloc (sizeof *p);
- p->head=head; p->tail=tail;
- return p;
+{
+    T_expList p = (T_expList) checked_malloc (sizeof *p);
+
+    p->head = head; 
+    p->tail = tail;
+
+    return p;
 }
 
 T_stmList T_StmList(T_stm head, T_stmList tail)
-{T_stmList p = (T_stmList) checked_malloc (sizeof *p);
- p->head=head; p->tail=tail;
- return p;
+{
+    T_stmList p = (T_stmList) checked_malloc (sizeof *p);
+
+    p->head = head; 
+    p->tail = tail;
+
+    return p;
 }
  
 T_stm T_Seq(T_stm left, T_stm right)
-{T_stm p = (T_stm) checked_malloc(sizeof *p);
- p->kind=T_SEQ;
- p->u.SEQ.left=left;
- p->u.SEQ.right=right;
- return p;
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+
+    p->kind        = T_SEQ;
+    p->u.SEQ.left  = left;
+    p->u.SEQ.right = right;
+
+    return p;
 }
 
 T_stm T_Label(Temp_label label)
-{T_stm p = (T_stm) checked_malloc(sizeof *p);
- p->kind=T_LABEL;
- p->u.LABEL=label;
- return p;
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+
+    p->kind    = T_LABEL;
+    p->u.LABEL = label;
+
+    return p;
 }
  
 T_stm T_Jump(Temp_label label)
@@ -41,38 +55,34 @@ T_stm T_Jump(Temp_label label)
     return p;
 }
 
-T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, 
-	      Temp_label true, Temp_label false)
-{T_stm p = (T_stm) checked_malloc(sizeof *p);
- p->kind=T_CJUMP;
- p->u.CJUMP.op=op; p->u.CJUMP.left=left; p->u.CJUMP.right=right;
- p->u.CJUMP.true=true;
- p->u.CJUMP.false=false;
- return p;
-}
- 
-T_stm T_MoveS4(T_exp dst, T_exp src)
+T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label lfalse)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
-    p->kind       = T_MOVES4;
-    p->u.MOVE.dst = dst;
-    p->u.MOVE.src = src;
+    p->kind=T_CJUMP;
+    p->u.CJUMP.op    = op;
+    p->u.CJUMP.left  = left; 
+    p->u.CJUMP.right = right;
+    p->u.CJUMP.true  = ltrue;
+    p->u.CJUMP.false = lfalse;
 
     return p;
 }
  
-T_stm T_MoveS2(T_exp dst, T_exp src)
+T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
+
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
-    p->kind       = T_MOVES2;
+    p->kind       = T_MOVE;
     p->u.MOVE.dst = dst;
     p->u.MOVE.src = src;
+    p->u.MOVE.ty  = ty;
 
     return p;
 }
-
+ 
 T_stm T_Nop(void)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
@@ -85,58 +95,69 @@ T_stm T_Nop(void)
 T_stm T_Exp(T_exp exp)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
-    p->kind=T_EXP;
-    p->u.EXP=exp;
+
+    p->kind  = T_EXP;
+    p->u.EXP = exp;
+
     return p;
 }
  
 T_exp T_Binop(T_binOp op, T_exp left, T_exp right, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
  
     p->kind          = T_BINOP;
+    p->ty            = ty;
     p->u.BINOP.op    = op;
     p->u.BINOP.left  = left;
     p->u.BINOP.right = right;
-    p->u.BINOP.ty    = ty;
 
     return p;
 }
  
 T_exp T_Mem(T_exp exp, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind      = T_MEM;
+    p->ty        = ty;
     p->u.MEM.exp = exp;
-    p->u.MEM.ty  = ty;
 
     return p;
 }
  
-T_exp T_Temp(Temp_temp temp)
+T_exp T_Temp(Temp_temp temp, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
-    p->kind=T_TEMP;
-    p->u.TEMP=temp;
+
+    p->kind   = T_TEMP;
+    p->ty     = ty;
+    p->u.TEMP = temp;
+
     return p;
 }
 
-T_exp T_Heap(Temp_label heap_pos)
+T_exp T_Heap(Temp_label heap_pos, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind   = T_HEAP;
+    p->ty     = ty;
     p->u.HEAP = heap_pos;
 
     return p;
 }
 
-T_exp T_Eseq(T_stm s, T_exp e)
+T_exp T_Eseq(T_stm s, T_exp e, Ty_ty ty)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind       = T_ESEQ;
+    p->ty         = ty;
     p->u.ESEQ.stm = s;
     p->u.ESEQ.exp = e;
 
@@ -145,45 +166,76 @@ T_exp T_Eseq(T_stm s, T_exp e)
 
 T_exp T_ConstInt(int i, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind       = T_CONST;
-    p->u.CONST.i  = i;
-    p->u.CONST.ty = ty;
+    p->ty         = ty;
+    p->u.CONST    = *((unsigned int *) &i);
 
     return p;
 }
  
+static unsigned int encode_ffp(float f)
+{
+    unsigned int res, fl;
+
+	fl = *((unsigned int *) &f);
+
+    if (f==0.0)
+        return 0;
+
+    // exponent 
+    res = (fl & 0x7F800000) >> 23;
+    res = res - 126 + 0x40;
+
+	// overflow
+    if ((char) res < 0)
+        return res;
+
+	// mantissa
+    res |= (fl << 8) | 0x80000000;
+
+	// sign
+    if (f < 0)
+        res |= 0x00000080;
+
+    return res;
+}
+
 T_exp T_ConstFloat(double f, Ty_ty ty)
 {
+    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind       = T_CONST;
-    p->u.CONST.f  = f;
-    p->u.CONST.ty = ty;
+    p->ty         = ty;
+    p->u.CONST    = encode_ffp(f);
 
     return p;
 }
  
-T_exp T_CallF(Temp_label fun, T_expList args)
+T_exp T_CallF(Temp_label fun, T_expList args, Ty_ty ty_ret)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind         = T_CALLF;
-    p->u.CALLF.fun  = fun;
-    p->u.CALLF.args = args;
+    p->kind           = T_CALLF;
+    p->ty             = ty_ret;
+    p->u.CALLF.fun    = fun;
+    p->u.CALLF.args   = args;
 
     return p;
 }
 
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to)
 {
+    assert(ty_to->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind           = T_CAST;
+    p->ty             = ty_to;
     p->u.CAST.exp     = exp;
     p->u.CAST.ty_from = ty_from;
-    p->u.CAST.ty_to   = ty_to;
 
     return p;
 }

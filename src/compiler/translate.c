@@ -212,16 +212,17 @@ static T_exp unEx(Tr_exp e)
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
-            return T_Eseq(T_MoveS2(T_Temp(r), T_ConstInt(1, Ty_Integer())),
+            Ty_ty ty = Ty_Integer(); // FIXME: introduce Bool type
+            return T_Eseq(T_Move(T_Temp(r, ty), T_ConstInt(1, ty), ty),
                     T_Eseq(e->u.cx.stm,
                       T_Eseq(T_Label(f),
-                        T_Eseq(T_MoveS2(T_Temp(r), T_ConstInt(0, Ty_Integer())),
+                        T_Eseq(T_Move(T_Temp(r, ty), T_ConstInt(0, ty), ty),
                           T_Eseq(T_Label(t),
-                                  T_Temp(r))))));
+                                  T_Temp(r, ty), ty), ty), ty), ty), ty);
         }
 
         case Tr_nx:
-            return T_Eseq(e->u.nx, T_ConstInt(0, Ty_Integer()));
+            return T_Eseq(e->u.nx, T_ConstInt(0, Ty_Integer()), Ty_Integer());
     }
     return NULL;
 }
@@ -298,11 +299,20 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals) 
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Ty_ty ty_ret) 
 {
-    T_stm stm = T_MoveS4(T_Temp(F_RV()), unEx(body));
+    T_stm  stm;
+    
+    if (ty_ret->kind == Ty_void)
+    {
+        stm = unNx(body);
+    }
+    else
+    {
+        stm = T_Move(T_Temp(F_RV(), ty_ret), unEx(body), ty_ret);
+    }
     F_frag frag = F_ProcFrag(stm, level->frame);
-    fragList = F_FragList(frag, fragList);
+    fragList    = F_FragList(frag, fragList);
 }
 
 /* Tree Expressions */
@@ -363,15 +373,15 @@ Tr_exp Tr_stringExp(string str)
     F_frag frag = F_StringFrag(strpos, str);
     fragList = F_FragList(frag, fragList);
   
-    return Tr_Ex(T_Heap(strpos));
+    return Tr_Ex(T_Heap(strpos, Ty_String()));
 }
 
 Tr_exp Tr_simpleVar(Tr_access a) 
 {
     if (a->level->global) 
-        return Tr_Ex(F_Exp(a->access, T_Temp(F_GP())));
+        return Tr_Ex(F_Exp(a->access, T_Temp(F_GP(), F_accessType(a->access))));
     else
-        return Tr_Ex(F_Exp(a->access, T_Temp(F_FP())));
+        return Tr_Ex(F_Exp(a->access, T_Temp(F_FP(), F_accessType(a->access))));
 }
 
 #if 0
@@ -491,18 +501,7 @@ Tr_exp Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right)
 #endif
 
 Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty) {
-    switch (ty->kind)
-    {
-        case Ty_integer:
-            return Tr_Nx(T_MoveS2(unEx(var), unEx(exp)));
-        case Ty_long:
-            return Tr_Nx(T_MoveS4(unEx(var), unEx(exp)));
-        case Ty_single:
-            return Tr_Nx(T_MoveS4(unEx(var), unEx(exp)));
-        default:
-            EM_error(0, "*** translate.c: Tr_assignExp: unknown type %d!", ty->kind);
-            assert(0);
-    }
+    return Tr_Nx(T_Move(unEx(var), unEx(exp), ty));
 }
 
 Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee) 
@@ -584,18 +583,16 @@ Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp e
     T_stm   initStm, incStm, limitStm;
     T_relOp relOp;
 
+    initStm  = T_Move(loopv, unEx(exp_from), loopVarType);
+    incStm   = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()), loopVarType);
+    limitStm = T_Move(T_Temp(limit, loopVarType), unEx(exp_to), loopVarType);
+
     switch (loopVarType->kind)
     {
         case Ty_integer:
-            initStm  = T_MoveS2(loopv, unEx(exp_from));
-            incStm   = T_MoveS2(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()));
-            limitStm = T_MoveS2(T_Temp(limit), unEx(exp_to));
             relOp    = T_s2le;
             break;
         case Ty_long:
-            initStm  = T_MoveS4(loopv, unEx(exp_from));
-            incStm   = T_MoveS4(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Long()));
-            limitStm = T_MoveS4(T_Temp(limit), unEx(exp_to));
             relOp    = T_s4le;
             break;
         default:
@@ -606,7 +603,7 @@ Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp e
     T_stm s = T_Seq(initStm,
                 T_Seq(T_Label(test),
                   T_Seq(limitStm,
-                    T_Seq(T_Cjump(relOp, loopv, T_Temp(limit), loopstart, done),
+                    T_Seq(T_Cjump(relOp, loopv, T_Temp(limit, loopVarType), loopstart, done),
                       T_Seq(T_Label(loopstart),
                         T_Seq(unNx(body),
                           T_Seq(incStm,
@@ -675,21 +672,9 @@ Tr_exp Tr_seqExp(Tr_expList el)
     return Tr_Nx(stm);
 }
 
-Tr_exp Tr_callSExp(Tr_level funclv, Tr_level lv,
-                   Temp_label name, Tr_expList rawel) 
+Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
+                  Temp_label name, Tr_expList rawel, Ty_ty ty) 
 {
-#if 0
-    T_expList el = NULL, last_el = NULL;
-    for (; rawel; rawel = rawel->tail) 
-    {
-        if (last_el == NULL) {
-            last_el = el = T_ExpList(unEx(rawel->head), NULL);
-        } else {
-            last_el->tail = T_ExpList(unEx(rawel->head), NULL);
-            last_el = last_el->tail;
-        }
-    }
-#endif
     // cdecl calling convention (right-to-left order)
     T_expList el = NULL;
     for (; rawel; rawel = rawel->tail) 
@@ -697,7 +682,7 @@ Tr_exp Tr_callSExp(Tr_level funclv, Tr_level lv,
         el = T_ExpList(unEx(rawel->head), el);
     }
   
-    return Tr_Ex(T_CallF(name, el));
+    return Tr_Ex(T_CallF(name, el, ty));
 }
 
 

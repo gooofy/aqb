@@ -32,7 +32,7 @@ Tr_level      Tr_newLevel(Tr_level parent, Temp_label name, Ty_tyList formalTys)
 Tr_accessList Tr_formals(Tr_level level);
 Tr_access     Tr_allocLocal(Tr_level level, Ty_ty ty);
 
-void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals);
+void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Ty_ty ty_ret);
 
 F_fragList    Tr_getResult(void);
 
@@ -80,7 +80,7 @@ Tr_exp Tr_recordExp(Tr_expList el, int fieldCount);
 Tr_exp Tr_letExp(Tr_expList el, Tr_exp body);
 #endif 
 
-Tr_exp        Tr_callSExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList);
+Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty ty);
 
 void Tr_printExp(FILE *out, Tr_exp exp, int d);
 
