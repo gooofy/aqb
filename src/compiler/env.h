@@ -3,6 +3,8 @@
 
 #include "translate.h"
 
+#define RETURN_VAR_NAME "___return_var"
+
 typedef struct E_enventry_ *E_enventry;
 
 struct E_enventry_ 

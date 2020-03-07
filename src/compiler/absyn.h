@@ -65,7 +65,7 @@ typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
 
 struct A_exp_
 {
-    enum { A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp } kind;
+    enum { A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp } kind;
     A_pos      pos;
     union 
     {
@@ -74,6 +74,7 @@ struct A_exp_
 	    string  stringg;
         A_var   var;
 	    struct { A_oper oper; A_exp left; A_exp right; } op;
+        struct { S_symbol func; A_expList args;} callr;
     } u;
 };
 
@@ -155,6 +156,7 @@ A_exp           A_IntExp          (A_pos pos, int i);
 A_exp           A_FloatExp        (A_pos pos, double f);
 A_exp           A_VarExp          (A_pos pos, A_var var);
 A_exp           A_OpExp           (A_pos pos, A_oper oper, A_exp left, A_exp right);
+A_exp           A_FuncCallExp     (A_pos pos, S_symbol func, A_expList args);
 A_expList       A_ExpList         (void);
 void            A_ExpListAppend   (A_expList list, A_exp exp);
 A_var           A_SimpleVar       (A_pos pos, S_symbol sym);
@@ -239,12 +241,10 @@ A_var A_FieldVar(A_pos pos, A_var var, S_symbol sym);
 A_var A_SubscriptVar(A_pos pos, A_var var, A_exp exp);
 A_exp A_NilExp(A_pos pos);
 A_exp A_StringExp(A_pos pos, string s);
-A_exp A_OpExp(A_pos pos, A_oper oper, A_exp left, A_exp right);
 A_exp A_RecordExp(A_pos pos, S_symbol typ, A_efieldList fields);
 A_exp A_SeqExp(A_pos pos, A_expList seq);
 A_exp A_AssignExp(A_pos pos, A_var var, A_exp exp);
 A_exp A_WhileExp(A_pos pos, A_exp test, A_exp body);
-A_exp A_ForExp(A_pos pos, S_symbol var, A_exp lo, A_exp hi, A_exp body);
 A_exp A_BreakExp(A_pos pos);
 A_exp A_LetExp(A_pos pos, A_decList decs, A_exp body);
 A_exp A_ArrayExp(A_pos pos, S_symbol typ, A_exp size, A_exp init);

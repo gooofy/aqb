@@ -174,6 +174,18 @@ A_exp A_OpExp (A_pos pos, A_oper oper, A_exp left, A_exp right)
     return p;
 }
 
+A_exp A_FuncCallExp (A_pos pos, S_symbol func, A_expList args)
+{
+    A_exp p = checked_malloc(sizeof(*p));
+
+    p->kind         = A_callExp;
+    p->pos          = pos;
+    p->u.callr.func = func;
+    p->u.callr.args = args;
+
+    return p;
+}
+
 static A_expListNode A_ExpListNode (A_exp exp)
 {
     A_expListNode p;
@@ -324,16 +336,6 @@ A_exp A_CallExp(A_pos pos, S_symbol func, A_expList args)
  p->pos=pos;
  p->u.call.func=func;
  p->u.call.args=args;
- return p;
-}
-
-A_exp A_OpExp(A_pos pos, A_oper oper, A_exp left, A_exp right)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_opExp;
- p->pos=pos;
- p->u.op.oper=oper;
- p->u.op.left=left;
- p->u.op.right=right;
  return p;
 }
 

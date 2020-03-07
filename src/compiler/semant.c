@@ -63,6 +63,26 @@ static Ty_ty infer_var_type(string varname)
     return Ty_Single();
 }
 
+static string remove_type_suffix(string varname)
+{
+    int  l = strlen(varname);
+    char postfix = varname[l-1];
+    string res = varname;
+
+    switch (postfix)
+    {
+        case '$':
+        case '%':
+        case '&':
+        case '!':
+        case '#':
+            res = String(res);
+            res[l-1] = 0;
+            break;
+    }
+    return res;
+}
+
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
 {
@@ -319,27 +339,6 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
     return FALSE;
 }
 
-/* Compare types strictly (FIXME: BASIC semantics!!) */
-static int compare_ty(Ty_ty ty1, Ty_ty ty2) 
-{
-#if 0
-    ty1 = actual_ty(ty1);
-    ty2 = actual_ty(ty2);
-    if (ty1->kind == Ty_long || ty1->kind == Ty_string)
-        return ty1->kind == ty2->kind;
-    
-    if (ty1->kind == Ty_nil && ty2->kind == Ty_nil)
-        return FALSE;
-    
-    if (ty1->kind == Ty_nil)
-        return ty2->kind == Ty_record || ty2->kind == Ty_array;
-    
-    if (ty2->kind == Ty_nil)
-        return ty1->kind == Ty_record || ty1->kind == Ty_array;
-#endif
-    return ty1 == ty2;
-}
-
 /* Expression entrance */
 static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl) 
 {
@@ -423,43 +422,47 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 }
             }
         }
-#if 0
-        case A_callExp: {
-          E_enventry func = S_look(venv, a->u.call.func);
-          if (func == NULL) {
-            EM_error(a->pos, "undefined function %s", S_name(a->u.call.func));
-            return expTy(Tr_zeroEx(), Ty_Void());
-          }
-  
-          if (func->kind != E_funEntry) {
-            EM_error(a->pos, "%s is not a function", S_name(a->u.call.func));
-            return expTy(Tr_zeroEx(), Ty_Void());
-          }
-  
-          /* Compare para type */
-          Ty_tyList tl;
-          A_expList el;
-          Tr_expList explist = NULL;
-          expty exp;
-          for (tl = func->u.fun.formals, el = a->u.call.args;
-            tl && el; tl = tl->tail, el = el->tail) {
-            exp = transExp(level, venv, tenv, el->head, breaklbl);
-            if (!compare_ty(tl->head, exp.ty)) {
-              EM_error(el->head->pos, "para type mismatch");
-              break;
+        case A_callExp: 
+        {
+            E_enventry proc = S_look(venv, a->u.callr.func);
+            if (proc == NULL) 
+            {
+                EM_error(a->pos, "undefined function %s", S_name(a->u.callr.func));
+                break;
             }
-            explist = Tr_ExpList(exp.exp, explist);
-          }
   
-          if (el)
-            EM_error(a->pos, "too many params in function %s", S_name(a->u.call.func));
-          if (tl)
-            EM_error(a->pos, "too few params in function %s", S_name(a->u.call.func));
+            if (proc->kind != E_funEntry) 
+            {
+                EM_error(a->pos, "%s is not a function", S_name(a->u.callr.func));
+                break;
+            }
   
-          bool isLibFunc = (S_look(base_venv, a->u.call.func) != NULL);
-          return expTy(Tr_callExp(isLibFunc, func->u.fun.level, level,
-                                    func->u.fun.label, explist), func->u.fun.result);
+            /* check parameter types */
+            Ty_tyList tl;
+            A_expListNode en;
+            Tr_expList explist = NULL;
+            expty exp;
+            for (tl = proc->u.fun.formals, en = a->u.callr.args->first;
+                 tl && en; tl = tl->tail, en = en->next) 
+            {
+                expty conv_actual;
+                exp = transExp(level, venv, tenv, en->exp, breaklbl);
+                if (!convert_ty(exp, tl->head, &conv_actual))
+                {
+                    EM_error(en->exp->pos, "parameter type mismatch");
+                    return expTy(Tr_nopNx(), Ty_Void());
+                }
+                explist = Tr_ExpList(conv_actual.exp, explist);
+            }
+  
+            if (en)
+                EM_error(a->pos, "too many params for sub %s", S_name(a->u.callr.func));
+            if (tl)
+                EM_error(a->pos, "too few params for sub %s", S_name(a->u.callr.func));
+  
+            return expTy(Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result), proc->u.fun.result);
         }
+#if 0
         case A_recordExp: {
           /* Get the record type */
           Ty_ty t = transTy(level, tenv, A_NameTy(a->pos, a->u.record.typ));
@@ -755,33 +758,38 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty      resultTy   = proc->isFunction ? infer_var_type(S_name(proc->name)) : Ty_Void();
             Ty_tyList  formalTys  = makeParamTyList(level, tenv, proc->paramList);
             S_scope    lenv;
-            E_enventry edecl;
+            E_enventry e;
+            string     label      = strconcat("_", remove_type_suffix(S_name(proc->name)));
 
-            edecl = S_look(venv, proc->name);
-            if (edecl) 
-            {
-                if ( (stmt->kind == A_procDeclStmt) || !edecl->u.fun.forward)
-                {
-                    EM_error(proc->pos, "Proc %s declared more than once.", S_name(proc->name));
-                    break;
-                }
-                EM_error(proc->pos, "*** internal error: forward declaration of procs is not implemented yet."); // FIXME
-                assert(0);
-            }
-   
             if (proc->isStatic)
             {
                 EM_error(proc->pos, "*** internal error: static subs/functions are not supported yet."); // FIXME
                 assert(0);
             }
 
-            Temp_label label      = Temp_namedlabel(strconcat("_", S_name(proc->name)));
-            E_enventry e          = E_FunEntry(Tr_newLevel(level, label, formalTys), label, formalTys, resultTy, stmt->kind==A_procDeclStmt);
+            e = S_look(venv, proc->name);
+            if (e) 
+            {
+                if ( (stmt->kind == A_procDeclStmt) || !e->u.fun.forward)
+                {
+                    EM_error(proc->pos, "Proc %s declared more than once.", S_name(proc->name));
+                    break;
+                }
+                // FIXME: check parameter list
+                e->u.fun.forward = FALSE;
+            }
+            else
+            {
+                Temp_label l = Temp_namedlabel(label);
+                e = E_FunEntry(Tr_newLevel(level, l, formalTys), l, formalTys, resultTy, stmt->kind==A_procDeclStmt);
+            }
+
             S_enter(venv, proc->name, e);
 
             if (!e->u.fun.forward)
             {
-                Tr_level funlv = e->u.fun.level;
+                Tr_level  funlv = e->u.fun.level;
+                Tr_access ret_access = NULL;
         
                 lenv = S_beginScope(venv);
                 {
@@ -791,19 +799,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     for (param = proc->paramList->first, t = e->u.fun.formals;
                          param; param = param->next, t = t->tail, acl = Tr_accessListTail(acl))
                         S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head));
+                    if (proc->isFunction)
+                    {
+                        ret_access = Tr_allocLocal(funlv, resultTy);
+                        S_enter(lenv, S_Symbol(RETURN_VAR_NAME), E_VarEntry(ret_access, resultTy));
+                    }
                 }
         
                 expty body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl);
-                if (!compare_ty(body.ty, e->u.fun.result))
-                {
-                    if (e->u.fun.result->kind == Ty_void)
-                        EM_error(proc->pos, "procedure returns value");
-                    else 
-                        EM_error(proc->pos, "function body return type mismatch: %s", S_name(proc->name));
-                }
+
                 S_endScope(lenv);
         
-                Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv), e->u.fun.result);
+                Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv), ret_access);
             }
 
             break;
@@ -864,7 +871,7 @@ static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLis
         if (!exp)   // declarations will not produce statements
             continue;
 
-        // Tr_printExp(stdout, exp, 0); 
+        Tr_printExp(stdout, exp, 0); 
         if (last)
         {
             last = last->tail = Tr_ExpList(exp, NULL);
@@ -878,8 +885,6 @@ static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLis
     return expTy(Tr_seqExp(el), Ty_Void());
 }
 
-// static S_scope base_venv = NULL;
-
 F_fragList SEM_transProg(A_sourceProgram sourceProgram) 
 {
 
@@ -887,10 +892,9 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram)
     S_scope tenv = E_base_tenv();
   
     Tr_level lv = Tr_global();
-    // FIXME: remove ? base_venv = E_base_venv();
     
     expty prog = transStmtList(lv, venv, tenv, sourceProgram->stmtList, NULL);
-    Tr_procEntryExit(lv, prog.exp, NULL, Ty_Void());
+    Tr_procEntryExit(lv, prog.exp, NULL, NULL);
     
     return Tr_getResult();
 }
@@ -909,8 +913,22 @@ static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_
             }
             else 
             {
-                EM_error(v->pos, "this is not a variable: %s", S_name(v->u.simple));
-                return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
+                // return value ?
+                if ( (x->kind == E_funEntry) && (Tr_getLabel(level) == x->u.fun.label) )
+                {
+                    if (x->u.fun.result->kind == Ty_void)
+                    {
+                        EM_error(v->pos, "subs cannot return a value: %s", S_name(v->u.simple));
+                        return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
+                    }
+                    x = S_look(venv, S_Symbol(RETURN_VAR_NAME));
+                    return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
+                }
+                else
+                {
+                    EM_error(v->pos, "this is not a variable: %s", S_name(v->u.simple));
+                    return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
+                }
             }
         }
 #if 0

@@ -39,6 +39,18 @@ static void pr_var(FILE *out, A_var v)
     } 
 }
 
+static void pr_exp(FILE *out, A_exp exp);
+
+static void pr_expList(FILE *out, A_expList l) 
+{
+    for (A_expListNode node = l->first; node; node = node->next)
+    {
+        pr_exp(out, node->exp);
+        if (node->next)
+            fprintf(out,",");
+    }
+}
+
 static void pr_exp(FILE *out, A_exp exp)
 {
     switch (exp->kind) 
@@ -109,18 +121,13 @@ static void pr_exp(FILE *out, A_exp exp)
                 pr_exp(out, exp->u.op.right);
             fprintf(out, ")");
             break;
+        case A_callExp:
+            fprintf(out, "callExp(%s(", S_name(exp->u.callr.func));
+            pr_expList(out, exp->u.callr.args);
+            fprintf(out, "))");
+            break;
         default:
             fprintf(out, "(***err: unknown expression type: %d)", exp->kind);
-    }
-}
-
-static void pr_expList(FILE *out, A_expList l) 
-{
-    for (A_expListNode node = l->first; node; node = node->next)
-    {
-        pr_exp(out, node->exp);
-        if (node->next)
-            fprintf(out,",");
     }
 }
 

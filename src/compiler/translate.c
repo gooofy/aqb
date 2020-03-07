@@ -33,14 +33,15 @@ struct Tr_accessList_
 
 struct Tr_level_ 
 {
-    bool     global;
-    F_frame  frame;
+    bool       global;
+    F_frame    frame;
+    Temp_label name;
 };
 
 struct Tr_access_ 
 {
-    Tr_level level;
-    F_access access;
+    Tr_level   level;
+    F_access   access;
 };
 
 struct Tr_exp_ 
@@ -114,8 +115,14 @@ Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_tyList formalTys)
 
     lv->global = parent==NULL;
     lv->frame  = F_newFrame(name, formalTys, lv->global);
+    lv->name   = name;
 
     return lv;
+}
+
+Temp_label Tr_getLabel(Tr_level level)
+{
+    return level->name;
 }
 
 Tr_accessList Tr_formals(Tr_level level) 
@@ -300,17 +307,17 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Ty_ty ty_ret) 
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access)
 {
-    T_stm  stm;
+    T_stm stm = unNx(body);
     
-    if (ty_ret->kind == Ty_void)
+    if (ret_access)
     {
-        stm = unNx(body);
-    }
-    else
-    {
-        stm = T_Move(T_Temp(F_RV(), ty_ret), unEx(body), ty_ret);
+        T_exp ret_exp = unEx(Tr_simpleVar(ret_access));
+        Ty_ty ty_ret = F_accessType(ret_access->access);
+        stm = T_Seq(T_Move(ret_exp, unEx(Tr_zeroExp(ty_ret)),  ty_ret),
+                T_Seq(stm, 
+                  T_Move(T_Temp(F_RV(), ty_ret), ret_exp, ty_ret)));
     }
     F_frag frag = F_ProcFrag(stm, level->frame);
     fragList    = F_FragList(frag, fragList);
