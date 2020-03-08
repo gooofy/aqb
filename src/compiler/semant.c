@@ -153,16 +153,6 @@ static Ty_ty transTy(Tr_level level, S_scope tenv, A_ty a)
 }
 #endif
 
-#if 0
-/* Protected symbol for loop variable checking */
-static S_symbol protect_sym(S_symbol s) 
-{
-    char protected_sym[256];
-    sprintf(protected_sym, "<%s>", S_name(s));
-    return S_Symbol(String(protected_sym));
-}
-#endif
-
 // given two types, try to come up with a type that covers both value ranges
 static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
 {
@@ -174,12 +164,32 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
 
     switch (ty1->kind)
     {
+        case Ty_bool:
+            switch (ty2->kind)
+            {
+                case Ty_bool:
+                    *res = ty1;
+                    return TRUE;
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single: 
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_string:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                    *res = ty1;
+                    return FALSE;
+            }
         case Ty_integer:
             switch (ty2->kind)
             {
-                case Ty_integer:
+                case Ty_bool:
                     *res = ty1;
                     return TRUE;
+                case Ty_integer:
                 case Ty_long:
                 case Ty_single: 
                 case Ty_double:
@@ -195,6 +205,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
         case Ty_long:
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                     *res = ty1;
                     return TRUE;
@@ -213,6 +224,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
         case Ty_single: 
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
                 case Ty_single: 
@@ -231,6 +243,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
         case Ty_double:
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
                 case Ty_single: 
@@ -247,6 +260,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
         case Ty_string: 
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
                 case Ty_single: 
@@ -269,6 +283,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
         case Ty_void:
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
                 case Ty_single: 
@@ -299,9 +314,22 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
 
     switch (ty1->kind)
     {
+        case Ty_bool:
+            switch (ty2->kind)
+            {
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single:
+                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
         case Ty_integer:
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_long:
                 case Ty_single:
                     *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
@@ -313,6 +341,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
         case Ty_long:
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_single:
                     *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
@@ -324,6 +353,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
         case Ty_single:
             switch (ty2->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
                     *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
@@ -349,6 +379,11 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             expty exp = transVar(level, venv, tenv, a->u.var, breaklbl);
             return expTy(exp.exp, exp.ty);
         } 
+        case A_boolExp:
+        {
+            Ty_ty ty = Ty_Bool();
+            return expTy(Tr_boolExp(a->u.boolb, ty), ty);
+        }
         case A_intExp:
         {
             Ty_ty ty;
@@ -418,7 +453,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 case A_gtOp:
                 case A_geOp:
                 {
-                    return expTy(Tr_condOpExp(oper, e1.exp, e2.exp, resTy), Ty_Integer());
+                    return expTy(Tr_condOpExp(oper, e1.exp, e2.exp, resTy), Ty_Bool());
                 }
             }
         }
@@ -733,10 +768,13 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_ifStmt: 
         {
-            expty test, then, elsee;
+            expty test, conv_test, then, elsee;
             test = transExp(level, venv, tenv, stmt->u.ifr.test, breaklbl);
-            if (test.ty->kind != Ty_integer)
-                EM_error(stmt->u.ifr.test->pos, "if expression must be integer (is %d)", test.ty->kind);
+            if (!convert_ty(test, Ty_Bool(), &conv_test))
+            {
+                EM_error(stmt->u.ifr.test->pos, "if expression must be boolean (is %d)", test.ty->kind);
+                break;
+            }
   
             then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, breaklbl);
             if (stmt->u.ifr.elseStmts != NULL)
@@ -749,7 +787,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 elsee.ty = Ty_Void();
             }
   
-            return Tr_ifExp(test.exp, then.exp, elsee.exp);
+            return Tr_ifExp(conv_test.exp, then.exp, elsee.exp);
         }
         case A_procStmt: 
         case A_procDeclStmt: 
@@ -880,6 +918,11 @@ static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLis
         {
             el = last = Tr_ExpList(exp, NULL);
         }
+    }
+
+    if (!el)
+    {
+        el = last = Tr_ExpList(Tr_nopNx(), NULL);
     }
 
     return expTy(Tr_seqExp(el), Ty_Void());

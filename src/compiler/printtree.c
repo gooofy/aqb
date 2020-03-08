@@ -25,6 +25,13 @@ static char rel_oper[][6] = { "EQ", "NE", "LT", "GT", "LE", "GE"};
  
 void printStm(FILE *out, T_stm stm, int d)
 {
+    if (!stm)
+    {
+        indent(out,d);
+        fprintf(out, "NULL");
+        return;
+    }
+
     switch (stm->kind) {
     case T_SEQ:
         indent(out,d);

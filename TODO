@@ -5,6 +5,8 @@
 
 - true global vars on HEAP
 
+- DIM statement
+
 - array type
 
 - record type

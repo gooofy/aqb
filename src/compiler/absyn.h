@@ -65,10 +65,11 @@ typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
 
 struct A_exp_
 {
-    enum { A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp } kind;
+    enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp } kind;
     A_pos      pos;
     union 
     {
+        bool    boolb;
 	    int     intt;
         double  floatt;
 	    string  stringg;
@@ -152,6 +153,7 @@ A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (A_pos pos, const char *str);
+A_exp           A_BoolExp         (A_pos pos, bool b);
 A_exp           A_IntExp          (A_pos pos, int i);
 A_exp           A_FloatExp        (A_pos pos, double f);
 A_exp           A_VarExp          (A_pos pos, A_var var);

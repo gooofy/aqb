@@ -77,6 +77,7 @@ T_exp T_Mem(T_exp exp, Ty_ty ty);
 T_exp T_Temp(Temp_temp, Ty_ty ty);
 T_exp T_Heap(Temp_label heap_pos, Ty_ty ty);
 T_exp T_Eseq(T_stm, T_exp, Ty_ty ty);
+T_exp T_ConstBool(bool b, Ty_ty ty);
 T_exp T_ConstInt(int i, Ty_ty ty);
 T_exp T_ConstFloat(double f, Ty_ty ty);
 T_exp T_CallF(Temp_label fun, T_expList args, Ty_ty ty_ret);

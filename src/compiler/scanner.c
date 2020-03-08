@@ -64,6 +64,8 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "stop",     (void *) S_STOP);
     hashmap_put (g_tokens, "input",    (void *) S_INPUT);
     hashmap_put (g_tokens, "line",     (void *) S_LINE);
+    hashmap_put (g_tokens, "true",     (void *) S_TRUE);
+    hashmap_put (g_tokens, "false",    (void *) S_FALSE);
 }
 
 A_pos S_getpos(void)

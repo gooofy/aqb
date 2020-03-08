@@ -79,7 +79,7 @@ static bool logicalNewline(void)
 static bool expression(A_exp *exp);
 static bool expressionList(A_expList *expList);
 
-// atom ::= ident [ '(' procParamList ')' ] | numLiteral | stringLiteral | '(' expression ')
+// atom ::= ident [ '(' procParamList ')' ] | boolLiteral | numLiteral | stringLiteral | '(' expression ')
 static bool atom(A_exp *exp)
 {
     A_pos pos = S_getpos();
@@ -118,6 +118,14 @@ static bool atom(A_exp *exp)
             *exp = A_VarExp(pos, A_SimpleVar (pos, sym));
             break;
         }
+        case S_TRUE:
+            *exp = A_BoolExp(pos, TRUE);
+            S_getsym();
+            break;
+        case S_FALSE:
+            *exp = A_BoolExp(pos, FALSE);
+            S_getsym();
+            break;
         case S_INUM:
             *exp = A_IntExp(pos, S_inum);
             S_getsym();
@@ -1295,21 +1303,20 @@ static bool stmtIdent(void)
 
     S_getsym();
 
+    // is this a declared proc?
+
+    if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+    {
+        A_expList args = A_ExpList();
+        if (!expressionList(&args))
+            return FALSE;
+        A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc->name, args));
+        return TRUE;
+    }
 
     switch (S_token)
     {
-        case S_LPAREN:      // assignment with array subscript or subprogram call
-
-            // is this a declared proc?
-
-            if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
-            {
-                A_expList args = A_ExpList();
-                if (!expressionList(&args))
-                    return FALSE;
-                A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc->name, args));
-                return TRUE;
-            }
+        case S_LPAREN:      // assignment with array subscript 
             return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
 
         case S_EQUALS:      // assignment

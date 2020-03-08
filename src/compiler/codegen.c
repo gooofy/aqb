@@ -62,6 +62,8 @@ static char *ty_isz(Ty_ty ty)
 {
     switch (ty->kind)
     {
+        case Ty_bool:
+            return "b";
         case Ty_integer:
             return "w";
         case Ty_long:
@@ -544,9 +546,35 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
 
             switch (e->u.CAST.ty_from->kind)
             {
+                case Ty_bool:
+                    switch (e->ty->kind)
+                    {
+                        case Ty_integer:
+                            emit(AS_Move(String("move.b `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.w `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            break;
+                        case Ty_long:
+                            emit(AS_Move(String("move.b `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.w `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("ext.l `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            break;
+                        case Ty_single:
+                            emit(AS_Move(String("move.b `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.w `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("ext.l `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
+                            break;
+                        default:
+                            assert(0);
+                    }
+                    break;
                 case Ty_integer:
                     switch (e->ty->kind)
                     {
+                        case Ty_bool:
+                            emit(AS_Move(String("tst.w `s0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("sne.b `d0\n"), L(r, NULL), NULL, NULL));
+                            break;
                         case Ty_long:
                             emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
                             emit(AS_Oper(String("ext.l `s0\n"), L(r, NULL), L(r, NULL), NULL));
@@ -563,6 +591,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 case Ty_long:
                     switch (e->ty->kind)
                     {
+                        case Ty_bool:
+                            emit(AS_Move(String("tst.l `s0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("sne.b `d0\n"), L(r, NULL), NULL, NULL));
+                            break;
                         case Ty_integer:
                             emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
                             break;
@@ -576,6 +608,11 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 case Ty_single:
                     switch (e->ty->kind)
                     {
+                        case Ty_bool:
+                            emitRegCall("_MathBase", LVOSPFix, r, F_RAL(r1, F_D0(), NULL));
+                            emit(AS_Move(String("tst.l `s0\n"), L(r, NULL), L(r, NULL)));
+                            emit(AS_Oper(String("sne.b `d0\n"), L(r, NULL), NULL, NULL));
+                            break;
                         case Ty_integer:
                         case Ty_long:
                             emitRegCall("_MathBase", LVOSPFix, r, F_RAL(r1, F_D0(), NULL));
@@ -733,8 +770,7 @@ static void munchStm(T_stm s)
                     /* MOVE(TEMP(i),e2) */
                     T_exp e2 = src;
                     Temp_temp i = dst->u.TEMP;
-                    sprintf(inst, "move.%s `s0, `d0\n", isz);
-                    emit(AS_Move(inst, L(i, NULL), L(munchExp(e2, FALSE), NULL)));
+                    emit(AS_Move(strprintf("move.%s `s0, `d0\n", isz), L(i, NULL), L(munchExp(e2, FALSE), NULL)));
                 } 
                 else 
                 {
@@ -754,15 +790,13 @@ static void munchStm(T_stm s)
             }
     
             Temp_label lab = s->u.LABEL;
-            sprintf(inst, "%s:\n", Temp_labelstring(lab));
-            emit(AS_Label(inst, lab));
+            emit(AS_Label(strprintf("%s:\n", Temp_labelstring(lab)), lab));
             break;
         }
         case T_JUMP: 
         {
             /* JUMP(NAME(lab)) */
-            sprintf(inst, "jmp `j\n");
-            emit(AS_Oper(inst, NULL, NULL, s->u.JUMP));
+            emit(AS_Oper(strprintf("jmp `j\n"), NULL, NULL, s->u.JUMP));
             break;
         }
         case T_CJUMP: 
@@ -782,6 +816,16 @@ static void munchStm(T_stm s)
             int   cmplvo      = 0;
             switch (ty->kind)
             {
+                case Ty_bool:
+                    switch (op) {
+                        case T_eq:  branchinstr = "beq"; cmpinstr = "cmp.b"; break;
+                        case T_ne:  branchinstr = "bne"; cmpinstr = "cmp.b"; break;
+                        case T_lt:  branchinstr = "blt"; cmpinstr = "cmp.b"; break;
+                        case T_gt:  branchinstr = "bgt"; cmpinstr = "cmp.b"; break;
+                        case T_le:  branchinstr = "ble"; cmpinstr = "cmp.b"; break;
+                        case T_ge:  branchinstr = "bge"; cmpinstr = "cmp.b"; break;
+                    }
+                    break;
                 case Ty_integer:
                     switch (op) {
                         case T_eq:  branchinstr = "beq"; cmpinstr = "cmp.w"; break;
@@ -830,6 +874,12 @@ static void munchStm(T_stm s)
             emit(AS_Oper(strprintf("%s `j\n", branchinstr), NULL, NULL, jt));
     
             emit(AS_Oper(String("jmp `j\n"), NULL, NULL, jf));
+            break;
+        }
+        case T_NOP: 
+        {
+            /* NOP */
+            emit(AS_Oper(String("nop\n"), NULL, NULL, s->u.JUMP));
             break;
         }
 		case T_EXP:

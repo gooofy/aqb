@@ -10,6 +10,9 @@
 #include "symbol.h"
 #include "types.h"
 
+static struct Ty_ty_ tybool = {Ty_bool};
+Ty_ty Ty_Bool(void) {return &tybool;}
+
 static struct Ty_ty_ tyinteger = {Ty_integer};
 Ty_ty Ty_Integer(void) {return &tyinteger;}
 
@@ -95,7 +98,7 @@ void Ty_print(Ty_ty t)
     }
 }
 
-void TyList_print(Ty_tyList list)
+void Ty_printList(Ty_tyList list)
 {
     if (list == NULL) 
     {
@@ -106,7 +109,7 @@ void TyList_print(Ty_tyList list)
         printf("TyList( ");
         Ty_print(list->head);
         printf(", ");
-        TyList_print(list->tail);
+        Ty_printList(list->tail);
         printf(")");
     }
 }
@@ -115,6 +118,8 @@ int Ty_size(Ty_ty t)
 {
     switch (t->kind)
     {
+        case Ty_bool:
+                 return 1;
         case Ty_integer:
                  return 2;
         case Ty_long:

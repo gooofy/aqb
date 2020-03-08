@@ -329,6 +329,8 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
 {
     switch (ty->kind)
     {
+        case Ty_bool:
+            return Tr_Ex(T_ConstBool(FALSE, ty));
         case Ty_integer:
         case Ty_long:
             return Tr_Ex(T_ConstInt(0, ty));
@@ -343,6 +345,8 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
 Tr_exp Tr_oneExp(Ty_ty ty) {
     switch (ty->kind)
     {
+        case Ty_bool:
+            return Tr_Ex(T_ConstBool(TRUE, ty));
         case Ty_integer:
         case Ty_long:
             return Tr_Ex(T_ConstInt(1, ty));
@@ -363,6 +367,11 @@ Tr_exp Tr_nullCx()
 Tr_exp Tr_nopNx() 
 {
     return Tr_Nx(T_Nop());
+}
+
+Tr_exp Tr_boolExp(bool b, Ty_ty ty)
+{
+    return Tr_Ex(T_ConstBool(b, ty));
 }
 
 Tr_exp Tr_intExp(int i, Ty_ty ty)
@@ -630,13 +639,28 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
 {
     switch (from_ty->kind)
     {
+        case Ty_bool:
+            switch (to_ty->kind)
+            {
+                case Ty_bool:
+                    return exp;
+                case Ty_integer:
+                case Ty_single:
+                case Ty_long:
+                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                default:
+                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                    assert(0);
+            }
+            break;
         case Ty_integer:
             switch (to_ty->kind)
             {
                 case Ty_integer:
                     return exp;
-                case Ty_single:
+                case Ty_bool:
                 case Ty_long:
+                case Ty_single:
                     return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                 default:
                     EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
@@ -646,8 +670,9 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
         case Ty_long:
             switch (to_ty->kind)
             {
-                case Ty_single:
+                case Ty_bool:
                 case Ty_integer:
+                case Ty_single:
                     return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                 case Ty_long:
                     return exp;
@@ -659,6 +684,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
         case Ty_single:
             switch (to_ty->kind)
             {
+                case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
                     return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));

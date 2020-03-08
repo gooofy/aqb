@@ -164,6 +164,18 @@ T_exp T_Eseq(T_stm s, T_exp e, Ty_ty ty)
     return p;
 }
 
+T_exp T_ConstBool(bool b, Ty_ty ty)
+{
+    assert(ty->kind != Ty_void);
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind       = T_CONST;
+    p->ty         = ty;
+    p->u.CONST    = b ? -1 : 0;
+
+    return p;
+}
+ 
 T_exp T_ConstInt(int i, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);

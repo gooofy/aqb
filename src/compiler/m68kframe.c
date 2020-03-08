@@ -113,7 +113,6 @@ F_frame F_newFrame(Temp_label name, Ty_tyList formalTys, bool global) {
             flast = formals;
         }
         offset += size;
-        /// offset += 4; // gcc seems to push 4 bytes regardless of type (int, long, ...)
     }
   
     f->formals       = formals;
@@ -134,10 +133,15 @@ F_accessList F_formals(F_frame f) {
 
 F_access F_allocLocal(F_frame f, Ty_ty ty) 
 {
+    int size = Ty_size(ty);
+
     F_access l = InFrame(f->locals_offset, ty);
 
     f->locals         = F_AccessList(l, f->locals);
     f->locals_offset -= Ty_size(ty);
+
+    // alignment
+    f->locals_offset -= size % 2;
 
     return l;
 }

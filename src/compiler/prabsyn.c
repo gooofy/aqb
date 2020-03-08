@@ -55,6 +55,9 @@ static void pr_exp(FILE *out, A_exp exp)
 {
     switch (exp->kind) 
     {
+        case A_boolExp:
+            fprintf(out, "boolExp(%s)", exp->u.boolb ? "true" : "false");
+            break;
         case A_intExp:
             fprintf(out, "intExp(%d)", exp->u.intt);
             break;
