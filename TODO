@@ -42,10 +42,15 @@
     - constant propagation
     - take full advantage of constants in code generation
     - peephole optimizer
+    - address register allocation
 
 - error handling
     - division by zero
     - ON ERROR ...
+
+- modules / units
+    - module/unit compilation mode (i.e. create modules in basic)
+    - amiga os library support (AmigaBASIC .fd/.bmap compatible ?)
 
 DONE float type
 DONE expressions: support for function calls
