@@ -1,5 +1,5 @@
 
-CFLAGS = -Wall -g -O
+CFLAGS = -Wall -g 
 LDFLAGS = -lm
 
 .PHONY: clean all

@@ -102,9 +102,19 @@ static bool atom(A_exp *exp)
                     if (!proc->isFunction)
                         return EM_err("SUB used as FUNCTION?");
 
+                    S_getsym();                     // consume (
+
                     A_expList args = A_ExpList();
                     if (!expressionList(&args))
-                        return FALSE;
+                    {
+                        return EM_err("error parsing FUNCTION argument list");
+                    }
+
+                    if (S_token != S_RPAREN)
+                    {
+                        return EM_err(") expected.");
+                    }
+                    S_getsym();
 
                     *exp = A_FuncCallExp(pos, proc->name, args);
                     return TRUE;

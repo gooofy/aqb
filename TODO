@@ -1,7 +1,6 @@
 
 *NOTE*: this is list itself is very incomplete.
 
-- bool type, short-circuit evaluation for boolean expressions
 
 - true global vars on HEAP
 
@@ -56,4 +55,5 @@
 
 DONE float type
 DONE expressions: support for function calls
+DONE bool type, short-circuit evaluation for boolean expressions
 

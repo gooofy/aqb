@@ -409,11 +409,31 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
         case A_opExp: 
         {
             A_oper oper = a->u.op.oper;
-            expty left = transExp(level, venv, tenv, a->u.op.left, breaklbl);
+            expty left  = transExp(level, venv, tenv, a->u.op.left, breaklbl);
             expty right = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, breaklbl) : expTy(Tr_zeroExp(left.ty), left.ty);
             Ty_ty resTy;
+            Ty_ty ty1   = left.ty;
+            Ty_ty ty2   = right.ty;
+
+            // boolean operations, some with short circuit evaluation
+            if (ty1->kind == Ty_bool)
+            {
+                switch (oper) 
+                {
+                    case A_notOp:
+                    case A_andOp:
+                    case A_orOp:
+                    {
+                        return expTy(Tr_boolOpExp(oper, left.exp, right.exp, ty2), ty2);
+                    }
+                    default:
+                        // bool -> integer since we do not have arith operations for bool
+                        ty1 = Ty_Integer();
+                }
+            }
+
             expty e1, e2;
-            if (!coercion(left.ty, right.ty, &resTy)) {
+            if (!coercion(ty1, ty2, &resTy)) {
                 EM_error(a->u.op.left->pos, "operands type mismatch");
                 break;
             }
