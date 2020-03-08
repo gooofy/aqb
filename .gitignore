@@ -66,3 +66,7 @@ tests/*.s
 doc/
 examples/
 old
+src/alib/genos.py
+src/alib/os_mathtrans.txt
+tests/foo.bas
+
