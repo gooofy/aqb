@@ -1305,7 +1305,7 @@ static bool stmtIdent(void)
 
     // is this a declared proc?
 
-    if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+    if ( (S_token != S_EQUALS) && (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK) )
     {
         A_expList args = A_ExpList();
         if (!expressionList(&args))

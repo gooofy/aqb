@@ -271,6 +271,35 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             Ty_ty resty = e->ty;
             switch (resty->kind)
             {
+                case Ty_bool:
+                    switch (e->u.BINOP.op)
+                    {
+                        case T_and:
+                            return munchBinOp (e, "and.b"  , "and.b"  , "and.b"  , NULL   , NULL   , resty);
+                        case T_or:
+                            return munchBinOp (e, "or.b"   , "or.b"   , "or.b"   , NULL   , NULL   , resty);
+                        case T_xor:
+                            return munchBinOp (e, "eor.b"  , "eor.b"  , "eor.b"  , NULL   , NULL   , resty);
+                        case T_eqv:
+                            return munchBinOp (e, "eor.b"  , "eor.b"  , "eor.b"  , NULL   , "not.b", resty);
+                        case T_imp:
+                        {
+                            T_exp     e_left  = e->u.BINOP.left;
+                            T_exp     e_right = e->u.BINOP.right;
+                            Temp_temp r       = Temp_newtemp(resty);
+
+                            emitMove(munchExp(e_left, FALSE), r, "b");
+                            emit(AS_Oper(String("not.b `d0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("or.b `s0, `d0\n"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
+
+                            return r;
+                        }
+                        case T_not:
+                            return munchUnaryOp(e, "not.b", resty);
+                        default:
+                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
+                            assert(0);
+                    }
                 case Ty_integer:
                     switch (e->u.BINOP.op)
                     {
