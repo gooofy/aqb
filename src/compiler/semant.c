@@ -90,10 +90,10 @@ static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
 
     if (!x)
     {
-        char *s = S_name(v->u.simple);
+        string s = S_name(v->u.simple);
         Ty_ty t = infer_var_type(s);
 
-        x = E_VarEntry(Tr_allocLocal(level, t), t);
+        x = E_VarEntry(Tr_allocVar(level, s, t), t);
         S_enter(venv, v->u.simple, x);
     }
     return x;
@@ -839,7 +839,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             else
             {
                 Temp_label l = Temp_namedlabel(label);
-                e = E_FunEntry(Tr_newLevel(level, l, formalTys), l, formalTys, resultTy, stmt->kind==A_procDeclStmt);
+                e = E_FunEntry(Tr_newLevel(l, formalTys), l, formalTys, resultTy, stmt->kind==A_procDeclStmt);
             }
 
             S_enter(venv, proc->name, e);
@@ -859,7 +859,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                         S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head));
                     if (proc->isFunction)
                     {
-                        ret_access = Tr_allocLocal(funlv, resultTy);
+                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
                         S_enter(lenv, S_Symbol(RETURN_VAR_NAME), E_VarEntry(ret_access, resultTy));
                     }
                 }

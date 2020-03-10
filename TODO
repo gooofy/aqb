@@ -2,8 +2,6 @@
 *NOTE*: this is list itself is very incomplete.
 
 
-- true global vars on HEAP
-
 - DIM statement
 
 - array type
@@ -43,7 +41,8 @@
     - constant propagation
     - take full advantage of constants in code generation
     - peephole optimizer
-    - address register allocation
+    - address register allocation, cache (var) pointer temps
+    - keep local variables in registers only (m68kframe inReg)
 
 - error handling
     - division by zero
@@ -56,4 +55,6 @@
 DONE float type
 DONE expressions: support for function calls
 DONE bool type, short-circuit evaluation for boolean expressions
+DONE true global vars on HEAP
+
 

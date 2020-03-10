@@ -12,7 +12,7 @@
 #include "table.h"
 
 
-Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail) 
+Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail)
 {
 	Live_moveList lm = (Live_moveList) checked_malloc(sizeof(*lm));
 
@@ -23,22 +23,22 @@ Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail)
 	return lm;
 }
 
-Temp_temp Live_gtemp(G_node n) 
+Temp_temp Live_gtemp(G_node n)
 {
     return (Temp_temp)G_nodeInfo(n);
 }
 
-static bool tempEqual(Temp_tempList ta, Temp_tempList tb) 
+static bool tempEqual(Temp_tempList ta, Temp_tempList tb)
 {
     return Temp_equal(ta, tb);
 }
 
-static Temp_tempList tempMinus(Temp_tempList ta, Temp_tempList tb) 
+static Temp_tempList tempMinus(Temp_tempList ta, Temp_tempList tb)
 {
     return Temp_minus(ta, tb);
 }
 
-static Temp_tempList tempUnion(Temp_tempList ta, Temp_tempList tb) 
+static Temp_tempList tempUnion(Temp_tempList ta, Temp_tempList tb)
 {
     return Temp_union(ta, tb);
 }
@@ -134,76 +134,83 @@ static G_node findOrCreateNode(Temp_temp t, G_graph g, TAB_table tab) {
 }
 
 static void solveLiveness(struct Live_graph *lg,
-                          G_graph flow, G_table in, G_table out) {
-  G_graph g = G_Graph();
-  TAB_table tab = TAB_empty();
-  G_nodeList fl;
-  G_node n, ndef, nedge, move_src=NULL;
-  Temp_tempList tdef, tout, tuse, t, tedge;
+                          G_graph flow, G_table in, G_table out)
+{
+    G_graph g = G_Graph();
+    TAB_table tab = TAB_empty();
+    G_nodeList fl;
+    G_node n, ndef, nedge, move_src=NULL;
+    Temp_tempList tdef, tout, tuse, t, tedge;
 
-  Temp_map moveList = Temp_empty();
-  Temp_map spillCost = Temp_empty();
-  AS_instr inst;
-  AS_instrList worklistMoves = NULL;
+    Temp_map moveList = Temp_empty();
+    Temp_map spillCost = Temp_empty();
+    AS_instr inst;
+    AS_instrList worklistMoves = NULL;
 
-  // Traverse node
-  for (fl = G_nodes(flow); fl; fl = fl->tail) {
-    n = fl->head;
-    inst = FG_inst(n);
-    tout = lookupLiveMap(out, n);
-    tdef = FG_def(n);
-    tuse = FG_use(n);
+    // Traverse node
+    for (fl = G_nodes(flow); fl; fl = fl->tail)
+    {
+        n = fl->head;
+        inst = FG_inst(n);
+        tout = lookupLiveMap(out, n);
+        tdef = FG_def(n);
+        tuse = FG_use(n);
 
-    Temp_tempList defuse = tempUnion(tuse, tdef);
+        Temp_tempList defuse = tempUnion(tuse, tdef);
 
-    // Spill Cost
-    for (t = defuse; t; t = t->tail) {
-      Temp_temp ti = t->head;
-      long spills = (long)Temp_lookPtr(spillCost, ti);
-      ++spills;
-      Temp_enterPtr(spillCost, ti, (void*)spills);
-    }
-
-    // Move instruction?
-    if (FG_isMove(n)) {
-      for (; defuse; defuse = defuse->tail) {
-        Temp_temp t = defuse->head;
-        findOrCreateNode(t, g, tab);
-        AS_instrList ml = (AS_instrList)Temp_lookPtr(moveList, t);
-        ml = instUnion(ml, IL(inst, NULL));
-        Temp_enterPtr(moveList, t, (void*)ml);
-      }
-
-      worklistMoves = instUnion(worklistMoves, IL(inst, NULL));
-    }
-
-    // Traverse defined vars
-    for (t = tout; t; t = t->tail) {
-      ndef = findOrCreateNode(t->head, g, tab);
-
-      // Add edges between output vars and defined var
-      for (tedge = tout; tedge; tedge = tedge->tail) {
-        nedge = findOrCreateNode(tedge->head, g, tab);
-
-        // Skip if edge is added
-        if (ndef == nedge || G_goesTo(ndef, nedge) || G_goesTo(nedge, ndef)) {
-          continue;
+        // Spill Cost
+        for (t = defuse; t; t = t->tail)
+        {
+            Temp_temp ti = t->head;
+            long spills = (long)Temp_lookPtr(spillCost, ti);
+            ++spills;
+            Temp_enterPtr(spillCost, ti, (void*)spills);
         }
 
-        // Skip src for move instruction
-        if (FG_isMove(n) && nedge == move_src) {
-          continue;
+        // Move instruction?
+        if (FG_isMove(n) && tdef)
+        {
+            for (; defuse; defuse = defuse->tail)
+            {
+                Temp_temp t = defuse->head;
+                findOrCreateNode(t, g, tab);
+                AS_instrList ml = (AS_instrList)Temp_lookPtr(moveList, t);
+                ml = instUnion(ml, IL(inst, NULL));
+                Temp_enterPtr(moveList, t, (void*)ml);
+            }
+
+            worklistMoves = instUnion(worklistMoves, IL(inst, NULL));
         }
 
-        G_addEdge(ndef, nedge);
-      }
+        // Traverse defined vars
+        for (t = tout; t; t = t->tail)
+        {
+            ndef = findOrCreateNode(t->head, g, tab);
+
+            // Add edges between output vars and defined var
+            for (tedge = tout; tedge; tedge = tedge->tail)
+            {
+                nedge = findOrCreateNode(tedge->head, g, tab);
+
+                // Skip if edge is added
+                if (ndef == nedge || G_goesTo(ndef, nedge) || G_goesTo(nedge, ndef))
+                {
+                    continue;
+                }
+
+                // Skip src for move instruction
+                if (FG_isMove(n) && nedge == move_src)
+                    continue;
+
+                G_addEdge(ndef, nedge);
+            }
+        }
     }
-  }
-  
-  lg->graph = g;
-  lg->worklistMoves = worklistMoves;
-  lg->moveList = moveList;
-  lg->spillCost = spillCost;
+
+    lg->graph = g;
+    lg->worklistMoves = worklistMoves;
+    lg->moveList = moveList;
+    lg->spillCost = spillCost;
 }
 
 #if 0
@@ -284,7 +291,7 @@ static void solveLiveness3(struct Live_graph *lg,
 
     live = tempUnion(tuse, tempMinus(live, tdef));
   }
-  
+
   lg->graph = g;
   lg->worklistMoves = worklistMoves;
   lg->moveList = moveList;
@@ -292,7 +299,8 @@ static void solveLiveness3(struct Live_graph *lg,
 }
 
 static void solveLiveness2(struct Live_graph *lg,
-                          G_graph flow, G_table in, G_table out) {
+                          G_graph flow, G_table in, G_table out)
+{
   G_graph g = G_Graph();
   TAB_table tab = TAB_empty();
   Live_moveList ml = NULL;
@@ -335,13 +343,13 @@ static void solveLiveness2(struct Live_graph *lg,
       }
     }
   }
-  
+
   lg->graph = g;
   lg->moves = ml;
 }
 #endif
 
-struct Live_graph Live_liveness(G_graph flow) 
+struct Live_graph Live_liveness(G_graph flow)
 {
     // Construct liveness graph
     G_table in = G_empty(), out = G_empty();

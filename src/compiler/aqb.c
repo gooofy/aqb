@@ -74,50 +74,50 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
 //  fprintf(out, "END function\n\n");
 }
 
-char *expand_escapes(const char* src) 
+char *expand_escapes(const char* src)
 {
     char *str = checked_malloc(2 * strlen(src) + 10);
 
     char *dest = str;
     char c;
 
-    while ((c = *(src++))) 
+    while ((c = *(src++)))
     {
-        switch(c) 
+        switch(c)
         {
-            case '\a': 
+            case '\a':
                 *(dest++) = '\\';
                 *(dest++) = 'a';
                 break;
-            case '\b': 
+            case '\b':
                 *(dest++) = '\\';
                 *(dest++) = 'b';
                 break;
-            case '\t': 
+            case '\t':
                 *(dest++) = '\\';
                 *(dest++) = 't';
                 break;
-            case '\n': 
+            case '\n':
                 *(dest++) = '\\';
                 *(dest++) = 'n';
                 break;
-            case '\v': 
+            case '\v':
                 *(dest++) = '\\';
                 *(dest++) = 'v';
                 break;
-            case '\f': 
+            case '\f':
                 *(dest++) = '\\';
                 *(dest++) = 'f';
                 break;
-            case '\r': 
+            case '\r':
                 *(dest++) = '\\';
                 *(dest++) = 'r';
                 break;
-            case '\\': 
+            case '\\':
                 *(dest++) = '\\';
                 *(dest++) = '\\';
                 break;
-            case '\"': 
+            case '\"':
                 *(dest++) = '\\';
                 *(dest++) = '\"';
                 break;
@@ -137,6 +137,13 @@ static void doStr(FILE * out, string str, Temp_label label) {
     fprintf(out, "    .align 4\n");
     fprintf(out, "%s:\n", Temp_labelstring(label));
     fprintf(out, "    .ascii \"%s\"\n", expand_escapes(str));
+    fprintf(out, "\n");
+}
+
+static void doFill(FILE * out, Temp_label label, int size) {
+    fprintf(out, "    .align 4\n");
+    fprintf(out, "%s:\n", Temp_labelstring(label));
+    fprintf(out, "    .fill %d\n", size);
     fprintf(out, "\n");
 }
 
@@ -175,7 +182,7 @@ int main (int argc, char *argv[])
      */
 
 	sourcef = fopen(sourcefn, "r");
-	if (!sourcef) 
+	if (!sourcef)
 	{
 		fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
 		exit(2);
@@ -203,7 +210,7 @@ int main (int argc, char *argv[])
     F_initRegisters();
 
     frags = SEM_transProg(sourceProgram);
-    if (EM_anyErrors) 
+    if (EM_anyErrors)
         exit(4);
 
     printf ("\n\nsemantics worked.\n");
@@ -221,7 +228,7 @@ int main (int argc, char *argv[])
     fprintf(out, ".text\n\n");
     for (fl=frags; fl; fl=fl->tail)
     {
-        if (fl->head->kind == F_procFrag) 
+        if (fl->head->kind == F_procFrag)
         {
             doProc(out, fl->head->u.proc.frame, fl->head->u.proc.body);
         }
@@ -230,9 +237,13 @@ int main (int argc, char *argv[])
     fprintf(out, ".data\n\n");
     for (fl=frags; fl; fl=fl->tail)
     {
-        if (fl->head->kind == F_stringFrag) 
+        if (fl->head->kind == F_stringFrag)
         {
             doStr(out, fl->head->u.stringg.str, fl->head->u.stringg.label);
+        }
+        if (fl->head->kind == F_fillFrag)
+        {
+            doFill(out, fl->head->u.fill.label, fl->head->u.fill.size);
         }
     }
     fclose(out);

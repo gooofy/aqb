@@ -15,23 +15,23 @@ typedef struct T_stmList_  *T_stmList;
 struct T_expList_ {T_exp head; T_expList tail;};
 struct T_stmList_ {T_stm head; T_stmList tail;};
 
-typedef enum 
+typedef enum
 {
     T_plus,  T_minus,  T_mul, T_div,
     T_xor,   T_eqv,    T_imp, T_neg, T_not, T_and, T_or,
     T_power, T_intDiv, T_mod,
 } T_binOp;
 
-typedef enum  
+typedef enum
 {
     T_eq,  T_ne,  T_lt,  T_gt, T_le, T_ge
 } T_relOp;
 
-struct T_stm_ 
+struct T_stm_
 {
-    enum {T_SEQ, T_LABEL, T_JUMP, T_CJUMP, 
+    enum {T_SEQ, T_LABEL, T_JUMP, T_CJUMP,
           T_MOVE, T_NOP, T_EXP} kind;
-	union 
+	union
     {
         struct {T_stm left, right;} SEQ;
         Temp_label LABEL;
@@ -42,13 +42,13 @@ struct T_stm_
     } u;
 };
 
-struct T_exp_ 
+struct T_exp_
 {
     enum { T_BINOP, T_MEM, T_HEAP, T_ESEQ, T_TEMP,
-		   T_CONST, T_CALLF, 
+		   T_CONST, T_CALLF,
            T_CAST } kind;
     Ty_ty ty;
-	union 
+	union
     {
         struct {T_binOp op; T_exp left, right;} BINOP;
         struct {T_exp exp;} MEM;

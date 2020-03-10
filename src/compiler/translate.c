@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+
 #include "util.h"
 #include "table.h"
 #include "symbol.h"
@@ -33,7 +35,6 @@ struct Tr_accessList_
 
 struct Tr_level_
 {
-    bool       global;
     F_frame    frame;
     Temp_label name;
 };
@@ -100,21 +101,21 @@ Tr_accessList Tr_accessListTail(Tr_accessList al)
 
 static Tr_level global_level = NULL;
 
-Tr_level Tr_global(void) {
-    if (global_level == NULL) {
+Tr_level Tr_global(void) 
+{
+    if (global_level == NULL) 
+    {
         global_level = checked_malloc(sizeof(*global_level));
-        global_level->global = TRUE;
-        global_level->frame = F_newFrame(Temp_namedlabel("__aqb_main"), 0, TRUE);
+        global_level->frame  = NULL;
     }
     return global_level;
 }
 
-Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_tyList formalTys)
+Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys)
 {
     Tr_level lv = checked_malloc(sizeof(*lv));
 
-    lv->global = parent==NULL;
-    lv->frame  = F_newFrame(name, formalTys, lv->global);
+    lv->frame  = F_newFrame(name, formalTys);
     lv->name   = name;
 
     return lv;
@@ -145,9 +146,38 @@ Tr_accessList Tr_formals(Tr_level level)
     return a;
 }
 
-Tr_access Tr_allocLocal(Tr_level level, Ty_ty ty)
+static string replace_type_suffix(string varname)
 {
-    return Tr_Access(level, F_allocLocal(level->frame, ty));
+    int  l        = strlen(varname);
+    char postfix  = varname[l-1];
+    string res    = varname;
+    string suffix = NULL;
+
+    switch (postfix)
+    {
+        case '$':
+            suffix = "s";
+            break;
+        case '%':
+            suffix = "i";
+            break;
+        case '&':
+            suffix = "l";
+            break;
+        case '!':
+            suffix = "f";
+            break;
+        case '#':
+            suffix = "d";
+            break;
+    }
+    if (suffix)
+    {
+        res = String(res);
+        res[l-1] = 0;
+        res = strprintf("%s_%s", res, suffix);
+    }
+    return res;
 }
 
 /* Basic expressions */
@@ -325,6 +355,21 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
     fragList    = F_FragList(frag, fragList);
 }
 
+Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty)
+{
+    if (!level->frame) // global var?
+    {
+        Temp_label label = Temp_namedlabel(replace_type_suffix(name));
+
+        F_frag frag = F_FillFrag(label, Ty_size(ty));
+        fragList    = F_FragList(frag, fragList);
+
+        return Tr_Access(level, F_allocGlobal(label, ty));
+    }
+
+    return Tr_Access(level, F_allocLocal(level->frame, ty));
+}
+
 /* Tree Expressions */
 
 Tr_exp Tr_zeroExp(Ty_ty ty)
@@ -397,10 +442,7 @@ Tr_exp Tr_stringExp(string str)
 
 Tr_exp Tr_simpleVar(Tr_access a)
 {
-    if (a->level->global)
-        return Tr_Ex(F_Exp(a->access, T_Temp(F_GP(), F_accessType(a->access))));
-    else
-        return Tr_Ex(F_Exp(a->access, T_Temp(F_FP(), F_accessType(a->access))));
+    return Tr_Ex(F_Exp(a->access));
 }
 
 #if 0

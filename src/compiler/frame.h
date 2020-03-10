@@ -23,15 +23,17 @@ F_accessList F_AccessList(F_access head, F_accessList tail);
 typedef struct F_frag_ *F_frag;
 struct F_frag_ 
 {
-    enum {F_stringFrag, F_procFrag} kind;
+    enum {F_stringFrag, F_procFrag, F_fillFrag} kind;
     union {
         struct {Temp_label label; string str;} stringg;
         struct {T_stm body; F_frame frame;} proc;
+        struct {Temp_label label; int size;} fill;
     } u;
 };
 
 F_frag F_StringFrag(Temp_label label, string str);
 F_frag F_ProcFrag(T_stm body, F_frame frame);
+F_frag F_FillFrag(Temp_label label, int size);
 
 typedef struct F_fragList_ *F_fragList;
 struct F_fragList_ {F_frag head; F_fragList tail;};
@@ -43,8 +45,9 @@ extern Temp_map F_tempMap;
 
 Temp_tempList F_registers(void);
 string        F_getlabel(F_frame frame);
-T_exp         F_Exp(F_access acc, T_exp framePtr);
+T_exp         F_Exp(F_access acc);
 
+F_access      F_allocGlobal(Temp_label label, Ty_ty ty);
 F_access      F_allocLocal(F_frame f, Ty_ty ty);
 F_accessList  F_formals(F_frame f);
 Temp_label    F_name(F_frame f);
@@ -53,8 +56,8 @@ extern const int F_wordSize;
 
 void          F_initRegisters(void);
 Temp_map      F_initialRegisters(F_frame f);
+Temp_temp     F_A4(void);
 Temp_temp     F_FP(void);
-Temp_temp     F_GP(void);
 Temp_temp     F_SP(void);
 Temp_temp     F_RV(void);
 Temp_temp     F_D0(void);
@@ -68,7 +71,7 @@ Temp_temp     F_D7(void);
 Temp_tempList F_callersaves(void);
 Temp_tempList F_calleesaves(void);
 
-F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys, bool global);
+F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys);
 // T_exp         F_externalCall(string s, T_expList args);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);

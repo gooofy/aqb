@@ -25,8 +25,8 @@ static expRefList ExpRefList(T_exp *head, expRefList tail)
     return p;
 }
 
-static bool isNop(T_stm x) 
-{  
+static bool isNop(T_stm x)
+{
     return x->kind == T_NOP;
 }
 
@@ -46,31 +46,31 @@ static bool commute(T_stm x, T_exp y)
 
 struct stmExp {T_stm s; T_exp e;};
 
-static T_stm reorder(expRefList rlist) 
+static T_stm reorder(expRefList rlist)
 {
-    if (!rlist) 
+    if (!rlist)
     {
         return T_Nop();
     }
-    else 
+    else
     {
         Ty_ty ty = (*rlist->head)->ty;
-        if ((*rlist->head)->kind==T_CALLF) 
+        if ((*rlist->head)->kind==T_CALLF)
         {
             Temp_temp t = Temp_newtemp(ty);
             *rlist->head = T_Eseq(T_Move(T_Temp(t, ty), *rlist->head, ty), T_Temp(t, ty), ty);
             return reorder(rlist);
         }
-        else 
+        else
         {
             struct stmExp hd = do_exp(*rlist->head);
             T_stm s = reorder(rlist->tail);
-            if (commute(s,hd.e)) 
+            if (commute(s,hd.e))
             {
                 *rlist->head=hd.e;
                 return seq(hd.s,s);
-            } 
-            else 
+            }
+            else
             {
                 Temp_temp t = Temp_newtemp(ty);
                 *rlist->head = T_Temp(t, ty);
@@ -86,7 +86,7 @@ static expRefList get_call_rlist(T_exp exp)
     T_expList args = exp->u.CALLF.args;
     // curr = rlist = ExpRefList(&exp->u.CALLF.fun, NULL); // FIXME ?!
     curr = rlist = NULL;
-    for (;args; args=args->tail) 
+    for (;args; args=args->tail)
     {
         if (curr)
         {
@@ -109,13 +109,13 @@ static struct stmExp StmExp(T_stm stm, T_exp exp) {
 
 static struct stmExp do_exp(T_exp exp)
 {
-    switch(exp->kind) 
+    switch(exp->kind)
     {
-        case T_BINOP: 
-            return StmExp(reorder(ExpRefList(&exp->u.BINOP.left, 
+        case T_BINOP:
+            return StmExp(reorder(ExpRefList(&exp->u.BINOP.left,
                      ExpRefList(&exp->u.BINOP.right, NULL))),
                 exp);
-        case T_MEM: 
+        case T_MEM:
             return StmExp(reorder(ExpRefList(&exp->u.MEM.exp, NULL)), exp);
         case T_ESEQ:
         {
@@ -124,7 +124,7 @@ static struct stmExp do_exp(T_exp exp)
         }
         case T_CALLF:
             return StmExp(reorder(get_call_rlist(exp)), exp);
-        case T_CAST: 
+        case T_CAST:
             return StmExp(reorder(ExpRefList(&exp->u.CAST.exp, NULL)), exp);
         default:
             return StmExp(reorder(NULL), exp);
@@ -134,12 +134,12 @@ static struct stmExp do_exp(T_exp exp)
 /* processes stm so that it contains no ESEQ nodes */
 static T_stm do_stm(T_stm stm)
 {
-    switch (stm->kind) 
+    switch (stm->kind)
     {
-        case T_SEQ: 
+        case T_SEQ:
             return seq(do_stm(stm->u.SEQ.left), do_stm(stm->u.SEQ.right));
         case T_CJUMP:
-            return seq(reorder(ExpRefList(&stm->u.CJUMP.left, 
+            return seq(reorder(ExpRefList(&stm->u.CJUMP.left,
                         ExpRefList(&stm->u.CJUMP.right,NULL))), stm);
         case T_MOVE:
             if (stm->u.MOVE.dst->kind == T_TEMP && stm->u.MOVE.src->kind == T_CALLF)
@@ -147,7 +147,7 @@ static T_stm do_stm(T_stm stm)
             else if (stm->u.MOVE.dst->kind == T_TEMP)
                 return seq(reorder(ExpRefList(&stm->u.MOVE.src, NULL)), stm);
             else if (stm->u.MOVE.dst->kind == T_MEM)
-                return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM.exp, 
+                return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM.exp,
                      ExpRefList(&stm->u.MOVE.src, NULL))), stm);
             else if (stm->u.MOVE.dst->kind == T_ESEQ) {
                 T_stm s = stm->u.MOVE.dst->u.ESEQ.stm;
@@ -168,9 +168,9 @@ static T_stm do_stm(T_stm stm)
 /* linear gets rid of the top-level SEQ's, producing a list */
 static T_stmList linear(T_stm stm, T_stmList right)
 {
-    if (stm->kind == T_SEQ) 
+    if (stm->kind == T_SEQ)
         return linear(stm->u.SEQ.left,linear(stm->u.SEQ.right,right));
-    else 
+    else
         return T_StmList(stm, right);
 }
 
@@ -189,26 +189,26 @@ static C_stmListList StmListList(T_stmList head, C_stmListList tail)
     p->head=head; p->tail=tail;
     return p;
 }
- 
+
 /* Go down a list looking for end of basic block */
 static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
 {
-    if (!stms) 
+    if (!stms)
         return next(prevstms, T_StmList(T_Jump(done), NULL), done);
-    if (stms->head->kind == T_JUMP || stms->head->kind == T_CJUMP) 
+    if (stms->head->kind == T_JUMP || stms->head->kind == T_CJUMP)
 	{
         C_stmListList stmLists;
-        prevstms->tail = stms; 
+        prevstms->tail = stms;
         stmLists = mkBlocks(stms->tail, done);
         stms->tail = NULL;
         return stmLists;
-    } 
-    else if (stms->head->kind == T_LABEL) 
+    }
+    else if (stms->head->kind == T_LABEL)
 	{
         Temp_label lab = stms->head->u.LABEL;
         return next(prevstms, T_StmList(T_Jump(lab), stms), done);
     }
-    else 
+    else
 	{
         prevstms->tail = stms;
         return next(stms, stms->tail, done);
@@ -218,11 +218,11 @@ static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
 /* Create the beginning of a basic block */
 static C_stmListList mkBlocks(T_stmList stms, Temp_label done)
 {
-    if (!stms) 
-    { 
+    if (!stms)
+    {
         return NULL;
     }
-    if (stms->head->kind != T_LABEL) 
+    if (stms->head->kind != T_LABEL)
     {
         return mkBlocks(T_StmList(T_Label(Temp_newlabel()), stms), done);
     }
@@ -230,7 +230,7 @@ static C_stmListList mkBlocks(T_stmList stms, Temp_label done)
     return StmListList(stms, next(stms, stms->tail, done));
 }
 
-/* 
+/*
     basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
 
      From a list of cleaned trees, produce a list of
@@ -247,9 +247,9 @@ struct C_block C_basicBlocks(T_stmList stmList)
 {
     struct C_block b;
 
-    b.label    = Temp_newlabel(); 
-    b.stmLists = mkBlocks(stmList, b.label); 
-  
+    b.label    = Temp_newlabel();
+    b.stmLists = mkBlocks(stmList, b.label);
+
     return b;
 }
 
@@ -259,7 +259,7 @@ static struct C_block global_block;
 static T_stmList getLast(T_stmList list)
 {
     T_stmList last = list;
-    while (last->tail->tail) 
+    while (last->tail->tail)
         last = last->tail;
     return last;
 }
@@ -270,10 +270,10 @@ static void trace(T_stmList list)
     T_stm lab = list->head;
     T_stm s = last->tail->head;
     S_enter(block_env, lab->u.LABEL, NULL);
-    if (s->kind == T_JUMP) 
+    if (s->kind == T_JUMP)
     {
         T_stmList target = (T_stmList) S_look(block_env, s->u.JUMP);
-        if (target) 
+        if (target)
         {
             last->tail = target; /* merge the 2 lists removing JUMP stm */
             trace(target);
@@ -284,28 +284,28 @@ static void trace(T_stmList list)
         }
     }
     /* we want false label to follow CJUMP */
-    else 
+    else
     {
-        if (s->kind == T_CJUMP) 
+        if (s->kind == T_CJUMP)
         {
             T_stmList ltrue  = (T_stmList) S_look(block_env, s->u.CJUMP.ltrue);
             T_stmList lfalse = (T_stmList) S_look(block_env, s->u.CJUMP.lfalse);
-            if (lfalse) 
+            if (lfalse)
             {
                 last->tail->tail = lfalse;
                 trace(lfalse);
             }
-            else 
+            else
             {
                 if (ltrue)  /* convert so that existing label is a false label */
                 {
                     last->tail->head = T_Cjump(T_notRel(s->u.CJUMP.op), s->u.CJUMP.left,
-                           s->u.CJUMP.right, s->u.CJUMP.lfalse, 
+                           s->u.CJUMP.right, s->u.CJUMP.lfalse,
                            s->u.CJUMP.ltrue);
                     last->tail->tail = ltrue;
                     trace(ltrue);
                 }
-                else 
+                else
                 {
                     Temp_label lfalse = Temp_newlabel();
                     last->tail->head = T_Cjump(s->u.CJUMP.op, s->u.CJUMP.left,
@@ -329,7 +329,7 @@ static T_stmList getNext()
     {
         return T_StmList(T_Label(global_block.label), NULL);
     }
-    else 
+    else
     {
         T_stmList s = global_block.stmLists->head;
         if (S_look(block_env, s->head->u.LABEL)) /* label exists in the table */
@@ -344,7 +344,7 @@ static T_stmList getNext()
     }
 }
 
-/* 
+/*
    traceSchedule : Tree.stm list list * Tree.label -> Tree.stm list
    From a list of basic blocks satisfying properties 1-6,
    along with an "exit" label,
@@ -360,12 +360,12 @@ T_stmList C_traceSchedule(struct C_block b)
     C_stmListList sList;
     block_env = S_beginScope(NULL);
     global_block = b;
-  
-    for (sList=global_block.stmLists; sList; sList=sList->tail) 
+
+    for (sList=global_block.stmLists; sList; sList=sList->tail)
     {
         S_enter(block_env, sList->head->head->u.LABEL, sList->head);
     }
-  
+
     return getNext();
 }
 
