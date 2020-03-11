@@ -50,7 +50,7 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
     Ty_tyList tyl=NULL, tylast=NULL;
     int l = strlen(argtypes);
 
-    for (int i = 0; i<l; i++) 
+    for (int i = 0; i<l; i++)
     {
         Ty_ty ty;
         switch (argtypes[i])
@@ -74,14 +74,14 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
         {
             tylast->tail = Ty_TyList(ty, NULL);
             tylast = tylast->tail;
-        } 
-        else 
+        }
+        else
         {
             tyl    = Ty_TyList(ty, NULL);
             tylast = tyl;
         }
     }
-    
+
     S_enter(t, S_Symbol(name),
             E_FunEntry(
               Tr_global(),
@@ -90,11 +90,11 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
               return_type, TRUE));
 }
 
-S_scope E_base_venv(void) 
+S_scope E_base_venv(void)
 {
     S_scope t = S_beginScope(NULL);
 
-    declare_builtin(t, "___aqb_window_open", "isiiiili", Ty_Void());
+    declare_builtin(t, "___aqb_window_open", "isiiiiii", Ty_Void());
     declare_builtin(t, "___aqb_line",        "iiiiii",   Ty_Void());
     declare_builtin(t, "__aio_puts",         "s",        Ty_Void());
     declare_builtin(t, "__aio_puts2",        "i",        Ty_Void());
