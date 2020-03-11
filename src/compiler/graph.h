@@ -37,7 +37,7 @@ void G_rmEdge(G_node from, G_node to);
 
 /* Show all the nodes and edges in the graph, using the function "showInfo"
     to print the name of each node */
-void G_show(FILE *out, G_nodeList p, void showInfo(void *));
+void G_show(FILE *out, G_nodeList p, void showInfo(void *, string buf));
 
 /* Get all the successors of node "n" */
 G_nodeList G_succ(G_node n);

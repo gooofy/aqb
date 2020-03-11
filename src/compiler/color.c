@@ -115,7 +115,7 @@ static Temp_tempList nodeL2TempL(G_nodeList nl) {
 #endif
 
 static string tempName(Temp_temp t) {
-  return Temp_look(Temp_name(), t);
+  return Temp_look(Temp_getNameMap(), t);
 }
 
 static Temp_temp str2Color(string color, Temp_map regcolors, Temp_tempList regs) {
@@ -566,7 +566,6 @@ struct COL_result COL_color(G_graph ig, Temp_map initial, Temp_tempList regs,
   c.nodes = ig;
 
   c.K = tempCount(regs);
-  
 
   Temp_map precolored = initial;
   Temp_map colors = Temp_layerMap(Temp_empty(), initial);

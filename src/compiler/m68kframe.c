@@ -230,7 +230,7 @@ F_frag F_ProcFrag(T_stm body, F_frame frame)
 string F_string(Temp_label lab, string str)
 {
     string buf = (string)checked_malloc(sizeof(char) * (strlen(str) + 100));
-    sprintf(buf, "%s: .ascii \"%s\"\n", Temp_labelstring(lab), str);
+    sprintf(buf, "%s: .ascii \"%s\"", Temp_labelstring(lab), str);
     return buf;
 }
 
@@ -254,7 +254,7 @@ static AS_instrList appendCalleeSave(AS_instrList il)
     for (; calleesaves; calleesaves = calleesaves->tail)
     {
         ail = AS_InstrList(
-                AS_Oper("move.l `s0,-(sp)\n", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
+                AS_Oper("move.l `s0,-(sp)", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
     }
 
     return ail;
@@ -267,7 +267,7 @@ static AS_instrList restoreCalleeSave(AS_instrList il)
     for (; calleesaves; calleesaves = calleesaves->tail)
     {
         ail = AS_InstrList(
-                AS_Oper("move.l (sp)+,`s0\n", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
+                AS_Oper("move.l (sp)+,`s0", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
     }
 
     return AS_splice(ail, il);
@@ -288,13 +288,13 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     body = AS_splice(body,
              restoreCalleeSave(
-               AS_InstrList(AS_Oper("unlk `s0\n", L(F_SP(), NULL), L(F_FP(), NULL), NULL),
-                 AS_InstrList(AS_Oper("rts\n", NULL, returnSink, NULL), NULL))));
+               AS_InstrList(AS_Oper("unlk `s0", L(F_SP(), NULL), L(F_FP(), NULL), NULL),
+                 AS_InstrList(AS_Oper("rts", NULL, returnSink, NULL), NULL))));
 
     // entry code
 
-    body = AS_InstrList(AS_Label(strprintf("%s:\n", S_name(label)), label),
-             AS_InstrList(AS_Oper(strprintf("link `s0, #%d\n", -frame_size), L(F_FP(), NULL), L(F_FP(), NULL), NULL),
+    body = AS_InstrList(AS_Label(strprintf("%s:", S_name(label)), label),
+             AS_InstrList(AS_Oper(strprintf("link `s0, #%d", -frame_size), L(F_FP(), NULL), L(F_FP(), NULL), NULL),
                   appendCalleeSave(body)));
 
     return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(label)), body, "# END\n");

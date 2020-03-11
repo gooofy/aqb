@@ -51,7 +51,7 @@ AS_instrList F_codegen(F_frame f, T_stmList stmList)
         munchStm(sl->head);
     }
     if (last && last->head->kind == I_LABEL) {
-        emit(AS_Oper("nop\n", NULL, NULL, NULL));
+        emit(AS_Oper("nop", NULL, NULL, NULL));
     }
     list = iList;
     iList = last = NULL;
@@ -81,7 +81,7 @@ static char *ty_isz(Ty_ty ty)
 
 static void emitMove(Temp_temp src, Temp_temp dst, char *isz)
 {
-    emit(AS_Move(strprintf("move.%s `s0, `d0\n", isz), L(dst, NULL), L(src, NULL)));
+    emit(AS_Move(strprintf("move.%s `s0, `d0", isz), L(dst, NULL), L(src, NULL)));
 }
 
 /* emit a binary op, check for constant optimization
@@ -106,10 +106,10 @@ static Temp_temp munchBinOp(T_exp e, string opc_rr, string opc_cr, string opc_rc
         /* BINOP(op, exp, CONST) */
         emitMove(munchExp(e_left, FALSE), r, isz);
         if (opc_pre)
-            emit(AS_Oper(strprintf("%s `d0\n", opc_pre), L(r, NULL), L(r, NULL), NULL));
-        emit(AS_Oper(strprintf("%s #%d, `d0 /* opc_rc */\n", opc_rc, e_right->u.CONST), L(r, NULL), L(r, NULL), NULL));
+            emit(AS_Oper(strprintf("%s `d0", opc_pre), L(r, NULL), L(r, NULL), NULL));
+        emit(AS_Oper(strprintf("%s #%d, `d0 /* opc_rc */", opc_rc, e_right->u.CONST), L(r, NULL), L(r, NULL), NULL));
         if (opc_post)
-            emit(AS_Oper(strprintf("%s `d0\n", opc_post), L(r, NULL), L(r, NULL), NULL));
+            emit(AS_Oper(strprintf("%s `d0", opc_post), L(r, NULL), L(r, NULL), NULL));
         return r;
     }
     else
@@ -119,10 +119,10 @@ static Temp_temp munchBinOp(T_exp e, string opc_rr, string opc_cr, string opc_rc
             /* BINOP(op, CONST, exp) */
             emitMove(munchExp(e_right, FALSE), r, isz);
             if (opc_pre)
-                emit(AS_Oper(strprintf("%s `d0\n", opc_pre), L(r, NULL), L(r, NULL), NULL));
-            emit(AS_Oper(strprintf("%s #%d, `d0  /* opc_cr */\n", opc_cr, e_left->u.CONST), L(r, NULL), L(r, NULL), NULL));
+                emit(AS_Oper(strprintf("%s `d0", opc_pre), L(r, NULL), L(r, NULL), NULL));
+            emit(AS_Oper(strprintf("%s #%d, `d0  /* opc_cr */", opc_cr, e_left->u.CONST), L(r, NULL), L(r, NULL), NULL));
             if (opc_post)
-                emit(AS_Oper(strprintf("%s `d0\n", opc_post), L(r, NULL), L(r, NULL), NULL));
+                emit(AS_Oper(strprintf("%s `d0", opc_post), L(r, NULL), L(r, NULL), NULL));
             return r;
         }
     }
@@ -131,10 +131,10 @@ static Temp_temp munchBinOp(T_exp e, string opc_rr, string opc_cr, string opc_rc
 
     emitMove(munchExp(e_left, FALSE), r, isz);
     if (opc_pre)
-        emit(AS_Oper(strprintf("%s `d0\n", opc_pre), L(r, NULL), L(r, NULL), NULL));
-    emit(AS_Oper(strprintf("%s `s0, `d0\n", opc_rr), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
+        emit(AS_Oper(strprintf("%s `d0", opc_pre), L(r, NULL), L(r, NULL), NULL));
+    emit(AS_Oper(strprintf("%s `s0, `d0", opc_rr), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
     if (opc_post)
-        emit(AS_Oper(strprintf("%s `d0\n", opc_post), L(r, NULL), L(r, NULL), NULL));
+        emit(AS_Oper(strprintf("%s `d0", opc_post), L(r, NULL), L(r, NULL), NULL));
 
     return r;
 }
@@ -147,7 +147,7 @@ static Temp_temp munchUnaryOp(T_exp e, string opc, Ty_ty resty)
     char     *isz     = ty_isz(resty);
 
     emitMove(munchExp(e_left, FALSE), r, isz);
-    emit(AS_Oper(strprintf("%s `d0\n", opc), L(r, NULL), L(r, NULL), NULL));
+    emit(AS_Oper(strprintf("%s `d0", opc), L(r, NULL), L(r, NULL), NULL));
 
     return r;
 }
@@ -160,7 +160,7 @@ static void emitBinOpJsr(T_exp e, string sub_name, Ty_ty resty, Temp_temp r)
 
     T_expList args    = T_ExpList(e_left, T_ExpList(e_right, NULL));
     int       arg_cnt = munchArgsStack(0, args);
-    emit(AS_Oper(strprintf("jsr    %s\n", sub_name), L(F_RV(), F_callersaves()), NULL, NULL));
+    emit(AS_Oper(strprintf("jsr    %s", sub_name), L(F_RV(), F_callersaves()), NULL, NULL));
     munchCallerRestoreStack(arg_cnt);
 
     emitMove(F_RV(), r, "l");
@@ -177,7 +177,7 @@ static void emitRegCall(string strName, int lvo, Temp_temp r, F_ral ral)
     Temp_tempList argTempList = NULL;
 
     if (lvo)
-        emit(AS_Oper(String("move.l a6,-(sp)\n"), NULL, NULL, NULL));
+        emit(AS_Oper(String("move.l a6,-(sp)"), NULL, NULL, NULL));
 
     // move args into their associated registers:
 
@@ -190,14 +190,14 @@ static void emitRegCall(string strName, int lvo, Temp_temp r, F_ral ral)
     if (lvo)
     {
         // amiga lib call
-        emit(AS_Oper(strprintf("movea.l %s,a6\n", strName), NULL, NULL, NULL));
-        emit(AS_Oper(strprintf("jsr    %d(a6)\n", lvo), L(F_RV(), F_callersaves()), argTempList, NULL));
-        emit(AS_Oper(String("move.l (sp)+,a6\n"), NULL, NULL, NULL));
+        emit(AS_Oper(strprintf("movea.l %s,a6", strName), NULL, NULL, NULL));
+        emit(AS_Oper(strprintf("jsr    %d(a6)", lvo), L(F_RV(), F_callersaves()), argTempList, NULL));
+        emit(AS_Oper(String("move.l (sp)+,a6"), NULL, NULL, NULL));
     }
     else
     {
         // subroutine call
-        emit(AS_Oper(strprintf("jsr %s\n", strName), L(F_RV(), F_callersaves()), argTempList, NULL));
+        emit(AS_Oper(strprintf("jsr %s", strName), L(F_RV(), F_callersaves()), argTempList, NULL));
     }
 
     emitMove(F_RV(), r, "l");
@@ -224,7 +224,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                       i = -i;
                     }
                     Temp_temp r = Temp_newtemp(Ty_Long());
-                    emit(AS_Oper(strprintf("move.%s %d(`s0), `d0\n", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                    emit(AS_Oper(strprintf("move.%s %d(`s0), `d0", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                     return r;
                 }
                 else if (mem->u.BINOP.op == T_plus && mem->u.BINOP.left->kind == T_CONST)
@@ -233,13 +233,13 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     T_exp e1 = mem->u.BINOP.right;
                     int i = mem->u.BINOP.left->u.CONST;
                     Temp_temp r = Temp_newtemp(Ty_Long());
-                    emit(AS_Oper(strprintf("move.%s %d(`s0), `d0\n", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                    emit(AS_Oper(strprintf("move.%s %d(`s0), `d0", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                     return r;
                 } else {
                     /* MEM(e1) */
                     T_exp e1 = mem;
                     Temp_temp r = Temp_newtemp(Ty_Long());
-                    emit(AS_Oper(strprintf("move.%s (`s0), `d0\n", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                    emit(AS_Oper(strprintf("move.%s (`s0), `d0", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                     return r;
                 }
             }
@@ -249,7 +249,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 /* MEM(CONST(i)) */
                 int i = mem->u.CONST;
                 Temp_temp r = Temp_newtemp(Ty_Long());
-                sprintf(inst, "move.l %d, `d0\n", i);
+                sprintf(inst, "move.l %d, `d0", i);
                 emit(AS_Oper(inst, L(r, NULL), NULL, NULL));
                 return r;
             }
@@ -259,7 +259,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 /* MEM(e1) */
                 T_exp e1 = mem;
                 Temp_temp r = Temp_newtemp(e->ty);
-                emit(AS_Oper(strprintf("move.%s (`s0), `d0\n", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                emit(AS_Oper(strprintf("move.%s (`s0), `d0", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                 return r;
             }
         }
@@ -286,8 +286,8 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r       = Temp_newtemp(resty);
 
                             emitMove(munchExp(e_left, FALSE), r, "b");
-                            emit(AS_Oper(String("not.b `d0\n"), L(r, NULL), L(r, NULL), NULL));
-                            emit(AS_Oper(String("or.b `s0, `d0\n"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
+                            emit(AS_Oper(String("not.b `d0"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("or.b `s0, `d0"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
 
                             return r;
                         }
@@ -326,8 +326,8 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r       = Temp_newtemp(resty);
 
                             emitMove(munchExp(e_left, FALSE), r, "w");
-                            emit(AS_Oper(String("not.w `d0\n"), L(r, NULL), L(r, NULL), NULL));
-                            emit(AS_Oper(String("or.w `s0, `d0\n"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
+                            emit(AS_Oper(String("not.w `d0"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("or.w `s0, `d0"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
 
                             return r;
                         }
@@ -392,8 +392,8 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r       = Temp_newtemp(resty);
 
                             emitMove(munchExp(e_left, FALSE), r, "l");
-                            emit(AS_Oper(String("not.l  `d0\n"), L(r, NULL), L(r, NULL), NULL));
-                            emit(AS_Oper(String("or.l   `s0, `d0\n"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
+                            emit(AS_Oper(String("not.l  `d0"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("or.l   `s0, `d0"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
 
                             return r;
                         }
@@ -474,21 +474,21 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             switch (e->u.BINOP.op)
                             {
                                 case T_and:
-                                    emit(AS_Oper(strprintf("and.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    emit(AS_Oper(strprintf("and.l `s0, `d0"), L(r, NULL), L(r2, L(r, NULL)), NULL));
                                     break;
                                 case T_or:
-                                    emit(AS_Oper(strprintf("or.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    emit(AS_Oper(strprintf("or.l `s0, `d0"), L(r, NULL), L(r2, L(r, NULL)), NULL));
                                     break;
                                 case T_xor:
-                                    emit(AS_Oper(strprintf("eor.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    emit(AS_Oper(strprintf("eor.l `s0, `d0"), L(r, NULL), L(r2, L(r, NULL)), NULL));
                                     break;
                                 case T_eqv:
-                                    emit(AS_Oper(strprintf("eor.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
-                                    emit(AS_Oper(strprintf("not.l `d0\n"), L(r, NULL), L(r, NULL), NULL));
+                                    emit(AS_Oper(strprintf("eor.l `s0, `d0"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    emit(AS_Oper(strprintf("not.l `d0"), L(r, NULL), L(r, NULL), NULL));
                                     break;
                                 case T_imp:
-                                    emit(AS_Oper(String("not.l `d0\n"), L(r, NULL), L(r, NULL), NULL));
-                                    emit(AS_Oper(String("or.l `s0, `d0\n"), L(r, NULL), L(r2, L(r, NULL)), NULL));
+                                    emit(AS_Oper(String("not.l `d0"), L(r, NULL), L(r, NULL), NULL));
+                                    emit(AS_Oper(String("or.l `s0, `d0"), L(r, NULL), L(r2, L(r, NULL)), NULL));
                                     break;
                                 default:
                                     assert(0);
@@ -503,7 +503,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r  = Temp_newtemp(resty);
 
                             emitRegCall("_MathBase", LVOSPFix, r, F_RAL(munchExp(e_left,  FALSE), F_D0(), NULL));
-                            emit(AS_Oper(String("not.l `d0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("not.l `d0"), L(r, NULL), L(r, NULL), NULL));
                             emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
                             return r;
                         }
@@ -523,7 +523,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         {
             char *isz = ty_isz(e->ty);
             Temp_temp r = Temp_newtemp(e->ty);
-            emit(AS_Oper(strprintf("move.%s #%d, `d0\n", isz, e->u.CONST), L(r, NULL), NULL, NULL));
+            emit(AS_Oper(strprintf("move.%s #%d, `d0", isz, e->u.CONST), L(r, NULL), NULL, NULL));
             return r;
         }
         case T_TEMP:
@@ -536,7 +536,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             /* NAME(lab) */
             Temp_label lab = e->u.HEAP;
             Temp_temp r = Temp_newtemp(Ty_Long());
-            emit(AS_Oper(strprintf("move.l #%s, `d0\n", Temp_labelstring(lab)), L(r, NULL), NULL, NULL));
+            emit(AS_Oper(strprintf("move.l #%s, `d0", Temp_labelstring(lab)), L(r, NULL), NULL, NULL));
             return r;
         }
         case T_CALLF:
@@ -547,20 +547,20 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
 #if 0
             Temp_tempList l = munchArgs(0, args);
             Temp_tempList calldefs = F_callersaves();
-            sprintf(inst, "jsr %s\n", Temp_labelstring(lab));
+            sprintf(inst, "jsr %s", Temp_labelstring(lab));
             emit(AS_Oper(inst, L(F_RV(), calldefs), l, NULL));
             munchCallerRestore(l);
 #endif
 
             int arg_cnt = munchArgsStack(0, args);
-            emit(AS_Oper(strprintf("jsr    %s\n", Temp_labelstring(lab)), L(F_RV(), F_callersaves()), NULL, NULL));
+            emit(AS_Oper(strprintf("jsr    %s", Temp_labelstring(lab)), L(F_RV(), F_callersaves()), NULL, NULL));
             munchCallerRestoreStack(arg_cnt);
 
             if (!ignore_result)
             {
                 char *isz = ty_isz(e->ty);
                 Temp_temp t = Temp_newtemp(e->ty);
-                emit(AS_Move(strprintf("move.%s `s0, `d0\n", isz), L(t, NULL), L(F_RV(), NULL)));
+                emit(AS_Move(strprintf("move.%s `s0, `d0", isz), L(t, NULL), L(F_RV(), NULL)));
                 return t;
             }
             return NULL;
@@ -576,18 +576,18 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     switch (e->ty->kind)
                     {
                         case Ty_integer:
-                            emit(AS_Move(String("move.b `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("ext.w  `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Move(String("move.b `s0, `d0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.w  `s0"), L(r, NULL), L(r, NULL), NULL));
                             break;
                         case Ty_long:
-                            emit(AS_Move(String("move.b `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("ext.w  `s0\n"), L(r, NULL), L(r, NULL), NULL));
-                            emit(AS_Oper(String("ext.l  `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Move(String("move.b `s0, `d0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.w  `s0"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("ext.l  `s0"), L(r, NULL), L(r, NULL), NULL));
                             break;
                         case Ty_single:
-                            emit(AS_Move(String("move.b `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("ext.w  `s0\n"), L(r, NULL), L(r, NULL), NULL));
-                            emit(AS_Oper(String("ext.l  `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Move(String("move.b `s0, `d0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.w  `s0"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Oper(String("ext.l  `s0"), L(r, NULL), L(r, NULL), NULL));
                             emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
                             break;
                         default:
@@ -598,16 +598,16 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     switch (e->ty->kind)
                     {
                         case Ty_bool:
-                            emit(AS_Move(String("tst.w  `s0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("sne.b  `d0\n"), L(r, NULL), NULL, NULL));
+                            emit(AS_Move(String("tst.w  `s0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("sne.b  `d0"), L(r, NULL), NULL, NULL));
                             break;
                         case Ty_long:
-                            emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("ext.l  `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Move(String("move.w `s0, `d0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.l  `s0"), L(r, NULL), L(r, NULL), NULL));
                             break;
                         case Ty_single:
-                            emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("ext.l  `s0\n"), L(r, NULL), L(r, NULL), NULL));
+                            emit(AS_Move(String("move.w `s0, `d0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("ext.l  `s0"), L(r, NULL), L(r, NULL), NULL));
                             emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r, F_D0(), NULL));
                             break;
                         default:
@@ -618,11 +618,11 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     switch (e->ty->kind)
                     {
                         case Ty_bool:
-                            emit(AS_Move(String("tst.l  `s0\n"), L(r, NULL), L(r1, NULL)));
-                            emit(AS_Oper(String("sne.b  `d0\n"), L(r, NULL), NULL, NULL));
+                            emit(AS_Move(String("tst.l  `s0"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Oper(String("sne.b  `d0"), L(r, NULL), NULL, NULL));
                             break;
                         case Ty_integer:
-                            emit(AS_Move(String("move.w `s0, `d0\n"), L(r, NULL), L(r1, NULL)));
+                            emit(AS_Move(String("move.w `s0, `d0"), L(r, NULL), L(r1, NULL)));
                             break;
                         case Ty_single:
                             emitRegCall("_MathBase", LVOSPFlt, r, F_RAL(r1, F_D0(), NULL));
@@ -636,8 +636,8 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                             emitRegCall("_MathBase", LVOSPFix, r, F_RAL(r1, F_D0(), NULL));
-                            emit(AS_Move(String("tst.l  `s0\n"), L(r, NULL), L(r, NULL)));
-                            emit(AS_Oper(String("sne.b  `d0\n"), L(r, NULL), NULL, NULL));
+                            emit(AS_Move(String("tst.l  `s0"), L(r, NULL), L(r, NULL)));
+                            emit(AS_Oper(String("sne.b  `d0"), L(r, NULL), NULL, NULL));
                             break;
                         case Ty_integer:
                         case Ty_long:
@@ -681,7 +681,7 @@ static void munchStm(T_stm s)
                         T_exp e1 = dst->u.MEM.exp->u.BINOP.left;
                         int i = dst->u.MEM.exp->u.BINOP.right->u.CONST;
                         unsigned int j = src->u.CONST;
-                        sprintf(inst, "move.%s #%d, %d(`s0)\n", isz, j, i);
+                        sprintf(inst, "move.%s #%d, %d(`s0)", isz, j, i);
                         emit(AS_Oper(inst, NULL, L(munchExp(e1, FALSE), NULL), NULL));
                     }
                     else
@@ -689,7 +689,7 @@ static void munchStm(T_stm s)
                         /* MOVE(MEM(BINOP(PLUS,e1,CONST(i))),e2) */
                         T_exp e1 = dst->u.MEM.exp->u.BINOP.left, e2 = src;
                         int i = dst->u.MEM.exp->u.BINOP.right->u.CONST;
-                        sprintf(inst, "move.%s `s1, %d(`s0)\n", isz, i);
+                        sprintf(inst, "move.%s `s1, %d(`s0)", isz, i);
                         emit(AS_Oper(inst, NULL, L(munchExp(e1, FALSE), L(munchExp(e2, FALSE), NULL)), NULL));
                     }
                 }
@@ -705,7 +705,7 @@ static void munchStm(T_stm s)
                             T_exp e1 = dst->u.MEM.exp->u.BINOP.right;
                             int i = dst->u.MEM.exp->u.BINOP.left->u.CONST;
                             unsigned int j = src->u.CONST;
-                            sprintf(inst, "move.%s #%d, %d(`s0)\n", isz, j, i);
+                            sprintf(inst, "move.%s #%d, %d(`s0)", isz, j, i);
                             emit(AS_Oper(inst, NULL, L(munchExp(e1, FALSE), NULL), NULL));
                         }
                         else
@@ -713,7 +713,7 @@ static void munchStm(T_stm s)
                             /* MOVE(MEM(BINOP(PLUS,CONST(i),e1)),e2) */
                             T_exp e1 = dst->u.MEM.exp->u.BINOP.right, e2 = src;
                             int i = dst->u.MEM.exp->u.BINOP.left->u.CONST;
-                            sprintf(inst, "move.%s `s1, %d(`s0)\n", isz, i);
+                            sprintf(inst, "move.%s `s1, %d(`s0)", isz, i);
                             emit(AS_Oper(inst, NULL, L(munchExp(e1, FALSE), L(munchExp(e2, FALSE), NULL)), NULL));
                         }
                     }
@@ -724,9 +724,9 @@ static void munchStm(T_stm s)
                           /* MOVE(MEM(e1), MEM(e2)) */
                           T_exp e1 = dst->u.MEM.exp, e2 = src->u.MEM.exp;
                           Temp_temp r = Temp_newtemp(resty);
-                          sprintf(inst, "move.%s (`s0), `d0\n", isz);
+                          sprintf(inst, "move.%s (`s0), `d0", isz);
                           emit(AS_Oper(inst, L(r, NULL), L(munchExp(e2, FALSE), NULL), NULL));
-                          emit(AS_Oper(strprintf("move.%s `s0, (`s1)\n", isz), NULL, L(r, L(munchExp(e1, FALSE), NULL)), NULL));
+                          emit(AS_Oper(strprintf("move.%s `s0, (`s1)", isz), NULL, L(r, L(munchExp(e1, FALSE), NULL)), NULL));
                         }
                         else
                         {
@@ -735,14 +735,14 @@ static void munchStm(T_stm s)
                               /* MOVE(MEM(CONST(i)), e2) */
                               T_exp e2 = src;
                               int i = dst->u.MEM.exp->u.CONST;
-                              sprintf(inst, "move.%s `s0, %d\n", isz, i);
+                              sprintf(inst, "move.%s `s0, %d", isz, i);
                               emit(AS_Oper(inst, NULL, L(munchExp(e2, FALSE), NULL), NULL));
                             }
                             else
                             {
                               /* MOVE(MEM(e1), e2) */
                               T_exp e1 = dst->u.MEM.exp, e2 = src;
-                              sprintf(inst, "move.%s `s1, (`s0)\n", isz);
+                              sprintf(inst, "move.%s `s1, (`s0)", isz);
                               emit(AS_Oper(inst, NULL, L(munchExp(e1, FALSE), L(munchExp(e2, FALSE), NULL)), NULL));
                             }
                         }
@@ -757,7 +757,7 @@ static void munchStm(T_stm s)
                     /* MOVE(TEMP(i),e2) */
                     T_exp e2 = src;
                     Temp_temp i = dst->u.TEMP;
-                    emit(AS_Move(strprintf("move.%s `s0, `d0\n", isz), L(i, NULL), L(munchExp(e2, FALSE), NULL)));
+                    emit(AS_Move(strprintf("move.%s `s0, `d0", isz), L(i, NULL), L(munchExp(e2, FALSE), NULL)));
                 }
                 else
                 {
@@ -773,17 +773,17 @@ static void munchStm(T_stm s)
             // Avoid two labels in same palce
             if (lastIsLabel)
             {
-              emit(AS_Oper("nop\n", NULL, NULL, NULL));
+              emit(AS_Oper("nop", NULL, NULL, NULL));
             }
 
             Temp_label lab = s->u.LABEL;
-            emit(AS_Label(strprintf("%s:\n", Temp_labelstring(lab)), lab));
+            emit(AS_Label(strprintf("%s:", Temp_labelstring(lab)), lab));
             break;
         }
         case T_JUMP:
         {
             /* JUMP(NAME(lab)) */
-            emit(AS_Oper(strprintf("jmp    `j\n"), NULL, NULL, s->u.JUMP));
+            emit(AS_Oper(strprintf("jmp    `j"), NULL, NULL, s->u.JUMP));
             break;
         }
         case T_CJUMP:
@@ -851,22 +851,22 @@ static void munchStm(T_stm s)
             {
                 Temp_temp r = Temp_newtemp(Ty_Integer());
                 emitRegCall("_MathBase", cmplvo, r, F_RAL(r1, F_D1(), F_RAL(r2, F_D0(), NULL)));
-                emit(AS_Oper(strprintf("tst.w  `s0\n"), NULL, L(r, NULL), NULL));
+                emit(AS_Oper(strprintf("tst.w  `s0"), NULL, L(r, NULL), NULL));
             }
             else
             {
-                emit(AS_Oper(strprintf("%s  `s1, `s0\n", cmpinstr), NULL, L(r1, L(r2, NULL)), NULL));
+                emit(AS_Oper(strprintf("%s  `s1, `s0", cmpinstr), NULL, L(r1, L(r2, NULL)), NULL));
             }
 
-            emit(AS_Oper(strprintf("%s    `j\n", branchinstr), NULL, NULL, jt));
+            emit(AS_Oper(strprintf("%s    `j", branchinstr), NULL, NULL, jt));
 
-            emit(AS_Oper(String("jmp    `j\n"), NULL, NULL, jf));
+            emit(AS_Oper(String("jmp    `j"), NULL, NULL, jf));
             break;
         }
         case T_NOP:
         {
             /* NOP */
-            emit(AS_Oper(String("nop\n"), NULL, NULL, s->u.JUMP));
+            emit(AS_Oper(String("nop"), NULL, NULL, s->u.JUMP));
             break;
         }
 		case T_EXP:
@@ -888,7 +888,7 @@ static void munchCallerSave()
     Temp_tempList callerSaves = F_callersaves();
     for (; callerSaves; callerSaves = callerSaves->tail)
     {
-        emit(AS_Oper("move.l `s0,-(sp)\n", L(F_SP(), NULL), L(callerSaves->head, NULL), NULL));
+        emit(AS_Oper("move.l `s0,-(sp)", L(F_SP(), NULL), L(callerSaves->head, NULL), NULL));
     }
 }
 
@@ -901,13 +901,13 @@ static void munchCallerRestore(Temp_tempList tl)
         ++restoreCount;
     }
 
-    sprintf(inst, "add.l #%d, `s0\n", restoreCount * F_wordSize); // FIXME: addq ?
+    sprintf(inst, "add.l #%d, `s0", restoreCount * F_wordSize); // FIXME: addq ?
     emit(AS_Oper(String(inst), L(F_SP(), NULL), L(F_SP(), NULL), NULL));
 
     Temp_tempList callerSaves = Temp_reverseList(F_callersaves());
     for (; callerSaves; callerSaves = callerSaves->tail)
     {
-        emit(AS_Oper("move.l (sp)+,`d0\n", L(callerSaves->head, NULL), L(F_SP(), NULL), NULL));
+        emit(AS_Oper("move.l (sp)+,`d0", L(callerSaves->head, NULL), L(F_SP(), NULL), NULL));
     }
 }
 
@@ -938,9 +938,9 @@ static Temp_tempList munchArgs(int i, T_expList args)
         default:
             assert(0);
     }
-    sprintf(inst, "move.%s `s0,-(sp)\n", isz);
+    sprintf(inst, "move.%s `s0,-(sp)", isz);
 #else
-    sprintf(inst, "move.l `s0,-(sp)\n");
+    sprintf(inst, "move.l `s0,-(sp)");
 #endif
     emit(AS_Oper(inst, L(F_SP(), NULL), L(r, NULL), NULL));
 
@@ -964,11 +964,11 @@ static int munchArgsStack(int i, T_expList args)
     T_exp e = args->head;
     if (e->kind == T_CONST)
     {
-        emit(AS_Oper(strprintf("move.l #%d,-(sp)\n", e->u.CONST), L(F_SP(), NULL), NULL, NULL));
+        emit(AS_Oper(strprintf("move.l #%d,-(sp)", e->u.CONST), L(F_SP(), NULL), NULL, NULL));
     }
     else
     {
-        emit(AS_Oper(String("move.l `s0,-(sp)\n"), L(F_SP(), NULL), L(munchExp(e, FALSE), NULL), NULL));
+        emit(AS_Oper(String("move.l `s0,-(sp)"), L(F_SP(), NULL), L(munchExp(e, FALSE), NULL), NULL));
     }
 
     return cnt+1;
@@ -979,7 +979,7 @@ static void munchCallerRestoreStack(int cnt)
     if (cnt)
     {
         char inst[128];
-        sprintf(inst, "add.l  #%d, `s0\n", cnt * F_wordSize); // FIXME: addq ?
+        sprintf(inst, "add.l  #%d, `s0", cnt * F_wordSize); // FIXME: addq ?
         emit(AS_Oper(String(inst), L(F_SP(), NULL), L(F_SP(), NULL), NULL));
     }
 }

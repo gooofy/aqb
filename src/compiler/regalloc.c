@@ -19,15 +19,16 @@
 #define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
-static void printTemp(void* t) {
-   Temp_map m = Temp_name();
-   printf("node: %s\n", Temp_look(m, (Temp_temp)t));
+static void sprintTemp(void* t, string buf)
+{
+     Temp_map m = Temp_getNameMap();
+     sprintf(buf, "temp: %s", Temp_look(m, (Temp_temp)t));
 }
 
-static void printInst(void *info)
+static void sprintInst(void *info, string buf)
 {
     AS_instr inst = (AS_instr)info;
-    AS_print(stdout, inst, Temp_name());
+    AS_sprint(buf, inst, Temp_getNameMap());
 }
 #endif
 
@@ -145,13 +146,13 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 #ifdef ENABLE_DEBUG
         printf("try #%d flow graph:\n", try);
         printf("-----------------------\n");
-        G_show(stdout, G_nodes(flow), printInst);
+        G_show(stdout, G_nodes(flow), sprintInst);
 #endif
         live = Live_liveness(flow);
 #ifdef ENABLE_DEBUG
         printf("try #%d liveness graph:\n", try);
         printf("-----------------------\n");
-        G_show(stdout, G_nodes(live.graph), printTemp);
+        G_show(stdout, G_nodes(live.graph), sprintTemp);
 #endif
         initial = F_initialRegisters(f);
         col = COL_color(live.graph, initial, F_registers(),

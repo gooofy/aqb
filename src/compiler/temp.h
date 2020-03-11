@@ -42,7 +42,7 @@ void Temp_dumpMap(FILE *out, Temp_map m);
 void Temp_enterPtr(Temp_map m, Temp_temp t, void *ptr);
 void* Temp_lookPtr(Temp_map m, Temp_temp t);
 
-Temp_map Temp_name(void);
+Temp_map Temp_getNameMap(void);
 
 int Temp_tempGetNum(Temp_temp r);
 

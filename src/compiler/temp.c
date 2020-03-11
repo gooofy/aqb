@@ -47,7 +47,7 @@ Temp_temp Temp_newtemp(Ty_ty ty)
     {
         char r[16];
         sprintf(r, "%d", p->num);
-        Temp_enter(Temp_name(), p, String(r));
+        Temp_enter(Temp_getNameMap(), p, String(r));
     }
 
     return p;
@@ -61,11 +61,12 @@ Ty_ty Temp_ty(Temp_temp t)
 
 struct Temp_map_ {TAB_table tab; Temp_map under;};
 
-
-Temp_map Temp_name(void) {
- static Temp_map m = NULL;
- if (!m) m=Temp_empty();
- return m;
+Temp_map Temp_getNameMap(void)
+{
+    static Temp_map m = NULL;
+    if (!m) 
+        m=Temp_empty();
+    return m;
 }
 
 Temp_map newMap(TAB_table tab, Temp_map under) {

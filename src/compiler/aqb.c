@@ -51,7 +51,7 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
 
     iList  = F_codegen(frame, stmList); /* 9 */
     // fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
-    // AS_printInstrList (out, iList, Temp_layerMap(F_tempMap,Temp_name()));
+    // AS_printInstrList (out, iList, Temp_layerMap(F_tempMap,Temp_getNameMap()));
     // fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
 
     struct RA_result ra = RA_regAlloc(frame, iList);  /* 10, 11 */
@@ -61,16 +61,16 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
 
     fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
     fprintf(stdout, "%s\n", proc->prolog);
-    AS_printInstrList(stdout, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_name())));
+    AS_printInstrList(stdout, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
     fprintf(stdout, "%s\n", proc->epilog);
     fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
 
     fprintf(out, "%s\n", proc->prolog);
-    AS_printInstrList(out, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_name())));
+    AS_printInstrList(out, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
      fprintf(out, "%s\n", proc->epilog);
 //  fprintf(out, "BEGIN function\n");
 //  AS_printInstrList (out, iList,
-//                     Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_name())));
+//                     Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
 //  fprintf(out, "END function\n\n");
 }
 

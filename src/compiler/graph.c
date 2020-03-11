@@ -64,7 +64,7 @@ G_nodeList G_nodes(G_graph g)
 {
   assert(g);
   return g->mynodes;
-} 
+}
 
 G_nodeList G_reverseNodes(G_nodeList l) {
   G_nodeList nl = NULL;
@@ -104,19 +104,30 @@ void G_rmEdge(G_node from, G_node to) {
  /**
   * Print a human-readable dump for debugging.
   */
-void G_show(FILE *out, G_nodeList p, void showInfo(void *)) 
+void G_show(FILE *out, G_nodeList p, void showInfo(void *, string buf))
 {
-    for (; p!=NULL; p=p->tail) 
+    for (; p!=NULL; p=p->tail)
     {
+        char buf[255];
+        int  cnt=0;
+
         G_node n = p->head;
         G_nodeList q;
         assert(n);
-        if (showInfo) 
-            showInfo(n->info);
-        fprintf(out, " (%d) -> ", n->mykey); 
-        for(q=G_succ(n); q!=NULL; q=q->tail) 
-            fprintf(out, "%d ", q->head->mykey);
-        fprintf(out, "\n");
+        fprintf(out, " (%3d) -> ", n->mykey);
+        for (q=G_succ(n); q!=NULL; q=q->tail)
+        {
+            fprintf(out, "%3d", q->head->mykey);
+            if (q->tail)
+                fprintf(out, ",");
+            else
+                fprintf(out, " ");
+            cnt++;
+        }
+        for (;cnt<3;cnt++)
+            fprintf(out, "    ");
+        showInfo(n->info, buf);
+        fprintf(out, "%s\n", buf);
     }
 }
 
@@ -139,7 +150,7 @@ static int inDegree(G_node n)
 /* return length of successor list for node n */
 static int outDegree(G_node n)
 { int deg = 0;
-  G_nodeList p; 
+  G_nodeList p;
   for(p=G_succ(n); p!=NULL; p=p->tail) deg++;
   return deg;
 }
@@ -152,7 +163,7 @@ static G_nodeList cat(G_nodeList a, G_nodeList b) {
   else return G_NodeList(a->head, cat(a->tail, b));
 }
 
-/* create the adjacency list for node n by combining the successor and 
+/* create the adjacency list for node n by combining the successor and
  * predecessor lists of node n */
 G_nodeList G_adj(G_node n) {return cat(G_succ(n), G_pred(n));}
 

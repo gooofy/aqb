@@ -21,7 +21,7 @@ AS_instr AS_Oper (string assem, Temp_tempList dst, Temp_tempList src, Temp_label
 AS_instr AS_Label(string assem, Temp_label label);
 AS_instr AS_Move (string assem, Temp_tempList dst, Temp_tempList src);
 
-void AS_print(FILE *out, AS_instr i, Temp_map m);
+void AS_sprint(string str, AS_instr i, Temp_map m);
 
 typedef struct AS_instrList_ *AS_instrList;
 struct AS_instrList_
@@ -37,6 +37,7 @@ AS_instrList AS_instrIntersect(AS_instrList ta, AS_instrList tb);
 bool AS_instrInList(AS_instr i, AS_instrList il);
 
 AS_instrList AS_splice(AS_instrList a, AS_instrList b);
+
 void AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m);
 
 typedef struct AS_proc_ *AS_proc;

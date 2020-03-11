@@ -228,35 +228,35 @@ static void format(char *result, string assem,
     //fprintf(stdout, "    %s\n", result);
 }
 
-
-void AS_print(FILE *out, AS_instr i, Temp_map m)
+void AS_sprint(string str, AS_instr i, Temp_map m)
 {
-    char r[200]; /* result */
+    int indent;
     switch (i->kind)
     {
         case I_OPER:
-            format(r, i->u.OPER.assem, i->u.OPER.dst, i->u.OPER.src, i->u.OPER.target, m);
-            fprintf(out, "    %s", r);
+            for (indent=0; indent<4; indent++)
+                str[indent] = ' ';
+            format(str+indent, i->u.OPER.assem, i->u.OPER.dst, i->u.OPER.src, i->u.OPER.target, m);
             break;
         case I_LABEL:
-            format(r, i->u.LABEL.assem, NULL, NULL, NULL, m);
-            fprintf(out, "%s", r);
-            /* i->u.LABEL->label); */
+            format(str, i->u.LABEL.assem, NULL, NULL, NULL, m);
             break;
         case I_MOVE:
-            format(r, i->u.MOVE.assem, i->u.MOVE.dst, i->u.MOVE.src, NULL, m);
-            fprintf(out, "    %s", r);
+            for (indent=0; indent<4; indent++)
+                str[indent] = ' ';
+            format(str+indent, i->u.MOVE.assem, i->u.MOVE.dst, i->u.MOVE.src, NULL, m);
             break;
     }
 }
 
-/* c should be COL_color; temporarily it is not */
 void AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m)
 {
-  for (; iList; iList=iList->tail) {
-    AS_print(out, iList->head, m);
-  }
-  fprintf(out, "\n");
+    for (; iList; iList=iList->tail)
+    {
+        char buf[255];
+        AS_sprint(buf, iList->head, m);
+        fprintf(out, "%s\n", buf);
+    }
 }
 
 AS_proc AS_Proc(string prolog, AS_instrList body, string epilog)
