@@ -564,8 +564,9 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
 
             if (!ignore_result)
             {
-                Temp_temp t = Temp_newtemp(Ty_Long());
-                emit(AS_Move(String("move.l `s0, `d0\n"), L(t, NULL), L(F_RV(), NULL)));
+                char *isz = ty_isz(e->ty);
+                Temp_temp t = Temp_newtemp(e->ty);
+                emit(AS_Move(strprintf("move.%s `s0, `d0\n", isz), L(t, NULL), L(F_RV(), NULL)));
                 return t;
             }
             return NULL;
@@ -963,12 +964,18 @@ static int munchArgsStack(int i, T_expList args)
     }
 
     cnt += munchArgsStack(i + 1, args->tail);
-    char *inst = checked_malloc(sizeof(char) * 120);
 
-    Temp_temp r = munchExp(args->head, FALSE);
     // apparently, gcc pushes 4 bytes regardless of actual operand size
-    sprintf(inst, "move.l `s0,-(sp)\n");
-    emit(AS_Oper(inst, L(F_SP(), NULL), L(r, NULL), NULL));
+
+    T_exp e = args->head;
+    if (e->kind == T_CONST)
+    {
+        emit(AS_Oper(strprintf("move.l #%d,-(sp)\n", e->u.CONST), L(F_SP(), NULL), NULL, NULL));
+    }
+    else
+    {
+        emit(AS_Oper(String("move.l `s0,-(sp)\n"), L(F_SP(), NULL), L(munchExp(e, FALSE), NULL), NULL));
+    }
 
     return cnt+1;
 }
