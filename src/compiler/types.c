@@ -83,8 +83,10 @@ Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail)
 
 /* printing functions - used for debugging */
 static char str_ty[][20] = {
+   "ty_bool", 
    "ty_integer", "ty_long", "ty_single", "ty_double", 
-   "ty_string", "ty_array", "ty_record", "ty_void"};
+   "ty_string", "ty_array", "ty_record", 
+   "ty_void"};
 
 void Ty_print(Ty_ty t)
 {
