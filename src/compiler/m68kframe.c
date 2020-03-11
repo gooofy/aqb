@@ -281,23 +281,8 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
     if (!returnSink)
         returnSink = Temp_TempList(F_SP(), calleeSaves);
 
-    if (!frame)                             // main ?
-    {
-        // exit code
-
-        body = AS_splice(body,
-                 restoreCalleeSave(
-                   AS_InstrList(AS_Oper("rts\n", NULL, returnSink, NULL), NULL)));
-
-        // entry code
-
-        body = AS_InstrList(AS_Label(strprintf("%s:\n", AQB_MAIN_LABEL), Temp_namedlabel(AQB_MAIN_LABEL)),
-                  appendCalleeSave(body));
-        return AS_Proc(strprintf("# %s\n", AQB_MAIN_LABEL), body, "# END\n");
-    }
-
-
-    int frame_size = -frame->locals_offset;
+    int frame_size = frame ? -frame->locals_offset : 0;
+    Temp_label label = frame ? frame->name : Temp_namedlabel(AQB_MAIN_LABEL);
 
     // exit code
 
@@ -308,11 +293,11 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     // entry code
 
-    body = AS_InstrList(AS_Label(strprintf("%s:\n", S_name(frame->name)), frame->name),
+    body = AS_InstrList(AS_Label(strprintf("%s:\n", S_name(label)), label),
              AS_InstrList(AS_Oper(strprintf("link `s0, #%d\n", -frame_size), L(F_FP(), NULL), L(F_FP(), NULL), NULL),
                   appendCalleeSave(body)));
 
-    return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(frame->name)), body, "# END\n");
+    return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(label)), body, "# END\n");
 }
 
 /* Machine-related Features */

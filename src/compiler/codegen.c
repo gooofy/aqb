@@ -206,7 +206,6 @@ static void emitRegCall(string strName, int lvo, Temp_temp r, F_ral ral)
 
 static Temp_temp munchExp(T_exp e, bool ignore_result)
 {
-    char *inst = checked_malloc(sizeof(char) * 120);
     switch (e->kind)
     {
         case T_MEM:
@@ -225,8 +224,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                       i = -i;
                     }
                     Temp_temp r = Temp_newtemp(Ty_Long());
-                    sprintf(inst, "move.%s %d(`s0), `d0\n", isz, i);
-                    emit(AS_Oper(inst, L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                    emit(AS_Oper(strprintf("move.%s %d(`s0), `d0\n", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                     return r;
                 }
                 else if (mem->u.BINOP.op == T_plus && mem->u.BINOP.left->kind == T_CONST)
@@ -235,15 +233,13 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     T_exp e1 = mem->u.BINOP.right;
                     int i = mem->u.BINOP.left->u.CONST;
                     Temp_temp r = Temp_newtemp(Ty_Long());
-                    sprintf(inst, "move.%s %d(`s0), `d0\n", isz, i);
-                    emit(AS_Oper(inst, L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                    emit(AS_Oper(strprintf("move.%s %d(`s0), `d0\n", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                     return r;
                 } else {
                     /* MEM(e1) */
                     T_exp e1 = mem;
                     Temp_temp r = Temp_newtemp(Ty_Long());
-                    sprintf(inst, "move.%s (`s0), `d0\n", isz);
-                    emit(AS_Oper(inst, L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                    emit(AS_Oper(strprintf("move.%s (`s0), `d0\n", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                     return r;
                 }
             }
@@ -263,8 +259,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 /* MEM(e1) */
                 T_exp e1 = mem;
                 Temp_temp r = Temp_newtemp(e->ty);
-                sprintf(inst, "move.%s (`s0), `d0\n", isz);
-                emit(AS_Oper(inst, L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
+                emit(AS_Oper(strprintf("move.%s (`s0), `d0\n", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                 return r;
             }
         }
@@ -558,8 +553,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
 #endif
 
             int arg_cnt = munchArgsStack(0, args);
-            sprintf(inst, "jsr    %s\n", Temp_labelstring(lab));
-            emit(AS_Oper(inst, L(F_RV(), F_callersaves()), NULL, NULL));
+            emit(AS_Oper(strprintf("jsr    %s\n", Temp_labelstring(lab)), L(F_RV(), F_callersaves()), NULL, NULL));
             munchCallerRestoreStack(arg_cnt);
 
             if (!ignore_result)
