@@ -31,6 +31,10 @@
     - gadgets
     - screens
     - menus
+    - graphics
+    - files
+
+- data statements
 
 - startup code: command line args, workbench startup
 
@@ -38,11 +42,11 @@
     - get rid of unneccesary jumps / nop statements
     - proc calls: only save registers that carry live values
     - use movem to save/restore registers
+    - only save/restore registers on proc entry/exit that are actually used inside
     - constant propagation
-    - take full advantage of constants in code generation
     - peephole optimizer
     - address register allocation, cache (var) pointer temps
-    - keep local variables in registers only (m68kframe inReg)
+    - escape analysus: keep local variables in registers only (m68kframe inReg)
 
 - error handling
     - division by zero
