@@ -247,6 +247,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     return r;
                 }
             }
+#if 0
             else if (mem->kind == T_CONST)
             {
                 /* MEM(CONST(i)) */
@@ -256,12 +257,13 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 emit(AS_Oper(inst, L(r, NULL), NULL, NULL));
                 return r;
             }
+#endif
             else
             {
                 /* MEM(e1) */
                 T_exp e1 = mem;
-                Temp_temp r = Temp_newtemp(Ty_Long());
-                sprintf(inst, "move.l (`s0), `d0\n");
+                Temp_temp r = Temp_newtemp(e->ty);
+                sprintf(inst, "move.%s (`s0), `d0\n", isz);
                 emit(AS_Oper(inst, L(r, NULL), L(munchExp(e1, FALSE), NULL), NULL));
                 return r;
             }
@@ -524,8 +526,9 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         }
         case T_CONST:
         {
+            char *isz = ty_isz(e->ty);
             Temp_temp r = Temp_newtemp(e->ty);
-            emit(AS_Oper(strprintf("move.l #%d, `d0\n", e->u.CONST), L(r, NULL), NULL, NULL));
+            emit(AS_Oper(strprintf("move.%s #%d, `d0\n", isz, e->u.CONST), L(r, NULL), NULL, NULL));
             return r;
         }
         case T_TEMP:
