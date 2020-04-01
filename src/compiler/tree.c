@@ -152,6 +152,15 @@ T_exp T_Heap(Temp_label heap_pos, Ty_ty ty)
     return p;
 }
 
+T_exp T_FramePointer(void)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind         = T_FP;
+
+    return p;
+}
+
 T_exp T_Eseq(T_stm s, T_exp e, Ty_ty ty)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);

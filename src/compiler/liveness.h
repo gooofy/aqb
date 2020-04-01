@@ -20,4 +20,6 @@ Temp_temp Live_gtemp(G_node n);
 
 struct Live_graph Live_liveness(G_graph flow);
 
+void Live_showGraph(FILE *out, G_nodeList p, Temp_map m);
+
 #endif

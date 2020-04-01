@@ -18,7 +18,9 @@ FLOAT __mod_ffp(FLOAT divident, FLOAT divisor);
 void clibtestmain (void)
 {
     FLOAT a, b, c, d, e, f;
+    LONG l;
 
+#if 0
     __aqb_line (1, 2, 3, 4, 255, 6);
 
     // window(1, "AQB Main Window", 0, 0, 619, 189, AW_FLAG_SIZE | AW_FLAG_DRAG | AW_FLAG_DEPTH | AW_FLAG_CLOSE | AW_FLAG_REFRESH, 0);
@@ -33,7 +35,6 @@ void clibtestmain (void)
     _aio_puts("puts4: "); _aio_puts4(12345678); _aio_putnl();
     _aio_puts("puts2: "); _aio_puts2(12345); _aio_putnl();
 
-#if 0
     for (i=0; i<100; i++)
     {
         // _aio_puts("i="); _aio_puts2(i); _aio_putnl();
@@ -45,6 +46,7 @@ void clibtestmain (void)
     a = SPFlt(23);
     b = SPFlt(42);
     c = SPDiv(a, b);
+#if 0
     d = SPMul(b, c);
     e = SPFlt(7);
     f = SPFlt(2);
@@ -70,6 +72,18 @@ void clibtestmain (void)
     _aio_puts("f: "); _aio_putf(f); _aio_putnl();
     _aio_puts("-1/3: "); _aio_putf(SPDiv(SPFlt(-1), SPFlt(3))); _aio_putnl();
     _aio_puts("27 MOD 11: "); _aio_putf(__mod_ffp(SPFlt(27), SPFlt(11))); _aio_putnl();
+#endif
+
+    l = SPFix(c);
+
+    if (l>42)
+    {
+        _aio_puts("foo"); _aio_putnl();
+    }
+    else
+    {
+        _aio_puts("bar"); _aio_putnl();
+    }
 
     //delay(5);
 }

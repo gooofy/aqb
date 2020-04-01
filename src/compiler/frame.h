@@ -1,3 +1,7 @@
+/*
+ * this frame.h implementation is m68k specific
+ */
+
 #ifndef FRAME_H
 #define FRAME_H
 
@@ -21,7 +25,7 @@ F_accessList F_AccessList(F_access head, F_accessList tail);
 
 /* declaration for fragments */
 typedef struct F_frag_ *F_frag;
-struct F_frag_ 
+struct F_frag_
 {
     enum {F_stringFrag, F_procFrag, F_fillFrag} kind;
     union {
@@ -56,10 +60,14 @@ extern const int F_wordSize;
 
 void          F_initRegisters(void);
 Temp_map      F_initialRegisters(F_frame f);
+
+Temp_temp     F_RV(void);       // d0
+Temp_temp     F_A0(void);
+Temp_temp     F_A1(void);
+Temp_temp     F_A2(void);
+Temp_temp     F_A3(void);
 Temp_temp     F_A4(void);
-Temp_temp     F_FP(void);
-Temp_temp     F_SP(void);
-Temp_temp     F_RV(void);
+Temp_temp     F_A6(void);
 Temp_temp     F_D0(void);
 Temp_temp     F_D1(void);
 Temp_temp     F_D2(void);
@@ -70,6 +78,10 @@ Temp_temp     F_D6(void);
 Temp_temp     F_D7(void);
 Temp_tempList F_callersaves(void);
 Temp_tempList F_calleesaves(void);
+Temp_tempList F_aRegs(void);
+Temp_tempList F_dRegs(void);
+bool          F_isAn(Temp_temp reg);
+bool          F_isDn(Temp_temp reg);
 
 F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys);
 // T_exp         F_externalCall(string s, T_expList args);

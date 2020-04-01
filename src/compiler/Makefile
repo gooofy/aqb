@@ -1,10 +1,10 @@
 
-CFLAGS = -Wall -g 
+CFLAGS = -Wall -g
 LDFLAGS = -lm
 
 .PHONY: clean all
 all:	aqb
-clean: 
+clean:
 	rm -f *.o aqb
 
 %.o : %.c
@@ -12,7 +12,7 @@ clean:
 
 aqb:	aqb.o scanner.o hashmap.o util.o parser.o \
 		errormsg.o absyn.o symbol.o prabsyn.o semant.o translate.o \
-		m68kframe.o tree.o temp.o assem.o printtree.o env.o types.o \
+		frame.o tree.o temp.o assem.o printtree.o env.o types.o \
 		canon.o codegen.o regalloc.o graph.o liveness.o flowgraph.o color.o table.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 

@@ -16,6 +16,14 @@ SUB assertFalse ( b&, msg$ )
 END SUB
 
 
+SUB assertEquals ( a&, b&, msg$ )
+    IF a& <> b& THEN
+        PRINT "*** ASSERTION FAILED: "; msg$, a&; " vs"; b&
+    ELSE
+        PRINT "    ASSERTION OK    : "; msg$
+    END IF
+END SUB
+
 a& = 23
 b& = 42
 
@@ -77,4 +85,17 @@ assertFalse b& <= a&, "<="
 assertFalse a& >= b&, ">="
 assertTrue  a& >= a&, ">="
 assertTrue  b& >= a&, ">="
+
+
+' conversion tests
+
+fT1  = 25000.0
+iT1% = 10000
+
+i& = fT1
+assertEquals i&, 25000, "single -> long"
+i& = iT1% > 23
+assertEquals i&,     1, "bool   -> long"
+i& = iT1%
+assertEquals i&, 10000, "int    -> long"
 

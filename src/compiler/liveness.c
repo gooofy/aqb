@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
@@ -11,6 +13,7 @@
 #include "liveness.h"
 #include "table.h"
 
+#define ENABLE_DEBUG
 
 Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail)
 {
@@ -28,138 +31,100 @@ Temp_temp Live_gtemp(G_node n)
     return (Temp_temp)G_nodeInfo(n);
 }
 
-static bool tempEqual(Temp_tempList ta, Temp_tempList tb)
+static AS_instrList IL(AS_instr h, AS_instrList t)
 {
-    return Temp_equal(ta, tb);
+    return AS_InstrList(h, t);
 }
 
-static Temp_tempList tempMinus(Temp_tempList ta, Temp_tempList tb)
+static void enterLiveMap(G_table t, G_node flowNode, Temp_tempList temps)
 {
-    return Temp_minus(ta, tb);
+    G_enter(t, flowNode, temps);
 }
 
-static Temp_tempList tempUnion(Temp_tempList ta, Temp_tempList tb)
+static Temp_tempList lookupLiveMap(G_table t, G_node flownode)
 {
-    return Temp_union(ta, tb);
+    return (Temp_tempList)G_look(t, flownode);
 }
 
-#if 0
-static Temp_tempList tempIntersect(Temp_tempList ta, Temp_tempList tb) {
-  return Temp_intersect(ta, tb);
-}
+static void getLiveMap(G_graph flow, G_table in, G_table out)
+{
+    G_table last_in = G_empty();
+    G_table last_out = G_empty();
+    bool flag = TRUE;
 
-static Temp_tempList L(Temp_temp h, Temp_tempList t) {
-  return Temp_TempList(h, t);
-}
-#endif
+    while (flag)
+    {
+        for (G_nodeList fl = G_nodes(flow); fl; fl = fl->tail)
+        {
+            G_node n = fl->head;
 
-static AS_instrList IL(AS_instr h, AS_instrList t) {
-  return AS_InstrList(h, t);
-}
+            Temp_tempList li = lookupLiveMap(in , n);
+            Temp_tempList lo = lookupLiveMap(out, n);
 
-#if 0
-static AS_instrList instMinus(AS_instrList ta, AS_instrList tb) {
-  return AS_instrMinus(ta, tb);
-}
-#endif
+            enterLiveMap(last_in , n, li); // in'[n]  <-- in[n]
+            enterLiveMap(last_out, n, lo); // out'[n] <-- out[n]
 
-static AS_instrList instUnion(AS_instrList ta, AS_instrList tb) {
-  return AS_instrUnion(ta, tb);
-}
+            Temp_tempList ci = Temp_union(FG_use(n), Temp_minus(lo, FG_def(n)));
+            Temp_tempList co = NULL;
+            for (G_nodeList sl = G_succ(n); sl; sl = sl->tail)
+            {
+                co = Temp_union(co, lookupLiveMap(in, sl->head));
+            }
+            enterLiveMap(in, n, ci);
+            enterLiveMap(out, n, co);
+        }
 
-#if 0
-static AS_instrList instIntersect(AS_instrList ta, AS_instrList tb) {
-  return AS_instrIntersect(ta, tb);
-}
-#endif
+        flag = FALSE;
+        for (G_nodeList fl = G_nodes(flow); fl; fl = fl->tail)
+        {
+            G_node n = fl->head;
+            Temp_tempList li = lookupLiveMap(in, n);
+            Temp_tempList lo = lookupLiveMap(out, n);
+            Temp_tempList ci = lookupLiveMap(last_in, n);
+            Temp_tempList co = lookupLiveMap(last_out, n);
 
-static void enterLiveMap(G_table t, G_node flowNode, Temp_tempList temps) {
-  G_enter(t, flowNode, temps);
-}
-
-static Temp_tempList lookupLiveMap(G_table t, G_node flownode) {
-  return (Temp_tempList)G_look(t, flownode);
-}
-
-static void getLiveMap(G_graph flow, G_table in, G_table out) {
-  G_nodeList fl, sl;
-  G_node n, sn;
-	G_table last_in = G_empty();
-  G_table last_out = G_empty();
-  Temp_tempList ci, co, li, lo;
-  bool flag = TRUE;
-
-	// Loop
-	while (flag) {
-    for (fl = G_nodes(flow); fl; fl = fl->tail) {
-		  n = fl->head;
-      li = lookupLiveMap(in, n);
-      lo = lookupLiveMap(out, n);
-      enterLiveMap(last_in, n, li);
-      enterLiveMap(last_out, n, lo);
-
-      ci = tempUnion(FG_use(n), tempMinus(lo, FG_def(n)));
-      co = NULL;
-      for (sl = G_succ(n); sl; sl = sl->tail) {
-        sn = sl->head;
-        co = tempUnion(co, lookupLiveMap(in, sn));
-      }
-      enterLiveMap(in, n, ci);
-      enterLiveMap(out, n, co);
-	  }
-
-    flag = FALSE;
-    for (fl = G_nodes(flow); fl; fl = fl->tail) {
-      n = fl->head;
-      li = lookupLiveMap(in, n);
-      lo = lookupLiveMap(out, n);
-      ci = lookupLiveMap(last_in, n);
-      co = lookupLiveMap(last_out, n);
-
-      if (!tempEqual(li, ci) || !tempEqual(lo, co)) {
-        flag = TRUE;
-        break;
-      }
+            if (!Temp_equal(li, ci) || !Temp_equal(lo, co))
+            {
+                flag = TRUE;
+                break;
+            }
+        }
     }
-	}
 }
 
-static G_node findOrCreateNode(Temp_temp t, G_graph g, TAB_table tab) {
-  G_node ln = (G_node)TAB_look(tab, t);
-  if (ln == NULL) {
-    ln = G_Node(g, t);
-    TAB_enter(tab, t, ln);
-  }
-  return ln;
+static G_node findOrCreateNode(Temp_temp t, G_graph g, TAB_table tab)
+{
+    G_node ln = (G_node)TAB_look(tab, t);
+    if (ln == NULL)
+    {
+        ln = G_Node(g, t);
+        TAB_enter(tab, t, ln);
+    }
+    return ln;
 }
 
 static void solveLiveness(struct Live_graph *lg,
                           G_graph flow, G_table in, G_table out)
 {
-    G_graph g = G_Graph();
-    TAB_table tab = TAB_empty();
-    G_nodeList fl;
-    G_node n, ndef, nedge, move_src=NULL;
-    Temp_tempList tdef, tout, tuse, t, tedge;
-
-    Temp_map moveList = Temp_empty();
-    Temp_map spillCost = Temp_empty();
-    AS_instr inst;
+    G_graph      g             = G_Graph();
+    TAB_table    tab           = TAB_empty();
+    Temp_map     moveList      = Temp_empty();
+    Temp_map     spillCost     = Temp_empty();
     AS_instrList worklistMoves = NULL;
 
-    // Traverse node
-    for (fl = G_nodes(flow); fl; fl = fl->tail)
+    // traverse flow graph
+    for (G_nodeList fl = G_nodes(flow); fl; fl = fl->tail)
     {
-        n = fl->head;
-        inst = FG_inst(n);
-        tout = lookupLiveMap(out, n);
-        tdef = FG_def(n);
-        tuse = FG_use(n);
-
-        Temp_tempList defuse = tempUnion(tuse, tdef);
+        G_node        n    = fl->head;
+        AS_instr      inst = FG_inst(n);
+        Temp_tempList tout = lookupLiveMap(out, n);
+        Temp_tempList tdef = FG_def(n);
+        Temp_tempList tuse = FG_use(n);
+        Temp_tempList defuse = Temp_union(tuse, tdef);
+        G_node        move_src = NULL;
 
         // Spill Cost
-        for (t = defuse; t; t = t->tail)
+        for (Temp_tempList t = defuse; t; t = t->tail)
         {
             Temp_temp ti = t->head;
             long spills = (long)Temp_lookPtr(spillCost, ti);
@@ -173,24 +138,24 @@ static void solveLiveness(struct Live_graph *lg,
             for (; defuse; defuse = defuse->tail)
             {
                 Temp_temp t = defuse->head;
-                findOrCreateNode(t, g, tab);
+                move_src = findOrCreateNode(t, g, tab);
                 AS_instrList ml = (AS_instrList)Temp_lookPtr(moveList, t);
-                ml = instUnion(ml, IL(inst, NULL));
+                ml = AS_instrUnion(ml, IL(inst, NULL));
                 Temp_enterPtr(moveList, t, (void*)ml);
             }
 
-            worklistMoves = instUnion(worklistMoves, IL(inst, NULL));
+            worklistMoves = AS_instrUnion(worklistMoves, IL(inst, NULL));
         }
 
-        // Traverse defined vars
-        for (t = tout; t; t = t->tail)
+        // traverse defined vars
+        for (Temp_tempList t = tout; t; t = t->tail)
         {
-            ndef = findOrCreateNode(t->head, g, tab);
+            G_node ndef = findOrCreateNode(t->head, g, tab);
 
             // Add edges between output vars and defined var
-            for (tedge = tout; tedge; tedge = tedge->tail)
+            for (Temp_tempList tedge = tout; tedge; tedge = tedge->tail)
             {
-                nedge = findOrCreateNode(tedge->head, g, tab);
+                G_node nedge = findOrCreateNode(tedge->head, g, tab);
 
                 // Skip if edge is added
                 if (ndef == nedge || G_goesTo(ndef, nedge) || G_goesTo(nedge, ndef))
@@ -198,12 +163,42 @@ static void solveLiveness(struct Live_graph *lg,
                     continue;
                 }
 
-                // Skip src for move instruction
+                // skip src for move instruction
                 if (FG_isMove(n) && nedge == move_src)
                     continue;
 
                 G_addEdge(ndef, nedge);
+
             }
+        }
+
+        // add register interference edges for used operands that need to be held in address or data registers only
+        Temp_tempLList tLLIntfRegs = FG_interferingRegsUse(n);
+        for (Temp_tempList t = tuse; t; t = t->tail)
+        {
+            if (!tLLIntfRegs)
+                break;
+            G_node nuse = findOrCreateNode(t->head, g, tab);
+            for (Temp_tempList interfRegs = tLLIntfRegs->head; interfRegs; interfRegs=interfRegs->tail)
+            {
+                G_node interfNode = findOrCreateNode(interfRegs->head, g, tab);
+                G_addEdge(nuse, interfNode);
+            }
+            tLLIntfRegs = tLLIntfRegs->tail;
+        }
+        // FIXME: defs interference
+        tLLIntfRegs = FG_interferingRegsDef(n);
+        for (Temp_tempList t = tdef; t; t = t->tail)
+        {
+            if (!tLLIntfRegs)
+                break;
+            G_node ndef = findOrCreateNode(t->head, g, tab);
+            for (Temp_tempList interfRegs = tLLIntfRegs->head; interfRegs; interfRegs=interfRegs->tail)
+            {
+                G_node interfNode = findOrCreateNode(interfRegs->head, g, tab);
+                G_addEdge(ndef, interfNode);
+            }
+            tLLIntfRegs = tLLIntfRegs->tail;
         }
     }
 
@@ -213,153 +208,76 @@ static void solveLiveness(struct Live_graph *lg,
     lg->spillCost = spillCost;
 }
 
-#if 0
-static void solveLiveness3(struct Live_graph *lg,
-                          G_graph flow, G_table in, G_table out) {
-  G_graph g = G_Graph();
-  TAB_table tab = TAB_empty();
-  Temp_map moveList = Temp_empty();
-  Temp_map spillCost = Temp_empty();
-  AS_instrList worklistMoves = NULL;
-  G_nodeList fl;
-  G_node n, ndef, nedge;
-  Temp_tempList tdef, tuse, tl, tedge, live = NULL;
-  AS_instr inst;
-  bool blockStart = TRUE;
+static G_table g_in, g_out;
 
-  // Traverse node
-  fl = G_reverseNodes(G_nodes(flow));
-  //if (fl) live = lookupLiveMap(out, fl->head);
-  for (; fl; fl = fl->tail) {
-    if (blockStart) {
-      live = lookupLiveMap(out, fl->head);
-      blockStart = FALSE;
-    }
+#ifdef ENABLE_DEBUG
 
-    n = fl->head;
-    inst = FG_inst(n);
-    tuse = FG_use(n);
-    tdef = FG_def(n);
-
-    if (inst->kind == I_LABEL) {
-       blockStart = TRUE;
-       continue;
-    }
-
-    Temp_tempList defuse = tempUnion(tuse, tdef);
-
-    // Spill Cost
-    for (tl = defuse; tl; tl = tl->tail) {
-      Temp_temp ti = tl->head;
-      long spills = (long)Temp_lookPtr(spillCost, ti);
-      ++spills;
-      Temp_enterPtr(spillCost, ti, (void*)spills);
-    }
-
-    // Move instruction?
-    if (FG_isMove(n)) {
-      live = tempMinus(live, tuse);
-
-      for (; defuse; defuse = defuse->tail) {
-        Temp_temp t = defuse->head;
-        AS_instrList ml = (AS_instrList)Temp_lookPtr(moveList, t);
-        ml = instUnion(ml, IL(inst, NULL));
-        Temp_enterPtr(moveList, t, (void*)ml);
-      }
-
-      worklistMoves = instUnion(worklistMoves, IL(inst, NULL));
-    }
-
-    live = tempUnion(live, tdef);
-
-    // Traverse defined vars
-    for (tl = tdef; tl; tl = tl->tail) {
-      ndef = findOrCreateNode(tl->head, g, tab);
-
-      // Add edges between output vars and defined var
-      for (tedge = live; tedge; tedge = tedge->tail) {
-        nedge = findOrCreateNode(tedge->head, g, tab);
-
-        // Skip if edge is added
-        if (ndef == nedge || G_goesTo(ndef, nedge) || G_goesTo(nedge, ndef)) {
-          continue;
-        }
-
-        G_addEdge(ndef, nedge);
-      }
-    }
-
-    live = tempUnion(tuse, tempMinus(live, tdef));
-  }
-
-  lg->graph = g;
-  lg->worklistMoves = worklistMoves;
-  lg->moveList = moveList;
-  lg->spillCost = spillCost;
-}
-
-static void solveLiveness2(struct Live_graph *lg,
-                          G_graph flow, G_table in, G_table out)
+static void sprintLivemap(void* t, string buf)
 {
-  G_graph g = G_Graph();
-  TAB_table tab = TAB_empty();
-  Live_moveList ml = NULL;
-  G_nodeList fl;
-  G_node n, ndef, nedge, move_src, move_dst;
-  Temp_tempList tout, t, tedge;
+    char buf2[255];
+    G_node n = (G_node) t;
+    Temp_tempList li, lo;
+    AS_instr inst = (AS_instr) n->info;
+    AS_sprint(buf2, inst, Temp_getNameMap());
 
-  // Traverse node
-  for (fl = G_nodes(flow); fl; fl = fl->tail) {
-    n = fl->head;
-    tout = lookupLiveMap(out, n);
-    // FIXME: remove ? tdef = FG_def(n);
-
-    // Move instruction?
-    if (FG_isMove(n)) {
-      move_src = findOrCreateNode(FG_use(n)->head, g, tab);
-      move_dst = findOrCreateNode(FG_def(n)->head, g, tab);
-      ml = Live_MoveList(move_src, move_dst, ml);
+    int l = strlen(buf2);
+    while (l<30)
+    {
+        buf2[l] = ' ';
+        l++;
     }
+    buf2[l]=0;
 
-    // Traverse defined vars
-    for (t = tout; t; t = t->tail) {
-      ndef = findOrCreateNode(t->head, g, tab);
+    li = lookupLiveMap(g_in, n);
+    lo = lookupLiveMap(g_out, n);
 
-      // Add edges between output vars and defined var
-      for (tedge = tout; tedge; tedge = tedge->tail) {
-        nedge = findOrCreateNode(tedge->head, g, tab);
-
-        // Skip if edge is added
-        if (ndef == nedge || G_goesTo(ndef, nedge) || G_goesTo(nedge, ndef)) {
-          continue;
-        }
-
-        // Skip src for move instruction
-        if (FG_isMove(n) && nedge == move_src) {
-          continue;
-        }
-
-        G_addEdge(ndef, nedge);
-      }
-    }
-  }
-
-  lg->graph = g;
-  lg->moves = ml;
+    sprintf(buf, "%s in: %s; out: %s", buf2, Temp_sprint_TempList(li), Temp_sprint_TempList(lo));
 }
 #endif
 
 struct Live_graph Live_liveness(G_graph flow)
 {
     // Construct liveness graph
-    G_table in = G_empty(), out = G_empty();
-    getLiveMap(flow, in, out);
+    g_in = G_empty(), g_out = G_empty();
+    getLiveMap(flow, g_in, g_out);
+
+#ifdef ENABLE_DEBUG
+    printf("getLiveMap result:\n");
+    printf("------------------\n");
+    G_show(stdout, G_nodes(flow), sprintLivemap);
+#endif
 
     // Construct interference graph
     struct Live_graph lg;
-    solveLiveness(&lg, flow, in, out);
+    solveLiveness(&lg, flow, g_in, g_out);
 
 	return lg;
 }
 
+void Live_showGraph(FILE *out, G_nodeList p, Temp_map m)
+{
+    for (; p!=NULL; p=p->tail)
+    {
+        G_node n = p->head;
+        G_nodeList q;
+        assert(n);
+        assert(n->info);
+        Temp_temp t = (Temp_temp)n->info;
+        fprintf(out, " %-3s -> ", Temp_look(m, t));
+        for (q=G_succ(n); q!=NULL; q=q->tail)
+        {
+            G_node n2 = q->head;
+            assert(n2);
+            assert(n2->info);
+            Temp_temp r = (Temp_temp)n2->info;
+            fprintf(out, " %-3s", Temp_look(m, r));
+
+            if (q->tail)
+                fprintf(out, ",");
+            else
+                fprintf(out, " ");
+        }
+        fprintf(out, "\n");
+    }
+}
 

@@ -29,10 +29,10 @@ b% = 42
 ' A_addOp, A_subOp,    A_mulOp, A_divOp,
 ' A_expOp, A_intDivOp, A_modOp, A_negOp
 
-assertEquals a% + b%,      65, "+"
-assertEquals a% - b%,     -19, "-"
-assertEquals a% * b%,     966, "*"
-assertEquals b% / a%,       1, "/"
+assertEquals a%  +  b%,    65, "+"
+assertEquals a%  -  b%,   -19, "-"
+assertEquals a%  *  b%,   966, "*"
+assertEquals b%  /  a%,     1, "/"
 assertEquals a%  ^   3, 12167, "^"
 assertEquals b%  \  a%,     1, "\\"
 assertEquals b% MOD a%,    19, "MOD"
@@ -51,7 +51,7 @@ assertEquals b% MOD 23,    19, "MOD"
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
 
 c% = 3 : d% = 7
- 
+
 assertEquals c% XOR d% ,  4, "XOR"
 assertEquals d% XOR d% ,  0, "XOR"
 assertEquals d% XOR 1  ,  6, "XOR"
@@ -93,4 +93,17 @@ assertFalse b% <= a%, "<="
 assertFalse a% >= b%, ">="
 assertTrue  a% >= a%, ">="
 assertTrue  b% >= a%, ">="
+
+' conversion tests
+
+fT1  = 25000.0
+lT1& = 10000
+
+i% = fT1
+assertEquals i%, 25000, "single -> int"
+i% = lT1& > 23
+assertEquals i%,     1, "bool   -> int"
+i% = lT1&
+assertEquals i%, 10000, "long   -> int"
+
 

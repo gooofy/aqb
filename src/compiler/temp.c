@@ -13,7 +13,11 @@
 #include "temp.h"
 #include "table.h"
 
-struct Temp_temp_ {int num; Ty_ty ty;};
+struct Temp_temp_
+{
+    int   num;
+    Ty_ty ty;
+};
 
 string Temp_labelstring(Temp_label s)
 {
@@ -58,195 +62,275 @@ Ty_ty Temp_ty(Temp_temp t)
     return t->ty;
 }
 
+int Temp_num(Temp_temp t)
+{
+    return t->num;
+}
 
-struct Temp_map_ {TAB_table tab; Temp_map under;};
+struct Temp_map_
+{
+    TAB_table tab;
+    Temp_map  under;
+};
 
 Temp_map Temp_getNameMap(void)
 {
     static Temp_map m = NULL;
-    if (!m) 
+    if (!m)
         m=Temp_empty();
     return m;
 }
 
-Temp_map newMap(TAB_table tab, Temp_map under) {
-  Temp_map m = checked_malloc(sizeof(*m));
-  m->tab=tab;
-  m->under=under;
-  return m;
+Temp_map newMap(TAB_table tab, Temp_map under)
+{
+    Temp_map m = checked_malloc(sizeof(*m));
+
+    m->tab   = tab;
+    m->under = under;
+
+    return m;
 }
 
-Temp_map Temp_empty(void) {
-  return newMap(TAB_empty(), NULL);
+Temp_map Temp_empty(void)
+{
+    return newMap(TAB_empty(), NULL);
 }
 
-Temp_map Temp_layerMap(Temp_map over, Temp_map under) {
-  if (over==NULL)
-      return under;
-  else return newMap(over->tab, Temp_layerMap(over->under, under));
+Temp_map Temp_layerMap(Temp_map over, Temp_map under)
+{
+    if (over==NULL)
+        return under;
+    else return newMap(over->tab, Temp_layerMap(over->under, under));
 }
 
-void Temp_enter(Temp_map m, Temp_temp t, string s) {
-  assert(m && m->tab);
-  TAB_enter(m->tab,t,s);
+void Temp_enter(Temp_map m, Temp_temp t, string s)
+{
+    assert(m && m->tab);
+    TAB_enter(m->tab,t,s);
 }
 
-string Temp_look(Temp_map m, Temp_temp t) {
-  string s;
-  assert(m && m->tab);
-  s = TAB_look(m->tab, t);
-  if (s) return s;
-  else if (m->under) return Temp_look(m->under, t);
-  else return NULL;
+string Temp_look(Temp_map m, Temp_temp t)
+{
+    string s;
+    assert(m && m->tab);
+    s = TAB_look(m->tab, t);
+    if (s)
+        return s;
+    else
+        if (m->under)
+            return Temp_look(m->under, t);
+        else
+            return NULL;
 }
 
-void Temp_enterPtr(Temp_map m, Temp_temp t, void *ptr) {
-  assert(m && m->tab);
-  TAB_enter(m->tab, t, ptr);
+void Temp_enterPtr(Temp_map m, Temp_temp t, void *ptr)
+{
+    assert(m && m->tab);
+    TAB_enter(m->tab, t, ptr);
 }
 
-void* Temp_lookPtr(Temp_map m, Temp_temp t) {
-  assert(m && m->tab);
-  void *s = TAB_look(m->tab, t);
-  if (s) return s;
-  else if (m->under) return Temp_lookPtr(m->under, t);
-  else return NULL;
+void* Temp_lookPtr(Temp_map m, Temp_temp t)
+{
+    assert(m && m->tab);
+    void *s = TAB_look(m->tab, t);
+    if (s)
+        return s;
+    else
+        if (m->under)
+            return Temp_lookPtr(m->under, t);
+        else
+            return NULL;
 }
 
-Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t) 
-{Temp_tempList p = (Temp_tempList) checked_malloc(sizeof (*p));
- p->head=h; p->tail=t;
- return p;
+Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t)
+{
+    Temp_tempList p = (Temp_tempList) checked_malloc(sizeof (*p));
+
+    p->head = h;
+    p->tail = t;
+
+    return p;
+}
+
+string Temp_sprint_TempList(Temp_tempList tl)
+{
+    string res = "";
+
+    for (; tl; tl = tl->tail)
+    {
+        Temp_temp t = tl->head;
+
+        if (strlen(res))
+            res = strconcat (res, strprintf(", %d", Temp_num(t)));
+        else
+            res = strprintf("%d", Temp_num(t));
+    }
+    return res;
 }
 
 Temp_labelList Temp_LabelList(Temp_label h, Temp_labelList t)
-{Temp_labelList p = (Temp_labelList) checked_malloc(sizeof (*p));
- p->head=h; p->tail=t;
- return p;
+{
+    Temp_labelList p = (Temp_labelList) checked_malloc(sizeof (*p));
+
+    p->head = h;
+    p->tail = t;
+
+    return p;
 }
 
-Temp_tempList Temp_reverseList(Temp_tempList t) {
-  if (t == NULL) {
-    return t;
-  }
-  Temp_tempList tl = NULL;
-  for (; t; t = t->tail) {
-    tl = Temp_TempList(t->head, tl);
-  }
-  return tl;
+Temp_tempList Temp_reverseList(Temp_tempList t)
+{
+    if (t == NULL)
+    {
+        return t;
+    }
+    Temp_tempList tl = NULL;
+    for (; t; t = t->tail)
+    {
+        tl = Temp_TempList(t->head, tl);
+    }
+    return tl;
 }
 
-Temp_tempList Temp_union(Temp_tempList ta, Temp_tempList tb) {
-  Temp_temp t;
-  Temp_tempList tl = NULL;
-  Temp_map m = Temp_empty();
+Temp_tempList Temp_union(Temp_tempList ta, Temp_tempList tb)
+{
+    Temp_temp t;
+    Temp_tempList tl = NULL;
+    Temp_map m = Temp_empty();
 
-  for (; ta; ta = ta->tail) {
-    t = ta->head;
-    if (Temp_look(m, t) == NULL) {
-      Temp_enter(m, t, "u");
-      tl = Temp_TempList(t, tl);
+    for (; ta; ta = ta->tail)
+    {
+        t = ta->head;
+        if (Temp_look(m, t) == NULL)
+        {
+            Temp_enter(m, t, "u");
+            tl = Temp_TempList(t, tl);
+        }
     }
-  }
 
-  for (; tb; tb = tb->tail) {
-    t = tb->head;
-    if (Temp_look(m, t) == NULL) {
-      Temp_enter(m, t, "u");
-      tl = Temp_TempList(t, tl);
+    for (; tb; tb = tb->tail)
+    {
+        t = tb->head;
+        if (Temp_look(m, t) == NULL)
+        {
+            Temp_enter(m, t, "u");
+            tl = Temp_TempList(t, tl);
+        }
     }
-  }
 
-  return tl;
+    return tl;
 }
 
-Temp_tempList Temp_intersect(Temp_tempList ta, Temp_tempList tb) {
-  Temp_temp t;
-  Temp_tempList tl = NULL;
-  Temp_map m = Temp_empty();
+Temp_tempList Temp_intersect(Temp_tempList ta, Temp_tempList tb)
+{
+    Temp_temp t;
+    Temp_tempList tl = NULL;
+    Temp_map m = Temp_empty();
 
-  for (; ta; ta = ta->tail) {
-    t = ta->head;
-    Temp_enter(m, t, "i");
-  }
-
-  for (; tb; tb = tb->tail) {
-    t = tb->head;
-    if (Temp_look(m, t) != NULL) {
-      tl = Temp_TempList(t, tl);
+    for (; ta; ta = ta->tail)
+    {
+        t = ta->head;
+        Temp_enter(m, t, "i");
     }
-  }
 
-  return tl;
+    for (; tb; tb = tb->tail)
+    {
+        t = tb->head;
+        if (Temp_look(m, t) != NULL)
+        {
+            tl = Temp_TempList(t, tl);
+        }
+    }
+
+    return tl;
 }
 
-Temp_tempList Temp_minus(Temp_tempList ta, Temp_tempList tb) {
-  Temp_temp t;
-  Temp_tempList tl = NULL;
-  Temp_map m = Temp_empty();
+Temp_tempList Temp_minus(Temp_tempList ta, Temp_tempList tb)
+{
+    Temp_temp t;
+    Temp_tempList tl = NULL;
+    Temp_map m = Temp_empty();
 
-  for (; tb; tb = tb->tail) {
-    t = tb->head;
-    Temp_enter(m, t, "m");
-  }
-
-  for (; ta; ta = ta->tail) {
-    t = ta->head;
-    if (Temp_look(m, t) == NULL) {
-      tl = Temp_TempList(t, tl);
+    for (; tb; tb = tb->tail)
+    {
+        t = tb->head;
+        Temp_enter(m, t, "m");
     }
-  }
 
-  return tl;
+    for (; ta; ta = ta->tail)
+    {
+        t = ta->head;
+        if (Temp_look(m, t) == NULL)
+        {
+           tl = Temp_TempList(t, tl);
+        }
+    }
+
+    return tl;
 }
 
-bool Temp_equal(Temp_tempList ta, Temp_tempList tb) {
-  Temp_temp t;
-  Temp_map m = Temp_empty();
-  int ca = 0, cb = 0;
+bool Temp_equal(Temp_tempList ta, Temp_tempList tb)
+{
+    Temp_temp t;
+    Temp_map m = Temp_empty();
+    int ca = 0, cb = 0;
 
-  for (; ta; ta = ta->tail) {
-    t = ta->head;
-    Temp_enter(m, t, "e");
-    ++ca;
-  }
-
-  for (; tb; tb = tb->tail) {
-    t = tb->head;
-    if (Temp_look(m, t) == NULL) {
-      return FALSE;
+    for (; ta; ta = ta->tail)
+    {
+        t = ta->head;
+        Temp_enter(m, t, "e");
+        ++ca;
     }
-    ++cb;
-  }
 
-  return (ca == cb);
+    for (; tb; tb = tb->tail)
+    {
+        t = tb->head;
+        if (Temp_look(m, t) == NULL)
+        {
+            return FALSE;
+        }
+        ++cb;
+    }
+
+    return (ca == cb);
 }
 
-bool Temp_inList(Temp_temp t, Temp_tempList tl) {
-  for (; tl; tl = tl->tail) {
-    if (tl->head == t) {
-      return TRUE;
+bool Temp_inList(Temp_temp t, Temp_tempList tl)
+{
+    for (; tl; tl = tl->tail)
+    {
+        if (tl->head == t)
+        {
+            return TRUE;
+        }
     }
-  }
-  return FALSE;
+    return FALSE;
+}
+
+Temp_tempLList Temp_TempLList(Temp_tempList head, Temp_tempLList tail)
+{
+    Temp_tempLList p = (Temp_tempLList) checked_malloc(sizeof (*p));
+
+    p->head = head;
+    p->tail = tail;
+
+    return p;
 }
 
 static FILE *outfile;
-void showit(Temp_temp t, string r) {
-  fprintf(outfile, "t%d -> %s\n", t->num, r);
-}
-
-void Temp_dumpMap(FILE *out, Temp_map m) {
-  outfile=out;
-  TAB_dump(m->tab,(void (*)(void *, void*))showit);
-  if (m->under) {
-     fprintf(out,"---------\n");
-     Temp_dumpMap(out,m->under);
-  }
-}
-
-int Temp_tempGetNum(Temp_temp r)
+void showit(Temp_temp t, string r)
 {
-    return r->num;
+    fprintf(outfile, "t%d -> %s\n", t->num, r);
+}
+
+void Temp_dumpMap(FILE *out, Temp_map m)
+{
+    outfile=out;
+    TAB_dump(m->tab,(void (*)(void *, void*))showit);
+    if (m->under)
+    {
+        fprintf(out,"---------\n");
+        Temp_dumpMap(out,m->under);
+    }
 }
 

@@ -88,7 +88,7 @@ static bool atom(A_exp *exp)
     {
         case S_IDENT:
         {
-            S_symbol sym = S_Symbol(String(S_str));
+            S_symbol sym = S_Symbol(String(S_strlc));
             S_getsym();
 
             if (S_token == S_LPAREN)

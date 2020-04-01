@@ -12,124 +12,150 @@
 #include "errormsg.h"
 #include "table.h"
 
-
 Temp_tempList FG_def(G_node n)
 {
     AS_instr inst = (AS_instr)G_nodeInfo(n);
-    switch (inst->kind)
-    {
-        case I_OPER:
-            return inst->u.OPER.dst;
-       case I_LABEL:
-            return NULL;
-        case I_MOVE:
-            return inst->u.MOVE.dst;
-    }
-    return NULL;
+    return inst ? inst->dst : NULL;
 }
 
-Temp_tempList FG_use(G_node n) {
-  AS_instr inst = (AS_instr)G_nodeInfo(n);
-  switch (inst->kind) {
-    case I_OPER:
-      return inst->u.OPER.src;
-    case I_LABEL:
-      return NULL;
-    case I_MOVE:
-      return inst->u.MOVE.src;
-  }
-  return NULL;
+Temp_tempList FG_use(G_node n)
+{
+    AS_instr inst = (AS_instr)G_nodeInfo(n);
+    return inst ? inst->src : NULL;
 }
 
 bool FG_isMove(G_node n)
 {
     AS_instr inst = (AS_instr)G_nodeInfo(n);
-    return (inst->kind == I_MOVE);
+    if (!inst)
+        return FALSE;
+    return inst->mn == AS_MOVE_AnDn_AnDn;
 }
 
-AS_instr FG_inst(G_node n) {
-  return (AS_instr)G_nodeInfo(n);
+Temp_tempLList FG_interferingRegsDef(G_node n)
+{
+    AS_instr inst = (AS_instr)G_nodeInfo(n);
+    if (!inst)
+        return NULL;
+    return inst->dstInterf;
 }
 
-static G_node findLabeledNode(Temp_label lab, G_nodeList nl, Temp_labelList ll) {
-  G_node result = NULL;
-  for (; nl && ll; nl = nl->tail, ll = ll->tail) {
-    if (ll->head == lab) {
-      result = nl->head;
-      return result;
+Temp_tempLList FG_interferingRegsUse(G_node n)
+{
+    AS_instr inst = (AS_instr)G_nodeInfo(n);
+    if (!inst)
+        return NULL;
+    return inst->srcInterf;
+}
+
+AS_instr FG_inst(G_node n)
+{
+    return (AS_instr)G_nodeInfo(n);
+}
+
+static G_node findLabeledNode(Temp_label lab, G_nodeList nl, Temp_labelList ll)
+{
+    G_node result = NULL;
+    for (; nl && ll; nl = nl->tail, ll = ll->tail)
+    {
+        if (ll->head == lab)
+        {
+            result = nl->head;
+            return result;
+        }
     }
-  }
-  return result;
+    return result;
 }
 
 G_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
 {
-    G_graph g = G_Graph();
-    G_nodeList nl = NULL, jumpnl = NULL;
-    Temp_labelList ll = NULL, jl = NULL;
-    G_node n = NULL, last_n = NULL, jump_n = NULL;
-    AS_instr inst = NULL, last_inst = NULL, last_nonlbl_inst = NULL;
+    G_graph        g = G_Graph();
+    G_nodeList     nl = NULL, jumpnl = NULL;
+    Temp_labelList ll = NULL;
+    G_node         last_n = NULL, jump_n = NULL;
+    AS_instr       inst = NULL, last_inst = NULL, last_nonlbl_inst = NULL;
 
-    // Iterate and add instructions to graph
+    // iterate and add instructions to graph
     for (; il; il = il->tail)
     {
         inst = il->head;
-        if (inst->kind != I_LABEL)
+        if (inst->mn != AS_LABEL)
         {
-            n = G_Node(g, (void*)inst);
+            G_node n = G_Node(g, (void*)inst);
 
             if (last_inst)
             {
-                if (last_inst->kind == I_LABEL)
-                {
-                    nl = G_NodeList(n, nl);
-                    ll = Temp_LabelList(last_inst->u.LABEL.label, ll);
-                    if (last_nonlbl_inst)
-                    {
+				switch (last_inst->mn)
+				{
+        			case AS_LABEL:
+						nl = G_NodeList(n, nl);
+						ll = Temp_LabelList(last_inst->label, ll);
+						if (last_nonlbl_inst && (last_nonlbl_inst->mn != AS_JMP))
+						{
+							G_addEdge(last_n, n);
+						}
+						break;
+        			case AS_JMP:
+						// no edge from last instruction to this one
+						break;
+        			default:
                         G_addEdge(last_n, n);
-                    }
-                }
-                else
-                {
-                    if (last_inst->kind == I_OPER && last_inst->u.OPER.target != NULL)
-                    {
-                        // add edge for conditional jumps
-                        if (strstr(last_inst->u.OPER.assem, "jmp") != last_inst->u.OPER.assem)
-                        {
-                            G_addEdge(last_n, n);
-                        }
-                    }
-                    else
-                    {
-                        G_addEdge(last_n, n);
-                    }
-                }
+				}
             }
 
-            if (inst->kind == I_OPER && inst->u.OPER.target != NULL)
-            {
-                jumpnl = G_NodeList(n, jumpnl);
-            }
+			switch (inst->mn)
+			{
+				case AS_BEQ:
+				case AS_BNE:
+				case AS_BLT:
+				case AS_BGT:
+				case AS_BLE:
+				case AS_BGE:
+				case AS_JMP:
+					jumpnl = G_NodeList(n, jumpnl);
+					break;
+
+				default:
+                    break;
+			}
 
             last_n = n;
             last_nonlbl_inst = inst;
         }
+        else
+        {
+            assert (!last_inst || (last_inst->mn != AS_LABEL)); // we cannot handle consequtive label instructions (codegen.c should have inserted NOPs here)
+        }
         last_inst = inst;
     }
 
-    // Handle jump instructions
+	// did we end on a label?
+	if (last_inst && last_inst->mn == AS_LABEL)
+	{
+		G_node n = G_Node(g, NULL);	// add a special NULL node so the label points to something
+
+		nl = G_NodeList(n, nl);
+		ll = Temp_LabelList(last_inst->label, ll);
+        if (last_nonlbl_inst && (last_nonlbl_inst->mn != AS_JMP))
+        {
+            G_addEdge(last_n, n);
+        }
+	}
+
+    // handle jump instructions
     for (; jumpnl; jumpnl = jumpnl->tail)
     {
-        n = jumpnl->head;
+        G_node n = jumpnl->head;
         inst = (AS_instr) G_nodeInfo(n);
-        jump_n = findLabeledNode(inst->u.OPER.target, nl, ll);
+        jump_n = findLabeledNode(inst->label, nl, ll);
         if (jump_n)
         {
             G_addEdge(n, jump_n);
         }
         else
         {
-            EM_error(0, "fail to find node for label %s", Temp_labelstring(jl->head));
+            EM_error(0, "failed to find node for label %s", Temp_labelstring(inst->label));
+			assert(0);
         }
     }
 

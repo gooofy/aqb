@@ -29,15 +29,16 @@ a = 3.14
 b = 3.14e+2
 c = 3.14e-2
 d = 3.0
- 
+
 print "a ="; a
 print "b ="; b
 print "c ="; c
 
+
 ' arithemtic operators
 ' A_addOp, A_subOp,    A_mulOp, A_divOp,
 ' A_expOp, A_intDivOp, A_modOp, A_negOp
- 
+
 assertEquals a  +  b,  317.14, "+"
 assertEquals a  +  c,  3.1714, "+"
 assertEquals a  -  b, -310.86, "-"
@@ -50,9 +51,9 @@ assertEquals a MOD d, 0.14   , "MOD"
 
 ' logical operators
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
- 
+
 c = 3! : d = 7!
- 
+
 assertEquals c XOR d ,  4, "XOR"
 assertEquals d XOR d ,  0, "XOR"
 assertEquals d XOR 1 ,  6, "XOR"
@@ -75,9 +76,9 @@ assertEquals d AND 1 ,  1, "AND"
 assertEquals c OR d  ,  7, "OR"
 assertEquals d OR d  ,  7, "OR"
 assertEquals d OR 11 , 15, "OR"
- 
+
 ' relational operators
- 
+
 assertTrue  a =  a, "="
 assertFalse a =  b, "="
 assertTrue  a <> b, "<>"
@@ -94,4 +95,16 @@ assertFalse b <= a, "<="
 assertFalse a >= b, ">="
 assertTrue  a >= a, ">="
 assertTrue  b >= a, ">="
+
+' conversion tests
+
+iT1% = 42
+lT1& = 100000
+
+f = iT1%
+assertEquals f,     42, "int  -> single"
+f = iT1% > 23
+assertEquals f,      1, "bool -> single"
+f = lT1&
+assertEquals f, 100000, "long -> single"
 

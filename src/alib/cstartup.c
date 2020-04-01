@@ -50,18 +50,18 @@ static void _cshutdown (char *msg)
     if (autil_init_done)
         _autil_shutdown();
 
-    if (GfxBase) 
+    if (GfxBase)
         CloseLibrary( (struct Library *)GfxBase);
-    if (IntuitionBase) 
+    if (IntuitionBase)
         CloseLibrary( (struct Library *)IntuitionBase);
-    if (MathTransBase) 
+    if (MathTransBase)
         CloseLibrary( (struct Library *)MathTransBase);
-    if (MathBase) 
+    if (MathBase)
         CloseLibrary( (struct Library *)MathBase);
 
     // _aio_puts ("closing dos.library, exiting...\n");
 
-    if (DOSBase) 
+    if (DOSBase)
         CloseLibrary( (struct Library *)DOSBase);
 
     _autil_exit();

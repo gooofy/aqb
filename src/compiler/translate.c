@@ -146,7 +146,8 @@ Tr_accessList Tr_formals(Tr_level level)
     return a;
 }
 
-static string replace_type_suffix(string varname)
+// replace type suffix, convert to lower cases
+static string varname_to_label(string varname)
 {
     int  l        = strlen(varname);
     char postfix  = varname[l-1];
@@ -175,7 +176,7 @@ static string replace_type_suffix(string varname)
     {
         res = String(res);
         res[l-1] = 0;
-        res = strprintf("%s_%s", res, suffix);
+        res = strprintf("__%s_%s", res, suffix);
     }
     return res;
 }
@@ -359,7 +360,7 @@ Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty)
 {
     if (!level->frame) // global var?
     {
-        Temp_label label = Temp_namedlabel(replace_type_suffix(name));
+        Temp_label label = Temp_namedlabel(varname_to_label(name));
 
         F_frag frag = F_FillFrag(label, Ty_size(ty));
         fragList    = F_FragList(frag, fragList);

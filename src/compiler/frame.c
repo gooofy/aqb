@@ -44,6 +44,11 @@
  *   +---------------------------+
  *   :                           :
  *   :                           :
+ *
+ * fixed register allocation:
+ *      a5    : frame pointer
+ *      a6    : library base pointer
+ *      a7/sp : stack pointer
  */
 
 struct F_access_
@@ -87,7 +92,7 @@ static F_access InReg(Temp_temp reg) {
 }
 #endif
 
-F_frame F_newFrame(Temp_label name, Ty_tyList formalTys) 
+F_frame F_newFrame(Temp_label name, Ty_tyList formalTys)
 {
     F_frame f = checked_malloc(sizeof(*f));
 
@@ -162,20 +167,13 @@ F_access F_allocLocal(F_frame f, Ty_ty ty)
 
 int F_accessOffset(F_access a)
 {
-    if (a->kind != inFrame)
-    {
-        EM_error(0, "Offset of a reg access is invalid");
-    }
-
+    assert (a->kind == inFrame);
     return a->u.offset;
 }
 
 Temp_temp F_accessReg(F_access a)
 {
-    if (a->kind != inReg) {
-        EM_error(0, "Reg of a frame access is invalid");
-    }
-
+    assert (a->kind == inReg);
     return a->u.reg;
 }
 
@@ -234,11 +232,6 @@ string F_string(Temp_label lab, string str)
     return buf;
 }
 
-static Temp_tempList L(Temp_temp h, Temp_tempList t)
-{
-    return Temp_TempList(h, t);
-}
-
 F_fragList F_FragList(F_frag head, F_fragList tail)
 {
     F_fragList l = checked_malloc(sizeof(*l));
@@ -253,8 +246,7 @@ static AS_instrList appendCalleeSave(AS_instrList il)
     AS_instrList ail = il;
     for (; calleesaves; calleesaves = calleesaves->tail)
     {
-        ail = AS_InstrList(
-                AS_Oper("move.l `s0,-(sp)", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
+        ail = AS_InstrList( AS_Instr (AS_MOVE_AnDn_PDsp, AS_w_L, calleesaves->head, NULL), ail); // move.l `s0,-(sp)
     }
 
     return ail;
@@ -265,22 +257,13 @@ static AS_instrList restoreCalleeSave(AS_instrList il)
     Temp_tempList calleesaves = F_calleesaves();
     AS_instrList ail = NULL;
     for (; calleesaves; calleesaves = calleesaves->tail)
-    {
-        ail = AS_InstrList(
-                AS_Oper("move.l (sp)+,`s0", L(F_SP(), NULL), L(calleesaves->head, NULL), NULL), ail);
-    }
+        ail = AS_InstrList( AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, calleesaves->head), ail); // move.l (sp)+, calleesaves->head
 
     return AS_splice(ail, il);
 }
 
-static Temp_tempList returnSink = NULL;
-
 AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 {
-    Temp_tempList calleeSaves = F_calleesaves();
-    if (!returnSink)
-        returnSink = Temp_TempList(F_SP(), calleeSaves);
-
     int frame_size = frame ? -frame->locals_offset : 0;
     Temp_label label = frame ? frame->name : Temp_namedlabel(AQB_MAIN_LABEL);
 
@@ -288,14 +271,14 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     body = AS_splice(body,
              restoreCalleeSave(
-               AS_InstrList(AS_Oper("unlk `s0", L(F_SP(), NULL), L(F_FP(), NULL), NULL),
-                 AS_InstrList(AS_Oper("rts", NULL, returnSink, NULL), NULL))));
+               AS_InstrList( AS_Instr (AS_UNLK_fp, AS_w_NONE, NULL, NULL),                                 //      unlk fp
+                 AS_InstrList( AS_InstrEx (AS_RTS, AS_w_NONE, F_calleesaves(), NULL, 0, 0, NULL), NULL))));//      rts
 
     // entry code
 
-    body = AS_InstrList(AS_Label(strprintf("%s:", S_name(label)), label),
-             AS_InstrList(AS_Oper(strprintf("link `s0, #%d", -frame_size), L(F_FP(), NULL), L(F_FP(), NULL), NULL),
-                  appendCalleeSave(body)));
+    body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, label),                          // label:
+             AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, -frame_size, 0, NULL),             //      link fp, #-frameSize
+               appendCalleeSave(body)));
 
     return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(label)), body, "# END\n");
 }
@@ -304,6 +287,13 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
 Temp_map F_tempMap = NULL;
 const int F_wordSize = 4; /* Motorola 68k */
+
+static Temp_temp a0 = NULL;
+static Temp_temp a1 = NULL;
+static Temp_temp a2 = NULL;
+static Temp_temp a3 = NULL;
+static Temp_temp a4 = NULL;
+static Temp_temp a6 = NULL;
 
 static Temp_temp d0 = NULL;
 static Temp_temp d1 = NULL;
@@ -314,23 +304,16 @@ static Temp_temp d5 = NULL;
 static Temp_temp d6 = NULL;
 static Temp_temp d7 = NULL;
 
-static Temp_temp a4 = NULL; // a4
-static Temp_temp fp = NULL; // a5
-static Temp_temp sp = NULL; // a7
-
-// tmp A4 register (until we have true address register allocation)
-Temp_temp F_A4(void) { return a4; }
-
-// local frame pointer
-Temp_temp F_FP(void) { return fp; }
-
-// stack pointer
-Temp_temp F_SP(void) { return sp; }
-
 // Return value
 Temp_temp F_RV(void) { return d0; }
 
-// we need to expose d0..d7 for register argument parsing as well
+// we need to expose d0..d7,a0.. for register argument parsing as well
+Temp_temp F_A0(void) { return a0; }
+Temp_temp F_A1(void) { return a1; }
+Temp_temp F_A2(void) { return a2; }
+Temp_temp F_A3(void) { return a3; }
+Temp_temp F_A4(void) { return a4; }
+Temp_temp F_A6(void) { return a6; }
 Temp_temp F_D0(void) { return d0; }
 Temp_temp F_D1(void) { return d1; }
 Temp_temp F_D2(void) { return d2; }
@@ -340,12 +323,26 @@ Temp_temp F_D5(void) { return d5; }
 Temp_temp F_D6(void) { return d6; }
 Temp_temp F_D7(void) { return d7; }
 
+bool F_isAn(Temp_temp reg)
+{
+    return (reg == a0) || (reg == a1) || (reg == a2) || (reg == a3) || (reg == a4) || (reg == a6);
+}
+
+bool F_isDn(Temp_temp reg)
+{
+    return (reg == d0) || (reg == d1) || (reg == d2) || (reg == d3) || (reg == d4) || (reg == d5) || (reg == d6) || (reg == d7);
+}
+
+static Temp_tempList allRegs, dRegs, aRegs;
+
 void F_initRegisters(void)
 {
+    a0 = Temp_newtemp(NULL);
+    a1 = Temp_newtemp(NULL);
+    a2 = Temp_newtemp(NULL);
+    a3 = Temp_newtemp(NULL);
     a4 = Temp_newtemp(NULL);
-    fp = Temp_newtemp(NULL);
-    sp = Temp_newtemp(NULL);
-
+    a6 = Temp_newtemp(NULL);
     d0 = Temp_newtemp(NULL);
     d1 = Temp_newtemp(NULL);
     d2 = Temp_newtemp(NULL);
@@ -354,16 +351,47 @@ void F_initRegisters(void)
     d5 = Temp_newtemp(NULL);
     d6 = Temp_newtemp(NULL);
     d7 = Temp_newtemp(NULL);
+
+    allRegs = Temp_TempList(d0,
+                Temp_TempList(d1,
+                  Temp_TempList(d2,
+                    Temp_TempList(d3,
+                      Temp_TempList(d4,
+                        Temp_TempList(d5,
+                          Temp_TempList(d6,
+                            Temp_TempList(d7,
+                              Temp_TempList(a0,
+                                Temp_TempList(a1,
+                                  Temp_TempList(a2,
+                                    Temp_TempList(a3,
+                                      Temp_TempList(a4,
+                                        Temp_TempList(a6, NULL))))))))))))));
+    dRegs = Temp_TempList(d0,
+              Temp_TempList(d1,
+                Temp_TempList(d2,
+                  Temp_TempList(d3,
+                    Temp_TempList(d4,
+                      Temp_TempList(d5,
+                        Temp_TempList(d6,
+                          Temp_TempList(d7, NULL))))))));
+    aRegs = Temp_TempList(a0,
+              Temp_TempList(a1,
+                Temp_TempList(a2,
+                  Temp_TempList(a3,
+                    Temp_TempList(a4,
+                      Temp_TempList(a6, NULL))))));
 }
 
 Temp_map F_initialRegisters(F_frame f) {
 
     Temp_map m = Temp_empty();
 
+    Temp_enter(m, a0, "a0");
+    Temp_enter(m, a1, "a1");
+    Temp_enter(m, a2, "a2");
+    Temp_enter(m, a3, "a3");
     Temp_enter(m, a4, "a4");
-    Temp_enter(m, fp, "a5");
-    Temp_enter(m, sp, "sp");
-
+    Temp_enter(m, a6, "a6");
     Temp_enter(m, d0, "d0");
     Temp_enter(m, d1, "d1");
     Temp_enter(m, d2, "d2");
@@ -377,30 +405,25 @@ Temp_map F_initialRegisters(F_frame f) {
 
 Temp_tempList F_registers(void)
 {
-#if 0
-    return Temp_TempList(d0,
-             Temp_TempList(d1,
-               Temp_TempList(d2,
-                 Temp_TempList(d3,
-                   Temp_TempList(d4,
-                     Temp_TempList(d5,
-                       Temp_TempList(d6,
-                         Temp_TempList(d7, NULL))))))));
-#endif
-    return Temp_TempList(d1,
-             Temp_TempList(d2,
-               Temp_TempList(d3,
-                 Temp_TempList(d4,
-                   Temp_TempList(d5,
-                     Temp_TempList(d6,
-                       Temp_TempList(d7, NULL)))))));
+    return allRegs;
+}
+
+Temp_tempList F_aRegs(void)
+{
+    return aRegs;
+}
+
+Temp_tempList F_dRegs(void)
+{
+    return dRegs;
 }
 
 Temp_tempList F_callersaves(void)
 {
-    // return Temp_TempList(d0,
-    //          Temp_TempList(d1, NULL));
-    return Temp_TempList(d1, NULL);
+    // d0 is RV, will be clobbered anyway
+    return Temp_TempList(d1,
+             Temp_TempList(a0,
+               Temp_TempList(a1, NULL)));
 }
 
 Temp_tempList F_calleesaves(void)
@@ -410,7 +433,11 @@ Temp_tempList F_calleesaves(void)
                Temp_TempList(d4,
                  Temp_TempList(d5,
                    Temp_TempList(d6,
-                     Temp_TempList(d7, NULL))))));
+                     Temp_TempList(d7,
+                       Temp_TempList(a2,
+                         Temp_TempList(a3,
+                           Temp_TempList(a4,
+                             Temp_TempList(a6, NULL))))))))));
 }
 
 string F_getlabel(F_frame frame)
@@ -427,7 +454,7 @@ T_exp F_Exp(F_access acc)
         case inReg:
             return T_Temp(F_accessReg(acc), ty);
         case inFrame:
-            return T_Mem(T_Binop(T_plus, T_Temp(fp, ty), T_ConstInt(F_accessOffset(acc), Ty_Long()), Ty_Long()), ty);
+            return T_Mem(T_Binop(T_plus, T_FramePointer(), T_ConstInt(F_accessOffset(acc), Ty_Long()), Ty_Long()), ty);
         case inHeap:
             return T_Mem(T_Heap(acc->u.label, Ty_Long()), ty);
     }
@@ -487,7 +514,7 @@ static void F_printAccessList(FILE* out, F_accessList al)
                 fprintf(out, "    inFrame offset=%d\n", acc->u.offset);
                 break;
             case inReg:
-                fprintf(out, "    inReg   reg   =%d\n", Temp_tempGetNum(acc->u.reg));
+                fprintf(out, "    inReg   reg   =%d\n", Temp_num(acc->u.reg));
                 break;
             default:
                 fprintf(out, "    *** ERROR: unknown F_access kind!\n");

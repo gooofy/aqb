@@ -20,7 +20,7 @@ _start:
     jsr __cstartup
 
     .globl __autil_exit
-__autil_exit:     
+__autil_exit:
 
     /* FIXME: return code movel   sp@(4:W),d0 */
     move.l   ___SaveSP,sp

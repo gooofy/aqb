@@ -15,90 +15,100 @@
 #include "errormsg.h"
 #include "table.h"
 
-struct G_graph_ {int nodecount;
-		 G_nodeList mynodes, mylast;
-	       };
-
-struct G_node_ {
-  G_graph mygraph;
-  int mykey;
-  G_nodeList succs;
-  G_nodeList preds;
-  void *info;
-};
-
 G_graph G_Graph(void)
-{G_graph g = (G_graph) checked_malloc(sizeof *g);
- g->nodecount = 0;
- g->mynodes = NULL;
- g->mylast = NULL;
- return g;
+{
+    G_graph g = (G_graph) checked_malloc(sizeof *g);
+
+    g->nodecount = 0;
+    g->mynodes   = NULL;
+    g->mylast    = NULL;
+
+    return g;
 }
 
 G_nodeList G_NodeList(G_node head, G_nodeList tail)
-{G_nodeList n = (G_nodeList) checked_malloc(sizeof *n);
- n->head=head;
- n->tail=tail;
- return n;
+{
+    G_nodeList n = (G_nodeList) checked_malloc(sizeof *n);
+
+    n->head = head;
+    n->tail = tail;
+
+    return n;
 }
 
 /* generic creation of G_node */
 G_node G_Node(G_graph g, void *info)
-{G_node n = (G_node)checked_malloc(sizeof *n);
- G_nodeList p = G_NodeList(n, NULL);
- assert(g);
- n->mygraph=g;
- n->mykey=g->nodecount++;
+{
+    G_node n = (G_node)checked_malloc(sizeof *n);
 
- if (g->mylast==NULL)
-   g->mynodes=g->mylast=p;
- else g->mylast = g->mylast->tail = p;
+    G_nodeList p = G_NodeList(n, NULL);
 
- n->succs=NULL;
- n->preds=NULL;
- n->info=info;
- return n;
+    assert(g);
+    n->mygraph = g;
+    n->mykey   = g->nodecount++;
+
+    if (g->mylast==NULL)
+        g->mynodes = g->mylast = p;
+    else 
+        g->mylast  = g->mylast->tail = p;
+   
+    n->succs = NULL;
+    n->preds = NULL;
+    n->info  = info;
+
+    return n;
 }
 
 G_nodeList G_nodes(G_graph g)
 {
-  assert(g);
-  return g->mynodes;
+    assert(g);
+    return g->mynodes;
 }
 
-G_nodeList G_reverseNodes(G_nodeList l) {
-  G_nodeList nl = NULL;
-  for (; l; l = l->tail)
-    nl = G_NodeList(l->head, nl);
-  return nl;
+G_nodeList G_reverseNodes(G_nodeList l)
+{
+    G_nodeList nl = NULL;
+    for (; l; l = l->tail)
+        nl = G_NodeList(l->head, nl);
+    return nl;
 }
 
 /* return true if a is in l list */
-bool G_inNodeList(G_node a, G_nodeList l) {
-  G_nodeList p;
-  for(p=l; p!=NULL; p=p->tail)
-    if (p->head==a) return TRUE;
-  return FALSE;
+bool G_inNodeList(G_node a, G_nodeList l)
+{
+    G_nodeList p;
+    for(p=l; p!=NULL; p=p->tail)
+        if (p->head==a) 
+            return TRUE;
+    return FALSE;
 }
 
-void G_addEdge(G_node from, G_node to) {
-  assert(from);  assert(to);
-  assert(from->mygraph == to->mygraph);
-  if (G_goesTo(from, to)) return;
-  to->preds=G_NodeList(from, to->preds);
-  from->succs=G_NodeList(to, from->succs);
+void G_addEdge(G_node from, G_node to)
+{
+    assert(from);  
+    assert(to);
+    assert(from->mygraph == to->mygraph);
+
+    if (G_goesTo(from, to)) 
+        return;
+    to->preds   = G_NodeList(from, to->preds);
+    from->succs = G_NodeList(to, from->succs);
 }
 
-static G_nodeList delete(G_node a, G_nodeList l) {
-  assert(a && l);
-  if (a==l->head) return l->tail;
-  else return G_NodeList(l->head, delete(a, l->tail));
+static G_nodeList delete(G_node a, G_nodeList l)
+{
+    assert(a && l);
+    if (a==l->head) 
+        return l->tail;
+    else 
+        return G_NodeList(l->head, delete(a, l->tail));
 }
 
-void G_rmEdge(G_node from, G_node to) {
-  assert(from && to);
-  to->preds=delete(from,to->preds);
-  from->succs=delete(to,from->succs);
+void G_rmEdge(G_node from, G_node to) 
+{
+    assert(from && to);
+    to->preds   = delete(from, to->preds);
+    from->succs = delete(to, from->succs);
 }
 
  /**
@@ -126,8 +136,15 @@ void G_show(FILE *out, G_nodeList p, void showInfo(void *, string buf))
         }
         for (;cnt<3;cnt++)
             fprintf(out, "    ");
-        showInfo(n->info, buf);
-        fprintf(out, "%s\n", buf);
+        if (n->info)
+        {
+            showInfo(n, buf);
+            fprintf(out, "%s\n", buf);
+        }
+        else
+        {
+            fprintf(out, "NIL\n");
+        }
     }
 }
 

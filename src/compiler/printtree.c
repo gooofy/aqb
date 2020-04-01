@@ -9,20 +9,20 @@
 #include "tree.h"
 #include "printtree.h"
 
-static void indent(FILE *out, int d) 
+static void indent(FILE *out, int d)
 {
     int i;
-    for (i = 0; i <= d; i++) 
+    for (i = 0; i <= d; i++)
         fprintf(out, " ");
 }
 
 static char bin_oper[][14] = {
-   "PLUS",  "MINUS",  "MUL", "DIV", 
+   "PLUS",  "MINUS",  "MUL", "DIV",
    "XOR",   "EQV",    "IMP", "NEG", "NOT", "AND", "OR",
    "POWER", "INTDIV", "MOD"};
 
 static char rel_oper[][6] = { "EQ", "NE", "LT", "GT", "LE", "GE"};
- 
+
 void printStm(FILE *out, T_stm stm, int d)
 {
     if (!stm)
@@ -68,11 +68,11 @@ void printStm(FILE *out, T_stm stm, int d)
 
 void printExp(FILE *out, T_exp exp, int d)
 {
-    switch (exp->kind) 
+    switch (exp->kind)
     {
         case T_BINOP:
-            indent(out,d); fprintf(out, "BINOP(%s,\n", bin_oper[exp->u.BINOP.op]); 
-            printExp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n"); 
+            indent(out,d); fprintf(out, "BINOP(%s,\n", bin_oper[exp->u.BINOP.op]);
+            printExp(out, exp->u.BINOP.left,d+1); fprintf(out, ",\n");
             printExp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
             break;
         case T_MEM:
@@ -80,14 +80,14 @@ void printExp(FILE *out, T_exp exp, int d)
             fprintf(out, "(\n"); printExp(out, exp->u.MEM.exp,d+1); fprintf(out, ")");
             break;
         case T_TEMP:
-            indent(out,d); fprintf(out, "TEMP t%s", 
+            indent(out,d); fprintf(out, "TEMP t%s",
   	      		   Temp_look(Temp_getNameMap(), exp->u.TEMP));
             break;
         case T_HEAP:
             indent(out,d); fprintf(out, "HEAP %s", S_name(exp->u.HEAP));
             break;
         case T_ESEQ:
-            indent(out,d); fprintf(out, "ESEQ(\n"); printStm(out, exp->u.ESEQ.stm,d+1); 
+            indent(out,d); fprintf(out, "ESEQ(\n"); printStm(out, exp->u.ESEQ.stm,d+1);
             fprintf(out, ",\n");
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
@@ -97,15 +97,15 @@ void printExp(FILE *out, T_exp exp, int d)
         case T_CALLF:
         {
             T_expList args = exp->u.CALLF.args;
-            indent(out,d); 
-            fprintf(out, "CALLF(%s\n", S_name(exp->u.CALLF.fun)); 
-            for (;args; args=args->tail) 
+            indent(out,d);
+            fprintf(out, "CALLF(%s\n", S_name(exp->u.CALLF.fun));
+            for (;args; args=args->tail)
             {
                 printExp(out, args->head,d+2);
                 if (args->tail)
-                    fprintf(out, ",\n"); 
+                    fprintf(out, ",\n");
             }
-            indent(out,d); 
+            indent(out,d);
             fprintf(out, ")");
             break;
         }
@@ -116,6 +116,9 @@ void printExp(FILE *out, T_exp exp, int d)
             Ty_print(exp->ty);
             fprintf(out, "\n");
             printExp(out, exp->u.CAST.exp, d+1);
+            break;
+        case T_FP:
+            indent(out,d); fprintf(out, "FramePtr");
             break;
     } /* end of switch */
 }

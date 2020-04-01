@@ -5,8 +5,8 @@ b% = 42
 c% = FALSE
 
 IF ( a% < b% ) AND c% THEN
-    PRINT "<"
+    PRINT "OK"
 ELSE
-    PRINT ">="
+    PRINT "FAIL!"
 END IF
 

@@ -46,7 +46,7 @@ struct T_exp_
 {
     enum { T_BINOP, T_MEM, T_HEAP, T_ESEQ, T_TEMP,
 		   T_CONST, T_CALLF,
-           T_CAST } kind;
+           T_CAST,  T_FP } kind;
     Ty_ty ty;
 	union
     {
@@ -76,6 +76,7 @@ T_exp T_Binop(T_binOp, T_exp, T_exp, Ty_ty);
 T_exp T_Mem(T_exp exp, Ty_ty ty);
 T_exp T_Temp(Temp_temp, Ty_ty ty);
 T_exp T_Heap(Temp_label heap_pos, Ty_ty ty);
+T_exp T_FramePointer(void);
 T_exp T_Eseq(T_stm, T_exp, Ty_ty ty);
 T_exp T_ConstBool(bool b, Ty_ty ty);
 T_exp T_ConstInt(int i, Ty_ty ty);

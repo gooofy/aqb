@@ -50,9 +50,9 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
     fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
 
     iList  = F_codegen(frame, stmList); /* 9 */
-    // fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
-    // AS_printInstrList (out, iList, Temp_layerMap(F_tempMap,Temp_getNameMap()));
-    // fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list after codegen, before regalloc:\n");
+    AS_printInstrList (stdout, iList, Temp_layerMap(F_tempMap,Temp_getNameMap()));
+    fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
 
     struct RA_result ra = RA_regAlloc(frame, iList);  /* 10, 11 */
     iList = ra.il;
