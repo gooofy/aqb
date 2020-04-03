@@ -44,8 +44,11 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
     //printStmList(stdout, T_StmList(body, NULL));
 
     stmList = C_linearize(body);
+    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_linearize)\n");
+    printStmList(stdout, stmList);
+    fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
     stmList = C_traceSchedule(C_basicBlocks(stmList));
-    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list\n");
+    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_traceSchedule)\n");
     printStmList(stdout, stmList);
     fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
 

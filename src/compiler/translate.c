@@ -805,7 +805,7 @@ void Tr_printExp(FILE *out, Tr_exp exp, int d)
             fprintf(out,")\n");
             break;
         case Tr_nx:
-            indent(out, d); fprintf(out, "nx(\n");
+            indent(out, d); fprintf(out, "nx(");
             printStm(out, exp->u.nx, d+1);
             fprintf(out,")\n");
             break;

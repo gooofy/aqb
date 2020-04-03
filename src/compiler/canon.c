@@ -7,7 +7,10 @@
 #include "symbol.h"
 #include "temp.h"
 #include "tree.h"
+#include "printtree.h"
 #include "canon.h"
+
+#define ENABLE_DEBUG
 
 typedef struct expRefList_ *expRefList;
 struct expRefList_ {T_exp *head; expRefList tail;};
@@ -230,18 +233,17 @@ static C_stmListList mkBlocks(T_stmList stms, Temp_label done)
     return StmListList(stms, next(stms, stms->tail, done));
 }
 
-/*
-    basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
-
-     From a list of cleaned trees, produce a list of
-	 basic blocks satisfying the following properties:
-	      1. and 2. as above;
-	      3.  Every block begins with a LABEL;
-              4.  A LABEL appears only at the beginning of a block;
-              5.  Any JUMP or CJUMP is the last stm in a block;
-              6.  Every block ends with a JUMP or CJUMP;
-           Also produce the "label" to which control will be passed
-           upon exit.
+/* 
+   basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
+   From a list of cleaned trees, produce a list of
+   basic blocks satisfying the following properties:
+   1. and 2. as above;
+   3.  Every block begins with a LABEL;
+   4.  A LABEL appears only at the beginning of a block;
+   5.  Any JUMP or CJUMP is the last stm in a block;
+   6.  Every block ends with a JUMP or CJUMP;
+   Also produce the "label" to which control will be passed
+   upon exit.
 */
 struct C_block C_basicBlocks(T_stmList stmList)
 {
@@ -249,6 +251,17 @@ struct C_block C_basicBlocks(T_stmList stmList)
 
     b.label    = Temp_newlabel();
     b.stmLists = mkBlocks(stmList, b.label);
+
+#ifdef ENABLE_DEBUG
+    {
+        printf("C_basicBlocks result: label=%s\n", Temp_labelstring(b.label));
+        for(C_stmListList sll = b.stmLists; sll; sll = sll->tail)
+        {
+            printf("------------ basic block ------------\n");
+            printStmList(stdout, sll->head);
+        }
+    }
+#endif
 
     return b;
 }
@@ -280,7 +293,20 @@ static void trace(T_stmList list)
         }
         else
         {
-            last->tail->tail = getNext(); /* merge and keep JUMP stm */
+            T_stmList nextSL = getNext();
+            if (!nextSL)
+            {
+                // last one -> finish up
+                nextSL = T_StmList(T_Label(global_block.label), NULL);
+                if (s->u.JUMP == global_block.label)
+                    last->tail = nextSL;       /* merge the 2 lists removing JUMP stm */
+                else
+                    last->tail->tail = nextSL; /* merge and keep JUMP stm */
+            }
+            else
+            {
+                last->tail->tail = nextSL; /* merge and keep JUMP stm */
+            }
         }
     }
     /* we want false label to follow CJUMP */
@@ -310,7 +336,13 @@ static void trace(T_stmList list)
                     Temp_label lfalse = Temp_newlabel();
                     last->tail->head = T_Cjump(s->u.CJUMP.op, s->u.CJUMP.left,
                              s->u.CJUMP.right, s->u.CJUMP.ltrue, lfalse);
-                    last->tail->tail = T_StmList(T_Label(lfalse), getNext());
+                    T_stmList nextSL = getNext();
+                    if (!nextSL)
+                    {
+                        // last one -> finish up
+                        nextSL = T_StmList(T_Label(global_block.label), NULL);
+                    } 
+                    last->tail->tail = T_StmList(T_Label(lfalse), T_StmList(T_Jump(s->u.CJUMP.lfalse), nextSL));
                 }
             }
         }
@@ -327,7 +359,10 @@ static T_stmList getNext()
 {
     if (!global_block.stmLists)
     {
-        return T_StmList(T_Label(global_block.label), NULL);
+        //T_stmList finsl = T_StmList(T_Label(global_block.label), NULL);
+        //S_enter(block_env, finsl->head->u.LABEL, finsl);
+        //return finsl;
+        return NULL;
     }
     else
     {

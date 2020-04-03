@@ -2,7 +2,7 @@
 a% = 23
 b% = 42
 
-c% = FALSE
+c% = TRUE
 
 IF ( a% < b% ) AND c% THEN
     PRINT "OK"

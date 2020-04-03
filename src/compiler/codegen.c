@@ -814,7 +814,7 @@ static void munchStm(T_stm s)
             Temp_temp r1  = munchExp(e1, FALSE);
             Temp_temp r2  = munchExp(e2, FALSE);
             Temp_label jt = s->u.CJUMP.ltrue;
-            Temp_label jf = s->u.CJUMP.lfalse;
+            //Temp_label jf = s->u.CJUMP.lfalse;
 
             enum AS_mn branchinstr = AS_NOP;
             enum AS_mn cmpinstr    = AS_NOP;
@@ -877,7 +877,8 @@ static void munchStm(T_stm s)
             }
 
             emit(AS_InstrEx(branchinstr, AS_w_NONE, NULL, NULL, 0, 0, jt));              // bcc    jt
-            emit(AS_InstrEx(AS_JMP, AS_w_NONE, NULL, NULL, 0, 0, jf));                   // jmp    jf
+            // canon.c has to ensure CJUMP is _always_ followed by its false stmt
+            // emit(AS_InstrEx(AS_JMP, AS_w_NONE, NULL, NULL, 0, 0, jf));                   // jmp    jf
             break;
         }
 #if 0
