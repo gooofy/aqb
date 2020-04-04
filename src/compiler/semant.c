@@ -28,7 +28,7 @@ expty expTy(Tr_exp exp, Ty_ty ty)
 
 static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
 static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl);
-static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl);
+static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
 
 
 /* Definitions */
@@ -690,7 +690,7 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
     return tys;
 }
 
-static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Temp_label breaklbl)
+static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Temp_label breaklbl, int depth)
 {
     switch (stmt->kind)
     {
@@ -782,7 +782,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             Temp_label forbreak = Temp_newlabel();
-            expty body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak);
+            expty body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak, depth+1);
 
             return Tr_forExp(var->u.var.access, varty, conv_from_exp.exp, conv_to_exp.exp, conv_step_exp.exp, body.exp, forbreak);
         }
@@ -796,10 +796,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 break;
             }
 
-            then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, breaklbl);
+            then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, breaklbl, depth+1);
             if (stmt->u.ifr.elseStmts != NULL)
             {
-                elsee = transStmtList(level, venv, tenv, stmt->u.ifr.elseStmts, breaklbl);
+                elsee = transStmtList(level, venv, tenv, stmt->u.ifr.elseStmts, breaklbl, depth+1);
             }
             else
             {
@@ -864,7 +864,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     }
                 }
 
-                expty body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl);
+                expty body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl, depth+1);
 
                 S_endScope(lenv);
 
@@ -920,16 +920,17 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
     return NULL;
 }
 
-static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl)
+static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth)
 {
     Tr_expList el = NULL, last=NULL;
     A_stmtListNode node;
+
     for (node = stmtList->first; node != NULL; node = node->next) {
-        Tr_exp exp = transStmt(level, venv, tenv, node->stmt, breaklbl);
+        Tr_exp exp = transStmt(level, venv, tenv, node->stmt, breaklbl, depth+1);
         if (!exp)   // declarations will not produce statements
             continue;
 
-        Tr_printExp(stdout, exp, 0);
+        Tr_printExp(stdout, exp, depth);
         if (last)
         {
             last = last->tail = Tr_ExpList(exp, NULL);
@@ -956,7 +957,11 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram)
 
     Tr_level lv = Tr_global();
 
-    expty prog = transStmtList(lv, venv, tenv, sourceProgram->stmtList, NULL);
+    printf ("transStmtList:\n");
+    printf ("--------------\n");
+    expty prog = transStmtList(lv, venv, tenv, sourceProgram->stmtList, NULL, 0);
+    printf ("--------------\n");
+
     Tr_procEntryExit(lv, prog.exp, NULL, NULL);
 
     return Tr_getResult();

@@ -188,7 +188,7 @@ T_stmList C_linearize(T_stm stm)
 
 static C_stmListList StmListList(T_stmList head, C_stmListList tail)
 {
-    C_stmListList p = (C_stmListList) checked_malloc (sizeof *p);
+    C_stmListList p = (C_stmListList) checked_malloc (sizeof (C_stmListList));
     p->head=head; p->tail=tail;
     return p;
 }

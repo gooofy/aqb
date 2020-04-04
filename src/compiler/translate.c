@@ -248,15 +248,15 @@ static T_exp unEx(Tr_exp e)
 
         case Tr_cx:
         {
-            Temp_temp r = Temp_newtemp(Ty_Integer());
+            Ty_ty ty = Ty_Bool();
+            Temp_temp r = Temp_newtemp(Ty_Bool());
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
-            Ty_ty ty = Ty_Integer(); // FIXME: introduce Bool type
-            return T_Eseq(T_Move(T_Temp(r, ty), T_ConstInt(1, ty), ty),
+            return T_Eseq(T_Move(T_Temp(r, ty), T_ConstBool(TRUE, ty), ty),
                     T_Eseq(e->u.cx.stm,
                       T_Eseq(T_Label(f),
-                        T_Eseq(T_Move(T_Temp(r, ty), T_ConstInt(0, ty), ty),
+                        T_Eseq(T_Move(T_Temp(r, ty), T_ConstBool(FALSE, ty), ty),
                           T_Eseq(T_Label(t),
                                   T_Temp(r, ty), ty), ty), ty), ty), ty);
         }
