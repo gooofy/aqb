@@ -1,5 +1,5 @@
 /*
- * prabsyn.c - Print Abstract Syntax data structures. Most functions 
+ * prabsyn.c - Print Abstract Syntax data structures. Most functions
  *             handle an instance of an abstract syntax rule.
  */
 
@@ -12,36 +12,36 @@
 
 static void indent(FILE *out, int d) {
     int i;
-    for (i = 0; i < d; i++) 
+    for (i = 0; i < d; i++)
         fprintf(out, " ");
 }
 
 static void pr_exp(FILE *out, A_exp v);
 static void pr_stmtList(FILE *out, A_stmtList stmtList, int d);
 
-static void pr_var(FILE *out, A_var v) 
+static void pr_var(FILE *out, A_var v)
 {
     switch (v->kind) {
     case A_simpleVar:
-         fprintf(out, "simpleVar(%s)", S_name(v->u.simple)); 
+         fprintf(out, "simpleVar(%s)", S_name(v->u.simple));
          break;
     case A_fieldVar:
          fprintf(out, "fieldVar(%s.", S_name(v->u.field.sym));
-         pr_var(out, v->u.field.var); fprintf(out, ")"); 
+         pr_var(out, v->u.field.var); fprintf(out, ")");
          break;
     case A_subscriptVar:
          fprintf(out, "subscriptVar(");
-         pr_var(out, v->u.subscript.var); fprintf(out, "["); 
+         pr_var(out, v->u.subscript.var); fprintf(out, "[");
          pr_exp(out, v->u.subscript.exp); fprintf(out, "])");
          break;
     default:
          fprintf(out, "(***err: unknown var type: %d)", v->kind);
-    } 
+    }
 }
 
 static void pr_exp(FILE *out, A_exp exp);
 
-static void pr_expList(FILE *out, A_expList l) 
+static void pr_expList(FILE *out, A_expList l)
 {
     for (A_expListNode node = l->first; node; node = node->next)
     {
@@ -53,7 +53,7 @@ static void pr_expList(FILE *out, A_expList l)
 
 static void pr_exp(FILE *out, A_exp exp)
 {
-    switch (exp->kind) 
+    switch (exp->kind)
     {
         case A_boolExp:
             fprintf(out, "boolExp(%s)", exp->u.boolb ? "true" : "false");
@@ -232,6 +232,17 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, ")");
             break;
         }
+        case A_dimStmt:
+        {
+            indent(out, d);
+            fprintf(out, "DIM %s(", stmt->u.dimr.varId);
+            if (stmt->u.dimr.shared)
+                fprintf(out, "SHARED ");
+            if (stmt->u.dimr.typeId)
+                fprintf(out, "%s", stmt->u.dimr.typeId);
+            fprintf(out, ")");
+            break;
+        }
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);
@@ -255,7 +266,7 @@ void pr_sourceProgram(FILE *out, A_sourceProgram sourceProgram, int d)
     pr_stmtList(out, sourceProgram->stmtList, d+1);
 #if 0
     pr_decList(out, v->u.let.decs, d+1); fprintf(out, ",\n");
-    pr_exp(out, v->u.let.body, d+1); 
+    pr_exp(out, v->u.let.body, d+1);
 #endif
     fprintf(out, ")\n");
 }
@@ -279,9 +290,9 @@ static void pr_efieldList(FILE *out, A_efieldList v, int d);
 
 
 static char str_oper[][12] = {
-   "PLUS", "MINUS", "TIMES", "DIVIDE", 
+   "PLUS", "MINUS", "TIMES", "DIVIDE",
    "EQUAL", "NOTEQUAL", "LESSTHAN", "LESSEQ", "GREAT", "GREATEQ"};
- 
+
 static void pr_oper(FILE *out, A_oper d) {
   fprintf(out, "%s", str_oper[d]);
 }
@@ -291,7 +302,7 @@ void pr_exp(FILE *out, A_exp v, int d) {
     indent(out, d);
     switch (v->kind) {
     case A_varExp:
-      fprintf(out, "varExp(\n"); pr_var(out, v->u.var, d+1); 
+      fprintf(out, "varExp(\n"); pr_var(out, v->u.var, d+1);
       fprintf(out, "%s", ")");
       break;
     case A_nilExp:
@@ -309,12 +320,12 @@ void pr_exp(FILE *out, A_exp v, int d) {
       break;
     case A_opExp:
       fprintf(out, "opExp(\n");
-      indent(out, d+1); pr_oper(out, v->u.op.oper); fprintf(out, ",\n"); 
-      pr_exp(out, v->u.op.left, d+1); fprintf(out, ",\n"); 
+      indent(out, d+1); pr_oper(out, v->u.op.oper); fprintf(out, ",\n");
+      pr_exp(out, v->u.op.left, d+1); fprintf(out, ",\n");
       pr_exp(out, v->u.op.right, d+1); fprintf(out, ")");
       break;
     case A_recordExp:
-      fprintf(out, "recordExp(%s,\n", S_name(v->u.record.typ)); 
+      fprintf(out, "recordExp(%s,\n", S_name(v->u.record.typ));
       pr_efieldList(out, v->u.record.fields, d+1); fprintf(out, ")");
       break;
     case A_seqExp:
@@ -342,7 +353,7 @@ void pr_exp(FILE *out, A_exp v, int d) {
       pr_exp(out, v->u.whilee.body, d+1); fprintf(out, ")\n");
       break;
     case A_forExp:
-      fprintf(out, "forExp(%s,\n", S_name(v->u.forr.var)); 
+      fprintf(out, "forExp(%s,\n", S_name(v->u.forr.var));
       pr_exp(out, v->u.forr.lo, d+1); fprintf(out, ",\n");
       pr_exp(out, v->u.forr.hi, d+1); fprintf(out, "%s\n", ",");
       pr_exp(out, v->u.forr.body, d+1); fprintf(out, ",\n");
@@ -362,32 +373,32 @@ void pr_exp(FILE *out, A_exp v, int d) {
       pr_exp(out, v->u.array.init, d+1); fprintf(out, ")");
       break;
     default:
-      assert(0); 
-    } 
+      assert(0);
+    }
 }
 
 static void pr_dec(FILE *out, A_dec v, int d) {
  indent(out, d);
  switch (v->kind) {
  case A_functionDec:
-   fprintf(out, "functionDec(\n"); 
+   fprintf(out, "functionDec(\n");
    pr_fundecList(out, v->u.function, d+1); fprintf(out, ")");
    break;
  case A_varDec:
    fprintf(out, "varDec(%s,\n", S_name(v->u.var.var));
    if (v->u.var.typ) {
-     indent(out, d+1); fprintf(out, "%s,\n", S_name(v->u.var.typ)); 
+     indent(out, d+1); fprintf(out, "%s,\n", S_name(v->u.var.typ));
    }
    pr_exp(out, v->u.var.init, d+1); fprintf(out, ",\n");
    indent(out, d+1); fprintf(out, "%s", v->u.var.escape ? "TRUE)" : "FALSE)");
    break;
  case A_typeDec:
-   fprintf(out, "typeDec(\n"); 
+   fprintf(out, "typeDec(\n");
    pr_nametyList(out, v->u.type, d+1); fprintf(out, ")");
    break;
  default:
-   assert(0); 
- } 
+   assert(0);
+ }
 }
 
 static void pr_ty(FILE *out, A_ty v, int d) {
@@ -404,8 +415,8 @@ static void pr_ty(FILE *out, A_ty v, int d) {
    fprintf(out, "arrayTy(%s)", S_name(v->u.array));
    break;
  default:
-   assert(0); 
- } 
+   assert(0);
+ }
 }
 
 static void pr_field(FILE *out, A_field v, int d) {
@@ -439,7 +450,7 @@ static void pr_fundec(FILE *out, A_fundec v, int d) {
 static void pr_fundecList(FILE *out, A_fundecList v, int d) {
  indent(out, d);
  if (v) {
-   fprintf(out, "fundecList(\n"); 
+   fprintf(out, "fundecList(\n");
    pr_fundec(out, v->head, d+1); fprintf(out, ",\n");
    pr_fundecList(out, v->tail, d+1); fprintf(out, ")");
  }
@@ -449,12 +460,12 @@ static void pr_fundecList(FILE *out, A_fundecList v, int d) {
 static void pr_decList(FILE *out, A_decList v, int d) {
  indent(out, d);
  if (v) {
-   fprintf(out, "decList(\n"); 
+   fprintf(out, "decList(\n");
    pr_dec(out, v->head, d+1); fprintf(out, ",\n");
    pr_decList(out, v->tail, d+1);
    fprintf(out, ")");
  }
- else fprintf(out, "decList()"); 
+ else fprintf(out, "decList()");
 
 }
 
@@ -467,7 +478,7 @@ static void pr_namety(FILE *out, A_namety v, int d) {
 static void pr_nametyList(FILE *out, A_nametyList v, int d) {
  indent(out, d);
  if (v) {
-   fprintf(out, "nametyList(\n"); 
+   fprintf(out, "nametyList(\n");
    pr_namety(out, v->head, d+1); fprintf(out, ",\n");
    pr_nametyList(out, v->tail, d+1); fprintf(out, ")");
  }
@@ -486,7 +497,7 @@ static void pr_efield(FILE *out, A_efield v, int d) {
 static void pr_efieldList(FILE *out, A_efieldList v, int d) {
  indent(out, d);
  if (v) {
-   fprintf(out, "efieldList(\n"); 
+   fprintf(out, "efieldList(\n");
    pr_efield(out, v->head, d+1); fprintf(out, ",\n");
    pr_efieldList(out, v->tail, d+1); fprintf(out, ")");
  }

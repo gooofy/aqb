@@ -913,6 +913,26 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result);
         }
+        case A_dimStmt:
+        {
+            assert(0);
+            // // struct {bool shared; string varId; string typeId;} varr;
+            // E_enventry x = S_look(venv, stmt->u.varId);
+
+            // if (!x)
+            // {
+            //     string s = S_name(v->u.simple);
+            //     Ty_ty t = infer_var_type(s);
+
+            //     x = E_VarEntry(Tr_allocVar(level, s, t), t);
+            //     S_enter(venv, v->u.simple, x);
+            // }
+            // else
+            // {
+            //     EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.varId);
+            // }
+            // return x;
+        }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);

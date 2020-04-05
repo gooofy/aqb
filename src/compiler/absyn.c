@@ -46,7 +46,7 @@ A_stmt A_IfStmt (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStm
     p->u.ifr.test      = test;
     p->u.ifr.thenStmts = thenStmts;
     p->u.ifr.elseStmts = elseStmts;
- 
+
     return p;
 }
 
@@ -115,6 +115,19 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
+A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind          = A_dimStmt;
+    p->pos           = pos;
+    p->u.dimr.shared = shared;
+    p->u.dimr.varId  = varId;
+    p->u.dimr.typeId = typeId;
+
+    return p;
+}
+
 A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -124,7 +137,7 @@ A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
 
     p->u.callr.func = func;
     p->u.callr.args = args;
- 
+
     return p;
 }
 
@@ -212,7 +225,7 @@ static A_expListNode A_ExpListNode (A_exp exp)
     return p;
 }
 
-A_expList A_ExpList (void) 
+A_expList A_ExpList (void)
 {
     A_expList p = checked_malloc(sizeof(*p));
 
@@ -227,7 +240,7 @@ void A_ExpListAppend (A_expList list, A_exp exp)
     A_expListNode node = A_ExpListNode(exp);
 
     // first entry?
-    if (!list->first) 
+    if (!list->first)
     {
         list->first = node;
         list->last  = node;
@@ -254,7 +267,7 @@ static A_stmtListNode A_StmtListNode (A_stmt stmt)
     return p;
 }
 
-A_stmtList A_StmtList (void) 
+A_stmtList A_StmtList (void)
 {
     A_stmtList p = checked_malloc(sizeof(*p));
 
@@ -269,7 +282,7 @@ void A_StmtListAppend (A_stmtList list, A_stmt stmt)
     A_stmtListNode node = A_StmtListNode(stmt);
 
     // first entry?
-    if (!list->first) 
+    if (!list->first)
     {
         list->first = node;
         list->last  = node;
@@ -448,7 +461,7 @@ A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, 
     return p;
 }
 
-A_paramList A_ParamList (void) 
+A_paramList A_ParamList (void)
 {
     A_paramList p = checked_malloc(sizeof(*p));
 
@@ -461,7 +474,7 @@ A_paramList A_ParamList (void)
 void A_ParamListAppend (A_paramList list, A_param param)
 {
     // first entry?
-    if (!list->first) 
+    if (!list->first)
     {
         list->first = param;
         list->last  = param;

@@ -22,7 +22,7 @@ static map_t declared_procs;
  *******************************************************************/
 
 typedef struct P_SLE_          *P_SLE;
-struct P_SLE_ 
+struct P_SLE_
 {
     enum { P_forLoop, P_whileLoop, P_loop, P_if, P_sub, P_function } kind;
     A_pos       pos;
@@ -306,7 +306,7 @@ static bool intDivExpression(A_exp *exp)
     return TRUE;
 }
 
-// modExpression     ::= intDivExpression ( MOD intDivExpression )* 
+// modExpression     ::= intDivExpression ( MOD intDivExpression )*
 static bool modExpression(A_exp *exp)
 {
     bool   done = FALSE;
@@ -378,7 +378,7 @@ static bool addExpression(A_exp *exp)
     return TRUE;
 }
 
-// relExpression ::= addExpression ( ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) addExpression )* 
+// relExpression ::= addExpression ( ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) addExpression )*
 static bool relExpression(A_exp *exp)
 {
     bool   done = FALSE;
@@ -700,7 +700,7 @@ static bool stmtWindow(void)
                 return EM_err("window id expected here.");
             A_ExpListAppend (args, win_id);
 
-            if (S_token == S_COMMA) 
+            if (S_token == S_COMMA)
             {
                 S_getsym();
                 if (S_token != S_COMMA)
@@ -799,7 +799,7 @@ static bool stmtLine(void)
     }
 
     if (S_token != S_MINUS)
-        return EM_err("- expected here."); 
+        return EM_err("- expected here.");
     S_getsym();
 
     if (S_token == S_STEP)
@@ -809,7 +809,7 @@ static bool stmtLine(void)
     }
 
     if (S_token != S_LPAREN)
-        return EM_err("( expected here."); 
+        return EM_err("( expected here.");
     S_getsym();
 
     if (!expression(&x2))
@@ -826,7 +826,7 @@ static bool stmtLine(void)
     if (S_token == S_COMMA)
     {
         S_getsym();
-        if (!expression(&color)) 
+        if (!expression(&color))
         {
             if (S_token != S_COMMA)
                 return EM_err("color expression or , expected here.");
@@ -877,7 +877,7 @@ static bool lValue(A_var *v)
 
     S_getsym();
 
-    if (S_token == S_LPAREN) 
+    if (S_token == S_LPAREN)
     {
         return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
     }
@@ -886,7 +886,7 @@ static bool lValue(A_var *v)
     return TRUE;
 }
 
-// assignmentStmt ::= LET lValue "=" expression  
+// assignmentStmt ::= LET lValue "=" expression
 static bool stmtLet(void)
 {
     A_var v = NULL;
@@ -922,7 +922,7 @@ static bool stmtForBegin(void)
     if (S_token != S_IDENT)
         return EM_err ("variable name expected here.");
     var = A_SimpleVar (pos, S_Symbol(String(S_strlc)));
-    S_getsym(); 
+    S_getsym();
 
     if (S_token != S_EQUALS)
         return EM_err ("= expected.");
@@ -982,8 +982,8 @@ static bool stmtForEnd_(A_pos pos, char *varId)
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, 
-                      A_ForStmt(pos, 
+    A_StmtListAppend (g_sleStack->stmtList,
+                      A_ForStmt(pos,
                                 sle->u.forLoop.var,
                                 sle->u.forLoop.from_exp,
                                 sle->u.forLoop.to_exp,
@@ -1024,10 +1024,10 @@ static bool stmtForEnd(void)
     return TRUE;
 }
 
-// IfBegin ::=  IF Expression ( GOTO ( numLiteral | ident ) 
-//                            | THEN ( NEWLINE 
-//                                   | [ GOTO ] ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ] 
-//                                   ) 
+// IfBegin ::=  IF Expression ( GOTO ( numLiteral | ident )
+//                            | THEN ( NEWLINE
+//                                   | [ GOTO ] ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ]
+//                                   )
 //                            )
 
 static bool stmtIfBegin(void)
@@ -1050,7 +1050,7 @@ static bool stmtIfBegin(void)
 
     if (S_token != S_EOL)
         return EM_err ("Sorry, single-line if statements are not supported yet."); // FIXME
-    
+
     sle = slePush();
 
     sle->kind = P_if;
@@ -1099,11 +1099,11 @@ static bool stmtIfEnd(void)
 {
     if (S_token == S_ENDIF)
     {
-        S_getsym(); 
+        S_getsym();
     }
-    else 
+    else
     {
-        S_getsym(); 
+        S_getsym();
         if (S_token != S_IF)
             return EM_err("END IF expected here.");
         S_getsym();
@@ -1134,7 +1134,7 @@ static bool paramDecl(A_paramList paramList)
     {
         byval = TRUE;
         S_getsym();
-    } 
+    }
     else
     {
         if (S_token == S_BYREF)
@@ -1147,7 +1147,7 @@ static bool paramDecl(A_paramList paramList)
         return EM_err("identifier expected here.");
     name = S_Symbol(String(S_strlc));
     S_getsym();
-   
+
     if (S_token == S_AS)
     {
         S_getsym();
@@ -1170,7 +1170,7 @@ static bool paramDecl(A_paramList paramList)
     return TRUE;
 }
 
-// parameterList ::= '(' [ paramDecl ( ',' paramDecl )* ]  ')' 
+// parameterList ::= '(' [ paramDecl ( ',' paramDecl )* ]  ')'
 static bool parameterList(A_paramList paramList)
 {
     S_getsym(); // consume "("
@@ -1225,7 +1225,7 @@ static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
 }
 
 
-// procStmtBegin ::=  ( SUB | FUNCTION ) procHeader 
+// procStmtBegin ::=  ( SUB | FUNCTION ) procHeader
 static bool stmtProcBegin(void)
 {
     A_proc   proc;
@@ -1265,7 +1265,7 @@ static void stmtProcEnd_(void)
     A_StmtListAppend (g_sleStack->stmtList, A_ProcStmt(proc->pos, proc));
 }
 
-// stmtEnd  ::=  END ( SUB | FUNCTION | IF ) 
+// stmtEnd  ::=  END ( SUB | FUNCTION | IF )
 static bool stmtEnd(void)
 {
     S_getsym();  // consume "END"
@@ -1326,7 +1326,7 @@ static bool stmtIdent(void)
 
     switch (S_token)
     {
-        case S_LPAREN:      // assignment with array subscript 
+        case S_LPAREN:      // assignment with array subscript
             return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
 
         case S_EQUALS:      // assignment
@@ -1352,9 +1352,73 @@ static bool stmtIdent(void)
     return TRUE;
 }
 
-// statementBody ::= ( dim | doHeader | else | endIf | forBegin | forEnd | if | whileHeader | loopOrWend | 
-//                     circle |cls | comment | data | end | exit | goSub | goto | input | print | randomize | read | return | screen | stop | trace
-//                     assignmentStmt )
+// arrayDimension ::= expression [ TO expression]
+// arrayDimensions ::= arrayDimension ( "," arrayDimension )*
+// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] [ "=" varInitializer ]
+
+static bool singleVarDecl (bool shared)
+{
+    A_pos  pos = S_getpos();
+    string varId, typeId;
+
+    if (S_token != S_IDENT)
+        return EM_err("variable declaration: identifier expected here.");
+
+    varId = String(S_strlc);
+    S_getsym();
+
+    if (S_token == S_LPAREN)
+        return EM_err("FIXME: sorry, arrays are not supported yet."); // FIXME
+
+    if (S_token == S_AS)
+    {
+        S_getsym();
+
+        if (S_token != S_IDENT)
+            return EM_err("variable declaration: type identifier expected here.");
+        typeId = String(S_strlc);
+        S_getsym();
+    }
+
+    if (S_token == S_EQUALS)
+        return EM_err("FIXME: sorry, variable initializers are not supported yet."); // FIXME
+
+
+    A_StmtListAppend (g_sleStack->stmtList, A_DimStmt(pos, shared, varId, typeId));
+
+    return TRUE;
+}
+
+// stmtDim ::= DIM [ SHARED ] singleVarDecl ( "," singleVarDecl )*
+
+static bool stmtDim(void)
+{
+    bool     shared = FALSE;
+
+    S_getsym();
+
+    if (S_token == S_SHARED)
+    {
+        shared = TRUE;
+        S_getsym();
+    }
+
+    if (!singleVarDecl(shared))
+        return FALSE;
+
+    while (S_token == S_COMMA)
+    {
+        S_getsym();
+        if (!singleVarDecl(shared))
+            return FALSE;
+    }
+    return TRUE;
+}
+
+
+// statementBody ::= ( dim | doHeader | else | endIf | forBegin | forEnd | if | whileHeader | loopOrWend |
+//                     circle |cls | comment | data | end | exit | goSub | goto | input | print | randomize |
+//                     read | return | screen | stop | trace | assignmentStmt )
 
 static bool statementBody(void)
 {
@@ -1383,6 +1447,8 @@ static bool statementBody(void)
             return stmtIfEnd();
         case S_END:
             return stmtEnd();
+        case S_DIM:
+            return stmtDim();
         // FIXME: many others!
         default:
             return EM_err ("unexpected token");
@@ -1397,14 +1463,14 @@ static bool statement(void)
     {
         case S_INUM:
             // FIXME ---> line number support
-            return EM_err ("Sorry, line numbers are not supported yet."); 
+            return EM_err ("Sorry, line numbers are not supported yet.");
         // case S_IDENT: // FIXME: label support / scanner pushback?
         default:
             return statementBody();
     }
 }
 
-// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader 
+// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader
 static bool stmtProcDecl(void)
 {
     A_proc   proc;
@@ -1436,7 +1502,8 @@ static bool stmtProcDecl(void)
     return TRUE;
 }
 
-// bodyStatement ::= ( optionStmt | procBegin | procDecl )
+
+// bodyStatement ::= ( stmtOption | stmtProcBegin | stmtProcDecl )
 static bool bodyStatement(A_sourceProgram sourceProgram)
 {
     switch (S_token)
@@ -1461,7 +1528,7 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
     return TRUE;
 }
 
-// sourceProgramBody ::= logicalNewline*  bodyStatement ( logicalNewline+  bodyStement )* 
+// sourceProgramBody ::= logicalNewline*  bodyStatement ( logicalNewline+  bodyStement )*
 static bool sourceProgramBody(A_sourceProgram *sourceProgram)
 {
     slePush();

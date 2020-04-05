@@ -66,6 +66,8 @@
 #define S_LINE     134
 #define S_TRUE     135
 #define S_FALSE    136
+#define S_SHARED   137
+#define S_DIM      138
 
 #define S_MAX_STRING 1024
 

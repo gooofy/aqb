@@ -8,13 +8,13 @@
 
 static FILE *g_fin=NULL;
 
-static char g_ch;
-static bool g_eof = TRUE;
-static int  g_line, g_col;
-static bool g_eol = FALSE;
-static bool g_verbose = TRUE;
+static char  g_ch;
+static bool  g_eof = TRUE;
+static int   g_line, g_col;
+static bool  g_eol = FALSE;
+static bool  g_verbose = TRUE;
 static map_t g_tokens = NULL;
-static int  S_line, S_col;
+static int   S_line, S_col;
 
 // scanner globals available to other modules
 
@@ -66,13 +66,15 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "line",     (void *) S_LINE);
     hashmap_put (g_tokens, "true",     (void *) S_TRUE);
     hashmap_put (g_tokens, "false",    (void *) S_FALSE);
+    hashmap_put (g_tokens, "shared",   (void *) S_SHARED);
+    hashmap_put (g_tokens, "dim",      (void *) S_DIM);
 }
 
 A_pos S_getpos(void)
 {
     return (S_col << 16) | S_line;
 }
-int S_getcol(A_pos pos) 
+int S_getcol(A_pos pos)
 {
     return pos >> 16;
 }
@@ -90,7 +92,7 @@ static void getch(void)
         g_eol = FALSE;
         g_col = 1;
         g_line++;
-    } 
+    }
     else
     {
         g_col++;
@@ -395,7 +397,7 @@ int S_getsym(void)
             {
                 S_token = S_LESSEQ;
                 getch();
-            } 
+            }
             else
             {
                 if (g_ch == '>')

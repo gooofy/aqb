@@ -33,9 +33,9 @@ struct A_sourceProgram_
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
-           A_procStmt, A_callStmt, A_procDeclStmt } kind;
+           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt } kind;
     A_pos pos;
-	union 
+	union
     {
         A_exp printExp;
 	    struct {A_var var; A_exp exp;} assign;
@@ -43,6 +43,7 @@ struct A_stmt_
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
+        struct {bool shared; string varId; string typeId;} dimr;
     } u;
 };
 
@@ -52,10 +53,10 @@ struct A_stmtListNode_
     A_stmtListNode next;
 };
 
-struct A_stmtList_ 
+struct A_stmtList_
 {
-    A_stmtListNode first; 
-    A_stmtListNode last; 
+    A_stmtListNode first;
+    A_stmtListNode last;
 };
 
 typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
@@ -67,7 +68,7 @@ struct A_exp_
 {
     enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp } kind;
     A_pos      pos;
-    union 
+    union
     {
         bool    boolb;
 	    int     intt;
@@ -85,25 +86,25 @@ struct A_expListNode_
     A_expListNode next;
 };
 
-struct A_expList_ 
+struct A_expList_
 {
-    A_expListNode first; 
-    A_expListNode last; 
+    A_expListNode first;
+    A_expListNode last;
 };
 
 struct A_var_
 {
     enum { A_simpleVar, A_fieldVar, A_subscriptVar } kind;
     A_pos pos;
-	union 
+	union
     {
         S_symbol simple;
-	    struct 
+	    struct
         {
             A_var var;
 		    S_symbol sym;
         } field;
-	    struct 
+	    struct
         {
             A_var var;
 		    A_exp exp;
@@ -122,10 +123,10 @@ struct A_param_
     A_exp    defaultExp;
 };
 
-struct A_paramList_ 
+struct A_paramList_
 {
-    A_param first; 
-    A_param last; 
+    A_param first;
+    A_param last;
 };
 
 struct A_proc_
@@ -149,6 +150,7 @@ A_stmt          A_ForStmt         (A_pos pos, A_var var, A_exp from_exp, A_exp t
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
+A_stmt          A_DimStmt         (A_pos pos, bool shared, string varId, string typeId);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
@@ -179,11 +181,11 @@ typedef struct A_efield_ *A_efield;
 typedef struct A_efieldList_ *A_efieldList;
 typedef struct A_ty_            *A_ty;
 
-struct A_ty_ 
+struct A_ty_
 {
     enum { A_nameTy, A_recordTy, A_arrayTy } kind;
     A_pos pos;
-    union 
+    union
     {
         S_symbol name;
         #if 0
@@ -202,7 +204,7 @@ struct A_exp_
            A_opExp, A_recordExp, A_seqExp, A_assignExp, A_ifExp,
            A_whileExp, A_forExp, A_breakExp, A_moduleExp, A_arrayExp} kind;
     A_pos pos;
-    union 
+    union
     {
         A_var var;
 	    /* nil; - needs only the pos */
@@ -228,7 +230,7 @@ struct A_field_ {S_symbol name, typ; A_pos pos; bool escape;};
 struct A_fieldList_ {A_field head; A_fieldList tail;};
 struct A_expList_ {A_exp head; A_expList tail;};
 struct A_fundec_ {A_pos pos;
-                 S_symbol name; A_fieldList params; 
+                 S_symbol name; A_fieldList params;
 		 S_symbol result; A_exp body;};
 
 struct A_fundecList_ {A_fundec head; A_fundecList tail;};
