@@ -17,10 +17,27 @@ FLOAT __mod_ffp(FLOAT divident, FLOAT divisor);
 
 void clibtestmain (void)
 {
+    FLOAT a, b;
+
+    _aio_puts("clibtestmain\n");
+
+    // assertEqualsInt (10, 10, "this shouldn't have failed.");
+    // assertEqualsInt (10, 42, "this should fail.");
+
+    // assertEqualsLong (10, 10, "this shouldn't have failed.");
+    // assertEqualsLong (10, 42, "this should fail.");
+
+    a = SPFlt(23);
+    b = SPFlt(42);
+
+    assertEqualsSingle (a, a, "this shouldn't have failed.");
+    assertEqualsSingle (a, b, "this should fail.");
+
+    _aio_puts("FAIL: this should never be executed.\n");
+#if 0
     FLOAT a, b, c, d, e, f;
     LONG l;
 
-#if 0
     __aqb_line (1, 2, 3, 4, 255, 6);
 
     // window(1, "AQB Main Window", 0, 0, 619, 189, AW_FLAG_SIZE | AW_FLAG_DRAG | AW_FLAG_DEPTH | AW_FLAG_CLOSE | AW_FLAG_REFRESH, 0);
@@ -41,24 +58,22 @@ void clibtestmain (void)
         // __aqb_line (i, i*2, i*3, i*4, i*5, i*6);
         __aqb_line (i*5, 0, 320, 200, 0, 0);
     }
-#endif
 
     a = SPFlt(23);
     b = SPFlt(42);
     c = SPDiv(a, b);
-#if 0
     d = SPMul(b, c);
     e = SPFlt(7);
     f = SPFlt(2);
 
-    _aio_puts("a: "); _aio_puts4(SPFix(a)); 
-    _aio_puts(", b: "); _aio_puts4(SPFix(b)); 
-    _aio_puts(", c = a/b: "); _aio_puts4(SPFix(c)); 
-    _aio_puts(", d = b*c: "); _aio_puts4(SPFix(d)); 
-    _aio_puts(", b-a: "); _aio_puts4(SPFix(SPSub(b, a))); 
-    _aio_puts(", a-b: "); _aio_puts4(SPFix(SPSub(a, b))); 
-    _aio_puts(", e: "); _aio_puts4(SPFix(e)); 
-    _aio_puts(", f: "); _aio_puts4(SPFix(f)); 
+    _aio_puts("a: "); _aio_puts4(SPFix(a));
+    _aio_puts(", b: "); _aio_puts4(SPFix(b));
+    _aio_puts(", c = a/b: "); _aio_puts4(SPFix(c));
+    _aio_puts(", d = b*c: "); _aio_puts4(SPFix(d));
+    _aio_puts(", b-a: "); _aio_puts4(SPFix(SPSub(b, a)));
+    _aio_puts(", a-b: "); _aio_puts4(SPFix(SPSub(a, b)));
+    _aio_puts(", e: "); _aio_puts4(SPFix(e));
+    _aio_puts(", f: "); _aio_puts4(SPFix(f));
     _aio_putnl();
 
 
@@ -72,7 +87,6 @@ void clibtestmain (void)
     _aio_puts("f: "); _aio_putf(f); _aio_putnl();
     _aio_puts("-1/3: "); _aio_putf(SPDiv(SPFlt(-1), SPFlt(3))); _aio_putnl();
     _aio_puts("27 MOD 11: "); _aio_putf(__mod_ffp(SPFlt(27), SPFlt(11))); _aio_putnl();
-#endif
 
     l = SPFix(c);
 
@@ -84,6 +98,7 @@ void clibtestmain (void)
     {
         _aio_puts("bar"); _aio_putnl();
     }
+#endif
 
     //delay(5);
 }

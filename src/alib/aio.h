@@ -13,7 +13,7 @@ void _aio_putuhex(ULONG l);
 void _aio_putbin(int num);
 void _aio_putf(FLOAT f);
 
-void _aio_puts(char *str);
+void _aio_puts(const char *str);
 
 void _aio_putnl(void);
 void _aio_puttab(void);

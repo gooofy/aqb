@@ -17,12 +17,14 @@ _start:
 
     move.l   sp,___SaveSP    /* save sp for exit() at any point in the program */
 
-    jsr __cstartup
+    jsr     __cstartup
 
     .globl __autil_exit
 __autil_exit:
 
-    /* FIXME: return code movel   sp@(4:W),d0 */
+    jsr     __c_atexit
+
+    move.l  4(sp), d0       /* return code */
     move.l   ___SaveSP,sp
     rts
 

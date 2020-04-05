@@ -26,6 +26,8 @@
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 
+// #define ENABLE_DEBUG
+
 struct DOSBase       *DOSBase       = NULL;
 struct IntuitionBase *IntuitionBase = NULL;
 struct GfxBase       *GfxBase       = NULL;
@@ -36,12 +38,13 @@ static BOOL awindow_init_done = FALSE;
 static BOOL autil_init_done   = FALSE;
 static BOOL aio_init_done     = FALSE;
 
-static void _cshutdown (char *msg)
+// gets called by _autil_exit
+void _c_atexit(void)
 {
-    if (msg && DOSBase)
-        _aio_puts(msg);
-
-    // _aio_puts ("shutting down modules...\n");
+#ifdef ENABLE_DEBUG
+    if (DOSBase)
+        _aio_puts("_c_atexit...\n");
+#endif
 
     if (awindow_init_done)
         _awindow_shutdown();
@@ -59,12 +62,21 @@ static void _cshutdown (char *msg)
     if (MathBase)
         CloseLibrary( (struct Library *)MathBase);
 
-    // _aio_puts ("closing dos.library, exiting...\n");
+#ifdef ENABLE_DEBUG
+    if (DOSBase)
+        _aio_puts("_c_atexit... finishing.\n");
+#endif
 
     if (DOSBase)
         CloseLibrary( (struct Library *)DOSBase);
+}
 
-    _autil_exit();
+static void _cshutdown (LONG return_code, char *msg)
+{
+    if (msg && DOSBase)
+        _aio_puts(msg);
+
+    _autil_exit(return_code);
 }
 
 void _aqb_main(void);
@@ -72,19 +84,19 @@ void _aqb_main(void);
 void _cstartup (void)
 {
     if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
-        _cshutdown("*** error: failed to open dos.library!\n");
+        _cshutdown(20, "*** error: failed to open dos.library!\n");
 
     if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
-        _cshutdown("*** error: failed to open mathffp.library!\n");
+        _cshutdown(20, "*** error: failed to open mathffp.library!\n");
 
     if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
-        _cshutdown("*** error: failed to open mathtrans.library!\n");
+        _cshutdown(20, "*** error: failed to open mathtrans.library!\n");
 
     if (!(IntuitionBase = (struct IntuitionBase *)OpenLibrary((CONST_STRPTR) "intuition.library", 0)))
-        _cshutdown("*** error: failed to open intuition.library!\n");
+        _cshutdown(20, "*** error: failed to open intuition.library!\n");
 
     if (!(GfxBase = (struct GfxBase *)OpenLibrary((CONST_STRPTR) "graphics.library", 0)))
-        _cshutdown("*** error: failed to open graphics.library!\n");
+        _cshutdown(20, "*** error: failed to open graphics.library!\n");
 
     _autil_init();
     autil_init_done = TRUE;
@@ -99,5 +111,5 @@ void _cstartup (void)
 
     _aqb_main();
 
-    _cshutdown(NULL);
+    _autil_exit(0);
 }

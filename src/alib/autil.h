@@ -16,9 +16,17 @@ void _autil_shutdown(void);
 
 extern USHORT g_errcode;
 
-void _autil_exit(void); // implemented in startup.s
+void _autil_exit(LONG return_code); // implemented in startup.s
 
 void delay(ULONG seconds);
+
+
+// unit testing utils
+
+void assertTrue (BOOL b, const char *msg);
+void assertEqualsInt    (SHORT a, SHORT b, const char *msg);
+void assertEqualsLong   (LONG  a, LONG  b, const char *msg);
+void assertEqualsSingle (FLOAT a, FLOAT b, const char *msg);
 
 #if 0  // exec has these already
 
