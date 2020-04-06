@@ -173,9 +173,10 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_OR_Imm_Dn:
         case AS_AND_Imm_Dn:
         case AS_EOR_Imm_Dn:
-            assert(src==NULL);
+            assert(src);
             assert(dst);
-            p->srcInterf = NULL;
+            assert(src->head==dst->head);
+            p->srcInterf = LL(F_aRegs(), NULL);
             p->dstInterf = LL(F_aRegs(), NULL);
             break;
         case AS_MOVE_ILabel_AnDn:

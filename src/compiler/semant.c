@@ -41,47 +41,6 @@ static Ty_ty transTy(Tr_level level, S_scope tenv, A_ty a);
 
 /* Utilities */
 
-// infer type from the var name
-static Ty_ty infer_var_type(string varname)
-{
-    int  l = strlen(varname);
-    char postfix = varname[l-1];
-
-    switch (postfix)
-    {
-        case '$':
-            return Ty_String();
-        case '%':
-            return Ty_Integer();
-        case '&':
-            return Ty_Long();
-        case '!':
-            return Ty_Single();
-        case '#':
-            return Ty_Double();
-    }
-    return Ty_Single();
-}
-
-static string remove_type_suffix(string varname)
-{
-    int  l = strlen(varname);
-    char postfix = varname[l-1];
-    string res = varname;
-
-    switch (postfix)
-    {
-        case '$':
-        case '%':
-        case '&':
-        case '!':
-        case '#':
-            res = String(res);
-            res[l-1] = 0;
-            break;
-    }
-    return res;
-}
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
@@ -91,7 +50,7 @@ static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
     if (!x)
     {
         string s = S_name(v->u.simple);
-        Ty_ty t = infer_var_type(s);
+        Ty_ty t = Ty_inferType(s);
 
         x = E_VarEntry(Tr_allocVar(level, s, t), t);
         S_enter(venv, v->u.simple, x);
@@ -671,7 +630,7 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
     {
         Ty_ty ty = NULL;
         if (!param->ty)
-            ty = infer_var_type(S_name(param->name));
+            ty = Ty_inferType(S_name(param->name));
         else
             ty = lookup_type(tenv, param->pos, param->ty);
 
@@ -737,6 +696,15 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             E_enventry func = S_look(venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
             return tr_exp;
+        }
+        case A_assertStmt:
+        {
+            expty exp          = transExp(level, venv, tenv, stmt->u.assertr.exp, breaklbl);
+            // Tr_expList arglist = Tr_ExpList(exp.exp, Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), NULL));
+            Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp.exp, NULL));
+            S_symbol fsym      = S_Symbol("__aqb_assert");
+            E_enventry func    = S_look(venv, fsym);
+            return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
         }
         case A_assignStmt:
         {
@@ -813,11 +781,20 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         case A_procDeclStmt:
         {
             A_proc     proc       = stmt->u.proc;
-            Ty_ty      resultTy   = proc->isFunction ? infer_var_type(S_name(proc->name)) : Ty_Void();
+            Ty_ty      resultTy   = Ty_Void();
             Ty_tyList  formalTys  = makeParamTyList(level, tenv, proc->paramList);
             S_scope    lenv;
             E_enventry e;
-            string     label      = strconcat("_", remove_type_suffix(S_name(proc->name)));
+
+            if (proc->retty)
+            {
+                resultTy = S_look(tenv, proc->retty);
+                if (!resultTy)
+                {
+                    EM_error(proc->pos, "unknown return type: %s", S_name(proc->retty));
+                    break;
+                }
+            }
 
             if (proc->isStatic)
             {
@@ -838,8 +815,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                Temp_label l = Temp_namedlabel(label);
-                e = E_FunEntry(Tr_newLevel(l, formalTys), l, formalTys, resultTy, stmt->kind==A_procDeclStmt);
+                e = E_FunEntry(Tr_newLevel(proc->label, formalTys), proc->label, formalTys, resultTy, stmt->kind==A_procDeclStmt);
             }
 
             S_enter(venv, proc->name, e);
@@ -857,7 +833,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     for (param = proc->paramList->first, t = e->u.fun.formals;
                          param; param = param->next, t = t->tail, acl = Tr_accessListTail(acl))
                         S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head));
-                    if (proc->isFunction)
+                    if (proc->retty)
                     {
                         ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
                         S_enter(lenv, S_Symbol(RETURN_VAR_NAME), E_VarEntry(ret_access, resultTy));
@@ -922,7 +898,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             // if (!x)
             // {
             //     string s = S_name(v->u.simple);
-            //     Ty_ty t = infer_var_type(s);
+            //     Ty_ty t = Ty_inferType(s);
 
             //     x = E_VarEntry(Tr_allocVar(level, s, t), t);
             //     S_enter(venv, v->u.simple, x);

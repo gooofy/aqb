@@ -4,6 +4,8 @@
 
 #include "scanner.h"
 #include "errormsg.h"
+#include "types.h"
+#include "env.h"
 
 const char *P_filename = NULL;
 
@@ -99,7 +101,7 @@ static bool atom(A_exp *exp)
 
                 if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
                 {
-                    if (!proc->isFunction)
+                    if (!proc->retty)
                         return EM_err("SUB used as FUNCTION?");
 
                     S_getsym();                     // consume (
@@ -1158,6 +1160,9 @@ static bool paramDecl(A_paramList paramList)
         S_getsym();
     }
 
+    if (!ty)
+        ty = S_Symbol(Ty_name(Ty_inferType(S_name(name))));
+
     if (S_token == S_EQUALS)
     {
         S_getsym();
@@ -1195,16 +1200,19 @@ static bool parameterList(A_paramList paramList)
     return TRUE;
 }
 
-// procHeader ::= ident [ parameterList ] [ STATIC ]
+// procHeader ::= ident [ parameterList ] [ AS Ident ] [ STATIC ]
 static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
 {
     S_symbol    name;
     bool        isStatic = FALSE;
     A_paramList paramList = A_ParamList();
+    S_symbol    retty = NULL;
+    Temp_label  label = NULL;
 
     if (S_token != S_IDENT)
         return EM_err("identifier expected here.");
-    name = S_Symbol(String(S_strlc));
+    name  = S_Symbol(String(S_strlc));
+    label = Temp_namedlabel(strconcat("_", Ty_removeTypeSuffix(S_strlc)));
     S_getsym();
 
     if (S_token == S_LPAREN)
@@ -1213,13 +1221,27 @@ static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
             return FALSE;
     }
 
+    if (S_token == S_AS)
+    {
+        S_getsym();
+        if (S_token != S_IDENT)
+            return EM_err("type identifier expected here.");
+        retty = S_Symbol(String(S_strlc));
+        S_getsym();
+    }
+
+    if (!retty && isFunction)
+    {
+        retty = S_Symbol(Ty_name(Ty_inferType(S_name(name))));
+    }
+
     if (S_token == S_STATIC)
     {
         isStatic = TRUE;
         S_getsym();
     }
 
-    *proc = A_Proc (pos, name, isFunction, isStatic, paramList);
+    *proc = A_Proc (pos, name, label, retty, isStatic, paramList);
 
     return TRUE;
 }
@@ -1415,8 +1437,27 @@ static bool stmtDim(void)
     return TRUE;
 }
 
+// stmtAssert ::= ASSERT expression
 
-// statementBody ::= ( dim | doHeader | else | endIf | forBegin | forEnd | if | whileHeader | loopOrWend |
+static bool stmtAssert(void)
+{
+    A_pos  pos = S_getpos();
+    A_exp  exp;
+
+    S_getsym();
+
+    if (!expression(&exp))
+    {
+        return EM_err("Assert: expression expected here.");
+    }
+
+    A_StmtListAppend (g_sleStack->stmtList, A_AssertStmt(pos, exp, EM_format(pos, "assertion failed." /* FIXME: add expression str */)));
+
+    return TRUE;
+}
+
+
+// statementBody ::= ( assert | dim | doHeader | else | endIf | forBegin | forEnd | if | whileHeader | loopOrWend |
 //                     circle |cls | comment | data | end | exit | goSub | goto | input | print | randomize |
 //                     read | return | screen | stop | trace | assignmentStmt )
 
@@ -1449,6 +1490,8 @@ static bool statementBody(void)
             return stmtEnd();
         case S_DIM:
             return stmtDim();
+        case S_ASSERT:
+            return stmtAssert();
         // FIXME: many others!
         default:
             return EM_err ("unexpected token");
@@ -1537,6 +1580,8 @@ static bool sourceProgramBody(A_sourceProgram *sourceProgram)
 
     *sourceProgram = A_SourceProgram(S_getpos(), "__aqb_main", g_sleStack->stmtList);
 
+    declared_procs = E_declared_procs(g_sleStack->stmtList);
+
     if (!bodyStatement(*sourceProgram))
         return FALSE;
 
@@ -1563,7 +1608,6 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
     EM_init();
     S_init (inf);
     S_symbol_init();
-    declared_procs = hashmap_new();
 
     return sourceProgramBody(sourceProgram);
 }

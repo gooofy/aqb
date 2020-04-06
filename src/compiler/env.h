@@ -24,8 +24,9 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
                       Ty_tyList formals, Ty_ty result,
                       bool forward);
 
-S_scope E_base_tenv(void);  /* Ty_ty environment */
-S_scope E_base_venv(void);  /* E_enventry environment */
+S_scope E_base_tenv(void); /* Ty_ty environment */
+S_scope E_base_venv(void); /* E_enventry environment */
+map_t   E_declared_procs(A_stmtList stmtList); /* predefined functions and subs */
 
 /* 
  * os library offsets

@@ -188,3 +188,8 @@ FLOAT __mod_ffp(FLOAT divident, FLOAT divisor)
     return SPSub(divident, SPMul(q, divisor));
 }
 
+LONG __aqb_int(FLOAT f)
+{
+    return SPFix(f);
+}
+

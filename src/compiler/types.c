@@ -6,6 +6,8 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+
 #include "util.h"
 #include "symbol.h"
 #include "types.h"
@@ -135,5 +137,69 @@ int Ty_size(Ty_ty t)
                  return 8;
     }
     return 4;
+}
+
+// infer type from the var name
+Ty_ty Ty_inferType(string varname)
+{
+    int  l = strlen(varname);
+    char postfix = varname[l-1];
+
+    switch (postfix)
+    {
+        case '$':
+            return Ty_String();
+        case '%':
+            return Ty_Integer();
+        case '&':
+            return Ty_Long();
+        case '!':
+            return Ty_Single();
+        case '#':
+            return Ty_Double();
+    }
+    return Ty_Single();
+}
+
+string Ty_removeTypeSuffix(string varname)
+{
+    int  l = strlen(varname);
+    char postfix = varname[l-1];
+    string res = varname;
+
+    switch (postfix)
+    {
+        case '$':
+        case '%':
+        case '&':
+        case '!':
+        case '#':
+            res = String(res);
+            res[l-1] = 0;
+            break;
+    }
+    return res;
+}
+
+string Ty_name(Ty_ty t)
+{
+    switch (t->kind)
+    {
+        case Ty_bool:
+            return "boolean";
+        case Ty_integer:
+            return "integer";
+        case Ty_long:
+            return "long";
+        case Ty_single:
+            return "single";
+        case Ty_string:
+            return "string";
+        case Ty_double:
+            return "double";
+        default:
+            assert(0);
+    }
+    return NULL;
 }
 

@@ -128,6 +128,18 @@ A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId)
     return p;
 }
 
+A_stmt A_AssertStmt (A_pos pos, A_exp exp, string msg)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind          = A_assertStmt;
+    p->pos           = pos;
+    p->u.assertr.exp = exp;
+    p->u.assertr.msg = msg;
+
+    return p;
+}
+
 A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -486,13 +498,14 @@ void A_ParamListAppend (A_paramList list, A_param param)
     }
 }
 
-A_proc A_Proc (A_pos pos, S_symbol name, bool isFunction, bool isStatic, A_paramList paramList)
+A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool isStatic, A_paramList paramList)
 {
     A_proc p = checked_malloc(sizeof(*p));
 
     p->pos        = pos;
     p->name       = name;
-    p->isFunction = isFunction;
+    p->label      = label;
+    p->retty      = retty;
     p->isStatic   = isStatic;
     p->paramList  = paramList;
     p->body       = NULL;

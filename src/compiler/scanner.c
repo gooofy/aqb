@@ -68,6 +68,7 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "false",    (void *) S_FALSE);
     hashmap_put (g_tokens, "shared",   (void *) S_SHARED);
     hashmap_put (g_tokens, "dim",      (void *) S_DIM);
+    hashmap_put (g_tokens, "assert",   (void *) S_ASSERT);
 }
 
 A_pos S_getpos(void)

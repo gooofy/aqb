@@ -203,13 +203,17 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             indent(out, d);
             if (stmt->kind == A_procDeclStmt)
                 fprintf(out, "DECLARE ");
-            if (stmt->u.proc->isFunction)
-                fprintf(out, "FUNCTION %s(", S_name(stmt->u.proc->name));
+            if (stmt->u.proc->retty)
+                fprintf(out, "FUNCTION %s:%s(", S_name(stmt->u.proc->name), S_name(stmt->u.proc->retty));
             else
                 fprintf(out, "SUB %s(", S_name(stmt->u.proc->name));
             for (par = stmt->u.proc->paramList->first; par; par = par->next)
             {
-                fprintf(out, "%s", S_name(par->name));
+                if (par->name)
+                    fprintf(out, "%s:%s", S_name(par->name), S_name(par->ty));
+                else
+                    fprintf(out, "%s", S_name(par->ty));
+
                 if (par->next)
                     fprintf(out,",");
             }
@@ -240,6 +244,15 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 fprintf(out, "SHARED ");
             if (stmt->u.dimr.typeId)
                 fprintf(out, "%s", stmt->u.dimr.typeId);
+            fprintf(out, ")");
+            break;
+        }
+        case A_assertStmt:
+        {
+            indent(out, d);
+            fprintf(out, "ASSERT (");
+            pr_exp(out, stmt->u.assertr.exp);
+            fprintf(out, ", %s", stmt->u.assertr.msg);
             fprintf(out, ")");
             break;
         }

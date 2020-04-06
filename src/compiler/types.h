@@ -44,9 +44,13 @@ Ty_tyList    Ty_TyList(Ty_ty head, Ty_tyList tail);
 Ty_field     Ty_Field(S_symbol name, Ty_ty ty);
 Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail);
 
-void Ty_print(Ty_ty t);
-void Ty_printList(Ty_tyList list);
+void         Ty_print(Ty_ty t);
+void         Ty_printList(Ty_tyList list);
 
-int  Ty_size(Ty_ty t);
+int          Ty_size(Ty_ty t);
+
+Ty_ty        Ty_inferType(string varname);
+string       Ty_removeTypeSuffix(string varname);
+string       Ty_name(Ty_ty t);
 
 #endif

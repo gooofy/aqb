@@ -92,7 +92,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
         emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_left, FALSE), r));              // move.x   e_left, r
         if (opc_pre != AS_NOP)
             emit(AS_Instr (opc_pre, pre_w, r, r));                                        // opc_pre  r, r
-        emit (AS_InstrEx (opc_rc, isz, NULL, L(r, NULL), e_right->u.CONST, 0, NULL));     // opc_rc   #CONST, r
+        emit (AS_InstrEx (opc_rc, isz, L(r, NULL), L(r, NULL), e_right->u.CONST,0, NULL));// opc_rc   #CONST, r
         if (opc_post != AS_NOP)
             emit(AS_Instr (opc_post, isz, r, r));                                         // opc_post r, r
         return r;
@@ -102,12 +102,12 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
         if ((e_left->kind == T_CONST) && opc_cr)
         {
             /* BINOP(op, CONST, exp) */
-            emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_right, FALSE), r));         // move.x   e_right, r
+            emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_right, FALSE), r));              // move.x   e_right, r
             if (opc_pre != AS_NOP)
-                emit(AS_Instr (opc_pre, pre_w, r, r));                                    // opc_pre  r, r
-            emit (AS_InstrEx (opc_cr, isz, NULL, L(r, NULL), e_left->u.CONST, 0, NULL));  // opc_cr   #CONST, r
+                emit(AS_Instr (opc_pre, pre_w, r, r));                                         // opc_pre  r, r
+            emit (AS_InstrEx (opc_cr, isz, L(r, NULL), L(r, NULL), e_left->u.CONST, 0, NULL)); // opc_cr   #CONST, r
             if (opc_post != AS_NOP)
-                emit(AS_Instr (opc_post, isz, r, r));                                     // opc_post r, r
+                emit(AS_Instr (opc_post, isz, r, r));                                          // opc_post r, r
             return r;
         }
     }
@@ -988,7 +988,10 @@ static int munchArgsStack(int i, T_expList args)
     }
     else
     {
-        emit(AS_Instr(AS_MOVE_AnDn_PDsp, AS_w_L, munchExp(e, FALSE), NULL));              // move.l  e, -(sp)
+        Temp_temp r = munchExp(e, FALSE);
+        if (Ty_size(e->ty)==1)
+            emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), L(r, NULL), 255, 0, NULL));// and.l   #255, r
+        emit(AS_Instr(AS_MOVE_AnDn_PDsp, AS_w_L, r, NULL));                               // move.l  r, -(sp)
     }
 
     return cnt+1;
@@ -998,7 +1001,8 @@ static void munchCallerRestoreStack(int cnt)
 {
     if (cnt)
     {
-        emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, NULL, NULL, cnt * F_wordSize, 0, NULL));   // add.l #(cnt*F_wordSize), sp
+        emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, F_callersaves(), // sink the callersaves so liveness analysis will save them
+                        NULL, cnt * F_wordSize, 0, NULL));                                // add.l #(cnt*F_wordSize), sp
     }
 }
 

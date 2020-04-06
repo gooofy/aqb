@@ -15,23 +15,40 @@
 
 FLOAT __mod_ffp(FLOAT divident, FLOAT divisor);
 
+extern int foo (void);
+extern SHORT fooW (void);
+
+extern void assertW(SHORT w, const char *msg);
+extern void assertC(char b, const char *msg);
+
 void clibtestmain (void)
 {
+    ULONG l, m;
     FLOAT a, b;
 
     _aio_puts("clibtestmain\n");
 
-    // assertEqualsInt (10, 10, "this shouldn't have failed.");
-    // assertEqualsInt (10, 42, "this should fail.");
+    l = 0x80000047;
+    m = 0x80000147;
+
+    a = *((FLOAT*) &l);
+    b = *((FLOAT*) &m);
+
+    _aio_puts("a: "); _aio_putf(a); _aio_putnl();
+    _aio_puts("b: "); _aio_putf(b); _aio_putnl();
+
+    // _aqb_assert (foo() == 42, "this should fail.");
+    // assertC (foo() == 42, "this should fail.");
+    // assertW (fooW(), "this should fail.");
 
     // assertEqualsLong (10, 10, "this shouldn't have failed.");
     // assertEqualsLong (10, 42, "this should fail.");
 
-    a = SPFlt(23);
-    b = SPFlt(42);
+    // a = SPFlt(23);
+    // b = SPFlt(42);
 
-    assertEqualsSingle (a, a, "this shouldn't have failed.");
-    assertEqualsSingle (a, b, "this should fail.");
+    // assertEqualsSingle (a, a, "this shouldn't have failed.");
+    // assertEqualsSingle (a, b, "this should fail.");
 
     _aio_puts("FAIL: this should never be executed.\n");
 #if 0

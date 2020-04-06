@@ -6,9 +6,11 @@
 
 extern bool EM_anyErrors;
 
-void EM_init(void);
+void   EM_init(void);
 
-bool EM_err(string,...); // always returns FALSE
-void EM_error(A_pos pos, string,...); 
+bool   EM_err(string,...); // always returns FALSE
+void   EM_error(A_pos pos, string, ...); 
+
+string EM_format(A_pos pos, string, ...);
 
 #endif

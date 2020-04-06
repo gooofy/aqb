@@ -15,6 +15,8 @@ extern const char *P_filename;
 
 bool EM_anyErrors= FALSE;
 
+
+
 void EM_error(A_pos pos, char *message,...)
 {
     va_list ap;
@@ -44,6 +46,20 @@ bool EM_err(char *message,...)
     fprintf(stderr,"\n");
 
     return FALSE;
+}
+
+string EM_format(A_pos pos, char *message,...)
+{
+    va_list ap;
+    char buf[1024];
+ 
+    va_start(ap,message);
+    vsnprintf(buf, 1024, message, ap);
+    va_end(ap);
+
+    if (P_filename)
+        return strprintf("%s:%d:%d: %s", P_filename, S_getline(pos), S_getcol(pos), buf);
+    return strprintf("%d:%d: %s", S_getline(pos), S_getcol(pos), buf);
 }
 
 void EM_init(void)

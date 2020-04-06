@@ -10,6 +10,7 @@
 #include "symbol.h"
 #include "scanner.h"
 #include "util.h"
+#include "temp.h"
 
 typedef struct A_sourceProgram_ *A_sourceProgram;
 typedef struct A_stmt_          *A_stmt;
@@ -33,7 +34,7 @@ struct A_sourceProgram_
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
-           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt } kind;
+           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt, A_assertStmt } kind;
     A_pos pos;
 	union
     {
@@ -44,6 +45,7 @@ struct A_stmt_
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
         struct {bool shared; string varId; string typeId;} dimr;
+        struct {A_exp exp; string msg;} assertr;
     } u;
 };
 
@@ -133,7 +135,8 @@ struct A_proc_
 {
     A_pos       pos;
     S_symbol    name;
-    bool        isFunction;
+    S_symbol    retty;
+    Temp_label  label;
     bool        isStatic;
     A_paramList paramList;
     A_stmtList  body;
@@ -151,6 +154,7 @@ A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, 
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
 A_stmt          A_DimStmt         (A_pos pos, bool shared, string varId, string typeId);
+A_stmt          A_AssertStmt      (A_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
@@ -164,7 +168,7 @@ A_exp           A_FuncCallExp     (A_pos pos, S_symbol func, A_expList args);
 A_expList       A_ExpList         (void);
 void            A_ExpListAppend   (A_expList list, A_exp exp);
 A_var           A_SimpleVar       (A_pos pos, S_symbol sym);
-A_proc          A_Proc            (A_pos pos, S_symbol name, bool isFunction, bool isStatic, A_paramList paramList);
+A_proc          A_Proc            (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool isStatic, A_paramList paramList);
 A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
