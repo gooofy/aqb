@@ -11,8 +11,6 @@
 #include "errormsg.h"
 #include "printtree.h"
 
-#define AQB_MAIN_LABEL "__aqb_main"
-
 /*
  *   m68k frame layout used by this compiler
  *

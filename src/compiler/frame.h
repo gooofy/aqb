@@ -10,12 +10,18 @@
 #include "assem.h"
 #include "types.h"
 
+#define AQB_MAIN_LABEL "__aqb_main"
+
 /* declaration for frames */
 typedef struct F_frame_ *F_frame;
 typedef struct F_access_ *F_access;
 
 typedef struct F_accessList_ *F_accessList;
-struct F_accessList_ {F_access head; F_accessList tail;};
+struct F_accessList_ 
+{
+    F_access     head; 
+    F_accessList tail;
+};
 
 int       F_accessOffset(F_access a);
 Temp_temp F_accessReg(F_access a);
@@ -28,7 +34,8 @@ typedef struct F_frag_ *F_frag;
 struct F_frag_
 {
     enum {F_stringFrag, F_procFrag, F_fillFrag} kind;
-    union {
+    union 
+    {
         struct {Temp_label label; string str;} stringg;
         struct {T_stm body; F_frame frame;} proc;
         struct {Temp_label label; int size;} fill;
