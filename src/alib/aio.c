@@ -117,3 +117,8 @@ void _aio_putf(FLOAT f)
     _aio_puts(buf);
 }
 
+void _aio_putbool(BOOL b)
+{
+    _aio_puts(b ? "TRUE" : "FALSE");
+}
+

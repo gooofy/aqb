@@ -114,6 +114,7 @@ S_scope E_base_venv(void)
     declare_builtin(t, "__aio_puts2",        "i",        Ty_Void());
     declare_builtin(t, "__aio_puts4",        "l",        Ty_Void());
     declare_builtin(t, "__aio_putf",         "f",        Ty_Void());
+    declare_builtin(t, "__aio_putbool",      "b",        Ty_Void());
     declare_builtin(t, "__aio_putnl",        "",         Ty_Void());
     declare_builtin(t, "__aio_puttab",       "",         Ty_Void());
     declare_builtin(t, "__aqb_assert",       "bs",       Ty_Void());

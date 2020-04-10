@@ -599,11 +599,12 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     switch (e->ty->kind)
                     {
                         case Ty_bool:
-                            // FIXME
-                            // emit(AS_Move(String("tst.l  `s0"), L(r, NULL), L(r1, NULL), NULL, NULL));
-                            // emit(AS_Oper(String("sne.b  `d0"), L(r, NULL), NULL, NULL));
-                            assert(0);
-                            break;
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_TST_Dn, AS_w_L, r1, NULL));       // tst.l r1
+                            emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
+                            return r;
+                        }
                         case Ty_integer:
                         {
                             Temp_temp r = Temp_newtemp(e->ty);
@@ -621,13 +622,11 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                         {
-                            // FIXME: test
-                            // Temp_temp r = Temp_newtemp(e->ty);
-                            // Temp_temp t = emitRegCall("_MathBase", LVOSPFix, F_RAL(r1, F_D0(), NULL), Ty_Long());
-                            // emit(AS_Instr(AS_TST_Dn, AS_w_L, t, NULL));        // tst.l t
-                            // emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
-                            //return r;
-                            assert(0);
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp t = emitRegCall("_MathBase", LVOSPFix, F_RAL(r1, F_D0(), NULL), Ty_Long());
+                            emit(AS_Instr(AS_TST_Dn, AS_w_L, t, NULL));        // tst.l t
+                            emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
+                            return r;
                         }
                         case Ty_integer:
                         case Ty_long:

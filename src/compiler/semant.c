@@ -48,10 +48,10 @@ static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
 {
     E_enventry x = S_look(venv, v->u.simple);
 
-    if (venv != g_venv)
+    if (!x && (venv != g_venv))
     {
         x = S_look(g_venv, v->u.simple);
-        if (!x->u.var.shared)
+        if (x && !x->u.var.shared)
             x = NULL;
     }
 
@@ -679,6 +679,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     break;
                 case Ty_single:
                     fsym = S_Symbol("__aio_putf");
+                    break;
+                case Ty_bool:
+                    fsym = S_Symbol("__aio_putbool");
                     break;
                 default:
                     EM_error(stmt->pos, "unsupported type %d in print expression list.", exp.ty->kind);
