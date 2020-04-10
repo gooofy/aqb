@@ -12,7 +12,7 @@ void S_symbol_init(void);
 
 typedef struct S_symbol_ *S_symbol;
 
-/* Make a unique symbol from a given string.  
+/* Make a unique symbol from a given string.
  *  Different calls to S_Symbol("foo") will yield the same S_symbol
  *  value, even if the "foo" strings are at different locations. */
 S_symbol S_Symbol(string);
@@ -24,10 +24,10 @@ string S_name(S_symbol);
 typedef struct S_scope_ *S_scope;
 
 /* Start a new scope. Scopes are nested. */
-S_scope S_beginScope(S_scope parent);
+S_scope S_beginScope(void);
 
-/* free scope s, return parent scope */
-S_scope S_endScope(S_scope s);
+/* free scope s */
+void S_endScope(S_scope s);
 
 /* Enter a binding "sym->value" into "t", shadowing but not deleting
  *    any previous binding of "sym". */

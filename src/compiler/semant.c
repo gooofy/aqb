@@ -26,12 +26,14 @@ expty expTy(Tr_exp exp, Ty_ty ty)
     return e;
 }
 
+// global symbol namespace
+
+static S_scope g_venv;
+static S_scope g_tenv;
+
 static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
 static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl);
 static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
-
-
-/* Definitions */
 
 #if 0
 /* Function Declarations */
@@ -40,7 +42,6 @@ static Ty_ty transTy(Tr_level level, S_scope tenv, A_ty a);
 #endif
 
 /* Utilities */
-
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
@@ -678,7 +679,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             if (fsym)
             {
-                E_enventry func = S_look(venv, fsym);
+                E_enventry func = S_look(g_venv, fsym);
                 Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
                 return tr_exp;
             }
@@ -686,14 +687,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         case A_printNLStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_putnl");
-            E_enventry func = S_look(venv, fsym);
+            E_enventry func = S_look(g_venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
             return tr_exp;
         }
         case A_printTABStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_puttab");
-            E_enventry func = S_look(venv, fsym);
+            E_enventry func = S_look(g_venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
             return tr_exp;
         }
@@ -703,7 +704,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             // Tr_expList arglist = Tr_ExpList(exp.exp, Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), NULL));
             Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp.exp, NULL));
             S_symbol fsym      = S_Symbol("__aqb_assert");
-            E_enventry func    = S_look(venv, fsym);
+            E_enventry func    = S_look(g_venv, fsym);
             return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
         }
         case A_assignStmt:
@@ -825,7 +826,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 Tr_level  funlv = e->u.fun.level;
                 Tr_access ret_access = NULL;
 
-                lenv = S_beginScope(venv);
+                lenv = S_beginScope();
                 {
                     Tr_accessList acl = Tr_formals(funlv);
                     A_param param;
@@ -943,24 +944,6 @@ static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLis
     }
 
     return expTy(Tr_seqExp(el), Ty_Void());
-}
-
-F_fragList SEM_transProg(A_sourceProgram sourceProgram)
-{
-
-    S_scope venv = E_base_venv();
-    S_scope tenv = E_base_tenv();
-
-    Tr_level lv = Tr_global();
-
-    printf ("transStmtList:\n");
-    printf ("--------------\n");
-    expty prog = transStmtList(lv, venv, tenv, sourceProgram->stmtList, NULL, 0);
-    printf ("--------------\n");
-
-    Tr_procEntryExit(lv, prog.exp, NULL, NULL);
-
-    return Tr_getResult();
 }
 
 static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl)
@@ -1202,4 +1185,22 @@ static Ty_ty transTy(Tr_level level, S_scope tenv, A_ty a) {
 }
 
 #endif
+
+F_fragList SEM_transProg(A_sourceProgram sourceProgram)
+{
+
+    g_venv = E_base_venv();
+    g_tenv = E_base_tenv();
+
+    Tr_level lv = Tr_global();
+
+    printf ("transStmtList:\n");
+    printf ("--------------\n");
+    expty prog = transStmtList(lv, g_venv, g_tenv, sourceProgram->stmtList, NULL, 0);
+    printf ("--------------\n");
+
+    Tr_procEntryExit(lv, prog.exp, NULL, NULL);
+
+    return Tr_getResult();
+}
 

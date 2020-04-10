@@ -17,9 +17,9 @@ typedef struct F_frame_ *F_frame;
 typedef struct F_access_ *F_access;
 
 typedef struct F_accessList_ *F_accessList;
-struct F_accessList_ 
+struct F_accessList_
 {
-    F_access     head; 
+    F_access     head;
     F_accessList tail;
 };
 
@@ -34,7 +34,7 @@ typedef struct F_frag_ *F_frag;
 struct F_frag_
 {
     enum {F_stringFrag, F_procFrag, F_fillFrag} kind;
-    union 
+    union
     {
         struct {Temp_label label; string str;} stringg;
         struct {T_stm body; F_frame frame;} proc;
@@ -99,7 +99,7 @@ AS_proc       F_procEntryExitAS(F_frame frame, AS_instrList body);
 
 // RAL: register association list
 typedef struct F_ral_ *F_ral;
-struct F_ral_ 
+struct F_ral_
 {
     Temp_temp arg;
     Temp_temp reg;

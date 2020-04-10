@@ -35,7 +35,7 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
 
 S_scope E_base_tenv(void)
 {
-    S_scope scope = S_beginScope(NULL);
+    S_scope scope = S_beginScope();
     S_enter(scope, S_Symbol("boolean"), Ty_Bool());
     S_enter(scope, S_Symbol("integer"), Ty_Integer());
     S_enter(scope, S_Symbol("long"),    Ty_Long());
@@ -105,7 +105,7 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
 
 S_scope E_base_venv(void)
 {
-    S_scope t = S_beginScope(NULL);
+    S_scope t = S_beginScope();
 
     declare_builtin(t, "___aqb_window_open", "isiiiiii", Ty_Void());
     declare_builtin(t, "___aqb_line",        "iiiiii",   Ty_Void());

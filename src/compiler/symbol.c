@@ -6,15 +6,15 @@
 #include "symbol.h"
 #include "hashmap.h"
 
-struct S_symbol_ 
+struct S_symbol_
 {
-    string   name; 
+    string   name;
 };
 
 static S_symbol mksymbol(string name)
 {
     S_symbol s=checked_malloc(sizeof(*s));
-    s->name=name; 
+    s->name=name;
     return s;
 }
 
@@ -38,7 +38,7 @@ S_symbol S_Symbol(string name)
     }
     return sym;
 }
- 
+
 string S_name(S_symbol sym)
 {
     return sym->name;
@@ -48,48 +48,36 @@ string S_name(S_symbol sym)
  * scopes
  **********************************/
 
-struct S_scope_ 
+struct S_scope_
 {
-    S_scope   parent;
     map_t     map;
 };
 
-S_scope S_beginScope(S_scope parent)
+S_scope S_beginScope(void)
 {
     S_scope s = checked_malloc(sizeof(*s));
 
     s->map        = hashmap_new();
-    s->parent     = parent;
 
     return s;
 }
 
-S_scope S_endScope(S_scope s)
+void S_endScope(S_scope s)
 {
-    S_scope parent = s->parent;
-
     hashmap_free(s->map);
     free(s);
-
-    return parent;
 }
 
-void S_enter(S_scope scope, S_symbol sym, void *value) 
+void S_enter(S_scope scope, S_symbol sym, void *value)
 {
     hashmap_put(scope->map, sym->name, value);
 }
 
-void *S_look(S_scope s, S_symbol sym) 
+void *S_look(S_scope s, S_symbol sym)
 {
-    S_scope scope = s;
-
-    while (scope)
-    {
-        any_t res;
-        if (hashmap_get(scope->map, sym->name, &res)==MAP_OK)
-            return res;
-        scope = scope->parent;
-    }
+    any_t res;
+    if (hashmap_get(s->map, sym->name, &res)==MAP_OK)
+        return res;
     return NULL;
 }
 
