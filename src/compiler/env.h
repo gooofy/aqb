@@ -12,14 +12,14 @@ struct E_enventry_
     enum {E_varEntry, E_funEntry} kind;
     union 
     {
-        struct {Tr_access access; Ty_ty ty;} var;
+        struct {Tr_access access; Ty_ty ty; bool shared;} var;
         struct {Tr_level level; Temp_label label; 
                 Ty_tyList formals; Ty_ty result;
                 bool forward;} fun;
     } u;
 };
 
-E_enventry E_VarEntry(Tr_access access, Ty_ty ty);
+E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared);
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
                       Ty_tyList formals, Ty_ty result,
                       bool forward);

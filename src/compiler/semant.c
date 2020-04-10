@@ -48,12 +48,19 @@ static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
 {
     E_enventry x = S_look(venv, v->u.simple);
 
+    if (venv != g_venv)
+    {
+        x = S_look(g_venv, v->u.simple);
+        if (!x->u.var.shared)
+            x = NULL;
+    }
+
     if (!x)
     {
         string s = S_name(v->u.simple);
         Ty_ty t = Ty_inferType(s);
 
-        x = E_VarEntry(Tr_allocVar(level, s, t), t);
+        x = E_VarEntry(Tr_allocVar(level, s, t), t, FALSE);
         S_enter(venv, v->u.simple, x);
     }
     return x;
@@ -833,11 +840,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     Ty_tyList t;
                     for (param = proc->paramList->first, t = e->u.fun.formals;
                          param; param = param->next, t = t->tail, acl = Tr_accessListTail(acl))
-                        S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head));
+                        S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head, FALSE));
                     if (proc->retty)
                     {
                         ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
-                        S_enter(lenv, S_Symbol(RETURN_VAR_NAME), E_VarEntry(ret_access, resultTy));
+                        S_enter(lenv, S_Symbol(RETURN_VAR_NAME), E_VarEntry(ret_access, resultTy, FALSE));
                     }
                 }
 
@@ -892,23 +899,57 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_dimStmt:
         {
-            assert(0);
-            // // struct {bool shared; string varId; string typeId;} varr;
-            // E_enventry x = S_look(venv, stmt->u.varId);
+            E_enventry x;
 
-            // if (!x)
-            // {
-            //     string s = S_name(v->u.simple);
-            //     Ty_ty t = Ty_inferType(s);
+            Ty_ty t = NULL;
+            if (stmt->u.dimr.typeId)
+            {
+                t = S_look(tenv, S_Symbol(stmt->u.dimr.typeId));
+                if (!t)
+                {
+                    EM_error(stmt->pos, "Unknown type %s.", stmt->u.dimr.typeId);
+                    break;
+                }
+            }
+            else
+            {
+                t = Ty_inferType(stmt->u.dimr.varId);
+            }
 
-            //     x = E_VarEntry(Tr_allocVar(level, s, t), t);
-            //     S_enter(venv, v->u.simple, x);
-            // }
-            // else
-            // {
-            //     EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.varId);
-            // }
-            // return x;
+            S_symbol name = S_Symbol(stmt->u.dimr.varId);
+            if (stmt->u.dimr.shared)
+            {
+                if (depth)
+                {
+                    x = S_look(venv, name);
+                    if (x)
+                    {
+                        EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.dimr.varId);
+                        break;
+                    }
+                }
+                x = S_look(g_venv, name);
+                if (x)
+                {
+                    EM_error(stmt->pos, "Variable %s already declared in global scope.", stmt->u.dimr.varId);
+                    break;
+                }
+
+                x = E_VarEntry(Tr_allocVar(Tr_global(), stmt->u.dimr.varId, t), t, TRUE);
+                S_enter(g_venv, name, x);
+            }
+            else
+            {
+                x = S_look(venv, name);
+                if (x)
+                {
+                    EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.dimr.varId);
+                    break;
+                }
+                x = E_VarEntry(Tr_allocVar(level, stmt->u.dimr.varId, t), t, FALSE);
+                S_enter(venv, name, x);
+            }
+            break;
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);

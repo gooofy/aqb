@@ -1381,7 +1381,7 @@ static bool stmtIdent(void)
 static bool singleVarDecl (bool shared)
 {
     A_pos  pos = S_getpos();
-    string varId, typeId;
+    string varId, typeId=NULL;
 
     if (S_token != S_IDENT)
         return EM_err("variable declaration: identifier expected here.");

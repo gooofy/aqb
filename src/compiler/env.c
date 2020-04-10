@@ -7,13 +7,14 @@
 #include "env.h"
 #include "translate.h"
 
-E_enventry E_VarEntry(Tr_access access, Ty_ty ty)
+E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind         = E_varEntry;
     p->u.var.access = access;
     p->u.var.ty     = ty;
+    p->u.var.shared = shared;
 
     return p;
 }
