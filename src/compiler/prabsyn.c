@@ -21,22 +21,25 @@ static void pr_stmtList(FILE *out, A_stmtList stmtList, int d);
 
 static void pr_var(FILE *out, A_var v)
 {
-    switch (v->kind) {
-    case A_simpleVar:
-         fprintf(out, "simpleVar(%s)", S_name(v->u.simple));
-         break;
-    case A_fieldVar:
-         fprintf(out, "fieldVar(%s.", S_name(v->u.field.sym));
-         pr_var(out, v->u.field.var); fprintf(out, ")");
-         break;
-    case A_subscriptVar:
-         fprintf(out, "subscriptVar(");
-         pr_var(out, v->u.subscript.var); fprintf(out, "[");
-         pr_exp(out, v->u.subscript.exp); fprintf(out, "])");
-         break;
-    default:
-         fprintf(out, "(***err: unknown var type: %d)", v->kind);
+    fprintf(out, "Var(%s", S_name(v->name));
+    for (A_selector sel = v->selector; sel; sel = sel->tail)
+    {
+        switch(sel->kind)
+        {
+            case A_indexSel:
+                fprintf(out, "[");
+                pr_exp(out, sel->u.idx);
+                fprintf(out, "]");
+                break;
+            case A_fieldSel:
+                fprintf(out, ".%s", S_name(sel->u.field));
+                break;
+            case A_derefSel:
+                fprintf(out, "->");
+                break;
+        }
     }
+    fprintf(out, ")");
 }
 
 static void pr_exp(FILE *out, A_exp exp);
@@ -162,9 +165,7 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             break;
         case A_forStmt:
             indent(out, d);
-            fprintf(out, "FOR(");
-            pr_var(out, stmt->u.forr.var);
-            fprintf(out, " := ");
+            fprintf(out, "FOR(%s := ", S_name(stmt->u.forr.var));
             pr_exp(out, stmt->u.forr.from_exp);
             fprintf(out, " TO ");
             pr_exp(out, stmt->u.forr.to_exp);

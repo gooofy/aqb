@@ -1,7 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 /*
- * types.h - 
+ * types.h -
  *
  * All types and functions declared in this header file begin with "Ty_"
  * Linked list types end with "..list"
@@ -12,16 +12,17 @@ typedef struct Ty_tyList_    *Ty_tyList;
 typedef struct Ty_field_     *Ty_field;
 typedef struct Ty_fieldList_ *Ty_fieldList;
 
-struct Ty_ty_ 
+struct Ty_ty_
 {
-    enum { Ty_bool, 
+    enum { Ty_bool,
            Ty_integer, Ty_long, Ty_single, Ty_double,
-           Ty_string, Ty_array, Ty_record, 
-           Ty_void                                    } kind;    
-    union 
+           Ty_string, Ty_array, Ty_record, Ty_pointer,
+           Ty_void                                    } kind;
+    union
     {
-        Ty_fieldList record;
-        Ty_ty        array;
+        Ty_fieldList                                    record;
+        struct {Ty_ty elementTy; int iStart; int iEnd;} array;
+        Ty_ty                                           pointer;
     } u;
 };
 
@@ -37,8 +38,8 @@ Ty_ty Ty_Double(void);
 Ty_ty Ty_String(void);
 Ty_ty Ty_Void(void);
 
-Ty_ty Ty_Record(Ty_fieldList fields);
-Ty_ty Ty_Array(Ty_ty ty);
+// Ty_ty Ty_Record(Ty_fieldList fields);
+// Ty_ty Ty_Array(Ty_ty ty);
 
 Ty_tyList    Ty_TyList(Ty_ty head, Ty_tyList tail);
 Ty_field     Ty_Field(S_symbol name, Ty_ty ty);

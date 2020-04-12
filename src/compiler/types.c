@@ -1,5 +1,5 @@
 /*
- * types.c - 
+ * types.c -
  *
  * All types and functions declared in this header file begin with "Ty_"
  * Linked list types end with "..list"
@@ -33,25 +33,25 @@ Ty_ty Ty_String(void) {return &tystring;}
 static struct Ty_ty_ tyvoid = {Ty_void};
 Ty_ty Ty_Void(void) {return &tyvoid;}
 
-Ty_ty Ty_Record(Ty_fieldList fields)
-{
-    Ty_ty p = checked_malloc(sizeof(*p));
-
-    p->kind     = Ty_record;
-    p->u.record = fields;
-
-    return p;
-}
-
-Ty_ty Ty_Array(Ty_ty ty)
-{
-    Ty_ty p = checked_malloc(sizeof(*p));
-
-    p->kind    = Ty_array;
-    p->u.array = ty;
-
-    return p;
-}
+// Ty_ty Ty_Record(Ty_fieldList fields)
+// {
+//     Ty_ty p = checked_malloc(sizeof(*p));
+//
+//     p->kind     = Ty_record;
+//     p->u.record = fields;
+//
+//     return p;
+// }
+//
+// Ty_ty Ty_Array(Ty_ty ty)
+// {
+//     Ty_ty p = checked_malloc(sizeof(*p));
+//
+//     p->kind    = Ty_array;
+//     p->u.array = ty;
+//
+//     return p;
+// }
 
 Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail)
 {
@@ -85,30 +85,30 @@ Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail)
 
 /* printing functions - used for debugging */
 static char str_ty[][20] = {
-   "ty_bool", 
-   "ty_integer", "ty_long", "ty_single", "ty_double", 
-   "ty_string", "ty_array", "ty_record", 
+   "ty_bool",
+   "ty_integer", "ty_long", "ty_single", "ty_double",
+   "ty_string", "ty_array", "ty_record",
    "ty_void"};
 
 void Ty_print(Ty_ty t)
 {
-    if (t == NULL) 
+    if (t == NULL)
     {
         printf("null");
     }
-    else 
-    { 
+    else
+    {
         printf("%s", str_ty[t->kind]);
     }
 }
 
 void Ty_printList(Ty_tyList list)
 {
-    if (list == NULL) 
+    if (list == NULL)
     {
         printf("null");
     }
-    else 
+    else
     {
         printf("TyList( ");
         Ty_print(list->head);
@@ -123,18 +123,21 @@ int Ty_size(Ty_ty t)
     switch (t->kind)
     {
         case Ty_bool:
-                 return 1;
+             return 1;
         case Ty_integer:
-                 return 2;
+             return 2;
         case Ty_long:
         case Ty_single:
-        case Ty_string: 
-        case Ty_array:
-        case Ty_record: 
+        case Ty_string:
         case Ty_void:
-                 return 4;
+        case Ty_pointer:
+             return 4;
         case Ty_double:
-                 return 8;
+             return 8;
+        case Ty_array:
+        case Ty_record:
+            assert(0); // FIXME
+            return 4;
     }
     return 4;
 }

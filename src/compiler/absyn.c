@@ -20,7 +20,7 @@ A_sourceProgram A_SourceProgram(A_pos pos, const char *name, A_stmtList stmtList
     return p;
 }
 
-A_stmt A_ForStmt (A_pos pos, A_var var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
+A_stmt A_ForStmt (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -115,7 +115,7 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId)
+A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId, A_dim dims)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -124,6 +124,18 @@ A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId)
     p->u.dimr.shared = shared;
     p->u.dimr.varId  = varId;
     p->u.dimr.typeId = typeId;
+    p->u.dimr.dims   = dims;
+
+    return p;
+}
+
+A_dim A_Dim (A_exp expStart, A_exp expEnd)
+{
+    A_dim p = checked_malloc(sizeof(*p));
+
+    p->expStart = expStart;
+    p->expEnd   = expEnd;
+    p->tail     = NULL;
 
     return p;
 }
@@ -307,13 +319,12 @@ void A_StmtListAppend (A_stmtList list, A_stmt stmt)
 }
 
 
-A_var A_SimpleVar(A_pos pos, S_symbol sym)
+A_var A_Var(A_pos pos, S_symbol sym)
 {
     A_var p = checked_malloc(sizeof(*p));
 
-    p->kind     = A_simpleVar;
-    p->pos      = pos;
-    p->u.simple = sym;
+    p->pos  = pos;
+    p->name = sym;
 
     return p;
 }

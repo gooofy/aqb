@@ -20,9 +20,11 @@ typedef struct A_expListNode_   *A_expListNode;
 typedef struct A_stmtList_      *A_stmtList;
 typedef struct A_stmtListNode_  *A_stmtListNode;
 typedef struct A_var_           *A_var;
+typedef struct A_selector_      *A_selector;
 typedef struct A_proc_          *A_proc;
 typedef struct A_param_         *A_param;
 typedef struct A_paramList_     *A_paramList;
+typedef struct A_dim_           *A_dim;
 
 struct A_sourceProgram_
 {
@@ -40,11 +42,11 @@ struct A_stmt_
     {
         A_exp printExp;
 	    struct {A_var var; A_exp exp;} assign;
-	    struct {A_var var; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
+	    struct {S_symbol var; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
-        struct {bool shared; string varId; string typeId;} dimr;
+        struct {bool shared; string varId; string typeId; A_dim dims;} dimr;
         struct {A_exp exp; string msg;} assertr;
     } u;
 };
@@ -96,22 +98,21 @@ struct A_expList_
 
 struct A_var_
 {
-    enum { A_simpleVar, A_fieldVar, A_subscriptVar } kind;
-    A_pos pos;
+    A_pos      pos;
+    S_symbol   name;
+    A_selector selector;
+};
+
+struct A_selector_
+{
+    enum { A_indexSel, A_fieldSel, A_derefSel } kind;
+    A_pos      pos;
+    A_selector tail;
 	union
     {
-        S_symbol simple;
-	    struct
-        {
-            A_var var;
-		    S_symbol sym;
-        } field;
-	    struct
-        {
-            A_var var;
-		    A_exp exp;
-        } subscript;
-    } u;
+        A_exp    idx;
+        S_symbol field;
+    }u;
 };
 
 struct A_param_
@@ -142,6 +143,13 @@ struct A_proc_
     A_stmtList  body;
 };
 
+struct A_dim_
+{
+    A_exp expStart;
+    A_exp expEnd;
+    A_dim tail;
+};
+
 // helper functions to allocate and initialize the above defined AST nodes:
 
 A_sourceProgram A_SourceProgram   (A_pos pos, const char *name, A_stmtList stmtList);
@@ -149,11 +157,11 @@ A_stmt          A_PrintStmt       (A_pos pos, A_exp exp);
 A_stmt          A_PrintNLStmt     (A_pos pos);
 A_stmt          A_PrintTABStmt    (A_pos pos);
 A_stmt          A_AssignStmt      (A_pos pos, A_var var, A_exp exp);
-A_stmt          A_ForStmt         (A_pos pos, A_var var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
+A_stmt          A_ForStmt         (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
-A_stmt          A_DimStmt         (A_pos pos, bool shared, string varId, string typeId);
+A_stmt          A_DimStmt         (A_pos pos, bool shared, string varId, string typeId, A_dim dims);
 A_stmt          A_AssertStmt      (A_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmtList      A_StmtList        (void);
@@ -167,11 +175,15 @@ A_exp           A_OpExp           (A_pos pos, A_oper oper, A_exp left, A_exp rig
 A_exp           A_FuncCallExp     (A_pos pos, S_symbol func, A_expList args);
 A_expList       A_ExpList         (void);
 void            A_ExpListAppend   (A_expList list, A_exp exp);
-A_var           A_SimpleVar       (A_pos pos, S_symbol sym);
+A_var           A_Var             (A_pos pos, S_symbol sym);
+A_selector      A_IndexSelector   (A_pos pos, A_exp idx);
+A_selector      A_FieldSelector   (A_pos pos, S_symbol field);
+A_selector      A_DerefSelector   (A_pos pos);
 A_proc          A_Proc            (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool isStatic, A_paramList paramList);
 A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
+A_dim           A_Dim             (A_exp expStart, A_exp expEnd);
 
 #if 0
 typedef struct A_decList_ *A_decList;

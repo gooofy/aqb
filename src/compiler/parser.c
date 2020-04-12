@@ -34,7 +34,7 @@ struct P_SLE_
     {
         struct
         {
-            A_var    var;
+            S_symbol var;
             A_exp    from_exp, to_exp, step_exp;
         } forLoop;
         A_exp whileExp;
@@ -127,7 +127,7 @@ static bool atom(A_exp *exp)
                 }
             }
 
-            *exp = A_VarExp(pos, A_SimpleVar (pos, sym));
+            *exp = A_VarExp(pos, A_Var (pos, sym));
             break;
         }
         case S_TRUE:
@@ -884,7 +884,7 @@ static bool lValue(A_var *v)
         return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
     }
 
-    *v = A_SimpleVar (pos, sym);
+    *v = A_Var (pos, sym);
     return TRUE;
 }
 
@@ -914,7 +914,7 @@ static bool stmtLet(void)
 // forBegin ::= FOR ident "=" expression TO expression [ STEP expression ]
 static bool stmtForBegin(void)
 {
-    A_var    var;
+    S_symbol var;
     A_exp    from_exp, to_exp, step_exp;
     A_pos    pos = S_getpos();
     P_SLE    sle;
@@ -923,7 +923,7 @@ static bool stmtForBegin(void)
 
     if (S_token != S_IDENT)
         return EM_err ("variable name expected here.");
-    var = A_SimpleVar (pos, S_Symbol(String(S_strlc)));
+    var = S_Symbol(String(S_strlc));
     S_getsym();
 
     if (S_token != S_EQUALS)
@@ -977,9 +977,9 @@ static bool stmtForEnd_(A_pos pos, char *varId)
     if (varId)
     {
         S_symbol sym2 = S_Symbol(varId);
-        if (sym2 != sle->u.forLoop.var->u.simple)
+        if (sym2 != sle->u.forLoop.var)
         {
-            EM_error(pos, "FOR/NEXT loop variable mismatch (found: %s, expected: %d)", varId, S_name(sle->u.forLoop.var->u.simple));
+            EM_error(pos, "FOR/NEXT loop variable mismatch (found: %s, expected: %d)", varId, S_name(sle->u.forLoop.var));
             return FALSE;
         }
     }
@@ -1355,7 +1355,7 @@ static bool stmtIdent(void)
         {
             A_var v;
             A_exp exp;
-            v = A_SimpleVar (pos, sym);
+            v = A_Var (pos, sym);
             S_getsym();
             if (!expression(&exp))
                 return EM_err("expression expected here.");
@@ -1376,12 +1376,60 @@ static bool stmtIdent(void)
 
 // arrayDimension ::= expression [ TO expression]
 // arrayDimensions ::= arrayDimension ( "," arrayDimension )*
+
+static bool arrayDimensions (A_dim *dims)
+{
+    A_exp expStart, expEnd = NULL;
+    A_dim last;
+
+    if (!expression(&expStart))
+    {
+        return EM_err("Array dimension expected here.");
+    }
+
+    if (S_token == S_TO)
+    {
+        S_getsym();
+        if (!expression(&expEnd))
+        {
+            return EM_err("Array dimension expected here.");
+        }
+    }
+
+    *dims = A_Dim(expStart, expEnd);
+    last = *dims;
+
+    while (S_token == S_COMMA)
+    {
+        S_getsym();
+        if (!expression(&expStart))
+        {
+            return EM_err("Array dimension expected here.");
+        }
+
+        if (S_token == S_TO)
+        {
+            S_getsym();
+            if (!expression(&expEnd))
+            {
+                return EM_err("Array dimension expected here.");
+            }
+        }
+        last->tail = A_Dim(expStart, expEnd);
+        last = last->tail;
+    }
+
+    return TRUE;
+}
+
+
 // singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] [ "=" varInitializer ]
 
 static bool singleVarDecl (bool shared)
 {
     A_pos  pos = S_getpos();
     string varId, typeId=NULL;
+    A_dim  dims = NULL;
 
     if (S_token != S_IDENT)
         return EM_err("variable declaration: identifier expected here.");
@@ -1390,7 +1438,14 @@ static bool singleVarDecl (bool shared)
     S_getsym();
 
     if (S_token == S_LPAREN)
-        return EM_err("FIXME: sorry, arrays are not supported yet."); // FIXME
+    {
+        S_getsym();
+        if (!arrayDimensions(&dims))
+            return FALSE;
+        if (S_token != S_RPAREN)
+            return EM_err(") expected here.");
+        S_getsym();
+    }
 
     if (S_token == S_AS)
     {
@@ -1406,7 +1461,7 @@ static bool singleVarDecl (bool shared)
         return EM_err("FIXME: sorry, variable initializers are not supported yet."); // FIXME
 
 
-    A_StmtListAppend (g_sleStack->stmtList, A_DimStmt(pos, shared, varId, typeId));
+    A_StmtListAppend (g_sleStack->stmtList, A_DimStmt(pos, shared, varId, typeId, dims));
 
     return TRUE;
 }

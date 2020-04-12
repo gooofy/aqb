@@ -44,24 +44,24 @@ static Ty_ty transTy(Tr_level level, S_scope tenv, A_ty a);
 /* Utilities */
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
-static E_enventry autovar(Tr_level level, S_scope venv, A_var v)
+static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v)
 {
-    E_enventry x = S_look(venv, v->u.simple);
+    E_enventry x = S_look(venv, v);
 
     if (!x && (venv != g_venv))
     {
-        x = S_look(g_venv, v->u.simple);
+        x = S_look(g_venv, v);
         if (x && !x->u.var.shared)
             x = NULL;
     }
 
     if (!x)
     {
-        string s = S_name(v->u.simple);
+        string s = S_name(v);
         Ty_ty t = Ty_inferType(s);
 
         x = E_VarEntry(Tr_allocVar(level, s, t), t, FALSE);
-        S_enter(venv, v->u.simple, x);
+        S_enter(venv, v, x);
     }
     return x;
 }
@@ -147,6 +147,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
             }
@@ -166,6 +167,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
             }
@@ -185,6 +187,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
             }
@@ -204,6 +207,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
             }
@@ -221,6 +225,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
             }
@@ -235,6 +240,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
                 case Ty_string:
@@ -242,9 +248,15 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return TRUE;
             }
         case Ty_array:
+            assert(0); // FIXME
             *res = ty1;
             return FALSE;
         case Ty_record:
+            assert(0); // FIXME
+            *res = ty1;
+            return FALSE;
+        case Ty_pointer:
+            assert(0); // FIXME
             *res = ty1;
             return FALSE;
         case Ty_void:
@@ -258,6 +270,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_string:
                 case Ty_array:
                 case Ty_record:
+                case Ty_pointer:
                     *res = ty1;
                     return FALSE;
                 case Ty_void:
@@ -992,36 +1005,35 @@ static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLis
 
 static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl)
 {
-    switch (v->kind)
-    {
-        case A_simpleVar:
-        {
-            E_enventry x = autovar(level, venv, v);
+    E_enventry x = autovar(level, venv, v->name);
 
-            if (x->kind == E_varEntry)
+    if (x->kind == E_varEntry)
+    {
+
+        assert (v->selector == NULL); // FIXME: implement!
+
+        return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
+    }
+    else
+    {
+        // return value ?
+        if ( (x->kind == E_funEntry) && (Tr_getLabel(level) == x->u.fun.label) )
+        {
+            if (x->u.fun.result->kind == Ty_void)
             {
-                return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
+                EM_error(v->pos, "subs cannot return a value: %s", S_name(v->name));
+                return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
             }
-            else
-            {
-                // return value ?
-                if ( (x->kind == E_funEntry) && (Tr_getLabel(level) == x->u.fun.label) )
-                {
-                    if (x->u.fun.result->kind == Ty_void)
-                    {
-                        EM_error(v->pos, "subs cannot return a value: %s", S_name(v->u.simple));
-                        return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
-                    }
-                    x = S_look(venv, S_Symbol(RETURN_VAR_NAME));
-                    return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
-                }
-                else
-                {
-                    EM_error(v->pos, "this is not a variable: %s", S_name(v->u.simple));
-                    return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
-                }
-            }
+            x = S_look(venv, S_Symbol(RETURN_VAR_NAME));
+            return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
         }
+        else
+        {
+            EM_error(v->pos, "this is not a variable: %s", S_name(v->name));
+            return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
+        }
+    }
+
 #if 0
         case A_fieldVar:
         {
@@ -1061,9 +1073,6 @@ static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_
             return expTy(Tr_subscriptVar(var.exp, sub.exp, level), actual_ty(var.ty->u.array));
         }
 #endif
-        default:
-            EM_error (v->pos, "*** internal error: variable kind %d not implemented yet!", v->kind);
-    }
     return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
 }
 
