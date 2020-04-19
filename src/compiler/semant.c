@@ -339,8 +339,15 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
                     return FALSE;
             }
             break;
+        case Ty_array:
+            if (ty2->kind != Ty_array)
+                return FALSE;
+            if (ty2->u.array.uiSize != ty1->u.array.uiSize)
+                return FALSE;
+            *res = exp;
+            return TRUE;
         default:
-            return FALSE;
+            assert(0);
     }
 
     return FALSE;

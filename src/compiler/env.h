@@ -32,6 +32,10 @@ map_t   E_declared_procs(A_stmtList stmtList); /* predefined functions and subs 
  * os library offsets
  */
 
+// exec
+
+#define LVOCopyMem   -624
+
 // mathffp
 
 #define LVOSPFix      -30
