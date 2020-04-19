@@ -179,6 +179,7 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
             p->srcInterf = LL(F_aRegs(), NULL);
             p->dstInterf = LL(F_aRegs(), NULL);
             break;
+        case AS_MOVE_Imm_Label:
         case AS_MOVE_ILabel_AnDn:
         case AS_MOVE_Label_AnDn:
             p->srcInterf = NULL;
@@ -199,6 +200,12 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
             p->dstInterf = NULL;
             break;
         case AS_MOVE_Imm_OAn:    // move.x  #23, 42(a6)
+            assert(dst==NULL);
+            assert(label==NULL);
+            p->srcInterf = LL(F_dRegs(), NULL);
+            p->dstInterf = NULL;
+            break;
+        case AS_MOVE_Imm_RAn:    // move.x  #23, (a6)
             assert(dst==NULL);
             assert(label==NULL);
             assert(offset==0);
@@ -233,7 +240,7 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
     return p;
 }
 
-AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, 
+AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst,
                          Temp_tempLList srcInterf, Temp_tempLList dstInterf, long imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
@@ -551,6 +558,8 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    move`w   (sp)+, `d0",  i, m);  break;
         case AS_MOVE_Imm_OAn:
             instrformat(str, "    move`w   #`i, `o(`s0)", i, m); break;
+        case AS_MOVE_Imm_RAn:
+            instrformat(str, "    move`w   #`i, (`s0)", i, m);   break;
         case AS_MOVE_Imm_PDsp:
             instrformat(str, "    move`w   #`i, -(sp)", i, m);   break;
         case AS_MOVE_AnDn_RAn:
@@ -571,6 +580,8 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    move`w    `l, `d0", i, m);     break;
         case AS_MOVE_AnDn_Label:
             instrformat(str, "    move`w    `s0, `l", i, m);     break;
+        case AS_MOVE_Imm_Label:
+            instrformat(str, "    move`w   #`i, `l", i, m);      break;
         case AS_MULS_Dn_Dn:
             instrformat(str, "    muls`w   `s0, `d0", i, m);     break;
         case AS_MULS_Imm_Dn:

@@ -1,25 +1,18 @@
 #ifndef HAVE_LIVENESS_H
 #define HAVE_LIVENESS_H
 
-typedef struct Live_moveList_ *Live_moveList;
-struct Live_moveList_ {
-	G_node src, dst;
-	Live_moveList tail;
+typedef struct Live_graph_ *Live_graph;
+struct Live_graph_
+{
+	UG_graph      graph;
+	AS_instrList  worklistMoves;
+	Temp_map      moveList;
+	Temp_map      spillCost;
 };
+Temp_temp  Live_gtemp(UG_node n);
 
-Live_moveList Live_MoveList(G_node src, G_node dst, Live_moveList tail);
+Live_graph Live_liveness(G_graph flow);
 
-struct Live_graph {
-	G_graph graph;
-	Live_moveList moves;
-	AS_instrList worklistMoves;
-	Temp_map moveList;
-	Temp_map spillCost;
-};
-Temp_temp Live_gtemp(G_node n);
-
-struct Live_graph Live_liveness(G_graph flow);
-
-void Live_showGraph(FILE *out, G_nodeList p, Temp_map m);
+void       Live_showGraph(FILE *out, Live_graph g, Temp_map m);
 
 #endif

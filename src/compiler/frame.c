@@ -452,9 +452,9 @@ T_exp F_Exp(F_access acc)
         case inReg:
             return T_Temp(F_accessReg(acc), ty);
         case inFrame:
-            return T_Mem(T_Binop(T_plus, T_FramePointer(), T_ConstInt(F_accessOffset(acc), Ty_Long()), Ty_Long()), ty);
+            return T_Binop(T_plus, T_FramePointer(), T_ConstInt(F_accessOffset(acc), Ty_Long()), Ty_VarPtr(ty));
         case inHeap:
-            return T_Mem(T_Heap(acc->u.label, Ty_Long()), ty);
+            return T_Heap(acc->u.label, Ty_VarPtr(ty));
     }
     assert(0);
     return NULL;

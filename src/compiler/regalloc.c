@@ -48,12 +48,12 @@ static AS_instrList reverseInstrList(AS_instrList il)
     return rl;
 }
 
-static G_node temp2Node(Temp_temp t, G_graph g)
+static UG_node temp2Node(Temp_temp t, UG_graph g)
 {
     if (t == NULL)
         return NULL;
-    G_nodeList nodes = G_nodes(g);
-    G_nodeList p;
+    UG_nodeList nodes = g->nodes;
+    UG_nodeList p;
     for (p=nodes; p!=NULL; p=p->tail)
     {
         if (Live_gtemp(p->head)==t)
@@ -62,7 +62,7 @@ static G_node temp2Node(Temp_temp t, G_graph g)
     return NULL;
 }
 
-static Temp_temp node2Temp(G_node n)
+static Temp_temp node2Temp(UG_node n)
 {
     if (n == NULL)
         return NULL;
@@ -74,12 +74,12 @@ static Temp_tempList L(Temp_temp h, Temp_tempList t)
   return Temp_TempList(h, t);
 }
 
-static G_node getAlias(G_node n, G_table aliases, Temp_tempList coalescedNodes)
+static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempList coalescedNodes)
 {
     Temp_temp t = node2Temp(n);
     if (Temp_inList(t, coalescedNodes))
     {
-        G_node alias = (G_node)G_look(aliases, n);
+        UG_node alias = (UG_node)UG_look(aliases, n);
         return getAlias(alias, aliases, coalescedNodes);
     }
     else
@@ -88,14 +88,13 @@ static G_node getAlias(G_node n, G_table aliases, Temp_tempList coalescedNodes)
     }
 }
 
-static Temp_tempList aliased(Temp_tempList tl, G_graph ig,
-                             G_table aliases, Temp_tempList cn)
+static Temp_tempList aliased(Temp_tempList tl, UG_graph ig, UG_table aliases, Temp_tempList cn)
 {
     Temp_tempList al = NULL;
     for (; tl; tl = tl->tail)
     {
         Temp_temp t = tl->head;
-        G_node n = temp2Node(t, ig);
+        UG_node n = temp2Node(t, ig);
         assert(n);
         getAlias(n, aliases, cn);
         t = node2Temp(n);
@@ -107,12 +106,12 @@ static Temp_tempList aliased(Temp_tempList tl, G_graph ig,
 
 struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 {
-    struct RA_result ret;
+    struct RA_result  ret = {NULL, NULL};
 
-    G_graph flow;
-    struct Live_graph live;
+    G_graph           flow;
+    Live_graph        live;
     struct COL_result col;
-    AS_instrList rewriteList;
+    AS_instrList      rewriteList;
 
 #ifdef ENABLE_DEBUG
     g_debugTempMap = Temp_layerMap(F_initialRegisters(f), Temp_getNameMap());
@@ -133,10 +132,10 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         printf("try #%d liveness graph:\n", try);
         printf("-----------------------\n");
         // G_show(stdout, G_nodes(live.graph), sprintTemp);
-        Live_showGraph(stdout, G_nodes(live.graph), g_debugTempMap);
+        Live_showGraph(stdout, live, g_debugTempMap);
 #endif
-        col = COL_color(live.graph, initialRegs, F_registers(),
-                        live.worklistMoves, live.moveList, live.spillCost);
+
+        col = COL_color(live, initialRegs, F_registers());
 
         if (col.spills == NULL)
         {
@@ -170,10 +169,10 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         {
             AS_instr inst = il->head;
             Temp_tempList useSpilled = Temp_intersect(
-                                        aliased(inst->src, live.graph, col.alias, col.coalescedNodes),
+                                        aliased(inst->src, live->graph, col.alias, col.coalescedNodes),
                                         spilled);
             Temp_tempList defSpilled = Temp_intersect(
-                                        aliased(inst->dst, live.graph, col.alias, col.coalescedNodes),
+                                        aliased(inst->dst, live->graph, col.alias, col.coalescedNodes),
                                         spilled);
             Temp_tempList tempSpilled = Temp_union(useSpilled, defSpilled);
 

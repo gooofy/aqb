@@ -133,6 +133,8 @@ A_dim A_Dim (A_exp expStart, A_exp expEnd)
 {
     A_dim p = checked_malloc(sizeof(*p));
 
+    assert(expEnd);
+
     p->expStart = expStart;
     p->expEnd   = expEnd;
     p->tail     = NULL;
@@ -329,25 +331,17 @@ A_var A_Var(A_pos pos, S_symbol sym)
     return p;
 }
 
-#if 0
-A_var A_FieldVar(A_pos pos, A_var var, S_symbol sym)
-{A_var p = checked_malloc(sizeof(*p));
- p->kind=A_fieldVar;
- p->pos=pos;
- p->u.field.var=var;
- p->u.field.sym=sym;
- return p;
-}
+A_selector A_IndexSelector (A_pos pos, A_exp idx)
+{
+    A_selector p = checked_malloc(sizeof(*p));
 
-A_var A_SubscriptVar(A_pos pos, A_var var, A_exp exp)
-{A_var p = checked_malloc(sizeof(*p));
- p->kind=A_subscriptVar;
- p->pos=pos;
- p->u.subscript.var=var;
- p->u.subscript.exp=exp;
- return p;
+    p->kind  = A_indexSel;
+    p->pos   = pos;
+    p->tail  = NULL;
+    p->u.idx = idx;
+
+    return p;
 }
-#endif
 
 A_exp A_VarExp(A_pos pos, A_var var)
 {

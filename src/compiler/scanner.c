@@ -349,6 +349,11 @@ int S_getsym(void)
         case '-':
             S_token = S_MINUS;
             getch();
+            if (g_ch == '>')
+            {
+                S_token = S_POINTER;
+                getch();
+            }
             break;
         case '0':
         case '1':
@@ -380,6 +385,10 @@ int S_getsym(void)
             break;
         case '+':
             S_token = S_PLUS;
+            getch();
+            break;
+        case '.':
+            S_token = S_PERIOD;
             getch();
             break;
         case '>':

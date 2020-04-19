@@ -17,15 +17,28 @@
 
 #ifdef ENABLE_DEBUG
 static Temp_map g_debugTempMap;
+
+static void printtl(Temp_tempList l)
+{
+    for (; l; l = l->tail)
+    {
+        Temp_temp t = l->head;
+        printf("(%2d) %-3s", Temp_num(t), Temp_look(g_debugTempMap, t));
+        if (l->tail)
+            printf(", ");
+    }
+}
+
 #endif
 
 typedef struct ctx COL_ctx;
 
 struct ctx
 {
-    G_graph       nodes;
+    UG_graph      lg;
     Temp_map      precolored;
     Temp_tempList initial;
+    Temp_tempList regs;
     Temp_tempList spillWorklist;
     Temp_tempList freezeWorklist;
     Temp_tempList simplifyWorklist;
@@ -42,8 +55,8 @@ struct ctx
 
     Temp_map      spillCost;
     Temp_map      moveList;
-    G_table       alias;
-    G_table       degree;
+    UG_table      alias;
+    UG_table      degree;
 
     int           K;
 };
@@ -77,29 +90,27 @@ static Temp_temp tempHead(Temp_tempList temps)
     return temps->head;
 }
 
-static G_node temp2Node(Temp_temp t)
+static UG_node temp2Node(Temp_temp t)
 {
     if (t == NULL)
         return NULL;
-    G_nodeList nodes = G_nodes(c.nodes);
-    G_nodeList p;
-    for (p=nodes; p!=NULL; p=p->tail)
+    for (UG_nodeList p=c.lg->nodes; p!=NULL; p=p->tail)
         if (Live_gtemp(p->head)==t)
             return p->head;
     return NULL;
 }
 
-static G_nodeList tempL2NodeL(Temp_tempList tl)
+static UG_nodeList tempL2NodeL(Temp_tempList tl)
 {
-    G_nodeList nl = NULL;
+    UG_nodeList nl = NULL;
     for (; tl; tl = tl->tail)
     {
-        nl = G_NodeList(temp2Node(tl->head), nl);
+        nl = UG_NodeList(temp2Node(tl->head), nl);
     }
-    return G_reverseNodes(nl);
+    return UG_reverseNodes(nl);
 }
 
-static Temp_temp node2Temp(G_node n)
+static Temp_temp node2Temp(UG_node n)
 {
     if (n == NULL)
         return NULL;
@@ -150,139 +161,171 @@ static AS_instrList IL(AS_instr h, AS_instrList t)
     return AS_InstrList(h, t);
 }
 
-static Temp_tempList adjacent(Temp_temp t) {
-  G_node n = temp2Node(t);
-  G_nodeList adjn = G_adj(n);
-  Temp_tempList adjs = NULL;
-  for (; adjn; adjn = adjn->tail) {
-    adjs = L(node2Temp(n), adjs);
-  }
-
-  adjs = Temp_minus(adjs, Temp_union(c.selectStack, c.coalescedNodes));
-  return adjs;
-}
-
-static void addEdge(G_node nu, G_node nv) {
-  if (nu == nv) return;
-  if (G_goesTo(nu, nv) || G_goesTo(nv, nu)) return;
-  G_addEdge(nu, nv);
-
-  Temp_temp u = node2Temp(nu);
-  Temp_temp v = node2Temp(nv);
-
-  if (Temp_look(c.precolored, u) == NULL) {
-    long d = (long)G_look(c.degree, nu);
-    d += 1;
-    G_enter(c.degree, nu, (void*)d);
-  }
-
-  if (Temp_look(c.precolored, v) == NULL) {
-    long d = (long)G_look(c.degree, nv);
-    d += 1;
-    G_enter(c.degree, nv, (void*)d);
-  }
-}
-
-static AS_instrList nodeMoves(Temp_temp t) {
-  AS_instrList ml = (AS_instrList)Temp_lookPtr(c.moveList, t);
-  return AS_instrIntersect(ml, AS_instrUnion(c.activeMoves, c.worklistMoves));
-}
-
-static bool moveRelated(Temp_temp t) {
-  return nodeMoves(t) != NULL;
-}
-
-static void makeWorkList() {
-  Temp_tempList tl;
-  for (tl = c.initial; tl; tl = tl->tail) {
-    Temp_temp t = tl->head;
-    G_node n = temp2Node(t);
-    c.initial = Temp_minus(c.initial, L(t, NULL));
-
-    if (G_degree(n) >= c.K) {
-      c.spillWorklist = Temp_union(c.spillWorklist, L(t, NULL));
-    } else if (moveRelated(t)) {
-      c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
-    } else {
-      c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
+static Temp_tempList adjacent(Temp_temp t)
+{
+    UG_node n = temp2Node(t);
+    Temp_tempList adjs = NULL;
+    for (UG_nodeList adjn = n->adj; adjn; adjn = adjn->tail)
+    {
+        // FIXME: wrong, remove ?! adjs = L(node2Temp(n), adjs);
+        adjs = L(node2Temp(adjn->head), adjs);
     }
-  }
+
+    adjs = Temp_minus(adjs, Temp_union(c.selectStack, c.coalescedNodes));
+    return adjs;
 }
 
-static void enableMoves(Temp_tempList tl) {
-  for (; tl; tl = tl->tail) {
-    AS_instrList il = nodeMoves(tl->head);
-    for (; il; il = il->tail) {
-      AS_instr m = il->head;
-      if (AS_instrInList(m, c.activeMoves)) {
-        c.activeMoves = AS_instrMinus(c.activeMoves, IL(m, NULL));
-        c.worklistMoves = AS_instrUnion(c.worklistMoves, IL(m, NULL));
-      }
+static void addEdge(UG_node nu, UG_node nv)
+{
+    if (nu == nv) return;
+    if (UG_connected(nu, nv)) return;
+    UG_addEdge(nu, nv);
+
+    Temp_temp u = node2Temp(nu);
+    Temp_temp v = node2Temp(nv);
+
+    if (Temp_look(c.precolored, u) == NULL)
+    {
+        long d = (long)UG_look(c.degree, nu);
+        d += 1;
+        UG_enter(c.degree, nu, (void*)d);
     }
-  }
-}
 
-static void decrementDegree(G_node n) {
-  Temp_temp t = node2Temp(n);
-  long d = (long)G_look(c.degree, n);
-  d -= 1;
-  G_enter(c.degree, n, (void*)d);
-
-  if (d == c.K) {
-    enableMoves(L(t, adjacent(t)));
-    c.spillWorklist = Temp_minus(c.spillWorklist, L(t, NULL));
-    if (moveRelated(t)) {
-      c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
-    } else {
-      c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
+    if (Temp_look(c.precolored, v) == NULL)
+    {
+        long d = (long)UG_look(c.degree, nv);
+        d += 1;
+        UG_enter(c.degree, nv, (void*)d);
     }
-  }
 }
 
-static void addWorkList(Temp_temp t) {
-  long degree = (long)G_look(c.degree, temp2Node(t));
-  if (Temp_look(c.precolored, t) == NULL &&
-      (!moveRelated(t)) &&
-      (degree < c.K)) {
-    c.freezeWorklist = Temp_minus(c.freezeWorklist, L(t, NULL));
-    c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
-  }
+static AS_instrList nodeMoves(Temp_temp t)
+{
+    AS_instrList ml = (AS_instrList)Temp_lookPtr(c.moveList, t);
+    return AS_instrIntersect(ml, AS_instrUnion(c.activeMoves, c.worklistMoves));
 }
 
-static bool OK(Temp_temp t, Temp_temp r) {
-  G_node nt = temp2Node(t);
-  G_node nr = temp2Node(r);
-  long degree = (long)G_look(c.degree, nt);
-  if (degree < c.K) {
-    return TRUE;
-  }
-  if (Temp_look(c.precolored, t)) {
-    return TRUE;
-  }
-  if (G_goesTo(nt, nr) || G_goesTo(nr, nt)) {
-    return TRUE;
-  }
-  return FALSE;
+static bool moveRelated(Temp_temp t)
+{
+    return nodeMoves(t) != NULL;
 }
 
-static bool conservative(Temp_tempList tl) {
-  G_nodeList nl = tempL2NodeL(tl);
-  int k = 0;
-  for (; nl; nl = nl->tail) {
-    long degree = (long)G_look(c.degree, nl->head);
-    if (degree >= c.K) {
-      ++k;
+static void makeWorkList()
+{
+    Temp_tempList tl;
+    for (tl = c.initial; tl; tl = tl->tail)
+    {
+        Temp_temp t = tl->head;
+        UG_node n = temp2Node(t);
+        c.initial = Temp_minus(c.initial, L(t, NULL));
+
+        if (UG_degree(n) >= c.K)
+        {
+            c.spillWorklist = Temp_union(c.spillWorklist, L(t, NULL));
+        }
+        else if (moveRelated(t))
+        {
+            c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
+        }
+        else
+        {
+            c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
+        }
     }
-  }
-  return (k < c.K);
 }
 
-static G_node getAlias(G_node n)
+static void enableMoves(Temp_tempList tl)
+{
+    for (; tl; tl = tl->tail)
+    {
+        AS_instrList il = nodeMoves(tl->head);
+        for (; il; il = il->tail)
+        {
+            AS_instr m = il->head;
+            if (AS_instrInList(m, c.activeMoves))
+            {
+                c.activeMoves = AS_instrMinus(c.activeMoves, IL(m, NULL));
+                c.worklistMoves = AS_instrUnion(c.worklistMoves, IL(m, NULL));
+            }
+        }
+    }
+}
+
+static void decrementDegree(UG_node n)
+{
+    Temp_temp t = node2Temp(n);
+    long d = (long)UG_look(c.degree, n);
+    d -= 1;
+    UG_enter(c.degree, n, (void*)d);
+
+    if (d == c.K)
+    {
+        enableMoves(L(t, adjacent(t)));
+        c.spillWorklist = Temp_minus(c.spillWorklist, L(t, NULL));
+        if (moveRelated(t))
+        {
+            c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
+        }
+        else
+        {
+            c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
+        }
+    }
+}
+
+static void addWorkList(Temp_temp t)
+{
+    long degree = (long)UG_look(c.degree, temp2Node(t));
+    if (Temp_look(c.precolored, t) == NULL &&
+        (!moveRelated(t)) &&
+        (degree < c.K))
+    {
+        c.freezeWorklist   = Temp_minus(c.freezeWorklist, L(t, NULL));
+        c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
+    }
+}
+
+static bool OK(Temp_temp t, Temp_temp r)
+{
+    UG_node nt = temp2Node(t);
+    UG_node nr = temp2Node(r);
+    long degree = (long)UG_look(c.degree, nt);
+    if (degree < c.K)
+    {
+        return TRUE;
+    }
+    if (Temp_look(c.precolored, t))
+    {
+        return TRUE;
+    }
+    if (UG_connected(nt, nr))
+    {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static bool isCoalescingConservativeBriggs(Temp_tempList tl)
+{
+    UG_nodeList nl = tempL2NodeL(tl);
+    int k = 0;
+    for (; nl; nl = nl->tail)
+    {
+        long degree = (long)UG_look(c.degree, nl->head);
+        if (degree >= c.K)
+        {
+            ++k;
+        }
+    }
+    return (k < c.K);
+}
+
+static UG_node getAlias(UG_node n)
 {
     Temp_temp t = node2Temp(n);
     if (Temp_inList(t, c.coalescedNodes))
     {
-        G_node alias = (G_node)G_look(c.alias, n);
+        UG_node alias = (UG_node)UG_look(c.alias, n);
         return getAlias(alias);
     }
     else
@@ -291,60 +334,100 @@ static G_node getAlias(G_node n)
     }
 }
 
-static void simplify() {
-  if (c.simplifyWorklist == NULL) {
-    return;
-  }
+static void simplify()
+{
+    if (c.simplifyWorklist == NULL)
+    {
+        return;
+    }
 
-  Temp_temp t = c.simplifyWorklist->head;
-  G_node n = temp2Node(t);
-  c.simplifyWorklist = c.simplifyWorklist->tail;
+    Temp_temp t = c.simplifyWorklist->head;
+    UG_node n = temp2Node(t);
+    c.simplifyWorklist = c.simplifyWorklist->tail;
 
-  c.selectStack = L(t, c.selectStack);  // push
+    c.selectStack = L(t, c.selectStack);  // push
+#ifdef ENABLE_DEBUG
+    printf ("simplify(): pushed %d\n", Temp_num(t));
+#endif
 
-  G_nodeList adjs = G_adj(n);
-  for (; adjs; adjs = adjs->tail) {
-    G_node m = adjs->head;
-    decrementDegree(m);
-  }
+    UG_nodeList adjs = n->adj;
+    for (; adjs; adjs = adjs->tail)
+    {
+        UG_node m = adjs->head;
+        decrementDegree(m);
+    }
 }
 
-static void combine(Temp_temp u, Temp_temp v) {
-  G_node nu = temp2Node(u);
-  G_node nv = temp2Node(v);
-  if (Temp_inList(v, c.freezeWorklist)) {
-    c.freezeWorklist = Temp_minus(c.freezeWorklist, L(v, NULL));
-  } else {
-    c.spillWorklist = Temp_minus(c.spillWorklist, L(v, NULL));
-  }
+static void combine(Temp_temp u, Temp_temp v)
+{
+    UG_node nu = temp2Node(u);
+    UG_node nv = temp2Node(v);
+    if (Temp_inList(v, c.freezeWorklist))
+    {
+        c.freezeWorklist = Temp_minus(c.freezeWorklist, L(v, NULL));
+    }
+    else
+    {
+        c.spillWorklist = Temp_minus(c.spillWorklist, L(v, NULL));
+    }
 
-  c.coalescedNodes = Temp_union(c.coalescedNodes, L(v, NULL));
-  G_enter(c.alias, nv, (void*)nu);
+    c.coalescedNodes = Temp_union(c.coalescedNodes, L(v, NULL));
+    UG_enter(c.alias, nv, (void*)nu);
 
-  AS_instrList au = (AS_instrList)Temp_lookPtr(c.moveList, u);
-  AS_instrList av = (AS_instrList)Temp_lookPtr(c.moveList, v);
-  au = AS_instrUnion(au, av);
-  Temp_enterPtr(c.moveList, u, (void*)au);
+    AS_instrList au = (AS_instrList)Temp_lookPtr(c.moveList, u);
+    AS_instrList av = (AS_instrList)Temp_lookPtr(c.moveList, v);
+    au = AS_instrUnion(au, av);
+    Temp_enterPtr(c.moveList, u, (void*)au);
 
-  enableMoves(L(v, NULL));
+    enableMoves(L(v, NULL));
 
-  //Temp_tempList tadjs = adjacent(v);
-  //G_nodeList adjs = tempL2NodeL(tadjs);
-  G_nodeList adjs = G_adj(nv);
-  // FIXME remove? Temp_tempList tadjs = nodeL2TempL(adjs);
-  for (; adjs; adjs = adjs->tail) {
-    G_node nt = adjs->head;
-    nt = getAlias(nt);
-    addEdge(nt, nu);
-    decrementDegree(nt);
-  }
-  // FIXME: remove? tadjs = NULL;
+    UG_nodeList adjs = nv->adj;
+    for (; adjs; adjs = adjs->tail)
+    {
+        UG_node nt = adjs->head;
+        nt = getAlias(nt);
+        addEdge(nt, nu);
+        decrementDegree(nt);
+    }
 
-  long degree = (long)G_look(c.degree, nu);
-  if (degree >= c.K && Temp_inList(u, c.freezeWorklist)) {
-    c.freezeWorklist = Temp_minus(c.freezeWorklist, L(u, NULL));
-    c.spillWorklist = Temp_union(c.spillWorklist, L(u, NULL));
-  }
+    long degree = (long)UG_look(c.degree, nu);
+    printf ("combined %d with %d, resulting degree: %ld\n", Temp_num(u), Temp_num(v), degree);
+    if (degree >= c.K && Temp_inList(u, c.freezeWorklist))
+    {
+        c.freezeWorklist = Temp_minus(c.freezeWorklist, L(u, NULL));
+        c.spillWorklist = Temp_union(c.spillWorklist, L(u, NULL));
+    }
+}
+
+static bool isConstrainedMove(Temp_temp u, Temp_temp v)
+{
+    UG_node nu = temp2Node(u);
+    UG_node nv = temp2Node(v);
+
+    if (Temp_look(c.precolored, v) || UG_connected(nu, nv))
+        return TRUE;
+
+    return FALSE;
+
+#if 0
+    // resulting node still colorable (at least one register needs to exist
+
+    Temp_tempList adju = adjacent(u);
+    Temp_tempList adjv = adjacent(v);
+    Temp_tempList adj = Temp_union(adju, adjv);
+
+#ifdef ENABLE_DEBUG
+    printf("adju: "); printtl(adju); printf("\n");
+    printf("adjv: "); printtl(adjv); printf("\n");
+    printf("adj : "); printtl(adj);  printf("\n");
+#endif
+    for (Temp_tempList r=c.regs; r; r=r->tail)
+    {
+        if (!Temp_inList(r->head, adj))
+            return FALSE;
+    }
+    return TRUE;
+#endif
 }
 
 static void coalesce()
@@ -380,9 +463,6 @@ static void coalesce()
     }
 #endif
 
-    G_node nu = temp2Node(u);
-    G_node nv = temp2Node(v);
-
     c.worklistMoves = AS_instrMinus(c.worklistMoves, IL(inst, NULL));
 
     if (u == v)
@@ -395,13 +475,13 @@ static void coalesce()
     }
     else
     {
-        if (Temp_look(c.precolored, v) || G_goesTo(nu, nv) || G_goesTo(nv, nu))
+        if (isConstrainedMove(u, v))
         {
             c.constrainedMoves = AS_instrUnion(c.constrainedMoves, IL(inst, NULL));
             addWorkList(u);
             addWorkList(v);
 #ifdef ENABLE_DEBUG
-        printf ("   constrained.\n");
+            printf ("   constrained.\n");
 #endif
         }
         else
@@ -425,7 +505,7 @@ static void coalesce()
                 Temp_tempList adju = adjacent(u);
                 Temp_tempList adjv = adjacent(v);
                 Temp_tempList adj = Temp_union(adju, adjv);
-                flag = conservative(adj);
+                flag = isCoalescingConservativeBriggs(adj);
             }
 
             if (flag)
@@ -448,32 +528,38 @@ static void coalesce()
     }
 }
 
-static void freezeMoves(Temp_temp u) {
-  AS_instrList il = nodeMoves(u);
-  for (; il; il = il->tail) {
-    AS_instr m = il->head;
-    Temp_temp x = tempHead(instUse(m));
-    Temp_temp y = tempHead(instDef(m));
-    G_node nx = temp2Node(x);
-    G_node ny = temp2Node(y);
-    G_node nv;
+static void freezeMoves(Temp_temp u)
+{
+    AS_instrList il = nodeMoves(u);
+    for (; il; il = il->tail)
+    {
+        AS_instr m = il->head;
+        Temp_temp x = tempHead(instUse(m));
+        Temp_temp y = tempHead(instDef(m));
+        UG_node nx = temp2Node(x);
+        UG_node ny = temp2Node(y);
+        UG_node nv;
 
-    if (getAlias(nx) == getAlias(ny)) {
-      nv = getAlias(nx);
-    } else {
-      nv = getAlias(ny);
+        if (getAlias(nx) == getAlias(ny))
+        {
+            nv = getAlias(nx);
+        }
+        else
+        {
+            nv = getAlias(ny);
+        }
+        Temp_temp v = node2Temp(nv);
+
+        c.activeMoves = AS_instrMinus(c.activeMoves, IL(m, NULL));
+        c.frozenMoves = AS_instrUnion(c.frozenMoves, IL(m, NULL));
+
+        long degree = (long)UG_look(c.degree, nv);
+        if (nodeMoves(v) == NULL && degree < c.K)
+        {
+            c.freezeWorklist = Temp_minus(c.freezeWorklist, L(v, NULL));
+            c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(v, NULL));
+        }
     }
-    Temp_temp v = node2Temp(nv);
-
-    c.activeMoves = AS_instrMinus(c.activeMoves, IL(m, NULL));
-    c.frozenMoves = AS_instrUnion(c.frozenMoves, IL(m, NULL));
-
-    long degree = (long)G_look(c.degree, nv);
-    if (nodeMoves(v) == NULL && degree < c.K) {
-      c.freezeWorklist = Temp_minus(c.freezeWorklist, L(v, NULL));
-      c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(v, NULL));
-    }
-  }
 }
 
 static void freeze() {
@@ -487,35 +573,42 @@ static void freeze() {
   freezeMoves(u);
 }
 
-static void selectSpill() {
-  if (c.spillWorklist == NULL) {
-    return;
-  }
-  Temp_tempList tl = c.spillWorklist;
-  float minSpillPriority = 9999.0f;
-  Temp_temp m = NULL;
-  for (; tl; tl = tl->tail) {
-    Temp_temp t = tl->head;
-    long cost = (long)Temp_lookPtr(c.spillCost, t);
-    long degree = (long)G_look(c.degree, temp2Node(t));
-    degree = (degree > 0) ? degree : 1;
-    float priority = ((float)cost) / degree;
-    if (priority < minSpillPriority) {
-      minSpillPriority = priority;
-      m = t;
+static void selectSpill()
+{
+    if (c.spillWorklist == NULL)
+    {
+        return;
     }
-  }
-  c.spillWorklist = Temp_minus(c.spillWorklist, L(m, NULL));
-  c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(m, NULL));
-  freezeMoves(m);
+    Temp_tempList tl = c.spillWorklist;
+    float minSpillPriority = 9999.0f;
+    Temp_temp m = NULL;
+    for (; tl; tl = tl->tail)
+    {
+        Temp_temp t = tl->head;
+        long cost = (long)Temp_lookPtr(c.spillCost, t);
+        long degree = (long)UG_look(c.degree, temp2Node(t));
+        degree = (degree > 0) ? degree : 1;
+        float priority = ((float)cost) / degree;
+        if (priority < minSpillPriority)
+        {
+            minSpillPriority = priority;
+            m = t;
+        }
+    }
+    c.spillWorklist    = Temp_minus(c.spillWorklist,    L(m, NULL));
+    c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(m, NULL));
+    freezeMoves(m);
 }
 
-struct COL_result COL_color(G_graph ig, Temp_map initial, Temp_tempList regs,
-                            AS_instrList worklistMoves, Temp_map moveList, Temp_map spillCost)
+struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList regs)
 {
     struct COL_result ret = { NULL, NULL, NULL };
 
+    //    col = COL_color(live->graph, initialRegs, F_registers(),
+    //                    live->worklistMoves, live->moveList, live->spillCost);
+
     c.precolored       = initial;
+    c.regs             = regs;
     c.initial          = NULL;
     c.simplifyWorklist = NULL;
     c.freezeWorklist   = NULL;
@@ -528,35 +621,35 @@ struct COL_result COL_color(G_graph ig, Temp_map initial, Temp_tempList regs,
     c.coalescedMoves   = NULL;
     c.constrainedMoves = NULL;
     c.frozenMoves      = NULL;
-    c.worklistMoves    = worklistMoves;
+    c.worklistMoves    = live->worklistMoves;
     c.activeMoves      = NULL;
 
-    c.spillCost        = spillCost;
-    c.moveList         = moveList;
-    c.degree           = G_empty();
-    c.alias            = G_empty();
-    c.nodes            = ig;
+    c.spillCost        = live->spillCost;
+    c.moveList         = live->moveList;
+    c.degree           = UG_empty();
+    c.alias            = UG_empty();
+    c.lg               = live->graph;
 
     c.K                = tempCount(regs);
 
     Temp_map      precolored   = initial;
     Temp_map      colors       = Temp_layerMap(Temp_empty(), initial);
     Temp_tempList coloredNodes = NULL;
-    G_nodeList    nodes        = G_nodes(ig);
+    UG_nodeList   nodes        = live->graph->nodes;
 
 #ifdef ENABLE_DEBUG
     g_debugTempMap = Temp_layerMap(initial, Temp_getNameMap());
 #endif
 
-    for (G_nodeList nl = nodes; nl; nl = nl->tail)
+    for (UG_nodeList nl = nodes; nl; nl = nl->tail)
     {
-        long degree = G_degree(nl->head);
-        G_enter(c.degree, nl->head, (void*)degree);
+        long degree = UG_degree(nl->head);
+        UG_enter(c.degree, nl->head, (void*)degree);
         Temp_temp t = node2Temp(nl->head);
 
         if (Temp_look(precolored, t))
         {
-            G_enter(c.degree, nl->head, (void*)999);
+            UG_enter(c.degree, nl->head, (void*)999);
             continue;
         }
         c.initial = L(t, c.initial);
@@ -566,22 +659,42 @@ struct COL_result COL_color(G_graph ig, Temp_map initial, Temp_tempList regs,
     makeWorkList();
     do
     {
+#ifdef ENABLE_DEBUG
+        printf("simplifyWL: "); printtl(c.simplifyWorklist); printf("\n");
+        printf("freezeWL  : "); printtl(c.freezeWorklist  ); printf("\n");
+        printf("spillWL   : "); printtl(c.spillWorklist   ); printf("\n");
+#endif
         if (c.simplifyWorklist != NULL)
         {
+#ifdef ENABLE_DEBUG
+            printf("--------------> simplify\n");
+#endif
             simplify();
         }
         else if (c.worklistMoves != NULL)
         {
+#ifdef ENABLE_DEBUG
+            printf("--------------> coalesce\n");
+#endif
             coalesce();
         }
         else if (c.freezeWorklist != NULL)
         {
+#ifdef ENABLE_DEBUG
+            printf("--------------> freeze\n");
+#endif
             freeze();
         }
         else if (c.spillWorklist != NULL)
         {
+#ifdef ENABLE_DEBUG
+            printf("--------------> selectSpill\n");
+#endif
             selectSpill();
         }
+#ifdef ENABLE_DEBUG
+        Live_showGraph(stdout, live, g_debugTempMap);
+#endif
     } while (c.simplifyWorklist != NULL || c.worklistMoves != NULL ||
              c.freezeWorklist != NULL   || c.spillWorklist != NULL);
 
@@ -595,16 +708,16 @@ struct COL_result COL_color(G_graph ig, Temp_map initial, Temp_tempList regs,
     while (c.selectStack != NULL)
     {
         Temp_temp t = c.selectStack->head; // pop
-        G_node n = temp2Node(t);
+        UG_node n = temp2Node(t);
         c.selectStack = c.selectStack->tail;
 
         Temp_tempList okColors = cloneRegs(regs);
-        G_nodeList adjs = G_adj(n);
+        UG_nodeList adjs = n->adj;
 
         for (; adjs; adjs = adjs->tail)
         {
-            G_node nw = adjs->head;
-            G_node nw_alias = getAlias(nw);
+            UG_node nw = adjs->head;
+            UG_node nw_alias = getAlias(nw);
             Temp_temp w_alias = node2Temp(nw_alias);
             string color;
             if ((color = Temp_look(colors, w_alias)) != NULL)
@@ -631,7 +744,7 @@ struct COL_result COL_color(G_graph ig, Temp_map initial, Temp_tempList regs,
     Temp_tempList tl;
     for (tl = c.coalescedNodes; tl; tl = tl->tail)
     {
-        G_node alias = getAlias(temp2Node(tl->head));
+        UG_node alias = getAlias(temp2Node(tl->head));
         string color = Temp_look(colors, node2Temp(alias));
         Temp_enter(colors, tl->head, color);
     }

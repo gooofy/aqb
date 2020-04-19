@@ -28,6 +28,8 @@
 #define S_NOTEQ     28
 #define S_LESSEQ    29
 #define S_GREATEREQ 30
+#define S_POINTER   31
+#define S_PERIOD    32
 
 #define S_PRINT    100
 #define S_OPTION   101

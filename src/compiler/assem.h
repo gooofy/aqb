@@ -37,6 +37,7 @@ enum AS_mn
 
     AS_MOVE_AnDn_AnDn,  // move.x  d1, d2
     AS_MOVE_Imm_OAn,    // move.x  #23, 42(a6)
+    AS_MOVE_Imm_RAn,    // move.x  #23, (a6)
     AS_MOVE_AnDn_RAn,   // move.x  d1, (a6)
     AS_MOVE_RAn_AnDn,   // move.x  (a5), d1
     AS_MOVE_Imm_AnDn,   // move.x  #23, d0
@@ -51,6 +52,7 @@ enum AS_mn
     AS_MOVE_Ofp_AnDn,   // move.x  42(a5), d0
     AS_MOVE_AnDn_Ofp,   // move.x  d0, 42(a5)
     AS_MOVE_Imm_Ofp,    // move.x  d0, 42(a5)
+    AS_MOVE_Imm_Label,  // move.x  #42, label
 
     AS_MULS_Dn_Dn,      // muls.x  d1, d2
     AS_MULS_Imm_Dn,     // muls.x  #42, d2

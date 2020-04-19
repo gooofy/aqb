@@ -6,6 +6,7 @@
 #include "temp.h"
 #include "errormsg.h"
 #include "tree.h"
+#include "printtree.h"
 #include "assem.h"
 #include "frame.h"
 #include "codegen.h"
@@ -60,10 +61,11 @@ static enum AS_w ty_isz(Ty_ty ty)
         case Ty_single:
         case Ty_double:
         case Ty_string:
+        case Ty_varPtr:
+        case Ty_pointer:
             return AS_w_L;
         case Ty_array:
         case Ty_record:
-        case Ty_pointer:
         case Ty_void:
             assert(0);
     }
@@ -227,11 +229,11 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     assert(0);
                 } else {
                     /* MEM(e1) */
-                    // T_exp e1 = mem;
-                    // Temp_temp r = Temp_newtemp(Ty_Long());
-                    // emit(AS_Move(strprintf("move.%s (`s0), `d0", isz), L(r, NULL), L(munchExp(e1, FALSE), NULL), F_dRegs(), NULL));
-                    // return r;
-                    assert(0);
+                    Temp_temp r1 = Temp_newtemp(e->ty); // e1 calculation might need a dx register but we need a ax reg
+                    Temp_temp r = Temp_newtemp(e->ty);
+                    emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(mem, FALSE), r1));     // move.x mem, r1
+                    emit(AS_Instr(AS_MOVE_RAn_AnDn, isz, r1, r));                            // move.x (r1), r
+                    return r;
                 }
             }
             else if (mem->kind == T_CONST)
@@ -340,6 +342,8 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     }
                     break;
                 case Ty_long:
+                case Ty_varPtr:
+                case Ty_pointer:
                     switch (e->u.BINOP.op)
                     {
                         case T_plus:
@@ -660,118 +664,173 @@ static void munchStm(T_stm s)
     {
         case T_MOVE:
         {
-            T_exp     dst   = s->u.MOVE.dst, src = s->u.MOVE.src;
+            T_exp     dst   = s->u.MOVE.dst;
+            T_exp     src   = s->u.MOVE.src;
             Ty_ty     resty = s->u.MOVE.ty;
             enum AS_w isz   = ty_isz(resty);
+
+            printf("T_MOVE: src=");
+            printExp(stdout, src, 2);
+            printf(", dst=");
+            printExp(stdout, dst, 2);
+            printf("\n");
+
             if (dst->kind == T_MEM)
             {
-                if (dst->u.MEM.exp->kind == T_BINOP
-                    && dst->u.MEM.exp->u.BINOP.op == T_plus
-                    && dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)
+                if (dst->u.MEM.exp->kind == T_BINOP                                             // move ..., MEM(BINOP(PLUS, ..., ...))
+                    && dst->u.MEM.exp->u.BINOP.op == T_plus)
                 {
-                    if (src->kind == T_CONST)
-                    {
-                        if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)
+                    if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)                             // move ..., MEM(BINOP(PLUS, fp , ...))
+                    {                                                                           // assignment to frame var
+                        if (dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)                     // move ..., MEM(BINOP(PLUS, fp, CONST))
                         {
-                            // MOVE( CONST(j) -> MEM(BINOP(PLUS,fp,CONST(i))) )
                             int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
-                            unsigned int j = src->u.CONST;
-                            emit (AS_InstrEx(AS_MOVE_Imm_Ofp, isz, NULL, NULL, j, off, NULL));                   // move.x #j, off(fp)
-                        }
-                        else
-                        {
-                            // MOVE( CONST(j) -> MEM(BINOP(PLUS,e1,CONST(i))) )
-                            T_exp e1 = dst->u.MEM.exp->u.BINOP.left;
-                            int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
-                            unsigned int j = src->u.CONST;
-                            emit (AS_InstrEx(AS_MOVE_Imm_OAn, isz, NULL, L(munchExp(e1, FALSE), NULL), j, off, NULL)); // move.x #j, off(e1)
-                        }
-                    }
-                    else
-                    {
-                        if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)
-                        {
-                            // move.x src, off(fp)
-                            int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
-                            emit (AS_InstrEx(AS_MOVE_AnDn_Ofp, isz, L(munchExp(src, FALSE), NULL), NULL, 0, off, NULL));
-                        }
-                        else
-                        {
-                            assert(0);
-                            // /* MOVE(MEM(BINOP(PLUS,e1,CONST(i))),e2) */
-                            // T_exp e1 = dst->u.MEM.exp->u.BINOP.left;
-                            // int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
-                            // // move.%s src, off(e1)
-                            // emit (AS_InstrEx(AS_MOVE_AnDn_OAn, isz, L(munchExp(src, FALSE), NULL), L(munchExp(e1, FALSE), NULL), 0, off, NULL)); 
-                        }
-                    }
-                }
-                else
-                {
-                    if (dst->u.MEM.exp->kind == T_BINOP
-                             && dst->u.MEM.exp->u.BINOP.op == T_plus
-                             && dst->u.MEM.exp->u.BINOP.left->kind == T_CONST)
-                    {
-                        if (src->kind == T_CONST)
-                        {
-                            /* MOVE(MEM(BINOP(PLUS,CONST(i),e1)),CONST(j)) */
-                            // T_exp e1 = dst->u.MEM.exp->u.BINOP.right;
-                            // int i = dst->u.MEM.exp->u.BINOP.left->u.CONST;
-                            // unsigned int j = src->u.CONST;
-                            // emit(AS_Move(strprintf("move.%s #%d, %d(`s0)", isz, j, i), NULL, L(munchExp(e1, FALSE), NULL), NULL, NULL, F_dRegs()));
-                            assert(0);
-                        }
-                        else
-                        {
-                            /* MOVE(MEM(BINOP(PLUS,CONST(i),e1)),e2) */
-                            // T_exp e1 = dst->u.MEM.exp->u.BINOP.right, e2 = src;
-                            // int i = dst->u.MEM.exp->u.BINOP.left->u.CONST;
-                            //emit(AS_Move(strprintf("move.%s `s1, %d(`s0)", isz, i), NULL, L(munchExp(e1, FALSE), L(munchExp(e2, FALSE), NULL)), NULL));
-                            assert(0);
-                        }
-                    }
-                    else
-                    {
-                        if (dst->u.MEM.exp->kind == T_HEAP)
-                        {
-                            // move.x src, lab
-                            Temp_label lab = dst->u.MEM.exp->u.HEAP;
-                            emit(AS_InstrEx(AS_MOVE_AnDn_Label, isz, L(munchExp(src, FALSE), NULL), NULL, 0, 0, lab));
-                        }
-                        else
-                        {
-                            if (src->kind == T_MEM)
+                            if (src->kind == T_CONST)                                           // move CONST, MEM(BINOP(PLUS, fp, CONST))
                             {
-                                /* MOVE(MEM(e1), MEM(e2)) */
-                                // T_exp e1 = dst->u.MEM.exp, e2 = src->u.MEM.exp;
-                                // Temp_temp r = Temp_newtemp(resty);
-                                //emit(AS_Move(strprintf("move.%s (`s0), `d0", isz), L(r, NULL), L(munchExp(e2, FALSE), NULL), NULL));
-                                //emit(AS_Move(strprintf("move.%s `s0, (`s1)", isz), NULL, L(r, L(munchExp(e1, FALSE), NULL)), NULL));
+                                emit (AS_InstrEx(AS_MOVE_Imm_Ofp, isz, NULL, NULL,              // move.x #CONST, off(fp)
+                                                 src->u.CONST, off, NULL));
+                            }
+                            else                                                                // move exp, MEM(BINOP(PLUS, fp, CONST))
+                            {
+                                emit (AS_InstrEx(AS_MOVE_AnDn_Ofp, isz,                         // move.x exp, off(fp)
+                                                 L(munchExp(src, FALSE), NULL), NULL,
+                                                 0, off, NULL));
+                            }
+                        }
+                        else                                                                    // move ..., MEM(BINOP(PLUS, fp, exp))
+                        {
+                            assert(0);
+                        }
+                    }
+                    else
+                    {
+                        if (dst->u.MEM.exp->u.BINOP.left->kind == T_HEAP)                       // move ..., MEM(BINOP(PLUS,HEAP, ...))
+                        {                                                                       // assignment to heap var
+                            if (dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)                 // move ..., MEM(BINOP(PLUS,HEAP, CONST))
+                            {
                                 assert(0);
                             }
-                            else
-                            {
-                                if (dst->u.MEM.exp->kind == T_CONST)
+                            else                                                                // move ..., MEM(BINOP(PLUS,HEAP, exp))
+                            {                                                                   // -> compute dst address in addr reg
+                                Temp_temp ra = Temp_newtemp(Ty_Long());
+                                emit (AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L,                       // move BINOP(PLUS, HEAD, exp2), ra
+                                               munchExp(dst->u.MEM.exp, FALSE), ra));
+                                if (src->kind == T_CONST)                                       // move CONST, MEM(BINOP(PLUS,HEAP, exp))
                                 {
-                                    /* MOVE(MEM(CONST(i)), e2) */
-                                    //T_exp e2 = src;
-                                    //int i = dst->u.MEM.exp->u.CONST;
-                                    //emit(AS_Move(strprintf("move.%s `s0, %d", isz, i), NULL, L(munchExp(e2, FALSE), NULL), NULL));
-                                    assert(0);
+                                    emit(AS_InstrEx(AS_MOVE_Imm_RAn, isz, L(ra, NULL), NULL,    // move #imm, (ra)
+                                                    src->u.CONST, 0, NULL));
                                 }
-                                else
+                                else                                                            // move exp1, MEM(BINOP(PLUS,HEAP, exp2))
                                 {
-                                    // move.x e2, (e1)
-                                    T_exp e1 = dst->u.MEM.exp, e2 = src;
-                                    emit(AS_InstrEx(AS_MOVE_AnDn_RAn, isz, L(munchExp(e2, FALSE), L(munchExp(e1, FALSE), NULL)),
+                                    emit(AS_InstrEx(AS_MOVE_AnDn_RAn, isz,                      // move src, (ra)
+                                                    L(munchExp(src, FALSE), L(ra, NULL)),
                                                     NULL, 0, 0, NULL));
                                 }
                             }
                         }
+                        else
+                        {
+                            assert(0);
+                        }
+                    }
+
+
+                    // if (dst->u.MEM.exp->kind == T_BINOP                                         // move ..., MEM(BINOP(PLUS, ..., CONST)))
+                    //     && dst->u.MEM.exp->u.BINOP.op == T_plus
+                    //     && dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)
+                    // {
+                    //     if (src->kind == T_CONST)
+                    //     {
+                    //         if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)                     // assignment to frame var
+                    //         {
+                    //             int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;               // move CONST, MEM(BINOP(PLUS, fp, CONST)))
+                    //             unsigned int j = src->u.CONST;
+                    //             emit (AS_InstrEx(AS_MOVE_Imm_Ofp, isz, NULL, NULL,              // move.x #j, off(fp)
+                    //                              j, off, NULL));
+                    //         }
+                    //         else
+                    //         {
+                    //             assert(0);
+                    //             // // MOVE( CONST(j) -> MEM(BINOP(PLUS,e1,CONST(i))) )
+                    //             // T_exp e1 = dst->u.MEM.exp->u.BINOP.left;
+                    //             // int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
+                    //             // unsigned int j = src->u.CONST;
+                    //             // emit (AS_InstrEx(AS_MOVE_Imm_OAn, isz, NULL, L(munchExp(e1, FALSE), NULL), j, off, NULL)); // move.x #j, off(e1)
+                    //         }
+                    //     }
+                    //     else
+                    //     {
+                    //         if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)                     // assignment to frame var
+                    //         {
+                    //             int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;               // move src, MEM(BINOP(PLUS, fp, CONST)))
+                    //             emit (AS_InstrEx(AS_MOVE_AnDn_Ofp, isz,                         // move.x src, off(fp)
+                    //                              L(munchExp(src, FALSE), NULL), NULL, 0, off, NULL));
+                    //         }
+                    //         else
+                    //         {
+                    //             assert(0);
+                    //             // /* MOVE(MEM(BINOP(PLUS,e1,CONST(i))),e2) */
+                    //             // T_exp e1 = dst->u.MEM.exp->u.BINOP.left;
+                    //             // int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
+                    //             // // move.%s src, off(e1)
+                    //             // emit (AS_InstrEx(AS_MOVE_AnDn_OAn, isz, L(munchExp(src, FALSE), NULL), L(munchExp(e1, FALSE), NULL), 0, off, NULL)); 
+                    //         }
+                    //     }
+                    // }
+
+                }
+                else
+                {
+                    if (dst->u.MEM.exp->kind == T_HEAP)                                         // move ..., MEM(HEAP ...)
+                    {                                                                           // assignment to heap var
+                        Temp_label lab = dst->u.MEM.exp->u.HEAP;
+                        if (src->kind == T_CONST)                                               // move.x #const, lab
+                        {
+                            unsigned int j = src->u.CONST;
+                            emit(AS_InstrEx(AS_MOVE_Imm_Label, isz, NULL, NULL, j, 0, lab));
+                        }
+                        else                                                                    // move.x src, lab
+                        {
+                            emit(AS_InstrEx(AS_MOVE_AnDn_Label, isz,
+                                            L(munchExp(src, FALSE), NULL), NULL, 0, 0, lab));
+                        }
+                    }
+                    else
+                    {
+                        assert(0);
+                        //     if (src->kind == T_MEM)
+                        //     {
+                        //         /* MOVE(MEM(e1), MEM(e2)) */
+                        //         // T_exp e1 = dst->u.MEM.exp, e2 = src->u.MEM.exp;
+                        //         // Temp_temp r = Temp_newtemp(resty);
+                        //         //emit(AS_Move(strprintf("move.%s (`s0), `d0", isz), L(r, NULL), L(munchExp(e2, FALSE), NULL), NULL));
+                        //         //emit(AS_Move(strprintf("move.%s `s0, (`s1)", isz), NULL, L(r, L(munchExp(e1, FALSE), NULL)), NULL));
+                        //         assert(0);
+                        //     }
+                        //     else
+                        //     {
+                        //         if (dst->u.MEM.exp->kind == T_CONST)
+                        //         {
+                        //             /* MOVE(MEM(CONST(i)), e2) */
+                        //             //T_exp e2 = src;
+                        //             //int i = dst->u.MEM.exp->u.CONST;
+                        //             //emit(AS_Move(strprintf("move.%s `s0, %d", isz, i), NULL, L(munchExp(e2, FALSE), NULL), NULL));
+                        //             assert(0);
+                        //         }
+                        //         else
+                        //         {
+                        //             // move.x e2, (e1)
+                        //             T_exp e1 = dst->u.MEM.exp, e2 = src;
+                        //             Temp_temp r1 = Temp_newtemp(e1->ty); // e1 calculation might need a dx register but we need a ax reg
+                        //             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(e1, FALSE), r1));     // move.x d1, r1
+                        //             emit(AS_InstrEx(AS_MOVE_AnDn_RAn, isz, L(munchExp(e2, FALSE), L(r1, NULL)),
+                        //                             NULL, 0, 0, NULL));
+                        //         }
+                        //     }
                     }
                 }
             }
-            else
+            else // not MEM[]
             {
                 if (dst->kind == T_TEMP)
                 {

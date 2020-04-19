@@ -72,6 +72,7 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label 
 T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);
+    assert( (dst->kind==T_MEM) || (dst->kind==T_TEMP) || (dst->kind==T_ESEQ) );
 
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 

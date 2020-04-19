@@ -54,7 +54,9 @@ Tr_exp        Tr_stringExp(string str);
 
 Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty);
 
-Tr_exp        Tr_simpleVar(Tr_access a);
+Tr_exp        Tr_Var(Tr_access a);
+Tr_exp        Tr_Index(Tr_exp array, Tr_exp idx); 
+Tr_exp        Tr_Deref(Tr_exp ptr); 
 #if 0
 Tr_exp Tr_fieldVar(Tr_exp var, int fieldIndex, Tr_level l);
 Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l);
@@ -62,7 +64,7 @@ Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l);
 
 Tr_exp        Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
 Tr_exp        Tr_boolOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
-Tr_exp        Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
+Tr_exp        Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right);
 Tr_exp        Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee);
 Tr_exp        Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty);
 
@@ -72,7 +74,7 @@ Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl);
 #endif
 
 // Tr_exp Tr_forExp(Tr_access i, Tr_level lv, Tr_exp explo, Tr_exp exphi, Tr_exp body, Temp_label breaklbl);
-Tr_exp        Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
+Tr_exp        Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
 
 #if 0
 Tr_exp Tr_breakExp(Temp_label breaklbl);
@@ -85,6 +87,9 @@ Tr_exp Tr_letExp(Tr_expList el, Tr_exp body);
 
 Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty ty);
 
-void Tr_printExp(FILE *out, Tr_exp exp, int d);
+bool          Tr_getConstInt(Tr_exp exp, int *result);
+Ty_ty         Tr_ty(Tr_exp exp);
+
+void          Tr_printExp(FILE *out, Tr_exp exp, int d);
 
 #endif

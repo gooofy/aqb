@@ -2,26 +2,26 @@
 #define HAVE_GRAPH_H
 
 /*
- * graph.h - Abstract Data Type (ADT) for directed graphs
+ * graph.h - Abstract Data Type (ADT) for directed und undirected graphs
  */
 
 typedef struct G_graph_ *G_graph;  /* The "graph" type */
 typedef struct G_node_ *G_node;    /* The "node" type */
 
 typedef struct G_nodeList_ *G_nodeList;
-struct G_nodeList_ 
-{ 
-    G_node     head; 
+struct G_nodeList_
+{
+    G_node     head;
     G_nodeList tail;
 };
 
-struct G_graph_ 
+struct G_graph_
 {
     int        nodecount;
 	G_nodeList mynodes, mylast;
 };
 
-struct G_node_ 
+struct G_node_
 {
   G_graph     mygraph;
   int         mykey;
@@ -31,7 +31,7 @@ struct G_node_
 };
 
 /* Make a new graph */
-G_graph G_Graph(void); 
+G_graph G_Graph(void);
 /* Make a new node in graph "g", with associated "info" */
 G_node G_Node(G_graph g, void *info);
 
@@ -88,5 +88,50 @@ void G_enter(G_table t, G_node node, void *value);
 /* Tell what "node" maps to in table "t" */
 void *G_look(G_table t, G_node node);
 
-#endif
+/*
+ * undirected graphs
+ */
 
+typedef struct UG_graph_ *UG_graph;
+typedef struct UG_node_  *UG_node;
+
+typedef struct UG_nodeList_ *UG_nodeList;
+struct UG_nodeList_
+{
+    UG_node     head;
+    UG_nodeList tail;
+};
+
+struct UG_graph_
+{
+    int         cnt;           // used to generate node keys
+	UG_nodeList nodes, last;
+};
+
+struct UG_node_
+{
+  UG_graph    graph;
+  int         key;
+  UG_nodeList adj;
+  void       *info;
+};
+
+UG_graph    UG_Graph(void);
+UG_node     UG_Node(UG_graph g, void *info);
+
+UG_nodeList UG_NodeList(UG_node head, UG_nodeList tail);
+UG_nodeList UG_reverseNodes(UG_nodeList l);
+bool        UG_inNodeList(UG_node a, UG_nodeList l);
+
+void        UG_addEdge   (UG_node n1, UG_node n2);
+// void        UG_rmEdge    (UG_node n1, UG_node n2);
+bool        UG_connected (UG_node n1, UG_node n2);
+int         UG_degree    (UG_node n);
+
+typedef struct TAB_table_  *UG_table;
+
+UG_table    UG_empty(void);
+void        UG_enter(UG_table t, UG_node node, void *value);
+void       *UG_look(UG_table t, UG_node node);
+
+#endif

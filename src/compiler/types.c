@@ -42,16 +42,29 @@ Ty_ty Ty_Void(void) {return &tyvoid;}
 //
 //     return p;
 // }
-//
-// Ty_ty Ty_Array(Ty_ty ty)
-// {
-//     Ty_ty p = checked_malloc(sizeof(*p));
-//
-//     p->kind    = Ty_array;
-//     p->u.array = ty;
-//
-//     return p;
-// }
+
+Ty_ty Ty_VarPtr(Ty_ty ty)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind      = Ty_varPtr;
+    p->u.pointer = ty;
+
+    return p;
+}
+
+Ty_ty Ty_Array(Ty_ty ty, int start, int end)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind              = Ty_array;
+    p->u.array.elementTy = ty;
+    p->u.array.iStart    = start;
+    p->u.array.iEnd      = end;
+    p->u.array.uiSize    = (end - start) * Ty_size(ty);
+
+    return p;
+}
 
 Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail)
 {
@@ -128,15 +141,17 @@ int Ty_size(Ty_ty t)
              return 2;
         case Ty_long:
         case Ty_single:
-        case Ty_string:
-        case Ty_void:
+        case Ty_string: // FIXME
         case Ty_pointer:
+        case Ty_varPtr:
              return 4;
         case Ty_double:
              return 8;
         case Ty_array:
+            return t->u.array.uiSize;
         case Ty_record:
-            assert(0); // FIXME
+        default:
+            assert(0);
             return 4;
     }
     return 4;

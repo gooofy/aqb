@@ -13,7 +13,7 @@ clean:
 aqb:	aqb.o scanner.o hashmap.o util.o parser.o \
 		errormsg.o absyn.o symbol.o prabsyn.o semant.o translate.o \
 		frame.o tree.o temp.o assem.o printtree.o env.o types.o \
-		canon.o codegen.o regalloc.o graph.o liveness.o flowgraph.o color.o table.o
+		canon.o codegen.o regalloc.o graph.o liveness.o color.o flowgraph.o table.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 #		errormsg.o absyn.o symbol.o table.o \

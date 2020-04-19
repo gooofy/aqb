@@ -147,7 +147,7 @@ static T_stm do_stm(T_stm stm)
         case T_MOVE:
             if (stm->u.MOVE.dst->kind == T_TEMP && stm->u.MOVE.src->kind == T_CALLF)
                 return seq(reorder(get_call_rlist(stm->u.MOVE.src)), stm);
-            else if (stm->u.MOVE.dst->kind == T_TEMP)
+            else if (stm->u.MOVE.dst->kind == T_TEMP || stm->u.MOVE.dst->kind == T_HEAP)
                 return seq(reorder(ExpRefList(&stm->u.MOVE.src, NULL)), stm);
             else if (stm->u.MOVE.dst->kind == T_MEM)
                 return seq(reorder(ExpRefList(&stm->u.MOVE.dst->u.MEM.exp,

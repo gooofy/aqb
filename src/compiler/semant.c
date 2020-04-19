@@ -12,28 +12,14 @@
 #include "translate.h"
 #include "env.h"
 
-typedef struct
-{
-    Tr_exp exp;
-    Ty_ty ty;
-} expty;
-
-expty expTy(Tr_exp exp, Ty_ty ty)
-{
-    expty e;
-    e.exp = exp;
-    e.ty  = ty;
-    return e;
-}
-
 // global symbol namespace
 
 static S_scope g_venv;
 static S_scope g_tenv;
 
-static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
-static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl);
-static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
+static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl);
+static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
 
 #if 0
 /* Function Declarations */
@@ -148,6 +134,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -168,6 +155,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -188,6 +176,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -208,6 +197,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -226,6 +216,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -241,6 +232,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
                 case Ty_string:
@@ -259,6 +251,10 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             assert(0); // FIXME
             *res = ty1;
             return FALSE;
+        case Ty_varPtr:
+            assert(0); // FIXME
+            *res = ty1;
+            return FALSE;
         case Ty_void:
             switch (ty2->kind)
             {
@@ -271,6 +267,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_pointer:
+                case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
                 case Ty_void:
@@ -282,9 +279,9 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
     return FALSE;
 }
 
-static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
+static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
 {
-    Ty_ty ty1 = exp.ty;
+    Ty_ty ty1 = Tr_ty(exp);
 
     if (ty1 == ty2)
     {
@@ -300,7 +297,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
                 case Ty_integer:
                 case Ty_long:
                 case Ty_single:
-                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -312,7 +309,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
                 case Ty_bool:
                 case Ty_long:
                 case Ty_single:
-                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -324,7 +321,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
                 case Ty_bool:
                 case Ty_integer:
                 case Ty_single:
-                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -336,7 +333,7 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
                 case Ty_bool:
                 case Ty_integer:
                 case Ty_long:
-                    *res = expTy(Tr_castExp(exp.exp, ty1, ty2), ty2);
+                    *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -350,20 +347,16 @@ static bool convert_ty(expty exp, Ty_ty ty2, expty *res)
 }
 
 /* Expression entrance */
-static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl)
+static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl)
 {
     switch (a->kind)
     {
         case A_varExp:
-        {
-            expty exp = transVar(level, venv, tenv, a->u.var, breaklbl);
-            return expTy(exp.exp, exp.ty);
-        }
+            return transVar(level, venv, tenv, a->u.var, breaklbl);
+
         case A_boolExp:
-        {
-            Ty_ty ty = Ty_Bool();
-            return expTy(Tr_boolExp(a->u.boolb, ty), ty);
-        }
+            return Tr_boolExp(a->u.boolb, Ty_Bool());
+
         case A_intExp:
         {
             Ty_ty ty;
@@ -371,29 +364,27 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 ty = Ty_Integer();
             else
                 ty = Ty_Long();
-            return expTy(Tr_intExp(a->u.intt, ty), ty);
+            return Tr_intExp(a->u.intt, ty);
         }
         case A_floatExp:
-        {
-            Ty_ty ty = Ty_Single();
-            return expTy(Tr_floatExp(a->u.floatt, ty), ty);
-        }
+            return Tr_floatExp(a->u.floatt, Ty_Single());
+
         case A_stringExp:
             if (a->u.stringg == NULL)
             {
                 EM_error(a->pos, "string required");
                 break;
             }
-            return expTy(Tr_stringExp(a->u.stringg), Ty_String());
+            return Tr_stringExp(a->u.stringg);
 
         case A_opExp:
         {
-            A_oper oper = a->u.op.oper;
-            expty left  = transExp(level, venv, tenv, a->u.op.left, breaklbl);
-            expty right = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, breaklbl) : expTy(Tr_zeroExp(left.ty), left.ty);
-            Ty_ty resTy;
-            Ty_ty ty1   = left.ty;
-            Ty_ty ty2   = right.ty;
+            A_oper oper   = a->u.op.oper;
+            Tr_exp left   = transExp(level, venv, tenv, a->u.op.left, breaklbl);
+            Tr_exp right  = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, breaklbl) : Tr_zeroExp(Tr_ty(left));
+            Ty_ty  resTy;
+            Ty_ty  ty1    = Tr_ty(left);
+            Ty_ty  ty2    = Tr_ty(right);
 
             // boolean operations, some with short circuit evaluation
             if (ty1->kind == Ty_bool)
@@ -404,7 +395,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                     case A_andOp:
                     case A_orOp:
                     {
-                        return expTy(Tr_boolOpExp(oper, left.exp, right.exp, ty2), ty2);
+                        return Tr_boolOpExp(oper, left, right, ty2);
                     }
                     default:
                         // bool -> integer since we do not have arith operations for bool
@@ -412,7 +403,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 }
             }
 
-            expty e1, e2;
+            Tr_exp e1, e2;
             if (!coercion(ty1, ty2, &resTy)) {
                 EM_error(a->u.op.left->pos, "operands type mismatch");
                 break;
@@ -444,7 +435,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 case A_andOp:
                 case A_orOp:
                 {
-                    return expTy(Tr_arOpExp(oper, e1.exp, e2.exp, resTy), resTy);
+                    return Tr_arOpExp(oper, e1, e2, resTy);
                 }
                 case A_eqOp:
                 case A_neqOp:
@@ -453,7 +444,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
                 case A_gtOp:
                 case A_geOp:
                 {
-                    return expTy(Tr_condOpExp(oper, e1.exp, e2.exp, resTy), Ty_Bool());
+                    return Tr_condOpExp(oper, e1, e2);
                 }
             }
         }
@@ -476,18 +467,18 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             Ty_tyList tl;
             A_expListNode en;
             Tr_expList explist = NULL;
-            expty exp;
+            Tr_exp exp;
             for (tl = proc->u.fun.formals, en = a->u.callr.args->first;
                  tl && en; tl = tl->tail, en = en->next)
             {
-                expty conv_actual;
+                Tr_exp conv_actual;
                 exp = transExp(level, venv, tenv, en->exp, breaklbl);
                 if (!convert_ty(exp, tl->head, &conv_actual))
                 {
                     EM_error(en->exp->pos, "parameter type mismatch");
-                    return expTy(Tr_nopNx(), Ty_Void());
+                    return Tr_nopNx();
                 }
-                explist = Tr_ExpList(conv_actual.exp, explist);
+                explist = Tr_ExpList(conv_actual, explist);
             }
 
             if (en)
@@ -495,7 +486,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             if (tl)
                 EM_error(a->pos, "too few params for sub %s", S_name(a->u.callr.func));
 
-            return expTy(Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result), proc->u.fun.result);
+            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result);
         }
 #if 0
         case A_recordExp: {
@@ -628,7 +619,7 @@ static expty transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_
             EM_error(a->pos, "*** internal error: unsupported expression type.");
             assert(0);
     }
-    return expTy(Tr_nopNx(), Ty_Void());
+    return Tr_nopNx();
 }
 
 static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
@@ -636,11 +627,9 @@ static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
     Ty_ty ty = S_look(tenv, sym);
     if (ty)
         return ty;
-    else
-    {
-        EM_error(pos, "undefined type %s", S_name(sym));
-        return Ty_Void();
-    }
+
+    EM_error(pos, "undefined type %s", S_name(sym));
+    return Ty_Void();
 }
 
 /* Type list generation of a sub or function */
@@ -676,10 +665,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
     {
         case A_printStmt:
         {
-            expty exp          = transExp(level, venv, tenv, stmt->u.printExp, breaklbl);
-            Tr_expList arglist = Tr_ExpList(exp.exp, NULL); // single argument list
-            S_symbol fsym      = NULL;                      // put* function sym to call
-            switch (exp.ty->kind)
+            Tr_exp exp         = transExp(level, venv, tenv, stmt->u.printExp, breaklbl);
+            Tr_expList arglist = Tr_ExpList(exp, NULL);  // single argument list
+            S_symbol fsym      = NULL;                   // put* function sym to call
+            switch (Tr_ty(exp)->kind)
             {
                 case Ty_string:
                     fsym = S_Symbol("__aio_puts");
@@ -697,7 +686,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     fsym = S_Symbol("__aio_putbool");
                     break;
                 default:
-                    EM_error(stmt->pos, "unsupported type %d in print expression list.", exp.ty->kind);
+                    EM_error(stmt->pos, "unsupported type in print expression list.");
                     assert(0);
             }
             if (fsym)
@@ -723,46 +712,45 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_assertStmt:
         {
-            expty exp          = transExp(level, venv, tenv, stmt->u.assertr.exp, breaklbl);
-            // Tr_expList arglist = Tr_ExpList(exp.exp, Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), NULL));
-            Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp.exp, NULL));
+            Tr_exp exp         = transExp(level, venv, tenv, stmt->u.assertr.exp, breaklbl);
+            Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp, NULL));
             S_symbol fsym      = S_Symbol("__aqb_assert");
             E_enventry func    = S_look(g_venv, fsym);
             return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
         }
         case A_assignStmt:
         {
-            expty var = transVar(level, venv, tenv, stmt->u.assign.var, breaklbl);
-            expty exp = transExp(level, venv, tenv, stmt->u.assign.exp, breaklbl);
-            expty convexp;
+            Tr_exp var = transVar(level, venv, tenv, stmt->u.assign.var, breaklbl);
+            Tr_exp exp = transExp(level, venv, tenv, stmt->u.assign.exp, breaklbl);
+            Tr_exp convexp;
 
-            if (!convert_ty(exp, var.ty, &convexp))
+            if (!convert_ty(exp, Tr_ty(var), &convexp))
             {
                 EM_error(stmt->pos, "type mismatch (assign).");
                 break;
             }
 
-            return Tr_assignExp(var.exp, convexp.exp, var.ty);
+            return Tr_assignExp(var, convexp, Tr_ty(var));
         }
         case A_forStmt:
         {
             E_enventry var = autovar (level, venv, stmt->u.forr.var);
             Ty_ty varty = var->u.var.ty;
 
-            expty from_exp  = transExp(level, venv, tenv, stmt->u.forr.from_exp, breaklbl);
-            expty to_exp    = transExp(level, venv, tenv, stmt->u.forr.to_exp, breaklbl);
-            expty step_exp  = stmt->u.forr.step_exp ?
-                                transExp(level, venv, tenv, stmt->u.forr.step_exp, breaklbl) :
-                                expTy(Tr_oneExp(varty), varty);
+            Tr_exp from_exp  = transExp(level, venv, tenv, stmt->u.forr.from_exp, breaklbl);
+            Tr_exp to_exp    = transExp(level, venv, tenv, stmt->u.forr.to_exp, breaklbl);
+            Tr_exp step_exp  = stmt->u.forr.step_exp ?
+                                 transExp(level, venv, tenv, stmt->u.forr.step_exp, breaklbl) :
+                                 Tr_oneExp(varty);
 
-            expty conv_from_exp, conv_to_exp, conv_step_exp;
+            Tr_exp conv_from_exp, conv_to_exp, conv_step_exp;
 
             if (!convert_ty(from_exp, varty, &conv_from_exp))
             {
                 EM_error(stmt->pos, "type mismatch (from expression).");
                 break;
             }
-            if (!convert_ty(to_exp,   varty, &conv_to_exp))
+            if (!convert_ty(to_exp, varty, &conv_to_exp))
             {
                 EM_error(stmt->pos, "type mismatch (to expression).");
                 break;
@@ -774,17 +762,17 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             Temp_label forbreak = Temp_newlabel();
-            expty body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak, depth+1);
+            Tr_exp body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak, depth+1);
 
-            return Tr_forExp(var->u.var.access, varty, conv_from_exp.exp, conv_to_exp.exp, conv_step_exp.exp, body.exp, forbreak);
+            return Tr_forExp(var->u.var.access, conv_from_exp, conv_to_exp, conv_step_exp, body, forbreak);
         }
         case A_ifStmt:
         {
-            expty test, conv_test, then, elsee;
+            Tr_exp test, conv_test, then, elsee;
             test = transExp(level, venv, tenv, stmt->u.ifr.test, breaklbl);
             if (!convert_ty(test, Ty_Bool(), &conv_test))
             {
-                EM_error(stmt->u.ifr.test->pos, "if expression must be boolean (is %d)", test.ty->kind);
+                EM_error(stmt->u.ifr.test->pos, "if expression must be boolean");
                 break;
             }
 
@@ -795,11 +783,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                elsee.exp = Tr_nopNx();
-                elsee.ty = Ty_Void();
+                elsee = Tr_nopNx();
             }
 
-            return Tr_ifExp(conv_test.exp, then.exp, elsee.exp);
+            return Tr_ifExp(conv_test, then, elsee);
         }
         case A_procStmt:
         case A_procDeclStmt:
@@ -864,11 +851,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     }
                 }
 
-                expty body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl, depth+1);
+                Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl, depth+1);
 
                 S_endScope(lenv);
 
-                Tr_procEntryExit(funlv, body.exp, Tr_formals(funlv), ret_access);
+                Tr_procEntryExit(funlv, body, Tr_formals(funlv), ret_access);
             }
 
             break;
@@ -892,18 +879,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_tyList tl;
             A_expListNode en;
             Tr_expList explist = NULL;
-            expty exp;
+            Tr_exp exp;
             for (tl = proc->u.fun.formals, en = stmt->u.callr.args->first;
                  tl && en; tl = tl->tail, en = en->next)
             {
-                expty conv_actual;
+                Tr_exp conv_actual;
                 exp = transExp(level, venv, tenv, en->exp, breaklbl);
                 if (!convert_ty(exp, tl->head, &conv_actual))
                 {
                     EM_error(en->exp->pos, "parameter type mismatch");
                     return Tr_nopNx();
                 }
-                explist = Tr_ExpList(conv_actual.exp, explist);
+                explist = Tr_ExpList(conv_actual, explist);
             }
 
             if (en)
@@ -930,6 +917,31 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             else
             {
                 t = Ty_inferType(stmt->u.dimr.varId);
+            }
+
+            for (A_dim dim=stmt->u.dimr.dims; dim; dim=dim->tail)
+            {
+                int start, end;
+                if (dim->expStart)
+                {
+                    Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, breaklbl);
+                    if (!Tr_getConstInt(expStart, &start))
+                    {
+                        EM_error(dim->expStart->pos, "Constant array bounds expected.");
+                        return Tr_nopNx();
+                    }
+                }
+                else
+                {
+                    start = 0;
+                }
+                Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, breaklbl);
+                if (!Tr_getConstInt(expEnd, &end))
+                {
+                    EM_error(dim->expEnd->pos, "Constant array bounds expected.");
+                    return Tr_nopNx();
+                }
+                t = Ty_Array(t, start, end);
             }
 
             S_symbol name = S_Symbol(stmt->u.dimr.varId);
@@ -974,7 +986,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
     return NULL;
 }
 
-static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth)
+static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth)
 {
     Tr_expList el = NULL, last=NULL;
     A_stmtListNode node;
@@ -1000,21 +1012,14 @@ static expty transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLis
         el = last = Tr_ExpList(Tr_nopNx(), NULL);
     }
 
-    return expTy(Tr_seqExp(el), Ty_Void());
+    return Tr_seqExp(el);
 }
 
-static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl)
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl)
 {
     E_enventry x = autovar(level, venv, v->name);
 
-    if (x->kind == E_varEntry)
-    {
-
-        assert (v->selector == NULL); // FIXME: implement!
-
-        return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
-    }
-    else
+    if (x->kind != E_varEntry)
     {
         // return value ?
         if ( (x->kind == E_funEntry) && (Tr_getLabel(level) == x->u.fun.label) )
@@ -1022,17 +1027,54 @@ static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_
             if (x->u.fun.result->kind == Ty_void)
             {
                 EM_error(v->pos, "subs cannot return a value: %s", S_name(v->name));
-                return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
+                return Tr_zeroExp(Ty_Long());
             }
             x = S_look(venv, S_Symbol(RETURN_VAR_NAME));
-            return expTy(Tr_simpleVar(x->u.var.access), x->u.var.ty);
         }
         else
         {
             EM_error(v->pos, "this is not a variable: %s", S_name(v->name));
-            return expTy(Tr_zeroExp(Ty_Long()), Ty_Long());
+            return Tr_zeroExp(Ty_Long());
         }
     }
+
+    Tr_exp e  = Tr_Var(x->u.var.access);
+
+    for (A_selector sel = v->selector; sel; sel = sel->tail)
+    {
+        switch (sel->kind)
+        {
+            case A_indexSel:
+            {
+                Tr_exp idx = transExp(level, venv, tenv, sel->u.idx, breaklbl);
+                Tr_exp idx_conv;
+                if (!convert_ty(idx, Ty_Long(), &idx_conv))
+                {
+                    EM_error(sel->pos, "Array indices must be numeric.");
+                    return Tr_zeroExp(Ty_Long());
+                }
+                Ty_ty ty = Tr_ty(e);
+                if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_array) )
+                {
+                    EM_error(sel->pos, "array type expected");
+                    return Tr_zeroExp(Ty_Long());
+                }
+                e = Tr_Index(e, idx_conv);
+                break;
+            }
+            default:
+                assert(0);
+        }
+    }
+
+    Ty_ty ty = Tr_ty(e);
+
+    // if this is a varPtr, time to deref it
+
+    if (ty->kind == Ty_varPtr)
+        e = Tr_Deref(e);
+
+    return e;
 
 #if 0
         case A_fieldVar:
@@ -1073,7 +1115,7 @@ static expty transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_
             return expTy(Tr_subscriptVar(var.exp, sub.exp, level), actual_ty(var.ty->u.array));
         }
 #endif
-    return expTy(Tr_zeroExp(Ty_Integer()), Ty_Void());
+    return Tr_zeroExp(Ty_Integer());
 }
 
 #if 0
@@ -1249,10 +1291,10 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram)
 
     printf ("transStmtList:\n");
     printf ("--------------\n");
-    expty prog = transStmtList(lv, g_venv, g_tenv, sourceProgram->stmtList, NULL, 0);
+    Tr_exp prog = transStmtList(lv, g_venv, g_tenv, sourceProgram->stmtList, NULL, 0);
     printf ("--------------\n");
 
-    Tr_procEntryExit(lv, prog.exp, NULL, NULL);
+    Tr_procEntryExit(lv, prog, NULL, NULL);
 
     return Tr_getResult();
 }

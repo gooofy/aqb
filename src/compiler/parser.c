@@ -81,7 +81,52 @@ static bool logicalNewline(void)
 static bool expression(A_exp *exp);
 static bool expressionList(A_expList *expList);
 
-// atom ::= ident [ '(' procParamList ')' ] | boolLiteral | numLiteral | stringLiteral | '(' expression ')
+// selector ::= ( "(" expression ( "," expression)* ")"
+//              | "." ident
+//              | "->" ident )
+
+static bool selector(A_selector *sel)
+{
+    A_pos      pos = S_getpos();
+    switch (S_token)
+    {
+        case S_LPAREN:
+        {
+            A_exp      exp;
+            A_selector last;
+
+            S_getsym();
+            if (!expression(&exp))
+                return EM_err("index expression expected here.");
+            *sel = A_IndexSelector(pos, exp);
+            last = *sel;
+
+            while (S_token == S_COMMA)
+            {
+                S_getsym();
+                if (!expression(&exp))
+                    return EM_err("index expression expected here.");
+                last->tail = A_IndexSelector(pos, exp);
+                last = last->tail;
+            }
+
+            if (S_token != S_RPAREN)
+                return EM_err(") expected here.");
+            S_getsym();
+
+            return TRUE;
+        }
+        case S_PERIOD:
+            assert(0); // FIXME
+            break;
+        case S_POINTER:
+            assert(0); // FIXME
+            break;
+    }
+    return FALSE; // FIXME
+}
+
+// atom ::= ident [ '(' procParamList ')' | selector* ] |  boolLiteral | numLiteral | stringLiteral | '(' expression ')
 static bool atom(A_exp *exp)
 {
     A_pos pos = S_getpos();
@@ -90,7 +135,10 @@ static bool atom(A_exp *exp)
     {
         case S_IDENT:
         {
-            S_symbol sym = S_Symbol(String(S_strlc));
+            A_selector sel = NULL, last_sel = NULL;
+            A_var      v;
+
+            S_symbol   sym = S_Symbol(String(S_strlc));
             S_getsym();
 
             if (S_token == S_LPAREN)
@@ -121,13 +169,25 @@ static bool atom(A_exp *exp)
                     *exp = A_FuncCallExp(pos, proc->name, args);
                     return TRUE;
                 }
-                else
-                {
-                    return EM_err("Sorry, arrays are not supported yet."); // FIXME
-                }
             }
 
-            *exp = A_VarExp(pos, A_Var (pos, sym));
+            v= A_Var (pos, sym);
+            while ( (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
+            {
+                if (!selector(&sel))
+                    return FALSE;
+                if (!last_sel)
+                {
+                    v->selector = sel;
+                }
+                else
+                {
+                    last_sel->tail = sel;
+                }
+                last_sel = sel;
+            }
+
+            *exp = A_VarExp(pos, v);
             break;
         }
         case S_TRUE:
@@ -871,36 +931,35 @@ static bool stmtLine(void)
     return TRUE;
 }
 
-// lValue ::= ident [ "(" subscriptList ")" ]
-static bool lValue(A_var *v)
+// assignmentStmt ::= ident ( "(" expression ( "," expression)* ")"
+//                          | "." ident
+//                          | "->" ident )* "=" expression
+static bool stmtAssignment(S_symbol sym)
 {
-    A_pos    pos = S_getpos();
-    S_symbol sym = S_Symbol(String(S_strlc));
+    A_var      v;
+    A_exp      exp;
+    A_pos      pos = S_getpos();
+    A_selector sel = NULL, last_sel = NULL;
 
-    S_getsym();
+    v = A_Var (pos, sym);
 
-    if (S_token == S_LPAREN)
+    while ( (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
     {
-        return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
+        if (!selector(&sel))
+            return FALSE;
+        if (!last_sel)
+        {
+            v->selector = sel;
+        }
+        else
+        {
+            last_sel->tail = sel;
+        }
+        last_sel = sel;
     }
-
-    *v = A_Var (pos, sym);
-    return TRUE;
-}
-
-// assignmentStmt ::= LET lValue "=" expression
-static bool stmtLet(void)
-{
-    A_var v = NULL;
-    A_exp exp;
-    A_pos pos = S_getpos();
-
-    if (!lValue(&v))
-        return FALSE;
 
     if (S_token != S_EQUALS)
         return EM_err ("= expected.");
-
     S_getsym();
 
     if (!expression(&exp))
@@ -909,6 +968,20 @@ static bool stmtLet(void)
     A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
 
     return TRUE;
+}
+
+// letStmt ::= LET assignmentStmt
+static bool stmtLet(void)
+{
+    S_getsym(); // skip "LET"
+
+    if (S_token != S_IDENT)
+        return EM_err("LET: variable identifier expected here.");
+
+    S_symbol sym = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    return stmtAssignment(sym);
 }
 
 // forBegin ::= FOR ident "=" expression TO expression [ STEP expression ]
@@ -1323,8 +1396,8 @@ static bool stmtEnd(void)
 
 
 
-// identStmt ::= ident ( [ "(" subscriptList ")" ] "=" expression   ; assignment
-//                     | [ "(" expressionList ")" ]                 ; proc call
+// identStmt ::= ident ( [ ("(" | "." | "->") ... ] "=" expression  ; assignment
+//                     | [ "(" expressionList ")" ]                 ; proc call FIXME
 //                     | ":"                                        ; label
 //                     | expressionList )                           ; call
 static bool stmtIdent(void)
@@ -1348,20 +1421,11 @@ static bool stmtIdent(void)
 
     switch (S_token)
     {
-        case S_LPAREN:      // assignment with array subscript
-            return EM_err ("Sorry, subscripts are not supported yet."); // FIXME: array support
-
+        case S_LPAREN:
+        case S_PERIOD:
+        case S_POINTER:
         case S_EQUALS:      // assignment
-        {
-            A_var v;
-            A_exp exp;
-            v = A_Var (pos, sym);
-            S_getsym();
-            if (!expression(&exp))
-                return EM_err("expression expected here.");
-            A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
-            break;
-        }
+            return stmtAssignment (sym);
 
         case S_COLON:       // label
             return EM_err ("Sorry, labels are not supported yet."); // FIXME
@@ -1394,6 +1458,11 @@ static bool arrayDimensions (A_dim *dims)
         {
             return EM_err("Array dimension expected here.");
         }
+    }
+    else
+    {
+        expEnd   = expStart;
+        expStart = NULL;
     }
 
     *dims = A_Dim(expStart, expEnd);

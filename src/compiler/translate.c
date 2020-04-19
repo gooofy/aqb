@@ -346,7 +346,7 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
 
     if (ret_access)
     {
-        T_exp ret_exp = unEx(Tr_simpleVar(ret_access));
+        T_exp ret_exp = unEx(Tr_Deref(Tr_Var(ret_access)));
         Ty_ty ty_ret = F_accessType(ret_access->access);
         stm = T_Seq(T_Move(ret_exp, unEx(Tr_zeroExp(ty_ret)),  ty_ret),
                 T_Seq(stm,
@@ -398,6 +398,8 @@ Tr_exp Tr_oneExp(Ty_ty ty) {
         case Ty_integer:
         case Ty_long:
             return Tr_Ex(T_ConstInt(1, ty));
+        case Ty_single:
+            return Tr_Ex(T_ConstFloat(1, ty));
         default:
             EM_error(0, "*** translate.c:Tr_oneExp: internal error");
             assert(0);
@@ -427,6 +429,17 @@ Tr_exp Tr_intExp(int i, Ty_ty ty)
     return Tr_Ex(T_ConstInt(i, ty));
 }
 
+bool Tr_getConstInt (Tr_exp exp, int *result)
+{
+    if (exp->kind != Tr_ex)
+        return FALSE;
+    if (exp->u.ex->kind != T_CONST)
+        return FALSE;
+
+    *result = *((int *) &exp->u.ex->u.CONST);
+    return TRUE;
+}
+
 Tr_exp Tr_floatExp(double f, Ty_ty ty)
 {
     return Tr_Ex(T_ConstFloat(f, ty));
@@ -441,9 +454,39 @@ Tr_exp Tr_stringExp(string str)
     return Tr_Ex(T_Heap(strpos, Ty_String()));
 }
 
-Tr_exp Tr_simpleVar(Tr_access a)
+Tr_exp Tr_Var(Tr_access a)
 {
     return Tr_Ex(F_Exp(a->access));
+}
+
+Tr_exp Tr_Index(Tr_exp array, Tr_exp idx)
+{
+    Ty_ty t = Tr_ty(array);
+    assert(t->kind==Ty_varPtr);
+    assert(t->u.pointer->kind==Ty_array);
+
+    Ty_ty at = t->u.pointer;
+    Ty_ty et = at->u.array.elementTy;
+
+    T_exp e = unEx(array);
+
+    return Tr_Ex(T_Binop(T_plus,
+                         e,
+                         T_Binop(T_mul,
+                                 T_Binop(T_minus,
+                                         unEx(idx),
+                                         T_ConstInt(at->u.array.iStart, Ty_Long()),
+                                         Ty_Long()),
+                                 T_ConstInt(Ty_size(at->u.array.elementTy), Ty_Long()),
+                                 Ty_Long()),
+                         Ty_VarPtr(et)));
+}
+
+Tr_exp Tr_Deref(Tr_exp ptr)
+{
+    Ty_ty t = Tr_ty(ptr);
+    assert( (t->kind==Ty_varPtr) || (t->kind==Ty_pointer) );
+    return Tr_Ex(T_Mem(unEx(ptr), t->u.pointer));
 }
 
 #if 0
@@ -529,7 +572,7 @@ Tr_exp Tr_boolOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
     return Tr_Nx(T_Nop());
 }
 
-Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
+Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right)
 {
     T_binOp op = T_eq;
     switch (o)
@@ -601,44 +644,26 @@ Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl) {
 
   return Tr_Nx(s);
 }
-
-Tr_exp Tr_forExp(Tr_access i, Tr_level lv, Tr_exp explo, Tr_exp exphi, Tr_exp body, Temp_label breaklbl) {
-  Temp_label test = Temp_newlabel();
-  Temp_label loopstart = Temp_newlabel();
-  Temp_label done = breaklbl;
-  Temp_temp limit = Temp_newtemp();
-  T_exp vari = unEx(Tr_simpleVar(i, lv));
-
-  T_stm s = T_Seq(T_Move(vari, unEx(explo)),
-              T_Seq(T_Label(test),
-                T_Seq(T_Move(T_Temp(limit), unEx(exphi)),
-                  T_Seq(T_Cjump(T_le, vari, T_Temp(limit), loopstart, done),
-                    T_Seq(T_Label(loopstart),
-                      T_Seq(unNx(body),
-                        T_Seq(T_Move(vari, T_Binop(T_plus, vari, T_Const(1))),
-                          T_Seq(T_Jump(T_Name(test), Temp_LabelList(test, NULL)),
-                            T_Label(done)))))))));
-  return Tr_Nx(s);
-}
 #endif
 
-Tr_exp Tr_forExp(Tr_access loopVar, Ty_ty loopVarType, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl)
+Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl)
 {
+    Ty_ty      loopVarTy = F_accessType(loopVar->access);
     Temp_label test      = Temp_newlabel();
     Temp_label loopstart = Temp_newlabel();
     Temp_label done      = breaklbl;
 
-    Temp_temp limit      = Temp_newtemp(loopVarType);
-    T_exp loopv          = unEx(Tr_simpleVar(loopVar));
+    Temp_temp limit      = Temp_newtemp(loopVarTy);
+    T_exp loopv          = unEx(Tr_Deref(Tr_Var(loopVar)));
 
-    T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarType);
-    T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()), loopVarType);
-    T_stm limitStm       = T_Move(T_Temp(limit, loopVarType), unEx(exp_to), loopVarType);
+    T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarTy);
+    T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()), loopVarTy);
+    T_stm limitStm       = T_Move(T_Temp(limit, loopVarTy), unEx(exp_to), loopVarTy);
 
     T_stm s = T_Seq(initStm,
                 T_Seq(T_Label(test),
                   T_Seq(limitStm,
-                    T_Seq(T_Cjump(T_le, loopv, T_Temp(limit, loopVarType), loopstart, done),
+                    T_Seq(T_Cjump(T_le, loopv, T_Temp(limit, loopVarTy), loopstart, done),
                       T_Seq(T_Label(loopstart),
                         T_Seq(unNx(body),
                           T_Seq(incStm,
@@ -786,6 +811,20 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             assert(0);
     }
     return NULL;
+}
+
+Ty_ty Tr_ty(Tr_exp exp)
+{
+    switch (exp->kind)
+    {
+        case Tr_ex:
+            return exp->u.ex->ty;
+        case Tr_nx:
+            return Ty_Void();
+        case Tr_cx:
+            return Ty_Bool();
+    }
+    return Ty_Void();
 }
 
 static void indent(FILE *out, int d)
