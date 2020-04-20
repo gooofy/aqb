@@ -53,6 +53,7 @@ enum AS_mn
     AS_MOVE_AnDn_Ofp,   // move.x  d0, 42(a5)
     AS_MOVE_Imm_Ofp,    // move.x  d0, 42(a5)
     AS_MOVE_Imm_Label,  // move.x  #42, label
+    AS_MOVE_fp_AnDn,    // move.x  a5, d0
 
     AS_MULS_Dn_Dn,      // muls.x  d1, d2
     AS_MULS_Imm_Dn,     // muls.x  #42, d2

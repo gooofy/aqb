@@ -60,7 +60,15 @@ AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
             p->dstInterf = NULL;
             break;
         case AS_MOVE_AnDn_AnDn:
+            assert(src);
+            assert(dst);
             p->srcInterf = w == AS_w_B ? LL(F_aRegs(), NULL) : NULL;
+            p->dstInterf = w == AS_w_B ? LL(F_aRegs(), NULL) : NULL;
+            break;
+        case AS_MOVE_fp_AnDn:
+            assert(src==NULL);
+            assert(dst);
+            p->srcInterf = NULL;
             p->dstInterf = w == AS_w_B ? LL(F_aRegs(), NULL) : NULL;
             break;
         case AS_MOVE_spPI_AnDn:
@@ -480,7 +488,7 @@ static void instrformat(string str, string strTmpl, AS_instr instr, Temp_map m)
                 }
                 case 'i':
                 {
-                    pos += sprintf(&str[pos], "%ld", instr->imm);
+                    pos += sprintf(&str[pos], "%d", *((int *) &instr->imm));
                     break;
                 }
                 case 'o':
@@ -552,6 +560,8 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    link     a5, #`i"    , i, m);  break;
         case AS_MOVE_AnDn_AnDn:
             instrformat(str, "    move`w   `s0, `d0"   , i, m);  break;
+        case AS_MOVE_fp_AnDn:
+            instrformat(str, "    move`w   a5, `d0"   , i, m);   break;
         case AS_MOVE_AnDn_PDsp:
             instrformat(str, "    move`w   `s0, -(sp)",  i, m);  break;
         case AS_MOVE_spPI_AnDn:

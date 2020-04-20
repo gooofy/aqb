@@ -123,7 +123,7 @@ F_frame F_newFrame(Temp_label name, Ty_tyList formalTys)
 
     f->formals       = formals;
     f->locals        = NULL;
-    f->locals_offset = -4;
+    f->locals_offset = 0;
     f->temp          = Temp_empty();
 
     return f;
@@ -152,13 +152,13 @@ F_access F_allocLocal(F_frame f, Ty_ty ty)
 {
     int size = Ty_size(ty);
 
-    F_access l = InFrame(f->locals_offset, ty);
-
-    f->locals         = F_AccessList(l, f->locals);
     f->locals_offset -= Ty_size(ty);
-
     // alignment
     f->locals_offset -= size % 2;
+
+    F_access l = InFrame(f->locals_offset, ty);
+    f->locals  = F_AccessList(l, f->locals);
+
 
     return l;
 }
