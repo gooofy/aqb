@@ -5,8 +5,9 @@
 
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
-#include <clib/intuition_protos.h>
 #include <exec/memory.h>
+#include <clib/intuition_protos.h>
+#include <clib/exec_protos.h>
 #include <clib/graphics_protos.h>
 
 static struct NewWindow g_nw =
@@ -38,6 +39,10 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
 };
 
 static struct RastPort *g_rp=NULL;
+
+static ULONG g_signalmask=0;
+
+static void (*g_win_cb)(void) = NULL;
 
 /*
  * BASIC:
@@ -80,19 +85,19 @@ BOOL __aqb_window_open(short id, char *title, short x1, short y1, short x2, shor
         h = sc.Height;
     }
 
-    g_nw.LeftEdge = x1;
-    g_nw.TopEdge  = y1;
-    g_nw.Width    = w;
-    g_nw.Height   = h;
-    g_nw.Title    = title ? (UBYTE *) _astr_dup(title) : NULL;
+    g_nw.LeftEdge   = x1;
+    g_nw.TopEdge    = y1;
+    g_nw.Width      = w;
+    g_nw.Height     = h;
+    g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : NULL;
 
-    g_nw.Flags    = GIMMEZEROZERO | ACTIVATE;     
-    
-    // FIXME: IDCMPFlags
-    if (flags & AW_FLAG_SIZE)  g_nw.Flags |= WINDOWSIZING;
-    if (flags & AW_FLAG_DRAG)  g_nw.Flags |= WINDOWDRAG;
-    if (flags & AW_FLAG_DEPTH) g_nw.Flags |= WINDOWDEPTH;
-    if (flags & AW_FLAG_CLOSE) g_nw.Flags |= WINDOWCLOSE;
+    g_nw.Flags      = GIMMEZEROZERO | ACTIVATE;
+    g_nw.IDCMPFlags = VANILLAKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
+
+    if (flags & AW_FLAG_SIZE)  { g_nw.Flags |= WINDOWSIZING; g_nw.IDCMPFlags |= NEWSIZE;       }
+    if (flags & AW_FLAG_DRAG)  { g_nw.Flags |= WINDOWDRAG  ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
+    if (flags & AW_FLAG_DEPTH) { g_nw.Flags |= WINDOWDEPTH ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
+    if (flags & AW_FLAG_CLOSE) { g_nw.Flags |= WINDOWCLOSE ; g_nw.IDCMPFlags |= CLOSEWINDOW;   }
 
     // FIXME: screen
     g_nw.Type     = WBENCHSCREEN;
@@ -111,14 +116,14 @@ BOOL __aqb_window_open(short id, char *title, short x1, short y1, short x2, shor
     Move(g_rp, 0, g_rp->Font->tf_YSize - 2);
     SetAPen(g_rp, 1L);
 
+    g_signalmask |= (1L << win->UserPort->mp_SigBit);
+
     return TRUE;
 }
 
 void _awindow_init(void)
 {
     // get workbench screen size info
-
-
 }
 
 void _awindow_shutdown(void)
@@ -143,7 +148,7 @@ BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color
     _aio_puts("x1: "); _aio_puts4(x1);
     _aio_puts(", y1: "); _aio_puts4(y1);
     _aio_puts(", x2: "); _aio_puts4(x2);
-    _aio_puts(", y2: "); _aio_puts4(y2);    
+    _aio_puts(", y2: "); _aio_puts4(y2);
     _aio_puts(", flags: "); _aio_puts4(flags);
     _aio_puts(", color: "); _aio_puts4(color);
     _aio_putnl();
@@ -185,5 +190,49 @@ BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color
     Draw (g_rp, 15, 15);
 #endif
     return TRUE;
+}
+
+/* BASIC: SLEEP
+   event handling */
+
+void __aqb_sleep(void)
+{
+    struct IntuiMessage *message = NULL;
+
+    ULONG signals = Wait (g_signalmask);
+    _aio_puts("sleep: got a signal.\n");
+
+    for (int i =0; i<MAX_NUM_WINDOWS; i++)
+    {
+        struct Window *win = g_winlist[i];
+        if (!win)
+            continue;
+
+        if (!(signals & (1L << win->UserPort->mp_SigBit)) )
+            continue;
+
+        while ( (message = (struct IntuiMessage *)GetMsg(win->UserPort) ) )
+        {
+            ULONG class = message->Class;
+
+            _aio_puts("sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
+
+            if (class == CLOSEWINDOW)
+            {
+                _aio_puts("sleep: CLOSEWINDOW\n");
+                if (g_win_cb)
+                    g_win_cb();
+                else
+                    _aio_puts("sleep: CLOSEWINDOW but no cb.\n");
+            }
+
+            ReplyMsg ( (struct Message *) message);
+        }
+    }
+}
+
+void __aqb_on_window_call(void (*cb)(void))
+{
+    g_win_cb = cb;
 }
 

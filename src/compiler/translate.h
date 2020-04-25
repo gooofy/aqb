@@ -51,6 +51,7 @@ Tr_exp        Tr_boolExp(bool b, Ty_ty ty);
 Tr_exp        Tr_intExp(int i, Ty_ty ty);
 Tr_exp        Tr_floatExp(double f, Ty_ty ty);
 Tr_exp        Tr_stringExp(string str);
+Tr_exp        Tr_funPtrExp(Temp_label label);
 
 Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty);
 

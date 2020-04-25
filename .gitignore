@@ -69,4 +69,5 @@ old
 src/alib/genos.py
 src/alib/os_mathtrans.txt
 tests/foo.bas
+src/alib/tests/*.bin
 

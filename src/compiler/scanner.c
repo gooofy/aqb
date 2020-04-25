@@ -69,6 +69,10 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "shared",   (void *) S_SHARED);
     hashmap_put (g_tokens, "dim",      (void *) S_DIM);
     hashmap_put (g_tokens, "assert",   (void *) S_ASSERT);
+    hashmap_put (g_tokens, "menu",     (void *) S_MENU);
+    hashmap_put (g_tokens, "gadget",   (void *) S_GADGET);
+    hashmap_put (g_tokens, "mouse",    (void *) S_MOUSE);
+    hashmap_put (g_tokens, "call",     (void *) S_CALL);
 }
 
 A_pos S_getpos(void)

@@ -33,6 +33,9 @@ Ty_ty Ty_String(void) {return &tystring;}
 static struct Ty_ty_ tyvoid = {Ty_void};
 Ty_ty Ty_Void(void) {return &tyvoid;}
 
+static struct Ty_ty_ tyvoidptr = {Ty_pointer, {&tyvoid}};
+Ty_ty Ty_VoidPtr(void) {return &tyvoidptr;}
+
 // Ty_ty Ty_Record(Ty_fieldList fields)
 // {
 //     Ty_ty p = checked_malloc(sizeof(*p));

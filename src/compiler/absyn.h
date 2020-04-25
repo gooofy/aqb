@@ -36,7 +36,7 @@ struct A_sourceProgram_
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
-           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt, A_assertStmt } kind;
+           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt, A_assertStmt                } kind;
     A_pos pos;
 	union
     {

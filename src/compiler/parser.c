@@ -1670,7 +1670,51 @@ static bool stmtProcDecl(void)
 }
 
 
-// bodyStatement ::= ( stmtOption | stmtProcBegin | stmtProcDecl )
+// stmtOn ::=  ON ( WINDOW | MENU | GADGET | MOUSE ) CALL ident
+static bool stmtOn(void)
+{
+    A_pos     pos = S_getpos();
+    S_symbol  func;
+    A_expList args  = A_ExpList();
+
+    S_getsym(); // consume "ON"
+
+    switch (S_token)
+    {
+        case S_WINDOW:
+            func = S_Symbol("___aqb_on_window_call");
+            break;
+        case S_MENU:
+            func = S_Symbol("___aqb_on_menu_call");
+            break;
+        case S_GADGET:
+            func = S_Symbol("___aqb_on_gadget_call");
+            break;
+        case S_MOUSE:
+            func = S_Symbol("___aqb_on_mouse_call");
+            break;
+        default:
+            return EM_err("WINDOW, MENU, GADGET or MOUSE expected here.");
+    }
+    S_getsym();
+
+    if (S_token != S_CALL)
+        return EM_err("CALL expected here.");
+    S_getsym();
+
+    if (S_token != S_IDENT)
+        return EM_err("SUB identifier expected here.");
+
+    A_ExpListAppend (args, A_VarExp(S_getpos(), A_Var(S_getpos(), S_Symbol(S_strlc))));
+    S_getsym();
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, func, args));
+
+    return TRUE;
+}
+
+
+// bodyStatement ::= ( stmtOption | stmtProcBegin | stmtProcDecl | stmtOn )
 static bool bodyStatement(A_sourceProgram sourceProgram)
 {
     switch (S_token)
@@ -1682,6 +1726,8 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
             return stmtProcDecl();
         case S_OPTION:
             return EM_err ("Sorry, option statement is not supported yet."); // FIXME
+        case S_ON:
+            return stmtOn();
         case S_EOF:
             return TRUE;
         case S_ERROR:

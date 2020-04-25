@@ -21,9 +21,9 @@ struct Ty_ty_
            // Ty_varPtr: used during var access processing in translate.c
     union
     {
+        Ty_ty                                           pointer;
         Ty_fieldList                                    record;
         struct {Ty_ty elementTy; int iStart; int iEnd; unsigned int uiSize;} array;
-        Ty_ty                                           pointer;
     } u;
 };
 
@@ -38,6 +38,7 @@ Ty_ty        Ty_Single(void);
 Ty_ty        Ty_Double(void);
 Ty_ty        Ty_String(void);
 Ty_ty        Ty_Void(void);
+Ty_ty        Ty_VoidPtr(void);
 
 Ty_ty        Ty_Array(Ty_ty ty, int start, int end);
 // Ty_ty Ty_Record(Ty_fieldList fields);

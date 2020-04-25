@@ -454,6 +454,11 @@ Tr_exp Tr_stringExp(string str)
     return Tr_Ex(T_Heap(strpos, Ty_String()));
 }
 
+Tr_exp Tr_funPtrExp(Temp_label label)
+{
+    return Tr_Ex(T_Heap(label, Ty_VoidPtr()));
+}
+
 Tr_exp Tr_Var(Tr_access a)
 {
     return Tr_Ex(F_Exp(a->access));

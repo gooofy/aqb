@@ -1040,13 +1040,20 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
         }
         else
         {
-            EM_error(v->pos, "this is not a variable: %s", S_name(v->name));
-            return Tr_zeroExp(Ty_Long());
+            // function pointer?
+            if ( (x->kind == E_funEntry) && !v->selector)
+            {
+                return Tr_funPtrExp(x->u.fun.label);
+            }
+            else
+            {
+                EM_error(v->pos, "this is not a variable: %s", S_name(v->name));
+                return Tr_zeroExp(Ty_Long());
+            }
         }
     }
 
-    Tr_exp e  = Tr_Var(x->u.var.access);
-
+    Tr_exp e = Tr_Var(x->u.var.access);
     for (A_selector sel = v->selector; sel; sel = sel->tail)
     {
         switch (sel->kind)

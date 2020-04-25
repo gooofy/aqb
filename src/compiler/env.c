@@ -54,6 +54,7 @@ S_scope E_base_tenv(void)
  * l : long    (4 byte signed long)
  * f : float   (single precision float)
  * s : string  (string pointer)
+ * p : ptr     (4 byte void / function pointer)
  */
 
 static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return_type)
@@ -80,6 +81,9 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
                 break;
             case 's':
                 ty = Ty_String();
+                break;
+            case 'p':
+                ty = Ty_VoidPtr();
                 break;
             default:
                 assert(0);
@@ -108,16 +112,17 @@ S_scope E_base_venv(void)
 {
     S_scope t = S_beginScope();
 
-    declare_builtin(t, "___aqb_window_open", "isiiiiii", Ty_Void());
-    declare_builtin(t, "___aqb_line",        "iiiiii",   Ty_Void());
-    declare_builtin(t, "__aio_puts",         "s",        Ty_Void());
-    declare_builtin(t, "__aio_puts2",        "i",        Ty_Void());
-    declare_builtin(t, "__aio_puts4",        "l",        Ty_Void());
-    declare_builtin(t, "__aio_putf",         "f",        Ty_Void());
-    declare_builtin(t, "__aio_putbool",      "b",        Ty_Void());
-    declare_builtin(t, "__aio_putnl",        "",         Ty_Void());
-    declare_builtin(t, "__aio_puttab",       "",         Ty_Void());
-    declare_builtin(t, "__aqb_assert",       "bs",       Ty_Void());
+    declare_builtin(t, "___aqb_window_open",    "isiiiiii", Ty_Void());
+    declare_builtin(t, "___aqb_line",           "iiiiii",   Ty_Void());
+    declare_builtin(t, "__aio_puts",            "s",        Ty_Void());
+    declare_builtin(t, "__aio_puts2",           "i",        Ty_Void());
+    declare_builtin(t, "__aio_puts4",           "l",        Ty_Void());
+    declare_builtin(t, "__aio_putf",            "f",        Ty_Void());
+    declare_builtin(t, "__aio_putbool",         "b",        Ty_Void());
+    declare_builtin(t, "__aio_putnl",           "",         Ty_Void());
+    declare_builtin(t, "__aio_puttab",          "",         Ty_Void());
+    declare_builtin(t, "__aqb_assert",          "bs",       Ty_Void());
+    declare_builtin(t, "___aqb_on_window_call", "p",        Ty_Void());
 
     return t;
 }
@@ -155,7 +160,7 @@ static void declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, cha
         A_ParamListAppend(paramList, A_Param (0, FALSE, FALSE, NULL, ty, NULL));
     }
 
-    proc = A_Proc(0, S_Symbol(name), Temp_namedlabel(label), S_Symbol(retty), FALSE, paramList);
+    proc = A_Proc(0, S_Symbol(name), Temp_namedlabel(label), retty ? S_Symbol(retty) : NULL, FALSE, paramList);
 
     hashmap_put(declared_procs, S_name(proc->name), proc);
     A_StmtListAppend (stmtList, A_ProcDeclStmt(proc->pos, proc));
@@ -166,6 +171,7 @@ map_t E_declared_procs(A_stmtList stmtList)
     map_t declared_procs = hashmap_new();
 
     declare_builtin_proc(stmtList, declared_procs, "int", "___aqb_int", "f", "long");
+    declare_builtin_proc(stmtList, declared_procs, "sleep", "___aqb_sleep", "", NULL);
 
     return declared_procs;
 }

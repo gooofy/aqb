@@ -22,5 +22,9 @@ void _awindow_shutdown(void);
 
 BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color);
 
+void __aqb_sleep(void);
+
+void __aqb_on_window_call(void (*cb)(void));
+
 #endif
 
