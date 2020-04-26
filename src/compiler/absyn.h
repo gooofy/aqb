@@ -46,7 +46,7 @@ struct A_stmt_
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
-        struct {bool shared; string varId; string typeId; A_dim dims;} dimr;
+        struct {bool shared; string varId; string typeId; A_dim dims; A_exp init;} dimr;
         struct {A_exp exp; string msg;} assertr;
     } u;
 };
@@ -161,7 +161,7 @@ A_stmt          A_ForStmt         (A_pos pos, S_symbol var, A_exp from_exp, A_ex
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
-A_stmt          A_DimStmt         (A_pos pos, bool shared, string varId, string typeId, A_dim dims);
+A_stmt          A_DimStmt         (A_pos pos, bool shared, string varId, string typeId, A_dim dims, A_exp init);
 A_stmt          A_AssertStmt      (A_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmtList      A_StmtList        (void);

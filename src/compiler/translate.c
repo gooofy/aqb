@@ -356,19 +356,25 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
     fragList    = F_FragList(frag, fragList);
 }
 
-Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty)
+Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init)
 {
+    unsigned char *init_data = NULL;
+    if (init)
+    {
+        init_data = Tr_getConstData(init);
+    }
+
     if (!level->frame) // global var?
     {
         Temp_label label = Temp_namedlabel(varname_to_label(name));
 
-        F_frag frag = F_FillFrag(label, Ty_size(ty));
+        F_frag frag = F_DataFrag(label, Ty_size(ty), init_data);
         fragList    = F_FragList(frag, fragList);
 
         return Tr_Access(level, F_allocGlobal(label, ty));
     }
 
-    return Tr_Access(level, F_allocLocal(level->frame, ty));
+    return Tr_Access(level, F_allocLocal(level->frame, ty, init_data));
 }
 
 /* Tree Expressions */
@@ -429,15 +435,30 @@ Tr_exp Tr_intExp(int i, Ty_ty ty)
     return Tr_Ex(T_ConstInt(i, ty));
 }
 
-bool Tr_getConstInt (Tr_exp exp, int *result)
+bool Tr_isConst(Tr_exp exp)
 {
     if (exp->kind != Tr_ex)
         return FALSE;
     if (exp->u.ex->kind != T_CONST)
         return FALSE;
+    return TRUE;
+}
+
+bool Tr_getConstInt (Tr_exp exp, int *result)
+{
+    if (!Tr_isConst(exp))
+        return FALSE;
 
     *result = *((int *) &exp->u.ex->u.CONST);
     return TRUE;
+}
+
+unsigned char *Tr_getConstData(Tr_exp exp)
+{
+    if (!Tr_isConst(exp))
+        return NULL;
+
+    return (unsigned char *) &exp->u.ex->u.CONST; // FIXME: conv endianness!
 }
 
 Tr_exp Tr_floatExp(double f, Ty_ty ty)
@@ -753,67 +774,159 @@ Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
 
 Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
 {
-    switch (from_ty->kind)
+    if (Tr_isConst(exp))
     {
-        case Ty_bool:
-            switch (to_ty->kind)
+        switch (from_ty->kind)
+        {
+            case Ty_bool:
             {
-                case Ty_bool:
-                    return exp;
-                case Ty_integer:
-                case Ty_single:
-                case Ty_long:
-                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                default:
-                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                    assert(0);
+                int i;
+                Tr_getConstInt(exp, &i);
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        return exp;
+                    case Ty_integer:
+                        return Tr_intExp(i, to_ty);
+                    case Ty_single:
+                        return Tr_floatExp(i, to_ty);
+                    case Ty_long:
+                        return Tr_intExp(i, to_ty);
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
             }
-            break;
-        case Ty_integer:
-            switch (to_ty->kind)
+            case Ty_integer:
             {
-                case Ty_integer:
-                    return exp;
-                case Ty_bool:
-                case Ty_long:
-                case Ty_single:
-                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                default:
-                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                    assert(0);
+                int i;
+                Tr_getConstInt(exp, &i);
+                switch (to_ty->kind)
+                {
+                    case Ty_integer:
+                        return exp;
+                    case Ty_bool:
+                        return Tr_boolExp(i!=0, to_ty);
+                    case Ty_long:
+                        return Tr_intExp(i, to_ty);
+                    case Ty_single:
+                        return Tr_floatExp(i, to_ty);
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
             }
-            break;
-        case Ty_long:
-            switch (to_ty->kind)
+            case Ty_long:
             {
-                case Ty_bool:
-                case Ty_integer:
-                case Ty_single:
-                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                case Ty_long:
-                    return exp;
-                default:
-                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                    assert(0);
+                int i;
+                Tr_getConstInt(exp, &i);
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        return Tr_boolExp(i!=0, to_ty);
+                    case Ty_integer:
+                        return Tr_intExp(i, to_ty);
+                    case Ty_single:
+                        return Tr_floatExp(i, to_ty);
+                    case Ty_long:
+                        return exp;
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
             }
-            break;
-        case Ty_single:
-            switch (to_ty->kind)
+            case Ty_single:
             {
-                case Ty_bool:
-                case Ty_integer:
-                case Ty_long:
-                    return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                case Ty_single:
-                    return exp;
-                default:
-                    EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                    assert(0);
+                int i;
+                Tr_getConstInt(exp, &i);
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        return Tr_boolExp(i!=0, to_ty);
+                    case Ty_integer:
+                        return Tr_intExp(i, to_ty);
+                    case Ty_long:
+                        return Tr_intExp(i, to_ty);
+                    case Ty_single:
+                        return exp;
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
             }
-            break;
-        default:
-            EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
-            assert(0);
+            default:
+                EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
+                assert(0);
+        }
+    }
+    else
+    {
+        switch (from_ty->kind)
+        {
+            case Ty_bool:
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        return exp;
+                    case Ty_integer:
+                    case Ty_single:
+                    case Ty_long:
+                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            case Ty_integer:
+                switch (to_ty->kind)
+                {
+                    case Ty_integer:
+                        return exp;
+                    case Ty_bool:
+                    case Ty_long:
+                    case Ty_single:
+                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            case Ty_long:
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_integer:
+                    case Ty_single:
+                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                    case Ty_long:
+                        return exp;
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            case Ty_single:
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_integer:
+                    case Ty_long:
+                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                    case Ty_single:
+                        return exp;
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            default:
+                EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
+                assert(0);
+        }
     }
     return NULL;
 }
@@ -860,3 +973,4 @@ void Tr_printExp(FILE *out, Tr_exp exp, int d)
             break;
     }
 }
+

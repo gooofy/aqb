@@ -30,7 +30,7 @@ Tr_level      Tr_global(void);
 
 Tr_level      Tr_newLevel(Temp_label name, Ty_tyList formalTys);
 Tr_accessList Tr_formals(Tr_level level);
-Tr_access     Tr_allocVar(Tr_level level, string name, Ty_ty ty);
+Tr_access     Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init);
 Temp_label    Tr_getLabel(Tr_level level);
 
 void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access);
@@ -86,11 +86,13 @@ Tr_exp Tr_recordExp(Tr_expList el, int fieldCount);
 Tr_exp Tr_letExp(Tr_expList el, Tr_exp body);
 #endif 
 
-Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty ty);
+Tr_exp         Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty ty);
 
-bool          Tr_getConstInt(Tr_exp exp, int *result);
-Ty_ty         Tr_ty(Tr_exp exp);
+bool           Tr_getConstInt(Tr_exp exp, int *result);
+unsigned char *Tr_getConstData(Tr_exp exp);
+bool           Tr_isConst(Tr_exp exp);
+Ty_ty          Tr_ty(Tr_exp exp);
 
-void          Tr_printExp(FILE *out, Tr_exp exp, int d);
+void           Tr_printExp(FILE *out, Tr_exp exp, int d);
 
 #endif

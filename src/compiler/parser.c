@@ -1492,13 +1492,14 @@ static bool arrayDimensions (A_dim *dims)
 }
 
 
-// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] [ "=" varInitializer ]
+// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] [ "=" expression ]
 
 static bool singleVarDecl (bool shared)
 {
     A_pos  pos = S_getpos();
     string varId, typeId=NULL;
     A_dim  dims = NULL;
+    A_exp  init = NULL;
 
     if (S_token != S_IDENT)
         return EM_err("variable declaration: identifier expected here.");
@@ -1527,10 +1528,15 @@ static bool singleVarDecl (bool shared)
     }
 
     if (S_token == S_EQUALS)
-        return EM_err("FIXME: sorry, variable initializers are not supported yet."); // FIXME
+    {
+        S_getsym();
+        if (!expression(&init))
+        {
+            return EM_err("var initializer expression expected here.");
+        }
+    }
 
-
-    A_StmtListAppend (g_sleStack->stmtList, A_DimStmt(pos, shared, varId, typeId, dims));
+    A_StmtListAppend (g_sleStack->stmtList, A_DimStmt(pos, shared, varId, typeId, dims, init));
 
     return TRUE;
 }

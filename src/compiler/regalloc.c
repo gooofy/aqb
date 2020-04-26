@@ -153,7 +153,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             F_access acc;
             if (f)
             {
-                acc = F_allocLocal(f, Temp_ty(tl->head));
+                acc = F_allocLocal(f, Temp_ty(tl->head), NULL);
             }
             else
             {

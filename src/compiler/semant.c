@@ -46,7 +46,7 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v)
         string s = S_name(v);
         Ty_ty t = Ty_inferType(s);
 
-        x = E_VarEntry(Tr_allocVar(level, s, t), t, FALSE);
+        x = E_VarEntry(Tr_allocVar(level, s, t, NULL), t, FALSE);
         S_enter(venv, v, x);
     }
     return x;
@@ -853,7 +853,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                         S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head, FALSE));
                     if (proc->retty)
                     {
-                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
+                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy, NULL);
                         S_enter(lenv, S_Symbol(RETURN_VAR_NAME), E_VarEntry(ret_access, resultTy, FALSE));
                     }
                 }
@@ -951,6 +951,22 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 t = Ty_Array(t, start, end);
             }
 
+            Tr_exp conv_init=NULL;
+            if (stmt->u.dimr.init)
+            {
+                Tr_exp init = transExp(level, venv, tenv, stmt->u.dimr.init, breaklbl);
+                if (!convert_ty(init, t, &conv_init))
+                {
+                    EM_error(stmt->u.dimr.init->pos, "initializer type mismatch");
+                    return Tr_nopNx();
+                }
+                if (!Tr_isConst(conv_init))
+                {
+                    EM_error(stmt->u.dimr.init->pos, "constant initializer expected here");
+                    return Tr_nopNx();
+                }
+            }
+
             S_symbol name = S_Symbol(stmt->u.dimr.varId);
             if (stmt->u.dimr.shared)
             {
@@ -970,7 +986,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     break;
                 }
 
-                x = E_VarEntry(Tr_allocVar(Tr_global(), stmt->u.dimr.varId, t), t, TRUE);
+                x = E_VarEntry(Tr_allocVar(Tr_global(), stmt->u.dimr.varId, t, conv_init), t, TRUE);
                 S_enter(g_venv, name, x);
             }
             else
@@ -981,7 +997,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.dimr.varId);
                     break;
                 }
-                x = E_VarEntry(Tr_allocVar(level, stmt->u.dimr.varId, t), t, FALSE);
+                x = E_VarEntry(Tr_allocVar(level, stmt->u.dimr.varId, t, conv_init), t, FALSE);
                 S_enter(venv, name, x);
             }
             break;

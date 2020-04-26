@@ -63,11 +63,11 @@ struct F_access_
 
 struct F_frame_
 {
-    Temp_label    name;
-    Temp_map      temp;
-    F_accessList  formals;
-    F_accessList  locals;
-    int           locals_offset;
+    Temp_label     name;
+    Temp_map       temp;
+    F_accessList   formals;
+    F_accessList   locals;
+    int            locals_offset;
 };
 
 static F_access InFrame(int offset, Ty_ty ty)
@@ -148,9 +148,11 @@ F_access F_allocGlobal(Temp_label label, Ty_ty ty)
     return a;
 }
 
-F_access F_allocLocal(F_frame f, Ty_ty ty)
+F_access F_allocLocal(F_frame f, Ty_ty ty, unsigned char *init_data)
 {
     int size = Ty_size(ty);
+
+    assert(!init_data); // FIXME: implement!
 
     f->locals_offset -= Ty_size(ty);
     // alignment
@@ -158,7 +160,6 @@ F_access F_allocLocal(F_frame f, Ty_ty ty)
 
     F_access l = InFrame(f->locals_offset, ty);
     f->locals  = F_AccessList(l, f->locals);
-
 
     return l;
 }
@@ -201,13 +202,14 @@ F_frag F_StringFrag(Temp_label label, string str)
     return f;
 }
 
-F_frag F_FillFrag(Temp_label label, int size)
+F_frag F_DataFrag(Temp_label label, int size, unsigned char *init)
 {
     F_frag f = checked_malloc(sizeof(*f));
 
-    f->kind         = F_fillFrag;
-    f->u.fill.label = label;
-    f->u.fill.size  = size;
+    f->kind         = F_dataFrag;
+    f->u.data.label = label;
+    f->u.data.size  = size;
+    f->u.data.init  = init;
 
     return f;
 }
@@ -553,8 +555,8 @@ void F_printtree(FILE *out, F_fragList frags)
                 printStm(out, frag->u.proc.body, 4);
                 fprintf(out, "\n");
                 break;
-            case F_fillFrag:
-                fprintf(out, "Fill fragment: label=%s, size=%d\n", S_name(frag->u.fill.label), frag->u.fill.size);
+            case F_dataFrag:
+                fprintf(out, "Fill fragment: label=%s, size=%d\n", S_name(frag->u.data.label), frag->u.data.size);
                 break;
             default:
                 fprintf(out, "*** ERROR: unknown fragment type.\n");

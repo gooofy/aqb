@@ -33,18 +33,18 @@ F_accessList F_AccessList(F_access head, F_accessList tail);
 typedef struct F_frag_ *F_frag;
 struct F_frag_
 {
-    enum {F_stringFrag, F_procFrag, F_fillFrag} kind;
+    enum {F_stringFrag, F_procFrag, F_dataFrag} kind;
     union
     {
         struct {Temp_label label; string str;} stringg;
         struct {T_stm body; F_frame frame;} proc;
-        struct {Temp_label label; int size;} fill;
+        struct {Temp_label label; int size; unsigned char *init;} data;
     } u;
 };
 
 F_frag F_StringFrag(Temp_label label, string str);
 F_frag F_ProcFrag(T_stm body, F_frame frame);
-F_frag F_FillFrag(Temp_label label, int size);
+F_frag F_DataFrag(Temp_label label, int size, unsigned char *init);
 
 typedef struct F_fragList_ *F_fragList;
 struct F_fragList_ {F_frag head; F_fragList tail;};
@@ -59,7 +59,7 @@ string        F_getlabel(F_frame frame);
 T_exp         F_Exp(F_access acc);
 
 F_access      F_allocGlobal(Temp_label label, Ty_ty ty);
-F_access      F_allocLocal(F_frame f, Ty_ty ty);
+F_access      F_allocLocal(F_frame f, Ty_ty ty, unsigned char *init_data);
 F_accessList  F_formals(F_frame f);
 Temp_label    F_name(F_frame f);
 

@@ -143,10 +143,41 @@ static void doStr(FILE * out, string str, Temp_label label) {
     fprintf(out, "\n");
 }
 
-static void doFill(FILE * out, Temp_label label, int size) {
+static void doData(FILE * out, Temp_label label, int size, unsigned char *data)
+{
     fprintf(out, "    .align 4\n");
     fprintf(out, "%s:\n", Temp_labelstring(label));
-    fprintf(out, "    .fill %d\n", size);
+    if (data)
+    {
+        int i;
+        switch(size)
+        {
+            case 1:
+                fprintf(out, "    dc.b %d\n", data[0]);
+                break;
+            case 2:
+                fprintf(out, "    dc.b %d, %d\n", data[1], data[0]);
+                break;
+            case 4:
+                fprintf(out, "    dc.b %d, %d, %d, %d\n", data[3], data[2], data[1], data[0]);
+                break;
+            default:
+                fprintf(out, "    dc.b");
+                for (i=0; i<size; i++)
+                {
+                    fprintf(out, "%d", data[i]);
+                    if (i<size-1)
+                        fprintf(out, ",");
+                }
+                fprintf(out, "    \n");
+                break;
+        }
+
+    }
+    else
+    {
+        fprintf(out, "    .fill %d\n", size);
+    }
     fprintf(out, "\n");
 }
 
@@ -244,9 +275,9 @@ int main (int argc, char *argv[])
         {
             doStr(out, fl->head->u.stringg.str, fl->head->u.stringg.label);
         }
-        if (fl->head->kind == F_fillFrag)
+        if (fl->head->kind == F_dataFrag)
         {
-            doFill(out, fl->head->u.fill.label, fl->head->u.fill.size);
+            doData(out, fl->head->u.data.label, fl->head->u.data.size, fl->head->u.data.init);
         }
     }
     fclose(out);

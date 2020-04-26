@@ -115,7 +115,7 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId, A_dim dims)
+A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId, A_dim dims, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -125,6 +125,7 @@ A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId, A_dim dim
     p->u.dimr.varId  = varId;
     p->u.dimr.typeId = typeId;
     p->u.dimr.dims   = dims;
+    p->u.dimr.init   = init;
 
     return p;
 }
