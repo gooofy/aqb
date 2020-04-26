@@ -1,23 +1,34 @@
 
+SRCS = 	aqb.c scanner.c hashmap.c util.c parser.c \
+		errormsg.c absyn.c symbol.c prabsyn.c semant.c translate.c \
+		frame.c tree.c temp.c assem.c printtree.c env.c types.c \
+		canon.c codegen.c regalloc.c graph.c liveness.c color.c flowgraph.c table.c
+
+OBJS := $(patsubst %,%.o,$(basename $(SRCS)))
+
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+
 CFLAGS = -Wall -g
 LDFLAGS = -lm
+
+CC = gcc
 
 .PHONY: clean all
 all:	aqb
 clean:
 	rm -f *.o aqb
 
-%.o : %.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+%.o : %.c $(DEPDIR)/%.d | $(DEPDIR)
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(DEPFLAGS) $< -o $@
 
-aqb:	aqb.o scanner.o hashmap.o util.o parser.o \
-		errormsg.o absyn.o symbol.o prabsyn.o semant.o translate.o \
-		frame.o tree.o temp.o assem.o printtree.o env.o types.o \
-		canon.o codegen.o regalloc.o graph.o liveness.o color.o flowgraph.o table.o
+aqb:	$(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
-#		errormsg.o absyn.o symbol.o table.o \
-#	    prabsyn.o types.o semant.o env.o temp.o tree.o m68kframe.o translate.o \
-#	    assem.o canon.o codegen.o color.o escape.o flowgraph.o graph.o liveness.o \
-#	    regalloc.o printtree.o
+$(DEPDIR): ; @mkdir -p $@
+
+DEPFILES := $(SRCS:%.c=$(DEPDIR)/%.d)
+$(DEPFILES):
+
+include $(wildcard $(DEPFILES))
 
