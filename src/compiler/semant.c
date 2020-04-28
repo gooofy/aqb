@@ -997,8 +997,17 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.dimr.varId);
                     break;
                 }
-                x = E_VarEntry(Tr_allocVar(level, stmt->u.dimr.varId, t, conv_init), t, FALSE);
+                x = E_VarEntry(Tr_allocVar(level, stmt->u.dimr.varId, t, depth ? NULL : conv_init), t, FALSE);
                 S_enter(venv, name, x);
+                if (depth && conv_init)
+                {
+                    // local vars need explicit initialization assignment
+                    Tr_exp e = Tr_Var(x->u.var.access);
+                    Ty_ty ty = Tr_ty(e);
+                    if (ty->kind == Ty_varPtr)
+                        e = Tr_Deref(e);
+                    return Tr_assignExp(e, conv_init, t);
+                }
             }
             break;
         }

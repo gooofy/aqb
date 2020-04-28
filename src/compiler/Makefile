@@ -9,7 +9,7 @@ OBJS := $(patsubst %,%.o,$(basename $(SRCS)))
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-CFLAGS = -Wall -g
+CFLAGS = -Wall -Werror -g
 LDFLAGS = -lm
 
 CC = gcc
