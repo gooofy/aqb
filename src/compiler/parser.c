@@ -1445,8 +1445,12 @@ static bool stmtIdent(void)
     S_symbol sym = S_Symbol(String(S_strlc));
     A_proc   proc;
 
-    S_getsym();
+    // is this a known command ?
 
+    if (!strcmp(S_strlc, "window"))
+        return stmtWindow();
+
+    S_getsym();
     // is this a declared proc?
 
     if ( (S_token != S_EQUALS) && (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK) )
@@ -1640,8 +1644,6 @@ static bool statementBody(void)
             return stmtLet();
         case S_PRINT:
             return stmtPrint();
-        case S_WINDOW:
-            return stmtWindow();
         case S_LINE:
             return stmtLine();
         case S_FOR:
@@ -1730,7 +1732,9 @@ static bool stmtOn(void)
 
     switch (S_token)
     {
-        case S_WINDOW:
+        case S_IDENT:
+            if (strcmp(S_strlc, "window"))
+                return EM_err("WINDOW, MENU, GADGET or MOUSE expected here.");
             func = S_Symbol("___aqb_on_window_call");
             break;
         case S_MENU:

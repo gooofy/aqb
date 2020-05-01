@@ -170,8 +170,9 @@ map_t E_declared_procs(A_stmtList stmtList)
 {
     map_t declared_procs = hashmap_new();
 
-    declare_builtin_proc(stmtList, declared_procs, "int", "___aqb_int", "f", "long");
-    declare_builtin_proc(stmtList, declared_procs, "sleep", "___aqb_sleep", "", NULL);
+    declare_builtin_proc(stmtList, declared_procs, "int",    "___aqb_int",       "f", "long");
+    declare_builtin_proc(stmtList, declared_procs, "sleep",  "___aqb_sleep",     "",  NULL  );
+    declare_builtin_proc(stmtList, declared_procs, "window", "___aqb_window_fn", "l", "long");
 
     return declared_procs;
 }

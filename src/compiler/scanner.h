@@ -59,7 +59,6 @@
 #define S_STATIC   125
 #define S_DECLARE  126
 #define S_LET      127
-#define S_WINDOW   128
 #define S_CLOSE    129
 #define S_ON       130
 #define S_OFF      131

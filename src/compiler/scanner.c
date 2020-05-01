@@ -57,7 +57,6 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "static",   (void *) S_STATIC);
     hashmap_put (g_tokens, "declare",  (void *) S_DECLARE);
     hashmap_put (g_tokens, "let",      (void *) S_LET);
-    hashmap_put (g_tokens, "window",   (void *) S_WINDOW);
     hashmap_put (g_tokens, "close",    (void *) S_CLOSE);
     hashmap_put (g_tokens, "on",       (void *) S_ON);
     hashmap_put (g_tokens, "off",      (void *) S_OFF);
