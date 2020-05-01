@@ -198,32 +198,6 @@ T_exp T_ConstInt(int i, Ty_ty ty)
     return p;
 }
 
-static unsigned int encode_ffp(float f)
-{
-    unsigned int res, fl;
-
-	fl = *((unsigned int *) &f);
-
-    if (f==0.0)
-        return 0;
-
-    // exponent
-    res = (fl & 0x7F800000) >> 23;
-    res = res - 126 + 0x40;
-
-	// overflow
-    if ((char) res < 0)
-        return res;
-
-	// mantissa
-    res |= (fl << 8) | 0x80000000;
-
-	// sign
-    if (f < 0)
-        res |= 0x00000080;
-
-    return res;
-}
 
 T_exp T_ConstFloat(double f, Ty_ty ty)
 {

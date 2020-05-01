@@ -867,6 +867,23 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             break;
         }
+        case A_whileStmt:
+        {
+            Tr_exp exp = transExp(level, venv, tenv, stmt->u.whiler.exp, breaklbl);
+
+            Tr_exp conv_exp;
+
+            if (!convert_ty(exp, Ty_Bool(), &conv_exp))
+            {
+                EM_error(stmt->pos, "Boolean expression expected.");
+                break;
+            }
+
+            Temp_label whilebreak = Temp_newlabel();
+            Tr_exp body = transStmtList(level, venv, tenv, stmt->u.whiler.body, whilebreak, depth+1);
+
+            return Tr_whileExp(conv_exp, body, whilebreak);
+        }
         case A_callStmt:
         {
             E_enventry proc = S_look(venv, stmt->u.callr.func);
@@ -932,22 +949,24 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 if (dim->expStart)
                 {
                     Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, breaklbl);
-                    if (!Tr_getConstInt(expStart, &start))
+                    if (!Tr_isConst(expStart))
                     {
                         EM_error(dim->expStart->pos, "Constant array bounds expected.");
                         return Tr_nopNx();
                     }
+                    start = Tr_getConstInt(expStart);
                 }
                 else
                 {
                     start = 0;
                 }
                 Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, breaklbl);
-                if (!Tr_getConstInt(expEnd, &end))
+                if (!Tr_isConst(expEnd))
                 {
                     EM_error(dim->expEnd->pos, "Constant array bounds expected.");
                     return Tr_nopNx();
                 }
+                end = Tr_getConstInt(expEnd);
                 t = Ty_Array(t, start, end);
             }
 

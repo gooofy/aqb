@@ -75,6 +75,8 @@
 #define S_GADGET   141
 #define S_MOUSE    142
 #define S_CALL     143
+#define S_WHILE    144
+#define S_WEND     145
 
 #define S_MAX_STRING 1024
 

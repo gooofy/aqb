@@ -36,7 +36,7 @@ struct A_sourceProgram_
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
-           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt, A_assertStmt                } kind;
+           A_procStmt, A_callStmt, A_procDeclStmt, A_dimStmt, A_assertStmt, A_whileStmt    } kind;
     A_pos pos;
 	union
     {
@@ -48,6 +48,7 @@ struct A_stmt_
         struct {S_symbol func; A_expList args;} callr;
         struct {bool shared; string varId; string typeId; A_dim dims; A_exp init;} dimr;
         struct {A_exp exp; string msg;} assertr;
+	    struct {A_exp exp; A_stmtList body;} whiler;
     } u;
 };
 
@@ -158,6 +159,7 @@ A_stmt          A_PrintNLStmt     (A_pos pos);
 A_stmt          A_PrintTABStmt    (A_pos pos);
 A_stmt          A_AssignStmt      (A_pos pos, A_var var, A_exp exp);
 A_stmt          A_ForStmt         (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
+A_stmt          A_WhileStmt       (A_pos pos, A_exp exp, A_stmtList body);
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);

@@ -36,6 +36,19 @@ A_stmt A_ForStmt (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp s
     return p;
 }
 
+A_stmt A_WhileStmt (A_pos pos, A_exp exp, A_stmtList body)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind = A_whileStmt;
+    p->pos  = pos;
+
+    p->u.whiler.exp    = exp;
+    p->u.whiler.body   = body;
+
+    return p;
+}
+
 A_stmt A_IfStmt (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts)
 {
     A_stmt p = checked_malloc(sizeof(*p));

@@ -32,4 +32,9 @@ struct U_list_
 U_list U_List(void);
 void   U_ListAppend(U_list list, U_listNode node);
 
+/* FFP - Motorola Fast Floating Point format support */
+
+unsigned int encode_ffp(float        f);
+float        decode_ffp(unsigned int fl);
+
 #endif

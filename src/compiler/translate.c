@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "util.h"
 #include "table.h"
@@ -101,9 +102,9 @@ Tr_accessList Tr_accessListTail(Tr_accessList al)
 
 static Tr_level global_level = NULL;
 
-Tr_level Tr_global(void) 
+Tr_level Tr_global(void)
 {
-    if (global_level == NULL) 
+    if (global_level == NULL)
     {
         global_level = checked_malloc(sizeof(*global_level));
         global_level->frame  = NULL;
@@ -444,13 +445,25 @@ bool Tr_isConst(Tr_exp exp)
     return TRUE;
 }
 
-bool Tr_getConstInt (Tr_exp exp, int *result)
+int Tr_getConstInt (Tr_exp exp)
 {
-    if (!Tr_isConst(exp))
-        return FALSE;
+    assert (Tr_isConst(exp));
 
-    *result = *((int *) &exp->u.ex->u.CONST);
-    return TRUE;
+    return *((int *) &exp->u.ex->u.CONST);
+}
+
+double Tr_getConstFloat (Tr_exp exp)
+{
+    assert (Tr_isConst(exp));
+
+    return decode_ffp(exp->u.ex->u.CONST);
+}
+
+bool Tr_getConstBool (Tr_exp exp)
+{
+    assert (Tr_isConst(exp));
+
+    return (*((int *) &exp->u.ex->u.CONST)) != 0;
 }
 
 unsigned char *Tr_getConstData(Tr_exp exp)
@@ -530,8 +543,112 @@ Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l) {
 }
 #endif
 
+static int ipow(int base, int exp)
+{
+    int result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
 Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
 {
+    // constant propagation
+    if (Tr_isConst(left) && (!right || Tr_isConst(right)))
+    {
+        switch (ty->kind)
+        {
+            case Ty_bool:
+            {
+                bool b=0;
+                bool a = Tr_getConstBool(left);
+                if (right)
+                    b = Tr_getConstBool(right);
+                switch (o)
+                {
+                    case A_xorOp   : return Tr_boolExp(a ^ b, ty);    break;
+                    case A_eqvOp   : return Tr_boolExp(a == b, ty);   break;
+                    case A_impOp   : return Tr_boolExp(!a || b, ty);  break;
+                    case A_notOp   : return Tr_boolExp(!a, ty);       break;
+                    case A_andOp   : return Tr_boolExp(a && b, ty);   break;
+                    case A_orOp    : return Tr_boolExp(a || b, ty);   break;
+                    default:
+                        EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
+                        assert(0);
+                }
+                break;
+            }
+            case Ty_integer:
+            case Ty_long:
+            {
+                int b = 0;
+                int a = Tr_getConstInt(left);
+                if (right)
+                    b = Tr_getConstInt(right);
+                switch (o)
+                {
+                    case A_addOp   : return Tr_intExp(a+b, ty);            break;
+                    case A_subOp   : return Tr_intExp(a-b, ty);            break;
+                    case A_mulOp   : return Tr_intExp(a*b, ty);            break;
+                    case A_divOp   : return Tr_intExp(a/b, ty);            break;
+                    case A_xorOp   : return Tr_intExp(a^b, ty);            break;
+                    case A_eqvOp   : return Tr_intExp(~(a^b), ty);         break;
+                    case A_impOp   : return Tr_intExp(~a|b, ty);           break;
+                    case A_negOp   : return Tr_intExp(-a, ty);             break;
+                    case A_notOp   : return Tr_intExp(~a, ty);             break;
+                    case A_andOp   : return Tr_intExp(a&b, ty);            break;
+                    case A_orOp    : return Tr_intExp(a|b, ty);            break;
+                    case A_expOp   : return Tr_intExp(ipow (a, b), ty);    break;
+                    case A_intDivOp: return Tr_intExp(a/b, ty);            break;
+                    case A_modOp   : return Tr_intExp(a%b, ty);            break;
+                    default:
+                        EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
+                        assert(0);
+                }
+                break;
+            }
+            case Ty_single:
+            {
+                double b=0.0;
+                double a = Tr_getConstFloat(left);
+                if (right)
+                    b = Tr_getConstFloat(right);
+                switch (o)
+                {
+                    case A_addOp   : return Tr_floatExp(a+b, ty);                              break;
+                    case A_subOp   : return Tr_floatExp(a-b, ty);                              break;
+                    case A_mulOp   : return Tr_floatExp(a*b, ty);                              break;
+                    case A_divOp   : return Tr_floatExp(a/b, ty);                              break;
+                    case A_xorOp   : return Tr_floatExp((a!=0.0) % (b!=0.0), ty);              break;
+                    case A_eqvOp   : return Tr_floatExp(~((int)roundf(a)^(int)roundf(b)), ty); break;
+                    case A_impOp   : return Tr_floatExp(~(int)roundf(a)|(int)roundf(b), ty);   break;
+                    case A_negOp   : return Tr_floatExp(-a, ty);                               break;
+                    case A_notOp   : return Tr_floatExp(~(int)roundf(a), ty);                  break;
+                    case A_andOp   : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
+                    case A_orOp    : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
+                    case A_expOp   : return Tr_floatExp(pow(a, b), ty);                        break;
+                    case A_intDivOp: return Tr_floatExp((int)a/(int)b, ty);                    break;
+                    case A_modOp   : return Tr_floatExp(fmod(a, b), ty);                       break;
+                    default:
+                        EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
+                        assert(0);
+                }
+                break;
+            }
+            default:
+                EM_error(0, "*** translate.c: Tr_arOpExp: internal error: unknown type kind %d", ty->kind);
+                assert(0);
+        }
+    }
+
     T_binOp op;
     switch (o)
     {
@@ -655,22 +772,21 @@ Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee)
     return Tr_Nx(s);
 }
 
-#if 0
-Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl) {
-  Temp_label test = Temp_newlabel();
-  Temp_label done = breaklbl;
-  Temp_label loopstart = Temp_newlabel();
+Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl)
+{
+    Temp_label test      = Temp_newlabel();
+    Temp_label done      = breaklbl;
+    Temp_label loopstart = Temp_newlabel();
 
-  T_stm s = T_Seq(T_Label(test),
-              T_Seq(T_Cjump(T_ne, unEx(exp), T_Const(0), loopstart, done),
-                T_Seq(T_Label(loopstart),
-                  T_Seq(unNx(body),
-                    T_Seq(T_Jump(T_Name(test), Temp_LabelList(test, NULL)),
-                      T_Label(done))))));
+    T_stm s = T_Seq(T_Label(test),
+                T_Seq(T_Cjump(T_ne, unEx(exp), unEx(Tr_zeroExp(Ty_Bool())), loopstart, done),
+                  T_Seq(T_Label(loopstart),
+                    T_Seq(unNx(body),
+                      T_Seq(T_Jump(test),
+                        T_Label(done))))));
 
-  return Tr_Nx(s);
+    return Tr_Nx(s);
 }
-#endif
 
 Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl)
 {
@@ -780,8 +896,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
         {
             case Ty_bool:
             {
-                int i;
-                Tr_getConstInt(exp, &i);
+                int i = Tr_getConstInt(exp);
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
@@ -800,8 +915,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             }
             case Ty_integer:
             {
-                int i;
-                Tr_getConstInt(exp, &i);
+                int i = Tr_getConstInt(exp);
                 switch (to_ty->kind)
                 {
                     case Ty_integer:
@@ -820,8 +934,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             }
             case Ty_long:
             {
-                int i;
-                Tr_getConstInt(exp, &i);
+                int i = Tr_getConstInt(exp);
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
@@ -840,8 +953,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             }
             case Ty_single:
             {
-                int i;
-                Tr_getConstInt(exp, &i);
+                int i = Tr_getConstInt(exp);
                 switch (to_ty->kind)
                 {
                     case Ty_bool:

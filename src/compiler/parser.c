@@ -1394,7 +1394,46 @@ static bool stmtEnd(void)
     return TRUE;
 }
 
+// whileBegin ::= WHILE expression
+static bool stmtWhileBegin(void)
+{
+    A_exp    exp;
+    A_pos    pos = S_getpos();
+    P_SLE    sle;
 
+    S_getsym(); // consume "WHILE"
+
+    if (!expression(&exp))
+        return EM_err("WHILE: expression expected here.");
+
+    sle = slePush();
+
+    sle->kind = P_whileLoop;
+    sle->pos  = pos;
+
+    sle->u.whileExp = exp;
+
+    return TRUE;
+}
+
+static bool stmtWhileEnd(void)
+{
+    A_pos    pos = S_getpos();
+    S_getsym();
+
+    P_SLE sle = g_sleStack;
+    if (sle->kind != P_whileLoop)
+    {
+        EM_error(pos, "WEND used outside of a WHILE-loop context");
+        return FALSE;
+    }
+    slePop();
+
+    A_StmtListAppend (g_sleStack->stmtList,
+                      A_WhileStmt(pos, sle->u.whileExp, sle->stmtList));
+
+    return TRUE;
+}
 
 // identStmt ::= ident ( [ ("(" | "." | "->") ... ] "=" expression  ; assignment
 //                     | [ "(" expressionList ")" ]                 ; proc call FIXME
@@ -1622,6 +1661,10 @@ static bool statementBody(void)
             return stmtDim();
         case S_ASSERT:
             return stmtAssert();
+        case S_WHILE:
+            return stmtWhileBegin();
+        case S_WEND:
+            return stmtWhileEnd();
         // FIXME: many others!
         default:
             return EM_err ("unexpected token");

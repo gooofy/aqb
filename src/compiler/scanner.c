@@ -73,6 +73,8 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "gadget",   (void *) S_GADGET);
     hashmap_put (g_tokens, "mouse",    (void *) S_MOUSE);
     hashmap_put (g_tokens, "call",     (void *) S_CALL);
+    hashmap_put (g_tokens, "while",    (void *) S_WHILE);
+    hashmap_put (g_tokens, "wend",     (void *) S_WEND);
 }
 
 A_pos S_getpos(void)

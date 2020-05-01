@@ -180,6 +180,16 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             indent(out, d);
             fprintf(out, ")");
             break;
+        case A_whileStmt:
+            indent(out, d);
+            fprintf(out, "WHILE (");
+            pr_exp(out, stmt->u.whiler.exp);
+            fprintf(out, ")\n");
+            pr_stmtList(out, stmt->u.whiler.body, d+1);
+            fprintf(out, "\n");
+            indent(out, d);
+            fprintf(out, ")");
+            break;
         case A_ifStmt:
             indent(out, d);
             fprintf(out, "IF(");
