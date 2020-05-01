@@ -2,6 +2,9 @@
 #define HAVE_AIO_h
 
 #include <exec/types.h>
+#include <clib/dos_protos.h>
+
+extern BPTR g_stdout;
 
 void _aio_init(void);
 void _aio_shutdown(void);

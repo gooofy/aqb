@@ -26,5 +26,7 @@ void __aqb_sleep(void);
 
 void __aqb_on_window_call(void (*cb)(void));
 
+ULONG __aqb_window_fn(short n);
+
 #endif
 

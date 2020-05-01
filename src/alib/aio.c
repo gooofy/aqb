@@ -2,14 +2,12 @@
 #include "astr.h"
 #include "aio.h"
 
-#include <clib/dos_protos.h>
-
 // LONG Write( BPTR file, CONST APTR buffer, LONG length );
 
 
 #define MAXBUF 40
 
-static BPTR g_stdout;
+BPTR g_stdout;
 
 void _aio_init(void)
 {

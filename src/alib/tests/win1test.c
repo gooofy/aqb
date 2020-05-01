@@ -42,6 +42,18 @@ void clibtestmain (void)
         __aqb_line (i*5, 0, 320, 200, 0, 0);
     }
 
+    // test window() function
+
+    for (int i = 0; i<14; i++)
+    {
+        _aio_puts("window fn: ");
+        _aio_puts4(i);
+        _aio_puts("->");
+        _aio_puts4(__aqb_window_fn(i));
+        _aio_puts("\n");
+    }
+
+
     // wait for window to be closed
 
     _aio_puts("sleep...\n");

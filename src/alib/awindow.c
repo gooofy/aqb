@@ -38,11 +38,15 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL
 };
 
-static struct RastPort *g_rp=NULL;
 
 static ULONG g_signalmask=0;
 
 static void (*g_win_cb)(void) = NULL;
+
+static short            g_active_win_id = 0;
+static short            g_output_win_id = 0;
+static struct Window   *g_output_win    = NULL;
+static struct RastPort *g_rp            = NULL;
 
 /*
  * BASIC:
@@ -117,6 +121,9 @@ BOOL __aqb_window_open(short id, char *title, short x1, short y1, short x2, shor
     SetAPen(g_rp, 1L);
 
     g_signalmask |= (1L << win->UserPort->mp_SigBit);
+
+    g_output_win    = win;
+    g_output_win_id = id;
 
     return TRUE;
 }
@@ -217,13 +224,15 @@ void __aqb_sleep(void)
 
             _aio_puts("sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
 
-            if (class == CLOSEWINDOW)
+            switch(class)
             {
-                _aio_puts("sleep: CLOSEWINDOW\n");
-                if (g_win_cb)
-                    g_win_cb();
-                else
-                    _aio_puts("sleep: CLOSEWINDOW but no cb.\n");
+                case CLOSEWINDOW:
+                    if (g_win_cb)
+                        g_win_cb();
+                    break;
+                case ACTIVEWINDOW:
+                    g_active_win_id = i+1;
+                    break;
             }
 
             ReplyMsg ( (struct Message *) message);
@@ -236,3 +245,57 @@ void __aqb_on_window_call(void (*cb)(void))
     g_win_cb = cb;
 }
 
+ULONG __aqb_window_fn(short n)
+{
+    switch(n)
+    {
+        case 0:                                 //  0: current active window
+            return g_active_win_id;
+        case 1:                                 //  1: current output window id
+            return g_output_win_id;
+        case 2:                                 //  2: current output window width
+            if (!g_output_win)
+                return 0;
+            return g_output_win->GZZWidth;
+        case 3:                                 //  3: current output window height
+            if (!g_output_win)
+                return 0;
+            return g_output_win->GZZHeight;
+        case 4:                                 //  4: current output cursor X
+            if (!g_rp)
+                return 0;
+            return g_rp->cp_x;
+        case 5:                                 //  5: current output cursor Y
+            if (!g_rp)
+                return 0;
+            return g_rp->cp_y;
+        case 6:                                 //  6: highest color index
+            if (!g_rp)
+                return 0;
+            return (1<<g_rp->BitMap->Depth)-1;
+        case 7:                                 //  7: pointer to current intuition output window
+            return (ULONG) g_output_win;
+        case 8:                                 //  8: pointer to current rastport
+            return (ULONG) g_rp;
+        case 9:                                 //  9: output file handle (ACE)
+            return (ULONG) g_stdout;
+        case 10:                                // 10: foreground pen (ACE)
+            if (!g_rp)
+                return 0;
+            return g_rp->FgPen;
+        case 11:                                // 11: background pen (ACE)
+            if (!g_rp)
+                return 0;
+            return g_rp->BgPen;
+        case 12:                                // 12: text width (ACE)
+            if (!g_rp)
+                return 0;
+            return g_rp->TxWidth;
+        case 13:                                // 13: text height (ACE)
+            if (!g_rp)
+                return 0;
+            return g_rp->TxHeight;
+
+    }
+    return 0;
+}
