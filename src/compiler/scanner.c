@@ -74,6 +74,8 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "call",     (void *) S_CALL);
     hashmap_put (g_tokens, "while",    (void *) S_WHILE);
     hashmap_put (g_tokens, "wend",     (void *) S_WEND);
+    hashmap_put (g_tokens, "pset",     (void *) S_PSET);
+    hashmap_put (g_tokens, "preset",   (void *) S_PRESET);
 }
 
 A_pos S_getpos(void)

@@ -799,7 +799,7 @@ Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_s
     T_exp loopv          = unEx(Tr_Deref(Tr_Var(loopVar)));
 
     T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarTy);
-    T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), Ty_Integer()), loopVarTy);
+    T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), loopVarTy), loopVarTy);
     T_stm limitStm       = T_Move(T_Temp(limit, loopVarTy), unEx(exp_to), loopVarTy);
 
     T_stm s = T_Seq(initStm,

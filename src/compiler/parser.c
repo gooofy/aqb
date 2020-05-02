@@ -931,6 +931,53 @@ static bool stmtLine(void)
     return TRUE;
 }
 
+// pset ::= (PSET|PRESET) [ STEP ] ( x , y ) [ , Color ]
+
+static bool stmtPSet(void)
+{
+    A_exp     x, y;
+    A_pos     pos   = S_getpos();
+    A_exp     color = A_IntExp(pos, -1);
+    A_expList args  = A_ExpList();
+    int       flags = 0;
+
+    if (S_token == S_PRESET)
+        flags |= 2;
+
+    S_getsym();
+
+    if (S_token == S_STEP)
+    {
+        S_getsym();
+        flags |= 1;
+    }
+
+    if (S_token != S_LPAREN)
+        return EM_err("( expected here.");
+    S_getsym();
+
+    if (!expression(&x))
+        return EM_err("x expression expected here.");
+    if (S_token != S_COMMA)
+        return EM_err(", expected here.");
+    S_getsym();
+    if (!expression(&y))
+        return EM_err("y expression expected here.");
+
+    if (S_token != S_RPAREN)
+        return EM_err(") expected here.");
+    S_getsym();
+
+    A_ExpListAppend (args, x);
+    A_ExpListAppend (args, y);
+    A_ExpListAppend (args, A_IntExp(pos, flags));
+    A_ExpListAppend (args, color);
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, S_Symbol("___aqb_pset"), args));
+
+    return TRUE;
+}
+
 // assignmentStmt ::= ident ( "(" expression ( "," expression)* ")"
 //                          | "." ident
 //                          | "->" ident )* "=" expression
@@ -1646,6 +1693,8 @@ static bool statementBody(void)
             return stmtPrint();
         case S_LINE:
             return stmtLine();
+        case S_PSET:
+            return stmtPSet();
         case S_FOR:
             return stmtForBegin();
         case S_NEXT:

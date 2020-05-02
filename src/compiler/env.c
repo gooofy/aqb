@@ -112,8 +112,6 @@ S_scope E_base_venv(void)
 {
     S_scope t = S_beginScope();
 
-    declare_builtin(t, "___aqb_window_open",    "isiiiiii", Ty_Void());
-    declare_builtin(t, "___aqb_line",           "iiiiii",   Ty_Void());
     declare_builtin(t, "__aio_puts",            "s",        Ty_Void());
     declare_builtin(t, "__aio_puts2",           "i",        Ty_Void());
     declare_builtin(t, "__aio_puts4",           "l",        Ty_Void());
@@ -122,6 +120,10 @@ S_scope E_base_venv(void)
     declare_builtin(t, "__aio_putnl",           "",         Ty_Void());
     declare_builtin(t, "__aio_puttab",          "",         Ty_Void());
     declare_builtin(t, "__aqb_assert",          "bs",       Ty_Void());
+
+    declare_builtin(t, "___aqb_window_open",    "isiiiiii", Ty_Void());
+    declare_builtin(t, "___aqb_line",           "iiiiii",   Ty_Void());
+    declare_builtin(t, "___aqb_pset",           "iiii",     Ty_Void());
     declare_builtin(t, "___aqb_on_window_call", "p",        Ty_Void());
 
     return t;
