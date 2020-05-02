@@ -151,6 +151,7 @@ void _awindow_shutdown(void)
  */
 BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color)
 {
+    BYTE fgPen=g_rp->FgPen;
 #if 0
     _aio_puts("x1: "); _aio_puts4(x1);
     _aio_puts(", y1: "); _aio_puts4(y1);
@@ -171,6 +172,8 @@ BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color
         x2 += g_rp->cp_x;
         y2 += g_rp->cp_y;
     }
+    if (color >= 0)
+        SetAPen(g_rp, color);
     if (flags & AW_LINE_FLAG_BOX)
     {
         // FIXME
@@ -192,10 +195,38 @@ BOOL __aqb_line(short x1, short y1, short x2, short y2, short flags, short color
         Move (g_rp, x1, y1);
         Draw (g_rp, x2, y2);
     }
-#if 0
-    Move (g_rp, 10, 10);
-    Draw (g_rp, 15, 15);
-#endif
+
+    if ( color >=0 )
+        SetAPen(g_rp, fgPen);
+
+    return TRUE;
+}
+
+/*
+ * BASIC:
+ *
+ * (PSET|PRESET) [ STEP ] ( x , y ) [ , Color ]
+ */
+BOOL __aqb_pset(short x, short y, short flags, short color)
+{
+    BYTE fgPen=g_rp->FgPen;
+
+    if (flags & AW_PSET_STEP)
+    {
+        x += g_rp->cp_x;
+        y += g_rp->cp_y;
+    }
+    if (flags & AW_PSET_RESET)
+        SetAPen(g_rp, g_rp->BgPen);
+    if (color >= 0)
+        SetAPen(g_rp, color);
+
+    Move (g_rp, x, y);
+    WritePixel(g_rp, x, y);
+
+    if ( (flags & AW_PSET_RESET) || color >=0 )
+        SetAPen(g_rp, fgPen);
+
     return TRUE;
 }
 

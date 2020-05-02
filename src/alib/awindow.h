@@ -28,5 +28,10 @@ void __aqb_on_window_call(void (*cb)(void));
 
 ULONG __aqb_window_fn(short n);
 
+#define AW_PSET_STEP  1
+#define AW_PSET_RESET 2
+
+BOOL __aqb_pset(short x, short y, short flags, short color);
+
 #endif
 
