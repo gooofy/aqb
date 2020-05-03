@@ -64,10 +64,14 @@ tests/*.s
 
 # FIXME: cleanup. commit.
 doc/
-examples/
 old
 src/alib/genos.py
 src/alib/os_mathtrans.txt
 tests/foo.bas
 src/alib/tests/*.bin
+examples/bench/*.bin
+examples/bench/*.s
+examples/*.bin
+examples/*.s
+examples/others
 
