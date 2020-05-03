@@ -38,6 +38,7 @@ struct Tr_level_
 {
     F_frame    frame;
     Temp_label name;
+    bool       statc;
 };
 
 struct Tr_access_
@@ -108,16 +109,18 @@ Tr_level Tr_global(void)
     {
         global_level = checked_malloc(sizeof(*global_level));
         global_level->frame  = NULL;
+        global_level->statc  = FALSE;
     }
     return global_level;
 }
 
-Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys)
+Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc)
 {
     Tr_level lv = checked_malloc(sizeof(*lv));
 
     lv->frame  = F_newFrame(name, formalTys);
     lv->name   = name;
+    lv->statc  = statc;
 
     return lv;
 }
@@ -125,6 +128,11 @@ Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys)
 Temp_label Tr_getLabel(Tr_level level)
 {
     return level->name;
+}
+
+bool Tr_isStatic(Tr_level level)
+{
+    return level->statc;
 }
 
 Tr_accessList Tr_formals(Tr_level level)

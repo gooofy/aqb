@@ -42,7 +42,16 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v)
         string s = S_name(v);
         Ty_ty t = Ty_inferType(s);
 
-        x = E_VarEntry(Tr_allocVar(level, s, t, NULL), t, FALSE);
+        if (Tr_isStatic(level))
+        {
+            string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
+            x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t, NULL), t, TRUE);
+        }
+        else
+        {
+            x = E_VarEntry(Tr_allocVar(level, s, t, NULL), t, FALSE);
+        }
+
         S_enter(venv, v, x);
     }
     return x;
@@ -630,12 +639,6 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
             }
 
-            if (proc->isStatic)
-            {
-                EM_error(proc->pos, "*** internal error: static subs/functions are not supported yet."); // FIXME
-                assert(0);
-            }
-
             e = S_look(venv, proc->name);
             if (e)
             {
@@ -649,7 +652,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                e = E_FunEntry(Tr_newLevel(proc->label, formalTys), proc->label, formalTys, resultTy, stmt->kind==A_procDeclStmt);
+                e = E_FunEntry(Tr_newLevel(proc->label, formalTys, proc->isStatic), proc->label, formalTys, resultTy, stmt->kind==A_procDeclStmt);
             }
 
             S_enter(venv, proc->name, e);
@@ -834,11 +837,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.vdeclr.varId);
                     break;
                 }
-                if (stmt->u.vdeclr.statc)
+                if (stmt->u.vdeclr.statc || Tr_isStatic(level))
                 {
                     string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), stmt->u.vdeclr.varId));
                     x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t, conv_init), t, TRUE);
-                    S_enter(g_venv, name, x);
+                    S_enter(venv, name, x);
                 }
                 else
                 {
