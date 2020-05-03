@@ -1,10 +1,16 @@
 
-SUB foo ( b%, msg$ )
+REM test STATIC subprogram vars
 
-    ' PRINT "b%  :"; b%
-    PRINT "msg$:";msg$ 
+FUNCTION counter%()
 
-END SUB
+    STATIC cnt%
+    cnt% = cnt% + 1
+    counter%=cnt%
 
-foo 42, "hubba" 
+END FUNCTION
+
+ASSERT(counter%()=1)
+ASSERT(counter%()=2)
+ASSERT(counter%()=3)
+ASSERT(counter%()=4)
 

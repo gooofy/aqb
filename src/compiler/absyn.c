@@ -128,17 +128,18 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_DimStmt (A_pos pos, bool shared, string varId, string typeId, A_dim dims, A_exp init)
+A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, string varId, string typeId, A_dim dims, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
-    p->kind          = A_dimStmt;
-    p->pos           = pos;
-    p->u.dimr.shared = shared;
-    p->u.dimr.varId  = varId;
-    p->u.dimr.typeId = typeId;
-    p->u.dimr.dims   = dims;
-    p->u.dimr.init   = init;
+    p->kind            = A_varDeclStmt;
+    p->pos             = pos;
+    p->u.vdeclr.shared = shared;
+    p->u.vdeclr.statc  = statc;
+    p->u.vdeclr.varId  = varId;
+    p->u.vdeclr.typeId = typeId;
+    p->u.vdeclr.dims   = dims;
+    p->u.vdeclr.init   = init;
 
     return p;
 }

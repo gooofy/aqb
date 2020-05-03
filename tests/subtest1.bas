@@ -1,12 +1,12 @@
 
-SUB myassert ( b&, msg$ )
+SUB check1 ( b&, msg$ )
 
-    IF b& = 0 THEN
-        PRINT "*** ASSERTION FAILED:", msg$
+    IF b& <> 1 THEN
+        PRINT msg$
+        ASSERT FALSE
     END IF
 
 END SUB
 
-myassert 1=1, "This shouldn't fail."
-myassert 1=0, "This should fail."
+check1 1, "This shouldn't fail."
 

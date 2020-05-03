@@ -1031,6 +1031,17 @@ static bool stmtLet(void)
     return stmtAssignment(sym);
 }
 
+// remStmt ::= REM * crnl
+static bool stmtRem(void)
+{
+    S_getsym(); // skip "REM"
+
+    while (S_token != S_EOL)
+        S_getsym();
+
+    return TRUE;
+}
+
 // forBegin ::= FOR ident "=" expression TO expression [ STEP expression ]
 static bool stmtForBegin(void)
 {
@@ -1584,7 +1595,7 @@ static bool arrayDimensions (A_dim *dims)
 
 // singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] [ "=" expression ]
 
-static bool singleVarDecl (bool shared)
+static bool singleVarDecl (bool shared, bool statc)
 {
     A_pos  pos = S_getpos();
     string varId, typeId=NULL;
@@ -1626,7 +1637,7 @@ static bool singleVarDecl (bool shared)
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_DimStmt(pos, shared, varId, typeId, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, varId, typeId, dims, init));
 
     return TRUE;
 }
@@ -1645,13 +1656,32 @@ static bool stmtDim(void)
         S_getsym();
     }
 
-    if (!singleVarDecl(shared))
+    if (!singleVarDecl(shared, FALSE))
         return FALSE;
 
     while (S_token == S_COMMA)
     {
         S_getsym();
-        if (!singleVarDecl(shared))
+        if (!singleVarDecl(shared, FALSE))
+            return FALSE;
+    }
+    return TRUE;
+}
+
+
+// stmtStatic ::= STATIC singleVarDecl ( "," singleVarDecl )*
+
+static bool stmtStatic(void)
+{
+    S_getsym();     // skip "STATIC"
+
+    if (!singleVarDecl(FALSE, TRUE))
+        return FALSE;
+
+    while (S_token == S_COMMA)
+    {
+        S_getsym();
+        if (!singleVarDecl(FALSE, TRUE))
             return FALSE;
     }
     return TRUE;
@@ -1687,8 +1717,13 @@ static bool statementBody(void)
     {
         case S_IDENT:
             return stmtIdent(); // could be a label, assignment or call
+        case S_CALL:
+            S_getsym();
+            return stmtIdent();
         case S_LET:
             return stmtLet();
+        case S_REM:
+            return stmtRem();
         case S_PRINT:
             return stmtPrint();
         case S_LINE:
@@ -1710,6 +1745,8 @@ static bool statementBody(void)
             return stmtEnd();
         case S_DIM:
             return stmtDim();
+        case S_STATIC:
+            return stmtStatic();
         case S_ASSERT:
             return stmtAssert();
         case S_WHILE:
