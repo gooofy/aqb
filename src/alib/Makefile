@@ -36,4 +36,5 @@ tests: startup.o _alib.a
 
 clean:
 	rm -f *.o alibtest _alib.a
+	cd tests ; make clean
 

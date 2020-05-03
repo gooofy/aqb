@@ -7,6 +7,7 @@
 #include <intuition/intuition.h>
 #include <clib/intuition_protos.h>
 #include <clib/dos_protos.h>
+#include <clib/mathffp_protos.h>
 
 USHORT g_errcode;
 
@@ -41,5 +42,26 @@ void _aqb_assert (BOOL b, const char *msg)
     _aio_puts("\n");
 
     _autil_exit(20);
+}
+
+FLOAT __aqb_timer_fn (void)
+{
+	FLOAT res;
+
+	struct DateStamp datetime;
+
+	DateStamp(&datetime);
+
+    // _aio_puts4(datetime.ds_Days);
+    // _aio_puts4(datetime.ds_Minute);
+    // _aio_puts4(datetime.ds_Tick);
+
+	res = SPFlt(datetime.ds_Minute);
+    // _aio_putf(res);
+	res = SPAdd(SPMul(res, SPFlt(60)), SPDiv(SPFlt(datetime.ds_Tick), SPFlt(50)));
+    // _aio_putf(res);
+    // _aio_puts("\n");
+
+	return res;
 }
 

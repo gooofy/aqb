@@ -22,6 +22,8 @@ void delay(ULONG seconds);
 
 void _aqb_assert (BOOL b, const char *msg);
 
+FLOAT __aqb_timer_fn (void);
+
 #if 0  // exec has these already
 
 #define BOOL char

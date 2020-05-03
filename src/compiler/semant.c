@@ -546,7 +546,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             Tr_exp exp         = transExp(level, venv, tenv, stmt->u.assertr.exp, breaklbl);
             Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp, NULL));
-            S_symbol fsym      = S_Symbol("__aqb_assert");
+            S_symbol fsym      = S_Symbol("___aqb_assert");
             E_enventry func    = S_look(g_venv, fsym);
             return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
         }

@@ -9,7 +9,7 @@ AR = m68k-amigaos-ar
 
 .PHONY: clean all
 
-all: win1test.bin
+all: win1test.bin timer1test.bin
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
@@ -18,6 +18,10 @@ win1test.bin: ../startup.o ../alibtest.o win1test.o ../_alib.a
 	$(LD) $^ -o $@
 	cp $@ /home/guenter/media/emu/amiga/a500/hdd/system/x/
 
+timer1test.bin: ../startup.o ../alibtest.o timer1test.o ../_alib.a
+	$(LD) $^ -o $@
+	cp $@ /home/guenter/media/emu/amiga/a500/hdd/system/x/
+
 clean:
-	rm -f *.o alibtest _alib.a
+	rm -f *.o *.bin
 

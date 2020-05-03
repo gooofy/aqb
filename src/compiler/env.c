@@ -119,8 +119,8 @@ S_scope E_base_venv(void)
     declare_builtin(t, "__aio_putbool",         "b",        Ty_Void());
     declare_builtin(t, "__aio_putnl",           "",         Ty_Void());
     declare_builtin(t, "__aio_puttab",          "",         Ty_Void());
-    declare_builtin(t, "__aqb_assert",          "bs",       Ty_Void());
 
+    declare_builtin(t, "___aqb_assert",         "bs",       Ty_Void());
     declare_builtin(t, "___aqb_window_open",    "isiiiiii", Ty_Void());
     declare_builtin(t, "___aqb_line",           "iiiiii",   Ty_Void());
     declare_builtin(t, "___aqb_pset",           "iiii",     Ty_Void());
@@ -172,9 +172,10 @@ map_t E_declared_procs(A_stmtList stmtList)
 {
     map_t declared_procs = hashmap_new();
 
-    declare_builtin_proc(stmtList, declared_procs, "int",    "___aqb_int",       "f", "long");
-    declare_builtin_proc(stmtList, declared_procs, "sleep",  "___aqb_sleep",     "",  NULL  );
-    declare_builtin_proc(stmtList, declared_procs, "window", "___aqb_window_fn", "l", "long");
+    declare_builtin_proc(stmtList, declared_procs, "int",    "___aqb_int",       "f", "long"  );
+    declare_builtin_proc(stmtList, declared_procs, "sleep",  "___aqb_sleep",     "",  NULL    );
+    declare_builtin_proc(stmtList, declared_procs, "window", "___aqb_window_fn", "l", "long"  );
+    declare_builtin_proc(stmtList, declared_procs, "timer",  "___aqb_timer_fn",  "",  "single");
 
     return declared_procs;
 }

@@ -137,24 +137,24 @@ static bool atom(A_exp *exp)
         {
             A_selector sel = NULL, last_sel = NULL;
             A_var      v;
+            A_proc     proc;
 
             S_symbol   sym = S_Symbol(String(S_strlc));
             S_getsym();
 
-            if (S_token == S_LPAREN)
+            // is this a declared function?
+
+            if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
             {
-                A_proc   proc;
+                A_expList args = A_ExpList();
 
-                // is this a declared function?
+                if (!proc->retty)
+                    return EM_err("SUB used as FUNCTION?");
 
-                if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+                if (S_token == S_LPAREN)
                 {
-                    if (!proc->retty)
-                        return EM_err("SUB used as FUNCTION?");
+                    S_getsym();
 
-                    S_getsym();                     // consume (
-
-                    A_expList args = A_ExpList();
                     if (!expressionList(&args))
                     {
                         return EM_err("error parsing FUNCTION argument list");
@@ -165,10 +165,10 @@ static bool atom(A_exp *exp)
                         return EM_err(") expected.");
                     }
                     S_getsym();
-
-                    *exp = A_FuncCallExp(pos, proc->name, args);
-                    return TRUE;
                 }
+
+                *exp = A_FuncCallExp(pos, proc->name, args);
+                return TRUE;
             }
 
             v= A_Var (pos, sym);
