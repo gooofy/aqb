@@ -81,58 +81,6 @@ _GetScreenData:
     rts
 
 /*
- * dos
- */
-
-LVOWrite  = -48
-LVOOutput = -60
-LVODelay  = -198
-
-    .globl _Write
-_Write:
-    link a5, #0
-    move.l a6,-(sp)
-    move.l d2,-(sp)
-    move.l d3,-(sp)
-
-    move.l  8(a5),d1            /* file              */
-    move.l 12(a5),d2            /* buffer            */
-    move.l 16(a5),d3            /* length            */
-    movea.l _DOSBase,a6         /* dos base          */
-    jsr     LVOWrite(a6)
-
-    move.l (sp)+,d3
-    move.l (sp)+,d2
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _Output
-_Output:
-    link a5, #0
-    move.l a6,-(sp)
-
-    movea.l _DOSBase,a6         /* dos base          */
-    jsr     LVOOutput(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _Delay
-_Delay:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d1            /* ticks             */
-    movea.l _DOSBase,a6         /* dos base          */
-    jsr     LVODelay(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-/*
  * mathffp
  */
 
@@ -4183,6 +4131,492 @@ _AttemptLockLayerRom:
     move.l  8(a5),a5 /* layer */
     movea.l _GfxBase,a6
     jsr     LVOAttemptLockLayerRom(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/*
+ * dos
+ */
+
+LVOOpen                    = -30
+LVOClose                   = -36
+LVORead                    = -42
+LVOWrite                   = -48
+LVOInput                   = -54
+LVOOutput                  = -60
+LVOSeek                    = -66
+LVODeleteFile              = -72
+LVORename                  = -78
+LVOLock                    = -84
+LVOUnLock                  = -90
+LVODupLock                 = -96
+LVOExamine                 = -102
+LVOExNext                  = -108
+LVOInfo                    = -114
+LVOCreateDir               = -120
+LVOCurrentDir              = -126
+LVOIoErr                   = -132
+LVOCreateProc              = -138
+LVOExit                    = -144
+LVOLoadSeg                 = -150
+LVOUnLoadSeg               = -156
+LVODeviceProc              = -174
+LVOSetComment              = -180
+LVOSetProtection           = -186
+LVODateStamp               = -192
+LVODelay                   = -198
+LVOWaitForChar             = -204
+LVOParentDir               = -210
+LVOIsInteractive           = -216
+LVOExecute                 = -222
+/* 30 $ffe2 -$001e Open(name,accessMode)(d1/d2) */
+    .globl _Open
+_Open:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    move.l  12(a5),d2 /* accessMode */
+    movea.l _DOSBase,a6
+    jsr     LVOOpen(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 36 $ffdc -$0024 Close(file)(d1) */
+    .globl _Close
+_Close:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* file */
+    movea.l _DOSBase,a6
+    jsr     LVOClose(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 42 $ffd6 -$002a Read(file,buffer,length)(d1/d2/d3) */
+    .globl _Read
+_Read:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* file */
+    move.l  12(a5),d2 /* buffer */
+    move.l  16(a5),d3 /* length */
+    movea.l _DOSBase,a6
+    jsr     LVORead(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 48 $ffd0 -$0030 Write(file,buffer,length)(d1/d2/d3) */
+    .globl _Write
+_Write:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* file */
+    move.l  12(a5),d2 /* buffer */
+    move.l  16(a5),d3 /* length */
+    movea.l _DOSBase,a6
+    jsr     LVOWrite(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 54 $ffca -$0036 Input()() */
+    .globl _Input
+_Input:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _DOSBase,a6
+    jsr     LVOInput(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 60 $ffc4 -$003c Output()() */
+    .globl _Output
+_Output:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _DOSBase,a6
+    jsr     LVOOutput(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 66 $ffbe -$0042 Seek(file,position,offset)(d1/d2/d3) */
+    .globl _Seek
+_Seek:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* file */
+    move.l  12(a5),d2 /* position */
+    move.l  16(a5),d3 /* offset */
+    movea.l _DOSBase,a6
+    jsr     LVOSeek(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 72 $ffb8 -$0048 DeleteFile(name)(d1) */
+    .globl _DeleteFile
+_DeleteFile:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    movea.l _DOSBase,a6
+    jsr     LVODeleteFile(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 78 $ffb2 -$004e Rename(oldName,newName)(d1/d2) */
+    .globl _Rename
+_Rename:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* oldName */
+    move.l  12(a5),d2 /* newName */
+    movea.l _DOSBase,a6
+    jsr     LVORename(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 84 $ffac -$0054 Lock(name,type)(d1/d2) */
+    .globl _Lock
+_Lock:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    move.l  12(a5),d2 /* type */
+    movea.l _DOSBase,a6
+    jsr     LVOLock(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 90 $ffa6 -$005a UnLock(lock)(d1) */
+    .globl _UnLock
+_UnLock:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    movea.l _DOSBase,a6
+    jsr     LVOUnLock(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 96 $ffa0 -$0060 DupLock(lock)(d1) */
+    .globl _DupLock
+_DupLock:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    movea.l _DOSBase,a6
+    jsr     LVODupLock(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 102 $ff9a -$0066 Examine(lock,fileInfoBlock)(d1/d2) */
+    .globl _Examine
+_Examine:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    move.l  12(a5),d2 /* fileInfoBlock */
+    movea.l _DOSBase,a6
+    jsr     LVOExamine(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 108 $ff94 -$006c ExNext(lock,fileInfoBlock)(d1/d2) */
+    .globl _ExNext
+_ExNext:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    move.l  12(a5),d2 /* fileInfoBlock */
+    movea.l _DOSBase,a6
+    jsr     LVOExNext(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 114 $ff8e -$0072 Info(lock,parameterBlock)(d1/d2) */
+    .globl _Info
+_Info:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    move.l  12(a5),d2 /* parameterBlock */
+    movea.l _DOSBase,a6
+    jsr     LVOInfo(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 120 $ff88 -$0078 CreateDir(name)(d1) */
+    .globl _CreateDir
+_CreateDir:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    movea.l _DOSBase,a6
+    jsr     LVOCreateDir(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 126 $ff82 -$007e CurrentDir(lock)(d1) */
+    .globl _CurrentDir
+_CurrentDir:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    movea.l _DOSBase,a6
+    jsr     LVOCurrentDir(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 132 $ff7c -$0084 IoErr()() */
+    .globl _IoErr
+_IoErr:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _DOSBase,a6
+    jsr     LVOIoErr(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 138 $ff76 -$008a CreateProc(name,pri,segList,stackSize)(d1/d2/d3/d4) */
+    .globl _CreateProc
+_CreateProc:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    move.l  12(a5),d2 /* pri */
+    move.l  16(a5),d3 /* segList */
+    move.l  20(a5),d4 /* stackSize */
+    movea.l _DOSBase,a6
+    jsr     LVOCreateProc(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 144 $ff70 -$0090 Exit(returnCode)(d1) */
+    .globl _Exit
+_Exit:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* returnCode */
+    movea.l _DOSBase,a6
+    jsr     LVOExit(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 150 $ff6a -$0096 LoadSeg(name)(d1) */
+    .globl _LoadSeg
+_LoadSeg:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    movea.l _DOSBase,a6
+    jsr     LVOLoadSeg(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 156 $ff64 -$009c UnLoadSeg(seglist)(d1) */
+    .globl _UnLoadSeg
+_UnLoadSeg:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* seglist */
+    movea.l _DOSBase,a6
+    jsr     LVOUnLoadSeg(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 174 $ff52 -$00ae DeviceProc(name)(d1) */
+    .globl _DeviceProc
+_DeviceProc:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    movea.l _DOSBase,a6
+    jsr     LVODeviceProc(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 180 $ff4c -$00b4 SetComment(name,comment)(d1/d2) */
+    .globl _SetComment
+_SetComment:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    move.l  12(a5),d2 /* comment */
+    movea.l _DOSBase,a6
+    jsr     LVOSetComment(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 186 $ff46 -$00ba SetProtection(name,protect)(d1/d2) */
+    .globl _SetProtection
+_SetProtection:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* name */
+    move.l  12(a5),d2 /* protect */
+    movea.l _DOSBase,a6
+    jsr     LVOSetProtection(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 192 $ff40 -$00c0 DateStamp(date)(d1) */
+    .globl _DateStamp
+_DateStamp:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* date */
+    movea.l _DOSBase,a6
+    jsr     LVODateStamp(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 198 $ff3a -$00c6 Delay(timeout)(d1) */
+    .globl _Delay
+_Delay:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* timeout */
+    movea.l _DOSBase,a6
+    jsr     LVODelay(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 204 $ff34 -$00cc WaitForChar(file,timeout)(d1/d2) */
+    .globl _WaitForChar
+_WaitForChar:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* file */
+    move.l  12(a5),d2 /* timeout */
+    movea.l _DOSBase,a6
+    jsr     LVOWaitForChar(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 210 $ff2e -$00d2 ParentDir(lock)(d1) */
+    .globl _ParentDir
+_ParentDir:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* lock */
+    movea.l _DOSBase,a6
+    jsr     LVOParentDir(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 216 $ff28 -$00d8 IsInteractive(file)(d1) */
+    .globl _IsInteractive
+_IsInteractive:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* file */
+    movea.l _DOSBase,a6
+    jsr     LVOIsInteractive(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 222 $ff22 -$00de Execute(string,file,file2)(d1/d2/d3) */
+    .globl _Execute
+_Execute:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* string */
+    move.l  12(a5),d2 /* file */
+    move.l  16(a5),d3 /* file2 */
+    movea.l _DOSBase,a6
+    jsr     LVOExecute(a6)
 
     move.l (sp)+,a6
     unlk a5
