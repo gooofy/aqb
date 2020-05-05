@@ -1,511 +1,5 @@
 
-SysBase          = 4
-
-/* intuition */
-
-LVOOpenWindow    = -204
-LVOCloseWindow   = -72
-LVOAllocRemember = -396
-LVOFreeRemember  = -408
-LVOGetScreenData = -426
-
-    .globl _OpenWindow
-_OpenWindow:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),a0            /* newWindow         */
-    movea.l _IntuitionBase,a6   /* intuition base    */
-    jsr     LVOOpenWindow(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _CloseWindow
-_CloseWindow:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),a0            /* window            */
-    movea.l _IntuitionBase,a6   /* intuition base    */
-    jsr     LVOCloseWindow(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _AllocRemember
-_AllocRemember:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),a0            /* rememberKey       */
-    move.l 12(a5),d0            /* size              */
-    move.l 16(a5),d1            /* flags             */
-    movea.l _IntuitionBase,a6   /* intuition base    */
-    jsr     LVOAllocRemember(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _FreeRemember
-_FreeRemember:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),a0            /* rememberKey       */
-    move.l 12(a5),d0            /* reallyForget      */
-    movea.l _IntuitionBase,a6   /* intuition base    */
-    jsr     LVOFreeRemember(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _GetScreenData
-_GetScreenData:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),a0            /* buffer            */
-    move.l 12(a5),d0            /* size              */
-    move.l 16(a5),d1            /* type              */
-    move.l 20(a5),a1            /* screen            */
-    movea.l _IntuitionBase,a6   /* intuition base    */
-    jsr     LVOGetScreenData(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-/*
- * mathffp
- */
-
-LVOSPFix      = -30
-LVOSPFlt      = -36
-LVOSPCmp      = -42
-LVOSPTst      = -48
-LVOSPAbs      = -54
-LVOSPNeg      = -60
-LVOSPAdd      = -66
-LVOSPSub      = -72
-LVOSPMul      = -78
-LVOSPDiv      = -84
-LVOSPFloor    = -90
-LVOSPCeil     = -96
-
-    .globl _SPFix
-_SPFix:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPFix(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPFlt
-_SPFlt:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPFlt(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPCmp
-_SPCmp:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d1
-    move.l 12(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPCmp(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPTst
-_SPTst:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d1
-    movea.l _MathBase,a6
-    jsr     LVOSPTst(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPAbs
-_SPAbs:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPAbs(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPNeg
-_SPNeg:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPNeg(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPAdd
-_SPAdd:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    move.l 12(a5),d1
-    movea.l _MathBase,a6
-    jsr     LVOSPAdd(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPSub
-_SPSub:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    move.l 12(a5),d1
-    movea.l _MathBase,a6
-    jsr     LVOSPSub(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPMul
-_SPMul:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    move.l 12(a5),d1
-    movea.l _MathBase,a6
-    jsr     LVOSPMul(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPDiv
-_SPDiv:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    move.l 12(a5),d1
-    movea.l _MathBase,a6
-    jsr     LVOSPDiv(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPFloor
-_SPFloor:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPFloor(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPCeil
-_SPCeil:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0
-    movea.l _MathBase,a6
-    jsr     LVOSPCeil(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-/*
- * mathtrans
- */
-
-LVOSPAtan   = -30
-LVOSPSin    = -36
-LVOSPCos    = -42
-LVOSPTan    = -48
-LVOSPSincos = -54
-LVOSPSinh   = -60
-LVOSPCosh   = -66
-LVOSPTanh   = -72
-LVOSPExp    = -78
-LVOSPLog    = -84
-LVOSPPow    = -90
-LVOSPSqrt   = -96
-LVOSPTieee  = -102
-LVOSPFieee  = -108
-LVOSPAsin   = -114
-LVOSPAcos   = -120
-LVOSPLog10  = -126
-
-    .globl _SPAtan
-_SPAtan:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPAtan(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPSin
-_SPSin:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPSin(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPCos
-_SPCos:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPCos(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPTan
-_SPTan:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPTan(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPSincos
-_SPSincos:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d1 /* cosResult */
-    move.l  12(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPSincos(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPSinh
-_SPSinh:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPSinh(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPCosh
-_SPCosh:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPCosh(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPTanh
-_SPTanh:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPTanh(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPExp
-_SPExp:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPExp(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPLog
-_SPLog:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPLog(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPPow
-_SPPow:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d1 /* power */
-    move.l  12(a5),d0 /* arg */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPPow(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPSqrt
-_SPSqrt:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPSqrt(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPTieee
-_SPTieee:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPTieee(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPFieee
-_SPFieee:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPFieee(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPAsin
-_SPAsin:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPAsin(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPAcos
-_SPAcos:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPAcos(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-    .globl _SPLog10
-_SPLog10:
-    link a5, #0
-    move.l a6,-(sp)
-
-    move.l  8(a5),d0 /* parm */
-    movea.l _MathTransBase,a6
-    jsr     LVOSPLog10(a6)
-
-    move.l (sp)+,a6
-    unlk a5
-    rts
-
-/*
- * exec
- */
+_SysBase          = 4
 
 LVOSupervisor              = -30
 LVOExitIntr                = -36
@@ -638,11 +132,13 @@ LVOExecReserved04          = -780
 _Supervisor:
     link a5, #0
     move.l a6,-(sp)
+    move.l a5,-(sp)
 
     move.l  8(a5),a5 /* userFunction */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSupervisor(a6)
 
+    move.l (sp)+,a5
     move.l (sp)+,a6
     unlk a5
     rts
@@ -653,7 +149,7 @@ _ExitIntr:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOExitIntr(a6)
 
     move.l (sp)+,a6
@@ -666,7 +162,7 @@ _Schedule:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSchedule(a6)
 
     move.l (sp)+,a6
@@ -679,7 +175,7 @@ _Reschedule:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOReschedule(a6)
 
     move.l (sp)+,a6
@@ -692,7 +188,7 @@ _Switch:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSwitch(a6)
 
     move.l (sp)+,a6
@@ -705,7 +201,7 @@ _Dispatch:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODispatch(a6)
 
     move.l (sp)+,a6
@@ -718,7 +214,7 @@ _Exception:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOException(a6)
 
     move.l (sp)+,a6
@@ -733,7 +229,7 @@ _InitCode:
 
     move.l  8(a5),d0 /* startClass */
     move.l  12(a5),d1 /* version */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOInitCode(a6)
 
     move.l (sp)+,a6
@@ -745,13 +241,15 @@ _InitCode:
 _InitStruct:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a1 /* initTable */
     move.l  12(a5),a2 /* memory */
     move.l  16(a5),d0 /* size */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOInitStruct(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -761,15 +259,17 @@ _InitStruct:
 _MakeLibrary:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* funcInit */
     move.l  12(a5),a1 /* structInit */
     move.l  16(a5),a2 /* libInit */
     move.l  20(a5),d0 /* dataSize */
     move.l  24(a5),d1 /* segList */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOMakeLibrary(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -779,13 +279,15 @@ _MakeLibrary:
 _MakeFunctions:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* target */
     move.l  12(a5),a1 /* functionArray */
     move.l  16(a5),a2 /* funcDispBase */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOMakeFunctions(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -797,7 +299,7 @@ _FindResident:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* name */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFindResident(a6)
 
     move.l (sp)+,a6
@@ -812,7 +314,7 @@ _InitResident:
 
     move.l  8(a5),a1 /* resident */
     move.l  12(a5),d1 /* segList */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOInitResident(a6)
 
     move.l (sp)+,a6
@@ -824,11 +326,13 @@ _InitResident:
 _Alert:
     link a5, #0
     move.l a6,-(sp)
+    move.l d7,-(sp)
 
     move.l  8(a5),d7 /* alertNum */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAlert(a6)
 
+    move.l (sp)+,d7
     move.l (sp)+,a6
     unlk a5
     rts
@@ -840,7 +344,7 @@ _Debug:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* flags */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODebug(a6)
 
     move.l (sp)+,a6
@@ -853,7 +357,7 @@ _Disable:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODisable(a6)
 
     move.l (sp)+,a6
@@ -866,7 +370,7 @@ _Enable:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOEnable(a6)
 
     move.l (sp)+,a6
@@ -879,7 +383,7 @@ _Forbid:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOForbid(a6)
 
     move.l (sp)+,a6
@@ -892,7 +396,7 @@ _Permit:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOPermit(a6)
 
     move.l (sp)+,a6
@@ -907,7 +411,7 @@ _SetSR:
 
     move.l  8(a5),d0 /* newSR */
     move.l  12(a5),d1 /* mask */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSetSR(a6)
 
     move.l (sp)+,a6
@@ -920,7 +424,7 @@ _SuperState:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSuperState(a6)
 
     move.l (sp)+,a6
@@ -934,7 +438,7 @@ _UserState:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* sysStack */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOUserState(a6)
 
     move.l (sp)+,a6
@@ -949,7 +453,7 @@ _SetIntVector:
 
     move.l  8(a5),d0 /* intNumber */
     move.l  12(a5),a1 /* interrupt */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSetIntVector(a6)
 
     move.l (sp)+,a6
@@ -964,7 +468,7 @@ _AddIntServer:
 
     move.l  8(a5),d0 /* intNumber */
     move.l  12(a5),a1 /* interrupt */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddIntServer(a6)
 
     move.l (sp)+,a6
@@ -979,7 +483,7 @@ _RemIntServer:
 
     move.l  8(a5),d0 /* intNumber */
     move.l  12(a5),a1 /* interrupt */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemIntServer(a6)
 
     move.l (sp)+,a6
@@ -993,7 +497,7 @@ _Cause:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* interrupt */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCause(a6)
 
     move.l (sp)+,a6
@@ -1008,7 +512,7 @@ _Allocate:
 
     move.l  8(a5),a0 /* freeList */
     move.l  12(a5),d0 /* byteSize */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocate(a6)
 
     move.l (sp)+,a6
@@ -1024,7 +528,7 @@ _Deallocate:
     move.l  8(a5),a0 /* freeList */
     move.l  12(a5),a1 /* memoryBlock */
     move.l  16(a5),d0 /* byteSize */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODeallocate(a6)
 
     move.l (sp)+,a6
@@ -1039,7 +543,7 @@ _AllocMem:
 
     move.l  8(a5),d0 /* byteSize */
     move.l  12(a5),d1 /* requirements */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocMem(a6)
 
     move.l (sp)+,a6
@@ -1054,7 +558,7 @@ _AllocAbs:
 
     move.l  8(a5),d0 /* byteSize */
     move.l  12(a5),a1 /* location */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocAbs(a6)
 
     move.l (sp)+,a6
@@ -1069,7 +573,7 @@ _FreeMem:
 
     move.l  8(a5),a1 /* memoryBlock */
     move.l  12(a5),d0 /* byteSize */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFreeMem(a6)
 
     move.l (sp)+,a6
@@ -1083,7 +587,7 @@ _AvailMem:
     move.l a6,-(sp)
 
     move.l  8(a5),d1 /* requirements */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAvailMem(a6)
 
     move.l (sp)+,a6
@@ -1097,7 +601,7 @@ _AllocEntry:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* entry */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocEntry(a6)
 
     move.l (sp)+,a6
@@ -1111,7 +615,7 @@ _FreeEntry:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* entry */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFreeEntry(a6)
 
     move.l (sp)+,a6
@@ -1123,13 +627,15 @@ _FreeEntry:
 _Insert:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* list */
     move.l  12(a5),a1 /* node */
     move.l  16(a5),a2 /* pred */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOInsert(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -1142,7 +648,7 @@ _AddHead:
 
     move.l  8(a5),a0 /* list */
     move.l  12(a5),a1 /* node */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddHead(a6)
 
     move.l (sp)+,a6
@@ -1157,7 +663,7 @@ _AddTail:
 
     move.l  8(a5),a0 /* list */
     move.l  12(a5),a1 /* node */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddTail(a6)
 
     move.l (sp)+,a6
@@ -1171,7 +677,7 @@ _Remove:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* node */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemove(a6)
 
     move.l (sp)+,a6
@@ -1185,7 +691,7 @@ _RemHead:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* list */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemHead(a6)
 
     move.l (sp)+,a6
@@ -1199,7 +705,7 @@ _RemTail:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* list */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemTail(a6)
 
     move.l (sp)+,a6
@@ -1214,7 +720,7 @@ _Enqueue:
 
     move.l  8(a5),a0 /* list */
     move.l  12(a5),a1 /* node */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOEnqueue(a6)
 
     move.l (sp)+,a6
@@ -1229,7 +735,7 @@ _FindName:
 
     move.l  8(a5),a0 /* list */
     move.l  12(a5),a1 /* name */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFindName(a6)
 
     move.l (sp)+,a6
@@ -1241,13 +747,17 @@ _FindName:
 _AddTask:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
+    move.l a3,-(sp)
 
     move.l  8(a5),a1 /* task */
     move.l  12(a5),a2 /* initPC */
     move.l  16(a5),a3 /* finalPC */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddTask(a6)
 
+    move.l (sp)+,a3
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -1259,7 +769,7 @@ _RemTask:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* task */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemTask(a6)
 
     move.l (sp)+,a6
@@ -1273,7 +783,7 @@ _FindTask:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* name */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFindTask(a6)
 
     move.l (sp)+,a6
@@ -1288,7 +798,7 @@ _SetTaskPri:
 
     move.l  8(a5),a1 /* task */
     move.l  12(a5),d0 /* priority */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSetTaskPri(a6)
 
     move.l (sp)+,a6
@@ -1303,7 +813,7 @@ _SetSignal:
 
     move.l  8(a5),d0 /* newSignals */
     move.l  12(a5),d1 /* signalSet */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSetSignal(a6)
 
     move.l (sp)+,a6
@@ -1318,7 +828,7 @@ _SetExcept:
 
     move.l  8(a5),d0 /* newSignals */
     move.l  12(a5),d1 /* signalSet */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSetExcept(a6)
 
     move.l (sp)+,a6
@@ -1332,7 +842,7 @@ _Wait:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* signalSet */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOWait(a6)
 
     move.l (sp)+,a6
@@ -1347,7 +857,7 @@ _Signal:
 
     move.l  8(a5),a1 /* task */
     move.l  12(a5),d0 /* signalSet */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSignal(a6)
 
     move.l (sp)+,a6
@@ -1361,7 +871,7 @@ _AllocSignal:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* signalNum */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocSignal(a6)
 
     move.l (sp)+,a6
@@ -1375,7 +885,7 @@ _FreeSignal:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* signalNum */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFreeSignal(a6)
 
     move.l (sp)+,a6
@@ -1389,7 +899,7 @@ _AllocTrap:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* trapNum */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocTrap(a6)
 
     move.l (sp)+,a6
@@ -1403,7 +913,7 @@ _FreeTrap:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* trapNum */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFreeTrap(a6)
 
     move.l (sp)+,a6
@@ -1417,7 +927,7 @@ _AddPort:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* port */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddPort(a6)
 
     move.l (sp)+,a6
@@ -1431,7 +941,7 @@ _RemPort:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* port */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemPort(a6)
 
     move.l (sp)+,a6
@@ -1446,7 +956,7 @@ _PutMsg:
 
     move.l  8(a5),a0 /* port */
     move.l  12(a5),a1 /* message */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOPutMsg(a6)
 
     move.l (sp)+,a6
@@ -1460,7 +970,7 @@ _GetMsg:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* port */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOGetMsg(a6)
 
     move.l (sp)+,a6
@@ -1474,7 +984,7 @@ _ReplyMsg:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* message */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOReplyMsg(a6)
 
     move.l (sp)+,a6
@@ -1488,7 +998,7 @@ _WaitPort:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* port */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOWaitPort(a6)
 
     move.l (sp)+,a6
@@ -1502,7 +1012,7 @@ _FindPort:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* name */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFindPort(a6)
 
     move.l (sp)+,a6
@@ -1516,7 +1026,7 @@ _AddLibrary:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* library */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddLibrary(a6)
 
     move.l (sp)+,a6
@@ -1530,7 +1040,7 @@ _RemLibrary:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* library */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemLibrary(a6)
 
     move.l (sp)+,a6
@@ -1544,7 +1054,7 @@ _OldOpenLibrary:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* libName */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOOldOpenLibrary(a6)
 
     move.l (sp)+,a6
@@ -1558,7 +1068,7 @@ _CloseLibrary:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* library */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCloseLibrary(a6)
 
     move.l (sp)+,a6
@@ -1574,7 +1084,7 @@ _SetFunction:
     move.l  8(a5),a1 /* library */
     move.l  12(a5),a0 /* funcOffset */
     move.l  16(a5),d0 /* newFunction */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSetFunction(a6)
 
     move.l (sp)+,a6
@@ -1588,7 +1098,7 @@ _SumLibrary:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* library */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSumLibrary(a6)
 
     move.l (sp)+,a6
@@ -1602,7 +1112,7 @@ _AddDevice:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* device */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddDevice(a6)
 
     move.l (sp)+,a6
@@ -1616,7 +1126,7 @@ _RemDevice:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* device */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemDevice(a6)
 
     move.l (sp)+,a6
@@ -1633,7 +1143,7 @@ _OpenDevice:
     move.l  12(a5),d0 /* unit */
     move.l  16(a5),a1 /* ioRequest */
     move.l  20(a5),d1 /* flags */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOOpenDevice(a6)
 
     move.l (sp)+,a6
@@ -1647,7 +1157,7 @@ _CloseDevice:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* ioRequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCloseDevice(a6)
 
     move.l (sp)+,a6
@@ -1661,7 +1171,7 @@ _DoIO:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* ioRequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODoIO(a6)
 
     move.l (sp)+,a6
@@ -1675,7 +1185,7 @@ _SendIO:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* ioRequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSendIO(a6)
 
     move.l (sp)+,a6
@@ -1689,7 +1199,7 @@ _CheckIO:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* ioRequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCheckIO(a6)
 
     move.l (sp)+,a6
@@ -1703,7 +1213,7 @@ _WaitIO:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* ioRequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOWaitIO(a6)
 
     move.l (sp)+,a6
@@ -1717,7 +1227,7 @@ _AbortIO:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* ioRequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAbortIO(a6)
 
     move.l (sp)+,a6
@@ -1731,7 +1241,7 @@ _AddResource:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* resource */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddResource(a6)
 
     move.l (sp)+,a6
@@ -1745,7 +1255,7 @@ _RemResource:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* resource */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemResource(a6)
 
     move.l (sp)+,a6
@@ -1759,7 +1269,7 @@ _OpenResource:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* resName */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOOpenResource(a6)
 
     move.l (sp)+,a6
@@ -1772,7 +1282,7 @@ _RawIOInit:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORawIOInit(a6)
 
     move.l (sp)+,a6
@@ -1785,7 +1295,7 @@ _RawMayGetChar:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORawMayGetChar(a6)
 
     move.l (sp)+,a6
@@ -1798,7 +1308,7 @@ _RawPutChar:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORawPutChar(a6)
 
     move.l (sp)+,a6
@@ -1810,14 +1320,18 @@ _RawPutChar:
 _RawDoFmt:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
+    move.l a3,-(sp)
 
     move.l  8(a5),a0 /* formatString */
     move.l  12(a5),a1 /* dataStream */
     move.l  16(a5),a2 /* putChProc */
     move.l  20(a5),a3 /* putChData */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORawDoFmt(a6)
 
+    move.l (sp)+,a3
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -1828,7 +1342,7 @@ _GetCC:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOGetCC(a6)
 
     move.l (sp)+,a6
@@ -1842,7 +1356,7 @@ _TypeOfMem:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* address */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOTypeOfMem(a6)
 
     move.l (sp)+,a6
@@ -1857,7 +1371,7 @@ _Procure:
 
     move.l  8(a5),a0 /* semaport */
     move.l  12(a5),a1 /* bidMsg */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOProcure(a6)
 
     move.l (sp)+,a6
@@ -1871,7 +1385,7 @@ _Vacate:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* semaport */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOVacate(a6)
 
     move.l (sp)+,a6
@@ -1886,7 +1400,7 @@ _OpenLibrary:
 
     move.l  8(a5),a1 /* libName */
     move.l  12(a5),d0 /* version */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOOpenLibrary(a6)
 
     move.l (sp)+,a6
@@ -1900,7 +1414,7 @@ _InitSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOInitSemaphore(a6)
 
     move.l (sp)+,a6
@@ -1914,7 +1428,7 @@ _ObtainSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOObtainSemaphore(a6)
 
     move.l (sp)+,a6
@@ -1928,7 +1442,7 @@ _ReleaseSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOReleaseSemaphore(a6)
 
     move.l (sp)+,a6
@@ -1942,7 +1456,7 @@ _AttemptSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAttemptSemaphore(a6)
 
     move.l (sp)+,a6
@@ -1956,7 +1470,7 @@ _ObtainSemaphoreList:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOObtainSemaphoreList(a6)
 
     move.l (sp)+,a6
@@ -1970,7 +1484,7 @@ _ReleaseSemaphoreList:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOReleaseSemaphoreList(a6)
 
     move.l (sp)+,a6
@@ -1984,7 +1498,7 @@ _FindSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFindSemaphore(a6)
 
     move.l (sp)+,a6
@@ -1998,7 +1512,7 @@ _AddSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddSemaphore(a6)
 
     move.l (sp)+,a6
@@ -2012,7 +1526,7 @@ _RemSemaphore:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVORemSemaphore(a6)
 
     move.l (sp)+,a6
@@ -2025,7 +1539,7 @@ _SumKickData:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOSumKickData(a6)
 
     move.l (sp)+,a6
@@ -2037,15 +1551,17 @@ _SumKickData:
 _AddMemList:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d0 /* size */
     move.l  12(a5),d1 /* attributes */
     move.l  16(a5),d2 /* pri */
     move.l  20(a5),a0 /* base */
     move.l  24(a5),a1 /* name */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAddMemList(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2059,7 +1575,7 @@ _CopyMem:
     move.l  8(a5),a0 /* source */
     move.l  12(a5),a1 /* dest */
     move.l  16(a5),d0 /* size */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCopyMem(a6)
 
     move.l (sp)+,a6
@@ -2075,7 +1591,7 @@ _CopyMemQuick:
     move.l  8(a5),a0 /* source */
     move.l  12(a5),a1 /* dest */
     move.l  16(a5),d0 /* size */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCopyMemQuick(a6)
 
     move.l (sp)+,a6
@@ -2088,7 +1604,7 @@ _CacheClearU:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCacheClearU(a6)
 
     move.l (sp)+,a6
@@ -2104,7 +1620,7 @@ _CacheClearE:
     move.l  8(a5),a0 /* address */
     move.l  12(a5),d0 /* length */
     move.l  16(a5),d1 /* caches */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCacheClearE(a6)
 
     move.l (sp)+,a6
@@ -2119,7 +1635,7 @@ _CacheControl:
 
     move.l  8(a5),d0 /* cacheBits */
     move.l  12(a5),d1 /* cacheMask */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCacheControl(a6)
 
     move.l (sp)+,a6
@@ -2134,7 +1650,7 @@ _CreateIORequest:
 
     move.l  8(a5),a0 /* port */
     move.l  12(a5),d0 /* size */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCreateIORequest(a6)
 
     move.l (sp)+,a6
@@ -2148,7 +1664,7 @@ _DeleteIORequest:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* iorequest */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODeleteIORequest(a6)
 
     move.l (sp)+,a6
@@ -2161,7 +1677,7 @@ _CreateMsgPort:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCreateMsgPort(a6)
 
     move.l (sp)+,a6
@@ -2175,7 +1691,7 @@ _DeleteMsgPort:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* port */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODeleteMsgPort(a6)
 
     move.l (sp)+,a6
@@ -2189,7 +1705,7 @@ _ObtainSemaphoreShared:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* sigSem */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOObtainSemaphoreShared(a6)
 
     move.l (sp)+,a6
@@ -2204,7 +1720,7 @@ _AllocVec:
 
     move.l  8(a5),d0 /* byteSize */
     move.l  12(a5),d1 /* requirements */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocVec(a6)
 
     move.l (sp)+,a6
@@ -2218,7 +1734,7 @@ _FreeVec:
     move.l a6,-(sp)
 
     move.l  8(a5),a1 /* memoryBlock */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFreeVec(a6)
 
     move.l (sp)+,a6
@@ -2230,13 +1746,15 @@ _FreeVec:
 _CreatePrivatePool:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d0 /* requirements */
     move.l  12(a5),d1 /* puddleSize */
     move.l  16(a5),d2 /* puddleThresh */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOCreatePrivatePool(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2248,7 +1766,7 @@ _DeletePrivatePool:
     move.l a6,-(sp)
 
     move.l  8(a5),a0 /* poolHeader */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVODeletePrivatePool(a6)
 
     move.l (sp)+,a6
@@ -2263,7 +1781,7 @@ _AllocPooled:
 
     move.l  8(a5),d0 /* memSize */
     move.l  12(a5),a0 /* poolHeader */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOAllocPooled(a6)
 
     move.l (sp)+,a6
@@ -2278,7 +1796,7 @@ _FreePooled:
 
     move.l  8(a5),a1 /* memory */
     move.l  12(a5),a0 /* poolHeader */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOFreePooled(a6)
 
     move.l (sp)+,a6
@@ -2292,7 +1810,7 @@ _ExecReserved00:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* nothing */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOExecReserved00(a6)
 
     move.l (sp)+,a6
@@ -2305,7 +1823,7 @@ _ColdReboot:
     link a5, #0
     move.l a6,-(sp)
 
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOColdReboot(a6)
 
     move.l (sp)+,a6
@@ -2321,7 +1839,7 @@ _StackSwap:
     move.l  8(a5),d0 /* newSize */
     move.l  12(a5),d1 /* newSP */
     move.l  16(a5),a0 /* newStack */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOStackSwap(a6)
 
     move.l (sp)+,a6
@@ -2335,7 +1853,7 @@ _ChildFree:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* tid */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOChildFree(a6)
 
     move.l (sp)+,a6
@@ -2349,7 +1867,7 @@ _ChildOrphan:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* tid */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOChildOrphan(a6)
 
     move.l (sp)+,a6
@@ -2363,7 +1881,7 @@ _ChildStatus:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* tid */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOChildStatus(a6)
 
     move.l (sp)+,a6
@@ -2377,7 +1895,7 @@ _ChildWait:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* tid */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOChildWait(a6)
 
     move.l (sp)+,a6
@@ -2391,7 +1909,7 @@ _ExecReserved01:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* nothing */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOExecReserved01(a6)
 
     move.l (sp)+,a6
@@ -2405,7 +1923,7 @@ _ExecReserved02:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* nothing */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOExecReserved02(a6)
 
     move.l (sp)+,a6
@@ -2419,7 +1937,7 @@ _ExecReserved03:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* nothing */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOExecReserved03(a6)
 
     move.l (sp)+,a6
@@ -2433,16 +1951,12 @@ _ExecReserved04:
     move.l a6,-(sp)
 
     move.l  8(a5),d0 /* nothing */
-    movea.l SysBase,a6
+    movea.l _SysBase,a6
     jsr     LVOExecReserved04(a6)
 
     move.l (sp)+,a6
     unlk a5
     rts
-
-/*
- * graphics
- */
 
 LVOBltBitMap               = -30
 LVOBltTemplate             = -36
@@ -2552,6 +2066,13 @@ LVOAttemptLockLayerRom     = -654
 _BltBitMap:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
+    move.l d6,-(sp)
+    move.l d7,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* srcBitMap */
     move.l  12(a5),d0 /* xSrc */
@@ -2567,6 +2088,13 @@ _BltBitMap:
     movea.l _GfxBase,a6
     jsr     LVOBltBitMap(a6)
 
+    move.l (sp)+,a2
+    move.l (sp)+,d7
+    move.l (sp)+,d6
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2576,6 +2104,10 @@ _BltBitMap:
 _BltTemplate:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
 
     move.l  8(a5),a0 /* source */
     move.l  12(a5),d0 /* xSrc */
@@ -2588,6 +2120,10 @@ _BltTemplate:
     movea.l _GfxBase,a6
     jsr     LVOBltTemplate(a6)
 
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2789,6 +2325,7 @@ _DrawGList:
 _InitGels:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* head */
     move.l  12(a5),a1 /* tail */
@@ -2796,6 +2333,7 @@ _InitGels:
     movea.l _GfxBase,a6
     jsr     LVOInitGels(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2819,6 +2357,7 @@ _InitMasks:
 _RemIBob:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* bob */
     move.l  12(a5),a1 /* rp */
@@ -2826,6 +2365,7 @@ _RemIBob:
     movea.l _GfxBase,a6
     jsr     LVORemIBob(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2879,6 +2419,7 @@ _SortGList:
 _AddAnimOb:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* anOb */
     move.l  12(a5),a1 /* anKey */
@@ -2886,6 +2427,7 @@ _AddAnimOb:
     movea.l _GfxBase,a6
     jsr     LVOAddAnimOb(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2940,6 +2482,8 @@ _InitGMasks:
 _DrawEllipse:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),a1 /* rp */
     move.l  12(a5),d0 /* xCenter */
@@ -2949,6 +2493,8 @@ _DrawEllipse:
     movea.l _GfxBase,a6
     jsr     LVODrawEllipse(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -2958,6 +2504,8 @@ _DrawEllipse:
 _AreaEllipse:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),a1 /* rp */
     move.l  12(a5),d0 /* xCenter */
@@ -2967,6 +2515,8 @@ _AreaEllipse:
     movea.l _GfxBase,a6
     jsr     LVOAreaEllipse(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3212,6 +2762,8 @@ _InitArea:
 _SetRGB4:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),a0 /* vp */
     move.l  12(a5),d0 /* index */
@@ -3221,6 +2773,8 @@ _SetRGB4:
     movea.l _GfxBase,a6
     jsr     LVOSetRGB4(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3260,6 +2814,8 @@ _BltClear:
 _RectFill:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),a1 /* rp */
     move.l  12(a5),d0 /* xMin */
@@ -3269,6 +2825,8 @@ _RectFill:
     movea.l _GfxBase,a6
     jsr     LVORectFill(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3278,6 +2836,9 @@ _RectFill:
 _BltPattern:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
 
     move.l  8(a5),a1 /* rp */
     move.l  12(a5),a0 /* mask */
@@ -3289,6 +2850,9 @@ _BltPattern:
     movea.l _GfxBase,a6
     jsr     LVOBltPattern(a6)
 
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3330,6 +2894,7 @@ _WritePixel:
 _Flood:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),a1 /* rp */
     move.l  12(a5),d2 /* mode */
@@ -3338,6 +2903,7 @@ _Flood:
     movea.l _GfxBase,a6
     jsr     LVOFlood(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3481,6 +3047,7 @@ _VBeamPos:
 _InitBitMap:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),a0 /* bitMap */
     move.l  12(a5),d0 /* depth */
@@ -3489,6 +3056,7 @@ _InitBitMap:
     movea.l _GfxBase,a6
     jsr     LVOInitBitMap(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3498,6 +3066,10 @@ _InitBitMap:
 _ScrollRaster:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
 
     move.l  8(a5),a1 /* rp */
     move.l  12(a5),d0 /* dx */
@@ -3509,6 +3081,10 @@ _ScrollRaster:
     movea.l _GfxBase,a6
     jsr     LVOScrollRaster(a6)
 
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3561,6 +3137,7 @@ _FreeSprite:
 _ChangeSprite:
     link a5, #0
     move.l a6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* vp */
     move.l  12(a5),a1 /* sprite */
@@ -3568,6 +3145,7 @@ _ChangeSprite:
     movea.l _GfxBase,a6
     jsr     LVOChangeSprite(a6)
 
+    move.l (sp)+,a2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3594,11 +3172,13 @@ _MoveSprite:
 _LockLayerRom:
     link a5, #0
     move.l a6,-(sp)
+    move.l a5,-(sp)
 
     move.l  8(a5),a5 /* layer */
     movea.l _GfxBase,a6
     jsr     LVOLockLayerRom(a6)
 
+    move.l (sp)+,a5
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3608,11 +3188,13 @@ _LockLayerRom:
 _UnlockLayerRom:
     link a5, #0
     move.l a6,-(sp)
+    move.l a5,-(sp)
 
     move.l  8(a5),a5 /* layer */
     movea.l _GfxBase,a6
     jsr     LVOUnlockLayerRom(a6)
 
+    move.l (sp)+,a5
     move.l (sp)+,a6
     unlk a5
     rts
@@ -3880,6 +3462,11 @@ _FreeCopList:
 _ClipBlit:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
+    move.l d6,-(sp)
 
     move.l  8(a5),a0 /* srcRP */
     move.l  12(a5),d0 /* xSrc */
@@ -3893,6 +3480,11 @@ _ClipBlit:
     movea.l _GfxBase,a6
     jsr     LVOClipBlit(a6)
 
+    move.l (sp)+,d6
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4019,6 +3611,11 @@ _FreeGBuffers:
 _BltBitMapRastPort:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
+    move.l d6,-(sp)
 
     move.l  8(a5),a0 /* srcBitMap */
     move.l  12(a5),d0 /* xSrc */
@@ -4032,6 +3629,11 @@ _BltBitMapRastPort:
     movea.l _GfxBase,a6
     jsr     LVOBltBitMapRastPort(a6)
 
+    move.l (sp)+,d6
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4086,6 +3688,8 @@ _AndRegionRegion:
 _SetRGB4CM:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),a0 /* colorMap */
     move.l  12(a5),d0 /* index */
@@ -4095,6 +3699,8 @@ _SetRGB4CM:
     movea.l _GfxBase,a6
     jsr     LVOSetRGB4CM(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4104,6 +3710,12 @@ _SetRGB4CM:
 _BltMaskBitMapRastPort:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
+    move.l d6,-(sp)
+    move.l a2,-(sp)
 
     move.l  8(a5),a0 /* srcBitMap */
     move.l  12(a5),d0 /* xSrc */
@@ -4118,6 +3730,12 @@ _BltMaskBitMapRastPort:
     movea.l _GfxBase,a6
     jsr     LVOBltMaskBitMapRastPort(a6)
 
+    move.l (sp)+,a2
+    move.l (sp)+,d6
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4127,18 +3745,1277 @@ _BltMaskBitMapRastPort:
 _AttemptLockLayerRom:
     link a5, #0
     move.l a6,-(sp)
+    move.l a5,-(sp)
 
     move.l  8(a5),a5 /* layer */
     movea.l _GfxBase,a6
     jsr     LVOAttemptLockLayerRom(a6)
 
+    move.l (sp)+,a5
     move.l (sp)+,a6
     unlk a5
     rts
 
-/*
- * dos
- */
+LVOOpenIntuition           = -30
+LVOIntuition               = -36
+LVOAddGadget               = -42
+LVOClearDMRequest          = -48
+LVOClearMenuStrip          = -54
+LVOClearPointer            = -60
+LVOCloseScreen             = -66
+LVOCloseWindow             = -72
+LVOCloseWorkBench          = -78
+LVOCurrentTime             = -84
+LVODisplayAlert            = -90
+LVODisplayBeep             = -96
+LVODoubleClick             = -102
+LVODrawBorder              = -108
+LVODrawImage               = -114
+LVOEndRequest              = -120
+LVOGetDefPrefs             = -126
+LVOGetPrefs                = -132
+LVOInitRequester           = -138
+LVOItemAddress             = -144
+LVOModifyIDCMP             = -150
+LVOModifyProp              = -156
+LVOMoveScreen              = -162
+LVOMoveWindow              = -168
+LVOOffGadget               = -174
+LVOOffMenu                 = -180
+LVOOnGadget                = -186
+LVOOnMenu                  = -192
+LVOOpenScreen              = -198
+LVOOpenWindow              = -204
+LVOOpenWorkBench           = -210
+LVOPrintIText              = -216
+LVORefreshGadgets          = -222
+LVORemoveGadget            = -228
+LVOReportMouse             = -234
+LVORequest                 = -240
+LVOScreenToBack            = -246
+LVOScreenToFront           = -252
+LVOSetDMRequest            = -258
+LVOSetMenuStrip            = -264
+LVOSetPointer              = -270
+LVOSetWindowTitles         = -276
+LVOShowTitle               = -282
+LVOSizeWindow              = -288
+LVOViewAddress             = -294
+LVOViewPortAddress         = -300
+LVOWindowToBack            = -306
+LVOWindowToFront           = -312
+LVOWindowLimits            = -318
+LVOSetPrefs                = -324
+LVOIntuiTextLength         = -330
+LVOWBenchToBack            = -336
+LVOWBenchToFront           = -342
+LVOAutoRequest             = -348
+LVOBeginRefresh            = -354
+LVOBuildSysRequest         = -360
+LVOEndRefresh              = -366
+LVOFreeSysRequest          = -372
+LVOMakeScreen              = -378
+LVORemakeDisplay           = -384
+LVORethinkDisplay          = -390
+LVOAllocRemember           = -396
+LVOAlohaWorkbench          = -402
+LVOFreeRemember            = -408
+LVOLockIBase               = -414
+LVOUnlockIBase             = -420
+LVOGetScreenData           = -426
+LVORefreshGList            = -432
+LVOAddGList                = -438
+LVORemoveGList             = -444
+LVOActivateWindow          = -450
+LVORefreshWindowFrame      = -456
+LVOActivateGadget          = -462
+LVONewModifyProp           = -468
+/* 30 $ffe2 -$001e OpenIntuition()() */
+    .globl _OpenIntuition
+_OpenIntuition:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVOOpenIntuition(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 36 $ffdc -$0024 Intuition(iEvent)(a0) */
+    .globl _Intuition
+_Intuition:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* iEvent */
+    movea.l _IntuitionBase,a6
+    jsr     LVOIntuition(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 42 $ffd6 -$002a AddGadget(window,gadget,position)(a0/a1,d0) */
+    .globl _AddGadget
+_AddGadget:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* gadget */
+    move.l  16(a5),d0 /* position */
+    movea.l _IntuitionBase,a6
+    jsr     LVOAddGadget(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 48 $ffd0 -$0030 ClearDMRequest(window)(a0) */
+    .globl _ClearDMRequest
+_ClearDMRequest:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOClearDMRequest(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 54 $ffca -$0036 ClearMenuStrip(window)(a0) */
+    .globl _ClearMenuStrip
+_ClearMenuStrip:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOClearMenuStrip(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 60 $ffc4 -$003c ClearPointer(window)(a0) */
+    .globl _ClearPointer
+_ClearPointer:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOClearPointer(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 66 $ffbe -$0042 CloseScreen(screen)(a0) */
+    .globl _CloseScreen
+_CloseScreen:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    movea.l _IntuitionBase,a6
+    jsr     LVOCloseScreen(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 72 $ffb8 -$0048 CloseWindow(window)(a0) */
+    .globl _CloseWindow
+_CloseWindow:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOCloseWindow(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 78 $ffb2 -$004e CloseWorkBench()() */
+    .globl _CloseWorkBench
+_CloseWorkBench:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVOCloseWorkBench(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 84 $ffac -$0054 CurrentTime(seconds,micros)(a0/a1) */
+    .globl _CurrentTime
+_CurrentTime:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* seconds */
+    move.l  12(a5),a1 /* micros */
+    movea.l _IntuitionBase,a6
+    jsr     LVOCurrentTime(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 90 $ffa6 -$005a DisplayAlert(alertNumber,string,height)(d0/a0,d1) */
+    .globl _DisplayAlert
+_DisplayAlert:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* alertNumber */
+    move.l  12(a5),a0 /* string */
+    move.l  16(a5),d1 /* height */
+    movea.l _IntuitionBase,a6
+    jsr     LVODisplayAlert(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 96 $ffa0 -$0060 DisplayBeep(screen)(a0) */
+    .globl _DisplayBeep
+_DisplayBeep:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    movea.l _IntuitionBase,a6
+    jsr     LVODisplayBeep(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 102 $ff9a -$0066 DoubleClick(sSeconds,sMicros,cSeconds,cMicros)(d0/d1/d2/d3) */
+    .globl _DoubleClick
+_DoubleClick:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+
+    move.l  8(a5),d0 /* sSeconds */
+    move.l  12(a5),d1 /* sMicros */
+    move.l  16(a5),d2 /* cSeconds */
+    move.l  20(a5),d3 /* cMicros */
+    movea.l _IntuitionBase,a6
+    jsr     LVODoubleClick(a6)
+
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 108 $ff94 -$006c DrawBorder(rp,border,leftOffset,topOffset)(a0/a1,d0/d1) */
+    .globl _DrawBorder
+_DrawBorder:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* rp */
+    move.l  12(a5),a1 /* border */
+    move.l  16(a5),d0 /* leftOffset */
+    move.l  20(a5),d1 /* topOffset */
+    movea.l _IntuitionBase,a6
+    jsr     LVODrawBorder(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 114 $ff8e -$0072 DrawImage(rp,image,leftOffset,topOffset)(a0/a1,d0/d1) */
+    .globl _DrawImage
+_DrawImage:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* rp */
+    move.l  12(a5),a1 /* image */
+    move.l  16(a5),d0 /* leftOffset */
+    move.l  20(a5),d1 /* topOffset */
+    movea.l _IntuitionBase,a6
+    jsr     LVODrawImage(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 120 $ff88 -$0078 EndRequest(requester,window)(a0/a1) */
+    .globl _EndRequest
+_EndRequest:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* requester */
+    move.l  12(a5),a1 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOEndRequest(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 126 $ff82 -$007e GetDefPrefs(preferences,size)(a0,d0) */
+    .globl _GetDefPrefs
+_GetDefPrefs:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* preferences */
+    move.l  12(a5),d0 /* size */
+    movea.l _IntuitionBase,a6
+    jsr     LVOGetDefPrefs(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 132 $ff7c -$0084 GetPrefs(preferences,size)(a0,d0) */
+    .globl _GetPrefs
+_GetPrefs:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* preferences */
+    move.l  12(a5),d0 /* size */
+    movea.l _IntuitionBase,a6
+    jsr     LVOGetPrefs(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 138 $ff76 -$008a InitRequester(requester)(a0) */
+    .globl _InitRequester
+_InitRequester:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVOInitRequester(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 144 $ff70 -$0090 ItemAddress(menuStrip,menuNumber)(a0,d0) */
+    .globl _ItemAddress
+_ItemAddress:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* menuStrip */
+    move.l  12(a5),d0 /* menuNumber */
+    movea.l _IntuitionBase,a6
+    jsr     LVOItemAddress(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 150 $ff6a -$0096 ModifyIDCMP(window,flags)(a0,d0) */
+    .globl _ModifyIDCMP
+_ModifyIDCMP:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* flags */
+    movea.l _IntuitionBase,a6
+    jsr     LVOModifyIDCMP(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 156 $ff64 -$009c ModifyProp(gadget,window,requester,flags,horizPot,vertPot,horizBody,vertBody)(a0/a1/a2,d0/d1/d2/d3/d4) */
+    .globl _ModifyProp
+_ModifyProp:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+
+    move.l  8(a5),a0 /* gadget */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    move.l  20(a5),d0 /* flags */
+    move.l  24(a5),d1 /* horizPot */
+    move.l  28(a5),d2 /* vertPot */
+    move.l  32(a5),d3 /* horizBody */
+    move.l  36(a5),d4 /* vertBody */
+    movea.l _IntuitionBase,a6
+    jsr     LVOModifyProp(a6)
+
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 162 $ff5e -$00a2 MoveScreen(screen,dx,dy)(a0,d0/d1) */
+    .globl _MoveScreen
+_MoveScreen:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    move.l  12(a5),d0 /* dx */
+    move.l  16(a5),d1 /* dy */
+    movea.l _IntuitionBase,a6
+    jsr     LVOMoveScreen(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 168 $ff58 -$00a8 MoveWindow(window,dx,dy)(a0,d0/d1) */
+    .globl _MoveWindow
+_MoveWindow:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* dx */
+    move.l  16(a5),d1 /* dy */
+    movea.l _IntuitionBase,a6
+    jsr     LVOMoveWindow(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 174 $ff52 -$00ae OffGadget(gadget,window,requester)(a0/a1/a2) */
+    .globl _OffGadget
+_OffGadget:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* gadget */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVOOffGadget(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 180 $ff4c -$00b4 OffMenu(window,menuNumber)(a0,d0) */
+    .globl _OffMenu
+_OffMenu:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* menuNumber */
+    movea.l _IntuitionBase,a6
+    jsr     LVOOffMenu(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 186 $ff46 -$00ba OnGadget(gadget,window,requester)(a0/a1/a2) */
+    .globl _OnGadget
+_OnGadget:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* gadget */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVOOnGadget(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 192 $ff40 -$00c0 OnMenu(window,menuNumber)(a0,d0) */
+    .globl _OnMenu
+_OnMenu:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* menuNumber */
+    movea.l _IntuitionBase,a6
+    jsr     LVOOnMenu(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 198 $ff3a -$00c6 OpenScreen(newScreen)(a0) */
+    .globl _OpenScreen
+_OpenScreen:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* newScreen */
+    movea.l _IntuitionBase,a6
+    jsr     LVOOpenScreen(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 204 $ff34 -$00cc OpenWindow(newWindow)(a0) */
+    .globl _OpenWindow
+_OpenWindow:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* newWindow */
+    movea.l _IntuitionBase,a6
+    jsr     LVOOpenWindow(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 210 $ff2e -$00d2 OpenWorkBench()() */
+    .globl _OpenWorkBench
+_OpenWorkBench:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVOOpenWorkBench(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 216 $ff28 -$00d8 PrintIText(rp,iText,left,top)(a0/a1,d0/d1) */
+    .globl _PrintIText
+_PrintIText:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* rp */
+    move.l  12(a5),a1 /* iText */
+    move.l  16(a5),d0 /* left */
+    move.l  20(a5),d1 /* top */
+    movea.l _IntuitionBase,a6
+    jsr     LVOPrintIText(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 222 $ff22 -$00de RefreshGadgets(gadgets,window,requester)(a0/a1/a2) */
+    .globl _RefreshGadgets
+_RefreshGadgets:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* gadgets */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVORefreshGadgets(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 228 $ff1c -$00e4 RemoveGadget(window,gadget)(a0/a1) */
+    .globl _RemoveGadget
+_RemoveGadget:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* gadget */
+    movea.l _IntuitionBase,a6
+    jsr     LVORemoveGadget(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 234 $ff16 -$00ea ReportMouse(flag,window)(d0/a0) */
+    .globl _ReportMouse
+_ReportMouse:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* flag */
+    move.l  12(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOReportMouse(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 240 $ff10 -$00f0 Request(requester,window)(a0/a1) */
+    .globl _Request
+_Request:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* requester */
+    move.l  12(a5),a1 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVORequest(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 246 $ff0a -$00f6 ScreenToBack(screen)(a0) */
+    .globl _ScreenToBack
+_ScreenToBack:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    movea.l _IntuitionBase,a6
+    jsr     LVOScreenToBack(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 252 $ff04 -$00fc ScreenToFront(screen)(a0) */
+    .globl _ScreenToFront
+_ScreenToFront:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    movea.l _IntuitionBase,a6
+    jsr     LVOScreenToFront(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 258 $fefe -$0102 SetDMRequest(window,requester)(a0/a1) */
+    .globl _SetDMRequest
+_SetDMRequest:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVOSetDMRequest(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 264 $fef8 -$0108 SetMenuStrip(window,menu)(a0/a1) */
+    .globl _SetMenuStrip
+_SetMenuStrip:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* menu */
+    movea.l _IntuitionBase,a6
+    jsr     LVOSetMenuStrip(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 270 $fef2 -$010e SetPointer(window,pointer,height,width,xOffset,yOffset)(a0/a1,d0/d1/d2/d3) */
+    .globl _SetPointer
+_SetPointer:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* pointer */
+    move.l  16(a5),d0 /* height */
+    move.l  20(a5),d1 /* width */
+    move.l  24(a5),d2 /* xOffset */
+    move.l  28(a5),d3 /* yOffset */
+    movea.l _IntuitionBase,a6
+    jsr     LVOSetPointer(a6)
+
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 276 $feec -$0114 SetWindowTitles(window,windowTitle,screenTitle)(a0/a1/a2) */
+    .globl _SetWindowTitles
+_SetWindowTitles:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* windowTitle */
+    move.l  16(a5),a2 /* screenTitle */
+    movea.l _IntuitionBase,a6
+    jsr     LVOSetWindowTitles(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 282 $fee6 -$011a ShowTitle(screen,showIt)(a0,d0) */
+    .globl _ShowTitle
+_ShowTitle:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    move.l  12(a5),d0 /* showIt */
+    movea.l _IntuitionBase,a6
+    jsr     LVOShowTitle(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 288 $fee0 -$0120 SizeWindow(window,dx,dy)(a0,d0/d1) */
+    .globl _SizeWindow
+_SizeWindow:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* dx */
+    move.l  16(a5),d1 /* dy */
+    movea.l _IntuitionBase,a6
+    jsr     LVOSizeWindow(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 294 $feda -$0126 ViewAddress()() */
+    .globl _ViewAddress
+_ViewAddress:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVOViewAddress(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 300 $fed4 -$012c ViewPortAddress(window)(a0) */
+    .globl _ViewPortAddress
+_ViewPortAddress:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOViewPortAddress(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 306 $fece -$0132 WindowToBack(window)(a0) */
+    .globl _WindowToBack
+_WindowToBack:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOWindowToBack(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 312 $fec8 -$0138 WindowToFront(window)(a0) */
+    .globl _WindowToFront
+_WindowToFront:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOWindowToFront(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 318 $fec2 -$013e WindowLimits(window,widthMin,heightMin,widthMax,heightMax)(a0,d0/d1/d2/d3) */
+    .globl _WindowLimits
+_WindowLimits:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* widthMin */
+    move.l  16(a5),d1 /* heightMin */
+    move.l  20(a5),d2 /* widthMax */
+    move.l  24(a5),d3 /* heightMax */
+    movea.l _IntuitionBase,a6
+    jsr     LVOWindowLimits(a6)
+
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 324 $febc -$0144 SetPrefs(preferences,size,inform)(a0,d0/d1) */
+    .globl _SetPrefs
+_SetPrefs:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* preferences */
+    move.l  12(a5),d0 /* size */
+    move.l  16(a5),d1 /* inform */
+    movea.l _IntuitionBase,a6
+    jsr     LVOSetPrefs(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 330 $feb6 -$014a IntuiTextLength(iText)(a0) */
+    .globl _IntuiTextLength
+_IntuiTextLength:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* iText */
+    movea.l _IntuitionBase,a6
+    jsr     LVOIntuiTextLength(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 336 $feb0 -$0150 WBenchToBack()() */
+    .globl _WBenchToBack
+_WBenchToBack:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVOWBenchToBack(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 342 $feaa -$0156 WBenchToFront()() */
+    .globl _WBenchToFront
+_WBenchToFront:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVOWBenchToFront(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 348 $fea4 -$015c AutoRequest(window,body,posText,negText,pFlag,nFlag,width,height)(a0/a1/a2/a3,d0/d1/d2/d3) */
+    .globl _AutoRequest
+_AutoRequest:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+    move.l a3,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* body */
+    move.l  16(a5),a2 /* posText */
+    move.l  20(a5),a3 /* negText */
+    move.l  24(a5),d0 /* pFlag */
+    move.l  28(a5),d1 /* nFlag */
+    move.l  32(a5),d2 /* width */
+    move.l  36(a5),d3 /* height */
+    movea.l _IntuitionBase,a6
+    jsr     LVOAutoRequest(a6)
+
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a3
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 354 $fe9e -$0162 BeginRefresh(window)(a0) */
+    .globl _BeginRefresh
+_BeginRefresh:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOBeginRefresh(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 360 $fe98 -$0168 BuildSysRequest(window,body,posText,negText,flags,width,height)(a0/a1/a2/a3,d0/d1/d2) */
+    .globl _BuildSysRequest
+_BuildSysRequest:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+    move.l a3,-(sp)
+    move.l d2,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* body */
+    move.l  16(a5),a2 /* posText */
+    move.l  20(a5),a3 /* negText */
+    move.l  24(a5),d0 /* flags */
+    move.l  28(a5),d1 /* width */
+    move.l  32(a5),d2 /* height */
+    movea.l _IntuitionBase,a6
+    jsr     LVOBuildSysRequest(a6)
+
+    move.l (sp)+,d2
+    move.l (sp)+,a3
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 366 $fe92 -$016e EndRefresh(window,complete)(a0,d0) */
+    .globl _EndRefresh
+_EndRefresh:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),d0 /* complete */
+    movea.l _IntuitionBase,a6
+    jsr     LVOEndRefresh(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 372 $fe8c -$0174 FreeSysRequest(window)(a0) */
+    .globl _FreeSysRequest
+_FreeSysRequest:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOFreeSysRequest(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 378 $fe86 -$017a MakeScreen(screen)(a0) */
+    .globl _MakeScreen
+_MakeScreen:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* screen */
+    movea.l _IntuitionBase,a6
+    jsr     LVOMakeScreen(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 384 $fe80 -$0180 RemakeDisplay()() */
+    .globl _RemakeDisplay
+_RemakeDisplay:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVORemakeDisplay(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 390 $fe7a -$0186 RethinkDisplay()() */
+    .globl _RethinkDisplay
+_RethinkDisplay:
+    link a5, #0
+    move.l a6,-(sp)
+
+    movea.l _IntuitionBase,a6
+    jsr     LVORethinkDisplay(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 396 $fe74 -$018c AllocRemember(rememberKey,size,flags)(a0,d0/d1) */
+    .globl _AllocRemember
+_AllocRemember:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* rememberKey */
+    move.l  12(a5),d0 /* size */
+    move.l  16(a5),d1 /* flags */
+    movea.l _IntuitionBase,a6
+    jsr     LVOAllocRemember(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 402 $fe6e -$0192 AlohaWorkbench(wbport)(a0) */
+    .globl _AlohaWorkbench
+_AlohaWorkbench:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* wbport */
+    movea.l _IntuitionBase,a6
+    jsr     LVOAlohaWorkbench(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 408 $fe68 -$0198 FreeRemember(rememberKey,reallyForget)(a0,d0) */
+    .globl _FreeRemember
+_FreeRemember:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* rememberKey */
+    move.l  12(a5),d0 /* reallyForget */
+    movea.l _IntuitionBase,a6
+    jsr     LVOFreeRemember(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 414 $fe62 -$019e LockIBase(dontknow)(d0) */
+    .globl _LockIBase
+_LockIBase:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* dontknow */
+    movea.l _IntuitionBase,a6
+    jsr     LVOLockIBase(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 420 $fe5c -$01a4 UnlockIBase(ibLock)(a0) */
+    .globl _UnlockIBase
+_UnlockIBase:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* ibLock */
+    movea.l _IntuitionBase,a6
+    jsr     LVOUnlockIBase(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 426 $fe56 -$01aa GetScreenData(buffer,size,type,screen)(a0,d0/d1/a1) */
+    .globl _GetScreenData
+_GetScreenData:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* buffer */
+    move.l  12(a5),d0 /* size */
+    move.l  16(a5),d1 /* type */
+    move.l  20(a5),a1 /* screen */
+    movea.l _IntuitionBase,a6
+    jsr     LVOGetScreenData(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 432 $fe50 -$01b0 RefreshGList(gadgets,window,requester,numGad)(a0/a1/a2,d0) */
+    .globl _RefreshGList
+_RefreshGList:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* gadgets */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    move.l  20(a5),d0 /* numGad */
+    movea.l _IntuitionBase,a6
+    jsr     LVORefreshGList(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 438 $fe4a -$01b6 AddGList(window,gadget,position,numGad,requester)(a0/a1,d0/d1/a2) */
+    .globl _AddGList
+_AddGList:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    move.l  12(a5),a1 /* gadget */
+    move.l  16(a5),d0 /* position */
+    move.l  20(a5),d1 /* numGad */
+    move.l  24(a5),a2 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVOAddGList(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 444 $fe44 -$01bc RemoveGList(remPtr,gadget,numGad)(a0/a1,d0) */
+    .globl _RemoveGList
+_RemoveGList:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* remPtr */
+    move.l  12(a5),a1 /* gadget */
+    move.l  16(a5),d0 /* numGad */
+    movea.l _IntuitionBase,a6
+    jsr     LVORemoveGList(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 450 $fe3e -$01c2 ActivateWindow(window)(a0) */
+    .globl _ActivateWindow
+_ActivateWindow:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVOActivateWindow(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 456 $fe38 -$01c8 RefreshWindowFrame(window)(a0) */
+    .globl _RefreshWindowFrame
+_RefreshWindowFrame:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),a0 /* window */
+    movea.l _IntuitionBase,a6
+    jsr     LVORefreshWindowFrame(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 462 $fe32 -$01ce ActivateGadget(gadgets,window,requester)(a0/a1/a2) */
+    .globl _ActivateGadget
+_ActivateGadget:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+
+    move.l  8(a5),a0 /* gadgets */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    movea.l _IntuitionBase,a6
+    jsr     LVOActivateGadget(a6)
+
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 468 $fe2c -$01d4 NewModifyProp(gadget,window,requester,flags,horizPot,vertPot,horizBody,vertBody,numGad)(a0/a1/a2,d0/d1/d2/d3/d4/d5) */
+    .globl _NewModifyProp
+_NewModifyProp:
+    link a5, #0
+    move.l a6,-(sp)
+    move.l a2,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
+    move.l d5,-(sp)
+
+    move.l  8(a5),a0 /* gadget */
+    move.l  12(a5),a1 /* window */
+    move.l  16(a5),a2 /* requester */
+    move.l  20(a5),d0 /* flags */
+    move.l  24(a5),d1 /* horizPot */
+    move.l  28(a5),d2 /* vertPot */
+    move.l  32(a5),d3 /* horizBody */
+    move.l  36(a5),d4 /* vertBody */
+    move.l  40(a5),d5 /* numGad */
+    movea.l _IntuitionBase,a6
+    jsr     LVONewModifyProp(a6)
+
+    move.l (sp)+,d5
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a2
+    move.l (sp)+,a6
+    unlk a5
+    rts
 
 LVOOpen                    = -30
 LVOClose                   = -36
@@ -4176,12 +5053,14 @@ LVOExecute                 = -222
 _Open:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* name */
     move.l  12(a5),d2 /* accessMode */
     movea.l _DOSBase,a6
     jsr     LVOOpen(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4205,6 +5084,8 @@ _Close:
 _Read:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),d1 /* file */
     move.l  12(a5),d2 /* buffer */
@@ -4212,6 +5093,8 @@ _Read:
     movea.l _DOSBase,a6
     jsr     LVORead(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4221,6 +5104,8 @@ _Read:
 _Write:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),d1 /* file */
     move.l  12(a5),d2 /* buffer */
@@ -4228,6 +5113,8 @@ _Write:
     movea.l _DOSBase,a6
     jsr     LVOWrite(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4263,6 +5150,8 @@ _Output:
 _Seek:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),d1 /* file */
     move.l  12(a5),d2 /* position */
@@ -4270,6 +5159,8 @@ _Seek:
     movea.l _DOSBase,a6
     jsr     LVOSeek(a6)
 
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4293,12 +5184,14 @@ _DeleteFile:
 _Rename:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* oldName */
     move.l  12(a5),d2 /* newName */
     movea.l _DOSBase,a6
     jsr     LVORename(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4308,12 +5201,14 @@ _Rename:
 _Lock:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* name */
     move.l  12(a5),d2 /* type */
     movea.l _DOSBase,a6
     jsr     LVOLock(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4351,12 +5246,14 @@ _DupLock:
 _Examine:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* lock */
     move.l  12(a5),d2 /* fileInfoBlock */
     movea.l _DOSBase,a6
     jsr     LVOExamine(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4366,12 +5263,14 @@ _Examine:
 _ExNext:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* lock */
     move.l  12(a5),d2 /* fileInfoBlock */
     movea.l _DOSBase,a6
     jsr     LVOExNext(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4381,12 +5280,14 @@ _ExNext:
 _Info:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* lock */
     move.l  12(a5),d2 /* parameterBlock */
     movea.l _DOSBase,a6
     jsr     LVOInfo(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4437,6 +5338,9 @@ _IoErr:
 _CreateProc:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
+    move.l d4,-(sp)
 
     move.l  8(a5),d1 /* name */
     move.l  12(a5),d2 /* pri */
@@ -4445,6 +5349,9 @@ _CreateProc:
     movea.l _DOSBase,a6
     jsr     LVOCreateProc(a6)
 
+    move.l (sp)+,d4
+    move.l (sp)+,d3
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4510,12 +5417,14 @@ _DeviceProc:
 _SetComment:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* name */
     move.l  12(a5),d2 /* comment */
     movea.l _DOSBase,a6
     jsr     LVOSetComment(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4525,12 +5434,14 @@ _SetComment:
 _SetProtection:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* name */
     move.l  12(a5),d2 /* protect */
     movea.l _DOSBase,a6
     jsr     LVOSetProtection(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4568,12 +5479,14 @@ _Delay:
 _WaitForChar:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
 
     move.l  8(a5),d1 /* file */
     move.l  12(a5),d2 /* timeout */
     movea.l _DOSBase,a6
     jsr     LVOWaitForChar(a6)
 
+    move.l (sp)+,d2
     move.l (sp)+,a6
     unlk a5
     rts
@@ -4611,12 +5524,458 @@ _IsInteractive:
 _Execute:
     link a5, #0
     move.l a6,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
 
     move.l  8(a5),d1 /* string */
     move.l  12(a5),d2 /* file */
     move.l  16(a5),d3 /* file2 */
     movea.l _DOSBase,a6
     jsr     LVOExecute(a6)
+
+    move.l (sp)+,d3
+    move.l (sp)+,d2
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+LVOSPFix                   = -30
+LVOSPFlt                   = -36
+LVOSPCmp                   = -42
+LVOSPTst                   = -48
+LVOSPAbs                   = -54
+LVOSPNeg                   = -60
+LVOSPAdd                   = -66
+LVOSPSub                   = -72
+LVOSPMul                   = -78
+LVOSPDiv                   = -84
+LVOSPFloor                 = -90
+LVOSPCeil                  = -96
+/* 30 $ffe2 -$001e SPFix(parm)(d0) */
+    .globl _SPFix
+_SPFix:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathBase,a6
+    jsr     LVOSPFix(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 36 $ffdc -$0024 SPFlt(integer)(d0) */
+    .globl _SPFlt
+_SPFlt:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* integer */
+    movea.l _MathBase,a6
+    jsr     LVOSPFlt(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 42 $ffd6 -$002a SPCmp(leftParm,rightParm)(d1,d0) */
+    .globl _SPCmp
+_SPCmp:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* leftParm */
+    move.l  12(a5),d0 /* rightParm */
+    movea.l _MathBase,a6
+    jsr     LVOSPCmp(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 48 $ffd0 -$0030 SPTst(parm)(d1) */
+    .globl _SPTst
+_SPTst:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* parm */
+    movea.l _MathBase,a6
+    jsr     LVOSPTst(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 54 $ffca -$0036 SPAbs(parm)(d0) */
+    .globl _SPAbs
+_SPAbs:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathBase,a6
+    jsr     LVOSPAbs(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 60 $ffc4 -$003c SPNeg(parm)(d0) */
+    .globl _SPNeg
+_SPNeg:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathBase,a6
+    jsr     LVOSPNeg(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 66 $ffbe -$0042 SPAdd(leftParm,rightParm)(d1,d0) */
+    .globl _SPAdd
+_SPAdd:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* leftParm */
+    move.l  12(a5),d0 /* rightParm */
+    movea.l _MathBase,a6
+    jsr     LVOSPAdd(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 72 $ffb8 -$0048 SPSub(leftParm,rightParm)(d1,d0) */
+    .globl _SPSub
+_SPSub:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* leftParm */
+    move.l  12(a5),d0 /* rightParm */
+    movea.l _MathBase,a6
+    jsr     LVOSPSub(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 78 $ffb2 -$004e SPMul(leftParm,rightParm)(d1,d0) */
+    .globl _SPMul
+_SPMul:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* leftParm */
+    move.l  12(a5),d0 /* rightParm */
+    movea.l _MathBase,a6
+    jsr     LVOSPMul(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 84 $ffac -$0054 SPDiv(leftParm,rightParm)(d1,d0) */
+    .globl _SPDiv
+_SPDiv:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* leftParm */
+    move.l  12(a5),d0 /* rightParm */
+    movea.l _MathBase,a6
+    jsr     LVOSPDiv(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 90 $ffa6 -$005a SPFloor(parm)(d0) */
+    .globl _SPFloor
+_SPFloor:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathBase,a6
+    jsr     LVOSPFloor(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 96 $ffa0 -$0060 SPCeil(parm)(d0) */
+    .globl _SPCeil
+_SPCeil:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathBase,a6
+    jsr     LVOSPCeil(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+LVOSPAtan                  = -30
+LVOSPSin                   = -36
+LVOSPCos                   = -42
+LVOSPTan                   = -48
+LVOSPSincos                = -54
+LVOSPSinh                  = -60
+LVOSPCosh                  = -66
+LVOSPTanh                  = -72
+LVOSPExp                   = -78
+LVOSPLog                   = -84
+LVOSPPow                   = -90
+LVOSPSqrt                  = -96
+LVOSPTieee                 = -102
+LVOSPFieee                 = -108
+LVOSPAsin                  = -114
+LVOSPAcos                  = -120
+LVOSPLog10                 = -126
+/* 30 $ffe2 -$001e SPAtan(parm)(d0) */
+    .globl _SPAtan
+_SPAtan:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPAtan(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 36 $ffdc -$0024 SPSin(parm)(d0) */
+    .globl _SPSin
+_SPSin:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPSin(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 42 $ffd6 -$002a SPCos(parm)(d0) */
+    .globl _SPCos
+_SPCos:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPCos(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 48 $ffd0 -$0030 SPTan(parm)(d0) */
+    .globl _SPTan
+_SPTan:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPTan(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 54 $ffca -$0036 SPSincos(cosResult,parm)(d1,d0) */
+    .globl _SPSincos
+_SPSincos:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* cosResult */
+    move.l  12(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPSincos(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 60 $ffc4 -$003c SPSinh(parm)(d0) */
+    .globl _SPSinh
+_SPSinh:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPSinh(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 66 $ffbe -$0042 SPCosh(parm)(d0) */
+    .globl _SPCosh
+_SPCosh:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPCosh(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 72 $ffb8 -$0048 SPTanh(parm)(d0) */
+    .globl _SPTanh
+_SPTanh:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPTanh(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 78 $ffb2 -$004e SPExp(parm)(d0) */
+    .globl _SPExp
+_SPExp:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPExp(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 84 $ffac -$0054 SPLog(parm)(d0) */
+    .globl _SPLog
+_SPLog:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPLog(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 90 $ffa6 -$005a SPPow(power,arg)(d1,d0) */
+    .globl _SPPow
+_SPPow:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d1 /* power */
+    move.l  12(a5),d0 /* arg */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPPow(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 96 $ffa0 -$0060 SPSqrt(parm)(d0) */
+    .globl _SPSqrt
+_SPSqrt:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPSqrt(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 102 $ff9a -$0066 SPTieee(parm)(d0) */
+    .globl _SPTieee
+_SPTieee:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPTieee(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 108 $ff94 -$006c SPFieee(parm)(d0) */
+    .globl _SPFieee
+_SPFieee:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPFieee(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 114 $ff8e -$0072 SPAsin(parm)(d0) */
+    .globl _SPAsin
+_SPAsin:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPAsin(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 120 $ff88 -$0078 SPAcos(parm)(d0) */
+    .globl _SPAcos
+_SPAcos:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPAcos(a6)
+
+    move.l (sp)+,a6
+    unlk a5
+    rts
+
+/* 126 $ff82 -$007e SPLog10(parm)(d0) */
+    .globl _SPLog10
+_SPLog10:
+    link a5, #0
+    move.l a6,-(sp)
+
+    move.l  8(a5),d0 /* parm */
+    movea.l _MathTransBase,a6
+    jsr     LVOSPLog10(a6)
 
     move.l (sp)+,a6
     unlk a5
