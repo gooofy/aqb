@@ -254,6 +254,17 @@ void _astr_ftoa(FLOAT value, char *buf)
     }
 }
 
+const char *_astr_strchr(const char *s, char c)
+{
+    const char *s2 = s;
+
+    for (; *s2; s2++)
+        if (*s2 == c)
+            return s2;
+
+    return NULL;
+}
+
 void _astr_init(void)
 {
     g_positiveExpThreshold = SPFlt(10000000l);

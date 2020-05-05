@@ -33,5 +33,14 @@ ULONG __aqb_window_fn(short n);
 
 BOOL __aqb_pset(short x, short y, short flags, short color);
 
+#define AW_GADGET_TYPE_ACTION 1
+
+#define AW_GADGET_STYLE_1     1
+#define AW_GADGET_STYLE_2     2
+
+void __aqb_gadget_create (short id, short type, BOOL enabled, short x1, short y1, short x2, short y2, const char *str, char shortcut, short style);
+
+void __aqb_gadget_refresh(void);
+
 #endif
 

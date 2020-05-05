@@ -3,6 +3,8 @@
 #include "astr.h"
 #include "aio.h"
 
+#include <stdarg.h> 
+
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
 #include <exec/memory.h>
@@ -130,7 +132,6 @@ BOOL __aqb_window_open(short id, char *title, short x1, short y1, short x2, shor
 
 void _awindow_init(void)
 {
-    // get workbench screen size info
 }
 
 void _awindow_shutdown(void)
@@ -238,10 +239,11 @@ void __aqb_sleep(void)
     struct IntuiMessage *message = NULL;
 
     ULONG signals = Wait (g_signalmask);
-    _aio_puts("sleep: got a signal.\n");
+    // _aio_puts("sleep: got a signal.\n");
 
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {
+        // _aio_puts("sleep: checking win "); _aio_puts4(i); _aio_putnl();
         struct Window *win = g_winlist[i];
         if (!win)
             continue;
@@ -253,13 +255,17 @@ void __aqb_sleep(void)
         {
             ULONG class = message->Class;
 
-            _aio_puts("sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
+            // _aio_puts("sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
 
             switch(class)
             {
                 case CLOSEWINDOW:
+                    // _aio_puts("sleep: CLOSEWINDOW"); _aio_putnl();
                     if (g_win_cb)
+                    {
+                        // _aio_puts("sleep: callback."); _aio_putnl();
                         g_win_cb();
+                    }
                     break;
                 case ACTIVEWINDOW:
                     g_active_win_id = i+1;
@@ -267,6 +273,7 @@ void __aqb_sleep(void)
             }
 
             ReplyMsg ( (struct Message *) message);
+            //_aio_puts("sleep: replied.\n");
         }
     }
 }
@@ -329,4 +336,109 @@ ULONG __aqb_window_fn(short n)
 
     }
     return 0;
+}
+
+static WORD *mk_bor_dat(int count, ...)
+{
+	va_list  ap;
+	WORD    *res = _autil_alloc(count*2, MEMF_ANY);
+
+    va_start(ap, count);
+    for (int j = 0; j < count; j++) {
+        res[j] = va_arg(ap, int);
+    }
+    va_end(ap);
+
+	return res;
+}
+
+static struct Border *mk_border(WORD LeftEdge, WORD TopEdge, UBYTE FrontPen, UBYTE BackPen, UBYTE DrawMode, BYTE Count,
+                                WORD *XY, struct Border *NextBorder)
+{
+	struct Border *b = _autil_alloc(sizeof(*b), MEMF_ANY|MEMF_CLEAR);
+
+	b->LeftEdge   = LeftEdge;
+    b->TopEdge    = TopEdge;
+    b->FrontPen   = FrontPen;
+    b->BackPen    = BackPen;
+    b->DrawMode   = DrawMode;
+    b->Count      = Count;
+    b->XY         = XY;
+	b->NextBorder = NextBorder;
+
+	return b;
+}
+
+static struct IntuiText *mk_intuitext(UBYTE FrontPen, UBYTE BackPen, UBYTE DrawMode, WORD LeftEdge, WORD TopEdge,
+    								  struct TextAttr *ITextFont, const char *IText, struct IntuiText *NextText)
+{
+    struct IntuiText *t = _autil_alloc(sizeof(*t), MEMF_ANY|MEMF_CLEAR);
+
+    t->FrontPen  = FrontPen;
+    t->BackPen   = BackPen;
+    t->DrawMode  = DrawMode;
+    t->LeftEdge  = LeftEdge;
+    t->TopEdge   = TopEdge;
+    t->ITextFont = ITextFont;
+    t->IText     = (unsigned char*)_astr_dup(IText);
+    t->NextText  = NextText;
+
+	return t;
+}
+
+void __aqb_gadget_create (short id, short type, BOOL enabled, short x1, short y1, short x2, short y2, const char *str, char shortcut, short style)
+{
+    struct Gadget    *g;
+	struct IntuiText *scit = NULL;
+	int               w = x2-x1;
+	int               h = y2-y1;
+	WORD             *k1, *k2;
+
+    if (!g_output_win)
+        return;
+
+    if (shortcut != 32)
+    {
+        const char *s = _astr_strchr(str, shortcut);
+        if (s)
+        {
+            int p = (int)(s-str);
+            scit = mk_intuitext(1,0,0,(w / 2) - (_astr_len(str)*8 / 2)+p*8+1,(h / 2) - 3,NULL,"_",NULL);
+        }
+    }
+
+	k1 = mk_bor_dat(10, w-2,  0,  0,  0,  0,h-1,  1,h-2,  1,  0);
+   	k2 = mk_bor_dat(10,   1,h-1,w-1,h-1,w-1,  0,w-2,  1,w-2,h-1);
+
+    g = _autil_alloc(sizeof(*g), MEMF_ANY|MEMF_CLEAR);
+
+    g->LeftEdge		= x1;
+	g->TopEdge      = y1;
+    g->Width        = w;
+	g->Height       = h;
+    g->Flags        = GFLG_GADGHIMAGE;
+    g->Activation   = GACT_RELVERIFY;
+    g->GadgetType   = GTYP_BOOLGADGET;
+	if (style == AW_GADGET_STYLE_1)
+	{
+		g->GadgetRender = mk_border(0,0,1,0,1,5,k1, mk_border(0,0,2,0,1,5,k2,NULL));
+		g->SelectRender = mk_border(0,0,2,0,1,5,k1, mk_border(0,0,1,0,1,5,k2,NULL));
+	}
+	else
+	{
+		g->GadgetRender = mk_border(0,0,2,0,1,5,k1, mk_border(0,0,1,0,1,5,k2,NULL));
+		g->SelectRender = mk_border(0,0,1,0,1,5,k1, mk_border(0,0,2,0,1,5,k2,NULL));
+	}
+    g->GadgetText   = mk_intuitext(1, 0, 0, (w / 2) - (_astr_len(str)*8 / 2), (h / 2) - 3, NULL, str, scit);
+    g->GadgetID     = id;
+
+	AddGadget (g_output_win, g, id);
+}
+
+void __aqb_gadget_refresh (void)
+{
+    if (!g_output_win)
+        return;
+
+    RefreshGadgets (g_output_win->FirstGadget, g_output_win, NULL);
 }

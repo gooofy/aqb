@@ -13,5 +13,7 @@ char *_astr_dup(const char *str);
 
 void _astr_ftoa(FLOAT value, char *buf);
 
+const char *_astr_strchr(const char *s, char c);
+
 #endif
 
