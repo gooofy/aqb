@@ -74,4 +74,4 @@ examples/bench/*.s
 examples/*.bin
 examples/*.s
 examples/others
-
+tools/ffputils/ffputils
