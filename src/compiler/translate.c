@@ -65,16 +65,6 @@ Tr_expList Tr_ExpList(Tr_exp head, Tr_expList tail)
     return el;
 }
 
-Tr_exp Tr_expListHead(Tr_expList el)
-{
-    return el->head;
-}
-
-Tr_expList Tr_expListTail(Tr_expList el)
-{
-    return el->tail;
-}
-
 static Tr_access Tr_Access(Tr_level level, F_access access)
 {
     Tr_access a = checked_malloc(sizeof(*a));
@@ -114,11 +104,11 @@ Tr_level Tr_global(void)
     return global_level;
 }
 
-Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc)
+Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc, Temp_tempList regs)
 {
     Tr_level lv = checked_malloc(sizeof(*lv));
 
-    lv->frame  = F_newFrame(name, formalTys);
+    lv->frame  = F_newFrame(name, formalTys, regs);
     lv->name   = name;
     lv->statc  = statc;
 
@@ -386,6 +376,17 @@ Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init)
     return Tr_Access(level, F_allocLocal(level->frame, ty, init_data));
 }
 
+Tr_access Tr_externalVar(string name, Ty_ty ty)
+{
+    Temp_label label = Temp_namedlabel(name);
+    return Tr_Access(Tr_global(), F_allocGlobal(label, ty));
+}
+
+Temp_label Tr_heapLabel(Tr_access access)
+{
+    return F_heapLabel(access->access);
+}
+
 /* Tree Expressions */
 
 Tr_exp Tr_zeroExp(Ty_ty ty)
@@ -457,21 +458,45 @@ int Tr_getConstInt (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    return *((int *) &exp->u.ex->u.CONST);
+    switch (exp->u.ex->u.CONST->kind)
+    {
+        case T_CFLOAT:
+            return (int) exp->u.ex->u.CONST->u.f;
+        case T_CINT:
+            return exp->u.ex->u.CONST->u.i;
+    }
+    assert(0);
+    return 0;
 }
 
 double Tr_getConstFloat (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    return decode_ffp(exp->u.ex->u.CONST);
+    switch (exp->u.ex->u.CONST->kind)
+    {
+        case T_CFLOAT:
+            return exp->u.ex->u.CONST->u.f;
+        case T_CINT:
+            return (double) exp->u.ex->u.CONST->u.i;
+    }
+    assert(0);
+    return 0.0;
 }
 
 bool Tr_getConstBool (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    return (*((int *) &exp->u.ex->u.CONST)) != 0;
+    switch (exp->u.ex->u.CONST->kind)
+    {
+        case T_CFLOAT:
+            return exp->u.ex->u.CONST->u.f != 0.0;
+        case T_CINT:
+            return exp->u.ex->u.CONST->u.i != 0;
+    }
+    assert(0);
+    return FALSE;
 }
 
 unsigned char *Tr_getConstData(Tr_exp exp)
@@ -882,17 +907,19 @@ Tr_exp Tr_seqExp(Tr_expList el)
     return Tr_Nx(stm);
 }
 
-Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv,
-                  Temp_label name, Tr_expList rawel, Ty_ty ty)
+Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase)
 {
     // cdecl calling convention (right-to-left order)
     T_expList el = NULL;
-    for (; rawel; rawel = rawel->tail)
+    for (; expList; expList = expList->tail)
     {
-        el = T_ExpList(unEx(rawel->head), el);
+        el = T_ExpList(unEx(expList->head), el);
     }
 
-    return Tr_Ex(T_CallF(name, el, ty));
+    // library call?
+    Temp_tempList regs = libBase ? F_getFrameRegs(funclv->frame) : NULL;
+
+    return Tr_Ex(T_CallF(name, el, regs, retty, offset, libBase));
 }
 
 

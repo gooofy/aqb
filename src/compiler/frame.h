@@ -62,6 +62,7 @@ F_access      F_allocGlobal(Temp_label label, Ty_ty ty);
 F_access      F_allocLocal(F_frame f, Ty_ty ty, unsigned char *init_data);
 F_accessList  F_formals(F_frame f);
 Temp_label    F_name(F_frame f);
+Temp_label    F_heapLabel(F_access access);
 
 extern const int F_wordSize;
 
@@ -89,9 +90,10 @@ Temp_tempList F_aRegs(void);
 Temp_tempList F_dRegs(void);
 bool          F_isAn(Temp_temp reg);
 bool          F_isDn(Temp_temp reg);
+Temp_temp     F_lookupReg(S_symbol sym);
 
-F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys);
-// T_exp         F_externalCall(string s, T_expList args);
+F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys, Temp_tempList regs);
+Temp_tempList F_getFrameRegs(F_frame f);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);
 

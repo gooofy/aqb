@@ -1774,7 +1774,7 @@ static bool statement(void)
     }
 }
 
-// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader
+// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(void)
 {
     A_proc   proc;
@@ -1799,6 +1799,47 @@ static bool stmtProcDecl(void)
 
     if (!procHeader(pos, isFunction, &proc))
         return FALSE;
+
+    if (S_token == S_LIB)
+    {
+        S_getsym();
+
+        if (!expression(&proc->offset))
+            return EM_err("library call: offset expected here.");
+
+        if (S_token != S_IDENT)
+            return EM_err("library call: library base identifier expected here.");
+
+        proc->libBase = S_Symbol(String(S_str));
+        S_getsym();
+
+        if (S_token != S_LPAREN)
+            return EM_err("library call: ( expected here.");
+        S_getsym();
+
+        A_param p = proc->paramList->first;
+
+        while (S_token == S_IDENT)
+        {
+            if (!p)
+                return EM_err("library call: more registers than arguments detected.");
+
+            p->reg = S_Symbol(String(S_str));
+            p = p-> next;
+            S_getsym();
+            if (S_token == S_COMMA)
+                S_getsym();
+            else
+                break;
+        }
+
+        if (S_token != S_RPAREN)
+            return EM_err("library call: ) expected here.");
+        S_getsym();
+
+        if (p)
+            return EM_err("library call: less registers than arguments detected.");
+    }
 
     hashmap_put(declared_procs, S_name(proc->name), proc);
     A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));

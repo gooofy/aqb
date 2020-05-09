@@ -13,14 +13,15 @@ struct E_enventry_
         struct {Tr_access access; Ty_ty ty; bool shared;} var;
         struct {Tr_level level; Temp_label label; 
                 Ty_tyList formals; Ty_ty result;
-                bool forward;} fun;
+                bool forward;
+                int offset; string libBase;} fun;
     } u;
 };
 
 E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared);
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
                       Ty_tyList formals, Ty_ty result,
-                      bool forward);
+                      bool forward, int offset, string libBase);
 
 S_scope E_base_tenv(void); /* Ty_ty environment */
 S_scope E_base_venv(void); /* E_enventry environment */

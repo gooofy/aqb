@@ -125,6 +125,7 @@ struct A_param_
     S_symbol name;
     S_symbol ty;
     A_exp    defaultExp;
+    S_symbol reg;
 };
 
 struct A_paramList_
@@ -142,6 +143,8 @@ struct A_proc_
     bool        isStatic;
     A_paramList paramList;
     A_stmtList  body;
+    A_exp       offset;
+    S_symbol    libBase;
 };
 
 struct A_dim_

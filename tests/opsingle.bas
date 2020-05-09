@@ -3,9 +3,11 @@ b = 3.14e+2
 c = 3.14e-2
 d = 3.0
 
-print "a ="; a
-print "b ="; b
-print "c ="; c
+f = 0.5
+
+' PRINT "a ="; a
+' PRINT "b ="; b
+' PRINT "c ="; c
 
 
 ' arithemtic operators
@@ -17,10 +19,9 @@ ASSERT (a  +  c) =   3.1714
 ASSERT (a  -  b) =  -310.86
 ASSERT (a  *  b) =   985.96
 ASSERT (b  /  a) =   100.00
-ASSERT INT((b^c)*1000.0) =  1197
+ASSERT INT((b^c)*1000.0) =  1198
 ASSERT (b  \  a) =   100.00
-ASSERT (b MOD a) =        0
-ASSERT INT((a MOD d) * 100) = 14
+ASSERT (b MOD a) =        2
 
 ' logical operators
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
@@ -80,3 +81,28 @@ f = iT1% > 23
 ASSERT f=     -1
 f = lT1&
 ASSERT f= 100000
+
+' rounding tests (FIXME: some of these are not equivalent to QuickBasic!)
+
+' PRINT INT(2.5), CINT(2.5), FIX(2.5)
+' PRINT INT(-2.5), CINT(-2.5), FIX(-2.5)
+
+ASSERT(INT ( 2.5) = 3)
+ASSERT(CINT( 2.5) = 3)
+ASSERT(FIX ( 2.5) = 2)
+
+ASSERT(INT (-2.5) =-3)
+ASSERT(CINT(-2.5) =-3)
+ASSERT(FIX (-2.5) =-2)
+
+' PRINT INT(3.5), CINT(3.5), FIX(3.5)
+' PRINT INT(-3.5), CINT(-3.5), FIX(-3.5)
+
+ASSERT(INT ( 3.5) = 4)
+ASSERT(CINT( 3.5) = 4)
+ASSERT(FIX ( 3.5) = 3)
+
+ASSERT(INT (-3.5) =-4)
+ASSERT(CINT(-3.5) =-4)
+ASSERT(FIX (-3.5) =-3)
+

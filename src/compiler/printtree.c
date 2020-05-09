@@ -95,7 +95,15 @@ void printExp(FILE *out, T_exp exp, int d)
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
         case T_CONST:
-            fprintf(out, "CONST %d", exp->u.CONST);
+            switch (exp->u.CONST->kind)
+            {
+                case T_CFLOAT:
+                    fprintf(out, "CONST %f", exp->u.CONST->u.f);
+                    break;
+                case T_CINT:
+                    fprintf(out, "CONST %d", exp->u.CONST->u.i);
+                    break;
+            }
             break;
         case T_CALLF:
         {

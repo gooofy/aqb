@@ -12,15 +12,13 @@ typedef struct Tr_exp_        *Tr_exp;
 typedef struct Tr_expList_    *Tr_expList;
 typedef struct Tr_accessList_ *Tr_accessList;
 
-struct Tr_expList_ 
+struct Tr_expList_
 {
-    Tr_exp head;
+    Tr_exp     head;
     Tr_expList tail;
 };
 
 Tr_expList    Tr_ExpList(Tr_exp head, Tr_expList tail);
-Tr_exp        Tr_expListHead(Tr_expList el);
-Tr_expList    Tr_expListTail(Tr_expList el);
 
 Tr_accessList Tr_AccessList(Tr_access head, Tr_accessList tail);
 Tr_access     Tr_accessListHead(Tr_accessList al);
@@ -28,9 +26,11 @@ Tr_accessList Tr_accessListTail(Tr_accessList al);
 
 Tr_level      Tr_global(void);
 
-Tr_level      Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc);
+Tr_level      Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc, Temp_tempList regs);
 Tr_accessList Tr_formals(Tr_level level);
 Tr_access     Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init);
+Tr_access     Tr_externalVar(string name, Ty_ty ty);
+Temp_label    Tr_heapLabel(Tr_access access);
 Temp_label    Tr_getLabel(Tr_level level);
 bool          Tr_isStatic(Tr_level level);
 
@@ -57,8 +57,8 @@ Tr_exp        Tr_funPtrExp(Temp_label label);
 Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty);
 
 Tr_exp        Tr_Var(Tr_access a);
-Tr_exp        Tr_Index(Tr_exp array, Tr_exp idx); 
-Tr_exp        Tr_Deref(Tr_exp ptr); 
+Tr_exp        Tr_Index(Tr_exp array, Tr_exp idx);
+Tr_exp        Tr_Deref(Tr_exp ptr);
 #if 0
 Tr_exp Tr_fieldVar(Tr_exp var, int fieldIndex, Tr_level l);
 Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l);
@@ -80,9 +80,9 @@ Tr_exp        Tr_arrayExp(Tr_exp init, Tr_exp size);
 Tr_exp        Tr_recordExp(Tr_expList el, int fieldCount);
 
 Tr_exp        Tr_letExp(Tr_expList el, Tr_exp body);
-#endif 
+#endif
 
-Tr_exp         Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty ty);
+Tr_exp         Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);
 
 int            Tr_getConstInt(Tr_exp exp);
 bool           Tr_getConstBool(Tr_exp exp);

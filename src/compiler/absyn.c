@@ -489,6 +489,7 @@ A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, 
     p->name       = name;
     p->ty         = ty;
     p->defaultExp = defaultExp;
+    p->reg        = NULL;
 
     return p;
 }
@@ -529,6 +530,8 @@ A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool 
     p->isStatic   = isStatic;
     p->paramList  = paramList;
     p->body       = NULL;
+    p->offset     = NULL;
+    p->libBase    = NULL;
 
     return p;
 }

@@ -445,7 +445,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
             if (tl)
                 EM_error(a->pos, "too few params for sub %s", S_name(a->u.callr.func));
 
-            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result);
+            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
         }
         default:
             EM_error(a->pos, "*** internal error: unsupported expression type.");
@@ -464,7 +464,7 @@ static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
     return Ty_Void();
 }
 
-/* Type list generation of a sub or function */
+/* type list generation of a sub or function */
 static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList params)
 {
     Ty_tyList tys = NULL, last_tys = NULL;
@@ -476,7 +476,7 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
         else
             ty = lookup_type(tenv, param->pos, param->ty);
 
-        /* Insert at tail to avoid order reversed */
+        /* insert at tail to avoid order reversed */
         if (tys == NULL)
         {
             tys = Ty_TyList(ty, NULL);
@@ -489,6 +489,38 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
         }
     }
     return tys;
+}
+
+static Temp_tempList makeParamRegList(A_paramList params)
+{
+    Temp_tempList regs = NULL, last_regs = NULL;
+    for (A_param param = params->first; param; param = param->next)
+    {
+        Temp_temp r;
+
+        if (!param->reg)
+            break;
+
+        r = F_lookupReg(param->reg);
+        if (!r)
+        {
+            EM_error(param->pos, "register %s not recognized on this machine type.", S_name(param->reg));
+            break;
+        }
+
+        /* insert at tail to avoid order reversed */
+        if (regs == NULL)
+        {
+            regs      = Temp_TempList(r, NULL);
+            last_regs = regs;
+        }
+        else
+        {
+            last_regs->tail = Temp_TempList(r, NULL);
+            last_regs       = last_regs->tail;
+        }
+    }
+    return regs;
 }
 
 static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Temp_label breaklbl, int depth)
@@ -524,7 +556,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (fsym)
             {
                 E_enventry func = S_look(g_venv, fsym);
-                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
+                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
                 return tr_exp;
             }
         }
@@ -532,14 +564,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             S_symbol fsym   = S_Symbol("__aio_putnl");
             E_enventry func = S_look(g_venv, fsym);
-            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
+            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
             return tr_exp;
         }
         case A_printTABStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_puttab");
             E_enventry func = S_look(g_venv, fsym);
-            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result);
+            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
             return tr_exp;
         }
         case A_assertStmt:
@@ -548,7 +580,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp, NULL));
             S_symbol fsym      = S_Symbol("___aqb_assert");
             E_enventry func    = S_look(g_venv, fsym);
-            return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result);
+            return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
         }
         case A_assignStmt:
         {
@@ -623,11 +655,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         case A_procStmt:
         case A_procDeclStmt:
         {
-            A_proc     proc       = stmt->u.proc;
-            Ty_ty      resultTy   = Ty_Void();
-            Ty_tyList  formalTys  = makeParamTyList(level, tenv, proc->paramList);
-            S_scope    lenv;
-            E_enventry e;
+            A_proc        proc       = stmt->u.proc;
+            Ty_ty         resultTy   = Ty_Void();
+            Ty_tyList     formalTys  = makeParamTyList(level, tenv, proc->paramList);
+            Temp_tempList regs       = makeParamRegList(proc->paramList);
+            S_scope       lenv;
+            E_enventry    e;
+            int           offset     = 0;
+            string        libBase    = NULL;
 
             if (proc->retty)
             {
@@ -637,6 +672,32 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(proc->pos, "unknown return type: %s", S_name(proc->retty));
                     break;
                 }
+            }
+
+            if (proc->offset)
+            {
+                Tr_exp expOffset = transExp(level, venv, tenv, proc->offset, breaklbl);
+                if (!Tr_isConst(expOffset))
+                {
+                    EM_error(proc->offset->pos, "Constant offset expected.");
+                    return Tr_nopNx();
+                }
+                offset = Tr_getConstInt(expOffset);
+                E_enventry x = S_look(venv, proc->libBase);
+                if (!x)
+                {
+                    EM_error(proc->pos, "Library base %s undeclared.", S_name(proc->libBase));
+                    return Tr_nopNx();
+                }
+
+                Temp_label l = Tr_heapLabel(x->u.var.access);
+                if (!l)
+                {
+                    EM_error(proc->pos, "Library base %s is not a global variable.", S_name(proc->libBase));
+                    return Tr_nopNx();
+                }
+
+                libBase = Temp_labelstring(l);
             }
 
             e = S_look(venv, proc->name);
@@ -652,7 +713,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                e = E_FunEntry(Tr_newLevel(proc->label, formalTys, proc->isStatic), proc->label, formalTys, resultTy, stmt->kind==A_procDeclStmt);
+                e = E_FunEntry(Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formalTys,
+                               resultTy, stmt->kind==A_procDeclStmt, offset, libBase);
             }
 
             S_enter(venv, proc->name, e);
@@ -742,7 +804,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (tl)
                 EM_error(stmt->pos, "too few params for sub %s", S_name(stmt->u.callr.func));
 
-            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result);
+            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
         }
         case A_varDeclStmt:
         {
@@ -956,7 +1018,6 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
 
 F_fragList SEM_transProg(A_sourceProgram sourceProgram)
 {
-
     g_venv = E_base_venv();
     g_tenv = E_base_tenv();
 

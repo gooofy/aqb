@@ -166,7 +166,6 @@ static Temp_temp emitBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
 
 static Temp_temp emitRegCall(string strName, int lvo, F_ral ral, Ty_ty resty)
 {
-
     // move args into their associated registers:
 
     Temp_tempList argTempList = NULL;
@@ -211,7 +210,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 {
                     /* MEM(BINOP(PLUS,e1,CONST(FP))) */
                     // T_exp e1 = mem->u.BINOP.left;
-                    int i = mem->u.BINOP.right->u.CONST;
+                    int i = mem->u.BINOP.right->u.CONST->u.i;
                     if (mem->u.BINOP.op == T_minus) {
                       i = -i;
                     }
@@ -423,7 +422,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return emitRegCall("_MathBase", LVOSPFlt, F_RAL(t2, F_D0(), NULL), resty);
                         }
                         case T_mod:
-                            return emitBinOpJsr (e, "___mod_ffp", resty);
+                            return emitBinOpJsr (e, "___aqb_mod", resty);
                         case T_neg:
                             return emitRegCall("_MathBase", LVOSPNeg,
                                                F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), NULL), resty);
@@ -517,25 +516,35 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             /* CALL(NAME(lab),args) */
             Temp_label lab = e->u.CALLF.fun;
             T_expList args = e->u.CALLF.args;
-#if 0
-            Temp_tempList l = munchArgs(0, args);
-            Temp_tempList calldefs = F_callersaves();
-            sprintf(inst, "jsr %s", Temp_labelstring(lab));
-            emit(AS_Oper(inst, L(F_RV(), calldefs), l, NULL));
-            munchCallerRestore(l);
-#endif
 
-            int arg_cnt = munchArgsStack(0, args);
-            emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()), 0, 0, lab));  // jsr   lab
-            munchCallerRestoreStack(arg_cnt);
-
-            if (!ignore_result)
+            if (e->u.CALLF.libBase)
             {
-                enum AS_w isz = ty_isz(e->ty);
-                Temp_temp t = Temp_newtemp(e->ty);
-                emit(AS_Instr(AS_MOVE_AnDn_AnDn, isz, F_RV(), t));                                   // move.x d0, t
-                return t;
+                F_ral         ral  = NULL;
+                Temp_tempList regs = e->u.CALLF.regs;
+                for (; args; args=args->tail)
+                {
+                    ral = F_RAL(munchExp(args->head, FALSE), regs->head, ral);
+                    regs = regs->tail;
+                }
+
+                Temp_temp r = emitRegCall(e->u.CALLF.libBase, e->u.CALLF.offset, ral, e->ty);
+                if (!ignore_result)
+                    return r;
             }
+            else
+            {
+                int arg_cnt = munchArgsStack(0, args);
+                emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()), 0, 0, lab));  // jsr   lab
+                munchCallerRestoreStack(arg_cnt);
+                if (!ignore_result)
+                {
+                    enum AS_w isz = ty_isz(e->ty);
+                    Temp_temp t = Temp_newtemp(e->ty);
+                    emit(AS_Instr(AS_MOVE_AnDn_AnDn, isz, F_RV(), t));                                   // move.x d0, t
+                    return t;
+                }
+            }
+
             return NULL;
         }
         case T_CAST:
@@ -698,7 +707,7 @@ static void munchStm(T_stm s)
                             {
                                 if (dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)                     // move ..., MEM(BINOP(PLUS, fp, CONST))
                                 {
-                                    int off = dst->u.MEM.exp->u.BINOP.right->u.CONST;
+                                    int off = dst->u.MEM.exp->u.BINOP.right->u.CONST->u.i;
                                     if (src->kind == T_CONST)                                           // move CONST, MEM(BINOP(PLUS, fp, CONST))
                                     {
                                         emit (AS_InstrEx(AS_MOVE_Imm_Ofp, isz, NULL, NULL,              // move.x #CONST, off(fp)
@@ -721,8 +730,7 @@ static void munchStm(T_stm s)
                             Temp_label lab = dst->u.MEM.exp->u.HEAP;
                             if (src->kind == T_CONST)                                               // move.x #const, lab
                             {
-                                unsigned int j = src->u.CONST;
-                                emit(AS_InstrEx(AS_MOVE_Imm_Label, isz, NULL, NULL, j, 0, lab));
+                                emit(AS_InstrEx(AS_MOVE_Imm_Label, isz, NULL, NULL, src->u.CONST, 0, lab));
                             }
                             else                                                                    // move.x src, lab
                             {
@@ -763,7 +771,7 @@ static void munchStm(T_stm s)
             {
                 Temp_temp rd_size = Temp_newtemp(Ty_Long());
                 emit(AS_InstrEx(AS_MOVE_Imm_AnDn, ty_isz(Ty_Long()), NULL, L(rd_size, NULL),            // move.x #size, rd_size
-                                Ty_size(resty), 0, NULL));
+                                T_ConstI(Ty_size(resty)), 0, NULL));
 
                 switch (dst->kind)
                 {
@@ -781,7 +789,7 @@ static void munchStm(T_stm s)
                                 emit (AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L,                               // move dst, ra_src
                                                munchExp(src->u.MEM.exp, FALSE), ra_src));
 
-                                emitRegCall("SysBase", LVOCopyMem, F_RAL(rd_size, F_D0(),               // CopyMem(ra_src, ra_dst, rd_size);
+                                emitRegCall("_SysBase", LVOCopyMem, F_RAL(rd_size, F_D0(),              // CopyMem(ra_src, ra_dst, rd_size);
                                             F_RAL(ra_src, F_A0(), F_RAL(ra_dst, F_A1(), NULL))),
                                             Ty_Long());
                                 break;
@@ -1003,7 +1011,8 @@ static int munchArgsStack(int i, T_expList args)
     {
         Temp_temp r = munchExp(e, FALSE);
         if (Ty_size(e->ty)==1)
-            emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), L(r, NULL), 255, 0, NULL));// and.l   #255, r
+            emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), L(r, NULL),                // and.l   #255, r
+                            T_ConstI(255), 0, NULL));
         emit(AS_Instr(AS_MOVE_AnDn_PDsp, AS_w_L, r, NULL));                               // move.l  r, -(sp)
     }
 
@@ -1015,7 +1024,7 @@ static void munchCallerRestoreStack(int cnt)
     if (cnt)
     {
         emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, F_callersaves(), // sink the callersaves so liveness analysis will save them
-                        NULL, cnt * F_wordSize, 0, NULL));                                // add.l #(cnt*F_wordSize), sp
+                        NULL, T_ConstI(cnt * F_wordSize), 0, NULL));                     // add.l #(cnt*F_wordSize), sp
     }
 }
 

@@ -68,6 +68,7 @@ struct F_frame_
     F_accessList   formals;
     F_accessList   locals;
     int            locals_offset;
+    Temp_tempList  regs;
 };
 
 static F_access InFrame(int offset, Ty_ty ty)
@@ -81,44 +82,68 @@ static F_access InFrame(int offset, Ty_ty ty)
     return a;
 }
 
-#if 0
-static F_access InReg(Temp_temp reg) {
+static F_access InReg(Temp_temp reg, Ty_ty ty)
+{
     F_access a = checked_malloc(sizeof(*a));
-    a->kind = inReg;
-    a->u.reg = reg;
+
+    a->kind   = inReg;
+    a->ty     = ty;
+    a->u.reg  = reg;
+
     return a;
 }
-#endif
 
-F_frame F_newFrame(Temp_label name, Ty_tyList formalTys)
+F_frame F_newFrame(Temp_label name, Ty_tyList formalTys, Temp_tempList regs)
 {
     F_frame f = checked_malloc(sizeof(*f));
 
     f->name   = name;
+    f->regs   = regs;
 
-    // a4 is the frame pointer
-    // Arguments start from        8(a4) upwards
-    // Local variables start from -4(a4) downwards
+    // a5 is the frame pointer
+    // Arguments start from        8(a5) upwards
+    // Local variables start from -4(a5) downwards
     int offset = 8;
     F_accessList formals = NULL;
     F_accessList flast = NULL;
 
-    for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
+    if (regs)
     {
-        int size = Ty_size(tyl->head);
-        // gcc seems to push 4 bytes regardless of type (int, long, ...)
-        offset += 4-size;
-        if (flast)
+        for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
         {
-            flast->tail = F_AccessList(InFrame(offset, tyl->head), NULL);
-            flast = flast->tail;
+            Temp_temp reg = regs->head;
+            regs = regs->tail;
+            if (flast)
+            {
+                flast->tail = F_AccessList(InReg(reg, tyl->head), NULL);
+                flast = flast->tail;
+            }
+            else
+            {
+                formals = F_AccessList(InReg(reg, tyl->head), NULL);
+                flast = formals;
+            }
         }
-        else
+    }
+    else
+    {
+        for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
         {
-            formals = F_AccessList(InFrame(offset, tyl->head), NULL);
-            flast = formals;
+            int size = Ty_size(tyl->head);
+            // gcc seems to push 4 bytes regardless of type (int, long, ...)
+            offset += 4-size;
+            if (flast)
+            {
+                flast->tail = F_AccessList(InFrame(offset, tyl->head), NULL);
+                flast = flast->tail;
+            }
+            else
+            {
+                formals = F_AccessList(InFrame(offset, tyl->head), NULL);
+                flast = formals;
+            }
+            offset += size;
         }
-        offset += size;
     }
 
     f->formals       = formals;
@@ -129,12 +154,26 @@ F_frame F_newFrame(Temp_label name, Ty_tyList formalTys)
     return f;
 }
 
-Temp_label F_name(F_frame f) {
-  return f->name;
+Temp_label F_name(F_frame f)
+{
+    return f->name;
 }
 
-F_accessList F_formals(F_frame f) {
-  return f->formals;
+Temp_label F_heapLabel(F_access access)
+{
+    if (access->kind != inHeap)
+        return NULL;
+    return access->u.label;
+}
+
+F_accessList F_formals(F_frame f)
+{
+    return f->formals;
+}
+
+Temp_tempList F_getFrameRegs(F_frame f)
+{
+    return f->regs;
 }
 
 F_access F_allocGlobal(Temp_label label, Ty_ty ty)
@@ -277,7 +316,7 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
     // entry code
 
     body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, label),                          // label:
-             AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, -frame_size, 0, NULL),             //      link fp, #-frameSize
+             AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, T_ConstI(-frame_size), 0, NULL),   //      link fp, #-frameSize
                appendCalleeSave(body)));
 
     return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(label)), body, "# END\n");
@@ -334,6 +373,7 @@ bool F_isDn(Temp_temp reg)
 }
 
 static Temp_tempList allRegs, dRegs, aRegs;
+static S_scope regScope;
 
 void F_initRegisters(void)
 {
@@ -380,6 +420,28 @@ void F_initRegisters(void)
                   Temp_TempList(a3,
                     Temp_TempList(a4,
                       Temp_TempList(a6, NULL))))));
+
+    regScope = S_beginScope();
+
+    S_enter(regScope, S_Symbol("a0"), a0);
+    S_enter(regScope, S_Symbol("a1"), a1);
+    S_enter(regScope, S_Symbol("a2"), a2);
+    S_enter(regScope, S_Symbol("a3"), a3);
+    S_enter(regScope, S_Symbol("a4"), a4);
+    S_enter(regScope, S_Symbol("a6"), a6);
+    S_enter(regScope, S_Symbol("d0"), d0);
+    S_enter(regScope, S_Symbol("d1"), d1);
+    S_enter(regScope, S_Symbol("d2"), d2);
+    S_enter(regScope, S_Symbol("d3"), d3);
+    S_enter(regScope, S_Symbol("d4"), d4);
+    S_enter(regScope, S_Symbol("d5"), d5);
+    S_enter(regScope, S_Symbol("d6"), d6);
+    S_enter(regScope, S_Symbol("d7"), d7);
+}
+
+Temp_temp F_lookupReg(S_symbol sym)
+{
+    return (Temp_temp) S_look(regScope, sym);
 }
 
 Temp_map F_initialRegisters(F_frame f) {
@@ -487,10 +549,6 @@ T_exp F_staticLink2FP(T_exp staticLink) {
   return T_Binop(T_minus, T_Mem(staticLink), T_Const(2 * F_wordSize));
 }
 
-T_exp F_externalCall(string s, T_expList args)
-{
-    return T_Call(T_Name(Temp_namedlabel(s)), args);
-}
 #endif
 
 F_ral F_RAL(Temp_temp arg, Temp_temp reg, F_ral next)

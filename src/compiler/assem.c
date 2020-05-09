@@ -95,7 +95,7 @@ AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
     return p;
 }
 
-AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, long imm, long offset, Temp_label label)
+AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, T_const imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -139,7 +139,7 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_NEG_Dn:
         case AS_NOT_Dn:
             assert(label==NULL);
-            assert(imm==0);
+            assert(imm==NULL);
             assert(offset==0);
             assert(src);
             assert(src->tail==NULL);
@@ -202,7 +202,7 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_MOVE_AnDn_RAn:  // move.x  d1, (a6)
             assert(dst==NULL);
             assert(label==NULL);
-            assert(imm==0);
+            assert(imm==NULL);
             assert(offset==0);
             p->srcInterf = LL(NULL, LL(F_dRegs(), NULL));
             p->dstInterf = NULL;
@@ -249,7 +249,7 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
 }
 
 AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst,
-                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, long imm, long offset, Temp_label label)
+                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, T_const imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -488,7 +488,15 @@ static void instrformat(string str, string strTmpl, AS_instr instr, Temp_map m)
                 }
                 case 'i':
                 {
-                    pos += sprintf(&str[pos], "%d", *((int *) &instr->imm));
+                    switch (instr->imm->kind)
+                    {
+                        case T_CFLOAT:
+                            pos += sprintf(&str[pos], "0x%08x /* %f */", encode_ffp(instr->imm->u.f), instr->imm->u.f);
+                            break;
+                        case T_CINT:
+                            pos += sprintf(&str[pos], "%d", instr->imm->u.i);
+                            break;
+                    }
                     break;
                 }
                 case 'o':

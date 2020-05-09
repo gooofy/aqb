@@ -20,7 +20,8 @@ E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared)
 }
 
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
-                      Ty_tyList formals, Ty_ty result, bool forward)
+                      Ty_tyList formals, Ty_ty result,
+                      bool forward, int offset, string libBase)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
@@ -30,6 +31,8 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
     p->u.fun.formals = formals;
     p->u.fun.result  = result;
     p->u.fun.forward = forward;
+    p->u.fun.offset  = offset;
+    p->u.fun.libBase = libBase;
 
     return p;
 }
@@ -105,7 +108,7 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
               Tr_global(),
               Temp_namedlabel(name),
               tyl,
-              return_type, TRUE));
+              return_type, TRUE, 0, NULL));
 }
 
 S_scope E_base_venv(void)
@@ -125,6 +128,8 @@ S_scope E_base_venv(void)
     declare_builtin(t, "___aqb_line",           "iiiiii",   Ty_Void());
     declare_builtin(t, "___aqb_pset",           "iiii",     Ty_Void());
     declare_builtin(t, "___aqb_on_window_call", "p",        Ty_Void());
+
+    S_enter(t, S_Symbol("MathTransBase"), E_VarEntry(Tr_externalVar("_MathTransBase", Ty_VoidPtr()), Ty_VoidPtr(), TRUE));
 
     return t;
 }
@@ -172,10 +177,23 @@ map_t E_declared_procs(A_stmtList stmtList)
 {
     map_t declared_procs = hashmap_new();
 
-    declare_builtin_proc(stmtList, declared_procs, "int",    "___aqb_int",       "f", "long"  );
-    declare_builtin_proc(stmtList, declared_procs, "sleep",  "___aqb_sleep",     "",  NULL    );
-    declare_builtin_proc(stmtList, declared_procs, "window", "___aqb_window_fn", "l", "long"  );
-    declare_builtin_proc(stmtList, declared_procs, "timer",  "___aqb_timer_fn",  "",  "single");
+/*
+FLOAT __aqb_mod(FLOAT divident, FLOAT divisor);
+
+SHORT __aqb_fix (FLOAT f);
+SHORT __aqb_int (FLOAT f);
+SHORT __aqb_cint(FLOAT f);
+LONG  __aqb_clng(FLOAT a);
+*/
+
+
+    declare_builtin_proc(stmtList, declared_procs, "fix",    "___aqb_fix",       "f", "integer");
+    declare_builtin_proc(stmtList, declared_procs, "int",    "___aqb_int",       "f", "integer");
+    declare_builtin_proc(stmtList, declared_procs, "cint",   "___aqb_cint",      "f", "integer");
+    declare_builtin_proc(stmtList, declared_procs, "clng",   "___aqb_clng",      "f", "long"   );
+    declare_builtin_proc(stmtList, declared_procs, "sleep",  "___aqb_sleep",     "",  NULL     );
+    declare_builtin_proc(stmtList, declared_procs, "window", "___aqb_window_fn", "l", "long"   );
+    declare_builtin_proc(stmtList, declared_procs, "timer",  "___aqb_timer_fn",  "",  "single" );
 
     return declared_procs;
 }

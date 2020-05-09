@@ -38,9 +38,9 @@ enum AS_mn
     AS_MOVE_AnDn_AnDn,  // move.x  d1, d2
     AS_MOVE_Imm_OAn,    // move.x  #23, 42(a6)
     AS_MOVE_Imm_RAn,    // move.x  #23, (a6)
+    AS_MOVE_Imm_AnDn,   // move.x  #23, d0
     AS_MOVE_AnDn_RAn,   // move.x  d1, (a6)
     AS_MOVE_RAn_AnDn,   // move.x  (a5), d1
-    AS_MOVE_Imm_AnDn,   // move.x  #23, d0
     AS_MOVE_OAn_AnDn,   // move.x  42(a1), d0
     AS_MOVE_AnDn_OAn,   // move.x  d0, 42(a3)
     AS_MOVE_AnDn_PDsp,  // move.x  d1, -(sp)
@@ -95,14 +95,14 @@ struct AS_instr_
     Temp_label     label;
     Temp_tempList  src, dst;
     Temp_tempLList srcInterf, dstInterf;
-    long           imm;
+    T_const        imm;
     short          offset;
 };
 
 AS_instr AS_Instr       (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst);
-AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, long imm, long offset, Temp_label label);
+AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, T_const imm, long offset, Temp_label label);
 AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, 
-                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, long imm, long offset, Temp_label label);
+                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, T_const imm, long offset, Temp_label label);
 
 void     AS_sprint      (string str, AS_instr i, Temp_map m);
 
