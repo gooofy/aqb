@@ -1,11 +1,14 @@
 #include "astr.h"
 #include "autil.h"
+#include "aio.h"
 
 #include <exec/memory.h>
 #include <clib/exec_protos.h>
 
 #include <clib/mathffp_protos.h>
 #include <clib/mathtrans_protos.h>
+
+// #define DEBUG
 
 /* A utility function to reverse a string  */
 static void reverse(char *str, int length)
@@ -98,63 +101,76 @@ char *_astr_dup(const char* str)
 static FLOAT g_positiveExpThreshold;
 static FLOAT g_negativeExpThreshold;
 static FLOAT g_1e16, g_1e8, g_1e4, g_1e2, g_1e1, g_1e9, g_0, g_1;
-static FLOAT g_1en15, g_1en7, g_1en3, g_1en1, g_05;
+static FLOAT g_1en15, g_1en7, g_1en3, g_1en1, g_05, g_m1;
 
 // normalizes the value between 1e-5 and 1e7 and returns the exponent
-static SHORT normalizeFloat(FLOAT *value) {
+static SHORT normalizeFloat(FLOAT *value)
+{
 
     SHORT exponent = 0;
 
     if (SPCmp(*value, g_positiveExpThreshold) >=0)
     {
-        if (SPCmp(*value, g_1e16) >= 0)
+        if (SPCmp(g_1e16, *value) >= 0)
         {
-            *value = SPDiv(*value, g_1e16);
+            *value = SPDiv(g_1e16, *value);
             exponent += 16;
         }
-        if (SPCmp(*value, g_1e8) >= 0)
+        if (SPCmp(g_1e8, *value) >= 0)
         {
-            *value = SPDiv(*value, g_1e8);
+            *value = SPDiv(g_1e8, *value);
             exponent += 8;
         }
-        if (SPCmp(*value, g_1e4) >= 0)
+        if (SPCmp(g_1e4, *value) >= 0)
         {
-            *value = SPDiv(*value, g_1e4);
+            *value = SPDiv(g_1e4, *value);
             exponent += 4;
         }
-        if (SPCmp(*value, g_1e2) >= 0) {
-            *value = SPDiv(*value, g_1e2);
+        if (SPCmp(g_1e2, *value) >= 0)
+        {
+            *value = SPDiv(g_1e2, *value);
             exponent += 2;
         }
-        if (SPCmp(*value, g_1e1) >= 0)
+        if (SPCmp(g_1e1, *value) >= 0)
         {
-            *value = SPDiv(*value, g_1e1);
+            *value = SPDiv(g_1e1, *value);
             exponent += 1;
         }
     }
 
-    if ( (SPCmp(*value,0) > 0) && (SPCmp(*value, g_negativeExpThreshold) <= 0) ) {
-        if (SPCmp(*value, g_1en15) <0) {
+    if ( (SPCmp(0, *value) > 0) &&
+         (SPCmp(g_negativeExpThreshold, *value) <= 0) )
+    {
+        if (SPCmp(g_1en15, *value) <0)
+        {
             *value = SPMul(*value, g_1e16);
             exponent -= 16;
         }
-        if (SPCmp(*value, g_1en7) <0) {
+        if (SPCmp(g_1en7, *value) <0)
+        {
             *value  = SPMul(*value, g_1e8);
             exponent -= 8;
         }
-        if (SPCmp(*value, g_1en3) <0) {
+        if (SPCmp(g_1en3, *value) <0)
+        {
             *value  = SPMul(*value, g_1e4);
             exponent -= 4;
         }
-        if (SPCmp(*value, g_1en1) <0) {
+        if (SPCmp(g_1en1, *value) <0)
+        {
             *value  = SPMul(*value, g_1e2);
             exponent -= 2;
         }
-        if (SPCmp(*value, g_1) <0) {
+        if (SPCmp(g_1, *value) <0)
+        {
             *value  = SPMul(*value, g_1e1);
             exponent -= 1;
         }
     }
+
+#ifdef DEBUG
+    _aio_puts("exponent:"); _aio_puts4(exponent); _aio_putnl();
+#endif
 
     return exponent;
 }
@@ -165,10 +181,13 @@ void _astr_ftoa(FLOAT value, char *buf)
 
     // if (isnan(value)) return _aio_puts("nan");
 
-    if (SPCmp(value, 0.0)<0)
+    if (SPCmp(g_0, value)<0)
     {
-        value = SPMul(value, SPFlt(-1));
+        value = SPMul(value, g_m1);
         negative = TRUE;
+#ifdef DEBUG
+        _aio_puts("negative.\n");
+#endif
     }
 
     // if (isinf(value)) return _aio_puts("inf");
@@ -184,14 +203,23 @@ void _astr_ftoa(FLOAT value, char *buf)
     exponent = normalizeFloat(&value);
 
     integralPart = SPFix(value);
-    FLOAT remainder = SPSub(value, SPFlt(integralPart));
+    FLOAT remainder = SPSub(SPFlt(integralPart), value);
+#ifdef DEBUG
+    _aio_puts("integralPart:"); _aio_puts4(integralPart); _aio_putnl();
+    _aio_puts("10-4="); _aio_puts4(SPFix(SPSub(SPFlt(4), SPFlt(10)))); _aio_putnl();
+    _aio_puts("2^3=");  _aio_puts4(SPFix(SPPow(SPFlt(3), SPFlt(2)))); _aio_putnl();
+    _aio_puts("12/3=");  _aio_puts4(SPFix(SPDiv(SPFlt(3), SPFlt(12)))); _aio_putnl();
+#endif
 
     remainder = SPMul(remainder, g_1e9);
     decimalPart = SPFix(remainder);
+#ifdef DEBUG
+    _aio_puts("decimalPart:"); _aio_puts4(decimalPart); _aio_putnl();
+#endif
 
     // rounding
-    remainder = SPSub(remainder, SPFlt(decimalPart));
-    if (SPCmp(remainder, g_05) >=0)
+    remainder = SPSub(SPFlt(decimalPart), remainder);
+    if (SPCmp(g_05, remainder) >=0)
     {
         decimalPart = decimalPart + 1;
         if (decimalPart >= 1000000000)
@@ -268,7 +296,7 @@ const char *_astr_strchr(const char *s, char c)
 void _astr_init(void)
 {
     g_positiveExpThreshold = SPFlt(10000000l);
-    g_negativeExpThreshold = SPDiv(SPFlt(1), SPFlt(100000l));
+    g_negativeExpThreshold = SPDiv(SPFlt(100000l), SPFlt(1));
     g_1e16  = SPPow(SPFlt( 16), SPFlt(10));
     g_1e9   = SPPow(SPFlt(  9), SPFlt(10));
     g_1e8   = SPPow(SPFlt(  8), SPFlt(10));
@@ -277,12 +305,13 @@ void _astr_init(void)
     g_1e1   = SPPow(SPFlt(  1), SPFlt(10));
     g_1     = SPFlt(1);
     g_0     = SPFlt(0);
+    g_m1    = SPFlt(-1);
 
     g_1en15 = SPPow(SPFlt(-15), SPFlt(10));
     g_1en7  = SPPow(SPFlt( -7), SPFlt(10));
     g_1en3  = SPPow(SPFlt( -3), SPFlt(10));
     g_1en1  = SPPow(SPFlt( -1), SPFlt(10));
 
-    g_05    = SPDiv(SPFlt(1), SPFlt(2));
+    g_05    = SPDiv(SPFlt(2), SPFlt(1));
 }
 

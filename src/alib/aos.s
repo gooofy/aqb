@@ -5579,14 +5579,14 @@ _SPFlt:
     unlk a5
     rts
 
-/* 42 $ffd6 -$002a SPCmp(leftParm,rightParm)(d1,d0) */
+/* 42 $ffd6 -$002a SPCmp(leftParm,rightParm)(d0,d1) */
     .globl _SPCmp
 _SPCmp:
     link a5, #0
     move.l a6,-(sp)
 
-    move.l  8(a5),d1 /* leftParm */
-    move.l  12(a5),d0 /* rightParm */
+    move.l  8(a5),d0 /* leftParm */
+    move.l  12(a5),d1 /* rightParm */
     movea.l _MathBase,a6
     jsr     LVOSPCmp(a6)
 
@@ -5651,7 +5651,7 @@ _SPAdd:
     unlk a5
     rts
 
-/* 72 $ffb8 -$0048 SPSub(leftParm,rightParm)(d1,d0) */
+/* 72 $ffb8 -$0048 SPSub(leftParm,rightParm)(d1,d0)  = rightParm - leftParm*/
     .globl _SPSub
 _SPSub:
     link a5, #0
@@ -5882,7 +5882,7 @@ _SPLog:
     unlk a5
     rts
 
-/* 90 $ffa6 -$005a SPPow(power,arg)(d1,d0) */
+/* 90 $ffa6 -$005a SPPow(power,arg)(d1,d0) = arg^power */
     .globl _SPPow
 _SPPow:
     link a5, #0

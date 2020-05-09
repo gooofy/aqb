@@ -33,7 +33,7 @@ void delay(ULONG seconds)
     Delay(seconds * 50L);
 }
 
-void _aqb_assert (BOOL b, const char *msg)
+void __aqb_assert (BOOL b, const char *msg)
 {
     if (b)
         return;

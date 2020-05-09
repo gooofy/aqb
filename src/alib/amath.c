@@ -1,6 +1,8 @@
 #include <exec/types.h>
 #include <clib/mathffp_protos.h>
 
+#include "amath.h"
+
 /*
  * ___mulsi3
  *
@@ -182,14 +184,62 @@ short __pow_s2(short base, short exp)
     return result;
 }
 
-FLOAT __mod_ffp(FLOAT divident, FLOAT divisor)
+static FLOAT g_one_half, g_zero;
+
+FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 {
-    FLOAT q = SPFlt(SPFix(SPDiv(divident, divisor)));
-    return SPSub(divident, SPMul(q, divisor));
+    // this is not what quickbasic does
+    // FLOAT q = SPFlt(SPFix(SPDiv(divident, divisor)));
+    // return SPSub(divident, SPMul(q, divisor));
+
+    // instead, it just rounds the two operands
+
+    LONG a = __aqb_clng(divident);
+    LONG b = __aqb_clng(divisor);
+
+    return SPFlt(a % b);
 }
 
-LONG __aqb_int(FLOAT f)
+/*
+    int64 qbr(long double f){
+        int64 i; int temp=0;
+        if (f>9223372036854775807) {temp=1;f=f-9223372036854775808u;} //if it's too large for a signed int64, make it an unsigned int64 and return that value if possible.
+        if (f<0) i=f-0.5f; else i=f+0.5f;
+        if (temp) return i|0x8000000000000000;//+9223372036854775808;
+        return i;
+    }
+*/
+
+
+SHORT __aqb_fix(FLOAT f)
 {
     return SPFix(f);
+}
+
+SHORT __aqb_int(FLOAT f)
+{
+	if (SPCmp(g_zero, f)<0)
+		return SPFix(SPSub(g_one_half, f));
+    return SPFix(SPAdd(f, g_one_half));
+}
+
+SHORT __aqb_cint(FLOAT f)
+{
+	if (SPCmp(g_zero, f)<0)
+		return SPFix(SPSub(g_one_half, f));
+    return SPFix(SPAdd(f, g_one_half));
+}
+
+LONG __aqb_clng(FLOAT f)
+{
+	if (SPCmp(g_zero, f)<0)
+		return SPFix(SPSub(g_one_half, f));
+    return SPFix(SPAdd(f, g_one_half));
+}
+
+void _amath_init(void)
+{
+    g_one_half = SPDiv(SPFlt(2), SPFlt(1));
+    g_zero     = SPFlt(0);
 }
 

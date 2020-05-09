@@ -10,6 +10,7 @@
 #include "astr.h"
 #include "autil.h"
 #include "awindow.h"
+#include "amath.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -102,6 +103,8 @@ void _cstartup (void)
     autil_init_done = TRUE;
 
     _astr_init();
+
+    _amath_init();
 
     _aio_init();
     aio_init_done = TRUE;

@@ -20,7 +20,7 @@ clibtest.s:	clibtest.c
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
-_alib.a: cstartup.o aio.o astr.o math.o awindow.o aos.o autil.o
+_alib.a: cstartup.o aio.o astr.o amath.o awindow.o aos.o autil.o
 	$(AR) -crs _alib.a $^
 
 alibtest: startup.o alibtest.o clibtest.o _alib.a
