@@ -3,7 +3,7 @@
 #include "astr.h"
 #include "aio.h"
 
-#include <stdarg.h> 
+#include <stdarg.h>
 
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
@@ -16,7 +16,7 @@ static struct NewWindow g_nw =
 {
     0, 0, 0, 0,                                                    // LeftEdge, TopEdge, Width, Height
     0, 1,                                                          // DetailPen, BlockPen
-    INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW,  // IDCMPFlags 
+    INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW,  // IDCMPFlags
     0,                                                             // Flags
     NULL,                                                          // FirstGadget
     NULL,                                                          // CheckMark
