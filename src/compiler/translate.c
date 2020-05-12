@@ -561,20 +561,18 @@ Tr_exp Tr_Deref(Tr_exp ptr)
     return Tr_Ex(T_Mem(unEx(ptr), t->u.pointer));
 }
 
-#if 0
-Tr_exp Tr_fieldVar(Tr_exp var, int fieldIndex, Tr_level l)
+Tr_exp Tr_Field(Tr_exp r, Ty_field f)
 {
-    return Tr_Ex(T_Mem(
-            T_Binop(T_plus, unEx(var),
-              T_Binop(T_mul, T_Const(fieldIndex), T_Const(F_wordSize)))));
-}
+    Ty_ty t = Tr_ty(r);
+    assert(t->kind==Ty_varPtr);
+    assert(t->u.pointer->kind==Ty_record);
 
-Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l) {
-    return Tr_Ex(T_Mem(
-            T_Binop(T_plus, unEx(var),
-              T_Binop(T_mul, unEx(sub), T_Const(F_wordSize)))));
+    T_exp e = unEx(r);
+    return Tr_Ex(T_Binop(T_plus,
+                         e,
+                         T_ConstInt(f->uiOffset, Ty_Long()),
+                         Ty_VarPtr(f->ty)));
 }
-#endif
 
 static int ipow(int base, int exp)
 {

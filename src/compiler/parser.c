@@ -117,8 +117,14 @@ static bool selector(A_selector *sel)
             return TRUE;
         }
         case S_PERIOD:
-            assert(0); // FIXME
-            break;
+            S_getsym();
+            if (S_token != S_IDENT)
+                return EM_err("field identifier expected here.");
+
+            *sel = A_FieldSelector(pos, S_Symbol(String(S_strlc)));
+
+            S_getsym();
+            return TRUE;
         case S_POINTER:
             assert(0); // FIXME
             break;
@@ -1774,6 +1780,156 @@ static bool statement(void)
     }
 }
 
+// typeDecl ::=  TYPE Identifier LNL*
+//               ( Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] LNL*
+//               | AS Identifier Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ] )* LNL*
+//               )*
+//               END TYPE
+
+static bool stmtTypeDecl(void)
+{
+    A_pos    pos = S_getpos();
+    S_symbol sType;
+    A_field  fFirst=NULL, fLast;
+
+    S_getsym(); // consume "TYPE"
+
+    if (S_token != S_IDENT)
+        return EM_err("type identifier expected here.");
+
+    sType = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    while (TRUE)
+    {
+        while (logicalNewline()) ;
+        if (S_token == S_IDENT)
+        {
+            A_dim    dims    = NULL;
+            S_symbol sField, sFieldType;
+
+            sField     = S_Symbol(String(S_strlc));
+            S_getsym();
+            if (S_token == S_LPAREN)
+            {
+                S_getsym();
+                if (!arrayDimensions(&dims))
+                    return FALSE;
+                if (S_token != S_RPAREN)
+                    return EM_err(") expected here.");
+                S_getsym();
+            }
+            if (S_token != S_AS)
+                return EM_err("AS expected here.");
+            S_getsym();
+
+            if (S_token != S_IDENT)
+                return EM_err("field type identifier expected here.");
+
+            sFieldType = S_Symbol(String(S_strlc));
+            S_getsym();
+
+            if (fFirst)
+            {
+                fLast->tail = A_Field(sField, sFieldType, dims);
+                fLast = fLast->tail;
+            }
+            else
+            {
+                fFirst = fLast = A_Field(sField, sFieldType, dims);
+            }
+        }
+        else
+        {
+            if (S_token == S_AS)
+            {
+                A_dim    dims    = NULL;
+                S_symbol sField, sFieldType;
+
+                S_getsym();
+
+                if (S_token != S_IDENT)
+                    return EM_err("field type identifier expected here.");
+
+                sFieldType = S_Symbol(String(S_strlc));
+                S_getsym();
+
+                if (S_token != S_IDENT)
+                    return EM_err("field identifier expected here.");
+
+                sField = S_Symbol(String(S_strlc));
+                S_getsym();
+
+                if (S_token == S_LPAREN)
+                {
+                    S_getsym();
+                    if (!arrayDimensions(&dims))
+                        return FALSE;
+                    if (S_token != S_RPAREN)
+                        return EM_err(") expected here.");
+                    S_getsym();
+                }
+                if (fFirst)
+                {
+                    fLast->tail = A_Field(sField, sFieldType, dims);
+                    fLast = fLast->tail;
+                }
+                else
+                {
+                    fFirst = fLast = A_Field(sField, sFieldType, dims);
+                }
+
+                while (S_token == S_COMMA)
+                {
+                    S_getsym();
+
+                    if (S_token != S_IDENT)
+                        return EM_err("field identifier expected here.");
+
+                    sField = S_Symbol(String(S_strlc));
+                    S_getsym();
+
+                    if (S_token == S_LPAREN)
+                    {
+                        S_getsym();
+                        if (!arrayDimensions(&dims))
+                            return FALSE;
+                        if (S_token != S_RPAREN)
+                            return EM_err(") expected here.");
+                        S_getsym();
+                    }
+                    if (fFirst)
+                    {
+                        fLast->tail = A_Field(sField, sFieldType, dims);
+                        fLast = fLast->tail;
+                    }
+                    else
+                    {
+                        fFirst = fLast = A_Field(sField, sFieldType, dims);
+                    }
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
+    while (logicalNewline()) ;
+
+    if (S_token != S_END)
+        return EM_err("type: END expected here.");
+    S_getsym();
+    if (S_token != S_TYPE)
+        return EM_err("type: TYPE expected here.");
+    S_getsym();
+
+    A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(pos, sType, fFirst));
+
+    return TRUE;
+}
+
 // procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(void)
 {
@@ -1904,6 +2060,8 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
             return stmtProcBegin();
         case S_DECLARE:
             return stmtProcDecl();
+        case S_TYPE:
+            return stmtTypeDecl();
         case S_OPTION:
             return EM_err ("Sorry, option statement is not supported yet."); // FIXME
         case S_ON:

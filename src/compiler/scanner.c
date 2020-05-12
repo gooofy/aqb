@@ -78,6 +78,7 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "preset",   (void *) S_PRESET);
     hashmap_put (g_tokens, "rem",      (void *) S_REM);
     hashmap_put (g_tokens, "lib",      (void *) S_LIB);
+    hashmap_put (g_tokens, "type",     (void *) S_TYPE);
 }
 
 A_pos S_getpos(void)
@@ -153,7 +154,7 @@ static bool is_digit(void)
 
 static bool is_idcont(void)
 {
-    return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) || is_digit() || g_ch=='.' ;
+    return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) || is_digit() ;
 }
 
 static void number(bool negative)

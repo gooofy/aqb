@@ -922,6 +922,36 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             break;
         }
+        case A_typeDeclStmt:
+        {
+            Ty_ty ty = S_look(tenv, stmt->u.typer.sType);
+            if (ty)
+                EM_error (stmt->pos, "Type %s is already defined here.", S_name(stmt->u.typer.sType));
+           
+            Ty_fieldList fl = NULL, flast=NULL;
+            for (A_field f = stmt->u.typer.fields; f; f=f->tail)
+            {
+                Ty_ty t = S_look(tenv, f->typeId);
+                if (!t)
+                    EM_error (stmt->pos, "Unknown type %s.", S_name(f->typeId));
+                if(f->dims)
+                    assert(0); // FIXME: implement.
+                if (flast)
+                {
+                    flast->tail = Ty_FieldList(Ty_Field(f->name, t), NULL);
+                    flast = flast->tail;
+                }
+                else
+                {
+                    fl = flast = Ty_FieldList(Ty_Field(f->name, t), NULL);
+                }
+            }
+
+            ty = Ty_Record(fl);
+
+            S_enter(tenv, stmt->u.typer.sType, ty);
+            break;
+        }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);
@@ -997,6 +1027,29 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
                     return Tr_zeroExp(Ty_Long());
                 }
                 e = Tr_Index(e, idx_conv);
+                break;
+            }
+            case A_fieldSel:
+            {
+                Ty_ty ty = Tr_ty(e);
+                if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_record) )
+                {
+                    EM_error(sel->pos, "record type expected");
+                    return Tr_zeroExp(Ty_Long());
+                }
+                Ty_fieldList f = ty->u.pointer->u.record.fields;
+                for (;f;f=f->tail)
+                {
+                    if (f->head->name == sel->u.field)
+                        break;
+                }
+                if (!f)
+                {
+                    EM_error(sel->pos, "unknown field %s", S_name(sel->u.field));
+                    return Tr_zeroExp(Ty_Long());
+                }
+
+                e = Tr_Field(e, f->head);
                 break;
             }
             default:

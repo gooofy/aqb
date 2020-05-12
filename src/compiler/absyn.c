@@ -157,6 +157,18 @@ A_dim A_Dim (A_exp expStart, A_exp expEnd)
     return p;
 }
 
+A_field A_Field (S_symbol name, S_symbol typeId, A_dim dims)
+{
+    A_field p = checked_malloc(sizeof(*p));
+
+    p->name    = name;
+    p->typeId  = typeId;
+    p->dims    = dims;
+    p->tail    = NULL;
+
+    return p;
+}
+
 A_stmt A_AssertStmt (A_pos pos, A_exp exp, string msg)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -178,6 +190,19 @@ A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
 
     p->u.callr.func = func;
     p->u.callr.args = args;
+
+    return p;
+}
+
+A_stmt A_TypeDeclStmt (A_pos pos, S_symbol sType, A_field fields)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind = A_typeDeclStmt;
+    p->pos  = pos;
+
+    p->u.typer.sType  = sType;
+    p->u.typer.fields = fields;
 
     return p;
 }
@@ -354,6 +379,18 @@ A_selector A_IndexSelector (A_pos pos, A_exp idx)
     p->pos   = pos;
     p->tail  = NULL;
     p->u.idx = idx;
+
+    return p;
+}
+
+A_selector A_FieldSelector (A_pos pos, S_symbol field)
+{
+    A_selector p = checked_malloc(sizeof(*p));
+
+    p->kind    = A_fieldSel;
+    p->pos     = pos;
+    p->tail    = NULL;
+    p->u.field = field;
 
     return p;
 }

@@ -59,10 +59,7 @@ Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty);
 Tr_exp        Tr_Var(Tr_access a);
 Tr_exp        Tr_Index(Tr_exp array, Tr_exp idx);
 Tr_exp        Tr_Deref(Tr_exp ptr);
-#if 0
-Tr_exp Tr_fieldVar(Tr_exp var, int fieldIndex, Tr_level l);
-Tr_exp Tr_subscriptVar(Tr_exp var, Tr_exp sub, Tr_level l);
-#endif
+Tr_exp        Tr_Field(Tr_exp r, Ty_field f);
 
 Tr_exp        Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
 Tr_exp        Tr_boolOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
@@ -75,11 +72,6 @@ Tr_exp        Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl);
 #if 0
 Tr_exp        Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right);
 Tr_exp        Tr_breakExp(Temp_label breaklbl);
-
-Tr_exp        Tr_arrayExp(Tr_exp init, Tr_exp size);
-Tr_exp        Tr_recordExp(Tr_expList el, int fieldCount);
-
-Tr_exp        Tr_letExp(Tr_expList el, Tr_exp body);
 #endif
 
 Tr_exp         Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);

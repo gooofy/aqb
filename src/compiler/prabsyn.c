@@ -54,6 +54,22 @@ static void pr_expList(FILE *out, A_expList l)
     }
 }
 
+static void pr_dims(FILE *out, A_dim dims)
+{
+    fprintf(out,"[");
+    for (A_dim d = dims; d; d=d->tail)
+    {
+        if (d->expStart)
+        {
+            pr_exp(out, d->expStart);
+            fprintf(out, ":");
+        }
+        pr_exp(out, d->expEnd);
+        if (d->tail)
+            fprintf(out, ",");
+    }
+}
+
 static void pr_exp(FILE *out, A_exp exp)
 {
     switch (exp->kind)
@@ -257,6 +273,8 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 fprintf(out, "STATIC ");
             if (stmt->u.vdeclr.typeId)
                 fprintf(out, "%s", stmt->u.vdeclr.typeId);
+            if (stmt->u.vdeclr.dims)
+                pr_dims(out, stmt->u.vdeclr.dims);
             fprintf(out, ")");
             break;
         }
@@ -266,6 +284,21 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, "ASSERT (");
             pr_exp(out, stmt->u.assertr.exp);
             fprintf(out, ", %s", stmt->u.assertr.msg);
+            fprintf(out, ")");
+            break;
+        }
+        case A_typeDeclStmt:
+        {
+            indent(out, d);
+            fprintf(out, "TYPEDECL %s(", S_name(stmt->u.typer.sType));
+            for (A_field f = stmt->u.typer.fields; f; f = f->tail)
+            {
+                fprintf(out, "%s:%s", S_name(f->name), S_name(f->typeId));
+                if (f->dims)
+                    pr_dims(out, f->dims);
+                if (f->tail)
+                    fprintf(out,",");
+            }
             fprintf(out, ")");
             break;
         }

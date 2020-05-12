@@ -36,15 +36,34 @@ Ty_ty Ty_Void(void) {return &tyvoid;}
 static struct Ty_ty_ tyvoidptr = {Ty_pointer, {&tyvoid}};
 Ty_ty Ty_VoidPtr(void) {return &tyvoidptr;}
 
-// Ty_ty Ty_Record(Ty_fieldList fields)
-// {
-//     Ty_ty p = checked_malloc(sizeof(*p));
-//
-//     p->kind     = Ty_record;
-//     p->u.record = fields;
-//
-//     return p;
-// }
+Ty_ty Ty_Record(Ty_fieldList fields)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind            = Ty_record;
+    p->u.record.fields = fields;
+    p->u.record.uiSize = 0;
+
+    unsigned int off=0;
+
+    for (Ty_fieldList fl=fields; fl; fl=fl->tail)
+    {
+        unsigned int s = Ty_size(fl->head->ty);
+
+        // 68k alignment
+        if (s>1 && (p->u.record.uiSize % 2))
+        {
+            p->u.record.uiSize++;
+            off++;
+        }
+
+        p->u.record.uiSize += s;
+        fl->head->uiOffset = off;
+        off += s;
+    }
+
+    return p;
+}
 
 Ty_ty Ty_VarPtr(Ty_ty ty)
 {
@@ -153,6 +172,7 @@ int Ty_size(Ty_ty t)
         case Ty_array:
             return t->u.array.uiSize;
         case Ty_record:
+            return t->u.record.uiSize;
         default:
             assert(0);
             return 4;

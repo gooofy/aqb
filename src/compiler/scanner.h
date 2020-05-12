@@ -80,6 +80,7 @@
 #define S_PSET     146
 #define S_PRESET   147
 #define S_LIB      148
+#define S_TYPE     149
 
 #define S_MAX_STRING 1024
 
