@@ -79,6 +79,7 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "rem",      (void *) S_REM);
     hashmap_put (g_tokens, "lib",      (void *) S_LIB);
     hashmap_put (g_tokens, "type",     (void *) S_TYPE);
+    hashmap_put (g_tokens, "ptr",      (void *) S_PTR);
 }
 
 A_pos S_getpos(void)
@@ -354,6 +355,10 @@ int S_getsym(void)
             break;
         case '=':
             S_token = S_EQUALS;
+            getch();
+            break;
+        case '@':
+            S_token = S_AT;
             getch();
             break;
         case '-':

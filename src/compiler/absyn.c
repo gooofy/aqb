@@ -94,14 +94,15 @@ A_stmt A_PrintTABStmt (A_pos pos)
     return p;
 }
 
-A_stmt A_AssignStmt (A_pos pos, A_var var, A_exp exp)
+A_stmt A_AssignStmt (A_pos pos, A_var var, A_exp exp, bool deref)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
-    p->kind         = A_assignStmt;
-    p->pos          = pos;
-    p->u.assign.var = var;
-    p->u.assign.exp = exp;
+    p->kind           = A_assignStmt;
+    p->pos            = pos;
+    p->u.assign.var   = var;
+    p->u.assign.exp   = exp;
+    p->u.assign.deref = deref;
 
     return p;
 }
@@ -128,7 +129,7 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, string varId, string typeId, A_dim dims, A_exp init)
+A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, string varId, string typeId, bool ptr, A_dim dims, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -138,6 +139,7 @@ A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, string varId, string t
     p->u.vdeclr.statc  = statc;
     p->u.vdeclr.varId  = varId;
     p->u.vdeclr.typeId = typeId;
+    p->u.vdeclr.ptr    = ptr;
     p->u.vdeclr.dims   = dims;
     p->u.vdeclr.init   = init;
 
@@ -406,114 +408,27 @@ A_exp A_VarExp(A_pos pos, A_var var)
     return p;
 }
 
-#if 0
-A_exp A_NilExp(A_pos pos)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_nilExp;
- p->pos=pos;
- return p;
-}
-
-A_exp A_StringExp(A_pos pos, string s)
-{
-A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_stringExp;
- p->pos=pos;
- p->u.stringg=s;
- return p;
-}
-
-A_exp A_CallExp(A_pos pos, S_symbol func, A_expList args)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_callExp;
- p->pos=pos;
- p->u.call.func=func;
- p->u.call.args=args;
- return p;
-}
-
-A_exp A_RecordExp(A_pos pos, S_symbol typ, A_efieldList fields)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_recordExp;
- p->pos=pos;
- p->u.record.typ=typ;
- p->u.record.fields=fields;
- return p;
-}
-
-A_exp A_SeqExp(A_pos pos, A_expList seq)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_seqExp;
- p->pos=pos;
- p->u.seq=seq;
- return p;
-}
-
-A_exp A_AssignExp(A_pos pos, A_var var, A_exp exp)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_assignExp;
- p->pos=pos;
- p->u.assign.var=var;
- p->u.assign.exp=exp;
- return p;
-}
-
-A_exp A_WhileExp(A_pos pos, A_exp test, A_exp body)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_whileExp;
- p->pos=pos;
- p->u.whilee.test=test;
- p->u.whilee.body=body;
- return p;
-}
-
-A_exp A_ForExp(A_pos pos, S_symbol var, A_exp lo, A_exp hi, A_exp body)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_forExp;
- p->pos=pos;
- p->u.forr.var=var;
- p->u.forr.lo=lo;
- p->u.forr.hi=hi;
- p->u.forr.body=body;
- p->u.forr.escape=TRUE;
- return p;
-}
-
-A_exp A_BreakExp(A_pos pos)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_breakExp;
- p->pos=pos;
- return p;
-}
-
-A_exp A_ModuleExp(A_pos pos, A_decList decs, A_exp body)
+A_exp A_VarPtrExp(A_pos pos, A_var var)
 {
     A_exp p = checked_malloc(sizeof(*p));
-    p->kind=A_moduleExp;
-    p->pos=pos;
-    p->u.let.decs=decs;
-    p->u.let.body=body;
+
+    p->kind  = A_varPtrExp;
+    p->pos   = pos;
+    p->u.var = var;
+
     return p;
 }
 
-A_exp A_ArrayExp(A_pos pos, S_symbol typ, A_exp size, A_exp init)
-{A_exp p = checked_malloc(sizeof(*p));
- p->kind=A_arrayExp;
- p->pos=pos;
- p->u.array.typ=typ;
- p->u.array.size=size;
- p->u.array.init=init;
- return p;
-}
+A_exp A_DerefExp (A_pos pos, A_exp exp)
+{
+    A_exp p = checked_malloc(sizeof(*p));
 
-A_dec A_FunctionDec(A_pos pos, A_fundecList function)
-{A_dec p = checked_malloc(sizeof(*p));
- p->kind=A_functionDec;
- p->pos=pos;
- p->u.function=function;
- return p;
+    p->kind    = A_derefExp;
+    p->pos     = pos;
+    p->u.deref = exp;
+
+    return p;
 }
-#endif
 
 A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, A_exp defaultExp)
 {

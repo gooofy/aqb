@@ -91,6 +91,16 @@ static void pr_exp(FILE *out, A_exp exp)
             pr_var(out, exp->u.var);
             fprintf(out, ")");
             break;
+        case A_varPtrExp:
+            fprintf(out, "varPtrExp(");
+            pr_var(out, exp->u.var);
+            fprintf(out, ")");
+            break;
+        case A_derefExp:
+            fprintf(out, "deref(");
+            pr_exp(out, exp->u.deref);
+            fprintf(out, ")");
+            break;
         case A_opExp:
             fprintf(out, "opExp(");
             pr_exp(out, exp->u.op.left);
@@ -150,6 +160,7 @@ static void pr_exp(FILE *out, A_exp exp)
             break;
         default:
             fprintf(out, "(***err: unknown expression type: %d)", exp->kind);
+            assert(0);
     }
 }
 
@@ -273,6 +284,8 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 fprintf(out, "STATIC ");
             if (stmt->u.vdeclr.typeId)
                 fprintf(out, "%s", stmt->u.vdeclr.typeId);
+            if (stmt->u.vdeclr.ptr)
+                fprintf(out, " PTR");
             if (stmt->u.vdeclr.dims)
                 pr_dims(out, stmt->u.vdeclr.dims);
             fprintf(out, ")");

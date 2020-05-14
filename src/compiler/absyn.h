@@ -52,12 +52,12 @@ struct A_stmt_
 	union
     {
         A_exp printExp;
-	    struct {A_var var; A_exp exp;} assign;
+	    struct {A_var var; A_exp exp; bool deref;} assign;
 	    struct {S_symbol var; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
-        struct {bool shared; bool statc; string varId; string typeId; A_dim dims; A_exp init;} vdeclr;
+        struct {bool shared; bool statc; string varId; string typeId; bool ptr; A_dim dims; A_exp init;} vdeclr;
         struct {A_exp exp; string msg;} assertr;
 	    struct {A_exp exp; A_stmtList body;} whiler;
 	    struct {S_symbol sType; A_field fields;} typer;
@@ -83,7 +83,7 @@ typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
 
 struct A_exp_
 {
-    enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp } kind;
+    enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp, A_varPtrExp, A_derefExp } kind;
     A_pos      pos;
     union
     {
@@ -94,6 +94,7 @@ struct A_exp_
         A_var   var;
 	    struct { A_oper oper; A_exp left; A_exp right; } op;
         struct { S_symbol func; A_expList args;} callr;
+        A_exp   deref;
     } u;
 };
 
@@ -172,13 +173,13 @@ A_sourceProgram A_SourceProgram   (A_pos pos, const char *name, A_stmtList stmtL
 A_stmt          A_PrintStmt       (A_pos pos, A_exp exp);
 A_stmt          A_PrintNLStmt     (A_pos pos);
 A_stmt          A_PrintTABStmt    (A_pos pos);
-A_stmt          A_AssignStmt      (A_pos pos, A_var var, A_exp exp);
+A_stmt          A_AssignStmt      (A_pos pos, A_var var, A_exp exp, bool deref);
 A_stmt          A_ForStmt         (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
 A_stmt          A_WhileStmt       (A_pos pos, A_exp exp, A_stmtList body);
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
-A_stmt          A_VarDeclStmt     (A_pos pos, bool shared, bool statc, string varId, string typeId, A_dim dims, A_exp init);
+A_stmt          A_VarDeclStmt     (A_pos pos, bool shared, bool statc, string varId, string typeId, bool ptr, A_dim dims, A_exp init);
 A_stmt          A_AssertStmt      (A_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmt          A_TypeDeclStmt    (A_pos pos, S_symbol sType, A_field fields);
@@ -189,8 +190,10 @@ A_exp           A_BoolExp         (A_pos pos, bool b);
 A_exp           A_IntExp          (A_pos pos, int i);
 A_exp           A_FloatExp        (A_pos pos, double f);
 A_exp           A_VarExp          (A_pos pos, A_var var);
+A_exp           A_VarPtrExp       (A_pos pos, A_var var);
 A_exp           A_OpExp           (A_pos pos, A_oper oper, A_exp left, A_exp right);
 A_exp           A_FuncCallExp     (A_pos pos, S_symbol func, A_expList args);
+A_exp           A_DerefExp        (A_pos pos, A_exp exp);
 A_expList       A_ExpList         (void);
 void            A_ExpListAppend   (A_expList list, A_exp exp);
 A_var           A_Var             (A_pos pos, S_symbol sym);

@@ -231,6 +231,34 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
     return FALSE;
 }
 
+static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
+{
+    if (ty1 == ty2)
+        return TRUE;
+
+    switch (ty1->kind)
+    {
+        case Ty_long:
+        case Ty_integer:
+        case Ty_single:
+        case Ty_bool:
+            return ty2->kind == ty1->kind;
+        case Ty_array:
+            if (ty2->kind != Ty_array)
+                return FALSE;
+            if (ty2->u.array.uiSize != ty1->u.array.uiSize)
+                return FALSE;
+            return TRUE;
+        case Ty_pointer:
+        case Ty_varPtr:
+            return compatible_ty(ty1->u.pointer, ty2->u.pointer);
+
+        default:
+            assert(0);
+    }
+}
+
+
 static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
 {
     Ty_ty ty1 = Tr_ty(exp);
@@ -291,13 +319,15 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
                     return FALSE;
             }
             break;
+
         case Ty_array:
-            if (ty2->kind != Ty_array)
-                return FALSE;
-            if (ty2->u.array.uiSize != ty1->u.array.uiSize)
+        case Ty_pointer:
+        case Ty_varPtr:
+            if (!compatible_ty(ty1, ty2))
                 return FALSE;
             *res = exp;
             return TRUE;
+
         default:
             assert(0);
     }
@@ -311,7 +341,39 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
     switch (a->kind)
     {
         case A_varExp:
-            return transVar(level, venv, tenv, a->u.var, breaklbl);
+        {
+            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl);
+            // if this is a varPtr, time to deref it
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind == Ty_varPtr)
+                e = Tr_Deref(e);
+            return e;
+        }
+
+        case A_varPtrExp:
+        {
+            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl);
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind != Ty_varPtr)
+            {
+                EM_error(a->pos, "This object cannot be referenced.");
+                break;
+            }
+            return e;
+        }
+
+        case A_derefExp:
+        {
+            Tr_exp e = transExp(level, venv, tenv, a->u.deref, breaklbl);
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind != Ty_pointer)
+            {
+                EM_error(a->pos, "This object cannot be dereferenced.");
+                break;
+            }
+
+            return Tr_Deref(e);
+        }
 
         case A_boolExp:
             return Tr_boolExp(a->u.boolb, Ty_Bool());
@@ -588,7 +650,26 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Tr_exp exp = transExp(level, venv, tenv, stmt->u.assign.exp, breaklbl);
             Tr_exp convexp;
 
-            if (!convert_ty(exp, Tr_ty(var), &convexp))
+            Ty_ty ty = Tr_ty(var);
+            // if var is a varPtr, time to deref it
+            if (ty->kind == Ty_varPtr)
+            {
+                var = Tr_Deref(var);
+                ty = Tr_ty(var);
+            }
+
+            if (stmt->u.assign.deref)
+            {
+                if (ty->kind != Ty_pointer)
+                {
+                    EM_error(stmt->pos, "Pointer type expected here.");
+                    break;
+                }
+                var = Tr_Deref(var);
+                ty = Tr_ty(var);
+            }
+
+            if (!convert_ty(exp, ty, &convexp))
             {
                 EM_error(stmt->pos, "type mismatch (assign).");
                 break;
@@ -825,6 +906,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 t = Ty_inferType(stmt->u.vdeclr.varId);
             }
 
+            if (stmt->u.vdeclr.ptr)
+            {
+                t = Ty_Pointer(t);
+            }
+
             for (A_dim dim=stmt->u.vdeclr.dims; dim; dim=dim->tail)
             {
                 int start, end;
@@ -1057,16 +1143,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
         }
     }
 
-    Ty_ty ty = Tr_ty(e);
-
-    // if this is a varPtr, time to deref it
-
-    if (ty->kind == Ty_varPtr)
-        e = Tr_Deref(e);
-
     return e;
-
-    return Tr_zeroExp(Ty_Integer());
 }
 
 F_fragList SEM_transProg(A_sourceProgram sourceProgram)

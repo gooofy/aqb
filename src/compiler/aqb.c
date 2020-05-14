@@ -227,7 +227,7 @@ int main (int argc, char *argv[])
 
     if (EM_anyErrors)
     {
-        printf ("\n\nparing failed.\n");
+        printf ("\n\nparsing failed.\n");
         exit(4);
     }
 

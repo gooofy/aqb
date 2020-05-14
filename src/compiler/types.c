@@ -75,6 +75,16 @@ Ty_ty Ty_VarPtr(Ty_ty ty)
     return p;
 }
 
+Ty_ty Ty_Pointer(Ty_ty ty)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind      = Ty_pointer;
+    p->u.pointer = ty;
+
+    return p;
+}
+
 Ty_ty Ty_Array(Ty_ty ty, int start, int end)
 {
     Ty_ty p = checked_malloc(sizeof(*p));

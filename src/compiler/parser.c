@@ -7,6 +7,7 @@
 #include "types.h"
 #include "env.h"
 
+static S_symbol g_SVarPtr;
 const char *P_filename = NULL;
 
 // we need to keep track of declared subs and functions during parsing
@@ -132,68 +133,133 @@ static bool selector(A_selector *sel)
     return FALSE; // FIXME
 }
 
-// atom ::= ident [ '(' procParamList ')' | selector* ] |  boolLiteral | numLiteral | stringLiteral | '(' expression ')
+// varDesignator ::= ident selector*
+static bool varDesignator(A_var *var, S_symbol sym)
+{
+    A_pos pos      = S_getpos();
+    A_selector sel = NULL, last_sel = NULL;
+
+    if (!sym)
+    {
+        if (S_token != S_IDENT)
+        {
+            EM_err("variable identifier expected here.");
+            return FALSE;
+        }
+
+        sym = S_Symbol(String(S_strlc));
+        S_getsym();
+    }
+
+    *var = A_Var(pos, sym);
+
+    while ( (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
+    {
+        if (!selector(&sel))
+            return FALSE;
+        if (!last_sel)
+        {
+            (*var)->selector = sel;
+        }
+        else
+        {
+            last_sel->tail = sel;
+        }
+        last_sel = sel;
+    }
+
+    return TRUE;
+}
+
+
+// atom ::= [ '*' | '@' ] ident [ '(' procParamList ')' | selector* ] | boolLiteral | numLiteral | stringLiteral | '(' expression ')
 static bool atom(A_exp *exp)
 {
-    A_pos pos = S_getpos();
+    bool  deref = FALSE;
+    A_pos pos   = S_getpos();
+
+    if (S_token == S_ASTERISK)       // pointer deref
+    {
+        deref = TRUE;
+        S_getsym();
+    }
+    else
+    {
+        if (S_token == S_AT)        // @v
+        {
+            A_var      v;
+            S_getsym();
+
+            if (!varDesignator(&v, NULL))
+                return FALSE;
+
+            *exp = A_VarPtrExp(pos, v);
+            return TRUE;
+        }
+    }
 
     switch (S_token)
     {
         case S_IDENT:
         {
-            A_selector sel = NULL, last_sel = NULL;
             A_var      v;
             A_proc     proc;
 
             S_symbol   sym = S_Symbol(String(S_strlc));
             S_getsym();
 
-            // is this a declared function?
-
-            if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+            // built-in function?
+            if (sym == g_SVarPtr)     // VARPTR()
             {
-                A_expList args = A_ExpList();
+                A_var v;
+                if (S_token != S_LPAREN)
+                    return EM_err("( expected.");
+                S_getsym();
 
-                if (!proc->retty)
-                    return EM_err("SUB used as FUNCTION?");
-
-                if (S_token == S_LPAREN)
-                {
-                    S_getsym();
-
-                    if (!expressionList(&args))
-                    {
-                        return EM_err("error parsing FUNCTION argument list");
-                    }
-
-                    if (S_token != S_RPAREN)
-                    {
-                        return EM_err(") expected.");
-                    }
-                    S_getsym();
-                }
-
-                *exp = A_FuncCallExp(pos, proc->name, args);
-                return TRUE;
-            }
-
-            v= A_Var (pos, sym);
-            while ( (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
-            {
-                if (!selector(&sel))
+                if (!varDesignator(&v, NULL))
                     return FALSE;
-                if (!last_sel)
+
+                if (S_token != S_RPAREN)
+                    return EM_err(") expected.");
+                S_getsym();
+
+                *exp = A_VarPtrExp(pos, v);
+            }
+            else
+            {
+                // is this a declared function?
+
+                if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
                 {
-                    v->selector = sel;
+                    A_expList args = A_ExpList();
+
+                    if (!proc->retty)
+                        return EM_err("SUB used as FUNCTION?");
+
+                    if (S_token == S_LPAREN)
+                    {
+                        S_getsym();
+
+                        if (!expressionList(&args))
+                        {
+                            return EM_err("error parsing FUNCTION argument list");
+                        }
+
+                        if (S_token != S_RPAREN)
+                        {
+                            return EM_err(") expected.");
+                        }
+                        S_getsym();
+                    }
+
+                    *exp = A_FuncCallExp(pos, proc->name, args);
                 }
                 else
                 {
-                    last_sel->tail = sel;
+                    varDesignator(&v, sym);
+                    *exp = A_VarExp(pos, v);
                 }
-                last_sel = sel;
             }
-
-            *exp = A_VarExp(pos, v);
             break;
         }
         case S_TRUE:
@@ -228,6 +294,9 @@ static bool atom(A_exp *exp)
         default:
             return FALSE;
     }
+
+    if (deref)
+        *exp = A_DerefExp(pos, *exp);
 
     return TRUE;
 }
@@ -987,29 +1056,13 @@ static bool stmtPSet(void)
 // assignmentStmt ::= ident ( "(" expression ( "," expression)* ")"
 //                          | "." ident
 //                          | "->" ident )* "=" expression
-static bool stmtAssignment(S_symbol sym)
+static bool stmtAssignment(S_symbol sym, bool deref)
 {
     A_var      v;
     A_exp      exp;
     A_pos      pos = S_getpos();
-    A_selector sel = NULL, last_sel = NULL;
 
-    v = A_Var (pos, sym);
-
-    while ( (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
-    {
-        if (!selector(&sel))
-            return FALSE;
-        if (!last_sel)
-        {
-            v->selector = sel;
-        }
-        else
-        {
-            last_sel->tail = sel;
-        }
-        last_sel = sel;
-    }
+    varDesignator(&v, sym);
 
     if (S_token != S_EQUALS)
         return EM_err ("= expected.");
@@ -1018,7 +1071,7 @@ static bool stmtAssignment(S_symbol sym)
     if (!expression(&exp))
         return EM_err("expression expected here.");
 
-    A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp));
+    A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp, deref));
 
     return TRUE;
 }
@@ -1034,7 +1087,7 @@ static bool stmtLet(void)
     S_symbol sym = S_Symbol(String(S_strlc));
     S_getsym();
 
-    return stmtAssignment(sym);
+    return stmtAssignment(sym, FALSE);
 }
 
 // remStmt ::= REM * crnl
@@ -1532,7 +1585,7 @@ static bool stmtIdent(void)
         case S_PERIOD:
         case S_POINTER:
         case S_EQUALS:      // assignment
-            return stmtAssignment (sym);
+            return stmtAssignment (sym, FALSE);
 
         case S_COLON:       // label
             return EM_err ("Sorry, labels are not supported yet."); // FIXME
@@ -1542,6 +1595,31 @@ static bool stmtIdent(void)
             return EM_err ("Unexpected token %d.", S_token);
     }
 
+    return TRUE;
+}
+
+// '*' assignment
+static bool stmtDerefAssignment(void)
+{
+    S_getsym(); // consume '*'
+
+    if (S_token != S_IDENT)
+        return EM_err("Identifier expected here.");
+
+    S_symbol sym = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    switch (S_token)
+    {
+        case S_LPAREN:
+        case S_PERIOD:
+        case S_POINTER:
+        case S_EQUALS:      // assignment
+            return stmtAssignment (sym, TRUE);
+
+        default:
+            return EM_err ("Unexpected token %d.", S_token);
+    }
     return TRUE;
 }
 
@@ -1599,7 +1677,7 @@ static bool arrayDimensions (A_dim *dims)
 }
 
 
-// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] [ "=" expression ]
+// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier [ PTR ] ] [ "=" expression ]
 
 static bool singleVarDecl (bool shared, bool statc)
 {
@@ -1607,6 +1685,7 @@ static bool singleVarDecl (bool shared, bool statc)
     string varId, typeId=NULL;
     A_dim  dims = NULL;
     A_exp  init = NULL;
+    bool   ptr  = FALSE;
 
     if (S_token != S_IDENT)
         return EM_err("variable declaration: identifier expected here.");
@@ -1632,6 +1711,12 @@ static bool singleVarDecl (bool shared, bool statc)
             return EM_err("variable declaration: type identifier expected here.");
         typeId = String(S_strlc);
         S_getsym();
+
+        if (S_token == S_PTR)
+        {
+            ptr = TRUE;
+            S_getsym();
+        }
     }
 
     if (S_token == S_EQUALS)
@@ -1643,7 +1728,7 @@ static bool singleVarDecl (bool shared, bool statc)
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, varId, typeId, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, varId, typeId, ptr, dims, init));
 
     return TRUE;
 }
@@ -1726,6 +1811,8 @@ static bool statementBody(void)
         case S_CALL:
             S_getsym();
             return stmtIdent();
+        case S_ASTERISK:        // *v = exp
+            return stmtDerefAssignment();
         case S_LET:
             return stmtLet();
         case S_REM:
@@ -2108,7 +2195,6 @@ static bool sourceProgramBody(A_sourceProgram *sourceProgram)
     return TRUE;
 }
 
-
 // [ optionStmt logicalNewline ] sourceProgramBody
 bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourceProgram)
 {
@@ -2116,6 +2202,7 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
     EM_init();
     S_init (inf);
     S_symbol_init();
+    g_SVarPtr = S_Symbol("varptr");
 
     return sourceProgramBody(sourceProgram);
 }

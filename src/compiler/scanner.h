@@ -30,6 +30,7 @@
 #define S_GREATEREQ 30
 #define S_POINTER   31
 #define S_PERIOD    32
+#define S_AT        33
 
 #define S_PRINT    100
 #define S_OPTION   101
@@ -81,6 +82,7 @@
 #define S_PRESET   147
 #define S_LIB      148
 #define S_TYPE     149
+#define S_PTR      150
 
 #define S_MAX_STRING 1024
 

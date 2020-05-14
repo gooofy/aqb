@@ -43,6 +43,7 @@ Ty_ty        Ty_VoidPtr(void);
 Ty_ty        Ty_Array(Ty_ty ty, int start, int end);
 Ty_ty        Ty_Record(Ty_fieldList fields);
 Ty_ty        Ty_VarPtr(Ty_ty ty);
+Ty_ty        Ty_Pointer(Ty_ty ty);
 
 Ty_tyList    Ty_TyList(Ty_ty head, Ty_tyList tail);
 Ty_field     Ty_Field(S_symbol name, Ty_ty ty);
