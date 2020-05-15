@@ -15,11 +15,23 @@
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
 
+static struct Ty_ty_ tybyte = {Ty_byte};
+Ty_ty Ty_Byte(void) {return &tybyte;}
+
+static struct Ty_ty_ tyubyte = {Ty_ubyte};
+Ty_ty Ty_UByte(void) {return &tyubyte;}
+
 static struct Ty_ty_ tyinteger = {Ty_integer};
 Ty_ty Ty_Integer(void) {return &tyinteger;}
 
+static struct Ty_ty_ tyuinteger = {Ty_uinteger};
+Ty_ty Ty_UInteger(void) {return &tyuinteger;}
+
 static struct Ty_ty_ tylong = {Ty_long};
 Ty_ty Ty_Long(void) {return &tylong;}
+
+static struct Ty_ty_ tyulong = {Ty_ulong};
+Ty_ty Ty_ULong(void) {return &tyulong;}
 
 static struct Ty_ty_ tysingle = {Ty_single};
 Ty_ty Ty_Single(void) {return &tysingle;}
@@ -131,7 +143,8 @@ Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail)
 /* printing functions - used for debugging */
 static char str_ty[][20] = {
    "ty_bool",
-   "ty_integer", "ty_long", "ty_single", "ty_double",
+   "ty_byte", "ty_ubyte", "ty_integer", "ty_uinteger", "ty_long", "ty_ulong",
+   "ty_single", "ty_double",
    "ty_string", "ty_array", "ty_record",
    "ty_void"};
 

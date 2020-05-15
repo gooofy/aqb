@@ -75,11 +75,75 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_bool:
                     *res = ty1;
                     return TRUE;
+                case Ty_byte:
+                case Ty_integer:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_ubyte:
+                    *res = Ty_Integer();
+                    return TRUE;
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                    *res = Ty_Long();
+                    return TRUE;
+                case Ty_string:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                case Ty_pointer:
+                case Ty_varPtr:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_byte:
+            switch (ty2->kind)
+            {
+                case Ty_bool:
+                case Ty_byte:
+                    *res = ty1;
+                    return TRUE;
+                case Ty_ubyte:
+                    *res = Ty_Integer();
+                    return TRUE;
                 case Ty_integer:
                 case Ty_long:
                 case Ty_single:
                 case Ty_double:
                     *res = ty2;
+                    return TRUE;
+                case Ty_uinteger:
+                case Ty_ulong:
+                    *res = Ty_Long();
+                    return TRUE;
+                case Ty_string:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                case Ty_pointer:
+                case Ty_varPtr:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_ubyte:
+            switch (ty2->kind)
+            {
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                    *res = Ty_Integer();
+                    return TRUE;
+                case Ty_integer:
+                case Ty_long:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_uinteger:
+                case Ty_ulong:
+                    *res = Ty_Long();
                     return TRUE;
                 case Ty_string:
                 case Ty_array:
@@ -94,10 +158,45 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
                     *res = ty1;
                     return TRUE;
                 case Ty_integer:
                 case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_uinteger:
+                    *res = Ty_Long();
+                    return TRUE;
+                case Ty_string:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                case Ty_pointer:
+                case Ty_varPtr:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_uinteger:
+            switch (ty2->kind)
+            {
+                case Ty_ubyte:
+                case Ty_uinteger:
+                    *res = ty1;
+                    return TRUE;
+                case Ty_bool:
+                case Ty_byte:
+                    *res = Ty_Integer();
+                    return TRUE;
+                case Ty_integer:
+                case Ty_long:
+                case Ty_ulong:
+                    *res = Ty_Long();
+                    return TRUE;
                 case Ty_single:
                 case Ty_double:
                     *res = ty2;
@@ -115,10 +214,39 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
                 case Ty_integer:
+                case Ty_uinteger:
                     *res = ty1;
                     return TRUE;
                 case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_double:
+                    *res = ty2;
+                    return TRUE;
+                case Ty_string:
+                case Ty_array:
+                case Ty_record:
+                case Ty_void:
+                case Ty_pointer:
+                case Ty_varPtr:
+                    *res = ty1;
+                    return FALSE;
+            }
+        case Ty_ulong:
+            switch (ty2->kind)
+            {
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                    *res = Ty_Long();
+                    return TRUE;
+                case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
                     *res = ty2;
@@ -136,8 +264,12 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
                 case Ty_integer:
+                case Ty_uinteger:
                 case Ty_long:
+                case Ty_ulong:
                 case Ty_single:
                     *res = ty1;
                     return TRUE;
@@ -157,8 +289,12 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
                 case Ty_integer:
+                case Ty_uinteger:
                 case Ty_long:
+                case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
                     *res = ty1;
@@ -176,8 +312,12 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
                 case Ty_integer:
+                case Ty_uinteger:
                 case Ty_long:
+                case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
                 case Ty_array:
@@ -211,8 +351,12 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
                 case Ty_integer:
+                case Ty_uinteger:
                 case Ty_long:
+                case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
                 case Ty_string:

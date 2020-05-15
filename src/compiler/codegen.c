@@ -56,10 +56,14 @@ static enum AS_w ty_isz(Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_bool:
+        case Ty_byte:
+        case Ty_ubyte:
             return AS_w_B;
         case Ty_integer:
+        case Ty_uinteger:
             return AS_w_W;
         case Ty_long:
+        case Ty_ulong:
         case Ty_single:
         case Ty_double:
         case Ty_string:

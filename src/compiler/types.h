@@ -15,7 +15,8 @@ typedef struct Ty_fieldList_ *Ty_fieldList;
 struct Ty_ty_
 {
     enum { Ty_bool,
-           Ty_integer, Ty_long, Ty_single, Ty_double,
+           Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
+           Ty_single, Ty_double,
            Ty_string, Ty_array, Ty_record, Ty_pointer,
            Ty_void, Ty_varPtr                          } kind;
            // Ty_varPtr: used during var access processing in translate.c
@@ -32,8 +33,12 @@ struct Ty_field_     {S_symbol name; unsigned int uiOffset; Ty_ty ty;};
 struct Ty_fieldList_ {Ty_field head; Ty_fieldList tail;};
 
 Ty_ty        Ty_Bool(void);
+Ty_ty        Ty_Byte(void);
+Ty_ty        Ty_UByte(void);
 Ty_ty        Ty_Integer(void);
+Ty_ty        Ty_UInteger(void);
 Ty_ty        Ty_Long(void);
+Ty_ty        Ty_ULong(void);
 Ty_ty        Ty_Single(void);
 Ty_ty        Ty_Double(void);
 Ty_ty        Ty_String(void);

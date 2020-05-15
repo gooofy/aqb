@@ -40,12 +40,16 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
 S_scope E_base_tenv(void)
 {
     S_scope scope = S_beginScope();
-    S_enter(scope, S_Symbol("boolean"), Ty_Bool());
-    S_enter(scope, S_Symbol("integer"), Ty_Integer());
-    S_enter(scope, S_Symbol("long"),    Ty_Long());
-    S_enter(scope, S_Symbol("single"),  Ty_Single());
-    S_enter(scope, S_Symbol("double"),  Ty_Double());
-    S_enter(scope, S_Symbol("string"),  Ty_String());
+    S_enter(scope, S_Symbol("boolean"),  Ty_Bool());
+    S_enter(scope, S_Symbol("byte"),     Ty_Byte());
+    S_enter(scope, S_Symbol("ubyte"),    Ty_UByte());
+    S_enter(scope, S_Symbol("integer"),  Ty_Integer());
+    S_enter(scope, S_Symbol("uinteger"), Ty_UInteger());
+    S_enter(scope, S_Symbol("long"),     Ty_Long());
+    S_enter(scope, S_Symbol("ulong"),    Ty_ULong());
+    S_enter(scope, S_Symbol("single"),   Ty_Single());
+    S_enter(scope, S_Symbol("double"),   Ty_Double());
+    S_enter(scope, S_Symbol("string"),   Ty_String());
 
     return scope;
 }
