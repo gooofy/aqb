@@ -273,6 +273,11 @@ FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 */
 
 
+unsigned long hubba (unsigned long a, unsigned long b)
+{
+    return a*b;
+}
+
 SHORT __aqb_fix(FLOAT f)
 {
     return SPFix(f);
