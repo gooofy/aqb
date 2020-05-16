@@ -436,6 +436,51 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             assert(0);
                     }
                     break;
+                case Ty_uinteger:
+                    switch (e->u.BINOP.op)
+                    {
+                        case T_plus:
+                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_minus:
+                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_mul:
+                            return munchBinOp (e, AS_MULS_Dn_Dn, AS_MULS_Imm_Dn, AS_MULU_Imm_Dn, AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_intDiv:
+                        case T_div:
+                            return munchBinOp (e, AS_DIVS_Dn_Dn, AS_NOP        , AS_DIVU_Imm_Dn, AS_EXT_Dn, AS_w_L   , AS_NOP    , resty);
+                        case T_mod:
+                            return munchBinOp (e, AS_DIVS_Dn_Dn, AS_NOP        , AS_DIVU_Imm_Dn, AS_EXT_Dn, AS_w_L   , AS_SWAP_Dn, resty);
+                        case T_and:
+                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_or:
+                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_xor:
+                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_eqv:
+                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
+                        case T_imp:
+                        {
+                            T_exp     e_left  = e->u.BINOP.left;
+                            T_exp     e_right = e->u.BINOP.right;
+                            Temp_temp r       = Temp_newtemp(resty);
+
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, munchExp(e_left, FALSE), r));         // move.w  e_left, r
+                            emit(AS_Instr(AS_NOT_Dn, AS_w_W, r, r));                                       // not.w   r, r
+                            emit(AS_InstrEx(AS_OR_Dn_Dn, AS_w_W, L(munchExp(e_right, FALSE), L(r, NULL)),  // or.w    e_right, r
+                                            L(r, NULL), 0, 0, NULL));
+                            return r;
+                        }
+                        case T_neg:
+                            return munchUnaryOp(e, AS_NEG_Dn, resty);
+                        case T_not:
+                            return munchUnaryOp(e, AS_NOT_Dn, resty);
+                        case T_power:
+                            return emitBinOpJsr (e, "___pow_u2", resty);
+                        default:
+                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
+                            assert(0);
+                    }
+                    break;
                 case Ty_long:
                 case Ty_varPtr:
                 case Ty_pointer:
@@ -718,7 +763,6 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     }
                     break;
                 case Ty_integer:
-                case Ty_uinteger:
                     switch (e->ty->kind)
                     {
                         case Ty_bool:
@@ -748,6 +792,43 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r = Temp_newtemp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, r, r));           // ext.l  r
+                            return emitRegCall("_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
+                        }
+                        default:
+                            assert(0);
+                    }
+                case Ty_uinteger:
+                    switch (e->ty->kind)
+                    {
+                        case Ty_bool:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_TST_Dn, AS_w_W, r1, NULL));       // tst.w r1
+                            emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
+                            return r;
+                        }
+                        case Ty_ubyte:
+                        case Ty_byte:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
+                            return r;
+                        }
+                        case Ty_ulong:
+                        case Ty_long:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
+                            emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), // and.l  #65535, r
+                                            L(r, NULL), T_ConstI(65535), 0, NULL));
+                            return r;
+                        }
+                        case Ty_single:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
+                            emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), // and.l  #65535, r
+                                            L(r, NULL), T_ConstI(65535), 0, NULL));
                             return emitRegCall("_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
                         }
                         default:
@@ -1037,6 +1118,16 @@ static void munchStm(T_stm s)
                         case T_gt:  branchinstr = AS_BGT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
                         case T_le:  branchinstr = AS_BLE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
                         case T_ge:  branchinstr = AS_BGE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
+                    }
+                    break;
+                case Ty_uinteger:
+                    switch (op) {
+                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
+                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
+                        case T_lt:  branchinstr = AS_BCS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
+                        case T_gt:  branchinstr = AS_BHI; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
+                        case T_le:  branchinstr = AS_BLS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
+                        case T_ge:  branchinstr = AS_BCC; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
                     }
                     break;
                 case Ty_long:

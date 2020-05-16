@@ -190,8 +190,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return TRUE;
                 case Ty_bool:
                 case Ty_byte:
-                    *res = Ty_Integer();
-                    return TRUE;
                 case Ty_integer:
                 case Ty_long:
                 case Ty_ulong:

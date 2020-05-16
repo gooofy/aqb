@@ -112,7 +112,9 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_ADD_Dn_Dn:
         case AS_SUB_Dn_Dn:
         case AS_MULS_Dn_Dn:
+        case AS_MULU_Dn_Dn:
         case AS_DIVS_Dn_Dn:
+        case AS_DIVU_Dn_Dn:
         case AS_OR_Dn_Dn:
         case AS_AND_Dn_Dn:
         case AS_EOR_Dn_Dn:
@@ -181,7 +183,9 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_ADD_Imm_Dn:
         case AS_SUB_Imm_Dn:
         case AS_MULS_Imm_Dn:
+        case AS_MULU_Imm_Dn:
         case AS_DIVS_Imm_Dn:
+        case AS_DIVU_Imm_Dn:
         case AS_OR_Imm_Dn:
         case AS_AND_Imm_Dn:
         case AS_EOR_Imm_Dn:
@@ -568,6 +572,10 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    divs`w   `s0, `d0", i, m);     break;
         case AS_DIVS_Imm_Dn:
             instrformat(str, "    divs`w   #`i, `d0", i, m);     break;
+        case AS_DIVU_Dn_Dn:
+            instrformat(str, "    divu`w   `s0, `d0", i, m);     break;
+        case AS_DIVU_Imm_Dn:
+            instrformat(str, "    divu`w   #`i, `d0", i, m);     break;
         case AS_EOR_Dn_Dn:
             instrformat(str, "    eor`w    `s0, `d0", i, m);     break;
         case AS_EOR_Imm_Dn:
@@ -614,6 +622,10 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    muls`w   `s0, `d0", i, m);     break;
         case AS_MULS_Imm_Dn:
             instrformat(str, "    muls`w   #`i, `d0", i, m);     break;
+        case AS_MULU_Dn_Dn:
+            instrformat(str, "    mulu`w   `s0, `d0", i, m);     break;
+        case AS_MULU_Imm_Dn:
+            instrformat(str, "    mulu`w   #`i, `d0", i, m);     break;
         case AS_NEG_Dn:
             instrformat(str, "    neg`w    `d0", i, m);          break;
         case AS_NOT_Dn:

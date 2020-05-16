@@ -31,6 +31,8 @@ enum AS_mn
 
     AS_DIVS_Dn_Dn,      // divs.x  d1, d2
     AS_DIVS_Imm_Dn,     // divs.x  #23, d3
+    AS_DIVU_Dn_Dn,      // divu.x  d1, d2
+    AS_DIVU_Imm_Dn,     // divu.x  #23, d3
 
     AS_EOR_Dn_Dn,       // eor.x  d1, d2
     AS_EOR_Imm_Dn,      // eor.x  #23, d3
@@ -61,6 +63,8 @@ enum AS_mn
 
     AS_MULS_Dn_Dn,      // muls.x  d1, d2
     AS_MULS_Imm_Dn,     // muls.x  #42, d2
+    AS_MULU_Dn_Dn,      // mulu.x  d1, d2
+    AS_MULU_Imm_Dn,     // mulu.x  #42, d2
 
     AS_NEG_Dn,          // neg.x   d0
 
