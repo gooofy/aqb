@@ -164,6 +164,10 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_BGT:
         case AS_BLE:
         case AS_BGE:
+        case AS_BCS:
+        case AS_BHI:
+        case AS_BLS:
+        case AS_BCC:
         case AS_JMP:
         case AS_MOVE_Imm_PDsp:   // move.x  #23, -(sp)
             p->srcInterf = NULL;
@@ -550,6 +554,14 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    ble      `l", i, m);           break;
         case AS_BGE:
             instrformat(str, "    bge      `l", i, m);           break;
+        case AS_BCS:
+            instrformat(str, "    bcs      `l", i, m);           break;
+        case AS_BHI:
+            instrformat(str, "    bhi      `l", i, m);           break;
+        case AS_BLS:
+            instrformat(str, "    bls      `l", i, m);           break;
+        case AS_BCC:
+            instrformat(str, "    bcc      `l", i, m);           break;
         case AS_CMP_Dn_Dn:
             instrformat(str, "    cmp`w    `s0, `s1", i, m);     break;
         case AS_DIVS_Dn_Dn:

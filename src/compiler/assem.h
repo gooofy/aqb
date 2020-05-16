@@ -22,6 +22,10 @@ enum AS_mn
     AS_BGT,             // bgt     label
     AS_BLE,             // ble     label
     AS_BGE,             // bge     label
+    AS_BCS,             // bcs     label
+    AS_BHI,             // bhi     label
+    AS_BLS,             // bls     label
+    AS_BCC,             // bcc     label
 
     AS_CMP_Dn_Dn,       // cmp.x   d0, d7
 

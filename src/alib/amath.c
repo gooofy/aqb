@@ -215,6 +215,37 @@ char __mod_s1(char a, char b)
     return a%b;
 }
 
+unsigned char __pow_u1(unsigned char base, unsigned char exp)
+{
+    unsigned char result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+unsigned char __mul_u1(unsigned char a, unsigned char b)
+{
+    return a*b;
+}
+
+unsigned char __div_u1(unsigned char a, unsigned char b)
+{
+    return a/b;
+}
+
+unsigned char __mod_u1(unsigned char a, unsigned char b)
+{
+    return a%b;
+}
+
 static FLOAT g_one_half, g_zero;
 
 FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
