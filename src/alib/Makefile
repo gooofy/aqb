@@ -17,6 +17,9 @@ all: _alib.a alibtest startup.o tests
 clibtest.s:	clibtest.c
 	$(CC) -S $(CFLAGS) $(CPPFLAGS) $< -o $@
 
+amath.s:	amath.c
+	$(CC) -S $(CFLAGS) $(CPPFLAGS) $< -o $@
+
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
