@@ -395,10 +395,15 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
     {
         case Ty_bool:
             return Tr_Ex(T_ConstBool(FALSE, ty));
+        case Ty_byte:
+        case Ty_ubyte:
         case Ty_integer:
+        case Ty_uinteger:
         case Ty_long:
+        case Ty_ulong:
             return Tr_Ex(T_ConstInt(0, ty));
         case Ty_single:
+        case Ty_double:
             return Tr_Ex(T_ConstFloat(0, ty));
         default:
             EM_error(0, "*** translate.c:Tr_zeroExp: internal error");
@@ -411,10 +416,15 @@ Tr_exp Tr_oneExp(Ty_ty ty) {
     {
         case Ty_bool:
             return Tr_Ex(T_ConstBool(TRUE, ty));
+        case Ty_byte:
+        case Ty_ubyte:
         case Ty_integer:
+        case Ty_uinteger:
         case Ty_long:
+        case Ty_ulong:
             return Tr_Ex(T_ConstInt(1, ty));
         case Ty_single:
+        case Ty_double:
             return Tr_Ex(T_ConstFloat(1, ty));
         default:
             EM_error(0, "*** translate.c:Tr_oneExp: internal error");
@@ -617,8 +627,12 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                 }
                 break;
             }
+            case Ty_byte:
+            case Ty_ubyte:
             case Ty_integer:
+            case Ty_uinteger:
             case Ty_long:
+            case Ty_ulong:
             {
                 int b = 0;
                 int a = Tr_getConstInt(left);
@@ -647,6 +661,7 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                 break;
             }
             case Ty_single:
+            case Ty_double:
             {
                 double b=0.0;
                 double a = Tr_getConstFloat(left);
@@ -933,51 +948,46 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
                         return exp;
                     case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
                         return Tr_intExp(i, to_ty);
                     case Ty_single:
                         return Tr_floatExp(i, to_ty);
-                    case Ty_long:
-                        return Tr_intExp(i, to_ty);
                     default:
                         EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
                 }
                 break;
             }
+            case Ty_byte:
+            case Ty_ubyte:
             case Ty_integer:
-            {
-                int i = Tr_getConstInt(exp);
-                switch (to_ty->kind)
-                {
-                    case Ty_integer:
-                        return exp;
-                    case Ty_bool:
-                        return Tr_boolExp(i!=0, to_ty);
-                    case Ty_long:
-                        return Tr_intExp(i, to_ty);
-                    case Ty_single:
-                        return Tr_floatExp(i, to_ty);
-                    default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                        assert(0);
-                }
-                break;
-            }
+            case Ty_uinteger:
             case Ty_long:
+            case Ty_ulong:
             {
+                if (from_ty->kind == to_ty->kind)
+                    return exp;
                 int i = Tr_getConstInt(exp);
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
                         return Tr_boolExp(i!=0, to_ty);
+                    case Ty_byte:
+                    case Ty_ubyte:
                     case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
                         return Tr_intExp(i, to_ty);
                     case Ty_single:
+                    case Ty_double:
                         return Tr_floatExp(i, to_ty);
-                    case Ty_long:
-                        return exp;
                     default:
                         EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -991,9 +1001,12 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                 {
                     case Ty_bool:
                         return Tr_boolExp(i!=0, to_ty);
+                    case Ty_byte:
+                    case Ty_ubyte:
                     case Ty_integer:
-                        return Tr_intExp(i, to_ty);
+                    case Ty_uinteger:
                     case Ty_long:
+                    case Ty_ulong:
                         return Tr_intExp(i, to_ty);
                     case Ty_single:
                         return exp;
@@ -1013,56 +1026,28 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
         switch (from_ty->kind)
         {
             case Ty_bool:
-                switch (to_ty->kind)
-                {
-                    case Ty_bool:
-                        return exp;
-                    case Ty_integer:
-                    case Ty_single:
-                    case Ty_long:
-                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                    default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                        assert(0);
-                }
-                break;
+            case Ty_byte:
+            case Ty_ubyte:
             case Ty_integer:
-                switch (to_ty->kind)
-                {
-                    case Ty_integer:
-                        return exp;
-                    case Ty_bool:
-                    case Ty_long:
-                    case Ty_single:
-                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                    default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                        assert(0);
-                }
-                break;
+            case Ty_uinteger:
             case Ty_long:
-                switch (to_ty->kind)
-                {
-                    case Ty_bool:
-                    case Ty_integer:
-                    case Ty_single:
-                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
-                    case Ty_long:
-                        return exp;
-                    default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
-                        assert(0);
-                }
-                break;
+            case Ty_ulong:
             case Ty_single:
+            case Ty_double:
+                if (from_ty->kind == to_ty->kind)
+                    return exp;
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
                     case Ty_integer:
+                    case Ty_uinteger:
                     case Ty_long:
-                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                    case Ty_ulong:
                     case Ty_single:
-                        return exp;
+                    case Ty_double:
+                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                     default:
                         EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);

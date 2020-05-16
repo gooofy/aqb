@@ -418,45 +418,80 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
         case Ty_bool:
             switch (ty2->kind)
             {
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                {
+                    *res = exp;
+                    return TRUE;
+                }
+                case Ty_uinteger:
                 case Ty_integer:
                 case Ty_long:
+                case Ty_ulong:
                 case Ty_single:
+                case Ty_double:
                     *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
                     return FALSE;
             }
             break;
+
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_uinteger:
         case Ty_integer:
-            switch (ty2->kind)
-            {
-                case Ty_bool:
-                case Ty_long:
-                case Ty_single:
-                    *res = Tr_castExp(exp, ty1, ty2);
-                    return TRUE;
-                default:
-                    return FALSE;
-            }
-            break;
         case Ty_long:
+        case Ty_ulong:
+            if ( (ty2->kind == Ty_single) || (ty2->kind == Ty_double) || (ty2->kind == Ty_bool) )
+            {
+                *res = Tr_castExp(exp, ty1, ty2);
+                return TRUE;
+            }
+            if (Ty_size(ty1) == Ty_size(ty2))
+            {
+                *res = exp;
+                return TRUE;
+            }
             switch (ty2->kind)
             {
-                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_uinteger:
                 case Ty_integer:
-                case Ty_single:
+                case Ty_long:
+                case Ty_ulong:
+                    if (Ty_size(ty1) == Ty_size(ty2))
+                    {
+                        *res = exp;
+                        return TRUE;
+                    }
                     *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
                     return FALSE;
             }
             break;
+
         case Ty_single:
+        case Ty_double:
+            if (ty1->kind == ty2->kind)
+            {
+                *res = exp;
+                return TRUE;
+            }
             switch (ty2->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_uinteger:
                 case Ty_integer:
                 case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_double:
                     *res = Tr_castExp(exp, ty1, ty2);
                     return TRUE;
                 default:
@@ -525,10 +560,21 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
         case A_intExp:
         {
             Ty_ty ty;
-            if ( (a->u.intt < 32768) && (a->u.intt > -32769) )
+            if ( (a->u.intt <= 127) && (a->u.intt > -128) )
+                ty = Ty_Byte();
+
+            else if ( (a->u.intt <= 255) && (a->u.intt >= 0) )
+                ty = Ty_UByte();
+
+            else if ( (a->u.intt <= 32767) && (a->u.intt >= -32768) )
                 ty = Ty_Integer();
+
+            else if ( (a->u.intt <= 65535) && (a->u.intt >= 0) )
+                ty = Ty_UInteger();
+
             else
                 ty = Ty_Long();
+
             return Tr_intExp(a->u.intt, ty);
         }
         case A_floatExp:
@@ -743,11 +789,23 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 case Ty_string:
                     fsym = S_Symbol("__aio_puts");
                     break;
+                case Ty_byte:
+                    fsym = S_Symbol("__aio_puts1");
+                    break;
+                case Ty_ubyte:
+                    fsym = S_Symbol("__aio_putu1");
+                    break;
                 case Ty_integer:
                     fsym = S_Symbol("__aio_puts2");
                     break;
+                case Ty_uinteger:
+                    fsym = S_Symbol("__aio_putu2");
+                    break;
                 case Ty_long:
                     fsym = S_Symbol("__aio_puts4");
+                    break;
+                case Ty_ulong:
+                    fsym = S_Symbol("__aio_putu4");
                     break;
                 case Ty_single:
                     fsym = S_Symbol("__aio_putf");

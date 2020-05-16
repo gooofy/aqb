@@ -95,7 +95,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
     Temp_temp r       = Temp_newtemp(resty);
     enum AS_w isz     = ty_isz(resty);
 
-    if ((e_right->kind == T_CONST) && opc_rc)
+    if ((e_right->kind == T_CONST) && (opc_rc != AS_NOP))
     {
         /* BINOP(op, exp, CONST) */
         emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_left, FALSE), r));              // move.x   e_left, r
@@ -108,7 +108,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
     }
     else
     {
-        if ((e_left->kind == T_CONST) && opc_cr)
+        if ((e_left->kind == T_CONST) && (opc_cr != AS_NOP))
         {
             /* BINOP(op, CONST, exp) */
             emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_right, FALSE), r));              // move.x   e_right, r
@@ -300,6 +300,51 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     //         assert(0);
                     // }
                     assert(0);
+                    break;
+                case Ty_byte:
+                    switch (e->u.BINOP.op)
+                    {
+                        case T_plus:
+                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_minus:
+                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_mul:
+                            return emitBinOpJsr (e, "___mul_s1", resty);
+                        case T_intDiv:
+                        case T_div:
+                            return emitBinOpJsr (e, "___div_s1", resty);
+                        case T_mod:
+                            return emitBinOpJsr (e, "___mod_s1", resty);
+                        case T_and:
+                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_or:
+                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_xor:
+                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_eqv:
+                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
+                        case T_imp:
+                        {
+                            T_exp     e_left  = e->u.BINOP.left;
+                            T_exp     e_right = e->u.BINOP.right;
+                            Temp_temp r       = Temp_newtemp(resty);
+
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
+                            emit(AS_Instr(AS_NOT_Dn, AS_w_B, r, r));                                       // not.b   r, r
+                            emit(AS_InstrEx(AS_OR_Dn_Dn, AS_w_B, L(munchExp(e_right, FALSE), L(r, NULL)),  // or.b    e_right, r
+                                            L(r, NULL), 0, 0, NULL));
+                            return r;
+                        }
+                        case T_neg:
+                            return munchUnaryOp(e, AS_NEG_Dn, resty);
+                        case T_not:
+                            return munchUnaryOp(e, AS_NOT_Dn, resty);
+                        case T_power:
+                            return emitBinOpJsr (e, "___pow_s1", resty);
+                        default:
+                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
+                            assert(0);
+                    }
                     break;
                 case Ty_integer:
                     switch (e->u.BINOP.op)
@@ -587,7 +632,48 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             assert(0);
                     }
                     break;
+                case Ty_byte:
+                case Ty_ubyte:
+                    switch (e->ty->kind)
+                    {
+                        case Ty_bool:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_TST_Dn, AS_w_B, r1, NULL));       // tst.b r1
+                            emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
+                            return r;
+                        }
+                        case Ty_uinteger:
+                        case Ty_integer:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
+                            emit(AS_Instr(AS_EXT_Dn, AS_w_W, r, r));           // ext.w  r
+                            return r;
+                        }
+                        case Ty_ulong:
+                        case Ty_long:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
+                            emit(AS_Instr(AS_EXT_Dn, AS_w_W, r, r));           // ext.w  r
+                            emit(AS_Instr(AS_EXT_Dn, AS_w_L, r, r));           // ext.l  r
+                            return r;
+                        }
+                        case Ty_single:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
+                            emit(AS_Instr(AS_EXT_Dn, AS_w_W, r, r));           // ext.w  r
+                            emit(AS_Instr(AS_EXT_Dn, AS_w_L, r, r));           // ext.l  r
+                            return emitRegCall("_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
+                        }
+                        default:
+                            assert(0);
+                    }
+                    break;
                 case Ty_integer:
+                case Ty_uinteger:
                     switch (e->ty->kind)
                     {
                         case Ty_bool:
@@ -597,6 +683,14 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
                         }
+                        case Ty_ubyte:
+                        case Ty_byte:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
+                            return r;
+                        }
+                        case Ty_ulong:
                         case Ty_long:
                         {
                             Temp_temp r = Temp_newtemp(e->ty);
@@ -615,6 +709,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             assert(0);
                     }
                     break;
+                case Ty_ulong:
                 case Ty_long:
                     switch (e->ty->kind)
                     {
@@ -625,7 +720,15 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
                         }
+                        case Ty_byte:
+                        case Ty_ubyte:
+                        {
+                            Temp_temp r = Temp_newtemp(e->ty);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
+                            return r;
+                        }
                         case Ty_integer:
+                        case Ty_uinteger:
                         {
                             Temp_temp r = Temp_newtemp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
@@ -648,8 +751,12 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
                         }
+                        case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
+                        case Ty_uinteger:
                         case Ty_long:
+                        case Ty_ulong:
                         {
                             Temp_temp r = emitRegCall("_MathBase", LVOSPFix, F_RAL(r1, F_D0(), NULL), e->ty);
                             return r;
@@ -848,6 +955,16 @@ static void munchStm(T_stm s)
             switch (ty->kind)
             {
                 case Ty_bool:
+                    switch (op) {
+                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
+                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
+                        case T_lt:  branchinstr = AS_BLT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
+                        case T_gt:  branchinstr = AS_BGT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
+                        case T_le:  branchinstr = AS_BLE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
+                        case T_ge:  branchinstr = AS_BGE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
+                    }
+                    break;
+                case Ty_byte:
                     switch (op) {
                         case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
                         case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;

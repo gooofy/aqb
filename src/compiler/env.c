@@ -77,11 +77,23 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
             case 'b':
                 ty = Ty_Bool();
                 break;
+            case 'y':
+                ty = Ty_Byte();
+                break;
             case 'i':
                 ty = Ty_Integer();
                 break;
             case 'l':
                 ty = Ty_Long();
+                break;
+            case 'Y':
+                ty = Ty_UByte();
+                break;
+            case 'I':
+                ty = Ty_UInteger();
+                break;
+            case 'L':
+                ty = Ty_ULong();
                 break;
             case 'f':
                 ty = Ty_Single();
@@ -120,8 +132,12 @@ S_scope E_base_venv(void)
     S_scope t = S_beginScope();
 
     declare_builtin(t, "__aio_puts",            "s",        Ty_Void());
+    declare_builtin(t, "__aio_puts1",           "y",        Ty_Void());
     declare_builtin(t, "__aio_puts2",           "i",        Ty_Void());
     declare_builtin(t, "__aio_puts4",           "l",        Ty_Void());
+    declare_builtin(t, "__aio_putu1",           "Y",        Ty_Void());
+    declare_builtin(t, "__aio_putu2",           "I",        Ty_Void());
+    declare_builtin(t, "__aio_putu4",           "L",        Ty_Void());
     declare_builtin(t, "__aio_putf",            "f",        Ty_Void());
     declare_builtin(t, "__aio_putbool",         "b",        Ty_Void());
     declare_builtin(t, "__aio_putnl",           "",         Ty_Void());

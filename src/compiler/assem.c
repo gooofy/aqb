@@ -191,12 +191,10 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_MOVE_ILabel_AnDn:
         case AS_MOVE_Label_AnDn:
             p->srcInterf = NULL;
-            // p->dstInterf = w == AS_w_L ? NULL : LL(F_aRegs(), NULL);
-            p->dstInterf = NULL;
+            p->dstInterf = (w == AS_w_B) ? LL(F_aRegs(), NULL) : NULL;
             break;
         case AS_MOVE_AnDn_Label:
-            // p->srcInterf = w == AS_w_L ? NULL : LL(F_aRegs(), NULL);
-            p->srcInterf = NULL;
+            p->srcInterf = (w == AS_w_B) ? LL(F_aRegs(), NULL) : NULL;
             p->dstInterf = NULL;
             break;
         case AS_MOVE_AnDn_RAn:  // move.x  d1, (a6)
