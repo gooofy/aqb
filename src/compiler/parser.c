@@ -1868,8 +1868,8 @@ static bool statement(void)
 }
 
 // typeDecl ::=  TYPE Identifier LNL*
-//               ( Identifier [ "(" arrayDimensions ")" ] [ AS Identifier ] LNL*
-//               | AS Identifier Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ] )* LNL*
+//               ( Identifier [ "(" arrayDimensions ")" ] [ AS Identifier [ PTR ] ] LNL*
+//               | AS Identifier [ PTR ] Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ] )* LNL*
 //               )*
 //               END TYPE
 
@@ -1892,8 +1892,10 @@ static bool stmtTypeDecl(void)
         while (logicalNewline()) ;
         if (S_token == S_IDENT)
         {
-            A_dim    dims    = NULL;
-            S_symbol sField, sFieldType;
+            A_dim    dims       = NULL;
+            S_symbol sField;
+            S_symbol sFieldType = NULL;
+            bool     ptr        = FALSE;
 
             sField     = S_Symbol(String(S_strlc));
             S_getsym();
@@ -1906,32 +1908,42 @@ static bool stmtTypeDecl(void)
                     return EM_err(") expected here.");
                 S_getsym();
             }
-            if (S_token != S_AS)
-                return EM_err("AS expected here.");
-            S_getsym();
 
-            if (S_token != S_IDENT)
-                return EM_err("field type identifier expected here.");
+            if (S_token == S_AS)
+            {
+                S_getsym();
 
-            sFieldType = S_Symbol(String(S_strlc));
-            S_getsym();
+                if (S_token != S_IDENT)
+                    return EM_err("field type identifier expected here.");
+
+                sFieldType = S_Symbol(String(S_strlc));
+                S_getsym();
+
+                if (S_token == S_PTR)
+                {
+                    ptr = TRUE;
+                    S_getsym();
+                }
+            }
 
             if (fFirst)
             {
-                fLast->tail = A_Field(sField, sFieldType, dims);
+                fLast->tail = A_Field(sField, sFieldType, dims, ptr);
                 fLast = fLast->tail;
             }
             else
             {
-                fFirst = fLast = A_Field(sField, sFieldType, dims);
+                fFirst = fLast = A_Field(sField, sFieldType, dims, ptr);
             }
         }
         else
         {
             if (S_token == S_AS)
             {
-                A_dim    dims    = NULL;
-                S_symbol sField, sFieldType;
+                A_dim    dims       = NULL;
+                S_symbol sField;
+                S_symbol sFieldType = NULL;
+                bool     ptr        = FALSE;
 
                 S_getsym();
 
@@ -1940,6 +1952,12 @@ static bool stmtTypeDecl(void)
 
                 sFieldType = S_Symbol(String(S_strlc));
                 S_getsym();
+
+                if (S_token == S_PTR)
+                {
+                    S_getsym();
+                    ptr = TRUE;
+                }
 
                 if (S_token != S_IDENT)
                     return EM_err("field identifier expected here.");
@@ -1958,12 +1976,12 @@ static bool stmtTypeDecl(void)
                 }
                 if (fFirst)
                 {
-                    fLast->tail = A_Field(sField, sFieldType, dims);
+                    fLast->tail = A_Field(sField, sFieldType, dims, ptr);
                     fLast = fLast->tail;
                 }
                 else
                 {
-                    fFirst = fLast = A_Field(sField, sFieldType, dims);
+                    fFirst = fLast = A_Field(sField, sFieldType, dims, ptr);
                 }
 
                 while (S_token == S_COMMA)
@@ -1987,12 +2005,12 @@ static bool stmtTypeDecl(void)
                     }
                     if (fFirst)
                     {
-                        fLast->tail = A_Field(sField, sFieldType, dims);
+                        fLast->tail = A_Field(sField, sFieldType, dims, ptr);
                         fLast = fLast->tail;
                     }
                     else
                     {
-                        fFirst = fLast = A_Field(sField, sFieldType, dims);
+                        fFirst = fLast = A_Field(sField, sFieldType, dims, ptr);
                     }
                 }
             }

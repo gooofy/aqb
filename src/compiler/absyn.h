@@ -40,6 +40,7 @@ struct A_field_
     S_symbol name;
     S_symbol typeId;
     A_dim    dims;
+    bool     ptr;
     A_field  tail;
 };
 
@@ -205,6 +206,6 @@ A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol n
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
 A_dim           A_Dim             (A_exp expStart, A_exp expEnd);
-A_field         A_Field           (S_symbol name, S_symbol typeId, A_dim dims);
+A_field         A_Field           (S_symbol name, S_symbol typeId, A_dim dims, bool ptr);
 
 #endif

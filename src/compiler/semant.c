@@ -1157,13 +1157,24 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty ty = S_look(tenv, stmt->u.typer.sType);
             if (ty)
                 EM_error (stmt->pos, "Type %s is already defined here.", S_name(stmt->u.typer.sType));
-           
+
             Ty_fieldList fl = NULL, flast=NULL;
             for (A_field f = stmt->u.typer.fields; f; f=f->tail)
             {
-                Ty_ty t = S_look(tenv, f->typeId);
+                Ty_ty t;
+                if (f->typeId)
+                    t = S_look(tenv, f->typeId);
+                else
+                    t = Ty_inferType(S_name(f->name));
+
                 if (!t)
                     EM_error (stmt->pos, "Unknown type %s.", S_name(f->typeId));
+
+                if (f->ptr)
+                {
+                    t = Ty_Pointer(t);
+                }
+
                 if(f->dims)
                     assert(0); // FIXME: implement.
                 if (flast)

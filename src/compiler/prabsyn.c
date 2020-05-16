@@ -306,7 +306,11 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, "TYPEDECL %s(", S_name(stmt->u.typer.sType));
             for (A_field f = stmt->u.typer.fields; f; f = f->tail)
             {
-                fprintf(out, "%s:%s", S_name(f->name), S_name(f->typeId));
+                fprintf(out, "%s", S_name(f->name));
+                if (f->typeId)
+                    fprintf(out, ":%s", S_name(f->typeId));
+                if (f->ptr)
+                    fprintf(out," PTR");
                 if (f->dims)
                     pr_dims(out, f->dims);
                 if (f->tail)
