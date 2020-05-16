@@ -184,6 +184,37 @@ short __pow_s2(short base, short exp)
     return result;
 }
 
+char __pow_s1(char base, char exp)
+{
+    char result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+char __mul_s1(char a, char b)
+{
+    return a*b;
+}
+
+char __div_s1(char a, char b)
+{
+    return a/b;
+}
+
+char __mod_s1(char a, char b)
+{
+    return a%b;
+}
+
 static FLOAT g_one_half, g_zero;
 
 FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
