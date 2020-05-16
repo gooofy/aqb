@@ -1681,16 +1681,17 @@ static bool arrayDimensions (A_dim *dims)
 
 static bool singleVarDecl (bool shared, bool statc)
 {
-    A_pos  pos = S_getpos();
-    string varId, typeId=NULL;
-    A_dim  dims = NULL;
-    A_exp  init = NULL;
-    bool   ptr  = FALSE;
+    A_pos    pos   = S_getpos();
+    S_symbol sVar;
+    S_symbol sType = NULL;
+    A_dim    dims  = NULL;
+    A_exp    init  = NULL;
+    bool     ptr   = FALSE;
 
     if (S_token != S_IDENT)
         return EM_err("variable declaration: identifier expected here.");
 
-    varId = String(S_strlc);
+    sVar = S_Symbol(String(S_strlc));
     S_getsym();
 
     if (S_token == S_LPAREN)
@@ -1709,7 +1710,7 @@ static bool singleVarDecl (bool shared, bool statc)
 
         if (S_token != S_IDENT)
             return EM_err("variable declaration: type identifier expected here.");
-        typeId = String(S_strlc);
+        sType = S_Symbol(String(S_strlc));
         S_getsym();
 
         if (S_token == S_PTR)
@@ -1728,13 +1729,52 @@ static bool singleVarDecl (bool shared, bool statc)
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, varId, typeId, ptr, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, sVar, sType, ptr, dims, init));
 
     return TRUE;
 }
 
-// stmtDim ::= DIM [ SHARED ] singleVarDecl ( "," singleVarDecl )*
+// singleVarDecl2 ::= Identifier ["(" arrayDimensions ")"] [ "=" expression ]
+static bool singleVarDecl2 (bool shared, bool statc, S_symbol sType, bool ptr)
+{
+    A_pos    pos = S_getpos();
+    S_symbol sVar;
+    A_dim    dims = NULL;
+    A_exp    init = NULL;
 
+    if (S_token != S_IDENT)
+        return EM_err("variable identifier expected here.");
+
+    sVar = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    if (S_token == S_LPAREN)
+    {
+        S_getsym();
+        if (!arrayDimensions(&dims))
+            return FALSE;
+        if (S_token != S_RPAREN)
+            return EM_err(") expected here.");
+        S_getsym();
+    }
+
+    if (S_token == S_EQUALS)
+    {
+        S_getsym();
+        if (!expression(&init))
+        {
+            return EM_err("var initializer expression expected here.");
+        }
+    }
+
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, sVar, sType, ptr, dims, init));
+
+    return TRUE;
+}
+
+
+// stmtDim ::= DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
+//                            | AS Identifier [PTR] singleVarDecl2 ("," singleVarDecl2 )*
 static bool stmtDim(void)
 {
     bool     shared = FALSE;
@@ -1747,14 +1787,46 @@ static bool stmtDim(void)
         S_getsym();
     }
 
-    if (!singleVarDecl(shared, FALSE))
-        return FALSE;
-
-    while (S_token == S_COMMA)
+    if (S_token == S_AS)
     {
+        bool     ptr = FALSE;
+        S_symbol sType;
+
         S_getsym();
+
+        if (S_token != S_IDENT)
+            return EM_err("type identifier expected here.");
+
+        sType = S_Symbol(String(S_strlc));
+        S_getsym();
+
+        if (S_token == S_PTR)
+        {
+            ptr = TRUE;
+            S_getsym();
+        }
+
+        if (!singleVarDecl2(shared, FALSE, sType, ptr))
+            return FALSE;
+
+        while (S_token == S_COMMA)
+        {
+            S_getsym();
+            if (!singleVarDecl2(shared, FALSE, sType, ptr))
+                return FALSE;
+        }
+    }
+    else
+    {
         if (!singleVarDecl(shared, FALSE))
             return FALSE;
+
+        while (S_token == S_COMMA)
+        {
+            S_getsym();
+            if (!singleVarDecl(shared, FALSE))
+                return FALSE;
+        }
     }
     return TRUE;
 }

@@ -1036,18 +1036,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             E_enventry x;
 
             Ty_ty t = NULL;
-            if (stmt->u.vdeclr.typeId)
+            if (stmt->u.vdeclr.sType)
             {
-                t = S_look(tenv, S_Symbol(stmt->u.vdeclr.typeId));
+                t = S_look(tenv, stmt->u.vdeclr.sType);
                 if (!t)
                 {
-                    EM_error(stmt->pos, "Unknown type %s.", stmt->u.vdeclr.typeId);
+                    EM_error(stmt->pos, "Unknown type %s.", S_name(stmt->u.vdeclr.sType));
                     break;
                 }
             }
             else
             {
-                t = Ty_inferType(stmt->u.vdeclr.varId);
+                t = Ty_inferType(S_name(stmt->u.vdeclr.sVar));
             }
 
             if (stmt->u.vdeclr.ptr)
@@ -1098,7 +1098,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
             }
 
-            S_symbol name = S_Symbol(stmt->u.vdeclr.varId);
+            S_symbol name = stmt->u.vdeclr.sVar;
             if (stmt->u.vdeclr.shared)
             {
                 assert(!stmt->u.vdeclr.statc);
@@ -1107,18 +1107,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     x = S_look(venv, name);
                     if (x)
                     {
-                        EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.vdeclr.varId);
+                        EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
                         break;
                     }
                 }
                 x = S_look(g_venv, name);
                 if (x)
                 {
-                    EM_error(stmt->pos, "Variable %s already declared in global scope.", stmt->u.vdeclr.varId);
+                    EM_error(stmt->pos, "Variable %s already declared in global scope.", S_name(name));
                     break;
                 }
 
-                x = E_VarEntry(Tr_allocVar(Tr_global(), stmt->u.vdeclr.varId, t, conv_init), t, TRUE);
+                x = E_VarEntry(Tr_allocVar(Tr_global(), S_name(name), t, conv_init), t, TRUE);
                 S_enter(g_venv, name, x);
             }
             else
@@ -1126,18 +1126,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 x = S_look(venv, name);
                 if (x)
                 {
-                    EM_error(stmt->pos, "Variable %s already declared in this scope.", stmt->u.vdeclr.varId);
+                    EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
                     break;
                 }
                 if (stmt->u.vdeclr.statc || Tr_isStatic(level))
                 {
-                    string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), stmt->u.vdeclr.varId));
+                    string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), S_name(name)));
                     x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t, conv_init), t, TRUE);
                     S_enter(venv, name, x);
                 }
                 else
                 {
-                    x = E_VarEntry(Tr_allocVar(level, stmt->u.vdeclr.varId, t, depth ? NULL : conv_init), t, FALSE);
+                    x = E_VarEntry(Tr_allocVar(level, S_name(name), t, depth ? NULL : conv_init), t, FALSE);
                     S_enter(venv, name, x);
                     if (depth && conv_init)
                     {

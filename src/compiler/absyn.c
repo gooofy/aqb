@@ -129,7 +129,7 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, string varId, string typeId, bool ptr, A_dim dims, A_exp init)
+A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, S_symbol sVar, S_symbol sType, bool ptr, A_dim dims, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -137,8 +137,8 @@ A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, string varId, string t
     p->pos             = pos;
     p->u.vdeclr.shared = shared;
     p->u.vdeclr.statc  = statc;
-    p->u.vdeclr.varId  = varId;
-    p->u.vdeclr.typeId = typeId;
+    p->u.vdeclr.sVar   = sVar;
+    p->u.vdeclr.sType  = sType;
     p->u.vdeclr.ptr    = ptr;
     p->u.vdeclr.dims   = dims;
     p->u.vdeclr.init   = init;

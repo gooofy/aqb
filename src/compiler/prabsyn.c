@@ -277,13 +277,13 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         case A_varDeclStmt:
         {
             indent(out, d);
-            fprintf(out, "VARDECL %s(", stmt->u.vdeclr.varId);
+            fprintf(out, "VARDECL %s(", S_name(stmt->u.vdeclr.sVar));
             if (stmt->u.vdeclr.shared)
                 fprintf(out, "SHARED ");
             if (stmt->u.vdeclr.statc)
                 fprintf(out, "STATIC ");
-            if (stmt->u.vdeclr.typeId)
-                fprintf(out, "%s", stmt->u.vdeclr.typeId);
+            if (stmt->u.vdeclr.sType)
+                fprintf(out, "%s", S_name(stmt->u.vdeclr.sType));
             if (stmt->u.vdeclr.ptr)
                 fprintf(out, " PTR");
             if (stmt->u.vdeclr.dims)
