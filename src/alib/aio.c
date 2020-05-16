@@ -71,6 +71,58 @@ void _aio_puts2(short num)
     _aio_puts(buf);
 }
 
+void _aio_puts1(char num)
+{
+    char buf[MAXBUF];
+
+    if (num<0)
+    {
+        _aio_puts("-");
+        num *= -1;
+    }
+    else
+    {
+        _aio_puts(" ");
+    }
+
+    _astr_itoa(num, buf, 10);
+
+    _aio_puts(buf);
+}
+
+void _aio_putu4(unsigned int num)
+{
+    char buf[MAXBUF];
+
+    _aio_puts(" ");
+
+    _astr_itoa(num, buf, 10);
+
+    _aio_puts(buf);
+}
+
+void _aio_putu2(unsigned short num)
+{
+    char buf[MAXBUF];
+
+    _aio_puts(" ");
+
+    _astr_itoa(num, buf, 10);
+
+    _aio_puts(buf);
+}
+
+void _aio_putu1(unsigned char num)
+{
+    char buf[MAXBUF];
+
+    _aio_puts(" ");
+
+    _astr_itoa(num, buf, 10);
+
+    _aio_puts(buf);
+}
+
 void _aio_puthex(int num)
 {
     char buf[MAXBUF];

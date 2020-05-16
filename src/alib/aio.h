@@ -11,6 +11,10 @@ void _aio_shutdown(void);
 
 void _aio_puts4(int num);
 void _aio_puts2(short num);
+void _aio_puts1(char num);
+void _aio_putu4(unsigned int num);
+void _aio_putu2(unsigned short num);
+void _aio_putu1(unsigned char num);
 void _aio_puthex(int num);
 void _aio_putuhex(ULONG l);
 void _aio_putbin(int num);
