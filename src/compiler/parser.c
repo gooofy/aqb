@@ -1312,7 +1312,7 @@ static bool stmtIfEnd(void)
     return TRUE;
 }
 
-// paramDecl ::= [ BYVAL | BYREF ] ident [ AS ident ] [ = expression ]
+// paramDecl ::= [ BYVAL | BYREF ] ident [ AS ident [PTR] ] [ = expression ]
 static bool paramDecl(A_paramList paramList)
 {
     bool     byval = FALSE;
@@ -1321,6 +1321,7 @@ static bool paramDecl(A_paramList paramList)
     S_symbol ty = NULL;
     A_pos    pos = S_getpos();
     A_exp    defaultExp = NULL;
+    bool     ptr = FALSE;
 
     if (S_token == S_BYVAL)
     {
@@ -1348,6 +1349,11 @@ static bool paramDecl(A_paramList paramList)
 
         ty = S_Symbol(String(S_strlc));
         S_getsym();
+        if (S_token == S_PTR)
+        {
+            S_getsym();
+            ptr = TRUE;
+        }
     }
 
     if (!ty)
@@ -1360,7 +1366,7 @@ static bool paramDecl(A_paramList paramList)
             return EM_err("default expression expected here.");
     }
 
-    A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, defaultExp));
+    A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, ptr, defaultExp));
 
     return TRUE;
 }

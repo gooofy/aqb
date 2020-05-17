@@ -184,7 +184,7 @@ static void declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, cha
             default:
                 assert(0);
         }
-        A_ParamListAppend(paramList, A_Param (0, FALSE, FALSE, NULL, ty, NULL));
+        A_ParamListAppend(paramList, A_Param (0, FALSE, FALSE, NULL, ty, FALSE, NULL));
     }
 
     proc = A_Proc(0, S_Symbol(name), Temp_namedlabel(label), retty ? S_Symbol(retty) : NULL, FALSE, paramList);

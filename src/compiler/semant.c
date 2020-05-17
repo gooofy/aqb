@@ -689,9 +689,25 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
     {
         Ty_ty ty = NULL;
         if (!param->ty)
+        {
             ty = Ty_inferType(S_name(param->name));
+        }
         else
+        {
             ty = lookup_type(tenv, param->pos, param->ty);
+            if (!ty)
+                EM_error(param->pos, "Type %s is unknown.", S_name(param->ty));
+        }
+
+        if (param->byref)
+        {
+            EM_error(param->pos, "BYREF is unsupported in AQB, use pointers instead.");
+        }
+
+        if (param->ptr)
+        {
+            ty = Ty_Pointer(ty);
+        }
 
         /* insert at tail to avoid order reversed */
         if (tys == NULL)

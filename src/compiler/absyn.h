@@ -138,6 +138,7 @@ struct A_param_
     bool     byref;
     S_symbol name;
     S_symbol ty;
+    bool     ptr;
     A_exp    defaultExp;
     S_symbol reg;
 };
@@ -202,7 +203,7 @@ A_selector      A_IndexSelector   (A_pos pos, A_exp idx);
 A_selector      A_FieldSelector   (A_pos pos, S_symbol field);
 A_selector      A_DerefSelector   (A_pos pos);
 A_proc          A_Proc            (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool isStatic, A_paramList paramList);
-A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, A_exp defaultExp);
+A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
 A_dim           A_Dim             (A_exp expStart, A_exp expEnd);
