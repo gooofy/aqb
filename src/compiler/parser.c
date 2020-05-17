@@ -1356,9 +1356,6 @@ static bool paramDecl(A_paramList paramList)
         }
     }
 
-    if (!ty)
-        ty = S_Symbol(Ty_inferTypeName(S_name(name)));
-
     if (S_token == S_EQUALS)
     {
         S_getsym();

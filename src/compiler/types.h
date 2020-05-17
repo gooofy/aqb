@@ -60,7 +60,6 @@ void         Ty_printList(Ty_tyList list);
 int          Ty_size(Ty_ty t);
 
 Ty_ty        Ty_inferType(string varname);
-string       Ty_inferTypeName(string varname);
 string       Ty_removeTypeSuffix(string varname);
 string       Ty_name(Ty_ty t);
 

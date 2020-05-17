@@ -214,27 +214,6 @@ Ty_ty Ty_inferType(string varname)
     return Ty_Single();
 }
 
-string Ty_inferTypeName(string varname)
-{
-    int  l = strlen(varname);
-    char postfix = varname[l-1];
-
-    switch (postfix)
-    {
-        case '$':
-            return "string";
-        case '%':
-            return "integer";
-        case '&':
-            return "long";
-        case '!':
-            return "single";
-        case '#':
-            return "double";
-    }
-    return "single";
-}
-
 string Ty_removeTypeSuffix(string varname)
 {
     int  l = strlen(varname);

@@ -248,9 +248,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             for (par = stmt->u.proc->paramList->first; par; par = par->next)
             {
                 if (par->name)
-                    fprintf(out, "%s:%s", S_name(par->name), S_name(par->ty));
+                {
+                    if (par->ty)
+                        fprintf(out, "%s:%s", S_name(par->name), S_name(par->ty));
+                    else
+                        fprintf(out, "%s", S_name(par->name));
+                }
                 else
-                    fprintf(out, "%s", S_name(par->ty));
+                    fprintf(out, "_:%s", S_name(par->ty));
 
                 if (par->next)
                     fprintf(out,",");
