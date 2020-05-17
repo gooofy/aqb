@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "util.h"
 
@@ -35,6 +36,19 @@ string strconcat(const char *s1, const char*s2)
     memcpy(buf+l1, s2, l2);
     buf[l1+l2] = 0;
     return buf;
+}
+
+string strlower(const char *s)
+{
+    int l = strlen(s);
+    string p = checked_malloc(l+1);
+    for (int i = 0; i<l; i++)
+    {
+        p[i] = tolower(s[i]);
+    }
+    p[l]=0;
+
+    return p;
 }
 
 U_list U_List(void)

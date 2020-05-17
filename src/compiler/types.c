@@ -274,3 +274,19 @@ string Ty_name(Ty_ty t)
     return "???";
 }
 
+bool Ty_isInt(Ty_ty t)
+{
+    switch (t->kind)
+    {
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+            return TRUE;
+        default:
+            return FALSE;
+    }
+    return FALSE;
+}

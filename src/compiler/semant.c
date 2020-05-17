@@ -306,9 +306,23 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             *res = ty1;
             return FALSE;
         case Ty_pointer:
-            assert(0); // FIXME
-            *res = ty1;
-            return FALSE;
+            switch (ty2->kind)
+            {
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_pointer:
+                case Ty_varPtr:
+                    *res = ty1;
+                    return TRUE;
+                default:
+                    *res = ty1;
+                    return FALSE;
+            }
+            break;
         case Ty_varPtr:
             assert(0); // FIXME
             *res = ty1;
@@ -360,6 +374,10 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
             return TRUE;
         case Ty_pointer:
         case Ty_varPtr:
+            if (Ty_isInt(ty2))
+                return TRUE;
+            if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
+                return TRUE;
             return compatible_ty(ty1->u.pointer, ty2->u.pointer);
 
         default:
@@ -407,11 +425,22 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
         case Ty_ubyte:
         case Ty_uinteger:
         case Ty_integer:
+            if (ty2->kind == Ty_pointer)
+            {
+                *res = Tr_castExp(exp, ty1, ty2);
+                return TRUE;
+            }
+            /* fallthrough */
         case Ty_long:
         case Ty_ulong:
             if ( (ty2->kind == Ty_single) || (ty2->kind == Ty_double) || (ty2->kind == Ty_bool) )
             {
                 *res = Tr_castExp(exp, ty1, ty2);
+                return TRUE;
+            }
+            if (ty2->kind == Ty_pointer)
+            {
+                *res = exp;
                 return TRUE;
             }
             if (Ty_size(ty1) == Ty_size(ty2))
@@ -1143,32 +1172,38 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
             }
 
-            S_symbol name = stmt->u.vdeclr.sVar;
+            S_symbol name   = stmt->u.vdeclr.sVar;
+            S_symbol namelc = S_Symbol(strlower(S_name(name)));
             if (stmt->u.vdeclr.shared)
             {
                 assert(!stmt->u.vdeclr.statc);
                 if (depth)
                 {
-                    x = S_look(venv, name);
+                    x = S_look(venv, namelc);
                     if (x)
                     {
                         EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
                         break;
                     }
                 }
-                x = S_look(g_venv, name);
+                x = S_look(g_venv, namelc);
                 if (x)
                 {
                     EM_error(stmt->pos, "Variable %s already declared in global scope.", S_name(name));
                     break;
                 }
 
-                x = E_VarEntry(Tr_allocVar(Tr_global(), S_name(name), t, conv_init), t, TRUE);
-                S_enter(g_venv, name, x);
+                if (stmt->u.vdeclr.external)
+                    x = E_VarEntry(Tr_externalVar(S_name(name), t), t, TRUE);
+                else
+                    x = E_VarEntry(Tr_allocVar(Tr_global(), S_name(name), t, conv_init), t, TRUE);
+                S_enter(g_venv, namelc, x);
             }
             else
             {
-                x = S_look(venv, name);
+                assert (!stmt->u.vdeclr.external);
+
+                x = S_look(venv, namelc);
                 if (x)
                 {
                     EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
@@ -1176,14 +1211,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 if (stmt->u.vdeclr.statc || Tr_isStatic(level))
                 {
-                    string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), S_name(name)));
+                    string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), S_name(namelc)));
                     x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t, conv_init), t, TRUE);
-                    S_enter(venv, name, x);
+                    S_enter(venv, namelc, x);
                 }
                 else
                 {
                     x = E_VarEntry(Tr_allocVar(level, S_name(name), t, depth ? NULL : conv_init), t, FALSE);
-                    S_enter(venv, name, x);
+                    S_enter(venv, namelc, x);
                     if (depth && conv_init)
                     {
                         // local vars need explicit initialization assignment

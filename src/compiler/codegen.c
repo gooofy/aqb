@@ -1188,6 +1188,7 @@ static void munchStm(T_stm s)
                     }
                     break;
                 case Ty_ulong:
+                case Ty_pointer:
                     switch (op) {
                         case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
                         case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;

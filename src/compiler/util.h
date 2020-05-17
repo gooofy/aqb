@@ -15,6 +15,7 @@ string String(const char *); // allocs mem + copies string
 string strconcat(const char *s1, const char*s2); // allocates mem for concatenated string
 
 string strprintf(const char *format, ...); // allocates mem for resulting string
+string strlower(const char *s);  // allocates mem for resulting string
 
 /* generic doubly linked list */
 

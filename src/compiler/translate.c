@@ -177,6 +177,10 @@ static string varname_to_label(string varname)
         res[l-1] = 0;
         res = strprintf("__%s_%s", res, suffix);
     }
+    else
+    {
+        res = strprintf("_%s", res);
+    }
     return res;
 }
 
@@ -359,9 +363,7 @@ Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init)
 {
     unsigned char *init_data = NULL;
     if (init)
-    {
         init_data = Tr_getConstData(init);
-    }
 
     if (!level->frame) // global var?
     {
@@ -378,7 +380,7 @@ Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init)
 
 Tr_access Tr_externalVar(string name, Ty_ty ty)
 {
-    Temp_label label = Temp_namedlabel(name);
+    Temp_label label = Temp_namedlabel(varname_to_label(name));
     return Tr_Access(Tr_global(), F_allocGlobal(label, ty));
 }
 
@@ -984,6 +986,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_uinteger:
                     case Ty_long:
                     case Ty_ulong:
+                    case Ty_pointer:
                         return Tr_intExp(i, to_ty);
                     case Ty_single:
                     case Ty_double:

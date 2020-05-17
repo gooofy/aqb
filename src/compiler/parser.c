@@ -1681,8 +1681,7 @@ static bool arrayDimensions (A_dim *dims)
 
 
 // singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier [ PTR ] ] [ "=" expression ]
-
-static bool singleVarDecl (bool shared, bool statc)
+static bool singleVarDecl (bool shared, bool statc, bool external)
 {
     A_pos    pos   = S_getpos();
     S_symbol sVar;
@@ -1694,7 +1693,7 @@ static bool singleVarDecl (bool shared, bool statc)
     if (S_token != S_IDENT)
         return EM_err("variable declaration: identifier expected here.");
 
-    sVar = S_Symbol(String(S_strlc));
+    sVar = S_Symbol(String(S_str));
     S_getsym();
 
     if (S_token == S_LPAREN)
@@ -1726,13 +1725,15 @@ static bool singleVarDecl (bool shared, bool statc)
     if (S_token == S_EQUALS)
     {
         S_getsym();
+
         if (!expression(&init))
-        {
             return EM_err("var initializer expression expected here.");
-        }
+
+        if (external)
+            return EM_err("var initializer not allowed for external vars.");
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, sVar, sType, ptr, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, external, sVar, sType, ptr, dims, init));
 
     return TRUE;
 }
@@ -1770,7 +1771,7 @@ static bool singleVarDecl2 (bool shared, bool statc, S_symbol sType, bool ptr)
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, sVar, sType, ptr, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, /*external=*/FALSE, sVar, sType, ptr, dims, init));
 
     return TRUE;
 }
@@ -1821,13 +1822,13 @@ static bool stmtDim(void)
     }
     else
     {
-        if (!singleVarDecl(shared, FALSE))
+        if (!singleVarDecl(shared, FALSE, /*external=*/FALSE))
             return FALSE;
 
         while (S_token == S_COMMA)
         {
             S_getsym();
-            if (!singleVarDecl(shared, FALSE))
+            if (!singleVarDecl(shared, FALSE, /*external=*/FALSE))
                 return FALSE;
         }
     }
@@ -1836,18 +1837,17 @@ static bool stmtDim(void)
 
 
 // stmtStatic ::= STATIC singleVarDecl ( "," singleVarDecl )*
-
 static bool stmtStatic(void)
 {
     S_getsym();     // skip "STATIC"
 
-    if (!singleVarDecl(FALSE, TRUE))
+    if (!singleVarDecl(FALSE, TRUE, /*external=*/FALSE))
         return FALSE;
 
     while (S_token == S_COMMA)
     {
         S_getsym();
-        if (!singleVarDecl(FALSE, TRUE))
+        if (!singleVarDecl(FALSE, TRUE, /*external=*/FALSE))
             return FALSE;
     }
     return TRUE;
@@ -2110,6 +2110,13 @@ static bool stmtTypeDecl(void)
     return TRUE;
 }
 
+// externDecl ::=  EXTERN singleVarDecl
+static bool stmtExternDecl(void)
+{
+    S_getsym(); // consume "EXTERN"
+    return singleVarDecl(/*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
+}
+
 // procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(void)
 {
@@ -2146,7 +2153,7 @@ static bool stmtProcDecl(void)
         if (S_token != S_IDENT)
             return EM_err("library call: library base identifier expected here.");
 
-        proc->libBase = S_Symbol(String(S_str));
+        proc->libBase = S_Symbol(String(S_strlc));
         S_getsym();
 
         if (S_token != S_LPAREN)
@@ -2242,6 +2249,8 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
             return stmtProcDecl();
         case S_TYPE:
             return stmtTypeDecl();
+        case S_EXTERN:
+            return stmtExternDecl();
         case S_OPTION:
             return EM_err ("Sorry, option statement is not supported yet."); // FIXME
         case S_ON:

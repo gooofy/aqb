@@ -58,7 +58,7 @@ struct A_stmt_
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
-        struct {bool shared; bool statc; S_symbol sVar; S_symbol sType; bool ptr; A_dim dims; A_exp init;} vdeclr;
+        struct {bool shared; bool statc; bool external; S_symbol sVar; S_symbol sType; bool ptr; A_dim dims; A_exp init;} vdeclr;
         struct {A_exp exp; string msg;} assertr;
 	    struct {A_exp exp; A_stmtList body;} whiler;
 	    struct {S_symbol sType; A_field fields;} typer;
@@ -181,7 +181,7 @@ A_stmt          A_WhileStmt       (A_pos pos, A_exp exp, A_stmtList body);
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
-A_stmt          A_VarDeclStmt     (A_pos pos, bool shared, bool statc, S_symbol varId, S_symbol typeId, bool ptr, A_dim dims, A_exp init);
+A_stmt          A_VarDeclStmt     (A_pos pos, bool shared, bool statc, bool external, S_symbol varId, S_symbol typeId, bool ptr, A_dim dims, A_exp init);
 A_stmt          A_AssertStmt      (A_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmt          A_TypeDeclStmt    (A_pos pos, S_symbol sType, A_field fields);

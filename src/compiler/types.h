@@ -63,4 +63,6 @@ Ty_ty        Ty_inferType(string varname);
 string       Ty_removeTypeSuffix(string varname);
 string       Ty_name(Ty_ty t);
 
+bool         Ty_isInt(Ty_ty t);
+
 #endif

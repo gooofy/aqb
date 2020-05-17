@@ -129,19 +129,20 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, S_symbol sVar, S_symbol sType, bool ptr, A_dim dims, A_exp init)
+A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, bool external, S_symbol sVar, S_symbol sType, bool ptr, A_dim dims, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
-    p->kind            = A_varDeclStmt;
-    p->pos             = pos;
-    p->u.vdeclr.shared = shared;
-    p->u.vdeclr.statc  = statc;
-    p->u.vdeclr.sVar   = sVar;
-    p->u.vdeclr.sType  = sType;
-    p->u.vdeclr.ptr    = ptr;
-    p->u.vdeclr.dims   = dims;
-    p->u.vdeclr.init   = init;
+    p->kind              = A_varDeclStmt;
+    p->pos               = pos;
+    p->u.vdeclr.shared   = shared;
+    p->u.vdeclr.statc    = statc;
+    p->u.vdeclr.external = external;
+    p->u.vdeclr.sVar     = sVar;
+    p->u.vdeclr.sType    = sType;
+    p->u.vdeclr.ptr      = ptr;
+    p->u.vdeclr.dims     = dims;
+    p->u.vdeclr.init     = init;
 
     return p;
 }
@@ -490,127 +491,4 @@ A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool 
     return p;
 }
 
-#if 0
-A_dec A_VarDec(A_pos pos, S_symbol var, S_symbol typ, A_exp init)
-{A_dec p = checked_malloc(sizeof(*p));
- p->kind=A_varDec;
- p->pos=pos;
- p->u.var.var=var;
- p->u.var.typ=typ;
- p->u.var.init=init;
- p->u.var.escape=TRUE;
- return p;
-}
-
-A_dec A_TypeDec(A_pos pos, A_nametyList type)
-{A_dec p = checked_malloc(sizeof(*p));
- p->kind=A_typeDec;
- p->pos=pos;
- p->u.type=type;
- return p;
-}
-
-A_ty A_NameTy(A_pos pos, S_symbol name)
-{
-    A_ty p = checked_malloc(sizeof(*p));
-
-    p->kind   = A_nameTy;
-    p->pos    = pos;
-    p->u.name = name;
-
-    return p;
-}
-
-A_ty A_RecordTy(A_pos pos, A_fieldList record)
-{A_ty p = checked_malloc(sizeof(*p));
- p->kind=A_recordTy;
- p->pos=pos;
- p->u.record=record;
- return p;
-}
-
-A_ty A_ArrayTy(A_pos pos, S_symbol array)
-{A_ty p = checked_malloc(sizeof(*p));
- p->kind=A_arrayTy;
- p->pos=pos;
- p->u.array=array;
- return p;
-}
-
-A_field A_Field(A_pos pos, S_symbol name, S_symbol typ)
-{A_field p = checked_malloc(sizeof(*p));
- p->pos=pos;
- p->name=name;
- p->typ=typ;
- p->escape=TRUE;
- return p;
-}
-
-A_fieldList A_FieldList(A_field head, A_fieldList tail)
-{A_fieldList p = checked_malloc(sizeof(*p));
- p->head=head;
- p->tail=tail;
- return p;
-}
-
-A_expList A_ExpList(A_exp head, A_expList tail)
-{A_expList p = checked_malloc(sizeof(*p));
- p->head=head;
- p->tail=tail;
- return p;
-}
-
-A_fundec A_Fundec(A_pos pos, S_symbol name, A_fieldList params, S_symbol result,
-		  A_exp body)
-{A_fundec p = checked_malloc(sizeof(*p));
- p->pos=pos;
- p->name=name;
- p->params=params;
- p->result=result;
- p->body=body;
- return p;
-}
-
-A_fundecList A_FundecList(A_fundec head, A_fundecList tail)
-{A_fundecList p = checked_malloc(sizeof(*p));
- p->head=head;
- p->tail=tail;
- return p;
-}
-
-A_decList A_DecList(A_dec head, A_decList tail)
-{A_decList p = checked_malloc(sizeof(*p));
- p->head=head;
- p->tail=tail;
- return p;
-}
-
-A_namety A_Namety(S_symbol name, A_ty ty)
-{A_namety p = checked_malloc(sizeof(*p));
- p->name=name;
- p->ty=ty;
- return p;
-}
-
-A_nametyList A_NametyList(A_namety head, A_nametyList tail)
-{A_nametyList p = checked_malloc(sizeof(*p));
- p->head=head;
- p->tail=tail;
- return p;
-}
-
-A_efield A_Efield(S_symbol name, A_exp exp)
-{A_efield p = checked_malloc(sizeof(*p));
- p->name=name;
- p->exp=exp;
- return p;
-}
-
-A_efieldList A_EfieldList(A_efield head, A_efieldList tail)
-{A_efieldList p = checked_malloc(sizeof(*p));
- p->head=head;
- p->tail=tail;
- return p;
-}
-#endif
 

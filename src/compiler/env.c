@@ -50,6 +50,7 @@ S_scope E_base_tenv(void)
     S_enter(scope, S_Symbol("single"),   Ty_Single());
     S_enter(scope, S_Symbol("double"),   Ty_Double());
     S_enter(scope, S_Symbol("string"),   Ty_String());
+    S_enter(scope, S_Symbol("void"),     Ty_Void());
 
     return scope;
 }
@@ -149,7 +150,7 @@ S_scope E_base_venv(void)
     declare_builtin(t, "___aqb_pset",           "iiii",     Ty_Void());
     declare_builtin(t, "___aqb_on_window_call", "p",        Ty_Void());
 
-    S_enter(t, S_Symbol("MathTransBase"), E_VarEntry(Tr_externalVar("_MathTransBase", Ty_VoidPtr()), Ty_VoidPtr(), TRUE));
+    // S_enter(t, S_Symbol("MathTransBase"), E_VarEntry(Tr_externalVar("_MathTransBase", Ty_VoidPtr()), Ty_VoidPtr(), TRUE));
 
     return t;
 }
