@@ -89,7 +89,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -118,7 +117,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -145,7 +143,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -172,7 +169,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_uinteger:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -199,7 +195,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -224,7 +219,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -249,7 +243,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -274,7 +267,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -297,7 +289,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty1;
                     return TRUE;
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_void:
@@ -305,29 +296,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                     *res = ty1;
                     return FALSE;
-            }
-        case Ty_string:
-            switch (ty2->kind)
-            {
-                case Ty_bool:
-                case Ty_byte:
-                case Ty_ubyte:
-                case Ty_integer:
-                case Ty_uinteger:
-                case Ty_long:
-                case Ty_ulong:
-                case Ty_single:
-                case Ty_double:
-                case Ty_array:
-                case Ty_record:
-                case Ty_void:
-                case Ty_pointer:
-                case Ty_varPtr:
-                    *res = ty1;
-                    return FALSE;
-                case Ty_string:
-                    *res = ty1;
-                    return TRUE;
             }
         case Ty_array:
             assert(0); // FIXME
@@ -357,7 +325,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                case Ty_string:
                 case Ty_array:
                 case Ty_record:
                 case Ty_pointer:
@@ -779,12 +746,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
     {
         case A_printStmt:
         {
-            Tr_exp exp         = transExp(level, venv, tenv, stmt->u.printExp, breaklbl);
+            Tr_exp     exp     = transExp(level, venv, tenv, stmt->u.printExp, breaklbl);
             Tr_expList arglist = Tr_ExpList(exp, NULL);  // single argument list
-            S_symbol fsym      = NULL;                   // put* function sym to call
-            switch (Tr_ty(exp)->kind)
+            S_symbol   fsym    = NULL;                   // put* function sym to call
+            Ty_ty      ty      = Tr_ty(exp);
+            switch (ty->kind)
             {
-                case Ty_string:
+                case Ty_pointer:
+                    if (ty->u.pointer->kind != Ty_ubyte)
+                    {
+                        EM_error(stmt->pos, "unsupported type in print expression list.");
+                        return NULL;
+                    }
                     fsym = S_Symbol("__aio_puts");
                     break;
                 case Ty_byte:

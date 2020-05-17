@@ -66,7 +66,6 @@ static enum AS_w ty_isz(Ty_ty ty)
         case Ty_ulong:
         case Ty_single:
         case Ty_double:
-        case Ty_string:
         case Ty_varPtr:
         case Ty_pointer:
             return AS_w_L;

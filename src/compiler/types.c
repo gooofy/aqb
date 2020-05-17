@@ -39,7 +39,7 @@ Ty_ty Ty_Single(void) {return &tysingle;}
 static struct Ty_ty_ tydouble = {Ty_double};
 Ty_ty Ty_Double(void) {return &tydouble;}
 
-static struct Ty_ty_ tystring = {Ty_string};
+static struct Ty_ty_ tystring = {Ty_pointer, {&tyubyte}};
 Ty_ty Ty_String(void) {return &tystring;}
 
 static struct Ty_ty_ tyvoid = {Ty_void};
@@ -141,23 +141,9 @@ Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail)
 }
 
 /* printing functions - used for debugging */
-static char str_ty[][20] = {
-   "ty_bool",
-   "ty_byte", "ty_ubyte", "ty_integer", "ty_uinteger", "ty_long", "ty_ulong",
-   "ty_single", "ty_double",
-   "ty_string", "ty_array", "ty_record",
-   "ty_void"};
-
 void Ty_print(Ty_ty t)
 {
-    if (t == NULL)
-    {
-        printf("null");
-    }
-    else
-    {
-        printf("%s", str_ty[t->kind]);
-    }
+    printf ("%s", Ty_name(t));
 }
 
 void Ty_printList(Ty_tyList list)
@@ -190,7 +176,6 @@ int Ty_size(Ty_ty t)
         case Ty_long:
         case Ty_ulong:
         case Ty_single:
-        case Ty_string: // FIXME
         case Ty_pointer:
         case Ty_varPtr:
              return 4;
@@ -229,6 +214,27 @@ Ty_ty Ty_inferType(string varname)
     return Ty_Single();
 }
 
+string Ty_inferTypeName(string varname)
+{
+    int  l = strlen(varname);
+    char postfix = varname[l-1];
+
+    switch (postfix)
+    {
+        case '$':
+            return "string";
+        case '%':
+            return "integer";
+        case '&':
+            return "long";
+        case '!':
+            return "single";
+        case '#':
+            return "double";
+    }
+    return "single";
+}
+
 string Ty_removeTypeSuffix(string varname)
 {
     int  l = strlen(varname);
@@ -251,23 +257,41 @@ string Ty_removeTypeSuffix(string varname)
 
 string Ty_name(Ty_ty t)
 {
+    if (t == NULL)
+        return "null";
+
     switch (t->kind)
     {
         case Ty_bool:
-            return "boolean";
+            return "bool";
+        case Ty_byte:
+            return "byte";
+        case Ty_ubyte:
+            return "ubyte";
         case Ty_integer:
             return "integer";
+        case Ty_uinteger:
+            return "uinteger";
         case Ty_long:
             return "long";
+        case Ty_ulong:
+            return "ulong";
         case Ty_single:
             return "single";
-        case Ty_string:
-            return "string";
         case Ty_double:
             return "double";
-        default:
-            assert(0);
+        case Ty_array:
+            return "array";
+        case Ty_record:
+            return "record";
+        case Ty_pointer:
+            return "pointer";
+        case Ty_void:
+            return "void";
+        case Ty_varPtr:
+            return "varPtr";
     }
-    return NULL;
+    assert(0);
+    return "???";
 }
 

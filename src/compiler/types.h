@@ -17,7 +17,7 @@ struct Ty_ty_
     enum { Ty_bool,
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
-           Ty_string, Ty_array, Ty_record, Ty_pointer,
+           Ty_array, Ty_record, Ty_pointer,
            Ty_void, Ty_varPtr                          } kind;
            // Ty_varPtr: used during var access processing in translate.c
     union
@@ -60,6 +60,7 @@ void         Ty_printList(Ty_tyList list);
 int          Ty_size(Ty_ty t);
 
 Ty_ty        Ty_inferType(string varname);
+string       Ty_inferTypeName(string varname);
 string       Ty_removeTypeSuffix(string varname);
 string       Ty_name(Ty_ty t);
 

@@ -1,7 +1,7 @@
 
 i& = 42
 
-FOR i& = 1 TO 42 
+FOR i& = 1 TO 42
 
     PRINT i&;
 
