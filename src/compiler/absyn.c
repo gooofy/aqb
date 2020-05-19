@@ -147,6 +147,20 @@ A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, bool external, S_symbo
     return p;
 }
 
+A_stmt A_ConstDeclStmt (A_pos pos, S_symbol sConst, S_symbol sType, bool ptr, A_exp cExp)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind              = A_constDeclStmt;
+    p->pos               = pos;
+    p->u.cdeclr.sConst   = sConst;
+    p->u.cdeclr.sType    = sType;
+    p->u.cdeclr.ptr      = ptr;
+    p->u.cdeclr.cExp     = cExp;
+
+    return p;
+}
+
 A_dim A_Dim (A_exp expStart, A_exp expEnd)
 {
     A_dim p = checked_malloc(sizeof(*p));

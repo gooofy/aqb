@@ -81,6 +81,7 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "type",     (void *) S_TYPE);
     hashmap_put (g_tokens, "ptr",      (void *) S_PTR);
     hashmap_put (g_tokens, "extern",   (void *) S_EXTERN);
+    hashmap_put (g_tokens, "const",    (void *) S_CONST);
 }
 
 A_pos S_getpos(void)

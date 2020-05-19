@@ -2117,6 +2117,137 @@ static bool stmtExternDecl(void)
     return singleVarDecl(/*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
 }
 
+// constDecl ::= CONST ( ident [AS ident [PTR]] "=" Expression ("," ident [AS ident [PTR]] "=" expression)*
+//                     | AS ident [PTR] ident = expression ("," ident "=" expression)*
+//                     )
+static bool stmtConstDecl(void)
+{
+    A_pos    pos = S_getpos();
+    S_symbol sConst;
+    S_symbol sType = NULL;
+    A_exp    init  = NULL;
+    bool     ptr = FALSE;
+
+    S_getsym(); // consume "CONST"
+
+    if (S_token == S_IDENT)
+    {
+        sConst = S_Symbol(String(S_str));
+        S_getsym();
+
+        if (S_token == S_AS)
+        {
+            S_getsym();
+            if (S_token != S_IDENT)
+                return EM_err("constant declaration: type identifier expected here.");
+            sType = S_Symbol(String(S_strlc));
+            S_getsym();
+            if (S_token == S_AS)
+            {
+                S_getsym();
+                ptr = TRUE;
+            }
+        }
+
+        if (S_token != S_EQUALS)
+            return EM_err("constant declaration: = expected here.");
+        S_getsym();
+
+        if (!expression(&init))
+            return EM_err("constant declaration: expression expected here.");
+
+        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+
+        while (S_token == S_COMMA)
+        {
+            S_getsym();
+
+            if (S_token != S_IDENT)
+                return EM_err("constant declaration: type identifier expected here.");
+            pos = S_getpos();
+
+            sConst = S_Symbol(String(S_str));
+            S_getsym();
+
+            if (S_token == S_AS)
+            {
+                S_getsym();
+                if (S_token != S_IDENT)
+                    return EM_err("constant declaration: type identifier expected here.");
+                sType = S_Symbol(String(S_strlc));
+                S_getsym();
+                if (S_token == S_PTR)
+                {
+                    S_getsym();
+                    ptr = TRUE;
+                }
+            }
+
+            if (S_token != S_EQUALS)
+                return EM_err("constant declaration: = expected here.");
+            S_getsym();
+
+            if (!expression(&init))
+                return EM_err("constant declaration: expression expected here.");
+
+            A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+        }
+        return TRUE;
+    }
+
+    if (S_token != S_AS)
+        return EM_err("constant declaration: AS expected here.");
+    S_getsym();
+
+    if (S_token != S_IDENT)
+        return EM_err("constant declaration: type identifier expected here.");
+    sType = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    if (S_token == S_PTR)
+    {
+        S_getsym();
+        ptr = TRUE;
+    }
+
+    if (S_token != S_IDENT)
+        return EM_err("constant declaration: identifier expected here.");
+    sConst = S_Symbol(String(S_strlc));
+    S_getsym();
+
+    if (S_token != S_EQUALS)
+        return EM_err("constant declaration: = expected here.");
+    S_getsym();
+
+    if (!expression(&init))
+        return EM_err("constant declaration: expression expected here.");
+
+    A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+
+    while (S_token == S_COMMA)
+    {
+        S_getsym();
+
+        if (S_token != S_IDENT)
+            return EM_err("constant declaration: type identifier expected here.");
+        pos = S_getpos();
+
+        sConst = S_Symbol(String(S_str));
+        S_getsym();
+
+        if (S_token != S_EQUALS)
+            return EM_err("constant declaration: = expected here.");
+        S_getsym();
+
+        if (!expression(&init))
+            return EM_err("constant declaration: expression expected here.");
+
+        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+    }
+
+    return TRUE;
+}
+
 // procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(void)
 {
@@ -2251,6 +2382,8 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
             return stmtTypeDecl();
         case S_EXTERN:
             return stmtExternDecl();
+        case S_CONST:
+            return stmtConstDecl();
         case S_OPTION:
             return EM_err ("Sorry, option statement is not supported yet."); // FIXME
         case S_ON:

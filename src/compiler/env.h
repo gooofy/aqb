@@ -7,7 +7,7 @@ typedef struct E_enventry_ *E_enventry;
 
 struct E_enventry_ 
 {
-    enum {E_varEntry, E_funEntry} kind;
+    enum {E_varEntry, E_funEntry, E_constEntry} kind;
     union 
     {
         struct {Tr_access access; Ty_ty ty; bool shared;} var;
@@ -15,6 +15,7 @@ struct E_enventry_
                 Ty_tyList formals; Ty_ty result;
                 bool forward;
                 int offset; string libBase;} fun;
+        Tr_exp cExp;
     } u;
 };
 
@@ -22,6 +23,7 @@ E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared);
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
                       Ty_tyList formals, Ty_ty result,
                       bool forward, int offset, string libBase);
+E_enventry E_ConstEntry(Tr_exp c);
 
 S_scope E_base_tenv(void); /* Ty_ty environment */
 S_scope E_base_venv(void); /* E_enventry environment */

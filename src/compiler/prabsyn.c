@@ -293,6 +293,11 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 fprintf(out, " PTR");
             if (stmt->u.vdeclr.dims)
                 pr_dims(out, stmt->u.vdeclr.dims);
+            if (stmt->u.vdeclr.init)
+            {
+                fprintf(out, "=");
+                pr_exp(out, stmt->u.vdeclr.init);
+            }
             fprintf(out, ")");
             break;
         }
@@ -321,6 +326,19 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 if (f->tail)
                     fprintf(out,",");
             }
+            fprintf(out, ")");
+            break;
+        }
+        case A_constDeclStmt:
+        {
+            indent(out, d);
+            fprintf(out, "CONSTDECL %s(", S_name(stmt->u.cdeclr.sConst));
+            if (stmt->u.cdeclr.sType)
+                fprintf(out, "%s", S_name(stmt->u.cdeclr.sType));
+            if (stmt->u.cdeclr.ptr)
+                fprintf(out, " PTR");
+            fprintf(out, "=");
+            pr_exp(out, stmt->u.cdeclr.cExp);
             fprintf(out, ")");
             break;
         }

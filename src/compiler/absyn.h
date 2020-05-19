@@ -48,7 +48,7 @@ struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
-           A_typeDeclStmt                                                                    } kind;
+           A_typeDeclStmt, A_constDeclStmt                                                   } kind;
     A_pos pos;
 	union
     {
@@ -59,6 +59,7 @@ struct A_stmt_
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
         struct {bool shared; bool statc; bool external; S_symbol sVar; S_symbol sType; bool ptr; A_dim dims; A_exp init;} vdeclr;
+        struct {S_symbol sConst; S_symbol sType; bool ptr; A_exp cExp;} cdeclr;
         struct {A_exp exp; string msg;} assertr;
 	    struct {A_exp exp; A_stmtList body;} whiler;
 	    struct {S_symbol sType; A_field fields;} typer;
@@ -182,6 +183,7 @@ A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, 
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (A_pos pos, A_proc proc);
 A_stmt          A_VarDeclStmt     (A_pos pos, bool shared, bool statc, bool external, S_symbol varId, S_symbol typeId, bool ptr, A_dim dims, A_exp init);
+A_stmt          A_ConstDeclStmt   (A_pos pos, S_symbol sConst, S_symbol typeId, bool ptr, A_exp xExp);
 A_stmt          A_AssertStmt      (A_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (A_pos pos, S_symbol func, A_expList args);
 A_stmt          A_TypeDeclStmt    (A_pos pos, S_symbol sType, A_field fields);

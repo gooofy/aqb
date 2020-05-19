@@ -37,6 +37,16 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
     return p;
 }
 
+E_enventry E_ConstEntry(Tr_exp cExp)
+{
+    E_enventry p = checked_malloc(sizeof(*p));
+
+    p->kind         = E_constEntry;
+    p->u.cExp       = cExp;
+
+    return p;
+}
+
 S_scope E_base_tenv(void)
 {
     S_scope scope = S_beginScope();

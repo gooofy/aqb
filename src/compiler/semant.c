@@ -1273,6 +1273,48 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             S_enter(tenv, stmt->u.typer.sType, ty);
             break;
         }
+        case A_constDeclStmt:
+        {
+            E_enventry x;
+
+            Ty_ty t = NULL;
+            if (stmt->u.cdeclr.sType)
+            {
+                t = S_look(tenv, stmt->u.cdeclr.sType);
+                if (!t)
+                {
+                    EM_error(stmt->pos, "Unknown type %s.", S_name(stmt->u.cdeclr.sType));
+                    break;
+                }
+            }
+            else
+            {
+                t = Ty_inferType(S_name(stmt->u.cdeclr.sConst));
+            }
+
+            if (stmt->u.cdeclr.ptr)
+            {
+                t = Ty_Pointer(t);
+            }
+
+            Tr_exp conv_cexp=NULL;
+            Tr_exp cexp = transExp(level, venv, tenv, stmt->u.cdeclr.cExp, breaklbl);
+            if (!convert_ty(cexp, t, &conv_cexp))
+            {
+                EM_error(stmt->u.cdeclr.cExp->pos, "cexpializer type mismatch");
+                return Tr_nopNx();
+            }
+            if (!Tr_isConst(conv_cexp))
+            {
+                EM_error(stmt->u.cdeclr.cExp->pos, "constant cexpializer expected here");
+                return Tr_nopNx();
+            }
+
+            S_symbol name = stmt->u.cdeclr.sConst;
+            x = E_ConstEntry(conv_cexp);
+            S_enter(g_venv, name, x);
+            break;
+        }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);
@@ -1322,6 +1364,10 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
         }
         else
         {
+            if (x->kind == E_constEntry)
+            {
+                return x->u.cExp;
+            }
             EM_error(v->pos, "this is not a variable: %s", S_name(v->name));
             return Tr_zeroExp(Ty_Long());
         }
