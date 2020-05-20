@@ -198,7 +198,7 @@ static void declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, cha
         A_ParamListAppend(paramList, A_Param (0, FALSE, FALSE, NULL, ty, FALSE, NULL));
     }
 
-    proc = A_Proc(0, S_Symbol(name), Temp_namedlabel(label), retty ? S_Symbol(retty) : NULL, FALSE, paramList);
+    proc = A_Proc(0, S_Symbol(name), Temp_namedlabel(label), retty ? S_Symbol(retty) : NULL, /*ptr=*/FALSE, FALSE, paramList);
 
     hashmap_put(declared_procs, S_name(proc->name), proc);
     A_StmtListAppend (stmtList, A_ProcDeclStmt(proc->pos, proc));

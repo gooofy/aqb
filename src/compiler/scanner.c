@@ -83,6 +83,7 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "ptr",      (void *) S_PTR);
     hashmap_put (g_tokens, "extern",   (void *) S_EXTERN);
     hashmap_put (g_tokens, "const",    (void *) S_CONST);
+    hashmap_put (g_tokens, "explicit", (void *) S_EXPLICIT);
 }
 
 A_pos S_getpos(void)
@@ -158,7 +159,7 @@ static bool is_digit(void)
 
 static bool is_idcont(void)
 {
-    return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) || is_digit() ;
+    return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) || g_ch == '_' || is_digit() ;
 }
 
 static bool get_digit(int *digit, int base)
@@ -237,7 +238,13 @@ static void number(int base)
     }
 }
 
-int S_identifier(void)
+static void skip_comment(void)
+{
+    while (!g_eof && (g_ch != '\n'))
+        getch();
+}
+
+void S_identifier(void)
 {
     int l = 0;
     int t;
@@ -276,7 +283,6 @@ int S_identifier(void)
         S_token = t;
     if (g_verbose)
         printf("[%d %s]", S_token, S_str);
-    return S_token;
 }
 
 int S_getsym(void)
@@ -302,8 +308,7 @@ int S_getsym(void)
     if (!g_eof && (g_ch == '\''))
     {
         getch();
-        while (!g_eof && (g_ch != '\n'))
-            getch();
+        skip_comment();
     }
 
     if (g_eof)
@@ -316,7 +321,20 @@ int S_getsym(void)
 
     if (is_idstart())
     {
-        return S_identifier();
+        S_identifier();
+        if (S_token == S_REM)
+        {
+            skip_comment();
+            if (g_eof)
+            {
+                S_token = S_EOF;
+                return S_token;
+            }
+        }
+        else
+        {
+            return S_token;
+        }
     }
     if (is_digit())
     {

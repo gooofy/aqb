@@ -242,7 +242,7 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             if (stmt->kind == A_procDeclStmt)
                 fprintf(out, "DECLARE ");
             if (stmt->u.proc->retty)
-                fprintf(out, "FUNCTION %s:%s(", S_name(stmt->u.proc->name), S_name(stmt->u.proc->retty));
+                fprintf(out, "FUNCTION %s:%s%s(", S_name(stmt->u.proc->name), S_name(stmt->u.proc->retty), stmt->u.proc->ptr ? " PTR":"");
             else
                 fprintf(out, "SUB %s(", S_name(stmt->u.proc->name));
             for (par = stmt->u.proc->paramList->first; par; par = par->next)

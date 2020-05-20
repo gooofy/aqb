@@ -11,6 +11,7 @@
 #include "semant.h"
 #include "translate.h"
 #include "env.h"
+#include "options.h"
 
 #define RETURN_VAR_NAME "___return_var"
 
@@ -20,13 +21,13 @@ static S_scope g_venv;
 static S_scope g_tenv;
 
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
-static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl);
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, A_pos pos);
 static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
 
 /* Utilities */
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
-static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v)
+static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, A_pos pos)
 {
     E_enventry x = S_look(venv, v);
 
@@ -41,6 +42,9 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v)
     {
         string s = S_name(v);
         Ty_ty t = Ty_inferType(s);
+
+        if (OPT_get(OPTION_EXPLICIT))
+            EM_error(pos, "undeclared variable %s", s);
 
         if (Tr_isStatic(level))
         {
@@ -515,7 +519,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
     {
         case A_varExp:
         {
-            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl);
+            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl, a->pos);
             // if this is a varPtr, time to deref it
             Ty_ty ty = Tr_ty(e);
             if (ty->kind == Ty_varPtr)
@@ -525,7 +529,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
 
         case A_varPtrExp:
         {
-            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl);
+            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl, a->pos);
             Ty_ty ty = Tr_ty(e);
             if (ty->kind != Ty_varPtr)
             {
@@ -864,7 +868,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_assignStmt:
         {
-            Tr_exp var = transVar(level, venv, tenv, stmt->u.assign.var, breaklbl);
+            Tr_exp var = transVar(level, venv, tenv, stmt->u.assign.var, breaklbl, stmt->pos);
             Tr_exp exp = transExp(level, venv, tenv, stmt->u.assign.exp, breaklbl);
             Tr_exp convexp;
 
@@ -897,7 +901,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_forStmt:
         {
-            E_enventry var = autovar (level, venv, stmt->u.forr.var);
+            E_enventry var = autovar (level, venv, stmt->u.forr.var, stmt->pos);
             Ty_ty varty = var->u.var.ty;
 
             Tr_exp from_exp  = transExp(level, venv, tenv, stmt->u.forr.from_exp, breaklbl);
@@ -971,6 +975,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(proc->pos, "unknown return type: %s", S_name(proc->retty));
                     break;
                 }
+                if (proc->ptr)
+                    resultTy = Ty_Pointer(resultTy);
             }
 
             if (proc->offset)
@@ -1351,9 +1357,9 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
     return Tr_seqExp(el);
 }
 
-static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl)
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, A_pos pos)
 {
-    E_enventry x = autovar(level, venv, v->name);
+    E_enventry x = autovar(level, venv, v->name, pos);
 
     if (x->kind != E_varEntry)
     {

@@ -6,6 +6,7 @@
 #include "errormsg.h"
 #include "types.h"
 #include "env.h"
+#include "options.h"
 
 static S_symbol g_SVarPtr;
 const char *P_filename = NULL;
@@ -1393,7 +1394,7 @@ static bool parameterList(A_paramList paramList)
     return TRUE;
 }
 
-// procHeader ::= ident [ parameterList ] [ AS Ident ] [ STATIC ]
+// procHeader ::= ident [ parameterList ] [ AS Ident [PTR] ] [ STATIC ]
 static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
 {
     S_symbol    name;
@@ -1401,6 +1402,7 @@ static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
     A_paramList paramList = A_ParamList();
     S_symbol    retty = NULL;
     Temp_label  label = NULL;
+    bool        ptr = FALSE;
 
     if (S_token != S_IDENT)
         return EM_err("identifier expected here.");
@@ -1421,6 +1423,12 @@ static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
             return EM_err("type identifier expected here.");
         retty = S_Symbol(String(S_strlc));
         S_getsym();
+
+        if (S_token == S_PTR)
+        {
+            S_getsym();
+            ptr = TRUE;
+        }
     }
 
     if (!retty && isFunction)
@@ -1434,7 +1442,7 @@ static bool procHeader(A_pos pos, bool isFunction, A_proc *proc)
         S_getsym();
     }
 
-    *proc = A_Proc (pos, name, label, retty, isStatic, paramList);
+    *proc = A_Proc (pos, name, label, retty, ptr, isStatic, paramList);
 
     return TRUE;
 }
@@ -2248,6 +2256,35 @@ static bool stmtConstDecl(void)
     return TRUE;
 }
 
+// optionStmt ::= OPTION EXPLICIT [ ( ON | OFF ) ]
+static bool stmtOption(void)
+{
+    bool onoff=TRUE;
+
+    S_getsym(); // consume "OPTION"
+
+    if (S_token != S_EXPLICIT)
+        return EM_err("EXPLICIT expected here.");
+    S_getsym();
+
+    if (S_token == S_ON)
+    {
+        S_getsym();
+        onoff=TRUE;
+    }
+    else
+    {
+        if (S_token == S_OFF)
+        {
+            S_getsym();
+            onoff=FALSE;
+        }
+    }
+
+    OPT_set(OPTION_EXPLICIT, onoff);
+    return TRUE;
+}
+
 // procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(void)
 {
@@ -2385,7 +2422,7 @@ static bool bodyStatement(A_sourceProgram sourceProgram)
         case S_CONST:
             return stmtConstDecl();
         case S_OPTION:
-            return EM_err ("Sorry, option statement is not supported yet."); // FIXME
+            return stmtOption();
         case S_ON:
             return stmtOn();
         case S_EOF:

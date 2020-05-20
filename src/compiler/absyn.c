@@ -488,7 +488,7 @@ void A_ParamListAppend (A_paramList list, A_param param)
     }
 }
 
-A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool isStatic, A_paramList paramList)
+A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList)
 {
     A_proc p = checked_malloc(sizeof(*p));
 
@@ -496,6 +496,7 @@ A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool 
     p->name       = name;
     p->label      = label;
     p->retty      = retty;
+    p->ptr        = ptr;
     p->isStatic   = isStatic;
     p->paramList  = paramList;
     p->body       = NULL;
