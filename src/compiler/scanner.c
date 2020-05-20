@@ -5,6 +5,7 @@
 #include "scanner.h"
 #include "hashmap.h"
 #include "util.h"
+#include "errormsg.h"
 
 static FILE *g_fin=NULL;
 
@@ -160,16 +161,29 @@ static bool is_idcont(void)
     return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) || is_digit() ;
 }
 
-static void number(bool negative)
+static bool get_digit(int *digit, int base)
 {
+    char ch = toupper(g_ch);
+    int d;
+    if ((ch<'0') || (ch>'F'))
+        return FALSE;
+    d = ch > '9' ? ch-'A'+10 : ch-'0';
+    if (d>=base)
+        return FALSE;
+    *digit = d;
+    return TRUE;
+}
+
+static void number(int base)
+{
+    int d;
     S_inum = 0;
-    while (isdigit(g_ch)) {
-        S_inum = (g_ch - '0') + S_inum*10;
+    while (get_digit(&d, base))
+    {
+        S_inum = d + S_inum*base;
         getch();
     }
     S_token = S_INUM;
-    if (negative)
-        S_inum *= -1;
     if (g_ch == '!')
     {
         getch();
@@ -180,13 +194,14 @@ static void number(bool negative)
     {
         if (g_ch == '.')
         {
-            double m = 0.1;
+            double m = 1.0 / base;
             S_token = S_FNUM;
             S_fnum = S_inum;
             getch();
-            while (isdigit(g_ch)) {
-                S_fnum += ((double)(g_ch - '0')) * m;
-                m /= 10.0;
+            while (get_digit(&d, base))
+            {
+                S_fnum += ((double) d) * m;
+                m /= base;
                 getch();
             }
         }
@@ -210,13 +225,14 @@ static void number(bool negative)
                 getch();
             }
             int e = 0;
-            while (isdigit(g_ch)) {
-                e = (g_ch - '0') + e*10;
+            while (get_digit(&d, base))
+            {
+                e = d + e*base;
                 getch();
             }
             if (negative)
                 e = -1 * e;
-            S_fnum *= pow(10, e);
+            S_fnum *= pow(base, e);
         }
     }
 }
@@ -304,7 +320,7 @@ int S_getsym(void)
     }
     if (is_digit())
     {
-        number (FALSE);
+        number (10);
         if (g_verbose)
             printf("[%d %d]", S_token, S_inum);
         return S_token;
@@ -382,7 +398,30 @@ int S_getsym(void)
         case '7':
         case '8':
         case '9':
-            number(FALSE);
+            number(10);
+            break;
+        case '&':   // binary, octal and hex literals
+            getch();
+            switch (g_ch)
+            {
+                case 'B':
+                    getch();
+                    number(2);
+                    break;
+                case 'O':
+                    getch();
+                    number(8);
+                    break;
+                case 'H':
+                    getch();
+                    number(16);
+                    break;
+                default:
+                    getch();
+                    EM_err("lexer error: invalid literal type character");
+                    number(10);
+                    break;
+            }
             break;
         case '^':
             S_token = S_EXP;
