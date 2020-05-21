@@ -543,27 +543,39 @@ Tr_exp Tr_Var(Tr_access a)
     return Tr_Ex(F_Exp(a->access));
 }
 
-Tr_exp Tr_Index(Tr_exp array, Tr_exp idx)
+Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
 {
-    Ty_ty t = Tr_ty(array);
+    Ty_ty t = Tr_ty(ape);
+
     assert(t->kind==Ty_varPtr);
+    Ty_ty at = t->u.pointer;
+
+    if (t->u.pointer->kind == Ty_pointer)
+    {
+        Ty_ty et = at->u.pointer;
+        return Tr_arOpExp(A_addOp,
+                          Tr_Deref(ape),
+                          Tr_arOpExp(A_mulOp,
+                                     idx,
+                                     Tr_intExp(Ty_size(et), Ty_Long()),
+                                     Ty_Long()),
+                          Ty_VarPtr(et));
+    }
+
     assert(t->u.pointer->kind==Ty_array);
 
-    Ty_ty at = t->u.pointer;
     Ty_ty et = at->u.array.elementTy;
 
-    T_exp e = unEx(array);
-
-    return Tr_Ex(T_Binop(T_plus,
-                         e,
-                         T_Binop(T_mul,
-                                 T_Binop(T_minus,
-                                         unEx(idx),
-                                         T_ConstInt(at->u.array.iStart, Ty_Long()),
-                                         Ty_Long()),
-                                 T_ConstInt(Ty_size(at->u.array.elementTy), Ty_Long()),
+    return Tr_arOpExp(A_addOp,
+                      ape,
+                      Tr_arOpExp(A_mulOp,
+                                 Tr_arOpExp(A_subOp,
+                                            idx,
+                                            Tr_intExp(at->u.array.iStart, Ty_Long()),
+                                            Ty_Long()),
+                                 Tr_intExp(Ty_size(et), Ty_Long()),
                                  Ty_Long()),
-                         Ty_VarPtr(et)));
+                      Ty_VarPtr(et));
 }
 
 Tr_exp Tr_Deref(Tr_exp ptr)

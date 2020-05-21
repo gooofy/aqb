@@ -9,6 +9,7 @@
 #include "options.h"
 
 static S_symbol g_SVarPtr;
+static S_symbol g_SSizeOf;
 const char *P_filename = NULL;
 
 // we need to keep track of declared subs and functions during parsing
@@ -83,7 +84,7 @@ static bool logicalNewline(void)
 static bool expression(A_exp *exp);
 static bool expressionList(A_expList *expList);
 
-// selector ::= ( "(" expression ( "," expression)* ")"
+// selector ::= ( ("["|"(") expression ( "," expression)* ("]"|")")
 //              | "." ident
 //              | "->" ident )
 
@@ -92,10 +93,12 @@ static bool selector(A_selector *sel)
     A_pos      pos = S_getpos();
     switch (S_token)
     {
+        case S_LBRACKET:
         case S_LPAREN:
         {
             A_exp      exp;
             A_selector last;
+            int        start_token = S_token;
 
             S_getsym();
             if (!expression(&exp))
@@ -112,7 +115,9 @@ static bool selector(A_selector *sel)
                 last = last->tail;
             }
 
-            if (S_token != S_RPAREN)
+            if ((start_token == S_LBRACKET) && (S_token != S_RBRACKET))
+                return EM_err("] expected here.");
+            if ((start_token == S_LPAREN) && (S_token != S_RPAREN))
                 return EM_err(") expected here.");
             S_getsym();
 
@@ -154,7 +159,7 @@ static bool varDesignator(A_var *var, S_symbol sym)
 
     *var = A_Var(pos, sym);
 
-    while ( (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
+    while ( (S_token == S_LBRACKET) || (S_token == S_LPAREN) || (S_token == S_PERIOD) || (S_token == S_POINTER) )
     {
         if (!selector(&sel))
             return FALSE;
@@ -210,7 +215,7 @@ static bool atom(A_exp *exp)
             S_getsym();
 
             // built-in function?
-            if (sym == g_SVarPtr)     // VARPTR()
+            if (sym == g_SVarPtr)                               // VARPTR()
             {
                 A_var v;
                 if (S_token != S_LPAREN)
@@ -228,37 +233,58 @@ static bool atom(A_exp *exp)
             }
             else
             {
-                // is this a declared function?
-
-                if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+                if (sym == g_SSizeOf)                           // SIZEOF()
                 {
-                    A_expList args = A_ExpList();
+                    S_symbol sType;
+                    if (S_token != S_LPAREN)
+                        return EM_err("( expected.");
+                    S_getsym();
 
-                    if (!proc->retty)
-                        return EM_err("SUB used as FUNCTION?");
+                    if (S_token != S_IDENT)
+                        return EM_err("sizeof: type identifier expected here.");
+                    sType = S_Symbol(String(S_strlc));
+                    S_getsym();
 
-                    if (S_token == S_LPAREN)
-                    {
-                        S_getsym();
+                    if (S_token != S_RPAREN)
+                        return EM_err(") expected.");
+                    S_getsym();
 
-                        if (!expressionList(&args))
-                        {
-                            return EM_err("error parsing FUNCTION argument list");
-                        }
-
-                        if (S_token != S_RPAREN)
-                        {
-                            return EM_err(") expected.");
-                        }
-                        S_getsym();
-                    }
-
-                    *exp = A_FuncCallExp(pos, proc->name, args);
+                    *exp = A_SizeofExp(pos, sType);
                 }
                 else
                 {
-                    varDesignator(&v, sym);
-                    *exp = A_VarExp(pos, v);
+                    // is this a declared function?
+
+                    if (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK)
+                    {
+                        A_expList args = A_ExpList();
+
+                        if (!proc->retty)
+                            return EM_err("SUB used as FUNCTION?");
+
+                        if (S_token == S_LPAREN)
+                        {
+                            S_getsym();
+
+                            if (!expressionList(&args))
+                            {
+                                return EM_err("error parsing FUNCTION argument list");
+                            }
+
+                            if (S_token != S_RPAREN)
+                            {
+                                return EM_err(") expected.");
+                            }
+                            S_getsym();
+                        }
+
+                        *exp = A_FuncCallExp(pos, proc->name, args);
+                    }
+                    else
+                    {
+                        varDesignator(&v, sym);
+                        *exp = A_VarExp(pos, v);
+                    }
                 }
             }
             break;
@@ -1054,7 +1080,7 @@ static bool stmtPSet(void)
     return TRUE;
 }
 
-// assignmentStmt ::= ident ( "(" expression ( "," expression)* ")"
+// assignmentStmt ::= ident ( ("["|"(") expression ( "," expression)* ("]"|")")
 //                          | "." ident
 //                          | "->" ident )* "=" expression
 static bool stmtAssignment(S_symbol sym, bool deref)
@@ -1563,7 +1589,7 @@ static bool stmtWhileEnd(void)
     return TRUE;
 }
 
-// identStmt ::= ident ( [ ("(" | "." | "->") ... ] "=" expression  ; assignment
+// identStmt ::= ident ( [ ("[" | "." | "->") ... ] "=" expression  ; assignment
 //                     | [ "(" expressionList ")" ]                 ; proc call FIXME
 //                     | ":"                                        ; label
 //                     | expressionList )                           ; call
@@ -1592,6 +1618,7 @@ static bool stmtIdent(void)
 
     switch (S_token)
     {
+        case S_LBRACKET:
         case S_LPAREN:
         case S_PERIOD:
         case S_POINTER:
@@ -1623,6 +1650,7 @@ static bool stmtDerefAssignment(void)
     switch (S_token)
     {
         case S_LPAREN:
+        case S_LBRACKET:
         case S_PERIOD:
         case S_POINTER:
         case S_EQUALS:      // assignment
@@ -2475,6 +2503,7 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
     S_init (inf);
     S_symbol_init();
     g_SVarPtr = S_Symbol("varptr");
+    g_SSizeOf = S_Symbol("sizeof");
 
     return sourceProgramBody(sourceProgram);
 }

@@ -96,6 +96,9 @@ static void pr_exp(FILE *out, A_exp exp)
             pr_var(out, exp->u.var);
             fprintf(out, ")");
             break;
+        case A_sizeofExp:
+            fprintf(out, "sizeofExp(%s)", S_name(exp->u.sizeoft));
+            break;
         case A_derefExp:
             fprintf(out, "deref(");
             pr_exp(out, exp->u.deref);

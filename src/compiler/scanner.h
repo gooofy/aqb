@@ -31,6 +31,8 @@
 #define S_POINTER   31
 #define S_PERIOD    32
 #define S_AT        33
+#define S_LBRACKET  34
+#define S_RBRACKET  35
 
 #define S_PRINT    100
 #define S_OPTION   101

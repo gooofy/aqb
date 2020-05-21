@@ -446,6 +446,17 @@ A_exp A_DerefExp (A_pos pos, A_exp exp)
     return p;
 }
 
+A_exp A_SizeofExp (A_pos pos, S_symbol t)
+{
+    A_exp p = checked_malloc(sizeof(*p));
+
+    p->kind      = A_sizeofExp;
+    p->pos       = pos;
+    p->u.sizeoft = t;
+
+    return p;
+}
+
 A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp)
 {
     A_param p = checked_malloc(sizeof(*p));

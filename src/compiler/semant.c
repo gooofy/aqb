@@ -539,6 +539,17 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
             return e;
         }
 
+        case A_sizeofExp:
+        {
+            Ty_ty t = S_look(tenv, a->u.sizeoft);
+            if (!t)
+            {
+                EM_error(a->pos, "Unknown type %s.", S_name(a->u.sizeoft));
+                break;
+            }
+            return Tr_intExp(Ty_size(t), Ty_ULong());
+        }
+
         case A_derefExp:
         {
             Tr_exp e = transExp(level, venv, tenv, a->u.deref, breaklbl);
@@ -1394,9 +1405,10 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
                     return Tr_zeroExp(Ty_Long());
                 }
                 Ty_ty ty = Tr_ty(e);
-                if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_array) )
+                if ( (ty->kind != Ty_varPtr) ||
+                     ((ty->u.pointer->kind != Ty_array) && (ty->u.pointer->kind != Ty_pointer)) )
                 {
-                    EM_error(sel->pos, "array type expected");
+                    EM_error(sel->pos, "array or pointer type expected");
                     return Tr_zeroExp(Ty_Long());
                 }
                 e = Tr_Index(e, idx_conv);

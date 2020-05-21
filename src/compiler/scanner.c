@@ -389,6 +389,14 @@ int S_getsym(void)
             S_token = S_RPAREN;
             getch();
             break;
+        case '[':
+            S_token = S_LBRACKET;
+            getch();
+            break;
+        case ']':
+            S_token = S_RBRACKET;
+            getch();
+            break;
         case '=':
             S_token = S_EQUALS;
             getch();
