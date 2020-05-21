@@ -75,7 +75,6 @@
 #define S_DIM      138
 #define S_ASSERT   139
 #define S_MENU     140
-#define S_GADGET   141
 #define S_MOUSE    142
 #define S_CALL     143
 #define S_WHILE    144

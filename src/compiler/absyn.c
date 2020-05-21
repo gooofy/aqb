@@ -380,8 +380,9 @@ A_var A_Var(A_pos pos, S_symbol sym)
 {
     A_var p = checked_malloc(sizeof(*p));
 
-    p->pos  = pos;
-    p->name = sym;
+    p->pos      = pos;
+    p->name     = sym;
+    p->selector = NULL;
 
     return p;
 }

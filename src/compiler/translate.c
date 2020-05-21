@@ -402,6 +402,7 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
             return Tr_Ex(T_ConstInt(0, ty));
         case Ty_single:
         case Ty_double:
+        case Ty_pointer:
             return Tr_Ex(T_ConstFloat(0, ty));
         default:
             EM_error(0, "*** translate.c:Tr_zeroExp: internal error");

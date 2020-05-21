@@ -2406,9 +2406,6 @@ static bool stmtOn(void)
         case S_MENU:
             func = S_Symbol("___aqb_on_menu_call");
             break;
-        case S_GADGET:
-            func = S_Symbol("___aqb_on_gadget_call");
-            break;
         case S_MOUSE:
             func = S_Symbol("___aqb_on_mouse_call");
             break;
