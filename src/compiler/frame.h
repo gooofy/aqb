@@ -59,7 +59,7 @@ string        F_getlabel(F_frame frame);
 T_exp         F_Exp(F_access acc);
 
 F_access      F_allocGlobal(Temp_label label, Ty_ty ty);
-F_access      F_allocLocal(F_frame f, Ty_ty ty, unsigned char *init_data);
+F_access      F_allocLocal(F_frame f, Ty_ty ty);
 F_accessList  F_formals(F_frame f);
 Temp_label    F_name(F_frame f);
 Temp_label    F_heapLabel(F_access access);

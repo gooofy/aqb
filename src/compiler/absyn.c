@@ -298,9 +298,6 @@ static A_expListNode A_ExpListNode (A_exp exp)
 {
     A_expListNode p;
 
-    if (!exp)
-        return NULL;
-
     p = checked_malloc(sizeof(*p));
 
     p->exp = exp;

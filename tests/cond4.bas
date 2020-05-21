@@ -1,44 +1,49 @@
 ' test short circuit evaluation
 
+DIM SHARED cnt AS INTEGER = 0
+
 FUNCTION should%()
-    PRINT "this should be executed."
+    cnt = cnt + 1
     should% = -1
 END FUNCTION
 
 FUNCTION shouldnt%()
-    PRINT "*** ERROR: this shouldn't be executed."
+    ASSERT FALSE
     shouldnt% = 0
 END FUNCTION
 
 i& = 42
 
 IF ( i& > 23 ) AND should%() THEN
-    PRINT "BOOL OK"
+    ASSERT TRUE
 ELSE
-    PRINT "*** BOOL FAILED"
+    ASSERT FALSE
 END IF
 
 IF ( i& < 23 ) AND shouldnt%() THEN
-    PRINT "*** BOOL FAILED"
+    ASSERT FALSE
 ELSE
-    PRINT "BOOL OK"
+    ASSERT TRUE
 END IF
 
 IF ( i& > 23 ) OR shouldnt%() THEN
-    PRINT "BOOL OK"
+    ASSERT TRUE
 ELSE
-    PRINT "*** BOOL FAILED"
+    ASSERT FALSE
 END IF
 
 IF ( i& < 23 ) OR should%() THEN
-    PRINT "BOOL OK"
+    ASSERT TRUE
 ELSE
-    PRINT "*** BOOL FAILED"
+    ASSERT FALSE
 END IF
 
 IF NOT (i& < 23) THEN
-    PRINT "BOOL OK"
+    ASSERT TRUE
 ELSE
-    PRINT "*** BOOL FAILED"
+    ASSERT FALSE
 END IF
+
+ASSERT cnt=2
+
 

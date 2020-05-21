@@ -4,6 +4,14 @@
 #include "translate.h"
 
 typedef struct E_enventry_ *E_enventry;
+typedef struct E_formals_  *E_formals;
+
+struct E_formals_
+{
+    Ty_ty     ty;
+    Tr_exp    defaultExp;
+    E_formals next;
+};
 
 struct E_enventry_ 
 {
@@ -12,7 +20,7 @@ struct E_enventry_
     {
         struct {Tr_access access; Ty_ty ty; bool shared;} var;
         struct {Tr_level level; Temp_label label; 
-                Ty_tyList formals; Ty_ty result;
+                E_formals formals; Ty_ty result;
                 bool forward;
                 int offset; string libBase;} fun;
         Tr_exp cExp;
@@ -21,9 +29,12 @@ struct E_enventry_
 
 E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared);
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
-                      Ty_tyList formals, Ty_ty result,
+                      E_formals formals, Ty_ty result,
                       bool forward, int offset, string libBase);
 E_enventry E_ConstEntry(Tr_exp c);
+
+E_formals  E_Formals(Ty_ty ty, Tr_exp defaultExp, E_formals next);
+Ty_tyList  E_FormalTys(E_formals formals);
 
 S_scope E_base_tenv(void); /* Ty_ty environment */
 S_scope E_base_venv(void); /* E_enventry environment */

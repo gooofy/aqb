@@ -20,7 +20,7 @@ E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared)
 }
 
 E_enventry E_FunEntry(Tr_level level, Temp_label label,
-                      Ty_tyList formals, Ty_ty result,
+                      E_formals formals, Ty_ty result,
                       bool forward, int offset, string libBase)
 {
     E_enventry p = checked_malloc(sizeof(*p));
@@ -35,6 +35,36 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
     p->u.fun.libBase = libBase;
 
     return p;
+}
+
+E_formals E_Formals(Ty_ty ty, Tr_exp defaultExp, E_formals next)
+{
+    E_formals p = checked_malloc(sizeof(*p));
+
+    p->ty         = ty;
+    p->defaultExp = defaultExp;
+    p->next       = next;
+
+    return p;
+}
+
+Ty_tyList E_FormalTys(E_formals formals)
+{
+    Ty_tyList tl=NULL, last_tl=NULL;
+    while (formals)
+    {
+        if (!tl)
+        {
+            tl = last_tl = Ty_TyList(formals->ty, NULL);
+        }
+        else
+        {
+            last_tl->tail = Ty_TyList(formals->ty, NULL);
+            last_tl = last_tl->tail;
+        }
+        formals = formals->next;
+    }
+    return tl;
 }
 
 E_enventry E_ConstEntry(Tr_exp cExp)
@@ -77,7 +107,7 @@ S_scope E_base_tenv(void)
 
 static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return_type)
 {
-    Ty_tyList tyl=NULL, tylast=NULL;
+    E_formals formals = NULL, last_formals = NULL;
     int l = strlen(argtypes);
 
     for (int i = 0; i<l; i++)
@@ -118,15 +148,14 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
             default:
                 assert(0);
         }
-        if (tyl)
+        if (!formals)
         {
-            tylast->tail = Ty_TyList(ty, NULL);
-            tylast = tylast->tail;
+            formals = last_formals = E_Formals(ty, NULL, NULL);
         }
         else
         {
-            tyl    = Ty_TyList(ty, NULL);
-            tylast = tyl;
+            last_formals->next = E_Formals(ty, NULL, NULL);
+            last_formals = last_formals->next;
         }
     }
 
@@ -134,7 +163,7 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
             E_FunEntry(
               Tr_global(),
               Temp_namedlabel(name),
-              tyl,
+              formals,
               return_type, TRUE, 0, NULL));
 }
 

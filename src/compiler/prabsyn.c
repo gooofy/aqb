@@ -72,6 +72,11 @@ static void pr_dims(FILE *out, A_dim dims)
 
 static void pr_exp(FILE *out, A_exp exp)
 {
+    if (!exp)
+    {
+        fprintf(out, "NULL");
+        return;
+    }
     switch (exp->kind)
     {
         case A_boolExp:

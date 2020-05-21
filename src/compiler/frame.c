@@ -187,11 +187,9 @@ F_access F_allocGlobal(Temp_label label, Ty_ty ty)
     return a;
 }
 
-F_access F_allocLocal(F_frame f, Ty_ty ty, unsigned char *init_data)
+F_access F_allocLocal(F_frame f, Ty_ty ty)
 {
     int size = Ty_size(ty);
-
-    assert(!init_data); // FIXME: implement!
 
     f->locals_offset -= Ty_size(ty);
     // alignment

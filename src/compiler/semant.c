@@ -49,11 +49,11 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, A_pos pos)
         if (Tr_isStatic(level))
         {
             string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
-            x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t, NULL), t, TRUE);
+            x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t), t, TRUE);
         }
         else
         {
-            x = E_VarEntry(Tr_allocVar(level, s, t, NULL), t, FALSE);
+            x = E_VarEntry(Tr_allocVar(level, s, t), t, FALSE);
         }
 
         S_enter(venv, v, x);
@@ -512,6 +512,61 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
     return FALSE;
 }
 
+static Tr_expList assignParams(A_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Temp_label breaklbl)
+{
+    Tr_expList explist = NULL;
+
+    while (formals && actuals)
+    {
+        Tr_exp exp = NULL;
+ 
+        if (actuals->exp)
+        {
+            exp = transExp(level, venv, tenv, actuals->exp, breaklbl);
+            Tr_exp conv_actual;
+            if (!convert_ty(exp, formals->ty, &conv_actual))
+            {
+                EM_error(actuals->exp->pos, "parameter type mismatch");
+                return NULL;
+            }
+            explist = Tr_ExpList(conv_actual, explist);
+        }
+        else
+        {
+            if (!formals->defaultExp)
+            {
+                EM_error(pos, "missing arguments");
+                return NULL;
+            }
+            explist = Tr_ExpList(formals->defaultExp, explist);
+        }
+
+        formals = formals->next;
+        actuals = actuals->next;
+    }
+
+    if (actuals)
+    {
+        EM_error(pos, "too many arguments");
+        return NULL;
+    }
+
+    // remaining arguments with default expressions?
+    while (formals)
+    {
+        if (!formals->defaultExp)
+        {
+            EM_error(pos, "missing arguments");
+            return NULL;
+        }
+        explist = Tr_ExpList(formals->defaultExp, explist);
+
+        formals = formals->next;
+    }
+
+    return explist;
+}
+
 /* Expression entrance */
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl)
 {
@@ -683,28 +738,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
                 break;
             }
 
-            /* check parameter types */
-            Ty_tyList tl;
-            A_expListNode en;
-            Tr_expList explist = NULL;
-            Tr_exp exp;
-            for (tl = proc->u.fun.formals, en = a->u.callr.args->first;
-                 tl && en; tl = tl->tail, en = en->next)
-            {
-                Tr_exp conv_actual;
-                exp = transExp(level, venv, tenv, en->exp, breaklbl);
-                if (!convert_ty(exp, tl->head, &conv_actual))
-                {
-                    EM_error(en->exp->pos, "parameter type mismatch");
-                    return Tr_nopNx();
-                }
-                explist = Tr_ExpList(conv_actual, explist);
-            }
-
-            if (en)
-                EM_error(a->pos, "too many params for sub %s", S_name(a->u.callr.func));
-            if (tl)
-                EM_error(a->pos, "too few params for sub %s", S_name(a->u.callr.func));
+            Tr_expList explist = assignParams(a->pos, level, venv, tenv, proc->u.fun.formals, a->u.callr.args->first, breaklbl);
 
             return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
         }
@@ -725,13 +759,13 @@ static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
     return Ty_Void();
 }
 
-/* type list generation of a sub or function */
-static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList params)
+static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Temp_label breaklbl)
 {
-    Ty_tyList tys = NULL, last_tys = NULL;
+    E_formals formals=NULL, last_formals=NULL;
     for (A_param param = params->first; param; param = param->next)
     {
-        Ty_ty ty = NULL;
+        Ty_ty ty          = NULL;
+        Tr_exp defaultExp = NULL;
         if (!param->ty)
         {
             ty = Ty_inferType(S_name(param->name));
@@ -753,19 +787,21 @@ static Ty_tyList makeParamTyList(Tr_level level, S_scope tenv, A_paramList param
             ty = Ty_Pointer(ty);
         }
 
+        if (param->defaultExp)
+            defaultExp = transExp(level, venv, tenv, param->defaultExp, breaklbl);
+
         /* insert at tail to avoid order reversed */
-        if (tys == NULL)
+        if (formals == NULL)
         {
-            tys = Ty_TyList(ty, NULL);
-            last_tys = tys;
+            last_formals = formals = E_Formals(ty, defaultExp, NULL);
         }
         else
         {
-            last_tys->tail = Ty_TyList(ty, NULL);
-            last_tys = last_tys->tail;
+            last_formals->next = E_Formals(ty, defaultExp, NULL);
+            last_formals = last_formals->next;
         }
     }
-    return tys;
+    return formals;
 }
 
 static Temp_tempList makeParamRegList(A_paramList params)
@@ -971,7 +1007,6 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             A_proc        proc       = stmt->u.proc;
             Ty_ty         resultTy   = Ty_Void();
-            Ty_tyList     formalTys  = makeParamTyList(level, tenv, proc->paramList);
             Temp_tempList regs       = makeParamRegList(proc->paramList);
             S_scope       lenv;
             E_enventry    e;
@@ -1016,6 +1051,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 libBase = Temp_labelstring(l);
             }
 
+            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, breaklbl);
+            Ty_tyList formalTys = E_FormalTys(formals);
             e = S_look(venv, proc->name);
             if (e)
             {
@@ -1024,12 +1061,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(proc->pos, "Proc %s declared more than once.", S_name(proc->name));
                     break;
                 }
-                // FIXME: check parameter list
+                // FIXME: compare formal types between forward declaration and this one!
                 e->u.fun.forward = FALSE;
             }
             else
             {
-                e = E_FunEntry(Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formalTys,
+                e = E_FunEntry(Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formals,
                                resultTy, stmt->kind==A_procDeclStmt, offset, libBase);
             }
 
@@ -1044,14 +1081,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 {
                     Tr_accessList acl = Tr_formals(funlv);
                     A_param param;
-                    Ty_tyList t;
-                    for (param = proc->paramList->first, t = e->u.fun.formals;
-                         param; param = param->next, t = t->tail, acl = Tr_accessListTail(acl))
-                        S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), t->head, FALSE));
+                    E_formals formals;
+                    for (param = proc->paramList->first, formals = e->u.fun.formals;
+                         param; param = param->next, formals = formals->next, acl = Tr_accessListTail(acl))
+                        S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), formals->ty, FALSE));
                     // function return var (same name as the function itself)
                     if (proc->retty)
                     {
-                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy, NULL);
+                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
                         S_enter(lenv, proc->name, E_VarEntry(ret_access, resultTy, FALSE));
                     }
                 }
@@ -1097,28 +1134,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 break;
             }
 
-            /* check parameter types */
-            Ty_tyList tl;
-            A_expListNode en;
-            Tr_expList explist = NULL;
-            Tr_exp exp;
-            for (tl = proc->u.fun.formals, en = stmt->u.callr.args->first;
-                 tl && en; tl = tl->tail, en = en->next)
-            {
-                Tr_exp conv_actual;
-                exp = transExp(level, venv, tenv, en->exp, breaklbl);
-                if (!convert_ty(exp, tl->head, &conv_actual))
-                {
-                    EM_error(en->exp->pos, "parameter type mismatch");
-                    return Tr_nopNx();
-                }
-                explist = Tr_ExpList(conv_actual, explist);
-            }
-
-            if (en)
-                EM_error(stmt->pos, "too many params for sub %s", S_name(stmt->u.callr.func));
-            if (tl)
-                EM_error(stmt->pos, "too few params for sub %s", S_name(stmt->u.callr.func));
+            Tr_expList explist = assignParams(stmt->pos, level, venv, tenv, proc->u.fun.formals, stmt->u.callr.args->first, breaklbl);
 
             return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
         }
@@ -1182,11 +1198,6 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(stmt->u.vdeclr.init->pos, "initializer type mismatch");
                     return Tr_nopNx();
                 }
-                if (!Tr_isConst(conv_init))
-                {
-                    EM_error(stmt->u.vdeclr.init->pos, "constant initializer expected here");
-                    return Tr_nopNx();
-                }
             }
 
             S_symbol name   = stmt->u.vdeclr.sVar;
@@ -1213,8 +1224,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 if (stmt->u.vdeclr.external)
                     x = E_VarEntry(Tr_externalVar(S_name(name), t), t, TRUE);
                 else
-                    x = E_VarEntry(Tr_allocVar(Tr_global(), S_name(name), t, conv_init), t, TRUE);
+                    x = E_VarEntry(Tr_allocVar(Tr_global(), S_name(name), t), t, TRUE);
                 S_enter(g_venv, namelc, x);
+
             }
             else
             {
@@ -1229,23 +1241,23 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 if (stmt->u.vdeclr.statc || Tr_isStatic(level))
                 {
                     string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), S_name(namelc)));
-                    x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t, conv_init), t, TRUE);
+                    x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t), t, TRUE);
                     S_enter(venv, namelc, x);
                 }
                 else
                 {
-                    x = E_VarEntry(Tr_allocVar(level, S_name(name), t, depth ? NULL : conv_init), t, FALSE);
+                    x = E_VarEntry(Tr_allocVar(level, S_name(name), t), t, FALSE);
                     S_enter(venv, namelc, x);
-                    if (depth && conv_init)
-                    {
-                        // local vars need explicit initialization assignment
-                        Tr_exp e = Tr_Var(x->u.var.access);
-                        Ty_ty ty = Tr_ty(e);
-                        if (ty->kind == Ty_varPtr)
-                            e = Tr_Deref(e);
-                        return Tr_assignExp(e, conv_init, t);
-                    }
                 }
+            }
+
+            if (conv_init)
+            {
+                Tr_exp e = Tr_Var(x->u.var.access);
+                Ty_ty ty = Tr_ty(e);
+                if (ty->kind == Ty_varPtr)
+                    e = Tr_Deref(e);
+                return Tr_assignExp(e, conv_init, t);
             }
             break;
         }

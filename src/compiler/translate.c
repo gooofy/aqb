@@ -359,23 +359,19 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
     fragList    = F_FragList(frag, fragList);
 }
 
-Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty, Tr_exp init)
+Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty)
 {
-    unsigned char *init_data = NULL;
-    if (init)
-        init_data = Tr_getConstData(init);
-
     if (!level->frame) // global var?
     {
         Temp_label label = Temp_namedlabel(varname_to_label(name));
 
-        F_frag frag = F_DataFrag(label, Ty_size(ty), init_data);
+        F_frag frag = F_DataFrag(label, Ty_size(ty), NULL);
         fragList    = F_FragList(frag, fragList);
 
         return Tr_Access(level, F_allocGlobal(label, ty));
     }
 
-    return Tr_Access(level, F_allocLocal(level->frame, ty, init_data));
+    return Tr_Access(level, F_allocLocal(level->frame, ty));
 }
 
 Tr_access Tr_externalVar(string name, Ty_ty ty)
@@ -511,13 +507,23 @@ bool Tr_getConstBool (Tr_exp exp)
     return FALSE;
 }
 
+#if 0
 unsigned char *Tr_getConstData(Tr_exp exp)
 {
     if (!Tr_isConst(exp))
         return NULL;
 
+    switch (exp->u.ex->u.CONST->kind)
+    {
+        case T_CFLOAT:
+            return (unsigned char *) &exp->u.ex->u.CONST->u.f;
+        case T_CINT:
+            return (unsigned char *) &exp->u.ex->u.CONST->u.i;
+    }
+    assert(0);
     return (unsigned char *) &exp->u.ex->u.CONST; // FIXME: conv endianness!
 }
+#endif
 
 Tr_exp Tr_floatExp(double f, Ty_ty ty)
 {
