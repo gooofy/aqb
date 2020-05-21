@@ -34,8 +34,8 @@ static void pr_var(FILE *out, A_var v)
             case A_fieldSel:
                 fprintf(out, ".%s", S_name(sel->u.field));
                 break;
-            case A_derefSel:
-                fprintf(out, "->");
+            case A_pointerSel:
+                fprintf(out, "->%s", S_name(sel->u.field));
                 break;
         }
     }

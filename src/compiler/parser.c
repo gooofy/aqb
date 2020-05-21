@@ -133,8 +133,15 @@ static bool selector(A_selector *sel)
             S_getsym();
             return TRUE;
         case S_POINTER:
-            assert(0); // FIXME
-            break;
+            S_getsym();
+
+            if (S_token != S_IDENT)
+                return EM_err("field identifier expected here.");
+
+            *sel = A_PointerSelector(pos, S_Symbol(String(S_strlc)));
+
+            S_getsym();
+            return TRUE;
     }
     return FALSE; // FIXME
 }

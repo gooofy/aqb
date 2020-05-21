@@ -595,7 +595,7 @@ Tr_exp Tr_Deref(Tr_exp ptr)
 Tr_exp Tr_Field(Tr_exp r, Ty_field f)
 {
     Ty_ty t = Tr_ty(r);
-    assert(t->kind==Ty_varPtr);
+    assert(t->kind==Ty_varPtr || t->kind==Ty_pointer);
     assert(t->u.pointer->kind==Ty_record);
 
     T_exp e = unEx(r);

@@ -98,6 +98,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -126,6 +127,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -152,6 +154,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -178,6 +181,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -204,6 +208,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -228,6 +233,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -252,6 +258,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -276,6 +283,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -298,6 +306,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
             }
@@ -310,6 +319,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             *res = ty1;
             return FALSE;
         case Ty_pointer:
+        case Ty_forwardPtr:
             switch (ty2->kind)
             {
                 case Ty_byte:
@@ -320,6 +330,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return TRUE;
                 default:
@@ -347,6 +358,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_pointer:
                 case Ty_varPtr:
+                case Ty_forwardPtr:
                     *res = ty1;
                     return FALSE;
                 case Ty_void:
@@ -1277,11 +1289,19 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     t = Ty_inferType(S_name(f->name));
 
                 if (!t)
-                    EM_error (stmt->pos, "Unknown type %s.", S_name(f->typeId));
-
-                if (f->ptr)
                 {
-                    t = Ty_Pointer(t);
+                    // forward pointer ?
+                    if (f->ptr)
+                        t = Ty_ForwardPtr(f->typeId);
+                    else
+                        EM_error (stmt->pos, "Unknown type %s.", S_name(f->typeId));
+                }
+                else
+                {
+                    if (f->ptr)
+                    {
+                        t = Ty_Pointer(t);
+                    }
                 }
 
                 if(f->dims)
@@ -1380,6 +1400,17 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
     return Tr_seqExp(el);
 }
 
+static void resolveForwardType(A_pos pos, S_scope tenv, Ty_field f)
+{
+    Ty_ty t = S_look(tenv, f->ty->u.sForward);
+    if (!t)
+    {
+        EM_error (pos, "Unknown type %s.", S_name(f->ty->u.sForward));
+        return;
+    }
+    f->ty = Ty_Pointer(t);
+}
+
 static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, A_pos pos)
 {
     E_enventry x = autovar(level, venv, v->name, pos);
@@ -1445,6 +1476,41 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
                     EM_error(sel->pos, "unknown field %s", S_name(sel->u.field));
                     return Tr_zeroExp(Ty_Long());
                 }
+
+                Ty_ty fty = f->head->ty;
+                if (fty->kind == Ty_forwardPtr)
+                    resolveForwardType(sel->pos, tenv, f->head);
+
+                e = Tr_Field(e, f->head);
+                break;
+            }
+            case A_pointerSel:
+            {
+                Ty_ty ty = Tr_ty(e);
+                if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_pointer) || (ty->u.pointer->u.pointer->kind != Ty_record) )
+                {
+                    EM_error(sel->pos, "record pointer type expected");
+                    return Tr_zeroExp(Ty_Long());
+                }
+
+                e = Tr_Deref(e);
+                ty = Tr_ty(e);
+
+                Ty_fieldList f = ty->u.pointer->u.record.fields;
+                for (;f;f=f->tail)
+                {
+                    if (f->head->name == sel->u.field)
+                        break;
+                }
+                if (!f)
+                {
+                    EM_error(sel->pos, "unknown field %s", S_name(sel->u.field));
+                    return Tr_zeroExp(Ty_Long());
+                }
+
+                Ty_ty fty = f->head->ty;
+                if (fty->kind == Ty_forwardPtr)
+                    resolveForwardType(sel->pos, tenv, f->head);
 
                 e = Tr_Field(e, f->head);
                 break;

@@ -411,6 +411,18 @@ A_selector A_FieldSelector (A_pos pos, S_symbol field)
     return p;
 }
 
+A_selector A_PointerSelector (A_pos pos, S_symbol field)
+{
+    A_selector p = checked_malloc(sizeof(*p));
+
+    p->kind    = A_pointerSel;
+    p->pos     = pos;
+    p->tail    = NULL;
+    p->u.field = field;
+
+    return p;
+}
+
 A_exp A_VarExp(A_pos pos, A_var var)
 {
     A_exp p = checked_malloc(sizeof(*p));

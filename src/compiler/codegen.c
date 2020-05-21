@@ -68,6 +68,7 @@ static enum AS_w ty_isz(Ty_ty ty)
         case Ty_double:
         case Ty_varPtr:
         case Ty_pointer:
+        case Ty_forwardPtr:
             return AS_w_L;
         case Ty_array:
         case Ty_record:

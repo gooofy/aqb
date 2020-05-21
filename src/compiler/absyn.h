@@ -123,7 +123,7 @@ struct A_var_
 
 struct A_selector_
 {
-    enum { A_indexSel, A_fieldSel, A_derefSel } kind;
+    enum { A_indexSel, A_fieldSel, A_pointerSel } kind;
     A_pos      pos;
     A_selector tail;
 	union
@@ -207,6 +207,7 @@ void            A_ExpListAppend   (A_expList list, A_exp exp);
 A_var           A_Var             (A_pos pos, S_symbol sym);
 A_selector      A_IndexSelector   (A_pos pos, A_exp idx);
 A_selector      A_FieldSelector   (A_pos pos, S_symbol field);
+A_selector      A_PointerSelector (A_pos pos, S_symbol field);
 A_selector      A_DerefSelector   (A_pos pos);
 A_proc          A_Proc            (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList);
 A_param         A_Param           (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp);

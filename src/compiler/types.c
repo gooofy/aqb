@@ -97,6 +97,16 @@ Ty_ty Ty_Pointer(Ty_ty ty)
     return p;
 }
 
+Ty_ty Ty_ForwardPtr(S_symbol sType)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind       = Ty_forwardPtr;
+    p->u.sForward = sType;
+
+    return p;
+}
+
 Ty_ty Ty_Array(Ty_ty ty, int start, int end)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
@@ -178,6 +188,7 @@ int Ty_size(Ty_ty t)
         case Ty_single:
         case Ty_pointer:
         case Ty_varPtr:
+        case Ty_forwardPtr:
              return 4;
         case Ty_double:
              return 8;
@@ -269,6 +280,8 @@ string Ty_name(Ty_ty t)
             return "void";
         case Ty_varPtr:
             return "varPtr";
+        case Ty_forwardPtr:
+            return "forwardPtr";
     }
     assert(0);
     return "???";
