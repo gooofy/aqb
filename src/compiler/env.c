@@ -192,7 +192,7 @@ S_scope E_base_venv(void)
     return t;
 }
 
-static void declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, char *name, char *label, char *argtypes, char *retty, bool ptr)
+static A_proc declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, char *name, char *label, char *argtypes, char *retty, bool ptr)
 {
     A_proc      proc;
     A_paramList paramList = A_ParamList();
@@ -213,6 +213,9 @@ static void declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, cha
             case 'l':
                 ty = S_Symbol("long");
                 break;
+            case 'L':
+                ty = S_Symbol("ulong");
+                break;
             case 'f':
                 ty = S_Symbol("single");
                 break;
@@ -229,22 +232,29 @@ static void declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, cha
 
     hashmap_put(declared_procs, S_name(proc->name), proc);
     A_StmtListAppend (stmtList, A_ProcDeclStmt(proc->pos, proc));
+
+    return proc;
 }
 
 map_t E_declared_procs(A_stmtList stmtList)
 {
+    A_proc proc;
+
     map_t declared_procs = hashmap_new();
 
     declare_builtin_proc(stmtList, declared_procs, "fix",      "___aqb_fix",       "f", "integer", FALSE);
     declare_builtin_proc(stmtList, declared_procs, "int",      "___aqb_int",       "f", "integer", FALSE);
     declare_builtin_proc(stmtList, declared_procs, "cint",     "___aqb_cint",      "f", "integer", FALSE);
     declare_builtin_proc(stmtList, declared_procs, "clng",     "___aqb_clng",      "f", "long"   , FALSE);
-    // declare_builtin_proc(stmtList, declared_procs, "allocate", "___aqb_allocate",  "l", "void"   , TRUE );
     declare_builtin_proc(stmtList, declared_procs, "sleep",    "___aqb_sleep",     "",  NULL     , FALSE);
     declare_builtin_proc(stmtList, declared_procs, "window",   "___aqb_window_fn", "l", "long"   , FALSE);
     declare_builtin_proc(stmtList, declared_procs, "timer",    "___aqb_timer_fn",  "",  "single" , FALSE);
 
     //__aqb_allocate(ULONG size, ULONG flags);
+
+    // DECLARE FUNCTION ALLOCATE (size AS ULONG, flags AS ULONG=0) AS VOID PTR
+    proc = declare_builtin_proc(stmtList, declared_procs, "allocate", "___aqb_allocate",  "LL", "void"   , TRUE );
+    proc->paramList->first->next->defaultExp = A_IntExp(0, 0);
 
     return declared_procs;
 }
