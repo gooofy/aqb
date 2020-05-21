@@ -34,7 +34,7 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, A_pos pos)
     if (!x && (venv != g_venv))
     {
         x = S_look(g_venv, v);
-        if (x && !x->u.var.shared)
+        if (x && (x->kind == E_varEntry) && !x->u.var.shared)
             x = NULL;
     }
 
@@ -1350,7 +1350,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Tr_exp cexp = transExp(level, venv, tenv, stmt->u.cdeclr.cExp, breaklbl);
             if (!convert_ty(cexp, t, &conv_cexp))
             {
-                EM_error(stmt->u.cdeclr.cExp->pos, "cexpializer type mismatch");
+                EM_error(stmt->u.cdeclr.cExp->pos, "initializer type mismatch");
                 return Tr_nopNx();
             }
             if (!Tr_isConst(conv_cexp))
