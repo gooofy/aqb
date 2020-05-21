@@ -13,7 +13,7 @@ USHORT g_errcode;
 
 static struct Remember *g_rl = NULL;
 
-APTR _autil_alloc(ULONG size, ULONG flags)
+APTR __aqb_allocate(ULONG size, ULONG flags)
 {
     return AllocRemember(&g_rl, size, flags);
 }

@@ -341,7 +341,7 @@ ULONG __aqb_window_fn(short n)
 static WORD *mk_bor_dat(int count, ...)
 {
 	va_list  ap;
-	WORD    *res = _autil_alloc(count*2, MEMF_ANY);
+	WORD    *res = __aqb_allocate(count*2, MEMF_ANY);
 
     va_start(ap, count);
     for (int j = 0; j < count; j++) {
@@ -355,7 +355,7 @@ static WORD *mk_bor_dat(int count, ...)
 static struct Border *mk_border(WORD LeftEdge, WORD TopEdge, UBYTE FrontPen, UBYTE BackPen, UBYTE DrawMode, BYTE Count,
                                 WORD *XY, struct Border *NextBorder)
 {
-	struct Border *b = _autil_alloc(sizeof(*b), MEMF_ANY|MEMF_CLEAR);
+	struct Border *b = __aqb_allocate(sizeof(*b), MEMF_ANY|MEMF_CLEAR);
 
 	b->LeftEdge   = LeftEdge;
     b->TopEdge    = TopEdge;
@@ -372,7 +372,7 @@ static struct Border *mk_border(WORD LeftEdge, WORD TopEdge, UBYTE FrontPen, UBY
 static struct IntuiText *mk_intuitext(UBYTE FrontPen, UBYTE BackPen, UBYTE DrawMode, WORD LeftEdge, WORD TopEdge,
     								  struct TextAttr *ITextFont, const char *IText, struct IntuiText *NextText)
 {
-    struct IntuiText *t = _autil_alloc(sizeof(*t), MEMF_ANY|MEMF_CLEAR);
+    struct IntuiText *t = __aqb_allocate(sizeof(*t), MEMF_ANY|MEMF_CLEAR);
 
     t->FrontPen  = FrontPen;
     t->BackPen   = BackPen;
@@ -410,7 +410,7 @@ void __aqb_gadget_create (short id, short type, BOOL enabled, short x1, short y1
 	k1 = mk_bor_dat(10, w-2,  0,  0,  0,  0,h-1,  1,h-2,  1,  0);
    	k2 = mk_bor_dat(10,   1,h-1,w-1,h-1,w-1,  0,w-2,  1,w-2,h-1);
 
-    g = _autil_alloc(sizeof(*g), MEMF_ANY|MEMF_CLEAR);
+    g = __aqb_allocate(sizeof(*g), MEMF_ANY|MEMF_CLEAR);
 
     g->LeftEdge		= x1;
 	g->TopEdge      = y1;

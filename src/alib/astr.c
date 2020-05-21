@@ -78,7 +78,7 @@ ULONG _astr_len(const char *str)
 char *_astr_dup(const char* str)
 {
     ULONG l = _astr_len(str);
-    char *str2 = _autil_alloc(l+1, MEMF_ANY);
+    char *str2 = __aqb_allocate(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
 }

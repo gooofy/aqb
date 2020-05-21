@@ -5,7 +5,7 @@
 
 // AllocRemember wrapper
 
-APTR _autil_alloc(ULONG size, ULONG flags);
+APTR __aqb_allocate(ULONG size, ULONG flags);
 
 void _autil_init(void);
 void _autil_shutdown(void);
