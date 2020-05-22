@@ -1332,8 +1332,32 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     }
                 }
 
-                if(f->dims)
-                    assert(0); // FIXME: implement.
+                for (A_dim dim=f->dims; dim; dim=dim->tail)
+                {
+                    int start, end;
+                    if (dim->expStart)
+                    {
+                        Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, breaklbl);
+                        if (!Tr_isConst(expStart))
+                        {
+                            EM_error(dim->expStart->pos, "Constant array bounds expected.");
+                            return Tr_nopNx();
+                        }
+                        start = Tr_getConstInt(expStart);
+                    }
+                    else
+                    {
+                        start = 0;
+                    }
+                    Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, breaklbl);
+                    if (!Tr_isConst(expEnd))
+                    {
+                        EM_error(dim->expEnd->pos, "Constant array bounds expected.");
+                        return Tr_nopNx();
+                    }
+                    end = Tr_getConstInt(expEnd);
+                    t = Ty_Array(t, start, end);
+                }
                 if (flast)
                 {
                     flast->tail = Ty_FieldList(Ty_Field(f->name, t), NULL);
