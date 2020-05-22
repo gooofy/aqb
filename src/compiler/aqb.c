@@ -30,8 +30,9 @@
 #include "printtree.h"
 #include "codegen.h"
 #include "regalloc.h"
+#include "options.h"
 
-#define VERSION "0.1.0"
+#define VERSION "0.2.0"
 
 /* print the assembly language instructions to filename.s */
 static void doProc(FILE *out, F_frame frame, T_stm body)
@@ -243,7 +244,7 @@ int main (int argc, char *argv[])
 
     F_initRegisters();
 
-    frags = SEM_transProg(sourceProgram);
+    frags = SEM_transProg(sourceProgram, Temp_namedlabel(AQB_MAIN_NAME));
     if (EM_anyErrors)
         exit(4);
 
@@ -257,7 +258,7 @@ int main (int argc, char *argv[])
 
     out = fopen(asmfn, "w");
 
-    fprintf(out, ".globl %s\n\n", AQB_MAIN_LABEL);
+    fprintf(out, ".globl %s\n\n", AQB_MAIN_NAME);
     /* Chapter 8, 9, 10, 11 & 12 */
     fprintf(out, ".text\n\n");
     for (fl=frags; fl; fl=fl->tail)

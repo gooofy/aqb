@@ -23,8 +23,10 @@ string S_name(S_symbol);
 /* scopes are nested, map symbol -> anyptr */
 typedef struct S_scope_ *S_scope;
 
-/* Start a new scope. Scopes are nested. */
-S_scope S_beginScope(void);
+/* Start a new scope. Scopes can be nested. */
+S_scope S_beginScope(S_scope parent);
+
+S_scope S_parent(S_scope s);
 
 /* free scope s */
 void S_endScope(S_scope s);

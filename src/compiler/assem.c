@@ -230,12 +230,12 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
             assert(label==NULL);
             assert(src==NULL);
             p->srcInterf = NULL;
-            p->dstInterf = NULL;
+            p->dstInterf = (w == AS_w_B) ? LL(F_aRegs(), NULL) : NULL;
             break;
         case AS_MOVE_AnDn_Ofp:  // move.x  d0, 42(a5)
             assert(label==NULL);
             assert(dst==NULL);
-            p->srcInterf = NULL;
+            p->srcInterf = (w == AS_w_B) ? LL(F_aRegs(), NULL) : NULL;
             p->dstInterf = NULL;
             break;
         case AS_MOVE_Imm_Ofp:  // move.x  #imm, 42(a5)

@@ -50,16 +50,23 @@ string S_name(S_symbol sym)
 
 struct S_scope_
 {
+    S_scope   parent;
     map_t     map;
 };
 
-S_scope S_beginScope(void)
+S_scope S_beginScope(S_scope parent)
 {
     S_scope s = checked_malloc(sizeof(*s));
 
-    s->map        = hashmap_new();
+    s->map     = hashmap_new();
+    s->parent  = parent;
 
     return s;
+}
+
+S_scope S_parent(S_scope s)
+{
+    return s->parent;
 }
 
 void S_endScope(S_scope s)

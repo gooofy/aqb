@@ -14,6 +14,7 @@
 #include "options.h"
 
 #define RETURN_VAR_NAME "___return_var"
+#define MAIN_NAME       "__aqb_main"
 
 // global symbol namespace
 
@@ -29,13 +30,17 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, A_pos pos)
 {
-    E_enventry x = S_look(venv, v);
+    S_scope    scope = venv;
+    E_enventry x = NULL;
 
-    if (!x && (venv != g_venv))
+    while (TRUE)
     {
-        x = S_look(g_venv, v);
-        if (x && (x->kind == E_varEntry) && !x->u.var.shared)
-            x = NULL;
+        x = S_look(scope, v);
+        if (x)
+            break;
+        scope = S_parent(scope);
+        if (!scope)
+            break;
     }
 
     if (!x)
@@ -962,13 +967,33 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_forStmt:
         {
-            E_enventry var = autovar (level, venv, stmt->u.forr.var, stmt->pos);
-            Ty_ty varty = var->u.var.ty;
+            E_enventry var;
+            Ty_ty      varty;
+            S_scope    lenv;
 
-            Tr_exp from_exp  = transExp(level, venv, tenv, stmt->u.forr.from_exp, breaklbl);
-            Tr_exp to_exp    = transExp(level, venv, tenv, stmt->u.forr.to_exp, breaklbl);
+            if (stmt->u.forr.sType)
+            {
+                varty = S_look(tenv, stmt->u.forr.sType);
+                if (!varty)
+                {
+                    EM_error(stmt->pos, "Unknown type %s.", S_name(stmt->u.forr.sType));
+                    break;
+                }
+                lenv = S_beginScope(venv);
+                var = E_VarEntry(Tr_allocVar(level, S_name(stmt->u.forr.var), varty), varty, FALSE);
+                S_enter(lenv, stmt->u.forr.var, var);
+            }
+            else
+            {
+                var = autovar (level, venv, stmt->u.forr.var, stmt->pos);
+                varty = var->u.var.ty;
+                lenv = venv;
+            }
+
+            Tr_exp from_exp  = transExp(level, lenv, tenv, stmt->u.forr.from_exp, breaklbl);
+            Tr_exp to_exp    = transExp(level, lenv, tenv, stmt->u.forr.to_exp, breaklbl);
             Tr_exp step_exp  = stmt->u.forr.step_exp ?
-                                 transExp(level, venv, tenv, stmt->u.forr.step_exp, breaklbl) :
+                                 transExp(level, lenv, tenv, stmt->u.forr.step_exp, breaklbl) :
                                  Tr_oneExp(varty);
 
             Tr_exp conv_from_exp, conv_to_exp, conv_step_exp;
@@ -990,7 +1015,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             Temp_label forbreak = Temp_newlabel();
-            Tr_exp body = transStmtList(level, venv, tenv, stmt->u.forr.body, forbreak, depth+1);
+            Tr_exp body = transStmtList(level, lenv, tenv, stmt->u.forr.body, forbreak, depth+1);
+
+            if (stmt->u.forr.sType)
+                S_endScope(lenv);
 
             return Tr_forExp(var->u.var.access, conv_from_exp, conv_to_exp, conv_step_exp, body, forbreak);
         }
@@ -1022,7 +1050,6 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             A_proc        proc       = stmt->u.proc;
             Ty_ty         resultTy   = Ty_Void();
             Temp_tempList regs       = makeParamRegList(proc->paramList);
-            S_scope       lenv;
             E_enventry    e;
             int           offset     = 0;
             string        libBase    = NULL;
@@ -1048,7 +1075,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     return Tr_nopNx();
                 }
                 offset = Tr_getConstInt(expOffset);
-                E_enventry x = S_look(venv, proc->libBase);
+                E_enventry x = S_look(g_venv, proc->libBase);
                 if (!x)
                 {
                     EM_error(proc->pos, "Library base %s undeclared.", S_name(proc->libBase));
@@ -1084,14 +1111,13 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                                resultTy, stmt->kind==A_procDeclStmt, offset, libBase);
             }
 
-            S_enter(venv, proc->name, e);
+            S_enter(g_venv, proc->name, e);
 
             if (!e->u.fun.forward)
             {
                 Tr_level  funlv = e->u.fun.level;
                 Tr_access ret_access = NULL;
-
-                lenv = S_beginScope();
+                S_scope   lenv = S_beginScope(g_venv);
                 {
                     Tr_accessList acl = Tr_formals(funlv);
                     A_param param;
@@ -1525,16 +1551,18 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
     return e;
 }
 
-F_fragList SEM_transProg(A_sourceProgram sourceProgram)
+F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
 {
     g_venv = E_base_venv();
     g_tenv = E_base_tenv();
 
-    Tr_level lv = Tr_global();
+    // Tr_level lv = Tr_global();
+    Tr_level lv = Tr_newLevel(label, NULL, FALSE, NULL);
+    S_scope venv = S_beginScope(g_venv);
 
     printf ("transStmtList:\n");
     printf ("--------------\n");
-    Tr_exp prog = transStmtList(lv, g_venv, g_tenv, sourceProgram->stmtList, NULL, 0);
+    Tr_exp prog = transStmtList(lv, venv, g_tenv, sourceProgram->stmtList, NULL, 0);
     printf ("--------------\n");
 
     Tr_procEntryExit(lv, prog, NULL, NULL);

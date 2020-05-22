@@ -301,8 +301,7 @@ static AS_instrList restoreCalleeSave(AS_instrList il)
 
 AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 {
-    int frame_size = frame ? -frame->locals_offset : 0;
-    Temp_label label = frame ? frame->name : Temp_namedlabel(AQB_MAIN_LABEL);
+    int frame_size = -frame->locals_offset;
 
     // exit code
 
@@ -313,11 +312,11 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     // entry code
 
-    body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, label),                          // label:
+    body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name),                    // label:
              AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, T_ConstI(-frame_size), 0, NULL),   //      link fp, #-frameSize
                appendCalleeSave(body)));
 
-    return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(label)), body, "# END\n");
+    return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(frame->name)), body, "# END\n");
 }
 
 /* Machine-related Features */
@@ -419,7 +418,7 @@ void F_initRegisters(void)
                     Temp_TempList(a4,
                       Temp_TempList(a6, NULL))))));
 
-    regScope = S_beginScope();
+    regScope = S_beginScope(NULL);
 
     S_enter(regScope, S_Symbol("a0"), a0);
     S_enter(regScope, S_Symbol("a1"), a1);

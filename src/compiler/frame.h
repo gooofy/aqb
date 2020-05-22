@@ -10,8 +10,6 @@
 #include "assem.h"
 #include "types.h"
 
-#define AQB_MAIN_LABEL "__aqb_main"
-
 /* declaration for frames */
 typedef struct F_frame_ *F_frame;
 typedef struct F_access_ *F_access;

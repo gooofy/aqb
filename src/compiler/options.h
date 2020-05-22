@@ -8,4 +8,6 @@
 void OPT_set(int opt, bool onoff);
 bool OPT_get(int opt);
 
+#define AQB_MAIN_NAME "__aqb_main"
+
 #endif

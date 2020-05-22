@@ -393,7 +393,7 @@ static T_stmList getNext()
 T_stmList C_traceSchedule(struct C_block b)
 {
     C_stmListList sList;
-    block_env = S_beginScope();
+    block_env = S_beginScope(NULL);
     global_block = b;
 
     for (sList=global_block.stmLists; sList; sList=sList->tail)

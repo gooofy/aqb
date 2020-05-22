@@ -31,7 +31,6 @@ typedef struct A_field_         *A_field;
 struct A_sourceProgram_
 {
     A_pos      pos;
-    string     name;
     A_stmtList stmtList;
 };
 
@@ -54,7 +53,7 @@ struct A_stmt_
     {
         A_exp printExp;
 	    struct {A_var var; A_exp exp; bool deref;} assign;
-	    struct {S_symbol var; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
+	    struct {S_symbol var; S_symbol sType; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {S_symbol func; A_expList args;} callr;
@@ -175,12 +174,12 @@ struct A_dim_
 
 // helper functions to allocate and initialize the above defined AST nodes:
 
-A_sourceProgram A_SourceProgram   (A_pos pos, const char *name, A_stmtList stmtList);
+A_sourceProgram A_SourceProgram   (A_pos pos, A_stmtList stmtList);
 A_stmt          A_PrintStmt       (A_pos pos, A_exp exp);
 A_stmt          A_PrintNLStmt     (A_pos pos);
 A_stmt          A_PrintTABStmt    (A_pos pos);
 A_stmt          A_AssignStmt      (A_pos pos, A_var var, A_exp exp, bool deref);
-A_stmt          A_ForStmt         (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
+A_stmt          A_ForStmt         (A_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
 A_stmt          A_WhileStmt       (A_pos pos, A_exp exp, A_stmtList body);
 A_stmt          A_IfStmt          (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (A_pos pos, A_proc proc);

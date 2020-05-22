@@ -79,7 +79,7 @@ E_enventry E_ConstEntry(Tr_exp cExp)
 
 S_scope E_base_tenv(void)
 {
-    S_scope scope = S_beginScope();
+    S_scope scope = S_beginScope(NULL);
     S_enter(scope, S_Symbol("boolean"),  Ty_Bool());
     S_enter(scope, S_Symbol("byte"),     Ty_Byte());
     S_enter(scope, S_Symbol("ubyte"),    Ty_UByte());
@@ -169,7 +169,7 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
 
 S_scope E_base_venv(void)
 {
-    S_scope t = S_beginScope();
+    S_scope t = S_beginScope(NULL);
 
     declare_builtin(t, "__aio_puts",            "s",        Ty_Void());
     declare_builtin(t, "__aio_puts1",           "y",        Ty_Void());

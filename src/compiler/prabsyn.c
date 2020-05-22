@@ -200,7 +200,10 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             break;
         case A_forStmt:
             indent(out, d);
-            fprintf(out, "FOR(%s := ", S_name(stmt->u.forr.var));
+            fprintf(out, "FOR(%s", S_name(stmt->u.forr.var));
+            if (stmt->u.forr.sType)
+                fprintf(out, ":%s", S_name(stmt->u.forr.sType));
+            fprintf(out, " := ");
             pr_exp(out, stmt->u.forr.from_exp);
             fprintf(out, " TO ");
             pr_exp(out, stmt->u.forr.to_exp);
@@ -369,7 +372,7 @@ static void pr_stmtList(FILE *out, A_stmtList stmtList, int d)
 void pr_sourceProgram(FILE *out, A_sourceProgram sourceProgram, int d)
 {
     indent(out, d);
-    fprintf(out, "sourceProgram(name=%s\n", sourceProgram->name);
+    fprintf(out, "sourceProgram(\n");
     pr_stmtList(out, sourceProgram->stmtList, d+1);
 #if 0
     pr_decList(out, v->u.let.decs, d+1); fprintf(out, ",\n");

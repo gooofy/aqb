@@ -9,18 +9,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-A_sourceProgram A_SourceProgram(A_pos pos, const char *name, A_stmtList stmtList)
+A_sourceProgram A_SourceProgram(A_pos pos, A_stmtList stmtList)
 {
     A_sourceProgram p = checked_malloc(sizeof(*p));
 
     p->pos      = pos;
-    p->name     = String(name);
     p->stmtList = stmtList;
 
     return p;
 }
 
-A_stmt A_ForStmt (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
+A_stmt A_ForStmt (A_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -28,6 +27,7 @@ A_stmt A_ForStmt (A_pos pos, S_symbol var, A_exp from_exp, A_exp to_exp, A_exp s
     p->pos  = pos;
 
     p->u.forr.var      = var;
+    p->u.forr.sType    = sType;
     p->u.forr.from_exp = from_exp;
     p->u.forr.to_exp   = to_exp;
     p->u.forr.step_exp = step_exp;

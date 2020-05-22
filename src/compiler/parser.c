@@ -38,6 +38,7 @@ struct P_SLE_
         struct
         {
             S_symbol var;
+            S_symbol sType;
             A_exp    from_exp, to_exp, step_exp;
         } forLoop;
         A_exp whileExp;
@@ -1135,10 +1136,11 @@ static bool stmtRem(void)
     return TRUE;
 }
 
-// forBegin ::= FOR ident "=" expression TO expression [ STEP expression ]
+// forBegin ::= FOR ident [ AS ident ] "=" expression TO expression [ STEP expression ]
 static bool stmtForBegin(void)
 {
     S_symbol var;
+    S_symbol sType=NULL;
     A_exp    from_exp, to_exp, step_exp;
     A_pos    pos = S_getpos();
     P_SLE    sle;
@@ -1149,6 +1151,15 @@ static bool stmtForBegin(void)
         return EM_err ("variable name expected here.");
     var = S_Symbol(String(S_strlc));
     S_getsym();
+
+    if (S_token == S_AS)
+    {
+        S_getsym();
+        if (S_token != S_IDENT)
+            return EM_err ("type identifier expected here.");
+        sType = S_Symbol(String(S_strlc));
+        S_getsym();
+    }
 
     if (S_token != S_EQUALS)
         return EM_err ("= expected.");
@@ -1181,6 +1192,7 @@ static bool stmtForBegin(void)
     sle->pos  = pos;
 
     sle->u.forLoop.var      = var;
+    sle->u.forLoop.sType    = sType;
     sle->u.forLoop.from_exp = from_exp;
     sle->u.forLoop.to_exp   = to_exp;
     sle->u.forLoop.step_exp = step_exp;
@@ -1211,6 +1223,7 @@ static bool stmtForEnd_(A_pos pos, char *varId)
     A_StmtListAppend (g_sleStack->stmtList,
                       A_ForStmt(pos,
                                 sle->u.forLoop.var,
+                                sle->u.forLoop.sType,
                                 sle->u.forLoop.from_exp,
                                 sle->u.forLoop.to_exp,
                                 sle->u.forLoop.step_exp,
@@ -2477,7 +2490,7 @@ static bool sourceProgramBody(A_sourceProgram *sourceProgram)
 
     while (logicalNewline()) ;
 
-    *sourceProgram = A_SourceProgram(S_getpos(), "__aqb_main", g_sleStack->stmtList);
+    *sourceProgram = A_SourceProgram(S_getpos(), g_sleStack->stmtList);
 
     declared_procs = E_declared_procs(g_sleStack->stmtList);
 

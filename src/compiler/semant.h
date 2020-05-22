@@ -4,6 +4,6 @@
 #include "translate.h"
 #include "absyn.h"
 
-F_fragList SEM_transProg(A_sourceProgram sourceProgram);
+F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label);
 
 #endif
