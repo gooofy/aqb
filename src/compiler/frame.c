@@ -567,10 +567,10 @@ static void F_printAccessList(FILE* out, F_accessList al)
         switch (acc->kind)
         {
             case inFrame:
-                fprintf(out, "    inFrame offset=%d\n", acc->u.offset);
+                fprintf(out, "    inFrame offset=%d : %s\n", acc->u.offset, Ty_name(acc->ty));
                 break;
             case inReg:
-                fprintf(out, "    inReg   reg   =%d\n", Temp_num(acc->u.reg));
+                fprintf(out, "    inReg   reg   =%d : %s\n", Temp_num(acc->u.reg), Ty_name(acc->ty));
                 break;
             default:
                 fprintf(out, "    *** ERROR: unknown F_access kind!\n");
