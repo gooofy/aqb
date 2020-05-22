@@ -64,7 +64,7 @@ void _astr_itoa(int num, char* str, int base)
     reverse(str, i);
 }
 
-ULONG _astr_len(const char *str)
+ULONG __aqb_len(const char *str)
 {
     int l = 0;
     while (*str)
@@ -77,7 +77,7 @@ ULONG _astr_len(const char *str)
 
 char *_astr_dup(const char* str)
 {
-    ULONG l = _astr_len(str);
+    ULONG l = __aqb_len(str);
     char *str2 = __aqb_allocate(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
@@ -270,13 +270,13 @@ void _astr_ftoa(FLOAT value, char *buf)
         *--ptr = '.';
 
         // and dump it in the right order
-        ULONG l = _astr_len(buf);
-        CopyMem((APTR) ptr, (APTR) &buf[l], _astr_len(ptr)+1);
+        ULONG l = __aqb_len(buf);
+        CopyMem((APTR) ptr, (APTR) &buf[l], __aqb_len(ptr)+1);
     }
 
     if (exponent != 0)
     {
-        ULONG l = _astr_len(buf);
+        ULONG l = __aqb_len(buf);
         buf[l] = 'e'; buf[l+1] = '-';
         _astr_itoa(exponent, &buf[l+1], 10);
     }

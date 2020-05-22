@@ -403,7 +403,7 @@ void __aqb_gadget_create (short id, short type, BOOL enabled, short x1, short y1
         if (s)
         {
             int p = (int)(s-str);
-            scit = mk_intuitext(1,0,0,(w / 2) - (_astr_len(str)*8 / 2)+p*8+1,(h / 2) - 3,NULL,"_",NULL);
+            scit = mk_intuitext(1,0,0,(w / 2) - (__aqb_len(str)*8 / 2)+p*8+1,(h / 2) - 3,NULL,"_",NULL);
         }
     }
 
@@ -429,7 +429,7 @@ void __aqb_gadget_create (short id, short type, BOOL enabled, short x1, short y1
 		g->GadgetRender = mk_border(0,0,2,0,1,5,k1, mk_border(0,0,1,0,1,5,k2,NULL));
 		g->SelectRender = mk_border(0,0,1,0,1,5,k1, mk_border(0,0,2,0,1,5,k2,NULL));
 	}
-    g->GadgetText   = mk_intuitext(1, 0, 0, (w / 2) - (_astr_len(str)*8 / 2), (h / 2) - 3, NULL, str, scit);
+    g->GadgetText   = mk_intuitext(1, 0, 0, (w / 2) - (__aqb_len(str)*8 / 2), (h / 2) - 3, NULL, str, scit);
     g->GadgetID     = id;
 
 	AddGadget (g_output_win, g, id);

@@ -7,7 +7,7 @@ void _astr_init(void);
 
 void _astr_itoa(int num, char *str, int base);
 
-ULONG _astr_len(const char *str);
+ULONG __aqb_len(const char *str);
 
 char *_astr_dup(const char *str);
 
