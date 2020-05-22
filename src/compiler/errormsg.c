@@ -20,9 +20,10 @@ bool EM_anyErrors= FALSE;
 void EM_error(A_pos pos, char *message,...)
 {
     va_list ap;
- 
+
     EM_anyErrors=TRUE;
-  
+
+    fprintf(stderr,"\n*** ERROR: ");
     if (P_filename) fprintf(stderr,"%s:", P_filename);
     fprintf(stderr,"%d:%d: ", S_getline(pos), S_getcol(pos));
     va_start(ap,message);
@@ -35,9 +36,10 @@ bool EM_err(char *message,...)
 {
     va_list ap;
     A_pos pos = S_getpos();
- 
+
     EM_anyErrors=TRUE;
-  
+
+    fprintf(stderr,"\n*** ERROR: ");
     if (P_filename) fprintf(stderr,"%s:", P_filename);
     fprintf(stderr,"%d:%d: ", S_getline(pos), S_getcol(pos));
     va_start(ap,message);
@@ -52,7 +54,7 @@ string EM_format(A_pos pos, char *message,...)
 {
     va_list ap;
     char buf[1024];
- 
+
     va_start(ap,message);
     vsnprintf(buf, 1024, message, ap);
     va_end(ap);
@@ -64,6 +66,6 @@ string EM_format(A_pos pos, char *message,...)
 
 void EM_init(void)
 {
-    EM_anyErrors = FALSE; 
+    EM_anyErrors = FALSE;
 }
 
