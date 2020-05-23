@@ -1625,13 +1625,29 @@ static bool stmtIdent(void)
         return stmtWindow();
 
     S_getsym();
+
     // is this a declared proc?
 
     if ( (S_token != S_EQUALS) && (hashmap_get(declared_procs, S_name(sym), (any_t *) &proc) == MAP_OK) )
     {
+        bool parenthesis = FALSE;
+        if (S_token == S_LPAREN)
+        {
+            parenthesis = TRUE;
+            S_getsym();
+        }
+
         A_expList args = A_ExpList();
         if (!expressionList(&args))
             return FALSE;
+
+        if (parenthesis)
+        {
+            if (S_token != S_RPAREN)
+                return EM_err(") expected.");
+            S_getsym();
+        }
+
         A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc->name, args));
         return TRUE;
     }
