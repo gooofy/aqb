@@ -51,6 +51,12 @@ ASSERT ( c OR d  ) =  7
 ASSERT ( d OR d  ) =  7
 ASSERT ( d OR 11 ) = 15
 
+ASSERT INT(c SHL d) = 384
+ASSERT INT(b SHR c) = 39
+
+ASSERT INT(1! SHL 7!) = 128
+ASSERT INT(128! SHR 6!) = 2
+
 ' relational operators
 
 ASSERT (a = a)

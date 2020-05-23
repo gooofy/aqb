@@ -80,7 +80,7 @@ struct A_stmtList_
 typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
               A_eqOp,  A_neqOp,    A_ltOp,  A_leOp,  A_gtOp,  A_geOp,
               A_xorOp, A_eqvOp,    A_impOp, A_negOp, A_notOp, A_andOp, A_orOp,
-              A_expOp, A_intDivOp, A_modOp                   } A_oper;
+              A_expOp, A_intDivOp, A_modOp, A_shlOp, A_shrOp                   } A_oper;
 
 struct A_exp_
 {

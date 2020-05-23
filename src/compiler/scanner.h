@@ -87,6 +87,8 @@
 #define S_EXTERN   151
 #define S_CONST    152
 #define S_EXPLICIT 153
+#define S_SHL      154
+#define S_SHR      155
 
 #define S_MAX_STRING 1024
 

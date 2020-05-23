@@ -341,6 +341,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return munchUnaryOp(e, AS_NOT_Dn, resty);
                         case T_power:
                             return emitBinOpJsr (e, "___pow_s1", resty);
+                        case T_shl:
+                            return munchBinOp (e, AS_ASL_Dn_Dn , AS_NOP        , AS_ASL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_shr:
+                            return munchBinOp (e, AS_ASR_Dn_Dn , AS_NOP        , AS_ASR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -386,6 +390,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return munchUnaryOp(e, AS_NOT_Dn, resty);
                         case T_power:
                             return emitBinOpJsr (e, "___pow_u1", resty);
+                        case T_shl:
+                            return munchBinOp (e, AS_LSL_Dn_Dn , AS_NOP        , AS_LSL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_shr:
+                            return munchBinOp (e, AS_LSR_Dn_Dn , AS_NOP        , AS_LSR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -431,6 +439,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return munchUnaryOp(e, AS_NOT_Dn, resty);
                         case T_power:
                             return emitBinOpJsr (e, "___pow_s2", resty);
+                        case T_shl:
+                            return munchBinOp (e, AS_ASL_Dn_Dn , AS_NOP        , AS_ASL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_shr:
+                            return munchBinOp (e, AS_ASR_Dn_Dn , AS_NOP        , AS_ASR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -476,6 +488,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return munchUnaryOp(e, AS_NOT_Dn, resty);
                         case T_power:
                             return emitBinOpJsr (e, "___pow_u2", resty);
+                        case T_shl:
+                            return munchBinOp (e, AS_LSL_Dn_Dn , AS_NOP        , AS_LSL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_shr:
+                            return munchBinOp (e, AS_LSR_Dn_Dn , AS_NOP        , AS_LSR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -525,6 +541,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return munchUnaryOp(e, AS_NOT_Dn, resty);
                         case T_power:
                             return emitBinOpJsr (e, "___pow_s4", resty);
+                        case T_shl:
+                            return munchBinOp (e, AS_ASL_Dn_Dn , AS_NOP        , AS_ASL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_shr:
+                            return munchBinOp (e, AS_ASR_Dn_Dn , AS_NOP        , AS_ASR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -575,6 +595,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             return munchUnaryOp(e, AS_NOT_Dn, resty);
                         case T_power:
                             return emitBinOpJsr (e, "___pow_u4", resty);
+                        case T_shl:
+                            return munchBinOp (e, AS_LSL_Dn_Dn , AS_NOP        , AS_LSL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_shr:
+                            return munchBinOp (e, AS_LSR_Dn_Dn , AS_NOP        , AS_LSR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
                             assert(0);
@@ -666,6 +690,10 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             emit(AS_Instr(AS_NOT_Dn, AS_w_L, r, r));                            // not.l   r
                             return emitRegCall("_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), resty);
                         }
+                        case T_shr:
+                            return emitBinOpJsr (e, "___aqb_shr_single", resty);
+                        case T_shl:
+                            return emitBinOpJsr (e, "___aqb_shl_single", resty);
                         default:
                             EM_error(0, "*** codegen.c: unhandled single binOp %d!", e->u.BINOP.op);
                             assert(0);

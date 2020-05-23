@@ -19,7 +19,7 @@ static void indent(FILE *out, int d)
 static char bin_oper[][14] = {
    "PLUS",  "MINUS",  "MUL", "DIV",
    "XOR",   "EQV",    "IMP", "NEG", "NOT", "AND", "OR",
-   "POWER", "INTDIV", "MOD"};
+   "POWER", "INTDIV", "MOD", "SHL", "SHR"};
 
 static char rel_oper[][6] = { "EQ", "NE", "LT", "GT", "LE", "GE"};
 
@@ -35,7 +35,7 @@ void printStm(FILE *out, T_stm stm, int d)
     switch (stm->kind) {
     case T_SEQ:
         indent(out,d);
-        fprintf(out, "SEQ(\n"); printStm(out, stm->u.SEQ.left,d+1);  fprintf(out, ",\n"); 
+        fprintf(out, "SEQ(\n"); printStm(out, stm->u.SEQ.left,d+1);  fprintf(out, ",\n");
         printStm(out, stm->u.SEQ.right,d+1); fprintf(out, ")");
         break;
     case T_LABEL:
@@ -46,23 +46,23 @@ void printStm(FILE *out, T_stm stm, int d)
         break;
     case T_CJUMP:
         indent(out,d); fprintf(out, "CJUMP(%s,", rel_oper[stm->u.CJUMP.op]);
-        printExp(out, stm->u.CJUMP.left,d+1); fprintf(out, ","); 
+        printExp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",");
         printExp(out, stm->u.CJUMP.right,d+1); fprintf(out, ",");
         fprintf(out, "%s,", S_name(stm->u.CJUMP.ltrue));
         fprintf(out, "%s", S_name(stm->u.CJUMP.lfalse)); fprintf(out, ")");
         break;
     case T_MOVE:
-        indent(out,d); fprintf(out, "MOVE("); 
-        printExp(out, stm->u.MOVE.src,d+1); 
+        indent(out,d); fprintf(out, "MOVE(");
+        printExp(out, stm->u.MOVE.src,d+1);
         fprintf(out, " -> ");
-        printExp(out, stm->u.MOVE.dst,d+1); 
+        printExp(out, stm->u.MOVE.dst,d+1);
         fprintf(out, ")");
         break;
     case T_NOP:
         indent(out,d); fprintf(out, "NOP ");
         break;
     case T_EXP:
-        indent(out,d); fprintf(out, "EXP("); printExp(out, stm->u.EXP, d+1); 
+        indent(out,d); fprintf(out, "EXP("); printExp(out, stm->u.EXP, d+1);
         fprintf(out, ")");
         break;
     }

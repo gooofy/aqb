@@ -46,6 +46,12 @@ ASSERT ( c% OR d%  ) =  7
 ASSERT ( d% OR d%  ) =  7
 ASSERT ( d% OR 11  ) = 15
 
+ASSERT ( c% SHL d%) = 384
+ASSERT ( b% SHR c%) =   5
+
+ASSERT ( 1  SHL d%) = 128
+ASSERT (128 SHR c%) =  16
+
 ' relational operators
 
 ASSERT  a% =  a%

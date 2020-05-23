@@ -451,6 +451,24 @@ Tr_exp Tr_boolExp(bool b, Ty_ty ty)
 
 Tr_exp Tr_intExp(int i, Ty_ty ty)
 {
+    if (!ty)
+    {
+        if ( (i <= 127) && (i > -128) )
+            ty = Ty_Byte();
+
+        else if ( (i <= 255) && (i >= 0) )
+            ty = Ty_UByte();
+
+        else if ( (i <= 32767) && (i >= -32768) )
+            ty = Ty_Integer();
+
+        else if ( (i <= 65535) && (i >= 0) )
+            ty = Ty_UInteger();
+
+        else
+            ty = Ty_Long();
+    }
+
     return Tr_Ex(T_ConstInt(i, ty));
 }
 
@@ -661,20 +679,22 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstInt(right);
                 switch (o)
                 {
-                    case A_addOp   : return Tr_intExp(a+b, ty);            break;
-                    case A_subOp   : return Tr_intExp(a-b, ty);            break;
-                    case A_mulOp   : return Tr_intExp(a*b, ty);            break;
-                    case A_divOp   : return Tr_intExp(a/b, ty);            break;
-                    case A_xorOp   : return Tr_intExp(a^b, ty);            break;
-                    case A_eqvOp   : return Tr_intExp(~(a^b), ty);         break;
-                    case A_impOp   : return Tr_intExp(~a|b, ty);           break;
-                    case A_negOp   : return Tr_intExp(-a, ty);             break;
-                    case A_notOp   : return Tr_intExp(~a, ty);             break;
-                    case A_andOp   : return Tr_intExp(a&b, ty);            break;
-                    case A_orOp    : return Tr_intExp(a|b, ty);            break;
-                    case A_expOp   : return Tr_intExp(ipow (a, b), ty);    break;
-                    case A_intDivOp: return Tr_intExp(a/b, ty);            break;
-                    case A_modOp   : return Tr_intExp(a%b, ty);            break;
+                    case A_addOp   : return Tr_intExp(a+b, NULL);            break;
+                    case A_subOp   : return Tr_intExp(a-b, NULL);            break;
+                    case A_mulOp   : return Tr_intExp(a*b, NULL);            break;
+                    case A_divOp   : return Tr_intExp(a/b, NULL);            break;
+                    case A_xorOp   : return Tr_intExp(a^b, NULL);            break;
+                    case A_eqvOp   : return Tr_intExp(~(a^b), NULL);         break;
+                    case A_impOp   : return Tr_intExp(~a|b, NULL);           break;
+                    case A_negOp   : return Tr_intExp(-a, NULL);             break;
+                    case A_notOp   : return Tr_intExp(~a, NULL);             break;
+                    case A_andOp   : return Tr_intExp(a&b, NULL);            break;
+                    case A_orOp    : return Tr_intExp(a|b, NULL);            break;
+                    case A_expOp   : return Tr_intExp(ipow (a, b), NULL);    break;
+                    case A_intDivOp: return Tr_intExp(a/b, NULL);            break;
+                    case A_modOp   : return Tr_intExp(a%b, NULL);            break;
+                    case A_shlOp   : return Tr_intExp(a << b, NULL);         break;
+                    case A_shrOp   : return Tr_intExp(a >> b, NULL);         break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -704,6 +724,8 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     case A_expOp   : return Tr_floatExp(pow(a, b), ty);                        break;
                     case A_intDivOp: return Tr_floatExp((int)a/(int)b, ty);                    break;
                     case A_modOp   : return Tr_floatExp(fmod(a, b), ty);                       break;
+                    case A_shlOp   : return Tr_floatExp((int)a << (int)b, ty);                 break;
+                    case A_shrOp   : return Tr_floatExp((int)a >> (int)b, ty);                 break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -733,6 +755,8 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
         case A_expOp   : op = T_power;    break;
         case A_intDivOp: op = T_intDiv;   break;
         case A_modOp   : op = T_mod;      break;
+        case A_shlOp   : op = T_shl;      break;
+        case A_shrOp   : op = T_shr;      break;
         default:
             EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
             assert(0);

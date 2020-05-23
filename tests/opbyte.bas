@@ -46,6 +46,12 @@ ASSERT ( c OR d  ) =  7
 ASSERT ( d OR d  ) =  7
 ASSERT ( d OR 11 ) = 15
 
+ASSERT ( b  SHL c ) =  16
+ASSERT ( a  SHR c ) =   2
+
+ASSERT ( 1  SHL c ) =   8
+ASSERT (128 SHR c ) =  16
+
 ' relational operators
 
 ASSERT a =  a

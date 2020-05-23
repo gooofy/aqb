@@ -118,6 +118,10 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
         case AS_OR_Dn_Dn:
         case AS_AND_Dn_Dn:
         case AS_EOR_Dn_Dn:
+        case AS_ASR_Dn_Dn:
+        case AS_ASL_Dn_Dn:
+        case AS_LSR_Dn_Dn:
+        case AS_LSL_Dn_Dn:
             assert(label==NULL);
             assert(imm==0);
             assert(offset==0);
@@ -546,6 +550,14 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    and`w    `s0, `d0", i, m);     break;
         case AS_AND_Imm_Dn:
             instrformat(str, "    and`w    #`i, `d0", i, m);     break;
+        case AS_ASL_Dn_Dn:
+            instrformat(str, "    asl`w    `s0, `d0", i, m);     break;
+        case AS_ASL_Imm_Dn:
+            instrformat(str, "    asl`w    #`i, `d0", i, m);     break;
+        case AS_ASR_Dn_Dn:
+            instrformat(str, "    asr`w    `s0, `d0", i, m);     break;
+        case AS_ASR_Imm_Dn:
+            instrformat(str, "    asr`w    #`i, `d0", i, m);     break;
         case AS_BEQ:
             instrformat(str, "    beq      `l", i, m);           break;
         case AS_BNE:
@@ -584,6 +596,14 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    ext`w    `d0", i, m);          break;
         case AS_LINK_fp:
             instrformat(str, "    link     a5, #`i"    , i, m);  break;
+        case AS_LSL_Dn_Dn:
+            instrformat(str, "    lsl`w    `s0, `d0", i, m);     break;
+        case AS_LSL_Imm_Dn:
+            instrformat(str, "    lsl`w    #`i, `d0", i, m);     break;
+        case AS_LSR_Dn_Dn:
+            instrformat(str, "    lsr`w    `s0, `d0", i, m);     break;
+        case AS_LSR_Imm_Dn:
+            instrformat(str, "    lsr`w    #`i, `d0", i, m);     break;
         case AS_MOVE_AnDn_AnDn:
             instrformat(str, "    move`w   `s0, `d0"   , i, m);  break;
         case AS_MOVE_fp_AnDn:

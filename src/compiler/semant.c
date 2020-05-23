@@ -641,25 +641,8 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
             return Tr_boolExp(a->u.boolb, Ty_Bool());
 
         case A_intExp:
-        {
-            Ty_ty ty;
-            if ( (a->u.intt <= 127) && (a->u.intt > -128) )
-                ty = Ty_Byte();
+            return Tr_intExp(a->u.intt, NULL);
 
-            else if ( (a->u.intt <= 255) && (a->u.intt >= 0) )
-                ty = Ty_UByte();
-
-            else if ( (a->u.intt <= 32767) && (a->u.intt >= -32768) )
-                ty = Ty_Integer();
-
-            else if ( (a->u.intt <= 65535) && (a->u.intt >= 0) )
-                ty = Ty_UInteger();
-
-            else
-                ty = Ty_Long();
-
-            return Tr_intExp(a->u.intt, ty);
-        }
         case A_floatExp:
             return Tr_floatExp(a->u.floatt, Ty_Single());
 
@@ -728,6 +711,8 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
                 case A_impOp:
                 case A_andOp:
                 case A_orOp:
+                case A_shlOp:
+                case A_shrOp:
                 {
                     return Tr_arOpExp(oper, e1, e2, resTy);
                 }

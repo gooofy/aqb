@@ -83,6 +83,8 @@ static void init_tokens(void)
     hashmap_put (g_tokens, "extern",   (void *) S_EXTERN);
     hashmap_put (g_tokens, "const",    (void *) S_CONST);
     hashmap_put (g_tokens, "explicit", (void *) S_EXPLICIT);
+    hashmap_put (g_tokens, "shl",      (void *) S_SHL);
+    hashmap_put (g_tokens, "shr",      (void *) S_SHR);
 }
 
 A_pos S_getpos(void)

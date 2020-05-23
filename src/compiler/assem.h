@@ -16,6 +16,12 @@ enum AS_mn
     AS_AND_Dn_Dn,       // and.x  d1, d2
     AS_AND_Imm_Dn,      // and.x  #23, d3
 
+    AS_ASL_Dn_Dn,       // asl.x   d1, d2
+    AS_ASL_Imm_Dn,      // asl.x   #42, d2
+
+    AS_ASR_Dn_Dn,       // asr.x   d1, d2
+    AS_ASR_Imm_Dn,      // asr.x   #42, d2
+
     AS_BEQ,             // beq     label
     AS_BNE,             // bne     label
     AS_BLT,             // blt     label
@@ -40,6 +46,12 @@ enum AS_mn
     AS_EXT_Dn,          // ext.x   d1
 
     AS_LINK_fp,         // link    a5, #-4
+
+    AS_LSL_Dn_Dn,       // lsl.x   d1, d2
+    AS_LSL_Imm_Dn,      // lsl.x   #42, d2
+
+    AS_LSR_Dn_Dn,       // lsr.x   d1, d2
+    AS_LSR_Imm_Dn,      // lsr.x   #42, d2
 
     AS_MOVE_AnDn_AnDn,  // move.x  d1, d2
     AS_MOVE_Imm_OAn,    // move.x  #23, 42(a6)

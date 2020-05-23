@@ -273,11 +273,6 @@ FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 */
 
 
-unsigned long hubba (unsigned long a, unsigned long b)
-{
-    return a*b;
-}
-
 SHORT __aqb_fix(FLOAT f)
 {
     return SPFix(f);
@@ -308,5 +303,21 @@ void _amath_init(void)
 {
     g_one_half = SPDiv(SPFlt(2), SPFlt(1));
     g_zero     = SPFlt(0);
+}
+
+FLOAT __aqb_shl_single(FLOAT af, FLOAT bf)
+{
+    LONG a = __aqb_clng(af);
+    LONG b = __aqb_clng(bf);
+
+    return SPFlt(a << b);
+}
+
+FLOAT __aqb_shr_single(FLOAT af, FLOAT bf)
+{
+    LONG a = __aqb_clng(af);
+    LONG b = __aqb_clng(bf);
+
+    return SPFlt(a >> b);
 }
 

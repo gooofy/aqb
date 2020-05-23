@@ -512,12 +512,50 @@ static bool modExpression(A_exp *exp)
     return TRUE;
 }
 
-// addExpression     ::= modExpression ( ('+' | '-') modExpression )*
-static bool addExpression(A_exp *exp)
+// shiftExpression  =   modExpression ( (SHL | SHR) modExpression )*
+static bool shiftExpression(A_exp *exp)
 {
     bool   done = FALSE;
 
     if (!modExpression(exp))
+        return FALSE;
+
+    while (!done)
+    {
+        A_pos  pos = S_getpos();
+        A_oper oper;
+        switch (S_token)
+        {
+            case S_SHL:
+                oper = A_shlOp;
+                S_getsym();
+                break;
+            case S_SHR:
+                oper = A_shrOp;
+                S_getsym();
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        if (!done)
+        {
+            A_exp right;
+            if (!modExpression(&right))
+                return FALSE;
+            *exp = A_OpExp(pos, oper, *exp, right);
+        }
+    }
+
+    return TRUE;
+}
+
+// addExpression     ::= shiftExpression ( ('+' | '-') shiftExpression )*
+static bool addExpression(A_exp *exp)
+{
+    bool   done = FALSE;
+
+    if (!shiftExpression(exp))
         return FALSE;
 
     while (!done)
@@ -541,7 +579,7 @@ static bool addExpression(A_exp *exp)
         if (!done)
         {
             A_exp right;
-            if (!modExpression(&right))
+            if (!shiftExpression(&right))
                 return FALSE;
             *exp = A_OpExp(pos, oper, *exp, right);
         }

@@ -20,7 +20,7 @@ typedef enum
 {
     T_plus,  T_minus,  T_mul, T_div,
     T_xor,   T_eqv,    T_imp, T_neg, T_not, T_and, T_or,
-    T_power, T_intDiv, T_mod,
+    T_power, T_intDiv, T_mod, T_shl, T_shr
 } T_binOp;
 
 typedef enum
@@ -45,10 +45,10 @@ struct T_stm_
 
 struct T_const_
 {
-    enum {T_CFLOAT, T_CINT} kind; 
+    enum {T_CFLOAT, T_CINT} kind;
     union
     {
-        double f; 
+        double f;
         int i;
     } u;
 };
