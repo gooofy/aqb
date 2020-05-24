@@ -182,6 +182,11 @@ static void doData(FILE * out, Temp_label label, int size, unsigned char *data)
     fprintf(out, "\n");
 }
 
+static void print_usage(char *argv[])
+{
+	fprintf(stderr, "usage: %s [-v] <program.bas>\n\n", argv[0]);
+}
+
 int main (int argc, char *argv[])
 {
 	char           *sourcefn;
@@ -190,16 +195,30 @@ int main (int argc, char *argv[])
     F_fragList      frags, fl;
     char            asmfn[1024];
     FILE           *out;
+    size_t 			optind;
 
     printf("AQB V" VERSION "\n");
 
-	if (argc != 2)
+    for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
 	{
-		fprintf(stderr, "usage: %s <program.bas>\n\n", argv[0]);
-		exit(1);
+        switch (argv[optind][1])
+		{
+        	case 'v':
+				OPT_set(OPTION_VERBOSE, TRUE);
+				break;
+        	default:
+				print_usage(argv);
+	            exit(EXIT_FAILURE);
+        }
+    }
+
+	if (argc != (optind+1))
+	{
+		print_usage(argv);
+		exit(EXIT_FAILURE);
 	}
 
-	sourcefn = argv[1];
+	sourcefn = argv[optind];
     /* filename.bas -> filename.s */
     {
         int l = strlen(sourcefn);
