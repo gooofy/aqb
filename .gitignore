@@ -75,3 +75,4 @@ examples/*.bin
 examples/*.s
 examples/others
 src/tools/ffputils/ffputils
+src/tools/os2aqb/*.bas
