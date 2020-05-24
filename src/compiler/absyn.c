@@ -174,10 +174,11 @@ A_dim A_Dim (A_exp expStart, A_exp expEnd)
     return p;
 }
 
-A_field A_Field (S_symbol name, S_symbol typeId, A_dim dims, bool ptr)
+A_field A_Field (A_pos pos, S_symbol name, S_symbol typeId, A_dim dims, bool ptr)
 {
     A_field p = checked_malloc(sizeof(*p));
 
+    p->pos     = pos;
     p->name    = name;
     p->typeId  = typeId;
     p->dims    = dims;

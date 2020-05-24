@@ -1307,7 +1307,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     if (f->ptr)
                         t = Ty_ForwardPtr(f->typeId);
                     else
-                        EM_error (stmt->pos, "Unknown type %s.", S_name(f->typeId));
+                        EM_error (f->pos, "Unknown type %s.", S_name(f->typeId));
                 }
                 else
                 {

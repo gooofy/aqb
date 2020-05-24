@@ -2081,6 +2081,7 @@ static bool stmtTypeDecl(void)
             S_symbol sField;
             S_symbol sFieldType = NULL;
             bool     ptr        = FALSE;
+            A_pos    fpos       = S_getpos();
 
             sField     = S_Symbol(String(S_strlc));
             S_getsym();
@@ -2113,12 +2114,12 @@ static bool stmtTypeDecl(void)
 
             if (fFirst)
             {
-                fLast->tail = A_Field(sField, sFieldType, dims, ptr);
+                fLast->tail = A_Field(fpos, sField, sFieldType, dims, ptr);
                 fLast = fLast->tail;
             }
             else
             {
-                fFirst = fLast = A_Field(sField, sFieldType, dims, ptr);
+                fFirst = fLast = A_Field(fpos, sField, sFieldType, dims, ptr);
             }
         }
         else
@@ -2129,6 +2130,7 @@ static bool stmtTypeDecl(void)
                 S_symbol sField;
                 S_symbol sFieldType = NULL;
                 bool     ptr        = FALSE;
+                A_pos    fpos       = S_getpos();
 
                 S_getsym();
 
@@ -2161,17 +2163,19 @@ static bool stmtTypeDecl(void)
                 }
                 if (fFirst)
                 {
-                    fLast->tail = A_Field(sField, sFieldType, dims, ptr);
+                    fLast->tail = A_Field(fpos, sField, sFieldType, dims, ptr);
                     fLast = fLast->tail;
                 }
                 else
                 {
-                    fFirst = fLast = A_Field(sField, sFieldType, dims, ptr);
+                    fFirst = fLast = A_Field(fpos, sField, sFieldType, dims, ptr);
                 }
 
                 while (S_token == S_COMMA)
                 {
                     S_getsym();
+
+                    fpos       = S_getpos();
 
                     if (S_token != S_IDENT)
                         return EM_err("field identifier expected here.");
@@ -2190,12 +2194,12 @@ static bool stmtTypeDecl(void)
                     }
                     if (fFirst)
                     {
-                        fLast->tail = A_Field(sField, sFieldType, dims, ptr);
+                        fLast->tail = A_Field(fpos, sField, sFieldType, dims, ptr);
                         fLast = fLast->tail;
                     }
                     else
                     {
-                        fFirst = fLast = A_Field(sField, sFieldType, dims, ptr);
+                        fFirst = fLast = A_Field(fpos, sField, sFieldType, dims, ptr);
                     }
                 }
             }
