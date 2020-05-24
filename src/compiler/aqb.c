@@ -45,29 +45,44 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
     //printStmList(stdout, T_StmList(body, NULL));
 
     stmList = C_linearize(body);
-    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_linearize)\n");
-    printStmList(stdout, stmList);
-    fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_linearize)\n");
+        printStmList(stdout, stmList);
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
+    }
+
     stmList = C_traceSchedule(C_basicBlocks(stmList));
-    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_traceSchedule)\n");
-    printStmList(stdout, stmList);
-    fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
 
-    iList  = F_codegen(frame, stmList); /* 9 */
-    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list after codegen, before regalloc:\n");
-    AS_printInstrList (stdout, iList, Temp_layerMap(F_tempMap,Temp_getNameMap()));
-    fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_traceSchedule)\n");
+        printStmList(stdout, stmList);
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
+    }
 
-    struct RA_result ra = RA_regAlloc(frame, iList);  /* 10, 11 */
+    iList  = F_codegen(frame, stmList);
+
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list after codegen, before regalloc:\n");
+        AS_printInstrList (stdout, iList, Temp_layerMap(F_tempMap,Temp_getNameMap()));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+    }
+
+    struct RA_result ra = RA_regAlloc(frame, iList);
     iList = ra.il;
 
     proc = F_procEntryExitAS(frame, iList);
 
-    fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
-    fprintf(stdout, "%s\n", proc->prolog);
-    AS_printInstrList(stdout, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
-    fprintf(stdout, "%s\n", proc->epilog);
-    fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
+        fprintf(stdout, "%s\n", proc->prolog);
+        AS_printInstrList(stdout, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
+        fprintf(stdout, "%s\n", proc->epilog);
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+    }
 
     fprintf(out, "%s\n", proc->prolog);
     AS_printInstrList(out, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
@@ -244,6 +259,7 @@ int main (int argc, char *argv[])
 
 	if (!P_sourceProgram(sourcef, sourcefn, &sourceProgram))
         exit(3);
+	fclose(sourcef);
 
     if (EM_anyErrors)
     {
@@ -251,11 +267,11 @@ int main (int argc, char *argv[])
         exit(4);
     }
 
-    printf ("\n\nparsing worked.\n");
-
-    pr_sourceProgram(stdout, sourceProgram, 0);
-
-	fclose(sourcef);
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        printf ("\n\nparsing worked.\n");
+        pr_sourceProgram(stdout, sourceProgram, 0);
+    }
 
     /*
      * intermediate code
@@ -267,9 +283,11 @@ int main (int argc, char *argv[])
     if (EM_anyErrors)
         exit(4);
 
-    printf ("\n\nsemantics worked.\n");
-
-    F_printtree(stdout, frags);
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        printf ("\n\nsemantics worked.\n");
+        F_printtree(stdout, frags);
+    }
 
     /*
      * generate target assembly code

@@ -1418,7 +1418,9 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
         if (!exp)   // declarations will not produce statements
             continue;
 
-        Tr_printExp(stdout, exp, depth);
+        if (OPT_get(OPTION_VERBOSE))
+            Tr_printExp(stdout, exp, depth);
+
         if (last)
         {
             last = last->tail = Tr_ExpList(exp, NULL);
@@ -1569,10 +1571,16 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
     Tr_level lv = Tr_newLevel(label, NULL, FALSE, NULL);
     S_scope venv = S_beginScope(g_venv);
 
-    printf ("transStmtList:\n");
-    printf ("--------------\n");
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        printf ("transStmtList:\n");
+        printf ("--------------\n");
+    }
     Tr_exp prog = transStmtList(lv, venv, g_tenv, sourceProgram->stmtList, NULL, 0);
-    printf ("--------------\n");
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        printf ("--------------\n");
+    }
 
     Tr_procEntryExit(lv, prog, NULL, NULL);
 

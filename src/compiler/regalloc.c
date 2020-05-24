@@ -16,8 +16,7 @@
 #include "table.h"
 #include "errormsg.h"
 
-#define ENABLE_DEBUG
-
+// #define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
 static Temp_map g_debugTempMap;
@@ -216,7 +215,9 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         // filter out coalesced moves, NOPs
 
         rewriteList = NULL;
+#ifdef ENABLE_DEBUG
         Temp_map colTempMap = Temp_layerMap(col.coloring, g_debugTempMap);
+#endif
         for (; il; il = il->tail)
         {
             AS_instr inst = il->head;

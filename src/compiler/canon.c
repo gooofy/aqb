@@ -10,7 +10,7 @@
 #include "printtree.h"
 #include "canon.h"
 
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 typedef struct expRefList_ *expRefList;
 struct expRefList_ {T_exp *head; expRefList tail;};

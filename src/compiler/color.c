@@ -13,7 +13,7 @@
 #include "liveness.h"
 #include "table.h"
 
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
 static Temp_map g_debugTempMap;
@@ -117,10 +117,12 @@ static Temp_temp node2Temp(UG_node n)
     return Live_gtemp(n);
 }
 
+#ifdef ENBALE_DEBUG
 static string tempName(Temp_temp t)
 {
     return Temp_look(Temp_getNameMap(), t);
 }
+#endif
 
 static Temp_temp str2Color(string color, Temp_map regcolors, Temp_tempList regs)
 {
@@ -391,7 +393,9 @@ static void combine(Temp_temp u, Temp_temp v)
     }
 
     long degree = (long)UG_look(c.degree, nu);
+#ifdef ENABLE_DEBUG
     printf ("combined %d with %d, resulting degree: %ld\n", Temp_num(u), Temp_num(v), degree);
+#endif
     if (degree >= c.K && Temp_inList(u, c.freezeWorklist))
     {
         c.freezeWorklist = Temp_minus(c.freezeWorklist, L(u, NULL));
@@ -760,7 +764,9 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
     ret.spills = NULL;
     for (; c.spilledNodes; c.spilledNodes = c.spilledNodes->tail)
     {
+#ifdef ENABLE_DEBUG
         printf("spilled: %s\n", tempName(c.spilledNodes->head));
+#endif
         ret.spills = L(c.spilledNodes->head, ret.spills);
     }
 

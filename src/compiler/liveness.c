@@ -13,7 +13,7 @@
 #include "liveness.h"
 #include "table.h"
 
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 Temp_temp Live_gtemp(UG_node n)
 {

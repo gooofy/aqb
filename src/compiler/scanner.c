@@ -6,6 +6,7 @@
 #include "hashmap.h"
 #include "util.h"
 #include "errormsg.h"
+#include "options.h"
 
 static FILE *g_fin=NULL;
 
@@ -13,7 +14,6 @@ static char  g_ch;
 static bool  g_eof = TRUE;
 static int   g_line, g_col;
 static bool  g_eol = FALSE;
-static bool  g_verbose = TRUE;
 static map_t g_tokens = NULL;
 static int   S_line, S_col;
 
@@ -122,7 +122,7 @@ static void getch(void)
     }
     else
     {
-        if (g_verbose)
+        if (OPT_get(OPTION_VERBOSE))
             printf("%c", g_ch);
         if (g_ch == '\n')
             g_eol = TRUE;
@@ -282,7 +282,7 @@ void S_identifier(void)
     // is this a known token?
     if (hashmap_get(g_tokens, S_strlc, (any_t *)&t) == MAP_OK)
         S_token = t;
-    if (g_verbose)
+    if (OPT_get(OPTION_VERBOSE))
         printf("[%d %s]", S_token, S_str);
 }
 
@@ -340,7 +340,7 @@ int S_getsym(void)
     if (is_digit())
     {
         number (10);
-        if (g_verbose)
+        if (OPT_get(OPTION_VERBOSE))
             printf("[%d %d]", S_token, S_inum);
         return S_token;
     }
@@ -505,7 +505,7 @@ int S_getsym(void)
             getch();
     }
 
-    if (g_verbose)
+    if (OPT_get(OPTION_VERBOSE))
         printf("[%d]", S_token);
     return S_token;
 }

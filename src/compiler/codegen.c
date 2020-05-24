@@ -998,12 +998,6 @@ static void munchStm(T_stm s)
             T_exp     src   = s->u.MOVE.src;
             Ty_ty     resty = s->u.MOVE.ty;
 
-            printf("T_MOVE: src=");
-            printExp(stdout, src, 2);
-            printf(", dst=");
-            printExp(stdout, dst, 2);
-            printf("\n");
-
             if (Ty_size(resty) <= MACHINE_REGSIZE)
             {
                 enum AS_w isz   = ty_isz(resty);
