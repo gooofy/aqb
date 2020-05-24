@@ -1,7 +1,17 @@
 #!/bin/bash
 
+VERBOSE=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -v) VERBOSE="-v"; shift;;
+    -*) echo "unknown option: $1" >&2; exit 1;;
+    *) break;;
+  esac
+done
+
 if [ $# != 1 ] ; then
-    echo "usage: $0 <foo.bas>"
+    echo "usage: $0 [-v] <foo.bas>"
     exit 1
 fi
 
@@ -15,7 +25,7 @@ AQBBIN="${WORKDIR}/${AQBBASE}.bin"
 AQBASM="${WORKDIR}/${AQBBASE}.s"
 AQBOBJ="${WORKDIR}/${AQBBASE}.o"
 
-./aqb $1 || exit 2
+./aqb $VERBOSE $1 || exit 2
 
 m68k-amigaos-as ${AQBASM} -o ${AQBOBJ} || exit 3
 
