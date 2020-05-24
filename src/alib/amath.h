@@ -10,5 +10,8 @@ SHORT __aqb_int (FLOAT f);
 SHORT __aqb_cint(FLOAT f);
 LONG  __aqb_clng(FLOAT a);
 
+FLOAT __aqb_shl_single(FLOAT a, FLOAT b);
+FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
+
 #endif
 
