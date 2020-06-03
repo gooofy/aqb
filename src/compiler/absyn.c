@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-A_sourceProgram A_SourceProgram(A_pos pos, A_stmtList stmtList)
+A_sourceProgram A_SourceProgram(S_pos pos, A_stmtList stmtList)
 {
     A_sourceProgram p = checked_malloc(sizeof(*p));
 
@@ -19,7 +19,7 @@ A_sourceProgram A_SourceProgram(A_pos pos, A_stmtList stmtList)
     return p;
 }
 
-A_stmt A_ForStmt (A_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
+A_stmt A_ForStmt (S_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -36,7 +36,7 @@ A_stmt A_ForStmt (A_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp
     return p;
 }
 
-A_stmt A_WhileStmt (A_pos pos, A_exp exp, A_stmtList body)
+A_stmt A_WhileStmt (S_pos pos, A_exp exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -49,7 +49,7 @@ A_stmt A_WhileStmt (A_pos pos, A_exp exp, A_stmtList body)
     return p;
 }
 
-A_stmt A_IfStmt (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts)
+A_stmt A_IfStmt (S_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -63,7 +63,7 @@ A_stmt A_IfStmt (A_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStm
     return p;
 }
 
-A_stmt A_PrintStmt (A_pos pos, A_exp exp)
+A_stmt A_PrintStmt (S_pos pos, A_exp exp)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -74,7 +74,7 @@ A_stmt A_PrintStmt (A_pos pos, A_exp exp)
     return p;
 }
 
-A_stmt A_PrintNLStmt (A_pos pos)
+A_stmt A_PrintNLStmt (S_pos pos)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -84,7 +84,7 @@ A_stmt A_PrintNLStmt (A_pos pos)
     return p;
 }
 
-A_stmt A_PrintTABStmt (A_pos pos)
+A_stmt A_PrintTABStmt (S_pos pos)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -94,7 +94,7 @@ A_stmt A_PrintTABStmt (A_pos pos)
     return p;
 }
 
-A_stmt A_AssignStmt (A_pos pos, A_var var, A_exp exp, bool deref)
+A_stmt A_AssignStmt (S_pos pos, A_var var, A_exp exp, bool deref)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -107,7 +107,7 @@ A_stmt A_AssignStmt (A_pos pos, A_var var, A_exp exp, bool deref)
     return p;
 }
 
-A_stmt A_ProcStmt (A_pos pos, A_proc proc)
+A_stmt A_ProcStmt (S_pos pos, A_proc proc)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -118,7 +118,7 @@ A_stmt A_ProcStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
+A_stmt A_ProcDeclStmt (S_pos pos, A_proc proc)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -129,7 +129,7 @@ A_stmt A_ProcDeclStmt (A_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, bool external, S_symbol sVar, S_symbol sType, bool ptr, A_dim dims, A_exp init)
+A_stmt A_VarDeclStmt (S_pos pos, bool shared, bool statc, bool external, S_symbol sVar, S_symbol sType, bool ptr, A_dim dims, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -147,7 +147,7 @@ A_stmt A_VarDeclStmt (A_pos pos, bool shared, bool statc, bool external, S_symbo
     return p;
 }
 
-A_stmt A_ConstDeclStmt (A_pos pos, S_symbol sConst, S_symbol sType, bool ptr, A_exp cExp)
+A_stmt A_ConstDeclStmt (S_pos pos, S_symbol sConst, S_symbol sType, bool ptr, A_exp cExp)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -174,7 +174,7 @@ A_dim A_Dim (A_exp expStart, A_exp expEnd)
     return p;
 }
 
-A_field A_Field (A_pos pos, S_symbol name, S_symbol typeId, A_dim dims, bool ptr)
+A_field A_Field (S_pos pos, S_symbol name, S_symbol typeId, A_dim dims, bool ptr)
 {
     A_field p = checked_malloc(sizeof(*p));
 
@@ -188,7 +188,7 @@ A_field A_Field (A_pos pos, S_symbol name, S_symbol typeId, A_dim dims, bool ptr
     return p;
 }
 
-A_stmt A_AssertStmt (A_pos pos, A_exp exp, string msg)
+A_stmt A_AssertStmt (S_pos pos, A_exp exp, string msg)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -200,7 +200,7 @@ A_stmt A_AssertStmt (A_pos pos, A_exp exp, string msg)
     return p;
 }
 
-A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
+A_stmt A_CallStmt (S_pos pos, S_symbol func, A_expList args)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -213,7 +213,7 @@ A_stmt A_CallStmt (A_pos pos, S_symbol func, A_expList args)
     return p;
 }
 
-A_stmt A_TypeDeclStmt (A_pos pos, S_symbol sType, A_field fields)
+A_stmt A_TypeDeclStmt (S_pos pos, S_symbol sType, A_field fields)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -226,7 +226,19 @@ A_stmt A_TypeDeclStmt (A_pos pos, S_symbol sType, A_field fields)
     return p;
 }
 
-A_exp A_StringExp (A_pos pos, const char *str)
+A_stmt A_LabelStmt (S_pos pos, Temp_label label)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind = A_labelStmt;
+    p->pos  = pos;
+
+    p->u.label  = label;
+
+    return p;
+}
+
+A_exp A_StringExp (S_pos pos, const char *str)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -237,7 +249,7 @@ A_exp A_StringExp (A_pos pos, const char *str)
     return p;
 }
 
-A_exp A_BoolExp (A_pos pos, bool b)
+A_exp A_BoolExp (S_pos pos, bool b)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -248,7 +260,7 @@ A_exp A_BoolExp (A_pos pos, bool b)
     return p;
 }
 
-A_exp A_IntExp (A_pos pos, int i)
+A_exp A_IntExp (S_pos pos, int i)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -259,7 +271,7 @@ A_exp A_IntExp (A_pos pos, int i)
     return p;
 }
 
-A_exp A_FloatExp (A_pos pos, double f)
+A_exp A_FloatExp (S_pos pos, double f)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -270,7 +282,7 @@ A_exp A_FloatExp (A_pos pos, double f)
     return p;
 }
 
-A_exp A_OpExp (A_pos pos, A_oper oper, A_exp left, A_exp right)
+A_exp A_OpExp (S_pos pos, A_oper oper, A_exp left, A_exp right)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -283,7 +295,7 @@ A_exp A_OpExp (A_pos pos, A_oper oper, A_exp left, A_exp right)
     return p;
 }
 
-A_exp A_FuncCallExp (A_pos pos, S_symbol func, A_expList args)
+A_exp A_FuncCallExp (S_pos pos, S_symbol func, A_expList args)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -377,7 +389,7 @@ void A_StmtListAppend (A_stmtList list, A_stmt stmt)
 }
 
 
-A_var A_Var(A_pos pos, S_symbol sym)
+A_var A_Var(S_pos pos, S_symbol sym)
 {
     A_var p = checked_malloc(sizeof(*p));
 
@@ -388,7 +400,7 @@ A_var A_Var(A_pos pos, S_symbol sym)
     return p;
 }
 
-A_selector A_IndexSelector (A_pos pos, A_exp idx)
+A_selector A_IndexSelector (S_pos pos, A_exp idx)
 {
     A_selector p = checked_malloc(sizeof(*p));
 
@@ -400,7 +412,7 @@ A_selector A_IndexSelector (A_pos pos, A_exp idx)
     return p;
 }
 
-A_selector A_FieldSelector (A_pos pos, S_symbol field)
+A_selector A_FieldSelector (S_pos pos, S_symbol field)
 {
     A_selector p = checked_malloc(sizeof(*p));
 
@@ -412,7 +424,7 @@ A_selector A_FieldSelector (A_pos pos, S_symbol field)
     return p;
 }
 
-A_selector A_PointerSelector (A_pos pos, S_symbol field)
+A_selector A_PointerSelector (S_pos pos, S_symbol field)
 {
     A_selector p = checked_malloc(sizeof(*p));
 
@@ -424,7 +436,7 @@ A_selector A_PointerSelector (A_pos pos, S_symbol field)
     return p;
 }
 
-A_exp A_VarExp(A_pos pos, A_var var)
+A_exp A_VarExp(S_pos pos, A_var var)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -435,7 +447,7 @@ A_exp A_VarExp(A_pos pos, A_var var)
     return p;
 }
 
-A_exp A_VarPtrExp(A_pos pos, A_var var)
+A_exp A_VarPtrExp(S_pos pos, A_var var)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -446,7 +458,7 @@ A_exp A_VarPtrExp(A_pos pos, A_var var)
     return p;
 }
 
-A_exp A_DerefExp (A_pos pos, A_exp exp)
+A_exp A_DerefExp (S_pos pos, A_exp exp)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -457,7 +469,7 @@ A_exp A_DerefExp (A_pos pos, A_exp exp)
     return p;
 }
 
-A_exp A_SizeofExp (A_pos pos, S_symbol t)
+A_exp A_SizeofExp (S_pos pos, S_symbol t)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
@@ -468,7 +480,7 @@ A_exp A_SizeofExp (A_pos pos, S_symbol t)
     return p;
 }
 
-A_param A_Param (A_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp)
+A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp)
 {
     A_param p = checked_malloc(sizeof(*p));
 
@@ -510,7 +522,7 @@ void A_ParamListAppend (A_paramList list, A_param param)
     }
 }
 
-A_proc A_Proc (A_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList)
+A_proc A_Proc (S_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList)
 {
     A_proc p = checked_malloc(sizeof(*p));
 

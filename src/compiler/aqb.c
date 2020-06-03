@@ -31,8 +31,9 @@
 #include "codegen.h"
 #include "regalloc.h"
 #include "options.h"
+#include "env.h"
 
-#define VERSION "0.2.0"
+#define VERSION "0.3.0"
 
 /* print the assembly language instructions to filename.s */
 static void doProc(FILE *out, F_frame frame, T_stm body)
@@ -245,6 +246,10 @@ int main (int argc, char *argv[])
         asmfn[l-3] = 's';
         asmfn[l-2] = 0;
     }
+
+    EM_init();
+    S_symbol_init();
+    E_init();
 
     /*
      * parsing

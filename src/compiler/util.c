@@ -95,6 +95,15 @@ string strprintf(const char *format, ...)
     return res;
 }
 
+int strcicmp(string a, string b)
+{
+    for (;; a++, b++) {
+        int d = tolower(*a) - tolower(*b);
+        if (d != 0 || !*a)
+            return d;
+    }
+}
+
 unsigned int encode_ffp(float f)
 {
     unsigned int res, fl;

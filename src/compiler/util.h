@@ -17,6 +17,8 @@ string strconcat(const char *s1, const char*s2); // allocates mem for concatenat
 string strprintf(const char *format, ...); // allocates mem for resulting string
 string strlower(const char *s);  // allocates mem for resulting string
 
+int strcicmp(string a, string b); // string ignore case compare
+
 /* generic doubly linked list */
 
 typedef struct U_listNode_ *U_listNode;

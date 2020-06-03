@@ -1,6 +1,14 @@
 #!/bin/bash
 
+pushd tests
+make clean
+popd
+
+rm -f /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/*.bin
+rm -f /home/guenter/media/emu/amiga/a500/hdd/system/x/*.bin
+
 pushd src/compiler
+
 
 aqb() {
 

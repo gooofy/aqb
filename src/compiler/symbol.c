@@ -9,12 +9,16 @@
 struct S_symbol_
 {
     string   name;
+    bool     case_sensitive;
 };
 
-static S_symbol mksymbol(string name)
+static S_symbol mksymbol(string name, bool case_sensitive)
 {
     S_symbol s=checked_malloc(sizeof(*s));
-    s->name=name;
+
+    s->name           = String(name);
+    s->case_sensitive = case_sensitive;
+
     return s;
 }
 
@@ -27,14 +31,14 @@ void S_symbol_init(void)
     hashtable = hashmap_new();
 }
 
-S_symbol S_Symbol(string name)
+S_symbol S_Symbol(string name, bool case_sensitive)
 {
     S_symbol sym;
-    int res = hashmap_get(hashtable, name, (any_t *) &sym);
+    int res = hashmap_get(hashtable, name, (any_t *) &sym, case_sensitive);
     if (res != MAP_OK)
     {
-        sym = mksymbol(name);
-        hashmap_put(hashtable, name, sym);
+        sym = mksymbol(name, case_sensitive);
+        hashmap_put(hashtable, name, sym, case_sensitive);
     }
     return sym;
 }
@@ -77,20 +81,14 @@ void S_endScope(S_scope s)
 
 void S_enter(S_scope scope, S_symbol sym, void *value)
 {
-    hashmap_put(scope->map, sym->name, value);
+    hashmap_put(scope->map, sym->name, value, sym->case_sensitive);
 }
 
 void *S_look(S_scope s, S_symbol sym)
 {
     any_t res;
-    if (hashmap_get(s->map, sym->name, &res)==MAP_OK)
+    if (hashmap_get(s->map, sym->name, &res, sym->case_sensitive)==MAP_OK)
         return res;
     return NULL;
 }
-
-#if 0
-void S_dump(S_table t, void (*show)(S_symbol sym, void *binding)) {
-    TAB_dump(t, (void (*)(void *, void *)) show);
-}
-#endif
 

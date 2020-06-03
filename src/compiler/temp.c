@@ -36,7 +36,7 @@ Temp_label Temp_newlabel(void)
 /* The label will be created only if it is not found. */
 Temp_label Temp_namedlabel(string s)
 {
-    return S_Symbol(s);
+    return S_Symbol(s, FALSE);
 }
 
 static int temps = 100;

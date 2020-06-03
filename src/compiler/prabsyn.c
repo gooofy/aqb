@@ -353,6 +353,12 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, ")");
             break;
         }
+        case A_labelStmt:
+        {
+            indent(out, d);
+            fprintf(out, "LABEL %s", S_name(stmt->u.label));
+            break;
+        }
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);

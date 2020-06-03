@@ -7,25 +7,28 @@
 #include "env.h"
 #include "translate.h"
 
-E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared)
+E_enventry E_VarEntry(S_symbol sym, Tr_access access, Ty_ty ty, bool shared)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind         = E_varEntry;
+    p->sym          = sym;
     p->u.var.access = access;
     p->u.var.ty     = ty;
     p->u.var.shared = shared;
+    p->next         = NULL;
 
     return p;
 }
 
-E_enventry E_FunEntry(Tr_level level, Temp_label label,
+E_enventry E_FunEntry(S_symbol sym, Tr_level level, Temp_label label,
                       E_formals formals, Ty_ty result,
                       bool forward, int offset, string libBase)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind          = E_funEntry;
+    p->sym           = sym;
     p->u.fun.level   = level;
     p->u.fun.label   = label;
     p->u.fun.formals = formals;
@@ -33,6 +36,31 @@ E_enventry E_FunEntry(Tr_level level, Temp_label label,
     p->u.fun.forward = forward;
     p->u.fun.offset  = offset;
     p->u.fun.libBase = libBase;
+    p->next          = NULL;
+
+    return p;
+}
+
+E_enventry E_ConstEntry(S_symbol sym, Tr_exp cExp)
+{
+    E_enventry p = checked_malloc(sizeof(*p));
+
+    p->kind         = E_constEntry;
+    p->sym          = sym;
+    p->u.cExp       = cExp;
+    p->next         = NULL;
+
+    return p;
+}
+
+E_enventry E_TypeEntry(S_symbol sym, Ty_ty ty)
+{
+    E_enventry p = checked_malloc(sizeof(*p));
+
+    p->kind         = E_typeEntry;
+    p->sym          = sym;
+    p->u.ty         = ty;
+    p->next         = NULL;
 
     return p;
 }
@@ -67,32 +95,137 @@ Ty_tyList E_FormalTys(E_formals formals)
     return tl;
 }
 
-E_enventry E_ConstEntry(Tr_exp cExp)
+#if 0
+
+S_scope E_base_venv(void)
 {
-    E_enventry p = checked_malloc(sizeof(*p));
+    S_scope t = S_beginScope(NULL);
 
-    p->kind         = E_constEntry;
-    p->u.cExp       = cExp;
 
-    return p;
+    return t;
 }
 
-S_scope E_base_tenv(void)
+static A_proc declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, char *name, char *label, char *argtypes, char *retty, bool ptr)
 {
-    S_scope scope = S_beginScope(NULL);
-    S_enter(scope, S_Symbol("boolean"),  Ty_Bool());
-    S_enter(scope, S_Symbol("byte"),     Ty_Byte());
-    S_enter(scope, S_Symbol("ubyte"),    Ty_UByte());
-    S_enter(scope, S_Symbol("integer"),  Ty_Integer());
-    S_enter(scope, S_Symbol("uinteger"), Ty_UInteger());
-    S_enter(scope, S_Symbol("long"),     Ty_Long());
-    S_enter(scope, S_Symbol("ulong"),    Ty_ULong());
-    S_enter(scope, S_Symbol("single"),   Ty_Single());
-    S_enter(scope, S_Symbol("double"),   Ty_Double());
-    S_enter(scope, S_Symbol("string"),   Ty_String());
-    S_enter(scope, S_Symbol("void"),     Ty_Void());
+    A_proc      proc;
+    A_paramList paramList = A_ParamList();
 
-    return scope;
+    int l = strlen(argtypes);
+
+    for (int i = 0; i<l; i++)
+    {
+        S_symbol ty;
+        switch (argtypes[i])
+        {
+            case 'b':
+                ty = S_Symbol("boolean", FALSE);
+                break;
+            case 'i':
+                ty = S_Symbol("integer", FALSE);
+                break;
+            case 'l':
+                ty = S_Symbol("long", FALSE);
+                break;
+            case 'L':
+                ty = S_Symbol("ulong", FALSE);
+                break;
+            case 'f':
+                ty = S_Symbol("single", FALSE);
+                break;
+            case 's':
+                ty = S_Symbol("string", FALSE);
+                break;
+            default:
+                assert(0);
+        }
+        A_ParamListAppend(paramList, A_Param (0, FALSE, FALSE, NULL, ty, FALSE, NULL));
+    }
+
+    proc = A_Proc(0, S_Symbol(name, FALSE), Temp_namedlabel(label), retty ? S_Symbol(retty, FALSE) : NULL, ptr, FALSE, paramList);
+
+    hashmap_put(declared_procs, S_name(proc->name), proc, FALSE);
+    A_StmtListAppend (stmtList, A_ProcDeclStmt(proc->pos, proc));
+
+    return proc;
+}
+
+map_t E_declared_procs(A_stmtList stmtList)
+{
+    A_proc proc;
+
+    map_t declared_procs = hashmap_new();
+
+    declare_builtin_proc(stmtList, declared_procs, "fix",      "___aqb_fix",       "f", "integer", FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "int",      "___aqb_int",       "f", "integer", FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "cint",     "___aqb_cint",      "f", "integer", FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "clng",     "___aqb_clng",      "f", "long"   , FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "len",      "___aqb_len",       "s", "long"   , FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "sleep",    "___aqb_sleep",     "",  NULL     , FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "window",   "___aqb_window_fn", "l", "long"   , FALSE);
+    declare_builtin_proc(stmtList, declared_procs, "timer",    "___aqb_timer_fn",  "",  "single" , FALSE);
+
+    //__aqb_allocate(ULONG size, ULONG flags);
+
+    // DECLARE FUNCTION ALLOCATE (size AS ULONG, flags AS ULONG=0) AS VOID PTR
+    proc = declare_builtin_proc(stmtList, declared_procs, "allocate", "___aqb_allocate",  "LL", "void"   , TRUE );
+    proc->paramList->first->next->defaultExp = A_IntExp(0, 0);
+
+    return declared_procs;
+}
+#endif
+
+void E_import(S_scope scope, E_enventry mod)
+{
+    while (mod)
+    {
+        S_enter(scope, mod->sym, mod);
+        mod = mod->next;
+    }
+}
+
+static E_enventry base_tmod=NULL, base_tmod_last=NULL;
+static E_enventry base_vmod=NULL, base_vmod_last=NULL;
+
+E_enventry E_base_tmod(void)
+{
+    return base_tmod;
+}
+
+E_enventry E_base_vmod(void)
+{
+    return base_vmod;
+}
+
+static void declare_builtin_type(string name, Ty_ty ty)
+{
+    E_enventry e = E_TypeEntry(S_Symbol(name, FALSE), ty);
+    if (base_tmod_last)
+    {
+        base_tmod_last->next = e;
+        base_tmod_last = e;
+    }
+    else
+    {
+        base_tmod = base_tmod_last = e;
+    }
+}
+
+static void append_vmod_entry(E_enventry e)
+{
+    if (base_vmod_last)
+    {
+        base_vmod_last->next = e;
+        base_vmod_last = e;
+    }
+    else
+    {
+        base_vmod = base_vmod_last = e;
+    }
+}
+
+static void declare_builtin_const(string name, Tr_exp cExp)
+{
+    append_vmod_entry(E_ConstEntry(S_Symbol(name, FALSE), cExp));
 }
 
 /*
@@ -105,10 +238,13 @@ S_scope E_base_tenv(void)
  * p : ptr     (4 byte void / function pointer)
  */
 
-static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return_type)
+static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes, Ty_ty return_type)
 {
     E_formals formals = NULL, last_formals = NULL;
     int l = strlen(argtypes);
+
+    if (!label)
+        label = name;
 
     for (int i = 0; i<l; i++)
     {
@@ -159,103 +295,60 @@ static void declare_builtin (S_scope t, char *name, char *argtypes, Ty_ty return
         }
     }
 
-    S_enter(t, S_Symbol(name),
-            E_FunEntry(
-              Tr_global(),
-              Temp_namedlabel(name),
-              formals,
-              return_type, TRUE, 0, NULL));
+    S_symbol sym = S_Symbol(name, FALSE);
+
+    E_enventry entry = E_FunEntry(sym,
+                                  Tr_global(),
+                                  Temp_namedlabel(label),
+                                  formals,
+                                  return_type, TRUE, 0, NULL);
+
+    append_vmod_entry(entry);
+    return entry;
 }
 
-S_scope E_base_venv(void)
+void E_init(void)
 {
-    S_scope t = S_beginScope(NULL);
+    declare_builtin_type("BOOLEAN" , Ty_Bool());
+    declare_builtin_type("BYTE"    , Ty_Byte());
+    declare_builtin_type("UBYTE"   , Ty_UByte());
+    declare_builtin_type("INTEGER" , Ty_Integer());
+    declare_builtin_type("UINTEGER", Ty_UInteger());
+    declare_builtin_type("LONG"    , Ty_Long());
+    declare_builtin_type("ULONG"   , Ty_ULong());
+    declare_builtin_type("SINGLE"  , Ty_Single());
+    declare_builtin_type("DOUBLE"  , Ty_Double());
+    declare_builtin_type("STRING"  , Ty_String());
+    declare_builtin_type("VOID"    , Ty_Void());
 
-    declare_builtin(t, "__aio_puts",            "s",        Ty_Void());
-    declare_builtin(t, "__aio_puts1",           "y",        Ty_Void());
-    declare_builtin(t, "__aio_puts2",           "i",        Ty_Void());
-    declare_builtin(t, "__aio_puts4",           "l",        Ty_Void());
-    declare_builtin(t, "__aio_putu1",           "Y",        Ty_Void());
-    declare_builtin(t, "__aio_putu2",           "I",        Ty_Void());
-    declare_builtin(t, "__aio_putu4",           "L",        Ty_Void());
-    declare_builtin(t, "__aio_putf",            "f",        Ty_Void());
-    declare_builtin(t, "__aio_putbool",         "b",        Ty_Void());
-    declare_builtin(t, "__aio_putnl",           "",         Ty_Void());
-    declare_builtin(t, "__aio_puttab",          "",         Ty_Void());
+    declare_builtin_const("TRUE",  Tr_boolExp(TRUE, Ty_Bool()));
+    declare_builtin_const("FALSE", Tr_boolExp(FALSE, Ty_Bool()));
 
-    declare_builtin(t, "___aqb_assert",         "bs",       Ty_Void());
-    declare_builtin(t, "___aqb_window_open",    "isiiiiii", Ty_Void());
-    declare_builtin(t, "___aqb_line",           "iiiiii",   Ty_Void());
-    declare_builtin(t, "___aqb_pset",           "iiii",     Ty_Void());
-    declare_builtin(t, "___aqb_on_window_call", "p",        Ty_Void());
+    declare_builtin_proc("__aio_puts",            NULL         , "s",        Ty_Void());
+    declare_builtin_proc("__aio_puts1",           NULL         , "y",        Ty_Void());
+    declare_builtin_proc("__aio_puts2",           NULL         , "i",        Ty_Void());
+    declare_builtin_proc("__aio_puts4",           NULL         , "l",        Ty_Void());
+    declare_builtin_proc("__aio_putu1",           NULL         , "Y",        Ty_Void());
+    declare_builtin_proc("__aio_putu2",           NULL         , "I",        Ty_Void());
+    declare_builtin_proc("__aio_putu4",           NULL         , "L",        Ty_Void());
+    declare_builtin_proc("__aio_putf",            NULL         , "f",        Ty_Void());
+    declare_builtin_proc("__aio_putbool",         NULL         , "b",        Ty_Void());
+    declare_builtin_proc("__aio_putnl",           NULL         , "",         Ty_Void());
+    declare_builtin_proc("__aio_puttab",          NULL         , "",         Ty_Void());
+    declare_builtin_proc("___aqb_assert",         NULL         , "bs",       Ty_Void());
+    declare_builtin_proc("___aqb_window_open",    NULL         , "isiiiiii", Ty_Void());
+    declare_builtin_proc("___aqb_line",           NULL         , "iiiiii",   Ty_Void());
+    declare_builtin_proc("___aqb_pset",           NULL         , "iiii",     Ty_Void());
+    declare_builtin_proc("___aqb_on_window_call", NULL         , "p",        Ty_Void());
 
-    return t;
-}
-
-static A_proc declare_builtin_proc (A_stmtList stmtList, map_t declared_procs, char *name, char *label, char *argtypes, char *retty, bool ptr)
-{
-    A_proc      proc;
-    A_paramList paramList = A_ParamList();
-
-    int l = strlen(argtypes);
-
-    for (int i = 0; i<l; i++)
-    {
-        S_symbol ty;
-        switch (argtypes[i])
-        {
-            case 'b':
-                ty = S_Symbol("boolean");
-                break;
-            case 'i':
-                ty = S_Symbol("integer");
-                break;
-            case 'l':
-                ty = S_Symbol("long");
-                break;
-            case 'L':
-                ty = S_Symbol("ulong");
-                break;
-            case 'f':
-                ty = S_Symbol("single");
-                break;
-            case 's':
-                ty = S_Symbol("string");
-                break;
-            default:
-                assert(0);
-        }
-        A_ParamListAppend(paramList, A_Param (0, FALSE, FALSE, NULL, ty, FALSE, NULL));
-    }
-
-    proc = A_Proc(0, S_Symbol(name), Temp_namedlabel(label), retty ? S_Symbol(retty) : NULL, ptr, FALSE, paramList);
-
-    hashmap_put(declared_procs, S_name(proc->name), proc);
-    A_StmtListAppend (stmtList, A_ProcDeclStmt(proc->pos, proc));
-
-    return proc;
-}
-
-map_t E_declared_procs(A_stmtList stmtList)
-{
-    A_proc proc;
-
-    map_t declared_procs = hashmap_new();
-
-    declare_builtin_proc(stmtList, declared_procs, "fix",      "___aqb_fix",       "f", "integer", FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "int",      "___aqb_int",       "f", "integer", FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "cint",     "___aqb_cint",      "f", "integer", FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "clng",     "___aqb_clng",      "f", "long"   , FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "len",      "___aqb_len",       "s", "long"   , FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "sleep",    "___aqb_sleep",     "",  NULL     , FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "window",   "___aqb_window_fn", "l", "long"   , FALSE);
-    declare_builtin_proc(stmtList, declared_procs, "timer",    "___aqb_timer_fn",  "",  "single" , FALSE);
+    declare_builtin_proc("fix"                  , "___aqb_fix" , "f"       , Ty_Integer());
+    declare_builtin_proc("int"                  , "___aqb_int" , "f"       , Ty_Integer());
+    declare_builtin_proc("cint"                 , "___aqb_cint", "f"       , Ty_Integer());
+    declare_builtin_proc("clng"                 , "___aqb_clng", "f"       , Ty_Long());
+    declare_builtin_proc("len"                  , "___aqb_len" , "s"       , Ty_Long());
 
     //__aqb_allocate(ULONG size, ULONG flags);
-
     // DECLARE FUNCTION ALLOCATE (size AS ULONG, flags AS ULONG=0) AS VOID PTR
-    proc = declare_builtin_proc(stmtList, declared_procs, "allocate", "___aqb_allocate",  "LL", "void"   , TRUE );
-    proc->paramList->first->next->defaultExp = A_IntExp(0, 0);
-
-    return declared_procs;
+    E_enventry entry = declare_builtin_proc("allocate", "___aqb_allocate",  "LL", Ty_VoidPtr() );
+    entry->u.fun.formals->next->defaultExp = Tr_intExp(0, Ty_ULong());
 }

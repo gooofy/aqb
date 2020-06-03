@@ -22,13 +22,13 @@ static S_scope g_venv;
 static S_scope g_tenv;
 
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
-static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, A_pos pos);
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, S_pos pos);
 static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
 
 /* Utilities */
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
-static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, A_pos pos)
+static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, S_pos pos)
 {
     S_scope    scope = venv;
     E_enventry x = NULL;
@@ -49,16 +49,16 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, A_pos pos)
         Ty_ty t = Ty_inferType(s);
 
         if (OPT_get(OPTION_EXPLICIT))
-            EM_error(pos, "undeclared variable %s", s);
+            EM_error(pos, "undeclared identifier %s", s);
 
         if (Tr_isStatic(level))
         {
             string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
-            x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t), t, TRUE);
+            x = E_VarEntry(v, Tr_allocVar(Tr_global(), varId, t), t, TRUE);
         }
         else
         {
-            x = E_VarEntry(Tr_allocVar(level, s, t), t, FALSE);
+            x = E_VarEntry(v, Tr_allocVar(level, s, t), t, FALSE);
         }
 
         S_enter(venv, v, x);
@@ -531,7 +531,18 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
     return FALSE;
 }
 
-static Tr_expList assignParams(A_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Temp_label breaklbl)
+static Ty_ty lookup_type(S_scope tenv, S_pos pos, S_symbol sym)
+{
+    E_enventry entry = S_look(tenv, sym);
+    if (entry && (entry->kind==E_typeEntry))
+        return entry->u.ty;
+
+    EM_error(pos, "undefined type %s", S_name(sym));
+    return Ty_Void();
+}
+
+
+static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Temp_label breaklbl)
 {
     Tr_expList explist = NULL;
 
@@ -615,7 +626,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
 
         case A_sizeofExp:
         {
-            Ty_ty t = S_look(tenv, a->u.sizeoft);
+            Ty_ty t = lookup_type(tenv, a->pos, a->u.sizeoft);
             if (!t)
             {
                 EM_error(a->pos, "Unknown type %s.", S_name(a->u.sizeoft));
@@ -753,16 +764,6 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
     return Tr_nopNx();
 }
 
-static Ty_ty lookup_type(S_scope tenv, A_pos pos, S_symbol sym)
-{
-    Ty_ty ty = S_look(tenv, sym);
-    if (ty)
-        return ty;
-
-    EM_error(pos, "undefined type %s", S_name(sym));
-    return Ty_Void();
-}
-
 static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Temp_label breaklbl)
 {
     E_formals formals=NULL, last_formals=NULL;
@@ -858,31 +859,31 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                         EM_error(stmt->pos, "unsupported type in print expression list.");
                         return NULL;
                     }
-                    fsym = S_Symbol("__aio_puts");
+                    fsym = S_Symbol("__aio_puts", TRUE);
                     break;
                 case Ty_byte:
-                    fsym = S_Symbol("__aio_puts1");
+                    fsym = S_Symbol("__aio_puts1", TRUE);
                     break;
                 case Ty_ubyte:
-                    fsym = S_Symbol("__aio_putu1");
+                    fsym = S_Symbol("__aio_putu1", TRUE);
                     break;
                 case Ty_integer:
-                    fsym = S_Symbol("__aio_puts2");
+                    fsym = S_Symbol("__aio_puts2", TRUE);
                     break;
                 case Ty_uinteger:
-                    fsym = S_Symbol("__aio_putu2");
+                    fsym = S_Symbol("__aio_putu2", TRUE);
                     break;
                 case Ty_long:
-                    fsym = S_Symbol("__aio_puts4");
+                    fsym = S_Symbol("__aio_puts4", TRUE);
                     break;
                 case Ty_ulong:
-                    fsym = S_Symbol("__aio_putu4");
+                    fsym = S_Symbol("__aio_putu4", TRUE);
                     break;
                 case Ty_single:
-                    fsym = S_Symbol("__aio_putf");
+                    fsym = S_Symbol("__aio_putf", TRUE);
                     break;
                 case Ty_bool:
-                    fsym = S_Symbol("__aio_putbool");
+                    fsym = S_Symbol("__aio_putbool", TRUE);
                     break;
                 default:
                     EM_error(stmt->pos, "unsupported type in print expression list.");
@@ -897,14 +898,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_printNLStmt:
         {
-            S_symbol fsym   = S_Symbol("__aio_putnl");
+            S_symbol fsym   = S_Symbol("__aio_putnl", TRUE);
             E_enventry func = S_look(g_venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
             return tr_exp;
         }
         case A_printTABStmt:
         {
-            S_symbol fsym   = S_Symbol("__aio_puttab");
+            S_symbol fsym   = S_Symbol("__aio_puttab", TRUE);
             E_enventry func = S_look(g_venv, fsym);
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
             return tr_exp;
@@ -913,7 +914,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             Tr_exp exp         = transExp(level, venv, tenv, stmt->u.assertr.exp, breaklbl);
             Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp, NULL));
-            S_symbol fsym      = S_Symbol("___aqb_assert");
+            S_symbol fsym      = S_Symbol("___aqb_assert", TRUE);
             E_enventry func    = S_look(g_venv, fsym);
             return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
         }
@@ -958,14 +959,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             if (stmt->u.forr.sType)
             {
-                varty = S_look(tenv, stmt->u.forr.sType);
-                if (!varty)
-                {
-                    EM_error(stmt->pos, "Unknown type %s.", S_name(stmt->u.forr.sType));
-                    break;
-                }
+                varty = lookup_type(tenv, stmt->pos, stmt->u.forr.sType);
                 lenv = S_beginScope(venv);
-                var = E_VarEntry(Tr_allocVar(level, S_name(stmt->u.forr.var), varty), varty, FALSE);
+                var = E_VarEntry(stmt->u.forr.var, Tr_allocVar(level, S_name(stmt->u.forr.var), varty), varty, FALSE);
                 S_enter(lenv, stmt->u.forr.var, var);
             }
             else
@@ -1041,7 +1037,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             if (proc->retty)
             {
-                resultTy = S_look(tenv, proc->retty);
+                resultTy = lookup_type(tenv, proc->pos, proc->retty);
                 if (!resultTy)
                 {
                     EM_error(proc->pos, "unknown return type: %s", S_name(proc->retty));
@@ -1092,7 +1088,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                e = E_FunEntry(Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formals,
+                e = E_FunEntry(proc->name, Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formals,
                                resultTy, stmt->kind==A_procDeclStmt, offset, libBase);
             }
 
@@ -1109,12 +1105,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     E_formals formals;
                     for (param = proc->paramList->first, formals = e->u.fun.formals;
                          param; param = param->next, formals = formals->next, acl = Tr_accessListTail(acl))
-                        S_enter(lenv, param->name, E_VarEntry(Tr_accessListHead(acl), formals->ty, FALSE));
+                        S_enter(lenv, param->name, E_VarEntry(param->name, Tr_accessListHead(acl), formals->ty, FALSE));
                     // function return var (same name as the function itself)
                     if (proc->retty)
                     {
                         ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
-                        S_enter(lenv, proc->name, E_VarEntry(ret_access, resultTy, FALSE));
+                        S_enter(lenv, proc->name, E_VarEntry(proc->name, ret_access, resultTy, FALSE));
                     }
                 }
 
@@ -1170,12 +1166,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty t = NULL;
             if (stmt->u.vdeclr.sType)
             {
-                t = S_look(tenv, stmt->u.vdeclr.sType);
-                if (!t)
-                {
-                    EM_error(stmt->pos, "Unknown type %s.", S_name(stmt->u.vdeclr.sType));
-                    break;
-                }
+                t = lookup_type(tenv, stmt->pos, stmt->u.vdeclr.sType);
             }
             else
             {
@@ -1226,20 +1217,19 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             S_symbol name   = stmt->u.vdeclr.sVar;
-            S_symbol namelc = S_Symbol(strlower(S_name(name)));
             if (stmt->u.vdeclr.shared)
             {
                 assert(!stmt->u.vdeclr.statc);
                 if (depth)
                 {
-                    x = S_look(venv, namelc);
+                    x = S_look(venv, name);
                     if (x)
                     {
                         EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
                         break;
                     }
                 }
-                x = S_look(g_venv, namelc);
+                x = S_look(g_venv, name);
                 if (x)
                 {
                     EM_error(stmt->pos, "Variable %s already declared in global scope.", S_name(name));
@@ -1247,17 +1237,17 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
 
                 if (stmt->u.vdeclr.external)
-                    x = E_VarEntry(Tr_externalVar(S_name(name), t), t, TRUE);
+                    x = E_VarEntry(name, Tr_externalVar(S_name(name), t), t, TRUE);
                 else
-                    x = E_VarEntry(Tr_allocVar(Tr_global(), S_name(name), t), t, TRUE);
-                S_enter(g_venv, namelc, x);
+                    x = E_VarEntry(name, Tr_allocVar(Tr_global(), S_name(name), t), t, TRUE);
+                S_enter(g_venv, name, x);
 
             }
             else
             {
                 assert (!stmt->u.vdeclr.external);
 
-                x = S_look(venv, namelc);
+                x = S_look(venv, name);
                 if (x)
                 {
                     EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
@@ -1265,14 +1255,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 if (stmt->u.vdeclr.statc || Tr_isStatic(level))
                 {
-                    string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), S_name(namelc)));
-                    x = E_VarEntry(Tr_allocVar(Tr_global(), varId, t), t, TRUE);
-                    S_enter(venv, namelc, x);
+                    string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), S_name(name)));
+                    x = E_VarEntry(name, Tr_allocVar(Tr_global(), varId, t), t, TRUE);
+                    S_enter(venv, name, x);
                 }
                 else
                 {
-                    x = E_VarEntry(Tr_allocVar(level, S_name(name), t), t, FALSE);
-                    S_enter(venv, namelc, x);
+                    x = E_VarEntry(name, Tr_allocVar(level, S_name(name), t), t, FALSE);
+                    S_enter(venv, name, x);
                 }
             }
 
@@ -1288,18 +1278,24 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_typeDeclStmt:
         {
-            Ty_ty ty = S_look(tenv, stmt->u.typer.sType);
-            if (ty)
+            E_enventry entry = S_look(tenv, stmt->u.typer.sType);
+            if (entry)
                 EM_error (stmt->pos, "Type %s is already defined here.", S_name(stmt->u.typer.sType));
 
             Ty_fieldList fl = NULL, flast=NULL;
             for (A_field f = stmt->u.typer.fields; f; f=f->tail)
             {
-                Ty_ty t;
+                Ty_ty t = NULL;
                 if (f->typeId)
-                    t = S_look(tenv, f->typeId);
+                {
+                    E_enventry entry = S_look(tenv, f->typeId);
+                    if (entry && (entry->kind == E_typeEntry))
+                        t = entry->u.ty;
+                }
                 else
+                {
                     t = Ty_inferType(S_name(f->name));
+                }
 
                 if (!t)
                 {
@@ -1359,9 +1355,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
             }
 
-            ty = Ty_Record(fl);
+            Ty_ty ty = Ty_Record(fl);
 
-            S_enter(tenv, stmt->u.typer.sType, ty);
+            S_enter(tenv, stmt->u.typer.sType, E_TypeEntry(stmt->u.typer.sType, ty));
             break;
         }
         case A_constDeclStmt:
@@ -1371,12 +1367,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty t = NULL;
             if (stmt->u.cdeclr.sType)
             {
-                t = S_look(tenv, stmt->u.cdeclr.sType);
-                if (!t)
-                {
-                    EM_error(stmt->pos, "Unknown type %s.", S_name(stmt->u.cdeclr.sType));
-                    break;
-                }
+                t = lookup_type(tenv, stmt->pos, stmt->u.cdeclr.sType);
             }
             else
             {
@@ -1402,7 +1393,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             S_symbol name = stmt->u.cdeclr.sConst;
-            x = E_ConstEntry(conv_cexp);
+            x = E_ConstEntry(name, conv_cexp);
             S_enter(g_venv, name, x);
             break;
         }
@@ -1444,18 +1435,13 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
     return Tr_seqExp(el);
 }
 
-static void resolveForwardType(A_pos pos, S_scope tenv, Ty_field f)
+static void resolveForwardType(S_pos pos, S_scope tenv, Ty_field f)
 {
-    Ty_ty t = S_look(tenv, f->ty->u.sForward);
-    if (!t)
-    {
-        EM_error (pos, "Unknown type %s.", S_name(f->ty->u.sForward));
-        return;
-    }
+    Ty_ty t = lookup_type(tenv, pos, f->ty->u.sForward);
     f->ty = Ty_Pointer(t);
 }
 
-static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, A_pos pos)
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, S_pos pos)
 {
     E_enventry x = autovar(level, venv, v->name, pos);
 
@@ -1569,10 +1555,12 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
 
 F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
 {
-    g_venv = E_base_venv();
-    g_tenv = E_base_tenv();
+    g_venv = S_beginScope(NULL);
+    g_tenv = S_beginScope(NULL);
 
-    // Tr_level lv = Tr_global();
+    E_import(g_venv, E_base_vmod());
+    E_import(g_tenv, E_base_tmod());
+
     Tr_level lv = Tr_newLevel(label, NULL, FALSE, NULL);
     S_scope venv = S_beginScope(g_venv);
 

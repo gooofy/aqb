@@ -420,20 +420,20 @@ void F_initRegisters(void)
 
     regScope = S_beginScope(NULL);
 
-    S_enter(regScope, S_Symbol("a0"), a0);
-    S_enter(regScope, S_Symbol("a1"), a1);
-    S_enter(regScope, S_Symbol("a2"), a2);
-    S_enter(regScope, S_Symbol("a3"), a3);
-    S_enter(regScope, S_Symbol("a4"), a4);
-    S_enter(regScope, S_Symbol("a6"), a6);
-    S_enter(regScope, S_Symbol("d0"), d0);
-    S_enter(regScope, S_Symbol("d1"), d1);
-    S_enter(regScope, S_Symbol("d2"), d2);
-    S_enter(regScope, S_Symbol("d3"), d3);
-    S_enter(regScope, S_Symbol("d4"), d4);
-    S_enter(regScope, S_Symbol("d5"), d5);
-    S_enter(regScope, S_Symbol("d6"), d6);
-    S_enter(regScope, S_Symbol("d7"), d7);
+    S_enter(regScope, S_Symbol("a0", TRUE), a0);
+    S_enter(regScope, S_Symbol("a1", TRUE), a1);
+    S_enter(regScope, S_Symbol("a2", TRUE), a2);
+    S_enter(regScope, S_Symbol("a3", TRUE), a3);
+    S_enter(regScope, S_Symbol("a4", TRUE), a4);
+    S_enter(regScope, S_Symbol("a6", TRUE), a6);
+    S_enter(regScope, S_Symbol("d0", TRUE), d0);
+    S_enter(regScope, S_Symbol("d1", TRUE), d1);
+    S_enter(regScope, S_Symbol("d2", TRUE), d2);
+    S_enter(regScope, S_Symbol("d3", TRUE), d3);
+    S_enter(regScope, S_Symbol("d4", TRUE), d4);
+    S_enter(regScope, S_Symbol("d5", TRUE), d5);
+    S_enter(regScope, S_Symbol("d6", TRUE), d6);
+    S_enter(regScope, S_Symbol("d7", TRUE), d7);
 }
 
 Temp_temp F_lookupReg(S_symbol sym)

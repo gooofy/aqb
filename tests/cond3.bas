@@ -1,12 +1,13 @@
+OPTION EXPLICIT
 
-a% = 23
-b% = 42
+DIM AS INTEGER a, b, c
 
-c% = TRUE
+a = 23
+b = 42
 
-IF ( a% < b% ) AND c% THEN
-    PRINT "OK"
-ELSE
-    PRINT "FAIL!"
-END IF
+c = TRUE
+
+' PRINT ( a < b ) AND c
+
+ASSERT ( a < b ) AND c
 

@@ -13,34 +13,45 @@ struct E_formals_
     E_formals next;
 };
 
-struct E_enventry_ 
+struct E_enventry_
 {
-    enum {E_varEntry, E_funEntry, E_constEntry} kind;
-    union 
+    enum {E_varEntry, E_funEntry, E_constEntry, E_typeEntry} kind;
+    S_symbol sym;
+    union
     {
         struct {Tr_access access; Ty_ty ty; bool shared;} var;
-        struct {Tr_level level; Temp_label label; 
+        struct {Tr_level level; Temp_label label;
                 E_formals formals; Ty_ty result;
                 bool forward;
                 int offset; string libBase;} fun;
         Tr_exp cExp;
+        Ty_ty ty;
     } u;
+    E_enventry next;
 };
 
-E_enventry E_VarEntry(Tr_access access, Ty_ty ty, bool shared);
-E_enventry E_FunEntry(Tr_level level, Temp_label label,
-                      E_formals formals, Ty_ty result,
-                      bool forward, int offset, string libBase);
-E_enventry E_ConstEntry(Tr_exp c);
+E_enventry E_VarEntry  (S_symbol sym, Tr_access access, Ty_ty ty, bool shared);
+E_enventry E_FunEntry  (S_symbol sym, Tr_level level, Temp_label label,
+                        E_formals formals, Ty_ty result,
+                        bool forward, int offset, string libBase);
+E_enventry E_ConstEntry(S_symbol sym, Tr_exp c);
+E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 
 E_formals  E_Formals(Ty_ty ty, Tr_exp defaultExp, E_formals next);
 Ty_tyList  E_FormalTys(E_formals formals);
 
-S_scope E_base_tenv(void); /* Ty_ty environment */
-S_scope E_base_venv(void); /* E_enventry environment */
-map_t   E_declared_procs(A_stmtList stmtList); /* predefined functions and subs */
+/*
+ * modules
+ */
 
-/* 
+E_enventry E_base_tmod(void); /* base module containing builtin types                  */
+E_enventry E_base_vmod(void); /* base module containing builtin consts, vars and procs */
+
+void       E_import(S_scope scope, E_enventry mod); /* import all enventries declared in mod into scope */
+
+void E_init(void);
+
+/*
  * os library offsets
  */
 

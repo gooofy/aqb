@@ -3,101 +3,106 @@
 #include <math.h>
 
 #include "scanner.h"
-#include "hashmap.h"
 #include "util.h"
 #include "errormsg.h"
 #include "options.h"
+#include "symbol.h"
 
-static FILE *g_fin=NULL;
+#define MAX_TOKENS      256
+#define MAX_STRINGS       8
+#define MAX_STRING_LEN 1024
+#define MAX_LINE_LEN   8192
 
-static char  g_ch;
-static bool  g_eof = TRUE;
-static int   g_line, g_col;
-static bool  g_eol = FALSE;
-static map_t g_tokens = NULL;
-static int   S_line, S_col;
+static FILE         *g_fin=NULL;
 
-// scanner globals available to other modules
+static char          g_ch;
+static bool          g_eof = TRUE;
+static int           g_line, g_col;
+static bool          g_eol = FALSE;
 
-int    S_token, S_inum;
-double S_fnum;
-char   S_str[S_MAX_STRING];
-char   S_strlc[S_MAX_STRING]; // S_str converted to lower case
+static struct S_tkn_ g_tkns[MAX_TOKENS];
+static int           g_tkns_i=0;
+static char          g_strings[MAX_STRINGS][MAX_STRING_LEN];
+static int           g_strings_i=0;
 
-static void init_tokens(void)
+static S_symbol      g_sym_rem;
+
+static char          g_cur_line[MAX_LINE_LEN];
+static int           g_cur_line_num;
+
+static S_pos S_getpos(short col, short line)
 {
-    if (g_tokens)
-        return;
-
-    g_tokens = hashmap_new();
-    hashmap_put (g_tokens, "print",    (void *) S_PRINT);
-    hashmap_put (g_tokens, "option",   (void *) S_OPTION);
-    hashmap_put (g_tokens, "sub",      (void *) S_SUB);
-    hashmap_put (g_tokens, "function", (void *) S_FUNCTION);
-    hashmap_put (g_tokens, "for",      (void *) S_FOR);
-    hashmap_put (g_tokens, "to",       (void *) S_TO);
-    hashmap_put (g_tokens, "step",     (void *) S_STEP);
-    hashmap_put (g_tokens, "next",     (void *) S_NEXT);
-    hashmap_put (g_tokens, "xor",      (void *) S_XOR);
-    hashmap_put (g_tokens, "eqv",      (void *) S_EQV);
-    hashmap_put (g_tokens, "imp",      (void *) S_IMP);
-    hashmap_put (g_tokens, "or",       (void *) S_OR);
-    hashmap_put (g_tokens, "and",      (void *) S_AND);
-    hashmap_put (g_tokens, "not",      (void *) S_NOT);
-    hashmap_put (g_tokens, "mod",      (void *) S_MOD);
-    hashmap_put (g_tokens, "if",       (void *) S_IF);
-    hashmap_put (g_tokens, "then",     (void *) S_THEN);
-    hashmap_put (g_tokens, "end",      (void *) S_END);
-    hashmap_put (g_tokens, "endif",    (void *) S_ENDIF);
-    hashmap_put (g_tokens, "else",     (void *) S_ELSE);
-    hashmap_put (g_tokens, "elseif",   (void *) S_ELSEIF);
-    hashmap_put (g_tokens, "goto",     (void *) S_GOTO);
-    hashmap_put (g_tokens, "byval",    (void *) S_BYVAL);
-    hashmap_put (g_tokens, "byref",    (void *) S_BYREF);
-    hashmap_put (g_tokens, "as",       (void *) S_AS);
-    hashmap_put (g_tokens, "static",   (void *) S_STATIC);
-    hashmap_put (g_tokens, "declare",  (void *) S_DECLARE);
-    hashmap_put (g_tokens, "let",      (void *) S_LET);
-    hashmap_put (g_tokens, "close",    (void *) S_CLOSE);
-    hashmap_put (g_tokens, "on",       (void *) S_ON);
-    hashmap_put (g_tokens, "off",      (void *) S_OFF);
-    hashmap_put (g_tokens, "stop",     (void *) S_STOP);
-    hashmap_put (g_tokens, "input",    (void *) S_INPUT);
-    hashmap_put (g_tokens, "line",     (void *) S_LINE);
-    hashmap_put (g_tokens, "true",     (void *) S_TRUE);
-    hashmap_put (g_tokens, "false",    (void *) S_FALSE);
-    hashmap_put (g_tokens, "shared",   (void *) S_SHARED);
-    hashmap_put (g_tokens, "dim",      (void *) S_DIM);
-    hashmap_put (g_tokens, "assert",   (void *) S_ASSERT);
-    hashmap_put (g_tokens, "menu",     (void *) S_MENU);
-    hashmap_put (g_tokens, "mouse",    (void *) S_MOUSE);
-    hashmap_put (g_tokens, "call",     (void *) S_CALL);
-    hashmap_put (g_tokens, "while",    (void *) S_WHILE);
-    hashmap_put (g_tokens, "wend",     (void *) S_WEND);
-    hashmap_put (g_tokens, "pset",     (void *) S_PSET);
-    hashmap_put (g_tokens, "preset",   (void *) S_PRESET);
-    hashmap_put (g_tokens, "rem",      (void *) S_REM);
-    hashmap_put (g_tokens, "lib",      (void *) S_LIB);
-    hashmap_put (g_tokens, "type",     (void *) S_TYPE);
-    hashmap_put (g_tokens, "ptr",      (void *) S_PTR);
-    hashmap_put (g_tokens, "extern",   (void *) S_EXTERN);
-    hashmap_put (g_tokens, "const",    (void *) S_CONST);
-    hashmap_put (g_tokens, "explicit", (void *) S_EXPLICIT);
-    hashmap_put (g_tokens, "shl",      (void *) S_SHL);
-    hashmap_put (g_tokens, "shr",      (void *) S_SHR);
+    return (col << 16) | line;
 }
-
-A_pos S_getpos(void)
-{
-    return (S_col << 16) | S_line;
-}
-int S_getcol(A_pos pos)
+int S_getcol(S_pos pos)
 {
     return pos >> 16;
 }
-int S_getline(A_pos pos)
+int S_getline(S_pos pos)
 {
     return pos & 0xffff;
+}
+
+static S_tkn S_Tkn(int kind)
+{
+    if (g_tkns_i>=MAX_TOKENS)
+        return NULL;
+
+    S_tkn p = &g_tkns[g_tkns_i];
+    g_tkns_i++;
+
+    p->next = NULL;
+    p->pos  = S_getpos(g_col, g_line);
+    p->kind = kind;
+
+    return p;
+}
+
+static void print_tkn(S_tkn tkn)
+{
+    switch (tkn->kind)
+    {
+        case S_ERROR:      printf("[ERR]");       break;
+        case S_EOL:        printf("[EOL]");       break;
+        case S_IDENT:      printf("[IDENT %s]",  S_name(tkn->u.sym)); break;
+        case S_STRING:     printf("[STRING %s]", tkn->u.str);         break;
+        case S_COLON:      printf("[COLON]");     break;
+        case S_SEMICOLON:  printf("[SEMICOLON]"); break;
+        case S_COMMA:      printf("[COMMA]");     break;
+        case S_INUM:       printf("[INUM %d]", tkn->u.inum);          break;
+        case S_FNUM:       printf("[FNUM %f]", tkn->u.fnum);          break;
+        case S_MINUS:      printf("[MINUS]");     break;
+        case S_LPAREN:     printf("[LPAREN]");    break;
+        case S_RPAREN:     printf("[RPAREN]");    break;
+        case S_EQUALS:     printf("[EQUALS]");    break;
+        case S_EXP:        printf("[EXP]");       break;
+        case S_ASTERISK:   printf("[ASTERISK]");  break;
+        case S_SLASH:      printf("[SLASH]");     break;
+        case S_BACKSLASH:  printf("[BACKSLASH]"); break;
+        case S_PLUS:       printf("[PLUS]");      break;
+        case S_GREATER:    printf("[GREATER]");   break;
+        case S_LESS:       printf("[LESS]");      break;
+        case S_NOTEQ:      printf("[NOTEQ]");     break;
+        case S_LESSEQ:     printf("[LESSEQ]");    break;
+        case S_GREATEREQ:  printf("[GREATEREQ]"); break;
+        case S_POINTER:    printf("[POINTER]");   break;
+        case S_PERIOD:     printf("[PERIOD]");    break;
+        case S_AT:         printf("[AT]");        break;
+        case S_LBRACKET:   printf("[LBRACKET]");  break;
+        case S_RBRACKET:   printf("[RBRACKET]");  break;
+    }
+}
+static void print_tkns(S_tkn tkn)
+{
+    printf("\nTOKENS: ");
+    while (tkn)
+    {
+        print_tkn(tkn);
+        tkn = tkn->next;
+        if (tkn)
+            printf(" ");
+    }
+    printf("\n");
 }
 
 static void getch(void)
@@ -122,25 +127,31 @@ static void getch(void)
     }
     else
     {
-        if (OPT_get(OPTION_VERBOSE))
-            printf("%c", g_ch);
         if (g_ch == '\n')
+        {
             g_eol = TRUE;
+        }
+        else
+        {
+            if (g_col<MAX_LINE_LEN)
+            {
+                g_cur_line[g_col-1] = g_ch;
+                g_cur_line[g_col]   = 0;
+            }
+            if (g_col==1)
+                g_cur_line_num = g_line;
+        }
     }
 }
 
-void S_init(FILE *fin)
+char *S_getcurline(void)
 {
-    init_tokens();
-    g_fin   = fin;
-    g_eof   = FALSE;
-    g_eol   = FALSE;
-    g_line  = 1;
-    g_col   = 1;
-    S_token = S_ERROR;
-    S_inum  = 0;
-    getch();
-    S_getsym();
+    return g_cur_line;
+}
+
+int S_getcurlinenum(void)
+{
+    return g_cur_line_num;
 }
 
 static bool is_whitespace(void)
@@ -167,42 +178,50 @@ static bool get_digit(int *digit, int base)
 {
     char ch = toupper(g_ch);
     int d;
-    if ((ch<'0') || (ch>'F'))
-        return FALSE;
-    d = ch > '9' ? ch-'A'+10 : ch-'0';
+
+    if ((ch>='0') && (ch<='9'))
+        d = ch-'0';
+    else
+        if ((ch>='A') && (ch<='F'))
+            d = ch-'A'+10;
+        else
+            return FALSE;
     if (d>=base)
         return FALSE;
     *digit = d;
     return TRUE;
 }
 
-static void number(int base)
+static S_tkn number(int base, S_tkn tkn)
 {
-    int d;
-    S_inum = 0;
+    int    d;
+    if (!tkn)
+        tkn = S_Tkn(S_INUM);
+
+    tkn->u.inum = 0;
+
     while (get_digit(&d, base))
     {
-        S_inum = d + S_inum*base;
+        tkn->u.inum = d + tkn->u.inum*base;
         getch();
     }
-    S_token = S_INUM;
     if (g_ch == '!')
     {
         getch();
-        S_token = S_FNUM;
-        S_fnum = S_inum;
+        tkn->kind = S_FNUM;
+        tkn->u.fnum = tkn->u.inum;
     }
     else
     {
         if (g_ch == '.')
         {
             double m = 1.0 / base;
-            S_token = S_FNUM;
-            S_fnum = S_inum;
+            tkn->kind = S_FNUM;
+            tkn->u.fnum = tkn->u.inum;
             getch();
             while (get_digit(&d, base))
             {
-                S_fnum += ((double) d) * m;
+                tkn->u.fnum += ((double) d) * m;
                 m /= base;
                 getch();
             }
@@ -210,10 +229,10 @@ static void number(int base)
         if ( (g_ch == 'e') || (g_ch == 'E') )
         {
             bool negative = FALSE;
-            if (S_token == S_INUM)
+            if (tkn->kind == S_INUM)
             {
-                S_token = S_FNUM;
-                S_fnum = S_inum;
+                tkn->kind = S_FNUM;
+                tkn->u.fnum = tkn->u.inum;
             }
             getch();
             if (g_ch=='-')
@@ -234,9 +253,10 @@ static void number(int base)
             }
             if (negative)
                 e = -1 * e;
-            S_fnum *= pow(base, e);
+            tkn->u.fnum *= pow(base, e);
         }
     }
+    return tkn;
 }
 
 static void skip_comment(void)
@@ -245,20 +265,23 @@ static void skip_comment(void)
         getch();
 }
 
-void S_identifier(void)
-{
-    int l = 0;
-    int t;
-    S_token = S_IDENT;
 
-    S_str[l] = g_ch;
-    S_strlc[l] = tolower(g_ch);
+static S_tkn ident(void)
+{
+    int   l = 0;
+
+    if (g_strings_i >= MAX_STRINGS)
+        return NULL;
+    char *str = g_strings[g_strings_i];
+
+    S_tkn tkn = S_Tkn(S_IDENT);
+
+    str[l] = g_ch;
     l++;
     getch();
     while (is_idcont() && !g_eof)
     {
-        S_str[l] = g_ch;
-        S_strlc[l] = tolower(g_ch);
+        str[l] = g_ch;
         l++;
         getch();
     }
@@ -271,22 +294,19 @@ void S_identifier(void)
         case '!':
         case '#':
         case '$':
-            S_str[l] = g_ch;
-            S_strlc[l] = g_ch;
+            str[l] = g_ch;
             l++;
             getch();
             break;
     }
-    S_str[l] = '\0';
-    S_strlc[l] = '\0';
-    // is this a known token?
-    if (hashmap_get(g_tokens, S_strlc, (any_t *)&t) == MAP_OK)
-        S_token = t;
-    if (OPT_get(OPTION_VERBOSE))
-        printf("[%d %s]", S_token, S_str);
+    str[l] = '\0';
+
+    tkn->u.sym = S_Symbol(str, FALSE);
+
+    return tkn;
 }
 
-int S_getsym(void)
+static S_tkn next_token(void)
 {
     // skip whitespace, line continuations
     while ((is_whitespace() || g_ch=='_') && !g_eof)
@@ -313,105 +333,100 @@ int S_getsym(void)
     }
 
     if (g_eof)
-    {
-        S_token = S_EOF;
-        return S_token;
-    }
-
-    S_line = g_line; S_col = g_col;
+        return NULL;
 
     if (is_idstart())
     {
-        S_identifier();
-        if (S_token == S_REM)
+        S_tkn tkn = ident();
+        if (tkn->u.sym == g_sym_rem)
         {
             skip_comment();
             if (g_eof)
-            {
-                S_token = S_EOF;
-                return S_token;
-            }
+                return NULL;
         }
         else
         {
-            return S_token;
+            return tkn;
         }
     }
     if (is_digit())
     {
-        number (10);
-        if (OPT_get(OPTION_VERBOSE))
-            printf("[%d %d]", S_token, S_inum);
-        return S_token;
+        return number (10, NULL);
     }
+
+    S_tkn tkn;
 
     switch (g_ch)
     {
         case '"':
         {
+            if (g_strings_i >= MAX_STRINGS)
+                return NULL;
+            char *str = g_strings[g_strings_i];
+            g_strings_i++;
             int l = 0;
-            S_token = S_STRING;
+
+            tkn = S_Tkn(S_STRING);
+            tkn->u.str = str;
             getch();
 
             while ( (g_ch != '"') && !g_eof )
             {
-                S_str[l] = g_ch;
+                str[l] = g_ch;
                 l++;
                 getch();
             }
             if (g_ch == '"')
                 getch();
-            S_str[l] = '\0';
-            S_strlc[l] = '\0';
-
+            str[l] = '\0';
             break;
         }
         case '\n':
-            S_token = S_EOL;
+            tkn = S_Tkn(S_EOL);
             getch();
             break;
         case ':':
-            S_token = S_COLON;
+            tkn = S_Tkn(S_COLON);
             getch();
             break;
         case ';':
-            S_token = S_SEMICOLON;
+            tkn = S_Tkn(S_SEMICOLON);
             getch();
             break;
         case ',':
-            S_token = S_COMMA;
+            tkn = S_Tkn(S_COMMA);
             getch();
             break;
         case '(':
-            S_token = S_LPAREN;
+            tkn = S_Tkn(S_LPAREN);
             getch();
             break;
         case ')':
-            S_token = S_RPAREN;
+            tkn = S_Tkn(S_RPAREN);
             getch();
             break;
         case '[':
-            S_token = S_LBRACKET;
+            tkn = S_Tkn(S_LBRACKET);
             getch();
             break;
         case ']':
-            S_token = S_RBRACKET;
+            tkn = S_Tkn(S_RBRACKET);
             getch();
             break;
         case '=':
-            S_token = S_EQUALS;
+            tkn = S_Tkn(S_EQUALS);
             getch();
             break;
         case '@':
-            S_token = S_AT;
+            tkn = S_Tkn(S_AT);
             getch();
             break;
         case '-':
-            S_token = S_MINUS;
+            tkn = S_Tkn(S_MINUS);
             getch();
             if (g_ch == '>')
             {
-                S_token = S_POINTER;
+                tkn->kind = S_POINTER;
                 getch();
             }
             break;
@@ -425,89 +440,151 @@ int S_getsym(void)
         case '7':
         case '8':
         case '9':
-            number(10);
-            break;
+            return number(10, NULL);
+
         case '&':   // binary, octal and hex literals
+            tkn = S_Tkn(S_INUM);
             getch();
             switch (g_ch)
             {
                 case 'B':
                     getch();
-                    number(2);
+                    number(2, tkn);
                     break;
                 case 'O':
                     getch();
-                    number(8);
+                    number(8, tkn);
                     break;
                 case 'H':
                     getch();
-                    number(16);
+                    number(16, tkn);
                     break;
                 default:
+                    EM_error(tkn->pos, "lexer error: invalid literal type character");
                     getch();
-                    EM_err("lexer error: invalid literal type character");
-                    number(10);
+                    number(10, tkn);
                     break;
             }
             break;
         case '^':
-            S_token = S_EXP;
+            tkn = S_Tkn(S_EXP);
             getch();
             break;
         case '*':
-            S_token = S_ASTERISK;
+            tkn = S_Tkn(S_ASTERISK);
             getch();
             break;
         case '/':
-            S_token = S_SLASH;
+            tkn = S_Tkn(S_SLASH);
             getch();
             break;
         case '\\':
-            S_token = S_BACKSLASH;
+            tkn = S_Tkn(S_BACKSLASH);
             getch();
             break;
         case '+':
-            S_token = S_PLUS;
+            tkn = S_Tkn(S_PLUS);
             getch();
             break;
         case '.':
-            S_token = S_PERIOD;
+            tkn = S_Tkn(S_PERIOD);
             getch();
             break;
         case '>':
-            S_token = S_GREATER;
+            tkn = S_Tkn(S_GREATER);
             getch();
             if (g_ch == '=')
             {
-                S_token = S_GREATEREQ;
+                tkn->kind = S_GREATEREQ;
                 getch();
             }
             break;
         case '<':
-            S_token = S_LESS;
+            tkn = S_Tkn(S_LESS);
             getch();
             if (g_ch == '=')
             {
-                S_token = S_LESSEQ;
+                tkn->kind = S_LESSEQ;
                 getch();
             }
             else
             {
                 if (g_ch == '>')
                 {
-                    S_token = S_NOTEQ;
+                    tkn->kind = S_NOTEQ;
                     getch();
                 }
             }
             break;
         default:
-            S_token = S_ERROR;
+            tkn = S_Tkn(S_ERROR);
             getch();
     }
 
-    if (OPT_get(OPTION_VERBOSE))
-        printf("[%d]", S_token);
-    return S_token;
+    return tkn;
 }
 
+
+S_tkn S_nextline(void)
+{
+    if (g_eof)
+        return NULL;
+
+    S_tkn first_tkn=NULL, last_tkn=NULL;
+    g_tkns_i    = 0;
+    g_strings_i = 0;
+
+    while (TRUE)
+    {
+        S_tkn tkn = next_token();
+
+        if (!tkn)
+        {
+            if (!first_tkn)
+                return NULL;
+            tkn = S_Tkn(S_EOL);
+        }
+        else
+        {
+            if ((tkn->kind == S_EOL) && !first_tkn)
+                continue;
+        }
+
+        if (last_tkn)
+        {
+            last_tkn->next = tkn;
+            last_tkn = tkn;
+        }
+        else
+        {
+            first_tkn = last_tkn = tkn;
+        }
+
+        if ((tkn->kind == S_EOL) || (tkn->kind == S_COLON))
+        {
+            break;
+        }
+    }
+
+    if (OPT_get(OPTION_VERBOSE))
+        print_tkns(first_tkn);
+
+    return first_tkn;
+}
+
+void S_init(FILE *fin)
+{
+    g_sym_rem = S_Symbol("REM", FALSE);
+
+    g_fin           = fin;
+    g_eof           = FALSE;
+    g_eol           = FALSE;
+    g_line          = 1;
+    g_col           = 1;
+
+    g_cur_line[0]   = 0;
+    g_cur_line_num  = 0;
+
+    getch();
+}
 

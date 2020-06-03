@@ -1,9 +1,9 @@
 
-DECLARE SUB Delay (seconds AS LONG)
+DECLARE SUB delay (seconds AS LONG)
 
 PRINT "5 seconds..."
 
-Delay(5)
+delay(5)
 
 PRINT "done."
 

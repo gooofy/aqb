@@ -1,15 +1,25 @@
 
 i& = 42
 
+l&=0 : u&=0
+
 FOR i& = 1 TO 42
 
-    PRINT i&;
+    ' PRINT i&;
 
     IF i& > 23 THEN
-        PRINT ">23"
+        u& = u& + 1
+        ' PRINT ">23", u&, l&
     ELSE
-        PRINT "<= 23"
+        l& = l& + 1
+        ' PRINT "<=23", u&, l&
     END IF
 
 NEXT i&
+
+' PRINT u&, l&
+
+ASSERT u&=19
+ASSERT l&=23
+
 

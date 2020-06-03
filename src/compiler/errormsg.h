@@ -8,9 +8,8 @@ extern bool EM_anyErrors;
 
 void   EM_init(void);
 
-bool   EM_err(string,...); // always returns FALSE
-void   EM_error(A_pos pos, string, ...); 
+bool   EM_error(S_pos pos, string, ...); // always returns false
 
-string EM_format(A_pos pos, string, ...);
+string EM_format(S_pos pos, string, ...);
 
 #endif

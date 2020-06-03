@@ -1,5 +1,10 @@
+' test LET statement
 
-FOR i& = 1 TO 10 STEP 2
-  PRINT "i&:", i&, i&*i&, i&+i&, i&-5
-NEXT i&
+LET a% = 10
+LET b% = 32
+
+LET c% = a% + b%
+
+ASSERT c% = 42
+
 
