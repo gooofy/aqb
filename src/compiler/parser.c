@@ -67,6 +67,7 @@ static S_symbol S_VARPTR;
 static S_symbol S_WHILE;
 static S_symbol S_WEND;
 static S_symbol S_LET;
+static S_symbol S__COORD2;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -93,6 +94,7 @@ struct P_declProc_
 {
      bool (*parses)(S_tkn tkn, P_declProc decl);                // parse as statement call
      bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp);   // parse as function call
+     A_proc     proc;
      P_declProc next;
 };
 
@@ -101,13 +103,15 @@ static TAB_table declared_funs;  // S_symbol -> P_declProc
 
 static void declare_proc(TAB_table m, S_symbol sym,
                          bool (*parses)(S_tkn, P_declProc),
-                         bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp))
+                         bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp),
+                         A_proc proc)
 {
     P_declProc p = checked_malloc(sizeof(*p));
 
-    p->parses = parses;
-    p->parsef = parsef;
-    p->next   = NULL;
+    p->parses  = parses;
+    p->parsef  = parsef;
+    p->proc    = proc;
+    p->next    = NULL;
 
     P_declProc prev = TAB_look(m, sym);
 
@@ -809,15 +813,114 @@ static bool expression(S_tkn *tkn, A_exp *exp)
     return TRUE;
 }
 
-// expressionList ::= [ expression ( ',' [ expression ] )* ]
-static bool expressionList(S_tkn *tkn, A_expList *expList)
+// coord2 ::= [ [ STEP ] '(' expression "," expression ")" ] "-" [STEP] "(" expression "," expression ")"
+static bool coord2(S_tkn *tkn, A_expList *expList, A_param *pl)
 {
-    A_exp     exp;
+    A_exp   exp;
+
+    if (isSym(*tkn, S_STEP))
+    {
+        A_ExpListAppend(*expList, A_BoolExp((*tkn)->pos, TRUE));
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        A_ExpListAppend(*expList, NULL);
+    }
+
+    if ((*tkn)->kind == S_LPAREN)
+    {
+        *tkn = (*tkn)->next;
+
+        if (!expression(tkn, &exp))
+            return EM_error((*tkn)->pos, "expression expected here.");
+        A_ExpListAppend(*expList, exp);
+        *pl = (*pl)->next;
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, ", expected here.");
+        *tkn = (*tkn)->next;
+
+        if (!expression(tkn, &exp))
+            return EM_error((*tkn)->pos, "expression expected here.");
+        A_ExpListAppend(*expList, exp);
+        *pl = (*pl)->next;
+
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, ") expected here.");
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        A_ExpListAppend(*expList, NULL);
+        A_ExpListAppend(*expList, NULL);
+    }
+
+    if ((*tkn)->kind != S_MINUS)
+        return EM_error((*tkn)->pos, "- expected here.");
+    *tkn = (*tkn)->next;
+
+    if (isSym(*tkn, S_STEP))
+    {
+        A_ExpListAppend(*expList, A_BoolExp((*tkn)->pos, TRUE));
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        A_ExpListAppend(*expList, NULL);
+    }
+
+    if ((*tkn)->kind != S_LPAREN)
+        return EM_error((*tkn)->pos, "( expected here.");
+    *tkn = (*tkn)->next;
 
     if (!expression(tkn, &exp))
-        return TRUE;
-
+        return EM_error((*tkn)->pos, "expression expected here.");
     A_ExpListAppend(*expList, exp);
+    *pl = (*pl)->next;
+
+    if ((*tkn)->kind != S_COMMA)
+        return EM_error((*tkn)->pos, ", expected here.");
+    *tkn = (*tkn)->next;
+
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "expression expected here.");
+    A_ExpListAppend(*expList, exp);
+    //*pl = (*pl)->next;
+
+    if ((*tkn)->kind != S_RPAREN)
+        return EM_error((*tkn)->pos, ") expected here.");
+    *tkn = (*tkn)->next;
+
+    return TRUE;
+}
+
+// expressionList ::= [ expression ( ',' [ expression ] )* ]
+static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
+{
+    A_exp   exp;
+    A_param pl = proc ? proc->paramList->first : NULL;
+
+    if (pl && (pl->parserHint != A_phNone))
+    {
+        switch (pl->parserHint)
+        {
+            case A_phCoord2:
+                if (!coord2(tkn, expList, &pl))
+                    return FALSE;
+                break;
+            default:
+                assert(0); // FIXME: implement!
+        }
+    }
+    else
+    {
+        if (!expression(tkn, &exp))
+            return TRUE;
+        A_ExpListAppend(*expList, exp);
+    }
+    if (pl)
+        pl = pl->next;
 
     while ((*tkn)->kind == S_COMMA)
     {
@@ -825,13 +928,54 @@ static bool expressionList(S_tkn *tkn, A_expList *expList)
 
         if ((*tkn)->kind == S_COMMA)
         {
+            if (pl)
+            {
+                switch (pl->parserHint)
+                {
+                    case A_phCoord:
+                        A_ExpListAppend(*expList, NULL);
+                        A_ExpListAppend(*expList, NULL);
+                        break;
+                    case A_phCoord2:
+                        A_ExpListAppend(*expList, NULL);
+                        A_ExpListAppend(*expList, NULL);
+                        A_ExpListAppend(*expList, NULL);
+                        A_ExpListAppend(*expList, NULL);
+                        A_ExpListAppend(*expList, NULL);
+                        break;
+                    case A_phNone:
+                        break;
+                    default:
+                        assert(0);
+                }
+
+            }
             A_ExpListAppend(*expList, NULL);
+            if (pl)
+                pl = pl->next;
             continue;
         }
 
-        if (!expression(tkn, &exp))
-            return EM_error((*tkn)->pos, "expression expected here");
-        A_ExpListAppend(*expList, exp);
+        if (pl && (pl->parserHint != A_phNone))
+        {
+            switch (pl->parserHint)
+            {
+                case A_phCoord2:
+                    if (!coord2(tkn, expList, &pl))
+                        return FALSE;
+                    break;
+                default:
+                    assert(0); // FIXME: implement!
+            }
+        }
+        else
+        {
+            if (!expression(tkn, &exp))
+                return EM_error((*tkn)->pos, "expression expected here");
+            A_ExpListAppend(*expList, exp);
+        }
+        if (pl)
+            pl = pl->next;
     }
     return TRUE;
 }
@@ -1459,7 +1603,7 @@ static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
     *tkn = (*tkn)->next;
 
     A_expList args = A_ExpList();
-    if (!expressionList(tkn, &args))
+    if (!expressionList(tkn, &args, dec->proc))
         return FALSE;
 
     if ((*tkn)->kind != S_RPAREN)
@@ -1492,7 +1636,7 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
     }
 
     A_expList args = A_ExpList();
-    if (!expressionList(&tkn, &args))
+    if (!expressionList(&tkn, &args, dec->proc))
         return FALSE;
 
     if (parenthesis)
@@ -1506,7 +1650,8 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
     return isLogicalEOL(tkn);
 }
 
-// paramDecl ::= [ BYVAL | BYREF ] ident [ AS ident [PTR] ] [ = expression ]
+// paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
+//                                 | ident [ AS ident [PTR] ] [ = expression ] )
 static bool paramDecl(S_tkn *tkn, A_paramList paramList)
 {
     bool     byval = FALSE;
@@ -1532,32 +1677,79 @@ static bool paramDecl(S_tkn *tkn, A_paramList paramList)
     }
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "identifier expected here.");
-    name = (*tkn)->u.sym;
-    *tkn = (*tkn)->next;
 
-    if (isSym(*tkn, S_AS))
+    if (isSym(*tkn, S__COORD2))
     {
         *tkn = (*tkn)->next;
-        if ((*tkn)->kind != S_IDENT)
-            return EM_error((*tkn)->pos, "type identifier expected here.");
-
-        ty = (*tkn)->u.sym;
+        if ((*tkn)->kind != S_LPAREN)
+            return EM_error((*tkn)->pos, "( expected here.");
         *tkn = (*tkn)->next;
-        if (isSym(*tkn, S_PTR))
+
+        paramDecl(tkn, paramList);
+        paramList->last->parserHint = A_phCoord2;
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, ", expected here.");
+        *tkn = (*tkn)->next;
+
+        paramDecl(tkn, paramList);
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, ", expected here.");
+        *tkn = (*tkn)->next;
+
+        paramDecl(tkn, paramList);
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, ", expected here.");
+        *tkn = (*tkn)->next;
+
+        paramDecl(tkn, paramList);
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, ", expected here.");
+        *tkn = (*tkn)->next;
+
+        paramDecl(tkn, paramList);
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, ", expected here.");
+        *tkn = (*tkn)->next;
+
+        paramDecl(tkn, paramList);
+
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, ") expected here.");
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        name = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
+
+        if (isSym(*tkn, S_AS))
         {
             *tkn = (*tkn)->next;
-            ptr = TRUE;
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "type identifier expected here.");
+
+            ty = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
+            if (isSym(*tkn, S_PTR))
+            {
+                *tkn = (*tkn)->next;
+                ptr = TRUE;
+            }
         }
-    }
 
-    if ((*tkn)->kind == S_EQUALS)
-    {
-        *tkn = (*tkn)->next;
-        if (!expression(tkn, &defaultExp))
-            return EM_error((*tkn)->pos, "default expression expected here.");
+        if ((*tkn)->kind == S_EQUALS)
+        {
+            *tkn = (*tkn)->next;
+            if (!expression(tkn, &defaultExp))
+                return EM_error((*tkn)->pos, "default expression expected here.");
+        }
+        A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, ptr, defaultExp));
     }
-
-    A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, ptr, defaultExp));
 
     return TRUE;
 }
@@ -1587,7 +1779,7 @@ static bool parameterList(S_tkn *tkn, A_paramList paramList)
     return TRUE;
 }
 
-// procHeader ::= ident [ parameterList ] [ AS Ident [PTR] ] [ STATIC ]
+// procHeader ::= ident ident* [ parameterList ] [ AS Ident [PTR] ] [ STATIC ]
 static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
 {
     S_symbol    name;
@@ -1602,6 +1794,9 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
     name  = (*tkn)->u.sym;
     label = Temp_namedlabel(strconcat("_", Ty_removeTypeSuffix(S_name(name))));
     *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind == S_IDENT)
+        return EM_error((*tkn)->pos, "FIXME: unsupported"); // FIXME: implement
 
     if ((*tkn)->kind == S_LPAREN)
     {
@@ -1640,14 +1835,13 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
     return TRUE;
 }
 
-
 // procStmtBegin ::=  ( SUB | FUNCTION ) procHeader
 static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
 {
-    A_proc   proc;
-    S_pos    pos = tkn->pos;
-    bool     isFunction = isSym(tkn, S_FUNCTION);
-    P_SLE    sle;
+    A_proc    proc;
+    S_pos     pos = tkn->pos;
+    bool      isFunction = isSym(tkn, S_FUNCTION);
+    P_SLE     sle;
 
     tkn = tkn->next;         // consume "SUB" | "FUNCTION"
 
@@ -1665,9 +1859,9 @@ static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
     sle->u.proc = proc;
 
     if (isFunction)
-        declare_proc(declared_funs , proc->name, NULL    , functionCall);
+        declare_proc(declared_funs , proc->name, NULL    , functionCall, proc);
     else
-        declare_proc(declared_stmts, proc->name, stmtCall, NULL        );
+        declare_proc(declared_stmts, proc->name, stmtCall, NULL        , proc);
 
     return isLogicalEOL(tkn);
 }
@@ -1675,9 +1869,9 @@ static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
 // procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
 {
-    A_proc   proc;
-    S_pos    pos = tkn->pos;
-    bool     isFunction;
+    A_proc    proc;
+    S_pos     pos = tkn->pos;
+    bool      isFunction;
 
     tkn = tkn->next; // consume "DECLARE"
 
@@ -1740,14 +1934,14 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
         P_declProc ds = TAB_look(declared_funs, proc->name);
         if (ds)
             return EM_error(pos, "A function with this name has already been declared.");
-        declare_proc(declared_funs, proc->name,  NULL, functionCall);
+        declare_proc(declared_funs, proc->name,  NULL, functionCall, proc);
     }
     else
     {
         P_declProc ds = TAB_look(declared_stmts, proc->name);
         if (ds)
             return EM_error(pos, "A statement with this name has already been declared.");
-        declare_proc(declared_stmts, proc->name, stmtCall, NULL);
+        declare_proc(declared_stmts, proc->name, stmtCall, NULL, proc);
     }
 
     A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
@@ -2189,11 +2383,11 @@ static void import_module (E_enventry m)
         {
             if (m->u.fun.result)
             {
-                declare_proc(declared_funs, m->sym, NULL, functionCall);
+                declare_proc(declared_funs, m->sym, NULL, functionCall, NULL);
             }
             else
             {
-                declare_proc(declared_stmts, m->sym, stmtCall, NULL);
+                declare_proc(declared_stmts, m->sym, stmtCall, NULL, NULL);
             }
         }
         m = m->next;
@@ -2248,35 +2442,36 @@ static void register_builtins(void)
     S_WHILE    = S_Symbol("WHILE",    FALSE);
     S_WEND     = S_Symbol("WEND",     FALSE);
     S_LET      = S_Symbol("LET",      FALSE);
+    S__COORD2  = S_Symbol("_COORD2",  FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
 
-    declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL);
-    declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL);
-    declare_proc(declared_stmts, S_FOR,      stmtForBegin     , NULL);
-    declare_proc(declared_stmts, S_NEXT,     stmtForEnd       , NULL);
-    declare_proc(declared_stmts, S_IF,       stmtIfBegin      , NULL);
-    declare_proc(declared_stmts, S_ELSE,     stmtIfElse       , NULL);
-    declare_proc(declared_stmts, S_ELSEIF,   stmtIfElse       , NULL);
-    declare_proc(declared_stmts, S_END,      stmtEnd          , NULL);
-    declare_proc(declared_stmts, S_ENDIF,    stmtEnd          , NULL);
-    declare_proc(declared_stmts, S_ASSERT,   stmtAssert       , NULL);
-    declare_proc(declared_stmts, S_OPTION,   stmtOption       , NULL);
-    declare_proc(declared_stmts, S_SUB,      stmtProcBegin    , NULL);
-    declare_proc(declared_stmts, S_FUNCTION, stmtProcBegin    , NULL);
-    declare_proc(declared_stmts, S_CALL,     stmtCall         , NULL);
-    declare_proc(declared_stmts, S_CONST,    stmtConstDecl    , NULL);
-    declare_proc(declared_stmts, S_EXTERN,   stmtExternDecl   , NULL);
-    declare_proc(declared_stmts, S_DECLARE,  stmtProcDecl     , NULL);
-    declare_proc(declared_stmts, S_TYPE,     stmtTypeDeclBegin, NULL);
-    declare_proc(declared_stmts, S_STATIC,   stmtStatic       , NULL);
-    declare_proc(declared_stmts, S_WHILE,    stmtWhileBegin   , NULL);
-    declare_proc(declared_stmts, S_WEND,     stmtWhileEnd     , NULL);
-    declare_proc(declared_stmts, S_LET,      stmtLet          , NULL);
+    declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL, NULL);
+    declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL, NULL);
+    declare_proc(declared_stmts, S_FOR,      stmtForBegin     , NULL, NULL);
+    declare_proc(declared_stmts, S_NEXT,     stmtForEnd       , NULL, NULL);
+    declare_proc(declared_stmts, S_IF,       stmtIfBegin      , NULL, NULL);
+    declare_proc(declared_stmts, S_ELSE,     stmtIfElse       , NULL, NULL);
+    declare_proc(declared_stmts, S_ELSEIF,   stmtIfElse       , NULL, NULL);
+    declare_proc(declared_stmts, S_END,      stmtEnd          , NULL, NULL);
+    declare_proc(declared_stmts, S_ENDIF,    stmtEnd          , NULL, NULL);
+    declare_proc(declared_stmts, S_ASSERT,   stmtAssert       , NULL, NULL);
+    declare_proc(declared_stmts, S_OPTION,   stmtOption       , NULL, NULL);
+    declare_proc(declared_stmts, S_SUB,      stmtProcBegin    , NULL, NULL);
+    declare_proc(declared_stmts, S_FUNCTION, stmtProcBegin    , NULL, NULL);
+    declare_proc(declared_stmts, S_CALL,     stmtCall         , NULL, NULL);
+    declare_proc(declared_stmts, S_CONST,    stmtConstDecl    , NULL, NULL);
+    declare_proc(declared_stmts, S_EXTERN,   stmtExternDecl   , NULL, NULL);
+    declare_proc(declared_stmts, S_DECLARE,  stmtProcDecl     , NULL, NULL);
+    declare_proc(declared_stmts, S_TYPE,     stmtTypeDeclBegin, NULL, NULL);
+    declare_proc(declared_stmts, S_STATIC,   stmtStatic       , NULL, NULL);
+    declare_proc(declared_stmts, S_WHILE,    stmtWhileBegin   , NULL, NULL);
+    declare_proc(declared_stmts, S_WEND,     stmtWhileEnd     , NULL, NULL);
+    declare_proc(declared_stmts, S_LET,      stmtLet          , NULL, NULL);
 
-    declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf);
-    declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr);
+    declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
+    declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
 
     // import procs and functions built-in std module (FIXME: read from file!)
     import_module(E_base_vmod());

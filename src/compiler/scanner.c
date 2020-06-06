@@ -9,7 +9,7 @@
 #include "symbol.h"
 
 #define MAX_TOKENS      256
-#define MAX_STRINGS       8
+#define MAX_STRINGS      16
 #define MAX_STRING_LEN 1024
 #define MAX_LINE_LEN   8192
 
@@ -266,7 +266,7 @@ static void skip_comment(void)
 }
 
 
-static S_tkn ident(void)
+static S_tkn ident(char ch)
 {
     int   l = 0;
 
@@ -276,9 +276,8 @@ static S_tkn ident(void)
 
     S_tkn tkn = S_Tkn(S_IDENT);
 
-    str[l] = g_ch;
+    str[l] = ch;
     l++;
-    getch();
     while (is_idcont() && !g_eof)
     {
         str[l] = g_ch;
@@ -316,8 +315,10 @@ static S_tkn next_token(void)
             getch();
             if (g_ch == '\r')
                 getch();
-            if (g_ch != '\n')
-                break;
+            if (g_ch == '\n')
+                getch();
+            else
+                return ident('_');
         }
         else
         {
@@ -337,7 +338,8 @@ static S_tkn next_token(void)
 
     if (is_idstart())
     {
-        S_tkn tkn = ident();
+        char ch = g_ch; getch();
+        S_tkn tkn = ident(ch);
         if (tkn->u.sym == g_sym_rem)
         {
             skip_comment();

@@ -493,6 +493,7 @@ A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, 
     p->ptr        = ptr;
     p->defaultExp = defaultExp;
     p->reg        = NULL;
+    p->parserHint = A_phNone;
 
     return p;
 }
