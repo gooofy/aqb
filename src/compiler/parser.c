@@ -1669,10 +1669,12 @@ static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
     return TRUE;
 }
 
+// subCall ::= ident ident* ["("] expressionList [")"]
 static bool subCall(S_tkn tkn, P_declProc dec)
 {
     S_pos    pos = tkn->pos;
     A_proc   proc = dec->proc;
+    A_param  pl = proc ? proc->paramList->first : NULL;
 
     assert (proc->name == tkn->u.sym);
     tkn = tkn->next;
@@ -1694,7 +1696,7 @@ static bool subCall(S_tkn tkn, P_declProc dec)
     }
 
     bool parenthesis = FALSE;
-    if (tkn->kind == S_LPAREN)
+    if ( (tkn->kind == S_LPAREN) && (!pl || (pl->parserHint == A_phNone) ))
     {
         parenthesis = TRUE;
         tkn = tkn->next;
