@@ -39,6 +39,19 @@ static BOOL awindow_init_done = FALSE;
 static BOOL autil_init_done   = FALSE;
 static BOOL aio_init_done     = FALSE;
 
+#define MAX_EXIT_HANDLERS 16
+static void (*exit_handlers[MAX_EXIT_HANDLERS])(void);
+static int num_exit_handlers = 0;
+
+void __aqb_on_exit_call(void (*cb)(void))
+{
+    if (num_exit_handlers>=MAX_EXIT_HANDLERS)
+        return;
+
+    exit_handlers[num_exit_handlers] = cb;
+    num_exit_handlers++;
+}
+
 // gets called by _autil_exit
 void _c_atexit(void)
 {
@@ -46,6 +59,15 @@ void _c_atexit(void)
     if (DOSBase)
         _aio_puts("_c_atexit...\n");
 #endif
+
+    for (int i = num_exit_handlers-1; i>=0; i--)
+    {
+#ifdef ENABLE_DEBUG
+        if (DOSBase)
+            _aio_puts("calling user exit handler...\n");
+#endif
+        exit_handlers[i]();
+    }
 
     if (awindow_init_done)
         _awindow_shutdown();

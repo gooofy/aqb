@@ -69,6 +69,8 @@ static S_symbol S_WEND;
 static S_symbol S_LET;
 static S_symbol S__COORD2;
 static S_symbol S__COORD;
+static S_symbol S_BREAK;
+static S_symbol S_EXIT;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1678,7 +1680,9 @@ static bool subCall(S_tkn tkn, P_declProc dec)
         S_symlist es = proc->extraSyms;
         while (tkn->kind == S_IDENT)
         {
-            if (!es || (tkn->u.sym != es->sym))
+            if (!es)
+                break;
+            if (tkn->u.sym != es->sym)
                 return FALSE;
             tkn = tkn->next;
             es = es->next;
@@ -2442,6 +2446,7 @@ static bool stmtWhileBegin(S_tkn tkn, P_declProc dec)
     return isLogicalEOL(tkn);
 }
 
+// whileEnd ::= WEND
 static bool stmtWhileEnd(S_tkn tkn, P_declProc dec)
 {
     S_pos    pos = tkn->pos;
@@ -2466,6 +2471,64 @@ static bool stmtLet(S_tkn tkn, P_declProc dec)
 {
     tkn = tkn->next;  // skip "LET"
     return stmtAssignment(tkn);
+}
+
+// onStmt ::= ON ( BREAK | ERROR | EXIT ) CALL Ident
+static bool stmtOn(S_tkn tkn, P_declProc dec)
+{
+    S_pos     pos = tkn->pos;
+    S_symbol  func;
+    A_expList args = A_ExpList();
+
+    tkn = tkn->next;  // skip "ON"
+
+    if (isSym(tkn, S_BREAK))
+    {
+        func = S_Symbol("___aqb_on_break_call", FALSE);
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_ERROR))
+        {
+            func = S_Symbol("___aqb_on_error_call", FALSE);
+            tkn = tkn->next;
+        }
+        else
+        {
+            if (isSym(tkn, S_EXIT))
+            {
+                func = S_Symbol("___aqb_on_exit_call", FALSE);
+                tkn = tkn->next;
+            }
+            else
+            {
+                return FALSE;
+            }
+        }
+    }
+
+    P_declProc ds = TAB_look(declared_stmts, func);
+    assert(ds);
+
+    if (!isSym(tkn, S_CALL))
+        return EM_error(tkn->pos, "CALL expected here.");
+    tkn = tkn->next;
+
+    if (tkn->kind != S_IDENT)
+        return EM_error(tkn->pos, "Identifier expected here.");
+
+    string label = strconcat("_", S_name(tkn->u.sym));
+
+    A_ExpListAppend (args, A_VarExp(tkn->pos, A_Var(tkn->pos, S_Symbol(label, FALSE))));
+
+    tkn = tkn->next;
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
+
+    return TRUE;
 }
 
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
@@ -2585,6 +2648,8 @@ static void register_builtins(void)
     S_LET      = S_Symbol("LET",      FALSE);
     S__COORD2  = S_Symbol("_COORD2",  FALSE);
     S__COORD   = S_Symbol("_COORD",   FALSE);
+    S_BREAK    = S_Symbol("BREAK",    FALSE);
+    S_EXIT     = S_Symbol("EXIT",     FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -2611,6 +2676,7 @@ static void register_builtins(void)
     declare_proc(declared_stmts, S_WHILE,    stmtWhileBegin   , NULL, NULL);
     declare_proc(declared_stmts, S_WEND,     stmtWhileEnd     , NULL, NULL);
     declare_proc(declared_stmts, S_LET,      stmtLet          , NULL, NULL);
+    declare_proc(declared_stmts, S_ON,       stmtOn           , NULL, NULL);
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
