@@ -62,7 +62,7 @@ static void print_tkn(S_tkn tkn)
 {
     switch (tkn->kind)
     {
-        case S_ERROR:      printf("[ERR]");       break;
+        case S_ERRTKN:      printf("[ERR]");       break;
         case S_EOL:        printf("[EOL]");       break;
         case S_IDENT:      printf("[IDENT %s]",  S_name(tkn->u.sym)); break;
         case S_STRING:     printf("[STRING %s]", tkn->u.str);         break;
@@ -519,7 +519,7 @@ static S_tkn next_token(void)
             }
             break;
         default:
-            tkn = S_Tkn(S_ERROR);
+            tkn = S_Tkn(S_ERRTKN);
             getch();
     }
 

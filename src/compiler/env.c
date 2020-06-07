@@ -334,6 +334,8 @@ void E_init(void)
     declare_builtin_const("TRUE",  Tr_boolExp(TRUE, Ty_Bool()));
     declare_builtin_const("FALSE", Tr_boolExp(FALSE, Ty_Bool()));
 
+    append_vmod_entry(E_VarEntry(S_Symbol("ERR", FALSE), Tr_externalVar("_AQB_ERR", Ty_Integer()), Ty_Integer(), TRUE));
+
     declare_builtin_proc("__aio_puts",            NULL         , "s",        NULL);
     declare_builtin_proc("__aio_puts1",           NULL         , "y",        NULL);
     declare_builtin_proc("__aio_puts2",           NULL         , "i",        NULL);
@@ -346,11 +348,12 @@ void E_init(void)
     declare_builtin_proc("__aio_putnl",           NULL         , "",         NULL);
     declare_builtin_proc("__aio_puttab",          NULL         , "",         NULL);
     declare_builtin_proc("___aqb_assert",         NULL         , "bs",       NULL);
+    declare_builtin_proc("___aqb_error",          NULL         , "i",        NULL);
+    declare_builtin_proc("___aqb_resume_next",    NULL         , "",         NULL);
     // declare_builtin_proc("___aqb_window_open",    NULL         , "isiiiiii", Ty_Void());
     // declare_builtin_proc("___aqb_line",           NULL         , "iiiiii",   Ty_Void());
     // declare_builtin_proc("___aqb_pset",           NULL         , "iiii",     Ty_Void());
     declare_builtin_proc("___aqb_on_exit_call",   NULL         , "p",        NULL);
-    declare_builtin_proc("___aqb_on_break_call",  NULL         , "p",        NULL);
     declare_builtin_proc("___aqb_on_error_call",  NULL         , "p",        NULL);
 
     declare_builtin_proc("fix"                  , "___aqb_fix" , "f"       , Ty_Integer());

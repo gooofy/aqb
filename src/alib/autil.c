@@ -44,6 +44,42 @@ void __aqb_assert (BOOL b, const char *msg)
     _autil_exit(20);
 }
 
+static void (*error_handler)(void) = NULL;
+static BOOL do_resume = FALSE;
+
+SHORT _AQB_ERR=0;
+
+void __aqb_on_error_call(void (*cb)(void))
+{
+    error_handler = cb;
+}
+
+void __aqb_error (SHORT errcode)
+{
+    do_resume = FALSE;
+    _AQB_ERR = errcode;
+
+    if (error_handler)
+    {
+        error_handler();
+    }
+    else
+    {
+        _aio_puts("*** unhandled runtime error code: "); _aio_puts2(errcode);
+        _aio_puts("\n");
+    }
+
+    if (!do_resume)
+        _autil_exit(errcode);
+    else
+        _AQB_ERR=0;
+}
+
+void __aqb_resume_next(void)
+{
+    do_resume = TRUE;
+}
+
 FLOAT __aqb_timer_fn (void)
 {
 	FLOAT res;

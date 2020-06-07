@@ -71,6 +71,8 @@ static S_symbol S__COORD2;
 static S_symbol S__COORD;
 static S_symbol S_BREAK;
 static S_symbol S_EXIT;
+static S_symbol S_ERROR;
+static S_symbol S_RESUME;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -2531,6 +2533,59 @@ static bool stmtOn(S_tkn tkn, P_declProc dec)
     return TRUE;
 }
 
+// errorStmt ::= ERROR expression
+static bool stmtError(S_tkn tkn, P_declProc dec)
+{
+    S_pos     pos = tkn->pos;
+    S_symbol  func;
+    A_expList args = A_ExpList();
+    A_exp     exp;
+
+    tkn = tkn->next;  // skip "ERROR"
+
+    if (!expression(&tkn, &exp))
+        return EM_error(tkn->pos, "error expression expected here.");
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    func = S_Symbol("___aqb_error", FALSE);
+    A_ExpListAppend (args, exp);
+
+    P_declProc ds = TAB_look(declared_stmts, func);
+    assert(ds);
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
+
+    return TRUE;
+}
+
+// resumeStmt ::= RESUME NEXT
+static bool stmtResume(S_tkn tkn, P_declProc dec)
+{
+    S_pos     pos = tkn->pos;
+    S_symbol  func;
+    A_expList args = A_ExpList();
+
+    tkn = tkn->next;  // skip "RESUME"
+
+    if (!isSym(tkn, S_NEXT))
+        return EM_error(tkn->pos, "NEXT expected here.");
+    tkn = tkn->next;
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    func = S_Symbol("___aqb_resume_next", FALSE);
+
+    P_declProc ds = TAB_look(declared_stmts, func);
+    assert(ds);
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
+
+    return TRUE;
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -2650,6 +2705,8 @@ static void register_builtins(void)
     S__COORD   = S_Symbol("_COORD",   FALSE);
     S_BREAK    = S_Symbol("BREAK",    FALSE);
     S_EXIT     = S_Symbol("EXIT",     FALSE);
+    S_ERROR    = S_Symbol("ERROR",    FALSE);
+    S_RESUME   = S_Symbol("RESUME",   FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -2677,6 +2734,8 @@ static void register_builtins(void)
     declare_proc(declared_stmts, S_WEND,     stmtWhileEnd     , NULL, NULL);
     declare_proc(declared_stmts, S_LET,      stmtLet          , NULL, NULL);
     declare_proc(declared_stmts, S_ON,       stmtOn           , NULL, NULL);
+    declare_proc(declared_stmts, S_ERROR,    stmtError        , NULL, NULL);
+    declare_proc(declared_stmts, S_RESUME,   stmtResume       , NULL, NULL);
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
