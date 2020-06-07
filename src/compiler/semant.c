@@ -856,10 +856,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 case Ty_pointer:
                     if (ty->u.pointer->kind != Ty_ubyte)
                     {
-                        EM_error(stmt->pos, "unsupported type in print expression list.");
-                        return NULL;
+                        fsym = S_Symbol("__aio_putu4", TRUE);
+                        // EM_error(stmt->pos, "unsupported type in print expression list.");
+                        // return NULL;
                     }
-                    fsym = S_Symbol("__aio_puts", TRUE);
+                    else
+                    {
+                        fsym = S_Symbol("__aio_puts", TRUE);
+                    }
                     break;
                 case Ty_byte:
                     fsym = S_Symbol("__aio_puts1", TRUE);
