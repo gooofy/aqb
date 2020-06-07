@@ -1640,11 +1640,13 @@ static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos    pos = (*tkn)->pos;
     S_symbol name;
+    A_proc   proc = dec->proc;
 
     if ((*tkn)->kind != S_IDENT)
         return FALSE;
 
     name = (*tkn)->u.sym;
+    assert (proc->name == name);
     *tkn = (*tkn)->next;
 
     if ((*tkn)->kind != S_LPAREN)
@@ -1659,23 +1661,31 @@ static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = A_FuncCallExp(pos, name, args);
+    *exp = A_FuncCallExp(pos, proc, args);
     return TRUE;
 }
 
-static bool stmtCall(S_tkn tkn, P_declProc dec)
+static bool subCall(S_tkn tkn, P_declProc dec)
 {
     S_pos    pos = tkn->pos;
-    S_symbol name;
+    A_proc   proc = dec->proc;
 
-    if (isSym(tkn, S_CALL))
-        tkn = tkn->next;
-
-    if (tkn->kind != S_IDENT)
-        return FALSE;
-
-    name = tkn->u.sym;
+    assert (proc->name == tkn->u.sym);
     tkn = tkn->next;
+
+    if (proc->extraSyms)
+    {
+        S_symlist es = proc->extraSyms;
+        while (tkn->kind == S_IDENT)
+        {
+            if (!es || (tkn->u.sym != es->sym))
+                return FALSE;
+            tkn = tkn->next;
+            es = es->next;
+        }
+        if (es)
+            return FALSE;
+    }
 
     bool parenthesis = FALSE;
     if (tkn->kind == S_LPAREN)
@@ -1695,8 +1705,43 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
         tkn = tkn->next;
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, name, args));
-    return isLogicalEOL(tkn);
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc, args));
+    return TRUE;
+}
+
+
+static bool stmtCall(S_tkn tkn, P_declProc dec)
+{
+    S_pos    pos = tkn->pos;
+    S_symbol name;
+
+    tkn = tkn->next; // skip "CALL"
+
+    if (tkn->kind != S_IDENT)
+        return FALSE;
+    name = tkn->u.sym;
+
+    P_declProc ds = TAB_look(declared_stmts, name);
+    if (ds)
+    {
+        while (ds)
+        {
+            if (ds->parses(tkn, ds))
+                break;
+            ds = ds->next;
+        }
+        if (!ds)
+            return EM_error(pos, "syntax error");
+    }
+    else
+    {
+        return EM_error(pos, "undeclared sub");
+    }
+
+    return TRUE;
 }
 
 // paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
@@ -1862,20 +1907,37 @@ static bool parameterList(S_tkn *tkn, A_paramList paramList)
 static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
 {
     S_symbol    name;
+    S_symlist   extra_syms = NULL, extra_syms_last=NULL;
     bool        isStatic = FALSE;
     A_paramList paramList = A_ParamList();
     S_symbol    retty = NULL;
-    Temp_label  label = NULL;
+    string      label = NULL;
     bool        ptr = FALSE;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "identifier expected here.");
     name  = (*tkn)->u.sym;
-    label = Temp_namedlabel(strconcat("_", Ty_removeTypeSuffix(S_name(name))));
+
+    label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
     *tkn = (*tkn)->next;
 
-    if ((*tkn)->kind == S_IDENT)
-        return EM_error((*tkn)->pos, "FIXME: unsupported"); // FIXME: implement
+    while ((*tkn)->kind == S_IDENT)
+    {
+        if (extra_syms_last)
+        {
+            extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
+            extra_syms_last = extra_syms_last->next;
+        }
+        else
+        {
+            extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
+        }
+        label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+        *tkn = (*tkn)->next;
+    }
+
+    if (isFunction)
+        label = strconcat(label, "_");
 
     if ((*tkn)->kind == S_LPAREN)
     {
@@ -1909,7 +1971,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
         *tkn = (*tkn)->next;
     }
 
-    *proc = A_Proc (pos, name, label, retty, ptr, isStatic, paramList);
+    *proc = A_Proc (pos, name, extra_syms, Temp_namedlabel(label), retty, ptr, isStatic, paramList);
 
     return TRUE;
 }
@@ -1940,7 +2002,7 @@ static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
     if (isFunction)
         declare_proc(declared_funs , proc->name, NULL    , functionCall, proc);
     else
-        declare_proc(declared_stmts, proc->name, stmtCall, NULL        , proc);
+        declare_proc(declared_stmts, proc->name, subCall , NULL        , proc);
 
     return isLogicalEOL(tkn);
 }
@@ -2020,7 +2082,7 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
         P_declProc ds = TAB_look(declared_stmts, proc->name);
         if (ds)
             return EM_error(pos, "A statement with this name has already been declared.");
-        declare_proc(declared_stmts, proc->name, stmtCall, NULL, proc);
+        declare_proc(declared_stmts, proc->name, subCall, NULL, proc);
     }
 
     A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
@@ -2462,11 +2524,11 @@ static void import_module (E_enventry m)
         {
             if (m->u.fun.result)
             {
-                declare_proc(declared_funs, m->sym, NULL, functionCall, NULL);
+                declare_proc(declared_funs , m->sym, NULL   , functionCall, m->u.fun.proc);
             }
             else
             {
-                declare_proc(declared_stmts, m->sym, stmtCall, NULL, NULL);
+                declare_proc(declared_stmts, m->sym, subCall, NULL        , m->u.fun.proc);
             }
         }
         m = m->next;
@@ -2603,7 +2665,6 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
         }
         else
         {
-
             // handle statement
 
             if (tkn->kind == S_IDENT)
@@ -2617,9 +2678,8 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
                             break;
                         ds = ds->next;
                     }
-                    if (!ds)
-                        EM_error(tkn->pos, "syntax error");
-                    continue;
+                    if (ds)
+                        continue;
                 }
             }
 

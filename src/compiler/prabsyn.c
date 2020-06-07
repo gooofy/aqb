@@ -162,7 +162,7 @@ static void pr_exp(FILE *out, A_exp exp)
             fprintf(out, ")");
             break;
         case A_callExp:
-            fprintf(out, "callExp(%s(", S_name(exp->u.callr.func));
+            fprintf(out, "callExp(%s(", S_name(exp->u.callr.proc->label));
             pr_expList(out, exp->u.callr.args);
             fprintf(out, "))");
             break;
@@ -285,7 +285,7 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         case A_callStmt:
         {
             indent(out, d);
-            fprintf(out, "CALL %s(", S_name(stmt->u.callr.func));
+            fprintf(out, "CALL %s(", S_name(stmt->u.callr.proc->label));
             pr_expList(out, stmt->u.callr.args);
             fprintf(out, ")");
             break;

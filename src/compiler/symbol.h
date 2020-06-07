@@ -41,4 +41,18 @@ void S_enter(S_scope scope, S_symbol sym, void *value);
 /* look up the most recent binding of "sym" in "scope", or return NULL if sym is unbound. */
 void *S_look(S_scope scope, S_symbol sym);
 
+/*
+ * list of symbols
+ */
+
+typedef struct S_symlist_ *S_symlist;
+
+struct S_symlist_
+{
+    S_symbol  sym;
+    S_symlist next;
+};
+
+S_symlist S_Symlist(S_symbol sym, S_symlist next);
+
 #endif

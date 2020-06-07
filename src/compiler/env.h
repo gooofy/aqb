@@ -23,7 +23,8 @@ struct E_enventry_
         struct {Tr_level level; Temp_label label;
                 E_formals formals; Ty_ty result;
                 bool forward;
-                int offset; string libBase;} fun;
+                int offset; string libBase;
+                A_proc proc; } fun;
         Tr_exp cExp;
         Ty_ty ty;
     } u;
@@ -33,7 +34,7 @@ struct E_enventry_
 E_enventry E_VarEntry  (S_symbol sym, Tr_access access, Ty_ty ty, bool shared);
 E_enventry E_FunEntry  (S_symbol sym, Tr_level level, Temp_label label,
                         E_formals formals, Ty_ty result,
-                        bool forward, int offset, string libBase);
+                        bool forward, int offset, string libBase, A_proc proc);
 E_enventry E_ConstEntry(S_symbol sym, Tr_exp c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 

@@ -200,14 +200,14 @@ A_stmt A_AssertStmt (S_pos pos, A_exp exp, string msg)
     return p;
 }
 
-A_stmt A_CallStmt (S_pos pos, S_symbol func, A_expList args)
+A_stmt A_CallStmt (S_pos pos, A_proc proc, A_expList args)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
     p->kind = A_callStmt;
     p->pos  = pos;
 
-    p->u.callr.func = func;
+    p->u.callr.proc = proc;
     p->u.callr.args = args;
 
     return p;
@@ -295,13 +295,13 @@ A_exp A_OpExp (S_pos pos, A_oper oper, A_exp left, A_exp right)
     return p;
 }
 
-A_exp A_FuncCallExp (S_pos pos, S_symbol func, A_expList args)
+A_exp A_FuncCallExp (S_pos pos, A_proc proc, A_expList args)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
     p->kind         = A_callExp;
     p->pos          = pos;
-    p->u.callr.func = func;
+    p->u.callr.proc = proc;
     p->u.callr.args = args;
 
     return p;
@@ -523,12 +523,13 @@ void A_ParamListAppend (A_paramList list, A_param param)
     }
 }
 
-A_proc A_Proc (S_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList)
+A_proc A_Proc (S_pos pos, S_symbol name, S_symlist extraSyms, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList)
 {
     A_proc p = checked_malloc(sizeof(*p));
 
     p->pos        = pos;
     p->name       = name;
+    p->extraSyms  = extraSyms;
     p->label      = label;
     p->retty      = retty;
     p->ptr        = ptr;

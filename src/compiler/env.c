@@ -23,20 +23,21 @@ E_enventry E_VarEntry(S_symbol sym, Tr_access access, Ty_ty ty, bool shared)
 
 E_enventry E_FunEntry(S_symbol sym, Tr_level level, Temp_label label,
                       E_formals formals, Ty_ty result,
-                      bool forward, int offset, string libBase)
+                      bool forward, int offset, string libBase, A_proc proc)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
-    p->kind          = E_funEntry;
-    p->sym           = sym;
-    p->u.fun.level   = level;
-    p->u.fun.label   = label;
-    p->u.fun.formals = formals;
-    p->u.fun.result  = result;
-    p->u.fun.forward = forward;
-    p->u.fun.offset  = offset;
-    p->u.fun.libBase = libBase;
-    p->next          = NULL;
+    p->kind            = E_funEntry;
+    p->sym             = sym;
+    p->u.fun.level     = level;
+    p->u.fun.label     = label;
+    p->u.fun.formals   = formals;
+    p->u.fun.result    = result;
+    p->u.fun.forward   = forward;
+    p->u.fun.offset    = offset;
+    p->u.fun.libBase   = libBase;
+    p->u.fun.proc      = proc;
+    p->next            = NULL;
 
     return p;
 }
@@ -178,7 +179,10 @@ void E_import(S_scope scope, E_enventry mod)
 {
     while (mod)
     {
-        S_enter(scope, mod->sym, mod);
+        if (mod->kind == E_funEntry)
+            S_enter(scope, mod->u.fun.label, mod);
+        else
+            S_enter(scope, mod->sym, mod);
         mod = mod->next;
     }
 }
@@ -240,8 +244,10 @@ static void declare_builtin_const(string name, Tr_exp cExp)
 
 static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes, Ty_ty return_type)
 {
-    E_formals formals = NULL, last_formals = NULL;
-    int l = strlen(argtypes);
+    E_formals   formals = NULL, last_formals = NULL;
+    A_paramList paramList = A_ParamList();
+    int         l = strlen(argtypes);
+    A_proc      proc;
 
     if (!label)
         label = name;
@@ -293,15 +299,19 @@ static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes,
             last_formals->next = E_Formals(ty, NULL, NULL);
             last_formals = last_formals->next;
         }
+        A_ParamListAppend(paramList, A_Param (0, /*byval=*/FALSE, /*byref=*/FALSE, /*name=*/NULL, /*ty=*/NULL, /*ptr=*/FALSE, /*defaultExp=*/NULL));
     }
 
     S_symbol sym = S_Symbol(name, FALSE);
+    Temp_label lbl = Temp_namedlabel(label);
+
+    proc = A_Proc (0, sym, NULL, lbl, /*retty=*/ NULL, /*ptr=*/FALSE, /*static=*/FALSE, paramList);
 
     E_enventry entry = E_FunEntry(sym,
                                   Tr_global(),
-                                  Temp_namedlabel(label),
+                                  lbl,
                                   formals,
-                                  return_type, TRUE, 0, NULL);
+                                  return_type, TRUE, 0, NULL, proc);
 
     append_vmod_entry(entry);
     return entry;
@@ -336,10 +346,10 @@ void E_init(void)
     declare_builtin_proc("__aio_putnl",           NULL         , "",         Ty_Void());
     declare_builtin_proc("__aio_puttab",          NULL         , "",         Ty_Void());
     declare_builtin_proc("___aqb_assert",         NULL         , "bs",       Ty_Void());
-    declare_builtin_proc("___aqb_window_open",    NULL         , "isiiiiii", Ty_Void());
-    declare_builtin_proc("___aqb_line",           NULL         , "iiiiii",   Ty_Void());
-    declare_builtin_proc("___aqb_pset",           NULL         , "iiii",     Ty_Void());
-    declare_builtin_proc("___aqb_on_window_call", NULL         , "p",        Ty_Void());
+    // declare_builtin_proc("___aqb_window_open",    NULL         , "isiiiiii", Ty_Void());
+    // declare_builtin_proc("___aqb_line",           NULL         , "iiiiii",   Ty_Void());
+    // declare_builtin_proc("___aqb_pset",           NULL         , "iiii",     Ty_Void());
+    // declare_builtin_proc("___aqb_on_window_call", NULL         , "p",        Ty_Void());
 
     declare_builtin_proc("fix"                  , "___aqb_fix" , "f"       , Ty_Integer());
     declare_builtin_proc("int"                  , "___aqb_int" , "f"       , Ty_Integer());

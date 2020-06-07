@@ -57,7 +57,7 @@ struct A_stmt_
 	    struct {S_symbol var; S_symbol sType; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
-        struct {S_symbol func; A_expList args;} callr;
+        struct {A_proc proc; A_expList args;} callr;
         struct {bool shared; bool statc; bool external; S_symbol sVar; S_symbol sType; bool ptr; A_dim dims; A_exp init;} vdeclr;
         struct {S_symbol sConst; S_symbol sType; bool ptr; A_exp cExp;} cdeclr;
         struct {A_exp exp; string msg;} assertr;
@@ -97,7 +97,7 @@ struct A_exp_
 	    string   stringg;
         A_var    var;
 	    struct   { A_oper oper; A_exp left; A_exp right; } op;
-        struct   { S_symbol func; A_expList args;} callr;
+        struct   { A_proc proc; A_expList args;} callr;
         A_exp    deref;
         S_symbol sizeoft;
     } u;
@@ -160,6 +160,7 @@ struct A_proc_
 {
     S_pos       pos;
     S_symbol    name;
+    S_symlist   extraSyms; // for subs that use more than on sym, e.g. WINDOW CLOSE
     S_symbol    retty;
     bool        ptr;
     Temp_label  label;
@@ -192,7 +193,7 @@ A_stmt          A_ProcDeclStmt    (S_pos pos, A_proc proc);
 A_stmt          A_VarDeclStmt     (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, S_symbol typeId, bool ptr, A_dim dims, A_exp init);
 A_stmt          A_ConstDeclStmt   (S_pos pos, S_symbol sConst, S_symbol typeId, bool ptr, A_exp xExp);
 A_stmt          A_AssertStmt      (S_pos pos, A_exp exp, string msg);
-A_stmt          A_CallStmt        (S_pos pos, S_symbol func, A_expList args);
+A_stmt          A_CallStmt        (S_pos pos, A_proc proc, A_expList args);
 A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields);
 A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
 A_stmtList      A_StmtList        (void);
@@ -204,7 +205,7 @@ A_exp           A_FloatExp        (S_pos pos, double f);
 A_exp           A_VarExp          (S_pos pos, A_var var);
 A_exp           A_VarPtrExp       (S_pos pos, A_var var);
 A_exp           A_OpExp           (S_pos pos, A_oper oper, A_exp left, A_exp right);
-A_exp           A_FuncCallExp     (S_pos pos, S_symbol func, A_expList args);
+A_exp           A_FuncCallExp     (S_pos pos, A_proc proc, A_expList args);
 A_exp           A_DerefExp        (S_pos pos, A_exp exp);
 A_exp           A_SizeofExp       (S_pos pos, S_symbol t);
 A_expList       A_ExpList         (void);
@@ -214,7 +215,7 @@ A_selector      A_IndexSelector   (S_pos pos, A_exp idx);
 A_selector      A_FieldSelector   (S_pos pos, S_symbol field);
 A_selector      A_PointerSelector (S_pos pos, S_symbol field);
 A_selector      A_DerefSelector   (S_pos pos);
-A_proc          A_Proc            (S_pos pos, S_symbol name, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList);
+A_proc          A_Proc            (S_pos pos, S_symbol name, S_symlist extra_syms, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList);
 A_param         A_Param           (S_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);

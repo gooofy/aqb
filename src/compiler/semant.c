@@ -740,16 +740,16 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
         }
         case A_callExp:
         {
-            E_enventry proc = S_look(g_venv, a->u.callr.func);
+            E_enventry proc = S_look(g_venv, a->u.callr.proc->label);
             if (proc == NULL)
             {
-                EM_error(a->pos, "undefined function %s", S_name(a->u.callr.func));
+                EM_error(a->pos, "undefined function %s", S_name(a->u.callr.proc->name));
                 break;
             }
 
             if (proc->kind != E_funEntry)
             {
-                EM_error(a->pos, "%s is not a function", S_name(a->u.callr.func));
+                EM_error(a->pos, "%s is not a function", S_name(a->u.callr.proc->name));
                 break;
             }
 
@@ -1075,7 +1075,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, breaklbl);
             Ty_tyList formalTys = E_FormalTys(formals);
-            e = S_look(venv, proc->name);
+            e = S_look(venv, proc->label);
             if (e)
             {
                 if ( (stmt->kind == A_procDeclStmt) || !e->u.fun.forward)
@@ -1089,10 +1089,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             else
             {
                 e = E_FunEntry(proc->name, Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formals,
-                               resultTy, stmt->kind==A_procDeclStmt, offset, libBase);
+                               resultTy, stmt->kind==A_procDeclStmt, offset, libBase, proc);
             }
 
-            S_enter(g_venv, proc->name, e);
+            S_enter(g_venv, proc->label, e);
 
             if (!e->u.fun.forward)
             {
@@ -1142,16 +1142,16 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_callStmt:
         {
-            E_enventry proc = S_look(g_venv, stmt->u.callr.func);
+            E_enventry proc = S_look(g_venv, stmt->u.callr.proc->label);
             if (proc == NULL)
             {
-                EM_error(stmt->pos, "undefined sub %s", S_name(stmt->u.callr.func));
+                EM_error(stmt->pos, "undefined sub %s", S_name(stmt->u.callr.proc->name));
                 break;
             }
 
             if (proc->kind != E_funEntry)
             {
-                EM_error(stmt->pos, "%s is not a sub", S_name(stmt->u.callr.func));
+                EM_error(stmt->pos, "%s is not a sub", S_name(stmt->u.callr.proc->name));
                 break;
             }
 

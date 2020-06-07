@@ -92,3 +92,13 @@ void *S_look(S_scope s, S_symbol sym)
     return NULL;
 }
 
+S_symlist S_Symlist(S_symbol sym, S_symlist next)
+{
+    S_symlist s=checked_malloc(sizeof(*s));
+
+    s->sym  = sym;
+    s->next = next;
+
+    return s;
+}
+
