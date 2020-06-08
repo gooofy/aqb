@@ -73,6 +73,9 @@ static S_symbol S_BREAK;
 static S_symbol S_EXIT;
 static S_symbol S_ERROR;
 static S_symbol S_RESUME;
+static S_symbol S__LINEBF;
+static S_symbol S_BF;
+static S_symbol S_B;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -818,6 +821,30 @@ static bool expression(S_tkn *tkn, A_exp *exp)
     return TRUE;
 }
 
+// lineBF ::= ("B" | "BF")
+static bool lineBF(S_tkn *tkn, A_expList *expList, A_param *pl)
+{
+    if (isSym(*tkn, S_B))
+    {
+        A_ExpListAppend(*expList, A_IntExp((*tkn)->pos, 1));
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        if (isSym(*tkn, S_BF))
+        {
+            A_ExpListAppend(*expList, A_IntExp((*tkn)->pos, 3));
+            *tkn = (*tkn)->next;
+        }
+        else
+        {
+            return EM_error((*tkn)->pos, "B or BF expected here.");
+        }
+    }
+
+    return TRUE;
+}
+
 // coord ::= [ STEP ] '(' expression "," expression ")"
 static bool coord(S_tkn *tkn, A_expList *expList, A_param *pl)
 {
@@ -832,6 +859,7 @@ static bool coord(S_tkn *tkn, A_expList *expList, A_param *pl)
     {
         A_ExpListAppend(*expList, NULL);
     }
+    *pl = (*pl)->next;
 
     if ((*tkn)->kind != S_LPAREN)
         return EM_error((*tkn)->pos, "( expected here.");
@@ -872,6 +900,7 @@ static bool coord2(S_tkn *tkn, A_expList *expList, A_param *pl)
     {
         A_ExpListAppend(*expList, NULL);
     }
+    *pl = (*pl)->next;
 
     if ((*tkn)->kind == S_LPAREN)
     {
@@ -899,6 +928,8 @@ static bool coord2(S_tkn *tkn, A_expList *expList, A_param *pl)
     {
         A_ExpListAppend(*expList, NULL);
         A_ExpListAppend(*expList, NULL);
+        *pl = (*pl)->next;
+        *pl = (*pl)->next;
     }
 
     if ((*tkn)->kind != S_MINUS)
@@ -931,7 +962,7 @@ static bool coord2(S_tkn *tkn, A_expList *expList, A_param *pl)
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
     A_ExpListAppend(*expList, exp);
-    //*pl = (*pl)->next;
+    *pl = (*pl)->next;
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected here.");
@@ -950,6 +981,10 @@ static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
     {
         switch (pl->parserHint)
         {
+            case A_phLineBF:
+                if (!lineBF(tkn, expList, &pl))
+                    return FALSE;
+                break;
             case A_phCoord:
                 if (!coord(tkn, expList, &pl))
                     return FALSE;
@@ -981,6 +1016,8 @@ static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
             {
                 switch (pl->parserHint)
                 {
+                    case A_phLineBF:
+                        break;
                     case A_phCoord:
                         A_ExpListAppend(*expList, NULL);
                         A_ExpListAppend(*expList, NULL);
@@ -1009,6 +1046,10 @@ static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
         {
             switch (pl->parserHint)
             {
+                case A_phLineBF:
+                    if (!lineBF(tkn, expList, &pl))
+                        return FALSE;
+                    break;
                 case A_phCoord:
                     if (!coord(tkn, expList, &pl))
                         return FALSE;
@@ -1754,6 +1795,7 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
 
 // paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _COORD  "(" paramDecl "," paramDecl "," paramDecl ")"
+//                                 | _LINEBF "(" paramDecl ")"
 //                                 | ident [ AS ident [PTR] ] [ = expression ] )
 static bool paramDecl(S_tkn *tkn, A_paramList paramList)
 {
@@ -1855,31 +1897,48 @@ static bool paramDecl(S_tkn *tkn, A_paramList paramList)
         }
         else
         {
-            name = (*tkn)->u.sym;
-            *tkn = (*tkn)->next;
-
-            if (isSym(*tkn, S_AS))
+            if (isSym(*tkn, S__LINEBF))
             {
                 *tkn = (*tkn)->next;
-                if ((*tkn)->kind != S_IDENT)
-                    return EM_error((*tkn)->pos, "type identifier expected here.");
-
-                ty = (*tkn)->u.sym;
+                if ((*tkn)->kind != S_LPAREN)
+                    return EM_error((*tkn)->pos, "( expected here.");
                 *tkn = (*tkn)->next;
-                if (isSym(*tkn, S_PTR))
+
+                paramDecl(tkn, paramList);
+                paramList->last->parserHint = A_phLineBF;
+
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected here.");
+                *tkn = (*tkn)->next;
+            }
+            else
+            {
+                name = (*tkn)->u.sym;
+                *tkn = (*tkn)->next;
+
+                if (isSym(*tkn, S_AS))
                 {
                     *tkn = (*tkn)->next;
-                    ptr = TRUE;
-                }
-            }
+                    if ((*tkn)->kind != S_IDENT)
+                        return EM_error((*tkn)->pos, "type identifier expected here.");
 
-            if ((*tkn)->kind == S_EQUALS)
-            {
-                *tkn = (*tkn)->next;
-                if (!expression(tkn, &defaultExp))
-                    return EM_error((*tkn)->pos, "default expression expected here.");
+                    ty = (*tkn)->u.sym;
+                    *tkn = (*tkn)->next;
+                    if (isSym(*tkn, S_PTR))
+                    {
+                        *tkn = (*tkn)->next;
+                        ptr = TRUE;
+                    }
+                }
+
+                if ((*tkn)->kind == S_EQUALS)
+                {
+                    *tkn = (*tkn)->next;
+                    if (!expression(tkn, &defaultExp))
+                        return EM_error((*tkn)->pos, "default expression expected here.");
+                }
+                A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, ptr, defaultExp));
             }
-            A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, ptr, defaultExp));
         }
     }
 
@@ -2709,6 +2768,9 @@ static void register_builtins(void)
     S_EXIT     = S_Symbol("EXIT",     FALSE);
     S_ERROR    = S_Symbol("ERROR",    FALSE);
     S_RESUME   = S_Symbol("RESUME",   FALSE);
+    S__LINEBF  = S_Symbol("_LINEBF",  FALSE);
+    S_B        = S_Symbol("B",        FALSE);
+    S_BF       = S_Symbol("BF",       FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();

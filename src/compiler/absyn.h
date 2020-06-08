@@ -146,8 +146,8 @@ struct A_param_
     A_exp    defaultExp;
     S_symbol reg;
 
-    // special AmigaBASIC syntax for coordinates, e.g. LINE [[STEP] (x1,y1)] - [STEP] (x2,y2), [colour-id][,b[f]]
-    enum { A_phNone, A_phCoord, A_phCoord2 } parserHint; 
+    // special AmigaBASIC syntax for coordinates etc., e.g. LINE [[STEP] (x1,y1)] - [STEP] (x2,y2), [colour-id][,b[f]]
+    enum { A_phNone, A_phCoord, A_phCoord2, A_phLineBF } parserHint; 
 };
 
 struct A_paramList_
