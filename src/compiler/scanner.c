@@ -19,6 +19,7 @@ static char          g_ch;
 static bool          g_eof = TRUE;
 static int           g_line, g_col;
 static bool          g_eol = FALSE;
+static S_pos         g_pos = 0;
 
 static struct S_tkn_ g_tkns[MAX_TOKENS];
 static int           g_tkns_i=0;
@@ -30,10 +31,11 @@ static S_symbol      g_sym_rem;
 static char          g_cur_line[MAX_LINE_LEN];
 static int           g_cur_line_num;
 
-static S_pos S_getpos(short col, short line)
+static void remember_pos(void)
 {
-    return (col << 16) | line;
+    g_pos = (g_col << 16) | g_line;
 }
+
 int S_getcol(S_pos pos)
 {
     return pos >> 16;
@@ -52,7 +54,7 @@ static S_tkn S_Tkn(int kind)
     g_tkns_i++;
 
     p->next = NULL;
-    p->pos  = S_getpos(g_col, g_line);
+    p->pos  = g_pos;
     p->kind = kind;
 
     return p;
@@ -335,6 +337,8 @@ static S_tkn next_token(void)
 
     if (g_eof)
         return NULL;
+
+    remember_pos();
 
     if (is_idstart())
     {
