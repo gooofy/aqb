@@ -1126,8 +1126,31 @@ static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
     return TRUE;
 }
 
+// typeDesc ::= Identifier [PTR]
+static bool typeDesc (S_tkn *tkn, A_typeDesc *td)
+{
+    S_symbol sType;
+    bool     ptr = FALSE;
+    S_pos    pos = (*tkn)->pos;
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "type descriptor: type identifier expected here.");
+    sType = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
+
+    if (isSym(*tkn, S_PTR))
+    {
+        ptr = TRUE;
+        *tkn = (*tkn)->next;
+    }
+
+    *td = A_TypeDescIdent(pos, sType, ptr);
+
+    return TRUE;
+}
+
 // singleVarDecl2 ::= Identifier ["(" arrayDimensions ")"] [ "=" expression ]
-static bool singleVarDecl2 (S_tkn *tkn, bool shared, bool statc, S_symbol sType, bool ptr)
+static bool singleVarDecl2 (S_tkn *tkn, bool shared, bool statc, A_typeDesc td)
 {
     S_pos    pos = (*tkn)->pos;
     S_symbol sVar;
@@ -1159,24 +1182,19 @@ static bool singleVarDecl2 (S_tkn *tkn, bool shared, bool statc, S_symbol sType,
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, /*external=*/FALSE, sVar, sType, ptr, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, /*external=*/FALSE, sVar, dims, td, init));
 
     return TRUE;
 }
 
-// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS Identifier [ PTR ] ] [ "=" expression ]
+// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ] [ "=" expression ]
 static bool singleVarDecl (S_tkn *tkn, bool shared, bool statc, bool external)
 {
-
-    if (!(*tkn))
-        return FALSE;
-
-    S_pos    pos   = (*tkn)->pos;
-    S_symbol sVar;
-    S_symbol sType = NULL;
-    A_dim    dims  = NULL;
-    A_exp    init  = NULL;
-    bool     ptr   = FALSE;
+    S_pos      pos   = (*tkn)->pos;
+    S_symbol   sVar;
+    A_dim      dims  = NULL;
+    A_typeDesc td    = NULL;
+    A_exp      init  = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error(pos, "variable declaration: identifier expected here.");
@@ -1198,16 +1216,8 @@ static bool singleVarDecl (S_tkn *tkn, bool shared, bool statc, bool external)
     {
         *tkn = (*tkn)->next;
 
-        if ((*tkn)->kind != S_IDENT)
-            return EM_error((*tkn)->pos, "variable declaration: type identifier expected here.");
-        sType = (*tkn)->u.sym;
-        *tkn = (*tkn)->next;
-
-        if (isSym(*tkn, S_PTR))
-        {
-            ptr = TRUE;
-            *tkn = (*tkn)->next;
-        }
+        if (!typeDesc(tkn, &td))
+            return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
     }
 
     if ((*tkn)->kind == S_EQUALS)
@@ -1221,13 +1231,13 @@ static bool singleVarDecl (S_tkn *tkn, bool shared, bool statc, bool external)
             return EM_error((*tkn)->pos, "var initializer not allowed for external vars.");
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, external, sVar, sType, ptr, dims, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, external, sVar, dims, td, init));
 
     return TRUE;
 }
 
 // stmtDim ::= DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
-//                            | AS Identifier [PTR] singleVarDecl2 ("," singleVarDecl2 )*
+//                            | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )*
 static bool stmtDim(S_tkn tkn, P_declProc decl)
 {
     bool     shared = FALSE;
@@ -1242,30 +1252,20 @@ static bool stmtDim(S_tkn tkn, P_declProc decl)
 
     if (isSym(tkn, S_AS))
     {
-        bool     ptr = FALSE;
-        S_symbol sType;
+        A_typeDesc td;
 
         tkn = tkn->next;
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "type identifier expected here.");
+        if (!typeDesc(&tkn, &td))
+            return EM_error(tkn->pos, "variable declaration: type descriptor expected here.");
 
-        sType = tkn->u.sym;
-        tkn = tkn->next;
-
-        if (isSym(tkn, S_PTR))
-        {
-            ptr = TRUE;
-            tkn = tkn->next;
-        }
-
-        if (!singleVarDecl2(&tkn, shared, FALSE, sType, ptr))
+        if (!singleVarDecl2(&tkn, shared, FALSE, td))
             return FALSE;
 
         while (tkn->kind == S_COMMA)
         {
             tkn = tkn->next;
-            if (!singleVarDecl2(&tkn, shared, FALSE, sType, ptr))
+            if (!singleVarDecl2(&tkn, shared, FALSE, td))
                 return FALSE;
         }
     }
@@ -1796,16 +1796,15 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
 // paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _COORD  "(" paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _LINEBF "(" paramDecl ")"
-//                                 | ident [ AS ident [PTR] ] [ = expression ] )
+//                                 | ident [ AS typeDesc ] [ = expression ] )
 static bool paramDecl(S_tkn *tkn, A_paramList paramList)
 {
-    bool     byval = FALSE;
-    bool     byref = FALSE;
-    S_symbol name;
-    S_symbol ty = NULL;
-    S_pos    pos = (*tkn)->pos;
-    A_exp    defaultExp = NULL;
-    bool     ptr = FALSE;
+    bool       byval = FALSE;
+    bool       byref = FALSE;
+    S_symbol   name;
+    A_typeDesc td    = NULL;
+    S_pos      pos   = (*tkn)->pos;
+    A_exp      defaultExp = NULL;
 
     if (isSym(*tkn,  S_BYVAL))
     {
@@ -1919,16 +1918,9 @@ static bool paramDecl(S_tkn *tkn, A_paramList paramList)
                 if (isSym(*tkn, S_AS))
                 {
                     *tkn = (*tkn)->next;
-                    if ((*tkn)->kind != S_IDENT)
-                        return EM_error((*tkn)->pos, "type identifier expected here.");
 
-                    ty = (*tkn)->u.sym;
-                    *tkn = (*tkn)->next;
-                    if (isSym(*tkn, S_PTR))
-                    {
-                        *tkn = (*tkn)->next;
-                        ptr = TRUE;
-                    }
+                    if (!typeDesc(tkn, &td))
+                        return EM_error((*tkn)->pos, "argument type descriptor expected here.");
                 }
 
                 if ((*tkn)->kind == S_EQUALS)
@@ -1937,7 +1929,7 @@ static bool paramDecl(S_tkn *tkn, A_paramList paramList)
                     if (!expression(tkn, &defaultExp))
                         return EM_error((*tkn)->pos, "default expression expected here.");
                 }
-                A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, ty, ptr, defaultExp));
+                A_ParamListAppend(paramList, A_Param (pos, byval, byref, name, td, defaultExp));
             }
         }
     }
@@ -1970,16 +1962,15 @@ static bool parameterList(S_tkn *tkn, A_paramList paramList)
     return TRUE;
 }
 
-// procHeader ::= ident ident* [ parameterList ] [ AS Ident [PTR] ] [ STATIC ]
+// procHeader ::= ident ident* [ parameterList ] [ AS typeDesc ] [ STATIC ]
 static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
 {
     S_symbol    name;
     S_symlist   extra_syms = NULL, extra_syms_last=NULL;
     bool        isStatic = FALSE;
     A_paramList paramList = A_ParamList();
-    S_symbol    retty = NULL;
+    A_typeDesc  returnTD = NULL;
     string      label = NULL;
-    bool        ptr = FALSE;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "identifier expected here.");
@@ -2015,21 +2006,9 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
     if (isSym(*tkn, S_AS))
     {
         *tkn = (*tkn)->next;
-        if ((*tkn)->kind != S_IDENT)
-            return EM_error((*tkn)->pos, "type identifier expected here.");
-        retty = (*tkn)->u.sym;
-        *tkn = (*tkn)->next;
 
-        if (isSym(*tkn, S_PTR))
-        {
-            *tkn = (*tkn)->next;
-            ptr = TRUE;
-        }
-    }
-
-    if (!retty && isFunction)
-    {
-        retty = S_Symbol(Ty_name(Ty_inferType(S_name(name))), FALSE);
+        if (!typeDesc(tkn, &returnTD))
+            return EM_error((*tkn)->pos, "return type descriptor expected here.");
     }
 
     if (isSym(*tkn, S_STATIC))
@@ -2038,7 +2017,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
         *tkn = (*tkn)->next;
     }
 
-    *proc = A_Proc (pos, name, extra_syms, Temp_namedlabel(label), retty, ptr, isStatic, paramList);
+    *proc = A_Proc (pos, name, extra_syms, Temp_namedlabel(label), returnTD, isFunction, isStatic, paramList);
 
     return TRUE;
 }
@@ -2157,16 +2136,15 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
     return isLogicalEOL(tkn);
 }
 
-// constDecl ::= CONST ( ident [AS ident [PTR]] "=" Expression ("," ident [AS ident [PTR]] "=" expression)*
-//                     | AS ident [PTR] ident = expression ("," ident "=" expression)*
+// constDecl ::= CONST ( ident [AS typeDesc] "=" Expression ("," ident [AS typeDesc] "=" expression)*
+//                     | AS typeDesc ident = expression ("," ident "=" expression)*
 //                     )
 static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
 {
-    S_pos    pos = tkn->pos;
-    S_symbol sConst;
-    S_symbol sType = NULL;
-    A_exp    init  = NULL;
-    bool     ptr = FALSE;
+    S_pos      pos     = tkn->pos;
+    S_symbol   sConst;
+    A_typeDesc td      = NULL;
+    A_exp      init    = NULL;
 
     tkn = tkn->next; // consume "CONST"
 
@@ -2174,16 +2152,8 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
     {
         tkn = tkn->next;
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "constant declaration: type identifier expected here.");
-        sType = tkn->u.sym;
-        tkn = tkn->next;
-
-        if (isSym(tkn, S_PTR))
-        {
-            tkn = tkn->next;
-            ptr = TRUE;
-        }
+        if (!typeDesc(&tkn, &td))
+            return EM_error(tkn->pos, "constant declaration: type descriptor expected here.");
 
         if (tkn->kind != S_IDENT)
             return EM_error(tkn->pos, "constant declaration: identifier expected here.");
@@ -2197,7 +2167,7 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
         if (!expression(&tkn, &init))
             return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
 
         while (tkn->kind == S_COMMA)
         {
@@ -2217,7 +2187,7 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
             if (!expression(&tkn, &init))
                 return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-            A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+            A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
         }
 
         return isLogicalEOL(tkn);
@@ -2232,15 +2202,9 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
     if (isSym(tkn, S_AS))
     {
         tkn = tkn->next;
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "constant declaration: type identifier expected here.");
-        sType = tkn->u.sym;
-        tkn = tkn->next;
-        if (isSym(tkn,  S_AS))
-        {
-            tkn = tkn->next;
-            ptr = TRUE;
-        }
+
+        if (!typeDesc(&tkn, &td))
+            return EM_error(tkn->pos, "constant declaration: type descriptor expected here.");
     }
 
     if (tkn->kind != S_EQUALS)
@@ -2250,14 +2214,15 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
     if (!expression(&tkn, &init))
         return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-    A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
 
     while (tkn->kind == S_COMMA)
     {
+        td = NULL;
         tkn = tkn->next;
 
         if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "constant declaration: type identifier expected here.");
+            return EM_error(tkn->pos, "constant declaration: identifier expected here.");
         pos = tkn->pos;
 
         sConst = tkn->u.sym;
@@ -2266,15 +2231,8 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
         if (isSym(tkn, S_AS))
         {
             tkn = tkn->next;
-            if (tkn->kind != S_IDENT)
-                return EM_error(tkn->pos, "constant declaration: type identifier expected here.");
-            sType = tkn->u.sym;
-            tkn = tkn->next;
-            if (isSym(tkn, S_PTR))
-            {
-                tkn = tkn->next;
-                ptr = TRUE;
-            }
+            if (!typeDesc(&tkn, &td))
+                return EM_error(tkn->pos, "constant declaration: type descriptor expected here.");
         }
 
         if (tkn->kind != S_EQUALS)
@@ -2284,7 +2242,7 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
         if (!expression(&tkn, &init))
             return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, sType, ptr, init));
+        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
     }
     return isLogicalEOL(tkn);
 }
@@ -2316,8 +2274,8 @@ static bool stmtTypeDeclBegin(S_tkn tkn, P_declProc dec)
     return isLogicalEOL(tkn);
 }
 
-// typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS Identifier [ PTR ] ]
-//                   | AS Identifier [ PTR ] Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
+// typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
+//                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
 //                   | END TYPE
 //                   )
 static bool stmtTypeDeclField(S_tkn tkn)
@@ -2335,25 +2293,15 @@ static bool stmtTypeDeclField(S_tkn tkn)
 
     if (isSym(tkn, S_AS))
     {
-        A_dim    dims       = NULL;
-        S_symbol sField;
-        S_symbol sFieldType = NULL;
-        bool     ptr        = FALSE;
-        S_pos    fpos       = tkn->pos;
+        A_dim      dims       = NULL;
+        S_symbol   sField;
+        S_pos      fpos       = tkn->pos;
+        A_typeDesc td;
 
         tkn = tkn->next;
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "field type identifier expected here.");
-
-        sFieldType = tkn->u.sym;
-        tkn = tkn->next;
-
-        if (isSym(tkn, S_PTR))
-        {
-            tkn = tkn->next;
-            ptr = TRUE;
-        }
+        if (!typeDesc(&tkn, &td))
+            return EM_error(tkn->pos, "field declaration: type descriptor expected here.");
 
         if (tkn->kind != S_IDENT)
             return EM_error(tkn->pos, "field identifier expected here.");
@@ -2372,12 +2320,12 @@ static bool stmtTypeDeclField(S_tkn tkn)
         }
         if (g_sleStack->u.typeDecl.fFirst)
         {
-            g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, sFieldType, dims, ptr);
+            g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, dims, td);
             g_sleStack->u.typeDecl.fLast = g_sleStack->u.typeDecl.fLast->tail;
         }
         else
         {
-            g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, sFieldType, dims, ptr);
+            g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
         }
 
         while (tkn->kind == S_COMMA)
@@ -2403,12 +2351,12 @@ static bool stmtTypeDeclField(S_tkn tkn)
             }
             if (g_sleStack->u.typeDecl.fFirst)
             {
-                g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, sFieldType, dims, ptr);
+                g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, dims, td);
                 g_sleStack->u.typeDecl.fLast = g_sleStack->u.typeDecl.fLast->tail;
             }
             else
             {
-                g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, sFieldType, dims, ptr);
+                g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
             }
         }
     }
@@ -2416,11 +2364,11 @@ static bool stmtTypeDeclField(S_tkn tkn)
     {
         if (tkn->kind == S_IDENT)
         {
-            A_dim    dims       = NULL;
-            S_symbol sField;
-            S_symbol sFieldType = NULL;
-            bool     ptr        = FALSE;
-            S_pos    fpos       = tkn->pos;
+            A_dim      dims       = NULL;
+            S_symbol   sField;
+            S_pos      fpos       = tkn->pos;
+            A_typeDesc td         = NULL;
+
 
             sField = tkn->u.sym;
             tkn = tkn->next;
@@ -2438,27 +2386,18 @@ static bool stmtTypeDeclField(S_tkn tkn)
             {
                 tkn = tkn->next;
 
-                if (tkn->kind != S_IDENT)
-                    return EM_error(tkn->pos, "field type identifier expected here.");
-
-                sFieldType = tkn->u.sym;
-                tkn = tkn->next;
-
-                if (isSym(tkn, S_PTR))
-                {
-                    ptr = TRUE;
-                    tkn = tkn->next;
-                }
+                if (!typeDesc(&tkn, &td))
+                    return EM_error(tkn->pos, "field declaration: type descriptor expected here.");
             }
 
             if (g_sleStack->u.typeDecl.fFirst)
             {
-                g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, sFieldType, dims, ptr);
+                g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, dims, td);
                 g_sleStack->u.typeDecl.fLast = g_sleStack->u.typeDecl.fLast->tail;
             }
             else
             {
-                g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, sFieldType, dims, ptr);
+                g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
             }
         }
         else

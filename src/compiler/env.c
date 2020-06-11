@@ -299,13 +299,13 @@ static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes,
             last_formals->next = E_Formals(ty, NULL, NULL);
             last_formals = last_formals->next;
         }
-        A_ParamListAppend(paramList, A_Param (0, /*byval=*/FALSE, /*byref=*/FALSE, /*name=*/NULL, /*ty=*/NULL, /*ptr=*/FALSE, /*defaultExp=*/NULL));
+        A_ParamListAppend(paramList, A_Param (0, /*byval=*/FALSE, /*byref=*/FALSE, /*name=*/NULL, /*td=*/NULL, /*defaultExp=*/NULL));
     }
 
     S_symbol sym = S_Symbol(name, FALSE);
     Temp_label lbl = Temp_namedlabel(label);
 
-    proc = A_Proc (0, sym, NULL, lbl, /*retty=*/ NULL, /*ptr=*/FALSE, /*static=*/FALSE, paramList);
+    proc = A_Proc (0, sym, NULL, lbl, /*returnTD=*/ NULL, /*isFunction=*/return_type!=NULL, /*static=*/FALSE, paramList);
 
     E_enventry entry = E_FunEntry(sym,
                                   Tr_global(),

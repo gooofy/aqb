@@ -70,6 +70,21 @@ static void pr_dims(FILE *out, A_dim dims)
     }
 }
 
+static void pr_typedesc(FILE *out, A_typeDesc td)
+{
+    switch (td->kind)
+    {
+        case A_identTd:
+            fprintf(out, "%s", S_name(td->u.idtr.typeId));
+            if (td->u.idtr.ptr)
+                fprintf(out," PTR");
+            break;
+        case A_procTd:
+            assert(0); // FIXME
+            break;
+    }
+}
+
 static void pr_exp(FILE *out, A_exp exp)
 {
     if (!exp)
@@ -252,21 +267,35 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             indent(out, d);
             if (stmt->kind == A_procDeclStmt)
                 fprintf(out, "DECLARE ");
-            if (stmt->u.proc->retty)
-                fprintf(out, "FUNCTION %s:%s%s(", S_name(stmt->u.proc->name), S_name(stmt->u.proc->retty), stmt->u.proc->ptr ? " PTR":"");
+            if (stmt->u.proc->isFunction)
+            {
+                fprintf(out, "FUNCTION %s", S_name(stmt->u.proc->name));
+                if (stmt->u.proc->returnTD)
+                {
+                    fprintf(out, ":");
+                    pr_typedesc(out, stmt->u.proc->returnTD);
+                }
+                fprintf(out, "(");
+            }
             else
+            {
                 fprintf(out, "SUB %s(", S_name(stmt->u.proc->name));
+            }
             for (par = stmt->u.proc->paramList->first; par; par = par->next)
             {
                 if (par->name)
                 {
-                    if (par->ty)
-                        fprintf(out, "%s:%s", S_name(par->name), S_name(par->ty));
-                    else
-                        fprintf(out, "%s", S_name(par->name));
+                    fprintf(out, "%s", S_name(par->name));
                 }
                 else
-                    fprintf(out, "_:%s", S_name(par->ty));
+                {
+                    fprintf(out, "_");
+                }
+                if (par->td)
+                {
+                    fprintf(out, ":");
+                    pr_typedesc(out, par->td);
+                }
 
                 if (par->next)
                     fprintf(out,",");
@@ -298,10 +327,8 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
                 fprintf(out, "SHARED ");
             if (stmt->u.vdeclr.statc)
                 fprintf(out, "STATIC ");
-            if (stmt->u.vdeclr.sType)
-                fprintf(out, "%s", S_name(stmt->u.vdeclr.sType));
-            if (stmt->u.vdeclr.ptr)
-                fprintf(out, " PTR");
+            if (stmt->u.vdeclr.td)
+                pr_typedesc(out, stmt->u.vdeclr.td);
             if (stmt->u.vdeclr.dims)
                 pr_dims(out, stmt->u.vdeclr.dims);
             if (stmt->u.vdeclr.init)
@@ -328,10 +355,8 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             for (A_field f = stmt->u.typer.fields; f; f = f->tail)
             {
                 fprintf(out, "%s", S_name(f->name));
-                if (f->typeId)
-                    fprintf(out, ":%s", S_name(f->typeId));
-                if (f->ptr)
-                    fprintf(out," PTR");
+                if (f->td)
+                    pr_typedesc(out, f->td);
                 if (f->dims)
                     pr_dims(out, f->dims);
                 if (f->tail)
@@ -344,10 +369,8 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         {
             indent(out, d);
             fprintf(out, "CONSTDECL %s(", S_name(stmt->u.cdeclr.sConst));
-            if (stmt->u.cdeclr.sType)
-                fprintf(out, "%s", S_name(stmt->u.cdeclr.sType));
-            if (stmt->u.cdeclr.ptr)
-                fprintf(out, " PTR");
+            if (stmt->u.cdeclr.td)
+                pr_typedesc(out, stmt->u.cdeclr.td);
             fprintf(out, "=");
             pr_exp(out, stmt->u.cdeclr.cExp);
             fprintf(out, ")");

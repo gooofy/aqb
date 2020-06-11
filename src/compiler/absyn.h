@@ -14,6 +14,7 @@
 #include "temp.h"
 
 typedef struct A_sourceProgram_ *A_sourceProgram;
+typedef struct A_typeDesc_      *A_typeDesc;
 typedef struct A_stmt_          *A_stmt;
 typedef struct A_exp_           *A_exp;
 typedef struct A_expList_       *A_expList;
@@ -34,14 +35,24 @@ struct A_sourceProgram_
     A_stmtList stmtList;
 };
 
+struct A_typeDesc_
+{
+    enum { A_identTd, A_procTd } kind;
+    S_pos pos;
+    union
+    {
+        struct { S_symbol typeId; bool ptr; } idtr;   // A_identTd
+        A_proc   proc;                                // A_procTd
+    } u;
+};
+
 struct A_field_
 {
-    S_pos    pos;
-    S_symbol name;
-    S_symbol typeId;
-    A_dim    dims;
-    bool     ptr;
-    A_field  tail;
+    S_pos      pos;
+    S_symbol   name;
+    A_dim      dims;
+    A_typeDesc td;
+    A_field    tail;
 };
 
 struct A_stmt_
@@ -58,8 +69,8 @@ struct A_stmt_
         struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
         A_proc proc;
         struct {A_proc proc; A_expList args;} callr;
-        struct {bool shared; bool statc; bool external; S_symbol sVar; S_symbol sType; bool ptr; A_dim dims; A_exp init;} vdeclr;
-        struct {S_symbol sConst; S_symbol sType; bool ptr; A_exp cExp;} cdeclr;
+        struct {bool shared; bool statc; bool external; S_symbol sVar; A_dim dims; A_typeDesc td; A_exp init;} vdeclr;
+        struct {S_symbol sConst; A_typeDesc td; A_exp cExp;} cdeclr;
         struct {A_exp exp; string msg;} assertr;
 	    struct {A_exp exp; A_stmtList body;} whiler;
 	    struct {S_symbol sType; A_field fields;} typer;
@@ -86,7 +97,7 @@ typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
 
 struct A_exp_
 {
-    enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp, A_varPtrExp, A_derefExp, 
+    enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp, A_varPtrExp, A_derefExp,
            A_sizeofExp                                                                                          } kind;
     S_pos      pos;
     union
@@ -136,18 +147,17 @@ struct A_selector_
 
 struct A_param_
 {
-    A_param  next;
-    S_pos    pos;
-    bool     byval;
-    bool     byref;
-    S_symbol name;
-    S_symbol ty;
-    bool     ptr;
-    A_exp    defaultExp;
-    S_symbol reg;
+    A_param    next;
+    S_pos      pos;
+    bool       byval;
+    bool       byref;
+    S_symbol   name;
+    A_typeDesc td;
+    A_exp      defaultExp;
+    S_symbol   reg;
 
     // special AmigaBASIC syntax for coordinates etc., e.g. LINE [[STEP] (x1,y1)] - [STEP] (x2,y2), [colour-id][,b[f]]
-    enum { A_phNone, A_phCoord, A_phCoord2, A_phLineBF } parserHint; 
+    enum { A_phNone, A_phCoord, A_phCoord2, A_phLineBF } parserHint;
 };
 
 struct A_paramList_
@@ -161,8 +171,8 @@ struct A_proc_
     S_pos       pos;
     S_symbol    name;
     S_symlist   extraSyms; // for subs that use more than on sym, e.g. WINDOW CLOSE
-    S_symbol    retty;
-    bool        ptr;
+    A_typeDesc  returnTD;
+    bool        isFunction;
     Temp_label  label;
     bool        isStatic;
     A_paramList paramList;
@@ -181,6 +191,7 @@ struct A_dim_
 // helper functions to allocate and initialize the above defined AST nodes:
 
 A_sourceProgram A_SourceProgram   (S_pos pos, A_stmtList stmtList);
+A_typeDesc      A_TypeDescIdent   (S_pos pos, S_symbol sType, bool ptr);
 A_stmt          A_PrintStmt       (S_pos pos, A_exp exp);
 A_stmt          A_PrintNLStmt     (S_pos pos);
 A_stmt          A_PrintTABStmt    (S_pos pos);
@@ -190,8 +201,8 @@ A_stmt          A_WhileStmt       (S_pos pos, A_exp exp, A_stmtList body);
 A_stmt          A_IfStmt          (S_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (S_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (S_pos pos, A_proc proc);
-A_stmt          A_VarDeclStmt     (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, S_symbol typeId, bool ptr, A_dim dims, A_exp init);
-A_stmt          A_ConstDeclStmt   (S_pos pos, S_symbol sConst, S_symbol typeId, bool ptr, A_exp xExp);
+A_stmt          A_VarDeclStmt     (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init);
+A_stmt          A_ConstDeclStmt   (S_pos pos, S_symbol sConst, A_typeDesc td, A_exp xExp);
 A_stmt          A_AssertStmt      (S_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (S_pos pos, A_proc proc, A_expList args);
 A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields);
@@ -215,11 +226,11 @@ A_selector      A_IndexSelector   (S_pos pos, A_exp idx);
 A_selector      A_FieldSelector   (S_pos pos, S_symbol field);
 A_selector      A_PointerSelector (S_pos pos, S_symbol field);
 A_selector      A_DerefSelector   (S_pos pos);
-A_proc          A_Proc            (S_pos pos, S_symbol name, S_symlist extra_syms, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList);
-A_param         A_Param           (S_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp);
+A_proc          A_Proc            (S_pos pos, S_symbol name, S_symlist extra_syms, Temp_label label, A_typeDesc returnTD, bool isFunction, bool isStatic, A_paramList paramList);
+A_param         A_Param           (S_pos pos, bool byval, bool byref, S_symbol name, A_typeDesc td, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
 A_dim           A_Dim             (A_exp expStart, A_exp expEnd);
-A_field         A_Field           (S_pos pos, S_symbol name, S_symbol typeId, A_dim dims, bool ptr);
+A_field         A_Field           (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td);
 
 #endif

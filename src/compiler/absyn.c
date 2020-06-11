@@ -19,6 +19,18 @@ A_sourceProgram A_SourceProgram(S_pos pos, A_stmtList stmtList)
     return p;
 }
 
+A_typeDesc A_TypeDescIdent (S_pos pos, S_symbol sType, bool ptr)
+{
+    A_typeDesc p = checked_malloc(sizeof(*p));
+
+    p->kind          = A_identTd;
+    p->pos           = pos;
+    p->u.idtr.typeId = sType;
+    p->u.idtr.ptr    = ptr;
+
+    return p;
+}
+
 A_stmt A_ForStmt (S_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -129,7 +141,7 @@ A_stmt A_ProcDeclStmt (S_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_VarDeclStmt (S_pos pos, bool shared, bool statc, bool external, S_symbol sVar, S_symbol sType, bool ptr, A_dim dims, A_exp init)
+A_stmt A_VarDeclStmt (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -138,24 +150,22 @@ A_stmt A_VarDeclStmt (S_pos pos, bool shared, bool statc, bool external, S_symbo
     p->u.vdeclr.shared   = shared;
     p->u.vdeclr.statc    = statc;
     p->u.vdeclr.external = external;
-    p->u.vdeclr.sVar     = sVar;
-    p->u.vdeclr.sType    = sType;
-    p->u.vdeclr.ptr      = ptr;
+    p->u.vdeclr.sVar     = varId;
     p->u.vdeclr.dims     = dims;
+    p->u.vdeclr.td       = typedesc;
     p->u.vdeclr.init     = init;
 
     return p;
 }
 
-A_stmt A_ConstDeclStmt (S_pos pos, S_symbol sConst, S_symbol sType, bool ptr, A_exp cExp)
+A_stmt A_ConstDeclStmt (S_pos pos, S_symbol sConst, A_typeDesc td, A_exp cExp)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
     p->kind              = A_constDeclStmt;
     p->pos               = pos;
     p->u.cdeclr.sConst   = sConst;
-    p->u.cdeclr.sType    = sType;
-    p->u.cdeclr.ptr      = ptr;
+    p->u.cdeclr.td       = td;
     p->u.cdeclr.cExp     = cExp;
 
     return p;
@@ -174,15 +184,14 @@ A_dim A_Dim (A_exp expStart, A_exp expEnd)
     return p;
 }
 
-A_field A_Field (S_pos pos, S_symbol name, S_symbol typeId, A_dim dims, bool ptr)
+A_field A_Field (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td)
 {
     A_field p = checked_malloc(sizeof(*p));
 
     p->pos     = pos;
     p->name    = name;
-    p->typeId  = typeId;
     p->dims    = dims;
-    p->ptr     = ptr;
+    p->td      = td;
     p->tail    = NULL;
 
     return p;
@@ -480,7 +489,7 @@ A_exp A_SizeofExp (S_pos pos, S_symbol t)
     return p;
 }
 
-A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, bool ptr, A_exp defaultExp)
+A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, A_typeDesc td, A_exp defaultExp)
 {
     A_param p = checked_malloc(sizeof(*p));
 
@@ -489,8 +498,7 @@ A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, S_symbol ty, 
     p->byval      = byval;
     p->byref      = byref;
     p->name       = name;
-    p->ty         = ty;
-    p->ptr        = ptr;
+    p->td         = td;
     p->defaultExp = defaultExp;
     p->reg        = NULL;
     p->parserHint = A_phNone;
@@ -523,7 +531,7 @@ void A_ParamListAppend (A_paramList list, A_param param)
     }
 }
 
-A_proc A_Proc (S_pos pos, S_symbol name, S_symlist extraSyms, Temp_label label, S_symbol retty, bool ptr, bool isStatic, A_paramList paramList)
+A_proc A_Proc (S_pos pos, S_symbol name, S_symlist extraSyms, Temp_label label, A_typeDesc returnTD, bool isFunction, bool isStatic, A_paramList paramList)
 {
     A_proc p = checked_malloc(sizeof(*p));
 
@@ -531,8 +539,8 @@ A_proc A_Proc (S_pos pos, S_symbol name, S_symlist extraSyms, Temp_label label, 
     p->name       = name;
     p->extraSyms  = extraSyms;
     p->label      = label;
-    p->retty      = retty;
-    p->ptr        = ptr;
+    p->returnTD   = returnTD;
+    p->isFunction = isFunction;
     p->isStatic   = isStatic;
     p->paramList  = paramList;
     p->body       = NULL;

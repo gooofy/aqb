@@ -541,6 +541,44 @@ static Ty_ty lookup_type(S_scope tenv, S_pos pos, S_symbol sym)
     return Ty_Void();
 }
 
+static Ty_ty resolveTypeDesc(S_scope tenv, A_typeDesc td, bool allowForwardPtr)
+{
+    Ty_ty t = NULL;
+    switch (td->kind)
+    {
+        case A_identTd:
+        {
+            E_enventry entry = S_look(tenv, td->u.idtr.typeId);
+            if (entry && (entry->kind == E_typeEntry))
+                t = entry->u.ty;
+
+            if (!t)
+            {
+                // forward pointer ?
+                if (allowForwardPtr && td->u.idtr.ptr)
+                {
+                    t = Ty_ForwardPtr(td->u.idtr.typeId);
+                }
+                else
+                {
+                    EM_error (td->pos, "Unknown type %s.", S_name(td->u.idtr.typeId));
+                }
+            }
+            else
+            {
+                if (td->u.idtr.ptr)
+                {
+                    t = Ty_Pointer(t);
+                }
+            }
+            break;
+        }
+        case A_procTd:
+            assert(0); // FIXME: implement
+            break;
+    }
+    return t;
+}
 
 static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Temp_label breaklbl)
 {
@@ -549,7 +587,7 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
     while (formals && actuals)
     {
         Tr_exp exp = NULL;
- 
+
         if (actuals->exp)
         {
             exp = transExp(level, venv, tenv, actuals->exp, breaklbl);
@@ -771,25 +809,21 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
     {
         Ty_ty ty          = NULL;
         Tr_exp defaultExp = NULL;
-        if (!param->ty)
+        if (param->td)
         {
-            ty = Ty_inferType(S_name(param->name));
+            ty = resolveTypeDesc(tenv, param->td, /*allowForwardPtr=*/FALSE);
         }
         else
         {
-            ty = lookup_type(tenv, param->pos, param->ty);
-            if (!ty)
-                EM_error(param->pos, "Type %s is unknown.", S_name(param->ty));
+            ty = Ty_inferType(S_name(param->name));
         }
+
+        if (!ty)
+            EM_error(param->pos, "Failed to resolve argument type");
 
         if (param->byref)
         {
             EM_error(param->pos, "BYREF is unsupported in AQB, use pointers instead.");
-        }
-
-        if (param->ptr)
-        {
-            ty = Ty_Pointer(ty);
         }
 
         if (param->defaultExp)
@@ -1039,16 +1073,21 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             int           offset     = 0;
             string        libBase    = NULL;
 
-            if (proc->retty)
+            if (proc->isFunction)
             {
-                resultTy = lookup_type(tenv, proc->pos, proc->retty);
+                if (proc->returnTD)
+                {
+                    resultTy = resolveTypeDesc(tenv, proc->returnTD, /*allowForwardPtr=*/FALSE);
+                }
+                else
+                {
+                    resultTy = Ty_inferType(S_name(proc->name));
+                }
                 if (!resultTy)
                 {
-                    EM_error(proc->pos, "unknown return type: %s", S_name(proc->retty));
+                    EM_error(proc->pos, "failed to resolve return type descriptor.");
                     break;
                 }
-                if (proc->ptr)
-                    resultTy = Ty_Pointer(resultTy);
             }
 
             if (proc->offset)
@@ -1111,7 +1150,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                          param; param = param->next, formals = formals->next, acl = Tr_accessListTail(acl))
                         S_enter(lenv, param->name, E_VarEntry(param->name, Tr_accessListHead(acl), formals->ty, FALSE));
                     // function return var (same name as the function itself)
-                    if (proc->retty)
+                    if (proc->isFunction)
                     {
                         ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
                         S_enter(lenv, proc->name, E_VarEntry(proc->name, ret_access, resultTy, FALSE));
@@ -1168,18 +1207,13 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             E_enventry x;
 
             Ty_ty t = NULL;
-            if (stmt->u.vdeclr.sType)
+            if (stmt->u.vdeclr.td)
             {
-                t = lookup_type(tenv, stmt->pos, stmt->u.vdeclr.sType);
+                t = resolveTypeDesc(tenv, stmt->u.vdeclr.td, /*allowForwardPtr=*/FALSE);
             }
             else
             {
                 t = Ty_inferType(S_name(stmt->u.vdeclr.sVar));
-            }
-
-            if (stmt->u.vdeclr.ptr)
-            {
-                t = Ty_Pointer(t);
             }
 
             for (A_dim dim=stmt->u.vdeclr.dims; dim; dim=dim->tail)
@@ -1290,11 +1324,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             for (A_field f = stmt->u.typer.fields; f; f=f->tail)
             {
                 Ty_ty t = NULL;
-                if (f->typeId)
+
+                if (f->td)
                 {
-                    E_enventry entry = S_look(tenv, f->typeId);
-                    if (entry && (entry->kind == E_typeEntry))
-                        t = entry->u.ty;
+                    t = resolveTypeDesc(tenv, f->td, /*allowForwardPtr=*/TRUE);
                 }
                 else
                 {
@@ -1303,23 +1336,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
                 if (!t)
                 {
-                    // forward pointer ?
-                    if (f->ptr)
-                    {
-                        t = Ty_ForwardPtr(f->typeId);
-                    }
-                    else
-                    {
-                        EM_error (f->pos, "Unknown type %s.", S_name(f->typeId));
-                        continue;
-                    }
-                }
-                else
-                {
-                    if (f->ptr)
-                    {
-                        t = Ty_Pointer(t);
-                    }
+                    EM_error (f->pos, "Failed to resolve type descriptor.");
+                    continue;
                 }
 
                 for (A_dim dim=f->dims; dim; dim=dim->tail)
@@ -1369,18 +1387,13 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             E_enventry x;
 
             Ty_ty t = NULL;
-            if (stmt->u.cdeclr.sType)
+            if (stmt->u.cdeclr.td)
             {
-                t = lookup_type(tenv, stmt->pos, stmt->u.cdeclr.sType);
+                t = resolveTypeDesc(tenv, stmt->u.cdeclr.td, /*allowForwardPtr=*/FALSE);
             }
             else
             {
                 t = Ty_inferType(S_name(stmt->u.cdeclr.sConst));
-            }
-
-            if (stmt->u.cdeclr.ptr)
-            {
-                t = Ty_Pointer(t);
             }
 
             Tr_exp conv_cexp=NULL;
