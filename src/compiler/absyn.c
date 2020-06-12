@@ -293,24 +293,26 @@ A_exp A_BoolExp (S_pos pos, bool b)
     return p;
 }
 
-A_exp A_IntExp (S_pos pos, int i)
+A_exp A_IntExp (S_pos pos, int i, S_typeHint typeHint)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
-    p->kind   = A_intExp;
-    p->pos    = pos;
-    p->u.intt = i;
+    p->kind                = A_intExp;
+    p->pos                 = pos;
+    p->u.literal.intt      = i;
+    p->u.literal.typeHint  = typeHint;
 
     return p;
 }
 
-A_exp A_FloatExp (S_pos pos, double f)
+A_exp A_FloatExp (S_pos pos, double f, S_typeHint typeHint)
 {
     A_exp p = checked_malloc(sizeof(*p));
 
-    p->kind     = A_floatExp;
-    p->pos      = pos;
-    p->u.floatt = f;
+    p->kind                 = A_floatExp;
+    p->pos                  = pos;
+    p->u.literal.floatt     = f;
+    p->u.literal.typeHint   = typeHint;
 
     return p;
 }

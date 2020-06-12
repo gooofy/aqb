@@ -22,6 +22,8 @@ int   S_getcurlinenum(void);
 
 typedef struct S_tkn_   *S_tkn;
 
+typedef enum { S_thNone, S_thSingle, S_thDouble, S_thInteger, S_thLong, S_thUInteger, S_thULong } S_typeHint;
+
 struct S_tkn_
 {
     S_tkn   next;
@@ -29,10 +31,13 @@ struct S_tkn_
     S_token kind;
     union
     {
-        int       inum;
-        double    fnum;
-        S_symbol  sym;
-        char     *str;
+        struct { 
+            int        inum; 
+            double     fnum;
+            S_typeHint typeHint;
+        }                             literal;
+        S_symbol                      sym;
+        char                         *str;
     } u;
 };
 

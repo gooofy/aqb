@@ -144,10 +144,10 @@ static void pr_exp(FILE *out, A_exp exp)
             fprintf(out, "boolExp(%s)", exp->u.boolb ? "true" : "false");
             break;
         case A_intExp:
-            fprintf(out, "intExp(%d)", exp->u.intt);
+            fprintf(out, "intExp(%d)", exp->u.literal.intt);
             break;
         case A_floatExp:
-            fprintf(out, "floatExp(%f)", exp->u.floatt);
+            fprintf(out, "floatExp(%f)", exp->u.literal.floatt);
             break;
         case A_stringExp:
             fprintf(out, "stringExp(%s)", exp->u.stringg);

@@ -832,11 +832,35 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
             return Tr_boolExp(a->u.boolb, Ty_Bool());
 
         case A_intExp:
-            return Tr_intExp(a->u.intt, NULL);
-
+        {
+            Ty_ty ty = NULL;
+            switch (a->u.literal.typeHint)
+            {
+                case S_thNone    : ty = NULL         ; break;
+                case S_thSingle  : ty = Ty_Single()  ; break;
+                case S_thDouble  : ty = Ty_Double()  ; break;
+                case S_thInteger : ty = Ty_Integer() ; break;
+                case S_thLong    : ty = Ty_Long()    ; break;
+                case S_thUInteger: ty = Ty_UInteger(); break;
+                case S_thULong   : ty = Ty_ULong()   ; break;
+            }
+            return Tr_intExp(a->u.literal.intt, ty);
+        }
         case A_floatExp:
-            return Tr_floatExp(a->u.floatt, Ty_Single());
-
+        {
+            Ty_ty ty = NULL;
+            switch (a->u.literal.typeHint)
+            {
+                case S_thNone    : ty = Ty_Single()  ; break;
+                case S_thSingle  : ty = Ty_Single()  ; break;
+                case S_thDouble  : ty = Ty_Double()  ; break;
+                case S_thInteger : ty = Ty_Integer() ; break;
+                case S_thLong    : ty = Ty_Long()    ; break;
+                case S_thUInteger: ty = Ty_UInteger(); break;
+                case S_thULong   : ty = Ty_ULong()   ; break;
+            }
+            return Tr_floatExp(a->u.literal.floatt, ty);
+        }
         case A_stringExp:
             if (a->u.stringg == NULL)
             {

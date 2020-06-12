@@ -71,8 +71,8 @@ static void print_tkn(S_tkn tkn)
         case S_COLON:      printf("[COLON]");     break;
         case S_SEMICOLON:  printf("[SEMICOLON]"); break;
         case S_COMMA:      printf("[COMMA]");     break;
-        case S_INUM:       printf("[INUM %d]", tkn->u.inum);          break;
-        case S_FNUM:       printf("[FNUM %f]", tkn->u.fnum);          break;
+        case S_INUM:       printf("[INUM %d]", tkn->u.literal.inum);  break;
+        case S_FNUM:       printf("[FNUM %f]", tkn->u.literal.fnum);  break;
         case S_MINUS:      printf("[MINUS]");     break;
         case S_LPAREN:     printf("[LPAREN]");    break;
         case S_RPAREN:     printf("[RPAREN]");    break;
@@ -200,18 +200,18 @@ static S_tkn number(int base, S_tkn tkn)
     if (!tkn)
         tkn = S_Tkn(S_INUM);
 
-    tkn->u.inum = 0;
+    tkn->u.literal.inum = 0;
 
     while (get_digit(&d, base))
     {
-        tkn->u.inum = d + tkn->u.inum*base;
+        tkn->u.literal.inum = d + tkn->u.literal.inum*base;
         getch();
     }
     if (g_ch == '!')
     {
         getch();
         tkn->kind = S_FNUM;
-        tkn->u.fnum = tkn->u.inum;
+        tkn->u.literal.fnum = tkn->u.literal.inum;
     }
     else
     {
@@ -219,11 +219,11 @@ static S_tkn number(int base, S_tkn tkn)
         {
             double m = 1.0 / base;
             tkn->kind = S_FNUM;
-            tkn->u.fnum = tkn->u.inum;
+            tkn->u.literal.fnum = tkn->u.literal.inum;
             getch();
             while (get_digit(&d, base))
             {
-                tkn->u.fnum += ((double) d) * m;
+                tkn->u.literal.fnum += ((double) d) * m;
                 m /= base;
                 getch();
             }
@@ -234,7 +234,7 @@ static S_tkn number(int base, S_tkn tkn)
             if (tkn->kind == S_INUM)
             {
                 tkn->kind = S_FNUM;
-                tkn->u.fnum = tkn->u.inum;
+                tkn->u.literal.fnum = tkn->u.literal.inum;
             }
             getch();
             if (g_ch=='-')
@@ -255,9 +255,43 @@ static S_tkn number(int base, S_tkn tkn)
             }
             if (negative)
                 e = -1 * e;
-            tkn->u.fnum *= pow(base, e);
+            tkn->u.literal.fnum *= pow(base, e);
         }
     }
+
+    // type suffix?
+    switch (g_ch)
+    {
+        case '!':
+        case 'F':
+        case 'f':
+            tkn->u.literal.typeHint = S_thSingle;
+            getch();
+            break;
+        case '#':
+            tkn->u.literal.typeHint = S_thDouble;
+            getch();
+            break;
+        case 'L':
+        case 'l':
+        case '&':
+            tkn->u.literal.typeHint = S_thLong;
+            getch();
+            break;
+        case 'U':
+        case 'u':
+            tkn->u.literal.typeHint = S_thUInteger;
+            getch();
+            if ((g_ch == 'l') || (g_ch == 'L'))
+            {
+                tkn->u.literal.typeHint = S_thULong;
+                getch();
+            }
+            break;
+        default:
+            tkn->u.literal.typeHint = S_thNone;
+    }
+
     return tkn;
 }
 

@@ -344,11 +344,11 @@ static bool atom(S_tkn *tkn, A_exp *exp)
     switch ((*tkn)->kind)
     {
         case S_INUM:
-            *exp = A_IntExp(pos, (*tkn)->u.inum);
+            *exp = A_IntExp(pos, (*tkn)->u.literal.inum, (*tkn)->u.literal.typeHint);
             *tkn = (*tkn)->next;
             break;
         case S_FNUM:
-            *exp = A_FloatExp(pos, (*tkn)->u.fnum);
+            *exp = A_FloatExp(pos, (*tkn)->u.literal.fnum, (*tkn)->u.literal.typeHint);
             *tkn = (*tkn)->next;
             break;
         case S_STRING:
@@ -835,14 +835,14 @@ static bool lineBF(S_tkn *tkn, A_expList *expList, A_param *pl)
 {
     if (isSym(*tkn, S_B))
     {
-        A_ExpListAppend(*expList, A_IntExp((*tkn)->pos, 1));
+        A_ExpListAppend(*expList, A_IntExp((*tkn)->pos, 1, S_thInteger));
         *tkn = (*tkn)->next;
     }
     else
     {
         if (isSym(*tkn, S_BF))
         {
-            A_ExpListAppend(*expList, A_IntExp((*tkn)->pos, 3));
+            A_ExpListAppend(*expList, A_IntExp((*tkn)->pos, 3, S_thInteger));
             *tkn = (*tkn)->next;
         }
         else
@@ -2847,7 +2847,7 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
         // handle label, if any
         if (tkn->kind == S_INUM)
         {
-            A_StmtListAppend (g_sleStack->stmtList, A_LabelStmt(tkn->pos, Temp_namedlabel(strprintf("_L%07d", tkn->u.inum))));
+            A_StmtListAppend (g_sleStack->stmtList, A_LabelStmt(tkn->pos, Temp_namedlabel(strprintf("_L%07d", tkn->u.literal.inum))));
             tkn = tkn->next;
         }
         else

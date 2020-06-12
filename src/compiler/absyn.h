@@ -104,8 +104,7 @@ struct A_exp_
     union
     {
         bool     boolb;
-	    int      intt;
-        double   floatt;
+	    struct { int intt; double floatt; S_typeHint typeHint; } literal;
 	    string   stringg;
         A_var    var;
 	    struct   { A_oper oper; A_exp left; A_exp right; } op;
@@ -214,8 +213,8 @@ A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);
 A_exp           A_BoolExp         (S_pos pos, bool b);
-A_exp           A_IntExp          (S_pos pos, int i);
-A_exp           A_FloatExp        (S_pos pos, double f);
+A_exp           A_IntExp          (S_pos pos, int i, S_typeHint typeHint);
+A_exp           A_FloatExp        (S_pos pos, double f, S_typeHint typeHint);
 A_exp           A_VarExp          (S_pos pos, A_var var);
 A_exp           A_VarPtrExp       (S_pos pos, A_var var);
 A_exp           A_OpExp           (S_pos pos, A_oper oper, A_exp left, A_exp right);
