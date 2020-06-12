@@ -6,6 +6,7 @@
 void _astr_init(void);
 
 void _astr_itoa(int num, char *str, int base);
+void _astr_utoa(unsigned int num, char* str, unsigned int base);
 
 ULONG __aqb_len(const char *str);
 

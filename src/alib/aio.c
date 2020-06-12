@@ -96,7 +96,7 @@ void _aio_putu4(unsigned int num)
 
     _aio_puts(" ");
 
-    _astr_itoa(num, buf, 10);
+    _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
 }

@@ -64,6 +64,32 @@ void _astr_itoa(int num, char* str, int base)
     reverse(str, i);
 }
 
+void _astr_utoa(unsigned int num, char* str, unsigned int base)
+{
+    int i = 0;
+
+    /* Handle 0 explicitely, otherwise empty string is printed for 0 */
+    if (num == 0)
+    {
+        str[i++] = '0';
+        str[i] = '\0';
+        return;
+    }
+
+    // Process individual digits
+    while (num != 0)
+    {
+        int rem = num % base;
+        str[i++] = (rem > 9)? (rem-10) + 'a' : rem + '0';
+        num = num/base;
+    }
+
+    str[i] = '\0'; // Append string terminator
+
+    // Reverse the string
+    reverse(str, i);
+}
+
 ULONG __aqb_len(const char *str)
 {
     int l = 0;
