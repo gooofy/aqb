@@ -107,7 +107,7 @@ void _aio_putu2(unsigned short num)
 
     _aio_puts(" ");
 
-    _astr_itoa(num, buf, 10);
+    _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
 }
@@ -118,7 +118,7 @@ void _aio_putu1(unsigned char num)
 
     _aio_puts(" ");
 
-    _astr_itoa(num, buf, 10);
+    _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
 }

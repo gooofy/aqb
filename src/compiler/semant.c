@@ -431,6 +431,10 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         case Ty_varPtr:
             if (Ty_isInt(ty2))
                 return TRUE;
+
+            if ( (ty2->kind == Ty_procPtr) && (ty1->u.pointer->kind == Ty_void) )
+                return TRUE;
+
             if ((ty2->kind != Ty_pointer) && (ty2->kind != Ty_varPtr))
                 return FALSE;
             if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
