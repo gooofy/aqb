@@ -31,6 +31,17 @@ A_typeDesc A_TypeDescIdent (S_pos pos, S_symbol sType, bool ptr)
     return p;
 }
 
+A_typeDesc A_TypeDescProc (S_pos pos, A_proc proc)
+{
+    A_typeDesc p = checked_malloc(sizeof(*p));
+
+    p->kind   = A_procTd;
+    p->pos    = pos;
+    p->u.proc = proc;
+
+    return p;
+}
+
 A_stmt A_ForStmt (S_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -218,6 +229,19 @@ A_stmt A_CallStmt (S_pos pos, A_proc proc, A_expList args)
 
     p->u.callr.proc = proc;
     p->u.callr.args = args;
+
+    return p;
+}
+
+A_stmt A_CallPtrStmt (S_pos pos, S_symbol name, A_expList args)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind = A_callPtrStmt;
+    p->pos  = pos;
+
+    p->u.callptr.name = name;
+    p->u.callptr.args = args;
 
     return p;
 }

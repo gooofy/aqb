@@ -70,6 +70,50 @@ static void pr_dims(FILE *out, A_dim dims)
     }
 }
 
+static void pr_typedesc(FILE *out, A_typeDesc td);
+
+static void pr_prochdr(FILE *out, A_proc proc)
+{
+    if (proc->isFunction)
+    {
+        fprintf(out, "FUNCTION ");
+    }
+    else
+    {
+        fprintf(out, "SUB ");
+    }
+    if (proc->name)
+        fprintf(out, "%s", S_name(proc->name));
+    else
+        fprintf(out, "_");
+    if (proc->returnTD)
+    {
+        fprintf(out, ":");
+        pr_typedesc(out, proc->returnTD);
+    }
+    fprintf(out, "(");
+    for (A_param par = proc->paramList->first; par; par = par->next)
+    {
+        if (par->name)
+        {
+            fprintf(out, "%s", S_name(par->name));
+        }
+        else
+        {
+            fprintf(out, "_");
+        }
+        if (par->td)
+        {
+            fprintf(out, ":");
+            pr_typedesc(out, par->td);
+        }
+
+        if (par->next)
+            fprintf(out,",");
+    }
+    fprintf(out, ")");
+}
+
 static void pr_typedesc(FILE *out, A_typeDesc td)
 {
     switch (td->kind)
@@ -80,7 +124,9 @@ static void pr_typedesc(FILE *out, A_typeDesc td)
                 fprintf(out," PTR");
             break;
         case A_procTd:
-            assert(0); // FIXME
+            fprintf(out, "PROCPTR(");
+            pr_prochdr(out, td->u.proc);
+            fprintf(out, ")");
             break;
     }
 }
@@ -263,44 +309,10 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         case A_procStmt:
         case A_procDeclStmt:
         {
-            A_param par;
             indent(out, d);
             if (stmt->kind == A_procDeclStmt)
                 fprintf(out, "DECLARE ");
-            if (stmt->u.proc->isFunction)
-            {
-                fprintf(out, "FUNCTION %s", S_name(stmt->u.proc->name));
-                if (stmt->u.proc->returnTD)
-                {
-                    fprintf(out, ":");
-                    pr_typedesc(out, stmt->u.proc->returnTD);
-                }
-                fprintf(out, "(");
-            }
-            else
-            {
-                fprintf(out, "SUB %s(", S_name(stmt->u.proc->name));
-            }
-            for (par = stmt->u.proc->paramList->first; par; par = par->next)
-            {
-                if (par->name)
-                {
-                    fprintf(out, "%s", S_name(par->name));
-                }
-                else
-                {
-                    fprintf(out, "_");
-                }
-                if (par->td)
-                {
-                    fprintf(out, ":");
-                    pr_typedesc(out, par->td);
-                }
-
-                if (par->next)
-                    fprintf(out,",");
-            }
-            fprintf(out, ")");
+            pr_prochdr(out, stmt->u.proc);
             if (stmt->kind == A_procStmt)
             {
                 fprintf(out, "{\n");
@@ -380,6 +392,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         {
             indent(out, d);
             fprintf(out, "LABEL %s", S_name(stmt->u.label));
+            break;
+        }
+        case A_callPtrStmt:
+        {
+            indent(out, d);
+            fprintf(out, "CALLPTR %s(", S_name(stmt->u.callptr.name));
+            pr_expList(out, stmt->u.callr.args);
+            fprintf(out, ")");
             break;
         }
         default:

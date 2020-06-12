@@ -69,6 +69,7 @@ static enum AS_w ty_isz(Ty_ty ty)
         case Ty_varPtr:
         case Ty_pointer:
         case Ty_forwardPtr:
+        case Ty_procPtr:
             return AS_w_L;
         case Ty_array:
         case Ty_record:
@@ -978,6 +979,26 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             Temp_temp r = Temp_newtemp(e->ty);
             emit(AS_Instr(AS_MOVE_fp_AnDn, AS_w_L, NULL, r)); // move.l fp, r
             return r;
+        }
+        case T_CALLFPTR:
+        {
+            /* CALL((fptr), args) */
+            T_exp     fptr = e->u.CALLFPTR.fptr;
+            T_expList args = e->u.CALLFPTR.args;
+
+            Temp_temp rfptr = munchExp(fptr, FALSE);
+            int arg_cnt = munchArgsStack(0, args);
+            emit(AS_InstrEx(AS_JSR_An, AS_w_NONE, L(rfptr, NULL), L(F_RV(), F_callersaves()), 0, 0, NULL)); // jsr   (rfptr)
+            munchCallerRestoreStack(arg_cnt);
+            if (!ignore_result)
+            {
+                enum AS_w isz = ty_isz(e->ty);
+                Temp_temp t = Temp_newtemp(e->ty);
+                emit(AS_Instr(AS_MOVE_AnDn_AnDn, isz, F_RV(), t));                                   // move.x d0, t
+                return t;
+            }
+
+            return NULL;
         }
         default:
         {

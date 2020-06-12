@@ -1,9 +1,9 @@
-# aqb
-Amiga QuickBasic Compiler
+# AQB: Amiga QuickBasic Compiler
 
-So far very incomplete, just an experiment.
+An experiment in alternate history: what AmigaBASIC could have looked like, had it been developed further
+tailored to the Amiga OS.
 
-Based on
+Originally based on
 
 https://github.com/ComMouse/tiger-compiler
 
@@ -19,11 +19,17 @@ Measured on an A500 configuration (PAL 68000, 3MB RAM) in FS-UAE, Kickstart 1.3
 
 ## Type System
 
-Basic types:
+### Basic types:
 * Byte, UByte (8 bits)
 * Integer, UInteger (16 bits)
 * Long, ULong (32 bits)
 * Single (32 Bit FFP floats)
 * Pointers
+
+### Advanced types
+
 * Arrays
 * UDTs (structs)
+* Function/Sub pointers
+* Strings (0-terminated pointers to UByte, C-compatible)
+

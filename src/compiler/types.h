@@ -18,7 +18,7 @@ struct Ty_ty_
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
            Ty_array, Ty_record, Ty_pointer,
-           Ty_void, Ty_varPtr, Ty_forwardPtr                                } kind;
+           Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr                    } kind;
            // Ty_varPtr: used during var access processing in translate.c
     union
     {
@@ -26,6 +26,7 @@ struct Ty_ty_
         struct {Ty_fieldList fields; unsigned int uiSize;                   } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; unsigned int uiSize; } array;
         S_symbol                                                              sForward;
+        struct {Ty_tyList formalTys; Ty_ty returnTy;                        } procPtr;
     } u;
 };
 
@@ -51,6 +52,7 @@ Ty_ty        Ty_Record(Ty_fieldList fields);
 Ty_ty        Ty_VarPtr(Ty_ty ty);
 Ty_ty        Ty_Pointer(Ty_ty ty);
 Ty_ty        Ty_ForwardPtr(S_symbol sType);
+Ty_ty        Ty_ProcPtr(Ty_tyList formalTys, Ty_ty returnTy);
 
 Ty_tyList    Ty_TyList(Ty_ty head, Ty_tyList tail);
 Ty_field     Ty_Field(S_symbol name, Ty_ty ty);

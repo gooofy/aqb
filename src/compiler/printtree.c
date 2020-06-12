@@ -130,6 +130,21 @@ void printExp(FILE *out, T_exp exp, int d)
         case T_FP:
             fprintf(out, "FramePtr");
             break;
+        case T_CALLFPTR:
+        {
+            T_expList args = exp->u.CALLFPTR.args;
+            fprintf(out, "CALLFPTR(");
+            printExp(out, exp->u.CALLFPTR.fptr, d+1);
+            fprintf(out, ":");
+            for (;args; args=args->tail)
+            {
+                printExp(out, args->head,d+2);
+                if (args->tail)
+                    fprintf(out, ",");
+            }
+            fprintf(out, ")");
+            break;
+        }
     } /* end of switch */
 }
 

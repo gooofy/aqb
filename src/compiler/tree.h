@@ -57,7 +57,7 @@ struct T_exp_
 {
     enum { T_BINOP, T_MEM, T_HEAP, T_ESEQ, T_TEMP,
 		   T_CONST, T_CALLF,
-           T_CAST,  T_FP } kind;
+           T_CAST,  T_FP, T_CALLFPTR } kind;
     Ty_ty ty;
 	union
     {
@@ -69,6 +69,7 @@ struct T_exp_
 	    T_const CONST;
 	    struct {Temp_label fun; T_expList args; Temp_tempList regs; int offset; string libBase;} CALLF;
 	    struct {T_exp exp; Ty_ty ty_from;} CAST;
+	    struct {T_exp fptr; T_expList args;} CALLFPTR;
 	} u;
 };
 
@@ -96,6 +97,7 @@ T_exp T_ConstBool(bool b, Ty_ty ty);
 T_exp T_ConstInt(int i, Ty_ty ty);
 T_exp T_ConstFloat(double f, Ty_ty ty);
 T_exp T_CallF(Temp_label fun, T_expList args, Temp_tempList regs, Ty_ty ty_ret, int offset, string libBase);
+T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_ty ty_ret);
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
 
 T_relOp T_notRel(T_relOp);  /* a op b  ==  not(a notRel(op) b)  */

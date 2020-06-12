@@ -89,6 +89,7 @@ enum AS_mn
 
     AS_JMP,             // jmp     label
     AS_JSR_Label,       // jsr     label
+    AS_JSR_An,          // jsr     (a2)
     AS_JSR_RAn,         // jsr     -36(a6)
 
     AS_RTS,             // rts

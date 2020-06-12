@@ -246,6 +246,18 @@ T_exp T_CallF(Temp_label fun, T_expList args, Temp_tempList regs, Ty_ty ty_ret, 
     return p;
 }
 
+T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_ty ty_ret)
+{
+    T_exp p = (T_exp) checked_malloc(sizeof *p);
+
+    p->kind               = T_CALLFPTR;
+    p->ty                 = ty_ret;
+    p->u.CALLFPTR.fptr    = fptr;
+    p->u.CALLFPTR.args    = args;
+
+    return p;
+}
+
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to)
 {
     assert(ty_to->kind != Ty_void);

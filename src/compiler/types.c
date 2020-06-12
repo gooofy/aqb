@@ -107,6 +107,17 @@ Ty_ty Ty_ForwardPtr(S_symbol sType)
     return p;
 }
 
+Ty_ty Ty_ProcPtr(Ty_tyList formalTys, Ty_ty returnTy)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind                = Ty_procPtr;
+    p->u.procPtr.formalTys = formalTys;
+    p->u.procPtr.returnTy  = returnTy;
+
+    return p;
+}
+
 Ty_ty Ty_Array(Ty_ty ty, int start, int end)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
@@ -189,6 +200,7 @@ int Ty_size(Ty_ty t)
         case Ty_pointer:
         case Ty_varPtr:
         case Ty_forwardPtr:
+        case Ty_procPtr:
              return 4;
         case Ty_double:
              return 8;
@@ -282,6 +294,8 @@ string Ty_name(Ty_ty t)
             return "varPtr";
         case Ty_forwardPtr:
             return "forwardPtr";
+        case Ty_procPtr:
+            return "procPtr";
     }
     assert(0);
     return "???";

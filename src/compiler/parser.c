@@ -198,7 +198,7 @@ static bool expExpression(S_tkn *tkn, A_exp *exp);
 static bool relExpression(S_tkn *tkn, A_exp *exp);
 static bool expression(S_tkn *tkn, A_exp *exp);
 
-// selector ::= ( ( "[" | "(" ) expression ( "," expression)* ( "]" | ")" )
+// selector ::= ( ( "[" | "(" ) [ expression ( "," expression)* ] ( "]" | ")" )
 //              | "." ident
 //              | "->" ident )
 static bool selector(S_tkn *tkn, A_selector *sel)
@@ -214,18 +214,27 @@ static bool selector(S_tkn *tkn, A_selector *sel)
             int        start_token = (*tkn)->kind;
 
             *tkn = (*tkn)->next;
-            if (!expression(tkn, &exp))
-                return EM_error((*tkn)->pos, "index expression expected here.");
-            *sel = A_IndexSelector(pos, exp);
-            last = *sel;
 
-            while ((*tkn)->kind == S_COMMA)
+            if ( ((*tkn)->kind != S_RPAREN) && ((*tkn)->kind != S_RBRACKET) )
             {
-                *tkn = (*tkn)->next;
                 if (!expression(tkn, &exp))
                     return EM_error((*tkn)->pos, "index expression expected here.");
-                last->tail = A_IndexSelector(pos, exp);
-                last = last->tail;
+                *sel = A_IndexSelector(pos, exp);
+                last = *sel;
+
+                while ((*tkn)->kind == S_COMMA)
+                {
+                    *tkn = (*tkn)->next;
+                    if (!expression(tkn, &exp))
+                        return EM_error((*tkn)->pos, "index expression expected here.");
+                    last->tail = A_IndexSelector(pos, exp);
+                    last = last->tail;
+                }
+            }
+            else
+            {
+                *sel = A_IndexSelector(pos, NULL);  // function / function ptr call
+                last = *sel;
             }
 
             if ((start_token == S_LBRACKET) && ((*tkn)->kind != S_RBRACKET))
@@ -366,7 +375,7 @@ static bool atom(S_tkn *tkn, A_exp *exp)
             // is this a declared function ?
 
             P_declProc ds = TAB_look(declared_funs, sym);
-            if (ds)
+            if (ds && (*tkn)->next->kind == S_LPAREN)
             {
                 while (ds)
                 {
@@ -1126,25 +1135,86 @@ static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
     return TRUE;
 }
 
-// typeDesc ::= Identifier [PTR]
+// typeDesc ::= ( Identifier [PTR]
+//              | (SUB | FUNCTION) [ "(" [typeDesc ( "," typeDesc )*] ")" ] [ "AS" typeDesc ] )
+
 static bool typeDesc (S_tkn *tkn, A_typeDesc *td)
 {
-    S_symbol sType;
-    bool     ptr = FALSE;
     S_pos    pos = (*tkn)->pos;
 
-    if ((*tkn)->kind != S_IDENT)
-        return EM_error((*tkn)->pos, "type descriptor: type identifier expected here.");
-    sType = (*tkn)->u.sym;
-    *tkn = (*tkn)->next;
-
-    if (isSym(*tkn, S_PTR))
+    if (isSym (*tkn, S_SUB) || isSym (*tkn, S_FUNCTION))
     {
-        ptr = TRUE;
-        *tkn = (*tkn)->next;
-    }
+        A_paramList paramList = A_ParamList();
+        A_typeDesc  returnTD  = NULL;
 
-    *td = A_TypeDescIdent(pos, sType, ptr);
+        bool isFunction = isSym (*tkn, S_FUNCTION);
+        *tkn = (*tkn)->next;
+
+        if ((*tkn)->kind == S_LPAREN)
+        {
+            A_param    param;
+            A_typeDesc td2;
+
+            *tkn = (*tkn)->next;
+            S_pos pos2 = (*tkn)->pos;
+
+            if ((*tkn)->kind != S_RPAREN)
+            {
+                if (!typeDesc(tkn, &td2))
+                    return FALSE;
+
+                param = A_Param (pos2, FALSE, FALSE, NULL, td2, NULL);
+                A_ParamListAppend(paramList, param);
+
+                while ((*tkn)->kind == S_COMMA)
+                {
+                    *tkn = (*tkn)->next;
+                    if (!typeDesc(tkn, &td2))
+                        return FALSE;
+
+                    param = A_Param (pos2, FALSE, FALSE, NULL, td2, NULL);
+                    A_ParamListAppend(paramList, param);
+                }
+            }
+
+            if ((*tkn)->kind != S_RPAREN)
+                return EM_error((*tkn)->pos, "type descriptor: ) expected");
+            *tkn = (*tkn)->next;
+        }
+
+        if (isFunction)
+        {
+            if (isSym(*tkn, S_AS))
+            {
+                *tkn = (*tkn)->next;
+                if (!typeDesc(tkn, &returnTD))
+                    return FALSE;
+            }
+        }
+
+        A_proc proc =  A_Proc (pos, /*name=*/NULL, /*extra_syms=*/NULL, /*label=*/NULL, returnTD, isFunction,
+                               /*isStatic=*/FALSE, paramList);
+
+        *td = A_TypeDescProc (pos, proc);
+    }
+    else
+    {
+        S_symbol sType;
+        bool     ptr = FALSE;
+
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "type descriptor: type identifier expected here.");
+        sType = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
+
+        if (isSym(*tkn, S_PTR))
+        {
+            ptr = TRUE;
+            *tkn = (*tkn)->next;
+        }
+
+        *td = A_TypeDescIdent(pos, sType, ptr);
+    }
 
     return TRUE;
 }
@@ -1713,14 +1783,16 @@ static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
 // subCall ::= ident ident* ["("] expressionList [")"]
 static bool subCall(S_tkn tkn, P_declProc dec)
 {
-    S_pos    pos = tkn->pos;
-    A_proc   proc = dec->proc;
-    A_param  pl = proc ? proc->paramList->first : NULL;
+    S_pos    pos  = tkn->pos;
+    A_proc   proc = dec ? dec->proc : NULL;
+    A_param  pl   = proc ? proc->paramList->first : NULL;
+    S_symbol name = tkn->u.sym;
 
-    assert (proc->name == tkn->u.sym);
+    if (proc)
+        assert (proc->name == tkn->u.sym);
     tkn = tkn->next;
 
-    if (proc->extraSyms)
+    if (proc && proc->extraSyms)
     {
         S_symlist es = proc->extraSyms;
         while (tkn->kind == S_IDENT)
@@ -1744,7 +1816,7 @@ static bool subCall(S_tkn tkn, P_declProc dec)
     }
 
     A_expList args = A_ExpList();
-    if (!expressionList(&tkn, &args, dec->proc))
+    if (!expressionList(&tkn, &args, proc))
         return FALSE;
 
     if (parenthesis)
@@ -1757,7 +1829,11 @@ static bool subCall(S_tkn tkn, P_declProc dec)
     if (!isLogicalEOL(tkn))
         return FALSE;
 
-    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc, args));
+    if (proc)
+        A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, proc, args));
+    else
+        A_StmtListAppend (g_sleStack->stmtList, A_CallPtrStmt(pos, name, args));
+
     return TRUE;
 }
 
@@ -1787,7 +1863,8 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
     }
     else
     {
-        return EM_error(pos, "undeclared sub");
+        // assume "name" is a pointer to a sub (semant.c will check that later)
+        return subCall (tkn, NULL);
     }
 
     return TRUE;

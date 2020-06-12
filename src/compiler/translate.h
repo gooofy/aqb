@@ -75,6 +75,7 @@ Tr_exp        Tr_breakExp(Temp_label breaklbl);
 #endif
 
 Tr_exp         Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);
+Tr_exp         Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty);
 
 int            Tr_getConstInt(Tr_exp exp);
 bool           Tr_getConstBool(Tr_exp exp);

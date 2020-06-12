@@ -184,6 +184,10 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
             p->srcInterf = NULL;
             p->dstInterf = NULL;
             break;
+        case AS_JSR_An:
+            p->srcInterf = LL(F_dRegs(), NULL);
+            p->dstInterf = NULL;
+            break;
         case AS_ADD_Imm_Dn:
         case AS_SUB_Imm_Dn:
         case AS_MULS_Imm_Dn:
@@ -656,6 +660,8 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
             instrformat(str, "    jmp      `l", i, m);           break;
         case AS_JSR_Label:
             instrformat(str, "    jsr      `l", i, m);           break;
+        case AS_JSR_An:
+            instrformat(str, "    jsr      (`s0)", i, m);        break;
         case AS_JSR_RAn:
             instrformat(str, "    jsr      `o(`s0)", i, m);      break;
         case AS_OR_Dn_Dn:

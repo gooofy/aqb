@@ -980,6 +980,18 @@ Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expL
     return Tr_Ex(T_CallF(name, el, regs, retty, offset, libBase));
 }
 
+Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty)
+{
+    // cdecl calling convention (right-to-left order)
+    T_expList el = NULL;
+    for (; expList; expList = expList->tail)
+    {
+        el = T_ExpList(unEx(expList->head), el);
+    }
+
+    return Tr_Ex(T_CallFPtr(unEx(funcPtr), el, retty));
+}
+
 
 Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
 {
