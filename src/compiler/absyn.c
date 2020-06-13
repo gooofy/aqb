@@ -42,6 +42,17 @@ A_typeDesc A_TypeDescProc (S_pos pos, A_proc proc)
     return p;
 }
 
+A_nestedStmt A_NestedStmt (S_pos pos, A_nestedStmtKind kind)
+{
+    A_nestedStmt p = checked_malloc(sizeof(*p));
+
+    p->kind = kind;
+    p->pos  = pos;
+    p->next = NULL;
+
+    return p;
+}
+
 A_stmt A_ForStmt (S_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -267,6 +278,18 @@ A_stmt A_LabelStmt (S_pos pos, Temp_label label)
     p->pos  = pos;
 
     p->u.label  = label;
+
+    return p;
+}
+
+A_stmt A_ExitStmt (S_pos pos, A_nestedStmt nest)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind    = A_exitStmt;
+    p->pos     = pos;
+
+    p->u.exitr = nest;
 
     return p;
 }

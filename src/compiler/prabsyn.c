@@ -70,6 +70,25 @@ static void pr_dims(FILE *out, A_dim dims)
     }
 }
 
+static void pr_nest(FILE *out, A_nestedStmt nest)
+{
+    while (nest)
+    {
+        switch (nest->kind)
+        {
+            case A_nestSub     : fprintf(out, "SUB")     ; break;
+            case A_nestFunction: fprintf(out, "FUNCTION"); break;
+            case A_nestDo      : fprintf(out, "DO")      ; break;
+            case A_nestFor     : fprintf(out, "FOR")     ; break;
+            case A_nestWhile   : fprintf(out, "WHILE")   ; break;
+            case A_nestSelect  : fprintf(out, "SELECT")  ; break;
+        }
+        if (nest->next)
+            fprintf(out, ",");
+        nest = nest->next;
+    }
+}
+
 static void pr_typedesc(FILE *out, A_typeDesc td);
 
 static void pr_prochdr(FILE *out, A_proc proc)
@@ -399,6 +418,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             indent(out, d);
             fprintf(out, "CALLPTR %s(", S_name(stmt->u.callptr.name));
             pr_expList(out, stmt->u.callr.args);
+            fprintf(out, ")");
+            break;
+        }
+        case A_exitStmt:
+        {
+            indent(out, d);
+            fprintf(out, "EXIT (");
+            pr_nest(out, stmt->u.exitr);
             fprintf(out, ")");
             break;
         }

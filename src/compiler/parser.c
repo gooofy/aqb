@@ -76,6 +76,8 @@ static S_symbol S_RESUME;
 static S_symbol S__LINEBF;
 static S_symbol S_BF;
 static S_symbol S_B;
+static S_symbol S_DO;
+static S_symbol S_SELECT;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -2663,6 +2665,92 @@ static bool stmtResume(S_tkn tkn, P_declProc dec)
     return TRUE;
 }
 
+// exitStmt ::= EXIT [ ( SUB | FUNCTION | DO | FOR | WHILE | SELECT ) ( "," (SUB | FUNCTION | DO | FOR | WHILE | SELECT) )* ]
+static bool stmtExit(S_tkn tkn, P_declProc dec)
+{
+    S_pos        pos  = tkn->pos;
+    A_nestedStmt nest = NULL, nestLast = NULL;
+
+    tkn = tkn->next;  // skip "EXIT"
+
+    while (TRUE)
+    {
+        A_nestedStmtKind kind;
+        S_pos            pos2  = tkn->pos;
+        if (isSym(tkn, S_SUB))
+        {
+            tkn = tkn->next;
+            kind = A_nestSub;
+        }
+        else
+        {
+            if (isSym(tkn, S_FUNCTION))
+            {
+                tkn = tkn->next;
+                kind = A_nestFunction;
+            }
+            else
+            {
+                if (isSym(tkn, S_DO))
+                {
+                    tkn = tkn->next;
+                    kind = A_nestDo;
+                }
+                else
+                {
+                    if (isSym(tkn, S_FOR))
+                    {
+                        tkn = tkn->next;
+                        kind = A_nestFor;
+                    }
+                    else
+                    {
+                        if (isSym(tkn, S_WHILE))
+                        {
+                            tkn = tkn->next;
+                            kind = A_nestWhile;
+                        }
+                        else
+                        {
+                            if (isSym(tkn, S_SELECT))
+                            {
+                                tkn = tkn->next;
+                                kind = A_nestSelect;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        A_nestedStmt n = A_NestedStmt(pos2, kind);
+        if (nest)
+        {
+            nestLast->next = n;
+            nestLast = n;
+        }
+        else
+        {
+            nest = nestLast = n;
+        }
+
+        if (tkn->kind != S_COMMA)
+            break;
+        tkn = tkn->next;
+    }
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    A_StmtListAppend (g_sleStack->stmtList, A_ExitStmt(pos, nest));
+
+    return TRUE;
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -2787,6 +2875,8 @@ static void register_builtins(void)
     S__LINEBF  = S_Symbol("_LINEBF",  FALSE);
     S_B        = S_Symbol("B",        FALSE);
     S_BF       = S_Symbol("BF",       FALSE);
+    S_DO       = S_Symbol("DO",       FALSE);
+    S_SELECT   = S_Symbol("SELECT",   FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -2816,6 +2906,7 @@ static void register_builtins(void)
     declare_proc(declared_stmts, S_ON,       stmtOn           , NULL, NULL);
     declare_proc(declared_stmts, S_ERROR,    stmtError        , NULL, NULL);
     declare_proc(declared_stmts, S_RESUME,   stmtResume       , NULL, NULL);
+    declare_proc(declared_stmts, S_EXIT,     stmtExit         , NULL, NULL);
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);

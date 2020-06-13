@@ -15,6 +15,7 @@
 
 typedef struct A_sourceProgram_ *A_sourceProgram;
 typedef struct A_typeDesc_      *A_typeDesc;
+typedef struct A_nestedStmt_    *A_nestedStmt;
 typedef struct A_stmt_          *A_stmt;
 typedef struct A_exp_           *A_exp;
 typedef struct A_expList_       *A_expList;
@@ -55,11 +56,19 @@ struct A_field_
     A_field    tail;
 };
 
+typedef enum {A_nestSub, A_nestFunction, A_nestDo, A_nestFor, A_nestWhile, A_nestSelect} A_nestedStmtKind;
+struct A_nestedStmt_    // used in EXIT, CONTINUE
+{
+    S_pos            pos;
+    A_nestedStmtKind kind;
+    A_nestedStmt     next;
+};
+
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
-           A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt                       } kind;
+           A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt             } kind;
     S_pos pos;
 	union
     {
@@ -76,6 +85,7 @@ struct A_stmt_
 	    struct {S_symbol sType; A_field fields;} typer;
         Temp_label label;
         struct {S_symbol name; A_expList args;} callptr;
+        A_nestedStmt exitr;
     } u;
 };
 
@@ -193,6 +203,7 @@ struct A_dim_
 A_sourceProgram A_SourceProgram   (S_pos pos, A_stmtList stmtList);
 A_typeDesc      A_TypeDescIdent   (S_pos pos, S_symbol sType, bool ptr);
 A_typeDesc      A_TypeDescProc    (S_pos pos, A_proc proc);
+A_nestedStmt    A_NestedStmt      (S_pos pos, A_nestedStmtKind kind);
 A_stmt          A_PrintStmt       (S_pos pos, A_exp exp);
 A_stmt          A_PrintNLStmt     (S_pos pos);
 A_stmt          A_PrintTABStmt    (S_pos pos);
@@ -209,6 +220,7 @@ A_stmt          A_CallStmt        (S_pos pos, A_proc proc, A_expList args);
 A_stmt          A_CallPtrStmt     (S_pos pos, S_symbol name, A_expList args);
 A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields);
 A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
+A_stmt          A_ExitStmt        (S_pos pos, A_nestedStmt nest);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);

@@ -863,10 +863,10 @@ Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee)
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl)
+Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
-    Temp_label test      = Temp_newlabel();
-    Temp_label done      = breaklbl;
+    Temp_label test      = contlbl;
+    Temp_label done      = exitlbl;
     Temp_label loopstart = Temp_newlabel();
 
     T_stm s = T_Seq(T_Label(test),
@@ -879,12 +879,18 @@ Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl)
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl)
+Tr_exp Tr_gotoExp(Temp_label lbl)
+{
+    T_stm s = T_Jump(lbl);
+    return Tr_Nx(s);
+}
+
+Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
     Ty_ty      loopVarTy = F_accessType(loopVar->access);
-    Temp_label test      = Temp_newlabel();
+    Temp_label test      = contlbl;
     Temp_label loopstart = Temp_newlabel();
-    Temp_label done      = breaklbl;
+    Temp_label done      = exitlbl;
 
     Temp_temp limit      = Temp_newtemp(loopVarTy);
     T_exp loopv          = unEx(Tr_Deref(Tr_Var(loopVar)));
@@ -1145,17 +1151,20 @@ void Tr_printExp(FILE *out, Tr_exp exp, int d)
     switch (exp->kind)
     {
         case Tr_ex:
-            indent(out, d); fprintf(out, "ex(");
+            indent(out, d);
+            fprintf(out, "ex(");
             printExp(out, exp->u.ex, d+1);
             fprintf(out,")\n");
             break;
         case Tr_nx:
-            indent(out, d); fprintf(out, "nx(");
+            indent(out, d);
+            fprintf(out, "nx(");
             printStm(out, exp->u.nx, d+1);
             fprintf(out,")\n");
             break;
         case Tr_cx:
-            indent(out, d); fprintf(out, "cx(");
+            indent(out, d);
+            fprintf(out, "cx(");
             printStm(out, exp->u.cx.stm, d+1);
             fprintf(out,")\n");
             break;

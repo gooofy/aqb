@@ -21,11 +21,37 @@
 static S_scope g_venv;
 static S_scope g_tenv;
 
-static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl);
-static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, S_pos pos);
-static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth);
+// exit / continue support
+typedef struct Sem_nestedLabels_ *Sem_nestedLabels;
+struct Sem_nestedLabels_
+{
+    A_nestedStmtKind kind;
+
+    Temp_label       exitlbl;
+    Temp_label       contlbl;
+
+    Sem_nestedLabels parent;
+};
+
+static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_nestedLabels nestedLabels);
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_nestedLabels nestedLabels, S_pos pos);
+static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Sem_nestedLabels nestedLabels);
 
 /* Utilities */
+
+static Sem_nestedLabels Sem_NestedLabels(A_nestedStmtKind kind, Temp_label exitlbl, Temp_label contlbl, Sem_nestedLabels parent)
+{
+    Sem_nestedLabels p = checked_malloc(sizeof(*p));
+
+    p->kind    = kind;
+
+    p->exitlbl = exitlbl;
+    p->contlbl = contlbl;
+
+    p->parent  = parent;
+
+    return p;
+}
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, S_pos pos)
@@ -612,9 +638,9 @@ static Ty_ty lookup_type(S_scope tenv, S_pos pos, S_symbol sym)
     return Ty_Void();
 }
 
-static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Temp_label breaklbl);
+static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Sem_nestedLabels nestedLabels);
 
-static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeDesc td, bool allowForwardPtr, Temp_label breaklbl)
+static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeDesc td, bool allowForwardPtr, Sem_nestedLabels nestedLabels)
 {
     Ty_ty t = NULL;
     switch (td->kind)
@@ -655,7 +681,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
             {
                 if (proc->returnTD)
                 {
-                    resultTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, breaklbl);
+                    resultTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, nestedLabels);
                 }
                 if (!resultTy)
                 {
@@ -663,7 +689,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
                     break;
                 }
             }
-            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, breaklbl);
+            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
             Ty_tyList formalTys = E_FormalTys(formals);
 
             t = Ty_ProcPtr(formalTys, resultTy);
@@ -673,7 +699,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
     return t;
 }
 
-static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Temp_label breaklbl)
+static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Sem_nestedLabels nestedLabels)
 {
     Tr_expList explist = NULL;
 
@@ -731,7 +757,7 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
 
             if (!handled)
             {
-                exp = transExp(level, venv, tenv, actuals->exp, breaklbl);
+                exp = transExp(level, venv, tenv, actuals->exp, nestedLabels);
                 Tr_exp conv_actual;
                 if (!convert_ty(exp, formals->ty, &conv_actual))
                 {
@@ -778,13 +804,13 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
 }
 
 /* Expression entrance */
-static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp_label breaklbl)
+static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_nestedLabels nestedLabels)
 {
     switch (a->kind)
     {
         case A_varExp:
         {
-            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl, a->pos);
+            Tr_exp e = transVar(level, venv, tenv, a->u.var, nestedLabels, a->pos);
             // if this is a varPtr, time to deref it
             Ty_ty ty = Tr_ty(e);
             if (ty->kind == Ty_varPtr)
@@ -794,7 +820,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
 
         case A_varPtrExp:
         {
-            Tr_exp e = transVar(level, venv, tenv, a->u.var, breaklbl, a->pos);
+            Tr_exp e = transVar(level, venv, tenv, a->u.var, nestedLabels, a->pos);
             Ty_ty ty = Tr_ty(e);
             if (ty->kind != Ty_varPtr)
             {
@@ -817,7 +843,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
 
         case A_derefExp:
         {
-            Tr_exp e = transExp(level, venv, tenv, a->u.deref, breaklbl);
+            Tr_exp e = transExp(level, venv, tenv, a->u.deref, nestedLabels);
             Ty_ty ty = Tr_ty(e);
             if (ty->kind != Ty_pointer)
             {
@@ -872,8 +898,8 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
         case A_opExp:
         {
             A_oper oper   = a->u.op.oper;
-            Tr_exp left   = transExp(level, venv, tenv, a->u.op.left, breaklbl);
-            Tr_exp right  = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, breaklbl) : Tr_zeroExp(Tr_ty(left));
+            Tr_exp left   = transExp(level, venv, tenv, a->u.op.left, nestedLabels);
+            Tr_exp right  = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, nestedLabels) : Tr_zeroExp(Tr_ty(left));
             Ty_ty  resTy;
             Ty_ty  ty1    = Tr_ty(left);
             Ty_ty  ty2    = Tr_ty(right);
@@ -957,7 +983,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
                 break;
             }
 
-            Tr_expList explist = assignParams(a->pos, level, venv, tenv, proc->u.fun.formals, a->u.callr.args->first, breaklbl);
+            Tr_expList explist = assignParams(a->pos, level, venv, tenv, proc->u.fun.formals, a->u.callr.args->first, nestedLabels);
 
             return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
         }
@@ -968,7 +994,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Temp
     return Tr_nopNx();
 }
 
-static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Temp_label breaklbl)
+static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Sem_nestedLabels nestedLabels)
 {
     E_formals formals=NULL, last_formals=NULL;
     for (A_param param = params->first; param; param = param->next)
@@ -977,7 +1003,7 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
         Tr_exp defaultExp = NULL;
         if (param->td)
         {
-            ty = resolveTypeDesc(level, venv, tenv, param->td, /*allowForwardPtr=*/FALSE, breaklbl);
+            ty = resolveTypeDesc(level, venv, tenv, param->td, /*allowForwardPtr=*/FALSE, nestedLabels);
         }
         else
         {
@@ -994,7 +1020,7 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
         }
 
         if (param->defaultExp)
-            defaultExp = transExp(level, venv, tenv, param->defaultExp, breaklbl);
+            defaultExp = transExp(level, venv, tenv, param->defaultExp, nestedLabels);
 
         /* insert at tail to avoid order reversed */
         if (formals == NULL)
@@ -1042,13 +1068,13 @@ static Temp_tempList makeParamRegList(A_paramList params)
     return regs;
 }
 
-static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Temp_label breaklbl, int depth)
+static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Sem_nestedLabels nestedLabels)
 {
     switch (stmt->kind)
     {
         case A_printStmt:
         {
-            Tr_exp     exp     = transExp(level, venv, tenv, stmt->u.printExp, breaklbl);
+            Tr_exp     exp     = transExp(level, venv, tenv, stmt->u.printExp, nestedLabels);
             Tr_expList arglist = Tr_ExpList(exp, NULL);  // single argument list
             S_symbol   fsym    = NULL;                   // put* function sym to call
             Ty_ty      ty      = Tr_ty(exp);
@@ -1117,7 +1143,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_assertStmt:
         {
-            Tr_exp exp         = transExp(level, venv, tenv, stmt->u.assertr.exp, breaklbl);
+            Tr_exp exp         = transExp(level, venv, tenv, stmt->u.assertr.exp, nestedLabels);
             Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp, NULL));
             S_symbol fsym      = S_Symbol("___aqb_assert", TRUE);
             E_enventry func    = S_look(g_venv, fsym);
@@ -1125,8 +1151,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_assignStmt:
         {
-            Tr_exp var = transVar(level, venv, tenv, stmt->u.assign.var, breaklbl, stmt->pos);
-            Tr_exp exp = transExp(level, venv, tenv, stmt->u.assign.exp, breaklbl);
+            Tr_exp var = transVar(level, venv, tenv, stmt->u.assign.var, nestedLabels, stmt->pos);
+            Tr_exp exp = transExp(level, venv, tenv, stmt->u.assign.exp, nestedLabels);
             Tr_exp convexp;
 
             Ty_ty ty = Tr_ty(var);
@@ -1176,10 +1202,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 lenv = venv;
             }
 
-            Tr_exp from_exp  = transExp(level, lenv, tenv, stmt->u.forr.from_exp, breaklbl);
-            Tr_exp to_exp    = transExp(level, lenv, tenv, stmt->u.forr.to_exp, breaklbl);
+            Tr_exp from_exp  = transExp(level, lenv, tenv, stmt->u.forr.from_exp, nestedLabels);
+            Tr_exp to_exp    = transExp(level, lenv, tenv, stmt->u.forr.to_exp, nestedLabels);
             Tr_exp step_exp  = stmt->u.forr.step_exp ?
-                                 transExp(level, lenv, tenv, stmt->u.forr.step_exp, breaklbl) :
+                                 transExp(level, lenv, tenv, stmt->u.forr.step_exp, nestedLabels) :
                                  Tr_oneExp(varty);
 
             Tr_exp conv_from_exp, conv_to_exp, conv_step_exp;
@@ -1200,28 +1226,32 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 break;
             }
 
-            Temp_label forbreak = Temp_newlabel();
-            Tr_exp body = transStmtList(level, lenv, tenv, stmt->u.forr.body, forbreak, depth+1);
+            Temp_label forexit = Temp_newlabel();
+            Temp_label forcont = Temp_newlabel();
+
+            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestFor, forexit, forcont, nestedLabels);
+
+            Tr_exp body = transStmtList(level, lenv, tenv, stmt->u.forr.body, nls2);
 
             if (stmt->u.forr.sType)
                 S_endScope(lenv);
 
-            return Tr_forExp(var->u.var.access, conv_from_exp, conv_to_exp, conv_step_exp, body, forbreak);
+            return Tr_forExp(var->u.var.access, conv_from_exp, conv_to_exp, conv_step_exp, body, forexit, forcont);
         }
         case A_ifStmt:
         {
             Tr_exp test, conv_test, then, elsee;
-            test = transExp(level, venv, tenv, stmt->u.ifr.test, breaklbl);
+            test = transExp(level, venv, tenv, stmt->u.ifr.test, nestedLabels);
             if (!convert_ty(test, Ty_Bool(), &conv_test))
             {
                 EM_error(stmt->u.ifr.test->pos, "if expression must be boolean");
                 break;
             }
 
-            then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, breaklbl, depth+1);
+            then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, nestedLabels);
             if (stmt->u.ifr.elseStmts != NULL)
             {
-                elsee = transStmtList(level, venv, tenv, stmt->u.ifr.elseStmts, breaklbl, depth+1);
+                elsee = transStmtList(level, venv, tenv, stmt->u.ifr.elseStmts, nestedLabels);
             }
             else
             {
@@ -1244,7 +1274,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             {
                 if (proc->returnTD)
                 {
-                    resultTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, breaklbl);
+                    resultTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, nestedLabels);
                 }
                 else
                 {
@@ -1259,7 +1289,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             if (proc->offset)
             {
-                Tr_exp expOffset = transExp(level, venv, tenv, proc->offset, breaklbl);
+                Tr_exp expOffset = transExp(level, venv, tenv, proc->offset, nestedLabels);
                 if (!Tr_isConst(expOffset))
                 {
                     EM_error(proc->offset->pos, "Constant offset expected.");
@@ -1283,7 +1313,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 libBase = Temp_labelstring(l);
             }
 
-            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, breaklbl);
+            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
             Ty_tyList formalTys = E_FormalTys(formals);
             e = S_look(venv, proc->label);
             if (e)
@@ -1324,7 +1354,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     }
                 }
 
-                Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, breaklbl, depth+1);
+                Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, nestedLabels);
 
                 S_endScope(lenv);
 
@@ -1335,7 +1365,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_whileStmt:
         {
-            Tr_exp exp = transExp(level, venv, tenv, stmt->u.whiler.exp, breaklbl);
+            Tr_exp exp = transExp(level, venv, tenv, stmt->u.whiler.exp, nestedLabels);
 
             Tr_exp conv_exp;
 
@@ -1345,10 +1375,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 break;
             }
 
-            Temp_label whilebreak = Temp_newlabel();
-            Tr_exp body = transStmtList(level, venv, tenv, stmt->u.whiler.body, whilebreak, depth+1);
+            Temp_label whileexit = Temp_newlabel();
+            Temp_label whilecont = Temp_newlabel();
+            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestWhile, whileexit, whilecont, nestedLabels);
+            Tr_exp body = transStmtList(level, venv, tenv, stmt->u.whiler.body, nls2);
 
-            return Tr_whileExp(conv_exp, body, whilebreak);
+            return Tr_whileExp(conv_exp, body, whileexit, whilecont);
         }
         case A_callStmt:
         {
@@ -1365,7 +1397,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 break;
             }
 
-            Tr_expList explist = assignParams(stmt->pos, level, venv, tenv, proc->u.fun.formals, stmt->u.callr.args->first, breaklbl);
+            Tr_expList explist = assignParams(stmt->pos, level, venv, tenv, proc->u.fun.formals, stmt->u.callr.args->first, nestedLabels);
 
             return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
         }
@@ -1376,7 +1408,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty t = NULL;
             if (stmt->u.vdeclr.td)
             {
-                t = resolveTypeDesc(level, venv, tenv, stmt->u.vdeclr.td, /*allowForwardPtr=*/FALSE, breaklbl);
+                t = resolveTypeDesc(level, venv, tenv, stmt->u.vdeclr.td, /*allowForwardPtr=*/FALSE, nestedLabels);
             }
             else
             {
@@ -1388,7 +1420,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 int start, end;
                 if (dim->expStart)
                 {
-                    Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, breaklbl);
+                    Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, nestedLabels);
                     if (!Tr_isConst(expStart))
                     {
                         EM_error(dim->expStart->pos, "Constant array bounds expected.");
@@ -1400,7 +1432,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 {
                     start = 0;
                 }
-                Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, breaklbl);
+                Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, nestedLabels);
                 if (!Tr_isConst(expEnd))
                 {
                     EM_error(dim->expEnd->pos, "Constant array bounds expected.");
@@ -1413,7 +1445,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Tr_exp conv_init=NULL;
             if (stmt->u.vdeclr.init)
             {
-                Tr_exp init = transExp(level, venv, tenv, stmt->u.vdeclr.init, breaklbl);
+                Tr_exp init = transExp(level, venv, tenv, stmt->u.vdeclr.init, nestedLabels);
                 if (!convert_ty(init, t, &conv_init))
                 {
                     EM_error(stmt->u.vdeclr.init->pos, "initializer type mismatch");
@@ -1425,14 +1457,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (stmt->u.vdeclr.shared)
             {
                 assert(!stmt->u.vdeclr.statc);
-                if (depth)
+                x = S_look(venv, name);
+                if (x)
                 {
-                    x = S_look(venv, name);
-                    if (x)
-                    {
-                        EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
-                        break;
-                    }
+                    EM_error(stmt->pos, "Variable %s already declared in this scope.", S_name(name));
+                    break;
                 }
                 x = S_look(g_venv, name);
                 if (x)
@@ -1494,7 +1523,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
                 if (f->td)
                 {
-                    t = resolveTypeDesc(level, venv, tenv, f->td, /*allowForwardPtr=*/TRUE, breaklbl);
+                    t = resolveTypeDesc(level, venv, tenv, f->td, /*allowForwardPtr=*/TRUE, nestedLabels);
                 }
                 else
                 {
@@ -1512,7 +1541,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     int start, end;
                     if (dim->expStart)
                     {
-                        Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, breaklbl);
+                        Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, nestedLabels);
                         if (!Tr_isConst(expStart))
                         {
                             EM_error(dim->expStart->pos, "Constant array bounds expected.");
@@ -1524,7 +1553,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     {
                         start = 0;
                     }
-                    Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, breaklbl);
+                    Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, nestedLabels);
                     if (!Tr_isConst(expEnd))
                     {
                         EM_error(dim->expEnd->pos, "Constant array bounds expected.");
@@ -1556,7 +1585,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty t = NULL;
             if (stmt->u.cdeclr.td)
             {
-                t = resolveTypeDesc(level, venv, tenv, stmt->u.cdeclr.td, /*allowForwardPtr=*/FALSE, breaklbl);
+                t = resolveTypeDesc(level, venv, tenv, stmt->u.cdeclr.td, /*allowForwardPtr=*/FALSE, nestedLabels);
             }
             else
             {
@@ -1564,7 +1593,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             Tr_exp conv_cexp=NULL;
-            Tr_exp cexp = transExp(level, venv, tenv, stmt->u.cdeclr.cExp, breaklbl);
+            Tr_exp cexp = transExp(level, venv, tenv, stmt->u.cdeclr.cExp, nestedLabels);
             if (!convert_ty(cexp, t, &conv_cexp))
             {
                 EM_error(stmt->u.cdeclr.cExp->pos, "initializer type mismatch");
@@ -1614,7 +1643,33 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 formalTys = formalTys->tail;
             }
             Tr_exp e = Tr_Deref(Tr_Var(procptr->u.var.access));
-            return Tr_callPtrExp(e, assignParams(stmt->pos, level, venv, tenv, formals, stmt->u.callptr.args->first, breaklbl), ty->u.procPtr.returnTy);
+            return Tr_callPtrExp(e, assignParams(stmt->pos, level, venv, tenv, formals, stmt->u.callptr.args->first, nestedLabels), ty->u.procPtr.returnTy);
+        }
+        case A_exitStmt:
+        {
+            A_nestedStmt n = stmt->u.exitr;
+            Sem_nestedLabels nls2 = nestedLabels;
+            if (n)
+            {
+                while (n)
+                {
+                    while (nls2 && nls2->kind != n->kind)
+                        nls2 = nls2->parent;
+                    if (!nls2)
+                        break;
+
+                    n = n->next;
+                    if (n)
+                        nls2 = nls2->parent;
+                }
+            }
+            if (!nls2)
+            {
+                EM_error(stmt->pos, "failed to find matching staement");
+                break;
+            }
+
+            return Tr_gotoExp(nls2->exitlbl);
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
@@ -1623,18 +1678,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
     return NULL;
 }
 
-static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Temp_label breaklbl, int depth)
+static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Sem_nestedLabels nestedLabels)
 {
     Tr_expList el = NULL, last=NULL;
     A_stmtListNode node;
 
     for (node = stmtList->first; node != NULL; node = node->next) {
-        Tr_exp exp = transStmt(level, venv, tenv, node->stmt, breaklbl, depth+1);
+        Tr_exp exp = transStmt(level, venv, tenv, node->stmt, nestedLabels);
         if (!exp)   // declarations will not produce statements
             continue;
 
         if (OPT_get(OPTION_VERBOSE))
-            Tr_printExp(stdout, exp, depth);
+            Tr_printExp(stdout, exp, 1);
 
         if (last)
         {
@@ -1660,7 +1715,7 @@ static void resolveForwardType(S_pos pos, S_scope tenv, Ty_field f)
     f->ty = Ty_Pointer(t);
 }
 
-static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp_label breaklbl, S_pos pos)
+static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_nestedLabels nestedLabels, S_pos pos)
 {
     E_enventry x = autovar(level, venv, v->name, pos);
 
@@ -1721,7 +1776,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
             }
             formalTys = formalTys->tail;
         }
-        return Tr_callPtrExp(e, assignParams(pos, level, venv, tenv, formals, actuals->first, breaklbl), ty->u.procPtr.returnTy);
+        return Tr_callPtrExp(e, assignParams(pos, level, venv, tenv, formals, actuals->first, nestedLabels), ty->u.procPtr.returnTy);
     }
 
     for (A_selector sel = v->selector; sel; sel = sel->tail)
@@ -1731,7 +1786,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Temp
         {
             case A_indexSel:
             {
-                Tr_exp idx = transExp(level, venv, tenv, sel->u.idx, breaklbl);
+                Tr_exp idx = transExp(level, venv, tenv, sel->u.idx, nestedLabels);
                 Tr_exp idx_conv;
                 if (!convert_ty(idx, Ty_Long(), &idx_conv))
                 {
@@ -1827,7 +1882,7 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
         printf ("transStmtList:\n");
         printf ("--------------\n");
     }
-    Tr_exp prog = transStmtList(lv, venv, g_tenv, sourceProgram->stmtList, NULL, 0);
+    Tr_exp prog = transStmtList(lv, venv, g_tenv, sourceProgram->stmtList, NULL);
     if (OPT_get(OPTION_VERBOSE))
     {
         printf ("--------------\n");

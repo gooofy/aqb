@@ -66,8 +66,9 @@ Tr_exp        Tr_boolOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
 Tr_exp        Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right);
 Tr_exp        Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee);
 Tr_exp        Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty);
-Tr_exp        Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label breaklbl);
-Tr_exp        Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label breaklbl);
+Tr_exp        Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl);
+Tr_exp        Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_label contlbl);
+Tr_exp        Tr_gotoExp(Temp_label lbl);
 
 #if 0
 Tr_exp        Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right);
