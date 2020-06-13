@@ -429,6 +429,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, ")");
             break;
         }
+        case A_contStmt:
+        {
+            indent(out, d);
+            fprintf(out, "CONTINUE (");
+            pr_nest(out, stmt->u.exitr);
+            fprintf(out, ")");
+            break;
+        }
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);

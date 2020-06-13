@@ -68,7 +68,7 @@ struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
-           A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt             } kind;
+           A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt   } kind;
     S_pos pos;
 	union
     {
@@ -86,6 +86,7 @@ struct A_stmt_
         Temp_label label;
         struct {S_symbol name; A_expList args;} callptr;
         A_nestedStmt exitr;
+        A_nestedStmt contr;
     } u;
 };
 
@@ -221,6 +222,7 @@ A_stmt          A_CallPtrStmt     (S_pos pos, S_symbol name, A_expList args);
 A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields);
 A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
 A_stmt          A_ExitStmt        (S_pos pos, A_nestedStmt nest);
+A_stmt          A_ContinueStmt    (S_pos pos, A_nestedStmt nest);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);

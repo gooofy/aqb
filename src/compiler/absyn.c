@@ -294,6 +294,18 @@ A_stmt A_ExitStmt (S_pos pos, A_nestedStmt nest)
     return p;
 }
 
+A_stmt A_ContinueStmt (S_pos pos, A_nestedStmt nest)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind    = A_contStmt;
+    p->pos     = pos;
+
+    p->u.contr = nest;
+
+    return p;
+}
+
 A_exp A_StringExp (S_pos pos, const char *str)
 {
     A_exp p = checked_malloc(sizeof(*p));

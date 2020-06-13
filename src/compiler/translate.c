@@ -888,7 +888,7 @@ Tr_exp Tr_gotoExp(Temp_label lbl)
 Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
     Ty_ty      loopVarTy = F_accessType(loopVar->access);
-    Temp_label test      = contlbl;
+    Temp_label test      = Temp_newlabel();
     Temp_label loopstart = Temp_newlabel();
     Temp_label done      = exitlbl;
 
@@ -900,14 +900,15 @@ Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_s
     T_stm limitStm       = T_Move(T_Temp(limit, loopVarTy), unEx(exp_to), loopVarTy);
 
     T_stm s = T_Seq(initStm,
-                T_Seq(T_Label(test),
-                  T_Seq(limitStm,
+                T_Seq(limitStm,
+                  T_Seq(T_Label(test),
                     T_Seq(T_Cjump(T_le, loopv, T_Temp(limit, loopVarTy), loopstart, done),
                       T_Seq(T_Label(loopstart),
                         T_Seq(unNx(body),
-                          T_Seq(incStm,
-                            T_Seq(T_Jump(test),
-                              T_Label(done)))))))));
+                          T_Seq(T_Label(contlbl),
+                            T_Seq(incStm,
+                              T_Seq(T_Jump(test),
+                                T_Label(done))))))))));
     return Tr_Nx(s);
 }
 

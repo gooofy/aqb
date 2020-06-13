@@ -1646,6 +1646,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             return Tr_callPtrExp(e, assignParams(stmt->pos, level, venv, tenv, formals, stmt->u.callptr.args->first, nestedLabels), ty->u.procPtr.returnTy);
         }
         case A_exitStmt:
+        case A_contStmt:
         {
             A_nestedStmt n = stmt->u.exitr;
             Sem_nestedLabels nls2 = nestedLabels;
@@ -1665,10 +1666,19 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             if (!nls2)
             {
-                EM_error(stmt->pos, "failed to find matching staement");
+                EM_error(stmt->pos, "failed to find matching statement");
                 break;
             }
 
+            if (stmt->kind == A_contStmt)
+            {
+                if (!nls2->contlbl)
+                {
+                    EM_error(stmt->pos, "connot continue this kind of statement");
+                    break;
+                }
+                return Tr_gotoExp(nls2->contlbl);
+            }
             return Tr_gotoExp(nls2->exitlbl);
         }
         default:
