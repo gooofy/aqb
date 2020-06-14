@@ -1354,11 +1354,15 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     }
                 }
 
-                Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, nestedLabels);
+                Temp_label subexit = Temp_newlabel();
+
+                Sem_nestedLabels nls2 = Sem_NestedLabels(proc->isFunction ? A_nestFunction : A_nestSub, subexit, NULL, nestedLabels);
+
+                Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, nls2);
 
                 S_endScope(lenv);
 
-                Tr_procEntryExit(funlv, body, Tr_formals(funlv), ret_access);
+                Tr_procEntryExit(funlv, body, Tr_formals(funlv), ret_access, subexit);
             }
 
             break;
@@ -1898,7 +1902,7 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
         printf ("--------------\n");
     }
 
-    Tr_procEntryExit(lv, prog, NULL, NULL);
+    Tr_procEntryExit(lv, prog, NULL, NULL, NULL);
 
     return Tr_getResult();
 }

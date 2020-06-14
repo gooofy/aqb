@@ -34,7 +34,7 @@ Temp_label    Tr_heapLabel(Tr_access access);
 Temp_label    Tr_getLabel(Tr_level level);
 bool          Tr_isStatic(Tr_level level);
 
-void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access);
+void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl);
 
 F_fragList    Tr_getResult(void);
 

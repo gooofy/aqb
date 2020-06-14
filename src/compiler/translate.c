@@ -343,9 +343,12 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access)
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl)
 {
     T_stm stm = unNx(body);
+
+    if (exitlbl)
+        stm = T_Seq(stm, T_Label(exitlbl));
 
     if (ret_access)
     {
@@ -355,6 +358,7 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
                 T_Seq(stm,
                   T_Move(T_Temp(F_RV(), ty_ret), ret_exp, ty_ret)));
     }
+
     F_frag frag = F_ProcFrag(stm, level->frame);
     fragList    = F_FragList(frag, fragList);
 }
@@ -911,49 +915,6 @@ Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_s
                                 T_Label(done))))))))));
     return Tr_Nx(s);
 }
-
-#if 0
-Tr_exp Tr_breakExp(Temp_label breaklbl) {
-  return Tr_Nx(T_Jump(T_Name(breaklbl), Temp_LabelList(breaklbl, NULL)));
-}
-
-Tr_exp Tr_arrayExp(Tr_exp init, Tr_exp size) {
-  return Tr_Ex(F_externalCall("initArray",
-                T_ExpList(unEx(size), T_ExpList(unEx(init), NULL))));
-}
-
-Tr_exp Tr_recordExp(Tr_expList el, int fieldCount) {
-  /* Allocation */
-  Temp_temp r = Temp_newtemp();
-  T_stm alloc = T_Move(T_Temp(r),
-                  F_externalCall("allocRecord",
-                    T_ExpList(T_Const(fieldCount * F_wordSize), NULL)));
-
-  /* Init fields */
-  T_stm init = NULL, current = NULL;
-  int fieldIndex = 0;
-  for (; el; el = el->tail, ++fieldIndex) {
-    if (init == NULL) {
-      init = current = T_Seq(T_Move(T_Mem(T_Binop(T_plus,
-                              T_Temp(r),
-                              T_Const((fieldCount - 1 - fieldIndex) * F_wordSize))),
-                                unEx(el->head)),
-                        T_Exp(T_Const(0)));         /* statements in seq cannot be null */
-    } else {
-      current->u.SEQ.right = T_Seq(T_Move(T_Mem(T_Binop(T_plus,
-                                    T_Temp(r),
-                                    T_Const((fieldCount - 1 - fieldIndex) * F_wordSize))),
-                                      unEx(el->head)),
-                              T_Exp(T_Const(0)));   /* statements in seq cannot be null */
-      current = current->u.SEQ.right;
-    }
-  }
-
-  return Tr_Ex(T_Eseq(
-            T_Seq(alloc, init),
-              T_Temp(r)));
-}
-#endif
 
 Tr_exp Tr_seqExp(Tr_expList el)
 {
