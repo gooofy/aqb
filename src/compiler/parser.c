@@ -81,6 +81,7 @@ static S_symbol S_SELECT;
 static S_symbol S_CONTINUE;
 static S_symbol S_UNTIL;
 static S_symbol S_LOOP;
+static S_symbol S_CAST;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -2907,6 +2908,7 @@ static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
     return TRUE;
 }
 
+// funSizeOf = SIZEOF "(" ident ")"
 static bool funSizeOf(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -2928,6 +2930,37 @@ static bool funSizeOf(S_tkn *tkn, P_declProc dec, A_exp *exp)
     *tkn = (*tkn)->next;
 
     *exp = A_SizeofExp(pos, sType);
+    return TRUE;
+}
+
+// funCast = CAST "(" typeDesc "," expression ")"
+static bool funCast(S_tkn *tkn, P_declProc dec, A_exp *exp)
+{
+    S_pos      pos = (*tkn)->pos;
+    A_typeDesc td;
+
+    *tkn = (*tkn)->next;    // skip "CAST"
+
+    if ((*tkn)->kind != S_LPAREN)
+        return EM_error((*tkn)->pos, "( expected.");
+    *tkn = (*tkn)->next;
+
+    if (!typeDesc (tkn, &td))
+        return EM_error((*tkn)->pos, "cast: type descriptor expected here.");
+
+    if ((*tkn)->kind != S_COMMA)
+        return EM_error((*tkn)->pos, ", expected.");
+    *tkn = (*tkn)->next;
+
+    A_exp exp2;
+    if (!expression(tkn, &exp2))
+        return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
+
+    if ((*tkn)->kind != S_RPAREN)
+        return EM_error((*tkn)->pos, ") expected.");
+    *tkn = (*tkn)->next;
+
+    *exp = A_CastExp(pos, td, exp2);
     return TRUE;
 }
 
@@ -3012,6 +3045,7 @@ static void register_builtins(void)
     S_CONTINUE = S_Symbol("CONTINUE", FALSE);
     S_UNTIL    = S_Symbol("UNTIL",    FALSE);
     S_LOOP     = S_Symbol("LOOP",     FALSE);
+    S_CAST     = S_Symbol("CAST",     FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -3048,6 +3082,7 @@ static void register_builtins(void)
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
+    declare_proc(declared_funs,  S_CAST,     NULL          , funCast,   NULL);
 
     // import procs and functions built-in std module (FIXME: read from file!)
     import_module(E_base_vmod());

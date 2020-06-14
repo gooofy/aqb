@@ -112,7 +112,7 @@ typedef enum {A_addOp, A_subOp,    A_mulOp, A_divOp,
 struct A_exp_
 {
     enum { A_boolExp, A_intExp, A_floatExp, A_stringExp, A_varExp, A_opExp, A_callExp, A_varPtrExp, A_derefExp,
-           A_sizeofExp                                                                                          } kind;
+           A_sizeofExp, A_castExp                                                                               } kind;
     S_pos      pos;
     union
     {
@@ -124,6 +124,7 @@ struct A_exp_
         struct   { A_proc proc; A_expList args;} callr;
         A_exp    deref;
         S_symbol sizeoft;
+        struct   { A_typeDesc td; A_exp exp;} castr;
     } u;
 };
 
@@ -238,6 +239,7 @@ A_exp           A_OpExp           (S_pos pos, A_oper oper, A_exp left, A_exp rig
 A_exp           A_FuncCallExp     (S_pos pos, A_proc proc, A_expList args);
 A_exp           A_DerefExp        (S_pos pos, A_exp exp);
 A_exp           A_SizeofExp       (S_pos pos, S_symbol t);
+A_exp           A_CastExp         (S_pos pos, A_typeDesc td, A_exp exp);
 A_expList       A_ExpList         (void);
 void            A_ExpListAppend   (A_expList list, A_exp exp);
 A_var           A_Var             (S_pos pos, S_symbol sym);

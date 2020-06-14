@@ -246,6 +246,13 @@ static void pr_exp(FILE *out, A_exp exp)
             pr_expList(out, exp->u.callr.args);
             fprintf(out, "))");
             break;
+        case A_castExp:
+            fprintf(out, "cast(");
+            pr_typedesc(out, exp->u.castr.td);
+            fprintf(out, ",");
+            pr_exp(out, exp->u.castr.exp);
+            fprintf(out, ")");
+            break;
         default:
             fprintf(out, "(***err: unknown expression type: %d)", exp->kind);
             assert(0);

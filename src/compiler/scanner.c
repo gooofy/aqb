@@ -487,14 +487,17 @@ static S_tkn next_token(void)
             getch();
             switch (g_ch)
             {
+                case 'b':
                 case 'B':
                     getch();
                     number(2, tkn);
                     break;
+                case 'o':
                 case 'O':
                     getch();
                     number(8, tkn);
                     break;
+                case 'h':
                 case 'H':
                     getch();
                     number(16, tkn);

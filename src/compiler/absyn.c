@@ -565,6 +565,18 @@ A_exp A_SizeofExp (S_pos pos, S_symbol t)
     return p;
 }
 
+A_exp A_CastExp (S_pos pos, A_typeDesc td, A_exp exp)
+{
+    A_exp p = checked_malloc(sizeof(*p));
+
+    p->kind        = A_castExp;
+    p->pos         = pos;
+    p->u.castr.td  = td;
+    p->u.castr.exp = exp;
+
+    return p;
+}
+
 A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, A_typeDesc td, A_exp defaultExp)
 {
     A_param p = checked_malloc(sizeof(*p));

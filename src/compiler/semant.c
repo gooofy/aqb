@@ -498,6 +498,8 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         }
         case Ty_void:
             return ty2->kind == Ty_void;
+        case Ty_record:
+            return FALSE; // unless identical, see above
 
         default:
             assert(0);
@@ -505,7 +507,7 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
 }
 
 
-static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
+static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool explicit)
 {
     Ty_ty ty1 = Tr_ty(exp);
 
@@ -617,7 +619,14 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res)
         case Ty_varPtr:
         case Ty_procPtr:
             if (!compatible_ty(ty1, ty2))
+            {
+                if (explicit)
+                {
+                    *res = Tr_castExp(exp, ty1, ty2);
+                    return TRUE;
+                }
                 return FALSE;
+            }
             *res = exp;
             return TRUE;
 
@@ -759,7 +768,7 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
             {
                 exp = transExp(level, venv, tenv, actuals->exp, nestedLabels);
                 Tr_exp conv_actual;
-                if (!convert_ty(exp, formals->ty, &conv_actual))
+                if (!convert_ty(exp, formals->ty, &conv_actual, /*explicit=*/FALSE))
                 {
                     EM_error(actuals->exp->pos, "parameter type mismatch");
                     return NULL;
@@ -926,12 +935,12 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
                 EM_error(a->u.op.left->pos, "operands type mismatch");
                 break;
             }
-            if (!convert_ty(left, resTy, &e1))
+            if (!convert_ty(left, resTy, &e1, /*explicit=*/FALSE))
             {
                 EM_error(a->u.op.left->pos, "operand type mismatch (left)");
                 break;
             }
-            if (!convert_ty(right, resTy, &e2))
+            if (!convert_ty(right, resTy, &e2, /*explicit=*/FALSE))
             {
                 EM_error(a->u.op.left->pos, "operand type mismatch (right)");
                 break;
@@ -986,6 +995,18 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
             Tr_expList explist = assignParams(a->pos, level, venv, tenv, proc->u.fun.formals, a->u.callr.args->first, nestedLabels);
 
             return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
+        }
+        case A_castExp:
+        {
+            Ty_ty t_dest = resolveTypeDesc(level, venv, tenv, a->u.castr.td, /*allowForwardPtr=*/FALSE, nestedLabels);
+            Tr_exp exp = transExp(level, venv, tenv, a->u.castr.exp, nestedLabels);
+            Tr_exp conv_exp;
+            if (!convert_ty(exp, t_dest, &conv_exp, /*explicit=*/TRUE))
+            {
+                EM_error(a->pos, "unsupported cast");
+                break;
+            }
+            return conv_exp;
         }
         default:
             EM_error(a->pos, "*** internal error: unsupported expression type.");
@@ -1174,7 +1195,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 ty = Tr_ty(var);
             }
 
-            if (!convert_ty(exp, ty, &convexp))
+            if (!convert_ty(exp, ty, &convexp, /*explicit=*/FALSE))
             {
                 EM_error(stmt->pos, "type mismatch (assign).");
                 break;
@@ -1210,17 +1231,17 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             Tr_exp conv_from_exp, conv_to_exp, conv_step_exp;
 
-            if (!convert_ty(from_exp, varty, &conv_from_exp))
+            if (!convert_ty(from_exp, varty, &conv_from_exp, /*explicit=*/FALSE))
             {
                 EM_error(stmt->pos, "type mismatch (from expression).");
                 break;
             }
-            if (!convert_ty(to_exp, varty, &conv_to_exp))
+            if (!convert_ty(to_exp, varty, &conv_to_exp, /*explicit=*/FALSE))
             {
                 EM_error(stmt->pos, "type mismatch (to expression).");
                 break;
             }
-            if (!convert_ty(step_exp, varty, &conv_step_exp))
+            if (!convert_ty(step_exp, varty, &conv_step_exp, /*explicit=*/FALSE))
             {
                 EM_error(stmt->pos, "type mismatch (step expression).");
                 break;
@@ -1242,7 +1263,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             Tr_exp test, conv_test, then, elsee;
             test = transExp(level, venv, tenv, stmt->u.ifr.test, nestedLabels);
-            if (!convert_ty(test, Ty_Bool(), &conv_test))
+            if (!convert_ty(test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
             {
                 EM_error(stmt->u.ifr.test->pos, "if expression must be boolean");
                 break;
@@ -1373,7 +1394,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             Tr_exp conv_exp;
 
-            if (!convert_ty(exp, Ty_Bool(), &conv_exp))
+            if (!convert_ty(exp, Ty_Bool(), &conv_exp, /*explicit=*/FALSE))
             {
                 EM_error(stmt->pos, "Boolean expression expected.");
                 break;
@@ -1450,7 +1471,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (stmt->u.vdeclr.init)
             {
                 Tr_exp init = transExp(level, venv, tenv, stmt->u.vdeclr.init, nestedLabels);
-                if (!convert_ty(init, t, &conv_init))
+                if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
                 {
                     EM_error(stmt->u.vdeclr.init->pos, "initializer type mismatch");
                     return Tr_nopNx();
@@ -1598,7 +1619,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             Tr_exp conv_cexp=NULL;
             Tr_exp cexp = transExp(level, venv, tenv, stmt->u.cdeclr.cExp, nestedLabels);
-            if (!convert_ty(cexp, t, &conv_cexp))
+            if (!convert_ty(cexp, t, &conv_cexp, /*explicit=*/FALSE))
             {
                 EM_error(stmt->u.cdeclr.cExp->pos, "initializer type mismatch");
                 return Tr_nopNx();
@@ -1693,7 +1714,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (stmt->u.dor.untilExp)
             {
                 Tr_exp untilExp = transExp(level, venv, tenv, stmt->u.dor.untilExp, nestedLabels);
-                if (!convert_ty(untilExp, Ty_Bool(), &convUntilExp))
+                if (!convert_ty(untilExp, Ty_Bool(), &convUntilExp, /*explicit=*/FALSE))
                 {
                     EM_error(stmt->pos, "Boolean expression expected.");
                     break;
@@ -1703,7 +1724,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (stmt->u.dor.whileExp)
             {
                 Tr_exp whileExp = transExp(level, venv, tenv, stmt->u.dor.whileExp, nestedLabels);
-                if (!convert_ty(whileExp, Ty_Bool(), &convWhileExp))
+                if (!convert_ty(whileExp, Ty_Bool(), &convWhileExp, /*explicit=*/FALSE))
                 {
                     EM_error(stmt->pos, "Boolean expression expected.");
                     break;
@@ -1834,7 +1855,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
             {
                 Tr_exp idx = transExp(level, venv, tenv, sel->u.idx, nestedLabels);
                 Tr_exp idx_conv;
-                if (!convert_ty(idx, Ty_Long(), &idx_conv))
+                if (!convert_ty(idx, Ty_Long(), &idx_conv, /*explicit=*/FALSE))
                 {
                     EM_error(sel->pos, "Array indices must be numeric.");
                     return Tr_zeroExp(Ty_Long());

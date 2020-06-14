@@ -1132,6 +1132,24 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                         assert(0);
                 }
                 break;
+            case Ty_array:
+            case Ty_pointer:
+            case Ty_varPtr:
+            case Ty_procPtr:
+                switch (to_ty->kind)
+                {
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_array:
+                    case Ty_pointer:
+                    case Ty_varPtr:
+                    case Ty_procPtr:
+                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                    default:
+                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
             default:
                 EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
                 assert(0);
