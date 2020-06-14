@@ -37,12 +37,7 @@ void _aio_puts4(int num)
 {
     char buf[MAXBUF];
 
-    if (num<0)
-    {
-        _aio_puts("-");
-        num *= -1;
-    }
-    else
+    if (num>=0)
     {
         _aio_puts(" ");
     }
@@ -56,12 +51,7 @@ void _aio_puts2(short num)
 {
     char buf[MAXBUF];
 
-    if (num<0)
-    {
-        _aio_puts("-");
-        num *= -1;
-    }
-    else
+    if (num>=0)
     {
         _aio_puts(" ");
     }
@@ -75,12 +65,7 @@ void _aio_puts1(char num)
 {
     char buf[MAXBUF];
 
-    if (num<0)
-    {
-        _aio_puts("-");
-        num *= -1;
-    }
-    else
+    if (num>=0)
     {
         _aio_puts(" ");
     }
