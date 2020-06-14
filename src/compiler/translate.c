@@ -883,6 +883,59 @@ Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_label contl
     return Tr_Nx(s);
 }
 
+Tr_exp Tr_doExp(Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
+{
+    T_stm s = NULL;
+
+    if (condAtEntry)
+    {
+        Temp_label bodylbl = Temp_newlabel();
+        if (whileExp)
+            s = T_Seq(T_Label(contlbl),
+                  T_Seq(T_Cjump(T_ne, unEx(whileExp), unEx(Tr_zeroExp(Ty_Bool())), bodylbl, exitlbl),
+                    T_Seq(T_Label(bodylbl),
+                      T_Seq(unNx(body),
+                        T_Seq(T_Jump(contlbl),
+                          T_Label(exitlbl))))));
+        else
+            s = T_Seq(T_Label(contlbl),
+                  T_Seq(T_Cjump(T_ne, unEx(untilExp), unEx(Tr_zeroExp(Ty_Bool())), exitlbl, bodylbl),
+                    T_Seq(T_Label(bodylbl),
+                      T_Seq(unNx(body),
+                        T_Seq(T_Jump(contlbl),
+                          T_Label(exitlbl))))));
+    }
+    else
+    {
+        if (whileExp)
+        {
+            s = T_Seq(T_Label(contlbl),
+                  T_Seq(unNx(body),
+                    T_Seq(T_Cjump(T_ne, unEx(whileExp), unEx(Tr_zeroExp(Ty_Bool())), contlbl, exitlbl),
+                      T_Label(exitlbl))));
+        }
+        else
+        {
+            if (untilExp)
+            {
+                s = T_Seq(T_Label(contlbl),
+                      T_Seq(unNx(body),
+                        T_Seq(T_Cjump(T_ne, unEx(untilExp), unEx(Tr_zeroExp(Ty_Bool())), exitlbl, contlbl),
+                          T_Label(exitlbl))));
+            }
+            else
+            {
+                s = T_Seq(T_Label(contlbl),
+                      T_Seq(unNx(body),
+                        T_Seq(T_Jump(contlbl),
+                          T_Label(exitlbl))));
+            }
+        }
+    }
+
+    return Tr_Nx(s);
+}
+
 Tr_exp Tr_gotoExp(Temp_label lbl)
 {
     T_stm s = T_Jump(lbl);

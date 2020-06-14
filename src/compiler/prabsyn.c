@@ -437,6 +437,41 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, ")");
             break;
         }
+        case A_doStmt:
+            indent(out, d);
+            fprintf(out, "DO (");
+            if (stmt->u.dor.condAtEntry)
+            {
+                if (stmt->u.dor.whileExp)
+                {
+                    fprintf (out, "WHILE ");
+                    pr_exp(out, stmt->u.dor.whileExp);
+                }
+                if (stmt->u.dor.untilExp)
+                {
+                    fprintf (out, "UNTIL ");
+                    pr_exp(out, stmt->u.dor.untilExp);
+                }
+            }
+            fprintf(out, "\n");
+            pr_stmtList(out, stmt->u.dor.body, d+1);
+            fprintf(out, "\n");
+            indent(out, d);
+            if (!stmt->u.dor.condAtEntry)
+            {
+                if (stmt->u.dor.whileExp)
+                {
+                    fprintf (out, "WHILE ");
+                    pr_exp(out, stmt->u.dor.whileExp);
+                }
+                if (stmt->u.dor.untilExp)
+                {
+                    fprintf (out, "UNTIL ");
+                    pr_exp(out, stmt->u.dor.untilExp);
+                }
+            }
+            fprintf(out, ")");
+            break;
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);

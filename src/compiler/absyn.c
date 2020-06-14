@@ -83,6 +83,21 @@ A_stmt A_WhileStmt (S_pos pos, A_exp exp, A_stmtList body)
     return p;
 }
 
+A_stmt A_DoStmt (S_pos pos, A_exp untilExp, A_exp whileExp, bool condAtEntry, A_stmtList body)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind = A_doStmt;
+    p->pos  = pos;
+
+    p->u.dor.untilExp    = untilExp;
+    p->u.dor.whileExp    = whileExp;
+    p->u.dor.condAtEntry = condAtEntry;
+    p->u.dor.body        = body;
+
+    return p;
+}
+
 A_stmt A_IfStmt (S_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts)
 {
     A_stmt p = checked_malloc(sizeof(*p));

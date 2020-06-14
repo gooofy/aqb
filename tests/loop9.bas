@@ -1,0 +1,16 @@
+' test DO LOOP WHILE
+
+OPTION EXPLICIT
+
+DIM s AS INTEGER = 41
+
+DO
+
+    s = s + 1
+
+LOOP WHILE s<2
+
+' PRINT s
+
+ASSERT s = 42
+

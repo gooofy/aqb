@@ -79,6 +79,8 @@ static S_symbol S_B;
 static S_symbol S_DO;
 static S_symbol S_SELECT;
 static S_symbol S_CONTINUE;
+static S_symbol S_UNTIL;
+static S_symbol S_LOOP;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -150,7 +152,7 @@ static void declare_proc(TAB_table m, S_symbol sym,
 typedef struct P_SLE_          *P_SLE;
 struct P_SLE_
 {
-    enum { P_forLoop, P_whileLoop, P_loop, P_if, P_sub, P_function, P_type } kind;
+    enum { P_forLoop, P_whileLoop, P_doLoop, P_if, P_sub, P_function, P_type } kind;
     S_pos       pos;
     A_stmtList  stmtList;
     P_SLE       prev;
@@ -174,6 +176,11 @@ struct P_SLE_
             A_field    fFirst, fLast;
             S_symbol   sType;
         } typeDecl;
+        struct
+        {
+            A_exp untilExp, whileExp;
+            bool  condAtEntry;
+        } doLoop;
     } u;
 };
 
@@ -2784,6 +2791,98 @@ static bool stmtContinue(S_tkn tkn, P_declProc dec)
     return TRUE;
 }
 
+// doStmt ::= DO [ ( UNTIL | WHILE ) expression ]
+static bool stmtDo(S_tkn tkn, P_declProc dec)
+{
+    A_exp    untilExp = NULL, whileExp = NULL;
+    S_pos    pos = tkn->pos;
+    P_SLE    sle;
+
+    tkn = tkn->next; // consume "DO"
+
+    if (isSym (tkn, S_UNTIL))
+    {
+        tkn = tkn->next;
+        if (!expression(&tkn, &untilExp))
+            return EM_error(tkn->pos, "DO UNTIL: expression expected here.");
+    }
+    else
+    {
+        if (isSym (tkn, S_WHILE))
+        {
+            tkn = tkn->next;
+            if (!expression(&tkn, &whileExp))
+                return EM_error(tkn->pos, "DO WHILE: expression expected here.");
+        }
+    }
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    sle = slePush();
+
+    sle->kind = P_doLoop;
+    sle->pos  = pos;
+
+    sle->u.doLoop.untilExp    = untilExp;
+    sle->u.doLoop.whileExp    = whileExp;
+    sle->u.doLoop.condAtEntry = whileExp || untilExp;
+
+    return TRUE;
+}
+
+// stmtLoop ::= LOOP [ ( UNTIL | WHILE ) expression ]
+static bool stmtLoop(S_tkn tkn, P_declProc dec)
+{
+    S_pos    pos = tkn->pos;
+
+    tkn = tkn->next; // consume "LOOP"
+
+    P_SLE sle = g_sleStack;
+    if (sle->kind != P_doLoop)
+    {
+        EM_error(pos, "LOOP used outside of a DO-loop context");
+        return FALSE;
+    }
+    slePop();
+
+    if (isSym (tkn, S_UNTIL))
+    {
+        tkn = tkn->next;
+        if (sle->u.doLoop.condAtEntry)
+        {
+            EM_error(pos, "LOOP: duplicate loop condition");
+            return FALSE;
+        }
+
+        if (!expression(&tkn, &sle->u.doLoop.untilExp))
+            return EM_error(tkn->pos, "LOOP UNTIL: expression expected here.");
+    }
+    else
+    {
+        if (isSym (tkn, S_WHILE))
+        {
+            tkn = tkn->next;
+            if (sle->u.doLoop.condAtEntry)
+            {
+                EM_error(pos, "LOOP: duplicate loop condition");
+                return FALSE;
+            }
+            if (!expression(&tkn, &sle->u.doLoop.whileExp))
+                return EM_error(tkn->pos, "LOOP WHILE: expression expected here.");
+        }
+    }
+
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    A_StmtListAppend (g_sleStack->stmtList,
+                      A_DoStmt(pos, sle->u.doLoop.untilExp, sle->u.doLoop.whileExp, sle->u.doLoop.condAtEntry, sle->stmtList));
+
+    return TRUE;
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -2911,6 +3010,8 @@ static void register_builtins(void)
     S_DO       = S_Symbol("DO",       FALSE);
     S_SELECT   = S_Symbol("SELECT",   FALSE);
     S_CONTINUE = S_Symbol("CONTINUE", FALSE);
+    S_UNTIL    = S_Symbol("UNTIL",    FALSE);
+    S_LOOP     = S_Symbol("LOOP",     FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -2942,6 +3043,8 @@ static void register_builtins(void)
     declare_proc(declared_stmts, S_RESUME,   stmtResume       , NULL, NULL);
     declare_proc(declared_stmts, S_EXIT,     stmtExit         , NULL, NULL);
     declare_proc(declared_stmts, S_CONTINUE, stmtContinue     , NULL, NULL);
+    declare_proc(declared_stmts, S_DO,       stmtDo           , NULL, NULL);
+    declare_proc(declared_stmts, S_LOOP,     stmtLoop         , NULL, NULL);
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);

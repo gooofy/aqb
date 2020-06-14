@@ -68,7 +68,8 @@ struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
-           A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt   } kind;
+           A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt,
+           A_doStmt                                                                              } kind;
     S_pos pos;
 	union
     {
@@ -87,6 +88,7 @@ struct A_stmt_
         struct {S_symbol name; A_expList args;} callptr;
         A_nestedStmt exitr;
         A_nestedStmt contr;
+	    struct {A_exp untilExp; A_exp whileExp; bool condAtEntry; A_stmtList body;} dor;
     } u;
 };
 
@@ -211,6 +213,7 @@ A_stmt          A_PrintTABStmt    (S_pos pos);
 A_stmt          A_AssignStmt      (S_pos pos, A_var var, A_exp exp, bool deref);
 A_stmt          A_ForStmt         (S_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
 A_stmt          A_WhileStmt       (S_pos pos, A_exp exp, A_stmtList body);
+A_stmt          A_DoStmt          (S_pos pos, A_exp untilExp, A_exp whileExp, bool condAtEntry, A_stmtList body);
 A_stmt          A_IfStmt          (S_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
 A_stmt          A_ProcStmt        (S_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (S_pos pos, A_proc proc);

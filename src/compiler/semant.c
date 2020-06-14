@@ -1685,6 +1685,38 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             return Tr_gotoExp(nls2->exitlbl);
         }
+        case A_doStmt:
+        {
+            Tr_exp convUntilExp = NULL;
+            Tr_exp convWhileExp = NULL;
+
+            if (stmt->u.dor.untilExp)
+            {
+                Tr_exp untilExp = transExp(level, venv, tenv, stmt->u.dor.untilExp, nestedLabels);
+                if (!convert_ty(untilExp, Ty_Bool(), &convUntilExp))
+                {
+                    EM_error(stmt->pos, "Boolean expression expected.");
+                    break;
+                }
+            }
+
+            if (stmt->u.dor.whileExp)
+            {
+                Tr_exp whileExp = transExp(level, venv, tenv, stmt->u.dor.whileExp, nestedLabels);
+                if (!convert_ty(whileExp, Ty_Bool(), &convWhileExp))
+                {
+                    EM_error(stmt->pos, "Boolean expression expected.");
+                    break;
+                }
+            }
+
+            Temp_label doexit = Temp_newlabel();
+            Temp_label docont = Temp_newlabel();
+            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestDo, doexit, docont, nestedLabels);
+            Tr_exp body = transStmtList(level, venv, tenv, stmt->u.dor.body, nls2);
+
+            return Tr_doExp(convUntilExp, convWhileExp, stmt->u.dor.condAtEntry, body, doexit, docont);
+        }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);
