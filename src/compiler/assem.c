@@ -54,7 +54,6 @@ AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
             break;
         case AS_NOP:
             assert(w == AS_w_NONE);
-            assert(src==NULL);
             assert(dst==NULL);
             p->srcInterf = NULL;
             p->dstInterf = NULL;

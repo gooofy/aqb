@@ -38,7 +38,7 @@ Temp_tempList L(Temp_temp h, Temp_tempList t)
 static void      munchStm(T_stm s);
 static Temp_temp munchExp(T_exp e, bool ignore_result);
 static int       munchArgsStack(int i, T_expList args);
-static void      munchCallerRestoreStack(int restore_cnt);
+static void      munchCallerRestoreStack(int restore_cnt, bool sink_rv);
 
 AS_instrList F_codegen(F_frame f, T_stmList stmList)
 {
@@ -156,7 +156,7 @@ static Temp_temp emitBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
     T_expList args    = T_ExpList(e_left, T_ExpList(e_right, NULL));
     int       arg_cnt = munchArgsStack(0, args);
     emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()), 0, 0, Temp_namedlabel(sub_name)));  // jsr     sub_name
-    munchCallerRestoreStack(arg_cnt);
+    munchCallerRestoreStack(arg_cnt, /*sink_rv=*/FALSE);
     emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), r));                                                          // move.l  RV, r
 
     return r;
@@ -751,7 +751,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             {
                 int arg_cnt = munchArgsStack(0, args);
                 emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()), 0, 0, lab));  // jsr   lab
-                munchCallerRestoreStack(arg_cnt);
+                munchCallerRestoreStack(arg_cnt, ignore_result);
                 if (!ignore_result)
                 {
                     enum AS_w isz = ty_isz(e->ty);
@@ -989,7 +989,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             Temp_temp rfptr = munchExp(fptr, FALSE);
             int arg_cnt = munchArgsStack(0, args);
             emit(AS_InstrEx(AS_JSR_An, AS_w_NONE, L(rfptr, NULL), L(F_RV(), F_callersaves()), 0, 0, NULL)); // jsr   (rfptr)
-            munchCallerRestoreStack(arg_cnt);
+            munchCallerRestoreStack(arg_cnt, ignore_result);
             if (!ignore_result)
             {
                 enum AS_w isz = ty_isz(e->ty);
@@ -1388,12 +1388,22 @@ static int munchArgsStack(int i, T_expList args)
     return cnt+1;
 }
 
-static void munchCallerRestoreStack(int cnt)
+static void munchCallerRestoreStack(int cnt, bool sink_rv)
 {
     if (cnt)
     {
-        emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, F_callersaves(), // sink the callersaves so liveness analysis will save them
+        Temp_tempList src = F_callersaves(); // sink the callersaves so liveness analysis will save them
+        if (sink_rv)                         // in case we're not interested in the return value, we still need to sink d0 so it will be saved
+            src = L(F_RV(), src);
+        emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, src,
                         NULL, T_ConstI(cnt * F_wordSize), 0, NULL));                     // add.l #(cnt*F_wordSize), sp
+    }
+    else
+    {
+        if (sink_rv)
+        {
+            emit(AS_Instr(AS_NOP, AS_w_NONE, F_RV(), NULL));                             // nop
+        }
     }
 }
 
