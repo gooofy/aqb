@@ -316,22 +316,39 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             fprintf(out, ")");
             break;
         case A_ifStmt:
-            indent(out, d);
-            fprintf(out, "IF(");
-            pr_exp(out, stmt->u.ifr.test);
-            fprintf(out, " THEN\n");
-            pr_stmtList(out, stmt->u.ifr.thenStmts, d+1);
-            fprintf(out, "\n");
-            if (stmt->u.ifr.elseStmts)
+        {
+            A_ifBranch ifB = stmt->u.ifr;
+            bool first = TRUE;
+            while (ifB)
             {
                 indent(out, d);
-                fprintf(out, " ELSE\n");
-                pr_stmtList(out, stmt->u.ifr.elseStmts, d+1);
-                fprintf(out, "\n");
+                if (first)
+                {
+                    fprintf(out, "IF(");
+                    pr_exp(out, ifB->test);
+                    fprintf(out, " THEN\n");
+                    first = FALSE;
+                }
+                else
+                {
+                    if (ifB->test)
+                    {
+                        fprintf(out, " ELSEIF ");
+                        pr_exp(out, ifB->test);
+                        fprintf(out, " THEN\n");
+                    }
+                    else
+                    {
+                        fprintf(out, " ELSE\n");
+                    }
+                }
+                pr_stmtList(out, ifB->stmts, d+1);
+                ifB = ifB->next;
             }
             indent(out, d);
             fprintf(out, ")");
             break;
+        }
         case A_procStmt:
         case A_procDeclStmt:
         {

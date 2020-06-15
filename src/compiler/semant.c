@@ -1089,6 +1089,36 @@ static Temp_tempList makeParamRegList(A_paramList params)
     return regs;
 }
 
+static Tr_exp transIfBranch(Tr_level level, S_scope venv, S_scope tenv, Sem_nestedLabels nestedLabels, A_ifBranch ifBranch)
+{
+    Tr_exp test, conv_test, then, elsee;
+
+    then = transStmtList(level, venv, tenv, ifBranch->stmts, nestedLabels);
+    if (!ifBranch->test)
+    {
+        return then;
+    }
+
+    test = transExp(level, venv, tenv, ifBranch->test, nestedLabels);
+    if (!convert_ty(test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
+    {
+        EM_error(ifBranch->test->pos, "if expression must be boolean");
+        return Tr_nopNx();
+    }
+
+    if (ifBranch->next != NULL)
+    {
+        elsee = transIfBranch(level, venv, tenv, nestedLabels, ifBranch->next);
+    }
+    else
+    {
+        elsee = Tr_nopNx();
+    }
+
+    return Tr_ifExp(conv_test, then, elsee);
+}
+
+
 static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Sem_nestedLabels nestedLabels)
 {
     switch (stmt->kind)
@@ -1260,27 +1290,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             return Tr_forExp(var->u.var.access, conv_from_exp, conv_to_exp, conv_step_exp, body, forexit, forcont);
         }
         case A_ifStmt:
-        {
-            Tr_exp test, conv_test, then, elsee;
-            test = transExp(level, venv, tenv, stmt->u.ifr.test, nestedLabels);
-            if (!convert_ty(test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
-            {
-                EM_error(stmt->u.ifr.test->pos, "if expression must be boolean");
-                break;
-            }
+            return transIfBranch(level, venv, tenv, nestedLabels, stmt->u.ifr);
 
-            then = transStmtList(level, venv, tenv, stmt->u.ifr.thenStmts, nestedLabels);
-            if (stmt->u.ifr.elseStmts != NULL)
-            {
-                elsee = transStmtList(level, venv, tenv, stmt->u.ifr.elseStmts, nestedLabels);
-            }
-            else
-            {
-                elsee = Tr_nopNx();
-            }
-
-            return Tr_ifExp(conv_test, then, elsee);
-        }
         case A_procStmt:
         case A_procDeclStmt:
         {

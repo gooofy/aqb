@@ -168,8 +168,7 @@ struct P_SLE_
         A_exp whileExp;
         struct
         {
-            A_exp      test;
-            A_stmtList thenStmts;
+            A_ifBranch ifBFirst, ifBLast;
         } ifStmt;
         A_proc proc;
         struct
@@ -1591,7 +1590,7 @@ static bool stmtIfBegin(S_tkn tkn, P_declProc decl)
     tkn = tkn->next; // consume "IF"
 
     if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "if expression expected here.");
+        return EM_error(tkn->pos, "IF expression expected here.");
 
     if (isSym(tkn, S_GOTO))
         return EM_error (tkn->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
@@ -1600,7 +1599,7 @@ static bool stmtIfBegin(S_tkn tkn, P_declProc decl)
         return EM_error (tkn->pos, "THEN expected.");
     tkn = tkn->next;
 
-    if (tkn->kind != S_EOL)
+    if (!isLogicalEOL(tkn))
         return EM_error (tkn->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
 
     sle = slePush();
@@ -1608,17 +1607,33 @@ static bool stmtIfBegin(S_tkn tkn, P_declProc decl)
     sle->kind = P_if;
     sle->pos  = pos;
 
-    sle->u.ifStmt.test = exp;
+    sle->u.ifStmt.ifBFirst = sle->u.ifStmt.ifBLast = A_IfBranch(exp, sle->stmtList);
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // ifElse  ::= ELSEIF expression THEN
 //             |  ELSE .
 static bool stmtIfElse(S_tkn tkn, P_declProc decl)
 {
+    A_exp exp = NULL;
+
     if (isSym(tkn, S_ELSEIF))
-        return EM_error (tkn->pos, "Sorry, ELSEIF is not supported yet."); // FIXME
+    {
+        tkn = tkn->next;
+        if (!expression(&tkn, &exp))
+            return EM_error(tkn->pos, "ELSEIF expression expected here.");
+        if (!isSym(tkn, S_THEN))
+            return EM_error(tkn->pos, "THEN expected here.");
+        tkn = tkn->next;
+    }
+    else
+    {
+        tkn = tkn->next; // consume "ELSE"
+    }
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
 
     P_SLE sle = g_sleStack;
     if (sle->kind != P_if)
@@ -1626,13 +1641,11 @@ static bool stmtIfElse(S_tkn tkn, P_declProc decl)
         EM_error(tkn->pos, "ELSE used outside of an IF-statement context");
         return FALSE;
     }
+    sle->u.ifStmt.ifBLast->next = A_IfBranch(exp, A_StmtList());
+    sle->u.ifStmt.ifBLast       = sle->u.ifStmt.ifBLast->next;
+    sle->stmtList               = sle->u.ifStmt.ifBLast->stmts;
 
-    tkn = tkn->next; // consume "ELSE"
-
-    sle->u.ifStmt.thenStmts = sle->stmtList;
-    sle->stmtList           = A_StmtList();
-
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 static void stmtIfEnd_(void)
@@ -1640,10 +1653,7 @@ static void stmtIfEnd_(void)
     P_SLE sle = g_sleStack;
     slePop();
 
-    A_stmtList thenStmts = sle->u.ifStmt.thenStmts ? sle->u.ifStmt.thenStmts : sle->stmtList;
-    A_stmtList elseStmts = sle->u.ifStmt.thenStmts ? sle->stmtList : NULL;
-
-    A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.test, thenStmts, elseStmts));
+    A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.ifBFirst));
 }
 
 static void stmtProcEnd_(void)

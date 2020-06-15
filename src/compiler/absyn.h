@@ -29,6 +29,7 @@ typedef struct A_param_         *A_param;
 typedef struct A_paramList_     *A_paramList;
 typedef struct A_dim_           *A_dim;
 typedef struct A_field_         *A_field;
+typedef struct A_ifBranch_      *A_ifBranch;
 
 struct A_sourceProgram_
 {
@@ -64,6 +65,13 @@ struct A_nestedStmt_    // used in EXIT, CONTINUE
     A_nestedStmt     next;
 };
 
+struct A_ifBranch_
+{
+    A_exp      test;    // NULL -> else branch
+    A_stmtList stmts;
+    A_ifBranch next;
+};
+
 struct A_stmt_
 {
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
@@ -76,7 +84,7 @@ struct A_stmt_
         A_exp printExp;
 	    struct {A_var var; A_exp exp; bool deref;} assign;
 	    struct {S_symbol var; S_symbol sType; A_exp from_exp, to_exp, step_exp; A_stmtList body;} forr;
-        struct {A_exp test; A_stmtList thenStmts; A_stmtList elseStmts;} ifr;
+        A_ifBranch ifr;
         A_proc proc;
         struct {A_proc proc; A_expList args;} callr;
         struct {bool shared; bool statc; bool external; S_symbol sVar; A_dim dims; A_typeDesc td; A_exp init;} vdeclr;
@@ -215,7 +223,7 @@ A_stmt          A_AssignStmt      (S_pos pos, A_var var, A_exp exp, bool deref);
 A_stmt          A_ForStmt         (S_pos pos, S_symbol var, S_symbol sType, A_exp from_exp, A_exp to_exp, A_exp step_exp, A_stmtList body);
 A_stmt          A_WhileStmt       (S_pos pos, A_exp exp, A_stmtList body);
 A_stmt          A_DoStmt          (S_pos pos, A_exp untilExp, A_exp whileExp, bool condAtEntry, A_stmtList body);
-A_stmt          A_IfStmt          (S_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts);
+A_stmt          A_IfStmt          (S_pos pos, A_ifBranch ifBranch);
 A_stmt          A_ProcStmt        (S_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (S_pos pos, A_proc proc);
 A_stmt          A_VarDeclStmt     (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init);
@@ -253,5 +261,6 @@ A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
 A_dim           A_Dim             (A_exp expStart, A_exp expEnd);
 A_field         A_Field           (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td);
+A_ifBranch      A_IfBranch        (A_exp test, A_stmtList stmts);
 
 #endif

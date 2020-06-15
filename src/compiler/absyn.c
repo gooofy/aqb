@@ -98,16 +98,13 @@ A_stmt A_DoStmt (S_pos pos, A_exp untilExp, A_exp whileExp, bool condAtEntry, A_
     return p;
 }
 
-A_stmt A_IfStmt (S_pos pos, A_exp test, A_stmtList thenStmts, A_stmtList elseStmts)
+A_stmt A_IfStmt (S_pos pos, A_ifBranch ifBranch)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
-    p->kind = A_ifStmt;
-    p->pos  = pos;
-
-    p->u.ifr.test      = test;
-    p->u.ifr.thenStmts = thenStmts;
-    p->u.ifr.elseStmts = elseStmts;
+    p->kind  = A_ifStmt;
+    p->pos   = pos;
+    p->u.ifr = ifBranch;
 
     return p;
 }
@@ -634,6 +631,18 @@ A_proc A_Proc (S_pos pos, S_symbol name, S_symlist extraSyms, Temp_label label, 
     p->body       = NULL;
     p->offset     = NULL;
     p->libBase    = NULL;
+
+    return p;
+}
+
+
+A_ifBranch A_IfBranch (A_exp test, A_stmtList stmts)
+{
+    A_ifBranch p = checked_malloc(sizeof(*p));
+
+    p->test  = test;
+    p->stmts = stmts;
+    p->next  = NULL;
 
     return p;
 }
