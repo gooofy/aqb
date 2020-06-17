@@ -30,6 +30,8 @@ typedef struct A_paramList_     *A_paramList;
 typedef struct A_dim_           *A_dim;
 typedef struct A_field_         *A_field;
 typedef struct A_ifBranch_      *A_ifBranch;
+typedef struct A_selectBranch_  *A_selectBranch;
+typedef struct A_selectExp_     *A_selectExp;
 
 struct A_sourceProgram_
 {
@@ -67,7 +69,7 @@ struct A_nestedStmt_    // used in EXIT, CONTINUE
 
 struct A_ifBranch_
 {
-    A_exp      test;    // NULL -> else branch
+    A_exp      test;    // NULL -> ELSE branch
     A_stmtList stmts;
     A_ifBranch next;
 };
@@ -77,7 +79,7 @@ struct A_stmt_
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
            A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt,
-           A_doStmt                                                                              } kind;
+           A_doStmt, A_selectStmt                                                                } kind;
     S_pos pos;
 	union
     {
@@ -97,6 +99,7 @@ struct A_stmt_
         A_nestedStmt exitr;
         A_nestedStmt contr;
 	    struct {A_exp untilExp; A_exp whileExp; bool condAtEntry; A_stmtList body;} dor;
+        struct {A_exp exp; A_selectBranch sb;} selectr;
     } u;
 };
 
@@ -134,6 +137,22 @@ struct A_exp_
         S_symbol sizeoft;
         struct   { A_typeDesc td; A_exp exp;} castr;
     } u;
+};
+
+struct A_selectExp_
+{
+    A_exp          exp;
+    A_exp          toExp;   // != NULL    -> exp TO exp
+    A_oper         condOp;  // != A_addOp -> IS <op> exp
+    A_selectExp    next;
+};
+
+struct A_selectBranch_
+{
+    S_pos          pos;
+    A_selectExp    exp;       // NULL -> SELECT ELSE branch
+    A_stmtList     stmts;
+    A_selectBranch next;
 };
 
 struct A_expListNode_
@@ -235,6 +254,7 @@ A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields);
 A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
 A_stmt          A_ExitStmt        (S_pos pos, A_nestedStmt nest);
 A_stmt          A_ContinueStmt    (S_pos pos, A_nestedStmt nest);
+A_stmt          A_SelectStmt      (S_pos pos, A_exp exp, A_selectBranch sb);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);
@@ -262,5 +282,7 @@ void            A_ParamListAppend (A_paramList list, A_param param);
 A_dim           A_Dim             (A_exp expStart, A_exp expEnd);
 A_field         A_Field           (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td);
 A_ifBranch      A_IfBranch        (A_exp test, A_stmtList stmts);
+A_selectBranch  A_SelectBranch    (S_pos pos, A_selectExp exp, A_stmtList stmts);
+A_selectExp     A_SelectExp       (A_exp exp, A_exp toExp, A_oper condOp);
 
 #endif

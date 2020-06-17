@@ -272,35 +272,34 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             switch (resty->kind)
             {
                 case Ty_bool:
-                    // switch (e->u.BINOP.op)
-                    // {
-                    //     case T_and:
-                    //         return munchBinOp (e, "and.b"  , "and.b"  , "and.b"  , NULL   , NULL   , resty);
-                    //     case T_or:
-                    //         return munchBinOp (e, "or.b"   , "or.b"   , "or.b"   , NULL   , NULL   , resty);
-                    //     case T_xor:
-                    //         return munchBinOp (e, "eor.b"  , "eor.b"  , "eor.b"  , NULL   , NULL   , resty);
-                    //     case T_eqv:
-                    //         return munchBinOp (e, "eor.b"  , "eor.b"  , "eor.b"  , NULL   , "not.b", resty);
-                    //     case T_imp:
-                    //     {
-                    //         T_exp     e_left  = e->u.BINOP.left;
-                    //         T_exp     e_right = e->u.BINOP.right;
-                    //         Temp_temp r       = Temp_newtemp(resty);
+                    switch (e->u.BINOP.op)
+                    {
+                        case T_and:
+                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_or:
+                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_xor:
+                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
+                        case T_eqv:
+                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
+                        case T_imp:
+                        {
+                            T_exp     e_left  = e->u.BINOP.left;
+                            T_exp     e_right = e->u.BINOP.right;
+                            Temp_temp r       = Temp_newtemp(resty);
 
-                    //         emitMove(munchExp(e_left, FALSE), r, "b");
-                    //         emit(AS_Oper(String("not.b `d0"), L(r, NULL), L(r, NULL), NULL));
-                    //         emit(AS_Oper(String("or.b `s0, `d0"), L(r, NULL), L(munchExp(e_right, FALSE), L(r, NULL)), NULL));
-
-                    //         return r;
-                    //     }
-                    //     case T_not:
-                    //         return munchUnaryOp(e, "not.b", resty);
-                    //     default:
-                    //         EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                    //         assert(0);
-                    // }
-                    assert(0);
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
+                            emit(AS_Instr(AS_NOT_Dn, AS_w_B, r, r));                                       // not.b   r, r
+                            emit(AS_InstrEx(AS_OR_Dn_Dn, AS_w_B, L(munchExp(e_right, FALSE), L(r, NULL)),  // or.b    e_right, r
+                                            L(r, NULL), 0, 0, NULL));
+                            return r;
+                        }
+                        case T_not:
+                            return munchUnaryOp(e, AS_NOT_Dn, resty);
+                        default:
+                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
+                            assert(0);
+                    }
                     break;
                 case Ty_byte:
                     switch (e->u.BINOP.op)

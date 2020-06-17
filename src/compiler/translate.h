@@ -71,21 +71,16 @@ Tr_exp        Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_labe
 Tr_exp        Tr_doExp(Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body, Temp_label exitlbl, Temp_label contlbl);
 Tr_exp        Tr_gotoExp(Temp_label lbl);
 
-#if 0
-Tr_exp        Tr_strOpExp(A_oper o, Tr_exp left, Tr_exp right);
-Tr_exp        Tr_breakExp(Temp_label breaklbl);
-#endif
+Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);
+Tr_exp        Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty);
 
-Tr_exp         Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);
-Tr_exp         Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty);
-
-int            Tr_getConstInt(Tr_exp exp);
-bool           Tr_getConstBool(Tr_exp exp);
-double         Tr_getConstFloat(Tr_exp exp);
+int           Tr_getConstInt(Tr_exp exp);
+bool          Tr_getConstBool(Tr_exp exp);
+double        Tr_getConstFloat(Tr_exp exp);
 // FIXME unsigned char *Tr_getConstData(Tr_exp exp);
-bool           Tr_isConst(Tr_exp exp);
-Ty_ty          Tr_ty(Tr_exp exp);
+bool          Tr_isConst(Tr_exp exp);
+Ty_ty         Tr_ty(Tr_exp exp);
 
-void           Tr_printExp(FILE *out, Tr_exp exp, int d);
+void          Tr_printExp(FILE *out, Tr_exp exp, int d);
 
 #endif

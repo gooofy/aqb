@@ -109,6 +109,18 @@ A_stmt A_IfStmt (S_pos pos, A_ifBranch ifBranch)
     return p;
 }
 
+A_stmt A_SelectStmt (S_pos pos, A_exp exp, A_selectBranch sb)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind          = A_selectStmt;
+    p->pos           = pos;
+    p->u.selectr.exp = exp;
+    p->u.selectr.sb  = sb;
+
+    return p;
+}
+
 A_stmt A_PrintStmt (S_pos pos, A_exp exp)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -647,4 +659,27 @@ A_ifBranch A_IfBranch (A_exp test, A_stmtList stmts)
     return p;
 }
 
+A_selectBranch A_SelectBranch (S_pos pos, A_selectExp exp, A_stmtList stmts)
+{
+    A_selectBranch p = checked_malloc(sizeof(*p));
+
+    p->pos   = pos;
+    p->exp   = exp;
+    p->stmts = stmts;
+    p->next  = NULL;
+
+    return p;
+}
+
+A_selectExp A_SelectExp (A_exp exp, A_exp toExp, A_oper condOp)
+{
+    A_selectExp p = checked_malloc(sizeof(*p));
+
+    p->exp    = exp;
+    p->toExp  = toExp;
+    p->condOp = condOp;
+    p->next   = NULL;
+
+    return p;
+}
 

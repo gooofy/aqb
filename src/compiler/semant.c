@@ -812,6 +812,80 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
     return explist;
 }
 
+// binary op helper function
+static Tr_exp transBinOp(A_oper oper, Tr_exp e1, Tr_exp e2, S_pos pos)
+{
+    Ty_ty  ty1    = Tr_ty(e1);
+    Ty_ty  ty2    = Tr_ty(e2);
+    Ty_ty  resTy;
+    Tr_exp e1_conv, e2_conv;
+
+    // boolean operations, some with short circuit evaluation
+    if (ty1->kind == Ty_bool)
+    {
+        switch (oper)
+        {
+            case A_notOp:
+            case A_andOp:
+            case A_orOp:
+            {
+                return Tr_boolOpExp(oper, e1, e2, ty2);
+            }
+            default:
+                // bool -> integer since we do not have arith operations for bool
+                ty1 = Ty_Integer();
+        }
+    }
+
+    if (!coercion(ty1, ty2, &resTy)) {
+        EM_error(pos, "operands type mismatch");
+        return Tr_nopNx();
+    }
+    if (!convert_ty(e1, resTy, &e1_conv, /*explicit=*/FALSE))
+    {
+        EM_error(pos, "operand type mismatch (left)");
+        return Tr_nopNx();
+    }
+    if (!convert_ty(e2, resTy, &e2_conv, /*explicit=*/FALSE))
+    {
+        EM_error(pos, "operand type mismatch (right)");
+        return Tr_nopNx();
+    }
+
+    switch (oper)
+    {
+        case A_addOp:
+        case A_subOp:
+        case A_mulOp:
+        case A_divOp:
+        case A_negOp:
+        case A_expOp:
+        case A_intDivOp:
+        case A_modOp:
+        case A_xorOp:
+        case A_notOp:
+        case A_eqvOp:
+        case A_impOp:
+        case A_andOp:
+        case A_orOp:
+        case A_shlOp:
+        case A_shrOp:
+        {
+            return Tr_arOpExp(oper, e1_conv, e2_conv, resTy);
+        }
+        case A_eqOp:
+        case A_neqOp:
+        case A_ltOp:
+        case A_leOp:
+        case A_gtOp:
+        case A_geOp:
+        {
+            return Tr_condOpExp(oper, e1_conv, e2_conv);
+        }
+    }
+    return Tr_nopNx();
+}
+
 /* Expression entrance */
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_nestedLabels nestedLabels)
 {
@@ -909,73 +983,8 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
             A_oper oper   = a->u.op.oper;
             Tr_exp left   = transExp(level, venv, tenv, a->u.op.left, nestedLabels);
             Tr_exp right  = a->u.op.right ? transExp(level, venv, tenv, a->u.op.right, nestedLabels) : Tr_zeroExp(Tr_ty(left));
-            Ty_ty  resTy;
-            Ty_ty  ty1    = Tr_ty(left);
-            Ty_ty  ty2    = Tr_ty(right);
 
-            // boolean operations, some with short circuit evaluation
-            if (ty1->kind == Ty_bool)
-            {
-                switch (oper)
-                {
-                    case A_notOp:
-                    case A_andOp:
-                    case A_orOp:
-                    {
-                        return Tr_boolOpExp(oper, left, right, ty2);
-                    }
-                    default:
-                        // bool -> integer since we do not have arith operations for bool
-                        ty1 = Ty_Integer();
-                }
-            }
-
-            Tr_exp e1, e2;
-            if (!coercion(ty1, ty2, &resTy)) {
-                EM_error(a->u.op.left->pos, "operands type mismatch");
-                break;
-            }
-            if (!convert_ty(left, resTy, &e1, /*explicit=*/FALSE))
-            {
-                EM_error(a->u.op.left->pos, "operand type mismatch (left)");
-                break;
-            }
-            if (!convert_ty(right, resTy, &e2, /*explicit=*/FALSE))
-            {
-                EM_error(a->u.op.left->pos, "operand type mismatch (right)");
-                break;
-            }
-            switch (oper)
-            {
-                case A_addOp:
-                case A_subOp:
-                case A_mulOp:
-                case A_divOp:
-                case A_negOp:
-                case A_expOp:
-                case A_intDivOp:
-                case A_modOp:
-                case A_xorOp:
-                case A_notOp:
-                case A_eqvOp:
-                case A_impOp:
-                case A_andOp:
-                case A_orOp:
-                case A_shlOp:
-                case A_shrOp:
-                {
-                    return Tr_arOpExp(oper, e1, e2, resTy);
-                }
-                case A_eqOp:
-                case A_neqOp:
-                case A_ltOp:
-                case A_leOp:
-                case A_gtOp:
-                case A_geOp:
-                {
-                    return Tr_condOpExp(oper, e1, e2);
-                }
-            }
+            return transBinOp(oper, left, right, a->pos);
         }
         case A_callExp:
         {
@@ -1118,6 +1127,72 @@ static Tr_exp transIfBranch(Tr_level level, S_scope venv, S_scope tenv, Sem_nest
     return Tr_ifExp(conv_test, then, elsee);
 }
 
+static Tr_exp transSelectExp(Tr_level level, S_scope venv, S_scope tenv, Tr_exp selExp, A_selectExp se, Sem_nestedLabels nestedLabels, S_pos pos)
+{
+    Tr_exp exp = transExp(level, venv, tenv, se->exp, nestedLabels);
+
+    if (se->condOp != A_addOp)
+    {
+        exp = transBinOp(se->condOp, selExp, exp, pos);
+    }
+    else
+    {
+        if (se->toExp)
+        {
+            Tr_exp toExp = transExp(level, venv, tenv, se->toExp, nestedLabels);
+            exp = transBinOp(A_andOp,
+                             Tr_condOpExp(A_geOp, selExp, exp),
+                             Tr_condOpExp(A_leOp, selExp, toExp),
+                             pos);
+        }
+        else
+        {
+            exp = transBinOp(A_eqOp, selExp, exp, pos);
+            // exp = Tr_condOpExp(A_eqOp, selExp, exp);
+        }
+    }
+
+    if (se->next)
+        exp = transBinOp(A_orOp,
+                         exp,
+                         transSelectExp(level, venv, tenv, selExp, se->next, nestedLabels, pos),
+                         pos);
+        // exp = Tr_boolOpExp(A_orOp,
+        //                    exp,
+        //                    transSelectExp(level, venv, tenv, selExp, se->next, nestedLabels, pos),
+        //                    Ty_Bool());
+
+    return exp;
+}
+
+static Tr_exp transSelectBranch(Tr_level level, S_scope venv, S_scope tenv, Sem_nestedLabels nestedLabels, Tr_exp exp, A_selectBranch sb)
+{
+    Tr_exp stmts, test, conv_test, elsee;
+
+    stmts = transStmtList(level, venv, tenv, sb->stmts, nestedLabels);
+    if (!sb->exp)
+    {
+        return stmts;
+    }
+
+    test = transSelectExp(level, venv, tenv, exp, sb->exp, nestedLabels, sb->pos);
+    if (!convert_ty(test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
+    {
+        EM_error(sb->pos, "select expression must be boolean");
+        return Tr_nopNx();
+    }
+
+    if (sb->next != NULL)
+    {
+        elsee = transSelectBranch(level, venv, tenv, nestedLabels, exp, sb->next);
+    }
+    else
+    {
+        elsee = Tr_nopNx();
+    }
+
+    return Tr_ifExp(conv_test, stmts, elsee);
+}
 
 static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt, Sem_nestedLabels nestedLabels)
 {
@@ -1291,6 +1366,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         }
         case A_ifStmt:
             return transIfBranch(level, venv, tenv, nestedLabels, stmt->u.ifr);
+
+        case A_selectStmt:
+        {
+            Tr_exp exp = transExp(level, venv, tenv, stmt->u.selectr.exp, nestedLabels);
+            return transSelectBranch(level, venv, tenv, nestedLabels, exp, stmt->u.selectr.sb);
+        }
 
         case A_procStmt:
         case A_procDeclStmt:

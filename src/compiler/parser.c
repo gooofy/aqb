@@ -82,6 +82,8 @@ static S_symbol S_CONTINUE;
 static S_symbol S_UNTIL;
 static S_symbol S_LOOP;
 static S_symbol S_CAST;
+static S_symbol S_CASE;
+static S_symbol S_IS;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -153,7 +155,7 @@ static void declare_proc(TAB_table m, S_symbol sym,
 typedef struct P_SLE_          *P_SLE;
 struct P_SLE_
 {
-    enum { P_forLoop, P_whileLoop, P_doLoop, P_if, P_sub, P_function, P_type } kind;
+    enum { P_forLoop, P_whileLoop, P_doLoop, P_if, P_sub, P_function, P_type, P_select } kind;
     S_pos       pos;
     A_stmtList  stmtList;
     P_SLE       prev;
@@ -181,6 +183,11 @@ struct P_SLE_
             A_exp untilExp, whileExp;
             bool  condAtEntry;
         } doLoop;
+        struct
+        {
+            A_exp          exp;
+            A_selectBranch selectBFirst, selectBLast;
+        } selectStmt;
     } u;
 };
 
@@ -1648,6 +1655,157 @@ static bool stmtIfElse(S_tkn tkn, P_declProc decl)
     return TRUE;
 }
 
+// stmtSelect ::= SELECT CASE Expression
+static bool stmtSelect(S_tkn tkn, P_declProc decl)
+{
+    A_exp    exp;
+    S_pos    pos = tkn->pos;
+    P_SLE    sle;
+
+    tkn = tkn->next; // consume "SELECT"
+
+    if (!isSym(tkn, S_CASE))
+        return EM_error (tkn->pos, "CASE expected.");
+    tkn = tkn->next;
+
+    if (!expression(&tkn, &exp))
+        return EM_error(tkn->pos, "SELECT CASE expression expected here.");
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    sle = slePush();
+
+    sle->kind = P_select;
+    sle->pos  = pos;
+
+    sle->u.selectStmt.exp = exp;
+    sle->u.selectStmt.selectBFirst = NULL;
+    sle->u.selectStmt.selectBLast  = NULL;
+
+    return TRUE;
+}
+
+// selectExpr ::= ( expression [ TO expression ]
+//                | IS ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) expression
+//                )
+static bool selectExpr(S_tkn *tkn, A_selectExp *selExp)
+{
+    if (isSym(*tkn, S_IS))
+    {
+        *tkn = (*tkn)->next;
+        A_exp exp;
+        A_oper oper;
+        switch ((*tkn)->kind)
+        {
+            case S_EQUALS:
+                oper = A_eqOp;
+                *tkn = (*tkn)->next;
+                break;
+            case S_GREATER:
+                oper = A_gtOp;
+                *tkn = (*tkn)->next;
+                break;
+            case S_LESS:
+                oper = A_ltOp;
+                *tkn = (*tkn)->next;
+                break;
+            case S_NOTEQ:
+                oper = A_neqOp;
+                *tkn = (*tkn)->next;
+                break;
+            case S_LESSEQ:
+                oper = A_leOp;
+                *tkn = (*tkn)->next;
+                break;
+            case S_GREATEREQ:
+                oper = A_geOp;
+                *tkn = (*tkn)->next;
+                break;
+            default:
+                return EM_error((*tkn)->pos, "comparison operator expected here.");
+        }
+
+        if (!expression(tkn, &exp))
+            return EM_error((*tkn)->pos, "expression expected here.");
+
+        *selExp = A_SelectExp(exp, NULL, oper);
+    }
+    else
+    {
+        A_exp exp;
+        A_exp exp_to = NULL;
+        if (!expression(tkn, &exp))
+            return EM_error((*tkn)->pos, "expression expected here.");
+        if (isSym(*tkn, S_TO))
+        {
+            *tkn = (*tkn)->next;
+            if (!expression(tkn, &exp_to))
+                return EM_error((*tkn)->pos, "expression expected here.");
+        }
+        *selExp = A_SelectExp(exp, exp_to, A_addOp);
+    }
+
+    return TRUE;
+}
+
+// stmtCase ::= CASE ( ELSE | selectExpr ( "," selectExpr )* )
+static bool stmtCase(S_tkn tkn, P_declProc decl)
+{
+    A_selectExp exp, expLast;
+    S_pos       pos = tkn->pos;
+
+    tkn = tkn->next; // consume "CASE"
+
+    if (isSym(tkn, S_ELSE))
+    {
+        tkn = tkn->next;
+        exp = NULL;
+    }
+    else
+    {
+        if (!selectExpr(&tkn, &exp))
+            return FALSE;
+
+        expLast = exp;
+
+        while (tkn->kind == S_COMMA)
+        {
+            A_selectExp exp2;
+            tkn = tkn->next;
+            if (!selectExpr(&tkn, &exp2))
+                return FALSE;
+            expLast->next = exp2;
+            expLast = exp2;
+        }
+    }
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    P_SLE sle = g_sleStack;
+    if (sle->kind != P_select)
+    {
+        EM_error(tkn->pos, "CASE used outside of a SELECT-statement context");
+        return FALSE;
+    }
+
+    A_selectBranch branch = A_SelectBranch(pos, exp, A_StmtList());
+
+    if (sle->u.selectStmt.selectBLast)
+    {
+        sle->u.selectStmt.selectBLast->next = branch;
+        sle->u.selectStmt.selectBLast = sle->u.selectStmt.selectBLast->next;
+    }
+    else
+    {
+        sle->u.selectStmt.selectBFirst = sle->u.selectStmt.selectBLast = branch;
+    }
+    sle->stmtList = branch->stmts;
+
+    return TRUE;
+}
+
 static void stmtIfEnd_(void)
 {
     P_SLE sle = g_sleStack;
@@ -1668,7 +1826,15 @@ static void stmtProcEnd_(void)
     A_StmtListAppend (g_sleStack->stmtList, A_ProcStmt(proc->pos, proc));
 }
 
-// stmtEnd  ::=  END ( SUB | FUNCTION | IF )
+static void stmtSelectEnd_(void)
+{
+    P_SLE sle = g_sleStack;
+    slePop();
+
+    A_StmtListAppend (g_sleStack->stmtList, A_SelectStmt(sle->pos, sle->u.selectStmt.exp, sle->u.selectStmt.selectBFirst));
+}
+
+// stmtEnd  ::=  END ( SUB | FUNCTION | IF | SELECT )
 static bool stmtEnd(S_tkn tkn, P_declProc decl)
 {
     if (isSym(tkn, S_ENDIF))
@@ -1719,7 +1885,21 @@ static bool stmtEnd(S_tkn tkn, P_declProc decl)
             }
             else
             {
-                return FALSE;
+                if (isSym(tkn, S_SELECT))
+                {
+                    P_SLE sle = g_sleStack;
+                    if (sle->kind != P_select)
+                    {
+                        EM_error(tkn->pos, "END SECTION used outside of a SELECT context");
+                        return FALSE;
+                    }
+                    tkn = tkn->next;
+                    stmtSelectEnd_();
+                }
+                else
+                {
+                    return FALSE;
+                }
             }
         }
     }
@@ -3056,6 +3236,8 @@ static void register_builtins(void)
     S_UNTIL    = S_Symbol("UNTIL",    FALSE);
     S_LOOP     = S_Symbol("LOOP",     FALSE);
     S_CAST     = S_Symbol("CAST",     FALSE);
+    S_CASE     = S_Symbol("CASE",     FALSE);
+    S_IS       = S_Symbol("IS",       FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -3089,6 +3271,8 @@ static void register_builtins(void)
     declare_proc(declared_stmts, S_CONTINUE, stmtContinue     , NULL, NULL);
     declare_proc(declared_stmts, S_DO,       stmtDo           , NULL, NULL);
     declare_proc(declared_stmts, S_LOOP,     stmtLoop         , NULL, NULL);
+    declare_proc(declared_stmts, S_SELECT,   stmtSelect       , NULL, NULL);
+    declare_proc(declared_stmts, S_CASE,     stmtCase         , NULL, NULL);
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
