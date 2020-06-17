@@ -420,7 +420,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                 case Ty_array:
                 case Ty_record:
-                case Ty_pointer:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_void:
@@ -429,6 +428,9 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_procPtr:
                     *res = ty1;
                     return TRUE;
+                case Ty_pointer:
+                    *res = ty1;
+                    return ty2->u.pointer->kind == Ty_void;
             }
     }
     *res = ty1;

@@ -23,8 +23,12 @@ SUB setfp (p AS SUB (INTEGER, INTEGER))
 END SUB
 
 setfp q
-CALL g_p (6, 7)
-ASSERT s = 42
+IF g_p <> NULL THEN
+    CALL g_p (6, 7)
+    ASSERT s = 42
+ELSE
+    ASSERT FALSE
+END IF
 
 setfp p
 CALL g_p (16, 7)
