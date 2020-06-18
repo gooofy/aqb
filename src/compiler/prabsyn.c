@@ -563,6 +563,13 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             }
             fprintf(out, ")");
             break;
+        case A_returnStmt:
+            indent(out, d);
+            fprintf(out, "RETURN ");
+            if (stmt->u.returnr)
+                pr_exp(out, stmt->u.returnr);
+            fprintf(out, "\n");
+            break;
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);

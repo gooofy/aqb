@@ -1,0 +1,19 @@
+' test RETURN
+
+OPTION EXPLICIT
+
+FUNCTION f (x AS INTEGER) AS INTEGER
+
+    IF x>10 THEN
+        RETURN 42
+    END IF
+
+    f = 23
+
+END FUNCTION
+
+' PRINT f(11), f(5)
+
+ASSERT f(11)=42
+ASSERT f(5)=23
+

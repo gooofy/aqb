@@ -79,7 +79,7 @@ struct A_stmt_
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
            A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt,
-           A_doStmt, A_selectStmt                                                                } kind;
+           A_doStmt, A_selectStmt, A_returnStmt                                                  } kind;
     S_pos pos;
 	union
     {
@@ -100,6 +100,7 @@ struct A_stmt_
         A_nestedStmt contr;
 	    struct {A_exp untilExp; A_exp whileExp; bool condAtEntry; A_stmtList body;} dor;
         struct {A_exp exp; A_selectBranch sb;} selectr;
+        A_exp returnr;
     } u;
 };
 
@@ -255,6 +256,7 @@ A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
 A_stmt          A_ExitStmt        (S_pos pos, A_nestedStmt nest);
 A_stmt          A_ContinueStmt    (S_pos pos, A_nestedStmt nest);
 A_stmt          A_SelectStmt      (S_pos pos, A_exp exp, A_selectBranch sb);
+A_stmt          A_ReturnStmt      (S_pos pos, A_exp exp);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);

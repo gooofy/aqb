@@ -84,6 +84,7 @@ static S_symbol S_LOOP;
 static S_symbol S_CAST;
 static S_symbol S_CASE;
 static S_symbol S_IS;
+static S_symbol S_RETURN;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3074,6 +3075,29 @@ static bool stmtLoop(S_tkn tkn, P_declProc dec)
     return TRUE;
 }
 
+// stmtReturn ::= RETURN [ expression ]
+static bool stmtReturn(S_tkn tkn, P_declProc decl)
+{
+    A_exp exp=NULL;
+    S_pos pos = tkn->pos;
+
+    tkn = tkn->next; // consume "RETURN"
+
+    if (!isLogicalEOL(tkn))
+    {
+        if (!expression(&tkn, &exp))
+            return EM_error(tkn->pos, "RETURN: expression expected here.");
+    }
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;
+
+    A_StmtListAppend (g_sleStack->stmtList,
+                      A_ReturnStmt(pos, exp));
+
+    return TRUE;
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -3238,6 +3262,7 @@ static void register_builtins(void)
     S_CAST     = S_Symbol("CAST",     FALSE);
     S_CASE     = S_Symbol("CASE",     FALSE);
     S_IS       = S_Symbol("IS",       FALSE);
+    S_RETURN   = S_Symbol("RETURN",   FALSE);
 
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
@@ -3273,6 +3298,7 @@ static void register_builtins(void)
     declare_proc(declared_stmts, S_LOOP,     stmtLoop         , NULL, NULL);
     declare_proc(declared_stmts, S_SELECT,   stmtSelect       , NULL, NULL);
     declare_proc(declared_stmts, S_CASE,     stmtCase         , NULL, NULL);
+    declare_proc(declared_stmts, S_RETURN,   stmtReturn       , NULL, NULL);
 
     declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
     declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);

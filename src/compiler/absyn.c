@@ -121,6 +121,17 @@ A_stmt A_SelectStmt (S_pos pos, A_exp exp, A_selectBranch sb)
     return p;
 }
 
+A_stmt A_ReturnStmt (S_pos pos, A_exp exp)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind      = A_returnStmt;
+    p->pos       = pos;
+    p->u.returnr = exp;
+
+    return p;
+}
+
 A_stmt A_PrintStmt (S_pos pos, A_exp exp)
 {
     A_stmt p = checked_malloc(sizeof(*p));

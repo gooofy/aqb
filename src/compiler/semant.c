@@ -30,6 +30,8 @@ struct Sem_nestedLabels_
     Temp_label       exitlbl;
     Temp_label       contlbl;
 
+    E_enventry       ret_ve;
+
     Sem_nestedLabels parent;
 };
 
@@ -39,7 +41,7 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
 
 /* Utilities */
 
-static Sem_nestedLabels Sem_NestedLabels(A_nestedStmtKind kind, Temp_label exitlbl, Temp_label contlbl, Sem_nestedLabels parent)
+static Sem_nestedLabels Sem_NestedLabels(A_nestedStmtKind kind, Temp_label exitlbl, Temp_label contlbl, E_enventry ret_ve, Sem_nestedLabels parent)
 {
     Sem_nestedLabels p = checked_malloc(sizeof(*p));
 
@@ -47,6 +49,7 @@ static Sem_nestedLabels Sem_NestedLabels(A_nestedStmtKind kind, Temp_label exitl
 
     p->exitlbl = exitlbl;
     p->contlbl = contlbl;
+    p->ret_ve  = ret_ve;
 
     p->parent  = parent;
 
@@ -1357,7 +1360,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Temp_label forexit = Temp_newlabel();
             Temp_label forcont = Temp_newlabel();
 
-            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestFor, forexit, forcont, nestedLabels);
+            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestFor, forexit, forcont, NULL, nestedLabels);
 
             Tr_exp body = transStmtList(level, lenv, tenv, stmt->u.forr.body, nls2);
 
@@ -1451,9 +1454,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             if (!e->u.fun.forward)
             {
-                Tr_level  funlv = e->u.fun.level;
-                Tr_access ret_access = NULL;
-                S_scope   lenv = S_beginScope(g_venv);
+                Tr_level   funlv = e->u.fun.level;
+                Tr_access  ret_access = NULL;
+                S_scope    lenv = S_beginScope(g_venv);
+                E_enventry ret_ve = NULL;
                 {
                     Tr_accessList acl = Tr_formals(funlv);
                     A_param param;
@@ -1465,13 +1469,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     if (proc->isFunction)
                     {
                         ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
-                        S_enter(lenv, proc->name, E_VarEntry(proc->name, ret_access, resultTy, FALSE));
+                        ret_ve = E_VarEntry(proc->name, ret_access, resultTy, FALSE);
+                        S_enter(lenv, proc->name, ret_ve);
                     }
                 }
 
                 Temp_label subexit = Temp_newlabel();
 
-                Sem_nestedLabels nls2 = Sem_NestedLabels(proc->isFunction ? A_nestFunction : A_nestSub, subexit, NULL, nestedLabels);
+                Sem_nestedLabels nls2 = Sem_NestedLabels(proc->isFunction ? A_nestFunction : A_nestSub, subexit, NULL, ret_ve, nestedLabels);
 
                 Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, nls2);
 
@@ -1496,7 +1501,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             Temp_label whileexit = Temp_newlabel();
             Temp_label whilecont = Temp_newlabel();
-            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestWhile, whileexit, whilecont, nestedLabels);
+            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestWhile, whileexit, whilecont, NULL, nestedLabels);
             Tr_exp body = transStmtList(level, venv, tenv, stmt->u.whiler.body, nls2);
 
             return Tr_whileExp(conv_exp, body, whileexit, whilecont);
@@ -1827,10 +1832,65 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             Temp_label doexit = Temp_newlabel();
             Temp_label docont = Temp_newlabel();
-            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestDo, doexit, docont, nestedLabels);
+            Sem_nestedLabels nls2 = Sem_NestedLabels(A_nestDo, doexit, docont, NULL, nestedLabels);
             Tr_exp body = transStmtList(level, venv, tenv, stmt->u.dor.body, nls2);
 
             return Tr_doExp(convUntilExp, convWhileExp, stmt->u.dor.condAtEntry, body, doexit, docont);
+        }
+        case A_returnStmt:
+        {
+            Sem_nestedLabels nls2 = nestedLabels;
+            while (nls2 && nls2->kind != A_nestFunction && nls2->kind != A_nestSub)
+                nls2 = nls2->parent;
+
+            if (!nls2)
+            {
+                EM_error(stmt->pos, "RETURN used outside a SUB/FUNCTION context");
+                break;
+            }
+
+            if (nls2->ret_ve)
+            {
+                if (!stmt->u.returnr)
+                {
+                    EM_error(stmt->pos, "RETURN expression missing.");
+                    break;
+                }
+                Tr_exp var = Tr_Var(nls2->ret_ve->u.var.access);
+                Ty_ty ty = Tr_ty(var);
+                // if var is a varPtr, time to deref it
+                if (ty->kind == Ty_varPtr)
+                {
+                    var = Tr_Deref(var);
+                    ty = Tr_ty(var);
+                }
+
+                Tr_exp exp = transExp(level, venv, tenv, stmt->u.returnr, nestedLabels);
+                Tr_exp convexp;
+
+                if (!convert_ty(exp, ty, &convexp, /*explicit=*/FALSE))
+                {
+                    EM_error(stmt->pos, "type mismatch (RETURN).");
+                    break;
+                }
+
+                return Tr_seqExp(
+                         Tr_ExpList(
+                           Tr_assignExp(var, convexp, Tr_ty(var)),
+                             Tr_ExpList(
+                                Tr_gotoExp(nls2->exitlbl),
+                                  NULL)));
+            }
+            else
+            {
+                if (stmt->u.returnr)
+                {
+                    EM_error(stmt->pos, "Cannot RETURN a value in a SUB.");
+                    break;
+                }
+            }
+
+            return Tr_gotoExp(nls2->exitlbl);
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
