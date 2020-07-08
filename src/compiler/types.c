@@ -1,10 +1,3 @@
-/*
- * types.c -
- *
- * All types and functions declared in this header file begin with "Ty_"
- * Linked list types end with "..list"
- */
-
 #include <stdio.h>
 #include <string.h>
 
@@ -48,31 +41,47 @@ Ty_ty Ty_Void(void) {return &tyvoid;}
 static struct Ty_ty_ tyvoidptr = {Ty_pointer, {&tyvoid}};
 Ty_ty Ty_VoidPtr(void) {return &tyvoidptr;}
 
-Ty_ty Ty_Record(Ty_fieldList fields)
+void Ty_init(void)
+{
+    tybool.uid     =  1;
+    tybyte.uid     =  2;
+    tyubyte.uid    =  3;
+    tyinteger .uid =  4;
+    tyuinteger.uid =  5;
+    tylong.uid     =  6;
+    tyulong.uid    =  7;
+    tysingle.uid   =  8;
+    tydouble.uid   =  9;
+    tystring.uid   = 10;
+    tyvoid.uid     = 11;
+    tyvoidptr.uid  = 12;
+
+    tybool.mod     = NULL;
+    tybyte.mod     = NULL;
+    tyubyte.mod    = NULL;
+    tyinteger .mod = NULL;
+    tyuinteger.mod = NULL;
+    tylong.mod     = NULL;
+    tyulong.mod    = NULL;
+    tysingle.mod   = NULL;
+    tydouble.mod   = NULL;
+    tystring.mod   = NULL;
+    tyvoid.mod     = NULL;
+    tyvoidptr.mod  = NULL;
+}
+
+static uint32_t g_uid = 23;
+
+Ty_ty Ty_Record(S_symbol mod, Ty_fieldList fields)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind            = Ty_record;
     p->u.record.fields = fields;
-    p->u.record.uiSize = 0;
+    p->mod             = mod;
+    p->uid             = g_uid++;
 
-    unsigned int off=0;
-
-    for (Ty_fieldList fl=fields; fl; fl=fl->tail)
-    {
-        unsigned int s = Ty_size(fl->head->ty);
-
-        // 68k alignment
-        if (s>1 && (p->u.record.uiSize % 2))
-        {
-            p->u.record.uiSize++;
-            off++;
-        }
-
-        p->u.record.uiSize += s;
-        fl->head->uiOffset = off;
-        off += s;
-    }
+    Ty_computeSize(p);
 
     return p;
 }
@@ -81,44 +90,113 @@ Ty_ty Ty_VarPtr(Ty_ty ty)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
-    p->kind      = Ty_varPtr;
-    p->u.pointer = ty;
+    p->kind            = Ty_varPtr;
+    p->u.pointer       = ty;
+    p->mod             = NULL;
+    p->uid             = g_uid++;
 
     return p;
 }
 
-Ty_ty Ty_Pointer(Ty_ty ty)
+Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind      = Ty_pointer;
     p->u.pointer = ty;
+    p->mod       = mod;
+    p->uid       = g_uid++;
 
     return p;
 }
 
-Ty_ty Ty_ForwardPtr(S_symbol sType)
+Ty_ty Ty_ForwardPtr(S_symbol mod, S_symbol sType)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind       = Ty_forwardPtr;
     p->u.sForward = sType;
+    p->mod        = mod;
+    p->uid        = g_uid++;
 
     return p;
 }
 
-Ty_ty Ty_ProcPtr(Ty_tyList formalTys, Ty_ty returnTy)
+Ty_ty Ty_ProcPtr(S_symbol mod, Ty_tyList formalTys, Ty_ty returnTy)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind                = Ty_procPtr;
     p->u.procPtr.formalTys = formalTys;
     p->u.procPtr.returnTy  = returnTy;
+    p->mod                 = mod;
+    p->uid                 = g_uid++;
 
     return p;
 }
 
-Ty_ty Ty_Array(Ty_ty ty, int start, int end)
+Ty_ty Ty_ToLoad(S_symbol mod, uint32_t uid)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind                = Ty_toLoad;
+    p->mod                 = mod;
+    p->uid                 = uid;
+
+    return p;
+}
+
+void Ty_computeSize(Ty_ty ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_array:
+            ty->u.array.uiSize = (ty->u.array.iEnd - ty->u.array.iStart) * Ty_size(ty->u.array.elementTy);
+            break;
+
+        case Ty_record:
+        {
+            unsigned int off=0;
+
+            ty->u.record.uiSize = 0;
+            for (Ty_fieldList fl=ty->u.record.fields; fl; fl=fl->tail)
+            {
+                unsigned int s = Ty_size(fl->head->ty);
+
+                // 68k alignment
+                if (s>1 && (ty->u.record.uiSize % 2))
+                {
+                    ty->u.record.uiSize++;
+                    off++;
+                }
+
+                ty->u.record.uiSize += s;
+                fl->head->uiOffset = off;
+                off += s;
+            }
+            break;
+        }
+        case Ty_pointer:  break;
+        case Ty_procPtr:  break;
+        case Ty_bool:     break;
+        case Ty_byte:     break;
+        case Ty_ubyte:    break;
+        case Ty_integer:  break;
+        case Ty_uinteger: break;
+        case Ty_long:     break;
+        case Ty_ulong:    break;
+        case Ty_single:   break;
+        case Ty_double:   break;
+        case Ty_void:     break;
+        case Ty_varPtr:
+        case Ty_forwardPtr:
+        case Ty_toLoad:
+            assert(0);
+            break;
+    }
+}
+
+Ty_ty Ty_Array(S_symbol mod, Ty_ty ty, int start, int end)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
@@ -126,7 +204,10 @@ Ty_ty Ty_Array(Ty_ty ty, int start, int end)
     p->u.array.elementTy = ty;
     p->u.array.iStart    = start;
     p->u.array.iEnd      = end;
-    p->u.array.uiSize    = (end - start) * Ty_size(ty);
+    p->mod               = mod;
+    p->uid               = g_uid++;
+
+    Ty_computeSize(p);
 
     return p;
 }
@@ -296,6 +377,8 @@ string Ty_name(Ty_ty t)
             return "forwardPtr";
         case Ty_procPtr:
             return "procPtr";
+        case Ty_toLoad:
+            return "toLoad";
     }
     assert(0);
     return "???";

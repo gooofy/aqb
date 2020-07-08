@@ -35,14 +35,14 @@ struct F_frag_
     union
     {
         struct {Temp_label label; string str;} stringg;
-        struct {T_stm body; F_frame frame;} proc;
-        struct {Temp_label label; int size; unsigned char *init;} data;
+        struct {Temp_label label; bool globl; T_stm body; F_frame frame;} proc;
+        struct {Temp_label label; bool globl; int size; unsigned char *init;} data;
     } u;
 };
 
 F_frag F_StringFrag(Temp_label label, string str);
-F_frag F_ProcFrag(T_stm body, F_frame frame);
-F_frag F_DataFrag(Temp_label label, int size, unsigned char *init);
+F_frag F_ProcFrag  (Temp_label label, bool globl, T_stm body, F_frame frame);
+F_frag F_DataFrag  (Temp_label label, bool globl, int size, unsigned char *init);
 
 typedef struct F_fragList_ *F_fragList;
 struct F_fragList_ {F_frag head; F_fragList tail;};

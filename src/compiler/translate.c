@@ -13,6 +13,7 @@
 #include "translate.h"
 #include "types.h"
 #include "errormsg.h"
+#include "env.h"
 
 typedef struct patchList_ *patchList;
 struct patchList_
@@ -39,6 +40,7 @@ struct Tr_level_
     F_frame    frame;
     Temp_label name;
     bool       statc;
+    bool       globl;
 };
 
 struct Tr_access_
@@ -99,18 +101,21 @@ Tr_level Tr_global(void)
     {
         global_level = checked_malloc(sizeof(*global_level));
         global_level->frame  = NULL;
+        global_level->name   = NULL;
         global_level->statc  = FALSE;
+        global_level->globl  = TRUE;
     }
     return global_level;
 }
 
-Tr_level Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc, Temp_tempList regs)
+Tr_level Tr_newLevel(Temp_label name, bool globl, Ty_tyList formalTys, bool statc, Temp_tempList regs)
 {
     Tr_level lv = checked_malloc(sizeof(*lv));
 
     lv->frame  = F_newFrame(name, formalTys, regs);
     lv->name   = name;
     lv->statc  = statc;
+    lv->globl  = globl;
 
     return lv;
 }
@@ -343,9 +348,22 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl)
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl, bool is_main)
 {
     T_stm stm = unNx(body);
+
+    if (is_main)        // run module initializers?
+    {
+        TAB_iter iter = E_loadedModuleIter();
+        S_symbol sym;
+        E_module m2;
+        while (TAB_next (iter, (void **)&sym, (void**) &m2))
+        {
+            Temp_label lbl = Temp_namedlabel(strprintf("__%s_init", S_name(sym)));
+            stm = T_Seq(T_Exp(T_CallF(lbl, /*args=*/NULL, /*regs=*/NULL, /*ret=*/NULL, /*offset=*/0, /*libBase=*/NULL)),
+                        stm);
+        }
+    }
 
     if (exitlbl)
         stm = T_Seq(stm, T_Label(exitlbl));
@@ -359,7 +377,7 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
                   T_Move(T_Temp(F_RV(), ty_ret), ret_exp, ty_ret)));
     }
 
-    F_frag frag = F_ProcFrag(stm, level->frame);
+    F_frag frag = F_ProcFrag(level->name, level->globl, stm, level->frame);
     fragList    = F_FragList(frag, fragList);
 }
 
@@ -369,7 +387,7 @@ Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty)
     {
         Temp_label label = Temp_namedlabel(varname_to_label(name));
 
-        F_frag frag = F_DataFrag(label, Ty_size(ty), NULL);
+        F_frag frag = F_DataFrag(label, level->globl, Ty_size(ty), NULL);
         fragList    = F_FragList(frag, fragList);
 
         return Tr_Access(level, F_allocGlobal(label, ty));

@@ -9,7 +9,6 @@ rm -f /home/guenter/media/emu/amiga/a500/hdd/system/x/*.bin
 
 pushd src/compiler
 
-
 aqb() {
 
     if ./runaqb.sh $1 ; then
@@ -31,4 +30,11 @@ for tf in ../../tests/*.bas ; do
 done
 
 popd
+
+# module tests run in their own subdir using GNU Make
+
+pushd tests/mod1
+make clean all || exit 1
+popd
+
 

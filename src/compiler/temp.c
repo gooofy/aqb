@@ -317,16 +317,15 @@ Temp_tempLList Temp_TempLList(Temp_tempList head, Temp_tempLList tail)
     return p;
 }
 
-static FILE *outfile;
-void showit(Temp_temp t, string r)
-{
-    fprintf(outfile, "t%d -> %s\n", t->num, r);
-}
-
 void Temp_dumpMap(FILE *out, Temp_map m)
 {
-    outfile=out;
-    TAB_dump(m->tab,(void (*)(void *, void*))showit);
+    TAB_iter iter = TAB_Iter(m->tab);
+    Temp_temp t;
+    string r;
+    while (TAB_next(iter, (void **)&t, (void**)&r))
+    {
+        fprintf(out, "t%d -> %s\n", t->num, r);
+    }
     if (m->under)
     {
         fprintf(out,"---------\n");

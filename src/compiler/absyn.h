@@ -79,7 +79,7 @@ struct A_stmt_
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
            A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt,
-           A_doStmt, A_selectStmt, A_returnStmt                                                  } kind;
+           A_doStmt, A_selectStmt, A_returnStmt, A_importStmt                                  } kind;
     S_pos pos;
 	union
     {
@@ -89,11 +89,11 @@ struct A_stmt_
         A_ifBranch ifr;
         A_proc proc;
         struct {A_proc proc; A_expList args;} callr;
-        struct {bool shared; bool statc; bool external; S_symbol sVar; A_dim dims; A_typeDesc td; A_exp init;} vdeclr;
-        struct {S_symbol sConst; A_typeDesc td; A_exp cExp;} cdeclr;
+        struct {bool isPrivate; bool shared; bool statc; bool external; S_symbol sVar; A_dim dims; A_typeDesc td; A_exp init;} vdeclr;
+        struct {bool isPrivate; S_symbol sConst; A_typeDesc td; A_exp cExp;} cdeclr;
         struct {A_exp exp; string msg;} assertr;
 	    struct {A_exp exp; A_stmtList body;} whiler;
-	    struct {S_symbol sType; A_field fields;} typer;
+	    struct {S_symbol sType; A_field fields; bool isPrivate;} typer;
         Temp_label label;
         struct {S_symbol name; A_expList args;} callptr;
         A_nestedStmt exitr;
@@ -101,6 +101,7 @@ struct A_stmt_
 	    struct {A_exp untilExp; A_exp whileExp; bool condAtEntry; A_stmtList body;} dor;
         struct {A_exp exp; A_selectBranch sb;} selectr;
         A_exp returnr;
+        S_symbol importr;
     } u;
 };
 
@@ -211,6 +212,7 @@ struct A_paramList_
 struct A_proc_
 {
     S_pos       pos;
+    bool        isPrivate;
     S_symbol    name;
     S_symlist   extraSyms; // for subs that use more than on sym, e.g. WINDOW CLOSE
     A_typeDesc  returnTD;
@@ -246,17 +248,18 @@ A_stmt          A_DoStmt          (S_pos pos, A_exp untilExp, A_exp whileExp, bo
 A_stmt          A_IfStmt          (S_pos pos, A_ifBranch ifBranch);
 A_stmt          A_ProcStmt        (S_pos pos, A_proc proc);
 A_stmt          A_ProcDeclStmt    (S_pos pos, A_proc proc);
-A_stmt          A_VarDeclStmt     (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init);
-A_stmt          A_ConstDeclStmt   (S_pos pos, S_symbol sConst, A_typeDesc td, A_exp xExp);
+A_stmt          A_VarDeclStmt     (S_pos pos, bool isPrivate, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init);
+A_stmt          A_ConstDeclStmt   (S_pos pos, bool isPrivate, S_symbol sConst, A_typeDesc td, A_exp xExp);
 A_stmt          A_AssertStmt      (S_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (S_pos pos, A_proc proc, A_expList args);
 A_stmt          A_CallPtrStmt     (S_pos pos, S_symbol name, A_expList args);
-A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields);
+A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields, bool isPrivate);
 A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
 A_stmt          A_ExitStmt        (S_pos pos, A_nestedStmt nest);
 A_stmt          A_ContinueStmt    (S_pos pos, A_nestedStmt nest);
 A_stmt          A_SelectStmt      (S_pos pos, A_exp exp, A_selectBranch sb);
 A_stmt          A_ReturnStmt      (S_pos pos, A_exp exp);
+A_stmt          A_ImportStmt      (S_pos pos, S_symbol sModule);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);
@@ -277,7 +280,7 @@ A_selector      A_IndexSelector   (S_pos pos, A_exp idx);
 A_selector      A_FieldSelector   (S_pos pos, S_symbol field);
 A_selector      A_PointerSelector (S_pos pos, S_symbol field);
 A_selector      A_DerefSelector   (S_pos pos);
-A_proc          A_Proc            (S_pos pos, S_symbol name, S_symlist extra_syms, Temp_label label, A_typeDesc returnTD, bool isFunction, bool isStatic, A_paramList paramList);
+A_proc          A_Proc            (S_pos pos, bool isPrivate, S_symbol name, S_symlist extra_syms, Temp_label label, A_typeDesc returnTD, bool isFunction, bool isStatic, A_paramList paramList);
 A_param         A_Param           (S_pos pos, bool byval, bool byref, S_symbol name, A_typeDesc td, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);

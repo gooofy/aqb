@@ -93,6 +93,14 @@ static void pr_typedesc(FILE *out, A_typeDesc td);
 
 static void pr_prochdr(FILE *out, A_proc proc)
 {
+    if (proc->isPrivate)
+    {
+        fprintf(out, "PRIVATE ");
+    }
+    else
+    {
+        fprintf(out, "PUBLIC ");
+    }
     if (proc->isFunction)
     {
         fprintf(out, "FUNCTION ");
@@ -473,6 +481,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         case A_typeDeclStmt:
         {
             indent(out, d);
+            if (stmt->u.typer.isPrivate)
+            {
+                fprintf(out, "PRIVATE ");
+            }
+            else
+            {
+                fprintf(out, "PUBLIC ");
+            }
             fprintf(out, "TYPEDECL %s(", S_name(stmt->u.typer.sType));
             for (A_field f = stmt->u.typer.fields; f; f = f->tail)
             {
@@ -490,6 +506,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         case A_constDeclStmt:
         {
             indent(out, d);
+            if (stmt->u.cdeclr.isPrivate)
+            {
+                fprintf(out, "PRIVATE ");
+            }
+            else
+            {
+                fprintf(out, "PUBLIC ");
+            }
             fprintf(out, "CONSTDECL %s(", S_name(stmt->u.cdeclr.sConst));
             if (stmt->u.cdeclr.td)
                 pr_typedesc(out, stmt->u.cdeclr.td);
@@ -569,6 +593,10 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             if (stmt->u.returnr)
                 pr_exp(out, stmt->u.returnr);
             fprintf(out, "\n");
+            break;
+        case A_importStmt:
+            indent(out, d);
+            fprintf(out, "IMPORT %s", S_name(stmt->u.importr));
             break;
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);

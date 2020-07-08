@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <inttypes.h>
 
 #include "util.h"
 
@@ -102,6 +103,26 @@ int strcicmp(string a, string b)
         if (d != 0 || !*a)
             return d;
     }
+}
+
+void strserialize(FILE *out, string str)
+{
+    uint16_t l = strlen(str);
+    fwrite(&l, 2, 1, out);
+    fwrite(str, l, 1, out);
+}
+
+string strdeserialize(FILE *in)
+{
+    uint16_t l;
+    if (fread(&l, 2, 1, in) != 1)
+        return NULL;
+   
+    string res = checked_malloc(l+1);
+    if (fread(res, l, 1, in) != 1)
+        return NULL;
+    res[l]=0;
+    return res;
 }
 
 unsigned int encode_ffp(float f)

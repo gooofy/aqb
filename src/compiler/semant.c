@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
+
 #include "util.h"
 #include "errormsg.h"
 #include "symbol.h"
@@ -18,8 +20,11 @@
 
 // global symbol namespace
 
-static S_scope g_venv;
-static S_scope g_tenv;
+S_scope g_venv;
+S_scope g_tenv;
+
+// contains public env entries for export
+static E_module g_mod = NULL;
 
 // exit / continue support
 typedef struct Sem_nestedLabels_ *Sem_nestedLabels;
@@ -134,6 +139,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -164,6 +170,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -192,6 +199,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -220,6 +228,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -248,6 +257,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -274,6 +284,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -300,6 +311,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -326,6 +338,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -350,6 +363,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
             }
@@ -382,7 +396,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             }
             break;
         case Ty_varPtr:
-            assert(0); // FIXME
+        case Ty_toLoad:
+            assert(0);
             *res = ty1;
             return FALSE;
         case Ty_void:
@@ -403,6 +418,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
                 case Ty_void:
@@ -426,6 +442,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_void:
+                case Ty_toLoad:
                     *res = ty1;
                     return FALSE;
                 case Ty_procPtr:
@@ -670,7 +687,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
                 // forward pointer ?
                 if (allowForwardPtr && td->u.idtr.ptr)
                 {
-                    t = Ty_ForwardPtr(td->u.idtr.typeId);
+                    t = Ty_ForwardPtr(g_mod->name, td->u.idtr.typeId);
                 }
                 else
                 {
@@ -681,7 +698,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
             {
                 if (td->u.idtr.ptr)
                 {
-                    t = Ty_Pointer(t);
+                    t = Ty_Pointer(g_mod->name, t);
                 }
             }
             break;
@@ -706,7 +723,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
             E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
             Ty_tyList formalTys = E_FormalTys(formals);
 
-            t = Ty_ProcPtr(formalTys, resultTy);
+            t = Ty_ProcPtr(g_mod->name, formalTys, resultTy);
             break;
         }
     }
@@ -1446,8 +1463,13 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                e = E_FunEntry(proc->name, Tr_newLevel(proc->label, formalTys, proc->isStatic, regs), proc->label, formals,
+                e = E_FunEntry(proc->name, Tr_newLevel(proc->label, !proc->isPrivate, formalTys, proc->isStatic, regs), proc->label, formals,
                                resultTy, stmt->kind==A_procDeclStmt, offset, libBase, proc);
+                if (!proc->isPrivate)
+                {
+                    e->next = g_mod->env;
+                    g_mod->env = e;
+                }
             }
 
             S_enter(g_venv, proc->label, e);
@@ -1482,7 +1504,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
                 S_endScope(lenv);
 
-                Tr_procEntryExit(funlv, body, Tr_formals(funlv), ret_access, subexit);
+                Tr_procEntryExit(funlv, body, Tr_formals(funlv), ret_access, subexit, /*is_main=*/FALSE);
             }
 
             break;
@@ -1539,6 +1561,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 t = Ty_inferType(S_name(stmt->u.vdeclr.sVar));
             }
 
+            if (!t)
+                break;
+
             for (A_dim dim=stmt->u.vdeclr.dims; dim; dim=dim->tail)
             {
                 int start, end;
@@ -1563,7 +1588,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     return Tr_nopNx();
                 }
                 end = Tr_getConstInt(expEnd);
-                t = Ty_Array(t, start, end);
+                t = Ty_Array(g_mod->name, t, start, end);
             }
 
             Tr_exp conv_init=NULL;
@@ -1599,7 +1624,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 else
                     x = E_VarEntry(name, Tr_allocVar(Tr_global(), S_name(name), t), t, TRUE);
                 S_enter(g_venv, name, x);
-
+                if (!stmt->u.vdeclr.isPrivate)
+                {
+                    x->next = g_mod->env;
+                    g_mod->env = x;
+                }
             }
             else
             {
@@ -1684,7 +1713,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                         return Tr_nopNx();
                     }
                     end = Tr_getConstInt(expEnd);
-                    t = Ty_Array(t, start, end);
+                    t = Ty_Array(g_mod->name, t, start, end);
                 }
                 if (flast)
                 {
@@ -1697,9 +1726,14 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
             }
 
-            Ty_ty ty = Ty_Record(fl);
-
-            S_enter(tenv, stmt->u.typer.sType, E_TypeEntry(stmt->u.typer.sType, ty));
+            Ty_ty ty = Ty_Record(g_mod->name, fl);
+            E_enventry e = E_TypeEntry(stmt->u.typer.sType, ty);
+            S_enter(tenv, stmt->u.typer.sType, e);
+            if (!stmt->u.typer.isPrivate)
+            {
+                e->next = g_mod->env;
+                g_mod->env = e;
+            }
             break;
         }
         case A_constDeclStmt:
@@ -1732,6 +1766,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             S_symbol name = stmt->u.cdeclr.sConst;
             x = E_ConstEntry(name, conv_cexp);
             S_enter(g_venv, name, x);
+            if (!stmt->u.cdeclr.isPrivate)
+            {
+                x->next = g_mod->env;
+                g_mod->env = x;
+            }
             break;
         }
         case A_callPtrStmt:
@@ -1892,6 +1931,16 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             return Tr_gotoExp(nls2->exitlbl);
         }
+        case A_importStmt:
+        {
+            E_module mod = E_loadModule(stmt->u.importr);
+            if (!mod)
+            {
+                EM_error(stmt->pos, "Failed to load module %s.", S_name(stmt->u.importr));
+                break;
+            }
+            break;
+        }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);
@@ -1933,7 +1982,7 @@ static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtLi
 static void resolveForwardType(S_pos pos, S_scope tenv, Ty_field f)
 {
     Ty_ty t = lookup_type(tenv, pos, f->ty->u.sForward);
-    f->ty = Ty_Pointer(t);
+    f->ty = Ty_Pointer(g_mod->name, t);
 }
 
 static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_nestedLabels nestedLabels, S_pos pos)
@@ -2087,15 +2136,21 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
     return e;
 }
 
-F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
+F_fragList SEM_transProg(A_sourceProgram sourceProgram, bool is_main, string module_name)
 {
-    g_venv = S_beginScope(NULL);
-    g_tenv = S_beginScope(NULL);
+    g_mod  = E_Module(S_Symbol(module_name, FALSE));
 
-    E_import(g_venv, E_base_vmod());
-    E_import(g_tenv, E_base_tmod());
+    Temp_label label;
+    if (is_main)
+    {
+        label = Temp_namedlabel(AQB_MAIN_NAME);
+    }
+    else
+    {
+        label = Temp_namedlabel(strprintf("__%s_init", module_name));
+    }
 
-    Tr_level lv = Tr_newLevel(label, NULL, FALSE, NULL);
+    Tr_level lv = Tr_newLevel(label, TRUE, NULL, FALSE, NULL);
     S_scope venv = S_beginScope(g_venv);
 
     if (OPT_get(OPTION_VERBOSE))
@@ -2109,8 +2164,13 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram, Temp_label label)
         printf ("--------------\n");
     }
 
-    Tr_procEntryExit(lv, prog, NULL, NULL, NULL);
+    Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*ret_access=*/NULL, /*exitlbl=*/ NULL, is_main);
 
     return Tr_getResult();
+}
+
+bool SEM_writeSymFile(string symfn)
+{
+    return E_saveModule(symfn, g_mod);
 }
 

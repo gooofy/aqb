@@ -132,6 +132,17 @@ A_stmt A_ReturnStmt (S_pos pos, A_exp exp)
     return p;
 }
 
+A_stmt A_ImportStmt (S_pos pos, S_symbol sModule)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind      = A_importStmt;
+    p->pos       = pos;
+    p->u.importr = sModule;
+
+    return p;
+}
+
 A_stmt A_PrintStmt (S_pos pos, A_exp exp)
 {
     A_stmt p = checked_malloc(sizeof(*p));
@@ -198,32 +209,34 @@ A_stmt A_ProcDeclStmt (S_pos pos, A_proc proc)
     return p;
 }
 
-A_stmt A_VarDeclStmt (S_pos pos, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init)
+A_stmt A_VarDeclStmt (S_pos pos, bool isPrivate, bool shared, bool statc, bool external, S_symbol varId, A_dim dims, A_typeDesc typedesc, A_exp init)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
-    p->kind              = A_varDeclStmt;
-    p->pos               = pos;
-    p->u.vdeclr.shared   = shared;
-    p->u.vdeclr.statc    = statc;
-    p->u.vdeclr.external = external;
-    p->u.vdeclr.sVar     = varId;
-    p->u.vdeclr.dims     = dims;
-    p->u.vdeclr.td       = typedesc;
-    p->u.vdeclr.init     = init;
+    p->kind               = A_varDeclStmt;
+    p->pos                = pos;
+    p->u.vdeclr.isPrivate = isPrivate;
+    p->u.vdeclr.shared    = shared;
+    p->u.vdeclr.statc     = statc;
+    p->u.vdeclr.external  = external;
+    p->u.vdeclr.sVar      = varId;
+    p->u.vdeclr.dims      = dims;
+    p->u.vdeclr.td        = typedesc;
+    p->u.vdeclr.init      = init;
 
     return p;
 }
 
-A_stmt A_ConstDeclStmt (S_pos pos, S_symbol sConst, A_typeDesc td, A_exp cExp)
+A_stmt A_ConstDeclStmt (S_pos pos, bool isPrivate, S_symbol sConst, A_typeDesc td, A_exp cExp)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
-    p->kind              = A_constDeclStmt;
-    p->pos               = pos;
-    p->u.cdeclr.sConst   = sConst;
-    p->u.cdeclr.td       = td;
-    p->u.cdeclr.cExp     = cExp;
+    p->kind               = A_constDeclStmt;
+    p->pos                = pos;
+    p->u.cdeclr.isPrivate = isPrivate;
+    p->u.cdeclr.sConst    = sConst;
+    p->u.cdeclr.td        = td;
+    p->u.cdeclr.cExp      = cExp;
 
     return p;
 }
@@ -292,15 +305,16 @@ A_stmt A_CallPtrStmt (S_pos pos, S_symbol name, A_expList args)
     return p;
 }
 
-A_stmt A_TypeDeclStmt (S_pos pos, S_symbol sType, A_field fields)
+A_stmt A_TypeDeclStmt (S_pos pos, S_symbol sType, A_field fields, bool isPrivate)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
     p->kind = A_typeDeclStmt;
     p->pos  = pos;
 
-    p->u.typer.sType  = sType;
-    p->u.typer.fields = fields;
+    p->u.typer.sType     = sType;
+    p->u.typer.fields    = fields;
+    p->u.typer.isPrivate = isPrivate;
 
     return p;
 }
@@ -639,11 +653,12 @@ void A_ParamListAppend (A_paramList list, A_param param)
     }
 }
 
-A_proc A_Proc (S_pos pos, S_symbol name, S_symlist extraSyms, Temp_label label, A_typeDesc returnTD, bool isFunction, bool isStatic, A_paramList paramList)
+A_proc A_Proc (S_pos pos, bool isPrivate, S_symbol name, S_symlist extraSyms, Temp_label label, A_typeDesc returnTD, bool isFunction, bool isStatic, A_paramList paramList)
 {
     A_proc p = checked_malloc(sizeof(*p));
 
     p->pos        = pos;
+    p->isPrivate  = isPrivate;
     p->name       = name;
     p->extraSyms  = extraSyms;
     p->label      = label;

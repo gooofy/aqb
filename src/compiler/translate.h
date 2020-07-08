@@ -26,7 +26,7 @@ Tr_accessList Tr_accessListTail(Tr_accessList al);
 
 Tr_level      Tr_global(void);
 
-Tr_level      Tr_newLevel(Temp_label name, Ty_tyList formalTys, bool statc, Temp_tempList regs);
+Tr_level      Tr_newLevel(Temp_label name, bool globl, Ty_tyList formalTys, bool statc, Temp_tempList regs);
 Tr_accessList Tr_formals(Tr_level level);
 Tr_access     Tr_allocVar(Tr_level level, string name, Ty_ty ty);
 Tr_access     Tr_externalVar(string name, Ty_ty ty);
@@ -34,7 +34,7 @@ Temp_label    Tr_heapLabel(Tr_access access);
 Temp_label    Tr_getLabel(Tr_level level);
 bool          Tr_isStatic(Tr_level level);
 
-void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl);
+void          Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl, bool is_main);
 
 F_fragList    Tr_getResult(void);
 

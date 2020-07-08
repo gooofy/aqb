@@ -1,0 +1,17 @@
+OPTION EXPLICIT
+
+IMPORT foo
+
+PUBLIC DIM SHARED v1 AS t1
+
+v1.i1 = 23
+v1.l1 = 123456
+
+FOR i AS INTEGER = 0 TO 99
+    v1.a1(i) = i*i
+NEXT i
+
+DIM SHARED v2 AS INTEGER = 42
+
+v1.p1 = VARPTR(v2)
+

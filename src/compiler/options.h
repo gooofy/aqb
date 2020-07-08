@@ -5,6 +5,7 @@
 
 #define OPTION_EXPLICIT 1
 #define OPTION_VERBOSE  2
+#define OPTION_PRIVATE  4
 
 void OPT_set(int opt, bool onoff);
 bool OPT_get(int opt);

@@ -11,6 +11,7 @@
  */
 
 typedef struct TAB_table_ *TAB_table;
+typedef struct TAB_iter_  *TAB_iter;
 
 /* Make a new table mapping "keys" to "values". */
 TAB_table TAB_empty(void);
@@ -22,14 +23,14 @@ void TAB_enter(TAB_table t, void *key, void *value);
 /* Look up the most recent binding for "key" in table "t" */
 void *TAB_look(TAB_table t, void *key);
 
-/* Pop the most recent binding and return its key.
- * This may expose another binding for the same key, if there was one. */
-void *TAB_pop(TAB_table t);
+/*
+ * table iterators
+ */
 
+// create a new table iterator
+TAB_iter TAB_Iter(TAB_table table);
 
-/* Call "show" on every "key"->"value" pair in the table,
- *  including shadowed bindings, in order from the most
- *  recent binding of any key to the oldest binding in the table */
-void TAB_dump(TAB_table t, void (*show)(void *key, void *value));
+// get next table element from iterator - returns FALSE when exhausted, TRUE otherwise
+bool TAB_next(TAB_iter iter, void **key, void **value);
 
 #endif

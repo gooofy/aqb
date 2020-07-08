@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
+#include <libgen.h>
 
 #include "parser.h"
 #include "prabsyn.h"
@@ -33,10 +35,10 @@
 #include "options.h"
 #include "env.h"
 
-#define VERSION "0.3.0"
+#define VERSION "0.4.0"
 
 /* print the assembly language instructions to filename.s */
-static void doProc(FILE *out, F_frame frame, T_stm body)
+static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm body)
 {
     AS_proc proc;
     T_stmList stmList;
@@ -85,9 +87,11 @@ static void doProc(FILE *out, F_frame frame, T_stm body)
         fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
     }
 
+    if (globl)
+        fprintf(out, ".globl %s\n\n", S_name(label));
     fprintf(out, "%s\n", proc->prolog);
     AS_printInstrList(out, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
-     fprintf(out, "%s\n", proc->epilog);
+    fprintf(out, "%s\n", proc->epilog);
 //  fprintf(out, "BEGIN function\n");
 //  AS_printInstrList (out, iList,
 //                     Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
@@ -160,9 +164,11 @@ static void doStr(FILE * out, string str, Temp_label label) {
     fprintf(out, "\n");
 }
 
-static void doData(FILE * out, Temp_label label, int size, unsigned char *data)
+static void doData(FILE * out, Temp_label label, bool globl, int size, unsigned char *data)
 {
     fprintf(out, "    .align 4\n");
+    if (globl)
+        fprintf(out, ".globl %s\n\n", Temp_labelstring(label));
     fprintf(out, "%s:\n", Temp_labelstring(label));
     if (data)
     {
@@ -200,7 +206,11 @@ static void doData(FILE * out, Temp_label label, int size, unsigned char *data)
 
 static void print_usage(char *argv[])
 {
-	fprintf(stderr, "usage: %s [-v] <program.bas>\n\n", argv[0]);
+	fprintf(stderr, "usage: %s [-v] [-s] <program.bas>\n", argv[0]);
+	fprintf(stderr, "    -L <dir>   look in <dir> for symbol files\n");
+	fprintf(stderr, "    -s         create symbol (.sym) file\n");
+	fprintf(stderr, "    -v         verbose\n");
+	fprintf(stderr, "    -V         display version info\n");
 }
 
 int main (int argc, char *argv[])
@@ -209,18 +219,40 @@ int main (int argc, char *argv[])
 	FILE           *sourcef;
     A_sourceProgram sourceProgram;
     F_fragList      frags, fl;
-    char            asmfn[1024];
+    char            asmfn[PATH_MAX];
     FILE           *out;
     size_t 			optind;
+    bool            write_sym = FALSE;
+    char            symfn[PATH_MAX];
+    string          module_name;
 
-    printf("AQB V" VERSION "\n");
+    Ty_init();
+    EM_init();
+    S_symbol_init();
+    E_init();
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
 	{
         switch (argv[optind][1])
 		{
+        	case 'L':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                E_addSymPath(argv[optind]);
+				break;
+        	case 's':
+                write_sym = TRUE;
+				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
+				break;
+        	case 'V':
+                fprintf (stderr, "AQB V" VERSION " (C) 2020 by G. Bartsch.\nLicensed under the Apache License, Version 2.0.\n");
+                exit(0);
 				break;
         	default:
 				print_usage(argv);
@@ -235,21 +267,26 @@ int main (int argc, char *argv[])
 	}
 
 	sourcefn = argv[optind];
-    /* filename.bas -> filename.s */
+    /* filename.bas -> filename.s, filename.sym, module name, module search path */
     {
         int l = strlen(sourcefn);
         if (l>1024)
             l = 1024;
         if (l<4)
             l = 4;
-        strncpy(asmfn, sourcefn, 1024);
+        strncpy(asmfn, sourcefn, PATH_MAX-1);
         asmfn[l-3] = 's';
         asmfn[l-2] = 0;
-    }
+        strncpy(symfn, sourcefn, PATH_MAX-1);
+        symfn[l-3] = 's';
+        symfn[l-2] = 'y';
+        symfn[l-1] = 'm';
+        module_name = basename(String(sourcefn));
+        l = strlen(module_name);
+        module_name[l-4] = 0;
 
-    EM_init();
-    S_symbol_init();
-    E_init();
+        E_addSymPath(dirname(String(sourcefn)));
+    }
 
     /*
      * parsing
@@ -284,7 +321,7 @@ int main (int argc, char *argv[])
 
     F_initRegisters();
 
-    frags = SEM_transProg(sourceProgram, Temp_namedlabel(AQB_MAIN_NAME));
+    frags = SEM_transProg(sourceProgram, !write_sym, module_name);
     if (EM_anyErrors)
         exit(4);
 
@@ -295,19 +332,34 @@ int main (int argc, char *argv[])
     }
 
     /*
+     * generate symbol file
+     */
+
+    if (write_sym)
+    {
+        if (SEM_writeSymFile(symfn))
+        {
+            printf ("\n%s written.\n", symfn);
+        }
+        else
+        {
+            printf ("\n** ERROR: failed to write symbol file %s .\n", symfn);
+            exit(23);
+        }
+    }
+
+    /*
      * generate target assembly code
      */
 
     out = fopen(asmfn, "w");
 
-    fprintf(out, ".globl %s\n\n", AQB_MAIN_NAME);
-    /* Chapter 8, 9, 10, 11 & 12 */
     fprintf(out, ".text\n\n");
     for (fl=frags; fl; fl=fl->tail)
     {
         if (fl->head->kind == F_procFrag)
         {
-            doProc(out, fl->head->u.proc.frame, fl->head->u.proc.body);
+            doProc(out, fl->head->u.proc.label, fl->head->u.proc.globl, fl->head->u.proc.frame, fl->head->u.proc.body);
         }
     }
 
@@ -320,7 +372,7 @@ int main (int argc, char *argv[])
         }
         if (fl->head->kind == F_dataFrag)
         {
-            doData(out, fl->head->u.data.label, fl->head->u.data.size, fl->head->u.data.init);
+            doData(out, fl->head->u.data.label, fl->head->u.data.globl, fl->head->u.data.size, fl->head->u.data.init);
         }
     }
     fclose(out);

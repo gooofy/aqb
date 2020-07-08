@@ -85,6 +85,9 @@ static S_symbol S_CAST;
 static S_symbol S_CASE;
 static S_symbol S_IS;
 static S_symbol S_RETURN;
+static S_symbol S_PRIVATE;
+static S_symbol S_PUBLIC;
+static S_symbol S_IMPORT;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -94,54 +97,6 @@ static inline bool isSym(S_tkn tkn, S_symbol sym)
 static inline bool isLogicalEOL(S_tkn tkn)
 {
     return tkn->kind == S_COLON || tkn->kind == S_EOL;
-}
-
-/*******************************************************************
- *
- * declared statements and functions
- *
- * since the parser is extensible, we need to be able to
- * keep track of multiple meanings per statement identifier
- *
- *******************************************************************/
-
-typedef struct P_declProc_ *P_declProc;
-
-struct P_declProc_
-{
-     bool (*parses)(S_tkn tkn, P_declProc decl);                // parse as statement call
-     bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp);   // parse as function call
-     A_proc     proc;
-     P_declProc next;
-};
-
-static TAB_table declared_stmts; // S_symbol -> P_declProc
-static TAB_table declared_funs;  // S_symbol -> P_declProc
-
-static void declare_proc(TAB_table m, S_symbol sym,
-                         bool (*parses)(S_tkn, P_declProc),
-                         bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp),
-                         A_proc proc)
-{
-    P_declProc p = checked_malloc(sizeof(*p));
-
-    p->parses  = parses;
-    p->parsef  = parsef;
-    p->proc    = proc;
-    p->next    = NULL;
-
-    P_declProc prev = TAB_look(m, sym);
-
-    if (prev)
-    {
-        while (prev->next)
-            prev = prev->next;
-        prev->next = p;
-    }
-    else
-    {
-        TAB_enter(m, sym, p);
-    }
 }
 
 /*******************************************************************
@@ -178,6 +133,7 @@ struct P_SLE_
         {
             A_field    fFirst, fLast;
             S_symbol   sType;
+            bool       isPrivate;
         } typeDecl;
         struct
         {
@@ -1210,7 +1166,7 @@ static bool typeDesc (S_tkn *tkn, A_typeDesc *td)
             }
         }
 
-        A_proc proc =  A_Proc (pos, /*name=*/NULL, /*extra_syms=*/NULL, /*label=*/NULL, returnTD, isFunction,
+        A_proc proc =  A_Proc (pos, /*isPrivate=*/TRUE, /*name=*/NULL, /*extra_syms=*/NULL, /*label=*/NULL, returnTD, isFunction,
                                /*isStatic=*/FALSE, paramList);
 
         *td = A_TypeDescProc (pos, proc);
@@ -1238,7 +1194,7 @@ static bool typeDesc (S_tkn *tkn, A_typeDesc *td)
 }
 
 // singleVarDecl2 ::= Identifier ["(" arrayDimensions ")"] [ "=" expression ]
-static bool singleVarDecl2 (S_tkn *tkn, bool shared, bool statc, A_typeDesc td)
+static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc, A_typeDesc td)
 {
     S_pos    pos = (*tkn)->pos;
     S_symbol sVar;
@@ -1270,13 +1226,13 @@ static bool singleVarDecl2 (S_tkn *tkn, bool shared, bool statc, A_typeDesc td)
         }
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, /*external=*/FALSE, sVar, dims, td, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, isPrivate, shared, statc, /*external=*/FALSE, sVar, dims, td, init));
 
     return TRUE;
 }
 
 // singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ] [ "=" expression ]
-static bool singleVarDecl (S_tkn *tkn, bool shared, bool statc, bool external)
+static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, bool external)
 {
     S_pos      pos   = (*tkn)->pos;
     S_symbol   sVar;
@@ -1319,16 +1275,31 @@ static bool singleVarDecl (S_tkn *tkn, bool shared, bool statc, bool external)
             return EM_error((*tkn)->pos, "var initializer not allowed for external vars.");
     }
 
-    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, shared, statc, external, sVar, dims, td, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_VarDeclStmt(pos, isPrivate, shared, statc, external, sVar, dims, td, init));
 
     return TRUE;
 }
 
-// stmtDim ::= DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
-//                            | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )*
+// stmtDim ::= [ PRIVATE | PUBLIC ] DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
+//                                                 | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )*
 static bool stmtDim(S_tkn tkn, P_declProc decl)
 {
     bool     shared = FALSE;
+    bool     isPrivate = OPT_get(OPTION_PRIVATE);
+
+    if (isSym(tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            tkn = tkn->next;
+        }
+    }
 
     tkn = tkn->next; // skip "DIM"
 
@@ -1347,25 +1318,25 @@ static bool stmtDim(S_tkn tkn, P_declProc decl)
         if (!typeDesc(&tkn, &td))
             return EM_error(tkn->pos, "variable declaration: type descriptor expected here.");
 
-        if (!singleVarDecl2(&tkn, shared, FALSE, td))
+        if (!singleVarDecl2(&tkn, isPrivate, shared, /*statc=*/FALSE, td))
             return FALSE;
 
         while (tkn->kind == S_COMMA)
         {
             tkn = tkn->next;
-            if (!singleVarDecl2(&tkn, shared, FALSE, td))
+            if (!singleVarDecl2(&tkn, isPrivate, shared, /*statc=*/FALSE, td))
                 return FALSE;
         }
     }
     else
     {
-        if (!singleVarDecl(&tkn, shared, FALSE, /*external=*/FALSE))
+        if (!singleVarDecl(&tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
             return FALSE;
 
         while (tkn->kind == S_COMMA)
         {
             tkn = tkn->next;
-            if (!singleVarDecl(&tkn, shared, FALSE, /*external=*/FALSE))
+            if (!singleVarDecl(&tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
                 return FALSE;
         }
     }
@@ -1373,11 +1344,27 @@ static bool stmtDim(S_tkn tkn, P_declProc decl)
     return isLogicalEOL(tkn);
 }
 
-// externDecl ::=  EXTERN singleVarDecl
+// externDecl ::= [ PRIVATE | PUBLIC ] EXTERN singleVarDecl
 static bool stmtExternDecl(S_tkn tkn, P_declProc dec)
 {
+    bool isPrivate = OPT_get(OPTION_PRIVATE);
+
+    if (isSym(tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            tkn = tkn->next;
+        }
+    }
+
     tkn = tkn->next; // consume "EXTERN"
-    return singleVarDecl(&tkn, /*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
+    return singleVarDecl(&tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
 }
 
 // print ::= PRINT  [ expression ( ( ';' | ',' ) expression )* ]
@@ -1924,15 +1911,29 @@ static bool stmtAssert(S_tkn tkn, P_declProc decl)
     return isLogicalEOL(tkn);
 }
 
-// optionStmt ::= OPTION EXPLICIT [ ( ON | OFF ) ]
+// optionStmt ::= OPTION [ EXPLICIT | PRIVATE ] [ ( ON | OFF ) ]
 static bool stmtOption(S_tkn tkn, P_declProc decl)
 {
     bool onoff=TRUE;
+    int  opt;
 
     tkn = tkn->next; // consume "OPTION"
 
-    if (!isSym(tkn, S_EXPLICIT))
-        return EM_error(tkn->pos, "EXPLICIT expected here.");
+    if (isSym(tkn, S_EXPLICIT))
+    {
+        opt = OPTION_EXPLICIT;
+    }
+    else
+    {
+        if (isSym(tkn, S_PRIVATE))
+        {
+            opt = OPTION_PRIVATE;
+        }
+        else
+        {
+            return EM_error(tkn->pos, "EXPLICIT or PRIVATE expected here.");
+        }
+    }
     tkn = tkn->next;
 
     if (isSym(tkn, S_ON))
@@ -1949,11 +1950,11 @@ static bool stmtOption(S_tkn tkn, P_declProc decl)
         }
     }
 
-    OPT_set(OPTION_EXPLICIT, onoff);
+    OPT_set(opt, onoff);
     return isLogicalEOL(tkn);
 }
 
-static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
+bool P_functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos    pos = (*tkn)->pos;
     S_symbol name;
@@ -1983,7 +1984,7 @@ static bool functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
 }
 
 // subCall ::= ident ident* ["("] expressionList [")"]
-static bool subCall(S_tkn tkn, P_declProc dec)
+bool P_subCall(S_tkn tkn, P_declProc dec)
 {
     S_pos    pos  = tkn->pos;
     A_proc   proc = dec ? dec->proc : NULL;
@@ -2066,7 +2067,7 @@ static bool stmtCall(S_tkn tkn, P_declProc dec)
     else
     {
         // assume "name" is a pointer to a sub (semant.c will check that later)
-        return subCall (tkn, NULL);
+        return P_subCall (tkn, NULL);
     }
 
     return TRUE;
@@ -2242,7 +2243,7 @@ static bool parameterList(S_tkn *tkn, A_paramList paramList)
 }
 
 // procHeader ::= ident ident* [ parameterList ] [ AS typeDesc ] [ STATIC ]
-static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
+static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, A_proc *proc)
 {
     S_symbol    name;
     S_symlist   extra_syms = NULL, extra_syms_last=NULL;
@@ -2296,25 +2297,56 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isFunction, A_proc *proc)
         *tkn = (*tkn)->next;
     }
 
-    *proc = A_Proc (pos, name, extra_syms, Temp_namedlabel(label), returnTD, isFunction, isStatic, paramList);
+    *proc = A_Proc (pos, isPrivate, name, extra_syms, Temp_namedlabel(label), returnTD, isFunction, isStatic, paramList);
 
     return TRUE;
 }
 
-// procStmtBegin ::=  ( SUB | FUNCTION ) procHeader
+// procStmtBegin ::= [ PRIVATE | PUBLIC ] ( SUB | FUNCTION ) procHeader
 static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
 {
     A_proc    proc;
     S_pos     pos = tkn->pos;
     bool      isFunction = isSym(tkn, S_FUNCTION);
     P_SLE     sle;
+    bool      isPrivate = OPT_get(OPTION_PRIVATE);
 
-    tkn = tkn->next;         // consume "SUB" | "FUNCTION"
+    if (isSym(tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            tkn = tkn->next;
+        }
+    }
+
+    if (isSym(tkn, S_SUB))
+    {
+        isFunction = FALSE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_FUNCTION))
+        {
+            isFunction = TRUE;
+            tkn = tkn->next;
+        }
+        else
+        {
+            return EM_error(tkn->pos, "SUB or FUNCTION expected here.");
+        }
+    }
 
     if (tkn->kind != S_IDENT)
         return EM_error(tkn->pos, "identifier expected here.");
 
-    if (!procHeader(&tkn, pos, isFunction, &proc))
+    if (!procHeader(&tkn, pos, isPrivate, isFunction, &proc))
         return FALSE;
 
     sle = slePush();
@@ -2325,19 +2357,34 @@ static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
     sle->u.proc = proc;
 
     if (isFunction)
-        declare_proc(declared_funs , proc->name, NULL    , functionCall, proc);
+        E_declare_proc(declared_funs , proc->name, NULL      , P_functionCall, proc);
     else
-        declare_proc(declared_stmts, proc->name, subCall , NULL        , proc);
+        E_declare_proc(declared_stmts, proc->name, P_subCall , NULL          , proc);
 
     return isLogicalEOL(tkn);
 }
 
-// procDecl ::=  DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
+// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
 {
     A_proc    proc;
     S_pos     pos = tkn->pos;
     bool      isFunction;
+    bool      isPrivate = OPT_get(OPTION_PRIVATE);
+
+    if (isSym(tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            tkn = tkn->next;
+        }
+    }
 
     tkn = tkn->next; // consume "DECLARE"
 
@@ -2351,7 +2398,7 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
 
     tkn = tkn->next; // consume "SUB" | "FUNCTION"
 
-    if (!procHeader(&tkn, pos, isFunction, &proc))
+    if (!procHeader(&tkn, pos, isPrivate, isFunction, &proc))
         return FALSE;
 
     if (isSym(tkn, S_LIB))
@@ -2400,14 +2447,14 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
         P_declProc ds = TAB_look(declared_funs, proc->name);
         if (ds)
             return EM_error(pos, "A function with this name has already been declared.");
-        declare_proc(declared_funs, proc->name,  NULL, functionCall, proc);
+        E_declare_proc(declared_funs, proc->name,  NULL, P_functionCall, proc);
     }
     else
     {
         P_declProc ds = TAB_look(declared_stmts, proc->name);
         if (ds)
             return EM_error(pos, "A statement with this name has already been declared.");
-        declare_proc(declared_stmts, proc->name, subCall, NULL, proc);
+        E_declare_proc(declared_stmts, proc->name, P_subCall, NULL, proc);
     }
 
     A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
@@ -2415,15 +2462,30 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
     return isLogicalEOL(tkn);
 }
 
-// constDecl ::= CONST ( ident [AS typeDesc] "=" Expression ("," ident [AS typeDesc] "=" expression)*
-//                     | AS typeDesc ident = expression ("," ident "=" expression)*
-//                     )
+// constDecl ::= [ PRIVATE | PUBLIC ] CONST ( ident [AS typeDesc] "=" Expression ("," ident [AS typeDesc] "=" expression)*
+//                                          | AS typeDesc ident = expression ("," ident "=" expression)*
+//                                          )
 static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
 {
     S_pos      pos     = tkn->pos;
     S_symbol   sConst;
     A_typeDesc td      = NULL;
     A_exp      init    = NULL;
+    bool       isPrivate = OPT_get(OPTION_PRIVATE);
+
+    if (isSym(tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            tkn = tkn->next;
+        }
+    }
 
     tkn = tkn->next; // consume "CONST"
 
@@ -2446,7 +2508,7 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
         if (!expression(&tkn, &init))
             return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
+        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
 
         while (tkn->kind == S_COMMA)
         {
@@ -2466,7 +2528,7 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
             if (!expression(&tkn, &init))
                 return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-            A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
+            A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
         }
 
         return isLogicalEOL(tkn);
@@ -2493,7 +2555,7 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
     if (!expression(&tkn, &init))
         return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-    A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
+    A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
 
     while (tkn->kind == S_COMMA)
     {
@@ -2521,17 +2583,32 @@ static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
         if (!expression(&tkn, &init))
             return EM_error(tkn->pos, "constant declaration: expression expected here.");
 
-        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, sConst, td, init));
+        A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
     }
     return isLogicalEOL(tkn);
 }
 
-// typeDeclBegin ::= TYPE Identifier
+// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier
 static bool stmtTypeDeclBegin(S_tkn tkn, P_declProc dec)
 {
     S_pos    pos = tkn->pos;
     S_symbol sType;
     P_SLE    sle;
+    bool     isPrivate = OPT_get(OPTION_PRIVATE);
+
+    if (isSym(tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        tkn = tkn->next;
+    }
+    else
+    {
+        if (isSym(tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            tkn = tkn->next;
+        }
+    }
 
     tkn = tkn->next;; // consume "TYPE"
 
@@ -2546,9 +2623,10 @@ static bool stmtTypeDeclBegin(S_tkn tkn, P_declProc dec)
     sle->kind = P_type;
     sle->pos  = pos;
 
-    sle->u.typeDecl.sType  = sType;
-    sle->u.typeDecl.fFirst = NULL;
-    sle->u.typeDecl.fLast  = NULL;
+    sle->u.typeDecl.sType     = sType;
+    sle->u.typeDecl.fFirst    = NULL;
+    sle->u.typeDecl.fLast     = NULL;
+    sle->u.typeDecl.isPrivate = isPrivate;
 
     return isLogicalEOL(tkn);
 }
@@ -2566,7 +2644,7 @@ static bool stmtTypeDeclField(S_tkn tkn)
             return EM_error(tkn->pos, "TYPE expected here.");
         tkn = tkn->next;
         P_SLE s = slePop();
-        A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.fFirst));
+        A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.fFirst, s->u.typeDecl.isPrivate));
         return isLogicalEOL(tkn);
     }
 
@@ -2693,13 +2771,13 @@ static bool stmtStatic(S_tkn tkn, P_declProc dec)
 {
     tkn = tkn->next;    // skip "STATIC"
 
-    if (!singleVarDecl(&tkn, FALSE, TRUE, /*external=*/FALSE))
+    if (!singleVarDecl(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
         return FALSE;
 
     while (tkn->kind == S_COMMA)
     {
         tkn = tkn->next;
-        if (!singleVarDecl(&tkn, FALSE, TRUE, /*external=*/FALSE))
+        if (!singleVarDecl(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
             return FALSE;
     }
     return isLogicalEOL(tkn);
@@ -3098,6 +3176,58 @@ static bool stmtReturn(S_tkn tkn, P_declProc decl)
     return TRUE;
 }
 
+// stmtPublic ::= [ PUBLIC | PRIVATE ] ( procBegin | procDecl | typeDeclBegin | dim | constDecl | externDecl )
+static bool stmtPublicPrivate(S_tkn tkn, P_declProc decl)
+{
+    S_tkn startTkn = tkn;
+
+    tkn = tkn->next; // consume "PUBLIC" / "PRIVATE"
+
+    if (isSym(tkn, S_SUB) || isSym(tkn, S_FUNCTION))
+        return stmtProcBegin(startTkn, decl);
+
+    if (isSym(tkn, S_TYPE))
+        return stmtTypeDeclBegin(startTkn, decl);
+
+    if (isSym(tkn, S_DIM))
+        return stmtDim(startTkn, decl);
+
+    if (isSym(tkn, S_DECLARE))
+        return stmtProcDecl(startTkn, decl);
+
+    if (isSym(tkn, S_CONST))
+        return stmtConstDecl(startTkn, decl);
+
+    if (isSym(tkn, S_EXTERN))
+        return stmtExternDecl(startTkn, decl);
+
+    return EM_error(tkn->pos, "DECLARE, SUB, FUNCTION, DIM or TYPE expected here.");
+}
+
+// stmtImport ::= IMPORT ident
+static bool stmtImport(S_tkn tkn, P_declProc decl)
+{
+    S_pos    pos = tkn->pos;
+    S_symbol sModule;
+
+    tkn = tkn->next; // consume "IMPORT"
+
+    if (tkn->kind != S_IDENT)
+        return EM_error(tkn->pos, "IMPORT: module identifier expected here.");
+    sModule = tkn->u.sym;
+    tkn = tkn->next;
+
+    if (!isLogicalEOL(tkn))
+        return FALSE;;
+
+    E_module mod = E_loadModule(sModule);
+    if (!mod)
+        return EM_error(tkn->pos, "IMPORT: failed to import %s", S_name(sModule));
+
+    A_StmtListAppend (g_sleStack->stmtList, A_ImportStmt(pos, sModule));
+    return TRUE;
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -3178,25 +3308,6 @@ static bool funCast(S_tkn *tkn, P_declProc dec, A_exp *exp)
     return TRUE;
 }
 
-static void import_module (E_enventry m)
-{
-    while (m)
-    {
-        if (m->kind == E_funEntry)
-        {
-            if (m->u.fun.result)
-            {
-                declare_proc(declared_funs , m->sym, NULL   , functionCall, m->u.fun.proc);
-            }
-            else
-            {
-                declare_proc(declared_stmts, m->sym, subCall, NULL        , m->u.fun.proc);
-            }
-        }
-        m = m->next;
-    }
-}
-
 static void register_builtins(void)
 {
     S_DIM      = S_Symbol("DIM",      FALSE);
@@ -3263,49 +3374,49 @@ static void register_builtins(void)
     S_CASE     = S_Symbol("CASE",     FALSE);
     S_IS       = S_Symbol("IS",       FALSE);
     S_RETURN   = S_Symbol("RETURN",   FALSE);
+    S_PRIVATE  = S_Symbol("PRIVATE",  FALSE);
+    S_PUBLIC   = S_Symbol("PUBLIC",   FALSE);
+    S_IMPORT   = S_Symbol("IMPORT",   FALSE);
 
-    declared_stmts = TAB_empty();
-    declared_funs  = TAB_empty();
+    E_declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL, NULL);
+    E_declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL, NULL);
+    E_declare_proc(declared_stmts, S_FOR,      stmtForBegin     , NULL, NULL);
+    E_declare_proc(declared_stmts, S_NEXT,     stmtForEnd       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_IF,       stmtIfBegin      , NULL, NULL);
+    E_declare_proc(declared_stmts, S_ELSE,     stmtIfElse       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_ELSEIF,   stmtIfElse       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_END,      stmtEnd          , NULL, NULL);
+    E_declare_proc(declared_stmts, S_ENDIF,    stmtEnd          , NULL, NULL);
+    E_declare_proc(declared_stmts, S_ASSERT,   stmtAssert       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_OPTION,   stmtOption       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_SUB,      stmtProcBegin    , NULL, NULL);
+    E_declare_proc(declared_stmts, S_FUNCTION, stmtProcBegin    , NULL, NULL);
+    E_declare_proc(declared_stmts, S_CALL,     stmtCall         , NULL, NULL);
+    E_declare_proc(declared_stmts, S_CONST,    stmtConstDecl    , NULL, NULL);
+    E_declare_proc(declared_stmts, S_EXTERN,   stmtExternDecl   , NULL, NULL);
+    E_declare_proc(declared_stmts, S_DECLARE,  stmtProcDecl     , NULL, NULL);
+    E_declare_proc(declared_stmts, S_TYPE,     stmtTypeDeclBegin, NULL, NULL);
+    E_declare_proc(declared_stmts, S_STATIC,   stmtStatic       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_WHILE,    stmtWhileBegin   , NULL, NULL);
+    E_declare_proc(declared_stmts, S_WEND,     stmtWhileEnd     , NULL, NULL);
+    E_declare_proc(declared_stmts, S_LET,      stmtLet          , NULL, NULL);
+    E_declare_proc(declared_stmts, S_ON,       stmtOn           , NULL, NULL);
+    E_declare_proc(declared_stmts, S_ERROR,    stmtError        , NULL, NULL);
+    E_declare_proc(declared_stmts, S_RESUME,   stmtResume       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_EXIT,     stmtExit         , NULL, NULL);
+    E_declare_proc(declared_stmts, S_CONTINUE, stmtContinue     , NULL, NULL);
+    E_declare_proc(declared_stmts, S_DO,       stmtDo           , NULL, NULL);
+    E_declare_proc(declared_stmts, S_LOOP,     stmtLoop         , NULL, NULL);
+    E_declare_proc(declared_stmts, S_SELECT,   stmtSelect       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_CASE,     stmtCase         , NULL, NULL);
+    E_declare_proc(declared_stmts, S_RETURN,   stmtReturn       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_PRIVATE,  stmtPublicPrivate, NULL, NULL);
+    E_declare_proc(declared_stmts, S_PUBLIC,   stmtPublicPrivate, NULL, NULL);
+    E_declare_proc(declared_stmts, S_IMPORT,   stmtImport       , NULL, NULL);
 
-    declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL, NULL);
-    declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL, NULL);
-    declare_proc(declared_stmts, S_FOR,      stmtForBegin     , NULL, NULL);
-    declare_proc(declared_stmts, S_NEXT,     stmtForEnd       , NULL, NULL);
-    declare_proc(declared_stmts, S_IF,       stmtIfBegin      , NULL, NULL);
-    declare_proc(declared_stmts, S_ELSE,     stmtIfElse       , NULL, NULL);
-    declare_proc(declared_stmts, S_ELSEIF,   stmtIfElse       , NULL, NULL);
-    declare_proc(declared_stmts, S_END,      stmtEnd          , NULL, NULL);
-    declare_proc(declared_stmts, S_ENDIF,    stmtEnd          , NULL, NULL);
-    declare_proc(declared_stmts, S_ASSERT,   stmtAssert       , NULL, NULL);
-    declare_proc(declared_stmts, S_OPTION,   stmtOption       , NULL, NULL);
-    declare_proc(declared_stmts, S_SUB,      stmtProcBegin    , NULL, NULL);
-    declare_proc(declared_stmts, S_FUNCTION, stmtProcBegin    , NULL, NULL);
-    declare_proc(declared_stmts, S_CALL,     stmtCall         , NULL, NULL);
-    declare_proc(declared_stmts, S_CONST,    stmtConstDecl    , NULL, NULL);
-    declare_proc(declared_stmts, S_EXTERN,   stmtExternDecl   , NULL, NULL);
-    declare_proc(declared_stmts, S_DECLARE,  stmtProcDecl     , NULL, NULL);
-    declare_proc(declared_stmts, S_TYPE,     stmtTypeDeclBegin, NULL, NULL);
-    declare_proc(declared_stmts, S_STATIC,   stmtStatic       , NULL, NULL);
-    declare_proc(declared_stmts, S_WHILE,    stmtWhileBegin   , NULL, NULL);
-    declare_proc(declared_stmts, S_WEND,     stmtWhileEnd     , NULL, NULL);
-    declare_proc(declared_stmts, S_LET,      stmtLet          , NULL, NULL);
-    declare_proc(declared_stmts, S_ON,       stmtOn           , NULL, NULL);
-    declare_proc(declared_stmts, S_ERROR,    stmtError        , NULL, NULL);
-    declare_proc(declared_stmts, S_RESUME,   stmtResume       , NULL, NULL);
-    declare_proc(declared_stmts, S_EXIT,     stmtExit         , NULL, NULL);
-    declare_proc(declared_stmts, S_CONTINUE, stmtContinue     , NULL, NULL);
-    declare_proc(declared_stmts, S_DO,       stmtDo           , NULL, NULL);
-    declare_proc(declared_stmts, S_LOOP,     stmtLoop         , NULL, NULL);
-    declare_proc(declared_stmts, S_SELECT,   stmtSelect       , NULL, NULL);
-    declare_proc(declared_stmts, S_CASE,     stmtCase         , NULL, NULL);
-    declare_proc(declared_stmts, S_RETURN,   stmtReturn       , NULL, NULL);
-
-    declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
-    declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
-    declare_proc(declared_funs,  S_CAST,     NULL          , funCast,   NULL);
-
-    // import procs and functions built-in std module (FIXME: read from file!)
-    import_module(E_base_vmod());
+    E_declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
+    E_declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
+    E_declare_proc(declared_funs,  S_CAST,     NULL          , funCast,   NULL);
 }
 
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*

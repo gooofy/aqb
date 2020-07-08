@@ -2,9 +2,13 @@
 #define ENV_H
 
 #include "translate.h"
+#include "table.h"
+
+#define MAGIC_SYM1 = 0x
 
 typedef struct E_enventry_ *E_enventry;
 typedef struct E_formals_  *E_formals;
+typedef struct E_module_   *E_module;
 
 struct E_formals_
 {
@@ -45,12 +49,63 @@ Ty_tyList  E_FormalTys(E_formals formals);
  * modules
  */
 
-E_enventry E_base_tmod(void); /* base module containing builtin types                  */
-E_enventry E_base_vmod(void); /* base module containing builtin consts, vars and procs */
+struct E_module_
+{
+    S_symbol    name;
+    E_enventry  env;
+    TAB_table   tyTable; // tuid -> Ty_ty, used in module load/save
+};
 
-void       E_import(S_scope scope, E_enventry mod); /* import all enventries declared in mod into scope */
+E_module   E_base_mod(void);        /* base module containing builtin types, consts, vars and procs     */
+E_module   E_Module(S_symbol name); /* create a new, empty module named <name>                          */
 
-void E_init(void);
+void       E_import(E_module mod, S_scope tenv, S_scope venv); /* import all enventries declared in mod into tenv/venv */
+
+void       E_addSymPath(string path); /* look for symbol files in directory <path>                      */
+
+bool       E_saveModule(string symfn, E_module mod);
+E_module   E_loadModule(S_symbol sModule);
+
+TAB_iter   E_loadedModuleIter(void);  // key: S_symbol (module name), E_module
+
+// global symbol namespace
+
+extern S_scope g_venv;
+extern S_scope g_tenv;
+
+/*******************************************************************
+ *
+ * declared statements and functions
+ *
+ * since the parser is extensible, we need to be able to
+ * keep track of multiple meanings per statement identifier
+ *
+ *******************************************************************/
+
+typedef struct P_declProc_ *P_declProc;
+
+struct P_declProc_
+{
+     bool (*parses)(S_tkn tkn, P_declProc decl);                // parse as statement call
+     bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp);   // parse as function call
+     A_proc     proc;
+     P_declProc next;
+};
+
+extern TAB_table declared_stmts; // S_symbol -> P_declProc
+extern TAB_table declared_funs;  // S_symbol -> P_declProc
+
+void E_declare_proc(TAB_table m, S_symbol sym,
+                    bool (*parses)(S_tkn, P_declProc),
+                    bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp),
+                    A_proc proc);
+void E_declareProcsFromMod (E_module mod);
+
+/*
+ * init
+ */
+
+void       E_init(void);
 
 /*
  * os library offsets
