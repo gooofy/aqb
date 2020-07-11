@@ -9,9 +9,11 @@
 #include "translate.h"
 #include "options.h"
 #include "parser.h"
+#include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
 #define SYM_VERSION     5
+#define AQB_MODULE_NAME "_aqb"
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -195,7 +197,7 @@ static void declare_builtin_const(string name, Tr_exp cExp)
  * s : string  (string pointer)
  * p : ptr     (4 byte void / function pointer)
  */
-
+#if 0
 static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes, Ty_ty return_type)
 {
     E_formals   formals = NULL, last_formals = NULL;
@@ -270,6 +272,7 @@ static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes,
     append_vmod_entry(entry);
     return entry;
 }
+#endif
 
 static FILE     *modf     = NULL;
 static TAB_table modTable;  // save: S_symbol moduleName -> int mid
@@ -320,6 +323,7 @@ static void E_serializeConstExp(Tr_exp exp)
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
+        case Ty_pointer:
             i = Tr_getConstInt(exp);
             fwrite (&i, 4, 1, modf);
             break;
@@ -623,6 +627,7 @@ static bool E_deserializeConstExp(FILE *modf, Tr_exp *exp)
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
+        case Ty_pointer:
             if (fread(&i, 4, 1, modf) != 1) return FALSE;
             *exp = Tr_intExp(i, ty);
             return TRUE;
@@ -1088,6 +1093,7 @@ void E_init(void)
     declare_builtin_const("TRUE",  Tr_boolExp(TRUE, Ty_Bool()));
     declare_builtin_const("FALSE", Tr_boolExp(FALSE, Ty_Bool()));
 
+#if 0
     append_vmod_entry(E_VarEntry(S_Symbol("ERR", FALSE), Tr_externalVar("_AQB_ERR", Ty_Integer()), Ty_Integer(), TRUE));
 
     declare_builtin_proc("__aio_puts",            NULL         , "s",        Ty_Void());
@@ -1117,22 +1123,25 @@ void E_init(void)
     // DECLARE FUNCTION ALLOCATE (size AS ULONG, flags AS ULONG=0) AS VOID PTR
     E_enventry entry = declare_builtin_proc("allocate", "___aqb_allocate",  "LL", Ty_VoidPtr() );
     entry->u.fun.formals->next->defaultExp = Tr_intExp(0, Ty_ULong());
-
-    // symbol search path
-    symSP     = NULL;
-    symSPLast = NULL;
+#endif
 
     // module cache
     modCache = TAB_empty();
-
-    // import base module
-    E_import(base_mod, g_tenv, g_venv);
 
     // declared procs and functions
     declared_stmts = TAB_empty();
     declared_funs  = TAB_empty();
 
-    // auto-declare procs from base_mod
+    // import base module
+    E_import(base_mod, g_tenv, g_venv);
     E_declareProcsFromMod (base_mod);
+
+    // import _aqb module
+    if (!OPT_get(OPTION_NOSTDMODS))
+    {
+        E_module modaqb = E_loadModule(S_Symbol(AQB_MODULE_NAME, FALSE));
+        if (!modaqb)
+            EM_error (0, "***ERROR: failed to load %s !", AQB_MODULE_NAME);
+    }
 }
 

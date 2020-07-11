@@ -9,7 +9,6 @@
 #include "aio.h"
 #include "astr.h"
 #include "autil.h"
-#include "awindow.h"
 #include "amath.h"
 
 #include <string.h>
@@ -30,12 +29,9 @@
 // #define ENABLE_DEBUG
 
 struct DOSBase       *DOSBase       = NULL;
-struct IntuitionBase *IntuitionBase = NULL;
-struct GfxBase       *GfxBase       = NULL;
 struct MathBase      *MathBase      = NULL;
 struct MathTransBase *MathTransBase = NULL;
 
-static BOOL awindow_init_done = FALSE;
 static BOOL autil_init_done   = FALSE;
 static BOOL aio_init_done     = FALSE;
 
@@ -43,7 +39,7 @@ static BOOL aio_init_done     = FALSE;
 static void (*exit_handlers[MAX_EXIT_HANDLERS])(void);
 static int num_exit_handlers = 0;
 
-void __aqb_on_exit_call(void (*cb)(void))
+void _aqb_on_exit_call(void (*cb)(void))
 {
     if (num_exit_handlers>=MAX_EXIT_HANDLERS)
         return;
@@ -69,17 +65,11 @@ void _c_atexit(void)
         exit_handlers[i]();
     }
 
-    if (awindow_init_done)
-        _awindow_shutdown();
     if (aio_init_done)
         _aio_shutdown();
     if (autil_init_done)
         _autil_shutdown();
 
-    if (GfxBase)
-        CloseLibrary( (struct Library *)GfxBase);
-    if (IntuitionBase)
-        CloseLibrary( (struct Library *)IntuitionBase);
     if (MathTransBase)
         CloseLibrary( (struct Library *)MathTransBase);
     if (MathBase)
@@ -115,12 +105,6 @@ void _cstartup (void)
     if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
         _cshutdown(20, "*** error: failed to open mathtrans.library!\n");
 
-    if (!(IntuitionBase = (struct IntuitionBase *)OpenLibrary((CONST_STRPTR) "intuition.library", 0)))
-        _cshutdown(20, "*** error: failed to open intuition.library!\n");
-
-    if (!(GfxBase = (struct GfxBase *)OpenLibrary((CONST_STRPTR) "graphics.library", 0)))
-        _cshutdown(20, "*** error: failed to open graphics.library!\n");
-
     _autil_init();
     autil_init_done = TRUE;
 
@@ -131,10 +115,13 @@ void _cstartup (void)
     _aio_init();
     aio_init_done = TRUE;
 
-    _awindow_init();
-    awindow_init_done = TRUE;
-
     _aqb_main();
 
     _autil_exit(0);
 }
+
+void __aqb_init(void)
+{
+    // module initialization - called from __aqb_main
+}
+

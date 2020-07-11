@@ -4,7 +4,6 @@
 #include "aio.h"
 #include "autil.h"
 #include "astr.h"
-#include "awindow.h"
 
 #include <clib/mathffp_protos.h>
 #include <clib/mathtrans_protos.h>
@@ -23,19 +22,19 @@ extern void assertC(char b, const char *msg);
 
 void clibtestmain (void)
 {
-    ULONG l, m;
-    FLOAT a, b;
+    //ULONG l, m;
+    //FLOAT a, b;
 
     _aio_puts("clibtestmain\n");
 
-    l = 0x80000047;
-    m = 0x80000147;
+    // l = 0x80000047;
+    // m = 0x80000147;
 
-    a = *((FLOAT*) &l);
-    b = *((FLOAT*) &m);
+    // a = *((FLOAT*) &l);
+    // b = *((FLOAT*) &m);
 
-    _aio_puts("a: "); _aio_putf(a); _aio_putnl();
-    _aio_puts("b: "); _aio_putf(b); _aio_putnl();
+    // _aio_puts("a: "); _aio_putf(a); _aio_putnl();
+    // _aio_puts("b: "); _aio_putf(b); _aio_putnl();
 
     // _aqb_assert (foo() == 42, "this should fail.");
     // assertC (foo() == 42, "this should fail.");

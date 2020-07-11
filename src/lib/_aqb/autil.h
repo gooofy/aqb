@@ -3,9 +3,7 @@
 
 #include <exec/types.h>
 
-// AllocRemember wrapper
-
-APTR __aqb_allocate(ULONG size, ULONG flags);
+APTR allocate_(ULONG size, ULONG flags);
 
 void _autil_init(void);
 void _autil_shutdown(void);

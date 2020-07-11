@@ -209,6 +209,8 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "usage: %s [-v] [-s] <program.bas>\n", argv[0]);
 	fprintf(stderr, "    -L <dir>   look in <dir> for symbol files\n");
 	fprintf(stderr, "    -s         create symbol (.sym) file\n");
+	fprintf(stderr, "    -S         create symbol (.sym) file only (do not create assembly file)\n");
+	fprintf(stderr, "    -n         do not load any default modules\n");
 	fprintf(stderr, "    -v         verbose\n");
 	fprintf(stderr, "    -V         display version info\n");
 }
@@ -223,13 +225,13 @@ int main (int argc, char *argv[])
     FILE           *out;
     size_t 			optind;
     bool            write_sym = FALSE;
+    bool            no_asm = FALSE;
     char            symfn[PATH_MAX];
     string          module_name;
 
     Ty_init();
     EM_init();
     S_symbol_init();
-    E_init();
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
 	{
@@ -246,6 +248,13 @@ int main (int argc, char *argv[])
 				break;
         	case 's':
                 write_sym = TRUE;
+				break;
+        	case 'S':
+                write_sym = TRUE;
+                no_asm    = TRUE;
+				break;
+        	case 'n':
+				OPT_set(OPTION_NOSTDMODS, TRUE);
 				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
@@ -265,6 +274,9 @@ int main (int argc, char *argv[])
 		print_usage(argv);
 		exit(EXIT_FAILURE);
 	}
+
+    // init environment
+    E_init();
 
 	sourcefn = argv[optind];
     /* filename.bas -> filename.s, filename.sym, module name, module search path */
@@ -339,7 +351,8 @@ int main (int argc, char *argv[])
     {
         if (SEM_writeSymFile(symfn))
         {
-            printf ("\n%s written.\n", symfn);
+            if (OPT_get(OPTION_VERBOSE))
+                printf ("\n%s written.\n", symfn);
         }
         else
         {
@@ -347,6 +360,9 @@ int main (int argc, char *argv[])
             exit(23);
         }
     }
+
+    if (no_asm)
+        exit(0);
 
     /*
      * generate target assembly code

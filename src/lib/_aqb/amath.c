@@ -256,8 +256,8 @@ FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 
     // instead, it just rounds the two operands
 
-    LONG a = __aqb_clng(divident);
-    LONG b = __aqb_clng(divisor);
+    LONG a = clng_(divident);
+    LONG b = clng_(divisor);
 
     return SPFlt(a % b);
 }
@@ -273,26 +273,26 @@ FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 */
 
 
-SHORT __aqb_fix(FLOAT f)
+SHORT fix_(FLOAT f)
 {
     return SPFix(f);
 }
 
-SHORT __aqb_int(FLOAT f)
+SHORT int_(FLOAT f)
 {
 	if (SPCmp(g_zero, f)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
 }
 
-SHORT __aqb_cint(FLOAT f)
+SHORT cint_(FLOAT f)
 {
 	if (SPCmp(g_zero, f)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
 }
 
-LONG __aqb_clng(FLOAT f)
+LONG clng_(FLOAT f)
 {
 	if (SPCmp(g_zero, f)<0)
 		return SPFix(SPSub(g_one_half, f));
@@ -307,16 +307,16 @@ void _amath_init(void)
 
 FLOAT __aqb_shl_single(FLOAT af, FLOAT bf)
 {
-    LONG a = __aqb_clng(af);
-    LONG b = __aqb_clng(bf);
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
 
     return SPFlt(a << b);
 }
 
 FLOAT __aqb_shr_single(FLOAT af, FLOAT bf)
 {
-    LONG a = __aqb_clng(af);
-    LONG b = __aqb_clng(bf);
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
 
     return SPFlt(a >> b);
 }

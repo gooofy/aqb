@@ -1,6 +1,4 @@
 
-EXTERN MathTransBase AS VOID PTR
-
 DECLARE FUNCTION SPSin(a) LIB -36 MathTransBase (d0)
 
 ASSERT (INT(SPSin(3.1415)) = 0)

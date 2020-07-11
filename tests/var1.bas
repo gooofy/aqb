@@ -1,8 +1,6 @@
 ' test external vars
 
-EXTERN IntuitionBase AS VOID PTR
-
-ASSERT IntuitionBase <> 0
+ASSERT DOSBase <> 0
 
 ' PRINT intuitionbase
 

@@ -2843,21 +2843,21 @@ static bool stmtOn(S_tkn tkn, P_declProc dec)
 
     if (isSym(tkn, S_BREAK))
     {
-        func = S_Symbol("___aqb_on_break_call", FALSE);
+        func = S_Symbol("_aqb_on_break_call", FALSE);
         tkn = tkn->next;
     }
     else
     {
         if (isSym(tkn, S_ERROR))
         {
-            func = S_Symbol("___aqb_on_error_call", FALSE);
+            func = S_Symbol("_aqb_on_error_call", FALSE);
             tkn = tkn->next;
         }
         else
         {
             if (isSym(tkn, S_EXIT))
             {
-                func = S_Symbol("___aqb_on_exit_call", FALSE);
+                func = S_Symbol("_aqb_on_exit_call", FALSE);
                 tkn = tkn->next;
             }
             else
@@ -2868,7 +2868,8 @@ static bool stmtOn(S_tkn tkn, P_declProc dec)
     }
 
     P_declProc ds = TAB_look(declared_stmts, func);
-    assert(ds);
+    if (!ds)
+        return EM_error(tkn->pos, "Failed to find builtin %s", S_name(func));
 
     if (!isSym(tkn, S_CALL))
         return EM_error(tkn->pos, "CALL expected here.");
@@ -2906,11 +2907,12 @@ static bool stmtError(S_tkn tkn, P_declProc dec)
     if (!isLogicalEOL(tkn))
         return FALSE;
 
-    func = S_Symbol("___aqb_error", FALSE);
+    func = S_Symbol("_aqb_error", FALSE);
     A_ExpListAppend (args, exp);
 
     P_declProc ds = TAB_look(declared_stmts, func);
-    assert(ds);
+    if (!ds)
+        return EM_error(tkn->pos, "Failed to find builtin %s", S_name(func));
 
     A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
 
@@ -2933,10 +2935,11 @@ static bool stmtResume(S_tkn tkn, P_declProc dec)
     if (!isLogicalEOL(tkn))
         return FALSE;
 
-    func = S_Symbol("___aqb_resume_next", FALSE);
+    func = S_Symbol("_aqb_resume_next", FALSE);
 
     P_declProc ds = TAB_look(declared_stmts, func);
-    assert(ds);
+    if (!ds)
+        return EM_error(tkn->pos, "Failed to find builtin %s", S_name(func));
 
     A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
 

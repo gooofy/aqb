@@ -65,8 +65,9 @@ tests/*.s
 # FIXME: cleanup. commit.
 doc/
 old
-src/alib/genos.py
-src/alib/os_mathtrans.txt
+src/lib/*.sym
+src/lib/_aqb/*.sym
+src/lib/_aqb/alibtest
 tests/foo.bas
 src/alib/tests/*.bin
 examples/bench/*.bin

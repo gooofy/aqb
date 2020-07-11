@@ -1271,14 +1271,25 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (fsym)
             {
                 E_enventry func = S_look(g_venv, fsym);
+                if (!func)
+                {
+                    EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
+                    break;
+                }
                 Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
                 return tr_exp;
             }
+            break;
         }
         case A_printNLStmt:
         {
             S_symbol fsym   = S_Symbol("__aio_putnl", TRUE);
             E_enventry func = S_look(g_venv, fsym);
+            if (!func)
+            {
+                EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
+                break;
+            }
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
             return tr_exp;
         }
@@ -1286,6 +1297,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             S_symbol fsym   = S_Symbol("__aio_puttab", TRUE);
             E_enventry func = S_look(g_venv, fsym);
+            if (!func)
+            {
+                EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
+                break;
+            }
             Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
             return tr_exp;
         }
@@ -1293,8 +1309,13 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         {
             Tr_exp exp         = transExp(level, venv, tenv, stmt->u.assertr.exp, nestedLabels);
             Tr_expList arglist = Tr_ExpList(Tr_stringExp(stmt->u.assertr.msg), Tr_ExpList(exp, NULL));
-            S_symbol fsym      = S_Symbol("___aqb_assert", TRUE);
+            S_symbol fsym      = S_Symbol("__aqb_assert", TRUE);
             E_enventry func    = S_look(g_venv, fsym);
+            if (!func)
+            {
+                EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
+                break;
+            }
             return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
         }
         case A_assignStmt:

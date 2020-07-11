@@ -3,12 +3,12 @@
 
 void _amath_init(void);
 
-FLOAT __aqb_mod(FLOAT divident, FLOAT divisor);
+FLOAT mod_(FLOAT divident, FLOAT divisor);
 
-SHORT __aqb_fix (FLOAT f);
-SHORT __aqb_int (FLOAT f);
-SHORT __aqb_cint(FLOAT f);
-LONG  __aqb_clng(FLOAT a);
+SHORT fix_  (FLOAT f);
+SHORT int_  (FLOAT f);
+SHORT cint_ (FLOAT f);
+LONG  clng_ (FLOAT a);
 
 FLOAT __aqb_shl_single(FLOAT a, FLOAT b);
 FLOAT __aqb_shr_single(FLOAT a, FLOAT b);

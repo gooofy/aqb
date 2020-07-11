@@ -20,7 +20,7 @@ void _aio_shutdown(void)
 
 void _aio_puts(const char *s)
 {
-    Write(g_stdout, (CONST APTR) s, __aqb_len(s));
+    Write(g_stdout, (CONST APTR) s, len_(s));
 }
 
 void _aio_putnl(void)

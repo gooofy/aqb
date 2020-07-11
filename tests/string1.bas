@@ -4,8 +4,6 @@
 
 OPTION EXPLICIT
 
-EXTERN SysBase AS VOID PTR
-
 ' clib/exec_protos.h:VOID CopyMem( CONST APTR source, APTR dest, ULONG size );
 DECLARE SUB CopyMem (src AS VOID PTR, dst AS VOID PTR, size AS ULONG) LIB -624 SysBase (a0, a1, d0)
 
