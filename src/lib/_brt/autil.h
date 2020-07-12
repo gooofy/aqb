@@ -3,6 +3,11 @@
 
 #include <exec/types.h>
 
+extern struct ExecBase      *SysBase;
+extern struct DOSBase       *DOSBase;
+extern struct MathBase      *MathBase;
+extern struct MathTransBase *MathTransBase;
+
 APTR allocate_(ULONG size, ULONG flags);
 
 void _autil_init(void);

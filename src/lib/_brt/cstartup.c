@@ -15,19 +15,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <dos/dosextens.h>
-#include <dos/dostags.h>
-#include <dos/rdargs.h>
-
 #include <exec/execbase.h>
 #include <exec/memory.h>
 
-#include <clib/utility_protos.h>
 #include <clib/exec_protos.h>
-#include <clib/dos_protos.h>
+#include <inline/exec.h>
+
 
 // #define ENABLE_DEBUG
 
+struct ExecBase      *SysBase       = NULL;
 struct DOSBase       *DOSBase       = NULL;
 struct MathBase      *MathBase      = NULL;
 struct MathTransBase *MathTransBase = NULL;
@@ -96,6 +93,8 @@ void _aqb_main(void);
 
 void _cstartup (void)
 {
+    SysBase = (*((struct ExecBase **) 4));
+
     if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
         _cshutdown(20, "*** error: failed to open dos.library!\n");
 

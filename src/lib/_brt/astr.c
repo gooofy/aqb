@@ -3,12 +3,16 @@
 #include "aio.h"
 
 #include <exec/memory.h>
-#include <clib/exec_protos.h>
 
+#include <clib/exec_protos.h>
 #include <clib/mathffp_protos.h>
 #include <clib/mathtrans_protos.h>
 
-// #define DEBUG
+#include <inline/exec.h>
+#include <inline/mathffp.h>
+#include <inline/mathtrans.h>
+
+//#define DEBUG
 
 /* A utility function to reverse a string  */
 static void reverse(char *str, int length)
@@ -207,7 +211,7 @@ void _astr_ftoa(FLOAT value, char *buf)
 
     // if (isnan(value)) return _aio_puts("nan");
 
-    if (SPCmp(g_0, value)<0)
+    if (SPCmp(value, g_0)<0)
     {
         value = SPMul(value, g_m1);
         negative = TRUE;

@@ -1,5 +1,9 @@
+#include "autil.h"
+
 #include <exec/types.h>
+
 #include <clib/mathffp_protos.h>
+#include <inline/mathffp.h>
 
 #include "amath.h"
 
@@ -280,21 +284,21 @@ SHORT fix_(FLOAT f)
 
 SHORT int_(FLOAT f)
 {
-	if (SPCmp(g_zero, f)<0)
+	if (SPCmp(f, g_zero)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
 }
 
 SHORT cint_(FLOAT f)
 {
-	if (SPCmp(g_zero, f)<0)
+	if (SPCmp(f, g_zero)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
 }
 
 LONG clng_(FLOAT f)
 {
-	if (SPCmp(g_zero, f)<0)
+	if (SPCmp(f, g_zero)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
 }

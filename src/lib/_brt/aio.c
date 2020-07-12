@@ -1,9 +1,13 @@
 
+#include "autil.h"
+
+#include <clib/dos_protos.h>
+#include <inline/dos.h>
+
 #include "astr.h"
 #include "aio.h"
 
 // LONG Write( BPTR file, CONST APTR buffer, LONG length );
-
 
 #define MAXBUF 40
 

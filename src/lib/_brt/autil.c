@@ -4,9 +4,14 @@
 
 #include <exec/types.h>
 #include <exec/memory.h>
+
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 #include <clib/mathffp_protos.h>
+
+#include <inline/exec.h>
+#include <inline/dos.h>
+#include <inline/mathffp.h>
 
 USHORT g_errcode;
 
