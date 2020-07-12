@@ -1,0 +1,238 @@
+= AQB TODO
+Guenter Bartsch <guenter@zamia.org>
+v0.1, 2020-07-12
+
+== Language Concepts
+
+- subprograms
+
+    - implement BY REF argument semantics
+    - check forward decl formal types
+
+== Compiler, Code Generation, Runtime
+
+- startup code: command line args, workbench startup
+
+- code generator
+    - get rid of unneccesary jumps / nop statements
+    - proc calls: only save registers that carry live values
+    - use movem to save/restore registers
+    - only save/restore registers on proc entry/exit that are actually used inside
+    - constant propagation
+    - peephole optimizer
+    - address register allocation, cache (var) pointer temps
+    - escape analysis: keep local variables in registers only (m68kframe inReg)
+
+- Exec error handling
+    - division by zero
+
+== Core Commands
+
+- ABS()
+- AND
+- ASC()
+- ATN()
+- BREAK ON
+- BREAK OFF
+- BREAK STOP
+- CALL
+- CBDL()
+- CHDIR
+- CHR$()
+- CINT()
+- CLEAR
+- CLNG()
+- CLOSE
+- CLS
+- COMMON
+- COS()
+- CSNG()
+- CVD()
+- CVI()
+- CVL()
+- CVS()
+- DATA
+- DATE$()
+- DECLARE FUNCTION
+- DEF FN
+- DEFDBL
+- DEFINT
+- DEFLNG
+- DEFSNG
+- DEFSTR
+- DIM
+- END
+- EOF()
+- EQV
+- ERASE
+- ERL
+- ERR
+- ERROR
+- EXP()
+- FIELD
+- FILES
+- FIX()
+- FOR...NEXT
+- FRE()
+- GET#
+- GOSUB
+- GOTO
+- HEX$()
+- IF
+- IMP
+- INPUT
+- INPUT$()
+- INPUT #
+- INSTR()
+- INT()
+- KILL
+- LBOUND()
+- LEFT$()
+- LEN()
+- LET
+- LIBRARY
+- LIBRARY CLOSE
+- LINE INPUT
+- LINE INPUT#
+- LLIST
+- LOC()
+- LOF()
+- LOG()
+- LPOS()
+- LPRINT
+- LSET
+- MID$()
+- MKI$()
+- MKL$()
+- MKS$()
+- MKD$()
+- MOD
+- NAME
+- NEXT
+- NOT
+- OCT$()
+- ON BREAK
+- ON ERROR
+- ON GOSUB
+- ON GOTO
+- OPEN
+- OPTION BASE
+- OR
+- PEEK()
+- PEEKL()
+- PEEKW()
+- POKE
+- POKEL
+- POKEW
+- PRINT
+- PRINT USING
+- PUT
+- RANDOMIZE
+- READ
+- REM
+- RESTORE
+- RESUME
+- RETURN
+- RIGHT$()
+- RND
+- RSET
+- SADD()
+- SAVE
+- SGN()
+- SHARED
+- SIN()
+- SPACE$()
+- SPC()
+- STR$()
+- STRING$()
+- SUB
+- SWAP
+- SYSTEM
+- TAB()
+- TAN()
+- TIME$()
+- UBOUND()
+- UCASE$()
+- VAL()
+- VARPTR()
+- WEND
+- WHILE
+- WIDTH
+- WIDTH LPRINT
+- WRITE
+
+== AmigaBASIC Specific Commands
+
+- AREA
+- AREAFILL
+- BEEP
+- CIRCLE
+- COLLISION ON
+- COLLISION OFF
+- COLLISION STOP
+- COLLISION()
+- COLOR
+- CSRLIN()
+- GET
+- LINE
+- LOCATE
+- MENU
+- MENU RESET
+- MENU ON
+- MENU OFF
+- MENU SOP
+- MENU()
+- MOUSE ON
+- MOUSE OFF
+- MOUSE STOP
+- MOUSE()
+- OBJECT.AX
+- OBJECT.AY
+- OBJECT.CLOSE
+- OBJECT.HIT
+- OBJECT.OFF
+- OBJECT.ON
+- OBJECT.PRIORITY
+- OBJECT.SHAPE
+- OBJECT.START
+- OBJECT.STOP
+- OBJECT.VX
+- OBJECT.VX()
+- OBJECT.VY
+- OBJECT.VY()
+- OBJECT.X
+- OBJECT.X()
+- OBJECT.Y
+- OBJECT.Y()
+- ON COLLISION
+- ON MENU
+- ON MOUSE
+- ON TIMER
+- PAINT
+- PALETTE
+- PATTERN
+- POINT
+- POS
+- PRESET
+- PSET
+- PTAB
+- PUT [STEP]
+- SAY
+- SCREEN
+- SCROLL
+- SLEEP
+- SOUND
+- SOUND WAIT
+- SOUND RESUME
+- STICK()
+- STRIG()
+- TIMER ON
+- TIMER OFF
+- TIMER STOP
+- TRANSLATE$()
+- WAVE
+- WINDOW
+- WINDOW CLOSE
+- WINDOW OUTPUT
+- WINDOW()
+
