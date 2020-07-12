@@ -38,7 +38,7 @@ all: cond1.bin cond3.bin cond4.bin	\
 	$(AS) $(ASFLAGS) $< -o $@
 
 %.bin : %.o
-	$(LD) ../src/lib/_aqb/startup.o $< ../src/lib/_aqb/_aqb.a -o $@
+	$(LD) ../src/lib/_brt/startup.o $< ../src/lib/_brt/_brt.a -o $@
 	$(STRIP) $@
 	cp $@ /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
 	cp $@ /home/guenter/media/emu/amiga/a500/hdd/system/x/

@@ -120,7 +120,7 @@ void _cstartup (void)
     _autil_exit(0);
 }
 
-void __aqb_init(void)
+void __brt_init(void)
 {
     // module initialization - called from __aqb_main
 }

@@ -65,8 +65,8 @@ tests/*.s
 # FIXME: cleanup. commit.
 old
 src/lib/*.sym
-src/lib/_aqb/*.sym
-src/lib/_aqb/alibtest
+src/lib/_brt/*.sym
+src/lib/_brt/alibtest
 tests/foo.bas
 src/alib/tests/*.bin
 examples/bench/*.bin

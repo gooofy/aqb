@@ -13,7 +13,7 @@
 
 #define SYM_MAGIC       0x53425141  // AQBS
 #define SYM_VERSION     5
-#define AQB_MODULE_NAME "_aqb"
+#define BRT_MODULE_NAME "_brt"
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -1139,9 +1139,9 @@ void E_init(void)
     // import _aqb module
     if (!OPT_get(OPTION_NOSTDMODS))
     {
-        E_module modaqb = E_loadModule(S_Symbol(AQB_MODULE_NAME, FALSE));
+        E_module modaqb = E_loadModule(S_Symbol(BRT_MODULE_NAME, FALSE));
         if (!modaqb)
-            EM_error (0, "***ERROR: failed to load %s !", AQB_MODULE_NAME);
+            EM_error (0, "***ERROR: failed to load %s !", BRT_MODULE_NAME);
     }
 }
 

@@ -1,3 +1,7 @@
+'
+' _brt: BASIC runtime, minimal core needed to support the compiler's generated code
+'
+
 OPTION EXPLICIT
 OPTION PRIVATE
 
