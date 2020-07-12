@@ -6,25 +6,46 @@ v0.1, 2020-07-12
 
 - subprograms
 
-    - implement BY REF argument semantics
-    - check forward decl formal types
+    * implement BY REF argument semantics
+    * check forward decl formal types
+    * varargs
+
+- OOP ? (VB / FreeBASIC)
+
+- enums
+
+- DIM inside of IFs, Loops (scoping)
+
+- assignment operators (+=, *=, ...)
+
+- TYPE ... AS
+
+- CASR string
 
 == Compiler, Code Generation, Runtime
 
 - startup code: command line args, workbench startup
 
 - code generator
-    - get rid of unneccesary jumps / nop statements
-    - proc calls: only save registers that carry live values
-    - use movem to save/restore registers
-    - only save/restore registers on proc entry/exit that are actually used inside
-    - constant propagation
-    - peephole optimizer
-    - address register allocation, cache (var) pointer temps
-    - escape analysis: keep local variables in registers only (m68kframe inReg)
+    * proc calls: only save registers that carry live values
+    * use movem to save/restore registers
+    * only save/restore registers on proc entry/exit that are actually used inside
+    * peephole optimizer
+    * cache (var) pointer temps
+    * escape analysis: keep local variables in registers only (m68kframe inReg)
+    * optimizing assembler (32 bit condition jumps, clr., ...)
+    * register arguments
+    * SSA (static single assignment) intermediate form
+    * backend abstraction layer, enable alternative backends (RISC-V, ARM, x86, LLVM, ...)
+    * if / condition constant propagation (test w/ while)
+    * fix spilling
+    * translate.c: add #0, tmp ; mul *1 ; div / 1 ; ...
+    * optionally: initialize all variables to 0?
 
-- Exec error handling
-    - division by zero
+- Exec error handling / traps
+    * division by zero
+
+- Memory management / garbage collection ? / DEALLOCATE
 
 == Core Commands
 
@@ -235,4 +256,28 @@ v0.1, 2020-07-12
 - WINDOW CLOSE
 - WINDOW OUTPUT
 - WINDOW()
+
+== Examples / Demos / Libraries
+
+- EGads
+
+- Benchmarks: sieve, fractals
+
+- AMIGA hand
+
+- ISO game engine
+
+- BASICPaint
+
+- Linked List
+
+- Function Plotter
+    * 2D
+    * 3D
+
+- CCGames
+
+- M&T Book Examples
+
+- AMOS / Blitz Libraries
 
