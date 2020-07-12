@@ -164,6 +164,7 @@ v0.1, 2020-07-12
 - SIN()
 - SPACE$()
 - SPC()
+- DONE STATIC
 - STR$()
 - STRING$()
 - SUB
@@ -177,7 +178,7 @@ v0.1, 2020-07-12
 - VAL()
 - VARPTR()
 - WEND
-- WHILE
+- DONE WHILE
 - WIDTH
 - WIDTH LPRINT
 - WRITE
