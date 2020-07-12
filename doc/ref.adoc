@@ -1,0 +1,28 @@
+= AQB Reference
+Guenter Bartsch <guenter@zamia.org>
+v0.1, 2020-07-12
+:toc:
+
+== STATIC
+
+Syntax A:
+
+    STATIC Identifier AS TypeIdentifier [ "(" arrayDimensions ")" ] [ "=" expr] ( "," Indetifier2 AS ... )*
+
+Syntax B:
+
+    STATIC AS TypeIdentifier [ "(" arrayDimensions ")" ] Identifier [ "=" expr] ( "," Identifier2 ... )*
+
+Declare variable(s) as static.
+
+== WHILE ... WEND
+
+Syntax:
+
+    WHILE expression
+        <code>
+    WEND
+
+Repeat loop body while expression evaluates to TRUE.
+
+

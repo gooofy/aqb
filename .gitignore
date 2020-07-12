@@ -63,7 +63,6 @@ tests/*.bin
 tests/*.s
 
 # FIXME: cleanup. commit.
-doc/
 old
 src/lib/*.sym
 src/lib/_aqb/*.sym

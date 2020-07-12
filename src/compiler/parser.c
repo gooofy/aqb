@@ -1281,7 +1281,7 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
 }
 
 // stmtDim ::= [ PRIVATE | PUBLIC ] DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
-//                                                 | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )*
+//                                                 | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
 static bool stmtDim(S_tkn tkn, P_declProc decl)
 {
     bool     shared = FALSE;
@@ -2766,10 +2766,32 @@ static bool stmtTypeDeclField(S_tkn tkn)
     return isLogicalEOL(tkn);
 }
 
-// stmtStatic ::= STATIC singleVarDecl ( "," singleVarDecl )*
+// stmtStatic ::= STATIC ( singleVarDecl ( "," singleVarDecl )*
+//                       | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
 static bool stmtStatic(S_tkn tkn, P_declProc dec)
 {
     tkn = tkn->next;    // skip "STATIC"
+
+    if (isSym(tkn, S_AS))
+    {
+        A_typeDesc td;
+
+        tkn = tkn->next;
+
+        if (!typeDesc(&tkn, &td))
+            return EM_error(tkn->pos, "STATIC: type descriptor expected here.");
+
+        if (!singleVarDecl2(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, td))
+            return FALSE;
+
+        while (tkn->kind == S_COMMA)
+        {
+            tkn = tkn->next;
+            if (!singleVarDecl2(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, td))
+                return FALSE;
+        }
+        return isLogicalEOL(tkn);
+    }
 
     if (!singleVarDecl(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
         return FALSE;

@@ -26,6 +26,9 @@ S_scope g_tenv;
 // contains public env entries for export
 static E_module g_mod = NULL;
 
+// collect static var initialization assignment statements
+static Tr_expList g_static_initializers = NULL, g_static_initializers_last=NULL;
+
 // exit / continue support
 typedef struct Sem_nestedLabels_ *Sem_nestedLabels;
 struct Sem_nestedLabels_
@@ -1680,7 +1683,18 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 Ty_ty ty = Tr_ty(e);
                 if (ty->kind == Ty_varPtr)
                     e = Tr_Deref(e);
-                return Tr_assignExp(e, conv_init, t);
+                Tr_exp assignExp = Tr_assignExp(e, conv_init, t);
+                if (stmt->u.vdeclr.statc)
+                {
+                    if (g_static_initializers_last)
+                        g_static_initializers_last = g_static_initializers_last->tail = Tr_ExpList(assignExp, NULL);
+                    else
+                        g_static_initializers = g_static_initializers_last = Tr_ExpList(assignExp, NULL);
+                }
+                else
+                {
+                    return assignExp;
+                }
             }
             break;
         }
@@ -2183,6 +2197,12 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram, bool is_main, string mod
     if (OPT_get(OPTION_VERBOSE))
     {
         printf ("--------------\n");
+    }
+
+    if (g_static_initializers)
+    {
+        g_static_initializers_last->tail = Tr_ExpList(prog, NULL);
+        prog = Tr_seqExp(g_static_initializers);
     }
 
     Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*ret_access=*/NULL, /*exitlbl=*/ NULL, is_main);
