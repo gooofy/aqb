@@ -1,11 +1,9 @@
-#include "autil.h"
+#include "_brt.h"
 
 #include <exec/types.h>
 
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
-
-#include "amath.h"
 
 /*
  * ___mulsi3

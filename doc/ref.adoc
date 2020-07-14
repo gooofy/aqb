@@ -3,7 +3,9 @@ Guenter Bartsch <guenter@zamia.org>
 v0.1, 2020-07-12
 :toc:
 
-== STATIC
+== Core Language
+
+=== STATIC
 
 Syntax A:
 
@@ -15,7 +17,7 @@ Syntax B:
 
 Declare variable(s) as static.
 
-== WHILE ... WEND
+=== WHILE ... WEND
 
 Syntax:
 
@@ -24,5 +26,8 @@ Syntax:
     WEND
 
 Repeat loop body while expression evaluates to TRUE.
+
+== AQB / AmigaBASIC
+
 
 

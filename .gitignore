@@ -67,6 +67,8 @@ old
 src/lib/*.sym
 src/lib/_brt/*.sym
 src/lib/_brt/alibtest
+src/lib/_aqb/*.s
+src/lib/_aqb/*.sym
 tests/foo.bas
 src/alib/tests/*.bin
 examples/bench/*.bin

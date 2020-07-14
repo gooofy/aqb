@@ -12,7 +12,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     5
+#define SYM_VERSION     6
 #define BRT_MODULE_NAME "_brt"
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
@@ -187,92 +187,6 @@ static void declare_builtin_const(string name, Tr_exp cExp)
 {
     append_vmod_entry(E_ConstEntry(S_Symbol(name, FALSE), cExp));
 }
-
-/*
- * argtypes is a string, each char corresponds to one argument type:
- * b : bool    (1 byte signed)
- * i : integer (2 byte signed short)
- * l : long    (4 byte signed long)
- * f : float   (single precision float)
- * s : string  (string pointer)
- * p : ptr     (4 byte void / function pointer)
- */
-#if 0
-static E_enventry declare_builtin_proc (char *name, char *label, char *argtypes, Ty_ty return_type)
-{
-    E_formals   formals = NULL, last_formals = NULL;
-    A_paramList paramList = A_ParamList();
-    int         l = strlen(argtypes);
-    A_proc      proc;
-
-    if (!label)
-        label = name;
-
-    for (int i = 0; i<l; i++)
-    {
-        Ty_ty ty;
-        switch (argtypes[i])
-        {
-            case 'b':
-                ty = Ty_Bool();
-                break;
-            case 'y':
-                ty = Ty_Byte();
-                break;
-            case 'i':
-                ty = Ty_Integer();
-                break;
-            case 'l':
-                ty = Ty_Long();
-                break;
-            case 'Y':
-                ty = Ty_UByte();
-                break;
-            case 'I':
-                ty = Ty_UInteger();
-                break;
-            case 'L':
-                ty = Ty_ULong();
-                break;
-            case 'f':
-                ty = Ty_Single();
-                break;
-            case 's':
-                ty = Ty_String();
-                break;
-            case 'p':
-                ty = Ty_VoidPtr();
-                break;
-            default:
-                assert(0);
-        }
-        if (!formals)
-        {
-            formals = last_formals = E_Formals(ty, NULL, NULL);
-        }
-        else
-        {
-            last_formals->next = E_Formals(ty, NULL, NULL);
-            last_formals = last_formals->next;
-        }
-        A_ParamListAppend(paramList, A_Param (0, /*byval=*/FALSE, /*byref=*/FALSE, /*name=*/NULL, /*td=*/NULL, /*defaultExp=*/NULL));
-    }
-
-    S_symbol sym = S_Symbol(name, FALSE);
-    Temp_label lbl = Temp_namedlabel(label);
-
-    proc = A_Proc (0, /*isPublic=*/TRUE, sym, NULL, lbl, /*returnTD=*/ NULL, /*isFunction=*/return_type->kind != Ty_void, /*static=*/FALSE, paramList);
-
-    E_enventry entry = E_FunEntry(sym,
-                                  Tr_global(),
-                                  lbl,
-                                  formals,
-                                  return_type, TRUE, 0, NULL, proc);
-
-    append_vmod_entry(entry);
-    return entry;
-}
-#endif
 
 static FILE     *modf     = NULL;
 static TAB_table modTable;  // save: S_symbol moduleName -> int mid
@@ -551,10 +465,15 @@ bool E_saveModule(string modfn, E_module mod)
                     for (E_formals formal=e->u.fun.formals; formal; formal = formal->next)
                         cnt++;
                     fwrite(&cnt, 1, 1, modf);
+                    A_param p = e->u.fun.proc->paramList->first;
                     for (E_formals formal=e->u.fun.formals; formal; formal = formal->next)
                     {
                         E_serializeTyRef(formal->ty);
                         E_serializeConstExp(formal->defaultExp);
+                        fwrite(&p->byval, 1, 1, modf);
+                        fwrite(&p->byref, 1, 1, modf);
+                        fwrite(&p->parserHint, 1, 1, modf);
+                        p = p->next;
                     }
                     E_serializeTyRef(e->u.fun.result);
                     fwrite(&e->u.fun.offset, 2, 1, modf);
@@ -926,6 +845,23 @@ E_module E_loadModule(S_symbol sModule)
                             last_formals->next = E_Formals(ty, ce, NULL);
                             last_formals = last_formals->next;
                         }
+                        A_param p = A_Param (0, FALSE, FALSE, NULL, NULL, NULL);
+                        if (fread(&p->byval, 1, 1, modf)!=1)
+                        {
+                            printf("%s: failed to read function param field byval.\n", modfn);
+                            goto fail;
+                        }
+                        if (fread(&p->byref, 1, 1, modf)!=1)
+                        {
+                            printf("%s: failed to read function param field byref.\n", modfn);
+                            goto fail;
+                        }
+                        if (fread(&p->parserHint, 1, 1, modf)!=1)
+                        {
+                            printf("%s: failed to read function param field parserHint.\n", modfn);
+                            goto fail;
+                        }
+                        A_ParamListAppend(paramList, p);
                     }
                     e->u.fun.result = E_deserializeTyRef(modf);
                     if (!e->u.fun.result)
@@ -1093,38 +1029,6 @@ void E_init(void)
     declare_builtin_const("TRUE",  Tr_boolExp(TRUE, Ty_Bool()));
     declare_builtin_const("FALSE", Tr_boolExp(FALSE, Ty_Bool()));
 
-#if 0
-    append_vmod_entry(E_VarEntry(S_Symbol("ERR", FALSE), Tr_externalVar("_AQB_ERR", Ty_Integer()), Ty_Integer(), TRUE));
-
-    declare_builtin_proc("__aio_puts",            NULL         , "s",        Ty_Void());
-    declare_builtin_proc("__aio_puts1",           NULL         , "y",        Ty_Void());
-    declare_builtin_proc("__aio_puts2",           NULL         , "i",        Ty_Void());
-    declare_builtin_proc("__aio_puts4",           NULL         , "l",        Ty_Void());
-    declare_builtin_proc("__aio_putu1",           NULL         , "Y",        Ty_Void());
-    declare_builtin_proc("__aio_putu2",           NULL         , "I",        Ty_Void());
-    declare_builtin_proc("__aio_putu4",           NULL         , "L",        Ty_Void());
-    declare_builtin_proc("__aio_putf",            NULL         , "f",        Ty_Void());
-    declare_builtin_proc("__aio_putbool",         NULL         , "b",        Ty_Void());
-    declare_builtin_proc("__aio_putnl",           NULL         , "",         Ty_Void());
-    declare_builtin_proc("__aio_puttab",          NULL         , "",         Ty_Void());
-    declare_builtin_proc("___aqb_assert",         NULL         , "bs",       Ty_Void());
-    declare_builtin_proc("___aqb_error",          NULL         , "i",        Ty_Void());
-    declare_builtin_proc("___aqb_resume_next",    NULL         , "",         Ty_Void());
-    declare_builtin_proc("___aqb_on_exit_call",   NULL         , "p",        Ty_Void());
-    declare_builtin_proc("___aqb_on_error_call",  NULL         , "p",        Ty_Void());
-
-    declare_builtin_proc("fix"                  , "___aqb_fix" , "f"       , Ty_Integer());
-    declare_builtin_proc("int"                  , "___aqb_int" , "f"       , Ty_Integer());
-    declare_builtin_proc("cint"                 , "___aqb_cint", "f"       , Ty_Integer());
-    declare_builtin_proc("clng"                 , "___aqb_clng", "f"       , Ty_Long());
-    declare_builtin_proc("len"                  , "___aqb_len" , "s"       , Ty_Long());
-
-    //__aqb_allocate(ULONG size, ULONG flags);
-    // DECLARE FUNCTION ALLOCATE (size AS ULONG, flags AS ULONG=0) AS VOID PTR
-    E_enventry entry = declare_builtin_proc("allocate", "___aqb_allocate",  "LL", Ty_VoidPtr() );
-    entry->u.fun.formals->next->defaultExp = Tr_intExp(0, Ty_ULong());
-#endif
-
     // module cache
     modCache = TAB_empty();
 
@@ -1144,4 +1048,3 @@ void E_init(void)
             EM_error (0, "***ERROR: failed to load %s !", BRT_MODULE_NAME);
     }
 }
-

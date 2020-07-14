@@ -2443,19 +2443,9 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
     }
 
     if (isFunction)
-    {
-        P_declProc ds = TAB_look(declared_funs, proc->name);
-        if (ds)
-            return EM_error(pos, "A function with this name has already been declared.");
-        E_declare_proc(declared_funs, proc->name,  NULL, P_functionCall, proc);
-    }
+        E_declare_proc(declared_funs , proc->name, NULL      , P_functionCall, proc);
     else
-    {
-        P_declProc ds = TAB_look(declared_stmts, proc->name);
-        if (ds)
-            return EM_error(pos, "A statement with this name has already been declared.");
-        E_declare_proc(declared_stmts, proc->name, P_subCall, NULL, proc);
-    }
+        E_declare_proc(declared_stmts, proc->name, P_subCall , NULL          , proc);
 
     A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
 

@@ -6,10 +6,7 @@
  * and shuts down everything once __aqbmain returns
  */
 
-#include "aio.h"
-#include "astr.h"
-#include "autil.h"
-#include "amath.h"
+#include "_brt.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -81,7 +78,7 @@ void _c_atexit(void)
         CloseLibrary( (struct Library *)DOSBase);
 }
 
-static void _cshutdown (LONG return_code, char *msg)
+void _cshutdown (LONG return_code, char *msg)
 {
     if (msg && DOSBase)
         _aio_puts(msg);
