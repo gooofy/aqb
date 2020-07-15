@@ -207,12 +207,12 @@ static void doData(FILE * out, Temp_label label, bool globl, int size, unsigned 
 static void print_usage(char *argv[])
 {
 	fprintf(stderr, "usage: %s [-v] [-s] <program.bas>\n", argv[0]);
-	fprintf(stderr, "    -L <dir>   look in <dir> for symbol files\n");
-	fprintf(stderr, "    -s         create symbol (.sym) file\n");
-	fprintf(stderr, "    -S         create symbol (.sym) file only (do not create assembly file)\n");
-	fprintf(stderr, "    -n         do not load any default modules\n");
-	fprintf(stderr, "    -v         verbose\n");
-	fprintf(stderr, "    -V         display version info\n");
+    fprintf(stderr, "    -d <module> load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
+	fprintf(stderr, "    -L <dir>    look in <dir> for symbol files\n");
+	fprintf(stderr, "    -s          create symbol (.sym) file\n");
+	fprintf(stderr, "    -S          create symbol (.sym) file only (do not create assembly file)\n");
+	fprintf(stderr, "    -v          verbose\n");
+	fprintf(stderr, "    -V          display version info\n");
 }
 
 int main (int argc, char *argv[])
@@ -237,6 +237,15 @@ int main (int argc, char *argv[])
 	{
         switch (argv[optind][1])
 		{
+        	case 'd':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_default_module = argv[optind];
+				break;
         	case 'L':
                 optind++;
                 if (optind >= argc)
@@ -252,9 +261,6 @@ int main (int argc, char *argv[])
         	case 'S':
                 write_sym = TRUE;
                 no_asm    = TRUE;
-				break;
-        	case 'n':
-				OPT_set(OPTION_NOSTDMODS, TRUE);
 				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);

@@ -13,7 +13,6 @@
 
 #define SYM_MAGIC       0x53425141  // AQBS
 #define SYM_VERSION     6
-#define BRT_MODULE_NAME "_brt"
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -189,10 +188,8 @@ static void declare_builtin_const(string name, Tr_exp cExp)
 }
 
 static FILE     *modf     = NULL;
-static TAB_table modTable;  // save: S_symbol moduleName -> int mid
-                            // load: mid                 -> E_module
 
-static void E_serializeTyRef(Ty_ty ty)
+static void E_serializeTyRef(TAB_table modTable, Ty_ty ty)
 {
     if (ty->mod)
     {
@@ -209,7 +206,7 @@ static void E_serializeTyRef(Ty_ty ty)
     fwrite(&ty->uid, 4, 1, modf);
 }
 
-static void E_serializeConstExp(Tr_exp exp)
+static void E_serializeConstExp(TAB_table modTable, Tr_exp exp)
 {
     int     i;
     double  f;
@@ -223,7 +220,7 @@ static void E_serializeConstExp(Tr_exp exp)
     assert(Tr_isConst(exp));
     Ty_ty ty = Tr_ty(exp);
 
-    E_serializeTyRef(ty);
+    E_serializeTyRef(modTable, ty);
 
     switch (ty->kind)
     {
@@ -333,14 +330,14 @@ static void E_findTypes(S_symbol smod, E_enventry e, TAB_table type_tab)
     }
 }
 
-static void E_serializeType(Ty_ty ty)
+static void E_serializeType(TAB_table modTable, Ty_ty ty)
 {
     fwrite(&ty->uid,  4, 1, modf);
     fwrite(&ty->kind, 1, 1, modf);
     switch (ty->kind)
     {
         case Ty_array:
-            E_serializeTyRef(ty->u.array.elementTy);
+            E_serializeTyRef(modTable, ty->u.array.elementTy);
             fwrite(&ty->u.array.iStart, 4, 1, modf);
             fwrite(&ty->u.array.iEnd,   4, 1, modf);
             break;
@@ -353,12 +350,12 @@ static void E_serializeType(Ty_ty ty)
             for (Ty_fieldList fields = ty->u.record.fields; fields; fields = fields->tail)
             {
                 strserialize(modf, S_name(fields->head->name));
-                E_serializeTyRef(fields->head->ty);
+                E_serializeTyRef(modTable, fields->head->ty);
             }
             break;
         }
         case Ty_pointer:
-            E_serializeTyRef(ty->u.pointer);
+            E_serializeTyRef(modTable, ty->u.pointer);
             break;
         case Ty_procPtr:
         {
@@ -367,9 +364,9 @@ static void E_serializeType(Ty_ty ty)
                 cnt++;
             fwrite(&cnt, 2, 1, modf);
             for (Ty_tyList formals = ty->u.procPtr.formalTys; formals; formals=formals->tail)
-                E_serializeTyRef (formals->head);
+                E_serializeTyRef (modTable, formals->head);
 
-            E_serializeTyRef (ty->u.procPtr.returnTy);
+            E_serializeTyRef (modTable, ty->u.procPtr.returnTy);
             break;
         }
         case Ty_bool:
@@ -407,6 +404,7 @@ bool E_saveModule(string modfn, E_module mod)
     fwrite(&v, 2, 1, modf);
 
     // module table (used in type serialization for module referencing)
+    TAB_table modTable;  // S_symbol moduleName -> int mid
     modTable = TAB_empty();
     TAB_enter (modTable, mod->name, (void *) (intptr_t) 2);
     TAB_iter iter = TAB_Iter(modCache);
@@ -434,7 +432,7 @@ bool E_saveModule(string modfn, E_module mod)
     void *key;
     Ty_ty ty;
     while (TAB_next(iter, &key, (void **)&ty))
-        E_serializeType(ty);
+        E_serializeType(modTable, ty);
 
     m = 0;                      // types end marker
     fwrite(&m, 4, 1, modf);
@@ -448,7 +446,7 @@ bool E_saveModule(string modfn, E_module mod)
         switch (e->kind)
         {
             case E_varEntry:
-                E_serializeTyRef(e->u.var.ty);
+                E_serializeTyRef(modTable, e->u.var.ty);
                 fwrite(&e->u.var.shared, 1, 1, modf);
                 break;
             case E_funEntry:
@@ -468,24 +466,24 @@ bool E_saveModule(string modfn, E_module mod)
                     A_param p = e->u.fun.proc->paramList->first;
                     for (E_formals formal=e->u.fun.formals; formal; formal = formal->next)
                     {
-                        E_serializeTyRef(formal->ty);
-                        E_serializeConstExp(formal->defaultExp);
+                        E_serializeTyRef(modTable, formal->ty);
+                        E_serializeConstExp(modTable, formal->defaultExp);
                         fwrite(&p->byval, 1, 1, modf);
                         fwrite(&p->byref, 1, 1, modf);
                         fwrite(&p->parserHint, 1, 1, modf);
                         p = p->next;
                     }
-                    E_serializeTyRef(e->u.fun.result);
+                    E_serializeTyRef(modTable, e->u.fun.result);
                     fwrite(&e->u.fun.offset, 2, 1, modf);
                     if (e->u.fun.offset)
                         strserialize(modf, e->u.fun.libBase);
                 }
                 break;
             case E_constEntry:
-                E_serializeConstExp(e->u.cExp);
+                E_serializeConstExp(modTable, e->u.cExp);
                 break;
             case E_typeEntry:
-                E_serializeTyRef(e->u.ty);
+                E_serializeTyRef(modTable, e->u.ty);
                 break;
         }
     }
@@ -495,7 +493,7 @@ bool E_saveModule(string modfn, E_module mod)
     return TRUE;
 }
 
-static Ty_ty E_deserializeTyRef(FILE *modf)
+static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
 {
     uint32_t mid  = 0;
     uint32_t tuid = 0;
@@ -516,7 +514,7 @@ static Ty_ty E_deserializeTyRef(FILE *modf)
     return ty;
 }
 
-static bool E_deserializeConstExp(FILE *modf, Tr_exp *exp)
+static bool E_deserializeConstExp(TAB_table modTable, FILE *modf, Tr_exp *exp)
 {
     int     i;
     double  f;
@@ -530,7 +528,7 @@ static bool E_deserializeConstExp(FILE *modf, Tr_exp *exp)
         return TRUE;
     }
 
-    Ty_ty ty = E_deserializeTyRef(modf);
+    Ty_ty ty = E_deserializeTyRef(modTable, modf);
     if (!ty)
         return FALSE;
 
@@ -605,6 +603,7 @@ E_module E_loadModule(S_symbol sModule)
 
         // read module table
 
+        TAB_table modTable; // mid -> E_module
         modTable = TAB_empty();
         TAB_enter (modTable, (void *) (intptr_t) 1, base_mod);
         TAB_enter (modTable, (void *) (intptr_t) 2, mod);
@@ -649,7 +648,7 @@ E_module E_loadModule(S_symbol sModule)
             switch (ty->kind)
             {
                 case Ty_array:
-                    ty->u.array.elementTy = E_deserializeTyRef(modf);
+                    ty->u.array.elementTy = E_deserializeTyRef(modTable, modf);
                     if (fread(&ty->u.array.iStart, 4, 1, modf) != 1) goto fail;
                     if (fread(&ty->u.array.iEnd,   4, 1, modf) != 1) goto fail;
                     Ty_computeSize(ty);
@@ -665,7 +664,7 @@ E_module E_loadModule(S_symbol sModule)
                     for (int i=0; i<cnt; i++)
                     {
                         string name = strdeserialize(modf);
-                        Ty_ty ty = E_deserializeTyRef(modf);
+                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
 
                         Ty_field field = Ty_Field(S_Symbol(name, FALSE), ty);
                         if (fl_last)
@@ -683,7 +682,7 @@ E_module E_loadModule(S_symbol sModule)
                     break;
                 }
                 case Ty_pointer:
-                    ty->u.pointer = E_deserializeTyRef(modf);
+                    ty->u.pointer = E_deserializeTyRef(modTable, modf);
                     break;
                 case Ty_procPtr:
                 {
@@ -694,7 +693,7 @@ E_module E_loadModule(S_symbol sModule)
 
                     for (int i=0; i<cnt; i++)
                     {
-                        Ty_ty f = E_deserializeTyRef(modf);
+                        Ty_ty f = E_deserializeTyRef(modTable, modf);
                         if (formals)
                         {
                             formalsLast->tail = Ty_TyList (f, NULL);
@@ -707,7 +706,7 @@ E_module E_loadModule(S_symbol sModule)
                     }
 
                     ty->u.procPtr.formalTys = formals;
-                    ty->u.procPtr.returnTy = E_deserializeTyRef(modf);
+                    ty->u.procPtr.returnTy = E_deserializeTyRef(modTable, modf);
 
                     break;
                 }
@@ -763,7 +762,7 @@ E_module E_loadModule(S_symbol sModule)
             switch (e->kind)
             {
                 case E_varEntry:
-                    e->u.var.ty = E_deserializeTyRef(modf);
+                    e->u.var.ty = E_deserializeTyRef(modTable, modf);
                     if (!e->u.var.ty)
                     {
                         printf("%s: failed to read variable type.\n", modfn);
@@ -824,14 +823,14 @@ E_module E_loadModule(S_symbol sModule)
                     A_paramList paramList = A_ParamList();
                     for (int i = 0; i<cnt; i++)
                     {
-                        Ty_ty ty = E_deserializeTyRef(modf);
+                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
                         if (!ty)
                         {
                             printf("%s: failed to read argument type.\n", modfn);
                             goto fail;
                         }
                         Tr_exp ce;
-                        if (!E_deserializeConstExp(modf, &ce))
+                        if (!E_deserializeConstExp(modTable, modf, &ce))
                         {
                             printf("%s: failed to read argument const expression.\n", modfn);
                             goto fail;
@@ -863,7 +862,7 @@ E_module E_loadModule(S_symbol sModule)
                         }
                         A_ParamListAppend(paramList, p);
                     }
-                    e->u.fun.result = E_deserializeTyRef(modf);
+                    e->u.fun.result = E_deserializeTyRef(modTable, modf);
                     if (!e->u.fun.result)
                     {
                         printf("%s: failed to read function return type.\n", modfn);
@@ -904,7 +903,7 @@ E_module E_loadModule(S_symbol sModule)
                 }
                 case E_constEntry:
                 {
-                    if (!E_deserializeConstExp(modf, &e->u.cExp))
+                    if (!E_deserializeConstExp(modTable, modf, &e->u.cExp))
                     {
                         printf("%s: failed to read const expression.\n", modfn);
                         goto fail;
@@ -913,7 +912,7 @@ E_module E_loadModule(S_symbol sModule)
                     break;
                 }
                 case E_typeEntry:
-                    e->u.ty = E_deserializeTyRef(modf);
+                    e->u.ty = E_deserializeTyRef(modTable, modf);
                     append_mod_entry(e, &mod->env, &mod_last);
                     break;
             }
@@ -1041,10 +1040,10 @@ void E_init(void)
     E_declareProcsFromMod (base_mod);
 
     // import _aqb module
-    if (!OPT_get(OPTION_NOSTDMODS))
+    if (strcmp (OPT_default_module, "none"))
     {
-        E_module modaqb = E_loadModule(S_Symbol(BRT_MODULE_NAME, FALSE));
+        E_module modaqb = E_loadModule(S_Symbol(OPT_default_module, FALSE));
         if (!modaqb)
-            EM_error (0, "***ERROR: failed to load %s !", BRT_MODULE_NAME);
+            EM_error (0, "***ERROR: failed to load %s !", OPT_default_module);
     }
 }

@@ -1,6 +1,6 @@
 CFLAGS = -O3 -Wall -march=68000 -mcpu=68000
 ASFLAGS = -march=68000 -mcpu=68000
-AQBFLAGS = -L ../src/lib
+AQBFLAGS = -L ../src/lib -d _brt
 
 CC = m68k-amigaos-gcc
 AS = m68k-amigaos-as

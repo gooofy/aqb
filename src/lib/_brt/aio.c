@@ -4,8 +4,6 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
-// LONG Write( BPTR file, CONST APTR buffer, LONG length );
-
 #define MAXBUF 40
 
 BPTR g_stdout;

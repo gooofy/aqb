@@ -14,3 +14,6 @@ bool OPT_get(int opt)
 {
     return g_opt & opt;
 }
+
+string OPT_default_module = OPT_DEFAULT_MODULE;
+

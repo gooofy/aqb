@@ -16,7 +16,7 @@ all: _brt.a startup.o _brt.sym
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
 _brt.sym : _brt.bas
-	$(AQB) -n -S $<
+	$(AQB) -d none -S $<
 	pushd .. && rm -f _brt.sym && ln -s _brt/_brt.sym && popd
 
 %.o : %.s
