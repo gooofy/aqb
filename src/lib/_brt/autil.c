@@ -72,8 +72,8 @@ void _aqb_assert (BOOL b, const char *msg)
     if (b)
         return;
 
-    _aio_puts(msg);
-    _aio_puts("\n");
+    _debug_puts(msg);
+    _debug_puts("\n");
 
     _autil_exit(20);
 }
@@ -99,8 +99,8 @@ void _aqb_error (SHORT errcode)
     }
     else
     {
-        _aio_puts("*** unhandled runtime error code: "); _aio_puts2(errcode);
-        _aio_puts("\n");
+        _debug_puts("*** unhandled runtime error code: "); _debug_puts2(errcode);
+        _debug_puts("\n");
     }
 
     if (!do_resume)
@@ -122,15 +122,8 @@ FLOAT __aqb_timer_fn (void)
 
 	DateStamp(&datetime);
 
-    // _aio_puts4(datetime.ds_Days);
-    // _aio_puts4(datetime.ds_Minute);
-    // _aio_puts4(datetime.ds_Tick);
-
 	res = SPFlt(datetime.ds_Minute);
-    // _aio_putf(res);
 	res = SPAdd(SPMul(res, SPFlt(60)), SPDiv(SPFlt(datetime.ds_Tick), SPFlt(50)));
-    // _aio_putf(res);
-    // _aio_puts("\n");
 
 	return res;
 }

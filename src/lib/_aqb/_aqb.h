@@ -6,11 +6,43 @@
 extern struct IntuitionBase *IntuitionBase;
 extern struct GfxBase       *GfxBase;
 
+/*
+ * print statement support
+ */
+
+extern BPTR g_stdout;
+
+void _aio_init(void);
+void _aio_shutdown(void);
+
+void _aio_puts4(int num);
+void _aio_puts2(short num);
+void _aio_puts1(char num);
+void _aio_putu4(unsigned int num);
+void _aio_putu2(unsigned short num);
+void _aio_putu1(unsigned char num);
+void _aio_puthex(int num);
+void _aio_putuhex(ULONG l);
+void _aio_putbin(int num);
+void _aio_putf(FLOAT f);
+void _aio_putbool(BOOL b);
+
+void _aio_puts(const char *str);
+
+void _aio_putnl(void);
+void _aio_puttab(void);
+
+/*
+ * screens, windows, graphics
+ */
+
 #define AW_FLAG_SIZE     1
 #define AW_FLAG_DRAG     2
 #define AW_FLAG_DEPTH    4
 #define AW_FLAG_CLOSE    8
 #define AW_FLAG_REFRESH 16
+
+#define AE_WIN_OPEN 1
 
 void _awindow_init(void);
 void _awindow_shutdown(void);

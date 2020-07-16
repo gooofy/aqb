@@ -2,7 +2,6 @@
 SUB check1 ( b&, msg$ )
 
     IF b& <> 1 THEN
-        PRINT msg$
         ASSERT FALSE
     END IF
 

@@ -22,7 +22,7 @@ _aqb.sym : _aqb.bas
 	$(AQB) -L .. -d _brt -S $<
 	pushd .. && rm -f _aqb.sym && ln -s _aqb/_aqb.sym && popd
 
-_aqb.a: awindow.o _aqb.o
+_aqb.a: awindow.o _aqb.o aio.o
 	$(AR) -crs _aqb.a $^
 
 clean:

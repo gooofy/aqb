@@ -5,6 +5,20 @@
 OPTION EXPLICIT
 OPTION PRIVATE
 
+' PRINT statement support:
+
+PUBLIC DECLARE SUB _aio_puts    (s AS STRING  )
+PUBLIC DECLARE SUB _aio_puts1   (b AS BYTE    )
+PUBLIC DECLARE SUB _aio_puts2   (i AS INTEGER )
+PUBLIC DECLARE SUB _aio_puts4   (l AS LONG    )
+PUBLIC DECLARE SUB _aio_putu1   (u AS UBYTE   )
+PUBLIC DECLARE SUB _aio_putu2   (u AS UINTEGER)
+PUBLIC DECLARE SUB _aio_putu4   (u AS ULONG   )
+PUBLIC DECLARE SUB _aio_putf    (f AS SINGLE  )
+PUBLIC DECLARE SUB _aio_putbool (b AS BOOLEAN )
+PUBLIC DECLARE SUB _aio_putnl   ()
+PUBLIC DECLARE SUB _aio_puttab  ()
+
 ' --------------------------------------------------------------------------------------------------------
 ' --
 ' -- AmigaBASIC like screens, windows and graphics

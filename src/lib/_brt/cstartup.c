@@ -18,6 +18,8 @@
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
+#include <clib/dos_protos.h>
+#include <inline/dos.h>
 
 // #define ENABLE_DEBUG
 
@@ -26,8 +28,20 @@ struct DOSBase       *DOSBase       = NULL;
 struct MathBase      *MathBase      = NULL;
 struct MathTransBase *MathTransBase = NULL;
 
-static BOOL autil_init_done   = FALSE;
-static BOOL aio_init_done     = FALSE;
+static BOOL autil_init_done = FALSE;
+
+static BPTR _debug_stdout = 0;
+
+void _debug_puts(const char *s)
+{
+    if (_debug_stdout)
+        Write(_debug_stdout, (CONST APTR) s, len_(s));
+}
+
+void _debug_puts2(SHORT s)
+{
+    _debug_puts(_s2toa(s));
+}
 
 #define MAX_EXIT_HANDLERS 16
 static void (*exit_handlers[MAX_EXIT_HANDLERS])(void);
@@ -47,20 +61,18 @@ void _c_atexit(void)
 {
 #ifdef ENABLE_DEBUG
     if (DOSBase)
-        _aio_puts("_c_atexit...\n");
+        _debug_puts("_c_atexit...\n");
 #endif
 
     for (int i = num_exit_handlers-1; i>=0; i--)
     {
 #ifdef ENABLE_DEBUG
         if (DOSBase)
-            _aio_puts("calling user exit handler...\n");
+            _debug_puts("calling user exit handler...\n");
 #endif
         exit_handlers[i]();
     }
 
-    if (aio_init_done)
-        _aio_shutdown();
     if (autil_init_done)
         _autil_shutdown();
 
@@ -71,7 +83,7 @@ void _c_atexit(void)
 
 #ifdef ENABLE_DEBUG
     if (DOSBase)
-        _aio_puts("_c_atexit... finishing.\n");
+        _debug_puts("_c_atexit... finishing.\n");
 #endif
 
     if (DOSBase)
@@ -81,7 +93,7 @@ void _c_atexit(void)
 void _cshutdown (LONG return_code, char *msg)
 {
     if (msg && DOSBase)
-        _aio_puts(msg);
+        _debug_puts(msg);
 
     _autil_exit(return_code);
 }
@@ -95,6 +107,8 @@ void _cstartup (void)
     if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
         _cshutdown(20, "*** error: failed to open dos.library!\n");
 
+    _debug_stdout = Output();
+
     if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
         _cshutdown(20, "*** error: failed to open mathffp.library!\n");
 
@@ -107,9 +121,6 @@ void _cstartup (void)
     _astr_init();
 
     _amath_init();
-
-    _aio_init();
-    aio_init_done = TRUE;
 
     _aqb_main();
 

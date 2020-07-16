@@ -22,7 +22,7 @@ _brt.sym : _brt.bas
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
-_brt.a: cstartup.o aio.o astr.o amath.o autil.o
+_brt.a: cstartup.o astr.o amath.o autil.o
 	$(AR) -crs _brt.a $^
 
 diss: alibtest

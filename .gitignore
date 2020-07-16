@@ -81,3 +81,7 @@ src/tools/os2aqb/*.bas
 tests/mod1/*.s
 tests/mod1/*.sym
 tests/mod1/mod1.bin
+tests/io1/*.bin
+tests/io1/*.s
+tests/subtest11/*.bin
+tests/subtest11/*.s

@@ -10,6 +10,8 @@
 #include <inline/mathffp.h>
 #include <inline/mathtrans.h>
 
+#define MAXBUF 40
+
 //#define DEBUG
 
 /* A utility function to reverse a string  */
@@ -319,6 +321,60 @@ const char *_astr_strchr(const char *s, char c)
             return s2;
 
     return NULL;
+}
+
+char *_s1toa   (BYTE   b)
+{
+    char buf[MAXBUF];
+    _astr_itoa(b, buf, 10);
+    return _astr_dup(buf);
+}
+
+char *_s2toa   (SHORT  i)
+{
+    char buf[MAXBUF];
+    _astr_itoa(i, buf, 10);
+    return _astr_dup(buf);
+}
+
+char *_s4toa   (LONG   l)
+{
+    char buf[MAXBUF];
+    _astr_itoa(l, buf, 10);
+    return _astr_dup(buf);
+}
+
+char *_u1toa   (UBYTE  b)
+{
+    char buf[MAXBUF];
+    _astr_utoa(b, buf, 10);
+    return _astr_dup(buf);
+}
+
+char *_u2toa   (USHORT i)
+{
+    char buf[MAXBUF];
+    _astr_utoa(i, buf, 10);
+    return _astr_dup(buf);
+}
+
+char *_u4toa   (ULONG  l)
+{
+    char buf[MAXBUF];
+    _astr_utoa(l, buf, 10);
+    return _astr_dup(buf);
+}
+
+char *_ftoa    (FLOAT  f)
+{
+    char buf[MAXBUF];
+    _astr_ftoa(f, buf);
+    return _astr_dup(buf);
+}
+
+char *_booltoa (BOOL   b)
+{
+    return b ? "TRUE" : "FALSE";
 }
 
 void _astr_init(void)

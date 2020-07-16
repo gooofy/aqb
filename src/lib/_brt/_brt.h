@@ -4,10 +4,6 @@
 #include <exec/types.h>
 #include <clib/dos_protos.h>
 
-/*
- * autil
- */
-
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct MathBase      *MathBase;
@@ -18,9 +14,10 @@ APTR allocate_(ULONG size, ULONG flags);
 void _autil_init(void);
 void _autil_shutdown(void);
 
-// BASIC error handling
+// BASIC error handling, utils
 
-#define AE_WIN_OPEN 1
+void _debug_puts (const char *s);
+void _debug_puts2(SHORT s);
 
 extern USHORT g_errcode;
 
@@ -53,32 +50,6 @@ void _aqb_on_exit_call(void (*cb)(void));
 #endif
 
 /*
- * aio
- */
-
-extern BPTR g_stdout;
-
-void _aio_init(void);
-void _aio_shutdown(void);
-
-void _aio_puts4(int num);
-void _aio_puts2(short num);
-void _aio_puts1(char num);
-void _aio_putu4(unsigned int num);
-void _aio_putu2(unsigned short num);
-void _aio_putu1(unsigned char num);
-void _aio_puthex(int num);
-void _aio_putuhex(ULONG l);
-void _aio_putbin(int num);
-void _aio_putf(FLOAT f);
-void _aio_putbool(BOOL b);
-
-void _aio_puts(const char *str);
-
-void _aio_putnl(void);
-void _aio_puttab(void);
-
-/*
  * amath
  */
 
@@ -95,20 +66,32 @@ FLOAT __aqb_shl_single(FLOAT a, FLOAT b);
 FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
 
 /*
- * astr
+ * string handling
  */
 
 void _astr_init(void);
 
 void _astr_itoa(int num, char *str, int base);
 void _astr_utoa(unsigned int num, char* str, unsigned int base);
+void _astr_ftoa(FLOAT value, char *buf);
 
 ULONG len_(const char *str);
 
 char *_astr_dup(const char *str);
 
-void _astr_ftoa(FLOAT value, char *buf);
-
 const char *_astr_strchr(const char *s, char c);
-#endif
 
+/*
+ * STR$ support
+ */
+
+char *_s1toa   (BYTE   b);
+char *_s2toa   (SHORT  i);
+char *_s4toa   (LONG   l);
+char *_u1toa   (UBYTE  b);
+char *_u2toa   (USHORT i);
+char *_u4toa   (ULONG  l);
+char *_ftoa    (FLOAT  f);
+char *_booltoa (BOOL   b);
+
+#endif
