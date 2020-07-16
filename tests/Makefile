@@ -20,7 +20,7 @@ all: cond1.bin cond3.bin cond4.bin	\
 	loop10.bin loop1.bin loop2.bin loop3.bin loop4.bin loop5.bin loop6.bin loop7.bin loop8.bin loop9.bin \
 	opbool.bin opbyte.bin opint.bin oplong.bin opsingle.bin opubyte.bin opuint.bin opulong.bin \
 	scopes1.bin scopes2.bin scopes3.bin \
-	string1.bin \
+	string1.bin string2.bin \
 	subtest10.bin subtest11 subtest12.bin subtest13.bin subtest14.bin subtest15.bin subtest16.bin \
 	subtest17.bin subtest18.bin subtest1.bin subtest2.bin subtest3.bin subtest4.bin subtest5.bin \
 	subtest6.bin subtest7.bin subtest8.bin subtest9.bin types10.bin \

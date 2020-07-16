@@ -88,6 +88,7 @@ static S_symbol S_RETURN;
 static S_symbol S_PRIVATE;
 static S_symbol S_PUBLIC;
 static S_symbol S_IMPORT;
+static S_symbol S_STRDOLLAR;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3313,13 +3314,36 @@ static bool funCast(S_tkn *tkn, P_declProc dec, A_exp *exp)
 
     A_exp exp2;
     if (!expression(tkn, &exp2))
-        return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
+        return EM_error((*tkn)->pos, "CAST: expression expected here.");
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
     *exp = A_CastExp(pos, td, exp2);
+    return TRUE;
+}
+
+// funStrDollar = STR$ "(" expression ")"
+static bool funStrDollar(S_tkn *tkn, P_declProc dec, A_exp *exp)
+{
+    S_pos      pos = (*tkn)->pos;
+
+    *tkn = (*tkn)->next;    // skip "STR$"
+
+    if ((*tkn)->kind != S_LPAREN)
+        return EM_error((*tkn)->pos, "( expected.");
+    *tkn = (*tkn)->next;
+
+    A_exp exp2;
+    if (!expression(tkn, &exp2))
+        return EM_error((*tkn)->pos, "STR$: (numeric) expression expected here.");
+
+    if ((*tkn)->kind != S_RPAREN)
+        return EM_error((*tkn)->pos, ") expected.");
+    *tkn = (*tkn)->next;
+
+    *exp = A_StrDollarExp(pos, exp2);
     return TRUE;
 }
 
@@ -3392,6 +3416,7 @@ static void register_builtins(void)
     S_PRIVATE  = S_Symbol("PRIVATE",  FALSE);
     S_PUBLIC   = S_Symbol("PUBLIC",   FALSE);
     S_IMPORT   = S_Symbol("IMPORT",   FALSE);
+    S_STRDOLLAR= S_Symbol("STR$",     FALSE);
 
     E_declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL, NULL);
     E_declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL, NULL);
@@ -3429,9 +3454,10 @@ static void register_builtins(void)
     E_declare_proc(declared_stmts, S_PUBLIC,   stmtPublicPrivate, NULL, NULL);
     E_declare_proc(declared_stmts, S_IMPORT,   stmtImport       , NULL, NULL);
 
-    E_declare_proc(declared_funs,  S_SIZEOF,   NULL          , funSizeOf, NULL);
-    E_declare_proc(declared_funs,  S_VARPTR,   NULL          , funVarPtr, NULL);
-    E_declare_proc(declared_funs,  S_CAST,     NULL          , funCast,   NULL);
+    E_declare_proc(declared_funs,  S_SIZEOF,    NULL          , funSizeOf,    NULL);
+    E_declare_proc(declared_funs,  S_VARPTR,    NULL          , funVarPtr,    NULL);
+    E_declare_proc(declared_funs,  S_CAST,      NULL          , funCast,      NULL);
+    E_declare_proc(declared_funs,  S_STRDOLLAR, NULL          , funStrDollar, NULL);
 }
 
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*

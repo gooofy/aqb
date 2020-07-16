@@ -40,7 +40,7 @@ void _debug_puts(const char *s)
 
 void _debug_puts2(SHORT s)
 {
-    _debug_puts(_s2toa(s));
+    _debug_puts(_s2toa_(s));
 }
 
 #define MAX_EXIT_HANDLERS 16

@@ -611,6 +611,17 @@ A_exp A_CastExp (S_pos pos, A_typeDesc td, A_exp exp)
     return p;
 }
 
+A_exp A_StrDollarExp (S_pos pos, A_exp exp)
+{
+    A_exp p = checked_malloc(sizeof(*p));
+
+    p->kind        = A_strDollarExp;
+    p->pos         = pos;
+    p->u.strdollar = exp;
+
+    return p;
+}
+
 A_param A_Param (S_pos pos, bool byval, bool byref, S_symbol name, A_typeDesc td, A_exp defaultExp)
 {
     A_param p = checked_malloc(sizeof(*p));

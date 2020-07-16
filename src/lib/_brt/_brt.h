@@ -85,13 +85,13 @@ const char *_astr_strchr(const char *s, char c);
  * STR$ support
  */
 
-char *_s1toa   (BYTE   b);
-char *_s2toa   (SHORT  i);
-char *_s4toa   (LONG   l);
-char *_u1toa   (UBYTE  b);
-char *_u2toa   (USHORT i);
-char *_u4toa   (ULONG  l);
-char *_ftoa    (FLOAT  f);
-char *_booltoa (BOOL   b);
+char *_s1toa_   (BYTE   b);
+char *_s2toa_   (SHORT  i);
+char *_s4toa_   (LONG   l);
+char *_u1toa_   (UBYTE  b);
+char *_u2toa_   (USHORT i);
+char *_u4toa_   (ULONG  l);
+char *_ftoa_    (FLOAT  f);
+char *_booltoa_ (BOOL   b);
 
 #endif

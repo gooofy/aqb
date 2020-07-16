@@ -1042,6 +1042,58 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
             }
             return conv_exp;
         }
+        case A_strDollarExp:
+        {
+            Tr_exp     exp     = transExp(level, venv, tenv, a->u.strdollar, nestedLabels);
+            Tr_expList arglist = Tr_ExpList(exp, NULL);  // single argument list
+            S_symbol   fsym    = NULL;                   // function sym to call
+            Ty_ty      ty      = Tr_ty(exp);
+            switch (ty->kind)
+            {
+                case Ty_pointer:
+                    fsym = S_Symbol("__u4toa_", TRUE);
+                    break;
+                case Ty_byte:
+                    fsym = S_Symbol("__s1toa_", TRUE);
+                    break;
+                case Ty_ubyte:
+                    fsym = S_Symbol("__u1toa_", TRUE);
+                    break;
+                case Ty_integer:
+                    fsym = S_Symbol("__s2toa_", TRUE);
+                    break;
+                case Ty_uinteger:
+                    fsym = S_Symbol("__u2toa_", TRUE);
+                    break;
+                case Ty_long:
+                    fsym = S_Symbol("__s4toa_", TRUE);
+                    break;
+                case Ty_ulong:
+                    fsym = S_Symbol("__u4toa_", TRUE);
+                    break;
+                case Ty_single:
+                    fsym = S_Symbol("__ftoa_", TRUE);
+                    break;
+                case Ty_bool:
+                    fsym = S_Symbol("__booltoa_", TRUE);
+                    break;
+                default:
+                    EM_error(a->pos, "unsupported type in str$ expression.");
+                    assert(0);
+            }
+            if (fsym)
+            {
+                E_enventry func = S_look(g_venv, fsym);
+                if (!func)
+                {
+                    EM_error(a->pos, "builtin %s not found.", S_name(fsym));
+                    break;
+                }
+                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
+                return tr_exp;
+            }
+            break;
+        }
         default:
             EM_error(a->pos, "*** internal error: unsupported expression type.");
             assert(0);

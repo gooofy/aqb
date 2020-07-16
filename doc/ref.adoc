@@ -5,6 +5,22 @@ v0.1, 2020-07-12
 
 == Core Language
 
+=== CAST()
+
+Syntax:
+
+    CAST "(" typedesc "," expr ")
+
+casts an expression to a different data type
+
+=== SIZEOF()
+
+Syntax:
+
+    SIZEOF "(" ident ")
+
+Returns the memory size in bytes of a given variable or named type.
+
 === STATIC
 
 Syntax A:
@@ -16,6 +32,14 @@ Syntax B:
     STATIC AS TypeIdentifier [ "(" arrayDimensions ")" ] Identifier [ "=" expr] ( "," Identifier2 ... )*
 
 Declare variable(s) as static.
+
+=== STR$()
+
+Syntax:
+
+    STR$ "(" expr ")"
+
+return a string representation (the same one that is used in PRINT output) of a given numeric expression
 
 === WHILE ... WEND
 
