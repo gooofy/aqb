@@ -32,7 +32,7 @@ Ty_ty Ty_Single(void) {return &tysingle;}
 static struct Ty_ty_ tydouble = {Ty_double};
 Ty_ty Ty_Double(void) {return &tydouble;}
 
-static struct Ty_ty_ tystring = {Ty_pointer, {&tyubyte}};
+static struct Ty_ty_ tystring = {Ty_string};
 Ty_ty Ty_String(void) {return &tystring;}
 
 static struct Ty_ty_ tyvoid = {Ty_void};
@@ -177,6 +177,7 @@ void Ty_computeSize(Ty_ty ty)
             break;
         }
         case Ty_pointer:  break;
+        case Ty_string:   break;
         case Ty_procPtr:  break;
         case Ty_bool:     break;
         case Ty_byte:     break;
@@ -282,6 +283,7 @@ int Ty_size(Ty_ty t)
         case Ty_varPtr:
         case Ty_forwardPtr:
         case Ty_procPtr:
+        case Ty_string:
              return 4;
         case Ty_double:
              return 8;
@@ -369,6 +371,8 @@ string Ty_name(Ty_ty t)
             return "record";
         case Ty_pointer:
             return "pointer";
+        case Ty_string:
+            return "string";
         case Ty_void:
             return "void";
         case Ty_varPtr:

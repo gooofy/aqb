@@ -19,7 +19,7 @@ struct Ty_ty_
     enum { Ty_bool,
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
-           Ty_array, Ty_record, Ty_pointer,
+           Ty_array, Ty_record, Ty_pointer, Ty_string,
            Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr, Ty_toLoad            } kind;
            // Ty_varPtr: used during var access processing in translate.c
            // Ty_toLoad: used for module loading in env.c

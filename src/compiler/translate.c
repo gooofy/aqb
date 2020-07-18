@@ -422,6 +422,7 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
+        case Ty_string:
             return Tr_Ex(T_ConstInt(0, ty));
         case Ty_single:
         case Ty_double:
@@ -600,6 +601,18 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     if (t->u.pointer->kind == Ty_pointer)
     {
         Ty_ty et = at->u.pointer;
+        return Tr_arOpExp(A_addOp,
+                          Tr_Deref(ape),
+                          Tr_arOpExp(A_mulOp,
+                                     idx,
+                                     Tr_intExp(Ty_size(et), Ty_Long()),
+                                     Ty_Long()),
+                          Ty_VarPtr(et));
+    }
+
+    if (t->u.pointer->kind == Ty_string)
+    {
+        Ty_ty et = Ty_UByte();
         return Tr_arOpExp(A_addOp,
                           Tr_Deref(ape),
                           Tr_arOpExp(A_mulOp,

@@ -12,7 +12,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     6
+#define SYM_VERSION     7
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -264,6 +264,7 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
         case Ty_single:
         case Ty_double:
         case Ty_void:
+        case Ty_string:
             break;
         case Ty_varPtr:
         case Ty_forwardPtr:
@@ -379,6 +380,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_single:
         case Ty_double:
         case Ty_void:
+        case Ty_string:
             break;
         case Ty_varPtr:
         case Ty_forwardPtr:

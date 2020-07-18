@@ -37,6 +37,7 @@ void _astr_itoa(int num, char* str, int base)
     /* Handle 0 explicitely, otherwise empty string is printed for 0 */
     if (num == 0)
     {
+        str[i++] = ' ';
         str[i++] = '0';
         str[i] = '\0';
         return;
@@ -58,9 +59,11 @@ void _astr_itoa(int num, char* str, int base)
         num = num/base;
     }
 
-    // If number is negative, append '-'
+    // If number is negative, append '-', else ' '
     if (isNegative)
         str[i++] = '-';
+    else
+        str[i++] = ' ';
 
     str[i] = '\0'; // Append string terminator
 
@@ -75,6 +78,7 @@ void _astr_utoa(unsigned int num, char* str, unsigned int base)
     /* Handle 0 explicitely, otherwise empty string is printed for 0 */
     if (num == 0)
     {
+        str[i++] = ' ';
         str[i++] = '0';
         str[i] = '\0';
         return;
@@ -88,6 +92,7 @@ void _astr_utoa(unsigned int num, char* str, unsigned int base)
         num = num/base;
     }
 
+    str[i++] = ' ';  // Append space (not negative)
     str[i] = '\0'; // Append string terminator
 
     // Reverse the string
@@ -111,6 +116,16 @@ char *_astr_dup(const char* str)
     char *str2 = allocate_(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
+}
+
+SHORT __astr_cmp(const char* s1, const char* s2)
+{
+    while(*s1 && (*s1 == *s2))
+    {
+        s1++;
+        s2++;
+    }
+    return *(const unsigned char*)s1 - *(const unsigned char*)s2;
 }
 
 /*

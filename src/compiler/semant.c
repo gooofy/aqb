@@ -139,6 +139,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -170,6 +171,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -199,6 +201,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -228,6 +231,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -257,6 +261,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -284,6 +289,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -311,6 +317,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -338,6 +345,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -363,6 +371,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -398,6 +407,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return FALSE;
             }
             break;
+        case Ty_string:
         case Ty_varPtr:
         case Ty_toLoad:
             assert(0);
@@ -418,6 +428,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_array:
                 case Ty_record:
                 case Ty_pointer:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_procPtr:
@@ -442,6 +453,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                 case Ty_array:
                 case Ty_record:
+                case Ty_string:
                 case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_void:
@@ -486,6 +498,15 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
             if ( (ty2->kind == Ty_procPtr) && (ty1->u.pointer->kind == Ty_void) )
                 return TRUE;
 
+            if (ty2->kind == Ty_string)
+            {
+                if (  (ty1->u.pointer->kind == Ty_void)
+                   || (ty1->u.pointer->kind == Ty_byte)
+                   || (ty1->u.pointer->kind == Ty_ubyte))
+                    return TRUE;
+                return FALSE;
+            }
+
             if ((ty2->kind != Ty_pointer) && (ty2->kind != Ty_varPtr))
                 return FALSE;
             if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
@@ -525,6 +546,14 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
             return ty2->kind == Ty_void;
         case Ty_record:
             return FALSE; // unless identical, see above
+        case Ty_string:
+            if (ty2->kind != Ty_pointer)
+                return FALSE;
+            if (  (ty2->u.pointer->kind == Ty_void)
+               || (ty2->u.pointer->kind == Ty_byte)
+               || (ty2->u.pointer->kind == Ty_ubyte))
+                return TRUE;
+            return FALSE;
 
         default:
             assert(0);
@@ -643,6 +672,7 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool explicit)
         case Ty_pointer:
         case Ty_varPtr:
         case Ty_procPtr:
+        case Ty_string:
             if (!compatible_ty(ty1, ty2))
             {
                 if (explicit)
@@ -1283,17 +1313,11 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty      ty      = Tr_ty(exp);
             switch (ty->kind)
             {
+                case Ty_string:
+                    fsym = S_Symbol("__aio_puts", TRUE);
+                    break;
                 case Ty_pointer:
-                    if (ty->u.pointer->kind != Ty_ubyte)
-                    {
-                        fsym = S_Symbol("__aio_putu4", TRUE);
-                        // EM_error(stmt->pos, "unsupported type in print expression list.");
-                        // return NULL;
-                    }
-                    else
-                    {
-                        fsym = S_Symbol("__aio_puts", TRUE);
-                    }
+                    fsym = S_Symbol("__aio_putu4", TRUE);
                     break;
                 case Ty_byte:
                     fsym = S_Symbol("__aio_puts1", TRUE);
@@ -2151,9 +2175,9 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                     return Tr_zeroExp(Ty_Long());
                 }
                 if ( (ty->kind != Ty_varPtr) ||
-                     ((ty->u.pointer->kind != Ty_array) && (ty->u.pointer->kind != Ty_pointer)) )
+                     ((ty->u.pointer->kind != Ty_array) && (ty->u.pointer->kind != Ty_pointer) && (ty->u.pointer->kind != Ty_string)) )
                 {
-                    EM_error(sel->pos, "array or pointer type expected");
+                    EM_error(sel->pos, "string, array or pointer type expected");
                     return Tr_zeroExp(Ty_Long());
                 }
                 e = Tr_Index(e, idx_conv);

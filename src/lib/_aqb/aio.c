@@ -37,11 +37,6 @@ void _aio_puts4(int num)
 {
     char buf[MAXBUF];
 
-    if (num>=0)
-    {
-        _aio_puts(" ");
-    }
-
     _astr_itoa(num, buf, 10);
 
     _aio_puts(buf);
@@ -50,11 +45,6 @@ void _aio_puts4(int num)
 void _aio_puts2(short num)
 {
     char buf[MAXBUF];
-
-    if (num>=0)
-    {
-        _aio_puts(" ");
-    }
 
     _astr_itoa(num, buf, 10);
 
@@ -65,11 +55,6 @@ void _aio_puts1(char num)
 {
     char buf[MAXBUF];
 
-    if (num>=0)
-    {
-        _aio_puts(" ");
-    }
-
     _astr_itoa(num, buf, 10);
 
     _aio_puts(buf);
@@ -78,8 +63,6 @@ void _aio_puts1(char num)
 void _aio_putu4(unsigned int num)
 {
     char buf[MAXBUF];
-
-    _aio_puts(" ");
 
     _astr_utoa(num, buf, 10);
 
@@ -90,8 +73,6 @@ void _aio_putu2(unsigned short num)
 {
     char buf[MAXBUF];
 
-    _aio_puts(" ");
-
     _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
@@ -100,8 +81,6 @@ void _aio_putu2(unsigned short num)
 void _aio_putu1(unsigned char num)
 {
     char buf[MAXBUF];
-
-    _aio_puts(" ");
 
     _astr_utoa(num, buf, 10);
 

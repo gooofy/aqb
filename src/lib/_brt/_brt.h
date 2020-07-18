@@ -78,7 +78,7 @@ void _astr_ftoa(FLOAT value, char *buf);
 ULONG len_(const char *str);
 
 char *_astr_dup(const char *str);
-
+SHORT __astr_cmp(const char* s1, const char* s2);
 const char *_astr_strchr(const char *s, char c);
 
 /*

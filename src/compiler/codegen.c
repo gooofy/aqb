@@ -68,6 +68,7 @@ static enum AS_w ty_isz(Ty_ty ty)
         case Ty_double:
         case Ty_varPtr:
         case Ty_pointer:
+        case Ty_string:
         case Ty_forwardPtr:
         case Ty_procPtr:
             return AS_w_L;
@@ -1168,11 +1169,35 @@ static void munchStm(T_stm s)
             T_relOp op    = s->u.CJUMP.op;
             T_exp e1      = s->u.CJUMP.left;
             T_exp e2      = s->u.CJUMP.right;
-            Ty_ty ty      = e1->ty;
-            Temp_temp r1  = munchExp(e1, FALSE);
-            Temp_temp r2  = munchExp(e2, FALSE);
             Temp_label jt = s->u.CJUMP.ltrue;
             //Temp_label jf = s->u.CJUMP.lfalse;
+            Ty_ty ty      = e1->ty;
+
+            if (ty->kind == Ty_string)
+            {
+                enum AS_mn branchinstr = AS_NOP;
+                switch (op) {
+                    case T_eq:  branchinstr = AS_BEQ; break;
+                    case T_ne:  branchinstr = AS_BNE; break;
+                    case T_lt:  branchinstr = AS_BLT; break;
+                    case T_gt:  branchinstr = AS_BGT; break;
+                    case T_le:  branchinstr = AS_BLE; break;
+                    case T_ge:  branchinstr = AS_BGE; break;
+                }
+                Temp_temp rcmp = Temp_newtemp(Ty_Integer());
+                T_expList args    = T_ExpList(e1, T_ExpList(e2, NULL));
+                int       arg_cnt = munchArgsStack(0, args);
+                emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()),   // jsr     astr_cmp
+                                0, 0, Temp_namedlabel("___astr_cmp")));                
+                munchCallerRestoreStack(arg_cnt, /*sink_rv=*/FALSE);
+                emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), rcmp));                     // move.l  RV, rcmp
+                emit(AS_Instr(AS_TST_Dn, AS_w_W, rcmp, NULL));                               // tst.w   rcmp
+                emit(AS_InstrEx(branchinstr, AS_w_NONE, NULL, NULL, 0, 0, jt));              // bcc    jt
+                break;
+            }
+
+            Temp_temp r1  = munchExp(e1, FALSE);
+            Temp_temp r2  = munchExp(e2, FALSE);
 
             enum AS_mn branchinstr = AS_NOP;
             enum AS_mn cmpinstr    = AS_NOP;
