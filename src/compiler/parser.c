@@ -955,40 +955,73 @@ static bool coord2(S_tkn *tkn, A_expList *expList, A_param *pl)
     return TRUE;
 }
 
-// expressionList ::= [ expression ( ',' [ expression ] )* ]
+// expressionList ::= [ expression ] ( ',' [ expression ] )*
 static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
 {
     A_exp   exp;
     A_param pl = proc ? proc->paramList->first : NULL;
 
-    if (pl && (pl->parserHint != A_phNone))
+    if ((*tkn)->kind == S_COMMA)
     {
-        switch (pl->parserHint)
+        if (pl)
         {
-            case A_phLineBF:
-                if (!lineBF(tkn, expList, &pl))
-                    return FALSE;
-                break;
-            case A_phCoord:
-                if (!coord(tkn, expList, &pl))
-                    return FALSE;
-                break;
-            case A_phCoord2:
-                if (!coord2(tkn, expList, &pl))
-                    return FALSE;
-                break;
-            default:
-                assert(0);
+            switch (pl->parserHint)
+            {
+                case A_phLineBF:
+                    break;
+                case A_phCoord:
+                    A_ExpListAppend(*expList, NULL);
+                    A_ExpListAppend(*expList, NULL);
+                    break;
+                case A_phCoord2:
+                    A_ExpListAppend(*expList, NULL);
+                    A_ExpListAppend(*expList, NULL);
+                    A_ExpListAppend(*expList, NULL);
+                    A_ExpListAppend(*expList, NULL);
+                    A_ExpListAppend(*expList, NULL);
+                    break;
+                case A_phNone:
+                    break;
+                default:
+                    assert(0);
+            }
+
         }
+        A_ExpListAppend(*expList, NULL);
+        if (pl)
+            pl = pl->next;
     }
     else
     {
-        if (!expression(tkn, &exp))
-            return TRUE;
-        A_ExpListAppend(*expList, exp);
+        if (pl && (pl->parserHint != A_phNone))
+        {
+            switch (pl->parserHint)
+            {
+                case A_phLineBF:
+                    if (!lineBF(tkn, expList, &pl))
+                        return FALSE;
+                    break;
+                case A_phCoord:
+                    if (!coord(tkn, expList, &pl))
+                        return FALSE;
+                    break;
+                case A_phCoord2:
+                    if (!coord2(tkn, expList, &pl))
+                        return FALSE;
+                    break;
+                default:
+                    assert(0);
+            }
+        }
+        else
+        {
+            if (!expression(tkn, &exp))
+                return TRUE;
+            A_ExpListAppend(*expList, exp);
+        }
+        if (pl)
+            pl = pl->next;
     }
-    if (pl)
-        pl = pl->next;
 
     while ((*tkn)->kind == S_COMMA)
     {
