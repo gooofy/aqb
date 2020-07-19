@@ -69,6 +69,14 @@ Syntax:
 
 returns the current text row position
 
+=== INKEY$()
+
+Syntax:
+
+    INKEY$ "(" ")"
+
+returns a character entered from the keyboard
+
 === LOCATE
 
 Syntax:

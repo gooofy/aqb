@@ -18,7 +18,7 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
-BPTR g_stdout;
+BPTR g_stdout, g_stdin;
 
 static struct NewWindow g_nw =
 {
@@ -154,6 +154,7 @@ void _awindow_shutdown(void)
 void _awindow_init(void)
 {
     g_stdout = Output();
+    g_stdin  = Input();
 }
 
 /*
@@ -242,6 +243,12 @@ BOOL __aqb_pset(short x, short y, short flags, short color)
 /* BASIC: SLEEP
    event handling */
 
+#define MAXKEYBUF 256
+
+static char keybuf[MAXKEYBUF];
+static int  keybuf_start = 0;
+static int  keybuf_end   = 0;
+
 void SLEEP(void)
 {
     struct IntuiMessage *message = NULL;
@@ -277,6 +284,11 @@ void SLEEP(void)
                     break;
                 case ACTIVEWINDOW:
                     g_active_win_id = i+1;
+                    break;
+
+                case VANILLAKEY:
+                    keybuf[keybuf_end] = message->Code;
+                    keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
                     break;
             }
 
@@ -465,17 +477,17 @@ void _aio_puttab(void)
     Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
 }
 
-void locate (short l, short c)
+void LOCATE (short l, short c)
 {
     if (l<0)
-        l = csrlin_();
+        l = CSRLIN_();
     if (c<0)
-        c = pos_(0);
+        c = POS_(0);
 
     Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize);
 }
 
-short csrlin_ (void)
+short CSRLIN_ (void)
 {
     if ( (g_output_win_id == 1) && g_win1_is_dos )
         return 0;
@@ -483,11 +495,40 @@ short csrlin_ (void)
     return g_rp->cp_y / g_rp->Font->tf_YSize;
 }
 
-short pos_ (short dummy)
+short POS_ (short dummy)
 {
     if ( (g_output_win_id == 1) && g_win1_is_dos )
         return 0;
 
     return g_rp->cp_x / g_rp->Font->tf_XSize;
+}
+
+static char inkeybuf[2] = { 0, 0 } ;
+
+char *INKEY_ (void)
+{
+    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    {
+        LONG l = Read(g_stdin, (CONST APTR) inkeybuf, 1);
+        if (l != 1)
+            return "";
+        return inkeybuf;
+    }
+
+    if (keybuf_start == keybuf_end)
+    {
+        SLEEP();
+    }
+
+    if (keybuf_start == keybuf_end)
+    {
+        inkeybuf[0] = 0;
+        return inkeybuf;
+    }
+
+    inkeybuf[0] = keybuf[keybuf_start];
+    keybuf_start++;
+
+    return inkeybuf;
 }
 

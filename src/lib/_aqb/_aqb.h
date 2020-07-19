@@ -32,9 +32,9 @@ void _aio_puts(const char *str);
 void _aio_putnl(void);
 void _aio_puttab(void);
 
-void locate (short l, short c);
-short csrlin_ (void);
-short pos_ (short dummy);
+void  LOCATE  (short l, short c);
+short CSRLIN_ (void);
+short POS_    (short dummy);
 
 /*
  * screens, windows, graphics
@@ -51,12 +51,13 @@ short pos_ (short dummy);
 void _awindow_init(void);
 void _awindow_shutdown(void);
 
-BOOL  WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid);
-BOOL  LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf);
-void  SLEEP(void);
-void  ON_WINDOW_CALL(void (*cb)(void));
-ULONG WINDOW_(short n);
-BOOL  PSET(short x, short y, short color);
+BOOL   WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid);
+BOOL   LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf);
+void   SLEEP(void);
+void   ON_WINDOW_CALL(void (*cb)(void));
+ULONG  WINDOW_(short n);
+BOOL   PSET(short x, short y, short color);
+char  *INKEY_ (void);
 
 #endif
 

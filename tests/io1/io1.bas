@@ -1,3 +1,4 @@
+OPTION EXPLICIT
 
 DIM AS BYTE     b   = -42
 DIM AS UBYTE    ub  = 200
@@ -9,4 +10,11 @@ DIM AS SINGLE   f   = 3.1415
 DIM AS BOOLEAN  myb = TRUE
 
 PRINT "i/o Test: ",b;23;ub;i;ui;l;ul;f;myb
+
+PRINT "Press any key..."
+
+WHILE INKEY$() = ""
+WEND
+
+PRINT "Thank you."
 
