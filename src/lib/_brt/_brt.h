@@ -75,11 +75,13 @@ void _astr_itoa(int num, char *str, int base);
 void _astr_utoa(unsigned int num, char* str, unsigned int base);
 void _astr_ftoa(FLOAT value, char *buf);
 
-ULONG len_(const char *str);
 
 char *_astr_dup(const char *str);
 SHORT __astr_cmp(const char* s1, const char* s2);
 const char *_astr_strchr(const char *s, char c);
+
+ULONG len_(const char *str);
+char *chr_(int codepoint);
 
 /*
  * STR$ support

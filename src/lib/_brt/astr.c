@@ -110,6 +110,14 @@ ULONG len_(const char *str)
     return l;
 }
 
+char *chr_(int codepoint)
+{
+    char s[2];
+    s[0] = codepoint;
+    s[1] = 0;
+    return _astr_dup(s);
+}
+
 char *_astr_dup(const char* str)
 {
     ULONG l = len_(str);

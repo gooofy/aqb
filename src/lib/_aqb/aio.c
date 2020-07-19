@@ -7,30 +7,17 @@
 
 #define MAXBUF 40
 
-BPTR g_stdout;
-
 void _aio_init(void)
 {
-    g_stdout = Output();
 }
 
 void _aio_shutdown(void)
 {
 }
 
-void _aio_puts(const char *s)
-{
-    Write(g_stdout, (CONST APTR) s, len_(s));
-}
-
 void _aio_putnl(void)
 {
     _aio_puts("\n");
-}
-
-void _aio_puttab(void)
-{
-    _aio_puts("\t");
 }
 
 void _aio_puts4(int num)

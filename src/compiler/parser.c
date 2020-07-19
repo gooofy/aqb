@@ -1368,7 +1368,7 @@ static bool stmtExternDecl(S_tkn tkn, P_declProc dec)
     return singleVarDecl(&tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
 }
 
-// print ::= PRINT  [ expression ( ( ';' | ',' ) expression )* ]
+// print ::= PRINT  [ expression ( [ ';' | ',' ] expression )* ]
 static bool stmtPrint(S_tkn tkn, P_declProc decl)
 {
     S_pos pos = tkn->pos;
@@ -1398,10 +1398,12 @@ static bool stmtPrint(S_tkn tkn, P_declProc decl)
             case S_COMMA:
                 tkn = tkn->next;
                 A_StmtListAppend (g_sleStack->stmtList, A_PrintTABStmt(pos));
+                if (isLogicalEOL(tkn))
+                    return TRUE;
                 break;
 
             default:
-                return EM_error(tkn->pos, "PRINT: , or ; expected here");
+                break;
         }
     }
 

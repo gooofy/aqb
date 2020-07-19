@@ -13,13 +13,21 @@ Syntax:
 
 casts an expression to a different data type
 
+=== CHR$()
+
+Syntax:
+
+    CHR$ "(" expr ")"
+
+returns a string containing the single character associated with the given character code
+
 === SIZEOF()
 
 Syntax:
 
     SIZEOF "(" ident ")
 
-Returns the memory size in bytes of a given variable or named type.
+Returns the memory size in bytes of a given variable or named type
 
 === STATIC
 
@@ -31,7 +39,7 @@ Syntax B:
 
     STATIC AS TypeIdentifier [ "(" arrayDimensions ")" ] Identifier [ "=" expr] ( "," Identifier2 ... )*
 
-Declare variable(s) as static.
+declare variable(s) as static.
 
 === STR$()
 
@@ -49,7 +57,7 @@ Syntax:
         <code>
     WEND
 
-Repeat loop body while expression evaluates to TRUE.
+repeat loop body while expression evaluates to TRUE
 
 == AQB / AmigaBASIC
 

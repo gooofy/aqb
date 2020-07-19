@@ -15,6 +15,11 @@
 #include <clib/graphics_protos.h>
 #include <inline/graphics.h>
 
+#include <clib/dos_protos.h>
+#include <inline/dos.h>
+
+BPTR g_stdout;
+
 static struct NewWindow g_nw =
 {
     0, 0, 0, 0,                                                    // LeftEdge, TopEdge, Width, Height
@@ -52,6 +57,7 @@ static short            g_active_win_id = 0;
 static short            g_output_win_id = 0;
 static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
+static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout unless re-opened
 
 /*
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
@@ -128,6 +134,9 @@ BOOL WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
     g_output_win    = win;
     g_output_win_id = id;
 
+    if (id == 1)
+        g_win1_is_dos = FALSE;
+
     return TRUE;
 }
 
@@ -144,6 +153,7 @@ void _awindow_shutdown(void)
 
 void _awindow_init(void)
 {
+    g_stdout = Output();
 }
 
 /*
@@ -334,5 +344,124 @@ ULONG WINDOW_(short n)
 
     }
     return 0;
+}
+
+/*
+ * print statement support
+ */
+
+static void do_scroll(void)
+{
+    WORD max_lines = g_output_win->GZZHeight / g_rp->Font->tf_YSize;
+    WORD cy = g_rp->cp_y / g_rp->Font->tf_YSize;
+    WORD scroll_y = cy - max_lines;
+
+    if (scroll_y > 0)
+    {
+        scroll_y *= g_rp->Font->tf_YSize;
+        ScrollRaster (g_rp, 0, scroll_y, 0, 0, g_output_win->GZZWidth, g_output_win->GZZHeight);
+        Move (g_rp, g_rp->cp_x, g_rp->cp_y-scroll_y);
+    }
+}
+
+void _aio_puts(const char *s)
+{
+    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    {
+        Write(g_stdout, (CONST APTR) s, len_(s));
+        return;
+    }
+
+    // do a crude terminal emulation, reacting to control characters
+
+    WORD startpos = 0;
+    WORD pos = 0;
+
+    while (TRUE)
+    {
+        char ch = s[pos];
+
+        switch (ch)
+        {
+            case 0:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 12:
+            case 13:
+            {
+                // this is a control character - print text so far first, then act on it
+                SHORT length = pos-startpos;
+                if (length > 0)
+                    Text (g_rp, (UBYTE *) &s[startpos], length);
+
+                switch (ch)
+                {
+                    case 0:         // string end marker
+                        goto fini;
+
+                    case 7:         // bell
+                        DisplayBeep(NULL);
+                        break;
+
+                    case 8:         // backspace
+                        if (g_rp->cp_x >= g_rp->Font->tf_XSize)
+                        {
+                            Move (g_rp, g_rp->cp_x-g_rp->Font->tf_XSize, g_rp->cp_y);
+                            Text (g_rp, (UBYTE*) " ", 1);
+                            Move (g_rp, g_rp->cp_x-g_rp->Font->tf_XSize, g_rp->cp_y);
+                        }
+                        break;
+
+                    case 9:         // tab
+                    {
+                        int cx = g_rp->cp_x / g_rp->Font->tf_XSize;          // cursor position in nominal characters
+                        // _debug_puts("[1] cx="); _debug_puts2(cx); _debug_puts("\n");
+                        cx = cx + (8-(cx%8));                                // AmigaBASIC TABs are 9 characters wide
+                        // _debug_puts("[2] cx="); _debug_puts2(cx); _debug_puts("\n");
+                        Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
+                        break;
+                    }
+                    case 10:        // linefeed
+                        Move (g_rp, 0, g_rp->cp_y + g_rp->Font->tf_YSize);
+                        do_scroll();
+                        break;
+
+                    case 12:        // clear screen
+                        Move (g_rp, 0, 0);
+                        SetRast (g_rp, g_rp->BgPen);
+                        Move (g_rp, 0, g_rp->Font->tf_Baseline);
+                        break;
+
+                    case 13:        // carriage return
+                        Move (g_rp, 0, g_rp->cp_y);
+                        break;
+                }
+
+                pos++;
+                startpos = pos;
+                break;
+            }
+            default:
+                pos++;
+        }
+
+    }
+    fini:
+        return;
+}
+
+void _aio_puttab(void)
+{
+    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    {
+        Write(g_stdout, (CONST APTR) "\t", 1);
+        return;
+    }
+
+    int cx = g_rp->cp_x / g_rp->Font->tf_XSize;          // cursor position in nominal characters
+    cx = cx + (14-(cx%14));                              // PRINT comma TABs are 15 characters wide
+    Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
 }
 

@@ -59,7 +59,7 @@ v0.1, 2020-07-12
 - CALL
 - CBDL()
 - CHDIR
-- CHR$()
+- DONE CHR$()
 - CINT()
 - CLEAR
 - CLNG()
