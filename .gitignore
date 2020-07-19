@@ -77,7 +77,8 @@ src/tools/os2aqb/os_exec.txt
 examples/bench/*.bin
 examples/bench/*.s
 examples/collection/
-examples/win1/
+examples/demo/*.bin
+examples/demo/*.s
 tests/foo.bas
 tests/mod1/*.s
 tests/mod1/*.sym
