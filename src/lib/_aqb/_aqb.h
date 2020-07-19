@@ -32,6 +32,10 @@ void _aio_puts(const char *str);
 void _aio_putnl(void);
 void _aio_puttab(void);
 
+void locate (short l, short c);
+short csrlin_ (void);
+short pos_ (short dummy);
+
 /*
  * screens, windows, graphics
  */

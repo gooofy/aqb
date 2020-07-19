@@ -61,6 +61,22 @@ repeat loop body while expression evaluates to TRUE
 
 == AQB / AmigaBASIC
 
+=== CSRLIN()
+
+Syntax:
+
+    CSRLIN "(" ")"
+
+returns the current text row position
+
+=== LOCATE
+
+Syntax:
+
+    LOCATE [ row ] [ "," col ]
+
+move cursor to col / row
+
 === PRINT
 
 Syntax:
@@ -69,4 +85,14 @@ Syntax:
 
 print the listed expressions to the screen. ";" means no space, "," means skip to next 9 col tab,
 ";" or "," at the end of the line mean no newline is printed.
+
+=== POS()
+
+Syntax:
+
+    POS "(" expression ")"
+
+returns the column of the cursor in the current window (expression given is a dummy value for 
+compatibility reasons, usually 0).
+
 

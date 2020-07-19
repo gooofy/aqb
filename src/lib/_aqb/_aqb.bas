@@ -19,6 +19,10 @@ PUBLIC DECLARE SUB _aio_putbool (b AS BOOLEAN )
 PUBLIC DECLARE SUB _aio_putnl   ()
 PUBLIC DECLARE SUB _aio_puttab  ()
 
+PUBLIC DECLARE SUB      locate  (l AS INTEGER=-1, c AS INTEGER=-1)
+PUBLIC DECLARE FUNCTION csrlin  () AS INTEGER
+PUBLIC DECLARE FUNCTION pos     (dummy AS INTEGER) AS INTEGER
+
 ' --------------------------------------------------------------------------------------------------------
 ' --
 ' -- AmigaBASIC like screens, windows and graphics
@@ -45,11 +49,10 @@ PUBLIC DECLARE SUB WINDOW (id AS INTEGER, title AS STRING = NULL, _
 PUBLIC DECLARE SUB WINDOW CLOSE (id AS integer = 0)
 PUBLIC DECLARE SUB ON WINDOW CALL (p AS SUB)
 PUBLIC DECLARE FUNCTION WINDOW (n AS INTEGER) AS ULONG
-
+PUBLIC DECLARE SUB SLEEP
 
 PUBLIC DECLARE SUB LINE (_COORD2(s1 AS BOOLEAN=FALSE, x1 AS INTEGER=-1, y1 AS INTEGER=-1, s2 AS BOOLEAN=FALSE, x2 AS INTEGER=-1, y2 AS INTEGER=-1), _
                          c AS INTEGER=-1, _LINEBF(bf AS INTEGER=0) )
 
 
-PUBLIC DECLARE SUB SLEEP
 

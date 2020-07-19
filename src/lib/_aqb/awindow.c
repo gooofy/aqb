@@ -53,8 +53,8 @@ static ULONG g_signalmask=0;
 
 static void (*g_win_cb)(void) = NULL;
 
-static short            g_active_win_id = 0;
-static short            g_output_win_id = 0;
+static short            g_active_win_id = 1;
+static short            g_output_win_id = 1;
 static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
 static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout unless re-opened
@@ -463,5 +463,31 @@ void _aio_puttab(void)
     int cx = g_rp->cp_x / g_rp->Font->tf_XSize;          // cursor position in nominal characters
     cx = cx + (14-(cx%14));                              // PRINT comma TABs are 15 characters wide
     Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
+}
+
+void locate (short l, short c)
+{
+    if (l<0)
+        l = csrlin_();
+    if (c<0)
+        c = pos_(0);
+
+    Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize);
+}
+
+short csrlin_ (void)
+{
+    if ( (g_output_win_id == 1) && g_win1_is_dos )
+        return 0;
+
+    return g_rp->cp_y / g_rp->Font->tf_YSize;
+}
+
+short pos_ (short dummy)
+{
+    if ( (g_output_win_id == 1) && g_win1_is_dos )
+        return 0;
+
+    return g_rp->cp_x / g_rp->Font->tf_XSize;
 }
 
