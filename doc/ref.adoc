@@ -61,5 +61,12 @@ repeat loop body while expression evaluates to TRUE
 
 == AQB / AmigaBASIC
 
+=== PRINT
 
+Syntax:
+
+    PRINT  [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to the screen. ";" means no space, "," means skip to next 9 col tab,
+";" or "," at the end of the line mean no newline is printed.
 
