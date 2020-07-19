@@ -194,7 +194,7 @@ static bool get_digit(int *digit, int base)
     return TRUE;
 }
 
-static S_tkn number(int base, S_tkn tkn)
+static S_tkn number(int base, S_tkn tkn, bool dp)
 {
     int    d;
     if (!tkn)
@@ -202,10 +202,13 @@ static S_tkn number(int base, S_tkn tkn)
 
     tkn->u.literal.inum = 0;
 
-    while (get_digit(&d, base))
+    if (!dp)
     {
-        tkn->u.literal.inum = d + tkn->u.literal.inum*base;
-        getch();
+        while (get_digit(&d, base))
+        {
+            tkn->u.literal.inum = d + tkn->u.literal.inum*base;
+            getch();
+        }
     }
     if (g_ch == '!')
     {
@@ -215,12 +218,13 @@ static S_tkn number(int base, S_tkn tkn)
     }
     else
     {
-        if (g_ch == '.')
+        if (dp || (g_ch == '.'))
         {
             double m = 1.0 / base;
             tkn->kind = S_FNUM;
             tkn->u.literal.fnum = tkn->u.literal.inum;
-            getch();
+            if (!dp)
+                getch();
             while (get_digit(&d, base))
             {
                 tkn->u.literal.fnum += ((double) d) * m;
@@ -391,7 +395,7 @@ static S_tkn next_token(void)
     }
     if (is_digit())
     {
-        return number (10, NULL);
+        return number (10, NULL, /*dp=*/FALSE);
     }
 
     S_tkn tkn;
@@ -480,7 +484,7 @@ static S_tkn next_token(void)
         case '7':
         case '8':
         case '9':
-            return number(10, NULL);
+            return number(10, NULL, /*dp=*/FALSE);
 
         case '&':   // binary, octal and hex literals
             tkn = S_Tkn(S_INUM);
@@ -490,22 +494,22 @@ static S_tkn next_token(void)
                 case 'b':
                 case 'B':
                     getch();
-                    number(2, tkn);
+                    number(2, tkn, /*dp=*/FALSE);
                     break;
                 case 'o':
                 case 'O':
                     getch();
-                    number(8, tkn);
+                    number(8, tkn, /*dp=*/FALSE);
                     break;
                 case 'h':
                 case 'H':
                     getch();
-                    number(16, tkn);
+                    number(16, tkn, /*dp=*/FALSE);
                     break;
                 default:
                     EM_error(tkn->pos, "lexer error: invalid literal type character");
                     getch();
-                    number(10, tkn);
+                    number(10, tkn, /*dp=*/FALSE);
                     break;
             }
             break;
@@ -532,6 +536,8 @@ static S_tkn next_token(void)
         case '.':
             tkn = S_Tkn(S_PERIOD);
             getch();
+            if (is_digit())
+                return number(10, NULL, /*dp=*/TRUE);
             break;
         case '>':
             tkn = S_Tkn(S_GREATER);

@@ -212,33 +212,28 @@ BOOL LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
     return TRUE;
 }
 
-#if 0
-/*
- * PSET [ STEP ] ( x , y ) [ , Color ]
- */
-BOOL __aqb_pset(short x, short y, short flags, short color)
+void PSET(BOOL s, short x, short y, short color)
 {
     BYTE fgPen=g_rp->FgPen;
 
-    if (flags & AW_PSET_STEP)
+    if (s)
     {
         x += g_rp->cp_x;
         y += g_rp->cp_y;
     }
-    if (flags & AW_PSET_RESET)
-        SetAPen(g_rp, g_rp->BgPen);
+    // if (flags & AW_PSET_RESET)
+    //    SetAPen(g_rp, g_rp->BgPen);
     if (color >= 0)
         SetAPen(g_rp, color);
 
     Move (g_rp, x, y);
     WritePixel(g_rp, x, y);
 
-    if ( (flags & AW_PSET_RESET) || color >=0 )
+    //if ( (flags & AW_PSET_RESET) || color >=0 )
+    //    SetAPen(g_rp, fgPen);
+    if ( color >=0 )
         SetAPen(g_rp, fgPen);
-
-    return TRUE;
 }
-#endif
 
 /* BASIC: SLEEP
    event handling */
@@ -484,7 +479,7 @@ void LOCATE (short l, short c)
     if (c<0)
         c = POS_(0);
 
-    Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize);
+    Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize + g_rp->Font->tf_Baseline);
 }
 
 short CSRLIN_ (void)

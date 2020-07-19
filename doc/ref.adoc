@@ -85,15 +85,6 @@ Syntax:
 
 move cursor to col / row
 
-=== PRINT
-
-Syntax:
-
-    PRINT  [ expression ( [ ";" | "," ] expression )* ]
-
-print the listed expressions to the screen. ";" means no space, "," means skip to next 9 col tab,
-";" or "," at the end of the line mean no newline is printed.
-
 === POS()
 
 Syntax:
@@ -103,4 +94,20 @@ Syntax:
 returns the column of the cursor in the current window (expression given is a dummy value for 
 compatibility reasons, usually 0).
 
+=== PRINT
+
+Syntax:
+
+    PRINT  [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to the screen. ";" means no space, "," means skip to next 9 col tab,
+";" or "," at the end of the line mean no newline is printed.
+
+=== PSET
+
+Syntax:
+
+    PSET [ STEP ] "(" x "," y ")" [ "," color ]
+
+set a point in the window
 

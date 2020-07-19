@@ -56,7 +56,7 @@ BOOL   LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, s
 void   SLEEP(void);
 void   ON_WINDOW_CALL(void (*cb)(void));
 ULONG  WINDOW_(short n);
-BOOL   PSET(short x, short y, short color);
+void   PSET(BOOL s, short x, short y, short color);
 char  *INKEY_ (void);
 
 #endif
