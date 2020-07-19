@@ -69,15 +69,16 @@ src/lib/_brt/*.sym
 src/lib/_brt/alibtest
 src/lib/_aqb/*.s
 src/lib/_aqb/*.sym
-tests/foo.bas
 src/alib/tests/*.bin
-examples/bench/*.bin
-examples/bench/*.s
-examples/*.bin
-examples/*.s
-examples/others
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
+src/tools/os2aqb/libcalls.py
+src/tools/os2aqb/os_exec.txt
+examples/bench/*.bin
+examples/bench/*.s
+examples/collection/
+examples/win1/
+tests/foo.bas
 tests/mod1/*.s
 tests/mod1/*.sym
 tests/mod1/mod1.bin
@@ -85,3 +86,4 @@ tests/io1/*.bin
 tests/io1/*.s
 tests/subtest11/*.bin
 tests/subtest11/*.s
+doc/internal/
