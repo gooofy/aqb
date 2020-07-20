@@ -1647,14 +1647,13 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
     if (!isLogicalEOL(*tkn))
     {
 
-#if 0
         if (isSym(*tkn, S_GOTO) || (*tkn)->kind == S_INUM)
         {
             slePop();
             return EM_error ((*tkn)->pos, "Sorry, GOTOs are not supported yet."); // FIXME
         }
 
-        while (TRUE)
+        while (*tkn)
         {
             if (isSym(*tkn, S_ELSE))
             {
@@ -1672,7 +1671,7 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
                 continue;
             }
 
-            if (!(*tkn) || ( (*tkn)->kind == S_EOL ) )
+            if ( (*tkn)->kind == S_EOL )
                 break;
 
             if (!statementOrAssignment(tkn))
@@ -1681,22 +1680,19 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
                 return FALSE;
             }
 
-            S_tkn tknLast = tkn;
-            while ((*tkn)->next)
-                *tkn = (*tkn)->next;
-
-            if (tknLast->kind != S_COLON)
-            {
+            if ( (*tkn)->kind == S_EOL )
                 break;
+
+            if ((*tkn)->kind == S_COLON)
+            {
+                *tkn = S_nextline();
             }
-            tkn = S_nextline();
         }
 
         slePop();
 
         A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.ifBFirst));
-#endif
-        return EM_error ((*tkn)->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
+        // return EM_error ((*tkn)->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
     }
 
     return TRUE;
@@ -3144,9 +3140,6 @@ static bool stmtExit(S_tkn *tkn, P_declProc dec)
     if (!stmtNestedStmtList(tkn, &nest))
         return FALSE;
 
-    if (!isLogicalEOL(*tkn))
-        return FALSE;
-
     A_StmtListAppend (g_sleStack->stmtList, A_ExitStmt(pos, nest));
 
     return TRUE;
@@ -3569,8 +3562,7 @@ static bool statementOrAssignment(S_tkn *tkn)
             }
             if (ds)
             {
-                if (!isLogicalEOL(tkn2))
-                    return EM_error(tkn2->pos, "syntax error");
+                *tkn = tkn2;
 
                 return TRUE;
             }
@@ -3632,6 +3624,8 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
         else
         {
             statementOrAssignment(&tkn);
+            if (!isLogicalEOL(tkn))
+                return EM_error(tkn->pos, "syntax error");
         }
     }
 
