@@ -962,7 +962,7 @@ TAB_table declared_stmts; // S_symbol -> P_declProc
 TAB_table declared_funs;  // S_symbol -> P_declProc
 
 void E_declare_proc(TAB_table m, S_symbol sym,
-                    bool (*parses)(S_tkn, P_declProc),
+                    bool (*parses)(S_tkn *tkn, P_declProc),
                     bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp),
                     A_proc proc)
 {

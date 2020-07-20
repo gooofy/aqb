@@ -86,7 +86,7 @@ typedef struct P_declProc_ *P_declProc;
 
 struct P_declProc_
 {
-     bool (*parses)(S_tkn tkn, P_declProc decl);                // parse as statement call
+     bool (*parses)(S_tkn *tkn, P_declProc decl);               // parse as statement call
      bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp);   // parse as function call
      A_proc     proc;
      P_declProc next;
@@ -96,7 +96,7 @@ extern TAB_table declared_stmts; // S_symbol -> P_declProc
 extern TAB_table declared_funs;  // S_symbol -> P_declProc
 
 void E_declare_proc(TAB_table m, S_symbol sym,
-                    bool (*parses)(S_tkn, P_declProc),
+                    bool (*parses)(S_tkn *tkn, P_declProc),
                     bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp),
                     A_proc proc);
 void E_declareProcsFromMod (E_module mod);

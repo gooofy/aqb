@@ -172,6 +172,7 @@ static P_SLE slePop(void)
 static bool expExpression(S_tkn *tkn, A_exp *exp);
 static bool relExpression(S_tkn *tkn, A_exp *exp);
 static bool expression(S_tkn *tkn, A_exp *exp);
+static bool statementOrAssignment(S_tkn *tkn);
 
 // selector ::= ( ( "[" | "(" ) [ expression ( "," expression)* ] ( "]" | ")" )
 //              | "." ident
@@ -1316,122 +1317,122 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
 
 // stmtDim ::= [ PRIVATE | PUBLIC ] DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
 //                                                 | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
-static bool stmtDim(S_tkn tkn, P_declProc decl)
+static bool stmtDim(S_tkn *tkn, P_declProc decl)
 {
     bool     shared = FALSE;
     bool     isPrivate = OPT_get(OPTION_PRIVATE);
 
-    if (isSym(tkn, S_PRIVATE))
+    if (isSym(*tkn, S_PRIVATE))
     {
         isPrivate = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_PUBLIC))
+        if (isSym(*tkn, S_PUBLIC))
         {
             isPrivate = FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
 
-    tkn = tkn->next; // skip "DIM"
+    *tkn = (*tkn)->next; // skip "DIM"
 
-    if (isSym(tkn, S_SHARED))
+    if (isSym(*tkn, S_SHARED))
     {
         shared = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
 
-    if (isSym(tkn, S_AS))
+    if (isSym(*tkn, S_AS))
     {
         A_typeDesc td;
 
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (!typeDesc(&tkn, &td))
-            return EM_error(tkn->pos, "variable declaration: type descriptor expected here.");
+        if (!typeDesc(tkn, &td))
+            return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
 
-        if (!singleVarDecl2(&tkn, isPrivate, shared, /*statc=*/FALSE, td))
+        if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, td))
             return FALSE;
 
-        while (tkn->kind == S_COMMA)
+        while ((*tkn)->kind == S_COMMA)
         {
-            tkn = tkn->next;
-            if (!singleVarDecl2(&tkn, isPrivate, shared, /*statc=*/FALSE, td))
+            *tkn = (*tkn)->next;
+            if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, td))
                 return FALSE;
         }
     }
     else
     {
-        if (!singleVarDecl(&tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
+        if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
             return FALSE;
 
-        while (tkn->kind == S_COMMA)
+        while ((*tkn)->kind == S_COMMA)
         {
-            tkn = tkn->next;
-            if (!singleVarDecl(&tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
+            *tkn = (*tkn)->next;
+            if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
                 return FALSE;
         }
     }
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // externDecl ::= [ PRIVATE | PUBLIC ] EXTERN singleVarDecl
-static bool stmtExternDecl(S_tkn tkn, P_declProc dec)
+static bool stmtExternDecl(S_tkn *tkn, P_declProc dec)
 {
     bool isPrivate = OPT_get(OPTION_PRIVATE);
 
-    if (isSym(tkn, S_PRIVATE))
+    if (isSym(*tkn, S_PRIVATE))
     {
         isPrivate = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_PUBLIC))
+        if (isSym(*tkn, S_PUBLIC))
         {
             isPrivate = FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
 
-    tkn = tkn->next; // consume "EXTERN"
-    return singleVarDecl(&tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
+    *tkn = (*tkn)->next; // consume "EXTERN"
+    return singleVarDecl(tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
 }
 
 // print ::= PRINT  [ expression ( [ ';' | ',' ] expression )* ]
-static bool stmtPrint(S_tkn tkn, P_declProc decl)
+static bool stmtPrint(S_tkn *tkn, P_declProc decl)
 {
-    S_pos pos = tkn->pos;
-    tkn = tkn->next;                                                // skip "PRINT"
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next;                                                // skip "PRINT"
 
-    while (!isLogicalEOL(tkn))
+    while (!isLogicalEOL(*tkn))
     {
         A_exp exp;
-        pos = tkn->pos;
+        pos = (*tkn)->pos;
 
-        if (!expression(&tkn, &exp))
+        if (!expression(tkn, &exp))
             return EM_error(pos, "expression expected here.");
 
         A_StmtListAppend (g_sleStack->stmtList, A_PrintStmt(pos, exp));
 
-        if (isLogicalEOL(tkn))
+        if (isLogicalEOL(*tkn))
             break;
 
-        switch (tkn->kind)
+        switch ((*tkn)->kind)
         {
             case S_SEMICOLON:
-                tkn = tkn->next;
-                if (isLogicalEOL(tkn))
+                *tkn = (*tkn)->next;
+                if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
 
             case S_COMMA:
-                tkn = tkn->next;
+                *tkn = (*tkn)->next;
                 A_StmtListAppend (g_sleStack->stmtList, A_PrintTABStmt(pos));
-                if (isLogicalEOL(tkn))
+                if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
 
@@ -1440,7 +1441,7 @@ static bool stmtPrint(S_tkn tkn, P_declProc decl)
         }
     }
 
-    if (isLogicalEOL(tkn))
+    if (isLogicalEOL(*tkn))
     {
         A_StmtListAppend (g_sleStack->stmtList, A_PrintNLStmt(pos));
         return TRUE;
@@ -1453,78 +1454,78 @@ static bool stmtPrint(S_tkn tkn, P_declProc decl)
 // assignmentStmt ::= ['*'] ident ( ("["|"(") expression ( "," expression)* ("]"|")")
 //                                | "." ident
 //                                | "->" ident )* "=" expression
-static bool stmtAssignment(S_tkn tkn)
+static bool stmtAssignment(S_tkn *tkn)
 {
     A_var      v;
     A_exp      exp;
-    S_pos      pos = tkn->pos;
+    S_pos      pos = (*tkn)->pos;
     bool       deref = FALSE;
 
-    if (tkn->kind == S_ASTERISK)
+    if ((*tkn)->kind == S_ASTERISK)
     {
         deref = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
 
-    if (!varDesignator(&tkn, &v))
+    if (!varDesignator(tkn, &v))
         return FALSE;
 
-    if (tkn->kind != S_EQUALS)
-        return EM_error (tkn->pos, "= expected.");
-    tkn = tkn->next;
+    if ((*tkn)->kind != S_EQUALS)
+        return EM_error ((*tkn)->pos, "= expected.");
+    *tkn = (*tkn)->next;
 
-    if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "expression expected here.");
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "expression expected here.");
 
     A_StmtListAppend (g_sleStack->stmtList, A_AssignStmt(pos, v, exp, deref));
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // forBegin ::= FOR ident [ AS ident ] "=" expression TO expression [ STEP expression ]
-static bool stmtForBegin(S_tkn tkn, P_declProc decl)
+static bool stmtForBegin(S_tkn *tkn, P_declProc decl)
 {
     S_symbol var;
     S_symbol sType=NULL;
     A_exp    from_exp, to_exp, step_exp;
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     P_SLE    sle;
 
-    tkn = tkn->next;           // consume "FOR"
+    *tkn = (*tkn)->next;           // consume "FOR"
 
-    if (tkn->kind != S_IDENT)
-        return EM_error (tkn->pos, "variable name expected here.");
-    var = tkn->u.sym;
-    tkn = tkn->next;
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error ((*tkn)->pos, "variable name expected here.");
+    var = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
 
-    if (isSym(tkn, S_AS))
+    if (isSym(*tkn, S_AS))
     {
-        tkn = tkn->next;
-        if (tkn->kind != S_IDENT)
-            return EM_error (tkn->pos, "type identifier expected here.");
-        sType = tkn->u.sym;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error ((*tkn)->pos, "type identifier expected here.");
+        sType = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
     }
 
-    if (tkn->kind != S_EQUALS)
-        return EM_error (tkn->pos, "= expected.");
-    tkn = tkn->next;
+    if ((*tkn)->kind != S_EQUALS)
+        return EM_error ((*tkn)->pos, "= expected.");
+    *tkn = (*tkn)->next;
 
-    if (!expression(&tkn, &from_exp))
-        return EM_error(tkn->pos, "FOR: from expression expected here.");
+    if (!expression(tkn, &from_exp))
+        return EM_error((*tkn)->pos, "FOR: from expression expected here.");
 
-    if (!isSym(tkn, S_TO))
-        return EM_error (tkn->pos, "TO expected.");
-    tkn = tkn->next;
+    if (!isSym(*tkn, S_TO))
+        return EM_error ((*tkn)->pos, "TO expected.");
+    *tkn = (*tkn)->next;
 
-    if (!expression(&tkn, &to_exp))
-        return EM_error(tkn->pos, "FOR: to expression expected here.");
+    if (!expression(tkn, &to_exp))
+        return EM_error((*tkn)->pos, "FOR: to expression expected here.");
 
-    if (isSym(tkn, S_STEP))
+    if (isSym(*tkn, S_STEP))
     {
-        tkn = tkn->next;
-        if (!expression(&tkn, &step_exp))
-            return EM_error(tkn->pos, "FOR: step expression expected here.");
+        *tkn = (*tkn)->next;
+        if (!expression(tkn, &step_exp))
+            return EM_error((*tkn)->pos, "FOR: step expression expected here.");
     }
     else
     {
@@ -1542,7 +1543,7 @@ static bool stmtForBegin(S_tkn tkn, P_declProc decl)
     sle->u.forLoop.to_exp   = to_exp;
     sle->u.forLoop.step_exp = step_exp;
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 static bool stmtForEnd_(S_pos pos, S_symbol varSym)
@@ -1577,25 +1578,25 @@ static bool stmtForEnd_(S_pos pos, S_symbol varSym)
 }
 
 // forEnd ::= NEXT [ ident ( ',' ident )* ]
-static bool stmtForEnd(S_tkn tkn, P_declProc decl)
+static bool stmtForEnd(S_tkn *tkn, P_declProc decl)
 {
-    S_pos pos = tkn->pos;
+    S_pos pos = (*tkn)->pos;
 
-    tkn = tkn->next; // consume "NEXT"
+    *tkn = (*tkn)->next; // consume "NEXT"
 
-    if (tkn->kind == S_IDENT)
+    if ((*tkn)->kind == S_IDENT)
     {
-        if (!stmtForEnd_(pos, tkn->u.sym))
+        if (!stmtForEnd_(pos, (*tkn)->u.sym))
             return FALSE;
-        tkn = tkn->next;
-        while (tkn->kind == S_COMMA)
+        *tkn = (*tkn)->next;
+        while ((*tkn)->kind == S_COMMA)
         {
-            tkn = tkn->next;
-            if (tkn->kind != S_IDENT)
-                return EM_error(tkn->pos, "variable name expected here");
-            if (!stmtForEnd_(pos, tkn->u.sym))
+            *tkn = (*tkn)->next;
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "variable name expected here");
+            if (!stmtForEnd_(pos, (*tkn)->u.sym))
                 return FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
     else
@@ -1604,7 +1605,7 @@ static bool stmtForEnd(S_tkn tkn, P_declProc decl)
             return FALSE;
     }
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // IfBegin ::=  IF Expression ( GOTO ( numLiteral | ident )
@@ -1612,26 +1613,16 @@ static bool stmtForEnd(S_tkn tkn, P_declProc decl)
 //                                   | [ GOTO ] ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ]
 //                                   )
 //                            )
-static bool stmtIfBegin(S_tkn tkn, P_declProc decl)
+static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
 {
     A_exp    exp;
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     P_SLE    sle;
 
-    tkn = tkn->next; // consume "IF"
+    *tkn = (*tkn)->next; // consume "IF"
 
-    if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "IF expression expected here.");
-
-    if (isSym(tkn, S_GOTO))
-        return EM_error (tkn->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
-
-    if (!isSym(tkn, S_THEN))
-        return EM_error (tkn->pos, "THEN expected.");
-    tkn = tkn->next;
-
-    if (!isLogicalEOL(tkn))
-        return EM_error (tkn->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "IF expression expected here.");
 
     sle = slePush();
 
@@ -1640,36 +1631,104 @@ static bool stmtIfBegin(S_tkn tkn, P_declProc decl)
 
     sle->u.ifStmt.ifBFirst = sle->u.ifStmt.ifBLast = A_IfBranch(exp, sle->stmtList);
 
+    if (isSym(*tkn, S_GOTO))
+    {
+        slePop();
+        return EM_error ((*tkn)->pos, "Sorry, GOTOs are not supported yet."); // FIXME
+    }
+
+    if (!isSym(*tkn, S_THEN))
+    {
+        slePop();
+        return EM_error ((*tkn)->pos, "THEN expected.");
+    }
+    *tkn = (*tkn)->next;
+
+    if (!isLogicalEOL(*tkn))
+    {
+
+#if 0
+        if (isSym(*tkn, S_GOTO) || (*tkn)->kind == S_INUM)
+        {
+            slePop();
+            return EM_error ((*tkn)->pos, "Sorry, GOTOs are not supported yet."); // FIXME
+        }
+
+        while (TRUE)
+        {
+            if (isSym(*tkn, S_ELSE))
+            {
+                *tkn = (*tkn)->next;
+
+                if (sle->u.ifStmt.ifBFirst->next)
+                {
+                    slePop();
+                    return EM_error ((*tkn)->pos, "Multiple else branches detected.");
+                }
+
+                sle->u.ifStmt.ifBLast->next = A_IfBranch(NULL, A_StmtList());
+                sle->u.ifStmt.ifBLast       = sle->u.ifStmt.ifBLast->next;
+                sle->stmtList               = sle->u.ifStmt.ifBLast->stmts;
+                continue;
+            }
+
+            if (!(*tkn) || ( (*tkn)->kind == S_EOL ) )
+                break;
+
+            if (!statementOrAssignment(tkn))
+            {
+                slePop();
+                return FALSE;
+            }
+
+            S_tkn tknLast = tkn;
+            while ((*tkn)->next)
+                *tkn = (*tkn)->next;
+
+            if (tknLast->kind != S_COLON)
+            {
+                break;
+            }
+            tkn = S_nextline();
+        }
+
+        slePop();
+
+        A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.ifBFirst));
+#endif
+        return EM_error ((*tkn)->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
+    }
+
     return TRUE;
 }
 
 // ifElse  ::= ELSEIF expression THEN
 //             |  ELSE .
-static bool stmtIfElse(S_tkn tkn, P_declProc decl)
+static bool stmtIfElse(S_tkn *tkn, P_declProc decl)
 {
     A_exp exp = NULL;
 
-    if (isSym(tkn, S_ELSEIF))
+    if (isSym(*tkn, S_ELSEIF))
     {
-        tkn = tkn->next;
-        if (!expression(&tkn, &exp))
-            return EM_error(tkn->pos, "ELSEIF expression expected here.");
-        if (!isSym(tkn, S_THEN))
-            return EM_error(tkn->pos, "THEN expected here.");
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
+        if (!expression(tkn, &exp))
+            return EM_error((*tkn)->pos, "ELSEIF expression expected here.");
+        if (!isSym(*tkn, S_THEN))
+            return EM_error((*tkn)->pos, "THEN expected here.");
+        *tkn = (*tkn)->next;
     }
     else
     {
-        tkn = tkn->next; // consume "ELSE"
+        *tkn = (*tkn)->next; // consume "ELSE"
     }
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     P_SLE sle = g_sleStack;
     if (sle->kind != P_if)
     {
-        EM_error(tkn->pos, "ELSE used outside of an IF-statement context");
+        EM_error((*tkn)->pos, "ELSE used outside of an IF-statement context");
         return FALSE;
     }
     sle->u.ifStmt.ifBLast->next = A_IfBranch(exp, A_StmtList());
@@ -1680,22 +1739,22 @@ static bool stmtIfElse(S_tkn tkn, P_declProc decl)
 }
 
 // stmtSelect ::= SELECT CASE Expression
-static bool stmtSelect(S_tkn tkn, P_declProc decl)
+static bool stmtSelect(S_tkn *tkn, P_declProc decl)
 {
     A_exp    exp;
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     P_SLE    sle;
 
-    tkn = tkn->next; // consume "SELECT"
+    *tkn = (*tkn)->next; // consume "SELECT"
 
-    if (!isSym(tkn, S_CASE))
-        return EM_error (tkn->pos, "CASE expected.");
-    tkn = tkn->next;
+    if (!isSym(*tkn, S_CASE))
+        return EM_error ((*tkn)->pos, "CASE expected.");
+    *tkn = (*tkn)->next;
 
-    if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "SELECT CASE expression expected here.");
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "SELECT CASE expression expected here.");
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     sle = slePush();
@@ -1774,43 +1833,43 @@ static bool selectExpr(S_tkn *tkn, A_selectExp *selExp)
 }
 
 // stmtCase ::= CASE ( ELSE | selectExpr ( "," selectExpr )* )
-static bool stmtCase(S_tkn tkn, P_declProc decl)
+static bool stmtCase(S_tkn *tkn, P_declProc decl)
 {
     A_selectExp exp, expLast;
-    S_pos       pos = tkn->pos;
+    S_pos       pos = (*tkn)->pos;
 
-    tkn = tkn->next; // consume "CASE"
+    *tkn = (*tkn)->next; // consume "CASE"
 
-    if (isSym(tkn, S_ELSE))
+    if (isSym(*tkn, S_ELSE))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
         exp = NULL;
     }
     else
     {
-        if (!selectExpr(&tkn, &exp))
+        if (!selectExpr(tkn, &exp))
             return FALSE;
 
         expLast = exp;
 
-        while (tkn->kind == S_COMMA)
+        while ((*tkn)->kind == S_COMMA)
         {
             A_selectExp exp2;
-            tkn = tkn->next;
-            if (!selectExpr(&tkn, &exp2))
+            *tkn = (*tkn)->next;
+            if (!selectExpr(tkn, &exp2))
                 return FALSE;
             expLast->next = exp2;
             expLast = exp2;
         }
     }
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     P_SLE sle = g_sleStack;
     if (sle->kind != P_select)
     {
-        EM_error(tkn->pos, "CASE used outside of a SELECT-statement context");
+        EM_error((*tkn)->pos, "CASE used outside of a SELECT-statement context");
         return FALSE;
     }
 
@@ -1859,65 +1918,65 @@ static void stmtSelectEnd_(void)
 }
 
 // stmtEnd  ::=  END ( SUB | FUNCTION | IF | SELECT )
-static bool stmtEnd(S_tkn tkn, P_declProc decl)
+static bool stmtEnd(S_tkn *tkn, P_declProc decl)
 {
-    if (isSym(tkn, S_ENDIF))
+    if (isSym(*tkn, S_ENDIF))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
         stmtIfEnd_();
-        return isLogicalEOL(tkn);
+        return TRUE;
     }
 
-    tkn = tkn->next;        // skip "END"
+    *tkn = (*tkn)->next;        // skip "END"
 
-    if (isSym(tkn, S_IF))
+    if (isSym(*tkn, S_IF))
     {
         P_SLE sle = g_sleStack;
         if (sle->kind != P_if)
         {
-            EM_error(tkn->pos, "ENDIF used outside of an IF-statement context");
+            EM_error((*tkn)->pos, "ENDIF used outside of an IF-statement context");
             return FALSE;
         }
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
         stmtIfEnd_();
     }
     else
     {
-        if (isSym(tkn, S_SUB))
+        if (isSym(*tkn, S_SUB))
         {
             P_SLE sle = g_sleStack;
             if (sle->kind != P_sub)
             {
-                EM_error(tkn->pos, "END SUB used outside of a SUB context");
+                EM_error((*tkn)->pos, "END SUB used outside of a SUB context");
                 return FALSE;
             }
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
             stmtProcEnd_();
         }
         else
         {
-            if (isSym(tkn, S_FUNCTION))
+            if (isSym(*tkn, S_FUNCTION))
             {
                 P_SLE sle = g_sleStack;
                 if (sle->kind != P_function)
                 {
-                    EM_error(tkn->pos, "END FUNCTION used outside of a SUB context");
+                    EM_error((*tkn)->pos, "END FUNCTION used outside of a SUB context");
                     return FALSE;
                 }
-                tkn = tkn->next;
+                *tkn = (*tkn)->next;
                 stmtProcEnd_();
             }
             else
             {
-                if (isSym(tkn, S_SELECT))
+                if (isSym(*tkn, S_SELECT))
                 {
                     P_SLE sle = g_sleStack;
                     if (sle->kind != P_select)
                     {
-                        EM_error(tkn->pos, "END SECTION used outside of a SELECT context");
+                        EM_error((*tkn)->pos, "END SECTION used outside of a SELECT context");
                         return FALSE;
                     }
-                    tkn = tkn->next;
+                    *tkn = (*tkn)->next;
                     stmtSelectEnd_();
                 }
                 else
@@ -1928,66 +1987,66 @@ static bool stmtEnd(S_tkn tkn, P_declProc decl)
         }
     }
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // stmtAssert ::= ASSERT expression
-static bool stmtAssert(S_tkn tkn, P_declProc decl)
+static bool stmtAssert(S_tkn *tkn, P_declProc decl)
 {
-    S_pos  pos = tkn->pos;
+    S_pos  pos = (*tkn)->pos;
     A_exp  exp;
 
-    tkn = tkn->next;
+    *tkn = (*tkn)->next;
 
-    if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "Assert: expression expected here.");
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "Assert: expression expected here.");
 
     A_StmtListAppend (g_sleStack->stmtList, A_AssertStmt(pos, exp, EM_format(pos, "assertion failed." /* FIXME: add expression str */)));
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // optionStmt ::= OPTION [ EXPLICIT | PRIVATE ] [ ( ON | OFF ) ]
-static bool stmtOption(S_tkn tkn, P_declProc decl)
+static bool stmtOption(S_tkn *tkn, P_declProc decl)
 {
     bool onoff=TRUE;
     int  opt;
 
-    tkn = tkn->next; // consume "OPTION"
+    *tkn = (*tkn)->next; // consume "OPTION"
 
-    if (isSym(tkn, S_EXPLICIT))
+    if (isSym(*tkn, S_EXPLICIT))
     {
         opt = OPTION_EXPLICIT;
     }
     else
     {
-        if (isSym(tkn, S_PRIVATE))
+        if (isSym(*tkn, S_PRIVATE))
         {
             opt = OPTION_PRIVATE;
         }
         else
         {
-            return EM_error(tkn->pos, "EXPLICIT or PRIVATE expected here.");
+            return EM_error((*tkn)->pos, "EXPLICIT or PRIVATE expected here.");
         }
     }
-    tkn = tkn->next;
+    *tkn = (*tkn)->next;
 
-    if (isSym(tkn, S_ON))
+    if (isSym(*tkn, S_ON))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
         onoff = TRUE;
     }
     else
     {
-        if (isSym(tkn, S_OFF))
+        if (isSym(*tkn, S_OFF))
         {
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
             onoff = FALSE;
         }
     }
 
     OPT_set(opt, onoff);
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 bool P_functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
@@ -2020,27 +2079,27 @@ bool P_functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp)
 }
 
 // subCall ::= ident ident* ["("] expressionList [")"]
-bool P_subCall(S_tkn tkn, P_declProc dec)
+bool P_subCall(S_tkn *tkn, P_declProc dec)
 {
-    S_pos    pos  = tkn->pos;
+    S_pos    pos  = (*tkn)->pos;
     A_proc   proc = dec ? dec->proc : NULL;
     A_param  pl   = proc ? proc->paramList->first : NULL;
-    S_symbol name = tkn->u.sym;
+    S_symbol name = (*tkn)->u.sym;
 
     if (proc)
-        assert (proc->name == tkn->u.sym);
-    tkn = tkn->next;
+        assert (proc->name == (*tkn)->u.sym);
+    *tkn = (*tkn)->next;
 
     if (proc && proc->extraSyms)
     {
         S_symlist es = proc->extraSyms;
-        while (tkn->kind == S_IDENT)
+        while ((*tkn)->kind == S_IDENT)
         {
             if (!es)
                 break;
-            if (tkn->u.sym != es->sym)
+            if ((*tkn)->u.sym != es->sym)
                 return FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
             es = es->next;
         }
         if (es)
@@ -2048,24 +2107,24 @@ bool P_subCall(S_tkn tkn, P_declProc dec)
     }
 
     bool parenthesis = FALSE;
-    if ( (tkn->kind == S_LPAREN) && (!pl || (pl->parserHint == A_phNone) ))
+    if ( ((*tkn)->kind == S_LPAREN) && (!pl || (pl->parserHint == A_phNone) ))
     {
         parenthesis = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
 
     A_expList args = A_ExpList();
-    if (!expressionList(&tkn, &args, proc))
+    if (!expressionList(tkn, &args, proc))
         return FALSE;
 
     if (parenthesis)
     {
-        if (tkn->kind != S_RPAREN)
-            return EM_error(tkn->pos, ") expected.");
-        tkn = tkn->next;
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, ") expected.");
+        *tkn = (*tkn)->next;
     }
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     if (proc)
@@ -2077,16 +2136,16 @@ bool P_subCall(S_tkn tkn, P_declProc dec)
 }
 
 
-static bool stmtCall(S_tkn tkn, P_declProc dec)
+static bool stmtCall(S_tkn *tkn, P_declProc dec)
 {
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     S_symbol name;
 
-    tkn = tkn->next; // skip "CALL"
+    *tkn = (*tkn)->next; // skip "CALL"
 
-    if (tkn->kind != S_IDENT)
+    if ((*tkn)->kind != S_IDENT)
         return FALSE;
-    name = tkn->u.sym;
+    name = (*tkn)->u.sym;
 
     P_declProc ds = TAB_look(declared_stmts, name);
     if (ds)
@@ -2339,50 +2398,50 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, A
 }
 
 // procStmtBegin ::= [ PRIVATE | PUBLIC ] ( SUB | FUNCTION ) procHeader
-static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
+static bool stmtProcBegin(S_tkn *tkn, P_declProc dec)
 {
     A_proc    proc;
-    S_pos     pos = tkn->pos;
-    bool      isFunction = isSym(tkn, S_FUNCTION);
+    S_pos     pos = (*tkn)->pos;
+    bool      isFunction = isSym(*tkn, S_FUNCTION);
     P_SLE     sle;
     bool      isPrivate = OPT_get(OPTION_PRIVATE);
 
-    if (isSym(tkn, S_PRIVATE))
+    if (isSym(*tkn, S_PRIVATE))
     {
         isPrivate = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_PUBLIC))
+        if (isSym(*tkn, S_PUBLIC))
         {
             isPrivate = FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
 
-    if (isSym(tkn, S_SUB))
+    if (isSym(*tkn, S_SUB))
     {
         isFunction = FALSE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_FUNCTION))
+        if (isSym(*tkn, S_FUNCTION))
         {
             isFunction = TRUE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
         else
         {
-            return EM_error(tkn->pos, "SUB or FUNCTION expected here.");
+            return EM_error((*tkn)->pos, "SUB or FUNCTION expected here.");
         }
     }
 
-    if (tkn->kind != S_IDENT)
-        return EM_error(tkn->pos, "identifier expected here.");
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "identifier expected here.");
 
-    if (!procHeader(&tkn, pos, isPrivate, isFunction, &proc))
+    if (!procHeader(tkn, pos, isPrivate, isFunction, &proc))
         return FALSE;
 
     sle = slePush();
@@ -2397,85 +2456,85 @@ static bool stmtProcBegin(S_tkn tkn, P_declProc dec)
     else
         E_declare_proc(declared_stmts, proc->name, P_subCall , NULL          , proc);
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
-static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
+static bool stmtProcDecl(S_tkn *tkn, P_declProc dec)
 {
     A_proc    proc;
-    S_pos     pos = tkn->pos;
+    S_pos     pos = (*tkn)->pos;
     bool      isFunction;
     bool      isPrivate = OPT_get(OPTION_PRIVATE);
 
-    if (isSym(tkn, S_PRIVATE))
+    if (isSym(*tkn, S_PRIVATE))
     {
         isPrivate = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_PUBLIC))
+        if (isSym(*tkn, S_PUBLIC))
         {
             isPrivate = FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
 
-    tkn = tkn->next; // consume "DECLARE"
+    *tkn = (*tkn)->next; // consume "DECLARE"
 
-    if (isSym(tkn, S_FUNCTION))
+    if (isSym(*tkn, S_FUNCTION))
         isFunction = TRUE;
     else
-        if (isSym(tkn, S_SUB))
+        if (isSym(*tkn, S_SUB))
             isFunction = FALSE;
         else
-            return EM_error(tkn->pos, "SUB or FUNCTION expected here.");
+            return EM_error((*tkn)->pos, "SUB or FUNCTION expected here.");
 
-    tkn = tkn->next; // consume "SUB" | "FUNCTION"
+    *tkn = (*tkn)->next; // consume "SUB" | "FUNCTION"
 
-    if (!procHeader(&tkn, pos, isPrivate, isFunction, &proc))
+    if (!procHeader(tkn, pos, isPrivate, isFunction, &proc))
         return FALSE;
 
-    if (isSym(tkn, S_LIB))
+    if (isSym(*tkn, S_LIB))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (!expression(&tkn, &proc->offset))
-            return EM_error(tkn->pos, "library call: offset expected here.");
+        if (!expression(tkn, &proc->offset))
+            return EM_error((*tkn)->pos, "library call: offset expected here.");
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "library call: library base identifier expected here.");
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "library call: library base identifier expected here.");
 
-        proc->libBase = tkn->u.sym;
-        tkn = tkn->next;
+        proc->libBase = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
 
-        if (tkn->kind != S_LPAREN)
-            return EM_error(tkn->pos, "library call: ( expected here.");
-        tkn = tkn->next;
+        if ((*tkn)->kind != S_LPAREN)
+            return EM_error((*tkn)->pos, "library call: ( expected here.");
+        *tkn = (*tkn)->next;
 
         A_param p = proc->paramList->first;
 
-        while (tkn->kind == S_IDENT)
+        while ((*tkn)->kind == S_IDENT)
         {
             if (!p)
-                return EM_error(tkn->pos, "library call: more registers than arguments detected.");
+                return EM_error((*tkn)->pos, "library call: more registers than arguments detected.");
 
-            p->reg = tkn->u.sym;
-            p = p-> next;
-            tkn = tkn->next;
-            if (tkn->kind == S_COMMA)
-                tkn = tkn->next;
+            p->reg = (*tkn)->u.sym;
+            p = p->next;
+            *tkn = (*tkn)->next;
+            if ((*tkn)->kind == S_COMMA)
+                *tkn = (*tkn)->next;
             else
                 break;
         }
 
-        if (tkn->kind != S_RPAREN)
-            return EM_error(tkn->pos, "library call: ) expected here.");
-        tkn = tkn->next;
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, "library call: ) expected here.");
+        *tkn = (*tkn)->next;
 
         if (p)
-            return EM_error(tkn->pos, "library call: less registers than arguments detected.");
+            return EM_error((*tkn)->pos, "library call: less registers than arguments detected.");
     }
 
     if (isFunction)
@@ -2485,164 +2544,164 @@ static bool stmtProcDecl(S_tkn tkn, P_declProc dec)
 
     A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // constDecl ::= [ PRIVATE | PUBLIC ] CONST ( ident [AS typeDesc] "=" Expression ("," ident [AS typeDesc] "=" expression)*
 //                                          | AS typeDesc ident = expression ("," ident "=" expression)*
 //                                          )
-static bool stmtConstDecl(S_tkn tkn, P_declProc dec)
+static bool stmtConstDecl(S_tkn *tkn, P_declProc dec)
 {
-    S_pos      pos     = tkn->pos;
+    S_pos      pos     = (*tkn)->pos;
     S_symbol   sConst;
     A_typeDesc td      = NULL;
     A_exp      init    = NULL;
     bool       isPrivate = OPT_get(OPTION_PRIVATE);
 
-    if (isSym(tkn, S_PRIVATE))
+    if (isSym(*tkn, S_PRIVATE))
     {
         isPrivate = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_PUBLIC))
+        if (isSym(*tkn, S_PUBLIC))
         {
             isPrivate = FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
 
-    tkn = tkn->next; // consume "CONST"
+    *tkn = (*tkn)->next; // consume "CONST"
 
-    if (isSym(tkn, S_AS))
+    if (isSym(*tkn, S_AS))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (!typeDesc(&tkn, &td))
-            return EM_error(tkn->pos, "constant declaration: type descriptor expected here.");
+        if (!typeDesc(tkn, &td))
+            return EM_error((*tkn)->pos, "constant declaration: type descriptor expected here.");
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "constant declaration: identifier expected here.");
-        sConst = tkn->u.sym;
-        tkn = tkn->next;
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "constant declaration: identifier expected here.");
+        sConst = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
 
-        if (tkn->kind != S_EQUALS)
-            return EM_error(tkn->pos, "constant declaration: = expected here.");
-        tkn = tkn->next;
+        if ((*tkn)->kind != S_EQUALS)
+            return EM_error((*tkn)->pos, "constant declaration: = expected here.");
+        *tkn = (*tkn)->next;
 
-        if (!expression(&tkn, &init))
-            return EM_error(tkn->pos, "constant declaration: expression expected here.");
+        if (!expression(tkn, &init))
+            return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
         A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
 
-        while (tkn->kind == S_COMMA)
+        while ((*tkn)->kind == S_COMMA)
         {
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
 
-            if (tkn->kind != S_IDENT)
-                return EM_error(tkn->pos, "constant declaration: identifier expected here.");
-            pos = tkn->pos;
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "constant declaration: identifier expected here.");
+            pos = (*tkn)->pos;
 
-            sConst = tkn->u.sym;
-            tkn = tkn->next;
+            sConst = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
 
-            if (tkn->kind != S_EQUALS)
-                return EM_error(tkn->pos, "constant declaration: = expected here.");
-            tkn = tkn->next;
+            if ((*tkn)->kind != S_EQUALS)
+                return EM_error((*tkn)->pos, "constant declaration: = expected here.");
+            *tkn = (*tkn)->next;
 
-            if (!expression(&tkn, &init))
-                return EM_error(tkn->pos, "constant declaration: expression expected here.");
+            if (!expression(tkn, &init))
+                return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
             A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
         }
 
-        return isLogicalEOL(tkn);
+        return TRUE;
     }
 
-    if (tkn->kind != S_IDENT)
-        return EM_error(tkn->pos, "constant declaration: identifier expected here.");
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "constant declaration: identifier expected here.");
 
-    sConst = tkn->u.sym;
-    tkn = tkn->next;
+    sConst = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
 
-    if (isSym(tkn, S_AS))
+    if (isSym(*tkn, S_AS))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (!typeDesc(&tkn, &td))
-            return EM_error(tkn->pos, "constant declaration: type descriptor expected here.");
+        if (!typeDesc(tkn, &td))
+            return EM_error((*tkn)->pos, "constant declaration: type descriptor expected here.");
     }
 
-    if (tkn->kind != S_EQUALS)
-        return EM_error(tkn->pos, "constant declaration: = expected here.");
-    tkn = tkn->next;
+    if ((*tkn)->kind != S_EQUALS)
+        return EM_error((*tkn)->pos, "constant declaration: = expected here.");
+    *tkn = (*tkn)->next;
 
-    if (!expression(&tkn, &init))
-        return EM_error(tkn->pos, "constant declaration: expression expected here.");
+    if (!expression(tkn, &init))
+        return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
     A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
 
-    while (tkn->kind == S_COMMA)
+    while ((*tkn)->kind == S_COMMA)
     {
         td = NULL;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "constant declaration: identifier expected here.");
-        pos = tkn->pos;
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "constant declaration: identifier expected here.");
+        pos = (*tkn)->pos;
 
-        sConst = tkn->u.sym;
-        tkn = tkn->next;
+        sConst = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
 
-        if (isSym(tkn, S_AS))
+        if (isSym(*tkn, S_AS))
         {
-            tkn = tkn->next;
-            if (!typeDesc(&tkn, &td))
-                return EM_error(tkn->pos, "constant declaration: type descriptor expected here.");
+            *tkn = (*tkn)->next;
+            if (!typeDesc(tkn, &td))
+                return EM_error((*tkn)->pos, "constant declaration: type descriptor expected here.");
         }
 
-        if (tkn->kind != S_EQUALS)
-            return EM_error(tkn->pos, "constant declaration: = expected here.");
-        tkn = tkn->next;
+        if ((*tkn)->kind != S_EQUALS)
+            return EM_error((*tkn)->pos, "constant declaration: = expected here.");
+        *tkn = (*tkn)->next;
 
-        if (!expression(&tkn, &init))
-            return EM_error(tkn->pos, "constant declaration: expression expected here.");
+        if (!expression(tkn, &init))
+            return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
         A_StmtListAppend (g_sleStack->stmtList, A_ConstDeclStmt(pos, isPrivate, sConst, td, init));
     }
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier
-static bool stmtTypeDeclBegin(S_tkn tkn, P_declProc dec)
+static bool stmtTypeDeclBegin(S_tkn *tkn, P_declProc dec)
 {
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     S_symbol sType;
     P_SLE    sle;
     bool     isPrivate = OPT_get(OPTION_PRIVATE);
 
-    if (isSym(tkn, S_PRIVATE))
+    if (isSym(*tkn, S_PRIVATE))
     {
         isPrivate = TRUE;
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_PUBLIC))
+        if (isSym(*tkn, S_PUBLIC))
         {
             isPrivate = FALSE;
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
     }
 
-    tkn = tkn->next;; // consume "TYPE"
+    *tkn = (*tkn)->next;; // consume "TYPE"
 
-    if (tkn->kind != S_IDENT)
-        return EM_error(tkn->pos, "type identifier expected here.");
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "type identifier expected here.");
 
-    sType = tkn->u.sym;
-    tkn = tkn->next;
+    sType = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
 
     sle = slePush();
 
@@ -2654,52 +2713,52 @@ static bool stmtTypeDeclBegin(S_tkn tkn, P_declProc dec)
     sle->u.typeDecl.fLast     = NULL;
     sle->u.typeDecl.isPrivate = isPrivate;
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
 //                   | END TYPE
 //                   )
-static bool stmtTypeDeclField(S_tkn tkn)
+static bool stmtTypeDeclField(S_tkn *tkn)
 {
-    if (isSym(tkn, S_END))
+    if (isSym(*tkn, S_END))
     {
-        tkn = tkn->next;
-        if (!isSym(tkn, S_TYPE))
-            return EM_error(tkn->pos, "TYPE expected here.");
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
+        if (!isSym(*tkn, S_TYPE))
+            return EM_error((*tkn)->pos, "TYPE expected here.");
+        *tkn = (*tkn)->next;
         P_SLE s = slePop();
         A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.fFirst, s->u.typeDecl.isPrivate));
-        return isLogicalEOL(tkn);
+        return TRUE;
     }
 
-    if (isSym(tkn, S_AS))
+    if (isSym(*tkn, S_AS))
     {
         A_dim      dims       = NULL;
         S_symbol   sField;
-        S_pos      fpos       = tkn->pos;
+        S_pos      fpos       = (*tkn)->pos;
         A_typeDesc td;
 
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (!typeDesc(&tkn, &td))
-            return EM_error(tkn->pos, "field declaration: type descriptor expected here.");
+        if (!typeDesc(tkn, &td))
+            return EM_error((*tkn)->pos, "field declaration: type descriptor expected here.");
 
-        if (tkn->kind != S_IDENT)
-            return EM_error(tkn->pos, "field identifier expected here.");
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "field identifier expected here.");
 
-        sField = tkn->u.sym;
-        tkn = tkn->next;
+        sField = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
 
-        if (tkn->kind == S_LPAREN)
+        if ((*tkn)->kind == S_LPAREN)
         {
-            tkn = tkn->next;
-            if (!arrayDimensions(&tkn, &dims))
+            *tkn = (*tkn)->next;
+            if (!arrayDimensions(tkn, &dims))
                 return FALSE;
-            if (tkn->kind != S_RPAREN)
-                return EM_error(tkn->pos, ") expected here.");
-            tkn = tkn->next;
+            if ((*tkn)->kind != S_RPAREN)
+                return EM_error((*tkn)->pos, ") expected here.");
+            *tkn = (*tkn)->next;
         }
         if (g_sleStack->u.typeDecl.fFirst)
         {
@@ -2711,26 +2770,26 @@ static bool stmtTypeDeclField(S_tkn tkn)
             g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
         }
 
-        while (tkn->kind == S_COMMA)
+        while ((*tkn)->kind == S_COMMA)
         {
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
 
-            fpos = tkn->pos;
+            fpos = (*tkn)->pos;
 
-            if (tkn->kind != S_IDENT)
-                return EM_error(tkn->pos, "field identifier expected here.");
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "field identifier expected here.");
 
-            sField = tkn->u.sym;
-            tkn = tkn->next;
+            sField = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
 
-            if (tkn->kind == S_LPAREN)
+            if ((*tkn)->kind == S_LPAREN)
             {
-                tkn = tkn->next;
-                if (!arrayDimensions(&tkn, &dims))
+                *tkn = (*tkn)->next;
+                if (!arrayDimensions(tkn, &dims))
                     return FALSE;
-                if (tkn->kind != S_RPAREN)
-                    return EM_error(tkn->pos, ") expected here.");
-                tkn = tkn->next;
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected here.");
+                *tkn = (*tkn)->next;
             }
             if (g_sleStack->u.typeDecl.fFirst)
             {
@@ -2745,32 +2804,32 @@ static bool stmtTypeDeclField(S_tkn tkn)
     }
     else
     {
-        if (tkn->kind == S_IDENT)
+        if ((*tkn)->kind == S_IDENT)
         {
             A_dim      dims       = NULL;
             S_symbol   sField;
-            S_pos      fpos       = tkn->pos;
+            S_pos      fpos       = (*tkn)->pos;
             A_typeDesc td         = NULL;
 
 
-            sField = tkn->u.sym;
-            tkn = tkn->next;
-            if (tkn->kind == S_LPAREN)
+            sField = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
+            if ((*tkn)->kind == S_LPAREN)
             {
-                tkn = tkn->next;
-                if (!arrayDimensions(&tkn, &dims))
+                *tkn = (*tkn)->next;
+                if (!arrayDimensions(tkn, &dims))
                     return FALSE;
-                if (tkn->kind != S_RPAREN)
-                    return EM_error(tkn->pos, ") expected here.");
-                tkn = tkn->next;
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected here.");
+                *tkn = (*tkn)->next;
             }
 
-            if (isSym(tkn, S_AS))
+            if (isSym(*tkn, S_AS))
             {
-                tkn = tkn->next;
+                *tkn = (*tkn)->next;
 
-                if (!typeDesc(&tkn, &td))
-                    return EM_error(tkn->pos, "field declaration: type descriptor expected here.");
+                if (!typeDesc(tkn, &td))
+                    return EM_error((*tkn)->pos, "field declaration: type descriptor expected here.");
             }
 
             if (g_sleStack->u.typeDecl.fFirst)
@@ -2789,59 +2848,59 @@ static bool stmtTypeDeclField(S_tkn tkn)
         }
     }
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // stmtStatic ::= STATIC ( singleVarDecl ( "," singleVarDecl )*
 //                       | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
-static bool stmtStatic(S_tkn tkn, P_declProc dec)
+static bool stmtStatic(S_tkn *tkn, P_declProc dec)
 {
-    tkn = tkn->next;    // skip "STATIC"
+    *tkn = (*tkn)->next;    // skip "STATIC"
 
-    if (isSym(tkn, S_AS))
+    if (isSym(*tkn, S_AS))
     {
         A_typeDesc td;
 
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
 
-        if (!typeDesc(&tkn, &td))
-            return EM_error(tkn->pos, "STATIC: type descriptor expected here.");
+        if (!typeDesc(tkn, &td))
+            return EM_error((*tkn)->pos, "STATIC: type descriptor expected here.");
 
-        if (!singleVarDecl2(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, td))
+        if (!singleVarDecl2(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, td))
             return FALSE;
 
-        while (tkn->kind == S_COMMA)
+        while ((*tkn)->kind == S_COMMA)
         {
-            tkn = tkn->next;
-            if (!singleVarDecl2(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, td))
+            *tkn = (*tkn)->next;
+            if (!singleVarDecl2(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, td))
                 return FALSE;
         }
-        return isLogicalEOL(tkn);
+        return TRUE;
     }
 
-    if (!singleVarDecl(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
+    if (!singleVarDecl(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
         return FALSE;
 
-    while (tkn->kind == S_COMMA)
+    while ((*tkn)->kind == S_COMMA)
     {
-        tkn = tkn->next;
-        if (!singleVarDecl(&tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
+        *tkn = (*tkn)->next;
+        if (!singleVarDecl(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
             return FALSE;
     }
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // whileBegin ::= WHILE expression
-static bool stmtWhileBegin(S_tkn tkn, P_declProc dec)
+static bool stmtWhileBegin(S_tkn *tkn, P_declProc dec)
 {
     A_exp    exp;
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     P_SLE    sle;
 
-    tkn = tkn->next; // consume "WHILE"
+    *tkn = (*tkn)->next; // consume "WHILE"
 
-    if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "WHILE: expression expected here.");
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "WHILE: expression expected here.");
 
     sle = slePush();
 
@@ -2850,14 +2909,14 @@ static bool stmtWhileBegin(S_tkn tkn, P_declProc dec)
 
     sle->u.whileExp = exp;
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // whileEnd ::= WEND
-static bool stmtWhileEnd(S_tkn tkn, P_declProc dec)
+static bool stmtWhileEnd(S_tkn *tkn, P_declProc dec)
 {
-    S_pos    pos = tkn->pos;
-    tkn = tkn->next; // consume "WEND"
+    S_pos    pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // consume "WEND"
 
     P_SLE sle = g_sleStack;
     if (sle->kind != P_whileLoop)
@@ -2870,43 +2929,43 @@ static bool stmtWhileEnd(S_tkn tkn, P_declProc dec)
     A_StmtListAppend (g_sleStack->stmtList,
                       A_WhileStmt(pos, sle->u.whileExp, sle->stmtList));
 
-    return isLogicalEOL(tkn);
+    return TRUE;
 }
 
 // letStmt ::= LET assignmentStmt
-static bool stmtLet(S_tkn tkn, P_declProc dec)
+static bool stmtLet(S_tkn *tkn, P_declProc dec)
 {
-    tkn = tkn->next;  // skip "LET"
+    *tkn = (*tkn)->next;  // skip "LET"
     return stmtAssignment(tkn);
 }
 
 // onStmt ::= ON ( BREAK | ERROR | EXIT ) CALL Ident
-static bool stmtOn(S_tkn tkn, P_declProc dec)
+static bool stmtOn(S_tkn *tkn, P_declProc dec)
 {
-    S_pos     pos = tkn->pos;
+    S_pos     pos = (*tkn)->pos;
     S_symbol  func;
     A_expList args = A_ExpList();
 
-    tkn = tkn->next;  // skip "ON"
+    *tkn = (*tkn)->next;  // skip "ON"
 
-    if (isSym(tkn, S_BREAK))
+    if (isSym(*tkn, S_BREAK))
     {
         func = S_Symbol("_aqb_on_break_call", FALSE);
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
     }
     else
     {
-        if (isSym(tkn, S_ERROR))
+        if (isSym(*tkn, S_ERROR))
         {
             func = S_Symbol("_aqb_on_error_call", FALSE);
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
         }
         else
         {
-            if (isSym(tkn, S_EXIT))
+            if (isSym(*tkn, S_EXIT))
             {
                 func = S_Symbol("_aqb_on_exit_call", FALSE);
-                tkn = tkn->next;
+                *tkn = (*tkn)->next;
             }
             else
             {
@@ -2917,21 +2976,21 @@ static bool stmtOn(S_tkn tkn, P_declProc dec)
 
     P_declProc ds = TAB_look(declared_stmts, func);
     if (!ds)
-        return EM_error(tkn->pos, "Failed to find builtin %s", S_name(func));
+        return EM_error((*tkn)->pos, "Failed to find builtin %s", S_name(func));
 
-    if (!isSym(tkn, S_CALL))
-        return EM_error(tkn->pos, "CALL expected here.");
-    tkn = tkn->next;
+    if (!isSym(*tkn, S_CALL))
+        return EM_error((*tkn)->pos, "CALL expected here.");
+    *tkn = (*tkn)->next;
 
-    if (tkn->kind != S_IDENT)
-        return EM_error(tkn->pos, "Identifier expected here.");
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "Identifier expected here.");
 
-    string label = strconcat("_", S_name(tkn->u.sym));
+    string label = strconcat("_", S_name((*tkn)->u.sym));
 
-    A_ExpListAppend (args, A_VarExp(tkn->pos, A_Var(tkn->pos, S_Symbol(label, FALSE))));
+    A_ExpListAppend (args, A_VarExp((*tkn)->pos, A_Var((*tkn)->pos, S_Symbol(label, FALSE))));
 
-    tkn = tkn->next;
-    if (!isLogicalEOL(tkn))
+    *tkn = (*tkn)->next;
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
@@ -2940,19 +2999,19 @@ static bool stmtOn(S_tkn tkn, P_declProc dec)
 }
 
 // errorStmt ::= ERROR expression
-static bool stmtError(S_tkn tkn, P_declProc dec)
+static bool stmtError(S_tkn *tkn, P_declProc dec)
 {
-    S_pos     pos = tkn->pos;
+    S_pos     pos = (*tkn)->pos;
     S_symbol  func;
     A_expList args = A_ExpList();
     A_exp     exp;
 
-    tkn = tkn->next;  // skip "ERROR"
+    *tkn = (*tkn)->next;  // skip "ERROR"
 
-    if (!expression(&tkn, &exp))
-        return EM_error(tkn->pos, "error expression expected here.");
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "error expression expected here.");
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     func = S_Symbol("_aqb_error", FALSE);
@@ -2960,7 +3019,7 @@ static bool stmtError(S_tkn tkn, P_declProc dec)
 
     P_declProc ds = TAB_look(declared_stmts, func);
     if (!ds)
-        return EM_error(tkn->pos, "Failed to find builtin %s", S_name(func));
+        return EM_error((*tkn)->pos, "Failed to find builtin %s", S_name(func));
 
     A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
 
@@ -2968,26 +3027,26 @@ static bool stmtError(S_tkn tkn, P_declProc dec)
 }
 
 // resumeStmt ::= RESUME NEXT
-static bool stmtResume(S_tkn tkn, P_declProc dec)
+static bool stmtResume(S_tkn *tkn, P_declProc dec)
 {
-    S_pos     pos = tkn->pos;
+    S_pos     pos = (*tkn)->pos;
     S_symbol  func;
     A_expList args = A_ExpList();
 
-    tkn = tkn->next;  // skip "RESUME"
+    *tkn = (*tkn)->next;  // skip "RESUME"
 
-    if (!isSym(tkn, S_NEXT))
-        return EM_error(tkn->pos, "NEXT expected here.");
-    tkn = tkn->next;
+    if (!isSym(*tkn, S_NEXT))
+        return EM_error((*tkn)->pos, "NEXT expected here.");
+    *tkn = (*tkn)->next;
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     func = S_Symbol("_aqb_resume_next", FALSE);
 
     P_declProc ds = TAB_look(declared_stmts, func);
     if (!ds)
-        return EM_error(tkn->pos, "Failed to find builtin %s", S_name(func));
+        return EM_error((*tkn)->pos, "Failed to find builtin %s", S_name(func));
 
     A_StmtListAppend (g_sleStack->stmtList, A_CallStmt(pos, ds->proc, args));
 
@@ -3075,17 +3134,17 @@ static bool stmtNestedStmtList(S_tkn *tkn, A_nestedStmt *res)
 
 
 // exitStmt ::= EXIT nestedStmtList
-static bool stmtExit(S_tkn tkn, P_declProc dec)
+static bool stmtExit(S_tkn *tkn, P_declProc dec)
 {
-    S_pos        pos  = tkn->pos;
+    S_pos        pos  = (*tkn)->pos;
     A_nestedStmt nest = NULL;
 
-    tkn = tkn->next;  // skip "EXIT"
+    *tkn = (*tkn)->next;  // skip "EXIT"
 
-    if (!stmtNestedStmtList(&tkn, &nest))
+    if (!stmtNestedStmtList(tkn, &nest))
         return FALSE;
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     A_StmtListAppend (g_sleStack->stmtList, A_ExitStmt(pos, nest));
@@ -3094,17 +3153,17 @@ static bool stmtExit(S_tkn tkn, P_declProc dec)
 }
 
 // continueStmt ::= CONTINUE nestedStmtList
-static bool stmtContinue(S_tkn tkn, P_declProc dec)
+static bool stmtContinue(S_tkn *tkn, P_declProc dec)
 {
-    S_pos        pos  = tkn->pos;
+    S_pos        pos  = (*tkn)->pos;
     A_nestedStmt nest = NULL;
 
-    tkn = tkn->next;  // skip "CONTINUE"
+    *tkn = (*tkn)->next;  // skip "CONTINUE"
 
-    if (!stmtNestedStmtList(&tkn, &nest))
+    if (!stmtNestedStmtList(tkn, &nest))
         return FALSE;
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     A_StmtListAppend (g_sleStack->stmtList, A_ContinueStmt(pos, nest));
@@ -3113,31 +3172,31 @@ static bool stmtContinue(S_tkn tkn, P_declProc dec)
 }
 
 // doStmt ::= DO [ ( UNTIL | WHILE ) expression ]
-static bool stmtDo(S_tkn tkn, P_declProc dec)
+static bool stmtDo(S_tkn *tkn, P_declProc dec)
 {
     A_exp    untilExp = NULL, whileExp = NULL;
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     P_SLE    sle;
 
-    tkn = tkn->next; // consume "DO"
+    *tkn = (*tkn)->next; // consume "DO"
 
-    if (isSym (tkn, S_UNTIL))
+    if (isSym (*tkn, S_UNTIL))
     {
-        tkn = tkn->next;
-        if (!expression(&tkn, &untilExp))
-            return EM_error(tkn->pos, "DO UNTIL: expression expected here.");
+        *tkn = (*tkn)->next;
+        if (!expression(tkn, &untilExp))
+            return EM_error((*tkn)->pos, "DO UNTIL: expression expected here.");
     }
     else
     {
-        if (isSym (tkn, S_WHILE))
+        if (isSym (*tkn, S_WHILE))
         {
-            tkn = tkn->next;
-            if (!expression(&tkn, &whileExp))
-                return EM_error(tkn->pos, "DO WHILE: expression expected here.");
+            *tkn = (*tkn)->next;
+            if (!expression(tkn, &whileExp))
+                return EM_error((*tkn)->pos, "DO WHILE: expression expected here.");
         }
     }
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     sle = slePush();
@@ -3153,11 +3212,11 @@ static bool stmtDo(S_tkn tkn, P_declProc dec)
 }
 
 // stmtLoop ::= LOOP [ ( UNTIL | WHILE ) expression ]
-static bool stmtLoop(S_tkn tkn, P_declProc dec)
+static bool stmtLoop(S_tkn *tkn, P_declProc dec)
 {
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
 
-    tkn = tkn->next; // consume "LOOP"
+    *tkn = (*tkn)->next; // consume "LOOP"
 
     P_SLE sle = g_sleStack;
     if (sle->kind != P_doLoop)
@@ -3167,35 +3226,35 @@ static bool stmtLoop(S_tkn tkn, P_declProc dec)
     }
     slePop();
 
-    if (isSym (tkn, S_UNTIL))
+    if (isSym (*tkn, S_UNTIL))
     {
-        tkn = tkn->next;
+        *tkn = (*tkn)->next;
         if (sle->u.doLoop.condAtEntry)
         {
             EM_error(pos, "LOOP: duplicate loop condition");
             return FALSE;
         }
 
-        if (!expression(&tkn, &sle->u.doLoop.untilExp))
-            return EM_error(tkn->pos, "LOOP UNTIL: expression expected here.");
+        if (!expression(tkn, &sle->u.doLoop.untilExp))
+            return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
     }
     else
     {
-        if (isSym (tkn, S_WHILE))
+        if (isSym (*tkn, S_WHILE))
         {
-            tkn = tkn->next;
+            *tkn = (*tkn)->next;
             if (sle->u.doLoop.condAtEntry)
             {
                 EM_error(pos, "LOOP: duplicate loop condition");
                 return FALSE;
             }
-            if (!expression(&tkn, &sle->u.doLoop.whileExp))
-                return EM_error(tkn->pos, "LOOP WHILE: expression expected here.");
+            if (!expression(tkn, &sle->u.doLoop.whileExp))
+                return EM_error((*tkn)->pos, "LOOP WHILE: expression expected here.");
         }
     }
 
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     A_StmtListAppend (g_sleStack->stmtList,
@@ -3205,20 +3264,20 @@ static bool stmtLoop(S_tkn tkn, P_declProc dec)
 }
 
 // stmtReturn ::= RETURN [ expression ]
-static bool stmtReturn(S_tkn tkn, P_declProc decl)
+static bool stmtReturn(S_tkn *tkn, P_declProc decl)
 {
     A_exp exp=NULL;
-    S_pos pos = tkn->pos;
+    S_pos pos = (*tkn)->pos;
 
-    tkn = tkn->next; // consume "RETURN"
+    *tkn = (*tkn)->next; // consume "RETURN"
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
     {
-        if (!expression(&tkn, &exp))
-            return EM_error(tkn->pos, "RETURN: expression expected here.");
+        if (!expression(tkn, &exp))
+            return EM_error((*tkn)->pos, "RETURN: expression expected here.");
     }
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;
 
     A_StmtListAppend (g_sleStack->stmtList,
@@ -3228,52 +3287,50 @@ static bool stmtReturn(S_tkn tkn, P_declProc decl)
 }
 
 // stmtPublic ::= [ PUBLIC | PRIVATE ] ( procBegin | procDecl | typeDeclBegin | dim | constDecl | externDecl )
-static bool stmtPublicPrivate(S_tkn tkn, P_declProc decl)
+static bool stmtPublicPrivate(S_tkn *tkn, P_declProc decl)
 {
-    S_tkn startTkn = tkn;
+    S_tkn nextTkn = (*tkn)->next;
 
-    tkn = tkn->next; // consume "PUBLIC" / "PRIVATE"
+    if (isSym(nextTkn, S_SUB) || isSym(nextTkn, S_FUNCTION))
+        return stmtProcBegin(tkn, decl);
 
-    if (isSym(tkn, S_SUB) || isSym(tkn, S_FUNCTION))
-        return stmtProcBegin(startTkn, decl);
+    if (isSym(nextTkn, S_TYPE))
+        return stmtTypeDeclBegin(tkn, decl);
 
-    if (isSym(tkn, S_TYPE))
-        return stmtTypeDeclBegin(startTkn, decl);
+    if (isSym(nextTkn, S_DIM))
+        return stmtDim(tkn, decl);
 
-    if (isSym(tkn, S_DIM))
-        return stmtDim(startTkn, decl);
+    if (isSym(nextTkn, S_DECLARE))
+        return stmtProcDecl(tkn, decl);
 
-    if (isSym(tkn, S_DECLARE))
-        return stmtProcDecl(startTkn, decl);
+    if (isSym(nextTkn, S_CONST))
+        return stmtConstDecl(tkn, decl);
 
-    if (isSym(tkn, S_CONST))
-        return stmtConstDecl(startTkn, decl);
+    if (isSym(nextTkn, S_EXTERN))
+        return stmtExternDecl(tkn, decl);
 
-    if (isSym(tkn, S_EXTERN))
-        return stmtExternDecl(startTkn, decl);
-
-    return EM_error(tkn->pos, "DECLARE, SUB, FUNCTION, DIM or TYPE expected here.");
+    return EM_error(nextTkn->pos, "DECLARE, SUB, FUNCTION, DIM or TYPE expected here.");
 }
 
 // stmtImport ::= IMPORT ident
-static bool stmtImport(S_tkn tkn, P_declProc decl)
+static bool stmtImport(S_tkn *tkn, P_declProc decl)
 {
-    S_pos    pos = tkn->pos;
+    S_pos    pos = (*tkn)->pos;
     S_symbol sModule;
 
-    tkn = tkn->next; // consume "IMPORT"
+    *tkn = (*tkn)->next; // consume "IMPORT"
 
-    if (tkn->kind != S_IDENT)
-        return EM_error(tkn->pos, "IMPORT: module identifier expected here.");
-    sModule = tkn->u.sym;
-    tkn = tkn->next;
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "IMPORT: module identifier expected here.");
+    sModule = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
 
-    if (!isLogicalEOL(tkn))
+    if (!isLogicalEOL(*tkn))
         return FALSE;;
 
     E_module mod = E_loadModule(sModule);
     if (!mod)
-        return EM_error(tkn->pos, "IMPORT: failed to import %s", S_name(sModule));
+        return EM_error((*tkn)->pos, "IMPORT: failed to import %s", S_name(sModule));
 
     A_StmtListAppend (g_sleStack->stmtList, A_ImportStmt(pos, sModule));
     return TRUE;
@@ -3495,6 +3552,39 @@ static void register_builtins(void)
     E_declare_proc(declared_funs,  S_STRDOLLAR, NULL          , funStrDollar, NULL);
 }
 
+static bool statementOrAssignment(S_tkn *tkn)
+{
+    if ((*tkn)->kind == S_IDENT)
+    {
+        P_declProc ds = TAB_look(declared_stmts, (*tkn)->u.sym);
+        if (ds)
+        {
+            S_tkn tkn2 = *tkn;
+            while (ds)
+            {
+                tkn2 = *tkn;
+                if (ds->parses(&tkn2, ds))
+                    break;
+                ds = ds->next;
+            }
+            if (ds)
+            {
+                if (!isLogicalEOL(tkn2))
+                    return EM_error(tkn2->pos, "syntax error");
+
+                return TRUE;
+            }
+        }
+    }
+
+    // if we have reached this point, we should be looking at an assignment
+
+    if (!stmtAssignment(tkn))
+        return EM_error((*tkn)->pos, "syntax error");
+
+    return TRUE;
+}
+
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*
 bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourceProgram)
 {
@@ -3537,32 +3627,11 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
         // UDT context?
         if (g_sleStack && g_sleStack->kind == P_type)
         {
-            stmtTypeDeclField(tkn);
+            stmtTypeDeclField(&tkn);
         }
         else
         {
-            // handle statement
-
-            if (tkn->kind == S_IDENT)
-            {
-                P_declProc ds = TAB_look(declared_stmts, tkn->u.sym);
-                if (ds)
-                {
-                    while (ds)
-                    {
-                        if (ds->parses(tkn, ds))
-                            break;
-                        ds = ds->next;
-                    }
-                    if (ds)
-                        continue;
-                }
-            }
-
-            // if we have reached this point, we should be looking at an assignment
-
-            if (!stmtAssignment(tkn))
-                EM_error(tkn->pos, "syntax error");
+            statementOrAssignment(&tkn);
         }
     }
 

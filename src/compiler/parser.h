@@ -12,7 +12,7 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
 
 bool P_functionCall(S_tkn *tkn, P_declProc dec, A_exp *exp);
 
-bool P_subCall(S_tkn tkn, P_declProc dec);
+bool P_subCall(S_tkn *tkn, P_declProc dec);
 
 #endif
 
