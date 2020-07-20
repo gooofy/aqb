@@ -173,6 +173,11 @@ BOOL LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
     _aio_putnl();
 #endif
 
+    if (x1<0)
+        x1 = g_rp->cp_x;
+    if (y1<0)
+        y1 = g_rp->cp_y;
+
     if (s1)
     {
         x1 += g_rp->cp_x;

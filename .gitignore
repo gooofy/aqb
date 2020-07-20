@@ -74,6 +74,7 @@ src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
 src/tools/os2aqb/libcalls.py
 src/tools/os2aqb/os_exec.txt
+src/tools/os2aqb/os_mathtrans.txt
 examples/bench/*.bin
 examples/bench/*.s
 examples/collection/

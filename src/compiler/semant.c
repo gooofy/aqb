@@ -1173,7 +1173,7 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
     return formals;
 }
 
-static Temp_tempList makeParamRegList(A_paramList params)
+Temp_tempList makeParamRegList(A_paramList params)
 {
     Temp_tempList regs = NULL, last_regs = NULL;
     for (A_param param = params->first; param; param = param->next)

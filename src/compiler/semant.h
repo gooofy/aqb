@@ -4,8 +4,10 @@
 #include "translate.h"
 #include "absyn.h"
 
-F_fragList SEM_transProg(A_sourceProgram sourceProgram, bool is_main, string module_name);
+F_fragList    SEM_transProg(A_sourceProgram sourceProgram, bool is_main, string module_name);
 
-bool       SEM_writeSymFile(string symfn);
+bool          SEM_writeSymFile(string symfn);
+
+Temp_tempList makeParamRegList(A_paramList params);
 
 #endif

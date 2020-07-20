@@ -282,6 +282,7 @@ int main (int argc, char *argv[])
 	}
 
     // init environment
+    F_initRegisters();
     E_init();
 
 	sourcefn = argv[optind];
@@ -336,8 +337,6 @@ int main (int argc, char *argv[])
     /*
      * intermediate code
      */
-
-    F_initRegisters();
 
     frags = SEM_transProg(sourceProgram, !write_sym, module_name);
     if (EM_anyErrors)

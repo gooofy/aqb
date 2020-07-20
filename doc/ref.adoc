@@ -13,6 +13,30 @@ Syntax:
 
 raise an error message including line number information if the given expression evaluates to FALSE.
 
+=== ACOS()
+
+Syntax:
+
+    ACOS "(" a ")"
+
+obtain the arccosine of the floating point number
+
+=== ASIN()
+
+Syntax:
+
+    ASIN "(" a ")"
+
+obtain the arcsine of the floating point number
+
+=== ATN()
+
+Syntax:
+
+    ATN "(" a ")"
+
+obtain the arctangent of the floating point number
+
 === CAST()
 
 Syntax:
@@ -41,6 +65,14 @@ Syntax B:
 
 declare constants
 
+=== COS()
+
+Syntax:
+
+    COS "(" a ")"
+
+obtain the cosine of the floating point number
+
 === DIM
 
 Syntax A:
@@ -61,6 +93,14 @@ Syntax:
 
 exits a DO, WHILE or FOR loop, a FUNCTION or a SUB procedure, or a SELECT statement.
 
+=== EXP()
+
+Syntax:
+
+    EXP "(" a ")"
+
+obtain the exponential of the floating point number
+
 === FOR ... NEXT
 
 Syntax:
@@ -79,6 +119,14 @@ Syntax:
 
 import a module
 
+=== LOG()
+
+Syntax:
+
+    LOG "(" l ")"
+
+obtain the natural logarithm of the floating point number
+
 === OPTION EXPLICIT
 
 Syntax:
@@ -95,6 +143,14 @@ Syntax:
 
 make declared variables, types, functions and subprograms private (not exported) by default
 
+=== SIN()
+
+Syntax:
+
+    SIN "(" a ")
+
+obtain the sine of the floating point number
+
 === SIZEOF()
 
 Syntax:
@@ -102,6 +158,14 @@ Syntax:
     SIZEOF "(" ident ")
 
 Returns the memory size in bytes of a given variable or named type
+
+=== SQR()
+
+Syntax:
+
+    SQR "(" x ")"
+
+obtain the square root of the floating point number
 
 === STATIC
 
@@ -122,6 +186,14 @@ Syntax:
     STR$ "(" expr ")"
 
 return a string representation (the same one that is used in PRINT output) of a given numeric expression
+
+=== TAN()
+
+Syntax:
+
+    TAN "(" a ")"
+
+obtain the tangent of the floating point number
 
 === WHILE ... WEND
 

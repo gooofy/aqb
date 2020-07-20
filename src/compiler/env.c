@@ -10,9 +10,10 @@
 #include "options.h"
 #include "parser.h"
 #include "errormsg.h"
+#include "semant.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     7
+#define SYM_VERSION     8
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -473,6 +474,18 @@ bool E_saveModule(string modfn, E_module mod)
                         fwrite(&p->byval, 1, 1, modf);
                         fwrite(&p->byref, 1, 1, modf);
                         fwrite(&p->parserHint, 1, 1, modf);
+                        if (p->reg)
+                        {
+                            bool reg_present = TRUE;
+                            fwrite(&reg_present, 1, 1, modf);
+                            strserialize(modf, S_name(p->reg));
+                        }
+                        else
+                        {
+                            bool reg_present = FALSE;
+                            fwrite(&reg_present, 1, 1, modf);
+                        }
+                        
                         p = p->next;
                     }
                     E_serializeTyRef(modTable, e->u.fun.result);
@@ -862,6 +875,26 @@ E_module E_loadModule(S_symbol sModule)
                             printf("%s: failed to read function param field parserHint.\n", modfn);
                             goto fail;
                         }
+                        bool reg_present = TRUE;
+                        if (fread(&reg_present, 1, 1, modf)!=1)
+                        {
+                            printf("%s: failed to read function param field reg_present.\n", modfn);
+                            goto fail;
+                        }
+                        if (reg_present)
+                        {
+                            string reg_name = strdeserialize(modf);
+                            if (!reg_name)
+                            {
+                                printf("%s: failed to read function param reg name.\n", modfn);
+                                goto fail;
+                            }
+                            p->reg = S_Symbol(reg_name, TRUE);
+                        }
+                        else
+                        {
+                            p->reg = NULL;
+                        }
                         A_ParamListAppend(paramList, p);
                     }
                     e->u.fun.result = E_deserializeTyRef(modTable, modf);
@@ -899,6 +932,8 @@ E_module E_loadModule(S_symbol sModule)
                                             /* isFunction =*/ e->u.fun.result->kind != Ty_void,
                                             /* static     =*/ FALSE,
                                             paramList);
+
+                    e->u.fun.level = Tr_newLevel(e->u.fun.label, /* isPublic=*/ TRUE, E_FormalTys(e->u.fun.formals), /*isStatic=*/FALSE, makeParamRegList(paramList));
 
                     append_mod_entry(e, &mod->env, &mod_last);
                     break;

@@ -2120,7 +2120,7 @@ bool P_subCall(S_tkn *tkn, P_declProc dec)
         *tkn = (*tkn)->next;
     }
 
-    if (!isLogicalEOL(*tkn))
+    if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
         return FALSE;
 
     if (proc)
@@ -3625,7 +3625,7 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
         {
             statementOrAssignment(&tkn);
             if (!isLogicalEOL(tkn))
-                return EM_error(tkn->pos, "syntax error");
+                return EM_error(tkn->pos, "syntax error [1]");
         }
     }
 
