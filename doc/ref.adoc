@@ -51,6 +51,22 @@ Syntax:
 
 counter loop using specified start and stop numerical boundaries, default increment is 1
 
+=== OPTION EXPLICIT
+
+Syntax:
+
+    OPTION EXPLICIT [ ( ON | OFF ) ]
+
+instructs the compiler to require variable declaration
+
+=== OPTION PRIVATE
+
+Syntax:
+
+    OPTION PRIVATE [ ( ON | OFF ) ]
+
+make declared variables, types, functions and subprograms private (not exported) by default
+
 === SIZEOF()
 
 Syntax:
@@ -123,22 +139,6 @@ Syntax:
     LOCATE [ row ] [ "," col ]
 
 move cursor to col / row
-
-=== OPTION EXPLICIT
-
-Syntax:
-
-    OPTION EXPLICIT [ ( ON | OFF ) ]
-
-instructs the compiler to require variable declaration
-
-=== OPTION PRIVATE
-
-Syntax:
-
-    OPTION PRIVATE [ ( ON | OFF ) ]
-
-make declared variables, types, functions and subprograms private (not exported) by default
 
 === POS()
 
