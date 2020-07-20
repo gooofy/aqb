@@ -5,6 +5,14 @@ v0.1, 2020-07-12
 
 == Core Language
 
+=== ASSERT
+
+Syntax:
+
+    ASSERT expr
+
+raise an error message including line number information if the given expression evaluates to FALSE.
+
 === CAST()
 
 Syntax:
@@ -85,13 +93,29 @@ Syntax:
 
 move cursor to col / row
 
+=== OPTION EXPLICIT
+
+Syntax:
+
+    OPTION EXPLICIT [ ( ON | OFF ) ]
+
+instructs the compiler to require variable declaration
+
+=== OPTION PRIVATE
+
+Syntax:
+
+    OPTION PRIVATE [ ( ON | OFF ) ]
+
+make declared variables, types, functions and subprograms private (not exported) by default
+
 === POS()
 
 Syntax:
 
     POS "(" expression ")"
 
-returns the column of the cursor in the current window (expression given is a dummy value for 
+returns the column of the cursor in the current window (expression given is a dummy value for
 compatibility reasons, usually 0).
 
 === PRINT
@@ -110,4 +134,37 @@ Syntax:
     PSET [ STEP ] "(" x "," y ")" [ "," color ]
 
 set a point in the window
+
+=== WINDOW
+
+Syntax:
+
+    WINDOW id [ "," [ title ] [ "," [ "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] [ "," [type] [ "," screen-id ]]]]
+
+Create and activate a new window, make it the new output window.
+
+.Table type flags
+|===
+|Flag Name |Value | Description
+
+|AW_FLAG_SIZE
+|1
+|window can be resized
+
+|AW_FLAG_DRAG
+|2
+|window can be dragged
+
+|AW_FLAG_DEPTH
+|4
+|window has depth widgets
+
+|AW_FLAG_CLOSE
+|8
+|window can be closed
+
+|AW_FLAG_REFRESH
+|16
+|auto refresh
+|===
 
