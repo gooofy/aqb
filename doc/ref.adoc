@@ -41,6 +41,18 @@ Syntax B:
 
 declare constants
 
+=== DIM
+
+Syntax A:
+
+    [ PUBLIC | PRIVATE ] DIM [ SHARED ] var1 AS type [ "=" expr ] [ "," var2 AS ...]
+
+Syntax B:
+
+    [ PUBLIC | PRIVATE ] DIM [ SHARED ] AS type var1 [ "=" expr ] [ "," var2 ... ]
+
+declare variables
+
 === EXIT
 
 Syntax:
@@ -58,6 +70,14 @@ Syntax:
     NEXT [ id1 [ "," id2 [ "," ...] ] ]
 
 counter loop using specified start and stop numerical boundaries, default increment is 1
+
+=== IMPORT
+
+Syntax:
+
+    IMPORT id
+
+import a module
 
 === OPTION EXPLICIT
 
