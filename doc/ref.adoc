@@ -46,7 +46,7 @@ declare constants
 Syntax:
 
     FOR id [ AS type ] "=" expr TO expr [ STEP expr ]
-
+        <code>
     NEXT [ id1 [ "," id2 [ "," ...] ] ]
 
 counter loop using specified start and stop numerical boundaries, default increment is 1
