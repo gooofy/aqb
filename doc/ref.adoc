@@ -41,7 +41,7 @@ Syntax B:
 
 declare constants
 
-=== FOR .. NEXT
+=== FOR ... NEXT
 
 Syntax:
 
