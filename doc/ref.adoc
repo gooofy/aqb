@@ -41,6 +41,14 @@ Syntax B:
 
 declare constants
 
+=== EXIT
+
+Syntax:
+
+    EXIT ( SUB | FUNCTION | DO | FOR | WHILE | SELECT ) [ "," ( SUB | ... ) ... ]
+
+exits a DO, WHILE or FOR loop, a FUNCTION or a SUB procedure, or a SELECT statement.
+
 === FOR ... NEXT
 
 Syntax:
