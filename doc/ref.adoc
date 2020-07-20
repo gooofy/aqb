@@ -29,6 +29,34 @@ Syntax:
 
 returns a string containing the single character associated with the given character code
 
+=== CONST
+
+Syntax A:
+
+    [ PUBLIC | PRIVATE ] CONST id1 [AS type] "=" expr [ "," id2 [AS type] "=" expr [ "," ...]]
+
+Syntax B:
+
+    [ PUBLIC | PRIVATE ] CONST AS type id1 "=" expr [ "," id2 "=" expr [ "," ...]]
+
+declare constants
+
+=== FOR
+
+Syntax:
+
+    FOR id [ AS type ] "=" expr TO expr [ STEP expr ]
+
+counter loop using specified start and stop numerical boundaries, default increment is 1
+
+=== NEXT
+
+Syntax:
+
+    NEXT [ id1 [ "," id2 [ "," ...] ] ]
+
+progress through the loop count in FOR loops
+
 === SIZEOF()
 
 Syntax:
@@ -84,6 +112,15 @@ Syntax:
     INKEY$ "(" ")"
 
 returns a character entered from the keyboard
+
+=== LINE
+
+Syntax:
+
+    LINE [[STEP] "(" x1 "," y1 ")" ] "-" [STEP] "(" x2 "," y2 ")" [ "," [color] ["," b[f]] ]
+
+draw a line or a box on the current window, "b": A box is drawn, "bf": a filled box is drawn.
+If option STEP is set, coordinates are relative.
 
 === LOCATE
 
