@@ -14,8 +14,5 @@ FOR i AS INTEGER = 1 TO 10
 
 NEXT i
 
-_DEBUG_PUTS2 s
-
-
-
+ASSERT s=26
 
