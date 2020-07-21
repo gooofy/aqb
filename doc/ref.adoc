@@ -73,6 +73,38 @@ Syntax:
 
 obtain the cosine of the floating point number
 
+=== DEFINT
+
+Syntax:
+
+    DEFINT letter [ "-" letter ] ( "," letter [ "-" letter ] )*
+
+define all variables with names starting with the specified letter (or letter range) as INTEGER
+
+=== DEFLNG
+
+Syntax:
+
+    DEFLNG letter [ "-" letter ] ( "," letter [ "-" letter ] )*
+
+define all variables with names starting with the specified letter (or letter range) as LONG
+
+=== DEFSNG
+
+Syntax:
+
+    DEFSNG letter [ "-" letter ] ( "," letter [ "-" letter ] )*
+
+define all variables with names starting with the specified letter (or letter range) as SINGLE
+
+=== DEFSTR
+
+Syntax:
+
+    DEFSTR letter [ "-" letter ] ( "," letter [ "-" letter ] )*
+
+define all variables with names starting with the specified letter (or letter range) as STRING
+
 === DIM
 
 Syntax A:

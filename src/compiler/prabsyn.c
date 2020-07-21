@@ -603,6 +603,14 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             indent(out, d);
             fprintf(out, "IMPORT %s", S_name(stmt->u.importr));
             break;
+        case A_defStmt:
+            indent(out, d);
+            fprintf(out, "DEF ");
+            pr_typedesc(out, stmt->u.defr.td);
+            fprintf(out, " %c", stmt->u.defr.lstart);
+            if (stmt->u.defr.lend)
+                fprintf(out, "-%c", stmt->u.defr.lend);
+            break;
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);

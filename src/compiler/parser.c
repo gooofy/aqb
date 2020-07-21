@@ -89,6 +89,14 @@ static S_symbol S_PRIVATE;
 static S_symbol S_PUBLIC;
 static S_symbol S_IMPORT;
 static S_symbol S_STRDOLLAR;
+static S_symbol S_DEFSNG;
+static S_symbol S_DEFLNG;
+static S_symbol S_DEFINT;
+static S_symbol S_DEFSTR;
+static S_symbol S_INTEGER;
+static S_symbol S_SINGLE;
+static S_symbol S_LONG;
+static S_symbol S_STRINGSYM;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -362,7 +370,7 @@ static bool atom(S_tkn *tkn, A_exp *exp)
                     tkn = tkn_start;
                 }
                 if (!ds)
-                    return EM_error(pos, "syntax error");
+                    return EM_error(pos, "syntax error [2]");
             }
             else
             {
@@ -2153,7 +2161,7 @@ static bool stmtCall(S_tkn *tkn, P_declProc dec)
             ds = ds->next;
         }
         if (!ds)
-            return EM_error(pos, "syntax error");
+            return EM_error(pos, "syntax error [3]");
     }
     else
     {
@@ -2350,7 +2358,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, A
     label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
     *tkn = (*tkn)->next;
 
-    while ((*tkn)->kind == S_IDENT)
+    while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
     {
         if (extra_syms_last)
         {
@@ -3329,6 +3337,100 @@ static bool stmtImport(S_tkn *tkn, P_declProc decl)
     return TRUE;
 }
 
+static bool getLetter(S_tkn *tkn, char *letter)
+{
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "letter expected here.");
+    S_symbol s = (*tkn)->u.sym;
+    string l = S_name(s);
+    if (strlen(l)!=1)
+        return EM_error((*tkn)->pos, "letter expected here.");
+    *letter = l[0];
+    return TRUE;
+}
+
+// letterRanges ::= letter [ "-" letter ] ( "," letter [ "-" letter ] )*
+static bool letterRanges(S_pos pos, S_tkn *tkn, A_typeDesc td)
+{
+    char       lstart, lend=0;
+
+    if (!getLetter(tkn, &lstart))
+        return FALSE;
+    *tkn = (*tkn)->next;
+
+    if ( (*tkn)->kind == S_MINUS )
+    {
+        *tkn = (*tkn)->next;
+        if (!getLetter(tkn, &lend))
+            return FALSE;
+        *tkn = (*tkn)->next;
+    }
+    A_StmtListAppend (g_sleStack->stmtList, A_DefStmt(pos, td, lstart, lend));
+
+    while ((*tkn)->kind == S_COMMA)
+    {
+        *tkn = (*tkn)->next;
+        if (!getLetter(tkn, &lstart))
+            return FALSE;
+        *tkn = (*tkn)->next;
+
+        if ( (*tkn)->kind == S_MINUS )
+        {
+            *tkn = (*tkn)->next;
+            if (!getLetter(tkn, &lend))
+                return FALSE;
+            *tkn = (*tkn)->next;
+        }
+        A_StmtListAppend (g_sleStack->stmtList, A_DefStmt(pos, td, lstart, lend));
+    }
+
+    return TRUE;
+}
+
+// stmtDefint ::= DEFINT letterRanges
+static bool stmtDefint(S_tkn *tkn, P_declProc decl)
+{
+    S_pos      pos = (*tkn)->pos;
+    A_typeDesc td = A_TypeDescIdent (pos, S_INTEGER, /*ptr=*/FALSE);
+
+    *tkn = (*tkn)->next; // consume "DEFINT"
+
+    return letterRanges(pos, tkn, td);
+}
+
+// stmtDefsng ::= DEFSNG letterRanges
+static bool stmtDefsng(S_tkn *tkn, P_declProc decl)
+{
+    S_pos      pos = (*tkn)->pos;
+    A_typeDesc td = A_TypeDescIdent (pos, S_SINGLE, /*ptr=*/FALSE);
+
+    *tkn = (*tkn)->next; // consume "DEFSNG"
+
+    return letterRanges(pos, tkn, td);
+}
+
+// stmtDeflng ::= DEFLNG letterRanges
+static bool stmtDeflng(S_tkn *tkn, P_declProc decl)
+{
+    S_pos      pos = (*tkn)->pos;
+    A_typeDesc td = A_TypeDescIdent (pos, S_LONG, /*ptr=*/FALSE);
+
+    *tkn = (*tkn)->next; // consume "DEFLNG"
+
+    return letterRanges(pos, tkn, td);
+}
+
+// stmtDefstr ::= DEFSTR letterRanges
+static bool stmtDefstr(S_tkn *tkn, P_declProc decl)
+{
+    S_pos      pos = (*tkn)->pos;
+    A_typeDesc td = A_TypeDescIdent (pos, S_STRINGSYM, /*ptr=*/FALSE);
+
+    *tkn = (*tkn)->next; // consume "DEFSTR"
+
+    return letterRanges(pos, tkn, td);
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -3502,6 +3604,14 @@ static void register_builtins(void)
     S_PUBLIC   = S_Symbol("PUBLIC",   FALSE);
     S_IMPORT   = S_Symbol("IMPORT",   FALSE);
     S_STRDOLLAR= S_Symbol("STR$",     FALSE);
+    S_DEFSNG   = S_Symbol("DEFSNG",   FALSE);
+    S_DEFLNG   = S_Symbol("DEFLNG",   FALSE);
+    S_DEFINT   = S_Symbol("DEFINT",   FALSE);
+    S_DEFSTR   = S_Symbol("DEFSTR",   FALSE);
+    S_SINGLE   = S_Symbol("SINGLE",   FALSE);
+    S_LONG     = S_Symbol("LONG",     FALSE);
+    S_INTEGER  = S_Symbol("INTEGER",  FALSE);
+    S_STRINGSYM= S_Symbol("STRING",   FALSE);
 
     E_declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL, NULL);
     E_declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL, NULL);
@@ -3538,6 +3648,10 @@ static void register_builtins(void)
     E_declare_proc(declared_stmts, S_PRIVATE,  stmtPublicPrivate, NULL, NULL);
     E_declare_proc(declared_stmts, S_PUBLIC,   stmtPublicPrivate, NULL, NULL);
     E_declare_proc(declared_stmts, S_IMPORT,   stmtImport       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_DEFSNG,   stmtDefsng       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_DEFLNG,   stmtDeflng       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_DEFINT,   stmtDefint       , NULL, NULL);
+    E_declare_proc(declared_stmts, S_DEFSTR,   stmtDefstr       , NULL, NULL);
 
     E_declare_proc(declared_funs,  S_SIZEOF,    NULL          , funSizeOf,    NULL);
     E_declare_proc(declared_funs,  S_VARPTR,    NULL          , funVarPtr,    NULL);
@@ -3572,7 +3686,7 @@ static bool statementOrAssignment(S_tkn *tkn)
     // if we have reached this point, we should be looking at an assignment
 
     if (!stmtAssignment(tkn))
-        return EM_error((*tkn)->pos, "syntax error");
+        return EM_error((*tkn)->pos, "syntax error [4]");
 
     return TRUE;
 }

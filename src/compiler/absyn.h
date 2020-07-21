@@ -79,7 +79,7 @@ struct A_stmt_
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
            A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt,
-           A_doStmt, A_selectStmt, A_returnStmt, A_importStmt                                  } kind;
+           A_doStmt, A_selectStmt, A_returnStmt, A_importStmt, A_defStmt                          } kind;
     S_pos pos;
 	union
     {
@@ -102,6 +102,7 @@ struct A_stmt_
         struct {A_exp exp; A_selectBranch sb;} selectr;
         A_exp returnr;
         S_symbol importr;
+        struct {A_typeDesc td; char lstart; char lend;} defr; // DEFINT, DEFLNG, ...
     } u;
 };
 
@@ -261,6 +262,7 @@ A_stmt          A_ContinueStmt    (S_pos pos, A_nestedStmt nest);
 A_stmt          A_SelectStmt      (S_pos pos, A_exp exp, A_selectBranch sb);
 A_stmt          A_ReturnStmt      (S_pos pos, A_exp exp);
 A_stmt          A_ImportStmt      (S_pos pos, S_symbol sModule);
+A_stmt          A_DefStmt         (S_pos pos, A_typeDesc td, char lstart, char lend);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);

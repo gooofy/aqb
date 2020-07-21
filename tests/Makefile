@@ -23,8 +23,9 @@ all: cond1.bin cond3.bin cond4.bin	\
 	string1.bin string2.bin \
 	subtest10.bin subtest11 subtest12.bin subtest13.bin subtest14.bin subtest15.bin subtest16.bin \
 	subtest17.bin subtest18.bin subtest1.bin subtest2.bin subtest3.bin subtest4.bin subtest5.bin \
-	subtest6.bin subtest7.bin subtest8.bin subtest9.bin types10.bin \
+	subtest6.bin subtest7.bin subtest8.bin subtest9.bin \
 	types1.bin types2.bin types3.bin types4.bin types5.bin types6.bin types7.bin types8.bin types9.bin \
+	types10.bin types11.bin \
 	var1.bin var2.bin \
 	mod1 io1
 

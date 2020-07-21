@@ -43,6 +43,30 @@ struct Sem_nestedLabels_
     Sem_nestedLabels parent;
 };
 
+typedef struct Sem_defRange_ *Sem_defRange;
+struct Sem_defRange_
+{
+    Ty_ty           ty;
+    char            lstart;
+    char            lend;
+    Sem_defRange    next;
+};
+
+static Sem_defRange defRanges=NULL;
+static Sem_defRange defRangesLast=NULL;
+
+static Sem_defRange Sem_DefRange(Ty_ty ty, char lstart, char lend)
+{
+    Sem_defRange p = checked_malloc(sizeof(*p));
+
+    p->ty     = ty;
+    p->lstart = lstart;
+    p->lend   = lend;
+    p->next   = NULL;
+
+    return p;
+}
+
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_nestedLabels nestedLabels);
 static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_nestedLabels nestedLabels, S_pos pos);
 static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Sem_nestedLabels nestedLabels);
@@ -64,6 +88,24 @@ static Sem_nestedLabels Sem_NestedLabels(A_nestedStmtKind kind, Temp_label exitl
     return p;
 }
 
+static Ty_ty Sem_inferType(string varname)
+{
+    for (Sem_defRange dr=defRanges; dr; dr=dr->next)
+    {
+        if (!dr->lend)
+        {
+            if (varname[0]==dr->lstart)
+                return dr->ty;
+        }
+        else
+        {
+            if ( (varname[0]>=dr->lstart) && (varname[0]<=dr->lend))
+                return dr->ty;
+        }
+    }
+    return Ty_inferType(varname);
+}
+
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, S_pos pos)
 {
@@ -83,7 +125,7 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, S_pos pos)
     if (!x)
     {
         string s = S_name(v);
-        Ty_ty t = Ty_inferType(s);
+        Ty_ty t = Sem_inferType(s);
 
         if (OPT_get(OPTION_EXPLICIT))
             EM_error(pos, "undeclared identifier %s", s);
@@ -1145,7 +1187,7 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
         else
         {
             if (param->name)
-                ty = Ty_inferType(S_name(param->name));
+                ty = Sem_inferType(S_name(param->name));
         }
 
         if (!ty)
@@ -1513,7 +1555,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 else
                 {
-                    resultTy = Ty_inferType(S_name(proc->name));
+                    resultTy = Sem_inferType(S_name(proc->name));
                 }
                 if (!resultTy)
                 {
@@ -1658,7 +1700,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                t = Ty_inferType(S_name(stmt->u.vdeclr.sVar));
+                t = Sem_inferType(S_name(stmt->u.vdeclr.sVar));
             }
 
             if (!t)
@@ -1791,7 +1833,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 else
                 {
-                    t = Ty_inferType(S_name(f->name));
+                    t = Sem_inferType(S_name(f->name));
                 }
 
                 if (!t)
@@ -1858,7 +1900,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                t = Ty_inferType(S_name(stmt->u.cdeclr.sConst));
+                t = Sem_inferType(S_name(stmt->u.cdeclr.sConst));
             }
 
             Tr_exp conv_cexp=NULL;
@@ -2049,6 +2091,23 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             {
                 EM_error(stmt->pos, "Failed to load module %s.", S_name(stmt->u.importr));
                 break;
+            }
+            break;
+        }
+        case A_defStmt:
+        {
+            Ty_ty t = resolveTypeDesc(level, venv, tenv, stmt->u.defr.td, /*allowForwardPtr=*/FALSE, nestedLabels);
+            if (!t)
+                break;
+            Sem_defRange dr = Sem_DefRange(t, stmt->u.defr.lstart, stmt->u.defr.lend);
+            if (defRangesLast)
+            {
+                defRangesLast->next = dr;
+                defRangesLast = dr;
+            }
+            else
+            {
+                defRangesLast=defRanges=dr;
             }
             break;
         }
