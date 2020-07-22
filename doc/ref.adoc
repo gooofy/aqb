@@ -143,6 +143,14 @@ Syntax:
 
 counter loop using specified start and stop numerical boundaries, default increment is 1
 
+=== GOTO
+
+Syntax:
+
+    GOTO ( num | ident )
+
+jump a line label or a line number in the program
+
 === IMPORT
 
 Syntax:

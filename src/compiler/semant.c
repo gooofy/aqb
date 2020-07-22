@@ -67,6 +67,8 @@ static Sem_defRange Sem_DefRange(Ty_ty ty, char lstart, char lend)
     return p;
 }
 
+static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit labels declared by the user
+
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_nestedLabels nestedLabels);
 static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_nestedLabels nestedLabels, S_pos pos);
 static Tr_exp transStmtList(Tr_level level, S_scope venv, S_scope tenv, A_stmtList stmtList, Sem_nestedLabels nestedLabels);
@@ -2111,6 +2113,19 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             break;
         }
+        case A_labelStmt:
+        {
+            if (TAB_look (userLabels, stmt->u.label))
+            {
+                EM_error (stmt->pos, "Duplicate label %s.", S_name(stmt->u.label));
+            }
+            TAB_enter(userLabels, stmt->u.label, (void *) TRUE);
+            return Tr_labelExp(stmt->u.label);
+        }
+        case A_gotoStmt:
+        {
+            return Tr_gotoExp(stmt->u.gotor);
+        }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);
             assert(0);
@@ -2308,6 +2323,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
 
 F_fragList SEM_transProg(A_sourceProgram sourceProgram, bool is_main, string module_name)
 {
+    userLabels = TAB_empty();
     g_mod  = E_Module(S_Symbol(module_name, FALSE));
 
     Temp_label label;

@@ -973,6 +973,12 @@ Tr_exp Tr_gotoExp(Temp_label lbl)
     return Tr_Nx(s);
 }
 
+Tr_exp Tr_labelExp(Temp_label lbl)
+{
+    T_stm s = T_Label(lbl);
+    return Tr_Nx(s);
+}
+
 Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
     Ty_ty      loopVarTy = F_accessType(loopVar->access);

@@ -611,6 +611,12 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             if (stmt->u.defr.lend)
                 fprintf(out, "-%c", stmt->u.defr.lend);
             break;
+        case A_gotoStmt:
+        {
+            indent(out, d);
+            fprintf(out, "GOTO %s", S_name(stmt->u.label));
+            break;
+        }
         default:
             fprintf (out, "*** ERROR: unknown statement type! %d ***", stmt->kind);
             assert(0);

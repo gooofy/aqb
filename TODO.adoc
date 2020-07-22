@@ -97,7 +97,7 @@ v0.1, 2020-07-12
 - FRE()
 - GET#
 - GOSUB
-- GOTO
+- DONE GOTO
 - HEX$()
 - IF
 - IMP
