@@ -52,8 +52,12 @@ APTR allocate_(ULONG size, ULONG flags)
     return g_mem->mem;
 }
 
+static FLOAT f50, f60;
+
 void _autil_init(void)
 {
+	f60 = SPFlt(60);
+    f50 = SPFlt(50);
 }
 
 void _autil_shutdown(void)
@@ -114,7 +118,7 @@ void _aqb_resume_next(void)
     do_resume = TRUE;
 }
 
-FLOAT __aqb_timer_fn (void)
+FLOAT TIMER_ (void)
 {
 	FLOAT res;
 
@@ -123,7 +127,7 @@ FLOAT __aqb_timer_fn (void)
 	DateStamp(&datetime);
 
 	res = SPFlt(datetime.ds_Minute);
-	res = SPAdd(SPMul(res, SPFlt(60)), SPDiv(SPFlt(datetime.ds_Tick), SPFlt(50)));
+	res = SPAdd(SPMul(res, f60), SPDiv(f50, SPFlt(datetime.ds_Tick)));
 
 	return res;
 }

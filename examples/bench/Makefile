@@ -5,7 +5,7 @@ LD = m68k-amigaos-ld
 
 .PHONY:	clean all
 
-all:	ctHLBenchInt.bin  ctHLBenchReal.bin  fib.bin  
+all:	ctHLBenchInt.bin  ctHLBenchReal.bin  fib.bin  sieve.bin
 
 clean:
 	rm -f *.s *.bin *.o *.sym

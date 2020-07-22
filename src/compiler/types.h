@@ -73,6 +73,7 @@ void         Ty_printList(Ty_tyList list);
 int          Ty_size(Ty_ty t);
 void         Ty_computeSize(Ty_ty ty);
 
+void         Ty_defineRange(Ty_ty ty, char lstart, char lend);
 Ty_ty        Ty_inferType(string varname);
 string       Ty_removeTypeSuffix(string varname);
 string       Ty_name(Ty_ty t);

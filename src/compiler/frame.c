@@ -315,6 +315,9 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     // entry code
 
+    if (frame_size > 32767)
+        EM_error(0, "Sorry, frame size is too large.");     // FIXME
+
     body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name),                    // label:
              AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, T_ConstI(-frame_size), 0, NULL),   //      link fp, #-frameSize
                appendCalleeSave(body)));

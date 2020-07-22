@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "util.h"
 #include "symbol.h"
@@ -298,6 +299,38 @@ int Ty_size(Ty_ty t)
     return 4;
 }
 
+typedef struct Ty_defRange_ *Ty_defRange;
+struct Ty_defRange_
+{
+    Ty_ty          ty;
+    char           lstart;
+    char           lend;
+    Ty_defRange    next;
+};
+
+static Ty_defRange defRanges=NULL;
+static Ty_defRange defRangesLast=NULL;
+
+void Ty_defineRange(Ty_ty ty, char lstart, char lend)
+{
+    Ty_defRange p = checked_malloc(sizeof(*p));
+
+    p->ty     = ty;
+    p->lstart = lstart;
+    p->lend   = lend;
+    p->next   = NULL;
+
+    if (defRangesLast)
+    {
+        defRangesLast->next = p;
+        defRangesLast = p;
+    }
+    else
+    {
+        defRangesLast = defRanges = p;
+    }
+}
+
 // infer type from the var name
 Ty_ty Ty_inferType(string varname)
 {
@@ -316,6 +349,22 @@ Ty_ty Ty_inferType(string varname)
             return Ty_Single();
         case '#':
             return Ty_Double();
+    }
+
+    // no postfix -> check def*-ranges
+    for (Ty_defRange dr=defRanges; dr; dr=dr->next)
+    {
+        char firstc = tolower(varname[0]);
+        if (!dr->lend)
+        {
+            if (firstc==dr->lstart)
+                return dr->ty;
+        }
+        else
+        {
+            if ( (firstc>=dr->lstart) && (firstc<=dr->lend))
+                return dr->ty;
+        }
     }
     return Ty_Single();
 }

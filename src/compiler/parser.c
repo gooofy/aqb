@@ -106,7 +106,7 @@ static inline bool isSym(S_tkn tkn, S_symbol sym)
 
 static inline bool isLogicalEOL(S_tkn tkn)
 {
-    return tkn->kind == S_COLON || tkn->kind == S_EOL;
+    return !tkn || tkn->kind == S_COLON || tkn->kind == S_EOL;
 }
 
 /*******************************************************************
@@ -360,7 +360,7 @@ static bool atom(S_tkn *tkn, A_exp *exp)
             // is this a declared function ?
 
             P_declProc ds = TAB_look(declared_funs, sym);
-            if (ds && (*tkn)->next->kind == S_LPAREN)
+             if (ds && (*tkn)->next->kind == S_LPAREN)
             {
                 while (ds)
                 {
@@ -1619,7 +1619,7 @@ static bool stmtForEnd(S_tkn *tkn, P_declProc decl)
 
 // IfBegin ::=  IF Expression ( GOTO ( numLiteral | ident )
 //                            | THEN ( NEWLINE
-//                                   | [ GOTO ] ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ]
+//                                   | ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ]
 //                                   )
 //                            )
 static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
@@ -1642,8 +1642,27 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
 
     if (isSym(*tkn, S_GOTO))
     {
+        *tkn = (*tkn)->next;
+
+        if ((*tkn)->kind == S_INUM)
+        {
+            A_StmtListAppend (g_sleStack->stmtList, A_GotoStmt(pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum))));
+            *tkn = (*tkn)->next;
+        }
+        else
+        {
+            if ((*tkn)->kind == S_IDENT)
+            {
+                A_StmtListAppend (g_sleStack->stmtList, A_GotoStmt(pos, Temp_namedlabel(S_name((*tkn)->u.sym))));
+                *tkn = (*tkn)->next;
+            }
+            else
+                return EM_error(pos, "line number or label expected here.");
+        }
+
         slePop();
-        return EM_error ((*tkn)->pos, "Sorry, GOTOs are not supported yet."); // FIXME
+        A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.ifBFirst));
+        return TRUE;
     }
 
     if (!isSym(*tkn, S_THEN))
@@ -1656,7 +1675,7 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
     if (!isLogicalEOL(*tkn))
     {
 
-        if (isSym(*tkn, S_GOTO) || (*tkn)->kind == S_INUM)
+        if ((*tkn)->kind == S_INUM)
         {
             slePop();
             return EM_error ((*tkn)->pos, "Sorry, GOTOs are not supported yet."); // FIXME
@@ -1701,7 +1720,6 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
         slePop();
 
         A_StmtListAppend (g_sleStack->stmtList, A_IfStmt(sle->pos, sle->u.ifStmt.ifBFirst));
-        // return EM_error ((*tkn)->pos, "Sorry, single-line if statements are not supported yet."); // FIXME
     }
 
     return TRUE;

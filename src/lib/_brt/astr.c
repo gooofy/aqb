@@ -291,12 +291,10 @@ void _astr_ftoa(FLOAT value, char *buf)
      * produce ascii string
      */
 
+
+    _astr_itoa(integralPart, &buf[0], 10);
     if (negative)
         buf[0] = '-';
-    else
-        buf[0] = ' ';
-
-    _astr_itoa(integralPart, &buf[1], 10);
 
     if (decimalPart)
     {

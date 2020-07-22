@@ -34,6 +34,7 @@ v0.1, 2020-07-12
     * cache (var) pointer temps
     * escape analysis: keep local variables in registers only (m68kframe inReg)
     * optimizing assembler (32 bit condition jumps, clr., ...)
+    * frame/var size >32KByte support
     * register arguments
     * SSA (static single assignment) intermediate form
     * backend abstraction layer, enable alternative backends (RISC-V, ARM, x86, LLVM, ...)

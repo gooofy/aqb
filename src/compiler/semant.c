@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <ctype.h>
 
 #include "util.h"
 #include "errormsg.h"
@@ -43,30 +44,6 @@ struct Sem_nestedLabels_
     Sem_nestedLabels parent;
 };
 
-typedef struct Sem_defRange_ *Sem_defRange;
-struct Sem_defRange_
-{
-    Ty_ty           ty;
-    char            lstart;
-    char            lend;
-    Sem_defRange    next;
-};
-
-static Sem_defRange defRanges=NULL;
-static Sem_defRange defRangesLast=NULL;
-
-static Sem_defRange Sem_DefRange(Ty_ty ty, char lstart, char lend)
-{
-    Sem_defRange p = checked_malloc(sizeof(*p));
-
-    p->ty     = ty;
-    p->lstart = lstart;
-    p->lend   = lend;
-    p->next   = NULL;
-
-    return p;
-}
-
 static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit labels declared by the user
 
 static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_nestedLabels nestedLabels);
@@ -90,23 +67,6 @@ static Sem_nestedLabels Sem_NestedLabels(A_nestedStmtKind kind, Temp_label exitl
     return p;
 }
 
-static Ty_ty Sem_inferType(string varname)
-{
-    for (Sem_defRange dr=defRanges; dr; dr=dr->next)
-    {
-        if (!dr->lend)
-        {
-            if (varname[0]==dr->lstart)
-                return dr->ty;
-        }
-        else
-        {
-            if ( (varname[0]>=dr->lstart) && (varname[0]<=dr->lend))
-                return dr->ty;
-        }
-    }
-    return Ty_inferType(varname);
-}
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, S_pos pos)
@@ -127,7 +87,7 @@ static E_enventry autovar(Tr_level level, S_scope venv, S_symbol v, S_pos pos)
     if (!x)
     {
         string s = S_name(v);
-        Ty_ty t = Sem_inferType(s);
+        Ty_ty t = Ty_inferType(s);
 
         if (OPT_get(OPTION_EXPLICIT))
             EM_error(pos, "undeclared identifier %s", s);
@@ -1189,7 +1149,7 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
         else
         {
             if (param->name)
-                ty = Sem_inferType(S_name(param->name));
+                ty = Ty_inferType(S_name(param->name));
         }
 
         if (!ty)
@@ -1557,7 +1517,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 else
                 {
-                    resultTy = Sem_inferType(S_name(proc->name));
+                    resultTy = Ty_inferType(S_name(proc->name));
                 }
                 if (!resultTy)
                 {
@@ -1702,7 +1662,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                t = Sem_inferType(S_name(stmt->u.vdeclr.sVar));
+                t = Ty_inferType(S_name(stmt->u.vdeclr.sVar));
             }
 
             if (!t)
@@ -1835,7 +1795,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 else
                 {
-                    t = Sem_inferType(S_name(f->name));
+                    t = Ty_inferType(S_name(f->name));
                 }
 
                 if (!t)
@@ -1902,7 +1862,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             else
             {
-                t = Sem_inferType(S_name(stmt->u.cdeclr.sConst));
+                t = Ty_inferType(S_name(stmt->u.cdeclr.sConst));
             }
 
             Tr_exp conv_cexp=NULL;
@@ -2101,16 +2061,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             Ty_ty t = resolveTypeDesc(level, venv, tenv, stmt->u.defr.td, /*allowForwardPtr=*/FALSE, nestedLabels);
             if (!t)
                 break;
-            Sem_defRange dr = Sem_DefRange(t, stmt->u.defr.lstart, stmt->u.defr.lend);
-            if (defRangesLast)
-            {
-                defRangesLast->next = dr;
-                defRangesLast = dr;
-            }
-            else
-            {
-                defRangesLast=defRanges=dr;
-            }
+            Ty_defineRange(t, tolower(stmt->u.defr.lstart), tolower(stmt->u.defr.lend));
             break;
         }
         case A_labelStmt:
@@ -2241,6 +2192,11 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
         {
             case A_indexSel:
             {
+                if (!sel->u.idx)
+                {
+                    EM_error(sel->pos, "Array index expected.");
+                    return Tr_zeroExp(Ty_Long());                
+                }
                 Tr_exp idx = transExp(level, venv, tenv, sel->u.idx, nestedLabels);
                 Tr_exp idx_conv;
                 if (!convert_ty(idx, Ty_Long(), &idx_conv, /*explicit=*/FALSE))

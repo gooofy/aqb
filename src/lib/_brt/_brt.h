@@ -27,7 +27,7 @@ void _cshutdown (LONG return_code, char *msg); // implemented in cstartup.c
 
 void _aqb_assert (BOOL b, const char *msg);
 
-FLOAT __aqb_timer_fn (void);
+FLOAT TIMER_ (void);
 
 void _aqb_on_exit_call(void (*cb)(void));
 
