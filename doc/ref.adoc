@@ -151,6 +151,25 @@ Syntax:
 
 jump a line label or a line number in the program
 
+=== IF ... THEN
+
+Syntax A:
+
+    IF expr ( GOTO ( numLiteral | ident ) [ ( ELSE numLiteral | Statement* ) ]
+            | THEN ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ]
+            )
+Syntax B:
+
+    IF expr THEN
+        <code>
+    ( ELSEIF expr THEN
+        <code> )*
+    [ ELSE
+        <code> ]
+    ( END IF | ENDIF )
+
+executes a statement or statement block depending on specified conditions.
+
 === IMPORT
 
 Syntax:

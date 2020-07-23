@@ -1674,11 +1674,10 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
 
     if (!isLogicalEOL(*tkn))
     {
-
         if ((*tkn)->kind == S_INUM)
         {
-            slePop();
-            return EM_error ((*tkn)->pos, "Sorry, GOTOs are not supported yet."); // FIXME
+            A_StmtListAppend (g_sleStack->stmtList, A_GotoStmt(pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum))));
+            *tkn = (*tkn)->next;
         }
 
         while (*tkn)
@@ -1697,6 +1696,13 @@ static bool stmtIfBegin(S_tkn *tkn, P_declProc decl)
                 sle->u.ifStmt.ifBLast       = sle->u.ifStmt.ifBLast->next;
                 sle->stmtList               = sle->u.ifStmt.ifBLast->stmts;
                 continue;
+            }
+
+            if (!sle->stmtList->first && ((*tkn)->kind == S_INUM) )
+            {
+                A_StmtListAppend (g_sleStack->stmtList, A_GotoStmt(pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum))));
+                *tkn = (*tkn)->next;
+                break;
             }
 
             if ( (*tkn)->kind == S_EOL )
