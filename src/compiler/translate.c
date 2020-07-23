@@ -993,10 +993,12 @@ Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_s
     T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), loopVarTy), loopVarTy);
     T_stm limitStm       = T_Move(T_Temp(limit, loopVarTy), unEx(exp_to), loopVarTy);
 
+    T_relOp cmp          = Tr_getConstFloat(exp_step) > 0 ? T_le : T_ge;
+
     T_stm s = T_Seq(initStm,
                 T_Seq(limitStm,
                   T_Seq(T_Label(test),
-                    T_Seq(T_Cjump(T_le, loopv, T_Temp(limit, loopVarTy), loopstart, done),
+                    T_Seq(T_Cjump(cmp, loopv, T_Temp(limit, loopVarTy), loopstart, done),
                       T_Seq(T_Label(loopstart),
                         T_Seq(unNx(body),
                           T_Seq(T_Label(contlbl),

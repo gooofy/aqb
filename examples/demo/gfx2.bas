@@ -33,8 +33,8 @@ NEXT z
 
 ' pyramid
 
-DIM n AS SINGLE = 5
-DIM AS SINGLE x = 130, y = 97, d = 2 * PI / n
+CONST n AS SINGLE = 5
+CONST AS SINGLE x = 130, y = 97, d = 2 * PI / n
 FOR w AS SINGLE = 0 TO 2 * PI STEP d
     DIM AS SINGLE x1 = 130 + 80 * COS(w)
     DIM AS SINGLE y1 =  72 + 15 * SIN(w)

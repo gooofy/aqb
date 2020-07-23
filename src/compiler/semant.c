@@ -1460,6 +1460,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                                  transExp(level, lenv, tenv, stmt->u.forr.step_exp, nestedLabels) :
                                  Tr_oneExp(varty);
 
+            if (!Tr_isConst(step_exp))
+            {
+                EM_error(stmt->u.forr.step_exp->pos, "constant step expression expected here");
+                return Tr_nopNx();
+            }
+
             Tr_exp conv_from_exp, conv_to_exp, conv_step_exp;
 
             if (!convert_ty(from_exp, varty, &conv_from_exp, /*explicit=*/FALSE))
