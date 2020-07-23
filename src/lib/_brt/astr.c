@@ -121,7 +121,7 @@ char *chr_(int codepoint)
 char *_astr_dup(const char* str)
 {
     ULONG l = len_(str);
-    char *str2 = allocate_(l+1, MEMF_ANY);
+    char *str2 = ALLOCATE_(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
 }

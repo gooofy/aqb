@@ -117,6 +117,22 @@ Syntax B:
 
 declare variables
 
+=== END
+
+Syntax:
+
+    END
+
+exit the program (same as SYSTEM)
+
+=== ERROR
+
+Syntax:
+
+    ERROR n
+
+raise error code n, exits the program unless a corresponding handler is registered using the ON ERROR ... statement
+
 === EXIT
 
 Syntax:
@@ -142,6 +158,36 @@ Syntax:
     NEXT [ id1 [ "," id2 [ "," ...] ] ]
 
 counter loop using specified start and stop numerical boundaries, default increment is 1
+
+=== FREE()
+
+Syntax:
+
+    FREE "(" x ")"
+
+.Table x values
+|===
+|Value | Description
+
+|-2
+|stack size
+
+|-1
+|chip + fast mem
+
+|0
+|chip mem
+
+|1
+|fast mem
+
+|2
+|largest chip mem
+
+|3
+|largest fast mem
+
+|===
 
 === GOTO
 
@@ -245,6 +291,14 @@ Syntax:
     STR$ "(" expr ")"
 
 return a string representation (the same one that is used in PRINT output) of a given numeric expression
+
+=== SYSTEM
+
+Syntax:
+
+    SYSTEM
+
+exit the program (same as END)
 
 === TAN()
 

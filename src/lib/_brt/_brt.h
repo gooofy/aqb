@@ -9,7 +9,9 @@ extern struct DOSBase       *DOSBase;
 extern struct MathBase      *MathBase;
 extern struct MathTransBase *MathTransBase;
 
-APTR allocate_(ULONG size, ULONG flags);
+APTR ALLOCATE_(ULONG size, ULONG flags);
+
+ULONG FRE_(int x);
 
 void _autil_init(void);
 void _autil_shutdown(void);
@@ -30,6 +32,8 @@ void _aqb_assert (BOOL b, const char *msg);
 FLOAT TIMER_ (void);
 
 void _aqb_on_exit_call(void (*cb)(void));
+
+void SYSTEM(void);
 
 #if 0  // exec has these already
 

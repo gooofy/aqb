@@ -27,7 +27,7 @@ struct AQB_memrec_
 
 static AQB_memrec g_mem = NULL;
 
-APTR allocate_(ULONG size, ULONG flags)
+APTR ALLOCATE_(ULONG size, ULONG flags)
 {
     AQB_memrec mem_prev = g_mem;
 
@@ -130,5 +130,48 @@ FLOAT TIMER_ (void)
 	res = SPAdd(SPMul(res, f60), SPDiv(f50, SPFlt(datetime.ds_Tick)));
 
 	return res;
+}
+
+void SYSTEM(void)
+{
+    _autil_exit(0);
+}
+
+ULONG FRE_(int x)
+{
+
+    switch (x)
+    {
+        case -2:        // stack
+        {
+            struct Process *Process;
+            struct CommandLineInterface *CLI;
+            ULONG stack;
+
+            Process = (struct Process *) FindTask (0L);
+            if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+            {
+                stack = CLI -> cli_DefaultStack << 2;
+            }
+            else
+            {
+                stack = Process -> pr_StackSize;
+            }
+            return stack;
+        }
+        case -1:        // chip + fast
+            return AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST);
+        case 0:         // chip
+            return AvailMem(MEMF_CHIP);
+        case 1:         // fast
+            return AvailMem(MEMF_FAST);
+        case 2:         // largest chip
+            return AvailMem(MEMF_CHIP|MEMF_LARGEST);
+        case 3:         // largest fast
+            return AvailMem(MEMF_FAST|MEMF_LARGEST);
+        default:
+            return 0;
+    }
+    return 0;
 }
 

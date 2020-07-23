@@ -1946,7 +1946,7 @@ static void stmtSelectEnd_(void)
     A_StmtListAppend (g_sleStack->stmtList, A_SelectStmt(sle->pos, sle->u.selectStmt.exp, sle->u.selectStmt.selectBFirst));
 }
 
-// stmtEnd  ::=  END ( SUB | FUNCTION | IF | SELECT )
+// stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT ) ]
 static bool stmtEnd(S_tkn *tkn, P_declProc decl)
 {
     if (isSym(*tkn, S_ENDIF))
@@ -2010,7 +2010,15 @@ static bool stmtEnd(S_tkn *tkn, P_declProc decl)
                 }
                 else
                 {
-                    return FALSE;
+                    S_symbol func = S_Symbol("system", FALSE);
+
+                    P_declProc ds = TAB_look(declared_stmts, func);
+                    if (!ds)
+                        return EM_error((*tkn)->pos, "Failed to find builtin %s", S_name(func));
+
+                    A_StmtListAppend (g_sleStack->stmtList, A_CallStmt((*tkn)->pos, ds->proc, A_ExpList()));
+
+                    return TRUE;
                 }
             }
         }

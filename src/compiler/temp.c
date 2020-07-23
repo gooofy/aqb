@@ -29,7 +29,7 @@ static int labels = 0;
 Temp_label Temp_newlabel(void)
 {
     char buf[100];
-    sprintf(buf,"L%d",labels++);
+    sprintf(buf,"_L%d",labels++);
     return Temp_namedlabel(String(buf));
 }
 

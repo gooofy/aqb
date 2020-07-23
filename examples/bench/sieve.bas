@@ -1,6 +1,11 @@
 REM Eratosthenes Sieve Prime Number Program in BASIC
 REM based on: https://en.wikipedia.org/wiki/Byte_Sieve#Implementation / ACE
 
+IF FRE(-2) < 20000 THEN
+    PRINT "*** Error: stack size too small (need at least 20KBytes)"
+    ERROR 42
+END IF
+
 1  DEFINT a-z
 5  SIZE = 8190
 10 PRINT "BYTE SIEVE, 7000 numbers done 5 times"
