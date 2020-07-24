@@ -379,6 +379,52 @@ Syntax:
 
 set a point in the window
 
+=== SCREEN
+
+Syntax:
+
+    SCREEN screen-id, width, height, depth, mode
+
+create a new screen
+
+.Table mode
+|===
+|Flag Name |Value | Description
+
+|AS_MODE_LORES
+|1
+|LORES
+
+|AS_MODE_HIRES
+|2
+|HIRES
+
+|AS_MODE_LORES_LACED
+|3
+|LORES INTERLACED
+
+|AS_MODE_HIRES_LACED
+|4
+|HIRES INTERLACED
+
+|AS_MODE_HAM
+|5
+|LORES HAM
+
+|AS_MODE_EXTRAHALFBRITE
+|6
+|LORES EXTRA HALFBRITE
+
+|AS_MODE_HAM_LACED
+|7
+|LORES HAM INTERLACED
+
+|AS_MODE_EXTRAHALFBRITE_LACED
+|8
+|LORES EXTRA HALFBRITE INTERLACED
+|===
+
+
 === WINDOW
 
 Syntax:

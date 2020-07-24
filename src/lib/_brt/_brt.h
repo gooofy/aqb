@@ -23,6 +23,7 @@ void _debug_puts2(SHORT s);
 
 extern USHORT g_errcode;
 
+void _aqb_error (SHORT errcode);
 void _autil_exit(LONG return_code); // implemented in startup.s
 
 void _cshutdown (LONG return_code, char *msg); // implemented in cstartup.c

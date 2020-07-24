@@ -1,4 +1,5 @@
 #include "_aqb.h"
+#include "../_brt/_brt.h"
 
 #include <stdarg.h>
 
@@ -36,7 +37,7 @@ static struct NewWindow g_nw =
 };
 
 /*
- * keep track of window ids
+ * keep track of window and screen ids
  */
 
 #define MAX_NUM_WINDOWS 16
@@ -48,29 +49,106 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL
 };
 
+#define MAX_NUM_SCREENS 4
+static struct Screen * g_scrlist[MAX_NUM_SCREENS] = { NULL, NULL, NULL, NULL };
+
+static struct NewScreen g_nscr =
+{
+    0, 0,                   // LeftEdge, TopEdge
+    640, 256,               // Width, Height
+    2,                      // Depth
+    0, 1,                   // DetailPen, BlockPen
+    HIRES,                  // ViewModes
+    CUSTOMSCREEN,           // Type
+    NULL,                   // Font
+    (UBYTE *) "AQB SCREEN", // DefaultTitle
+    NULL,                   // UNUSED
+    NULL                    // CustomBitMap
+};
 
 static ULONG g_signalmask=0;
 
 static void (*g_win_cb)(void) = NULL;
 
+static struct Screen   *g_active_scr    = NULL;
+static short            g_active_scr_id = 0;
 static short            g_active_win_id = 1;
 static short            g_output_win_id = 1;
 static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
 static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout unless re-opened
 
+void SCREEN (short id, short width, short height, short depth, short mode)
+{
+    // error checking
+    if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] != NULL) || (width <=0) || (height <= 0) || (depth <= 0) || (depth>6) )
+    {
+        _aqb_error(AE_SCREEN_OPEN);
+        return;
+    }
+
+    g_nscr.Width     = width;
+    g_nscr.Height    = height;
+    g_nscr.Depth     = depth;
+    g_nscr.ViewModes = 0;
+
+    switch (mode)
+    {
+        case AS_MODE_LORES:
+            break;
+        case AS_MODE_HIRES:
+            g_nscr.ViewModes |= HIRES;
+            break;
+        case AS_MODE_LORES_LACED:
+            g_nscr.ViewModes |= LACE;
+            break;
+        case AS_MODE_HIRES_LACED:
+            g_nscr.ViewModes |= HIRES | LACE;
+            break;
+        case AS_MODE_HAM:
+            g_nscr.ViewModes |= HAM;
+            break;
+        case AS_MODE_EXTRAHALFBRITE:
+            g_nscr.ViewModes |= EXTRA_HALFBRITE;
+            break;
+        case AS_MODE_HAM_LACED:
+            g_nscr.ViewModes |= HAM | LACE;
+            break;
+        case AS_MODE_EXTRAHALFBRITE_LACED:
+            g_nscr.ViewModes |= EXTRA_HALFBRITE | LACE;
+            break;
+        default:
+            _aqb_error(AE_SCREEN_OPEN);
+            return;
+    }
+
+    // _debug_puts("g_nscr.ViewModes:"); _debug_puts2(g_nscr.ViewModes); _debug_puts("");
+
+    struct Screen *scr = (struct Screen *)OpenScreen(&g_nscr);
+
+    if (!scr)
+    {
+        _aqb_error(AE_SCREEN_OPEN);
+        return;
+    }
+
+    g_scrlist[id-1] = scr;
+    g_active_scr    = scr;
+    g_active_scr_id = id;
+}
+
 /*
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
  */
-BOOL WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid)
+void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid)
 {
     USHORT w, h;
 
     // error checking
     if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] != NULL) || (x1 > x2) || (y1 > y2) )
     {
-        g_errcode = AE_WIN_OPEN;
-        return FALSE;
+        _aqb_error(AE_WIN_OPEN);
+        return;
     }
 
     if (x1>=0)
@@ -80,22 +158,30 @@ BOOL WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
     }
     else
     {
-        struct Screen sc;
-
-        // get workbench screen size, calculate inner size for a fullscreen window
-        if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
-        {
-            g_errcode = AE_WIN_OPEN;
-            return FALSE;
-        }
 
         x1 = 0;
         y1 = 0;
 
-        // w = sc.Width  - sc.WBorLeft - sc.WBorRight;
-        // h = sc.Height - sc.WBorTop  - sc.WBorBottom;
-        w = sc.Width;
-        h = sc.Height;
+        if (!g_active_scr)
+        {
+            struct Screen sc;
+            // get workbench screen size, calculate inner size for a fullscreen window
+            if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
+            {
+                _aqb_error(AE_WIN_OPEN);
+                return;
+            }
+
+            // w = sc.Width  - sc.WBorLeft - sc.WBorRight;
+            // h = sc.Height - sc.WBorTop  - sc.WBorBottom;
+            w = sc.Width;
+            h = sc.Height;
+        }
+        else
+        {
+            w = g_active_scr->Width;
+            h = g_active_scr->Height;
+        }
     }
 
     g_nw.LeftEdge   = x1;
@@ -112,15 +198,23 @@ BOOL WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
     if (flags & AW_FLAG_DEPTH) { g_nw.Flags |= WINDOWDEPTH ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
     if (flags & AW_FLAG_CLOSE) { g_nw.Flags |= WINDOWCLOSE ; g_nw.IDCMPFlags |= CLOSEWINDOW;   }
 
-    // FIXME: screen
-    g_nw.Type     = WBENCHSCREEN;
+    if (g_active_scr)
+    {
+        g_nw.Screen   = g_active_scr;
+        g_nw.Type     = CUSTOMSCREEN;
+    }
+    else
+    {
+        g_nw.Screen   = NULL;
+        g_nw.Type     = WBENCHSCREEN;
+    }
 
     struct Window *win = (struct Window *)OpenWindow(&g_nw);
 
     if (!win)
     {
-        g_errcode = AE_WIN_OPEN;
-        return FALSE;
+        _aqb_error(AE_WIN_OPEN);
+        return;
     }
 
     g_winlist[id-1] = win;
@@ -136,8 +230,6 @@ BOOL WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
 
     if (id == 1)
         g_win1_is_dos = FALSE;
-
-    return TRUE;
 }
 
 void _awindow_shutdown(void)
@@ -147,6 +239,11 @@ void _awindow_shutdown(void)
     {
         if (g_winlist[i])
             CloseWindow(g_winlist[i]);
+    }
+    for (int i = 0; i<MAX_NUM_SCREENS; i++)
+    {
+        if (g_scrlist[i])
+            CloseScreen(g_scrlist[i]);
     }
     //_aio_puts("_awindow_shutdown ... done.\n");
 }
@@ -160,7 +257,7 @@ void _awindow_init(void)
 /*
  * LINE [ [ STEP ] ( x1 , y1 ) ] - [ STEP ] ( x2 , y2 ) [, [ Color ]  [, flag ] ]
  */
-BOOL LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
+void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
 {
     BYTE fgPen=g_rp->FgPen;
 #if 0
@@ -213,8 +310,6 @@ BOOL LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
 
     if ( c >=0 )
         SetAPen(g_rp, fgPen);
-
-    return TRUE;
 }
 
 void PSET(BOOL s, short x, short y, short color)
