@@ -473,5 +473,71 @@ Create and activate a new window, make it the new output window.
 |AW_FLAG_REFRESH
 |16
 |auto refresh
+
+|AW_FLAG_BACKGROP
+|32
+|create a backdrop window
+
+|AW_FLAG_BORDERLESS
+|64
+|make window borderless
+|===
+
+=== WINDOW()
+
+Syntax:
+
+    WINDOW "(" n ")"
+
+return information about a window
+
+.Table n
+|===
+|n | Description
+
+|0
+|current active window id
+
+|1
+|current output window id
+
+|2
+|current output window width
+
+|3
+|current output window height
+
+|4
+|current output cursor X
+
+|5
+|current output cursor Y
+
+|6
+|highest color index
+
+|7
+|pointer to current intuition output window
+
+|8
+|pointer to current rastport
+
+|9
+|output file handle
+
+|10
+|foreground pen
+
+|11
+|background pen
+
+|12
+|text width
+
+|13
+|text height
+
+|14
+|input file handle
 |===
 

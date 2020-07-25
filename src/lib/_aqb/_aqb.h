@@ -54,6 +54,8 @@ short POS_    (short dummy);
 #define AW_FLAG_DEPTH                4
 #define AW_FLAG_CLOSE                8
 #define AW_FLAG_REFRESH             16
+#define AW_FLAG_BACKDROP            32
+#define AW_FLAG_BORDERLESS          64
 
 #define AE_WIN_OPEN                  1
 #define AE_SCREEN_OPEN               2

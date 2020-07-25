@@ -198,10 +198,12 @@ void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
     g_nw.Flags      = GIMMEZEROZERO | ACTIVATE;
     g_nw.IDCMPFlags = VANILLAKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
 
-    if (flags & AW_FLAG_SIZE)  { g_nw.Flags |= WINDOWSIZING; g_nw.IDCMPFlags |= NEWSIZE;       }
-    if (flags & AW_FLAG_DRAG)  { g_nw.Flags |= WINDOWDRAG  ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
-    if (flags & AW_FLAG_DEPTH) { g_nw.Flags |= WINDOWDEPTH ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
-    if (flags & AW_FLAG_CLOSE) { g_nw.Flags |= WINDOWCLOSE ; g_nw.IDCMPFlags |= CLOSEWINDOW;   }
+    if (flags & AW_FLAG_SIZE)       { g_nw.Flags |= WINDOWSIZING; g_nw.IDCMPFlags |= NEWSIZE;       }
+    if (flags & AW_FLAG_DRAG)       { g_nw.Flags |= WINDOWDRAG  ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
+    if (flags & AW_FLAG_DEPTH)      { g_nw.Flags |= WINDOWDEPTH ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
+    if (flags & AW_FLAG_CLOSE)      { g_nw.Flags |= WINDOWCLOSE ; g_nw.IDCMPFlags |= CLOSEWINDOW;   }
+    if (flags & AW_FLAG_BACKDROP)   { g_nw.Flags |= BACKDROP    ;                                   }
+    if (flags & AW_FLAG_BORDERLESS) { g_nw.Flags |= BORDERLESS  ;                                   }
 
     if (g_active_scr)
     {
@@ -454,6 +456,8 @@ ULONG WINDOW_(short n)
             if (!g_rp)
                 return 0;
             return g_rp->TxHeight;
+        case 14:                                // 14: input file handle (AQB)
+            return (ULONG) g_stdin;
 
     }
     return 0;
