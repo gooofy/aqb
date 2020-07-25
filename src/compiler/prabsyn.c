@@ -614,7 +614,13 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
         case A_gotoStmt:
         {
             indent(out, d);
-            fprintf(out, "GOTO %s", S_name(stmt->u.label));
+            fprintf(out, "GOTO %s", S_name(stmt->u.gotor));
+            break;
+        }
+        case A_gosubStmt:
+        {
+            indent(out, d);
+            fprintf(out, "GOSUB %s", S_name(stmt->u.gosubr));
             break;
         }
         default:

@@ -1157,6 +1157,19 @@ static void munchStm(T_stm s)
             emit(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, lab));        // lab:
             break;
         }
+        case T_JSR:
+        {
+            Temp_tempList all_regs = F_registers(); // since we have no idea what we're jumping into we have to assume all regs get trashed here
+            // jsr label
+            emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL    , all_regs, 0, 0, s->u.JUMP));  // jsr   label
+            emit(AS_InstrEx(AS_NOP,       AS_w_NONE, all_regs, NULL    , 0, 0, NULL));       // nop      ; sink all regs for trace scheduling
+           break;
+        }
+        case T_RTS:
+        {
+            emit( AS_InstrEx (AS_RTS, AS_w_NONE, NULL, NULL, 0, 0, NULL));                   //      rts
+            break;
+        }
         case T_JUMP:
         {
             // jmp label
@@ -1188,7 +1201,7 @@ static void munchStm(T_stm s)
                 T_expList args    = T_ExpList(e1, T_ExpList(e2, NULL));
                 int       arg_cnt = munchArgsStack(0, args);
                 emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()),   // jsr     astr_cmp
-                                0, 0, Temp_namedlabel("___astr_cmp")));                
+                                0, 0, Temp_namedlabel("___astr_cmp")));
                 munchCallerRestoreStack(arg_cnt, /*sink_rv=*/FALSE);
                 emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), rcmp));                     // move.l  RV, rcmp
                 emit(AS_Instr(AS_TST_Dn, AS_w_W, rcmp, NULL));                               // tst.w   rcmp
@@ -1425,19 +1438,19 @@ static int munchArgsStack(int i, T_expList args)
 
 static void munchCallerRestoreStack(int cnt, bool sink_rv)
 {
+    Temp_tempList regs = F_callersaves(); // sink the callersaves so liveness analysis will save them
+    if (sink_rv)                         // in case we're not interested in the return value, we still need to sink d0 so it will be saved
+        regs = L(F_RV(), regs);
     if (cnt)
     {
-        Temp_tempList src = F_callersaves(); // sink the callersaves so liveness analysis will save them
-        if (sink_rv)                         // in case we're not interested in the return value, we still need to sink d0 so it will be saved
-            src = L(F_RV(), src);
-        emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, src,
-                        NULL, T_ConstI(cnt * F_wordSize), 0, NULL));                     // add.l #(cnt*F_wordSize), sp
+        emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, regs,
+                        NULL, T_ConstI(cnt * F_wordSize), 0, NULL));          // add.l #(cnt*F_wordSize), sp
     }
     else
     {
         if (sink_rv)
         {
-            emit(AS_Instr(AS_NOP, AS_w_NONE, F_RV(), NULL));                             // nop
+            emit(AS_InstrEx(AS_NOP, AS_w_NONE, regs, NULL, 0, 0, NULL));       // nop      ; sink all regs for trace scheduling
         }
     }
 }

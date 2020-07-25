@@ -252,6 +252,12 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
             p->srcInterf = NULL;
             p->dstInterf = NULL;
             break;
+        case AS_NOP:
+            assert(w == AS_w_NONE);
+            assert(dst==NULL);
+            p->srcInterf = NULL;
+            p->dstInterf = NULL;
+            break;
 
         default:
             EM_error(0, "*** internal error: unknown mn %d!", mn);

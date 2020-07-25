@@ -1880,7 +1880,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
             if (!Tr_isConst(conv_cexp))
             {
-                EM_error(stmt->u.cdeclr.cExp->pos, "constant cexpializer expected here");
+                EM_error(stmt->u.cdeclr.cExp->pos, "constant initializer expected here");
                 return Tr_nopNx();
             }
 
@@ -2005,8 +2005,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             if (!nls2)
             {
-                EM_error(stmt->pos, "RETURN used outside a SUB/FUNCTION context");
-                break;
+                if (stmt->u.returnr)
+                {
+                    EM_error(stmt->pos, "RETURN <expression> used outside a SUB/FUNCTION context");
+                    break;
+                }
+                return Tr_rtsExp();
             }
 
             if (nls2->ret_ve)
@@ -2082,6 +2086,10 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         case A_gotoStmt:
         {
             return Tr_gotoExp(stmt->u.gotor);
+        }
+        case A_gosubStmt:
+        {
+            return Tr_gosubExp(stmt->u.gosubr);
         }
         default:
             EM_error (stmt->pos, "*** semant.c: internal error: statement kind %d not implemented yet!", stmt->kind);

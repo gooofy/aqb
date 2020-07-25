@@ -55,6 +55,25 @@ T_stm T_Jump(Temp_label label)
     return p;
 }
 
+T_stm T_Jsr(Temp_label label)
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+
+    p->kind   = T_JSR;
+    p->u.JUMP = label;
+
+    return p;
+}
+
+T_stm T_Rts(void)
+{
+    T_stm p = (T_stm) checked_malloc(sizeof *p);
+
+    p->kind   = T_RTS;
+
+    return p;
+}
+
 T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label lfalse)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);

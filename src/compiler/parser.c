@@ -97,7 +97,7 @@ static S_symbol S_INTEGER;
 static S_symbol S_SINGLE;
 static S_symbol S_LONG;
 static S_symbol S_STRINGSYM;
-static S_symbol S_GOTO;
+static S_symbol S_GOSUB;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3492,6 +3492,34 @@ static bool stmtGoto(S_tkn *tkn, P_declProc decl)
     return TRUE;
 }
 
+// stmtGosub ::= GOSUB ( num | ident )
+static bool stmtGosub(S_tkn *tkn, P_declProc decl)
+{
+    S_pos      pos = (*tkn)->pos;
+
+    *tkn = (*tkn)->next; // consume "GOSUB"
+
+    if ((*tkn)->kind == S_INUM)
+    {
+        A_StmtListAppend (g_sleStack->stmtList, A_GosubStmt(pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum))));
+        *tkn = (*tkn)->next;
+        return TRUE;
+    }
+    else
+    {
+        if ((*tkn)->kind == S_IDENT)
+        {
+            A_StmtListAppend (g_sleStack->stmtList, A_GosubStmt(pos, Temp_namedlabel(S_name((*tkn)->u.sym))));
+            *tkn = (*tkn)->next;
+            return TRUE;
+        }
+        else
+            return EM_error(pos, "line number or label expected here.");
+    }
+
+    return TRUE;
+}
+
 static bool funVarPtr(S_tkn *tkn, P_declProc dec, A_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -3673,6 +3701,7 @@ static void register_builtins(void)
     S_LONG     = S_Symbol("LONG",     FALSE);
     S_INTEGER  = S_Symbol("INTEGER",  FALSE);
     S_STRINGSYM= S_Symbol("STRING",   FALSE);
+    S_GOSUB    = S_Symbol("GOSUB",    FALSE);
 
     E_declare_proc(declared_stmts, S_DIM,      stmtDim          , NULL, NULL);
     E_declare_proc(declared_stmts, S_PRINT,    stmtPrint        , NULL, NULL);
@@ -3714,6 +3743,7 @@ static void register_builtins(void)
     E_declare_proc(declared_stmts, S_DEFINT,   stmtDefint       , NULL, NULL);
     E_declare_proc(declared_stmts, S_DEFSTR,   stmtDefstr       , NULL, NULL);
     E_declare_proc(declared_stmts, S_GOTO,     stmtGoto         , NULL, NULL);
+    E_declare_proc(declared_stmts, S_GOSUB,    stmtGosub        , NULL, NULL);
 
     E_declare_proc(declared_funs,  S_SIZEOF,    NULL          , funSizeOf,    NULL);
     E_declare_proc(declared_funs,  S_VARPTR,    NULL          , funVarPtr,    NULL);

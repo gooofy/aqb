@@ -44,6 +44,12 @@ void printStm(FILE *out, T_stm stm, int d)
     case T_JUMP:
         indent(out,d); fprintf(out, "JUMP(%s)", S_name(stm->u.JUMP));
         break;
+    case T_JSR:
+        indent(out,d); fprintf(out, "JSR(%s)", S_name(stm->u.JUMP));
+        break;
+    case T_RTS:
+        indent(out,d); fprintf(out, "RTS");
+        break;
     case T_CJUMP:
         indent(out,d); fprintf(out, "CJUMP(%s,", rel_oper[stm->u.CJUMP.op]);
         printExp(out, stm->u.CJUMP.left,d+1); fprintf(out, ",");

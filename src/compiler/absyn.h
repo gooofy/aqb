@@ -79,7 +79,7 @@ struct A_stmt_
     enum { A_printStmt, A_printNLStmt, A_printTABStmt, A_assignStmt, A_forStmt, A_ifStmt,
            A_procStmt, A_callStmt, A_procDeclStmt, A_varDeclStmt, A_assertStmt, A_whileStmt,
            A_typeDeclStmt, A_constDeclStmt, A_labelStmt, A_callPtrStmt, A_exitStmt, A_contStmt,
-           A_doStmt, A_selectStmt, A_returnStmt, A_importStmt, A_defStmt, A_gotoStmt              } kind;
+           A_doStmt, A_selectStmt, A_returnStmt, A_importStmt, A_defStmt, A_gotoStmt, A_gosubStmt     } kind;
     S_pos pos;
 	union
     {
@@ -104,6 +104,7 @@ struct A_stmt_
         S_symbol importr;
         struct {A_typeDesc td; char lstart; char lend;} defr; // DEFINT, DEFLNG, ...
         Temp_label gotor;
+        Temp_label gosubr;
     } u;
 };
 
@@ -265,6 +266,7 @@ A_stmt          A_ReturnStmt      (S_pos pos, A_exp exp);
 A_stmt          A_ImportStmt      (S_pos pos, S_symbol sModule);
 A_stmt          A_DefStmt         (S_pos pos, A_typeDesc td, char lstart, char lend);
 A_stmt          A_GotoStmt        (S_pos pos, Temp_label label);
+A_stmt          A_GosubStmt       (S_pos pos, Temp_label label);
 A_stmtList      A_StmtList        (void);
 void            A_StmtListAppend  (A_stmtList list, A_stmt stmt);
 A_exp           A_StringExp       (S_pos pos, const char *str);

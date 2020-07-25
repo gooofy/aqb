@@ -70,6 +70,8 @@ Tr_exp        Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_ex
 Tr_exp        Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_label contlbl);
 Tr_exp        Tr_doExp(Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body, Temp_label exitlbl, Temp_label contlbl);
 Tr_exp        Tr_gotoExp(Temp_label lbl);
+Tr_exp        Tr_gosubExp(Temp_label lbl);
+Tr_exp        Tr_rtsExp(void);
 Tr_exp        Tr_labelExp(Temp_label lbl);
 
 Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);

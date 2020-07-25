@@ -973,6 +973,18 @@ Tr_exp Tr_gotoExp(Temp_label lbl)
     return Tr_Nx(s);
 }
 
+Tr_exp Tr_gosubExp(Temp_label lbl)
+{
+    T_stm s = T_Jsr(lbl);
+    return Tr_Nx(s);
+}
+
+Tr_exp Tr_rtsExp(void)
+{
+    T_stm s = T_Rts();
+    return Tr_Nx(s);
+}
+
 Tr_exp Tr_labelExp(Temp_label lbl)
 {
     T_stm s = T_Label(lbl);

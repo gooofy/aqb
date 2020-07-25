@@ -169,6 +169,18 @@ A_stmt A_GotoStmt (S_pos pos, Temp_label label)
     return p;
 }
 
+A_stmt A_GosubStmt (S_pos pos, Temp_label label)
+{
+    A_stmt p = checked_malloc(sizeof(*p));
+
+    p->kind = A_gosubStmt;
+    p->pos  = pos;
+
+    p->u.label  = label;
+
+    return p;
+}
+
 A_stmt A_PrintStmt (S_pos pos, A_exp exp)
 {
     A_stmt p = checked_malloc(sizeof(*p));

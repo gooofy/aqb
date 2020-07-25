@@ -31,7 +31,7 @@ typedef enum
 struct T_stm_
 {
     enum {T_SEQ, T_LABEL, T_JUMP, T_CJUMP,
-          T_MOVE, T_NOP, T_EXP} kind;
+          T_MOVE, T_NOP, T_EXP, T_JSR, T_RTS} kind;
 	union
     {
         struct {T_stm left, right;} SEQ;
@@ -79,6 +79,8 @@ T_stmList T_StmList (T_stm head, T_stmList tail);
 T_stm T_Seq(T_stm left, T_stm right);
 T_stm T_Label(Temp_label);
 T_stm T_Jump(Temp_label label);
+T_stm T_Jsr(Temp_label label);
+T_stm T_Rts(void);
 T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label lfalse);
 T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty);
 T_stm T_Nop(void);

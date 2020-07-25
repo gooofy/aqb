@@ -197,6 +197,14 @@ Syntax:
 
 jump a line label or a line number in the program
 
+=== GOSUB
+
+Syntax:
+
+    GOSUB ( num | ident )
+
+jump to a subroutine at line label or a line number in the program
+
 === IF ... THEN
 
 Syntax A:
@@ -247,6 +255,14 @@ Syntax:
     OPTION PRIVATE [ ( ON | OFF ) ]
 
 make declared variables, types, functions and subprograms private (not exported) by default
+
+=== RETURN
+
+Syntax:
+
+    RETURN [ expr ]
+
+return from a subroutine or function. In case of return from a function, expr specifies the return value
 
 === SIN()
 
