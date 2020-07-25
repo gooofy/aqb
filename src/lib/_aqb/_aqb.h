@@ -57,17 +57,24 @@ short POS_    (short dummy);
 
 #define AE_WIN_OPEN                  1
 #define AE_SCREEN_OPEN               2
+#define AE_PALETTE                   3
+#define AE_COLOR                     4
 
 void _awindow_init(void);
 void _awindow_shutdown(void);
 
-void   SCREEN (short id, short width, short height, short depth, short mode);
+void   SCREEN (short id, short width, short height, short depth, short mode, char *title);
 void   WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid);
 void   LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf);
 void   SLEEP(void);
 void   ON_WINDOW_CALL(void (*cb)(void));
+void   LOCATE (short l, short c);
+short  CSRLIN_ (void);
+short  POS_ (short dummy);
 ULONG  WINDOW_(short n);
 void   PSET(BOOL s, short x, short y, short color);
+void   PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue);
+void   COLOR(short fg, short bg);
 char  *INKEY_ (void);
 
 #endif

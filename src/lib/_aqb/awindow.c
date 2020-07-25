@@ -19,7 +19,11 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
+#include <clib/mathffp_protos.h>
+#include <inline/mathffp.h>
+
 BPTR g_stdout, g_stdin;
+static FLOAT g_fp15; // FFP representation of decimal 15, used in PALETTE
 
 static struct NewWindow g_nw =
 {
@@ -78,7 +82,7 @@ static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
 static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout unless re-opened
 
-void SCREEN (short id, short width, short height, short depth, short mode)
+void SCREEN (short id, short width, short height, short depth, short mode, char *title)
 {
     // error checking
     if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] != NULL) || (width <=0) || (height <= 0) || (depth <= 0) || (depth>6) )
@@ -87,10 +91,11 @@ void SCREEN (short id, short width, short height, short depth, short mode)
         return;
     }
 
-    g_nscr.Width     = width;
-    g_nscr.Height    = height;
-    g_nscr.Depth     = depth;
-    g_nscr.ViewModes = 0;
+    g_nscr.Width        = width;
+    g_nscr.Height       = height;
+    g_nscr.Depth        = depth;
+    g_nscr.DefaultTitle = title ? (UBYTE *)_astr_dup(title) : (UBYTE*) "";
+    g_nscr.ViewModes    = 0;
 
     switch (mode)
     {
@@ -252,6 +257,7 @@ void _awindow_init(void)
 {
     g_stdout = Output();
     g_stdin  = Input();
+    g_fp15   = SPFlt(15);
 }
 
 /*
@@ -596,6 +602,58 @@ short POS_ (short dummy)
         return 0;
 
     return g_rp->cp_x / g_rp->Font->tf_XSize;
+}
+
+void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
+{
+    if (!g_active_scr)
+    {
+        _aqb_error(AE_PALETTE);
+        return;
+    }
+
+    if ( (cid < 0) || (cid >63) )
+    {
+        _aqb_error(AE_PALETTE);
+        return;
+    }
+
+    LONG r = SPFix(SPMul(red, g_fp15));
+    if ((r<0) || (r>15))
+    {
+        _aqb_error(AE_PALETTE);
+        return;
+    }
+
+    LONG g = SPFix(SPMul(green, g_fp15));
+    if ((g<0) || (g>15))
+    {
+        _aqb_error(AE_PALETTE);
+        return;
+    }
+
+    LONG b = SPFix(SPMul(blue, g_fp15));
+    if ((b<0) || (b>15))
+    {
+        _aqb_error(AE_PALETTE);
+        return;
+    }
+
+    SetRGB4(&g_active_scr->ViewPort, cid, r, g, b);
+}
+
+void COLOR(short fg, short bg)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        _aqb_error(AE_COLOR);
+        return;
+    }
+
+    if (fg >= 0)
+        SetAPen (g_rp, fg);
+    if (bg >= 0)
+        SetBPen (g_rp, bg);
 }
 
 static char inkeybuf[2] = { 0, 0 } ;

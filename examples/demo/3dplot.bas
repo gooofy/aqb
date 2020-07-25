@@ -6,16 +6,16 @@ IF FRE(-1)+FRE(0) < 36000& THEN
   END
 END IF
 
-SCREEN 2,640,200,2,2
+SCREEN 2,640,200,2,2,"3D Plot Screen"
 WINDOW 4,"3D Plot",,15,2
-'
-'PALETTE 0,  0,  0,  0
-'PALETTE 1, .8,  0,.93
-'PALETTE 2,.47,.87,  1
-'PALETTE 3,  1, .6,.67
-'
-'COLOR 2
-'
+
+PALETTE 0,  0,  0,  0
+PALETTE 1, .8,  0,.93
+PALETTE 2,.47,.87,  1
+PALETTE 3,  1, .6,.67
+
+COLOR 2
+
 ' transformation parameters
 ' scaling:
 sx = 40
@@ -91,7 +91,7 @@ FOR z=sta_z TO en_z STEP ste_z
       ye = by - bz * (yt2-by)/zwis
 
       ' draw
-      PSET (tex + xe, tey - ye),1
+      PSET (tex + xe, tey - ye)
       LINE (tex+xe,tey-ye+1)-(tex+xe,200),0
 
     NEXT x

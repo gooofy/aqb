@@ -320,6 +320,14 @@ repeat loop body while expression evaluates to TRUE
 
 == AQB / AmigaBASIC
 
+=== COLOR
+
+Syntax:
+
+    COLOR [ fg ] ["," bg]
+
+set foreground and/or background pen
+
 === CSRLIN()
 
 Syntax:
@@ -353,6 +361,15 @@ Syntax:
 
 move cursor to col / row
 
+=== PALETTE
+
+Syntax:
+
+    PALETTE n, red, green, blue
+
+change the color palette entry for pen number n. The red, green and blue arguments are
+be floating point values in the 0.0 ... 1.0 range.
+
 === POS()
 
 Syntax:
@@ -383,7 +400,7 @@ set a point in the window
 
 Syntax:
 
-    SCREEN screen-id, width, height, depth, mode
+    SCREEN screen-id, width, height, depth, mode [, title]
 
 create a new screen
 
