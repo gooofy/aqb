@@ -372,6 +372,14 @@ Syntax:
 
 obtain the tangent of the floating point number
 
+=== TIMER()
+
+Syntax:
+
+    TIMER "(" ")"
+
+returns the number of seconds past the previous midnite as a SINGLE float value
+
 === WHILE ... WEND
 
 Syntax:

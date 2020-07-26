@@ -9,7 +9,7 @@ END IF
 1  DEFINT a-z
 5  SIZE = 8190
 10 PRINT "BYTE SIEVE, 7000 numbers done 5 times"
-15 t!=timer()
+15 t!=TIMER()
 30 DIM FLAGS(8191)
 35 FOR j=1 TO 5
 36 PRINT "iter #";j;", time:"; timer()
@@ -28,7 +28,7 @@ END IF
 160 ACOUNT=ACOUNT+1
 170 NEXT I
 175 NEXT J
-176 t!=timer()-t!
+176 t!=TIMER()-t!
 180 PRINT ACOUNT;" primes found"
 190 PRINT "avg";t!/5;"s for each of the 5 iterations."
 

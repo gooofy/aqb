@@ -11,13 +11,11 @@ END FUNCTION
 
 PRINT "Start..."
 
-startTime = TIMER
-print startTime
+startTime = TIMER()
 
 PRINT fibonacci%(23)
 
-endTime = TIMER
-print endTime
+endTime = TIMER()
 
 PRINT "Took:"; endTime-startTime; "s"
 

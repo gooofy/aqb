@@ -2,7 +2,7 @@ REM c't HL Benchmarks
 
 SUB RealMath STATIC
 
-    startTime = TIMER
+    startTime = TIMER()
 
     PRINT "Start"
     x = 0.0
@@ -12,7 +12,7 @@ SUB RealMath STATIC
     NEXT i%
     PRINT "Finish :"; x
 
-    stopTime = TIMER
+    stopTime = TIMER()
 
     PRINT "Took:";stopTime-startTime;"s"
 END SUB

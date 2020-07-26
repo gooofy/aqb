@@ -3,7 +3,7 @@ REM c't HL Benchmarks
 
 SUB IntMath STATIC
 
-  startTime = TIMER
+  startTime = TIMER()
 
   PRINT "Start"
   x& = 0
@@ -13,7 +13,7 @@ SUB IntMath STATIC
   NEXT i%
   PRINT "Finish :", x&
 
-  stopTime = TIMER
+  stopTime = TIMER()
 
   PRINT "Took:"; stopTime-startTime; "s"
 
