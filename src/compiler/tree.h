@@ -101,6 +101,7 @@ T_exp T_ConstFloat(double f, Ty_ty ty);
 T_exp T_CallF(Temp_label fun, T_expList args, Temp_tempList regs, Ty_ty ty_ret, int offset, string libBase);
 T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_ty ty_ret);
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
+// T_exp T_TypeView(T_exp exp, Ty_ty ty); // return a clone of exp which carries a new type tag (no code is produced)
 
 T_relOp T_notRel(T_relOp);  /* a op b  ==  not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b  ==  b commute(op) a      */

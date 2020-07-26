@@ -2209,7 +2209,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                 if (!sel->u.idx)
                 {
                     EM_error(sel->pos, "Array index expected.");
-                    return Tr_zeroExp(Ty_Long());                
+                    return Tr_zeroExp(Ty_Long());
                 }
                 Tr_exp idx = transExp(level, venv, tenv, sel->u.idx, nestedLabels);
                 Tr_exp idx_conv;

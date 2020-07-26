@@ -175,3 +175,38 @@ ULONG FRE_(int x)
     return 0;
 }
 
+void POKE (ULONG adr, UBYTE  b)
+{
+    UBYTE *p = (UBYTE*)adr;
+    *p = b;
+}
+void POKEW(ULONG adr, USHORT w)
+{
+    USHORT *p = (USHORT*)adr;
+    *p = w;
+}
+void POKEL(ULONG adr, ULONG  l)
+{
+    ULONG *p = (ULONG*)adr;
+    *p = l;
+}
+
+UBYTE PEEK_ (ULONG adr)
+{
+    UBYTE *p = (UBYTE*)adr;
+    return *p;
+}
+
+USHORT PEEKW_(ULONG adr)
+{
+    USHORT *p = (USHORT*)adr;
+    return *p;
+}
+
+ULONG  PEEKL_(ULONG adr)
+{
+    ULONG *p = (ULONG*)adr;
+    return *p;
+}
+
+

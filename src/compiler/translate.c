@@ -714,22 +714,22 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstInt(right);
                 switch (o)
                 {
-                    case A_addOp   : return Tr_intExp(a+b, NULL);            break;
-                    case A_subOp   : return Tr_intExp(a-b, NULL);            break;
-                    case A_mulOp   : return Tr_intExp(a*b, NULL);            break;
-                    case A_divOp   : return Tr_intExp(a/b, NULL);            break;
-                    case A_xorOp   : return Tr_intExp(a^b, NULL);            break;
-                    case A_eqvOp   : return Tr_intExp(~(a^b), NULL);         break;
-                    case A_impOp   : return Tr_intExp(~a|b, NULL);           break;
-                    case A_negOp   : return Tr_intExp(-a, NULL);             break;
-                    case A_notOp   : return Tr_intExp(~a, NULL);             break;
-                    case A_andOp   : return Tr_intExp(a&b, NULL);            break;
-                    case A_orOp    : return Tr_intExp(a|b, NULL);            break;
-                    case A_expOp   : return Tr_intExp(ipow (a, b), NULL);    break;
-                    case A_intDivOp: return Tr_intExp(a/b, NULL);            break;
-                    case A_modOp   : return Tr_intExp(a%b, NULL);            break;
-                    case A_shlOp   : return Tr_intExp(a << b, NULL);         break;
-                    case A_shrOp   : return Tr_intExp(a >> b, NULL);         break;
+                    case A_addOp   : return Tr_intExp(a+b, ty);            break;
+                    case A_subOp   : return Tr_intExp(a-b, ty);            break;
+                    case A_mulOp   : return Tr_intExp(a*b, ty);            break;
+                    case A_divOp   : return Tr_intExp(a/b, ty);            break;
+                    case A_xorOp   : return Tr_intExp(a^b, ty);            break;
+                    case A_eqvOp   : return Tr_intExp(~(a^b), ty);         break;
+                    case A_impOp   : return Tr_intExp(~a|b, ty);           break;
+                    case A_negOp   : return Tr_intExp(-a, ty);             break;
+                    case A_notOp   : return Tr_intExp(~a, ty);             break;
+                    case A_andOp   : return Tr_intExp(a&b, ty);            break;
+                    case A_orOp    : return Tr_intExp(a|b, ty);            break;
+                    case A_expOp   : return Tr_intExp(ipow (a, b), ty);    break;
+                    case A_intDivOp: return Tr_intExp(a/b, ty);            break;
+                    case A_modOp   : return Tr_intExp(a%b, ty);            break;
+                    case A_shlOp   : return Tr_intExp(a << b, ty);         break;
+                    case A_shrOp   : return Tr_intExp(a >> b, ty);         break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -776,7 +776,16 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
     T_binOp op;
     switch (o)
     {
-        case A_addOp   : op = T_plus;     break;
+        case A_addOp:
+
+            // x + 0 == x
+            if (Tr_isConst(left) && (Tr_getConstInt(left)==0))
+                return Tr_castExp(right, Tr_ty(right), ty);
+            if (Tr_isConst(right) && (Tr_getConstInt(right)==0))
+                return Tr_castExp(left, Tr_ty(left), ty);
+
+            op = T_plus;
+            break;
         case A_subOp   : op = T_minus;    break;
         case A_mulOp   : op = T_mul;      break;
         case A_divOp   : op = T_div;      break;
@@ -1187,6 +1196,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
             case Ty_pointer:
             case Ty_varPtr:
             case Ty_procPtr:
+            case Ty_string:
                 switch (to_ty->kind)
                 {
                     case Ty_long:
@@ -1195,6 +1205,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_pointer:
                     case Ty_varPtr:
                     case Ty_procPtr:
+                    case Ty_string:
                         return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                     default:
                         EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);

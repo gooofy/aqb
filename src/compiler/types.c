@@ -152,7 +152,7 @@ void Ty_computeSize(Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_array:
-            ty->u.array.uiSize = (ty->u.array.iEnd - ty->u.array.iStart) * Ty_size(ty->u.array.elementTy);
+            ty->u.array.uiSize = (ty->u.array.iEnd - ty->u.array.iStart + 1) * Ty_size(ty->u.array.elementTy);
             break;
 
         case Ty_record:

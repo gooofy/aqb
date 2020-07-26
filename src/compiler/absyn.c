@@ -279,7 +279,7 @@ A_stmt A_ConstDeclStmt (S_pos pos, bool isPrivate, S_symbol sConst, A_typeDesc t
     return p;
 }
 
-A_dim A_Dim (A_exp expStart, A_exp expEnd)
+A_dim A_Dim (A_exp expStart, A_exp expEnd, A_dim tail)
 {
     A_dim p = checked_malloc(sizeof(*p));
 
@@ -287,7 +287,7 @@ A_dim A_Dim (A_exp expStart, A_exp expEnd)
 
     p->expStart = expStart;
     p->expEnd   = expEnd;
-    p->tail     = NULL;
+    p->tail     = tail;
 
     return p;
 }

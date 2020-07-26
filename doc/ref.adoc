@@ -256,6 +256,54 @@ Syntax:
 
 make declared variables, types, functions and subprograms private (not exported) by default
 
+=== PEEK()
+
+Syntax:
+
+    PEEK "(" address ")"
+
+return a byte from memory at the specified address
+
+=== PEEKW()
+
+Syntax:
+
+    PEEKW "(" address ")"
+
+return a word (16 bits) from memory at the specified address
+
+=== PEEKL()
+
+Syntax:
+
+    PEEK "(" address ")"
+
+return a long (32 bits) from memory at the specified address
+
+=== POKE
+
+Syntax:
+
+    POKE address, value
+
+store byte value at the specified memory address
+
+=== POKEW
+
+Syntax:
+
+    POKEW address, value
+
+store word (16 bits) value at the specified memory address
+
+=== POKEL
+
+Syntax:
+
+    POKEL address, value
+
+store long (32 bits) value at the specified memory address
+
 === RETURN
 
 Syntax:
@@ -336,13 +384,37 @@ repeat loop body while expression evaluates to TRUE
 
 == AQB / AmigaBASIC
 
+=== AREA
+
+Syntax:
+
+    AREA [STEP] (x, y)
+
+add a point to an area to be filled
+
+== AREAFILL
+
+Syntax:
+
+    AREAFILL [mode]
+
+fill a polygon defined by AREA statements, mode: 0=regular fill, 1=inverted fill
+
+=== AREA OUTLINE
+
+Syntax:
+
+    AREA OUTLINE ( TRUE | FALSE )
+
+enable or disable drawing of AREA polygon outlines
+
 === COLOR
 
 Syntax:
 
-    COLOR [ fg ] ["," bg]
+    COLOR [ fg ] ["," [bg] ["," o]]
 
-set foreground and/or background pen
+set foreground, background and or area outline pen
 
 === CSRLIN()
 

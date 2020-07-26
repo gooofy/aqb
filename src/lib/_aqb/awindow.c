@@ -245,7 +245,11 @@ void _awindow_shutdown(void)
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
         if (g_winlist[i])
+        {
             CloseWindow(g_winlist[i]);
+            if (g_winlist[i]->RPort->TmpRas)
+                FreeRaster((PLANEPTR) g_winlist[i]->RPort->TmpRas->RasPtr, 640, 512);
+        }
     }
     for (int i = 0; i<MAX_NUM_SCREENS; i++)
     {
@@ -469,7 +473,7 @@ ULONG WINDOW_(short n)
 
 static void do_scroll(void)
 {
-    WORD max_lines = g_output_win->GZZHeight / g_rp->Font->tf_YSize;
+    WORD max_lines = g_output_win->GZZHeight / g_rp->Font->tf_YSize - 1;
     WORD cy = g_rp->cp_y / g_rp->Font->tf_YSize;
     WORD scroll_y = cy - max_lines;
 
@@ -646,7 +650,7 @@ void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
     SetRGB4(&g_active_scr->ViewPort, cid, r, g, b);
 }
 
-void COLOR(short fg, short bg)
+void COLOR(short fg, short bg, short o)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
@@ -658,6 +662,109 @@ void COLOR(short fg, short bg)
         SetAPen (g_rp, fg);
     if (bg >= 0)
         SetBPen (g_rp, bg);
+    if (o >= 0)
+        g_rp->AOlPen = o;
+}
+
+#define AREA_MAX_CNT    100
+
+void AREA(BOOL s, short x, short y)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        _aqb_error(AE_AREA);
+        return;
+    }
+
+    // first call on this rp? -> initialize Area* related data structures
+
+    if (!g_rp->AreaInfo)
+    {
+        struct AreaInfo *ai = ALLOCATE_(sizeof (*ai), 0);
+        if (!ai)
+        {
+            _aqb_error(AE_AREA);
+            return;
+        }
+        APTR adata = ALLOCATE_(AREA_MAX_CNT*5, 0);
+        if (!adata)
+        {
+            _aqb_error(AE_AREA);
+            return;
+        }
+        InitArea(ai, adata, AREA_MAX_CNT);
+        g_rp->AreaInfo = ai;
+
+        struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
+        if (!aTmpRas)
+        {
+            _aqb_error(AE_AREA);
+            return;
+        }
+        PLANEPTR amem = AllocRaster(640, 512);
+        if (!amem)
+        {
+            _aqb_error(AE_AREA);
+            return;
+        }
+        InitTmpRas(aTmpRas, amem, RASSIZE(640,512));
+        g_rp->TmpRas = aTmpRas;
+    }
+
+    if (s)
+    {
+        x += g_rp->cp_x;
+        y += g_rp->cp_y;
+    }
+
+    WORD cnt = g_rp->AreaInfo->Count;
+
+    if (cnt >= AREA_MAX_CNT)
+    {
+        _aqb_error(AE_AREA);
+        return;
+    }
+
+    if (cnt==0)
+        AreaMove (g_rp, x, y);
+    else
+        AreaDraw (g_rp, x, y);
+}
+
+void AREAFILL (short mode)
+{
+    BYTE dm;
+
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || !g_rp->AreaInfo )
+    {
+        _aqb_error(AE_AREA);
+        return;
+    }
+
+    if (mode==1)
+    {
+        dm = g_rp->DrawMode;
+        SetDrMd(g_rp, COMPLEMENT);
+    }
+
+    AreaEnd(g_rp);
+
+    if (mode==1)
+        SetDrMd(g_rp, dm);
+}
+
+void AREA_OUTLINE(BOOL enabled)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        _aqb_error(AE_AREA);
+        return;
+    }
+
+    if (enabled)
+        g_rp->Flags |= AREAOUTLINE;
+    else
+        g_rp->Flags &= ~AREAOUTLINE;
 }
 
 static char inkeybuf[2] = { 0, 0 } ;

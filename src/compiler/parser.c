@@ -1106,7 +1106,6 @@ static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
 static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
 {
     A_exp expStart, expEnd = NULL;
-    A_dim last;
 
     if (!expression(tkn, &expStart))
     {
@@ -1127,8 +1126,7 @@ static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
         expStart = NULL;
     }
 
-    *dims = A_Dim(expStart, expEnd);
-    last = *dims;
+    *dims = A_Dim(expStart, expEnd, *dims);
 
     while ((*tkn)->kind == S_COMMA)
     {
@@ -1146,8 +1144,12 @@ static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
                 return EM_error((*tkn)->pos, "Array dimension expected here.");
             }
         }
-        last->tail = A_Dim(expStart, expEnd);
-        last = last->tail;
+        else
+        {
+            expEnd   = expStart;
+            expStart = NULL;
+        }
+        *dims = A_Dim(expStart, expEnd, *dims);
     }
 
     return TRUE;

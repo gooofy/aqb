@@ -12,10 +12,12 @@ END FUNCTION
 PRINT "Start..."
 
 startTime = TIMER
+print startTime
 
 PRINT fibonacci%(23)
 
-endTIme = TIMER
+endTime = TIMER
+print endTime
 
 PRINT "Took:"; endTime-startTime; "s"
 

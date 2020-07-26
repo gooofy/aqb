@@ -9,9 +9,16 @@ extern struct DOSBase       *DOSBase;
 extern struct MathBase      *MathBase;
 extern struct MathTransBase *MathTransBase;
 
-APTR ALLOCATE_(ULONG size, ULONG flags);
+APTR   ALLOCATE_(ULONG size, ULONG flags);
+ULONG  FRE_(int x);
 
-ULONG FRE_(int x);
+void   POKE (ULONG adr, UBYTE  b);
+void   POKEW(ULONG adr, USHORT w);
+void   POKEL(ULONG adr, ULONG  l);
+
+UBYTE  PEEK_ (ULONG adr);
+USHORT PEEKW_(ULONG adr);
+ULONG  PEEKL_(ULONG adr);
 
 void _autil_init(void);
 void _autil_shutdown(void);
