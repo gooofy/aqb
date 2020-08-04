@@ -4,18 +4,8 @@
 #include "translate.h"
 #include "table.h"
 
-#define MAGIC_SYM1 = 0x
-
 typedef struct E_enventry_ *E_enventry;
-typedef struct E_formals_  *E_formals;
 typedef struct E_module_   *E_module;
-
-struct E_formals_
-{
-    Ty_ty     ty;
-    Tr_exp    defaultExp;
-    E_formals next;
-};
 
 struct E_enventry_
 {
@@ -23,27 +13,18 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        struct {Tr_access access; Ty_ty ty; bool shared;} var;
-        struct {Tr_level level; Temp_label label;
-                E_formals formals; Ty_ty result;
-                bool forward;
-                int offset; string libBase;
-                A_proc proc; } fun;
-        Tr_exp cExp;
+        struct {Tr_access access; Ty_ty ty; bool shared;  } var;
+        struct {Tr_level level; Ty_proc proc;             } fun;
+        Ty_const cExp;
         Ty_ty ty;
     } u;
     E_enventry next;
 };
 
 E_enventry E_VarEntry  (S_symbol sym, Tr_access access, Ty_ty ty, bool shared);
-E_enventry E_FunEntry  (S_symbol sym, Tr_level level, Temp_label label,
-                        E_formals formals, Ty_ty result,
-                        bool forward, int offset, string libBase, A_proc proc);
-E_enventry E_ConstEntry(S_symbol sym, Tr_exp c);
+E_enventry E_FunEntry  (S_symbol sym, Tr_level level, Ty_proc proc);
+E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
-
-E_formals  E_Formals(Ty_ty ty, Tr_exp defaultExp, E_formals next);
-Ty_tyList  E_FormalTys(E_formals formals);
 
 /*
  * modules

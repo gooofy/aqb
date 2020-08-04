@@ -109,13 +109,29 @@ define all variables with names starting with the specified letter (or letter ra
 
 Syntax A:
 
-    [ PUBLIC | PRIVATE ] DIM [ SHARED ] var1 AS type [ "=" expr ] [ "," var2 AS ...]
+    [ PUBLIC | PRIVATE ] DIM [ SHARED ] var1 [ "(" arrayDimensions ")" ] AS type [ "=" expr ] [ "," var2 ...]
 
 Syntax B:
 
-    [ PUBLIC | PRIVATE ] DIM [ SHARED ] AS type var1 [ "=" expr ] [ "," var2 ... ]
+    [ PUBLIC | PRIVATE ] DIM [ SHARED ] AS type var1 [ "(" arrayDimensions ")" ] [ "=" expr ] [ "," var2 ... ]
 
 declare variables
+
+Examples:
+
+    DIM f AS SINGLE                          : REM traditional QBasic Syntax
+    DIM SHARED g AS UBYTE                    : REM shared variable
+
+    DIM AS ULONG l1, l2                      : REM declare multiple variables of the same type
+
+    DIM AS INTEGER a (9, 1)                  : REM 2D dynamic array
+    DIM AS INTEGER b (STATIC 9, 1)           : REM 2D static, C-like array
+
+    DIM p AS INTEGER PTR                     : REM pointer
+
+    DIM fp AS FUNCTION (INTEGER) AS INTEGER  : REM function pointer
+
+static arrays are much faster than dynamic arrays but offer no runtime bounds checking
 
 === END
 

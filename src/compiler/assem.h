@@ -116,14 +116,14 @@ struct AS_instr_
     Temp_label     label;
     Temp_tempList  src, dst;
     Temp_tempLList srcInterf, dstInterf;
-    T_const        imm;
+    Ty_const       imm;
     short          offset;
 };
 
 AS_instr AS_Instr       (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst);
-AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, T_const imm, long offset, Temp_label label);
+AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, Ty_const imm, long offset, Temp_label label);
 AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, 
-                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, T_const imm, long offset, Temp_label label);
+                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, Ty_const imm, long offset, Temp_label label);
 
 void     AS_sprint      (string str, AS_instr i, Temp_map m);
 

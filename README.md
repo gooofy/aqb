@@ -24,13 +24,12 @@ https://github.com/ComMouse/tiger-compiler
 * Integer, UInteger (16 bits)
 * Long, ULong (32 bits)
 * Single (32 Bit FFP floats)
-* Pointers
 
 ### Advanced types
 
-* Arrays
+* Static (C-like, fast) and dynamic (runtime bounds checking) arrays
 * UDTs (structs)
-* Function/Sub pointers
+* Pointers (C-like, including function/sub pointers)
 * Strings (0-terminated pointers to UByte, C-compatible)
 
 ## Benchmark Results

@@ -101,20 +101,34 @@ void printExp(FILE *out, T_exp exp, int d)
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
         case T_CONST:
-            switch (exp->u.CONST->kind)
+            switch (exp->u.CONST->ty->kind)
             {
-                case T_CFLOAT:
-                    fprintf(out, "CONST %f", exp->u.CONST->u.f);
+                case Ty_bool:
+                    fprintf(out, "CONST %s", exp->u.CONST->u.b ? "TRUE" : "FALSE");
                     break;
-                case T_CINT:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_string:
+                case Ty_pointer:
                     fprintf(out, "CONST %d", exp->u.CONST->u.i);
                     break;
+                case Ty_single:
+                case Ty_double:
+                    fprintf(out, "CONST %f", exp->u.CONST->u.f);
+                    break;
+                default:
+                    fprintf(stderr, "*** printtree.c:printExp: internal error");
+                    assert(0);
             }
             break;
         case T_CALLF:
         {
             T_expList args = exp->u.CALLF.args;
-            fprintf(out, "CALLF(%s: ", S_name(exp->u.CALLF.fun));
+            fprintf(out, "CALLF(%s: ", S_name(exp->u.CALLF.proc->label));
             for (;args; args=args->tail)
             {
                 printExp(out, args->head,d+2);

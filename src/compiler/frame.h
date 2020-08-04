@@ -50,8 +50,6 @@ F_fragList F_FragList(F_frag head, F_fragList tail);
 
 /* machine-related features */
 
-extern Temp_map F_tempMap;
-
 Temp_tempList F_registers(void);
 string        F_getlabel(F_frame frame);
 T_exp         F_Exp(F_access acc);
@@ -65,7 +63,7 @@ Temp_label    F_heapLabel(F_access access);
 extern const int F_wordSize;
 
 void          F_initRegisters(void);
-Temp_map      F_initialRegisters(F_frame f);
+Temp_map      F_initialRegisters(void);
 
 Temp_temp     F_RV(void);       // d0
 Temp_temp     F_A0(void);
@@ -89,9 +87,9 @@ Temp_tempList F_dRegs(void);
 bool          F_isAn(Temp_temp reg);
 bool          F_isDn(Temp_temp reg);
 Temp_temp     F_lookupReg(S_symbol sym);
+string        F_regName(Temp_temp r);
 
-F_frame       F_newFrame(Temp_label name, Ty_tyList formalTys, Temp_tempList regs);
-Temp_tempList F_getFrameRegs(F_frame f);
+F_frame       F_newFrame(Temp_label name, Ty_formal formals);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);
 

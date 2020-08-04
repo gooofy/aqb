@@ -94,7 +94,7 @@ AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
     return p;
 }
 
-AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, T_const imm, long offset, Temp_label label)
+AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, Ty_const imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -268,7 +268,7 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempLis
 }
 
 AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst,
-                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, T_const imm, long offset, Temp_label label)
+                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, Ty_const imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -507,14 +507,28 @@ static void instrformat(string str, string strTmpl, AS_instr instr, Temp_map m)
                 }
                 case 'i':
                 {
-                    switch (instr->imm->kind)
+                    switch (instr->imm->ty->kind)
                     {
-                        case T_CFLOAT:
-                            pos += sprintf(&str[pos], "0x%08x /* %f */", encode_ffp(instr->imm->u.f), instr->imm->u.f);
+                        case Ty_bool:
+                            pos += sprintf(&str[pos], "%d", instr->imm->u.b ? -1 : 0);
                             break;
-                        case T_CINT:
+                        case Ty_byte:
+                        case Ty_ubyte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                        case Ty_string:
+                        case Ty_pointer:
                             pos += sprintf(&str[pos], "%d", instr->imm->u.i);
                             break;
+                        case Ty_single:
+                        case Ty_double:
+                            pos += sprintf(&str[pos], "0x%08x /* %f */", encode_ffp(instr->imm->u.f), instr->imm->u.f);
+                            break;
+                        default:
+                            EM_error(0, "*** assem.c:instrformat: internal error");
+                            assert(0);
                     }
                     break;
                 }

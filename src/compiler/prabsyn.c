@@ -59,6 +59,8 @@ static void pr_dims(FILE *out, A_dim dims)
     fprintf(out,"[");
     for (A_dim d = dims; d; d=d->tail)
     {
+        if (d->statc)
+            fprintf(out, "STATIC ");
         if (d->expStart)
         {
             pr_exp(out, d->expStart);

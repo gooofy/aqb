@@ -108,11 +108,11 @@ Tr_level Tr_global(void)
     return global_level;
 }
 
-Tr_level Tr_newLevel(Temp_label name, bool globl, Ty_tyList formalTys, bool statc, Temp_tempList regs)
+Tr_level Tr_newLevel(Temp_label name, bool globl, Ty_formal formals, bool statc)
 {
     Tr_level lv = checked_malloc(sizeof(*lv));
 
-    lv->frame  = F_newFrame(name, formalTys, regs);
+    lv->frame  = F_newFrame(name, formals);
     lv->name   = name;
     lv->statc  = statc;
     lv->globl  = globl;
@@ -261,16 +261,16 @@ static T_exp unEx(Tr_exp e)
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
-            return T_Eseq(T_Move(T_Temp(r, ty), T_ConstBool(TRUE, ty), ty),
+            return T_Eseq(T_Move(T_Temp(r, ty), T_Const(Ty_ConstBool(ty, TRUE)), ty),
                     T_Eseq(e->u.cx.stm,
                       T_Eseq(T_Label(f),
-                        T_Eseq(T_Move(T_Temp(r, ty), T_ConstBool(FALSE, ty), ty),
+                        T_Eseq(T_Move(T_Temp(r, ty), T_Const(Ty_ConstBool(ty, FALSE)), ty),
                           T_Eseq(T_Label(t),
                                   T_Temp(r, ty), ty), ty), ty), ty), ty);
         }
 
         case Tr_nx:
-            return T_Eseq(e->u.nx, T_ConstInt(0, Ty_Integer()), Ty_Integer());
+            return T_Eseq(e->u.nx, T_Const(Ty_ConstInt(Ty_Integer(), 0)), Ty_Integer());
     }
     return NULL;
 }
@@ -359,9 +359,11 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
         E_module m2;
         while (TAB_next (iter, (void **)&sym, (void**) &m2))
         {
-            Temp_label lbl = Temp_namedlabel(strprintf("__%s_init", S_name(sym)));
-            stm = T_Seq(T_Exp(T_CallF(lbl, /*args=*/NULL, /*regs=*/NULL, /*ret=*/NULL, /*offset=*/0, /*libBase=*/NULL)),
-                        stm);
+            S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(sym)), TRUE);
+
+            Ty_proc init_proc = Ty_Proc(initializer, NULL, initializer, FALSE, NULL, FALSE, NULL, FALSE, 0, NULL);
+
+            stm = T_Seq(T_Exp(T_CallF(init_proc, /*args=*/NULL)), stm);
         }
     }
 
@@ -414,7 +416,7 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_bool:
-            return Tr_Ex(T_ConstBool(FALSE, ty));
+            return Tr_Ex(T_Const(Ty_ConstBool(ty, FALSE)));
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
@@ -423,10 +425,10 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
         case Ty_ulong:
         case Ty_pointer:
         case Ty_string:
-            return Tr_Ex(T_ConstInt(0, ty));
+            return Tr_Ex(T_Const(Ty_ConstInt(ty, 0)));
         case Ty_single:
         case Ty_double:
-            return Tr_Ex(T_ConstFloat(0, ty));
+            return Tr_Ex(T_Const(Ty_ConstFloat(ty, 0.0)));
         default:
             EM_error(0, "*** translate.c:Tr_zeroExp: internal error");
             assert(0);
@@ -437,17 +439,17 @@ Tr_exp Tr_oneExp(Ty_ty ty) {
     switch (ty->kind)
     {
         case Ty_bool:
-            return Tr_Ex(T_ConstBool(TRUE, ty));
+            return Tr_Ex(T_Const(Ty_ConstBool(ty, TRUE)));
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
-            return Tr_Ex(T_ConstInt(1, ty));
+            return Tr_Ex(T_Const(Ty_ConstInt(ty, 1)));
         case Ty_single:
         case Ty_double:
-            return Tr_Ex(T_ConstFloat(1, ty));
+            return Tr_Ex(T_Const(Ty_ConstFloat(ty, 1.0)));
         default:
             EM_error(0, "*** translate.c:Tr_oneExp: internal error");
             assert(0);
@@ -469,7 +471,7 @@ Tr_exp Tr_nopNx()
 
 Tr_exp Tr_boolExp(bool b, Ty_ty ty)
 {
-    return Tr_Ex(T_ConstBool(b, ty));
+    return Tr_Ex(T_Const(Ty_ConstBool(ty, b)));
 }
 
 Tr_exp Tr_intExp(int i, Ty_ty ty)
@@ -492,7 +494,12 @@ Tr_exp Tr_intExp(int i, Ty_ty ty)
             ty = Ty_Long();
     }
 
-    return Tr_Ex(T_ConstInt(i, ty));
+    return Tr_Ex(T_Const(Ty_ConstInt(ty, i)));
+}
+
+Tr_exp Tr_constExp(Ty_const c)
+{
+    return Tr_Ex(T_Const(c));
 }
 
 bool Tr_isConst(Tr_exp exp)
@@ -508,68 +515,83 @@ int Tr_getConstInt (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    switch (exp->u.ex->u.CONST->kind)
+    switch (exp->u.ex->u.CONST->ty->kind)
     {
-        case T_CFLOAT:
-            return (int) exp->u.ex->u.CONST->u.f;
-        case T_CINT:
+        case Ty_bool:
+            return exp->u.ex->u.CONST->u.b ? -1 : 0;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
             return exp->u.ex->u.CONST->u.i;
+        case Ty_single:
+        case Ty_double:
+            return (int) exp->u.ex->u.CONST->u.f;
+        default:
+            EM_error(0, "*** translate.c:Tr_getConstInt: internal error");
+            assert(0);
     }
-    assert(0);
-    return 0;
 }
 
 double Tr_getConstFloat (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    switch (exp->u.ex->u.CONST->kind)
+    switch (exp->u.ex->u.CONST->ty->kind)
     {
-        case T_CFLOAT:
+        case Ty_bool:
+            return exp->u.ex->u.CONST->u.b ? -1 : 0;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+            return (float) exp->u.ex->u.CONST->u.i;
+        case Ty_single:
+        case Ty_double:
             return exp->u.ex->u.CONST->u.f;
-        case T_CINT:
-            return (double) exp->u.ex->u.CONST->u.i;
+        default:
+            EM_error(0, "*** translate.c:Tr_getConstFloat: internal error");
+            assert(0);
     }
-    assert(0);
-    return 0.0;
 }
 
 bool Tr_getConstBool (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    switch (exp->u.ex->u.CONST->kind)
+    switch (exp->u.ex->u.CONST->ty->kind)
     {
-        case T_CFLOAT:
-            return exp->u.ex->u.CONST->u.f != 0.0;
-        case T_CINT:
+        case Ty_bool:
+            return exp->u.ex->u.CONST->u.b;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
             return exp->u.ex->u.CONST->u.i != 0;
+        case Ty_single:
+        case Ty_double:
+            return exp->u.ex->u.CONST->u.f != 0.0;
+        default:
+            EM_error(0, "*** translate.c:Tr_getConstBool: internal error");
+            assert(0);
     }
-    assert(0);
-    return FALSE;
 }
 
-#if 0
-unsigned char *Tr_getConstData(Tr_exp exp)
+Ty_const Tr_getConst(Tr_exp exp)
 {
-    if (!Tr_isConst(exp))
-        return NULL;
-
-    switch (exp->u.ex->u.CONST->kind)
-    {
-        case T_CFLOAT:
-            return (unsigned char *) &exp->u.ex->u.CONST->u.f;
-        case T_CINT:
-            return (unsigned char *) &exp->u.ex->u.CONST->u.i;
-    }
-    assert(0);
-    return (unsigned char *) &exp->u.ex->u.CONST; // FIXME: conv endianness!
+    assert (Tr_isConst(exp));
+    return exp->u.ex->u.CONST;
 }
-#endif
 
 Tr_exp Tr_floatExp(double f, Ty_ty ty)
 {
-    return Tr_Ex(T_ConstFloat(f, ty));
+    return Tr_Ex(T_Const(Ty_ConstFloat(ty, f)));
 }
 
 Tr_exp Tr_stringExp(string str)
@@ -622,20 +644,25 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
                           Ty_VarPtr(et));
     }
 
-    assert(t->u.pointer->kind==Ty_array);
 
-    Ty_ty et = at->u.array.elementTy;
+    if (t->u.pointer->kind == Ty_array)
+    {
+        Ty_ty et = at->u.array.elementTy;
 
-    return Tr_arOpExp(A_addOp,
-                      ape,
-                      Tr_arOpExp(A_mulOp,
-                                 Tr_arOpExp(A_subOp,
-                                            idx,
-                                            Tr_intExp(at->u.array.iStart, Ty_Long()),
-                                            Ty_Long()),
-                                 Tr_intExp(Ty_size(et), Ty_Long()),
-                                 Ty_Long()),
-                      Ty_VarPtr(et));
+        return Tr_arOpExp(A_addOp,
+                          ape,
+                          Tr_arOpExp(A_mulOp,
+                                     Tr_arOpExp(A_subOp,
+                                                idx,
+                                                Tr_intExp(at->u.array.iStart, Ty_Long()),
+                                                Ty_Long()),
+                                     Tr_intExp(Ty_size(et), Ty_Long()),
+                                     Ty_Long()),
+                          Ty_VarPtr(et));
+    }
+
+    assert(0);
+    return NULL;
 }
 
 Tr_exp Tr_Deref(Tr_exp ptr)
@@ -654,7 +681,7 @@ Tr_exp Tr_Field(Tr_exp r, Ty_field f)
     T_exp e = unEx(r);
     return Tr_Ex(T_Binop(T_plus,
                          e,
-                         T_ConstInt(f->uiOffset, Ty_Long()),
+                         T_Const(Ty_ConstInt(Ty_ULong(), f->uiOffset)),
                          Ty_VarPtr(f->ty)));
 }
 
@@ -1046,22 +1073,19 @@ Tr_exp Tr_seqExp(Tr_expList el)
     return Tr_Nx(stm);
 }
 
-Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase)
+Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Tr_expList actualParams, Ty_proc proc)
 {
     // cdecl calling convention (right-to-left order)
-    T_expList el = NULL;
-    for (; expList; expList = expList->tail)
+    T_expList aps = NULL;
+    for (; actualParams; actualParams = actualParams->tail)
     {
-        el = T_ExpList(unEx(expList->head), el);
+        aps = T_ExpList(unEx(actualParams->head), aps);
     }
 
-    // library call?
-    Temp_tempList regs = libBase ? F_getFrameRegs(funclv->frame) : NULL;
-
-    return Tr_Ex(T_CallF(name, el, regs, retty, offset, libBase));
+    return Tr_Ex(T_CallF(proc, aps));
 }
 
-Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty)
+Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_proc proc)
 {
     // cdecl calling convention (right-to-left order)
     T_expList el = NULL;
@@ -1070,7 +1094,7 @@ Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty)
         el = T_ExpList(unEx(expList->head), el);
     }
 
-    return Tr_Ex(T_CallFPtr(unEx(funcPtr), el, retty));
+    return Tr_Ex(T_CallFPtr(unEx(funcPtr), el, proc));
 }
 
 

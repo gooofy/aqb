@@ -279,12 +279,13 @@ A_stmt A_ConstDeclStmt (S_pos pos, bool isPrivate, S_symbol sConst, A_typeDesc t
     return p;
 }
 
-A_dim A_Dim (A_exp expStart, A_exp expEnd, A_dim tail)
+A_dim A_Dim (bool statc, A_exp expStart, A_exp expEnd, A_dim tail)
 {
     A_dim p = checked_malloc(sizeof(*p));
 
     assert(expEnd);
 
+    p->statc    = statc;
     p->expStart = expStart;
     p->expEnd   = expEnd;
     p->tail     = tail;

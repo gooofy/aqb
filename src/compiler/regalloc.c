@@ -119,7 +119,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
     int try = 0;
     while (++try < 7)
     {
-        Temp_map initialRegs = F_initialRegisters(f);
+        Temp_map initialRegs = F_initialRegisters();
         flow = FG_AssemFlowGraph(il, f);
 #ifdef ENABLE_DEBUG
         printf("try #%d flow graph:\n", try);

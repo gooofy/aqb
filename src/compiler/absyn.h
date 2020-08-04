@@ -231,6 +231,7 @@ struct A_proc_
 
 struct A_dim_
 {
+    bool  statc;
     A_exp expStart;
     A_exp expEnd;
     A_dim tail;
@@ -292,7 +293,7 @@ A_proc          A_Proc            (S_pos pos, bool isPrivate, S_symbol name, S_s
 A_param         A_Param           (S_pos pos, bool byval, bool byref, S_symbol name, A_typeDesc td, A_exp defaultExp);
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
-A_dim           A_Dim             (A_exp expStart, A_exp expEnd, A_dim tail);
+A_dim           A_Dim             (bool statc, A_exp expStart, A_exp expEnd, A_dim tail);
 A_field         A_Field           (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td);
 A_ifBranch      A_IfBranch        (A_exp test, A_stmtList stmts);
 A_selectBranch  A_SelectBranch    (S_pos pos, A_selectExp exp, A_stmtList stmts);

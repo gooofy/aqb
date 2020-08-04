@@ -74,6 +74,7 @@ static enum AS_w ty_isz(Ty_ty ty)
             return AS_w_L;
         case Ty_array:
         case Ty_record:
+        case Ty_class:
         case Ty_void:
         case Ty_toLoad:
             assert(0);
@@ -731,20 +732,20 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         case T_CALLF:
         {
             /* CALL(NAME(lab),args) */
-            Temp_label lab = e->u.CALLF.fun;
+            Temp_label lab = e->u.CALLF.proc->label;
             T_expList args = e->u.CALLF.args;
 
-            if (e->u.CALLF.libBase)
+            if (e->u.CALLF.proc->libBase)
             {
-                F_ral         ral  = NULL;
-                Temp_tempList regs = e->u.CALLF.regs;
+                F_ral     ral    = NULL;
+                Ty_formal formal = e->u.CALLF.proc->formals;
                 for (; args; args=args->tail)
                 {
-                    ral = F_RAL(munchExp(args->head, FALSE), regs->head, ral);
-                    regs = regs->tail;
+                    ral = F_RAL(munchExp(args->head, FALSE), formal->reg, ral);
+                    formal = formal->next;
                 }
 
-                Temp_temp r = emitRegCall(e->u.CALLF.libBase, e->u.CALLF.offset, ral, e->ty);
+                Temp_temp r = emitRegCall(e->u.CALLF.proc->libBase, e->u.CALLF.proc->offset, ral, e->ty);
                 if (!ignore_result)
                     return r;
             }
@@ -898,7 +899,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r = Temp_newtemp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), // and.l  #65535, r
-                                            L(r, NULL), T_ConstI(65535), 0, NULL));
+                                            L(r, NULL), Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
                             return r;
                         }
                         case Ty_single:
@@ -906,7 +907,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             Temp_temp r = Temp_newtemp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), // and.l  #65535, r
-                                            L(r, NULL), T_ConstI(65535), 0, NULL));
+                                            L(r, NULL), Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
                             return emitRegCall("_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
                         }
                         default:
@@ -1113,7 +1114,7 @@ static void munchStm(T_stm s)
             {
                 Temp_temp rd_size = Temp_newtemp(Ty_Long());
                 emit(AS_InstrEx(AS_MOVE_Imm_AnDn, ty_isz(Ty_Long()), NULL, L(rd_size, NULL),            // move.x #size, rd_size
-                                T_ConstI(Ty_size(resty)), 0, NULL));
+                                Ty_ConstInt(Ty_ULong(), Ty_size(resty)), 0, NULL));
 
                 switch (dst->kind)
                 {
@@ -1433,7 +1434,7 @@ static int munchArgsStack(int i, T_expList args)
         Temp_temp r = munchExp(e, FALSE);
         if (Ty_size(e->ty)==1)
             emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, L(r, NULL), L(r, NULL),                // and.l   #255, r
-                            T_ConstI(255), 0, NULL));
+                            Ty_ConstInt(Ty_ULong(), 255), 0, NULL));
         emit(AS_Instr(AS_MOVE_AnDn_PDsp, AS_w_L, r, NULL));                               // move.l  r, -(sp)
     }
 
@@ -1448,7 +1449,7 @@ static void munchCallerRestoreStack(int cnt, bool sink_rv)
     if (cnt)
     {
         emit(AS_InstrEx(AS_ADD_Imm_sp, AS_w_L, regs,
-                        NULL, T_ConstI(cnt * F_wordSize), 0, NULL));          // add.l #(cnt*F_wordSize), sp
+                        NULL, Ty_ConstInt(Ty_ULong(), cnt * F_wordSize), 0, NULL));          // add.l #(cnt*F_wordSize), sp
     }
     else
     {

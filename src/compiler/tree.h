@@ -9,7 +9,6 @@
 
 typedef struct T_stm_      *T_stm;
 typedef struct T_exp_      *T_exp;
-typedef struct T_const_    *T_const;
 typedef struct T_expList_  *T_expList;
 typedef struct T_stmList_  *T_stmList;
 
@@ -43,16 +42,6 @@ struct T_stm_
     } u;
 };
 
-struct T_const_
-{
-    enum {T_CFLOAT, T_CINT} kind;
-    union
-    {
-        double f;
-        int i;
-    } u;
-};
-
 struct T_exp_
 {
     enum { T_BINOP, T_MEM, T_HEAP, T_ESEQ, T_TEMP,
@@ -66,10 +55,10 @@ struct T_exp_
         Temp_label HEAP;
 	    Temp_temp TEMP;
 	    struct {T_stm stm; T_exp exp;} ESEQ;
-	    T_const CONST;
-	    struct {Temp_label fun; T_expList args; Temp_tempList regs; int offset; string libBase;} CALLF;
+	    Ty_const CONST;
+	    struct {Ty_proc proc; T_expList args;} CALLF;
 	    struct {T_exp exp; Ty_ty ty_from;} CAST;
-	    struct {T_exp fptr; T_expList args;} CALLFPTR;
+	    struct {T_exp fptr; T_expList args; Ty_proc proc;} CALLFPTR;
 	} u;
 };
 
@@ -86,20 +75,15 @@ T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty);
 T_stm T_Nop(void);
 T_stm T_Exp(T_exp exp);
 
-T_const T_ConstI(int i);
-T_const T_ConstF(float f);
-
 T_exp T_Binop(T_binOp, T_exp, T_exp, Ty_ty);
 T_exp T_Mem(T_exp exp, Ty_ty ty);
 T_exp T_Temp(Temp_temp, Ty_ty ty);
 T_exp T_Heap(Temp_label heap_pos, Ty_ty ty);
 T_exp T_FramePointer(void);
 T_exp T_Eseq(T_stm, T_exp, Ty_ty ty);
-T_exp T_ConstBool(bool b, Ty_ty ty);
-T_exp T_ConstInt(int i, Ty_ty ty);
-T_exp T_ConstFloat(double f, Ty_ty ty);
-T_exp T_CallF(Temp_label fun, T_expList args, Temp_tempList regs, Ty_ty ty_ret, int offset, string libBase);
-T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_ty ty_ret);
+T_exp T_Const(Ty_const c);
+T_exp T_CallF(Ty_proc proc, T_expList args);
+T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_proc proc);
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
 // T_exp T_TypeView(T_exp exp, Ty_ty ty); // return a clone of exp which carries a new type tag (no code is produced)
 

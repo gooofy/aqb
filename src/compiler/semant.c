@@ -140,6 +140,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = Ty_Long();
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -172,6 +173,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = Ty_Long();
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -203,6 +205,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return TRUE;
                 case Ty_array:
                 case Ty_record:
+                case Ty_class:
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
@@ -232,6 +235,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = Ty_Long();
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -262,6 +266,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -290,6 +295,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -318,6 +324,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -346,6 +353,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -372,6 +380,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty1;
                     return TRUE;
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -384,6 +393,10 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return FALSE;
             }
         case Ty_array:
+            assert(0); // FIXME
+            *res = ty1;
+            return FALSE;
+        case Ty_class:
             assert(0); // FIXME
             *res = ty1;
             return FALSE;
@@ -430,6 +443,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_single:
                 case Ty_double:
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_pointer:
                 case Ty_string:
@@ -456,6 +470,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_single:
                 case Ty_double:
                 case Ty_array:
+                case Ty_class:
                 case Ty_record:
                 case Ty_string:
                 case Ty_varPtr:
@@ -521,25 +536,25 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
             if (ty2->kind != Ty_procPtr)
                 return FALSE;
 
-            if ( (ty1->u.procPtr.returnTy && !ty2->u.procPtr.returnTy) ||
-                 (!ty1->u.procPtr.returnTy && ty2->u.procPtr.returnTy) )
+            if ( (ty1->u.procPtr->returnTy && !ty2->u.procPtr->returnTy) ||
+                 (!ty1->u.procPtr->returnTy && ty2->u.procPtr->returnTy) )
                  return FALSE;
 
-            if (ty1->u.procPtr.returnTy && !compatible_ty(ty1->u.procPtr.returnTy, ty2->u.procPtr.returnTy))
+            if (ty1->u.procPtr->returnTy && !compatible_ty(ty1->u.procPtr->returnTy, ty2->u.procPtr->returnTy))
                 return FALSE;
 
-            Ty_tyList f1 = ty1->u.procPtr.formalTys;
-            Ty_tyList f2 = ty2->u.procPtr.formalTys;
+            Ty_formal f1 = ty1->u.procPtr->formals;
+            Ty_formal f2 = ty2->u.procPtr->formals;
             while (f1)
             {
                 if (!f2)
                     return FALSE;
 
-                if (!compatible_ty(f1->head, f2->head))
+                if (!compatible_ty(f1->ty, f2->ty))
                     return FALSE;
 
-                f1 = f1->tail;
-                f2 = f2->tail;
+                f1 = f1->next;
+                f2 = f2->next;
             }
             if (f2)
                 return FALSE;
@@ -706,7 +721,7 @@ static Ty_ty lookup_type(S_scope tenv, S_pos pos, S_symbol sym)
     return Ty_Void();
 }
 
-static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Sem_nestedLabels nestedLabels);
+static Ty_proc makeProc(Tr_level level, S_scope venv, S_scope tenv, bool forward, A_proc proc, Sem_nestedLabels nestedLabels);
 
 static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeDesc td, bool allowForwardPtr, Sem_nestedLabels nestedLabels)
 {
@@ -742,32 +757,16 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
         }
         case A_procTd:
         {
-            Ty_ty     resultTy  = Ty_Void();
-            A_proc    proc      = td->u.proc;
+            Ty_proc   proc      = makeProc(level, venv, tenv, /* forward=*/FALSE, td->u.proc, nestedLabels);
 
-            if (proc->isFunction)
-            {
-                if (proc->returnTD)
-                {
-                    resultTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, nestedLabels);
-                }
-                if (!resultTy)
-                {
-                    EM_error(proc->pos, "failed to resolve return type descriptor.");
-                    break;
-                }
-            }
-            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
-            Ty_tyList formalTys = E_FormalTys(formals);
-
-            t = Ty_ProcPtr(g_mod->name, formalTys, resultTy);
+            t = Ty_ProcPtr(g_mod->name, proc);
             break;
         }
     }
     return t;
 }
 
-static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope tenv, E_formals formals, A_expListNode actuals, Sem_nestedLabels nestedLabels)
+static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope tenv, Ty_formal formals, A_expListNode actuals, Sem_nestedLabels nestedLabels)
 {
     Tr_expList explist = NULL;
 
@@ -796,11 +795,11 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
                 {
                     // check type signature
 
-                    if (!compatible_ty(proc->u.fun.result, formals->ty->u.procPtr.returnTy))
+                    if (!compatible_ty(proc->u.fun.proc->returnTy, formals->ty->u.procPtr->returnTy))
                         EM_error(actuals->exp->pos, "return type mismatch");
 
-                    E_formals ftys = proc->u.fun.formals;
-                    Ty_tyList atys = formals->ty->u.procPtr.formalTys;
+                    Ty_formal ftys = proc->u.fun.proc->formals;
+                    Ty_formal atys = formals->ty->u.procPtr->formals;
                     while (ftys)
                     {
                         if (!atys)
@@ -809,17 +808,17 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
                             break;
                         }
 
-                        if (!compatible_ty(ftys->ty, atys->head))
+                        if (!compatible_ty(ftys->ty, atys->ty))
                             EM_error(actuals->exp->pos, "parameter type mismatch");
 
                         ftys = ftys->next;
-                        atys = atys->tail;
+                        atys = atys->next;
                     }
                     if (atys)
                         EM_error(actuals->exp->pos, "number of parameters mismatch");
 
                     handled = TRUE;
-                    explist = Tr_ExpList(Tr_funPtrExp(proc->u.fun.label), explist);
+                    explist = Tr_ExpList(Tr_funPtrExp(proc->u.fun.proc->label), explist);
                 }
             }
 
@@ -842,7 +841,7 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
                 EM_error(pos, "missing arguments");
                 return NULL;
             }
-            explist = Tr_ExpList(formals->defaultExp, explist);
+            explist = Tr_ExpList(Tr_constExp(formals->defaultExp), explist);
         }
 
         formals = formals->next;
@@ -863,7 +862,7 @@ static Tr_expList assignParams(S_pos pos, Tr_level level, S_scope venv, S_scope 
             EM_error(pos, "missing arguments");
             return NULL;
         }
-        explist = Tr_ExpList(formals->defaultExp, explist);
+        explist = Tr_ExpList(Tr_constExp(formals->defaultExp), explist);
 
         formals = formals->next;
     }
@@ -1060,9 +1059,9 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
                 break;
             }
 
-            Tr_expList explist = assignParams(a->pos, level, venv, tenv, proc->u.fun.formals, a->u.callr.args->first, nestedLabels);
+            Tr_expList actualParams = assignParams(a->pos, level, venv, tenv, proc->u.fun.proc->formals, a->u.callr.args->first, nestedLabels);
 
-            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
+            return Tr_callExp(proc->u.fun.level, level, actualParams, proc->u.fun.proc);
         }
         case A_castExp:
         {
@@ -1123,7 +1122,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
                     EM_error(a->pos, "builtin %s not found.", S_name(fsym));
                     break;
                 }
-                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
+                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, arglist, func->u.fun.proc);
                 return tr_exp;
             }
             break;
@@ -1135,16 +1134,36 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
     return Tr_nopNx();
 }
 
-static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_paramList params, Sem_nestedLabels nestedLabels)
+static Ty_proc makeProc(Tr_level level, S_scope venv, S_scope tenv, bool forward, A_proc proc, Sem_nestedLabels nestedLabels)
 {
-    E_formals formals=NULL, last_formals=NULL;
-    for (A_param param = params->first; param; param = param->next)
+    Ty_ty returnTy      = Ty_Void();
+
+    if (proc->isFunction)
     {
-        Ty_ty ty          = NULL;
-        Tr_exp defaultExp = NULL;
+        if (proc->returnTD)
+            returnTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, nestedLabels);
+        else
+            returnTy = Ty_inferType(S_name(proc->name));
+        if (!returnTy)
+        {
+            EM_error(proc->pos, "failed to resolve return type descriptor.");
+            return NULL;
+        }
+    }
+
+    Ty_formal formals=NULL, last_formals=NULL;
+    for (A_param param = proc->paramList->first; param; param = param->next)
+    {
+        Ty_ty    ty          = NULL;
+        Ty_const defaultExp = NULL;
         if (param->td)
         {
             ty = resolveTypeDesc(level, venv, tenv, param->td, /*allowForwardPtr=*/FALSE, nestedLabels);
+            if (!returnTy)
+            {
+                EM_error(param->pos, "failed to resolve arg type descriptor.");
+                return NULL;
+            }
         }
         else
         {
@@ -1157,56 +1176,81 @@ static E_formals makeFormals(Tr_level level, S_scope venv, S_scope tenv, A_param
 
         if (param->byref)
         {
-            EM_error(param->pos, "BYREF is unsupported in AQB, use pointers instead.");
+            EM_error(param->pos, "BYREF is unsupported in AQB, use pointers instead."); // FIXME
+        }
+        Ty_formalMode mode = Ty_byVal;
+
+        Ty_formalParserHint ph;
+        switch (param->parserHint)
+        {
+            case A_phNone:   ph = Ty_phNone; break;
+            case A_phCoord:  ph = Ty_phCoord; break;
+            case A_phCoord2: ph = Ty_phCoord2; break;
+            case A_phLineBF: ph = Ty_phLineBF; break;
         }
 
         if (param->defaultExp)
-            defaultExp = transExp(level, venv, tenv, param->defaultExp, nestedLabels);
+        {
+            Tr_exp dExp = transExp(level, venv, tenv, param->defaultExp, nestedLabels);
+            if (Tr_isConst(dExp))
+                defaultExp = Tr_getConst(dExp);
+            else
+                EM_error(param->pos, "Default expressions must be constant.");
+        }
 
+        Temp_temp reg=NULL;
+
+        if (param->reg)
+        {
+            reg = F_lookupReg(param->reg);
+            if (!reg)
+            {
+                EM_error(param->pos, "register %s not recognized on this machine type.", S_name(param->reg));
+                break;
+            }
+        }
         /* insert at tail to avoid order reversed */
         if (formals == NULL)
         {
-            last_formals = formals = E_Formals(ty, defaultExp, NULL);
+            last_formals = formals = Ty_Formal(param->name, ty, defaultExp, mode, ph, reg);
         }
         else
         {
-            last_formals->next = E_Formals(ty, defaultExp, NULL);
+            last_formals->next = Ty_Formal(param->name, ty, defaultExp, mode, ph, reg);
             last_formals = last_formals->next;
         }
     }
-    return formals;
-}
 
-Temp_tempList makeParamRegList(A_paramList params)
-{
-    Temp_tempList regs = NULL, last_regs = NULL;
-    for (A_param param = params->first; param; param = param->next)
+    int           offset     = 0;
+    string        libBase    = NULL;
+
+    if (proc->offset)
     {
-        Temp_temp r;
-
-        if (!param->reg)
-            break;
-
-        r = F_lookupReg(param->reg);
-        if (!r)
+        Tr_exp expOffset = transExp(level, venv, tenv, proc->offset, nestedLabels);
+        if (!Tr_isConst(expOffset))
         {
-            EM_error(param->pos, "register %s not recognized on this machine type.", S_name(param->reg));
-            break;
+            EM_error(proc->offset->pos, "Constant offset expected.");
+            return NULL;
+        }
+        offset = Tr_getConstInt(expOffset);
+        E_enventry x = S_look(g_venv, proc->libBase);
+        if (!x)
+        {
+            EM_error(proc->pos, "Library base %s undeclared.", S_name(proc->libBase));
+            return NULL;
         }
 
-        /* insert at tail to avoid order reversed */
-        if (regs == NULL)
+        Temp_label l = Tr_heapLabel(x->u.var.access);
+        if (!l)
         {
-            regs      = Temp_TempList(r, NULL);
-            last_regs = regs;
+            EM_error(proc->pos, "Library base %s is not a global variable.", S_name(proc->libBase));
+            return NULL;
         }
-        else
-        {
-            last_regs->tail = Temp_TempList(r, NULL);
-            last_regs       = last_regs->tail;
-        }
+
+        libBase = Temp_labelstring(l);
     }
-    return regs;
+
+    return Ty_Proc(proc->name, proc->extraSyms, proc->label, proc->isPrivate, formals, proc->isStatic, returnTy, forward, offset, libBase);
 }
 
 static Tr_exp transIfBranch(Tr_level level, S_scope venv, S_scope tenv, Sem_nestedLabels nestedLabels, A_ifBranch ifBranch)
@@ -1359,7 +1403,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                     EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
                     break;
                 }
-                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
+                Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, arglist, func->u.fun.proc);
                 return tr_exp;
             }
             break;
@@ -1373,7 +1417,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
                 break;
             }
-            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
+            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, NULL, func->u.fun.proc);
             return tr_exp;
         }
         case A_printTABStmt:
@@ -1385,7 +1429,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
                 break;
             }
-            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, func->u.fun.label, NULL, func->u.fun.result, 0, NULL);
+            Tr_exp tr_exp = Tr_callExp(func->u.fun.level, level, NULL, func->u.fun.proc);
             return tr_exp;
         }
         case A_assertStmt:
@@ -1399,7 +1443,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 EM_error(stmt->pos, "builtin %s not found.", S_name(fsym));
                 break;
             }
-            return Tr_callExp(func->u.fun.level, level, func->u.fun.label, arglist, func->u.fun.result, 0, NULL);
+            return Tr_callExp(func->u.fun.level, level, arglist, func->u.fun.proc);
         }
         case A_assignStmt:
         {
@@ -1508,73 +1552,28 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         case A_procStmt:
         case A_procDeclStmt:
         {
-            A_proc        proc       = stmt->u.proc;
-            Ty_ty         resultTy   = Ty_Void();
-            Temp_tempList regs       = makeParamRegList(proc->paramList);
             E_enventry    e;
-            int           offset     = 0;
-            string        libBase    = NULL;
 
-            if (proc->isFunction)
-            {
-                if (proc->returnTD)
-                {
-                    resultTy = resolveTypeDesc(level, venv, tenv, proc->returnTD, /*allowForwardPtr=*/FALSE, nestedLabels);
-                }
-                else
-                {
-                    resultTy = Ty_inferType(S_name(proc->name));
-                }
-                if (!resultTy)
-                {
-                    EM_error(proc->pos, "failed to resolve return type descriptor.");
-                    break;
-                }
-            }
+            Ty_proc       proc = makeProc(level, venv, tenv, /*forward=*/ stmt->kind == A_procDeclStmt, stmt->u.proc, nestedLabels);
 
-            if (proc->offset)
-            {
-                Tr_exp expOffset = transExp(level, venv, tenv, proc->offset, nestedLabels);
-                if (!Tr_isConst(expOffset))
-                {
-                    EM_error(proc->offset->pos, "Constant offset expected.");
-                    return Tr_nopNx();
-                }
-                offset = Tr_getConstInt(expOffset);
-                E_enventry x = S_look(g_venv, proc->libBase);
-                if (!x)
-                {
-                    EM_error(proc->pos, "Library base %s undeclared.", S_name(proc->libBase));
-                    return Tr_nopNx();
-                }
-
-                Temp_label l = Tr_heapLabel(x->u.var.access);
-                if (!l)
-                {
-                    EM_error(proc->pos, "Library base %s is not a global variable.", S_name(proc->libBase));
-                    return Tr_nopNx();
-                }
-
-                libBase = Temp_labelstring(l);
-            }
-
-            E_formals formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
-            Ty_tyList formalTys = E_FormalTys(formals);
+            //Ty_formal formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
+            //Ty_tyList formalTys = E_FormalTys(formals);
             e = S_look(venv, proc->label);
             if (e)
             {
-                if ( (stmt->kind == A_procDeclStmt) || !e->u.fun.forward)
+                if ( (stmt->kind == A_procDeclStmt) || !e->u.fun.proc->forward)
                 {
-                    EM_error(proc->pos, "Proc %s declared more than once.", S_name(proc->name));
+                    EM_error(stmt->pos, "Proc %s declared more than once.", S_name(stmt->u.proc->name));
                     break;
                 }
                 // FIXME: compare formal types between forward declaration and this one!
-                e->u.fun.forward = FALSE;
+                e->u.fun.proc->forward = FALSE;
             }
             else
             {
-                e = E_FunEntry(proc->name, Tr_newLevel(proc->label, !proc->isPrivate, formalTys, proc->isStatic, regs), proc->label, formals,
-                               resultTy, stmt->kind==A_procDeclStmt, offset, libBase, proc);
+                e = E_FunEntry(proc->name,
+                               Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic),
+                               proc);
                 if (!proc->isPrivate)
                 {
                     e->next = g_mod->env;
@@ -1584,7 +1583,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
 
             S_enter(g_venv, proc->label, e);
 
-            if (!e->u.fun.forward)
+            if (!e->u.fun.proc->forward)
             {
                 Tr_level   funlv = e->u.fun.level;
                 Tr_access  ret_access = NULL;
@@ -1592,25 +1591,23 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 E_enventry ret_ve = NULL;
                 {
                     Tr_accessList acl = Tr_formals(funlv);
-                    A_param param;
-                    E_formals formals;
-                    for (param = proc->paramList->first, formals = e->u.fun.formals;
-                         param; param = param->next, formals = formals->next, acl = Tr_accessListTail(acl))
-                        S_enter(lenv, param->name, E_VarEntry(param->name, Tr_accessListHead(acl), formals->ty, FALSE));
+                    for (Ty_formal formals = e->u.fun.proc->formals;
+                         formals; formals = formals->next, acl = Tr_accessListTail(acl))
+                        S_enter(lenv, formals->name, E_VarEntry(formals->name, Tr_accessListHead(acl), formals->ty, FALSE));
                     // function return var (same name as the function itself)
-                    if (proc->isFunction)
+                    if (proc->returnTy->kind != Ty_void)
                     {
-                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, resultTy);
-                        ret_ve = E_VarEntry(proc->name, ret_access, resultTy, FALSE);
+                        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, proc->returnTy);
+                        ret_ve = E_VarEntry(proc->name, ret_access, proc->returnTy, FALSE);
                         S_enter(lenv, proc->name, ret_ve);
                     }
                 }
 
                 Temp_label subexit = Temp_newlabel();
 
-                Sem_nestedLabels nls2 = Sem_NestedLabels(proc->isFunction ? A_nestFunction : A_nestSub, subexit, NULL, ret_ve, nestedLabels);
+                Sem_nestedLabels nls2 = Sem_NestedLabels(ret_access ? A_nestFunction : A_nestSub, subexit, NULL, ret_ve, nestedLabels);
 
-                Tr_exp body = transStmtList(funlv, lenv, tenv, proc->body, nls2);
+                Tr_exp body = transStmtList(funlv, lenv, tenv, stmt->u.proc->body, nls2);
 
                 S_endScope(lenv);
 
@@ -1653,9 +1650,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 break;
             }
 
-            Tr_expList explist = assignParams(stmt->pos, level, venv, tenv, proc->u.fun.formals, stmt->u.callr.args->first, nestedLabels);
+            Tr_expList actualParams = assignParams(stmt->pos, level, venv, tenv, proc->u.fun.proc->formals, stmt->u.callr.args->first, nestedLabels);
 
-            return Tr_callExp(proc->u.fun.level, level, proc->u.fun.label, explist, proc->u.fun.result, proc->u.fun.offset, proc->u.fun.libBase);
+            return Tr_callExp(proc->u.fun.level, level, actualParams, proc->u.fun.proc);
         }
         case A_varDeclStmt:
         {
@@ -1790,7 +1787,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (entry)
                 EM_error (stmt->pos, "Type %s is already defined here.", S_name(stmt->u.typer.sType));
 
-            Ty_fieldList fl = NULL, flast=NULL;
+            Ty_field fl = NULL, flast=NULL;
             for (A_field f = stmt->u.typer.fields; f; f=f->tail)
             {
                 Ty_ty t = NULL;
@@ -1838,12 +1835,12 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
                 }
                 if (flast)
                 {
-                    flast->tail = Ty_FieldList(Ty_Field(f->name, t), NULL);
-                    flast = flast->tail;
+                    flast->next = Ty_Field(f->name, t);
+                    flast = flast->next;
                 }
                 else
                 {
-                    fl = flast = Ty_FieldList(Ty_Field(f->name, t), NULL);
+                    fl = flast = Ty_Field(f->name, t);
                 }
             }
 
@@ -1885,7 +1882,7 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             S_symbol name = stmt->u.cdeclr.sConst;
-            x = E_ConstEntry(name, conv_cexp);
+            x = E_ConstEntry(name, Tr_getConst(conv_cexp));
             S_enter(g_venv, name, x);
             if (!stmt->u.cdeclr.isPrivate)
             {
@@ -1910,24 +1907,8 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             }
 
             Ty_ty ty = procptr->u.var.ty;
-            E_formals formals = NULL, formals_last = NULL;
-            Ty_tyList formalTys = ty->u.procPtr.formalTys;
-            while (formalTys)
-            {
-                E_formals f = E_Formals(formalTys->head, NULL, NULL);
-                if (formals)
-                {
-                    formals_last->next = f;
-                    formals_last = f;
-                }
-                else
-                {
-                    formals = formals_last = f;
-                }
-                formalTys = formalTys->tail;
-            }
             Tr_exp e = Tr_Deref(Tr_Var(procptr->u.var.access));
-            return Tr_callPtrExp(e, assignParams(stmt->pos, level, venv, tenv, formals, stmt->u.callptr.args->first, nestedLabels), ty->u.procPtr.returnTy);
+            return Tr_callPtrExp(e, assignParams(stmt->pos, level, venv, tenv, ty->u.procPtr->formals, stmt->u.callptr.args->first, nestedLabels), ty->u.procPtr);
         }
         case A_exitStmt:
         case A_contStmt:
@@ -2144,13 +2125,13 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
         // function pointer?
         if ( (x->kind == E_funEntry) && !v->selector)
         {
-            return Tr_funPtrExp(x->u.fun.label);
+            return Tr_funPtrExp(x->u.fun.proc->label);
         }
         else
         {
             if (x->kind == E_constEntry)
             {
-                return x->u.cExp;
+                return Tr_constExp(x->u.cExp);
             }
             EM_error(v->pos, "this is not a variable: %s", S_name(v->name));
             return Tr_zeroExp(Ty_Long());
@@ -2180,23 +2161,7 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
         }
         e = Tr_Deref(e);
         ty = Tr_ty(e);
-        E_formals formals = NULL, formals_last = NULL;
-        Ty_tyList formalTys = ty->u.procPtr.formalTys;
-        while (formalTys)
-        {
-            E_formals f = E_Formals(formalTys->head, NULL, NULL);
-            if (formals)
-            {
-                formals_last->next = f;
-                formals_last = f;
-            }
-            else
-            {
-                formals = formals_last = f;
-            }
-            formalTys = formalTys->tail;
-        }
-        return Tr_callPtrExp(e, assignParams(pos, level, venv, tenv, formals, actuals->first, nestedLabels), ty->u.procPtr.returnTy);
+        return Tr_callPtrExp(e, assignParams(pos, level, venv, tenv, ty->u.procPtr->formals, actuals->first, nestedLabels), ty->u.procPtr);
     }
 
     for (A_selector sel = v->selector; sel; sel = sel->tail)
@@ -2219,7 +2184,9 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                     return Tr_zeroExp(Ty_Long());
                 }
                 if ( (ty->kind != Ty_varPtr) ||
-                     ((ty->u.pointer->kind != Ty_array) && (ty->u.pointer->kind != Ty_pointer) && (ty->u.pointer->kind != Ty_string)) )
+                     ((ty->u.pointer->kind != Ty_array)  &&
+                      (ty->u.pointer->kind != Ty_pointer) &&
+                      (ty->u.pointer->kind != Ty_string))    )
                 {
                     EM_error(sel->pos, "string, array or pointer type expected");
                     return Tr_zeroExp(Ty_Long());
@@ -2234,10 +2201,10 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                     EM_error(sel->pos, "record type expected");
                     return Tr_zeroExp(Ty_Long());
                 }
-                Ty_fieldList f = ty->u.pointer->u.record.fields;
-                for (;f;f=f->tail)
+                Ty_field f = ty->u.pointer->u.record.fields;
+                for (;f;f=f->next)
                 {
-                    if (f->head->name == sel->u.field)
+                    if (f->name == sel->u.field)
                         break;
                 }
                 if (!f)
@@ -2246,11 +2213,11 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                     return Tr_zeroExp(Ty_Long());
                 }
 
-                Ty_ty fty = f->head->ty;
+                Ty_ty fty = f->ty;
                 if (fty->kind == Ty_forwardPtr)
-                    resolveForwardType(sel->pos, tenv, f->head);
+                    resolveForwardType(sel->pos, tenv, f);
 
-                e = Tr_Field(e, f->head);
+                e = Tr_Field(e, f);
                 break;
             }
             case A_pointerSel:
@@ -2264,10 +2231,10 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                 e = Tr_Deref(e);
                 ty = Tr_ty(e);
 
-                Ty_fieldList f = ty->u.pointer->u.record.fields;
-                for (;f;f=f->tail)
+                Ty_field f = ty->u.pointer->u.record.fields;
+                for (;f;f=f->next)
                 {
-                    if (f->head->name == sel->u.field)
+                    if (f->name == sel->u.field)
                         break;
                 }
                 if (!f)
@@ -2276,11 +2243,11 @@ static Tr_exp transVar(Tr_level level, S_scope venv, S_scope tenv, A_var v, Sem_
                     return Tr_zeroExp(Ty_Long());
                 }
 
-                Ty_ty fty = f->head->ty;
+                Ty_ty fty = f->ty;
                 if (fty->kind == Ty_forwardPtr)
-                    resolveForwardType(sel->pos, tenv, f->head);
+                    resolveForwardType(sel->pos, tenv, f);
 
-                e = Tr_Field(e, f->head);
+                e = Tr_Field(e, f);
                 break;
             }
             default:
@@ -2306,7 +2273,7 @@ F_fragList SEM_transProg(A_sourceProgram sourceProgram, bool is_main, string mod
         label = Temp_namedlabel(strprintf("__%s_init", module_name));
     }
 
-    Tr_level lv = Tr_newLevel(label, TRUE, NULL, FALSE, NULL);
+    Tr_level lv = Tr_newLevel(label, /*globl=*/TRUE, NULL, /*statc=*/FALSE);
     S_scope venv = S_beginScope(g_venv);
 
     if (OPT_get(OPTION_VERBOSE))

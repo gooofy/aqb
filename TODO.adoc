@@ -42,6 +42,7 @@ v0.1, 2020-07-12
     * fix spilling
     * translate.c: add #0, tmp ; mul *1 ; div / 1 ; ...
     * optionally: initialize all variables to 0?
+    * T_Cast that results in NOP or simple MOVE: introduce T_TypeView node
 
 - Exec error handling / traps
     * division by zero

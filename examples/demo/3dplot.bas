@@ -62,9 +62,9 @@ CONST AS SINGLE  ste_z      = (zb-za)/(net_z-1)
 CONST AS SINGLE  ste_x      = (xb-xa)/(prec-1)
 CONST AS INTEGER num_step_x = prec/net_x
 
-'' background pattern (just to test the PATTERN command)
+' background pattern (just to test the PATTERN command)
 'DIM AS INTEGER pattern_bg(3)
-
+'
 'pattern_bg(0) = &HCCCC
 'pattern_bg(1) = &H3333
 'pattern_bg(2) = &HCCCC

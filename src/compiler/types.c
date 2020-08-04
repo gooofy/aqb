@@ -6,6 +6,21 @@
 #include "symbol.h"
 #include "types.h"
 
+/*
+ * runtime descriptor (RTTI) for objects (TBD)
+ *
+ * offset   | description
+ * ---------+---------------------------
+ * 0        | virtual method 1
+ *          |
+ *          |
+ *          |
+ *          |
+ *
+ */
+
+#define OBJECT_DESC_SIZE 6 // FIXME
+
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
 
@@ -73,7 +88,7 @@ void Ty_init(void)
 
 static uint32_t g_uid = 23;
 
-Ty_ty Ty_Record(S_symbol mod, Ty_fieldList fields)
+Ty_ty Ty_Record(S_symbol mod, Ty_field fields)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
@@ -123,15 +138,14 @@ Ty_ty Ty_ForwardPtr(S_symbol mod, S_symbol sType)
     return p;
 }
 
-Ty_ty Ty_ProcPtr(S_symbol mod, Ty_tyList formalTys, Ty_ty returnTy)
+Ty_ty Ty_ProcPtr(S_symbol mod, Ty_proc proc)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
-    p->kind                = Ty_procPtr;
-    p->u.procPtr.formalTys = formalTys;
-    p->u.procPtr.returnTy  = returnTy;
-    p->mod                 = mod;
-    p->uid                 = g_uid++;
+    p->kind      = Ty_procPtr;
+    p->u.procPtr = proc;
+    p->mod       = mod;
+    p->uid       = g_uid++;
 
     return p;
 }
@@ -160,9 +174,9 @@ void Ty_computeSize(Ty_ty ty)
             unsigned int off=0;
 
             ty->u.record.uiSize = 0;
-            for (Ty_fieldList fl=ty->u.record.fields; fl; fl=fl->tail)
+            for (Ty_field fl=ty->u.record.fields; fl; fl=fl->next)
             {
-                unsigned int s = Ty_size(fl->head->ty);
+                unsigned int s = Ty_size(fl->ty);
 
                 // 68k alignment
                 if (s>1 && (ty->u.record.uiSize % 2))
@@ -172,11 +186,14 @@ void Ty_computeSize(Ty_ty ty)
                 }
 
                 ty->u.record.uiSize += s;
-                fl->head->uiOffset = off;
+                fl->uiOffset = off;
                 off += s;
             }
             break;
         }
+        case Ty_class:
+            assert(0); // FIXME: implement
+            break;
         case Ty_pointer:  break;
         case Ty_string:   break;
         case Ty_procPtr:  break;
@@ -214,16 +231,6 @@ Ty_ty Ty_Array(S_symbol mod, Ty_ty ty, int start, int end)
     return p;
 }
 
-Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail)
-{
-    Ty_tyList p = checked_malloc(sizeof(*p));
-
-    p->head=head;
-    p->tail=tail;
-
-    return p;
-}
-
 Ty_field Ty_Field(S_symbol name, Ty_ty ty)
 {
     Ty_field p = checked_malloc(sizeof(*p));
@@ -234,36 +241,10 @@ Ty_field Ty_Field(S_symbol name, Ty_ty ty)
     return p;
 }
 
-Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail)
-{
-    Ty_fieldList p = checked_malloc(sizeof(*p));
-
-    p->head=head;
-    p->tail=tail;
-
-    return p;
-}
-
 /* printing functions - used for debugging */
 void Ty_print(Ty_ty t)
 {
     printf ("%s", Ty_name(t));
-}
-
-void Ty_printList(Ty_tyList list)
-{
-    if (list == NULL)
-    {
-        printf("null");
-    }
-    else
-    {
-        printf("TyList( ");
-        Ty_print(list->head);
-        printf(", ");
-        Ty_printList(list->tail);
-        printf(")");
-    }
 }
 
 int Ty_size(Ty_ty t)
@@ -418,6 +399,8 @@ string Ty_name(Ty_ty t)
             return "array";
         case Ty_record:
             return "record";
+        case Ty_class:
+            return "class";
         case Ty_pointer:
             return "pointer";
         case Ty_string:
@@ -453,3 +436,69 @@ bool Ty_isInt(Ty_ty t)
     }
     return FALSE;
 }
+
+Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg)
+{
+    Ty_formal p = checked_malloc(sizeof(*p));
+
+    p->name       = name;
+    p->ty         = ty;
+    p->defaultExp = defaultExp;
+    p->mode       = mode;
+    p->ph         = ph;
+    p->reg        = reg;
+    p->next       = NULL;
+
+    return p;
+}
+
+Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase)
+{
+    Ty_proc p = checked_malloc(sizeof(*p));
+
+    // assert(name);
+
+    p->isPrivate  = isPrivate;
+    p->name       = name;
+    p->extraSyms  = extraSyms;
+    p->label      = label;
+    p->formals    = formals;
+    p->isStatic   = isStatic;
+    p->returnTy   = returnTy;
+    p->forward    = forward;
+    p->offset     = offset;
+    p->libBase    = libBase;
+
+    return p;
+}
+
+Ty_const Ty_ConstBool (Ty_ty ty, bool b)
+{
+    Ty_const p = checked_malloc(sizeof(*p));
+
+    p->ty  = ty;
+    p->u.b = b;
+
+    return p;
+}
+
+Ty_const Ty_ConstInt (Ty_ty ty, int i)
+{
+    Ty_const p = checked_malloc(sizeof(*p));
+
+    p->ty  = ty;
+    p->u.i = i;
+
+    return p;
+}
+
+Ty_const Ty_ConstFloat (Ty_ty ty, double f)
+{
+    Ty_const p = checked_malloc(sizeof(*p));
+
+    p->ty  = ty;
+    p->u.f = f;
+
+    return p;
+}
+

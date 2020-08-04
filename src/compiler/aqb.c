@@ -44,7 +44,6 @@ static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm
     T_stmList stmList;
     AS_instrList iList;
 
-    F_tempMap = Temp_empty();
     //printStmList(stdout, T_StmList(body, NULL));
 
     stmList = C_linearize(body);
@@ -69,7 +68,7 @@ static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm
     if (OPT_get(OPTION_VERBOSE))
     {
         fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list after codegen, before regalloc:\n");
-        AS_printInstrList (stdout, iList, Temp_layerMap(F_tempMap,Temp_getNameMap()));
+        AS_printInstrList (stdout, iList, Temp_getNameMap());
         fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
     }
 
@@ -82,7 +81,7 @@ static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm
     {
         fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
         fprintf(stdout, "%s\n", proc->prolog);
-        AS_printInstrList(stdout, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
+        AS_printInstrList(stdout, proc->body, Temp_layerMap(ra.coloring, Temp_getNameMap()));
         fprintf(stdout, "%s\n", proc->epilog);
         fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
     }
@@ -90,11 +89,11 @@ static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm
     if (globl)
         fprintf(out, ".globl %s\n\n", S_name(label));
     fprintf(out, "%s\n", proc->prolog);
-    AS_printInstrList(out, proc->body, Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
+    AS_printInstrList(out, proc->body, Temp_layerMap(ra.coloring, Temp_getNameMap()));
     fprintf(out, "%s\n", proc->epilog);
 //  fprintf(out, "BEGIN function\n");
 //  AS_printInstrList (out, iList,
-//                     Temp_layerMap(F_tempMap, Temp_layerMap(ra.coloring, Temp_getNameMap())));
+//                     Temp_layerMap(ra.coloring, Temp_getNameMap()));
 //  fprintf(out, "END function\n\n");
 }
 

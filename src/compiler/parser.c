@@ -1101,11 +1101,18 @@ static bool expressionList(S_tkn *tkn, A_expList *expList, A_proc proc)
     return TRUE;
 }
 
-// arrayDimension ::= expression [ TO expression]
+// arrayDimension ::= [ STATIC ] expression [ TO expression]
 // arrayDimensions ::= arrayDimension ( "," arrayDimension )*
 static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
 {
+    bool statc = FALSE;
     A_exp expStart, expEnd = NULL;
+
+    if (isSym(*tkn, S_STATIC))
+    {
+        statc = TRUE;
+        *tkn = (*tkn)->next;
+    }
 
     if (!expression(tkn, &expStart))
     {
@@ -1126,7 +1133,7 @@ static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
         expStart = NULL;
     }
 
-    *dims = A_Dim(expStart, expEnd, *dims);
+    *dims = A_Dim(statc, expStart, expEnd, *dims);
 
     while ((*tkn)->kind == S_COMMA)
     {
@@ -1149,7 +1156,7 @@ static bool arrayDimensions (S_tkn *tkn, A_dim *dims)
             expEnd   = expStart;
             expStart = NULL;
         }
-        *dims = A_Dim(expStart, expEnd, *dims);
+        *dims = A_Dim(statc, expStart, expEnd, *dims);
     }
 
     return TRUE;

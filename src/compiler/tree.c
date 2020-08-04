@@ -193,86 +193,38 @@ T_exp T_Eseq(T_stm s, T_exp e, Ty_ty ty)
     return p;
 }
 
-T_const T_ConstI(int i)
+T_exp T_Const(Ty_const c)
 {
-    T_const p = (T_const) checked_malloc(sizeof *p);
-
-    p->kind = T_CINT;
-    p->u.i  = i;
-
-    return p;
-}
-
-T_const T_ConstF(float f)
-{
-    T_const p = (T_const) checked_malloc(sizeof *p);
-
-    p->kind = T_CFLOAT;
-    p->u.f  = f;
-
-    return p;
-}
-
-T_exp T_ConstBool(bool b, Ty_ty ty)
-{
-    assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind    = T_CONST;
-    p->ty      = ty;
-    p->u.CONST = T_ConstI(b ? -1 : 0);
+    p->ty      = c->ty;
+    p->u.CONST = c;
 
     return p;
 }
 
-T_exp T_ConstInt(int i, Ty_ty ty)
-{
-    assert(ty->kind != Ty_void);
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CONST;
-    p->ty      = ty;
-    p->u.CONST = T_ConstI(i);
-
-    return p;
-}
-
-
-T_exp T_ConstFloat(double f, Ty_ty ty)
-{
-    assert(ty->kind != Ty_void);
-    T_exp p = (T_exp) checked_malloc(sizeof *p);
-
-    p->kind    = T_CONST;
-    p->ty      = ty;
-    p->u.CONST = T_ConstF(f);
-
-    return p;
-}
-
-T_exp T_CallF(Temp_label fun, T_expList args, Temp_tempList regs, Ty_ty ty_ret, int offset, string libBase)
+T_exp T_CallF(Ty_proc proc, T_expList args)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind            = T_CALLF;
-    p->ty              = ty_ret;
-    p->u.CALLF.fun     = fun;
+    p->ty              = proc->returnTy;
+    p->u.CALLF.proc    = proc;
     p->u.CALLF.args    = args;
-    p->u.CALLF.regs    = regs;
-    p->u.CALLF.offset  = offset;
-    p->u.CALLF.libBase = libBase;
 
     return p;
 }
 
-T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_ty ty_ret)
+T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_proc proc)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind               = T_CALLFPTR;
-    p->ty                 = ty_ret;
+    p->ty                 = proc->returnTy;
     p->u.CALLFPTR.fptr    = fptr;
     p->u.CALLFPTR.args    = args;
+    p->u.CALLFPTR.proc    = proc;
 
     return p;
 }

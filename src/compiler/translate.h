@@ -26,7 +26,7 @@ Tr_accessList Tr_accessListTail(Tr_accessList al);
 
 Tr_level      Tr_global(void);
 
-Tr_level      Tr_newLevel(Temp_label name, bool globl, Ty_tyList formalTys, bool statc, Temp_tempList regs);
+Tr_level      Tr_newLevel(Temp_label name, bool globl, Ty_formal formals, bool statc);
 Tr_accessList Tr_formals(Tr_level level);
 Tr_access     Tr_allocVar(Tr_level level, string name, Ty_ty ty);
 Tr_access     Tr_externalVar(string name, Ty_ty ty);
@@ -74,9 +74,11 @@ Tr_exp        Tr_gosubExp(Temp_label lbl);
 Tr_exp        Tr_rtsExp(void);
 Tr_exp        Tr_labelExp(Temp_label lbl);
 
-Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Temp_label name, Tr_expList expList, Ty_ty retty, int offset, string libBase);
-Tr_exp        Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_ty retty);
+Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Tr_expList actualParams, Ty_proc proc);
+Tr_exp        Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_proc proc);
 
+Tr_exp        Tr_constExp(Ty_const c);
+Ty_const      Tr_getConst(Tr_exp exp);
 int           Tr_getConstInt(Tr_exp exp);
 bool          Tr_getConstBool(Tr_exp exp);
 double        Tr_getConstFloat(Tr_exp exp);

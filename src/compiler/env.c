@@ -13,7 +13,7 @@
 #include "semant.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     8
+#define SYM_VERSION     15
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -41,28 +41,20 @@ E_enventry E_VarEntry(S_symbol sym, Tr_access access, Ty_ty ty, bool shared)
     return p;
 }
 
-E_enventry E_FunEntry(S_symbol sym, Tr_level level, Temp_label label,
-                      E_formals formals, Ty_ty result,
-                      bool forward, int offset, string libBase, A_proc proc)
+E_enventry E_FunEntry(S_symbol sym, Tr_level level, Ty_proc proc)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind            = E_funEntry;
     p->sym             = sym;
     p->u.fun.level     = level;
-    p->u.fun.label     = label;
-    p->u.fun.formals   = formals;
-    p->u.fun.result    = result;
-    p->u.fun.forward   = forward;
-    p->u.fun.offset    = offset;
-    p->u.fun.libBase   = libBase;
     p->u.fun.proc      = proc;
     p->next            = NULL;
 
     return p;
 }
 
-E_enventry E_ConstEntry(S_symbol sym, Tr_exp cExp)
+E_enventry E_ConstEntry(S_symbol sym, Ty_const cExp)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
@@ -86,36 +78,6 @@ E_enventry E_TypeEntry(S_symbol sym, Ty_ty ty)
     return p;
 }
 
-E_formals E_Formals(Ty_ty ty, Tr_exp defaultExp, E_formals next)
-{
-    E_formals p = checked_malloc(sizeof(*p));
-
-    p->ty         = ty;
-    p->defaultExp = defaultExp;
-    p->next       = next;
-
-    return p;
-}
-
-Ty_tyList E_FormalTys(E_formals formals)
-{
-    Ty_tyList tl=NULL, last_tl=NULL;
-    while (formals)
-    {
-        if (!tl)
-        {
-            tl = last_tl = Ty_TyList(formals->ty, NULL);
-        }
-        else
-        {
-            last_tl->tail = Ty_TyList(formals->ty, NULL);
-            last_tl = last_tl->tail;
-        }
-        formals = formals->next;
-    }
-    return tl;
-}
-
 void E_import(E_module mod, S_scope tenv, S_scope venv)
 {
     E_enventry e = mod->env;
@@ -124,7 +86,7 @@ void E_import(E_module mod, S_scope tenv, S_scope venv)
         switch (e->kind)
         {
             case E_funEntry:
-                S_enter(venv, e->u.fun.label, e);
+                S_enter(venv, e->u.fun.proc->label, e);
                 break;
             case E_varEntry:
             case E_constEntry:
@@ -183,7 +145,7 @@ static void append_vmod_entry(E_enventry e)
     append_mod_entry (e, &base_mod->env, &base_mod_last);
 }
 
-static void declare_builtin_const(string name, Tr_exp cExp)
+static void declare_builtin_const(string name, Ty_const cExp)
 {
     append_vmod_entry(E_ConstEntry(S_Symbol(name, FALSE), cExp));
 }
@@ -207,27 +169,20 @@ static void E_serializeTyRef(TAB_table modTable, Ty_ty ty)
     fwrite(&ty->uid, 4, 1, modf);
 }
 
-static void E_serializeConstExp(TAB_table modTable, Tr_exp exp)
+static void E_serializeTyConst(TAB_table modTable, Ty_const c)
 {
-    int     i;
-    double  f;
-    bool    b;
-    bool    present = (exp != NULL);
+    bool    present = (c != NULL);
 
     fwrite (&present, 1, 1, modf);
     if (!present)
         return;
 
-    assert(Tr_isConst(exp));
-    Ty_ty ty = Tr_ty(exp);
+    E_serializeTyRef(modTable, c->ty);
 
-    E_serializeTyRef(modTable, ty);
-
-    switch (ty->kind)
+    switch (c->ty->kind)
     {
         case Ty_bool:
-            b = Tr_getConstBool(exp);
-            fwrite (&b, 1, 1, modf);
+            fwrite (&c->u.b, 1, 1, modf);
             break;
         case Ty_byte:
         case Ty_ubyte:
@@ -236,14 +191,10 @@ static void E_serializeConstExp(TAB_table modTable, Tr_exp exp)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
-            i = Tr_getConstInt(exp);
-            fwrite (&i, 4, 1, modf);
+            fwrite (&c->u.i, 4, 1, modf);
             break;
-
         case Ty_single:
-        case Ty_double:
-            f = Tr_getConstFloat(exp);
-            fwrite (&f, 8, 1, modf);
+            fwrite (&c->u.f, 8, 1, modf);
             break;
         default:
             assert(0);
@@ -277,19 +228,22 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             break;
         case Ty_record:
         {
-            for (Ty_fieldList fl = ty->u.record.fields; fl; fl = fl->tail)
-                E_tyFindTypes (type_tab, fl->head->ty);
+            for (Ty_field fl = ty->u.record.fields; fl; fl = fl->next)
+                E_tyFindTypes (type_tab, fl->ty);
             break;
         }
         case Ty_pointer:
             E_tyFindTypes (type_tab, ty->u.pointer);
             break;
         case Ty_procPtr:
-            for (Ty_tyList formals = ty->u.procPtr.formalTys; formals; formals=formals->tail)
-                E_tyFindTypes (type_tab, formals->head);
+            for (Ty_formal formals = ty->u.procPtr->formals; formals; formals=formals->next)
+                E_tyFindTypes (type_tab, formals->ty);
 
-            if (ty->u.procPtr.returnTy)
-                E_tyFindTypes (type_tab, ty->u.procPtr.returnTy);
+            if (ty->u.procPtr->returnTy)
+                E_tyFindTypes (type_tab, ty->u.procPtr->returnTy);
+            break;
+        case Ty_class:
+            assert(0); // FIXME: implement
             break;
     }
 }
@@ -304,24 +258,18 @@ static void E_findTypes(S_symbol smod, E_enventry e, TAB_table type_tab)
             break;
 
         case E_funEntry:
-            for (E_formals formal=e->u.fun.formals; formal; formal = formal->next)
+            for (Ty_formal formal=e->u.fun.proc->formals; formal; formal = formal->next)
             {
                 if (formal->ty->mod == smod)
                     E_tyFindTypes (type_tab, formal->ty);
-                if (formal->defaultExp)
-                {
-                    Ty_ty ty = Tr_ty(formal->defaultExp);
-                    if (ty->mod == smod)
-                        E_tyFindTypes (type_tab, ty);
-                }
             }
-            if (e->u.fun.result)
-                if (e->u.fun.result->mod == smod)
-                    E_tyFindTypes (type_tab, e->u.fun.result);
+            if (e->u.fun.proc->returnTy)
+                if (e->u.fun.proc->returnTy->mod == smod)
+                    E_tyFindTypes (type_tab, e->u.fun.proc->returnTy);
             break;
         case E_constEntry:
             {
-                Ty_ty ty = Tr_ty(e->u.cExp);
+                Ty_ty ty = e->u.cExp->ty;
                 if (ty->mod == smod)
                     E_tyFindTypes (type_tab, ty);
             }
@@ -331,6 +279,8 @@ static void E_findTypes(S_symbol smod, E_enventry e, TAB_table type_tab)
             break;
     }
 }
+
+static void E_serializeTyProc(TAB_table modTable, Ty_proc proc);
 
 static void E_serializeType(TAB_table modTable, Ty_ty ty)
 {
@@ -346,13 +296,13 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_record:
         {
             uint16_t cnt=0;
-            for (Ty_fieldList fields = ty->u.record.fields; fields; fields = fields->tail)
+            for (Ty_field fields = ty->u.record.fields; fields; fields = fields->next)
                 cnt++;
             fwrite(&cnt, 2, 1, modf);
-            for (Ty_fieldList fields = ty->u.record.fields; fields; fields = fields->tail)
+            for (Ty_field fields = ty->u.record.fields; fields; fields = fields->next)
             {
-                strserialize(modf, S_name(fields->head->name));
-                E_serializeTyRef(modTable, fields->head->ty);
+                strserialize(modf, S_name(fields->name));
+                E_serializeTyRef(modTable, fields->ty);
             }
             break;
         }
@@ -360,17 +310,8 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             E_serializeTyRef(modTable, ty->u.pointer);
             break;
         case Ty_procPtr:
-        {
-            uint16_t cnt=0;
-            for (Ty_tyList formals = ty->u.procPtr.formalTys; formals; formals=formals->tail)
-                cnt++;
-            fwrite(&cnt, 2, 1, modf);
-            for (Ty_tyList formals = ty->u.procPtr.formalTys; formals; formals=formals->tail)
-                E_serializeTyRef (modTable, formals->head);
-
-            E_serializeTyRef (modTable, ty->u.procPtr.returnTy);
+            E_serializeTyProc(modTable, ty->u.procPtr);
             break;
-        }
         case Ty_bool:
         case Ty_byte:
         case Ty_ubyte:
@@ -388,7 +329,62 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_toLoad:
             assert(0);
             break;
+        case Ty_class:
+            assert(0); // FIXME: implement
+            break;
     }
+}
+
+static void E_serializeOptionalSymbol(S_symbol sym)
+{
+    bool present = sym != NULL;
+    fwrite(&present, 1, 1, modf);
+    if (present)
+        strserialize(modf, S_name(sym));
+}
+
+static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
+{
+    fwrite(&proc->isPrivate, 1, 1, modf);
+    E_serializeOptionalSymbol(proc->name);
+    uint8_t cnt = 0;
+    for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
+        cnt++;
+    fwrite(&cnt, 1, 1, modf);
+    for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
+        strserialize(modf, S_name(sl->sym));
+    E_serializeOptionalSymbol(proc->label);
+
+    cnt=0;
+    for (Ty_formal formal=proc->formals; formal; formal = formal->next)
+        cnt++;
+    fwrite(&cnt, 1, 1, modf);
+    for (Ty_formal formal=proc->formals; formal; formal = formal->next)
+    {
+        E_serializeOptionalSymbol(formal->name);
+        E_serializeTyRef(modTable, formal->ty);
+        E_serializeTyConst(modTable, formal->defaultExp);
+        uint8_t b = formal->mode;
+        fwrite(&b, 1, 1, modf);
+        b = formal->ph;
+        fwrite(&b, 1, 1, modf);
+        if (formal->reg)
+        {
+            bool reg_present = TRUE;
+            fwrite(&reg_present, 1, 1, modf);
+            strserialize(modf, F_regName(formal->reg));
+        }
+        else
+        {
+            bool reg_present = FALSE;
+            fwrite(&reg_present, 1, 1, modf);
+        }
+    }
+    fwrite(&proc->isStatic, 1, 1, modf);
+    E_serializeTyRef(modTable, proc->returnTy);
+    fwrite(&proc->offset, 4, 1, modf);
+    if (proc->offset)
+        strserialize(modf, proc->libBase);
 }
 
 bool E_saveModule(string modfn, E_module mod)
@@ -453,49 +449,10 @@ bool E_saveModule(string modfn, E_module mod)
                 fwrite(&e->u.var.shared, 1, 1, modf);
                 break;
             case E_funEntry:
-                strserialize(modf, S_name(e->u.fun.label));
-                {
-                    uint8_t cnt = 0;
-                    for (S_symlist sl=e->u.fun.proc->extraSyms; sl; sl=sl->next)
-                        cnt++;
-                    fwrite(&cnt, 1, 1, modf);
-                    for (S_symlist sl=e->u.fun.proc->extraSyms; sl; sl=sl->next)
-                        strserialize(modf, S_name(sl->sym));
-
-                    cnt=0;
-                    for (E_formals formal=e->u.fun.formals; formal; formal = formal->next)
-                        cnt++;
-                    fwrite(&cnt, 1, 1, modf);
-                    A_param p = e->u.fun.proc->paramList->first;
-                    for (E_formals formal=e->u.fun.formals; formal; formal = formal->next)
-                    {
-                        E_serializeTyRef(modTable, formal->ty);
-                        E_serializeConstExp(modTable, formal->defaultExp);
-                        fwrite(&p->byval, 1, 1, modf);
-                        fwrite(&p->byref, 1, 1, modf);
-                        fwrite(&p->parserHint, 1, 1, modf);
-                        if (p->reg)
-                        {
-                            bool reg_present = TRUE;
-                            fwrite(&reg_present, 1, 1, modf);
-                            strserialize(modf, S_name(p->reg));
-                        }
-                        else
-                        {
-                            bool reg_present = FALSE;
-                            fwrite(&reg_present, 1, 1, modf);
-                        }
-                        
-                        p = p->next;
-                    }
-                    E_serializeTyRef(modTable, e->u.fun.result);
-                    fwrite(&e->u.fun.offset, 2, 1, modf);
-                    if (e->u.fun.offset)
-                        strserialize(modf, e->u.fun.libBase);
-                }
+                E_serializeTyProc(modTable, e->u.fun.proc);
                 break;
             case E_constEntry:
-                E_serializeConstExp(modTable, e->u.cExp);
+                E_serializeTyConst(modTable, e->u.cExp);
                 break;
             case E_typeEntry:
                 E_serializeTyRef(modTable, e->u.ty);
@@ -529,17 +486,19 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
     return ty;
 }
 
-static bool E_deserializeConstExp(TAB_table modTable, FILE *modf, Tr_exp *exp)
+static bool E_deserializeTyConst(TAB_table modTable, FILE *modf, Ty_const *c)
 {
     int     i;
     double  f;
     bool    b;
 
     bool    present;
-    if (fread(&present, 1, 1, modf) != 1) return FALSE;
+    if (fread(&present, 1, 1, modf) != 1)
+        return FALSE;
+
     if (!present)
     {
-        *exp = NULL;
+        *c = NULL;
         return TRUE;
     }
 
@@ -551,7 +510,7 @@ static bool E_deserializeConstExp(TAB_table modTable, FILE *modf, Tr_exp *exp)
     {
         case Ty_bool:
             if (fread(&b, 1, 1, modf) != 1) return FALSE;
-            *exp = Tr_boolExp(b, ty);
+            *c = Ty_ConstBool(ty, b);
             return TRUE;
         case Ty_byte:
         case Ty_ubyte:
@@ -561,17 +520,185 @@ static bool E_deserializeConstExp(TAB_table modTable, FILE *modf, Tr_exp *exp)
         case Ty_ulong:
         case Ty_pointer:
             if (fread(&i, 4, 1, modf) != 1) return FALSE;
-            *exp = Tr_intExp(i, ty);
+            *c = Ty_ConstInt(ty, i);
             return TRUE;
         case Ty_single:
         case Ty_double:
             if (fread(&f, 8, 1, modf) != 1) return FALSE;
-            *exp = Tr_floatExp(f, ty);
+            *c = Ty_ConstFloat(ty, f);
             return TRUE;
         default:
             assert(0);
     }
     return FALSE;
+}
+
+static S_symbol E_deserializeOptionalSymbol(FILE *modf)
+{
+    bool present;
+    if (fread(&present, 1, 1, modf)!=1)
+    {
+        printf("failed to read optional symbol presence flag.\n");
+        return NULL;
+    }
+
+    if (!present)
+        return NULL;
+    string s = strdeserialize(modf);
+    return S_Symbol(s, FALSE);
+}
+
+
+static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
+{
+    bool isPrivate;
+    if (fread(&isPrivate, 1, 1, modf)!=1)
+    {
+        printf("failed to read function private flag.\n");
+        return NULL;
+    }
+    S_symbol name = E_deserializeOptionalSymbol(modf);
+    uint8_t cnt = 0;
+    if (fread(&cnt, 1, 1, modf)!=1)
+    {
+        printf("failed to read function extra sym count.\n");
+        return NULL;
+    }
+    S_symlist extra_syms=NULL, extra_syms_last=NULL;
+    for (int i = 0; i<cnt; i++)
+    {
+        string str = strdeserialize(modf);
+        if (!str)
+        {
+            printf("failed to read function extra sym.\n");
+            return NULL;
+        }
+        S_symbol sym = S_Symbol(str, FALSE);
+        if (extra_syms)
+        {
+            extra_syms_last->next = S_Symlist(sym, NULL);
+            extra_syms_last = extra_syms_last->next;
+        }
+        else
+        {
+            extra_syms = extra_syms_last = S_Symlist(sym, NULL);
+        }
+    }
+    bool present;
+    if (fread(&present, 1, 1, modf)!=1)
+    {
+        printf("failed to read function label presence flag.\n");
+        return NULL;
+    }
+    Temp_label label = NULL;
+    if (present)
+    {
+        string l = strdeserialize(modf);
+        if (!l)
+        {
+            printf("failed to read function label.\n");
+            return NULL;
+        }
+        label = Temp_namedlabel(l);
+    }
+
+    if (fread(&cnt, 1, 1, modf)!=1)
+    {
+        printf("failed to read function arg count.\n");
+        return NULL;
+    }
+    Ty_formal formals=NULL;
+    Ty_formal formals_last = NULL;
+    for (int i = 0; i<cnt; i++)
+    {
+        S_symbol fname = E_deserializeOptionalSymbol(modf);
+        Ty_ty ty = E_deserializeTyRef(modTable, modf);
+        if (!ty)
+        {
+            printf("failed to read argument type.\n");
+            return NULL;
+        }
+        Ty_const ce;
+        if (!E_deserializeTyConst(modTable, modf, &ce))
+        {
+            printf("failed to read argument const expression.\n");
+            return NULL;
+        }
+        uint8_t b;
+        if (fread(&b, 1, 1, modf)!=1)
+        {
+            printf("failed to read formal mode.\n");
+            return NULL;
+        }
+        Ty_formalMode mode = b;
+        if (fread(&b, 1, 1, modf)!=1)
+        {
+            printf("failed to read formal parser hint.\n");
+            return NULL;
+        }
+        Ty_formalParserHint ph = b;
+        Temp_temp reg=NULL;
+        bool present;
+        if (fread(&present, 1, 1, modf)!=1)
+        {
+            printf("failed to read formal reg presence flag.\n");
+            return NULL;
+        }
+        if (present)
+        {
+            string regs = strdeserialize(modf);
+            if (!regs)
+            {
+                printf("failed to read formal reg string.\n");
+                return NULL;
+            }
+            reg = F_lookupReg(S_Symbol(regs, FALSE));
+            if (!regs)
+            {
+                printf("formal reg unknown.\n");
+                return NULL;
+            }
+        }
+
+        if (!formals)
+        {
+            formals = formals_last = Ty_Formal(fname, ty, ce, mode, ph, reg);
+        }
+        else
+        {
+            formals_last->next = Ty_Formal(fname, ty, ce, mode, ph, reg);
+            formals_last = formals_last->next;
+        }
+    }
+    bool isStatic;
+    if (fread(&isStatic, 1, 1, modf)!=1)
+    {
+        printf("failed to read function static flag.\n");
+        return NULL;
+    }
+    Ty_ty returnTy = E_deserializeTyRef(modTable, modf);
+    if (!returnTy)
+    {
+        printf("failed to read function return type.\n");
+        return NULL;
+    }
+    int32_t offset;
+    if (fread(&offset, 4, 1, modf) != 1)
+    {
+        printf("failed to read function offset.\n");
+        return NULL;
+    }
+    string libBase=NULL;
+    if (offset)
+    {
+        libBase = strdeserialize(modf);
+        if (!libBase)
+        {
+            printf("failed to read function libBase.\n");
+            return NULL;
+        }
+    }
+    return Ty_Proc(name, extra_syms, label, isPrivate, formals, isStatic, returnTy, /*forward=*/FALSE, offset, libBase);
 }
 
 E_module E_loadModule(S_symbol sModule)
@@ -632,6 +759,8 @@ E_module E_loadModule(S_symbol sModule)
 
             string mod_name  = strdeserialize(modf);
             S_symbol mod_sym = S_Symbol(mod_name, FALSE);
+            if (OPT_get(OPTION_VERBOSE))
+                printf ("%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
 
             E_module m2 = E_loadModule (mod_sym);
             if (!m2)
@@ -660,6 +789,9 @@ E_module E_loadModule(S_symbol sModule)
 
             if (fread(&ty->kind, 1, 1, modf) != 1) goto fail;
 
+            if (OPT_get(OPTION_VERBOSE))
+                printf ("%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
+
             switch (ty->kind)
             {
                 case Ty_array:
@@ -674,7 +806,7 @@ E_module E_loadModule(S_symbol sModule)
                     uint16_t cnt=0;
                     if (fread(&cnt, 2, 1, modf) != 1) goto fail;
 
-                    Ty_fieldList fl=NULL, fl_last=NULL;
+                    Ty_field fl=NULL, fl_last=NULL;
 
                     for (int i=0; i<cnt; i++)
                     {
@@ -684,12 +816,12 @@ E_module E_loadModule(S_symbol sModule)
                         Ty_field field = Ty_Field(S_Symbol(name, FALSE), ty);
                         if (fl_last)
                         {
-                            fl_last->tail = Ty_FieldList(field, NULL);
-                            fl_last = fl_last->tail;
+                            fl_last->next = field;
+                            fl_last = fl_last->next;
                         }
                         else
                         {
-                            fl = fl_last = Ty_FieldList(field, NULL);
+                            fl = fl_last = field;
                         }
                     }
                     ty->u.record.fields = fl;
@@ -700,31 +832,8 @@ E_module E_loadModule(S_symbol sModule)
                     ty->u.pointer = E_deserializeTyRef(modTable, modf);
                     break;
                 case Ty_procPtr:
-                {
-                    uint16_t cnt=0;
-                    if (fread(&cnt, 2, 1, modf) != 1) goto fail;
-
-                    Ty_tyList formals=NULL, formalsLast=NULL;
-
-                    for (int i=0; i<cnt; i++)
-                    {
-                        Ty_ty f = E_deserializeTyRef(modTable, modf);
-                        if (formals)
-                        {
-                            formalsLast->tail = Ty_TyList (f, NULL);
-                            formalsLast = formalsLast->tail;
-                        }
-                        else
-                        {
-                            formals = formalsLast = Ty_TyList (f, NULL);
-                        }
-                    }
-
-                    ty->u.procPtr.formalTys = formals;
-                    ty->u.procPtr.returnTy = E_deserializeTyRef(modTable, modf);
-
+                    ty->u.procPtr = E_deserializeTyProc(modTable, modf);
                     break;
-                }
 
                 case Ty_bool:     break;
                 case Ty_byte:     break;
@@ -774,6 +883,9 @@ E_module E_loadModule(S_symbol sModule)
             }
             e->sym = S_Symbol(name, FALSE);
 
+            if (OPT_get(OPTION_VERBOSE))
+                printf ("%s: reading env entry name=%s\n", S_name(sModule), name);
+
             switch (e->kind)
             {
                 case E_varEntry:
@@ -794,153 +906,24 @@ E_module E_loadModule(S_symbol sModule)
 
                 case E_funEntry:
                 {
-                    string label = strdeserialize(modf);
-                    if (!label)
+                    e->u.fun.proc = E_deserializeTyProc(modTable, modf);
+                    if (!e->u.fun.proc)
                     {
-                        printf("%s: failed to read function label.\n", modfn);
+                        printf("%s: failed to read E_funEntry->proc.\n", modfn);
                         goto fail;
-                    }
-                    e->u.fun.label = S_Symbol(label, TRUE);
-                    uint8_t cnt = 0;
-                    if (fread(&cnt, 1, 1, modf)!=1)
-                    {
-                        printf("%s: failed to read function extra sym count.\n", modfn);
-                        goto fail;
-                    }
-                    S_symlist extra_syms=NULL, extra_syms_last=NULL;
-                    for (int i = 0; i<cnt; i++)
-                    {
-                        string str = strdeserialize(modf);
-                        if (!str)
-                        {
-                            printf("%s: failed to read function extra sym.\n", modfn);
-                            goto fail;
-                        }
-                        S_symbol sym = S_Symbol(str, FALSE);
-                        if (extra_syms)
-                        {
-                            extra_syms_last->next = S_Symlist(sym, NULL);
-                            extra_syms_last = extra_syms_last->next;
-                        }
-                        else
-                        {
-                            extra_syms = extra_syms_last = S_Symlist(sym, NULL);
-                        }
                     }
 
-                    if (fread(&cnt, 1, 1, modf)!=1)
-                    {
-                        printf("%s: failed to read function arg count.\n", modfn);
-                        goto fail;
-                    }
-                    e->u.fun.formals      = NULL;
-                    E_formals last_formals = NULL;
-                    A_paramList paramList = A_ParamList();
-                    for (int i = 0; i<cnt; i++)
-                    {
-                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
-                        if (!ty)
-                        {
-                            printf("%s: failed to read argument type.\n", modfn);
-                            goto fail;
-                        }
-                        Tr_exp ce;
-                        if (!E_deserializeConstExp(modTable, modf, &ce))
-                        {
-                            printf("%s: failed to read argument const expression.\n", modfn);
-                            goto fail;
-                        }
-                        if (!e->u.fun.formals)
-                        {
-                            e->u.fun.formals = last_formals = E_Formals(ty, ce, NULL);
-                        }
-                        else
-                        {
-                            last_formals->next = E_Formals(ty, ce, NULL);
-                            last_formals = last_formals->next;
-                        }
-                        A_param p = A_Param (0, FALSE, FALSE, NULL, NULL, NULL);
-                        if (fread(&p->byval, 1, 1, modf)!=1)
-                        {
-                            printf("%s: failed to read function param field byval.\n", modfn);
-                            goto fail;
-                        }
-                        if (fread(&p->byref, 1, 1, modf)!=1)
-                        {
-                            printf("%s: failed to read function param field byref.\n", modfn);
-                            goto fail;
-                        }
-                        if (fread(&p->parserHint, 1, 1, modf)!=1)
-                        {
-                            printf("%s: failed to read function param field parserHint.\n", modfn);
-                            goto fail;
-                        }
-                        bool reg_present = TRUE;
-                        if (fread(&reg_present, 1, 1, modf)!=1)
-                        {
-                            printf("%s: failed to read function param field reg_present.\n", modfn);
-                            goto fail;
-                        }
-                        if (reg_present)
-                        {
-                            string reg_name = strdeserialize(modf);
-                            if (!reg_name)
-                            {
-                                printf("%s: failed to read function param reg name.\n", modfn);
-                                goto fail;
-                            }
-                            p->reg = S_Symbol(reg_name, TRUE);
-                        }
-                        else
-                        {
-                            p->reg = NULL;
-                        }
-                        A_ParamListAppend(paramList, p);
-                    }
-                    e->u.fun.result = E_deserializeTyRef(modTable, modf);
-                    if (!e->u.fun.result)
-                    {
-                        printf("%s: failed to read function return type.\n", modfn);
-                        goto fail;
-                    }
-                    e->u.fun.forward = FALSE;
-                    if (fread(&e->u.fun.offset, 2, 1, modf) != 1)
-                    {
-                        printf("%s: failed to read function offset.\n", modfn);
-                        goto fail;
-                    }
-                    if (e->u.fun.offset)
-                    {
-                        e->u.fun.libBase = strdeserialize(modf);
-                        if (!e->u.fun.libBase)
-                        {
-                            printf("%s: failed to read function libBase.\n", modfn);
-                            goto fail;
-                        }
-                    }
-                    else
-                    {
-                        e->u.fun.libBase = NULL;
-                    }
-
-                    e->u.fun.proc = A_Proc (/* pos        =*/ 0,
-                                            /* isPublic   =*/ TRUE,
-                                            /* name       =*/ e->sym,
-                                            /* extra_syms =*/ extra_syms,
-                                            /* label      =*/ e->u.fun.label,
-                                            /* returnTD   =*/ NULL,
-                                            /* isFunction =*/ e->u.fun.result->kind != Ty_void,
-                                            /* static     =*/ FALSE,
-                                            paramList);
-
-                    e->u.fun.level = Tr_newLevel(e->u.fun.label, /* isPublic=*/ TRUE, E_FormalTys(e->u.fun.formals), /*isStatic=*/FALSE, makeParamRegList(paramList));
+                    e->u.fun.level = Tr_newLevel(e->u.fun.proc->label, 
+                                                 !e->u.fun.proc->isPrivate,
+                                                 e->u.fun.proc->formals,
+                                                 e->u.fun.proc->isStatic);
 
                     append_mod_entry(e, &mod->env, &mod_last);
                     break;
                 }
                 case E_constEntry:
                 {
-                    if (!E_deserializeConstExp(modTable, modf, &e->u.cExp))
+                    if (!E_deserializeTyConst(modTable, modf, &e->u.cExp))
                     {
                         printf("%s: failed to read const expression.\n", modfn);
                         goto fail;
@@ -1022,6 +1005,44 @@ void E_declare_proc(TAB_table m, S_symbol sym,
     }
 }
 
+static A_proc E_tyProc2aProc(Ty_proc proc)
+{
+    A_paramList pl = A_ParamList();
+
+    for (Ty_formal formal=proc->formals; formal; formal=formal->next)
+    {
+        A_param p = A_Param(0, formal->mode==Ty_byVal, formal->mode==Ty_byRef, formal->name, /*td=*/NULL, /*defaultExp=*/NULL);
+
+        switch (formal->ph)
+        {
+            case Ty_phNone:
+                p->parserHint = A_phNone;
+                break;
+            case Ty_phCoord:
+                p->parserHint = A_phCoord;
+                break;
+            case Ty_phCoord2:
+                p->parserHint = A_phCoord2;
+                break;
+            case Ty_phLineBF:
+                p->parserHint = A_phLineBF;
+                break;
+        }
+
+        A_ParamListAppend(pl, p);
+    }
+
+    return A_Proc (0,
+                   proc->isPrivate,
+                   proc->name,
+                   proc->extraSyms,
+                   proc->label,
+                   /*FIXME returnTD=*/NULL,
+                   proc->returnTy->kind!=Ty_void,
+                   proc->isStatic,
+                   pl);
+}
+
 void E_declareProcsFromMod (E_module mod)
 {
     E_enventry m = mod->env;
@@ -1030,13 +1051,13 @@ void E_declareProcsFromMod (E_module mod)
     {
         if (m->kind == E_funEntry)
         {
-            if (m->u.fun.result->kind != Ty_void)
+            if (m->u.fun.proc->returnTy->kind != Ty_void)
             {
-                E_declare_proc(declared_funs , m->sym, NULL     , P_functionCall, m->u.fun.proc);
+                E_declare_proc(declared_funs , m->sym, NULL     , P_functionCall, E_tyProc2aProc(m->u.fun.proc));
             }
             else
             {
-                E_declare_proc(declared_stmts, m->sym, P_subCall, NULL          , m->u.fun.proc);
+                E_declare_proc(declared_stmts, m->sym, P_subCall, NULL          , E_tyProc2aProc(m->u.fun.proc));
             }
         }
         m = m->next;
@@ -1062,8 +1083,8 @@ void E_init(void)
     declare_builtin_type("STRING"  , Ty_String());
     declare_builtin_type("VOID"    , Ty_Void());
 
-    declare_builtin_const("TRUE",  Tr_boolExp(TRUE, Ty_Bool()));
-    declare_builtin_const("FALSE", Tr_boolExp(FALSE, Ty_Bool()));
+    declare_builtin_const("TRUE",  Ty_ConstBool(Ty_Bool(), TRUE));
+    declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));
 
     // module cache
     modCache = TAB_empty();

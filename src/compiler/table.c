@@ -110,6 +110,19 @@ void TAB_enter(TAB_table t, void *key, void *value)
     int index;
     assert(t && key);
     index = ((unsigned long )key) % TABSIZE;
+
+    // does a binder for this key already exist?
+    for (binder b=t->table[index]; b; b=b->next)
+    {
+        if (b->key==key)
+        {
+            // yes -> update value
+            b->value = value;
+            return;
+        }
+    }
+
+    // if we reach this point, <key> is not yet present in table
     t->table[index] = Binder(key, value,t->table[index], t->top);
     t->top = key;
 }

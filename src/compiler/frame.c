@@ -68,7 +68,6 @@ struct F_frame_
     F_accessList   formals;
     F_accessList   locals;
     int            locals_offset;
-    Temp_tempList  regs;
 };
 
 static F_access InFrame(int offset, Ty_ty ty)
@@ -93,60 +92,54 @@ static F_access InReg(Temp_temp reg, Ty_ty ty)
     return a;
 }
 
-F_frame F_newFrame(Temp_label name, Ty_tyList formalTys, Temp_tempList regs)
+F_frame F_newFrame(Temp_label name, Ty_formal formals)
 {
     F_frame f = checked_malloc(sizeof(*f));
 
     f->name   = name;
-    f->regs   = regs;
 
     // a5 is the frame pointer
     // Arguments start from        8(a5) upwards
     // Local variables start from -4(a5) downwards
     int offset = 8;
-    F_accessList formals = NULL;
-    F_accessList flast = NULL;
+    F_accessList acl = NULL;
+    F_accessList acl_last = NULL;
 
-    if (regs)
+    for (Ty_formal formal = formals; formal; formal = formal->next)
     {
-        for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
+        if (formal->reg)
         {
-            Temp_temp reg = regs->head;
-            regs = regs->tail;
-            if (flast)
+            if (acl_last)
             {
-                flast->tail = F_AccessList(InReg(reg, tyl->head), NULL);
-                flast = flast->tail;
+                acl_last->tail = F_AccessList(InReg(formal->reg, formal->ty), NULL);
+                acl_last = acl_last->tail;
             }
             else
             {
-                formals = F_AccessList(InReg(reg, tyl->head), NULL);
-                flast = formals;
+                acl = F_AccessList(InReg(formal->reg, formal->ty), NULL);
+                acl_last = acl;
             }
         }
-    }
-    else
-    {
-        for (Ty_tyList tyl = formalTys; tyl; tyl = tyl->tail)
+        else
         {
-            int size = Ty_size(tyl->head);
+            int size = Ty_size(formal->ty);
             // gcc seems to push 4 bytes regardless of type (int, long, ...)
             offset += 4-size;
-            if (flast)
+            if (acl_last)
             {
-                flast->tail = F_AccessList(InFrame(offset, tyl->head), NULL);
-                flast = flast->tail;
+                acl_last->tail = F_AccessList(InFrame(offset, formal->ty), NULL);
+                acl_last = acl_last->tail;
             }
             else
             {
-                formals = F_AccessList(InFrame(offset, tyl->head), NULL);
-                flast = formals;
+                acl = F_AccessList(InFrame(offset, formal->ty), NULL);
+                acl_last = acl;
             }
             offset += size;
         }
     }
 
-    f->formals       = formals;
+    f->formals       = acl;
     f->locals        = NULL;
     f->locals_offset = 0;
     f->temp          = Temp_empty();
@@ -169,11 +162,6 @@ Temp_label F_heapLabel(F_access access)
 F_accessList F_formals(F_frame f)
 {
     return f->formals;
-}
-
-Temp_tempList F_getFrameRegs(F_frame f)
-{
-    return f->regs;
 }
 
 F_access F_allocGlobal(Temp_label label, Ty_ty ty)
@@ -319,7 +307,7 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
         EM_error(0, "Sorry, frame size is too large.");     // FIXME
 
     body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name),                    // label:
-             AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, T_ConstI(-frame_size), 0, NULL),   //      link fp, #-frameSize
+             AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL),   //      link fp, #-frameSize
                appendCalleeSave(body)));
 
     return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(frame->name)), body, "# END\n");
@@ -327,7 +315,6 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
 /* Machine-related Features */
 
-Temp_map F_tempMap = NULL;
 const int F_wordSize = 4; /* Motorola 68k */
 
 static Temp_temp a0 = NULL;
@@ -376,7 +363,8 @@ bool F_isDn(Temp_temp reg)
 }
 
 static Temp_tempList allRegs, dRegs, aRegs;
-static S_scope regScope;
+static S_scope       regScope;
+static Temp_map      g_reg_map;
 
 void F_initRegisters(void)
 {
@@ -440,6 +428,23 @@ void F_initRegisters(void)
     S_enter(regScope, S_Symbol("d5", TRUE), d5);
     S_enter(regScope, S_Symbol("d6", TRUE), d6);
     S_enter(regScope, S_Symbol("d7", TRUE), d7);
+
+    g_reg_map = Temp_empty();
+
+    Temp_enter(g_reg_map, a0, "a0");
+    Temp_enter(g_reg_map, a1, "a1");
+    Temp_enter(g_reg_map, a2, "a2");
+    Temp_enter(g_reg_map, a3, "a3");
+    Temp_enter(g_reg_map, a4, "a4");
+    Temp_enter(g_reg_map, a6, "a6");
+    Temp_enter(g_reg_map, d0, "d0");
+    Temp_enter(g_reg_map, d1, "d1");
+    Temp_enter(g_reg_map, d2, "d2");
+    Temp_enter(g_reg_map, d3, "d3");
+    Temp_enter(g_reg_map, d4, "d4");
+    Temp_enter(g_reg_map, d5, "d5");
+    Temp_enter(g_reg_map, d6, "d6");
+    Temp_enter(g_reg_map, d7, "d7");
 }
 
 Temp_temp F_lookupReg(S_symbol sym)
@@ -447,25 +452,16 @@ Temp_temp F_lookupReg(S_symbol sym)
     return (Temp_temp) S_look(regScope, sym);
 }
 
-Temp_map F_initialRegisters(F_frame f) {
+Temp_map F_initialRegisters(void)
+{
+    return g_reg_map;
+}
 
-    Temp_map m = Temp_empty();
-
-    Temp_enter(m, a0, "a0");
-    Temp_enter(m, a1, "a1");
-    Temp_enter(m, a2, "a2");
-    Temp_enter(m, a3, "a3");
-    Temp_enter(m, a4, "a4");
-    Temp_enter(m, a6, "a6");
-    Temp_enter(m, d0, "d0");
-    Temp_enter(m, d1, "d1");
-    Temp_enter(m, d2, "d2");
-    Temp_enter(m, d3, "d3");
-    Temp_enter(m, d4, "d4");
-    Temp_enter(m, d5, "d5");
-    Temp_enter(m, d6, "d6");
-    Temp_enter(m, d7, "d7");
-    return m;
+string F_regName(Temp_temp r)
+{
+    string name = Temp_look(g_reg_map, r);
+    assert(name);
+    return name;
 }
 
 Temp_tempList F_registers(void)
@@ -519,40 +515,13 @@ T_exp F_Exp(F_access acc)
         case inReg:
             return T_Temp(F_accessReg(acc), ty);
         case inFrame:
-            return T_Binop(T_plus, T_FramePointer(), T_ConstInt(F_accessOffset(acc), Ty_Long()), Ty_VarPtr(ty));
+            return T_Binop(T_plus, T_FramePointer(), T_Const(Ty_ConstInt(Ty_ULong(), F_accessOffset(acc))), Ty_VarPtr(ty));
         case inHeap:
             return T_Heap(acc->u.label, Ty_VarPtr(ty));
     }
     assert(0);
     return NULL;
 }
-
-#if 0
-T_exp F_ExpWithStaticLink(F_access acc, T_exp staticLink) {
-  if (acc->kind == inReg) {
-    return T_Temp(F_accessReg(acc));
-  }
-  return T_Mem(T_Binop(T_plus, staticLink, T_Const(F_accessOffset(acc) - 8)));
-}
-
-T_exp F_FPExp(T_exp framePtr) {
-  return T_Mem(framePtr);
-}
-
-T_exp F_staticLinkExp(T_exp framePtr) {
-  // static link at fp + 8
-  return T_Binop(T_plus, framePtr, T_Const(2 * F_wordSize));
-}
-
-T_exp F_upperStaticLinkExp(T_exp staticLink) {
-  return T_Mem(staticLink);
-}
-
-T_exp F_staticLink2FP(T_exp staticLink) {
-  return T_Binop(T_minus, T_Mem(staticLink), T_Const(2 * F_wordSize));
-}
-
-#endif
 
 F_ral F_RAL(Temp_temp arg, Temp_temp reg, F_ral next)
 {
