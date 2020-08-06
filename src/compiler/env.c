@@ -242,9 +242,6 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             if (ty->u.procPtr->returnTy)
                 E_tyFindTypes (type_tab, ty->u.procPtr->returnTy);
             break;
-        case Ty_class:
-            assert(0); // FIXME: implement
-            break;
     }
 }
 
@@ -328,9 +325,6 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_forwardPtr:
         case Ty_toLoad:
             assert(0);
-            break;
-        case Ty_class:
-            assert(0); // FIXME: implement
             break;
     }
 }
@@ -481,7 +475,11 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
 
     if (fread(&tuid, 4, 1, modf) != 1) return NULL;
     Ty_ty ty = TAB_look(m->tyTable, (void *) (intptr_t) tuid);
-    assert(ty);
+    if (!ty)
+    {
+        ty = Ty_ToLoad(m->name, tuid);
+        TAB_enter (m->tyTable, (void *) (intptr_t) tuid, ty);
+    }
 
     return ty;
 }
@@ -806,26 +804,16 @@ E_module E_loadModule(S_symbol sModule)
                     uint16_t cnt=0;
                     if (fread(&cnt, 2, 1, modf) != 1) goto fail;
 
-                    Ty_field fl=NULL, fl_last=NULL;
+                    ty->u.record.fields      = NULL;
+                    ty->u.record.fields_last = NULL;
 
                     for (int i=0; i<cnt; i++)
                     {
                         string name = strdeserialize(modf);
-                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                        Ty_ty t = E_deserializeTyRef(modTable, modf);
 
-                        Ty_field field = Ty_Field(S_Symbol(name, FALSE), ty);
-                        if (fl_last)
-                        {
-                            fl_last->next = field;
-                            fl_last = fl_last->next;
-                        }
-                        else
-                        {
-                            fl = fl_last = field;
-                        }
+                        Ty_RecordAddField (ty, S_Symbol(name, FALSE), t);
                     }
-                    ty->u.record.fields = fl;
-                    Ty_computeSize(ty);
                     break;
                 }
                 case Ty_pointer:
@@ -864,6 +852,7 @@ E_module E_loadModule(S_symbol sModule)
                     printf ("%s: toLoad type detected!\n", modfn);
                     goto fail;
                 }
+                Ty_computeSize(ty);
             }
         }
 

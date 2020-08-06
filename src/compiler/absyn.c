@@ -293,15 +293,28 @@ A_dim A_Dim (bool statc, A_exp expStart, A_exp expEnd, A_dim tail)
     return p;
 }
 
-A_field A_Field (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td)
+A_udtEntry A_UDTEntryField (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td)
 {
-    A_field p = checked_malloc(sizeof(*p));
+    A_udtEntry p = checked_malloc(sizeof(*p));
 
-    p->pos     = pos;
-    p->name    = name;
-    p->dims    = dims;
-    p->td      = td;
-    p->tail    = NULL;
+    p->pos            = pos;
+    p->kind           = A_fieldUDTEntry;
+    p->u.fieldr.name  = name;
+    p->u.fieldr.dims  = dims;
+    p->u.fieldr.td    = td;
+    p->next           = NULL;
+
+    return p;
+}
+
+A_udtEntry A_UDTEntryMethod (S_pos pos, A_proc proc)
+{
+    A_udtEntry p = checked_malloc(sizeof(*p));
+
+    p->pos            = pos;
+    p->kind           = A_methodUDTEntry;
+    p->u.methodr      = proc;
+    p->next           = NULL;
 
     return p;
 }
@@ -344,7 +357,7 @@ A_stmt A_CallPtrStmt (S_pos pos, S_symbol name, A_expList args)
     return p;
 }
 
-A_stmt A_TypeDeclStmt (S_pos pos, S_symbol sType, A_field fields, bool isPrivate)
+A_stmt A_TypeDeclStmt (S_pos pos, S_symbol sType, A_udtEntry entries, bool isPrivate)
 {
     A_stmt p = checked_malloc(sizeof(*p));
 
@@ -352,7 +365,7 @@ A_stmt A_TypeDeclStmt (S_pos pos, S_symbol sType, A_field fields, bool isPrivate
     p->pos  = pos;
 
     p->u.typer.sType     = sType;
-    p->u.typer.fields    = fields;
+    p->u.typer.entries   = entries;
     p->u.typer.isPrivate = isPrivate;
 
     return p;

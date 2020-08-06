@@ -6,21 +6,6 @@
 #include "symbol.h"
 #include "types.h"
 
-/*
- * runtime descriptor (RTTI) for objects (TBD)
- *
- * offset   | description
- * ---------+---------------------------
- * 0        | virtual method 1
- *          |
- *          |
- *          |
- *          |
- *
- */
-
-#define OBJECT_DESC_SIZE 6 // FIXME
-
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
 
@@ -88,18 +73,53 @@ void Ty_init(void)
 
 static uint32_t g_uid = 23;
 
-Ty_ty Ty_Record(S_symbol mod, Ty_field fields)
+Ty_ty Ty_Record (S_symbol mod)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
-    p->kind            = Ty_record;
-    p->u.record.fields = fields;
-    p->mod             = mod;
-    p->uid             = g_uid++;
-
-    Ty_computeSize(p);
+    p->kind                  = Ty_record;
+    p->u.record.fields       = NULL;
+    p->u.record.fields_last  = NULL;
+    p->u.record.methods      = NULL;
+    p->u.record.methods_last = NULL;
+    p->u.record.uiSize       = 0;
+    p->mod                   = mod;
+    p->uid                   = g_uid++;
 
     return p;
+}
+
+Ty_field Ty_RecordAddField (Ty_ty recordType, S_symbol name, Ty_ty ty)
+{
+    Ty_field f = checked_malloc(sizeof(*f));
+
+    f->name = name;
+    f->ty   = ty;
+
+    if (recordType->u.record.fields_last)
+    {
+        recordType->u.record.fields_last->next = f;
+        recordType->u.record.fields_last = recordType->u.record.fields_last->next;
+    }
+    else
+    {
+        recordType->u.record.fields = recordType->u.record.fields_last = f;
+    }
+
+    return f;
+}
+
+void Ty_RecordAddMethod (Ty_ty recordType, Ty_proc proc)
+{
+    if (recordType->u.record.methods_last)
+    {
+        recordType->u.record.methods_last->next = proc;
+        recordType->u.record.methods_last = recordType->u.record.methods_last->next;
+    }
+    else
+    {
+        recordType->u.record.methods = recordType->u.record.methods_last = proc;
+    }
 }
 
 Ty_ty Ty_VarPtr(Ty_ty ty)
@@ -171,7 +191,7 @@ void Ty_computeSize(Ty_ty ty)
 
         case Ty_record:
         {
-            unsigned int off=0;
+            uint32_t off=0;
 
             ty->u.record.uiSize = 0;
             for (Ty_field fl=ty->u.record.fields; fl; fl=fl->next)
@@ -191,9 +211,6 @@ void Ty_computeSize(Ty_ty ty)
             }
             break;
         }
-        case Ty_class:
-            assert(0); // FIXME: implement
-            break;
         case Ty_pointer:  break;
         case Ty_string:   break;
         case Ty_procPtr:  break;
@@ -227,16 +244,6 @@ Ty_ty Ty_Array(S_symbol mod, Ty_ty ty, int start, int end)
     p->uid               = g_uid++;
 
     Ty_computeSize(p);
-
-    return p;
-}
-
-Ty_field Ty_Field(S_symbol name, Ty_ty ty)
-{
-    Ty_field p = checked_malloc(sizeof(*p));
-
-    p->name=name;
-    p->ty=ty;
 
     return p;
 }
@@ -399,8 +406,6 @@ string Ty_name(Ty_ty t)
             return "array";
         case Ty_record:
             return "record";
-        case Ty_class:
-            return "class";
         case Ty_pointer:
             return "pointer";
         case Ty_string:
@@ -468,6 +473,7 @@ Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPri
     p->forward    = forward;
     p->offset     = offset;
     p->libBase    = libBase;
+    p->next       = NULL;
 
     return p;
 }

@@ -74,7 +74,6 @@ static enum AS_w ty_isz(Ty_ty ty)
             return AS_w_L;
         case Ty_array:
         case Ty_record:
-        case Ty_class:
         case Ty_void:
         case Ty_toLoad:
             assert(0);

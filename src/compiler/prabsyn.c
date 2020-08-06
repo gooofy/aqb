@@ -496,16 +496,29 @@ static void pr_stmt(FILE *out, A_stmt stmt, int d)
             {
                 fprintf(out, "PUBLIC ");
             }
-            fprintf(out, "TYPEDECL %s(", S_name(stmt->u.typer.sType));
-            for (A_field f = stmt->u.typer.fields; f; f = f->tail)
+            fprintf(out, "TYPEDECL %s(\n", S_name(stmt->u.typer.sType));
+            indent(out, d+2);
+            for (A_udtEntry f = stmt->u.typer.entries; f; f = f->next)
             {
-                fprintf(out, "%s", S_name(f->name));
-                if (f->td)
-                    pr_typedesc(out, f->td);
-                if (f->dims)
-                    pr_dims(out, f->dims);
-                if (f->tail)
-                    fprintf(out,",");
+                switch (f->kind)
+                {
+                    case A_fieldUDTEntry:
+                        fprintf(out, "%s ", S_name(f->u.fieldr.name));
+                        if (f->u.fieldr.td)
+                            pr_typedesc(out, f->u.fieldr.td);
+                        if (f->u.fieldr.dims)
+                            pr_dims(out, f->u.fieldr.dims);
+                        break;
+
+                    case A_methodUDTEntry:
+                        pr_prochdr(out, f->u.methodr);
+                        break;
+                };
+                if (f->next)
+                {
+                    fprintf(out,",\n");
+                    indent(out, d+2);
+                }
             }
             fprintf(out, ")");
             break;

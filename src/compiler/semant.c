@@ -140,7 +140,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = Ty_Long();
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -173,7 +172,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = Ty_Long();
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -205,7 +203,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return TRUE;
                 case Ty_array:
                 case Ty_record:
-                case Ty_class:
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
@@ -235,7 +232,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = Ty_Long();
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -266,7 +262,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -295,7 +290,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -324,7 +318,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -353,7 +346,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty2;
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -380,7 +372,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty1;
                     return TRUE;
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -393,10 +384,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return FALSE;
             }
         case Ty_array:
-            assert(0); // FIXME
-            *res = ty1;
-            return FALSE;
-        case Ty_class:
             assert(0); // FIXME
             *res = ty1;
             return FALSE;
@@ -443,7 +430,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_single:
                 case Ty_double:
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_pointer:
                 case Ty_string:
@@ -470,7 +456,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_single:
                 case Ty_double:
                 case Ty_array:
-                case Ty_class:
                 case Ty_record:
                 case Ty_string:
                 case Ty_varPtr:
@@ -721,7 +706,7 @@ static Ty_ty lookup_type(S_scope tenv, S_pos pos, S_symbol sym)
     return Ty_Void();
 }
 
-static Ty_proc makeProc(Tr_level level, S_scope venv, S_scope tenv, bool forward, A_proc proc, Sem_nestedLabels nestedLabels);
+static Ty_proc makeProc(Tr_level level, S_scope venv, S_scope tenv, bool forward, Ty_ty cls, A_proc proc, Sem_nestedLabels nestedLabels);
 
 static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeDesc td, bool allowForwardPtr, Sem_nestedLabels nestedLabels)
 {
@@ -757,7 +742,7 @@ static Ty_ty resolveTypeDesc(Tr_level level, S_scope venv, S_scope tenv, A_typeD
         }
         case A_procTd:
         {
-            Ty_proc   proc      = makeProc(level, venv, tenv, /* forward=*/FALSE, td->u.proc, nestedLabels);
+            Ty_proc   proc      = makeProc(level, venv, tenv, /* forward=*/FALSE, /*cls=*/NULL, td->u.proc, nestedLabels);
 
             t = Ty_ProcPtr(g_mod->name, proc);
             break;
@@ -1134,7 +1119,7 @@ static Tr_exp transExp(Tr_level level, S_scope venv, S_scope tenv, A_exp a, Sem_
     return Tr_nopNx();
 }
 
-static Ty_proc makeProc(Tr_level level, S_scope venv, S_scope tenv, bool forward, A_proc proc, Sem_nestedLabels nestedLabels)
+static Ty_proc makeProc(Tr_level level, S_scope venv, S_scope tenv, bool forward, Ty_ty cls, A_proc proc, Sem_nestedLabels nestedLabels)
 {
     Ty_ty returnTy      = Ty_Void();
 
@@ -1552,13 +1537,9 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
         case A_procStmt:
         case A_procDeclStmt:
         {
-            E_enventry    e;
+            Ty_proc    proc = makeProc(level, venv, tenv, /*forward=*/ stmt->kind == A_procDeclStmt, /*cls=*/NULL, stmt->u.proc, nestedLabels);
 
-            Ty_proc       proc = makeProc(level, venv, tenv, /*forward=*/ stmt->kind == A_procDeclStmt, stmt->u.proc, nestedLabels);
-
-            //Ty_formal formals   = makeFormals(level, venv, tenv, proc->paramList, nestedLabels);
-            //Ty_tyList formalTys = E_FormalTys(formals);
-            e = S_look(venv, proc->label);
+            E_enventry e = S_look(venv, proc->label);
             if (e)
             {
                 if ( (stmt->kind == A_procDeclStmt) || !e->u.fun.proc->forward)
@@ -1787,64 +1768,71 @@ static Tr_exp transStmt(Tr_level level, S_scope venv, S_scope tenv, A_stmt stmt,
             if (entry)
                 EM_error (stmt->pos, "Type %s is already defined here.", S_name(stmt->u.typer.sType));
 
-            Ty_field fl = NULL, flast=NULL;
-            for (A_field f = stmt->u.typer.fields; f; f=f->tail)
+            Ty_ty ty = Ty_Record(g_mod->name);
+
+            for (A_udtEntry f = stmt->u.typer.entries; f; f=f->next)
             {
-                Ty_ty t = NULL;
-
-                if (f->td)
+                switch(f->kind)
                 {
-                    t = resolveTypeDesc(level, venv, tenv, f->td, /*allowForwardPtr=*/TRUE, nestedLabels);
-                }
-                else
-                {
-                    t = Ty_inferType(S_name(f->name));
-                }
-
-                if (!t)
-                {
-                    EM_error (f->pos, "Failed to resolve type descriptor.");
-                    continue;
-                }
-
-                for (A_dim dim=f->dims; dim; dim=dim->tail)
-                {
-                    int start, end;
-                    if (dim->expStart)
+                    case A_fieldUDTEntry:
                     {
-                        Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, nestedLabels);
-                        if (!Tr_isConst(expStart))
+                        Ty_ty t = NULL;
+
+                        if (f->u.fieldr.td)
                         {
-                            EM_error(dim->expStart->pos, "Constant array bounds expected.");
-                            return Tr_nopNx();
+                            t = resolveTypeDesc(level, venv, tenv, f->u.fieldr.td, /*allowForwardPtr=*/TRUE, nestedLabels);
                         }
-                        start = Tr_getConstInt(expStart);
+                        else
+                        {
+                            t = Ty_inferType(S_name(f->u.fieldr.name));
+                        }
+
+                        if (!t)
+                        {
+                            EM_error (f->pos, "Failed to resolve type descriptor.");
+                            continue;
+                        }
+
+                        for (A_dim dim=f->u.fieldr.dims; dim; dim=dim->tail)
+                        {
+                            int start, end;
+                            if (dim->expStart)
+                            {
+                                Tr_exp expStart = transExp(level, venv, tenv, dim->expStart, nestedLabels);
+                                if (!Tr_isConst(expStart))
+                                {
+                                    EM_error(dim->expStart->pos, "Constant array bounds expected.");
+                                    return Tr_nopNx();
+                                }
+                                start = Tr_getConstInt(expStart);
+                            }
+                            else
+                            {
+                                start = 0;
+                            }
+                            Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, nestedLabels);
+                            if (!Tr_isConst(expEnd))
+                            {
+                                EM_error(dim->expEnd->pos, "Constant array bounds expected.");
+                                return Tr_nopNx();
+                            }
+                            end = Tr_getConstInt(expEnd);
+                            t = Ty_Array(g_mod->name, t, start, end);
+                        }
+                        Ty_RecordAddField(ty, f->u.fieldr.name, t);
+                        break;
                     }
-                    else
+                    case A_methodUDTEntry:
                     {
-                        start = 0;
+                        Ty_proc proc = makeProc(level, venv, tenv, /*forward=*/TRUE, /*cls=*/ty, f->u.methodr, nestedLabels);
+                        Ty_RecordAddMethod(ty, proc);
+                        break;
                     }
-                    Tr_exp expEnd = transExp(level, venv, tenv, dim->expEnd, nestedLabels);
-                    if (!Tr_isConst(expEnd))
-                    {
-                        EM_error(dim->expEnd->pos, "Constant array bounds expected.");
-                        return Tr_nopNx();
-                    }
-                    end = Tr_getConstInt(expEnd);
-                    t = Ty_Array(g_mod->name, t, start, end);
-                }
-                if (flast)
-                {
-                    flast->next = Ty_Field(f->name, t);
-                    flast = flast->next;
-                }
-                else
-                {
-                    fl = flast = Ty_Field(f->name, t);
                 }
             }
 
-            Ty_ty ty = Ty_Record(g_mod->name, fl);
+            Ty_computeSize(ty);
+
             E_enventry e = E_TypeEntry(stmt->u.typer.sType, ty);
             S_enter(tenv, stmt->u.typer.sType, e);
             if (!stmt->u.typer.isPrivate)

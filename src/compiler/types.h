@@ -16,7 +16,7 @@ struct Ty_ty_
     enum { Ty_bool,
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
-           Ty_array, Ty_record, Ty_pointer, Ty_string, Ty_class,
+           Ty_array, Ty_record, Ty_pointer, Ty_string,
            Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr, Ty_toLoad            } kind;
            // Ty_varPtr: used during var access processing in translate.c
            // Ty_toLoad: used for module loading in env.c
@@ -24,7 +24,9 @@ struct Ty_ty_
     union
     {
         Ty_ty                                                                 pointer;
-        struct {Ty_field fields; unsigned int uiSize;                       } record;
+        struct {Ty_field fields; Ty_field fields_last;
+                Ty_proc  methods; Ty_proc methods_last;
+                unsigned int uiSize;                                        } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; unsigned int uiSize; } array;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
@@ -82,6 +84,7 @@ struct Ty_proc_
     bool          forward;
     int32_t       offset;
     string        libBase;
+    Ty_proc       next;
 };
 
 Ty_ty        Ty_Bool(void);
@@ -98,13 +101,15 @@ Ty_ty        Ty_Void(void);
 Ty_ty        Ty_VoidPtr(void);
 
 Ty_ty        Ty_Array(S_symbol mod, Ty_ty ty, int start, int end);
-Ty_ty        Ty_Record(S_symbol mod, Ty_field fields);
-Ty_ty        Ty_Class(S_symbol mod, Ty_ty base, Ty_field fields);
 Ty_ty        Ty_VarPtr(Ty_ty ty);
 Ty_ty        Ty_Pointer(S_symbol mod, Ty_ty ty);
 Ty_ty        Ty_ForwardPtr(S_symbol mod, S_symbol sType);
 Ty_ty        Ty_ProcPtr(S_symbol mod, Ty_proc proc);
 Ty_ty        Ty_ToLoad(S_symbol mod, uint32_t uid);
+
+Ty_ty        Ty_Record          (S_symbol mod);
+Ty_field     Ty_RecordAddField  (Ty_ty recordType, S_symbol name, Ty_ty ty);
+void         Ty_RecordAddMethod (Ty_ty recordType, Ty_proc proc);
 
 Ty_formal    Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc      Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase);
@@ -113,10 +118,7 @@ Ty_const     Ty_ConstBool  (Ty_ty ty, bool   b);
 Ty_const     Ty_ConstInt   (Ty_ty ty, int    i);
 Ty_const     Ty_ConstFloat (Ty_ty ty, double f);
 
-Ty_field     Ty_Field(S_symbol name, Ty_ty ty);
-
 void         Ty_print(Ty_ty t);
-// void         Ty_printList(Ty_tyList list);
 
 int          Ty_size(Ty_ty t);
 void         Ty_computeSize(Ty_ty ty);

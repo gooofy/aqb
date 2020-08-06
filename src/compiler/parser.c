@@ -121,7 +121,7 @@ static inline bool isLogicalEOL(S_tkn tkn)
 typedef struct P_SLE_          *P_SLE;
 struct P_SLE_
 {
-    enum { P_forLoop, P_whileLoop, P_doLoop, P_if, P_sub, P_function, P_type, P_select } kind;
+    enum { P_top, P_forLoop, P_whileLoop, P_doLoop, P_if, P_sub, P_function, P_type, P_select } kind;
     S_pos       pos;
     A_stmtList  stmtList;
     P_SLE       prev;
@@ -141,7 +141,7 @@ struct P_SLE_
         A_proc proc;
         struct
         {
-            A_field    fFirst, fLast;
+            A_udtEntry eFirst, eLast;
             S_symbol   sType;
             bool       isPrivate;
         } typeDecl;
@@ -2583,12 +2583,32 @@ static bool stmtProcDecl(S_tkn *tkn, P_declProc dec)
             return EM_error((*tkn)->pos, "library call: less registers than arguments detected.");
     }
 
-    if (isFunction)
-        E_declare_proc(declared_funs , proc->name, NULL      , P_functionCall, proc);
-    else
-        E_declare_proc(declared_stmts, proc->name, P_subCall , NULL          , proc);
+    switch (g_sleStack->kind)
+    {
+        case P_top:
+            if (isFunction)
+                E_declare_proc(declared_funs , proc->name, NULL      , P_functionCall, proc);
+            else
+                E_declare_proc(declared_stmts, proc->name, P_subCall , NULL          , proc);
 
-    A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
+            A_StmtListAppend (g_sleStack->stmtList, A_ProcDeclStmt(proc->pos, proc));
+            break;
+
+        case P_type:
+            if (g_sleStack->u.typeDecl.eFirst)
+            {
+                g_sleStack->u.typeDecl.eLast->next = A_UDTEntryMethod(pos, proc);
+                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
+            }
+            else
+            {
+                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = A_UDTEntryMethod(pos, proc);
+            }
+            break;
+
+        default:
+            return EM_error((*tkn)->pos, "No SUB or FUNCTION declarations allowed in this context.");
+    }
 
     return TRUE;
 }
@@ -2755,8 +2775,8 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, P_declProc dec)
     sle->pos  = pos;
 
     sle->u.typeDecl.sType     = sType;
-    sle->u.typeDecl.fFirst    = NULL;
-    sle->u.typeDecl.fLast     = NULL;
+    sle->u.typeDecl.eFirst    = NULL;
+    sle->u.typeDecl.eLast     = NULL;
     sle->u.typeDecl.isPrivate = isPrivate;
 
     return TRUE;
@@ -2764,6 +2784,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, P_declProc dec)
 
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
+//                   | procDecl
 //                   | END TYPE
 //                   )
 static bool stmtTypeDeclField(S_tkn *tkn)
@@ -2775,7 +2796,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             return EM_error((*tkn)->pos, "TYPE expected here.");
         *tkn = (*tkn)->next;
         P_SLE s = slePop();
-        A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.fFirst, s->u.typeDecl.isPrivate));
+        A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.eFirst, s->u.typeDecl.isPrivate));
         return TRUE;
     }
 
@@ -2806,14 +2827,14 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 return EM_error((*tkn)->pos, ") expected here.");
             *tkn = (*tkn)->next;
         }
-        if (g_sleStack->u.typeDecl.fFirst)
+        if (g_sleStack->u.typeDecl.eFirst)
         {
-            g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, dims, td);
-            g_sleStack->u.typeDecl.fLast = g_sleStack->u.typeDecl.fLast->tail;
+            g_sleStack->u.typeDecl.eLast->next = A_UDTEntryField(fpos, sField, dims, td);
+            g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
         }
         else
         {
-            g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
+            g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = A_UDTEntryField(fpos, sField, dims, td);
         }
 
         while ((*tkn)->kind == S_COMMA)
@@ -2837,60 +2858,73 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     return EM_error((*tkn)->pos, ") expected here.");
                 *tkn = (*tkn)->next;
             }
-            if (g_sleStack->u.typeDecl.fFirst)
+
+            if (g_sleStack->u.typeDecl.eFirst)
             {
-                g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, dims, td);
-                g_sleStack->u.typeDecl.fLast = g_sleStack->u.typeDecl.fLast->tail;
+                g_sleStack->u.typeDecl.eLast->next = A_UDTEntryField(fpos, sField, dims, td);
+                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
             }
             else
             {
-                g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
+                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = A_UDTEntryField(fpos, sField, dims, td);
             }
         }
+        if (!isLogicalEOL(*tkn))
+            return EM_error((*tkn)->pos, "field declaration: syntax error [1].");
     }
     else
     {
-        if ((*tkn)->kind == S_IDENT)
+        if (isSym(*tkn, S_DECLARE))
         {
-            A_dim      dims       = NULL;
-            S_symbol   sField;
-            S_pos      fpos       = (*tkn)->pos;
-            A_typeDesc td         = NULL;
-
-
-            sField = (*tkn)->u.sym;
-            *tkn = (*tkn)->next;
-            if ((*tkn)->kind == S_LPAREN)
-            {
-                *tkn = (*tkn)->next;
-                if (!arrayDimensions(tkn, &dims))
-                    return FALSE;
-                if ((*tkn)->kind != S_RPAREN)
-                    return EM_error((*tkn)->pos, ") expected here.");
-                *tkn = (*tkn)->next;
-            }
-
-            if (isSym(*tkn, S_AS))
-            {
-                *tkn = (*tkn)->next;
-
-                if (!typeDesc(tkn, &td))
-                    return EM_error((*tkn)->pos, "field declaration: type descriptor expected here.");
-            }
-
-            if (g_sleStack->u.typeDecl.fFirst)
-            {
-                g_sleStack->u.typeDecl.fLast->tail = A_Field(fpos, sField, dims, td);
-                g_sleStack->u.typeDecl.fLast = g_sleStack->u.typeDecl.fLast->tail;
-            }
-            else
-            {
-                g_sleStack->u.typeDecl.fFirst = g_sleStack->u.typeDecl.fLast = A_Field(fpos, sField, dims, td);
-            }
+            return stmtProcDecl(tkn, NULL);
         }
         else
         {
-            return FALSE;
+            if ((*tkn)->kind == S_IDENT)
+            {
+                A_dim      dims       = NULL;
+                S_symbol   sField;
+                S_pos      fpos       = (*tkn)->pos;
+                A_typeDesc td         = NULL;
+
+
+                sField = (*tkn)->u.sym;
+                *tkn = (*tkn)->next;
+                if ((*tkn)->kind == S_LPAREN)
+                {
+                    *tkn = (*tkn)->next;
+                    if (!arrayDimensions(tkn, &dims))
+                        return FALSE;
+                    if ((*tkn)->kind != S_RPAREN)
+                        return EM_error((*tkn)->pos, ") expected here.");
+                    *tkn = (*tkn)->next;
+                }
+
+                if (isSym(*tkn, S_AS))
+                {
+                    *tkn = (*tkn)->next;
+
+                    if (!typeDesc(tkn, &td))
+                        return EM_error((*tkn)->pos, "field declaration: type descriptor expected here.");
+                }
+
+                if (!isLogicalEOL(*tkn))
+                    return EM_error((*tkn)->pos, "field declaration: syntax error [2].");
+
+                if (g_sleStack->u.typeDecl.eFirst)
+                {
+                    g_sleStack->u.typeDecl.eLast->next = A_UDTEntryField(fpos, sField, dims, td);
+                    g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
+                }
+                else
+                {
+                    g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = A_UDTEntryField(fpos, sField, dims, td);
+                }
+            }
+            else
+            {
+                return FALSE;
+            }
         }
     }
 
@@ -3802,6 +3836,10 @@ bool P_sourceProgram(FILE *inf, const char *filename, A_sourceProgram *sourcePro
     register_builtins();
 
     slePush();
+    g_sleStack->kind = P_top;
+    g_sleStack->pos  = 0;
+    g_sleStack->prev = NULL;
+
     *sourceProgram = A_SourceProgram(0, g_sleStack->stmtList);
 
     // parse

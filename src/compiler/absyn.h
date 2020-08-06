@@ -28,7 +28,7 @@ typedef struct A_proc_          *A_proc;
 typedef struct A_param_         *A_param;
 typedef struct A_paramList_     *A_paramList;
 typedef struct A_dim_           *A_dim;
-typedef struct A_field_         *A_field;
+typedef struct A_udtEntry_      *A_udtEntry;
 typedef struct A_ifBranch_      *A_ifBranch;
 typedef struct A_selectBranch_  *A_selectBranch;
 typedef struct A_selectExp_     *A_selectExp;
@@ -50,13 +50,18 @@ struct A_typeDesc_
     } u;
 };
 
-struct A_field_
+struct A_udtEntry_
 {
     S_pos      pos;
-    S_symbol   name;
-    A_dim      dims;
-    A_typeDesc td;
-    A_field    tail;
+
+    enum {A_fieldUDTEntry, A_methodUDTEntry} kind;
+    union
+    {
+        struct { S_symbol name; A_dim dims; A_typeDesc td; } fieldr;
+        A_proc methodr;
+    } u;
+
+    A_udtEntry next;
 };
 
 typedef enum {A_nestSub, A_nestFunction, A_nestDo, A_nestFor, A_nestWhile, A_nestSelect} A_nestedStmtKind;
@@ -93,7 +98,7 @@ struct A_stmt_
         struct {bool isPrivate; S_symbol sConst; A_typeDesc td; A_exp cExp;} cdeclr;
         struct {A_exp exp; string msg;} assertr;
 	    struct {A_exp exp; A_stmtList body;} whiler;
-	    struct {S_symbol sType; A_field fields; bool isPrivate;} typer;
+	    struct {S_symbol sType; A_udtEntry entries; bool isPrivate;} typer;
         Temp_label label;
         struct {S_symbol name; A_expList args;} callptr;
         A_nestedStmt exitr;
@@ -258,7 +263,7 @@ A_stmt          A_ConstDeclStmt   (S_pos pos, bool isPrivate, S_symbol sConst, A
 A_stmt          A_AssertStmt      (S_pos pos, A_exp exp, string msg);
 A_stmt          A_CallStmt        (S_pos pos, A_proc proc, A_expList args);
 A_stmt          A_CallPtrStmt     (S_pos pos, S_symbol name, A_expList args);
-A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_field fields, bool isPrivate);
+A_stmt          A_TypeDeclStmt    (S_pos pos, S_symbol sType, A_udtEntry entries, bool isPrivate);
 A_stmt          A_LabelStmt       (S_pos pos, Temp_label label);
 A_stmt          A_ExitStmt        (S_pos pos, A_nestedStmt nest);
 A_stmt          A_ContinueStmt    (S_pos pos, A_nestedStmt nest);
@@ -294,7 +299,8 @@ A_param         A_Param           (S_pos pos, bool byval, bool byref, S_symbol n
 A_paramList     A_ParamList       (void);
 void            A_ParamListAppend (A_paramList list, A_param param);
 A_dim           A_Dim             (bool statc, A_exp expStart, A_exp expEnd, A_dim tail);
-A_field         A_Field           (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td);
+A_udtEntry      A_UDTEntryField   (S_pos pos, S_symbol name, A_dim dims, A_typeDesc td);
+A_udtEntry      A_UDTEntryMethod  (S_pos pos, A_proc proc);
 A_ifBranch      A_IfBranch        (A_exp test, A_stmtList stmts);
 A_selectBranch  A_SelectBranch    (S_pos pos, A_selectExp exp, A_stmtList stmts);
 A_selectExp     A_SelectExp       (A_exp exp, A_exp toExp, A_oper condOp);
