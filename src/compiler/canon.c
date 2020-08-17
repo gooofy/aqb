@@ -115,9 +115,12 @@ static struct stmExp do_exp(T_exp exp)
     switch(exp->kind)
     {
         case T_BINOP:
+            if (!exp->u.BINOP.right)
+                return StmExp(reorder(ExpRefList(&exp->u.BINOP.left, NULL)), exp);
+
             return StmExp(reorder(ExpRefList(&exp->u.BINOP.left,
-                     ExpRefList(&exp->u.BINOP.right, NULL))),
-                exp);
+                                             ExpRefList(&exp->u.BINOP.right, NULL))),
+                          exp);
         case T_MEM:
             return StmExp(reorder(ExpRefList(&exp->u.MEM.exp, NULL)), exp);
         case T_ESEQ:
@@ -393,7 +396,7 @@ static T_stmList getNext()
 T_stmList C_traceSchedule(struct C_block b)
 {
     C_stmListList sList;
-    block_env = S_beginScope(NULL);
+    block_env = S_beginScope();
     global_block = b;
 
     for (sList=global_block.stmLists; sList; sList=sList->tail)

@@ -5,7 +5,6 @@
 #include "util.h"
 #include "table.h"
 #include "symbol.h"
-#include "absyn.h"
 #include "temp.h"
 #include "tree.h"
 #include "printtree.h"
@@ -59,12 +58,45 @@ struct Tr_exp_
     } u;
 };
 
-Tr_expList Tr_ExpList(Tr_exp head, Tr_expList tail)
+Tr_expList Tr_ExpList(void)
 {
     Tr_expList el = checked_malloc(sizeof(*el));
-    el->head = head;
-    el->tail = tail;
+
+    el->first = NULL;
+    el->last  = NULL;
+
     return el;
+}
+
+void Tr_ExpListAppend (Tr_expList el, Tr_exp exp)
+{
+    Tr_expListNode eln = checked_malloc(sizeof(*eln));
+
+    eln->exp  = exp;
+    eln->next = NULL;
+
+    if (el->last)
+    {
+        el->last->next = eln;
+        el->last = eln;
+    }
+    else
+    {
+        el->first = el->last = eln;
+    }
+}
+
+void Tr_ExpListPrepend (Tr_expList el, Tr_exp exp)
+{
+    Tr_expListNode eln = checked_malloc(sizeof(*eln));
+
+    eln->exp  = exp;
+    eln->next = NULL;
+
+    eln->next = el->first;
+    el->first = eln;
+    if (!el->last)
+        el->last = eln;
 }
 
 static Tr_access Tr_Access(Tr_level level, F_access access)
@@ -218,16 +250,20 @@ static patchList joinPatch(patchList first, patchList second)
 static Tr_exp Tr_Ex(T_exp ex)
 {
     Tr_exp e = checked_malloc(sizeof(*e));
+
     e->kind = Tr_ex;
     e->u.ex = ex;
+
     return e;
 }
 
 static Tr_exp Tr_Nx(T_stm nx)
 {
     Tr_exp e = checked_malloc(sizeof(*e));
+
     e->kind = Tr_nx;
     e->u.nx = nx;
+
     return e;
 }
 
@@ -239,6 +275,7 @@ static Tr_exp Tr_Cx(patchList trues, patchList falses, T_stm stm)
     cx.stm    = stm;
 
     Tr_exp e = checked_malloc(sizeof(*e));
+
     e->kind = Tr_cx;
     e->u.cx = cx;
 
@@ -591,6 +628,8 @@ Ty_const Tr_getConst(Tr_exp exp)
 
 Tr_exp Tr_floatExp(double f, Ty_ty ty)
 {
+    if (!ty)
+        ty = Ty_Single();
     return Tr_Ex(T_Const(Ty_ConstFloat(ty, f)));
 }
 
@@ -623,9 +662,9 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     if (t->u.pointer->kind == Ty_pointer)
     {
         Ty_ty et = at->u.pointer;
-        return Tr_arOpExp(A_addOp,
+        return Tr_binOpExp(T_plus,
                           Tr_Deref(ape),
-                          Tr_arOpExp(A_mulOp,
+                          Tr_binOpExp(T_mul,
                                      idx,
                                      Tr_intExp(Ty_size(et), Ty_Long()),
                                      Ty_Long()),
@@ -635,9 +674,9 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     if (t->u.pointer->kind == Ty_string)
     {
         Ty_ty et = Ty_UByte();
-        return Tr_arOpExp(A_addOp,
+        return Tr_binOpExp(T_plus,
                           Tr_Deref(ape),
-                          Tr_arOpExp(A_mulOp,
+                          Tr_binOpExp(T_mul,
                                      idx,
                                      Tr_intExp(Ty_size(et), Ty_Long()),
                                      Ty_Long()),
@@ -649,10 +688,10 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     {
         Ty_ty et = at->u.array.elementTy;
 
-        return Tr_arOpExp(A_addOp,
+        return Tr_binOpExp(T_plus,
                           ape,
-                          Tr_arOpExp(A_mulOp,
-                                     Tr_arOpExp(A_subOp,
+                          Tr_binOpExp(T_mul,
+                                     Tr_binOpExp(T_minus,
                                                 idx,
                                                 Tr_intExp(at->u.array.iStart, Ty_Long()),
                                                 Ty_Long()),
@@ -701,7 +740,7 @@ static int ipow(int base, int exp)
     return result;
 }
 
-Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
+Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
 {
     // constant propagation
     if (Tr_isConst(left) && (!right || Tr_isConst(right)))
@@ -716,12 +755,12 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstBool(right);
                 switch (o)
                 {
-                    case A_xorOp   : return Tr_boolExp(a ^ b, ty);    break;
-                    case A_eqvOp   : return Tr_boolExp(a == b, ty);   break;
-                    case A_impOp   : return Tr_boolExp(!a || b, ty);  break;
-                    case A_notOp   : return Tr_boolExp(!a, ty);       break;
-                    case A_andOp   : return Tr_boolExp(a && b, ty);   break;
-                    case A_orOp    : return Tr_boolExp(a || b, ty);   break;
+                    case T_xor   : return Tr_boolExp(a ^ b, ty);    break;
+                    case T_eqv   : return Tr_boolExp(a == b, ty);   break;
+                    case T_imp   : return Tr_boolExp(!a || b, ty);  break;
+                    case T_not   : return Tr_boolExp(!a, ty);       break;
+                    case T_and   : return Tr_boolExp(a && b, ty);   break;
+                    case T_or    : return Tr_boolExp(a || b, ty);   break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -741,22 +780,22 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstInt(right);
                 switch (o)
                 {
-                    case A_addOp   : return Tr_intExp(a+b, ty);            break;
-                    case A_subOp   : return Tr_intExp(a-b, ty);            break;
-                    case A_mulOp   : return Tr_intExp(a*b, ty);            break;
-                    case A_divOp   : return Tr_intExp(a/b, ty);            break;
-                    case A_xorOp   : return Tr_intExp(a^b, ty);            break;
-                    case A_eqvOp   : return Tr_intExp(~(a^b), ty);         break;
-                    case A_impOp   : return Tr_intExp(~a|b, ty);           break;
-                    case A_negOp   : return Tr_intExp(-a, ty);             break;
-                    case A_notOp   : return Tr_intExp(~a, ty);             break;
-                    case A_andOp   : return Tr_intExp(a&b, ty);            break;
-                    case A_orOp    : return Tr_intExp(a|b, ty);            break;
-                    case A_expOp   : return Tr_intExp(ipow (a, b), ty);    break;
-                    case A_intDivOp: return Tr_intExp(a/b, ty);            break;
-                    case A_modOp   : return Tr_intExp(a%b, ty);            break;
-                    case A_shlOp   : return Tr_intExp(a << b, ty);         break;
-                    case A_shrOp   : return Tr_intExp(a >> b, ty);         break;
+                    case T_plus   : return Tr_intExp(a+b, ty);            break;
+                    case T_minus   : return Tr_intExp(a-b, ty);            break;
+                    case T_mul   : return Tr_intExp(a*b, ty);            break;
+                    case T_div   : return Tr_intExp(a/b, ty);            break;
+                    case T_xor   : return Tr_intExp(a^b, ty);            break;
+                    case T_eqv   : return Tr_intExp(~(a^b), ty);         break;
+                    case T_imp   : return Tr_intExp(~a|b, ty);           break;
+                    case T_neg   : return Tr_intExp(-a, ty);             break;
+                    case T_not   : return Tr_intExp(~a, ty);             break;
+                    case T_and   : return Tr_intExp(a&b, ty);            break;
+                    case T_or    : return Tr_intExp(a|b, ty);            break;
+                    case T_power   : return Tr_intExp(ipow (a, b), ty);    break;
+                    case T_intDiv: return Tr_intExp(a/b, ty);            break;
+                    case T_mod   : return Tr_intExp(a%b, ty);            break;
+                    case T_shl   : return Tr_intExp(a << b, ty);         break;
+                    case T_shr   : return Tr_intExp(a >> b, ty);         break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -772,22 +811,22 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstFloat(right);
                 switch (o)
                 {
-                    case A_addOp   : return Tr_floatExp(a+b, ty);                              break;
-                    case A_subOp   : return Tr_floatExp(a-b, ty);                              break;
-                    case A_mulOp   : return Tr_floatExp(a*b, ty);                              break;
-                    case A_divOp   : return Tr_floatExp(a/b, ty);                              break;
-                    case A_xorOp   : return Tr_floatExp((a!=0.0) % (b!=0.0), ty);              break;
-                    case A_eqvOp   : return Tr_floatExp(~((int)roundf(a)^(int)roundf(b)), ty); break;
-                    case A_impOp   : return Tr_floatExp(~(int)roundf(a)|(int)roundf(b), ty);   break;
-                    case A_negOp   : return Tr_floatExp(-a, ty);                               break;
-                    case A_notOp   : return Tr_floatExp(~(int)roundf(a), ty);                  break;
-                    case A_andOp   : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
-                    case A_orOp    : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
-                    case A_expOp   : return Tr_floatExp(pow(a, b), ty);                        break;
-                    case A_intDivOp: return Tr_floatExp((int)a/(int)b, ty);                    break;
-                    case A_modOp   : return Tr_floatExp(fmod(a, b), ty);                       break;
-                    case A_shlOp   : return Tr_floatExp((int)a << (int)b, ty);                 break;
-                    case A_shrOp   : return Tr_floatExp((int)a >> (int)b, ty);                 break;
+                    case T_plus   : return Tr_floatExp(a+b, ty);                              break;
+                    case T_minus   : return Tr_floatExp(a-b, ty);                              break;
+                    case T_mul   : return Tr_floatExp(a*b, ty);                              break;
+                    case T_div   : return Tr_floatExp(a/b, ty);                              break;
+                    case T_xor   : return Tr_floatExp((a!=0.0) % (b!=0.0), ty);              break;
+                    case T_eqv   : return Tr_floatExp(~((int)roundf(a)^(int)roundf(b)), ty); break;
+                    case T_imp   : return Tr_floatExp(~(int)roundf(a)|(int)roundf(b), ty);   break;
+                    case T_neg   : return Tr_floatExp(-a, ty);                               break;
+                    case T_not   : return Tr_floatExp(~(int)roundf(a), ty);                  break;
+                    case T_and   : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
+                    case T_or    : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
+                    case T_power   : return Tr_floatExp(pow(a, b), ty);                        break;
+                    case T_intDiv: return Tr_floatExp((int)a/(int)b, ty);                    break;
+                    case T_mod   : return Tr_floatExp(fmod(a, b), ty);                       break;
+                    case T_shl   : return Tr_floatExp((int)a << (int)b, ty);                 break;
+                    case T_shr   : return Tr_floatExp((int)a >> (int)b, ty);                 break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -795,15 +834,54 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
                 break;
             }
             default:
-                EM_error(0, "*** translate.c: Tr_arOpExp: internal error: unknown type kind %d", ty->kind);
+                EM_error(0, "*** translate.c: Tr_binOpExp: internal error: unknown type kind %d", ty->kind);
                 assert(0);
         }
     }
 
+    if ( left->kind == Tr_cx || ( right && (right->kind == Tr_cx)) )
+    {
+        struct Cx leftcx = unCx(left);
+
+        switch (o)
+        {
+            case T_not:
+                // simply switch true and false around
+                return Tr_Cx(leftcx.falses, leftcx.trues, leftcx.stm);
+
+            case T_or:
+            {
+                Temp_label z = Temp_newlabel();
+                struct Cx rightcx = unCx(right);
+
+                T_stm s1 = T_Seq(leftcx.stm,
+                            T_Seq(T_Label(z),
+                             rightcx.stm));
+                doPatch(leftcx.falses, z);
+                return Tr_Cx(joinPatch(leftcx.trues, rightcx.trues), rightcx.falses, s1);
+            }
+
+            case T_and:
+            {
+                Temp_label z = Temp_newlabel();
+                struct Cx rightcx = unCx(right);
+
+                T_stm s1 = T_Seq(leftcx.stm,
+                            T_Seq(T_Label(z),
+                             rightcx.stm));
+                doPatch(leftcx.trues, z);
+                return Tr_Cx(rightcx.trues, joinPatch(leftcx.falses, rightcx.falses), s1);
+            }
+
+            default:
+                // generic case, handled below
+                break;
+        }
+    }
     T_binOp op;
     switch (o)
     {
-        case A_addOp:
+        case T_plus:
 
             // x + 0 == x
             if (Tr_isConst(left) && (Tr_getConstInt(left)==0))
@@ -813,21 +891,21 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
 
             op = T_plus;
             break;
-        case A_subOp   : op = T_minus;    break;
-        case A_mulOp   : op = T_mul;      break;
-        case A_divOp   : op = T_div;      break;
-        case A_xorOp   : op = T_xor;      break;
-        case A_eqvOp   : op = T_eqv;      break;
-        case A_impOp   : op = T_imp;      break;
-        case A_negOp   : op = T_neg;      break;
-        case A_notOp   : op = T_not;      break;
-        case A_andOp   : op = T_and;      break;
-        case A_orOp    : op = T_or;       break;
-        case A_expOp   : op = T_power;    break;
-        case A_intDivOp: op = T_intDiv;   break;
-        case A_modOp   : op = T_mod;      break;
-        case A_shlOp   : op = T_shl;      break;
-        case A_shrOp   : op = T_shr;      break;
+        case T_minus   : op = T_minus;    break;
+        case T_mul   : op = T_mul;      break;
+        case T_div   : op = T_div;      break;
+        case T_xor   : op = T_xor;      break;
+        case T_eqv   : op = T_eqv;      break;
+        case T_imp   : op = T_imp;      break;
+        case T_neg   : op = T_neg;      break;
+        case T_not   : op = T_not;      break;
+        case T_and   : op = T_and;      break;
+        case T_or    : op = T_or;       break;
+        case T_power   : op = T_power;    break;
+        case T_intDiv: op = T_intDiv;   break;
+        case T_mod   : op = T_mod;      break;
+        case T_shl   : op = T_shl;      break;
+        case T_shr   : op = T_shr;      break;
         default:
             EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
             assert(0);
@@ -836,63 +914,8 @@ Tr_exp Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
     return Tr_Ex(T_Binop(op, unEx(left), unEx(right), ty));
 }
 
-Tr_exp Tr_boolOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty)
+Tr_exp Tr_relOpExp(T_relOp op, Tr_exp left, Tr_exp right)
 {
-    struct Cx leftcx = unCx(left);
-
-    switch (o)
-    {
-        case A_notOp:
-            // simply switch true and false around
-            return Tr_Cx(leftcx.falses, leftcx.trues, leftcx.stm);
-
-        case A_orOp:
-        {
-            Temp_label z = Temp_newlabel();
-            struct Cx rightcx = unCx(right);
-
-            T_stm s1 = T_Seq(leftcx.stm,
-                        T_Seq(T_Label(z),
-                         rightcx.stm));
-            doPatch(leftcx.falses, z);
-            return Tr_Cx(joinPatch(leftcx.trues, rightcx.trues), rightcx.falses, s1);
-        }
-
-        case A_andOp:
-        {
-            Temp_label z = Temp_newlabel();
-            struct Cx rightcx = unCx(right);
-
-            T_stm s1 = T_Seq(leftcx.stm,
-                        T_Seq(T_Label(z),
-                         rightcx.stm));
-            doPatch(leftcx.trues, z);
-            return Tr_Cx(rightcx.trues, joinPatch(leftcx.falses, rightcx.falses), s1);
-        }
-
-        default:
-            EM_error(0, "*** translate.c: internal error: unhandled boolean operation: %d", o);
-            assert(0);
-    }
-    return Tr_Nx(T_Nop());
-}
-
-Tr_exp Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right)
-{
-    T_binOp op = T_eq;
-    switch (o)
-    {
-        case A_eqOp:  op = T_eq; break;
-        case A_neqOp: op = T_ne; break;
-        case A_ltOp:  op = T_lt; break;
-        case A_leOp:  op = T_le; break;
-        case A_gtOp:  op = T_gt; break;
-        case A_geOp:  op = T_ge; break;
-        default:
-            EM_error(0, "*** translate.c: internal error: unhandled conditional operation: %d", o);
-            assert(0);
-    }
-
     T_stm s = T_Cjump(op, unEx(left), unEx(right), NULL, NULL);
     patchList trues = PatchList(&s->u.CJUMP.ltrue, NULL);
     patchList falses = PatchList(&s->u.CJUMP.lfalse, NULL);
@@ -1059,17 +1082,19 @@ Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_s
 Tr_exp Tr_seqExp(Tr_expList el)
 {
     T_stm stm = NULL;
-    for (; el; el = el->tail)
+    for (Tr_expListNode eln = el->first; eln; eln = eln->next)
     {
         if (stm)
         {
-            stm = T_Seq(stm, unNx(el->head));
+            stm = T_Seq(stm, unNx(eln->exp));
         }
         else
         {
-            stm = unNx(el->head);
+            stm = unNx(eln->exp);
         }
     }
+    if (!stm)
+        stm = T_Nop();
     return Tr_Nx(stm);
 }
 
@@ -1077,24 +1102,28 @@ Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Tr_expList actualParams, Ty_proc
 {
     // cdecl calling convention (right-to-left order)
     T_expList aps = NULL;
-    for (; actualParams; actualParams = actualParams->tail)
+    if (actualParams)
     {
-        aps = T_ExpList(unEx(actualParams->head), aps);
+        for (Tr_expListNode eln = actualParams->first; eln; eln = eln->next)
+            aps = T_ExpList(unEx(eln->exp), aps);
     }
 
     return Tr_Ex(T_CallF(proc, aps));
 }
 
-Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_proc proc)
+Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList actualParams, Ty_proc proc)
 {
     // cdecl calling convention (right-to-left order)
-    T_expList el = NULL;
-    for (; expList; expList = expList->tail)
+    T_expList aps = NULL;
+    if (actualParams)
     {
-        el = T_ExpList(unEx(expList->head), el);
+        for (Tr_expListNode eln = actualParams->first; eln; eln = eln->next)
+        {
+            aps = T_ExpList(unEx(eln->exp), aps);
+        }
     }
 
-    return Tr_Ex(T_CallFPtr(unEx(funcPtr), el, proc));
+    return Tr_Ex(T_CallFPtr(unEx(funcPtr), aps, proc));
 }
 
 

@@ -140,6 +140,8 @@ AS_instrList AS_instrMinus(AS_instrList ta, AS_instrList tb);
 AS_instrList AS_instrIntersect(AS_instrList ta, AS_instrList tb);
 bool         AS_instrInList(AS_instr i, AS_instrList il);
 
+enum AS_w    AS_tySize(Ty_ty ty);
+
 AS_instrList AS_splice(AS_instrList a, AS_instrList b);
 
 void         AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m);

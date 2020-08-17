@@ -81,7 +81,11 @@ void printExp(FILE *out, T_exp exp, int d)
         case T_BINOP:
             fprintf(out, "BINOP(%s,", bin_oper[exp->u.BINOP.op]);
             printExp(out, exp->u.BINOP.left,d+1); fprintf(out, ",");
-            printExp(out, exp->u.BINOP.right,d+1); fprintf(out, ")");
+            if (exp->u.BINOP.right)
+                printExp(out, exp->u.BINOP.right,d+1);
+            else
+                fprintf(out, "NULL");
+            fprintf(out, ")");
             break;
         case T_MEM:
             fprintf(out, "MEM");

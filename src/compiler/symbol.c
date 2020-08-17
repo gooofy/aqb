@@ -52,44 +52,44 @@ string S_name(S_symbol sym)
  * scopes
  **********************************/
 
+typedef struct S_scopeList_     *S_scopeList;
+typedef struct S_scopeListNode_ *S_scopeListNode;
+
 struct S_scope_
 {
-    S_scope   parent;
-    map_t     map;
+    TAB_table   tab;
 };
 
-S_scope S_beginScope(S_scope parent)
+
+S_scope S_beginScope(void)
 {
     S_scope s = checked_malloc(sizeof(*s));
 
-    s->map     = hashmap_new();
-    s->parent  = parent;
+    s->tab      = TAB_empty();
 
     return s;
 }
 
-S_scope S_parent(S_scope s)
-{
-    return s->parent;
-}
-
 void S_endScope(S_scope s)
 {
-    hashmap_free(s->map);
-    free(s);
+    // FIXME TAB_free(s->tab);
+    // FIXME free(s);
 }
 
 void S_enter(S_scope scope, S_symbol sym, void *value)
 {
-    hashmap_put(scope->map, sym->name, value, sym->case_sensitive);
+    TAB_enter(scope->tab, sym, value);
 }
 
 void *S_look(S_scope s, S_symbol sym)
 {
-    any_t res;
-    if (hashmap_get(s->map, sym->name, &res, sym->case_sensitive)==MAP_OK)
-        return res;
-    return NULL;
+    return TAB_look(s->tab, sym);
+}
+
+
+TAB_iter S_Iter(S_scope scope)
+{
+    return TAB_Iter(scope->tab);
 }
 
 S_symlist S_Symlist(S_symbol sym, S_symlist next)

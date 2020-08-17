@@ -1,6 +1,8 @@
 #ifndef TABLE_H
 #define TABLE_H
 
+#include "util.h"
+
 /*
  * table.h - generic hash table
  *

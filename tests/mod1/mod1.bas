@@ -2,9 +2,11 @@ OPTION EXPLICIT
 
 IMPORT bar
 
+'_debug_puts2 foobares : _debug_putnl
 ASSERT foobares = 0
 
 foobar
+'_debug_puts2 foobares : _debug_putnl
 ASSERT foobares = 23
 
 foobar(42)

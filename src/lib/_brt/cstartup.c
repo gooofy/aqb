@@ -22,6 +22,7 @@
 #include <inline/dos.h>
 
 // #define ENABLE_DEBUG
+#define MAXBUF 40
 
 struct ExecBase      *SysBase       = NULL;
 struct DOSBase       *DOSBase       = NULL;
@@ -40,14 +41,22 @@ void _debug_puts(const char *s)
 
 void _debug_puts2(SHORT s)
 {
-    _debug_puts(_s2toa_(s));
+    char buf[MAXBUF];
+    _astr_itoa(s, buf, 10);
+    _debug_puts(buf);
+}
+
+void _debug_putnl(void)
+{
+    if (_debug_stdout)
+        Write(_debug_stdout, "\n", 1);
 }
 
 #define MAX_EXIT_HANDLERS 16
 static void (*exit_handlers[MAX_EXIT_HANDLERS])(void);
 static int num_exit_handlers = 0;
 
-void _aqb_on_exit_call(void (*cb)(void))
+void ON_EXIT_CALL(void (*cb)(void))
 {
     if (num_exit_handlers>=MAX_EXIT_HANDLERS)
         return;

@@ -10,6 +10,7 @@ FOR i = 10 TO 100
     j = 1
     WHILE j < 100
 
+		' _debug_puts2(i) : _debug_puts(",") : _debug_puts2(j)
         j = j * 2
 
         IF i = j THEN
@@ -17,6 +18,8 @@ FOR i = 10 TO 100
         END IF
     WEND
 NEXT i
+
+' _debug_puts2(i) : _debug_puts(",") : _debug_puts2(j)
 
 ASSERT i=16
 ASSERT j=16

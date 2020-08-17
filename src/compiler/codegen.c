@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "util.h"
 #include "symbol.h"
-#include "absyn.h"
 #include "temp.h"
 #include "errormsg.h"
 #include "tree.h"
@@ -51,35 +50,6 @@ AS_instrList F_codegen(F_frame f, T_stmList stmList)
     return iList;
 }
 
-static enum AS_w ty_isz(Ty_ty ty)
-{
-    switch (ty->kind)
-    {
-        case Ty_bool:
-        case Ty_byte:
-        case Ty_ubyte:
-            return AS_w_B;
-        case Ty_integer:
-        case Ty_uinteger:
-            return AS_w_W;
-        case Ty_long:
-        case Ty_ulong:
-        case Ty_single:
-        case Ty_double:
-        case Ty_varPtr:
-        case Ty_pointer:
-        case Ty_string:
-        case Ty_forwardPtr:
-        case Ty_procPtr:
-            return AS_w_L;
-        case Ty_array:
-        case Ty_record:
-        case Ty_void:
-        case Ty_toLoad:
-            assert(0);
-    }
-    return AS_w_L;
-}
 
 /* emit a binary op, check for constant optimization
  *
@@ -96,7 +66,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
     T_exp     e_left  = e->u.BINOP.left;
     T_exp     e_right = e->u.BINOP.right;
     Temp_temp r       = Temp_newtemp(resty);
-    enum AS_w isz     = ty_isz(resty);
+    enum AS_w isz     = AS_tySize(resty);
 
     if ((e_right->kind == T_CONST) && (opc_rc != AS_NOP))
     {
@@ -140,7 +110,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
 static Temp_temp munchUnaryOp(T_exp e, enum AS_mn opc, Ty_ty resty)
 {
     Temp_temp r       = Temp_newtemp(resty);
-    enum AS_w isz     = ty_isz(resty);
+    enum AS_w isz     = AS_tySize(resty);
 
     emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e->u.BINOP.left, FALSE), r));         // move.x   e, r
     emit(AS_InstrEx (opc, isz, L(r, NULL), L(r, NULL), 0, 0, NULL));                      // opc      r
@@ -209,7 +179,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         case T_MEM:
         {
             T_exp mem = e->u.MEM.exp;
-            enum AS_w isz = ty_isz(e->ty);
+            enum AS_w isz = AS_tySize(e->ty);
 
             if (mem->kind == T_BINOP)
             {
@@ -712,7 +682,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         case T_CONST:
         {
             Temp_temp r = Temp_newtemp(e->ty);
-            emit(AS_InstrEx(AS_MOVE_Imm_AnDn, ty_isz(e->ty), NULL, L(r, NULL), e->u.CONST, 0, NULL)); // move.x #CONST, r
+            emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(e->ty), NULL, L(r, NULL), e->u.CONST, 0, NULL)); // move.x #CONST, r
             return r;
         }
         case T_TEMP:
@@ -755,7 +725,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 munchCallerRestoreStack(arg_cnt, ignore_result);
                 if (!ignore_result)
                 {
-                    enum AS_w isz = ty_isz(e->ty);
+                    enum AS_w isz = AS_tySize(e->ty);
                     Temp_temp t = Temp_newtemp(e->ty);
                     emit(AS_Instr(AS_MOVE_AnDn_AnDn, isz, F_RV(), t));                                   // move.x d0, t
                     return t;
@@ -1006,7 +976,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             munchCallerRestoreStack(arg_cnt, ignore_result);
             if (!ignore_result)
             {
-                enum AS_w isz = ty_isz(e->ty);
+                enum AS_w isz = AS_tySize(e->ty);
                 Temp_temp t = Temp_newtemp(e->ty);
                 emit(AS_Instr(AS_MOVE_AnDn_AnDn, isz, F_RV(), t));                                   // move.x d0, t
                 return t;
@@ -1035,7 +1005,7 @@ static void munchStm(T_stm s)
 
             if (Ty_size(resty) <= MACHINE_REGSIZE)
             {
-                enum AS_w isz   = ty_isz(resty);
+                enum AS_w isz   = AS_tySize(resty);
 
                 switch (dst->kind)
                 {
@@ -1112,7 +1082,7 @@ static void munchStm(T_stm s)
             else        // > MACHINE_REGSIZE -> operands do not fit into a single register
             {
                 Temp_temp rd_size = Temp_newtemp(Ty_Long());
-                emit(AS_InstrEx(AS_MOVE_Imm_AnDn, ty_isz(Ty_Long()), NULL, L(rd_size, NULL),            // move.x #size, rd_size
+                emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(Ty_Long()), NULL, L(rd_size, NULL),            // move.x #size, rd_size
                                 Ty_ConstInt(Ty_ULong(), Ty_size(resty)), 0, NULL));
 
                 switch (dst->kind)

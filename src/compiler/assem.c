@@ -8,7 +8,6 @@
 #include <string.h> /* for strcpy */
 #include "util.h"
 #include "symbol.h"
-#include "absyn.h"
 #include "temp.h"
 #include "tree.h"
 #include "table.h"
@@ -393,6 +392,36 @@ bool AS_instrInList(AS_instr i, AS_instrList il)
         }
     }
     return FALSE;
+}
+
+enum AS_w AS_tySize(Ty_ty ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_bool:
+        case Ty_byte:
+        case Ty_ubyte:
+            return AS_w_B;
+        case Ty_integer:
+        case Ty_uinteger:
+            return AS_w_W;
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_single:
+        case Ty_double:
+        case Ty_varPtr:
+        case Ty_pointer:
+        case Ty_string:
+        case Ty_forwardPtr:
+        case Ty_procPtr:
+            return AS_w_L;
+        case Ty_array:
+        case Ty_record:
+        case Ty_void:
+        case Ty_toLoad:
+            assert(0);
+    }
+    return AS_w_L;
 }
 
 static Temp_temp nthTemp(Temp_tempList list, int i)

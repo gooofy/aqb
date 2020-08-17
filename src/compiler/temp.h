@@ -6,6 +6,8 @@
 #ifndef TEMP_H
 #define TEMP_H
 
+#include "symbol.h"
+
 typedef struct Temp_temp_      *Temp_temp;
 typedef struct Temp_tempList_  *Temp_tempList;
 typedef struct Temp_tempLList_ *Temp_tempLList;

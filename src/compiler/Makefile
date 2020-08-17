@@ -1,6 +1,6 @@
 
-SRCS = 	aqb.c scanner.c hashmap.c util.c parser.c options.c \
-		errormsg.c absyn.c symbol.c prabsyn.c semant.c translate.c \
+SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c options.c \
+		errormsg.c symbol.c translate.c \
 		frame.c tree.c temp.c assem.c printtree.c env.c types.c \
 		canon.c codegen.c regalloc.c graph.c liveness.c color.c flowgraph.c table.c
 

@@ -1,24 +1,32 @@
 #ifndef TRANSLATE_H
 #define TRANSLATE_H
 
-#include "absyn.h"
 #include "temp.h"
 #include "frame.h"
 #include "types.h"
+#include "tree.h"
 
-typedef struct Tr_level_      *Tr_level;
-typedef struct Tr_access_     *Tr_access;
-typedef struct Tr_exp_        *Tr_exp;
-typedef struct Tr_expList_    *Tr_expList;
-typedef struct Tr_accessList_ *Tr_accessList;
+typedef struct Tr_level_       *Tr_level;
+typedef struct Tr_access_      *Tr_access;
+typedef struct Tr_exp_         *Tr_exp;
+typedef struct Tr_accessList_  *Tr_accessList;
+typedef struct Tr_expList_     *Tr_expList;
+typedef struct Tr_expListNode_ *Tr_expListNode;
+
+struct Tr_expListNode_
+{
+    Tr_exp         exp;
+    Tr_expListNode next;
+};
 
 struct Tr_expList_
 {
-    Tr_exp     head;
-    Tr_expList tail;
+    Tr_expListNode first, last;
 };
 
-Tr_expList    Tr_ExpList(Tr_exp head, Tr_expList tail);
+Tr_expList    Tr_ExpList(void);
+void          Tr_ExpListAppend  (Tr_expList el, Tr_exp exp);
+void          Tr_ExpListPrepend (Tr_expList el, Tr_exp exp);
 
 Tr_accessList Tr_AccessList(Tr_access head, Tr_accessList tail);
 Tr_access     Tr_accessListHead(Tr_accessList al);
@@ -61,9 +69,8 @@ Tr_exp        Tr_Index(Tr_exp array, Tr_exp idx);
 Tr_exp        Tr_Deref(Tr_exp ptr);
 Tr_exp        Tr_Field(Tr_exp r, Ty_field f);
 
-Tr_exp        Tr_arOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
-Tr_exp        Tr_boolOpExp(A_oper o, Tr_exp left, Tr_exp right, Ty_ty ty);
-Tr_exp        Tr_condOpExp(A_oper o, Tr_exp left, Tr_exp right);
+Tr_exp        Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty);
+Tr_exp        Tr_relOpExp(T_relOp o, Tr_exp left, Tr_exp right);
 Tr_exp        Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee);
 Tr_exp        Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty);
 Tr_exp        Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl);
@@ -82,7 +89,6 @@ Ty_const      Tr_getConst(Tr_exp exp);
 int           Tr_getConstInt(Tr_exp exp);
 bool          Tr_getConstBool(Tr_exp exp);
 double        Tr_getConstFloat(Tr_exp exp);
-// FIXME unsigned char *Tr_getConstData(Tr_exp exp);
 bool          Tr_isConst(Tr_exp exp);
 Ty_ty         Tr_ty(Tr_exp exp);
 

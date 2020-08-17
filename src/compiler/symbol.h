@@ -1,7 +1,7 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
 
-#include "hashmap.h"
+#include "table.h"
 
 /*
  * symbol.h - Symbols and symbol-tables
@@ -25,12 +25,10 @@ string S_name(S_symbol);
  */
 
 /* scopes are nested, map symbol -> anyptr */
-typedef struct S_scope_ *S_scope;
+typedef struct S_scope_     *S_scope;
 
-/* Start a new scope. Scopes can be nested. */
-S_scope S_beginScope(S_scope parent);
-
-S_scope S_parent(S_scope s);
+/* Start a new scope */
+S_scope S_beginScope(void);
 
 /* free scope s */
 void S_endScope(S_scope s);
@@ -40,6 +38,9 @@ void S_enter(S_scope scope, S_symbol sym, void *value);
 
 /* look up the most recent binding of "sym" in "scope", or return NULL if sym is unbound. */
 void *S_look(S_scope scope, S_symbol sym);
+
+// iterate through all entries in scope
+TAB_iter S_Iter(S_scope scope);
 
 /*
  * list of symbols

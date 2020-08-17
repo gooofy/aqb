@@ -141,7 +141,7 @@ transform:
 
     ' project
 
-    tmp = zt2 - camera_z
+    DIM AS SINGLE tmp = zt2 - camera_z
     x1 = camera_x - camera_z * (xt2-camera_x)/tmp
     y1 = camera_y - camera_z * (yt2-camera_y)/tmp
 

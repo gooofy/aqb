@@ -1,4 +1,3 @@
-
 '
 ' pointer access test
 '

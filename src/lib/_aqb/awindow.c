@@ -87,7 +87,7 @@ void SCREEN (short id, short width, short height, short depth, short mode, char 
     // error checking
     if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] != NULL) || (width <=0) || (height <= 0) || (depth <= 0) || (depth>6) )
     {
-        _aqb_error(AE_SCREEN_OPEN);
+        ERROR(AE_SCREEN_OPEN);
         return;
     }
 
@@ -123,7 +123,7 @@ void SCREEN (short id, short width, short height, short depth, short mode, char 
             g_nscr.ViewModes |= EXTRA_HALFBRITE | LACE;
             break;
         default:
-            _aqb_error(AE_SCREEN_OPEN);
+            ERROR(AE_SCREEN_OPEN);
             return;
     }
 
@@ -133,7 +133,7 @@ void SCREEN (short id, short width, short height, short depth, short mode, char 
 
     if (!scr)
     {
-        _aqb_error(AE_SCREEN_OPEN);
+        ERROR(AE_SCREEN_OPEN);
         return;
     }
 
@@ -152,7 +152,7 @@ void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
     // error checking
     if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] != NULL) || (x1 > x2) || (y1 > y2) )
     {
-        _aqb_error(AE_WIN_OPEN);
+        ERROR(AE_WIN_OPEN);
         return;
     }
 
@@ -173,7 +173,7 @@ void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
             // get workbench screen size, calculate inner size for a fullscreen window
             if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
             {
-                _aqb_error(AE_WIN_OPEN);
+                ERROR(AE_WIN_OPEN);
                 return;
             }
 
@@ -220,7 +220,7 @@ void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
 
     if (!win)
     {
-        _aqb_error(AE_WIN_OPEN);
+        ERROR(AE_WIN_OPEN);
         return;
     }
 
@@ -616,34 +616,34 @@ void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
 {
     if (!g_active_scr)
     {
-        _aqb_error(AE_PALETTE);
+        ERROR(AE_PALETTE);
         return;
     }
 
     if ( (cid < 0) || (cid >63) )
     {
-        _aqb_error(AE_PALETTE);
+        ERROR(AE_PALETTE);
         return;
     }
 
     LONG r = SPFix(SPMul(red, g_fp15));
     if ((r<0) || (r>15))
     {
-        _aqb_error(AE_PALETTE);
+        ERROR(AE_PALETTE);
         return;
     }
 
     LONG g = SPFix(SPMul(green, g_fp15));
     if ((g<0) || (g>15))
     {
-        _aqb_error(AE_PALETTE);
+        ERROR(AE_PALETTE);
         return;
     }
 
     LONG b = SPFix(SPMul(blue, g_fp15));
     if ((b<0) || (b>15))
     {
-        _aqb_error(AE_PALETTE);
+        ERROR(AE_PALETTE);
         return;
     }
 
@@ -654,7 +654,7 @@ void COLOR(short fg, short bg, short o)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
-        _aqb_error(AE_COLOR);
+        ERROR(AE_COLOR);
         return;
     }
 
@@ -672,7 +672,7 @@ void AREA(BOOL s, short x, short y)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
-        _aqb_error(AE_AREA);
+        ERROR(AE_AREA);
         return;
     }
 
@@ -683,13 +683,13 @@ void AREA(BOOL s, short x, short y)
         struct AreaInfo *ai = ALLOCATE_(sizeof (*ai), 0);
         if (!ai)
         {
-            _aqb_error(AE_AREA);
+            ERROR(AE_AREA);
             return;
         }
         APTR adata = ALLOCATE_(AREA_MAX_CNT*5, 0);
         if (!adata)
         {
-            _aqb_error(AE_AREA);
+            ERROR(AE_AREA);
             return;
         }
         InitArea(ai, adata, AREA_MAX_CNT);
@@ -698,13 +698,13 @@ void AREA(BOOL s, short x, short y)
         struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
         if (!aTmpRas)
         {
-            _aqb_error(AE_AREA);
+            ERROR(AE_AREA);
             return;
         }
         PLANEPTR amem = AllocRaster(640, 512);
         if (!amem)
         {
-            _aqb_error(AE_AREA);
+            ERROR(AE_AREA);
             return;
         }
         InitTmpRas(aTmpRas, amem, RASSIZE(640,512));
@@ -721,7 +721,7 @@ void AREA(BOOL s, short x, short y)
 
     if (cnt >= AREA_MAX_CNT)
     {
-        _aqb_error(AE_AREA);
+        ERROR(AE_AREA);
         return;
     }
 
@@ -737,7 +737,7 @@ void AREAFILL (short mode)
 
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || !g_rp->AreaInfo )
     {
-        _aqb_error(AE_AREA);
+        ERROR(AE_AREA);
         return;
     }
 
@@ -757,7 +757,7 @@ void AREA_OUTLINE(BOOL enabled)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
-        _aqb_error(AE_AREA);
+        ERROR(AE_AREA);
         return;
     }
 

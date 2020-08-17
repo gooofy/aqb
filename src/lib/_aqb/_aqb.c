@@ -29,7 +29,7 @@ void __aqb_init(void)
 {
     // module initialization - called from __aqb_main
 
-    _aqb_on_exit_call(_aqb_shutdown);
+    ON_EXIT_CALL(_aqb_shutdown);
 
     if (!(IntuitionBase = (struct IntuitionBase *)OpenLibrary((CONST_STRPTR) "intuition.library", 0)))
         _cshutdown(20, "*** error: failed to open intuition.library!\n");

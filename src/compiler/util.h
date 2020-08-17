@@ -7,7 +7,7 @@
 typedef char *string;
 typedef char bool;
 
-#define TRUE 1
+#define TRUE  1
 #define FALSE 0
 
 void *checked_malloc(int);
@@ -27,12 +27,12 @@ string strdeserialize(FILE *in);
 /* generic doubly linked list */
 
 typedef struct U_listNode_ *U_listNode;
-struct U_listNode_ 
+struct U_listNode_
 {
     U_listNode prev, next;
 };
 typedef struct U_list_ *U_list;
-struct U_list_ 
+struct U_list_
 {
     U_listNode first, last;
 };

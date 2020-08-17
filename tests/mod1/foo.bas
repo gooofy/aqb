@@ -15,6 +15,8 @@ PUBLIC DIM SHARED foobares AS INTEGER = 0
 
 PUBLIC SUB foobar (x AS INTEGER = 23)
 
+    ' _debug_puts "foobar called: x=" : _debug_puts2 x : _debug_putnl
+
     foobares = x
 
 END SUB

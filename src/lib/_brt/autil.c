@@ -31,6 +31,12 @@ APTR ALLOCATE_(ULONG size, ULONG flags)
 {
     AQB_memrec mem_prev = g_mem;
 
+    //_debug_puts("ALLOCATE size=");
+    //_debug_puts2(size);
+    //_debug_puts(", flags=");
+    //_debug_puts2(flags);
+    //_debug_puts("\n");
+
     g_mem = (AQB_memrec) AllocMem (sizeof(*g_mem), 0);
     if (!g_mem)
     {
@@ -87,12 +93,12 @@ static BOOL do_resume = FALSE;
 
 SHORT ERR=0;
 
-void _aqb_on_error_call(void (*cb)(void))
+void ON_ERROR_CALL(void (*cb)(void))
 {
     error_handler = cb;
 }
 
-void _aqb_error (SHORT errcode)
+void ERROR (SHORT errcode)
 {
     do_resume = FALSE;
     ERR = errcode;
@@ -113,7 +119,7 @@ void _aqb_error (SHORT errcode)
         ERR=0;
 }
 
-void _aqb_resume_next(void)
+void RESUME_NEXT(void)
 {
     do_resume = TRUE;
 }

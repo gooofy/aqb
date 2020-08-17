@@ -412,7 +412,7 @@ void F_initRegisters(void)
                     Temp_TempList(a4,
                       Temp_TempList(a6, NULL))))));
 
-    regScope = S_beginScope(NULL);
+    regScope = S_beginScope();
 
     S_enter(regScope, S_Symbol("a0", TRUE), a0);
     S_enter(regScope, S_Symbol("a1", TRUE), a1);

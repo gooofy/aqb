@@ -3,28 +3,81 @@
 
 #include "translate.h"
 #include "table.h"
+#include "scanner.h"
 
-typedef struct E_enventry_ *E_enventry;
-typedef struct E_module_   *E_module;
+typedef struct E_env_              *E_env;
+typedef struct E_envList_          *E_envList;
+typedef struct E_envListNode_      *E_envListNode;
+typedef struct E_enventry_         *E_enventry;
+typedef struct E_enventryList_     *E_enventryList;
+typedef struct E_enventryListNode_ *E_enventryListNode;
+typedef struct E_module_           *E_module;
+
+struct E_env_
+{
+    S_scope   venv;    // variables and consts, S_symbol -> E_enventry
+    S_scope   tenv;    // types               , S_symbol -> E_enventry
+    S_scope   fenv;    // functions           , S_symbol -> E_enventryList
+    S_scope   senv;    // subs                , S_symbol -> E_enventryList
+
+    E_envList parents; // parent env(s) - envs can be nested
+};
+
+struct E_envList_
+{
+    E_envListNode first, last;
+};
+
+struct E_envListNode_
+{
+    E_env         env;
+    E_envListNode next;
+};
 
 struct E_enventry_
 {
-    enum {E_varEntry, E_funEntry, E_constEntry, E_typeEntry} kind;
+    enum {E_varEntry, E_procEntry, E_constEntry, E_typeEntry} kind;
     S_symbol sym;
     union
     {
-        struct {Tr_access access; Ty_ty ty; bool shared;  } var;
-        struct {Tr_level level; Ty_proc proc;             } fun;
+        struct {Tr_access access; Ty_ty ty; bool shared;                } var;
+        struct {Tr_level level;
+                Ty_proc proc;
+                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp);
+                                                                        } proc;
         Ty_const cExp;
         Ty_ty ty;
     } u;
-    E_enventry next;
+};
+
+struct E_enventryList_
+{
+    E_enventryListNode  first, last;
+};
+
+struct E_enventryListNode_
+{
+    E_enventry         e;
+    E_enventryListNode next;
 };
 
 E_enventry E_VarEntry  (S_symbol sym, Tr_access access, Ty_ty ty, bool shared);
-E_enventry E_FunEntry  (S_symbol sym, Tr_level level, Ty_proc proc);
+E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp));
 E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
+
+E_env          E_Env         (E_env parent);
+void           E_declare     (E_env env, E_enventry entry);
+E_enventry     E_resolveVar  (E_env env, S_symbol sym);
+E_enventry     E_resolveType (E_env env, S_symbol sym);
+E_enventryList E_resolveSub  (E_env env, S_symbol sym);
+E_enventryList E_resolveFunc (E_env env, S_symbol sym);
+
+E_enventryList E_EnventryList (void);
+void           E_enventryListAppend(E_enventryList lx, E_enventry x);
+
+E_envList      E_EnvList (void);
+void           E_envListAppend (E_envList l, E_env env);
 
 /*
  * modules
@@ -33,54 +86,22 @@ E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 struct E_module_
 {
     S_symbol    name;
-    E_enventry  env;
-    TAB_table   tyTable; // tuid -> Ty_ty, used in module load/save
+    E_env       env;
+    TAB_table   tyTable; // tuid -> Ty_ty, used in module load
 };
 
-E_module   E_base_mod(void);        /* base module containing builtin types, consts, vars and procs     */
-E_module   E_Module(S_symbol name); /* create a new, empty module named <name>                          */
+E_module   E_Module(S_symbol name);               /* create a new, empty module named <name>                     */
 
-void       E_import(E_module mod, S_scope tenv, S_scope venv); /* import all enventries declared in mod into tenv/venv */
+extern E_module g_builtinsModule;
 
-void       E_addSymPath(string path); /* look for symbol files in directory <path>                      */
+void       E_import(E_module mod, E_module mod2); /* import mod2 into mod's namespace                            */
+
+void       E_addSymPath(string path);             /* look for symbol files in directory <path>                   */
 
 bool       E_saveModule(string symfn, E_module mod);
 E_module   E_loadModule(S_symbol sModule);
 
 TAB_iter   E_loadedModuleIter(void);  // key: S_symbol (module name), E_module
-
-// global symbol namespace
-
-extern S_scope g_venv;
-extern S_scope g_tenv;
-
-/*******************************************************************
- *
- * declared statements and functions
- *
- * since the parser is extensible, we need to be able to
- * keep track of multiple meanings per statement identifier
- *
- *******************************************************************/
-
-typedef struct P_declProc_ *P_declProc;
-
-struct P_declProc_
-{
-     bool (*parses)(S_tkn *tkn, P_declProc decl);               // parse as statement call
-     bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp);   // parse as function call
-     A_proc     proc;
-     P_declProc next;
-};
-
-extern TAB_table declared_stmts; // S_symbol -> P_declProc
-extern TAB_table declared_funs;  // S_symbol -> P_declProc
-
-void E_declare_proc(TAB_table m, S_symbol sym,
-                    bool (*parses)(S_tkn *tkn, P_declProc),
-                    bool (*parsef)(S_tkn *tkn, P_declProc decl, A_exp *exp),
-                    A_proc proc);
-void E_declareProcsFromMod (E_module mod);
 
 /*
  * init

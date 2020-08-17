@@ -23,10 +23,8 @@
 #include <limits.h>
 #include <libgen.h>
 
-#include "parser.h"
-#include "prabsyn.h"
+#include "frontend.h"
 #include "frame.h"
-#include "semant.h"
 #include "errormsg.h"
 #include "canon.h"
 #include "printtree.h"
@@ -35,7 +33,7 @@
 #include "options.h"
 #include "env.h"
 
-#define VERSION "0.4.0"
+#define VERSION "0.5.0"
 
 /* print the assembly language instructions to filename.s */
 static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm body)
@@ -218,7 +216,6 @@ int main (int argc, char *argv[])
 {
 	char           *sourcefn;
 	FILE           *sourcef;
-    A_sourceProgram sourceProgram;
     F_fragList      frags, fl;
     char            asmfn[PATH_MAX];
     FILE           *out;
@@ -307,7 +304,7 @@ int main (int argc, char *argv[])
     }
 
     /*
-     * parsing
+     * frontend: parsing + semantics
      */
 
 	sourcef = fopen(sourcefn, "r");
@@ -317,29 +314,14 @@ int main (int argc, char *argv[])
 		exit(2);
 	}
 
-	if (!P_sourceProgram(sourcef, sourcefn, &sourceProgram))
-        exit(3);
+	frags = FE_sourceProgram(sourcef, sourcefn, !write_sym, module_name);
 	fclose(sourcef);
 
     if (EM_anyErrors)
     {
-        printf ("\n\nparsing failed.\n");
+        printf ("\n\nfrontend processing failed - exiting.\n");
         exit(4);
     }
-
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        printf ("\n\nparsing worked.\n");
-        pr_sourceProgram(stdout, sourceProgram, 0);
-    }
-
-    /*
-     * intermediate code
-     */
-
-    frags = SEM_transProg(sourceProgram, !write_sym, module_name);
-    if (EM_anyErrors)
-        exit(4);
 
     if (OPT_get(OPTION_VERBOSE))
     {
@@ -353,7 +335,7 @@ int main (int argc, char *argv[])
 
     if (write_sym)
     {
-        if (SEM_writeSymFile(symfn))
+        if (FE_writeSymFile(symfn))
         {
             if (OPT_get(OPTION_VERBOSE))
                 printf ("\n%s written.\n", symfn);

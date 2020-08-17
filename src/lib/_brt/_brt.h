@@ -27,10 +27,11 @@ void _autil_shutdown(void);
 
 void _debug_puts (const char *s);
 void _debug_puts2(SHORT s);
+void _debug_putnl(void);
 
 extern USHORT g_errcode;
 
-void _aqb_error (SHORT errcode);
+void ERROR (SHORT errcode);
 void _autil_exit(LONG return_code); // implemented in startup.s
 
 void _cshutdown (LONG return_code, char *msg); // implemented in cstartup.c
@@ -39,7 +40,8 @@ void _aqb_assert (BOOL b, const char *msg);
 
 FLOAT TIMER_ (void);
 
-void _aqb_on_exit_call(void (*cb)(void));
+void ON_EXIT_CALL(void (*cb)(void));
+void RESUME_NEXT(void);
 
 void SYSTEM(void);
 

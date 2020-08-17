@@ -10,6 +10,7 @@
 
 #include "util.h"
 #include "errormsg.h"
+#include "frontend.h"
 
 #define ENABLE_ANSI
 
@@ -22,8 +23,6 @@
 #define ANSI_RESET         "\x1b[0m"
 #define ANSI_BOLD          "\x1b[1m"
 
-extern const char *P_filename;
-
 bool EM_anyErrors= FALSE;
 
 bool EM_error(S_pos pos, char *message,...)
@@ -35,7 +34,7 @@ bool EM_error(S_pos pos, char *message,...)
 #ifdef ENABLE_ANSI
     fprintf(stderr,ANSI_BOLD);
 #endif
-    if (P_filename) fprintf(stderr,"%s:", P_filename);
+    if (FE_filename) fprintf(stderr,"%s:", FE_filename);
     fprintf(stderr,"%d:%d: ", S_getline(pos), S_getcol(pos));
 #ifdef ENABLE_ANSI
     fprintf(stderr,ANSI_COLOR_RED);
@@ -69,8 +68,8 @@ string EM_format(S_pos pos, char *message,...)
     vsnprintf(buf, 1024, message, ap);
     va_end(ap);
 
-    if (P_filename)
-        return strprintf("%s:%d:%d: %s", P_filename, S_getline(pos), S_getcol(pos), buf);
+    if (FE_filename)
+        return strprintf("%s:%d:%d: %s", FE_filename, S_getline(pos), S_getcol(pos), buf);
     return strprintf("%d:%d: %s", S_getline(pos), S_getcol(pos), buf);
 }
 

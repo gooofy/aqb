@@ -5,7 +5,6 @@
 #include "symbol.h"
 #include "temp.h"
 #include "tree.h"
-#include "absyn.h"
 #include "assem.h"
 #include "frame.h"
 #include "graph.h"
@@ -186,8 +185,8 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             {
                 Temp_temp temp = tl->head;
                 F_access local = (F_access)TAB_look(spilledLocal, temp);
-                rewriteList = AS_InstrList(                                     // move.l localOffset(fp), temp  /* spilled */
-                    AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_w_L, NULL, L(temp, NULL), 0, F_accessOffset(local), NULL), rewriteList);
+                rewriteList = AS_InstrList(                                     // move.x localOffset(fp), temp  /* spilled */
+                    AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(temp)), NULL, L(temp, NULL), 0, F_accessOffset(local), NULL), rewriteList);
             }
 
             rewriteList = AS_InstrList(inst, rewriteList);
@@ -196,8 +195,8 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             {
                 Temp_temp temp = tl->head;
                 F_access local = (F_access)TAB_look(spilledLocal, temp);
-                rewriteList = AS_InstrList(                                     // move.l temp, localOffset(FP)  /* spilled */
-                    AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_w_L, L(temp, NULL), NULL, 0, F_accessOffset(local), NULL), rewriteList);
+                rewriteList = AS_InstrList(                                     // move.x temp, localOffset(FP)  /* spilled */
+                    AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(temp)), L(temp, NULL), NULL, 0, F_accessOffset(local), NULL), rewriteList);
             }
         }
 
