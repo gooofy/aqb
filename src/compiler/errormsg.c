@@ -7,12 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "errormsg.h"
 #include "frontend.h"
 
-#define ENABLE_ANSI
+static bool enable_ansi=FALSE;
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -31,18 +32,15 @@ bool EM_error(S_pos pos, char *message,...)
 
     EM_anyErrors=TRUE;
 
-#ifdef ENABLE_ANSI
-    fprintf(stderr,ANSI_BOLD);
-#endif
+    if (enable_ansi)
+        fprintf(stderr,ANSI_BOLD);
     if (FE_filename) fprintf(stderr,"%s:", FE_filename);
     fprintf(stderr,"%d:%d: ", S_getline(pos), S_getcol(pos));
-#ifdef ENABLE_ANSI
-    fprintf(stderr,ANSI_COLOR_RED);
-#endif
+    if (enable_ansi)
+        fprintf(stderr,ANSI_COLOR_RED);
     fprintf(stderr,"error: ");
-#ifdef ENABLE_ANSI
-    fprintf(stderr,ANSI_RESET);
-#endif
+    if (enable_ansi)
+        fprintf(stderr,ANSI_RESET);
     va_start(ap,message);
     vfprintf(stderr, message, ap);
     va_end(ap);
@@ -76,5 +74,6 @@ string EM_format(S_pos pos, char *message,...)
 void EM_init(void)
 {
     EM_anyErrors = FALSE;
+    enable_ansi = isatty(fileno(stdout));
 }
 
