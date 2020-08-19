@@ -15,10 +15,9 @@ typedef struct E_module_           *E_module;
 
 struct E_env_
 {
-    S_scope   venv;    // variables and consts, S_symbol -> E_enventry
-    S_scope   tenv;    // types               , S_symbol -> E_enventry
-    S_scope   fenv;    // functions           , S_symbol -> E_enventryList
-    S_scope   senv;    // subs                , S_symbol -> E_enventryList
+    S_scope   vfcenv;  // variables, functions and consts, S_symbol -> E_enventry
+    S_scope   tenv;    // types                          , S_symbol -> E_enventry
+    S_scope   senv;    // subs                           , S_symbol -> E_enventryList
 
     E_envList parents; // parent env(s) - envs can be nested
 };
@@ -44,6 +43,7 @@ struct E_enventry_
         struct {Tr_level level;
                 Ty_proc proc;
                 bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp);
+                bool hasBody;
                                                                         } proc;
         Ty_const cExp;
         Ty_ty ty;
@@ -62,16 +62,15 @@ struct E_enventryListNode_
 };
 
 E_enventry E_VarEntry  (S_symbol sym, Tr_access access, Ty_ty ty, bool shared);
-E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp));
+E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), bool hasBody);
 E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 
 E_env          E_Env         (E_env parent);
 void           E_declare     (E_env env, E_enventry entry);
-E_enventry     E_resolveVar  (E_env env, S_symbol sym);
+E_enventry     E_resolveVFC  (E_env env, S_symbol sym);
 E_enventry     E_resolveType (E_env env, S_symbol sym);
 E_enventryList E_resolveSub  (E_env env, S_symbol sym);
-E_enventryList E_resolveFunc (E_env env, S_symbol sym);
 
 E_enventryList E_EnventryList (void);
 void           E_enventryListAppend(E_enventryList lx, E_enventry x);

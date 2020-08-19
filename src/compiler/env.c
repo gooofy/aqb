@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     16
+#define SYM_VERSION     17
 
 E_module g_builtinsModule = NULL;
 
@@ -40,7 +40,7 @@ E_enventry E_VarEntry(S_symbol sym, Tr_access access, Ty_ty ty, bool shared)
     return p;
 }
 
-E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp))
+E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), bool hasBody)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
@@ -49,6 +49,7 @@ E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parse
     p->u.proc.level    = level;
     p->u.proc.proc     = proc;
     p->u.proc.parsef   = parsef;
+    p->u.proc.hasBody  = hasBody;
 
     return p;
 }
@@ -79,10 +80,9 @@ E_env E_Env (E_env parent)
 {
     E_env p = checked_malloc(sizeof(*p));
 
-    p->venv = S_beginScope();
-    p->tenv = S_beginScope();
-    p->fenv = S_beginScope();
-    p->senv = S_beginScope();
+    p->vfcenv = S_beginScope();
+    p->tenv   = S_beginScope();
+    p->senv   = S_beginScope();
 
     p->parents = E_EnvList();
     if (parent)
@@ -99,13 +99,7 @@ void E_declare (E_env env, E_enventry e)
         {
             if (e->u.proc.proc->returnTy->kind != Ty_void)
             {
-                E_enventryList lx = S_look(env->fenv, e->sym);
-                if (!lx)
-                {
-                    lx = E_EnventryList();
-                    S_enter(env->fenv, e->sym, lx);
-                }
-                E_enventryListAppend(lx, e);
+                S_enter(env->vfcenv, e->sym, e);
             }
             else
             {
@@ -121,8 +115,8 @@ void E_declare (E_env env, E_enventry e)
         }
         case E_varEntry:
         case E_constEntry:
-            assert (!S_look(env->venv, e->sym));
-            S_enter(env->venv, e->sym, e);
+            assert (!S_look(env->vfcenv, e->sym));
+            S_enter(env->vfcenv, e->sym, e);
             break;
         case E_typeEntry:
             assert (!S_look(env->tenv, e->sym));
@@ -131,15 +125,15 @@ void E_declare (E_env env, E_enventry e)
     }
 }
 
-E_enventry E_resolveVar (E_env env, S_symbol sym)
+E_enventry E_resolveVFC (E_env env, S_symbol sym)
 {
-    E_enventry x = S_look(env->venv, sym);
+    E_enventry x = S_look(env->vfcenv, sym);
     if (x)
         return x;
 
     for (E_envListNode n=env->parents->first; n; n=n->next)
     {
-        x = E_resolveVar (n->env, sym);
+        x = E_resolveVFC (n->env, sym);
         if (x)
             return x;
     }
@@ -179,33 +173,6 @@ E_enventryList E_resolveSub (E_env env, S_symbol sym)
     for (E_envListNode n=env->parents->first; n; n=n->next)
     {
         xll = E_resolveSub (n->env, sym);
-        if (xll)
-        {
-            if (!xl)
-                xl = E_EnventryList();
-            for (E_enventryListNode xn=xll->first; xn; xn=xn->next)
-                E_enventryListAppend(xl, xn->e);
-        }
-    }
-    return xl;
-}
-
-E_enventryList E_resolveFunc (E_env env, S_symbol sym)
-{
-    E_enventryList xl = NULL;
-    E_enventryList xll = S_look(env->fenv, sym);
-    if (xll)
-    {
-        xl = E_EnventryList();
-        for (E_enventryListNode xn=xll->first; xn; xn=xn->next)
-        {
-            E_enventryListAppend(xl, xn->e);
-        }
-    }
-
-    for (E_envListNode n=env->parents->first; n; n=n->next)
-    {
-        xll = E_resolveFunc (n->env, sym);
         if (xll)
         {
             if (!xl)
@@ -400,28 +367,34 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
 {
     TAB_iter i = S_Iter(scope);
     S_symbol sym;
-    E_enventry e;
-    while (TAB_next(i, (void **) &sym, (void **)&e))
+    E_enventry x;
+    while (TAB_next(i, (void **) &sym, (void **)&x))
     {
-        switch (e->kind)
+        switch (x->kind)
         {
             case E_varEntry:
-                if (e->u.var.ty->mod == smod)
-                    E_tyFindTypes (type_tab, e->u.var.ty);
+                if (x->u.var.ty->mod == smod)
+                    E_tyFindTypes (type_tab, x->u.var.ty);
                 break;
 
             case E_procEntry:
-                assert(0);  // -> use E_findTypesOverloaded() instead
+                for (Ty_formal formal=x->u.proc.proc->formals; formal; formal = formal->next)
+                {
+                    if (formal->ty->mod == smod)
+                        E_tyFindTypes (type_tab, formal->ty);
+                }
+                if (x->u.proc.proc->returnTy->mod == smod)
+                    E_tyFindTypes (type_tab, x->u.proc.proc->returnTy);
                 break;
             case E_constEntry:
                 {
-                    Ty_ty ty = e->u.cExp->ty;
+                    Ty_ty ty = x->u.cExp->ty;
                     if (ty->mod == smod)
                         E_tyFindTypes (type_tab, ty);
                 }
                 break;
             case E_typeEntry:
-                E_tyFindTypes (type_tab, e->u.ty);
+                E_tyFindTypes (type_tab, x->u.ty);
                 break;
         }
     }
@@ -568,26 +541,27 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
 {
     TAB_iter i = S_Iter(scope);
     S_symbol sym;
-    E_enventry e;
-    while (TAB_next(i, (void **) &sym, (void **)&e))
+    E_enventry x;
+    while (TAB_next(i, (void **) &sym, (void **)&x))
     {
-        uint8_t kind = e->kind;
+        uint8_t kind = x->kind;
         fwrite (&kind, 1, 1, modf);
-        strserialize(modf, S_name(e->sym));
-        switch (e->kind)
+        strserialize(modf, S_name(x->sym));
+        switch (x->kind)
         {
             case E_varEntry:
-                E_serializeTyRef(modTable, e->u.var.ty);
-                fwrite(&e->u.var.shared, 1, 1, modf);
+                E_serializeTyRef(modTable, x->u.var.ty);
+                fwrite(&x->u.var.shared, 1, 1, modf);
                 break;
             case E_procEntry:
-                assert(0); // -> use E_serializeEnventriesOverloaded() instead
+                if (!x->u.proc.proc->isPrivate)
+                    E_serializeTyProc(modTable, x->u.proc.proc);
                 break;
             case E_constEntry:
-                E_serializeTyConst(modTable, e->u.cExp);
+                E_serializeTyConst(modTable, x->u.cExp);
                 break;
             case E_typeEntry:
-                E_serializeTyRef(modTable, e->u.ty);
+                E_serializeTyRef(modTable, x->u.ty);
                 break;
         }
     }
@@ -658,9 +632,8 @@ bool E_saveModule(string modfn, E_module mod)
 
     // serialize types
     TAB_table type_tab = TAB_empty();
-    E_findTypesFlat(mod->name, mod->env->venv, type_tab);
+    E_findTypesFlat(mod->name, mod->env->vfcenv, type_tab);
     E_findTypesFlat(mod->name, mod->env->tenv, type_tab);
-    E_findTypesOverloaded(mod->name, mod->env->fenv, type_tab);
     E_findTypesOverloaded(mod->name, mod->env->senv, type_tab);
 
     iter = TAB_Iter(type_tab);
@@ -673,9 +646,8 @@ bool E_saveModule(string modfn, E_module mod)
     fwrite(&m, 4, 1, modf);
 
     // serialize enventries
-    E_serializeEnventriesFlat (modTable, mod->env->venv);
+    E_serializeEnventriesFlat (modTable, mod->env->vfcenv);
     E_serializeEnventriesFlat (modTable, mod->env->tenv);
-    E_serializeEnventriesOverloaded (modTable, mod->env->fenv);
     E_serializeEnventriesOverloaded (modTable, mod->env->senv);
 
     fclose(modf);

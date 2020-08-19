@@ -922,8 +922,9 @@ Tr_exp Tr_relOpExp(T_relOp op, Tr_exp left, Tr_exp right)
     return Tr_Cx(trues, falses, s);
 }
 
-Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp, Ty_ty ty) {
-    return Tr_Nx(T_Move(unEx(var), unEx(exp), ty));
+Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp)
+{
+    return Tr_Nx(T_Move(unEx(var), unEx(exp), Tr_ty(var)));
 }
 
 Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee)

@@ -8,6 +8,7 @@ typedef struct Ty_const_     *Ty_const;
 typedef struct Ty_field_     *Ty_field;
 typedef struct Ty_formal_    *Ty_formal;
 typedef struct Ty_proc_      *Ty_proc;
+typedef struct Ty_method_    *Ty_method;
 
 #include "temp.h"
 
@@ -24,8 +25,8 @@ struct Ty_ty_
     union
     {
         Ty_ty                                                                 pointer;
-        struct {Ty_field fields; Ty_field fields_last;
-                Ty_proc  methods; Ty_proc methods_last;
+        struct {Ty_field  fields;  Ty_field fields_last;
+                Ty_method methods; Ty_method methods_last;
                 unsigned int uiSize;                                        } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; unsigned int uiSize; } array;
         S_symbol                                                              sForward;
@@ -84,7 +85,13 @@ struct Ty_proc_
     bool          forward;
     int32_t       offset;
     string        libBase;
-    Ty_proc       next;
+};
+
+struct Ty_method_
+{
+    Ty_proc       proc;
+    void         *lv;
+    Ty_method     next;
 };
 
 Ty_ty        Ty_Bool(void);
@@ -109,7 +116,9 @@ Ty_ty        Ty_ToLoad(S_symbol mod, uint32_t uid);
 
 Ty_ty        Ty_Record          (S_symbol mod);
 Ty_field     Ty_RecordAddField  (Ty_ty recordType, S_symbol name, Ty_ty ty);
-void         Ty_RecordAddMethod (Ty_ty recordType, Ty_proc proc);
+void         Ty_RecordAddMethod (Ty_ty recordType, Ty_method method);
+
+Ty_method    Ty_Method          (Ty_proc proc, void *lv);
 
 Ty_formal    Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc      Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase);

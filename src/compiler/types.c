@@ -109,17 +109,28 @@ Ty_field Ty_RecordAddField (Ty_ty recordType, S_symbol name, Ty_ty ty)
     return f;
 }
 
-void Ty_RecordAddMethod (Ty_ty recordType, Ty_proc proc)
+void Ty_RecordAddMethod (Ty_ty recordType, Ty_method method)
 {
     if (recordType->u.record.methods_last)
     {
-        recordType->u.record.methods_last->next = proc;
+        recordType->u.record.methods_last->next = method;
         recordType->u.record.methods_last = recordType->u.record.methods_last->next;
     }
     else
     {
-        recordType->u.record.methods = recordType->u.record.methods_last = proc;
+        recordType->u.record.methods = recordType->u.record.methods_last = method;
     }
+}
+
+Ty_method Ty_Method (Ty_proc proc, void *lv)
+{
+    Ty_method p = checked_malloc(sizeof(*p));
+
+    p->proc  = proc;
+    p->lv    = lv;
+    p->next  = NULL;
+
+    return p;
 }
 
 Ty_ty Ty_VarPtr(Ty_ty ty)
@@ -473,7 +484,6 @@ Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPri
     p->forward    = forward;
     p->offset     = offset;
     p->libBase    = libBase;
-    p->next       = NULL;
 
     return p;
 }

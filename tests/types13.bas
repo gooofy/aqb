@@ -15,6 +15,6 @@ END TYPE
 
 DIM o AS mycontainer
 
-' mycontainer.store(17)
-' PRINT mycontainer.retrieve()
+o.store(17)
+' PRINT o.retrieve()
 

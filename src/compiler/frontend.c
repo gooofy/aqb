@@ -93,7 +93,7 @@ struct FE_udtEntry_
     union
     {
         struct { S_symbol name; FE_dim dims; Ty_ty ty; } fieldr;
-        Ty_proc methodr;
+        Ty_method methodr;
     } u;
 
     FE_udtEntry next;
@@ -132,6 +132,8 @@ struct FE_SLE_
         {
             FE_udtEntry eFirst, eLast;
             S_symbol    sType;
+            Ty_ty       ty;
+            Ty_ty       tyPtr;
             bool        isPrivate;
         } typeDecl;
         struct
@@ -272,13 +274,13 @@ static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_
     return p;
 }
 
-static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc proc)
+static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_method method)
 {
     FE_udtEntry p = checked_malloc(sizeof(*p));
 
     p->kind      = FE_methodUDTEntry;
     p->pos       = pos;
-    p->u.methodr = proc;
+    p->u.methodr = method;
     p->next      = NULL;
 
     return p;
@@ -365,6 +367,7 @@ static S_symbol S_DEFLNG;
 static S_symbol S_DEFINT;
 static S_symbol S_DEFSTR;
 static S_symbol S_GOSUB;
+static S_symbol S_RETURN_VAR_NAME;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -381,7 +384,7 @@ static E_enventry autovar(S_symbol v, S_pos pos)
 {
     Tr_level   level = g_sleStack->lv;
 
-    E_enventry x = E_resolveVar (g_sleStack->env, v);
+    E_enventry x = E_resolveVFC (g_sleStack->env, v);
 
     if (!x)
     {
@@ -1025,6 +1028,26 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
     return t;
 }
 
+static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
+{
+    // check proc signature
+    if (!compatible_ty(proc2->returnTy, proc->returnTy))
+        return FALSE;
+    Ty_formal f = proc->formals;
+    Ty_formal f2=proc2->formals;
+    for (; f2; f2=f2->next)
+    {
+        if (!f)
+            break;
+        if (!compatible_ty(f2->ty, f->ty))
+            break;
+        f = f->next;
+    }
+    if (f || f2)
+        return FALSE;
+    return TRUE;
+}
+
 static Tr_exp transBinOp(S_pos pos, T_binOp oper, Tr_exp e1, Tr_exp e2)
 {
     Ty_ty  ty1     = Tr_ty(e1);
@@ -1122,9 +1145,9 @@ static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, Tr_exp cExp, bool 
         return FALSE;
 
     x = E_ConstEntry(name, c);
-    S_enter(g_sleStack->env->venv, name, x);
+    E_declare (g_sleStack->env, x);
     if (!isPrivate)
-        S_enter(g_mod->env->venv, name, x);
+        E_declare (g_mod->env, x);
 
     return TRUE;
 }
@@ -1241,8 +1264,42 @@ static Tr_exp transSelectBranch(Tr_exp exp, FE_selectBranch sb)
 static bool expExpression(S_tkn *tkn, Tr_exp *exp);
 static bool relExpression(S_tkn *tkn, Tr_exp *exp);
 static bool expression(S_tkn *tkn, Tr_exp *exp);
-static Tr_expList transActualArgs(S_tkn *tkn, Ty_proc proc);
+static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, Tr_exp thisPtr);
 static bool statementOrAssignment(S_tkn *tkn);
+
+static bool transFunctionCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    S_symbol name;
+    Ty_proc  proc = e->u.proc.proc;
+
+    if ((*tkn)->kind != S_IDENT)
+        return FALSE;
+
+    name = (*tkn)->u.sym;
+    assert (proc->name == name);
+    *tkn = (*tkn)->next;
+
+    bool haveParenthesis = FALSE;
+    if ((*tkn)->kind == S_LPAREN)
+    {
+        haveParenthesis = TRUE;
+        *tkn = (*tkn)->next;
+    }
+
+    Tr_expList assignedArgs = Tr_ExpList();
+    if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL))
+        return FALSE;
+
+    if (haveParenthesis)
+    {
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, ") expected.");
+        *tkn = (*tkn)->next;
+    }
+
+    *exp = Tr_callExp(e->u.proc.level, g_sleStack->lv, assignedArgs, proc);
+    return TRUE;
+}
 
 static Tr_exp transSelIndex(S_pos pos, Tr_exp e, Tr_exp idx)
 {
@@ -1317,7 +1374,35 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                     break;
             }
             if (!f)
-                return EM_error((*tkn)->pos, "unknown field %s", S_name((*tkn)->u.sym));
+            {
+                Ty_method method = ty->u.pointer->u.record.methods;
+                for (;method;method=method->next)
+                {
+                    if (method->proc->name == (*tkn)->u.sym)
+                        break;
+                }
+
+                if (!method)
+                    return EM_error((*tkn)->pos, "unknown UDT member %s", S_name((*tkn)->u.sym));
+                *tkn = (*tkn)->next;
+
+                // method call
+
+                if ((*tkn)->kind != S_LPAREN)
+                    return EM_error((*tkn)->pos, "( expected here (method call)");
+                *tkn = (*tkn)->next;
+
+                Tr_expList assignedArgs = Tr_ExpList();
+                if (!transActualArgs(tkn, method->proc, assignedArgs, *exp))
+                    return FALSE;
+
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected.");
+                *tkn = (*tkn)->next;
+
+                *exp = Tr_callExp(method->lv, g_sleStack->lv, assignedArgs, method->proc);
+                return TRUE;
+            }
 
             Ty_ty fty = f->ty;
             if (fty->kind == Ty_forwardPtr)
@@ -1363,7 +1448,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                 E_enventry x = E_resolveType(g_sleStack->env, f->ty->u.sForward);
                 if (!x)
                     return EM_error((*tkn)->pos, "failed to resolve forward type of field");
-    
+
                 f->ty = Ty_Pointer(g_mod->name, x->u.ty);
             }
 
@@ -1378,140 +1463,189 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
     return FALSE;
 }
 
-// varDesignator ::= ident selector*
-static bool varDesignator(S_tkn *tkn, Tr_exp *var, bool doDeRef)
+// expDesignator ::= [ '*' | '@' ] ident selector* [ "(" actualArgs ")" ]
+static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
 {
-    if (!(*tkn))
-        return FALSE;
+    bool deref = FALSE;
 
-    S_pos      pos = (*tkn)->pos;
-    // A_selector sel = NULL, last_sel = NULL;
-
-    if ((*tkn)->kind != S_IDENT)
-    {
-        EM_error(pos, "variable identifier expected here.");
-        return FALSE;
-    }
-
-    E_enventry x = autovar((*tkn)->u.sym, pos);
-    if (x->kind != E_varEntry)
-    {
-        if (x->kind == E_constEntry)
-        {
-            *var = Tr_constExp(x->u.cExp);
-            *tkn = (*tkn)->next;
-            return TRUE;
-        }
-        return EM_error(pos, "this is not a variable: %s", S_name((*tkn)->u.sym));
-    }
-
-    *var = Tr_Var(x->u.var.access);
-    *tkn = (*tkn)->next;
-
-    // function pointer call ?
-    Ty_ty ty = Tr_ty(*var);
-    if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_procPtr) && ((*tkn)->kind==S_LPAREN))
-    {
-        *var = Tr_Deref(*var);
-        ty = Tr_ty(*var);
-        Ty_proc proc = ty->u.procPtr;
-
-        *tkn = (*tkn)->next;    // skip "("
-
-        Tr_expList assignedArgs = transActualArgs(tkn, proc);
-
-        if ((*tkn)->kind != S_RPAREN)
-            return EM_error((*tkn)->pos, ") expected.");
-        *tkn = (*tkn)->next;
-
-        *var = Tr_callPtrExp(*var, assignedArgs, proc);
-        return TRUE;
-    }
-
-    while ( (*tkn) &&
-            ( ((*tkn)->kind == S_LBRACKET) ||
-              ((*tkn)->kind == S_LPAREN)   ||
-              ((*tkn)->kind == S_PERIOD)   ||
-              ((*tkn)->kind == S_POINTER) ) )
-    {
-        if (!selector(tkn, var))
-            return FALSE;
-    }
-
-    if (doDeRef)
-    {
-        // if this is a varPtr, time to deref it
-        Ty_ty ty = Tr_ty(*var);
-        if (ty->kind == Ty_varPtr)
-            *var = Tr_Deref(*var);
-    }
-
-    return TRUE;
-}
-
-static bool transFunctionCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
-{
-    S_symbol name;
-    Ty_proc  proc = e->u.proc.proc;
-
-    if ((*tkn)->kind != S_IDENT)
-        return FALSE;
-
-    name = (*tkn)->u.sym;
-    assert (proc->name == name);
-    *tkn = (*tkn)->next;
-
-    bool haveParenthesis = FALSE;
-    if ((*tkn)->kind == S_LPAREN)
-    {
-        haveParenthesis = TRUE;
-        *tkn = (*tkn)->next;
-    }
-
-    Tr_expList assignedArgs = transActualArgs(tkn, proc);
-
-    if (haveParenthesis)
-    {
-        if ((*tkn)->kind != S_RPAREN)
-            return EM_error((*tkn)->pos, ") expected.");
-        *tkn = (*tkn)->next;
-    }
-
-    *exp = Tr_callExp(e->u.proc.level, g_sleStack->lv, assignedArgs, proc);
-    return TRUE;
-}
-
-// atom ::= [ '*' | '@' ] ident [ '(' procParamList ')' | selector* ] | boolLiteral | numLiteral | stringLiteral | '(' expression ')
-static bool atom(S_tkn *tkn, Tr_exp *exp)
-{
-    bool  deref = FALSE;
-    S_pos pos   = (*tkn)->pos;
-
-    if ((*tkn)->kind == S_ASTERISK)                             // pointer deref
+    if ((*tkn)->kind == S_ASTERISK)
     {
         deref = TRUE;
         *tkn = (*tkn)->next;
     }
     else
     {
-        if ((*tkn)->kind == S_AT)                               // @v
+        if ((*tkn)->kind == S_AT)
         {
-            Tr_exp e;
+            ref = TRUE;
             *tkn = (*tkn)->next;
-
-            if (!varDesignator(tkn, &e, /*doDeRef=*/FALSE))
-                return FALSE;
-
-            Ty_ty ty = Tr_ty(e);
-            if (ty->kind != Ty_varPtr)
-                return EM_error(pos, "This object cannot be referenced.");
-            *exp = e;
-            return TRUE;
         }
     }
 
+    if ((*tkn)->kind != S_IDENT)
+    {
+        EM_error((*tkn)->pos, "variable or function identifier expected here.");
+        return FALSE;
+    }
+
+    S_symbol sym = (*tkn)->u.sym;
+    S_pos    pos = (*tkn)->pos;
+
+    // is this a known var, function or const ?
+
+    E_enventry x = E_resolveVFC (g_sleStack->env, sym);
+    if (x)
+    {
+        switch (x->kind)
+        {
+            case E_procEntry:
+            {
+
+                // syntax quirk: this could be a function return value assignment
+                // FUNCTION f ()
+                //     f = 42
+
+                if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) )
+                {
+                    x = E_resolveVFC (g_sleStack->env, S_RETURN_VAR_NAME);
+                    assert(x);
+                    *exp = Tr_Var(x->u.var.access);
+                    Ty_ty ty = Tr_ty(*exp);
+                    if (ty->kind == Ty_varPtr)
+                        *exp = Tr_Deref(*exp);
+
+                    *tkn = (*tkn)->next;
+                    return TRUE;
+                }
+
+                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = x->u.proc.parsef;
+                if (!parsef)
+                    parsef = transFunctionCall;
+
+                if (!parsef(tkn, x, exp))
+                    return EM_error(pos, "syntax error in function call");
+
+                break;
+            }
+
+            case E_constEntry:
+                *exp = Tr_constExp(x->u.cExp);
+                *tkn = (*tkn)->next;
+                break;
+
+            case E_varEntry:
+                *exp = Tr_Var(x->u.var.access);
+                *tkn = (*tkn)->next;
+                break;
+
+            default:
+                assert(0);
+        }
+    }
+    else
+    {
+        // implicit variable
+        E_enventry x = autovar(sym, pos);
+
+        switch (x->kind)
+        {
+            case E_constEntry:
+                *exp = Tr_constExp(x->u.cExp);
+                *tkn = (*tkn)->next;
+                break;
+
+            case E_varEntry:
+                *exp = Tr_Var(x->u.var.access);
+                *tkn = (*tkn)->next;
+                break;
+
+            default:
+                return EM_error(pos, "this is not a variable, constant or function: %s", S_name(sym));
+        }
+    }
+
+    Ty_ty ty = Tr_ty(*exp);
+
+    while (TRUE)
+    {
+        // function pointer call ?
+        if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_procPtr) && ((*tkn)->kind==S_LPAREN))
+        {
+            *exp = Tr_Deref(*exp);
+            ty = Tr_ty(*exp);
+            Ty_proc proc = ty->u.procPtr;
+
+            *tkn = (*tkn)->next;    // skip "("
+
+            Tr_expList assignedArgs = Tr_ExpList();
+            if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL))
+                return FALSE;
+
+            if ((*tkn)->kind != S_RPAREN)
+                return EM_error((*tkn)->pos, ") expected.");
+            *tkn = (*tkn)->next;
+
+            *exp = Tr_callPtrExp(*exp, assignedArgs, proc);
+            ty = Tr_ty(*exp);
+            continue;
+        }
+
+        if ( (*tkn) &&
+             ( ((*tkn)->kind == S_LBRACKET) ||
+               ((*tkn)->kind == S_LPAREN)   ||
+               ((*tkn)->kind == S_PERIOD)   ||
+               ((*tkn)->kind == S_POINTER) ) )
+        {
+            if (!selector(tkn, exp))
+                return FALSE;
+            ty = Tr_ty(*exp);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (ref)
+    {
+        if (ty->kind != Ty_varPtr)
+            return EM_error(pos, "This object cannot be referenced.");
+    }
+    else
+    {
+        if (ty->kind == Ty_varPtr)
+            *exp = Tr_Deref(*exp);
+    }
+
+    ty = Tr_ty(*exp);
+
+    if (deref)
+    {
+        if (ty->kind != Ty_pointer)
+            return EM_error(pos, "This object cannot be dereferenced.");
+        *exp = Tr_Deref(*exp);
+    }
+
+    return TRUE;
+}
+
+// atom ::= ( expDesignator
+//          | numLiteral
+//          | stringLiteral
+//          | '(' expression ')'
+//          )
+
+static bool atom(S_tkn *tkn, Tr_exp *exp)
+{
+    S_pos pos   = (*tkn)->pos;
+
     switch ((*tkn)->kind)
     {
+        case S_AT:                  // @designator
+        case S_ASTERISK:            // *designator (pointer deref)
+        case S_IDENT:
+            return expDesignator(tkn, exp, /*ref=*/ FALSE, /*leftHandSide=*/FALSE);
+
         case S_INUM:
         case S_FNUM:
         {
@@ -1547,63 +1681,11 @@ static bool atom(S_tkn *tkn, Tr_exp *exp)
             *tkn = (*tkn)->next;
             break;
 
-        case S_IDENT:
-        {
-            S_symbol sym = (*tkn)->u.sym;
-
-            // is this a declared variable?
-
-            E_enventry x = E_resolveVar (g_sleStack->env, sym);
-            if (x && ( ((*tkn)->next->kind != S_LPAREN) || (x->u.var.ty->kind == Ty_array) ) )
-            {
-                if (!varDesignator(tkn, exp, /*doDeRef=*/TRUE))
-                    return EM_error(pos, "var designator: syntax error");
-                break;
-            }
-
-            // is this a declared function ?
-
-            E_enventryList lx = E_resolveFunc (g_sleStack->env, sym);
-            if (lx)
-            {
-                E_enventry x = NULL;
-                for (E_enventryListNode nx=lx->first; nx; nx=nx->next)
-                {
-                    x = nx->e;
-                    S_tkn *tkn_start = tkn;
-
-                    bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = x->u.proc.parsef;
-                    if (!parsef)
-                        parsef = transFunctionCall;
-
-                    if (parsef(tkn, x, exp))
-                        break;
-                    nx = nx->next;
-                    tkn = tkn_start;
-                }
-                if (!x)
-                    return EM_error(pos, "syntax error [2]");
-                return TRUE;
-            }
-
-            // implicit variable
-
-            if (!varDesignator(tkn, exp, /*doDeRef=*/TRUE))
-                return EM_error(pos, "var designator: syntax error");
-            break;
-        }
 
         default:
             return FALSE;
     }
 
-    if (deref)
-    {
-        Ty_ty ty = Tr_ty(*exp);
-        if (ty->kind != Ty_pointer)
-            return EM_error(pos, "This object cannot be dereferenced.");
-        *exp = Tr_Deref(*exp);
-    }
 
     return TRUE;
 }
@@ -2208,23 +2290,23 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool sh
     }
 
     S_symbol name = sVar;
-    S_scope  venv = g_sleStack->env->venv;
+    S_scope  venv = g_sleStack->env->vfcenv;
     if (shared)
     {
         assert(!statc);
         x = S_look(venv, name);
         if (x)
-            return EM_error(pos, "Variable %s already declared in this scope.", S_name(name));
-        x = S_look(g_mod->env->venv, name);
+            return EM_error(pos, "Name %s already declared in this scope.", S_name(name));
+        x = S_look(g_mod->env->vfcenv, name);
         if (x)
-            return EM_error(pos, "Variable %s already declared in global scope.", S_name(name));
+            return EM_error(pos, "Name %s already declared in global scope.", S_name(name));
 
         if (external)
             x = E_VarEntry(name, Tr_externalVar(S_name(name), t), t, TRUE);
         else
             x = E_VarEntry(name, Tr_allocVar(Tr_global(), S_name(name), t), t, TRUE);
 
-        S_enter(g_mod->env->venv, name, x);
+        S_enter(g_mod->env->vfcenv, name, x);
     }
     else
     {
@@ -2252,7 +2334,7 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool sh
         Ty_ty ty = Tr_ty(e);
         if (ty->kind == Ty_varPtr)
             e = Tr_Deref(e);
-        Tr_exp assignExp = Tr_assignExp(e, conv_init, t);
+        Tr_exp assignExp = Tr_assignExp(e, conv_init);
         if (statc)
             Tr_ExpListPrepend(g_prog, assignExp);
         else
@@ -2536,58 +2618,6 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
 
     return FALSE;
-}
-
-// assignmentStmt ::= ['*'] ident ( ("["|"(") expression ( "," expression)* ("]"|")")
-//                                | "." ident
-//                                | "->" ident )* "=" expression
-static bool stmtAssignment(S_tkn *tkn)
-{
-    Tr_exp     var;
-    Tr_exp     exp;
-    S_pos      pos = (*tkn)->pos;
-    bool       deref = FALSE;
-
-    if ((*tkn)->kind == S_ASTERISK)
-    {
-        deref = TRUE;
-        *tkn = (*tkn)->next;
-    }
-
-    if (!varDesignator(tkn, &var, /*doDeRef=*/TRUE))
-        return FALSE;
-
-    if ((*tkn)->kind != S_EQUALS)
-        return EM_error ((*tkn)->pos, "= expected.");
-    *tkn = (*tkn)->next;
-
-    if (!expression(tkn, &exp))
-        return EM_error((*tkn)->pos, "expression expected here.");
-
-    Tr_exp convexp;
-
-    Ty_ty ty = Tr_ty(var);
-    // if var is a varPtr, time to deref it
-    if (ty->kind == Ty_varPtr)
-    {
-        var = Tr_Deref(var);
-        ty = Tr_ty(var);
-    }
-
-    if (deref)
-    {
-        if (ty->kind != Ty_pointer)
-            return EM_error(pos, "Pointer type expected here.");
-        var = Tr_Deref(var);
-        ty = Tr_ty(var);
-    }
-
-    if (!convert_ty(exp, ty, &convexp, /*explicit=*/FALSE))
-        return EM_error(pos, "type mismatch (assign).");
-
-    emit(Tr_assignExp(var, convexp, Tr_ty(var)));
-
-    return TRUE;
 }
 
 // forBegin ::= FOR ident [ AS ident ] "=" expression TO expression [ STEP expression ]
@@ -3376,40 +3406,41 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
     if (((*formal)->ty->kind == Ty_procPtr) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind != S_LPAREN))
     {
         Ty_proc proc = (*formal)->ty->u.procPtr;
-
-        E_enventryList lx = NULL;
         S_symbol name = (*tkn)->u.sym;
+
         if (proc->returnTy->kind == Ty_void)
-            lx = E_resolveSub(g_sleStack->env, name);
-        else
-            lx = E_resolveFunc(g_sleStack->env, name);
-
-        if (lx)
         {
-            for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
+            E_enventryList lx = E_resolveSub(g_sleStack->env, name);
+            if (lx)
             {
-                Ty_proc proc2 = nx->e->u.proc.proc;
-                // check proc signature
-                if (!compatible_ty(proc2->returnTy, proc->returnTy))
-                    continue;
-                Ty_formal f = proc->formals;
-                Ty_formal f2=proc2->formals;
-                for (; f2; f2=f2->next)
+                for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
                 {
-                    if (!f)
-                        break;
-                    if (!compatible_ty(f2->ty, f->ty))
-                        break;
-                    f = f->next;
-                }
-                if (f || f2)
-                    continue;
+                    Ty_proc proc2 = nx->e->u.proc.proc;
+                    if (!matchProcSignatures(proc, proc2))
+                        continue;
 
-                // if we reach this point, we have a match
-                Tr_ExpListPrepend(assignedArgs, Tr_funPtrExp(proc2->label));
-                *formal = (*formal)->next;
-                *tkn = (*tkn)->next;
-                return TRUE;
+                    // if we reach this point, we have a match
+                    Tr_ExpListPrepend(assignedArgs, Tr_funPtrExp(proc2->label));
+                    *formal = (*formal)->next;
+                    *tkn = (*tkn)->next;
+                    return TRUE;
+                }
+            }
+        }
+        else
+        {
+            E_enventry x = E_resolveVFC(g_sleStack->env, name);
+            if (x && (x->kind == E_procEntry) )
+            {
+                Ty_proc proc2 = x->u.proc.proc;
+                if (matchProcSignatures(proc, proc2))
+                {
+                    // if we reach this point, we have a match
+                    Tr_ExpListPrepend(assignedArgs, Tr_funPtrExp(proc2->label));
+                    *formal = (*formal)->next;
+                    *tkn = (*tkn)->next;
+                    return TRUE;
+                }
             }
         }
     }
@@ -3423,10 +3454,15 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
 }
 
 // actualArgs ::= [ expression ] ( ',' [ expression ] )*
-static Tr_expList transActualArgs(S_tkn *tkn, Ty_proc proc)
+static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, Tr_exp thisPtr)
 {
-    Tr_expList assignedArgs = Tr_ExpList();
     Ty_formal  formal = proc->formals;
+
+    if (thisPtr)
+    {
+        Tr_ExpListPrepend(assignedArgs, thisPtr);
+        formal = formal->next;
+    }
 
     if ((*tkn)->kind == S_COMMA)
     {
@@ -3470,15 +3506,15 @@ static Tr_expList transActualArgs(S_tkn *tkn, Ty_proc proc)
             {
                 case Ty_phLineBF:
                     if (!lineBF(tkn, assignedArgs, &formal))
-                        return assignedArgs;
+                        return FALSE;
                     break;
                 case Ty_phCoord:
                     if (!coord(tkn, assignedArgs, &formal))
-                        return assignedArgs;
+                        return FALSE;
                     break;
                 case Ty_phCoord2:
                     if (!coord2(tkn, assignedArgs, &formal))
-                        return assignedArgs;
+                        return FALSE;
                     break;
                 case Ty_phNone:
                     transAssignArgExp(tkn, assignedArgs, &formal);
@@ -3523,19 +3559,19 @@ static Tr_expList transActualArgs(S_tkn *tkn, Ty_proc proc)
         {
             case Ty_phLineBF:
                 if (!lineBF(tkn, assignedArgs, &formal))
-                    return assignedArgs;
+                    return FALSE;
                 break;
             case Ty_phCoord:
                 if (!coord(tkn, assignedArgs, &formal))
-                    return assignedArgs;
+                    return FALSE;
                 break;
             case Ty_phCoord2:
                 if (!coord2(tkn, assignedArgs, &formal))
-                    return assignedArgs;
+                    return FALSE;
                 break;
             case Ty_phNone:
                 if (!transAssignArgExp(tkn, assignedArgs, &formal))
-                    return assignedArgs;
+                    return FALSE;
                 break;
         }
     }
@@ -3567,7 +3603,7 @@ static Tr_expList transActualArgs(S_tkn *tkn, Ty_proc proc)
         }
     }
 
-    return assignedArgs;
+    return TRUE;
 }
 
 
@@ -3606,7 +3642,9 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         *tkn = (*tkn)->next;
     }
 
-    Tr_expList assignedArgs = transActualArgs(tkn, proc);
+    Tr_expList assignedArgs = Tr_ExpList();
+    if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL))
+        return FALSE;
 
     if (parenthesis)
     {
@@ -3622,42 +3660,7 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
-// subPtrCall ::= ident ["("] actualArgs [")"]
-static bool transSubPtrCall(S_tkn *tkn, E_enventry e)
-{
-    Ty_proc    proc   = e->u.var.ty->u.procPtr;
-    Ty_formal  formal = proc->formals;
-
-    assert (e->kind==E_varEntry);
-    assert (proc);
-
-    *tkn = (*tkn)->next;
-
-    bool parenthesis = FALSE;
-    if ( ((*tkn)->kind == S_LPAREN) && (!formal || (formal->ph == Ty_phNone) ))
-    {
-        parenthesis = TRUE;
-        *tkn = (*tkn)->next;
-    }
-
-    Tr_expList assignedArgs = transActualArgs(tkn, proc);
-
-    if (parenthesis)
-    {
-        if ((*tkn)->kind != S_RPAREN)
-            return EM_error((*tkn)->pos, ") expected.");
-        *tkn = (*tkn)->next;
-    }
-
-    if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
-        return FALSE;
-
-    Tr_exp subPtr = Tr_Var(e->u.var.access);
-    emit(Tr_callPtrExp(Tr_Deref(subPtr), assignedArgs, proc));
-
-    return TRUE;
-}
-
+// stmtCall ::= ident ["("] actualArgs [")"]
 static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_symbol name;
@@ -3686,11 +3689,40 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
 
     // function pointer ?
+    E_enventry x = E_resolveVFC(g_sleStack->env, name);
+    if (x && (x->kind == E_varEntry) && (x->u.var.ty->kind == Ty_procPtr))
+    {
+        Ty_proc    proc   = x->u.var.ty->u.procPtr;
+        Ty_formal  formal = proc->formals;
 
-    E_enventry x = E_resolveVar(g_sleStack->env, name);
-    if (x && (x->u.var.ty->kind == Ty_procPtr))
-        return transSubPtrCall (tkn, x);
+        *tkn = (*tkn)->next;
 
+        bool parenthesis = FALSE;
+        if ( ((*tkn)->kind == S_LPAREN) && (!formal || (formal->ph == Ty_phNone) ))
+        {
+            parenthesis = TRUE;
+            *tkn = (*tkn)->next;
+        }
+
+        Tr_expList assignedArgs = Tr_ExpList();
+        if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL))
+            return FALSE;
+
+        if (parenthesis)
+        {
+            if ((*tkn)->kind != S_RPAREN)
+                return EM_error((*tkn)->pos, ") expected.");
+            *tkn = (*tkn)->next;
+        }
+
+        if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
+            return FALSE;
+
+        Tr_exp subPtr = Tr_Var(x->u.var.access);
+        emit(Tr_callPtrExp(Tr_Deref(subPtr), assignedArgs, proc));
+
+        return TRUE;
+    }
     return EM_error((*tkn)->pos, "SUB or SUB PTR expected here.");
 }
 
@@ -3886,6 +3918,13 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
     label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
     *tkn = (*tkn)->next;
 
+    // UDT context? -> method declaration
+    if (g_sleStack && g_sleStack->kind == FE_sleType)
+    {
+        label = strconcat("__", strconcat(S_name(g_sleStack->u.typeDecl.sType), label));
+        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), g_sleStack->u.typeDecl.tyPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
+    }
+
     while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
     {
         if (extra_syms_last)
@@ -3936,30 +3975,101 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
     return TRUE;
 }
 
-static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x)
+static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
 {
+    Tr_level lv = Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic);
+
     switch (g_sleStack->kind)
     {
         case FE_sleTop:
+        {
             *x   = E_ProcEntry(proc->name,
-                               Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic),
+                               lv,
                                proc,
-                               proc->returnTy->kind != Ty_void ? transFunctionCall : transSubCall);
+                               proc->returnTy->kind != Ty_void ? transFunctionCall : transSubCall,
+                               hasBody);
+
+            // check for multiple declarations or definitions, check for matching signatures
+            if (proc->returnTy->kind != Ty_void)
+            {
+                E_enventry decl = E_resolveVFC(g_mod->env, proc->name);
+                if (decl)
+                {
+                    if (decl->u.proc.hasBody)
+                    {
+                        if (hasBody)
+                            EM_error (pos, "Multiple function definitions.");
+                        else
+                            EM_error (pos, "Function is already defined.");
+                    }
+                    else
+                    {
+                        if (!hasBody)
+                            EM_error (pos, "Multiple function declarations.");
+                    }
+                    if (!matchProcSignatures (proc, decl->u.proc.proc))
+                        EM_error (pos, "Function declaration vs definition mismatch.");
+                }
+            }
+            else
+            {
+                E_enventryList lx = E_resolveSub(g_sleStack->env, proc->name);
+                if (lx)
+                {
+                    // we need an exact match (same extra syms)
+                    E_enventry xBest = NULL;
+                    for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
+                    {
+                        E_enventry x2 = nx->e;
+
+                        bool match = TRUE;
+                        S_symlist esl1 = proc->extraSyms;
+                        S_symlist esl2 = x2->u.proc.proc->extraSyms;
+
+                        while (esl1 && esl2)
+                        {
+                            if ( esl1->sym != esl2->sym )
+                            {
+                                match = FALSE;
+                                break;
+                            }
+                            esl1 = esl1->next;
+                            esl2 = esl2->next;
+                        }
+                        if (esl1 || esl2)
+                            continue;
+                        if (match)
+                        {
+                            xBest = x2;
+                            break;
+                        }
+                    }
+
+                    if (xBest)
+                    {
+                        assert(0); // FIXME
+                    }
+                }
+            }
+
             E_declare (g_mod->env, *x);
             return TRUE;
+        }
 
         case FE_sleType:
-            assert(0); // FIXME
-            // if (g_sleStack->u.typeDecl.eFirst)
-            // {
-            //     g_sleStack->u.typeDecl.eLast->next = A_UDTEntryMethod(pos, proc);
-            //     g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
-            // }
-            // else
-            // {
-            //     g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = A_UDTEntryMethod(pos, proc);
-            // }
+        {
+            Ty_method method = Ty_Method(proc, lv);
+            if (g_sleStack->u.typeDecl.eFirst)
+            {
+                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(pos, method);
+                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
+            }
+            else
+            {
+                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(pos, method);
+            }
             break;
+        }
 
         default:
             return EM_error(pos, "No SUB or FUNCTION declarations allowed in this context.");
@@ -4015,7 +4125,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
 
     E_enventry x;
-    if (!transProc(pos, proc, &x))
+    if (!transProc(pos, proc, &x, /*hasBody=*/TRUE))
         return FALSE;
 
     Tr_level   funlv = x->u.proc.level;
@@ -4027,11 +4137,14 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     for (Ty_formal formals = proc->formals;
          formals; formals = formals->next, acl = Tr_accessListTail(acl))
         E_declare(lenv, E_VarEntry(formals->name, Tr_accessListHead(acl), formals->ty, FALSE));
-    // function return var (same name as the function itself)
+
+    // FIXME: remove comment function return var (same name as the function itself)
+    // function return var
     if (proc->returnTy->kind != Ty_void)
     {
         ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, proc->returnTy);
-        ret_ve = E_VarEntry(proc->name, ret_access, proc->returnTy, FALSE);
+        // FIXME: remove ret_ve = E_VarEntry(proc->name, ret_access, proc->returnTy, FALSE);
+        ret_ve = E_VarEntry(S_RETURN_VAR_NAME, ret_access, proc->returnTy, FALSE);
         E_declare(lenv, ret_ve);
     }
 
@@ -4096,7 +4209,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             return EM_error((*tkn)->pos, "library call: library base identifier expected here.");
 
         S_symbol sLibBase = (*tkn)->u.sym;
-        E_enventry x = E_resolveVar(g_sleStack->env, sLibBase);
+        E_enventry x = E_resolveVFC(g_sleStack->env, sLibBase);
         if (!x)
             return EM_error((*tkn)->pos, "Library base %s undeclared.", S_name(sLibBase));
 
@@ -4138,7 +4251,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
 
     E_enventry x;
-    transProc((*tkn)->pos, proc, &x);
+    transProc((*tkn)->pos, proc, &x, /*hasBody=*/FALSE);
 
     return TRUE;
 }
@@ -4299,6 +4412,13 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, "type identifier expected here.");
 
     sle->u.typeDecl.sType = (*tkn)->u.sym;
+    E_enventry entry = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
+    if (entry)
+        EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
+
+    sle->u.typeDecl.ty    = Ty_Record(g_mod->name);
+    sle->u.typeDecl.tyPtr = Ty_Pointer(g_mod->name, sle->u.typeDecl.ty);
+
     *tkn = (*tkn)->next;
 
     sle->u.typeDecl.eFirst    = NULL;
@@ -4323,12 +4443,6 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         FE_SLE sle = slePop();
 
         // A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.eFirst, s->u.typeDecl.isPrivate));
-
-        E_enventry entry = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
-        if (entry)
-            EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
-
-        Ty_ty ty = Ty_Record(g_mod->name);
 
         for (FE_udtEntry f = sle->u.typeDecl.eFirst; f; f=f->next)
         {
@@ -4355,20 +4469,20 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         end = Tr_getConstInt(dim->idxEnd);
                         t = Ty_Array(g_mod->name, t, start, end);
                     }
-                    Ty_RecordAddField(ty, f->u.fieldr.name, t);
+                    Ty_RecordAddField(sle->u.typeDecl.ty, f->u.fieldr.name, t);
                     break;
                 }
                 case FE_methodUDTEntry:
                 {
-                    Ty_RecordAddMethod(ty, f->u.methodr);
+                    Ty_RecordAddMethod(sle->u.typeDecl.ty, f->u.methodr);
                     break;
                 }
             }
         }
 
-        Ty_computeSize(ty);
+        Ty_computeSize(sle->u.typeDecl.ty);
 
-        E_enventry x = E_TypeEntry(sle->u.typeDecl.sType, ty);
+        E_enventry x = E_TypeEntry(sle->u.typeDecl.sType, sle->u.typeDecl.ty);
         E_declare (g_sleStack->env, x);
         if (!sle->u.typeDecl.isPrivate)
             E_declare (g_mod->env, x);
@@ -4463,20 +4577,14 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     isFunction = FALSE;
                 else
                     return EM_error((*tkn)->pos, "SUB or FUNCTION expected here.");
+            *tkn = (*tkn)->next;
 
             Ty_proc proc;
             if (!procHeader(tkn, (*tkn)->pos, /*isPrivate=*/TRUE, isFunction, /*forward=*/TRUE, &proc))
                 return FALSE;
 
-            if (g_sleStack->u.typeDecl.eFirst)
-            {
-                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, proc);
-                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
-            }
-            else
-            {
-                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, proc);
-            }
+            E_enventry x;
+            transProc(mpos, proc, &x, /*hasBody=*/FALSE);
         }
         else
         {
@@ -4609,11 +4717,34 @@ static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
-// letStmt ::= LET assignmentStmt
+// letStmt ::= LET expDesignator "=" expression
 static bool stmtLet(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
+    Tr_exp     lhs;     // left hand side
+    Tr_exp     ex;
+    S_pos      pos = (*tkn)->pos;
+
     *tkn = (*tkn)->next;  // skip "LET"
-    return stmtAssignment(tkn);
+
+    if (!expDesignator(tkn, &lhs, /*ref=*/FALSE, /*leftHandSide=*/TRUE))
+        return FALSE;
+
+    if ((*tkn)->kind != S_EQUALS)
+        return EM_error ((*tkn)->pos, "= expected.");
+    *tkn = (*tkn)->next;
+
+    if (!expression(tkn, &ex))
+        return EM_error((*tkn)->pos, "expression expected here.");
+
+    Tr_exp convexp;
+
+    Ty_ty ty = Tr_ty(lhs);
+    if (!convert_ty(ex, ty, &convexp, /*explicit=*/FALSE))
+        return EM_error(pos, "type mismatch (LET).");
+
+    emit(Tr_assignExp(lhs, convexp));
+
+    return TRUE;
 }
 
 // nestedStmtList ::= [ ( SUB | FUNCTION | DO | FOR | WHILE | SELECT ) ( "," (SUB | FUNCTION | DO | FOR | WHILE | SELECT) )* ]
@@ -4874,7 +5005,7 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!convert_ty(ex, ty, &convexp, /*explicit=*/FALSE))
             return EM_error(pos, "type mismatch (RETURN).");
 
-        emit(Tr_assignExp(var, convexp, Tr_ty(var)));
+        emit(Tr_assignExp(var, convexp));
     }
     else
     {
@@ -5088,6 +5219,7 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
+// funVarPtr ::= VARPTR "(" expDesignator ")"
 static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -5099,7 +5231,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     *tkn = (*tkn)->next;
 
     Tr_exp v;
-    if (!varDesignator(tkn, &v, /*doDeRef=*/FALSE))
+    if (!expDesignator(tkn, &v, /*ref=*/TRUE, /*leftHandSide=*/FALSE))
         return FALSE;
     Ty_ty ty = Tr_ty(v);
     if (ty->kind != Ty_varPtr)
@@ -5109,7 +5241,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = v;
+    *exp = Tr_castExp(v, ty, Ty_Pointer(g_mod->name, ty->u.pointer));
 
     return TRUE;
 }
@@ -5229,10 +5361,9 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
     if (fsym)
     {
-        E_enventryList lx = E_resolveFunc(g_sleStack->env, fsym);
-        if (!lx)
+        E_enventry func = E_resolveVFC(g_sleStack->env, fsym);
+        if (!func)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        E_enventry func = lx->first->e;
         *exp = Tr_callExp(func->u.proc.level, g_sleStack->lv, arglist, func->u.proc.proc);
     }
     return TRUE;
@@ -5241,82 +5372,83 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 static void register_builtin_proc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
     Ty_proc proc = Ty_Proc(sym, /*extraSyms=*/NULL, /*label=*/NULL, /*isPrivate=*/TRUE, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0);
-    E_enventry e = E_ProcEntry (sym, /*level=*/NULL, proc, parsef);
+    E_enventry e = E_ProcEntry (sym, /*level=*/NULL, proc, parsef, /*hasBody=*/TRUE);
     E_declare(g_builtinsModule->env, e);
 }
 
 static void registerBuiltins(void)
 {
-    S_DIM      = S_Symbol("DIM",      FALSE);
-    S_SHARED   = S_Symbol("SHARED",   FALSE);
-    S_AS       = S_Symbol("AS",       FALSE);
-    S_PTR      = S_Symbol("PTR",      FALSE);
-    S_XOR      = S_Symbol("XOR",      FALSE);
-    S_EQV      = S_Symbol("EQV",      FALSE);
-    S_IMP      = S_Symbol("IMP",      FALSE);
-    S_AND      = S_Symbol("AND",      FALSE);
-    S_OR       = S_Symbol("OR",       FALSE);
-    S_SHL      = S_Symbol("SHL",      FALSE);
-    S_SHR      = S_Symbol("SHR",      FALSE);
-    S_MOD      = S_Symbol("MOD",      FALSE);
-    S_NOT      = S_Symbol("NOT",      FALSE);
-    S_PRINT    = S_Symbol("PRINT",    FALSE);
-    S_FOR      = S_Symbol("FOR",      FALSE);
-    S_NEXT     = S_Symbol("NEXT",     FALSE);
-    S_TO       = S_Symbol("TO",       FALSE);
-    S_STEP     = S_Symbol("STEP",     FALSE);
-    S_IF       = S_Symbol("IF",       FALSE);
-    S_THEN     = S_Symbol("THEN",     FALSE);
-    S_END      = S_Symbol("END",      FALSE);
-    S_ELSE     = S_Symbol("ELSE",     FALSE);
-    S_ELSEIF   = S_Symbol("ELSEIF",   FALSE);
-    S_ENDIF    = S_Symbol("ENDIF",    FALSE);
-    S_GOTO     = S_Symbol("GOTO",     FALSE);
-    S_ASSERT   = S_Symbol("ASSERT",   FALSE);
-    S_EXPLICIT = S_Symbol("EXPLICIT", FALSE);
-    S_ON       = S_Symbol("ON",       FALSE);
-    S_OFF      = S_Symbol("OFF",      FALSE);
-    S_OPTION   = S_Symbol("OPTION",   FALSE);
-    S_SUB      = S_Symbol("SUB",      FALSE);
-    S_FUNCTION = S_Symbol("FUNCTION", FALSE);
-    S_STATIC   = S_Symbol("STATIC",   FALSE);
-    S_CALL     = S_Symbol("CALL",     FALSE);
-    S_CONST    = S_Symbol("CONST",    FALSE);
-    S_SIZEOF   = S_Symbol("SIZEOF",   FALSE);
-    S_EXTERN   = S_Symbol("EXTERN",   FALSE);
-    S_DECLARE  = S_Symbol("DECLARE",  FALSE);
-    S_LIB      = S_Symbol("LIB",      FALSE);
-    S_BYVAL    = S_Symbol("BYVAL",    FALSE);
-    S_BYREF    = S_Symbol("BYREF",    FALSE);
-    S_TYPE     = S_Symbol("TYPE",     FALSE);
-    S_VARPTR   = S_Symbol("VARPTR",   FALSE);
-    S_WHILE    = S_Symbol("WHILE",    FALSE);
-    S_WEND     = S_Symbol("WEND",     FALSE);
-    S_LET      = S_Symbol("LET",      FALSE);
-    S__COORD2  = S_Symbol("_COORD2",  FALSE);
-    S__COORD   = S_Symbol("_COORD",   FALSE);
-    S_EXIT     = S_Symbol("EXIT",     FALSE);
-    S__LINEBF  = S_Symbol("_LINEBF",  FALSE);
-    S_B        = S_Symbol("B",        FALSE);
-    S_BF       = S_Symbol("BF",       FALSE);
-    S_DO       = S_Symbol("DO",       FALSE);
-    S_SELECT   = S_Symbol("SELECT",   FALSE);
-    S_CONTINUE = S_Symbol("CONTINUE", FALSE);
-    S_UNTIL    = S_Symbol("UNTIL",    FALSE);
-    S_LOOP     = S_Symbol("LOOP",     FALSE);
-    S_CAST     = S_Symbol("CAST",     FALSE);
-    S_CASE     = S_Symbol("CASE",     FALSE);
-    S_IS       = S_Symbol("IS",       FALSE);
-    S_RETURN   = S_Symbol("RETURN",   FALSE);
-    S_PRIVATE  = S_Symbol("PRIVATE",  FALSE);
-    S_PUBLIC   = S_Symbol("PUBLIC",   FALSE);
-    S_IMPORT   = S_Symbol("IMPORT",   FALSE);
-    S_STRDOLLAR= S_Symbol("STR$",     FALSE);
-    S_DEFSNG   = S_Symbol("DEFSNG",   FALSE);
-    S_DEFLNG   = S_Symbol("DEFLNG",   FALSE);
-    S_DEFINT   = S_Symbol("DEFINT",   FALSE);
-    S_DEFSTR   = S_Symbol("DEFSTR",   FALSE);
-    S_GOSUB    = S_Symbol("GOSUB",    FALSE);
+    S_DIM             = S_Symbol("DIM",              FALSE);
+    S_SHARED          = S_Symbol("SHARED",           FALSE);
+    S_AS              = S_Symbol("AS",               FALSE);
+    S_PTR             = S_Symbol("PTR",              FALSE);
+    S_XOR             = S_Symbol("XOR",              FALSE);
+    S_EQV             = S_Symbol("EQV",              FALSE);
+    S_IMP             = S_Symbol("IMP",              FALSE);
+    S_AND             = S_Symbol("AND",              FALSE);
+    S_OR              = S_Symbol("OR",               FALSE);
+    S_SHL             = S_Symbol("SHL",              FALSE);
+    S_SHR             = S_Symbol("SHR",              FALSE);
+    S_MOD             = S_Symbol("MOD",              FALSE);
+    S_NOT             = S_Symbol("NOT",              FALSE);
+    S_PRINT           = S_Symbol("PRINT",            FALSE);
+    S_FOR             = S_Symbol("FOR",              FALSE);
+    S_NEXT            = S_Symbol("NEXT",             FALSE);
+    S_TO              = S_Symbol("TO",               FALSE);
+    S_STEP            = S_Symbol("STEP",             FALSE);
+    S_IF              = S_Symbol("IF",               FALSE);
+    S_THEN            = S_Symbol("THEN",             FALSE);
+    S_END             = S_Symbol("END",              FALSE);
+    S_ELSE            = S_Symbol("ELSE",             FALSE);
+    S_ELSEIF          = S_Symbol("ELSEIF",           FALSE);
+    S_ENDIF           = S_Symbol("ENDIF",            FALSE);
+    S_GOTO            = S_Symbol("GOTO",             FALSE);
+    S_ASSERT          = S_Symbol("ASSERT",           FALSE);
+    S_EXPLICIT        = S_Symbol("EXPLICIT",         FALSE);
+    S_ON              = S_Symbol("ON",               FALSE);
+    S_OFF             = S_Symbol("OFF",              FALSE);
+    S_OPTION          = S_Symbol("OPTION",           FALSE);
+    S_SUB             = S_Symbol("SUB",              FALSE);
+    S_FUNCTION        = S_Symbol("FUNCTION",         FALSE);
+    S_STATIC          = S_Symbol("STATIC",           FALSE);
+    S_CALL            = S_Symbol("CALL",             FALSE);
+    S_CONST           = S_Symbol("CONST",            FALSE);
+    S_SIZEOF          = S_Symbol("SIZEOF",           FALSE);
+    S_EXTERN          = S_Symbol("EXTERN",           FALSE);
+    S_DECLARE         = S_Symbol("DECLARE",          FALSE);
+    S_LIB             = S_Symbol("LIB",              FALSE);
+    S_BYVAL           = S_Symbol("BYVAL",            FALSE);
+    S_BYREF           = S_Symbol("BYREF",            FALSE);
+    S_TYPE            = S_Symbol("TYPE",             FALSE);
+    S_VARPTR          = S_Symbol("VARPTR",           FALSE);
+    S_WHILE           = S_Symbol("WHILE",            FALSE);
+    S_WEND            = S_Symbol("WEND",             FALSE);
+    S_LET             = S_Symbol("LET",              FALSE);
+    S__COORD2         = S_Symbol("_COORD2",          FALSE);
+    S__COORD          = S_Symbol("_COORD",           FALSE);
+    S_EXIT            = S_Symbol("EXIT",             FALSE);
+    S__LINEBF         = S_Symbol("_LINEBF",          FALSE);
+    S_B               = S_Symbol("B",                FALSE);
+    S_BF              = S_Symbol("BF",               FALSE);
+    S_DO              = S_Symbol("DO",               FALSE);
+    S_SELECT          = S_Symbol("SELECT",           FALSE);
+    S_CONTINUE        = S_Symbol("CONTINUE",         FALSE);
+    S_UNTIL           = S_Symbol("UNTIL",            FALSE);
+    S_LOOP            = S_Symbol("LOOP",             FALSE);
+    S_CAST            = S_Symbol("CAST",             FALSE);
+    S_CASE            = S_Symbol("CASE",             FALSE);
+    S_IS              = S_Symbol("IS",               FALSE);
+    S_RETURN          = S_Symbol("RETURN",           FALSE);
+    S_PRIVATE         = S_Symbol("PRIVATE",          FALSE);
+    S_PUBLIC          = S_Symbol("PUBLIC",           FALSE);
+    S_IMPORT          = S_Symbol("IMPORT",           FALSE);
+    S_STRDOLLAR       = S_Symbol("STR$",             FALSE);
+    S_DEFSNG          = S_Symbol("DEFSNG",           FALSE);
+    S_DEFLNG          = S_Symbol("DEFLNG",           FALSE);
+    S_DEFINT          = S_Symbol("DEFINT",           FALSE);
+    S_DEFSTR          = S_Symbol("DEFSTR",           FALSE);
+    S_GOSUB           = S_Symbol("GOSUB",            FALSE);
+    S_RETURN_VAR_NAME = S_Symbol(RETURN_VAR_NAME,    FALSE);
 
     register_builtin_proc(S_DIM,      stmtDim          , Ty_Void());
     register_builtin_proc(S_PRINT,    stmtPrint        , Ty_Void());
@@ -5363,20 +5495,20 @@ static void registerBuiltins(void)
     register_builtin_proc(S_STRDOLLAR, funStrDollar, Ty_String());
 }
 
+//
+// statementOrAssignment ::= ( subCall
+//                           | expDesignator [ "=" expression ]
+//                           )
+//
+// subCall    ::= ident ident* selector* ["("] actualArgs [")"]
+//
 static bool statementOrAssignment(S_tkn *tkn)
 {
-    if ((*tkn)->kind == S_IDENT)
+    S_pos pos = (*tkn)->pos;
+
+    if ( ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind != S_EQUALS))
     {
-        if ((*tkn)->next->kind == S_EQUALS)
-        {
-            E_enventry x = E_resolveVar(g_sleStack->env, (*tkn)->u.sym);
-            if (x)
-            {
-                if (!stmtAssignment(tkn))
-                    return EM_error((*tkn)->pos, "syntax error [4]");
-                return TRUE;
-            }
-        }
+        // declared sub?
 
         E_enventryList lx = E_resolveSub(g_sleStack->env, (*tkn)->u.sym);
         if (lx)
@@ -5417,14 +5549,33 @@ static bool statementOrAssignment(S_tkn *tkn)
                     *tkn = tkn2;
                     return TRUE;
                 }
+                else
+                {
+                    return EM_error((*tkn)->pos, "syntax error in SUB call statement");
+                }
             }
         }
     }
 
-    // if we have reached this point, we should be looking at an assignment
+    Tr_exp exp;
+    if (!expDesignator(tkn, &exp, /*ref=*/FALSE, /*leftHandSide=*/TRUE))
+        return FALSE;
 
-    if (!stmtAssignment(tkn))
-        return EM_error((*tkn)->pos, "syntax error [4]");
+    if ((*tkn)->kind == S_EQUALS)
+    {
+        Tr_exp     ex;
+        *tkn = (*tkn)->next;
+
+        if (!expression(tkn, &ex))
+            return EM_error((*tkn)->pos, "expression expected here.");
+
+        Tr_exp convexp;
+        Ty_ty ty = Tr_ty(exp);
+        if (!convert_ty(ex, ty, &convexp, /*explicit=*/FALSE))
+            return EM_error(pos, "type mismatch (assignment).");
+
+        emit(Tr_assignExp(exp, convexp));
+    }
 
     return TRUE;
 }
