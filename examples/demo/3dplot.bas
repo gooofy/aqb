@@ -33,14 +33,14 @@ CONST AS SINGLE rx=30*PI/180, ry=-20*PI/180, rz=0*PI/180 : REM rotation
 CONST AS SINGLE camera_x=0, camera_y=0, camera_z=-400
 
 ' 2D
-DIM   AS SINGLE trans_x=wx/2, trans_y=wy/2.5
+DIM   AS SINGLE trans_x=wx/2, trans_y=wy/2
 CONST AS SINGLE scale_x=1, scale_y=2
 
 ' plot range etc
 
-CONST AS SINGLE xa=-60, xb=60 : REM X interval
+CONST AS SINGLE xa=-65, xb=65 : REM X interval
 CONST AS SINGLE ya=-30, yb=60 : REM Y interval
-CONST AS SINGLE za=-60, zb=60 : REM Z interval
+CONST AS SINGLE za=-70, zb=60 : REM Z interval
 CONST AS SINGLE prec=30       : REM precision (number of values to compute per X interval)
 CONST AS SINGLE net_x=15      : REM network depth (# lines per X-interval)
 CONST AS SINGLE net_z=30      : REM network depth (# lines per Z-interval)
