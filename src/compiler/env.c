@@ -557,6 +557,8 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
     E_enventry x;
     while (TAB_next(i, (void **) &sym, (void **)&x))
     {
+        if (OPT_get(OPTION_VERBOSE))
+            printf ("flat: saving env entry name=%s\n", S_name(x->sym));
         uint8_t kind = x->kind;
         fwrite (&kind, 1, 1, modf);
         strserialize(modf, S_name(x->sym));
@@ -590,6 +592,8 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
         for (E_enventryListNode xn=xl->first; xn; xn=xn->next)
         {
             E_enventry x = xn->e;
+            if (OPT_get(OPTION_VERBOSE))
+                printf ("Overloaded: saving env entry name=%s\n", S_name(x->sym));
             uint8_t kind = x->kind;
             fwrite (&kind, 1, 1, modf);
             strserialize(modf, S_name(x->sym));

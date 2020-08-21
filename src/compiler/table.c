@@ -17,13 +17,11 @@ struct binder_
     void    *key;
     void    *value;
     binder   next;
-    void    *prevtop;
 };
 
 struct TAB_table_
 {
     binder table[TABSIZE];
-    void *top;
 };
 
 struct TAB_iter_
@@ -40,8 +38,8 @@ TAB_iter TAB_Iter(TAB_table table)
     TAB_iter p = checked_malloc(sizeof(*p));
 
     p->table  = table;
-    p->nexti  = 0;
-    p->nextb  = 0;
+    p->nexti  = -1;
+    p->nextb  = NULL;
 
     return p;
 }
@@ -72,14 +70,13 @@ bool TAB_next(TAB_iter iter, void **key, void **value)
     return TRUE;
 }
 
-static binder Binder(void *key, void *value, binder next, void *prevtop)
+static binder Binder(void *key, void *value, binder next)
 {
     binder b = checked_malloc(sizeof(*b));
 
     b->key     = key;
     b->value   = value;
     b->next    = next;
-    b->prevtop = prevtop;
 
     return b;
 }
@@ -87,8 +84,6 @@ static binder Binder(void *key, void *value, binder next, void *prevtop)
 TAB_table TAB_empty(void)
 {
     TAB_table t = checked_malloc(sizeof(*t));
-
-    t->top = NULL;
 
     for (int i = 0; i < TABSIZE; i++)
         t->table[i] = NULL;
@@ -123,8 +118,7 @@ void TAB_enter(TAB_table t, void *key, void *value)
     }
 
     // if we reach this point, <key> is not yet present in table
-    t->table[index] = Binder(key, value,t->table[index], t->top);
-    t->top = key;
+    t->table[index] = Binder(key, value, t->table[index]);
 }
 
 void *TAB_look(TAB_table t, void *key)
