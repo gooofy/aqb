@@ -275,3 +275,57 @@ T_relOp T_commute(T_relOp r)
     return 0;
 }
 
+T_stm T_DeepCopyStm(T_stm stm)
+{
+    switch (stm->kind)
+    {
+        case T_SEQ:
+            return T_Seq(T_DeepCopyStm(stm->u.SEQ.left), T_DeepCopyStm(stm->u.SEQ.right));
+
+        case T_LABEL:
+        case T_JUMP:
+        case T_CJUMP:
+        case T_MOVE:
+        case T_NOP:
+        case T_EXP:
+        case T_JSR:
+        case T_RTS:
+            assert(0); // FIXME: implement!
+    }
+    assert(0);
+    return NULL;
+}
+
+T_exp T_DeepCopyExp(T_exp exp)
+{
+    switch (exp->kind)
+    {
+        case T_BINOP:
+            return T_Binop(exp->u.BINOP.op, T_DeepCopyExp(exp->u.BINOP.left),  T_DeepCopyExp(exp->u.BINOP.right), exp->ty);
+        case T_MEM:
+            return T_Mem(T_DeepCopyExp(exp->u.MEM.exp), exp->ty);
+        case T_HEAP:
+            return T_Heap(exp->u.HEAP, exp->ty);
+        case T_ESEQ:
+            assert(0);  // FIXME
+            return NULL;
+        case T_TEMP:
+            assert(0);  // FIXME
+            return NULL;
+        case T_CONST:
+            return T_Const(exp->u.CONST);
+        case T_CALLF:
+            assert(0);  // FIXME
+            return NULL;
+        case T_CAST:
+            assert(0);  // FIXME
+            return NULL;
+        case T_FP:
+            return T_FramePointer();
+        case T_CALLFPTR:
+            assert(0);  // FIXME
+            return NULL;
+    }
+    assert(0);
+    return NULL;
+}

@@ -11,8 +11,6 @@
 #include "table.h"
 #include "symbol.h"
 
-#define RETURN_VAR_NAME "___return_var"
-
 const char *FE_filename = NULL;
 
 // contains public env entries for export
@@ -112,14 +110,14 @@ struct FE_SLE_
     Temp_label  exitlbl;
     Temp_label  contlbl;
 
-    E_enventry  ret_ve;
+    Tr_exp      returnVar;
 
     union
     {
         struct
         {
             S_symbol  sVar;
-            Tr_access var;
+            Tr_exp    var;
             Tr_exp    fromExp, toExp, stepExp;
         } forLoop;
         Tr_exp whileExp;
@@ -127,13 +125,11 @@ struct FE_SLE_
         {
             FE_ifBranch ifBFirst, ifBLast;
         } ifStmt;
-        //A_proc proc;
         struct
         {
             FE_udtEntry eFirst, eLast;
             S_symbol    sType;
             Ty_ty       ty;
-            Ty_ty       tyPtr;
             bool        isPrivate;
         } typeDecl;
         struct
@@ -153,19 +149,19 @@ struct FE_SLE_
 
 static FE_SLE g_sleStack = NULL;
 
-static FE_SLE slePush(FE_sleKind kind, S_pos pos, Tr_level lv, E_env env, Temp_label exitlbl, Temp_label contlbl, E_enventry ret_ve)
+static FE_SLE slePush(FE_sleKind kind, S_pos pos, Tr_level lv, E_env env, Temp_label exitlbl, Temp_label contlbl, Tr_exp returnVar)
 {
     FE_SLE s=checked_malloc(sizeof(*s));
 
-    s->kind    = kind;
-    s->pos     = pos;
-    s->lv      = lv;
-    s->env     = env;
-    s->expList = Tr_ExpList();
-    s->exitlbl = exitlbl;
-    s->contlbl = contlbl;
-    s->ret_ve  = ret_ve;
-    s->prev    = g_sleStack;
+    s->kind       = kind;
+    s->pos        = pos;
+    s->lv         = lv;
+    s->env        = env;
+    s->expList    = Tr_ExpList();
+    s->exitlbl    = exitlbl;
+    s->contlbl    = contlbl;
+    s->returnVar  = returnVar;
+    s->prev       = g_sleStack;
 
     g_sleStack = s;
     return s;
@@ -367,7 +363,6 @@ static S_symbol S_DEFLNG;
 static S_symbol S_DEFINT;
 static S_symbol S_DEFSTR;
 static S_symbol S_GOSUB;
-static S_symbol S_RETURN_VAR_NAME;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -397,11 +392,11 @@ static E_enventry autovar(S_symbol v, S_pos pos)
         if (Tr_isStatic(level))
         {
             string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
-            x = E_VarEntry(v, Tr_allocVar(Tr_global(), varId, t), t, TRUE);
+            x = E_VarEntry(v, Tr_Var(Tr_allocVar(Tr_global(), varId, t)), t, TRUE);
         }
         else
         {
-            x = E_VarEntry(v, Tr_allocVar(level, s, t), t, FALSE);
+            x = E_VarEntry(v, Tr_Var(Tr_allocVar(level, s, t)), t, FALSE);
         }
 
         E_declare (g_sleStack->env, x);
@@ -1507,12 +1502,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
 
                 if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) )
                 {
-                    x = E_resolveVFC (g_sleStack->env, S_RETURN_VAR_NAME);
-                    assert(x);
-                    *exp = Tr_Var(x->u.var.access);
-                    Ty_ty ty = Tr_ty(*exp);
-                    if (ty->kind == Ty_varPtr)
-                        *exp = Tr_Deref(*exp);
+                    *exp = Tr_DeepCopy(g_sleStack->returnVar);
 
                     *tkn = (*tkn)->next;
                     return TRUE;
@@ -1534,7 +1524,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
                 break;
 
             case E_varEntry:
-                *exp = Tr_Var(x->u.var.access);
+                *exp = Tr_DeepCopy(x->u.var.var);
                 *tkn = (*tkn)->next;
                 break;
 
@@ -1555,7 +1545,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
                 break;
 
             case E_varEntry:
-                *exp = Tr_Var(x->u.var.access);
+                *exp = Tr_DeepCopy(x->u.var.var);
                 *tkn = (*tkn)->next;
                 break;
 
@@ -2230,7 +2220,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = Ty_Void();
         }
 
-        Ty_proc proc = Ty_Proc(/*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, /*isPrivate=*/ TRUE, paramList->first, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL);
+        Ty_proc proc = Ty_Proc(/*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, /*isPrivate=*/ TRUE, paramList->first, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
         *ty = Ty_ProcPtr(g_mod->name, proc);
     }
     else
@@ -2302,9 +2292,9 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool sh
             return EM_error(pos, "Name %s already declared in global scope.", S_name(name));
 
         if (external)
-            x = E_VarEntry(name, Tr_externalVar(S_name(name), t), t, TRUE);
+            x = E_VarEntry(name, Tr_Var(Tr_externalVar(S_name(name), t)), t, TRUE);
         else
-            x = E_VarEntry(name, Tr_allocVar(Tr_global(), S_name(name), t), t, TRUE);
+            x = E_VarEntry(name, Tr_Var(Tr_allocVar(Tr_global(), S_name(name), t)), t, TRUE);
 
         S_enter(g_mod->env->vfcenv, name, x);
     }
@@ -2318,19 +2308,19 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool sh
         if (statc || Tr_isStatic(g_sleStack->lv))
         {
             string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), S_name(name)));
-            x = E_VarEntry(name, Tr_allocVar(Tr_global(), varId, t), t, TRUE);
+            x = E_VarEntry(name, Tr_Var(Tr_allocVar(Tr_global(), varId, t)), t, TRUE);
             S_enter(venv, name, x);
         }
         else
         {
-            x = E_VarEntry(name, Tr_allocVar(g_sleStack->lv, S_name(name), t), t, FALSE);
+            x = E_VarEntry(name, Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(name), t)), t, FALSE);
             S_enter(venv, name, x);
         }
     }
 
     if (conv_init)
     {
-        Tr_exp e = Tr_Var(x->u.var.access);
+        Tr_exp e = Tr_DeepCopy(x->u.var.var);
         Ty_ty ty = Tr_ty(e);
         if (ty->kind == Ty_varPtr)
             e = Tr_Deref(e);
@@ -2630,7 +2620,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     E_env      lenv    = E_Env(g_sleStack->env);
     Temp_label forexit = Temp_newlabel();
     Temp_label forcont = Temp_newlabel();
-    FE_SLE     sle     = slePush(FE_sleFor, pos, g_sleStack->lv, lenv, forexit, forcont, g_sleStack->ret_ve);
+    FE_SLE     sle     = slePush(FE_sleFor, pos, g_sleStack->lv, lenv, forexit, forcont, g_sleStack->returnVar);
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error ((*tkn)->pos, "variable name expected here.");
@@ -2645,15 +2635,20 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &varTy))
             return EM_error((*tkn)->pos, "FOR: type descriptor expected here.");
 
-        x = E_VarEntry(sle->u.forLoop.sVar, Tr_allocVar(g_sleStack->lv, S_name(sle->u.forLoop.sVar), varTy), varTy, FALSE);
+        x = E_VarEntry(sle->u.forLoop.sVar, Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sle->u.forLoop.sVar), varTy)), varTy, FALSE);
         E_declare (lenv, x);
     }
     else
     {
         x = autovar(sle->u.forLoop.sVar, (*tkn)->pos);
-        varTy = x->u.var.ty;
     }
-    sle->u.forLoop.var = x->u.var.access;
+    sle->u.forLoop.var = Tr_DeepCopy(x->u.var.var);
+    varTy = Tr_ty(sle->u.forLoop.var);
+    if (varTy->kind == Ty_varPtr)
+    {
+        sle->u.forLoop.var = Tr_Deref(sle->u.forLoop.var);
+        varTy = Tr_ty(sle->u.forLoop.var);
+    }
 
     if ((*tkn)->kind != S_EQUALS)
         return EM_error ((*tkn)->pos, "= expected.");
@@ -2761,7 +2756,7 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     *tkn = (*tkn)->next; // consume "IF"
 
     E_env      lenv    = E_Env(g_sleStack->env);
-    FE_SLE     sle     = slePush(FE_sleIf, pos, g_sleStack->lv, lenv, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->ret_ve);
+    FE_SLE     sle     = slePush(FE_sleIf, pos, g_sleStack->lv, lenv, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
     if (!expression(tkn, &test))
         return EM_error((*tkn)->pos, "IF expression expected here.");
@@ -2919,7 +2914,7 @@ static bool stmtSelect(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    FE_SLE sle = slePush(FE_sleSelect, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->ret_ve);
+    FE_SLE sle = slePush(FE_sleSelect, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
     sle->u.selectStmt.exp          = ex;
     sle->u.selectStmt.selectBFirst = NULL;
@@ -3064,7 +3059,7 @@ static void stmtProcEnd_(void)
     Tr_procEntryExit(sle->lv,
                      Tr_seqExp(sle->expList),
                      Tr_formals(sle->lv),
-                     sle->ret_ve ? sle->ret_ve->u.var.access : NULL,
+                     sle->returnVar,
                      sle->exitlbl,
                      /*is_main=*/FALSE);
 }
@@ -3080,7 +3075,7 @@ static void stmtSelectEnd_(void)
 // stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT ) ]
 static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
-    if (isSym(*tkn, S_ENDIF))
+   if (isSym(*tkn, S_ENDIF))
     {
         *tkn = (*tkn)->next;
         stmtIfEnd_();
@@ -3718,7 +3713,7 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
             return FALSE;
 
-        Tr_exp subPtr = Tr_Var(x->u.var.access);
+        Tr_exp subPtr = Tr_DeepCopy(x->u.var.var);
         emit(Tr_callPtrExp(Tr_Deref(subPtr), assignedArgs, proc));
 
         return TRUE;
@@ -3901,43 +3896,78 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList)
     return TRUE;
 }
 
-// procHeader ::= ident ident* [ parameterList ] [ AS typeDesc ] [ STATIC ]
+// procHeader ::= ident ( ident* | "." ident) [ parameterList ] [ AS typeDesc ] [ STATIC ]
 static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, bool forward, Ty_proc *proc)
 {
     S_symbol     name;
     S_symlist    extra_syms = NULL, extra_syms_last=NULL;
-    bool         isStatic = FALSE;
-    FE_paramList paramList = FE_ParamList();
-    Ty_ty        returnTy = NULL;
-    string       label = NULL;
+    bool         isStatic   = FALSE;
+    FE_paramList paramList  = FE_ParamList();
+    Ty_ty        returnTy   = NULL;
+    string       label      = NULL;
+    S_symbol     sCls       = NULL;
+    Ty_ty        tyCls      = NULL;
+    Ty_ty        tyClsPtr   = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "identifier expected here.");
     name  = (*tkn)->u.sym;
-
-    label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
     *tkn = (*tkn)->next;
 
     // UDT context? -> method declaration
     if (g_sleStack && g_sleStack->kind == FE_sleType)
     {
-        label = strconcat("__", strconcat(S_name(g_sleStack->u.typeDecl.sType), label));
-        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), g_sleStack->u.typeDecl.tyPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
+        sCls  = g_sleStack->u.typeDecl.sType;
+        tyCls = g_sleStack->u.typeDecl.ty;
+    }
+    else
+    {
+        if ((*tkn)->kind == S_PERIOD)
+        {
+            *tkn = (*tkn)->next;
+
+            sCls = name;
+
+            E_enventry x = E_resolveType(g_sleStack->env, sCls);
+            if (!x)
+                EM_error ((*tkn)->pos, "Class %s not found.", S_name(sCls));
+
+            tyCls = x->u.ty;
+
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error ((*tkn)->pos, "method identifier expected here.");
+            name = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
+        }
     }
 
-    while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
+    if (sCls)
     {
-        if (extra_syms_last)
+        label = strconcat("__", strconcat(S_name(sCls), strconcat("_", S_name(name))));
+        tyClsPtr = Ty_Pointer(g_mod->name, tyCls);
+        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyClsPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
+    }
+    else
+    {
+        label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
+        if (!isFunction)
         {
-            extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
-            extra_syms_last = extra_syms_last->next;
+            // look for extra syms
+            while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
+            {
+                if (extra_syms_last)
+                {
+                    extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
+                    extra_syms_last = extra_syms_last->next;
+                }
+                else
+                {
+                    extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
+                }
+                label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+                *tkn = (*tkn)->next;
+            }
         }
-        else
-        {
-            extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
-        }
-        label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
-        *tkn = (*tkn)->next;
     }
 
     if (isFunction)
@@ -3970,7 +4000,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(name, extra_syms, Temp_namedlabel(label), isPrivate, paramList->first, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL);
+    *proc = Ty_Proc(name, extra_syms, Temp_namedlabel(label), isPrivate, paramList->first, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyClsPtr);
 
     return TRUE;
 }
@@ -3990,26 +4020,10 @@ static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
                                hasBody);
 
             // check for multiple declarations or definitions, check for matching signatures
+            E_enventry decl=NULL;
             if (proc->returnTy->kind != Ty_void)
             {
-                E_enventry decl = E_resolveVFC(g_mod->env, proc->name);
-                if (decl)
-                {
-                    if (decl->u.proc.hasBody)
-                    {
-                        if (hasBody)
-                            EM_error (pos, "Multiple function definitions.");
-                        else
-                            EM_error (pos, "Function is already defined.");
-                    }
-                    else
-                    {
-                        if (!hasBody)
-                            EM_error (pos, "Multiple function declarations.");
-                    }
-                    if (!matchProcSignatures (proc, decl->u.proc.proc))
-                        EM_error (pos, "Function declaration vs definition mismatch.");
-                }
+                decl = E_resolveVFC(g_mod->env, proc->name);
             }
             else
             {
@@ -4017,7 +4031,6 @@ static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
                 if (lx)
                 {
                     // we need an exact match (same extra syms)
-                    E_enventry xBest = NULL;
                     for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
                     {
                         E_enventry x2 = nx->e;
@@ -4040,16 +4053,29 @@ static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
                             continue;
                         if (match)
                         {
-                            xBest = x2;
+                            decl = x2;
                             break;
                         }
                     }
-
-                    if (xBest)
-                    {
-                        assert(0); // FIXME
-                    }
                 }
+            }
+
+            if (decl)
+            {
+                if (decl->u.proc.hasBody)
+                {
+                    if (hasBody)
+                        EM_error (pos, "Multiple function definitions.");
+                    else
+                        EM_error (pos, "Function is already defined.");
+                }
+                else
+                {
+                    if (!hasBody)
+                        EM_error (pos, "Multiple function declarations.");
+                }
+                if (!matchProcSignatures (proc, decl->u.proc.proc))
+                    EM_error (pos, "Function declaration vs definition mismatch.");
             }
 
             E_declare (g_mod->env, *x);
@@ -4129,28 +4155,24 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
 
     Tr_level   funlv = x->u.proc.level;
-    Tr_access  ret_access = NULL;
     E_env      lenv = E_Env(g_sleStack->env);
-    E_enventry ret_ve = NULL;
+    Tr_exp     returnVar = NULL;
 
     Tr_accessList acl = Tr_formals(funlv);
     for (Ty_formal formals = proc->formals;
          formals; formals = formals->next, acl = Tr_accessListTail(acl))
-        E_declare(lenv, E_VarEntry(formals->name, Tr_accessListHead(acl), formals->ty, FALSE));
+        E_declare(lenv, E_VarEntry(formals->name, Tr_Var(Tr_accessListHead(acl)), formals->ty, FALSE));
 
-    // FIXME: remove comment function return var (same name as the function itself)
     // function return var
     if (proc->returnTy->kind != Ty_void)
     {
-        ret_access = Tr_allocVar(funlv, RETURN_VAR_NAME, proc->returnTy);
-        // FIXME: remove ret_ve = E_VarEntry(proc->name, ret_access, proc->returnTy, FALSE);
-        ret_ve = E_VarEntry(S_RETURN_VAR_NAME, ret_access, proc->returnTy, FALSE);
-        E_declare(lenv, ret_ve);
+        Tr_access returnAccess = Tr_allocVar(funlv, /*name=*/NULL, proc->returnTy);
+        returnVar = Tr_Deref(Tr_Var(returnAccess));
     }
 
     Temp_label exitlbl = Temp_newlabel();
 
-    slePush(isFunction ? FE_sleFunction : FE_sleSub, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, ret_ve);
+    slePush(isFunction ? FE_sleFunction : FE_sleSub, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
 
     return TRUE;
 }
@@ -4213,7 +4235,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!x)
             return EM_error((*tkn)->pos, "Library base %s undeclared.", S_name(sLibBase));
 
-        Temp_label l = Tr_heapLabel(x->u.var.access);
+        Temp_label l = Tr_heapLabel(x->u.var.var);
         if (!l)
             return EM_error((*tkn)->pos, "Library base %s is not a global variable.", S_name(sLibBase));
 
@@ -4389,7 +4411,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_pos    pos = (*tkn)->pos;
-    FE_SLE   sle = slePush(FE_sleType, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->ret_ve);
+    FE_SLE   sle = slePush(FE_sleType, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
     sle->u.typeDecl.isPrivate = OPT_get(OPTION_PRIVATE);
     if (isSym(*tkn, S_PRIVATE))
@@ -4417,7 +4439,6 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
     sle->u.typeDecl.ty    = Ty_Record(g_mod->name);
-    sle->u.typeDecl.tyPtr = Ty_Pointer(g_mod->name, sle->u.typeDecl.ty);
 
     *tkn = (*tkn)->next;
 
@@ -4688,7 +4709,7 @@ static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     E_env      lenv     = E_Env(g_sleStack->env);
     Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
-    FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->lv, lenv, loopexit, loopcont, g_sleStack->ret_ve);
+    FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->lv, lenv, loopexit, loopcont, g_sleStack->returnVar);
 
     *tkn = (*tkn)->next; // consume "WHILE"
 
@@ -4869,7 +4890,7 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     E_env      lenv     = E_Env(g_sleStack->env);
     Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
-    FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->lv, lenv, loopexit, loopcont, g_sleStack->ret_ve);
+    FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->lv, lenv, loopexit, loopcont, g_sleStack->returnVar);
 
     *tkn = (*tkn)->next; // consume "DO"
 
@@ -4987,12 +5008,12 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return TRUE;
     }
 
-    if (sle->ret_ve)
+    if (sle->returnVar)
     {
         if (!ex)
             return EM_error(pos, "RETURN expression missing.");
 
-        Tr_exp var = Tr_Var(sle->ret_ve->u.var.access);
+        Tr_exp var = sle->returnVar;
         Ty_ty ty = Tr_ty(var);
         // if var is a varPtr, time to deref it
         if (ty->kind == Ty_varPtr)
@@ -5371,7 +5392,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 static void register_builtin_proc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
-    Ty_proc proc = Ty_Proc(sym, /*extraSyms=*/NULL, /*label=*/NULL, /*isPrivate=*/TRUE, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0);
+    Ty_proc proc = Ty_Proc(sym, /*extraSyms=*/NULL, /*label=*/NULL, /*isPrivate=*/TRUE, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
     E_enventry e = E_ProcEntry (sym, /*level=*/NULL, proc, parsef, /*hasBody=*/TRUE);
     E_declare(g_builtinsModule->env, e);
 }
@@ -5448,7 +5469,6 @@ static void registerBuiltins(void)
     S_DEFINT          = S_Symbol("DEFINT",           FALSE);
     S_DEFSTR          = S_Symbol("DEFSTR",           FALSE);
     S_GOSUB           = S_Symbol("GOSUB",            FALSE);
-    S_RETURN_VAR_NAME = S_Symbol(RETURN_VAR_NAME,    FALSE);
 
     register_builtin_proc(S_DIM,      stmtDim          , Ty_Void());
     register_builtin_proc(S_PRINT,    stmtPrint        , Ty_Void());
@@ -5576,6 +5596,10 @@ static bool statementOrAssignment(S_tkn *tkn)
 
         emit(Tr_assignExp(exp, convexp));
     }
+    else
+    {
+        emit (exp);
+    }
 
     return TRUE;
 }
@@ -5633,7 +5657,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
     E_env env = E_Env(g_mod->env);  // main()/init() env
 
     g_sleStack = NULL;
-    slePush(FE_sleTop, /*pos=*/0, lv, env, /*exitlbl=*/NULL, /*contlbl=*/NULL, /*ret_ve=*/NULL);
+    slePush(FE_sleTop, /*pos=*/0, lv, env, /*exitlbl=*/NULL, /*contlbl=*/NULL, /*returnVar=*/NULL);
     g_prog = g_sleStack->expList;
 
     // parse logical lines
@@ -5707,7 +5731,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
 
     Tr_exp prog = Tr_seqExp(g_prog);
 
-    Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*ret_access=*/NULL, /*exitlbl=*/ NULL, is_main);
+    Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main);
 
     return Tr_getResult();
 }

@@ -1,6 +1,8 @@
 
 FUNCTION fibonacci% ( a% )
 
+    '_debug_puts2 a% : _debug_putnl
+
     IF a%=1 OR a%=2 THEN
         fibonacci% = 1
     ELSE

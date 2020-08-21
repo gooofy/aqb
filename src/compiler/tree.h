@@ -74,6 +74,7 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label 
 T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty);
 T_stm T_Nop(void);
 T_stm T_Exp(T_exp exp);
+T_stm T_DeepCopyStm(T_stm stm);
 
 T_exp T_Binop(T_binOp, T_exp, T_exp, Ty_ty);
 T_exp T_Mem(T_exp exp, Ty_ty ty);
@@ -86,6 +87,7 @@ T_exp T_CallF(Ty_proc proc, T_expList args);
 T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_proc proc);
 T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to);
 // T_exp T_TypeView(T_exp exp, Ty_ty ty); // return a clone of exp which carries a new type tag (no code is produced)
+T_exp T_DeepCopyExp(T_exp exp);
 
 T_relOp T_notRel(T_relOp);  /* a op b  ==  not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b  ==  b commute(op) a      */

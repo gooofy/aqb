@@ -85,6 +85,7 @@ struct Ty_proc_
     bool          forward;
     int32_t       offset;
     string        libBase;
+    Ty_ty         tyClsPtr;  // methods only: pointer to class type
 };
 
 struct Ty_method_
@@ -121,7 +122,7 @@ void         Ty_RecordAddMethod (Ty_ty recordType, Ty_method method);
 Ty_method    Ty_Method          (Ty_proc proc, void *lv);
 
 Ty_formal    Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc      Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase);
+Ty_proc      Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr);
 
 Ty_const     Ty_ConstBool  (Ty_ty ty, bool   b);
 Ty_const     Ty_ConstInt   (Ty_ty ty, int    i);

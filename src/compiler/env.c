@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     17
+#define SYM_VERSION     18
 
 E_module g_builtinsModule = NULL;
 
@@ -27,13 +27,13 @@ static E_dirSearchPath symSP=NULL, symSPLast=NULL;
 
 static TAB_table modCache; // sym -> E_module
 
-E_enventry E_VarEntry(S_symbol sym, Tr_access access, Ty_ty ty, bool shared)
+E_enventry E_VarEntry(S_symbol sym, Tr_exp var, Ty_ty ty, bool shared)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind         = E_varEntry;
     p->sym          = sym;
-    p->u.var.access = access;
+    p->u.var.var    = var;
     p->u.var.ty     = ty;
     p->u.var.shared = shared;
 
@@ -359,6 +359,8 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
 
             if (ty->u.procPtr->returnTy)
                 E_tyFindTypes (type_tab, ty->u.procPtr->returnTy);
+            if (ty->u.procPtr->tyClsPtr)
+                E_tyFindTypes (type_tab, ty->u.procPtr->tyClsPtr);
             break;
     }
 }
@@ -535,6 +537,17 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     fwrite(&proc->offset, 4, 1, modf);
     if (proc->offset)
         strserialize(modf, proc->libBase);
+    if (proc->tyClsPtr)
+    {
+        bool tyClsPtrPresent = TRUE;
+        fwrite(&tyClsPtrPresent, 1, 1, modf);
+        E_serializeTyRef(modTable, proc->tyClsPtr);
+    }
+    else
+    {
+        bool tyClsPtrPresent = FALSE;
+        fwrite(&tyClsPtrPresent, 1, 1, modf);
+    }
 }
 
 static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
@@ -892,7 +905,17 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             return NULL;
         }
     }
-    return Ty_Proc(name, extra_syms, label, isPrivate, formals, isStatic, returnTy, /*forward=*/FALSE, offset, libBase);
+    bool tyClsPtrPresent;
+    if (fread(&tyClsPtrPresent, 1, 1, modf)!=1)
+    {
+        printf("failed to read function tyClsPtrPresent flag.\n");
+        return NULL;
+    }
+    Ty_ty tyClsPtr=NULL;
+    if (tyClsPtrPresent)
+        tyClsPtr = E_deserializeTyRef(modTable, modf);
+
+    return Ty_Proc(name, extra_syms, label, isPrivate, formals, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr);
 }
 
 E_module E_loadModule(S_symbol sModule)
@@ -1083,7 +1106,7 @@ E_module E_loadModule(S_symbol sModule)
                         printf("%s: failed to read variable shared flag.\n", modfn);
                         goto fail;
                     }
-                    e->u.var.access = Tr_externalVar(name, e->u.var.ty);
+                    e->u.var.var = Tr_Var(Tr_externalVar(name, e->u.var.ty));
                     break;
 
                 case E_procEntry:

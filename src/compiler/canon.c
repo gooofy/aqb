@@ -344,7 +344,7 @@ static void trace(T_stmList list)
                     {
                         // last one -> finish up
                         nextSL = T_StmList(T_Label(global_block.label), NULL);
-                    } 
+                    }
                     last->tail->tail = T_StmList(T_Label(lfalse), T_StmList(T_Jump(s->u.CJUMP.lfalse), nextSL));
                 }
             }

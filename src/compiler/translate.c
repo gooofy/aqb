@@ -231,6 +231,13 @@ static patchList PatchList(Temp_label *head, patchList tail)
     return p;
 }
 
+static patchList DeepCopyPatchList(patchList pl)
+{
+    if (!pl)
+        return NULL;
+    return PatchList(pl->head, DeepCopyPatchList(pl->tail));
+}
+
 void doPatch(patchList tList, Temp_label label)
 {
     for (; tList; tList = tList->tail)
@@ -385,7 +392,7 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_access ret_access, Temp_label exitlbl, bool is_main)
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main)
 {
     T_stm stm = unNx(body);
 
@@ -398,7 +405,7 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
         {
             S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(sym)), TRUE);
 
-            Ty_proc init_proc = Ty_Proc(initializer, NULL, initializer, FALSE, NULL, FALSE, NULL, FALSE, 0, NULL);
+            Ty_proc init_proc = Ty_Proc(initializer, NULL, initializer, FALSE, NULL, FALSE, NULL, FALSE, 0, NULL, /*tyClsPtr=*/NULL);
 
             stm = T_Seq(T_Exp(T_CallF(init_proc, /*args=*/NULL)), stm);
         }
@@ -407,10 +414,10 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_acc
     if (exitlbl)
         stm = T_Seq(stm, T_Label(exitlbl));
 
-    if (ret_access)
+    if (returnVar)
     {
-        T_exp ret_exp = unEx(Tr_Deref(Tr_Var(ret_access)));
-        Ty_ty ty_ret = F_accessType(ret_access->access);
+        T_exp ret_exp = unEx(returnVar);
+        Ty_ty ty_ret = Tr_ty(returnVar);
         stm = T_Seq(T_Move(ret_exp, unEx(Tr_zeroExp(ty_ret)),  ty_ret),
                 T_Seq(stm,
                   T_Move(T_Temp(F_RV(), ty_ret), ret_exp, ty_ret)));
@@ -441,9 +448,16 @@ Tr_access Tr_externalVar(string name, Ty_ty ty)
     return Tr_Access(Tr_global(), F_allocGlobal(label, ty));
 }
 
-Temp_label Tr_heapLabel(Tr_access access)
+Temp_label Tr_heapLabel(Tr_exp var)
 {
-    return F_heapLabel(access->access);
+    if (var->kind != Tr_ex)
+        return NULL;
+    if (var->u.ex->kind != T_HEAP)
+        return NULL;
+
+    return var->u.ex->u.HEAP;
+
+    // return F_heapLabel(access->access);
 }
 
 /* Tree Expressions */
@@ -1051,15 +1065,15 @@ Tr_exp Tr_labelExp(Temp_label lbl)
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_forExp(Tr_access loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
+Tr_exp Tr_forExp(Tr_exp loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
-    Ty_ty      loopVarTy = F_accessType(loopVar->access);
+    Ty_ty      loopVarTy = Tr_ty(loopVar);
     Temp_label test      = Temp_newlabel();
     Temp_label loopstart = Temp_newlabel();
     Temp_label done      = exitlbl;
 
     Temp_temp limit      = Temp_newtemp(loopVarTy);
-    T_exp loopv          = unEx(Tr_Deref(Tr_Var(loopVar)));
+    T_exp loopv          = unEx(loopVar);
 
     T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarTy);
     T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), loopVarTy), loopVarTy);
@@ -1240,6 +1254,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_ulong:
                     case Ty_single:
                     case Ty_double:
+                    case Ty_pointer:
                         return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
                     default:
                         EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
@@ -1293,6 +1308,23 @@ static void indent(FILE *out, int d)
     int i;
     for (i = 0; i <= d; i++)
         fprintf(out, " ");
+}
+
+Tr_exp Tr_DeepCopy(Tr_exp exp)
+{
+    switch (exp->kind)
+    {
+        case Tr_ex:
+            return Tr_Ex(T_DeepCopyExp(exp->u.ex));
+
+        case Tr_nx:
+            return Tr_Nx(T_DeepCopyStm(exp->u.nx));
+
+        case Tr_cx:
+            return Tr_Cx(DeepCopyPatchList(exp->u.cx.trues), DeepCopyPatchList(exp->u.cx.falses), T_DeepCopyStm(exp->u.cx.stm));
+    }
+    assert(0);
+    return NULL;
 }
 
 void Tr_printExp(FILE *out, Tr_exp exp, int d)

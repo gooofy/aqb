@@ -468,7 +468,7 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
     return p;
 }
 
-Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase)
+Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr)
 {
     Ty_proc p = checked_malloc(sizeof(*p));
 
@@ -484,6 +484,7 @@ Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPri
     p->forward    = forward;
     p->offset     = offset;
     p->libBase    = libBase;
+    p->tyClsPtr   = tyClsPtr;
 
     return p;
 }

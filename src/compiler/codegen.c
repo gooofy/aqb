@@ -829,6 +829,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         }
                         case Ty_ulong:
                         case Ty_long:
+                        case Ty_pointer:
                         {
                             Temp_temp r = Temp_newtemp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
