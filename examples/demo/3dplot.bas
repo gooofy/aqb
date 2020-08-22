@@ -40,7 +40,7 @@ CONST AS SINGLE scale_x=1, scale_y=2
 
 CONST AS SINGLE xa=-65, xb=65 : REM X interval
 CONST AS SINGLE ya=-30, yb=60 : REM Y interval
-CONST AS SINGLE za=-70, zb=60 : REM Z interval
+CONST AS SINGLE za=-60, zb=60 : REM Z interval
 CONST AS SINGLE prec=30       : REM precision (number of values to compute per X interval)
 CONST AS SINGLE net_x=15      : REM network depth (# lines per X-interval)
 CONST AS SINGLE net_z=30      : REM network depth (# lines per Z-interval)
