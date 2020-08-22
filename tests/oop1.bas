@@ -43,4 +43,3 @@ ASSERT o.retrieve() = 42
 o.store(23)
 ASSERT o.retrieve() = 23
 
-
