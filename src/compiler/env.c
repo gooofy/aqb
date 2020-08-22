@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     18
+#define SYM_VERSION     20
 
 E_module g_builtinsModule = NULL;
 
@@ -27,15 +27,13 @@ static E_dirSearchPath symSP=NULL, symSPLast=NULL;
 
 static TAB_table modCache; // sym -> E_module
 
-E_enventry E_VarEntry(S_symbol sym, Tr_exp var, Ty_ty ty, bool shared)
+E_enventry E_VarEntry(S_symbol sym, Tr_exp var)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind         = E_varEntry;
     p->sym          = sym;
     p->u.var.var    = var;
-    p->u.var.ty     = ty;
-    p->u.var.shared = shared;
 
     return p;
 }
@@ -92,6 +90,20 @@ E_env E_EnvScopes (E_env parent)
     return p;
 }
 
+E_env E_EnvWith (E_env parent, Tr_exp withPrefix)
+{
+    E_env p = checked_malloc(sizeof(*p));
+
+    p->kind            = E_withEnv;
+    p->u.withPrefix    = withPrefix;
+    p->parents         = E_EnvList();
+
+    if (parent)
+        E_envListAppend (p->parents, parent);
+
+    return p;
+}
+
 void E_declare (E_env env, E_enventry e)
 {
     assert(env->kind == E_scopesEnv);
@@ -127,17 +139,63 @@ void E_declare (E_env env, E_enventry e)
     }
 }
 
-E_enventry E_resolveVFC (E_env env, S_symbol sym, bool checkParents)
+E_enventry E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents)
 {
-    E_enventry x = S_look(env->u.scopes.vfcenv, sym);
-    if (x)
-        return x;
+    E_enventry x = NULL;
+    switch (env->kind)
+    {
+        case E_scopesEnv:
+            x = S_look(env->u.scopes.vfcenv, sym);
+            if (x)
+                return x;
+            break;
+        case E_withEnv:
+            assert(0); // FIXME
+        // {
+        //     Tr_exp exp = env->u.withPrefix;
+
+        //     Ty_ty ty = Tr_ty(exp);
+        //     assert ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_pointer) || (ty->u.pointer->u.pointer->kind != Ty_record) );
+
+        //     exp = Tr_Deref(exp);
+        //     ty = Tr_ty(exp);
+
+        //     Ty_field f = ty->u.pointer->u.record.fields;
+        //     for (;f;f=f->next)
+        //     {
+        //         if (f->name == (*tkn)->u.sym)
+        //             break;
+        //     }
+        //     if (f)
+        //     {
+        //         Ty_ty fty = f->ty;
+        //         if (fty->kind == Ty_forwardPtr)
+        //         {
+        //             E_enventry x = E_resolveType(g_sleStack->env, f->ty->u.sForward);
+        //             if (!x)
+        //                 return EM_error(pos, "failed to resolve forward type of field");
+
+        //             f->ty = Ty_Pointer(mod->name, x->u.ty);
+        //         }
+
+        //         exp = Tr_Field(exp, f);
+
+        //         return 
+
+        //     }
+
+        //     break;
+        // }
+
+        default:
+            assert(0);
+    }
 
     if (checkParents)
     {
         for (E_envListNode n=env->parents->first; n; n=n->next)
         {
-            x = E_resolveVFC (n->env, sym, TRUE);
+            x = E_resolveVFC (pos, mod, n->env, sym, TRUE);
             if (x)
                 return x;
         }
@@ -147,6 +205,7 @@ E_enventry E_resolveVFC (E_env env, S_symbol sym, bool checkParents)
 
 E_enventry E_resolveType (E_env env, S_symbol sym)
 {
+    assert (env->kind==E_scopesEnv);
     E_enventry x = S_look(env->u.scopes.tenv, sym);
     if (x)
         return x;
@@ -163,19 +222,22 @@ E_enventry E_resolveType (E_env env, S_symbol sym)
 E_enventryList E_resolveSub (E_env env, S_symbol sym)
 {
     E_enventryList xl = NULL;
-    E_enventryList xll = S_look(env->u.scopes.senv, sym);
-    if (xll)
+    if (env->kind==E_scopesEnv)
     {
-        xl = E_EnventryList();
-        for (E_enventryListNode xn=xll->first; xn; xn=xn->next)
+        E_enventryList xll = S_look(env->u.scopes.senv, sym);
+        if (xll)
         {
-            E_enventryListAppend(xl, xn->e);
+            xl = E_EnventryList();
+            for (E_enventryListNode xn=xll->first; xn; xn=xn->next)
+            {
+                E_enventryListAppend(xl, xn->e);
+            }
         }
     }
 
     for (E_envListNode n=env->parents->first; n; n=n->next)
     {
-        xll = E_resolveSub (n->env, sym);
+        E_enventryList xll = E_resolveSub (n->env, sym);
         if (xll)
         {
             if (!xl)
@@ -378,10 +440,15 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
         switch (x->kind)
         {
             case E_varEntry:
-                if (x->u.var.ty->mod == smod)
-                    E_tyFindTypes (type_tab, x->u.var.ty);
+            {
+                Ty_ty ty = Tr_ty(x->u.var.var);
+                assert(ty->kind == Ty_varPtr);
+                ty = ty->u.pointer;
+                assert(ty->kind != Ty_varPtr);
+                if (ty->mod == smod)
+                    E_tyFindTypes (type_tab, ty);
                 break;
-
+            }
             case E_procEntry:
                 for (Ty_formal formal=x->u.proc.proc->formals; formal; formal = formal->next)
                 {
@@ -568,9 +635,14 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
         switch (x->kind)
         {
             case E_varEntry:
-                E_serializeTyRef(modTable, x->u.var.ty);
-                fwrite(&x->u.var.shared, 1, 1, modf);
+            {
+                Ty_ty ty = Tr_ty(x->u.var.var);
+                assert(ty->kind == Ty_varPtr);
+                ty = ty->u.pointer;
+                assert(ty->kind != Ty_varPtr);
+                E_serializeTyRef(modTable, ty);
                 break;
+            }
             case E_procEntry:
                 if (!x->u.proc.proc->isPrivate)
                     E_serializeTyProc(modTable, x->u.proc.proc);
@@ -1102,20 +1174,16 @@ E_module E_loadModule(S_symbol sModule)
             switch (e->kind)
             {
                 case E_varEntry:
-                    e->u.var.ty = E_deserializeTyRef(modTable, modf);
-                    if (!e->u.var.ty)
+                {
+                    Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                    if (!ty)
                     {
                         printf("%s: failed to read variable type.\n", modfn);
                         goto fail;
                     }
-                    if (fread(&e->u.var.shared, 1, 1, modf)!=1)
-                    {
-                        printf("%s: failed to read variable shared flag.\n", modfn);
-                        goto fail;
-                    }
-                    e->u.var.var = Tr_Var(Tr_externalVar(name, e->u.var.ty));
+                    e->u.var.var = Tr_Var(Tr_externalVar(name, ty));
                     break;
-
+                }
                 case E_procEntry:
                 {
                     e->u.proc.proc = E_deserializeTyProc(modTable, modf);
@@ -1125,7 +1193,7 @@ E_module E_loadModule(S_symbol sModule)
                         goto fail;
                     }
 
-                    e->u.proc.level = Tr_newLevel(e->u.proc.proc->label, 
+                    e->u.proc.level = Tr_newLevel(e->u.proc.proc->label,
                                                   !e->u.proc.proc->isPrivate,
                                                   e->u.proc.proc->formals,
                                                   e->u.proc.proc->isStatic);

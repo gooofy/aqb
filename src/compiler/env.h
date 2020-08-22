@@ -48,7 +48,7 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        struct {Tr_exp var; Ty_ty ty; bool shared;                      } var;
+        struct {Tr_exp var;                                             } var;
         struct {Tr_level level;
                 Ty_proc proc;
                 bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp);
@@ -70,7 +70,7 @@ struct E_enventryListNode_
     E_enventryListNode next;
 };
 
-E_enventry E_VarEntry  (S_symbol sym, Tr_exp var, Ty_ty ty, bool shared);
+E_enventry E_VarEntry  (S_symbol sym, Tr_exp var);
 E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), bool hasBody);
 E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
@@ -78,7 +78,7 @@ E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 E_env          E_EnvScopes   (E_env parent);
 E_env          E_EnvWith     (E_env parent, Tr_exp withPrefix);
 void           E_declare     (E_env env, E_enventry entry);
-E_enventry     E_resolveVFC  (E_env env, S_symbol sym, bool checkParents);
+E_enventry     E_resolveVFC  (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents);
 E_enventry     E_resolveType (E_env env, S_symbol sym);
 E_enventryList E_resolveSub  (E_env env, S_symbol sym);
 
