@@ -15,9 +15,18 @@ typedef struct E_module_           *E_module;
 
 struct E_env_
 {
-    S_scope   vfcenv;  // variables, functions and consts, S_symbol -> E_enventry
-    S_scope   tenv;    // types                          , S_symbol -> E_enventry
-    S_scope   senv;    // subs                           , S_symbol -> E_enventryList
+    enum {E_scopesEnv, E_withEnv} kind;
+
+    union
+    {
+        struct
+        {
+            S_scope   vfcenv;  // variables, functions and consts, S_symbol -> E_enventry
+            S_scope   tenv;    // types                          , S_symbol -> E_enventry
+            S_scope   senv;    // subs                           , S_symbol -> E_enventryList
+        } scopes;
+        Tr_exp withPrefix; // used in OOP for implicit this-> access as well as WITH stmts
+    } u;
 
     E_envList parents; // parent env(s) - envs can be nested
 };
@@ -39,7 +48,6 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        //struct {Tr_access access; Ty_ty ty; bool shared;                } var;
         struct {Tr_exp var; Ty_ty ty; bool shared;                      } var;
         struct {Tr_level level;
                 Ty_proc proc;
@@ -67,9 +75,10 @@ E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parse
 E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 
-E_env          E_Env         (E_env parent);
+E_env          E_EnvScopes   (E_env parent);
+E_env          E_EnvWith     (E_env parent, Tr_exp withPrefix);
 void           E_declare     (E_env env, E_enventry entry);
-E_enventry     E_resolveVFC  (E_env env, S_symbol sym);
+E_enventry     E_resolveVFC  (E_env env, S_symbol sym, bool checkParents);
 E_enventry     E_resolveType (E_env env, S_symbol sym);
 E_enventryList E_resolveSub  (E_env env, S_symbol sym);
 
