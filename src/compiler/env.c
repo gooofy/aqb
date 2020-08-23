@@ -38,14 +38,13 @@ E_enventry E_VarEntry(S_symbol sym, Tr_exp var)
     return p;
 }
 
-E_enventry E_ProcEntry (S_symbol sym, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp))
+E_enventry E_ProcEntry (S_symbol sym, Ty_proc proc)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
-    p->kind            = E_procEntry;
-    p->sym             = sym;
-    p->u.proc.proc     = proc;
-    p->u.proc.parsef   = parsef;
+    p->kind       = E_procEntry;
+    p->sym        = sym;
+    p->u.proc     = proc;
 
     return p;
 }
@@ -109,7 +108,7 @@ void E_declare (E_env env, E_enventry e)
     {
         case E_procEntry:
         {
-            if (e->u.proc.proc->returnTy->kind != Ty_void)
+            if (e->u.proc->returnTy->kind != Ty_void)
             {
                 S_enter(env->u.scopes.vfcenv, e->sym, e);
             }
@@ -448,13 +447,13 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 break;
             }
             case E_procEntry:
-                for (Ty_formal formal=x->u.proc.proc->formals; formal; formal = formal->next)
+                for (Ty_formal formal=x->u.proc->formals; formal; formal = formal->next)
                 {
                     if (formal->ty->mod == smod)
                         E_tyFindTypes (type_tab, formal->ty);
                 }
-                if (x->u.proc.proc->returnTy->mod == smod)
-                    E_tyFindTypes (type_tab, x->u.proc.proc->returnTy);
+                if (x->u.proc->returnTy->mod == smod)
+                    E_tyFindTypes (type_tab, x->u.proc->returnTy);
                 break;
             case E_constEntry:
                 {
@@ -483,14 +482,14 @@ static void E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_t
             switch (x->kind)
             {
                 case E_procEntry:
-                    for (Ty_formal formal=x->u.proc.proc->formals; formal; formal = formal->next)
+                    for (Ty_formal formal=x->u.proc->formals; formal; formal = formal->next)
                     {
                         if (formal->ty->mod == smod)
                             E_tyFindTypes (type_tab, formal->ty);
                     }
-                    if (x->u.proc.proc->returnTy)
-                        if (x->u.proc.proc->returnTy->mod == smod)
-                            E_tyFindTypes (type_tab, x->u.proc.proc->returnTy);
+                    if (x->u.proc->returnTy)
+                        if (x->u.proc->returnTy->mod == smod)
+                            E_tyFindTypes (type_tab, x->u.proc->returnTy);
                     break;
 
                 case E_typeEntry:
@@ -642,8 +641,8 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
                 break;
             }
             case E_procEntry:
-                if (!x->u.proc.proc->isPrivate)
-                    E_serializeTyProc(modTable, x->u.proc.proc);
+                if (!x->u.proc->isPrivate)
+                    E_serializeTyProc(modTable, x->u.proc);
                 break;
             case E_constEntry:
                 E_serializeTyConst(modTable, x->u.cExp);
@@ -673,8 +672,8 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
             switch (x->kind)
             {
                 case E_procEntry:
-                    if (!x->u.proc.proc->isPrivate)
-                        E_serializeTyProc(modTable, x->u.proc.proc);
+                    if (!x->u.proc->isPrivate)
+                        E_serializeTyProc(modTable, x->u.proc);
                     break;
                 case E_varEntry:
                 case E_constEntry:
@@ -1184,13 +1183,12 @@ E_module E_loadModule(S_symbol sModule)
                 }
                 case E_procEntry:
                 {
-                    e->u.proc.proc = E_deserializeTyProc(modTable, modf);
-                    if (!e->u.proc.proc)
+                    e->u.proc = E_deserializeTyProc(modTable, modf);
+                    if (!e->u.proc)
                     {
                         printf("%s: failed to read E_procEntry->proc.\n", modfn);
                         goto fail;
                     }
-                    e->u.proc.parsef = NULL;
                     break;
                 }
                 case E_constEntry:

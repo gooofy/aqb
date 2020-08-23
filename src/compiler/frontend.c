@@ -13,6 +13,9 @@
 
 const char *FE_filename = NULL;
 
+// map of builtin subs and functions that special parse functions:
+static TAB_table g_parsefs; // sym -> bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+
 // contains public env entries for export
 static E_module g_mod = NULL;
 
@@ -1265,7 +1268,7 @@ static bool statementOrAssignment(S_tkn *tkn);
 static bool transFunctionCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_symbol name;
-    Ty_proc  proc = e->u.proc.proc;
+    Ty_proc  proc = e->u.proc;
 
     if ((*tkn)->kind != S_IDENT)
         return FALSE;
@@ -1508,7 +1511,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
                     return TRUE;
                 }
 
-                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = x->u.proc.parsef;
+                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = TAB_look(g_parsefs, sym);
                 if (!parsef)
                     parsef = transFunctionCall;
 
@@ -2561,7 +2564,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             if (!lx)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
             E_enventry func = lx->first->e;
-            emit(Tr_callExp(arglist, func->u.proc.proc));
+            emit(Tr_callExp(arglist, func->u.proc));
         }
 
         if (isLogicalEOL(*tkn))
@@ -2583,7 +2586,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
                 E_enventry func = lx->first->e;
-                emit(Tr_callExp(NULL, func->u.proc.proc));
+                emit(Tr_callExp(NULL, func->u.proc));
                 if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
@@ -2601,7 +2604,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
-        emit(Tr_callExp(NULL, func->u.proc.proc));
+        emit(Tr_callExp(NULL, func->u.proc));
         return TRUE;
     }
 
@@ -3139,7 +3142,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
                     Tr_expList arglist = Tr_ExpList();
 
-                    emit(Tr_callExp(arglist, func->u.proc.proc));
+                    emit(Tr_callExp(arglist, func->u.proc));
 
                     *tkn = (*tkn)->next;
                     return TRUE;
@@ -3172,7 +3175,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     Tr_ExpListAppend(arglist, Tr_stringExp(EM_format(pos, "assertion failed." /* FIXME: add expression str */)));
     Tr_ExpListAppend(arglist, ex);
 
-    emit(Tr_callExp(arglist, func->u.proc.proc));
+    emit(Tr_callExp(arglist, func->u.proc));
 
     return TRUE;
 }
@@ -3408,7 +3411,7 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
             {
                 for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
                 {
-                    Ty_proc proc2 = nx->e->u.proc.proc;
+                    Ty_proc proc2 = nx->e->u.proc;
                     if (!matchProcSignatures(proc, proc2))
                         continue;
 
@@ -3425,7 +3428,7 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
             E_enventry x = E_resolveVFC((*tkn)->pos, g_mod, g_sleStack->env, name, /*checkParents=*/TRUE);
             if (x && (x->kind == E_procEntry) )
             {
-                Ty_proc proc2 = x->u.proc.proc;
+                Ty_proc proc2 = x->u.proc;
                 if (matchProcSignatures(proc, proc2))
                 {
                     // if we reach this point, we have a match
@@ -3603,7 +3606,7 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, T
 // subCall ::= ident ident* ["("] actualArgs [")"]
 static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
-    Ty_proc    proc   = e->u.proc.proc;
+    Ty_proc    proc   = e->u.proc;
     Ty_formal  formal = proc->formals;
 
     assert (e->kind==E_procEntry);
@@ -4123,7 +4126,7 @@ static bool checkProcMultiDecl(S_pos pos, Ty_proc proc)
 
                 bool match = TRUE;
                 S_symlist esl1 = proc->extraSyms;
-                S_symlist esl2 = x2->u.proc.proc->extraSyms;
+                S_symlist esl2 = x2->u.proc->extraSyms;
 
                 while (esl1 && esl2)
                 {
@@ -4148,7 +4151,7 @@ static bool checkProcMultiDecl(S_pos pos, Ty_proc proc)
 
     if (decl)
     {
-        if (decl->u.proc.proc->hasBody)
+        if (decl->u.proc->hasBody)
         {
             if (proc->hasBody)
                 return EM_error (pos, "Multiple function definitions.");
@@ -4160,7 +4163,7 @@ static bool checkProcMultiDecl(S_pos pos, Ty_proc proc)
             if (!proc->hasBody)
                 return EM_error (pos, "Multiple function declarations.");
         }
-        if (!matchProcSignatures (proc, decl->u.proc.proc))
+        if (!matchProcSignatures (proc, decl->u.proc))
             return EM_error (pos, "Function declaration vs definition mismatch.");
     }
     return TRUE;
@@ -4217,7 +4220,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
 
     Tr_level funlv = Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic);
-    E_enventry x   = E_ProcEntry(proc->name, proc, /*parsef=*/NULL);
+    E_enventry x   = E_ProcEntry(proc->name, proc);
 
     E_declare (g_mod->env, x);
     Tr_exp     returnVar = NULL;
@@ -4350,7 +4353,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             return EM_error((*tkn)->pos, "library call: less registers than arguments detected.");
     }
 
-    E_enventry x = E_ProcEntry(proc->name, proc, /*parsef=*/ NULL);
+    E_enventry x = E_ProcEntry(proc->name, proc);
     E_declare (g_mod->env, x);
 
     return TRUE;
@@ -5471,7 +5474,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         E_enventry func = E_resolveVFC(pos, g_mod, g_sleStack->env, fsym, /*checkParents=*/TRUE);
         if (!func)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        *exp = Tr_callExp(arglist, func->u.proc.proc);
+        *exp = Tr_callExp(arglist, func->u.proc);
     }
     return TRUE;
 }
@@ -5479,7 +5482,8 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 static void register_builtin_proc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
     Ty_proc proc = Ty_Proc(sym, /*extraSyms=*/NULL, /*label=*/NULL, /*isPrivate=*/TRUE, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
-    E_enventry e = E_ProcEntry (sym, proc, parsef);
+    E_enventry e = E_ProcEntry (sym, proc);
+    TAB_enter (g_parsefs, sym, parsef);
     E_declare(g_builtinsModule->env, e);
 }
 
@@ -5556,6 +5560,8 @@ static void registerBuiltins(void)
     S_DEFSTR          = S_Symbol("DEFSTR",           FALSE);
     S_GOSUB           = S_Symbol("GOSUB",            FALSE);
 
+    g_parsefs = TAB_empty();
+
     register_builtin_proc(S_DIM,      stmtDim          , Ty_Void());
     register_builtin_proc(S_PRINT,    stmtPrint        , Ty_Void());
     register_builtin_proc(S_FOR,      stmtForBegin     , Ty_Void());
@@ -5628,7 +5634,7 @@ static bool statementOrAssignment(S_tkn *tkn)
                 S_tkn tkn2 = (*tkn)->next;
 
                 int matches = 1;
-                for (S_symlist esl=x->u.proc.proc->extraSyms; esl; esl=esl->next)
+                for (S_symlist esl=x->u.proc->extraSyms; esl; esl=esl->next)
                 {
                     if ( (tkn2->kind != S_IDENT) || (esl->sym != tkn2->u.sym) )
                         break;
@@ -5645,8 +5651,7 @@ static bool statementOrAssignment(S_tkn *tkn)
             if (xBest)
             {
                 S_tkn tkn2 = *tkn;
-                bool (*parsef)(S_tkn *tkn, E_enventry x, Tr_exp *exp) = xBest->u.proc.parsef;
-
+                bool (*parsef)(S_tkn *tkn, E_enventry x, Tr_exp *exp) = TAB_look(g_parsefs, xBest->sym);
                 if (!parsef)
                     parsef = transSubCall;
 

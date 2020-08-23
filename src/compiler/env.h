@@ -48,11 +48,10 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        struct {Tr_exp var;                                             } var;
-        struct {Ty_proc proc;
-                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp);  } proc;
+        struct {Tr_exp var;   } var;
+        Ty_proc  proc;
         Ty_const cExp;
-        Ty_ty ty;
+        Ty_ty    ty;
     } u;
 };
 
@@ -67,10 +66,10 @@ struct E_enventryListNode_
     E_enventryListNode next;
 };
 
-E_enventry E_VarEntry  (S_symbol sym, Tr_exp var);
-E_enventry E_ProcEntry (S_symbol sym, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp));
-E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
-E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
+E_enventry E_VarEntry   (S_symbol sym, Tr_exp   var  );
+E_enventry E_ProcEntry  (S_symbol sym, Ty_proc  proc );
+E_enventry E_ConstEntry (S_symbol sym, Ty_const c    );
+E_enventry E_TypeEntry  (S_symbol sym, Ty_ty    ty   );
 
 E_env          E_EnvScopes   (E_env parent);
 E_env          E_EnvWith     (E_env parent, Tr_exp withPrefix);
