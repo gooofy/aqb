@@ -31,9 +31,9 @@ E_enventry E_VarEntry(S_symbol sym, Tr_exp var)
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
-    p->kind         = E_varEntry;
-    p->sym          = sym;
-    p->u.var.var    = var;
+    p->kind  = E_varEntry;
+    p->sym   = sym;
+    p->u.var = var;
 
     return p;
 }
@@ -438,7 +438,7 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
         {
             case E_varEntry:
             {
-                Ty_ty ty = Tr_ty(x->u.var.var);
+                Ty_ty ty = Tr_ty(x->u.var);
                 assert(ty->kind == Ty_varPtr);
                 ty = ty->u.pointer;
                 assert(ty->kind != Ty_varPtr);
@@ -633,7 +633,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
         {
             case E_varEntry:
             {
-                Ty_ty ty = Tr_ty(x->u.var.var);
+                Ty_ty ty = Tr_ty(x->u.var);
                 assert(ty->kind == Ty_varPtr);
                 ty = ty->u.pointer;
                 assert(ty->kind != Ty_varPtr);
@@ -1178,7 +1178,7 @@ E_module E_loadModule(S_symbol sModule)
                         printf("%s: failed to read variable type.\n", modfn);
                         goto fail;
                     }
-                    e->u.var.var = Tr_Var(Tr_externalVar(name, ty));
+                    e->u.var = Tr_Var(Tr_externalVar(name, ty));
                     break;
                 }
                 case E_procEntry:

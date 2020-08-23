@@ -48,7 +48,7 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        struct {Tr_exp var;   } var;
+        Tr_exp   var;
         Ty_proc  proc;
         Ty_const cExp;
         Ty_ty    ty;

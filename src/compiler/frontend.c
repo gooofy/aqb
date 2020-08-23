@@ -1527,7 +1527,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
                 break;
 
             case E_varEntry:
-                *exp = Tr_DeepCopy(x->u.var.var);
+                *exp = Tr_DeepCopy(x->u.var);
                 *tkn = (*tkn)->next;
                 break;
 
@@ -1548,7 +1548,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool ref, bool leftHandSide)
                 break;
 
             case E_varEntry:
-                *exp = Tr_DeepCopy(x->u.var.var);
+                *exp = Tr_DeepCopy(x->u.var);
                 *tkn = (*tkn)->next;
                 break;
 
@@ -2321,7 +2321,7 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool sh
 
     if (conv_init)
     {
-        Tr_exp e = Tr_DeepCopy(x->u.var.var);
+        Tr_exp e = Tr_DeepCopy(x->u.var);
         Ty_ty ty = Tr_ty(e);
         if (ty->kind == Ty_varPtr)
             e = Tr_Deref(e);
@@ -2643,7 +2643,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     {
         x = autovar(sle->u.forLoop.sVar, (*tkn)->pos);
     }
-    sle->u.forLoop.var = Tr_DeepCopy(x->u.var.var);
+    sle->u.forLoop.var = Tr_DeepCopy(x->u.var);
     varTy = Tr_ty(sle->u.forLoop.var);
     if (varTy->kind == Ty_varPtr)
     {
@@ -3686,9 +3686,9 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     // function pointer ?
     E_enventry x = E_resolveVFC((*tkn)->pos, g_mod, g_sleStack->env, name, /*checkParents=*/TRUE);
-    if (x && (x->kind == E_varEntry) && (Tr_ty(x->u.var.var)->kind == Ty_varPtr) && (Tr_ty(x->u.var.var)->u.pointer->kind == Ty_procPtr))
+    if (x && (x->kind == E_varEntry) && (Tr_ty(x->u.var)->kind == Ty_varPtr) && (Tr_ty(x->u.var)->u.pointer->kind == Ty_procPtr))
     {
-        Ty_proc    proc   = Tr_ty(x->u.var.var)->u.pointer->u.procPtr;
+        Ty_proc    proc   = Tr_ty(x->u.var)->u.pointer->u.procPtr;
         Ty_formal  formal = proc->formals;
 
         *tkn = (*tkn)->next;
@@ -3714,7 +3714,7 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
             return FALSE;
 
-        Tr_exp subPtr = Tr_DeepCopy(x->u.var.var);
+        Tr_exp subPtr = Tr_DeepCopy(x->u.var);
         emit(Tr_callPtrExp(Tr_Deref(subPtr), assignedArgs, proc));
 
         return TRUE;
@@ -4239,7 +4239,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         E_enventry lx = E_VarEntry(formals->name, Tr_Var(Tr_accessListHead(acl)));
         E_declare(lenv, lx);
         if (proc->tyClsPtr && !wenv->u.withPrefix)
-            wenv->u.withPrefix = Tr_DeepCopy(lx->u.var.var);
+            wenv->u.withPrefix = Tr_DeepCopy(lx->u.var);
     }
 
     // function return var
@@ -4316,7 +4316,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!x)
             return EM_error((*tkn)->pos, "Library base %s undeclared.", S_name(sLibBase));
 
-        Temp_label l = Tr_heapLabel(x->u.var.var);
+        Temp_label l = Tr_heapLabel(x->u.var);
         if (!l)
             return EM_error((*tkn)->pos, "Library base %s is not a global variable.", S_name(sLibBase));
 
