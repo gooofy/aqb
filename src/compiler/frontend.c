@@ -4003,6 +4003,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
     return TRUE;
 }
 
+#if 0 // FIXME: remove
 static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
 {
     Tr_level lv = Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic);
@@ -4100,7 +4101,70 @@ static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
     }
     return FALSE;
 }
+#endif
 
+static bool checkProcMultiDecl(S_pos pos, Ty_proc proc)
+{
+    // check for multiple declarations or definitions, check for matching signatures
+    E_enventry decl=NULL;
+    if (proc->returnTy->kind != Ty_void)
+    {
+        decl = E_resolveVFC(pos, g_mod, g_sleStack->env, proc->name, /*checkParents=*/TRUE);
+    }
+    else
+    {
+        E_enventryList lx = E_resolveSub(g_sleStack->env, proc->name);
+        if (lx)
+        {
+            // we need an exact match (same extra syms)
+            for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
+            {
+                E_enventry x2 = nx->e;
+
+                bool match = TRUE;
+                S_symlist esl1 = proc->extraSyms;
+                S_symlist esl2 = x2->u.proc.proc->extraSyms;
+
+                while (esl1 && esl2)
+                {
+                    if ( esl1->sym != esl2->sym )
+                    {
+                        match = FALSE;
+                        break;
+                    }
+                    esl1 = esl1->next;
+                    esl2 = esl2->next;
+                }
+                if (esl1 || esl2)
+                    continue;
+                if (match)
+                {
+                    decl = x2;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (decl)
+    {
+        if (decl->u.proc.proc->hasBody)
+        {
+            if (proc->hasBody)
+                return EM_error (pos, "Multiple function definitions.");
+            else
+                return EM_error (pos, "Function is already defined.");
+        }
+        else
+        {
+            if (!proc->hasBody)
+                return EM_error (pos, "Multiple function declarations.");
+        }
+        if (!matchProcSignatures (proc, decl->u.proc.proc))
+            return EM_error (pos, "Function declaration vs definition mismatch.");
+    }
+    return TRUE;
+}
 
 // procStmtBegin ::= [ PRIVATE | PUBLIC ] ( SUB | FUNCTION ) procHeader
 static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
@@ -4147,12 +4211,15 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     Ty_proc proc;
     if (!procHeader(tkn, pos, isPrivate, isFunction, /*forward=*/TRUE, &proc))
         return FALSE;
+    proc->hasBody = TRUE;
 
-    E_enventry x;
-    if (!transProc(pos, proc, &x, /*hasBody=*/TRUE))
+    if (!checkProcMultiDecl(pos, proc))
         return FALSE;
 
-    Tr_level   funlv = x->u.proc.level;
+    Tr_level funlv = Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic);
+    E_enventry x   = E_ProcEntry(proc->name, proc, /*parsef=*/NULL);
+
+    E_declare (g_mod->env, x);
     Tr_exp     returnVar = NULL;
 
     E_env lenv = g_sleStack->env;
@@ -4222,6 +4289,8 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     if (!procHeader(tkn, pos, isPrivate, isFunction, /*forward=*/TRUE, &proc))
         return FALSE;
+    if (!checkProcMultiDecl(pos, proc))
+        return FALSE;
 
     if (isSym(*tkn, S_LIB))
     {
@@ -4281,8 +4350,8 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             return EM_error((*tkn)->pos, "library call: less registers than arguments detected.");
     }
 
-    E_enventry x;
-    transProc((*tkn)->pos, proc, &x, /*hasBody=*/FALSE);
+    E_enventry x = E_ProcEntry(proc->name, proc, /*parsef=*/ NULL);
+    E_declare (g_mod->env, x);
 
     return TRUE;
 }
@@ -4613,8 +4682,16 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             if (!procHeader(tkn, (*tkn)->pos, /*isPrivate=*/TRUE, isFunction, /*forward=*/TRUE, &proc))
                 return FALSE;
 
-            E_enventry x;
-            transProc(mpos, proc, &x, /*hasBody=*/FALSE);
+            Ty_method method = Ty_Method(proc);
+            if (g_sleStack->u.typeDecl.eFirst)
+            {
+                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, method);
+                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
+            }
+            else
+            {
+                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, method);
+            }
         }
         else
         {
@@ -5402,7 +5479,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 static void register_builtin_proc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
     Ty_proc proc = Ty_Proc(sym, /*extraSyms=*/NULL, /*label=*/NULL, /*isPrivate=*/TRUE, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
-    E_enventry e = E_ProcEntry (sym, /*level=*/NULL, proc, parsef, /*hasBody=*/TRUE);
+    E_enventry e = E_ProcEntry (sym, proc, parsef);
     E_declare(g_builtinsModule->env, e);
 }
 
@@ -5489,7 +5566,7 @@ static void registerBuiltins(void)
     register_builtin_proc(S_END,      stmtEnd          , Ty_Void());
     register_builtin_proc(S_ENDIF,    stmtEnd          , Ty_Void());
     register_builtin_proc(S_ASSERT,   stmtAssert       , Ty_Void());
-    register_builtin_proc(S_OPTION, stmtOption         , Ty_Void());
+    register_builtin_proc(S_OPTION,   stmtOption       , Ty_Void());
     register_builtin_proc(S_SUB,      stmtProcBegin    , Ty_Void());
     register_builtin_proc(S_FUNCTION, stmtProcBegin    , Ty_Void());
     register_builtin_proc(S_CALL,     stmtCall         , Ty_Void());

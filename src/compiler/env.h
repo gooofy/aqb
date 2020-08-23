@@ -49,11 +49,8 @@ struct E_enventry_
     union
     {
         struct {Tr_exp var;                                             } var;
-        struct {Tr_level level;
-                Ty_proc proc;
-                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp);
-                bool hasBody;
-                                                                        } proc;
+        struct {Ty_proc proc;
+                bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp);  } proc;
         Ty_const cExp;
         Ty_ty ty;
     } u;
@@ -71,7 +68,7 @@ struct E_enventryListNode_
 };
 
 E_enventry E_VarEntry  (S_symbol sym, Tr_exp var);
-E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), bool hasBody);
+E_enventry E_ProcEntry (S_symbol sym, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp));
 E_enventry E_ConstEntry(S_symbol sym, Ty_const c);
 E_enventry E_TypeEntry (S_symbol sym, Ty_ty ty);
 

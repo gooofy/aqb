@@ -122,12 +122,11 @@ void Ty_RecordAddMethod (Ty_ty recordType, Ty_method method)
     }
 }
 
-Ty_method Ty_Method (Ty_proc proc, void *lv)
+Ty_method Ty_Method (Ty_proc proc)
 {
     Ty_method p = checked_malloc(sizeof(*p));
 
     p->proc  = proc;
-    p->lv    = lv;
     p->next  = NULL;
 
     return p;
@@ -485,6 +484,7 @@ Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPri
     p->offset     = offset;
     p->libBase    = libBase;
     p->tyClsPtr   = tyClsPtr;
+    p->hasBody    = FALSE;
 
     return p;
 }

@@ -38,16 +38,14 @@ E_enventry E_VarEntry(S_symbol sym, Tr_exp var)
     return p;
 }
 
-E_enventry E_ProcEntry (S_symbol sym, Tr_level level, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), bool hasBody)
+E_enventry E_ProcEntry (S_symbol sym, Ty_proc proc, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp))
 {
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind            = E_procEntry;
     p->sym             = sym;
-    p->u.proc.level    = level;
     p->u.proc.proc     = proc;
     p->u.proc.parsef   = parsef;
-    p->u.proc.hasBody  = hasBody;
 
     return p;
 }
@@ -1192,11 +1190,6 @@ E_module E_loadModule(S_symbol sModule)
                         printf("%s: failed to read E_procEntry->proc.\n", modfn);
                         goto fail;
                     }
-
-                    e->u.proc.level = Tr_newLevel(e->u.proc.proc->label,
-                                                  !e->u.proc.proc->isPrivate,
-                                                  e->u.proc.proc->formals,
-                                                  e->u.proc.proc->isStatic);
                     e->u.proc.parsef = NULL;
                     break;
                 }
