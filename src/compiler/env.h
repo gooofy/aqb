@@ -44,13 +44,12 @@ struct E_envListNode_
 
 struct E_enventry_
 {
-    enum {E_varEntry, E_procEntry, E_constEntry, E_typeEntry} kind;
+    enum {E_vfcEntry, E_procEntry, E_typeEntry} kind;
     S_symbol sym;
     union
     {
         Tr_exp   var;
         Ty_proc  proc;
-        Ty_const cExp;
         Ty_ty    ty;
     } u;
 };
@@ -66,9 +65,8 @@ struct E_enventryListNode_
     E_enventryListNode next;
 };
 
-E_enventry E_VarEntry   (S_symbol sym, Tr_exp   var  );
+E_enventry E_VFCEntry   (S_symbol sym, Tr_exp   var  );
 E_enventry E_ProcEntry  (S_symbol sym, Ty_proc  proc );
-E_enventry E_ConstEntry (S_symbol sym, Ty_const c    );
 E_enventry E_TypeEntry  (S_symbol sym, Ty_ty    ty   );
 
 E_env          E_EnvScopes   (E_env parent);
