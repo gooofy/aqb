@@ -1113,7 +1113,7 @@ Tr_exp Tr_seqExp(Tr_expList el)
     return Tr_Nx(stm);
 }
 
-Tr_exp Tr_callExp(Tr_level funclv, Tr_level lv, Tr_expList actualParams, Ty_proc proc)
+Tr_exp Tr_callExp(Tr_expList actualParams, Ty_proc proc)
 {
     // cdecl calling convention (right-to-left order)
     T_expList aps = NULL;

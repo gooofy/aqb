@@ -81,7 +81,7 @@ Tr_exp        Tr_rtsExp(void);
 Tr_exp        Tr_labelExp(Temp_label lbl);
 Temp_label    Tr_heapLabel(Tr_exp var);
 
-Tr_exp        Tr_callExp(Tr_level funclv, Tr_level lv, Tr_expList actualParams, Ty_proc proc);
+Tr_exp        Tr_callExp(Tr_expList actualParams, Ty_proc proc);
 Tr_exp        Tr_callPtrExp(Tr_exp funcPtr, Tr_expList expList, Ty_proc proc);
 
 Tr_exp        Tr_constExp(Ty_const c);

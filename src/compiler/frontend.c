@@ -1292,7 +1292,7 @@ static bool transFunctionCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         *tkn = (*tkn)->next;
     }
 
-    *exp = Tr_callExp(e->u.proc.level, g_sleStack->lv, assignedArgs, proc);
+    *exp = Tr_callExp(assignedArgs, proc);
     return TRUE;
 }
 
@@ -1395,7 +1395,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                     return EM_error((*tkn)->pos, ") expected.");
                 *tkn = (*tkn)->next;
 
-                *exp = Tr_callExp(method->lv, g_sleStack->lv, assignedArgs, method->proc);
+                *exp = Tr_callExp(assignedArgs, method->proc);
                 return TRUE;
             }
 
@@ -2561,7 +2561,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             if (!lx)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
             E_enventry func = lx->first->e;
-            emit(Tr_callExp(func->u.proc.level, g_sleStack->lv, arglist, func->u.proc.proc));
+            emit(Tr_callExp(arglist, func->u.proc.proc));
         }
 
         if (isLogicalEOL(*tkn))
@@ -2583,7 +2583,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
                 E_enventry func = lx->first->e;
-                emit(Tr_callExp(func->u.proc.level, g_sleStack->lv, NULL, func->u.proc.proc));
+                emit(Tr_callExp(NULL, func->u.proc.proc));
                 if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
@@ -2601,7 +2601,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
-        emit(Tr_callExp(func->u.proc.level, g_sleStack->lv, NULL, func->u.proc.proc));
+        emit(Tr_callExp(NULL, func->u.proc.proc));
         return TRUE;
     }
 
@@ -3139,7 +3139,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
                     Tr_expList arglist = Tr_ExpList();
 
-                    emit(Tr_callExp(func->u.proc.level, g_sleStack->lv, arglist, func->u.proc.proc));
+                    emit(Tr_callExp(arglist, func->u.proc.proc));
 
                     *tkn = (*tkn)->next;
                     return TRUE;
@@ -3172,7 +3172,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     Tr_ExpListAppend(arglist, Tr_stringExp(EM_format(pos, "assertion failed." /* FIXME: add expression str */)));
     Tr_ExpListAppend(arglist, ex);
 
-    emit(Tr_callExp(func->u.proc.level, g_sleStack->lv, arglist, func->u.proc.proc));
+    emit(Tr_callExp(arglist, func->u.proc.proc));
 
     return TRUE;
 }
@@ -3649,7 +3649,7 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
         return FALSE;
 
-    emit(Tr_callExp(e->u.proc.level, g_sleStack->lv, assignedArgs, proc));
+    emit(Tr_callExp(assignedArgs, proc));
     return TRUE;
 }
 
@@ -5394,7 +5394,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         E_enventry func = E_resolveVFC(pos, g_mod, g_sleStack->env, fsym, /*checkParents=*/TRUE);
         if (!func)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        *exp = Tr_callExp(func->u.proc.level, g_sleStack->lv, arglist, func->u.proc.proc);
+        *exp = Tr_callExp(arglist, func->u.proc.proc);
     }
     return TRUE;
 }
