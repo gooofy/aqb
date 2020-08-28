@@ -118,42 +118,44 @@ Tr_exp E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool chec
                 return x->u.var;
             break;
         case E_withEnv:
-            assert(0); // FIXME
-        // {
-        //     Tr_exp exp = env->u.withPrefix;
+        {
+            Tr_exp exp = env->u.withPrefix;
 
-        //     Ty_ty ty = Tr_ty(exp);
-        //     assert ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_pointer) || (ty->u.pointer->u.pointer->kind != Ty_record) );
+            Ty_ty ty = Tr_ty(exp);
+            assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
 
-        //     exp = Tr_Deref(exp);
-        //     ty = Tr_ty(exp);
+            exp = Tr_Deref(exp);
+            ty = Tr_ty(exp);
 
-        //     Ty_field f = ty->u.pointer->u.record.fields;
-        //     for (;f;f=f->next)
-        //     {
-        //         if (f->name == (*tkn)->u.sym)
-        //             break;
-        //     }
-        //     if (f)
-        //     {
-        //         Ty_ty fty = f->ty;
-        //         if (fty->kind == Ty_forwardPtr)
-        //         {
-        //             E_enventry x = E_resolveType(g_sleStack->env, f->ty->u.sForward);
-        //             if (!x)
-        //                 return EM_error(pos, "failed to resolve forward type of field");
+            Ty_field f = ty->u.pointer->u.record.fields;
+            for (;f;f=f->next)
+            {
+                if (f->name == sym)
+                    break;
+            }
+            if (f)
+            {
+                Ty_ty fty = f->ty;
+                if (fty->kind == Ty_forwardPtr)
+                {
+                    Ty_ty ftyr = E_resolveType(env, f->ty->u.sForward);
+                    if (!ftyr)
+                    {
+                        EM_error(pos, "failed to resolve forward type of field");
+                        return NULL;
+                    }
 
-        //             f->ty = Ty_Pointer(mod->name, x->u.ty);
-        //         }
+                    f->ty = Ty_Pointer(mod->name, ftyr);
+                }
 
-        //         exp = Tr_Field(exp, f);
+                exp = Tr_Field(exp, f);
 
-        //         return 
+                return exp;
 
-        //     }
+            }
 
-        //     break;
-        // }
+            break;
+        }
 
         default:
             assert(0);
