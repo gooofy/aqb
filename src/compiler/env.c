@@ -11,9 +11,11 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     21
+#define SYM_VERSION     22
 
 E_module g_builtinsModule = NULL;
+
+typedef enum { vfcFunc, vfcConst, vfcVar } vfcKind;
 
 typedef struct E_dirSearchPath_ *E_dirSearchPath;
 
@@ -27,37 +29,52 @@ static E_dirSearchPath symSP=NULL, symSPLast=NULL;
 
 static TAB_table modCache; // sym -> E_module
 
-E_enventry E_VFCEntry(S_symbol sym, Tr_exp var)
+void E_declareVFC (E_env env, S_symbol sym, Tr_exp var)
 {
+    assert(env->kind == E_scopesEnv);
+
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind  = E_vfcEntry;
     p->sym   = sym;
     p->u.var = var;
 
-    return p;
+    assert (!S_look(env->u.scopes.vfcenv, sym));
+    S_enter(env->u.scopes.vfcenv, sym, p);
 }
 
-E_enventry E_ProcEntry (S_symbol sym, Ty_proc proc)
+void E_declareSub (E_env env, S_symbol sym, Ty_proc proc)
 {
+    assert(env->kind == E_scopesEnv);
+    assert (proc->returnTy->kind == Ty_void);
+
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind       = E_procEntry;
     p->sym        = sym;
     p->u.proc     = proc;
 
-    return p;
+    E_enventryList lx = S_look(env->u.scopes.senv, sym);
+    if (!lx)
+    {
+        lx = E_EnventryList();
+        S_enter(env->u.scopes.senv, sym, lx);
+    }
+    E_enventryListAppend(lx, p);
 }
 
-E_enventry E_TypeEntry(S_symbol sym, Ty_ty ty)
+void E_declareType (E_env env, S_symbol sym, Ty_ty ty)
 {
+    assert(env->kind == E_scopesEnv);
+
     E_enventry p = checked_malloc(sizeof(*p));
 
     p->kind         = E_typeEntry;
     p->sym          = sym;
     p->u.ty         = ty;
 
-    return p;
+    assert (!S_look(env->u.scopes.tenv, sym));
+    S_enter(env->u.scopes.tenv, sym, p);
 }
 
 E_env E_EnvScopes (E_env parent)
@@ -90,41 +107,7 @@ E_env E_EnvWith (E_env parent, Tr_exp withPrefix)
     return p;
 }
 
-void E_declare (E_env env, E_enventry e)
-{
-    assert(env->kind == E_scopesEnv);
-    switch (e->kind)
-    {
-        case E_procEntry:
-        {
-            if (e->u.proc->returnTy->kind != Ty_void)
-            {
-                S_enter(env->u.scopes.vfcenv, e->sym, e);
-            }
-            else
-            {
-                E_enventryList lx = S_look(env->u.scopes.senv, e->sym);
-                if (!lx)
-                {
-                    lx = E_EnventryList();
-                    S_enter(env->u.scopes.senv, e->sym, lx);
-                }
-                E_enventryListAppend(lx, e);
-            }
-            break;
-        }
-        case E_vfcEntry:
-            assert (!S_look(env->u.scopes.vfcenv, e->sym));
-            S_enter(env->u.scopes.vfcenv, e->sym, e);
-            break;
-        case E_typeEntry:
-            assert (!S_look(env->u.scopes.tenv, e->sym));
-            S_enter(env->u.scopes.tenv, e->sym, e);
-            break;
-    }
-}
-
-E_enventry E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents)
+Tr_exp E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents)
 {
     E_enventry x = NULL;
     switch (env->kind)
@@ -132,7 +115,7 @@ E_enventry E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool 
         case E_scopesEnv:
             x = S_look(env->u.scopes.vfcenv, sym);
             if (x)
-                return x;
+                return x->u.var;
             break;
         case E_withEnv:
             assert(0); // FIXME
@@ -180,26 +163,26 @@ E_enventry E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool 
     {
         for (E_envListNode n=env->parents->first; n; n=n->next)
         {
-            x = E_resolveVFC (pos, mod, n->env, sym, TRUE);
-            if (x)
-                return x;
+            Tr_exp var = E_resolveVFC (pos, mod, n->env, sym, TRUE);
+            if (var)
+                return var;
         }
     }
     return NULL;
 }
 
-E_enventry E_resolveType (E_env env, S_symbol sym)
+Ty_ty E_resolveType (E_env env, S_symbol sym)
 {
     assert (env->kind==E_scopesEnv);
     E_enventry x = S_look(env->u.scopes.tenv, sym);
     if (x)
-        return x;
+        return x->u.ty;
 
     for (E_envListNode n=env->parents->first; n; n=n->next)
     {
-        x = E_resolveType (n->env, sym);
-        if (x)
-            return x;
+        Ty_ty ty = E_resolveType (n->env, sym);
+        if (ty)
+            return ty;
     }
     return NULL;
 }
@@ -308,14 +291,13 @@ E_module E_Module(S_symbol name)
 
 static void declare_builtin_type(string name, Ty_ty ty)
 {
-    E_enventry e = E_TypeEntry(S_Symbol(name, FALSE), ty);
-    E_declare (g_builtinsModule->env, e);
+    E_declareType(g_builtinsModule->env, S_Symbol(name, FALSE), ty);
     TAB_enter (g_builtinsModule->tyTable, (void *) (intptr_t) ty->uid, ty);
 }
 
 static void declare_builtin_const(string name, Ty_const cExp)
 {
-    E_declare(g_builtinsModule->env, E_VFCEntry(S_Symbol(name, FALSE), Tr_constExp(cExp)));
+    E_declareVFC(g_builtinsModule->env, S_Symbol(name, FALSE), Tr_constExp(cExp));
 }
 
 static FILE     *modf     = NULL;
@@ -412,6 +394,15 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             if (ty->u.procPtr->tyClsPtr)
                 E_tyFindTypes (type_tab, ty->u.procPtr->tyClsPtr);
             break;
+        case Ty_prc:
+            for (Ty_formal formals = ty->u.proc->formals; formals; formals=formals->next)
+                E_tyFindTypes (type_tab, formals->ty);
+
+            if (ty->u.proc->returnTy)
+                E_tyFindTypes (type_tab, ty->u.proc->returnTy);
+            if (ty->u.proc->tyClsPtr)
+                E_tyFindTypes (type_tab, ty->u.proc->tyClsPtr);
+            break;
     }
 }
 
@@ -434,22 +425,30 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 }
                 else
                 {
-                    assert(ty->kind == Ty_varPtr);
-                    ty = ty->u.pointer;
-                    assert(ty->kind != Ty_varPtr);
-                    if (ty->mod == smod)
-                        E_tyFindTypes (type_tab, ty);
-                }                
+                    if (ty->kind == Ty_prc)
+                    {
+                        Ty_proc proc = ty->u.proc;
+                        for (Ty_formal formal=proc->formals; formal; formal = formal->next)
+                        {
+                            if (formal->ty->mod == smod)
+                                E_tyFindTypes (type_tab, formal->ty);
+                        }
+                        if (proc->returnTy->mod == smod)
+                            E_tyFindTypes (type_tab, proc->returnTy);
+                    }
+                    else
+                    {
+                        assert(ty->kind == Ty_varPtr);
+                        ty = ty->u.pointer;
+                        assert(ty->kind != Ty_varPtr);
+                        if (ty->mod == smod)
+                            E_tyFindTypes (type_tab, ty);
+                    }
+                }
                 break;
             }
             case E_procEntry:
-                for (Ty_formal formal=x->u.proc->formals; formal; formal = formal->next)
-                {
-                    if (formal->ty->mod == smod)
-                        E_tyFindTypes (type_tab, formal->ty);
-                }
-                if (x->u.proc->returnTy->mod == smod)
-                    E_tyFindTypes (type_tab, x->u.proc->returnTy);
+                assert(0); // no subs allowed in this scope
                 break;
             case E_typeEntry:
                 E_tyFindTypes (type_tab, x->u.ty);
@@ -521,6 +520,9 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             break;
         case Ty_procPtr:
             E_serializeTyProc(modTable, ty->u.procPtr);
+            break;
+        case Ty_prc:
+            E_serializeTyProc(modTable, ty->u.proc);
             break;
         case Ty_bool:
         case Ty_byte:
@@ -624,25 +626,35 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
                 Ty_ty ty = Tr_ty(x->u.var);
                 if (Tr_isConst(x->u.var))
                 {
-                    E_serializeTyRef(modTable, ty);                    
-                    bool isConst = TRUE;
-                    fwrite (&isConst, 1, 1, modf);
+                    vfcKind k = vfcConst;
+                    fwrite (&k, 1, 1, modf);
+                    E_serializeTyRef(modTable, ty);
                     E_serializeTyConst(modTable, Tr_getConst(x->u.var));
                 }
                 else
                 {
-                    assert(ty->kind == Ty_varPtr);
-                    ty = ty->u.pointer;
-                    assert(ty->kind != Ty_varPtr);
-                    E_serializeTyRef(modTable, ty);                    
-                    bool isConst = FALSE;
-                    fwrite (&isConst, 1, 1, modf);
+                    if (ty->kind == Ty_prc)
+                    {
+                        Ty_proc proc = ty->u.proc;
+                        assert (!proc->isPrivate);
+                        vfcKind k = vfcFunc;
+                        fwrite (&k, 1, 1, modf);
+                        E_serializeTyProc(modTable, proc);
+                    }
+                    else
+                    {
+                        vfcKind k = vfcVar;
+                        fwrite (&k, 1, 1, modf);
+                        assert(ty->kind == Ty_varPtr);
+                        ty = ty->u.pointer;
+                        assert(ty->kind != Ty_varPtr);
+                        E_serializeTyRef(modTable, ty);
+                    }
                 }
                 break;
             }
             case E_procEntry:
-                if (!x->u.proc->isPrivate)
-                    E_serializeTyProc(modTable, x->u.proc);
+                assert(0); // subs are not allowed in this scope
                 break;
             case E_typeEntry:
                 E_serializeTyRef(modTable, x->u.ty);
@@ -1151,66 +1163,91 @@ E_module E_loadModule(S_symbol sModule)
         uint8_t kind;
         while (fread(&kind, 1, 1, modf)==1)
         {
-            E_enventry e = checked_malloc(sizeof(*e));
-            e->kind = kind;
             string name = strdeserialize(modf);
             if (!name)
             {
                 printf("%s: failed to read env entry symbol name.\n", modfn);
                 goto fail;
             }
-            e->sym = S_Symbol(name, FALSE);
+            S_symbol sym = S_Symbol(name, FALSE);
 
             if (OPT_get(OPTION_VERBOSE))
                 printf ("%s: reading env entry name=%s\n", S_name(sModule), name);
 
-            switch (e->kind)
+            switch (kind)
             {
                 case E_vfcEntry:
                 {
-                    Ty_ty ty = E_deserializeTyRef(modTable, modf);
-                    if (!ty)
+                    vfcKind k = vfcFunc;
+                    if (fread(&k, 1, 1, modf)!=1)
                     {
-                        printf("%s: failed to read variable type.\n", modfn);
+                        printf("%s: failed to read vcf kind field.\n", modfn);
                         goto fail;
                     }
-                    bool isConst;
-                    if (fread(&isConst, 1, 1, modf)!=1)
+                    Tr_exp var = NULL;
+                    switch (k)
                     {
-                        printf("%s: failed to read vcf isConst field.\n", modfn);
-                        goto fail;
-                    }
-                    if (isConst)
-                    {
-                        Ty_const cExp;
-                        if (!E_deserializeTyConst(modTable, modf, &cExp))
+                        case vfcFunc:
                         {
-                            printf("%s: failed to read const expression.\n", modfn);
-                            goto fail;
+                            Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                            if (!proc)
+                            {
+                                printf("%s: failed to read function proc.\n", modfn);
+                                goto fail;
+                            }
+                            var = Tr_funPtrExp(proc->label, Ty_Prc(mod->name, proc));
+                            break;
                         }
-                        e->u.var = Tr_constExp(cExp);
+                        case vfcConst:
+                        {
+                            Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                            if (!ty)
+                            {
+                                printf("%s: failed to read const type.\n", modfn);
+                                goto fail;
+                            }
+                            Ty_const cExp;
+                            if (!E_deserializeTyConst(modTable, modf, &cExp))
+                            {
+                                printf("%s: failed to read const expression.\n", modfn);
+                                goto fail;
+                            }
+                            var = Tr_constExp(cExp);
+                            break;
+                        }
+                        case vfcVar:
+                        {
+                            Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                            if (!ty)
+                            {
+                                printf("%s: failed to read variable type.\n", modfn);
+                                goto fail;
+                            }
+                            var = Tr_Var(Tr_externalVar(name, ty));
+                            break;
+                        }
                     }
-                    else
-                    {
-                        e->u.var = Tr_Var(Tr_externalVar(name, ty));
-                    }
+                    E_declareVFC (mod->env, sym, var);
                     break;
                 }
                 case E_procEntry:
                 {
-                    e->u.proc = E_deserializeTyProc(modTable, modf);
-                    if (!e->u.proc)
+                    Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                    if (!proc)
                     {
-                        printf("%s: failed to read E_procEntry->proc.\n", modfn);
+                        printf("%s: failed to read function proc.\n", modfn);
                         goto fail;
                     }
+                    E_declareSub (mod->env, sym, proc);
                     break;
                 }
                 case E_typeEntry:
-                    e->u.ty = E_deserializeTyRef(modTable, modf);
+                {
+                    Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                    E_declareType (mod->env, sym, ty);
                     break;
+                }
             }
-            E_declare (mod->env, e);
         }
         fclose(modf);
 

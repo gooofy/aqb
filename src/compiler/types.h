@@ -18,7 +18,7 @@ struct Ty_ty_
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
            Ty_array, Ty_record, Ty_pointer, Ty_string,
-           Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr, Ty_toLoad            } kind;
+           Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr, Ty_toLoad, Ty_prc } kind;
            // Ty_varPtr: used during var access processing in translate.c
            // Ty_toLoad: used for module loading in env.c
 
@@ -112,6 +112,7 @@ Ty_ty        Ty_Array(S_symbol mod, Ty_ty ty, int start, int end);
 Ty_ty        Ty_VarPtr(Ty_ty ty);
 Ty_ty        Ty_Pointer(S_symbol mod, Ty_ty ty);
 Ty_ty        Ty_ForwardPtr(S_symbol mod, S_symbol sType);
+Ty_ty        Ty_Prc(S_symbol mod, Ty_proc proc);
 Ty_ty        Ty_ProcPtr(S_symbol mod, Ty_proc proc);
 Ty_ty        Ty_ToLoad(S_symbol mod, uint32_t uid);
 

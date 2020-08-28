@@ -65,15 +65,15 @@ struct E_enventryListNode_
     E_enventryListNode next;
 };
 
-E_enventry E_VFCEntry   (S_symbol sym, Tr_exp   var  );
-E_enventry E_ProcEntry  (S_symbol sym, Ty_proc  proc );
-E_enventry E_TypeEntry  (S_symbol sym, Ty_ty    ty   );
-
 E_env          E_EnvScopes   (E_env parent);
 E_env          E_EnvWith     (E_env parent, Tr_exp withPrefix);
-void           E_declare     (E_env env, E_enventry entry);
-E_enventry     E_resolveVFC  (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents);
-E_enventry     E_resolveType (E_env env, S_symbol sym);
+
+void           E_declareVFC  (E_env env, S_symbol sym, Tr_exp  var );
+void           E_declareSub  (E_env env, S_symbol sym, Ty_proc proc);
+void           E_declareType (E_env env, S_symbol sym, Ty_ty   ty  );
+
+Tr_exp         E_resolveVFC  (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents);
+Ty_ty          E_resolveType (E_env env, S_symbol sym);
 E_enventryList E_resolveSub  (E_env env, S_symbol sym);
 
 E_enventryList E_EnventryList (void);

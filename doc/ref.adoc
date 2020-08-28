@@ -396,6 +396,14 @@ Syntax:
 
 returns the number of seconds past the previous midnite as a SINGLE float value
 
+=== VARPTR()
+
+Syntax:
+
+    VARPTR "(" designator ")"
+
+returns the address of a variable
+
 === WHILE ... WEND
 
 Syntax:

@@ -9,14 +9,17 @@ DIM SHARED g_p AS SUB (INTEGER, INTEGER) = NULL
 DIM SHARED s AS INTEGER
 
 SUB q(x AS INTEGER, y AS INTEGER)
-   s = x*y
+    ' _debug_puts "SUB q" : _debug_putnl
+    s = x*y
 END SUB
 
 SUB p(x AS INTEGER, y AS INTEGER)
-   s = x+y
+    ' _debug_puts "SUB p" : _debug_putnl
+    s = x+y
 END SUB
 
 SUB setfp (p AS SUB (INTEGER, INTEGER))
+    ' _debug_puts "SUB setfp" : _debug_putnl
 	g_p = p
 END SUB
 

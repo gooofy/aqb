@@ -419,6 +419,7 @@ enum AS_w AS_tySize(Ty_ty ty)
         case Ty_record:
         case Ty_void:
         case Ty_toLoad:
+        case Ty_prc:
             assert(0);
     }
     return AS_w_L;

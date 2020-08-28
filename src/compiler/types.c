@@ -168,6 +168,18 @@ Ty_ty Ty_ForwardPtr(S_symbol mod, S_symbol sType)
     return p;
 }
 
+Ty_ty Ty_Prc(S_symbol mod, Ty_proc proc)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind      = Ty_prc;
+    p->u.proc    = proc;
+    p->mod       = mod;
+    p->uid       = g_uid++;
+
+    return p;
+}
+
 Ty_ty Ty_ProcPtr(S_symbol mod, Ty_proc proc)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
@@ -237,6 +249,7 @@ void Ty_computeSize(Ty_ty ty)
         case Ty_varPtr:
         case Ty_forwardPtr:
         case Ty_toLoad:
+        case Ty_prc:
             assert(0);
             break;
     }
@@ -281,6 +294,7 @@ int Ty_size(Ty_ty t)
         case Ty_pointer:
         case Ty_varPtr:
         case Ty_forwardPtr:
+        case Ty_prc:
         case Ty_procPtr:
         case Ty_string:
              return 4;
@@ -428,6 +442,8 @@ string Ty_name(Ty_ty t)
             return "forwardPtr";
         case Ty_procPtr:
             return "procPtr";
+        case Ty_prc:
+            return "proc";
         case Ty_toLoad:
             return "toLoad";
     }

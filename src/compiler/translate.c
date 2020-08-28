@@ -476,6 +476,8 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
         case Ty_ulong:
         case Ty_pointer:
         case Ty_string:
+        case Ty_prc:
+        case Ty_procPtr:
             return Tr_Ex(T_Const(Ty_ConstInt(ty, 0)));
         case Ty_single:
         case Ty_double:
@@ -656,9 +658,9 @@ Tr_exp Tr_stringExp(string str)
     return Tr_Ex(T_Heap(strpos, Ty_String()));
 }
 
-Tr_exp Tr_funPtrExp(Temp_label label)
+Tr_exp Tr_funPtrExp(Temp_label label, Ty_ty ty)
 {
-    return Tr_Ex(T_Heap(label, Ty_VoidPtr()));
+    return Tr_Ex(T_Heap(label, ty));
 }
 
 Tr_exp Tr_Var(Tr_access a)
@@ -1128,6 +1130,10 @@ Tr_exp Tr_callExp(Tr_expList actualParams, Ty_proc proc)
 
 Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList actualParams, Ty_proc proc)
 {
+    // is funcPtr a constant heap label? if so, turn this into a regular T_CallF
+    if ( (funcPtr->kind == Tr_ex) && (funcPtr->u.ex->kind == T_HEAP) )
+        return Tr_callExp (actualParams, proc);
+
     // cdecl calling convention (right-to-left order)
     T_expList aps = NULL;
     if (actualParams)
