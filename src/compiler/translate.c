@@ -405,7 +405,7 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp
         {
             S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(sym)), TRUE);
 
-            Ty_proc init_proc = Ty_Proc(initializer, NULL, initializer, FALSE, NULL, FALSE, NULL, FALSE, 0, NULL, /*tyClsPtr=*/NULL);
+            Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 
             stm = T_Seq(T_Exp(T_CallF(init_proc, /*args=*/NULL)), stm);
         }

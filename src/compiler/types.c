@@ -89,12 +89,13 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-Ty_field Ty_RecordAddField (Ty_ty recordType, S_symbol name, Ty_ty ty)
+Ty_field Ty_RecordAddField  (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty ty)
 {
     Ty_field f = checked_malloc(sizeof(*f));
 
-    f->name = name;
-    f->ty   = ty;
+    f->visibility = visibility;
+    f->name       = name;
+    f->ty         = ty;
 
     if (recordType->u.record.fields_last)
     {
@@ -483,13 +484,14 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
     return p;
 }
 
-Ty_proc Ty_Proc(S_symbol name, S_symlist extraSyms, Temp_label label, bool isPrivate, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr)
+Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr)
 {
     Ty_proc p = checked_malloc(sizeof(*p));
 
     // assert(name);
 
-    p->isPrivate  = isPrivate;
+    p->visibility = visibility;
+    p->kind       = kind;
     p->name       = name;
     p->extraSyms  = extraSyms;
     p->label      = label;

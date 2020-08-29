@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     22
+#define SYM_VERSION     23
 
 E_module g_builtinsModule = NULL;
 
@@ -512,6 +512,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             fwrite(&cnt, 2, 1, modf);
             for (Ty_field fields = ty->u.record.fields; fields; fields = fields->next)
             {
+                fwrite(&fields->visibility, 1, 1, modf);
                 strserialize(modf, S_name(fields->name));
                 E_serializeTyRef(modTable, fields->ty);
             }
@@ -556,7 +557,8 @@ static void E_serializeOptionalSymbol(S_symbol sym)
 
 static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
 {
-    fwrite(&proc->isPrivate, 1, 1, modf);
+    fwrite(&proc->kind, 1, 1, modf);
+    fwrite(&proc->visibility, 1, 1, modf);
     E_serializeOptionalSymbol(proc->name);
     uint8_t cnt = 0;
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
@@ -638,7 +640,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
                     if (ty->kind == Ty_prc)
                     {
                         Ty_proc proc = ty->u.proc;
-                        assert (!proc->isPrivate);
+                        assert (proc->visibility == Ty_visPublic);
                         vfcKind k = vfcFunc;
                         fwrite (&k, 1, 1, modf);
                         E_serializeTyProc(modTable, proc);
@@ -683,7 +685,7 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
             switch (x->kind)
             {
                 case E_procEntry:
-                    if (!x->u.proc->isPrivate)
+                    if (x->u.proc->visibility == Ty_visPublic)
                         E_serializeTyProc(modTable, x->u.proc);
                     break;
                 case E_vfcEntry:
@@ -844,10 +846,16 @@ static S_symbol E_deserializeOptionalSymbol(FILE *modf)
 
 static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
 {
-    bool isPrivate;
-    if (fread(&isPrivate, 1, 1, modf)!=1)
+    Ty_procKind kind;
+    if (fread(&kind, 1, 1, modf)!=1)
     {
-        printf("failed to read function private flag.\n");
+        printf("failed to read proc kind.\n");
+        return NULL;
+    }
+    Ty_visibility visibility;
+    if (fread(&visibility, 1, 1, modf)!=1)
+    {
+        printf("failed to read proc visibility.\n");
         return NULL;
     }
     S_symbol name = E_deserializeOptionalSymbol(modf);
@@ -1001,7 +1009,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     if (tyClsPtrPresent)
         tyClsPtr = E_deserializeTyRef(modTable, modf);
 
-    return Ty_Proc(name, extra_syms, label, isPrivate, formals, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr);
+    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr);
 }
 
 E_module E_loadModule(S_symbol sModule)
@@ -1113,10 +1121,12 @@ E_module E_loadModule(S_symbol sModule)
 
                     for (int i=0; i<cnt; i++)
                     {
+                        Ty_visibility visibility;
+                        if (fread(&visibility, 1, 1, modf) != 1) goto fail;
                         string name = strdeserialize(modf);
                         Ty_ty t = E_deserializeTyRef(modTable, modf);
 
-                        Ty_RecordAddField (ty, S_Symbol(name, FALSE), t);
+                        Ty_RecordAddField (ty, visibility, S_Symbol(name, FALSE), t);
                     }
                     break;
                 }

@@ -130,10 +130,11 @@ struct FE_SLE_
         } ifStmt;
         struct
         {
-            FE_udtEntry eFirst, eLast;
-            S_symbol    sType;
-            Ty_ty       ty;
-            bool        isPrivate;
+            FE_udtEntry   eFirst, eLast;
+            S_symbol      sType;
+            Ty_ty         ty;
+            Ty_visibility udtVis;    /* visibility if the whole UDT - private or public only */
+            Ty_visibility memberVis; /* visibility for the next declared member - changes when public/protected/private stmts are encountered */
         } typeDecl;
         struct
         {
@@ -366,6 +367,7 @@ static S_symbol S_DEFLNG;
 static S_symbol S_DEFINT;
 static S_symbol S_DEFSTR;
 static S_symbol S_GOSUB;
+static S_symbol S_CONSTRUCTOR;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -2173,8 +2175,8 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
     {
         FE_paramList paramList = FE_ParamList();
         Ty_ty        returnTy = NULL;
+        Ty_procKind  kind = isSym (*tkn, S_FUNCTION) ? Ty_pkFunction : Ty_pkSub;
 
-        bool isFunction = isSym (*tkn, S_FUNCTION);
         *tkn = (*tkn)->next;
 
         if ((*tkn)->kind == S_LPAREN)
@@ -2207,7 +2209,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             *tkn = (*tkn)->next;
         }
 
-        if (isFunction)
+        if (kind == Ty_pkFunction)
         {
             if (!isSym(*tkn, S_AS))
                 return EM_error((*tkn)->pos, "AS return type descriptor expected here.");
@@ -2221,7 +2223,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = Ty_Void();
         }
 
-        Ty_proc proc = Ty_Proc(/*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, /*isPrivate=*/ TRUE, paramList->first, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
         *ty = Ty_ProcPtr(g_mod->name, proc);
     }
     else
@@ -3873,9 +3875,10 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList)
     return TRUE;
 }
 
-// procHeader ::= ident ( ident* | "." ident) [ parameterList ] [ AS typeDesc ] [ STATIC ]
-static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, bool forward, Ty_proc *proc)
+// procHeader ::= ( ( SUB ident ( ident* | "." ident) | FUNCTION ident [ "." ident ] | CONSTRUCTOR [ ident ] ) [ parameterList ] [ AS typeDesc ] [ STATIC ]
+static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
 {
+    Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
     S_symlist    extra_syms = NULL, extra_syms_last=NULL;
     bool         isStatic   = FALSE;
@@ -3886,20 +3889,24 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
     Ty_ty        tyCls      = NULL;
     Ty_ty        tyClsPtr   = NULL;
 
-    if ((*tkn)->kind != S_IDENT)
-        return EM_error((*tkn)->pos, "identifier expected here.");
-    name  = (*tkn)->u.sym;
-    *tkn = (*tkn)->next;
-
     // UDT context? -> method declaration
     if (g_sleStack && g_sleStack->kind == FE_sleType)
     {
-        sCls  = g_sleStack->u.typeDecl.sType;
-        tyCls = g_sleStack->u.typeDecl.ty;
+        sCls       = g_sleStack->u.typeDecl.sType;
+        tyCls      = g_sleStack->u.typeDecl.ty;
     }
-    else
+
+    if (isSym(*tkn, S_SUB) || isSym(*tkn, S_FUNCTION))
     {
-        if ((*tkn)->kind == S_PERIOD)
+        kind = isSym(*tkn, S_SUB) ? Ty_pkSub : Ty_pkFunction;
+        *tkn = (*tkn)->next;
+
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "identifier expected here.");
+        name  = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
+
+        if (!sCls && ((*tkn)->kind == S_PERIOD))
         {
             *tkn = (*tkn)->next;
 
@@ -3915,38 +3922,53 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
             *tkn = (*tkn)->next;
         }
     }
+    else
+    {
+        if (isSym(*tkn, S_CONSTRUCTOR))
+        {
+            kind = Ty_pkConstructor;
+            *tkn = (*tkn)->next;
+            assert(0); // FIXME
+        }
+        else
+        {
+            return EM_error((*tkn)->pos, "SUB, FUNCTION or CONSTRUCTOR expected here.");
+        }
+    }
 
+    // determine label, deal with implicit "this" arg
     if (sCls)
     {
-        label = strconcat("__", strconcat(S_name(sCls), strconcat("_", S_name(name))));
+        label = strconcat("__", strconcat(S_name(sCls), strconcat("_", Ty_removeTypeSuffix(S_name(name)))));
         tyClsPtr = Ty_Pointer(g_mod->name, tyCls);
         FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyClsPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
     }
     else
     {
         label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
-        if (!isFunction)
+    }
+    if (kind==Ty_pkFunction)
+        label = strconcat(label, "_");
+
+
+    // look for extra SUB syms
+    if ((kind == Ty_pkSub) && !sCls)
+    {
+        while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
         {
-            // look for extra syms
-            while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
+            if (extra_syms_last)
             {
-                if (extra_syms_last)
-                {
-                    extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
-                    extra_syms_last = extra_syms_last->next;
-                }
-                else
-                {
-                    extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
-                }
-                label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
-                *tkn = (*tkn)->next;
+                extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
+                extra_syms_last = extra_syms_last->next;
             }
+            else
+            {
+                extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
+            }
+            label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+            *tkn = (*tkn)->next;
         }
     }
-
-    if (isFunction)
-        label = strconcat(label, "_");
 
     if ((*tkn)->kind == S_LPAREN)
     {
@@ -3954,7 +3976,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
             return FALSE;
     }
 
-    if (isFunction)
+    if (kind==Ty_pkFunction)
     {
         if (isSym(*tkn, S_AS))
         {
@@ -3975,110 +3997,62 @@ static bool procHeader(S_tkn *tkn, S_pos pos, bool isPrivate, bool isFunction, b
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(name, extra_syms, Temp_namedlabel(label), isPrivate, paramList->first, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyClsPtr);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyClsPtr);
 
     return TRUE;
+
+//    else
+//    {
+//        if ((*tkn)->kind == S_PERIOD)
+//        {
+//            *tkn = (*tkn)->next;
+//
+//            sCls = name;
+//
+//            tyCls = E_resolveType(g_sleStack->env, sCls);
+//            if (!tyCls)
+//                EM_error ((*tkn)->pos, "Class %s not found.", S_name(sCls));
+//
+//            if ((*tkn)->kind != S_IDENT)
+//                return EM_error ((*tkn)->pos, "method identifier expected here.");
+//            name = (*tkn)->u.sym;
+//            *tkn = (*tkn)->next;
+//        }
+//    }
+//
+//    if (sCls)
+//    {
+//        label = strconcat("__", strconcat(S_name(sCls), strconcat("_", S_name(name))));
+//        tyClsPtr = Ty_Pointer(g_mod->name, tyCls);
+//        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyClsPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
+//    }
+//    else
+//    {
+//        label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
+//        if (!isFunction)
+//        {
+//            // look for extra syms
+//            while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
+//            {
+//                if (extra_syms_last)
+//                {
+//                    extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
+//                    extra_syms_last = extra_syms_last->next;
+//                }
+//                else
+//                {
+//                    extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
+//                }
+//                label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+//                *tkn = (*tkn)->next;
+//            }
+//        }
+//    }
+//
+//    if (isFunction)
+//        label = strconcat(label, "_");
+//
 }
-
-#if 0 // FIXME: remove
-static bool transProc(S_pos pos, Ty_proc proc, E_enventry *x, bool hasBody)
-{
-    Tr_level lv = Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic);
-
-    switch (g_sleStack->kind)
-    {
-        case FE_sleTop:
-        {
-            *x   = E_ProcEntry(proc->name,
-                               lv,
-                               proc,
-                               proc->returnTy->kind != Ty_void ? transFunctionCall : transSubCall,
-                               hasBody);
-
-            // check for multiple declarations or definitions, check for matching signatures
-            E_enventry decl=NULL;
-            if (proc->returnTy->kind != Ty_void)
-            {
-                decl = E_resolveVFC(pos, g_mod, g_mod->env, proc->name, /*checkParents=*/TRUE);
-            }
-            else
-            {
-                E_enventryList lx = E_resolveSub(g_sleStack->env, proc->name);
-                if (lx)
-                {
-                    // we need an exact match (same extra syms)
-                    for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
-                    {
-                        E_enventry x2 = nx->e;
-
-                        bool match = TRUE;
-                        S_symlist esl1 = proc->extraSyms;
-                        S_symlist esl2 = x2->u.proc.proc->extraSyms;
-
-                        while (esl1 && esl2)
-                        {
-                            if ( esl1->sym != esl2->sym )
-                            {
-                                match = FALSE;
-                                break;
-                            }
-                            esl1 = esl1->next;
-                            esl2 = esl2->next;
-                        }
-                        if (esl1 || esl2)
-                            continue;
-                        if (match)
-                        {
-                            decl = x2;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (decl)
-            {
-                if (decl->u.proc.hasBody)
-                {
-                    if (hasBody)
-                        EM_error (pos, "Multiple function definitions.");
-                    else
-                        EM_error (pos, "Function is already defined.");
-                }
-                else
-                {
-                    if (!hasBody)
-                        EM_error (pos, "Multiple function declarations.");
-                }
-                if (!matchProcSignatures (proc, decl->u.proc.proc))
-                    EM_error (pos, "Function declaration vs definition mismatch.");
-            }
-
-            E_declare (g_mod->env, *x);
-            return TRUE;
-        }
-
-        case FE_sleType:
-        {
-            Ty_method method = Ty_Method(proc, lv);
-            if (g_sleStack->u.typeDecl.eFirst)
-            {
-                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(pos, method);
-                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
-            }
-            else
-            {
-                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(pos, method);
-            }
-            break;
-        }
-
-        default:
-            return EM_error(pos, "No SUB or FUNCTION declarations allowed in this context.");
-    }
-    return FALSE;
-}
-#endif
 
 // check for multiple declarations or definitions, check for matching signatures
 // declare proc if no declaration exists yet, return new/existing declaration
@@ -4175,50 +4149,28 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     return decl;
 }
 
-// procStmtBegin ::= [ PRIVATE | PUBLIC ] ( SUB | FUNCTION ) procHeader
+// procStmtBegin ::= [ PRIVATE | PUBLIC ] procHeader
 static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
-    S_pos     pos = (*tkn)->pos;
-    bool      isPrivate = OPT_get(OPTION_PRIVATE);
+    S_pos         pos        = (*tkn)->pos;
+    Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
 
     if (isSym(*tkn, S_PRIVATE))
     {
-        isPrivate = TRUE;
+        visibility = Ty_visPrivate;
         *tkn = (*tkn)->next;
     }
     else
     {
         if (isSym(*tkn, S_PUBLIC))
         {
-            isPrivate = FALSE;
+            visibility = Ty_visPublic;
             *tkn = (*tkn)->next;
         }
     }
-
-    bool isFunction = TRUE;
-    if (isSym(*tkn, S_SUB))
-    {
-        isFunction = FALSE;
-        *tkn = (*tkn)->next;
-    }
-    else
-    {
-        if (isSym(*tkn, S_FUNCTION))
-        {
-            isFunction = TRUE;
-            *tkn = (*tkn)->next;
-        }
-        else
-        {
-            return EM_error((*tkn)->pos, "SUB or FUNCTION expected here.");
-        }
-    }
-
-    if ((*tkn)->kind != S_IDENT)
-        return EM_error((*tkn)->pos, "identifier expected here.");
 
     Ty_proc proc;
-    if (!procHeader(tkn, pos, isPrivate, isFunction, /*forward=*/TRUE, &proc))
+    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
         return FALSE;
     proc->hasBody = TRUE;
 
@@ -4226,7 +4178,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!proc)
         return FALSE;
 
-    Tr_level   funlv = Tr_newLevel(proc->label, !proc->isPrivate, proc->formals, proc->isStatic);
+    Tr_level   funlv = Tr_newLevel(proc->label, visibility != Ty_visPrivate, proc->formals, proc->isStatic);
     Tr_exp     returnVar = NULL;
 
     E_env lenv = g_sleStack->env;
@@ -4255,46 +4207,35 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     Temp_label exitlbl = Temp_newlabel();
 
-    slePush(isFunction ? FE_sleFunction : FE_sleSub, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
+    slePush(proc->returnTy->kind != Ty_void ? FE_sleFunction : FE_sleSub, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
 
     return TRUE;
 }
 
-// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE ( SUB | FUNCTION ) procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
+// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
-    Ty_proc   proc;
-    S_pos     pos = (*tkn)->pos;
-    bool      isFunction;
-    bool      isPrivate = OPT_get(OPTION_PRIVATE);
+    Ty_proc       proc;
+    S_pos         pos        = (*tkn)->pos;
+    Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
 
     if (isSym(*tkn, S_PRIVATE))
     {
-        isPrivate = TRUE;
+        visibility = Ty_visPrivate;
         *tkn = (*tkn)->next;
     }
     else
     {
         if (isSym(*tkn, S_PUBLIC))
         {
-            isPrivate = FALSE;
+            visibility = Ty_visPublic;
             *tkn = (*tkn)->next;
         }
     }
 
     *tkn = (*tkn)->next; // consume "DECLARE"
 
-    if (isSym(*tkn, S_FUNCTION))
-        isFunction = TRUE;
-    else
-        if (isSym(*tkn, S_SUB))
-            isFunction = FALSE;
-        else
-            return EM_error((*tkn)->pos, "SUB or FUNCTION expected here.");
-
-    *tkn = (*tkn)->next; // consume "SUB" | "FUNCTION"
-
-    if (!procHeader(tkn, pos, isPrivate, isFunction, /*forward=*/TRUE, &proc))
+    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
         return FALSE;
     proc = checkProcMultiDecl(pos, proc);
     if (!proc)
@@ -4496,17 +4437,18 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     S_pos    pos = (*tkn)->pos;
     FE_SLE   sle = slePush(FE_sleType, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
-    sle->u.typeDecl.isPrivate = OPT_get(OPTION_PRIVATE);
+    sle->u.typeDecl.udtVis    = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
+    sle->u.typeDecl.memberVis = Ty_visPublic;
     if (isSym(*tkn, S_PRIVATE))
     {
-        sle->u.typeDecl.isPrivate = TRUE;
+        sle->u.typeDecl.udtVis = Ty_visPrivate;
         *tkn = (*tkn)->next;
     }
     else
     {
         if (isSym(*tkn, S_PUBLIC))
         {
-            sle->u.typeDecl.isPrivate = FALSE;
+            sle->u.typeDecl.udtVis = Ty_visPublic;
             *tkn = (*tkn)->next;
         }
     }
@@ -4573,7 +4515,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         end = Tr_getConstInt(dim->idxEnd);
                         t = Ty_Array(g_mod->name, t, start, end);
                     }
-                    Ty_RecordAddField(sle->u.typeDecl.ty, f->u.fieldr.name, t);
+                    Ty_RecordAddField(sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
                     break;
                 }
                 case FE_methodUDTEntry:
@@ -4587,7 +4529,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         Ty_computeSize(sle->u.typeDecl.ty);
 
         E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
-        if (!sle->u.typeDecl.isPrivate)
+        if (sle->u.typeDecl.udtVis == Ty_visPublic)
             E_declareType(g_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
 
         return TRUE;
@@ -4670,20 +4612,10 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         if (isSym(*tkn, S_DECLARE))
         {
             S_pos mpos = (*tkn)->pos;
-            bool isFunction=FALSE;
             *tkn = (*tkn)->next; // consume "DECLARE"
 
-            if (isSym(*tkn, S_FUNCTION))
-                isFunction = TRUE;
-            else
-                if (isSym(*tkn, S_SUB))
-                    isFunction = FALSE;
-                else
-                    return EM_error((*tkn)->pos, "SUB or FUNCTION expected here.");
-            *tkn = (*tkn)->next;
-
             Ty_proc proc;
-            if (!procHeader(tkn, (*tkn)->pos, /*isPrivate=*/TRUE, isFunction, /*forward=*/TRUE, &proc))
+            if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
                 return FALSE;
 
             Ty_method method = Ty_Method(proc);
@@ -5478,9 +5410,10 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 static void declareBuiltinProc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
-    Ty_proc proc = Ty_Proc(sym, /*extraSyms=*/NULL, /*label=*/NULL, /*isPrivate=*/TRUE, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
+    Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, /*extraSyms=*/NULL, /*label=*/NULL, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
 
-    if (retTy->kind == Ty_void)
+    if (kind == Ty_pkSub)
     {
         E_declareSub (g_builtinsModule->env, sym, proc);
     }
@@ -5564,6 +5497,7 @@ static void registerBuiltins(void)
     S_DEFINT          = S_Symbol("DEFINT",           FALSE);
     S_DEFSTR          = S_Symbol("DEFSTR",           FALSE);
     S_GOSUB           = S_Symbol("GOSUB",            FALSE);
+    S_CONSTRUCTOR     = S_Symbol("CONSTRUCTOR",      FALSE);
 
     g_parsefs = TAB_empty();
 
@@ -5582,7 +5516,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_FUNCTION, stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CALL,     stmtCall         , Ty_Void());
     declareBuiltinProc(S_CONST,    stmtConstDecl    , Ty_Void());
-    // declareBuiltinProc(S_EXTERN,   stmtExternDecl   , Ty_Void());
+    declareBuiltinProc(S_EXTERN,   stmtExternDecl   , Ty_Void());
     declareBuiltinProc(S_DECLARE,  stmtProcDecl     , Ty_Void());
     declareBuiltinProc(S_TYPE,     stmtTypeDeclBegin, Ty_Void());
     declareBuiltinProc(S_STATIC,   stmtStatic       , Ty_Void());
