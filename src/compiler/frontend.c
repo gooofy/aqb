@@ -78,7 +78,7 @@ struct FE_selectBranch_
     FE_selectBranch next;
 };
 typedef struct FE_nestedStmt_    *FE_nestedStmt;
-typedef enum {FE_sleTop, FE_sleSub, FE_sleFunction, FE_sleDo, FE_sleFor, FE_sleWhile, FE_sleSelect, FE_sleType, FE_sleIf} FE_sleKind;
+typedef enum {FE_sleTop, FE_sleProc, FE_sleDo, FE_sleFor, FE_sleWhile, FE_sleSelect, FE_sleType, FE_sleIf} FE_sleKind;
 struct FE_nestedStmt_    // used in EXIT, CONTINUE
 {
     S_pos             pos;
@@ -94,7 +94,7 @@ struct FE_udtEntry_
     union
     {
         struct { S_symbol name; FE_dim dims; Ty_ty ty; } fieldr;
-        Ty_method methodr;
+        Ty_proc methodr;
     } u;
 
     FE_udtEntry next;
@@ -146,6 +146,7 @@ struct FE_SLE_
             Tr_exp          exp;
             FE_selectBranch selectBFirst, selectBLast;
         } selectStmt;
+        Ty_proc proc;
     } u;
 
     FE_SLE      prev;
@@ -274,7 +275,7 @@ static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_
     return p;
 }
 
-static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_method method)
+static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc method)
 {
     FE_udtEntry p = checked_malloc(sizeof(*p));
 
@@ -379,33 +380,72 @@ static inline bool isLogicalEOL(S_tkn tkn)
     return !tkn || tkn->kind == S_COLON || tkn->kind == S_EOL;
 }
 
+static Tr_exp transVFCVar(S_pos pos, Tr_exp exp, Ty_recordEntry entry)
+{
+    assert(entry && (entry->kind == Ty_recField));
+
+    Ty_ty ty = Tr_ty(exp);
+    assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
+
+    exp = Tr_Deref(exp);
+    ty = Tr_ty(exp);
+
+    Ty_ty fty = entry->u.field.ty;
+    if (fty->kind == Ty_forwardPtr)
+    {
+        Ty_ty ftyr = E_resolveType(g_sleStack->env, fty->u.sForward);
+        if (!ftyr)
+        {
+            EM_error(pos, "failed to resolve forward type of field");
+            return NULL;
+        }
+
+        entry->u.field.ty = Ty_Pointer(g_mod->name, ftyr);
+    }
+
+    exp = Tr_Field(exp, entry);
+
+    return exp;
+}
+
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
 static Tr_exp autovar(S_symbol v, S_pos pos)
 {
     Tr_level   level = g_sleStack->lv;
 
-    Tr_exp var = E_resolveVFC (pos, g_mod, g_sleStack->env, v, /*checkParents=*/TRUE);
-
-    if (!var)
+    Tr_exp var;
+    Ty_recordEntry entry;
+    if (E_resolveVFC(g_sleStack->env, v, /*checkParents=*/TRUE, &var, &entry))
     {
-        string s = S_name(v);
-        Ty_ty t = Ty_inferType(s);
-
-        if (OPT_get(OPTION_EXPLICIT))
-            EM_error(pos, "undeclared identifier %s", s);
-
-        if (Tr_isStatic(level))
+        if (entry)
         {
-            string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
-            var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+            if (entry->kind == Ty_recField)
+                return transVFCVar(pos, var, entry);
+            else
+                EM_error(pos, "variable expected here.");
         }
         else
-        {
-            var = Tr_Var(Tr_allocVar(level, s, t));
-        }
-
-        E_declareVFC(g_sleStack->env, v, var);
+            return var;
     }
+
+    string s = S_name(v);
+    Ty_ty t = Ty_inferType(s);
+
+    if (OPT_get(OPTION_EXPLICIT))
+        EM_error(pos, "undeclared identifier %s", s);
+
+    if (Tr_isStatic(level))
+    {
+        string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
+        var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+    }
+    else
+    {
+        var = Tr_Var(Tr_allocVar(level, s, t));
+    }
+
+    E_declareVFC(g_sleStack->env, v, var);
+
     return var;
 }
 
@@ -1320,6 +1360,49 @@ static Tr_exp transSelIndex(S_pos pos, Tr_exp e, Tr_exp idx)
     return Tr_Index(e, idx_conv);
 }
 
+static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_exp *exp)
+{
+    switch (entry->kind)
+    {
+        case Ty_recMethod:
+        {
+            // method call
+
+            if ((*tkn)->kind != S_LPAREN)
+                return EM_error((*tkn)->pos, "( expected here (method call)");
+            *tkn = (*tkn)->next;
+
+            Tr_expList assignedArgs = Tr_ExpList();
+            if (!transActualArgs(tkn, entry->u.method, assignedArgs,  /*thisPtr=*/*exp))
+                return FALSE;
+
+            if ((*tkn)->kind != S_RPAREN)
+                return EM_error((*tkn)->pos, ") expected.");
+            *tkn = (*tkn)->next;
+
+            *exp = Tr_callExp(assignedArgs, entry->u.method);
+            return TRUE;
+        }
+
+        case Ty_recField:
+        {
+            Ty_ty fty = entry->u.field.ty;
+            if (fty->kind == Ty_forwardPtr)
+            {
+                Ty_ty tyForward = E_resolveType(g_sleStack->env, fty->u.sForward);
+                if (!tyForward)
+                    return EM_error(pos, "failed to resolve forward type of field");
+
+                entry->u.field.ty = Ty_Pointer(g_mod->name, tyForward);
+            }
+
+            *exp = Tr_Field(*exp, entry);
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 // selector ::= ( ( "[" | "(" ) [ expression ( "," expression)* ] ( "]" | ")" )
 //              | "(" actualArgs ")"
 //              | "." ident
@@ -1367,101 +1450,45 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
         case S_PERIOD:
         {
             *tkn = (*tkn)->next;
+            S_pos pos = (*tkn)->pos;
             if ((*tkn)->kind != S_IDENT)
-                return EM_error((*tkn)->pos, "field identifier expected here.");
+                return EM_error(pos, "field identifier expected here.");
+
+            S_symbol sym = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
 
             Ty_ty ty = Tr_ty(*exp);
             if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_record) )
-                return EM_error((*tkn)->pos, "record type expected");
-            Ty_field f = ty->u.pointer->u.record.fields;
-            for (;f;f=f->next)
-            {
-                if (f->name == (*tkn)->u.sym)
-                    break;
-            }
-            if (!f)
-            {
-                Ty_method method = ty->u.pointer->u.record.methods;
-                for (;method;method=method->next)
-                {
-                    if (method->proc->name == (*tkn)->u.sym)
-                        break;
-                }
+                return EM_error(pos, "record type expected");
 
-                if (!method)
-                    return EM_error((*tkn)->pos, "unknown UDT member %s", S_name((*tkn)->u.sym));
-                *tkn = (*tkn)->next;
+            Ty_recordEntry entry = S_look(ty->u.pointer->u.record.scope, sym);
+            if (!entry)
+                return EM_error(pos, "unknown UDT entry %s", sym);
 
-                // method call
-
-                if ((*tkn)->kind != S_LPAREN)
-                    return EM_error((*tkn)->pos, "( expected here (method call)");
-                *tkn = (*tkn)->next;
-
-                Tr_expList assignedArgs = Tr_ExpList();
-                if (!transActualArgs(tkn, method->proc, assignedArgs, *exp))
-                    return FALSE;
-
-                if ((*tkn)->kind != S_RPAREN)
-                    return EM_error((*tkn)->pos, ") expected.");
-                *tkn = (*tkn)->next;
-
-                *exp = Tr_callExp(assignedArgs, method->proc);
-                return TRUE;
-            }
-
-            Ty_ty fty = f->ty;
-            if (fty->kind == Ty_forwardPtr)
-            {
-                Ty_ty tyForward = E_resolveType(g_sleStack->env, f->ty->u.sForward);
-                if (!tyForward)
-                    return EM_error((*tkn)->pos, "failed to resolve forward type of field");
-
-                f->ty = Ty_Pointer(g_mod->name, tyForward);
-            }
-
-            *exp = Tr_Field(*exp, f);
-
-            *tkn = (*tkn)->next;
-            return TRUE;
+            return transRecordSelector(pos, tkn, entry, exp);
         }
         case S_POINTER:
         {
             *tkn = (*tkn)->next;
+            S_pos    pos = (*tkn)->pos;
 
             if ((*tkn)->kind != S_IDENT)
-                return EM_error((*tkn)->pos, "field identifier expected here.");
+                return EM_error(pos, "field identifier expected here.");
+            S_symbol sym = (*tkn)->u.sym;
+            *tkn = (*tkn)->next;
 
             Ty_ty ty = Tr_ty(*exp);
             if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_pointer) || (ty->u.pointer->u.pointer->kind != Ty_record) )
-                EM_error((*tkn)->pos, "record pointer type expected");
+                EM_error(pos, "record pointer type expected");
 
             *exp = Tr_Deref(*exp);
             ty = Tr_ty(*exp);
 
-            Ty_field f = ty->u.pointer->u.record.fields;
-            for (;f;f=f->next)
-            {
-                if (f->name == (*tkn)->u.sym)
-                    break;
-            }
-            if (!f)
-                return EM_error((*tkn)->pos, "unknown field %s", S_name((*tkn)->u.sym));
+            Ty_recordEntry entry = S_look(ty->u.pointer->u.record.scope, sym);
+            if (!entry)
+                return EM_error(pos, "unknown UDT entry %s", sym);
 
-            Ty_ty fty = f->ty;
-            if (fty->kind == Ty_forwardPtr)
-            {
-                Ty_ty tyForward = E_resolveType(g_sleStack->env, f->ty->u.sForward);
-                if (!tyForward)
-                    return EM_error((*tkn)->pos, "failed to resolve forward type of field");
-
-                f->ty = Ty_Pointer(g_mod->name, tyForward);
-            }
-
-            *exp = Tr_Field(*exp, f);
-
-            *tkn = (*tkn)->next;
-            return TRUE;
+            return transRecordSelector(pos, tkn, entry, exp);
         }
         default:
             return FALSE;
@@ -1499,27 +1526,44 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
 
     // is this a known var, function or const ?
 
-    Tr_exp e = E_resolveVFC (pos, g_mod, g_sleStack->env, sym, /*checkParents=*/TRUE);
-    if (e)
+    Tr_exp e;
+    Ty_recordEntry entry;
+    if (E_resolveVFC(g_sleStack->env, sym, /*checkParents=*/TRUE, &e, &entry))
     {
-        Ty_ty ty = Tr_ty(e);
-
-        if (ty->kind == Ty_prc)
+        if (entry)
         {
-            // syntax quirk: this could be a function return value assignment
-            // FUNCTION f ()
-            //     f = 42
-
-            if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) && ((*tkn)->u.sym == ty->u.proc->name) )
+            switch (entry->kind)
             {
-                *exp = Tr_DeepCopy(g_sleStack->returnVar);
-                *tkn = (*tkn)->next;
-                return TRUE;
+                case Ty_recField:
+                    *exp = transVFCVar(pos, e, entry);
+                    *tkn = (*tkn)->next;
+                    break;
+                case Ty_recMethod:
+                    assert(0); // FIXME
+                    break;
             }
         }
+        else
+        {
+            Ty_ty ty = Tr_ty(e);
 
-        *exp = Tr_DeepCopy(e);
-        *tkn = (*tkn)->next;
+            if (ty->kind == Ty_prc)
+            {
+                // syntax quirk: this could be a function return value assignment
+                // FUNCTION f ()
+                //     f = 42
+
+                if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) && ((*tkn)->u.sym == ty->u.proc->name) )
+                {
+                    *exp = Tr_DeepCopy(g_sleStack->returnVar);
+                    *tkn = (*tkn)->next;
+                    return TRUE;
+                }
+            }
+
+            *exp = Tr_DeepCopy(e);
+            *tkn = (*tkn)->next;
+        }
     }
     else
     {
@@ -2248,7 +2292,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
     return TRUE;
 }
 
-static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool shared, bool statc, bool external, bool isPrivate, FE_dim dims)
+static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
 {
     if (!t)
         t = Ty_inferType(S_name(sVar));
@@ -2273,72 +2317,100 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, Tr_exp init, bool sh
         t = Ty_Array(g_mod->name, t, start, end);
     }
 
-    Tr_exp conv_init=NULL;
-    if (init)
-    {
-        if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
-            return EM_error(pos, "initializer type mismatch");
-    }
-
-    Tr_exp var = NULL;
     if (shared)
     {
         assert(!statc);
-        var = E_resolveVFC(pos, g_mod, g_sleStack->env, sVar, /*checkParents=*/FALSE);
-        if (var)
-            return EM_error(pos, "Name %s already declared in this scope.", S_name(sVar));
-        var = E_resolveVFC(pos, g_mod, g_mod->env, sVar, /*checkParents=*/FALSE);
-        if (var)
-            return EM_error(pos, "Name %s already declared in global scope.", S_name(sVar));
+        Ty_recordEntry entry;
+        if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
+            return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
+        if (E_resolveVFC(g_mod->env, sVar, /*checkParents=*/FALSE, var, &entry))
+            return EM_error(pos, "Symbol %s is already declared in the global scope.", S_name(sVar));
 
         if (external)
-            var = Tr_Var(Tr_externalVar(S_name(sVar), t));
+            *var = Tr_Var(Tr_externalVar(S_name(sVar), t));
         else
-            var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), t));
+            *var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), t));
 
-        E_declareVFC(g_mod->env, sVar, var);
+        E_declareVFC(g_mod->env, sVar, *var);
     }
     else
     {
         assert (!external);
 
-        var = E_resolveVFC(pos, g_mod, g_sleStack->env, sVar, /*checkParents=*/FALSE);
-        if (var)
-            return EM_error(pos, "Variable %s already declared in this scope.", S_name(sVar));
+        Ty_recordEntry entry;
+        if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
+            return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
         if (statc || Tr_isStatic(g_sleStack->lv))
         {
             string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), S_name(sVar)));
-            var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+            *var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
         }
         else
         {
-            var = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sVar), t));
+            *var = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sVar), t));
         }
-        E_declareVFC (g_sleStack->env, sVar, var);
+        E_declareVFC (g_sleStack->env, sVar, *var);
     }
 
-    if (conv_init)
+    return TRUE;
+}
+
+static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expList constructorAssignedArgs)
+{
+    Ty_ty t = Tr_ty(var);
+    assert (t->kind == Ty_varPtr);
+    var = Tr_Deref(var);
+    t = Tr_ty(var);
+
+    // assign initial value or run constructor ?
+
+    Tr_exp initExp=NULL;
+    if (t->kind == Ty_record)
     {
-        Tr_exp e = Tr_DeepCopy(var);
-        Ty_ty ty = Tr_ty(e);
-        if (ty->kind == Ty_varPtr)
-            e = Tr_Deref(e);
-        Tr_exp assignExp = Tr_assignExp(e, conv_init);
+        if (init)
+            return EM_error(pos, "UDT initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
+        if (t->u.record.constructor)
+        {
+            if (!constructorAssignedArgs)
+                return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
+
+            initExp = Tr_callExp(constructorAssignedArgs, t->u.record.constructor);
+        }
+    }
+    else
+    {
+        if (init)
+        {
+            Tr_exp conv_init=NULL;
+            if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
+                return EM_error(pos, "initializer type mismatch");
+
+            Tr_exp e = Tr_DeepCopy(var);
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind == Ty_varPtr)
+                e = Tr_Deref(e);
+            initExp = Tr_assignExp(e, conv_init);
+        }
+    }
+    if (initExp)
+    {
         if (statc)
-            Tr_ExpListPrepend(g_prog, assignExp);
+            Tr_ExpListPrepend(g_prog, initExp);
         else
-            emit(assignExp);
+            emit(initExp);
     }
     return TRUE;
 }
 
-// singleVarDecl2 ::= Identifier ["(" arrayDimensions ")"] [ "=" expression ]
+// singleVarDecl2 ::= ident ["(" arrayDimensions ")"] [ "=" ( expression | ident "(" actualArgs ")" ) ]
 static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc, Ty_ty ty)
 {
-    S_pos    pos = (*tkn)->pos;
-    S_symbol sVar;
-    FE_dim   dims = NULL;
-    Tr_exp   init = NULL;
+    S_pos      pos = (*tkn)->pos;
+    S_symbol   sVar;
+    FE_dim     dims = NULL;
+    Tr_exp     var  = NULL;
+    Tr_exp     init = NULL;
+    Tr_expList constructorAssignedArgs = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "variable identifier expected here.");
@@ -2356,25 +2428,51 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
         *tkn = (*tkn)->next;
     }
 
+    if (!transVarDecl(pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
+        return FALSE;
+
     if ((*tkn)->kind == S_EQUALS)
     {
         *tkn = (*tkn)->next;
-        if (!expression(tkn, &init))
+
+        // constructor call?
+        if ( (ty->kind==Ty_record) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind == S_LPAREN))
+        {
+            Ty_ty tyRecord = E_resolveType(g_sleStack->env, (*tkn)->u.sym);
+            if (tyRecord == ty)
+            {
+                *tkn = (*tkn)->next;    // skip type ident
+                *tkn = (*tkn)->next;    // skip "("
+
+                constructorAssignedArgs = Tr_ExpList();
+                if (!transActualArgs(tkn, ty->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(var)))
+                    return FALSE;
+
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected.");
+                *tkn = (*tkn)->next;
+            }
+        }
+        if (!constructorAssignedArgs && !expression(tkn, &init))
         {
             return EM_error((*tkn)->pos, "var initializer expression expected here.");
         }
+        if (!transVarInit(pos, var, init, statc, constructorAssignedArgs))
+            return FALSE;
     }
 
-    return transVarDecl(pos, sVar, ty, init, shared, statc, /*external=*/FALSE, isPrivate, dims);
+    return TRUE;
 }
 
-// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ] [ "=" expression ]
+// singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ] [ "=" ( expression | ident "(" actualArgs ")" ) ]
 static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, bool external)
 {
     S_pos      pos   = (*tkn)->pos;
     S_symbol   sVar;
     FE_dim     dims  = NULL;
+    Tr_exp     var  = NULL;
     Tr_exp     init  = NULL;
+    Tr_expList constructorAssignedArgs = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error(pos, "variable declaration: identifier expected here.");
@@ -2401,18 +2499,40 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
             return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
     }
 
+    if (!transVarDecl(pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
+        return FALSE;
+
     if ((*tkn)->kind == S_EQUALS)
     {
         *tkn = (*tkn)->next;
 
-        if (!expression(tkn, &init))
-            return EM_error((*tkn)->pos, "var initializer expression expected here.");
+        // constructor call?
+        if ( (ty->kind==Ty_record) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind == S_LPAREN))
+        {
+            Ty_ty tyRecord = E_resolveType(g_sleStack->env, (*tkn)->u.sym);
+            if (tyRecord == ty)
+            {
+                *tkn = (*tkn)->next;    // skip type ident
+                *tkn = (*tkn)->next;    // skip "("
 
-        if (external)
-            return EM_error((*tkn)->pos, "var initializer not allowed for external vars.");
+                constructorAssignedArgs = Tr_ExpList();
+                if (!transActualArgs(tkn, ty->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(var)))
+                    return FALSE;
+
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected.");
+                *tkn = (*tkn)->next;
+            }
+        }
+        if (!constructorAssignedArgs && !expression(tkn, &init))
+        {
+            return EM_error((*tkn)->pos, "var initializer expression expected here.");
+        }
+        if (!transVarInit(pos, var, init, statc, constructorAssignedArgs))
+            return FALSE;
     }
 
-    return transVarDecl(pos, sVar, ty, init, shared, statc, external, isPrivate, dims);
+    return TRUE;
 }
 
 // stmtDim ::= [ PRIVATE | PUBLIC ] DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
@@ -3070,7 +3190,7 @@ static void stmtSelectEnd_(void)
     emit(transSelectBranch(sle->u.selectStmt.exp, sle->u.selectStmt.selectBFirst));
 }
 
-// stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT ) ]
+// stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT | CONSTRUCTOR ) ]
 static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
    if (isSym(*tkn, S_ENDIF))
@@ -3086,69 +3206,75 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (isSym(*tkn, S_IF))
     {
         if (sle->kind != FE_sleIf)
-        {
-            EM_error((*tkn)->pos, "ENDIF used outside of an IF-statement context");
-            return FALSE;
-        }
+            return EM_error((*tkn)->pos, "ENDIF used outside of an IF-statement context");
         *tkn = (*tkn)->next;
         stmtIfEnd_();
+        return TRUE;
     }
     else
     {
         if (isSym(*tkn, S_SUB))
         {
-            if (sle->kind != FE_sleSub)
-            {
-                EM_error((*tkn)->pos, "END SUB used outside of a SUB context");
-                return FALSE;
-            }
+            if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkSub))
+                return EM_error((*tkn)->pos, "END SUB used outside of a SUB context");
             *tkn = (*tkn)->next;
             stmtProcEnd_();
+            return TRUE;
         }
         else
         {
             if (isSym(*tkn, S_FUNCTION))
             {
-                if (sle->kind != FE_sleFunction)
-                {
-                    EM_error((*tkn)->pos, "END FUNCTION used outside of a SUB context");
-                    return FALSE;
-                }
+                if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkFunction))
+                    return EM_error((*tkn)->pos, "END FUNCTION used outside of a FUNCTION context");
                 *tkn = (*tkn)->next;
                 stmtProcEnd_();
+                return TRUE;
             }
             else
             {
                 if (isSym(*tkn, S_SELECT))
                 {
                     if (sle->kind != FE_sleSelect)
-                    {
-                        EM_error((*tkn)->pos, "END SECTION used outside of a SELECT context");
-                        return FALSE;
-                    }
+                        return EM_error((*tkn)->pos, "END SECTION used outside of a SELECT context");
                     *tkn = (*tkn)->next;
                     stmtSelectEnd_();
+                    return TRUE;
                 }
                 else
                 {
-                    S_symbol fsym      = S_Symbol("SYSTEM", FALSE);
-                    E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
-                    if (!lx)
-                        return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
-                    E_enventry func    = lx->first->e;
+                    if (isSym(*tkn, S_CONSTRUCTOR))
+                    {
+                        if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkConstructor))
+                            return EM_error((*tkn)->pos, "END CONSTRUCTOR used outside of a CONSTRUCTOR context");
+                        *tkn = (*tkn)->next;
+                        stmtProcEnd_();
+                        return TRUE;
+                    }
+                    else
+                    {
+                        if (isLogicalEOL(*tkn))
+                        {
+                            S_symbol fsym      = S_Symbol("SYSTEM", FALSE);
+                            E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
+                            if (!lx)
+                                return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
+                            E_enventry func    = lx->first->e;
 
-                    Tr_expList arglist = Tr_ExpList();
+                            Tr_expList arglist = Tr_ExpList();
 
-                    emit(Tr_callExp(arglist, func->u.proc));
+                            emit(Tr_callExp(arglist, func->u.proc));
 
-                    *tkn = (*tkn)->next;
-                    return TRUE;
+                            *tkn = (*tkn)->next;
+                            return TRUE;
+                        }
+                    }
                 }
             }
         }
     }
 
-    return TRUE;
+    return EM_error((*tkn)->pos, "SUB, FUNCTION, IF, SELECT OR CONSTRUCTOR expected here.");
 }
 
 // stmtAssert ::= ASSERT expression
@@ -3422,21 +3548,24 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
         }
         else
         {
-            Tr_exp procPtr = E_resolveVFC((*tkn)->pos, g_mod, g_sleStack->env, name, /*checkParents=*/TRUE);
-            if (procPtr)
-            { 
-                Ty_ty ty = Tr_ty(procPtr);
-                if (ty->kind == Ty_prc)
+            Ty_recordEntry entry;
+            Tr_exp procPtr;
+            if (E_resolveVFC(g_sleStack->env, name, /*checkParents=*/TRUE, &procPtr, &entry))
+            {
+                if (!entry)
                 {
-                    Ty_proc proc2 = ty->u.proc;
-                
-                    if (matchProcSignatures(proc, proc2))
+                    Ty_ty ty = Tr_ty(procPtr);
+                    if (ty->kind == Ty_prc)
                     {
-                        // if we reach this point, we have a match
-                        Tr_ExpListPrepend(assignedArgs, Tr_funPtrExp(proc2->label, ty));
-                        *formal = (*formal)->next;
-                        *tkn = (*tkn)->next;
-                        return TRUE;
+                        Ty_proc proc2 = ty->u.proc;
+                        if (matchProcSignatures(proc, proc2))
+                        {
+                            // if we reach this point, we have a match
+                            Tr_ExpListPrepend(assignedArgs, Tr_funPtrExp(proc2->label, ty));
+                            *formal = (*formal)->next;
+                            *tkn = (*tkn)->next;
+                            return TRUE;
+                        }
                     }
                 }
             }
@@ -3926,9 +4055,23 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     {
         if (isSym(*tkn, S_CONSTRUCTOR))
         {
+            if (visibility != Ty_visPublic)
+                return EM_error ((*tkn)->pos, "constructors have to be public.");
+
             kind = Ty_pkConstructor;
             *tkn = (*tkn)->next;
-            assert(0); // FIXME
+            if (!sCls)
+            {
+                if ((*tkn)->kind != S_IDENT)
+                    return EM_error ((*tkn)->pos, "class identifier expected here.");
+                sCls = (*tkn)->u.sym;
+                tyCls = E_resolveType(g_sleStack->env, sCls);
+                if (!tyCls)
+                    EM_error ((*tkn)->pos, "Class %s not found.", S_name(sCls));
+
+                *tkn = (*tkn)->next;
+            }
+            name = S_Symbol("__init__", FALSE);
         }
         else
         {
@@ -3949,7 +4092,6 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     }
     if (kind==Ty_pkFunction)
         label = strconcat(label, "_");
-
 
     // look for extra SUB syms
     if ((kind == Ty_pkSub) && !sCls)
@@ -4000,58 +4142,6 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyClsPtr);
 
     return TRUE;
-
-//    else
-//    {
-//        if ((*tkn)->kind == S_PERIOD)
-//        {
-//            *tkn = (*tkn)->next;
-//
-//            sCls = name;
-//
-//            tyCls = E_resolveType(g_sleStack->env, sCls);
-//            if (!tyCls)
-//                EM_error ((*tkn)->pos, "Class %s not found.", S_name(sCls));
-//
-//            if ((*tkn)->kind != S_IDENT)
-//                return EM_error ((*tkn)->pos, "method identifier expected here.");
-//            name = (*tkn)->u.sym;
-//            *tkn = (*tkn)->next;
-//        }
-//    }
-//
-//    if (sCls)
-//    {
-//        label = strconcat("__", strconcat(S_name(sCls), strconcat("_", S_name(name))));
-//        tyClsPtr = Ty_Pointer(g_mod->name, tyCls);
-//        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyClsPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
-//    }
-//    else
-//    {
-//        label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
-//        if (!isFunction)
-//        {
-//            // look for extra syms
-//            while ( ((*tkn)->kind == S_IDENT) && !isSym(*tkn, S_STATIC) )
-//            {
-//                if (extra_syms_last)
-//                {
-//                    extra_syms_last->next = S_Symlist((*tkn)->u.sym, NULL);
-//                    extra_syms_last = extra_syms_last->next;
-//                }
-//                else
-//                {
-//                    extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
-//                }
-//                label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
-//                *tkn = (*tkn)->next;
-//            }
-//        }
-//    }
-//
-//    if (isFunction)
-//        label = strconcat(label, "_");
-//
 }
 
 // check for multiple declarations or definitions, check for matching signatures
@@ -4059,19 +4149,32 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
 static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
 {
     Ty_proc decl=NULL;
-    if (proc->returnTy->kind != Ty_void)
+    if ( (proc->returnTy->kind != Ty_void) || proc->tyClsPtr)
     {
-        Tr_exp d = E_resolveVFC(pos, g_mod, g_sleStack->env, proc->name, /*checkParents=*/TRUE);
+        Tr_exp d;
+        Ty_recordEntry entry;
 
-        if (d)
+        if (E_resolveVFC(g_sleStack->env, proc->name, /*checkParents=*/TRUE, &d, &entry))
         {
-            Ty_ty ty = Tr_ty(d);
-            if (ty->kind != Ty_prc)
+            if (entry)
             {
-                EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
-                return NULL;
+                if (entry->kind != Ty_recMethod)
+                {
+                    EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
+                    return NULL;
+                }
+                decl = entry->u.method;
             }
-            decl = ty->u.proc;
+            else
+            {
+                Ty_ty ty = Tr_ty(d);
+                if (ty->kind != Ty_prc)
+                {
+                    EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
+                    return NULL;
+                }
+                decl = ty->u.proc;
+            }
         }
     }
     else
@@ -4174,10 +4277,6 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
     proc->hasBody = TRUE;
 
-    proc = checkProcMultiDecl(pos, proc);
-    if (!proc)
-        return FALSE;
-
     Tr_level   funlv = Tr_newLevel(proc->label, visibility != Ty_visPrivate, proc->formals, proc->isStatic);
     Tr_exp     returnVar = NULL;
 
@@ -4207,7 +4306,12 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     Temp_label exitlbl = Temp_newlabel();
 
-    slePush(proc->returnTy->kind != Ty_void ? FE_sleFunction : FE_sleSub, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
+    slePush(FE_sleProc, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
+    g_sleStack->u.proc = proc;
+
+    proc = checkProcMultiDecl(pos, proc);
+    if (!proc)
+        return FALSE;
 
     return TRUE;
 }
@@ -4258,8 +4362,9 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             return EM_error((*tkn)->pos, "library call: library base identifier expected here.");
 
         S_symbol sLibBase = (*tkn)->u.sym;
-        Tr_exp vLibBase = E_resolveVFC(pos2, g_mod, g_sleStack->env, sLibBase, /*checkParents=*/TRUE);
-        if (!vLibBase)
+        Tr_exp vLibBase;
+        Ty_recordEntry entry;
+        if (!E_resolveVFC(g_sleStack->env, sLibBase, /*checkParents=*/TRUE, &vLibBase, &entry))
             return EM_error((*tkn)->pos, "Library base %s undeclared.", S_name(sLibBase));
 
         Temp_label l = Tr_heapLabel(vLibBase);
@@ -4488,8 +4593,6 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         *tkn = (*tkn)->next;
         FE_SLE sle = slePop();
 
-        // A_StmtListAppend (g_sleStack->stmtList, A_TypeDeclStmt(s->pos, s->u.typeDecl.sType, s->u.typeDecl.eFirst, s->u.typeDecl.isPrivate));
-
         for (FE_udtEntry f = sle->u.typeDecl.eFirst; f; f=f->next)
         {
             switch(f->kind)
@@ -4515,12 +4618,21 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         end = Tr_getConstInt(dim->idxEnd);
                         t = Ty_Array(g_mod->name, t, start, end);
                     }
-                    Ty_RecordAddField(sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
+
+                    Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name);
+                    if (re)
+                        return EM_error (f->pos, "Duplicate UDT entry.");
+                    re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
+                    S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name, re);
                     break;
                 }
                 case FE_methodUDTEntry:
                 {
-                    Ty_RecordAddMethod(sle->u.typeDecl.ty, f->u.methodr);
+                    Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name);
+                    if (re)
+                        return EM_error (f->pos, "Duplicate UDT entry.");
+                    re = Ty_Method(f->u.methodr);
+                    S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name, re);
                     break;
                 }
             }
@@ -4618,15 +4730,29 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
                 return FALSE;
 
-            Ty_method method = Ty_Method(proc);
-            if (g_sleStack->u.typeDecl.eFirst)
+            switch (proc->kind)
             {
-                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, method);
-                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
-            }
-            else
-            {
-                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, method);
+                case Ty_pkFunction:
+                case Ty_pkSub:
+                {
+                    if (g_sleStack->u.typeDecl.eFirst)
+                    {
+                        g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, proc);
+                        g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
+                    }
+                    else
+                    {
+                        g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, proc);
+                    }
+                    break;
+                }
+                case Ty_pkConstructor:
+                {
+                    g_sleStack->u.typeDecl.ty->u.record.constructor = proc;
+                    break;
+                }
+                default:
+                    assert(0);
             }
         }
         else
@@ -4802,14 +4928,14 @@ static bool stmtNestedStmtList(S_tkn *tkn, FE_nestedStmt *res)
         if (isSym(*tkn, S_SUB))
         {
             *tkn = (*tkn)->next;
-            kind = FE_sleSub;
+            kind = FE_sleProc;
         }
         else
         {
             if (isSym(*tkn, S_FUNCTION))
             {
                 *tkn = (*tkn)->next;
-                kind = FE_sleFunction;
+                kind = FE_sleProc;
             }
             else
             {
@@ -5019,7 +5145,7 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     //                   A_ReturnStmt(pos, exp));
 
     FE_SLE sle = g_sleStack;
-    while (sle && sle->kind != FE_sleFunction && sle->kind != FE_sleSub)
+    while (sle && sle->kind != FE_sleProc)
         sle = sle->prev;
 
     if (!sle)
@@ -5396,8 +5522,9 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
     if (fsym)
     {
-        Tr_exp procPtr = E_resolveVFC(pos, g_mod, g_sleStack->env, fsym, /*checkParents=*/TRUE);
-        if (!procPtr)
+        Tr_exp procPtr;
+        Ty_recordEntry entry;
+        if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         Ty_ty ty = Tr_ty(procPtr);
         assert(ty->kind == Ty_prc);
@@ -5501,44 +5628,45 @@ static void registerBuiltins(void)
 
     g_parsefs = TAB_empty();
 
-    declareBuiltinProc(S_DIM,      stmtDim          , Ty_Void());
-    declareBuiltinProc(S_PRINT,    stmtPrint        , Ty_Void());
-    declareBuiltinProc(S_FOR,      stmtForBegin     , Ty_Void());
-    declareBuiltinProc(S_NEXT,     stmtForEnd       , Ty_Void());
-    declareBuiltinProc(S_IF,       stmtIfBegin      , Ty_Void());
-    declareBuiltinProc(S_ELSE,     stmtIfElse       , Ty_Void());
-    declareBuiltinProc(S_ELSEIF,   stmtIfElse       , Ty_Void());
-    declareBuiltinProc(S_END,      stmtEnd          , Ty_Void());
-    declareBuiltinProc(S_ENDIF,    stmtEnd          , Ty_Void());
-    declareBuiltinProc(S_ASSERT,   stmtAssert       , Ty_Void());
-    declareBuiltinProc(S_OPTION,   stmtOption       , Ty_Void());
-    declareBuiltinProc(S_SUB,      stmtProcBegin    , Ty_Void());
-    declareBuiltinProc(S_FUNCTION, stmtProcBegin    , Ty_Void());
-    declareBuiltinProc(S_CALL,     stmtCall         , Ty_Void());
-    declareBuiltinProc(S_CONST,    stmtConstDecl    , Ty_Void());
-    declareBuiltinProc(S_EXTERN,   stmtExternDecl   , Ty_Void());
-    declareBuiltinProc(S_DECLARE,  stmtProcDecl     , Ty_Void());
-    declareBuiltinProc(S_TYPE,     stmtTypeDeclBegin, Ty_Void());
-    declareBuiltinProc(S_STATIC,   stmtStatic       , Ty_Void());
-    declareBuiltinProc(S_WHILE,    stmtWhileBegin   , Ty_Void());
-    declareBuiltinProc(S_WEND,     stmtWhileEnd     , Ty_Void());
-    declareBuiltinProc(S_LET,      stmtLet          , Ty_Void());
-    declareBuiltinProc(S_EXIT,     stmtExit         , Ty_Void());
-    declareBuiltinProc(S_CONTINUE, stmtContinue     , Ty_Void());
-    declareBuiltinProc(S_DO,       stmtDo           , Ty_Void());
-    declareBuiltinProc(S_LOOP,     stmtLoop         , Ty_Void());
-    declareBuiltinProc(S_SELECT,   stmtSelect       , Ty_Void());
-    declareBuiltinProc(S_CASE,     stmtCase         , Ty_Void());
-    declareBuiltinProc(S_RETURN,   stmtReturn       , Ty_Void());
-    declareBuiltinProc(S_PRIVATE,  stmtPublicPrivate, Ty_Void());
-    declareBuiltinProc(S_PUBLIC,   stmtPublicPrivate, Ty_Void());
-    declareBuiltinProc(S_IMPORT,   stmtImport       , Ty_Void());
-    declareBuiltinProc(S_DEFSNG,   stmtDefsng       , Ty_Void());
-    declareBuiltinProc(S_DEFLNG,   stmtDeflng       , Ty_Void());
-    declareBuiltinProc(S_DEFINT,   stmtDefint       , Ty_Void());
-    declareBuiltinProc(S_DEFSTR,   stmtDefstr       , Ty_Void());
-    declareBuiltinProc(S_GOTO,     stmtGoto         , Ty_Void());
-    declareBuiltinProc(S_GOSUB,    stmtGosub        , Ty_Void());
+    declareBuiltinProc(S_DIM,         stmtDim          , Ty_Void());
+    declareBuiltinProc(S_PRINT,       stmtPrint        , Ty_Void());
+    declareBuiltinProc(S_FOR,         stmtForBegin     , Ty_Void());
+    declareBuiltinProc(S_NEXT,        stmtForEnd       , Ty_Void());
+    declareBuiltinProc(S_IF,          stmtIfBegin      , Ty_Void());
+    declareBuiltinProc(S_ELSE,        stmtIfElse       , Ty_Void());
+    declareBuiltinProc(S_ELSEIF,      stmtIfElse       , Ty_Void());
+    declareBuiltinProc(S_END,         stmtEnd          , Ty_Void());
+    declareBuiltinProc(S_ENDIF,       stmtEnd          , Ty_Void());
+    declareBuiltinProc(S_ASSERT,      stmtAssert       , Ty_Void());
+    declareBuiltinProc(S_OPTION,      stmtOption       , Ty_Void());
+    declareBuiltinProc(S_SUB,         stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_FUNCTION,    stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_CONSTRUCTOR, stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_CALL,        stmtCall         , Ty_Void());
+    declareBuiltinProc(S_CONST,       stmtConstDecl    , Ty_Void());
+    declareBuiltinProc(S_EXTERN,      stmtExternDecl   , Ty_Void());
+    declareBuiltinProc(S_DECLARE,     stmtProcDecl     , Ty_Void());
+    declareBuiltinProc(S_TYPE,        stmtTypeDeclBegin, Ty_Void());
+    declareBuiltinProc(S_STATIC,      stmtStatic       , Ty_Void());
+    declareBuiltinProc(S_WHILE,       stmtWhileBegin   , Ty_Void());
+    declareBuiltinProc(S_WEND,        stmtWhileEnd     , Ty_Void());
+    declareBuiltinProc(S_LET,         stmtLet          , Ty_Void());
+    declareBuiltinProc(S_EXIT,        stmtExit         , Ty_Void());
+    declareBuiltinProc(S_CONTINUE,    stmtContinue     , Ty_Void());
+    declareBuiltinProc(S_DO,          stmtDo           , Ty_Void());
+    declareBuiltinProc(S_LOOP,        stmtLoop         , Ty_Void());
+    declareBuiltinProc(S_SELECT,      stmtSelect       , Ty_Void());
+    declareBuiltinProc(S_CASE,        stmtCase         , Ty_Void());
+    declareBuiltinProc(S_RETURN,      stmtReturn       , Ty_Void());
+    declareBuiltinProc(S_PRIVATE,     stmtPublicPrivate, Ty_Void());
+    declareBuiltinProc(S_PUBLIC,      stmtPublicPrivate, Ty_Void());
+    declareBuiltinProc(S_IMPORT,      stmtImport       , Ty_Void());
+    declareBuiltinProc(S_DEFSNG,      stmtDefsng       , Ty_Void());
+    declareBuiltinProc(S_DEFLNG,      stmtDeflng       , Ty_Void());
+    declareBuiltinProc(S_DEFINT,      stmtDefint       , Ty_Void());
+    declareBuiltinProc(S_DEFSTR,      stmtDefstr       , Ty_Void());
+    declareBuiltinProc(S_GOTO,        stmtGoto         , Ty_Void());
+    declareBuiltinProc(S_GOSUB,       stmtGosub        , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF,    funSizeOf,    Ty_ULong());
     declareBuiltinProc(S_VARPTR,    funVarPtr,    Ty_VoidPtr());

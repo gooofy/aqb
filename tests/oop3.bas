@@ -1,7 +1,7 @@
 '
-' OOP Test 2
+' OOP Test 3
 '
-' test field access without using this->
+' constructor
 '
 
 OPTION EXPLICIT
@@ -10,10 +10,17 @@ TYPE myc1
 
     field1 AS INTEGER
 
-    DECLARE SUB store (o AS INTEGER)
+    DECLARE CONSTRUCTOR (initValue AS INTEGER)
+
+    DECLARE SUB store (i AS INTEGER)
     DECLARE FUNCTION retrieve () AS INTEGER
 
 END TYPE
+
+CONSTRUCTOR myc1 (initValue AS INTEGER)
+    _debug_puts "CONSTRUCTOR called." : _debug_putnl
+    field1 = initValue
+END CONSTRUCTOR
 
 SUB myc1.store (i AS INTEGER)
 
@@ -35,7 +42,7 @@ END FUNCTION
 ' main
 '
 
-DIM o AS myc1
+DIM o AS myc1 = myc1(10)
 
 o.store(42)
 DIM res AS INTEGER = o.retrieve()

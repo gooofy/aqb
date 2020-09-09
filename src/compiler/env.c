@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     23
+#define SYM_VERSION     25
 
 E_module g_builtinsModule = NULL;
 
@@ -107,53 +107,30 @@ E_env E_EnvWith (E_env parent, Tr_exp withPrefix)
     return p;
 }
 
-Tr_exp E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool checkParents)
+bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, Tr_exp *exp, Ty_recordEntry *entry)
 {
     E_enventry x = NULL;
+    *entry = NULL;
     switch (env->kind)
     {
         case E_scopesEnv:
             x = S_look(env->u.scopes.vfcenv, sym);
             if (x)
-                return x->u.var;
+            {
+                *exp = x->u.var;
+                return TRUE;
+            }
             break;
         case E_withEnv:
         {
-            Tr_exp exp = env->u.withPrefix;
+            *exp = env->u.withPrefix;
 
-            Ty_ty ty = Tr_ty(exp);
+            Ty_ty ty = Tr_ty(*exp);
             assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
 
-            exp = Tr_Deref(exp);
-            ty = Tr_ty(exp);
-
-            Ty_field f = ty->u.pointer->u.record.fields;
-            for (;f;f=f->next)
-            {
-                if (f->name == sym)
-                    break;
-            }
-            if (f)
-            {
-                Ty_ty fty = f->ty;
-                if (fty->kind == Ty_forwardPtr)
-                {
-                    Ty_ty ftyr = E_resolveType(env, f->ty->u.sForward);
-                    if (!ftyr)
-                    {
-                        EM_error(pos, "failed to resolve forward type of field");
-                        return NULL;
-                    }
-
-                    f->ty = Ty_Pointer(mod->name, ftyr);
-                }
-
-                exp = Tr_Field(exp, f);
-
-                return exp;
-
-            }
-
+            *entry = S_look(ty->u.pointer->u.pointer->u.record.scope, sym);
+            if (*entry)
+                return TRUE;
             break;
         }
 
@@ -165,20 +142,21 @@ Tr_exp E_resolveVFC (S_pos pos, E_module mod, E_env env, S_symbol sym, bool chec
     {
         for (E_envListNode n=env->parents->first; n; n=n->next)
         {
-            Tr_exp var = E_resolveVFC (pos, mod, n->env, sym, TRUE);
-            if (var)
-                return var;
+            if (E_resolveVFC (n->env, sym, TRUE, exp, entry))
+                return TRUE;
         }
     }
-    return NULL;
+    return FALSE;
 }
 
 Ty_ty E_resolveType (E_env env, S_symbol sym)
 {
-    assert (env->kind==E_scopesEnv);
-    E_enventry x = S_look(env->u.scopes.tenv, sym);
-    if (x)
-        return x->u.ty;
+    if (env->kind==E_scopesEnv)
+    {
+        E_enventry x = S_look(env->u.scopes.tenv, sym);
+        if (x)
+            return x->u.ty;
+    }
 
     for (E_envListNode n=env->parents->first; n; n=n->next)
     {
@@ -380,8 +358,21 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             break;
         case Ty_record:
         {
-            for (Ty_field fl = ty->u.record.fields; fl; fl = fl->next)
-                E_tyFindTypes (type_tab, fl->ty);
+            TAB_iter i = S_Iter(ty->u.record.scope);
+            S_symbol sym;
+            Ty_recordEntry entry;
+            while (TAB_next(i, (void **) &sym, (void **)&entry))
+            {
+                switch (entry->kind)
+                {
+                    case Ty_recMethod:
+                        assert(0); // FIXME
+                        break;
+                    case Ty_recField:
+                        E_tyFindTypes (type_tab, entry->u.field.ty);
+                        break;
+                }
+            }
             break;
         }
         case Ty_pointer:
@@ -500,21 +491,46 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_array:
+            fwrite(&ty->u.array.uiSize, 4, 1, modf);
             E_serializeTyRef(modTable, ty->u.array.elementTy);
             fwrite(&ty->u.array.iStart, 4, 1, modf);
             fwrite(&ty->u.array.iEnd,   4, 1, modf);
             break;
         case Ty_record:
         {
+            TAB_iter i = S_Iter(ty->u.record.scope);
+            S_symbol sym;
+            Ty_recordEntry entry;
+            fwrite(&ty->u.record.uiSize, 4, 1, modf);
             uint16_t cnt=0;
-            for (Ty_field fields = ty->u.record.fields; fields; fields = fields->next)
-                cnt++;
-            fwrite(&cnt, 2, 1, modf);
-            for (Ty_field fields = ty->u.record.fields; fields; fields = fields->next)
+            while (TAB_next(i, (void **) &sym, (void **)&entry))
             {
-                fwrite(&fields->visibility, 1, 1, modf);
-                strserialize(modf, S_name(fields->name));
-                E_serializeTyRef(modTable, fields->ty);
+                switch (entry->kind)
+                {
+                    case Ty_recMethod:
+                        assert(0); // FIXME
+                        break;
+                    case Ty_recField:
+                        cnt++;
+                        break;
+                }
+            }
+            fwrite(&cnt, 2, 1, modf);
+            i = S_Iter(ty->u.record.scope);
+            while (TAB_next(i, (void **) &sym, (void **)&entry))
+            {
+                switch (entry->kind)
+                {
+                    case Ty_recMethod:
+                        assert(0); // FIXME
+                        break;
+                    case Ty_recField:
+                        fwrite(&entry->u.field.visibility, 1, 1, modf);
+                        strserialize(modf, S_name(entry->u.field.name));
+                        fwrite(&entry->u.field.uiOffset, 4, 1, modf);
+                        E_serializeTyRef(modTable, entry->u.field.ty);
+                        break;
+                }
             }
             break;
         }
@@ -1105,6 +1121,7 @@ E_module E_loadModule(S_symbol sModule)
             switch (ty->kind)
             {
                 case Ty_array:
+                    if (fread(&ty->u.array.uiSize, 4, 1, modf) != 1) goto fail;
                     ty->u.array.elementTy = E_deserializeTyRef(modTable, modf);
                     if (fread(&ty->u.array.iStart, 4, 1, modf) != 1) goto fail;
                     if (fread(&ty->u.array.iEnd,   4, 1, modf) != 1) goto fail;
@@ -1113,20 +1130,26 @@ E_module E_loadModule(S_symbol sModule)
 
                 case Ty_record:
                 {
+                    if (fread(&ty->u.record.uiSize, 4, 1, modf) != 1) goto fail;
+
                     uint16_t cnt=0;
                     if (fread(&cnt, 2, 1, modf) != 1) goto fail;
 
-                    ty->u.record.fields      = NULL;
-                    ty->u.record.fields_last = NULL;
+                    ty->u.record.scope = S_beginScope();
 
                     for (int i=0; i<cnt; i++)
                     {
                         Ty_visibility visibility;
                         if (fread(&visibility, 1, 1, modf) != 1) goto fail;
                         string name = strdeserialize(modf);
+                        uint32_t uiOffset = 0;
+                        if (fread(&uiOffset, 4, 1, modf) != 1) goto fail;
                         Ty_ty t = E_deserializeTyRef(modTable, modf);
 
-                        Ty_RecordAddField (ty, visibility, S_Symbol(name, FALSE), t);
+                        S_symbol sym = S_Symbol(name, FALSE);
+                        Ty_recordEntry re = Ty_Field(visibility, sym, t);
+                        re->u.field.uiOffset = uiOffset;
+                        S_enter(ty->u.record.scope, sym, re);
                     }
                     break;
                 }
@@ -1166,7 +1189,6 @@ E_module E_loadModule(S_symbol sModule)
                     printf ("%s: toLoad type detected!\n", modfn);
                     goto fail;
                 }
-                Ty_computeSize(ty);
             }
         }
 

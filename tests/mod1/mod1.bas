@@ -12,6 +12,7 @@ ASSERT foobares = 23
 foobar(42)
 ASSERT foobares = 42
 
+' _debug_puts2 v1.i1 : _debug_putnl
 ASSERT v1.i1 = 23
 ASSERT v1.l1 = 123456
 

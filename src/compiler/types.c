@@ -78,10 +78,8 @@ Ty_ty Ty_Record (S_symbol mod)
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind                  = Ty_record;
-    p->u.record.fields       = NULL;
-    p->u.record.fields_last  = NULL;
-    p->u.record.methods      = NULL;
-    p->u.record.methods_last = NULL;
+    p->u.record.scope        = S_beginScope();
+    p->u.record.constructor  = NULL;
     p->u.record.uiSize       = 0;
     p->mod                   = mod;
     p->uid                   = g_uid++;
@@ -89,46 +87,25 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-Ty_field Ty_RecordAddField  (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty ty)
+Ty_recordEntry Ty_Field (Ty_visibility visibility, S_symbol name, Ty_ty ty)
 {
-    Ty_field f = checked_malloc(sizeof(*f));
+    Ty_recordEntry f = checked_malloc(sizeof(*f));
 
-    f->visibility = visibility;
-    f->name       = name;
-    f->ty         = ty;
-
-    if (recordType->u.record.fields_last)
-    {
-        recordType->u.record.fields_last->next = f;
-        recordType->u.record.fields_last = recordType->u.record.fields_last->next;
-    }
-    else
-    {
-        recordType->u.record.fields = recordType->u.record.fields_last = f;
-    }
+    f->kind               = Ty_recField;
+    f->u.field.visibility = visibility;
+    f->u.field.name       = name;
+    f->u.field.uiOffset   = 0;
+    f->u.field.ty         = ty;
 
     return f;
 }
 
-void Ty_RecordAddMethod (Ty_ty recordType, Ty_method method)
+Ty_recordEntry Ty_Method (Ty_proc proc)
 {
-    if (recordType->u.record.methods_last)
-    {
-        recordType->u.record.methods_last->next = method;
-        recordType->u.record.methods_last = recordType->u.record.methods_last->next;
-    }
-    else
-    {
-        recordType->u.record.methods = recordType->u.record.methods_last = method;
-    }
-}
+    Ty_recordEntry p = checked_malloc(sizeof(*p));
 
-Ty_method Ty_Method (Ty_proc proc)
-{
-    Ty_method p = checked_malloc(sizeof(*p));
-
-    p->proc  = proc;
-    p->next  = NULL;
+    p->kind      = Ty_recMethod;
+    p->u.method  = proc;
 
     return p;
 }
@@ -217,9 +194,15 @@ void Ty_computeSize(Ty_ty ty)
             uint32_t off=0;
 
             ty->u.record.uiSize = 0;
-            for (Ty_field fl=ty->u.record.fields; fl; fl=fl->next)
+            TAB_iter iter = S_Iter(ty->u.record.scope);
+
+            S_symbol sym;
+            Ty_recordEntry entry;
+            while (TAB_next (iter, (void *) (intptr_t) &sym, (void *) &entry))
             {
-                unsigned int s = Ty_size(fl->ty);
+                if (entry->kind != Ty_recField)
+                    continue;
+                unsigned int s = Ty_size(entry->u.field.ty);
 
                 // 68k alignment
                 if (s>1 && (ty->u.record.uiSize % 2))
@@ -229,7 +212,7 @@ void Ty_computeSize(Ty_ty ty)
                 }
 
                 ty->u.record.uiSize += s;
-                fl->uiOffset = off;
+                entry->u.field.uiOffset = off;
                 off += s;
             }
             break;

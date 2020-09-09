@@ -21,7 +21,7 @@ SUB myc1.store (i AS INTEGER)
 
 END SUB
 
-FUNCTION myc1.retrieve () AS VOID PTR
+FUNCTION myc1.retrieve () AS INTEGER
 
     ' _debug_puts "retrieve() called." : _debug_putnl
 

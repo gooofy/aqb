@@ -727,8 +727,9 @@ Tr_exp Tr_Deref(Tr_exp ptr)
     return Tr_Ex(T_Mem(unEx(ptr), t->u.pointer));
 }
 
-Tr_exp Tr_Field(Tr_exp r, Ty_field f)
+Tr_exp Tr_Field(Tr_exp r, Ty_recordEntry f)
 {
+    assert (f->kind == Ty_recField);
     Ty_ty t = Tr_ty(r);
     assert(t->kind==Ty_varPtr || t->kind==Ty_pointer);
     assert(t->u.pointer->kind==Ty_record);
@@ -736,8 +737,8 @@ Tr_exp Tr_Field(Tr_exp r, Ty_field f)
     T_exp e = unEx(r);
     return Tr_Ex(T_Binop(T_plus,
                          e,
-                         T_Const(Ty_ConstInt(Ty_ULong(), f->uiOffset)),
-                         Ty_VarPtr(f->ty)));
+                         T_Const(Ty_ConstInt(Ty_ULong(), f->u.field.uiOffset)),
+                         Ty_VarPtr(f->u.field.ty)));
 }
 
 static int ipow(int base, int exp)
