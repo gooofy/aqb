@@ -1,7 +1,7 @@
 '
-' OOP Test 3
+' OOP Test 4
 '
-' constructor
+' call methods without using this->
 '
 
 OPTION EXPLICIT
@@ -14,6 +14,8 @@ TYPE myc1
 
     DECLARE SUB store (i AS INTEGER)
     DECLARE FUNCTION retrieve () AS INTEGER
+
+    DECLARE FUNCTION square() AS INTEGER
 
 END TYPE
 
@@ -29,6 +31,10 @@ SUB myc1.store (i AS INTEGER)
     field1 = i
 
 END SUB
+
+FUNCTION myc1.square () AS INTEGER
+    RETURN retrieve()*retrieve()
+END FUNCTION
 
 FUNCTION myc1.retrieve () AS INTEGER
 
@@ -51,4 +57,4 @@ DIM res AS INTEGER = o.retrieve()
 ASSERT o.retrieve() = 42
 o.store(23)
 ASSERT o.retrieve() = 23
-
+ASSERT o.square() = 529

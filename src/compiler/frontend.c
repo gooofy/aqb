@@ -380,36 +380,10 @@ static inline bool isLogicalEOL(S_tkn tkn)
     return !tkn || tkn->kind == S_COLON || tkn->kind == S_EOL;
 }
 
-static Tr_exp transVFCVar(S_pos pos, Tr_exp exp, Ty_recordEntry entry)
-{
-    assert(entry && (entry->kind == Ty_recField));
-
-    Ty_ty ty = Tr_ty(exp);
-    assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
-
-    exp = Tr_Deref(exp);
-    ty = Tr_ty(exp);
-
-    Ty_ty fty = entry->u.field.ty;
-    if (fty->kind == Ty_forwardPtr)
-    {
-        Ty_ty ftyr = E_resolveType(g_sleStack->env, fty->u.sForward);
-        if (!ftyr)
-        {
-            EM_error(pos, "failed to resolve forward type of field");
-            return NULL;
-        }
-
-        entry->u.field.ty = Ty_Pointer(g_mod->name, ftyr);
-    }
-
-    exp = Tr_Field(exp, entry);
-
-    return exp;
-}
+static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_exp *exp);
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
-static Tr_exp autovar(S_symbol v, S_pos pos)
+static Tr_exp autovar(S_symbol v, S_pos pos, S_tkn *tkn)
 {
     Tr_level   level = g_sleStack->lv;
 
@@ -419,8 +393,16 @@ static Tr_exp autovar(S_symbol v, S_pos pos)
     {
         if (entry)
         {
+
             if (entry->kind == Ty_recField)
-                return transVFCVar(pos, var, entry);
+            {
+                Ty_ty ty = Tr_ty(var);
+                assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
+                var = Tr_Deref(var);
+                ty = Tr_ty(var);
+                if (transRecordSelector(pos, tkn, entry, &var))
+                    return var;
+            }
             else
                 EM_error(pos, "variable expected here.");
         }
@@ -1532,16 +1514,17 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
     {
         if (entry)
         {
-            switch (entry->kind)
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind == Ty_varPtr)
             {
-                case Ty_recField:
-                    *exp = transVFCVar(pos, e, entry);
-                    *tkn = (*tkn)->next;
-                    break;
-                case Ty_recMethod:
-                    assert(0); // FIXME
-                    break;
+                e = Tr_Deref(e);
+                ty = Tr_ty(e);
+
             }
+            *tkn = (*tkn)->next;
+            if (!transRecordSelector(pos, tkn, entry, &e))
+                return FALSE;
+            *exp = e;
         }
         else
         {
@@ -1568,7 +1551,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
     else
     {
         // implicit variable
-        Tr_exp var = autovar(sym, pos);
+        Tr_exp var = autovar(sym, pos, tkn);
 
         *exp = Tr_DeepCopy(var);
         *tkn = (*tkn)->next;
@@ -2758,7 +2741,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
     else
     {
-        loopVar = autovar(sle->u.forLoop.sVar, (*tkn)->pos);
+        loopVar = autovar(sle->u.forLoop.sVar, (*tkn)->pos, tkn);
     }
     sle->u.forLoop.var = Tr_DeepCopy(loopVar);
     varTy = Tr_ty(sle->u.forLoop.var);
