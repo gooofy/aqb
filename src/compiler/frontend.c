@@ -2291,7 +2291,54 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
     return TRUE;
 }
 
-static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
+static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expList constructorAssignedArgs)
+{
+    Ty_ty t = Tr_ty(var);
+    assert (t->kind == Ty_varPtr);
+    var = Tr_Deref(var);
+    t = Tr_ty(var);
+
+    // assign initial value or run constructor ?
+
+    Tr_exp initExp=NULL;
+    if (t->kind == Ty_record)
+    {
+        if (init)
+            return EM_error(pos, "UDT initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
+        if (t->u.record.constructor)
+        {
+            if (!constructorAssignedArgs)
+                return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
+
+            initExp = Tr_callExp(constructorAssignedArgs, t->u.record.constructor);
+        }
+    }
+    else
+    {
+        if (init)
+        {
+            Tr_exp conv_init=NULL;
+            if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
+                return EM_error(pos, "initializer type mismatch");
+
+            Tr_exp e = Tr_DeepCopy(var);
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind == Ty_varPtr)
+                e = Tr_Deref(e);
+            initExp = Tr_assignExp(e, conv_init);
+        }
+    }
+    if (initExp)
+    {
+        if (statc)
+            Tr_ExpListPrepend(g_prog, initExp);
+        else
+            emit(initExp);
+    }
+    return TRUE;
+}
+
+static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
 {
     if (!t)
         t = Ty_inferType(S_name(sVar));
@@ -2389,53 +2436,42 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool st
         E_declareVFC (g_sleStack->env, sVar, *var);
     }
 
-    return TRUE;
-}
+    /*
+     * run constructor / assign initial value
+     */
 
-static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expList constructorAssignedArgs)
-{
-    Ty_ty t = Tr_ty(var);
-    assert (t->kind == Ty_varPtr);
-    var = Tr_Deref(var);
-    t = Tr_ty(var);
-
-    // assign initial value or run constructor ?
-
-    Tr_exp initExp=NULL;
-    if (t->kind == Ty_record)
+    Tr_expList constructorAssignedArgs = NULL;
+    if ((*tkn)->kind == S_EQUALS)
     {
-        if (init)
-            return EM_error(pos, "UDT initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
-        if (t->u.record.constructor)
+        *tkn = (*tkn)->next;
+
+        // constructor call?
+        if ( (t->kind==Ty_record) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind == S_LPAREN))
         {
-            if (!constructorAssignedArgs)
-                return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
+            Ty_ty tyRecord = E_resolveType(g_sleStack->env, (*tkn)->u.sym);
+            if (tyRecord == t)
+            {
+                *tkn = (*tkn)->next;    // skip type ident
+                *tkn = (*tkn)->next;    // skip "("
 
-            initExp = Tr_callExp(constructorAssignedArgs, t->u.record.constructor);
+                constructorAssignedArgs = Tr_ExpList();
+                if (!transActualArgs(tkn, t->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(*var)))
+                    return FALSE;
+
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected.");
+                *tkn = (*tkn)->next;
+            }
         }
-    }
-    else
-    {
-        if (init)
+        Tr_exp init = NULL;
+        if (!constructorAssignedArgs && !expression(tkn, &init))
         {
-            Tr_exp conv_init=NULL;
-            if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
-                return EM_error(pos, "initializer type mismatch");
-
-            Tr_exp e = Tr_DeepCopy(var);
-            Ty_ty ty = Tr_ty(e);
-            if (ty->kind == Ty_varPtr)
-                e = Tr_Deref(e);
-            initExp = Tr_assignExp(e, conv_init);
+            return EM_error((*tkn)->pos, "var initializer expression expected here.");
         }
+        if (!transVarInit(pos, *var, init, statc, constructorAssignedArgs))
+            return FALSE;
     }
-    if (initExp)
-    {
-        if (statc)
-            Tr_ExpListPrepend(g_prog, initExp);
-        else
-            emit(initExp);
-    }
+
     return TRUE;
 }
 
@@ -2446,8 +2482,6 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
     S_symbol   sVar;
     FE_dim     dims = NULL;
     Tr_exp     var  = NULL;
-    Tr_exp     init = NULL;
-    Tr_expList constructorAssignedArgs = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "variable identifier expected here.");
@@ -2465,38 +2499,8 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
         *tkn = (*tkn)->next;
     }
 
-    if (!transVarDecl(pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
+    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
         return FALSE;
-
-    if ((*tkn)->kind == S_EQUALS)
-    {
-        *tkn = (*tkn)->next;
-
-        // constructor call?
-        if ( (ty->kind==Ty_record) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind == S_LPAREN))
-        {
-            Ty_ty tyRecord = E_resolveType(g_sleStack->env, (*tkn)->u.sym);
-            if (tyRecord == ty)
-            {
-                *tkn = (*tkn)->next;    // skip type ident
-                *tkn = (*tkn)->next;    // skip "("
-
-                constructorAssignedArgs = Tr_ExpList();
-                if (!transActualArgs(tkn, ty->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(var)))
-                    return FALSE;
-
-                if ((*tkn)->kind != S_RPAREN)
-                    return EM_error((*tkn)->pos, ") expected.");
-                *tkn = (*tkn)->next;
-            }
-        }
-        if (!constructorAssignedArgs && !expression(tkn, &init))
-        {
-            return EM_error((*tkn)->pos, "var initializer expression expected here.");
-        }
-        if (!transVarInit(pos, var, init, statc, constructorAssignedArgs))
-            return FALSE;
-    }
 
     return TRUE;
 }
@@ -2508,8 +2512,6 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
     S_symbol   sVar;
     FE_dim     dims  = NULL;
     Tr_exp     var  = NULL;
-    Tr_exp     init  = NULL;
-    Tr_expList constructorAssignedArgs = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error(pos, "variable declaration: identifier expected here.");
@@ -2536,38 +2538,8 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
             return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
     }
 
-    if (!transVarDecl(pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
+    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
         return FALSE;
-
-    if ((*tkn)->kind == S_EQUALS)
-    {
-        *tkn = (*tkn)->next;
-
-        // constructor call?
-        if ( (ty->kind==Ty_record) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind == S_LPAREN))
-        {
-            Ty_ty tyRecord = E_resolveType(g_sleStack->env, (*tkn)->u.sym);
-            if (tyRecord == ty)
-            {
-                *tkn = (*tkn)->next;    // skip type ident
-                *tkn = (*tkn)->next;    // skip "("
-
-                constructorAssignedArgs = Tr_ExpList();
-                if (!transActualArgs(tkn, ty->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(var)))
-                    return FALSE;
-
-                if ((*tkn)->kind != S_RPAREN)
-                    return EM_error((*tkn)->pos, ") expected.");
-                *tkn = (*tkn)->next;
-            }
-        }
-        if (!constructorAssignedArgs && !expression(tkn, &init))
-        {
-            return EM_error((*tkn)->pos, "var initializer expression expected here.");
-        }
-        if (!transVarInit(pos, var, init, statc, constructorAssignedArgs))
-            return FALSE;
-    }
 
     return TRUE;
 }

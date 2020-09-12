@@ -74,7 +74,7 @@ CONST AS INTEGER num_step_x = prec/net_x
 'LINE (0,0)-(wx,wy),1,BF
 
 ' cache up to two rows of f() values
-DIM AS INTEGER  fncache_x(prec-1, 1), fncache_y(prec-1, 1)
+DIM AS INTEGER  fncache_x(STATIC prec-1, 1), fncache_y(STATIC prec-1, 1)
 DIM AS INTEGER  fncache_cur = 0, fncache_last = 1
 
 ' main drawing routine

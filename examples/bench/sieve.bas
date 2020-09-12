@@ -10,7 +10,7 @@ END IF
 5  SIZE = 8190
 10 PRINT "BYTE SIEVE, 7000 numbers done 5 times"
 15 t!=TIMER()
-30 DIM FLAGS(8191)
+30 DIM FLAGS(STATIC 8191)
 35 FOR j=1 TO 5
 36 PRINT "iter #";j;", time:"; timer()
 40 ACOUNT=0
