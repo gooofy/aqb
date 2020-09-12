@@ -186,11 +186,18 @@ void Ty_computeSize(Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_darray:
-            assert(0); // FIXME
+        {
+            ty->u.darray.uiSize = Ty_size(ty->u.darray.elementTy);
+            for (int16_t iDim=ty->u.darray.numDims-1; iDim>=0; iDim--)
+            {
+                ty->u.darray.uiSize *= (ty->u.darray.bounds[iDim*2+1] - ty->u.darray.bounds[iDim*2]+1);
+            }
+            ty->u.darray.uiSize += 10; // descriptor overhead
             break;
+        }
 
         case Ty_sarray:
-            ty->u.array.uiSize = (ty->u.array.iEnd - ty->u.array.iStart + 1) * Ty_size(ty->u.array.elementTy);
+            ty->u.sarray.uiSize = (ty->u.sarray.iEnd - ty->u.sarray.iStart + 1) * Ty_size(ty->u.sarray.elementTy);
             break;
 
         case Ty_record:
@@ -247,12 +254,28 @@ Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
-    p->kind              = Ty_sarray;
-    p->u.array.elementTy = ty;
-    p->u.array.iStart    = start;
-    p->u.array.iEnd      = end;
-    p->mod               = mod;
-    p->uid               = g_uid++;
+    p->kind               = Ty_sarray;
+    p->u.sarray.elementTy = ty;
+    p->u.sarray.iStart    = start;
+    p->u.sarray.iEnd      = end;
+    p->mod                = mod;
+    p->uid                = g_uid++;
+
+    Ty_computeSize(p);
+
+    return p;
+}
+
+Ty_ty Ty_DArray(S_symbol mod, Ty_ty ty, uint16_t numDims, uint32_t *bounds)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+
+    p->kind               = Ty_darray;
+    p->u.darray.elementTy = ty;
+    p->u.darray.numDims   = numDims;
+    p->u.darray.bounds    = bounds;
+    p->mod                = mod;
+    p->uid                = g_uid++;
 
     Ty_computeSize(p);
 
@@ -289,10 +312,9 @@ int Ty_size(Ty_ty t)
         case Ty_double:
              return 8;
         case Ty_darray:
-             assert(0); // FIXME
-             return 0;
+            return t->u.darray.uiSize;
         case Ty_sarray:
-            return t->u.array.uiSize;
+            return t->u.sarray.uiSize;
         case Ty_record:
             return t->u.record.uiSize;
         default:

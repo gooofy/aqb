@@ -29,7 +29,7 @@ all: cond1.bin cond3.bin cond4.bin	\
 	types1.bin types2.bin types3.bin types4.bin types5.bin types6.bin types7.bin types8.bin types9.bin \
 	types10.bin types11.bin types12.bin \
 	var1.bin var2.bin \
-	mod1 io1
+	mod1 io1 \
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@

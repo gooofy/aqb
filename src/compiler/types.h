@@ -27,7 +27,9 @@ struct Ty_ty_
         struct {Ty_proc  constructor;
                 uint32_t uiSize;
                 S_scope  scope; /* symbol -> Ty_recordEntry */              } record;
-        struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } array;
+        struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
+        struct {Ty_ty elementTy; uint16_t numDims; uint32_t *bounds;
+                uint32_t uiSize;                                            } darray;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
@@ -114,6 +116,7 @@ Ty_ty           Ty_Void(void);
 Ty_ty           Ty_VoidPtr(void);
 
 Ty_ty           Ty_SArray     (S_symbol mod, Ty_ty ty, int start, int end);
+Ty_ty           Ty_DArray     (S_symbol mod, Ty_ty ty, uint16_t numDims, uint32_t *bounds);
 Ty_ty           Ty_VarPtr     (Ty_ty ty);
 Ty_ty           Ty_Pointer    (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_ForwardPtr (S_symbol mod, S_symbol sType);

@@ -702,14 +702,14 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
 
     if (t->u.pointer->kind == Ty_sarray)
     {
-        Ty_ty et = at->u.array.elementTy;
+        Ty_ty et = at->u.sarray.elementTy;
 
         return Tr_binOpExp(T_plus,
                           ape,
                           Tr_binOpExp(T_mul,
                                      Tr_binOpExp(T_minus,
                                                 idx,
-                                                Tr_intExp(at->u.array.iStart, Ty_Long()),
+                                                Tr_intExp(at->u.sarray.iStart, Ty_Long()),
                                                 Ty_Long()),
                                      Tr_intExp(Ty_size(et), Ty_Long()),
                                      Ty_Long()),

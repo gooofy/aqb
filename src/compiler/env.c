@@ -354,7 +354,7 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             assert(0);
             break;
         case Ty_sarray:
-            E_tyFindTypes (type_tab, ty->u.array.elementTy);
+            E_tyFindTypes (type_tab, ty->u.sarray.elementTy);
             break;
         case Ty_darray:
             assert(0); // FIXME
@@ -497,10 +497,10 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             assert(0); // FIXME
             break;
         case Ty_sarray:
-            fwrite(&ty->u.array.uiSize, 4, 1, modf);
-            E_serializeTyRef(modTable, ty->u.array.elementTy);
-            fwrite(&ty->u.array.iStart, 4, 1, modf);
-            fwrite(&ty->u.array.iEnd,   4, 1, modf);
+            fwrite(&ty->u.sarray.uiSize, 4, 1, modf);
+            E_serializeTyRef(modTable, ty->u.sarray.elementTy);
+            fwrite(&ty->u.sarray.iStart, 4, 1, modf);
+            fwrite(&ty->u.sarray.iEnd,   4, 1, modf);
             break;
         case Ty_record:
         {
@@ -1131,10 +1131,10 @@ E_module E_loadModule(S_symbol sModule)
                     break;
 
                 case Ty_sarray:
-                    if (fread(&ty->u.array.uiSize, 4, 1, modf) != 1) goto fail;
-                    ty->u.array.elementTy = E_deserializeTyRef(modTable, modf);
-                    if (fread(&ty->u.array.iStart, 4, 1, modf) != 1) goto fail;
-                    if (fread(&ty->u.array.iEnd,   4, 1, modf) != 1) goto fail;
+                    if (fread(&ty->u.sarray.uiSize, 4, 1, modf) != 1) goto fail;
+                    ty->u.sarray.elementTy = E_deserializeTyRef(modTable, modf);
+                    if (fread(&ty->u.sarray.iStart, 4, 1, modf) != 1) goto fail;
+                    if (fread(&ty->u.sarray.iEnd,   4, 1, modf) != 1) goto fail;
                     Ty_computeSize(ty);
                     break;
 

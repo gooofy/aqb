@@ -838,7 +838,7 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         case Ty_sarray:
             if (ty2->kind != Ty_sarray)
                 return FALSE;
-            if (ty2->u.array.uiSize != ty1->u.array.uiSize)
+            if (ty2->u.sarray.uiSize != ty1->u.sarray.uiSize)
                 return FALSE;
             return TRUE;
         case Ty_darray:
@@ -2325,8 +2325,32 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool st
         else
         {
             // dyanmic, safe QB-like dynamic array
-            assert(0);
-            // FIXME
+            uint16_t numDims = 0;
+            for (FE_dim dim=dims; dim; dim=dim->next)
+                numDims++;
+            uint32_t *bounds = checked_malloc(sizeof(uint32_t) * numDims * 2);
+            uint16_t iDim = 0;
+            for (FE_dim dim=dims; dim; dim=dim->next)
+            {
+                uint32_t start, end;
+                if (dim->idxStart)
+                {
+                    if (!Tr_isConst(dim->idxStart))
+                        return EM_error(pos, "Constant array bounds expected.");
+                    start = Tr_getConstInt(dim->idxStart);
+                }
+                else
+                {
+                    start = 0;
+                }
+                if (!Tr_isConst(dim->idxEnd))
+                    return EM_error(pos, "Constant array bounds expected.");
+                end = Tr_getConstInt(dim->idxEnd);
+                bounds[iDim*2]   = start;
+                bounds[iDim*2+1] = end;
+                iDim++;
+            }
+            t = Ty_DArray(g_mod->name, t, numDims, bounds);
         }
     }
 
