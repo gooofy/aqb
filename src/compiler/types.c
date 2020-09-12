@@ -185,7 +185,11 @@ void Ty_computeSize(Ty_ty ty)
 {
     switch (ty->kind)
     {
-        case Ty_array:
+        case Ty_darray:
+            assert(0); // FIXME
+            break;
+
+        case Ty_sarray:
             ty->u.array.uiSize = (ty->u.array.iEnd - ty->u.array.iStart + 1) * Ty_size(ty->u.array.elementTy);
             break;
 
@@ -239,11 +243,11 @@ void Ty_computeSize(Ty_ty ty)
     }
 }
 
-Ty_ty Ty_Array(S_symbol mod, Ty_ty ty, int start, int end)
+Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
-    p->kind              = Ty_array;
+    p->kind              = Ty_sarray;
     p->u.array.elementTy = ty;
     p->u.array.iStart    = start;
     p->u.array.iEnd      = end;
@@ -284,7 +288,10 @@ int Ty_size(Ty_ty t)
              return 4;
         case Ty_double:
              return 8;
-        case Ty_array:
+        case Ty_darray:
+             assert(0); // FIXME
+             return 0;
+        case Ty_sarray:
             return t->u.array.uiSize;
         case Ty_record:
             return t->u.record.uiSize;
@@ -410,8 +417,10 @@ string Ty_name(Ty_ty t)
             return "single";
         case Ty_double:
             return "double";
-        case Ty_array:
-            return "array";
+        case Ty_darray:
+            return "darray";
+        case Ty_sarray:
+            return "sarray";
         case Ty_record:
             return "record";
         case Ty_pointer:

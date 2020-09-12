@@ -1,5 +1,5 @@
 '
-' two-dim array test
+' two-dim static array test
 '
 
 OPTION EXPLICIT
@@ -12,7 +12,7 @@ OPTION EXPLICIT
 
 
 
-DIM AS INTEGER a(9, 1), b(9, 1)
+DIM AS INTEGER a(STATIC 9, 1), b(STATIC 9, 1)
 
 FOR i AS INTEGER = 0 TO 9
     a(i, 0) = i

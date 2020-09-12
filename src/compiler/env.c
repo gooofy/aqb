@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     25
+#define SYM_VERSION     26
 
 E_module g_builtinsModule = NULL;
 
@@ -353,8 +353,11 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
         case Ty_toLoad:
             assert(0);
             break;
-        case Ty_array:
+        case Ty_sarray:
             E_tyFindTypes (type_tab, ty->u.array.elementTy);
+            break;
+        case Ty_darray:
+            assert(0); // FIXME
             break;
         case Ty_record:
         {
@@ -490,7 +493,10 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
     fwrite(&ty->kind, 1, 1, modf);
     switch (ty->kind)
     {
-        case Ty_array:
+        case Ty_darray:
+            assert(0); // FIXME
+            break;
+        case Ty_sarray:
             fwrite(&ty->u.array.uiSize, 4, 1, modf);
             E_serializeTyRef(modTable, ty->u.array.elementTy);
             fwrite(&ty->u.array.iStart, 4, 1, modf);
@@ -1095,7 +1101,7 @@ E_module E_loadModule(S_symbol sModule)
             }
 
             TAB_enter (modTable, (void *) (intptr_t) mid, m2);
-            E_import (mod, m2); 
+            E_import (mod, m2);
         }
 
         // read types
@@ -1120,7 +1126,11 @@ E_module E_loadModule(S_symbol sModule)
 
             switch (ty->kind)
             {
-                case Ty_array:
+                case Ty_darray:
+                    assert(0); // FIXME
+                    break;
+
+                case Ty_sarray:
                     if (fread(&ty->u.array.uiSize, 4, 1, modf) != 1) goto fail;
                     ty->u.array.elementTy = E_deserializeTyRef(modTable, modf);
                     if (fread(&ty->u.array.iStart, 4, 1, modf) != 1) goto fail;

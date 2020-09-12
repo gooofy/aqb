@@ -110,4 +110,23 @@ char *_u4toa_   (ULONG  l);
 char *_ftoa_    (FLOAT  f);
 char *_booltoa_ (BOOL   b);
 
+/*
+ * dynamic array support
+ */
+
+typedef struct
+{
+    ULONG   lbound, ubound;
+} _dyna_bounds;
+
+typedef struct
+{
+    APTR          data;
+    UWORD         numDims;
+    ULONG         elementSize;
+    _dyna_bounds *bounds;
+} _dyna;
+
+_dyna *_dyna_create(UWORD numDims, ULONG elementSize, ...);
+
 #endif

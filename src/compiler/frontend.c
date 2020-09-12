@@ -462,7 +462,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -495,7 +496,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -526,7 +528,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -557,7 +560,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_uinteger:
                     *res = Ty_Long();
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -588,7 +592,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -617,7 +622,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -646,7 +652,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -675,7 +682,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty2;
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -702,7 +710,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_double:
                     *res = ty1;
                     return TRUE;
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_void:
                 case Ty_pointer:
@@ -715,7 +724,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     *res = ty1;
                     return FALSE;
             }
-        case Ty_array:
+        case Ty_sarray:
+        case Ty_darray:
             assert(0); // FIXME
             *res = ty1;
             return FALSE;
@@ -762,7 +772,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_pointer:
                 case Ty_string:
@@ -789,7 +800,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                case Ty_array:
+                case Ty_sarray:
+                case Ty_darray:
                 case Ty_record:
                 case Ty_string:
                 case Ty_varPtr:
@@ -823,12 +835,15 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         case Ty_single:
         case Ty_bool:
             return ty2->kind == ty1->kind;
-        case Ty_array:
-            if (ty2->kind != Ty_array)
+        case Ty_sarray:
+            if (ty2->kind != Ty_sarray)
                 return FALSE;
             if (ty2->u.array.uiSize != ty1->u.array.uiSize)
                 return FALSE;
             return TRUE;
+        case Ty_darray:
+            assert(0); // FIXME
+            return FALSE;
         case Ty_pointer:
         case Ty_varPtr:
             if (Ty_isInt(ty2))
@@ -1006,7 +1021,8 @@ static bool convert_ty(Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool explicit)
             }
             break;
 
-        case Ty_array:
+        case Ty_sarray:
+        case Ty_darray:
         case Ty_pointer:
         case Ty_varPtr:
         case Ty_procPtr:
@@ -1332,7 +1348,7 @@ static Tr_exp transSelIndex(S_pos pos, Tr_exp e, Tr_exp idx)
     }
     Ty_ty ty = Tr_ty(e);
     if ( (ty->kind != Ty_varPtr) ||
-         ((ty->u.pointer->kind != Ty_array)  &&
+         ((ty->u.pointer->kind != Ty_sarray)  &&
           (ty->u.pointer->kind != Ty_pointer) &&
           (ty->u.pointer->kind != Ty_string))    )
     {
@@ -2130,8 +2146,8 @@ static bool expression(S_tkn *tkn, Tr_exp *exp)
 }
 
 
-// arrayDimension ::= [ STATIC ] expression [ TO expression]
-// arrayDimensions ::= arrayDimension ( "," arrayDimension )*
+// arrayDimension ::= expression [ TO expression]
+// arrayDimensions ::= [ STATIC ] arrayDimension ( "," arrayDimension )*
 static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
 {
     bool   statc = FALSE;
@@ -2281,23 +2297,37 @@ static bool transVarDecl(S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool st
         t = Ty_inferType(S_name(sVar));
     assert(t);
 
-    for (FE_dim dim=dims; dim; dim=dim->next)
+    if (dims)
     {
-        int start, end;
-        if (dim->idxStart)
+        if (dims->statc)
         {
-            if (!Tr_isConst(dim->idxStart))
-                return EM_error(pos, "Constant array bounds expected.");
-            start = Tr_getConstInt(dim->idxStart);
+            // static, fast, C-like array
+            for (FE_dim dim=dims; dim; dim=dim->next)
+            {
+                assert(dim->statc);
+                int start, end;
+                if (dim->idxStart)
+                {
+                    if (!Tr_isConst(dim->idxStart))
+                        return EM_error(pos, "Constant array bounds expected.");
+                    start = Tr_getConstInt(dim->idxStart);
+                }
+                else
+                {
+                    start = 0;
+                }
+                if (!Tr_isConst(dim->idxEnd))
+                    return EM_error(pos, "Constant array bounds expected.");
+                end = Tr_getConstInt(dim->idxEnd);
+                t = Ty_SArray(g_mod->name, t, start, end);
+            }
         }
         else
         {
-            start = 0;
+            // dyanmic, safe QB-like dynamic array
+            assert(0);
+            // FIXME
         }
-        if (!Tr_isConst(dim->idxEnd))
-            return EM_error(pos, "Constant array bounds expected.");
-        end = Tr_getConstInt(dim->idxEnd);
-        t = Ty_Array(g_mod->name, t, start, end);
     }
 
     if (shared)
@@ -4599,7 +4629,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         if (!Tr_isConst(dim->idxEnd))
                             return EM_error(f->pos, "Constant array bounds expected.");
                         end = Tr_getConstInt(dim->idxEnd);
-                        t = Ty_Array(g_mod->name, t, start, end);
+                        t = Ty_SArray(g_mod->name, t, start, end);
                     }
 
                     Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name);

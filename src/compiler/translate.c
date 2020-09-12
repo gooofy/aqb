@@ -700,7 +700,7 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     }
 
 
-    if (t->u.pointer->kind == Ty_array)
+    if (t->u.pointer->kind == Ty_sarray)
     {
         Ty_ty et = at->u.array.elementTy;
 
@@ -1268,7 +1268,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                         assert(0);
                 }
                 break;
-            case Ty_array:
+            case Ty_sarray:
             case Ty_pointer:
             case Ty_varPtr:
             case Ty_procPtr:
@@ -1277,7 +1277,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                 {
                     case Ty_long:
                     case Ty_ulong:
-                    case Ty_array:
+                    case Ty_sarray:
                     case Ty_pointer:
                     case Ty_varPtr:
                     case Ty_procPtr:

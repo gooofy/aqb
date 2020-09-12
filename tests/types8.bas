@@ -3,7 +3,7 @@
 ' pointer array-like access test
 '
 
-DIM a(10) AS INTEGER
+DIM a(STATIC 10) AS INTEGER
 DIM pa AS INTEGER PTR
 
 pa = @a[0]

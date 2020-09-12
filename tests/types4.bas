@@ -4,8 +4,8 @@
 
 SUB foo()
 
-    DIM a%(100)
-    DIM b%(100)
+    DIM a%(STATIC 100)
+    DIM b%(STATIC 100)
 
     FOR i% = 0 to 99
       a%(i%) = i%

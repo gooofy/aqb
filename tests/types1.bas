@@ -2,7 +2,7 @@
 ' some simple tests for heap array access and assignment
 '
 
-DIM a%(100)
+DIM a%(STATIC 100)
 
 a%(1) = 42
 
