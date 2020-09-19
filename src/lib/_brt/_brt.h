@@ -31,6 +31,9 @@ void _debug_putnl(void);
 
 extern USHORT g_errcode;
 
+#define ERR_OUT_OF_MEMORY           7
+#define ERR_SUBSCRIPT_OUT_OF_RANGE  9
+
 void ERROR (SHORT errcode);
 void _autil_exit(LONG return_code); // implemented in startup.s
 
@@ -116,7 +119,7 @@ char *_booltoa_ (BOOL   b);
 
 typedef struct
 {
-    ULONG   lbound, ubound;
+    ULONG   lbound, ubound, numElements;
 } _dyna_bounds;
 
 typedef struct
@@ -127,6 +130,9 @@ typedef struct
     _dyna_bounds *bounds;
 } _dyna;
 
-_dyna *_dyna_create(UWORD numDims, ULONG elementSize, ...);
+void  _dyna_init    (_dyna *dyna, UWORD numDims, ULONG elementSize, ...);
+void *_dyna_idx_    (_dyna *dyna, UWORD dimCnt, ...);
+WORD  _dyna_lbound_ (_dyna *dyna, WORD d);
+WORD  _dyna_ubound_ (_dyna *dyna, WORD d);
 
 #endif

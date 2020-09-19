@@ -1,19 +1,41 @@
+
 '
-' record type test
+' string array-like access test
 '
 
-TYPE t1
-    f1 AS INTEGER
-    AS LONG f2, f3
-END TYPE
+DIM pa AS UBYTE PTR
 
-DIM v AS t1
+a$ = "ABCDE"
 
-v.f1 = 23
-v.f2 = 100000
-v.f3 = 250000
+pa = a$
 
-ASSERT v.f1 = 23
-ASSERT v.f2 = 100000
-ASSERT v.f3 = 250000
+' read via pointer
+
+s%=0
+FOR i% = 0 TO 4
+    s% = s% + pa[i%]
+NEXT i%
+
+' PRINT s%
+
+ASSERT s%=335
+
+' modify via pointer
+
+pa[0] = 65
+pa[1] = 65
+pa[2] = 65
+pa[3] = 65
+pa[4] = 65
+
+s%=0
+FOR i% = 0 TO 4
+    'PRINT i%, pa[i%]
+    s% = s% + pa[i%]
+NEXT i%
+
+' PRINT a$, s%
+
+ASSERT s%=325
+
 

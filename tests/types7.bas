@@ -1,40 +1,32 @@
 '
-' UDT pointer test
+' DEFINT / DEFSNG / DEFLNG / DEFSTR test
 '
 
-TYPE udt
-    i%
-    j AS INTEGER PTR
-    l&
-    AS LONG PTR p1, p2, p3
-END TYPE
+DEFINT i
+DEFINT j-k, l-m
 
-DIM u AS udt
+DEFSNG a,b
+DEFLNG x,y
 
-u.i% = 42
-u.j = @u.i%
-u.l& = 100000
-u.p1 = @u.l&
-u.p2 = @u.l&
-u.p3 = @u.l&
+DEFSTR s
 
-ASSERT u.i% = 42
-ASSERT *u.j = 42
+i = 23
+j = 5
 
-ASSERT u.l& = 100000
-ASSERT *u.p1 = 100000
-ASSERT *u.p2 = 100000
-ASSERT *u.p3 = 100000
+ASSERT i/j = 4
 
-u.i% = 23
-ASSERT u.i% = 23
-ASSERT *u.j = 23
+a = 7
+b = 2
 
-u.l& = 200000
-ASSERT u.l& = 200000
-ASSERT *u.p1 = 200000
-ASSERT *u.p2 = 200000
-ASSERT *u.p3 = 200000
+ASSERT a/b = 3.5
 
+x = 100000
+y = 200000
+
+ASSERT x+y = 300000
+
+s = "abcd"
+
+ASSERT s="abcd"
 
 

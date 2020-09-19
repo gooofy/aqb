@@ -1,26 +1,29 @@
 '
-' some simple tests for heap array access and assignment
+' whole array assignment in frame test
 '
 
-DIM a%(STATIC 100)
+SUB foo()
 
-a%(1) = 42
+    DIM a%(STATIC 100)
+    DIM b%(STATIC 100)
 
-' PRINT a%(1)
+    FOR i% = 0 to 99
+      a%(i%) = i%
+      b%(i%) = i% * i%
+    NEXT i%
 
-a%(0) = 23
+    FOR i% = 0 to 99
+      ASSERT a%(i%) = i%
+    NEXT i%
 
-' PRINT a%(0), a%(1)
+    a% = b%
 
-ASSERT a%(1) = 42
-ASSERT a%(0) = 23
+    FOR i% = 0 to 99
+      ASSERT a%(i%) = i%*i%
+    NEXT i%
 
-FOR i% = 0 to 99
-  a%(i%) = i%
-NEXT i%
+END SUB
 
-FOR i% = 0 to 99
-  ASSERT a%(i%) = i%
-  ' PRINT a%(i%)
-NEXT i%
+foo
+
 

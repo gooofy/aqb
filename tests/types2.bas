@@ -1,22 +1,19 @@
 '
-' whole array assignment on heap test
+' record type test
 '
 
-DIM a%(STATIC 100)
-DIM b%(STATIC 100)
+TYPE t1
+    f1 AS INTEGER
+    AS LONG f2, f3
+END TYPE
 
-FOR i% = 0 to 99
-  a%(i%) = i%
-  b%(i%) = i% * i%
-NEXT i%
+DIM v AS t1
 
-FOR i% = 0 to 99
-  ASSERT a%(i%) = i%
-NEXT i%
+v.f1 = 23
+v.f2 = 100000
+v.f3 = 250000
 
-a% = b%
-
-FOR i% = 0 to 99
-  ASSERT a%(i%) = i%*i%
-NEXT i%
+ASSERT v.f1 = 23
+ASSERT v.f2 = 100000
+ASSERT v.f3 = 250000
 

@@ -1,28 +1,28 @@
 '
-' pointer type test
+' pointer access test
 '
 
-DIM v AS INTEGER PTR
+OPTION EXPLICIT
 
-DIM i AS INTEGER
-DIM j AS INTEGER
+TYPE myudt
+    AS INTEGER   a, b
+    AS myudt PTR n
+END TYPE
 
-v = VARPTR(i)
+DIM AS myudt PTR p
+DIM AS myudt     u, v
 
-i = 42
+p = @u
 
-ASSERT i = 42
-ASSERT *v = 42
+p->a = 23
+p->b = 42
+p->n = @v
 
-*v = 23
+p->n->a = 42
+p->n->b = 23
 
-ASSERT i = 23
-ASSERT *v = 23
-
-v = @j
-j = 42
-
-ASSERT i = 23
-ASSERT j = 42
-ASSERT *v = 42
+ASSERT p->a    = 23
+ASSERT p->b    = 42
+ASSERT p->n->a = 42
+ASSERT p->n->b = 23
 

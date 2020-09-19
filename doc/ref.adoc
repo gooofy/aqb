@@ -248,6 +248,14 @@ Syntax:
 
 import a module
 
+=== LBOUND()
+
+Syntax:
+
+    LBOUND "(" array [ "," dimension ] ")"
+
+Return the lower bound for the given array dimension.
+
 === LOG()
 
 Syntax:
@@ -395,6 +403,14 @@ Syntax:
     TIMER "(" ")"
 
 returns the number of seconds past the previous midnite as a SINGLE float value
+
+=== UBOUND()
+
+Syntax:
+
+    UBOUND "(" array [ "," dimension ] ")"
+
+Return the upper bound for the given array dimension.
 
 === VARPTR()
 

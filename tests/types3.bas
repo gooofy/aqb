@@ -1,31 +1,28 @@
 '
-' some simple tests for frame array access and assignment
+' pointer type test
 '
 
-SUB foo ()
+DIM v AS INTEGER PTR
 
-    DIM a%(STATIC 100)
+DIM i AS INTEGER
+DIM j AS INTEGER
 
-    a%(1) = 42
+v = VARPTR(i)
 
-    ' PRINT a%(1)
+i = 42
 
-    a%(0) = 23
+ASSERT i = 42
+ASSERT *v = 42
 
-    ' PRINT a%(0), a%(1)
+*v = 23
 
-    ASSERT a%(1) = 42
-    ASSERT a%(0) = 23
+ASSERT i = 23
+ASSERT *v = 23
 
-    FOR i% = 0 to 99
-      a%(i%) = i%
-    NEXT i%
+v = @j
+j = 42
 
-    FOR i% = 0 to 99
-      ASSERT a%(i%) = i%
-      ' PRINT a%(i%)
-    NEXT i%
+ASSERT i = 23
+ASSERT j = 42
+ASSERT *v = 42
 
-END SUB
-
-foo

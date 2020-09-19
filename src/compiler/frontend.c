@@ -369,6 +369,8 @@ static S_symbol S_DEFINT;
 static S_symbol S_DEFSTR;
 static S_symbol S_GOSUB;
 static S_symbol S_CONSTRUCTOR;
+static S_symbol S_LBOUND;
+static S_symbol S_UBOUND;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -842,7 +844,6 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return FALSE;
             return TRUE;
         case Ty_darray:
-            assert(0); // FIXME
             return FALSE;
         case Ty_pointer:
         case Ty_varPtr:
@@ -1349,6 +1350,7 @@ static Tr_exp transSelIndex(S_pos pos, Tr_exp e, Tr_exp idx)
     Ty_ty ty = Tr_ty(e);
     if ( (ty->kind != Ty_varPtr) ||
          ((ty->u.pointer->kind != Ty_sarray)  &&
+          (ty->u.pointer->kind != Ty_darray)  &&
           (ty->u.pointer->kind != Ty_pointer) &&
           (ty->u.pointer->kind != Ty_string))    )
     {
@@ -1407,12 +1409,11 @@ static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_
 //              | "->" ident )
 static bool selector(S_tkn *tkn, Tr_exp *exp)
 {
-    //S_pos  pos = (*tkn)->pos;
+    Ty_ty ty = Tr_ty(*exp);
     switch ((*tkn)->kind)
     {
         case S_LPAREN:
         {
-            Ty_ty ty = Tr_ty(*exp);
             if (ty->kind == Ty_prc)
                 return transFunctionCall(tkn, exp);
         }
@@ -1420,20 +1421,67 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
         case S_LBRACKET:
         {
             Tr_exp  idx;
+            Tr_exp  idx_conv;
             int     start_token = (*tkn)->kind;
 
             *tkn = (*tkn)->next;
 
-            if (!expression(tkn, &idx))
-                return EM_error((*tkn)->pos, "index expression expected here.");
-            *exp = transSelIndex((*tkn)->pos, *exp, idx);
-
-            while ((*tkn)->kind == S_COMMA)
+            if ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_darray) )
             {
-                *tkn = (*tkn)->next;
+                // call void *_dyna_idx(_dyna * dyna, UWORD dimCnt, ...);
+
+                Tr_expList arglist = Tr_ExpList();
+                int dimCnt=0;
                 if (!expression(tkn, &idx))
                     return EM_error((*tkn)->pos, "index expression expected here.");
-                *exp = transSelIndex((*tkn)->pos, *exp, idx);
+                if (!convert_ty(idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
+                    return EM_error((*tkn)->pos, "array index type mismatch");
+                Tr_ExpListAppend(arglist, idx_conv);
+                dimCnt++;
+
+                while ((*tkn)->kind == S_COMMA)
+                {
+                    *tkn = (*tkn)->next;
+                    if (!expression(tkn, &idx))
+                        return EM_error((*tkn)->pos, "index expression expected here.");
+                    if (!convert_ty(idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
+                        return EM_error((*tkn)->pos, "array index type mismatch");
+                    Tr_ExpListAppend(arglist, idx_conv);
+                    dimCnt++;
+                }
+                Tr_ExpListAppend(arglist, Tr_intExp(dimCnt, Ty_UInteger()));
+                Tr_ExpListAppend(arglist, *exp);
+
+                S_symbol fsym = S_Symbol("_dyna_idx", TRUE);
+                Tr_exp procPtr;
+                Ty_recordEntry entry;
+                if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
+                    return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
+
+                Ty_ty typ = Tr_ty(procPtr);
+                assert(typ->kind == Ty_prc);
+                Ty_proc proc = typ->u.proc;
+
+                *exp = Tr_callExp(arglist, proc);
+                *exp = Tr_castExp(*exp, Tr_ty(*exp), Ty_VarPtr(ty->u.pointer->u.darray.elementTy));
+            }
+            else
+            {
+                if (!expression(tkn, &idx))
+                    return EM_error((*tkn)->pos, "index expression expected here.");
+                if (!convert_ty(idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
+                    return EM_error((*tkn)->pos, "array index type mismatch");
+                *exp = transSelIndex((*tkn)->pos, *exp, idx_conv);
+
+                while ((*tkn)->kind == S_COMMA)
+                {
+                    *tkn = (*tkn)->next;
+                    if (!expression(tkn, &idx))
+                        return EM_error((*tkn)->pos, "index expression expected here.");
+                    if (!convert_ty(idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
+                        return EM_error((*tkn)->pos, "array index type mismatch");
+                    *exp = transSelIndex((*tkn)->pos, *exp, idx_conv);
+                }
             }
 
             if ((start_token == S_LBRACKET) && ((*tkn)->kind != S_RBRACKET))
@@ -1455,7 +1503,6 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
             S_symbol sym = (*tkn)->u.sym;
             *tkn = (*tkn)->next;
 
-            Ty_ty ty = Tr_ty(*exp);
             if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_record) )
                 return EM_error(pos, "record type expected");
 
@@ -1475,7 +1522,6 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
             S_symbol sym = (*tkn)->u.sym;
             *tkn = (*tkn)->next;
 
-            Ty_ty ty = Tr_ty(*exp);
             if ( (ty->kind != Ty_varPtr) || (ty->u.pointer->kind != Ty_pointer) || (ty->u.pointer->u.pointer->kind != Ty_record) )
                 EM_error(pos, "record pointer type expected");
 
@@ -1488,6 +1534,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
 
             return transRecordSelector(pos, tkn, entry, exp);
         }
+
         default:
             return FALSE;
     }
@@ -2266,7 +2313,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = Ty_Void();
         }
 
-        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
         *ty = Ty_ProcPtr(g_mod->name, proc);
     }
     else
@@ -2295,8 +2342,7 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
 {
     Ty_ty t = Tr_ty(var);
     assert (t->kind == Ty_varPtr);
-    var = Tr_Deref(var);
-    t = Tr_ty(var);
+    t = t->u.pointer;
 
     // assign initial value or run constructor ?
 
@@ -2315,17 +2361,46 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
     }
     else
     {
-        if (init)
+        if (t->kind == Ty_darray)
         {
-            Tr_exp conv_init=NULL;
-            if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
-                return EM_error(pos, "initializer type mismatch");
+            if (init || constructorAssignedArgs)
+                return EM_error(pos, "dynamic array initializers are not supported yet."); // FIXME
 
-            Tr_exp e = Tr_DeepCopy(var);
-            Ty_ty ty = Tr_ty(e);
-            if (ty->kind == Ty_varPtr)
-                e = Tr_Deref(e);
-            initExp = Tr_assignExp(e, conv_init);
+            // call _dyna_init (_dyna *dyna, UWORD numDims, ULONG elementSize, ...)
+
+            Tr_expList arglist = Tr_ExpList();
+            for (int16_t iDim=0; iDim<t->u.darray.numDims; iDim++)
+            {
+                Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2+1], Ty_ULong()));
+                Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2]  , Ty_ULong()));
+            }
+            Tr_ExpListAppend(arglist, Tr_intExp(Ty_size(t->u.darray.elementTy), Ty_ULong()));
+            Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.numDims, Ty_UInteger()));
+            Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
+
+            S_symbol fsym = S_Symbol("_dyna_init", TRUE);
+            E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+            if (!lx)
+                return EM_error(pos, "builtin %s not found.", S_name(fsym));
+            E_enventry entry = lx->first->e;
+            Ty_proc proc = entry->u.proc;
+
+            initExp = Tr_callExp(arglist, proc);
+        }
+        else
+        {
+            if (init)
+            {
+                Tr_exp conv_init=NULL;
+                if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
+                    return EM_error(pos, "initializer type mismatch");
+
+                Tr_exp e = Tr_DeepCopy(Tr_Deref(var));
+                Ty_ty ty = Tr_ty(e);
+                if (ty->kind == Ty_varPtr)
+                    e = Tr_Deref(e);
+                initExp = Tr_assignExp(e, conv_init);
+            }
         }
     }
     if (initExp)
@@ -2469,6 +2544,12 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             return EM_error((*tkn)->pos, "var initializer expression expected here.");
         }
         if (!transVarInit(pos, *var, init, statc, constructorAssignedArgs))
+            return FALSE;
+    }
+    else
+    {
+        // we may still have to initialize this variable
+        if (!transVarInit(pos, *var, /*init=*/NULL, statc, /*constructorAssignedArgs=*/NULL))
             return FALSE;
     }
 
@@ -3988,10 +4069,11 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
     return TRUE;
 }
 
-// parameterList ::= '(' [ paramDecl ( ',' paramDecl )* ]  ')'
-static bool parameterList(S_tkn *tkn, FE_paramList paramList)
+// parameterList ::= '(' [ paramDecl ( ',' ( paramDecl | '...' ) )* ] ')'
+static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
 {
     *tkn = (*tkn)->next; // consume "("
+    *variadic = FALSE;
 
     if ((*tkn)->kind != S_RPAREN)
     {
@@ -4001,6 +4083,14 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList)
         while ((*tkn)->kind == S_COMMA)
         {
             *tkn = (*tkn)->next;
+
+            if ((*tkn)->kind == S_TRIPLEDOTS)
+            {
+                *variadic = TRUE;
+                *tkn = (*tkn)->next;
+                break;
+            }
+
             if (!paramDecl(tkn, paramList))
                 return FALSE;
         }
@@ -4019,6 +4109,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
     S_symlist    extra_syms = NULL, extra_syms_last=NULL;
+    bool         isVariadic = FALSE;
     bool         isStatic   = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
@@ -4123,7 +4214,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
 
     if ((*tkn)->kind == S_LPAREN)
     {
-        if (!parameterList(tkn, paramList))
+        if (!parameterList(tkn, paramList, &isVariadic))
             return FALSE;
     }
 
@@ -4148,7 +4239,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyClsPtr);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyClsPtr);
 
     return TRUE;
 }
@@ -5544,10 +5635,88 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
+static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
+{
+    S_pos pos;
+
+    if ((*tkn)->kind != S_LPAREN)
+        return EM_error((*tkn)->pos, "( expected.");
+    *tkn = (*tkn)->next;
+
+    Tr_exp arrayExp;
+    pos = (*tkn)->pos;
+    if (!expDesignator (tkn, &arrayExp, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+        return EM_error(pos, "array expected here.");
+
+    Tr_exp dimExp;
+    if ((*tkn)->kind == S_COMMA)
+    {
+        *tkn = (*tkn)->next;
+
+        Tr_exp e;
+        if (!expression(tkn, &e))
+            return EM_error((*tkn)->pos, "array dimension expression expected here.");
+
+        if (!convert_ty(e, Ty_Integer(), &dimExp, /*explicit=*/FALSE))
+            return EM_error((*tkn)->pos, "array dimension: integer expression expected here.");
+    }
+    else
+    {
+        dimExp = Tr_intExp(1, Ty_Integer());
+    }
+
+    if ((*tkn)->kind != S_RPAREN)
+        return EM_error((*tkn)->pos, ") expected.");
+    *tkn = (*tkn)->next;
+
+    Ty_ty ty = Tr_ty(arrayExp);
+    assert(ty->kind == Ty_varPtr);
+    ty = ty->u.pointer;
+    switch (ty->kind)
+    {
+        case Ty_darray:
+        {
+            // call UWORD _dyna_ubound(_dyna * dyna, UWORD dim);
+
+            Tr_expList arglist = Tr_ExpList();
+            Tr_ExpListAppend(arglist, dimExp);
+            Tr_ExpListAppend(arglist, arrayExp);
+
+            S_symbol fsym = S_Symbol(isUpper ? "_dyna_ubound" : "_dyna_lbound", TRUE);
+            Tr_exp procPtr;
+            Ty_recordEntry entry;
+            if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
+                return EM_error(pos, "builtin %s not found.", S_name(fsym));
+
+            Ty_ty typ = Tr_ty(procPtr);
+            assert(typ->kind == Ty_prc);
+            Ty_proc proc = typ->u.proc;
+
+            *exp = Tr_callExp(arglist, proc);
+            break;
+        }
+        default:
+            return EM_error(pos, "array typed expression expected here.");
+    }
+    return TRUE;
+}
+
+// funLBound = LBOUND "(" expDesignator [ "," expr ] ")"
+static bool funLBound(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    return transArrayBound(tkn, /*isUpper=*/FALSE, exp);
+}
+
+// funUBound = UBOUND "(" expDesignator [ "," expr ] ")"
+static bool funUBound(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    return transArrayBound(tkn, /*isUpper=*/TRUE, exp);
+}
+
 static void declareBuiltinProc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, /*extraSyms=*/NULL, /*label=*/NULL, /*formals=*/NULL, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, /*extraSyms=*/NULL, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
 
     if (kind == Ty_pkSub)
     {
@@ -5634,6 +5803,8 @@ static void registerBuiltins(void)
     S_DEFSTR          = S_Symbol("DEFSTR",           FALSE);
     S_GOSUB           = S_Symbol("GOSUB",            FALSE);
     S_CONSTRUCTOR     = S_Symbol("CONSTRUCTOR",      FALSE);
+    S_LBOUND          = S_Symbol("LBOUND",           FALSE);
+    S_UBOUND          = S_Symbol("UBOUND",           FALSE);
 
     g_parsefs = TAB_empty();
 
@@ -5681,6 +5852,8 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_VARPTR,    funVarPtr,    Ty_VoidPtr());
     declareBuiltinProc(S_CAST,      funCast,      Ty_ULong());
     declareBuiltinProc(S_STRDOLLAR, funStrDollar, Ty_String());
+    declareBuiltinProc(S_LBOUND,    funLBound,    Ty_ULong());
+    declareBuiltinProc(S_UBOUND,    funUBound,    Ty_ULong());
 }
 
 //

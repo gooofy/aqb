@@ -722,6 +722,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             {
                 int arg_cnt = munchArgsStack(0, args);
                 emit(AS_InstrEx(AS_JSR_Label, AS_w_NONE, NULL, L(F_RV(), F_callersaves()), 0, 0, lab));  // jsr   lab
+                //munchCallerRestoreStack(e->u.CALLF.proc->isVariadic ? 0 : arg_cnt, ignore_result);
                 munchCallerRestoreStack(arg_cnt, ignore_result);
                 if (!ignore_result)
                 {

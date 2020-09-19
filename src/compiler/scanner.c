@@ -64,7 +64,7 @@ static void print_tkn(S_tkn tkn)
 {
     switch (tkn->kind)
     {
-        case S_ERRTKN:      printf("[ERR]");       break;
+        case S_ERRTKN:     printf("[ERR]");       break;
         case S_EOL:        printf("[EOL]");       break;
         case S_IDENT:      printf("[IDENT %s]",  S_name(tkn->u.sym)); break;
         case S_STRING:     printf("[STRING %s]", tkn->u.str);         break;
@@ -92,6 +92,7 @@ static void print_tkn(S_tkn tkn)
         case S_AT:         printf("[AT]");        break;
         case S_LBRACKET:   printf("[LBRACKET]");  break;
         case S_RBRACKET:   printf("[RBRACKET]");  break;
+        case S_TRIPLEDOTS: printf("[TRIPLEDOTS]");break;
     }
 }
 static void print_tkns(S_tkn tkn)
@@ -538,6 +539,19 @@ static S_tkn next_token(void)
             getch();
             if (is_digit())
                 return number(10, NULL, /*dp=*/TRUE);
+            if (g_ch == '.')
+            {
+                getch();
+                if (g_ch == '.')
+                {
+                    tkn = S_Tkn(S_TRIPLEDOTS);
+                    getch();
+                }
+                else
+                {
+                    tkn = S_Tkn(S_ERRTKN);
+                }
+            }
             break;
         case '>':
             tkn = S_Tkn(S_GREATER);

@@ -26,10 +26,11 @@ all: cond1.bin cond3.bin cond4.bin	\
 	subtest6.bin subtest7.bin subtest8.bin subtest9.bin \
 	subtest10.bin subtest11 subtest12.bin subtest13.bin subtest14.bin subtest15.bin subtest16.bin \
 	subtest17.bin subtest18.bin subtest19.bin subtest20.bin \
-	types1.bin types2.bin types3.bin types4.bin types5.bin types6.bin types7.bin types8.bin types9.bin \
-	types10.bin types11.bin types12.bin \
+	types1.bin types2.bin types3.bin types4.bin types5.bin types6.bin types7.bin \
 	var1.bin var2.bin \
 	mod1 io1 \
+	sarray1.bin sarray2.bin sarray3.bin sarray4.bin sarray5.bin \
+	darray1.bin
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@

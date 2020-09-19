@@ -67,6 +67,7 @@ old
 src/lib/*.sym
 src/lib/_brt/*.sym
 src/lib/_brt/alibtest
+src/lib/_brt/dyna.asm
 src/lib/_aqb/*.s
 src/lib/_aqb/*.sym
 src/alib/tests/*.bin

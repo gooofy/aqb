@@ -109,7 +109,7 @@ v0.1, 2020-07-12
 - INSTR()
 - INT()
 - KILL
-- LBOUND()
+- DONE LBOUND()
 - LEFT$()
 - LEN()
 - LET
@@ -172,7 +172,7 @@ v0.1, 2020-07-12
 - TAB()
 - DONE TAN()
 - TIME$()
-- UBOUND()
+- DONE UBOUND()
 - UCASE$()
 - VAL()
 - VARPTR()

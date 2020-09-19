@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     26
+#define SYM_VERSION     27
 
 E_module g_builtinsModule = NULL;
 
@@ -615,6 +615,7 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
             fwrite(&reg_present, 1, 1, modf);
         }
     }
+    fwrite(&proc->isVariadic, 1, 1, modf);
     fwrite(&proc->isStatic, 1, 1, modf);
     E_serializeTyRef(modTable, proc->returnTy);
     fwrite(&proc->offset, 4, 1, modf);
@@ -993,6 +994,12 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             formals_last = formals_last->next;
         }
     }
+    bool isVariadic;
+    if (fread(&isVariadic, 1, 1, modf)!=1)
+    {
+        printf("failed to read function variadic flag.\n");
+        return NULL;
+    }
     bool isStatic;
     if (fread(&isStatic, 1, 1, modf)!=1)
     {
@@ -1031,7 +1038,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     if (tyClsPtrPresent)
         tyClsPtr = E_deserializeTyRef(modTable, modf);
 
-    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr);
+    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr);
 }
 
 E_module E_loadModule(S_symbol sModule)

@@ -25,8 +25,11 @@ _brt.sym : _brt.bas
 _brt.a: cstartup.o astr.o amath.o autil.o dyna.o
 	$(AR) -crs _brt.a $^
 
-diss: alibtest
-	m68k-amigaos-objdump -S -d -x alibtest
+diss: dyna.o
+	m68k-amigaos-objdump -S -d -x dyna.o
+
+%.asm: %.c
+	$(CC) -S -Wall -Werror -march=68000 -mcpu=68000 $(CPPFLAGS) $< -o $@
 
 clean:
 	rm -f *.o alibtest _brt.a *.sym

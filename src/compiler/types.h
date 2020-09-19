@@ -78,6 +78,7 @@ struct Ty_proc_
     S_symlist        extraSyms; // for subs that use more than on sym, e.g. WINDOW CLOSE
     Temp_label       label;
     Ty_formal        formals;
+    bool             isVariadic;
     bool             isStatic;
     Ty_ty            returnTy;
     bool             forward;
@@ -129,7 +130,7 @@ Ty_recordEntry  Ty_Field  (Ty_visibility visibility, S_symbol name, Ty_ty ty);
 Ty_recordEntry  Ty_Method (Ty_proc proc);
 
 Ty_formal       Ty_Formal (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc   (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr);
+Ty_proc         Ty_Proc   (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr);
 
 Ty_const        Ty_ConstBool  (Ty_ty ty, bool   b);
 Ty_const        Ty_ConstInt   (Ty_ty ty, int    i);
