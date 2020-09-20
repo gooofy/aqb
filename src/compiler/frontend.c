@@ -5695,6 +5695,51 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
             *exp = Tr_callExp(arglist, proc);
             break;
         }
+        case Ty_sarray:
+        {
+            // purely static information
+            if (!Tr_isConst (dimExp))
+                return EM_error(pos, "constant dimension number expected here.");
+
+            int nDim = Tr_getConstInt(dimExp);
+            if (nDim<=0)
+            {
+                if (isUpper)
+                {
+                    // count array dims
+                    int cnt = 0;
+                    Ty_ty t = ty;
+                    while (t->kind == Ty_sarray)
+                    {
+                        cnt += 1;
+                        t = t->u.sarray.elementTy;
+                    }
+                    *exp = Tr_intExp(cnt, Ty_Integer());
+                }
+                else
+                {
+                    *exp = Tr_intExp(1, Ty_Integer());
+                }
+            }
+            else
+            {
+                int cnt = 0;
+                Ty_ty t = ty;
+                while (t->kind == Ty_sarray)
+                {
+                    cnt += 1;
+                    if (cnt == nDim)
+                    {
+                        *exp = Tr_intExp(isUpper ? t->u.sarray.iEnd : t->u.sarray.iStart, Ty_Integer());
+                        break;
+                    }
+                    t = t->u.sarray.elementTy;
+                }
+                if (t->kind != Ty_sarray)
+                    *exp = Tr_intExp(0, Ty_Integer());
+            }
+            break;
+        }
         default:
             return EM_error(pos, "array typed expression expected here.");
     }
