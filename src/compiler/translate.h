@@ -67,6 +67,7 @@ Tr_exp        Tr_Var(Tr_access a);
 Tr_exp        Tr_Index(Tr_exp array, Tr_exp idx);
 Tr_exp        Tr_Deref(Tr_exp ptr);
 Tr_exp        Tr_Field(Tr_exp r, Ty_recordEntry f);
+Tr_exp        Tr_MakeRef(Tr_exp e);
 
 Tr_exp        Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty);
 Tr_exp        Tr_relOpExp(T_relOp o, Tr_exp left, Tr_exp right);

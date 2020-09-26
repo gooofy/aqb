@@ -17,7 +17,7 @@ const char *FE_filename = NULL;
 static TAB_table g_parsefs; // sym -> bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 // contains public env entries for export
-static E_module g_mod = NULL;
+E_module FE_mod = NULL;
 
 // program we're compiling right now, can also be used to prepend static initializers
 static Tr_expList g_prog;
@@ -886,6 +886,9 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 if (!f2)
                     return FALSE;
 
+                if (f1->mode != f2->mode)
+                    return FALSE;
+
                 if (!compatible_ty(f1->ty, f2->ty))
                     return FALSE;
 
@@ -1056,7 +1059,7 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
         // forward pointer ?
         if (allowForwardPtr && ptr)
         {
-            t = Ty_ForwardPtr(g_mod->name, typeId);
+            t = Ty_ForwardPtr(FE_mod->name, typeId);
         }
         else
         {
@@ -1067,7 +1070,7 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
     {
         if (ptr)
         {
-            t = Ty_Pointer(g_mod->name, t);
+            t = Ty_Pointer(FE_mod->name, t);
         }
     }
     return t;
@@ -1083,6 +1086,8 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
     for (; f2; f2=f2->next)
     {
         if (!f)
+            break;
+        if (f->mode != f2->mode)
             break;
         if (!compatible_ty(f2->ty, f->ty))
             break;
@@ -1187,7 +1192,7 @@ static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, Tr_exp cExp, bool 
 
     E_declareVFC (g_sleStack->env, name, convCExp);
     if (!isPrivate)
-        E_declareVFC (g_mod->env, name, convCExp);
+        E_declareVFC (FE_mod->env, name, convCExp);
 
     return TRUE;
 }
@@ -1393,7 +1398,7 @@ static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_
                 if (!tyForward)
                     return EM_error(pos, "failed to resolve forward type of field");
 
-                entry->u.field.ty = Ty_Pointer(g_mod->name, tyForward);
+                entry->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
             }
 
             *exp = Tr_Field(*exp, entry);
@@ -1463,7 +1468,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                 Ty_proc proc = typ->u.proc;
 
                 *exp = Tr_callExp(arglist, proc);
-                *exp = Tr_castExp(*exp, Tr_ty(*exp), Ty_VarPtr(ty->u.pointer->u.darray.elementTy));
+                *exp = Tr_castExp(*exp, Tr_ty(*exp), Ty_VarPtr(FE_mod->name, ty->u.pointer->u.darray.elementTy));
             }
             else
             {
@@ -1686,21 +1691,35 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
 
     if (isVARPTR)
     {
+        while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
+        {
+            *exp = Tr_Deref(*exp);
+            ty = Tr_ty(*exp);
+        }
+
         if (ty->kind == Ty_prc)
-            *exp = Tr_funPtrExp(ty->u.proc->label, Ty_ProcPtr(g_mod->name, ty->u.proc));
-        else if (ty->kind != Ty_varPtr)
-            return EM_error(pos, "This object cannot be referenced.");
+        {
+            *exp = Tr_funPtrExp(ty->u.proc->label, Ty_ProcPtr(FE_mod->name, ty->u.proc));
+            ty = Tr_ty(*exp);
+        }
+        else 
+        {
+            if (ty->kind != Ty_varPtr)
+                return EM_error(pos, "This object cannot be referenced.");
+        }
     }
     else
     {
-        if (ty->kind == Ty_varPtr)
+        while (ty->kind == Ty_varPtr)
+        {
             *exp = Tr_Deref(*exp);
-        else if (ty->kind == Ty_prc)
+            ty = Tr_ty(*exp);
+        }
+        if (ty->kind == Ty_prc)
             if (!transFunctionCall(tkn, exp))
                 return FALSE;
     }
 
-    ty = Tr_ty(*exp);
     if (deref)
     {
         if (ty->kind != Ty_pointer)
@@ -2255,7 +2274,7 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
 }
 
 // typeDesc ::= ( Identifier [PTR]
-//              | (SUB | FUNCTION) [ "(" [typeDesc ( "," typeDesc )*] ")" ] [ "AS" typeDesc ] )
+//              | (SUB | FUNCTION) [ "(" [ [ BYVAL | BYREF ] typeDesc ( "," [ BYVAL | BYREF ] typeDesc )*] ")" ] [ "AS" typeDesc ] )
 
 static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
 {
@@ -2271,24 +2290,68 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
 
         if ((*tkn)->kind == S_LPAREN)
         {
-            Ty_formalMode       mode = Ty_byVal;
-            Ty_formalParserHint ph = Ty_phNone;
-            Ty_ty               ty2;
-
             *tkn = (*tkn)->next;
 
             if ((*tkn)->kind != S_RPAREN)
             {
+                Ty_formalMode       mode = Ty_byRef;
+                Ty_formalParserHint ph = Ty_phNone;
+                Ty_ty               ty2;
+
+                if (isSym(*tkn,  S_BYVAL))
+                {
+                    mode = Ty_byVal;
+                    *tkn = (*tkn)->next;
+                }
+                else
+                {
+                    if (isSym(*tkn, S_BYREF))
+                    {
+                        mode = Ty_byRef;
+                        *tkn = (*tkn)->next;
+                    }
+                }
+
                 if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty2))
                     return EM_error((*tkn)->pos, "argument type descriptor expected here.");
+
+                if (mode == Ty_byRef)
+                {
+                    if (ty2->kind == Ty_procPtr)
+                        return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
+                    ty2 = Ty_VarPtr(FE_mod->name, ty2);
+                }
 
                 FE_ParamListAppend(paramList, Ty_Formal(/*name=*/NULL, ty2, /*defaultExp=*/NULL, mode, ph, /*reg=*/NULL));
 
                 while ((*tkn)->kind == S_COMMA)
                 {
                     *tkn = (*tkn)->next;
+
+                    mode = Ty_byRef;
+                    if (isSym(*tkn,  S_BYVAL))
+                    {
+                        mode = Ty_byVal;
+                        *tkn = (*tkn)->next;
+                    }
+                    else
+                    {
+                        if (isSym(*tkn, S_BYREF))
+                        {
+                            mode = Ty_byRef;
+                            *tkn = (*tkn)->next;
+                        }
+                    }
+
                     if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty2))
                         return EM_error((*tkn)->pos, "argument type descriptor expected here.");
+
+                    if (mode == Ty_byRef)
+                    {
+                        if (ty2->kind == Ty_procPtr)
+                            return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
+                        ty2 = Ty_VarPtr(FE_mod->name, ty2);
+                    }
 
                     FE_ParamListAppend(paramList, Ty_Formal(/*name=*/NULL, ty2, /*defaultExp=*/NULL, mode, ph, /*reg=*/NULL));
                 }
@@ -2314,7 +2377,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
         }
 
         Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
-        *ty = Ty_ProcPtr(g_mod->name, proc);
+        *ty = Ty_ProcPtr(FE_mod->name, proc);
     }
     else
     {
@@ -2441,7 +2504,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 if (!Tr_isConst(dim->idxEnd))
                     return EM_error(pos, "Constant array bounds expected.");
                 end = Tr_getConstInt(dim->idxEnd);
-                t = Ty_SArray(g_mod->name, t, start, end);
+                t = Ty_SArray(FE_mod->name, t, start, end);
             }
         }
         else
@@ -2472,7 +2535,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 bounds[iDim*2+1] = end;
                 iDim++;
             }
-            t = Ty_DArray(g_mod->name, t, numDims, bounds);
+            t = Ty_DArray(FE_mod->name, t, numDims, bounds);
         }
     }
 
@@ -2482,7 +2545,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         Ty_recordEntry entry;
         if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
             return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
-        if (E_resolveVFC(g_mod->env, sVar, /*checkParents=*/FALSE, var, &entry))
+        if (E_resolveVFC(FE_mod->env, sVar, /*checkParents=*/FALSE, var, &entry))
             return EM_error(pos, "Symbol %s is already declared in the global scope.", S_name(sVar));
 
         if (external)
@@ -2490,7 +2553,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         else
             *var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), t));
 
-        E_declareVFC(g_mod->env, sVar, *var);
+        E_declareVFC(FE_mod->env, sVar, *var);
     }
     else
     {
@@ -3436,7 +3499,7 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
-static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal, Tr_exp exp)
+static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal, Tr_exp exp, bool forceExp)
 {
     if (!exp)
     {
@@ -3447,13 +3510,48 @@ static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal,
         }
         exp = Tr_constExp(formal->defaultExp);
     }
-    Tr_exp conv_actual;
-    if (!convert_ty(exp, formal->ty, &conv_actual, /*explicit=*/FALSE))
+
+    switch (formal->mode)
     {
-        EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
-        return;
+        case Ty_byRef:
+        {
+            Tr_exp expRef = forceExp ? NULL : Tr_MakeRef(exp);
+            if (!expRef)
+            {
+                expRef = Tr_Var(Tr_allocVar(g_sleStack->lv, /*name=*/NULL, formal->ty->u.pointer));
+                Tr_exp conv_actual;
+                if (!convert_ty(exp, formal->ty->u.pointer, &conv_actual, /*explicit=*/FALSE))
+                {
+                    EM_error(pos, "%s: TMP BYREF parameter type mismatch", S_name(formal->name));
+                    return;
+                }
+                emit (Tr_assignExp(Tr_Deref(expRef), conv_actual));
+            }
+            else
+            {
+                if (!compatible_ty(formal->ty->u.pointer, Tr_ty(exp)))
+                {
+                    EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
+                    return;
+                }
+            }
+
+            Tr_ExpListPrepend(assignedArgs, expRef);
+            break;
+        }
+        case Ty_byVal:
+        {
+            Tr_exp conv_actual;
+            if (!convert_ty(exp, formal->ty, &conv_actual, /*explicit=*/FALSE))
+            {
+                EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
+                return;
+            }
+            Tr_ExpListPrepend(assignedArgs, conv_actual);
+            break;
+        }
     }
-    Tr_ExpListPrepend(assignedArgs, conv_actual);
+
 }
 
 // lineBF ::= ("B" | "BF")
@@ -3461,7 +3559,7 @@ static bool lineBF(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 {
     if (isSym(*tkn, S_B))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_intExp(1, Ty_Integer()));
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_intExp(1, Ty_Integer()), /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
         *formal = (*formal)->next;
     }
@@ -3469,7 +3567,7 @@ static bool lineBF(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
     {
         if (isSym(*tkn, S_BF))
         {
-            transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_intExp(3, Ty_Integer()));
+            transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_intExp(3, Ty_Integer()), /*forceExp=*/FALSE);
             *tkn = (*tkn)->next;
             *formal = (*formal)->next;
         }
@@ -3489,12 +3587,12 @@ static bool coord(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (isSym(*tkn, S_STEP))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp(TRUE, Ty_Bool()));
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp(TRUE, Ty_Bool()), /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
     }
     *formal = (*formal)->next;
 
@@ -3504,7 +3602,7 @@ static bool coord(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_COMMA)
@@ -3513,7 +3611,7 @@ static bool coord(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_RPAREN)
@@ -3530,12 +3628,12 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (isSym(*tkn, S_STEP))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp(TRUE, Ty_Bool()));
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp(TRUE, Ty_Bool()), /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
     }
     *formal = (*formal)->next;
 
@@ -3545,7 +3643,7 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
 
         if ((*tkn)->kind != S_COMMA)
@@ -3554,7 +3652,7 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
 
         if ((*tkn)->kind != S_RPAREN)
@@ -3563,9 +3661,9 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
     }
 
@@ -3575,12 +3673,12 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (isSym(*tkn, S_STEP))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp(TRUE, Ty_Bool()));
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp(TRUE, Ty_Bool()), /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
     }
     *formal = (*formal)->next;
 
@@ -3590,7 +3688,7 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_COMMA)
@@ -3599,7 +3697,7 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_RPAREN)
@@ -3663,9 +3761,10 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
     }
 
     Tr_exp exp;
+    bool forceExp = (*tkn)->kind == S_LPAREN; // basic syntax quirk: (a) passed to a BYREF parameter must result in tmp var being generated
     if (!expression(tkn, &exp))
         return FALSE;
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, forceExp);
     *formal = (*formal)->next;
     return TRUE;
 }
@@ -3688,23 +3787,23 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, T
             switch (formal->ph)
             {
                 case Ty_phLineBF:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 case Ty_phCoord:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 case Ty_phCoord2:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 case Ty_phNone:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 default:
                     assert(0);
@@ -3748,23 +3847,23 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, T
             switch (formal->ph)
             {
                 case Ty_phLineBF:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 case Ty_phCoord:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 case Ty_phCoord2:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                     break;
                 case Ty_phNone:
-                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                    transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
                     break;
                 default:
                     assert(0);
@@ -3799,21 +3898,21 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, T
         switch (formal->ph)
         {
             case Ty_phLineBF:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             case Ty_phCoord:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             case Ty_phCoord2:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             case Ty_phNone:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL); formal = formal->next;
+                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             default:
                 assert(0);
@@ -3824,11 +3923,11 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, T
 }
 
 
-// subCall ::= ident ident* ["("] actualArgs [")"]
+// subCall ::= ident ident* actualArgs
 static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     Ty_proc    proc   = e->u.proc;
-    Ty_formal  formal = proc->formals;
+    //FIXME: remove Ty_formal  formal = proc->formals;
 
     assert (e->kind==E_procEntry);
     assert (proc);
@@ -3852,23 +3951,9 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             return FALSE;
     }
 
-    bool parenthesis = FALSE;
-    if ( ((*tkn)->kind == S_LPAREN) && (!formal || (formal->ph == Ty_phNone) ))
-    {
-        parenthesis = TRUE;
-        *tkn = (*tkn)->next;
-    }
-
     Tr_expList assignedArgs = Tr_ExpList();
     if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL))
         return FALSE;
-
-    if (parenthesis)
-    {
-        if ((*tkn)->kind != S_RPAREN)
-            return EM_error((*tkn)->pos, ") expected.");
-        *tkn = (*tkn)->next;
-    }
 
     if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
         return FALSE;
@@ -3927,7 +4012,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
     Ty_ty               ty = NULL;
     S_pos               pos = (*tkn)->pos;
     Ty_const            defaultExp = NULL;
-    Ty_formalMode       mode = Ty_byVal;
+    Ty_formalMode       mode = Ty_byRef;
     Ty_formalParserHint ph = Ty_phNone;
 
     if (isSym(*tkn,  S_BYVAL))
@@ -4050,6 +4135,14 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                 if (!ty)
                     ty = Ty_inferType(S_name(name));
 
+                Ty_ty plainTy = ty;
+                if (mode == Ty_byRef)
+                {
+                    if (ty->kind == Ty_procPtr)
+                        return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
+                    ty = Ty_VarPtr(FE_mod->name, ty);
+                }
+
                 if ((*tkn)->kind == S_EQUALS)
                 {
                     Tr_exp exp;
@@ -4057,7 +4150,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     if (!expression(tkn, &exp))
                         return EM_error((*tkn)->pos, "default expression expected here.");
                     Tr_exp cExp;
-                    if (!transConst(pos, exp, ty, &cExp))
+                    if (!transConst(pos, exp, plainTy, &cExp))
                         return FALSE;
                     defaultExp = Tr_getConst(cExp);
                 }
@@ -4183,7 +4276,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     if (sCls)
     {
         label = strconcat("__", strconcat(S_name(sCls), strconcat("_", Ty_removeTypeSuffix(S_name(name)))));
-        tyClsPtr = Ty_Pointer(g_mod->name, tyCls);
+        tyClsPtr = Ty_Pointer(FE_mod->name, tyCls);
         FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyClsPtr, /*defaultExp=*/NULL, Ty_byVal, Ty_phNone, /*reg=*/NULL));
     }
     else
@@ -4345,9 +4438,9 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     {
         decl = proc;
         if (proc->returnTy->kind == Ty_void)
-            E_declareSub (g_mod->env, proc->name, proc);
+            E_declareSub (FE_mod->env, proc->name, proc);
         else
-            E_declareVFC (g_mod->env, proc->name, Tr_funPtrExp(proc->label, Ty_Prc(g_mod->name, proc)));
+            E_declareVFC (FE_mod->env, proc->name, Tr_funPtrExp(proc->label, Ty_Prc(FE_mod->name, proc)));
     }
     return decl;
 }
@@ -4668,7 +4761,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (tyOther)
         EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
-    sle->u.typeDecl.ty    = Ty_Record(g_mod->name);
+    sle->u.typeDecl.ty    = Ty_Record(FE_mod->name);
 
     *tkn = (*tkn)->next;
 
@@ -4716,7 +4809,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         if (!Tr_isConst(dim->idxEnd))
                             return EM_error(f->pos, "Constant array bounds expected.");
                         end = Tr_getConstInt(dim->idxEnd);
-                        t = Ty_SArray(g_mod->name, t, start, end);
+                        t = Ty_SArray(FE_mod->name, t, start, end);
                     }
 
                     Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name);
@@ -4742,7 +4835,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
 
         E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
         if (sle->u.typeDecl.udtVis == Ty_visPublic)
-            E_declareType(g_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+            E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
 
         return TRUE;
     }
@@ -5333,7 +5426,7 @@ static bool stmtImport(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error(pos, "IMPORT: failed to import %s", S_name(sModule));
 
     // A_StmtListAppend (g_sleStack->stmtList, A_ImportStmt(pos, sModule));
-    E_import (g_mod, mod);
+    E_import (FE_mod, mod);
 
     return TRUE;
 }
@@ -5508,7 +5601,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = Tr_castExp(v, ty, Ty_Pointer(g_mod->name, ty->u.pointer));
+    *exp = Tr_castExp(v, ty, Ty_Pointer(FE_mod->name, ty->u.pointer));
 
     return TRUE;
 }
@@ -6022,7 +6115,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
      *                    E_env (_brt E_module->env)
      *                      ^
      *                      |
-     *                    E_env (current E_module g_mod->env, constains public global vars, consts, procs)
+     *                    E_env (current E_module FE_mod->env, constains public global vars, consts, procs)
      *                      ^
      *                      |
      *      +---------------+----------------+----------- ...
@@ -6030,20 +6123,20 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
      *    E_env main()    E_env proc1()    E_env proc2()  ...
      */
 
-    g_mod     = E_Module(S_Symbol(module_name, FALSE));
+    FE_mod     = E_Module(S_Symbol(module_name, FALSE));
 
     registerBuiltins();
 
-    E_import(g_mod, g_builtinsModule);
+    E_import(FE_mod, g_builtinsModule);
     if (strcmp (OPT_default_module, "none"))
     {
         E_module modDefault = E_loadModule(S_Symbol(OPT_default_module, FALSE));
         if (!modDefault)
             EM_error (0, "***ERROR: failed to load %s !", OPT_default_module);
-        E_import(g_mod, modDefault);
+        E_import(FE_mod, modDefault);
     }
 
-    E_env env = E_EnvScopes(g_mod->env);  // main()/init() env
+    E_env env = E_EnvScopes(FE_mod->env);  // main()/init() env
 
     g_sleStack = NULL;
     slePush(FE_sleTop, /*pos=*/0, lv, env, /*exitlbl=*/NULL, /*contlbl=*/NULL, /*returnVar=*/NULL);
@@ -6127,5 +6220,5 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
 
 bool FE_writeSymFile(string symfn)
 {
-    return E_saveModule(symfn, g_mod);
+    return E_saveModule(symfn, FE_mod);
 }

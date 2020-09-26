@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     27
+#define SYM_VERSION     29
 
 E_module g_builtinsModule = NULL;
 
@@ -321,6 +321,7 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
+        case Ty_varPtr:
             fwrite (&c->u.i, 4, 1, modf);
             break;
         case Ty_single:
@@ -348,7 +349,6 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
         case Ty_void:
         case Ty_string:
             break;
-        case Ty_varPtr:
         case Ty_forwardPtr:
         case Ty_toLoad:
             assert(0);
@@ -379,6 +379,7 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             break;
         }
         case Ty_pointer:
+        case Ty_varPtr:
             E_tyFindTypes (type_tab, ty->u.pointer);
             break;
         case Ty_procPtr:
@@ -541,6 +542,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             break;
         }
         case Ty_pointer:
+        case Ty_varPtr:
             E_serializeTyRef(modTable, ty->u.pointer);
             break;
         case Ty_procPtr:
@@ -561,7 +563,6 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_void:
         case Ty_string:
             break;
-        case Ty_varPtr:
         case Ty_forwardPtr:
         case Ty_toLoad:
             assert(0);
@@ -837,6 +838,7 @@ static bool E_deserializeTyConst(TAB_table modTable, FILE *modf, Ty_const *c)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
+        case Ty_varPtr:
             if (fread(&i, 4, 1, modf) != 1) return FALSE;
             *c = Ty_ConstInt(ty, i);
             return TRUE;
@@ -1171,6 +1173,7 @@ E_module E_loadModule(S_symbol sModule)
                     break;
                 }
                 case Ty_pointer:
+                case Ty_varPtr:
                     ty->u.pointer = E_deserializeTyRef(modTable, modf);
                     break;
                 case Ty_procPtr:
@@ -1187,6 +1190,7 @@ E_module E_loadModule(S_symbol sModule)
                 case Ty_single:   break;
                 case Ty_double:   break;
                 case Ty_void:     break;
+                case Ty_string:   break;
                 default:
                     assert(0);
                     break;

@@ -19,6 +19,7 @@ struct Ty_ty_
            Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
            Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr, Ty_toLoad, Ty_prc } kind;
            // Ty_varPtr: used during var access processing in translate.c
+           //            also used for BYREF proc params
            // Ty_toLoad: used for module loading in env.c
 
     union
@@ -118,7 +119,7 @@ Ty_ty           Ty_VoidPtr(void);
 
 Ty_ty           Ty_SArray     (S_symbol mod, Ty_ty ty, int start, int end);
 Ty_ty           Ty_DArray     (S_symbol mod, Ty_ty ty, uint16_t numDims, uint32_t *bounds);
-Ty_ty           Ty_VarPtr     (Ty_ty ty);
+Ty_ty           Ty_VarPtr     (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_Pointer    (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_ForwardPtr (S_symbol mod, S_symbol sType);
 Ty_ty           Ty_Prc        (S_symbol mod, Ty_proc proc);

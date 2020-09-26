@@ -1,5 +1,5 @@
 
-FUNCTION fibonacci% ( a% )
+FUNCTION fibonacci% ( BYVAL a% )
 
     IF a%=1 OR a%=2 THEN
         fibonacci% = 1

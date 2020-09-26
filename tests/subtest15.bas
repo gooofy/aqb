@@ -18,7 +18,7 @@ SUB p(x AS INTEGER, y AS INTEGER)
     s = x+y
 END SUB
 
-SUB setfp (p AS SUB (INTEGER, INTEGER))
+SUB setfp (BYVAL p AS SUB (INTEGER, INTEGER))
     ' _debug_puts "SUB setfp" : _debug_putnl
 	g_p = p
 END SUB

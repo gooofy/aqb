@@ -13,6 +13,7 @@
 #include "types.h"
 #include "errormsg.h"
 #include "env.h"
+#include "frontend.h"
 
 typedef struct patchList_ *patchList;
 struct patchList_
@@ -684,7 +685,7 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
                                      idx,
                                      Tr_intExp(Ty_size(et), Ty_Long()),
                                      Ty_Long()),
-                          Ty_VarPtr(et));
+                          Ty_VarPtr(FE_mod->name, et));
     }
 
     if (t->u.pointer->kind == Ty_string)
@@ -696,7 +697,7 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
                                      idx,
                                      Tr_intExp(Ty_size(et), Ty_Long()),
                                      Ty_Long()),
-                          Ty_VarPtr(et));
+                          Ty_VarPtr(FE_mod->name, et));
     }
 
 
@@ -705,15 +706,15 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
         Ty_ty et = at->u.sarray.elementTy;
 
         return Tr_binOpExp(T_plus,
-                          ape,
-                          Tr_binOpExp(T_mul,
-                                     Tr_binOpExp(T_minus,
-                                                idx,
-                                                Tr_intExp(at->u.sarray.iStart, Ty_Long()),
-                                                Ty_Long()),
-                                     Tr_intExp(Ty_size(et), Ty_Long()),
-                                     Ty_Long()),
-                          Ty_VarPtr(et));
+                           ape,
+                           Tr_binOpExp(T_mul,
+                                      Tr_binOpExp(T_minus,
+                                                 idx,
+                                                 Tr_intExp(at->u.sarray.iStart, Ty_Long()),
+                                                 Ty_Long()),
+                                      Tr_intExp(Ty_size(et), Ty_Long()),
+                                      Ty_Long()),
+                           Ty_VarPtr(FE_mod->name, et));
     }
 
     assert(0);
@@ -727,6 +728,15 @@ Tr_exp Tr_Deref(Tr_exp ptr)
     return Tr_Ex(T_Mem(unEx(ptr), t->u.pointer));
 }
 
+Tr_exp Tr_MakeRef(Tr_exp v)
+{
+    T_exp e = unEx(v);
+    if (e->kind != T_MEM)
+        return NULL;
+
+    return Tr_Ex(e->u.MEM.exp);
+}
+
 Tr_exp Tr_Field(Tr_exp r, Ty_recordEntry f)
 {
     assert (f->kind == Ty_recField);
@@ -738,7 +748,7 @@ Tr_exp Tr_Field(Tr_exp r, Ty_recordEntry f)
     return Tr_Ex(T_Binop(T_plus,
                          e,
                          T_Const(Ty_ConstInt(Ty_ULong(), f->u.field.uiOffset)),
-                         Ty_VarPtr(f->u.field.ty)));
+                         Ty_VarPtr(FE_mod->name, f->u.field.ty)));
 }
 
 static int ipow(int base, int exp)

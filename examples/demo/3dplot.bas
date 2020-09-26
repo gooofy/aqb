@@ -20,7 +20,7 @@ PALETTE 1,  1,  1,  1 : REM text color white
 PALETTE 2, .1, .9, .9 : REM net color light blue
 PALETTE 3, .2, .2,  1 : REM area color blue
 
-FUNCTION FNfun(x AS SINGLE,z AS SINGLE) AS SINGLE
+FUNCTION FNfun(BYVAL x AS SINGLE, BYVAL z AS SINGLE) AS SINGLE
     RETURN 20*SIN(.1*SQR(x*x+z*z))
 END FUNCTION
 

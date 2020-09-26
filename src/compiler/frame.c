@@ -10,6 +10,7 @@
 #include "frame.h"
 #include "errormsg.h"
 #include "printtree.h"
+#include "frontend.h"
 
 /*
  *   m68k frame layout used by this compiler
@@ -515,9 +516,9 @@ T_exp F_Exp(F_access acc)
         case inReg:
             return T_Temp(F_accessReg(acc), ty);
         case inFrame:
-            return T_Binop(T_plus, T_FramePointer(), T_Const(Ty_ConstInt(Ty_ULong(), F_accessOffset(acc))), Ty_VarPtr(ty));
+            return T_Binop(T_plus, T_FramePointer(), T_Const(Ty_ConstInt(Ty_ULong(), F_accessOffset(acc))), Ty_VarPtr(FE_mod->name, ty));
         case inHeap:
-            return T_Heap(acc->u.label, Ty_VarPtr(ty));
+            return T_Heap(acc->u.label, Ty_VarPtr(FE_mod->name, ty));
     }
     assert(0);
     return NULL;

@@ -110,13 +110,13 @@ Ty_recordEntry Ty_Method (Ty_proc proc)
     return p;
 }
 
-Ty_ty Ty_VarPtr(Ty_ty ty)
+Ty_ty Ty_VarPtr(S_symbol mod, Ty_ty ty)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind            = Ty_varPtr;
     p->u.pointer       = ty;
-    p->mod             = NULL;
+    p->mod             = mod;
     p->uid             = g_uid++;
 
     return p;
