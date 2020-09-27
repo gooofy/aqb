@@ -371,6 +371,7 @@ static S_symbol S_GOSUB;
 static S_symbol S_CONSTRUCTOR;
 static S_symbol S_LBOUND;
 static S_symbol S_UBOUND;
+static S_symbol S_PROTECTED;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -4774,6 +4775,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
 //                   | procDecl
+//                   | [ PUBLIC | PRIVATE | PROTECTED ] ":"
 //                   | END TYPE
 //                   )
 static bool stmtTypeDeclField(S_tkn *tkn)
@@ -4950,53 +4952,71 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         }
         else
         {
-            if ((*tkn)->kind == S_IDENT)
+            if ( isSym(*tkn, S_PUBLIC) || isSym(*tkn, S_PRIVATE) || isSym(*tkn, S_PROTECTED) )
             {
-                FE_dim     dims       = NULL;
-                S_symbol   sField;
-                S_pos      fpos       = (*tkn)->pos;
-
-                sField = (*tkn)->u.sym;
+                if ( isSym(*tkn, S_PUBLIC) )
+                    g_sleStack->u.typeDecl.udtVis = Ty_visPublic;
+                else if ( isSym(*tkn, S_PRIVATE) )
+                    g_sleStack->u.typeDecl.udtVis = Ty_visPrivate;
+                else if ( isSym(*tkn, S_PROTECTED) )
+                    g_sleStack->u.typeDecl.udtVis = Ty_visProtected;
+                else
+                    assert(0);
                 *tkn = (*tkn)->next;
-                if ((*tkn)->kind == S_LPAREN)
-                {
-                    *tkn = (*tkn)->next;
-                    if (!arrayDimensions(tkn, &dims))
-                        return FALSE;
-                    if ((*tkn)->kind != S_RPAREN)
-                        return EM_error((*tkn)->pos, ") expected here.");
-                    *tkn = (*tkn)->next;
-                }
-
-                Ty_ty ty;
-                if (isSym(*tkn, S_AS))
-                {
-                    *tkn = (*tkn)->next;
-
-                    if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty))
-                        return EM_error((*tkn)->pos, "field declaration: type descriptor expected here.");
-                }
-                else
-                {
-                    ty = Ty_inferType(S_name(sField));
-                }
-
-                if (!isLogicalEOL(*tkn))
-                    return EM_error((*tkn)->pos, "field declaration: syntax error [2].");
-
-                if (g_sleStack->u.typeDecl.eFirst)
-                {
-                    g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryField(fpos, sField, dims, ty);
-                    g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
-                }
-                else
-                {
-                    g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryField(fpos, sField, dims, ty);
-                }
+                if ((*tkn)->kind != S_COLON)
+                    return EM_error((*tkn)->pos, ": expected here");
+                *tkn = (*tkn)->next;
             }
             else
             {
-                return FALSE;
+                if ((*tkn)->kind == S_IDENT)
+                {
+                    FE_dim     dims       = NULL;
+                    S_symbol   sField;
+                    S_pos      fpos       = (*tkn)->pos;
+
+                    sField = (*tkn)->u.sym;
+                    *tkn = (*tkn)->next;
+                    if ((*tkn)->kind == S_LPAREN)
+                    {
+                        *tkn = (*tkn)->next;
+                        if (!arrayDimensions(tkn, &dims))
+                            return FALSE;
+                        if ((*tkn)->kind != S_RPAREN)
+                            return EM_error((*tkn)->pos, ") expected here.");
+                        *tkn = (*tkn)->next;
+                    }
+
+                    Ty_ty ty;
+                    if (isSym(*tkn, S_AS))
+                    {
+                        *tkn = (*tkn)->next;
+
+                        if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty))
+                            return EM_error((*tkn)->pos, "field declaration: type descriptor expected here.");
+                    }
+                    else
+                    {
+                        ty = Ty_inferType(S_name(sField));
+                    }
+
+                    if (!isLogicalEOL(*tkn))
+                        return EM_error((*tkn)->pos, "field declaration: syntax error [2].");
+
+                    if (g_sleStack->u.typeDecl.eFirst)
+                    {
+                        g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryField(fpos, sField, dims, ty);
+                        g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
+                    }
+                    else
+                    {
+                        g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryField(fpos, sField, dims, ty);
+                    }
+                }
+                else
+                {
+                        return FALSE;
+                }
             }
         }
     }
@@ -5943,6 +5963,7 @@ static void registerBuiltins(void)
     S_CONSTRUCTOR     = S_Symbol("CONSTRUCTOR",      FALSE);
     S_LBOUND          = S_Symbol("LBOUND",           FALSE);
     S_UBOUND          = S_Symbol("UBOUND",           FALSE);
+    S_PROTECTED       = S_Symbol("PROTECTED",        FALSE);
 
     g_parsefs = TAB_empty();
 
@@ -6165,7 +6186,8 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
         }
         else
         {
-            if ((tkn->kind == S_IDENT) && tkn->next && (tkn->next->kind == S_COLON))
+            if ((tkn->kind == S_IDENT) && tkn->next && (tkn->next->kind == S_COLON)
+                && !isSym(tkn, S_PUBLIC) && !isSym(tkn, S_PRIVATE) && !isSym(tkn, S_PROTECTED) )
             {
                 Temp_label l = Temp_namedlabel(S_name(tkn->u.sym));
                 if (TAB_look (userLabels, l))

@@ -29,6 +29,7 @@ https://github.com/ComMouse/tiger-compiler
 
 * Static (C-like, fast) and dynamic (runtime bounds checking) arrays
 * UDTs (structs)
+* OOP (FreeBASIC like)
 * Pointers (C-like, including function/sub pointers)
 * Strings (0-terminated pointers to UByte, C-compatible)
 

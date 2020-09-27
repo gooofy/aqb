@@ -1,5 +1,5 @@
 '
-' some basic dynamic array tests
+' dynamic array LBOUND / UBOUND tests
 '
 
 OPTION EXPLICIT
