@@ -4955,11 +4955,11 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             if ( isSym(*tkn, S_PUBLIC) || isSym(*tkn, S_PRIVATE) || isSym(*tkn, S_PROTECTED) )
             {
                 if ( isSym(*tkn, S_PUBLIC) )
-                    g_sleStack->u.typeDecl.udtVis = Ty_visPublic;
+                    g_sleStack->u.typeDecl.memberVis = Ty_visPublic;
                 else if ( isSym(*tkn, S_PRIVATE) )
-                    g_sleStack->u.typeDecl.udtVis = Ty_visPrivate;
+                    g_sleStack->u.typeDecl.memberVis = Ty_visPrivate;
                 else if ( isSym(*tkn, S_PROTECTED) )
-                    g_sleStack->u.typeDecl.udtVis = Ty_visProtected;
+                    g_sleStack->u.typeDecl.memberVis = Ty_visProtected;
                 else
                     assert(0);
                 *tkn = (*tkn)->next;

@@ -4,6 +4,8 @@
 
 OPTION EXPLICIT
 
+' DIM b AS _DARRAY_T = _DARRAY_T(42)
+
 DIM a%(100)
 
 a%(1) = 42

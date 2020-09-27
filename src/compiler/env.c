@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     29
+#define SYM_VERSION     31
 
 E_module g_builtinsModule = NULL;
 
@@ -332,8 +332,24 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
     }
 }
 
+static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty);
+
+static void E_tyFindTypesInProc(TAB_table type_tab, Ty_proc proc)
+{
+    for (Ty_formal formals = proc->formals; formals; formals=formals->next)
+        E_tyFindTypes (type_tab, formals->ty);
+    if (proc->returnTy)
+        E_tyFindTypes (type_tab, proc->returnTy);
+    if (proc->tyClsPtr)
+        E_tyFindTypes (type_tab, proc->tyClsPtr);
+}
+
 static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
 {
+    // already handled? (avoid recursion)
+    if (TAB_look(type_tab, (void *) (intptr_t) ty->uid))
+        return;
+
     TAB_enter (type_tab, (void *) (intptr_t) ty->uid, ty);
     switch (ty->kind)
     {
@@ -369,13 +385,16 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
-                        assert(0); // FIXME
+                        E_tyFindTypesInProc (type_tab, entry->u.method);
                         break;
                     case Ty_recField:
                         E_tyFindTypes (type_tab, entry->u.field.ty);
                         break;
                 }
             }
+            if (ty->u.record.constructor)
+                E_tyFindTypesInProc(type_tab, ty->u.record.constructor);
+
             break;
         }
         case Ty_pointer:
@@ -383,13 +402,7 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             E_tyFindTypes (type_tab, ty->u.pointer);
             break;
         case Ty_procPtr:
-            for (Ty_formal formals = ty->u.procPtr->formals; formals; formals=formals->next)
-                E_tyFindTypes (type_tab, formals->ty);
-
-            if (ty->u.procPtr->returnTy)
-                E_tyFindTypes (type_tab, ty->u.procPtr->returnTy);
-            if (ty->u.procPtr->tyClsPtr)
-                E_tyFindTypes (type_tab, ty->u.procPtr->tyClsPtr);
+            E_tyFindTypesInProc(type_tab, ty->u.procPtr);
             break;
         case Ty_prc:
             for (Ty_formal formals = ty->u.proc->formals; formals; formals=formals->next)
@@ -511,25 +524,16 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             fwrite(&ty->u.record.uiSize, 4, 1, modf);
             uint16_t cnt=0;
             while (TAB_next(i, (void **) &sym, (void **)&entry))
-            {
-                switch (entry->kind)
-                {
-                    case Ty_recMethod:
-                        assert(0); // FIXME
-                        break;
-                    case Ty_recField:
-                        cnt++;
-                        break;
-                }
-            }
+                cnt++;
             fwrite(&cnt, 2, 1, modf);
             i = S_Iter(ty->u.record.scope);
             while (TAB_next(i, (void **) &sym, (void **)&entry))
             {
+                fwrite(&entry->kind, 1, 1, modf);
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
-                        assert(0); // FIXME
+                        E_serializeTyProc(modTable, entry->u.method);
                         break;
                     case Ty_recField:
                         fwrite(&entry->u.field.visibility, 1, 1, modf);
@@ -539,6 +543,10 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                         break;
                 }
             }
+            bool constructor_present = ty->u.record.constructor != NULL;
+            fwrite(&constructor_present, 1, 1, modf);
+            if (constructor_present)
+                E_serializeTyProc(modTable, ty->u.record.constructor);
             break;
         }
         case Ty_pointer:
@@ -1158,18 +1166,43 @@ E_module E_loadModule(S_symbol sModule)
 
                     for (int i=0; i<cnt; i++)
                     {
-                        Ty_visibility visibility;
-                        if (fread(&visibility, 1, 1, modf) != 1) goto fail;
-                        string name = strdeserialize(modf);
-                        uint32_t uiOffset = 0;
-                        if (fread(&uiOffset, 4, 1, modf) != 1) goto fail;
-                        Ty_ty t = E_deserializeTyRef(modTable, modf);
 
-                        S_symbol sym = S_Symbol(name, FALSE);
-                        Ty_recordEntry re = Ty_Field(visibility, sym, t);
-                        re->u.field.uiOffset = uiOffset;
-                        S_enter(ty->u.record.scope, sym, re);
+                        uint8_t kind;
+                        if (fread(&kind, 1, 1, modf) != 1) goto fail;
+                        switch (kind)
+                        {
+                            case Ty_recMethod:
+                            {
+                                Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                                Ty_recordEntry re = Ty_Method(proc);
+                                S_enter(ty->u.record.scope, proc->name, re);
+                                break;
+                            }
+                            case Ty_recField:
+                            {
+                                Ty_visibility visibility;
+                                if (fread(&visibility, 1, 1, modf) != 1) goto fail;
+                                string name = strdeserialize(modf);
+                                uint32_t uiOffset = 0;
+                                if (fread(&uiOffset, 4, 1, modf) != 1) goto fail;
+                                Ty_ty t = E_deserializeTyRef(modTable, modf);
+
+                                S_symbol sym = S_Symbol(name, FALSE);
+                                Ty_recordEntry re = Ty_Field(visibility, sym, t);
+                                re->u.field.uiOffset = uiOffset;
+                                S_enter(ty->u.record.scope, sym, re);
+                                break;
+                            }
+                        }
                     }
+
+                    bool constructor_present;
+                    if (fread(&constructor_present, 1, 1, modf) != 1) goto fail;
+                    if (constructor_present)
+                        ty->u.record.constructor = E_deserializeTyProc(modTable, modf);
+                    else
+                        ty->u.record.constructor = NULL;
+
                     break;
                 }
                 case Ty_pointer:
