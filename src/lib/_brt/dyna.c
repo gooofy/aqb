@@ -7,41 +7,39 @@
 
 #include <inline/exec.h>
 
-void _dyna_init (_dyna *a, UWORD numDims, ULONG elementSize, ...)
+void __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+{
+    // _debug_puts ("__DARRAY_T___init__: elementSize="); _debug_puts2(elementSize); _debug_putnl();
+    self->data        = NULL;
+    self->numDims     = 0;
+    self->elementSize = elementSize;
+    self->bounds      = NULL;
+}
+
+void __DARRAY_T_REDIM (_DARRAY_T *self, UWORD numDims, ...)
 {
     va_list valist;
 
-    a->data        = NULL;
-    a->numDims     = numDims;
-    a->elementSize = elementSize;
-    a->bounds      = NULL;
+    self->numDims     = numDims;
 
-    if (numDims>0)
+    self->bounds = ALLOCATE_ (sizeof (_DARRAY_BOUNDS_T) * numDims, 0);
+
+    va_start (valist, numDims);
+    ULONG dataSize = self->elementSize;
+    for (UWORD iDim=0; iDim<numDims; iDim++)
     {
-        a->bounds = ALLOCATE_ (sizeof (_dyna_bounds) * numDims, 0);
-
-        va_start (valist, elementSize);
-        ULONG dataSize = elementSize;
-        for (UWORD iDim=0; iDim<numDims; iDim++)
-        {
-            ULONG start = va_arg(valist, ULONG);
-            ULONG end   = va_arg(valist, ULONG);
-            dataSize *= end - start + 1;
-            //_debug_puts ("_dyna_create: dim: start="); _debug_puts2(start); _debug_puts(", end="); _debug_puts2(end); _debug_putnl();
-            a->bounds[iDim].lbound      = start;
-            a->bounds[iDim].ubound      = end;
-            a->bounds[iDim].numElements = end-start+1;
-        }
-        va_end(valist);
-        //_debug_puts ("_dyna_create: dataSize="); _debug_puts2(dataSize); _debug_putnl();
-        a->data = ALLOCATE_ (dataSize, 0);
+        ULONG start = va_arg(valist, ULONG);
+        ULONG end   = va_arg(valist, ULONG);
+        dataSize *= end - start + 1;
+        //_debug_puts ("_dyna_create: dim: start="); _debug_puts2(start); _debug_puts(", end="); _debug_puts2(end); _debug_putnl();
+        self->bounds[iDim].lbound      = start;
+        self->bounds[iDim].ubound      = end;
+        self->bounds[iDim].numElements = end-start+1;
     }
+    va_end(valist);
+    //_debug_puts ("_dyna_create: dataSize="); _debug_puts2(dataSize); _debug_putnl();
+    self->data = ALLOCATE_ (dataSize, 0);
 }
-
-//int foobar(int a)
-//{
-//    return a*a;
-//}
 
 /*
  * elements are in row-major order
@@ -58,8 +56,7 @@ void _dyna_init (_dyna *a, UWORD numDims, ULONG elementSize, ...)
  *
  */
 
-
-void *_dyna_idx_(_dyna *dyna, UWORD dimCnt, ...)
+void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
 {
     //int i = foobar(dimCnt);
 
@@ -67,21 +64,21 @@ void *_dyna_idx_(_dyna *dyna, UWORD dimCnt, ...)
 
     //_debug_puts ("_dyna_idx: dimCnt="); _debug_puts2(dimCnt); _debug_putnl();
 
-    if (!dyna->data)
+    if (!self->data)
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
 
-    if (dimCnt != dyna->numDims)
+    if (dimCnt != self->numDims)
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
 
     va_list valist;
     va_start (valist, dimCnt);
     ULONG offset = 0;
-    ULONG es     = dyna->elementSize;
-    for (WORD iDim=dyna->numDims-1; iDim>=0; iDim--)
+    ULONG es     = self->elementSize;
+    for (WORD iDim=self->numDims-1; iDim>=0; iDim--)
     {
-        ULONG lbound = dyna->bounds[iDim].lbound;
-        ULONG ubound = dyna->bounds[iDim].ubound;
-        ULONG n     = dyna->bounds[iDim].numElements;
+        ULONG lbound = self->bounds[iDim].lbound;
+        ULONG ubound = self->bounds[iDim].ubound;
+        ULONG n     = self->bounds[iDim].numElements;
 
         // _debug_puts ("_dyna_idx: dim: iDim="); _debug_puts2(iDim); _debug_puts(", lbound="); _debug_puts2(lbound); _debug_putnl();
 
@@ -96,32 +93,34 @@ void *_dyna_idx_(_dyna *dyna, UWORD dimCnt, ...)
     }
     va_end(valist);
 
-    return dyna->data + offset;
+    return self->data + offset;
 }
 
-WORD _dyna_lbound_ (_dyna *dyna, WORD d)
+WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d)
 {
     if (d<=0)
         return 1;
 
-    if (!dyna->data)
+    if (!self->data)
         return 0;
 
-    if (d>dyna->numDims)
+    if (d>self->numDims)
         return 0;
 
-    return dyna->bounds[d-1].lbound;
+    return self->bounds[d-1].lbound;
 }
-WORD _dyna_ubound_ (_dyna *dyna, WORD d)
+
+WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d)
 {
     if (d<=0)
-        return dyna->numDims;
+        return self->numDims;
 
-    if (!dyna->data)
+    if (!self->data)
         return -1;
 
-    if (d>dyna->numDims)
+    if (d>self->numDims)
         return 0;
 
-    return dyna->bounds[d-1].ubound;
+    return self->bounds[d-1].ubound;
 }
+

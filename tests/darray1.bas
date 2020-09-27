@@ -4,8 +4,6 @@
 
 OPTION EXPLICIT
 
-' DIM b AS _DARRAY_T = _DARRAY_T(42)
-
 DIM a%(100)
 
 a%(1) = 42
@@ -16,8 +14,6 @@ a%(0) = 23
 
 '_debug_puts2 a%(1) : _debug_putnl
 '_debug_puts2 a%(0) : _debug_putnl
-
-' PRINT a%(0), a%(1)
 
 ASSERT a%(1) = 42
 ASSERT a%(0) = 23
@@ -38,6 +34,5 @@ NEXT i
 
 FOR i AS INTEGER = 0 to 100
   ASSERT a%(i) = i
-  ' PRINT a%(i%)
 NEXT i
 

@@ -117,22 +117,41 @@ char *_booltoa_ (BOOL   b);
  * dynamic array support
  */
 
+//typedef struct
+//{
+//    ULONG   lbound, ubound, numElements;
+//} _dyna_bounds;
+//
+//typedef struct
+//{
+//    APTR          data;
+//    UWORD         numDims;
+//    ULONG         elementSize;
+//    _dyna_bounds *bounds;
+//} _dyna;
+//
+//void  _dyna_init    (_dyna *dyna, UWORD numDims, ULONG elementSize, ...);
+//void *_dyna_idx_    (_dyna *dyna, UWORD dimCnt, ...);
+//WORD  _dyna_lbound_ (_dyna *dyna, WORD d);
+//WORD  _dyna_ubound_ (_dyna *dyna, WORD d);
+
 typedef struct
 {
     ULONG   lbound, ubound, numElements;
-} _dyna_bounds;
+} _DARRAY_BOUNDS_T;
 
 typedef struct
 {
-    APTR          data;
-    UWORD         numDims;
-    ULONG         elementSize;
-    _dyna_bounds *bounds;
-} _dyna;
+    APTR              data;
+    UWORD             numDims;
+    ULONG             elementSize;
+    _DARRAY_BOUNDS_T *bounds;
+} _DARRAY_T;
 
-void  _dyna_init    (_dyna *dyna, UWORD numDims, ULONG elementSize, ...);
-void *_dyna_idx_    (_dyna *dyna, UWORD dimCnt, ...);
-WORD  _dyna_lbound_ (_dyna *dyna, WORD d);
-WORD  _dyna_ubound_ (_dyna *dyna, WORD d);
+void  __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize);
+void  __DARRAY_T_REDIM    (_DARRAY_T *self, UWORD numDims, ...);
+void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
+WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
+WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
 
 #endif

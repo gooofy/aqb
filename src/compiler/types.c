@@ -6,6 +6,8 @@
 #include "symbol.h"
 #include "types.h"
 
+#define _DARRAY_T_SIZE 14
+
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
 
@@ -186,15 +188,18 @@ void Ty_computeSize(Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_darray:
-        {
-            ty->u.darray.uiSize = Ty_size(ty->u.darray.elementTy);
-            for (int16_t iDim=ty->u.darray.numDims-1; iDim>=0; iDim--)
-            {
-                ty->u.darray.uiSize *= (ty->u.darray.bounds[iDim*2+1] - ty->u.darray.bounds[iDim*2]+1);
-            }
-            ty->u.darray.uiSize += 10; // descriptor overhead
+            assert(0);
             break;
-        }
+// FIXME: remove
+//        {
+//            ty->u.darray.uiSize = Ty_size(ty->u.darray.elementTy);
+//            for (int16_t iDim=ty->u.darray.numDims-1; iDim>=0; iDim--)
+//            {
+//                ty->u.darray.uiSize *= (ty->u.darray.bounds[iDim*2+1] - ty->u.darray.bounds[iDim*2]+1);
+//            }
+//            ty->u.darray.uiSize += 10; // descriptor overhead
+//            break;
+//        }
 
         case Ty_sarray:
             ty->u.sarray.uiSize = (ty->u.sarray.iEnd - ty->u.sarray.iStart + 1) * Ty_size(ty->u.sarray.elementTy);
@@ -277,7 +282,7 @@ Ty_ty Ty_DArray(S_symbol mod, Ty_ty ty, uint16_t numDims, uint32_t *bounds)
     p->mod                = mod;
     p->uid                = g_uid++;
 
-    Ty_computeSize(p);
+    // Ty_computeSize(p);
 
     return p;
 }
@@ -312,7 +317,7 @@ int Ty_size(Ty_ty t)
         case Ty_double:
              return 8;
         case Ty_darray:
-            return t->u.darray.uiSize;
+            return _DARRAY_T_SIZE;
         case Ty_sarray:
             return t->u.sarray.uiSize;
         case Ty_record:

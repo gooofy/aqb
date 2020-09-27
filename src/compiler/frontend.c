@@ -372,6 +372,7 @@ static S_symbol S_CONSTRUCTOR;
 static S_symbol S_LBOUND;
 static S_symbol S_UBOUND;
 static S_symbol S_PROTECTED;
+static S_symbol S__DARRAY_T;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1099,6 +1100,48 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
     return TRUE;
 }
 
+#if 0
+static bool transCallBuiltinSub(S_pos pos, string builtinName, Tr_expList arglist, Tr_exp *exp)
+{
+    S_symbol fsym = S_Symbol(builtinName, TRUE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry entry = lx->first->e;
+    Ty_proc proc = entry->u.proc;
+
+    *exp = Tr_callExp(arglist, proc);
+    return TRUE;
+}
+#endif
+static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, Tr_expList arglist, Tr_exp *exp)
+{
+    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
+    if (!tyClass || (tyClass->kind != Ty_record))
+        return EM_error(pos, "built type %s not found.", S_name(builtinClass));
+
+    Ty_recordEntry entry = S_look(tyClass->u.record.scope, builtinMethod);
+    if (!entry || (entry->kind != Ty_recMethod))
+        return EM_error(pos, "built type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
+
+    *exp = Tr_callExp(arglist, entry->u.method);
+    return TRUE;
+}
+
+static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, Tr_expList arglist, Tr_exp *exp)
+{
+    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
+    if (!tyClass || (tyClass->kind != Ty_record))
+        return EM_error(pos, "built type %s not found.", S_name(builtinClass));
+
+    if (!tyClass->u.record.constructor)
+        return EM_error(pos, "built type %s does not have constructor.", S_name(builtinClass));
+
+    *exp = Tr_callExp(arglist, tyClass->u.record.constructor);
+    return TRUE;
+}
+
+
 static Tr_exp transBinOp(S_pos pos, T_binOp oper, Tr_exp e1, Tr_exp e2)
 {
     Ty_ty  ty1     = Tr_ty(e1);
@@ -1434,7 +1477,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
 
             if ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_darray) )
             {
-                // call void *_dyna_idx(_dyna * dyna, UWORD dimCnt, ...);
+                // call void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...)
 
                 Tr_expList arglist = Tr_ExpList();
                 int dimCnt=0;
@@ -1458,17 +1501,8 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                 Tr_ExpListAppend(arglist, Tr_intExp(dimCnt, Ty_UInteger()));
                 Tr_ExpListAppend(arglist, *exp);
 
-                S_symbol fsym = S_Symbol("_dyna_idx", TRUE);
-                Tr_exp procPtr;
-                Ty_recordEntry entry;
-                if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
-                    return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
-
-                Ty_ty typ = Tr_ty(procPtr);
-                assert(typ->kind == Ty_prc);
-                Ty_proc proc = typ->u.proc;
-
-                *exp = Tr_callExp(arglist, proc);
+                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR", FALSE), arglist, exp))
+                    return FALSE;
                 *exp = Tr_castExp(*exp, Tr_ty(*exp), Ty_VarPtr(FE_mod->name, ty->u.pointer->u.darray.elementTy));
             }
             else
@@ -2430,26 +2464,32 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
             if (init || constructorAssignedArgs)
                 return EM_error(pos, "dynamic array initializers are not supported yet."); // FIXME
 
-            // call _dyna_init (_dyna *dyna, UWORD numDims, ULONG elementSize, ...)
-
+            // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
             Tr_expList arglist = Tr_ExpList();
-            for (int16_t iDim=0; iDim<t->u.darray.numDims; iDim++)
-            {
-                Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2+1], Ty_ULong()));
-                Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2]  , Ty_ULong()));
-            }
             Tr_ExpListAppend(arglist, Tr_intExp(Ty_size(t->u.darray.elementTy), Ty_ULong()));
-            Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.numDims, Ty_UInteger()));
             Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
+            if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
+                return FALSE;
 
-            S_symbol fsym = S_Symbol("_dyna_init", TRUE);
-            E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-            if (!lx)
-                return EM_error(pos, "builtin %s not found.", S_name(fsym));
-            E_enventry entry = lx->first->e;
-            Ty_proc proc = entry->u.proc;
+            if (t->u.darray.numDims)
+            {
+                Tr_exp initExp2;
+                // call __DARRAY_T_REDIM (_DARRAY_T *self, ...)
+                for (int16_t iDim=0; iDim<t->u.darray.numDims; iDim++)
+                {
+                    Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2+1], Ty_ULong()));
+                    Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2]  , Ty_ULong()));
+                }
+                Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.numDims, Ty_UInteger()));
+                Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
+                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, &initExp2))
+                    return FALSE;
 
-            initExp = Tr_callExp(arglist, proc);
+                Tr_expList el = Tr_ExpList();
+                Tr_ExpListAppend(el, initExp); 
+                Tr_ExpListAppend(el, initExp2);
+                initExp = Tr_seqExp(el); 
+            }
         }
         else
         {
@@ -5795,17 +5835,9 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
             Tr_ExpListAppend(arglist, dimExp);
             Tr_ExpListAppend(arglist, arrayExp);
 
-            S_symbol fsym = S_Symbol(isUpper ? "_dyna_ubound" : "_dyna_lbound", TRUE);
-            Tr_exp procPtr;
-            Ty_recordEntry entry;
-            if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
-                return EM_error(pos, "builtin %s not found.", S_name(fsym));
+            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, exp))
+                return FALSE;
 
-            Ty_ty typ = Tr_ty(procPtr);
-            assert(typ->kind == Ty_prc);
-            Ty_proc proc = typ->u.proc;
-
-            *exp = Tr_callExp(arglist, proc);
             break;
         }
         case Ty_sarray:
@@ -5964,6 +5996,7 @@ static void registerBuiltins(void)
     S_LBOUND          = S_Symbol("LBOUND",           FALSE);
     S_UBOUND          = S_Symbol("UBOUND",           FALSE);
     S_PROTECTED       = S_Symbol("PROTECTED",        FALSE);
+    S__DARRAY_T       = S_Symbol("_DARRAY_T",        FALSE);
 
     g_parsefs = TAB_empty();
 
