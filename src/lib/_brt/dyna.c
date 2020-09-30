@@ -124,3 +124,18 @@ WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d)
     return self->bounds[d-1].ubound;
 }
 
+void __DARRAY_T_COPY (_DARRAY_T *self, _DARRAY_T *a)
+{
+    if (a->numDims != self->numDims)
+        ERROR (ERR_INCOMPATIBLE_ARRAY);
+
+    ULONG dataSize = self->elementSize;
+    for (UWORD iDim=0; iDim<self->numDims; iDim++)
+    {
+        if (a->bounds[iDim].numElements != self->bounds[iDim].numElements)
+            ERROR (ERR_INCOMPATIBLE_ARRAY);
+        dataSize *= self->bounds[iDim].numElements;
+    }
+    CopyMem((APTR)a->data, self->data, dataSize);
+}
+

@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     31
+#define SYM_VERSION     33
 
 E_module g_builtinsModule = NULL;
 
@@ -373,7 +373,7 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             E_tyFindTypes (type_tab, ty->u.sarray.elementTy);
             break;
         case Ty_darray:
-            assert(0); // FIXME
+            E_tyFindTypes (type_tab, ty->u.darray.elementTy);
             break;
         case Ty_record:
         {
@@ -508,7 +508,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_darray:
-            assert(0); // FIXME
+            E_serializeTyRef(modTable, ty->u.sarray.elementTy);
             break;
         case Ty_sarray:
             fwrite(&ty->u.sarray.uiSize, 4, 1, modf);
@@ -1144,7 +1144,7 @@ E_module E_loadModule(S_symbol sModule)
             switch (ty->kind)
             {
                 case Ty_darray:
-                    assert(0); // FIXME
+                    ty->u.darray.elementTy = E_deserializeTyRef(modTable, modf);
                     break;
 
                 case Ty_sarray:

@@ -190,16 +190,6 @@ void Ty_computeSize(Ty_ty ty)
         case Ty_darray:
             assert(0);
             break;
-// FIXME: remove
-//        {
-//            ty->u.darray.uiSize = Ty_size(ty->u.darray.elementTy);
-//            for (int16_t iDim=ty->u.darray.numDims-1; iDim>=0; iDim--)
-//            {
-//                ty->u.darray.uiSize *= (ty->u.darray.bounds[iDim*2+1] - ty->u.darray.bounds[iDim*2]+1);
-//            }
-//            ty->u.darray.uiSize += 10; // descriptor overhead
-//            break;
-//        }
 
         case Ty_sarray:
             ty->u.sarray.uiSize = (ty->u.sarray.iEnd - ty->u.sarray.iStart + 1) * Ty_size(ty->u.sarray.elementTy);
@@ -271,18 +261,14 @@ Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
     return p;
 }
 
-Ty_ty Ty_DArray(S_symbol mod, Ty_ty ty, uint16_t numDims, uint32_t *bounds)
+Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
 
     p->kind               = Ty_darray;
-    p->u.darray.elementTy = ty;
-    p->u.darray.numDims   = numDims;
-    p->u.darray.bounds    = bounds;
+    p->u.darray.elementTy = elementTy;
     p->mod                = mod;
     p->uid                = g_uid++;
-
-    // Ty_computeSize(p);
 
     return p;
 }

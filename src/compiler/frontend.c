@@ -373,6 +373,8 @@ static S_symbol S_LBOUND;
 static S_symbol S_UBOUND;
 static S_symbol S_PROTECTED;
 static S_symbol S__DARRAY_T;
+static S_symbol S_REDIM;
+static S_symbol S_PRESERVE;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -846,7 +848,9 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return FALSE;
             return TRUE;
         case Ty_darray:
-            return FALSE;
+            if (ty2->kind != Ty_darray)
+                return FALSE;
+            return compatible_ty(ty2->u.darray.elementTy, ty1->u.darray.elementTy);;
         case Ty_pointer:
         case Ty_varPtr:
             if (Ty_isInt(ty2))
@@ -2248,7 +2252,7 @@ static bool expression(S_tkn *tkn, Tr_exp *exp)
 
 
 // arrayDimension ::= expression [ TO expression]
-// arrayDimensions ::= [ STATIC ] arrayDimension ( "," arrayDimension )*
+// arrayDimensions ::= [ STATIC ] [ arrayDimension ( "," arrayDimension )* ]
 static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
 {
     bool   statc = FALSE;
@@ -2260,30 +2264,8 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
         *tkn = (*tkn)->next;
     }
 
-    if (!expression(tkn, &idxStart))
+    if ((*tkn)->kind != S_RPAREN)
     {
-        return EM_error((*tkn)->pos, "Array dimension expected here.");
-    }
-
-    if (isSym(*tkn, S_TO))
-    {
-        *tkn = (*tkn)->next;
-        if (!expression(tkn, &idxEnd))
-        {
-            return EM_error((*tkn)->pos, "Array dimension expected here.");
-        }
-    }
-    else
-    {
-        idxEnd   = idxStart;
-        idxStart = NULL;
-    }
-
-    *dims = FE_Dim(statc, idxStart, idxEnd, *dims);
-
-    while ((*tkn)->kind == S_COMMA)
-    {
-        *tkn = (*tkn)->next;
         if (!expression(tkn, &idxStart))
         {
             return EM_error((*tkn)->pos, "Array dimension expected here.");
@@ -2302,7 +2284,36 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
             idxEnd   = idxStart;
             idxStart = NULL;
         }
+
         *dims = FE_Dim(statc, idxStart, idxEnd, *dims);
+
+        while ((*tkn)->kind == S_COMMA)
+        {
+            *tkn = (*tkn)->next;
+            if (!expression(tkn, &idxStart))
+            {
+                return EM_error((*tkn)->pos, "Array dimension expected here.");
+            }
+
+            if (isSym(*tkn, S_TO))
+            {
+                *tkn = (*tkn)->next;
+                if (!expression(tkn, &idxEnd))
+                {
+                    return EM_error((*tkn)->pos, "Array dimension expected here.");
+                }
+            }
+            else
+            {
+                idxEnd   = idxStart;
+                idxStart = NULL;
+            }
+            *dims = FE_Dim(statc, idxStart, idxEnd, *dims);
+        }
+    }
+    else
+    {
+        *dims = FE_Dim(statc, NULL, NULL, *dims);
     }
 
     return TRUE;
@@ -2459,52 +2470,17 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
     }
     else
     {
-        if (t->kind == Ty_darray)
+        if (init)
         {
-            if (init || constructorAssignedArgs)
-                return EM_error(pos, "dynamic array initializers are not supported yet."); // FIXME
+            Tr_exp conv_init=NULL;
+            if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
+                return EM_error(pos, "initializer type mismatch");
 
-            // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
-            Tr_expList arglist = Tr_ExpList();
-            Tr_ExpListAppend(arglist, Tr_intExp(Ty_size(t->u.darray.elementTy), Ty_ULong()));
-            Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
-            if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
-                return FALSE;
-
-            if (t->u.darray.numDims)
-            {
-                Tr_exp initExp2;
-                // call __DARRAY_T_REDIM (_DARRAY_T *self, ...)
-                for (int16_t iDim=0; iDim<t->u.darray.numDims; iDim++)
-                {
-                    Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2+1], Ty_ULong()));
-                    Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.bounds[iDim*2]  , Ty_ULong()));
-                }
-                Tr_ExpListAppend(arglist, Tr_intExp(t->u.darray.numDims, Ty_UInteger()));
-                Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
-                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, &initExp2))
-                    return FALSE;
-
-                Tr_expList el = Tr_ExpList();
-                Tr_ExpListAppend(el, initExp); 
-                Tr_ExpListAppend(el, initExp2);
-                initExp = Tr_seqExp(el); 
-            }
-        }
-        else
-        {
-            if (init)
-            {
-                Tr_exp conv_init=NULL;
-                if (!convert_ty(init, t, &conv_init, /*explicit=*/FALSE))
-                    return EM_error(pos, "initializer type mismatch");
-
-                Tr_exp e = Tr_DeepCopy(Tr_Deref(var));
-                Ty_ty ty = Tr_ty(e);
-                if (ty->kind == Ty_varPtr)
-                    e = Tr_Deref(e);
-                initExp = Tr_assignExp(e, conv_init);
-            }
+            Tr_exp e = Tr_DeepCopy(Tr_Deref(var));
+            Ty_ty ty = Tr_ty(e);
+            if (ty->kind == Ty_varPtr)
+                e = Tr_Deref(e);
+            initExp = Tr_assignExp(e, conv_init);
         }
     }
     if (initExp)
@@ -2517,8 +2493,10 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
     return TRUE;
 }
 
-static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
+static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool preserve, bool redim, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
 {
+    assert (!preserve); // FIXME: implement
+
     if (!t)
         t = Ty_inferType(S_name(sVar));
     assert(t);
@@ -2531,6 +2509,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             for (FE_dim dim=dims; dim; dim=dim->next)
             {
                 assert(dim->statc);
+                if (!dim->idxEnd)
+                    return EM_error(pos, "Static array bounds expected.");
+
                 int start, end;
                 if (dim->idxStart)
                 {
@@ -2551,68 +2532,60 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         else
         {
             // dyanmic, safe QB-like dynamic array
-            uint16_t numDims = 0;
-            for (FE_dim dim=dims; dim; dim=dim->next)
-                numDims++;
-            uint32_t *bounds = checked_malloc(sizeof(uint32_t) * numDims * 2);
-            uint16_t iDim = 0;
-            for (FE_dim dim=dims; dim; dim=dim->next)
-            {
-                uint32_t start, end;
-                if (dim->idxStart)
-                {
-                    if (!Tr_isConst(dim->idxStart))
-                        return EM_error(pos, "Constant array bounds expected.");
-                    start = Tr_getConstInt(dim->idxStart);
-                }
-                else
-                {
-                    start = 0;
-                }
-                if (!Tr_isConst(dim->idxEnd))
-                    return EM_error(pos, "Constant array bounds expected.");
-                end = Tr_getConstInt(dim->idxEnd);
-                bounds[iDim*2]   = start;
-                bounds[iDim*2+1] = end;
-                iDim++;
-            }
-            t = Ty_DArray(FE_mod->name, t, numDims, bounds);
+            t = Ty_DArray(FE_mod->name, t);
+
         }
+    }
+    else
+    {
+        if (redim)
+            return EM_error(pos, "REDIM only works for dynamic arrays.");
     }
 
     if (shared)
     {
         assert(!statc);
         Ty_recordEntry entry;
+        *var = NULL;
         if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
-            return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
+            if (!redim)
+                return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
         if (E_resolveVFC(FE_mod->env, sVar, /*checkParents=*/FALSE, var, &entry))
-            return EM_error(pos, "Symbol %s is already declared in the global scope.", S_name(sVar));
+            if (!redim)
+                return EM_error(pos, "Symbol %s is already declared in the global scope.", S_name(sVar));
 
-        if (external)
-            *var = Tr_Var(Tr_externalVar(S_name(sVar), t));
-        else
-            *var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), t));
+        if (!(*var))
+        {
+            if (external)
+                *var = Tr_Var(Tr_externalVar(S_name(sVar), t));
+            else
+                *var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), t));
 
-        E_declareVFC(FE_mod->env, sVar, *var);
+            E_declareVFC(FE_mod->env, sVar, *var);
+        }
     }
     else
     {
         assert (!external);
 
         Ty_recordEntry entry;
+        *var = NULL;
         if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
-            return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
-        if (statc || Tr_isStatic(g_sleStack->lv))
+            if (!redim)
+                return EM_error(pos, "Symbol %s is already declared in this scope.", S_name(sVar));
+        if (!(*var))
         {
-            string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), S_name(sVar)));
-            *var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+            if (statc || Tr_isStatic(g_sleStack->lv))
+            {
+                string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), S_name(sVar)));
+                *var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+            }
+            else
+            {
+                *var = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sVar), t));
+            }
+            E_declareVFC (g_sleStack->env, sVar, *var);
         }
-        else
-        {
-            *var = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sVar), t));
-        }
-        E_declareVFC (g_sleStack->env, sVar, *var);
     }
 
     /*
@@ -2622,6 +2595,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     Tr_expList constructorAssignedArgs = NULL;
     if ((*tkn)->kind == S_EQUALS)
     {
+        if (t->kind == Ty_darray)
+            return EM_error ((*tkn)->pos, "DArray initial value assingment is not supported yet.");
+
         *tkn = (*tkn)->next;
 
         // constructor call?
@@ -2652,16 +2628,76 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     }
     else
     {
-        // we may still have to initialize this variable
-        if (!transVarInit(pos, *var, /*init=*/NULL, statc, /*constructorAssignedArgs=*/NULL))
-            return FALSE;
+        if (t->kind==Ty_darray)
+        {
+            uint16_t numDims = 0;
+            for (FE_dim dim=dims; dim; dim=dim->next)
+            {
+                if (!dim->idxEnd)
+                    break; // dynamic open array
+                numDims++;
+            }
+
+            Tr_exp initExp;
+
+            // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+            Tr_expList arglist = Tr_ExpList();
+            Tr_ExpListAppend(arglist, Tr_intExp(Ty_size(t->u.darray.elementTy), Ty_ULong()));
+            Tr_ExpListAppend(arglist, Tr_DeepCopy(*var));
+            if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
+                return FALSE;
+
+            if (numDims)
+            {
+                Tr_exp initExp2;
+                // call __DARRAY_T_REDIM (_DARRAY_T *self,  UWORD numDims, ...)
+                Tr_expList arglist = Tr_ExpList();
+                for (FE_dim dim=dims; dim; dim=dim->next)
+                {
+                    uint32_t start, end;
+                    if (dim->idxStart)
+                    {
+                        if (!Tr_isConst(dim->idxStart))
+                            return EM_error(pos, "Constant array bounds expected.");
+                        start = Tr_getConstInt(dim->idxStart);
+                    }
+                    else
+                    {
+                        start = 0;
+                    }
+                    if (!Tr_isConst(dim->idxEnd))
+                        return EM_error(pos, "Constant array bounds expected.");
+                    end = Tr_getConstInt(dim->idxEnd);
+                    Tr_ExpListPrepend(arglist, Tr_intExp(start, Ty_ULong()));
+                    Tr_ExpListPrepend(arglist, Tr_intExp(end  , Ty_ULong()));
+                }
+                Tr_ExpListAppend(arglist, Tr_intExp(numDims, Ty_UInteger()));
+                Tr_ExpListAppend(arglist, Tr_DeepCopy(*var));
+                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, &initExp2))
+                    return FALSE;
+                Tr_expList el = Tr_ExpList();
+                Tr_ExpListAppend(el, initExp);
+                Tr_ExpListAppend(el, initExp2);
+                initExp = Tr_seqExp(el);
+            }
+            if (statc)
+                Tr_ExpListPrepend(g_prog, initExp);
+            else
+                emit(initExp);
+        }
+        else
+        {
+            // we may still have to initialize this variable
+            if (!transVarInit(pos, *var, /*init=*/NULL, statc, /*constructorAssignedArgs=*/NULL))
+                return FALSE;
+        }
     }
 
     return TRUE;
 }
 
-// singleVarDecl2 ::= ident ["(" arrayDimensions ")"] [ "=" ( expression | ident "(" actualArgs ")" ) ]
-static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc, Ty_ty ty)
+// singleVarDecl2 ::= ident ["(" [ arrayDimensions ] ")"] [ "=" ( expression | ident "(" actualArgs ")" ) ]
+static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc, bool preserve, bool redim, Ty_ty ty)
 {
     S_pos      pos = (*tkn)->pos;
     S_symbol   sVar;
@@ -2677,6 +2713,7 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
     if ((*tkn)->kind == S_LPAREN)
     {
         *tkn = (*tkn)->next;
+
         if (!arrayDimensions(tkn, &dims))
             return FALSE;
         if ((*tkn)->kind != S_RPAREN)
@@ -2684,14 +2721,14 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
         *tkn = (*tkn)->next;
     }
 
-    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
+    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, preserve, redim, /*external=*/FALSE, isPrivate, dims, &var))
         return FALSE;
 
     return TRUE;
 }
 
 // singleVarDecl ::= Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ] [ "=" ( expression | ident "(" actualArgs ")" ) ]
-static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, bool external)
+static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, bool preserve, bool redim, bool external)
 {
     S_pos      pos   = (*tkn)->pos;
     S_symbol   sVar;
@@ -2723,7 +2760,7 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
             return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
     }
 
-    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, /*external=*/FALSE, isPrivate, dims, &var))
+    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, preserve, redim, /*external=*/FALSE, isPrivate, dims, &var))
         return FALSE;
 
     return TRUE;
@@ -2767,25 +2804,96 @@ static bool stmtDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
             return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
 
-        if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, ty))
+        if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, ty))
             return FALSE;
 
         while ((*tkn)->kind == S_COMMA)
         {
             *tkn = (*tkn)->next;
-            if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, ty))
+            if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, ty))
                 return FALSE;
         }
     }
     else
     {
-        if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
+        if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/FALSE))
             return FALSE;
 
         while ((*tkn)->kind == S_COMMA)
         {
             *tkn = (*tkn)->next;
-            if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, /*external=*/FALSE))
+            if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/FALSE))
+                return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+// stmtReDim ::= [ PRIVATE | PUBLIC ] REDIM [ PRESERVE ] [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
+//                                                                  | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
+static bool stmtReDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    bool     preserve  = FALSE;
+    bool     shared    = FALSE;
+    bool     isPrivate = OPT_get(OPTION_PRIVATE);
+
+    if (isSym(*tkn, S_PRIVATE))
+    {
+        isPrivate = TRUE;
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        if (isSym(*tkn, S_PUBLIC))
+        {
+            isPrivate = FALSE;
+            *tkn = (*tkn)->next;
+        }
+    }
+
+    *tkn = (*tkn)->next; // skip "REDIM"
+
+    if (isSym(*tkn, S_PRESERVE))
+    {
+        preserve = TRUE;
+        *tkn = (*tkn)->next;
+    }
+
+    if (isSym(*tkn, S_SHARED))
+    {
+        shared = TRUE;
+        *tkn = (*tkn)->next;
+    }
+
+    if (isSym(*tkn, S_AS))
+    {
+        Ty_ty ty;
+
+        *tkn = (*tkn)->next;
+
+        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
+            return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
+
+        if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, preserve, /*redim=*/TRUE, ty))
+            return FALSE;
+
+        while ((*tkn)->kind == S_COMMA)
+        {
+            *tkn = (*tkn)->next;
+            if (!singleVarDecl2(tkn, isPrivate, shared, /*statc=*/FALSE, preserve, /*redim=*/TRUE, ty))
+                return FALSE;
+        }
+    }
+    else
+    {
+        if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, preserve, /*redim=*/TRUE, /*external=*/FALSE))
+            return FALSE;
+
+        while ((*tkn)->kind == S_COMMA)
+        {
+            *tkn = (*tkn)->next;
+            if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, preserve, /*redim=*/TRUE, /*external=*/FALSE))
                 return FALSE;
         }
     }
@@ -2813,7 +2921,7 @@ static bool stmtExternDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
 
     *tkn = (*tkn)->next; // consume "EXTERN"
-    return singleVarDecl(tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*external=*/TRUE);
+    return singleVarDecl(tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/TRUE);
 }
 
 // print ::= PRINT  [ expression ( [ ';' | ',' ] expression )* ]
@@ -4770,7 +4878,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
-// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier
+// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier [ AS typedesc ]
 static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_pos    pos = (*tkn)->pos;
@@ -4797,17 +4905,37 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "type identifier expected here.");
 
-    sle->u.typeDecl.sType = (*tkn)->u.sym;
-    Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
-    if (tyOther)
-        EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
-
-    sle->u.typeDecl.ty    = Ty_Record(FE_mod->name);
-
+    S_symbol sType = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
-    sle->u.typeDecl.eFirst    = NULL;
-    sle->u.typeDecl.eLast     = NULL;
+    if (isSym(*tkn, S_AS))
+    {
+        *tkn = (*tkn)->next;
+        Ty_ty ty;
+        if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty))
+            return EM_error((*tkn)->pos, "type declaration: type descriptor expected here.");
+
+        E_declareType(g_sleStack->env, sType, ty);
+        if (sle->u.typeDecl.udtVis == Ty_visPublic)
+            E_declareType(FE_mod->env, sType, ty);
+        slePop();
+    }
+    else
+    {
+        sle->u.typeDecl.sType = sType;
+        Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
+        if (tyOther)
+            EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
+
+        sle->u.typeDecl.ty    = Ty_Record(FE_mod->name);
+
+        E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+        if (sle->u.typeDecl.udtVis == Ty_visPublic)
+            E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+
+        sle->u.typeDecl.eFirst    = NULL;
+        sle->u.typeDecl.eLast     = NULL;
+    }
 
     return TRUE;
 }
@@ -4874,10 +5002,6 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         }
 
         Ty_computeSize(sle->u.typeDecl.ty);
-
-        E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
-        if (sle->u.typeDecl.udtVis == Ty_visPublic)
-            E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
 
         return TRUE;
     }
@@ -5079,25 +5203,25 @@ static bool stmtStatic(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
             return EM_error((*tkn)->pos, "STATIC: type descriptor expected here.");
 
-        if (!singleVarDecl2(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, ty))
+        if (!singleVarDecl2(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*preserve=*/FALSE, /*redim=*/FALSE, ty))
             return FALSE;
 
         while ((*tkn)->kind == S_COMMA)
         {
             *tkn = (*tkn)->next;
-            if (!singleVarDecl2(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, ty))
+            if (!singleVarDecl2(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*preserve=*/FALSE, /*redim=*/FALSE, ty))
                 return FALSE;
         }
         return TRUE;
     }
 
-    if (!singleVarDecl(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
+    if (!singleVarDecl(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/FALSE))
         return FALSE;
 
     while ((*tkn)->kind == S_COMMA)
     {
         *tkn = (*tkn)->next;
-        if (!singleVarDecl(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*external=*/FALSE))
+        if (!singleVarDecl(tkn, /*isPrivate=*/TRUE, /*shared=*/FALSE, /*statc=*/TRUE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/FALSE))
             return FALSE;
     }
     return TRUE;
@@ -5452,6 +5576,9 @@ static bool stmtPublicPrivate(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     if (isSym(nextTkn, S_DIM))
         return stmtDim(tkn, e, exp);
+
+    if (isSym(nextTkn, S_REDIM))
+        return stmtReDim(tkn, e, exp);
 
     if (isSym(nextTkn, S_DECLARE))
         return stmtProcDecl(tkn, e, exp);
@@ -5825,11 +5952,12 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
     Ty_ty ty = Tr_ty(arrayExp);
     assert(ty->kind == Ty_varPtr);
     ty = ty->u.pointer;
+
     switch (ty->kind)
     {
         case Ty_darray:
         {
-            // call UWORD _dyna_ubound(_dyna * dyna, UWORD dim);
+            // call UWORD _dyna_[u|l]bound(_dyna * dyna, UWORD dim);
 
             Tr_expList arglist = Tr_ExpList();
             Tr_ExpListAppend(arglist, dimExp);
@@ -5837,8 +5965,7 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
 
             if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, exp))
                 return FALSE;
-
-            break;
+            return TRUE;
         }
         case Ty_sarray:
         {
@@ -5997,10 +6124,13 @@ static void registerBuiltins(void)
     S_UBOUND          = S_Symbol("UBOUND",           FALSE);
     S_PROTECTED       = S_Symbol("PROTECTED",        FALSE);
     S__DARRAY_T       = S_Symbol("_DARRAY_T",        FALSE);
+    S_REDIM           = S_Symbol("REDIM",            FALSE);
+    S_PRESERVE        = S_Symbol("PRESERVE",         FALSE);
 
     g_parsefs = TAB_empty();
 
     declareBuiltinProc(S_DIM,         stmtDim          , Ty_Void());
+    declareBuiltinProc(S_REDIM,       stmtReDim        , Ty_Void());
     declareBuiltinProc(S_PRINT,       stmtPrint        , Ty_Void());
     declareBuiltinProc(S_FOR,         stmtForBegin     , Ty_Void());
     declareBuiltinProc(S_NEXT,        stmtForEnd       , Ty_Void());
@@ -6126,7 +6256,23 @@ static bool statementOrAssignment(S_tkn *tkn)
         if (!convert_ty(ex, ty_left, &convexp, /*explicit=*/FALSE))
             return EM_error(pos, "type mismatch (assignment).");
 
-        emit(Tr_assignExp(exp, convexp));
+        if (ty_left->kind != Ty_darray)
+        {
+            emit(Tr_assignExp(exp, convexp));
+        }
+        else
+        {
+            // call void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
+
+            Tr_expList arglist = Tr_ExpList();
+            Tr_ExpListAppend(arglist, Tr_MakeRef(convexp));
+            Tr_ExpListAppend(arglist, Tr_MakeRef(exp));
+
+            Tr_exp res;
+            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("COPY", FALSE), arglist, &res))
+                return FALSE;
+            emit(res);
+        }
     }
     else
     {

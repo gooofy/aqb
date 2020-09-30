@@ -1083,8 +1083,10 @@ static void munchStm(T_stm s)
             }
             else        // > MACHINE_REGSIZE -> operands do not fit into a single register
             {
+                assert (resty->kind != Ty_darray); // should have been handled in frontend (call to copy method)
+
                 Temp_temp rd_size = Temp_newtemp(Ty_Long());
-                emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(Ty_Long()), NULL, L(rd_size, NULL),            // move.x #size, rd_size
+                emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(Ty_Long()), NULL, L(rd_size, NULL),         // move.x #size, rd_size
                                 Ty_ConstInt(Ty_ULong(), Ty_size(resty)), 0, NULL));
 
                 switch (dst->kind)

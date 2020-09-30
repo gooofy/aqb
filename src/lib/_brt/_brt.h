@@ -31,8 +31,9 @@ void _debug_putnl(void);
 
 extern USHORT g_errcode;
 
-#define ERR_OUT_OF_MEMORY           7
-#define ERR_SUBSCRIPT_OUT_OF_RANGE  9
+#define ERR_OUT_OF_MEMORY            7
+#define ERR_SUBSCRIPT_OUT_OF_RANGE   9
+#define ERR_INCOMPATIBLE_ARRAY      10
 
 void ERROR (SHORT errcode);
 void _autil_exit(LONG return_code); // implemented in startup.s
@@ -117,24 +118,6 @@ char *_booltoa_ (BOOL   b);
  * dynamic array support
  */
 
-//typedef struct
-//{
-//    ULONG   lbound, ubound, numElements;
-//} _dyna_bounds;
-//
-//typedef struct
-//{
-//    APTR          data;
-//    UWORD         numDims;
-//    ULONG         elementSize;
-//    _dyna_bounds *bounds;
-//} _dyna;
-//
-//void  _dyna_init    (_dyna *dyna, UWORD numDims, ULONG elementSize, ...);
-//void *_dyna_idx_    (_dyna *dyna, UWORD dimCnt, ...);
-//WORD  _dyna_lbound_ (_dyna *dyna, WORD d);
-//WORD  _dyna_ubound_ (_dyna *dyna, WORD d);
-
 typedef struct
 {
     ULONG   lbound, ubound, numElements;
@@ -153,5 +136,6 @@ void  __DARRAY_T_REDIM    (_DARRAY_T *self, UWORD numDims, ...);
 void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
 WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
 WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
+void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
 
 #endif
