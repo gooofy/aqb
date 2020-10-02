@@ -1499,7 +1499,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                         return EM_error((*tkn)->pos, "index expression expected here.");
                     if (!convert_ty(idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
                         return EM_error((*tkn)->pos, "array index type mismatch");
-                    Tr_ExpListAppend(arglist, idx_conv);
+                    Tr_ExpListPrepend(arglist, idx_conv);
                     dimCnt++;
                 }
                 Tr_ExpListAppend(arglist, Tr_intExp(dimCnt, Ty_UInteger()));
