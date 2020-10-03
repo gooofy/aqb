@@ -404,6 +404,34 @@ Syntax:
 
 returns the number of seconds past the previous midnite as a SINGLE float value
 
+=== TYPE (UDT alias)
+
+Syntax:
+
+    TYPE ident AS typedesc [ "(" arrayDimensions ")" ]
+
+Example:
+
+    TYPE a_t AS INTEGER (STATIC 9)
+
+declares a new named UDT
+
+=== TYPE (UDT record)
+
+Syntax:
+
+    TYPE ident
+
+      [PRIVATE:|PUBLIC:|PROTECTED:]
+      var [ "(" arrayDimensions ")" ] AS typedesc
+      AS typedesc var [ "(" arrayDimensions ")" ]
+      DECLARE (SUB|FUNCTION|CONSTRUCTOR) ...
+      ...
+
+    END TYPE
+
+declares a new record UDT
+
 === UBOUND()
 
 Syntax:

@@ -4901,7 +4901,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
-// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier [ AS typedesc ]
+// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier [ AS typedesc [ "(" arrayDimensions ")" ] ]
 static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_pos    pos = (*tkn)->pos;
@@ -4937,6 +4937,52 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         Ty_ty ty;
         if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty))
             return EM_error((*tkn)->pos, "type declaration: type descriptor expected here.");
+
+        FE_dim dims = NULL;
+        if ((*tkn)->kind == S_LPAREN)
+        {
+            *tkn = (*tkn)->next;
+            if (!arrayDimensions(tkn, &dims))
+                return FALSE;
+            if ((*tkn)->kind != S_RPAREN)
+                return EM_error((*tkn)->pos, ") expected here.");
+            *tkn = (*tkn)->next;
+        }
+        if (dims)
+        {
+            if (dims->statc)
+            {
+                for (FE_dim dim=dims; dim; dim=dim->next)
+                {
+                    if (!dim->idxEnd)
+                        return EM_error(pos, "static arrays cannot be open.");
+
+                    int start, end;
+                    if (dim->idxStart)
+                    {
+                        if (!Tr_isConst(dim->idxStart))
+                            return EM_error(pos, "Constant array bounds expected.");
+                        start = Tr_getConstInt(dim->idxStart);
+                    }
+                    else
+                    {
+                        start = 0;
+                    }
+                    if (!Tr_isConst(dim->idxEnd))
+                        return EM_error(pos, "Constant array bounds expected.");
+                    end = Tr_getConstInt(dim->idxEnd);
+                    ty = Ty_SArray(FE_mod->name, ty, start, end);
+                }
+            }
+            else
+            {
+                if (dims->idxEnd)
+                {
+                    return EM_error(pos, "Fixed boundaries for dynamic array UDTs are not supported.");
+                }
+                ty = Ty_DArray(FE_mod->name, ty);
+            }
+        }
 
         E_declareType(g_sleStack->env, sType, ty);
         if (sle->u.typeDecl.udtVis == Ty_visPublic)
