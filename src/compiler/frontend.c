@@ -1718,6 +1718,12 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
                ((*tkn)->kind == S_PERIOD)   ||
                ((*tkn)->kind == S_POINTER) ) )
         {
+            while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
+            {
+                *exp = Tr_Deref(*exp);
+                ty = Tr_ty(*exp);
+            }
+
             if (!selector(tkn, exp))
                 return FALSE;
             ty = Tr_ty(*exp);
@@ -1741,7 +1747,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
             *exp = Tr_funPtrExp(ty->u.proc->label, Ty_ProcPtr(FE_mod->name, ty->u.proc));
             ty = Tr_ty(*exp);
         }
-        else 
+        else
         {
             if (ty->kind != Ty_varPtr)
                 return EM_error(pos, "This object cannot be referenced.");
@@ -4273,6 +4279,16 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                 name = (*tkn)->u.sym;
                 *tkn = (*tkn)->next;
 
+                bool isArray = FALSE;
+                if ((*tkn)->kind == S_LPAREN)
+                {
+                    *tkn = (*tkn)->next;
+                    isArray = TRUE;
+                    if ((*tkn)->kind != S_RPAREN)
+                        return EM_error((*tkn)->pos, ") expected here.");
+                    *tkn = (*tkn)->next;
+                }
+
                 if (isSym(*tkn, S_AS))
                 {
                     *tkn = (*tkn)->next;
@@ -4283,6 +4299,13 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
 
                 if (!ty)
                     ty = Ty_inferType(S_name(name));
+
+                if (isArray)
+                {
+                    if (mode != Ty_byRef)
+                        return EM_error((*tkn)->pos, "Arrays must be passed by reference.");
+                    ty = Ty_DArray (FE_mod->name, ty);
+                }
 
                 Ty_ty plainTy = ty;
                 if (mode == Ty_byRef)
