@@ -856,9 +856,12 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
             if (Ty_isInt(ty2))
                 return TRUE;
 
+			printf ("1\n");
+
             if ( (ty2->kind == Ty_procPtr) && (ty1->u.pointer->kind == Ty_void) )
                 return TRUE;
 
+			printf ("2\n");
             if (ty2->kind == Ty_string)
             {
                 if (  (ty1->u.pointer->kind == Ty_void)
@@ -868,10 +871,16 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return FALSE;
             }
 
+			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
+			if ((ty2->kind==Ty_darray) && (ty1->kind==Ty_pointer) && (ty1->u.pointer->kind==Ty_void))
+				return TRUE;
+			printf ("3 ty2->kind=%d\n", ty2->kind);
             if ((ty2->kind != Ty_pointer) && (ty2->kind != Ty_varPtr))
                 return FALSE;
+			printf ("4\n");
             if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
                 return TRUE;
+			printf ("5\n");
             return compatible_ty(ty1->u.pointer, ty2->u.pointer);
         case Ty_procPtr:
         {
