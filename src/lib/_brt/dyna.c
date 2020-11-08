@@ -21,6 +21,7 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, UWORD numDims, ...)
     va_list valist;
 
     self->numDims     = numDims;
+    // _debug_puts ("_dyna_redim: numDims="); _debug_puts2(numDims); _debug_putnl();
 
     self->bounds = ALLOCATE_ (sizeof (_DARRAY_BOUNDS_T) * numDims, 0);
 
@@ -31,13 +32,13 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, UWORD numDims, ...)
         ULONG start = va_arg(valist, ULONG);
         ULONG end   = va_arg(valist, ULONG);
         dataSize *= end - start + 1;
-        //_debug_puts ("_dyna_create: dim: start="); _debug_puts2(start); _debug_puts(", end="); _debug_puts2(end); _debug_putnl();
+        //_debug_puts ("_dyna_redim: dim: start="); _debug_puts2(start); _debug_puts(", end="); _debug_puts2(end); _debug_putnl();
         self->bounds[iDim].lbound      = start;
         self->bounds[iDim].ubound      = end;
         self->bounds[iDim].numElements = end-start+1;
     }
     va_end(valist);
-    //_debug_puts ("_dyna_create: dataSize="); _debug_puts2(dataSize); _debug_putnl();
+    // _debug_puts ("_dyna_redim: dataSize="); _debug_puts2(dataSize); _debug_putnl();
     self->data = ALLOCATE_ (dataSize, 0);
 }
 

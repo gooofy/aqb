@@ -62,6 +62,7 @@ short POS_    (short dummy);
 #define AE_PALETTE                   3
 #define AE_COLOR                     4
 #define AE_AREA                      5
+#define AE_PATTERN                   6
 
 void _awindow_init(void);
 void _awindow_shutdown(void);
@@ -81,6 +82,7 @@ void   COLOR(short fg, short bg, short o);
 void   AREA(BOOL s, short x, short y);
 void   AREA_OUTLINE(BOOL enabled);
 void   AREAFILL (short mode);
+void   PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn);
 char  *INKEY_ (void);
 
 #endif

@@ -71,7 +71,14 @@ pattern_bg(2) = &HCCCC
 pattern_bg(3) = &H3333
 
 PATTERN ,pattern_bg
-'LINE (0,0)-(wx,wy),1,BF
+LINE (0,0)-(wx,wy),1,BF
+
+' function pattern
+DIM AS INTEGER pattern_fg(0)
+
+pattern_fg(0) = &HFFFF
+
+PATTERN ,pattern_fg
 
 ' cache up to two rows of f() values
 DIM AS INTEGER  fncache_x(STATIC prec-1, 1), fncache_y(STATIC prec-1, 1)

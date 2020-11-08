@@ -767,6 +767,40 @@ void AREA_OUTLINE(BOOL enabled)
         g_rp->Flags &= ~AREAOUTLINE;
 }
 
+void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        ERROR(AE_PATTERN);
+        return;
+    }
+
+    g_rp->LinePtrn   = lineptrn;
+    g_rp->Flags     |= FRST_DOT;
+    g_rp->linpatcnt  = 15;
+
+    if (areaptrn)
+    {
+        if (areaptrn->numDims != 1)
+        {
+            ERROR(AE_PATTERN);
+            return;
+        }
+
+        ULONG n = areaptrn->bounds[0].ubound - areaptrn->bounds[0].lbound + 1;
+        //_debug_puts("PATTERN area: n="); _debug_puts2(n);
+
+        // log2
+        ULONG ptSz = 0;
+        while (n >>= 1) ++ptSz;
+
+        //_debug_puts(", ptSz="); _debug_puts2(ptSz); _debug_putnl();
+
+        g_rp->AreaPtrn = areaptrn->data;
+        g_rp->AreaPtSz = ptSz;
+    }
+}
+
 static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)

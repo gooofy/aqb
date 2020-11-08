@@ -346,6 +346,7 @@ static T_stm unNx(Tr_exp e)
             assert(0); // FIXME
     }
     EM_error(0, "*** internal error: unknown Tr_exp kind in unNx");
+    assert(0);
     return NULL;
 }
 
@@ -579,6 +580,7 @@ int Tr_getConstInt (Tr_exp exp)
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
+        case Ty_pointer:
             return exp->u.ex->u.CONST->u.i;
         case Ty_single:
         case Ty_double:
