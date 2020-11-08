@@ -534,6 +534,17 @@ Syntax:
 change the color palette entry for pen number n. The red, green and blue arguments are
 be floating point values in the 0.0 ... 1.0 range.
 
+=== PATTERN
+
+Syntax:
+
+    PATTERN [ lineptrn ] [ "," areaptrn ]
+
+change pattern used to draw lines and areas.
+
+    * lineptrn: 16 bit integer that defines the pattern for lines
+    * areaptrn: array of 16 bit integers, number of elements must be a power of 2 (1, 2, 4, 8, ...)
+
 === POS()
 
 Syntax:
