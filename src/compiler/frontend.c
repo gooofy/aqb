@@ -4719,7 +4719,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     Tr_level   funlv = Tr_newLevel(proc->label, visibility != Ty_visPrivate, proc->formals, proc->isStatic);
     Tr_exp     returnVar = NULL;
 
-    E_env lenv = g_sleStack->env;
+    E_env lenv = FE_mod->env;
     E_env wenv = NULL;
 
     if (proc->tyClsPtr)
