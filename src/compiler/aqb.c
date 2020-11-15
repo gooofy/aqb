@@ -36,38 +36,48 @@
 #define VERSION "0.5.0"
 
 /* print the assembly language instructions to filename.s */
-static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm body)
+static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm body)
 {
     AS_proc proc;
     T_stmList stmList;
     AS_instrList iList;
 
-    //printStmList(stdout, T_StmList(body, NULL));
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        fprintf(stdout, "\n************************************************************************************************\n");
+        fprintf(stdout, "**\n");
+        fprintf(stdout, "** doProc %s\n", Temp_labelstring(label));
+        fprintf(stdout, "**\n");
+        fprintf(stdout, "************************************************************************************************\n\n");
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list\n", Temp_labelstring(label));
+        printStmList(stdout, T_StmList(body, NULL));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list\n", Temp_labelstring(label));
+    }
 
     stmList = C_linearize(body);
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_linearize)\n");
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_linearize)\n", Temp_labelstring(label));
         printStmList(stdout, stmList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list\n", Temp_labelstring(label));
     }
 
     stmList = C_traceSchedule(C_basicBlocks(stmList));
 
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc stmt list (after C_traceSchedule)\n");
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_traceSchedule)\n", Temp_labelstring(label));
         printStmList(stdout, stmList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc stmt list\n");
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list\n", Temp_labelstring(label));
     }
 
     iList  = F_codegen(frame, stmList);
 
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list after codegen, before regalloc:\n");
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
         AS_printInstrList (stdout, iList, Temp_getNameMap());
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list\n", Temp_labelstring(label));
     }
 
     struct RA_result ra = RA_regAlloc(frame, iList);
@@ -77,14 +87,14 @@ static void doProc(FILE *out, Temp_label label, bool globl, F_frame frame, T_stm
 
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> AS stmt list\n");
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list\n", Temp_labelstring(label));
         fprintf(stdout, "%s\n", proc->prolog);
         AS_printInstrList(stdout, proc->body, Temp_layerMap(ra.coloring, Temp_getNameMap()));
         fprintf(stdout, "%s\n", proc->epilog);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< AS stmt list\n");
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list\n", Temp_labelstring(label));
     }
 
-    if (globl)
+    if (expt)
         fprintf(out, ".globl %s\n\n", S_name(label));
     fprintf(out, "%s\n", proc->prolog);
     AS_printInstrList(out, proc->body, Temp_layerMap(ra.coloring, Temp_getNameMap()));
@@ -161,10 +171,10 @@ static void doStr(FILE * out, string str, Temp_label label) {
     fprintf(out, "\n");
 }
 
-static void doData(FILE * out, Temp_label label, bool globl, int size, unsigned char *data)
+static void doData(FILE * out, Temp_label label, bool expt, int size, unsigned char *data)
 {
     fprintf(out, "    .align 4\n");
-    if (globl)
+    if (expt)
         fprintf(out, ".globl %s\n\n", Temp_labelstring(label));
     fprintf(out, "%s:\n", Temp_labelstring(label));
     if (data)
@@ -361,7 +371,7 @@ int main (int argc, char *argv[])
     {
         if (fl->head->kind == F_procFrag)
         {
-            doProc(out, fl->head->u.proc.label, fl->head->u.proc.globl, fl->head->u.proc.frame, fl->head->u.proc.body);
+            doProc(out, fl->head->u.proc.label, fl->head->u.proc.expt, fl->head->u.proc.frame, fl->head->u.proc.body);
         }
     }
 
@@ -374,7 +384,7 @@ int main (int argc, char *argv[])
         }
         if (fl->head->kind == F_dataFrag)
         {
-            doData(out, fl->head->u.data.label, fl->head->u.data.globl, fl->head->u.data.size, fl->head->u.data.init);
+            doData(out, fl->head->u.data.label, fl->head->u.data.expt, fl->head->u.data.size, fl->head->u.data.init);
         }
     }
     fclose(out);

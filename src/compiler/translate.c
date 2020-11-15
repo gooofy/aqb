@@ -14,6 +14,7 @@
 #include "errormsg.h"
 #include "env.h"
 #include "frontend.h"
+#include "hashmap.h"
 
 typedef struct patchList_ *patchList;
 struct patchList_
@@ -40,7 +41,7 @@ struct Tr_level_
     F_frame    frame;
     Temp_label name;
     bool       statc;
-    bool       globl;
+    map_t      statc_labels;
 };
 
 struct Tr_access_
@@ -135,20 +136,23 @@ Tr_level Tr_global(void)
         global_level = checked_malloc(sizeof(*global_level));
         global_level->frame  = NULL;
         global_level->name   = NULL;
-        global_level->statc  = FALSE;
-        global_level->globl  = TRUE;
+        global_level->statc  = TRUE;
+        global_level->statc_labels = hashmap_new(); // used to make static var labels unique
     }
     return global_level;
 }
 
-Tr_level Tr_newLevel(Temp_label name, bool globl, Ty_formal formals, bool statc)
+Tr_level Tr_newLevel(Temp_label name, Ty_formal formals, bool statc)
 {
     Tr_level lv = checked_malloc(sizeof(*lv));
 
     lv->frame  = F_newFrame(name, formals);
     lv->name   = name;
     lv->statc  = statc;
-    lv->globl  = globl;
+    if (statc)
+        lv->statc_labels = hashmap_new(); // used to make static var labels unique
+    else
+        lv->statc_labels = NULL;
 
     return lv;
 }
@@ -394,7 +398,7 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main)
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt)
 {
     T_stm stm = unNx(body);
 
@@ -425,17 +429,30 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp
                   T_Move(T_Temp(F_RV(), ty_ret), ret_exp, ty_ret)));
     }
 
-    F_frag frag = F_ProcFrag(level->name, level->globl, stm, level->frame);
+    F_frag frag = F_ProcFrag(level->name, expt, stm, level->frame);
     fragList    = F_FragList(frag, fragList);
 }
 
-Tr_access Tr_allocVar(Tr_level level, string name, Ty_ty ty)
+Tr_access Tr_allocVar(Tr_level level, string name, bool expt, Ty_ty ty)
 {
     if (!level->frame) // global var?
     {
-        Temp_label label = Temp_namedlabel(varname_to_label(name));
+        // label
+        string l = varname_to_label(name);
+        // unique label
+        string ul = l;
+        char *uul;
+        int cnt = 0;
+        while (hashmap_get(level->statc_labels, ul, (any_t *)&uul, TRUE)==MAP_OK)
+        {
+            ul = strprintf("%s_%d", l, cnt);
+            cnt++;
+        }
+        hashmap_put(level->statc_labels, ul, ul, TRUE);
 
-        F_frag frag = F_DataFrag(label, level->globl, Ty_size(ty), NULL);
+        Temp_label label = Temp_namedlabel(ul);
+
+        F_frag frag = F_DataFrag(label, expt, Ty_size(ty), NULL);
         fragList    = F_FragList(frag, fragList);
 
         return Tr_Access(level, F_allocGlobal(label, ty));

@@ -228,26 +228,26 @@ F_frag F_StringFrag(Temp_label label, string str)
     return f;
 }
 
-F_frag F_DataFrag(Temp_label label, bool globl, int size, unsigned char *init)
+F_frag F_DataFrag(Temp_label label, bool expt, int size, unsigned char *init)
 {
     F_frag f = checked_malloc(sizeof(*f));
 
     f->kind         = F_dataFrag;
     f->u.data.label = label;
-    f->u.data.globl = globl;
+    f->u.data.expt  = expt;
     f->u.data.size  = size;
     f->u.data.init  = init;
 
     return f;
 }
 
-F_frag F_ProcFrag(Temp_label label, bool globl, T_stm body, F_frame frame)
+F_frag F_ProcFrag(Temp_label label, bool expt, T_stm body, F_frame frame)
 {
     F_frag f = checked_malloc(sizeof(*f));
 
     f->kind         = F_procFrag;
     f->u.proc.label = label;
-    f->u.proc.globl = globl;
+    f->u.proc.expt  = expt;
     f->u.proc.body  = body;
     f->u.proc.frame = frame;
 

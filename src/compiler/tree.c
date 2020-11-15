@@ -3,6 +3,7 @@
 #include "symbol.h"
 #include "temp.h"
 #include "tree.h"
+#include "printtree.h"
 
 T_expList T_ExpList(T_exp head, T_expList tail)
 {
@@ -102,6 +103,10 @@ T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty)
     p->u.MOVE.dst = dst;
     p->u.MOVE.src = src;
     p->u.MOVE.ty  = ty;
+
+    // printf("T_Move(): created stmt ");
+    // printStm(stdout, p, 0);
+    // printf("\n");
 
     return p;
 }

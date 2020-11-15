@@ -390,7 +390,7 @@ static inline bool isLogicalEOL(S_tkn tkn)
 static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_exp *exp);
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
-static Tr_exp autovar(S_symbol v, S_pos pos, S_tkn *tkn)
+static Tr_exp autovar(S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty typeHint)
 {
     Tr_level   level = g_sleStack->lv;
 
@@ -418,19 +418,19 @@ static Tr_exp autovar(S_symbol v, S_pos pos, S_tkn *tkn)
     }
 
     string s = S_name(v);
-    Ty_ty t = Ty_inferType(s);
+    Ty_ty t = typeHint ? typeHint : Ty_inferType(s);
 
-    if (OPT_get(OPTION_EXPLICIT))
+    if (OPT_get(OPTION_EXPLICIT) && !typeHint)
         EM_error(pos, "undeclared identifier %s", s);
 
     if (Tr_isStatic(level))
     {
-        string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(level)), s));
-        var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+        string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(level)), "_"), s);
+        var = Tr_Var(Tr_allocVar(Tr_global(), varId, /*expt=*/FALSE, t));
     }
     else
     {
-        var = Tr_Var(Tr_allocVar(level, s, t));
+        var = Tr_Var(Tr_allocVar(level, s, /*expt=*/FALSE, t));
     }
 
     E_declareVFC(g_sleStack->env, v, var);
@@ -1668,7 +1668,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
     else
     {
         // implicit variable
-        Tr_exp var = autovar(sym, pos, tkn);
+        Tr_exp var = autovar(sym, pos, tkn, /*typeHint=*/NULL);
 
         *exp = Tr_DeepCopy(var);
         *tkn = (*tkn)->next;
@@ -2592,7 +2592,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             if (external)
                 *var = Tr_Var(Tr_externalVar(S_name(sVar), t));
             else
-                *var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), t));
+                *var = Tr_Var(Tr_allocVar(Tr_global(), S_name(sVar), /*expt=*/!isPrivate, t));
 
             E_declareVFC(FE_mod->env, sVar, *var);
         }
@@ -2618,12 +2618,12 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         {
             if (statc || Tr_isStatic(g_sleStack->lv))
             {
-                string varId = strconcat("_", strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), S_name(sVar)));
-                *var = Tr_Var(Tr_allocVar(Tr_global(), varId, t));
+                string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), "_"), S_name(sVar));
+                *var = Tr_Var(Tr_allocVar(Tr_global(), varId, /*expt=*/FALSE, t));
             }
             else
             {
-                *var = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sVar), t));
+                *var = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sVar), /*expt=*/FALSE, t));
             }
             E_declareVFC (g_sleStack->env, sVar, *var);
         }
@@ -3090,31 +3090,41 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     *tkn = (*tkn)->next;           // consume "FOR"
 
-    E_env      lenv    = E_EnvScopes(g_sleStack->env);
     Temp_label forexit = Temp_newlabel();
     Temp_label forcont = Temp_newlabel();
-    FE_SLE     sle     = slePush(FE_sleFor, pos, g_sleStack->lv, lenv, forexit, forcont, g_sleStack->returnVar);
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error ((*tkn)->pos, "variable name expected here.");
-    sle->u.forLoop.sVar = (*tkn)->u.sym;
+    S_symbol   sLoopVar = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
     Tr_exp loopVar;
-    Ty_ty varTy;
+    Ty_ty  varTy=NULL;
+    E_env  lenv=g_sleStack->env;
     if (isSym(*tkn, S_AS))
     {
         *tkn = (*tkn)->next;
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &varTy))
             return EM_error((*tkn)->pos, "FOR: type descriptor expected here.");
-
-        loopVar = Tr_Var(Tr_allocVar(g_sleStack->lv, S_name(sle->u.forLoop.sVar), varTy));
-        E_declareVFC(lenv, sle->u.forLoop.sVar, loopVar);
+        lenv = E_EnvScopes(lenv);
+        Tr_level level = g_sleStack->lv;
+        if (Tr_isStatic(level))
+        {
+            string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(level)), "_"), S_name(sLoopVar));
+            loopVar = Tr_Var(Tr_allocVar(Tr_global(), varId, /*expt=*/FALSE, varTy));
+        }
+        else
+        {
+            loopVar = Tr_Var(Tr_allocVar(level, S_name(sLoopVar), /*expt=*/FALSE, varTy));
+        }
+        E_declareVFC(lenv, sLoopVar, loopVar);
     }
     else
     {
-        loopVar = autovar(sle->u.forLoop.sVar, (*tkn)->pos, tkn);
+        loopVar = autovar(sLoopVar, (*tkn)->pos, tkn, /*typeHint=*/varTy);
     }
+    FE_SLE sle = slePush(FE_sleFor, pos, g_sleStack->lv, lenv, forexit, forcont, g_sleStack->returnVar);
+    sle->u.forLoop.sVar = sLoopVar;
     sle->u.forLoop.var = Tr_DeepCopy(loopVar);
     varTy = Tr_ty(sle->u.forLoop.var);
     if (varTy->kind == Ty_varPtr)
@@ -3534,7 +3544,8 @@ static void stmtProcEnd_(void)
                      Tr_formals(sle->lv),
                      sle->returnVar,
                      sle->exitlbl,
-                     /*is_main=*/FALSE);
+                     /*is_main=*/FALSE,
+                     /*expt=*/sle->u.proc->visibility == Ty_visPublic);
 }
 
 static void stmtSelectEnd_(void)
@@ -3743,7 +3754,7 @@ static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal,
                 Tr_exp expRef = forceExp ? NULL : Tr_MakeRef(exp);
                 if (!expRef)
                 {
-                    expRef = Tr_Var(Tr_allocVar(g_sleStack->lv, /*name=*/NULL, formal->ty->u.pointer));
+                    expRef = Tr_Var(Tr_allocVar(g_sleStack->lv, /*name=*/NULL, /*expt=*/FALSE, formal->ty->u.pointer));
                     Tr_exp conv_actual;
                     if (!convert_ty(exp, formal->ty->u.pointer, &conv_actual, /*explicit=*/FALSE))
                     {
@@ -4716,7 +4727,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
     proc->hasBody = TRUE;
 
-    Tr_level   funlv = Tr_newLevel(proc->label, visibility != Ty_visPrivate, proc->formals, proc->isStatic);
+    Tr_level   funlv = Tr_newLevel(proc->label/*, visibility != Ty_visPrivate*/, proc->formals, proc->isStatic);
     Tr_exp     returnVar = NULL;
 
     E_env lenv = FE_mod->env;
@@ -4739,7 +4750,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     // function return var
     if (proc->returnTy->kind != Ty_void)
     {
-        Tr_access returnAccess = Tr_allocVar(funlv, /*name=*/NULL, proc->returnTy);
+        Tr_access returnAccess = Tr_allocVar(funlv, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
         returnVar = Tr_Deref(Tr_Var(returnAccess));
     }
 
@@ -5689,6 +5700,7 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             var = Tr_Deref(var);
             ty = Tr_ty(var);
         }
+        var = Tr_DeepCopy(var);
 
         Tr_exp convexp;
         if (!convert_ty(ex, ty, &convexp, /*explicit=*/FALSE))
@@ -6475,7 +6487,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
         label = Temp_namedlabel(strprintf("__%s_init", module_name));
     }
 
-    Tr_level lv = Tr_newLevel(label, /*globl=*/TRUE, NULL, /*statc=*/FALSE);
+    Tr_level lv = Tr_newLevel(label, NULL, /*statc=*/TRUE);
 
     /*
      * nested envs / scopes (example)
@@ -6585,7 +6597,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
 
     Tr_exp prog = Tr_seqExp(g_prog);
 
-    Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main);
+    Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
 
     return Tr_getResult();
 }

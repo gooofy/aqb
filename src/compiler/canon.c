@@ -140,6 +140,9 @@ static struct stmExp do_exp(T_exp exp)
 /* processes stm so that it contains no ESEQ nodes */
 static T_stm do_stm(T_stm stm)
 {
+    // fprintf (stdout, "canon: doStm ");
+    // printStm(stdout, stm, 0);
+    // fprintf (stdout, "\n");
     switch (stm->kind)
     {
         case T_SEQ:
