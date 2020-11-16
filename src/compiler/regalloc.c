@@ -19,21 +19,6 @@
 
 #ifdef ENABLE_DEBUG
 static Temp_map g_debugTempMap;
-#if 0
-static void sprintTemp(void* p, string buf)
-{
-    G_node n = (G_node) p;
-    Temp_temp t = (Temp_temp)n->info;
-    sprintf(buf, "temp: %s", Temp_look(g_debugTempMap, t));
-}
-#endif
-
-static void sprintInst(void *p, string buf)
-{
-    G_node n = (G_node) p;
-    AS_instr inst = (AS_instr)n->info;
-    AS_sprint(buf, inst, g_debugTempMap);
-}
 #endif
 
 static AS_instrList reverseInstrList(AS_instrList il)
@@ -106,25 +91,27 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 {
     struct RA_result  ret = {NULL, NULL};
 
-    G_graph           flow;
+    FG_graph         flow;
     Live_graph        live;
     struct COL_result col;
     AS_instrList      rewriteList;
 
 #ifdef ENABLE_DEBUG
-    g_debugTempMap = Temp_layerMap(F_initialRegisters(f), Temp_getNameMap());
+    g_debugTempMap = Temp_layerMap(F_initialRegisters(), Temp_getNameMap());
 #endif
 
     int try = 0;
     while (++try < 7)
     {
         Temp_map initialRegs = F_initialRegisters();
+
         flow = FG_AssemFlowGraph(il, f);
 #ifdef ENABLE_DEBUG
         printf("try #%d flow graph:\n", try);
         printf("-----------------------\n");
-        G_show(stdout, G_nodes(flow), sprintInst);
+        FG_show(stdout, flow, g_debugTempMap);
 #endif
+
         live = Live_liveness(flow);
 #ifdef ENABLE_DEBUG
         printf("try #%d liveness graph:\n", try);

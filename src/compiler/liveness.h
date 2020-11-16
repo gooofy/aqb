@@ -1,6 +1,8 @@
 #ifndef HAVE_LIVENESS_H
 #define HAVE_LIVENESS_H
 
+#include "flowgraph.h"
+
 typedef struct Live_graph_ *Live_graph;
 struct Live_graph_
 {
@@ -11,7 +13,7 @@ struct Live_graph_
 };
 Temp_temp  Live_gtemp(UG_node n);
 
-Live_graph Live_liveness(G_graph flow);
+Live_graph Live_liveness(FG_graph flow);
 
 void       Live_showGraph(FILE *out, Live_graph g, Temp_map m);
 

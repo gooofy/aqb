@@ -14,6 +14,7 @@ typedef struct Temp_tempLList_ *Temp_tempLList;
 typedef S_symbol                Temp_label;
 typedef struct Temp_labelList_ *Temp_labelList;
 typedef struct Temp_map_       *Temp_map;
+typedef TAB_table               Temp_set;
 
 #include "types.h"
 

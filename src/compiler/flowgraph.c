@@ -1,60 +1,86 @@
-#include <stdio.h>
-#include <string.h>
-#include "util.h"
-#include "symbol.h"
-#include "temp.h"
-#include "tree.h"
-#include "assem.h"
-#include "frame.h"
-#include "graph.h"
 #include "flowgraph.h"
 #include "errormsg.h"
-#include "table.h"
 
-Temp_tempList FG_def(G_node n)
+static FG_graph FG_Graph(void)
 {
-    AS_instr inst = (AS_instr)G_nodeInfo(n);
-    return inst ? inst->dst : NULL;
+    FG_graph g = (FG_graph) checked_malloc(sizeof (*g));
+
+    g->nodecount = 0;
+    g->nodes     = NULL;
+    g->last_node = NULL;
+
+    return g;
 }
 
-Temp_tempList FG_use(G_node n)
+static FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail)
 {
-    AS_instr inst = (AS_instr)G_nodeInfo(n);
-    return inst ? inst->src : NULL;
+    FG_nodeList n = (FG_nodeList) checked_malloc(sizeof *n);
+
+    n->head = head;
+    n->tail = tail;
+
+    return n;
 }
 
-bool FG_isMove(G_node n)
+static FG_node FG_Node(FG_graph g, AS_instr instr)
 {
-    AS_instr inst = (AS_instr)G_nodeInfo(n);
-    if (!inst)
-        return FALSE;
-    return inst->mn == AS_MOVE_AnDn_AnDn;
+    FG_node n = (FG_node)checked_malloc(sizeof *n);
+
+    FG_nodeList p = FG_NodeList(n, NULL);
+
+    assert(g);
+    n->graph    = g;
+    n->key      = g->nodecount++;
+
+    if (g->last_node==NULL)
+        g->nodes      = g->last_node       = p;
+    else
+        g->last_node  = g->last_node->tail = p;
+
+    n->succs    = NULL;
+    n->preds    = NULL;
+
+    n->instr    = instr;
+
+    n->in       = NULL;
+    n->last_in  = NULL;
+    n->out      = NULL;
+    n->last_out = NULL;
+
+    return n;
 }
 
-Temp_tempLList FG_interferingRegsDef(G_node n)
+static bool FG_inNodeList(FG_node a, FG_nodeList l)
 {
-    AS_instr inst = (AS_instr)G_nodeInfo(n);
-    if (!inst)
-        return NULL;
-    return inst->dstInterf;
+    FG_nodeList p;
+    for (p=l; p!=NULL; p=p->tail)
+    {
+        if (p->head==a)
+            return TRUE;
+    }
+    return FALSE;
 }
 
-Temp_tempLList FG_interferingRegsUse(G_node n)
+static bool FG_goesTo(FG_node from, FG_node n)
 {
-    AS_instr inst = (AS_instr)G_nodeInfo(n);
-    if (!inst)
-        return NULL;
-    return inst->srcInterf;
+  return FG_inNodeList(n, from->succs);
 }
 
-AS_instr FG_inst(G_node n)
+void FG_addEdge(FG_node from, FG_node to)
 {
-    return (AS_instr)G_nodeInfo(n);
+    assert(from);
+    assert(to);
+    assert(from->graph == to->graph);
+
+    if (FG_goesTo(from, to))
+        return;
+    to->preds   = FG_NodeList(from, to->preds);
+    from->succs = FG_NodeList(to, from->succs);
 }
 
-static G_node findLabeledNode(Temp_label lab, G_nodeList nl, Temp_labelList ll)
+static FG_node findLabeledNode(Temp_label lab, FG_nodeList nl, Temp_labelList ll)
 {
-    G_node result = NULL;
+    FG_node result = NULL;
     for (; nl && ll; nl = nl->tail, ll = ll->tail)
     {
         if (ll->head == lab)
@@ -66,39 +92,39 @@ static G_node findLabeledNode(Temp_label lab, G_nodeList nl, Temp_labelList ll)
     return result;
 }
 
-G_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
+FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
 {
-    G_graph        g = G_Graph();
-    G_nodeList     nl = NULL, jumpnl = NULL;
+    FG_graph      g = FG_Graph();
+    FG_nodeList   nl = NULL, jumpnl = NULL;
     Temp_labelList ll = NULL;
-    G_node         last_n = NULL, jump_n = NULL;
-    AS_instr       inst = NULL, last_inst = NULL, last_nonlbl_inst = NULL;
+    FG_node       last_n = NULL, jump_n = NULL;
+    AS_instr       last_inst = NULL, last_nonlbl_inst = NULL;
 
     // iterate and add instructions to graph
     for (; il; il = il->tail)
     {
-        inst = il->head;
+        AS_instr inst = il->head;
         if (inst->mn != AS_LABEL)
         {
-            G_node n = G_Node(g, (void*)inst);
+            FG_node n = FG_Node(g, inst);
 
             if (last_inst)
             {
 				switch (last_inst->mn)
 				{
         			case AS_LABEL:
-						nl = G_NodeList(n, nl);
+						nl = FG_NodeList(n, nl);
 						ll = Temp_LabelList(last_inst->label, ll);
 						if (last_nonlbl_inst && (last_nonlbl_inst->mn != AS_JMP))
 						{
-							G_addEdge(last_n, n);
+							FG_addEdge(last_n, n);
 						}
 						break;
         			case AS_JMP:
 						// no edge from last instruction to this one
 						break;
         			default:
-                        G_addEdge(last_n, n);
+                        FG_addEdge(last_n, n);
 				}
             }
 
@@ -111,7 +137,7 @@ G_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
 				case AS_BLE:
 				case AS_BGE:
 				case AS_JMP:
-					jumpnl = G_NodeList(n, jumpnl);
+					jumpnl = FG_NodeList(n, jumpnl);
 					break;
 
 				default:
@@ -131,32 +157,66 @@ G_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
 	// did we end on a label?
 	if (last_inst && last_inst->mn == AS_LABEL)
 	{
-		G_node n = G_Node(g, NULL);	// add a special NULL node so the label points to something
+		FG_node n = FG_Node(g, NULL);	// add a special NULL node so the label points to something
 
-		nl = G_NodeList(n, nl);
+		nl = FG_NodeList(n, nl);
 		ll = Temp_LabelList(last_inst->label, ll);
         if (last_nonlbl_inst && (last_nonlbl_inst->mn != AS_JMP))
         {
-            G_addEdge(last_n, n);
+            FG_addEdge(last_n, n);
         }
 	}
 
     // handle jump instructions
     for (; jumpnl; jumpnl = jumpnl->tail)
     {
-        G_node n = jumpnl->head;
-        inst = (AS_instr) G_nodeInfo(n);
-        jump_n = findLabeledNode(inst->label, nl, ll);
+        FG_node n = jumpnl->head;
+        jump_n = findLabeledNode(n->instr->label, nl, ll);
         if (jump_n)
         {
-            G_addEdge(n, jump_n);
+            FG_addEdge(n, jump_n);
         }
         else
         {
-            EM_error(0, "failed to find node for label %s", Temp_labelstring(inst->label));
+            EM_error(0, "failed to find node for label %s", Temp_labelstring(n->instr->label));
 			assert(0);
         }
     }
 
     return g;
 }
+
+void FG_show(FILE *out, FG_graph g, Temp_map tm)
+{
+    for (FG_nodeList p = g->nodes; p!=NULL; p=p->tail)
+    {
+        char buf[255];
+        int  cnt=0;
+
+        FG_node n = p->head;
+        FG_nodeList q;
+        assert(n);
+        fprintf(out, " (%3d) -> ", n->key);
+        for (q=n->succs; q!=NULL; q=q->tail)
+        {
+            fprintf(out, "%3d", q->head->key);
+            if (q->tail)
+                fprintf(out, ",");
+            else
+                fprintf(out, " ");
+            cnt++;
+        }
+        for (;cnt<3;cnt++)
+            fprintf(out, "    ");
+        if (n->instr)
+        {
+            AS_sprint(buf, n->instr, tm);
+            fprintf(out, "%s\n", buf);
+        }
+        else
+        {
+            fprintf(out, "NIL\n");
+        }
+    }
+}
+

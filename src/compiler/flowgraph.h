@@ -2,18 +2,46 @@
 #define HAVE_FLOWGRAPH_H
 
 #include "temp.h"
+#include "assem.h"
+#include "frame.h"
 
 /*
- * flowgraph.h - Function prototypes to represent control flow graphs.
+ * flowgraph.h - Function prototypes and data structures to represent control
+ *               flow graphs tailored towards liveness analysis
  */
 
-Temp_tempList  FG_def(G_node n);
-Temp_tempList  FG_use(G_node n);
-Temp_tempLList FG_interferingRegsDef(G_node n) ;
-Temp_tempLList FG_interferingRegsUse(G_node n) ;
-bool           FG_isMove(G_node n);
-AS_instr       FG_inst(G_node n);
+typedef struct FG_graph_    *FG_graph;
+typedef struct FG_node_     *FG_node;
+typedef struct FG_nodeList_ *FG_nodeList;
 
-G_graph        FG_AssemFlowGraph(AS_instrList il, F_frame f);
+struct FG_graph_
+{
+    int          nodecount;
+	FG_nodeList nodes, last_node;
+};
+
+struct FG_nodeList_
+{
+    FG_node     head;
+    FG_nodeList tail;
+};
+
+struct FG_node_
+{
+    FG_graph     graph;
+    int           key;
+    FG_nodeList  succs;
+    FG_nodeList  preds;
+
+    AS_instr      instr;
+
+    // liveness analysis:
+    Temp_tempList in, last_in;
+    Temp_tempList out, last_out;
+};
+
+FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f);
+
+void      FG_show (FILE *out, FG_graph g, Temp_map tm);
 
 #endif

@@ -10,6 +10,7 @@ DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 CFLAGS = -Wall -Werror -g
+# CFLAGS = -Wall -Werror -g -pg
 LDFLAGS = -lm
 
 CC = gcc
