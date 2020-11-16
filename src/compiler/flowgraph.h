@@ -28,16 +28,16 @@ struct FG_nodeList_
 
 struct FG_node_
 {
-    FG_graph     graph;
+    FG_graph      graph;
     int           key;
-    FG_nodeList  succs;
-    FG_nodeList  preds;
+    FG_nodeList   succs;
+    FG_nodeList   preds;
 
     AS_instr      instr;
 
     // liveness analysis:
-    Temp_tempList in, last_in;
-    Temp_tempList out, last_out;
+    Temp_tempSet  in;
+    Temp_tempSet  out;
 };
 
 FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f);

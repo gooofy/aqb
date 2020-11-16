@@ -52,46 +52,59 @@ static inline Temp_tempLList FG_interferingRegsUse(FG_node n)
     return inst->srcInterf;
 }
 
-
 static void getLiveMap(FG_graph flow)
 {
-    bool flag = TRUE;
+    bool changed = TRUE;
 
-    while (flag)
+    while (changed)
     {
+        changed = FALSE;
         for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
         {
             FG_node n = fl->head;
 
-            Temp_tempList li = n->in;
-            Temp_tempList lo = n->out;
+            /********************************************
+             *
+             * in[n] ← use[n] ∪ (out[n] − def[n])
+             *
+             ********************************************/
 
-            n->last_in  = li; // in'[n]  <-- in[n]
-            n->last_out = lo; // out'[n] <-- out[n]
+            Temp_tempSet in = n->in;
 
-            Temp_tempList ci = Temp_union(FG_use(n), Temp_minus(lo, FG_def(n)));
-            Temp_tempList co = NULL;
+            // in[n] ← in[n] ∪ (out[n] − def[n])
+            Temp_tempList def_n = FG_def(n);
+            for (Temp_tempSetNode sn=n->out->first; sn; sn = sn->next)
+            {
+                Temp_temp t = sn->temp;
+                if (Temp_inList(t, def_n))
+                    continue;
+                if (Temp_tempSetAdd(in, t))
+                    changed = TRUE;
+            }
+            // in[n] ← in[n] ∪ use[n]
+            for (Temp_tempList tl=FG_use(n); tl; tl = tl->tail)
+            {
+                Temp_temp t = tl->head;
+                if (Temp_tempSetAdd(in, t))
+                    changed = TRUE;
+            }
+
+
+            /********************************************
+             *
+             * out[n] = ∪<s∈succ[n]> ∪in[s]
+             *
+             ********************************************/
+
+            Temp_tempSet out = n->out;
+
             for (FG_nodeList sl = n->succs; sl; sl = sl->tail)
             {
-                co = Temp_union(co, sl->head->in);
-            }
-            n->in  = ci;
-            n->out = co;
-        }
-
-        flag = FALSE;
-        for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
-        {
-            FG_node n = fl->head;
-            Temp_tempList li = n->in;
-            Temp_tempList lo = n->out;
-            Temp_tempList ci = n->last_in;
-            Temp_tempList co = n->last_out;
-
-            if (!Temp_equal(li, ci) || !Temp_equal(lo, co))
-            {
-                flag = TRUE;
-                break;
+                for (Temp_tempSetNode sn=sl->head->in->first; sn; sn = sn->next)
+                {
+                    if (Temp_tempSetAdd(out, sn->temp))
+                        changed = TRUE;
+                }
             }
         }
     }
@@ -121,7 +134,7 @@ static Live_graph solveLiveness(FG_graph flow)
     {
         FG_node      n    = fl->head;
         AS_instr      inst = n->instr;
-        Temp_tempList tout = n->out;
+        Temp_tempSet  tout = n->out;
         Temp_tempList tdef = FG_def(n);
         Temp_tempList tuse = FG_use(n);
         Temp_tempList defuse = Temp_union(tuse, tdef);
@@ -152,14 +165,14 @@ static Live_graph solveLiveness(FG_graph flow)
         }
 
         // traverse defined vars
-        for (Temp_tempList t = tout; t; t = t->tail)
+        for (Temp_tempSetNode t = tout->first; t; t = t->next)
         {
-            UG_node ndef = findOrCreateNode(t->head, g, tab);
+            UG_node ndef = findOrCreateNode(t->temp, g, tab);
 
             // add edges between output vars and defined var
-            for (Temp_tempList tedge = tout; tedge; tedge = tedge->tail)
+            for (Temp_tempSetNode tedge = tout->first; tedge; tedge = tedge->next)
             {
-                UG_node nedge = findOrCreateNode(tedge->head, g, tab);
+                UG_node nedge = findOrCreateNode(tedge->temp, g, tab);
 
                 // skip if edge is added
                 if (ndef == nedge || UG_connected(ndef, nedge))
@@ -215,31 +228,6 @@ static Live_graph solveLiveness(FG_graph flow)
     return lg;
 }
 
-#ifdef ENABLE_DEBUG
-
-static void sprintLivemap(void* t, string buf)
-{
-    char buf2[255];
-    G_node n = (G_node) t;
-    Temp_tempList li, lo;
-    AS_instr inst = (AS_instr) n->info;
-    AS_sprint(buf2, inst, Temp_getNameMap());
-
-    int l = strlen(buf2);
-    while (l<30)
-    {
-        buf2[l] = ' ';
-        l++;
-    }
-    buf2[l]=0;
-
-    li = lookupLiveMap(g_in, n);
-    lo = lookupLiveMap(g_out, n);
-
-    sprintf(buf, "%s in: %s; out: %s", buf2, Temp_sprint_TempList(li), Temp_sprint_TempList(lo));
-}
-#endif
-
 Live_graph Live_liveness(FG_graph flow)
 {
     // Construct liveness graph
@@ -248,7 +236,7 @@ Live_graph Live_liveness(FG_graph flow)
 #ifdef ENABLE_DEBUG
     printf("getLiveMap result:\n");
     printf("------------------\n");
-    FG_show(stdout, flow, sprintLivemap);
+    FG_show(stdout, flow, Temp_getNameMap());
 #endif
 
     // Construct interference graph

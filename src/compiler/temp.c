@@ -333,3 +333,56 @@ void Temp_dumpMap(FILE *out, Temp_map m)
     }
 }
 
+Temp_tempSet Temp_TempSet(void)
+{
+    Temp_tempSet s = checked_malloc(sizeof(*s));
+
+    s->first = NULL;
+    s->last  = NULL;
+
+    return s;
+}
+
+static Temp_tempSetNode Temp_TempSetNode(Temp_temp t)
+{
+    Temp_tempSetNode n = checked_malloc(sizeof(*n));
+
+    n->next  = NULL;
+    n->temp  = t;
+
+    return n;
+}
+
+bool Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t) // returns FALSE if t was already in t, TRUE otherwise
+{
+
+    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+    {
+        if (n->temp == t)
+            return FALSE;
+    }
+
+    if (ts->last)
+        ts->last = ts->last->next = Temp_TempSetNode(t);
+    else
+        ts->first = ts->last = Temp_TempSetNode(t);
+
+    return TRUE;
+}
+
+string Temp_tempSetSPrint(Temp_tempSet ts)
+{
+    string res = "";
+
+    for (Temp_tempSetNode n=ts->first; n; n = n->next)
+    {
+        Temp_temp t = n->temp;
+
+        if (strlen(res))
+            res = strconcat (res, strprintf(", %d", Temp_num(t)));
+        else
+            res = strprintf("%d", Temp_num(t));
+    }
+    return res;
+}
+

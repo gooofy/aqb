@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "flowgraph.h"
 #include "errormsg.h"
 
@@ -42,10 +44,8 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
 
     n->instr    = instr;
 
-    n->in       = NULL;
-    n->last_in  = NULL;
-    n->out      = NULL;
-    n->last_out = NULL;
+    n->in       = Temp_TempSet();
+    n->out      = Temp_TempSet();
 
     return n;
 }
@@ -191,32 +191,88 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
     for (FG_nodeList p = g->nodes; p!=NULL; p=p->tail)
     {
         char buf[255];
-        int  cnt=0;
 
         FG_node n = p->head;
         FG_nodeList q;
         assert(n);
-        fprintf(out, " (%3d) -> ", n->key);
+
+        snprintf(buf, 255, " (%3d) -> ", n->key);
+
+        int pos = strlen(buf);
         for (q=n->succs; q!=NULL; q=q->tail)
         {
-            fprintf(out, "%3d", q->head->key);
+            snprintf(&buf[pos], 255-pos, "%3d", q->head->key);
+            pos += 3;
             if (q->tail)
-                fprintf(out, ",");
-            else
-                fprintf(out, " ");
-            cnt++;
+            {
+                buf[pos] = ',';
+                pos++;
+            }
         }
-        for (;cnt<3;cnt++)
-            fprintf(out, "    ");
+
+        while (pos<25)
+        {
+            buf[pos] = ' ';
+            pos++;
+        }
+        pos = 25;
+
+        snprintf(&buf[25], 255-pos, " in: %s", Temp_tempSetSPrint(n->in));
+
+        pos = strlen(buf);
+        while (pos<45)
+        {
+            buf[pos] = ' ';
+            pos++;
+        }
+        pos = 45;
+
+        snprintf(&buf[45], 255-pos, " out: %s", Temp_tempSetSPrint(n->out));
+
+        pos = strlen(buf);
+        while (pos<60)
+        {
+            buf[pos] = ' ';
+            pos++;
+        }
+        pos = 60;
+
         if (n->instr)
         {
-            AS_sprint(buf, n->instr, tm);
-            fprintf(out, "%s\n", buf);
+            AS_sprint(&buf[pos], n->instr, tm);
         }
         else
         {
-            fprintf(out, "NIL\n");
+            snprintf(&buf[pos], 255-pos, "NIL");
         }
+        pos = strlen(buf);
+        buf[pos++] = '\n';
+        buf[pos] = 0;
+        fprintf(out, buf);
     }
 }
+
+#if 0
+static void sprintLivemap(void* t, string buf)
+{
+    char buf2[255];
+    G_node n = (G_node) t;
+    Temp_tempList li, lo;
+    AS_instr inst = (AS_instr) n->info;
+    AS_sprint(buf2, inst, Temp_getNameMap());
+
+    int l = strlen(buf2);
+    while (l<30)
+    {
+        buf2[l] = ' ';
+        l++;
+    }
+    buf2[l]=0;
+
+    li = lookupLiveMap(g_in, n);
+    lo = lookupLiveMap(g_out, n);
+
+    sprintf(buf, "%s in: %s; out: %s", buf2, Temp_sprint_TempList(li), Temp_sprint_TempList(lo));
+}
+#endif
 
