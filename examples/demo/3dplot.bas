@@ -148,9 +148,9 @@ transform:
 
     ' project
 
-    DIM AS SINGLE tmp = zt2 - camera_z
-    x1 = camera_x - camera_z * (xt2-camera_x)/tmp
-    y1 = camera_y - camera_z * (yt2-camera_y)/tmp
+    DIM AS SINGLE tmp2 = zt2 - camera_z
+    x1 = camera_x - camera_z * (xt2-camera_x)/tmp2
+    y1 = camera_y - camera_z * (yt2-camera_y)/tmp2
 
     ' 2D translation and scaling
     x1 = trans_x + x1/scale_x

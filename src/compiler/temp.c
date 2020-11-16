@@ -39,18 +39,18 @@ Temp_label Temp_namedlabel(string s)
     return S_Symbol(s, FALSE);
 }
 
-static int temps = 100;
+static int temp_cnt = 0;
 
 Temp_temp Temp_newtemp(Ty_ty ty)
 {
     Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
 
     p->ty  = ty;
-    p->num = temps++;
+    p->num = temp_cnt++;
 
     {
         char r[16];
-        sprintf(r, "%d", p->num);
+        sprintf(r, "t%d", p->num);
         Temp_enter(Temp_getNameMap(), p, String(r));
     }
 
