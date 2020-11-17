@@ -9,44 +9,36 @@ IF FRE(-2) < 20000 THEN
     ERROR 42
 END IF
 
-SCREEN 2, 640, 200, 2, AS_MODE_HIRES, "3D Function Plot"
+SCREEN 2, 640, 200, 3, AS_MODE_HIRES, "3D Function Plot"
 
 WINDOW 4,,,AW_FLAG_BACKDROP OR AW_FLAG_BORDERLESS,2
 
 DIM AS INTEGER wx=WINDOW(2), wy=WINDOW(3)-10
 
-PALETTE 0,  0,  0,  0
-PALETTE 1,  1,  1,  1 : REM text color white
-PALETTE 2, .1, .9, .9 : REM net color light blue
-PALETTE 3, .2, .2,  1 : REM area color blue
+' OS 2.0 colors
+PALETTE 0, 10.0/15.0, 10.0/15.0, 10.0/15.0 : REM gray
+PALETTE 1,       0.0,       0.0,       0.0 : REM black
+PALETTE 2,       1.0,       1.0,       1.0 : REM white
 
-FUNCTION FNfun(BYVAL x AS SINGLE, BYVAL z AS SINGLE) AS SINGLE
-    RETURN 20*SIN(.1*SQR(x*x+z*z))
-END FUNCTION
+' function plot area shading colors
+PALETTE 3, 0.0, 0.0, 0.8
+PALETTE 4, 0.0, 0.8, 0.8
+PALETTE 5, 0.0, 0.8, 0.0
+PALETTE 6, 0.8, 0.8, 0.0
+PALETTE 7, 0.8, 0.0, 0.0
 
 ' 3D projection config
-
-CONST AS SINGLE tx=0, ty=0, tz=0                         : REM translation
-CONST AS SINGLE sx=3, sy=3, sz=3                         : REM scaling
-CONST AS SINGLE rx=30*PI/180, ry=-20*PI/180, rz=0*PI/180 : REM rotation
+CONST AS SINGLE tx=0, ty=0, tz=0                          : REM translation
+CONST AS SINGLE sx=3, sy=3, sz=3                          : REM scaling
+CONST AS SINGLE rx=30*PI/180, ry=-20*PI/180, rz= 0*PI/180 : REM rotation
 
 CONST AS SINGLE camera_x=0, camera_y=0, camera_z=-400
 
 ' 2D
-DIM   AS SINGLE trans_x=wx/2, trans_y=wy/2
+DIM   AS SINGLE trans_x=wx/2+10, trans_y=wy/2-20
 CONST AS SINGLE scale_x=1, scale_y=2
 
-' plot range etc
-
-CONST AS SINGLE xa=-65, xb=65 : REM X interval
-CONST AS SINGLE ya=-30, yb=60 : REM Y interval
-CONST AS SINGLE za=-60, zb=60 : REM Z interval
-CONST AS SINGLE prec=30       : REM precision (number of values to compute per X interval)
-CONST AS SINGLE net_x=15      : REM network depth (# lines per X-interval)
-CONST AS SINGLE net_z=30      : REM network depth (# lines per Z-interval)
-
 ' precompute 3d projection matrix
-
 DIM AS SINGLE A = COS(ry)*COS(rz)
 DIM AS SINGLE B = COS(ry)*SIN(rz)
 DIM AS SINGLE C = -SIN(ry)
@@ -57,70 +49,160 @@ DIM AS SINGLE G = COS(rx)*SIN(ry)*COS(rz) + SIN(rx)*SIN(rz)
 DIM AS SINGLE H = COS(rx)*SIN(ry)*SIN(rz) - SIN(rx)*COS(rz)
 DIM AS SINGLE I = COS(rx)*COS(ry)
 
+DIM SHARED AS SINGLE  x, y, z : REM transform input
+DIM SHARED AS INTEGER x1, y1  : REM transform result -> draw
+
+' function to plot
+FUNCTION FNfun(BYVAL x AS SINGLE, BYVAL z AS SINGLE) AS SINGLE
+    RETURN 20*SIN(.1*SQR(x*x+z*z))
+END FUNCTION
+
+' plot range etc.
+CONST AS SINGLE  xa=-65, xb=65 : REM X interval
+CONST AS SINGLE  ya=-20, yb=20 : REM Y interval
+CONST AS SINGLE  za=-60, zb=60 : REM Z interval
+CONST AS INTEGER grid_cx=20    : REM grid x size (in tiles)
+CONST AS INTEGER grid_cz=20    : REM grid z size (in tiles)
+CONST AS INTEGER prec_x=5      : REM x precision (number of values to compute per grid tile)
+CONST AS INTEGER prec_z=5      : REM x precision (number of values to compute per grid tile)
+
 ' compute steps
-CONST AS SINGLE  ste_z      = (zb-za)/(net_z-1)
-CONST AS SINGLE  ste_x      = (xb-xa)/(prec-1)
-CONST AS INTEGER num_step_x = prec/net_x
+CONST AS INTEGER arr_sz_x = grid_cx * prec_x + 1
+CONST AS INTEGER arr_sz_z = grid_cz * prec_z + 1
+CONST AS SINGLE  ste_x    = (xb-xa)/(arr_sz_x - 1)
+CONST AS SINGLE  ste_z    = (zb-za)/(arr_sz_z - 1)
 
-' background pattern (just to test the PATTERN command)
-DIM AS INTEGER pattern_bg(3)
+' patterns (used for dithering)
+DIM AS INTEGER pattern25(1)
 
-pattern_bg(0) = &HCCCC
-pattern_bg(1) = &H3333
-pattern_bg(2) = &HCCCC
-pattern_bg(3) = &H3333
+pattern25(0) = &HEEEE
+pattern25(1) = &H7777
 
-PATTERN ,pattern_bg
-LINE (0,0)-(wx,wy),1,BF
+DIM AS INTEGER pattern50(1)
 
-' function pattern
-DIM AS INTEGER pattern_fg(0)
+pattern50(0) = &HCCCC
+pattern50(1) = &H3333
 
-pattern_fg(0) = &HFFFF
+DIM AS INTEGER pattern75(1)
 
-PATTERN ,pattern_fg
+pattern75(0) = &H1111
+pattern75(1) = &H8888
 
-' cache up to two rows of f() values
-DIM AS INTEGER  fncache_x(STATIC prec-1, 1), fncache_y(STATIC prec-1, 1)
-DIM AS INTEGER  fncache_cur = 0, fncache_last = 1
+DIM AS INTEGER pattern0(0)
+pattern0(0) = &HFFFF
 
-' main drawing routine
+' precompute all f() values
+DIM AS INTEGER  fncache_x1(STATIC arr_sz_x, arr_sz_z)
+DIM AS INTEGER  fncache_y1(STATIC arr_sz_x, arr_sz_z)
+DIM AS SINGLE   fncache_y (STATIC arr_sz_x, arr_sz_z)
 
-DIM AS SINGLE  x, y, z : REM transform input
-DIM AS INTEGER x1, y1  : REM transform result -> draw
+z = zb
+FOR iz AS INTEGER = 0 TO arr_sz_z - 1
 
-DIM AS INTEGER net_cnt
-DIM AS INTEGER fncache_cnt
+    LOCATE 2,1 : PRINT "Precomputing fn values ";iz+1;"/";arr_sz_z;", please wait...   "
+    x = xa
 
-AREA OUTLINE TRUE
-COLOR 3,,2
+    FOR ix AS INTEGER = 0 TO arr_sz_x - 1
 
-FOR z = zb TO za STEP -ste_z
-
-    ' FIXME: SWAP fn_cache_cur, fn_cache_last
-
-    DIM tmp AS INTEGER = fncache_cur
-    fncache_cur = fncache_last
-    fncache_last = tmp
-
-    net_cnt     = -1
-    fncache_cnt =  0
-
-    FOR x = xa TO xb STEP ste_x
-
-        ' PRINT x, z
-
+        x = x + ste_x
         y = FNfun(x, z)
 
+        fncache_y(ix, iz) = y
+
         GOSUB transform
-        GOSUB draw
 
-    NEXT x
+        fncache_x1(ix, iz) = x1
+        fncache_y1(ix, iz) = y1
 
-NEXT z
+    NEXT ix
 
-LOCATE 23,0
+    z = z - ste_z
+
+NEXT iz
+
+'
+' main drawing routine
+'
+
+PATTERN ,pattern0
 COLOR 1
+LINE (0,0)-(wx,wy),1,BF
+
+AREA OUTLINE FALSE
+COLOR 3,,2
+
+FOR gz AS INTEGER = 0 TO arr_sz_z - prec_z STEP prec_z
+    FOR gx AS INTEGER = 0 TO arr_sz_x - prec_x STEP prec_x
+
+        ' PRINT "gx=";gx;", gz=";gz
+
+        FOR goz AS INTEGER = 1 TO prec_z
+            FOR gox AS INTEGER = 1 TO prec_x
+
+                ' draw area
+
+                DIM y_avg AS SINGLE = 0
+        
+                AREA (fncache_x1(gx+gox-1, gz+goz-1), fncache_y1(gx+gox-1, gz+goz-1)) : y_avg = y_avg + fncache_y(gx+gox-1, gz+goz-1)
+                AREA (fncache_x1(gx+gox  , gz+goz-1), fncache_y1(gx+gox  , gz+goz-1)) : y_avg = y_avg + fncache_y(gx+gox  , gz+goz-1)
+                AREA (fncache_x1(gx+gox  , gz+goz  ), fncache_y1(gx+gox  , gz+goz  )) : y_avg = y_avg + fncache_y(gx+gox  , gz+goz  )
+                AREA (fncache_x1(gx+gox-1, gz+goz  ), fncache_y1(gx+gox-1, gz+goz  )) : y_avg = y_avg + fncache_y(gx+gox-1, gz+goz  )
+
+                ' pick color according to height (Y coordinate)
+
+                y_avg = y_avg / 4
+                DIM AS SINGLE c =  5 * (y_avg - ya) / (yb-ya) + 3
+                DIM AS INTEGER ci = FIX(c)
+                ' LOCATE 3,1 : PRINT "COLOR for y_avg ";y_avg;" -> ";c
+                IF ci > 7 THEN
+                    ci = 7
+                END IF
+                DIM AS INTEGER cb = ci + 1
+                IF cb > 7 THEN
+                    cb = 7
+                END IF
+                COLOR ci,cb,2
+
+                ' pick pattern for some dithering
+
+                DIM AS SINGLE cd = c-FIX(c)
+                ' LOCATE 2,1 : PRINT "c=";c;", ci=";ci;", cd=";cd
+                IF cd > 0.75 THEN
+                    PATTERN , pattern75
+                ELSEIF cd > 0.5 THEN
+                    PATTERN , pattern50
+                ELSEIF cd > 0.25 THEN
+                    PATTERN , pattern25
+                ELSE
+                    PATTERN , pattern0
+                END IF
+
+                AREAFILL 0
+
+                '
+                ' grid
+                '
+
+                IF goz = 1 THEN
+                    LINE (fncache_x1(gx+gox-1, gz+goz-1), fncache_y1(gx+gox-1, gz+goz-1)) - (fncache_x1(gx+gox  , gz+goz-1), fncache_y1(gx+gox  , gz+goz-1)), 2
+                END IF
+
+                IF gox = 1 THEN
+                    LINE (fncache_x1(gx+gox-1, gz+goz-1), fncache_y1(gx+gox-1, gz+goz-1)) - (fncache_x1(gx+gox-1, gz+goz  ), fncache_y1(gx+gox-1, gz+goz  )), 2
+                END IF
+
+                IF gox = prec_x THEN
+                    LINE (fncache_x1(gx+gox  , gz+goz-1), fncache_y1(gx+gox  , gz+goz-1)) - (fncache_x1(gx+gox  , gz+goz  ), fncache_y1(gx+gox  , gz+goz  )), 2
+                END IF
+
+            NEXT gox
+        NEXT goz
+    NEXT gx
+NEXT gz
+
+    
+LOCATE 23,0
+COLOR 1,0
 PRINT "PRESS ANY KEY TO QUIT"
 
 WHILE INKEY$()=""
@@ -130,6 +212,7 @@ END
 
 '
 ' subroutines (not using SUBs/FUNCTIONs here as this serves as a GOSUB+RETURN test)
+'
 
 ' 3D (x, y, z) -> 2D (x1, y1) coord transformation
 transform:
@@ -145,6 +228,8 @@ transform:
     DIM AS SINGLE xt2 = xt1*A + yt1*B + zt1*C
     DIM AS SINGLE yt2 = xt1*D + yt1*E + zt1*F
     DIM AS SINGLE zt2 = xt1*G + yt1*H + zt1*I
+
+    'PRINT "tf: sx=";sx;", tx=";tx;", A=";A;", B=";B
 
     ' project
 
@@ -162,40 +247,6 @@ transform:
     IF y1<0  THEN y1=0
     IF y1>wy THEN y1=wy
 
-RETURN
-
-' store x1/y1 coords in fncache, draw polygon
-draw:
-
-    ' print fncache_cnt, fncache_cur
-
-    fncache_x(fncache_cnt, fncache_cur) = x1
-    fncache_y(fncache_cnt, fncache_cur) = y1
-
-    net_cnt = net_cnt + 1
-
-    ' time to draw a polygon?
-    IF net_cnt=num_step_x AND z<>zb AND y>=ya AND y<=yb THEN
-
-        net_cnt = 0
-
-        ' initialize AREA polynom
-        FOR ind AS INTEGER = fncache_cnt-num_step_x TO fncache_cnt
-            x1 = fncache_x(ind, fncache_cur)
-            y1 = fncache_y(ind, fncache_cur)
-            AREA (x1, y1)
-        NEXT ind
-        FOR ind AS INTEGER = fncache_cnt TO fncache_cnt-num_step_x STEP -1
-            x1 = fncache_x(ind, fncache_last)
-            y1 = fncache_y(ind, fncache_last)
-            AREA (x1, y1)
-        NEXT ind
-
-        AREAFILL 0
-
-    END IF
-
-    fncache_cnt = fncache_cnt + 1  : REM next point
-
+    'PRINT "transform: ";x;y;z;" -> ";x1;y1
 RETURN
 
