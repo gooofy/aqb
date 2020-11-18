@@ -58,6 +58,11 @@ APTR ALLOCATE_(ULONG size, ULONG flags)
     return g_mem->mem;
 }
 
+void DEALLOCATE (APTR ptr, ULONG size)
+{
+    // FIXME: implement.
+}
+
 static FLOAT f50, f60;
 
 void _autil_init(void)

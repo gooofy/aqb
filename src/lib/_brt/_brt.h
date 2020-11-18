@@ -10,6 +10,7 @@ extern struct MathBase      *MathBase;
 extern struct MathTransBase *MathTransBase;
 
 APTR   ALLOCATE_(ULONG size, ULONG flags);
+void   DEALLOCATE (APTR ptr, ULONG size);
 ULONG  FRE_(int x);
 
 void   POKE (ULONG adr, UBYTE  b);
@@ -27,6 +28,7 @@ void _autil_shutdown(void);
 
 void _debug_puts (const char *s);
 void _debug_puts2(SHORT s);
+void _debug_putu4(ULONG l);
 void _debug_putnl(void);
 
 extern USHORT g_errcode;
@@ -128,11 +130,12 @@ typedef struct
     APTR              data;
     UWORD             numDims;
     ULONG             elementSize;
+    ULONG             dataSize;
     _DARRAY_BOUNDS_T *bounds;
 } _DARRAY_T;
 
 void  __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize);
-void  __DARRAY_T_REDIM    (_DARRAY_T *self, UWORD numDims, ...);
+void  __DARRAY_T_REDIM    (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...);
 void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
 WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
 WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);

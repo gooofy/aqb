@@ -2511,8 +2511,6 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
 
 static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool preserve, bool redim, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
 {
-    assert (!preserve); // FIXME: implement
-
     if (!t)
         t = Ty_inferType(S_name(sVar));
     assert(t);
@@ -2693,7 +2691,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             if (numDims)
             {
                 Tr_exp initExp2;
-                // call __DARRAY_T_REDIM (_DARRAY_T *self,  UWORD numDims, ...)
+                // call __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
                 Tr_expList arglist = Tr_ExpList();
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
@@ -2715,6 +2713,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     Tr_ExpListPrepend(arglist, Tr_intExp(end  , Ty_ULong()));
                 }
                 Tr_ExpListAppend(arglist, Tr_intExp(numDims, Ty_UInteger()));
+                Tr_ExpListAppend(arglist, Tr_boolExp(preserve, Ty_Bool()));
                 Tr_ExpListAppend(arglist, Tr_DeepCopy(*var));
                 if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, &initExp2))
                     return FALSE;

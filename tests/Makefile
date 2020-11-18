@@ -30,7 +30,7 @@ all: cond1.bin cond3.bin cond4.bin	\
 	var1.bin var2.bin \
 	mod1 io1 \
 	sarray1.bin sarray2.bin sarray3.bin sarray4.bin sarray5.bin sarray6.bin \
-	darray1.bin darray2.bin darray3.bin darray4.bin darray5.bin darray6.bin darray7.bin
+	darray1.bin darray2.bin darray3.bin darray4.bin darray5.bin darray6.bin darray7.bin darray8.bin
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@

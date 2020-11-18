@@ -46,6 +46,13 @@ void _debug_puts2(SHORT s)
     _debug_puts(buf);
 }
 
+void _debug_putu4(ULONG l)
+{
+    char buf[MAXBUF];
+    _astr_itoa(l, buf, 10);
+    _debug_puts(buf);
+}
+
 void _debug_putnl(void)
 {
     if (_debug_stdout)

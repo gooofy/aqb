@@ -13,15 +13,15 @@ void __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
     self->data        = NULL;
     self->numDims     = 0;
     self->elementSize = elementSize;
+    self->dataSize    = 0;
     self->bounds      = NULL;
 }
 
-void __DARRAY_T_REDIM (_DARRAY_T *self, UWORD numDims, ...)
+void __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
 {
     va_list valist;
 
     self->numDims     = numDims;
-    // _debug_puts ("_dyna_redim: numDims="); _debug_puts2(numDims); _debug_putnl();
 
     self->bounds = ALLOCATE_ (sizeof (_DARRAY_BOUNDS_T) * numDims, 0);
 
@@ -38,8 +38,25 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, UWORD numDims, ...)
         self->bounds[iDim].numElements = end-start+1;
     }
     va_end(valist);
-    // _debug_puts ("_dyna_redim: dataSize="); _debug_puts2(dataSize); _debug_putnl();
-    self->data = ALLOCATE_ (dataSize, 0);
+
+    APTR oData      = self->data;
+    ULONG oDataSize = self->dataSize;
+
+    self->data     = ALLOCATE_ (dataSize, 0);
+    self->dataSize = dataSize;
+
+    if (oData)
+    {
+        if (preserve)
+        {
+            ULONG toCopy = dataSize < oDataSize ? dataSize : oDataSize;
+            CopyMem (oData, self->data, toCopy);
+            //_debug_puts ("_dyna_redim: preserve, toCopy="); _debug_puts2(toCopy); _debug_putnl();
+        }
+        DEALLOCATE (oData, oDataSize);
+    }
+
+    //_debug_puts ("_dyna_redim: self="); _debug_putu4((ULONG) self); _debug_puts(", data="); _debug_putu4((ULONG)self->data); _debug_puts (", dataSize="); _debug_puts2(dataSize); _debug_puts (", numDims="); _debug_puts2(numDims); _debug_putnl();
 }
 
 /*
@@ -63,7 +80,7 @@ void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
 
     //_dyna_create_ (dimCnt, i, 1, 2);
 
-    //_debug_puts ("_dyna_idx: dimCnt="); _debug_puts2(dimCnt); _debug_putnl();
+    // _debug_puts ("_dyna_idx: dimCnt="); _debug_puts2(dimCnt); _debug_putnl();
 
     if (!self->data)
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -81,7 +98,7 @@ void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
         ULONG ubound = self->bounds[iDim].ubound;
         ULONG n     = self->bounds[iDim].numElements;
 
-        // _debug_puts ("_dyna_idx: dim: iDim="); _debug_puts2(iDim); _debug_puts(", lbound="); _debug_puts2(lbound); _debug_putnl();
+        //_debug_puts ("_dyna_idx: dim: iDim="); _debug_puts2(iDim); _debug_puts(", lbound="); _debug_puts2(lbound); _debug_putnl();
 
         ULONG idx = va_arg(valist, ULONG);
 
@@ -94,7 +111,10 @@ void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
     }
     va_end(valist);
 
-    return self->data + offset;
+    void *ptr = self->data+offset;
+    //_debug_puts ("_dyna_idx: self="); _debug_putu4((ULONG) self); _debug_puts(", data="); _debug_putu4((ULONG)self->data); _debug_puts (" -> ptr="); _debug_putu4((ULONG)ptr); _debug_putnl();
+
+    return ptr;
 }
 
 WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d)
@@ -130,13 +150,9 @@ void __DARRAY_T_COPY (_DARRAY_T *self, _DARRAY_T *a)
     if (a->numDims != self->numDims)
         ERROR (ERR_INCOMPATIBLE_ARRAY);
 
-    ULONG dataSize = self->elementSize;
-    for (UWORD iDim=0; iDim<self->numDims; iDim++)
-    {
-        if (a->bounds[iDim].numElements != self->bounds[iDim].numElements)
-            ERROR (ERR_INCOMPATIBLE_ARRAY);
-        dataSize *= self->bounds[iDim].numElements;
-    }
-    CopyMem((APTR)a->data, self->data, dataSize);
+    ULONG toCopy = a->dataSize < self->dataSize ? a->dataSize : self->dataSize;
+
+    //_debug_puts ("__DARRAY_T_COPY: toCopy="); _debug_puts2(toCopy); _debug_putnl();
+    CopyMem(a->data, self->data, toCopy);
 }
 

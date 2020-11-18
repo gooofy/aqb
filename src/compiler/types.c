@@ -6,7 +6,7 @@
 #include "symbol.h"
 #include "types.h"
 
-#define _DARRAY_T_SIZE 14
+#define _DARRAY_T_SIZE 18
 
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
