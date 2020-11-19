@@ -328,6 +328,14 @@ Syntax:
 
 store long (32 bits) value at the specified memory address
 
+=== REDIM
+
+Syntax:
+
+    REDIM [PRESERVE] [SHARED] arrayId ([[lbound TO] ubound [ "," ...]]) [ AS datatype ] [, ...]
+
+declare or resize a dynamic array. Previous values are erased unless the PRESERVE keyword is specified.
+
 === RETURN
 
 Syntax:
