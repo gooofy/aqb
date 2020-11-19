@@ -63,6 +63,9 @@ short POS_    (short dummy);
 #define AE_COLOR                     4
 #define AE_AREA                      5
 #define AE_PATTERN                   6
+#define AE_WIN_CLOSE                 7
+#define AE_WIN_OUTPUT                8
+#define AE_SCREEN_CLOSE              9
 
 void _awindow_init(void);
 void _awindow_shutdown(void);

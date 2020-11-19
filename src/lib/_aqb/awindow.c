@@ -143,6 +143,21 @@ void SCREEN (short id, short width, short height, short depth, short mode, char 
 }
 
 /*
+ * SCREEN CLOSE id
+ */
+void SCREEN_CLOSE(short id)
+{
+    // error checking
+    if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] == NULL) )
+    {
+        ERROR(AE_SCREEN_CLOSE);
+        return;
+    }
+    CloseScreen(g_scrlist[id-1]);
+    g_scrlist[id-1]=NULL;
+}
+
+/*
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
  */
 void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid)
@@ -237,6 +252,44 @@ void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
 
     if (id == 1)
         g_win1_is_dos = FALSE;
+}
+
+/*
+ * WINDOW CLOSE id
+ */
+void WINDOW_CLOSE(short id)
+{
+    // error checking
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
+    {
+        ERROR(AE_WIN_CLOSE);
+        return;
+    }
+    CloseWindow(g_winlist[id-1]);
+    g_winlist[id-1]=NULL;
+}
+
+/*
+ * WINDOW OUTPUT id
+ */
+void WINDOW_OUTPUT(short id)
+{
+    // error checking
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
+    {
+        ERROR(AE_WIN_OUTPUT);
+        return;
+    }
+
+    g_output_win_id = id;
+
+    if ((id != 1) || !g_win1_is_dos)
+    {
+        struct Window *win = g_winlist[id-1];
+
+        g_output_win    = win;
+        g_rp            = win->RPort;
+    }
 }
 
 void _awindow_shutdown(void)

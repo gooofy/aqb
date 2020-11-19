@@ -5,7 +5,7 @@ LD = m68k-amigaos-ld
 
 .PHONY:	clean all
 
-all:	gfx1.bin gfx2.bin 3dplot.bin
+all:	gfx1.bin gfx2.bin 3dplot.bin hand.bin
 
 clean:
 	rm -f *.s *.bin *.o *.sym

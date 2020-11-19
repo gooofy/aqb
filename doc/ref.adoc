@@ -595,6 +595,14 @@ Syntax:
 
 create a new screen
 
+=== SCREEN CLOSE
+
+Syntax:
+
+    SCREEN CLOSE id
+
+close screen indicated by id
+
 .Table mode
 |===
 |Flag Name |Value | Description
@@ -632,7 +640,6 @@ create a new screen
 |LORES EXTRA HALFBRITE INTERLACED
 |===
 
-
 === WINDOW
 
 Syntax:
@@ -640,6 +647,22 @@ Syntax:
     WINDOW id [ "," [ title ] [ "," [ "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] [ "," [type] [ "," screen-id ]]]]
 
 Create and activate a new window, make it the new output window.
+
+=== WINDOW CLOSE
+
+Syntax:
+
+    WINDOW CLOSE id
+
+close window indicated by id.
+
+=== WINDOW OUTPUT
+
+Syntax:
+
+    WINDOW OUTPUT id
+
+make window indicated by id the current output window.
 
 .Table type flags
 |===
