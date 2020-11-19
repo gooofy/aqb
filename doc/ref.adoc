@@ -141,6 +141,14 @@ Syntax:
 
 exit the program (same as SYSTEM)
 
+=== ERASE
+
+Syntax:
+
+    ERASE arrayName [ "," arrayName2 ...]
+
+Free the allocated memory for each dynamic array listed.
+
 === ERROR
 
 Syntax:

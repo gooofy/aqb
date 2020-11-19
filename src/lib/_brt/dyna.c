@@ -156,3 +156,17 @@ void __DARRAY_T_COPY (_DARRAY_T *self, _DARRAY_T *a)
     CopyMem(a->data, self->data, toCopy);
 }
 
+void __DARRAY_T_ERASE (_DARRAY_T *self)
+{
+    if (self->data)
+    {
+        DEALLOCATE (self->data, self->dataSize);
+    }
+    // FIXME: free bounds!
+
+    self->data        = NULL;
+    self->numDims     = 0;
+    self->dataSize    = 0;
+    self->bounds      = NULL;
+}
+

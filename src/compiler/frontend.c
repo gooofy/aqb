@@ -376,6 +376,7 @@ static S_symbol S__DARRAY_T;
 static S_symbol S_REDIM;
 static S_symbol S_PRESERVE;
 static S_symbol S__ISNULL;
+static S_symbol S_ERASE;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1127,11 +1128,11 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
 {
     Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
     if (!tyClass || (tyClass->kind != Ty_record))
-        return EM_error(pos, "built type %s not found.", S_name(builtinClass));
+        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
 
     Ty_recordEntry entry = S_look(tyClass->u.record.scope, builtinMethod);
     if (!entry || (entry->kind != Ty_recMethod))
-        return EM_error(pos, "built type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
+        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
 
     *exp = Tr_callExp(arglist, entry->u.method);
     return TRUE;
@@ -1141,10 +1142,10 @@ static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, Tr_exp
 {
     Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
     if (!tyClass || (tyClass->kind != Ty_record))
-        return EM_error(pos, "built type %s not found.", S_name(builtinClass));
+        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
 
     if (!tyClass->u.record.constructor)
-        return EM_error(pos, "built type %s does not have constructor.", S_name(builtinClass));
+        return EM_error(pos, "builtin type %s does not have constructor.", S_name(builtinClass));
 
     *exp = Tr_callExp(arglist, tyClass->u.record.constructor);
     return TRUE;
@@ -2948,6 +2949,63 @@ static bool stmtReDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             if (!singleVarDecl(tkn, isPrivate, shared, /*statc=*/FALSE, preserve, /*redim=*/TRUE, /*external=*/FALSE))
                 return FALSE;
         }
+    }
+
+    return TRUE;
+}
+
+static bool transErase (S_pos pos, S_symbol sVar)
+{
+    Ty_recordEntry entry;
+    Tr_exp var = NULL;
+    if (!E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, &var, &entry))
+        return EM_error(pos, "ERASE: unknown identifier %s.", S_name(sVar));
+
+    Ty_ty t = Tr_ty(var);
+
+    if ( (t->kind != Ty_varPtr) || (t->u.pointer->kind != Ty_darray) )
+        return EM_error(pos, "ERASE: %s is not a dynamic array.", S_name(sVar));
+
+    // call __DARRAY_T_ERASE (_DARRAY_T *self)
+    Tr_expList arglist = Tr_ExpList();
+    Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
+    Tr_exp callExp;
+    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE", FALSE), arglist, &callExp))
+        return FALSE;
+    emit (callExp);
+
+    return TRUE;
+}
+
+// stmtErase ::= ERASE ident ( "," ident )*
+static bool stmtErase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    S_pos      pos;
+    S_symbol   sVar;
+
+    *tkn = (*tkn)->next; // consume "ERASE"
+    pos  = (*tkn)->pos;
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error(pos, "ERASE: Array identifier expected here.");
+    sVar = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
+
+    if (!transErase (pos, sVar))
+        return FALSE;
+
+    while ((*tkn)->kind == S_COMMA)
+    {
+        *tkn = (*tkn)->next;
+        pos  = (*tkn)->pos;
+
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error(pos, "ERASE: Array identifier expected here.");
+        sVar = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
+
+        if (!transErase (pos, sVar))
+            return FALSE;
     }
 
     return TRUE;
@@ -6307,6 +6365,7 @@ static void registerBuiltins(void)
     S_REDIM           = S_Symbol("REDIM",            FALSE);
     S_PRESERVE        = S_Symbol("PRESERVE",         FALSE);
     S__ISNULL         = S_Symbol("_ISNULL",          FALSE);
+    S_ERASE           = S_Symbol("ERASE",            FALSE);
 
     g_parsefs = TAB_empty();
 
@@ -6350,6 +6409,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_DEFSTR,      stmtDefstr       , Ty_Void());
     declareBuiltinProc(S_GOTO,        stmtGoto         , Ty_Void());
     declareBuiltinProc(S_GOSUB,       stmtGosub        , Ty_Void());
+    declareBuiltinProc(S_ERASE,       stmtErase        , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF,    funSizeOf,    Ty_ULong());
     declareBuiltinProc(S_VARPTR,    funVarPtr,    Ty_VoidPtr());

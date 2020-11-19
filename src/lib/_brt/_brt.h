@@ -140,5 +140,6 @@ void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
 WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
 WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
 void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
+void  __DARRAY_T_ERASE    (_DARRAY_T *self);
 
 #endif
