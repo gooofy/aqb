@@ -28,7 +28,8 @@ Ty_ty     F_accessType(F_access a);
 F_accessList F_AccessList(F_access head, F_accessList tail);
 
 /* declaration for fragments */
-typedef struct F_frag_ *F_frag;
+typedef struct F_frag_         *F_frag;
+typedef struct F_dataFragNode_ *F_dataFragNode;
 struct F_frag_
 {
     enum {F_stringFrag, F_procFrag, F_dataFrag} kind;
@@ -36,13 +37,26 @@ struct F_frag_
     {
         struct {Temp_label label; string str;} stringg;
         struct {Temp_label label; bool expt; T_stm body; F_frame frame;} proc;
-        struct {Temp_label label; bool expt; int size; unsigned char *init;} data;
+        struct {Temp_label label; bool expt; int size; F_dataFragNode init; F_dataFragNode initLast;} data;
     } u;
+};
+struct F_dataFragNode_
+{
+    enum {F_labelNode, F_constNode} kind;
+    union
+    {
+        Temp_label label;
+        Ty_const   c;
+    } u;
+    F_dataFragNode next;
 };
 
 F_frag F_StringFrag(Temp_label label, string str);
 F_frag F_ProcFrag  (Temp_label label, bool expt, T_stm body, F_frame frame);
-F_frag F_DataFrag  (Temp_label label, bool expt, int size, unsigned char *init);
+F_frag F_DataFrag  (Temp_label label, bool expt, int size);
+
+void   F_dataFragAddConst (F_frag dataFrag, Ty_const c);
+void   F_dataFragAddLabel (F_frag dataFrag, Temp_label label);
 
 typedef struct F_fragList_ *F_fragList;
 struct F_fragList_ {F_frag head; F_fragList tail;};

@@ -452,7 +452,7 @@ Tr_access Tr_allocVar(Tr_level level, string name, bool expt, Ty_ty ty)
 
         Temp_label label = Temp_namedlabel(ul);
 
-        F_frag frag = F_DataFrag(label, expt, Ty_size(ty), NULL);
+        F_frag frag = F_DataFrag(label, expt, Ty_size(ty));
         fragList    = F_FragList(frag, fragList);
 
         return Tr_Access(level, F_allocGlobal(label, ty));
@@ -550,13 +550,13 @@ Tr_exp Tr_intExp(int i, Ty_ty ty)
 {
     if (!ty)
     {
-        if ( (i <= 127) && (i > -128) )
+        /*if ( (i <= 127) && (i > -128) )
             ty = Ty_Byte();
 
         else if ( (i <= 255) && (i >= 0) )
             ty = Ty_UByte();
 
-        else if ( (i <= 32767) && (i >= -32768) )
+        else*/ if ( (i <= 32767) && (i >= -32768) )
             ty = Ty_Integer();
 
         else if ( (i <= 65535) && (i >= 0) )
@@ -678,7 +678,7 @@ Tr_exp Tr_stringExp(string str)
     return Tr_Ex(T_Heap(strpos, Ty_String()));
 }
 
-Tr_exp Tr_funPtrExp(Temp_label label, Ty_ty ty)
+Tr_exp Tr_heapPtrExp(Temp_label label, Ty_ty ty)
 {
     return Tr_Ex(T_Heap(label, ty));
 }
@@ -1388,3 +1388,22 @@ void Tr_printExp(FILE *out, Tr_exp exp, int d)
     }
 }
 
+static F_frag     dataFrag         = NULL;
+static Temp_label dataRestoreLabel = NULL;
+
+void Tr_dataAdd(Ty_const c)
+{
+    if (!dataFrag)
+    {
+        dataRestoreLabel = Temp_newlabel();
+        dataFrag = F_DataFrag(dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
+        fragList = F_FragList(dataFrag, fragList);
+    }
+
+    F_dataFragAddConst(dataFrag, c);
+}
+
+Temp_label  Tr_dataGetInitialRestoreLabel(void)
+{
+    return dataRestoreLabel;
+}

@@ -33,6 +33,7 @@ void _debug_putnl(void);
 
 extern USHORT g_errcode;
 
+#define ERR_OUT_OF_DATA              4
 #define ERR_OUT_OF_MEMORY            7
 #define ERR_SUBSCRIPT_OUT_OF_RANGE   9
 #define ERR_INCOMPATIBLE_ARRAY      10
@@ -141,5 +142,11 @@ WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
 WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
 void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
 void  __DARRAY_T_ERASE    (_DARRAY_T *self);
+
+
+// DATA / READ / RESTORE support
+
+void _aqb_restore (void *p);
+void _aqb_read    (void *v, UWORD size);
 
 #endif

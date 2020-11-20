@@ -59,7 +59,7 @@ Tr_exp        Tr_boolExp(bool b, Ty_ty ty);
 Tr_exp        Tr_intExp(int i, Ty_ty ty);
 Tr_exp        Tr_floatExp(double f, Ty_ty ty);
 Tr_exp        Tr_stringExp(string str);
-Tr_exp        Tr_funPtrExp(Temp_label label, Ty_ty ty);
+Tr_exp        Tr_heapPtrExp(Temp_label label, Ty_ty ty);
 
 Tr_exp        Tr_assignExp(Tr_exp var, Tr_exp exp);
 
@@ -96,5 +96,12 @@ Ty_ty         Tr_ty(Tr_exp exp);
 Tr_exp        Tr_DeepCopy(Tr_exp exp);
 
 void          Tr_printExp(FILE *out, Tr_exp exp, int d);
+
+/*
+ * DATA / RESTORE support
+ */
+
+void          Tr_dataAdd(Ty_const c);
+Temp_label    Tr_dataGetInitialRestoreLabel(void);
 
 #endif

@@ -171,43 +171,90 @@ static void doStr(FILE * out, string str, Temp_label label) {
     fprintf(out, "\n");
 }
 
-static void doData(FILE * out, Temp_label label, bool expt, int size, unsigned char *data)
+static void doDataFrag(FILE * out, F_frag df)
 {
     fprintf(out, "    .align 4\n");
-    if (expt)
-        fprintf(out, ".globl %s\n\n", Temp_labelstring(label));
-    fprintf(out, "%s:\n", Temp_labelstring(label));
-    if (data)
+    if (df->u.data.expt)
+        fprintf(out, ".globl %s\n\n", Temp_labelstring(df->u.data.label));
+    fprintf(out, "%s:\n", Temp_labelstring(df->u.data.label));
+    if (df->u.data.init)
     {
-        int i;
-        switch(size)
+        for (F_dataFragNode n=df->u.data.init; n; n=n->next)
         {
-            case 1:
-                fprintf(out, "    dc.b %d\n", data[0]);
-                break;
-            case 2:
-                fprintf(out, "    dc.b %d, %d\n", data[1], data[0]);
-                break;
-            case 4:
-                fprintf(out, "    dc.b %d, %d, %d, %d\n", data[3], data[2], data[1], data[0]);
-                break;
-            default:
-                fprintf(out, "    dc.b");
-                for (i=0; i<size; i++)
+            switch (n->kind)
+            {
+                case F_labelNode:
+                    assert(0); // FIXME: implement
+                    break;
+                case F_constNode:
                 {
-                    fprintf(out, "%d", data[i]);
-                    if (i<size-1)
-                        fprintf(out, ",");
+                    Ty_const c = n->u.c;
+                    switch (c->ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_ubyte:
+                            fprintf(out, "    dc.b %d\n", c->u.b);
+                            break;
+                        case Ty_uinteger:
+                        case Ty_integer:
+                            fprintf(out, "    dc.w %d\n", c->u.i);
+                            break;
+                        case Ty_long:
+                        case Ty_ulong:
+                        case Ty_pointer:
+                            fprintf(out, "    dc.l %d\n", c->u.i);
+                            break;
+                        case Ty_single:
+                            fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
+                            break;
+                        case Ty_sarray:
+                        case Ty_darray:
+                        case Ty_record:
+                        case Ty_void:
+                        case Ty_string:
+                        case Ty_varPtr:
+                        case Ty_forwardPtr:
+                        case Ty_prc:
+                        case Ty_procPtr:
+                        case Ty_toLoad:
+                        case Ty_double:
+                            assert(0);
+                            break;
+                    }
+                    break;
                 }
-                fprintf(out, "    \n");
-                break;
+            }
+        // int i;
+        // switch(size)
+        // {
+        //     case 1:
+        //         fprintf(out, "    dc.b %d\n", data[0]);
+        //         break;
+        //     case 2:
+        //         fprintf(out, "    dc.b %d, %d\n", data[1], data[0]);
+        //         break;
+        //     case 4:
+        //         fprintf(out, "    dc.b %d, %d, %d, %d\n", data[3], data[2], data[1], data[0]);
+        //         break;
+        //     default:
+        //         fprintf(out, "    dc.b");
+        //         for (i=0; i<size; i++)
+        //         {
+        //             fprintf(out, "%d", data[i]);
+        //             if (i<size-1)
+        //                 fprintf(out, ",");
+        //         }
+        //         fprintf(out, "    \n");
+        //         break;
+        // }
         }
-
     }
     else
     {
-        fprintf(out, "    .fill %d\n", size);
+        fprintf(out, "    .fill %d\n", df->u.data.size);
     }
+
     fprintf(out, "\n");
 }
 
@@ -384,7 +431,7 @@ int main (int argc, char *argv[])
         }
         if (fl->head->kind == F_dataFrag)
         {
-            doData(out, fl->head->u.data.label, fl->head->u.data.expt, fl->head->u.data.size, fl->head->u.data.init);
+            doDataFrag(out, fl->head);
         }
     }
     fclose(out);

@@ -73,6 +73,14 @@ Syntax:
 
 obtain the cosine of the floating point number
 
+=== DATA
+
+Syntax:
+
+    DATA literal ( "," literal )*
+
+add values to the data section of the program. Those values can be later READ by the program at runtime.
+
 === DEFINT
 
 Syntax:
@@ -335,6 +343,14 @@ Syntax:
     POKEL address, value
 
 store long (32 bits) value at the specified memory address
+
+=== READ
+
+Syntax:
+
+    READ varDesignator ( "," varDesignator )*
+
+read values from the DATA section and assign them to one or more variables
 
 === REDIM
 

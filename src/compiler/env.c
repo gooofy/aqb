@@ -1283,7 +1283,7 @@ E_module E_loadModule(S_symbol sModule)
                                 printf("%s: failed to read function proc.\n", modfn);
                                 goto fail;
                             }
-                            var = Tr_funPtrExp(proc->label, Ty_Prc(mod->name, proc));
+                            var = Tr_heapPtrExp(proc->label, Ty_Prc(mod->name, proc));
                             break;
                         }
                         case vfcConst:

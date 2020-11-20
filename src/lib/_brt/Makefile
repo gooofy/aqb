@@ -22,7 +22,7 @@ _brt.sym : _brt.bas
 %.o : %.s
 	$(AS) $(ASFLAGS) $< -o $@
 
-_brt.a: cstartup.o astr.o amath.o autil.o dyna.o
+_brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o
 	$(AR) -crs _brt.a $^
 
 diss: dyna.o

@@ -228,7 +228,7 @@ F_frag F_StringFrag(Temp_label label, string str)
     return f;
 }
 
-F_frag F_DataFrag(Temp_label label, bool expt, int size, unsigned char *init)
+F_frag F_DataFrag(Temp_label label, bool expt, int size)
 {
     F_frag f = checked_malloc(sizeof(*f));
 
@@ -236,9 +236,25 @@ F_frag F_DataFrag(Temp_label label, bool expt, int size, unsigned char *init)
     f->u.data.label = label;
     f->u.data.expt  = expt;
     f->u.data.size  = size;
-    f->u.data.init  = init;
+    f->u.data.init  = NULL;
 
     return f;
+}
+
+void F_dataFragAddConst (F_frag dataFrag, Ty_const c)
+{
+    assert(dataFrag->kind == F_dataFrag);
+
+    F_dataFragNode f = checked_malloc(sizeof(*f));
+
+    f->kind = F_constNode;
+    f->u.c  = c;
+    f->next = NULL;
+
+    if (dataFrag->u.data.init)
+        dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
+    else
+        dataFrag->u.data.initLast = dataFrag->u.data.init = f;
 }
 
 F_frag F_ProcFrag(Temp_label label, bool expt, T_stm body, F_frame frame)
