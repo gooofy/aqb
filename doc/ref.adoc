@@ -557,6 +557,14 @@ Syntax:
 
 move cursor to col / row
 
+=== PAINT
+
+Syntax:
+
+    PAINT [STEP] "(" x "," y ")" [ "," paintColor [ "," outlineColor ] ]
+
+flood fill an enclosed area surrounded by outlineColor with the specified color
+
 === PALETTE
 
 Syntax:

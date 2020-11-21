@@ -66,6 +66,7 @@ short POS_    (short dummy);
 #define AE_WIN_CLOSE                 7
 #define AE_WIN_OUTPUT                8
 #define AE_SCREEN_CLOSE              9
+#define AE_PAINT                    10
 
 void _awindow_init(void);
 void _awindow_shutdown(void);
@@ -82,6 +83,7 @@ ULONG  WINDOW_(short n);
 void   PSET(BOOL s, short x, short y, short color);
 void   PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue);
 void   COLOR(short fg, short bg, short o);
+void   PAINT(BOOL s, short x, short y, short pc, short bc);
 void   AREA(BOOL s, short x, short y);
 void   AREA_OUTLINE(BOOL enabled);
 void   AREAFILL (short mode);

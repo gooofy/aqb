@@ -30,7 +30,7 @@ WHILE FINISHED%=0
         REM draw line
         LINE -(OFFSETX%+B1%,OFFSETY%+B2%)
     ELSEIF TYPE%=1 THEN
-        'PAINT (OFFSETX%+B1%,OFFSETY%+B2%),,1
+        PAINT (OFFSETX%+B1%,OFFSETY%+B2%),,1
         TYPE%=0
     ELSEIF TYPE%=2 THEN
         PSET (OFFSETX%+B1%, OFFSETY%+B2%)

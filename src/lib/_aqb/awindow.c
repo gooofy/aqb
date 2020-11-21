@@ -719,6 +719,54 @@ void COLOR(short fg, short bg, short o)
         g_rp->AOlPen = o;
 }
 
+void PAINT(BOOL s, short x, short y, short pc, short aol)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        ERROR(AE_PAINT);
+        return;
+    }
+
+    // init tmp raster if not done yet
+    if (!g_rp->TmpRas)
+    {
+        struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
+        if (!aTmpRas)
+        {
+            ERROR(AE_PAINT);
+            return;
+        }
+        PLANEPTR amem = AllocRaster(640, 512);  // FIXME: size
+        if (!amem)
+        {
+            ERROR(AE_PAINT);
+            return;
+        }
+        InitTmpRas(aTmpRas, amem, RASSIZE(640,512)); // FIXME: size
+        g_rp->TmpRas = aTmpRas;
+    }
+
+    if (s)
+    {
+        x += g_rp->cp_x;
+        y += g_rp->cp_y;
+    }
+
+    BYTE fgPen=g_rp->FgPen;
+    BYTE aolPen=g_rp->AOlPen;
+    if (pc >= 0)
+        SetAPen(g_rp, pc);
+    if (aol >= 0)
+        g_rp->AOlPen = aol;
+
+    Flood (g_rp, 0, x, y);
+
+    if ( pc >=0 )
+        SetAPen(g_rp, fgPen);
+    if ( aol >= 0 )
+        g_rp->AOlPen = aolPen;
+}
+
 #define AREA_MAX_CNT    100
 
 void AREA(BOOL s, short x, short y)
@@ -747,20 +795,24 @@ void AREA(BOOL s, short x, short y)
         }
         InitArea(ai, adata, AREA_MAX_CNT);
         g_rp->AreaInfo = ai;
+    }
 
+    // init tmp raster if not done yet
+    if (!g_rp->TmpRas)
+    {
         struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
         if (!aTmpRas)
         {
             ERROR(AE_AREA);
             return;
         }
-        PLANEPTR amem = AllocRaster(640, 512);
+        PLANEPTR amem = AllocRaster(640, 512);  // FIXME: size
         if (!amem)
         {
             ERROR(AE_AREA);
             return;
         }
-        InitTmpRas(aTmpRas, amem, RASSIZE(640,512));
+        InitTmpRas(aTmpRas, amem, RASSIZE(640,512)); // FIXME: size
         g_rp->TmpRas = aTmpRas;
     }
 
