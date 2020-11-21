@@ -20,7 +20,7 @@ v0.1, 2020-07-12
 
 - TYPE ... AS
 
-- CASR string
+- C like strings (tbd)
 
 == Compiler, Code Generation, Runtime
 
@@ -51,135 +51,135 @@ v0.1, 2020-07-12
 
 == Core Commands
 
-- ABS()
-- AND
-- ASC()
+-      ABS()
+-      AND
+-      ASC()
 - DONE ATN()
-- BREAK ON
-- BREAK OFF
-- BREAK STOP
-- CALL
-- CBDL()
-- CHDIR
+-      BREAK ON
+-      BREAK OFF
+-      BREAK STOP
+-      CALL
+-      CBDL()
+-      CHDIR
 - DONE CHR$()
-- CINT()
-- CLEAR
-- CLNG()
-- CLOSE
-- CLS
-- COMMON
+-      CINT()
+-      CLEAR
+-      CLNG()
+-      CLOSE
+-      CLS
+-      COMMON
 - DONE COS()
-- CSNG()
-- CVD()
-- CVI()
-- CVL()
-- CVS()
+-      CSNG()
+-      CVD()
+-      CVI()
+-      CVL()
+-      CVS()
 - DONE DATA
-- DATE$()
-- DECLARE FUNCTION
-- DEF FN
-- DEFDBL
+-      DATE$()
+-      DECLARE FUNCTION
+-      DEF FN
+-      DEFDBL
 - DONE DEFINT
 - DONE DEFLNG
 - DONE DEFSNG
 - DONE DEFSTR
 - DONE DIM
 - DONE END
-- EOF()
-- EQV
+-      EOF()
+-      EQV
 - DONE ERASE
-- ERL
-- ERR
+-      ERL
+-      ERR
 - DONE ERROR
 - DONE EXP()
-- FIELD
-- FILES
-- FIX()
+-      FIELD
+-      FILES
+-      FIX()
 - DONE FOR...NEXT
 - DONE FRE()
-- GET#
+-      GET#
 - DONE GOSUB
 - DONE GOTO
-- HEX$()
+-      HEX$()
 - DONE IF
-- IMP
-- INPUT
-- INPUT$()
-- INPUT #
-- INSTR()
-- INT()
-- KILL
+-      IMP
+-      INPUT
+-      INPUT$()
+-      INPUT #
+-      INSTR()
+-      INT()
+-      KILL
 - DONE LBOUND()
-- LEFT$()
-- LEN()
-- LET
-- LIBRARY
-- LIBRARY CLOSE
-- LINE INPUT
-- LINE INPUT#
-- LLIST
-- LOC()
-- LOF()
+-      LEFT$()
+-      LEN()
+-      LET
+-      LIBRARY
+-      LIBRARY CLOSE
+-      LINE INPUT
+-      LINE INPUT#
+-      LLIST
+-      LOC()
+-      LOF()
 - DONE LOG()
-- LPOS()
-- LSET
-- MID$()
-- MKI$()
-- MKL$()
-- MKS$()
-- MKD$()
-- MOD
-- NAME
-- NEXT
-- NOT
-- OCT$()
-- ON BREAK
-- ON ERROR
-- ON GOSUB
-- ON GOTO
-- OPEN
-- OPTION BASE
-- OR
+-      LPOS()
+-      LSET
+-      MID$()
+-      MKI$()
+-      MKL$()
+-      MKS$()
+-      MKD$()
+-      MOD
+-      NAME
+-      NEXT
+-      NOT
+-      OCT$()
+-      ON BREAK
+-      ON ERROR
+-      ON GOSUB
+-      ON GOTO
+-      OPEN
+-      OPTION BASE
+-      OR
 - DONE PEEK()
 - DONE PEEKL()
 - DONE PEEKW()
 - DONE POKE
 - DONE POKEL
 - DONE POKEW
-- PUT
-- RANDOMIZE
+-      PUT
+-      RANDOMIZE
 - DONE READ
-- REM
-- RESTORE
-- RESUME
+-      REM
+-      RESTORE
+-      RESUME
 - DONE RETURN
-- RIGHT$()
-- RND
-- RSET
-- SADD()
-- SAVE
-- SGN()
-- SHARED
+-      RIGHT$()
+-      RND
+-      RSET
+-      SADD()
+-      SAVE
+-      SGN()
+-      SHARED
 - DONE SIN()
-- SPACE$()
-- SPC()
+-      SPACE$()
+-      SPC()
 - DONE STATIC
 - DONE STR$()
-- STRING$()
-- SUB
-- SWAP
+-      STRING$()
+-      SUB
+-      SWAP
 - DONE SYSTEM
-- TAB()
+-      TAB()
 - DONE TAN()
-- TIME$()
+-      TIME$()
 - DONE UBOUND()
-- UCASE$()
-- VAL()
-- VARPTR()
-- WEND
+-      UCASE$()
+-      VAL()
+-      VARPTR()
+-      WEND
 - DONE WHILE
-- WIDTH
-- WRITE
+-      WIDTH
+-      WRITE
 
 == AmigaBASIC Specific Commands
 
