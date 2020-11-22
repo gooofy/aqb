@@ -3145,7 +3145,66 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return FALSE;
 }
 
-// dataStmt ::= DATA [ expression ( ',' expression )* ]
+// dataItem ::= ( numLiteral | stringLiteral | ident )
+static bool dataItem(S_tkn *tkn)
+{
+	Ty_const c;
+    switch ((*tkn)->kind)
+    {
+        case S_INUM:
+		{
+            Ty_ty ty = NULL;
+			int i = (*tkn)->u.literal.inum;
+            switch ((*tkn)->u.literal.typeHint)
+            {
+                case S_thNone:
+                    if ( (i <= 32767) && (i >= -32768) )
+                        ty = Ty_Integer();
+                    else if ( (i <= 65535) && (i >= 0) )
+                        ty = Ty_UInteger();
+                    else
+                        ty = Ty_Long();
+                    break;
+                case S_thInteger : ty = Ty_Integer() ; break;
+                case S_thLong    : ty = Ty_Long()    ; break;
+                case S_thUInteger: ty = Ty_UInteger(); break;
+                case S_thULong   : ty = Ty_ULong()   ; break;
+                default: assert(0);
+            }
+			c = Ty_ConstInt (ty, (*tkn)->u.literal.inum);
+            break;
+        }
+        case S_FNUM:
+        {
+            Ty_ty ty = Ty_Single();
+            switch ((*tkn)->u.literal.typeHint)
+            {
+                case S_thSingle  : ty = Ty_Single()  ; break;
+                case S_thDouble  : ty = Ty_Double()  ; break;
+                default: assert(0);
+            }
+			c = Ty_ConstFloat (ty, (*tkn)->u.literal.fnum);
+            break;
+        }
+
+        case S_IDENT:
+            //return expDesignator(tkn, exp, /*isVARPTR=*/ FALSE, /*leftHandSide=*/FALSE);
+            assert(0); // FIXME: implement
+            break;
+        case S_STRING:
+            //*exp = Tr_stringExp((*tkn)->u.str);
+            //*tkn = (*tkn)->next;
+            assert(0); // FIXME: implement
+            break;
+        default:
+            return EM_error((*tkn)->pos, "DATA: numeric or string literal expected here.");
+    }
+    *tkn = (*tkn)->next;
+    Tr_dataAdd(c);
+    return TRUE;
+}
+
+// dataStmt ::= DATA [ dataItem ( ',' dataItem )* ]
 static bool stmtData(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
     S_pos pos = (*tkn)->pos;
@@ -3154,23 +3213,14 @@ static bool stmtData(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (g_sleStack->kind != FE_sleTop)
         return EM_error(pos, "DATA statement are only supported on the toplevel scope.");
 
-    Tr_exp ex;
-    if (!expression(tkn, &ex))
-        return EM_error(pos, "expression expected here.");
-
-    if (!Tr_isConst(ex))
-        return EM_error(pos, "Only constant expressions are supported in DATA statements.");
-    Tr_dataAdd(Tr_getConst(ex));
+    if (!dataItem(tkn))
+        return FALSE;
 
     while ((*tkn)->kind==S_COMMA)
     {
         *tkn = (*tkn)->next;
-        pos = (*tkn)->pos;
-        if (!expression(tkn, &ex))
-            return EM_error(pos, "expression expected here.");
-        if (!Tr_isConst(ex))
-            return EM_error(pos, "Only constant expressions are supported in DATA statements.");
-        Tr_dataAdd(Tr_getConst(ex));
+        if (!dataItem(tkn))
+            return FALSE;
     }
 
     if (!g_dataInitialRestoreDone)
