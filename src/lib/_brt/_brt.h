@@ -147,6 +147,9 @@ void  __DARRAY_T_ERASE    (_DARRAY_T *self);
 // DATA / READ / RESTORE support
 
 void _aqb_restore (void *p);
-void _aqb_read    (void *v, UWORD size);
+void _aqb_read1   (void *v);
+void _aqb_read2   (void *v);
+void _aqb_read4   (void *v);
+void _aqb_readStr (void *v);
 
 #endif

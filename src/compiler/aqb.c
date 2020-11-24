@@ -208,11 +208,13 @@ static void doDataFrag(FILE * out, F_frag df)
                         case Ty_single:
                             fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
                             break;
+                        case Ty_string:
+                            fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
+                            break;
                         case Ty_sarray:
                         case Ty_darray:
                         case Ty_record:
                         case Ty_void:
-                        case Ty_string:
                         case Ty_varPtr:
                         case Ty_forwardPtr:
                         case Ty_prc:

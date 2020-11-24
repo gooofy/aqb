@@ -3188,13 +3188,10 @@ static bool dataItem(S_tkn *tkn)
         }
 
         case S_IDENT:
-            //return expDesignator(tkn, exp, /*isVARPTR=*/ FALSE, /*leftHandSide=*/FALSE);
-            assert(0); // FIXME: implement
+			c = Ty_ConstString (Ty_String(), S_name((*tkn)->u.sym));
             break;
         case S_STRING:
-            //*exp = Tr_stringExp((*tkn)->u.str);
-            //*tkn = (*tkn)->next;
-            assert(0); // FIXME: implement
+			c = Ty_ConstString (Ty_String(), (*tkn)->u.str);
             break;
         default:
             return EM_error((*tkn)->pos, "DATA: numeric or string literal expected here.");
@@ -3244,13 +3241,36 @@ static bool transRead(S_pos pos, Tr_exp var)
     Ty_ty ty = Tr_ty(var);
     assert (ty->kind == Ty_varPtr);
 
-    S_symbol fsym = S_Symbol("_aqb_read", TRUE);
+    S_symbol fsym = NULL;
+    switch (ty->u.pointer->kind)
+    {
+        case Ty_byte:
+        case Ty_bool:
+        case Ty_ubyte:
+            fsym = S_Symbol("_aqb_read1", FALSE);
+            break;
+        case Ty_integer:
+        case Ty_uinteger:
+            fsym = S_Symbol("_aqb_read2", FALSE);
+            break;
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_pointer:
+        case Ty_single:
+            fsym = S_Symbol("_aqb_read4", FALSE);
+            break;
+        case Ty_string:
+            fsym = S_Symbol("_aqb_readStr", FALSE);
+            break;
+        default:
+            return EM_error(pos, "READ: unsupported type.");
+    }
+
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, Tr_intExp(Ty_size(ty->u.pointer), Ty_UInteger()));
     Tr_ExpListAppend(arglist, var);
     emit(Tr_callExp(arglist, func->u.proc));
     return TRUE;
@@ -5778,12 +5798,14 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     *tkn = (*tkn)->next; // consume "DO"
 
+    sle->u.doLoop.whileExp = NULL;
+    sle->u.doLoop.untilExp = NULL;
+
     if (isSym (*tkn, S_UNTIL))
     {
         *tkn = (*tkn)->next;
         if (!expression(tkn, &sle->u.doLoop.untilExp))
             return EM_error((*tkn)->pos, "DO UNTIL: expression expected here.");
-        sle->u.doLoop.whileExp = NULL;
     }
     else
     {
@@ -5792,7 +5814,6 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             *tkn = (*tkn)->next;
             if (!expression(tkn, &sle->u.doLoop.whileExp))
                 return EM_error((*tkn)->pos, "DO WHILE: expression expected here.");
-            sle->u.doLoop.untilExp = NULL;
         }
     }
 

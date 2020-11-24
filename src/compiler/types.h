@@ -49,6 +49,7 @@ struct Ty_const_
         bool   b;
         int    i;
         double f;
+        string s;
     } u;
 };
 
@@ -132,9 +133,10 @@ Ty_recordEntry  Ty_Method (Ty_proc proc);
 Ty_formal       Ty_Formal (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc   (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr);
 
-Ty_const        Ty_ConstBool  (Ty_ty ty, bool   b);
-Ty_const        Ty_ConstInt   (Ty_ty ty, int    i);
-Ty_const        Ty_ConstFloat (Ty_ty ty, double f);
+Ty_const        Ty_ConstBool   (Ty_ty ty, bool   b);
+Ty_const        Ty_ConstInt    (Ty_ty ty, int    i);
+Ty_const        Ty_ConstFloat  (Ty_ty ty, double f);
+Ty_const        Ty_ConstString (Ty_ty ty, string s);
 
 void            Ty_print(Ty_ty t);
 

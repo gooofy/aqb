@@ -543,3 +543,13 @@ Ty_const Ty_ConstFloat (Ty_ty ty, double f)
     return p;
 }
 
+Ty_const Ty_ConstString (Ty_ty ty, string s)
+{
+    Ty_const p = checked_malloc(sizeof(*p));
+
+    p->ty  = ty;
+    p->u.s = s;
+
+    return p;
+}
+
