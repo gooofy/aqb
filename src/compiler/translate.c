@@ -1391,19 +1391,33 @@ void Tr_printExp(FILE *out, Tr_exp exp, int d)
 static F_frag     dataFrag         = NULL;
 static Temp_label dataRestoreLabel = NULL;
 
+// FIXME: introduce Tr_init() to initialize dataFrag, global Tr_level etc
+static void initDataFrag(void)
+{
+    if (dataFrag)
+        return;
+
+    dataRestoreLabel = Temp_newlabel();
+    dataFrag = F_DataFrag(dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
+    fragList = F_FragList(dataFrag, fragList);
+}
+
 void Tr_dataAdd(Ty_const c)
 {
-    if (!dataFrag)
-    {
-        dataRestoreLabel = Temp_newlabel();
-        dataFrag = F_DataFrag(dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
-        fragList = F_FragList(dataFrag, fragList);
-    }
-
+    initDataFrag();
     F_dataFragAddConst(dataFrag, c);
 }
 
-Temp_label  Tr_dataGetInitialRestoreLabel(void)
+Temp_label Tr_dataGetInitialRestoreLabel(void)
 {
+    initDataFrag();
     return dataRestoreLabel;
 }
+
+void Tr_dataAddLabel(Temp_label l)
+{
+    initDataFrag();
+    Temp_label dataLabel = Temp_namedlabel(strprintf("__data_%s", S_name(l)));
+    F_dataFragAddLabel(dataFrag, dataLabel);
+}
+

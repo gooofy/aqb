@@ -360,6 +360,14 @@ Syntax:
 
 declare or resize a dynamic array. Previous values are erased unless the PRESERVE keyword is specified.
 
+=== RESTORE
+
+Syntax:
+
+    RESTORE [ dataLabel ]
+
+restore data read pointer to the specified label, if no label is specified, restore read pointer to the first data statement.
+
 === RETURN
 
 Syntax:

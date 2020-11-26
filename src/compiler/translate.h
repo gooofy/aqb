@@ -103,5 +103,6 @@ void          Tr_printExp(FILE *out, Tr_exp exp, int d);
 
 void          Tr_dataAdd(Ty_const c);
 Temp_label    Tr_dataGetInitialRestoreLabel(void);
+void          Tr_dataAddLabel(Temp_label l);
 
 #endif

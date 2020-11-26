@@ -382,6 +382,7 @@ static S_symbol S__ISNULL;
 static S_symbol S_ERASE;
 static S_symbol S_DATA;
 static S_symbol S_READ;
+static S_symbol S_RESTORE;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3297,6 +3298,35 @@ static bool stmtRead(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!transRead(pos, var))
             return FALSE;
     }
+
+    return TRUE;
+}
+
+// restoreStmt ::= RESTORE [ dataLabel ]
+static bool stmtRestore(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "RESTORE"
+	Temp_label dataLabel = NULL;
+
+    if ((*tkn)->kind==S_IDENT)
+    {
+		dataLabel = Temp_namedlabel(strprintf("__data_%s", S_name((*tkn)->u.sym)));
+        *tkn = (*tkn)->next;
+    }
+	else
+	{
+		dataLabel = Tr_dataGetInitialRestoreLabel();
+	}
+
+    S_symbol fsym = S_Symbol("_aqb_restore", TRUE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry func = lx->first->e;
+    Tr_expList arglist = Tr_ExpList();
+    Tr_ExpListAppend(arglist, Tr_heapPtrExp(dataLabel, Ty_VoidPtr()));
+    emit(Tr_callExp(arglist, func->u.proc));
 
     return TRUE;
 }
@@ -6537,6 +6567,7 @@ static void registerBuiltins(void)
     S_ERASE           = S_Symbol("ERASE",            FALSE);
     S_DATA            = S_Symbol("DATA",             FALSE);
     S_READ            = S_Symbol("READ",             FALSE);
+    S_RESTORE         = S_Symbol("RESTORE",          FALSE);
 
     g_parsefs = TAB_empty();
 
@@ -6583,6 +6614,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_ERASE,       stmtErase        , Ty_Void());
     declareBuiltinProc(S_DATA,        stmtData         , Ty_Void());
     declareBuiltinProc(S_READ,        stmtRead         , Ty_Void());
+    declareBuiltinProc(S_RESTORE,     stmtRestore      , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF,    funSizeOf,    Ty_ULong());
     declareBuiltinProc(S_VARPTR,    funVarPtr,    Ty_VoidPtr());
@@ -6776,6 +6808,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
         {
             Temp_label l = Temp_namedlabel(strprintf("_L%07d", tkn->u.literal.inum));
             emit(Tr_labelExp(l));
+            Tr_dataAddLabel(l);
             tkn = tkn->next;
         }
         else
@@ -6791,6 +6824,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
                 }
                 TAB_enter(userLabels, l, (void *) TRUE);
                 emit(Tr_labelExp(l));
+                Tr_dataAddLabel(l);
                 tkn = tkn->next;
                 tkn = tkn->next;
             }

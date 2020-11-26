@@ -255,6 +255,23 @@ void F_dataFragAddConst (F_frag dataFrag, Ty_const c)
         dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
     else
         dataFrag->u.data.initLast = dataFrag->u.data.init = f;
+    dataFrag->u.data.size++;
+}
+
+void F_dataFragAddLabel (F_frag dataFrag, Temp_label label)
+{
+    assert(dataFrag->kind == F_dataFrag);
+
+    F_dataFragNode f = checked_malloc(sizeof(*f));
+
+    f->kind    = F_labelNode;
+    f->u.label = label;
+    f->next    = NULL;
+
+    if (dataFrag->u.data.init)
+        dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
+    else
+        dataFrag->u.data.initLast = dataFrag->u.data.init = f;
 }
 
 F_frag F_ProcFrag(Temp_label label, bool expt, T_stm body, F_frame frame)

@@ -173,6 +173,8 @@ static void doStr(FILE * out, string str, Temp_label label) {
 
 static void doDataFrag(FILE * out, F_frag df)
 {
+	if (!df->u.data.size)
+		return;
     fprintf(out, "    .align 4\n");
     if (df->u.data.expt)
         fprintf(out, ".globl %s\n\n", Temp_labelstring(df->u.data.label));
@@ -184,7 +186,7 @@ static void doDataFrag(FILE * out, F_frag df)
             switch (n->kind)
             {
                 case F_labelNode:
-                    assert(0); // FIXME: implement
+                    fprintf(out, "%s:\n", Temp_labelstring(n->u.label));
                     break;
                 case F_constNode:
                 {
