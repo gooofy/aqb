@@ -5,14 +5,6 @@ v0.1, 2020-07-12
 
 == Core Language
 
-=== ASSERT
-
-Syntax:
-
-    ASSERT expr
-
-raise an error message including line number information if the given expression evaluates to FALSE.
-
 === ACOS()
 
 Syntax:
@@ -20,6 +12,22 @@ Syntax:
     ACOS "(" a ")"
 
 obtain the arccosine of the floating point number
+
+=== AND
+
+Syntax:
+
+    expr1 AND expr2
+
+logical conjunction of expr1 and expr2
+
+=== ASSERT
+
+Syntax:
+
+    ASSERT expr
+
+raise an error message including line number information if the given expression evaluates to FALSE.
 
 === ASIN()
 
@@ -37,6 +45,14 @@ Syntax:
 
 obtain the arctangent of the floating point number
 
+=== CALL
+
+Syntax:
+
+    CALL ( subCall | expDesignator )
+
+call a SUB or FUNCTION.
+
 === CAST()
 
 Syntax:
@@ -52,6 +68,14 @@ Syntax:
     CHR$ "(" expr ")"
 
 returns a string containing the single character associated with the given character code
+
+=== CINT()
+
+Syntax:
+
+    CINT "(" x ")"
+
+convert x to an integer by rounding the fractional portion
 
 === CONST
 
@@ -80,6 +104,15 @@ Syntax:
     DATA literal ( "," literal )*
 
 add values to the data section of the program. Those values can be later READ by the program at runtime.
+
+=== DECLARE FUNCTION|SUB
+
+Syntax:
+
+    [ PRIVATE | PUBLIC ] DECLARE procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
+
+Forward declare a SUB or FUNCTION. When the LIB portion of this command is
+used, an OS library function is declared.
 
 === DEFINT
 
@@ -149,6 +182,14 @@ Syntax:
 
 exit the program (same as SYSTEM)
 
+=== EQV
+
+Syntax:
+
+    expr1 EQV expr2
+
+logic equivalence of expr1 and expr2
+
 === ERASE
 
 Syntax:
@@ -157,13 +198,21 @@ Syntax:
 
 Free the allocated memory for each dynamic array listed.
 
+=== ERR
+
+Syntax:
+
+    ERR : REM public variable
+
+public variable that contains the last error number.
+
 === ERROR
 
 Syntax:
 
     ERROR n
 
-raise error code n, exits the program unless a corresponding handler is registered using the ON ERROR ... statement
+raise error code n, exits the program unless a corresponding handler is registered using the ON ERROR ... statement. ERR is set to the error number specified when calling the error handler.
 
 === EXIT
 
@@ -180,6 +229,14 @@ Syntax:
     EXP "(" a ")"
 
 obtain the exponential of the floating point number
+
+=== FIX()
+
+Syntax:
+
+    FIX "(" x ")"
+
+return the truncated integer part of x
 
 === FOR ... NEXT
 
@@ -264,6 +321,14 @@ Syntax:
 
 import a module
 
+=== INT()
+
+Syntax:
+
+    INT "(" x ")"
+
+return the largest integer less than or equal to x
+
 === LBOUND()
 
 Syntax:
@@ -272,6 +337,23 @@ Syntax:
 
 Return the lower bound for the given array dimension.
 
+=== LEN()
+
+Syntax:
+
+    LEN "(" s ")"
+
+return the length of string s in characters.
+
+=== LET
+
+Syntax:
+
+    LET expDesignator "=" expression
+
+assign the value of an expression to a variable or designator. The LET keyword
+is optional.
+
 === LOG()
 
 Syntax:
@@ -279,6 +361,34 @@ Syntax:
     LOG "(" l ")"
 
 obtain the natural logarithm of the floating point number
+
+=== MOD
+
+Syntax:
+
+    expr1 MOD expr2
+
+modulus operation on expr1 and expr2.
+
+=== NEXT
+
+see FOR
+
+=== NOT
+
+Syntax:
+
+    NOT expr
+
+return logical not of expr
+
+=== ON ERROR
+
+Syntax:
+
+    ON ERROR CALL handler
+
+call SUB program handler when an error occurs.
 
 === OPTION EXPLICIT
 

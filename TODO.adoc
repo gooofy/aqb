@@ -52,17 +52,17 @@ v0.1, 2020-07-12
 == Core Commands
 
 -      ABS()
--      AND
+- DONE AND
 -      ASC()
 - DONE ATN()
 -      BREAK ON
 -      BREAK OFF
 -      BREAK STOP
--      CALL
+- DONE CALL
 -      CBDL()
 -      CHDIR
 - DONE CHR$()
--      CINT()
+- DONE CINT()
 -      CLEAR
 -      CLNG()
 -      CLOSE
@@ -76,7 +76,8 @@ v0.1, 2020-07-12
 -      CVS()
 - DONE DATA
 -      DATE$()
--      DECLARE FUNCTION
+- DONE DECLARE FUNCTION
+- DONE DECLARE SUB
 -      DEF FN
 -      DEFDBL
 - DONE DEFINT
@@ -86,15 +87,15 @@ v0.1, 2020-07-12
 - DONE DIM
 - DONE END
 -      EOF()
--      EQV
+- DONE EQV
 - DONE ERASE
 -      ERL
--      ERR
+- DONE ERR
 - DONE ERROR
 - DONE EXP()
 -      FIELD
 -      FILES
--      FIX()
+- DONE FIX()
 - DONE FOR...NEXT
 - DONE FRE()
 -      GET#
@@ -107,12 +108,12 @@ v0.1, 2020-07-12
 -      INPUT$()
 -      INPUT #
 -      INSTR()
--      INT()
+- DONE INT()
 -      KILL
 - DONE LBOUND()
 -      LEFT$()
--      LEN()
--      LET
+- DONE LEN()
+- DONE LET
 -      LIBRARY
 -      LIBRARY CLOSE
 -      LINE INPUT
@@ -128,13 +129,13 @@ v0.1, 2020-07-12
 -      MKL$()
 -      MKS$()
 -      MKD$()
--      MOD
+- DONE MOD
 -      NAME
--      NEXT
--      NOT
+- DONE NEXT
+- DONE NOT
 -      OCT$()
 -      ON BREAK
--      ON ERROR
+- DONE ON ERROR
 -      ON GOSUB
 -      ON GOTO
 -      OPEN
