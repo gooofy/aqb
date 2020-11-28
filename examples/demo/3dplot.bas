@@ -99,7 +99,7 @@ DIM AS SINGLE   fncache_y (STATIC arr_sz_x, arr_sz_z)
 z = zb
 FOR iz AS INTEGER = 0 TO arr_sz_z - 1
 
-    LOCATE 2,1 : PRINT "Precomputing fn values ";iz+1;"/";arr_sz_z;", please wait...   "
+    LOCATE 3,1 : PRINT "Precomputing fn values ";iz+1;"/";arr_sz_z;", please wait...   "
     x = xa
 
     FOR ix AS INTEGER = 0 TO arr_sz_x - 1
@@ -200,8 +200,8 @@ FOR gz AS INTEGER = 0 TO arr_sz_z - prec_z STEP prec_z
     NEXT gx
 NEXT gz
 
-    
-LOCATE 23,0
+
+LOCATE 23,1
 COLOR 1,0
 PRINT "PRESS ANY KEY TO QUIT"
 

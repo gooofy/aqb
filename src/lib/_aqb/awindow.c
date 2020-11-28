@@ -641,10 +641,13 @@ void _aio_puttab(void)
 
 void LOCATE (short l, short c)
 {
-    if (l<0)
+    if (l<=0)
         l = CSRLIN_();
-    if (c<0)
+    if (c<=0)
         c = POS_(0);
+
+    l--;
+    c--;
 
     Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize + g_rp->Font->tf_Baseline);
 }
@@ -654,7 +657,7 @@ short CSRLIN_ (void)
     if ( (g_output_win_id == 1) && g_win1_is_dos )
         return 0;
 
-    return g_rp->cp_y / g_rp->Font->tf_YSize;
+    return g_rp->cp_y / g_rp->Font->tf_YSize + 1;
 }
 
 short POS_ (short dummy)
@@ -662,7 +665,7 @@ short POS_ (short dummy)
     if ( (g_output_win_id == 1) && g_win1_is_dos )
         return 0;
 
-    return g_rp->cp_x / g_rp->Font->tf_XSize;
+    return g_rp->cp_x / g_rp->Font->tf_XSize + 1;
 }
 
 void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
