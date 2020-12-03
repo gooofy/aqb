@@ -32,6 +32,11 @@ void _aio_puts(const char *str);
 void _aio_putnl(void);
 void _aio_puttab(void);
 
+
+void _aio_gets(char **s, BOOL do_nl);
+void _aio_line_input (char *prompt, char **s, BOOL do_nl);
+void _set_dos_cursor_visible (BOOL visible);
+
 void  LOCATE  (short l, short c);
 short CSRLIN_ (void);
 short POS_    (short dummy);
@@ -67,12 +72,15 @@ short POS_    (short dummy);
 #define AE_WIN_OUTPUT                8
 #define AE_SCREEN_CLOSE              9
 #define AE_PAINT                    10
+#define AE_LINE                     11
+#define AE_PSET                     12
 
 void _awindow_init(void);
 void _awindow_shutdown(void);
 
 void   SCREEN (short id, short width, short height, short depth, short mode, char *title);
 void   WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid);
+void   CLS(void);
 void   LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf);
 void   SLEEP(void);
 void   ON_WINDOW_CALL(void (*cb)(void));

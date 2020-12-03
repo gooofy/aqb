@@ -123,3 +123,18 @@ void _aio_putbool(BOOL b)
     _aio_puts(b ? "TRUE" : "FALSE");
 }
 
+/*********************************************************
+ *
+ * [LINE] INPUT support
+ *
+ *********************************************************/
+
+void _aio_line_input (char *prompt, char **s, BOOL do_nl)
+{
+    if (prompt)
+        _aio_puts(prompt);
+
+    _aio_gets(s, do_nl);
+}
+
+

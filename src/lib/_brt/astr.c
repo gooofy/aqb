@@ -29,7 +29,7 @@ static void reverse(char *str, int length)
     }
 }
 
-void _astr_itoa(int num, char* str, int base)
+void _astr_itoa_ext(int num, char* str, int base, BOOL leading_space)
 {
     int i = 0;
     BOOL isNegative = FALSE;
@@ -37,7 +37,8 @@ void _astr_itoa(int num, char* str, int base)
     /* Handle 0 explicitely, otherwise empty string is printed for 0 */
     if (num == 0)
     {
-        str[i++] = ' ';
+        if (leading_space)
+            str[i++] = ' ';
         str[i++] = '0';
         str[i] = '\0';
         return;
@@ -61,14 +62,24 @@ void _astr_itoa(int num, char* str, int base)
 
     // If number is negative, append '-', else ' '
     if (isNegative)
+    {
         str[i++] = '-';
+    }
     else
-        str[i++] = ' ';
+    {
+        if (leading_space)
+            str[i++] = ' ';
+    }
 
     str[i] = '\0'; // Append string terminator
 
     // Reverse the string
     reverse(str, i);
+}
+
+void _astr_itoa(int num, char* str, int base)
+{
+    _astr_itoa_ext(num, str, base, /*leading_space=*/TRUE);
 }
 
 void _astr_utoa(unsigned int num, char* str, unsigned int base)

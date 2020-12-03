@@ -309,6 +309,7 @@ void _awindow_shutdown(void)
         if (g_scrlist[i])
             CloseScreen(g_scrlist[i]);
     }
+    _set_dos_cursor_visible (TRUE);
     //_aio_puts("_awindow_shutdown ... done.\n");
 }
 
@@ -317,6 +318,24 @@ void _awindow_init(void)
     g_stdout = Output();
     g_stdin  = Input();
     g_fp15   = SPFlt(15);
+    _set_dos_cursor_visible (FALSE);
+}
+
+/*
+ * CLS
+ */
+
+void CLS (void)
+{
+    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    {
+        char form_feed = 0x0c;
+        Write(g_stdout, (CONST APTR) &form_feed, 1);
+        return;
+    }
+
+    ClearScreen(g_rp);
+    LOCATE(1,1);
 }
 
 /*
@@ -334,6 +353,12 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
     _aio_puts(", color: "); _aio_puts4(color);
     _aio_putnl();
 #endif
+
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        ERROR(AE_LINE);
+        return;
+    }
 
     if (x1<0)
         x1 = g_rp->cp_x;
@@ -380,6 +405,12 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
 void PSET(BOOL s, short x, short y, short color)
 {
     BYTE fgPen=g_rp->FgPen;
+
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        ERROR(AE_PSET);
+        return;
+    }
 
     if (s)
     {
@@ -639,8 +670,28 @@ void _aio_puttab(void)
     Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
 }
 
+#define CSI 0x9b
+
 void LOCATE (short l, short c)
 {
+    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    {
+
+        char buf[20];
+        buf[0] = CSI;
+        _astr_itoa_ext(l, &buf[1], 10, /*leading_space=*/FALSE);
+        int l = len_(buf);
+        buf[l] = ';';
+        l++;
+        _astr_itoa_ext(c, &buf[l], 10, /*leading_space=*/FALSE);
+        l = len_(buf);
+        buf[l] = 'H';
+        buf[l+1] = 0;
+
+        Write(g_stdout, (CONST APTR) buf, l+1);
+        return;
+    }
+
     if (l<=0)
         l = CSRLIN_();
     if (c<=0)
@@ -667,6 +718,128 @@ short POS_ (short dummy)
 
     return g_rp->cp_x / g_rp->Font->tf_XSize + 1;
 }
+
+// input statement support
+
+void _set_dos_cursor_visible (BOOL visible)
+{
+    static char csr_on[]   = { CSI, '1', ' ', 'p', '\0' };
+    static char csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
+
+    char *c = visible ? csr_on : csr_off;
+    Write(g_stdout, (CONST APTR) c, len_(c));
+}
+
+static void draw_cursor()
+{
+    ULONG   old_fg, old_x, old_y;
+
+    old_fg = g_rp->FgPen;
+    old_x  = g_rp->cp_x;
+    old_y  = g_rp->cp_y;
+
+    SetAPen (g_rp, (1<<g_rp->BitMap->Depth)-1);
+    RectFill (g_rp, old_x+1, old_y - g_rp->TxBaseline,
+                    old_x+2, old_y - g_rp->TxBaseline + g_rp->TxHeight - 1);
+
+    Move (g_rp, old_x, old_y);
+    SetAPen (g_rp, old_fg);
+}
+
+#define MAXINPUTBUF 1024
+
+static BOOL is_eol (char c)
+{
+    return (c=='\r') || (c=='\n');
+}
+
+void _aio_gets(char **s, BOOL do_nl)
+{
+    static char buf[MAXINPUTBUF];
+    static char twospaces[] = "  ";
+
+    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    {
+        _set_dos_cursor_visible (TRUE);
+        LONG bytes = Read(g_stdin, (CONST APTR) buf, MAXINPUTBUF);
+        buf[bytes-1] = '\0';
+        _set_dos_cursor_visible (FALSE);
+    }
+    else
+    {
+
+        // do a crude terminal emulation, handle backspace
+
+        long col = 0;
+        draw_cursor();
+
+        while (TRUE)
+        {
+            char *buf2 = INKEY_();
+            char c = *buf2;
+
+            if (c == '\0')
+                continue;
+
+            if (c != '\b')
+            {
+                if (is_eol(c))
+                    break;
+
+                Text (g_rp, (UBYTE *) buf2, 1);
+                draw_cursor();
+
+                buf[col] = c;
+                col++;
+            }
+            else
+            {
+                if (col > 0)
+                {
+                    int x = g_rp->cp_x - g_rp->Font->tf_XSize;
+                    int y = g_rp->cp_y;
+
+                    // erase last char + cursor
+                    Move(g_rp, x, y);
+                    Text(g_rp, (UBYTE*) &twospaces, 2);
+
+                    // draw new cursor
+                    Move(g_rp, x, y);
+                    draw_cursor();
+
+                    col--;
+                }
+            }
+        }
+
+        buf[col] = '\0';
+
+        // cleanup cursor
+        Text (g_rp, (UBYTE *) &twospaces, 1);
+
+        if (do_nl)
+        {
+            //_aio_puts("do_nl");
+            Move (g_rp, 0, g_rp->cp_y + g_rp->Font->tf_YSize);
+            do_scroll();
+        }
+        else
+        {
+            //_aio_puts("NOT do_nl");
+        }
+    }
+
+    *s = _astr_dup (buf);
+
+    return;
+}
+
+
+/*******************************************************************
+ *
+ * drawing functions
+ *
+ *******************************************************************/
 
 void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
 {

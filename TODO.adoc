@@ -116,7 +116,7 @@ v0.1, 2020-07-12
 - DONE LET
 -      LIBRARY
 -      LIBRARY CLOSE
--      LINE INPUT
+- DONE LINE INPUT
 -      LINE INPUT#
 -      LLIST
 -      LOC()

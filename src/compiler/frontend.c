@@ -14,7 +14,7 @@
 const char *FE_filename = NULL;
 
 // map of builtin subs and functions that special parse functions:
-static TAB_table g_parsefs; // sym -> bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 // contains public env entries for export
 E_module FE_mod = NULL;
@@ -383,6 +383,8 @@ static S_symbol S_ERASE;
 static S_symbol S_DATA;
 static S_symbol S_READ;
 static S_symbol S_RESTORE;
+static S_symbol S_LINE;
+static S_symbol S_INPUT;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1381,7 +1383,7 @@ static bool transFunctionCall(S_tkn *tkn, Tr_exp *exp)
     // builtin function?
     if (ty->u.proc->name)
     {
-        bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = TAB_look(g_parsefs, ty->u.proc->name);
+        bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = TAB_look(g_parsefs, ty->u.proc);
         if (parsef)
             return parsef(tkn, NULL, exp);
     }
@@ -3144,6 +3146,52 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
 
     return FALSE;
+}
+
+// lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
+static bool stmtLineInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    bool   do_nl  = TRUE;
+    string prompt = NULL;
+
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "LINE"
+
+    if (!isSym((*tkn), S_INPUT))
+        return FALSE;
+    *tkn = (*tkn)->next; // skip "INPUT"
+
+    if ((*tkn)->kind == S_SEMICOLON)
+    {
+        do_nl = FALSE;
+        *tkn = (*tkn)->next;
+    }
+
+    if ((*tkn)->kind == S_STRING)
+    {
+        prompt = String((*tkn)->u.str);
+        *tkn = (*tkn)->next;
+        if ((*tkn)->kind != S_SEMICOLON)
+            return EM_error((*tkn)->pos, "LINE INPUT: semicolong expected here.");
+        *tkn = (*tkn)->next;
+    }
+
+    Tr_exp var;
+    if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+        return EM_error(pos, "LINE INPUT: variable designator expected here.");
+
+    S_symbol fsym   = S_Symbol("_aio_line_input", TRUE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry func = lx->first->e;
+    Tr_expList arglist = Tr_ExpList();
+    Tr_ExpListAppend(arglist, Tr_boolExp(do_nl, Ty_Bool()));
+    Tr_ExpListAppend(arglist, var);
+    Tr_ExpListAppend(arglist, prompt ? Tr_stringExp(prompt) : Tr_zeroExp(Ty_String()));
+    emit(Tr_callExp(arglist, func->u.proc));
+
+    return isLogicalEOL(*tkn);
 }
 
 // dataItem ::= ( numLiteral | stringLiteral | ident )
@@ -6467,10 +6515,10 @@ static bool funUBound(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return transArrayBound(tkn, /*isUpper=*/TRUE, exp);
 }
 
-static void declareBuiltinProc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
+static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, /*extraSyms=*/NULL, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
 
     if (kind == Ty_pkSub)
     {
@@ -6481,7 +6529,7 @@ static void declareBuiltinProc (S_symbol sym, bool (*parsef)(S_tkn *tkn, E_enven
         E_declareVFC (g_builtinsModule->env, sym, Tr_zeroExp(Ty_Prc(g_builtinsModule->name, proc)));
     }
 
-    TAB_enter (g_parsefs, sym, parsef);
+    TAB_enter (g_parsefs, proc, parsef);
 }
 
 static void registerBuiltins(void)
@@ -6568,61 +6616,64 @@ static void registerBuiltins(void)
     S_DATA            = S_Symbol("DATA",             FALSE);
     S_READ            = S_Symbol("READ",             FALSE);
     S_RESTORE         = S_Symbol("RESTORE",          FALSE);
+    S_LINE            = S_Symbol("LINE",             FALSE);
+    S_INPUT           = S_Symbol("INPUT",            FALSE);
 
     g_parsefs = TAB_empty();
 
-    declareBuiltinProc(S_DIM,         stmtDim          , Ty_Void());
-    declareBuiltinProc(S_REDIM,       stmtReDim        , Ty_Void());
-    declareBuiltinProc(S_PRINT,       stmtPrint        , Ty_Void());
-    declareBuiltinProc(S_FOR,         stmtForBegin     , Ty_Void());
-    declareBuiltinProc(S_NEXT,        stmtForEnd       , Ty_Void());
-    declareBuiltinProc(S_IF,          stmtIfBegin      , Ty_Void());
-    declareBuiltinProc(S_ELSE,        stmtIfElse       , Ty_Void());
-    declareBuiltinProc(S_ELSEIF,      stmtIfElse       , Ty_Void());
-    declareBuiltinProc(S_END,         stmtEnd          , Ty_Void());
-    declareBuiltinProc(S_ENDIF,       stmtEnd          , Ty_Void());
-    declareBuiltinProc(S_ASSERT,      stmtAssert       , Ty_Void());
-    declareBuiltinProc(S_OPTION,      stmtOption       , Ty_Void());
-    declareBuiltinProc(S_SUB,         stmtProcBegin    , Ty_Void());
-    declareBuiltinProc(S_FUNCTION,    stmtProcBegin    , Ty_Void());
-    declareBuiltinProc(S_CONSTRUCTOR, stmtProcBegin    , Ty_Void());
-    declareBuiltinProc(S_CALL,        stmtCall         , Ty_Void());
-    declareBuiltinProc(S_CONST,       stmtConstDecl    , Ty_Void());
-    declareBuiltinProc(S_EXTERN,      stmtExternDecl   , Ty_Void());
-    declareBuiltinProc(S_DECLARE,     stmtProcDecl     , Ty_Void());
-    declareBuiltinProc(S_TYPE,        stmtTypeDeclBegin, Ty_Void());
-    declareBuiltinProc(S_STATIC,      stmtStatic       , Ty_Void());
-    declareBuiltinProc(S_WHILE,       stmtWhileBegin   , Ty_Void());
-    declareBuiltinProc(S_WEND,        stmtWhileEnd     , Ty_Void());
-    declareBuiltinProc(S_LET,         stmtLet          , Ty_Void());
-    declareBuiltinProc(S_EXIT,        stmtExit         , Ty_Void());
-    declareBuiltinProc(S_CONTINUE,    stmtContinue     , Ty_Void());
-    declareBuiltinProc(S_DO,          stmtDo           , Ty_Void());
-    declareBuiltinProc(S_LOOP,        stmtLoop         , Ty_Void());
-    declareBuiltinProc(S_SELECT,      stmtSelect       , Ty_Void());
-    declareBuiltinProc(S_CASE,        stmtCase         , Ty_Void());
-    declareBuiltinProc(S_RETURN,      stmtReturn       , Ty_Void());
-    declareBuiltinProc(S_PRIVATE,     stmtPublicPrivate, Ty_Void());
-    declareBuiltinProc(S_PUBLIC,      stmtPublicPrivate, Ty_Void());
-    declareBuiltinProc(S_IMPORT,      stmtImport       , Ty_Void());
-    declareBuiltinProc(S_DEFSNG,      stmtDefsng       , Ty_Void());
-    declareBuiltinProc(S_DEFLNG,      stmtDeflng       , Ty_Void());
-    declareBuiltinProc(S_DEFINT,      stmtDefint       , Ty_Void());
-    declareBuiltinProc(S_DEFSTR,      stmtDefstr       , Ty_Void());
-    declareBuiltinProc(S_GOTO,        stmtGoto         , Ty_Void());
-    declareBuiltinProc(S_GOSUB,       stmtGosub        , Ty_Void());
-    declareBuiltinProc(S_ERASE,       stmtErase        , Ty_Void());
-    declareBuiltinProc(S_DATA,        stmtData         , Ty_Void());
-    declareBuiltinProc(S_READ,        stmtRead         , Ty_Void());
-    declareBuiltinProc(S_RESTORE,     stmtRestore      , Ty_Void());
+    declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim          , Ty_Void());
+    declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim        , Ty_Void());
+    declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint        , Ty_Void());
+    declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin     , Ty_Void());
+    declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd       , Ty_Void());
+    declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin      , Ty_Void());
+    declareBuiltinProc(S_ELSE         , /*extraSyms=*/ NULL      , stmtIfElse       , Ty_Void());
+    declareBuiltinProc(S_ELSEIF       , /*extraSyms=*/ NULL      , stmtIfElse       , Ty_Void());
+    declareBuiltinProc(S_END          , /*extraSyms=*/ NULL      , stmtEnd          , Ty_Void());
+    declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd          , Ty_Void());
+    declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert       , Ty_Void());
+    declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption       , Ty_Void());
+    declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall         , Ty_Void());
+    declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl    , Ty_Void());
+    declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl   , Ty_Void());
+    declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl     , Ty_Void());
+    declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin, Ty_Void());
+    declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic       , Ty_Void());
+    declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin   , Ty_Void());
+    declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
+    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
+    declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit         , Ty_Void());
+    declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue     , Ty_Void());
+    declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo           , Ty_Void());
+    declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop         , Ty_Void());
+    declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect       , Ty_Void());
+    declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase         , Ty_Void());
+    declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn       , Ty_Void());
+    declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
+    declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
+    declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport       , Ty_Void());
+    declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng       , Ty_Void());
+    declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng       , Ty_Void());
+    declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint       , Ty_Void());
+    declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr       , Ty_Void());
+    declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto         , Ty_Void());
+    declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub        , Ty_Void());
+    declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase        , Ty_Void());
+    declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
+    declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
+    declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
+    declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
 
-    declareBuiltinProc(S_SIZEOF,    funSizeOf,    Ty_ULong());
-    declareBuiltinProc(S_VARPTR,    funVarPtr,    Ty_VoidPtr());
-    declareBuiltinProc(S_CAST,      funCast,      Ty_ULong());
-    declareBuiltinProc(S_STRDOLLAR, funStrDollar, Ty_String());
-    declareBuiltinProc(S_LBOUND,    funLBound,    Ty_ULong());
-    declareBuiltinProc(S_UBOUND,    funUBound,    Ty_ULong());
-    declareBuiltinProc(S__ISNULL,   funIsNull,    Ty_Bool());
+    declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
+    declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
+    declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast          , Ty_ULong());
+    declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());
+    declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());
+    declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
+    declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
 }
 
 //
@@ -6655,7 +6706,10 @@ static bool statementOrAssignment(S_tkn *tkn)
                 for (S_symlist esl=x->u.proc->extraSyms; esl; esl=esl->next)
                 {
                     if ( (tkn2->kind != S_IDENT) || (esl->sym != tkn2->u.sym) )
+                    {
+                        matches = 0;
                         break;
+                    }
                     matches++;
                     tkn2 = tkn2->next;
                 }
@@ -6669,7 +6723,7 @@ static bool statementOrAssignment(S_tkn *tkn)
             if (xBest)
             {
                 S_tkn tkn2 = *tkn;
-                bool (*parsef)(S_tkn *tkn, E_enventry x, Tr_exp *exp) = TAB_look(g_parsefs, xBest->sym);
+                bool (*parsef)(S_tkn *tkn, E_enventry x, Tr_exp *exp) = TAB_look(g_parsefs, xBest->u.proc);
                 if (!parsef)
                     parsef = transSubCall;
 
