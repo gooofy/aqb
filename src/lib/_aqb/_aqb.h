@@ -32,10 +32,13 @@ void _aio_puts(const char *str);
 void _aio_putnl(void);
 void _aio_puttab(void);
 
+// [ LINE ] INPUT support:
 
-void _aio_gets(char **s, BOOL do_nl);
-void _aio_line_input (char *prompt, char **s, BOOL do_nl);
-void _set_dos_cursor_visible (BOOL visible);
+void _aio_gets                   (char **s, BOOL do_nl);
+void _aio_line_input             (char *prompt, char **s, BOOL do_nl);
+void _aio_console_input          (BOOL qm, char *prompt, BOOL do_nl);
+void _aio_inputs2                (short *v);
+void _aio_set_dos_cursor_visible (BOOL visible);
 
 void  LOCATE  (short l, short c);
 short CSRLIN_ (void);
@@ -74,6 +77,7 @@ short POS_    (short dummy);
 #define AE_PAINT                    10
 #define AE_LINE                     11
 #define AE_PSET                     12
+#define AE_INPUT_OUT_OF_DATA        13
 
 void _awindow_init(void);
 void _awindow_shutdown(void);

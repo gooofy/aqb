@@ -29,17 +29,17 @@ STARTSCREEN:
 WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
 
 ' =========================================
-' LINE INPUT TEST
+' INPUT TEST
 ' =========================================
 
-DIM AS STRING s
+DIM AS INTEGER a
 
-LINE INPUT "Please enter a string:";s
+INPUT "Please enter a: ";a
 
-PRINT "You entered: ";s
+PRINT "You entered: ";a
 
 ' =========================================
-' LINE INPUT TEST ENDS
+' INPUT TEST ENDS
 ' =========================================
 
 WHILE INKEY$() = ""

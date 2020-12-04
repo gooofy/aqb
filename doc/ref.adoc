@@ -590,6 +590,46 @@ Syntax:
 
 Return the upper bound for the given array dimension.
 
+=== VAL()
+
+Syntax:
+
+    VAL "(" str ")"
+
+return the floating-point representation of the given string argument str.
+
+=== VALINT()
+
+Syntax:
+
+    VALINT "(" str ")"
+
+return the integer representation of the given string argument str.
+
+=== VALUINT()
+
+Syntax:
+
+    VALUINT "(" str ")"
+
+return the unsigned integer representation of the given string argument str.
+
+=== VALLNG()
+
+Syntax:
+
+    VALLNG "(" str ")"
+
+return the long representation of the given string argument str.
+
+=== VALULNG()
+
+Syntax:
+
+    VALULNG "(" str ")"
+
+return the unsigned long representation of the given string argument str.
+
 === VARPTR()
 
 Syntax:
@@ -607,6 +647,10 @@ Syntax:
     WEND
 
 repeat loop body while expression evaluates to TRUE
+
+=== WEND
+
+see WHILE ... WEN
 
 == AQB / AmigaBASIC
 

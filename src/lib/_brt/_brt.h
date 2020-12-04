@@ -29,6 +29,7 @@ void _autil_shutdown(void);
 void _debug_puts (const char *s);
 void _debug_puts2(SHORT s);
 void _debug_putu4(ULONG l);
+void _debug_putf (FLOAT f);
 void _debug_putnl(void);
 
 extern USHORT g_errcode;
@@ -117,6 +118,19 @@ char *_u2toa_   (USHORT i);
 char *_u4toa_   (ULONG  l);
 char *_ftoa_    (FLOAT  f);
 char *_booltoa_ (BOOL   b);
+
+/*
+ * VAL* support
+ */
+ 
+LONG _str2i4_ (char *str, int len, int base);
+FLOAT _str2f_ (char *str, int len, int base);
+
+FLOAT  VAL_     (char *s);
+SHORT  VALINT_  (char *s);
+USHORT VALUINT_ (char *s);
+LONG   VALLNG_  (char *s);
+ULONG  VALULNG_ (char *s);
 
 /*
  * dynamic array support

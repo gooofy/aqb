@@ -53,6 +53,13 @@ void _debug_putu4(ULONG l)
     _debug_puts(buf);
 }
 
+void _debug_putf(FLOAT f)
+{
+    char buf[MAXBUF];
+    _astr_ftoa(f, buf);
+    _debug_puts(buf);
+}
+
 void _debug_putnl(void)
 {
     if (_debug_stdout)

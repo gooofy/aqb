@@ -3148,6 +3148,116 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return FALSE;
 }
 
+static bool inputVar(S_tkn *tkn)
+{
+    Tr_exp var;
+    if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+        return EM_error((*tkn)->pos, "INPUT: variable designator expected here.");
+
+    S_symbol   fsym    = NULL;                   // put* function sym to call
+    Ty_ty      ty      = Tr_ty(var)->u.pointer;
+    switch (ty->kind)
+    {
+        case Ty_string:
+            fsym = S_Symbol("_aio_inputs", TRUE);
+            break;
+        case Ty_pointer:
+            fsym = S_Symbol("_aio_inputu4", TRUE);
+            break;
+        case Ty_byte:
+            fsym = S_Symbol("_aio_inputs1", TRUE);
+            break;
+        case Ty_ubyte:
+            fsym = S_Symbol("_aio_inputu1", TRUE);
+            break;
+        case Ty_integer:
+            fsym = S_Symbol("_aio_inputs2", TRUE);
+            break;
+        case Ty_uinteger:
+            fsym = S_Symbol("_aio_inputu2", TRUE);
+            break;
+        case Ty_long:
+            fsym = S_Symbol("_aio_inputs4", TRUE);
+            break;
+        case Ty_ulong:
+            fsym = S_Symbol("_aio_inputu4", TRUE);
+            break;
+        case Ty_single:
+            fsym = S_Symbol("_aio_inputf", TRUE);
+            break;
+        case Ty_bool:
+            fsym = S_Symbol("_aio_inputbool", TRUE);
+            break;
+        default:
+            return EM_error((*tkn)->pos, "unsupported type in INPUT expression list.");
+    }
+    if (fsym)
+    {
+        E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+        if (!lx)
+            return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
+        E_enventry func = lx->first->e;
+        Tr_expList arglist = Tr_ExpList();
+        Tr_ExpListAppend(arglist, var);
+        emit(Tr_callExp(arglist, func->u.proc));
+    }
+    return TRUE;
+}
+
+// input ::= INPUT [ ";" ] [ stringLiteral (";" | ",") ] expDesignator ( "," expDesignator* )
+static bool stmtInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+{
+    bool   do_nl  = TRUE;
+    bool   qm     = FALSE;
+    string prompt = NULL;
+
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "INPUT"
+
+    if ((*tkn)->kind == S_SEMICOLON)
+    {
+        do_nl = FALSE;
+        *tkn = (*tkn)->next;
+    }
+
+    if ((*tkn)->kind == S_STRING)
+    {
+        prompt = String((*tkn)->u.str);
+        *tkn = (*tkn)->next;
+
+        if ((*tkn)->kind != S_COMMA)
+        {
+            if ((*tkn)->kind != S_SEMICOLON)
+                return EM_error((*tkn)->pos, "INPUT: comma or semicolon expected here.");
+            qm = TRUE;
+        }
+        *tkn = (*tkn)->next;
+    }
+
+    S_symbol fsym   = S_Symbol("_aio_console_input", TRUE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry func = lx->first->e;
+    Tr_expList arglist = Tr_ExpList();
+    Tr_ExpListAppend(arglist, Tr_boolExp(do_nl, Ty_Bool()));
+    Tr_ExpListAppend(arglist, prompt ? Tr_stringExp(prompt) : Tr_zeroExp(Ty_String()));
+    Tr_ExpListAppend(arglist, Tr_boolExp(qm, Ty_Bool()));
+    emit(Tr_callExp(arglist, func->u.proc));
+
+    if (!inputVar(tkn))
+        return FALSE;
+
+    while ((*tkn)->kind == S_COMMA)
+    {
+        *tkn = (*tkn)->next;
+        if (!inputVar(tkn))
+            return FALSE;
+    }
+
+    return isLogicalEOL(*tkn);
+}
+
 // lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
 static bool stmtLineInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
@@ -3172,7 +3282,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         prompt = String((*tkn)->u.str);
         *tkn = (*tkn)->next;
         if ((*tkn)->kind != S_SEMICOLON)
-            return EM_error((*tkn)->pos, "LINE INPUT: semicolong expected here.");
+            return EM_error((*tkn)->pos, "LINE INPUT: semicolon expected here.");
         *tkn = (*tkn)->next;
     }
 
@@ -6666,6 +6776,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
+    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());

@@ -309,7 +309,7 @@ void _awindow_shutdown(void)
         if (g_scrlist[i])
             CloseScreen(g_scrlist[i]);
     }
-    _set_dos_cursor_visible (TRUE);
+    _aio_set_dos_cursor_visible (TRUE);
     //_aio_puts("_awindow_shutdown ... done.\n");
 }
 
@@ -318,7 +318,7 @@ void _awindow_init(void)
     g_stdout = Output();
     g_stdin  = Input();
     g_fp15   = SPFlt(15);
-    _set_dos_cursor_visible (FALSE);
+    _aio_set_dos_cursor_visible (FALSE);
 }
 
 /*
@@ -721,7 +721,7 @@ short POS_ (short dummy)
 
 // input statement support
 
-void _set_dos_cursor_visible (BOOL visible)
+void _aio_set_dos_cursor_visible (BOOL visible)
 {
     static char csr_on[]   = { CSI, '1', ' ', 'p', '\0' };
     static char csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
@@ -760,10 +760,10 @@ void _aio_gets(char **s, BOOL do_nl)
 
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
-        _set_dos_cursor_visible (TRUE);
+        _aio_set_dos_cursor_visible (TRUE);
         LONG bytes = Read(g_stdin, (CONST APTR) buf, MAXINPUTBUF);
         buf[bytes-1] = '\0';
-        _set_dos_cursor_visible (FALSE);
+        _aio_set_dos_cursor_visible (FALSE);
     }
     else
     {

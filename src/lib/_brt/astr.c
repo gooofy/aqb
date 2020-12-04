@@ -164,7 +164,7 @@ SHORT __astr_cmp(const char* s1, const char* s2)
 
 static FLOAT g_positiveExpThreshold;
 static FLOAT g_negativeExpThreshold;
-static FLOAT g_1e16, g_1e8, g_1e4, g_1e2, g_1e1, g_1e9, g_0, g_1;
+static FLOAT g_1e16, g_1e8, g_1e4, g_1e2, g_1e1, g_1e9, g_0, g_1, g_10;
 static FLOAT g_1en15, g_1en7, g_1en3, g_1en1, g_05, g_m1;
 
 // normalizes the value between 1e-5 and 1e7 and returns the exponent
@@ -409,6 +409,410 @@ char *_booltoa_ (BOOL   b)
     return b ? "TRUE" : "FALSE";
 }
 
+/*
+ * VAL* support
+ */
+
+LONG _str2i4_ (char *str, int len, int base)
+{
+    LONG v = 0;
+    BOOL negative = FALSE;
+
+    if (str[0]=='-')
+    {
+        negative = TRUE;
+        str++;
+    }
+    else
+    {
+        if (str[0]=='+')
+        {
+            str++;
+        }
+    }
+
+    int c;
+    switch (base)
+    {
+        /* hex */
+        case 16:
+            while (--len >= 0)
+            {
+                c = *str++;
+                if ((c >= 97) && (c <= 102))        // a-f
+                    c -= 87;
+                else if ((c >= 65) && (c <= 70))    // A-F
+                    c -= 55;
+                else if ((c >= 48) && (c <= 57))    // 0-9
+                    c -= 48;
+                else
+                    break;
+                v = (v * 16) + c;
+            }
+            break;
+
+        /* dec */
+        case 10:
+            while (--len >= 0)
+            {
+                c = *str++;
+                if ((c >= 48) && (c <= 57))         // 0-9
+                    c -= 48;
+                else
+                    break;
+                v = (v * 10) + c;
+            }
+            break;
+
+        /* oct */
+        case 8:
+            while (--len >= 0)
+            {
+                c = *str++;
+                if ((c >= 48) && (c <= 55))
+                    v = (v * 8) + (c - 48);
+                else
+                    break;
+            }
+            break;
+
+        /* bin */
+        case 2:
+            while (--len >= 0)
+            {
+                c = *str++;
+                if ((c >= 48) && (c <= 49))
+                    v = (v * 2) + (c - 48);
+                else
+                    break;
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    if (negative)
+        v = v * -1;
+
+    return v;
+}
+
+static char *_val_handle_prefix(char *s, int *base, int *len)
+{
+    // skip whitespace
+
+    char *p = s;
+    while ( (*p == ' ') || (*p == '\t') )
+        p++;
+
+    *len = len_(p);
+    if (!(*len))
+        return s;
+
+    *base = 10;
+    int skip = 0;
+
+    if (((*len) >= 2) && (p[0] == '&'))
+    {
+        skip = 2;
+        switch(p[1])
+        {
+            case 'h':
+            case 'H':
+                *base = 16;
+                break;
+
+            case 'o':
+            case 'O':
+                *base = 8;
+                break;
+
+            case 'b':
+            case 'B':
+                *base = 2;
+                break;
+
+            default: /* assume octal */
+                *base = 8;
+                skip = 1;
+                break;
+        }
+    }
+
+    *len -= skip;
+    return &p[skip];
+}
+
+SHORT VALINT_ (char *s)
+{
+    if (!s)
+        return 0;
+
+    int base=10, len=0;
+    s = _val_handle_prefix(s, &base, &len);
+
+    return _str2i4_(s, len, base);
+}
+
+USHORT VALUINT_ (char *s)
+{
+    if (!s)
+        return 0;
+
+    int base=10, len=0;
+    s = _val_handle_prefix(s, &base, &len);
+
+    LONG l = _str2i4_(s, len, base);
+    return (USHORT) l;
+}
+
+LONG VALLNG_ (char *s)
+{
+    if (!s)
+        return 0;
+
+    int base=10, len=0;
+    s = _val_handle_prefix(s, &base, &len);
+
+    return _str2i4_(s, len, base);
+}
+
+ULONG VALULNG_ (char *s)
+{
+    if (!s)
+        return 0;
+
+    int base=10, len=0;
+    s = _val_handle_prefix(s, &base, &len);
+
+    return (ULONG) _str2i4_(s, len, base);
+}
+
+FLOAT _str2f_ (char *str, int len, int base)
+{
+    LONG v = 0;
+    BOOL negative = FALSE;
+
+    if (str[0]=='-')
+    {
+        negative = TRUE;
+        str++;
+    }
+    else
+    {
+        if (str[0]=='+')
+        {
+            str++;
+        }
+    }
+
+    int c;
+    switch (base)
+    {
+        /* hex */
+        case 16:
+            while (len)
+            {
+                c = *str;
+                if ((c >= 97) && (c <= 102))        // a-f
+                    c -= 87;
+                else if ((c >= 65) && (c <= 70))    // A-F
+                    c -= 55;
+                else if ((c >= 48) && (c <= 57))    // 0-9
+                    c -= 48;
+                else
+                    break;
+                v = (v * 16) + c;
+                str++; len--;
+            }
+            break;
+
+        /* dec */
+        case 10:
+            while (len)
+            {
+                c = *str;
+                if ((c >= 48) && (c <= 57))         // 0-9
+                    c -= 48;
+                else
+                    break;
+                v = (v * 10) + c;
+                str++; len--;
+            }
+            break;
+
+        /* oct */
+        case 8:
+            while (len)
+            {
+                c = *str;
+                if ((c >= 48) && (c <= 55))
+                    v = (v * 8) + (c - 48);
+                else
+                    break;
+                str++; len--;
+            }
+            break;
+
+        /* bin */
+        case 2:
+            while (len)
+            {
+                c = *str;
+                if ((c >= 48) && (c <= 49))
+                    v = (v * 2) + (c - 48);
+                else
+                    break;
+                str++; len--;
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    // _debug_puts ("str2f: integer part v="); _debug_puts2(v); _debug_putnl();
+
+    /*
+     * fractional part
+     */
+    FLOAT f = SPFlt(v);
+    FLOAT fBase = SPFlt(base);
+
+    if (str[0]=='.')
+    {
+        str++;
+        len--;
+        FLOAT frac = SPDiv(fBase, g_1);
+
+        switch (base)
+        {
+            /* hex */
+            case 16:
+                while (len)
+                {
+                    c = *str;
+                    if ((c >= 97) && (c <= 102))        // a-f
+                        c -= 87;
+                    else if ((c >= 65) && (c <= 70))    // A-F
+                        c -= 55;
+                    else if ((c >= 48) && (c <= 57))    // 0-9
+                        c -= 48;
+                    else
+                        break;
+                    f = SPAdd(f, SPMul(SPFlt(c), frac));
+                    frac = SPDiv(fBase, frac);
+                    str++; len--;
+                }
+                break;
+
+            /* dec */
+            case 10:
+                while (len)
+                {
+                    c = *str;
+                    if ((c >= 48) && (c <= 57))         // 0-9
+                        c -= 48;
+                    else
+                        break;
+                    f = SPAdd(f, SPMul(SPFlt(c), frac));
+                    frac = SPDiv(fBase, frac);
+                    str++; len--;
+                }
+                break;
+
+            /* oct */
+            case 8:
+                while (len)
+                {
+                    c = *str;
+                    if ((c >= 48) && (c <= 55))
+                        v = (v * 8) + (c - 48);
+                    else
+                        break;
+                    f = SPAdd(f, SPMul(SPFlt(c), frac));
+                    frac = SPDiv(fBase, frac);
+                    str++; len--;
+                }
+                break;
+
+            /* bin */
+            case 2:
+                while (len)
+                {
+                    c = *str;
+                    if ((c >= 48) && (c <= 49))
+                        v = (v * 2) + (c - 48);
+                    else
+                        break;
+                    f = SPAdd(f, SPMul(SPFlt(c), frac));
+                    frac = SPDiv(fBase, frac);
+                    str++; len--;
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    //_debug_puts ("str2f: fractional part handled, f="); _debug_putf(f); _debug_putnl();
+
+    if ( (str[0]=='e') || (str[0]=='E') )
+    {
+        str++; len--;
+        BOOL expSign = FALSE;
+        if (str[0] == '-')
+        {
+            expSign = TRUE;
+            str++; len--;
+        }
+        else
+        {
+            if (str[0] == '+')
+            {
+                str++; len--;
+            }
+            expSign = FALSE;
+        }
+        FLOAT exp = g_0;
+        while (--len >= 0)
+        {
+            c = *str++;
+            if ((c >= 48) && (c <= 57))         // 0-9
+                c -= 48;
+            else
+                break;
+            exp = SPAdd(SPFlt(c), SPMul(exp, g_10));
+        }
+        if (expSign)
+            exp = SPMul(g_m1, exp);
+        // _debug_puts ("str2f: exp="); _debug_putf(exp); _debug_putnl();
+        f = SPMul(SPPow(exp, fBase), f);
+    }
+
+    //_debug_puts ("str2f: exponent handled, f="); _debug_putf(f); _debug_putnl();
+
+    if (negative)
+        f = SPMul(g_m1, f);
+
+    //_debug_puts ("str2f: sign handled, f="); _debug_putf(f); _debug_putnl();
+
+    return f;
+}
+
+FLOAT VAL_ (char *s)
+{
+    if (!s)
+        return 0;
+
+    int base=10, len=0;
+    s = _val_handle_prefix(s, &base, &len);
+
+    return _str2f_(s, len, base);
+}
+
 void _astr_init(void)
 {
     g_positiveExpThreshold = SPFlt(10000000l);
@@ -419,6 +823,7 @@ void _astr_init(void)
     g_1e4   = SPPow(SPFlt(  4), SPFlt(10));
     g_1e2   = SPPow(SPFlt(  2), SPFlt(10));
     g_1e1   = SPPow(SPFlt(  1), SPFlt(10));
+    g_10    = SPFlt(10);
     g_1     = SPFlt(1);
     g_0     = SPFlt(0);
     g_m1    = SPFlt(-1);

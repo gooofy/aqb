@@ -137,4 +137,168 @@ void _aio_line_input (char *prompt, char **s, BOOL do_nl)
     _aio_gets(s, do_nl);
 }
 
+#define MAX_TOKEN_LEN 1024
+
+static char *g_input_buffer;
+static int   g_input_pos;
+static int   g_input_len;
+static BOOL  g_input_eof;
+static char  g_input_ch;
+static char  g_input_token[MAX_TOKEN_LEN+1]; // add room for final \0
+
+static void _input_getch (void)
+{
+    if (g_input_pos >= g_input_len)
+    {
+        g_input_eof = TRUE;
+        return;
+    }
+    g_input_ch = g_input_buffer[g_input_pos++];
+}
+
+static BOOL _input_is_whitespace(void)
+{
+    return (g_input_ch == ' ') || (g_input_ch == '\t');
+}
+
+static void _input_skip_whitespace (void)
+{
+    while (_input_is_whitespace () && !g_input_eof)
+        _input_getch ();
+}
+
+static void _input_skip_delimiter (void)
+{
+    _input_skip_whitespace();
+
+    if (g_input_eof)
+        return;
+
+    BOOL delim_found = FALSE;
+    while (!delim_found && !g_input_eof)
+    {
+        switch (g_input_ch)
+        {
+            case ',':
+            case '\n':
+                _input_getch();
+                delim_found = TRUE;
+                break;
+
+            case '\r':
+                _input_getch();
+                if (g_input_ch == '\n')
+                {
+                    _input_getch();
+                    delim_found = TRUE;
+                }
+                break;
+            default:
+                _input_getch();
+                break;
+        }
+    }
+}
+
+static void _input_next_token (void)
+{
+    _aio_puts("skip whitespace...\n");
+    _input_skip_whitespace();
+    if (g_input_eof)
+        ERROR (AE_INPUT_OUT_OF_DATA); // FIXME: in console input, re-prompt the user
+
+    BOOL skip_delim = TRUE;
+    BOOL in_quote   = FALSE;
+    int  len        = 0;
+
+    while (!g_input_eof && (len < MAX_TOKEN_LEN))
+    {
+        _aio_puts("token... \n");
+        switch (g_input_ch)
+        {
+            case '\n':
+                skip_delim = FALSE;
+                goto fini;
+
+            case '\r':
+                _input_getch();
+                if (g_input_ch == '\n')
+                {
+                    _input_getch();
+                    skip_delim = FALSE;
+                    goto fini;
+                }
+                break;
+
+            case '"':
+                if (in_quote)
+                {
+                    _input_getch();
+                    goto fini;
+                }
+
+                if (len == 0)
+                {
+                    in_quote = TRUE;
+                    _input_getch();
+                    continue;
+                }
+                break;
+
+            case ',':
+                if (!in_quote)
+                {
+                    _input_getch();
+                    skip_delim = FALSE;
+                    goto fini;
+                }
+                break;
+
+            case '\t':
+            case ' ':
+                if (!in_quote)
+                {
+                    _input_getch();
+                    continue;
+                }
+                break;
+
+            default:
+                break;
+        }
+
+        g_input_token[len++] = g_input_ch;
+        _input_getch();
+    }
+
+fini:
+    g_input_token[len++] = '\0';
+
+    _aio_puts("delim\n");
+    if (skip_delim)
+        _input_skip_delimiter ();
+}
+
+void _aio_console_input (BOOL qm, char *prompt, BOOL do_nl)
+{
+    char *p = qm ? prompt : "?";
+    _aio_line_input (p, &g_input_buffer, do_nl);
+    g_input_pos = 0;
+    g_input_len = len_(g_input_buffer);
+    g_input_eof = FALSE;
+    _input_getch();
+}
+
+
+void _aio_inputs2 (short *v)
+{
+    _input_next_token ();
+
+    *v = 0; // FIXME
+
+    // if( isfp == FALSE )
+    //     *dst = (short)fb_hStr2Int( buffer, len );
+    // else
+    //     *dst = (short)rint( fb_hStr2Double( buffer, len ) );
+}
 
