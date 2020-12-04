@@ -23,7 +23,14 @@ PUBLIC DECLARE SUB _aio_puttab  ()
 
 PUBLIC DECLARE SUB _aio_line_input             (BYVAL prompt AS STRING, BYREF s AS STRING, BYVAL do_nl AS BOOLEAN)
 PUBLIC DECLARE SUB _aio_console_input          (BYVAL qm AS BOOLEAN, BYVAL prompt AS STRING, BYVAL do_nl AS BOOLEAN)
-PUBLIC DECLARE SUB _aio_inputs2                (BYREF v AS INTEGER)
+PUBLIC DECLARE SUB _aio_inputs1                (BYREF v AS BYTE    )
+PUBLIC DECLARE SUB _aio_inputu1                (BYREF v AS UBYTE   )
+PUBLIC DECLARE SUB _aio_inputs2                (BYREF v AS INTEGER )
+PUBLIC DECLARE SUB _aio_inputu2                (BYREF v AS UINTEGER)
+PUBLIC DECLARE SUB _aio_inputs4                (BYREF v AS LONG    )
+PUBLIC DECLARE SUB _aio_inputu4                (BYREF v AS ULONG   )
+PUBLIC DECLARE SUB _aio_inputf                 (BYREF v AS SINGLE  )
+PUBLIC DECLARE SUB _aio_inputs                 (BYREF v AS STRING  )
 PUBLIC DECLARE SUB _aio_set_dos_cursor_visible (BYREF visible AS BOOLEAN)
 
 

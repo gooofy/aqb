@@ -32,11 +32,34 @@ WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_
 ' INPUT TEST
 ' =========================================
 
-DIM AS INTEGER a
+DIM AS STRING str
 
-INPUT "Please enter a: ";a
+INPUT "Please enter str: ";str
+PRINT "You entered: ";str
 
-PRINT "You entered: ";a
+'DIM AS INTEGER a, b
+'DIM AS UINTEGER u
+'DIM AS LONG l
+'DIM AS ULONG ul
+'DIM AS SINGLE s
+'
+'INPUT "Please enter a: ";a
+'PRINT "You entered: ";a
+'
+'INPUT "Please enter a, b: ";a,b
+'PRINT "You entered: ";a,b
+'
+'INPUT "Please enter u: ";u
+'PRINT "You entered: ";u
+'
+'INPUT "Please enter l: ";l
+'PRINT "You entered: ";l
+'
+'INPUT "Please enter ul: ";ul
+'PRINT "You entered: ";ul
+'
+'INPUT "Please enter s: ";s
+'PRINT "You entered: ";s
 
 ' =========================================
 ' INPUT TEST ENDS

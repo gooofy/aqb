@@ -3185,9 +3185,6 @@ static bool inputVar(S_tkn *tkn)
         case Ty_single:
             fsym = S_Symbol("_aio_inputf", TRUE);
             break;
-        case Ty_bool:
-            fsym = S_Symbol("_aio_inputbool", TRUE);
-            break;
         default:
             return EM_error((*tkn)->pos, "unsupported type in INPUT expression list.");
     }

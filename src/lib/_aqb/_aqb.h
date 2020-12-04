@@ -37,7 +37,14 @@ void _aio_puttab(void);
 void _aio_gets                   (char **s, BOOL do_nl);
 void _aio_line_input             (char *prompt, char **s, BOOL do_nl);
 void _aio_console_input          (BOOL qm, char *prompt, BOOL do_nl);
-void _aio_inputs2                (short *v);
+void _aio_inputs1                (BYTE   *v);
+void _aio_inputu1                (UBYTE  *v);
+void _aio_inputs2                (SHORT  *v);
+void _aio_inputu2                (USHORT *v);
+void _aio_inputs4                (LONG   *v);
+void _aio_inputu4                (ULONG  *v);
+void _aio_inputf                 (FLOAT  *v);
+void _aio_inputs                 (char  **v);
 void _aio_set_dos_cursor_visible (BOOL visible);
 
 void  LOCATE  (short l, short c);

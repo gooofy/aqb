@@ -702,6 +702,14 @@ Syntax:
 
 returns a character entered from the keyboard
 
+=== INPUT
+
+Syntax:
+
+    INPUT [ ";" ] [ prompt (";" | ",") ] expDesignator ( "," expDesignator* )
+
+read input from the keyboard, store values in the variables given.
+
 === LINE
 
 Syntax:

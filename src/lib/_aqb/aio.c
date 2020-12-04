@@ -202,7 +202,7 @@ static void _input_skip_delimiter (void)
 
 static void _input_next_token (void)
 {
-    _aio_puts("skip whitespace...\n");
+    // _aio_puts("skip whitespace...\n");
     _input_skip_whitespace();
     if (g_input_eof)
         ERROR (AE_INPUT_OUT_OF_DATA); // FIXME: in console input, re-prompt the user
@@ -213,7 +213,7 @@ static void _input_next_token (void)
 
     while (!g_input_eof && (len < MAX_TOKEN_LEN))
     {
-        _aio_puts("token... \n");
+        // _aio_puts("token... \n");
         switch (g_input_ch)
         {
             case '\n':
@@ -274,7 +274,7 @@ static void _input_next_token (void)
 fini:
     g_input_token[len++] = '\0';
 
-    _aio_puts("delim\n");
+    // _aio_puts("delim\n");
     if (skip_delim)
         _input_skip_delimiter ();
 }
@@ -289,16 +289,45 @@ void _aio_console_input (BOOL qm, char *prompt, BOOL do_nl)
     _input_getch();
 }
 
-
-void _aio_inputs2 (short *v)
+void _aio_inputs1 (BYTE   *v)
 {
     _input_next_token ();
-
-    *v = 0; // FIXME
-
-    // if( isfp == FALSE )
-    //     *dst = (short)fb_hStr2Int( buffer, len );
-    // else
-    //     *dst = (short)rint( fb_hStr2Double( buffer, len ) );
+    *v = VALINT_ (g_input_token);
 }
+void _aio_inputu1 (UBYTE  *v)
+{
+    _input_next_token ();
+    *v = VALINT_ (g_input_token);
+}
+void _aio_inputs2 (SHORT  *v)
+{
+    _input_next_token ();
+    *v = VALINT_ (g_input_token);
+}
+void _aio_inputu2 (USHORT *v)
+{
+    _input_next_token ();
+    *v = VALUINT_ (g_input_token);
+}
+void _aio_inputs4 (LONG   *v)
+{
+    _input_next_token ();
+    *v = VALLNG_ (g_input_token);
+}
+void _aio_inputu4 (ULONG  *v)
+{
+    _input_next_token ();
+    *v = VALULNG_ (g_input_token);
+}
+void _aio_inputf  (FLOAT  *v)
+{
+    _input_next_token ();
+    *v = VAL_ (g_input_token);
+}
+void _aio_inputs (char  **v)
+{
+    _input_next_token ();
+    *v = _astr_dup(g_input_token);
+}
+
 
