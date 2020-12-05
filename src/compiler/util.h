@@ -12,6 +12,7 @@ typedef char bool;
 #define FALSE 0
 
 void *checked_malloc(int);
+void *checked_calloc(int, int);
 
 string String(const char *); // allocs mem + copies string
 
@@ -45,5 +46,7 @@ void   U_ListAppend(U_list list, U_listNode node);
 
 uint32_t encode_ffp(float        f);
 float    decode_ffp(uint32_t fl);
+
+void U_init (uint32_t mempool_size);
 
 #endif

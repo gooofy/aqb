@@ -26,8 +26,6 @@ static map_t hashtable = NULL;
 
 void S_symbol_init(void)
 {
-    if (hashtable)
-        hashmap_free(hashtable);
     hashtable = hashmap_new();
 }
 

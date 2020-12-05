@@ -11,13 +11,94 @@
 
 #include "util.h"
 
-void *checked_malloc(int len)
+/*******************************************************************************
+ **
+ ** a simple memory pool implementation
+ **
+ ** make sure we do not leak memory on platforms that do not have resource
+ ** tracking, e.g. Amiga OS
+ **
+ ** based on https://stackoverflow.com/questions/11749386/implement-own-memory-pool
+ **
+ *******************************************************************************/
+
+typedef struct pool
 {
-    void *p = malloc(len);
-    if (!p) {
+  char * next;
+  char * end;
+} POOL;
+
+static POOL *g_pool;
+
+static POOL * pool_create( uint32_t size )
+{
+    POOL *p = (POOL*) malloc( size + sizeof(POOL) );
+
+    if (!p)
+    {
+        fprintf (stderr, "failed to allocate memory pool!\n");
+        exit(42);
+    }
+
+    p->next = (char*)&p[1];
+    p->end = p->next + size;
+
+    return p;
+}
+
+static void pool_destroy (POOL *p)
+{
+    free(p);
+}
+
+static uint32_t pool_available (POOL *p)
+{
+    return p->end - p->next;
+}
+
+static void *pool_alloc (POOL *p, uint32_t size)
+{
+
+    uint32_t pad = (4 - (size & 3)) & 3;
+    size += pad;
+
+    if (pool_available(p) < size) 
+        return NULL;
+
+    void *mem = (void*)p->next;
+    p->next += size;
+
+    return mem;
+}
+
+static void U_deinit (void)
+{
+    printf ("U_deinit() called.\n");
+    pool_destroy (g_pool);
+}
+
+void U_init (uint32_t mempool_size)
+{
+    g_pool = pool_create (mempool_size);
+    atexit (U_deinit);
+}
+
+void *checked_malloc (int len)
+{
+    // void *p = malloc(len);
+    void *p = pool_alloc(g_pool, len);
+    if (!p)
+    {
         fprintf(stderr,"\nRan out of memory!\n");
         exit(1);
     }
+    return p;
+}
+
+void *checked_calloc (int nmemb, int len)
+{
+    void *p = checked_malloc(nmemb * len);
+    memset (p, 0, nmemb * len);
     return p;
 }
 

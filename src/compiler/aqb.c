@@ -35,6 +35,13 @@
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
+
+#define MEMPOOL_SIZE 512 * 1024
+
+#else
+
+#define MEMPOOL_SIZE 4 * 1024 * 1024
+
 #endif
 
 #include "frontend.h"
@@ -331,6 +338,7 @@ int main (int argc, char *argv[])
     check_stacksize();
 #endif
 
+    U_init(MEMPOOL_SIZE);
     Ty_init();
     EM_init();
     S_symbol_init();

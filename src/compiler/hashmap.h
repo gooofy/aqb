@@ -41,9 +41,6 @@ int hashmap_get(map_t in, char* key, any_t *value, bool case_sensitive);
 /* remove an element from the hashmap. Return MAP_OK or MAP_MISSING.  */
 int hashmap_remove(map_t in, char* key, bool case_sensitive);
 
-/* free the hashmap */
-extern void hashmap_free(map_t in);
-
 /* get the current size of a hashmap */
 extern int hashmap_length(map_t in);
 
