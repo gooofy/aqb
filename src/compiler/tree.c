@@ -207,7 +207,7 @@ T_exp T_Const(Ty_const c)
 
     p->kind    = T_CONST;
     p->ty      = c->ty;
-    p->u.CONST = c;
+    p->u.CONSTR = c;
 
     return p;
 }
@@ -318,7 +318,7 @@ T_exp T_DeepCopyExp(T_exp exp)
             assert(0);  // FIXME
             return NULL;
         case T_CONST:
-            return T_Const(exp->u.CONST);
+            return T_Const(exp->u.CONSTR);
         case T_CALLF:
             assert(0);  // FIXME
             return NULL;

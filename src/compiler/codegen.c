@@ -74,7 +74,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
         emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_left, FALSE), r));              // move.x   e_left, r
         if (opc_pre != AS_NOP)
             emit(AS_Instr (opc_pre, pre_w, r, r));                                        // opc_pre  r, r
-        emit (AS_InstrEx (opc_rc, isz, L(r, NULL), L(r, NULL), e_right->u.CONST,0, NULL));// opc_rc   #CONST, r
+        emit (AS_InstrEx (opc_rc, isz, L(r, NULL), L(r, NULL), e_right->u.CONSTR,0, NULL));// opc_rc   #CONST, r
         if (opc_post != AS_NOP)
             emit(AS_Instr (opc_post, isz, r, r));                                         // opc_post r, r
         return r;
@@ -87,7 +87,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
             emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e_right, FALSE), r));              // move.x   e_right, r
             if (opc_pre != AS_NOP)
                 emit(AS_Instr (opc_pre, pre_w, r, r));                                         // opc_pre  r, r
-            emit (AS_InstrEx (opc_cr, isz, L(r, NULL), L(r, NULL), e_left->u.CONST, 0, NULL)); // opc_cr   #CONST, r
+            emit (AS_InstrEx (opc_cr, isz, L(r, NULL), L(r, NULL), e_left->u.CONSTR, 0, NULL)); // opc_cr   #CONST, r
             if (opc_post != AS_NOP)
                 emit(AS_Instr (opc_post, isz, r, r));                                          // opc_post r, r
             return r;
@@ -187,7 +187,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 {
                     /* MEM(BINOP(PLUS,e1,CONST(FP))) */
                     // T_exp e1 = mem->u.BINOP.left;
-                    int i = mem->u.BINOP.right->u.CONST->u.i;
+                    int i = mem->u.BINOP.right->u.CONSTR->u.i;
                     if (mem->u.BINOP.op == T_minus) {
                       i = -i;
                     }
@@ -200,7 +200,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 {
                     /* MEM(BINOP(PLUS,CONST(i),e1)) */
                     // T_exp e1 = mem->u.BINOP.right;
-                    // int i = mem->u.BINOP.left->u.CONST;
+                    // int i = mem->u.BINOP.left->u.CONSTR;
                     // Temp_temp r = Temp_newtemp(Ty_Long());
                     // emit(AS_Move(strprintf("move.%s %d(`s0), `d0", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), F_dRegs(), NULL));
                     // return r;
@@ -218,7 +218,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             {
                 assert(0);
                 /* MEM(CONST(i)) */
-                // int i = mem->u.CONST;
+                // int i = mem->u.CONSTR;
                 // Temp_temp r = Temp_newtemp(Ty_Long());
                 // sprintf(inst, "move.l %d, `d0", i);
                 // emit(AS_Oper(inst, L(r, NULL), NULL, NULL));
@@ -682,7 +682,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         case T_CONST:
         {
             Temp_temp r = Temp_newtemp(e->ty);
-            emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(e->ty), NULL, L(r, NULL), e->u.CONST, 0, NULL)); // move.x #CONST, r
+            emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(e->ty), NULL, L(r, NULL), e->u.CONSTR, 0, NULL)); // move.x #CONST, r
             return r;
         }
         case T_TEMP:
@@ -1019,13 +1019,13 @@ static void munchStm(T_stm s)
                         {
                             if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)                             // move ..., MEM(BINOP(PLUS, fp , ...))
                             {
-                                if (dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)                     // move ..., MEM(BINOP(PLUS, fp, CONST))
+                                if (dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)                     // move ..., MEM(BINOP(PLUS, fp, CONSTR))
                                 {
-                                    int off = dst->u.MEM.exp->u.BINOP.right->u.CONST->u.i;
+                                    int off = dst->u.MEM.exp->u.BINOP.right->u.CONSTR->u.i;
                                     if (src->kind == T_CONST)                                           // move CONST, MEM(BINOP(PLUS, fp, CONST))
                                     {
                                         emit (AS_InstrEx(AS_MOVE_Imm_Ofp, isz, NULL, NULL,              // move.x #CONST, off(fp)
-                                                         src->u.CONST, off, NULL));
+                                                         src->u.CONSTR, off, NULL));
                                     }
                                     else                                                                // move exp, MEM(BINOP(PLUS, fp, CONST))
                                     {
@@ -1044,7 +1044,7 @@ static void munchStm(T_stm s)
                             Temp_label lab = dst->u.MEM.exp->u.HEAP;
                             if (src->kind == T_CONST)                                               // move.x #const, lab
                             {
-                                emit(AS_InstrEx(AS_MOVE_Imm_Label, isz, NULL, NULL, src->u.CONST, 0, lab));
+                                emit(AS_InstrEx(AS_MOVE_Imm_Label, isz, NULL, NULL, src->u.CONSTR, 0, lab));
                             }
                             else                                                                    // move.x src, lab
                             {
@@ -1064,7 +1064,7 @@ static void munchStm(T_stm s)
                         if (src->kind == T_CONST)                                       // move CONST, MEM(exp)
                         {
                             emit(AS_InstrEx(AS_MOVE_Imm_RAn, isz, L(ra, NULL), NULL,    // move #imm, (ra)
-                                            src->u.CONST, 0, NULL));
+                                            src->u.CONSTR, 0, NULL));
                         }
                         else                                                            // move exp1, MEM(exp2)
                         {
@@ -1400,7 +1400,7 @@ static int munchArgsStack(int i, T_expList args)
     T_exp e = args->head;
     if (e->kind == T_CONST)
     {
-        emit(AS_InstrEx(AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.CONST, 0, NULL));      // move.l  #const, -(sp)
+        emit(AS_InstrEx(AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.CONSTR, 0, NULL));      // move.l  #const, -(sp)
     }
     else
     {

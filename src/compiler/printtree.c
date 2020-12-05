@@ -105,10 +105,10 @@ void printExp(FILE *out, T_exp exp, int d)
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
             break;
         case T_CONST:
-            switch (exp->u.CONST->ty->kind)
+            switch (exp->u.CONSTR->ty->kind)
             {
                 case Ty_bool:
-                    fprintf(out, "CONST %s", exp->u.CONST->u.b ? "TRUE" : "FALSE");
+                    fprintf(out, "CONST %s", exp->u.CONSTR->u.b ? "TRUE" : "FALSE");
                     break;
                 case Ty_byte:
                 case Ty_ubyte:
@@ -118,11 +118,11 @@ void printExp(FILE *out, T_exp exp, int d)
                 case Ty_ulong:
                 case Ty_string:
                 case Ty_pointer:
-                    fprintf(out, "CONST %d", exp->u.CONST->u.i);
+                    fprintf(out, "CONST %d", exp->u.CONSTR->u.i);
                     break;
                 case Ty_single:
                 case Ty_double:
-                    fprintf(out, "CONST %f", exp->u.CONST->u.f);
+                    fprintf(out, "CONST %f", exp->u.CONSTR->u.f);
                     break;
                 default:
                     fprintf(stderr, "*** printtree.c:printExp: internal error");

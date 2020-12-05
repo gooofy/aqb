@@ -587,10 +587,10 @@ int Tr_getConstInt (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    switch (exp->u.ex->u.CONST->ty->kind)
+    switch (exp->u.ex->u.CONSTR->ty->kind)
     {
         case Ty_bool:
-            return exp->u.ex->u.CONST->u.b ? -1 : 0;
+            return exp->u.ex->u.CONSTR->u.b ? -1 : 0;
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
@@ -598,10 +598,10 @@ int Tr_getConstInt (Tr_exp exp)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
-            return exp->u.ex->u.CONST->u.i;
+            return exp->u.ex->u.CONSTR->u.i;
         case Ty_single:
         case Ty_double:
-            return (int) exp->u.ex->u.CONST->u.f;
+            return (int) exp->u.ex->u.CONSTR->u.f;
         default:
             EM_error(0, "*** translate.c:Tr_getConstInt: internal error");
             assert(0);
@@ -612,20 +612,20 @@ double Tr_getConstFloat (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    switch (exp->u.ex->u.CONST->ty->kind)
+    switch (exp->u.ex->u.CONSTR->ty->kind)
     {
         case Ty_bool:
-            return exp->u.ex->u.CONST->u.b ? -1 : 0;
+            return exp->u.ex->u.CONSTR->u.b ? -1 : 0;
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
-            return (float) exp->u.ex->u.CONST->u.i;
+            return (float) exp->u.ex->u.CONSTR->u.i;
         case Ty_single:
         case Ty_double:
-            return exp->u.ex->u.CONST->u.f;
+            return exp->u.ex->u.CONSTR->u.f;
         default:
             EM_error(0, "*** translate.c:Tr_getConstFloat: internal error");
             assert(0);
@@ -636,20 +636,20 @@ bool Tr_getConstBool (Tr_exp exp)
 {
     assert (Tr_isConst(exp));
 
-    switch (exp->u.ex->u.CONST->ty->kind)
+    switch (exp->u.ex->u.CONSTR->ty->kind)
     {
         case Ty_bool:
-            return exp->u.ex->u.CONST->u.b;
+            return exp->u.ex->u.CONSTR->u.b;
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
-            return exp->u.ex->u.CONST->u.i != 0;
+            return exp->u.ex->u.CONSTR->u.i != 0;
         case Ty_single:
         case Ty_double:
-            return exp->u.ex->u.CONST->u.f != 0.0;
+            return exp->u.ex->u.CONSTR->u.f != 0.0;
         default:
             EM_error(0, "*** translate.c:Tr_getConstBool: internal error");
             assert(0);
@@ -659,7 +659,7 @@ bool Tr_getConstBool (Tr_exp exp)
 Ty_const Tr_getConst(Tr_exp exp)
 {
     assert (Tr_isConst(exp));
-    return exp->u.ex->u.CONST;
+    return exp->u.ex->u.CONSTR;
 }
 
 Tr_exp Tr_floatExp(double f, Ty_ty ty)

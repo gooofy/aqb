@@ -55,7 +55,7 @@ struct T_exp_
         Temp_label HEAP;
 	    Temp_temp TEMP;
 	    struct {T_stm stm; T_exp exp;} ESEQ;
-	    Ty_const CONST;
+	    Ty_const CONSTR;
 	    struct {Ty_proc proc; T_expList args;} CALLF;
 	    struct {T_exp exp; Ty_ty ty_from;} CAST;
 	    struct {T_exp fptr; T_expList args; Ty_proc proc;} CALLFPTR;

@@ -23,6 +23,20 @@
 #include <limits.h>
 #include <libgen.h>
 
+#ifdef __amigaos__
+#include <exec/types.h>
+#include <exec/memory.h>
+
+#include <clib/exec_protos.h>
+#include <clib/dos_protos.h>
+
+#include <inline/exec.h>
+#include <inline/dos.h>
+
+extern struct ExecBase      *SysBase;
+extern struct DOSBase       *DOSBase;
+#endif
+
 #include "frontend.h"
 #include "frame.h"
 #include "errormsg.h"
@@ -273,18 +287,49 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -V          display version info\n");
 }
 
+#ifdef __amigaos__
+
+#define MIN_STACKSIZE 64*1024
+
+static void check_stacksize(void)
+{
+    struct Process *Process;
+    struct CommandLineInterface *CLI;
+    ULONG stack;
+
+    Process = (struct Process *) FindTask (0L);
+    if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+    {
+        stack = CLI -> cli_DefaultStack << 2;
+    }
+    else
+    {
+        stack = Process -> pr_StackSize;
+    }
+    if (stack < MIN_STACKSIZE)
+    {
+        fprintf (stderr, "*** error: current stack size of %ld bytes is too small for this program, need at least %d bytes.\n", stack, MIN_STACKSIZE);
+        exit(EXIT_FAILURE);
+    }
+}
+#endif
+
 int main (int argc, char *argv[])
 {
-	char           *sourcefn;
-	FILE           *sourcef;
-    F_fragList      frags, fl;
-    char            asmfn[PATH_MAX];
-    FILE           *out;
-    size_t 			optind;
-    bool            write_sym = FALSE;
-    bool            no_asm = FALSE;
-    char            symfn[PATH_MAX];
-    string          module_name;
+	static char           *sourcefn;
+	static FILE           *sourcef;
+    static F_fragList      frags, fl;
+    static char            asmfn[PATH_MAX];
+    static FILE           *out;
+    static size_t 			optind;
+    static bool            write_sym = FALSE;
+    static bool            no_asm = FALSE;
+    static char            symfn[PATH_MAX];
+    static string          module_name;
+
+#ifdef __amigaos__
+    check_stacksize();
+#endif
 
     Ty_init();
     EM_init();
