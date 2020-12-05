@@ -6,7 +6,7 @@ CC = m68k-amigaos-gcc
 AS = m68k-amigaos-as
 LD = m68k-amigaos-ld
 AR = m68k-amigaos-ar
-AQB = ../../compiler/aqb
+AQB = ../../../target/x86_64-linux/bin/aqb
 
 .PHONY: clean all diss
 

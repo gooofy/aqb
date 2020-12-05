@@ -1248,7 +1248,7 @@ static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, Tr_exp cExp, bool 
     if (!t)
         t = Ty_inferType(S_name(name));
 
-    Tr_exp convCExp;
+    Tr_exp convCExp=NULL;
     if (!transConst(pos, cExp, t, &convCExp))
         return FALSE;
 
@@ -3875,7 +3875,7 @@ static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
 // stmtCase ::= CASE ( ELSE | caseExpr ( "," caseExpr )* )
 static bool stmtCase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 {
-    FE_selectExp ex, exLast;
+    FE_selectExp ex=NULL, exLast=NULL;
     S_pos        pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next; // consume "CASE"
@@ -3894,7 +3894,7 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
         while ((*tkn)->kind == S_COMMA)
         {
-            FE_selectExp ex2;
+            FE_selectExp ex2=NULL;
             *tkn = (*tkn)->next;
             if (!caseExpr(tkn, &ex2))
                 return FALSE;

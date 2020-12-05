@@ -6,7 +6,7 @@ CC = m68k-amigaos-gcc
 AS = m68k-amigaos-as
 LD = m68k-amigaos-ld
 AR = m68k-amigaos-ar
-AQB = ../src/compiler/aqb
+AQB = ../target/x86_64-linux/bin/aqb
 STRIP = m68k-amigaos-strip
 
 .PHONY: clean all mod1 io1 subtest11

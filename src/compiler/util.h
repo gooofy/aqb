@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 
 typedef char *string;
 typedef char bool;
@@ -42,7 +43,7 @@ void   U_ListAppend(U_list list, U_listNode node);
 
 /* FFP - Motorola Fast Floating Point format support */
 
-unsigned int encode_ffp(float        f);
-float        decode_ffp(unsigned int fl);
+uint32_t encode_ffp(float        f);
+float    decode_ffp(uint32_t fl);
 
 #endif

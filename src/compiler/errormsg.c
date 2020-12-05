@@ -74,6 +74,10 @@ string EM_format(S_pos pos, char *message,...)
 void EM_init(void)
 {
     EM_anyErrors = FALSE;
+#ifdef __amigaos__
+    enable_ansi = FALSE;
+#else
     enable_ansi = isatty(fileno(stdout));
+#endif
 }
 

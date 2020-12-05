@@ -117,7 +117,7 @@ string strdeserialize(FILE *in)
     uint16_t l;
     if (fread(&l, 2, 1, in) != 1)
         return NULL;
-   
+
     string res = checked_malloc(l+1);
     if (fread(res, l, 1, in) != 1)
         return NULL;
@@ -125,11 +125,12 @@ string strdeserialize(FILE *in)
     return res;
 }
 
-unsigned int encode_ffp(float f)
+uint32_t encode_ffp(float f)
 {
-    unsigned int res, fl;
+    uint32_t  res, fl;
+    uint32_t *fp = (uint32_t *) &f;
 
-	fl = *((unsigned int *) &f);
+	fl = *fp;
 
     if (f==0.0)
         return 0;
@@ -152,9 +153,9 @@ unsigned int encode_ffp(float f)
     return res;
 }
 
-float decode_ffp(unsigned int fl)
+float decode_ffp(uint32_t fl)
 {
-    unsigned int res;
+    uint32_t res;
 
     if (fl == 0)
         return 0.0;
@@ -185,5 +186,6 @@ float decode_ffp(unsigned int fl)
 
     // printf ("sign     converted: 0x%08x\n", res);
 
-    return *((float *)&res);
+    float *fp = (float*) &res;
+    return *fp;
 }

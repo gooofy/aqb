@@ -1,5 +1,5 @@
 
-AQB = ../../src/compiler/aqb
+AQB = ../../target/x86_64-linux/bin/aqb
 AS = m68k-amigaos-as
 LD = m68k-amigaos-ld
 

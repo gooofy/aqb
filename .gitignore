@@ -62,7 +62,6 @@ src/compiler/aqb
 tests/*.bin
 tests/*.s
 
-# FIXME: cleanup. commit.
 old
 src/lib/*.sym
 src/lib/_brt/*.sym
@@ -90,3 +89,4 @@ tests/io1/*.s
 tests/subtest11/*.bin
 tests/subtest11/*.s
 doc/internal/
+target
