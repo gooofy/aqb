@@ -19,6 +19,8 @@ T_stmList T_StmList(T_stm head, T_stmList tail)
 {
     T_stmList p = (T_stmList) checked_malloc (sizeof *p);
 
+    // fprintf (stderr, "T_StmList: %p ->head=%p, tail=%p\n", p, head, tail);
+
     p->head = head;
     p->tail = tail;
 
