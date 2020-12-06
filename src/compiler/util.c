@@ -30,7 +30,7 @@ typedef struct pool
 
 static POOL *g_pool;
 
-static POOL * pool_create( uint32_t size )
+static POOL * pool_create( size_t size )
 {
     POOL *p = (POOL*) malloc( size + sizeof(POOL) );
 
@@ -39,6 +39,8 @@ static POOL * pool_create( uint32_t size )
         fprintf (stderr, "failed to allocate memory pool!\n");
         exit(42);
     }
+
+    memset (p, 0xab, size + sizeof(POOL)); // FIXME: remove
 
     p->next = (char*)&p[1];
     p->end = p->next + size;
@@ -56,17 +58,19 @@ static uint32_t pool_available (POOL *p)
     return p->end - p->next;
 }
 
-static void *pool_alloc (POOL *p, uint32_t size)
+static void *pool_alloc (POOL *p, size_t size)
 {
 
-    uint32_t pad = (4 - (size & 3)) & 3;
-    size += pad;
+    size_t pad = (4 - (size & 3)) & 3;
+    size_t alloc_size = size + pad;
 
-    if (pool_available(p) < size) 
+    if (pool_available(p) < alloc_size)
         return NULL;
 
     void *mem = (void*)p->next;
-    p->next += size;
+    p->next += alloc_size;
+
+    // fprintf (stderr, "pool_alloc: size=%zu, pad=%zu, alloc_size=%zu -> mem=%p\n", size, pad, alloc_size, mem);
 
     return mem;
 }
@@ -77,25 +81,26 @@ static void U_deinit (void)
     pool_destroy (g_pool);
 }
 
-void U_init (uint32_t mempool_size)
+void U_init (size_t mempool_size)
 {
     g_pool = pool_create (mempool_size);
     atexit (U_deinit);
 }
 
-void *checked_malloc (int len)
+void *checked_malloc (size_t len)
 {
     // void *p = malloc(len);
     void *p = pool_alloc(g_pool, len);
     if (!p)
     {
-        fprintf(stderr,"\nRan out of memory!\n");
+        fprintf(stderr,"\nran out of memory!\n");
         exit(1);
     }
+    // fprintf(stderr, "checked_malloc len=%zu -> p=%p\n", len, p);
     return p;
 }
 
-void *checked_calloc (int nmemb, int len)
+void *checked_calloc (size_t nmemb, size_t len)
 {
     void *p = checked_malloc(nmemb * len);
     memset (p, 0, nmemb * len);
