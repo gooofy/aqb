@@ -87,7 +87,9 @@ struct Temp_tempSet_
 
 Temp_tempSet    Temp_TempSet(void);
 bool            Temp_tempSetContains(Temp_tempSet ts, Temp_temp t);
-bool            Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t); // returns FALSE if t was already in t, TRUE otherwise
+bool            Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t); // returns FALSE if t was already in ts, TRUE otherwise
+bool            Temp_tempSetSub(Temp_tempSet ts, Temp_temp t); // returns FALSE if t was not in ts, TRUE otherwise
 string          Temp_tempSetSPrint(Temp_tempSet ts);
+bool            Temp_tempSetIsEmpty(Temp_tempSet ts);
 
 #endif

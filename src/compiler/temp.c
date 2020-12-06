@@ -347,6 +347,7 @@ static Temp_tempSetNode Temp_TempSetNode(Temp_temp t)
 {
     Temp_tempSetNode n = checked_malloc(sizeof(*n));
 
+    n->prev  = NULL;
     n->next  = NULL;
     n->temp  = t;
 
@@ -355,7 +356,6 @@ static Temp_tempSetNode Temp_TempSetNode(Temp_temp t)
 
 bool Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t) // returns FALSE if t was already in t, TRUE otherwise
 {
-
     for (Temp_tempSetNode n = ts->first; n; n=n->next)
     {
         if (n->temp == t)
@@ -368,6 +368,40 @@ bool Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t) // returns FALSE if t was alr
         ts->first = ts->last = Temp_TempSetNode(t);
 
     return TRUE;
+}
+
+bool Temp_tempSetSub(Temp_tempSet ts, Temp_temp t)
+{
+    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+    {
+        if (n->temp == t)
+        {
+            if (n->prev)
+            {
+                n->prev->next = n->next;
+            }
+            else
+            {
+                ts->first = n->next;
+                if (n->next)
+                    n->next->prev = NULL;
+            }
+
+            if (n->next)
+            {
+                n->next->prev = n->prev;
+            }
+            else
+            {
+                ts->last = n->prev;
+                if (n->prev)
+                    n->prev->next = NULL;
+            }
+
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 string Temp_tempSetSPrint(Temp_tempSet ts)
@@ -386,3 +420,7 @@ string Temp_tempSetSPrint(Temp_tempSet ts)
     return res;
 }
 
+bool Temp_tempSetIsEmpty(Temp_tempSet ts)
+{
+    return ts->first == NULL;
+}
