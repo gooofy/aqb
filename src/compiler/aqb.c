@@ -40,7 +40,7 @@ extern struct DOSBase       *DOSBase;
 
 #else
 
-#define MEMPOOL_SIZE 4 * 1024 * 1024
+#define MEMPOOL_SIZE 16 * 1024 * 1024
 
 #endif
 
@@ -124,6 +124,9 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
 //  AS_printInstrList (out, iList,
 //                     Temp_layerMap(ra.coloring, Temp_getNameMap()));
 //  fprintf(out, "END function\n\n");
+
+    // AS_assemble (proc, Temp_layerMap(ra.coloring, Temp_getNameMap()));
+
 }
 
 char *expand_escapes(const char* src)

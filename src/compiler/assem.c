@@ -435,65 +435,6 @@ static Temp_temp nthTemp(Temp_tempList list, int i)
         return nthTemp(list->tail,i-1);
 }
 
-#if 0
-/* first param is string created by this function by reading 'assem' string
- * and replacing `d `s and `j stuff.
- * Last param is function to use to determine what to do with each temp.
- */
-static void format(char *result, string assem,
-		           Temp_tempList dst, Temp_tempList src,
-		           Temp_label target, Temp_map m)
-{
-    // fprintf(stdout, "a format: assem=%s, dst=%p, src=%p\n", assem, dst, src);
-    char *p;
-    int i = 0; /* offset to result string */
-    for (p = assem; p && *p != '\0'; p++)
-    {
-        if (*p == '`')
-        {
-            switch(*(++p))
-            {
-                case 's':
-                {
-                    int n = atoi(++p);
-  	                string s = Temp_look(m, nthTemp(src,n));
-  	                strcpy(result+i, s);
-  	                i += strlen(s);
-  	                break;
-  	            }
-                case 'd':
-                {
-                    int n = atoi(++p);
-  	                string s = Temp_look(m, nthTemp(dst,n));
-  	                strcpy(result+i, s);
-  	                i += strlen(s);
-  	                break;
-  	            }
-                case 'j':
-                {
-                    string s = Temp_labelstring(target);
-  	                strcpy(result+i, s);
-  	                i += strlen(s);
-  	                break;
-  	            }
-                case '`':
-                    result[i] = '`';
-                    i++;
-  	                break;
-                default:
-                    assert(0);
-            }
-        }
-        else
-        {
-            result[i] = *p; i++;
-        }
-    }
-    result[i] = '\0';
-    //fprintf(stdout, "    %s\n", result);
-}
-#endif
-
 static void instrformat(string str, string strTmpl, AS_instr instr, Temp_map m)
 {
     int pos = 0;
@@ -757,5 +698,133 @@ AS_proc AS_Proc(string prolog, AS_instrList body, string epilog)
     proc->epilog = epilog;
 
     return proc;
+}
+
+/******************************************************************************
+ **
+ ** machine code generation
+ **
+ ******************************************************************************/
+
+static bool isAn (Temp_tempList l)
+{
+    return F_isAn (l->head);
+}
+
+static bool is8BitConst (Ty_const c)
+{
+    if (c->ty->kind == Ty_bool)
+        return TRUE;
+
+    assert (    ( c->ty->kind == Ty_byte     )
+             || ( c->ty->kind == Ty_ubyte    )
+             || ( c->ty->kind == Ty_integer  )
+             || ( c->ty->kind == Ty_uinteger )
+             || ( c->ty->kind == Ty_long     )
+             || ( c->ty->kind == Ty_ulong    ) );
+
+    return (c->u.i >=-128) && (c->u.i <= 127);
+}
+
+static uint32_t instr_size (AS_instr instr)
+{
+    switch (instr->mn)
+    {
+        case AS_LABEL:
+            return 0;
+
+
+        case AS_LINK_fp:         // link    a5, #-4
+            return 2;
+
+        case AS_MOVE_Imm_AnDn:   //  36 move.x  #23, d0
+
+            if (isAn (instr->dst))  // movea
+            {
+                switch (instr->w)
+                {
+                    case AS_w_B:
+                        fprintf (stderr, "*** internal error: movea.b does not exist.\n");
+                        assert(0);
+                        return 0;
+                    case AS_w_W:
+                        return 2;
+                    case AS_w_L:
+                        return 3;
+                    default:
+                        assert(0);
+                        return 0;
+                }
+            }
+            else
+            {
+                switch (instr->w)
+                {
+                    case AS_w_B:
+                    case AS_w_W:
+                        return 2;
+                    case AS_w_L:
+                        if (is8BitConst (instr->imm))       // moveq
+                            return 1;
+                        return 3;
+                    default:
+                        assert(0);
+                        return 0;
+                }
+            }
+            break;
+
+
+
+        case AS_MOVE_AnDn_PDsp:  //  41 move.x  d1, -(sp)
+            return 1;
+
+        // case AS_MOVE_Label_AnDn: //  45 move.x  label, d6
+
+
+        case AS_JSR_Label:       //  61 jsr     label
+            return 3;
+
+        default:
+            fprintf (stderr, "*** internal error: unknown mn %d!\n", instr->mn);
+            assert(0);
+    }
+}
+
+void AS_assemble (AS_proc proc, Temp_map m)
+{
+    // step 0: determine size of segment
+
+    uint32_t seg_size = 0;
+    for (AS_instrList iList = proc->body; iList; iList=iList->tail)
+    {
+        AS_instr instr = iList->head;
+
+        char buf[255];
+        AS_sprint(buf, instr, m);
+        printf("AS_assemble: size of %s\n", buf);
+
+        seg_size += instr_size(instr);
+
+    }
+
+
+
+    // for (AS_instrList iList = proc->body; iList; iList=iList->tail)
+    // {
+    //     AS_instr instr = iList->head;
+
+    //     char buf[255];
+    //     AS_sprint(buf, instr, m);
+    //     printf("AS_assemble: %s\n", buf);
+
+
+    //     switch (instr->mn)
+    //     {
+    //         default:
+    //             fprintf (stderr, "*** internal error: unknown mn %d\n", instr->mn);
+    //             assert(0);
+    //     }
+    // }
 }
 
