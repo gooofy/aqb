@@ -123,11 +123,11 @@ static UG_node findOrCreateNode(Temp_temp t, UG_graph g, TAB_table tab)
 
 static Live_graph solveLiveness(FG_graph flow)
 {
-    UG_graph     g             = UG_Graph();
-    TAB_table    tab           = TAB_empty();
-    Temp_map     moveList      = Temp_empty();
-    Temp_map     spillCost     = Temp_empty();
-    AS_instrList worklistMoves = NULL;
+    UG_graph     g                    = UG_Graph();
+    TAB_table    tab                  = TAB_empty();
+    Temp_map     mapTemp2MoveInstrSet = Temp_empty();
+    Temp_map     spillCost            = Temp_empty();
+    AS_instrSet  worklistMoves        = AS_InstrSet();
 
     // traverse flow graph
     for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
@@ -156,12 +156,15 @@ static Live_graph solveLiveness(FG_graph flow)
             {
                 Temp_temp t = defuse->head;
                 move_src = findOrCreateNode(t, g, tab);
-                AS_instrList ml = (AS_instrList)Temp_lookPtr(moveList, t);
-                ml = AS_instrUnion(ml, AS_InstrList(inst, NULL));
-                Temp_enterPtr(moveList, t, (void*)ml);
+                AS_instrSet ms = (AS_instrSet) Temp_lookPtr(mapTemp2MoveInstrSet, t);
+                if (!ms)
+                {
+                    ms = AS_InstrSet();
+                    Temp_enterPtr(mapTemp2MoveInstrSet, t, (void*)ms);
+                }
+                AS_instrSetAdd(ms, inst);
             }
-
-            worklistMoves = AS_instrUnion(worklistMoves, AS_InstrList(inst, NULL));
+            AS_instrSetAdd (worklistMoves, inst);
         }
 
         // traverse defined vars
@@ -222,7 +225,7 @@ static Live_graph solveLiveness(FG_graph flow)
 
     lg->graph = g;
     lg->worklistMoves = worklistMoves;
-    lg->moveList = moveList;
+    lg->mapTemp2MoveInstrSet = mapTemp2MoveInstrSet;
     lg->spillCost = spillCost;
 
     return lg;

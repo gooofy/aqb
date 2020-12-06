@@ -135,10 +135,28 @@ struct AS_instrList_
 };
 AS_instrList AS_InstrList(AS_instr head, AS_instrList tail);
 
-AS_instrList AS_instrUnion(AS_instrList ta, AS_instrList tb);
-AS_instrList AS_instrMinus(AS_instrList ta, AS_instrList tb);
-AS_instrList AS_instrIntersect(AS_instrList ta, AS_instrList tb);
-bool         AS_instrInList(AS_instr i, AS_instrList il);
+// AS_instrSet: mutable set of instrs, still represented as a linked list for speed and iteration
+
+typedef struct AS_instrSet_     *AS_instrSet;
+typedef struct AS_instrSetNode_ *AS_instrSetNode;
+
+struct AS_instrSetNode_
+{
+    AS_instrSetNode next, prev;
+    AS_instr        instr;
+};
+
+struct AS_instrSet_
+{
+    AS_instrSetNode first, last;
+};
+
+AS_instrSet        AS_InstrSet         (void);
+bool               AS_instrSetContains (AS_instrSet as, AS_instr i);
+bool               AS_instrSetAdd      (AS_instrSet as, AS_instr i); // returns FALSE if i was already in as, TRUE otherwise
+void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2);
+bool               AS_instrSetSub      (AS_instrSet as, AS_instr i); // returns FALSE if i was not in as, TRUE otherwise
+static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NULL; }
 
 enum AS_w    AS_tySize(Ty_ty ty);
 

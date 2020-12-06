@@ -7,8 +7,8 @@ typedef struct Live_graph_ *Live_graph;
 struct Live_graph_
 {
 	UG_graph      graph;
-	AS_instrList  worklistMoves;
-	Temp_map      moveList;
+	AS_instrSet   worklistMoves;
+	Temp_map      mapTemp2MoveInstrSet;
 	Temp_map      spillCost;
 };
 Temp_temp  Live_gtemp(UG_node n);

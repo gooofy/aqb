@@ -68,7 +68,7 @@ void           *Temp_lookPtr(Temp_map m, Temp_temp t);
 
 Temp_map        Temp_getNameMap(void);
 
-// Temp_temSet: mutable set of temps, still represented as a linked list for speed and iteration
+// Temp_tempSet: mutable set of temps, still represented as a linked list for speed and iteration
 
 typedef struct Temp_tempSet_     *Temp_tempSet;
 typedef struct Temp_tempSetNode_ *Temp_tempSetNode;
@@ -85,11 +85,11 @@ struct Temp_tempSet_
 };
 
 
-Temp_tempSet    Temp_TempSet(void);
-bool            Temp_tempSetContains(Temp_tempSet ts, Temp_temp t);
-bool            Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t); // returns FALSE if t was already in ts, TRUE otherwise
-bool            Temp_tempSetSub(Temp_tempSet ts, Temp_temp t); // returns FALSE if t was not in ts, TRUE otherwise
-string          Temp_tempSetSPrint(Temp_tempSet ts);
-bool            Temp_tempSetIsEmpty(Temp_tempSet ts);
+Temp_tempSet       Temp_TempSet          (void);
+bool               Temp_tempSetContains  (Temp_tempSet ts, Temp_temp t);
+bool               Temp_tempSetAdd       (Temp_tempSet ts, Temp_temp t); // returns FALSE if t was already in ts, TRUE otherwise
+bool               Temp_tempSetSub       (Temp_tempSet ts, Temp_temp t); // returns FALSE if t was not in ts, TRUE otherwise
+string             Temp_tempSetSPrint    (Temp_tempSet ts);
+static inline bool Temp_tempSetIsEmpty   (Temp_tempSet ts) { return ts->first == NULL; }
 
 #endif

@@ -56,7 +56,7 @@ static POOL * pool_create( size_t size )
         exit(42);
     }
 
-    memset (p, 0xab, size + sizeof(POOL)); // FIXME: remove
+    // memset (p, 0xab, size + sizeof(POOL)); // FIXME: remove
 
     p->initial_size = size;
     p->next         = (char*)&p[1];

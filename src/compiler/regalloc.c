@@ -209,7 +209,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             AS_instr inst = il->head;
 
             // skip coalesced moves
-            if (AS_instrInList(inst, col.coalescedMoves))
+            if (AS_instrSetContains(col.coalescedMoves, inst))
             {
 #ifdef ENABLE_DEBUG
                 char buf[256];

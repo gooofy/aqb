@@ -13,7 +13,7 @@ struct COL_result
     Temp_map      coloring; 
     Temp_tempList colored; 
     Temp_tempList spills;
-    AS_instrList  coalescedMoves; 
+    AS_instrSet   coalescedMoves; 
     Temp_tempList coalescedNodes; 
     G_table       alias;
 };

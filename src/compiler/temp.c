@@ -433,7 +433,3 @@ string Temp_tempSetSPrint(Temp_tempSet ts)
     return res;
 }
 
-bool Temp_tempSetIsEmpty(Temp_tempSet ts)
-{
-    return ts->first == NULL;
-}

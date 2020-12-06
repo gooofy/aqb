@@ -305,89 +305,92 @@ AS_instrList AS_splice(AS_instrList a, AS_instrList b)
     return a;
 }
 
-AS_instrList AS_instrUnion(AS_instrList ta, AS_instrList tb)
+AS_instrSet AS_InstrSet (void)
 {
-    AS_instr t;
-    AS_instrList tl = NULL;
-    TAB_table m = TAB_empty();
+    AS_instrSet s = checked_malloc(sizeof(*s));
 
-    for (; ta; ta = ta->tail)
-    {
-        t = ta->head;
-        if (TAB_look(m, t) == NULL)
-        {
-            TAB_enter(m, t, "u");
-            tl = AS_InstrList(t, tl);
-        }
-    }
+    s->first = NULL;
+    s->last  = NULL;
 
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        if (TAB_look(m, t) == NULL)
-        {
-            TAB_enter(m, t, "u");
-            tl = AS_InstrList(t, tl);
-        }
-    }
-
-    return tl;
+    return s;
 }
 
-AS_instrList AS_instrMinus(AS_instrList ta, AS_instrList tb)
+static AS_instrSetNode AS_InstrSetNode (AS_instr i)
 {
-    AS_instr t;
-    AS_instrList tl = NULL;
-    TAB_table m = TAB_empty();
+    AS_instrSetNode n = checked_malloc(sizeof(*n));
 
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        TAB_enter(m, t, "m");
-    }
+    n->prev  = NULL;
+    n->next  = NULL;
+    n->instr = i;
 
-    for (; ta; ta = ta->tail)
-    {
-        t = ta->head;
-        if (TAB_look(m, t) == NULL)
-        {
-            tl = AS_InstrList(t, tl);
-        }
-    }
-
-    return tl;
+    return n;
 }
 
-AS_instrList AS_instrIntersect(AS_instrList ta, AS_instrList tb)
+bool AS_instrSetContains (AS_instrSet as, AS_instr i)
 {
-    AS_instr t;
-    AS_instrList tl = NULL;
-    TAB_table m = TAB_empty();
-
-    for (; ta; ta = ta->tail)
+    for (AS_instrSetNode n = as->first; n; n=n->next)
     {
-        t = ta->head;
-        TAB_enter(m, t, "i");
+        if (n->instr == i)
+            return TRUE;
     }
-
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        if (TAB_look(m, t) != NULL)
-        {
-            tl = AS_InstrList(t, tl);
-        }
-    }
-
-    return tl;
+    return FALSE;
 }
 
-bool AS_instrInList(AS_instr i, AS_instrList il)
+bool AS_instrSetAdd (AS_instrSet as, AS_instr i) // returns FALSE if i was already in as, TRUE otherwise
 {
-    for (; il; il = il->tail)
+    for (AS_instrSetNode n = as->first; n; n=n->next)
     {
-        if (il->head == i)
+        if (n->instr == i)
+            return FALSE;
+    }
+
+    AS_instrSetNode n = AS_InstrSetNode(i);
+    n->prev = as->last;
+
+    if (as->last)
+        as->last = as->last->next = n;
+    else
+        as->first = as->last = n;
+
+    return TRUE;
+}
+
+void AS_instrSetAddSet (AS_instrSet as, AS_instrSet as2)
+{
+    for (AS_instrSetNode n = as->first; n; n=n->next)
+    {
+        AS_instrSetAdd (as, n->instr);
+    }
+}
+
+bool AS_instrSetSub (AS_instrSet as, AS_instr i) // returns FALSE if i was not in as, TRUE otherwise
+{
+    for (AS_instrSetNode n = as->first; n; n=n->next)
+    {
+        if (n->instr == i)
         {
+            if (n->prev)
+            {
+                n->prev->next = n->next;
+            }
+            else
+            {
+                as->first = n->next;
+                if (n->next)
+                    n->next->prev = NULL;
+            }
+
+            if (n->next)
+            {
+                n->next->prev = n->prev;
+            }
+            else
+            {
+                as->last = n->prev;
+                if (n->prev)
+                    n->prev->next = NULL;
+            }
+
             return TRUE;
         }
     }

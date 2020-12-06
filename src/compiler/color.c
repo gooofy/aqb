@@ -17,17 +17,21 @@
 #ifdef ENABLE_DEBUG
 static Temp_map g_debugTempMap;
 
-static void printtl(Temp_tempList l)
+static void printts(Temp_tempSet l)
 {
-    for (; l; l = l->tail)
+    for (Temp_tempSetNode n = l->first; n; n = n->next)
     {
-        Temp_temp t = l->head;
+        Temp_temp t = n->temp;
         printf("(%2d) %-3s", Temp_num(t), Temp_look(g_debugTempMap, t));
-        if (l->tail)
+        if (n->next)
             printf(", ");
     }
 }
 
+static string tempName(Temp_temp t)
+{
+    return Temp_look(g_debugTempMap, t);
+}
 #endif
 
 typedef struct ctx COL_ctx;
@@ -47,14 +51,14 @@ struct ctx
     Temp_tempList coloredNodes;
     Temp_tempList selectStack;
 
-    AS_instrList  coalescedMoves;
-    AS_instrList  constrainedMoves;
-    AS_instrList  frozenMoves;
-    AS_instrList  worklistMoves;
-    AS_instrList  activeMoves;
+    AS_instrSet   coalescedMoves;
+    AS_instrSet   constrainedMoves;
+    AS_instrSet   frozenMoves;
+    AS_instrSet   worklistMoves;
+    AS_instrSet   activeMoves;
 
     Temp_map      spillCost;
-    Temp_map      moveList;
+    Temp_map      mapTemp2MoveInstrSet;
     UG_table      alias;
     UG_table      degree;
 
@@ -117,12 +121,6 @@ static Temp_temp node2Temp(UG_node n)
     return Live_gtemp(n);
 }
 
-#ifdef ENBALE_DEBUG
-static string tempName(Temp_temp t)
-{
-    return Temp_look(Temp_getNameMap(), t);
-}
-#endif
 
 static Temp_temp str2Color(string color, Temp_map regcolors, Temp_tempList regs)
 {
@@ -156,11 +154,6 @@ static int tempCount(Temp_tempList t)
 static Temp_tempList L(Temp_temp h, Temp_tempList t)
 {
     return Temp_TempList(h, t);
-}
-
-static AS_instrList IL(AS_instr h, AS_instrList t)
-{
-    return AS_InstrList(h, t);
 }
 
 static Temp_tempList adjacent(Temp_temp t)
@@ -201,15 +194,19 @@ static void addEdge(UG_node nu, UG_node nv)
     }
 }
 
-static AS_instrList nodeMoves(Temp_temp t)
-{
-    AS_instrList ml = (AS_instrList)Temp_lookPtr(c.moveList, t);
-    return AS_instrIntersect(ml, AS_instrUnion(c.activeMoves, c.worklistMoves));
-}
-
 static bool moveRelated(Temp_temp t)
 {
-    return nodeMoves(t) != NULL;
+    AS_instrSet ms = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, t);
+    if (!ms)
+        return FALSE;
+    for (AS_instrSetNode n = ms->first; n; n=n->next)
+    {
+        if (AS_instrSetContains(c.activeMoves, n->instr))
+            return TRUE;
+        if (AS_instrSetContains(c.worklistMoves, n->instr))
+            return TRUE;
+    }
+    return FALSE;
 }
 
 static void makeWorkList()
@@ -240,14 +237,16 @@ static void enableMoves(Temp_tempList tl)
 {
     for (; tl; tl = tl->tail)
     {
-        AS_instrList il = nodeMoves(tl->head);
-        for (; il; il = il->tail)
+        AS_instrSet ms = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, tl->head);
+        if (!ms)
+            continue;
+        for (AS_instrSetNode n = ms->first; n; n=n->next)
         {
-            AS_instr m = il->head;
-            if (AS_instrInList(m, c.activeMoves))
+            AS_instr instr = n->instr;
+            if (AS_instrSetContains(c.activeMoves, instr))
             {
-                c.activeMoves = AS_instrMinus(c.activeMoves, IL(m, NULL));
-                c.worklistMoves = AS_instrUnion(c.worklistMoves, IL(m, NULL));
+                AS_instrSetSub (c.activeMoves,   instr);
+                AS_instrSetAdd (c.worklistMoves, instr);
             }
         }
     }
@@ -278,9 +277,7 @@ static void decrementDegree(UG_node n)
 static void addWorkList(Temp_temp t)
 {
     long degree = (long)UG_look(c.degree, temp2Node(t));
-    if (Temp_look(c.precolored, t) == NULL &&
-        (!moveRelated(t)) &&
-        (degree < c.K))
+    if (Temp_look(c.precolored, t) == NULL && (!moveRelated(t)) && (degree < c.K))
     {
         Temp_tempSetSub(c.freezeWorklist, t);
         Temp_tempSetAdd(c.simplifyWorklist, t);
@@ -374,10 +371,13 @@ static void combine(Temp_temp u, Temp_temp v)
     c.coalescedNodes = Temp_union(c.coalescedNodes, L(v, NULL));
     UG_enter(c.alias, nv, (void*)nu);
 
-    AS_instrList au = (AS_instrList)Temp_lookPtr(c.moveList, u);
-    AS_instrList av = (AS_instrList)Temp_lookPtr(c.moveList, v);
-    au = AS_instrUnion(au, av);
-    Temp_enterPtr(c.moveList, u, (void*)au);
+    AS_instrSet is = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, u);
+    if (!is)
+    {
+        is = AS_InstrSet();
+        Temp_enterPtr(c.mapTemp2MoveInstrSet, u, (void*)is);
+    }
+    AS_instrSetAddSet(is, (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, v));
 
     enableMoves(L(v, NULL));
 
@@ -419,9 +419,9 @@ static bool isConstrainedMove(Temp_temp u, Temp_temp v)
     Temp_tempList adj = Temp_union(adju, adjv);
 
 #ifdef ENABLE_DEBUG
-    printf("adju: "); printtl(adju); printf("\n");
-    printf("adjv: "); printtl(adjv); printf("\n");
-    printf("adj : "); printtl(adj);  printf("\n");
+    printf("adju: "); printts(adju); printf("\n");
+    printf("adjv: "); printts(adjv); printf("\n");
+    printf("adj : "); printts(adj);  printf("\n");
 #endif
     for (Temp_tempList r=c.regs; r; r=r->tail)
     {
@@ -432,11 +432,11 @@ static bool isConstrainedMove(Temp_temp u, Temp_temp v)
 #endif
 }
 
-static void coalesce()
+static void coalesce(void)
 {
-    assert(c.worklistMoves);
+    assert(!AS_instrSetIsEmpty(c.worklistMoves));
 
-    AS_instr inst = c.worklistMoves->head;
+    AS_instr inst = c.worklistMoves->first->instr;
     Temp_temp x = tempHead(instUse(inst));
     Temp_temp y = tempHead(instDef(inst));
 
@@ -465,11 +465,11 @@ static void coalesce()
     }
 #endif
 
-    c.worklistMoves = AS_instrMinus(c.worklistMoves, IL(inst, NULL));
+    AS_instrSetSub(c.worklistMoves, inst);
 
     if (u == v)
     {
-        c.coalescedMoves = AS_instrUnion(c.coalescedMoves, IL(inst, NULL));
+        AS_instrSetAdd (c.coalescedMoves, inst);
         addWorkList(u);
 #ifdef ENABLE_DEBUG
         printf ("   coalesced.\n");
@@ -479,7 +479,7 @@ static void coalesce()
     {
         if (isConstrainedMove(u, v))
         {
-            c.constrainedMoves = AS_instrUnion(c.constrainedMoves, IL(inst, NULL));
+            AS_instrSetAdd (c.constrainedMoves, inst);
             addWorkList(u);
             addWorkList(v);
 #ifdef ENABLE_DEBUG
@@ -512,7 +512,7 @@ static void coalesce()
 
             if (flag)
             {
-                c.coalescedMoves = AS_instrUnion(c.coalescedMoves, IL(inst, NULL));
+                AS_instrSetAdd (c.coalescedMoves, inst);
                 combine(u, v);
                 addWorkList(u);
 #ifdef ENABLE_DEBUG
@@ -521,7 +521,7 @@ static void coalesce()
             }
             else
             {
-                c.activeMoves = AS_instrUnion(c.activeMoves, IL(inst, NULL));
+                AS_instrSetAdd (c.activeMoves, inst);
 #ifdef ENABLE_DEBUG
                 printf ("   active.\n");
 #endif
@@ -532,10 +532,15 @@ static void coalesce()
 
 static void freezeMoves(Temp_temp u)
 {
-    AS_instrList il = nodeMoves(u);
-    for (; il; il = il->tail)
+    AS_instrSet ms = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, u);
+    if (!ms)
+        return;
+    for (AS_instrSetNode n = ms->first; n; n=n->next)
     {
-        AS_instr m = il->head;
+        AS_instr m = n->instr;
+        if (!AS_instrSetContains(c.activeMoves, m) && !AS_instrSetContains(c.worklistMoves, m))
+            continue;
+
         Temp_temp x = tempHead(instUse(m));
         Temp_temp y = tempHead(instDef(m));
         UG_node nx = temp2Node(x);
@@ -552,11 +557,11 @@ static void freezeMoves(Temp_temp u)
         }
         Temp_temp v = node2Temp(nv);
 
-        c.activeMoves = AS_instrMinus(c.activeMoves, IL(m, NULL));
-        c.frozenMoves = AS_instrUnion(c.frozenMoves, IL(m, NULL));
+        AS_instrSetSub (c.activeMoves, m);
+        AS_instrSetAdd (c.frozenMoves, m);
 
         long degree = (long)UG_look(c.degree, nv);
-        if (nodeMoves(v) == NULL && degree < c.K)
+        if (!moveRelated(v) && degree < c.K)
         {
             Temp_tempSetSub(c.freezeWorklist, v);
             Temp_tempSetAdd(c.simplifyWorklist, v);
@@ -605,30 +610,31 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 {
     struct COL_result ret = { NULL, NULL, NULL };
 
-    c.precolored       = initial;
-    c.regs             = regs;
-    c.initial          = NULL;
-    c.simplifyWorklist = Temp_TempSet();
-    c.freezeWorklist   = Temp_TempSet();
-    c.spillWorklist    = Temp_TempSet();
-    c.spilledNodes     = NULL;
-    c.coalescedNodes   = NULL;
-    c.coloredNodes     = NULL;
-    c.selectStack      = NULL;
+    c.precolored           = initial;
+    c.regs                 = regs;
+    c.initial              = NULL;
+    c.simplifyWorklist     = Temp_TempSet();
+    c.freezeWorklist       = Temp_TempSet();
+    c.spillWorklist        = Temp_TempSet();
+    c.spilledNodes         = NULL;
+    c.coalescedNodes       = NULL;
+    c.coloredNodes         = NULL;
+    c.selectStack          = NULL;
 
-    c.coalescedMoves   = NULL;
-    c.constrainedMoves = NULL;
-    c.frozenMoves      = NULL;
-    c.worklistMoves    = live->worklistMoves;
-    c.activeMoves      = NULL;
+    c.coalescedMoves       = AS_InstrSet();
+    c.constrainedMoves     = AS_InstrSet();
+    c.frozenMoves          = AS_InstrSet();
+    c.worklistMoves        = AS_InstrSet();
+    AS_instrSetAddSet(c.worklistMoves, live->worklistMoves);
+    c.activeMoves          = AS_InstrSet();
 
-    c.spillCost        = live->spillCost;
-    c.moveList         = live->moveList;
-    c.degree           = UG_empty();
-    c.alias            = UG_empty();
-    c.lg               = live->graph;
+    c.spillCost            = live->spillCost;
+    c.mapTemp2MoveInstrSet = live->mapTemp2MoveInstrSet;
+    c.degree               = UG_empty();
+    c.alias                = UG_empty();
+    c.lg                   = live->graph;
 
-    c.K                = tempCount(regs);
+    c.K                    = tempCount(regs);
 
     Temp_map      precolored   = initial;
     Temp_map      colors       = Temp_layerMap(Temp_empty(), initial);
@@ -658,9 +664,9 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
     do
     {
 #ifdef ENABLE_DEBUG
-        printf("simplifyWL: "); printtl(c.simplifyWorklist); printf("\n");
-        printf("freezeWL  : "); printtl(c.freezeWorklist  ); printf("\n");
-        printf("spillWL   : "); printtl(c.spillWorklist   ); printf("\n");
+        printf("simplifyWL: "); printts(c.simplifyWorklist); printf("\n");
+        printf("freezeWL  : "); printts(c.freezeWorklist  ); printf("\n");
+        printf("spillWL   : "); printts(c.spillWorklist   ); printf("\n");
 #endif
         if (!Temp_tempSetIsEmpty(c.simplifyWorklist))
         {
@@ -669,7 +675,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 #endif
             simplify();
         }
-        else if (c.worklistMoves != NULL)
+        else if (!AS_instrSetIsEmpty(c.worklistMoves))
         {
 #ifdef ENABLE_DEBUG
             printf("--------------> coalesce\n");
@@ -691,9 +697,9 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
             selectSpill();
         }
 #ifdef ENABLE_DEBUG
-        Live_showGraph(stdout, live, g_debugTempMap);
+        //Live_showGraph(stdout, live, g_debugTempMap);
 #endif
-    } while (!Temp_tempSetIsEmpty(c.simplifyWorklist) || c.worklistMoves != NULL ||
+    } while (!Temp_tempSetIsEmpty(c.simplifyWorklist) || !AS_instrSetIsEmpty(c.worklistMoves) ||
              !Temp_tempSetIsEmpty(c.freezeWorklist)   || !Temp_tempSetIsEmpty(c.spillWorklist));
 
     // for (nl = nodes; nl; nl = nl->tail) {
