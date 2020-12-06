@@ -40,7 +40,7 @@ struct ctx
     Temp_tempList initial;
     Temp_tempList regs;
     Temp_tempSet  spillWorklist;
-    Temp_tempList freezeWorklist;
+    Temp_tempSet  freezeWorklist;
     Temp_tempList simplifyWorklist;
     Temp_tempList spilledNodes;
     Temp_tempList coalescedNodes;
@@ -227,7 +227,7 @@ static void makeWorkList()
         }
         else if (moveRelated(t))
         {
-            c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
+            Temp_tempSetAdd(c.freezeWorklist, t);
         }
         else
         {
@@ -266,7 +266,7 @@ static void decrementDegree(UG_node n)
         Temp_tempSetSub (c.spillWorklist, t);
         if (moveRelated(t))
         {
-            c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
+            Temp_tempSetAdd(c.freezeWorklist, t);
         }
         else
         {
@@ -282,7 +282,7 @@ static void addWorkList(Temp_temp t)
         (!moveRelated(t)) &&
         (degree < c.K))
     {
-        c.freezeWorklist   = Temp_minus(c.freezeWorklist, L(t, NULL));
+        Temp_tempSetSub(c.freezeWorklist, t);
         c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(t, NULL));
     }
 }
@@ -364,9 +364,9 @@ static void combine(Temp_temp u, Temp_temp v)
 {
     UG_node nu = temp2Node(u);
     UG_node nv = temp2Node(v);
-    if (Temp_inList(v, c.freezeWorklist))
+    if (Temp_tempSetContains(c.freezeWorklist, v))
     {
-        c.freezeWorklist = Temp_minus(c.freezeWorklist, L(v, NULL));
+        Temp_tempSetSub(c.freezeWorklist, v);
     }
     else
     {
@@ -396,9 +396,9 @@ static void combine(Temp_temp u, Temp_temp v)
 #ifdef ENABLE_DEBUG
     printf ("combined %d with %d, resulting degree: %ld\n", Temp_num(u), Temp_num(v), degree);
 #endif
-    if (degree >= c.K && Temp_inList(u, c.freezeWorklist))
+    if (degree >= c.K && Temp_tempSetContains(c.freezeWorklist, u))
     {
-        c.freezeWorklist = Temp_minus(c.freezeWorklist, L(u, NULL));
+        Temp_tempSetSub(c.freezeWorklist, u);
         Temp_tempSetAdd (c.spillWorklist, u);
     }
 }
@@ -560,21 +560,21 @@ static void freezeMoves(Temp_temp u)
         long degree = (long)UG_look(c.degree, nv);
         if (nodeMoves(v) == NULL && degree < c.K)
         {
-            c.freezeWorklist = Temp_minus(c.freezeWorklist, L(v, NULL));
+            Temp_tempSetSub(c.freezeWorklist, v);
             c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(v, NULL));
         }
     }
 }
 
-static void freeze() {
-  if (c.freezeWorklist == NULL) {
-    return;
-  }
+static void freeze()
+{
+    if (Temp_tempSetIsEmpty(c.freezeWorklist))
+        return;
 
-  Temp_temp u = c.freezeWorklist->head;
-  c.freezeWorklist = Temp_minus(c.freezeWorklist, L(u, NULL));
-  c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(u, NULL));
-  freezeMoves(u);
+    Temp_temp u = c.freezeWorklist->first->temp;
+    Temp_tempSetSub(c.freezeWorklist, u);
+    c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(u, NULL));
+    freezeMoves(u);
 }
 
 static void selectSpill()
@@ -607,14 +607,11 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 {
     struct COL_result ret = { NULL, NULL, NULL };
 
-    //    col = COL_color(live->graph, initialRegs, F_registers(),
-    //                    live->worklistMoves, live->moveList, live->spillCost);
-
     c.precolored       = initial;
     c.regs             = regs;
     c.initial          = NULL;
     c.simplifyWorklist = NULL;
-    c.freezeWorklist   = NULL;
+    c.freezeWorklist   = Temp_TempSet();
     c.spillWorklist    = Temp_TempSet();
     c.spilledNodes     = NULL;
     c.coalescedNodes   = NULL;
@@ -681,7 +678,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 #endif
             coalesce();
         }
-        else if (c.freezeWorklist != NULL)
+        else if (!Temp_tempSetIsEmpty(c.freezeWorklist))
         {
 #ifdef ENABLE_DEBUG
             printf("--------------> freeze\n");
@@ -699,7 +696,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
         Live_showGraph(stdout, live, g_debugTempMap);
 #endif
     } while (c.simplifyWorklist != NULL || c.worklistMoves != NULL ||
-             c.freezeWorklist != NULL   || !Temp_tempSetIsEmpty(c.spillWorklist));
+             !Temp_tempSetIsEmpty(c.freezeWorklist) || !Temp_tempSetIsEmpty(c.spillWorklist));
 
     // for (nl = nodes; nl; nl = nl->tail) {
     //   if (Temp_look(precolored, node2Temp(nl->head))) {

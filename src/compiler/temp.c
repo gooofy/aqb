@@ -354,6 +354,16 @@ static Temp_tempSetNode Temp_TempSetNode(Temp_temp t)
     return n;
 }
 
+bool Temp_tempSetContains(Temp_tempSet ts, Temp_temp t)
+{
+    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+    {
+        if (n->temp == t)
+            return TRUE;
+    }
+    return FALSE;
+}
+
 bool Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t) // returns FALSE if t was already in t, TRUE otherwise
 {
     for (Temp_tempSetNode n = ts->first; n; n=n->next)
