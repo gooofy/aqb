@@ -77,7 +77,6 @@ static void *pool_alloc (POOL *p, size_t size)
 
 static void U_deinit (void)
 {
-    printf ("U_deinit() called.\n");
     pool_destroy (g_pool);
 }
 
