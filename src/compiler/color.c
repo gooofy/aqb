@@ -36,9 +36,10 @@ struct ctx
 {
     UG_graph      lg;
     Temp_map      precolored;
+
     Temp_tempList initial;
     Temp_tempList regs;
-    Temp_tempList spillWorklist;
+    Temp_tempSet  spillWorklist;
     Temp_tempList freezeWorklist;
     Temp_tempList simplifyWorklist;
     Temp_tempList spilledNodes;
@@ -222,7 +223,7 @@ static void makeWorkList()
 
         if (UG_degree(n) >= c.K)
         {
-            c.spillWorklist = Temp_union(c.spillWorklist, L(t, NULL));
+            Temp_tempSetAdd(c.spillWorklist, t);
         }
         else if (moveRelated(t))
         {
@@ -262,7 +263,7 @@ static void decrementDegree(UG_node n)
     if (d == c.K)
     {
         enableMoves(L(t, adjacent(t)));
-        c.spillWorklist = Temp_minus(c.spillWorklist, L(t, NULL));
+        Temp_tempSetSub (c.spillWorklist, t);
         if (moveRelated(t))
         {
             c.freezeWorklist = Temp_union(c.freezeWorklist, L(t, NULL));
@@ -369,7 +370,7 @@ static void combine(Temp_temp u, Temp_temp v)
     }
     else
     {
-        c.spillWorklist = Temp_minus(c.spillWorklist, L(v, NULL));
+        Temp_tempSetSub (c.spillWorklist, v);
     }
 
     c.coalescedNodes = Temp_union(c.coalescedNodes, L(v, NULL));
@@ -398,7 +399,7 @@ static void combine(Temp_temp u, Temp_temp v)
     if (degree >= c.K && Temp_inList(u, c.freezeWorklist))
     {
         c.freezeWorklist = Temp_minus(c.freezeWorklist, L(u, NULL));
-        c.spillWorklist = Temp_union(c.spillWorklist, L(u, NULL));
+        Temp_tempSetAdd (c.spillWorklist, u);
     }
 }
 
@@ -578,16 +579,15 @@ static void freeze() {
 
 static void selectSpill()
 {
-    if (c.spillWorklist == NULL)
+    if (Temp_tempSetIsEmpty(c.spillWorklist))
     {
         return;
     }
-    Temp_tempList tl = c.spillWorklist;
     float minSpillPriority = 9999.0f;
     Temp_temp m = NULL;
-    for (; tl; tl = tl->tail)
+    for (Temp_tempSetNode tln = c.spillWorklist->first; tln; tln = tln->next)
     {
-        Temp_temp t = tl->head;
+        Temp_temp t = tln->temp;
         long cost = (long)Temp_lookPtr(c.spillCost, t);
         long degree = (long)UG_look(c.degree, temp2Node(t));
         degree = (degree > 0) ? degree : 1;
@@ -598,7 +598,7 @@ static void selectSpill()
             m = t;
         }
     }
-    c.spillWorklist    = Temp_minus(c.spillWorklist,    L(m, NULL));
+    Temp_tempSetSub (c.spillWorklist, m);
     c.simplifyWorklist = Temp_union(c.simplifyWorklist, L(m, NULL));
     freezeMoves(m);
 }
@@ -615,7 +615,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
     c.initial          = NULL;
     c.simplifyWorklist = NULL;
     c.freezeWorklist   = NULL;
-    c.spillWorklist    = NULL;
+    c.spillWorklist    = Temp_TempSet();
     c.spilledNodes     = NULL;
     c.coalescedNodes   = NULL;
     c.coloredNodes     = NULL;
@@ -688,7 +688,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 #endif
             freeze();
         }
-        else if (c.spillWorklist != NULL)
+        else if (!Temp_tempSetIsEmpty(c.spillWorklist))
         {
 #ifdef ENABLE_DEBUG
             printf("--------------> selectSpill\n");
@@ -699,7 +699,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
         Live_showGraph(stdout, live, g_debugTempMap);
 #endif
     } while (c.simplifyWorklist != NULL || c.worklistMoves != NULL ||
-             c.freezeWorklist != NULL   || c.spillWorklist != NULL);
+             c.freezeWorklist != NULL   || !Temp_tempSetIsEmpty(c.spillWorklist));
 
     // for (nl = nodes; nl; nl = nl->tail) {
     //   if (Temp_look(precolored, node2Temp(nl->head))) {
