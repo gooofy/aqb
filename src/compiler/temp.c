@@ -362,10 +362,13 @@ bool Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t) // returns FALSE if t was alr
             return FALSE;
     }
 
+    Temp_tempSetNode n = Temp_TempSetNode(t);
+    n->prev = ts->last;
+
     if (ts->last)
-        ts->last = ts->last->next = Temp_TempSetNode(t);
+        ts->last = ts->last->next = n;
     else
-        ts->first = ts->last = Temp_TempSetNode(t);
+        ts->first = ts->last = n;
 
     return TRUE;
 }
