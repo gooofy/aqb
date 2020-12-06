@@ -10,6 +10,7 @@
 #include "graph.h"
 #include "liveness.h"
 #include "table.h"
+#include "options.h"
 
 // #define ENABLE_DEBUG
 
@@ -54,12 +55,28 @@ static inline Temp_tempLList FG_interferingRegsUse(FG_node n)
 
 static void getLiveMap(FG_graph flow)
 {
-    bool changed = TRUE;
+    // optimization: traverse flow graph in reverse order which should reduce the number of iterations needed
+    FG_nodeList reverseFlow = NULL;
+    for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
+    {
+        FG_node n = fl->head;
+        reverseFlow = FG_NodeList (n, reverseFlow);
+    }
 
+    bool changed = TRUE;
+    int nIters = 0;
     while (changed)
     {
+
+        nIters++;
+        if (OPT_get(OPTION_VERBOSE))
+        {
+            printf("liveness iteration #%2d", nIters);
+            U_memstat();
+        }
+
         changed = FALSE;
-        for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
+        for (FG_nodeList fl = reverseFlow; fl; fl = fl->tail)
         {
             FG_node n = fl->head;
 

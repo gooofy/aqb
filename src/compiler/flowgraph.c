@@ -14,7 +14,7 @@ static FG_graph FG_Graph(void)
     return g;
 }
 
-static FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail)
+FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail)
 {
     FG_nodeList n = (FG_nodeList) checked_malloc(sizeof *n);
 

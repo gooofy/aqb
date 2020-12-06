@@ -17,7 +17,7 @@ typedef struct FG_nodeList_ *FG_nodeList;
 struct FG_graph_
 {
     int          nodecount;
-	FG_nodeList nodes, last_node;
+	FG_nodeList  nodes, last_node;
 };
 
 struct FG_nodeList_
@@ -40,8 +40,9 @@ struct FG_node_
     Temp_tempSet  out;
 };
 
-FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f);
+FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail);
+FG_graph    FG_AssemFlowGraph(AS_instrList il, F_frame f);
 
-void      FG_show (FILE *out, FG_graph g, Temp_map tm);
+void        FG_show (FILE *out, FG_graph g, Temp_map tm);
 
 #endif
