@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
@@ -14,6 +15,7 @@
 #include "regalloc.h"
 #include "table.h"
 #include "errormsg.h"
+#include "options.h"
 
 // #define ENABLE_DEBUG
 
@@ -103,6 +105,12 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
     int try = 0;
     while (++try < 7)
     {
+        if (OPT_get(OPTION_VERBOSE))
+        {
+            printf("regalloc try #%d, running before liveness        : ", try);
+            U_memstat();
+        }
+
         Temp_map initialRegs = F_initialRegisters();
 
         flow = FG_AssemFlowGraph(il, f);
@@ -119,6 +127,12 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         // G_show(stdout, G_nodes(live.graph), sprintTemp);
         Live_showGraph(stdout, live, g_debugTempMap);
 #endif
+
+        if (OPT_get(OPTION_VERBOSE))
+        {
+            printf("regalloc try #%d, after liveness before COL_color: ", try);
+            U_memstat();
+        }
 
         col = COL_color(live, initialRegs, F_registers());
 
@@ -188,11 +202,18 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         }
 
         il = reverseInstrList(rewriteList);
+
     }
 
     if (col.spills != NULL)
     {
         EM_error(0, "failed to allocate registers");
+    }
+
+    if (OPT_get(OPTION_VERBOSE))
+    {
+        printf("regalloc succeeded:                               ");
+        U_memstat();
     }
 
     //if (col.coalescedMoves != NULL)
