@@ -8,6 +8,21 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <time.h>
+
+#ifdef __amigaos__
+#include <exec/types.h>
+#include <exec/memory.h>
+
+#include <clib/exec_protos.h>
+#include <clib/dos_protos.h>
+
+#include <inline/exec.h>
+#include <inline/dos.h>
+
+extern struct DOSBase       *DOSBase;
+
+#endif
 
 #include "util.h"
 
@@ -24,8 +39,9 @@
 
 typedef struct pool
 {
-  char * next;
-  char * end;
+    size_t  initial_size;
+    char   *next;
+    char   *end;
 } POOL;
 
 static POOL *g_pool;
@@ -42,8 +58,9 @@ static POOL * pool_create( size_t size )
 
     memset (p, 0xab, size + sizeof(POOL)); // FIXME: remove
 
-    p->next = (char*)&p[1];
-    p->end = p->next + size;
+    p->initial_size = size;
+    p->next         = (char*)&p[1];
+    p->end          = p->next + size;
 
     return p;
 }
@@ -75,13 +92,40 @@ static void *pool_alloc (POOL *p, size_t size)
     return mem;
 }
 
+static float g_start_time;
+
+static float get_time(void)
+{
+    #ifdef __amigaos__
+
+        struct DateStamp datetime;
+
+        DateStamp(&datetime);
+
+        return datetime.ds_Minute * 60.0 + datetime.ds_Tick / 50.0;
+
+    #else
+        clock_t t = clock();
+        return ((float)t)/CLOCKS_PER_SEC;
+    #endif
+}
+
+void U_memstat(void)
+{
+    float t = get_time();
+    double tdiff = t-g_start_time;
+    printf ("%8.3fs: memory pool stats: used %8zu of %8zu KBytes.\n", tdiff, (g_pool->initial_size - pool_available(g_pool))/1024, g_pool->initial_size/1024);
+}
+
 static void U_deinit (void)
 {
+    U_memstat();
     pool_destroy (g_pool);
 }
 
 void U_init (size_t mempool_size)
 {
+    g_start_time = get_time();
     g_pool = pool_create (mempool_size);
     atexit (U_deinit);
 }

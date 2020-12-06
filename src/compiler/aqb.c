@@ -40,7 +40,7 @@ extern struct DOSBase       *DOSBase;
 
 #else
 
-#define MEMPOOL_SIZE 16 * 1024 * 1024
+#define MEMPOOL_SIZE 1024 * 1024 * 1024
 
 #endif
 
@@ -70,26 +70,29 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
         fprintf(stdout, "** doProc %s\n", Temp_labelstring(label));
         fprintf(stdout, "**\n");
         fprintf(stdout, "************************************************************************************************\n\n");
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (doProc starts):\n", Temp_labelstring(label));
         printStmList(stdout, T_StmList(body, NULL));
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list (doProc starts).\n", Temp_labelstring(label));
+        U_memstat();
     }
 
     stmList = C_linearize(body);
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_linearize)\n", Temp_labelstring(label));
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_linearize):\n", Temp_labelstring(label));
         printStmList(stdout, stmList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list (after C_linearize).\n", Temp_labelstring(label));
+        U_memstat();
     }
 
     stmList = C_traceSchedule(C_basicBlocks(stmList));
 
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_traceSchedule)\n", Temp_labelstring(label));
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_traceSchedule):\n", Temp_labelstring(label));
         printStmList(stdout, stmList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list (after C_traceSchedule).\n", Temp_labelstring(label));
+        U_memstat();
     }
 
     iList  = F_codegen(frame, stmList);
@@ -98,7 +101,8 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
     {
         fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
         AS_printInstrList (stdout, iList, Temp_getNameMap());
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
+        U_memstat();
     }
 
     struct RA_result ra = RA_regAlloc(frame, iList);
@@ -108,11 +112,12 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
 
     if (OPT_get(OPTION_VERBOSE))
     {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after F_procEntryExitAS):\n", Temp_labelstring(label));
         fprintf(stdout, "%s\n", proc->prolog);
         AS_printInstrList(stdout, proc->body, Temp_layerMap(ra.coloring, Temp_getNameMap()));
         fprintf(stdout, "%s\n", proc->epilog);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list\n", Temp_labelstring(label));
+        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after F_procEntryExitAS).\n", Temp_labelstring(label));
+        U_memstat();
     }
 
     if (expt)
@@ -444,6 +449,7 @@ int main (int argc, char *argv[])
     {
         printf ("\n\nsemantics worked.\n");
         F_printtree(stdout, frags);
+        U_memstat();
     }
 
     /*

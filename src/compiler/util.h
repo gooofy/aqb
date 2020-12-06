@@ -13,6 +13,7 @@ typedef char bool;
 
 void *checked_malloc (size_t size);
 void *checked_calloc (size_t nmemb, size_t len);
+void U_memstat(void);
 
 string String(const char *); // allocs mem + copies string
 
