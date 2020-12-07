@@ -10,11 +10,11 @@
 
 struct COL_result
 {
-    Temp_map      coloring; 
-    Temp_tempList colored; 
+    Temp_map      coloring;
+    Temp_tempList colored;
     Temp_tempList spills;
-    AS_instrSet   coalescedMoves; 
-    Temp_tempList coalescedNodes; 
+    AS_instrSet   coalescedMoves;
+    Temp_tempSet  coalescedNodes;
     G_table       alias;
 };
 

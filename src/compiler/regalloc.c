@@ -59,10 +59,10 @@ static Temp_tempList L(Temp_temp h, Temp_tempList t)
   return Temp_TempList(h, t);
 }
 
-static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempList coalescedNodes)
+static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes)
 {
     Temp_temp t = node2Temp(n);
-    if (Temp_inList(t, coalescedNodes))
+    if (Temp_tempSetContains(coalescedNodes, t))
     {
         UG_node alias = (UG_node)UG_look(aliases, n);
         return getAlias(alias, aliases, coalescedNodes);
@@ -73,7 +73,7 @@ static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempList coalescedNode
     }
 }
 
-static Temp_tempList aliased(Temp_tempList tl, UG_graph ig, UG_table aliases, Temp_tempList cn)
+static Temp_tempList aliased(Temp_tempList tl, UG_graph ig, UG_table aliases, Temp_tempSet coalescedNodes)
 {
     Temp_tempList al = NULL;
     for (; tl; tl = tl->tail)
@@ -81,7 +81,7 @@ static Temp_tempList aliased(Temp_tempList tl, UG_graph ig, UG_table aliases, Te
         Temp_temp t = tl->head;
         UG_node n = temp2Node(t, ig);
         assert(n);
-        getAlias(n, aliases, cn);
+        getAlias(n, aliases, coalescedNodes);
         t = node2Temp(n);
         assert(t);
         al = L(t, al);

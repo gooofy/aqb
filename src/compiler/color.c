@@ -47,7 +47,7 @@ struct ctx
     Temp_tempSet  freezeWorklist;
     Temp_tempSet  simplifyWorklist;
     Temp_tempList spilledNodes;
-    Temp_tempList coalescedNodes;
+    Temp_tempSet  coalescedNodes;
     Temp_tempList coloredNodes;
     Temp_tempList selectStack;
 
@@ -162,11 +162,13 @@ static Temp_tempList adjacent(Temp_temp t)
     Temp_tempList adjs = NULL;
     for (UG_nodeList adjn = n->adj; adjn; adjn = adjn->tail)
     {
-        // FIXME: wrong, remove ?! adjs = L(node2Temp(n), adjs);
-        adjs = L(node2Temp(adjn->head), adjs);
+        Temp_temp t = node2Temp(adjn->head);
+        if (Temp_tempSetContains(c.coalescedNodes, t))
+            continue;
+        if (Temp_inList (t, c.selectStack))
+            continue;
+        adjs = L(t, adjs);
     }
-
-    adjs = Temp_minus(adjs, Temp_union(c.selectStack, c.coalescedNodes));
     return adjs;
 }
 
@@ -233,23 +235,26 @@ static void makeWorkList()
     }
 }
 
+static void enableMove (Temp_temp t)
+{
+    AS_instrSet ms = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, t);
+    if (!ms)
+        return;
+    for (AS_instrSetNode n = ms->first; n; n=n->next)
+    {
+        AS_instr instr = n->instr;
+        if (AS_instrSetContains(c.activeMoves, instr))
+        {
+            AS_instrSetSub (c.activeMoves,   instr);
+            AS_instrSetAdd (c.worklistMoves, instr);
+        }
+    }
+}
+
 static void enableMoves(Temp_tempList tl)
 {
     for (; tl; tl = tl->tail)
-    {
-        AS_instrSet ms = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, tl->head);
-        if (!ms)
-            continue;
-        for (AS_instrSetNode n = ms->first; n; n=n->next)
-        {
-            AS_instr instr = n->instr;
-            if (AS_instrSetContains(c.activeMoves, instr))
-            {
-                AS_instrSetSub (c.activeMoves,   instr);
-                AS_instrSetAdd (c.worklistMoves, instr);
-            }
-        }
-    }
+        enableMove(tl->head);
 }
 
 static void decrementDegree(UG_node n)
@@ -261,7 +266,11 @@ static void decrementDegree(UG_node n)
 
     if (d == c.K)
     {
-        enableMoves(L(t, adjacent(t)));
+        // enableMoves(L(t, adjacent(t)));
+
+        enableMove(t);
+        enableMoves(adjacent(t));
+
         Temp_tempSetSub (c.spillWorklist, t);
         if (moveRelated(t))
         {
@@ -322,7 +331,7 @@ static bool isCoalescingConservativeBriggs(Temp_tempList tl)
 static UG_node getAlias(UG_node n)
 {
     Temp_temp t = node2Temp(n);
-    if (Temp_inList(t, c.coalescedNodes))
+    if (Temp_tempSetContains(c.coalescedNodes, t))
     {
         UG_node alias = (UG_node)UG_look(c.alias, n);
         return getAlias(alias);
@@ -368,7 +377,7 @@ static void combine(Temp_temp u, Temp_temp v)
         Temp_tempSetSub (c.spillWorklist, v);
     }
 
-    c.coalescedNodes = Temp_union(c.coalescedNodes, L(v, NULL));
+    Temp_tempSetAdd (c.coalescedNodes, v);
     UG_enter(c.alias, nv, (void*)nu);
 
     AS_instrSet is = (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, u);
@@ -617,7 +626,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
     c.freezeWorklist       = Temp_TempSet();
     c.spillWorklist        = Temp_TempSet();
     c.spilledNodes         = NULL;
-    c.coalescedNodes       = NULL;
+    c.coalescedNodes       = Temp_TempSet();
     c.coloredNodes         = NULL;
     c.selectStack          = NULL;
 
@@ -745,12 +754,11 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
         }
     }
 
-    Temp_tempList tl;
-    for (tl = c.coalescedNodes; tl; tl = tl->tail)
+    for (Temp_tempSetNode tn = c.coalescedNodes->first; tn; tn = tn->next)
     {
-        UG_node alias = getAlias(temp2Node(tl->head));
+        UG_node alias = getAlias(temp2Node(tn->temp));
         string color = Temp_look(colors, node2Temp(alias));
-        Temp_enter(colors, tl->head, color);
+        Temp_enter(colors, tn->temp, color);
     }
 
     ret.coloring = colors;
