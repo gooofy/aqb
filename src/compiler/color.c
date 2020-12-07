@@ -77,14 +77,12 @@ static Temp_tempList instUse(AS_instr inst)
     return inst ? inst->src : NULL;
 }
 
-static Temp_tempList cloneRegs(Temp_tempList regs)
+static Temp_tempSet cloneRegs(Temp_tempList regs)
 {
-    Temp_tempList tl = NULL;
+    Temp_tempSet ts = Temp_TempSet();
     for (; regs; regs = regs->tail)
-    {
-        tl = Temp_TempList(regs->head, tl);
-    }
-    return tl;
+        Temp_tempSetAdd (ts, regs->head);
+    return ts;
 }
 
 static Temp_temp tempHead(Temp_tempList temps)
@@ -731,7 +729,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
         UG_node n = temp2Node(t);
         c.selectStack = c.selectStack->tail;
 
-        Temp_tempList okColors = cloneRegs(regs);
+        Temp_tempSet okColors = cloneRegs(regs);
         UG_nodeList adjs = n->adj;
 
         for (; adjs; adjs = adjs->tail)
@@ -744,20 +742,18 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
             {
                 Temp_temp colorTemp = str2Color(color, precolored, regs);
                 if (colorTemp)
-                {
-                    okColors = Temp_minus(okColors, L(colorTemp, NULL));
-                }
+                    Temp_tempSetSub (okColors, colorTemp);
             }
         }
 
-        if (okColors == NULL)
+        if (Temp_tempSetIsEmpty(okColors))
         {
             c.spilledNodes = L(t, c.spilledNodes);
         }
         else
         {
             coloredNodes = L(t, coloredNodes);
-            Temp_enter(colors, t, color2Str(okColors->head, precolored));
+            Temp_enter(colors, t, color2Str(okColors->first->temp, precolored));
         }
     }
 
