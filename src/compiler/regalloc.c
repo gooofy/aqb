@@ -88,7 +88,7 @@ static Temp_tempList aliasedSpilled(Temp_tempList tl, UG_graph ig, UG_table alia
         assert(t);
         al = L(t, al);
     }
-    return Temp_union(al, NULL); // FIXME: return al ?
+    return al;
 };
 
 struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
