@@ -149,11 +149,6 @@ static int tempCount(Temp_tempList t)
     return cnt;
 };
 
-static Temp_tempList L(Temp_temp h, Temp_tempList t)
-{
-    return Temp_TempList(h, t);
-}
-
 static Temp_tempList adjacent(Temp_temp t)
 {
     UG_node n = temp2Node(t);
@@ -165,7 +160,7 @@ static Temp_tempList adjacent(Temp_temp t)
             continue;
         if (Temp_inList (t, c.selectStack))
             continue;
-        adjs = L(t, adjs);
+        adjs = Temp_TempList(t, adjs);
     }
     return adjs;
 }
@@ -350,7 +345,7 @@ static void simplify()
     UG_node n = temp2Node(t);
     Temp_tempSetSub(c.simplifyWorklist, t);
 
-    c.selectStack = L(t, c.selectStack);  // push
+    c.selectStack = Temp_TempList(t, c.selectStack);  // push
 #ifdef ENABLE_DEBUG
     printf ("simplify(): pushed %d\n", Temp_num(t));
 #endif
@@ -742,11 +737,11 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 
         if (Temp_tempSetIsEmpty(okColors))
         {
-            c.spilledNodes = L(t, c.spilledNodes);
+            c.spilledNodes = Temp_TempList(t, c.spilledNodes);
         }
         else
         {
-            coloredNodes = L(t, coloredNodes);
+            coloredNodes = Temp_TempList(t, coloredNodes);
             Temp_enter(colors, t, color2Str(okColors->first->temp, precolored));
         }
     }
@@ -763,7 +758,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
     ret.colored = NULL;
     for (; coloredNodes; coloredNodes = coloredNodes->tail)
     {
-        ret.colored = L(coloredNodes->head, ret.colored);
+        ret.colored = Temp_TempList(coloredNodes->head, ret.colored);
     }
 
     ret.spills = NULL;
@@ -772,7 +767,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 #ifdef ENABLE_DEBUG
         printf("spilled: %s\n", tempName(c.spilledNodes->head));
 #endif
-        ret.spills = L(c.spilledNodes->head, ret.spills);
+        ret.spills = Temp_TempList(c.spilledNodes->head, ret.spills);
     }
 
     ret.coalescedMoves = c.coalescedMoves;
