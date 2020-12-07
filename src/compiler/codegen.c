@@ -555,9 +555,9 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                             T_exp     e_right = e->u.BINOP.right;
                             Temp_temp r       = Temp_newtemp(resty);
 
-                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, munchExp(e_left, FALSE), r));         // move.w  e_left, r
-                            emit(AS_Instr(AS_NOT_Dn, AS_w_W, r, r));                                       // not.w   r, r
-                            emit(AS_InstrEx(AS_OR_Dn_Dn, AS_w_W, L(munchExp(e_right, FALSE), L(r, NULL)),  // or.w    e_right, r
+                            emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(e_left, FALSE), r));         // move.l  e_left, r
+                            emit(AS_Instr(AS_NOT_Dn, AS_w_L, r, r));                                       // not.l   r, r
+                            emit(AS_InstrEx(AS_OR_Dn_Dn, AS_w_L, L(munchExp(e_right, FALSE), L(r, NULL)),  // or.l    e_right, r
                                             L(r, NULL), 0, 0, NULL));
                             return r;
                         }
