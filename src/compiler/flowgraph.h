@@ -10,6 +10,10 @@
  *               flow graphs tailored towards liveness analysis
  */
 
+/*
+#define FG_DEPTH_FIRST_ORDER
+*/
+
 typedef struct FG_graph_    *FG_graph;
 typedef struct FG_node_     *FG_node;
 typedef struct FG_nodeList_ *FG_nodeList;
@@ -38,6 +42,9 @@ struct FG_node_
     // liveness analysis:
     Temp_tempSet  in;
     Temp_tempSet  out;
+#ifdef FG_DEPTH_FIRST_ORDER
+    bool          mark; // used in depth-first ordering
+#endif
 };
 
 FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail);

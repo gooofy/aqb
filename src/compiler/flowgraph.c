@@ -46,6 +46,9 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
 
     n->in       = Temp_TempSet();
     n->out      = Temp_TempSet();
+#ifdef FG_DEPTH_FIRST_ORDER
+    n->mark     = FALSE;
+#endif
 
     return n;
 }

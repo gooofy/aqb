@@ -53,15 +53,36 @@ static inline Temp_tempLList FG_interferingRegsUse(FG_node n)
     return inst->srcInterf;
 }
 
+#ifdef FG_DEPTH_FIRST_ORDER
+static FG_nodeList computeFGDepthFirstOrder (FG_node node, FG_nodeList res)
+{
+    if (node->mark)
+        return res;
+    node->mark = TRUE;
+
+    for (FG_nodeList nl = node->preds; nl; nl=nl->tail)
+    {
+        res = computeFGDepthFirstOrder (nl->head, res);
+    }
+
+    res = FG_NodeList (node, res);
+    return res;
+}
+#endif
+
 static void getLiveMap(FG_graph flow)
 {
     // optimization: traverse flow graph in reverse order which should reduce the number of iterations needed
+#ifdef FG_DEPTH_FIRST_ORDER
+    FG_nodeList reverseFlow = computeFGDepthFirstOrder (flow->last_node->head, NULL);
+#else
     FG_nodeList reverseFlow = NULL;
     for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
     {
         FG_node n = fl->head;
         reverseFlow = FG_NodeList (n, reverseFlow);
     }
+#endif
 
     bool changed = TRUE;
     int nIters = 0;
