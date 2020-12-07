@@ -173,10 +173,9 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             Temp_tempList defSpilled = Temp_intersect(
                                         aliased(inst->dst, live->graph, col.alias, col.coalescedNodes),
                                         spilled);
-            Temp_tempList tempSpilled = Temp_union(useSpilled, defSpilled);
 
             // Skip unspilled instructions
-            if (tempSpilled == NULL)
+            if (!useSpilled && !defSpilled)
             {
                 rewriteList = AS_InstrList(inst, rewriteList);
                 continue;
