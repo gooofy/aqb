@@ -247,12 +247,6 @@ static void enableMove (Temp_temp t)
     }
 }
 
-static void enableMoves(Temp_tempList tl)
-{
-    for (; tl; tl = tl->tail)
-        enableMove(tl->head);
-}
-
 static void decrementDegree(UG_node n)
 {
     Temp_temp t = node2Temp(n);
@@ -393,7 +387,7 @@ static void combine(Temp_temp u, Temp_temp v)
     }
     AS_instrSetAddSet(is, (AS_instrSet)Temp_lookPtr(c.mapTemp2MoveInstrSet, v));
 
-    enableMoves(L(v, NULL));
+    enableMove(v);
 
     UG_nodeList adjs = nv->adj;
     for (; adjs; adjs = adjs->tail)
