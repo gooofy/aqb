@@ -73,12 +73,14 @@ static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes
     }
 }
 
-static Temp_tempList aliased(Temp_tempList tl, UG_graph ig, UG_table aliases, Temp_tempSet coalescedNodes)
+static Temp_tempList aliasedSpilled(Temp_tempList tl, UG_graph ig, UG_table aliases, Temp_tempSet coalescedNodes, Temp_tempSet spilled)
 {
     Temp_tempList al = NULL;
     for (; tl; tl = tl->tail)
     {
         Temp_temp t = tl->head;
+        if (!Temp_tempSetContains(spilled, t))
+            continue;
         UG_node n = temp2Node(t, ig);
         assert(n);
         getAlias(n, aliases, coalescedNodes);
@@ -86,7 +88,7 @@ static Temp_tempList aliased(Temp_tempList tl, UG_graph ig, UG_table aliases, Te
         assert(t);
         al = L(t, al);
     }
-    return Temp_union(al, NULL);
+    return Temp_union(al, NULL); // FIXME: return al ?
 };
 
 struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
@@ -136,43 +138,38 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
         col = COL_color(live, initialRegs, F_registers());
 
-        if (col.spills == NULL)
+        if (Temp_tempSetIsEmpty(col.spills))
         {
             break;
         }
 
-        Temp_tempList spilled = col.spills;
+        Temp_tempSet spilled = col.spills;
         rewriteList = NULL;
 
         // Assign locals in memory
-        Temp_tempList tl;
         TAB_table spilledLocal = TAB_empty();
-        for (tl = spilled; tl; tl = tl->tail)
+        for (Temp_tempSetNode tn = spilled->first; tn; tn = tn->next)
         {
             F_access acc;
             if (f)
             {
-                acc = F_allocLocal(f, Temp_ty(tl->head));
+                acc = F_allocLocal(f, Temp_ty(tn->temp));
             }
             else
             {
-                Temp_label name = Temp_namedlabel(strprintf("__spilledtemp_%06d", Temp_num(tl->head)));
-                acc = F_allocGlobal(name, Temp_ty(tl->head));
+                Temp_label name = Temp_namedlabel(strprintf("__spilledtemp_%06d", Temp_num(tn->temp)));
+                acc = F_allocGlobal(name, Temp_ty(tn->temp));
             }
 
-            TAB_enter(spilledLocal, tl->head, acc);
+            TAB_enter(spilledLocal, tn->temp, acc);
         }
 
         // Rewrite instructions
         for (; il; il = il->tail)
         {
             AS_instr inst = il->head;
-            Temp_tempList useSpilled = Temp_intersect(
-                                        aliased(inst->src, live->graph, col.alias, col.coalescedNodes),
-                                        spilled);
-            Temp_tempList defSpilled = Temp_intersect(
-                                        aliased(inst->dst, live->graph, col.alias, col.coalescedNodes),
-                                        spilled);
+            Temp_tempList useSpilled = aliasedSpilled(inst->src, live->graph, col.alias, col.coalescedNodes, spilled);
+            Temp_tempList defSpilled = aliasedSpilled(inst->dst, live->graph, col.alias, col.coalescedNodes, spilled);
 
             // Skip unspilled instructions
             if (!useSpilled && !defSpilled)
@@ -181,7 +178,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
                 continue;
             }
 
-            for (tl = useSpilled; tl; tl = tl->tail)
+            for (Temp_tempList tl = useSpilled; tl; tl = tl->tail)
             {
                 Temp_temp temp = tl->head;
                 F_access local = (F_access)TAB_look(spilledLocal, temp);
@@ -191,7 +188,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
             rewriteList = AS_InstrList(inst, rewriteList);
 
-            for (tl = defSpilled; tl; tl = tl->tail)
+            for (Temp_tempList tl = defSpilled; tl; tl = tl->tail)
             {
                 Temp_temp temp = tl->head;
                 F_access local = (F_access)TAB_look(spilledLocal, temp);
@@ -204,7 +201,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
     }
 
-    if (col.spills != NULL)
+    if (!Temp_tempSetIsEmpty(col.spills))
     {
         EM_error(0, "failed to allocate registers");
     }

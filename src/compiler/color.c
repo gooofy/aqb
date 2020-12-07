@@ -761,13 +761,13 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
         ret.colored = Temp_TempList(coloredNodes->head, ret.colored);
     }
 
-    ret.spills = NULL;
+    ret.spills = Temp_TempSet();
     for (; c.spilledNodes; c.spilledNodes = c.spilledNodes->tail)
     {
 #ifdef ENABLE_DEBUG
         printf("spilled: %s\n", tempName(c.spilledNodes->head));
 #endif
-        ret.spills = Temp_TempList(c.spilledNodes->head, ret.spills);
+        Temp_tempSetAdd(ret.spills, c.spilledNodes->head);
     }
 
     ret.coalescedMoves = c.coalescedMoves;
