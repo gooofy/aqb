@@ -41,7 +41,7 @@ struct ctx
     UG_graph      lg;
     Temp_map      precolored;
 
-    Temp_tempList initial;
+    Temp_tempSet  initial;
     Temp_tempList regs;
     Temp_tempSet  spillWorklist;
     Temp_tempSet  freezeWorklist;
@@ -213,12 +213,10 @@ static bool moveRelated(Temp_temp t)
 
 static void makeWorkList()
 {
-    Temp_tempList tl;
-    for (tl = c.initial; tl; tl = tl->tail)
+    for (Temp_tempSetNode tn = c.initial->first; tn; tn = tn->next)
     {
-        Temp_temp t = tl->head;
+        Temp_temp t = tn->temp;
         UG_node n = temp2Node(t);
-        c.initial = Temp_minus(c.initial, L(t, NULL));
 
         if (UG_degree(n) >= c.K)
         {
@@ -267,9 +265,18 @@ static void decrementDegree(UG_node n)
     if (d == c.K)
     {
         // enableMoves(L(t, adjacent(t)));
-
         enableMove(t);
-        enableMoves(adjacent(t));
+
+        // inlined: enableMoves(adjacent(t));
+        for (UG_nodeList adjn = n->adj; adjn; adjn = adjn->tail)
+        {
+            Temp_temp t2 = node2Temp(adjn->head);
+            if (Temp_tempSetContains(c.coalescedNodes, t2))
+                continue;
+            if (Temp_inList (t2, c.selectStack))
+                continue;
+            enableMove(t2);
+        }
 
         Temp_tempSetSub (c.spillWorklist, t);
         if (moveRelated(t))
@@ -621,7 +628,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
 
     c.precolored           = initial;
     c.regs                 = regs;
-    c.initial              = NULL;
+    c.initial              = Temp_TempSet();
     c.simplifyWorklist     = Temp_TempSet();
     c.freezeWorklist       = Temp_TempSet();
     c.spillWorklist        = Temp_TempSet();
@@ -665,7 +672,7 @@ struct COL_result COL_color(Live_graph live, Temp_map initial, Temp_tempList reg
             UG_enter(c.degree, nl->head, (void*)999);
             continue;
         }
-        c.initial = L(t, c.initial);
+        Temp_tempSetAdd (c.initial, t);
     }
 
     // main coloring algorithm
