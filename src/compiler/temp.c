@@ -192,131 +192,6 @@ Temp_tempList Temp_reverseList(Temp_tempList t)
     return tl;
 }
 
-Temp_tempList Temp_union(Temp_tempList ta, Temp_tempList tb)
-{
-    Temp_temp t;
-    Temp_tempList tl = NULL;
-    Temp_map m = Temp_empty();
-
-    for (; ta; ta = ta->tail)
-    {
-        t = ta->head;
-        if (Temp_look(m, t) == NULL)
-        {
-            Temp_enter(m, t, "u");
-            tl = Temp_TempList(t, tl);
-        }
-    }
-
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        if (Temp_look(m, t) == NULL)
-        {
-            Temp_enter(m, t, "u");
-            tl = Temp_TempList(t, tl);
-        }
-    }
-
-    return tl;
-}
-
-Temp_tempList Temp_intersect(Temp_tempList ta, Temp_tempList tb)
-{
-    Temp_temp t;
-    Temp_tempList tl = NULL;
-    Temp_map m = Temp_empty();
-
-    for (; ta; ta = ta->tail)
-    {
-        t = ta->head;
-        Temp_enter(m, t, "i");
-    }
-
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        if (Temp_look(m, t) != NULL)
-        {
-            tl = Temp_TempList(t, tl);
-        }
-    }
-
-    return tl;
-}
-
-Temp_tempList Temp_minus(Temp_tempList ta, Temp_tempList tb)
-{
-    Temp_temp t;
-    Temp_tempList tl = NULL;
-    Temp_map m = Temp_empty();
-
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        Temp_enter(m, t, "m");
-    }
-
-    for (; ta; ta = ta->tail)
-    {
-        t = ta->head;
-        if (Temp_look(m, t) == NULL)
-        {
-           tl = Temp_TempList(t, tl);
-        }
-    }
-
-    return tl;
-}
-
-bool Temp_equal(Temp_tempList ta, Temp_tempList tb)
-{
-    Temp_temp t;
-    Temp_map m = Temp_empty();
-    int ca = 0, cb = 0;
-
-    for (; ta; ta = ta->tail)
-    {
-        t = ta->head;
-        Temp_enter(m, t, "e");
-        ++ca;
-    }
-
-    for (; tb; tb = tb->tail)
-    {
-        t = tb->head;
-        if (Temp_look(m, t) == NULL)
-        {
-            return FALSE;
-        }
-        ++cb;
-    }
-
-    return (ca == cb);
-}
-
-bool Temp_inList(Temp_temp t, Temp_tempList tl)
-{
-    for (; tl; tl = tl->tail)
-    {
-        if (tl->head == t)
-        {
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
-
-Temp_tempLList Temp_TempLList(Temp_tempList head, Temp_tempLList tail)
-{
-    Temp_tempLList p = (Temp_tempLList) checked_malloc(sizeof (*p));
-
-    p->head = head;
-    p->tail = tail;
-
-    return p;
-}
-
 void Temp_dumpMap(FILE *out, Temp_map m)
 {
     TAB_iter iter = TAB_Iter(m->tab);
@@ -417,7 +292,7 @@ bool Temp_tempSetSub(Temp_tempSet ts, Temp_temp t)
     return FALSE;
 }
 
-string Temp_tempSetSPrint(Temp_tempSet ts)
+string Temp_tempSetSPrint(Temp_tempSet ts, Temp_map m)
 {
     string res = "";
 
@@ -426,10 +301,36 @@ string Temp_tempSetSPrint(Temp_tempSet ts)
         Temp_temp t = n->temp;
 
         if (strlen(res))
-            res = strconcat (res, strprintf(", %d", Temp_num(t)));
+            res = strconcat (res, strprintf(", %s", Temp_look(m, t)));
         else
-            res = strprintf("%d", Temp_num(t));
+            res = strprintf("%s", Temp_look(m, t));
     }
+    return res;
+}
+
+Temp_tempSet Temp_tempSetUnion (Temp_tempSet tsA, Temp_tempSet tsB)
+{
+    Temp_tempSet res = Temp_TempSet();
+    for (Temp_tempSetNode n = tsA->first; n; n=n->next)
+        Temp_tempSetAdd (res, n->temp);
+    for (Temp_tempSetNode n = tsB->first; n; n=n->next)
+        Temp_tempSetAdd (res, n->temp);
+    return res;
+}
+
+Temp_tempSet Temp_tempSetCopy (Temp_tempSet ts)
+{
+    Temp_tempSet res = Temp_TempSet();
+    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+        Temp_tempSetAdd (res, n->temp);
+    return res;
+}
+
+Temp_tempList Temp_tempSet2List (Temp_tempSet ts)
+{
+    Temp_tempList res = NULL;
+    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+        res = Temp_TempList (n->temp, res);
     return res;
 }
 

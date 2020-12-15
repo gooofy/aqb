@@ -31,21 +31,6 @@ Temp_tempList   Temp_TempList(Temp_temp h, Temp_tempList t);
 Temp_tempList   Temp_reverseList(Temp_tempList t);
 string          Temp_sprint_TempList(Temp_tempList tl);
 
-bool            Temp_equal(Temp_tempList ta, Temp_tempList tb);
-Temp_tempList   Temp_union(Temp_tempList ta, Temp_tempList tb);
-Temp_tempList   Temp_intersect(Temp_tempList ta, Temp_tempList tb);
-Temp_tempList   Temp_minus(Temp_tempList ta, Temp_tempList tb);
-bool            Temp_inList(Temp_temp t, Temp_tempList tl);
-
-// Temp_tempLList: list of Temp_tempLists
-struct Temp_tempLList_
-{
-    Temp_tempList  head;
-    Temp_tempLList tail;
-};
-
-Temp_tempLList  Temp_TempLList(Temp_tempList head, Temp_tempLList tail);
-
 Temp_label      Temp_newlabel(void);
 Temp_label      Temp_namedlabel(string name);
 string          Temp_labelstring(Temp_label s);
@@ -84,12 +69,14 @@ struct Temp_tempSet_
     Temp_tempSetNode first, last;
 };
 
-
 Temp_tempSet       Temp_TempSet          (void);
 bool               Temp_tempSetContains  (Temp_tempSet ts, Temp_temp t);
 bool               Temp_tempSetAdd       (Temp_tempSet ts, Temp_temp t); // returns FALSE if t was already in ts, TRUE otherwise
 bool               Temp_tempSetSub       (Temp_tempSet ts, Temp_temp t); // returns FALSE if t was not in ts, TRUE otherwise
-string             Temp_tempSetSPrint    (Temp_tempSet ts);
+string             Temp_tempSetSPrint    (Temp_tempSet ts, Temp_map m);
 static inline bool Temp_tempSetIsEmpty   (Temp_tempSet ts) { return ts->first == NULL; }
+Temp_tempSet       Temp_tempSetUnion     (Temp_tempSet tsA, Temp_tempSet tsB); // return newly allocated TempSet that contains union of nodes from tsA and tsaB
+Temp_tempSet       Temp_tempSetCopy      (Temp_tempSet ts); // return newly allocated TempSet that contains the nodes from ts
+Temp_tempList      Temp_tempSet2List     (Temp_tempSet ts);
 
 #endif

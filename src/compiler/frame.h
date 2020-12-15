@@ -64,7 +64,7 @@ F_fragList F_FragList(F_frag head, F_fragList tail);
 
 /* machine-related features */
 
-Temp_tempList F_registers(void);
+Temp_tempSet  F_registers(void);
 string        F_getlabel(F_frame frame);
 T_exp         F_Exp(F_access acc);
 
@@ -94,10 +94,10 @@ Temp_temp     F_D4(void);
 Temp_temp     F_D5(void);
 Temp_temp     F_D6(void);
 Temp_temp     F_D7(void);
-Temp_tempList F_callersaves(void);
-Temp_tempList F_calleesaves(void);
-Temp_tempList F_aRegs(void);
-Temp_tempList F_dRegs(void);
+Temp_tempSet  F_callersaves(void);
+Temp_tempSet  F_calleesaves(void);
+Temp_tempSet  F_aRegs(void);
+Temp_tempSet  F_dRegs(void);
 bool          F_isAn(Temp_temp reg);
 bool          F_isDn(Temp_temp reg);
 Temp_temp     F_lookupReg(S_symbol sym);

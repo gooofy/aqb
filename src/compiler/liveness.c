@@ -12,22 +12,15 @@
 #include "table.h"
 #include "options.h"
 
-// #define ENABLE_DEBUG
+/*
+#define ENABLE_DEBUG
+*/
 
 Temp_temp Live_gtemp(UG_node n)
 {
     return (Temp_temp) n->info;
 }
 
-static inline Temp_tempList FG_def(FG_node n)
-{
-    return n->instr ? n->instr->dst : NULL;
-}
-
-static inline Temp_tempList FG_use(FG_node n)
-{
-    return n->instr ? n->instr->src : NULL;
-}
 
 static inline bool FG_isMove(FG_node n)
 {
@@ -35,22 +28,6 @@ static inline bool FG_isMove(FG_node n)
     if (!inst)
         return FALSE;
     return inst->mn == AS_MOVE_AnDn_AnDn;
-}
-
-static inline Temp_tempLList FG_interferingRegsDef(FG_node n)
-{
-    AS_instr inst = n->instr;
-    if (!inst)
-        return NULL;
-    return inst->dstInterf;
-}
-
-static inline Temp_tempLList FG_interferingRegsUse(FG_node n)
-{
-    AS_instr inst = n->instr;
-    if (!inst)
-        return NULL;
-    return inst->srcInterf;
 }
 
 #ifdef FG_DEPTH_FIRST_ORDER
@@ -110,20 +87,19 @@ static void getLiveMap(FG_graph flow)
             Temp_tempSet in = n->in;
 
             // in[n] ← in[n] ∪ (out[n] − def[n])
-            Temp_tempList def_n = FG_def(n);
+            Temp_tempSet def_n = n->def;
             for (Temp_tempSetNode sn=n->out->first; sn; sn = sn->next)
             {
                 Temp_temp t = sn->temp;
-                if (Temp_inList(t, def_n))
+                if (Temp_tempSetContains(def_n, t))
                     continue;
                 if (Temp_tempSetAdd(in, t))
                     changed = TRUE;
             }
             // in[n] ← in[n] ∪ use[n]
-            for (Temp_tempList tl=FG_use(n); tl; tl = tl->tail)
+            for (Temp_tempSetNode tn=n->use->first; tn; tn = tn->next)
             {
-                Temp_temp t = tl->head;
-                if (Temp_tempSetAdd(in, t))
+                if (Temp_tempSetAdd(in, tn->temp))
                     changed = TRUE;
             }
 
@@ -145,6 +121,9 @@ static void getLiveMap(FG_graph flow)
                 }
             }
         }
+#ifdef ENABLE_DEBUG
+        //FG_show(stdout, flow, Temp_layerMap(F_initialRegisters(), Temp_getNameMap()));
+#endif
     }
 }
 
@@ -170,18 +149,18 @@ static Live_graph solveLiveness(FG_graph flow)
     // traverse flow graph
     for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
     {
-        FG_node      n    = fl->head;
+        FG_node       n    = fl->head;
         AS_instr      inst = n->instr;
         Temp_tempSet  tout = n->out;
-        Temp_tempList tdef = FG_def(n);
-        Temp_tempList tuse = FG_use(n);
-        Temp_tempList defuse = Temp_union(tuse, tdef);
+        Temp_tempSet  tdef = n->def;
+        Temp_tempSet  tuse = n->use;
+        Temp_tempSet  defuse = Temp_tempSetUnion(tuse, tdef);
         UG_node       move_src = NULL;
 
         // Spill Cost
-        for (Temp_tempList t = defuse; t; t = t->tail)
+        for (Temp_tempSetNode tn = defuse->first; tn; tn = tn->next)
         {
-            Temp_temp ti = t->head;
+            Temp_temp ti = tn->temp;
             long spills = (long)Temp_lookPtr(spillCost, ti);
             ++spills;
             Temp_enterPtr(spillCost, ti, (void*)spills);
@@ -190,9 +169,9 @@ static Live_graph solveLiveness(FG_graph flow)
         // Move instruction?
         if (FG_isMove(n) && tdef)
         {
-            for (; defuse; defuse = defuse->tail)
+            for (Temp_tempSetNode tn = defuse->first; tn; tn = tn->next)
             {
-                Temp_temp t = defuse->head;
+                Temp_temp t = tn->temp;
                 move_src = findOrCreateNode(t, g, tab);
                 AS_instrSet ms = (AS_instrSet) Temp_lookPtr(mapTemp2MoveInstrSet, t);
                 if (!ms)
@@ -231,31 +210,26 @@ static Live_graph solveLiveness(FG_graph flow)
         }
 
         // add register interference edges for used operands that need to be held in address or data registers only
-        Temp_tempLList tLLIntfRegs = FG_interferingRegsUse(n);
-        for (Temp_tempList t = tuse; t; t = t->tail)
+        if (n->instr)
         {
-            if (!tLLIntfRegs)
-                break;
-            UG_node nuse = findOrCreateNode(t->head, g, tab);
-            for (Temp_tempList interfRegs = tLLIntfRegs->head; interfRegs; interfRegs=interfRegs->tail)
+            if (n->instr->src)
             {
-                UG_node interfNode = findOrCreateNode(interfRegs->head, g, tab);
-                UG_addEdge(nuse, interfNode);
+                UG_node nsrc = findOrCreateNode(n->instr->src, g, tab);
+                for (Temp_tempSetNode tn = n->srcInterf->first; tn; tn = tn->next)
+                {
+                    UG_node interfNode = findOrCreateNode(tn->temp, g, tab);
+                    UG_addEdge(nsrc, interfNode);
+                }
             }
-            tLLIntfRegs = tLLIntfRegs->tail;
-        }
-        tLLIntfRegs = FG_interferingRegsDef(n);
-        for (Temp_tempList t = tdef; t; t = t->tail)
-        {
-            if (!tLLIntfRegs)
-                break;
-            UG_node ndef = findOrCreateNode(t->head, g, tab);
-            for (Temp_tempList interfRegs = tLLIntfRegs->head; interfRegs; interfRegs=interfRegs->tail)
+            if (n->instr->dst)
             {
-                UG_node interfNode = findOrCreateNode(interfRegs->head, g, tab);
-                UG_addEdge(ndef, interfNode);
+                UG_node ndst = findOrCreateNode(n->instr->dst, g, tab);
+                for (Temp_tempSetNode tn = n->dstInterf->first; tn; tn = tn->next)
+                {
+                    UG_node interfNode = findOrCreateNode(tn->temp, g, tab);
+                    UG_addEdge(ndst, interfNode);
+                }
             }
-            tLLIntfRegs = tLLIntfRegs->tail;
         }
     }
 
@@ -277,7 +251,7 @@ Live_graph Live_liveness(FG_graph flow)
 #ifdef ENABLE_DEBUG
     printf("getLiveMap result:\n");
     printf("------------------\n");
-    FG_show(stdout, flow, Temp_getNameMap());
+    FG_show(stdout, flow, Temp_layerMap(F_initialRegisters(), Temp_getNameMap()));
 #endif
 
     // Construct interference graph

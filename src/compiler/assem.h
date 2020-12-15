@@ -69,7 +69,7 @@ enum AS_mn
     AS_MOVE_AnDn_Label, //  46 move.x  d6, label
     AS_MOVE_Ofp_AnDn,   //  47 move.x  42(a5), d0
     AS_MOVE_AnDn_Ofp,   //  48 move.x  d0, 42(a5)
-    AS_MOVE_Imm_Ofp,    //  49 move.x  d0, 42(a5)
+    AS_MOVE_Imm_Ofp,    //  49 move.x  #42, 42(a5)
     AS_MOVE_Imm_Label,  //  50 move.x  #42, label
     AS_MOVE_fp_AnDn,    //  51 move.x  a5, d0
 
@@ -80,30 +80,30 @@ enum AS_mn
 
     AS_NEG_Dn,          //  56 neg.x   d0
 
-    AS_NOT_Dn,          //  57 neg.x   d0
+    AS_NOT_Dn,          //  57 not.x   d0
 
     AS_NOP,             //  58 nop
 
     AS_OR_Dn_Dn,        //  59 or.x  d1, d2
     AS_OR_Imm_Dn,       //  60 or.x  #42, d2
 
-    AS_JMP,             //  60 jmp     label
-    AS_JSR_Label,       //  61 jsr     label
-    AS_JSR_An,          //  62 jsr     (a2)
-    AS_JSR_RAn,         //  63 jsr     -36(a6)
+    AS_JMP,             //  61 jmp     label
+    AS_JSR_Label,       //  62 jsr     label
+    AS_JSR_An,          //  63 jsr     (a2)
+    AS_JSR_RAn,         //  64 jsr     -36(a6)
 
-    AS_RTS,             //  64 rts
+    AS_RTS,             //  65 rts
 
-    AS_SNE_Dn,          //  65 sne.b   d1
+    AS_SNE_Dn,          //  66 sne.b   d1
 
-    AS_SUB_Dn_Dn,       //  66 sub.x   d1, d2
-    AS_SUB_Imm_Dn,      //  67 sub.x   #42, d2
+    AS_SUB_Dn_Dn,       //  67 sub.x   d1, d2
+    AS_SUB_Imm_Dn,      //  68 sub.x   #42, d2
 
-    AS_SWAP_Dn,         //  68 tst.w   d4
+    AS_SWAP_Dn,         //  69 swap.x   d4
 
-    AS_TST_Dn,          //  69 tst.w   d0
+    AS_TST_Dn,          //  70 tst.x   d0
 
-    AS_UNLK_fp          //  70 unlink  a5
+    AS_UNLK_fp          //  71 unlink  a5
 };
 
 enum AS_w { AS_w_B, AS_w_W, AS_w_L, AS_w_NONE } ;
@@ -114,16 +114,16 @@ struct AS_instr_
     enum AS_mn     mn;
     enum AS_w      w;
     Temp_label     label;
-    Temp_tempList  src, dst;
-    Temp_tempLList srcInterf, dstInterf;
+    Temp_temp      src, dst;
     Ty_const       imm;
     short          offset;
+
+    Temp_tempSet   def, use; // optional, used in flowgraph.c
 };
 
 AS_instr AS_Instr       (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst);
-AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, Ty_const imm, long offset, Temp_label label);
-AS_instr AS_InstrInterf (enum AS_mn mn, enum AS_w w, Temp_tempList src, Temp_tempList dst, 
-                         Temp_tempLList srcInterf, Temp_tempLList dstInterf, Ty_const imm, long offset, Temp_label label);
+AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label);
+AS_instr AS_InstrEx2    (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
 
 void     AS_sprint      (string str, AS_instr i, Temp_map m);
 

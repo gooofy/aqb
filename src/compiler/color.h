@@ -18,7 +18,7 @@ struct COL_result
     G_table       alias;
 };
 
-struct COL_result COL_color(Live_graph lg, Temp_map initial, Temp_tempList regs);
+struct COL_result COL_color(Live_graph lg, Temp_map initial, Temp_tempSet regs);
 
 #endif
 

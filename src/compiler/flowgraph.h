@@ -40,6 +40,13 @@ struct FG_node_
     AS_instr      instr;
 
     // liveness analysis:
+
+    Temp_tempSet  srcInterf;
+    Temp_tempSet  dstInterf;
+
+    Temp_tempSet  def;
+    Temp_tempSet  use;
+
     Temp_tempSet  in;
     Temp_tempSet  out;
 #ifdef FG_DEPTH_FIRST_ORDER

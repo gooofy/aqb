@@ -304,22 +304,21 @@ F_fragList F_FragList(F_frag head, F_fragList tail)
 
 static AS_instrList appendCalleeSave(AS_instrList il)
 {
-    Temp_tempList calleesaves = Temp_reverseList(F_calleesaves());
+    Temp_tempList calleesaves = Temp_tempSet2List(F_calleesaves());
     AS_instrList ail = il;
     for (; calleesaves; calleesaves = calleesaves->tail)
     {
         ail = AS_InstrList( AS_Instr (AS_MOVE_AnDn_PDsp, AS_w_L, calleesaves->head, NULL), ail); // move.l `s0,-(sp)
     }
-
     return ail;
 }
 
 static AS_instrList restoreCalleeSave(AS_instrList il)
 {
-    Temp_tempList calleesaves = F_calleesaves();
+    Temp_tempSet calleesaves = F_calleesaves();
     AS_instrList ail = NULL;
-    for (; calleesaves; calleesaves = calleesaves->tail)
-        ail = AS_InstrList( AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, calleesaves->head), ail); // move.l (sp)+, calleesaves->head
+    for (Temp_tempSetNode tn=calleesaves->first; tn; tn=tn->next)
+        ail = AS_InstrList( AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp), ail); // move.l (sp)+, calleesaves->head
 
     return AS_splice(ail, il);
 }
@@ -333,7 +332,7 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
     body = AS_splice(body,
              restoreCalleeSave(
                AS_InstrList( AS_Instr (AS_UNLK_fp, AS_w_NONE, NULL, NULL),                                 //      unlk fp
-                 AS_InstrList( AS_InstrEx (AS_RTS, AS_w_NONE, F_calleesaves(), NULL, 0, 0, NULL), NULL))));//      rts
+                 AS_InstrList( AS_Instr (AS_RTS, AS_w_NONE, NULL, NULL), NULL))));                         //      rts
 
     // entry code
 
@@ -396,8 +395,9 @@ bool F_isDn(Temp_temp reg)
     return (reg == d0) || (reg == d1) || (reg == d2) || (reg == d3) || (reg == d4) || (reg == d5) || (reg == d6) || (reg == d7);
 }
 
-static Temp_tempList allRegs, dRegs, aRegs;
-static S_scope       regScope;
+static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
+static Temp_tempSet  g_callerSaves, g_calleeSaves;
+static S_scope       g_regScope;
 static Temp_map      g_reg_map;
 
 void F_initRegisters(void)
@@ -417,51 +417,73 @@ void F_initRegisters(void)
     d6 = Temp_newtemp(NULL);
     d7 = Temp_newtemp(NULL);
 
-    allRegs = Temp_TempList(d0,
-                Temp_TempList(d1,
-                  Temp_TempList(d2,
-                    Temp_TempList(d3,
-                      Temp_TempList(d4,
-                        Temp_TempList(d5,
-                          Temp_TempList(d6,
-                            Temp_TempList(d7,
-                              Temp_TempList(a0,
-                                Temp_TempList(a1,
-                                  Temp_TempList(a2,
-                                    Temp_TempList(a3,
-                                      Temp_TempList(a4,
-                                        Temp_TempList(a6, NULL))))))))))))));
-    dRegs = Temp_TempList(d0,
-              Temp_TempList(d1,
-                Temp_TempList(d2,
-                  Temp_TempList(d3,
-                    Temp_TempList(d4,
-                      Temp_TempList(d5,
-                        Temp_TempList(d6,
-                          Temp_TempList(d7, NULL))))))));
-    aRegs = Temp_TempList(a0,
-              Temp_TempList(a1,
-                Temp_TempList(a2,
-                  Temp_TempList(a3,
-                    Temp_TempList(a4,
-                      Temp_TempList(a6, NULL))))));
+    g_allRegs = Temp_TempSet();
+    Temp_tempSetAdd (g_allRegs, d0);
+    Temp_tempSetAdd (g_allRegs, d1);
+    Temp_tempSetAdd (g_allRegs, d2);
+    Temp_tempSetAdd (g_allRegs, d3);
+    Temp_tempSetAdd (g_allRegs, d4);
+    Temp_tempSetAdd (g_allRegs, d5);
+    Temp_tempSetAdd (g_allRegs, d6);
+    Temp_tempSetAdd (g_allRegs, d7);
+    Temp_tempSetAdd (g_allRegs, a0);
+    Temp_tempSetAdd (g_allRegs, a1);
+    Temp_tempSetAdd (g_allRegs, a2);
+    Temp_tempSetAdd (g_allRegs, a3);
+    Temp_tempSetAdd (g_allRegs, a4);
+    Temp_tempSetAdd (g_allRegs, a6);
 
-    regScope = S_beginScope();
+    g_dRegs = Temp_TempSet();
+    Temp_tempSetAdd (g_dRegs, d0);
+    Temp_tempSetAdd (g_dRegs, d1);
+    Temp_tempSetAdd (g_dRegs, d2);
+    Temp_tempSetAdd (g_dRegs, d3);
+    Temp_tempSetAdd (g_dRegs, d4);
+    Temp_tempSetAdd (g_dRegs, d5);
+    Temp_tempSetAdd (g_dRegs, d6);
+    Temp_tempSetAdd (g_dRegs, d7);
 
-    S_enter(regScope, S_Symbol("a0", TRUE), a0);
-    S_enter(regScope, S_Symbol("a1", TRUE), a1);
-    S_enter(regScope, S_Symbol("a2", TRUE), a2);
-    S_enter(regScope, S_Symbol("a3", TRUE), a3);
-    S_enter(regScope, S_Symbol("a4", TRUE), a4);
-    S_enter(regScope, S_Symbol("a6", TRUE), a6);
-    S_enter(regScope, S_Symbol("d0", TRUE), d0);
-    S_enter(regScope, S_Symbol("d1", TRUE), d1);
-    S_enter(regScope, S_Symbol("d2", TRUE), d2);
-    S_enter(regScope, S_Symbol("d3", TRUE), d3);
-    S_enter(regScope, S_Symbol("d4", TRUE), d4);
-    S_enter(regScope, S_Symbol("d5", TRUE), d5);
-    S_enter(regScope, S_Symbol("d6", TRUE), d6);
-    S_enter(regScope, S_Symbol("d7", TRUE), d7);
+    g_aRegs = Temp_TempSet();
+    Temp_tempSetAdd (g_aRegs, a0);
+    Temp_tempSetAdd (g_aRegs, a1);
+    Temp_tempSetAdd (g_aRegs, a2);
+    Temp_tempSetAdd (g_aRegs, a3);
+    Temp_tempSetAdd (g_aRegs, a4);
+    Temp_tempSetAdd (g_aRegs, a6);
+
+    g_callerSaves = Temp_TempSet();
+    Temp_tempSetAdd (g_callerSaves, d0);
+    Temp_tempSetAdd (g_callerSaves, d1);
+    Temp_tempSetAdd (g_callerSaves, a0);
+    Temp_tempSetAdd (g_callerSaves, a1);
+
+    g_calleeSaves = Temp_TempSet();
+    Temp_tempSetAdd (g_calleeSaves, d2);
+    Temp_tempSetAdd (g_calleeSaves, d3);
+    Temp_tempSetAdd (g_calleeSaves, d4);
+    Temp_tempSetAdd (g_calleeSaves, d5);
+    Temp_tempSetAdd (g_calleeSaves, d6);
+    Temp_tempSetAdd (g_calleeSaves, d7);
+    Temp_tempSetAdd (g_calleeSaves, a2);
+    Temp_tempSetAdd (g_calleeSaves, a3);
+    Temp_tempSetAdd (g_calleeSaves, a4);
+    Temp_tempSetAdd (g_calleeSaves, a6);
+
+    g_regScope = S_beginScope();
+    S_enter(g_regScope, S_Symbol("a0", TRUE), a0);
+    S_enter(g_regScope, S_Symbol("a1", TRUE), a1);
+    S_enter(g_regScope, S_Symbol("a2", TRUE), a2);
+    S_enter(g_regScope, S_Symbol("a3", TRUE), a3);
+    S_enter(g_regScope, S_Symbol("a4", TRUE), a4);
+    S_enter(g_regScope, S_Symbol("a6", TRUE), a6);
+    S_enter(g_regScope, S_Symbol("d0", TRUE), d0);
+    S_enter(g_regScope, S_Symbol("d1", TRUE), d1);
+    S_enter(g_regScope, S_Symbol("d2", TRUE), d2);
+    S_enter(g_regScope, S_Symbol("d3", TRUE), d3);
+    S_enter(g_regScope, S_Symbol("d4", TRUE), d4);
+    S_enter(g_regScope, S_Symbol("d5", TRUE), d5);
+    S_enter(g_regScope, S_Symbol("d6", TRUE), d6);
+    S_enter(g_regScope, S_Symbol("d7", TRUE), d7);
 
     g_reg_map = Temp_empty();
 
@@ -483,7 +505,7 @@ void F_initRegisters(void)
 
 Temp_temp F_lookupReg(S_symbol sym)
 {
-    return (Temp_temp) S_look(regScope, sym);
+    return (Temp_temp) S_look(g_regScope, sym);
 }
 
 Temp_map F_initialRegisters(void)
@@ -498,41 +520,29 @@ string F_regName(Temp_temp r)
     return name;
 }
 
-Temp_tempList F_registers(void)
+Temp_tempSet F_registers(void)
 {
-    return allRegs;
+    return g_allRegs;
 }
 
-Temp_tempList F_aRegs(void)
+Temp_tempSet F_aRegs(void)
 {
-    return aRegs;
+    return g_aRegs;
 }
 
-Temp_tempList F_dRegs(void)
+Temp_tempSet F_dRegs(void)
 {
-    return dRegs;
+    return g_dRegs;
 }
 
-Temp_tempList F_callersaves(void)
+Temp_tempSet F_callersaves(void)
 {
-    // d0 is RV, will be clobbered anyway
-    return Temp_TempList(d1,
-             Temp_TempList(a0,
-               Temp_TempList(a1, NULL)));
+    return g_callerSaves;
 }
 
-Temp_tempList F_calleesaves(void)
+Temp_tempSet F_calleesaves(void)
 {
-    return Temp_TempList(d2,
-             Temp_TempList(d3,
-               Temp_TempList(d4,
-                 Temp_TempList(d5,
-                   Temp_TempList(d6,
-                     Temp_TempList(d7,
-                       Temp_TempList(a2,
-                         Temp_TempList(a3,
-                           Temp_TempList(a4,
-                             Temp_TempList(a6, NULL))))))))));
+    return g_calleeSaves;
 }
 
 string F_getlabel(F_frame frame)

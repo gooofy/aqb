@@ -54,11 +54,6 @@ static Temp_temp node2Temp(UG_node n)
     return Live_gtemp(n);
 }
 
-static Temp_tempList L(Temp_temp h, Temp_tempList t)
-{
-  return Temp_TempList(h, t);
-}
-
 static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes)
 {
     Temp_temp t = node2Temp(n);
@@ -73,32 +68,25 @@ static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes
     }
 }
 
-static Temp_tempList aliasedSpilled(Temp_tempList tl, UG_graph ig, UG_table aliases, Temp_tempSet coalescedNodes, Temp_tempSet spilled)
+static Temp_temp aliasedSpilled(Temp_temp t, UG_graph ig, UG_table aliases, Temp_tempSet coalescedNodes, Temp_tempSet spilled)
 {
-    Temp_tempList al = NULL;
-    for (; tl; tl = tl->tail)
-    {
-        Temp_temp t = tl->head;
-        if (!Temp_tempSetContains(spilled, t))
-            continue;
-        UG_node n = temp2Node(t, ig);
-        assert(n);
-        getAlias(n, aliases, coalescedNodes);
-        t = node2Temp(n);
-        assert(t);
-        al = L(t, al);
-    }
-    return al;
+    if (!Temp_tempSetContains(spilled, t))
+        return NULL;
+    UG_node n = temp2Node(t, ig);
+    assert(n);
+    getAlias(n, aliases, coalescedNodes);
+    t = node2Temp(n);
+    assert(t);
+    return t;
 };
 
 struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 {
     struct RA_result  ret = {NULL, NULL};
 
-    FG_graph         flow;
+    FG_graph          flow;
     Live_graph        live;
     struct COL_result col;
-    AS_instrList      rewriteList;
 
 #ifdef ENABLE_DEBUG
     g_debugTempMap = Temp_layerMap(F_initialRegisters(), Temp_getNameMap());
@@ -144,7 +132,6 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         }
 
         Temp_tempSet spilled = col.spills;
-        rewriteList = NULL;
 
         // Assign locals in memory
         TAB_table spilledLocal = TAB_empty();
@@ -165,11 +152,12 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         }
 
         // Rewrite instructions
+        AS_instrList rewriteList = NULL;
         for (; il; il = il->tail)
         {
             AS_instr inst = il->head;
-            Temp_tempList useSpilled = aliasedSpilled(inst->src, live->graph, col.alias, col.coalescedNodes, spilled);
-            Temp_tempList defSpilled = aliasedSpilled(inst->dst, live->graph, col.alias, col.coalescedNodes, spilled);
+            Temp_temp useSpilled = aliasedSpilled(inst->src, live->graph, col.alias, col.coalescedNodes, spilled);
+            Temp_temp defSpilled = aliasedSpilled(inst->dst, live->graph, col.alias, col.coalescedNodes, spilled);
 
             // Skip unspilled instructions
             if (!useSpilled && !defSpilled)
@@ -178,27 +166,24 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
                 continue;
             }
 
-            for (Temp_tempList tl = useSpilled; tl; tl = tl->tail)
+            if (useSpilled)
             {
-                Temp_temp temp = tl->head;
-                F_access local = (F_access)TAB_look(spilledLocal, temp);
-                rewriteList = AS_InstrList(                                     // move.x localOffset(fp), temp  /* spilled */
-                    AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(temp)), NULL, L(temp, NULL), 0, F_accessOffset(local), NULL), rewriteList);
+                F_access local = (F_access)TAB_look(spilledLocal, useSpilled);
+                rewriteList = AS_InstrList(                                     // move.x localOffset(fp), useSpilled  ; spilled
+                    AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)), NULL, useSpilled, 0, F_accessOffset(local), NULL), rewriteList);
             }
 
             rewriteList = AS_InstrList(inst, rewriteList);
 
-            for (Temp_tempList tl = defSpilled; tl; tl = tl->tail)
+            if (defSpilled)
             {
-                Temp_temp temp = tl->head;
-                F_access local = (F_access)TAB_look(spilledLocal, temp);
-                rewriteList = AS_InstrList(                                     // move.x temp, localOffset(FP)  /* spilled */
-                    AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(temp)), L(temp, NULL), NULL, 0, F_accessOffset(local), NULL), rewriteList);
+                F_access local = (F_access)TAB_look(spilledLocal, defSpilled);
+                rewriteList = AS_InstrList(                                     // move.x defSpilled, localOffset(FP)  ; spilled
+                    AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)), defSpilled, NULL, 0, F_accessOffset(local), NULL), rewriteList);
             }
         }
 
         il = reverseInstrList(rewriteList);
-
     }
 
     if (!Temp_tempSetIsEmpty(col.spills))
@@ -217,7 +202,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
         // filter out coalesced moves, NOPs
 
-        rewriteList = NULL;
+        AS_instrList rewriteList = NULL;
 #ifdef ENABLE_DEBUG
         Temp_map colTempMap = Temp_layerMap(col.coloring, g_debugTempMap);
 #endif
@@ -269,7 +254,6 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
     printf("----------------------\n");
     Temp_dumpMap(stdout, ret.coloring);
 #endif
-
     return ret;
 }
 
