@@ -65,25 +65,100 @@ AS_instr AS_InstrEx2 (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, 
     return p;
 }
 
-AS_instrList AS_InstrList(AS_instr head, AS_instrList tail)
+AS_instrList AS_InstrList (void)
 {
     AS_instrList p = (AS_instrList) checked_malloc (sizeof *p);
 
-    p->head=head;
-    p->tail=tail;
+    p->first = NULL;
+    p->last  = NULL;
 
     return p;
 }
 
-/* put list b at the end of list a */
-AS_instrList AS_splice(AS_instrList a, AS_instrList b)
+static AS_instrListNode AS_InstrListNode (AS_instr i)
 {
-    AS_instrList p;
-    if (a==NULL)
-        return b;
-    for (p=a; p->tail!=NULL; p=p->tail);
-    p->tail=b;
-    return a;
+    AS_instrListNode n = checked_malloc(sizeof(*n));
+
+    n->prev  = NULL;
+    n->next  = NULL;
+    n->instr = i;
+
+    return n;
+}
+
+void AS_instrListAppend (AS_instrList al, AS_instr instr)
+{
+    assert(al);
+
+    AS_instrListNode n = AS_InstrListNode(instr);
+
+    n->prev = al->last;
+    if (al->last)
+        al->last = al->last->next = n;
+    else
+        al->first = al->last = n;
+}
+
+void AS_instrListPrepend (AS_instrList al, AS_instr instr)
+{
+    assert(al);
+
+    AS_instrListNode n = AS_InstrListNode(instr);
+
+    n->next = al->first;
+    if (al->first)
+        al->first = al->first->prev = n;
+    else
+        al->first = al->last = n;
+}
+
+void AS_instrListInsertBefore (AS_instrList al, AS_instrListNode a, AS_instr instr)
+{
+    assert(al);
+    assert(a);
+
+    AS_instrListNode n = AS_InstrListNode(instr);
+
+    n->prev = a->prev; 
+    a->prev = n; 
+    n->next = a; 
+ 
+    if (n->prev != NULL) 
+        n->prev->next = n; 
+    else
+        al->first = n;
+}
+
+void AS_instrListInsertAfter (AS_instrList al, AS_instrListNode p, AS_instr instr)
+{
+    assert(al);
+    assert(p);
+
+    AS_instrListNode n = AS_InstrListNode(instr);
+
+    n->next = p->next; 
+    p->next = n;
+    n->prev = p; 
+    if (n->next)
+        n->next->prev = n;
+    else
+        al->last = n;
+}
+
+void AS_instrListRemove (AS_instrList al, AS_instrListNode n)
+{
+    assert(al);
+    assert(n);
+    assert(al->first);
+   
+    if (al->first == n) 
+        al->first = n->next; 
+ 
+    if (n->next) 
+        n->next->prev = n->prev; 
+ 
+    if (n->prev) 
+        n->prev->next = n->next; 
 }
 
 AS_instrSet AS_InstrSet (void)
@@ -454,10 +529,10 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
 
 void AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m)
 {
-    for (; iList; iList=iList->tail)
+    for (AS_instrListNode an = iList->first; an; an=an->next)
     {
         char buf[255];
-        AS_sprint(buf, iList->head, m);
+        AS_sprint(buf, an->instr, m);
         fprintf(out, "%s\n", buf);
     }
 }
@@ -564,9 +639,9 @@ void AS_assemble (AS_proc proc, Temp_map m)
     // step 0: determine size of segment
 
     uint32_t seg_size = 0;
-    for (AS_instrList iList = proc->body; iList; iList=iList->tail)
+    for (AS_instrListNode an = proc->body->first; an; an=an->next)
     {
-        AS_instr instr = iList->head;
+        AS_instr instr = an->instr;
 
         char buf[255];
         AS_sprint(buf, instr, m);

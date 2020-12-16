@@ -548,9 +548,9 @@ FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
     g_emptySet = Temp_TempSet();
 
     // iterate and add instructions to graph
-    for (; il; il = il->tail)
+    for (AS_instrListNode an = il->first; an; an=an->next)
     {
-        AS_instr inst = il->head;
+        AS_instr inst = an->instr;
         if (inst->mn != AS_LABEL)
         {
             FG_node n = FG_Node(g, inst);

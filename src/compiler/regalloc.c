@@ -23,16 +23,6 @@
 static Temp_map g_debugTempMap;
 #endif
 
-static AS_instrList reverseInstrList(AS_instrList il)
-{
-    AS_instrList rl = NULL;
-    for (; il; il = il->tail)
-    {
-        rl = AS_InstrList(il->head, rl);
-    }
-    return rl;
-}
-
 static UG_node temp2Node(Temp_temp t, UG_graph g)
 {
     if (t == NULL)
@@ -151,39 +141,37 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             TAB_enter(spilledLocal, tn->temp, acc);
         }
 
-        // Rewrite instructions
-        AS_instrList rewriteList = NULL;
-        for (; il; il = il->tail)
+        // modify instruction list, insert move instructions for spilled temps
+        AS_instrListNode an = il->first;
+        while (an)
         {
-            AS_instr inst = il->head;
+            AS_instr inst = an->instr;
             Temp_temp useSpilled = aliasedSpilled(inst->src, live->graph, col.alias, col.coalescedNodes, spilled);
             Temp_temp defSpilled = aliasedSpilled(inst->dst, live->graph, col.alias, col.coalescedNodes, spilled);
 
             // Skip unspilled instructions
             if (!useSpilled && !defSpilled)
-            {
-                rewriteList = AS_InstrList(inst, rewriteList);
                 continue;
-            }
 
             if (useSpilled)
             {
                 F_access local = (F_access)TAB_look(spilledLocal, useSpilled);
-                rewriteList = AS_InstrList(                                     // move.x localOffset(fp), useSpilled  ; spilled
-                    AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)), NULL, useSpilled, 0, F_accessOffset(local), NULL), rewriteList);
+                AS_instrListInsertBefore (il, an,                                                       // move.x localOffset(fp), useSpilled
+                                          AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)), 
+                                                     NULL, useSpilled, 0, F_accessOffset(local), NULL));
             }
-
-            rewriteList = AS_InstrList(inst, rewriteList);
 
             if (defSpilled)
             {
                 F_access local = (F_access)TAB_look(spilledLocal, defSpilled);
-                rewriteList = AS_InstrList(                                     // move.x defSpilled, localOffset(FP)  ; spilled
-                    AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)), defSpilled, NULL, 0, F_accessOffset(local), NULL), rewriteList);
+                AS_instrListInsertAfter (il, an,                                                        // move.x defSpilled, localOffset(FP)
+                                         AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)),
+                                                    defSpilled, NULL, 0, F_accessOffset(local), NULL));
+                an = an->next;
             }
-        }
 
-        il = reverseInstrList(rewriteList);
+            an = an->next;
+        }
     }
 
     if (!Temp_tempSetIsEmpty(col.spills))
@@ -202,15 +190,15 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
         // filter out coalesced moves, NOPs
 
-        AS_instrList rewriteList = NULL;
 #ifdef ENABLE_DEBUG
         Temp_map colTempMap = Temp_layerMap(col.coloring, g_debugTempMap);
 #endif
-        for (; il; il = il->tail)
+        AS_instrListNode an = il->first;
+        while (an)
         {
-            AS_instr inst = il->head;
+            AS_instr inst = an->instr;
 
-            // skip coalesced moves
+            // remove coalesced moves
             if (AS_instrSetContains(col.coalescedMoves, inst))
             {
 #ifdef ENABLE_DEBUG
@@ -218,16 +206,20 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
                 AS_sprint(buf, inst, colTempMap);
                 printf("/* coalesced: %s */\n", buf);
 #endif
+                AS_instrListRemove (il, an);
+                an = an->next;
                 continue;
             }
             else
             {
-                // skip NOP
+                // remove NOPs
                 if (inst->mn == AS_NOP)
                 {
 #ifdef ENABLE_DEBUG
                     printf("/* NOP */\n");
 #endif
+                    AS_instrListRemove (il, an);
+                    an = an->next;
                     continue;
                 }
                 else
@@ -239,11 +231,8 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 #endif
                 }
             }
-
-            rewriteList = AS_InstrList(inst, rewriteList);
+            an = an->next;
         }
-
-        il = reverseInstrList(rewriteList);
     }
 
     ret.coloring = col.coloring;

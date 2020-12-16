@@ -302,46 +302,34 @@ F_fragList F_FragList(F_frag head, F_fragList tail)
     return l;
 }
 
-static AS_instrList appendCalleeSave(AS_instrList il)
-{
-    Temp_tempList calleesaves = Temp_tempSet2List(F_calleesaves());
-    AS_instrList ail = il;
-    for (; calleesaves; calleesaves = calleesaves->tail)
-    {
-        ail = AS_InstrList( AS_Instr (AS_MOVE_AnDn_PDsp, AS_w_L, calleesaves->head, NULL), ail); // move.l `s0,-(sp)
-    }
-    return ail;
-}
-
-static AS_instrList restoreCalleeSave(AS_instrList il)
-{
-    Temp_tempSet calleesaves = F_calleesaves();
-    AS_instrList ail = NULL;
-    for (Temp_tempSetNode tn=calleesaves->first; tn; tn=tn->next)
-        ail = AS_InstrList( AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp), ail); // move.l (sp)+, calleesaves->head
-
-    return AS_splice(ail, il);
-}
-
 AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 {
-    int frame_size = -frame->locals_offset;
-
-    // exit code
-
-    body = AS_splice(body,
-             restoreCalleeSave(
-               AS_InstrList( AS_Instr (AS_UNLK_fp, AS_w_NONE, NULL, NULL),                                 //      unlk fp
-                 AS_InstrList( AS_Instr (AS_RTS, AS_w_NONE, NULL, NULL), NULL))));                         //      rts
+    int          frame_size  = -frame->locals_offset;
+    Temp_tempSet calleesaves = F_calleesaves();
 
     // entry code
 
     if (frame_size > 32767)
         EM_error(0, "Sorry, frame size is too large.");     // FIXME
 
-    body = AS_InstrList(AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name),                    // label:
-             AS_InstrList(AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL, Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL),   //      link fp, #-frameSize
-               appendCalleeSave(body)));
+    // save registers
+    // FIXME: use movem, check for registers that were actually clobbered
+    for (Temp_tempSetNode tn=calleesaves->first; tn; tn=tn->next)
+        AS_instrListPrepend (body, AS_Instr (AS_MOVE_AnDn_PDsp, AS_w_L, tn->temp, NULL));                  //      move.l tn->temp, -(sp)
+
+    AS_instrListPrepend (body, AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL,                               //      link fp, #-frameSize
+                                          Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
+    AS_instrListPrepend (body, AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name));            // label:
+
+    // exit code
+
+    // restore registers
+    // FIXME: use movem, check for registers that were actually clobbered
+    for (Temp_tempSetNode tn=calleesaves->first; tn; tn=tn->next)
+        AS_instrListAppend (body, AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp));                   //      move.l (sp)+, tn->temp
+
+    AS_instrListAppend (body, AS_Instr (AS_UNLK_fp, AS_w_NONE, NULL, NULL));                               //      unlk fp
+    AS_instrListAppend (body, AS_Instr (AS_RTS, AS_w_NONE, NULL, NULL));                                   //      rts
 
     return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(frame->name)), body, "# END\n");
 }

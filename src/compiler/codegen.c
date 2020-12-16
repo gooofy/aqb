@@ -14,25 +14,20 @@
 
 #define MACHINE_REGSIZE 4 // m68k is a 32 bit = 4 bytes CPU
 
-static AS_instrList iList = NULL, last = NULL;
-static bool lastIsLabel = FALSE;  // to insert NOPs between consecutive labels
+static AS_instrList g_il       = NULL;
+static bool         lastIsLabel = FALSE;  // to insert NOPs between consecutive labels
+
 static void emit(AS_instr inst)
 {
 	lastIsLabel = inst->mn == AS_LABEL;
-    if (last != NULL)
-    {
-        last = last->tail = AS_InstrList(inst, NULL);
-    }
-    else
-    {
-        last = iList = AS_InstrList(inst, NULL);
-    }
+    AS_instrListAppend (g_il, inst);
 }
 
-Temp_tempList L(Temp_temp h, Temp_tempList t)
-{
-    return Temp_TempList(h, t);
-}
+// FIXME: remove
+// Temp_tempList L(Temp_temp h, Temp_tempList t)
+// {
+//     return Temp_TempList(h, t);
+// }
 
 static void      munchStm(T_stm s);
 static Temp_temp munchExp(T_exp e, bool ignore_result);
@@ -41,13 +36,11 @@ static void      munchCallerRestoreStack(int restore_cnt, bool sink_callersaves)
 
 AS_instrList F_codegen(F_frame f, T_stmList stmList)
 {
-    iList = NULL;
-    last  = NULL;
+    g_il = AS_InstrList();
     for (T_stmList sl = stmList; sl; sl = sl->tail)
-    {
         munchStm(sl->head);
-    }
-    return iList;
+
+    return g_il;
 }
 
 

@@ -127,13 +127,28 @@ AS_instr AS_InstrEx2    (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp ds
 
 void     AS_sprint      (string str, AS_instr i, Temp_map m);
 
-typedef struct AS_instrList_ *AS_instrList;
+// AS_instrList: mutable, ordered doubly-linked list of assembly instructions
+
+typedef struct AS_instrList_     *AS_instrList;
+typedef struct AS_instrListNode_ *AS_instrListNode;
+
+struct AS_instrListNode_
+{
+    AS_instrListNode next, prev;
+    AS_instr         instr;
+};
+
 struct AS_instrList_
 {
-    AS_instr     head;
-    AS_instrList tail;
+    AS_instrListNode first, last;
 };
-AS_instrList AS_InstrList(AS_instr head, AS_instrList tail);
+
+AS_instrList AS_InstrList             (void);
+void         AS_instrListAppend       (AS_instrList al, AS_instr instr);
+void         AS_instrListPrepend      (AS_instrList al, AS_instr instr);
+void         AS_instrListInsertBefore (AS_instrList al, AS_instrListNode n, AS_instr instr);
+void         AS_instrListInsertAfter  (AS_instrList al, AS_instrListNode n, AS_instr instr);
+void         AS_instrListRemove       (AS_instrList al, AS_instrListNode n);
 
 // AS_instrSet: mutable set of instrs, still represented as a linked list for speed and iteration
 
@@ -158,11 +173,9 @@ void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2);
 bool               AS_instrSetSub      (AS_instrSet as, AS_instr i); // returns FALSE if i was not in as, TRUE otherwise
 static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NULL; }
 
-enum AS_w    AS_tySize(Ty_ty ty);
+enum AS_w          AS_tySize(Ty_ty ty);
 
-AS_instrList AS_splice(AS_instrList a, AS_instrList b);
-
-void         AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m);
+void               AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m);
 
 typedef struct AS_proc_ *AS_proc;
 struct AS_proc_

@@ -326,11 +326,3 @@ Temp_tempSet Temp_tempSetCopy (Temp_tempSet ts)
     return res;
 }
 
-Temp_tempList Temp_tempSet2List (Temp_tempSet ts)
-{
-    Temp_tempList res = NULL;
-    for (Temp_tempSetNode n = ts->first; n; n=n->next)
-        res = Temp_TempList (n->temp, res);
-    return res;
-}
-

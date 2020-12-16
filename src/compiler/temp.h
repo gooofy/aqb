@@ -77,6 +77,5 @@ string             Temp_tempSetSPrint    (Temp_tempSet ts, Temp_map m);
 static inline bool Temp_tempSetIsEmpty   (Temp_tempSet ts) { return ts->first == NULL; }
 Temp_tempSet       Temp_tempSetUnion     (Temp_tempSet tsA, Temp_tempSet tsB); // return newly allocated TempSet that contains union of nodes from tsA and tsaB
 Temp_tempSet       Temp_tempSetCopy      (Temp_tempSet ts); // return newly allocated TempSet that contains the nodes from ts
-Temp_tempList      Temp_tempSet2List     (Temp_tempSet ts);
 
 #endif
