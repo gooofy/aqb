@@ -692,7 +692,7 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         }
         pos = FG_COLUMN_3;
 
-        snprintf(&buf[FG_COLUMN_3], 255-pos, " out: %s", Temp_tempSetSPrint(n->out, tm));
+        snprintf(&buf[FG_COLUMN_3], 255-pos, " in: %s", Temp_tempSetSPrint(n->in, tm));
 
         pos = strlen(buf);
         while (pos<FG_COLUMN_4)
