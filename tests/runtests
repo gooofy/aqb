@@ -64,6 +64,7 @@ ctrl3.bin
 ctrl4.bin
 ctrl5.bin
 ctrl6.bin
+ctrl7.bin
 
 echo "6/8 OOP"
 oop1.bin

@@ -13,7 +13,7 @@ STRIP = m68k-amigaos-strip
 
 all: cond1.bin cond3.bin cond4.bin	\
 	const1.bin const2.bin const3.bin constprop.bin \
-	ctrl1.bin ctrl2.bin ctrl3.bin ctrl4.bin ctrl5.bin ctrl6.bin \
+	ctrl1.bin ctrl2.bin ctrl3.bin ctrl4.bin ctrl5.bin ctrl6.bin ctrl7.bin \
 	dynmem1.bin \
 	exp1.bin exp2.bin \
 	extcall2.bin \
