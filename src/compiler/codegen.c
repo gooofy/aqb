@@ -1124,10 +1124,12 @@ static void munchStm(T_stm s)
         }
         case T_JSR:
         {
+            // since we have no idea what it is we're calling here, we have to assume
+            // all registers get clobbered, not just the callersaves
             emit(AS_InstrEx2(AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, s->u.JUMP,           // jsr   label
-                             F_callersaves(), NULL));
-            emit(AS_InstrEx2(AS_NOP, AS_w_NONE, NULL, NULL, 0, 0, NULL,                      // NOP ; sink callersaves
-                             NULL, F_callersaves()));
+                             F_registers(), NULL));
+            emit(AS_InstrEx2(AS_NOP, AS_w_NONE, NULL, NULL, 0, 0, NULL,                      // NOP ; sink registers
+                             NULL, F_registers()));
             break;
         }
         case T_RTS:
