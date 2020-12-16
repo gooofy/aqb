@@ -149,15 +149,11 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             Temp_temp useSpilled = aliasedSpilled(inst->src, live->graph, col.alias, col.coalescedNodes, spilled);
             Temp_temp defSpilled = aliasedSpilled(inst->dst, live->graph, col.alias, col.coalescedNodes, spilled);
 
-            // Skip unspilled instructions
-            if (!useSpilled && !defSpilled)
-                continue;
-
             if (useSpilled)
             {
                 F_access local = (F_access)TAB_look(spilledLocal, useSpilled);
                 AS_instrListInsertBefore (il, an,                                                       // move.x localOffset(fp), useSpilled
-                                          AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)), 
+                                          AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)),
                                                      NULL, useSpilled, 0, F_accessOffset(local), NULL));
             }
 
@@ -192,7 +188,11 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
 #ifdef ENABLE_DEBUG
         Temp_map colTempMap = Temp_layerMap(col.coloring, g_debugTempMap);
+        printf("/* coalesced: moves:\n");
+        AS_printInstrSet (stdout, col.coalescedMoves, colTempMap);
+        printf("*/\n");
 #endif
+
         AS_instrListNode an = il->first;
         while (an)
         {
