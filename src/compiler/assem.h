@@ -168,14 +168,15 @@ struct AS_instrSet_
 
 AS_instrSet        AS_InstrSet         (void);
 bool               AS_instrSetContains (AS_instrSet as, AS_instr i);
-bool               AS_instrSetAdd      (AS_instrSet as, AS_instr i); // returns FALSE if i was already in as, TRUE otherwise
-void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2);
-bool               AS_instrSetSub      (AS_instrSet as, AS_instr i); // returns FALSE if i was not in as, TRUE otherwise
+bool               AS_instrSetAdd      (AS_instrSet as, AS_instr i);      // returns FALSE if i was already in as, TRUE otherwise
+void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2); // add all elements from as2 to as
+bool               AS_instrSetSub      (AS_instrSet as, AS_instr i);      // returns FALSE if i was not in as, TRUE otherwise
 static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NULL; }
 
 enum AS_w          AS_tySize(Ty_ty ty);
 
 void               AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m);
+void               AS_printInstrSet  (FILE *out, AS_instrSet  is   , Temp_map m);
 
 typedef struct AS_proc_ *AS_proc;
 struct AS_proc_

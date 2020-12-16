@@ -150,15 +150,15 @@ void AS_instrListRemove (AS_instrList al, AS_instrListNode n)
     assert(al);
     assert(n);
     assert(al->first);
-   
-    if (al->first == n) 
-        al->first = n->next; 
- 
-    if (n->next) 
-        n->next->prev = n->prev; 
- 
-    if (n->prev) 
-        n->prev->next = n->next; 
+
+    if (al->first == n)
+        al->first = n->next;
+
+    if (n->next)
+        n->next->prev = n->prev;
+
+    if (n->prev)
+        n->prev->next = n->next;
 }
 
 AS_instrSet AS_InstrSet (void)
@@ -213,7 +213,7 @@ bool AS_instrSetAdd (AS_instrSet as, AS_instr i) // returns FALSE if i was alrea
 
 void AS_instrSetAddSet (AS_instrSet as, AS_instrSet as2)
 {
-    for (AS_instrSetNode n = as->first; n; n=n->next)
+    for (AS_instrSetNode n = as2->first; n; n=n->next)
     {
         AS_instrSetAdd (as, n->instr);
     }
@@ -530,6 +530,16 @@ void AS_sprint(string str, AS_instr i, Temp_map m)
 void AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m)
 {
     for (AS_instrListNode an = iList->first; an; an=an->next)
+    {
+        char buf[255];
+        AS_sprint(buf, an->instr, m);
+        fprintf(out, "%s\n", buf);
+    }
+}
+
+void AS_printInstrSet (FILE *out, AS_instrSet iSet, Temp_map m)
+{
+    for (AS_instrSetNode an = iSet->first; an; an=an->next)
     {
         char buf[255];
         AS_sprint(buf, an->instr, m);
