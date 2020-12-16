@@ -108,6 +108,12 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
     struct RA_result ra = RA_regAlloc(frame, iList);
     iList = ra.il;
 
+    if (EM_anyErrors)
+    {
+        printf ("\n\nregister allocation failed - exiting.\n");
+        exit(24);
+    }
+
     proc = F_procEntryExitAS(frame, iList);
 
     if (OPT_get(OPTION_VERBOSE))
