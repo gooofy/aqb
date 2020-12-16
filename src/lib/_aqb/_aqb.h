@@ -72,19 +72,19 @@ short POS_    (short dummy);
 #define AW_FLAG_BACKDROP            32
 #define AW_FLAG_BORDERLESS          64
 
-#define AE_WIN_OPEN                  1
-#define AE_SCREEN_OPEN               2
-#define AE_PALETTE                   3
-#define AE_COLOR                     4
-#define AE_AREA                      5
-#define AE_PATTERN                   6
-#define AE_WIN_CLOSE                 7
-#define AE_WIN_OUTPUT                8
-#define AE_SCREEN_CLOSE              9
-#define AE_PAINT                    10
-#define AE_LINE                     11
-#define AE_PSET                     12
-#define AE_INPUT_OUT_OF_DATA        13
+#define AE_WIN_OPEN                 101
+#define AE_SCREEN_OPEN              102
+#define AE_PALETTE                  103
+#define AE_COLOR                    104
+#define AE_AREA                     105
+#define AE_PATTERN                  106
+#define AE_WIN_CLOSE                107
+#define AE_WIN_OUTPUT               108
+#define AE_SCREEN_CLOSE             109
+#define AE_PAINT                    110
+#define AE_LINE                     111
+#define AE_PSET                     112
+#define AE_INPUT_OUT_OF_DATA        113
 
 void _awindow_init(void);
 void _awindow_shutdown(void);
