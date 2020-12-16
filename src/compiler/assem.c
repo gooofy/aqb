@@ -1,10 +1,6 @@
-/*
- * assem.c - Functions to translate to Assem-instructions for
- *           the 68k assembly language using Maximal Munch.
- */
 
 #include <stdio.h>
-#include <stdlib.h> /* for atoi */
+#include <stdlib.h>
 #include <string.h> /* for strcpy */
 #include "util.h"
 #include "symbol.h"

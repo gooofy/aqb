@@ -3,6 +3,8 @@
 #include "flowgraph.h"
 #include "errormsg.h"
 
+static Temp_tempSet g_emptySet;
+
 static FG_graph FG_Graph(void)
 {
     FG_graph g = (FG_graph) checked_malloc(sizeof (*g));
@@ -58,7 +60,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_ADD_Imm_Dn:                             //   2 add.x   #42, d2
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -67,10 +69,10 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_ADD_Imm_sp:                             //   3 add.x  #42, sp
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_AND_Dn_Dn:                              //   4 and.x  d1, d2
@@ -85,7 +87,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_AND_Imm_Dn:                             //   5 and.x  #23, d3
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -121,10 +123,10 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_BCC:                                    //  19 bcc     label
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_CMP_Dn_Dn:                              //  20 cmp.x   d0, d7
@@ -132,7 +134,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
             assert(instr->dst);
             n->srcInterf = F_aRegs();
             n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet();
+            n->def       = g_emptySet;
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src); Temp_tempSetAdd(n->use, instr->dst);
             break;
 
@@ -148,7 +150,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_DIVS_Imm_Dn:                            //  22 divs.x  #23, d3
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -176,7 +178,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_EXT_Dn:                                 //  27 ext.x   d1
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -203,8 +205,8 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_MOVE_AnDn_AnDn:                         //  33 move.x  d1, d2
             assert(instr->src);
             assert(instr->dst);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
+            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
+            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src);
             break;
@@ -212,27 +214,27 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_MOVE_Imm_RAn:                           //  35 move.x  #23, (a6)
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_dRegs();
-            n->def       = Temp_TempSet(); 
+            n->def       = g_emptySet; 
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
             break;
 
         case AS_MOVE_Imm_AnDn:                          //  36 move.x  #23, d0
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
-            n->use       = Temp_TempSet();
+            n->use       = g_emptySet;
             break;
 
         case AS_MOVE_AnDn_RAn:                          //  37 move.x  d1, (a6)
             assert(instr->src);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_dRegs();
-            n->def       = Temp_TempSet(); 
+            n->def       = g_emptySet; 
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src); Temp_tempSetAdd(n->use, instr->dst);
             break;
 
@@ -240,7 +242,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
             assert(instr->src);
             assert(instr->dst);
             n->srcInterf = F_dRegs();
-            n->dstInterf = Temp_TempSet();
+            n->dstInterf = g_emptySet;
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src);
             break;
@@ -248,83 +250,83 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_MOVE_AnDn_PDsp:                         //  41 move.x  d1, -(sp)
             assert(instr->src);
             assert(instr->dst==NULL);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
+            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src);
             break;
 
         case AS_MOVE_Imm_PDsp:                          //  42 move.x  #23, -(sp)
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_MOVE_ILabel_AnDn:                       //  44 move.x  #label, d1
         case AS_MOVE_Label_AnDn:                        //  45 move.x  label, d6
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
-            n->use       = Temp_TempSet();
+            n->use       = g_emptySet;
             break;
 
         case AS_MOVE_AnDn_Label:                        //  46 move.x  d6, label
             assert(instr->src);
             assert(instr->dst==NULL);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
+            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src);
             break;
 
         case AS_MOVE_Ofp_AnDn:                          //  47 move.x  42(a5), d0
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
-            n->use       = Temp_TempSet();
+            n->use       = g_emptySet;
             break;
 
         case AS_MOVE_AnDn_Ofp:                          //  48 move.x  d0, 42(a5)
             assert(instr->src);
             assert(instr->dst==NULL);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
+            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src);
             break;
 
         case AS_MOVE_Imm_Ofp:                           //  49 move.x  #42, 42(a5)
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_MOVE_Imm_Label:                         //  50 move.x  #42, label
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_MOVE_fp_AnDn:                           //  51 move.x  a5, d0
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : g_emptySet;
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
-            n->use       = Temp_TempSet();
+            n->use       = g_emptySet;
             break;
 
         case AS_MULS_Dn_Dn:                             //  52 muls.x  d1, d2
@@ -339,7 +341,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_MULS_Imm_Dn:                            //  53 muls.x  #42, d2
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -357,7 +359,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_NOT_Dn:                                 //  57 not.x   d0
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -366,10 +368,10 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_NOP:                                    //  58 nop
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_OR_Dn_Dn:                               //  59 or.x  d1, d2
@@ -384,7 +386,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_OR_Imm_Dn:                              //  60 or.x  #42, d2
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -393,20 +395,20 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_JMP:                                    //  61 jmp     label
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_JSR_Label:                              //  62 jsr     label
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
             assert(instr->def);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();              // instr->def will be added, see below
-            n->use       = Temp_TempSet();              // instr->use will be added, see below
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;              // instr->def will be added, see below
+            n->use       = g_emptySet;              // instr->use will be added, see below
             break;
 
         case AS_JSR_An:                                 //  63 jsr     (a2)
@@ -415,27 +417,27 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
             assert(instr->dst==NULL);
             assert(instr->def);
             n->srcInterf = F_dRegs();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();              // instr->def will be added, see below
-            n->use       = Temp_TempSet();              // instr->use will be added, see below
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;              // instr->def will be added, see below
+            n->use       = g_emptySet;              // instr->use will be added, see below
             break;
 
         case AS_RTS:                                    //  65 rts
             assert(instr->src==NULL);
             assert(instr->dst==NULL);
-            n->srcInterf = Temp_TempSet();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
-            n->use       = Temp_TempSet();
+            n->srcInterf = g_emptySet;
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
+            n->use       = g_emptySet;
             break;
 
         case AS_SNE_Dn:                                 //  66 sne.b   d1
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
-            n->use       = Temp_TempSet();
+            n->use       = g_emptySet;
             break;
 
         case AS_SUB_Dn_Dn:                              //  67 sub.x   d1, d2
@@ -450,7 +452,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_SUB_Imm_Dn:                             //  68 sub.x   #42, d2
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -459,7 +461,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         case AS_SWAP_Dn:                                //  69 swap.x   d4
             assert(instr->src==NULL);
             assert(instr->dst);
-            n->srcInterf = Temp_TempSet();
+            n->srcInterf = g_emptySet;
             n->dstInterf = F_aRegs();
             n->def       = Temp_TempSet(); Temp_tempSetAdd(n->def, instr->dst);
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->dst);
@@ -469,8 +471,8 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
             assert(instr->src);
             assert(instr->dst==NULL);
             n->srcInterf = F_aRegs();
-            n->dstInterf = Temp_TempSet();
-            n->def       = Temp_TempSet();
+            n->dstInterf = g_emptySet;
+            n->def       = g_emptySet;
             n->use       = Temp_TempSet(); Temp_tempSetAdd(n->use, instr->src);
             break;
 
@@ -542,6 +544,8 @@ FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
     Temp_labelList ll = NULL;
     FG_node        last_n = NULL, jump_n = NULL;
     AS_instr       last_inst = NULL, last_nonlbl_inst = NULL;
+
+    g_emptySet = Temp_TempSet();
 
     // iterate and add instructions to graph
     for (; il; il = il->tail)
