@@ -50,7 +50,7 @@ Temp_temp Temp_newtemp(Ty_ty ty)
 
     {
         char r[16];
-        sprintf(r, "t%d", p->num);
+        sprintf(r, "t%d_", p->num);
         Temp_enter(Temp_getNameMap(), p, String(r));
     }
 
