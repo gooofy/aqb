@@ -58,7 +58,8 @@ void printStm(FILE *out, T_stm stm, int d)
         fprintf(out, "%s", S_name(stm->u.CJUMP.lfalse)); fprintf(out, ")");
         break;
     case T_MOVE:
-        indent(out,d); fprintf(out, "MOVE%p(", stm);
+        //indent(out,d); fprintf(out, "MOVE%p(", stm);
+        indent(out,d); fprintf(out, "MOVE(");
         printExp(out, stm->u.MOVE.src,d+1);
         fprintf(out, " -> ");
         printExp(out, stm->u.MOVE.dst,d+1);
@@ -88,11 +89,12 @@ void printExp(FILE *out, T_exp exp, int d)
             fprintf(out, ")");
             break;
         case T_MEM:
-            fprintf(out, "MEM%p", exp);
+            //fprintf(out, "MEM%p", exp);
+            fprintf(out, "MEM");
             fprintf(out, "("); printExp(out, exp->u.MEM.exp,d+1); fprintf(out, ")");
             break;
         case T_TEMP:
-            fprintf(out, "TEMP t%s",
+            fprintf(out, "TEMP %s",
   	      	 	    Temp_look(Temp_getNameMap(), exp->u.TEMP));
             break;
         case T_HEAP:
