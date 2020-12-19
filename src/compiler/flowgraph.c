@@ -651,13 +651,13 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         FG_nodeList q;
         assert(n);
 
-        snprintf(buf, 255, " (%3d) -> ", n->key);
+        snprintf(buf, 255, " (%4d) -> ", n->key);
 
         int pos = strlen(buf);
         for (q=n->succs; q!=NULL; q=q->tail)
         {
-            snprintf(&buf[pos], 255-pos, "%3d", q->head->key);
-            pos += 3;
+            snprintf(&buf[pos], 255-pos, "%4d", q->head->key);
+            pos += 4;
             if (q->tail)
             {
                 buf[pos] = ',';

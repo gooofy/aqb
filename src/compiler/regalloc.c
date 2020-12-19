@@ -20,30 +20,13 @@
 // #define ENABLE_DEBUG
 
 #ifdef ENABLE_DEBUG
-static Temp_map g_debugTempMap;
+static string tempName(Temp_temp t)
+{
+    return Temp_mapLook(F_registerTempMap(), t);
+}
 #endif
 
-static UG_node temp2Node(Temp_temp t, UG_graph g)
-{
-    if (t == NULL)
-        return NULL;
-    UG_nodeList nodes = g->nodes;
-    UG_nodeList p;
-    for (p=nodes; p!=NULL; p=p->tail)
-    {
-        if (Live_gtemp(p->head)==t)
-            return p->head;
-    }
-    return NULL;
-}
-
-static Temp_temp node2Temp(UG_node n)
-{
-    if (n == NULL)
-        return NULL;
-    return Live_gtemp(n);
-}
-
+#if 0
 static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes)
 {
     Temp_temp t = node2Temp(n);
@@ -57,17 +40,17 @@ static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes
         return n;
     }
 }
+#endif
 
-static Temp_temp aliasedSpilled(Temp_temp t, UG_graph ig, UG_table aliases, Temp_tempSet coalescedNodes, Temp_tempSet spilled)
+static Temp_temp aliasedSpilled(Temp_temp t, Live_graph g, Temp_tempSet spilled)
 {
     if (!Temp_tempSetContains(spilled, t))
         return NULL;
-    UG_node n = temp2Node(t, ig);
+    LG_node n = Live_temp2Node(g, t);
     assert(n);
-    getAlias(n, aliases, coalescedNodes);
-    t = node2Temp(n);
-    assert(t);
-    return t;
+    n = LG_getAlias(n);
+    assert(n);
+    return n->temp;
 };
 
 struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
@@ -78,10 +61,6 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
     Live_graph        live;
     struct COL_result col;
 
-#ifdef ENABLE_DEBUG
-    g_debugTempMap = Temp_layerMap(F_initialRegisters(), Temp_getNameMap());
-#endif
-
     int try = 0;
     while (++try < 7)
     {
@@ -91,21 +70,18 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             U_memstat();
         }
 
-        Temp_map initialRegs = F_initialRegisters();
-
         flow = FG_AssemFlowGraph(il, f);
 #ifdef ENABLE_DEBUG
         printf("try #%d flow graph:\n", try);
         printf("-----------------------\n");
-        FG_show(stdout, flow, g_debugTempMap);
+        FG_show(stdout, flow, F_registerTempMap());
 #endif
 
         live = Live_liveness(flow);
 #ifdef ENABLE_DEBUG
         printf("try #%d liveness graph:\n", try);
         printf("-----------------------\n");
-        // G_show(stdout, G_nodes(live.graph), sprintTemp);
-        Live_showGraph(stdout, live, g_debugTempMap);
+        Live_showGraph(stdout, live, F_registerTempMap());
 #endif
 
         if (OPT_get(OPTION_VERBOSE))
@@ -114,7 +90,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             U_memstat();
         }
 
-        col = COL_color(live, initialRegs, F_registers());
+        col = COL_color(live);
 
         if (Temp_tempSetIsEmpty(col.spills))
         {
@@ -123,7 +99,11 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
         Temp_tempSet spilled = col.spills;
 
-        // Assign locals in memory
+#ifdef ENABLE_DEBUG
+        printf("try #%d spilled: %s\n", try, Temp_tempSetSPrint (spilled, F_registerTempMap()));
+#endif
+
+        // assign memory for spilled temps
         TAB_table spilledLocal = TAB_empty();
         for (Temp_tempSetNode tn = spilled->first; tn; tn = tn->next)
         {
@@ -131,11 +111,18 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             if (f)
             {
                 acc = F_allocLocal(f, Temp_ty(tn->temp));
+#ifdef ENABLE_DEBUG
+                printf("    assigned spilled %s to local fp offset %d\n", tempName( tn->temp), F_accessOffset(acc));
+#endif
             }
             else
             {
-                Temp_label name = Temp_namedlabel(strprintf("__spilledtemp_%06d", Temp_num(tn->temp)));
-                acc = F_allocGlobal(name, Temp_ty(tn->temp));
+                Temp_label l = Temp_namedlabel(strprintf("__spilledtemp_%06d", Temp_num(tn->temp)));
+                acc = F_allocGlobal(l, Temp_ty(tn->temp));
+#ifdef ENABLE_DEBUG
+                printf("    assigned spilled %s to global %s\n", tempName( tn->temp), Temp_labelstring(l));
+#endif
+                assert(FALSE); // FIXME: code below doesn't handle globals
             }
 
             TAB_enter(spilledLocal, tn->temp, acc);
@@ -146,8 +133,8 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         while (an)
         {
             AS_instr inst = an->instr;
-            Temp_temp useSpilled = aliasedSpilled(inst->src, live->graph, col.alias, col.coalescedNodes, spilled);
-            Temp_temp defSpilled = aliasedSpilled(inst->dst, live->graph, col.alias, col.coalescedNodes, spilled);
+            Temp_temp useSpilled = aliasedSpilled(inst->src, live, spilled);
+            Temp_temp defSpilled = aliasedSpilled(inst->dst, live, spilled);
 
             if (useSpilled)
             {
@@ -187,7 +174,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         // filter out coalesced moves, NOPs
 
 #ifdef ENABLE_DEBUG
-        Temp_map colTempMap = Temp_layerMap(col.coloring, g_debugTempMap);
+        Temp_map colTempMap = Temp_mapLayer(col.coloring, F_registerTempMap());
         printf("/* coalesced: moves:\n");
         AS_printInstrSet (stdout, col.coalescedMoves, colTempMap);
         printf("*/\n");
@@ -241,7 +228,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 #ifdef ENABLE_DEBUG
     printf("register coloring map:\n");
     printf("----------------------\n");
-    Temp_dumpMap(stdout, ret.coloring);
+    Temp_mapDump(stdout, ret.coloring);
 #endif
     return ret;
 }

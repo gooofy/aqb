@@ -143,7 +143,7 @@ F_frame F_newFrame(Temp_label name, Ty_formal formals)
     f->formals       = acl;
     f->locals        = NULL;
     f->locals_offset = 0;
-    f->temp          = Temp_empty();
+    f->temp          = Temp_Map();
 
     return f;
 }
@@ -473,22 +473,22 @@ void F_initRegisters(void)
     S_enter(g_regScope, S_Symbol("d6", TRUE), d6);
     S_enter(g_regScope, S_Symbol("d7", TRUE), d7);
 
-    g_reg_map = Temp_empty();
+    g_reg_map = Temp_Map();
 
-    Temp_enter(g_reg_map, a0, "a0");
-    Temp_enter(g_reg_map, a1, "a1");
-    Temp_enter(g_reg_map, a2, "a2");
-    Temp_enter(g_reg_map, a3, "a3");
-    Temp_enter(g_reg_map, a4, "a4");
-    Temp_enter(g_reg_map, a6, "a6");
-    Temp_enter(g_reg_map, d0, "d0");
-    Temp_enter(g_reg_map, d1, "d1");
-    Temp_enter(g_reg_map, d2, "d2");
-    Temp_enter(g_reg_map, d3, "d3");
-    Temp_enter(g_reg_map, d4, "d4");
-    Temp_enter(g_reg_map, d5, "d5");
-    Temp_enter(g_reg_map, d6, "d6");
-    Temp_enter(g_reg_map, d7, "d7");
+    Temp_mapEnter(g_reg_map, a0, "a0");
+    Temp_mapEnter(g_reg_map, a1, "a1");
+    Temp_mapEnter(g_reg_map, a2, "a2");
+    Temp_mapEnter(g_reg_map, a3, "a3");
+    Temp_mapEnter(g_reg_map, a4, "a4");
+    Temp_mapEnter(g_reg_map, a6, "a6");
+    Temp_mapEnter(g_reg_map, d0, "d0");
+    Temp_mapEnter(g_reg_map, d1, "d1");
+    Temp_mapEnter(g_reg_map, d2, "d2");
+    Temp_mapEnter(g_reg_map, d3, "d3");
+    Temp_mapEnter(g_reg_map, d4, "d4");
+    Temp_mapEnter(g_reg_map, d5, "d5");
+    Temp_mapEnter(g_reg_map, d6, "d6");
+    Temp_mapEnter(g_reg_map, d7, "d7");
 }
 
 Temp_temp F_lookupReg(S_symbol sym)
@@ -501,9 +501,17 @@ Temp_map F_initialRegisters(void)
     return g_reg_map;
 }
 
+static Temp_map      g_reg_temp_map = NULL;
+Temp_map F_registerTempMap(void)
+{
+    if (!g_reg_temp_map)
+        g_reg_temp_map = Temp_mapLayer(F_initialRegisters(), Temp_getNameMap());
+    return g_reg_temp_map;
+}
+
 string F_regName(Temp_temp r)
 {
-    string name = Temp_look(g_reg_map, r);
+    string name = Temp_mapLook(g_reg_map, r);
     assert(name);
     return name;
 }
@@ -603,7 +611,7 @@ void F_printtree(FILE *out, F_fragList frags)
                 if (frag->u.proc.frame)
                 {
                     fprintf(out, "Proc fragment: name=%s\n", S_name(frag->u.proc.frame->name));
-                    Temp_dumpMap(out, frag->u.proc.frame->temp);
+                    Temp_mapDump(out, frag->u.proc.frame->temp);
                     fprintf(out, "    formals:\n");
                     F_printAccessList(out, frag->u.proc.frame->formals);
                     fprintf(out, "    locals:\n");

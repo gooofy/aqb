@@ -151,14 +151,28 @@ void AS_instrListRemove (AS_instrList al, AS_instrListNode n)
     assert(n);
     assert(al->first);
 
-    if (al->first == n)
-        al->first = n->next;
-
-    if (n->next)
-        n->next->prev = n->prev;
 
     if (n->prev)
+    {
         n->prev->next = n->next;
+    }
+    else
+    {
+        al->first = n->next;
+        if (n->next)
+            n->next->prev = NULL;
+    }
+
+    if (n->next)
+    {
+        n->next->prev = n->prev;
+    }
+    else
+    {
+        al->last = n->prev;
+        if (n->prev)
+            n->prev->next = NULL;
+    }
 }
 
 AS_instrSet AS_InstrSet (void)
@@ -313,14 +327,14 @@ static void instrformat(string str, string strTmpl, AS_instr instr, Temp_map m)
                     break;
                 case 's':
                 {
-  	                string s = Temp_look(m,instr->src);
+  	                string s = Temp_mapLook(m,instr->src);
   	                strcpy(&str[pos], s);
   	                pos += strlen(s);
                     break;
                 }
                 case 'd':
                 {
-  	                string s = Temp_look(m, instr->dst);
+  	                string s = Temp_mapLook(m, instr->dst);
   	                strcpy(&str[pos], s);
   	                pos += strlen(s);
                     break;

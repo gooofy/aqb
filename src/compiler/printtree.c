@@ -95,7 +95,7 @@ void printExp(FILE *out, T_exp exp, int d)
             break;
         case T_TEMP:
             fprintf(out, "TEMP %s",
-  	      	 	    Temp_look(Temp_getNameMap(), exp->u.TEMP));
+  	      	 	    Temp_mapLook(Temp_getNameMap(), exp->u.TEMP));
             break;
         case T_HEAP:
             fprintf(out, "HEAP %s", S_name(exp->u.HEAP));

@@ -11,14 +11,11 @@
 struct COL_result
 {
     Temp_map      coloring;
-    Temp_tempList colored;
     Temp_tempSet  spills;
     AS_instrSet   coalescedMoves;
-    Temp_tempSet  coalescedNodes;
-    G_table       alias;
 };
 
-struct COL_result COL_color(Live_graph lg, Temp_map initial, Temp_tempSet regs);
+struct COL_result COL_color(Live_graph lg);
 
 #endif
 

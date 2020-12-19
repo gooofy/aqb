@@ -1,5 +1,5 @@
 
-FUNCTION fibonacci% ( a% )
+FUNCTION fibonacci% (BYVAL a% )
 
     '_debug_puts2 a% : _debug_putnl
 
@@ -13,5 +13,7 @@ END FUNCTION
 
 ASSERT fibonacci%(1) = 1
 ASSERT fibonacci%(2) = 1
-ASSERT fibonacci%(23) = 28657
+f% = fibonacci%(23)
+' _debug_puts2 f% : _debug_putnl
+ASSERT f% = 28657
 

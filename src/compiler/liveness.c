@@ -12,22 +12,160 @@
 #include "table.h"
 #include "options.h"
 
-/*
-#define ENABLE_DEBUG
-*/
+// #define ENABLE_DEBUG
 
-Temp_temp Live_gtemp(UG_node n)
+LG_nodeSet LG_NodeSet(void)
 {
-    return (Temp_temp) n->info;
+    LG_nodeSet nl = (LG_nodeSet) checked_malloc(sizeof *nl);
+
+    nl->first = NULL;
+    nl->last  = NULL;
+
+    return nl;
 }
 
+bool LG_nodeSetIsEmpty (LG_nodeSet nl)
+{
+    return nl->first == NULL;
+}
+
+static Live_graph Live_Graph(void)
+{
+    Live_graph lg = (Live_graph) checked_malloc(sizeof *lg);
+
+    lg->nodes                = LG_NodeSet();
+    lg->temp2LGNode          = TAB_empty();
+    lg->moveWorklist         = AS_InstrSet();
+
+    return lg;
+}
+
+static LG_nodeSetNode LG_NodeSetNode (LG_node nn)
+{
+    LG_nodeSetNode n = checked_malloc(sizeof(*n));
+
+    n->prev  = NULL;
+    n->next  = NULL;
+    n->node  = nn;
+
+    return n;
+}
+
+bool LG_nodeSetAdd (LG_nodeSet nl, LG_node nn)
+{
+    assert(nl);
+    assert(nn);
+
+    if (LG_nodeSetContains (nl, nn))
+        return FALSE;
+
+    LG_nodeSetNode n = LG_NodeSetNode(nn);
+
+    n->prev = nl->last;
+    if (nl->last)
+        nl->last = nl->last->next = n;
+    else
+        nl->first = nl->last = n;
+    return TRUE;
+}
+
+bool LG_nodeSetSub (LG_nodeSet nl, LG_node node)
+{
+    for (LG_nodeSetNode n = nl->first; n; n=n->next)
+    {
+        if (n->node == node)
+        {
+            if (n->prev)
+            {
+                n->prev->next = n->next;
+            }
+            else
+            {
+                nl->first = n->next;
+                if (n->next)
+                    n->next->prev = NULL;
+            }
+
+            if (n->next)
+            {
+                n->next->prev = n->prev;
+            }
+            else
+            {
+                nl->last = n->prev;
+                if (n->prev)
+                    n->prev->next = NULL;
+            }
+
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+void LG_nodeSetPrint (LG_nodeSet nl)
+{
+    for (LG_nodeSetNode nln = nl->first; nln; nln=nln->next)
+    {
+        Temp_temp t = nln->node->temp;
+        printf("%-3s", Temp_mapLook(F_registerTempMap(), t));
+        if (nln->next)
+            printf(", ");
+    }
+}
+
+bool LG_nodeSetContains (LG_nodeSet nl, LG_node node)
+{
+    for (LG_nodeSetNode nln = nl->first; nln; nln=nln->next)
+    {
+        if (nln->node == node)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+bool LG_connected (LG_node n1, LG_node n2)
+{
+  return LG_nodeSetContains(n2->adj, n1);
+}
+
+static void LG_addEdge (LG_node n1, LG_node n2)
+{
+    assert(n1);
+    assert(n2);
+
+    LG_nodeSetAdd(n1->adj , n2);
+    LG_nodeSetAdd(n2->adj , n1);
+}
+
+int LG_computeDegree (LG_node n)
+{
+    int deg = 0;
+    for (LG_nodeSetNode p=n->adj->first; p!=NULL; p=p->next)
+        deg++;
+    return deg;
+}
 
 static inline bool FG_isMove(FG_node n)
 {
     AS_instr inst = n->instr;
-    if (!inst)
-        return FALSE;
     return inst->mn == AS_MOVE_AnDn_AnDn;
+}
+
+LG_node Live_temp2Node (Live_graph g, Temp_temp t)
+{
+    assert(t);
+    LG_node res = (LG_node) TAB_look(g->temp2LGNode, t);
+    assert(res);
+    return res;
+}
+
+LG_node LG_getAlias(LG_node n)
+{
+    if (n->alias)
+        return LG_getAlias(n->alias);
+    return n;
 }
 
 #ifdef FG_DEPTH_FIRST_ORDER
@@ -47,7 +185,7 @@ static FG_nodeList computeFGDepthFirstOrder (FG_node node, FG_nodeList res)
 }
 #endif
 
-static void getLiveMap(FG_graph flow)
+static void flowComputeInOut(FG_graph flow)
 {
     // optimization: traverse flow graph in reverse order which should reduce the number of iterations needed
 #ifdef FG_DEPTH_FIRST_ORDER
@@ -60,6 +198,16 @@ static void getLiveMap(FG_graph flow)
         reverseFlow = FG_NodeList (n, reverseFlow);
     }
 #endif
+
+    for (FG_nodeList fl = reverseFlow; fl; fl = fl->tail)
+    {
+        FG_node n = fl->head;
+
+        Temp_tempSet in = n->in;
+        // in[n] ← in[n] ∪ use[n]
+        for (Temp_tempSetNode tn=n->use->first; tn; tn = tn->next)
+            Temp_tempSetAdd(in, tn->temp);
+    }
 
     bool changed = TRUE;
     int nIters = 0;
@@ -80,13 +228,11 @@ static void getLiveMap(FG_graph flow)
 
             /********************************************
              *
-             * in[n] ← use[n] ∪ (out[n] − def[n])
+             * in[n] ← in[n] ∪ (out[n] − def[n])
              *
              ********************************************/
 
             Temp_tempSet in = n->in;
-
-            // in[n] ← in[n] ∪ (out[n] − def[n])
             Temp_tempSet def_n = n->def;
             for (Temp_tempSetNode sn=n->out->first; sn; sn = sn->next)
             {
@@ -96,17 +242,10 @@ static void getLiveMap(FG_graph flow)
                 if (Temp_tempSetAdd(in, t))
                     changed = TRUE;
             }
-            // in[n] ← in[n] ∪ use[n]
-            for (Temp_tempSetNode tn=n->use->first; tn; tn = tn->next)
-            {
-                if (Temp_tempSetAdd(in, tn->temp))
-                    changed = TRUE;
-            }
-
 
             /********************************************
              *
-             * out[n] = ∪<s∈succ[n]> ∪in[s]
+             * out[n] = ∪<s∈succ[n]> in[s]
              *
              ********************************************/
 
@@ -117,34 +256,70 @@ static void getLiveMap(FG_graph flow)
                 for (Temp_tempSetNode sn=sl->head->in->first; sn; sn = sn->next)
                 {
                     if (Temp_tempSetAdd(out, sn->temp))
+                    {
                         changed = TRUE;
+
+#if 0
+                        // FIXME: disable debug code
+                        if (Temp_num(sn->temp)==19)
+                        {
+                            char buf1[255], buf2[255];
+                            AS_sprint (buf1, n->instr, F_registerTempMap());
+                            AS_sprint (buf2, sl->head->instr, F_registerTempMap());
+                            printf ("adding temp t%d_ to {out} of %s because it is in the {in} set of %s\n",
+                                    Temp_num(sn->temp), buf1, buf2);
+                        }
+#endif
+                    }
                 }
             }
         }
 #ifdef ENABLE_DEBUG
-        //FG_show(stdout, flow, Temp_layerMap(F_initialRegisters(), Temp_getNameMap()));
+//        FG_show(stdout, flow, F_registerTempMap());
 #endif
     }
 }
 
-static UG_node findOrCreateNode(Temp_temp t, UG_graph g, TAB_table tab)
+static LG_node findOrCreateNode(Live_graph lg, Temp_temp t)
 {
-    UG_node ln = (UG_node)TAB_look(tab, t);
+    LG_node ln = (LG_node) TAB_look (lg->temp2LGNode, t);
     if (ln == NULL)
     {
-        ln = UG_Node(g, t);
-        TAB_enter(tab, t, ln);
+        ln = (LG_node) checked_malloc(sizeof *ln);
+
+        ln->temp         = t;
+        ln->adj          = LG_NodeSet();
+        ln->degree       = 0;
+        ln->relatedMoves = NULL;
+        ln->spillCost    = 0;
+        ln->alias        = NULL;
+        ln->color        = NULL;
+
+        LG_nodeSetAdd (lg->nodes, ln);
+        TAB_enter (lg->temp2LGNode, t, ln);
     }
     return ln;
 }
 
-static Live_graph solveLiveness(FG_graph flow)
+Live_graph Live_liveness(FG_graph flow)
 {
-    UG_graph     g                    = UG_Graph();
-    TAB_table    tab                  = TAB_empty();
-    Temp_map     mapTemp2MoveInstrSet = Temp_empty();
-    Temp_map     spillCost            = Temp_empty();
-    AS_instrSet  worklistMoves        = AS_InstrSet();
+    /*
+     * compute dataflow in/out sets
+     */
+
+    flowComputeInOut(flow);
+
+#ifdef ENABLE_DEBUG
+    printf("Live_liveness(): flowComputeInOut result:\n");
+    printf("-----------------------------------------\n");
+    FG_show(stdout, flow, F_registerTempMap());
+#endif
+
+    /*
+     * construct interference graph
+     */
+
+    Live_graph   lg                   = Live_Graph();
 
     // traverse flow graph
     for (FG_nodeList fl = flow->nodes; fl; fl = fl->tail)
@@ -155,57 +330,50 @@ static Live_graph solveLiveness(FG_graph flow)
         Temp_tempSet  tdef = n->def;
         Temp_tempSet  tuse = n->use;
         Temp_tempSet  defuse = Temp_tempSetUnion(tuse, tdef);
-        UG_node       move_src = NULL;
+        LG_node       move_src = NULL;
 
         // Spill Cost
         for (Temp_tempSetNode tn = defuse->first; tn; tn = tn->next)
         {
             Temp_temp ti = tn->temp;
-            long spills = (long)Temp_lookPtr(spillCost, ti);
-            ++spills;
-            Temp_enterPtr(spillCost, ti, (void*)spills);
+            LG_node n2 = findOrCreateNode(lg, ti);
+            n2->spillCost++;
         }
 
         // Move instruction?
-        if (FG_isMove(n) && tdef)
+        if (FG_isMove(n))
         {
+            move_src = findOrCreateNode(lg, n->instr->src);
             for (Temp_tempSetNode tn = defuse->first; tn; tn = tn->next)
             {
                 Temp_temp t = tn->temp;
-                move_src = findOrCreateNode(t, g, tab);
-                AS_instrSet ms = (AS_instrSet) Temp_lookPtr(mapTemp2MoveInstrSet, t);
-                if (!ms)
-                {
-                    ms = AS_InstrSet();
-                    Temp_enterPtr(mapTemp2MoveInstrSet, t, (void*)ms);
-                }
-                AS_instrSetAdd(ms, inst);
+                LG_node n2 = findOrCreateNode(lg, t);
+                if (!n2->relatedMoves)
+                    n2->relatedMoves = AS_InstrSet();
+                AS_instrSetAdd(n2->relatedMoves, inst);
             }
-            AS_instrSetAdd (worklistMoves, inst);
+            AS_instrSetAdd (lg->moveWorklist, inst);
         }
 
         // traverse defined vars
-        for (Temp_tempSetNode t = tout->first; t; t = t->next)
+        for (Temp_tempSetNode t = tdef->first; t; t = t->next) // FIXME: tout ?
         {
-            UG_node ndef = findOrCreateNode(t->temp, g, tab);
+            LG_node ndef = findOrCreateNode(lg, t->temp);
 
             // add edges between output vars and defined var
             for (Temp_tempSetNode tedge = tout->first; tedge; tedge = tedge->next)
             {
-                UG_node nedge = findOrCreateNode(tedge->temp, g, tab);
+                LG_node nedge = findOrCreateNode(lg, tedge->temp);
 
                 // skip if edge is added
-                if (ndef == nedge || UG_connected(ndef, nedge))
-                {
+                if (ndef == nedge || LG_connected(ndef, nedge))
                     continue;
-                }
 
                 // skip src for move instruction
-                if (FG_isMove(n) && nedge == move_src)
+                if (nedge == move_src)
                     continue;
 
-                UG_addEdge(ndef, nedge);
-
+                LG_addEdge(ndef, nedge);
             }
         }
 
@@ -214,69 +382,49 @@ static Live_graph solveLiveness(FG_graph flow)
         {
             if (n->instr->src)
             {
-                UG_node nsrc = findOrCreateNode(n->instr->src, g, tab);
+                LG_node nsrc = findOrCreateNode(lg, n->instr->src);
                 for (Temp_tempSetNode tn = n->srcInterf->first; tn; tn = tn->next)
                 {
-                    UG_node interfNode = findOrCreateNode(tn->temp, g, tab);
-                    UG_addEdge(nsrc, interfNode);
+                    LG_node interfNode = findOrCreateNode(lg, tn->temp);
+                    LG_addEdge(nsrc, interfNode);
                 }
             }
             if (n->instr->dst)
             {
-                UG_node ndst = findOrCreateNode(n->instr->dst, g, tab);
+                LG_node ndst = findOrCreateNode(lg, n->instr->dst);
                 for (Temp_tempSetNode tn = n->dstInterf->first; tn; tn = tn->next)
                 {
-                    UG_node interfNode = findOrCreateNode(tn->temp, g, tab);
-                    UG_addEdge(ndst, interfNode);
+                    LG_node interfNode = findOrCreateNode(lg, tn->temp);
+                    LG_addEdge(ndst, interfNode);
                 }
             }
         }
     }
 
-    Live_graph lg = (Live_graph) checked_malloc(sizeof *lg);
-
-    lg->graph = g;
-    lg->worklistMoves = worklistMoves;
-    lg->mapTemp2MoveInstrSet = mapTemp2MoveInstrSet;
-    lg->spillCost = spillCost;
+#ifdef ENABLE_DEBUG
+    printf("Live_liveness(): interference graph result:\n");
+    printf("-------------------------------------------\n");
+    Live_showGraph (stdout, lg, F_registerTempMap());
+#endif
 
     return lg;
 }
 
-Live_graph Live_liveness(FG_graph flow)
+void Live_showGraph(FILE *out, Live_graph lg, Temp_map m)
 {
-    // Construct liveness graph
-    getLiveMap(flow);
-
-#ifdef ENABLE_DEBUG
-    printf("getLiveMap result:\n");
-    printf("------------------\n");
-    FG_show(stdout, flow, Temp_layerMap(F_initialRegisters(), Temp_getNameMap()));
-#endif
-
-    // Construct interference graph
-    return solveLiveness(flow);
-}
-
-void Live_showGraph(FILE *out, Live_graph g, Temp_map m)
-{
-    for (UG_nodeList p=g->graph->nodes; p != NULL; p=p->tail)
+    for (LG_nodeSetNode nln=lg->nodes->first; nln; nln=nln->next)
     {
-        UG_node n = p->head;
-        UG_nodeList q;
-        assert(n);
-        assert(n->info);
-        Temp_temp t = (Temp_temp)n->info;
-        fprintf(out, "(%2d) %-3s -> ", n->key, Temp_look(m, t));
-        for (q=n->adj; q!=NULL; q=q->tail)
-        {
-            UG_node n2 = q->head;
-            assert(n2);
-            assert(n2->info);
-            Temp_temp r = (Temp_temp)n2->info;
-            fprintf(out, " %-3s", Temp_look(m, r));
+        LG_node n = nln->node;
+        Temp_temp t = n->temp;
+        fprintf(out, "%-5s -> ", Temp_mapLook(m, t));
 
-            if (q->tail)
+        for (LG_nodeSetNode q = n->adj->first; q; q=q->next)
+        {
+            LG_node   n2 = q->node;
+            Temp_temp r  = n2->temp;
+            fprintf(out, " %s", Temp_mapLook(m, r));
+
+            if (q->next)
                 fprintf(out, ",");
             else
                 fprintf(out, " ");
@@ -284,3 +432,4 @@ void Live_showGraph(FILE *out, Live_graph g, Temp_map m)
         fprintf(out, "\n");
     }
 }
+

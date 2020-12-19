@@ -42,14 +42,14 @@ struct Temp_labelList_
 };
 Temp_labelList  Temp_LabelList(Temp_label h, Temp_labelList t);
 
-Temp_map        Temp_empty(void);
-Temp_map        Temp_layerMap(Temp_map over, Temp_map under);
-void            Temp_enter(Temp_map m, Temp_temp t, string s);
-string          Temp_look(Temp_map m, Temp_temp t);
-void            Temp_dumpMap(FILE *out, Temp_map m);
+Temp_map        Temp_Map          (void);
+Temp_map        Temp_mapLayer     (Temp_map over, Temp_map under);
+void            Temp_mapEnter     (Temp_map m, Temp_temp t, string s);
+string          Temp_mapLook      (Temp_map m, Temp_temp t);
+void            Temp_mapEnterPtr  (Temp_map m, Temp_temp t, void *ptr);
+void           *Temp_mapLookPtr   (Temp_map m, Temp_temp t);
+void            Temp_mapDump      (FILE *out, Temp_map m);
 
-void            Temp_enterPtr(Temp_map m, Temp_temp t, void *ptr);
-void           *Temp_lookPtr(Temp_map m, Temp_temp t);
 
 Temp_map        Temp_getNameMap(void);
 
@@ -77,5 +77,6 @@ string             Temp_tempSetSPrint    (Temp_tempSet ts, Temp_map m);
 static inline bool Temp_tempSetIsEmpty   (Temp_tempSet ts) { return ts->first == NULL; }
 Temp_tempSet       Temp_tempSetUnion     (Temp_tempSet tsA, Temp_tempSet tsB); // return newly allocated TempSet that contains union of nodes from tsA and tsaB
 Temp_tempSet       Temp_tempSetCopy      (Temp_tempSet ts); // return newly allocated TempSet that contains the nodes from ts
+int                Temp_TempSetCount     (Temp_tempSet ts); // return number of temps in this temp set
 
 #endif

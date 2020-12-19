@@ -78,6 +78,7 @@ extern const int F_wordSize;
 
 void          F_initRegisters(void);
 Temp_map      F_initialRegisters(void);
+Temp_map      F_registerTempMap(void);
 
 Temp_temp     F_RV(void);       // d0
 Temp_temp     F_A0(void);
