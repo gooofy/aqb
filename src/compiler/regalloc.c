@@ -8,7 +8,6 @@
 #include "tree.h"
 #include "assem.h"
 #include "frame.h"
-#include "graph.h"
 #include "color.h"
 #include "flowgraph.h"
 #include "liveness.h"

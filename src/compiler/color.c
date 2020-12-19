@@ -7,7 +7,6 @@
 #include "tree.h"
 #include "assem.h"
 #include "frame.h"
-#include "graph.h"
 #include "color.h"
 #include "liveness.h"
 #include "table.h"

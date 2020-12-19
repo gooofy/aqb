@@ -9,7 +9,7 @@ BINDIR_LINUX = ../../target/x86_64-linux/bin
 SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c options.c \
 		errormsg.c symbol.c translate.c \
 		frame.c tree.c temp.c assem.c printtree.c env.c types.c \
-		canon.c codegen.c regalloc.c graph.c liveness.c color.c flowgraph.c table.c
+		canon.c codegen.c regalloc.c liveness.c color.c flowgraph.c table.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 OBJS_LINUX   := $(patsubst %,${OBJDIR_LINUX}/%.o,$(basename $(SRCS)))
