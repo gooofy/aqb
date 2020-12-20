@@ -10,7 +10,6 @@
 
 typedef struct Temp_temp_      *Temp_temp;
 typedef struct Temp_tempList_  *Temp_tempList;
-typedef struct Temp_tempLList_ *Temp_tempLList;
 typedef S_symbol                Temp_label;
 typedef struct Temp_labelList_ *Temp_labelList;
 typedef struct Temp_map_       *Temp_map;
