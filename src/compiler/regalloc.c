@@ -154,6 +154,13 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 
             an = an->next;
         }
+
+        /*
+         * free memory
+         */
+
+        FG_free (flow);
+
     }
 
     if (!Temp_tempSetIsEmpty(col.spills))

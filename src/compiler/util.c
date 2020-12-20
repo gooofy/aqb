@@ -20,77 +20,12 @@
 #include <inline/exec.h>
 #include <inline/dos.h>
 
+extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
 #endif
 
 #include "util.h"
-
-/*******************************************************************************
- **
- ** a simple memory pool implementation
- **
- ** make sure we do not leak memory on platforms that do not have resource
- ** tracking, e.g. Amiga OS
- **
- ** based on https://stackoverflow.com/questions/11749386/implement-own-memory-pool
- **
- *******************************************************************************/
-
-typedef struct pool
-{
-    size_t  initial_size;
-    char   *next;
-    char   *end;
-} POOL;
-
-static POOL *g_pool;
-
-static POOL * pool_create( size_t size )
-{
-    POOL *p = (POOL*) malloc( size + sizeof(POOL) );
-
-    if (!p)
-    {
-        fprintf (stderr, "failed to allocate memory pool!\n");
-        exit(42);
-    }
-
-    // memset (p, 0xab, size + sizeof(POOL)); // FIXME: remove
-
-    p->initial_size = size;
-    p->next         = (char*)&p[1];
-    p->end          = p->next + size;
-
-    return p;
-}
-
-static void pool_destroy (POOL *p)
-{
-    free(p);
-}
-
-static uint32_t pool_available (POOL *p)
-{
-    return p->end - p->next;
-}
-
-static void *pool_alloc (POOL *p, size_t size)
-{
-
-    size_t pad = (4 - (size & 3)) & 3;
-    size_t alloc_size = size + pad;
-
-    if (pool_available(p) < alloc_size)
-        return NULL;
-
-    void *mem = (void*)p->next;
-    p->next += alloc_size;
-
-    // fprintf (stderr, "pool_alloc: size=%zu, pad=%zu, alloc_size=%zu -> mem=%p\n", size, pad, alloc_size, mem);
-
-    return mem;
-}
 
 static float g_start_time;
 
@@ -112,28 +47,30 @@ static float get_time(void)
 
 void U_memstat(void)
 {
-    float t = get_time();
-    double tdiff = t-g_start_time;
-    printf ("%8.3fs: memory pool stats: used %8zu of %8zu KBytes.\n", tdiff, (g_pool->initial_size - pool_available(g_pool))/1024, g_pool->initial_size/1024);
+    // FIXME
+    // float t = get_time();
+    // double tdiff = t-g_start_time;
+    // printf ("%8.3fs: memory pool stats: used %8zu of %8zu KBytes.\n", tdiff, (g_pool->initial_size - pool_available(g_pool))/1024, g_pool->initial_size/1024);
 }
 
 static void U_deinit (void)
 {
     U_memstat();
-    pool_destroy (g_pool);
 }
 
-void U_init (size_t mempool_size)
+void U_init (void)
 {
     g_start_time = get_time();
-    g_pool = pool_create (mempool_size);
     atexit (U_deinit);
 }
 
 void *checked_malloc (size_t len)
 {
-    // void *p = malloc(len);
-    void *p = pool_alloc(g_pool, len);
+#ifdef __amigaos__
+    void *p = AllocMem(len, 0);
+#else
+    void *p = malloc(len);
+#endif
     if (!p)
     {
         fprintf(stderr,"\nran out of memory!\n");
@@ -148,6 +85,15 @@ void *checked_calloc (size_t nmemb, size_t len)
     void *p = checked_malloc(nmemb * len);
     memset (p, 0, nmemb * len);
     return p;
+}
+
+void U_memfree (void *mem, size_t size)
+{
+#ifdef __amigaos__
+    FreeMem (mem, size);
+#else
+    free(mem);
+#endif
 }
 
 string String(const char *s)

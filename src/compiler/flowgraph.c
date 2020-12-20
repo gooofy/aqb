@@ -635,6 +635,17 @@ FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
     return g;
 }
 
+void FG_free (FG_graph g)
+{
+    FG_nodeList nl_tail = NULL;
+    for (FG_nodeList nl=g->nodes; nl; nl=nl_tail)
+    {
+        U_memfree (nl->head, sizeof (*nl->head));
+        nl_tail = nl->tail;
+        U_memfree (nl, sizeof (*nl));
+    }
+}
+
 #define FG_COLUMN_1 20
 #define FG_COLUMN_2 50
 #define FG_COLUMN_3 80
