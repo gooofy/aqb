@@ -46,14 +46,6 @@ bool        LG_nodeListContains   (LG_nodeList nl, LG_node node);
 LG_nodeList LG_nodeListRemove     (LG_nodeList nl, LG_node node, bool *bRemoved);
 void        LG_nodeListPrint      (LG_nodeList nl);
 
-#if 0
-LG_nodeSet  LG_NodeSet            (void);
-bool        LG_nodeSetAdd         (LG_nodeSet nl, LG_node node);
-bool        LG_nodeSetSub         (LG_nodeSet nl, LG_node node);
-bool        LG_nodeSetIsEmpty     (LG_nodeSet nl);
-bool        LG_nodeSetContains    (LG_nodeSet nl, LG_node node);
-#endif
-
 bool        LG_connected          (LG_node n1, LG_node n2);
 
 int         LG_computeDegree      (LG_node n);
