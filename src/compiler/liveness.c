@@ -13,112 +13,61 @@
 
 // #define ENABLE_DEBUG
 
-LG_nodeSet LG_NodeSet(void)
-{
-    LG_nodeSet nl = (LG_nodeSet) checked_malloc(sizeof *nl);
-
-    nl->first = NULL;
-    nl->last  = NULL;
-
-    return nl;
-}
-
-bool LG_nodeSetIsEmpty (LG_nodeSet nl)
-{
-    return nl->first == NULL;
-}
-
 static Live_graph Live_Graph(void)
 {
     Live_graph lg = (Live_graph) checked_malloc(sizeof *lg);
 
-    lg->nodes                = LG_NodeSet();
+    lg->nodes                = NULL;
     lg->temp2LGNode          = TAB_empty();
     lg->moveWorklist         = AS_InstrSet();
 
     return lg;
 }
 
-static LG_nodeSetNode LG_NodeSetNode (LG_node nn)
+LG_nodeList LG_NodeList (LG_node node, LG_nodeList tail)
 {
-    LG_nodeSetNode n = checked_malloc(sizeof(*n));
+    LG_nodeList nl = (LG_nodeList) checked_malloc(sizeof *nl);
 
-    n->prev  = NULL;
-    n->next  = NULL;
-    n->node  = nn;
+    nl->tail = tail;
+    nl->node = node;
 
-    return n;
+    return nl;
 }
 
-bool LG_nodeSetAdd (LG_nodeSet nl, LG_node nn)
+LG_nodeList LG_nodeListRemove (LG_nodeList nl, LG_node node, bool *bRemoved)
 {
-    assert(nl);
-    assert(nn);
-
-    if (LG_nodeSetContains (nl, nn))
-        return FALSE;
-
-    LG_nodeSetNode n = LG_NodeSetNode(nn);
-
-    n->prev = nl->last;
-    if (nl->last)
-        nl->last = nl->last->next = n;
-    else
-        nl->first = nl->last = n;
-    return TRUE;
-}
-
-bool LG_nodeSetSub (LG_nodeSet nl, LG_node node)
-{
-    for (LG_nodeSetNode n = nl->first; n; n=n->next)
+    if (nl->node == node)
     {
-        if (n->node == node)
-        {
-            if (n->prev)
-            {
-                n->prev->next = n->next;
-            }
-            else
-            {
-                nl->first = n->next;
-                if (n->next)
-                    n->next->prev = NULL;
-            }
-
-            if (n->next)
-            {
-                n->next->prev = n->prev;
-            }
-            else
-            {
-                nl->last = n->prev;
-                if (n->prev)
-                    n->prev->next = NULL;
-            }
-
-            return TRUE;
-        }
+        *bRemoved = TRUE;
+        return nl->tail;
     }
 
-    return FALSE;
+    if (!nl->tail)
+    {
+        *bRemoved = FALSE;
+        return nl;
+    }
+
+    nl->tail = LG_nodeListRemove (nl->tail, node, bRemoved);
+    return nl;
 }
 
-void LG_nodeSetPrint (LG_nodeSet nl)
+void LG_nodeListPrint (LG_nodeList nl)
 {
-    for (LG_nodeSetNode nln = nl->first; nln; nln=nln->next)
+    for (; nl; nl=nl->tail)
     {
-        Temp_temp t = nln->node->temp;
+        Temp_temp t = nl->node->temp;
         printf("%-3s", Temp_mapLook(F_registerTempMap(), t));
-        if (nln->next)
+        if (nl->tail)
             printf(", ");
     }
 }
 
-bool LG_nodeSetContains (LG_nodeSet nl, LG_node node)
+bool LG_nodeListContains (LG_nodeList nl, LG_node node)
 {
-    for (LG_nodeSetNode nln = nl->first; nln; nln=nln->next)
+    for (; nl; nl=nl->tail)
     {
-        if (nln->node == node)
+        if (nl->node == node)
             return TRUE;
     }
     return FALSE;
@@ -126,7 +75,7 @@ bool LG_nodeSetContains (LG_nodeSet nl, LG_node node)
 
 bool LG_connected (LG_node n1, LG_node n2)
 {
-  return LG_nodeSetContains(n2->adj, n1);
+  return LG_nodeListContains(n2->adj, n1);
 }
 
 static void LG_addEdge (LG_node n1, LG_node n2)
@@ -134,14 +83,19 @@ static void LG_addEdge (LG_node n1, LG_node n2)
     assert(n1);
     assert(n2);
 
-    LG_nodeSetAdd(n1->adj , n2);
-    LG_nodeSetAdd(n2->adj , n1);
+#ifdef ENABLE_DEBUG
+    assert (!LG_nodeListContains (n1->adj, n2));
+    assert (!LG_nodeListContains (n2->adj, n1));
+#endif
+
+    n1->adj = LG_NodeList (n2, n1->adj);
+    n2->adj = LG_NodeList (n1, n2->adj);
 }
 
 int LG_computeDegree (LG_node n)
 {
     int deg = 0;
-    for (LG_nodeSetNode p=n->adj->first; p!=NULL; p=p->next)
+    for (LG_nodeList p=n->adj; p; p=p->tail)
         deg++;
     return deg;
 }
@@ -287,14 +241,14 @@ static LG_node findOrCreateNode(Live_graph lg, Temp_temp t)
         ln = (LG_node) checked_malloc(sizeof *ln);
 
         ln->temp         = t;
-        ln->adj          = LG_NodeSet();
+        ln->adj          = NULL;
         ln->degree       = 0;
         ln->relatedMoves = NULL;
         ln->spillCost    = 0;
         ln->alias        = NULL;
         ln->color        = NULL;
 
-        LG_nodeSetAdd (lg->nodes, ln);
+        lg->nodes = LG_NodeList (ln, lg->nodes);
         TAB_enter (lg->temp2LGNode, t, ln);
     }
     return ln;
@@ -385,7 +339,8 @@ Live_graph Live_liveness(FG_graph flow)
                 for (Temp_tempSetNode tn = n->srcInterf->first; tn; tn = tn->next)
                 {
                     LG_node interfNode = findOrCreateNode(lg, tn->temp);
-                    LG_addEdge(nsrc, interfNode);
+                    if (!LG_connected (nsrc, interfNode))
+                        LG_addEdge(nsrc, interfNode);
                 }
             }
             if (n->instr->dst)
@@ -394,7 +349,8 @@ Live_graph Live_liveness(FG_graph flow)
                 for (Temp_tempSetNode tn = n->dstInterf->first; tn; tn = tn->next)
                 {
                     LG_node interfNode = findOrCreateNode(lg, tn->temp);
-                    LG_addEdge(ndst, interfNode);
+                    if (!LG_connected (ndst, interfNode))
+                        LG_addEdge(ndst, interfNode);
                 }
             }
         }
@@ -411,19 +367,19 @@ Live_graph Live_liveness(FG_graph flow)
 
 void Live_showGraph(FILE *out, Live_graph lg, Temp_map m)
 {
-    for (LG_nodeSetNode nln=lg->nodes->first; nln; nln=nln->next)
+    for (LG_nodeList nl=lg->nodes; nl; nl=nl->tail)
     {
-        LG_node n = nln->node;
+        LG_node n = nl->node;
         Temp_temp t = n->temp;
         fprintf(out, "%-5s -> ", Temp_mapLook(m, t));
 
-        for (LG_nodeSetNode q = n->adj->first; q; q=q->next)
+        for (LG_nodeList q = n->adj; q; q=q->tail)
         {
             LG_node   n2 = q->node;
             Temp_temp r  = n2->temp;
             fprintf(out, " %s", Temp_mapLook(m, r));
 
-            if (q->next)
+            if (q->tail)
                 fprintf(out, ",");
             else
                 fprintf(out, " ");

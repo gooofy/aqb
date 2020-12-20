@@ -41,10 +41,10 @@ struct ctx
     Temp_map      precolored;
 
     Temp_tempSet  regs;
-    LG_nodeSet    spillWorklist;
-    LG_nodeSet    freezeWorklist;
-    LG_nodeSet    simplifyWorklist;
-    LG_nodeSet    selectStack;
+    LG_nodeList    spillWorklist;
+    LG_nodeList    freezeWorklist;
+    LG_nodeList    simplifyWorklist;
+    LG_nodeList    selectStack;
 
     AS_instrSet   coalescedMoves;
     AS_instrSet   moveWorklist;
@@ -60,10 +60,12 @@ static void addEdge(LG_node nu, LG_node nv)
     if (nu == nv) return;
     if (LG_connected(nu, nv)) return;
 
-    bool bAdded = LG_nodeSetAdd(nu->adj, nv);
-    assert (bAdded);
-    bAdded = LG_nodeSetAdd(nv->adj, nu);
-    assert (bAdded);
+#ifdef ENABLE_DEBUG
+    assert (!LG_nodeListContains (nu->adj, nv));
+    assert (!LG_nodeListContains (nv->adj, nu));
+#endif
+    nu->adj = LG_NodeList (nv, nu->adj);
+    nv->adj = LG_NodeList (nu, nv->adj);
 
     if (nu->degree < PRECOLORED_DEGREE)
         nu->degree++;
@@ -104,30 +106,35 @@ static void enableMove (LG_node n)
 
 static void removeNode (LG_node n)
 {
-    for (LG_nodeSetNode nln=n->adj->first; nln; nln=nln->next)
+    for (LG_nodeList nl=n->adj; nl; nl=nl->tail)
     {
-        LG_node node = nln->node;
+        LG_node node = nl->node;
 
-        bool bRemoved = LG_nodeSetSub (node->adj, n);
+        bool bRemoved;
+        node->adj = LG_nodeListRemove (node->adj, n, &bRemoved);
         assert (bRemoved);
         node->degree--;
         assert (node->degree >= 0);
 
         if (node->degree == (c.K-1))
         {
-            bRemoved = LG_nodeSetSub (c.spillWorklist, node);
+            c.spillWorklist = LG_nodeListRemove (c.spillWorklist, node, &bRemoved);
             assert(bRemoved);
 
             if (node->relatedMoves)
             {
                 enableMove(node);
-                bool bAdded = LG_nodeSetAdd(c.freezeWorklist, node);
-                assert (bAdded);
+#ifdef ENABLE_DEBUG
+                assert (!LG_nodeListContains (c.freezeWorklist, node));
+#endif
+                c.freezeWorklist = LG_NodeList (node, c.freezeWorklist);
             }
             else
             {
-                bool bAdded = LG_nodeSetAdd(c.simplifyWorklist, node);
-                assert (bAdded);
+#ifdef ENABLE_DEBUG
+                assert (!LG_nodeListContains (c.simplifyWorklist, node));
+#endif
+                c.simplifyWorklist = LG_NodeList (node, c.simplifyWorklist);
             }
         }
     }
@@ -135,41 +142,50 @@ static void removeNode (LG_node n)
 
 static void simplify()
 {
-    LG_nodeSetNode nln = c.simplifyWorklist->first;
-    LG_nodeSetSub (c.simplifyWorklist, nln->node);
+    LG_node n = c.simplifyWorklist->node;
+    c.simplifyWorklist = c.simplifyWorklist->tail;
 
-    LG_node n = nln->node;
-    LG_nodeSetAdd (c.selectStack, n);
 #ifdef ENABLE_DEBUG
-    printf ("simplify(): pushed %s onto selectStack\n", tempName(n->temp));
+    printf ("simplify(): pushing %s onto selectStack\n", tempName(n->temp));
+    assert (!LG_nodeListContains(c.selectStack, n));
 #endif
+
+    c.selectStack = LG_NodeList (n, c.selectStack);
 
     /*
      * decrement degree of all neighbours
      */
 
-    for (nln=n->adj->first; nln; nln=nln->next)
+    for (LG_nodeList nl=n->adj; nl; nl=nl->tail)
     {
-        LG_node node = nln->node;
+        LG_node node = nl->node;
 
         node->degree--;
         assert (node->degree >= 0);
 
         if (node->degree == (c.K-1))
         {
-            bool bRemoved = LG_nodeSetSub (c.spillWorklist, node);
+#ifdef ENABLE_DEBUG
+            printf ("simplify(): removing neighbour %s (degree: %d) from spillWorklist \n", tempName(node->temp), node->degree);
+#endif
+            bool bRemoved;
+            c.spillWorklist = LG_nodeListRemove (c.spillWorklist, node, &bRemoved);
             assert(bRemoved);
 
             if (node->relatedMoves)
             {
                 enableMove(node);
-                bool bAdded = LG_nodeSetAdd(c.freezeWorklist, node);
-                assert (bAdded);
+#ifdef ENABLE_DEBUG
+                assert (!LG_nodeListContains (c.freezeWorklist, node));
+#endif
+                c.freezeWorklist = LG_NodeList(node, c.freezeWorklist);
             }
             else
             {
-                bool bAdded = LG_nodeSetAdd(c.simplifyWorklist, node);
-                assert (bAdded);
+#ifdef ENABLE_DEBUG
+                assert (!LG_nodeListContains (c.simplifyWorklist, node));
+#endif
+                c.simplifyWorklist = LG_NodeList(node, c.simplifyWorklist);
             }
         }
     }
@@ -177,18 +193,22 @@ static void simplify()
 
 static void combine(LG_node nu, LG_node nv)
 {
-    if (!LG_nodeSetSub (c.freezeWorklist, nv))
+    if (LG_nodeListContains (c.freezeWorklist, nv))
     {
-        bool bRemoved = LG_nodeSetSub (c.spillWorklist, nv);
-        assert (bRemoved);
+        bool bRemoved;
+        c.freezeWorklist = LG_nodeListRemove (c.freezeWorklist, nv, &bRemoved);
+        assert(bRemoved);
 #ifdef ENABLE_DEBUG
-        printf ("combine() : removed %s from spillWorklist\n", tempName(nv->temp));
+        printf ("combine() : removed %s from freezeWorklist\n", tempName(nv->temp));
 #endif
     }
     else
     {
+        bool bRemoved;
+        c.spillWorklist = LG_nodeListRemove (c.spillWorklist, nv, &bRemoved);
+        assert (bRemoved);
 #ifdef ENABLE_DEBUG
-        printf ("combine() : removed %s from freezeWorklist\n", tempName(nv->temp));
+        printf ("combine() : removed %s from spillWorklist\n", tempName(nv->temp));
 #endif
     }
 
@@ -201,9 +221,9 @@ static void combine(LG_node nu, LG_node nv)
 
     enableMove(nv);
 
-    for (LG_nodeSetNode nln=nv->adj->first; nln; nln=nln->next)
+    for (LG_nodeList nl=nv->adj; nl; nl=nl->tail)
     {
-        addEdge(nln->node, nu);
+        addEdge(nl->node, nu);
     }
 
     removeNode (nv);
@@ -211,29 +231,35 @@ static void combine(LG_node nu, LG_node nv)
     int degree = nu->degree;
 #ifdef ENABLE_DEBUG
     printf ("combine() : combined %s with %s, resulting degree: %d (", tempName(nu->temp), tempName(nv->temp), degree);
-    LG_nodeSetPrint (nu->adj);
+    LG_nodeListPrint (nu->adj);
     printf (")\n");
 #endif
     if (degree >= c.K)
     {
-        if (LG_nodeSetContains(c.freezeWorklist, nu))
+        if (LG_nodeListContains(c.freezeWorklist, nu))
         {
-            LG_nodeSetSub (c.freezeWorklist, nu);
-            LG_nodeSetAdd (c.spillWorklist, nu);
 #ifdef ENABLE_DEBUG
-            printf ("combine() : moved %s of degree %d from freezeWorklist to spillWorklist\n", tempName(nu->temp), degree);
+            printf ("combine() : moving %s of degree %d from freezeWorklist to spillWorklist\n", tempName(nu->temp), degree);
+            assert (!LG_nodeListContains (c.spillWorklist, nu));
 #endif
+            bool bRemoved;
+            c.freezeWorklist = LG_nodeListRemove (c.freezeWorklist, nu, &bRemoved);
+            assert(bRemoved);
+            c.spillWorklist = LG_NodeList (nu, c.spillWorklist);
         }
     }
     else
     {
-        if (LG_nodeSetContains(c.spillWorklist, nu))
+        if (LG_nodeListContains(c.spillWorklist, nu))
         {
-            LG_nodeSetSub (c.spillWorklist, nu);
-            LG_nodeSetAdd (c.freezeWorklist, nu);
 #ifdef ENABLE_DEBUG
-            printf ("combine() : moved %s of degree %d from spillWorklist to freezeWorklist\n", tempName(nu->temp), degree);
+            printf ("combine() : moving %s of degree %d from spillWorklist to freezeWorklist\n", tempName(nu->temp), degree);
+            assert (!LG_nodeListContains (c.freezeWorklist, nu));
 #endif
+            bool bRemoved;
+            c.spillWorklist = LG_nodeListRemove (c.spillWorklist, nu, &bRemoved);
+            assert(bRemoved);
+            c.freezeWorklist = LG_NodeList (nu, c.freezeWorklist);
         }
     }
 }
@@ -250,10 +276,13 @@ static void tryToAddToSimplifyWorklist(LG_node n)
 {
     if (!moveRelated(n) && (n->degree < c.K))
     {
-        bool bRemoved = LG_nodeSetSub (c.freezeWorklist  , n);
+        bool bRemoved;
+        c.freezeWorklist = LG_nodeListRemove (c.freezeWorklist, n, &bRemoved);
         assert (bRemoved);
-        bool bAdded   = LG_nodeSetAdd (c.simplifyWorklist, n);
-        assert (bAdded);
+#ifdef ENABLE_DEBUG
+        assert (!LG_nodeListContains (c.simplifyWorklist, n));
+#endif
+        c.simplifyWorklist = LG_NodeList (n, c.simplifyWorklist);
     }
 }
 
@@ -310,12 +339,12 @@ static void coalesce(void)
         {
             // Briggs
             int k = 0;
-            for (LG_nodeSetNode adj = u->adj->first; adj; adj=adj->next)
+            for (LG_nodeList adj = u->adj; adj; adj=adj->tail)
             {
                 if (adj->node->degree >= c.K)
                     k++;
             }
-            for (LG_nodeSetNode adj = v->adj->first; adj; adj=adj->next)
+            for (LG_nodeList adj = v->adj; adj; adj=adj->tail)
             {
                 if (adj->node->degree >= c.K)
                     k++;
@@ -359,14 +388,16 @@ static void freezeMoves(LG_node u)
         LG_node nx = LG_getAlias(Live_temp2Node(c.lg, x));
         if (!moveRelated(nx) && (nx->degree < c.K))
         {
-            if (LG_nodeSetContains (c.freezeWorklist, nx))
+            if (LG_nodeListContains (c.freezeWorklist, nx))
             {
 #ifdef ENABLE_DEBUG
                 printf("freezeMoves(): moving %s from freezeWorklist to simplifyWorklist\n", tempName(nx->temp));
+                assert (!LG_nodeListContains (c.simplifyWorklist, nx));
 #endif
-                LG_nodeSetSub(c.freezeWorklist, nx);
-                bool bDone = LG_nodeSetAdd(c.simplifyWorklist, nx);
-                assert (bDone);
+                bool bDone;
+                c.freezeWorklist = LG_nodeListRemove(c.freezeWorklist, nx, &bDone);
+                assert(bDone);
+                c.simplifyWorklist = LG_NodeList (nx, c.simplifyWorklist);
             }
         }
 
@@ -375,14 +406,16 @@ static void freezeMoves(LG_node u)
         {
             if (!moveRelated(ny) && (ny->degree < c.K))
             {
-                if (LG_nodeSetContains (c.freezeWorklist, ny))
+                if (LG_nodeListContains (c.freezeWorklist, ny))
                 {
 #ifdef ENABLE_DEBUG
                     printf("freezeMoves(): moving %s from freezeWorklist to simplifyWorklist\n", tempName(ny->temp));
+                    assert (!LG_nodeListContains (c.simplifyWorklist, ny));
 #endif
-                    LG_nodeSetSub(c.freezeWorklist, ny);
-                    bool bDone = LG_nodeSetAdd(c.simplifyWorklist, ny);
+                    bool bDone;
+                    c.freezeWorklist = LG_nodeListRemove(c.freezeWorklist, ny, &bDone);
                     assert (bDone);
+                    c.simplifyWorklist = LG_NodeList(ny, c.simplifyWorklist);
                 }
             }
         }
@@ -391,16 +424,15 @@ static void freezeMoves(LG_node u)
 
 static void freeze()
 {
-    LG_node u = c.freezeWorklist->first->node;
+    LG_node u = c.freezeWorklist->node;
+    c.freezeWorklist = c.freezeWorklist->tail;
 
 #ifdef ENABLE_DEBUG
     printf("freeze(): moving %s from freezeWorklist to simplifyWorklist\n", tempName(u->temp));
+    assert (!LG_nodeListContains (c.simplifyWorklist, u));
 #endif
 
-    bool bDone = LG_nodeSetSub (c.freezeWorklist, u);
-    assert(bDone);
-    bDone = LG_nodeSetAdd (c.simplifyWorklist, u);
-    assert(bDone);
+    c.simplifyWorklist = LG_NodeList (u, c.simplifyWorklist);
 
     freezeMoves(u);
 }
@@ -409,9 +441,9 @@ static void selectSpill()
 {
     float minSpillPriority = 0x7FFFFFFF-1;
     LG_node m = NULL;
-    for (LG_nodeSetNode tln = c.spillWorklist->first; tln; tln = tln->next)
+    for (LG_nodeList tl = c.spillWorklist; tl; tl = tl->tail)
     {
-        LG_node   n      = tln->node;
+        LG_node   n      = tl->node;
         int       cost   = n->spillCost;
         int       degree = n->degree;
 
@@ -429,12 +461,13 @@ static void selectSpill()
     assert(m);
 #ifdef ENABLE_DEBUG
     printf("selectSpill(): potential spill: %s\n", tempName(m->temp));
+    assert (!LG_nodeListContains (c.simplifyWorklist, m));
 #endif
 
-    bool bDone = LG_nodeSetSub (c.spillWorklist, m);
+    bool bDone;
+    c.spillWorklist = LG_nodeListRemove (c.spillWorklist, m, &bDone);
     assert (bDone);
-    bDone = LG_nodeSetAdd (c.simplifyWorklist, m);
-    assert (bDone);
+    c.simplifyWorklist = LG_NodeList (m, c.simplifyWorklist);
 
     freezeMoves(m);
 }
@@ -444,10 +477,10 @@ struct COL_result COL_color(Live_graph lg)
     c.lg                   = lg;
     c.regs                 = F_registers();
     c.precolored           = F_initialRegisters();
-    c.spillWorklist        = LG_NodeSet();
-    c.freezeWorklist       = LG_NodeSet();
-    c.simplifyWorklist     = LG_NodeSet();
-    c.selectStack          = LG_NodeSet();
+    c.spillWorklist        = NULL;
+    c.freezeWorklist       = NULL;
+    c.simplifyWorklist     = NULL;
+    c.selectStack          = NULL;
     c.coalescedMoves       = AS_InstrSet();
     c.moveWorklist         = AS_InstrSet(); AS_instrSetAddSet(c.moveWorklist, lg->moveWorklist);
     c.activeMoves          = AS_InstrSet();
@@ -459,15 +492,15 @@ struct COL_result COL_color(Live_graph lg)
 #endif
 
     //Temp_tempList coloredNodes = NULL;
-    //LG_nodeSet   nodes        = live->graph->nodes;
+    //LG_nodeList   nodes        = live->graph->nodes;
 
     /*
      * add nodes to worklists
      */
 
-    for (LG_nodeSetNode nln = lg->nodes->first; nln; nln = nln->next)
+    for (LG_nodeList nl = lg->nodes; nl; nl = nl->tail)
     {
-        LG_node   n = nln->node;
+        LG_node   n = nl->node;
         Temp_temp t = n->temp;
 
         if (Temp_mapLook(c.precolored, t))
@@ -487,18 +520,18 @@ struct COL_result COL_color(Live_graph lg)
 #ifdef ENABLE_DEBUG
             printf ("COL_color: %-5s of degree %3d added to spillWorklist\n", tempName(t), n->degree);
 #endif
-            LG_nodeSetAdd (c.spillWorklist, n);
+            c.spillWorklist = LG_NodeList (n, c.spillWorklist);
         }
         else if (moveRelated(n))
         {
-            LG_nodeSetAdd (c.freezeWorklist, n);
+            c.freezeWorklist = LG_NodeList (n, c.freezeWorklist);
 #ifdef ENABLE_DEBUG
             printf ("COL_color: %-5s of degree %3d added to freezeWorklist\n", tempName(t), n->degree);
 #endif
         }
         else
         {
-            LG_nodeSetAdd (c.simplifyWorklist, n);
+            c.simplifyWorklist = LG_NodeList (n, c.simplifyWorklist);
 #ifdef ENABLE_DEBUG
             printf ("COL_color: %-5s of degree %3d added to simplifyWorklist\n", tempName(t), n->degree);
 #endif
@@ -516,7 +549,7 @@ struct COL_result COL_color(Live_graph lg)
 //        printf("freezeWL  : "); printts(c.freezeWorklist  ); printf("\n");
 //        printf("spillWL   : "); printts(c.spillWorklist   ); printf("\n");
 //#endif
-        if (!LG_nodeSetIsEmpty (c.simplifyWorklist))
+        if (c.simplifyWorklist)
         {
 //#ifdef ENABLE_DEBUG
 //            printf("--------------> simplify\n");
@@ -530,22 +563,22 @@ struct COL_result COL_color(Live_graph lg)
 //#endif
             coalesce();
         }
-        else if (!LG_nodeSetIsEmpty (c.freezeWorklist))
+        else if (c.freezeWorklist)
         {
 //#ifdef ENABLE_DEBUG
 //            printf("--------------> freeze\n");
 //#endif
             freeze();
         }
-        else if (!LG_nodeSetIsEmpty (c.spillWorklist))
+        else if (c.spillWorklist)
         {
 //#ifdef ENABLE_DEBUG
 //            printf("--------------> selectSpill\n");
 //#endif
             selectSpill();
         }
-    } while (!LG_nodeSetIsEmpty (c.simplifyWorklist) || !AS_instrSetIsEmpty (c.moveWorklist ) ||
-             !LG_nodeSetIsEmpty (c.freezeWorklist  ) || !LG_nodeSetIsEmpty  (c.spillWorklist) );
+    } while (c.simplifyWorklist || !AS_instrSetIsEmpty (c.moveWorklist ) ||
+             c.freezeWorklist   || c.spillWorklist                        );
 
     /*
      * assign colors to non-coalesced temps
@@ -555,11 +588,10 @@ struct COL_result COL_color(Live_graph lg)
                               /* spills         = */ Temp_TempSet(),
                               /* coalescedMoves = */ c.coalescedMoves };
 
-    while (!LG_nodeSetIsEmpty(c.selectStack))
+    while (c.selectStack)
     {
-        LG_node n = c.selectStack->last->node; // pop
-        bool bDeleted = LG_nodeSetSub (c.selectStack, n);
-        assert (bDeleted);
+        LG_node n = c.selectStack->node; // pop
+        c.selectStack = c.selectStack->tail;
 
 #ifdef ENABLE_DEBUG
         printf("colorizing: %s of degree %d.\n", tempName(n->temp), n->degree);
@@ -567,9 +599,9 @@ struct COL_result COL_color(Live_graph lg)
 
         Temp_tempSet availableColors = Temp_tempSetCopy(c.regs);
 
-        for (LG_nodeSetNode nsn=n->adj->first; nsn; nsn=nsn->next)
+        for (LG_nodeList nl=n->adj; nl; nl=nl->tail)
         {
-            LG_node n2 = LG_getAlias(nsn->node);
+            LG_node n2 = LG_getAlias(nl->node);
             if (n2->color)
                 Temp_tempSetSub (availableColors, n2->color);
         }
@@ -601,9 +633,9 @@ struct COL_result COL_color(Live_graph lg)
      * copy colors to coalesced nodes from their aliases
     */
 
-    for (LG_nodeSetNode nln = lg->nodes->first; nln; nln = nln->next)
+    for (LG_nodeList nl = lg->nodes; nl; nl = nl->tail)
     {
-        LG_node n = nln->node;
+        LG_node n = nl->node;
         if (!n->alias)
             continue;
         LG_node a = LG_getAlias(n);
