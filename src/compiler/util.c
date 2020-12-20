@@ -181,30 +181,6 @@ string strlower(const char *s)
     return p;
 }
 
-U_list U_List(void)
-{
-    U_list list = checked_malloc(sizeof(*list));
-    list->first = NULL;
-    list->last  = NULL;
-    return list;
-}
-
-void U_ListAppend(U_list list, U_listNode node)
-{
-    node->prev = list->last;
-    node->next = NULL;
-    if (!list->first)
-    {
-        list->first = node;
-        list->last  = node;
-    }
-    else
-    {
-        list->last->next = node;
-        list->last       = node;
-    }
-}
-
 #define MAXBUF 1024
 
 string strprintf(const char *format, ...)

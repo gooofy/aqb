@@ -27,22 +27,6 @@ int strcicmp(string a, string b); // string ignore case compare
 void   strserialize(FILE *out, string str);
 string strdeserialize(FILE *in);
 
-/* generic doubly linked list */
-
-typedef struct U_listNode_ *U_listNode;
-struct U_listNode_
-{
-    U_listNode prev, next;
-};
-typedef struct U_list_ *U_list;
-struct U_list_
-{
-    U_listNode first, last;
-};
-
-U_list U_List(void);
-void   U_ListAppend(U_list list, U_listNode node);
-
 /* FFP - Motorola Fast Floating Point format support */
 
 uint32_t encode_ffp(float        f);
