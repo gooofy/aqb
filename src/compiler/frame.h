@@ -80,6 +80,27 @@ void          F_initRegisters(void);
 Temp_map      F_initialRegisters(void);
 Temp_map      F_registerTempMap(void);
 
+#define F_NUM_REGISTERS 14
+
+#define F_TEMP_A0   0
+#define F_TEMP_A1   1
+#define F_TEMP_A2   2
+#define F_TEMP_A3   3
+#define F_TEMP_A4   4
+#define F_TEMP_A6   5
+#define F_TEMP_D0   6
+#define F_TEMP_D1   7
+#define F_TEMP_D2   8
+#define F_TEMP_D3   9
+#define F_TEMP_D4  10
+#define F_TEMP_D5  11
+#define F_TEMP_D6  12
+#define F_TEMP_D7  13
+
+#define F_TEMP_RV   6
+
+extern Temp_temp    F_regs[F_NUM_REGISTERS];
+
 Temp_temp     F_RV(void);       // d0
 Temp_temp     F_A0(void);
 Temp_temp     F_A1(void);

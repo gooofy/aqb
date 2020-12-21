@@ -338,49 +338,37 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
 const int F_wordSize = 4; /* Motorola 68k */
 
-static Temp_temp a0 = NULL;
-static Temp_temp a1 = NULL;
-static Temp_temp a2 = NULL;
-static Temp_temp a3 = NULL;
-static Temp_temp a4 = NULL;
-static Temp_temp a6 = NULL;
-
-static Temp_temp d0 = NULL;
-static Temp_temp d1 = NULL;
-static Temp_temp d2 = NULL;
-static Temp_temp d3 = NULL;
-static Temp_temp d4 = NULL;
-static Temp_temp d5 = NULL;
-static Temp_temp d6 = NULL;
-static Temp_temp d7 = NULL;
+Temp_temp F_regs[F_NUM_REGISTERS];
 
 // Return value
-Temp_temp F_RV(void) { return d0; }
+Temp_temp F_RV(void) { return F_regs[F_TEMP_D0]; }
 
 // we need to expose d0..d7,a0.. for register argument parsing as well
-Temp_temp F_A0(void) { return a0; }
-Temp_temp F_A1(void) { return a1; }
-Temp_temp F_A2(void) { return a2; }
-Temp_temp F_A3(void) { return a3; }
-Temp_temp F_A4(void) { return a4; }
-Temp_temp F_A6(void) { return a6; }
-Temp_temp F_D0(void) { return d0; }
-Temp_temp F_D1(void) { return d1; }
-Temp_temp F_D2(void) { return d2; }
-Temp_temp F_D3(void) { return d3; }
-Temp_temp F_D4(void) { return d4; }
-Temp_temp F_D5(void) { return d5; }
-Temp_temp F_D6(void) { return d6; }
-Temp_temp F_D7(void) { return d7; }
+Temp_temp F_A0(void) { return F_regs[F_TEMP_A0]; }
+Temp_temp F_A1(void) { return F_regs[F_TEMP_A1]; }
+Temp_temp F_A2(void) { return F_regs[F_TEMP_A2]; }
+Temp_temp F_A3(void) { return F_regs[F_TEMP_A3]; }
+Temp_temp F_A4(void) { return F_regs[F_TEMP_A4]; }
+Temp_temp F_A6(void) { return F_regs[F_TEMP_A6]; }
+Temp_temp F_D0(void) { return F_regs[F_TEMP_D0]; }
+Temp_temp F_D1(void) { return F_regs[F_TEMP_D1]; }
+Temp_temp F_D2(void) { return F_regs[F_TEMP_D2]; }
+Temp_temp F_D3(void) { return F_regs[F_TEMP_D3]; }
+Temp_temp F_D4(void) { return F_regs[F_TEMP_D4]; }
+Temp_temp F_D5(void) { return F_regs[F_TEMP_D5]; }
+Temp_temp F_D6(void) { return F_regs[F_TEMP_D6]; }
+Temp_temp F_D7(void) { return F_regs[F_TEMP_D7]; }
 
 bool F_isAn(Temp_temp reg)
 {
-    return (reg == a0) || (reg == a1) || (reg == a2) || (reg == a3) || (reg == a4) || (reg == a6);
+    int n = Temp_num(reg);
+    return (n>=F_TEMP_A0) && (n<=F_TEMP_A6);
 }
 
 bool F_isDn(Temp_temp reg)
 {
-    return (reg == d0) || (reg == d1) || (reg == d2) || (reg == d3) || (reg == d4) || (reg == d5) || (reg == d6) || (reg == d7);
+    int n = Temp_num(reg);
+    return (n>=F_TEMP_D0) && (n<=F_TEMP_D7);
 }
 
 static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
@@ -390,105 +378,72 @@ static Temp_map      g_reg_map;
 
 void F_initRegisters(void)
 {
-    a0 = Temp_newtemp(NULL);
-    a1 = Temp_newtemp(NULL);
-    a2 = Temp_newtemp(NULL);
-    a3 = Temp_newtemp(NULL);
-    a4 = Temp_newtemp(NULL);
-    a6 = Temp_newtemp(NULL);
-    d0 = Temp_newtemp(NULL);
-    d1 = Temp_newtemp(NULL);
-    d2 = Temp_newtemp(NULL);
-    d3 = Temp_newtemp(NULL);
-    d4 = Temp_newtemp(NULL);
-    d5 = Temp_newtemp(NULL);
-    d6 = Temp_newtemp(NULL);
-    d7 = Temp_newtemp(NULL);
-
     g_allRegs = Temp_TempSet();
-    Temp_tempSetAdd (g_allRegs, d0);
-    Temp_tempSetAdd (g_allRegs, d1);
-    Temp_tempSetAdd (g_allRegs, d2);
-    Temp_tempSetAdd (g_allRegs, d3);
-    Temp_tempSetAdd (g_allRegs, d4);
-    Temp_tempSetAdd (g_allRegs, d5);
-    Temp_tempSetAdd (g_allRegs, d6);
-    Temp_tempSetAdd (g_allRegs, d7);
-    Temp_tempSetAdd (g_allRegs, a0);
-    Temp_tempSetAdd (g_allRegs, a1);
-    Temp_tempSetAdd (g_allRegs, a2);
-    Temp_tempSetAdd (g_allRegs, a3);
-    Temp_tempSetAdd (g_allRegs, a4);
-    Temp_tempSetAdd (g_allRegs, a6);
+    g_dRegs   = Temp_TempSet();
+    g_aRegs   = Temp_TempSet();
 
-    g_dRegs = Temp_TempSet();
-    Temp_tempSetAdd (g_dRegs, d0);
-    Temp_tempSetAdd (g_dRegs, d1);
-    Temp_tempSetAdd (g_dRegs, d2);
-    Temp_tempSetAdd (g_dRegs, d3);
-    Temp_tempSetAdd (g_dRegs, d4);
-    Temp_tempSetAdd (g_dRegs, d5);
-    Temp_tempSetAdd (g_dRegs, d6);
-    Temp_tempSetAdd (g_dRegs, d7);
-
-    g_aRegs = Temp_TempSet();
-    Temp_tempSetAdd (g_aRegs, a0);
-    Temp_tempSetAdd (g_aRegs, a1);
-    Temp_tempSetAdd (g_aRegs, a2);
-    Temp_tempSetAdd (g_aRegs, a3);
-    Temp_tempSetAdd (g_aRegs, a4);
-    Temp_tempSetAdd (g_aRegs, a6);
+    for (int i = F_TEMP_A0; i<=F_TEMP_D7; i++)
+    {
+        Temp_temp t = Temp_newtemp(NULL); 
+        F_regs[i] = t;
+        assert (Temp_num(t)==i);
+        Temp_tempSetAdd (g_allRegs, t);
+        if (F_isAn(t))
+            Temp_tempSetAdd (g_aRegs, t);
+        if (F_isDn(t))
+            Temp_tempSetAdd (g_dRegs, t);
+    }
 
     g_callerSaves = Temp_TempSet();
-    Temp_tempSetAdd (g_callerSaves, d0);
-    Temp_tempSetAdd (g_callerSaves, d1);
-    Temp_tempSetAdd (g_callerSaves, a0);
-    Temp_tempSetAdd (g_callerSaves, a1);
+    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_D0]);
+    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_D1]);
+    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_A0]);
+    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_A1]);
 
     g_calleeSaves = Temp_TempSet();
-    Temp_tempSetAdd (g_calleeSaves, d2);
-    Temp_tempSetAdd (g_calleeSaves, d3);
-    Temp_tempSetAdd (g_calleeSaves, d4);
-    Temp_tempSetAdd (g_calleeSaves, d5);
-    Temp_tempSetAdd (g_calleeSaves, d6);
-    Temp_tempSetAdd (g_calleeSaves, d7);
-    Temp_tempSetAdd (g_calleeSaves, a2);
-    Temp_tempSetAdd (g_calleeSaves, a3);
-    Temp_tempSetAdd (g_calleeSaves, a4);
-    Temp_tempSetAdd (g_calleeSaves, a6);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D2]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D3]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D4]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D5]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D6]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D7]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A2]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A3]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A4]);
+    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A6]);
 
     g_regScope = S_beginScope();
-    S_enter(g_regScope, S_Symbol("a0", TRUE), a0);
-    S_enter(g_regScope, S_Symbol("a1", TRUE), a1);
-    S_enter(g_regScope, S_Symbol("a2", TRUE), a2);
-    S_enter(g_regScope, S_Symbol("a3", TRUE), a3);
-    S_enter(g_regScope, S_Symbol("a4", TRUE), a4);
-    S_enter(g_regScope, S_Symbol("a6", TRUE), a6);
-    S_enter(g_regScope, S_Symbol("d0", TRUE), d0);
-    S_enter(g_regScope, S_Symbol("d1", TRUE), d1);
-    S_enter(g_regScope, S_Symbol("d2", TRUE), d2);
-    S_enter(g_regScope, S_Symbol("d3", TRUE), d3);
-    S_enter(g_regScope, S_Symbol("d4", TRUE), d4);
-    S_enter(g_regScope, S_Symbol("d5", TRUE), d5);
-    S_enter(g_regScope, S_Symbol("d6", TRUE), d6);
-    S_enter(g_regScope, S_Symbol("d7", TRUE), d7);
+    S_enter(g_regScope, S_Symbol("a0", TRUE), F_regs[F_TEMP_A0]);
+    S_enter(g_regScope, S_Symbol("a1", TRUE), F_regs[F_TEMP_A1]);
+    S_enter(g_regScope, S_Symbol("a2", TRUE), F_regs[F_TEMP_A2]);
+    S_enter(g_regScope, S_Symbol("a3", TRUE), F_regs[F_TEMP_A3]);
+    S_enter(g_regScope, S_Symbol("a4", TRUE), F_regs[F_TEMP_A4]);
+    S_enter(g_regScope, S_Symbol("a6", TRUE), F_regs[F_TEMP_A6]);
+    S_enter(g_regScope, S_Symbol("d0", TRUE), F_regs[F_TEMP_D0]);
+    S_enter(g_regScope, S_Symbol("d1", TRUE), F_regs[F_TEMP_D1]);
+    S_enter(g_regScope, S_Symbol("d2", TRUE), F_regs[F_TEMP_D2]);
+    S_enter(g_regScope, S_Symbol("d3", TRUE), F_regs[F_TEMP_D3]);
+    S_enter(g_regScope, S_Symbol("d4", TRUE), F_regs[F_TEMP_D4]);
+    S_enter(g_regScope, S_Symbol("d5", TRUE), F_regs[F_TEMP_D5]);
+    S_enter(g_regScope, S_Symbol("d6", TRUE), F_regs[F_TEMP_D6]);
+    S_enter(g_regScope, S_Symbol("d7", TRUE), F_regs[F_TEMP_D7]);
 
     g_reg_map = Temp_Map();
 
-    Temp_mapEnter(g_reg_map, a0, "a0");
-    Temp_mapEnter(g_reg_map, a1, "a1");
-    Temp_mapEnter(g_reg_map, a2, "a2");
-    Temp_mapEnter(g_reg_map, a3, "a3");
-    Temp_mapEnter(g_reg_map, a4, "a4");
-    Temp_mapEnter(g_reg_map, a6, "a6");
-    Temp_mapEnter(g_reg_map, d0, "d0");
-    Temp_mapEnter(g_reg_map, d1, "d1");
-    Temp_mapEnter(g_reg_map, d2, "d2");
-    Temp_mapEnter(g_reg_map, d3, "d3");
-    Temp_mapEnter(g_reg_map, d4, "d4");
-    Temp_mapEnter(g_reg_map, d5, "d5");
-    Temp_mapEnter(g_reg_map, d6, "d6");
-    Temp_mapEnter(g_reg_map, d7, "d7");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A0], "a0");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A1], "a1");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A2], "a2");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A3], "a3");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A4], "a4");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A6], "a6");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D0], "d0");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D1], "d1");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D2], "d2");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D3], "d3");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D4], "d4");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D5], "d5");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D6], "d6");
+    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D7], "d7");
 }
 
 Temp_temp F_lookupReg(S_symbol sym)

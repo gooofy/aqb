@@ -588,6 +588,8 @@ struct COL_result COL_color(Live_graph lg)
                               /* spills         = */ Temp_TempSet(),
                               /* coalescedMoves = */ c.coalescedMoves };
 
+    bool availableColors[F_NUM_REGISTERS];
+
     while (c.selectStack)
     {
         LG_node n = c.selectStack->node; // pop
@@ -596,23 +598,37 @@ struct COL_result COL_color(Live_graph lg)
 #ifdef ENABLE_DEBUG
         printf("colorizing: %s of degree %d.\n", tempName(n->temp), n->degree);
 #endif
-
-        Temp_tempSet availableColors = Temp_tempSetCopy(c.regs);
+        for (int i =0; i<F_NUM_REGISTERS; i++)
+            availableColors[i] = TRUE;
 
         for (LG_nodeList nl=n->adj; nl; nl=nl->tail)
         {
             LG_node n2 = LG_getAlias(nl->node);
             if (n2->color)
-                Temp_tempSetSub (availableColors, n2->color);
+                availableColors[Temp_num(n2->color)] = FALSE;
         }
 
 #ifdef ENABLE_DEBUG
         printf  ("colorizing:    available colors: ");
-        printts (availableColors);
+        for (int i =0; i<F_NUM_REGISTERS; i++)
+        {
+            if (availableColors[i])
+                printf (" %s ", F_regName (F_regs[i]));
+        }
         printf  ("\n");
 #endif
 
-        if (Temp_tempSetIsEmpty(availableColors))
+        Temp_temp firstAvailableColor = NULL;
+        for (int i =0; i<F_NUM_REGISTERS; i++)
+        {
+            if (availableColors[i])
+            {
+                firstAvailableColor = F_regs[i];
+                break;
+            }
+        }
+
+        if (!firstAvailableColor)
         {
 #ifdef ENABLE_DEBUG
             printf("colorizing: %s ---> spilled.\n", tempName(n->temp));
@@ -621,7 +637,7 @@ struct COL_result COL_color(Live_graph lg)
         }
         else
         {
-            n->color = availableColors->first->temp;
+            n->color = firstAvailableColor;
             Temp_mapEnter (ret.coloring, n->temp, tempName(n->color));
 #ifdef ENABLE_DEBUG
             printf("colorizing: %s ---> %s\n", tempName(n->temp), tempName(n->color));
