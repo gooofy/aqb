@@ -577,7 +577,7 @@ struct COL_result COL_color(Live_graph lg)
      */
 
     struct COL_result ret = { /* coloring       = */ TAB_empty(),
-                              /* spills         = */ Temp_TempSet(),
+                              /* spills         = */ NULL,
                               /* coalescedMoves = */ c.coalescedMoves };
 
     bool availableColors[F_NUM_REGISTERS];
@@ -625,7 +625,9 @@ struct COL_result COL_color(Live_graph lg)
 #ifdef ENABLE_DEBUG
             printf("colorizing: %s ---> spilled.\n", Temp_strprint(n->temp));
 #endif
-            Temp_tempSetAdd(ret.spills, n->temp);
+            bool bAdded;
+            ret.spills = Temp_tempSetAdd(ret.spills, n->temp, &bAdded);
+            assert (bAdded);
         }
         else
         {

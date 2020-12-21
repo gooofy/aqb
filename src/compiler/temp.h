@@ -36,27 +36,18 @@ Temp_labelList  Temp_LabelList(Temp_label h, Temp_labelList t);
 // Temp_tempSet: mutable set of temps, still represented as a linked list for speed and iteration
 
 typedef struct Temp_tempSet_     *Temp_tempSet;
-typedef struct Temp_tempSetNode_ *Temp_tempSetNode;
-
-struct Temp_tempSetNode_
-{
-    Temp_tempSetNode next, prev;
-    Temp_temp        temp;
-};
 
 struct Temp_tempSet_
 {
-    Temp_tempSetNode first, last;
+    Temp_temp        temp;
+    Temp_tempSet     tail;
 };
 
-Temp_tempSet       Temp_TempSet          (void);
+Temp_tempSet       Temp_TempSet          (Temp_temp temp, Temp_tempSet tail);
 bool               Temp_tempSetContains  (Temp_tempSet ts, Temp_temp t);
-bool               Temp_tempSetAdd       (Temp_tempSet ts, Temp_temp t); // returns FALSE if t was already in ts, TRUE otherwise
-bool               Temp_tempSetSub       (Temp_tempSet ts, Temp_temp t); // returns FALSE if t was not in ts, TRUE otherwise
-string             Temp_tempSetSPrint    (Temp_tempSet ts);
-static inline bool Temp_tempSetIsEmpty   (Temp_tempSet ts) { return ts->first == NULL; }
+Temp_tempSet       Temp_tempSetAdd       (Temp_tempSet ts, Temp_temp t, bool *bAdded);
 Temp_tempSet       Temp_tempSetUnion     (Temp_tempSet tsA, Temp_tempSet tsB); // return newly allocated TempSet that contains union of nodes from tsA and tsaB
-Temp_tempSet       Temp_tempSetCopy      (Temp_tempSet ts); // return newly allocated TempSet that contains the nodes from ts
-int                Temp_TempSetCount     (Temp_tempSet ts); // return number of temps in this temp set
+void               Temp_tempSetFree      (Temp_tempSet ts);
+string             Temp_tempSetSPrint    (Temp_tempSet ts);
 
 #endif

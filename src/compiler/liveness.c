@@ -36,16 +36,16 @@ LG_nodeList LG_NodeList (LG_node node, LG_nodeList tail)
 
 LG_nodeList LG_nodeListRemove (LG_nodeList nl, LG_node node, bool *bRemoved)
 {
+    if (!nl)
+    {
+        *bRemoved = FALSE;
+        return NULL;
+    }
+
     if (nl->node == node)
     {
         *bRemoved = TRUE;
         return nl->tail;
-    }
-
-    if (!nl->tail)
-    {
-        *bRemoved = FALSE;
-        return nl;
     }
 
     nl->tail = LG_nodeListRemove (nl->tail, node, bRemoved);
@@ -142,6 +142,8 @@ static FG_nodeList computeFGDepthFirstOrder (FG_node node, FG_nodeList res)
 
 static void flowComputeInOut(FG_graph flow)
 {
+    bool bAdded;
+
     // optimization: traverse flow graph in reverse order which should reduce the number of iterations needed
 #ifdef FG_DEPTH_FIRST_ORDER
     FG_nodeList reverseFlow = computeFGDepthFirstOrder (flow->last_node->head, NULL);
@@ -158,10 +160,9 @@ static void flowComputeInOut(FG_graph flow)
     {
         FG_node n = fl->head;
 
-        Temp_tempSet in = n->in;
         // in[n] ← in[n] ∪ use[n]
-        for (Temp_tempSetNode tn=n->use->first; tn; tn = tn->next)
-            Temp_tempSetAdd(in, tn->temp);
+        for (Temp_tempSet tn=n->use; tn; tn = tn->tail)
+            n->in = Temp_tempSetAdd(n->in, tn->temp, &bAdded);
     }
 
     bool changed = TRUE;
@@ -187,15 +188,14 @@ static void flowComputeInOut(FG_graph flow)
              *
              ********************************************/
 
-            Temp_tempSet in = n->in;
             Temp_tempSet def_n = n->def;
-            for (Temp_tempSetNode sn=n->out->first; sn; sn = sn->next)
+            for (Temp_tempSet sn=n->out; sn; sn = sn->tail)
             {
                 Temp_temp t = sn->temp;
                 if (Temp_tempSetContains(def_n, t))
                     continue;
-                if (Temp_tempSetAdd(in, t))
-                    changed = TRUE;
+                n->in = Temp_tempSetAdd(n->in, t, &bAdded);
+                changed |= bAdded;
             }
 
             /********************************************
@@ -204,28 +204,23 @@ static void flowComputeInOut(FG_graph flow)
              *
              ********************************************/
 
-            Temp_tempSet out = n->out;
-
             for (FG_nodeList sl = n->succs; sl; sl = sl->tail)
             {
-                for (Temp_tempSetNode sn=sl->head->in->first; sn; sn = sn->next)
+                for (Temp_tempSet sn=sl->head->in; sn; sn = sn->tail)
                 {
-                    if (Temp_tempSetAdd(out, sn->temp))
-                    {
-                        changed = TRUE;
-
+                    n->out = Temp_tempSetAdd(n->out, sn->temp, &bAdded);
+                    changed |= bAdded;
 #if 0
-                        // FIXME: disable debug code
-                        if (Temp_num(sn->temp)==19)
-                        {
-                            char buf1[255], buf2[255];
-                            AS_sprint (buf1, n->instr, F_registerTempMap());
-                            AS_sprint (buf2, sl->head->instr, F_registerTempMap());
-                            printf ("adding temp t%d_ to {out} of %s because it is in the {in} set of %s\n",
-                                    Temp_num(sn->temp), buf1, buf2);
-                        }
-#endif
+                    // FIXME: disable debug code
+                    if (Temp_num(sn->temp)==19)
+                    {
+                        char buf1[255], buf2[255];
+                        AS_sprint (buf1, n->instr, F_registerTempMap());
+                        AS_sprint (buf2, sl->head->instr, F_registerTempMap());
+                        printf ("adding temp t%d_ to {out} of %s because it is in the {in} set of %s\n",
+                                Temp_num(sn->temp), buf1, buf2);
                     }
+#endif
                 }
             }
         }
@@ -267,7 +262,7 @@ Live_graph Live_liveness(FG_graph flow)
 #ifdef ENABLE_DEBUG
     printf("Live_liveness(): flowComputeInOut result:\n");
     printf("-----------------------------------------\n");
-    FG_show(stdout, flow, F_registerTempMap());
+    FG_show(stdout, flow);
 #endif
 
     /*
@@ -288,7 +283,7 @@ Live_graph Live_liveness(FG_graph flow)
         LG_node       move_src = NULL;
 
         // Spill Cost
-        for (Temp_tempSetNode tn = defuse->first; tn; tn = tn->next)
+        for (Temp_tempSet tn = defuse; tn; tn = tn->tail)
         {
             Temp_temp ti = tn->temp;
             LG_node n2 = findOrCreateNode(lg, ti);
@@ -299,7 +294,7 @@ Live_graph Live_liveness(FG_graph flow)
         if (FG_isMove(n))
         {
             move_src = findOrCreateNode(lg, n->instr->src);
-            for (Temp_tempSetNode tn = defuse->first; tn; tn = tn->next)
+            for (Temp_tempSet tn = defuse; tn; tn = tn->tail)
             {
                 Temp_temp t = tn->temp;
                 LG_node n2 = findOrCreateNode(lg, t);
@@ -311,12 +306,12 @@ Live_graph Live_liveness(FG_graph flow)
         }
 
         // traverse defined vars
-        for (Temp_tempSetNode t = tdef->first; t; t = t->next) // FIXME: tout ?
+        for (Temp_tempSet t = tdef; t; t = t->tail)
         {
             LG_node ndef = findOrCreateNode(lg, t->temp);
 
             // add edges between output vars and defined var
-            for (Temp_tempSetNode tedge = tout->first; tedge; tedge = tedge->next)
+            for (Temp_tempSet tedge = tout; tedge; tedge = tedge->tail)
             {
                 LG_node nedge = findOrCreateNode(lg, tedge->temp);
 
@@ -338,7 +333,7 @@ Live_graph Live_liveness(FG_graph flow)
             if (n->instr->src)
             {
                 LG_node nsrc = findOrCreateNode(lg, n->instr->src);
-                for (Temp_tempSetNode tn = n->srcInterf->first; tn; tn = tn->next)
+                for (Temp_tempSet tn = n->srcInterf; tn; tn = tn->tail)
                 {
                     LG_node interfNode = findOrCreateNode(lg, tn->temp);
                     if (!LG_connected (nsrc, interfNode))
@@ -348,7 +343,7 @@ Live_graph Live_liveness(FG_graph flow)
             if (n->instr->dst)
             {
                 LG_node ndst = findOrCreateNode(lg, n->instr->dst);
-                for (Temp_tempSetNode tn = n->dstInterf->first; tn; tn = tn->next)
+                for (Temp_tempSet tn = n->dstInterf; tn; tn = tn->tail)
                 {
                     LG_node interfNode = findOrCreateNode(lg, tn->temp);
                     if (!LG_connected (ndst, interfNode))
@@ -356,12 +351,13 @@ Live_graph Live_liveness(FG_graph flow)
                 }
             }
         }
+        Temp_tempSetFree(defuse);
     }
 
 #ifdef ENABLE_DEBUG
     printf("Live_liveness(): interference graph result:\n");
     printf("-------------------------------------------\n");
-    Live_showGraph (stdout, lg, F_registerTempMap());
+    Live_showGraph (stdout, lg);
 #endif
 
     return lg;

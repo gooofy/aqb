@@ -102,97 +102,72 @@ Temp_labelList Temp_LabelList(Temp_label h, Temp_labelList t)
     return p;
 }
 
-Temp_tempSet Temp_TempSet(void)
+/*
+ * temp sets
+ */
+
+Temp_tempSet Temp_TempSet (Temp_temp temp, Temp_tempSet tail)
 {
     Temp_tempSet s = checked_malloc(sizeof(*s));
 
-    s->first = NULL;
-    s->last  = NULL;
+    s->temp = temp;
+    s->tail = tail;
 
     return s;
 }
 
-static Temp_tempSetNode Temp_TempSetNode(Temp_temp t)
-{
-    Temp_tempSetNode n = checked_malloc(sizeof(*n));
-
-    n->prev  = NULL;
-    n->next  = NULL;
-    n->temp  = t;
-
-    return n;
-}
-
 bool Temp_tempSetContains(Temp_tempSet ts, Temp_temp t)
 {
-    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+    for (; ts; ts=ts->tail)
     {
-        if (n->temp == t)
+        if (ts->temp == t)
             return TRUE;
     }
     return FALSE;
 }
 
-bool Temp_tempSetAdd(Temp_tempSet ts, Temp_temp t) // returns FALSE if t was already in t, TRUE otherwise
+Temp_tempSet Temp_tempSetAdd (Temp_tempSet ts, Temp_temp t, bool *bAdded)
 {
-    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+    if (Temp_tempSetContains (ts, t))
     {
-        if (n->temp == t)
-            return FALSE;
+        *bAdded = FALSE;
+        return ts;
     }
 
-    Temp_tempSetNode n = Temp_TempSetNode(t);
-    n->prev = ts->last;
-
-    if (ts->last)
-        ts->last = ts->last->next = n;
-    else
-        ts->first = ts->last = n;
-
-    return TRUE;
+    *bAdded = TRUE;
+    return Temp_TempSet (t, ts);
 }
 
-bool Temp_tempSetSub(Temp_tempSet ts, Temp_temp t)
+Temp_tempSet Temp_tempSetUnion (Temp_tempSet tsA, Temp_tempSet tsB)
 {
-    for (Temp_tempSetNode n = ts->first; n; n=n->next)
+    Temp_tempSet res = NULL;
+    for (;tsA;tsA=tsA->tail)
+        res = Temp_TempSet (tsA->temp, res);
+
+    bool b;
+    for (;tsB;tsB=tsB->tail)
+        res = Temp_tempSetAdd (res, tsB->temp, &b);
+
+    return res;
+}
+
+void Temp_tempSetFree (Temp_tempSet ts)
+{
+    Temp_tempSet next=NULL;
+    for (;ts;ts=next)
     {
-        if (n->temp == t)
-        {
-            if (n->prev)
-            {
-                n->prev->next = n->next;
-            }
-            else
-            {
-                ts->first = n->next;
-                if (n->next)
-                    n->next->prev = NULL;
-            }
-
-            if (n->next)
-            {
-                n->next->prev = n->prev;
-            }
-            else
-            {
-                ts->last = n->prev;
-                if (n->prev)
-                    n->prev->next = NULL;
-            }
-
-            return TRUE;
-        }
+        next = ts->tail;
+        U_memfree (ts, sizeof (*ts));
     }
-    return FALSE;
 }
 
 string Temp_tempSetSPrint(Temp_tempSet ts)
 {
     string res = "";
 
-    for (Temp_tempSetNode n=ts->first; n; n = n->next)
+    for (; ts; ts = ts->tail)
     {
-        Temp_temp t = n->temp;
+        Temp_temp t = ts->temp;
 
         if (strlen(res))
             res = strconcat (res, strprintf(", %s", Temp_strprint(t)));
@@ -200,31 +175,5 @@ string Temp_tempSetSPrint(Temp_tempSet ts)
             res = strprintf("%s", Temp_strprint(t));
     }
     return res;
-}
-
-Temp_tempSet Temp_tempSetUnion (Temp_tempSet tsA, Temp_tempSet tsB)
-{
-    Temp_tempSet res = Temp_TempSet();
-    for (Temp_tempSetNode n = tsA->first; n; n=n->next)
-        Temp_tempSetAdd (res, n->temp);
-    for (Temp_tempSetNode n = tsB->first; n; n=n->next)
-        Temp_tempSetAdd (res, n->temp);
-    return res;
-}
-
-Temp_tempSet Temp_tempSetCopy (Temp_tempSet ts)
-{
-    Temp_tempSet res = Temp_TempSet();
-    for (Temp_tempSetNode n = ts->first; n; n=n->next)
-        Temp_tempSetAdd (res, n->temp);
-    return res;
-}
-
-int Temp_TempSetCount (Temp_tempSet ts)
-{
-    int cnt=0;
-    for (Temp_tempSetNode n=ts->first; n; n = n->next)
-        cnt++;
-    return cnt;
 }
 

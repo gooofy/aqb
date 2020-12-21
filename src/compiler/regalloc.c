@@ -66,7 +66,7 @@ bool RA_regAlloc(F_frame f, AS_instrList il)
 
         col = COL_color(live);
 
-        if (Temp_tempSetIsEmpty(col.spills))
+        if (!col.spills)
         {
             break;
         }
@@ -79,7 +79,7 @@ bool RA_regAlloc(F_frame f, AS_instrList il)
 
         // assign memory for spilled temps
         TAB_table spilledLocal = TAB_empty();
-        for (Temp_tempSetNode tn = spilled->first; tn; tn = tn->next)
+        for (Temp_tempSet tn = spilled; tn; tn = tn->tail)
         {
             F_access acc;
             if (f)
@@ -138,7 +138,7 @@ bool RA_regAlloc(F_frame f, AS_instrList il)
 
     }
 
-    if (!Temp_tempSetIsEmpty(col.spills))
+    if (col.spills)
     {
         EM_error(0, "failed to allocate registers");
     }

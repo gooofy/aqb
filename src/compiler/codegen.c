@@ -139,11 +139,12 @@ static Temp_temp emitRegCall(string strName, int lvo, F_ral ral, Ty_ty resty)
 {
     // move args into their associated registers:
 
-    Temp_tempSet argTempSet = Temp_TempSet();
+    Temp_tempSet argTempSet = NULL;
+    bool bAdded;
     for (;ral;ral = ral->next)
     {
         emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, ral->arg, ral->reg));  // move.l   arg, reg
-        Temp_tempSetAdd (argTempSet, ral->reg);
+        argTempSet = Temp_tempSetAdd (argTempSet, ral->reg, &bAdded);
     }
 
     if (lvo)

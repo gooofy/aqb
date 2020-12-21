@@ -312,7 +312,7 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     // save registers
     // FIXME: use movem, check for registers that were actually clobbered
-    for (Temp_tempSetNode tn=calleesaves->first; tn; tn=tn->next)
+    for (Temp_tempSet tn=calleesaves; tn; tn=tn->tail)
         AS_instrListPrepend (body, AS_Instr (AS_MOVE_AnDn_PDsp, AS_w_L, tn->temp, NULL));                  //      move.l tn->temp, -(sp)
 
     AS_instrListPrepend (body, AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL,                               //      link fp, #-frameSize
@@ -323,7 +323,7 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     // restore registers
     // FIXME: use movem, check for registers that were actually clobbered
-    for (Temp_tempSetNode tn=calleesaves->first; tn; tn=tn->next)
+    for (Temp_tempSet tn=calleesaves; tn; tn=tn->tail)
         AS_instrListAppend (body, AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp));                   //      move.l (sp)+, tn->temp
 
     AS_instrListAppend (body, AS_Instr (AS_UNLK_fp, AS_w_NONE, NULL, NULL));                               //      unlk fp
@@ -390,38 +390,46 @@ void F_initRegisters(void)
     F_regs[F_TEMP_D6] = Temp_NamedTemp ("d6", NULL);
     F_regs[F_TEMP_D7] = Temp_NamedTemp ("d7", NULL);
 
-    g_allRegs = Temp_TempSet();
-    g_dRegs   = Temp_TempSet();
-    g_aRegs   = Temp_TempSet();
+    g_allRegs = NULL;
+    g_dRegs   = NULL;
+    g_aRegs   = NULL;
+    bool bAdded;
 
     for (int i = F_TEMP_A0; i<=F_TEMP_D7; i++)
     {
         Temp_temp t = F_regs[i];
         assert (Temp_num(t)==i);
-        Temp_tempSetAdd (g_allRegs, t);
+        g_allRegs = Temp_tempSetAdd (g_allRegs, t, &bAdded);
+        assert (bAdded);
         if (F_isAn(t))
-            Temp_tempSetAdd (g_aRegs, t);
+        {
+            g_aRegs = Temp_tempSetAdd (g_aRegs, t, &bAdded);
+            assert (bAdded);
+        }
         if (F_isDn(t))
-            Temp_tempSetAdd (g_dRegs, t);
+        {
+            g_dRegs = Temp_tempSetAdd (g_dRegs, t, &bAdded);
+            assert (bAdded);
+        }
     }
 
-    g_callerSaves = Temp_TempSet();
-    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_D0]);
-    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_D1]);
-    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_A0]);
-    Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_A1]);
+    g_callerSaves = NULL;
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_D0], &bAdded); assert (bAdded);
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_D1], &bAdded); assert (bAdded);
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_A0], &bAdded); assert (bAdded);
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, F_regs[F_TEMP_A1], &bAdded); assert (bAdded);
 
-    g_calleeSaves = Temp_TempSet();
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D2]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D3]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D4]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D5]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D6]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D7]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A2]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A3]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A4]);
-    Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A6]);
+    g_calleeSaves = NULL;
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D2], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D3], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D4], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D5], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D6], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_D7], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A2], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A3], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A4], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, F_regs[F_TEMP_A6], &bAdded); assert (bAdded);
 
     g_regScope = S_beginScope();
     S_enter(g_regScope, S_Symbol("a0", TRUE), F_regs[F_TEMP_A0]);
