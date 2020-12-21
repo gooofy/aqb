@@ -9,7 +9,6 @@
 #include "symbol.h"
 
 typedef struct Temp_temp_      *Temp_temp;
-typedef struct Temp_tempList_  *Temp_tempList;
 typedef S_symbol                Temp_label;
 typedef struct Temp_labelList_ *Temp_labelList;
 
@@ -22,16 +21,6 @@ int             Temp_num       (Temp_temp t);
 void            Temp_printf    (Temp_temp t, FILE *out);
 void            Temp_snprintf  (Temp_temp t, string buf, size_t size);
 string          Temp_strprint  (Temp_temp t);   // only use in debug code (allocates memory!)
-
-struct Temp_tempList_
-{
-    Temp_temp     head;
-    Temp_tempList tail;
-};
-
-Temp_tempList   Temp_TempList(Temp_temp h, Temp_tempList t);
-Temp_tempList   Temp_reverseList(Temp_tempList t);
-string          Temp_sprint_TempList(Temp_tempList tl);
 
 Temp_label      Temp_newlabel(void);
 Temp_label      Temp_namedlabel(string name);

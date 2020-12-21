@@ -92,32 +92,6 @@ int Temp_num(Temp_temp t)
     return t->num;
 }
 
-Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t)
-{
-    Temp_tempList p = (Temp_tempList) checked_malloc(sizeof (*p));
-
-    p->head = h;
-    p->tail = t;
-
-    return p;
-}
-
-string Temp_sprint_TempList(Temp_tempList tl)
-{
-    string res = "";
-
-    for (; tl; tl = tl->tail)
-    {
-        Temp_temp t = tl->head;
-
-        if (strlen(res))
-            res = strconcat (res, strprintf(", %d", Temp_num(t)));
-        else
-            res = strprintf("%d", Temp_num(t));
-    }
-    return res;
-}
-
 Temp_labelList Temp_LabelList(Temp_label h, Temp_labelList t)
 {
     Temp_labelList p = (Temp_labelList) checked_malloc(sizeof (*p));
@@ -126,20 +100,6 @@ Temp_labelList Temp_LabelList(Temp_label h, Temp_labelList t)
     p->tail = t;
 
     return p;
-}
-
-Temp_tempList Temp_reverseList(Temp_tempList t)
-{
-    if (t == NULL)
-    {
-        return t;
-    }
-    Temp_tempList tl = NULL;
-    for (; t; t = t->tail)
-    {
-        tl = Temp_TempList(t->head, tl);
-    }
-    return tl;
 }
 
 Temp_tempSet Temp_TempSet(void)
