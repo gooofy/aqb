@@ -616,7 +616,9 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
         {
             bool reg_present = TRUE;
             fwrite(&reg_present, 1, 1, modf);
-            strserialize(modf, F_regName(formal->reg));
+            char buf[8];
+            Temp_snprintf (formal->reg, buf, 8);
+            strserialize(modf, buf);
         }
         else
         {

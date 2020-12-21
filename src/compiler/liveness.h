@@ -38,7 +38,7 @@ struct Live_graph_
 
 Live_graph  Live_liveness         (FG_graph flow);
 
-void        Live_showGraph        (FILE *out, Live_graph g, Temp_map m);
+void        Live_showGraph        (FILE *out, Live_graph g);
 LG_node     Live_temp2Node        (Live_graph g, Temp_temp t);
 
 LG_nodeList LG_NodeList           (LG_node node, LG_nodeList tail);

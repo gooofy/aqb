@@ -65,7 +65,6 @@ struct F_access_
 struct F_frame_
 {
     Temp_label     name;
-    Temp_map       temp;
     F_accessList   formals;
     F_accessList   locals;
     int            locals_offset;
@@ -143,7 +142,6 @@ F_frame F_newFrame(Temp_label name, Ty_formal formals)
     f->formals       = acl;
     f->locals        = NULL;
     f->locals_offset = 0;
-    f->temp          = Temp_Map();
 
     return f;
 }
@@ -374,18 +372,31 @@ bool F_isDn(Temp_temp reg)
 static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
 static Temp_tempSet  g_callerSaves, g_calleeSaves;
 static S_scope       g_regScope;
-static Temp_map      g_reg_map;
 
 void F_initRegisters(void)
 {
+    F_regs[F_TEMP_A0] = Temp_NamedTemp ("a0", NULL);
+    F_regs[F_TEMP_A1] = Temp_NamedTemp ("a1", NULL);
+    F_regs[F_TEMP_A2] = Temp_NamedTemp ("a2", NULL);
+    F_regs[F_TEMP_A3] = Temp_NamedTemp ("a3", NULL);
+    F_regs[F_TEMP_A4] = Temp_NamedTemp ("a4", NULL);
+    F_regs[F_TEMP_A6] = Temp_NamedTemp ("a6", NULL);
+    F_regs[F_TEMP_D0] = Temp_NamedTemp ("d0", NULL);
+    F_regs[F_TEMP_D1] = Temp_NamedTemp ("d1", NULL);
+    F_regs[F_TEMP_D2] = Temp_NamedTemp ("d2", NULL);
+    F_regs[F_TEMP_D3] = Temp_NamedTemp ("d3", NULL);
+    F_regs[F_TEMP_D4] = Temp_NamedTemp ("d4", NULL);
+    F_regs[F_TEMP_D5] = Temp_NamedTemp ("d5", NULL);
+    F_regs[F_TEMP_D6] = Temp_NamedTemp ("d6", NULL);
+    F_regs[F_TEMP_D7] = Temp_NamedTemp ("d7", NULL);
+
     g_allRegs = Temp_TempSet();
     g_dRegs   = Temp_TempSet();
     g_aRegs   = Temp_TempSet();
 
     for (int i = F_TEMP_A0; i<=F_TEMP_D7; i++)
     {
-        Temp_temp t = Temp_newtemp(NULL); 
-        F_regs[i] = t;
+        Temp_temp t = F_regs[i];
         assert (Temp_num(t)==i);
         Temp_tempSetAdd (g_allRegs, t);
         if (F_isAn(t))
@@ -427,48 +438,11 @@ void F_initRegisters(void)
     S_enter(g_regScope, S_Symbol("d5", TRUE), F_regs[F_TEMP_D5]);
     S_enter(g_regScope, S_Symbol("d6", TRUE), F_regs[F_TEMP_D6]);
     S_enter(g_regScope, S_Symbol("d7", TRUE), F_regs[F_TEMP_D7]);
-
-    g_reg_map = Temp_Map();
-
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A0], "a0");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A1], "a1");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A2], "a2");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A3], "a3");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A4], "a4");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_A6], "a6");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D0], "d0");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D1], "d1");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D2], "d2");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D3], "d3");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D4], "d4");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D5], "d5");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D6], "d6");
-    Temp_mapEnter(g_reg_map, F_regs[F_TEMP_D7], "d7");
 }
 
 Temp_temp F_lookupReg(S_symbol sym)
 {
     return (Temp_temp) S_look(g_regScope, sym);
-}
-
-Temp_map F_initialRegisters(void)
-{
-    return g_reg_map;
-}
-
-static Temp_map      g_reg_temp_map = NULL;
-Temp_map F_registerTempMap(void)
-{
-    if (!g_reg_temp_map)
-        g_reg_temp_map = Temp_mapLayer(F_initialRegisters(), Temp_getNameMap());
-    return g_reg_temp_map;
-}
-
-string F_regName(Temp_temp r)
-{
-    string name = Temp_mapLook(g_reg_map, r);
-    assert(name);
-    return name;
 }
 
 Temp_tempSet F_registers(void)
@@ -566,7 +540,6 @@ void F_printtree(FILE *out, F_fragList frags)
                 if (frag->u.proc.frame)
                 {
                     fprintf(out, "Proc fragment: name=%s\n", S_name(frag->u.proc.frame->name));
-                    Temp_mapDump(out, frag->u.proc.frame->temp);
                     fprintf(out, "    formals:\n");
                     F_printAccessList(out, frag->u.proc.frame->formals);
                     fprintf(out, "    locals:\n");

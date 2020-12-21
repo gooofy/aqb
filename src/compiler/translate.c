@@ -306,7 +306,7 @@ static T_exp unEx(Tr_exp e)
         case Tr_cx:
         {
             Ty_ty ty = Ty_Bool();
-            Temp_temp r = Temp_newtemp(Ty_Bool());
+            Temp_temp r = Temp_Temp(Ty_Bool());
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
@@ -335,7 +335,7 @@ static T_stm unNx(Tr_exp e)
         case Tr_cx:
         #if 0
         {
-            Temp_temp r = Temp_newtemp(Ty_Integer());
+            Temp_temp r = Temp_Temp(Ty_Integer());
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
@@ -1104,7 +1104,7 @@ Tr_exp Tr_forExp(Tr_exp loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step
     Temp_label loopstart = Temp_newlabel();
     Temp_label done      = exitlbl;
 
-    Temp_temp limit      = Temp_newtemp(loopVarTy);
+    Temp_temp limit      = Temp_Temp(loopVarTy);
     T_exp loopv          = unEx(loopVar);
 
     T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarTy);

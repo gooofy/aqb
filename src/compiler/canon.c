@@ -60,7 +60,7 @@ static T_stm reorder(expRefList rlist)
         Ty_ty ty = (*rlist->head)->ty;
         if ((*rlist->head)->kind==T_CALLF)
         {
-            Temp_temp t = Temp_newtemp(ty);
+            Temp_temp t = Temp_Temp(ty);
             *rlist->head = T_Eseq(T_Move(T_Temp(t, ty), *rlist->head, ty), T_Temp(t, ty), ty);
             return reorder(rlist);
         }
@@ -75,7 +75,7 @@ static T_stm reorder(expRefList rlist)
             }
             else
             {
-                Temp_temp t = Temp_newtemp(ty);
+                Temp_temp t = Temp_Temp(ty);
                 *rlist->head = T_Temp(t, ty);
                 return seq(hd.s, seq(T_Move(T_Temp(t, ty), hd.e, ty), s));
             }

@@ -58,7 +58,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
 {
     T_exp     e_left  = e->u.BINOP.left;
     T_exp     e_right = e->u.BINOP.right;
-    Temp_temp r       = Temp_newtemp(resty);
+    Temp_temp r       = Temp_Temp(resty);
     enum AS_w isz     = AS_tySize(resty);
 
     if ((e_right->kind == T_CONST) && (opc_rc != AS_NOP))
@@ -101,7 +101,7 @@ static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum 
 /* emit a unary op */
 static Temp_temp munchUnaryOp(T_exp e, enum AS_mn opc, Ty_ty resty)
 {
-    Temp_temp r       = Temp_newtemp(resty);
+    Temp_temp r       = Temp_Temp(resty);
     enum AS_w isz     = AS_tySize(resty);
 
     emit(AS_Instr (AS_MOVE_AnDn_AnDn, isz, munchExp(e->u.BINOP.left, FALSE), r));         // move.x   e, r
@@ -113,7 +113,7 @@ static Temp_temp munchUnaryOp(T_exp e, enum AS_mn opc, Ty_ty resty)
 /* emit a binary op that requires calling a subroutine */
 static Temp_temp emitBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
 {
-    Temp_temp r       = Temp_newtemp(resty);
+    Temp_temp r       = Temp_Temp(resty);
     T_exp     e_left  = e->u.BINOP.left;
     T_exp     e_right = e->u.BINOP.right;
 
@@ -160,7 +160,7 @@ static Temp_temp emitRegCall(string strName, int lvo, F_ral ral, Ty_ty resty)
                          F_callersaves(), argTempSet));
     }
 
-    Temp_temp r = Temp_newtemp(resty);
+    Temp_temp r = Temp_Temp(resty);
     emit(AS_InstrEx2(AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), r, NULL, 0, NULL,                                      // move.l RV, r
                      NULL, F_callersaves()));
     return r;
@@ -185,7 +185,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     if (mem->u.BINOP.op == T_minus) {
                       i = -i;
                     }
-                    Temp_temp r = Temp_newtemp(Ty_Long());
+                    Temp_temp r = Temp_Temp(Ty_Long());
                     emit(AS_InstrEx(AS_MOVE_Ofp_AnDn, isz, NULL, r, 0, i, NULL));                                     // move.x i(fp), r
                     // emit(AS_InstrEx(AS_MOVE_OAn_AnDn, isz, L(munchExp(e1, FALSE), NULL), L(r, NULL), 0, i, NULL)); // move.x i(fp), r
                     return r;
@@ -195,14 +195,14 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     /* MEM(BINOP(PLUS,CONST(i),e1)) */
                     // T_exp e1 = mem->u.BINOP.right;
                     // int i = mem->u.BINOP.left->u.CONSTR;
-                    // Temp_temp r = Temp_newtemp(Ty_Long());
+                    // Temp_temp r = Temp_Temp(Ty_Long());
                     // emit(AS_Move(strprintf("move.%s %d(`s0), `d0", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), F_dRegs(), NULL));
                     // return r;
                     assert(0);
                 } else {
                     /* MEM(e1) */
-                    Temp_temp r1 = Temp_newtemp(e->ty); // e1 calculation might need a dx register but we need a ax reg
-                    Temp_temp r = Temp_newtemp(e->ty);
+                    Temp_temp r1 = Temp_Temp(e->ty); // e1 calculation might need a dx register but we need a ax reg
+                    Temp_temp r = Temp_Temp(e->ty);
                     emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(mem, FALSE), r1));     // move.x mem, r1
                     emit(AS_Instr(AS_MOVE_RAn_AnDn, isz, r1, r));                            // move.x (r1), r
                     return r;
@@ -213,7 +213,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 assert(0);
                 /* MEM(CONST(i)) */
                 // int i = mem->u.CONSTR;
-                // Temp_temp r = Temp_newtemp(Ty_Long());
+                // Temp_temp r = Temp_Temp(Ty_Long());
                 // sprintf(inst, "move.l %d, `d0", i);
                 // emit(AS_Oper(inst, L(r, NULL), NULL, NULL));
                 // return r;
@@ -221,13 +221,13 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             else if (mem->kind == T_HEAP)
             {
                 Temp_label lab = mem->u.HEAP;
-                Temp_temp r = Temp_newtemp(e->ty);
+                Temp_temp r = Temp_Temp(e->ty);
                 emit(AS_InstrEx(AS_MOVE_Label_AnDn, isz, NULL, r, 0, 0, lab));                 // move.x lab, r
                 return r;
             }
             else
             {
-                Temp_temp r = Temp_newtemp(e->ty);
+                Temp_temp r = Temp_Temp(e->ty);
                 emit(AS_Instr(AS_MOVE_RAn_AnDn, isz, munchExp(mem, FALSE), r));               // move.x (mem), r
                 return r;
             }
@@ -252,7 +252,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_B, NULL, r));                                    // not.b   r, r
@@ -292,7 +292,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_B, NULL, r));                                    // not.b   r
@@ -340,7 +340,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_B, NULL, r));                                    // not.b   r, r
@@ -388,7 +388,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, munchExp(e_left, FALSE), r));         // move.w  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_W, NULL, r));                                    // not.w   r, r
@@ -437,7 +437,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, munchExp(e_left, FALSE), r));         // move.w  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_W, NULL, r));                                    // not.w   r, r
@@ -488,7 +488,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(e_left, FALSE), r));         // move.l  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_L, NULL, r));                                    // not.l   r
@@ -542,7 +542,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         {
                             T_exp     e_left  = e->u.BINOP.left;
                             T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_newtemp(resty);
+                            Temp_temp r       = Temp_Temp(resty);
 
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(e_left, FALSE), r));         // move.l  e_left, r
                             emit(AS_Instr(AS_NOT_Dn, AS_w_L, NULL, r));                                    // not.l   r, r
@@ -665,7 +665,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         }
         case T_CONST:
         {
-            Temp_temp r = Temp_newtemp(e->ty);
+            Temp_temp r = Temp_Temp(e->ty);
             emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(e->ty), NULL, r, e->u.CONSTR, 0, NULL)); // move.x #CONST, r
             return r;
         }
@@ -677,7 +677,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         case T_HEAP:
         {
             Temp_label lab = e->u.HEAP;
-            Temp_temp r = Temp_newtemp(Ty_Long());
+            Temp_temp r = Temp_Temp(Ty_Long());
             emit(AS_InstrEx(AS_MOVE_ILabel_AnDn, AS_w_L, NULL, r, 0, 0, lab));                  // move.l #lab, r
             return r;
         }
@@ -711,7 +711,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                 if (!ignore_result)
                 {
                     enum AS_w isz = AS_tySize(e->ty);
-                    Temp_temp t = Temp_newtemp(e->ty);
+                    Temp_temp t = Temp_Temp(e->ty);
                     emit(AS_InstrEx2(AS_MOVE_AnDn_AnDn, isz, F_RV(), t, NULL, 0, NULL,
                                      NULL, F_callersaves()));                                            // move.x d0, t
                     return t;
@@ -731,14 +731,14 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_integer:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r)); // move.b r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_W, NULL, r));       // ext.w  r
                             return r;
                         }
                         case Ty_long:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r)); // move.b r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_W, NULL, r));       // ext.w  r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, NULL, r));       // ext.l  r
@@ -746,7 +746,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         }
                         case Ty_single:
                         {
-                            Temp_temp r = Temp_newtemp(Ty_Long());
+                            Temp_temp r = Temp_Temp(Ty_Long());
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r)); // move.b r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_W, NULL, r));       // ext.w  r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, NULL, r));       // ext.l  r
@@ -762,7 +762,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_TST_Dn, AS_w_B, r1, NULL));       // tst.b r1
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
@@ -770,7 +770,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_uinteger:
                         case Ty_integer:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_W, NULL, r));        // ext.w  r
                             return r;
@@ -778,7 +778,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_ulong:
                         case Ty_long:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_W, NULL, r));        // ext.w  r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
@@ -786,7 +786,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         }
                         case Ty_single:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_W, NULL, r));        // ext.w  r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
@@ -801,7 +801,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_TST_Dn, AS_w_W, r1, NULL));       // tst.w r1
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
@@ -809,7 +809,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_ubyte:
                         case Ty_byte:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
                             return r;
                         }
@@ -817,14 +817,14 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_long:
                         case Ty_pointer:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
                             return r;
                         }
                         case Ty_single:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_Instr(AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
                             return emitRegCall("_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
@@ -837,7 +837,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_TST_Dn, AS_w_W, r1, NULL));       // tst.w r1
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
@@ -845,14 +845,14 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_ubyte:
                         case Ty_byte:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
                             return r;
                         }
                         case Ty_ulong:
                         case Ty_long:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, NULL,       // and.l  #65535, r
                                             r, Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
@@ -860,7 +860,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         }
                         case Ty_single:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             emit(AS_InstrEx(AS_AND_Imm_Dn, AS_w_L, NULL,       // and.l  #65535, r
                                             r, Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
@@ -879,7 +879,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_TST_Dn, AS_w_L, r1, NULL));       // tst.l r1
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
                             return r;
@@ -887,14 +887,14 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_byte:
                         case Ty_ubyte:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
                             return r;
                         }
                         case Ty_integer:
                         case Ty_uinteger:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
                             return r;
                         }
@@ -906,7 +906,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                         case Ty_varPtr:
                         case Ty_string:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             emit(AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L, r1, r));  // move.l r1, r
                             return r;
                         }
@@ -919,7 +919,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
                     {
                         case Ty_bool:
                         {
-                            Temp_temp r = Temp_newtemp(e->ty);
+                            Temp_temp r = Temp_Temp(e->ty);
                             Temp_temp t = emitRegCall("_MathBase", LVOSPFix, F_RAL(r1, F_D0(), NULL), Ty_Long());
                             emit(AS_Instr(AS_TST_Dn, AS_w_L, t, NULL));        // tst.l t
                             emit(AS_Instr(AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
@@ -947,7 +947,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
         }
         case T_FP:
         {
-            Temp_temp r = Temp_newtemp(e->ty);
+            Temp_temp r = Temp_Temp(e->ty);
             emit(AS_Instr(AS_MOVE_fp_AnDn, AS_w_L, NULL, r));                                        // move.l fp, r
             return r;
         }
@@ -965,7 +965,7 @@ static Temp_temp munchExp(T_exp e, bool ignore_result)
             if (!ignore_result)
             {
                 enum AS_w isz = AS_tySize(e->ty);
-                Temp_temp t = Temp_newtemp(e->ty);
+                Temp_temp t = Temp_Temp(e->ty);
                 emit(AS_InstrEx2(AS_MOVE_AnDn_AnDn, isz, F_RV(), t, 0, 0, NULL,                      // move.x d0, t
                                  NULL, F_callersaves()));
                 return t;
@@ -1044,7 +1044,7 @@ static void munchStm(T_stm s)
                         // move ..., MEM(exp)
                         // -> compute dst address in addr reg
 
-                        Temp_temp ra = Temp_newtemp(Ty_Long());
+                        Temp_temp ra = Temp_Temp(Ty_Long());
                         emit (AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L,                       // move exp, ra
                                        munchExp(dst->u.MEM.exp, FALSE), ra));
                         if (src->kind == T_CONST)                                       // move CONST, MEM(exp)
@@ -1072,7 +1072,7 @@ static void munchStm(T_stm s)
             {
                 assert (resty->kind != Ty_darray); // should have been handled in frontend (call to copy method)
 
-                Temp_temp rd_size = Temp_newtemp(Ty_Long());
+                Temp_temp rd_size = Temp_Temp(Ty_Long());
                 emit(AS_InstrEx(AS_MOVE_Imm_AnDn, AS_tySize(Ty_Long()), NULL, rd_size,         // move.x #size, rd_size
                                 Ty_ConstInt(Ty_ULong(), Ty_size(resty)), 0, NULL));
 
@@ -1080,7 +1080,7 @@ static void munchStm(T_stm s)
                 {
                     case T_MEM:
                     {
-                        Temp_temp ra_dst = Temp_newtemp(Ty_Long());
+                        Temp_temp ra_dst = Temp_Temp(Ty_Long());
                         emit (AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L,                                       // move dst, ra_dst
                                        munchExp(dst->u.MEM.exp, FALSE), ra_dst));
 
@@ -1088,7 +1088,7 @@ static void munchStm(T_stm s)
                         {
                             case T_MEM:
                             {
-                                Temp_temp ra_src = Temp_newtemp(Ty_Long());
+                                Temp_temp ra_src = Temp_Temp(Ty_Long());
                                 emit (AS_Instr(AS_MOVE_AnDn_AnDn, AS_w_L,                               // move dst, ra_src
                                                munchExp(src->u.MEM.exp, FALSE), ra_src));
 
@@ -1164,7 +1164,7 @@ static void munchStm(T_stm s)
                     case T_le:  branchinstr = AS_BLE; break;
                     case T_ge:  branchinstr = AS_BGE; break;
                 }
-                Temp_temp rcmp = Temp_newtemp(Ty_Integer());
+                Temp_temp rcmp = Temp_Temp(Ty_Integer());
                 T_expList args    = T_ExpList(e1, T_ExpList(e2, NULL));
                 int       arg_cnt = munchArgsStack(0, args);
                 emit(AS_InstrEx2(AS_JSR_Label, AS_w_NONE, NULL, NULL,                         // jsr     astr_cmp

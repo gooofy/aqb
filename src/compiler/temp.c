@@ -15,8 +15,9 @@
 
 struct Temp_temp_
 {
-    int   num;
-    Ty_ty ty;
+    int    num;
+    Ty_ty  ty;
+    string name;
 };
 
 string Temp_labelstring(Temp_label s)
@@ -41,20 +42,44 @@ Temp_label Temp_namedlabel(string s)
 
 static int temp_cnt = 0;
 
-Temp_temp Temp_newtemp(Ty_ty ty)
+Temp_temp Temp_NamedTemp (string name, Ty_ty ty)
 {
     Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
 
-    p->ty  = ty;
-    p->num = temp_cnt++;
-
-    {
-        char r[16];
-        sprintf(r, "t%d_", p->num);
-        Temp_mapEnter(Temp_getNameMap(), p, String(r));
-    }
+    p->ty   = ty;
+    p->num  = temp_cnt++;
+    p->name = name;
 
     return p;
+}
+
+Temp_temp Temp_Temp(Ty_ty ty)
+{
+    return Temp_NamedTemp (NULL, ty);
+}
+
+void Temp_printf (Temp_temp t, FILE *out)
+{
+    char r[8];
+    Temp_snprintf (t, r, 8);
+    fprintf (out, "%s", r);
+}
+
+void Temp_snprintf (Temp_temp t, string buf, size_t size)
+{
+    if (t->name)
+        snprintf (buf, size, "%s", t->name);
+    else
+        snprintf (buf, size, "t%d_", t->num);
+
+    buf [size-1] = 0;
+}
+
+string Temp_strprint (Temp_temp t)
+{
+    char buf[255];
+    Temp_snprintf (t, buf, 255);
+    return String(buf);
 }
 
 Ty_ty Temp_ty(Temp_temp t)
@@ -65,81 +90,6 @@ Ty_ty Temp_ty(Temp_temp t)
 int Temp_num(Temp_temp t)
 {
     return t->num;
-}
-
-struct Temp_map_
-{
-    TAB_table tab;
-    Temp_map  under;
-};
-
-Temp_map Temp_getNameMap(void)
-{
-    static Temp_map m = NULL;
-    if (!m)
-        m = Temp_Map();
-    return m;
-}
-
-static Temp_map newMap(TAB_table tab, Temp_map under)
-{
-    Temp_map m = checked_malloc(sizeof(*m));
-
-    m->tab   = tab;
-    m->under = under;
-
-    return m;
-}
-
-Temp_map Temp_Map(void)
-{
-    return newMap(TAB_empty(), NULL);
-}
-
-Temp_map Temp_mapLayer(Temp_map over, Temp_map under)
-{
-    if (over==NULL)
-        return under;
-    else return newMap(over->tab, Temp_mapLayer(over->under, under));
-}
-
-void Temp_mapEnter(Temp_map m, Temp_temp t, string s)
-{
-    assert(m && m->tab);
-    TAB_enter(m->tab,t,s);
-}
-
-string Temp_mapLook(Temp_map m, Temp_temp t)
-{
-    string s;
-    assert(m && m->tab);
-    s = TAB_look(m->tab, t);
-    if (s)
-        return s;
-    else
-        if (m->under)
-            return Temp_mapLook(m->under, t);
-        else
-            return NULL;
-}
-
-void Temp_mapEnterPtr(Temp_map m, Temp_temp t, void *ptr)
-{
-    assert(m && m->tab);
-    TAB_enter(m->tab, t, ptr);
-}
-
-void* Temp_mapLookPtr(Temp_map m, Temp_temp t)
-{
-    assert(m && m->tab);
-    void *s = TAB_look(m->tab, t);
-    if (s)
-        return s;
-    else
-        if (m->under)
-            return Temp_mapLookPtr(m->under, t);
-        else
-            return NULL;
 }
 
 Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t)
@@ -190,22 +140,6 @@ Temp_tempList Temp_reverseList(Temp_tempList t)
         tl = Temp_TempList(t->head, tl);
     }
     return tl;
-}
-
-void Temp_mapDump(FILE *out, Temp_map m)
-{
-    TAB_iter iter = TAB_Iter(m->tab);
-    Temp_temp t;
-    string r;
-    while (TAB_next(iter, (void **)&t, (void**)&r))
-    {
-        fprintf(out, "t%d -> %s\n", t->num, r);
-    }
-    if (m->under)
-    {
-        fprintf(out,"---------\n");
-        Temp_mapDump(out,m->under);
-    }
 }
 
 Temp_tempSet Temp_TempSet(void)
@@ -292,7 +226,7 @@ bool Temp_tempSetSub(Temp_tempSet ts, Temp_temp t)
     return FALSE;
 }
 
-string Temp_tempSetSPrint(Temp_tempSet ts, Temp_map m)
+string Temp_tempSetSPrint(Temp_tempSet ts)
 {
     string res = "";
 
@@ -301,9 +235,9 @@ string Temp_tempSetSPrint(Temp_tempSet ts, Temp_map m)
         Temp_temp t = n->temp;
 
         if (strlen(res))
-            res = strconcat (res, strprintf(", %s", Temp_mapLook(m, t)));
+            res = strconcat (res, strprintf(", %s", Temp_strprint(t)));
         else
-            res = strprintf("%s", Temp_mapLook(m, t));
+            res = strprintf("%s", Temp_strprint(t));
     }
     return res;
 }

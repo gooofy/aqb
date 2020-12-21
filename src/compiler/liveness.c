@@ -57,7 +57,9 @@ void LG_nodeListPrint (LG_nodeList nl)
     for (; nl; nl=nl->tail)
     {
         Temp_temp t = nl->node->temp;
-        printf("%-3s", Temp_mapLook(F_registerTempMap(), t));
+        char buf[8];
+        Temp_snprintf (t, buf, 8);
+        printf("%-3s", buf);
         if (nl->tail)
             printf(", ");
     }
@@ -365,19 +367,22 @@ Live_graph Live_liveness(FG_graph flow)
     return lg;
 }
 
-void Live_showGraph(FILE *out, Live_graph lg, Temp_map m)
+void Live_showGraph(FILE *out, Live_graph lg)
 {
     for (LG_nodeList nl=lg->nodes; nl; nl=nl->tail)
     {
         LG_node n = nl->node;
         Temp_temp t = n->temp;
-        fprintf(out, "%-5s -> ", Temp_mapLook(m, t));
+        char buf[8];
+        Temp_snprintf (t, buf, 8);
+        fprintf(out, "%-5s -> ", buf);
 
         for (LG_nodeList q = n->adj; q; q=q->tail)
         {
             LG_node   n2 = q->node;
             Temp_temp r  = n2->temp;
-            fprintf(out, " %s", Temp_mapLook(m, r));
+            Temp_snprintf (r, buf, 8);
+            fprintf(out, " %s", buf);
 
             if (q->tail)
                 fprintf(out, ",");

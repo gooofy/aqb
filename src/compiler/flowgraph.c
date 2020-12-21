@@ -652,7 +652,7 @@ void FG_free (FG_graph g)
 #define FG_COLUMN_4 120
 #define FG_COLUMN_5 160
 
-void FG_show(FILE *out, FG_graph g, Temp_map tm)
+void FG_show(FILE *out, FG_graph g)
 {
     for (FG_nodeList p = g->nodes; p!=NULL; p=p->tail)
     {
@@ -683,7 +683,7 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         }
         pos = FG_COLUMN_1;
 
-        snprintf(&buf[FG_COLUMN_1], 255-pos, " use: %s", Temp_tempSetSPrint(n->use, tm));
+        snprintf(&buf[FG_COLUMN_1], 255-pos, " use: %s", Temp_tempSetSPrint(n->use));
 
         pos = strlen(buf);
         while (pos<FG_COLUMN_2)
@@ -693,7 +693,7 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         }
         pos = FG_COLUMN_2;
 
-        snprintf(&buf[FG_COLUMN_2], 255-pos, " def: %s", Temp_tempSetSPrint(n->def, tm));
+        snprintf(&buf[FG_COLUMN_2], 255-pos, " def: %s", Temp_tempSetSPrint(n->def));
 
         pos = strlen(buf);
         while (pos<FG_COLUMN_3)
@@ -703,7 +703,7 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         }
         pos = FG_COLUMN_3;
 
-        snprintf(&buf[FG_COLUMN_3], 255-pos, " in: %s", Temp_tempSetSPrint(n->in, tm));
+        snprintf(&buf[FG_COLUMN_3], 255-pos, " in: %s", Temp_tempSetSPrint(n->in));
 
         pos = strlen(buf);
         while (pos<FG_COLUMN_4)
@@ -713,7 +713,7 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         }
         pos = FG_COLUMN_4;
 
-        snprintf(&buf[FG_COLUMN_4], 255-pos, " out: %s", Temp_tempSetSPrint(n->out, tm));
+        snprintf(&buf[FG_COLUMN_4], 255-pos, " out: %s", Temp_tempSetSPrint(n->out));
 
         pos = strlen(buf);
         while (pos<FG_COLUMN_5)
@@ -723,35 +723,11 @@ void FG_show(FILE *out, FG_graph g, Temp_map tm)
         }
         pos = FG_COLUMN_5;
 
-        AS_sprint(&buf[pos], n->instr, tm);
+        AS_sprint(&buf[pos], n->instr);
         pos = strlen(buf);
         buf[pos++] = '\n';
         buf[pos] = 0;
         fprintf(out, buf);
     }
 }
-
-#if 0
-static void sprintLivemap(void* t, string buf)
-{
-    char buf2[255];
-    G_node n = (G_node) t;
-    Temp_tempList li, lo;
-    AS_instr inst = (AS_instr) n->info;
-    AS_sprint(buf2, inst, Temp_getNameMap());
-
-    int l = strlen(buf2);
-    while (l<30)
-    {
-        buf2[l] = ' ';
-        l++;
-    }
-    buf2[l]=0;
-
-    li = lookupLiveMap(g_in, n);
-    lo = lookupLiveMap(g_out, n);
-
-    sprintf(buf, "%s in: %s; out: %s", buf2, Temp_sprint_TempList(li), Temp_sprint_TempList(lo));
-}
-#endif
 

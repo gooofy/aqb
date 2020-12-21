@@ -125,7 +125,7 @@ AS_instr AS_Instr       (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp ds
 AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label);
 AS_instr AS_InstrEx2    (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
 
-void     AS_sprint      (string str, AS_instr i, Temp_map m);
+void     AS_sprint      (string str, AS_instr i);
 
 // AS_instrList: mutable, ordered doubly-linked list of assembly instructions
 
@@ -175,8 +175,8 @@ static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NU
 
 enum AS_w          AS_tySize(Ty_ty ty);
 
-void               AS_printInstrList (FILE *out, AS_instrList iList, Temp_map m);
-void               AS_printInstrSet  (FILE *out, AS_instrSet  is   , Temp_map m);
+void               AS_printInstrList (FILE *out, AS_instrList iList);
+void               AS_printInstrSet  (FILE *out, AS_instrSet  is   );
 
 typedef struct AS_proc_ *AS_proc;
 struct AS_proc_
@@ -188,6 +188,6 @@ struct AS_proc_
 
 AS_proc AS_Proc(string prolog, AS_instrList body, string epilog);
 
-void AS_assemble (AS_proc proc, Temp_map m);
+void AS_assemble (AS_proc proc);
 
 #endif

@@ -10,7 +10,6 @@
 #include "assem.h"
 #include "types.h"
 
-/* declaration for frames */
 typedef struct F_frame_ *F_frame;
 typedef struct F_access_ *F_access;
 
@@ -64,7 +63,6 @@ F_fragList F_FragList(F_frag head, F_fragList tail);
 
 /* machine-related features */
 
-Temp_tempSet  F_registers(void);
 string        F_getlabel(F_frame frame);
 T_exp         F_Exp(F_access acc);
 
@@ -75,10 +73,6 @@ Temp_label    F_name(F_frame f);
 Temp_label    F_heapLabel(F_access access);
 
 extern const int F_wordSize;
-
-void          F_initRegisters(void);
-Temp_map      F_initialRegisters(void);
-Temp_map      F_registerTempMap(void);
 
 #define F_NUM_REGISTERS 14
 
@@ -99,7 +93,9 @@ Temp_map      F_registerTempMap(void);
 
 #define F_TEMP_RV   6
 
-extern Temp_temp    F_regs[F_NUM_REGISTERS];
+extern Temp_temp F_regs[F_NUM_REGISTERS];
+
+void          F_initRegisters(void);
 
 Temp_temp     F_RV(void);       // d0
 Temp_temp     F_A0(void);
@@ -116,6 +112,7 @@ Temp_temp     F_D4(void);
 Temp_temp     F_D5(void);
 Temp_temp     F_D6(void);
 Temp_temp     F_D7(void);
+Temp_tempSet  F_registers(void);
 Temp_tempSet  F_callersaves(void);
 Temp_tempSet  F_calleesaves(void);
 Temp_tempSet  F_aRegs(void);
@@ -123,7 +120,6 @@ Temp_tempSet  F_dRegs(void);
 bool          F_isAn(Temp_temp reg);
 bool          F_isDn(Temp_temp reg);
 Temp_temp     F_lookupReg(S_symbol sym);
-string        F_regName(Temp_temp r);
 
 F_frame       F_newFrame(Temp_label name, Ty_formal formals);
 string        F_string(Temp_label lab, string str);

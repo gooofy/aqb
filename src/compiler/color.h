@@ -10,7 +10,7 @@
 
 struct COL_result
 {
-    Temp_map      coloring;
+    TAB_table     coloring;
     Temp_tempSet  spills;
     AS_instrSet   coalescedMoves;
 };

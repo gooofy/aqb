@@ -18,29 +18,6 @@
 
 // #define ENABLE_DEBUG
 
-#ifdef ENABLE_DEBUG
-static string tempName(Temp_temp t)
-{
-    return Temp_mapLook(F_registerTempMap(), t);
-}
-#endif
-
-#if 0
-static UG_node getAlias(UG_node n, UG_table aliases, Temp_tempSet coalescedNodes)
-{
-    Temp_temp t = node2Temp(n);
-    if (Temp_tempSetContains(coalescedNodes, t))
-    {
-        UG_node alias = (UG_node)UG_look(aliases, n);
-        return getAlias(alias, aliases, coalescedNodes);
-    }
-    else
-    {
-        return n;
-    }
-}
-#endif
-
 static Temp_temp aliasedSpilled(Temp_temp t, Live_graph g, Temp_tempSet spilled)
 {
     if (!Temp_tempSetContains(spilled, t))
@@ -52,10 +29,8 @@ static Temp_temp aliasedSpilled(Temp_temp t, Live_graph g, Temp_tempSet spilled)
     return n->temp;
 };
 
-struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
+bool RA_regAlloc(F_frame f, AS_instrList il)
 {
-    struct RA_result  ret = {NULL, NULL};
-
     FG_graph          flow;
     Live_graph        live;
     struct COL_result col;
@@ -73,14 +48,14 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
 #ifdef ENABLE_DEBUG
         printf("try #%d flow graph:\n", try);
         printf("-----------------------\n");
-        FG_show(stdout, flow, F_registerTempMap());
+        FG_show(stdout, flow);
 #endif
 
         live = Live_liveness(flow);
 #ifdef ENABLE_DEBUG
         printf("try #%d liveness graph:\n", try);
         printf("-----------------------\n");
-        Live_showGraph(stdout, live, F_registerTempMap());
+        Live_showGraph(stdout, live);
 #endif
 
         if (OPT_get(OPTION_VERBOSE))
@@ -99,7 +74,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         Temp_tempSet spilled = col.spills;
 
 #ifdef ENABLE_DEBUG
-        printf("try #%d spilled: %s\n", try, Temp_tempSetSPrint (spilled, F_registerTempMap()));
+        printf("try #%d spilled: %s\n", try, Temp_tempSetSPrint (spilled));
 #endif
 
         // assign memory for spilled temps
@@ -111,7 +86,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             {
                 acc = F_allocLocal(f, Temp_ty(tn->temp));
 #ifdef ENABLE_DEBUG
-                printf("    assigned spilled %s to local fp offset %d\n", tempName( tn->temp), F_accessOffset(acc));
+                printf("    assigned spilled %s to local fp offset %d\n", Temp_strprint(tn->temp), F_accessOffset(acc));
 #endif
             }
             else
@@ -119,7 +94,7 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
                 Temp_label l = Temp_namedlabel(strprintf("__spilledtemp_%06d", Temp_num(tn->temp)));
                 acc = F_allocGlobal(l, Temp_ty(tn->temp));
 #ifdef ENABLE_DEBUG
-                printf("    assigned spilled %s to global %s\n", tempName( tn->temp), Temp_labelstring(l));
+                printf("    assigned spilled %s to global %s\n", Temp_strprint( tn->temp), Temp_labelstring(l));
 #endif
                 assert(FALSE); // FIXME: code below doesn't handle globals
             }
@@ -174,30 +149,44 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
         U_memstat();
     }
 
-    //if (col.coalescedMoves != NULL)
-    {
-
-        // filter out coalesced moves, NOPs
+    /*
+     * modify instruction list:
+     *
+     * - filter out coalesced moves
+     * - filter out NOPs
+     * - apply register mapping
+     */
 
 #ifdef ENABLE_DEBUG
-        Temp_map colTempMap = Temp_mapLayer(col.coloring, F_registerTempMap());
-        printf("/* coalesced: moves:\n");
-        AS_printInstrSet (stdout, col.coalescedMoves, colTempMap);
-        printf("*/\n");
+    printf("/* coalesced: moves:\n");
+    AS_printInstrSet (stdout, col.coalescedMoves);
+    printf("*/\n");
 #endif
 
-        AS_instrListNode an = il->first;
-        while (an)
-        {
-            AS_instr inst = an->instr;
+    AS_instrListNode an = il->first;
+    while (an)
+    {
+        AS_instr inst = an->instr;
 
-            // remove coalesced moves
-            if (AS_instrSetContains(col.coalescedMoves, inst))
+        // remove coalesced moves
+        if (AS_instrSetContains(col.coalescedMoves, inst))
+        {
+#ifdef ENABLE_DEBUG
+            char buf[256];
+            AS_sprint(buf, inst);
+            printf("/* coalesced: %s */\n", buf);
+#endif
+            AS_instrListRemove (il, an);
+            an = an->next;
+            continue;
+        }
+        else
+        {
+            // remove NOPs
+            if (inst->mn == AS_NOP)
             {
 #ifdef ENABLE_DEBUG
-                char buf[256];
-                AS_sprint(buf, inst, colTempMap);
-                printf("/* coalesced: %s */\n", buf);
+                printf("/* NOP */\n");
 #endif
                 AS_instrListRemove (il, an);
                 an = an->next;
@@ -205,37 +194,29 @@ struct RA_result RA_regAlloc(F_frame f, AS_instrList il)
             }
             else
             {
-                // remove NOPs
-                if (inst->mn == AS_NOP)
+                // apply register mapping
+                if (inst->src)
                 {
-#ifdef ENABLE_DEBUG
-                    printf("/* NOP */\n");
-#endif
-                    AS_instrListRemove (il, an);
-                    an = an->next;
-                    continue;
+                    Temp_temp color = TAB_look (col.coloring, inst->src);
+                    if (color)
+                        inst->src = color;
                 }
-                else
+                if (inst->dst)
                 {
-#ifdef ENABLE_DEBUG
-                    char buf[256];
-                    AS_sprint(buf, inst, colTempMap);
-                    printf("%s\n", buf);
-#endif
+                    Temp_temp color = TAB_look (col.coloring, inst->dst);
+                    if (color)
+                        inst->dst = color;
                 }
+#ifdef ENABLE_DEBUG
+                char buf[256];
+                AS_sprint(buf, inst);
+                printf("%s\n", buf);
+#endif
             }
-            an = an->next;
         }
+        an = an->next;
     }
 
-    ret.coloring = col.coloring;
-    ret.il = il;
-
-#ifdef ENABLE_DEBUG
-    printf("register coloring map:\n");
-    printf("----------------------\n");
-    Temp_mapDump(stdout, ret.coloring);
-#endif
-    return ret;
+    return TRUE;
 }
 

@@ -94,15 +94,12 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
     if (OPT_get(OPTION_VERBOSE))
     {
         fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
-        AS_printInstrList (stdout, iList, F_registerTempMap());
+        AS_printInstrList (stdout, iList);
         fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
         U_memstat();
     }
 
-    struct RA_result ra = RA_regAlloc(frame, iList);
-    iList = ra.il;
-
-    if (EM_anyErrors)
+    if (!RA_regAlloc(frame, iList) || EM_anyErrors)
     {
         printf ("\n\nregister allocation failed - exiting.\n");
         exit(24);
@@ -114,7 +111,7 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
     {
         fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after F_procEntryExitAS):\n", Temp_labelstring(label));
         fprintf(stdout, "%s\n", proc->prolog);
-        AS_printInstrList(stdout, proc->body, Temp_mapLayer(ra.coloring, Temp_getNameMap()));
+        AS_printInstrList(stdout, proc->body);
         fprintf(stdout, "%s\n", proc->epilog);
         fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after F_procEntryExitAS).\n", Temp_labelstring(label));
         U_memstat();
@@ -123,7 +120,7 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
     if (expt)
         fprintf(out, ".globl %s\n\n", S_name(label));
     fprintf(out, "%s\n", proc->prolog);
-    AS_printInstrList(out, proc->body, Temp_mapLayer(ra.coloring, Temp_getNameMap()));
+    AS_printInstrList(out, proc->body);
     fprintf(out, "%s\n", proc->epilog);
 //  fprintf(out, "BEGIN function\n");
 //  AS_printInstrList (out, iList,

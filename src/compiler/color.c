@@ -15,22 +15,17 @@
 
 // #define ENABLE_DEBUG
 
-static string tempName(Temp_temp t)
-{
-    return Temp_mapLook(F_registerTempMap(), t);
-}
-
 #ifdef ENABLE_DEBUG
-static void printts(Temp_tempSet l)
-{
-    for (Temp_tempSetNode n = l->first; n; n = n->next)
-    {
-        Temp_temp t = n->temp;
-        printf("%-3s", tempName(t));
-        if (n->next)
-            printf(", ");
-    }
-}
+// static void printts(Temp_tempSet l)
+// {
+//     for (Temp_tempSetNode n = l->first; n; n = n->next)
+//     {
+//         Temp_temp t = n->temp;
+//         printf("%-3s", Temp_strprint(t));
+//         if (n->next)
+//             printf(", ");
+//     }
+// }
 #endif
 
 typedef struct ctx COL_ctx;
@@ -38,13 +33,11 @@ typedef struct ctx COL_ctx;
 struct ctx
 {
     Live_graph    lg;
-    Temp_map      precolored;
 
-    Temp_tempSet  regs;
-    LG_nodeList    spillWorklist;
-    LG_nodeList    freezeWorklist;
-    LG_nodeList    simplifyWorklist;
-    LG_nodeList    selectStack;
+    LG_nodeList   spillWorklist;
+    LG_nodeList   freezeWorklist;
+    LG_nodeList   simplifyWorklist;
+    LG_nodeList   selectStack;
 
     AS_instrSet   coalescedMoves;
     AS_instrSet   moveWorklist;
@@ -146,7 +139,7 @@ static void simplify()
     c.simplifyWorklist = c.simplifyWorklist->tail;
 
 #ifdef ENABLE_DEBUG
-    printf ("simplify(): pushing %s onto selectStack\n", tempName(n->temp));
+    printf ("simplify(): pushing %s onto selectStack\n", Temp_strprint(n->temp));
     assert (!LG_nodeListContains(c.selectStack, n));
 #endif
 
@@ -166,7 +159,7 @@ static void simplify()
         if (node->degree == (c.K-1))
         {
 #ifdef ENABLE_DEBUG
-            printf ("simplify(): removing neighbour %s (degree: %d) from spillWorklist \n", tempName(node->temp), node->degree);
+            printf ("simplify(): removing neighbour %s (degree: %d) from spillWorklist \n", Temp_strprint(node->temp), node->degree);
 #endif
             bool bRemoved;
             c.spillWorklist = LG_nodeListRemove (c.spillWorklist, node, &bRemoved);
@@ -199,7 +192,7 @@ static void combine(LG_node nu, LG_node nv)
         c.freezeWorklist = LG_nodeListRemove (c.freezeWorklist, nv, &bRemoved);
         assert(bRemoved);
 #ifdef ENABLE_DEBUG
-        printf ("combine() : removed %s from freezeWorklist\n", tempName(nv->temp));
+        printf ("combine() : removed %s from freezeWorklist\n", Temp_strprint(nv->temp));
 #endif
     }
     else
@@ -208,7 +201,7 @@ static void combine(LG_node nu, LG_node nv)
         c.spillWorklist = LG_nodeListRemove (c.spillWorklist, nv, &bRemoved);
         assert (bRemoved);
 #ifdef ENABLE_DEBUG
-        printf ("combine() : removed %s from spillWorklist\n", tempName(nv->temp));
+        printf ("combine() : removed %s from spillWorklist\n", Temp_strprint(nv->temp));
 #endif
     }
 
@@ -230,7 +223,7 @@ static void combine(LG_node nu, LG_node nv)
 
     int degree = nu->degree;
 #ifdef ENABLE_DEBUG
-    printf ("combine() : combined %s with %s, resulting degree: %d (", tempName(nu->temp), tempName(nv->temp), degree);
+    printf ("combine() : combined %s with %s, resulting degree: %d (", Temp_strprint(nu->temp), Temp_strprint(nv->temp), degree);
     LG_nodeListPrint (nu->adj);
     printf (")\n");
 #endif
@@ -239,7 +232,7 @@ static void combine(LG_node nu, LG_node nv)
         if (LG_nodeListContains(c.freezeWorklist, nu))
         {
 #ifdef ENABLE_DEBUG
-            printf ("combine() : moving %s of degree %d from freezeWorklist to spillWorklist\n", tempName(nu->temp), degree);
+            printf ("combine() : moving %s of degree %d from freezeWorklist to spillWorklist\n", Temp_strprint(nu->temp), degree);
             assert (!LG_nodeListContains (c.spillWorklist, nu));
 #endif
             bool bRemoved;
@@ -253,7 +246,7 @@ static void combine(LG_node nu, LG_node nv)
         if (LG_nodeListContains(c.spillWorklist, nu))
         {
 #ifdef ENABLE_DEBUG
-            printf ("combine() : moving %s of degree %d from spillWorklist to freezeWorklist\n", tempName(nu->temp), degree);
+            printf ("combine() : moving %s of degree %d from spillWorklist to freezeWorklist\n", Temp_strprint(nu->temp), degree);
             assert (!LG_nodeListContains (c.freezeWorklist, nu));
 #endif
             bool bRemoved;
@@ -308,10 +301,10 @@ static void coalesce(void)
 #ifdef ENABLE_DEBUG
     {
         char buf[256];
-        AS_sprint(buf, inst, F_registerTempMap());
+        AS_sprint(buf, inst);
         printf ("coalesce(): considering %s ; => u=%s, v=%s\n", buf,
-                tempName(u->temp),
-                tempName(v->temp));
+                Temp_strprint(u->temp),
+                Temp_strprint(v->temp));
     }
 #endif
 
@@ -391,7 +384,7 @@ static void freezeMoves(LG_node u)
             if (LG_nodeListContains (c.freezeWorklist, nx))
             {
 #ifdef ENABLE_DEBUG
-                printf("freezeMoves(): moving %s from freezeWorklist to simplifyWorklist\n", tempName(nx->temp));
+                printf("freezeMoves(): moving %s from freezeWorklist to simplifyWorklist\n", Temp_strprint(nx->temp));
                 assert (!LG_nodeListContains (c.simplifyWorklist, nx));
 #endif
                 bool bDone;
@@ -409,7 +402,7 @@ static void freezeMoves(LG_node u)
                 if (LG_nodeListContains (c.freezeWorklist, ny))
                 {
 #ifdef ENABLE_DEBUG
-                    printf("freezeMoves(): moving %s from freezeWorklist to simplifyWorklist\n", tempName(ny->temp));
+                    printf("freezeMoves(): moving %s from freezeWorklist to simplifyWorklist\n", Temp_strprint(ny->temp));
                     assert (!LG_nodeListContains (c.simplifyWorklist, ny));
 #endif
                     bool bDone;
@@ -428,7 +421,7 @@ static void freeze()
     c.freezeWorklist = c.freezeWorklist->tail;
 
 #ifdef ENABLE_DEBUG
-    printf("freeze(): moving %s from freezeWorklist to simplifyWorklist\n", tempName(u->temp));
+    printf("freeze(): moving %s from freezeWorklist to simplifyWorklist\n", Temp_strprint(u->temp));
     assert (!LG_nodeListContains (c.simplifyWorklist, u));
 #endif
 
@@ -460,7 +453,7 @@ static void selectSpill()
 
     assert(m);
 #ifdef ENABLE_DEBUG
-    printf("selectSpill(): potential spill: %s\n", tempName(m->temp));
+    printf("selectSpill(): potential spill: %s\n", Temp_strprint(m->temp));
     assert (!LG_nodeListContains (c.simplifyWorklist, m));
 #endif
 
@@ -475,8 +468,6 @@ static void selectSpill()
 struct COL_result COL_color(Live_graph lg)
 {
     c.lg                   = lg;
-    c.regs                 = F_registers();
-    c.precolored           = F_initialRegisters();
     c.spillWorklist        = NULL;
     c.freezeWorklist       = NULL;
     c.simplifyWorklist     = NULL;
@@ -484,10 +475,10 @@ struct COL_result COL_color(Live_graph lg)
     c.coalescedMoves       = AS_InstrSet();
     c.moveWorklist         = AS_InstrSet(); AS_instrSetAddSet(c.moveWorklist, lg->moveWorklist);
     c.activeMoves          = AS_InstrSet();
-    c.K                    = Temp_TempSetCount(c.regs);
+    c.K                    = F_NUM_REGISTERS;
 
 #ifdef ENABLE_DEBUG
-    Live_showGraph(stdout, c.lg, F_registerTempMap());
+    Live_showGraph(stdout, c.lg);
     printf("COL_color: c.K=%d\n", c.K);
 #endif
 
@@ -503,12 +494,13 @@ struct COL_result COL_color(Live_graph lg)
         LG_node   n = nl->node;
         Temp_temp t = n->temp;
 
-        if (Temp_mapLook(c.precolored, t))
+        // precolored ?
+        if (Temp_num(t) < F_NUM_REGISTERS)
         {
             n->degree = PRECOLORED_DEGREE;
             n->color  = t;
 #ifdef ENABLE_DEBUG
-            printf ("COL_color: %-5s of degree %3d is precolored\n", tempName(t), n->degree);
+            printf ("COL_color: %-5s of degree %3d is precolored\n", Temp_strprint(t), n->degree);
 #endif
             continue;
         }
@@ -518,7 +510,7 @@ struct COL_result COL_color(Live_graph lg)
         if (n->degree >= c.K)
         {
 #ifdef ENABLE_DEBUG
-            printf ("COL_color: %-5s of degree %3d added to spillWorklist\n", tempName(t), n->degree);
+            printf ("COL_color: %-5s of degree %3d added to spillWorklist\n", Temp_strprint(t), n->degree);
 #endif
             c.spillWorklist = LG_NodeList (n, c.spillWorklist);
         }
@@ -526,14 +518,14 @@ struct COL_result COL_color(Live_graph lg)
         {
             c.freezeWorklist = LG_NodeList (n, c.freezeWorklist);
 #ifdef ENABLE_DEBUG
-            printf ("COL_color: %-5s of degree %3d added to freezeWorklist\n", tempName(t), n->degree);
+            printf ("COL_color: %-5s of degree %3d added to freezeWorklist\n", Temp_strprint(t), n->degree);
 #endif
         }
         else
         {
             c.simplifyWorklist = LG_NodeList (n, c.simplifyWorklist);
 #ifdef ENABLE_DEBUG
-            printf ("COL_color: %-5s of degree %3d added to simplifyWorklist\n", tempName(t), n->degree);
+            printf ("COL_color: %-5s of degree %3d added to simplifyWorklist\n", Temp_strprint(t), n->degree);
 #endif
         }
     }
@@ -584,7 +576,7 @@ struct COL_result COL_color(Live_graph lg)
      * assign colors to non-coalesced temps
      */
 
-    struct COL_result ret = { /* coloring       = */ Temp_mapLayer(Temp_Map(), c.precolored),
+    struct COL_result ret = { /* coloring       = */ TAB_empty(),
                               /* spills         = */ Temp_TempSet(),
                               /* coalescedMoves = */ c.coalescedMoves };
 
@@ -596,7 +588,7 @@ struct COL_result COL_color(Live_graph lg)
         c.selectStack = c.selectStack->tail;
 
 #ifdef ENABLE_DEBUG
-        printf("colorizing: %s of degree %d.\n", tempName(n->temp), n->degree);
+        printf("colorizing: %s of degree %d.\n", Temp_strprint(n->temp), n->degree);
 #endif
         for (int i =0; i<F_NUM_REGISTERS; i++)
             availableColors[i] = TRUE;
@@ -613,7 +605,7 @@ struct COL_result COL_color(Live_graph lg)
         for (int i =0; i<F_NUM_REGISTERS; i++)
         {
             if (availableColors[i])
-                printf (" %s ", F_regName (F_regs[i]));
+                printf (" %s ", Temp_strprint (F_regs[i]));
         }
         printf  ("\n");
 #endif
@@ -631,16 +623,16 @@ struct COL_result COL_color(Live_graph lg)
         if (!firstAvailableColor)
         {
 #ifdef ENABLE_DEBUG
-            printf("colorizing: %s ---> spilled.\n", tempName(n->temp));
+            printf("colorizing: %s ---> spilled.\n", Temp_strprint(n->temp));
 #endif
             Temp_tempSetAdd(ret.spills, n->temp);
         }
         else
         {
             n->color = firstAvailableColor;
-            Temp_mapEnter (ret.coloring, n->temp, tempName(n->color));
+            TAB_enter (ret.coloring, n->temp, n->color);
 #ifdef ENABLE_DEBUG
-            printf("colorizing: %s ---> %s\n", tempName(n->temp), tempName(n->color));
+            printf("colorizing: %s ---> %s\n", Temp_strprint(n->temp), Temp_strprint(n->color));
 #endif
         }
     }
@@ -659,15 +651,15 @@ struct COL_result COL_color(Live_graph lg)
         if (a->color)
         {
             n->color = a->color;
-            Temp_mapEnter (ret.coloring, n->temp, tempName(n->color));
+            TAB_enter (ret.coloring, n->temp, n->color);
 #ifdef ENABLE_DEBUG
-            printf("colorizing: %s ---> %s (coalesced)\n", tempName(n->temp), tempName(n->color));
+            printf("colorizing: %s ---> %s (coalesced)\n", Temp_strprint(n->temp), Temp_strprint(n->color));
 #endif
         }
         else
         {
 #ifdef ENABLE_DEBUG
-            printf("colorizing: %s ---> no color (coalesced to spilled node)\n", tempName(n->temp));
+            printf("colorizing: %s ---> no color (coalesced to spilled node)\n", Temp_strprint(n->temp));
 #endif
         }
     }
