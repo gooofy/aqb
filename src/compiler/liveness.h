@@ -37,6 +37,7 @@ struct Live_graph_
 };
 
 Live_graph  Live_liveness         (FG_graph flow);
+void        Live_stats            (Live_graph g);
 
 void        Live_showGraph        (FILE *out, Live_graph g);
 LG_node     Live_temp2Node        (Live_graph g, Temp_temp t);
@@ -50,5 +51,6 @@ bool        LG_connected          (LG_node n1, LG_node n2);
 
 int         LG_computeDegree      (LG_node n);
 LG_node     LG_getAlias           (LG_node n);
+
 
 #endif

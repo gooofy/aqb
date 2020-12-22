@@ -11,7 +11,7 @@
 #include "table.h"
 #include "options.h"
 
-// #define ENABLE_DEBUG
+#define ENABLE_DEBUG
 
 static Live_graph Live_Graph(void)
 {
@@ -358,6 +358,7 @@ Live_graph Live_liveness(FG_graph flow)
     printf("Live_liveness(): interference graph result:\n");
     printf("-------------------------------------------\n");
     Live_showGraph (stdout, lg);
+    Live_stats (lg);
 #endif
 
     return lg;
@@ -389,3 +390,17 @@ void Live_showGraph(FILE *out, Live_graph lg)
     }
 }
 
+void Live_stats (Live_graph g)
+{
+    int n = 0;
+    int m = 0;
+    for (LG_nodeList nl = g->nodes; nl; nl=nl->tail)
+    {
+        n++;
+        m++;
+        for (LG_nodeList a=nl->node->adj;a;a=a->tail)
+            m++;
+    }
+    printf ("Live_stats: # LG_nodes    : %d\n", n);
+    printf ("Live_stats: # LG_nodeLists: %d\n", m);
+}
