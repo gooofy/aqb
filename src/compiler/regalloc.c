@@ -44,7 +44,7 @@ bool RA_regAlloc(F_frame f, AS_instrList il)
             U_memstat();
         }
 
-        flow = FG_AssemFlowGraph(il, f);
+        flow = FG_AssemFlowGraph(il);
 #ifdef ENABLE_DEBUG
         printf("try #%d flow graph:\n", try);
         printf("-----------------------\n");

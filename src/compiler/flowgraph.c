@@ -534,7 +534,7 @@ static FG_node findLabeledNode(Temp_label lab, FG_nodeList nl, Temp_labelList ll
     return result;
 }
 
-FG_graph FG_AssemFlowGraph(AS_instrList il, F_frame f)
+FG_graph FG_AssemFlowGraph(AS_instrList il)
 {
     FG_graph       g = FG_Graph();
 

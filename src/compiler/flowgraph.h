@@ -56,7 +56,7 @@ struct FG_node_
 
 FG_nodeList FG_NodeList       (FG_node head, FG_nodeList tail);
 
-FG_graph    FG_AssemFlowGraph (AS_instrList il, F_frame f);
+FG_graph    FG_AssemFlowGraph (AS_instrList il);
 void        FG_free           (FG_graph g);
 void        FG_show           (FILE *out, FG_graph g);
 
