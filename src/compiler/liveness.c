@@ -11,7 +11,7 @@
 #include "table.h"
 #include "options.h"
 
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 static Live_graph Live_Graph(void)
 {
