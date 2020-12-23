@@ -10,6 +10,7 @@ AQB = ../target/x86_64-linux/bin/aqb
 STRIP = m68k-amigaos-strip
 
 .PHONY: clean all mod1 io1 subtest11
+.PRECIOUS: %.s
 
 all: cond1.bin cond3.bin cond4.bin	\
 	const1.bin const2.bin const3.bin constprop.bin \
