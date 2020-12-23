@@ -293,6 +293,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "usage: %s [-v] [-s] <program.bas>\n", argv[0]);
     fprintf(stderr, "    -d <module> load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
 	fprintf(stderr, "    -L <dir>    look in <dir> for symbol files\n");
+	fprintf(stderr, "    -O          enable optimizer\n");
 	fprintf(stderr, "    -s          create symbol (.sym) file\n");
 	fprintf(stderr, "    -S          create symbol (.sym) file only (do not create assembly file)\n");
 	fprintf(stderr, "    -v          verbose\n");
@@ -369,6 +370,9 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 E_addSymPath(argv[optind]);
+				break;
+        	case 'O':
+				OPT_set(OPTION_RACOLOR, TRUE);
 				break;
         	case 's':
                 write_sym = TRUE;

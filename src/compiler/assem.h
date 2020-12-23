@@ -103,7 +103,9 @@ enum AS_mn
 
     AS_TST_Dn,          //  70 tst.x   d0
 
-    AS_UNLK_fp          //  71 unlink  a5
+    AS_UNLK_fp,         //  71 unlink  a5
+
+    AS_NUM_INSTR
 };
 
 enum AS_w { AS_w_B, AS_w_W, AS_w_L, AS_w_NONE } ;
@@ -126,6 +128,28 @@ AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp ds
 AS_instr AS_InstrEx2    (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
 
 void     AS_sprint      (string str, AS_instr i);
+
+/*
+ * AS_instrInfo: general information about 68k instruction set
+ */
+
+typedef struct AS_instrInfo_ AS_instrInfo;
+
+struct AS_instrInfo_
+{
+    enum AS_mn  mn;
+    bool        isJump;
+    bool        hasLabel;
+    bool        hasImm;
+    bool        hasSrc;
+    bool        hasDst;
+    bool        srcDnOnly, dstDnOnly; // TRUE -> src/dst has to be a data register
+    bool        srcAnOnly, dstAnOnly; // TRUE -> src/dst has to be a address register
+    bool        dstIsAlsoSrc;         // TRUE -> destination register is also a src (i.e. add.x d1, d2)
+    bool        dstIsOnlySrc;         // TRUE -> destination register is only a src (i.e. move.x d1, (a0))
+};
+
+extern AS_instrInfo AS_instrInfoA[AS_NUM_INSTR]; // array of AS_instrInfos, indexed by mn above
 
 // AS_instrList: mutable, ordered doubly-linked list of assembly instructions
 

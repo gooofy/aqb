@@ -15,6 +15,7 @@
 #include "table.h"
 #include "errormsg.h"
 #include "options.h"
+#include "linscan.h"
 
 // #define ENABLE_DEBUG
 
@@ -29,7 +30,13 @@ static Temp_temp aliasedSpilled(Temp_temp t, Live_graph g, Temp_tempSet spilled)
     return n->temp;
 };
 
-bool RA_regAlloc(F_frame f, AS_instrList il)
+/*
+ * register allocation by graph coloring
+ *
+ * this is the full-blown global optimization register allocator
+ */
+
+static bool RA_color (F_frame f, AS_instrList il)
 {
     FG_graph          flow;
     Live_graph        live;
@@ -218,5 +225,14 @@ bool RA_regAlloc(F_frame f, AS_instrList il)
     }
 
     return TRUE;
+}
+
+bool RA_regAlloc(F_frame f, AS_instrList il)
+{
+    if (OPT_get(OPTION_RACOLOR))
+        return RA_color (f, il);
+
+    // register allocation using the linear scan algorithm (Poletto et. al 1999)
+    return LS_regalloc (f, il);
 }
 

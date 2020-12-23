@@ -11,6 +11,109 @@
 #include "frame.h"
 #include "errormsg.h"
 
+AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
+    // mn                  isJump hasLabel hasImm hasSrc hasDst srcDnOnly dstDnOnly srcAnOnly dstAnOnly dstIsAlsoSrc, dstIsOnlySrc
+    { AS_LABEL,            FALSE, TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_ADD_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ADD_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ADD_Imm_sp,       FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_AND_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_AND_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ASL_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ASL_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ASR_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ASR_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_BEQ,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BNE,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BLT,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BGT,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BLE,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BGE,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BCS,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BHI,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BLS,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BCC,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_CMP_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_DIVS_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_DIVS_Imm_Dn,      FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_DIVU_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_DIVU_Imm_Dn,      FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_EOR_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_EOR_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_EXT_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_LINK_fp,          FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_LSL_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_LSL_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_LSR_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_LSR_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_MOVE_AnDn_AnDn,   FALSE, FALSE  , FALSE, TRUE , TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Imm_OAn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , FALSE       , FALSE },
+    { AS_MOVE_Imm_RAn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , TRUE        , TRUE  },
+    { AS_MOVE_Imm_AnDn,    FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_AnDn_RAn,    FALSE, FALSE  , FALSE, TRUE , TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , TRUE        , TRUE  },
+    { AS_MOVE_RAn_AnDn,    FALSE, FALSE  , FALSE, TRUE , TRUE  , FALSE  , FALSE   , TRUE    , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_OAn_AnDn,    FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , TRUE    , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_AnDn_OAn,    FALSE, FALSE  , FALSE, TRUE , TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , FALSE       , FALSE },
+    { AS_MOVE_AnDn_PDsp,   FALSE, FALSE  , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Imm_PDsp,    FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_spPI_AnDn,   FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_ILabel_AnDn, FALSE, TRUE   , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Label_AnDn,  FALSE, TRUE   , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_AnDn_Label,  FALSE, TRUE   , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Ofp_AnDn,    FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_AnDn_Ofp,    FALSE, FALSE  , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Imm_Ofp,     FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Imm_Label,   FALSE, TRUE   , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_fp_AnDn,     FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MULS_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_MULS_Imm_Dn,      FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_MULU_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_MULU_Imm_Dn,      FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_NEG_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_NOT_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_NOP,              FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_OR_Dn_Dn,         FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_OR_Imm_Dn,        FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_JMP,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_JSR_Label,        TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_JSR_An,           FALSE, FALSE  , FALSE, TRUE , FALSE , FALSE  , FALSE   , TRUE    , FALSE   , FALSE       , FALSE },
+    { AS_JSR_RAn,          FALSE, FALSE  , FALSE, TRUE , FALSE , FALSE  , FALSE   , TRUE    , FALSE   , FALSE       , FALSE },
+    { AS_RTS,              FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_SNE_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_SUB_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_SUB_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_SWAP_Dn,          FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_TST_Dn,           FALSE, FALSE  , FALSE, TRUE , FALSE , TRUE   , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_UNLK_fp,          FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE } 
+    };
+
+
+bool AS_verifyInstr (AS_instr instr)
+{
+    if (AS_instrInfoA[instr->mn].hasLabel && !instr->label)
+        return FALSE;
+    if (!AS_instrInfoA[instr->mn].hasLabel && instr->label)
+        return FALSE;
+
+    if (AS_instrInfoA[instr->mn].hasImm && !instr->imm)
+        return FALSE;
+    if (!AS_instrInfoA[instr->mn].hasImm && instr->imm)
+        return FALSE;
+
+
+    if (AS_instrInfoA[instr->mn].hasSrc && !instr->src)
+        return FALSE;
+    if (!AS_instrInfoA[instr->mn].hasSrc && instr->src)
+        return FALSE;
+
+    if (AS_instrInfoA[instr->mn].hasDst && !instr->dst)
+        return FALSE;
+    if (!AS_instrInfoA[instr->mn].hasDst && instr->dst)
+        return FALSE;
+
+    return TRUE;
+}
+
 AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
@@ -25,6 +128,8 @@ AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
 
     p->def    = NULL;
     p->use    = NULL;
+
+    assert (AS_verifyInstr (p));
 
     return p;
 }
@@ -44,6 +149,8 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, T
     p->def    = NULL;
     p->use    = NULL;
 
+    assert (AS_verifyInstr (p));
+
     return p;
 }
 
@@ -61,6 +168,8 @@ AS_instr AS_InstrEx2 (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, 
 
     p->def    = def;
     p->use    = use;
+
+    assert (AS_verifyInstr (p));
 
     return p;
 }

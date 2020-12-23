@@ -159,26 +159,27 @@ static void simplify()
         if (node->degree == (c.K-1))
         {
 #ifdef ENABLE_DEBUG
-            printf ("simplify(): removing neighbour %s (degree: %d) from spillWorklist \n", Temp_strprint(node->temp), node->degree);
+            printf ("simplify(): trying to remove neighbour %s (degree: %d) from spillWorklist \n", Temp_strprint(node->temp), node->degree);
 #endif
             bool bRemoved;
             c.spillWorklist = LG_nodeListRemove (c.spillWorklist, node, &bRemoved);
-            assert(bRemoved);
-
-            if (node->relatedMoves)
+            if (bRemoved)
             {
-                enableMove(node);
+                if (node->relatedMoves)
+                {
+                    enableMove(node);
 #ifdef ENABLE_DEBUG
-                assert (!LG_nodeListContains (c.freezeWorklist, node));
+                    assert (!LG_nodeListContains (c.freezeWorklist, node));
 #endif
-                c.freezeWorklist = LG_NodeList(node, c.freezeWorklist);
-            }
-            else
-            {
+                    c.freezeWorklist = LG_NodeList(node, c.freezeWorklist);
+                }
+                else
+                {
 #ifdef ENABLE_DEBUG
-                assert (!LG_nodeListContains (c.simplifyWorklist, node));
+                    assert (!LG_nodeListContains (c.simplifyWorklist, node));
 #endif
-                c.simplifyWorklist = LG_NodeList(node, c.simplifyWorklist);
+                    c.simplifyWorklist = LG_NodeList(node, c.simplifyWorklist);
+                }
             }
         }
     }

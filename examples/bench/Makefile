@@ -14,7 +14,7 @@ clean:
 	$(AS) $< -o $@
 
 %.s:	%.bas
-	$(AQB) -L ../../src/lib $<
+	$(AQB) -L ../../src/lib -O $<
 
 %.bin:	%.o
 	$(LD) ../../src/lib/_brt/startup.o $< ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $@

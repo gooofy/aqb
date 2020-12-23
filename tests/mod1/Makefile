@@ -3,7 +3,7 @@ AQB = ../../target/x86_64-linux/bin/aqb
 AS = m68k-amigaos-as
 LD = m68k-amigaos-ld
 
-AQBFLAGS = -L ../../src/lib
+AQBFLAGS = -L ../../src/lib -O
 
 .PHONY:	clean all
 

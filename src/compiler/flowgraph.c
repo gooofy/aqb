@@ -44,440 +44,53 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
 
     n->instr    = instr;
 
-    switch (instr->mn)
+    n->def      = NULL;
+    n->use      = NULL;
+
+    if (AS_instrInfoA[instr->mn].hasSrc)
     {
-        case AS_ADD_Dn_Dn:                              //   1 add.x   d1, d2
-            assert(instr->src);
-            assert(instr->dst);
+        n->use = Temp_TempSet (instr->src, n->use);
+        if (AS_instrInfoA[instr->mn].srcDnOnly)
+        {
             n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_ADD_Imm_Dn:                             //   2 add.x   #42, d2
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_ADD_Imm_sp:                             //   3 add.x  #42, sp
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_AND_Dn_Dn:                              //   4 and.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_AND_Imm_Dn:                             //   5 and.x  #23, d3
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_ASL_Dn_Dn:                              //   6 asl.x   d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_ASR_Dn_Dn:                              //   8 asr.x   d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_BEQ:                                    //  10 beq     label
-        case AS_BNE:                                    //  11 bne     label
-        case AS_BLT:                                    //  12 blt     label
-        case AS_BGT:                                    //  13 bgt     label
-        case AS_BLE:                                    //  14 ble     label
-        case AS_BGE:                                    //  15 bge     label
-        case AS_BCS:                                    //  16 bcs     label
-        case AS_BHI:                                    //  17 bhi     label
-        case AS_BLS:                                    //  18 bls     label
-        case AS_BCC:                                    //  19 bcc     label
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_CMP_Dn_Dn:                              //  20 cmp.x   d0, d7
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = NULL;
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_DIVS_Dn_Dn:                             //  21 divs.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_DIVS_Imm_Dn:                            //  22 divs.x  #23, d3
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_DIVU_Dn_Dn:                             //  23 divu.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_EOR_Dn_Dn:                              //  25 eor.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_EOR_Imm_Dn:                             //  26 eor.x  #23, d3
-        case AS_EXT_Dn:                                 //  27 ext.x   d1
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_LSL_Dn_Dn:                              //  29 lsl.x   d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_LSR_Dn_Dn:                              //  31 lsr.x   d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_MOVE_AnDn_AnDn:                         //  33 move.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, NULL);
-            break;
-
-        case AS_MOVE_Imm_RAn:                           //  35 move.x  #23, (a6)
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_dRegs();
-            n->def       = NULL; 
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_MOVE_Imm_AnDn:                          //  36 move.x  #23, d0
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = NULL;
-            break;
-
-        case AS_MOVE_AnDn_RAn:                          //  37 move.x  d1, (a6)
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_dRegs();
-            n->def       = NULL; 
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_MOVE_RAn_AnDn:                          //  38 move.x  (a5), d1
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_dRegs();
-            n->dstInterf = NULL;
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, NULL);
-            break;
-
-        case AS_MOVE_AnDn_PDsp:                         //  41 move.x  d1, -(sp)
-            assert(instr->src);
-            assert(instr->dst==NULL);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = Temp_TempSet (instr->src, NULL);
-            break;
-
-        case AS_MOVE_Imm_PDsp:                          //  42 move.x  #23, -(sp)
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_MOVE_ILabel_AnDn:                       //  44 move.x  #label, d1
-        case AS_MOVE_Label_AnDn:                        //  45 move.x  label, d6
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = NULL;
-            break;
-
-        case AS_MOVE_AnDn_Label:                        //  46 move.x  d6, label
-            assert(instr->src);
-            assert(instr->dst==NULL);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = Temp_TempSet (instr->src, NULL);
-            break;
-
-        case AS_MOVE_Ofp_AnDn:                          //  47 move.x  42(a5), d0
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = NULL;
-            break;
-
-        case AS_MOVE_AnDn_Ofp:                          //  48 move.x  d0, 42(a5)
-            assert(instr->src);
-            assert(instr->dst==NULL);
-            n->srcInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = Temp_TempSet (instr->src, NULL);
-            break;
-
-        case AS_MOVE_Imm_Ofp:                           //  49 move.x  #42, 42(a5)
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_MOVE_Imm_Label:                         //  50 move.x  #42, label
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_MOVE_fp_AnDn:                           //  51 move.x  a5, d0
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = NULL;
-            break;
-
-        case AS_MULS_Dn_Dn:                             //  52 muls.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_MULS_Imm_Dn:                            //  53 muls.x  #42, d2
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_MULU_Dn_Dn:                             //  54 mulu.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_NOT_Dn:                                 //  57 not.x   d0
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_NOP:                                    //  58 nop
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_OR_Dn_Dn:                               //  59 or.x  d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_OR_Imm_Dn:                              //  60 or.x  #42, d2
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_JMP:                                    //  61 jmp     label
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_JSR_Label:                              //  62 jsr     label
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            assert(instr->def);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;              // instr->def will be added, see below
-            n->use       = NULL;              // instr->use will be added, see below
-            break;
-
-        case AS_JSR_An:                                 //  63 jsr     (a2)
-        case AS_JSR_RAn:                                //  64 jsr     -36(a6)
-            assert(instr->src);
-            assert(instr->dst==NULL);
-            assert(instr->def);
-            n->srcInterf = F_dRegs();
-            n->dstInterf = NULL;
-            n->def       = NULL;              // instr->def will be added, see below
-            n->use       = NULL;              // instr->use will be added, see below
-            break;
-
-        case AS_RTS:                                    //  65 rts
-            assert(instr->src==NULL);
-            assert(instr->dst==NULL);
-            n->srcInterf = NULL;
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = NULL;
-            break;
-
-        case AS_SNE_Dn:                                 //  66 sne.b   d1
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = NULL;
-            break;
-
-        case AS_SUB_Dn_Dn:                              //  67 sub.x   d1, d2
-            assert(instr->src);
-            assert(instr->dst);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->src, Temp_TempSet (instr->dst, NULL));
-            break;
-
-        case AS_SUB_Imm_Dn:                             //  68 sub.x   #42, d2
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_SWAP_Dn:                                //  69 swap.x   d4
-            assert(instr->src==NULL);
-            assert(instr->dst);
-            n->srcInterf = NULL;
-            n->dstInterf = F_aRegs();
-            n->def       = Temp_TempSet (instr->dst, NULL);
-            n->use       = Temp_TempSet (instr->dst, NULL);
-            break;
-
-        case AS_TST_Dn:                                 //  70 tst.x   d0
-            assert(instr->src);
-            assert(instr->dst==NULL);
-            n->srcInterf = F_aRegs();
-            n->dstInterf = NULL;
-            n->def       = NULL;
-            n->use       = Temp_TempSet (instr->src, NULL);
-            break;
-
-        default:
-            EM_error(0, "*** internal error: unknown mn %d!", instr->mn);
-            assert(0);
+        }
+        else
+        {
+            if (AS_instrInfoA[instr->mn].srcAnOnly)
+                n->srcInterf = F_dRegs();
+            else
+                n->srcInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
+        }
     }
+    else
+    {
+        n->srcInterf = NULL;
+    }
+
+    if (AS_instrInfoA[instr->mn].hasDst)
+    {
+        if (!AS_instrInfoA[instr->mn].dstIsOnlySrc)
+            n->def = Temp_TempSet (instr->dst, n->def);
+        if (AS_instrInfoA[instr->mn].dstIsAlsoSrc)
+            n->use = Temp_TempSet (instr->dst, n->use);
+
+        if (AS_instrInfoA[instr->mn].dstDnOnly)
+        {
+            n->dstInterf = F_aRegs();
+        }
+        else
+        {
+            if (AS_instrInfoA[instr->mn].dstAnOnly)
+                n->dstInterf = F_dRegs();
+            else
+                n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
+        }
+    }
+    else
+    {
+        n->dstInterf = NULL;
+    }
+
     if (instr->def)
         n->def = Temp_tempSetUnion (n->def, instr->def);
     if (instr->use)
