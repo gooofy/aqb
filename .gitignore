@@ -59,8 +59,6 @@ src/alib/alibtest
 src/alib/io.s
 src/alib/old/
 src/compiler/aqb
-tests/*.bin
-tests/*.s
 
 old
 src/lib/*.sym
@@ -75,18 +73,8 @@ src/tools/os2aqb/*.bas
 src/tools/os2aqb/libcalls.py
 src/tools/os2aqb/os_exec.txt
 src/tools/os2aqb/os_mathtrans.txt
-examples/bench/*.bin
-examples/bench/*.s
 examples/collection/
-examples/demo/*.bin
-examples/demo/*.s
 tests/foo.bas
-tests/mod1/*.s
-tests/mod1/*.sym
-tests/mod1/mod1.bin
-tests/io1/*.bin
-tests/io1/*.s
-tests/subtest11/*.bin
-tests/subtest11/*.s
 doc/internal/
 target
+config.mk

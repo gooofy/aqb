@@ -1,27 +1,39 @@
+include ../../config.mk
 
-AQB = ../../target/x86_64-linux/bin/aqb
-AS = m68k-amigaos-as
-LD = m68k-amigaos-ld
+TESTNAME = subtest11
+TESTDIR = $(EMUDIR)/aqb_tests/$(TESTNAME)
+TESTDIR_OPT = $(EMUDIR)/aqb_tests_opt/$(TESTNAME)
 
-AQBFLAGS = -L ../../src/lib -O
+AQBFLAGS     = -L ../../src/lib -L $(TESTDIR)
+AQBFLAGS_OPT = -O -L ../../src/lib -L $(TESTDIR_OPT)
 
-.PHONY:	clean all
+.PHONY:	clean all dirs
 
-all:	subtest11.bin
+all:	dirs $(TESTDIR)/$(TESTNAME) $(TESTDIR_OPT)/$(TESTNAME)
+
+dirs:
+	mkdir -p $(TESTDIR)
+	mkdir -p $(TESTDIR_OPT)
 
 clean:
-	rm -f *.s *.bin *.o *.sym
+	rm -rf $(TESTDIR)
+	rm -rf $(TESTDIR_OPT)
 
-%.o:	%.s
-	$(AS) $< -o $@
+$(TESTDIR)/$(TESTNAME).o:	$(TESTDIR)/$(TESTNAME).s
+	$(AS_AMIGAOS) $< -o $@
 
-subtest11.s:	subtest11.bas
-	$(AQB) $(AQBFLAGS) subtest11.bas
+$(TESTDIR)/$(TESTNAME).s:	$(TESTNAME).bas
+	$(AQB) $(AQBFLAGS) -o $@ $(TESTNAME).bas
 
-subtest11.bin:	subtest11.o
-	$(LD) ../../src/lib/_brt/startup.o subtest11.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o subtest11.bin
-	cp subtest11.bin /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
-	cp subtest11.bin /home/guenter/media/emu/amiga/a500/hdd/system/x/
+$(TESTDIR)/$(TESTNAME):	$(TESTDIR)/$(TESTNAME).o
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR)/$(TESTNAME).o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR)/$(TESTNAME)
 
+$(TESTDIR_OPT)/$(TESTNAME).o:	$(TESTDIR_OPT)/$(TESTNAME).s
+	$(AS_AMIGAOS) $< -o $@
 
+$(TESTDIR_OPT)/$(TESTNAME).s:	$(TESTNAME).bas
+	$(AQB) $(AQBFLAGS) -o $@ $(TESTNAME).bas
+
+$(TESTDIR_OPT)/$(TESTNAME):	$(TESTDIR_OPT)/$(TESTNAME).o
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR_OPT)/$(TESTNAME).o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR_OPT)/$(TESTNAME)
 

@@ -1,24 +1,63 @@
+include ../../config.mk
 
-AQB = ../../target/x86_64-linux/bin/aqb
-AS = m68k-amigaos-as
-LD = m68k-amigaos-ld
+AQBFLAGS     = -L ../../src/lib
+AQBFLAGS_OPT = -O -L ../../src/lib
 
-.PHONY:	clean all
+SRCS = gfx1.bas gfx2.bas 3dplot.bas hand.bas tetris.bas
 
-all:	gfx1.bin gfx2.bin 3dplot.bin hand.bin tetris.bin
+ASMDIR_AMIGAOS_DEMO = aqb_demo/asm
+OBJDIR_AMIGAOS_DEMO = aqb_demo/obj
+BINDIR_AMIGAOS_DEMO = aqb_demo
+
+ASMDIR_AMIGAOS_DEMO_OPT = aqb_demo_opt/asm
+OBJDIR_AMIGAOS_DEMO_OPT = aqb_demo_opt/obj
+BINDIR_AMIGAOS_DEMO_OPT = aqb_demo_opt
+
+ASMS = $(patsubst %,${EMUDIR}/${ASMDIR_AMIGAOS_DEMO}/%.s,$(basename $(SRCS)))
+OBJS = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_DEMO}/%.o,$(basename $(SRCS)))
+BINS = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_DEMO}/%,$(basename $(SRCS)))
+
+ASMS_OPT = $(patsubst %,${EMUDIR}/${ASMDIR_AMIGAOS_DEMO_OPT}/%.s,$(basename $(SRCS)))
+OBJS_OPT = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_DEMO_OPT}/%.o,$(basename $(SRCS)))
+BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_DEMO_OPT}/%,$(basename $(SRCS)))
+
+.PHONY:	clean all dirs
+
+all:	dirs $(BINS) $(BINS_OPT)
+
+$(ASMS) : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO)/%.s : %.bas
+	$(AQB) $(AQBFLAGS) -o $@ $<
+
+$(OBJS) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO)/%.s
+	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
+
+$(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $< ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $@
+	$(STRIP_AMIGAOS) $@
+
+$(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)/%.s : %.bas
+	$(AQB) $(AQBFLAGS_OPT) -o $@ $<
+
+$(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)/%.s
+	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
+
+$(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO_OPT)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $< ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $@
+	$(STRIP_AMIGAOS) $@
 
 clean:
-	rm -f *.s *.bin *.o *.sym
+	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO)
+	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)
+	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO)
+	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)
+	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)
+	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO_OPT)
 
-%.o:	%.s
-	$(AS) $< -o $@
-
-%.s:	%.bas
-	$(AQB) -L ../../src/lib -O $<
-
-%.bin:	%.o
-	$(LD) ../../src/lib/_brt/startup.o $< ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $@
-	cp $@ /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
-	cp $@ /home/guenter/media/emu/amiga/a500/hdd/system/x/
-
+dirs:
+	mkdir -p $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO)
+	mkdir -p $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)
+	mkdir -p $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO)
+	mkdir -p $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)
+	mkdir -p $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)
+	mkdir -p $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO_OPT)
 

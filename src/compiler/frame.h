@@ -119,6 +119,7 @@ Temp_tempSet  F_aRegs(void);
 Temp_tempSet  F_dRegs(void);
 bool          F_isAn(Temp_temp reg);
 bool          F_isDn(Temp_temp reg);
+bool          F_isPrecolored (Temp_temp reg);
 Temp_temp     F_lookupReg(S_symbol sym);
 
 F_frame       F_newFrame(Temp_label name, Ty_formal formals);

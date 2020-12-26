@@ -1,39 +1,61 @@
+include ../../config.mk
 
-AQB = ../../target/x86_64-linux/bin/aqb
-AS = m68k-amigaos-as
-LD = m68k-amigaos-ld
+TESTNAME = mod1
+TESTDIR = $(EMUDIR)/aqb_tests/$(TESTNAME)
+TESTDIR_OPT = $(EMUDIR)/aqb_tests_opt/$(TESTNAME)
 
-AQBFLAGS = -L ../../src/lib -O
+AQBFLAGS     = -L ../../src/lib -L $(TESTDIR)
+AQBFLAGS_OPT = -O -L ../../src/lib -L $(TESTDIR_OPT)
 
-.PHONY:	clean all
+.PHONY:	clean all dirs
 
-all:	mod1.bin
+all:	dirs $(TESTDIR)/mod1 $(TESTDIR_OPT)/mod1
+
+dirs:
+	mkdir -p $(TESTDIR)
+	mkdir -p $(TESTDIR_OPT)
 
 clean:
-	rm -f *.s *.bin *.o *.sym
+	rm -rf $(TESTDIR)
+	rm -rf $(TESTDIR_OPT)
 
-foo.sym:	foo.bas
-	$(AQB) $(AQBFLAGS) -s foo.bas
+$(TESTDIR)/foo.sym:	foo.bas
+	$(AQB) $(AQBFLAGS) -o $(TESTDIR)/foo.s -s $(TESTDIR)/foo.sym foo.bas
 
-foo.s:		foo.sym
-	noop
+$(TESTDIR)/bar.sym:	bar.bas
+	$(AQB) $(AQBFLAGS) -o $(TESTDIR)/bar.s -s $(TESTDIR)/bar.sym bar.bas
 
-bar.sym:	bar.bas
-	$(AQB) $(AQBFLAGS) -s bar.bas
+$(TESTDIR_OPT)/foo.sym:	foo.bas
+	$(AQB) $(AQBFLAGS_OPT) -o $(TESTDIR_OPT)/foo.s -s $(TESTDIR_OPT)/foo.sym foo.bas
 
-bar.s:		bar.sym
-	noop
+$(TESTDIR_OPT)/bar.sym:	bar.bas
+	$(AQB) $(AQBFLAGS_OPT) -o $(TESTDIR_OPT)/bar.s -s $(TESTDIR_OPT)/bar.sym bar.bas
 
-%.o:	%.s
-	$(AS) $< -o $@
+# foo.s:		foo.sym
+# 	noop
+# 
+# bar.sym:	bar.bas
+# 	$(AQB) $(AQBFLAGS) -s bar.bas
+# 
+# bar.s:		bar.sym
+# 	noop
 
-mod1.s:	mod1.bas foo.sym bar.sym
-	$(AQB) $(AQBFLAGS) mod1.bas
+$(TESTDIR)/foo.o $(TESTDIR)/bar.o $(TESTDIR)/mod1.o : $(TESTDIR)/%.o:	$(TESTDIR)/%.s
+	$(AS_AMIGAOS) $< -o $@
 
-mod1.bin:	mod1.o foo.o bar.o
-	$(LD) ../../src/lib/_brt/startup.o mod1.o foo.o bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o mod1.bin
-	cp mod1.bin /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
-	cp mod1.bin /home/guenter/media/emu/amiga/a500/hdd/system/x/
+$(TESTDIR)/mod1.s:	mod1.bas $(TESTDIR)/foo.sym $(TESTDIR)/bar.sym
+	$(AQB) $(AQBFLAGS) -o $(TESTDIR)/mod1.s mod1.bas
+
+$(TESTDIR)/mod1:	$(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR)/mod1
 
 
+$(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o $(TESTDIR_OPT)/mod1.o : $(TESTDIR_OPT)/%.o:	$(TESTDIR_OPT)/%.s
+	$(AS_AMIGAOS) $< -o $@
+
+$(TESTDIR_OPT)/mod1.s:	mod1.bas $(TESTDIR_OPT)/foo.sym $(TESTDIR_OPT)/bar.sym
+	$(AQB) $(AQBFLAGS_OPT) -o $(TESTDIR_OPT)/mod1.s mod1.bas
+
+$(TESTDIR_OPT)/mod1:	$(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR_OPT)/mod1
 

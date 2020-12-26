@@ -291,13 +291,14 @@ static void doDataFrag(FILE * out, F_frag df)
 static void print_usage(char *argv[])
 {
 	fprintf(stderr, "usage: %s [-v] [-s] <program.bas>\n", argv[0]);
-    fprintf(stderr, "    -d <module> load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
-	fprintf(stderr, "    -L <dir>    look in <dir> for symbol files\n");
-	fprintf(stderr, "    -O          enable optimizer\n");
-	fprintf(stderr, "    -s          create symbol (.sym) file\n");
-	fprintf(stderr, "    -S          create symbol (.sym) file only (do not create assembly file)\n");
-	fprintf(stderr, "    -v          verbose\n");
-	fprintf(stderr, "    -V          display version info\n");
+    fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
+	fprintf(stderr, "    -L <dir>     look in <dir> for symbol files\n");
+	fprintf(stderr, "    -O           enable optimizer\n");
+	fprintf(stderr, "    -o <foo.s>   output file name\n");
+	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
+	fprintf(stderr, "    -S <foo.sym> create symbol file only (do not create assembly file)\n");
+	fprintf(stderr, "    -v           verbose\n");
+	fprintf(stderr, "    -V           display version info\n");
 }
 
 #ifdef __amigaos__
@@ -334,7 +335,7 @@ int main (int argc, char *argv[])
     static F_fragList      frags, fl;
     static char            asmfn[PATH_MAX];
     static FILE           *out;
-    static size_t 			optind;
+    static size_t          optind;
     static bool            write_sym = FALSE;
     static bool            no_asm = FALSE;
     static char            symfn[PATH_MAX];
@@ -348,6 +349,8 @@ int main (int argc, char *argv[])
     Ty_init();
     EM_init();
     S_symbol_init();
+
+    asmfn[0]=0;
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
 	{
@@ -374,12 +377,35 @@ int main (int argc, char *argv[])
         	case 'O':
 				OPT_set(OPTION_RACOLOR, TRUE);
 				break;
+        	case 'o':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (asmfn, argv[optind], PATH_MAX);
+				break;
         	case 's':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (symfn, argv[optind], PATH_MAX);
                 write_sym = TRUE;
 				break;
         	case 'S':
                 write_sym = TRUE;
                 no_asm    = TRUE;
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (symfn, argv[optind], PATH_MAX);
 				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
@@ -412,13 +438,18 @@ int main (int argc, char *argv[])
             l = 1024;
         if (l<4)
             l = 4;
-        strncpy(asmfn, sourcefn, PATH_MAX-1);
-        asmfn[l-3] = 's';
-        asmfn[l-2] = 0;
-        strncpy(symfn, sourcefn, PATH_MAX-1);
-        symfn[l-3] = 's';
-        symfn[l-2] = 'y';
-        symfn[l-1] = 'm';
+
+        if (strlen(asmfn)==0)
+        {
+            strncpy(asmfn, sourcefn, PATH_MAX-1);
+            asmfn[l-3] = 's';
+            asmfn[l-2] = 0;
+        }
+
+        // strncpy(symfn, sourcefn, PATH_MAX-1);
+        // symfn[l-3] = 's';
+        // symfn[l-2] = 'y';
+        // symfn[l-1] = 'm';
         module_name = basename(String(sourcefn));
         l = strlen(module_name);
         module_name[l-4] = 0;

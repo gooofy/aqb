@@ -404,12 +404,11 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp
 
     if (is_main)        // run module initializers?
     {
-        TAB_iter iter = E_loadedModuleIter();
-        S_symbol sym;
-        E_module m2;
-        while (TAB_next (iter, (void **)&sym, (void**) &m2))
+        for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
         {
-            S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(sym)), TRUE);
+            E_module m2 = n->m;
+
+            S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(m2->name)), TRUE);
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 

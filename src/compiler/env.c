@@ -27,7 +27,22 @@ struct E_dirSearchPath_
 
 static E_dirSearchPath symSP=NULL, symSPLast=NULL;
 
-static TAB_table modCache; // sym -> E_module
+static TAB_table        g_modCache; // sym -> E_module
+static E_moduleListNode g_mlFirst=NULL;
+
+E_moduleListNode E_getLoadedModuleList(void)
+{
+    return g_mlFirst;
+}
+
+E_moduleListNode E_ModuleListNode(E_module m, E_moduleListNode next)
+{
+    E_moduleListNode n = checked_malloc(sizeof(*n));
+    n->m    = m;
+    n->next = next;
+    return n;
+}
+
 
 void E_declareVFC (E_env env, S_symbol sym, Tr_exp var)
 {
@@ -750,7 +765,7 @@ bool E_saveModule(string modfn, E_module mod)
     TAB_table modTable;  // S_symbol moduleName -> int mid
     modTable = TAB_empty();
     TAB_enter (modTable, mod->name, (void *) (intptr_t) 2);
-    TAB_iter iter = TAB_Iter(modCache);
+    TAB_iter iter = TAB_Iter(g_modCache);
     S_symbol sym;
     E_module m2;
     uint16_t mid = 3;
@@ -1055,12 +1070,12 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
 
 E_module E_loadModule(S_symbol sModule)
 {
-    E_module mod = TAB_look(modCache, sModule);
+    E_module mod = TAB_look(g_modCache, sModule);
     if (mod)
         return mod;
 
     mod = E_Module(sModule);
-    TAB_enter (modCache, sModule, mod);
+    TAB_enter (g_modCache, sModule, mod);
 
     for (E_dirSearchPath sp=symSP; sp; sp=sp->next)
     {
@@ -1341,6 +1356,9 @@ E_module E_loadModule(S_symbol sModule)
         }
         fclose(modf);
 
+        // prepend mod to list of loaded modules (initializers will be run in inverse order later)
+        g_mlFirst = E_ModuleListNode(mod, g_mlFirst);
+
         return mod;
 
 fail:
@@ -1349,12 +1367,6 @@ fail:
     }
 
     return NULL;
-}
-
-TAB_iter E_loadedModuleIter(void)
-{
-    TAB_iter iter = TAB_Iter(modCache);
-    return iter;
 }
 
 void E_addSymPath(string path)
@@ -1395,6 +1407,6 @@ void E_init(void)
     declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));
 
     // module cache
-    modCache = TAB_empty();
+    g_modCache = TAB_empty();
 
 }

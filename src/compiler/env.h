@@ -104,7 +104,18 @@ void       E_addSymPath(string path);             /* look for symbol files in di
 bool       E_saveModule(string symfn, E_module mod);
 E_module   E_loadModule(S_symbol sModule);
 
-TAB_iter   E_loadedModuleIter(void);  // key: S_symbol (module name), E_module
+// we need to maintain a list of loaded modules here
+// so we can run module initializers in the correct order
+
+typedef struct E_moduleListNode_ *E_moduleListNode;
+
+struct E_moduleListNode_
+{
+    E_module         m;
+    E_moduleListNode next;
+};
+
+E_moduleListNode E_getLoadedModuleList(void);
 
 /*
  * init

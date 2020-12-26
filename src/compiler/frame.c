@@ -369,6 +369,12 @@ bool F_isDn(Temp_temp reg)
     return (n>=F_TEMP_D0) && (n<=F_TEMP_D7);
 }
 
+bool F_isPrecolored(Temp_temp reg)
+{
+    int n = Temp_num(reg);
+    return (n>=0) && (n<F_NUM_REGISTERS);
+}
+
 static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
 static Temp_tempSet  g_callerSaves, g_calleeSaves;
 static S_scope       g_regScope;

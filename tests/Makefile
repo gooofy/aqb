@@ -1,55 +1,72 @@
-CFLAGS = -O3 -Wall -march=68000 -mcpu=68000
-ASFLAGS = -march=68000 -mcpu=68000
-AQBFLAGS = -O -L ../src/lib -d _brt
+include ../config.mk
 
-CC = m68k-amigaos-gcc
-AS = m68k-amigaos-as
-LD = m68k-amigaos-ld
-AR = m68k-amigaos-ar
-AQB = ../target/x86_64-linux/bin/aqb
-STRIP = m68k-amigaos-strip
+AQBFLAGS     = -L ../src/lib -d _brt
+AQBFLAGS_OPT = -O -L ../src/lib -d _brt
 
-.PHONY: clean all mod1 io1 subtest11
-.PRECIOUS: %.s
+SRCS = cond1.bas cond3.bas cond4.bas	\
+	const1.bas const2.bas const3.bas constprop.bas \
+	ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas ctrl7.bas \
+	dynmem1.bas \
+	exp1.bas exp2.bas \
+	extcall2.bas \
+	loop10.bas loop1.bas loop2.bas loop3.bas loop4.bas loop5.bas loop6.bas loop7.bas loop8.bas loop9.bas \
+	opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
+	oop1.bas oop2.bas oop3.bas oop4.bas \
+	scopes1.bas scopes2.bas scopes3.bas \
+	string1.bas string2.bas string3.bas \
+	subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \
+	subtest6.bas subtest7.bas subtest8.bas subtest9.bas \
+	subtest10.bas subtest12.bas subtest13.bas subtest14.bas subtest15.bas subtest16.bas \
+	subtest17.bas subtest18.bas subtest19.bas subtest20.bas subtest21.bas subtest22.bas \
+	types1.bas types2.bas types3.bas types4.bas types5.bas types6.bas types7.bas \
+	var1.bas var2.bas \
+	sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas \
+	darray1.bas darray2.bas darray3.bas darray4.bas darray5.bas darray6.bas darray7.bas darray8.bas darray9.bas	\
+	io2.bas io3.bas io4.bas
 
-all: cond1.bin cond3.bin cond4.bin	\
-	const1.bin const2.bin const3.bin constprop.bin \
-	ctrl1.bin ctrl2.bin ctrl3.bin ctrl4.bin ctrl5.bin ctrl6.bin ctrl7.bin \
-	dynmem1.bin \
-	exp1.bin exp2.bin \
-	extcall2.bin \
-	loop10.bin loop1.bin loop2.bin loop3.bin loop4.bin loop5.bin loop6.bin loop7.bin loop8.bin loop9.bin \
-	opbool.bin opbyte.bin opint.bin oplong.bin opsingle.bin opubyte.bin opuint.bin opulong.bin \
-	oop1.bin oop2.bin oop3.bin oop4.bin \
-	scopes1.bin scopes2.bin scopes3.bin \
-	string1.bin string2.bin string3.bin \
-	subtest1.bin subtest2.bin subtest3.bin subtest4.bin subtest5.bin \
-	subtest6.bin subtest7.bin subtest8.bin subtest9.bin \
-	subtest10.bin subtest11 subtest12.bin subtest13.bin subtest14.bin subtest15.bin subtest16.bin \
-	subtest17.bin subtest18.bin subtest19.bin subtest20.bin subtest21.bin subtest22.bin \
-	types1.bin types2.bin types3.bin types4.bin types5.bin types6.bin types7.bin \
-	var1.bin var2.bin \
-	mod1 io1 \
-	sarray1.bin sarray2.bin sarray3.bin sarray4.bin sarray5.bin sarray6.bin \
-	darray1.bin darray2.bin darray3.bin darray4.bin darray5.bin darray6.bin darray7.bin darray8.bin darray9.bin	\
-	io2.bin io3.bin io4.bin
+ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
+OBJDIR_AMIGAOS_TESTS = aqb_tests/obj
+BINDIR_AMIGAOS_TESTS = aqb_tests/bin
 
-%.o : %.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+ASMDIR_AMIGAOS_TESTS_OPT = aqb_tests_opt/asm
+OBJDIR_AMIGAOS_TESTS_OPT = aqb_tests_opt/obj
+BINDIR_AMIGAOS_TESTS_OPT = aqb_tests_opt/bin
 
-%.s : %.bas
-	$(AQB) $(AQBFLAGS) $<
+ASMS = $(patsubst %,${EMUDIR}/${ASMDIR_AMIGAOS_TESTS}/%.s,$(basename $(SRCS)))
+OBJS = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_TESTS}/%.o,$(basename $(SRCS)))
+BINS = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS}/%,$(basename $(SRCS)))
 
-%.o : %.s
-	$(AS) $(ASFLAGS) $< -o $@
+ASMS_OPT = $(patsubst %,${EMUDIR}/${ASMDIR_AMIGAOS_TESTS_OPT}/%.s,$(basename $(SRCS)))
+OBJS_OPT = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_TESTS_OPT}/%.o,$(basename $(SRCS)))
+BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS_OPT}/%,$(basename $(SRCS)))
 
-%.bin : %.o
-	$(LD) ../src/lib/_brt/startup.o $< ../src/lib/_brt/_brt.a -o $@
-	$(STRIP) $@
-	cp $@ /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
-	cp $@ /home/guenter/media/emu/amiga/a500/hdd/system/x/
-	cp runtests /home/guenter/media/emu/amiga/a500/hdd/system/x/
-	cp runtests /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
+.PHONY: clean all mod1 io1 subtest11 dirs runtests
+.PRECIOUS: $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s $(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
+
+all: dirs $(BINS) $(BINS_OPT) mod1 io1 subtest11 runtests
+
+# %.o : %.c
+# 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
+
+$(ASMS) : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s : %.bas
+	$(AQB) $(AQBFLAGS) -o $@ $<
+
+$(OBJS) : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s
+	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
+
+$(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)/%.o
+	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/_brt/_brt.a -o $@
+	$(STRIP_AMIGAOS) $@
+
+$(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)/%.s : %.bas
+	$(AQB) $(AQBFLAGS_OPT) -o $@ $<
+
+$(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
+	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
+
+$(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)/%.o
+	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/_brt/_brt.a -o $@
+	$(STRIP_AMIGAOS) $@
 
 mod1:
 	cd mod1 ; make all
@@ -58,8 +75,34 @@ io1:
 subtest11:
 	cd subtest11 ; make all
 
+runtests:
+	echo "; AQB test suite" > $(EMUDIR)/runtests
+	for t in $(BINS); do BN=`basename $$t` ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS)/$$BN" >> $(EMUDIR)/runtests ; done
+	BN="mod1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="io1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="subtest11" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	for t in $(BINS_OPT); do BN=`basename $$t` ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" >> $(EMUDIR)/runtests ; done
+	BN="mod1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="io1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="subtest11" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	cat $(EMUDIR)/runtests
+
 clean:
-	rm -f *.o *.s *.bin *.sym
+	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)
+	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)
+	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)
+	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)
+	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)
+	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)
 	cd mod1 ; make clean
 	cd io1 ; make clean
 	cd subtest11 ; make clean
+
+dirs:
+	mkdir -p $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)
+	mkdir -p $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)
+	mkdir -p $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)
+	mkdir -p $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)
+	mkdir -p $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)
+	mkdir -p $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)
+

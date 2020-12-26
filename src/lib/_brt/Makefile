@@ -1,35 +1,27 @@
-
-CFLAGS = -O3 -Wall -Werror -march=68000 -mcpu=68000
-ASFLAGS = -march=68000 -mcpu=68000
-
-CC = m68k-amigaos-gcc
-AS = m68k-amigaos-as
-LD = m68k-amigaos-ld
-AR = m68k-amigaos-ar
-AQB = ../../../target/x86_64-linux/bin/aqb
+include ../../../config.mk
 
 .PHONY: clean all diss
 
 all: _brt.a startup.o _brt.sym
 
 %.o : %.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
 _brt.sym : _brt.bas
-	$(AQB) -d none -S $<
+	$(AQB) -d none -S _brt.sym $<
 	pushd .. && rm -f _brt.sym && ln -s _brt/_brt.sym && popd
 
 %.o : %.s
-	$(AS) $(ASFLAGS) $< -o $@
+	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
 _brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o
-	$(AR) -crs _brt.a $^
+	$(AR_AMIGAOS) -crs _brt.a $^
 
 diss: dyna.o
-	m68k-amigaos-objdump -S -d -x dyna.o
+	$(OBJDUMP_AMIGAOS) -S -d -x dyna.o
 
 %.asm: %.c
-	$(CC) -S -Wall -Werror -march=68000 -mcpu=68000 $(CPPFLAGS) $< -o $@
+	$(CC_AMIGAOS) -S -Wall -Werror -march=68000 -mcpu=68000 $< -o $@
 
 clean:
 	rm -f *.o alibtest _brt.a *.sym
