@@ -687,17 +687,6 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
     }
 }
 
-AS_proc AS_Proc(string prolog, AS_instrList body, string epilog)
-{
-    AS_proc proc = checked_malloc(sizeof(*proc));
-
-    proc->prolog = prolog;
-    proc->body   = body;
-    proc->epilog = epilog;
-
-    return proc;
-}
-
 /******************************************************************************
  **
  ** machine code generation
@@ -784,12 +773,12 @@ static uint32_t instr_size (AS_instr instr)
     }
 }
 
-void AS_assemble (AS_proc proc)
+void AS_assemble (AS_instrList proc)
 {
     // step 0: determine size of segment
 
     uint32_t seg_size = 0;
-    for (AS_instrListNode an = proc->body->first; an; an=an->next)
+    for (AS_instrListNode an = proc->first; an; an=an->next)
     {
         AS_instr instr = an->instr;
 

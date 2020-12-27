@@ -300,7 +300,7 @@ F_fragList F_FragList(F_frag head, F_fragList tail)
     return l;
 }
 
-AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
+void F_procEntryExitAS(F_frame frame, AS_instrList body)
 {
     int          frame_size  = -frame->locals_offset;
     Temp_tempSet calleesaves = F_calleesaves();
@@ -331,8 +331,6 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
 
     AS_instrListAppend (body, AS_Instr (pos_end, AS_UNLK_fp, AS_w_NONE, NULL, NULL));                      //      unlk fp
     AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, AS_w_NONE, NULL, NULL));                          //      rts
-
-    return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(frame->name)), body, "# END\n");
 }
 
 /* Machine-related Features */

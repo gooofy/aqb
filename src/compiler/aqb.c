@@ -53,7 +53,6 @@ extern struct DOSBase       *DOSBase;
 /* print the assembly language instructions to filename.s */
 static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm body)
 {
-    AS_proc proc;
     T_stmList stmList;
     AS_instrList iList;
 
@@ -105,23 +104,19 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
         exit(24);
     }
 
-    proc = F_procEntryExitAS(frame, iList);
+    F_procEntryExitAS(frame, iList);
 
     if (OPT_get(OPTION_VERBOSE))
     {
         fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after F_procEntryExitAS):\n", Temp_labelstring(label));
-        fprintf(stdout, "%s\n", proc->prolog);
-        AS_printInstrList(stdout, proc->body);
-        fprintf(stdout, "%s\n", proc->epilog);
+        AS_printInstrList(stdout, iList);
         fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after F_procEntryExitAS).\n", Temp_labelstring(label));
         U_memstat();
     }
 
     if (expt)
         fprintf(out, ".globl %s\n\n", S_name(label));
-    fprintf(out, "%s\n", proc->prolog);
-    AS_printInstrList(out, proc->body);
-    fprintf(out, "%s\n", proc->epilog);
+    AS_printInstrList(out, iList);
 //  fprintf(out, "BEGIN function\n");
 //  AS_printInstrList (out, iList,
 //                     Temp_layerMap(ra.coloring, Temp_getNameMap()));

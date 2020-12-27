@@ -205,16 +205,6 @@ enum AS_w          AS_tySize(Ty_ty ty);
 void               AS_printInstrList (FILE *out, AS_instrList iList);
 void               AS_printInstrSet  (FILE *out, AS_instrSet  is   );
 
-typedef struct AS_proc_ *AS_proc;
-struct AS_proc_
-{
-  string       prolog;
-  AS_instrList body;
-  string       epilog;
-};
-
-AS_proc AS_Proc(string prolog, AS_instrList body, string epilog);
-
-void AS_assemble (AS_proc proc);
+void               AS_assemble (AS_instrList proc);
 
 #endif

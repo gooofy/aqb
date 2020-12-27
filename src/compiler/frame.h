@@ -126,7 +126,7 @@ F_frame       F_newFrame(Temp_label name, Ty_formal formals);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);
 
-AS_proc       F_procEntryExitAS(F_frame frame, AS_instrList body);
+void          F_procEntryExitAS(F_frame frame, AS_instrList body);
 
 // RAL: register association list
 typedef struct F_ral_ *F_ral;
