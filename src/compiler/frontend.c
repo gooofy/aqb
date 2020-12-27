@@ -3943,7 +3943,8 @@ static void stmtProcEnd_(void)
     FE_SLE sle  = g_sleStack;
     slePop();
 
-    Tr_procEntryExit(sle->lv,
+    Tr_procEntryExit(sle->pos,
+                     sle->lv,
                      Tr_seqExp(sle->expList),
                      Tr_formals(sle->lv),
                      sle->returnVar,
@@ -7026,7 +7027,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
 
     Tr_exp prog = Tr_seqExp(g_prog);
 
-    Tr_procEntryExit(lv, prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+    Tr_procEntryExit (0, lv, prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
 
     return Tr_getResult();
 }

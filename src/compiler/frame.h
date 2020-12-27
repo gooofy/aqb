@@ -35,7 +35,7 @@ struct F_frag_
     union
     {
         struct {Temp_label label; string str;} stringg;
-        struct {Temp_label label; bool expt; T_stm body; F_frame frame;} proc;
+        struct {S_pos pos; Temp_label label; bool expt; T_stm body; F_frame frame;} proc;
         struct {Temp_label label; bool expt; int size; F_dataFragNode init; F_dataFragNode initLast;} data;
     } u;
 };
@@ -51,7 +51,7 @@ struct F_dataFragNode_
 };
 
 F_frag F_StringFrag(Temp_label label, string str);
-F_frag F_ProcFrag  (Temp_label label, bool expt, T_stm body, F_frame frame);
+F_frag F_ProcFrag  (S_pos pos, Temp_label label, bool expt, T_stm body, F_frame frame);
 F_frag F_DataFrag  (Temp_label label, bool expt, int size);
 
 void   F_dataFragAddConst (F_frag dataFrag, Ty_const c);
@@ -127,7 +127,7 @@ F_frame       F_newFrame(Temp_label name, Ty_formal formals);
 string        F_string(Temp_label lab, string str);
 F_frag        F_newProcFrag(T_stm body, F_frame frame);
 
-void          F_procEntryExitAS(F_frame frame, AS_instrList body);
+void          F_procEntryExitAS (S_pos pos_start, F_frame frame, AS_instrList body);
 
 // RAL: register association list
 typedef struct F_ral_ *F_ral;

@@ -272,11 +272,12 @@ void F_dataFragAddLabel (F_frag dataFrag, Temp_label label)
         dataFrag->u.data.initLast = dataFrag->u.data.init = f;
 }
 
-F_frag F_ProcFrag(Temp_label label, bool expt, T_stm body, F_frame frame)
+F_frag F_ProcFrag (S_pos pos, Temp_label label, bool expt, T_stm body, F_frame frame)
 {
     F_frag f = checked_malloc(sizeof(*f));
 
     f->kind         = F_procFrag;
+    f->u.proc.pos   = pos;
     f->u.proc.label = label;
     f->u.proc.expt  = expt;
     f->u.proc.body  = body;
@@ -300,7 +301,7 @@ F_fragList F_FragList(F_frag head, F_fragList tail)
     return l;
 }
 
-void F_procEntryExitAS(F_frame frame, AS_instrList body)
+void F_procEntryExitAS (S_pos pos_start, F_frame frame, AS_instrList body)
 {
     int          frame_size  = -frame->locals_offset;
     Temp_tempSet calleesaves = F_calleesaves();
@@ -310,7 +311,6 @@ void F_procEntryExitAS(F_frame frame, AS_instrList body)
     if (frame_size > 32767)
         EM_error(0, "Sorry, frame size is too large.");     // FIXME
 
-    int pos_start = body->first ? body->first->instr->pos : 0;
     int pos_end   = body->last  ? body->last->instr->pos : 0;
 
     // determine clobbered registers

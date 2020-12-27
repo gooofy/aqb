@@ -48,12 +48,15 @@ extern struct DOSBase       *DOSBase;
 #include "options.h"
 #include "env.h"
 
-#define VERSION "0.5.0"
+#define VERSION "0.6.0"
 
-/* print the assembly language instructions to filename.s */
-static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm body)
+static void doProc(FILE *out, F_frag frag)
 {
-    T_stmList stmList;
+    Temp_label   label   = frag->u.proc.label;
+    bool         expt    = frag->u.proc.expt;
+    F_frame      frame   = frag->u.proc.frame;
+    T_stm        body    = frag->u.proc.body;
+    T_stmList    stmList;
     AS_instrList iList;
 
     if (OPT_get(OPTION_VERBOSE))
@@ -104,7 +107,7 @@ static void doProc(FILE *out, Temp_label label, bool expt, F_frame frame, T_stm 
         exit(24);
     }
 
-    F_procEntryExitAS(frame, iList);
+    F_procEntryExitAS(frag->u.proc.pos, frame, iList);
 
     if (OPT_get(OPTION_VERBOSE))
     {
@@ -511,7 +514,7 @@ int main (int argc, char *argv[])
     {
         if (fl->head->kind == F_procFrag)
         {
-            doProc(out, fl->head->u.proc.label, fl->head->u.proc.expt, fl->head->u.proc.frame, fl->head->u.proc.body);
+            doProc(out, fl->head);
         }
     }
 
