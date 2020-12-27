@@ -310,24 +310,27 @@ AS_proc F_procEntryExitAS(F_frame frame, AS_instrList body)
     if (frame_size > 32767)
         EM_error(0, "Sorry, frame size is too large.");     // FIXME
 
+    int pos_start = body->first ? body->first->instr->pos : 0;
+    int pos_end   = body->last  ? body->last->instr->pos : 0;
+
     // save registers
     // FIXME: use movem, check for registers that were actually clobbered
     for (Temp_tempSet tn=calleesaves; tn; tn=tn->tail)
-        AS_instrListPrepend (body, AS_Instr (AS_MOVE_AnDn_PDsp, AS_w_L, tn->temp, NULL));                  //      move.l tn->temp, -(sp)
+        AS_instrListPrepend (body, AS_Instr (pos_start, AS_MOVE_AnDn_PDsp, AS_w_L, tn->temp, NULL));       //      move.l tn->temp, -(sp)
 
-    AS_instrListPrepend (body, AS_InstrEx(AS_LINK_fp, AS_w_NONE, NULL, NULL,                               //      link fp, #-frameSize
-                                          Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
-    AS_instrListPrepend (body, AS_InstrEx(AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name));            // label:
+    AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, AS_w_NONE, NULL, NULL,                   //      link fp, #-frameSize
+                                           Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
+    AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name));// label:
 
     // exit code
 
     // restore registers
     // FIXME: use movem, check for registers that were actually clobbered
     for (Temp_tempSet tn=calleesaves; tn; tn=tn->tail)
-        AS_instrListAppend (body, AS_Instr (AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp));                   //      move.l (sp)+, tn->temp
+        AS_instrListAppend (body, AS_Instr (pos_end, AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp));          //      move.l (sp)+, tn->temp
 
-    AS_instrListAppend (body, AS_Instr (AS_UNLK_fp, AS_w_NONE, NULL, NULL));                               //      unlk fp
-    AS_instrListAppend (body, AS_Instr (AS_RTS, AS_w_NONE, NULL, NULL));                                   //      rts
+    AS_instrListAppend (body, AS_Instr (pos_end, AS_UNLK_fp, AS_w_NONE, NULL, NULL));                      //      unlk fp
+    AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, AS_w_NONE, NULL, NULL));                          //      rts
 
     return AS_Proc(strprintf("# PROCEDURE %s\n", S_name(frame->name)), body, "# END\n");
 }

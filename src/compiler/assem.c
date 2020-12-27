@@ -114,7 +114,7 @@ bool AS_verifyInstr (AS_instr instr)
     return TRUE;
 }
 
-AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
+AS_instr AS_Instr (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -129,12 +129,14 @@ AS_instr AS_Instr (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
     p->def    = NULL;
     p->use    = NULL;
 
+    p->pos    = pos;
+
     assert (AS_verifyInstr (p));
 
     return p;
 }
 
-AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label)
+AS_instr AS_InstrEx (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -149,12 +151,14 @@ AS_instr AS_InstrEx (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, T
     p->def    = NULL;
     p->use    = NULL;
 
+    p->pos    = pos;
+
     assert (AS_verifyInstr (p));
 
     return p;
 }
 
-AS_instr AS_InstrEx2 (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use)
+AS_instr AS_InstrEx2 (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -168,6 +172,8 @@ AS_instr AS_InstrEx2 (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, 
 
     p->def    = def;
     p->use    = use;
+
+    p->pos    = pos;
 
     assert (AS_verifyInstr (p));
 
@@ -650,10 +656,23 @@ void AS_sprint(string str, AS_instr i)
 
 void AS_printInstrList (FILE *out, AS_instrList iList)
 {
+    int line = 0;
     for (AS_instrListNode an = iList->first; an; an=an->next)
     {
+        AS_instr instr = an->instr;
+        int l = S_getline(instr->pos);
+        if (l != line)
+        {
+#ifdef S_KEEP_SOURCE
+            fprintf (out, "\n    /* L%05d %s */\n", l, S_getSourceLine(l));
+#else
+            fprintf (out, "\n    /* L%05d */\n", l);
+#endif
+            line = l;
+        }
+
         char buf[255];
-        AS_sprint(buf, an->instr);
+        AS_sprint(buf, instr);
         fprintf(out, "%s\n", buf);
     }
 }

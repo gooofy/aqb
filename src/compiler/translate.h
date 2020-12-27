@@ -41,7 +41,7 @@ Tr_access     Tr_externalVar(string name, Ty_ty ty);
 Temp_label    Tr_getLabel(Tr_level level);
 bool          Tr_isStatic(Tr_level level);
 
-void          Tr_procEntryExit (S_pos pos, Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt);
+void          Tr_procEntryExit (Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt);
 
 F_fragList    Tr_getResult(void);
 

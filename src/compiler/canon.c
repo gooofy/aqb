@@ -209,7 +209,7 @@ static C_stmListList StmListList(T_stmList head, C_stmListList tail)
 static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
 {
     if (!stms)
-        return next(prevstms, T_StmList(T_Jump(0, done), NULL), done);
+        return next(prevstms, T_StmList(T_Jump(prevstms->head->pos, done), NULL), done);    // FIXME: pos?
     if (stms->head->kind == T_JUMP || stms->head->kind == T_CJUMP)
 	{
         C_stmListList stmLists;
@@ -221,7 +221,7 @@ static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
     else if (stms->head->kind == T_LABEL)
 	{
         Temp_label lab = stms->head->u.LABEL;
-        return next(prevstms, T_StmList(T_Jump(0, lab), stms), done);
+        return next(prevstms, T_StmList(T_Jump(stms->head->pos, lab), stms), done); // FIXME: pos?
     }
     else
 	{
@@ -239,13 +239,13 @@ static C_stmListList mkBlocks(T_stmList stms, Temp_label done)
     }
     if (stms->head->kind != T_LABEL)
     {
-        return mkBlocks(T_StmList(T_Label(0, Temp_newlabel()), stms), done);
+        return mkBlocks(T_StmList(T_Label(stms->head->pos, Temp_newlabel()), stms), done);
     }
     /* else there already is a label */
     return StmListList(stms, next(stms, stms->tail, done));
 }
 
-/* 
+/*
    basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
    From a list of cleaned trees, produce a list of
    basic blocks satisfying the following properties:
@@ -309,7 +309,7 @@ static void trace(T_stmList list)
             if (!nextSL)
             {
                 // last one -> finish up
-                nextSL = T_StmList(T_Label(0, global_block.label), NULL);
+                nextSL = T_StmList(T_Label(s->pos, global_block.label), NULL);  // FIXME: pos?
                 if (s->u.JUMP == global_block.label)
                     last->tail = nextSL;       /* merge the 2 lists removing JUMP stm */
                 else

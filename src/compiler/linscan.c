@@ -652,7 +652,7 @@ bool LS_regalloc(F_frame f, AS_instrList il)
                     F_access acc = TAB_look (g_spilledLocals, inst->src);
                     assert(acc);
                     Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? F_regs[F_TEMP_A0] : F_regs[F_TEMP_D0];
-                    spilled_src_move = AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(inst->src)),             // move.x localOffset(FP), r
+                    spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(inst->src)),    // move.x localOffset(FP), r
                                                   NULL, r, 0, F_accessOffset(acc), NULL);
                     AS_instrListInsertBefore (il, an, spilled_src_move);
                     inst->src = r;
@@ -670,7 +670,7 @@ bool LS_regalloc(F_frame f, AS_instrList il)
                     F_access acc = TAB_look (g_spilledLocals, inst->dst);
                     assert(acc);
                     Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? F_regs[F_TEMP_A1] : F_regs[F_TEMP_D1];
-                    spilled_dst_move = AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(inst->dst)),             // move.x r, localOffset(FP)
+                    spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(inst->dst)),    // move.x r, localOffset(FP)
                                                   r, NULL, 0, F_accessOffset(acc), NULL);
                     AS_instrListInsertAfter (il, an, spilled_dst_move);
                     inst->dst = r;

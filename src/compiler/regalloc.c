@@ -121,7 +121,7 @@ static bool RA_color (F_frame f, AS_instrList il)
             {
                 F_access local = (F_access)TAB_look(spilledLocal, useSpilled);
                 AS_instrListInsertBefore (il, an,                                                       // move.x localOffset(fp), useSpilled
-                                          AS_InstrEx(AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)),
+                                          AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)),
                                                      NULL, useSpilled, 0, F_accessOffset(local), NULL));
             }
 
@@ -129,7 +129,7 @@ static bool RA_color (F_frame f, AS_instrList il)
             {
                 F_access local = (F_access)TAB_look(spilledLocal, defSpilled);
                 AS_instrListInsertAfter (il, an,                                                        // move.x defSpilled, localOffset(FP)
-                                         AS_InstrEx(AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)),
+                                         AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)),
                                                     defSpilled, NULL, 0, F_accessOffset(local), NULL));
                 an = an->next;
             }

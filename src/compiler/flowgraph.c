@@ -215,7 +215,7 @@ FG_graph FG_AssemFlowGraph(AS_instrList il)
 	{
         // add a NOP node so the label points to something
 
-        AS_instr nop = AS_Instr (AS_NOP, AS_w_NONE, NULL, NULL);
+        AS_instr nop = AS_Instr (last_inst->pos, AS_NOP, AS_w_NONE, NULL, NULL);
 		FG_node n = FG_Node(g, nop);
 		nl = FG_NodeList(n, nl);
 		ll = Temp_LabelList(last_inst->label, ll);

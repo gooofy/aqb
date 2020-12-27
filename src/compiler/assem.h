@@ -5,6 +5,8 @@
 #ifndef ASSEM_H
 #define ASSEM_H
 
+#include "scanner.h"
+
 enum AS_mn
 {                       //     Example
     AS_LABEL,           //   0 label:
@@ -121,11 +123,12 @@ struct AS_instr_
     short          offset;
 
     Temp_tempSet   def, use; // optional, used in flowgraph.c
+    S_pos          pos;      // source code reference
 };
 
-AS_instr AS_Instr       (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst);
-AS_instr AS_InstrEx     (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label);
-AS_instr AS_InstrEx2    (enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
+AS_instr AS_Instr       (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst);
+AS_instr AS_InstrEx     (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label);
+AS_instr AS_InstrEx2    (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
 
 void     AS_sprint      (string str, AS_instr i);
 

@@ -398,7 +398,7 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(S_pos pos, Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt)
+void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt)
 {
     T_stm stm = unNx(body);
 
@@ -412,20 +412,20 @@ void Tr_procEntryExit(S_pos pos, Tr_level level, Tr_exp body, Tr_accessList form
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 
-            stm = T_Seq(pos, T_Exp(pos, T_CallF(pos, init_proc, /*args=*/NULL)), stm);
+            stm = T_Seq(stm->pos, T_Exp(stm->pos, T_CallF(stm->pos, init_proc, /*args=*/NULL)), stm);
         }
     }
 
     if (exitlbl)
-        stm = T_Seq(pos, stm, T_Label(pos, exitlbl));
+        stm = T_Seq(stm->pos, stm, T_Label(stm->pos, exitlbl));
 
     if (returnVar)
     {
-        T_exp ret_exp = unEx(pos, returnVar);
+        T_exp ret_exp = unEx(stm->pos, returnVar);
         Ty_ty ty_ret = Tr_ty(returnVar);
-        stm = T_Seq(pos, T_Move(pos, ret_exp, unEx(pos, Tr_zeroExp(pos, ty_ret)),  ty_ret),
-                T_Seq(pos, stm,
-                  T_Move(pos, T_Temp(pos, F_RV(), ty_ret), ret_exp, ty_ret)));
+        stm = T_Seq(stm->pos, T_Move(stm->pos, ret_exp, unEx(stm->pos, Tr_zeroExp(stm->pos, ty_ret)),  ty_ret),
+                T_Seq(stm->pos, stm,
+                  T_Move(stm->pos, T_Temp(stm->pos, F_RV(), ty_ret), ret_exp, ty_ret)));
     }
 
     F_frag frag = F_ProcFrag(level->name, expt, stm, level->frame);
