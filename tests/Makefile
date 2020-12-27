@@ -5,7 +5,7 @@ AQBFLAGS_OPT = -O -L ../src/lib -d _brt
 
 SRCS = cond1.bas cond3.bas cond4.bas	\
 	const1.bas const2.bas const3.bas constprop.bas \
-	ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas ctrl7.bas \
+	ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas ctrl7.bas ctrl8.bas \
 	dynmem1.bas \
 	exp1.bas exp2.bas \
 	extcall2.bas \

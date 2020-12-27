@@ -75,37 +75,40 @@ enum AS_mn
     AS_MOVE_Imm_Label,  //  50 move.x  #42, label
     AS_MOVE_fp_AnDn,    //  51 move.x  a5, d0
 
-    AS_MULS_Dn_Dn,      //  52 muls.x  d1, d2
-    AS_MULS_Imm_Dn,     //  53 muls.x  #42, d2
-    AS_MULU_Dn_Dn,      //  54 mulu.x  d1, d2
-    AS_MULU_Imm_Dn,     //  55 mulu.x  #42, d2
+    AS_MOVEM_Rs_PDsp,   //  52 movem.x a2-a5,-(sp)
+    AS_MOVEM_spPI_Rs,   //  53 movem.x (sp)+, a2-a5
 
-    AS_NEG_Dn,          //  56 neg.x   d0
+    AS_MULS_Dn_Dn,      //  54 muls.x  d1, d2
+    AS_MULS_Imm_Dn,     //  55 muls.x  #42, d2
+    AS_MULU_Dn_Dn,      //  56 mulu.x  d1, d2
+    AS_MULU_Imm_Dn,     //  57 mulu.x  #42, d2
 
-    AS_NOT_Dn,          //  57 not.x   d0
+    AS_NEG_Dn,          //  58 neg.x   d0
 
-    AS_NOP,             //  58 nop
+    AS_NOT_Dn,          //  59 not.x   d0
 
-    AS_OR_Dn_Dn,        //  59 or.x  d1, d2
-    AS_OR_Imm_Dn,       //  60 or.x  #42, d2
+    AS_NOP,             //  60 nop
 
-    AS_JMP,             //  61 jmp     label
-    AS_JSR_Label,       //  62 jsr     label
-    AS_JSR_An,          //  63 jsr     (a2)
-    AS_JSR_RAn,         //  64 jsr     -36(a6)
+    AS_OR_Dn_Dn,        //  61 or.x  d1, d2
+    AS_OR_Imm_Dn,       //  62 or.x  #42, d2
 
-    AS_RTS,             //  65 rts
+    AS_JMP,             //  63 jmp     label
+    AS_JSR_Label,       //  64 jsr     label
+    AS_JSR_An,          //  65 jsr     (a2)
+    AS_JSR_RAn,         //  66 jsr     -36(a6)
 
-    AS_SNE_Dn,          //  66 sne.b   d1
+    AS_RTS,             //  67 rts
 
-    AS_SUB_Dn_Dn,       //  67 sub.x   d1, d2
-    AS_SUB_Imm_Dn,      //  68 sub.x   #42, d2
+    AS_SNE_Dn,          //  68 sne.b   d1
 
-    AS_SWAP_Dn,         //  69 swap.x   d4
+    AS_SUB_Dn_Dn,       //  69 sub.x   d1, d2
+    AS_SUB_Imm_Dn,      //  70 sub.x   #42, d2
 
-    AS_TST_Dn,          //  70 tst.x   d0
+    AS_SWAP_Dn,         //  71 swap.x   d4
 
-    AS_UNLK_fp,         //  71 unlink  a5
+    AS_TST_Dn,          //  72 tst.x   d0
+
+    AS_UNLK_fp,         //  73 unlink  a5
 
     AS_NUM_INSTR
 };

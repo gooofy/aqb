@@ -65,6 +65,8 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_MOVE_Imm_Ofp,     FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Imm_Label,   FALSE, TRUE   , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_fp_AnDn,     FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVEM_Rs_PDsp,    FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVEM_spPI_Rs,    FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MULS_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_MULS_Imm_Dn,      FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_MULU_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
@@ -491,6 +493,25 @@ static void instrformat(string str, string strTmpl, AS_instr instr)
   	                pos += strlen(s);
   	                break;
                 }
+                case 'R':
+                {
+                    bool first=TRUE;
+                    for (int reg=0; reg<F_NUM_REGISTERS; reg++)
+                    {
+                        if (instr->offset & (1<<reg))
+                        {
+                            string rname = F_regName (reg);
+
+                            if (first)
+                                first = FALSE;
+                            else
+                                str[pos++] = '/';
+
+                            pos += sprintf(&str[pos], "%s", rname);
+                        }
+                    }
+                    break;
+                }
                 default:
                     assert(0);
             }
@@ -607,13 +628,17 @@ void AS_sprint(string str, AS_instr i)
         case AS_MOVE_AnDn_Label:
             instrformat(str, "    move`w    `s, `l", i);     break;
         case AS_MOVE_Imm_Label:
-            instrformat(str, "    move`w   #`i, `l", i);      break;
+            instrformat(str, "    move`w   #`i, `l", i);     break;
+        case AS_MOVEM_Rs_PDsp:
+            instrformat(str, "    movem`w `R, -(sp)", i);     break;
+        case AS_MOVEM_spPI_Rs:
+            instrformat(str, "    movem`w (sp)+, `R", i);     break;
         case AS_MULS_Dn_Dn:
-            instrformat(str, "    muls`w   `s, `d", i);     break;
+            instrformat(str, "    muls`w   `s, `d", i);      break;
         case AS_MULS_Imm_Dn:
             instrformat(str, "    muls`w   #`i, `d", i);     break;
         case AS_MULU_Dn_Dn:
-            instrformat(str, "    mulu`w   `s, `d", i);     break;
+            instrformat(str, "    mulu`w   `s, `d", i);      break;
         case AS_MULU_Imm_Dn:
             instrformat(str, "    mulu`w   #`i, `d", i);     break;
         case AS_NEG_Dn:

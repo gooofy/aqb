@@ -121,6 +121,7 @@ bool          F_isAn(Temp_temp reg);
 bool          F_isDn(Temp_temp reg);
 bool          F_isPrecolored (Temp_temp reg);
 Temp_temp     F_lookupReg(S_symbol sym);
+string        F_regName(int reg);
 
 F_frame       F_newFrame(Temp_label name, Ty_formal formals);
 string        F_string(Temp_label lab, string str);

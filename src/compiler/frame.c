@@ -380,22 +380,12 @@ static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
 static Temp_tempSet  g_callerSaves, g_calleeSaves;
 static S_scope       g_regScope;
 
+static string        g_regnames[F_NUM_REGISTERS] = { "a0", "a1", "a2", "a3", "a4", "a6", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7" };
+
 void F_initRegisters(void)
 {
-    F_regs[F_TEMP_A0] = Temp_NamedTemp ("a0", NULL);
-    F_regs[F_TEMP_A1] = Temp_NamedTemp ("a1", NULL);
-    F_regs[F_TEMP_A2] = Temp_NamedTemp ("a2", NULL);
-    F_regs[F_TEMP_A3] = Temp_NamedTemp ("a3", NULL);
-    F_regs[F_TEMP_A4] = Temp_NamedTemp ("a4", NULL);
-    F_regs[F_TEMP_A6] = Temp_NamedTemp ("a6", NULL);
-    F_regs[F_TEMP_D0] = Temp_NamedTemp ("d0", NULL);
-    F_regs[F_TEMP_D1] = Temp_NamedTemp ("d1", NULL);
-    F_regs[F_TEMP_D2] = Temp_NamedTemp ("d2", NULL);
-    F_regs[F_TEMP_D3] = Temp_NamedTemp ("d3", NULL);
-    F_regs[F_TEMP_D4] = Temp_NamedTemp ("d4", NULL);
-    F_regs[F_TEMP_D5] = Temp_NamedTemp ("d5", NULL);
-    F_regs[F_TEMP_D6] = Temp_NamedTemp ("d6", NULL);
-    F_regs[F_TEMP_D7] = Temp_NamedTemp ("d7", NULL);
+    for (int i=0; i<F_NUM_REGISTERS; i++)
+        F_regs[i] = Temp_NamedTemp (g_regnames[i], NULL);
 
     g_allRegs = NULL;
     g_dRegs   = NULL;
@@ -458,6 +448,11 @@ void F_initRegisters(void)
 Temp_temp F_lookupReg(S_symbol sym)
 {
     return (Temp_temp) S_look(g_regScope, sym);
+}
+
+string F_regName(int reg)
+{
+    return g_regnames[reg];
 }
 
 Temp_tempSet F_registers(void)

@@ -635,63 +635,93 @@ bool LS_regalloc(F_frame f, AS_instrList il)
         }
         else
         {
-            AS_instr spilled_src_move=NULL;
-            AS_instr spilled_dst_move=NULL;
+            if (inst->mn == AS_JSR_Label)
+            {
+                // save all registers in case this was a generic GOSUB
+                // (we cannot count on the callee saving registers in that case)
 
-            // apply register mapping
-            if (inst->src)
-            {
-                Temp_temp color = TAB_look (g_coloring, inst->src);
-                if (color)
+                if (inst->def != F_callersaves())
                 {
-                    inst->src = color;
-                }
-                else
-                {
-                    // spilled
-                    F_access acc = TAB_look (g_spilledLocals, inst->src);
-                    assert(acc);
-                    Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? F_regs[F_TEMP_A0] : F_regs[F_TEMP_D0];
-                    spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(inst->src)),    // move.x localOffset(FP), r
-                                                  NULL, r, 0, F_accessOffset(acc), NULL);
-                    AS_instrListInsertBefore (il, an, spilled_src_move);
-                    inst->src = r;
-                }
-            }
-            if (inst->dst)
-            {
-                Temp_temp color = TAB_look (g_coloring, inst->dst);
-                if (color)
-                {
-                    inst->dst = color;
-                }
-                else
-                {
-                    F_access acc = TAB_look (g_spilledLocals, inst->dst);
-                    assert(acc);
-                    Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? F_regs[F_TEMP_A1] : F_regs[F_TEMP_D1];
-                    spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(inst->dst)),    // move.x r, localOffset(FP)
-                                                  r, NULL, 0, F_accessOffset(acc), NULL);
-                    AS_instrListInsertAfter (il, an, spilled_dst_move);
-                    inst->dst = r;
+                    long regset = (1<<F_TEMP_A2) | (1<<F_TEMP_A3) | (1<<F_TEMP_D2) | (1<<F_TEMP_D3) | (1<<F_TEMP_D4) | (1<<F_TEMP_D5) | (1<<F_TEMP_D6);
+                    AS_instr rsave = AS_InstrEx(inst->pos, AS_MOVEM_Rs_PDsp, AS_w_L,         // movem.l   a2-a3/d2-d6,-(sp)
+                                                NULL, NULL, NULL, regset, NULL);
+                    AS_instrListInsertBefore (il, an, rsave);
+
+                    AS_instr rrestore = AS_InstrEx(inst->pos, AS_MOVEM_spPI_Rs, AS_w_L,      // movem.l   (sp)+, a2-a3/d2-d6
+                                                   NULL, NULL, NULL, regset, NULL);
+                    AS_instrListInsertAfter (il, an, rrestore);
                     an = an->next;
+#ifdef ENABLE_DEBUG
+                    char buf[256];
+                    AS_sprint(buf, rsave);
+                    printf("%s /* save regs before GOSUB */\n", buf);
+                    AS_sprint(buf, inst);
+                    printf("%s\n", buf);
+                    AS_sprint(buf, rrestore);
+                    printf("%s /* restore regs after GOSUB */\n", buf);
+#endif
                 }
             }
+            else
+            {
+                AS_instr spilled_src_move=NULL;
+                AS_instr spilled_dst_move=NULL;
+
+                // apply register mapping
+                if (inst->src)
+                {
+                    Temp_temp color = TAB_look (g_coloring, inst->src);
+                    if (color)
+                    {
+                        inst->src = color;
+                    }
+                    else
+                    {
+                        // spilled
+                        F_access acc = TAB_look (g_spilledLocals, inst->src);
+                        assert(acc);
+                        Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? F_regs[F_TEMP_A0] : F_regs[F_TEMP_D0];
+                        spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(inst->src)),    // move.x localOffset(FP), r
+                                                      NULL, r, 0, F_accessOffset(acc), NULL);
+                        AS_instrListInsertBefore (il, an, spilled_src_move);
+                        inst->src = r;
+                    }
+                }
+                if (inst->dst)
+                {
+                    Temp_temp color = TAB_look (g_coloring, inst->dst);
+                    if (color)
+                    {
+                        inst->dst = color;
+                    }
+                    else
+                    {
+                        F_access acc = TAB_look (g_spilledLocals, inst->dst);
+                        assert(acc);
+                        Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? F_regs[F_TEMP_A1] : F_regs[F_TEMP_D1];
+                        spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(inst->dst)),    // move.x r, localOffset(FP)
+                                                      r, NULL, 0, F_accessOffset(acc), NULL);
+                        AS_instrListInsertAfter (il, an, spilled_dst_move);
+                        inst->dst = r;
+                        an = an->next;
+                    }
+                }
 #ifdef ENABLE_DEBUG
-            char buf[256];
-            if (spilled_src_move)
-            {
-                AS_sprint(buf, spilled_src_move);
-                printf("%s /* spilled src */\n", buf);
-            }
-            AS_sprint(buf, inst);
-            printf("%s\n", buf);
-            if (spilled_dst_move)
-            {
-                AS_sprint(buf, spilled_dst_move);
-                printf("%s /* spilled dst */\n", buf);
-            }
+                char buf[256];
+                if (spilled_src_move)
+                {
+                    AS_sprint(buf, spilled_src_move);
+                    printf("%s /* spilled src */\n", buf);
+                }
+                AS_sprint(buf, inst);
+                printf("%s\n", buf);
+                if (spilled_dst_move)
+                {
+                    AS_sprint(buf, spilled_dst_move);
+                    printf("%s /* spilled dst */\n", buf);
+                }
 #endif
+            }
         }
         an = an->next;
     }
