@@ -313,22 +313,31 @@ void F_procEntryExitAS(F_frame frame, AS_instrList body)
     int pos_start = body->first ? body->first->instr->pos : 0;
     int pos_end   = body->last  ? body->last->instr->pos : 0;
 
-    // save registers
-    // FIXME: use movem, check for registers that were actually clobbered
-    for (Temp_tempSet tn=calleesaves; tn; tn=tn->tail)
-        AS_instrListPrepend (body, AS_Instr (pos_start, AS_MOVE_AnDn_PDsp, AS_w_L, tn->temp, NULL));       //      move.l tn->temp, -(sp)
+    // determine clobbered registers
+    int regs = 0;
+    for (AS_instrListNode n = body->first; n; n=n->next)
+    {
+        AS_instr instr = n->instr;
+        if (!instr->dst)
+            continue;
+        assert (F_isPrecolored(instr->dst));
+        if (!Temp_tempSetContains (calleesaves, instr->dst))
+            continue;
+        regs |= (1<<Temp_num(instr->dst));
+    }
 
+    if (regs)
+        AS_instrListPrepend (body, AS_InstrEx(pos_start, AS_MOVEM_Rs_PDsp, AS_w_L,                         //      movem.l   regs, -(sp)
+                                              NULL, NULL, NULL, regs, NULL));
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, AS_w_NONE, NULL, NULL,                   //      link fp, #-frameSize
                                            Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name));// label:
 
     // exit code
 
-    // restore registers
-    // FIXME: use movem, check for registers that were actually clobbered
-    for (Temp_tempSet tn=calleesaves; tn; tn=tn->tail)
-        AS_instrListAppend (body, AS_Instr (pos_end, AS_MOVE_spPI_AnDn, AS_w_L, NULL, tn->temp));          //      move.l (sp)+, tn->temp
-
+    if (regs)
+        AS_instrListAppend (body, AS_InstrEx(pos_end, AS_MOVEM_spPI_Rs, AS_w_L,                            //      movem.l   (sp)+, regs
+                                                       NULL, NULL, NULL, regs, NULL));
     AS_instrListAppend (body, AS_Instr (pos_end, AS_UNLK_fp, AS_w_NONE, NULL, NULL));                      //      unlk fp
     AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, AS_w_NONE, NULL, NULL));                          //      rts
 }
