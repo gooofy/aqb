@@ -31,6 +31,10 @@ static S_symbol      g_sym_rem;
 static char          g_cur_line[MAX_LINE_LEN];
 static int           g_cur_line_num;
 
+#ifdef S_KEEP_SOURCE
+static TAB_table     g_src;     // line number -> string
+#endif
+
 static void remember_pos(void)
 {
     g_pos = (g_col << 16) | g_line;
@@ -127,12 +131,18 @@ static void getch(void)
     if (n<1)
     {
         g_eof = TRUE;
+#ifdef S_KEEP_SOURCE
+        TAB_enter (g_src, (void *) (long) g_line, String(g_cur_line));
+#endif
     }
     else
     {
         if (g_ch == '\n')
         {
             g_eol = TRUE;
+#ifdef S_KEEP_SOURCE
+            TAB_enter (g_src, (void *) (long) g_line, String(g_cur_line));
+#endif
         }
         else
         {
@@ -637,6 +647,9 @@ S_tkn S_nextline(void)
 
 void S_init(FILE *fin)
 {
+#ifdef S_KEEP_SOURCE
+    g_src           = TAB_empty();
+#endif
     g_sym_rem = S_Symbol("REM", FALSE);
 
     g_fin           = fin;
@@ -651,3 +664,12 @@ void S_init(FILE *fin)
     getch();
 }
 
+#ifdef S_KEEP_SOURCE
+string  S_getSourceLine (int line)
+{
+    if (!line)
+        return "";
+    string s = TAB_look (g_src, (void*) (long) line);
+    return s ? s : "";
+}
+#endif

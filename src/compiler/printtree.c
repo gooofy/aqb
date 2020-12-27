@@ -100,7 +100,7 @@ void printExp(FILE *out, T_exp exp, int d)
             fprintf(out, "HEAP %s", S_name(exp->u.HEAP));
             break;
         case T_ESEQ:
-            fprintf(out, "ESEQ(\n"); 
+            fprintf(out, "ESEQ(\n");
             printStm(out, exp->u.ESEQ.stm,d+1);
             fprintf(out, ",");
             printExp(out, exp->u.ESEQ.exp,d+1); fprintf(out, ")");
@@ -173,9 +173,26 @@ void printExp(FILE *out, T_exp exp, int d)
     } /* end of switch */
 }
 
-void printStmList (FILE *out, T_stmList stmList) 
+void printStmList (FILE *out, T_stmList stmList)
 {
-  for (; stmList; stmList=stmList->tail) {
-    printStm(out, stmList->head,0); fprintf(out, "\n");
-  }
+    int line = 0;
+
+    for (; stmList; stmList=stmList->tail)
+    {
+        T_stm stm = stmList->head;
+
+        int l = S_getline(stm->pos);
+        if (l != line)
+        {
+#ifdef S_KEEP_SOURCE
+            fprintf (out, "\n // L%05d %s\n", l, S_getSourceLine(l));
+#else
+            fprintf (out, "\n // L%05d\n", l);
+#endif
+            line = l;
+        }
+
+        printStm(out, stmList->head, 0);
+        fprintf(out, "\n");
+    }
 }

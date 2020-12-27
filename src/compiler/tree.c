@@ -27,7 +27,7 @@ T_stmList T_StmList(T_stm head, T_stmList tail)
     return p;
 }
 
-T_stm T_Seq(T_stm left, T_stm right)
+T_stm T_Seq(S_pos pos, T_stm left, T_stm right)
 {
     assert(left);
     assert(right);
@@ -35,56 +35,62 @@ T_stm T_Seq(T_stm left, T_stm right)
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind        = T_SEQ;
+    p->pos         = pos;
     p->u.SEQ.left  = left;
     p->u.SEQ.right = right;
 
     return p;
 }
 
-T_stm T_Label(Temp_label label)
+T_stm T_Label(S_pos pos, Temp_label label)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind    = T_LABEL;
+    p->pos     = pos;
     p->u.LABEL = label;
 
     return p;
 }
 
-T_stm T_Jump(Temp_label label)
+T_stm T_Jump(S_pos pos, Temp_label label)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind   = T_JUMP;
+    p->pos    = pos;
     p->u.JUMP = label;
 
     return p;
 }
 
-T_stm T_Jsr(Temp_label label)
+T_stm T_Jsr(S_pos pos, Temp_label label)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind   = T_JSR;
+    p->pos    = pos;
     p->u.JUMP = label;
 
     return p;
 }
 
-T_stm T_Rts(void)
+T_stm T_Rts(S_pos pos)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind   = T_RTS;
+    p->pos    = pos;
 
     return p;
 }
 
-T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label lfalse)
+T_stm T_Cjump(S_pos pos, T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label lfalse)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind           = T_CJUMP;
+    p->pos            = pos;
     p->u.CJUMP.op     = op;
     p->u.CJUMP.left   = left;
     p->u.CJUMP.right  = right;
@@ -94,7 +100,7 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label ltrue, Temp_label 
     return p;
 }
 
-T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty)
+T_stm T_Move(S_pos pos, T_exp dst, T_exp src, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);
     assert( (dst->kind==T_MEM) || (dst->kind==T_TEMP) || (dst->kind==T_ESEQ) );
@@ -102,6 +108,7 @@ T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty)
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind       = T_MOVE;
+    p->pos        = pos;
     p->u.MOVE.dst = dst;
     p->u.MOVE.src = src;
     p->u.MOVE.ty  = ty;
@@ -113,31 +120,34 @@ T_stm T_Move(T_exp dst, T_exp src, Ty_ty ty)
     return p;
 }
 
-T_stm T_Nop(void)
+T_stm T_Nop(S_pos pos)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
-    p->kind         = T_NOP;
+    p->kind = T_NOP;
+    p->pos  = pos;
 
     return p;
 }
 
-T_stm T_Exp(T_exp exp)
+T_stm T_Exp(S_pos pos, T_exp exp)
 {
     T_stm p = (T_stm) checked_malloc(sizeof *p);
 
     p->kind  = T_EXP;
+    p->pos   = pos;
     p->u.EXP = exp;
 
     return p;
 }
 
-T_exp T_Binop(T_binOp op, T_exp left, T_exp right, Ty_ty ty)
+T_exp T_Binop(S_pos pos, T_binOp op, T_exp left, T_exp right, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind          = T_BINOP;
+    p->pos           = pos;
     p->ty            = ty;
     p->u.BINOP.op    = op;
     p->u.BINOP.left  = left;
@@ -146,56 +156,61 @@ T_exp T_Binop(T_binOp op, T_exp left, T_exp right, Ty_ty ty)
     return p;
 }
 
-T_exp T_Mem(T_exp exp, Ty_ty ty)
+T_exp T_Mem(S_pos pos, T_exp exp, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind      = T_MEM;
+    p->pos       = pos;
     p->ty        = ty;
     p->u.MEM.exp = exp;
 
     return p;
 }
 
-T_exp T_Temp(Temp_temp temp, Ty_ty ty)
+T_exp T_Temp(S_pos pos, Temp_temp temp, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind   = T_TEMP;
+    p->pos    = pos;
     p->ty     = ty;
     p->u.TEMP = temp;
 
     return p;
 }
 
-T_exp T_Heap(Temp_label heap_pos, Ty_ty ty)
+T_exp T_Heap(S_pos pos, Temp_label heap_pos, Ty_ty ty)
 {
     assert(ty->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind   = T_HEAP;
+    p->pos    = pos;
     p->ty     = ty;
     p->u.HEAP = heap_pos;
 
     return p;
 }
 
-T_exp T_FramePointer(void)
+T_exp T_FramePointer(S_pos pos)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
-    p->kind         = T_FP;
+    p->kind = T_FP;
+    p->pos  = pos;
 
     return p;
 }
 
-T_exp T_Eseq(T_stm s, T_exp e, Ty_ty ty)
+T_exp T_Eseq(S_pos pos, T_stm s, T_exp e, Ty_ty ty)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind       = T_ESEQ;
+    p->pos        = pos;
     p->ty         = ty;
     p->u.ESEQ.stm = s;
     p->u.ESEQ.exp = e;
@@ -203,22 +218,24 @@ T_exp T_Eseq(T_stm s, T_exp e, Ty_ty ty)
     return p;
 }
 
-T_exp T_Const(Ty_const c)
+T_exp T_Const(S_pos pos, Ty_const c)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind    = T_CONST;
+    p->pos     = pos;
     p->ty      = c->ty;
     p->u.CONSTR = c;
 
     return p;
 }
 
-T_exp T_CallF(Ty_proc proc, T_expList args)
+T_exp T_CallF(S_pos pos, Ty_proc proc, T_expList args)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind            = T_CALLF;
+    p->pos             = pos;
     p->ty              = proc->returnTy;
     p->u.CALLF.proc    = proc;
     p->u.CALLF.args    = args;
@@ -226,11 +243,12 @@ T_exp T_CallF(Ty_proc proc, T_expList args)
     return p;
 }
 
-T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_proc proc)
+T_exp T_CallFPtr(S_pos pos, T_exp fptr, T_expList args, Ty_proc proc)
 {
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind               = T_CALLFPTR;
+    p->pos                = pos;
     p->ty                 = proc->returnTy;
     p->u.CALLFPTR.fptr    = fptr;
     p->u.CALLFPTR.args    = args;
@@ -239,12 +257,13 @@ T_exp T_CallFPtr(T_exp fptr, T_expList args, Ty_proc proc)
     return p;
 }
 
-T_exp T_Cast(T_exp exp, Ty_ty ty_from, Ty_ty ty_to)
+T_exp T_Cast(S_pos pos, T_exp exp, Ty_ty ty_from, Ty_ty ty_to)
 {
     assert(ty_to->kind != Ty_void);
     T_exp p = (T_exp) checked_malloc(sizeof *p);
 
     p->kind           = T_CAST;
+    p->pos            = pos;
     p->ty             = ty_to;
     p->u.CAST.exp     = exp;
     p->u.CAST.ty_from = ty_from;
@@ -287,7 +306,7 @@ T_stm T_DeepCopyStm(T_stm stm)
     switch (stm->kind)
     {
         case T_SEQ:
-            return T_Seq(T_DeepCopyStm(stm->u.SEQ.left), T_DeepCopyStm(stm->u.SEQ.right));
+            return T_Seq(stm->pos, T_DeepCopyStm(stm->u.SEQ.left), T_DeepCopyStm(stm->u.SEQ.right));
 
         case T_LABEL:
         case T_JUMP:
@@ -308,11 +327,11 @@ T_exp T_DeepCopyExp(T_exp exp)
     switch (exp->kind)
     {
         case T_BINOP:
-            return T_Binop(exp->u.BINOP.op, T_DeepCopyExp(exp->u.BINOP.left),  T_DeepCopyExp(exp->u.BINOP.right), exp->ty);
+            return T_Binop(exp->pos, exp->u.BINOP.op, T_DeepCopyExp(exp->u.BINOP.left),  T_DeepCopyExp(exp->u.BINOP.right), exp->ty);
         case T_MEM:
-            return T_Mem(T_DeepCopyExp(exp->u.MEM.exp), exp->ty);
+            return T_Mem(exp->pos, T_DeepCopyExp(exp->u.MEM.exp), exp->ty);
         case T_HEAP:
-            return T_Heap(exp->u.HEAP, exp->ty);
+            return T_Heap(exp->pos, exp->u.HEAP, exp->ty);
         case T_ESEQ:
             assert(0);  // FIXME
             return NULL;
@@ -320,7 +339,7 @@ T_exp T_DeepCopyExp(T_exp exp)
             assert(0);  // FIXME
             return NULL;
         case T_CONST:
-            return T_Const(exp->u.CONSTR);
+            return T_Const(exp->pos, exp->u.CONSTR);
         case T_CALLF:
             assert(0);  // FIXME
             return NULL;
@@ -328,7 +347,7 @@ T_exp T_DeepCopyExp(T_exp exp)
             assert(0);  // FIXME
             return NULL;
         case T_FP:
-            return T_FramePointer();
+            return T_FramePointer(exp->pos);
         case T_CALLFPTR:
             assert(0);  // FIXME
             return NULL;

@@ -489,18 +489,18 @@ string F_getlabel(F_frame frame)
     return Temp_labelstring(frame->name);
 }
 
-T_exp F_Exp(F_access acc)
+T_exp F_Exp(S_pos pos, F_access acc)
 {
     Ty_ty ty = F_accessType(acc);
 
     switch (acc->kind)
     {
         case inReg:
-            return T_Temp(F_accessReg(acc), ty);
+            return T_Temp(pos, F_accessReg(acc), ty);
         case inFrame:
-            return T_Binop(T_plus, T_FramePointer(), T_Const(Ty_ConstInt(Ty_ULong(), F_accessOffset(acc))), Ty_VarPtr(FE_mod->name, ty));
+            return T_Binop(pos, T_plus, T_FramePointer(pos), T_Const(pos, Ty_ConstInt(Ty_ULong(), F_accessOffset(acc))), Ty_VarPtr(FE_mod->name, ty));
         case inHeap:
-            return T_Heap(acc->u.label, Ty_VarPtr(FE_mod->name, ty));
+            return T_Heap(pos, acc->u.label, Ty_VarPtr(FE_mod->name, ty));
     }
     assert(0);
     return NULL;

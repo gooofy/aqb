@@ -294,7 +294,7 @@ static Tr_exp Tr_Cx(patchList trues, patchList falses, T_stm stm)
     return e;
 }
 
-static T_exp unEx(Tr_exp e)
+static T_exp unEx(S_pos pos, Tr_exp e)
 {
     if (!e)
         return NULL;
@@ -310,16 +310,16 @@ static T_exp unEx(Tr_exp e)
             Temp_label t = Temp_newlabel(), f = Temp_newlabel();
             doPatch(e->u.cx.trues, t);
             doPatch(e->u.cx.falses, f);
-            return T_Eseq(T_Move(T_Temp(r, ty), T_Const(Ty_ConstBool(ty, TRUE)), ty),
-                    T_Eseq(e->u.cx.stm,
-                      T_Eseq(T_Label(f),
-                        T_Eseq(T_Move(T_Temp(r, ty), T_Const(Ty_ConstBool(ty, FALSE)), ty),
-                          T_Eseq(T_Label(t),
-                                  T_Temp(r, ty), ty), ty), ty), ty), ty);
+            return T_Eseq(pos, T_Move(pos, T_Temp(pos, r, ty), T_Const(pos, Ty_ConstBool(ty, TRUE)), ty),
+                    T_Eseq(pos, e->u.cx.stm,
+                      T_Eseq(pos, T_Label(pos, f),
+                        T_Eseq(pos, T_Move(pos, T_Temp(pos, r, ty), T_Const(pos, Ty_ConstBool(ty, FALSE)), ty),
+                          T_Eseq(pos, T_Label(pos, t),
+                                  T_Temp(pos, r, ty), ty), ty), ty), ty), ty);
         }
 
         case Tr_nx:
-            return T_Eseq(e->u.nx, T_Const(Ty_ConstInt(Ty_Integer(), 0)), Ty_Integer());
+            return T_Eseq(pos, e->u.nx, T_Const(pos, Ty_ConstInt(Ty_Integer(), 0)), Ty_Integer());
     }
     return NULL;
 }
@@ -329,7 +329,7 @@ static T_stm unNx(Tr_exp e)
     switch (e->kind)
     {
         case Tr_ex:
-            return T_Exp(e->u.ex);
+            return T_Exp(e->u.ex->pos, e->u.ex);
         case Tr_nx:
             return e->u.nx;
         case Tr_cx:
@@ -363,14 +363,14 @@ static struct Cx nullCx(void)
     return cx;
 }
 
-static struct Cx unCx(Tr_exp e)
+static struct Cx unCx(S_pos pos, Tr_exp e)
 {
     switch (e->kind)
     {
         case Tr_ex:
         {
-            T_exp te         = unEx(e);
-            T_stm s          = T_Cjump(T_ne, te, unEx(Tr_zeroExp(te->ty)), NULL, NULL);
+            T_exp te         = unEx(pos, e);
+            T_stm s          = T_Cjump(pos, T_ne, te, unEx(pos, Tr_zeroExp(pos, te->ty)), NULL, NULL);
             patchList trues  = PatchList(&s->u.CJUMP.ltrue, NULL);
             patchList falses = PatchList(&s->u.CJUMP.lfalse, NULL);
             Tr_exp cx        = Tr_Cx(trues, falses, s);
@@ -398,7 +398,7 @@ F_fragList Tr_getResult(void) {
   return fragList;
 }
 
-void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt)
+void Tr_procEntryExit(S_pos pos, Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp returnVar, Temp_label exitlbl, bool is_main, bool expt)
 {
     T_stm stm = unNx(body);
 
@@ -412,20 +412,20 @@ void Tr_procEntryExit(Tr_level level, Tr_exp body, Tr_accessList formals, Tr_exp
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 
-            stm = T_Seq(T_Exp(T_CallF(init_proc, /*args=*/NULL)), stm);
+            stm = T_Seq(pos, T_Exp(pos, T_CallF(pos, init_proc, /*args=*/NULL)), stm);
         }
     }
 
     if (exitlbl)
-        stm = T_Seq(stm, T_Label(exitlbl));
+        stm = T_Seq(pos, stm, T_Label(pos, exitlbl));
 
     if (returnVar)
     {
-        T_exp ret_exp = unEx(returnVar);
+        T_exp ret_exp = unEx(pos, returnVar);
         Ty_ty ty_ret = Tr_ty(returnVar);
-        stm = T_Seq(T_Move(ret_exp, unEx(Tr_zeroExp(ty_ret)),  ty_ret),
-                T_Seq(stm,
-                  T_Move(T_Temp(F_RV(), ty_ret), ret_exp, ty_ret)));
+        stm = T_Seq(pos, T_Move(pos, ret_exp, unEx(pos, Tr_zeroExp(pos, ty_ret)),  ty_ret),
+                T_Seq(pos, stm,
+                  T_Move(pos, T_Temp(pos, F_RV(), ty_ret), ret_exp, ty_ret)));
     }
 
     F_frag frag = F_ProcFrag(level->name, expt, stm, level->frame);
@@ -480,12 +480,12 @@ Temp_label Tr_heapLabel(Tr_exp var)
 
 /* Tree Expressions */
 
-Tr_exp Tr_zeroExp(Ty_ty ty)
+Tr_exp Tr_zeroExp(S_pos pos, Ty_ty ty)
 {
     switch (ty->kind)
     {
         case Ty_bool:
-            return Tr_Ex(T_Const(Ty_ConstBool(ty, FALSE)));
+            return Tr_Ex(T_Const(pos, Ty_ConstBool(ty, FALSE)));
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
@@ -496,33 +496,34 @@ Tr_exp Tr_zeroExp(Ty_ty ty)
         case Ty_string:
         case Ty_prc:
         case Ty_procPtr:
-            return Tr_Ex(T_Const(Ty_ConstInt(ty, 0)));
+            return Tr_Ex(T_Const(pos, Ty_ConstInt(ty, 0)));
         case Ty_single:
         case Ty_double:
-            return Tr_Ex(T_Const(Ty_ConstFloat(ty, 0.0)));
+            return Tr_Ex(T_Const(pos, Ty_ConstFloat(ty, 0.0)));
         default:
-            EM_error(0, "*** translate.c:Tr_zeroExp: internal error");
+            EM_error(pos, "*** translate.c: Tr_zeroExp: internal error");
             assert(0);
     }
 }
 
-Tr_exp Tr_oneExp(Ty_ty ty) {
+Tr_exp Tr_oneExp(S_pos pos, Ty_ty ty)
+{
     switch (ty->kind)
     {
         case Ty_bool:
-            return Tr_Ex(T_Const(Ty_ConstBool(ty, TRUE)));
+            return Tr_Ex(T_Const(pos, Ty_ConstBool(ty, TRUE)));
         case Ty_byte:
         case Ty_ubyte:
         case Ty_integer:
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
-            return Tr_Ex(T_Const(Ty_ConstInt(ty, 1)));
+            return Tr_Ex(T_Const(pos, Ty_ConstInt(ty, 1)));
         case Ty_single:
         case Ty_double:
-            return Tr_Ex(T_Const(Ty_ConstFloat(ty, 1.0)));
+            return Tr_Ex(T_Const(pos, Ty_ConstFloat(ty, 1.0)));
         default:
-            EM_error(0, "*** translate.c:Tr_oneExp: internal error");
+            EM_error (pos, "*** translate.c: Tr_oneExp: internal error");
             assert(0);
     }
 }
@@ -535,17 +536,17 @@ Tr_exp Tr_nullCx()
 }
 
 #endif
-Tr_exp Tr_nopNx()
+Tr_exp Tr_nopNx(S_pos pos)
 {
-    return Tr_Nx(T_Nop());
+    return Tr_Nx(T_Nop(pos));
 }
 
-Tr_exp Tr_boolExp(bool b, Ty_ty ty)
+Tr_exp Tr_boolExp(S_pos pos, bool b, Ty_ty ty)
 {
-    return Tr_Ex(T_Const(Ty_ConstBool(ty, b)));
+    return Tr_Ex(T_Const(pos, Ty_ConstBool(ty, b)));
 }
 
-Tr_exp Tr_intExp(int i, Ty_ty ty)
+Tr_exp Tr_intExp(S_pos pos, int i, Ty_ty ty)
 {
     if (!ty)
     {
@@ -565,12 +566,12 @@ Tr_exp Tr_intExp(int i, Ty_ty ty)
             ty = Ty_Long();
     }
 
-    return Tr_Ex(T_Const(Ty_ConstInt(ty, i)));
+    return Tr_Ex(T_Const(pos, Ty_ConstInt(ty, i)));
 }
 
-Tr_exp Tr_constExp(Ty_const c)
+Tr_exp Tr_constExp(S_pos pos, Ty_const c)
 {
-    return Tr_Ex(T_Const(c));
+    return Tr_Ex(T_Const(pos, c));
 }
 
 bool Tr_isConst(Tr_exp exp)
@@ -661,33 +662,33 @@ Ty_const Tr_getConst(Tr_exp exp)
     return exp->u.ex->u.CONSTR;
 }
 
-Tr_exp Tr_floatExp(double f, Ty_ty ty)
+Tr_exp Tr_floatExp(S_pos pos, double f, Ty_ty ty)
 {
     if (!ty)
         ty = Ty_Single();
-    return Tr_Ex(T_Const(Ty_ConstFloat(ty, f)));
+    return Tr_Ex(T_Const(pos, Ty_ConstFloat(ty, f)));
 }
 
-Tr_exp Tr_stringExp(string str)
+Tr_exp Tr_stringExp (S_pos pos, string str)
 {
     Temp_label strpos = Temp_newlabel();
     F_frag frag = F_StringFrag(strpos, str);
     fragList = F_FragList(frag, fragList);
 
-    return Tr_Ex(T_Heap(strpos, Ty_String()));
+    return Tr_Ex(T_Heap(pos, strpos, Ty_String()));
 }
 
-Tr_exp Tr_heapPtrExp(Temp_label label, Ty_ty ty)
+Tr_exp Tr_heapPtrExp(S_pos pos, Temp_label label, Ty_ty ty)
 {
-    return Tr_Ex(T_Heap(label, ty));
+    return Tr_Ex(T_Heap(pos, label, ty));
 }
 
-Tr_exp Tr_Var(Tr_access a)
+Tr_exp Tr_Var(S_pos pos, Tr_access a)
 {
-    return Tr_Ex(F_Exp(a->access));
+    return Tr_Ex(F_Exp(pos, a->access));
 }
 
-Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
+Tr_exp Tr_Index (S_pos pos, Tr_exp ape, Tr_exp idx)
 {
     Ty_ty t = Tr_ty(ape);
 
@@ -697,25 +698,29 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     if (t->u.pointer->kind == Ty_pointer)
     {
         Ty_ty et = at->u.pointer;
-        return Tr_binOpExp(T_plus,
-                          Tr_Deref(ape),
-                          Tr_binOpExp(T_mul,
-                                     idx,
-                                     Tr_intExp(Ty_size(et), Ty_Long()),
-                                     Ty_Long()),
-                          Ty_VarPtr(FE_mod->name, et));
+        return Tr_binOpExp(pos,
+                           T_plus,
+                           Tr_Deref(pos, ape),
+                           Tr_binOpExp(pos,
+                                       T_mul,
+                                       idx,
+                                       Tr_intExp(pos, Ty_size(et), Ty_Long()),
+                                       Ty_Long()),
+                           Ty_VarPtr(FE_mod->name, et));
     }
 
     if (t->u.pointer->kind == Ty_string)
     {
         Ty_ty et = Ty_UByte();
-        return Tr_binOpExp(T_plus,
-                          Tr_Deref(ape),
-                          Tr_binOpExp(T_mul,
-                                     idx,
-                                     Tr_intExp(Ty_size(et), Ty_Long()),
-                                     Ty_Long()),
-                          Ty_VarPtr(FE_mod->name, et));
+        return Tr_binOpExp(pos,
+                           T_plus,
+                           Tr_Deref(pos, ape),
+                           Tr_binOpExp(pos,
+                                       T_mul,
+                                       idx,
+                                       Tr_intExp(pos, Ty_size(et), Ty_Long()),
+                                       Ty_Long()),
+                           Ty_VarPtr(FE_mod->name, et));
     }
 
 
@@ -723,15 +728,18 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     {
         Ty_ty et = at->u.sarray.elementTy;
 
-        return Tr_binOpExp(T_plus,
+        return Tr_binOpExp(pos,
+                           T_plus,
                            ape,
-                           Tr_binOpExp(T_mul,
-                                      Tr_binOpExp(T_minus,
-                                                 idx,
-                                                 Tr_intExp(at->u.sarray.iStart, Ty_Long()),
-                                                 Ty_Long()),
-                                      Tr_intExp(Ty_size(et), Ty_Long()),
-                                      Ty_Long()),
+                           Tr_binOpExp(pos,
+                                       T_mul,
+                                       Tr_binOpExp(pos,
+                                                   T_minus,
+                                                   idx,
+                                                   Tr_intExp(pos, at->u.sarray.iStart, Ty_Long()),
+                                                   Ty_Long()),
+                                       Tr_intExp(pos, Ty_size(et), Ty_Long()),
+                                       Ty_Long()),
                            Ty_VarPtr(FE_mod->name, et));
     }
 
@@ -739,33 +747,34 @@ Tr_exp Tr_Index(Tr_exp ape, Tr_exp idx)
     return NULL;
 }
 
-Tr_exp Tr_Deref(Tr_exp ptr)
+Tr_exp Tr_Deref(S_pos pos, Tr_exp ptr)
 {
     Ty_ty t = Tr_ty(ptr);
     assert( (t->kind==Ty_varPtr) || (t->kind==Ty_pointer) );
-    return Tr_Ex(T_Mem(unEx(ptr), t->u.pointer));
+    return Tr_Ex(T_Mem(pos, unEx(pos, ptr), t->u.pointer));
 }
 
-Tr_exp Tr_MakeRef(Tr_exp v)
+Tr_exp Tr_MakeRef(S_pos pos, Tr_exp v)
 {
-    T_exp e = unEx(v);
+    T_exp e = unEx(pos, v);
     if (e->kind != T_MEM)
         return NULL;
 
     return Tr_Ex(e->u.MEM.exp);
 }
 
-Tr_exp Tr_Field(Tr_exp r, Ty_recordEntry f)
+Tr_exp Tr_Field(S_pos pos, Tr_exp r, Ty_recordEntry f)
 {
     assert (f->kind == Ty_recField);
     Ty_ty t = Tr_ty(r);
     assert(t->kind==Ty_varPtr || t->kind==Ty_pointer);
     assert(t->u.pointer->kind==Ty_record);
 
-    T_exp e = unEx(r);
-    return Tr_Ex(T_Binop(T_plus,
+    T_exp e = unEx(pos, r);
+    return Tr_Ex(T_Binop(pos,
+                         T_plus,
                          e,
-                         T_Const(Ty_ConstInt(Ty_ULong(), f->u.field.uiOffset)),
+                         T_Const(pos, Ty_ConstInt(Ty_ULong(), f->u.field.uiOffset)),
                          Ty_VarPtr(FE_mod->name, f->u.field.ty)));
 }
 
@@ -785,7 +794,7 @@ static int ipow(int base, int exp)
     return result;
 }
 
-Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
+Tr_exp Tr_binOpExp(S_pos pos, T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
 {
     // constant propagation
     if (Tr_isConst(left) && (!right || Tr_isConst(right)))
@@ -800,12 +809,12 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstBool(right);
                 switch (o)
                 {
-                    case T_xor   : return Tr_boolExp(a ^ b, ty);    break;
-                    case T_eqv   : return Tr_boolExp(a == b, ty);   break;
-                    case T_imp   : return Tr_boolExp(!a || b, ty);  break;
-                    case T_not   : return Tr_boolExp(!a, ty);       break;
-                    case T_and   : return Tr_boolExp(a && b, ty);   break;
-                    case T_or    : return Tr_boolExp(a || b, ty);   break;
+                    case T_xor   : return Tr_boolExp(pos, a ^ b, ty);    break;
+                    case T_eqv   : return Tr_boolExp(pos, a == b, ty);   break;
+                    case T_imp   : return Tr_boolExp(pos, !a || b, ty);  break;
+                    case T_not   : return Tr_boolExp(pos, !a, ty);       break;
+                    case T_and   : return Tr_boolExp(pos, a && b, ty);   break;
+                    case T_or    : return Tr_boolExp(pos, a || b, ty);   break;
                     default:
                         EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
@@ -825,24 +834,24 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstInt(right);
                 switch (o)
                 {
-                    case T_plus   : return Tr_intExp(a+b, ty);            break;
-                    case T_minus   : return Tr_intExp(a-b, ty);            break;
-                    case T_mul   : return Tr_intExp(a*b, ty);            break;
-                    case T_div   : return Tr_intExp(a/b, ty);            break;
-                    case T_xor   : return Tr_intExp(a^b, ty);            break;
-                    case T_eqv   : return Tr_intExp(~(a^b), ty);         break;
-                    case T_imp   : return Tr_intExp(~a|b, ty);           break;
-                    case T_neg   : return Tr_intExp(-a, ty);             break;
-                    case T_not   : return Tr_intExp(~a, ty);             break;
-                    case T_and   : return Tr_intExp(a&b, ty);            break;
-                    case T_or    : return Tr_intExp(a|b, ty);            break;
-                    case T_power   : return Tr_intExp(ipow (a, b), ty);    break;
-                    case T_intDiv: return Tr_intExp(a/b, ty);            break;
-                    case T_mod   : return Tr_intExp(a%b, ty);            break;
-                    case T_shl   : return Tr_intExp(a << b, ty);         break;
-                    case T_shr   : return Tr_intExp(a >> b, ty);         break;
+                    case T_plus  : return Tr_intExp(pos, a+b, ty);            break;
+                    case T_minus : return Tr_intExp(pos, a-b, ty);            break;
+                    case T_mul   : return Tr_intExp(pos, a*b, ty);            break;
+                    case T_div   : return Tr_intExp(pos, a/b, ty);            break;
+                    case T_xor   : return Tr_intExp(pos, a^b, ty);            break;
+                    case T_eqv   : return Tr_intExp(pos, ~(a^b), ty);         break;
+                    case T_imp   : return Tr_intExp(pos, ~a|b, ty);           break;
+                    case T_neg   : return Tr_intExp(pos, -a, ty);             break;
+                    case T_not   : return Tr_intExp(pos, ~a, ty);             break;
+                    case T_and   : return Tr_intExp(pos, a&b, ty);            break;
+                    case T_or    : return Tr_intExp(pos, a|b, ty);            break;
+                    case T_power : return Tr_intExp(pos, ipow (a, b), ty);    break;
+                    case T_intDiv: return Tr_intExp(pos, a/b, ty);            break;
+                    case T_mod   : return Tr_intExp(pos, a%b, ty);            break;
+                    case T_shl   : return Tr_intExp(pos, a << b, ty);         break;
+                    case T_shr   : return Tr_intExp(pos, a >> b, ty);         break;
                     default:
-                        EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
+                        EM_error(pos, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
                 }
                 break;
@@ -856,37 +865,37 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
                     b = Tr_getConstFloat(right);
                 switch (o)
                 {
-                    case T_plus   : return Tr_floatExp(a+b, ty);                              break;
-                    case T_minus   : return Tr_floatExp(a-b, ty);                              break;
-                    case T_mul   : return Tr_floatExp(a*b, ty);                              break;
-                    case T_div   : return Tr_floatExp(a/b, ty);                              break;
-                    case T_xor   : return Tr_floatExp((a!=0.0) % (b!=0.0), ty);              break;
-                    case T_eqv   : return Tr_floatExp(~((int)roundf(a)^(int)roundf(b)), ty); break;
-                    case T_imp   : return Tr_floatExp(~(int)roundf(a)|(int)roundf(b), ty);   break;
-                    case T_neg   : return Tr_floatExp(-a, ty);                               break;
-                    case T_not   : return Tr_floatExp(~(int)roundf(a), ty);                  break;
-                    case T_and   : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
-                    case T_or    : return Tr_floatExp((int)roundf(a)&(int)roundf(b), ty);    break;
-                    case T_power   : return Tr_floatExp(pow(a, b), ty);                        break;
-                    case T_intDiv: return Tr_floatExp((int)a/(int)b, ty);                    break;
-                    case T_mod   : return Tr_floatExp(fmod(a, b), ty);                       break;
-                    case T_shl   : return Tr_floatExp((int)a << (int)b, ty);                 break;
-                    case T_shr   : return Tr_floatExp((int)a >> (int)b, ty);                 break;
+                    case T_plus  : return Tr_floatExp(pos, a+b, ty);                              break;
+                    case T_minus : return Tr_floatExp(pos, a-b, ty);                              break;
+                    case T_mul   : return Tr_floatExp(pos, a*b, ty);                              break;
+                    case T_div   : return Tr_floatExp(pos, a/b, ty);                              break;
+                    case T_xor   : return Tr_floatExp(pos, (a!=0.0) % (b!=0.0), ty);              break;
+                    case T_eqv   : return Tr_floatExp(pos, ~((int)roundf(a)^(int)roundf(b)), ty); break;
+                    case T_imp   : return Tr_floatExp(pos, ~(int)roundf(a)|(int)roundf(b), ty);   break;
+                    case T_neg   : return Tr_floatExp(pos, -a, ty);                               break;
+                    case T_not   : return Tr_floatExp(pos, ~(int)roundf(a), ty);                  break;
+                    case T_and   : return Tr_floatExp(pos, (int)roundf(a)&(int)roundf(b), ty);    break;
+                    case T_or    : return Tr_floatExp(pos, (int)roundf(a)&(int)roundf(b), ty);    break;
+                    case T_power : return Tr_floatExp(pos, pow(a, b), ty);                        break;
+                    case T_intDiv: return Tr_floatExp(pos, (int)a/(int)b, ty);                    break;
+                    case T_mod   : return Tr_floatExp(pos, fmod(a, b), ty);                       break;
+                    case T_shl   : return Tr_floatExp(pos, (int)a << (int)b, ty);                 break;
+                    case T_shr   : return Tr_floatExp(pos, (int)a >> (int)b, ty);                 break;
                     default:
-                        EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
+                        EM_error(pos, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
                 }
                 break;
             }
             default:
-                EM_error(0, "*** translate.c: Tr_binOpExp: internal error: unknown type kind %d", ty->kind);
+                EM_error(pos, "*** translate.c: Tr_binOpExp: internal error: unknown type kind %d", ty->kind);
                 assert(0);
         }
     }
 
     if ( left->kind == Tr_cx || ( right && (right->kind == Tr_cx)) )
     {
-        struct Cx leftcx = unCx(left);
+        struct Cx leftcx = unCx(pos, left);
 
         switch (o)
         {
@@ -897,10 +906,10 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
             case T_or:
             {
                 Temp_label z = Temp_newlabel();
-                struct Cx rightcx = unCx(right);
+                struct Cx rightcx = unCx(pos, right);
 
-                T_stm s1 = T_Seq(leftcx.stm,
-                            T_Seq(T_Label(z),
+                T_stm s1 = T_Seq(pos, leftcx.stm,
+                            T_Seq(pos, T_Label(pos, z),
                              rightcx.stm));
                 doPatch(leftcx.falses, z);
                 return Tr_Cx(joinPatch(leftcx.trues, rightcx.trues), rightcx.falses, s1);
@@ -909,10 +918,10 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
             case T_and:
             {
                 Temp_label z = Temp_newlabel();
-                struct Cx rightcx = unCx(right);
+                struct Cx rightcx = unCx(pos, right);
 
-                T_stm s1 = T_Seq(leftcx.stm,
-                            T_Seq(T_Label(z),
+                T_stm s1 = T_Seq(pos, leftcx.stm,
+                            T_Seq(pos, T_Label(pos, z),
                              rightcx.stm));
                 doPatch(leftcx.trues, z);
                 return Tr_Cx(rightcx.trues, joinPatch(leftcx.falses, rightcx.falses), s1);
@@ -930,9 +939,9 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
 
             // x + 0 == x
             if (Tr_isConst(left) && (Tr_getConstInt(left)==0))
-                return Tr_castExp(right, Tr_ty(right), ty);
+                return Tr_castExp(pos, right, Tr_ty(right), ty);
             if (Tr_isConst(right) && (Tr_getConstInt(right)==0))
-                return Tr_castExp(left, Tr_ty(left), ty);
+                return Tr_castExp(pos, left, Tr_ty(left), ty);
 
             op = T_plus;
             break;
@@ -952,27 +961,27 @@ Tr_exp Tr_binOpExp(T_binOp o, Tr_exp left, Tr_exp right, Ty_ty ty)
         case T_shl   : op = T_shl;      break;
         case T_shr   : op = T_shr;      break;
         default:
-            EM_error(0, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
+            EM_error(pos, "*** translate.c: internal error: unhandled arithmetic operation: %d", o);
             assert(0);
     }
 
-    return Tr_Ex(T_Binop(op, unEx(left), unEx(right), ty));
+    return Tr_Ex(T_Binop(pos, op, unEx(pos, left), unEx(pos, right), ty));
 }
 
-Tr_exp Tr_relOpExp(T_relOp op, Tr_exp left, Tr_exp right)
+Tr_exp Tr_relOpExp(S_pos pos, T_relOp op, Tr_exp left, Tr_exp right)
 {
-    T_stm s = T_Cjump(op, unEx(left), unEx(right), NULL, NULL);
+    T_stm s = T_Cjump(pos, op, unEx(pos, left), unEx(pos, right), NULL, NULL);
     patchList trues = PatchList(&s->u.CJUMP.ltrue, NULL);
     patchList falses = PatchList(&s->u.CJUMP.lfalse, NULL);
     return Tr_Cx(trues, falses, s);
 }
 
-Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp)
+Tr_exp Tr_assignExp(S_pos pos, Tr_exp var, Tr_exp exp)
 {
-    return Tr_Nx(T_Move(unEx(var), unEx(exp), Tr_ty(var)));
+    return Tr_Nx(T_Move(pos, unEx(pos, var), unEx(pos, exp), Tr_ty(var)));
 }
 
-Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee)
+Tr_exp Tr_ifExp(S_pos pos, Tr_exp test, Tr_exp then, Tr_exp elsee)
 {
     Temp_label t = Temp_newlabel();
     Temp_label f = Temp_newlabel();
@@ -981,45 +990,45 @@ Tr_exp Tr_ifExp(Tr_exp test, Tr_exp then, Tr_exp elsee)
     /* convert test to cx */
     if (test->kind == Tr_ex)
     {
-        struct Cx testcx = unCx(test);
+        struct Cx testcx = unCx(pos, test);
         test = Tr_Cx(testcx.trues, testcx.falses, testcx.stm);
     }
     else if (test->kind == Tr_nx)
     {
-        EM_error(0, "if test exp cannot be nx");
+        EM_error(pos, "if test exp cannot be nx");
     }
 
     doPatch(test->u.cx.trues, t);
     doPatch(test->u.cx.falses, f);
 
-    T_stm s = T_Seq(unCx(test).stm,
-                T_Seq(T_Label(t),
-                  T_Seq(unNx(then),
-                    T_Seq(T_Jump(m),
-                      T_Seq(T_Label(f),
-                        T_Seq(unNx(elsee),
-                          T_Label(m)))))));
+    T_stm s = T_Seq(pos, unCx(pos, test).stm,
+                T_Seq(pos, T_Label(pos, t),
+                  T_Seq(pos, unNx(then),
+                    T_Seq(pos, T_Jump(pos, m),
+                      T_Seq(pos, T_Label(pos, f),
+                        T_Seq(pos, unNx(elsee),
+                          T_Label(pos, m)))))));
 
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_whileExp(Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
+Tr_exp Tr_whileExp(S_pos pos, Tr_exp exp, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
     Temp_label test      = contlbl;
     Temp_label done      = exitlbl;
     Temp_label loopstart = Temp_newlabel();
 
-    T_stm s = T_Seq(T_Label(test),
-                T_Seq(T_Cjump(T_ne, unEx(exp), unEx(Tr_zeroExp(Ty_Bool())), loopstart, done),
-                  T_Seq(T_Label(loopstart),
-                    T_Seq(unNx(body),
-                      T_Seq(T_Jump(test),
-                        T_Label(done))))));
+    T_stm s = T_Seq(pos, T_Label(pos, test),
+                T_Seq(pos, T_Cjump(pos, T_ne, unEx(pos, exp), unEx(pos, Tr_zeroExp(pos, Ty_Bool())), loopstart, done),
+                  T_Seq(pos, T_Label(pos, loopstart),
+                    T_Seq(pos, unNx(body),
+                      T_Seq(pos, T_Jump(pos, test),
+                        T_Label(pos, done))))));
 
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_doExp(Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
+Tr_exp Tr_doExp(S_pos pos, Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
     T_stm s = NULL;
 
@@ -1027,44 +1036,44 @@ Tr_exp Tr_doExp(Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body,
     {
         Temp_label bodylbl = Temp_newlabel();
         if (whileExp)
-            s = T_Seq(T_Label(contlbl),
-                  T_Seq(T_Cjump(T_ne, unEx(whileExp), unEx(Tr_zeroExp(Ty_Bool())), bodylbl, exitlbl),
-                    T_Seq(T_Label(bodylbl),
-                      T_Seq(unNx(body),
-                        T_Seq(T_Jump(contlbl),
-                          T_Label(exitlbl))))));
+            s = T_Seq(pos, T_Label(pos, contlbl),
+                  T_Seq(pos, T_Cjump(pos, T_ne, unEx(pos, whileExp), unEx(pos, Tr_zeroExp(pos, Ty_Bool())), bodylbl, exitlbl),
+                    T_Seq(pos, T_Label(pos, bodylbl),
+                      T_Seq(pos, unNx(body),
+                        T_Seq(pos, T_Jump(pos, contlbl),
+                          T_Label(pos, exitlbl))))));
         else
-            s = T_Seq(T_Label(contlbl),
-                  T_Seq(T_Cjump(T_ne, unEx(untilExp), unEx(Tr_zeroExp(Ty_Bool())), exitlbl, bodylbl),
-                    T_Seq(T_Label(bodylbl),
-                      T_Seq(unNx(body),
-                        T_Seq(T_Jump(contlbl),
-                          T_Label(exitlbl))))));
+            s = T_Seq(pos, T_Label(pos, contlbl),
+                  T_Seq(pos, T_Cjump(pos, T_ne, unEx(pos, untilExp), unEx(pos, Tr_zeroExp(pos, Ty_Bool())), exitlbl, bodylbl),
+                    T_Seq(pos, T_Label(pos, bodylbl),
+                      T_Seq(pos, unNx(body),
+                        T_Seq(pos, T_Jump(pos, contlbl),
+                          T_Label(pos, exitlbl))))));
     }
     else
     {
         if (whileExp)
         {
-            s = T_Seq(T_Label(contlbl),
-                  T_Seq(unNx(body),
-                    T_Seq(T_Cjump(T_ne, unEx(whileExp), unEx(Tr_zeroExp(Ty_Bool())), contlbl, exitlbl),
-                      T_Label(exitlbl))));
+            s = T_Seq(pos, T_Label(pos, contlbl),
+                  T_Seq(pos, unNx(body),
+                    T_Seq(pos, T_Cjump(pos, T_ne, unEx(pos, whileExp), unEx(pos, Tr_zeroExp(pos, Ty_Bool())), contlbl, exitlbl),
+                      T_Label(pos, exitlbl))));
         }
         else
         {
             if (untilExp)
             {
-                s = T_Seq(T_Label(contlbl),
-                      T_Seq(unNx(body),
-                        T_Seq(T_Cjump(T_ne, unEx(untilExp), unEx(Tr_zeroExp(Ty_Bool())), exitlbl, contlbl),
-                          T_Label(exitlbl))));
+                s = T_Seq(pos, T_Label(pos, contlbl),
+                      T_Seq(pos, unNx(body),
+                        T_Seq(pos, T_Cjump(pos, T_ne, unEx(pos, untilExp), unEx(pos, Tr_zeroExp(pos, Ty_Bool())), exitlbl, contlbl),
+                          T_Label(pos, exitlbl))));
             }
             else
             {
-                s = T_Seq(T_Label(contlbl),
-                      T_Seq(unNx(body),
-                        T_Seq(T_Jump(contlbl),
-                          T_Label(exitlbl))));
+                s = T_Seq(pos, T_Label(pos, contlbl),
+                      T_Seq(pos, unNx(body),
+                        T_Seq(pos, T_Jump(pos, contlbl),
+                          T_Label(pos, exitlbl))));
             }
         }
     }
@@ -1072,31 +1081,31 @@ Tr_exp Tr_doExp(Tr_exp untilExp, Tr_exp whileExp, bool condAtEntry, Tr_exp body,
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_gotoExp(Temp_label lbl)
+Tr_exp Tr_gotoExp(S_pos pos, Temp_label lbl)
 {
-    T_stm s = T_Jump(lbl);
+    T_stm s = T_Jump(pos, lbl);
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_gosubExp(Temp_label lbl)
+Tr_exp Tr_gosubExp(S_pos pos, Temp_label lbl)
 {
-    T_stm s = T_Jsr(lbl);
+    T_stm s = T_Jsr(pos, lbl);
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_rtsExp(void)
+Tr_exp Tr_rtsExp(S_pos pos)
 {
-    T_stm s = T_Rts();
+    T_stm s = T_Rts(pos);
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_labelExp(Temp_label lbl)
+Tr_exp Tr_labelExp(S_pos pos, Temp_label lbl)
 {
-    T_stm s = T_Label(lbl);
+    T_stm s = T_Label(pos, lbl);
     return Tr_Nx(s);
 }
 
-Tr_exp Tr_forExp(Tr_exp loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
+Tr_exp Tr_forExp(S_pos pos, Tr_exp loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step, Tr_exp body, Temp_label exitlbl, Temp_label contlbl)
 {
     Ty_ty      loopVarTy = Tr_ty(loopVar);
     Temp_label test      = Temp_newlabel();
@@ -1104,24 +1113,24 @@ Tr_exp Tr_forExp(Tr_exp loopVar, Tr_exp exp_from, Tr_exp exp_to, Tr_exp exp_step
     Temp_label done      = exitlbl;
 
     Temp_temp limit      = Temp_Temp(loopVarTy);
-    T_exp loopv          = unEx(loopVar);
+    T_exp loopv          = unEx(pos, loopVar);
 
-    T_stm initStm        = T_Move(loopv, unEx(exp_from), loopVarTy);
-    T_stm incStm         = T_Move(loopv, T_Binop(T_plus, loopv, unEx(exp_step), loopVarTy), loopVarTy);
-    T_stm limitStm       = T_Move(T_Temp(limit, loopVarTy), unEx(exp_to), loopVarTy);
+    T_stm initStm        = T_Move(pos, loopv, unEx(pos, exp_from), loopVarTy);
+    T_stm incStm         = T_Move(pos, loopv, T_Binop(pos, T_plus, loopv, unEx(pos, exp_step), loopVarTy), loopVarTy);
+    T_stm limitStm       = T_Move(pos, T_Temp(pos, limit, loopVarTy), unEx(pos, exp_to), loopVarTy);
 
     T_relOp cmp          = Tr_getConstFloat(exp_step) > 0 ? T_le : T_ge;
 
-    T_stm s = T_Seq(initStm,
-                T_Seq(limitStm,
-                  T_Seq(T_Label(test),
-                    T_Seq(T_Cjump(cmp, loopv, T_Temp(limit, loopVarTy), loopstart, done),
-                      T_Seq(T_Label(loopstart),
-                        T_Seq(unNx(body),
-                          T_Seq(T_Label(contlbl),
-                            T_Seq(incStm,
-                              T_Seq(T_Jump(test),
-                                T_Label(done))))))))));
+    T_stm s = T_Seq(pos, initStm,
+                T_Seq(pos, limitStm,
+                  T_Seq(pos, T_Label(pos, test),
+                    T_Seq(pos, T_Cjump(pos, cmp, loopv, T_Temp(pos, limit, loopVarTy), loopstart, done),
+                      T_Seq(pos, T_Label(pos, loopstart),
+                        T_Seq(pos, unNx(body),
+                          T_Seq(pos, T_Label(pos, contlbl),
+                            T_Seq(pos, incStm,
+                              T_Seq(pos, T_Jump(pos, test),
+                                T_Label(pos, done))))))))));
     return Tr_Nx(s);
 }
 
@@ -1132,7 +1141,7 @@ Tr_exp Tr_seqExp(Tr_expList el)
     {
         if (stm)
         {
-            stm = T_Seq(stm, unNx(eln->exp));
+            stm = T_Seq(stm->pos, stm, unNx(eln->exp));
         }
         else
         {
@@ -1140,28 +1149,28 @@ Tr_exp Tr_seqExp(Tr_expList el)
         }
     }
     if (!stm)
-        stm = T_Nop();
+        stm = T_Nop(0);
     return Tr_Nx(stm);
 }
 
-Tr_exp Tr_callExp(Tr_expList actualParams, Ty_proc proc)
+Tr_exp Tr_callExp(S_pos pos, Tr_expList actualParams, Ty_proc proc)
 {
     // cdecl calling convention (right-to-left order)
     T_expList aps = NULL;
     if (actualParams)
     {
         for (Tr_expListNode eln = actualParams->first; eln; eln = eln->next)
-            aps = T_ExpList(unEx(eln->exp), aps);
+            aps = T_ExpList(unEx(pos, eln->exp), aps);
     }
 
-    return Tr_Ex(T_CallF(proc, aps));
+    return Tr_Ex(T_CallF(pos, proc, aps));
 }
 
-Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList actualParams, Ty_proc proc)
+Tr_exp Tr_callPtrExp(S_pos pos, Tr_exp funcPtr, Tr_expList actualParams, Ty_proc proc)
 {
     // is funcPtr a constant heap label? if so, turn this into a regular T_CallF
     if ( (funcPtr->kind == Tr_ex) && (funcPtr->u.ex->kind == T_HEAP) )
-        return Tr_callExp (actualParams, proc);
+        return Tr_callExp (pos, actualParams, proc);
 
     // cdecl calling convention (right-to-left order)
     T_expList aps = NULL;
@@ -1169,15 +1178,15 @@ Tr_exp Tr_callPtrExp(Tr_exp funcPtr, Tr_expList actualParams, Ty_proc proc)
     {
         for (Tr_expListNode eln = actualParams->first; eln; eln = eln->next)
         {
-            aps = T_ExpList(unEx(eln->exp), aps);
+            aps = T_ExpList(unEx(pos, eln->exp), aps);
         }
     }
 
-    return Tr_Ex(T_CallFPtr(unEx(funcPtr), aps, proc));
+    return Tr_Ex(T_CallFPtr(pos, unEx(pos, funcPtr), aps, proc));
 }
 
 
-Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
+Tr_exp Tr_castExp(S_pos pos, Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
 {
     if (Tr_isConst(exp))
     {
@@ -1196,11 +1205,11 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_uinteger:
                     case Ty_long:
                     case Ty_ulong:
-                        return Tr_intExp(i, to_ty);
+                        return Tr_intExp(pos, i, to_ty);
                     case Ty_single:
-                        return Tr_floatExp(i, to_ty);
+                        return Tr_floatExp(pos, i, to_ty);
                     default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        EM_error(pos, "*** translate.c: Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
                 }
                 break;
@@ -1218,7 +1227,7 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
-                        return Tr_boolExp(i!=0, to_ty);
+                        return Tr_boolExp(pos, i!=0, to_ty);
                     case Ty_byte:
                     case Ty_ubyte:
                     case Ty_integer:
@@ -1226,12 +1235,12 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_long:
                     case Ty_ulong:
                     case Ty_pointer:
-                        return Tr_intExp(i, to_ty);
+                        return Tr_intExp(pos, i, to_ty);
                     case Ty_single:
                     case Ty_double:
-                        return Tr_floatExp(i, to_ty);
+                        return Tr_floatExp(pos, i, to_ty);
                     default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        EM_error(pos, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
                 }
                 break;
@@ -1242,24 +1251,24 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
-                        return Tr_boolExp(i!=0, to_ty);
+                        return Tr_boolExp(pos, i!=0, to_ty);
                     case Ty_byte:
                     case Ty_ubyte:
                     case Ty_integer:
                     case Ty_uinteger:
                     case Ty_long:
                     case Ty_ulong:
-                        return Tr_intExp(i, to_ty);
+                        return Tr_intExp(pos, i, to_ty);
                     case Ty_single:
                         return exp;
                     default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        EM_error(pos, "*** translate.c: Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
                 }
                 break;
             }
             default:
-                EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
+                EM_error(pos, "*** translate.c: Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
                 assert(0);
         }
     }
@@ -1290,9 +1299,9 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_single:
                     case Ty_double:
                     case Ty_pointer:
-                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                        return Tr_Ex(T_Cast(pos, unEx(pos, exp), from_ty, to_ty));
                     default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        EM_error(pos, "*** translate.c: Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
                 }
                 break;
@@ -1310,14 +1319,14 @@ Tr_exp Tr_castExp(Tr_exp exp, Ty_ty from_ty, Ty_ty to_ty)
                     case Ty_varPtr:
                     case Ty_procPtr:
                     case Ty_string:
-                        return Tr_Ex(T_Cast(unEx(exp), from_ty, to_ty));
+                        return Tr_Ex(T_Cast(pos, unEx(pos, exp), from_ty, to_ty));
                     default:
-                        EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
+                        EM_error(pos, "*** translate.c: Tr_castExp: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
                 }
                 break;
             default:
-                EM_error(0, "*** translate.c:Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
+                EM_error(pos, "*** translate.c: Tr_castExp: internal error: unknown type kind %d", from_ty->kind);
                 assert(0);
         }
     }

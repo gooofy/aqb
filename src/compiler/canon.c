@@ -37,7 +37,7 @@ static T_stm seq(T_stm x, T_stm y)
 {
     if (isNop(x)) return y;
     if (isNop(y)) return x;
-    return T_Seq(x,y);
+    return T_Seq(x->pos, x, y);
 }
 
 static bool commute(T_stm x, T_exp y)
@@ -53,15 +53,16 @@ static T_stm reorder(expRefList rlist)
 {
     if (!rlist)
     {
-        return T_Nop();
+        return T_Nop(0);
     }
     else
     {
+        S_pos pos = (*rlist->head)->pos;
         Ty_ty ty = (*rlist->head)->ty;
         if ((*rlist->head)->kind==T_CALLF)
         {
             Temp_temp t = Temp_Temp(ty);
-            *rlist->head = T_Eseq(T_Move(T_Temp(t, ty), *rlist->head, ty), T_Temp(t, ty), ty);
+            *rlist->head = T_Eseq(pos, T_Move(pos, T_Temp(pos, t, ty), *rlist->head, ty), T_Temp(pos, t, ty), ty);
             return reorder(rlist);
         }
         else
@@ -76,8 +77,8 @@ static T_stm reorder(expRefList rlist)
             else
             {
                 Temp_temp t = Temp_Temp(ty);
-                *rlist->head = T_Temp(t, ty);
-                return seq(hd.s, seq(T_Move(T_Temp(t, ty), hd.e, ty), s));
+                *rlist->head = T_Temp(pos, t, ty);
+                return seq(hd.s, seq(T_Move(pos, T_Temp(pos, t, ty), hd.e, ty), s));
             }
         }
     }
@@ -161,7 +162,7 @@ static T_stm do_stm(T_stm stm)
             else if (stm->u.MOVE.dst->kind == T_ESEQ) {
                 T_stm s = stm->u.MOVE.dst->u.ESEQ.stm;
                 stm->u.MOVE.dst = stm->u.MOVE.dst->u.ESEQ.exp;
-                return do_stm(T_Seq(s, stm));
+                return do_stm(T_Seq(s->pos, s, stm));
             }
             assert(0); /* dst should be temp or mem only */
         case T_EXP:
@@ -208,7 +209,7 @@ static C_stmListList StmListList(T_stmList head, C_stmListList tail)
 static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
 {
     if (!stms)
-        return next(prevstms, T_StmList(T_Jump(done), NULL), done);
+        return next(prevstms, T_StmList(T_Jump(0, done), NULL), done);
     if (stms->head->kind == T_JUMP || stms->head->kind == T_CJUMP)
 	{
         C_stmListList stmLists;
@@ -220,7 +221,7 @@ static C_stmListList next(T_stmList prevstms, T_stmList stms, Temp_label done)
     else if (stms->head->kind == T_LABEL)
 	{
         Temp_label lab = stms->head->u.LABEL;
-        return next(prevstms, T_StmList(T_Jump(lab), stms), done);
+        return next(prevstms, T_StmList(T_Jump(0, lab), stms), done);
     }
     else
 	{
@@ -238,7 +239,7 @@ static C_stmListList mkBlocks(T_stmList stms, Temp_label done)
     }
     if (stms->head->kind != T_LABEL)
     {
-        return mkBlocks(T_StmList(T_Label(Temp_newlabel()), stms), done);
+        return mkBlocks(T_StmList(T_Label(0, Temp_newlabel()), stms), done);
     }
     /* else there already is a label */
     return StmListList(stms, next(stms, stms->tail, done));
@@ -308,7 +309,7 @@ static void trace(T_stmList list)
             if (!nextSL)
             {
                 // last one -> finish up
-                nextSL = T_StmList(T_Label(global_block.label), NULL);
+                nextSL = T_StmList(T_Label(0, global_block.label), NULL);
                 if (s->u.JUMP == global_block.label)
                     last->tail = nextSL;       /* merge the 2 lists removing JUMP stm */
                 else
@@ -336,24 +337,24 @@ static void trace(T_stmList list)
             {
                 if (ltrue)  /* convert so that existing label is a false label */
                 {
-                    last->tail->head = T_Cjump(T_notRel(s->u.CJUMP.op), s->u.CJUMP.left,
-                           s->u.CJUMP.right, s->u.CJUMP.lfalse,
-                           s->u.CJUMP.ltrue);
+                    last->tail->head = T_Cjump(s->pos, T_notRel(s->u.CJUMP.op), s->u.CJUMP.left,
+                                               s->u.CJUMP.right, s->u.CJUMP.lfalse,
+                                               s->u.CJUMP.ltrue);
                     last->tail->tail = ltrue;
                     trace(ltrue);
                 }
                 else
                 {
                     Temp_label lfalse = Temp_newlabel();
-                    last->tail->head = T_Cjump(s->u.CJUMP.op, s->u.CJUMP.left,
+                    last->tail->head = T_Cjump(s->pos, s->u.CJUMP.op, s->u.CJUMP.left,
                              s->u.CJUMP.right, s->u.CJUMP.ltrue, lfalse);
                     T_stmList nextSL = getNext();
                     if (!nextSL)
                     {
                         // last one -> finish up
-                        nextSL = T_StmList(T_Label(global_block.label), NULL);
+                        nextSL = T_StmList(T_Label(s->pos, global_block.label), NULL);
                     }
-                    last->tail->tail = T_StmList(T_Label(lfalse), T_StmList(T_Jump(s->u.CJUMP.lfalse), nextSL));
+                    last->tail->tail = T_StmList(T_Label(s->pos, lfalse), T_StmList(T_Jump(s->pos, s->u.CJUMP.lfalse), nextSL));
                 }
             }
         }

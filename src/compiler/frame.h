@@ -64,7 +64,7 @@ F_fragList F_FragList(F_frag head, F_fragList tail);
 /* machine-related features */
 
 string        F_getlabel(F_frame frame);
-T_exp         F_Exp(F_access acc);
+T_exp         F_Exp(S_pos pos, F_access acc);
 
 F_access      F_allocGlobal(Temp_label label, Ty_ty ty);
 F_access      F_allocLocal(F_frame f, Ty_ty ty);

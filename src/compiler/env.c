@@ -292,7 +292,7 @@ static void declare_builtin_type(string name, Ty_ty ty)
 
 static void declare_builtin_const(string name, Ty_const cExp)
 {
-    E_declareVFC(g_builtinsModule->env, S_Symbol(name, FALSE), Tr_constExp(cExp));
+    E_declareVFC(g_builtinsModule->env, S_Symbol(name, FALSE), Tr_constExp(0, cExp));
 }
 
 static FILE     *modf     = NULL;
@@ -1300,7 +1300,7 @@ E_module E_loadModule(S_symbol sModule)
                                 printf("%s: failed to read function proc.\n", modfn);
                                 goto fail;
                             }
-                            var = Tr_heapPtrExp(proc->label, Ty_Prc(mod->name, proc));
+                            var = Tr_heapPtrExp(0, proc->label, Ty_Prc(mod->name, proc));
                             break;
                         }
                         case vfcConst:
@@ -1317,7 +1317,7 @@ E_module E_loadModule(S_symbol sModule)
                                 printf("%s: failed to read const expression.\n", modfn);
                                 goto fail;
                             }
-                            var = Tr_constExp(cExp);
+                            var = Tr_constExp(0, cExp);
                             break;
                         }
                         case vfcVar:
@@ -1328,7 +1328,7 @@ E_module E_loadModule(S_symbol sModule)
                                 printf("%s: failed to read variable type.\n", modfn);
                                 goto fail;
                             }
-                            var = Tr_Var(Tr_externalVar(name, ty));
+                            var = Tr_Var(0, Tr_externalVar(name, ty));
                             break;
                         }
                     }
