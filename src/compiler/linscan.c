@@ -26,9 +26,9 @@
 #define NUM_DRs 5   // d2-d6
 #define NUM_ARs 2   // a2-a3
 
-                                                // a0  a1  a2  a3  a4  a6  d0  d1  d2  d3  d4  d5  d6  d7
-static int        g_regMapAn [F_NUM_REGISTERS] = { -1, -1,  0,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  };
-static int        g_regMapDn [F_NUM_REGISTERS] = { -1, -1, -1, -1, -1, -1, -1, -1,  0,  1,  2,  3,  4, -1  };
+                                                 // a0  a1  a2  a3  a4  a6  d0  d1  d2  d3  d4  d5  d6  d7
+static int        g_regMapAn [AS_NUM_REGISTERS] = { -1, -1,  0,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  };
+static int        g_regMapDn [AS_NUM_REGISTERS] = { -1, -1, -1, -1, -1, -1, -1, -1,  0,  1,  2,  3,  4, -1  };
 
 /*
  * liveness intervals
@@ -46,7 +46,7 @@ struct LS_interv_
     int       dReg;
     int       aReg;
     Temp_temp color;    // reg if available
-    F_access  local;    // spilled local otherwise
+    CG_item   local;    // spilled local otherwise
 };
 
 static TAB_table  g_tempIntervals = NULL;    // Temp_temp  -> LS_interv
@@ -55,7 +55,7 @@ static int        g_ivCnt;                   // total number of temps / interval
 static LS_interv *g_ivs;                     // intervals sorted by iStart
 static LS_interv *g_ive;                     // intervals sorted by iEnd
 static TAB_table  g_coloring;                // Temp_temp -> Temp_temp
-static TAB_table  g_spilledLocals;           // Temp_temp -> F_access
+static TAB_table  g_spilledLocals;           // Temp_temp -> CG_item
 
 /*
  * Quicksort implementation
@@ -151,7 +151,7 @@ static bool updateTempInterval (Temp_temp t, int idx, bool needsAReg, bool needs
         iv->needsAReg = needsAReg;
         iv->needsDReg = needsDReg;
         iv->color     = NULL;
-        iv->local     = NULL;
+        CG_NoneItem(&iv->local);
 
         TAB_enter (g_tempIntervals, t, iv);
 
@@ -390,7 +390,7 @@ static void spillAtInterval (int i, bool dReg)
 
 }
 
-static void linearScan (F_frame f, AS_instrList il)
+static void linearScan (CG_frame f, AS_instrList il)
 {
     /*
      * LinearScanRegisterAllocation
@@ -411,7 +411,7 @@ static void linearScan (F_frame f, AS_instrList il)
 
         // handle precolored temps
 
-        if (F_isPrecolored(t))
+        if (AS_isPrecolored(t))
         {
             g_ivs[i]->color = t;
 
@@ -551,15 +551,15 @@ static void linearScan (F_frame f, AS_instrList il)
      */
 
     Temp_temp dRegSet[NUM_DRs];
-    dRegSet[0] = F_regs[F_TEMP_D2];
-    dRegSet[1] = F_regs[F_TEMP_D3];
-    dRegSet[2] = F_regs[F_TEMP_D4];
-    dRegSet[3] = F_regs[F_TEMP_D5];
-    dRegSet[4] = F_regs[F_TEMP_D6];
+    dRegSet[0] = AS_regs[AS_TEMP_D2];
+    dRegSet[1] = AS_regs[AS_TEMP_D3];
+    dRegSet[2] = AS_regs[AS_TEMP_D4];
+    dRegSet[3] = AS_regs[AS_TEMP_D5];
+    dRegSet[4] = AS_regs[AS_TEMP_D6];
 
     Temp_temp aRegSet[NUM_ARs];
-    aRegSet[0] = F_regs[F_TEMP_A2];
-    aRegSet[1] = F_regs[F_TEMP_A3];
+    aRegSet[0] = AS_regs[AS_TEMP_A2];
+    aRegSet[1] = AS_regs[AS_TEMP_A3];
 
     g_coloring      = TAB_empty();
     g_spilledLocals = TAB_empty();
@@ -592,16 +592,17 @@ static void linearScan (F_frame f, AS_instrList il)
         }
         else
         {
-            F_access acc = F_allocLocal(f, Temp_ty(t));
-            TAB_enter (g_spilledLocals, t, acc);
+            CG_item *item = &g_ivs[i]->local;
+            CG_allocVar (item, f, /*name=*/NULL, /*expt=*/FALSE, Temp_ty(t));
+            TAB_enter (g_spilledLocals, t, item);
 #ifdef ENABLE_DEBUG
-            printf("LS: assigned spilled %s to local fp offset %d\n", Temp_strprint(t), F_accessOffset(acc));
+            printf("LS: assigned spilled %s to local fp offset %d\n", Temp_strprint(t), CG_itemOffset(item));
 #endif
         }
     }
 }
 
-bool LS_regalloc(F_frame f, AS_instrList il)
+bool LS_regalloc(CG_frame f, AS_instrList il)
 {
     g_tempIntervals = TAB_empty();
     g_label2idx     = TAB_empty();
@@ -640,9 +641,9 @@ bool LS_regalloc(F_frame f, AS_instrList il)
                 // save all registers in case this was a generic GOSUB
                 // (we cannot count on the callee saving registers in that case)
 
-                if (inst->def != F_callersaves())
+                if (inst->def != AS_callersaves())
                 {
-                    long regset = (1<<F_TEMP_A2) | (1<<F_TEMP_A3) | (1<<F_TEMP_D2) | (1<<F_TEMP_D3) | (1<<F_TEMP_D4) | (1<<F_TEMP_D5) | (1<<F_TEMP_D6);
+                    long regset = (1<<AS_TEMP_A2) | (1<<AS_TEMP_A3) | (1<<AS_TEMP_D2) | (1<<AS_TEMP_D3) | (1<<AS_TEMP_D4) | (1<<AS_TEMP_D5) | (1<<AS_TEMP_D6);
                     AS_instr rsave = AS_InstrEx(inst->pos, AS_MOVEM_Rs_PDsp, AS_w_L,         // movem.l   a2-a3/d2-d6,-(sp)
                                                 NULL, NULL, NULL, regset, NULL);
                     AS_instrListInsertBefore (il, an, rsave);
@@ -678,11 +679,11 @@ bool LS_regalloc(F_frame f, AS_instrList il)
                     else
                     {
                         // spilled
-                        F_access acc = TAB_look (g_spilledLocals, inst->src);
-                        assert(acc);
-                        Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? F_regs[F_TEMP_A0] : F_regs[F_TEMP_D0];
+                        CG_item *item = TAB_look (g_spilledLocals, inst->src);
+                        assert(item);
+                        Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? AS_regs[AS_TEMP_A0] : AS_regs[AS_TEMP_D0];
                         spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(inst->src)),    // move.x localOffset(FP), r
-                                                      NULL, r, 0, F_accessOffset(acc), NULL);
+                                                      NULL, r, 0, CG_itemOffset(item), NULL);
                         AS_instrListInsertBefore (il, an, spilled_src_move);
                         inst->src = r;
                     }
@@ -696,11 +697,11 @@ bool LS_regalloc(F_frame f, AS_instrList il)
                     }
                     else
                     {
-                        F_access acc = TAB_look (g_spilledLocals, inst->dst);
-                        assert(acc);
-                        Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? F_regs[F_TEMP_A1] : F_regs[F_TEMP_D1];
+                        CG_item *item = TAB_look (g_spilledLocals, inst->dst);
+                        assert(item);
+                        Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? AS_regs[AS_TEMP_A1] : AS_regs[AS_TEMP_D1];
                         spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(inst->dst)),    // move.x r, localOffset(FP)
-                                                      r, NULL, 0, F_accessOffset(acc), NULL);
+                                                      r, NULL, 0, CG_itemOffset(item), NULL);
                         AS_instrListInsertAfter (il, an, spilled_dst_move);
                         inst->dst = r;
                         an = an->next;

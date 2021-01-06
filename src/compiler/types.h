@@ -17,9 +17,7 @@ struct Ty_ty_
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
            Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
-           Ty_void, Ty_varPtr, Ty_forwardPtr, Ty_procPtr, Ty_toLoad, Ty_prc } kind;
-           // Ty_varPtr: used during var access processing in translate.c
-           //            also used for BYREF proc params
+           Ty_void, Ty_forwardPtr, Ty_procPtr, Ty_toLoad, Ty_prc } kind;
            // Ty_toLoad: used for module loading in env.c
 
     union
@@ -46,10 +44,11 @@ struct Ty_const_
     Ty_ty ty;
     union
     {
-        bool   b;
-        int    i;
-        double f;
-        string s;
+        bool      b;
+        int32_t   i;
+        uint32_t  u;
+        double    f;
+        string    s;
     } u;
 };
 
@@ -119,7 +118,6 @@ Ty_ty           Ty_VoidPtr(void);
 
 Ty_ty           Ty_SArray     (S_symbol mod, Ty_ty ty, int start, int end);
 Ty_ty           Ty_DArray     (S_symbol mod, Ty_ty elementTy);
-Ty_ty           Ty_VarPtr     (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_Pointer    (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_ForwardPtr (S_symbol mod, S_symbol sType);
 Ty_ty           Ty_Prc        (S_symbol mod, Ty_proc proc);
@@ -133,10 +131,11 @@ Ty_recordEntry  Ty_Method (Ty_proc proc);
 Ty_formal       Ty_Formal (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc   (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr);
 
-Ty_const        Ty_ConstBool   (Ty_ty ty, bool   b);
-Ty_const        Ty_ConstInt    (Ty_ty ty, int    i);
-Ty_const        Ty_ConstFloat  (Ty_ty ty, double f);
-Ty_const        Ty_ConstString (Ty_ty ty, string s);
+Ty_const        Ty_ConstBool   (Ty_ty ty, bool     b);
+Ty_const        Ty_ConstInt    (Ty_ty ty, int32_t  i);
+Ty_const        Ty_ConstUInt   (Ty_ty ty, uint32_t u);
+Ty_const        Ty_ConstFloat  (Ty_ty ty, double   f);
+Ty_const        Ty_ConstString (Ty_ty ty, string   s);
 
 void            Ty_print(Ty_ty t);
 

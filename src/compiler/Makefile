@@ -1,9 +1,9 @@
 include ../../config.mk
 
 SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c options.c \
-		errormsg.c symbol.c translate.c linscan.c \
-		frame.c tree.c temp.c assem.c printtree.c env.c types.c \
-		canon.c codegen.c regalloc.c liveness.c color.c flowgraph.c table.c
+		errormsg.c symbol.c linscan.c \
+		temp.c assem.c env.c types.c \
+		codegen.c regalloc.c liveness.c color.c flowgraph.c table.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 OBJS_LINUX   := $(patsubst %,${OBJDIR_LINUX}/%.o,$(basename $(SRCS)))
@@ -26,6 +26,7 @@ $(OBJDIR_LINUX)/%.o : %.c $(DEPDIR_LINUX)/%.d | $(DEPDIR_LINUX)
 
 ${BINDIR_AMIGAOS}/aqb:	$(OBJS_AMIGAOS)
 	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^
+	$(STRIP_AMIGAOS) $@
 	cp $@ $(EMUDIR)
 
 ${BINDIR_LINUX}/aqb:	$(OBJS_LINUX)

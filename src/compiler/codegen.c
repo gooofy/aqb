@@ -1,1425 +1,2124 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "util.h"
-#include "symbol.h"
-#include "temp.h"
-#include "errormsg.h"
-#include "tree.h"
-#include "printtree.h"
-#include "assem.h"
-#include "frame.h"
+#include <string.h>
+#include <math.h>
+
 #include "codegen.h"
-#include "table.h"
+#include "errormsg.h"
 #include "env.h"
 
-#define MACHINE_REGSIZE 4 // m68k is a 32 bit = 4 bytes CPU
-
-static AS_instrList g_il       = NULL;
-static bool         lastIsLabel = FALSE;  // to insert NOPs between consecutive labels
-
-static void emit(AS_instr inst)
-{
-	lastIsLabel = inst->mn == AS_LABEL;
-    AS_instrListAppend (g_il, inst);
-}
-
-// FIXME: remove
-// Temp_tempList L(Temp_temp h, Temp_tempList t)
-// {
-//     return Temp_TempList(h, t);
-// }
-
-static void      munchStm(T_stm s);
-static Temp_temp munchExp(T_exp e, bool ignore_result);
-static int       munchArgsStack(S_pos pos, int i, T_expList args);
-static void      munchCallerRestoreStack(S_pos pos, int restore_cnt, bool sink_callersaves);
-
-AS_instrList F_codegen(F_frame f, T_stmList stmList)
-{
-    g_il = AS_InstrList();
-    for (T_stmList sl = stmList; sl; sl = sl->tail)
-        munchStm(sl->head);
-
-    return g_il;
-}
-
-
-/* emit a binary op, check for constant optimization
- *
- * opc_rr : mn for BINOP(op, exp, exp)
- * opc_cr : mn for BINOP(op, CONST, exp), NULL if not supported
- * opc_rc : mn for BINOP(op, exp, CONST), NULL if not supported
- *
- * opc_pre: e.g. "ext.l" for divu/divs, NULL otherwise
- * opc_pos: e.g. "swap" for mod, NULL otherwise
- *
- */
-static Temp_temp munchBinOp(T_exp e, enum AS_mn opc_rr, enum AS_mn opc_cr, enum AS_mn opc_rc, enum AS_mn opc_pre, enum AS_w pre_w, enum AS_mn opc_post, Ty_ty resty)
-{
-    T_exp     e_left  = e->u.BINOP.left;
-    T_exp     e_right = e->u.BINOP.right;
-    Temp_temp r       = Temp_Temp(resty);
-    enum AS_w isz     = AS_tySize(resty);
-
-    if ((e_right->kind == T_CONST) && (opc_rc != AS_NOP))
-    {
-        /* BINOP(op, exp, CONST) */
-        emit(AS_Instr (e->pos, AS_MOVE_AnDn_AnDn, isz, munchExp(e_left, FALSE), r));      // move.x   e_left, r
-        if (opc_pre != AS_NOP)
-            emit(AS_Instr (e->pos, opc_pre, pre_w, NULL, r));                             // opc_pre  r
-        emit (AS_InstrEx (e->pos, opc_rc, isz, NULL, r, e_right->u.CONSTR,0, NULL));      // opc_rc   #CONST, r
-        if (opc_post != AS_NOP)
-            emit(AS_Instr (e->pos, opc_post, isz, NULL, r));                              // opc_post r
-        return r;
-    }
-    else
-    {
-        if ((e_left->kind == T_CONST) && (opc_cr != AS_NOP))
-        {
-            /* BINOP(op, CONST, exp) */
-            emit(AS_Instr (e->pos, AS_MOVE_AnDn_AnDn, isz, munchExp(e_right, FALSE), r)); // move.x   e_right, r
-            if (opc_pre != AS_NOP)
-                emit(AS_Instr (e->pos, opc_pre, pre_w, NULL, r));                         // opc_pre  r
-            emit (AS_InstrEx (e->pos, opc_cr, isz, NULL, r, e_left->u.CONSTR, 0, NULL));  // opc_cr   #CONST, r
-            if (opc_post != AS_NOP)
-                emit(AS_Instr (e->pos, opc_post, isz, NULL, r));                          // opc_post r
-            return r;
-        }
-    }
-
-    /* BINOP(op, exp, exp) */
-
-    emit(AS_Instr (e->pos, AS_MOVE_AnDn_AnDn, isz, munchExp(e_left, FALSE), r));          // move.x   e_left, r
-    if (opc_pre != AS_NOP)
-        emit(AS_Instr (e->pos, opc_pre, pre_w, NULL, r));                                 // opc_pre  r
-    emit(AS_InstrEx (e->pos, opc_rr, isz, munchExp(e_right, FALSE), r, 0, 0, NULL));      // opc_rr   e_right, r
-    if (opc_post != AS_NOP)
-        emit(AS_Instr (e->pos, opc_post, isz, NULL, r));                                  // opc_post r
-    return r;
-}
-
-/* emit a unary op */
-static Temp_temp munchUnaryOp(T_exp e, enum AS_mn opc, Ty_ty resty)
-{
-    Temp_temp r       = Temp_Temp(resty);
-    enum AS_w isz     = AS_tySize(resty);
-
-    emit(AS_Instr (e->pos, AS_MOVE_AnDn_AnDn, isz, munchExp(e->u.BINOP.left, FALSE), r)); // move.x   e, r
-    emit(AS_InstrEx (e->pos, opc, isz, NULL, r, 0, 0, NULL));                             // opc      r
-
-    return r;
-}
-
-/* emit a binary op that requires calling a subroutine */
-static Temp_temp emitBinOpJsr(T_exp e, string sub_name, Ty_ty resty)
-{
-    Temp_temp r       = Temp_Temp(resty);
-    T_exp     e_left  = e->u.BINOP.left;
-    T_exp     e_right = e->u.BINOP.right;
-
-    T_expList args    = T_ExpList(e_left, T_ExpList(e_right, NULL));
-    int       arg_cnt = munchArgsStack(e->pos, 0, args);
-    emit(AS_InstrEx2(e->pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, Temp_namedlabel(sub_name),    // jsr     sub_name
-                     F_callersaves(), NULL));
-    munchCallerRestoreStack(e->pos, arg_cnt, /*sink_callersaves=*/FALSE);
-    emit(AS_InstrEx2(e->pos, AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), r, 0, 0, NULL,                        // move.l  RV, r
-                     NULL, F_callersaves()));
-
-    return r;
-}
+static CG_fragList g_fragList = NULL;
 
 /*
- * emit a subroutine call passing arguments in processor registers
+ *   m68k frame layout used by this compiler
  *
- * lvo != 0 -> amiga library call, i.e. jsr lvo(strName)
- * lvo == 0 -> subroutine call jsr strName
+ *
+ *             stack                       2 args: a, b    : link a5, #-8
+ *                                                         :
+ *   |<-------- 32 bits -------->|                         :
+ *                                                         :
+ *   +---------------------------+                         :
+ *   |                      b    |   84                    :       12(a5)
+ *   +---------------------------+                         :
+ *   |                      a    |   80                    :        8(a5)
+ *   +---------------------------+                         :
+ *   |            return addr    |   76 <-- sp             :
+ *   +---------------------------+                         :
+ *   |                     a5    |   72 <------------------+-- a5 (bp)
+ *   +---------------------------+                         :
+ *   |                    lv1    |   68                    :       -4(a5)
+ *   +---------------------------+                         :
+ *   |                    lv2    |   64 <------------------+-- sp, -8(a5)
+ *   +---------------------------+                         :
+ *   |                           |   60
+ *   +---------------------------+
+ *   |                           |   56
+ *   +---------------------------+
+ *   |                           |   52
+ *   +---------------------------+
+ *   |                           |   48
+ *   +---------------------------+
+ *   :                           :
+ *   :                           :
+ *
+ * fixed register allocation:
+ *      a5    : frame pointer
+ *      a6    : library base pointer
+ *      a7/sp : stack pointer
  */
 
-static Temp_temp emitRegCall(S_pos pos, string strName, int lvo, F_ral ral, Ty_ty resty)
+static void InFrame (CG_item *item, int offset, Ty_ty ty)
 {
-    // move args into their associated registers:
+    item->kind              = IK_inFrame;
+    item->u.inFrameR.offset = offset;
+    item->u.inFrameR.ty     = ty;
+}
 
-    Temp_tempSet argTempSet = NULL;
-    bool bAdded;
-    for (;ral;ral = ral->next)
+static void InReg (CG_item *item, Temp_temp reg)
+{
+    item->kind    = IK_inReg;
+    item->u.inReg = reg;
+}
+
+static void InHeap (CG_item *item, Temp_label l, Ty_ty ty)
+{
+    item->kind        = IK_inHeap;
+    item->u.inHeap.l  = l;
+    item->u.inHeap.ty = ty;
+}
+
+static void VarPtr (CG_item *item, Temp_temp reg)
+{
+    item->kind     = IK_varPtr;
+    item->u.varPtr = reg;
+}
+
+CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
+{
+    CG_frame f = checked_malloc(sizeof(*f));
+
+    f->name   = name;
+    f->statc  = statc;
+    if (statc)
+        f->statc_labels = hashmap_new(); // used to make static var labels unique
+    else
+        f->statc_labels = NULL;
+
+    // a5 is the frame pointer
+    // Arguments start from        8(a5) upwards
+    // Local variables start from -4(a5) downwards
+    int offset = 8;
+    CG_itemList acl = CG_ItemList();
+
+    for (Ty_formal formal = formals; formal; formal = formal->next)
     {
-        emit(AS_Instr(pos, AS_MOVE_AnDn_AnDn, AS_w_L, ral->arg, ral->reg));  // move.l   arg, reg
-        argTempSet = Temp_tempSetAdd (argTempSet, ral->reg, &bAdded);
+        CG_itemListNode n = CG_itemListAppend (acl);
+        if (formal->reg)
+        {
+            InReg (&n->item, formal->reg);
+        }
+        else
+        {
+            int size = Ty_size(formal->ty);
+            // gcc seems to push 4 bytes regardless of type (int, long, ...)
+            offset += 4-size;
+            InFrame (&n->item, offset, formal->ty);
+            offset += size;
+        }
     }
 
-    if (lvo)
+    f->formals       = acl;
+    f->globl         = FALSE;
+    f->locals_offset = 0;
+
+    return f;
+}
+
+static CG_frame global_frame = NULL;
+
+CG_frame CG_globalFrame (void)
+{
+    return global_frame;
+}
+
+void CG_ConstItem (CG_item *item, Ty_const c)
+{
+    item->kind = IK_const;
+    item->u.c  = c;
+}
+
+void CG_BoolItem (CG_item *item, bool b, Ty_ty ty)
+{
+    CG_ConstItem (item, Ty_ConstBool(ty, b));
+}
+
+void CG_IntItem (CG_item *item, int32_t i, Ty_ty ty)
+{
+    assert(ty);
+    CG_ConstItem (item, Ty_ConstInt(ty, i));
+}
+
+void CG_UIntItem (CG_item *item, uint32_t u, Ty_ty ty)
+{
+    assert(ty);
+    CG_ConstItem (item, Ty_ConstUInt(ty, u));
+}
+
+void CG_FloatItem (CG_item *item, double f, Ty_ty ty)
+{
+    if (!ty)
+        ty = Ty_Single();
+    CG_ConstItem (item, Ty_ConstFloat(ty, f));
+}
+
+void CG_StringItem (CG_item *item, string str)
+{
+    Temp_label strlabel = Temp_newlabel();
+    CG_frag frag = CG_StringFrag(strlabel, str);
+    g_fragList = CG_FragList(frag, g_fragList);
+
+    InHeap (item, strlabel, Ty_String());
+}
+
+void CG_HeapPtrItem (CG_item *item, Temp_label label, Ty_ty ty)
+{
+    InHeap (item, label, ty);
+}
+
+void CG_ZeroItem (CG_item *item, Ty_ty ty)
+{
+    switch (ty->kind)
     {
-        // amiga lib call, library base in a6 per spec
-        emit(AS_InstrEx(pos, AS_MOVE_Label_AnDn, AS_w_L, NULL, F_A6(), 0, 0, Temp_namedlabel(strName)));            // move.l  libBase, a6
-        emit(AS_InstrEx2(pos, AS_JSR_RAn, AS_w_NONE, F_A6(), NULL, 0, lvo, NULL,                                    // jsr     lvo(a6)
-                         F_callersaves(), argTempSet));
+        case Ty_bool:
+            CG_ConstItem (item, Ty_ConstBool(ty, FALSE));
+            break;
+        case Ty_byte:
+        case Ty_integer:
+        case Ty_long:
+        case Ty_pointer:
+        case Ty_string:
+        case Ty_prc:
+        case Ty_procPtr:
+            CG_ConstItem (item, Ty_ConstInt(ty, 0));
+            break;
+        case Ty_ubyte:
+        case Ty_uinteger:
+        case Ty_ulong:
+            CG_ConstItem (item, Ty_ConstUInt(ty, 0));
+            break;
+        case Ty_single:
+        case Ty_double:
+            CG_ConstItem (item, Ty_ConstFloat(ty, 0.0));
+            break;
+        default:
+            EM_error(0, "*** codegen.c: CG_ZeroItem: internal error");
+            assert(0);
+    }
+}
+
+void CG_OneItem (CG_item *item, Ty_ty ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_bool:
+            CG_ConstItem (item, Ty_ConstBool(ty, TRUE));
+            break;
+        case Ty_byte:
+        case Ty_integer:
+        case Ty_long:
+        case Ty_pointer:
+        case Ty_string:
+        case Ty_prc:
+        case Ty_procPtr:
+            CG_ConstItem (item, Ty_ConstInt(ty, 1));
+            break;
+        case Ty_ubyte:
+        case Ty_uinteger:
+        case Ty_ulong:
+            CG_ConstItem (item, Ty_ConstUInt(ty, 1));
+            break;
+        case Ty_single:
+        case Ty_double:
+            CG_ConstItem (item, Ty_ConstFloat(ty, 1.0));
+            break;
+        default:
+            EM_error(0, "*** codegen.c: CG_OneItem: internal error");
+            assert(0);
+    }
+}
+
+void CG_TempItem (CG_item *item, Ty_ty ty)
+{
+    Temp_temp t = Temp_Temp (ty);
+    InReg (item, t);
+}
+
+void CG_NoneItem (CG_item *item)
+{
+    item->kind = IK_none;
+}
+
+static void CG_CondItem (CG_item *item, Temp_label l, AS_instr bxx, bool postCond)
+{
+    item->kind             = IK_cond;
+    item->u.condR.l        = l;
+    item->u.condR.fixUps   = AS_InstrList(); AS_instrListAppend (item->u.condR.fixUps, bxx);
+    item->u.condR.postCond = postCond;
+}
+
+// replace type suffix, convert to lower cases
+static string varname_to_label(string varname)
+{
+    int  l        = strlen(varname);
+    char postfix  = varname[l-1];
+    string res    = varname;
+    string suffix = NULL;
+
+    switch (postfix)
+    {
+        case '$':
+            suffix = "s";
+            break;
+        case '%':
+            suffix = "i";
+            break;
+        case '&':
+            suffix = "l";
+            break;
+        case '!':
+            suffix = "f";
+            break;
+        case '#':
+            suffix = "d";
+            break;
+    }
+    if (suffix)
+    {
+        res = String(res);
+        res[l-1] = 0;
+        res = strprintf("__%s_%s", res, suffix);
     }
     else
     {
-        // subroutine call
-        emit(AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, Temp_namedlabel(strName),                  // jsr     name
-                         F_callersaves(), argTempSet));
+        res = strprintf("_%s", res);
     }
-
-    Temp_temp r = Temp_Temp(resty);
-    emit(AS_InstrEx2(pos, AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), r, NULL, 0, NULL,                                      // move.l RV, r
-                     NULL, F_callersaves()));
-    return r;
+    return res;
 }
 
-static Temp_temp munchExp(T_exp e, bool ignore_result)
+void CG_externalVar (CG_item *item, string name, Ty_ty ty)
 {
-    switch (e->kind)
+    Temp_label label = Temp_namedlabel(varname_to_label(name));
+
+    InHeap (item, label, ty);
+}
+
+void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty ty)
+{
+    if (frame->globl) // global var?
     {
-        case T_MEM:
+        // label
+        string l = varname_to_label(name);
+        // unique label
+        string ul = l;
+        char *uul;
+        int cnt = 0;
+        while (hashmap_get(frame->statc_labels, ul, (any_t *)&uul, TRUE)==MAP_OK)
         {
-            T_exp mem = e->u.MEM.exp;
-            enum AS_w isz = AS_tySize(e->ty);
-
-            if (mem->kind == T_BINOP)
-            {
-                if ((mem->u.BINOP.op == T_plus || mem->u.BINOP.op == T_minus) && (mem->u.BINOP.right->kind == T_CONST) && (mem->u.BINOP.left->kind == T_FP))
-                {
-                    /* MEM(BINOP(PLUS,e1,CONST(FP))) */
-                    // T_exp e1 = mem->u.BINOP.left;
-                    int i = mem->u.BINOP.right->u.CONSTR->u.i;
-                    if (mem->u.BINOP.op == T_minus) {
-                      i = -i;
-                    }
-                    Temp_temp r = Temp_Temp(Ty_Long());
-                    emit(AS_InstrEx(e->pos, AS_MOVE_Ofp_AnDn, isz, NULL, r, 0, i, NULL));                                     // move.x i(fp), r
-                    // emit(AS_InstrEx(e->pos, AS_MOVE_OAn_AnDn, isz, L(munchExp(e1, FALSE), NULL), L(r, NULL), 0, i, NULL)); // move.x i(fp), r
-                    return r;
-                }
-                else if (mem->u.BINOP.op == T_plus && mem->u.BINOP.left->kind == T_CONST)
-                {
-                    /* MEM(BINOP(PLUS,CONST(i),e1)) */
-                    // T_exp e1 = mem->u.BINOP.right;
-                    // int i = mem->u.BINOP.left->u.CONSTR;
-                    // Temp_temp r = Temp_Temp(Ty_Long());
-                    // emit(AS_Move(strprintf("move.%s %d(`s0), `d0", isz, i), L(r, NULL), L(munchExp(e1, FALSE), NULL), F_dRegs(), NULL));
-                    // return r;
-                    assert(0);
-                } else {
-                    /* MEM(e1) */
-                    Temp_temp r1 = Temp_Temp(e->ty); // e1 calculation might need a dx register but we need a ax reg
-                    Temp_temp r = Temp_Temp(e->ty);
-                    emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(mem, FALSE), r1));     // move.x mem, r1
-                    emit(AS_Instr(e->pos, AS_MOVE_RAn_AnDn, isz, r1, r));                            // move.x (r1), r
-                    return r;
-                }
-            }
-            else if (mem->kind == T_CONST)
-            {
-                assert(0);
-                /* MEM(CONST(i)) */
-                // int i = mem->u.CONSTR;
-                // Temp_temp r = Temp_Temp(Ty_Long());
-                // sprintf(inst, "move.l %d, `d0", i);
-                // emit(AS_Oper(inst, L(r, NULL), NULL, NULL));
-                // return r;
-            }
-            else if (mem->kind == T_HEAP)
-            {
-                Temp_label lab = mem->u.HEAP;
-                Temp_temp r = Temp_Temp(e->ty);
-                emit(AS_InstrEx(e->pos, AS_MOVE_Label_AnDn, isz, NULL, r, 0, 0, lab));                 // move.x lab, r
-                return r;
-            }
-            else
-            {
-                Temp_temp r = Temp_Temp(e->ty);
-                emit(AS_Instr(e->pos, AS_MOVE_RAn_AnDn, isz, munchExp(mem, FALSE), r));               // move.x (mem), r
-                return r;
-            }
+            ul = strprintf("%s_%d", l, cnt);
+            cnt++;
         }
-        case T_BINOP:
-        {
-            Ty_ty resty = e->ty;
-            switch (resty->kind)
-            {
-                case Ty_bool:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
+        hashmap_put(frame->statc_labels, ul, ul, TRUE);
 
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_B, NULL, r));                                    // not.b   r, r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_B, munchExp(e_right, FALSE), r));              // or.b    e_right, r
-                            return r;
-                        }
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_byte:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_minus:
-                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_mul:
-                            return emitBinOpJsr (e, "___mul_s1", resty);
-                        case T_intDiv:
-                        case T_div:
-                            return emitBinOpJsr (e, "___div_s1", resty);
-                        case T_mod:
-                            return emitBinOpJsr (e, "___mod_s1", resty);
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
+        Temp_label label = Temp_namedlabel(ul);
 
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_B, NULL, r));                                    // not.b   r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_B, munchExp(e_right, FALSE), r));              // or.b    e_right, r
-                            return r;
-                        }
-                        case T_neg:
-                            return munchUnaryOp(e, AS_NEG_Dn, resty);
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        case T_power:
-                            return emitBinOpJsr (e, "___pow_s1", resty);
-                        case T_shl:
-                            return munchBinOp (e, AS_ASL_Dn_Dn , AS_NOP        , AS_ASL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_shr:
-                            return munchBinOp (e, AS_ASR_Dn_Dn , AS_NOP        , AS_ASR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_ubyte:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_minus:
-                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_mul:
-                            return emitBinOpJsr (e, "___mul_u1", resty);
-                        case T_intDiv:
-                        case T_div:
-                            return emitBinOpJsr (e, "___div_u1", resty);
-                        case T_mod:
-                            return emitBinOpJsr (e, "___mod_u1", resty);
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
+        CG_frag frag = CG_DataFrag(label, expt, Ty_size(ty));
+        g_fragList   = CG_FragList(frag, g_fragList);
 
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, munchExp(e_left, FALSE), r));         // move.b  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_B, NULL, r));                                    // not.b   r, r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_B, munchExp(e_right, FALSE), r));              // or.b    e_right, r
-                            return r;
-                        }
-                        case T_neg:
-                            return munchUnaryOp(e, AS_NEG_Dn, resty);
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        case T_power:
-                            return emitBinOpJsr (e, "___pow_u1", resty);
-                        case T_shl:
-                            return munchBinOp (e, AS_LSL_Dn_Dn , AS_NOP        , AS_LSL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_shr:
-                            return munchBinOp (e, AS_LSR_Dn_Dn , AS_NOP        , AS_LSR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_integer:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_minus:
-                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_mul:
-                            return munchBinOp (e, AS_MULS_Dn_Dn, AS_MULS_Imm_Dn, AS_MULS_Imm_Dn, AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_intDiv:
-                        case T_div:
-                            return munchBinOp (e, AS_DIVS_Dn_Dn, AS_NOP        , AS_DIVS_Imm_Dn, AS_EXT_Dn, AS_w_L   , AS_NOP    , resty);
-                        case T_mod:
-                            return munchBinOp (e, AS_DIVS_Dn_Dn, AS_NOP        , AS_DIVS_Imm_Dn, AS_EXT_Dn, AS_w_L   , AS_SWAP_Dn, resty);
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
-
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, munchExp(e_left, FALSE), r));         // move.w  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_W, NULL, r));                                    // not.w   r, r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_W, munchExp(e_right, FALSE), r));              // or.w    e_right, r
-
-                            return r;
-                        }
-                        case T_neg:
-                            return munchUnaryOp(e, AS_NEG_Dn, resty);
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        case T_power:
-                            return emitBinOpJsr (e, "___pow_s2", resty);
-                        case T_shl:
-                            return munchBinOp (e, AS_ASL_Dn_Dn , AS_NOP        , AS_ASL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_shr:
-                            return munchBinOp (e, AS_ASR_Dn_Dn , AS_NOP        , AS_ASR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_uinteger:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_minus:
-                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_mul:
-                            return munchBinOp (e, AS_MULU_Dn_Dn, AS_MULU_Imm_Dn, AS_MULU_Imm_Dn, AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_intDiv:
-                        case T_div:
-                            return munchBinOp (e, AS_DIVU_Dn_Dn, AS_NOP        , AS_DIVU_Imm_Dn, AS_EXT_Dn, AS_w_L   , AS_NOP    , resty);
-                        case T_mod:
-                            return munchBinOp (e, AS_DIVU_Dn_Dn, AS_NOP        , AS_DIVU_Imm_Dn, AS_EXT_Dn, AS_w_L   , AS_SWAP_Dn, resty);
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
-
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, munchExp(e_left, FALSE), r));         // move.w  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_W, NULL, r));                                    // not.w   r, r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_W, munchExp(e_right, FALSE), r));              // or.w    e_right, r
-                            return r;
-                        }
-                        case T_neg:
-                            return munchUnaryOp(e, AS_NEG_Dn, resty);
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        case T_power:
-                            return emitBinOpJsr (e, "___pow_u2", resty);
-                        case T_shl:
-                            return munchBinOp (e, AS_LSL_Dn_Dn , AS_NOP        , AS_LSL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_shr:
-                            return munchBinOp (e, AS_LSR_Dn_Dn , AS_NOP        , AS_LSR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_long:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return munchBinOp (e, AS_ADD_Dn_Dn, AS_ADD_Imm_Dn, AS_ADD_Imm_Dn, AS_NOP, AS_w_NONE, AS_NOP, resty);
-                        case T_minus:
-                            return munchBinOp (e, AS_SUB_Dn_Dn, AS_NOP       , AS_SUB_Imm_Dn, AS_NOP, AS_w_NONE, AS_NOP, resty);
-                        case T_mul:
-                            return emitRegCall(e->pos, "___mulsi4", 0, F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_intDiv:
-                        case T_div:
-                            return emitRegCall(e->pos, "___divsi4", 0, F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_mod:
-                            return emitRegCall(e->pos, "___modsi4", 0, F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
-
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(e_left, FALSE), r));         // move.l  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_L, NULL, r));                                    // not.l   r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_L, munchExp(e_right, FALSE), r));              // or.l    e_right, r
-
-                            return r;
-                        }
-                        case T_neg:
-                            return munchUnaryOp(e, AS_NEG_Dn, resty);
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        case T_power:
-                            return emitBinOpJsr (e, "___pow_s4", resty);
-                        case T_shl:
-                            return munchBinOp (e, AS_ASL_Dn_Dn , AS_NOP        , AS_ASL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_shr:
-                            return munchBinOp (e, AS_ASR_Dn_Dn , AS_NOP        , AS_ASR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_ulong:
-                case Ty_varPtr:
-                case Ty_pointer:
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return munchBinOp (e, AS_ADD_Dn_Dn , AS_ADD_Imm_Dn , AS_ADD_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_minus:
-                            return munchBinOp (e, AS_SUB_Dn_Dn , AS_NOP        , AS_SUB_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_mul:
-                            return emitRegCall(e->pos, "___mulsi4", 0, F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                               F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_intDiv:
-                        case T_div:
-                            return emitRegCall(e->pos, "___udivsi4", 0, F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                                F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_mod:
-                            return emitRegCall(e->pos, "___umodsi4", 0, F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                                F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_and:
-                            return munchBinOp (e, AS_AND_Dn_Dn , AS_AND_Imm_Dn , AS_AND_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_or:
-                            return munchBinOp (e, AS_OR_Dn_Dn  , AS_OR_Imm_Dn  , AS_OR_Imm_Dn  , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_xor:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_eqv:
-                            return munchBinOp (e, AS_EOR_Dn_Dn , AS_EOR_Imm_Dn , AS_EOR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOT_Dn , resty);
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-                            Temp_temp r       = Temp_Temp(resty);
-
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_L, munchExp(e_left, FALSE), r));         // move.l  e_left, r
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_L, NULL, r));                                    // not.l   r, r
-                            emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_L, munchExp(e_right, FALSE), r));              // or.l    e_right, r
-
-                            return r;
-                        }
-                        case T_neg:
-                            return munchUnaryOp(e, AS_NEG_Dn, resty);
-                        case T_not:
-                            return munchUnaryOp(e, AS_NOT_Dn, resty);
-                        case T_power:
-                            return emitBinOpJsr (e, "___pow_u4", resty);
-                        case T_shl:
-                            return munchBinOp (e, AS_LSL_Dn_Dn , AS_NOP        , AS_LSL_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        case T_shr:
-                            return munchBinOp (e, AS_LSR_Dn_Dn , AS_NOP        , AS_LSR_Imm_Dn , AS_NOP   , AS_w_NONE, AS_NOP    , resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    break;
-                case Ty_single:
-                {
-                    switch (e->u.BINOP.op)
-                    {
-                        case T_plus:
-                            return emitRegCall(e->pos, "_MathBase", LVOSPAdd,
-                                               F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_minus:
-                            return emitRegCall(e->pos, "_MathBase", LVOSPSub,
-                                               F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_mul:
-                            return emitRegCall(e->pos, "_MathBase", LVOSPMul,
-                                               F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_div:
-                            return emitRegCall(e->pos, "_MathBase", LVOSPDiv,
-                                               F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_intDiv:
-                        {
-                            Temp_temp t1 = emitRegCall(e->pos, "_MathBase", LVOSPDiv,
-                                                       F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                         F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                            Temp_temp t2 = emitRegCall(e->pos, "_MathBase", LVOSPFix, F_RAL(t1, F_D0(), NULL), Ty_Long());
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(t2, F_D0(), NULL), resty);
-                        }
-                        case T_mod:
-                            return emitBinOpJsr (e, "___aqb_mod", resty);
-                        case T_neg:
-                            return emitRegCall(e->pos, "_MathBase", LVOSPNeg,
-                                               F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(), NULL), resty);
-                        case T_power:
-                            return emitRegCall(e->pos, "_MathTransBase", LVOSPPow,
-                                               F_RAL(munchExp(e->u.BINOP.left, FALSE), F_D0(),
-                                                 F_RAL(munchExp(e->u.BINOP.right, FALSE), F_D1(), NULL)), resty);
-                        case T_and:
-                        case T_or:
-                        case T_xor:
-                        case T_eqv:
-                        case T_imp:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            T_exp     e_right = e->u.BINOP.right;
-
-                            Temp_temp r  = emitRegCall(e->pos, "_MathBase", LVOSPFix, F_RAL(munchExp(e_left,  FALSE), F_D0(), NULL), Ty_Long());
-                            Temp_temp r2 = emitRegCall(e->pos, "_MathBase", LVOSPFix, F_RAL(munchExp(e_right, FALSE), F_D0(), NULL), Ty_Long());
-
-                            switch (e->u.BINOP.op)
-                            {
-                                case T_and:
-                                    emit(AS_Instr(e->pos, AS_AND_Dn_Dn, AS_w_L, r2, r));             // and.l   r2, r
-                                    break;
-                                case T_or:
-                                    emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_L, r2, r));              // or.l    r2, r
-                                    break;
-                                case T_xor:
-                                    emit(AS_Instr(e->pos, AS_EOR_Dn_Dn, AS_w_L, r2, r));             // eor.l   r2, r
-                                    break;
-                                case T_eqv:
-                                    emit(AS_Instr(e->pos, AS_EOR_Dn_Dn, AS_w_L, r2, r));             // eor.l   r2, r
-                                    emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_L, NULL, r));              // not.l   r
-                                    break;
-                                case T_imp:
-                                    emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_L, NULL, r));              // not.l   r
-                                    emit(AS_Instr(e->pos, AS_OR_Dn_Dn, AS_w_L, r2, r));              // or.l    r2, r
-                                    break;
-                                default:
-                                    assert(0);
-                            }
-
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), resty);
-                        }
-                        case T_not:
-                        {
-                            T_exp     e_left  = e->u.BINOP.left;
-                            Temp_temp r = emitRegCall(e->pos, "_MathBase", LVOSPFix, F_RAL(munchExp(e_left,  FALSE), F_D0(), NULL), Ty_Long());
-                            emit(AS_Instr(e->pos, AS_NOT_Dn, AS_w_L, NULL, r));                      // not.l   r
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), resty);
-                        }
-                        case T_shr:
-                            return emitBinOpJsr (e, "___aqb_shr_single", resty);
-                        case T_shl:
-                            return emitBinOpJsr (e, "___aqb_shl_single", resty);
-                        default:
-                            EM_error(0, "*** codegen.c: unhandled single binOp %d!", e->u.BINOP.op);
-                            assert(0);
-                    }
-                    assert(0);
-                    break;
-                }
-                default:
-                    EM_error(0, "*** codegen.c: unhandled type kind %d!", resty->kind);
-                    assert(0);
-                    break;
-            }
-        }
-        case T_CONST:
-        {
-            Temp_temp r = Temp_Temp(e->ty);
-            emit(AS_InstrEx(e->pos, AS_MOVE_Imm_AnDn, AS_tySize(e->ty), NULL, r, e->u.CONSTR, 0, NULL)); // move.x #CONST, r
-            return r;
-        }
-        case T_TEMP:
-        {
-            /* TEMP(t) */
-            return e->u.TEMP;
-        }
-        case T_HEAP:
-        {
-            Temp_label lab = e->u.HEAP;
-            Temp_temp r = Temp_Temp(Ty_Long());
-            emit(AS_InstrEx(e->pos, AS_MOVE_ILabel_AnDn, AS_w_L, NULL, r, 0, 0, lab));                  // move.l #lab, r
-            return r;
-        }
-        case T_CALLF:
-        {
-            /* CALL(NAME(lab),args) */
-            Temp_label lab = e->u.CALLF.proc->label;
-            T_expList args = e->u.CALLF.args;
-
-            if (e->u.CALLF.proc->libBase)
-            {
-                F_ral     ral    = NULL;
-                Ty_formal formal = e->u.CALLF.proc->formals;
-                for (; args; args=args->tail)
-                {
-                    ral = F_RAL(munchExp(args->head, FALSE), formal->reg, ral);
-                    formal = formal->next;
-                }
-
-                Temp_temp r = emitRegCall(e->pos, e->u.CALLF.proc->libBase, e->u.CALLF.proc->offset, ral, e->ty);
-                if (!ignore_result)
-                    return r;
-            }
-            else
-            {
-                int arg_cnt = munchArgsStack(e->pos, 0, args);
-                emit(AS_InstrEx2(e->pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, lab,                         // jsr   lab
-                                 F_callersaves(), NULL));
-                //munchCallerRestoreStack(e->u.CALLF.proc->isVariadic ? 0 : arg_cnt, ignore_result);
-                munchCallerRestoreStack(e->pos, arg_cnt, /*sink_callersaves=*/ignore_result);
-                if (!ignore_result)
-                {
-                    enum AS_w isz = AS_tySize(e->ty);
-                    Temp_temp t = Temp_Temp(e->ty);
-                    emit(AS_InstrEx2(e->pos, AS_MOVE_AnDn_AnDn, isz, F_RV(), t, NULL, 0, NULL,
-                                     NULL, F_callersaves()));                                            // move.x d0, t
-                    return t;
-                }
-            }
-
-            return NULL;
-        }
-        case T_CAST:
-        {
-            Temp_temp r1 = munchExp(e->u.CAST.exp, FALSE);
-
-            switch (e->u.CAST.ty_from->kind)
-            {
-                case Ty_bool:
-                    switch (e->ty->kind)
-                    {
-                        case Ty_integer:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r)); // move.b r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_W, NULL, r));       // ext.w  r
-                            return r;
-                        }
-                        case Ty_long:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r)); // move.b r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_W, NULL, r));       // ext.w  r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_L, NULL, r));       // ext.l  r
-                            return r;
-                        }
-                        case Ty_single:
-                        {
-                            Temp_temp r = Temp_Temp(Ty_Long());
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r)); // move.b r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_W, NULL, r));       // ext.w  r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_L, NULL, r));       // ext.l  r
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
-                        }
-                        default:
-                            assert(0);
-                    }
-                    break;
-                case Ty_byte:
-                case Ty_ubyte:
-                    switch (e->ty->kind)
-                    {
-                        case Ty_bool:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_TST_Dn, AS_w_B, r1, NULL));       // tst.b r1
-                            emit(AS_Instr(e->pos, AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
-                            return r;
-                        }
-                        case Ty_uinteger:
-                        case Ty_integer:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_W, NULL, r));        // ext.w  r
-                            return r;
-                        }
-                        case Ty_ulong:
-                        case Ty_long:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_W, NULL, r));        // ext.w  r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
-                            return r;
-                        }
-                        case Ty_single:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_W, NULL, r));        // ext.w  r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
-                        }
-                        default:
-                            assert(0);
-                    }
-                    break;
-                case Ty_integer:
-                    switch (e->ty->kind)
-                    {
-                        case Ty_bool:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_TST_Dn, AS_w_W, r1, NULL));       // tst.w r1
-                            emit(AS_Instr(e->pos, AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
-                            return r;
-                        }
-                        case Ty_ubyte:
-                        case Ty_byte:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
-                            return r;
-                        }
-                        case Ty_ulong:
-                        case Ty_long:
-                        case Ty_pointer:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
-                            return r;
-                        }
-                        case Ty_single:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
-                            emit(AS_Instr(e->pos, AS_EXT_Dn, AS_w_L, NULL, r));        // ext.l  r
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
-                        }
-                        default:
-                            assert(0);
-                    }
-                case Ty_uinteger:
-                    switch (e->ty->kind)
-                    {
-                        case Ty_bool:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_TST_Dn, AS_w_W, r1, NULL));       // tst.w r1
-                            emit(AS_Instr(e->pos, AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
-                            return r;
-                        }
-                        case Ty_ubyte:
-                        case Ty_byte:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
-                            return r;
-                        }
-                        case Ty_ulong:
-                        case Ty_long:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
-                            emit(AS_InstrEx(e->pos, AS_AND_Imm_Dn, AS_w_L, NULL,       // and.l  #65535, r
-                                            r, Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
-                            return r;
-                        }
-                        case Ty_single:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
-                            emit(AS_InstrEx(e->pos, AS_AND_Imm_Dn, AS_w_L, NULL,       // and.l  #65535, r
-                                            r, Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r, F_D0(), NULL), e->ty);
-                        }
-                        default:
-                            assert(0);
-                    }
-                    break;
-                case Ty_ulong:
-                case Ty_long:
-                case Ty_pointer:
-                case Ty_varPtr:
-                case Ty_string:
-                    switch (e->ty->kind)
-                    {
-                        case Ty_bool:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_TST_Dn, AS_w_L, r1, NULL));       // tst.l r1
-                            emit(AS_Instr(e->pos, AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
-                            return r;
-                        }
-                        case Ty_byte:
-                        case Ty_ubyte:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_B, r1, r));  // move.b r1, r
-                            return r;
-                        }
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_W, r1, r));  // move.w r1, r
-                            return r;
-                        }
-                        case Ty_single:
-                            return emitRegCall(e->pos, "_MathBase", LVOSPFlt, F_RAL(r1, F_D0(), NULL), e->ty);
-                        case Ty_ulong:
-                        case Ty_long:
-                        case Ty_pointer:
-                        case Ty_varPtr:
-                        case Ty_string:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            emit(AS_Instr(e->pos, AS_MOVE_AnDn_AnDn, AS_w_L, r1, r));  // move.l r1, r
-                            return r;
-                        }
-                        default:
-                            assert(0);
-                    }
-                    break;
-                case Ty_single:
-                    switch (e->ty->kind)
-                    {
-                        case Ty_bool:
-                        {
-                            Temp_temp r = Temp_Temp(e->ty);
-                            Temp_temp t = emitRegCall(e->pos, "_MathBase", LVOSPFix, F_RAL(r1, F_D0(), NULL), Ty_Long());
-                            emit(AS_Instr(e->pos, AS_TST_Dn, AS_w_L, t, NULL));        // tst.l t
-                            emit(AS_Instr(e->pos, AS_SNE_Dn, AS_w_B, NULL, r));        // sne.b r
-                            return r;
-                        }
-                        case Ty_byte:
-                        case Ty_ubyte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
-                        {
-                            Temp_temp r = emitRegCall(e->pos, "_MathBase", LVOSPFix, F_RAL(r1, F_D0(), NULL), e->ty);
-                            return r;
-                        }
-                        default:
-                            assert(0);
-                    }
-                    break;
-                default:
-                    assert(0);
-            }
-            assert(0);
-            break;
-        }
-        case T_FP:
-        {
-            Temp_temp r = Temp_Temp(e->ty);
-            emit(AS_Instr(e->pos, AS_MOVE_fp_AnDn, AS_w_L, NULL, r));                                        // move.l fp, r
-            return r;
-        }
-        case T_CALLFPTR:
-        {
-            /* CALL((fptr), args) */
-            T_exp     fptr = e->u.CALLFPTR.fptr;
-            T_expList args = e->u.CALLFPTR.args;
-
-            Temp_temp rfptr = munchExp(fptr, FALSE);
-            int arg_cnt = munchArgsStack(e->pos, 0, args);
-            emit(AS_InstrEx2(e->pos, AS_JSR_An, AS_w_NONE, rfptr, NULL, 0, 0, NULL,                          // jsr   (rfptr)
-                             F_callersaves(), NULL));
-            munchCallerRestoreStack(e->pos, arg_cnt, /*sink_callersaves=*/ignore_result);
-            if (!ignore_result)
-            {
-                enum AS_w isz = AS_tySize(e->ty);
-                Temp_temp t = Temp_Temp(e->ty);
-                emit(AS_InstrEx2(e->pos, AS_MOVE_AnDn_AnDn, isz, F_RV(), t, 0, 0, NULL,                      // move.x d0, t
-                                 NULL, F_callersaves()));
-                return t;
-            }
-
-            return NULL;
-        }
-        default:
-        {
-            EM_error(0, "*** internal error: unknown exp kind %d!", e->kind);
-            assert(0);
-        }
+        InHeap (item, label, ty);
+        return;
     }
+
+    // local var
+
+    int size = Ty_size(ty);
+
+    frame->locals_offset -= Ty_size(ty);
+    // alignment
+    frame->locals_offset -= size % 2;
+
+    InFrame (item, frame->locals_offset, ty);
+}
+
+int CG_itemOffset (CG_item *item)
+{
+    assert (item->kind == IK_inFrame);
+    return item->u.inFrameR.offset;
+}
+
+Ty_ty CG_ty(CG_item *item)
+{
+    switch (item->kind)
+    {
+        case IK_none:
+            assert(FALSE);
+            return NULL;
+        case IK_const:
+            return item->u.c->ty;
+        case IK_inFrame:
+            return item->u.inFrameR.ty;
+        case IK_inReg:
+            return Temp_ty(item->u.inReg);
+        case IK_inHeap:
+            return item->u.inFrameR.ty;
+        case IK_cond:
+            return Ty_Bool();
+        case IK_varPtr:
+            return Temp_ty(item->u.varPtr);
+    }
+    assert(FALSE);
+    return Ty_Void();
+}
+
+bool CG_isVar (CG_item *item)
+{
+    return (item->kind == IK_inFrame) || (item->kind == IK_inReg) || (item->kind == IK_inHeap);
+}
+
+bool CG_isConst (CG_item *item)
+{
+    return item->kind == IK_const;
+}
+
+bool CG_isNone (CG_item *item)
+{
+    return item->kind == IK_none;
+}
+
+Ty_const CG_getConst(CG_item *item)
+{
+    assert (CG_isConst(item));
+    return item->u.c;
+}
+
+int CG_getConstInt (CG_item *item)
+{
+    assert (CG_isConst(item));
+
+    switch (item->u.c->ty->kind)
+    {
+        case Ty_bool:
+            return item->u.c->u.b ? -1 : 0;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_pointer:
+            return item->u.c->u.i;
+        case Ty_single:
+        case Ty_double:
+            return (int) item->u.c->u.f;
+        default:
+            EM_error(0, "*** codegen.c :CG_getConstInt: internal error");
+            assert(0);
+    }
+}
+
+double CG_getConstFloat (CG_item *item)
+{
+    assert (CG_isConst(item));
+
+    switch (item->u.c->ty->kind)
+    {
+        case Ty_bool:
+            return item->u.c->u.b ? -1 : 0;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+            return (float) item->u.c->u.i;
+        case Ty_single:
+        case Ty_double:
+            return item->u.c->u.f;
+        default:
+            EM_error(0, "*** codegen.c :CG_getConstFloat: internal error");
+            assert(0);
+    }
+}
+
+bool CG_getConstBool (CG_item *item)
+{
+    assert (CG_isConst(item));
+
+    switch (item->u.c->ty->kind)
+    {
+        case Ty_bool:
+            return item->u.c->u.b;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+            return item->u.c->u.i != 0;
+        case Ty_single:
+        case Ty_double:
+            return item->u.c->u.f != 0.0;
+        default:
+            EM_error(0, "*** codegen.c :CG_getConstBool: internal error");
+            assert(0);
+    }
+}
+
+CG_itemList CG_ItemList (void)
+{
+    CG_itemList l = checked_malloc(sizeof(*l));
+
+    l->first = NULL;
+    l->last  = NULL;
+
+    return l;
+}
+
+static CG_itemListNode CG_ItemListNode (CG_itemListNode next)
+{
+    CG_itemListNode n = checked_malloc(sizeof(*n));
+
+    n->next = next;
+
+    return n;
+}
+
+CG_itemListNode CG_itemListAppend (CG_itemList il)
+{
+    assert(il);
+
+    CG_itemListNode n = CG_ItemListNode (NULL);
+
+    if (il->last)
+        il->last = il->last->next = n;
+    else
+        il->first = il->last = n;
+
+    return n;
+}
+
+/* Fragments */
+
+CG_frag CG_StringFrag (Temp_label label, string str)
+{
+    CG_frag f = checked_malloc(sizeof(*f));
+
+    f->kind            = CG_stringFrag;
+    f->u.stringg.label = label;
+    f->u.stringg.str   = String(str);
+
+    return f;
+}
+
+CG_frag CG_ProcFrag (S_pos pos, Temp_label label, bool expt, AS_instrList body, CG_frame frame)
+{
+    CG_frag f = checked_malloc(sizeof(*f));
+
+    f->kind         = CG_procFrag;
+    f->u.proc.pos   = pos;
+    f->u.proc.label = label;
+    f->u.proc.expt  = expt;
+    f->u.proc.body  = body;
+    f->u.proc.frame = frame;
+
+    return f;
+}
+
+CG_frag CG_DataFrag (Temp_label label, bool expt, int size)
+{
+    CG_frag f = checked_malloc(sizeof(*f));
+
+    f->kind         = CG_dataFrag;
+    f->u.data.label = label;
+    f->u.data.expt  = expt;
+    f->u.data.size  = size;
+    f->u.data.init  = NULL;
+
+    return f;
+}
+
+void CG_dataFragAddConst (CG_frag dataFrag, Ty_const c)
+{
+    assert(dataFrag->kind == CG_dataFrag);
+
+    CG_dataFragNode f = checked_malloc(sizeof(*f));
+
+    f->kind = CG_constNode;
+    f->u.c  = c;
+    f->next = NULL;
+
+    if (dataFrag->u.data.init)
+        dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
+    else
+        dataFrag->u.data.initLast = dataFrag->u.data.init = f;
+    dataFrag->u.data.size++;
+}
+
+void CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label)
+{
+    assert(dataFrag->kind == CG_dataFrag);
+
+    CG_dataFragNode f = checked_malloc(sizeof(*f));
+
+    f->kind    = CG_labelNode;
+    f->u.label = label;
+    f->next    = NULL;
+
+    if (dataFrag->u.data.init)
+        dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
+    else
+        dataFrag->u.data.initLast = dataFrag->u.data.init = f;
+}
+
+CG_fragList CG_FragList (CG_frag head, CG_fragList tail)
+{
+    CG_fragList l = checked_malloc(sizeof(*l));
+
+    l->head = head;
+    l->tail = tail;
+
+    return l;
+}
+
+CG_fragList CG_getResult(void)
+{
+    return g_fragList;
+}
+
+void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList formals, CG_item *returnVar, Temp_label exitlbl, bool is_main, bool expt)
+{
+    if (!pos)
+        pos = body->first->instr->pos;
+
+    if (is_main)        // run module initializers?
+    {
+        AS_instrList initCode = AS_InstrList();
+        for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
+        {
+            E_module m2 = n->m;
+
+            S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(m2->name)), TRUE);
+
+            Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+
+            CG_transCall (initCode, pos, init_proc, /*args=*/NULL, /* result=*/ NULL);
+        }
+        AS_instrListPrependList (body, initCode);
+    }
+
+    if (exitlbl)
+    {
+        // FIXME stm = T_Seq(pos, stm, T_Label(pos, exitlbl));
+        assert(FALSE);
+    }
+
+    if (returnVar)
+    {
+        // FIXME
+#if 0
+        T_exp ret_exp = unEx(pos, returnVar);
+        Ty_ty ty_ret = CG_ty(returnVar);
+        stm = T_Seq(pos, T_Move(pos, ret_exp, unEx(pos, CG_zeroExp(pos, ty_ret)),  ty_ret),
+                T_Seq(pos, stm,
+                  T_Move(pos, T_Temp(pos, F_RV(), ty_ret), ret_exp, ty_ret)));
+#endif
+        assert(FALSE);
+    }
+
+    CG_frag frag = CG_ProcFrag(pos, frame->name, expt, body, frame);
+    g_fragList   = CG_FragList(frag, g_fragList);
+}
+
+void CG_procEntryExitAS (CG_frag frag)
+{
+    assert (frag->kind == CG_procFrag);
+
+    CG_frame     frame     = frag->u.proc.frame;
+    AS_instrList body      = frag->u.proc.body;
+    S_pos        pos_start = frag->u.proc.pos;
+
+    int          frame_size  = -frame->locals_offset;
+    Temp_tempSet calleesaves = AS_calleesaves();
+
+    // entry code
+
+    if (frame_size > 32767)
+        EM_error(0, "Sorry, frame size is too large.");     // FIXME
+
+    int pos_end   = body->last  ? body->last->instr->pos : 0;
+
+    // determine clobbered registers
+    int regs = 0;
+    for (AS_instrListNode n = body->first; n; n=n->next)
+    {
+        AS_instr instr = n->instr;
+        if (!instr->dst)
+            continue;
+        assert (AS_isPrecolored(instr->dst));
+        if (!Temp_tempSetContains (calleesaves, instr->dst))
+            continue;
+        regs |= (1<<Temp_num(instr->dst));
+    }
+
+    if (regs)
+        AS_instrListPrepend (body, AS_InstrEx(pos_start, AS_MOVEM_Rs_PDsp, AS_w_L,                         //      movem.l   regs, -(sp)
+                                              NULL, NULL, NULL, regs, NULL));
+    AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, AS_w_NONE, NULL, NULL,                   //      link fp, #-frameSize
+                                           Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
+    AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name));// label:
+
+    // exit code
+
+    if (regs)
+        AS_instrListAppend (body, AS_InstrEx(pos_end, AS_MOVEM_spPI_Rs, AS_w_L,                            //      movem.l   (sp)+, regs
+                                                       NULL, NULL, NULL, regs, NULL));
+    AS_instrListAppend (body, AS_Instr (pos_end, AS_UNLK_fp, AS_w_NONE, NULL, NULL));                      //      unlk fp
+    AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, AS_w_NONE, NULL, NULL));                          //      rts
+}
+
+#if 0
+static int ipow(int base, int exp)
+{
+    int result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+#endif
+
+static enum AS_mn relOp2mn (CG_relOp c)
+{
+    switch (c)
+    {
+        case CG_eq:  return AS_BEQ;
+        case CG_ne:  return AS_BNE;
+        case CG_lt:  return AS_BLT;
+        case CG_gt:  return AS_BGT;
+        case CG_le:  return AS_BLE;
+        case CG_ge:  return AS_BGE;
+    }
+
+    assert(FALSE);
+    return AS_NOP;
+}
+
+static CG_relOp relNegated(CG_relOp r)
+{
+    switch(r)
+    {
+        case CG_eq:  return CG_ne;
+        case CG_ne:  return CG_eq;
+        case CG_lt:  return CG_ge;
+        case CG_ge:  return CG_lt;
+        case CG_gt:  return CG_le;
+        case CG_le:  return CG_gt;
+    }
+    assert(0);
     return 0;
 }
 
-static void munchStm(T_stm s)
+void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
 {
-    switch (s->kind)
+    switch (item->kind)
     {
-        case T_MOVE:
+        case IK_inReg:
+            return;
+
+        case IK_inFrame:
         {
-            T_exp     dst   = s->u.MOVE.dst;
-            T_exp     src   = s->u.MOVE.src;
-            Ty_ty     resty = s->u.MOVE.ty;
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
 
-            if (Ty_size(resty) <= MACHINE_REGSIZE)
+            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, AS_tySize(ty), NULL,                      //     move.x o(fp), t
+                                                  t, NULL, CG_itemOffset(item), NULL));
+            InReg (item, t);
+            break;
+        }
+
+        case IK_inHeap:
+        {
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+
+            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Label_AnDn, AS_tySize(ty), NULL,                    //     move.x l, t
+                                                  t, NULL, 0, item->u.inHeap.l));
+            InReg (item, t);
+            break;
+        }
+
+        case IK_const:
+        {
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x #item, t
+                                                 t, item->u.c, 0, NULL));
+            InReg (item, t);
+            break;
+        }
+
+        case IK_cond:
+        {
+            Ty_ty ty = Ty_Bool();
+            Temp_temp t = Temp_Temp (ty);
+            Temp_label lFini = Temp_newlabel();
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x postCond, t
+                                                 t, Ty_ConstBool(ty, item->u.condR.postCond), 0, NULL));
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_BRA, AS_w_NONE, NULL,                                    //     bra    lFini
+                                                 NULL, NULL, 0, lFini));
+            CG_transLabel (code, pos, item->u.condR.l);                                                           // item.l:
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x !postCond, t
+                                                 t, Ty_ConstBool(ty, !item->u.condR.postCond), 0, NULL));
+            CG_transLabel (code, pos, lFini);                                                                     // lFini:
+            InReg (item, t);
+            break;
+        }
+
+        default:
+            assert(FALSE);
+    }
+}
+
+void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
+{
+    switch (item->kind)
+    {
+        case IK_inReg:
+            assert(FALSE);
+            return;
+
+        case IK_inFrame:
+        {
+            assert(FALSE); // FIXME: lea.x
+            // Ty_ty ty = CG_ty(item);
+            // Temp_temp t = Temp_Temp (ty);
+
+            // AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, AS_tySize(ty), NULL,                      //     move.x o(fp), t
+            //                                       t, NULL, CG_itemOffset(item), NULL));
+            // VarPtr (item, t);
+            break;
+        }
+
+        case IK_inHeap:
+        {
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+
+            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_ILabel_AnDn, AS_w_L, NULL,                            //     move.l #l, t
+                                                  t, NULL, 0, item->u.inHeap.l));
+            VarPtr (item, t);
+            break;
+        }
+
+        default:
+            assert(FALSE);
+    }
+}
+
+void CG_loadCond (AS_instrList code, S_pos pos, CG_item *item)
+{
+    switch (item->kind)
+    {
+        case IK_cond:
+            break;
+
+        case IK_inReg:
+        case IK_inHeap:
+        case IK_inFrame:
+        {
+            CG_item zero;
+            CG_ZeroItem (&zero, CG_ty(item));
+            CG_transRelOp (code, pos, CG_ne, item, &zero);
+            break;
+        }
+
+        default:
+            assert(FALSE);
+    }
+}
+
+static bool isConstZero (CG_item *item)
+{
+    if (item->kind != IK_const)
+        return FALSE;
+
+    return !CG_getConstBool (item);
+}
+
+// result in left!
+void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty)
+{
+    enum AS_w w = AS_tySize(ty);
+    switch (left->kind)
+    {
+        case IK_const:                                                  // c <o> ?
+            switch (o)
             {
-                enum AS_w isz   = AS_tySize(resty);
+                case CG_plus:                                           // c + ?
 
-                switch (dst->kind)
-                {
-                    case T_MEM:
+                    if (isConstZero(left))                                   // 0 + ? = ?
                     {
-                        // assignment to frame var
-                        if (dst->u.MEM.exp->kind == T_BINOP                                             // move ..., MEM(BINOP(PLUS, ..., ...))
-                            && dst->u.MEM.exp->u.BINOP.op == T_plus)
-                        {
-                            if (dst->u.MEM.exp->u.BINOP.left->kind == T_FP)                             // move ..., MEM(BINOP(PLUS, fp , ...))
-                            {
-                                if (dst->u.MEM.exp->u.BINOP.right->kind == T_CONST)                     // move ..., MEM(BINOP(PLUS, fp, CONSTR))
-                                {
-                                    int off = dst->u.MEM.exp->u.BINOP.right->u.CONSTR->u.i;
-                                    if (src->kind == T_CONST)                                           // move CONST, MEM(BINOP(PLUS, fp, CONST))
-                                    {
-                                        emit (AS_InstrEx(s->pos, AS_MOVE_Imm_Ofp, isz, NULL, NULL,              // move.x #CONST, off(fp)
-                                                         src->u.CONSTR, off, NULL));
-                                    }
-                                    else                                                                // move exp, MEM(BINOP(PLUS, fp, CONST))
-                                    {
-                                        emit (AS_InstrEx(s->pos, AS_MOVE_AnDn_Ofp, isz,                         // move.x exp, off(fp)
-                                                         munchExp(src, FALSE), NULL,
-                                                         0, off, NULL));
-                                    }
-                                    break;
-                                }
-                            }
-                        }
+                        CG_loadVal (code, pos, right);
+                        *left = *right;
+                        return;
+                    }
 
-                        // assignment to heap var
-                        if (dst->u.MEM.exp->kind == T_HEAP)                                         // move ..., MEM(HEAP ...)
-                        {
-                            Temp_label lab = dst->u.MEM.exp->u.HEAP;
-                            if (src->kind == T_CONST)                                               // move.x #const, lab
+                    switch (right->kind)
+                    {
+                        case IK_const:                                  // c + c
+
+                            switch (ty->kind)
                             {
-                                emit(AS_InstrEx(s->pos, AS_MOVE_Imm_Label, isz, NULL, NULL, src->u.CONSTR, 0, lab));
-                            }
-                            else                                                                    // move.x src, lab
-                            {
-                                emit(AS_InstrEx(s->pos, AS_MOVE_AnDn_Label, isz, munchExp(src, FALSE), NULL, 0, 0, lab));
+                                case Ty_integer:
+                                    CG_IntItem(left, left->u.c->u.i+right->u.c->u.i, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
                             }
                             break;
-                        }
 
-                        // general case:
-                        // move ..., MEM(exp)
-                        // -> compute dst address in addr reg
 
-                        Temp_temp ra = Temp_Temp(Ty_Long());
-                        emit (AS_Instr(s->pos, AS_MOVE_AnDn_AnDn, AS_w_L,                       // move exp, ra
-                                       munchExp(dst->u.MEM.exp, FALSE), ra));
-                        if (src->kind == T_CONST)                                       // move CONST, MEM(exp)
-                        {
-                            emit(AS_InstrEx(s->pos, AS_MOVE_Imm_RAn, isz, NULL, ra,             // move #imm, (ra)
-                                            src->u.CONSTR, 0, NULL));
-                        }
-                        else                                                            // move exp1, MEM(exp2)
-                        {
-                            emit(AS_Instr(s->pos, AS_MOVE_AnDn_RAn, isz,                        // move src, (ra)
-                                          munchExp(src, FALSE), ra));
-                        }
-                        break;
-                    }
-                case T_TEMP:
-                    emit(AS_Instr(s->pos, AS_MOVE_AnDn_AnDn, isz, munchExp(src, FALSE),         // move.x e2, tmp
-
-                                  dst->u.TEMP));
-                    break;
-                default:
-                    assert(0);
-                }
-            }
-            else        // > MACHINE_REGSIZE -> operands do not fit into a single register
-            {
-                assert (resty->kind != Ty_darray); // should have been handled in frontend (call to copy method)
-
-                Temp_temp rd_size = Temp_Temp(Ty_Long());
-                emit(AS_InstrEx(s->pos, AS_MOVE_Imm_AnDn, AS_tySize(Ty_Long()), NULL, rd_size,         // move.x #size, rd_size
-                                Ty_ConstInt(Ty_ULong(), Ty_size(resty)), 0, NULL));
-
-                switch (dst->kind)
-                {
-                    case T_MEM:
-                    {
-                        Temp_temp ra_dst = Temp_Temp(Ty_Long());
-                        emit (AS_Instr(s->pos, AS_MOVE_AnDn_AnDn, AS_w_L,                                       // move dst, ra_dst
-                                       munchExp(dst->u.MEM.exp, FALSE), ra_dst));
-
-                        switch (src->kind)
-                        {
-                            case T_MEM:
+                        case IK_inFrame:                                // c + v
+                        case IK_inReg:
+                        case IK_inHeap:
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
                             {
-                                Temp_temp ra_src = Temp_Temp(Ty_Long());
-                                emit (AS_Instr(s->pos, AS_MOVE_AnDn_AnDn, AS_w_L,                               // move dst, ra_src
-                                               munchExp(src->u.MEM.exp, FALSE), ra_src));
-
-                                emitRegCall(s->pos, "_SysBase", LVOCopyMem, F_RAL(rd_size, F_D0(),              // CopyMem(ra_src, ra_dst, rd_size);
-                                            F_RAL(ra_src, F_A0(), F_RAL(ra_dst, F_A1(), NULL))),
-                                            Ty_Long());
-                                break;
+                                case Ty_long:
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, right->u.inReg,   // add.x #left, right
+                                                                          left->u.c, 0, NULL));
+                                    *left = *right;
+                                    break;
+                                default:
+                                    assert(FALSE);
                             }
-                            default:
-                                assert(0);
-                        }
-                        break;
+                            break;
+
+                        default:
+                            assert(FALSE);
                     }
+
+                case CG_neg:                                           // -c
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            CG_IntItem(left, -left->u.c->u.i, ty);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                default:
+                    assert(FALSE);
+                    break;
+            }
+            break;
+
+        case IK_inFrame:
+        case IK_inReg:
+        case IK_inHeap:
+        case IK_cond:
+            CG_loadVal (code, pos, left);
+            switch (o)
+            {
+                case CG_plus:                                           // v + ?
+                    switch (right->kind)
+                    {
+                        case IK_const:
+                            switch (o)
+                            {
+                                case CG_plus:                           // v + c
+                                    if (isConstZero(right))                  // v + 0 = v
+                                        return;
+
+                                    switch (ty->kind)
+                                    {
+                                        case Ty_long:
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
+                                                                                  right->u.c, 0, NULL));
+                                            break;
+                                        default:
+                                            assert(FALSE);
+                                    }
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+                        case IK_inFrame:
+                        case IK_inReg:
+                        case IK_inHeap:
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
+                            {
+                                case Ty_long:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_and:                                            // v & ?
+                    CG_loadVal (code, pos, right);                      // FIXME: constant propagation: v & 0 = 0
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+
+                    break;
+
+                case CG_or:                                             // v | ?
+                    CG_loadVal (code, pos, right);                      // FIXME: constant propagation: v | 1 = 1
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
+
+                    break;
+
+                case CG_not:                                            // !v
+                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
+
+                    break;
+
+                default:
+                    assert(FALSE);
+            }
+            break;
+
+        default:
+            assert(FALSE);
+    }
+
+#if 0
+    // constant propagation
+    if (CG_isConst(left) && (!right || CG_isConst(right)))
+    {
+        switch (ty->kind)
+        {
+            case Ty_bool:
+            {
+                bool b=0;
+                bool a = CG_getConstBool(left);
+                if (right)
+                    b = CG_getConstBool(right);
+                switch (o)
+                {
+                    case CG_xor   : CG_BoolItem(left, a ^ b, ty);    return;
+                    case CG_eqv   : CG_BoolItem(left, a == b, ty);   return;
+                    case CG_imp   : CG_BoolItem(left, !a || b, ty);  return;
+                    case CG_not   : CG_BoolItem(left, !a, ty);       return;
+                    case CG_and   : CG_BoolItem(left, a && b, ty);   return;
+                    case CG_or    : CG_BoolItem(left, a || b, ty);   return;
                     default:
+                        EM_error(0, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
                         assert(0);
                 }
-            }
-            break;
-        }
-        case T_LABEL:
-        {
-            // LABEL(lab)
-
-            // avoid consecutive labels (regalloc cannot handle those)
-            if (lastIsLabel)
-            {
-				emit(AS_Instr(s->pos, AS_NOP, AS_w_NONE, NULL, NULL));					 // nop
-            }
-
-            Temp_label lab = s->u.LABEL;
-            emit(AS_InstrEx(s->pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, lab));        // lab:
-            break;
-        }
-        case T_JSR:
-        {
-            // since we have no idea what it is we're calling here, we have to assume
-            // all registers get clobbered, not just the callersaves
-            emit(AS_InstrEx2(s->pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, s->u.JUMP,           // jsr   label
-                             F_registers(), NULL));
-            emit(AS_InstrEx2(s->pos, AS_NOP, AS_w_NONE, NULL, NULL, 0, 0, NULL,                      // NOP ; sink registers
-                             NULL, F_registers()));
-            break;
-        }
-        case T_RTS:
-        {
-            emit( AS_InstrEx(s->pos, AS_RTS, AS_w_NONE, NULL, NULL, 0, 0, NULL));                   //      rts
-            break;
-        }
-        case T_JUMP:
-        {
-            // jmp label
-            emit(AS_InstrEx(s->pos, AS_JMP, AS_w_NONE, NULL, NULL, 0, 0, s->u.JUMP));    // jmp   label
-            break;
-        }
-        case T_CJUMP:
-        {
-            /* CJUMP(op,e1,e2,jt,jf) */
-            T_relOp op    = s->u.CJUMP.op;
-            T_exp e1      = s->u.CJUMP.left;
-            T_exp e2      = s->u.CJUMP.right;
-            Temp_label jt = s->u.CJUMP.ltrue;
-            //Temp_label jf = s->u.CJUMP.lfalse;
-            Ty_ty ty      = e1->ty;
-
-            if (ty->kind == Ty_string)
-            {
-                enum AS_mn branchinstr = AS_NOP;
-                switch (op) {
-                    case T_eq:  branchinstr = AS_BEQ; break;
-                    case T_ne:  branchinstr = AS_BNE; break;
-                    case T_lt:  branchinstr = AS_BLT; break;
-                    case T_gt:  branchinstr = AS_BGT; break;
-                    case T_le:  branchinstr = AS_BLE; break;
-                    case T_ge:  branchinstr = AS_BGE; break;
-                }
-                Temp_temp rcmp = Temp_Temp(Ty_Integer());
-                T_expList args    = T_ExpList(e1, T_ExpList(e2, NULL));
-                int       arg_cnt = munchArgsStack(s->pos, 0, args);
-                emit(AS_InstrEx2(s->pos, AS_JSR_Label, AS_w_NONE, NULL, NULL,                        // jsr     astr_cmp
-                                 0, 0, Temp_namedlabel("___astr_cmp"),
-                                 F_callersaves(), NULL));
-                munchCallerRestoreStack(s->pos, arg_cnt, /*sink_callersaves=*/FALSE);
-                emit(AS_InstrEx2(s->pos, AS_MOVE_AnDn_AnDn, AS_w_L, F_RV(), rcmp,                    // move.l  RV, rcmp
-                                  0, 0, NULL, NULL, F_callersaves()));
-                emit(AS_Instr(s->pos, AS_TST_Dn, AS_w_W, rcmp, NULL));                               // tst.w   rcmp
-                emit(AS_InstrEx(s->pos, branchinstr, AS_w_NONE, NULL, NULL, 0, 0, jt));              // bcc    jt
                 break;
             }
+            case Ty_byte:
+            case Ty_ubyte:
+            case Ty_integer:
+            case Ty_uinteger:
+            case Ty_long:
+            case Ty_ulong:
+            {
+                int b = 0;
+                int a = CG_getConstInt(left);
+                if (right)
+                    b = CG_getConstInt(right);
+                switch (o)
+                {
+                    case CG_plus  : CG_IntItem(left, a+b, ty);            return;
+                    case CG_minus : CG_IntItem(left, a-b, ty);            return;
+                    case CG_mul   : CG_IntItem(left, a*b, ty);            return;
+                    case CG_div   : CG_IntItem(left, a/b, ty);            return;
+                    case CG_xor   : CG_IntItem(left, a^b, ty);            return;
+                    case CG_eqv   : CG_IntItem(left, ~(a^b), ty);         return;
+                    case CG_imp   : CG_IntItem(left, ~a|b, ty);           return;
+                    case CG_neg   : CG_IntItem(left, -a, ty);             return;
+                    case CG_not   : CG_IntItem(left, ~a, ty);             return;
+                    case CG_and   : CG_IntItem(left, a&b, ty);            return;
+                    case CG_or    : CG_IntItem(left, a|b, ty);            return;
+                    case CG_power : CG_IntItem(left, ipow (a, b), ty);    return;
+                    case CG_intDiv: CG_IntItem(left, a/b, ty);            return;
+                    case CG_mod   : CG_IntItem(left, a%b, ty);            return;
+                    case CG_shl   : CG_IntItem(left, a << b, ty);         return;
+                    case CG_shr   : CG_IntItem(left, a >> b, ty);         return;
+                    default:
+                        EM_error(pos, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
+                        assert(0);
+                }
+                break;
+            }
+            case Ty_single:
+            case Ty_double:
+            {
+                double b=0.0;
+                double a = CG_getConstFloat(left);
+                if (right)
+                    b = CG_getConstFloat(right);
+                switch (o)
+                {
+                    case CG_plus  : CG_FloatItem(left, a+b, ty);                              return;
+                    case CG_minus : CG_FloatItem(left, a-b, ty);                              return;
+                    case CG_mul   : CG_FloatItem(left, a*b, ty);                              return;
+                    case CG_div   : CG_FloatItem(left, a/b, ty);                              return;
+                    case CG_xor   : CG_FloatItem(left, (a!=0.0) % (b!=0.0), ty);              return;
+                    case CG_eqv   : CG_FloatItem(left, ~((int)roundf(a)^(int)roundf(b)), ty); return;
+                    case CG_imp   : CG_FloatItem(left, ~(int)roundf(a)|(int)roundf(b), ty);   return;
+                    case CG_neg   : CG_FloatItem(left, -a, ty);                               return;
+                    case CG_not   : CG_FloatItem(left, ~(int)roundf(a), ty);                  return;
+                    case CG_and   : CG_FloatItem(left, (int)roundf(a)&(int)roundf(b), ty);    return;
+                    case CG_or    : CG_FloatItem(left, (int)roundf(a)&(int)roundf(b), ty);    return;
+                    case CG_power : CG_FloatItem(left, pow(a, b), ty);                        return;
+                    case CG_intDiv: CG_FloatItem(left, (int)a/(int)b, ty);                    return;
+                    case CG_mod   : CG_FloatItem(left, fmod(a, b), ty);                       return;
+                    case CG_shl   : CG_FloatItem(left, (int)a << (int)b, ty);                 return;
+                    case CG_shr   : CG_FloatItem(left, (int)a >> (int)b, ty);                 return;
+                    default:
+                        EM_error(pos, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
+                        assert(0);
+                }
+                break;
+            }
+            default:
+                EM_error(pos, "*** codegen.c: Tr_binOpExp: internal error: unknown type kind %d", ty->kind);
+                assert(0);
+        }
+    }
+#endif
 
-            Temp_temp r1  = munchExp(e1, FALSE);
-            Temp_temp r2  = munchExp(e2, FALSE);
+#if 0
+    if ( left->kind == Tr_cx || ( right && (right->kind == Tr_cx)) )
+    {
+        struct Cx leftcx = unCx(pos, left);
 
-            enum AS_mn branchinstr = AS_NOP;
-            enum AS_mn cmpinstr    = AS_NOP;
-            enum AS_w  cmpw        = AS_w_NONE;
-            int        cmplvo      = 0;
+        switch (o)
+        {
+            case CG_not:
+                // simply switch true and false around
+                return Tr_Cx(leftcx.falses, leftcx.trues, leftcx.stm);
+
+            case CG_or:
+            {
+                Temp_label z = Temp_newlabel();
+                struct Cx rightcx = unCx(pos, right);
+
+                CG_stm s1 = CG_Seq(pos, leftcx.stm,
+                            CG_Seq(pos, CG_Label(pos, z),
+                             rightcx.stm));
+                doPatch(leftcx.falses, z);
+                return Tr_Cx(joinPatch(leftcx.trues, rightcx.trues), rightcx.falses, s1);
+            }
+
+            case CG_and:
+            {
+                Temp_label z = Temp_newlabel();
+                struct Cx rightcx = unCx(pos, right);
+
+                CG_stm s1 = CG_Seq(pos, leftcx.stm,
+                            CG_Seq(pos, CG_Label(pos, z),
+                             rightcx.stm));
+                doPatch(leftcx.trues, z);
+                return Tr_Cx(rightcx.trues, joinPatch(leftcx.falses, rightcx.falses), s1);
+            }
+
+            default:
+                // generic case, handled below
+                break;
+        }
+    }
+    CG_binOp op;
+    switch (o)
+    {
+        case CG_plus:
+
+            // x + 0 == x
+            if (CG_isConst(left) && (CG_getConstInt(left)==0))
+                return Tr_castExp(pos, right, Tr_ty(right), ty);
+            if (CG_isConst(right) && (CG_getConstInt(right)==0))
+                return Tr_castExp(pos, left, Tr_ty(left), ty);
+
+            op = CG_plus;
+            break;
+        case CG_minus   : op = CG_minus;    break;
+        case CG_mul   : op = CG_mul;      break;
+        case CG_div   : op = CG_div;      break;
+        case CG_xor   : op = CG_xor;      break;
+        case CG_eqv   : op = CG_eqv;      break;
+        case CG_imp   : op = CG_imp;      break;
+        case CG_neg   : op = CG_neg;      break;
+        case CG_not   : op = CG_not;      break;
+        case CG_and   : op = CG_and;      break;
+        case CG_or    : op = CG_or;       break;
+        case CG_power   : op = CG_power;    break;
+        case CG_intDiv: op = CG_intDiv;   break;
+        case CG_mod   : op = CG_mod;      break;
+        case CG_shl   : op = CG_shl;      break;
+        case CG_shr   : op = CG_shr;      break;
+        default:
+            EM_error(pos, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
+            assert(0);
+    }
+
+    return Tr_Ex(CG_Binop(pos, op, unEx(pos, left), unEx(pos, right), ty));
+#endif
+}
+
+void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG_item *right)
+{
+    Ty_ty ty = CG_ty(left);
+    switch (left->kind)
+    {
+        case IK_inReg:
+        case IK_inFrame:
+        case IK_inHeap:
+            CG_loadVal (code, pos, left);
+
             switch (ty->kind)
             {
                 case Ty_bool:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_lt:  branchinstr = AS_BLT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_gt:  branchinstr = AS_BGT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_le:  branchinstr = AS_BLE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_ge:  branchinstr = AS_BGE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                    }
-                    break;
-                case Ty_byte:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_lt:  branchinstr = AS_BLT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_gt:  branchinstr = AS_BGT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_le:  branchinstr = AS_BLE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_ge:  branchinstr = AS_BGE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                    }
-                    break;
-                case Ty_ubyte:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_lt:  branchinstr = AS_BCS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_gt:  branchinstr = AS_BHI; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_le:  branchinstr = AS_BLS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                        case T_ge:  branchinstr = AS_BCC; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_B; break;
-                    }
-                    break;
                 case Ty_integer:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_lt:  branchinstr = AS_BLT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_gt:  branchinstr = AS_BGT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_le:  branchinstr = AS_BLE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_ge:  branchinstr = AS_BGE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                    }
-                    break;
-                case Ty_uinteger:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_lt:  branchinstr = AS_BCS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_gt:  branchinstr = AS_BHI; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_le:  branchinstr = AS_BLS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                        case T_ge:  branchinstr = AS_BCC; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_W; break;
-                    }
-                    break;
                 case Ty_long:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_lt:  branchinstr = AS_BLT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_gt:  branchinstr = AS_BGT; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_le:  branchinstr = AS_BLE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_ge:  branchinstr = AS_BGE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                    }
-                    break;
-                case Ty_ulong:
-                case Ty_pointer:
-                case Ty_procPtr:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_ne:  branchinstr = AS_BNE; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_lt:  branchinstr = AS_BCS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_gt:  branchinstr = AS_BHI; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_le:  branchinstr = AS_BLS; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                        case T_ge:  branchinstr = AS_BCC; cmpinstr = AS_CMP_Dn_Dn; cmpw = AS_w_L; break;
-                    }
-                    break;
-                case Ty_single:
-                    switch (op) {
-                        case T_eq:  branchinstr = AS_BEQ; cmplvo = LVOSPCmp; break;
-                        case T_ne:  branchinstr = AS_BNE; cmplvo = LVOSPCmp; break;
-                        case T_lt:  branchinstr = AS_BLT; cmplvo = LVOSPCmp; break;
-                        case T_gt:  branchinstr = AS_BGT; cmplvo = LVOSPCmp; break;
-                        case T_le:  branchinstr = AS_BLE; cmplvo = LVOSPCmp; break;
-                        case T_ge:  branchinstr = AS_BGE; cmplvo = LVOSPCmp; break;
-                    }
-                    break;
-                default:
-                    assert(0);
-            }
+                {
+                    enum AS_w w = AS_tySize(ty);
 
-            if (cmplvo)
+                    // optimization possible ?
+
+                    if ( (ro == CG_ne) && isConstZero (right) )
+                    {
+                        Temp_label l = Temp_newlabel();
+                        AS_instrListAppend (code, AS_Instr (pos, AS_TST_Dn, w, left->u.inReg, NULL));             //     tst.x  left
+                        AS_instr bxx = AS_InstrEx (pos, AS_BEQ, AS_w_NONE, NULL, NULL, NULL, 0, l);               //     beq    l
+                        AS_instrListAppend (code, bxx);
+
+                        CG_CondItem (left, l, bxx, /*postCond=*/ TRUE);
+                        return;
+                    }
+
+                    CG_loadVal (code, pos, right);
+                    Temp_label l = Temp_newlabel();
+                    AS_instrListAppend (code, AS_Instr (pos, AS_CMP_Dn_Dn, w, right->u.inReg, left->u.inReg));    //     cmp.x  right, left
+                    AS_instr bxx = AS_InstrEx (pos, relOp2mn(relNegated(ro)), AS_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
+                    AS_instrListAppend (code, bxx);
+
+                    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE);
+                    break;
+                }
+                default:
+                    assert(FALSE);
+            }
+            break;
+
+        default:
+            assert (FALSE);
+    }
+}
+
+void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)
+{
+    AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, AS_w_NONE, NULL, NULL, 0, 0, l));      // bra    l
+}
+
+void CG_transLabel (AS_instrList code, S_pos pos, Temp_label l)
+{
+    // we need to generate NOPs between consecutive labels because flowgraph.c cannot handle those
+    if (code->last && (code->last->instr->mn == AS_LABEL))
+        AS_instrListAppend (code, AS_Instr(pos, AS_NOP, AS_w_NONE, NULL, NULL));                  //     nop
+    AS_instrListAppend (code, AS_InstrEx(pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, l));         // l:
+}
+
+void CG_transMergeCond (AS_instrList code, S_pos pos, CG_item *left, CG_item *right)
+{
+    assert (left->kind == IK_cond);
+
+    if (right->kind == IK_cond)
+    {
+        for (AS_instrListNode iln = left->u.condR.fixUps->first; iln; iln=iln->next)
+            iln->instr->label = right->u.condR.l;
+
+        AS_instrListPrependList (right->u.condR.fixUps, left->u.condR.fixUps);
+        *left = *right;
+    }
+    else
+    {
+        /*
+         *  (a<b) and/or i
+         *
+         *          CMP     a, b    ; a < b ?
+         *          BGE     Lf      ; a>=b -> Lf
+         *          temp := i
+         *          BRA Le
+         * Lf:      temp := tfItem
+         * Le:
+         */
+
+        Ty_ty ty = CG_ty(right);
+        CG_item temp;
+        CG_TempItem (&temp, ty);
+        CG_transAssignment (code, pos, &temp, right);
+        Temp_label le = Temp_newlabel();
+        CG_transJump (code, pos, le);
+        CG_transLabel (code, pos, left->u.condR.l);
+        CG_item tfItem;
+        if (left->u.condR.postCond)
+        {
+            CG_ZeroItem (&tfItem, ty);
+        }
+        else
+        {
+            CG_BoolItem (&tfItem, TRUE, Ty_Bool());
+            CG_castItem (code, pos, &tfItem, ty);
+        }
+        CG_transAssignment (code, pos, &temp, &tfItem);
+        CG_transLabel (code, pos, le);
+        *left = temp;
+    }
+}
+
+void CG_transPostCond (AS_instrList code, S_pos pos, CG_item *item, bool positive)
+{
+    assert (item->kind == IK_cond);
+
+    if (positive)
+    {
+        if (item->u.condR.postCond)
+            return;
+    }
+    else
+    {
+        if (!item->u.condR.postCond)
+            return;
+    }
+
+    /*
+     * invert
+     *
+     * from:
+     *
+     *      cmp.x   a, b
+     *      bcc     condR.l
+     *      < ... >
+     *
+     *
+     * to:
+     *      cmp.x   a, b
+     *      bcc     condR.l
+     *      bra     lInverse
+     * condR.l:
+     *      < ... >
+     *
+     * condR.l := lInversea
+     *
+     */
+
+    Temp_label lInverse = Temp_newlabel();
+    AS_instr bra = AS_InstrEx (pos, AS_BRA, AS_w_NONE, NULL, NULL, NULL, 0, lInverse);                    //     bra    lInverse
+    AS_instrListAppend(code, bra);
+    CG_transLabel (code, pos, item->u.condR.l);                                                           // condR.l:
+
+    item->u.condR.l        = lInverse;
+    item->u.condR.postCond = !item->u.condR.postCond;
+    item->u.condR.fixUps   = AS_InstrList();
+    AS_instrListAppend (item->u.condR.fixUps, bra);
+}
+
+
+#if 0
+void CG_transCJump (AS_instrList code, S_pos pos, CG_item *test, Temp_label l)
+{
+    switch (test->kind)
+    {
+        case IK_cond:
+            break;
+
+        case IK_inReg:
+        {
+            Ty_ty ty = CG_ty(test);
+            enum AS_w w = AS_tySize(ty);
+            AS_instrListAppend (code, AS_Instr (pos, AS_TST_Dn, w, test->u.inReg, NULL));          // tst.x test.r
+            test->kind = IK_cond;
+            test->u.condR.l = l ? l : Temp_newlabel();
+            test->u.condR.c = CG_ne;
+            break;
+        }
+
+        default:
+            assert(FALSE);
+    }
+
+    if (l)
+    {
+        assert (!test->u.condR.l);
+        test->u.condR.l = l;
+    }
+    else
+    {
+        assert (test->u.condR.l);
+        l = test->u.condR.l;
+    }
+
+    enum AS_mn branchinstr = relOp2mn(relNegated(test->u.condR.c));
+
+    AS_instrListAppend(code,AS_InstrEx(pos, branchinstr, AS_w_NONE, NULL, NULL, 0, 0, l));        //     bcc    l
+}
+#endif
+
+#if 0
+void CG_transForLoop (AS_instrList code, S_pos pos, CG_item &loopVar, CG_item &fromItem, CG_item &toItem, CG_item &stepItem)
+{
+    /*
+     * code scheme:
+     *
+     *      move.x   fromItem, loopVar
+     *      cmp.x    loopVar, toItem
+     *      bgt/bhi  lExit
+     * lHead:
+     *      ; ... loop body ...
+     * lCont:
+     *      add.x    stepItem, loopVar
+     *      cmp.x    loopVar, toItem
+     *      bge/bhs  lExit
+     *      bra      lHead
+     * lExit:
+     */
+}
+
+CG_item CG_transCast (S_pos pos, CG_item exp, Ty_ty from_ty, Ty_ty to_ty)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+CG_item CG_transFor (S_pos pos, CG_item loopVar, CG_item exp_from, CG_item exp_to, CG_item exp_step, CG_item body, Temp_label exitlbl, Temp_label contlbl)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+CG_item CG_transWhile (S_pos pos, CG_item exp, CG_item body, Temp_label exitlbl, Temp_label contlbl)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+CG_item CG_transDo (S_pos pos, CG_item untilExp, CG_item whileExp, bool condAtEntry, CG_item body, Temp_label exitlbl, Temp_label contlbl)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+CG_item CG_transGoto (S_pos pos, Temp_label lbl)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+CG_item CG_transGosub (S_pos pos, Temp_label lbl)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+CG_item CG_transRTS (S_pos pos)
+{
+    assert(FALSE); // FIXME
+    return NULL;
+}
+
+#endif
+
+static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
+{
+    if (!args)
+        return 0;
+
+    int cnt = 0;
+
+    for (CG_itemListNode n = args->first; n; n=n->next)
+    {
+        // apparently, gcc pushes 4 bytes regardless of actual operand size
+        CG_item *e = &n->item;
+        if (e->kind == IK_const)
+        {
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.c, 0, NULL));      // move.l  #const, -(sp)
+        }
+        else
+        {
+            if (e->kind == IK_inReg)
             {
-                Temp_temp r = emitRegCall(s->pos, "_MathBase", cmplvo, F_RAL(r1, F_D1(), F_RAL(r2, F_D0(), NULL)), Ty_Integer());
-                emit(AS_Instr(s->pos, AS_TST_Dn, AS_w_W, r, NULL));                              // tst.w  r
+                Ty_ty ty = CG_ty (e);
+                if (Ty_size(ty)==1)
+                    AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL, e->u.inReg,               // and.l   #255, r
+                                                        Ty_ConstUInt(Ty_ULong(), 255), 0, NULL));
             }
             else
             {
-                emit(AS_Instr(s->pos, cmpinstr, cmpw, r2, r1));                                  // cmp.x  r2, r1
+                assert (e->kind == IK_varPtr); // BYREF arg
             }
-
-            emit(AS_InstrEx(s->pos, branchinstr, AS_w_NONE, NULL, NULL, 0, 0, jt));              // bcc    jt
-            // canon.c has to ensure CJUMP is _always_ followed by its false stmt
-            // emit(AS_InstrEx(s->pos, AS_JMP, AS_w_NONE, NULL, NULL, 0, 0, jf));                // jmp    jf
-            break;
+            AS_instrListAppend(code,AS_Instr(pos, AS_MOVE_AnDn_PDsp, AS_w_L, e->u.inReg, NULL));                    // move.l  r, -(sp)
         }
+
+        cnt++;
+    }
+
+    return cnt;
+    // FIXME: remove
 #if 0
-        case T_NOP:
-        {
-            /* NOP */
-            emit(AS_Oper(String("nop"), NULL, NULL, s->u.JUMP));
-            break;
-        }
-#endif
-		case T_EXP:
-		{
-			munchExp(s->u.EXP, TRUE);
-			break;
-		}
-        default:
-        {
-            EM_error(0, "*** internal error: unknown stmt kind %d!", s->kind);
-            assert(0);
-        }
-    }
-}
-
-#if 0
-static void munchCallerSave()
-{
-    Temp_tempList callerSaves = F_callersaves();
-    for (; callerSaves; callerSaves = callerSaves->tail)
-    {
-        emit(AS_Move("move.l `s0,-(sp)", L(F_SP(), NULL), L(callerSaves->head, NULL), NULL));
-    }
-}
-
-static void munchCallerRestore(Temp_tempList tl)
-{
-    int restoreCount = 0;
-    char inst[128];
-    for (; tl; tl = tl->tail)
-    {
-        ++restoreCount;
-    }
-
-    sprintf(inst, "add.l #%d, `s0", restoreCount * F_wordSize); // FIXME: addq ?
-    emit(AS_Oper(String(inst), L(F_SP(), NULL), L(F_SP(), NULL), NULL));
-
-    Temp_tempList callerSaves = Temp_reverseList(F_callersaves());
-    for (; callerSaves; callerSaves = callerSaves->tail)
-    {
-        emit(AS_Move("move.l (sp)+,`d0", L(callerSaves->head, NULL), L(F_SP(), NULL), NULL));
-    }
-}
-
-static Temp_tempList munchArgs(int i, T_expList args)
-{
-    if (args == NULL) {
-        return NULL;
-    }
-
-    Temp_tempList old = munchArgs(i + 1, args->tail);
-    char *inst = checked_malloc(sizeof(char) * 120);
-
-    Temp_temp r = munchExp(args->head);
-    // apparently, gcc pushes 4 bytes regardless of actual operand size
-#if 0
-    char *isz;
-    switch (Ty_size(Temp_ty(r)))
-    {
-        case 1:
-            isz = "b";
-            break;
-        case 2:
-            isz = "w";
-            break;
-        case 4:
-            isz = "l";
-            break;
-        default:
-            assert(0);
-    }
-    sprintf(inst, "move.%s `s0,-(sp)", isz);
-#else
-    sprintf(inst, "move.l `s0,-(sp)");
-#endif
-    emit(AS_Oper(inst, L(F_SP(), NULL), L(r, NULL), NULL));
-
-    // No need to reserve values before calling in 68k
-    return Temp_TempList(r, old);
-}
-#endif
-
-static int munchArgsStack(S_pos pos, int i, T_expList args)
-{
-    int cnt = 0;
 
     if (args == NULL) {
         return cnt;
     }
 
-    cnt += munchArgsStack(pos, i + 1, args->tail);
+    cnt += munchArgsStack(pos, code, i + 1, args->next);
 
     // apparently, gcc pushes 4 bytes regardless of actual operand size
-
-    T_exp e = args->head;
-    if (e->kind == T_CONST)
+    CG_item *e = &args->item;
+    if (e->kind == IK_const)
     {
-        emit(AS_InstrEx(pos, AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.CONSTR, 0, NULL));      // move.l  #const, -(sp)
+        AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.c, 0, NULL));      // move.l  #const, -(sp)
     }
     else
     {
-        Temp_temp r = munchExp(e, FALSE);
-        if (Ty_size(e->ty)==1)
-            emit(AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL, r,                               // and.l   #255, r
-                            Ty_ConstInt(Ty_ULong(), 255), 0, NULL));
-        emit(AS_Instr(pos, AS_MOVE_AnDn_PDsp, AS_w_L, r, NULL));                               // move.l  r, -(sp)
+        Ty_ty ty = CG_ty (e);
+        CG_loadVal (code, pos, e);
+        if (Ty_size(ty)==1)
+            AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL, e->u.inReg,                   // and.l   #255, r
+                                                Ty_ConstUInt(Ty_ULong(), 255), 0, NULL));
+        AS_instrListAppend(code,AS_Instr(pos, AS_MOVE_AnDn_PDsp, AS_w_L, e->u.inReg, NULL));                    // move.l  r, -(sp)
     }
     return cnt+1;
+#endif
 }
 
-static void munchCallerRestoreStack(S_pos pos, int cnt, bool sink_callersaves)
+static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt, bool sink_callersaves)
 {
     if (cnt)
     {
-        emit(AS_InstrEx2 (pos, AS_ADD_Imm_sp, AS_w_L, NULL,                                    // add.l #(cnt*F_wordSize), sp
-                          NULL, Ty_ConstInt(Ty_ULong(), cnt * F_wordSize), 0, NULL,
-                          NULL, F_callersaves()));
+        AS_instrListAppend(code, AS_InstrEx2 (pos, AS_ADD_Imm_sp, AS_w_L, NULL,                            // add.l #(cnt*F_wordSize), sp
+                                              NULL, Ty_ConstUInt(Ty_ULong(), cnt * AS_WORD_SIZE), 0, NULL,
+                                              NULL, AS_callersaves()));
     }
     else
     {
         if (sink_callersaves)
         {
-            emit(AS_InstrEx2 (pos, AS_NOP, AS_w_NONE, NULL,                                    // nop
-                              NULL, 0, 0, NULL, NULL, F_callersaves()));
+            AS_instrListAppend(code, AS_InstrEx2 (pos, AS_NOP, AS_w_NONE, NULL,                           // nop
+                                                  NULL, 0, 0, NULL, NULL, AS_callersaves()));
         }
     }
 }
 
+void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args, CG_item *result)
+{
+    Temp_label lab = proc->label;
+
+    if (proc->libBase)
+    {
+        assert(FALSE); // FIXME
+#if 0
+        F_ral     ral    = NULL;
+        Ty_formal formal = e->u.CALLF.proc->formals;
+        for (; args; args=args->tail)
+        {
+            ral = F_RAL(munchExp(args->head, FALSE), formal->reg, ral);
+            formal = formal->next;
+        }
+
+        Temp_temp r = emitRegCall(e->pos, e->u.CALLF.proc->libBase, e->u.CALLF.proc->offset, ral, e->ty);
+        if (!ignore_result)
+            return r;
+#endif
+    }
+    else
+    {
+        int arg_cnt = munchArgsStack(pos, code, 0, args);
+        AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, lab,    // jsr   lab
+                                              AS_callersaves(), NULL));
+        //munchCallerRestoreStack(e->u.CALLF.proc->isVariadic ? 0 : arg_cnt, ignore_result);
+        munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/!result);
+        if (result)
+        {
+            CG_item d0Item;
+            InReg (&d0Item, AS_regs[AS_TEMP_D0]);
+            CG_transAssignment (code, pos, result, &d0Item);
+        }
+    }
+}
+
+// left := right
+void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *right)
+{
+    Ty_ty      ty = CG_ty(right);
+    enum AS_w  w  = AS_tySize(ty);
+    switch (right->kind)
+    {
+        case IK_const:
+            switch (left->kind)
+            {
+                case IK_inReg:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, w, NULL, left->u.inReg,              // move.x #right, left.t
+                                                          right->u.c, 0, NULL));
+                    break;
+                case IK_inHeap:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_Label, w, NULL, NULL,                      // move.x #right, left.l
+                                                          right->u.c, 0, left->u.inHeap.l));
+                    break;
+                case IK_inFrame:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_Ofp, w, NULL, NULL,                        // move.x #right, left.o(fp)
+                                                          right->u.c, left->u.inFrameR.offset, NULL));
+                    break;
+                default:
+                    assert(FALSE);
+            }
+            break;
+
+        case IK_inReg:
+            switch (left->kind)
+            {
+                case IK_inReg:
+                    AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_AnDn, w, right->u.inReg, left->u.inReg));   // move.x right.t, left.t
+                    break;
+                case IK_inFrame:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, right->u.inReg, NULL,             // move.x right.t, left.o(fp)
+                                                          NULL, left->u.inFrameR.offset, NULL));
+                    break;
+                case IK_inHeap:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Label, w, right->u.inReg, NULL,           // move.x right.t, left.l
+                                                          NULL, 0, left->u.inHeap.l));
+                    break;
+                default:
+                    assert(FALSE);
+            }
+            break;
+
+        case IK_inFrame:
+            assert(FALSE);
+
+            // switch (left->kind)
+            // {
+            //     case IK_inFrame:
+            //     {
+            //         Temp_temp t = Temp_Temp(ty);
+            //         AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, t,                           // move.x left.o(fp), t
+            //                                               NULL, left->u.inFrameR.offset, NULL));
+            //         AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, t, NULL,                           // move.x t, right.o(fp)
+            //                                               NULL, right->u.inFrameR.offset, NULL));
+            //         break;
+            //     }
+            //     default:
+            //         assert(FALSE);
+            // }
+            break;
+
+        case IK_inHeap:
+            switch (left->kind)
+            {
+                case IK_inReg:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Label_AnDn, w, NULL, left->u.inReg,                // move.x right.l, left.t
+                                                          NULL, 0, right->u.inHeap.l));
+                    break;
+                default:
+                    assert(FALSE);
+            }
+            break;
+
+        default:
+            assert(FALSE);
+    }
+}
+
+void CG_transNOP (AS_instrList code, S_pos pos)
+{
+    AS_instrListAppend (code, AS_Instr (pos, AS_NOP, AS_w_NONE, NULL, NULL));           //      nop
+}
+
+void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
+{
+    Ty_ty from_ty = CG_ty(item);
+    if (CG_isConst(item))
+    {
+        switch (from_ty->kind)
+        {
+            case Ty_bool:
+            {
+                int i = CG_getConstInt(item);
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
+                        return;
+                    case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                        CG_IntItem (item, i, to_ty);
+                        return;
+                    case Ty_single:
+                        CG_FloatItem (item, i, to_ty);
+                        return;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            }
+            case Ty_byte:
+            case Ty_ubyte:
+            case Ty_integer:
+            case Ty_uinteger:
+            case Ty_long:
+            case Ty_ulong:
+            {
+                if (from_ty->kind == to_ty->kind)
+                    return;
+                int i = CG_getConstInt(item);
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        CG_BoolItem (item, i!=0, to_ty);
+                        return;
+                    case Ty_byte:
+                    case Ty_ubyte:
+                    case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_pointer:
+                        CG_IntItem (item, i, to_ty);
+                        return;
+                    case Ty_single:
+                    case Ty_double:
+                        CG_FloatItem (item, i, to_ty);
+                        return;
+                    default:
+                        EM_error(pos, "*** codegen.c :CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            }
+            case Ty_single:
+            {
+                int i = CG_getConstInt(item);
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        CG_BoolItem (item, i!=0, to_ty);
+                        return;
+                    case Ty_byte:
+                    case Ty_ubyte:
+                    case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                        CG_BoolItem (item, i, to_ty);
+                        return;
+                    case Ty_single:
+                        return;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            }
+            default:
+                EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", from_ty->kind);
+                assert(0);
+        }
+    }
+    else
+    {
+        switch (from_ty->kind)
+        {
+            case Ty_bool:
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        return;
+                    case Ty_byte:
+                    case Ty_ubyte:
+                        assert(FALSE); // FIXME
+                        break;
+                    case Ty_integer:
+                    {
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_W, NULL, item->u.inReg));        //     ext.w   t
+                        break;
+                    }
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_single:
+                    case Ty_double:
+                    case Ty_pointer:
+                        assert(FALSE); // FIXME
+                        break;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+
+            case Ty_byte:
+            case Ty_ubyte:
+            case Ty_integer:
+            case Ty_uinteger:
+            case Ty_long:
+            case Ty_ulong:
+            case Ty_single:
+            case Ty_double:
+                if (from_ty->kind == to_ty->kind)
+                    return;
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                        CG_loadCond (code, pos, item);
+                        break;
+
+                    case Ty_byte:
+                    case Ty_ubyte:
+                    case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_single:
+                    case Ty_double:
+                    case Ty_pointer:
+                        assert(FALSE); // FIXME
+                        // return CG_Ex(T_Cast(pos, unEx(pos, item), from_ty, to_ty));
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            case Ty_sarray:
+            case Ty_pointer:
+            case Ty_procPtr:
+            case Ty_string:
+                switch (to_ty->kind)
+                {
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_sarray:
+                    case Ty_pointer:
+                    case Ty_procPtr:
+                    case Ty_string:
+                        assert(FALSE); // FIXME
+                        // return CG_Ex(T_Cast(pos, unEx(pos, item), from_ty, to_ty));
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+            default:
+                EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", from_ty->kind);
+                assert(0);
+        }
+    }
+}
+
+static void writeASMProc(FILE *out, CG_frag frag, AS_dialect dialect)
+{
+    assert (frag->kind == CG_procFrag);
+    Temp_label   label   = frag->u.proc.label;
+    AS_instrList body    = frag->u.proc.body;
+
+    if (frag->u.proc.expt)
+    {
+        switch (dialect)
+        {
+            case AS_dialect_gas:
+                fprintf(out, ".globl %s\n\n", S_name(label));
+                break;
+            case AS_dialect_ASMPro:
+                fprintf(out, "    XDEF %s\n\n", S_name(label));
+                break;
+            default:
+                assert(FALSE);
+        }
+    }
+    AS_printInstrList(out, body, dialect);
+}
+
+char *expand_escapes(const char* src)
+{
+    char *str = checked_malloc(2 * strlen(src) + 10);
+
+    char *dest = str;
+    char c;
+
+    while ((c = *(src++)))
+    {
+        switch(c)
+        {
+            case '\a':
+                *(dest++) = '\\';
+                *(dest++) = 'a';
+                break;
+            case '\b':
+                *(dest++) = '\\';
+                *(dest++) = 'b';
+                break;
+            case '\t':
+                *(dest++) = '\\';
+                *(dest++) = 't';
+                break;
+            case '\n':
+                *(dest++) = '\\';
+                *(dest++) = 'n';
+                break;
+            case '\v':
+                *(dest++) = '\\';
+                *(dest++) = 'v';
+                break;
+            case '\f':
+                *(dest++) = '\\';
+                *(dest++) = 'f';
+                break;
+            case '\r':
+                *(dest++) = '\\';
+                *(dest++) = 'r';
+                break;
+            case '\\':
+                *(dest++) = '\\';
+                *(dest++) = '\\';
+                break;
+            case '\"':
+                *(dest++) = '\\';
+                *(dest++) = '\"';
+                break;
+            default:
+                *(dest++) = c;
+         }
+    }
+
+    *(dest++) = '\\';
+    *(dest++) = '0';
+
+    *(dest++) = '\0'; /* Ensure nul terminator */
+    return str;
+}
+
+static void writeASMStr(FILE * out, string str, Temp_label label, AS_dialect dialect)
+{
+    switch (dialect)
+    {
+        case AS_dialect_gas:
+            fprintf(out, "    .align 4\n");
+            break;
+        case AS_dialect_ASMPro:
+            fprintf(out, "    EVEN\n");
+            break;
+        default:
+            assert(FALSE);
+    }
+    fprintf(out, "%s:\n", Temp_labelstring(label));
+    switch (dialect)
+    {
+        case AS_dialect_gas:
+            fprintf(out, "    .ascii \"%s\"\n", expand_escapes(str));
+            break;
+        case AS_dialect_ASMPro:
+            fprintf(out, "    DC.B \"%s\", 0\n", str);
+            break;
+        default:
+            assert(FALSE);
+    }
+    fprintf(out, "\n");
+}
+
+static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
+{
+	if (!df->u.data.size)
+		return;
+    switch (dialect)
+    {
+        case AS_dialect_gas:
+            fprintf(out, "    .align 4\n");
+            break;
+        case AS_dialect_ASMPro:
+            fprintf(out, "    EVEN\n");
+            break;
+        default:
+            assert(FALSE);
+    }
+
+    if (df->u.data.expt)
+    {
+        switch (dialect)
+        {
+            case AS_dialect_gas:
+                fprintf(out, ".globl %s\n\n", Temp_labelstring(df->u.data.label));
+                break;
+            case AS_dialect_ASMPro:
+                fprintf(out, "    XDEF %s\n\n", Temp_labelstring(df->u.data.label));
+                break;
+            default:
+                assert(FALSE);
+        }
+    }
+
+    fprintf(out, "%s:\n", Temp_labelstring(df->u.data.label));
+    if (df->u.data.init)
+    {
+        for (CG_dataFragNode n=df->u.data.init; n; n=n->next)
+        {
+            switch (n->kind)
+            {
+                case CG_labelNode:
+                    fprintf(out, "%s:\n", Temp_labelstring(n->u.label));
+                    break;
+                case CG_constNode:
+                {
+                    Ty_const c = n->u.c;
+                    switch (c->ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_ubyte:
+                            fprintf(out, "    dc.b %d\n", c->u.b);
+                            break;
+                        case Ty_uinteger:
+                        case Ty_integer:
+                            fprintf(out, "    dc.w %d\n", c->u.i);
+                            break;
+                        case Ty_long:
+                        case Ty_ulong:
+                        case Ty_pointer:
+                            fprintf(out, "    dc.l %d\n", c->u.i);
+                            break;
+                        case Ty_single:
+                            fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
+                            break;
+                        case Ty_string:
+                            fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
+                            break;
+                        case Ty_sarray:
+                        case Ty_darray:
+                        case Ty_record:
+                        case Ty_void:
+                        case Ty_forwardPtr:
+                        case Ty_prc:
+                        case Ty_procPtr:
+                        case Ty_toLoad:
+                        case Ty_double:
+                            assert(0);
+                            break;
+                    }
+                    break;
+                }
+            }
+        // int i;
+        // switch(size)
+        // {
+        //     case 1:
+        //         fprintf(out, "    dc.b %d\n", data[0]);
+        //         break;
+        //     case 2:
+        //         fprintf(out, "    dc.b %d, %d\n", data[1], data[0]);
+        //         break;
+        //     case 4:
+        //         fprintf(out, "    dc.b %d, %d, %d, %d\n", data[3], data[2], data[1], data[0]);
+        //         break;
+        //     default:
+        //         fprintf(out, "    dc.b");
+        //         for (i=0; i<size; i++)
+        //         {
+        //             fprintf(out, "%d", data[i]);
+        //             if (i<size-1)
+        //                 fprintf(out, ",");
+        //         }
+        //         fprintf(out, "    \n");
+        //         break;
+        // }
+        }
+    }
+    else
+    {
+        switch (dialect)
+        {
+            case AS_dialect_gas:
+                fprintf(out, "    .fill %d\n", df->u.data.size);
+                break;
+            case AS_dialect_ASMPro:
+                fprintf(out, "    DS.B  %d\n", df->u.data.size);
+                break;
+            default:
+                assert(FALSE);
+        }
+
+    }
+
+    fprintf(out, "\n");
+}
+
+void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
+{
+    switch (dialect)
+    {
+        case AS_dialect_gas:
+            fprintf(out, ".text\n\n");
+            break;
+        case AS_dialect_ASMPro:
+            // fprintf(out, "    INCLUDE prolog.asm\n\n");
+            fprintf(out, "    SECTION aqbcode, CODE\n\n");
+            break;
+        default:
+            assert(FALSE);
+    }
+    for (CG_fragList fl=frags; fl; fl=fl->tail)
+    {
+        if (fl->head->kind == CG_procFrag)
+        {
+            writeASMProc(out, fl->head, dialect);
+        }
+    }
+
+    switch (dialect)
+    {
+        case AS_dialect_gas:
+            fprintf(out, "\n\n.data\n\n");
+            break;
+        case AS_dialect_ASMPro:
+            fprintf(out, "\n\n    SECTION aqbdata, DATA\n\n");
+            break;
+        default:
+            assert(FALSE);
+    }
+    for (CG_fragList fl=frags; fl; fl=fl->tail)
+    {
+        if (fl->head->kind == CG_stringFrag)
+        {
+            writeASMStr(out, fl->head->u.stringg.str, fl->head->u.stringg.label, dialect);
+        }
+        if (fl->head->kind == CG_dataFrag)
+        {
+            writeASMData(out, fl->head, dialect);
+        }
+    }
+
+    switch (dialect)
+    {
+        case AS_dialect_gas:
+            break;
+        case AS_dialect_ASMPro:
+            //fprintf(out, "    INCLUDE epilog.asm\n\n");
+            break;
+        default:
+            assert(FALSE);
+    }
+}
+
+void CG_init (void)
+{
+    global_frame = checked_malloc(sizeof(*global_frame));
+
+    global_frame->name          = NULL;
+    global_frame->statc         = TRUE;
+    global_frame->statc_labels  = hashmap_new(); // used to make static var labels unique
+    global_frame->formals       = NULL;
+    global_frame->globl         = TRUE;
+    global_frame->locals_offset = 0;
+}

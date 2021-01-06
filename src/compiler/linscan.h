@@ -2,8 +2,8 @@
 #define HAVE_LINSCAN_H
 
 #include "util.h"
-#include "frame.h"
+#include "codegen.h"
 
-bool LS_regalloc(F_frame f, AS_instrList il);
+bool LS_regalloc(CG_frame f, AS_instrList il);
 
 #endif

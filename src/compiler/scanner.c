@@ -120,6 +120,9 @@ static void getch(void)
     {
         g_eol = FALSE;
         g_col = 1;
+#ifdef S_KEEP_SOURCE
+        TAB_enter (g_src, (void *) (long) g_line, String(g_cur_line));
+#endif
         g_line++;
     }
     else
@@ -131,18 +134,12 @@ static void getch(void)
     if (n<1)
     {
         g_eof = TRUE;
-#ifdef S_KEEP_SOURCE
-        TAB_enter (g_src, (void *) (long) g_line, String(g_cur_line));
-#endif
     }
     else
     {
         if (g_ch == '\n')
         {
             g_eol = TRUE;
-#ifdef S_KEEP_SOURCE
-            TAB_enter (g_src, (void *) (long) g_line, String(g_cur_line));
-#endif
         }
         else
         {
@@ -656,7 +653,7 @@ void S_init(FILE *fin)
     g_eof           = FALSE;
     g_eol           = FALSE;
     g_line          = 1;
-    g_col           = 1;
+    g_col           = 0;
 
     g_cur_line[0]   = 0;
     g_cur_line_num  = 0;

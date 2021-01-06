@@ -1,9 +1,10 @@
 #ifndef ENV_H
 #define ENV_H
 
-#include "translate.h"
+#include "codegen.h"
 #include "table.h"
 #include "scanner.h"
+#include "types.h"
 
 typedef struct E_env_              *E_env;
 typedef struct E_envList_          *E_envList;
@@ -25,10 +26,10 @@ struct E_env_
             S_scope   tenv;    // types                          , S_symbol -> E_enventry
             S_scope   senv;    // subs                           , S_symbol -> E_enventryList
         } scopes;
-        Tr_exp withPrefix; // used in OOP for implicit this-> access as well as WITH stmts
+        CG_item withPrefix;     // used in OOP for implicit this-> access as well as WITH stmts
     } u;
 
-    E_envList parents; // parent env(s) - envs can be nested
+    E_envList parents;         // parent env(s) - envs can be nested
 };
 
 struct E_envList_
@@ -48,7 +49,7 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        Tr_exp   var;
+        CG_item   var;
         Ty_proc  proc;
         Ty_ty    ty;
     } u;
@@ -66,13 +67,13 @@ struct E_enventryListNode_
 };
 
 E_env          E_EnvScopes   (E_env parent);
-E_env          E_EnvWith     (E_env parent, Tr_exp withPrefix);
+E_env          E_EnvWith     (E_env parent, CG_item withPrefix);
 
-void           E_declareVFC  (E_env env, S_symbol sym, Tr_exp  var );
-void           E_declareSub  (E_env env, S_symbol sym, Ty_proc proc);
-void           E_declareType (E_env env, S_symbol sym, Ty_ty   ty  );
+void           E_declareVFC  (E_env env, S_symbol sym, CG_item *var );
+void           E_declareSub  (E_env env, S_symbol sym, Ty_proc  proc);
+void           E_declareType (E_env env, S_symbol sym, Ty_ty    ty  );
 
-bool           E_resolveVFC  (E_env env, S_symbol sym, bool checkParents, Tr_exp *exp, Ty_recordEntry *entry);
+bool           E_resolveVFC  (E_env env, S_symbol sym, bool checkParents, CG_item *exp, Ty_recordEntry *entry);
 Ty_ty          E_resolveType (E_env env, S_symbol sym);
 E_enventryList E_resolveSub  (E_env env, S_symbol sym);
 

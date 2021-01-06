@@ -37,7 +37,7 @@ struct S_tkn_
     union
     {
         struct { 
-            int        inum; 
+            int32_t    inum; 
             double     fnum;
             S_typeHint typeHint;
         }                             literal;

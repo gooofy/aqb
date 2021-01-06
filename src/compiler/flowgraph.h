@@ -3,7 +3,6 @@
 
 #include "temp.h"
 #include "assem.h"
-#include "frame.h"
 
 /*
  * flowgraph.h - Function prototypes and data structures to represent control

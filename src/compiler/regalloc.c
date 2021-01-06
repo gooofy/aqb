@@ -5,9 +5,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
-#include "tree.h"
 #include "assem.h"
-#include "frame.h"
 #include "color.h"
 #include "flowgraph.h"
 #include "liveness.h"
@@ -36,7 +34,7 @@ static Temp_temp aliasedSpilled(Temp_temp t, Live_graph g, Temp_tempSet spilled)
  * this is the full-blown global optimization register allocator
  */
 
-static bool RA_color (F_frame f, AS_instrList il)
+static bool RA_color (CG_frame f, AS_instrList il)
 {
     FG_graph          flow;
     Live_graph        live;
@@ -88,25 +86,25 @@ static bool RA_color (F_frame f, AS_instrList il)
         TAB_table spilledLocal = TAB_empty();
         for (Temp_tempSet tn = spilled; tn; tn = tn->tail)
         {
-            F_access acc;
+            CG_item *item = checked_malloc (sizeof (*item));
             if (f)
             {
-                acc = F_allocLocal(f, Temp_ty(tn->temp));
+                CG_allocVar (item, f, /*name=*/NULL, /*expt=*/ FALSE, Temp_ty(tn->temp));
 #ifdef ENABLE_DEBUG
-                printf("    assigned spilled %s to local fp offset %d\n", Temp_strprint(tn->temp), F_accessOffset(acc));
+                printf("    assigned spilled %s to local fp offset %d\n", Temp_strprint(tn->temp), CG_itemOffset(item));
 #endif
             }
             else
             {
-                Temp_label l = Temp_namedlabel(strprintf("__spilledtemp_%06d", Temp_num(tn->temp)));
-                acc = F_allocGlobal(l, Temp_ty(tn->temp));
+                string name = strprintf("__spilledtemp_%06d", Temp_num(tn->temp));
+                CG_allocVar(item, CG_globalFrame(), name, /*expt=*/ FALSE, Temp_ty(tn->temp));
 #ifdef ENABLE_DEBUG
                 printf("    assigned spilled %s to global %s\n", Temp_strprint( tn->temp), Temp_labelstring(l));
 #endif
                 assert(FALSE); // FIXME: code below doesn't handle globals
             }
 
-            TAB_enter(spilledLocal, tn->temp, acc);
+            TAB_enter(spilledLocal, tn->temp, item);
         }
 
         // modify instruction list, insert move instructions for spilled temps
@@ -119,18 +117,18 @@ static bool RA_color (F_frame f, AS_instrList il)
 
             if (useSpilled)
             {
-                F_access local = (F_access)TAB_look(spilledLocal, useSpilled);
+                CG_item *local = (CG_item*) TAB_look(spilledLocal, useSpilled);
                 AS_instrListInsertBefore (il, an,                                                       // move.x localOffset(fp), useSpilled
                                           AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)),
-                                                     NULL, useSpilled, 0, F_accessOffset(local), NULL));
+                                                     NULL, useSpilled, 0, CG_itemOffset(local), NULL));
             }
 
             if (defSpilled)
             {
-                F_access local = (F_access)TAB_look(spilledLocal, defSpilled);
+                CG_item *local = (CG_item*) TAB_look(spilledLocal, defSpilled);
                 AS_instrListInsertAfter (il, an,                                                        // move.x defSpilled, localOffset(FP)
                                          AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)),
-                                                    defSpilled, NULL, 0, F_accessOffset(local), NULL));
+                                                    defSpilled, NULL, 0, CG_itemOffset(local), NULL));
                 an = an->next;
             }
 
@@ -227,7 +225,7 @@ static bool RA_color (F_frame f, AS_instrList il)
     return TRUE;
 }
 
-bool RA_regAlloc(F_frame f, AS_instrList il)
+bool RA_regAlloc(CG_frame f, AS_instrList il)
 {
     if (OPT_get(OPTION_RACOLOR))
         return RA_color (f, il);

@@ -5,10 +5,8 @@
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
-#include "tree.h"
 #include "table.h"
 #include "assem.h"
-#include "frame.h"
 #include "errormsg.h"
 
 AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
@@ -33,6 +31,7 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_BHI,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BLS,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BCC,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BRA,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_CMP_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_DIVS_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_DIVS_Imm_Dn,      FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
@@ -89,6 +88,13 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_UNLK_fp,          FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE } 
     };
 
+Temp_temp AS_regs[AS_NUM_REGISTERS];
+
+static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
+static Temp_tempSet  g_callerSaves, g_calleeSaves;
+static S_scope       g_regScope;
+
+static string        g_regnames[AS_NUM_REGISTERS] = { "a0", "a1", "a2", "a3", "a4", "a6", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7" };
 
 bool AS_verifyInstr (AS_instr instr)
 {
@@ -227,6 +233,12 @@ void AS_instrListPrepend (AS_instrList al, AS_instr instr)
         al->first = al->first->prev = n;
     else
         al->first = al->last = n;
+}
+
+void AS_instrListPrependList  (AS_instrList il, AS_instrList il2)
+{
+    for (AS_instrListNode n=il2->last; n; n=n->prev)
+        AS_instrListPrepend (il, n->instr);
 }
 
 void AS_instrListInsertBefore (AS_instrList al, AS_instrListNode a, AS_instr instr)
@@ -399,12 +411,11 @@ enum AS_w AS_tySize(Ty_ty ty)
         case Ty_ulong:
         case Ty_single:
         case Ty_double:
-        case Ty_varPtr:
         case Ty_pointer:
-        case Ty_string:
         case Ty_forwardPtr:
         case Ty_procPtr:
             return AS_w_L;
+        case Ty_string:
         case Ty_sarray:
         case Ty_darray:
         case Ty_record:
@@ -496,11 +507,11 @@ static void instrformat(string str, string strTmpl, AS_instr instr)
                 case 'R':
                 {
                     bool first=TRUE;
-                    for (int reg=0; reg<F_NUM_REGISTERS; reg++)
+                    for (int reg=0; reg<AS_NUM_REGISTERS; reg++)
                     {
                         if (instr->offset & (1<<reg))
                         {
-                            string rname = F_regName (reg);
+                            string rname = AS_regName (reg);
 
                             if (first)
                                 first = FALSE;
@@ -525,7 +536,7 @@ static void instrformat(string str, string strTmpl, AS_instr instr)
     str[pos] = 0;
 }
 
-void AS_sprint(string str, AS_instr i)
+void AS_sprint(string str, AS_instr i, AS_dialect dialect)
 {
     switch (i->mn)
     {
@@ -569,6 +580,8 @@ void AS_sprint(string str, AS_instr i)
             instrformat(str, "    bls      `l", i);           break;
         case AS_BCC:
             instrformat(str, "    bcc      `l", i);           break;
+        case AS_BRA:
+            instrformat(str, "    bra      `l", i);           break;
         case AS_CMP_Dn_Dn:
             instrformat(str, "    cmp`w    `s, `d", i);     break;
         case AS_DIVS_Dn_Dn:
@@ -630,9 +643,9 @@ void AS_sprint(string str, AS_instr i)
         case AS_MOVE_Imm_Label:
             instrformat(str, "    move`w   #`i, `l", i);     break;
         case AS_MOVEM_Rs_PDsp:
-            instrformat(str, "    movem`w `R, -(sp)", i);     break;
+            instrformat(str, "    movem`w  `R, -(sp)", i);     break;
         case AS_MOVEM_spPI_Rs:
-            instrformat(str, "    movem`w (sp)+, `R", i);     break;
+            instrformat(str, "    movem`w  (sp)+, `R", i);     break;
         case AS_MULS_Dn_Dn:
             instrformat(str, "    muls`w   `s, `d", i);      break;
         case AS_MULS_Imm_Dn:
@@ -679,7 +692,7 @@ void AS_sprint(string str, AS_instr i)
     }
 }
 
-void AS_printInstrList (FILE *out, AS_instrList iList)
+void AS_printInstrList (FILE *out, AS_instrList iList, AS_dialect dialect)
 {
     int line = 0;
     for (AS_instrListNode an = iList->first; an; an=an->next)
@@ -688,16 +701,30 @@ void AS_printInstrList (FILE *out, AS_instrList iList)
         int l = S_getline(instr->pos);
         if (l != line)
         {
+            switch (dialect)
+            {
+                case AS_dialect_gas:
 #ifdef S_KEEP_SOURCE
-            fprintf (out, "\n    /* L%05d %s */\n", l, S_getSourceLine(l));
+                    fprintf (out, "\n    /* L%05d %s */\n", l, S_getSourceLine(l));
 #else
-            fprintf (out, "\n    /* L%05d */\n", l);
+                    fprintf (out, "\n    /* L%05d */\n", l);
 #endif
+                    break;
+                case AS_dialect_ASMPro:
+#ifdef S_KEEP_SOURCE
+                    fprintf (out, "\n    ; L%05d %s\n", l, S_getSourceLine(l));
+#else
+                    fprintf (out, "\n    ; L%05d\n", l);
+#endif
+                    break;
+                default:
+                    assert(FALSE);
+            }
             line = l;
         }
 
         char buf[255];
-        AS_sprint(buf, instr);
+        AS_sprint(buf, instr, dialect);
         fprintf(out, "%s\n", buf);
     }
 }
@@ -707,7 +734,7 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
     for (AS_instrSetNode an = iSet->first; an; an=an->next)
     {
         char buf[255];
-        AS_sprint(buf, an->instr);
+        AS_sprint(buf, an->instr, AS_dialect_gas);
         fprintf(out, "%s\n", buf);
     }
 }
@@ -746,7 +773,7 @@ static uint32_t instr_size (AS_instr instr)
 
         case AS_MOVE_Imm_AnDn:   //  36 move.x  #23, d0
 
-            if (F_isAn (instr->dst))  // movea
+            if (AS_isAn (instr->dst))  // movea
             {
                 switch (instr->w)
                 {
@@ -808,7 +835,7 @@ void AS_assemble (AS_instrList proc)
         AS_instr instr = an->instr;
 
         char buf[255];
-        AS_sprint(buf, instr);
+        AS_sprint(buf, instr, AS_dialect_gas);
         printf("AS_assemble: size of %s\n", buf);
 
         seg_size += instr_size(instr);
@@ -833,5 +860,121 @@ void AS_assemble (AS_instrList proc)
     //             assert(0);
     //     }
     // }
+}
+
+Temp_tempSet AS_registers (void)
+{
+    return g_allRegs;
+}
+
+Temp_tempSet AS_callersaves (void)
+{
+    return g_callerSaves;
+}
+
+Temp_tempSet AS_calleesaves (void)
+{
+    return g_calleeSaves;
+}
+
+Temp_tempSet AS_aRegs (void)
+{
+    return g_aRegs;
+}
+
+Temp_tempSet AS_dRegs (void)
+{
+    return g_dRegs;
+}
+
+bool AS_isAn (Temp_temp reg)
+{
+    int n = Temp_num(reg);
+    return (n>=AS_TEMP_A0) && (n<=AS_TEMP_A6);
+}
+
+bool AS_isDn (Temp_temp reg)
+{
+    int n = Temp_num(reg);
+    return (n>=AS_TEMP_D0) && (n<=AS_TEMP_D7);
+}
+
+bool AS_isPrecolored (Temp_temp reg)
+{
+    int n = Temp_num(reg);
+    return (n>=0) && (n<AS_NUM_REGISTERS);
+}
+
+Temp_temp AS_lookupReg (S_symbol sym)
+{
+    return (Temp_temp) S_look(g_regScope, sym);
+}
+
+string AS_regName (int reg)
+{
+    return g_regnames[reg];
+}
+
+void AS_init (void)
+{
+    for (int i=0; i<AS_NUM_REGISTERS; i++)
+        AS_regs[i] = Temp_NamedTemp (g_regnames[i], NULL);
+
+    g_allRegs = NULL;
+    g_dRegs   = NULL;
+    g_aRegs   = NULL;
+    bool bAdded;
+
+    for (int i = AS_TEMP_A0; i<=AS_TEMP_D7; i++)
+    {
+        Temp_temp t = AS_regs[i];
+        assert (Temp_num(t)==i);
+        g_allRegs = Temp_tempSetAdd (g_allRegs, t, &bAdded);
+        assert (bAdded);
+        if (AS_isAn(t))
+        {
+            g_aRegs = Temp_tempSetAdd (g_aRegs, t, &bAdded);
+            assert (bAdded);
+        }
+        if (AS_isDn(t))
+        {
+            g_dRegs = Temp_tempSetAdd (g_dRegs, t, &bAdded);
+            assert (bAdded);
+        }
+    }
+
+    g_callerSaves = NULL;
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, AS_regs[AS_TEMP_D0], &bAdded); assert (bAdded);
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, AS_regs[AS_TEMP_D1], &bAdded); assert (bAdded);
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, AS_regs[AS_TEMP_A0], &bAdded); assert (bAdded);
+    g_callerSaves = Temp_tempSetAdd (g_callerSaves, AS_regs[AS_TEMP_A1], &bAdded); assert (bAdded);
+
+    g_calleeSaves = NULL;
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_D2], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_D3], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_D4], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_D5], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_D6], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_D7], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_A2], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_A3], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_A4], &bAdded); assert (bAdded);
+    g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_A6], &bAdded); assert (bAdded);
+
+    g_regScope = S_beginScope();
+    S_enter(g_regScope, S_Symbol("a0", TRUE), AS_regs[AS_TEMP_A0]);
+    S_enter(g_regScope, S_Symbol("a1", TRUE), AS_regs[AS_TEMP_A1]);
+    S_enter(g_regScope, S_Symbol("a2", TRUE), AS_regs[AS_TEMP_A2]);
+    S_enter(g_regScope, S_Symbol("a3", TRUE), AS_regs[AS_TEMP_A3]);
+    S_enter(g_regScope, S_Symbol("a4", TRUE), AS_regs[AS_TEMP_A4]);
+    S_enter(g_regScope, S_Symbol("a6", TRUE), AS_regs[AS_TEMP_A6]);
+    S_enter(g_regScope, S_Symbol("d0", TRUE), AS_regs[AS_TEMP_D0]);
+    S_enter(g_regScope, S_Symbol("d1", TRUE), AS_regs[AS_TEMP_D1]);
+    S_enter(g_regScope, S_Symbol("d2", TRUE), AS_regs[AS_TEMP_D2]);
+    S_enter(g_regScope, S_Symbol("d3", TRUE), AS_regs[AS_TEMP_D3]);
+    S_enter(g_regScope, S_Symbol("d4", TRUE), AS_regs[AS_TEMP_D4]);
+    S_enter(g_regScope, S_Symbol("d5", TRUE), AS_regs[AS_TEMP_D5]);
+    S_enter(g_regScope, S_Symbol("d6", TRUE), AS_regs[AS_TEMP_D6]);
+    S_enter(g_regScope, S_Symbol("d7", TRUE), AS_regs[AS_TEMP_D7]);
 }
 

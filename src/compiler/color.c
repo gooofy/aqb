@@ -4,9 +4,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
-#include "tree.h"
 #include "assem.h"
-#include "frame.h"
 #include "color.h"
 #include "liveness.h"
 #include "table.h"
@@ -476,7 +474,7 @@ struct COL_result COL_color(Live_graph lg)
     c.coalescedMoves       = AS_InstrSet();
     c.moveWorklist         = AS_InstrSet(); AS_instrSetAddSet(c.moveWorklist, lg->moveWorklist);
     c.activeMoves          = AS_InstrSet();
-    c.K                    = F_NUM_REGISTERS;
+    c.K                    = AS_NUM_REGISTERS;
 
 #ifdef ENABLE_DEBUG
     Live_showGraph(stdout, c.lg);
@@ -496,7 +494,7 @@ struct COL_result COL_color(Live_graph lg)
         Temp_temp t = n->temp;
 
         // precolored ?
-        if (Temp_num(t) < F_NUM_REGISTERS)
+        if (Temp_num(t) < AS_NUM_REGISTERS)
         {
             n->degree = PRECOLORED_DEGREE;
             n->color  = t;
@@ -581,7 +579,7 @@ struct COL_result COL_color(Live_graph lg)
                               /* spills         = */ NULL,
                               /* coalescedMoves = */ c.coalescedMoves };
 
-    bool availableColors[F_NUM_REGISTERS];
+    bool availableColors[AS_NUM_REGISTERS];
 
     while (c.selectStack)
     {
@@ -591,7 +589,7 @@ struct COL_result COL_color(Live_graph lg)
 #ifdef ENABLE_DEBUG
         printf("colorizing: %s of degree %d.\n", Temp_strprint(n->temp), n->degree);
 #endif
-        for (int i =0; i<F_NUM_REGISTERS; i++)
+        for (int i =0; i<AS_NUM_REGISTERS; i++)
             availableColors[i] = TRUE;
 
         for (LG_nodeList nl=n->adj; nl; nl=nl->tail)
@@ -603,7 +601,7 @@ struct COL_result COL_color(Live_graph lg)
 
 #ifdef ENABLE_DEBUG
         printf  ("colorizing:    available colors: ");
-        for (int i =0; i<F_NUM_REGISTERS; i++)
+        for (int i =0; i<AS_NUM_REGISTERS; i++)
         {
             if (availableColors[i])
                 printf (" %s ", Temp_strprint (F_regs[i]));
@@ -612,11 +610,11 @@ struct COL_result COL_color(Live_graph lg)
 #endif
 
         Temp_temp firstAvailableColor = NULL;
-        for (int i =0; i<F_NUM_REGISTERS; i++)
+        for (int i =0; i<AS_NUM_REGISTERS; i++)
         {
             if (availableColors[i])
             {
-                firstAvailableColor = F_regs[i];
+                firstAvailableColor = AS_regs[i];
                 break;
             }
         }

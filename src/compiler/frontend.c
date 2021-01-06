@@ -13,38 +13,40 @@
 
 const char *FE_filename = NULL;
 
-// map of builtin subs and functions that special parse functions:
-static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp)
-
 // contains public env entries for export
 E_module FE_mod = NULL;
 
+// map of builtin subs and functions that special parse functions:
+static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp)
+
 // program we're compiling right now, can also be used to prepend static initializers
-static Tr_expList g_prog;
+static AS_instrList g_prog;
 
 // when DATA statements are used, we need to initialize the data read pointer
-static bool g_dataInitialRestoreDone = FALSE;
+// static bool g_dataInitialRestoreDone = FALSE;
 
 typedef struct FE_dim_ *FE_dim;
 struct FE_dim_
 {
     bool     statc;
-    Tr_exp   idxStart;
-    Tr_exp   idxEnd;
+    CG_item  idxStart;
+    CG_item  idxEnd;
     FE_dim   next;
 };
 
-static FE_dim FE_Dim (bool statc, Tr_exp idxStart, Tr_exp idxEnd, FE_dim next)
+#if 0
+static FE_dim FE_Dim (bool statc, FE_dim next)
 {
     FE_dim p = checked_malloc(sizeof(*p));
 
     p->statc    = statc;
-    p->idxStart = idxStart;
-    p->idxEnd   = idxEnd;
+    CG_NoneItem(&p->idxStart);
+    CG_NoneItem(&p->idxEnd);
     p->next     = next;
 
     return p;
 }
+#endif
 
 /****************************************************************************************
  *
@@ -55,29 +57,27 @@ static FE_dim FE_Dim (bool statc, Tr_exp idxStart, Tr_exp idxEnd, FE_dim next)
  *
  ****************************************************************************************/
 
-typedef struct FE_ifBranch_      *FE_ifBranch;
-struct FE_ifBranch_
-{
-    S_pos       pos;
-    Tr_exp      test;    // NULL -> ELSE branch
-    Tr_expList  expList;
-    FE_ifBranch next;
-};
+// typedef struct FE_ifBranch_      *FE_ifBranch;
+// struct FE_ifBranch_
+// {
+//     S_pos        pos;
+//     Temp_label   exitLabel;
+// };
 typedef struct FE_selectBranch_  *FE_selectBranch;
 typedef struct FE_selectExp_     *FE_selectExp;
 struct FE_selectExp_
 {
-    Tr_exp         exp;
-    Tr_exp         toExp;   // != NULL    -> exp TO exp
+    CG_item        exp;
+    CG_item        toExp;   // != NULL    -> exp TO exp
     bool           isIS;    // if TRUE, condOp (below) specifies op: IS <op> exp
-    T_relOp        condOp;
+    CG_relOp       condOp;
     FE_selectExp   next;
 };
 struct FE_selectBranch_
 {
     S_pos           pos;
     FE_selectExp    exp;       // NULL -> SELECT ELSE branch
-    Tr_expList      expList;
+    AS_instrList    prog;
     FE_selectBranch next;
 };
 typedef struct FE_nestedStmt_    *FE_nestedStmt;
@@ -105,31 +105,33 @@ struct FE_udtEntry_
 typedef struct FE_SLE_          *FE_SLE;
 struct FE_SLE_
 {
-    FE_sleKind  kind;
-    S_pos       pos;
+    FE_sleKind   kind;
+    S_pos        pos;
 
-    Tr_level    lv;
-    E_env       env;
+    CG_frame     frame;
+    E_env        env;
 
-    Tr_expList  expList;
+    AS_instrList code;
 
-    Temp_label  exitlbl;
-    Temp_label  contlbl;
+    Temp_label   exitlbl;
+    Temp_label   contlbl;
 
-    Tr_exp      returnVar;
+    CG_item      returnVar;
 
     union
     {
         struct
         {
-            S_symbol  sVar;
-            Tr_exp    var;
-            Tr_exp    fromExp, toExp, stepExp;
+            S_symbol      sVar;
+            CG_item       var;
+            CG_item       toItem, stepItem;
+            Temp_label    lHead;
         } forLoop;
-        Tr_exp whileExp;
+        CG_item whileExp;
         struct
         {
-            FE_ifBranch ifBFirst, ifBLast;
+            Temp_label    lElse;
+            Temp_label    lEndIf;
         } ifStmt;
         struct
         {
@@ -141,12 +143,12 @@ struct FE_SLE_
         } typeDecl;
         struct
         {
-            Tr_exp untilExp, whileExp;
+            CG_item untilExp, whileExp;
             bool   condAtEntry;
         } doLoop;
         struct
         {
-            Tr_exp          exp;
+            CG_item          exp;
             FE_selectBranch selectBFirst, selectBLast;
         } selectStmt;
         Ty_proc proc;
@@ -157,18 +159,18 @@ struct FE_SLE_
 
 static FE_SLE g_sleStack = NULL;
 
-static FE_SLE slePush(FE_sleKind kind, S_pos pos, Tr_level lv, E_env env, Temp_label exitlbl, Temp_label contlbl, Tr_exp returnVar)
+static FE_SLE slePush(FE_sleKind kind, S_pos pos, CG_frame frame, E_env env, AS_instrList code, Temp_label exitlbl, Temp_label contlbl, CG_item rv)
 {
     FE_SLE s=checked_malloc(sizeof(*s));
 
     s->kind       = kind;
     s->pos        = pos;
-    s->lv         = lv;
+    s->frame      = frame;
     s->env        = env;
-    s->expList    = Tr_ExpList();
+    s->code       = code;
     s->exitlbl    = exitlbl;
     s->contlbl    = contlbl;
-    s->returnVar  = returnVar;
+    s->returnVar  = rv;
     s->prev       = g_sleStack;
 
     g_sleStack = s;
@@ -182,19 +184,18 @@ static FE_SLE slePop(void)
     return s;
 }
 
-static FE_ifBranch FE_IfBranch (S_pos pos, Tr_exp test, Tr_expList expList)
+#if 0
+static FE_ifBranch FE_IfBranch (S_pos pos, Temp_label exitLabel)
 {
     FE_ifBranch p = checked_malloc(sizeof(*p));
 
-    p->pos     = pos;
-    p->test    = test;
-    p->expList = expList;
-    p->next    = NULL;
+    p->pos       = pos;
+    p->exitLabel = exitLabel;
 
     return p;
 }
 
-static FE_selectBranch FE_SelectBranch (S_pos pos, FE_selectExp exp, Tr_expList expList)
+static FE_selectBranch FE_SelectBranch (S_pos pos, FE_selectExp exp, CG_itemList expList)
 {
     FE_selectBranch p = checked_malloc(sizeof(*p));
 
@@ -206,7 +207,7 @@ static FE_selectBranch FE_SelectBranch (S_pos pos, FE_selectExp exp, Tr_expList 
     return p;
 }
 
-static FE_selectExp FE_SelectExp (Tr_exp exp, Tr_exp toExp, bool isIS, T_relOp condOp)
+static FE_selectExp FE_SelectExp (CG_item exp, CG_item toExp, bool isIS, CG_relOp condOp)
 {
     FE_selectExp p = checked_malloc(sizeof(*p));
 
@@ -219,10 +220,11 @@ static FE_selectExp FE_SelectExp (Tr_exp exp, Tr_exp toExp, bool isIS, T_relOp c
     return p;
 }
 
-static void emit (Tr_exp exp)
+static void emit (CG_item exp)
 {
-    Tr_ExpListAppend(g_sleStack->expList, exp);
+    CG_ItemListAppend(g_sleStack->expList, exp);
 }
+#endif
 
 typedef struct FE_paramList_ *FE_paramList;
 struct FE_paramList_
@@ -253,6 +255,7 @@ static void FE_ParamListAppend(FE_paramList pl, Ty_formal formal)
     }
 }
 
+#if 0
 static FE_nestedStmt FE_NestedStmt (S_pos pos, FE_sleKind kind)
 {
     FE_nestedStmt p = checked_malloc(sizeof(*p));
@@ -263,6 +266,7 @@ static FE_nestedStmt FE_NestedStmt (S_pos pos, FE_sleKind kind)
 
     return p;
 }
+#endif
 
 static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_ty ty)
 {
@@ -396,34 +400,38 @@ static inline bool isLogicalEOL(S_tkn tkn)
     return !tkn || tkn->kind == S_COLON || tkn->kind == S_EOL;
 }
 
-static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_exp *exp);
+#if 0
+static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_item *exp);
+#endif
 
 // auto-declare variable (this is basic, after all! ;) ) if it is unknown
-static Tr_exp autovar(S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty typeHint)
+static void autovar (CG_item *var, S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty typeHint)
 {
-    Tr_level   level = g_sleStack->lv;
+    CG_frame   frame = g_sleStack->frame;
 
-    Tr_exp var;
     Ty_recordEntry entry;
-    if (E_resolveVFC(g_sleStack->env, v, /*checkParents=*/TRUE, &var, &entry))
+    if (E_resolveVFC(g_sleStack->env, v, /*checkParents=*/TRUE, var, &entry))
     {
         if (entry)
         {
 
             if (entry->kind == Ty_recField)
             {
-                Ty_ty ty = Tr_ty(var);
+                assert(FALSE); // FIXME
+#if 0
+                Ty_ty ty = CG_ty(var);
                 assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
                 var = Tr_Deref(pos, var);
-                ty = Tr_ty(var);
+                ty = CG_ty(var);
                 if (transRecordSelector(pos, tkn, entry, &var))
                     return var;
+#endif
             }
             else
                 EM_error(pos, "variable expected here.");
         }
         else
-            return var;
+            return ;
     }
 
     string s = S_name(v);
@@ -432,19 +440,17 @@ static Tr_exp autovar(S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty typeHint)
     if (OPT_get(OPTION_EXPLICIT) && !typeHint)
         EM_error(pos, "undeclared identifier %s", s);
 
-    if (Tr_isStatic(level))
+    if (frame->statc)
     {
-        string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(level)), "_"), s);
-        var = Tr_Var(pos, Tr_allocVar(Tr_global(), varId, /*expt=*/FALSE, t));
+        string varId = strconcat(strconcat(Temp_labelstring(frame->name), "_"), s);
+        CG_allocVar (var, CG_globalFrame(), varId, /*expt=*/FALSE, t);
     }
     else
     {
-        var = Tr_Var(pos, Tr_allocVar(level, s, /*expt=*/FALSE, t));
+        CG_allocVar (var, frame, s, /*expt=*/FALSE, t);
     }
 
     E_declareVFC(g_sleStack->env, v, var);
-
-    return var;
 }
 
 // given two types, try to come up with a type that covers both value ranges
@@ -484,7 +490,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -518,7 +523,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -550,7 +554,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -582,7 +585,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -614,7 +616,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -644,7 +645,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -674,7 +674,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -704,7 +703,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -732,7 +730,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_void:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -760,7 +757,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_long:
                 case Ty_ulong:
                 case Ty_pointer:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                     *res = ty1;
                     return TRUE;
@@ -770,7 +766,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             }
             break;
         case Ty_string:
-        case Ty_varPtr:
         case Ty_toLoad:
         case Ty_prc:
             assert(0);
@@ -793,7 +788,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_pointer:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -820,7 +814,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_darray:
                 case Ty_record:
                 case Ty_string:
-                case Ty_varPtr:
                 case Ty_forwardPtr:
                 case Ty_void:
                 case Ty_toLoad:
@@ -862,7 +855,6 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return FALSE;
             return compatible_ty(ty2->u.darray.elementTy, ty1->u.darray.elementTy);;
         case Ty_pointer:
-        case Ty_varPtr:
             if (Ty_isInt(ty2))
                 return TRUE;
 
@@ -882,7 +874,7 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
 			if ((ty2->kind==Ty_darray) && (ty1->kind==Ty_pointer) && (ty1->u.pointer->kind==Ty_void))
 				return TRUE;
 
-            if ((ty2->kind != Ty_pointer) && (ty2->kind != Ty_varPtr))
+            if (ty2->kind != Ty_pointer)
                 return FALSE;
             if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
                 return TRUE;
@@ -938,13 +930,12 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
     }
 }
 
-static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool explicit)
+static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
 {
-    Ty_ty ty1 = Tr_ty(exp);
+    Ty_ty ty1 = CG_ty(item);
 
     if (ty1 == ty2)
     {
-        *res = exp;
         return TRUE;
     }
 
@@ -956,17 +947,15 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
                 case Ty_bool:
                 case Ty_byte:
                 case Ty_ubyte:
-                {
-                    *res = exp;
                     return TRUE;
-                }
+
                 case Ty_uinteger:
                 case Ty_integer:
                 case Ty_long:
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                    *res = Tr_castExp(pos, exp, ty1, ty2);
+                    CG_castItem(g_sleStack->code, pos, item, ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -979,7 +968,7 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
         case Ty_integer:
             if (ty2->kind == Ty_pointer)
             {
-                *res = Tr_castExp(pos, exp, ty1, ty2);
+                CG_castItem(g_sleStack->code, pos, item, ty2);
                 return TRUE;
             }
             /* fallthrough */
@@ -987,19 +976,15 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
         case Ty_ulong:
             if ( (ty2->kind == Ty_single) || (ty2->kind == Ty_double) || (ty2->kind == Ty_bool) )
             {
-                *res = Tr_castExp(pos, exp, ty1, ty2);
+                CG_castItem (g_sleStack->code, pos, item, ty2);
                 return TRUE;
             }
             if (ty2->kind == Ty_pointer)
-            {
-                *res = exp;
                 return TRUE;
-            }
+
             if (Ty_size(ty1) == Ty_size(ty2))
-            {
-                *res = exp;
                 return TRUE;
-            }
+
             switch (ty2->kind)
             {
                 case Ty_byte:
@@ -1009,11 +994,9 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
                 case Ty_long:
                 case Ty_ulong:
                     if (Ty_size(ty1) == Ty_size(ty2))
-                    {
-                        *res = exp;
                         return TRUE;
-                    }
-                    *res = Tr_castExp(pos, exp, ty1, ty2);
+
+                    CG_castItem(g_sleStack->code, pos, item, ty2);
                     return TRUE;
                 default:
                     return FALSE;
@@ -1023,10 +1006,8 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
         case Ty_single:
         case Ty_double:
             if (ty1->kind == ty2->kind)
-            {
-                *res = exp;
                 return TRUE;
-            }
+
             switch (ty2->kind)
             {
                 case Ty_bool:
@@ -1038,8 +1019,9 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                    *res = Tr_castExp(pos, exp, ty1, ty2);
+                    CG_castItem (g_sleStack->code, pos, item, ty2);
                     return TRUE;
+
                 default:
                     return FALSE;
             }
@@ -1048,19 +1030,17 @@ static bool convert_ty(S_pos pos, Tr_exp exp, Ty_ty ty2, Tr_exp *res, bool expli
         case Ty_sarray:
         case Ty_darray:
         case Ty_pointer:
-        case Ty_varPtr:
         case Ty_procPtr:
         case Ty_string:
             if (!compatible_ty(ty1, ty2))
             {
                 if (explicit)
                 {
-                    *res = Tr_castExp(pos, exp, ty1, ty2);
+                    CG_castItem (g_sleStack->code, pos, item, ty2);
                     return TRUE;
                 }
                 return FALSE;
             }
-            *res = exp;
             return TRUE;
 
         default:
@@ -1119,7 +1099,7 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
 }
 
 #if 0
-static bool transCallBuiltinSub(S_pos pos, string builtinName, Tr_expList arglist, Tr_exp *exp)
+static bool transCallBuiltinSub(S_pos pos, string builtinName, CG_itemList arglist, CG_item *exp)
 {
     S_symbol fsym = S_Symbol(builtinName, TRUE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
@@ -1132,7 +1112,8 @@ static bool transCallBuiltinSub(S_pos pos, string builtinName, Tr_expList arglis
     return TRUE;
 }
 #endif
-static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, Tr_expList arglist, Tr_exp *exp)
+#if 0
+static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, CG_itemList arglist, CG_item *exp)
 {
     Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
     if (!tyClass || (tyClass->kind != Ty_record))
@@ -1146,7 +1127,7 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
     return TRUE;
 }
 
-static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, Tr_expList arglist, Tr_exp *exp)
+static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, CG_item *exp)
 {
     Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
     if (!tyClass || (tyClass->kind != Ty_record))
@@ -1158,108 +1139,90 @@ static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, Tr_exp
     *exp = Tr_callExp(pos, arglist, tyClass->u.record.constructor);
     return TRUE;
 }
+#endif
 
-
-static Tr_exp transBinOp(S_pos pos, T_binOp oper, Tr_exp e1, Tr_exp e2)
+static void transBinOp (S_pos pos, CG_binOp oper, CG_item *e1, CG_item *e2)
 {
-    Ty_ty  ty1     = Tr_ty(e1);
-    Ty_ty  ty2     = e2 ? Tr_ty(e2) : ty1;
+    Ty_ty  ty1     = CG_ty(e1);
+    Ty_ty  ty2     = e2 ? CG_ty(e2) : ty1;
     Ty_ty  resTy;
-    Tr_exp e1_conv;
-    Tr_exp e2_conv = NULL;
-
-    // boolean operations, some with short circuit evaluation
-    if (ty1->kind == Ty_bool)
-    {
-        switch (oper)
-        {
-            case T_not:
-            case T_and:
-            case T_or:
-                return Tr_binOpExp(pos, oper, e1, e2, ty2);
-
-            default:
-                // bool -> integer since we do not have arith operations for bool
-                ty1 = Ty_Integer();
-        }
-    }
 
     if (ty2)
     {
         if (!coercion(ty1, ty2, &resTy)) {
             EM_error(pos, "operands type mismatch [1]");
-            return Tr_nopNx(pos);
+            return;
         }
     }
     else
     {
         resTy = ty1;
     }
-    if (!convert_ty(pos, e1, resTy, &e1_conv, /*explicit=*/FALSE))
+    if (!convert_ty(e1, pos, resTy, /*explicit=*/FALSE))
     {
         EM_error(pos, "operand type mismatch (left)");
-        return Tr_nopNx(pos);
+        return;
     }
-    if (e2 && !convert_ty(pos, e2, resTy, &e2_conv, /*explicit=*/FALSE))
+    if (e2 && !convert_ty(e2, pos, resTy, /*explicit=*/FALSE))
     {
         EM_error(pos, "operand type mismatch (right)");
-        return Tr_nopNx(pos);
+        return;
     }
-    return Tr_binOpExp(pos, oper, e1_conv, e2_conv, resTy);
+    CG_transBinOp (g_sleStack->code, pos, oper, e1, e2, resTy);
 }
 
-static Tr_exp transRelOp(S_pos pos, T_relOp oper, Tr_exp e1, Tr_exp e2)
+static void transRelOp (S_pos pos, CG_relOp oper, CG_item *e1, CG_item *e2)
 {
-    Ty_ty  ty1    = Tr_ty(e1);
-    Ty_ty  ty2    = Tr_ty(e2);
+    Ty_ty  ty1    = CG_ty(e1);
+    Ty_ty  ty2    = CG_ty(e2);
     Ty_ty  resTy;
-    Tr_exp e1_conv, e2_conv;
 
-    if (!coercion(ty1, ty2, &resTy)) {
+    if (!coercion(ty1, ty2, &resTy))
+    {
         EM_error(pos, "operands type mismatch [2]");
-        return Tr_nopNx(pos);
+        return;
     }
-    if (!convert_ty(pos, e1, resTy, &e1_conv, /*explicit=*/FALSE))
+    if (!convert_ty(e1, pos, resTy, /*explicit=*/FALSE))
     {
         EM_error(pos, "operand type mismatch (left)");
-        return Tr_nopNx(pos);
+        return;
     }
-    if (!convert_ty(pos, e2, resTy, &e2_conv, /*explicit=*/FALSE))
+    if (!convert_ty(e2, pos, resTy, /*explicit=*/FALSE))
     {
         EM_error(pos, "operand type mismatch (right)");
-        return Tr_nopNx(pos);
+        return;
     }
-    return Tr_relOpExp(pos, oper, e1_conv, e2_conv);
+    CG_transRelOp (g_sleStack->code, pos, oper, e1, e2);
 }
 
-static bool transConst(S_pos pos, Tr_exp cExp, Ty_ty t, Tr_exp *convCExp)
+static bool transConst(S_pos pos, Ty_ty t, CG_item *item)
 {
-    if (!convert_ty(pos, cExp, t, convCExp, /*explicit=*/FALSE))
+    if (!convert_ty (item, pos, t, /*explicit=*/FALSE))
         return EM_error(pos, "constant type mismatch");
 
-    if (!Tr_isConst(*convCExp))
+    if (!CG_isConst (item))
         return EM_error(pos, "constant expression expected here");
 
     return TRUE;
 }
 
-static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, Tr_exp cExp, bool isPrivate)
+static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, CG_item *item, bool isPrivate)
 {
     if (!t)
         t = Ty_inferType(S_name(name));
 
-    Tr_exp convCExp=NULL;
-    if (!transConst(pos, cExp, t, &convCExp))
+    if (!transConst(pos, t, item))
         return FALSE;
 
-    E_declareVFC (g_sleStack->env, name, convCExp);
+    E_declareVFC (g_sleStack->env, name, item);
     if (!isPrivate)
-        E_declareVFC (FE_mod->env, name, convCExp);
+        E_declareVFC (FE_mod->env, name, item);
 
     return TRUE;
 }
 
-bool transContinueExit(S_pos pos, bool isExit, FE_nestedStmt n)
+#if 0
+static bool transContinueExit(S_pos pos, bool isExit, FE_nestedStmt n)
 {
     FE_SLE sle = g_sleStack;
     if (n)
@@ -1288,9 +1251,9 @@ bool transContinueExit(S_pos pos, bool isExit, FE_nestedStmt n)
 }
 
 
-static Tr_exp transIfBranch(FE_ifBranch ifBranch)
+static CG_item transIfBranch(FE_ifBranch ifBranch)
 {
-    Tr_exp conv_test, then, elsee;
+    CG_item conv_test, then, elsee;
 
     then = Tr_seqExp(ifBranch->expList);
 
@@ -1317,9 +1280,9 @@ static Tr_exp transIfBranch(FE_ifBranch ifBranch)
     return Tr_ifExp(ifBranch->pos, conv_test, then, elsee);
 }
 
-static Tr_exp transSelectExp(Tr_exp selExp, FE_selectExp se, S_pos pos)
+static CG_item transSelectExp(CG_item selExp, FE_selectExp se, S_pos pos)
 {
-    Tr_exp exp = se->exp;
+    CG_item exp = se->exp;
 
     if (se->isIS)
     {
@@ -1329,37 +1292,37 @@ static Tr_exp transSelectExp(Tr_exp selExp, FE_selectExp se, S_pos pos)
     {
         if (se->toExp)
             exp = transBinOp(pos,
-                             T_and,
-                             Tr_relOpExp(pos, T_ge, selExp, exp),
-                             Tr_relOpExp(pos, T_le, selExp, se->toExp));
+                             CG_and,
+                             CG_transRelOp(pos, CG_ge, selExp, exp),
+                             CG_transRelOp(pos, CG_le, selExp, se->toExp));
         else
-            exp = transRelOp(pos, T_eq, selExp, exp);
+            exp = transRelOp(pos, CG_eq, selExp, exp);
     }
 
     if (se->next)
         exp = transBinOp(pos,
-                         T_or,
+                         CG_or,
                          exp,
                          transSelectExp(selExp, se->next, pos));
 
     return exp;
 }
 
-static Tr_exp transSelectBranch(Tr_exp exp, FE_selectBranch sb)
+static CG_item transSelectBranch(CG_item exp, FE_selectBranch sb)
 {
-    Tr_exp stmts = Tr_seqExp(sb->expList);
+    CG_item stmts = Tr_seqExp(sb->expList);
     if (!sb->exp)
         return stmts;
 
-    Tr_exp test = transSelectExp(exp, sb->exp, sb->pos);
-    Tr_exp conv_test;
+    CG_item test = transSelectExp(exp, sb->exp, sb->pos);
+    CG_item conv_test;
     if (!convert_ty(sb->pos, test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
     {
         EM_error(sb->pos, "select expression must be boolean");
         return Tr_nopNx(sb->pos);
     }
 
-    Tr_exp elsee = NULL;
+    CG_item elsee = NULL;
     if (sb->next != NULL)
         elsee = transSelectBranch(exp, sb->next);
     else
@@ -1367,29 +1330,31 @@ static Tr_exp transSelectBranch(Tr_exp exp, FE_selectBranch sb)
 
     return Tr_ifExp(sb->pos, conv_test, stmts, elsee);
 }
+#endif
 
-static bool expExpression(S_tkn *tkn, Tr_exp *exp);
-static bool relExpression(S_tkn *tkn, Tr_exp *exp);
-static bool expression(S_tkn *tkn, Tr_exp *exp);
-static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, Tr_exp thisPtr, bool defaultsOnly);
+static bool expExpression(S_tkn *tkn, CG_item *exp);
+static bool relExpression(S_tkn *tkn, CG_item *exp);
+static bool expression(S_tkn *tkn, CG_item *exp);
+// static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item thisPtr, bool defaultsOnly);
 static bool statementOrAssignment(S_tkn *tkn);
 
-static bool transFunctionCall(S_tkn *tkn, Tr_exp *exp)
+#if 0
+static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
 {
-    Ty_ty ty = Tr_ty(*exp);
+    Ty_ty ty = CG_ty(*exp);
     assert(ty->kind == Ty_prc);
     Ty_proc  proc = ty->u.proc;
 
     // builtin function?
     if (ty->u.proc->name)
     {
-        bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp) = TAB_look(g_parsefs, ty->u.proc);
+        bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp) = TAB_look(g_parsefs, ty->u.proc);
         if (parsef)
             return parsef(tkn, NULL, exp);
     }
 
     // regular function call
-    Tr_expList assignedArgs = Tr_ExpList();
+    CG_itemList assignedArgs = CG_ItemList();
     if ((*tkn)->kind == S_LPAREN)
     {
         *tkn = (*tkn)->next;
@@ -1411,15 +1376,15 @@ static bool transFunctionCall(S_tkn *tkn, Tr_exp *exp)
     return TRUE;
 }
 
-static Tr_exp transSelIndex(S_pos pos, Tr_exp e, Tr_exp idx)
+static CG_item transSelIndex(S_pos pos, CG_item e, CG_item idx)
 {
-    Tr_exp idx_conv;
+    CG_item idx_conv;
     if (!convert_ty(pos, idx, Ty_Long(), &idx_conv, /*explicit=*/FALSE))
     {
         EM_error(pos, "Array indices must be numeric.");
-        return Tr_zeroExp(pos, Ty_Long());
+        return CG_ZeroItem(pos, Ty_Long());
     }
-    Ty_ty ty = Tr_ty(e);
+    Ty_ty ty = CG_ty(e);
     if ( (ty->kind != Ty_varPtr) ||
          ((ty->u.pointer->kind != Ty_sarray)  &&
           (ty->u.pointer->kind != Ty_darray)  &&
@@ -1427,12 +1392,12 @@ static Tr_exp transSelIndex(S_pos pos, Tr_exp e, Tr_exp idx)
           (ty->u.pointer->kind != Ty_string))    )
     {
         EM_error(pos, "string, array or pointer type expected");
-        return Tr_zeroExp(pos, Ty_Long());
+        return CG_ZeroItem(pos, Ty_Long());
     }
     return Tr_Index(pos, e, idx_conv);
 }
 
-static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_exp *exp)
+static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_item *exp)
 {
     switch (entry->kind)
     {
@@ -1444,7 +1409,7 @@ static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_
                 return EM_error((*tkn)->pos, "( expected here (method call)");
             *tkn = (*tkn)->next;
 
-            Tr_expList assignedArgs = Tr_ExpList();
+            CG_itemList assignedArgs = CG_ItemList();
             if (!transActualArgs(tkn, entry->u.method, assignedArgs,  /*thisPtr=*/*exp, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
@@ -1479,9 +1444,9 @@ static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, Tr_
 //              | "(" actualArgs ")"
 //              | "." ident
 //              | "->" ident )
-static bool selector(S_tkn *tkn, Tr_exp *exp)
+static bool selector(S_tkn *tkn, CG_item *exp)
 {
-    Ty_ty ty = Tr_ty(*exp);
+    Ty_ty ty = CG_ty(*exp);
     switch ((*tkn)->kind)
     {
         case S_LPAREN:
@@ -1492,8 +1457,8 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
         // fall through
         case S_LBRACKET:
         {
-            Tr_exp  idx;
-            Tr_exp  idx_conv;
+            CG_item  idx;
+            CG_item  idx_conv;
             int     start_token = (*tkn)->kind;
 
             *tkn = (*tkn)->next;
@@ -1502,13 +1467,13 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
             {
                 // call void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...)
 
-                Tr_expList arglist = Tr_ExpList();
+                CG_itemList arglist = CG_ItemList();
                 int dimCnt=0;
                 if (!expression(tkn, &idx))
                     return EM_error((*tkn)->pos, "index expression expected here.");
                 if (!convert_ty((*tkn)->pos, idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
                     return EM_error((*tkn)->pos, "array index type mismatch");
-                Tr_ExpListAppend(arglist, idx_conv);
+                CG_ItemListAppend(arglist, idx_conv);
                 dimCnt++;
 
                 while ((*tkn)->kind == S_COMMA)
@@ -1518,15 +1483,15 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                         return EM_error((*tkn)->pos, "index expression expected here.");
                     if (!convert_ty((*tkn)->pos, idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
                         return EM_error((*tkn)->pos, "array index type mismatch");
-                    Tr_ExpListPrepend(arglist, idx_conv);
+                    CG_ItemListPrepend(arglist, idx_conv);
                     dimCnt++;
                 }
-                Tr_ExpListAppend(arglist, Tr_intExp((*tkn)->pos, dimCnt, Ty_UInteger()));
-                Tr_ExpListAppend(arglist, *exp);
+                CG_ItemListAppend(arglist, CG_UIntItem((*tkn)->pos, dimCnt, Ty_UInteger()));
+                CG_ItemListAppend(arglist, *exp);
 
                 if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR", FALSE), arglist, exp))
                     return FALSE;
-                *exp = Tr_castExp((*tkn)->pos, *exp, Tr_ty(*exp), Ty_VarPtr(FE_mod->name, ty->u.pointer->u.darray.elementTy));
+                *exp = CG_castItem((*tkn)->pos, *exp, CG_ty(*exp), Ty_VarPtr(FE_mod->name, ty->u.pointer->u.darray.elementTy));
             }
             else
             {
@@ -1589,7 +1554,7 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
                 EM_error(pos, "record pointer type expected");
 
             *exp = Tr_Deref(pos, *exp);
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
 
             Ty_recordEntry entry = S_look(ty->u.pointer->u.record.scope, sym);
             if (!entry)
@@ -1603,9 +1568,10 @@ static bool selector(S_tkn *tkn, Tr_exp *exp)
     }
     return FALSE;
 }
+#endif
 
 // expDesignator ::= [ '*' | '@' ] ident selector*
-static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandSide)
+static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHandSide)
 {
     bool deref = FALSE;
 
@@ -1634,30 +1600,34 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
 
     // is this a known var, function or const ?
 
-    Tr_exp e;
     Ty_recordEntry entry;
-    if (E_resolveVFC(g_sleStack->env, sym, /*checkParents=*/TRUE, &e, &entry))
+    if (E_resolveVFC(g_sleStack->env, sym, /*checkParents=*/TRUE, exp, &entry))
     {
         if (entry)
         {
-            Ty_ty ty = Tr_ty(e);
+            assert(FALSE);
+#if 0
+            Ty_ty ty = CG_ty(e);
             if (ty->kind == Ty_varPtr)
             {
                 e = Tr_Deref(pos, e);
-                ty = Tr_ty(e);
+                ty = CG_ty(e);
 
             }
             *tkn = (*tkn)->next;
             if (!transRecordSelector(pos, tkn, entry, &e))
                 return FALSE;
             *exp = e;
+#endif
         }
         else
         {
-            Ty_ty ty = Tr_ty(e);
+            Ty_ty ty = CG_ty(exp);
 
             if (ty->kind == Ty_prc)
             {
+                assert(FALSE);
+#if 0
                 // syntax quirk: this could be a function return value assignment
                 // FUNCTION f ()
                 //     f = 42
@@ -1668,35 +1638,36 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
                     *tkn = (*tkn)->next;
                     return TRUE;
                 }
+#endif
             }
 
-            *exp = Tr_DeepCopy(e);
             *tkn = (*tkn)->next;
         }
     }
     else
     {
         // implicit variable
-        Tr_exp var = autovar(sym, pos, tkn, /*typeHint=*/NULL);
-
-        *exp = Tr_DeepCopy(var);
+        autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
         *tkn = (*tkn)->next;
     }
 
-    Ty_ty ty = Tr_ty(*exp);
+    Ty_ty ty = CG_ty(exp);
 
     while (TRUE)
     {
         // function call ?
-        if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
+        // if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
+        if (ty->kind == Ty_prc)
         {
+            assert(FALSE); // FIXME
+#if 0
             *exp = Tr_Deref((*tkn)->pos, *exp);
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
             Ty_proc proc = ty->u.proc;
 
             *tkn = (*tkn)->next;    // skip "("
 
-            Tr_expList assignedArgs = Tr_ExpList();
+            CG_itemList assignedArgs = CG_ItemList();
             if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
@@ -1705,20 +1676,24 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
             *tkn = (*tkn)->next;
 
             *exp = Tr_callExp((*tkn)->pos, assignedArgs, proc);
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
+#endif
             continue;
         }
 
         // function pointer call ?
-        if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_procPtr) && ((*tkn)->kind==S_LPAREN))
+        //if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_procPtr) && ((*tkn)->kind==S_LPAREN))
+        if (ty->kind == Ty_procPtr)
         {
+            assert(FALSE); // FIXME
+#if 0
             *exp = Tr_Deref((*tkn)->pos, *exp);
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
             Ty_proc proc = ty->u.procPtr;
 
             *tkn = (*tkn)->next;    // skip "("
 
-            Tr_expList assignedArgs = Tr_ExpList();
+            CG_itemList assignedArgs = CG_ItemList();
             if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
@@ -1727,7 +1702,8 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
             *tkn = (*tkn)->next;
 
             *exp = Tr_callPtrExp((*tkn)->pos, *exp, assignedArgs, proc);
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
+#endif
             continue;
         }
 
@@ -1737,15 +1713,18 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
                ((*tkn)->kind == S_PERIOD)   ||
                ((*tkn)->kind == S_POINTER) ) )
         {
+            assert (FALSE); // FIXME
+#if 0
             while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
             {
                 *exp = Tr_Deref((*tkn)->pos, *exp);
-                ty = Tr_ty(*exp);
+                ty = CG_ty(*exp);
             }
 
             if (!selector(tkn, exp))
                 return FALSE;
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
+#endif
         }
         else
         {
@@ -1755,41 +1734,51 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
 
     if (isVARPTR)
     {
+        assert(FALSE); // FIXME
+#if 0
         while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
         {
             *exp = Tr_Deref((*tkn)->pos, *exp);
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
         }
 
         if (ty->kind == Ty_prc)
         {
             *exp = Tr_heapPtrExp(pos, ty->u.proc->label, Ty_ProcPtr(FE_mod->name, ty->u.proc));
-            ty = Tr_ty(*exp);
+            ty = CG_ty(*exp);
         }
         else
         {
             if (ty->kind != Ty_varPtr)
                 return EM_error(pos, "This object cannot be referenced.");
         }
+#endif
     }
     else
     {
-        while (ty->kind == Ty_varPtr)
+        while (exp->kind == IK_varPtr)
         {
-            *exp = Tr_Deref(pos, *exp);
-            ty = Tr_ty(*exp);
+            assert(FALSE); // FIXME
+            // *exp = Tr_Deref(pos, *exp);
+            // ty = CG_ty(*exp);
         }
         if (ty->kind == Ty_prc)
-            if (!transFunctionCall(tkn, exp))
-                return FALSE;
+        {
+            assert(FALSE); // FIXME
+            // if (!transFunctionCall(tkn, exp))
+            //     return FALSE;
+        }
     }
 
     if (deref)
     {
+        assert(FALSE); // FIXME
+#if 0
         if (ty->kind != Ty_pointer)
             return EM_error(pos, "This object cannot be dereferenced.");
         *exp = Tr_Deref(pos, *exp);
-        ty = Tr_ty(*exp);
+        ty = CG_ty(*exp);
+#endif
     }
 
     return TRUE;
@@ -1801,7 +1790,7 @@ static bool expDesignator(S_tkn *tkn, Tr_exp *exp, bool isVARPTR, bool leftHandS
 //          | '(' expression ')'
 //          )
 
-static bool atom(S_tkn *tkn, Tr_exp *exp)
+static bool atom(S_tkn *tkn, CG_item *exp)
 {
     S_pos pos   = (*tkn)->pos;
 
@@ -1813,25 +1802,64 @@ static bool atom(S_tkn *tkn, Tr_exp *exp)
             return expDesignator(tkn, exp, /*isVARPTR=*/ FALSE, /*leftHandSide=*/FALSE);
 
         case S_INUM:
-        case S_FNUM:
         {
             Ty_ty ty = NULL;
+            int32_t i =  (*tkn)->u.literal.inum;
+
             switch ((*tkn)->u.literal.typeHint)
             {
-                case S_thNone    : ty = NULL         ; break;
-                case S_thSingle  : ty = Ty_Single()  ; break;
-                case S_thDouble  : ty = Ty_Double()  ; break;
+                case S_thNone:
+                {
+                    /*if ( (i <= 127) && (i > -128) )
+                        ty = Ty_Byte();
+
+                    else if ( (i <= 255) && (i >= 0) )
+                        ty = Ty_UByte();
+
+                    else*/ if ( (i <= 32767) && (i >= -32768) )
+                        ty = Ty_Integer();
+
+                    else if ( (i <= 65535) && (i >= 0) )
+                        ty = Ty_UInteger();
+
+                    else
+                        ty = Ty_Long();
+
+                    break;
+                }
                 case S_thInteger : ty = Ty_Integer() ; break;
                 case S_thLong    : ty = Ty_Long()    ; break;
                 case S_thUInteger: ty = Ty_UInteger(); break;
                 case S_thULong   : ty = Ty_ULong()   ; break;
+                default:
+                    assert(FALSE);
             }
-            *exp = (*tkn)->kind == S_INUM ? Tr_intExp((*tkn)->pos, (*tkn)->u.literal.inum, ty) : Tr_floatExp((*tkn)->pos, (*tkn)->u.literal.fnum, ty);
+            switch (ty->kind)
+            {
+                case Ty_ubyte:
+                case Ty_uinteger:
+                case Ty_ulong:
+                    CG_UIntItem (exp, i, ty);
+                    break;
+                default:
+                    CG_IntItem (exp, i, ty);
+            }
+            *tkn = (*tkn)->next;
+            break;
+        }
+        case S_FNUM:
+        {
+            Ty_ty ty = Ty_Single();
+            if ((*tkn)->u.literal.typeHint == S_thDouble)
+                ty = Ty_Double();
+
+            CG_FloatItem (exp, (*tkn)->u.literal.fnum, ty);
+
             *tkn = (*tkn)->next;
             break;
         }
         case S_STRING:
-            *exp = Tr_stringExp((*tkn)->pos, (*tkn)->u.str);
+            CG_StringItem (exp, (*tkn)->u.str);
             *tkn = (*tkn)->next;
             break;
         case S_LPAREN:
@@ -1857,7 +1885,7 @@ static bool atom(S_tkn *tkn, Tr_exp *exp)
 }
 
 // negNotExpression  ::= ( ( '-' | '+' ) expExpression | NOT relExpression | atom )
-static bool negNotExpression(S_tkn *tkn, Tr_exp *exp)
+static bool negNotExpression(S_tkn *tkn, CG_item *exp)
 {
     if (!(*tkn))
         return FALSE;
@@ -1869,7 +1897,7 @@ static bool negNotExpression(S_tkn *tkn, Tr_exp *exp)
             *tkn = (*tkn)->next;
             if (!expExpression(tkn, exp))
                 return FALSE;
-            *exp = transBinOp(pos, T_neg, *exp, NULL);
+            transBinOp(pos, CG_neg, exp, NULL);
             break;
         case S_PLUS:
             *tkn = (*tkn)->next;
@@ -1882,7 +1910,14 @@ static bool negNotExpression(S_tkn *tkn, Tr_exp *exp)
                 *tkn = (*tkn)->next;
                 if (!relExpression(tkn, exp))
                     return FALSE;
-                *exp = transBinOp(pos, T_not, *exp, NULL);
+
+                if (CG_ty (exp)->kind == Ty_bool)
+                    CG_loadCond (g_sleStack->code, pos, exp);
+
+                if (exp->kind == IK_cond)
+                    exp->u.condR.postCond = !exp->u.condR.postCond;
+                else
+                    transBinOp(pos, CG_not, exp, NULL);
             }
             else
             {
@@ -1896,7 +1931,7 @@ static bool negNotExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // expExpression ::= negNotExpression ( '^' negNotExpression )* .
-static bool expExpression(S_tkn *tkn, Tr_exp *exp)
+static bool expExpression(S_tkn *tkn, CG_item *exp)
 {
     if (!negNotExpression(tkn, exp))
         return FALSE;
@@ -1916,10 +1951,10 @@ static bool expExpression(S_tkn *tkn, Tr_exp *exp)
         }
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!negNotExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, T_power, *exp, right);
+            transBinOp(pos, CG_power, exp, &right);
         }
     }
 
@@ -1927,7 +1962,7 @@ static bool expExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // multExpression ::= expExpression ( ('*' | '/') expExpression )* .
-static bool multExpression(S_tkn *tkn, Tr_exp *exp)
+static bool multExpression(S_tkn *tkn, CG_item *exp)
 {
     if (!expExpression(tkn, exp))
         return FALSE;
@@ -1936,15 +1971,15 @@ static bool multExpression(S_tkn *tkn, Tr_exp *exp)
     while (!done)
     {
         S_pos  pos = (*tkn)->pos;
-        T_binOp oper;
+        CG_binOp oper;
         switch ((*tkn)->kind)
         {
             case S_ASTERISK:
-                oper = T_mul;
+                oper = CG_mul;
                 *tkn = (*tkn)->next;
                 break;
             case S_SLASH:
-                oper = T_div;
+                oper = CG_div;
                 *tkn = (*tkn)->next;
                 break;
             default:
@@ -1953,10 +1988,10 @@ static bool multExpression(S_tkn *tkn, Tr_exp *exp)
         }
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!expExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, oper, *exp, right);
+            transBinOp(pos, oper, exp, &right);
         }
     }
 
@@ -1964,9 +1999,9 @@ static bool multExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // intDivExpression  ::= multExpression ( '\' multExpression )*
-static bool intDivExpression(S_tkn *tkn, Tr_exp *exp)
+static bool intDivExpression(S_tkn *tkn, CG_item *exp)
 {
-    bool   done = FALSE;
+    bool done = FALSE;
 
     if (!multExpression(tkn, exp))
         return FALSE;
@@ -1985,10 +2020,10 @@ static bool intDivExpression(S_tkn *tkn, Tr_exp *exp)
         }
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!multExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, T_intDiv, *exp, right);
+            transBinOp(pos, CG_intDiv, exp, &right);
         }
     }
 
@@ -1996,9 +2031,9 @@ static bool intDivExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // modExpression ::= intDivExpression ( MOD intDivExpression )*
-static bool modExpression(S_tkn *tkn, Tr_exp *exp)
+static bool modExpression(S_tkn *tkn, CG_item *exp)
 {
-    bool   done = FALSE;
+    bool done = FALSE;
 
     if (!intDivExpression(tkn, exp))
         return FALSE;
@@ -2017,10 +2052,10 @@ static bool modExpression(S_tkn *tkn, Tr_exp *exp)
 
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!intDivExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, T_mod, *exp, right);
+            transBinOp(pos, CG_mod, exp, &right);
         }
     }
 
@@ -2028,9 +2063,9 @@ static bool modExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // shiftExpression  =   modExpression ( (SHL | SHR) modExpression )*
-static bool shiftExpression(S_tkn *tkn, Tr_exp *exp)
+static bool shiftExpression(S_tkn *tkn, CG_item *exp)
 {
-    bool   done = FALSE;
+    bool done = FALSE;
 
     if (!modExpression(tkn, exp))
         return FALSE;
@@ -2038,17 +2073,17 @@ static bool shiftExpression(S_tkn *tkn, Tr_exp *exp)
     while (!done)
     {
         S_pos  pos = (*tkn)->pos;
-        T_binOp oper;
+        CG_binOp oper;
         if (isSym(*tkn, S_SHL))
         {
-            oper = T_shl;
+            oper = CG_shl;
             *tkn = (*tkn)->next;
         }
         else
         {
             if (isSym(*tkn, S_SHR))
             {
-                oper = T_shr;
+                oper = CG_shr;
                 *tkn = (*tkn)->next;
             }
             else
@@ -2059,10 +2094,10 @@ static bool shiftExpression(S_tkn *tkn, Tr_exp *exp)
 
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!modExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, oper, *exp, right);
+            transBinOp(pos, oper, exp, &right);
         }
     }
 
@@ -2070,7 +2105,7 @@ static bool shiftExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // addExpression     ::= shiftExpression ( ('+' | '-') shiftExpression )*
-static bool addExpression(S_tkn *tkn, Tr_exp *exp)
+static bool addExpression(S_tkn *tkn, CG_item *exp)
 {
     bool   done = FALSE;
 
@@ -2080,15 +2115,15 @@ static bool addExpression(S_tkn *tkn, Tr_exp *exp)
     while (!done)
     {
         S_pos  pos = (*tkn)->pos;
-        T_binOp oper;
+        CG_binOp oper;
         switch ((*tkn)->kind)
         {
             case S_PLUS:
-                oper = T_plus;
+                oper = CG_plus;
                 *tkn = (*tkn)->next;
                 break;
             case S_MINUS:
-                oper = T_minus;
+                oper = CG_minus;
                 *tkn = (*tkn)->next;
                 break;
             default:
@@ -2097,10 +2132,10 @@ static bool addExpression(S_tkn *tkn, Tr_exp *exp)
         }
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!shiftExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, oper, *exp, right);
+            transBinOp(pos, oper, exp, &right);
         }
     }
 
@@ -2108,7 +2143,7 @@ static bool addExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // relExpression ::= addExpression ( ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) addExpression )*
-static bool relExpression(S_tkn *tkn, Tr_exp *exp)
+static bool relExpression(S_tkn *tkn, CG_item *exp)
 {
     bool done = FALSE;
 
@@ -2118,31 +2153,31 @@ static bool relExpression(S_tkn *tkn, Tr_exp *exp)
     while (!done)
     {
         S_pos  pos = (*tkn)->pos;
-        T_relOp oper;
+        CG_relOp oper;
         switch ((*tkn)->kind)
         {
             case S_EQUALS:
-                oper = T_eq;
+                oper = CG_eq;
                 *tkn = (*tkn)->next;
                 break;
             case S_GREATER:
-                oper = T_gt;
+                oper = CG_gt;
                 *tkn = (*tkn)->next;
                 break;
             case S_LESS:
-                oper = T_lt;
+                oper = CG_lt;
                 *tkn = (*tkn)->next;
                 break;
             case S_NOTEQ:
-                oper = T_ne;
+                oper = CG_ne;
                 *tkn = (*tkn)->next;
                 break;
             case S_LESSEQ:
-                oper = T_le;
+                oper = CG_le;
                 *tkn = (*tkn)->next;
                 break;
             case S_GREATEREQ:
-                oper = T_ge;
+                oper = CG_ge;
                 *tkn = (*tkn)->next;
                 break;
             default:
@@ -2151,10 +2186,10 @@ static bool relExpression(S_tkn *tkn, Tr_exp *exp)
         }
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!addExpression(tkn, &right))
                 return FALSE;
-            *exp = transRelOp(pos, oper, *exp, right);
+            transRelOp(pos, oper, exp, &right);
         }
     }
 
@@ -2162,8 +2197,10 @@ static bool relExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // logAndExpression  ::= relExpression ( AND relExpression )* .
-static bool logAndExpression(S_tkn *tkn, Tr_exp *exp)
+static bool logAndExpression(S_tkn *tkn, CG_item *exp)
 {
+    S_pos pos = (*tkn)->pos;
+
     bool done = FALSE;
 
     if (!relExpression(tkn, exp))
@@ -2171,7 +2208,7 @@ static bool logAndExpression(S_tkn *tkn, Tr_exp *exp)
 
     while (!done)
     {
-        S_pos pos = (*tkn)->pos;
+        pos = (*tkn)->pos;
         if (isSym(*tkn, S_AND))
         {
             *tkn = (*tkn)->next;
@@ -2183,10 +2220,56 @@ static bool logAndExpression(S_tkn *tkn, Tr_exp *exp)
 
         if (!done)
         {
-            Tr_exp right;
-            if (!relExpression(tkn, &right))
-                return FALSE;
-            *exp = transBinOp(pos, T_and, *exp, right);
+            /*
+             * short-circuit evaluation (avoid conversion / loadVal of left exp)
+             *
+             * left AND right
+             *
+             *          CMP     ...     ; a ?         left
+             *          Bxx     Lf      ; ¬a -> Lf
+             *
+             *          CMP     ...     ; b?          right
+             *          Bxx     Lf      ; ¬b -> Lf
+             *
+             *          CMP     ...     ; c?
+             *          Bxx     Lf      ; ¬c -> Lf
+             *
+             *          postCond = TRUE
+             *
+             *          BRA Le
+             * Lf:
+             *
+             *          postCond = FALSE
+             *
+             * Le:
+             */
+
+            if (CG_ty (exp)->kind == Ty_bool)
+                CG_loadCond (g_sleStack->code, pos, exp);
+
+            if (exp->kind == IK_cond)
+            {
+                CG_transPostCond (g_sleStack->code, pos, exp, /*positive=*/TRUE);
+
+                CG_item right;
+                if (!relExpression(tkn, &right))
+                    return FALSE;
+
+                if (CG_ty (&right)->kind == Ty_bool)
+                    CG_loadCond (g_sleStack->code, pos, &right);
+
+                if (right.kind == IK_cond)
+                    CG_transPostCond (g_sleStack->code, pos, &right, /*positive=*/TRUE);
+
+                CG_transMergeCond (g_sleStack->code, pos, exp, &right);
+            }
+            else
+            {
+                CG_item right;
+                if (!relExpression(tkn, &right))
+                    return FALSE;
+                transBinOp(pos, CG_and, exp, &right);
+            }
         }
     }
 
@@ -2194,7 +2277,7 @@ static bool logAndExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // logOrExpression ::= logAndExpression ( OR logAndExpression )* .
-static bool logOrExpression(S_tkn *tkn, Tr_exp *exp)
+static bool logOrExpression(S_tkn *tkn, CG_item *exp)
 {
     bool done = FALSE;
 
@@ -2215,10 +2298,33 @@ static bool logOrExpression(S_tkn *tkn, Tr_exp *exp)
 
         if (!done)
         {
-            Tr_exp right;
-            if (!logAndExpression(tkn, &right))
-                return FALSE;
-            *exp = transBinOp(pos, T_or, *exp, right);
+            if (CG_ty (exp)->kind == Ty_bool)
+                CG_loadCond (g_sleStack->code, pos, exp);
+
+            if (exp->kind == IK_cond)
+            {
+                // short-circuit OR
+                CG_transPostCond (g_sleStack->code, pos, exp, /*positive=*/FALSE);
+
+                CG_item right;
+                if (!logAndExpression(tkn, &right))
+                    return FALSE;
+
+                if (CG_ty (&right)->kind == Ty_bool)
+                    CG_loadCond (g_sleStack->code, pos, &right);
+
+                if (right.kind == IK_cond)
+                    CG_transPostCond (g_sleStack->code, pos, &right, /*positive=*/FALSE);
+
+                CG_transMergeCond (g_sleStack->code, pos, exp, &right);
+            }
+            else
+            {
+                CG_item right;
+                if (!logAndExpression(tkn, &right))
+                    return FALSE;
+                transBinOp(pos, CG_or, exp, &right);
+            }
         }
     }
 
@@ -2226,7 +2332,7 @@ static bool logOrExpression(S_tkn *tkn, Tr_exp *exp)
 }
 
 // expression ::= logOrExpression ( (XOR | EQV | IMP) logOrExpression )*
-static bool expression(S_tkn *tkn, Tr_exp *exp)
+static bool expression(S_tkn *tkn, CG_item *exp)
 {
     bool done = FALSE;
 
@@ -2236,24 +2342,24 @@ static bool expression(S_tkn *tkn, Tr_exp *exp)
     while ((*tkn) && !done)
     {
         S_pos   pos = (*tkn)->pos;
-        T_binOp oper;
+        CG_binOp oper;
         if (isSym(*tkn, S_XOR))
         {
-            oper = T_xor;
+            oper = CG_xor;
             *tkn = (*tkn)->next;
         }
         else
         {
             if (isSym(*tkn, S_EQV))
             {
-                oper = T_eqv;
+                oper = CG_eqv;
                 *tkn = (*tkn)->next;
             }
             else
             {
                 if (isSym(*tkn, S_IMP))
                 {
-                    oper = T_imp;
+                    oper = CG_imp;
                     *tkn = (*tkn)->next;
                 }
                 else
@@ -2265,23 +2371,25 @@ static bool expression(S_tkn *tkn, Tr_exp *exp)
 
         if (!done)
         {
-            Tr_exp right;
+            CG_item right;
             if (!logOrExpression(tkn, &right))
                 return FALSE;
-            *exp = transBinOp(pos, oper, *exp, right);
+            transBinOp(pos, oper, exp, &right);
         }
     }
 
     return TRUE;
 }
 
-
 // arrayDimension ::= expression [ TO expression]
 // arrayDimensions ::= [ STATIC ] [ arrayDimension ( "," arrayDimension )* ]
 static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
 {
+    assert(FALSE); // FIXME
+    return FALSE;
+#if 0
     bool   statc = FALSE;
-    Tr_exp idxStart, idxEnd = NULL;
+    CG_item idxStart, idxEnd = NULL;
 
     if (isSym(*tkn, S_STATIC))
     {
@@ -2342,11 +2450,11 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
     }
 
     return TRUE;
+#endif
 }
 
 // typeDesc ::= ( Identifier [PTR]
 //              | (SUB | FUNCTION) [ "(" [ [ BYVAL | BYREF ] typeDesc ( "," [ BYVAL | BYREF ] typeDesc )*] ")" ] [ "AS" typeDesc ] )
-
 static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
 {
     S_pos    pos = (*tkn)->pos;
@@ -2390,7 +2498,8 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
                 {
                     if (ty2->kind == Ty_procPtr)
                         return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
-                    ty2 = Ty_VarPtr(FE_mod->name, ty2);
+                    assert(FALSE); // FIXME
+                    //ty2 = Ty_VarPtr(FE_mod->name, ty2);
                 }
 
                 FE_ParamListAppend(paramList, Ty_Formal(/*name=*/NULL, ty2, /*defaultExp=*/NULL, mode, ph, /*reg=*/NULL));
@@ -2421,7 +2530,8 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
                     {
                         if (ty2->kind == Ty_procPtr)
                             return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
-                        ty2 = Ty_VarPtr(FE_mod->name, ty2);
+                        assert(FALSE);
+                        //ty2 = Ty_VarPtr(FE_mod->name, ty2);
                     }
 
                     FE_ParamListAppend(paramList, Ty_Formal(/*name=*/NULL, ty2, /*defaultExp=*/NULL, mode, ph, /*reg=*/NULL));
@@ -2472,15 +2582,13 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
     return TRUE;
 }
 
-static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expList constructorAssignedArgs)
+static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_itemList constructorAssignedArgs)
 {
-    Ty_ty t = Tr_ty(var);
-    assert (t->kind == Ty_varPtr);
-    t = t->u.pointer;
+    Ty_ty t = CG_ty(var);
+    assert (CG_isVar(var));
 
     // assign initial value or run constructor ?
 
-    Tr_exp initExp=NULL;
     if (t->kind == Ty_record)
     {
         if (init)
@@ -2490,35 +2598,24 @@ static bool transVarInit(S_pos pos, Tr_exp var, Tr_exp init, bool statc, Tr_expL
             if (!constructorAssignedArgs)
                 return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
 
-            initExp = Tr_callExp(pos, constructorAssignedArgs, t->u.record.constructor);
+            assert(FALSE); // FIXME
+            // initExp = Tr_callExp(pos, constructorAssignedArgs, t->u.record.constructor);
         }
     }
     else
     {
         if (init)
         {
-            Tr_exp conv_init=NULL;
-            if (!convert_ty(pos, init, t, &conv_init, /*explicit=*/FALSE))
+            if (!convert_ty(init, pos, t, /*explicit=*/FALSE))
                 return EM_error(pos, "initializer type mismatch");
 
-            Tr_exp e = Tr_DeepCopy(Tr_Deref(pos, var));
-            Ty_ty ty = Tr_ty(e);
-            if (ty->kind == Ty_varPtr)
-                e = Tr_Deref(pos, e);
-            initExp = Tr_assignExp(pos, e, conv_init);
+            CG_transAssignment (g_prog, pos, var, init);
         }
-    }
-    if (initExp)
-    {
-        if (statc)
-            Tr_ExpListPrepend(g_prog, initExp);
-        else
-            emit(initExp);
     }
     return TRUE;
 }
 
-static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool preserve, bool redim, bool external, bool isPrivate, FE_dim dims, Tr_exp *var)
+static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool preserve, bool redim, bool external, bool isPrivate, FE_dim dims)
 {
     if (!t)
         t = Ty_inferType(S_name(sVar));
@@ -2532,23 +2629,23 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             for (FE_dim dim=dims; dim; dim=dim->next)
             {
                 assert(dim->statc);
-                if (!dim->idxEnd)
+                if (CG_isNone(&dim->idxEnd))
                     return EM_error(pos, "Static array bounds expected.");
 
                 int start, end;
-                if (dim->idxStart)
+                if (!CG_isNone(&dim->idxStart))
                 {
-                    if (!Tr_isConst(dim->idxStart))
+                    if (!CG_isConst(&dim->idxStart))
                         return EM_error(pos, "Constant array bounds expected.");
-                    start = Tr_getConstInt(dim->idxStart);
+                    start = CG_getConstInt(&dim->idxStart);
                 }
                 else
                 {
                     start = 0;
                 }
-                if (!Tr_isConst(dim->idxEnd))
+                if (!CG_isConst(&dim->idxEnd))
                     return EM_error(pos, "Constant array bounds expected.");
-                end = Tr_getConstInt(dim->idxEnd);
+                end = CG_getConstInt(&dim->idxEnd);
                 t = Ty_SArray(FE_mod->name, t, start, end);
             }
         }
@@ -2565,14 +2662,15 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             return EM_error(pos, "REDIM only works for dynamic arrays.");
     }
 
-    bool initDone = FALSE;
+    // bool initDone = FALSE;
 
+    CG_item var;
+    CG_NoneItem(&var);
     if (shared)
     {
         assert(!statc);
         Ty_recordEntry entry;
-        *var = NULL;
-        if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
+        if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, &var, &entry))
         {
             if (!redim)
             {
@@ -2580,10 +2678,11 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             }
             else
             {
-                initDone = TRUE;
+                //initDone = TRUE;
+                assert(FALSE); // FIXME
             }
         }
-        if (E_resolveVFC(FE_mod->env, sVar, /*checkParents=*/FALSE, var, &entry))
+        if (E_resolveVFC(FE_mod->env, sVar, /*checkParents=*/FALSE, &var, &entry))
         {
             if (!redim)
             {
@@ -2591,17 +2690,18 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             }
             else
             {
-                initDone = TRUE;
+                // initDone = TRUE;
+                assert(FALSE); // FIXME
             }
         }
-        if (!(*var))
+        if (CG_isNone(&var))
         {
             if (external)
-                *var = Tr_Var(pos, Tr_externalVar(S_name(sVar), t));
+                CG_externalVar (&var, S_name(sVar), t);
             else
-                *var = Tr_Var(pos, Tr_allocVar(Tr_global(), S_name(sVar), /*expt=*/!isPrivate, t));
+                CG_allocVar    (&var, CG_globalFrame(), S_name(sVar), /*expt=*/!isPrivate, t);
 
-            E_declareVFC(FE_mod->env, sVar, *var);
+            E_declareVFC(FE_mod->env, sVar, &var);
         }
     }
     else
@@ -2609,8 +2709,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         assert (!external);
 
         Ty_recordEntry entry;
-        *var = NULL;
-        if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, var, &entry))
+        if (E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, &var, &entry))
         {
             if (!redim)
             {
@@ -2618,21 +2717,22 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             }
             else
             {
-                initDone = TRUE;
+                //initDone = TRUE;
+                assert(FALSE); // FIXME
             }
         }
-        if (!(*var))
+        if (CG_isNone(&var))
         {
-            if (statc || Tr_isStatic(g_sleStack->lv))
+            if (statc || g_sleStack->frame->statc)
             {
-                string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(g_sleStack->lv)), "_"), S_name(sVar));
-                *var = Tr_Var(pos, Tr_allocVar(Tr_global(), varId, /*expt=*/FALSE, t));
+                string varId = strconcat(strconcat(Temp_labelstring(g_sleStack->frame->name), "_"), S_name(sVar));
+                CG_allocVar (&var, CG_globalFrame(), varId, /*expt=*/FALSE, t);
             }
             else
             {
-                *var = Tr_Var(pos, Tr_allocVar(g_sleStack->lv, S_name(sVar), /*expt=*/FALSE, t));
+                CG_allocVar (&var, g_sleStack->frame, S_name(sVar), /*expt=*/FALSE, t);
             }
-            E_declareVFC (g_sleStack->env, sVar, *var);
+            E_declareVFC (g_sleStack->env, sVar, &var);
         }
     }
 
@@ -2640,7 +2740,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
      * run constructor / assign initial value
      */
 
-    Tr_expList constructorAssignedArgs = NULL;
+    CG_itemList constructorAssignedArgs = NULL;
     if ((*tkn)->kind == S_EQUALS)
     {
         if (t->kind == Ty_darray)
@@ -2657,22 +2757,23 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 *tkn = (*tkn)->next;    // skip type ident
                 *tkn = (*tkn)->next;    // skip "("
 
-                constructorAssignedArgs = Tr_ExpList();
-                if (!transActualArgs(tkn, t->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(*var), /*defaultsOnly=*/FALSE))
-                    return FALSE;
+                assert(FALSE); // FIXME
+                //constructorAssignedArgs = CG_ItemList();
+                //if (!transActualArgs(tkn, t->u.record.constructor, constructorAssignedArgs, /*thisPtr=*/Tr_DeepCopy(*var), /*defaultsOnly=*/FALSE))
+                //    return FALSE;
 
-                if ((*tkn)->kind != S_RPAREN)
-                    return EM_error((*tkn)->pos, ") expected.");
-                *tkn = (*tkn)->next;
+                //if ((*tkn)->kind != S_RPAREN)
+                //    return EM_error((*tkn)->pos, ") expected.");
+                //*tkn = (*tkn)->next;
             }
         }
-        Tr_exp init = NULL;
+        CG_item init;
         if (!constructorAssignedArgs && !expression(tkn, &init))
         {
             return EM_error((*tkn)->pos, "var initializer expression expected here.");
         }
-        if (!transVarInit(pos, *var, init, statc, constructorAssignedArgs))
-            return FALSE;
+        if (!transVarInit(pos, &var, &init, statc, constructorAssignedArgs))
+             return FALSE;
     }
     else
     {
@@ -2681,76 +2782,86 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             uint16_t numDims = 0;
             for (FE_dim dim=dims; dim; dim=dim->next)
             {
-                if (!dim->idxEnd)
+                if (CG_isNone(&dim->idxEnd))
                     break; // dynamic open array
                 numDims++;
             }
 
-            Tr_exp initExp=NULL;
+            assert(FALSE); // FIXME
+#if 0
+            CG_item initExp=NULL;
             if (!initDone)
             {
-                // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
-                Tr_expList arglist = Tr_ExpList();
-                Tr_ExpListAppend(arglist, Tr_intExp(pos, Ty_size(t->u.darray.elementTy), Ty_ULong()));
-                Tr_ExpListAppend(arglist, Tr_DeepCopy(*var));
-                if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
-                    return FALSE;
+                assert(FALSE); // FIXME
+                //// call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+                //CG_itemList arglist = CG_ItemList();
+                //CG_ItemListAppend(arglist, CG_IntItem(pos, Ty_size(t->u.darray.elementTy), Ty_ULong()));
+                //CG_ItemListAppend(arglist, Tr_DeepCopy(*var));
+                //if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
+                //    return FALSE;
             }
 
             if (numDims)
             {
-                Tr_exp initExp2;
+                assert(FALSE); // FIXME
+#if 0
+                CG_item initExp2;
                 // call __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
-                Tr_expList arglist = Tr_ExpList();
+                CG_itemList arglist = CG_ItemList();
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
                     uint32_t start, end;
                     if (dim->idxStart)
                     {
-                        if (!Tr_isConst(dim->idxStart))
+                        if (!CG_isConst(dim->idxStart))
                             return EM_error(pos, "Constant array bounds expected.");
-                        start = Tr_getConstInt(dim->idxStart);
+                        start = CG_getConstInt(dim->idxStart);
                     }
                     else
                     {
                         start = 0;
                     }
-                    if (!Tr_isConst(dim->idxEnd))
+                    if (!CG_isConst(dim->idxEnd))
                         return EM_error(pos, "Constant array bounds expected.");
-                    end = Tr_getConstInt(dim->idxEnd);
-                    Tr_ExpListPrepend(arglist, Tr_intExp(pos, start, Ty_ULong()));
-                    Tr_ExpListPrepend(arglist, Tr_intExp(pos, end  , Ty_ULong()));
+                    end = CG_getConstInt(dim->idxEnd);
+                    CG_ItemListPrepend(arglist, CG_IntItem(pos, start, Ty_ULong()));
+                    CG_ItemListPrepend(arglist, CG_IntItem(pos, end  , Ty_ULong()));
                 }
-                Tr_ExpListAppend(arglist, Tr_intExp(pos, numDims, Ty_UInteger()));
-                Tr_ExpListAppend(arglist, Tr_boolExp(pos, preserve, Ty_Bool()));
-                Tr_ExpListAppend(arglist, Tr_DeepCopy(*var));
+                CG_ItemListAppend(arglist, CG_IntItem(pos, numDims, Ty_UInteger()));
+                CG_ItemListAppend(arglist, Tr_boolExp(pos, preserve, Ty_Bool()));
+                CG_ItemListAppend(arglist, Tr_DeepCopy(*var));
                 if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, &initExp2))
                     return FALSE;
 
                 if (initExp)
                 {
-                    Tr_expList el = Tr_ExpList();
-                    Tr_ExpListAppend(el, initExp);
-                    Tr_ExpListAppend(el, initExp2);
+                    CG_itemList el = CG_ItemList();
+                    CG_ItemListAppend(el, initExp);
+                    CG_ItemListAppend(el, initExp2);
                     initExp = Tr_seqExp(el);
                 }
                 else
                 {
                     initExp = initExp2;
                 }
+#endif
             }
             if (initExp)
             {
+                assert(FALSE); // FIXME
+#if 0
                 if (statc)
-                    Tr_ExpListPrepend(g_prog, initExp);
+                    CG_ItemListPrepend(g_prog, initExp);
                 else
                     emit(initExp);
+#endif
             }
+#endif
         }
         else
         {
             // we may still have to initialize this variable
-            if (!transVarInit(pos, *var, /*init=*/NULL, statc, /*constructorAssignedArgs=*/NULL))
+            if (!transVarInit(pos, &var, /*init=*/NULL, statc, /*constructorAssignedArgs=*/NULL))
                 return FALSE;
         }
     }
@@ -2763,7 +2874,6 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
     S_pos      pos = (*tkn)->pos;
     S_symbol   sVar;
     FE_dim     dims = NULL;
-    Tr_exp     var  = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error((*tkn)->pos, "variable identifier expected here.");
@@ -2782,7 +2892,7 @@ static bool singleVarDecl2 (S_tkn *tkn, bool isPrivate, bool shared, bool statc,
         *tkn = (*tkn)->next;
     }
 
-    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, preserve, redim, /*external=*/FALSE, isPrivate, dims, &var))
+    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, preserve, redim, /*external=*/FALSE, isPrivate, dims))
         return FALSE;
 
     return TRUE;
@@ -2794,7 +2904,6 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
     S_pos      pos   = (*tkn)->pos;
     S_symbol   sVar;
     FE_dim     dims  = NULL;
-    Tr_exp     var  = NULL;
 
     if ((*tkn)->kind != S_IDENT)
         return EM_error(pos, "variable declaration: identifier expected here.");
@@ -2821,15 +2930,12 @@ static bool singleVarDecl (S_tkn *tkn, bool isPrivate, bool shared, bool statc, 
             return EM_error((*tkn)->pos, "variable declaration: type descriptor expected here.");
     }
 
-    if (!transVarDecl(tkn, pos, sVar, ty, shared, statc, preserve, redim, /*external=*/FALSE, isPrivate, dims, &var))
-        return FALSE;
-
-    return TRUE;
+    return transVarDecl(tkn, pos, sVar, ty, shared, statc, preserve, redim, external, isPrivate, dims);
 }
 
 // stmtDim ::= [ PRIVATE | PUBLIC ] DIM [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
 //                                                 | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
-static bool stmtDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtDim(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool     shared = FALSE;
     bool     isPrivate = OPT_get(OPTION_PRIVATE);
@@ -2893,8 +2999,13 @@ static bool stmtDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 // stmtReDim ::= [ PRIVATE | PUBLIC ] REDIM [ PRESERVE ] [ SHARED ] ( singleVarDecl ( "," singleVarDecl )*
 //                                                                  | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
-static bool stmtReDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtReDim(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
+    // FIXME
+    assert(FALSE);
+    return FALSE;
+
+#if 0
     bool     preserve  = FALSE;
     bool     shared    = FALSE;
     bool     isPrivate = OPT_get(OPTION_PRIVATE);
@@ -2960,24 +3071,26 @@ static bool stmtReDim(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
 
     return TRUE;
+#endif
 }
 
+#if 0
 static bool transErase (S_pos pos, S_symbol sVar)
 {
     Ty_recordEntry entry;
-    Tr_exp var = NULL;
+    CG_item var = NULL;
     if (!E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, &var, &entry))
         return EM_error(pos, "ERASE: unknown identifier %s.", S_name(sVar));
 
-    Ty_ty t = Tr_ty(var);
+    Ty_ty t = CG_ty(var);
 
     if ( (t->kind != Ty_varPtr) || (t->u.pointer->kind != Ty_darray) )
         return EM_error(pos, "ERASE: %s is not a dynamic array.", S_name(sVar));
 
     // call __DARRAY_T_ERASE (_DARRAY_T *self)
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, Tr_DeepCopy(var));
-    Tr_exp callExp;
+    CG_itemList arglist = CG_ItemList();
+    CG_ItemListAppend(arglist, Tr_DeepCopy(var));
+    CG_item callExp;
     if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE", FALSE), arglist, &callExp))
         return FALSE;
     emit (callExp);
@@ -2986,7 +3099,7 @@ static bool transErase (S_pos pos, S_symbol sVar)
 }
 
 // stmtErase ::= ERASE ident ( "," ident )*
-static bool stmtErase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtErase(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos;
     S_symbol   sVar;
@@ -3018,9 +3131,10 @@ static bool stmtErase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     return TRUE;
 }
+#endif
 
 // externDecl ::= [ PRIVATE | PUBLIC ] EXTERN singleVarDecl
-static bool stmtExternDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtExternDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool isPrivate = OPT_get(OPTION_PRIVATE);
 
@@ -3042,24 +3156,25 @@ static bool stmtExternDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return singleVarDecl(tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/TRUE);
 }
 
+#if 0
 // print ::= PRINT  [ expression ( [ ';' | ',' ] expression )* ]
-static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "PRINT"
 
     while (!isLogicalEOL(*tkn))
     {
-        Tr_exp ex;
+        CG_item ex;
         pos = (*tkn)->pos;
 
         if (!expression(tkn, &ex))
             return EM_error(pos, "expression expected here.");
 
-        Tr_expList arglist = Tr_ExpList();           // single argument list
-        Tr_ExpListAppend(arglist, ex);
+        CG_itemList arglist = CG_ItemList();           // single argument list
+        CG_ItemListAppend(arglist, ex);
         S_symbol   fsym    = NULL;                   // put* function sym to call
-        Ty_ty      ty      = Tr_ty(ex);
+        Ty_ty      ty      = CG_ty(ex);
         switch (ty->kind)
         {
             case Ty_string:
@@ -3150,12 +3265,12 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 static bool inputVar(S_tkn *tkn)
 {
-    Tr_exp var;
+    CG_item var;
     if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return EM_error((*tkn)->pos, "INPUT: variable designator expected here.");
 
     S_symbol   fsym    = NULL;                   // put* function sym to call
-    Ty_ty      ty      = Tr_ty(var)->u.pointer;
+    Ty_ty      ty      = CG_ty(var)->u.pointer;
     switch (ty->kind)
     {
         case Ty_string:
@@ -3194,15 +3309,15 @@ static bool inputVar(S_tkn *tkn)
         if (!lx)
             return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
-        Tr_expList arglist = Tr_ExpList();
-        Tr_ExpListAppend(arglist, var);
+        CG_itemList arglist = CG_ItemList();
+        CG_ItemListAppend(arglist, var);
         emit(Tr_callExp((*tkn)->pos, arglist, func->u.proc));
     }
     return TRUE;
 }
 
 // input ::= INPUT [ ";" ] [ stringLiteral (";" | ",") ] expDesignator ( "," expDesignator* )
-static bool stmtInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool   do_nl  = TRUE;
     bool   qm     = FALSE;
@@ -3236,10 +3351,10 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, Tr_boolExp(pos, do_nl, Ty_Bool()));
-    Tr_ExpListAppend(arglist, prompt ? Tr_stringExp(pos, prompt) : Tr_zeroExp(pos, Ty_String()));
-    Tr_ExpListAppend(arglist, Tr_boolExp(pos, qm, Ty_Bool()));
+    CG_itemList arglist = CG_ItemList();
+    CG_ItemListAppend(arglist, Tr_boolExp(pos, do_nl, Ty_Bool()));
+    CG_ItemListAppend(arglist, prompt ? CG_StringItem(pos, prompt) : CG_ZeroItem(pos, Ty_String()));
+    CG_ItemListAppend(arglist, Tr_boolExp(pos, qm, Ty_Bool()));
     emit(Tr_callExp(pos, arglist, func->u.proc));
 
     if (!inputVar(tkn))
@@ -3256,7 +3371,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
-static bool stmtLineInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool   do_nl  = TRUE;
     string prompt = NULL;
@@ -3283,7 +3398,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         *tkn = (*tkn)->next;
     }
 
-    Tr_exp var;
+    CG_item var;
     if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return EM_error(pos, "LINE INPUT: variable designator expected here.");
 
@@ -3292,10 +3407,10 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, Tr_boolExp(pos, do_nl, Ty_Bool()));
-    Tr_ExpListAppend(arglist, var);
-    Tr_ExpListAppend(arglist, prompt ? Tr_stringExp(pos, prompt) : Tr_zeroExp(pos, Ty_String()));
+    CG_itemList arglist = CG_ItemList();
+    CG_ItemListAppend(arglist, Tr_boolExp(pos, do_nl, Ty_Bool()));
+    CG_ItemListAppend(arglist, var);
+    CG_ItemListAppend(arglist, prompt ? CG_StringItem(pos, prompt) : CG_ZeroItem(pos, Ty_String()));
     emit(Tr_callExp(pos, arglist, func->u.proc));
 
     return isLogicalEOL(*tkn);
@@ -3327,7 +3442,17 @@ static bool dataItem(S_tkn *tkn)
                 case S_thULong   : ty = Ty_ULong()   ; break;
                 default: assert(0);
             }
-			c = Ty_ConstInt (ty, (*tkn)->u.literal.inum);
+            switch (ty->kind)
+            {
+                case Ty_ubyte:
+                case Ty_uinteger:
+                case Ty_ulong:
+                    c = Ty_ConstUInt (ty, (*tkn)->u.literal.inum);
+                    break;
+
+                default:
+                    c = Ty_ConstInt (ty, (*tkn)->u.literal.inum);
+            }
             break;
         }
         case S_FNUM:
@@ -3358,7 +3483,7 @@ static bool dataItem(S_tkn *tkn)
 }
 
 // dataStmt ::= DATA [ dataItem ( ',' dataItem )* ]
-static bool stmtData(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtData(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "DATA"
@@ -3384,17 +3509,17 @@ static bool stmtData(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
-        Tr_expList arglist = Tr_ExpList();
-        Tr_ExpListAppend(arglist, Tr_heapPtrExp(pos, Tr_dataGetInitialRestoreLabel(), Ty_VoidPtr()));
-        Tr_ExpListPrepend(g_prog, Tr_callExp(pos, arglist, func->u.proc));
+        CG_itemList arglist = CG_ItemList();
+        CG_ItemListAppend(arglist, Tr_heapPtrExp(pos, Tr_dataGetInitialRestoreLabel(), Ty_VoidPtr()));
+        CG_ItemListPrepend(g_prog, Tr_callExp(pos, arglist, func->u.proc));
     }
 
     return TRUE;
 }
 
-static bool transRead(S_pos pos, Tr_exp var)
+static bool transRead(S_pos pos, CG_item var)
 {
-    Ty_ty ty = Tr_ty(var);
+    Ty_ty ty = CG_ty(var);
     assert (ty->kind == Ty_varPtr);
 
     S_symbol fsym = NULL;
@@ -3426,19 +3551,19 @@ static bool transRead(S_pos pos, Tr_exp var)
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, var);
+    CG_itemList arglist = CG_ItemList();
+    CG_ItemListAppend(arglist, var);
     emit(Tr_callExp(pos, arglist, func->u.proc));
     return TRUE;
 }
 
 // readStmt ::= READ [ expDesignator ( ',' expDesignator )* ]
-static bool stmtRead(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtRead(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "READ"
 
-    Tr_exp var;
+    CG_item var;
     if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return EM_error(pos, "READ: variable designator expected here.");
     if (!transRead(pos, var))
@@ -3458,7 +3583,7 @@ static bool stmtRead(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // restoreStmt ::= RESTORE [ dataLabel ]
-static bool stmtRestore(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "RESTORE"
@@ -3479,21 +3604,21 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, Tr_heapPtrExp(pos, dataLabel, Ty_VoidPtr()));
+    CG_itemList arglist = CG_ItemList();
+    CG_ItemListAppend(arglist, Tr_heapPtrExp(pos, dataLabel, Ty_VoidPtr()));
     emit(Tr_callExp(pos, arglist, func->u.proc));
 
     return TRUE;
 }
+#endif
 
 // forBegin ::= FOR ident [ AS ident ] "=" expression TO expression [ STEP expression ]
-static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next;           // consume "FOR"
 
-    Temp_label forexit = Temp_newlabel();
     Temp_label forcont = Temp_newlabel();
 
     if ((*tkn)->kind != S_IDENT)
@@ -3501,74 +3626,98 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     S_symbol   sLoopVar = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
-    Tr_exp loopVar;
-    Ty_ty  varTy=NULL;
-    E_env  lenv=g_sleStack->env;
+    E_env    lenv    = g_sleStack->env;
+    FE_SLE   sle     = slePush(FE_sleFor, pos, g_sleStack->frame, lenv, g_sleStack->code, /*exitLbl=*/NULL, forcont, g_sleStack->returnVar);
+    CG_item *loopVar = &sle->u.forLoop.var;
+    Ty_ty    varTy   = NULL;
+
+    sle->u.forLoop.sVar = sLoopVar;
+
     if (isSym(*tkn, S_AS))
     {
+        assert (FALSE); // FIXME
+#if 0
         *tkn = (*tkn)->next;
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &varTy))
             return EM_error((*tkn)->pos, "FOR: type descriptor expected here.");
         lenv = E_EnvScopes(lenv);
-        Tr_level level = g_sleStack->lv;
+        CG_frame level = g_sleStack->frame;
         if (Tr_isStatic(level))
         {
             string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(level)), "_"), S_name(sLoopVar));
-            loopVar = Tr_Var((*tkn)->pos, Tr_allocVar(Tr_global(), varId, /*expt=*/FALSE, varTy));
+            loopVar = CG_AccessItem((*tkn)->pos, CG_allocVar(CG_global(), varId, /*expt=*/FALSE, varTy));
         }
         else
         {
-            loopVar = Tr_Var((*tkn)->pos, Tr_allocVar(level, S_name(sLoopVar), /*expt=*/FALSE, varTy));
+            loopVar = CG_AccessItem((*tkn)->pos, CG_allocVar(level, S_name(sLoopVar), /*expt=*/FALSE, varTy));
         }
         E_declareVFC(lenv, sLoopVar, loopVar);
+#endif
     }
     else
     {
-        loopVar = autovar(sLoopVar, (*tkn)->pos, tkn, /*typeHint=*/varTy);
+        autovar(loopVar, sLoopVar, (*tkn)->pos, tkn, /*typeHint=*/varTy);
     }
-    FE_SLE sle = slePush(FE_sleFor, pos, g_sleStack->lv, lenv, forexit, forcont, g_sleStack->returnVar);
-    sle->u.forLoop.sVar = sLoopVar;
-    sle->u.forLoop.var = Tr_DeepCopy(loopVar);
-    varTy = Tr_ty(sle->u.forLoop.var);
-    if (varTy->kind == Ty_varPtr)
-    {
-        sle->u.forLoop.var = Tr_Deref((*tkn)->pos, sle->u.forLoop.var);
-        varTy = Tr_ty(sle->u.forLoop.var);
-    }
+    varTy = CG_ty(loopVar);
 
     if ((*tkn)->kind != S_EQUALS)
         return EM_error ((*tkn)->pos, "= expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp ex;
-    if (!expression(tkn, &ex))
+    CG_item fromItem;
+    if (!expression(tkn, &fromItem))
         return EM_error((*tkn)->pos, "FOR: from expression expected here.");
-    if (!convert_ty((*tkn)->pos, ex, varTy, &sle->u.forLoop.fromExp, /*explicit=*/FALSE))
+    if (!convert_ty(&fromItem, (*tkn)->pos, varTy, /*explicit=*/FALSE))
         return EM_error((*tkn)->pos, "type mismatch (from expression).");
 
     if (!isSym(*tkn, S_TO))
         return EM_error ((*tkn)->pos, "TO expected.");
     *tkn = (*tkn)->next;
 
-    if (!expression(tkn, &ex))
+    if (!expression(tkn, &sle->u.forLoop.toItem))
         return EM_error((*tkn)->pos, "FOR: to expression expected here.");
-    if (!convert_ty((*tkn)->pos, ex, varTy, &sle->u.forLoop.toExp, /*explicit=*/FALSE))
+    if (!convert_ty(&sle->u.forLoop.toItem, (*tkn)->pos, varTy, /*explicit=*/FALSE))
         return EM_error((*tkn)->pos, "type mismatch (to expression).");
 
     if (isSym(*tkn, S_STEP))
     {
         *tkn = (*tkn)->next;
-        if (!expression(tkn, &ex))
+        if (!expression(tkn, &sle->u.forLoop.stepItem))
             return EM_error((*tkn)->pos, "FOR: step expression expected here.");
-        if (!convert_ty((*tkn)->pos, ex, varTy, &sle->u.forLoop.stepExp, /*explicit=*/FALSE))
+        if (!convert_ty(&sle->u.forLoop.stepItem, (*tkn)->pos, varTy, /*explicit=*/FALSE))
             return EM_error((*tkn)->pos, "type mismatch (step expression).");
-        if (!Tr_isConst(sle->u.forLoop.stepExp))
+        if (!CG_isConst(&sle->u.forLoop.stepItem))
             return EM_error((*tkn)->pos, "constant step expression expected here");
     }
     else
     {
-        sle->u.forLoop.stepExp = Tr_oneExp(pos, varTy);
+        CG_OneItem (&sle->u.forLoop.stepItem, varTy);
     }
+
+    /*
+     * we're generating code according to this template:
+     *
+     *      loopVar := fromItem
+     *      loopVar <= toItem ?
+     *      cjump lExit
+     * lHead:
+     *      ; ... loop body ...
+     * lCont:
+     *      loopVar < toItem ?
+     *      cjump lExit
+     *      loopVar += stepItem
+     *      jump  lHead
+     * lExit:
+     */
+
+    CG_transAssignment (g_sleStack->code, pos, loopVar, &fromItem);
+    CG_item cond = *loopVar;
+    CG_transRelOp (g_sleStack->code, pos, CG_le, &cond, &sle->u.forLoop.toItem);
+    CG_loadCond (g_sleStack->code, pos, &cond);
+    CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
+    sle->exitlbl = cond.u.condR.l;
+    sle->u.forLoop.lHead = Temp_newlabel();
+    CG_transLabel (g_sleStack->code, pos, sle->u.forLoop.lHead);
 
     return TRUE;
 }
@@ -3586,21 +3735,23 @@ static bool stmtForEnd_(S_pos pos, S_symbol varSym)
             return EM_error(pos, "FOR/NEXT loop variable mismatch (found: %s, expected: %d)", S_name(varSym), S_name(sle->u.forLoop.sVar));
     }
 
-
-    emit(Tr_forExp(sle->pos,
-                   sle->u.forLoop.var,
-                   sle->u.forLoop.fromExp,
-                   sle->u.forLoop.toExp,
-                   sle->u.forLoop.stepExp,
-                   Tr_seqExp(sle->expList),
-                   sle->exitlbl,
-                   sle->contlbl));
+    CG_transLabel      (g_sleStack->code, pos, sle->contlbl);
+    CG_item cond = sle->u.forLoop.var;
+    CG_transRelOp      (g_sleStack->code, pos, CG_lt, &cond, &sle->u.forLoop.toItem);
+    CG_loadCond (g_sleStack->code, pos, &cond);
+    CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
+    CG_item v = sle->u.forLoop.var;
+    CG_transBinOp      (g_sleStack->code, pos, CG_plus, &v, &sle->u.forLoop.stepItem, CG_ty(&v));
+    CG_transAssignment (g_sleStack->code, pos, &sle->u.forLoop.var, &v);
+    CG_transJump       (g_sleStack->code, pos, sle->u.forLoop.lHead);
+    CG_transLabel      (g_sleStack->code, pos, cond.u.condR.l);
+    CG_transLabel      (g_sleStack->code, pos, sle->exitlbl);
 
     return TRUE;
 }
 
 // forEnd ::= NEXT [ ident ( ',' ident )* ]
-static bool stmtForEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtForEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
 
@@ -3630,28 +3781,62 @@ static bool stmtForEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
+/*
+ *
+ * IF exp1 THEN               code (exp1)
+ *                            b(!cc1) lElse1
+ *     stmts
+ *                            bra    lEndIf
+ *                       lElse1:
+ * ELSEIF exp2 THEN           code (exp2)
+ *                            b(!cc2) lElse2
+ *     stmts
+ *                            bra    lEndIf
+ *                       lElse:
+ * ELSEIF exp3 THEN           code (exp3)
+ *                            b(!cc3) lElse3
+ *     stmts
+ * ...
+ *                            bra    lEndIf
+ *                       lElsen:
+ * ELSE
+ *     stmts
+ * END IF
+ *                       lEndIf:
+ */
+
+
 // IfBegin ::=  IF Expression ( GOTO ( numLiteral | ident )
 //                            | THEN ( NEWLINE
 //                                   | ( numLiteral | Statement*) [ ( ELSE numLiteral | Statement* ) ]
 //                                   )
 //                            )
-static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    Tr_exp   test;
+    CG_item  test;
     S_pos    pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next; // consume "IF"
 
-    E_env      lenv    = E_EnvScopes(g_sleStack->env);
-    FE_SLE     sle     = slePush(FE_sleIf, pos, g_sleStack->lv, lenv, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
+    E_env    lenv    = OPT_get(OPTION_EXPLICIT) ? E_EnvScopes(g_sleStack->env) : g_sleStack->env;
+    FE_SLE   sle     = slePush(FE_sleIf, pos, g_sleStack->frame, lenv, g_sleStack->code, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
     if (!expression(tkn, &test))
         return EM_error((*tkn)->pos, "IF expression expected here.");
 
-    sle->u.ifStmt.ifBFirst = sle->u.ifStmt.ifBLast = FE_IfBranch(pos, test, sle->expList);
+    if (!convert_ty(&test, pos, Ty_Bool(), /*explicit=*/FALSE))
+        return EM_error(pos, "IF: Boolean expression expected here.");
+
+    CG_loadCond (g_sleStack->code, pos, &test);
+    CG_transPostCond (g_sleStack->code, pos, &test, /*positive=*/ TRUE);
+
+    sle->u.ifStmt.lElse  = test.u.condR.l;
+    sle->u.ifStmt.lEndIf = NULL;
 
     if (isSym(*tkn, S_GOTO))
     {
+        assert(FALSE); // FIXME
+#if 0
         *tkn = (*tkn)->next;
 
         if ((*tkn)->kind == S_INUM)
@@ -3675,6 +3860,7 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         slePop();
         emit(transIfBranch(sle->u.ifStmt.ifBFirst));
         return TRUE;
+#endif
     }
 
     if (!isSym(*tkn, S_THEN))
@@ -3690,16 +3876,21 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     {
         if ((*tkn)->kind == S_INUM)
         {
+            assert(FALSE); // FIXME
+#if 0
             Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
             emit(Tr_gotoExp(pos, l));
             firstStmt = FALSE;
             *tkn = (*tkn)->next;
+#endif
         }
 
         while (*tkn)
         {
             if (isSym(*tkn, S_ELSE))
             {
+                assert(FALSE); // FIXME
+#if 0
                 *tkn = (*tkn)->next;
                 firstStmt = TRUE;
                 if (sle->u.ifStmt.ifBFirst->next)
@@ -3708,18 +3899,22 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                     return EM_error ((*tkn)->pos, "Multiple else branches detected.");
                 }
 
-                sle->u.ifStmt.ifBLast->next = FE_IfBranch((*tkn)->pos, NULL, Tr_ExpList());
+                sle->u.ifStmt.ifBLast->next = FE_IfBranch((*tkn)->pos, NULL, CG_ItemList());
                 sle->u.ifStmt.ifBLast       = sle->u.ifStmt.ifBLast->next;
                 sle->expList                = sle->u.ifStmt.ifBLast->expList;
                 continue;
+#endif
             }
 
             if (firstStmt && ((*tkn)->kind == S_INUM) )
             {
+                assert(FALSE);
+#if 0
                 emit(Tr_gotoExp(pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum))));
                 firstStmt = FALSE;
                 *tkn = (*tkn)->next;
                 break;
+#endif
             }
 
             if ( (*tkn)->kind == S_EOL )
@@ -3740,7 +3935,8 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
         slePop();
 
-        emit(transIfBranch(sle->u.ifStmt.ifBFirst));
+        assert(FALSE); // FIXME
+        // emit(transIfBranch(sle->u.ifStmt.ifBFirst));
     }
 
     return TRUE;
@@ -3748,27 +3944,9 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
 // ifElse  ::= ELSEIF expression THEN
 //             |  ELSE .
-static bool stmtIfElse(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtIfElse(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos  pos = (*tkn)->pos;
-    Tr_exp test = NULL;
-
-    if (isSym(*tkn, S_ELSEIF))
-    {
-        *tkn = (*tkn)->next;
-        if (!expression(tkn, &test))
-            return EM_error((*tkn)->pos, "ELSEIF expression expected here.");
-        if (!isSym(*tkn, S_THEN))
-            return EM_error((*tkn)->pos, "THEN expected here.");
-        *tkn = (*tkn)->next;
-    }
-    else
-    {
-        *tkn = (*tkn)->next; // consume "ELSE"
-    }
-
-    if (!isLogicalEOL(*tkn))
-        return FALSE;
 
     FE_SLE sle = g_sleStack;
     if (sle->kind != FE_sleIf)
@@ -3776,17 +3954,53 @@ static bool stmtIfElse(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         EM_error((*tkn)->pos, "ELSE used outside of an IF-statement context");
         return FALSE;
     }
-    sle->u.ifStmt.ifBLast->next = FE_IfBranch(pos, test, Tr_ExpList());
-    sle->u.ifStmt.ifBLast       = sle->u.ifStmt.ifBLast->next;
-    sle->expList                = sle->u.ifStmt.ifBLast->expList;
+
+    if (!sle->u.ifStmt.lEndIf)
+        sle->u.ifStmt.lEndIf = Temp_newlabel();
+
+    CG_transJump (sle->code, pos, sle->u.ifStmt.lEndIf);            // bra lEndIf
+    if (!sle->u.ifStmt.lElse)
+    {
+        EM_error((*tkn)->pos, "multiple ELSE statements");
+        return FALSE;
+    }
+    CG_transLabel (sle->code, pos, sle->u.ifStmt.lElse);            // position elseLabel
+
+    if (isSym(*tkn, S_ELSEIF))
+    {
+        CG_item test;
+        *tkn = (*tkn)->next;
+        if (!expression(tkn, &test))
+            return EM_error((*tkn)->pos, "ELSEIF expression expected here.");
+
+        if (!convert_ty(&test, pos, Ty_Bool(), /*explicit=*/FALSE))
+            return EM_error(pos, "IF: Boolean expression expected here.");
+
+        CG_loadCond (g_sleStack->code, pos, &test);
+        CG_transPostCond (g_sleStack->code, pos, &test, /*positive=*/ TRUE);
+        sle->u.ifStmt.lElse  = test.u.condR.l;
+
+        if (!isSym(*tkn, S_THEN))
+            return EM_error((*tkn)->pos, "THEN expected here.");
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        *tkn = (*tkn)->next; // consume "ELSE"
+        sle->u.ifStmt.lElse = NULL; // no further ELSE branches from this point on
+    }
+
+    if (!isLogicalEOL(*tkn))
+        return FALSE;
 
     return TRUE;
 }
 
+#if 0
 // stmtSelect ::= SELECT CASE Expression
-static bool stmtSelect(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtSelect(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    Tr_exp   ex;
+    CG_item   ex;
     S_pos    pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next; // consume "SELECT"
@@ -3801,7 +4015,7 @@ static bool stmtSelect(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    FE_SLE sle = slePush(FE_sleSelect, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
+    FE_SLE sle = slePush(FE_sleSelect, pos, g_sleStack->frame, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
     sle->u.selectStmt.exp          = ex;
     sle->u.selectStmt.selectBFirst = NULL;
@@ -3818,38 +4032,38 @@ static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
     if (isSym(*tkn, S_IS))
     {
         *tkn = (*tkn)->next;
-        T_relOp oper;
+        CG_relOp oper;
         switch ((*tkn)->kind)
         {
             case S_EQUALS:
-                oper = T_eq;
+                oper = CG_eq;
                 *tkn = (*tkn)->next;
                 break;
             case S_GREATER:
-                oper = T_gt;
+                oper = CG_gt;
                 *tkn = (*tkn)->next;
                 break;
             case S_LESS:
-                oper = T_lt;
+                oper = CG_lt;
                 *tkn = (*tkn)->next;
                 break;
             case S_NOTEQ:
-                oper = T_ne;
+                oper = CG_ne;
                 *tkn = (*tkn)->next;
                 break;
             case S_LESSEQ:
-                oper = T_le;
+                oper = CG_le;
                 *tkn = (*tkn)->next;
                 break;
             case S_GREATEREQ:
-                oper = T_ge;
+                oper = CG_ge;
                 *tkn = (*tkn)->next;
                 break;
             default:
                 return EM_error((*tkn)->pos, "comparison operator expected here.");
         }
 
-        Tr_exp exp;
+        CG_item exp;
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
 
@@ -3857,8 +4071,8 @@ static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
     }
     else
     {
-        Tr_exp exp;
-        Tr_exp toExp = NULL;
+        CG_item exp;
+        CG_item toExp = NULL;
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
         if (isSym(*tkn, S_TO))
@@ -3867,14 +4081,14 @@ static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
             if (!expression(tkn, &toExp))
                 return EM_error((*tkn)->pos, "expression expected here.");
         }
-        *selExp = FE_SelectExp(exp, toExp, /*isIS=*/FALSE, T_eq);
+        *selExp = FE_SelectExp(exp, toExp, /*isIS=*/FALSE, CG_eq);
     }
 
     return TRUE;
 }
 
 // stmtCase ::= CASE ( ELSE | caseExpr ( "," caseExpr )* )
-static bool stmtCase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtCase(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     FE_selectExp ex=NULL, exLast=NULL;
     S_pos        pos = (*tkn)->pos;
@@ -3914,7 +4128,7 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
     }
 
-    FE_selectBranch branch = FE_SelectBranch(pos, ex, Tr_ExpList());
+    FE_selectBranch branch = FE_SelectBranch(pos, ex, CG_ItemList());
 
     if (sle->u.selectStmt.selectBLast)
     {
@@ -3929,24 +4143,28 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 
     return TRUE;
 }
+#endif
 
-static void stmtIfEnd_(void)
+static void stmtIfEnd_(S_pos pos)
 {
-    FE_SLE sle = g_sleStack;
-    slePop();
+    FE_SLE sle = slePop();
 
-    emit(transIfBranch(sle->u.ifStmt.ifBFirst));
+    if (sle->u.ifStmt.lElse)
+        CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lElse);
+    if (sle->u.ifStmt.lEndIf)
+        CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lEndIf);
 }
 
+#if 0
 static void stmtProcEnd_(void)
 {
     FE_SLE sle  = g_sleStack;
     slePop();
 
     Tr_procEntryExit(sle->pos,
-                     sle->lv,
+                     sle->frame,
                      Tr_seqExp(sle->expList),
-                     Tr_formals(sle->lv),
+                     Tr_formals(sle->frame),
                      sle->returnVar,
                      sle->exitlbl,
                      /*is_main=*/FALSE,
@@ -3960,14 +4178,15 @@ static void stmtSelectEnd_(void)
 
     emit(transSelectBranch(sle->u.selectStmt.exp, sle->u.selectStmt.selectBFirst));
 }
+#endif
 
 // stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT | CONSTRUCTOR ) ]
-static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
    if (isSym(*tkn, S_ENDIF))
     {
+        stmtIfEnd_((*tkn)->pos);
         *tkn = (*tkn)->next;
-        stmtIfEnd_();
         return TRUE;
     }
 
@@ -3978,8 +4197,8 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     {
         if (sle->kind != FE_sleIf)
             return EM_error((*tkn)->pos, "ENDIF used outside of an IF-statement context");
+        stmtIfEnd_((*tkn)->pos);
         *tkn = (*tkn)->next;
-        stmtIfEnd_();
         return TRUE;
     }
     else
@@ -3989,7 +4208,8 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkSub))
                 return EM_error((*tkn)->pos, "END SUB used outside of a SUB context");
             *tkn = (*tkn)->next;
-            stmtProcEnd_();
+            assert(FALSE); // FIXME
+            // stmtProcEnd_();
             return TRUE;
         }
         else
@@ -3999,7 +4219,8 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                 if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkFunction))
                     return EM_error((*tkn)->pos, "END FUNCTION used outside of a FUNCTION context");
                 *tkn = (*tkn)->next;
-                stmtProcEnd_();
+                assert(FALSE); // FIXME
+                // stmtProcEnd_();
                 return TRUE;
             }
             else
@@ -4009,7 +4230,8 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                     if (sle->kind != FE_sleSelect)
                         return EM_error((*tkn)->pos, "END SECTION used outside of a SELECT context");
                     *tkn = (*tkn)->next;
-                    stmtSelectEnd_();
+                    assert(FALSE); // FIXME
+                    // stmtSelectEnd_();
                     return TRUE;
                 }
                 else
@@ -4019,11 +4241,14 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                         if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkConstructor))
                             return EM_error((*tkn)->pos, "END CONSTRUCTOR used outside of a CONSTRUCTOR context");
                         *tkn = (*tkn)->next;
-                        stmtProcEnd_();
+                        assert(FALSE); // FIXME
+                        // stmtProcEnd_();
                         return TRUE;
                     }
                     else
                     {
+                        assert(FALSE); // FIXME
+#if 0
                         if (isLogicalEOL(*tkn))
                         {
                             S_symbol fsym      = S_Symbol("SYSTEM", FALSE);
@@ -4032,13 +4257,14 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
                                 return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
                             E_enventry func    = lx->first->e;
 
-                            Tr_expList arglist = Tr_ExpList();
+                            CG_itemList arglist = CG_ItemList();
 
                             emit(Tr_callExp((*tkn)->pos, arglist, func->u.proc));
 
                             *tkn = (*tkn)->next;
                             return TRUE;
                         }
+#endif
                     }
                 }
             }
@@ -4049,15 +4275,21 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtAssert ::= ASSERT expression
-static bool stmtAssert(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos  pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next;    // skip "ASSERT"
 
-    Tr_exp ex;
-    if (!expression(tkn, &ex))
+    CG_itemList arglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    CG_StringItem (&n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
+    CG_loadRef (g_sleStack->code, pos, &n->item);
+
+    n = CG_itemListAppend(arglist);
+    if (!expression(tkn, &n->item))
         return EM_error((*tkn)->pos, "Assert: expression expected here.");
+    CG_loadVal (g_sleStack->code, pos, &n->item);
 
     S_symbol fsym      = S_Symbol("_aqb_assert", TRUE);
     E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
@@ -4065,17 +4297,13 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func    = lx->first->e;
 
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend(arglist, Tr_stringExp(pos, EM_format(pos, "assertion failed." /* FIXME: add expression str */)));
-    Tr_ExpListAppend(arglist, ex);
-
-    emit(Tr_callExp(pos, arglist, func->u.proc));
+    CG_transCall (g_sleStack->code, pos, func->u.proc, arglist, NULL);
 
     return TRUE;
 }
 
 // optionStmt ::= OPTION [ EXPLICIT | PRIVATE ] [ ( ON | OFF ) ]
-static bool stmtOption(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool onoff=TRUE;
     int  opt;
@@ -4117,20 +4345,24 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return TRUE;
 }
 
-static bool isNullPtr(Tr_exp exp)
+#if 0
+static bool isNullPtr(CG_item *exp)
 {
-    Ty_ty t = Tr_ty(exp);
+    Ty_ty t = CG_ty(exp);
     if (t->kind != Ty_pointer)
         return FALSE;
     if (t->u.pointer->kind != Ty_void)
         return FALSE;
-    if (!Tr_isConst(exp))
+    if (!CG_isConst(exp))
         return FALSE;
-    return Tr_getConstInt(exp)==0;
+    return CG_getConstInt(exp)==0;
 }
+#endif
 
-static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal, Tr_exp exp, bool forceExp)
+static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal, CG_item *exp, bool forceExp)
 {
+    CG_itemListNode iln = CG_itemListAppend (assignedArgs);
+
     if (!exp)
     {
         if (!formal->defaultExp)
@@ -4138,13 +4370,36 @@ static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal,
             EM_error(pos, "missing arguments");
             return;
         }
-        exp = Tr_constExp(pos, formal->defaultExp);
+        CG_ConstItem (&iln->item, formal->defaultExp);
+    }
+    else
+    {
+        iln->item = *exp;
     }
 
     switch (formal->mode)
     {
         case Ty_byRef:
         {
+            if (!compatible_ty(formal->ty, CG_ty(exp)))
+            {
+                EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
+                return;
+            }
+
+            switch (iln->item.kind)
+            {
+                case IK_inFrame:
+                case IK_inHeap:
+                    CG_loadRef (g_sleStack->code, pos, &iln->item);
+                    break;
+                case IK_varPtr:
+                    break;
+                default:
+                    EM_error(pos, "%s: actual cannot be passed by reference", S_name(formal->name));
+                    return;
+            }
+#if 0
             /*
              * FIXME: this is a hack to allow NULL pointers as defaults for dynamic array arguments
              *        at some point we'll probably need a better solution for this
@@ -4152,15 +4407,15 @@ static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal,
 
             if ( (formal->ty->kind == Ty_varPtr) && (formal->ty->u.pointer->kind == Ty_darray) && isNullPtr (exp) )
             {
-                Tr_ExpListPrepend(assignedArgs, exp);
+                CG_ItemListPrepend(assignedArgs, exp);
             }
             else
             {
-                Tr_exp expRef = forceExp ? NULL : Tr_MakeRef(pos, exp);
+                CG_item expRef = forceExp ? NULL : Tr_MakeRef(pos, exp);
                 if (!expRef)
                 {
-                    expRef = Tr_Var(pos, Tr_allocVar(g_sleStack->lv, /*name=*/NULL, /*expt=*/FALSE, formal->ty->u.pointer));
-                    Tr_exp conv_actual;
+                    expRef = CG_AccessItem(pos, CG_allocVar(g_sleStack->frame, /*name=*/NULL, /*expt=*/FALSE, formal->ty->u.pointer));
+                    CG_item conv_actual;
                     if (!convert_ty(pos, exp, formal->ty->u.pointer, &conv_actual, /*explicit=*/FALSE))
                     {
                         EM_error(pos, "%s: TMP BYREF parameter type mismatch", S_name(formal->name));
@@ -4170,38 +4425,39 @@ static void transAssignArg(S_pos pos, Tr_expList assignedArgs, Ty_formal formal,
                 }
                 else
                 {
-                    if (!compatible_ty(formal->ty->u.pointer, Tr_ty(exp)))
+                    if (!compatible_ty(formal->ty->u.pointer, CG_ty(exp)))
                     {
                         EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
                         return;
                     }
                 }
-                Tr_ExpListPrepend(assignedArgs, expRef);
+                CG_ItemListPrepend(assignedArgs, expRef);
             }
+#endif
 
             break;
         }
         case Ty_byVal:
         {
-            Tr_exp conv_actual;
-            if (!convert_ty(pos, exp, formal->ty, &conv_actual, /*explicit=*/FALSE))
+            if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
             {
                 EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
                 return;
             }
-            Tr_ExpListPrepend(assignedArgs, conv_actual);
+            CG_loadVal (g_sleStack->code, pos, &iln->item);
             break;
         }
     }
-
 }
 
 // lineBF ::= ("B" | "BF")
-static bool lineBF(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
+static bool lineBF(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
+    assert(FALSE); // FIXME
+#if 0
     if (isSym(*tkn, S_B))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_intExp((*tkn)->pos, 1, Ty_Integer()), /*forceExp=*/FALSE);
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, CG_IntItem((*tkn)->pos, 1, Ty_Integer()), /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
         *formal = (*formal)->next;
     }
@@ -4209,7 +4465,7 @@ static bool lineBF(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
     {
         if (isSym(*tkn, S_BF))
         {
-            transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_intExp((*tkn)->pos, 3, Ty_Integer()), /*forceExp=*/FALSE);
+            transAssignArg((*tkn)->pos, assignedArgs, *formal, CG_IntItem((*tkn)->pos, 3, Ty_Integer()), /*forceExp=*/FALSE);
             *tkn = (*tkn)->next;
             *formal = (*formal)->next;
         }
@@ -4219,13 +4475,16 @@ static bool lineBF(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
         }
     }
 
-    return TRUE;
+    return TRUE;a
+#endif
 }
 
 // coord ::= [ STEP ] '(' expression "," expression ")"
-static bool coord(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
+static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
-    Tr_exp   exp;
+    assert(FALSE); // FIXME
+#if 0
+    CG_item   exp;
 
     if (isSym(*tkn, S_STEP))
     {
@@ -4259,14 +4518,17 @@ static bool coord(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected here.");
     *tkn = (*tkn)->next;
+#endif
 
     return TRUE;
 }
 
 // coord2 ::= [ [ STEP ] '(' expression "," expression ")" ] "-" [STEP] "(" expression "," expression ")"
-static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
+static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
-    Tr_exp   exp;
+    assert(FALSE); // FIXME
+#if 0
+    CG_item   exp;
 
     if (isSym(*tkn, S_STEP))
     {
@@ -4345,15 +4607,18 @@ static bool coord2(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected here.");
     *tkn = (*tkn)->next;
+#endif
 
     return TRUE;
 }
 
-static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *formal)
+static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
     // proc ptrs need special treatment
     if (((*formal)->ty->kind == Ty_procPtr) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind != S_LPAREN))
     {
+        assert(FALSE); // FIXME
+#if 0
         Ty_proc proc = (*formal)->ty->u.procPtr;
         S_symbol name = (*tkn)->u.sym;
 
@@ -4369,7 +4634,7 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
                         continue;
 
                     // if we reach this point, we have a match
-                    Tr_ExpListPrepend(assignedArgs, Tr_heapPtrExp((*tkn)->pos, proc2->label, (*formal)->ty));
+                    CG_ItemListPrepend(assignedArgs, Tr_heapPtrExp((*tkn)->pos, proc2->label, (*formal)->ty));
                     *formal = (*formal)->next;
                     *tkn = (*tkn)->next;
                     return TRUE;
@@ -4379,19 +4644,19 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
         else
         {
             Ty_recordEntry entry;
-            Tr_exp procPtr;
+            CG_item procPtr;
             if (E_resolveVFC(g_sleStack->env, name, /*checkParents=*/TRUE, &procPtr, &entry))
             {
                 if (!entry)
                 {
-                    Ty_ty ty = Tr_ty(procPtr);
+                    Ty_ty ty = CG_ty(procPtr);
                     if (ty->kind == Ty_prc)
                     {
                         Ty_proc proc2 = ty->u.proc;
                         if (matchProcSignatures(proc, proc2))
                         {
                             // if we reach this point, we have a match
-                            Tr_ExpListPrepend(assignedArgs, Tr_heapPtrExp((*tkn)->pos, proc2->label, ty));
+                            CG_ItemListPrepend(assignedArgs, Tr_heapPtrExp((*tkn)->pos, proc2->label, ty));
                             *formal = (*formal)->next;
                             *tkn = (*tkn)->next;
                             return TRUE;
@@ -4400,26 +4665,30 @@ static bool transAssignArgExp(S_tkn *tkn, Tr_expList assignedArgs, Ty_formal *fo
                 }
             }
         }
+#endif
     }
 
-    Tr_exp exp;
+    CG_item exp;
     bool forceExp = (*tkn)->kind == S_LPAREN; // basic syntax quirk: (a) passed to a BYREF parameter must result in tmp var being generated
     if (!expression(tkn, &exp))
         return FALSE;
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, forceExp);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, forceExp);
     *formal = (*formal)->next;
     return TRUE;
 }
 
 // actualArgs ::= [ expression ] ( ',' [ expression ] )*
-static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, Tr_exp thisPtr, bool defaultsOnly)
+static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item *thisPtr, bool defaultsOnly)
 {
     Ty_formal  formal = proc->formals;
 
     if (thisPtr)
     {
-        Tr_ExpListPrepend(assignedArgs, thisPtr);
+        assert(FALSE); // FIXME
+#if 0
+        CG_ItemListPrepend(assignedArgs, thisPtr);
         formal = formal->next;
+#endif
     }
 
     if (!defaultsOnly)
@@ -4576,7 +4845,7 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, Tr_expList assignedArgs, T
 
 
 // subCall ::= ident ident* actualArgs
-static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool transSubCall(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     Ty_proc    proc   = e->u.proc;
     //FIXME: remove Ty_formal  formal = proc->formals;
@@ -4603,19 +4872,21 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             return FALSE;
     }
 
-    Tr_expList assignedArgs = Tr_ExpList();
+    CG_itemList assignedArgs = CG_ItemList();
     if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL, /*defaultsOnly=*/FALSE))
         return FALSE;
 
     if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
         return FALSE;
 
-    emit(Tr_callExp((*tkn)->pos, assignedArgs, proc));
+    CG_transCall (g_sleStack->code, (*tkn)->pos, proc, assignedArgs, exp);
+
     return TRUE;
 }
 
+#if 0
 // stmtCall ::= CALL ( subCall | expDesignator )
-static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtCall(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_symbol name;
 
@@ -4642,17 +4913,18 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         }
     }
 
-    Tr_exp ex = NULL;
+    CG_item ex = NULL;
     if (!expDesignator (tkn, &ex, /*isVARPTR=*/FALSE, /*leftHandSide=*/FALSE))
         return FALSE;
 
-    Ty_ty ty = Tr_ty(ex);
+    Ty_ty ty = CG_ty(ex);
     if (ty->kind == Ty_prc)
         return transFunctionCall(tkn, &ex);
 
     emit (ex);
     return TRUE;
 }
+#endif
 
 // paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _COORD  "(" paramDecl "," paramDecl "," paramDecl ")"
@@ -4809,19 +5081,17 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                 {
                     if (ty->kind == Ty_procPtr)
                         return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
-                    ty = Ty_VarPtr(FE_mod->name, ty);
                 }
 
                 if ((*tkn)->kind == S_EQUALS)
                 {
-                    Tr_exp exp;
+                    CG_item exp;
                     *tkn = (*tkn)->next;
                     if (!expression(tkn, &exp))
                         return EM_error((*tkn)->pos, "default expression expected here.");
-                    Tr_exp cExp;
-                    if (!transConst(pos, exp, plainTy, &cExp))
+                    if (!transConst(pos, plainTy, &exp))
                         return FALSE;
-                    defaultExp = Tr_getConst(cExp);
+                    defaultExp = CG_getConst(&exp);
                 }
                 FE_ParamListAppend(pl, Ty_Formal(name, ty, defaultExp, mode, ph, /*reg=*/NULL));
             }
@@ -5013,7 +5283,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     Ty_proc decl=NULL;
     if ( (proc->returnTy->kind != Ty_void) || proc->tyClsPtr)
     {
-        Tr_exp d;
+        CG_item d;
         Ty_recordEntry entry;
 
         if (E_resolveVFC(g_sleStack->env, proc->name, /*checkParents=*/TRUE, &d, &entry))
@@ -5029,7 +5299,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
             }
             else
             {
-                Ty_ty ty = Tr_ty(d);
+                Ty_ty ty = CG_ty(&d);
                 if (ty->kind != Ty_prc)
                 {
                     EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
@@ -5107,16 +5377,26 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     {
         decl = proc;
         if (proc->returnTy->kind == Ty_void)
+        {
             E_declareSub (FE_mod->env, proc->name, proc);
+        }
         else
-            E_declareVFC (FE_mod->env, proc->name, Tr_heapPtrExp(pos, proc->label, Ty_Prc(FE_mod->name, proc)));
+        {
+            CG_item item;
+            CG_HeapPtrItem (&item, proc->label, Ty_Prc(FE_mod->name, proc));
+            E_declareVFC (FE_mod->env, proc->name, &item);
+        }
     }
     return decl;
 }
 
 // procStmtBegin ::= [ PRIVATE | PUBLIC ] procHeader
-static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
+    assert(FALSE); // FIXME
+    return FALSE;
+
+#if 0
     S_pos         pos        = (*tkn)->pos;
     Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
 
@@ -5139,8 +5419,8 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
     proc->hasBody = TRUE;
 
-    Tr_level   funlv = Tr_newLevel(proc->label/*, visibility != Ty_visPrivate*/, proc->formals, proc->isStatic);
-    Tr_exp     returnVar = NULL;
+    CG_frame  funFrame = CG_Frame (pos, proc->label, proc->formals, proc->isStatic);
+    CG_item   returnVar = NULL;
 
     E_env lenv = FE_mod->env;
     E_env wenv = NULL;
@@ -5149,26 +5429,30 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         lenv = wenv = E_EnvWith(lenv, NULL);
     lenv = E_EnvScopes(lenv);   // local variables, consts etc.
 
-    Tr_accessList acl = Tr_formals(funlv);
+    CG_itemListNode acl = funFrame->formals->first;
     for (Ty_formal formals = proc->formals;
-         formals; formals = formals->next, acl = Tr_accessListTail(acl))
+         formals; formals = formals->next, acl = acl->next)
     {
-        Tr_exp argVar = Tr_Var(pos, Tr_accessListHead(acl));
+        CG_item argVar = acl->item;
         E_declareVFC(lenv, formals->name, argVar);
         if (proc->tyClsPtr && !wenv->u.withPrefix)
-            wenv->u.withPrefix = Tr_DeepCopy(argVar);
+        {
+            assert(FALSE); // FIXME
+            //wenv->u.withPrefix = Tr_DeepCopy(argVar);
+        }
     }
 
     // function return var
     if (proc->returnTy->kind != Ty_void)
     {
-        Tr_access returnAccess = Tr_allocVar(funlv, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
-        returnVar = Tr_Deref(pos, Tr_Var(pos, returnAccess));
+        assert(FALSE); // FIXME
+        // Tr_access returnAccess = CG_allocVar(funFrame, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
+        // returnVar = Tr_Deref(pos, CG_AccessItem(pos, returnAccess));
     }
 
     Temp_label exitlbl = Temp_newlabel();
 
-    slePush(FE_sleProc, pos, funlv, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
+    slePush(FE_sleProc, pos, funFrame, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
     g_sleStack->u.proc = proc;
 
     proc = checkProcMultiDecl(pos, proc);
@@ -5176,12 +5460,13 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return FALSE;
 
     return TRUE;
+#endif
 }
 
 // procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
-static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtProcDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    Ty_proc       proc;
+    Ty_proc       proc=NULL;
     S_pos         pos        = (*tkn)->pos;
     Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
 
@@ -5210,30 +5495,28 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (isSym(*tkn, S_LIB))
     {
         *tkn = (*tkn)->next;
-        Tr_exp o;
+        CG_item o;
 
         S_pos pos2 = (*tkn)->pos;
         if (!expression(tkn, &o))
             return EM_error(pos2, "library call: offset expected here.");
-         Tr_exp co;
-         if (!transConst(pos2, o, Ty_ULong(), &co))
+         if (!transConst(pos2, Ty_ULong(), &o))
              return FALSE;
-         proc->offset = Tr_getConstInt(co);
+         proc->offset = CG_getConstInt(&o);
 
         if ((*tkn)->kind != S_IDENT)
             return EM_error((*tkn)->pos, "library call: library base identifier expected here.");
 
         S_symbol sLibBase = (*tkn)->u.sym;
-        Tr_exp vLibBase;
+        CG_item vLibBase;
         Ty_recordEntry entry;
         if (!E_resolveVFC(g_sleStack->env, sLibBase, /*checkParents=*/TRUE, &vLibBase, &entry))
             return EM_error((*tkn)->pos, "Library base %s undeclared.", S_name(sLibBase));
 
-        Temp_label l = Tr_heapLabel(vLibBase);
-        if (!l)
+        if (vLibBase.kind != IK_inHeap)
             return EM_error((*tkn)->pos, "Library base %s is not a global variable.", S_name(sLibBase));
 
-        proc->libBase = Temp_labelstring(l);
+        proc->libBase = Temp_labelstring(vLibBase.u.inHeap.l);
         *tkn = (*tkn)->next;
 
         if ((*tkn)->kind != S_LPAREN)
@@ -5247,7 +5530,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             if (!p)
                 return EM_error((*tkn)->pos, "library call: more registers than arguments detected.");
 
-            p->reg = F_lookupReg((*tkn)->u.sym);
+            p->reg = AS_lookupReg((*tkn)->u.sym);
             if (!p->reg)
                 return EM_error((*tkn)->pos, "register %s not recognized on this machine type.", S_name((*tkn)->u.sym));
             p = p->next;
@@ -5272,11 +5555,11 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 // constDecl ::= [ PRIVATE | PUBLIC ] CONST ( ident [AS typeDesc] "=" Expression ("," ident [AS typeDesc] "=" expression)*
 //                                          | AS typeDesc ident = expression ("," ident "=" expression)*
 //                                          )
-static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos     = (*tkn)->pos;
     S_symbol   sConst;
-    Tr_exp     init    = NULL;
+    CG_item    init; CG_NoneItem(&init);
     bool       isPrivate = OPT_get(OPTION_PRIVATE);
 
     if (isSym(*tkn, S_PRIVATE))
@@ -5314,7 +5597,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!expression(tkn, &init))
             return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
-        if (!transConstDecl(pos, ty, sConst, init, isPrivate))
+        if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
             return FALSE;
 
         while ((*tkn)->kind == S_COMMA)
@@ -5335,7 +5618,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             if (!expression(tkn, &init))
                 return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
-            if (!transConstDecl(pos, ty, sConst, init, isPrivate))
+            if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
                 return FALSE;
         }
 
@@ -5363,7 +5646,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!expression(tkn, &init))
         return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
-    if (!transConstDecl(pos, ty, sConst, init, isPrivate))
+    if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
         return FALSE;
 
     while ((*tkn)->kind == S_COMMA)
@@ -5392,17 +5675,17 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!expression(tkn, &init))
             return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
 
-        if (!transConstDecl(pos, ty, sConst, init, isPrivate))
+        if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
             return FALSE;
     }
     return TRUE;
 }
 
 // typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier [ AS typedesc [ "(" arrayDimensions ")" ] ]
-static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos    pos = (*tkn)->pos;
-    FE_SLE   sle = slePush(FE_sleType, pos, g_sleStack->lv, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
+    FE_SLE   sle = slePush(FE_sleType, pos, g_sleStack->frame, g_sleStack->env, g_sleStack->code, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
     sle->u.typeDecl.udtVis    = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
     sle->u.typeDecl.memberVis = Ty_visPublic;
@@ -5451,29 +5734,29 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
             {
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
-                    if (!dim->idxEnd)
+                    if (CG_isNone(&dim->idxEnd))
                         return EM_error(pos, "static arrays cannot be open.");
 
                     int start, end;
-                    if (dim->idxStart)
+                    if (!CG_isNone(&dim->idxStart))
                     {
-                        if (!Tr_isConst(dim->idxStart))
+                        if (!CG_isConst(&dim->idxStart))
                             return EM_error(pos, "Constant array bounds expected.");
-                        start = Tr_getConstInt(dim->idxStart);
+                        start = CG_getConstInt(&dim->idxStart);
                     }
                     else
                     {
                         start = 0;
                     }
-                    if (!Tr_isConst(dim->idxEnd))
+                    if (!CG_isConst(&dim->idxEnd))
                         return EM_error(pos, "Constant array bounds expected.");
-                    end = Tr_getConstInt(dim->idxEnd);
+                    end = CG_getConstInt(&dim->idxEnd);
                     ty = Ty_SArray(FE_mod->name, ty, start, end);
                 }
             }
             else
             {
-                if (dims->idxEnd)
+                if (!CG_isNone(&dims->idxEnd))
                 {
                     return EM_error(pos, "Fixed boundaries for dynamic array UDTs are not supported.");
                 }
@@ -5532,19 +5815,19 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     for (FE_dim dim=f->u.fieldr.dims; dim; dim=dim->next)
                     {
                         int start, end;
-                        if (dim->idxStart)
+                        if (!CG_isNone(&dim->idxStart))
                         {
-                            if (!Tr_isConst(dim->idxStart))
+                            if (!CG_isConst(&dim->idxStart))
                                 return EM_error(f->pos, "Constant array bounds expected.");
-                            start = Tr_getConstInt(dim->idxStart);
+                            start = CG_getConstInt(&dim->idxStart);
                         }
                         else
                         {
                             start = 0;
                         }
-                        if (!Tr_isConst(dim->idxEnd))
+                        if (!CG_isConst(&dim->idxEnd))
                             return EM_error(f->pos, "Constant array bounds expected.");
-                        end = Tr_getConstInt(dim->idxEnd);
+                        end = CG_getConstInt(&dim->idxEnd);
                         t = Ty_SArray(FE_mod->name, t, start, end);
                     }
 
@@ -5754,9 +6037,10 @@ static bool stmtTypeDeclField(S_tkn *tkn)
     return TRUE;
 }
 
+#if 0
 // stmtStatic ::= STATIC ( singleVarDecl ( "," singleVarDecl )*
 //                       | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
-static bool stmtStatic(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtStatic(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     *tkn = (*tkn)->next;    // skip "STATIC"
 
@@ -5794,13 +6078,13 @@ static bool stmtStatic(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // whileBegin ::= WHILE expression
-static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
     E_env      lenv     = E_EnvScopes(g_sleStack->env);
     Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
-    FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->lv, lenv, loopexit, loopcont, g_sleStack->returnVar);
+    FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->frame, lenv, loopexit, loopcont, g_sleStack->returnVar);
 
     *tkn = (*tkn)->next; // consume "WHILE"
 
@@ -5811,7 +6095,7 @@ static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // whileEnd ::= WEND
-static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos    pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // consume "WEND"
@@ -5821,7 +6105,7 @@ static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error(pos, "WEND used outside of a WHILE-loop context");
     slePop();
 
-    Tr_exp conv_exp;
+    CG_item conv_exp;
     if (!convert_ty(pos, sle->u.whileExp, Ty_Bool(), &conv_exp, /*explicit=*/FALSE))
         return EM_error(pos, "Boolean expression expected.");
 
@@ -5830,10 +6114,10 @@ static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // letStmt ::= LET expDesignator "=" expression
-static bool stmtLet(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtLet(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    Tr_exp     lhs;     // left hand side
-    Tr_exp     ex;
+    CG_item     lhs;     // left hand side
+    CG_item     ex;
     S_pos      pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next;  // skip "LET"
@@ -5848,9 +6132,9 @@ static bool stmtLet(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!expression(tkn, &ex))
         return EM_error((*tkn)->pos, "expression expected here.");
 
-    Tr_exp convexp;
+    CG_item convexp;
 
-    Ty_ty ty = Tr_ty(lhs);
+    Ty_ty ty = CG_ty(lhs);
     if (!convert_ty(pos, ex, ty, &convexp, /*explicit=*/FALSE))
         return EM_error(pos, "type mismatch (LET).");
 
@@ -5940,7 +6224,7 @@ static bool stmtNestedStmtList(S_tkn *tkn, FE_nestedStmt *res)
 
 
 // exitStmt ::= EXIT nestedStmtList
-static bool stmtExit(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtExit(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos         pos  = (*tkn)->pos;
     FE_nestedStmt nest = NULL;
@@ -5956,7 +6240,7 @@ static bool stmtExit(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // continueStmt ::= CONTINUE nestedStmtList
-static bool stmtContinue(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtContinue(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos         pos  = (*tkn)->pos;
     FE_nestedStmt nest = NULL;
@@ -5975,13 +6259,13 @@ static bool stmtContinue(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // doStmt ::= DO [ ( UNTIL | WHILE ) expression ]
-static bool stmtDo(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos      = (*tkn)->pos;
     E_env      lenv     = E_EnvScopes(g_sleStack->env);
     Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
-    FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->lv, lenv, loopexit, loopcont, g_sleStack->returnVar);
+    FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->frame, lenv, loopexit, loopcont, g_sleStack->returnVar);
 
     *tkn = (*tkn)->next; // consume "DO"
 
@@ -6013,7 +6297,7 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtLoop ::= LOOP [ ( UNTIL | WHILE ) expression ]
-static bool stmtLoop(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos    pos = (*tkn)->pos;
 
@@ -6048,8 +6332,8 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    Tr_exp convUntilExp = NULL;
-    Tr_exp convWhileExp = NULL;
+    CG_item convUntilExp = NULL;
+    CG_item convWhileExp = NULL;
 
     if (sle->u.doLoop.untilExp)
     {
@@ -6069,9 +6353,9 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtReturn ::= RETURN [ expression ]
-static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtReturn(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    Tr_exp ex=NULL;
+    CG_item ex=NULL;
     S_pos  pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next; // consume "RETURN"
@@ -6105,17 +6389,17 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         if (!ex)
             return EM_error(pos, "RETURN expression missing.");
 
-        Tr_exp var = sle->returnVar;
-        Ty_ty ty = Tr_ty(var);
+        CG_item var = sle->returnVar;
+        Ty_ty ty = CG_ty(var);
         // if var is a varPtr, time to deref it
         if (ty->kind == Ty_varPtr)
         {
             var = Tr_Deref(pos, var);
-            ty = Tr_ty(var);
+            ty = CG_ty(var);
         }
         var = Tr_DeepCopy(var);
 
-        Tr_exp convexp;
+        CG_item convexp;
         if (!convert_ty(pos, ex, ty, &convexp, /*explicit=*/FALSE))
             return EM_error(pos, "type mismatch (RETURN).");
 
@@ -6130,9 +6414,10 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     emit (Tr_gotoExp(pos, sle->exitlbl));
     return TRUE;
 }
+#endif
 
 // stmtPublic ::= [ PUBLIC | PRIVATE ] ( procBegin | procDecl | typeDeclBegin | dim | constDecl | externDecl )
-static bool stmtPublicPrivate(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtPublicPrivate(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_tkn nextTkn = (*tkn)->next;
 
@@ -6160,8 +6445,9 @@ static bool stmtPublicPrivate(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     return EM_error(nextTkn->pos, "DECLARE, SUB, FUNCTION, DIM or TYPE expected here.");
 }
 
+#if 0
 // stmtImport ::= IMPORT ident
-static bool stmtImport(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtImport(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos    pos = (*tkn)->pos;
     S_symbol sModule;
@@ -6237,7 +6523,7 @@ static bool letterRanges(S_pos pos, S_tkn *tkn, Ty_ty ty)
 }
 
 // stmtDefint ::= DEFINT letterRanges
-static bool stmtDefint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtDefint(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
 
@@ -6247,7 +6533,7 @@ static bool stmtDefint(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtDefsng ::= DEFSNG letterRanges
-static bool stmtDefsng(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtDefsng(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6257,7 +6543,7 @@ static bool stmtDefsng(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtDeflng ::= DEFLNG letterRanges
-static bool stmtDeflng(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtDeflng(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6267,7 +6553,7 @@ static bool stmtDeflng(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtDefstr ::= DEFSTR letterRanges
-static bool stmtDefstr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtDefstr(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6277,7 +6563,7 @@ static bool stmtDefstr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtGoto ::= GOTO ( num | ident )
-static bool stmtGoto(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6307,7 +6593,7 @@ static bool stmtGoto(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // stmtGosub ::= GOSUB ( num | ident )
-static bool stmtGosub(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6337,7 +6623,7 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // funVarPtr ::= VARPTR "(" expDesignator ")"
-static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
 
@@ -6345,10 +6631,10 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp v;
+    CG_item v;
     if (!expDesignator(tkn, &v, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return FALSE;
-    Ty_ty ty = Tr_ty(v);
+    Ty_ty ty = CG_ty(v);
     if (ty->kind != Ty_varPtr)
         return EM_error(pos, "This object cannot be referenced.");
 
@@ -6356,13 +6642,13 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = Tr_castExp((*tkn)->pos, v, ty, Ty_Pointer(FE_mod->name, ty->u.pointer));
+    *exp = CG_castItem((*tkn)->pos, v, ty, Ty_Pointer(FE_mod->name, ty->u.pointer));
 
     return TRUE;
 }
 
 // funSizeOf = SIZEOF "(" typeDesc ")"
-static bool funSizeOf(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     if ((*tkn)->kind != S_LPAREN)
         return EM_error((*tkn)->pos, "( expected.");
@@ -6376,12 +6662,12 @@ static bool funSizeOf(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = Tr_intExp((*tkn)->pos, Ty_size(ty), Ty_ULong());
+    *exp = CG_UIntItem((*tkn)->pos, Ty_size(ty), Ty_ULong());
     return TRUE;
 }
 
 // funCast = CAST "(" typeDesc "," expression ")"
-static bool funCast(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funCast(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6397,7 +6683,7 @@ static bool funCast(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ", expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp exp2;
+    CG_item exp2;
     if (!expression(tkn, &exp2))
         return EM_error((*tkn)->pos, "CAST: expression expected here.");
 
@@ -6405,7 +6691,7 @@ static bool funCast(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp conv_exp;
+    CG_item conv_exp;
     if (!convert_ty(pos, exp2, t_dest, &conv_exp, /*explicit=*/TRUE))
         return EM_error(pos, "unsupported cast");
 
@@ -6415,7 +6701,7 @@ static bool funCast(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // funStrDollar = STR$ "(" expression ")"
-static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
 
@@ -6423,7 +6709,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp exp2;
+    CG_item exp2;
     if (!expression(tkn, &exp2))
         return EM_error((*tkn)->pos, "STR$: (numeric) expression expected here.");
 
@@ -6431,10 +6717,10 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    Tr_expList arglist = Tr_ExpList();
-    Tr_ExpListAppend (arglist, exp2);     // single argument list
+    CG_itemList arglist = CG_ItemList();
+    CG_ItemListAppend (arglist, exp2);     // single argument list
     S_symbol   fsym    = NULL;            // function sym to call
-    Ty_ty      ty      = Tr_ty(exp2);
+    Ty_ty      ty      = CG_ty(exp2);
     switch (ty->kind)
     {
         case Ty_pointer:
@@ -6470,11 +6756,11 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
     }
     if (fsym)
     {
-        Tr_exp procPtr;
+        CG_item procPtr;
         Ty_recordEntry entry;
         if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        Ty_ty ty = Tr_ty(procPtr);
+        Ty_ty ty = CG_ty(procPtr);
         assert(ty->kind == Ty_prc);
         Ty_proc proc = ty->u.proc;
 
@@ -6484,7 +6770,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, Tr_exp *exp)
 }
 
 // funIsNull ::= _ISNULL "(" expDesignator ")"
-static bool funIsNull(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
 
@@ -6492,10 +6778,10 @@ static bool funIsNull(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp v;
+    CG_item v;
     if (!expDesignator(tkn, &v, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return FALSE;
-    Ty_ty ty = Tr_ty(v);
+    Ty_ty ty = CG_ty(v);
     if (ty->kind != Ty_varPtr)
         return EM_error(pos, "This object cannot be referenced.");
 
@@ -6503,13 +6789,13 @@ static bool funIsNull(S_tkn *tkn, E_enventry e, Tr_exp *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    v = Tr_castExp(pos, v, ty, Ty_VoidPtr());
-    *exp = Tr_relOpExp(pos, T_eq, v, Tr_zeroExp(pos, Ty_VoidPtr()));
+    v = CG_castItem(pos, v, ty, Ty_VoidPtr());
+    *exp = CG_transRelOp(pos, CG_eq, v, CG_ZeroItem(pos, Ty_VoidPtr()));
 
     return TRUE;
 }
 
-static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
+static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
 {
     S_pos pos;
 
@@ -6517,17 +6803,17 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    Tr_exp arrayExp;
+    CG_item arrayExp;
     pos = (*tkn)->pos;
     if (!expDesignator (tkn, &arrayExp, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return EM_error(pos, "array expected here.");
 
-    Tr_exp dimExp;
+    CG_item dimExp;
     if ((*tkn)->kind == S_COMMA)
     {
         *tkn = (*tkn)->next;
 
-        Tr_exp e;
+        CG_item e;
         if (!expression(tkn, &e))
             return EM_error((*tkn)->pos, "array dimension expression expected here.");
 
@@ -6536,14 +6822,14 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
     }
     else
     {
-        dimExp = Tr_intExp((*tkn)->pos, 1, Ty_Integer());
+        dimExp = CG_IntItem((*tkn)->pos, 1, Ty_Integer());
     }
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    Ty_ty ty = Tr_ty(arrayExp);
+    Ty_ty ty = CG_ty(arrayExp);
     assert(ty->kind == Ty_varPtr);
     ty = ty->u.pointer;
 
@@ -6553,9 +6839,9 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
         {
             // call UWORD _dyna_[u|l]bound(_dyna * dyna, UWORD dim);
 
-            Tr_expList arglist = Tr_ExpList();
-            Tr_ExpListAppend(arglist, dimExp);
-            Tr_ExpListAppend(arglist, arrayExp);
+            CG_itemList arglist = CG_ItemList();
+            CG_ItemListAppend(arglist, dimExp);
+            CG_ItemListAppend(arglist, arrayExp);
 
             if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, exp))
                 return FALSE;
@@ -6564,10 +6850,10 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
         case Ty_sarray:
         {
             // purely static information
-            if (!Tr_isConst (dimExp))
+            if (!CG_isConst (dimExp))
                 return EM_error(pos, "constant dimension number expected here.");
 
-            int nDim = Tr_getConstInt(dimExp);
+            int nDim = CG_getConstInt(dimExp);
             if (nDim<=0)
             {
                 if (isUpper)
@@ -6580,11 +6866,11 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
                         cnt += 1;
                         t = t->u.sarray.elementTy;
                     }
-                    *exp = Tr_intExp((*tkn)->pos, cnt, Ty_Integer());
+                    *exp = CG_IntItem((*tkn)->pos, cnt, Ty_Integer());
                 }
                 else
                 {
-                    *exp = Tr_intExp((*tkn)->pos, 1, Ty_Integer());
+                    *exp = CG_IntItem((*tkn)->pos, 1, Ty_Integer());
                 }
             }
             else
@@ -6596,13 +6882,13 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
                     cnt += 1;
                     if (cnt == nDim)
                     {
-                        *exp = Tr_intExp((*tkn)->pos, isUpper ? t->u.sarray.iEnd : t->u.sarray.iStart, Ty_Integer());
+                        *exp = CG_IntItem((*tkn)->pos, isUpper ? t->u.sarray.iEnd : t->u.sarray.iStart, Ty_Integer());
                         break;
                     }
                     t = t->u.sarray.elementTy;
                 }
                 if (t->kind != Ty_sarray)
-                    *exp = Tr_intExp((*tkn)->pos, 0, Ty_Integer());
+                    *exp = CG_IntItem((*tkn)->pos, 0, Ty_Integer());
             }
             break;
         }
@@ -6613,18 +6899,19 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, Tr_exp *exp)
 }
 
 // funLBound = LBOUND "(" expDesignator [ "," expr ] ")"
-static bool funLBound(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funLBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return transArrayBound(tkn, /*isUpper=*/FALSE, exp);
 }
 
 // funUBound = UBOUND "(" expDesignator [ "," expr ] ")"
-static bool funUBound(S_tkn *tkn, E_enventry e, Tr_exp *exp)
+static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return transArrayBound(tkn, /*isUpper=*/TRUE, exp);
 }
+#endif
 
-static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, Tr_exp *exp), Ty_ty retTy)
+static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
     Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
@@ -6635,7 +6922,9 @@ static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef
     }
     else
     {
-        E_declareVFC (g_builtinsModule->env, sym, Tr_zeroExp(0, Ty_Prc(g_builtinsModule->name, proc)));
+        CG_item p;
+        CG_ZeroItem (&p, Ty_Prc(g_builtinsModule->name, proc));
+        E_declareVFC (g_builtinsModule->env, sym, &p);
     }
 
     TAB_enter (g_parsefs, proc, parsef);
@@ -6730,9 +7019,12 @@ static void registerBuiltins(void)
 
     g_parsefs = TAB_empty();
 
+    // FIXME
     declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim          , Ty_Void());
+#if 0
     declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim        , Ty_Void());
     declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint        , Ty_Void());
+#endif
     declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin     , Ty_Void());
     declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd       , Ty_Void());
     declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin      , Ty_Void());
@@ -6742,6 +7034,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd          , Ty_Void());
     declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert       , Ty_Void());
     declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption       , Ty_Void());
+#if 0
     declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
@@ -6761,8 +7054,10 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect       , Ty_Void());
     declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase         , Ty_Void());
     declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn       , Ty_Void());
+#endif
     declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
     declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
+#if 0
     declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport       , Ty_Void());
     declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng       , Ty_Void());
     declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng       , Ty_Void());
@@ -6784,6 +7079,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
+#endif
 }
 
 //
@@ -6833,9 +7129,11 @@ static bool statementOrAssignment(S_tkn *tkn)
             if (xBest)
             {
                 S_tkn tkn2 = *tkn;
-                bool (*parsef)(S_tkn *tkn, E_enventry x, Tr_exp *exp) = TAB_look(g_parsefs, xBest->u.proc);
+                bool (*parsef)(S_tkn *tkn, E_enventry x, CG_item *exp) = TAB_look(g_parsefs, xBest->u.proc);
                 if (!parsef)
+                {
                     parsef = transSubCall;
+                }
 
                 if (parsef(&tkn2, xBest, NULL))
                 {
@@ -6850,55 +7148,59 @@ static bool statementOrAssignment(S_tkn *tkn)
         }
     }
 
-    Tr_exp exp;
-    if (!expDesignator(tkn, &exp, /*isVARPTR=*/FALSE, /*leftHandSide=*/TRUE))
+    CG_item item;
+    if (!expDesignator(tkn, &item, /*isVARPTR=*/FALSE, /*leftHandSide=*/TRUE))
         return FALSE;
 
     if ((*tkn)->kind == S_EQUALS)
     {
-        Tr_exp     ex;
+        CG_item     ex;
         *tkn = (*tkn)->next;
 
         if (!expression(tkn, &ex))
             return EM_error((*tkn)->pos, "expression expected here.");
 
-        Tr_exp convexp;
-        Ty_ty ty_left  = Tr_ty(exp);
-        if (!convert_ty(pos, ex, ty_left, &convexp, /*explicit=*/FALSE))
+        Ty_ty ty_left  = CG_ty(&item);
+        if (!convert_ty (&ex, pos, ty_left, /*explicit=*/FALSE))
             return EM_error(pos, "type mismatch (assignment).");
 
         if (ty_left->kind != Ty_darray)
         {
-            emit(Tr_assignExp(pos, exp, convexp));
+            CG_transAssignment (g_sleStack->code, pos, &item, &ex);
         }
         else
         {
+            assert(FALSE); // FIXME
+#if 0
             // call void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
 
-            Tr_expList arglist = Tr_ExpList();
-            Tr_ExpListAppend(arglist, Tr_MakeRef((*tkn)->pos, convexp));
-            Tr_ExpListAppend(arglist, Tr_MakeRef((*tkn)->pos, exp));
+            CG_itemList arglist = CG_ItemList();
+            CG_ItemListAppend(arglist, Tr_MakeRef((*tkn)->pos, convexp));
+            CG_ItemListAppend(arglist, Tr_MakeRef((*tkn)->pos, exp));
 
-            Tr_exp res;
+            CG_item res;
             if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("COPY", FALSE), arglist, &res))
                 return FALSE;
             emit(res);
+#endif
         }
     }
     else
     {
-        Ty_ty ty = Tr_ty(exp);
+        assert(FALSE); // FIXME
+#if 0
+        Ty_ty ty = CG_ty(exp);
         if (ty->kind == Ty_prc)
             return transFunctionCall(tkn, &exp);
 
         emit (exp);
+#endif
     }
-
     return TRUE;
 }
 
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*
-F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name)
+CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name)
 {
     FE_filename = filename;
     S_init (inf);
@@ -6915,7 +7217,9 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
         label = Temp_namedlabel(strprintf("__%s_init", module_name));
     }
 
-    Tr_level lv = Tr_newLevel(label, NULL, /*statc=*/TRUE);
+    CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
+
+    assert(frame); // FIXME: remove
 
     /*
      * nested envs / scopes (example)
@@ -6950,8 +7254,10 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
     E_env env = E_EnvScopes(FE_mod->env);  // main()/init() env
 
     g_sleStack = NULL;
-    slePush(FE_sleTop, /*pos=*/0, lv, env, /*exitlbl=*/NULL, /*contlbl=*/NULL, /*returnVar=*/NULL);
-    g_prog = g_sleStack->expList;
+    CG_item rv;
+    CG_NoneItem(&rv);
+    slePush(FE_sleTop, /*pos=*/0, frame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
+    g_prog = g_sleStack->code;
 
     // parse logical lines
 
@@ -6970,16 +7276,23 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
         // handle label, if any
         if (tkn->kind == S_INUM)
         {
+            assert(FALSE);
+            // FIXME
+#if 0
             Temp_label l = Temp_namedlabel(strprintf("_L%07d", tkn->u.literal.inum));
             emit(Tr_labelExp(tkn->pos, l));
             Tr_dataAddLabel(l);
             tkn = tkn->next;
+#endif
         }
         else
         {
             if ((tkn->kind == S_IDENT) && tkn->next && (tkn->next->kind == S_COLON)
                 && !isSym(tkn, S_PUBLIC) && !isSym(tkn, S_PRIVATE) && !isSym(tkn, S_PROTECTED) )
             {
+                assert(FALSE);
+                // FIXME
+#if 0
                 Temp_label l = Temp_namedlabel(S_name(tkn->u.sym));
                 if (TAB_look (userLabels, l))
                 {
@@ -6991,6 +7304,7 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
                 Tr_dataAddLabel(l);
                 tkn = tkn->next;
                 tkn = tkn->next;
+#endif
             }
         }
 
@@ -7021,15 +7335,11 @@ F_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, strin
     }
 
     if (!g_prog->first)
-    {
-        Tr_ExpListAppend(g_prog, Tr_nopNx(0));
-    }
+        CG_transNOP (g_prog, 0);
 
-    Tr_exp prog = Tr_seqExp(g_prog);
+    CG_procEntryExit (0, frame, g_prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
 
-    Tr_procEntryExit (0, lv, prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
-
-    return Tr_getResult();
+    return CG_getResult();
 }
 
 bool FE_writeSymFile(string symfn)

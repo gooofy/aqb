@@ -47,10 +47,11 @@ static float get_time(void)
 
 void U_memstat(void)
 {
+    float t = get_time();
+    double tdiff = t-g_start_time;
     // FIXME
-    // float t = get_time();
-    // double tdiff = t-g_start_time;
     // printf ("%8.3fs: memory pool stats: used %8zu of %8zu KBytes.\n", tdiff, (g_pool->initial_size - pool_available(g_pool))/1024, g_pool->initial_size/1024);
+    printf ("%8.3fs: memory pool stats: FIXME.\n", tdiff);
 }
 
 static void U_deinit (void)

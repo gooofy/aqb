@@ -52,14 +52,14 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
         n->use = Temp_TempSet (instr->src, n->use);
         if (AS_instrInfoA[instr->mn].srcDnOnly)
         {
-            n->srcInterf = F_aRegs();
+            n->srcInterf = AS_aRegs();
         }
         else
         {
             if (AS_instrInfoA[instr->mn].srcAnOnly)
-                n->srcInterf = F_dRegs();
+                n->srcInterf = AS_dRegs();
             else
-                n->srcInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
+                n->srcInterf = instr->w == AS_w_B ? AS_aRegs() : NULL;
         }
     }
     else
@@ -76,14 +76,14 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
 
         if (AS_instrInfoA[instr->mn].dstDnOnly)
         {
-            n->dstInterf = F_aRegs();
+            n->dstInterf = AS_aRegs();
         }
         else
         {
             if (AS_instrInfoA[instr->mn].dstAnOnly)
-                n->dstInterf = F_dRegs();
+                n->dstInterf = AS_dRegs();
             else
-                n->dstInterf = instr->w == AS_w_B ? F_aRegs() : NULL;
+                n->dstInterf = instr->w == AS_w_B ? AS_aRegs() : NULL;
         }
     }
     else
@@ -332,7 +332,7 @@ void FG_show(FILE *out, FG_graph g)
         }
         pos = FG_COLUMN_5;
 
-        AS_sprint(&buf[pos], n->instr);
+        AS_sprint(&buf[pos], n->instr, AS_dialect_gas);
         pos = strlen(buf);
         buf[pos++] = '\n';
         buf[pos] = 0;

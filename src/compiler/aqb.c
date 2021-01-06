@@ -1,7 +1,7 @@
 /*
  * AQB: AmigaQuickBasic
  *
- * (C) 2020 by G. Bartsch
+ * (C) 2020, 2021 by G. Bartsch
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,252 +39,13 @@ extern struct DOSBase       *DOSBase;
 #endif
 
 #include "frontend.h"
-#include "frame.h"
 #include "errormsg.h"
-#include "canon.h"
-#include "printtree.h"
 #include "codegen.h"
 #include "regalloc.h"
 #include "options.h"
 #include "env.h"
 
-#define VERSION "0.6.0"
-
-static void doProc(FILE *out, F_frag frag)
-{
-    Temp_label   label   = frag->u.proc.label;
-    bool         expt    = frag->u.proc.expt;
-    F_frame      frame   = frag->u.proc.frame;
-    T_stm        body    = frag->u.proc.body;
-    T_stmList    stmList;
-    AS_instrList iList;
-
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        fprintf(stdout, "\n************************************************************************************************\n");
-        fprintf(stdout, "**\n");
-        fprintf(stdout, "** doProc %s\n", Temp_labelstring(label));
-        fprintf(stdout, "**\n");
-        fprintf(stdout, "************************************************************************************************\n\n");
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (doProc starts):\n", Temp_labelstring(label));
-        printStmList(stdout, T_StmList(body, NULL));
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list (doProc starts).\n", Temp_labelstring(label));
-        U_memstat();
-    }
-
-    stmList = C_linearize(body);
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_linearize):\n", Temp_labelstring(label));
-        printStmList(stdout, stmList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list (after C_linearize).\n", Temp_labelstring(label));
-        U_memstat();
-    }
-
-    stmList = C_traceSchedule(C_basicBlocks(stmList));
-
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s stmt list (after C_traceSchedule):\n", Temp_labelstring(label));
-        printStmList(stdout, stmList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s stmt list (after C_traceSchedule).\n", Temp_labelstring(label));
-        U_memstat();
-    }
-
-    iList  = F_codegen(frame, stmList);
-
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
-        AS_printInstrList (stdout, iList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
-        U_memstat();
-    }
-
-    if (!RA_regAlloc(frame, iList) || EM_anyErrors)
-    {
-        printf ("\n\nregister allocation failed - exiting.\n");
-        exit(24);
-    }
-
-    F_procEntryExitAS(frag->u.proc.pos, frame, iList);
-
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after F_procEntryExitAS):\n", Temp_labelstring(label));
-        AS_printInstrList(stdout, iList);
-        fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after F_procEntryExitAS).\n", Temp_labelstring(label));
-        U_memstat();
-    }
-
-    if (expt)
-        fprintf(out, ".globl %s\n\n", S_name(label));
-    AS_printInstrList(out, iList);
-//  fprintf(out, "BEGIN function\n");
-//  AS_printInstrList (out, iList,
-//                     Temp_layerMap(ra.coloring, Temp_getNameMap()));
-//  fprintf(out, "END function\n\n");
-
-    // AS_assemble (proc, Temp_layerMap(ra.coloring, Temp_getNameMap()));
-
-}
-
-char *expand_escapes(const char* src)
-{
-    char *str = checked_malloc(2 * strlen(src) + 10);
-
-    char *dest = str;
-    char c;
-
-    while ((c = *(src++)))
-    {
-        switch(c)
-        {
-            case '\a':
-                *(dest++) = '\\';
-                *(dest++) = 'a';
-                break;
-            case '\b':
-                *(dest++) = '\\';
-                *(dest++) = 'b';
-                break;
-            case '\t':
-                *(dest++) = '\\';
-                *(dest++) = 't';
-                break;
-            case '\n':
-                *(dest++) = '\\';
-                *(dest++) = 'n';
-                break;
-            case '\v':
-                *(dest++) = '\\';
-                *(dest++) = 'v';
-                break;
-            case '\f':
-                *(dest++) = '\\';
-                *(dest++) = 'f';
-                break;
-            case '\r':
-                *(dest++) = '\\';
-                *(dest++) = 'r';
-                break;
-            case '\\':
-                *(dest++) = '\\';
-                *(dest++) = '\\';
-                break;
-            case '\"':
-                *(dest++) = '\\';
-                *(dest++) = '\"';
-                break;
-            default:
-                *(dest++) = c;
-         }
-    }
-
-    *(dest++) = '\\';
-    *(dest++) = '0';
-
-    *(dest++) = '\0'; /* Ensure nul terminator */
-    return str;
-}
-
-static void doStr(FILE * out, string str, Temp_label label) {
-    fprintf(out, "    .align 4\n");
-    fprintf(out, "%s:\n", Temp_labelstring(label));
-    fprintf(out, "    .ascii \"%s\"\n", expand_escapes(str));
-    fprintf(out, "\n");
-}
-
-static void doDataFrag(FILE * out, F_frag df)
-{
-	if (!df->u.data.size)
-		return;
-    fprintf(out, "    .align 4\n");
-    if (df->u.data.expt)
-        fprintf(out, ".globl %s\n\n", Temp_labelstring(df->u.data.label));
-    fprintf(out, "%s:\n", Temp_labelstring(df->u.data.label));
-    if (df->u.data.init)
-    {
-        for (F_dataFragNode n=df->u.data.init; n; n=n->next)
-        {
-            switch (n->kind)
-            {
-                case F_labelNode:
-                    fprintf(out, "%s:\n", Temp_labelstring(n->u.label));
-                    break;
-                case F_constNode:
-                {
-                    Ty_const c = n->u.c;
-                    switch (c->ty->kind)
-                    {
-                        case Ty_bool:
-                        case Ty_byte:
-                        case Ty_ubyte:
-                            fprintf(out, "    dc.b %d\n", c->u.b);
-                            break;
-                        case Ty_uinteger:
-                        case Ty_integer:
-                            fprintf(out, "    dc.w %d\n", c->u.i);
-                            break;
-                        case Ty_long:
-                        case Ty_ulong:
-                        case Ty_pointer:
-                            fprintf(out, "    dc.l %d\n", c->u.i);
-                            break;
-                        case Ty_single:
-                            fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
-                            break;
-                        case Ty_string:
-                            fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
-                            break;
-                        case Ty_sarray:
-                        case Ty_darray:
-                        case Ty_record:
-                        case Ty_void:
-                        case Ty_varPtr:
-                        case Ty_forwardPtr:
-                        case Ty_prc:
-                        case Ty_procPtr:
-                        case Ty_toLoad:
-                        case Ty_double:
-                            assert(0);
-                            break;
-                    }
-                    break;
-                }
-            }
-        // int i;
-        // switch(size)
-        // {
-        //     case 1:
-        //         fprintf(out, "    dc.b %d\n", data[0]);
-        //         break;
-        //     case 2:
-        //         fprintf(out, "    dc.b %d, %d\n", data[1], data[0]);
-        //         break;
-        //     case 4:
-        //         fprintf(out, "    dc.b %d, %d, %d, %d\n", data[3], data[2], data[1], data[0]);
-        //         break;
-        //     default:
-        //         fprintf(out, "    dc.b");
-        //         for (i=0; i<size; i++)
-        //         {
-        //             fprintf(out, "%d", data[i]);
-        //             if (i<size-1)
-        //                 fprintf(out, ",");
-        //         }
-        //         fprintf(out, "    \n");
-        //         break;
-        // }
-        }
-    }
-    else
-    {
-        fprintf(out, "    .fill %d\n", df->u.data.size);
-    }
-
-    fprintf(out, "\n");
-}
+#define VERSION "0.7.0"
 
 static void print_usage(char *argv[])
 {
@@ -292,7 +53,8 @@ static void print_usage(char *argv[])
     fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
 	fprintf(stderr, "    -L <dir>     look in <dir> for symbol files\n");
 	fprintf(stderr, "    -O           enable optimizer\n");
-	fprintf(stderr, "    -o <foo.s>   output file name\n");
+	fprintf(stderr, "    -o <foo.s>   gas source output file name\n");
+	fprintf(stderr, "    -A <foo.s>   ASMPro source output file name\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
 	fprintf(stderr, "    -S <foo.sym> create symbol file only (do not create assembly file)\n");
 	fprintf(stderr, "    -v           verbose\n");
@@ -330,9 +92,9 @@ int main (int argc, char *argv[])
 {
 	static char           *sourcefn;
 	static FILE           *sourcef;
-    static F_fragList      frags, fl;
-    static char            asmfn[PATH_MAX];
-    static FILE           *out;
+    static CG_fragList     frags;
+    static char            asm_gas_fn[PATH_MAX];
+    static char            asm_asmpro_fn[PATH_MAX];
     static size_t          optind;
     static bool            write_sym = FALSE;
     static bool            no_asm = FALSE;
@@ -348,7 +110,8 @@ int main (int argc, char *argv[])
     EM_init();
     S_symbol_init();
 
-    asmfn[0]=0;
+    asm_gas_fn[0]=0;
+    asm_asmpro_fn[0]=0;
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
 	{
@@ -382,7 +145,16 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (asmfn, argv[optind], PATH_MAX);
+                strncpy (asm_gas_fn, argv[optind], PATH_MAX);
+				break;
+        	case 'A':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (asm_asmpro_fn, argv[optind], PATH_MAX);
 				break;
         	case 's':
                 optind++;
@@ -425,7 +197,8 @@ int main (int argc, char *argv[])
 	}
 
     // init environment
-    F_initRegisters();
+    AS_init();
+    CG_init();
     E_init();
 
 	sourcefn = argv[optind];
@@ -437,11 +210,11 @@ int main (int argc, char *argv[])
         if (l<4)
             l = 4;
 
-        if (strlen(asmfn)==0)
+        if (strlen(asm_gas_fn)==0)
         {
-            strncpy(asmfn, sourcefn, PATH_MAX-1);
-            asmfn[l-3] = 's';
-            asmfn[l-2] = 0;
+            strncpy(asm_gas_fn, sourcefn, PATH_MAX-1);
+            asm_gas_fn[l-3] = 's';
+            asm_gas_fn[l-2] = 0;
         }
 
         // strncpy(symfn, sourcefn, PATH_MAX-1);
@@ -478,7 +251,6 @@ int main (int argc, char *argv[])
     if (OPT_get(OPTION_VERBOSE))
     {
         printf ("\n\nsemantics worked.\n");
-        F_printtree(stdout, frags);
         U_memstat();
     }
 
@@ -504,33 +276,65 @@ int main (int argc, char *argv[])
         exit(0);
 
     /*
+     * register allocation
+     */
+
+    for (CG_fragList fl=frags; fl; fl=fl->tail)
+    {
+        CG_frag frag = fl->head;
+        if (frag->kind != CG_procFrag)
+            continue;
+
+        Temp_label   label   = frag->u.proc.label;
+        CG_frame     frame   = frag->u.proc.frame;
+        AS_instrList body    = frag->u.proc.body;
+
+        if (OPT_get(OPTION_VERBOSE))
+        {
+            fprintf(stdout, "\n************************************************************************************************\n");
+            fprintf(stdout, "**\n");
+            fprintf(stdout, "** register allocation for %s\n", Temp_labelstring(label));
+            fprintf(stdout, "**\n");
+            fprintf(stdout, "************************************************************************************************\n\n");
+            fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
+            AS_printInstrList (stdout, body, AS_dialect_gas);
+            fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
+            U_memstat();
+        }
+
+        if (!RA_regAlloc(frame, body) || EM_anyErrors)
+        {
+            printf ("\n\nregister allocation failed - exiting.\n");
+            exit(24);
+        }
+
+        CG_procEntryExitAS(frag);
+
+        if (OPT_get(OPTION_VERBOSE))
+        {
+            fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after CG_procEntryExitAS):\n", Temp_labelstring(label));
+            AS_printInstrList(stdout, body, AS_dialect_gas);
+            fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after CG_procEntryExitAS).\n", Temp_labelstring(label));
+            U_memstat();
+        }
+    }
+
+    /*
      * generate target assembly code
      */
 
-    out = fopen(asmfn, "w");
-
-    fprintf(out, ".text\n\n");
-    for (fl=frags; fl; fl=fl->tail)
-    {
-        if (fl->head->kind == F_procFrag)
-        {
-            doProc(out, fl->head);
-        }
-    }
-
-    fprintf(out, ".data\n\n");
-    for (fl=frags; fl; fl=fl->tail)
-    {
-        if (fl->head->kind == F_stringFrag)
-        {
-            doStr(out, fl->head->u.stringg.str, fl->head->u.stringg.label);
-        }
-        if (fl->head->kind == F_dataFrag)
-        {
-            doDataFrag(out, fl->head);
-        }
-    }
+    FILE *out = fopen(asm_gas_fn, "w");
+    CG_writeASMFile (out, frags, AS_dialect_gas);
     fclose(out);
+
+    if (strlen(asm_asmpro_fn)>0)
+    {
+        FILE *out = fopen(asm_asmpro_fn, "w");
+        CG_writeASMFile (out, frags, AS_dialect_ASMPro);
+        fclose(out);
+    }
+
+    // AS_assemble (proc, Temp_layerMap(ra.coloring, Temp_getNameMap()));
 
     return 0;
 }

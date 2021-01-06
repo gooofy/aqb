@@ -112,18 +112,6 @@ Ty_recordEntry Ty_Method (Ty_proc proc)
     return p;
 }
 
-Ty_ty Ty_VarPtr(S_symbol mod, Ty_ty ty)
-{
-    Ty_ty p = checked_malloc(sizeof(*p));
-
-    p->kind            = Ty_varPtr;
-    p->u.pointer       = ty;
-    p->mod             = mod;
-    p->uid             = g_uid++;
-
-    return p;
-}
-
 Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
@@ -236,7 +224,6 @@ void Ty_computeSize(Ty_ty ty)
         case Ty_single:   break;
         case Ty_double:   break;
         case Ty_void:     break;
-        case Ty_varPtr:
         case Ty_forwardPtr:
         case Ty_toLoad:
         case Ty_prc:
@@ -294,7 +281,6 @@ int Ty_size(Ty_ty t)
         case Ty_ulong:
         case Ty_single:
         case Ty_pointer:
-        case Ty_varPtr:
         case Ty_forwardPtr:
         case Ty_prc:
         case Ty_procPtr:
@@ -442,8 +428,6 @@ string Ty_name(Ty_ty t)
             return "string";
         case Ty_void:
             return "void";
-        case Ty_varPtr:
-            return "varPtr";
         case Ty_forwardPtr:
             return "forwardPtr";
         case Ty_procPtr:
@@ -523,12 +507,22 @@ Ty_const Ty_ConstBool (Ty_ty ty, bool b)
     return p;
 }
 
-Ty_const Ty_ConstInt (Ty_ty ty, int i)
+Ty_const Ty_ConstInt (Ty_ty ty, int32_t i)
 {
     Ty_const p = checked_malloc(sizeof(*p));
 
     p->ty  = ty;
     p->u.i = i;
+
+    return p;
+}
+
+Ty_const Ty_ConstUInt (Ty_ty ty, uint32_t u)
+{
+    Ty_const p = checked_malloc(sizeof(*p));
+
+    p->ty  = ty;
+    p->u.u = u;
 
     return p;
 }

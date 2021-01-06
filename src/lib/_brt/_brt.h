@@ -31,6 +31,7 @@ void _debug_puts2(SHORT s);
 void _debug_putu4(ULONG l);
 void _debug_putf (FLOAT f);
 void _debug_putnl(void);
+void _debug_cls  (void);
 
 extern USHORT g_errcode;
 
