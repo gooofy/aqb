@@ -1335,7 +1335,7 @@ static CG_item transSelectBranch(CG_item exp, FE_selectBranch sb)
 static bool expExpression(S_tkn *tkn, CG_item *exp);
 static bool relExpression(S_tkn *tkn, CG_item *exp);
 static bool expression(S_tkn *tkn, CG_item *exp);
-// static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item thisPtr, bool defaultsOnly);
+static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item *thisPtr, bool defaultsOnly);
 static bool statementOrAssignment(S_tkn *tkn);
 
 #if 0
@@ -1626,19 +1626,16 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
 
             if (ty->kind == Ty_prc)
             {
-                assert(FALSE);
-#if 0
                 // syntax quirk: this could be a function return value assignment
                 // FUNCTION f ()
                 //     f = 42
 
                 if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) && ((*tkn)->u.sym == ty->u.proc->name) )
                 {
-                    *exp = Tr_DeepCopy(g_sleStack->returnVar);
+                    *exp = g_sleStack->returnVar;
                     *tkn = (*tkn)->next;
                     return TRUE;
                 }
-#endif
             }
 
             *tkn = (*tkn)->next;
@@ -1657,12 +1654,9 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     {
         // function call ?
         // if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
-        if (ty->kind == Ty_prc)
+        if ((ty->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
         {
-            assert(FALSE); // FIXME
-#if 0
-            *exp = Tr_Deref((*tkn)->pos, *exp);
-            ty = CG_ty(*exp);
+            ty = CG_ty(exp);
             Ty_proc proc = ty->u.proc;
 
             *tkn = (*tkn)->next;    // skip "("
@@ -1675,9 +1669,10 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            *exp = Tr_callExp((*tkn)->pos, assignedArgs, proc);
-            ty = CG_ty(*exp);
-#endif
+            assert (proc->returnTy);
+            CG_TempItem (exp, proc->returnTy);
+            CG_transCall(g_sleStack->code, (*tkn)->pos, proc, assignedArgs, exp);
+            ty = CG_ty(exp);
             continue;
         }
 
@@ -4155,22 +4150,22 @@ static void stmtIfEnd_(S_pos pos)
         CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lEndIf);
 }
 
-#if 0
 static void stmtProcEnd_(void)
 {
     FE_SLE sle  = g_sleStack;
     slePop();
 
-    Tr_procEntryExit(sle->pos,
+    CG_procEntryExit(sle->pos,
                      sle->frame,
-                     Tr_seqExp(sle->expList),
-                     Tr_formals(sle->frame),
-                     sle->returnVar,
+                     sle->code,
+                     sle->frame->formals,
+                     &sle->returnVar,
                      sle->exitlbl,
                      /*is_main=*/FALSE,
                      /*expt=*/sle->u.proc->visibility == Ty_visPublic);
 }
 
+#if 0
 static void stmtSelectEnd_(void)
 {
     FE_SLE sle = g_sleStack;
@@ -4208,8 +4203,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
             if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkSub))
                 return EM_error((*tkn)->pos, "END SUB used outside of a SUB context");
             *tkn = (*tkn)->next;
-            assert(FALSE); // FIXME
-            // stmtProcEnd_();
+            stmtProcEnd_();
             return TRUE;
         }
         else
@@ -4219,8 +4213,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
                 if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkFunction))
                     return EM_error((*tkn)->pos, "END FUNCTION used outside of a FUNCTION context");
                 *tkn = (*tkn)->next;
-                assert(FALSE); // FIXME
-                // stmtProcEnd_();
+                stmtProcEnd_();
                 return TRUE;
             }
             else
@@ -4241,8 +4234,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
                         if ((sle->kind != FE_sleProc) || (sle->u.proc->kind != Ty_pkConstructor))
                             return EM_error((*tkn)->pos, "END CONSTRUCTOR used outside of a CONSTRUCTOR context");
                         *tkn = (*tkn)->next;
-                        assert(FALSE); // FIXME
-                        // stmtProcEnd_();
+                        stmtProcEnd_();
                         return TRUE;
                     }
                     else
@@ -5393,10 +5385,6 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
 // procStmtBegin ::= [ PRIVATE | PUBLIC ] procHeader
 static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    assert(FALSE); // FIXME
-    return FALSE;
-
-#if 0
     S_pos         pos        = (*tkn)->pos;
     Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
 
@@ -5420,39 +5408,45 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     proc->hasBody = TRUE;
 
     CG_frame  funFrame = CG_Frame (pos, proc->label, proc->formals, proc->isStatic);
-    CG_item   returnVar = NULL;
+    CG_item   returnVar;
+    CG_NoneItem (&returnVar);
 
     E_env lenv = FE_mod->env;
     E_env wenv = NULL;
 
     if (proc->tyClsPtr)
-        lenv = wenv = E_EnvWith(lenv, NULL);
+    {
+        CG_item withPrefix;
+        CG_NoneItem (&withPrefix);
+        lenv = wenv = E_EnvWith(lenv, withPrefix);
+    }
     lenv = E_EnvScopes(lenv);   // local variables, consts etc.
 
     CG_itemListNode acl = funFrame->formals->first;
     for (Ty_formal formals = proc->formals;
          formals; formals = formals->next, acl = acl->next)
     {
-        CG_item argVar = acl->item;
-        E_declareVFC(lenv, formals->name, argVar);
-        if (proc->tyClsPtr && !wenv->u.withPrefix)
+        E_declareVFC(lenv, formals->name, &acl->item);
+        if (proc->tyClsPtr && CG_isNone(&wenv->u.withPrefix))
         {
-            assert(FALSE); // FIXME
-            //wenv->u.withPrefix = Tr_DeepCopy(argVar);
+            wenv->u.withPrefix = acl->item;
         }
     }
+
+    AS_instrList body = AS_InstrList();
 
     // function return var
     if (proc->returnTy->kind != Ty_void)
     {
-        assert(FALSE); // FIXME
-        // Tr_access returnAccess = CG_allocVar(funFrame, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
-        // returnVar = Tr_Deref(pos, CG_AccessItem(pos, returnAccess));
+        CG_allocVar (&returnVar, funFrame, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
+        CG_item zero;
+        CG_ZeroItem (&zero, proc->returnTy);
+        CG_transAssignment (body, pos, &returnVar, &zero);
     }
 
     Temp_label exitlbl = Temp_newlabel();
 
-    slePush(FE_sleProc, pos, funFrame, lenv, exitlbl, /*contlbl=*/NULL, returnVar);
+    slePush(FE_sleProc, pos, funFrame, lenv, body, exitlbl, /*contlbl=*/NULL, returnVar);
     g_sleStack->u.proc = proc;
 
     proc = checkProcMultiDecl(pos, proc);
@@ -5460,7 +5454,6 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         return FALSE;
 
     return TRUE;
-#endif
 }
 
 // procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
@@ -7034,10 +7027,10 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd          , Ty_Void());
     declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert       , Ty_Void());
     declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption       , Ty_Void());
-#if 0
     declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
+#if 0
     declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall         , Ty_Void());
     declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl    , Ty_Void());
     declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl   , Ty_Void());

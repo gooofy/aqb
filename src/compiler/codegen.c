@@ -594,23 +594,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     }
 
     if (exitlbl)
-    {
-        // FIXME stm = T_Seq(pos, stm, T_Label(pos, exitlbl));
-        assert(FALSE);
-    }
-
-    if (returnVar)
-    {
-        // FIXME
-#if 0
-        T_exp ret_exp = unEx(pos, returnVar);
-        Ty_ty ty_ret = CG_ty(returnVar);
-        stm = T_Seq(pos, T_Move(pos, ret_exp, unEx(pos, CG_zeroExp(pos, ty_ret)),  ty_ret),
-                T_Seq(pos, stm,
-                  T_Move(pos, T_Temp(pos, F_RV(), ty_ret), ret_exp, ty_ret)));
-#endif
-        assert(FALSE);
-    }
+        AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
 
     CG_frag frag = CG_ProcFrag(pos, frame->name, expt, body, frame);
     g_fragList   = CG_FragList(frag, g_fragList);
@@ -929,6 +913,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                                     switch (ty->kind)
                                     {
+                                        case Ty_integer:
                                         case Ty_long:
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
                                                                                   right->u.c, 0, NULL));
