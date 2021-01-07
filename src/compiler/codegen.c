@@ -596,6 +596,15 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     if (exitlbl)
         AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
 
+    if (returnVar)
+    {
+        CG_item d0Item;
+        InReg (&d0Item, AS_regs[AS_TEMP_D0]);
+        CG_transAssignment (body, pos, &d0Item, returnVar);    // d0 := returnVar
+    }
+
+
+
     CG_frag frag = CG_ProcFrag(pos, frame->name, expt, body, frame);
     g_fragList   = CG_FragList(frag, g_fragList);
 }
@@ -1579,22 +1588,25 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
             break;
 
         case IK_inFrame:
-            assert(FALSE);
-
-            // switch (left->kind)
-            // {
-            //     case IK_inFrame:
-            //     {
-            //         Temp_temp t = Temp_Temp(ty);
-            //         AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, t,                           // move.x left.o(fp), t
-            //                                               NULL, left->u.inFrameR.offset, NULL));
-            //         AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, t, NULL,                           // move.x t, right.o(fp)
-            //                                               NULL, right->u.inFrameR.offset, NULL));
-            //         break;
-            //     }
-            //     default:
-            //         assert(FALSE);
-            // }
+            switch (left->kind)
+            {
+                case IK_inFrame:
+                {
+                    assert(FALSE);
+                    // Temp_temp t = Temp_Temp(ty);
+                    // AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, t,                           // move.x left.o(fp), t
+                    //                                       NULL, left->u.inFrameR.offset, NULL));
+                    // AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, t, NULL,                           // move.x t, right.o(fp)
+                    //                                       NULL, right->u.inFrameR.offset, NULL));
+                    break;
+                }
+                case IK_inReg:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, left->u.inReg,                  // move.x right.o(fp), left.r
+                                                          NULL, right->u.inFrameR.offset, NULL));
+                    break;
+                default:
+                    assert(FALSE);
+            }
             break;
 
         case IK_inHeap:

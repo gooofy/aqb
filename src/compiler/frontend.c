@@ -1338,10 +1338,9 @@ static bool expression(S_tkn *tkn, CG_item *exp);
 static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item *thisPtr, bool defaultsOnly);
 static bool statementOrAssignment(S_tkn *tkn);
 
-#if 0
 static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
 {
-    Ty_ty ty = CG_ty(*exp);
+    Ty_ty ty = CG_ty(exp);
     assert(ty->kind == Ty_prc);
     Ty_proc  proc = ty->u.proc;
 
@@ -1372,10 +1371,15 @@ static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
             return FALSE;
     }
 
-    *exp = Tr_callPtrExp((*tkn)->pos, *exp, assignedArgs, proc);
+    // FIXME: remove *exp = Tr_callPtrExp((*tkn)->pos, *exp, assignedArgs, proc);
+    assert (proc->returnTy);
+    CG_TempItem (exp, proc->returnTy);
+    CG_transCall(g_sleStack->code, (*tkn)->pos, proc, assignedArgs, exp);
+
     return TRUE;
 }
 
+#if 0
 static CG_item transSelIndex(S_pos pos, CG_item e, CG_item idx)
 {
     CG_item idx_conv;
@@ -1656,22 +1660,9 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
         // if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
         if ((ty->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
         {
-            ty = CG_ty(exp);
-            Ty_proc proc = ty->u.proc;
-
-            *tkn = (*tkn)->next;    // skip "("
-
-            CG_itemList assignedArgs = CG_ItemList();
-            if (!transActualArgs(tkn, proc, assignedArgs, /*thisPtr=*/NULL, /*defaultsOnly=*/FALSE))
+            if (!transFunctionCall(tkn, exp))
                 return FALSE;
 
-            if ((*tkn)->kind != S_RPAREN)
-                return EM_error((*tkn)->pos, ") expected.");
-            *tkn = (*tkn)->next;
-
-            assert (proc->returnTy);
-            CG_TempItem (exp, proc->returnTy);
-            CG_transCall(g_sleStack->code, (*tkn)->pos, proc, assignedArgs, exp);
             ty = CG_ty(exp);
             continue;
         }
