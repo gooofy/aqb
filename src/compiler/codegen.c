@@ -942,6 +942,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
+                                case Ty_integer:
                                 case Ty_long:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
                                     break;

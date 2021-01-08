@@ -3621,24 +3621,22 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (isSym(*tkn, S_AS))
     {
-        assert (FALSE); // FIXME
-#if 0
         *tkn = (*tkn)->next;
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &varTy))
             return EM_error((*tkn)->pos, "FOR: type descriptor expected here.");
         lenv = E_EnvScopes(lenv);
-        CG_frame level = g_sleStack->frame;
-        if (Tr_isStatic(level))
+	sle->env = lenv;
+        CG_frame frame = sle->frame;
+        if (frame->statc)
         {
-            string varId = strconcat(strconcat(Temp_labelstring(Tr_getLabel(level)), "_"), S_name(sLoopVar));
-            loopVar = CG_AccessItem((*tkn)->pos, CG_allocVar(CG_global(), varId, /*expt=*/FALSE, varTy));
+            string varId = strconcat(strconcat(Temp_labelstring(frame->name), "_"), S_name(sLoopVar));
+            CG_allocVar(loopVar, CG_globalFrame(), varId, /*expt=*/FALSE, varTy);
         }
         else
         {
-            loopVar = CG_AccessItem((*tkn)->pos, CG_allocVar(level, S_name(sLoopVar), /*expt=*/FALSE, varTy));
+            CG_allocVar(loopVar, frame, S_name(sLoopVar), /*expt=*/FALSE, varTy);
         }
         E_declareVFC(lenv, sLoopVar, loopVar);
-#endif
     }
     else
     {

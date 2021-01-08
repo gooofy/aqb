@@ -24,7 +24,8 @@ AQBFLAGS_OPT = -O -L ../src/lib -d _brt
 # 	darray1.bas darray2.bas darray3.bas darray4.bas darray5.bas darray6.bas darray7.bas darray8.bas darray9.bas	\
 # 	io2.bas io3.bas io4.bas
 
-SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas
+SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
+       ctrl1.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
 OBJDIR_AMIGAOS_TESTS = aqb_tests/obj

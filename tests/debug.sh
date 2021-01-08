@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXAMPLE=cond4
+EXAMPLE=ctrl1
 
 ASMProsrc='/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo.asm'
 
