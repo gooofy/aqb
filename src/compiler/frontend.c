@@ -259,7 +259,6 @@ static void FE_ParamListAppend(FE_paramList pl, Ty_formal formal)
     }
 }
 
-#if 0
 static FE_nestedStmt FE_NestedStmt (S_pos pos, FE_sleKind kind)
 {
     FE_nestedStmt p = checked_malloc(sizeof(*p));
@@ -270,7 +269,6 @@ static FE_nestedStmt FE_NestedStmt (S_pos pos, FE_sleKind kind)
 
     return p;
 }
-#endif
 
 static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_ty ty)
 {
@@ -1225,7 +1223,6 @@ static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, CG_item *item, boo
     return TRUE;
 }
 
-#if 0
 static bool transContinueExit(S_pos pos, bool isExit, FE_nestedStmt n)
 {
     FE_SLE sle = g_sleStack;
@@ -1247,94 +1244,12 @@ static bool transContinueExit(S_pos pos, bool isExit, FE_nestedStmt n)
         return EM_error(pos, "failed to find matching statement");
 
     if (isExit)
-        emit(Tr_gotoExp(pos, sle->exitlbl));
+        CG_transJump (sle->code, pos, sle->exitlbl);
     else
-        emit(Tr_gotoExp(pos, sle->contlbl));
+        CG_transJump (sle->code, pos, sle->contlbl);
 
     return TRUE;
 }
-
-
-static CG_item transIfBranch(FE_ifBranch ifBranch)
-{
-    CG_item conv_test, then, elsee;
-
-    then = Tr_seqExp(ifBranch->expList);
-
-    if (!ifBranch->test)
-    {
-        return then;
-    }
-
-    if (!convert_ty(ifBranch->pos, ifBranch->test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
-    {
-        EM_error(ifBranch->pos, "if expression must be boolean");
-        return Tr_nopNx(ifBranch->pos);
-    }
-
-    if (ifBranch->next != NULL)
-    {
-        elsee = transIfBranch(ifBranch->next);
-    }
-    else
-    {
-        elsee = Tr_nopNx(ifBranch->pos);
-    }
-
-    return Tr_ifExp(ifBranch->pos, conv_test, then, elsee);
-}
-
-static CG_item transSelectExp(CG_item selExp, FE_selectExp se, S_pos pos)
-{
-    CG_item exp = se->exp;
-
-    if (se->isIS)
-    {
-        exp = transRelOp(pos, se->condOp, selExp, exp);
-    }
-    else
-    {
-        if (se->toExp)
-            exp = transBinOp(pos,
-                             CG_and,
-                             CG_transRelOp(pos, CG_ge, selExp, exp),
-                             CG_transRelOp(pos, CG_le, selExp, se->toExp));
-        else
-            exp = transRelOp(pos, CG_eq, selExp, exp);
-    }
-
-    if (se->next)
-        exp = transBinOp(pos,
-                         CG_or,
-                         exp,
-                         transSelectExp(selExp, se->next, pos));
-
-    return exp;
-}
-
-static CG_item transSelectBranch(CG_item exp, FE_selectBranch sb)
-{
-    CG_item stmts = Tr_seqExp(sb->expList);
-    if (!sb->exp)
-        return stmts;
-
-    CG_item test = transSelectExp(exp, sb->exp, sb->pos);
-    CG_item conv_test;
-    if (!convert_ty(sb->pos, test, Ty_Bool(), &conv_test, /*explicit=*/FALSE))
-    {
-        EM_error(sb->pos, "select expression must be boolean");
-        return Tr_nopNx(sb->pos);
-    }
-
-    CG_item elsee = NULL;
-    if (sb->next != NULL)
-        elsee = transSelectBranch(exp, sb->next);
-    else
-        elsee = Tr_nopNx(sb->pos);
-
-    return Tr_ifExp(sb->pos, conv_test, stmts, elsee);
-}
-#endif
 
 static bool expExpression(S_tkn *tkn, CG_item *exp);
 static bool relExpression(S_tkn *tkn, CG_item *exp);
@@ -3877,21 +3792,21 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         {
             if (isSym(*tkn, S_ELSE))
             {
-                assert(FALSE); // FIXME
-#if 0
                 *tkn = (*tkn)->next;
                 firstStmt = TRUE;
-                if (sle->u.ifStmt.ifBFirst->next)
+
+                if (!sle->u.ifStmt.lEndIf)
+                    sle->u.ifStmt.lEndIf = Temp_newlabel();
+
+                CG_transJump (sle->code, pos, sle->u.ifStmt.lEndIf);            // bra lEndIf
+                if (!sle->u.ifStmt.lElse)
                 {
                     slePop();
                     return EM_error ((*tkn)->pos, "Multiple else branches detected.");
                 }
-
-                sle->u.ifStmt.ifBLast->next = FE_IfBranch((*tkn)->pos, NULL, CG_ItemList());
-                sle->u.ifStmt.ifBLast       = sle->u.ifStmt.ifBLast->next;
-                sle->expList                = sle->u.ifStmt.ifBLast->expList;
+                CG_transLabel (sle->code, pos, sle->u.ifStmt.lElse);            // position elseLabel
+                sle->u.ifStmt.lElse = NULL;
                 continue;
-#endif
             }
 
             if (firstStmt && ((*tkn)->kind == S_INUM) )
@@ -3922,9 +3837,10 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
 
         slePop();
-
-        assert(FALSE); // FIXME
-        // emit(transIfBranch(sle->u.ifStmt.ifBFirst));
+        if (sle->u.ifStmt.lElse)
+            CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lElse);
+        if (sle->u.ifStmt.lEndIf)
+            CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lEndIf);
     }
 
     return TRUE;
@@ -6159,6 +6075,7 @@ static bool stmtLet(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
+#endif
 
 // nestedStmtList ::= [ ( SUB | FUNCTION | DO | FOR | WHILE | SELECT ) ( "," (SUB | FUNCTION | DO | FOR | WHILE | SELECT) )* ]
 static bool stmtNestedStmtList(S_tkn *tkn, FE_nestedStmt *res)
@@ -6239,7 +6156,6 @@ static bool stmtNestedStmtList(S_tkn *tkn, FE_nestedStmt *res)
     return TRUE;
 }
 
-
 // exitStmt ::= EXIT nestedStmtList
 static bool stmtExit(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6256,6 +6172,7 @@ static bool stmtExit(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+#if 0
 // continueStmt ::= CONTINUE nestedStmtList
 static bool stmtContinue(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -7064,7 +6981,9 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin   , Ty_Void());
     declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
     declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
+#endif
     declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit         , Ty_Void());
+#if 0
     declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue     , Ty_Void());
     declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo           , Ty_Void());
     declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop         , Ty_Void());
