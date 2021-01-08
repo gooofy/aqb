@@ -22,8 +22,10 @@ static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, 
 // program we're compiling right now, can also be used to prepend static initializers
 static AS_instrList g_prog;
 
-// when DATA statements are used, we need to initialize the data read pointer
+// DATA statement support
 // static bool g_dataInitialRestoreDone = FALSE;
+static CG_frag    g_dataFrag         = NULL;
+static Temp_label g_dataRestoreLabel = NULL;
 
 typedef struct FE_dim_ *FE_dim;
 struct FE_dim_
@@ -400,6 +402,12 @@ static inline bool isSym(S_tkn tkn, S_symbol sym)
 static inline bool isLogicalEOL(S_tkn tkn)
 {
     return !tkn || tkn->kind == S_COLON || tkn->kind == S_EOL;
+}
+
+static void transDataAddLabel(Temp_label l)
+{
+    Temp_label dataLabel = Temp_namedlabel(strprintf("__data_%s", S_name(l)));
+    CG_dataFragAddLabel (g_dataFrag, dataLabel);
 }
 
 #if 0
@@ -3779,13 +3787,10 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     {
         if ((*tkn)->kind == S_INUM)
         {
-            assert(FALSE); // FIXME
-#if 0
             Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
-            emit(Tr_gotoExp(pos, l));
+            CG_transJump (sle->code, (*tkn)->pos, l);
             firstStmt = FALSE;
             *tkn = (*tkn)->next;
-#endif
         }
 
         while (*tkn)
@@ -3811,13 +3816,10 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
             if (firstStmt && ((*tkn)->kind == S_INUM) )
             {
-                assert(FALSE);
-#if 0
-                emit(Tr_gotoExp(pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum))));
+                CG_transJump (sle->code, pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum)));
                 firstStmt = FALSE;
                 *tkn = (*tkn)->next;
                 break;
-#endif
             }
 
             if ( (*tkn)->kind == S_EOL )
@@ -6495,6 +6497,7 @@ static bool stmtDefstr(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return letterRanges(pos, tkn, Ty_String());
 }
+#endif
 
 // stmtGoto ::= GOTO ( num | ident )
 static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6506,7 +6509,7 @@ static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
     if ((*tkn)->kind == S_INUM)
     {
         Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
-        emit(Tr_gotoExp(pos, l));
+        CG_transJump(g_sleStack->code, pos, l);
         *tkn = (*tkn)->next;
         return TRUE;
     }
@@ -6515,7 +6518,7 @@ static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
         if ((*tkn)->kind == S_IDENT)
         {
             Temp_label l = Temp_namedlabel(S_name((*tkn)->u.sym));
-            emit(Tr_gotoExp(pos, l));
+            CG_transJump(g_sleStack->code, pos, l);
             *tkn = (*tkn)->next;
             return TRUE;
         }
@@ -6526,6 +6529,7 @@ static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+#if 0
 // stmtGosub ::= GOSUB ( num | ident )
 static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -7001,7 +7005,9 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng       , Ty_Void());
     declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint       , Ty_Void());
     declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr       , Ty_Void());
+#endif
     declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto         , Ty_Void());
+#if 0
     declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub        , Ty_Void());
     declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase        , Ty_Void());
     declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
@@ -7125,14 +7131,9 @@ static bool statementOrAssignment(S_tkn *tkn)
     }
     else
     {
-        assert(FALSE); // FIXME
-#if 0
-        Ty_ty ty = CG_ty(exp);
+        Ty_ty ty = CG_ty(&item);
         if (ty->kind == Ty_prc)
-            return transFunctionCall(tkn, &exp);
-
-        emit (exp);
-#endif
+            return transFunctionCall(tkn, &item);
     }
     return TRUE;
 }
@@ -7154,6 +7155,9 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     {
         label = Temp_namedlabel(strprintf("__%s_init", module_name));
     }
+
+    g_dataRestoreLabel = Temp_newlabel();
+    g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
 
     CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
 
@@ -7214,14 +7218,10 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         // handle label, if any
         if (tkn->kind == S_INUM)
         {
-            assert(FALSE);
-            // FIXME
-#if 0
             Temp_label l = Temp_namedlabel(strprintf("_L%07d", tkn->u.literal.inum));
-            emit(Tr_labelExp(tkn->pos, l));
-            Tr_dataAddLabel(l);
+            CG_transLabel (g_sleStack->code, tkn->pos, l);
+            transDataAddLabel(l);
             tkn = tkn->next;
-#endif
         }
         else
         {
