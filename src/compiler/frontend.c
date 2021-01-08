@@ -4017,11 +4017,20 @@ static bool stmtSelect(S_tkn *tkn, E_enventry e, CG_item *exp)
 static bool caseExpr(S_tkn *tkn, CG_item *selExp, CG_item *res)
 {
     S_pos pos = (*tkn)->pos;
+
+    if (!CG_isNone(res))
+    {
+        // prepare for short-circuit OR below
+        assert (res->kind == IK_cond);
+        CG_transPostCond (g_sleStack->code, pos, res, /*positive=*/FALSE);
+    }
+
     CG_item exp;
     if (isSym(*tkn, S_IS))
     {
         *tkn = (*tkn)->next;
         pos = (*tkn)->pos;
+
         CG_relOp oper;
         switch ((*tkn)->kind)
         {
@@ -4030,11 +4039,11 @@ static bool caseExpr(S_tkn *tkn, CG_item *selExp, CG_item *res)
                 *tkn = (*tkn)->next;
                 break;
             case S_GREATER:
-                oper = CG_gt;
+                oper = CG_lt;
                 *tkn = (*tkn)->next;
                 break;
             case S_LESS:
-                oper = CG_lt;
+                oper = CG_gt;
                 *tkn = (*tkn)->next;
                 break;
             case S_NOTEQ:
@@ -4042,11 +4051,11 @@ static bool caseExpr(S_tkn *tkn, CG_item *selExp, CG_item *res)
                 *tkn = (*tkn)->next;
                 break;
             case S_LESSEQ:
-                oper = CG_le;
+                oper = CG_ge;
                 *tkn = (*tkn)->next;
                 break;
             case S_GREATEREQ:
-                oper = CG_ge;
+                oper = CG_le;
                 *tkn = (*tkn)->next;
                 break;
             default:
@@ -4065,11 +4074,19 @@ static bool caseExpr(S_tkn *tkn, CG_item *selExp, CG_item *res)
             return EM_error(pos, "expression expected here.");
         if (isSym(*tkn, S_TO))
         {
+            // from expression
+            transRelOp(pos, CG_le, &exp, selExp);
+            CG_transPostCond (g_sleStack->code, pos, &exp, /*positive=*/TRUE);
+
             CG_item toExp;
             *tkn = (*tkn)->next;
             if (!expression(tkn, &toExp))
                 return EM_error((*tkn)->pos, "expression expected here.");
-            assert (FALSE);
+            transRelOp(pos, CG_ge, &toExp, selExp);
+            CG_transPostCond (g_sleStack->code, pos, &toExp, /*positive=*/TRUE);
+
+            // short-circuit exp AND toExp
+            CG_transMergeCond (g_sleStack->code, pos, &exp, &toExp);
         }
         else
         {
@@ -4077,10 +4094,12 @@ static bool caseExpr(S_tkn *tkn, CG_item *selExp, CG_item *res)
         }
     }
 
-    if (res)
+    if (!CG_isNone(res))
     {
-        // OR
-        assert (FALSE);
+        // short-circuit OR
+        assert (exp.kind == IK_cond);
+        CG_transPostCond (g_sleStack->code, pos, &exp, /*positive=*/FALSE);
+        CG_transMergeCond (g_sleStack->code, pos, res, &exp);
     }
     else
     {
@@ -4100,49 +4119,50 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, CG_item *exp)
         EM_error(pos, "CASE used outside of a SELECT-statement context");
         return FALSE;
     }
-    //FE_selectExp ex=NULL, exLast=NULL;
+
+    if (sle->u.selectStmt.lNext)
+    {
+        if (!sle->u.selectStmt.lEndSelect)
+            sle->u.selectStmt.lEndSelect = Temp_newlabel();
+
+        CG_transJump (sle->code, pos, sle->u.selectStmt.lEndSelect);        //          bra lEndSelect
+        CG_transLabel (sle->code, pos, sle->u.selectStmt.lNext);            // lNext:
+        sle->u.selectStmt.lNext = NULL;
+    }
 
     *tkn = (*tkn)->next; // consume "CASE"
 
     if (isSym(*tkn, S_ELSE))
     {
         *tkn = (*tkn)->next;
-        //ex = NULL;
-	    assert (FALSE);
     }
     else
     {
-        CG_item ex;
-        if (!caseExpr(tkn, &sle->u.selectStmt.exp, &ex))
+        CG_item test;
+        CG_NoneItem(&test);
+        if (!caseExpr(tkn, &sle->u.selectStmt.exp, &test))
             return FALSE;
 
         while ((*tkn)->kind == S_COMMA)
         {
             *tkn = (*tkn)->next;
-            if (!caseExpr(tkn, &sle->u.selectStmt.exp, &ex))
+            if (!caseExpr(tkn, &sle->u.selectStmt.exp, &test))
                 return FALSE;
         }
+
+        pos = (*tkn)->pos;
+        if (!convert_ty(&test, pos, Ty_Bool(), /*explicit=*/FALSE))
+            return EM_error(pos, "IF: Boolean expression expected here.");
+
+        CG_loadCond (sle->code, pos, &test);
+        CG_transPostCond (sle->code, pos, &test, /*positive=*/ TRUE);
+
+        sle->u.selectStmt.lNext  = test.u.condR.l;
     }
 
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    assert (FALSE);
-#if 0
-
-    FE_selectBranch branch = FE_SelectBranch(pos, ex, CG_ItemList());
-
-    if (sle->u.selectStmt.selectBLast)
-    {
-        sle->u.selectStmt.selectBLast->next = branch;
-        sle->u.selectStmt.selectBLast = sle->u.selectStmt.selectBLast->next;
-    }
-    else
-    {
-        sle->u.selectStmt.selectBFirst = sle->u.selectStmt.selectBLast = branch;
-    }
-    sle->expList = branch->expList;
-#endif
     return TRUE;
 }
 
@@ -4171,15 +4191,17 @@ static void stmtProcEnd_(void)
                      /*expt=*/sle->u.proc->visibility == Ty_visPublic);
 }
 
-#if 0
-static void stmtSelectEnd_(void)
+static void stmtSelectEnd_(S_pos pos)
 {
-    FE_SLE sle = g_sleStack;
-    slePop();
+    FE_SLE sle = slePop();
 
-    emit(transSelectBranch(sle->u.selectStmt.exp, sle->u.selectStmt.selectBFirst));
+    assert (sle->kind == FE_sleSelect);
+
+    if (sle->u.selectStmt.lNext)
+        CG_transLabel (g_sleStack->code, pos, sle->u.selectStmt.lNext);
+    if (sle->u.selectStmt.lEndSelect)
+        CG_transLabel (g_sleStack->code, pos, sle->u.selectStmt.lEndSelect);
 }
-#endif
 
 // stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT | CONSTRUCTOR ) ]
 static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -4228,9 +4250,8 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
                 {
                     if (sle->kind != FE_sleSelect)
                         return EM_error((*tkn)->pos, "END SECTION used outside of a SELECT context");
+                    stmtSelectEnd_((*tkn)->pos);
                     *tkn = (*tkn)->next;
-                    assert(FALSE); // FIXME
-                    // stmtSelectEnd_();
                     return TRUE;
                 }
                 else
@@ -4245,8 +4266,6 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
                     }
                     else
                     {
-                        assert(FALSE); // FIXME
-#if 0
                         if (isLogicalEOL(*tkn))
                         {
                             S_symbol fsym      = S_Symbol("SYSTEM", FALSE);
@@ -4257,12 +4276,11 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
 
                             CG_itemList arglist = CG_ItemList();
 
-                            emit(Tr_callExp((*tkn)->pos, arglist, func->u.proc));
+                            CG_transCall (g_sleStack->code, (*tkn)->pos, func->u.proc, arglist, NULL);
 
                             *tkn = (*tkn)->next;
                             return TRUE;
                         }
-#endif
                     }
                 }
             }

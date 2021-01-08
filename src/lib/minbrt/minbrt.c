@@ -163,6 +163,11 @@ void _aqb_assert (BOOL b, const char *msg)
     _autil_exit(20);
 }
 
+void SYSTEM(void)
+{
+    _autil_exit(0);
+}
+
 // gets called by _autil_exit
 void _minbrt_exit(void)
 {

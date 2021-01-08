@@ -1166,6 +1166,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
     Ty_ty ty = CG_ty(left);
     switch (left->kind)
     {
+        case IK_const:
         case IK_inReg:
         case IK_inFrame:
         case IK_inHeap:
