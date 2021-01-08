@@ -64,6 +64,7 @@ static FE_dim FE_Dim (bool statc, FE_dim next)
 //     Temp_label   exitLabel;
 // };
 typedef struct FE_selectBranch_  *FE_selectBranch;
+#if 0
 typedef struct FE_selectExp_     *FE_selectExp;
 struct FE_selectExp_
 {
@@ -80,6 +81,7 @@ struct FE_selectBranch_
     AS_instrList    prog;
     FE_selectBranch next;
 };
+#endif
 typedef struct FE_nestedStmt_    *FE_nestedStmt;
 typedef enum {FE_sleTop, FE_sleProc, FE_sleDo, FE_sleFor, FE_sleWhile, FE_sleSelect, FE_sleType, FE_sleIf} FE_sleKind;
 struct FE_nestedStmt_    // used in EXIT, CONTINUE
@@ -148,8 +150,10 @@ struct FE_SLE_
         } doLoop;
         struct
         {
-            CG_item          exp;
-            FE_selectBranch selectBFirst, selectBLast;
+            CG_item       exp;
+            Temp_label    lNext;
+            Temp_label    lEndSelect;
+            // FE_selectBranch selectBFirst, selectBLast;
         } selectStmt;
         Ty_proc proc;
     } u;
@@ -3980,11 +3984,10 @@ static bool stmtIfElse(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // stmtSelect ::= SELECT CASE Expression
 static bool stmtSelect(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    CG_item   ex;
+    CG_item  ex;
     S_pos    pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next; // consume "SELECT"
@@ -3999,11 +4002,11 @@ static bool stmtSelect(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    FE_SLE sle = slePush(FE_sleSelect, pos, g_sleStack->frame, g_sleStack->env, g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
+    FE_SLE sle = slePush(FE_sleSelect, pos, g_sleStack->frame, g_sleStack->env, g_sleStack->code,  g_sleStack->exitlbl, g_sleStack->contlbl, g_sleStack->returnVar);
 
-    sle->u.selectStmt.exp          = ex;
-    sle->u.selectStmt.selectBFirst = NULL;
-    sle->u.selectStmt.selectBLast  = NULL;
+    sle->u.selectStmt.exp         = ex;
+    sle->u.selectStmt.lNext       = NULL;
+    sle->u.selectStmt.lEndSelect  = NULL;
 
     return TRUE;
 }
@@ -4011,11 +4014,14 @@ static bool stmtSelect(S_tkn *tkn, E_enventry e, CG_item *exp)
 // caseExpr ::= ( expression [ TO expression ]
 //                | IS ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) expression
 //                )
-static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
+static bool caseExpr(S_tkn *tkn, CG_item *selExp, CG_item *res)
 {
+    S_pos pos = (*tkn)->pos;
+    CG_item exp;
     if (isSym(*tkn, S_IS))
     {
         *tkn = (*tkn)->next;
+        pos = (*tkn)->pos;
         CG_relOp oper;
         switch ((*tkn)->kind)
         {
@@ -4044,28 +4050,41 @@ static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
                 *tkn = (*tkn)->next;
                 break;
             default:
-                return EM_error((*tkn)->pos, "comparison operator expected here.");
+                return EM_error(pos, "comparison operator expected here.");
         }
 
-        CG_item exp;
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
 
-        *selExp = FE_SelectExp(exp, /*toExp=*/NULL, /*isIS=*/TRUE, oper);
+        transRelOp(pos, oper, &exp, selExp);
+
     }
     else
     {
-        CG_item exp;
-        CG_item toExp = NULL;
         if (!expression(tkn, &exp))
-            return EM_error((*tkn)->pos, "expression expected here.");
+            return EM_error(pos, "expression expected here.");
         if (isSym(*tkn, S_TO))
         {
+            CG_item toExp;
             *tkn = (*tkn)->next;
             if (!expression(tkn, &toExp))
                 return EM_error((*tkn)->pos, "expression expected here.");
+            assert (FALSE);
         }
-        *selExp = FE_SelectExp(exp, toExp, /*isIS=*/FALSE, CG_eq);
+        else
+        {
+            transRelOp(pos, CG_eq, &exp, selExp);
+        }
+    }
+
+    if (res)
+    {
+        // OR
+        assert (FALSE);
+    }
+    else
+    {
+        *res = exp;
     }
 
     return TRUE;
@@ -4074,43 +4093,42 @@ static bool caseExpr(S_tkn *tkn, FE_selectExp *selExp)
 // stmtCase ::= CASE ( ELSE | caseExpr ( "," caseExpr )* )
 static bool stmtCase(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    FE_selectExp ex=NULL, exLast=NULL;
     S_pos        pos = (*tkn)->pos;
+    FE_SLE sle = g_sleStack;
+    if (sle->kind != FE_sleSelect)
+    {
+        EM_error(pos, "CASE used outside of a SELECT-statement context");
+        return FALSE;
+    }
+    //FE_selectExp ex=NULL, exLast=NULL;
 
     *tkn = (*tkn)->next; // consume "CASE"
 
     if (isSym(*tkn, S_ELSE))
     {
         *tkn = (*tkn)->next;
-        ex = NULL;
+        //ex = NULL;
+	    assert (FALSE);
     }
     else
     {
-        if (!caseExpr(tkn, &ex))
+        CG_item ex;
+        if (!caseExpr(tkn, &sle->u.selectStmt.exp, &ex))
             return FALSE;
-
-        exLast = ex;
 
         while ((*tkn)->kind == S_COMMA)
         {
-            FE_selectExp ex2=NULL;
             *tkn = (*tkn)->next;
-            if (!caseExpr(tkn, &ex2))
+            if (!caseExpr(tkn, &sle->u.selectStmt.exp, &ex))
                 return FALSE;
-            exLast->next = ex2;
-            exLast = ex2;
         }
     }
 
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    FE_SLE sle = g_sleStack;
-    if (sle->kind != FE_sleSelect)
-    {
-        EM_error((*tkn)->pos, "CASE used outside of a SELECT-statement context");
-        return FALSE;
-    }
+    assert (FALSE);
+#if 0
 
     FE_selectBranch branch = FE_SelectBranch(pos, ex, CG_ItemList());
 
@@ -4124,10 +4142,9 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, CG_item *exp)
         sle->u.selectStmt.selectBFirst = sle->u.selectStmt.selectBLast = branch;
     }
     sle->expList = branch->expList;
-
+#endif
     return TRUE;
 }
-#endif
 
 static void stmtIfEnd_(S_pos pos)
 {
@@ -7033,8 +7050,10 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue     , Ty_Void());
     declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo           , Ty_Void());
     declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop         , Ty_Void());
+#endif
     declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect       , Ty_Void());
     declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase         , Ty_Void());
+#if 0
     declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn       , Ty_Void());
 #endif
     declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
