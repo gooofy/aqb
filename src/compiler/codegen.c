@@ -943,6 +943,101 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_mul:                                            // c * ?
+
+                    if (isConstZero(left))                              // 0 * ? = 0
+                    {
+                        return;
+                    }
+
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                        case Ty_long:
+                        {
+                            int c = CG_getConstInt (left);
+                            switch (c)
+                            {
+                                case 1:                         // v * 1 = v
+                                    *left = *right;
+                                    return;
+                                case 2:                         // v * 2 = v + v
+                                    *left = *right;
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                    return;
+                                case 4:                         // v * 4 = v + v + v + v
+                                    *left = *right;
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                    return;
+                                case 8:                         // v * 8 = v << 3
+                                {
+                                    *left = *right;
+                                    Ty_const nb = Ty_ConstInt (Ty_UByte(), 3);
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #3, left
+                                                                          nb, 0, NULL));
+                                    return;
+                                }
+                                case 16:                         // v * 16 = v << 4
+                                {
+                                    *left = *right;
+                                    Ty_const nb = Ty_ConstInt (Ty_UByte(), 4);
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #4, left
+                                                                          nb, 0, NULL));
+                                    return;
+                                }
+                                case 32:                         // v * 32 = v << 5
+                                {
+                                    *left = *right;
+                                    Ty_const nb = Ty_ConstInt (Ty_UByte(), 5);
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #5, left
+                                                                          nb, 0, NULL));
+                                    return;
+                                }
+                                case 64:                         // v * 64 = v << 6
+                                {
+                                    *left = *right;
+                                    Ty_const nb = Ty_ConstInt (Ty_UByte(), 6);
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #6, left
+                                                                          nb, 0, NULL));
+                                    return;
+                                }
+                                case 128:                         // v * 128 = v << 7
+                                {
+                                    *left = *right;
+                                    Ty_const nb = Ty_ConstInt (Ty_UByte(), 7);
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #7, left
+                                                                          nb, 0, NULL));
+                                    return;
+                                }
+                                case 256:                         // v * 256 = v << 8
+                                {
+                                    *left = *right;
+                                    Ty_const nb = Ty_ConstInt (Ty_UByte(), 8);
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #8, left
+                                                                          nb, 0, NULL));
+                                    return;
+                                }
+                            }
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MULS_Imm_Dn, w, NULL, right->u.inReg,        // muls #left, right
+                                                                          left->u.c, 0, NULL));
+                                    *left = *right;
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+
+                            break;
+                        }
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
                 case CG_neg:                                           // -c
                     switch (ty->kind)
                     {
@@ -964,10 +1059,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
         case IK_inReg:
         case IK_inHeap:
         case IK_cond:
-            CG_loadVal (code, pos, left);
             switch (o)
             {
                 case CG_plus:                                           // v + ?
+                    CG_loadVal (code, pos, left);
                     switch (right->kind)
                     {
                         case IK_const:                                  // v + c
@@ -1016,6 +1111,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     break;
 
                 case CG_minus:                                          // v - ?
+                    CG_loadVal (code, pos, left);
                     switch (right->kind)
                     {
                         case IK_const:                                  // v - c
@@ -1066,7 +1162,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                 case CG_mul:                                            // v * ?
                     switch (right->kind)
                     {
-                        case IK_const:                                  // v + c
+                        case IK_const:                                  // v * c
                         {
                             if (isConstZero(right))                     // v * 0 = 0
                             {
@@ -1074,6 +1170,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 return;
                             }
 
+                            CG_loadVal (code, pos, left);
                             switch (ty->kind)
                             {
                                 case Ty_integer:
@@ -1092,13 +1189,59 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                             AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
                                             return;
                                         case 8:                         // v * 8 = v << 3
-                                            assert(FALSE);
-                                            break;
+                                        {
+                                            Ty_const nb = Ty_ConstInt (Ty_UByte(), 3);
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #3, left
+                                                                                  nb, 0, NULL));
+                                            return;
+                                        }
+                                        case 16:                         // v * 16 = v << 4
+                                        {
+                                            Ty_const nb = Ty_ConstInt (Ty_UByte(), 4);
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #4, left
+                                                                                  nb, 0, NULL));
+                                            return;
+                                        }
+                                        case 32:                         // v * 32 = v << 5
+                                        {
+                                            Ty_const nb = Ty_ConstInt (Ty_UByte(), 5);
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #5, left
+                                                                                  nb, 0, NULL));
+                                            return;
+                                        }
+                                        case 64:                         // v * 64 = v << 6
+                                        {
+                                            Ty_const nb = Ty_ConstInt (Ty_UByte(), 6);
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #6, left
+                                                                                  nb, 0, NULL));
+                                            return;
+                                        }
+                                        case 128:                         // v * 128 = v << 7
+                                        {
+                                            Ty_const nb = Ty_ConstInt (Ty_UByte(), 7);
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #7, left
+                                                                                  nb, 0, NULL));
+                                            return;
+                                        }
+                                        case 256:                         // v * 256 = v << 8
+                                        {
+                                            Ty_const nb = Ty_ConstInt (Ty_UByte(), 8);
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #8, left
+                                                                                  nb, 0, NULL));
+                                            return;
+                                        }
                                     }
 
-                                    assert(FALSE);
-                                    //AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
-                                    //                                      right->u.c, 0, NULL));
+                                    switch (ty->kind)
+                                    {
+                                        case Ty_integer:
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULS_Imm_Dn, w, NULL, left->u.inReg,        // muls #right, left
+                                                                                  right->u.c, 0, NULL));
+                                            break;
+                                        default:
+                                            assert(FALSE);
+                                    }
+
                                     break;
                                 }
                                 default:
@@ -1109,12 +1252,12 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case IK_inFrame:
                         case IK_inReg:
                         case IK_inHeap:
+                            CG_loadVal (code, pos, left);
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
                                 case Ty_integer:
-                                case Ty_long:
-                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_MULS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // muls.x right, left
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1128,6 +1271,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     break;
 
                 case CG_and:                                            // v & ?
+                    CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);                      // FIXME: constant propagation: v & 0 = 0
 
                     AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
@@ -1135,6 +1279,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     break;
 
                 case CG_or:                                             // v | ?
+                    CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);                      // FIXME: constant propagation: v | 1 = 1
 
                     AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
@@ -1142,6 +1287,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     break;
 
                 case CG_not:                                            // !v
+                    CG_loadVal (code, pos, left);
                     AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
 
                     break;
