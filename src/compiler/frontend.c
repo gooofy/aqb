@@ -3692,6 +3692,16 @@ static bool stmtForEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void stmtIfEnd_(S_pos pos)
+{
+    FE_SLE sle = slePop();
+
+    if (sle->u.ifStmt.lElse)
+        CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lElse);
+    if (sle->u.ifStmt.lEndIf)
+        CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lEndIf);
+}
+
 /*
  *
  * IF exp1 THEN               code (exp1)
@@ -3746,14 +3756,12 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (isSym(*tkn, S_GOTO))
     {
-        assert(FALSE); // FIXME
-#if 0
         *tkn = (*tkn)->next;
 
         if ((*tkn)->kind == S_INUM)
         {
             Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
-            emit(Tr_gotoExp(pos, l));
+            CG_transJump (sle->code, pos, l);
             *tkn = (*tkn)->next;
         }
         else
@@ -3761,17 +3769,15 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
             if ((*tkn)->kind == S_IDENT)
             {
                 Temp_label l = Temp_namedlabel(S_name((*tkn)->u.sym));
-                emit(Tr_gotoExp(pos, l));
+                CG_transJump (sle->code, pos, l);
                 *tkn = (*tkn)->next;
             }
             else
                 return EM_error(pos, "line number or label expected here.");
         }
 
-        slePop();
-        emit(transIfBranch(sle->u.ifStmt.ifBFirst));
+        stmtIfEnd_ (pos);
         return TRUE;
-#endif
     }
 
     if (!isSym(*tkn, S_THEN))
@@ -4082,16 +4088,6 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, CG_item *exp)
         return FALSE;
 
     return TRUE;
-}
-
-static void stmtIfEnd_(S_pos pos)
-{
-    FE_SLE sle = slePop();
-
-    if (sle->u.ifStmt.lElse)
-        CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lElse);
-    if (sle->u.ifStmt.lEndIf)
-        CG_transLabel (g_sleStack->code, pos, sle->u.ifStmt.lEndIf);
 }
 
 static void stmtProcEnd_(void)
@@ -7228,9 +7224,6 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
             if ((tkn->kind == S_IDENT) && tkn->next && (tkn->next->kind == S_COLON)
                 && !isSym(tkn, S_PUBLIC) && !isSym(tkn, S_PRIVATE) && !isSym(tkn, S_PROTECTED) )
             {
-                assert(FALSE);
-                // FIXME
-#if 0
                 Temp_label l = Temp_namedlabel(S_name(tkn->u.sym));
                 if (TAB_look (userLabels, l))
                 {
@@ -7238,11 +7231,10 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
                     continue;
                 }
                 TAB_enter(userLabels, l, (void *) TRUE);
-                emit(Tr_labelExp(tkn->pos, l));
-                Tr_dataAddLabel(l);
+                CG_transLabel (g_sleStack->code, tkn->pos, l);
+                transDataAddLabel(l);
                 tkn = tkn->next;
                 tkn = tkn->next;
-#endif
             }
         }
 

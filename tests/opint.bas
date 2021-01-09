@@ -23,6 +23,40 @@ ASSERT (42 * a%  ) =  966
 ASSERT (b% / 23  ) =    1
 ASSERT (b% MOD 23) =   19
 
+' test ADD optimizations
+
+ASSERT b% + 0  =   42   : REM identity
+ASSERT b% + 1  =   43   : REM ADDQ
+ASSERT b% + 8  =   50   : REM ADDQ
+
+ASSERT 0 + b%  =   42   : REM identity
+ASSERT 1 + b%  =   43   : REM ADDQ
+ASSERT 8 + b%  =   50   : REM ADDQ
+
+' test MUL optimizations
+
+ASSERT b%*0   = 0
+ASSERT b%*1   = 42
+ASSERT b%*2   = 84
+ASSERT b%*4   = 168
+ASSERT b%*8   = 336
+ASSERT b%*16  = 672
+ASSERT b%*32  = 1344
+ASSERT b%*64  = 2688
+ASSERT b%*128 = 5376
+ASSERT b%*256 = 10752
+
+ASSERT 0  *b% = 0
+ASSERT 1  *b% = 42
+ASSERT 2  *b% = 84
+ASSERT 4  *b% = 168
+ASSERT 8  *b% = 336
+ASSERT 16 *b% = 672
+ASSERT 32 *b% = 1344
+ASSERT 64 *b% = 2688
+ASSERT 128*b% = 5376
+ASSERT 256*b% = 10752
+
 ' logical operators
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
 

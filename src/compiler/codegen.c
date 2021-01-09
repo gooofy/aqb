@@ -913,29 +913,87 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                 case CG_plus:                                           // v + ?
                     switch (right->kind)
                     {
-                        case IK_const:
-                            switch (o)
-                            {
-                                case CG_plus:                           // v + c
-                                    if (isConstZero(right))                  // v + 0 = v
-                                        return;
+                        case IK_const:                                  // v + c
 
-                                    switch (ty->kind)
-                                    {
-                                        case Ty_integer:
-                                        case Ty_long:
-                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
-                                                                                  right->u.c, 0, NULL));
-                                            break;
-                                        default:
-                                            assert(FALSE);
-                                    }
+                            if (isConstZero(right))                     // v + 0 = v
+                                return;
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
+                                                                          right->u.c, 0, NULL));
                                     break;
                                 default:
                                     assert(FALSE);
                             }
                             break;
 
+                        case IK_inFrame:
+                        case IK_inReg:
+                        case IK_inHeap:
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_mul:                                            // v * ?
+                    switch (right->kind)
+                    {
+                        case IK_const:                                  // v + c
+                        {   
+                            if (isConstZero(right))                     // v * 0 = 0
+                            {
+                                *left = *right;
+                                return;
+                            }
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                {
+                                    int c = CG_getConstInt (right);
+                                    switch (c)
+                                    {
+                                        case 1:                         // v * 1 = v
+                                            return;
+                                        case 2:                         // v * 2 = v + v
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            return;
+                                        case 4:                         // v * 4 = v + v + v + v
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            return;
+                                        case 8:                         // v * 8 = v << 3
+                                            assert(FALSE);
+                                            break;
+                                    }
+
+                                    assert(FALSE);
+                                    //AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
+                                    //                                      right->u.c, 0, NULL));
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+                        }
                         case IK_inFrame:
                         case IK_inReg:
                         case IK_inHeap:
