@@ -1038,6 +1038,22 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             assert(FALSE);
                     }
                     break;
+
+                case CG_div:                                           // c / ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+
                 case CG_neg:                                           // -c
                     switch (ty->kind)
                     {
@@ -1265,6 +1281,20 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             break;
 
 
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_div:                                            // v / ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
+                            break;
                         default:
                             assert(FALSE);
                     }
