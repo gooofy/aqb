@@ -844,7 +844,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
             {
                 case CG_plus:                                           // c + ?
 
-                    if (isConstZero(left))                                   // 0 + ? = ?
+                    if (isConstZero(left))                              // 0 + ? = ?
                     {
                         CG_loadVal (code, pos, right);
                         *left = *right;
@@ -872,11 +872,19 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
+                                case Ty_integer:
                                 case Ty_long:
-                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, right->u.inReg,   // add.x #left, right
-                                                                          left->u.c, 0, NULL));
+                                {
+                                    int c = CG_getConstInt (left);
+                                    if ( (c>0) && (c<=8) )
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADDQ_Imm_AnDn, w, NULL, right->u.inReg,// addq.x #left, right
+                                                                              left->u.c, 0, NULL));
+                                    else
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, right->u.inReg,   // add.x #left, right
+                                                                              left->u.c, 0, NULL));
                                     *left = *right;
                                     break;
+                                }
                                 default:
                                     assert(FALSE);
                             }
@@ -885,6 +893,55 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         default:
                             assert(FALSE);
                     }
+                    break;
+
+                case CG_minus:                                          // c - ?
+
+                    switch (right->kind)
+                    {
+                        case IK_const:                                  // c - c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                    CG_IntItem(left, left->u.c->u.i-right->u.c->u.i, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+
+                        case IK_inFrame:                                // c - v
+                        case IK_inReg:
+                        case IK_inHeap:
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                {
+                                    if (isConstZero(left))              // 0 - v = -v
+                                    {
+                                        AS_instrListAppend (code, AS_Instr (pos, AS_NEG_Dn, w, NULL, right->u.inReg));         // neg.x right
+                                        *left = *right;
+                                        return;
+                                    }
+                                                                        // v1 - v2
+                                    CG_loadVal (code, pos, left);
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
+
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
 
                 case CG_neg:                                           // -c
                     switch (ty->kind)
@@ -922,9 +979,16 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             {
                                 case Ty_integer:
                                 case Ty_long:
-                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,   // add.x #right, left
-                                                                          right->u.c, 0, NULL));
+                                {
+                                    int c = CG_getConstInt (right);
+                                    if ( (c>0) && (c<=8) )
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADDQ_Imm_AnDn, w, NULL, left->u.inReg,// addq.x #right, left
+                                                                              right->u.c, 0, NULL));
+                                    else
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,    // add.x #right, left
+                                                                              right->u.c, 0, NULL));
                                     break;
+                                }
                                 default:
                                     assert(FALSE);
                             }
@@ -951,11 +1015,59 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_minus:                                          // v - ?
+                    switch (right->kind)
+                    {
+                        case IK_const:                                  // v - c
+
+                            if (isConstZero(right))                     // v - 0 = v
+                                return;
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                {
+                                    int c = CG_getConstInt (right);
+                                    if ( (c>0) && (c<=8) )
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUBQ_Imm_AnDn, w, NULL, left->u.inReg, // subq.x #right, left
+                                                                              right->u.c, 0, NULL));
+                                    else
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_Dn, w, NULL, left->u.inReg,    // sub.x  #right, left
+                                                                              right->u.c, 0, NULL));
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+                        case IK_inFrame:                                // v1 - v2
+                        case IK_inReg:
+                        case IK_inHeap:
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
                 case CG_mul:                                            // v * ?
                     switch (right->kind)
                     {
                         case IK_const:                                  // v + c
-                        {   
+                        {
                             if (isConstZero(right))                     // v * 0 = 0
                             {
                                 *left = *right;

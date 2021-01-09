@@ -18,12 +18,15 @@ ASSERT (b% MOD a% ) =   19
 ASSERT (a% + 42  ) =   65
 ASSERT (42 + a%  ) =   65
 ASSERT (a% - 42  ) =  -19
+ASSERT (42 - a%  ) =   19
 ASSERT (a% * 42  ) =  966
 ASSERT (42 * a%  ) =  966
 ASSERT (b% / 23  ) =    1
 ASSERT (b% MOD 23) =   19
 
 ' test ADD optimizations
+
+ASSERT 23 + 42 = 65
 
 ASSERT b% + 0  =   42   : REM identity
 ASSERT b% + 1  =   43   : REM ADDQ
@@ -32,6 +35,17 @@ ASSERT b% + 8  =   50   : REM ADDQ
 ASSERT 0 + b%  =   42   : REM identity
 ASSERT 1 + b%  =   43   : REM ADDQ
 ASSERT 8 + b%  =   50   : REM ADDQ
+
+' test SUB optimizations
+
+ASSERT 42 - 23 = 19
+ASSERT 23 - 42 = -19
+
+ASSERT b% - 0  =   42   : REM identity
+ASSERT b% - 1  =   41   : REM SUBQ
+ASSERT b% - 8  =   34   : REM SUBQ
+
+ASSERT 0 - b%  =  -42   : REM identity
 
 ' test MUL optimizations
 
