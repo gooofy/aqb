@@ -1147,6 +1147,32 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_shl:                                            // c SHL ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_shr:                                            // c SHR ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
                 case CG_power:                                           // c ^ ?
                     switch (ty->kind)
                     {
@@ -1468,6 +1494,32 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             }
                             break;
 
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_shl:                                            // v SHL ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_shr:                                            // v SHR ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
+                            break;
                         default:
                             assert(FALSE);
                     }
