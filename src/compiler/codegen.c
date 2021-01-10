@@ -1132,6 +1132,21 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_mod:                                           // c MOD ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_SWAP_Dn, w, NULL, left->u.inReg));                 // swap.x left
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
                 case CG_power:                                           // c ^ ?
                     switch (ty->kind)
                     {
@@ -1390,6 +1405,21 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_mod:                                            // v MOD ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_SWAP_Dn, w, NULL, left->u.inReg));                 // swap.x left
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
                 case CG_power:                                          // v ^ ?
                     switch (right->kind)
                     {
@@ -1438,6 +1468,19 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             }
                             break;
 
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_neg:                                            // -v
+                    CG_loadVal (code, pos, left);
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                        case Ty_long:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NEG_Dn, w, NULL, left->u.inReg));    // neg.x  left
+                            break;
                         default:
                             assert(FALSE);
                     }
