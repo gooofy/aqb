@@ -1195,6 +1195,64 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_xor:                                            // c XOR ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+
+                    break;
+
+                case CG_eqv:                                            // c EQV ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                    break;
+
+                case CG_imp:                                            // c IMP ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                    break;
+
+                case CG_not:                                            // NOT c
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                        case Ty_long:
+                            CG_IntItem(left, ~left->u.c->u.i, ty);
+                            break;
+                        
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_and:                                            // c & ?
+                    if (isConstZero(left))                              // 0 & ? = 0
+                        return;
+                    
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                    break;
+
+                case CG_or:                                             // c | ?
+                    if (isConstZero(left))                              // 0 | ? = ?
+                    {
+                        *left = *right;
+                        return;
+                    }
+                    
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
+                    break;
+
                 default:
                     assert(FALSE);
                     break;
@@ -1538,26 +1596,53 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
-                case CG_and:                                            // v & ?
+                case CG_xor:                                            // v XOR ?
                     CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);                      // FIXME: constant propagation: v & 0 = 0
+                    CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
-
+                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                     break;
 
-                case CG_or:                                             // v | ?
+                case CG_eqv:                                            // v EQV ?
                     CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);                      // FIXME: constant propagation: v | 1 = 1
+                    CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
+                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                    break;
 
+                case CG_imp:                                            // v IMP ?
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                     break;
 
                 case CG_not:                                            // !v
                     CG_loadVal (code, pos, left);
                     AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
 
+                    break;
+
+                case CG_and:                                            // v & ?
+                    if (isConstZero(right))                             // v & 0 = 0
+                    {
+                        *left = *right;
+                        return;
+                    }
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                    break;
+
+                case CG_or:                                             // v | ?
+                    if (isConstZero(right))                             // v | 0 = v
+                        return;
+                    CG_loadVal (code, pos, left);
+                    CG_loadVal (code, pos, right);
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
                     break;
 
                 default:
