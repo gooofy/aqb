@@ -35,13 +35,14 @@ typedef enum
 struct CG_item_
 {
     CG_itemKind      kind;
+    Ty_ty            ty;
 
     union
     {
         Ty_const                                                       c;
-        struct { int offset; Ty_ty ty;                             }   inFrameR;
+        struct { int offset;                                       }   inFrameR;
         Temp_temp                                                      inReg;
-        struct { Temp_label l; Ty_ty ty;                           }   inHeap;
+        struct { Temp_label l;                                     }   inHeap;
         struct { Temp_label l; AS_instrList fixUps; bool postCond; }   condR;
         Temp_temp                                                      varPtr;
     } u;
@@ -93,6 +94,17 @@ struct CG_fragList_
     CG_frag     head;
     CG_fragList tail;
 };
+
+// RAL: register association list
+typedef struct CG_ral_ *CG_ral;
+struct CG_ral_
+{
+    Temp_temp arg;
+    Temp_temp reg;
+    CG_ral     next;
+};
+
+CG_ral          CG_RAL              (Temp_temp arg, Temp_temp reg, CG_ral next);
 
 CG_frame        CG_Frame            (S_pos pos, Temp_label name, Ty_formal formals, bool statc);
 CG_frame        CG_globalFrame      (void);

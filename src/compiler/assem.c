@@ -429,7 +429,7 @@ enum AS_w AS_tySize(Ty_ty ty)
     return AS_w_L;
 }
 
-static void instrformat(string str, string strTmpl, AS_instr instr)
+static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect dialect)
 {
     int pos = 0;
     int l   = strlen(strTmpl);
@@ -486,7 +486,17 @@ static void instrformat(string str, string strTmpl, AS_instr instr)
                             break;
                         case Ty_single:
                         case Ty_double:
-                            pos += sprintf(&str[pos], "0x%08x /* %f */", encode_ffp(instr->imm->u.f), instr->imm->u.f);
+                            switch (dialect)
+                            {
+                                case AS_dialect_gas:
+                                    pos += sprintf(&str[pos], "0x%08x /* %f */", encode_ffp(instr->imm->u.f), instr->imm->u.f);
+                                    break;
+                                case AS_dialect_ASMPro:
+                                    pos += sprintf(&str[pos], "$%08x", encode_ffp(instr->imm->u.f));
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
                         default:
                             EM_error(0, "*** assem.c:instrformat: internal error");
@@ -545,153 +555,153 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
         case AS_LABEL:           // label:
             sprintf(str, "%s:", Temp_labelstring(i->label));  break;
         case AS_ADD_Dn_Dn:
-            instrformat(str, "    add`w    `s, `d", i);       break;
+            instrformat(str, "    add`w    `s, `d", i, dialect);       break;
         case AS_ADD_Imm_Dn:
-            instrformat(str, "    add`w    #`i, `d", i);      break;
+            instrformat(str, "    add`w    #`i, `d", i, dialect);      break;
         case AS_ADD_Imm_sp:
-            instrformat(str, "    add`w    #`i, sp", i);      break;
+            instrformat(str, "    add`w    #`i, sp", i, dialect);      break;
         case AS_ADDQ_Imm_AnDn:
-            instrformat(str, "    addq`w   #`i, `d", i);      break;
+            instrformat(str, "    addq`w   #`i, `d", i, dialect);      break;
         case AS_AND_Dn_Dn:
-            instrformat(str, "    and`w    `s, `d", i);       break;
+            instrformat(str, "    and`w    `s, `d", i, dialect);       break;
         case AS_AND_Imm_Dn:
-            instrformat(str, "    and`w    #`i, `d", i);      break;
+            instrformat(str, "    and`w    #`i, `d", i, dialect);      break;
         case AS_ASL_Dn_Dn:
-            instrformat(str, "    asl`w    `s, `d", i);       break;
+            instrformat(str, "    asl`w    `s, `d", i, dialect);       break;
         case AS_ASL_Imm_Dn:
-            instrformat(str, "    asl`w    #`i, `d", i);      break;
+            instrformat(str, "    asl`w    #`i, `d", i, dialect);      break;
         case AS_ASR_Dn_Dn:
-            instrformat(str, "    asr`w    `s, `d", i);       break;
+            instrformat(str, "    asr`w    `s, `d", i, dialect);       break;
         case AS_ASR_Imm_Dn:
-            instrformat(str, "    asr`w    #`i, `d", i);      break;
+            instrformat(str, "    asr`w    #`i, `d", i, dialect);      break;
         case AS_BEQ:
-            instrformat(str, "    beq      `l", i);           break;
+            instrformat(str, "    beq      `l", i, dialect);           break;
         case AS_BNE:
-            instrformat(str, "    bne      `l", i);           break;
+            instrformat(str, "    bne      `l", i, dialect);           break;
         case AS_BLT:
-            instrformat(str, "    blt      `l", i);           break;
+            instrformat(str, "    blt      `l", i, dialect);           break;
         case AS_BGT:
-            instrformat(str, "    bgt      `l", i);           break;
+            instrformat(str, "    bgt      `l", i, dialect);           break;
         case AS_BLE:
-            instrformat(str, "    ble      `l", i);           break;
+            instrformat(str, "    ble      `l", i, dialect);           break;
         case AS_BGE:
-            instrformat(str, "    bge      `l", i);           break;
+            instrformat(str, "    bge      `l", i, dialect);           break;
         case AS_BCS:
-            instrformat(str, "    bcs      `l", i);           break;
+            instrformat(str, "    bcs      `l", i, dialect);           break;
         case AS_BHI:
-            instrformat(str, "    bhi      `l", i);           break;
+            instrformat(str, "    bhi      `l", i, dialect);           break;
         case AS_BLS:
-            instrformat(str, "    bls      `l", i);           break;
+            instrformat(str, "    bls      `l", i, dialect);           break;
         case AS_BCC:
-            instrformat(str, "    bcc      `l", i);           break;
+            instrformat(str, "    bcc      `l", i, dialect);           break;
         case AS_BRA:
-            instrformat(str, "    bra      `l", i);           break;
+            instrformat(str, "    bra      `l", i, dialect);           break;
         case AS_CMP_Dn_Dn:
-            instrformat(str, "    cmp`w    `s, `d", i);       break;
+            instrformat(str, "    cmp`w    `s, `d", i, dialect);       break;
         case AS_DIVS_Dn_Dn:
-            instrformat(str, "    divs`w   `s, `d", i);       break;
+            instrformat(str, "    divs`w   `s, `d", i, dialect);       break;
         case AS_DIVS_Imm_Dn:
-            instrformat(str, "    divs`w   #`i, `d", i);      break;
+            instrformat(str, "    divs`w   #`i, `d", i, dialect);      break;
         case AS_DIVU_Dn_Dn:
-            instrformat(str, "    divu`w   `s, `d", i);       break;
+            instrformat(str, "    divu`w   `s, `d", i, dialect);       break;
         case AS_DIVU_Imm_Dn:
-            instrformat(str, "    divu`w   #`i, `d", i);      break;
+            instrformat(str, "    divu`w   #`i, `d", i, dialect);      break;
         case AS_EOR_Dn_Dn:
-            instrformat(str, "    eor`w    `s, `d", i);       break;
+            instrformat(str, "    eor`w    `s, `d", i, dialect);       break;
         case AS_EOR_Imm_Dn:
-            instrformat(str, "    eor`w    #`i, `d", i);      break;
+            instrformat(str, "    eor`w    #`i, `d", i, dialect);      break;
         case AS_EXT_Dn:
-            instrformat(str, "    ext`w    `d", i);           break;
+            instrformat(str, "    ext`w    `d", i, dialect);           break;
         case AS_LINK_fp:
-            instrformat(str, "    link     a5, #`i"    , i);  break;
+            instrformat(str, "    link     a5, #`i"    , i, dialect);  break;
         case AS_LSL_Dn_Dn:
-            instrformat(str, "    lsl`w    `s, `d", i);       break;
+            instrformat(str, "    lsl`w    `s, `d", i, dialect);       break;
         case AS_LSL_Imm_Dn:
-            instrformat(str, "    lsl`w    #`i, `d", i);      break;
+            instrformat(str, "    lsl`w    #`i, `d", i, dialect);      break;
         case AS_LSR_Dn_Dn:
-            instrformat(str, "    lsr`w    `s, `d", i);       break;
+            instrformat(str, "    lsr`w    `s, `d", i, dialect);       break;
         case AS_LSR_Imm_Dn:
-            instrformat(str, "    lsr`w    #`i, `d", i);      break;
+            instrformat(str, "    lsr`w    #`i, `d", i, dialect);      break;
         case AS_MOVE_AnDn_AnDn:
-            instrformat(str, "    move`w   `s, `d"   , i);    break;
+            instrformat(str, "    move`w   `s, `d"   , i, dialect);    break;
         case AS_MOVE_fp_AnDn:
-            instrformat(str, "    move`w   a5, `d"   , i);    break;
+            instrformat(str, "    move`w   a5, `d"   , i, dialect);    break;
         case AS_MOVE_AnDn_PDsp:
-            instrformat(str, "    move`w   `s, -(sp)",  i);   break;
+            instrformat(str, "    move`w   `s, -(sp)", i, dialect);    break;
         case AS_MOVE_spPI_AnDn:
-            instrformat(str, "    move`w   (sp)+, `d",  i);   break;
+            instrformat(str, "    move`w   (sp)+, `d", i, dialect);    break;
         case AS_MOVE_Imm_OAn:
-            instrformat(str, "    move`w   #`i, `o(`s)", i);  break;
+            instrformat(str, "    move`w   #`i, `o(`s)", i, dialect);  break;
         case AS_MOVE_Imm_RAn:
-            instrformat(str, "    move`w   #`i, (`d)", i);    break;
+            instrformat(str, "    move`w   #`i, (`d)", i, dialect);    break;
         case AS_MOVE_Imm_PDsp:
-            instrformat(str, "    move`w   #`i, -(sp)", i);   break;
+            instrformat(str, "    move`w   #`i, -(sp)", i, dialect);   break;
         case AS_MOVE_AnDn_RAn:
-            instrformat(str, "    move`w   `s, (`d)", i);     break;
+            instrformat(str, "    move`w   `s, (`d)", i, dialect);     break;
         case AS_MOVE_RAn_AnDn:
-            instrformat(str, "    move`w   (`s), `d", i);     break;
+            instrformat(str, "    move`w   (`s), `d", i, dialect);     break;
         case AS_MOVE_Imm_AnDn:
-            instrformat(str, "    move`w   #`i, `d", i);      break;
+            instrformat(str, "    move`w   #`i, `d", i, dialect);      break;
         case AS_MOVE_Ofp_AnDn:  // move.x  42(a5), d0
-            instrformat(str, "    move`w   `o(a5), `d", i);   break;
+            instrformat(str, "    move`w   `o(a5), `d", i, dialect);   break;
         case AS_MOVE_AnDn_Ofp:  // move.x  d0, 42(a5)
-            instrformat(str, "    move`w   `s, `o(a5)", i);   break;
+            instrformat(str, "    move`w   `s, `o(a5)", i, dialect);   break;
         case AS_MOVE_Imm_Ofp:   // move.x  #23, 42(a5)
-            instrformat(str, "    move`w   #`i, `o(a5)", i);  break;
+            instrformat(str, "    move`w   #`i, `o(a5)", i, dialect);  break;
         case AS_MOVE_ILabel_AnDn:
-            instrformat(str, "    move`w   #`l, `d", i);      break;
+            instrformat(str, "    move`w   #`l, `d", i, dialect);      break;
         case AS_MOVE_Label_AnDn:
-            instrformat(str, "    move`w    `l, `d", i);      break;
+            instrformat(str, "    move`w    `l, `d", i, dialect);      break;
         case AS_MOVE_AnDn_Label:
-            instrformat(str, "    move`w    `s, `l", i);      break;
+            instrformat(str, "    move`w    `s, `l", i, dialect);      break;
         case AS_MOVE_Imm_Label:
-            instrformat(str, "    move`w   #`i, `l", i);      break;
+            instrformat(str, "    move`w   #`i, `l", i, dialect);      break;
         case AS_MOVEM_Rs_PDsp:
-            instrformat(str, "    movem`w  `R, -(sp)", i);    break;
+            instrformat(str, "    movem`w  `R, -(sp)", i, dialect);    break;
         case AS_MOVEM_spPI_Rs:
-            instrformat(str, "    movem`w  (sp)+, `R", i);    break;
+            instrformat(str, "    movem`w  (sp)+, `R", i, dialect);    break;
         case AS_MULS_Dn_Dn:
-            instrformat(str, "    muls`w   `s, `d", i);       break;
+            instrformat(str, "    muls`w   `s, `d", i, dialect);       break;
         case AS_MULS_Imm_Dn:
-            instrformat(str, "    muls`w   #`i, `d", i);      break;
+            instrformat(str, "    muls`w   #`i, `d", i, dialect);      break;
         case AS_MULU_Dn_Dn:
-            instrformat(str, "    mulu`w   `s, `d", i);       break;
+            instrformat(str, "    mulu`w   `s, `d", i, dialect);       break;
         case AS_MULU_Imm_Dn:
-            instrformat(str, "    mulu`w   #`i, `d", i);      break;
+            instrformat(str, "    mulu`w   #`i, `d", i, dialect);      break;
         case AS_NEG_Dn:
-            instrformat(str, "    neg`w    `d", i);           break;
+            instrformat(str, "    neg`w    `d", i, dialect);           break;
         case AS_NOT_Dn:
-            instrformat(str, "    not`w    `d", i);           break;
+            instrformat(str, "    not`w    `d", i, dialect);           break;
         case AS_NOP:
-            instrformat(str, "    nop"           , i);        break;
+            instrformat(str, "    nop"           , i, dialect);        break;
         case AS_JMP:
-            instrformat(str, "    jmp      `l", i);           break;
+            instrformat(str, "    jmp      `l", i, dialect);           break;
         case AS_JSR_Label:
-            instrformat(str, "    jsr      `l", i);           break;
+            instrformat(str, "    jsr      `l", i, dialect);           break;
         case AS_JSR_An:
-            instrformat(str, "    jsr      (`s)", i);         break;
+            instrformat(str, "    jsr      (`s)", i, dialect);         break;
         case AS_JSR_RAn:
-            instrformat(str, "    jsr      `o(`s)", i);       break;
+            instrformat(str, "    jsr      `o(`s)", i, dialect);       break;
         case AS_OR_Dn_Dn:
-            instrformat(str, "    or`w     `s, `d", i);       break;
+            instrformat(str, "    or`w     `s, `d", i, dialect);       break;
         case AS_OR_Imm_Dn: 
-            instrformat(str, "    or`w     #`i, `d", i);      break;
+            instrformat(str, "    or`w     #`i, `d", i, dialect);      break;
         case AS_RTS:
-            instrformat(str, "    rts"           , i);        break;
+            instrformat(str, "    rts"           , i, dialect);        break;
         case AS_SNE_Dn:
-            instrformat(str, "    sne      `d", i);           break;
+            instrformat(str, "    sne      `d", i, dialect);           break;
         case AS_SUB_Dn_Dn:
-            instrformat(str, "    sub`w    `s, `d", i);       break;
+            instrformat(str, "    sub`w    `s, `d", i, dialect);       break;
         case AS_SUB_Imm_Dn:
-            instrformat(str, "    sub`w    #`i, `d", i);      break;
+            instrformat(str, "    sub`w    #`i, `d", i, dialect);      break;
         case AS_SUBQ_Imm_AnDn:
-            instrformat(str, "    subq`w   #`i, `d", i);      break;
+            instrformat(str, "    subq`w   #`i, `d", i, dialect);      break;
         case AS_SWAP_Dn:
-            instrformat(str, "    swap`w   `d", i);           break;
+            instrformat(str, "    swap`w   `d", i, dialect);           break;
         case AS_TST_Dn:
-            instrformat(str, "    tst`w    `s", i);           break;
+            instrformat(str, "    tst`w    `s", i, dialect);           break;
         case AS_UNLK_fp:
-            instrformat(str, "    unlk     a5"   , i);        break;
+            instrformat(str, "    unlk     a5"   , i, dialect);        break;
         default:
             printf("***internal error: unknown mn %d\n", i->mn);
             assert(0);

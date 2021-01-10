@@ -1,28 +1,43 @@
 a% = 23
 b% = 42
+c% = 3 : d% = 7
 
 ' arithemtic operators
-' A_addOp, A_subOp,    A_mulOp, A_divOp,
-' A_expOp, A_intDivOp, A_modOp, A_negOp
+' CG_plus,  CG_minus,  CG_mul, CG_div, CG_neg
+' CG_power, CG_intDiv, CG_mod, CG_shl, CG_shr
 
 ASSERT (a%  +  b% ) =   65
 ASSERT (a%  -  b% ) =  -19
 ASSERT (a%  *  b% ) =  966
-'ASSERT (b%  /  a% ) =    1
-'ASSERT (a%  ^   3 ) =12167
-'ASSERT (b%  \  a% ) =    1
-'ASSERT (b% MOD a% ) =   19
+ASSERT (b%  /  a% ) =    1
+ASSERT (b%  \  a% ) =    1
+ASSERT (a%  ^  c% ) =12167
+ASSERT (b% MOD a% ) =   19
+ASSERT  -a%         =  -23
+ASSERT ( c% SHL d%) =  384
+ASSERT ( b% SHR c%) =    5
 
 ' same but using constants
 
-ASSERT (a% + 42  ) =   65
-ASSERT (42 + a%  ) =   65
-ASSERT (a% - 42  ) =  -19
-ASSERT (42 - a%  ) =   19
-ASSERT (a% * 42  ) =  966
-ASSERT (42 * a%  ) =  966
-'ASSERT (b% / 23  ) =    1
-'ASSERT (b% MOD 23) =   19
+ASSERT (a% + 42  )  =   65
+ASSERT (42 + a%  )  =   65
+ASSERT (a% - 42  )  =  -19
+ASSERT (42 - a%  )  =   19
+ASSERT (a% * 42  )  =  966
+ASSERT (42 * a%  )  =  966
+ASSERT (b% /  3  )  =   14
+ASSERT (92 / a%  )  =    4
+ASSERT (b% \  3  )  =   14
+ASSERT (92 \ a%  )  =    4
+ASSERT (a% ^  3  )  =12167
+ASSERT (4  ^ c%  )  =   64
+ASSERT (b% MOD 23)  =   19
+ASSERT (42 MOD a%)  =   19
+ASSERT  -(23)       =  -23
+ASSERT ( c% SHL  7) =  384
+ASSERT (  3 SHL d%) =  384
+ASSERT ( 42 SHR c%) =    5
+ASSERT ( b% SHR  3) =    5
 
 ' test ADD optimizations
 
@@ -71,63 +86,86 @@ ASSERT 64 *b% = 2688
 ASSERT 128*b% = 5376
 ASSERT 256*b% = 10752
 
-'' logical operators
-'' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
-'
-'c% = 3 : d% = 7
-'
-'ASSERT ( c% XOR d% ) =  4
-'ASSERT ( d% XOR d% ) =  0
-'ASSERT ( d% XOR 1  ) =  6
-'ASSERT ( c% EQV d% ) = -5
-'ASSERT ( d% EQV d% ) = -1
-'ASSERT ( d% EQV 1  ) = -7
-'ASSERT ( c% IMP d% ) = -1
-'ASSERT ( d% IMP d% ) = -1
-'ASSERT ( d% IMP 1  ) = -7
-'ASSERT ( NOT c%    ) = -4
-'ASSERT ( NOT d%    ) = -8
-'ASSERT ( c% AND d% ) =  3
-'ASSERT ( d% AND d% ) =  7
-'ASSERT ( d% AND 1  ) =  1
-'ASSERT ( c% OR d%  ) =  7
-'ASSERT ( d% OR d%  ) =  7
-'ASSERT ( d% OR 11  ) = 15
-'
-'ASSERT ( c% SHL d%) = 384
-'ASSERT ( b% SHR c%) =   5
-'
-'ASSERT ( 1  SHL d%) = 128
-'ASSERT (128 SHR c%) =  16
-'
-'' relational operators
-'
-'ASSERT  a% =  a%
-'ASSERT NOT (a% =  b%)
-'ASSERT  a% <> b%
-'ASSERT NOT (a% <> a%)
-'ASSERT  a% <  b%
-'ASSERT NOT (a% <  a%)
-'ASSERT NOT (b% <  a%)
-'ASSERT NOT (a% >  b%)
-'ASSERT NOT (a% >  a%)
-'ASSERT b% >  a%
-'ASSERT a% <= b%
-'ASSERT a% <= a%
-'ASSERT NOT (b% <= a%)
-'ASSERT NOT (a% >= b%)
-'ASSERT  a% >= a%
-'ASSERT  b% >= a%
-'
-'' conversion tests
-'
-'fT1  = 25000.0
-'lT1& = 10000
-'
-'i% = fT1
-'ASSERT i% = 25000
-'i% = lT1& > 23
-'ASSERT i% = -1
-'i% = lT1&
-'ASSERT i% = 10000
+' test POWER optimizations
+
+ASSERT b%^0 = 1
+ASSERT b%^1 = 42
+
+' logical operators
+' CG_xor,   CG_eqv,    CG_imp, CG_not, CG_and, CG_or,
+
+ASSERT ( c% XOR d% ) =  4
+ASSERT ( d% XOR d% ) =  0
+ASSERT ( d% XOR 1  ) =  6
+ASSERT ( 3  XOR d% ) =  4
+ASSERT ( 3  XOR  7 ) =  4
+ASSERT ( c% EQV d% ) = -5
+ASSERT ( d% EQV d% ) = -1
+ASSERT ( d% EQV 1  ) = -7
+ASSERT (  3 EQV d% ) = -5
+ASSERT ( c% IMP d% ) = -1
+ASSERT ( d% IMP d% ) = -1
+ASSERT ( d% IMP 1  ) = -7
+ASSERT (  3 IMP d% ) = -1
+ASSERT ( NOT c%    ) = -4
+ASSERT ( NOT d%    ) = -8
+ASSERT ( NOT  7    ) = -8
+ASSERT ( c% AND  0 ) =  0
+ASSERT (  0 AND d% ) =  0
+ASSERT ( c% AND d% ) =  3
+ASSERT ( d% AND d% ) =  7
+ASSERT ( d% AND 1  ) =  1
+ASSERT (  3 AND d% ) =  3
+ASSERT ( c% OR d%  ) =  7
+ASSERT ( d% OR d%  ) =  7
+ASSERT ( d% OR 11  ) = 15
+ASSERT (  3 OR d%  ) =  7
+ASSERT ( c% OR  0  ) =  3
+ASSERT (  0 OR d%  ) =  7
+
+' relational operators (relOp)
+
+ASSERT  a% =  a%
+ASSERT NOT (a% =  b%)
+ASSERT  a% <> b%
+ASSERT NOT (a% <> a%)
+ASSERT  a% <  b%
+ASSERT NOT (a% <  a%)
+ASSERT NOT (b% <  a%)
+ASSERT NOT (a% >  b%)
+ASSERT NOT (a% >  a%)
+ASSERT b% >  a%
+ASSERT a% <= b%
+ASSERT a% <= a%
+ASSERT NOT (b% <= a%)
+ASSERT NOT (a% >= b%)
+ASSERT  a% >= a%
+ASSERT  b% >= a%
+
+' relOp constant optimization tests
+
+ASSERT  3 =  3
+ASSERT NOT (3 =  4)
+ASSERT  3 <> 4
+ASSERT NOT (3 <> 3)
+ASSERT  3 < 4
+ASSERT NOT (3 < 3)
+ASSERT  4  > 3
+ASSERT NOT (3  > 3)
+ASSERT  3 <= 4
+ASSERT NOT (3 <= 2)
+ASSERT  4 >= 3
+ASSERT NOT (3 >= 4)
+
+' conversion tests
+
+fT1  = 25000.0
+lT1& = 10000
+
+i% = fT1
+ASSERT i% = 25000
+i% = lT1& > 23
+ASSERT i% = -1
+i% = lT1&
+ASSERT i% = 10000
 

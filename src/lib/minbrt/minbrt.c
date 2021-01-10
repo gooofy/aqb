@@ -27,6 +27,8 @@ void _aqb_main(void);
 
 struct ExecBase      *SysBase       = NULL;
 struct DOSBase       *DOSBase       = NULL;
+struct MathBase      *MathBase      = NULL;
+struct MathTransBase *MathTransBase = NULL;
 
 //static BOOL autil_init_done = FALSE;
 
@@ -240,6 +242,12 @@ static void _minbrt_init (void)
         _cshutdown(20, "*** error: failed to open dos.library!\n");
 
     _debug_stdout = Output();
+
+    if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
+        _cshutdown(20, "*** error: failed to open mathffp.library!\n");
+
+    if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
+        _cshutdown(20, "*** error: failed to open mathtrans.library!\n");
 }
 
 

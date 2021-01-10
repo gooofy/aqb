@@ -48,27 +48,40 @@ static CG_fragList g_fragList = NULL;
 static void InFrame (CG_item *item, int offset, Ty_ty ty)
 {
     item->kind              = IK_inFrame;
+    item->ty                = ty;
     item->u.inFrameR.offset = offset;
-    item->u.inFrameR.ty     = ty;
 }
 
-static void InReg (CG_item *item, Temp_temp reg)
+static void InReg (CG_item *item, Temp_temp reg, Ty_ty ty)
 {
     item->kind    = IK_inReg;
+    item->ty      = ty;
     item->u.inReg = reg;
 }
 
 static void InHeap (CG_item *item, Temp_label l, Ty_ty ty)
 {
     item->kind        = IK_inHeap;
+    item->ty          = ty;
     item->u.inHeap.l  = l;
-    item->u.inHeap.ty = ty;
 }
 
-static void VarPtr (CG_item *item, Temp_temp reg)
+static void VarPtr (CG_item *item, Temp_temp reg, Ty_ty ty)
 {
     item->kind     = IK_varPtr;
+    item->ty       = ty;
     item->u.varPtr = reg;
+}
+
+CG_ral CG_RAL(Temp_temp arg, Temp_temp reg, CG_ral next)
+{
+    CG_ral ral = checked_malloc(sizeof(*ral));
+
+    ral->arg  = arg;
+    ral->reg  = reg;
+    ral->next = next;
+
+    return ral;
 }
 
 CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
@@ -93,7 +106,7 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
         CG_itemListNode n = CG_itemListAppend (acl);
         if (formal->reg)
         {
-            InReg (&n->item, formal->reg);
+            InReg (&n->item, formal->reg, formal->ty);
         }
         else
         {
@@ -122,6 +135,7 @@ CG_frame CG_globalFrame (void)
 void CG_ConstItem (CG_item *item, Ty_const c)
 {
     item->kind = IK_const;
+    item->ty   = c->ty;
     item->u.c  = c;
 }
 
@@ -228,7 +242,7 @@ void CG_OneItem (CG_item *item, Ty_ty ty)
 void CG_TempItem (CG_item *item, Ty_ty ty)
 {
     Temp_temp t = Temp_Temp (ty);
-    InReg (item, t);
+    InReg (item, t, ty);
 }
 
 void CG_NoneItem (CG_item *item)
@@ -236,9 +250,10 @@ void CG_NoneItem (CG_item *item)
     item->kind = IK_none;
 }
 
-static void CG_CondItem (CG_item *item, Temp_label l, AS_instr bxx, bool postCond)
+static void CG_CondItem (CG_item *item, Temp_label l, AS_instr bxx, bool postCond, Ty_ty ty)
 {
     item->kind             = IK_cond;
+    item->ty               = ty;
     item->u.condR.l        = l;
     item->u.condR.fixUps   = AS_InstrList(); AS_instrListAppend (item->u.condR.fixUps, bxx);
     item->u.condR.postCond = postCond;
@@ -341,17 +356,12 @@ Ty_ty CG_ty(CG_item *item)
             assert(FALSE);
             return NULL;
         case IK_const:
-            return item->u.c->ty;
         case IK_inFrame:
-            return item->u.inFrameR.ty;
         case IK_inReg:
-            return Temp_ty(item->u.inReg);
         case IK_inHeap:
-            return item->u.inFrameR.ty;
         case IK_cond:
-            return Ty_Bool();
         case IK_varPtr:
-            return Temp_ty(item->u.varPtr);
+            return item->ty;
     }
     assert(FALSE);
     return Ty_Void();
@@ -599,7 +609,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     if (returnVar)
     {
         CG_item d0Item;
-        InReg (&d0Item, AS_regs[AS_TEMP_D0]);
+        InReg (&d0Item, AS_regs[AS_TEMP_D0], CG_ty(returnVar));
         CG_transAssignment (body, pos, &d0Item, returnVar);    // d0 := returnVar
     }
 
@@ -719,7 +729,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
 
             AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, AS_tySize(ty), NULL,                      //     move.x o(fp), t
                                                   t, NULL, CG_itemOffset(item), NULL));
-            InReg (item, t);
+            InReg (item, t, ty);
             break;
         }
 
@@ -730,7 +740,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
 
             AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Label_AnDn, AS_tySize(ty), NULL,                    //     move.x l, t
                                                   t, NULL, 0, item->u.inHeap.l));
-            InReg (item, t);
+            InReg (item, t, ty);
             break;
         }
 
@@ -741,7 +751,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
 
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x #item, t
                                                  t, item->u.c, 0, NULL));
-            InReg (item, t);
+            InReg (item, t, ty);
             break;
         }
 
@@ -758,7 +768,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x !postCond, t
                                                  t, Ty_ConstBool(ty, !item->u.condR.postCond), 0, NULL));
             CG_transLabel (code, pos, lFini);                                                                     // lFini:
-            InReg (item, t);
+            InReg (item, t, ty);
             break;
         }
 
@@ -794,7 +804,7 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
 
             AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_ILabel_AnDn, AS_w_L, NULL,                            //     move.l #l, t
                                                   t, NULL, 0, item->u.inHeap.l));
-            VarPtr (item, t);
+            VarPtr (item, t, ty);
             break;
         }
 
@@ -807,6 +817,17 @@ void CG_loadCond (AS_instrList code, S_pos pos, CG_item *item)
 {
     switch (item->kind)
     {
+        case IK_const:
+        {
+            bool c = CG_getConstBool (item);
+            Temp_label l = Temp_newlabel();
+            item->kind = IK_cond;
+            item->ty   = Ty_Bool();
+            item->u.condR.l = l;
+            item->u.condR.fixUps = AS_InstrList();
+            item->u.condR.postCond = c;
+            break;
+        }
         case IK_cond:
             break;
 
@@ -907,8 +928,47 @@ static void emitBinOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item 
     munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/FALSE);
 
     CG_item d0Item;
-    InReg (&d0Item, AS_regs[AS_TEMP_D0]);
+    InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
     CG_transAssignment (code, pos, left, &d0Item);
+}
+
+/*
+ * emit a subroutine call passing arguments in processor registers
+ *
+ * lvo != 0 -> amiga library call, i.e. jsr lvo(strName)
+ * lvo == 0 -> subroutine call jsr strName
+ */
+
+static void emitRegCall(AS_instrList code, S_pos pos, string strName, int lvo, CG_ral ral, Ty_ty resty, CG_item *res)
+{
+    // move args into their associated registers:
+
+    Temp_tempSet argTempSet = NULL;
+    bool bAdded;
+    for (;ral;ral = ral->next)
+    {
+        AS_instrListAppend (code, AS_Instr(pos, AS_MOVE_AnDn_AnDn, AS_w_L, ral->arg, ral->reg));                    // move.l   arg, reg
+        argTempSet = Temp_tempSetAdd (argTempSet, ral->reg, &bAdded);
+    }
+
+    if (lvo)
+    {
+        // amiga lib call, library base in a6 per spec
+        AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Label_AnDn, AS_w_L, NULL, AS_regs[AS_TEMP_A6],           // move.l  libBase, a6
+                                              0, 0, Temp_namedlabel(strName)));
+        AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_RAn, AS_w_NONE, AS_regs[AS_TEMP_A6], NULL,                // jsr     lvo(a6)
+                                              0, lvo, NULL, AS_callersaves(), argTempSet));
+    }
+    else
+    {
+        // subroutine call
+        AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL,                             // jsr     name
+                                              0, 0, Temp_namedlabel(strName), AS_callersaves(), argTempSet));
+    }
+
+    CG_TempItem(res, resty);
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_MOVE_AnDn_AnDn, AS_w_L, AS_regs[AS_TEMP_D0], res->u.inReg,        // move.l RV, r
+                                          NULL, 0, NULL, NULL, AS_callersaves()));
 }
 
 // result in left!
@@ -1222,6 +1282,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                 case CG_not:                                            // NOT c
                     switch (ty->kind)
                     {
+                        case Ty_bool:
+                            CG_BoolItem(left, !CG_getConstBool(left), ty);
+                            break;
+
                         case Ty_integer:
                         case Ty_long:
                             CG_IntItem(left, ~left->u.c->u.i, ty);
@@ -1655,12 +1719,33 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
     }
 }
 
+// result in left!
 void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG_item *right)
 {
     Ty_ty ty = CG_ty(left);
     switch (left->kind)
     {
         case IK_const:
+            if (right->kind == IK_const)          // c1 <ro> c2
+            {
+                switch (ty->kind)
+                {
+                    case Ty_integer:
+                        switch (ro)
+                        {
+                            case CG_eq: CG_BoolItem (left, left->u.c->u.i == right->u.c->u.i, Ty_Bool()); return;
+                            case CG_ne: CG_BoolItem (left, left->u.c->u.i != right->u.c->u.i, Ty_Bool()); return;
+                            case CG_lt: CG_BoolItem (left, left->u.c->u.i <  right->u.c->u.i, Ty_Bool()); return;
+                            case CG_gt: CG_BoolItem (left, left->u.c->u.i >  right->u.c->u.i, Ty_Bool()); return;
+                            case CG_le: CG_BoolItem (left, left->u.c->u.i <= right->u.c->u.i, Ty_Bool()); return;
+                            case CG_ge: CG_BoolItem (left, left->u.c->u.i >= right->u.c->u.i, Ty_Bool()); return;
+                        }
+                        break;
+                    default:
+                        assert(FALSE);
+                }
+            }
+            // fall through
         case IK_inReg:
         case IK_inFrame:
         case IK_inHeap:
@@ -1683,7 +1768,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                         AS_instr bxx = AS_InstrEx (pos, AS_BEQ, AS_w_NONE, NULL, NULL, NULL, 0, l);               //     beq    l
                         AS_instrListAppend (code, bxx);
 
-                        CG_CondItem (left, l, bxx, /*postCond=*/ TRUE);
+                        CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
                         return;
                     }
 
@@ -1693,7 +1778,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     AS_instr bxx = AS_InstrEx (pos, relOp2mn(relNegated(ro)), AS_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
                     AS_instrListAppend (code, bxx);
 
-                    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE);
+                    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
                     break;
                 }
                 default:
@@ -1950,7 +2035,7 @@ void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args,
         if (result)
         {
             CG_item d0Item;
-            InReg (&d0Item, AS_regs[AS_TEMP_D0]);
+            InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
             CG_transAssignment (code, pos, result, &d0Item);
         }
     }
@@ -2031,6 +2116,17 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Label_AnDn, w, NULL, left->u.inReg,                // move.x right.l, left.t
                                                           NULL, 0, right->u.inHeap.l));
                     break;
+                case IK_inHeap:
+                {
+                    // FIXME: move.x right.l, left.l
+                    CG_item temp;
+                    CG_TempItem (&temp, ty);
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Label_AnDn, w, NULL, temp.u.inReg,                 // move.x right.l, temp
+                                                          NULL, 0, right->u.inHeap.l));
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Label, w, temp.u.inReg, NULL,                 // move.x temp, left.l
+                                                          NULL, 0, left->u.inHeap.l));
+                    break;
+                }
                 default:
                     assert(FALSE);
             }
@@ -2144,7 +2240,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
     {
         switch (from_ty->kind)
         {
-            case Ty_bool:
+            case Ty_bool:               // bool ->
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
@@ -2157,6 +2253,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                     {
                         CG_loadVal (code, pos, item);
                         AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_W, NULL, item->u.inReg));        //     ext.w   t
+                        item->ty = to_ty;
                         break;
                     }
                     case Ty_uinteger:
@@ -2173,14 +2270,35 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 }
                 break;
 
+            case Ty_long:               // long ->
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
+                    case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_pointer:
+                        CG_loadVal (code, pos, item);
+                        item->ty = to_ty;
+                        break;
+                    case Ty_single:
+                    case Ty_double:
+                        assert(FALSE); // FIXME
+                        break;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+
             case Ty_byte:
             case Ty_ubyte:
             case Ty_integer:
             case Ty_uinteger:
-            case Ty_long:
             case Ty_ulong:
-            case Ty_single:
-            case Ty_double:
                 if (from_ty->kind == to_ty->kind)
                     return;
                 switch (to_ty->kind)
@@ -2205,6 +2323,26 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         assert(0);
                 }
                 break;
+
+            case Ty_single:             // single ->
+                if (from_ty->kind == to_ty->kind)
+                    return;
+                switch (to_ty->kind)
+                {
+                    case Ty_integer:
+                        CG_loadVal (code, pos, item);
+                        emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        break;
+
+                    default:
+                        assert(FALSE); // FIXME
+                }
+                break;
+
+            case Ty_double:
+                assert(FALSE);
+                break;
+
             case Ty_sarray:
             case Ty_pointer:
             case Ty_procPtr:

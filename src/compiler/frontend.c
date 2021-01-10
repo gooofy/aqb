@@ -1824,7 +1824,7 @@ static bool negNotExpression(S_tkn *tkn, CG_item *exp)
                 if (!relExpression(tkn, exp))
                     return FALSE;
 
-                if (CG_ty (exp)->kind == Ty_bool)
+                if ((CG_ty (exp)->kind == Ty_bool) && ! CG_isConst(exp))
                     CG_loadCond (g_sleStack->code, pos, exp);
 
                 if (exp->kind == IK_cond)
