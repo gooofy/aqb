@@ -833,6 +833,84 @@ static bool isConstZero (CG_item *item)
     return !CG_getConstBool (item);
 }
 
+static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
+{
+    if (!args)
+        return 0;
+
+    int cnt = 0;
+
+    for (CG_itemListNode n = args->first; n; n=n->next)
+    {
+        // apparently, gcc pushes 4 bytes regardless of actual operand size
+        CG_item *e = &n->item;
+        if (e->kind == IK_const)
+        {
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.c, 0, NULL));      // move.l  #const, -(sp)
+        }
+        else
+        {
+            if (e->kind == IK_inReg)
+            {
+                Ty_ty ty = CG_ty (e);
+                if (Ty_size(ty)==1)
+                    AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL, e->u.inReg,               // and.l   #255, r
+                                                        Ty_ConstUInt(Ty_ULong(), 255), 0, NULL));
+            }
+            else
+            {
+                assert (e->kind == IK_varPtr); // BYREF arg
+            }
+            AS_instrListAppend(code,AS_Instr(pos, AS_MOVE_AnDn_PDsp, AS_w_L, e->u.inReg, NULL));                    // move.l  r, -(sp)
+        }
+
+        cnt++;
+    }
+
+    return cnt;
+}
+
+static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt, bool sink_callersaves)
+{
+    if (cnt)
+    {
+        AS_instrListAppend(code, AS_InstrEx2 (pos, AS_ADD_Imm_sp, AS_w_L, NULL,                            // add.l #(cnt*F_wordSize), sp
+                                              NULL, Ty_ConstUInt(Ty_ULong(), cnt * AS_WORD_SIZE), 0, NULL,
+                                              NULL, AS_callersaves()));
+    }
+    else
+    {
+        if (sink_callersaves)
+        {
+            AS_instrListAppend(code, AS_InstrEx2 (pos, AS_NOP, AS_w_NONE, NULL,                           // nop
+                                                  NULL, 0, 0, NULL, NULL, AS_callersaves()));
+        }
+    }
+}
+
+/* emit a binary op that requires calling a subroutine */
+static void emitBinOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item *left, CG_item *right, Ty_ty ty)
+{
+    CG_itemListNode iln;
+
+    CG_itemList args = CG_ItemList();
+
+    CG_loadVal (code, pos, left);
+    CG_loadVal (code, pos, right);
+    iln = CG_itemListAppend (args); iln->item = *right;
+    iln = CG_itemListAppend (args); iln->item = *left;
+
+    int arg_cnt = munchArgsStack(pos, code, 0, args);
+    Temp_label l = Temp_namedlabel(sub_name);
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l,         // jsr   sub_name
+                                          AS_callersaves(), NULL));
+    munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/FALSE);
+
+    CG_item d0Item;
+    InReg (&d0Item, AS_regs[AS_TEMP_D0]);
+    CG_transAssignment (code, pos, left, &d0Item);
+}
+
 // result in left!
 void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty)
 {
@@ -1053,6 +1131,16 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_power:                                           // c ^ ?
+                    switch (ty->kind)
+                    {
+                        case Ty_integer:
+                            emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                            return;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
 
                 case CG_neg:                                           // -c
                     switch (ty->kind)
@@ -1295,6 +1383,59 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
                             AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
                             break;
+                        default:
+                            assert(FALSE);
+                    }
+                    break;
+
+                case CG_power:                                          // v ^ ?
+                    switch (right->kind)
+                    {
+                        case IK_const:                                  // v ^ c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                case Ty_long:
+                                {
+                                    int c = CG_getConstInt (right);
+
+                                    switch (c)
+                                    {
+                                        case 0:                         // v ^ 0 = 1
+                                            CG_OneItem (left, ty);
+                                            return;
+                                        case 1:                         // v ^ 1 = 1
+                                            return;
+                                        default:
+                                        switch (ty->kind)
+                                        {
+                                            case Ty_integer:
+                                                return emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                            default:
+                                                assert(FALSE);
+                                        }
+                                    }
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
+                        case IK_inFrame:                                // v1 ^ v2
+                        case IK_inReg:
+                        case IK_inHeap:
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                    emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                    return;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
+
                         default:
                             assert(FALSE);
                     }
@@ -1770,87 +1911,6 @@ CG_item CG_transRTS (S_pos pos)
 }
 
 #endif
-
-static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
-{
-    if (!args)
-        return 0;
-
-    int cnt = 0;
-
-    for (CG_itemListNode n = args->first; n; n=n->next)
-    {
-        // apparently, gcc pushes 4 bytes regardless of actual operand size
-        CG_item *e = &n->item;
-        if (e->kind == IK_const)
-        {
-            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.c, 0, NULL));      // move.l  #const, -(sp)
-        }
-        else
-        {
-            if (e->kind == IK_inReg)
-            {
-                Ty_ty ty = CG_ty (e);
-                if (Ty_size(ty)==1)
-                    AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL, e->u.inReg,               // and.l   #255, r
-                                                        Ty_ConstUInt(Ty_ULong(), 255), 0, NULL));
-            }
-            else
-            {
-                assert (e->kind == IK_varPtr); // BYREF arg
-            }
-            AS_instrListAppend(code,AS_Instr(pos, AS_MOVE_AnDn_PDsp, AS_w_L, e->u.inReg, NULL));                    // move.l  r, -(sp)
-        }
-
-        cnt++;
-    }
-
-    return cnt;
-    // FIXME: remove
-#if 0
-
-    if (args == NULL) {
-        return cnt;
-    }
-
-    cnt += munchArgsStack(pos, code, i + 1, args->next);
-
-    // apparently, gcc pushes 4 bytes regardless of actual operand size
-    CG_item *e = &args->item;
-    if (e->kind == IK_const)
-    {
-        AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_PDsp, AS_w_L, NULL, NULL, e->u.c, 0, NULL));      // move.l  #const, -(sp)
-    }
-    else
-    {
-        Ty_ty ty = CG_ty (e);
-        CG_loadVal (code, pos, e);
-        if (Ty_size(ty)==1)
-            AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL, e->u.inReg,                   // and.l   #255, r
-                                                Ty_ConstUInt(Ty_ULong(), 255), 0, NULL));
-        AS_instrListAppend(code,AS_Instr(pos, AS_MOVE_AnDn_PDsp, AS_w_L, e->u.inReg, NULL));                    // move.l  r, -(sp)
-    }
-    return cnt+1;
-#endif
-}
-
-static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt, bool sink_callersaves)
-{
-    if (cnt)
-    {
-        AS_instrListAppend(code, AS_InstrEx2 (pos, AS_ADD_Imm_sp, AS_w_L, NULL,                            // add.l #(cnt*F_wordSize), sp
-                                              NULL, Ty_ConstUInt(Ty_ULong(), cnt * AS_WORD_SIZE), 0, NULL,
-                                              NULL, AS_callersaves()));
-    }
-    else
-    {
-        if (sink_callersaves)
-        {
-            AS_instrListAppend(code, AS_InstrEx2 (pos, AS_NOP, AS_w_NONE, NULL,                           // nop
-                                                  NULL, 0, 0, NULL, NULL, AS_callersaves()));
-        }
-    }
-}
 
 void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args, CG_item *result)
 {

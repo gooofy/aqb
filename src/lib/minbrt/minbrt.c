@@ -30,6 +30,34 @@ struct DOSBase       *DOSBase       = NULL;
 
 //static BOOL autil_init_done = FALSE;
 
+/************************************************************************
+ *
+ * math
+ *
+ ************************************************************************/
+
+short __pow_s2(short base, short exp)
+{
+    short result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+/************************************************************************
+ *
+ * i/o
+ *
+ ************************************************************************/
+
 static BPTR _debug_stdout = 0;
 
 ULONG len_(const char *str)
@@ -151,6 +179,12 @@ void _debug_cls(void)
     if (_debug_stdout)
         Write(_debug_stdout, "\f", 1);
 }
+
+/************************************************************************
+ *
+ * startup / exit
+ *
+ ************************************************************************/
 
 void _aqb_assert (BOOL b, const char *msg)
 {
