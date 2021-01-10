@@ -1117,6 +1117,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_intDiv:
                 case CG_div:                                           // c / ?
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
@@ -1374,6 +1375,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     break;
 
+                case CG_intDiv:
                 case CG_div:                                            // v / ?
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
@@ -1471,181 +1473,6 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
         default:
             assert(FALSE);
     }
-
-#if 0
-    // constant propagation
-    if (CG_isConst(left) && (!right || CG_isConst(right)))
-    {
-        switch (ty->kind)
-        {
-            case Ty_bool:
-            {
-                bool b=0;
-                bool a = CG_getConstBool(left);
-                if (right)
-                    b = CG_getConstBool(right);
-                switch (o)
-                {
-                    case CG_xor   : CG_BoolItem(left, a ^ b, ty);    return;
-                    case CG_eqv   : CG_BoolItem(left, a == b, ty);   return;
-                    case CG_imp   : CG_BoolItem(left, !a || b, ty);  return;
-                    case CG_not   : CG_BoolItem(left, !a, ty);       return;
-                    case CG_and   : CG_BoolItem(left, a && b, ty);   return;
-                    case CG_or    : CG_BoolItem(left, a || b, ty);   return;
-                    default:
-                        EM_error(0, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
-                        assert(0);
-                }
-                break;
-            }
-            case Ty_byte:
-            case Ty_ubyte:
-            case Ty_integer:
-            case Ty_uinteger:
-            case Ty_long:
-            case Ty_ulong:
-            {
-                int b = 0;
-                int a = CG_getConstInt(left);
-                if (right)
-                    b = CG_getConstInt(right);
-                switch (o)
-                {
-                    case CG_plus  : CG_IntItem(left, a+b, ty);            return;
-                    case CG_minus : CG_IntItem(left, a-b, ty);            return;
-                    case CG_mul   : CG_IntItem(left, a*b, ty);            return;
-                    case CG_div   : CG_IntItem(left, a/b, ty);            return;
-                    case CG_xor   : CG_IntItem(left, a^b, ty);            return;
-                    case CG_eqv   : CG_IntItem(left, ~(a^b), ty);         return;
-                    case CG_imp   : CG_IntItem(left, ~a|b, ty);           return;
-                    case CG_neg   : CG_IntItem(left, -a, ty);             return;
-                    case CG_not   : CG_IntItem(left, ~a, ty);             return;
-                    case CG_and   : CG_IntItem(left, a&b, ty);            return;
-                    case CG_or    : CG_IntItem(left, a|b, ty);            return;
-                    case CG_power : CG_IntItem(left, ipow (a, b), ty);    return;
-                    case CG_intDiv: CG_IntItem(left, a/b, ty);            return;
-                    case CG_mod   : CG_IntItem(left, a%b, ty);            return;
-                    case CG_shl   : CG_IntItem(left, a << b, ty);         return;
-                    case CG_shr   : CG_IntItem(left, a >> b, ty);         return;
-                    default:
-                        EM_error(pos, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
-                        assert(0);
-                }
-                break;
-            }
-            case Ty_single:
-            case Ty_double:
-            {
-                double b=0.0;
-                double a = CG_getConstFloat(left);
-                if (right)
-                    b = CG_getConstFloat(right);
-                switch (o)
-                {
-                    case CG_plus  : CG_FloatItem(left, a+b, ty);                              return;
-                    case CG_minus : CG_FloatItem(left, a-b, ty);                              return;
-                    case CG_mul   : CG_FloatItem(left, a*b, ty);                              return;
-                    case CG_div   : CG_FloatItem(left, a/b, ty);                              return;
-                    case CG_xor   : CG_FloatItem(left, (a!=0.0) % (b!=0.0), ty);              return;
-                    case CG_eqv   : CG_FloatItem(left, ~((int)roundf(a)^(int)roundf(b)), ty); return;
-                    case CG_imp   : CG_FloatItem(left, ~(int)roundf(a)|(int)roundf(b), ty);   return;
-                    case CG_neg   : CG_FloatItem(left, -a, ty);                               return;
-                    case CG_not   : CG_FloatItem(left, ~(int)roundf(a), ty);                  return;
-                    case CG_and   : CG_FloatItem(left, (int)roundf(a)&(int)roundf(b), ty);    return;
-                    case CG_or    : CG_FloatItem(left, (int)roundf(a)&(int)roundf(b), ty);    return;
-                    case CG_power : CG_FloatItem(left, pow(a, b), ty);                        return;
-                    case CG_intDiv: CG_FloatItem(left, (int)a/(int)b, ty);                    return;
-                    case CG_mod   : CG_FloatItem(left, fmod(a, b), ty);                       return;
-                    case CG_shl   : CG_FloatItem(left, (int)a << (int)b, ty);                 return;
-                    case CG_shr   : CG_FloatItem(left, (int)a >> (int)b, ty);                 return;
-                    default:
-                        EM_error(pos, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
-                        assert(0);
-                }
-                break;
-            }
-            default:
-                EM_error(pos, "*** codegen.c: Tr_binOpExp: internal error: unknown type kind %d", ty->kind);
-                assert(0);
-        }
-    }
-#endif
-
-#if 0
-    if ( left->kind == Tr_cx || ( right && (right->kind == Tr_cx)) )
-    {
-        struct Cx leftcx = unCx(pos, left);
-
-        switch (o)
-        {
-            case CG_not:
-                // simply switch true and false around
-                return Tr_Cx(leftcx.falses, leftcx.trues, leftcx.stm);
-
-            case CG_or:
-            {
-                Temp_label z = Temp_newlabel();
-                struct Cx rightcx = unCx(pos, right);
-
-                CG_stm s1 = CG_Seq(pos, leftcx.stm,
-                            CG_Seq(pos, CG_Label(pos, z),
-                             rightcx.stm));
-                doPatch(leftcx.falses, z);
-                return Tr_Cx(joinPatch(leftcx.trues, rightcx.trues), rightcx.falses, s1);
-            }
-
-            case CG_and:
-            {
-                Temp_label z = Temp_newlabel();
-                struct Cx rightcx = unCx(pos, right);
-
-                CG_stm s1 = CG_Seq(pos, leftcx.stm,
-                            CG_Seq(pos, CG_Label(pos, z),
-                             rightcx.stm));
-                doPatch(leftcx.trues, z);
-                return Tr_Cx(rightcx.trues, joinPatch(leftcx.falses, rightcx.falses), s1);
-            }
-
-            default:
-                // generic case, handled below
-                break;
-        }
-    }
-    CG_binOp op;
-    switch (o)
-    {
-        case CG_plus:
-
-            // x + 0 == x
-            if (CG_isConst(left) && (CG_getConstInt(left)==0))
-                return Tr_castExp(pos, right, Tr_ty(right), ty);
-            if (CG_isConst(right) && (CG_getConstInt(right)==0))
-                return Tr_castExp(pos, left, Tr_ty(left), ty);
-
-            op = CG_plus;
-            break;
-        case CG_minus   : op = CG_minus;    break;
-        case CG_mul   : op = CG_mul;      break;
-        case CG_div   : op = CG_div;      break;
-        case CG_xor   : op = CG_xor;      break;
-        case CG_eqv   : op = CG_eqv;      break;
-        case CG_imp   : op = CG_imp;      break;
-        case CG_neg   : op = CG_neg;      break;
-        case CG_not   : op = CG_not;      break;
-        case CG_and   : op = CG_and;      break;
-        case CG_or    : op = CG_or;       break;
-        case CG_power   : op = CG_power;    break;
-        case CG_intDiv: op = CG_intDiv;   break;
-        case CG_mod   : op = CG_mod;      break;
-        case CG_shl   : op = CG_shl;      break;
-        case CG_shr   : op = CG_shr;      break;
-        default:
-            EM_error(pos, "*** codegen.c: internal error: unhandled arithmetic operation: %d", o);
-            assert(0);
-    }
-
-    return Tr_Ex(CG_Binop(pos, op, unEx(pos, left), unEx(pos, right), ty));
-#endif
 }
 
 void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG_item *right)
