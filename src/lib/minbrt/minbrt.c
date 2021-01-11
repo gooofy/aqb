@@ -38,6 +38,28 @@ struct MathTransBase *MathTransBase = NULL;
  *
  ************************************************************************/
 
+/*
+ * __pow_s4 / __pow_s2
+ *
+ * source: stackoverflow
+ */
+
+int __pow_s4(int base, int exp)
+{
+    int result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
 short __pow_s2(short base, short exp)
 {
     short result = 1;
