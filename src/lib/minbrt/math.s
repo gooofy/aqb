@@ -105,3 +105,32 @@ ___udivsi4:    MOVE.L    d3, -(sp)
                MOVE.L    (sp)+, d3
                RTS
 
+
+; source: libnix
+; license: public domain
+
+        XDEF ___mulsi3
+        XDEF ___mulsi4
+
+; D0 = D0 * D1
+
+___mulsi3:	    MOVEM.L	4(sp), d0/d1
+___mulsi4:      MOVE.L	d3,-(sp)
+		        MOVE.L	d2,-(sp)
+		        MOVE.W	d1, d2
+		        MULU	d0, d2
+		        MOVE.L	d1, d3
+		        SWAP	d3
+		        MULU	d0, d3
+		        SWAP	d3
+		        CLR.W	d3
+		        ADD.L	d3, d2
+		        SWAP	d0
+		        MULU	d1, d0
+		        SWAP	d0
+		        CLR.W	d0
+		        ADD.L	d2, d0
+		        MOVE.L	(sp)+,d2
+		        MOVE.L	(sp)+,d3
+		        RTS
+
