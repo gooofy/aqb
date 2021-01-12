@@ -1381,6 +1381,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
+                                case Ty_byte:
                                 case Ty_integer:
                                 case Ty_long:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
@@ -1430,6 +1431,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
+                                case Ty_byte:
                                 case Ty_integer:
                                 case Ty_long:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
@@ -1547,6 +1549,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
+                                case Ty_byte:
+                                    emitBinOpJsr (code, pos, "___mul_s1", left, right, ty);
+                                    break;
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_MULS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // muls.x right, left
                                     break;
@@ -1571,6 +1576,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
+                            emitBinOpJsr (code, pos, "___div_s1", left, right, ty);
+                            break;
                         case Ty_integer:
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
                             AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
@@ -1589,6 +1597,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
+                            emitBinOpJsr (code, pos, "___mod_s1", left, right, ty);
+                            break;
                         case Ty_integer:
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
                             AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
@@ -1665,6 +1676,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
@@ -1679,6 +1691,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
@@ -1692,6 +1705,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, left);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_NEG_Dn, w, NULL, left->u.inReg));    // neg.x  left
@@ -1796,6 +1810,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
             switch (ty->kind)
             {
                 case Ty_bool:
+                case Ty_byte:
                 case Ty_integer:
                 case Ty_long:
                 {
@@ -2315,6 +2330,39 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 }
                 break;
 
+            case Ty_byte:               // byte ->
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
+                        CG_loadVal (code, pos, item);
+                        item->ty = to_ty;
+                        break;
+                    case Ty_integer:
+                    case Ty_uinteger:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_W, NULL, item->u.inReg));        //     ext.w   t
+                        item->ty = to_ty;
+                        break;
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_pointer:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_W, NULL, item->u.inReg));        //     ext.w   t
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, item->u.inReg));        //     ext.l   t
+                        item->ty = to_ty;
+                        break;
+                    case Ty_single:
+                    case Ty_double:
+                        assert(FALSE); // FIXME
+                        break;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+
             case Ty_integer:            // integer ->
                 switch (to_ty->kind)
                 {
@@ -2343,8 +2391,37 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 }
                 break;
 
+            case Ty_uinteger:           // uinteger ->
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
+                    case Ty_integer:
+                    case Ty_uinteger:
+                        CG_loadVal (code, pos, item);
+                        item->ty = to_ty;
+                        break;
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_pointer:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, AS_w_L, NULL,           // and.l  #65535, t
+                                                            item->u.inReg, Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
+                        item->ty = to_ty;
+                        break;
+                    case Ty_single:
+                    case Ty_double:
+                        assert(FALSE); // FIXME
+                        break;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
 
             case Ty_long:               // long ->
+            case Ty_ulong:              // ulong ->
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
@@ -2368,33 +2445,8 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 }
                 break;
 
-            case Ty_byte:
             case Ty_ubyte:
-            case Ty_uinteger:
-            case Ty_ulong:
-                if (from_ty->kind == to_ty->kind)
-                    return;
-                switch (to_ty->kind)
-                {
-                    case Ty_bool:
-                        CG_loadCond (code, pos, item);
-                        break;
-
-                    case Ty_byte:
-                    case Ty_ubyte:
-                    case Ty_integer:
-                    case Ty_uinteger:
-                    case Ty_long:
-                    case Ty_ulong:
-                    case Ty_single:
-                    case Ty_double:
-                    case Ty_pointer:
-                        assert(FALSE); // FIXME
-                        // return CG_Ex(T_Cast(pos, unEx(pos, item), from_ty, to_ty));
-                    default:
-                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
-                        assert(0);
-                }
+                assert(FALSE); // FIXME
                 break;
 
             case Ty_single:             // single ->
@@ -2402,6 +2454,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                     return;
                 switch (to_ty->kind)
                 {
+                    case Ty_byte:
                     case Ty_integer:
                     case Ty_long:
                         CG_loadVal (code, pos, item);
