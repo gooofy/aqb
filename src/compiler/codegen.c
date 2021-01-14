@@ -1843,6 +1843,31 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG_item *right)
 {
     Ty_ty ty = CG_ty(left);
+
+    // (b AND FALSE) = FALSE  optimization
+    if ( (left->kind == IK_cond) && (right->kind == IK_const) )
+    {
+        Ty_ty tyr = CG_ty(right);
+        assert (tyr->kind == Ty_bool);
+        bool b = right->u.c->u.b;
+        if (ro == CG_eq)
+        {
+            if (!b)
+                left->u.condR.postCond = !left->u.condR.postCond;
+            return;
+        }
+        else
+        {
+            if (ro == CG_ne)
+            {
+                if (b)
+                    left->u.condR.postCond = !left->u.condR.postCond;
+                return;
+            }
+        }
+    }
+
+
     switch (left->kind)
     {
         case IK_const:
@@ -1871,6 +1896,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                 }
             }
             // fall through
+        case IK_cond:
         case IK_inReg:
         case IK_inFrame:
         case IK_inHeap:
@@ -1930,6 +1956,17 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     Temp_label l = Temp_newlabel();
                     AS_instrListAppend (code, AS_Instr (pos, AS_CMP_Dn_Dn, w, right->u.inReg, left->u.inReg));     //     cmp.x  right, left
                     AS_instr bxx = AS_InstrEx (pos, relOp2mnU(relNegated(ro)), AS_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
+                    AS_instrListAppend (code, bxx);
+
+                    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
+                    break;
+                }
+                case Ty_single:
+                {
+                    CG_loadVal (code, pos, right);
+                    Temp_label l = Temp_newlabel();
+                    emitRegCall (code, pos, "_MathBase", LVOSPCmp, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                    AS_instr bxx = AS_InstrEx (pos, relOp2mnS(relNegated(ro)), AS_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
                     AS_instrListAppend (code, bxx);
 
                     CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
@@ -2309,9 +2346,15 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, item->u.inReg));    //     ext.l   t
                         item->ty = to_ty;
                         break;
+                    case Ty_single:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_W, NULL, item->u.inReg));    //     ext.w   t
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, item->u.inReg));    //     ext.l   t
+                        emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        item->ty = to_ty;
+                        break;
                     case Ty_uinteger:
                     case Ty_ulong:
-                    case Ty_single:
                     case Ty_double:
                     case Ty_pointer:
                         assert(FALSE); // FIXME
@@ -2476,6 +2519,12 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                     return;
                 switch (to_ty->kind)
                 {
+                    case Ty_bool:
+                        CG_loadVal (code, pos, item);
+                        emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        AS_instrListAppend(code, AS_Instr(pos, AS_TST_Dn, AS_w_L, item->u.inReg, NULL));    // tst.l r
+                        AS_instrListAppend(code, AS_Instr(pos, AS_SNE_Dn, AS_w_B, NULL, item->u.inReg));    // sne.b r
+                        break;
                     case Ty_byte:
                     case Ty_ubyte:
                     case Ty_integer:

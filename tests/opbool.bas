@@ -1,5 +1,5 @@
 
-DIM a, b AS boolean
+DIM AS BOOLEAN a, b
 
 a = TRUE
 b = FALSE
