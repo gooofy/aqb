@@ -41,7 +41,7 @@ ASSERT ( b& SHR  3) =    5
 
 ' test ADD optimizations
 
-ASSERT 23 + 42 = 65
+ASSERT ( 100000  +  200000 ) = 300000
 
 ASSERT b& + 0  =   42   : REM identity
 ASSERT b& + 1  =   43   : REM ADDQ

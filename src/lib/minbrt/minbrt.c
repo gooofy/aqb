@@ -44,9 +44,25 @@ struct MathTransBase *MathTransBase = NULL;
  * source: stackoverflow
  */
 
-int __pow_s4(int base, int exp)
+int32_t __pow_s4(int32_t base, int32_t exp)
 {
-    int result = 1;
+    int32_t result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+uint32_t __pow_u4(uint32_t base, uint32_t exp)
+{
+    uint32_t result = 1;
     for (;;)
     {
         if (exp & 1)

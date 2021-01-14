@@ -1012,6 +1012,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_long:
                                     CG_IntItem(left, left->u.c->u.i+right->u.c->u.i, ty);
                                     break;
                                 default:
@@ -1028,6 +1029,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             {
                                 case Ty_integer:
                                 case Ty_long:
+                                case Ty_ulong:
                                 {
                                     int c = CG_getConstInt (left);
                                     if ( (c>0) && (c<=8) )
@@ -1074,6 +1076,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             {
                                 case Ty_integer:
                                 case Ty_long:
+                                case Ty_ulong:
                                 {
                                     if (isConstZero(left))              // 0 - v = -v
                                     {
@@ -1109,6 +1112,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_integer:
                         case Ty_long:
+                        case Ty_ulong:
                         {
                             int c = CG_getConstInt (left);
                             switch (c)
@@ -1183,6 +1187,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     *left = *right;
                                     break;
                                 case Ty_long:
+                                case Ty_ulong:
                                     CG_loadVal (code, pos, left);
                                     emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                               CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
@@ -1209,6 +1214,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
                             break;
                         case Ty_long:
+                        case Ty_ulong:
                             emitRegCall (code, pos, "___divsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
@@ -1228,6 +1234,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_SWAP_Dn, w, NULL, left->u.inReg));                 // swap.x left
                             break;
                         case Ty_long:
+                        case Ty_ulong:
                             emitRegCall (code, pos, "___modsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
@@ -1241,9 +1248,15 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
+                            break;
+                        case Ty_ubyte:
+                        case Ty_uinteger:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                             break;
                         default:
                             assert(FALSE);
@@ -1255,9 +1268,15 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
                     {
+                        case Ty_byte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
+                            break;
+                        case Ty_ubyte:
+                        case Ty_uinteger:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                             break;
                         default:
                             assert(FALSE);
@@ -1272,6 +1291,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             return;
                         case Ty_long:
                             emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);
+                            return;
+                        case Ty_ulong:
+                            emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
                             return;
                         default:
                             assert(FALSE);
@@ -1401,6 +1423,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
+                                case Ty_ulong:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
                                     break;
                                 default:
@@ -1452,6 +1475,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
+                                case Ty_ulong:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
                                     break;
                                 default:
@@ -1577,6 +1601,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_MULU_Dn_Dn, w, right->u.inReg, left->u.inReg));    // mulu.x right, left
                                     break;
                                 case Ty_long:
+                                case Ty_ulong:
                                     emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                               CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     break;
@@ -1609,6 +1634,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_DIVU_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divu.x right, left
                             break;
                         case Ty_long:
+                        case Ty_ulong:
                             emitRegCall (code, pos, "___divsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
@@ -1636,6 +1662,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_SWAP_Dn, w, NULL, left->u.inReg));                 // swap.x left
                             break;
                         case Ty_long:
+                        case Ty_ulong:
                             emitRegCall (code, pos, "___modsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
@@ -1712,6 +1739,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
                             break;
                         case Ty_uinteger:
+                        case Ty_ulong:
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                             break;
                         default:
@@ -1730,6 +1758,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
                             break;
                         case Ty_uinteger:
+                        case Ty_ulong:
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                             break;
                         default:
@@ -1821,8 +1850,12 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
             {
                 switch (ty->kind)
                 {
+                    case Ty_byte:
+                    case Ty_ubyte:
                     case Ty_integer:
+                    case Ty_uinteger:
                     case Ty_long:
+                    case Ty_ulong:
                         switch (ro)
                         {
                             case CG_eq: CG_BoolItem (left, left->u.c->u.i == right->u.c->u.i, Ty_Bool()); return;
@@ -1874,7 +1907,9 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
                     break;
                 }
+
                 case Ty_uinteger:
+                case Ty_ulong:
                 {
                     enum AS_w w = AS_tySize(ty);
 
@@ -2442,9 +2477,11 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 switch (to_ty->kind)
                 {
                     case Ty_byte:
+                    case Ty_ubyte:
                     case Ty_integer:
                     case Ty_uinteger:
                     case Ty_long:
+                    case Ty_ulong:
                         CG_loadVal (code, pos, item);
                         emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
                         break;
