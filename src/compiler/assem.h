@@ -52,10 +52,10 @@ enum AS_mn
     AS_BGT,             //  14 bgt     label
     AS_BLE,             //  15 ble     label
     AS_BGE,             //  16 bge     label
-    AS_BCS,             //  16 bcs     label
-    AS_BHI,             //  17 bhi     label
-    AS_BLS,             //  18 bls     label
-    AS_BCC,             //  20 bcc     label
+    AS_BLO,             //  17 blo     label
+    AS_BHI,             //  18 bhi     label
+    AS_BLS,             //  19 bls     label
+    AS_BHS,             //  20 bhs     label
 
     AS_BRA,             //  21 bra     label
 

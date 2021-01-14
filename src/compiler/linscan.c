@@ -121,10 +121,10 @@ static bool isJump (enum AS_mn mn)
         case AS_BGT:
         case AS_BLE:
         case AS_BGE:
-        case AS_BCS:
+        case AS_BLO:
         case AS_BHI:
         case AS_BLS:
-        case AS_BCC:
+        case AS_BHS:
         case AS_JMP:
             return TRUE;
         default:

@@ -28,10 +28,10 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_BGT,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BLE,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BGE,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
-    { AS_BCS,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BLO,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BHI,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BLS,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
-    { AS_BCC,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_BHS,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_BRA,              TRUE , TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_CMP_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_DIVS_Dn_Dn,       FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
@@ -586,14 +586,14 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    ble      `l", i, dialect);           break;
         case AS_BGE:
             instrformat(str, "    bge      `l", i, dialect);           break;
-        case AS_BCS:
-            instrformat(str, "    bcs      `l", i, dialect);           break;
+        case AS_BLO:
+            instrformat(str, "    blo      `l", i, dialect);           break;
         case AS_BHI:
             instrformat(str, "    bhi      `l", i, dialect);           break;
         case AS_BLS:
             instrformat(str, "    bls      `l", i, dialect);           break;
-        case AS_BCC:
-            instrformat(str, "    bcc      `l", i, dialect);           break;
+        case AS_BHS:
+            instrformat(str, "    bhs      `l", i, dialect);           break;
         case AS_BRA:
             instrformat(str, "    bra      `l", i, dialect);           break;
         case AS_CMP_Dn_Dn:
