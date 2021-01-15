@@ -41,93 +41,116 @@ ASSERT (      b  \     3.14) =   100.00
 ASSERT (3.14e+2 MOD       a) =        2
 ASSERT (      b MOD    3.14) =        2
 
-'
-'' logical operators
-'' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
-'
-'c = 3! : d = 7!
-'
-'ASSERT ( c XOR d ) =  4
-'ASSERT ( d XOR d ) =  0
-'ASSERT ( d XOR 1 ) =  6
-'
-'ASSERT ( c EQV d ) = -5
-'ASSERT ( d EQV d ) = -1
-'ASSERT ( d EQV 1 ) = -7
-'
-'ASSERT ( c IMP d ) = -1
-'ASSERT ( d IMP d ) = -1
-'ASSERT ( d IMP 1 ) = -7
-'
-'ASSERT ( NOT c   ) = -4
-'ASSERT ( NOT d   ) = -8
-'
-'ASSERT ( c AND d ) =  3
-'ASSERT ( d AND d ) =  7
-'ASSERT ( d AND 1 ) =  1
-'
-'ASSERT ( c OR d  ) =  7
-'ASSERT ( d OR d  ) =  7
-'ASSERT ( d OR 11 ) = 15
-'
-'ASSERT INT(c SHL d) = 384
-'ASSERT INT(b SHR c) = 39
-'
-'ASSERT INT(1! SHL 7!) = 128
-'ASSERT INT(128! SHR 6!) = 2
-'
-'' relational operators
-'
-'ASSERT (a = a)
-'ASSERT NOT( a =  b)
-'ASSERT  a <> b
-'ASSERT NOT( a <> a)
-'ASSERT  a <  b
-'ASSERT NOT( a <  a)
-'ASSERT NOT( b <  a)
-'ASSERT NOT( a >  b)
-'ASSERT NOT( a >  a)
-'ASSERT  b >  a
-'ASSERT  a <= b
-'ASSERT  a <= a
-'ASSERT NOT( b <= a)
-'ASSERT NOT( a >= b)
-'ASSERT  a >= a
-'ASSERT  b >= a
-'
-'' conversion tests
-'
-'iT1% = 42
-'lT1& = 100000
-'
-'f = iT1%
-'ASSERT f=     42
-'f = iT1% > 23
-'ASSERT f=     -1
-'f = lT1&
-'ASSERT f= 100000
-'
-'' rounding tests (FIXME: some of these are not equivalent to QuickBasic!)
-'
-'' PRINT INT(2.5), CINT(2.5), FIX(2.5)
-'' PRINT INT(-2.5), CINT(-2.5), FIX(-2.5)
-'
-'ASSERT(INT ( 2.5) = 3)
-'ASSERT(CINT( 2.5) = 3)
-'ASSERT(FIX ( 2.5) = 2)
-'
-'ASSERT(INT (-2.5) =-3)
-'ASSERT(CINT(-2.5) =-3)
-'ASSERT(FIX (-2.5) =-2)
-'
-'' PRINT INT(3.5), CINT(3.5), FIX(3.5)
-'' PRINT INT(-3.5), CINT(-3.5), FIX(-3.5)
-'
-'ASSERT(INT ( 3.5) = 4)
-'ASSERT(CINT( 3.5) = 4)
-'ASSERT(FIX ( 3.5) = 3)
-'
-'ASSERT(INT (-3.5) =-4)
-'ASSERT(CINT(-3.5) =-4)
-'ASSERT(FIX (-3.5) =-3)
+' logical operators
+' CG_xor,   CG_eqv,    CG_imp, CG_not, CG_and, CG_or,
+
+c = 3! : d = 7!
+
+ASSERT INT(c SHL d) = 384
+ASSERT INT(b SHR c) = 39
+
+ASSERT INT(3 SHL d) = 384
+ASSERT INT(3.14e+2 SHR c) = 39
+
+ASSERT INT(c SHL 7) = 384
+ASSERT INT(b SHR 3) = 39
+
+ASSERT ( c  XOR  d ) =  4
+ASSERT ( d  XOR  d ) =  0
+ASSERT ( d  XOR 1! ) =  6
+ASSERT ( 3! XOR  d ) =  4
+
+ASSERT ( c  EQV  d ) = -5
+ASSERT ( d  EQV  d ) = -1
+ASSERT ( d  EQV 1! ) = -7
+ASSERT ( 3! EQV  d ) = -5
+
+ASSERT (  c IMP  d ) = -1
+ASSERT (  d IMP  d ) = -1
+ASSERT (  d IMP 1! ) = -7
+ASSERT ( 3! IMP  d ) = -1
+
+ASSERT ( NOT c   ) = -4
+ASSERT ( NOT d   ) = -8
+ASSERT ( NOT 3!  ) = -4
+
+ASSERT (  c AND d  ) =  3
+ASSERT (  d AND d  ) =  7
+ASSERT (  d AND 1! ) =  1
+ASSERT ( 3! AND d  ) =  3
+
+ASSERT (  c OR  d  ) =  7
+ASSERT (  d OR  d  ) =  7
+ASSERT (  d OR 11! ) = 15
+ASSERT ( 3! OR  d  ) =  7
+
+' relational operators
+
+ASSERT (a = a)
+ASSERT NOT( a =  b)
+ASSERT  a <> b
+ASSERT NOT( a <> a)
+ASSERT  a <  b
+ASSERT NOT( a <  a)
+ASSERT NOT( b <  a)
+ASSERT NOT( a >  b)
+ASSERT NOT( a >  a)
+ASSERT  b >  a
+ASSERT  a <= b
+ASSERT  a <= a
+ASSERT NOT( b <= a)
+ASSERT NOT( a >= b)
+ASSERT  a >= a
+ASSERT  b >= a
+
+' relOp constant optimization tests
+
+ASSERT  3! =  3!
+ASSERT NOT (3! =  4!)
+ASSERT  3! <> 4!
+ASSERT NOT (3! <> 3!)
+ASSERT  3! < 4!
+ASSERT NOT (3! < 3!)
+ASSERT  4!  > 3!
+ASSERT NOT (3!  > 3!)
+ASSERT  3! <= 4!
+ASSERT NOT (3! <= 2)
+ASSERT  4! >= 3!
+ASSERT NOT (3! >= 4!)
+
+' conversion tests
+
+iT1% = 42
+lT1& = 100000
+
+f = iT1%
+ASSERT f=     42
+f = iT1% > 23
+ASSERT f=     -1
+f = lT1&
+ASSERT f= 100000
+
+' rounding tests (FIXME: some of these are not equivalent to QuickBasic!)
+
+' PRINT INT(2.5), CINT(2.5), FIX(2.5)
+' PRINT INT(-2.5), CINT(-2.5), FIX(-2.5)
+
+ASSERT(INT ( 2.5) = 3)
+ASSERT(CINT( 2.5) = 3)
+ASSERT(FIX ( 2.5) = 2)
+
+ASSERT(INT (-2.5) =-3)
+ASSERT(CINT(-2.5) =-3)
+ASSERT(FIX (-2.5) =-2)
+
+' PRINT INT(3.5), CINT(3.5), FIX(3.5)
+' PRINT INT(-3.5), CINT(-3.5), FIX(-3.5)
+
+ASSERT(INT ( 3.5) = 4)
+ASSERT(CINT( 3.5) = 4)
+ASSERT(FIX ( 3.5) = 3)
+
+ASSERT(INT (-3.5) =-4)
+ASSERT(CINT(-3.5) =-4)
+ASSERT(FIX (-3.5) =-3)
 

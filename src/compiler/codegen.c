@@ -1277,6 +1277,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_ulong:
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                             break;
+                        case Ty_single:
+                            emitBinOpJsr (code, pos, "___aqb_shl_single", left, right, ty);
+                            break;
                         default:
                             assert(FALSE);
                     }
@@ -1296,6 +1299,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_uinteger:
                         case Ty_ulong:
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
+                            break;
+                        case Ty_single:
+                            emitBinOpJsr (code, pos, "___aqb_shr_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1344,7 +1350,25 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
 
                     break;
 
@@ -1352,16 +1376,54 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_imp:                                            // c IMP ?
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
-                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_not:                                            // NOT c
@@ -1373,9 +1435,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                         case Ty_integer:
                         case Ty_long:
-                            CG_IntItem(left, ~left->u.c->u.i, ty);
+                            CG_IntItem(left, ~CG_getConstInt(left), ty);
                             break;
-                        
+                       
+                        case Ty_single:
+                            CG_FloatItem(left, ~CG_getConstInt(left), ty);
+                            break;
+
                         default:
                             assert(FALSE);
                     }
@@ -1387,7 +1453,25 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
-                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_or:                                             // c | ?
@@ -1399,7 +1483,25 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
-                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 default:
@@ -1827,6 +1929,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_ulong:
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                             break;
+                        case Ty_single:
+                            emitBinOpJsr (code, pos, "___aqb_shl_single", left, right, ty);
+                            break;
                         default:
                             assert(FALSE);
                     }
@@ -1846,6 +1951,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_ulong:
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                             break;
+                        case Ty_single:
+                            emitBinOpJsr (code, pos, "___aqb_shr_single", left, right, ty);
+                            break;
                         default:
                             assert(FALSE);
                     }
@@ -1855,6 +1963,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, left);
                     switch (ty->kind)
                     {
+                        case Ty_bool:
                         case Ty_byte:
                         case Ty_integer:
                         case Ty_long:
@@ -1869,28 +1978,101 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_eqv:                                            // v EQV ?
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_imp:                                            // v IMP ?
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
-                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_not:                                            // !v
                     CG_loadVal (code, pos, left);
-                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
 
                     break;
 
@@ -1902,7 +2084,25 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     }
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
-                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 case CG_or:                                             // v | ?
@@ -1911,7 +2111,25 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
 
-                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
+                    switch (ty->kind)
+                    {
+                        case Ty_bool:
+                        case Ty_byte:
+                        case Ty_integer:
+                        case Ty_uinteger:
+                        case Ty_long:
+                        case Ty_ulong:
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
+                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
+                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
                     break;
 
                 default:
@@ -1974,6 +2192,17 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                             case CG_gt: CG_BoolItem (left, left->u.c->u.i >  right->u.c->u.i, Ty_Bool()); return;
                             case CG_le: CG_BoolItem (left, left->u.c->u.i <= right->u.c->u.i, Ty_Bool()); return;
                             case CG_ge: CG_BoolItem (left, left->u.c->u.i >= right->u.c->u.i, Ty_Bool()); return;
+                        }
+                        break;
+                    case Ty_single:
+                        switch (ro)
+                        {
+                            case CG_eq: CG_BoolItem (left, CG_getConstFloat(left) == CG_getConstFloat(right), Ty_Bool()); return;
+                            case CG_ne: CG_BoolItem (left, CG_getConstFloat(left) != CG_getConstFloat(right), Ty_Bool()); return;
+                            case CG_lt: CG_BoolItem (left, CG_getConstFloat(left) <  CG_getConstFloat(right), Ty_Bool()); return;
+                            case CG_gt: CG_BoolItem (left, CG_getConstFloat(left) >  CG_getConstFloat(right), Ty_Bool()); return;
+                            case CG_le: CG_BoolItem (left, CG_getConstFloat(left) <= CG_getConstFloat(right), Ty_Bool()); return;
+                            case CG_ge: CG_BoolItem (left, CG_getConstFloat(left) >= CG_getConstFloat(right), Ty_Bool()); return;
                         }
                         break;
                     default:
@@ -2051,6 +2280,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     CG_loadVal (code, pos, right);
                     Temp_label l = Temp_newlabel();
                     emitRegCall (code, pos, "_MathBase", LVOSPCmp, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_TST_Dn, AS_w_W, AS_regs[AS_TEMP_D0], NULL));       //     tst.w  d0
                     AS_instr bxx = AS_InstrEx (pos, relOp2mnS(relNegated(ro)), AS_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
                     AS_instrListAppend (code, bxx);
 
@@ -2536,6 +2766,11 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         item->ty = to_ty;
                         break;
                     case Ty_single:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, item->u.inReg));        //     ext.l   t
+                        emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        item->ty = to_ty;
+                        break;
                     case Ty_double:
                         assert(FALSE); // FIXME
                         break;
@@ -2590,6 +2825,10 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         item->ty = to_ty;
                         break;
                     case Ty_single:
+                        CG_loadVal (code, pos, item);
+                        emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        item->ty = to_ty;
+                        break;
                     case Ty_double:
                         assert(FALSE); // FIXME
                         break;
