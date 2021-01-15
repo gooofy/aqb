@@ -19,6 +19,9 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
+#include <clib/mathffp_protos.h>
+#include <inline/mathffp.h>
+
 // #define ENABLE_DEBUG
 #define MAXBUF 40
 
@@ -29,6 +32,8 @@ struct ExecBase      *SysBase       = NULL;
 struct DOSBase       *DOSBase       = NULL;
 struct MathBase      *MathBase      = NULL;
 struct MathTransBase *MathTransBase = NULL;
+
+static FLOAT g_one_half, g_zero;
 
 //static BOOL autil_init_done = FALSE;
 
@@ -76,9 +81,9 @@ uint32_t __pow_u4(uint32_t base, uint32_t exp)
     return result;
 }
 
-short __pow_s2(short base, short exp)
+int16_t __pow_s2(int16_t base, int16_t exp)
 {
-    short result = 1;
+    int16_t result = 1;
     for (;;)
     {
         if (exp & 1)
@@ -90,6 +95,48 @@ short __pow_s2(short base, short exp)
     }
 
     return result;
+}
+
+uint16_t __pow_u2(uint16_t base, uint16_t exp)
+{
+    uint16_t result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+SHORT fix_(FLOAT f)
+{
+    return SPFix(f);
+}
+
+SHORT int_(FLOAT f)
+{
+	if (SPCmp(f, g_zero)<0)
+		return SPFix(SPSub(g_one_half, f));
+    return SPFix(SPAdd(f, g_one_half));
+}
+
+SHORT cint_(FLOAT f)
+{
+	if (SPCmp(f, g_zero)<0)
+		return SPFix(SPSub(g_one_half, f));
+    return SPFix(SPAdd(f, g_one_half));
+}
+
+LONG clng_(FLOAT f)
+{
+	if (SPCmp(f, g_zero)<0)
+		return SPFix(SPSub(g_one_half, f));
+    return SPFix(SPAdd(f, g_one_half));
 }
 
 /************************************************************************
@@ -286,6 +333,9 @@ static void _minbrt_init (void)
 
     if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
         _cshutdown(20, "*** error: failed to open mathtrans.library!\n");
+
+    g_one_half = SPDiv(SPFlt(2), SPFlt(1));
+    g_zero     = SPFlt(0);
 }
 
 

@@ -18,28 +18,28 @@ ASSERT (a  +  c) =   3.1714
 ASSERT (a  -  b) =  -310.86
 ASSERT (a  *  b) =   985.96
 ASSERT (b  /  a) =   100.00
-'ASSERT INT((b^c)*1000.0) =  1198
-'ASSERT (b  \  a) =   100.00
-'ASSERT (b MOD a) =        2
-'
-'' same but using constants
-'
-'ASSERT (      a  +  3.14e+2) =   317.14
-'ASSERT (   3.14  +        b) =   317.14
-'ASSERT (      a  +  3.14e-2) =   3.1714
-'ASSERT (   3.14  +        c) =   3.1714
-'ASSERT (      a  -  3.14e+2) =  -310.86
-'ASSERT (   3.14  -        b) =  -310.86
-'ASSERT (      a  *  3.14e+2) =   985.96
-'ASSERT (   3.14  *        b) =   985.96
-'ASSERT (3.14e+2  /        a) =   100.00
-'ASSERT (      b  /     3.14) =   100.00
-'ASSERT INT((3.14e+2^c)*1000.0) =  1198
-'ASSERT INT((b^3.14e-2)*1000.0) =  1198
-'ASSERT (3.14e+2  \        a) =   100.00
-'ASSERT (      b  \     3.14) =   100.00
-'ASSERT (3.14e+2 MOD       a) =        2
-'ASSERT (      b MOD    3.14) =        2
+ASSERT INT((b^c)*1000.0) =  1198
+ASSERT (b  \  a) =   100.00
+ASSERT (b MOD a) =        2
+
+' same but using constants
+
+ASSERT (      a  +  3.14e+2) =   317.14
+ASSERT (   3.14  +        b) =   317.14
+ASSERT (      a  +  3.14e-2) =   3.1714
+ASSERT (   3.14  +        c) =   3.1714
+ASSERT (      a  -  3.14e+2) =  -310.86
+ASSERT (   3.14  -        b) =  -310.86
+ASSERT (      a  *  3.14e+2) =   985.96
+ASSERT (   3.14  *        b) =   985.96
+ASSERT (3.14e+2  /        a) =   100.00
+ASSERT (      b  /     3.14) =   100.00
+ASSERT INT((3.14e+2^c)*1000.0) =  1198
+ASSERT INT((b^3.14e-2)*1000.0) =  1198
+ASSERT (3.14e+2  \        a) =   100.00
+ASSERT (      b  \     3.14) =   100.00
+ASSERT (3.14e+2 MOD       a) =        2
+ASSERT (      b MOD    3.14) =        2
 
 '
 '' logical operators

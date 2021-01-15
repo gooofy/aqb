@@ -1041,6 +1041,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     *left = *right;
                                     break;
                                 }
+                                case Ty_single:
+                                    CG_loadVal (code, pos, left);
+                                    emitRegCall (code, pos, "_MathBase", LVOSPAdd, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                                    break;
+
                                 default:
                                     assert(FALSE);
                             }
@@ -1090,6 +1095,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                                     break;
                                 }
+                                case Ty_single:
+                                    CG_loadVal (code, pos, left);
+                                    emitRegCall (code, pos, "_MathBase", LVOSPSub, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    break;
                                 default:
                                     assert(FALSE);
                             }
@@ -1198,6 +1207,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             break;
                         }
+                        case Ty_single:
+                            CG_loadVal (code, pos, left);
+                            emitRegCall (code, pos, "_MathBase", LVOSPMul, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                            break;
                         default:
                             assert(FALSE);
                     }
@@ -1218,6 +1231,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             emitRegCall (code, pos, "___divsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPDiv, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                            break;
                         default:
                             assert(FALSE);
                     }
@@ -1237,6 +1253,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_ulong:
                             emitRegCall (code, pos, "___modsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                            break;
+                        case Ty_single:
+                            emitBinOpJsr (code, pos, "___aqb_mod", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1294,6 +1313,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             return;
                         case Ty_ulong:
                             emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
+                            return;
+                        case Ty_single:
+                            CG_loadVal (code, pos, left);
+                            CG_loadVal (code, pos, right);
+                            emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             return;
                         default:
                             assert(FALSE);
@@ -1413,6 +1437,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                                                               right->u.c, 0, NULL));
                                     break;
                                 }
+                                case Ty_single:
+                                    CG_loadVal (code, pos, right);
+                                    emitRegCall (code, pos, "_MathBase", LVOSPAdd, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                                    break;
+
                                 default:
                                     assert(FALSE);
                             }
@@ -1469,6 +1498,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                                                               right->u.c, 0, NULL));
                                     break;
                                 }
+                                case Ty_single:
+                                    CG_loadVal (code, pos, right);
+                                    emitRegCall (code, pos, "_MathBase", LVOSPSub, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    break;
                                 default:
                                     assert(FALSE);
                             }
@@ -1592,6 +1625,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                                     break;
                                 }
+                                case Ty_single:
+                                    CG_loadVal (code, pos, right);
+                                    emitRegCall (code, pos, "_MathBase", LVOSPMul, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                                    break;
                                 default:
                                     assert(FALSE);
                             }
@@ -1686,6 +1723,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             emitRegCall (code, pos, "___modsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
+                        case Ty_single:
+                            emitBinOpJsr (code, pos, "___aqb_mod", left, right, ty);
+                            break;
                         default:
                             assert(FALSE);
                     }
@@ -1725,6 +1765,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     }
                                     break;
                                 }
+                                case Ty_single:
+                                    CG_loadVal (code, pos, left);
+                                    CG_loadVal (code, pos, right);
+                                    emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    return;
                                 default:
                                     assert(FALSE);
                             }
@@ -1752,6 +1797,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     return;
                                 case Ty_ulong:
                                     emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
+                                    return;
+                                case Ty_single:
+                                    CG_loadVal (code, pos, left);
+                                    CG_loadVal (code, pos, right);
+                                    emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     return;
                                 default:
                                     assert(FALSE);
