@@ -1556,6 +1556,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
+                                case Ty_ubyte:
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -1616,6 +1617,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
+                                case Ty_ubyte:
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -1746,6 +1748,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_byte:
                                     emitBinOpJsr (code, pos, "___mul_s1", left, right, ty);
                                     break;
+                                case Ty_ubyte:
+                                    emitBinOpJsr (code, pos, "___mul_u1", left, right, ty);
+                                    break;
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_MULS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // muls.x right, left
                                     break;
@@ -1781,6 +1786,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_byte:
                             emitBinOpJsr (code, pos, "___div_s1", left, right, ty);
                             break;
+                        case Ty_ubyte:
+                            emitBinOpJsr (code, pos, "___div_u1", left, right, ty);
+                            break;
                         case Ty_integer:
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
                             AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
@@ -1809,6 +1817,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_byte:
                             emitBinOpJsr (code, pos, "___mod_s1", left, right, ty);
+                            break;
+                        case Ty_ubyte:
+                            emitBinOpJsr (code, pos, "___mod_u1", left, right, ty);
                             break;
                         case Ty_integer:
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
@@ -1921,6 +1932,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     switch (ty->kind)
                     {
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
@@ -1943,6 +1955,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     switch (ty->kind)
                     {
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_long:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
@@ -1982,6 +1995,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_bool:
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_uinteger:
                         case Ty_long:
@@ -2007,6 +2021,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_bool:
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_uinteger:
                         case Ty_long:
@@ -2034,6 +2049,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_bool:
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_uinteger:
                         case Ty_long:
@@ -2059,6 +2075,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_bool:
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_uinteger:
                         case Ty_long:
@@ -2088,6 +2105,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_bool:
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_uinteger:
                         case Ty_long:
@@ -2115,6 +2133,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     {
                         case Ty_bool:
                         case Ty_byte:
+                        case Ty_ubyte:
                         case Ty_integer:
                         case Ty_uinteger:
                         case Ty_long:
@@ -2248,6 +2267,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     break;
                 }
 
+                case Ty_ubyte:
                 case Ty_uinteger:
                 case Ty_ulong:
                 {
