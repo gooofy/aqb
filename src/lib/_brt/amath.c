@@ -187,9 +187,25 @@ uint32_t __pow_u4(uint32_t base, uint32_t exp)
     return result;
 }
 
-short __pow_s2(short base, short exp)
+int16_t __pow_s2(int16_t base, int16_t exp)
 {
-    short result = 1;
+    int16_t result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+uint16_t __pow_u2(uint16_t base, uint16_t exp)
+{
+    uint16_t result = 1;
     for (;;)
     {
         if (exp & 1)

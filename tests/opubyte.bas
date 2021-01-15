@@ -1,4 +1,4 @@
-DIM AS UBYTE a=23, b=2
+DIM AS UBYTE a=23, b=2, c=3, d=7
 
 ' arithemtic operators
 ' A_addOp, A_subOp,    A_mulOp, A_divOp,
@@ -8,7 +8,7 @@ ASSERT (a  +  b ) =   25
 ASSERT (a  -  b ) =   21
 ASSERT (a  *  b ) =   46
 ASSERT (a  /  b ) =   11
-ASSERT (b  ^  3 ) =    8
+ASSERT (b  ^  c ) =    8
 ASSERT (a  \  b ) =   11
 ASSERT (a MOD b ) =    1
 
@@ -26,7 +26,6 @@ ASSERT (a MOD 2 ) =    1
 ' logical operators
 ' A_xorOp, A_eqvOp, A_impOp, A_notOp, A_andOp, A_orOp
 
-DIM AS UBYTE c=3, d=7
 
 ASSERT ( c XOR d ) =  4
 ASSERT ( d XOR d ) =  0

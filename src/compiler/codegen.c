@@ -1303,8 +1303,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                 case CG_neg:                                           // -c
                     switch (ty->kind)
                     {
+                        case Ty_byte:
+                        case Ty_long:
                         case Ty_integer:
-                            CG_IntItem(left, -left->u.c->u.i, ty);
+                            CG_IntItem(left, -CG_getConstInt(left), ty);
+                            break;
+                        case Ty_single:
+                            CG_FloatItem(left, -CG_getConstFloat(left), ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1426,6 +1431,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_ulong:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
                                     break;
+                                case Ty_single:
+                                    emitRegCall (code, pos, "_MathBase", LVOSPAdd, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
+                                    break;
+
                                 default:
                                     assert(FALSE);
                             }
@@ -1478,6 +1487,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_ulong:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
                                     break;
+                                case Ty_single:
+                                    emitRegCall (code, pos, "_MathBase", LVOSPSub, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    break;
+
                                 default:
                                     assert(FALSE);
                             }
@@ -1605,6 +1618,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                               CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     break;
+                                case Ty_single:
+                                    emitRegCall (code, pos, "_MathBase", LVOSPMul, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    break;
+
                                 default:
                                     assert(FALSE);
                             }
@@ -1637,6 +1654,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_ulong:
                             emitRegCall (code, pos, "___divsi4", 0, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0],
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                            break;
+                        case Ty_single:
+                            emitRegCall (code, pos, "_MathBase", LVOSPDiv, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
                         default:
                             assert(FALSE);
@@ -1715,8 +1735,23 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case IK_inHeap:
                             switch (ty->kind)
                             {
+                                case Ty_byte:
+                                    emitBinOpJsr (code, pos, "___pow_s1", left, right, ty);
+                                    return;
+                                case Ty_ubyte:
+                                    emitBinOpJsr (code, pos, "___pow_u1", left, right, ty);
+                                    return;
                                 case Ty_integer:
                                     emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                    return;
+                                case Ty_uinteger:
+                                    emitBinOpJsr (code, pos, "___pow_u2", left, right, ty);
+                                    return;
+                                case Ty_long:
+                                    emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);
+                                    return;
+                                case Ty_ulong:
+                                    emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
                                     return;
                                 default:
                                     assert(FALSE);
