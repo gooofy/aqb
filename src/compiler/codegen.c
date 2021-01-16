@@ -606,7 +606,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     if (exitlbl)
         AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
 
-    if (returnVar)
+    if (returnVar && (returnVar->kind != IK_none))
     {
         CG_item d0Item;
         InReg (&d0Item, AS_regs[AS_TEMP_D0], CG_ty(returnVar));
@@ -1015,6 +1015,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_long:
                                     CG_IntItem(left, left->u.c->u.i+right->u.c->u.i, ty);
                                     break;
+                                case Ty_single:
+                                    CG_FloatItem(left, CG_getConstFloat (left) + CG_getConstFloat (right), ty);
+                                    break;
                                 default:
                                     assert(FALSE);
                             }
@@ -1066,6 +1069,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             {
                                 case Ty_integer:
                                     CG_IntItem(left, left->u.c->u.i-right->u.c->u.i, ty);
+                                    break;
+                                case Ty_single:
+                                    CG_FloatItem(left, CG_getConstFloat (left) - CG_getConstFloat (right), ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -2197,6 +2203,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
             {
                 switch (ty->kind)
                 {
+                    case Ty_bool:
                     case Ty_byte:
                     case Ty_ubyte:
                     case Ty_integer:
