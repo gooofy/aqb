@@ -1554,6 +1554,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_bool:
+                                {
+                                    bool lb = CG_getConstBool (left);
+                                    bool rb = CG_getConstBool (right);
+                                    CG_IntItem(left, lb != rb, ty);
+                                    break;
+                                }
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -1607,6 +1614,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_bool:
+                                {
+                                    bool lb = CG_getConstBool (left);
+                                    bool rb = CG_getConstBool (right);
+                                    CG_IntItem(left, !(lb != rb), ty);
+                                    break;
+                                }
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -1660,6 +1674,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_bool:
+                                {
+                                    bool lb = CG_getConstBool (left);
+                                    bool rb = CG_getConstBool (right);
+                                    CG_IntItem(left, !lb || rb, ty);
+                                    break;
+                                }
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -1738,6 +1759,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_bool:
+                                {
+                                    bool lb = CG_getConstBool (left);
+                                    bool rb = CG_getConstBool (right);
+                                    CG_IntItem(left, lb && rb, ty);
+                                    break;
+                                }
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -1795,6 +1823,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_bool:
+                                {
+                                    bool lb = CG_getConstBool (left);
+                                    bool rb = CG_getConstBool (right);
+                                    CG_IntItem(left, lb || rb, ty);
+                                    break;
+                                }
                                 case Ty_integer:
                                 case Ty_uinteger:
                                 case Ty_long:
@@ -2823,6 +2858,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
             }
             break;
 
+        case IK_cond:
+            CG_loadVal (code, pos, right);
+            // fall through
         case IK_inReg:
             switch (left->kind)
             {
