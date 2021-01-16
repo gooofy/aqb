@@ -139,6 +139,14 @@ LONG clng_(FLOAT f)
     return SPFix(SPAdd(f, g_one_half));
 }
 
+FLOAT __aqb_intdiv_single(FLOAT af, FLOAT bf)
+{
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
+
+    return SPFlt(a / b);
+}
+
 FLOAT __aqb_shl_single(FLOAT af, FLOAT bf)
 {
     LONG a = clng_(af);

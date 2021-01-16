@@ -3,6 +3,8 @@ b = 3.14e+2
 c = 3.14e-2
 d = 3! : e = 7!
 
+CONST AS SINGLE bc = 3.14e+2
+
 ' PRINT "a ="; a
 ' PRINT "b ="; b
 ' PRINT "c ="; c
@@ -16,7 +18,9 @@ ASSERT (a  +  c)         =     3.1714
 ASSERT (a  -  b)         =  -310.86
 ASSERT (a  *  b)         =   985.96
 ASSERT (b  /  a)         =   100.00
-ASSERT (b  \  a)         =   100.00
+ASSERT INT((e  /  d)*1000.0) =   2333
+ASSERT (b  \  a)         =   104.00
+ASSERT INT((e  \  d)*1000.0) =   2000
 ASSERT INT((b^c)*1000.0) =  1198
 ASSERT (b MOD a)         =     2
 ASSERT -b                =  -314
@@ -35,8 +39,12 @@ ASSERT (      a  *  3.14e+2)   =  985.96
 ASSERT (   3.14  *        b)   =  985.96
 ASSERT (3.14e+2  /        a)   =  100.00
 ASSERT (      b  /     3.14)   =  100.00
-ASSERT (3.14e+2  \        a)   =  100.00
-ASSERT (      b  \     3.14)   =  100.00
+ASSERT INT((e  / 3!)*1000.0) =   2333
+ASSERT INT((7! /  d)*1000.0) =   2333
+ASSERT (3.14e+2  \        a)   =  104.00
+ASSERT (      b  \     3.14)   =  104.00
+ASSERT INT((e  \ 3!)*1000.0) =   2000
+ASSERT INT((7! \  d)*1000.0) =   2000
 ASSERT INT((3.14e+2^c)*1000.0) = 1198
 ASSERT INT((b^3.14e-2)*1000.0) = 1198
 ASSERT (3.14e+2 MOD       a)   =    2
@@ -47,13 +55,18 @@ ASSERT INT(b SHR 3)            =   39
 ASSERT INT(3.14e+2 SHR d)      =   39
 
 ASSERT CLNG((    3.14  +  3.14e+2)*1000) =  317140
-'ASSERT CLNG((    3.14  +  3.14e-2)*1000) =    3171
-'ASSERT CLNG((    3.14  -  3.14e+2)*1000) = -310860
-'ASSERT CLNG((    3.14  *  3.14e+2)*1000) =  985960
-'ASSERT CLNG(( 3.14e+2  /  3.14   )*1000) =  100000
-'ASSERT CLNG(( 3.14e+2  ^  3.14e-2)*1000) =    1198
-'ASSERT CLNG(( 3.14e+2  \  3.14   )*1000) =  100000
-'ASSERT CLNG(( 3.14e+2 MOD 3.14   )*1000) =    2000
+ASSERT CLNG((    3.14  +  3.14e-2)*1000) =    3171
+ASSERT CLNG((    3.14  -  3.14e+2)*1000) = -310860
+ASSERT CLNG((    3.14  *  3.14e+2)*1000) =  985960
+ASSERT CLNG(( 3.14e+2  /  3.14   )*1000) =  100000
+ASSERT INT((7! /  3!)*1000.0) =   2333
+ASSERT CLNG(( 3.14e+2  ^  3.14e-2)*1000) =    1198
+ASSERT CLNG(( 3.14e+2  \  3.14   )*1000) =  104000
+ASSERT INT((7! \ 3!)*1000.0) =   2000
+ASSERT CLNG(( 3.14e+2 MOD 3.14   )*1000) =    2000
+ASSERT CLNG(( -bc   )*1000) =    -314000
+ASSERT CLNG((      3! SHL 7!     )*1000) =  384000
+ASSERT CLNG(( 3.14e+2 SHR 3!     )*1000) =   39000
 
 ' logical operators
 ' CG_xor,   CG_eqv,    CG_imp, CG_not, CG_and, CG_or,
