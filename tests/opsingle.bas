@@ -58,31 +58,31 @@ ASSERT INT(b SHR 3) = 39
 ASSERT ( c  XOR  d ) =  4
 ASSERT ( d  XOR  d ) =  0
 ASSERT ( d  XOR 1! ) =  6
-ASSERT ( 3! XOR  d ) =  4
+ASSERT (2.5 XOR  d ) =  4
 
 ASSERT ( c  EQV  d ) = -5
 ASSERT ( d  EQV  d ) = -1
 ASSERT ( d  EQV 1! ) = -7
-ASSERT ( 3! EQV  d ) = -5
+ASSERT (2.5 EQV  d ) = -5
 
 ASSERT (  c IMP  d ) = -1
 ASSERT (  d IMP  d ) = -1
-ASSERT (  d IMP 1! ) = -7
-ASSERT ( 3! IMP  d ) = -1
+ASSERT (  d IMP 0.5) = -7
+ASSERT (2.5 IMP  d ) = -1
 
 ASSERT ( NOT c   ) = -4
 ASSERT ( NOT d   ) = -8
-ASSERT ( NOT 3!  ) = -4
+ASSERT ( NOT 2.5 ) = -4
 
 ASSERT (  c AND d  ) =  3
 ASSERT (  d AND d  ) =  7
 ASSERT (  d AND 1! ) =  1
-ASSERT ( 3! AND d  ) =  3
+ASSERT (2.5 AND d  ) =  3
 
 ASSERT (  c OR  d  ) =  7
 ASSERT (  d OR  d  ) =  7
 ASSERT (  d OR 11! ) = 15
-ASSERT ( 3! OR  d  ) =  7
+ASSERT (2.5 OR  d  ) =  7
 
 ' relational operators
 

@@ -406,7 +406,7 @@ int CG_getConstInt (CG_item *item)
             return item->u.c->u.i;
         case Ty_single:
         case Ty_double:
-            return (int) item->u.c->u.f;
+            return (int) round(item->u.c->u.f);
         default:
             EM_error(0, "*** codegen.c :CG_getConstInt: internal error");
             assert(0);
@@ -948,6 +948,27 @@ static void emitBinOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item 
     CG_transAssignment (code, pos, left, &d0Item);
 }
 
+/* emit a unary op that requires calling a subroutine */
+static void emitUnaryOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item *left, Ty_ty ty)
+{
+    CG_itemListNode iln;
+
+    CG_itemList args = CG_ItemList();
+
+    CG_loadVal (code, pos, left);
+    iln = CG_itemListAppend (args); iln->item = *left;
+
+    int arg_cnt = munchArgsStack(pos, code, 0, args);
+    Temp_label l = Temp_namedlabel(sub_name);
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l,         // jsr   sub_name
+                                          AS_callersaves(), NULL));
+    munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/FALSE);
+
+    CG_item d0Item;
+    InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
+    CG_transAssignment (code, pos, left, &d0Item);
+}
+
 /*
  * emit a subroutine call passing arguments in processor registers
  *
@@ -1367,10 +1388,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_xor_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1394,11 +1412,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_eqv_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1421,11 +1435,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
-                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_imp_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1443,7 +1453,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case Ty_long:
                             CG_IntItem(left, ~CG_getConstInt(left), ty);
                             break;
-                       
+
                         case Ty_single:
                             CG_FloatItem(left, ~CG_getConstInt(left), ty);
                             break;
@@ -1456,7 +1466,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                 case CG_and:                                            // c & ?
                     if (isConstZero(left))                              // 0 & ? = 0
                         return;
-                    
+
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
@@ -1470,10 +1480,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_and_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -1486,7 +1493,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         *left = *right;
                         return;
                     }
-                    
+
                     CG_loadVal (code, pos, left);
                     CG_loadVal (code, pos, right);
                     switch (ty->kind)
@@ -2009,10 +2016,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_xor_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2036,11 +2040,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_eqv_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2064,11 +2064,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
-                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_imp_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2089,9 +2085,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitUnaryOpJsr (code, pos, "___aqb_not_single", left, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2119,10 +2113,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_and_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);

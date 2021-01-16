@@ -356,3 +356,50 @@ FLOAT __aqb_shr_single(FLOAT af, FLOAT bf)
     return SPFlt(a >> b);
 }
 
+FLOAT __aqb_xor_single(FLOAT af, FLOAT bf)
+{
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
+
+    return SPFlt(a ^ b);
+}
+
+FLOAT __aqb_eqv_single(FLOAT af, FLOAT bf)
+{
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
+
+    return SPFlt(~(a ^ b));
+}
+
+FLOAT __aqb_imp_single(FLOAT af, FLOAT bf)
+{
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
+
+    return SPFlt(~a | b);
+}
+
+FLOAT __aqb_not_single(FLOAT af)
+{
+    LONG a = clng_(af);
+
+    return SPFlt(~a);
+}
+
+FLOAT __aqb_and_single(FLOAT af, FLOAT bf)
+{
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
+
+    return SPFlt(a & b);
+}
+
+FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
+{
+    LONG a = clng_(af);
+    LONG b = clng_(bf);
+
+    return SPFlt(a | b);
+}
+
