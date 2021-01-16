@@ -21,27 +21,35 @@ ASSERT ( b% SHR c%) =    5
 
 ASSERT (a% + 42  )  =   65
 ASSERT (42 + a%  )  =   65
+ASSERT (23 + 42  )  =   65
 ASSERT (a% - 42  )  =  -19
 ASSERT (42 - a%  )  =   19
+ASSERT (42 - 23  )  =   19
+ASSERT (23 - 42  )  =  -19
 ASSERT (a% * 42  )  =  966
 ASSERT (42 * a%  )  =  966
+ASSERT (42 * 23  )  =  966
 ASSERT (b% /  3  )  =   14
 ASSERT (92 / a%  )  =    4
+ASSERT (92 / 23  )  =    4
 ASSERT (b% \  3  )  =   14
 ASSERT (92 \ a%  )  =    4
+ASSERT (92 \ 23  )  =    4
 ASSERT (a% ^  3  )  =12167
 ASSERT (4  ^ c%  )  =   64
+ASSERT (23 ^  3  )  =12167
 ASSERT (b% MOD 23)  =   19
 ASSERT (42 MOD a%)  =   19
+ASSERT (42 MOD 23)  =   19
 ASSERT  -(23)       =  -23
 ASSERT ( c% SHL  7) =  384
 ASSERT (  3 SHL d%) =  384
+ASSERT ( 3  SHL  7) =  384
 ASSERT ( 42 SHR c%) =    5
 ASSERT ( b% SHR  3) =    5
+ASSERT ( 42 SHR  3) =    5
 
 ' test ADD optimizations
-
-ASSERT 23 + 42 = 65
 
 ASSERT b% + 0  =   42   : REM identity
 ASSERT b% + 1  =   43   : REM ADDQ
@@ -53,8 +61,6 @@ ASSERT 8 + b%  =   50   : REM ADDQ
 
 ' test SUB optimizations
 
-ASSERT 42 - 23 = 19
-ASSERT 23 - 42 = -19
 
 ASSERT b% - 0  =   42   : REM identity
 ASSERT b% - 1  =   41   : REM SUBQ
@@ -103,10 +109,12 @@ ASSERT ( c% EQV d% ) = -5
 ASSERT ( d% EQV d% ) = -1
 ASSERT ( d% EQV 1  ) = -7
 ASSERT (  3 EQV d% ) = -5
+ASSERT (  3 EQV 7  ) = -5
 ASSERT ( c% IMP d% ) = -1
 ASSERT ( d% IMP d% ) = -1
 ASSERT ( d% IMP 1  ) = -7
 ASSERT (  3 IMP d% ) = -1
+ASSERT (  3 IMP 7  ) = -1
 ASSERT ( NOT c%    ) = -4
 ASSERT ( NOT d%    ) = -8
 ASSERT ( NOT  7    ) = -8
@@ -116,12 +124,14 @@ ASSERT ( c% AND d% ) =  3
 ASSERT ( d% AND d% ) =  7
 ASSERT ( d% AND 1  ) =  1
 ASSERT (  3 AND d% ) =  3
+ASSERT (  3 AND 7  ) =  3
 ASSERT ( c% OR d%  ) =  7
 ASSERT ( d% OR d%  ) =  7
 ASSERT ( d% OR 11  ) = 15
 ASSERT (  3 OR d%  ) =  7
 ASSERT ( c% OR  0  ) =  3
 ASSERT (  0 OR d%  ) =  7
+ASSERT (  3 OR 7   ) =  7
 
 ' relational operators (relOp)
 

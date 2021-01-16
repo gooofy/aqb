@@ -679,7 +679,6 @@ void CG_procEntryExitAS (CG_frag frag)
     AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, AS_w_NONE, NULL, NULL));                          //      rts
 }
 
-#if 0
 static int ipow(int base, int exp)
 {
     int result = 1;
@@ -695,7 +694,6 @@ static int ipow(int base, int exp)
 
     return result;
 }
-#endif
 
 static enum AS_mn relOp2mnS (CG_relOp c)
 {
@@ -1286,6 +1284,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                    CG_IntItem(left, CG_getConstInt (left) / CG_getConstInt (right), ty);
+                                    break;
                                 case Ty_single:
                                     if (o==CG_div)
                                         CG_FloatItem(left, CG_getConstFloat (left) / CG_getConstFloat (right), ty);
@@ -1331,6 +1332,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                    CG_IntItem(left, CG_getConstInt (left) % CG_getConstInt (right), ty);
+                                    break;
                                 case Ty_single:
                                     CG_FloatItem(left, CG_getConstInt (left) % CG_getConstInt (right), ty);
                                     break;
@@ -1371,6 +1375,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                    CG_IntItem(left, CG_getConstInt (left) << CG_getConstInt (right), ty);
+                                    break;
                                 case Ty_single:
                                     CG_FloatItem(left, CG_getConstInt (left) << CG_getConstInt (right), ty);
                                     break;
@@ -1411,6 +1418,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                    CG_IntItem(left, CG_getConstInt (left) >> CG_getConstInt (right), ty);
+                                    break;
                                 case Ty_single:
                                     CG_FloatItem(left, CG_getConstInt (left) >> CG_getConstInt (right), ty);
                                     break;
@@ -1451,6 +1461,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                    CG_IntItem(left, ipow(CG_getConstInt (left), CG_getConstInt (right)), ty);
+                                    break;
                                 case Ty_single:
                                     CG_FloatItem(left, pow(CG_getConstFloat (left), CG_getConstFloat (right)), ty);
                                     break;
@@ -1557,6 +1570,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_IntItem(left, ~(li ^ ri), ty);
+                                    break;
+                                }
                                 case Ty_single:
                                 {
                                     int li = CG_getConstInt (left);
@@ -1601,6 +1621,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_IntItem(left, ~li | ri, ty);
+                                    break;
+                                }
                                 case Ty_single:
                                 {
                                     int li = CG_getConstInt (left);
@@ -1669,6 +1696,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_IntItem(left, li & ri, ty);
+                                    break;
+                                }
                                 case Ty_single:
                                 {
                                     int li = CG_getConstInt (left);
@@ -1717,6 +1751,13 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
 
                             switch (ty->kind)
                             {
+                                case Ty_integer:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_IntItem(left, li | ri, ty);
+                                    break;
+                                }
                                 case Ty_single:
                                 {
                                     int li = CG_getConstInt (left);
