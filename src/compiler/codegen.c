@@ -1044,8 +1044,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
-                                    CG_IntItem(left, left->u.c->u.i+right->u.c->u.i, ty);
+                                    CG_IntItem(left, CG_getConstInt(left)+CG_getConstInt(right), ty);
                                     break;
                                 case Ty_single:
                                     CG_FloatItem(left, CG_getConstFloat (left) + CG_getConstFloat (right), ty);
@@ -1063,6 +1064,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
                                 {
@@ -1100,7 +1102,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
-                                    CG_IntItem(left, left->u.c->u.i-right->u.c->u.i, ty);
+                                case Ty_uinteger:
+                                    CG_IntItem(left, CG_getConstInt(left)-CG_getConstInt(right), ty);
                                     break;
                                 case Ty_single:
                                     CG_FloatItem(left, CG_getConstFloat (left) - CG_getConstFloat (right), ty);
@@ -1118,6 +1121,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
                                 {
@@ -1160,6 +1164,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                     CG_IntItem(left, CG_getConstInt(left) * CG_getConstInt(right), ty);
                                     break;
                                 case Ty_single:
@@ -1176,6 +1181,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
                                 {
@@ -1251,6 +1257,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                                                                   left->u.c, 0, NULL));
                                             *left = *right;
                                             break;
+                                        case Ty_uinteger:
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULU_Imm_Dn, w, NULL, right->u.inReg,        // mulu #left, right
+                                                                                  left->u.c, 0, NULL));
+                                            *left = *right;
+                                            break;
                                         case Ty_long:
                                         case Ty_ulong:
                                             CG_loadVal (code, pos, left);
@@ -1285,6 +1296,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                     CG_IntItem(left, CG_getConstInt (left) / CG_getConstInt (right), ty);
                                     break;
                                 case Ty_single:
@@ -1306,6 +1318,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
                                     AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
+                                    break;
+                                case Ty_uinteger:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_DIVU_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divu.x right, left
                                     break;
                                 case Ty_long:
                                 case Ty_ulong:
@@ -1333,6 +1349,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                     CG_IntItem(left, CG_getConstInt (left) % CG_getConstInt (right), ty);
                                     break;
                                 case Ty_single:
@@ -1351,6 +1368,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
                                     AS_instrListAppend (code, AS_Instr (pos, AS_DIVS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divs.x right, left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_SWAP_Dn, w, NULL, left->u.inReg));                 // swap.x left
+                                    break;
+                                case Ty_uinteger:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_DIVU_Dn_Dn, w, right->u.inReg, left->u.inReg));    // divu.x right, left
                                     AS_instrListAppend (code, AS_Instr (pos, AS_SWAP_Dn, w, NULL, left->u.inReg));                 // swap.x left
                                     break;
                                 case Ty_long:
@@ -1376,6 +1398,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                     CG_IntItem(left, CG_getConstInt (left) << CG_getConstInt (right), ty);
                                     break;
                                 case Ty_single:
@@ -1419,6 +1442,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                     CG_IntItem(left, CG_getConstInt (left) >> CG_getConstInt (right), ty);
                                     break;
                                 case Ty_single:
@@ -1462,6 +1486,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                     CG_IntItem(left, ipow(CG_getConstInt (left), CG_getConstInt (right)), ty);
                                     break;
                                 case Ty_single:
@@ -1477,6 +1502,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             {
                                 case Ty_integer:
                                     emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                    return;
+                                case Ty_uinteger:
+                                    emitBinOpJsr (code, pos, "___pow_u2", left, right, ty);
                                     return;
                                 case Ty_long:
                                     emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);
@@ -1520,6 +1548,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 {
                                     int li = CG_getConstInt (left);
                                     int ri = CG_getConstInt (right);
@@ -1571,6 +1600,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 {
                                     int li = CG_getConstInt (left);
                                     int ri = CG_getConstInt (right);
@@ -1622,6 +1652,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 {
                                     int li = CG_getConstInt (left);
                                     int ri = CG_getConstInt (right);
@@ -1673,6 +1704,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             break;
 
                         case Ty_integer:
+                        case Ty_uinteger:
                         case Ty_long:
                             CG_IntItem(left, ~CG_getConstInt(left), ty);
                             break;
@@ -1697,6 +1729,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 {
                                     int li = CG_getConstInt (left);
                                     int ri = CG_getConstInt (right);
@@ -1752,6 +1785,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 {
                                     int li = CG_getConstInt (left);
                                     int ri = CG_getConstInt (right);
@@ -1817,6 +1851,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 {
                                     int c = CG_getConstInt (right);
@@ -1879,6 +1914,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 {
                                     int c = CG_getConstInt (right);
@@ -1943,6 +1979,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 {
                                     int c = CG_getConstInt (right);
@@ -2005,6 +2042,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     {
                                         case Ty_integer:
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_MULS_Imm_Dn, w, NULL, left->u.inReg,        // muls #right, left
+                                                                                  right->u.c, 0, NULL));
+                                            break;
+                                        case Ty_uinteger:
+                                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULU_Imm_Dn, w, NULL, left->u.inReg,        // mulu #right, left
                                                                                   right->u.c, 0, NULL));
                                             break;
                                         case Ty_long:
@@ -2144,6 +2185,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_integer:
+                                case Ty_uinteger:
                                 case Ty_long:
                                 {
                                     int c = CG_getConstInt (right);
@@ -2160,6 +2202,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                             {
                                                 case Ty_integer:
                                                     emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                                    return;
+                                                case Ty_uinteger:
+                                                    emitBinOpJsr (code, pos, "___pow_u2", left, right, ty);
                                                     return;
                                                 case Ty_long:
                                                     emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);

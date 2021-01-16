@@ -957,6 +957,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_bool:
                 case Ty_byte:
                 case Ty_ubyte:
+                    item->ty = ty2;
                     return TRUE;
 
                 case Ty_uinteger:
@@ -990,10 +991,16 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 return TRUE;
             }
             if (ty2->kind == Ty_pointer)
+            {
+                item->ty = ty2;
                 return TRUE;
+            }
 
             if (Ty_size(ty1) == Ty_size(ty2))
+            {
+                item->ty = ty2;
                 return TRUE;
+            }
 
             switch (ty2->kind)
             {
@@ -1004,7 +1011,10 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_long:
                 case Ty_ulong:
                     if (Ty_size(ty1) == Ty_size(ty2))
+                    {
+                        item->ty = ty2;
                         return TRUE;
+                    }
 
                     CG_castItem(g_sleStack->code, pos, item, ty2);
                     return TRUE;
@@ -1016,7 +1026,10 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
         case Ty_single:
         case Ty_double:
             if (ty1->kind == ty2->kind)
+            {
+                item->ty = ty2;
                 return TRUE;
+            }
 
             switch (ty2->kind)
             {
@@ -1051,6 +1064,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 }
                 return FALSE;
             }
+            item->ty = ty2;
             return TRUE;
 
         default:

@@ -1,4 +1,5 @@
 DIM AS UINTEGER a=18007, b=3, c=3, d=7
+CONST AS UINTEGER ac=18007, bc=3, cc=3, dc=7
 
 ' arithemtic operators
 ' CG_plus,  CG_minus,  CG_mul, CG_div, CG_neg
@@ -15,6 +16,34 @@ ASSERT (c SHL d ) =   384
 ASSERT (a SHR c ) =  2250
 
 ' same but using constants
+
+ASSERT (ac  +  b ) = 18010
+ASSERT (a   +  bc) = 18010
+ASSERT (ac  +  bc) = 18010
+ASSERT (ac  -  b ) = 18004
+ASSERT (a   -  bc) = 18004
+ASSERT (ac  -  bc) = 18004
+ASSERT (ac  *  b ) = 54021
+ASSERT (a   *  bc) = 54021
+ASSERT (ac  *  bc) = 54021
+ASSERT (ac  /  b ) =  6002
+ASSERT (a   /  bc) =  6002
+ASSERT (ac  /  bc) =  6002
+ASSERT (ac  \  b ) =  6002
+ASSERT (a   \  bc) =  6002
+ASSERT (ac  \  bc) =  6002
+ASSERT (bc  ^  c ) =    27
+ASSERT (b   ^  cc) =    27
+ASSERT (bc  ^  cc) =    27
+ASSERT (ac MOD b ) =     1
+ASSERT (a  MOD bc) =     1
+ASSERT (ac MOD bc) =     1
+ASSERT (cc SHL d ) =   384
+ASSERT (c  SHL dc) =   384
+ASSERT (cc SHL dc) =   384
+ASSERT (ac SHR c ) =  2250
+ASSERT (a  SHR cc) =  2250
+ASSERT (ac SHR cc) =  2250
 
 ASSERT (    a  +  3 ) = 18010
 ASSERT (    3  +  a ) = 18010
@@ -82,28 +111,42 @@ ASSERT 256*b = 768
 ' logical operators
 ' CG_xor,   CG_eqv,    CG_imp, CG_not, CG_and, CG_or,
 
-ASSERT ( c XOR d ) =  4
-ASSERT ( d XOR d ) =  0
-ASSERT ( d XOR 1 ) =  6
-ASSERT ( 3 XOR d ) =  4
-ASSERT ( c EQV d ) = 65531
-ASSERT ( d EQV d ) = 65535
-ASSERT ( d EQV 1 ) = -7
-ASSERT ( 3 EQV d ) = -5
-ASSERT ( c IMP d ) = 65535
-ASSERT ( d IMP d ) = 65535
-ASSERT ( d IMP 1 ) = -7
-ASSERT ( 3 IMP d ) = -1
-ASSERT ( NOT c   ) = 65532
-ASSERT ( NOT d   ) = 65528
-ASSERT ( c AND d ) =  3
-ASSERT ( d AND d ) =  7
-ASSERT ( d AND 1 ) =  1
-ASSERT ( 3 AND d ) =  3
-ASSERT ( c OR d  ) =  7
-ASSERT ( d OR d  ) =  7
-ASSERT ( d OR 11 ) = 15
-ASSERT ( 3 OR d  ) =  7
+ASSERT ( c  XOR d ) =  4
+ASSERT ( d  XOR d ) =  0
+ASSERT ( d  XOR 1 ) =  6
+ASSERT ( 3  XOR d ) =  4
+ASSERT (cc  XOR dc) =  4
+ASSERT ( c  EQV d ) = 65531
+ASSERT ( d  EQV d ) = 65535
+ASSERT ( d  EQV 1 ) = -7
+ASSERT ( 3  EQV d ) = -5
+' 65535 -1
+' 65534 -2
+' 65533 -3
+' 65532 -4
+' 65531 -5
+' 65530 -6
+' 65529 -7
+' 65528 -8
+ASSERT ( cc EQV dc) = -5
+ASSERT ( c  IMP d ) = 65535
+ASSERT ( d  IMP d ) = 65535
+ASSERT ( d  IMP 1 ) = -7
+ASSERT ( 3  IMP d ) = -1
+ASSERT ( cc IMP dc) = -1
+ASSERT ( NOT c    ) = 65532
+ASSERT ( NOT d    ) = 65528
+ASSERT ( NOT dc   ) = -8
+ASSERT ( c  AND d ) =  3
+ASSERT ( d  AND d ) =  7
+ASSERT ( d  AND 1 ) =  1
+ASSERT ( 3  AND d ) =  3
+ASSERT ( cc AND dc) =  3
+ASSERT ( c  OR d  ) =  7
+ASSERT ( d  OR d  ) =  7
+ASSERT ( d  OR 11 ) = 15
+ASSERT ( 3  OR d  ) =  7
+ASSERT ( cc OR dc ) =  7
 
 ' relational operators
 
