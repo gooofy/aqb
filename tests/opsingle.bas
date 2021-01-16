@@ -75,16 +75,19 @@ ASSERT ( d  XOR  e ) =  4
 ASSERT ( e  XOR  e ) =  0
 ASSERT ( e  XOR 1! ) =  6
 ASSERT (2.5 XOR  e ) =  4
+ASSERT (2.5 XOR 7! ) =  4
 
 ASSERT ( d  EQV  e ) = -5
 ASSERT ( e  EQV  e ) = -1
 ASSERT ( e  EQV 1! ) = -7
 ASSERT (2.5 EQV  e ) = -5
+ASSERT (2.5 EQV 7! ) = -5
 
 ASSERT (  d IMP  e ) = -1
 ASSERT (  e IMP  e ) = -1
 ASSERT (  e IMP 0.5) = -7
 ASSERT (2.5 IMP  e ) = -1
+ASSERT (2.5 IMP 7! ) = -1
 
 ASSERT ( NOT d   ) = -4
 ASSERT ( NOT e   ) = -8
@@ -94,11 +97,13 @@ ASSERT (  d AND e  ) =  3
 ASSERT (  e AND e  ) =  7
 ASSERT (  e AND 1! ) =  1
 ASSERT (2.5 AND e  ) =  3
+ASSERT (2.5 AND 7! ) =  3
 
 ASSERT (  d OR  e  ) =  7
 ASSERT (  e OR  e  ) =  7
 ASSERT (  e OR 11! ) = 15
 ASSERT (2.5 OR  e  ) =  7
+ASSERT (2.5 OR  7! ) =  7
 
 ' relational operators
 

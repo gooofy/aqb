@@ -388,6 +388,16 @@ Ty_const CG_getConst(CG_item *item)
     return item->u.c;
 }
 
+#if 0
+static int myround(double f)
+{
+    if (f<0.0)
+        return (int) (f-0.5);
+    else
+        return (int) (f+0.5);
+}
+#endif
+
 int CG_getConstInt (CG_item *item)
 {
     assert (CG_isConst(item));
@@ -406,7 +416,10 @@ int CG_getConstInt (CG_item *item)
             return item->u.c->u.i;
         case Ty_single:
         case Ty_double:
-            return (int) round(item->u.c->u.f);
+        {
+            int r = (int) round(item->u.c->u.f);
+            return r;
+        }
         default:
             EM_error(0, "*** codegen.c :CG_getConstInt: internal error");
             assert(0);
@@ -427,7 +440,7 @@ double CG_getConstFloat (CG_item *item)
         case Ty_uinteger:
         case Ty_long:
         case Ty_ulong:
-            return (float) item->u.c->u.i;
+            return (double) round(item->u.c->u.i);
         case Ty_single:
         case Ty_double:
             return item->u.c->u.f;
@@ -1487,71 +1500,141 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     break;
 
                 case CG_xor:                                            // c XOR ?
-                    CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);
-
-                    switch (ty->kind)
+                    switch (right->kind)
                     {
-                        case Ty_bool:
-                        case Ty_byte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
-                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                        case IK_const:                                  // c XOR c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_integer:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_IntItem(left, li ^ ri, ty);
+                                    break;
+                                }
+                                case Ty_single:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_FloatItem(left, li ^ ri, ty);
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
-                        case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_xor_single", left, right, ty);
-                            break;
+
                         default:
-                            assert(FALSE);
+                            CG_loadVal (code, pos, left);
+                            CG_loadVal (code, pos, right);
+
+                            switch (ty->kind)
+                            {
+                                case Ty_bool:
+                                case Ty_byte:
+                                case Ty_integer:
+                                case Ty_uinteger:
+                                case Ty_long:
+                                case Ty_ulong:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                                    break;
+                                case Ty_single:
+                                    emitBinOpJsr (code, pos, "___aqb_xor_single", left, right, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
                     }
 
                     break;
 
                 case CG_eqv:                                            // c EQV ?
-                    CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);
-
-                    switch (ty->kind)
+                    switch (right->kind)
                     {
-                        case Ty_bool:
-                        case Ty_byte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
-                            AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                        case IK_const:                                  // c EQV c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_single:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_FloatItem(left, ~(li ^ ri), ty);
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
-                        case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_eqv_single", left, right, ty);
-                            break;
+
                         default:
-                            assert(FALSE);
+                            CG_loadVal (code, pos, left);
+                            CG_loadVal (code, pos, right);
+
+                            switch (ty->kind)
+                            {
+                                case Ty_bool:
+                                case Ty_byte:
+                                case Ty_integer:
+                                case Ty_uinteger:
+                                case Ty_long:
+                                case Ty_ulong:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
+                                    break;
+                                case Ty_single:
+                                    emitBinOpJsr (code, pos, "___aqb_eqv_single", left, right, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
                     }
                     break;
 
                 case CG_imp:                                            // c IMP ?
-                    CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);
-
-                    switch (ty->kind)
+                    switch (right->kind)
                     {
-                        case Ty_bool:
-                        case Ty_byte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
-                            AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
-                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                        case IK_const:                                  // c IMP c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_single:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_FloatItem(left, ~li | ri, ty);
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
-                        case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_imp_single", left, right, ty);
-                            break;
+
                         default:
-                            assert(FALSE);
+                            CG_loadVal (code, pos, left);
+                            CG_loadVal (code, pos, right);
+
+                            switch (ty->kind)
+                            {
+                                case Ty_bool:
+                                case Ty_byte:
+                                case Ty_integer:
+                                case Ty_uinteger:
+                                case Ty_long:
+                                case Ty_ulong:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x  left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
+                                    break;
+                                case Ty_single:
+                                    emitBinOpJsr (code, pos, "___aqb_imp_single", left, right, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
                     }
                     break;
 
@@ -1580,23 +1663,44 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     if (isConstZero(left))                              // 0 & ? = 0
                         return;
 
-                    CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);
-                    switch (ty->kind)
+                    switch (right->kind)
                     {
-                        case Ty_bool:
-                        case Ty_byte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
-                            AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                        case IK_const:                                  // c & c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_single:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_FloatItem(left, li & ri, ty);
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
-                        case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_and_single", left, right, ty);
-                            break;
+
                         default:
-                            assert(FALSE);
+                            CG_loadVal (code, pos, left);
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
+                            {
+                                case Ty_bool:
+                                case Ty_byte:
+                                case Ty_integer:
+                                case Ty_uinteger:
+                                case Ty_long:
+                                case Ty_ulong:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
+                                    break;
+                                case Ty_single:
+                                    emitBinOpJsr (code, pos, "___aqb_and_single", left, right, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
                     }
                     break;
 
@@ -1607,26 +1711,44 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         return;
                     }
 
-                    CG_loadVal (code, pos, left);
-                    CG_loadVal (code, pos, right);
-                    switch (ty->kind)
+                    switch (right->kind)
                     {
-                        case Ty_bool:
-                        case Ty_byte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
-                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
+                        case IK_const:                                  // c | c
+
+                            switch (ty->kind)
+                            {
+                                case Ty_single:
+                                {
+                                    int li = CG_getConstInt (left);
+                                    int ri = CG_getConstInt (right);
+                                    CG_FloatItem(left, li | ri, ty);
+                                    break;
+                                }
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
-                        case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            break;
+
                         default:
-                            assert(FALSE);
+                            CG_loadVal (code, pos, left);
+                            CG_loadVal (code, pos, right);
+                            switch (ty->kind)
+                            {
+                                case Ty_bool:
+                                case Ty_byte:
+                                case Ty_integer:
+                                case Ty_uinteger:
+                                case Ty_long:
+                                case Ty_ulong:
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
+                                    break;
+                                case Ty_single:
+                                    emitBinOpJsr (code, pos, "___aqb_or_single", left, right, ty);
+                                    break;
+                                default:
+                                    assert(FALSE);
+                            }
+                            break;
                     }
                     break;
 
@@ -2257,10 +2379,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
                             break;
                         case Ty_single:
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
-                            emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, right);
-                            AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
-                            emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], NULL), ty, left);
+                            emitBinOpJsr (code, pos, "___aqb_or_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
