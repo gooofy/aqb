@@ -2,6 +2,8 @@ a& = 23
 b& = 42
 c& = 3 : d& = 7
 
+CONST AS LONG ac=23, bc=42, cc=3, dc=7
+
 ' arithemtic operators
 ' CG_plus,  CG_minus,  CG_mul, CG_div, CG_neg
 ' CG_power, CG_intDiv, CG_mod, CG_shl, CG_shr
@@ -21,23 +23,32 @@ ASSERT ( b& SHR c&) =    5
 
 ASSERT (a& + 42  )  =   65
 ASSERT (42 + a&  )  =   65
+ASSERT (ac + bc  ) =    65
 ASSERT (a& - 42  )  =  -19
 ASSERT (42 - a&  )  =   19
+ASSERT (ac - bc  )  =  -19
 ASSERT (a& * 42  )  =  966
 ASSERT (42 * a&  )  =  966
+ASSERT (ac * bc  )  =  966
 ASSERT (b& /  3  )  =   14
 ASSERT (92 / a&  )  =    4
+ASSERT (bc / cc  )  =   14
 ASSERT (b& \  3  )  =   14
 ASSERT (92 \ a&  )  =    4
+ASSERT (bc \ cc  )  =   14
 ASSERT (a& ^  3  )  =12167
 ASSERT (4  ^ c&  )  =   64
+ASSERT (ac ^ cc  )  =12167
 ASSERT (b& MOD 23)  =   19
 ASSERT (42 MOD a&)  =   19
-ASSERT  -(23)       =  -23
+ASSERT (bc MOD ac)  =   19
+ASSERT  -(ac)       =  -23
 ASSERT ( c& SHL  7) =  384
 ASSERT (  3 SHL d&) =  384
+ASSERT ( cc SHL dc) =  384
 ASSERT ( 42 SHR c&) =    5
 ASSERT ( b& SHR  3) =    5
+ASSERT ( bc SHR cc) =    5
 
 ' test ADD optimizations
 
@@ -98,30 +109,34 @@ ASSERT ( c& XOR d& ) =  4
 ASSERT ( d& XOR d& ) =  0
 ASSERT ( d& XOR 1  ) =  6
 ASSERT ( 3  XOR d& ) =  4
-ASSERT ( 3  XOR  7 ) =  4
+ASSERT ( cc XOR dc ) =  4
 ASSERT ( c& EQV d& ) = -5
 ASSERT ( d& EQV d& ) = -1
 ASSERT ( d& EQV 1  ) = -7
 ASSERT (  3 EQV d& ) = -5
+ASSERT ( cc EQV dc ) = -5
 ASSERT ( c& IMP d& ) = -1
 ASSERT ( d& IMP d& ) = -1
 ASSERT ( d& IMP 1  ) = -7
 ASSERT (  3 IMP d& ) = -1
+ASSERT ( cc IMP dc ) = -1
 ASSERT ( NOT c&    ) = -4
 ASSERT ( NOT d&    ) = -8
-ASSERT ( NOT  7    ) = -8
+ASSERT ( NOT dc    ) = -8
 ASSERT ( c& AND  0 ) =  0
 ASSERT (  0 AND d& ) =  0
 ASSERT ( c& AND d& ) =  3
 ASSERT ( d& AND d& ) =  7
 ASSERT ( d& AND 1  ) =  1
 ASSERT (  3 AND d& ) =  3
+ASSERT ( cc AND dc ) =  3
 ASSERT ( c& OR d&  ) =  7
 ASSERT ( d& OR d&  ) =  7
 ASSERT ( d& OR 11  ) = 15
 ASSERT (  3 OR d&  ) =  7
 ASSERT ( c& OR  0  ) =  3
 ASSERT (  0 OR d&  ) =  7
+ASSERT ( cc OR dc  ) =  7
 
 ' relational operators (relOp)
 
