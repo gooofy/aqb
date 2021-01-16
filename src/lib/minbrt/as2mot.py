@@ -31,6 +31,8 @@ CONVERSION_PATTERNS = [
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+\((?P<off>[+\-0-9]+),(?P<r0>[ad0-7]+)\)$'), '\t\g<mn>\t\g<off>(\g<r0>)'),
      # subq.l #1,d0
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<imm>[+\-0-9]+),(?P<r1>[ad0-7sp]+)$'), '\t\g<mn>\t#\g<imm>, \g<r1>'),
+     # and.l #0xFFFF,d0
+     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<imm>0x[+\-a-fA-F0-9]+),(?P<r1>[ad0-7sp]+)$'), '\t\g<mn>\t#\g<imm>, \g<r1>HEXHEX'),
      # jra .L2
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+(?P<label>[a-zA-Z0-9_\.]+)$'), '\t\g<mn>\t\g<label>'),
      # add.l d0,a0
@@ -43,7 +45,7 @@ CONVERSION_PATTERNS = [
      # move.l _g_positiveExpThreshold,(-10,a5)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+(?P<label>[a-zA-Z0-9_\.]+),\((?P<off>[+\-0-9]+),(?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t\g<label>, \g<off>(\g<r1>)'),
      # move.l #.LC0,d0
-     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<label>[a-zA-Z0-9_\.]+),(?P<r1>[ad0-7sp]+)$'), '\t\g<mn>\t#\g<label>, \g<r1>'),
+     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<label>\.L[a-zA-Z0-9_\.]+),(?P<r1>[ad0-7sp]+)$'), '\t\g<mn>\t#\g<label>, \g<r1>'),
      # move.l #.LC0,(-4,a5)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<label>[a-zA-Z0-9_\.]+),\((?P<off>[+\-0-9]+),(?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t#\g<label>, \g<off>(\g<r1>)'),
      # pea .LC1

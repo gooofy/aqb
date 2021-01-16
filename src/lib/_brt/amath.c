@@ -219,9 +219,9 @@ uint16_t __pow_u2(uint16_t base, uint16_t exp)
     return result;
 }
 
-char __pow_s1(char base, char exp)
+int8_t __pow_s1(int8_t base, int8_t exp)
 {
-    char result = 1;
+    int8_t result = 1;
     for (;;)
     {
         if (exp & 1)
@@ -235,24 +235,24 @@ char __pow_s1(char base, char exp)
     return result;
 }
 
-char __mul_s1(char a, char b)
+int8_t __mul_s1(int8_t a, int8_t b)
 {
     return a*b;
 }
 
-char __div_s1(char a, char b)
+int8_t __div_s1(int8_t a, int8_t b)
 {
     return a/b;
 }
 
-char __mod_s1(char a, char b)
+int8_t __mod_s1(int8_t a, int8_t b)
 {
     return a%b;
 }
 
-unsigned char __pow_u1(unsigned char base, unsigned char exp)
+uint8_t __pow_u1(uint8_t base, uint8_t exp)
 {
-    unsigned char result = 1;
+    uint8_t result = 1;
     for (;;)
     {
         if (exp & 1)
@@ -266,17 +266,17 @@ unsigned char __pow_u1(unsigned char base, unsigned char exp)
     return result;
 }
 
-unsigned char __mul_u1(unsigned char a, unsigned char b)
+uint8_t __mul_u1(uint8_t a, uint8_t b)
 {
     return a*b;
 }
 
-unsigned char __div_u1(unsigned char a, unsigned char b)
+uint8_t __div_u1(uint8_t a, uint8_t b)
 {
     return a/b;
 }
 
-unsigned char __mod_u1(unsigned char a, unsigned char b)
+uint8_t __mod_u1(uint8_t a, uint8_t b)
 {
     return a%b;
 }

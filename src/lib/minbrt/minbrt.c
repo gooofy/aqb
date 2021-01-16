@@ -113,6 +113,68 @@ uint16_t __pow_u2(uint16_t base, uint16_t exp)
     return result;
 }
 
+int8_t __pow_s1(int8_t base, int8_t exp)
+{
+    int8_t result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+int8_t __mul_s1(int8_t a, int8_t b)
+{
+    return a*b;
+}
+
+int8_t __div_s1(int8_t a, int8_t b)
+{
+    return a/b;
+}
+
+int8_t __mod_s1(int8_t a, int8_t b)
+{
+    return a%b;
+}
+
+uint8_t __pow_u1(uint8_t base, uint8_t exp)
+{
+    uint8_t result = 1;
+    for (;;)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+
+    return result;
+}
+
+uint8_t __mul_u1(uint8_t a, uint8_t b)
+{
+    return a*b;
+}
+
+uint8_t __div_u1(uint8_t a, uint8_t b)
+{
+    return a/b;
+}
+
+uint8_t __mod_u1(uint8_t a, uint8_t b)
+{
+    return a%b;
+}
+
 SHORT fix_(FLOAT f)
 {
     return SPFix(f);

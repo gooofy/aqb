@@ -955,11 +955,11 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
             switch (ty2->kind)
             {
                 case Ty_bool:
-                case Ty_byte:
-                case Ty_ubyte:
                     item->ty = ty2;
                     return TRUE;
 
+                case Ty_byte:
+                case Ty_ubyte:
                 case Ty_uinteger:
                 case Ty_integer:
                 case Ty_long:
