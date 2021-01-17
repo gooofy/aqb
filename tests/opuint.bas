@@ -128,15 +128,15 @@ ASSERT ( 3  EQV d ) = -5
 ' 65530 -6
 ' 65529 -7
 ' 65528 -8
-ASSERT ( cc EQV dc) = -5
+ASSERT ( cc EQV dc) = 65531
 ASSERT ( c  IMP d ) = 65535
 ASSERT ( d  IMP d ) = 65535
 ASSERT ( d  IMP 1 ) = -7
 ASSERT ( 3  IMP d ) = -1
-ASSERT ( cc IMP dc) = -1
+ASSERT ( cc IMP dc) = 65535
 ASSERT ( NOT c    ) = 65532
 ASSERT ( NOT d    ) = 65528
-ASSERT ( NOT dc   ) = -8
+ASSERT ( NOT dc   ) = 65528
 ASSERT ( c  AND d ) =  3
 ASSERT ( d  AND d ) =  7
 ASSERT ( d  AND 1 ) =  1

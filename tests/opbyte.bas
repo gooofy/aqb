@@ -28,6 +28,7 @@ ASSERT (bc -  ac) =  -21
 ASSERT (a  *  bc) =   46
 ASSERT (bc *  a ) =   46
 ASSERT (ac *  b ) =   46
+ASSERT (b  *  ac) =   46
 ASSERT (ac *  bc) =   46
 ASSERT (a  /  bc) =   11
 ASSERT (ec /  b ) =   32

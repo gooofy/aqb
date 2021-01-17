@@ -1,4 +1,5 @@
 DIM AS UBYTE a=23, b=2, c=3, d=7
+CONST AS UBYTE ac=23, bc=2, cc=3, dc=7
 
 ' arithemtic operators
 ' CG_plus,  CG_minus,  CG_mul, CG_div, CG_neg
@@ -16,24 +17,34 @@ ASSERT (a SHR c ) =   2
 
 ' same but using constants
 
-ASSERT (a   +  2 ) =   25
-ASSERT (23  +  b ) =   25
-ASSERT (a   -  2 ) =   21
-ASSERT (23  -  b ) =   21
-ASSERT (a   *  2 ) =   46
-ASSERT (23  *  b ) =   46
-ASSERT (a   /  2 ) =   11
-ASSERT (23  /  b ) =   11
-ASSERT (b   ^  3 ) =    8
-ASSERT (2   ^  c ) =    8
-ASSERT (a   \  2 ) =   11
-ASSERT (23  \  b ) =   11
-ASSERT (a  MOD 2 ) =    1
-ASSERT (23 MOD b ) =    1
-ASSERT ( 1  SHL c ) =   8
-ASSERT ( b  SHL 3 ) =  16
-ASSERT (128 SHR c ) =  16
-ASSERT ( a  SHR 3 ) =   2
+ASSERT (ac  +  b ) =  25
+ASSERT (a   +  bc) =  25
+ASSERT (ac  +  bc) =  25
+ASSERT (ac  -  b ) =  21
+ASSERT (a   -  bc) =  21
+ASSERT (ac  -  bc) =  21
+ASSERT (ac  *  b ) =  46
+ASSERT (a   *  bc) =  46
+ASSERT (b   *  ac) =  46
+ASSERT (ac  *  bc) =  46
+ASSERT (ac  /  b ) =  11
+ASSERT (a   /  bc) =  11
+ASSERT (ac  /  bc) =  11
+ASSERT (bc  ^  c ) =   8
+ASSERT (b   ^  cc) =   8
+ASSERT (bc  ^  cc) =   8
+ASSERT (ac  \  b ) =  11
+ASSERT (a   \  bc) =  11
+ASSERT (ac  \  bc) =  11
+ASSERT (ac MOD b ) =   1
+ASSERT (a  MOD bc) =   1
+ASSERT (ac MOD bc) =   1
+ASSERT (bc SHL c ) =  16
+ASSERT (b  SHL cc) =  16
+ASSERT (bc SHL cc) =  16
+ASSERT (ac SHR c ) =   2
+ASSERT (a  SHR cc) =   2
+ASSERT (ac SHR cc) =   2
 
 ' test ADD optimizations
 
@@ -84,24 +95,43 @@ ASSERT b^1 = 2
 ' CG_xor,   CG_eqv,    CG_imp, CG_not, CG_and, CG_or,
 
 ASSERT ( c XOR d ) =  4
+ASSERT (cc XOR d ) =  4
+ASSERT ( c XOR dc) =  4
+ASSERT (cc XOR dc) =  4
 ASSERT ( d XOR d ) =  0
+ASSERT (dc XOR d ) =  0
+ASSERT ( d XOR dc) =  0
+ASSERT (dc XOR dc) =  0
 ASSERT ( d XOR 1 ) =  6
 ASSERT ( c EQV d ) = 251
+ASSERT (cc EQV d ) = 251
+ASSERT ( c EQV dc) = 251
+ASSERT (cc EQV dc) = 251
 '_debug_puts2 ( d EQV d ) : _debug_putnl
 '_debug_puts2 ( d EQV 1 ) : _debug_putnl
 ASSERT ( d EQV d ) = 255
 ASSERT ( d EQV 1 ) = -7
 ' _debug_puts2 c IMP d :debug_putnl
 ASSERT ( c IMP d ) = 255
+ASSERT (cc IMP d ) = 255
+ASSERT ( c IMP dc) = 255
+ASSERT (cc IMP dc) = 255
 ASSERT ( d IMP d ) = 255
 ASSERT ( d IMP 1 ) = -7
 ASSERT ( NOT c   ) = 252
+ASSERT ( NOT cc  ) = 252
 ' _debug_puts2 NOT d : _debug_putnl
 ASSERT ( NOT d   ) = 248
 ASSERT ( c AND d ) =  3
+ASSERT (cc AND d ) =  3
+ASSERT ( c AND dc) =  3
+ASSERT (cc AND dc) =  3
 ASSERT ( d AND d ) =  7
 ASSERT ( d AND 1 ) =  1
 ASSERT ( c OR d  ) =  7
+ASSERT (cc OR d  ) =  7
+ASSERT ( c OR dc ) =  7
+ASSERT (cc OR dc ) =  7
 ASSERT ( d OR d  ) =  7
 ASSERT ( d OR 11 ) = 15
 
