@@ -151,6 +151,8 @@ CG_fragList     CG_FragList         (CG_frag head, CG_fragList tail);
 void            CG_transBinOp       (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty);
 void            CG_transRelOp       (AS_instrList code, S_pos pos, CG_relOp o, CG_item *left, CG_item *right);
 void            CG_transJump        (AS_instrList code, S_pos pos, Temp_label l);
+void            CG_transJSR         (AS_instrList code, S_pos pos, Temp_label l);
+void            CG_transRTS         (AS_instrList code, S_pos pos);
 void            CG_transLabel       (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transMergeCond   (AS_instrList code, S_pos pos, CG_item *left, CG_item *right);
 void            CG_transPostCond    (AS_instrList code, S_pos pos, CG_item *left, bool positive);

@@ -6297,11 +6297,12 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
+#endif
 
 // stmtReturn ::= RETURN [ expression ]
 static bool stmtReturn(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    CG_item ex=NULL;
+    CG_item ex;
     S_pos  pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next; // consume "RETURN"
@@ -6311,12 +6312,13 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!expression(tkn, &ex))
             return EM_error((*tkn)->pos, "RETURN: expression expected here.");
     }
+    else
+    {
+        CG_NoneItem(&ex);
+    }
 
     if (!isLogicalEOL(*tkn))
         return FALSE;
-
-    // A_StmtListAppend (g_sleStack->stmtList,
-    //                   A_ReturnStmt(pos, exp));
 
     FE_SLE sle = g_sleStack;
     while (sle && sle->kind != FE_sleProc)
@@ -6324,43 +6326,34 @@ static bool stmtReturn(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (!sle)
     {
-        if (ex)
+        if (!CG_isNone(&ex))
             return EM_error(pos, "RETURN <expression> used outside a SUB/FUNCTION context");
-        emit (Tr_rtsExp(pos));
+        CG_transRTS(g_sleStack->code, pos);
         return TRUE;
     }
 
-    if (sle->returnVar)
+    if (!CG_isNone(&sle->returnVar))
     {
-        if (!ex)
+        if (CG_isNone(&ex))
             return EM_error(pos, "RETURN expression missing.");
 
         CG_item var = sle->returnVar;
-        Ty_ty ty = CG_ty(var);
-        // if var is a varPtr, time to deref it
-        if (ty->kind == Ty_varPtr)
-        {
-            var = Tr_Deref(pos, var);
-            ty = CG_ty(var);
-        }
-        var = Tr_DeepCopy(var);
+        Ty_ty ty = CG_ty(&var);
 
-        CG_item convexp;
-        if (!convert_ty(pos, ex, ty, &convexp, /*explicit=*/FALSE))
+        if (!convert_ty(&ex, pos, ty, /*explicit=*/FALSE))
             return EM_error(pos, "type mismatch (RETURN).");
 
-        emit(Tr_assignExp(pos, var, convexp));
+        CG_transAssignment (g_sleStack->code, pos, &var, &ex);
     }
     else
     {
-        if (ex)
+        if (!CG_isNone(&ex))
             return EM_error(pos, "Cannot RETURN a value in a SUB.");
     }
 
-    emit (Tr_gotoExp(pos, sle->exitlbl));
+    CG_transJump (g_sleStack->code, pos, sle->exitlbl);
     return TRUE;
 }
-#endif
 
 // stmtPublic ::= [ PUBLIC | PRIVATE ] ( procBegin | procDecl | typeDeclBegin | dim | constDecl | externDecl )
 static bool stmtPublicPrivate(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6539,7 +6532,6 @@ static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // stmtGosub ::= GOSUB ( num | ident )
 static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6550,7 +6542,7 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
     if ((*tkn)->kind == S_INUM)
     {
         Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
-        emit(Tr_gosubExp(pos, l));
+        CG_transJSR(g_sleStack->code, pos, l);
         *tkn = (*tkn)->next;
         return TRUE;
     }
@@ -6559,7 +6551,7 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
         if ((*tkn)->kind == S_IDENT)
         {
             Temp_label l = Temp_namedlabel(S_name((*tkn)->u.sym));
-            emit(Tr_gosubExp(pos, l));
+            CG_transJSR(g_sleStack->code, pos, l);
             *tkn = (*tkn)->next;
             return TRUE;
         }
@@ -6570,6 +6562,7 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+#if 0
 // funVarPtr ::= VARPTR "(" expDesignator ")"
 static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -7006,9 +6999,7 @@ static void registerBuiltins(void)
 #endif
     declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect       , Ty_Void());
     declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase         , Ty_Void());
-#if 0
     declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn       , Ty_Void());
-#endif
     declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
     declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
 #if 0
@@ -7019,8 +7010,8 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr       , Ty_Void());
 #endif
     declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto         , Ty_Void());
-#if 0
     declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub        , Ty_Void());
+#if 0
     declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase        , Ty_Void());
     declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());

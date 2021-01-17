@@ -2853,7 +2853,17 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
 
 void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)
 {
-    AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, AS_w_NONE, NULL, NULL, 0, 0, l));      // bra    l
+    AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, AS_w_NONE, NULL, NULL, 0, 0, l));       //     bra    l
+}
+
+void CG_transJSR  (AS_instrList code, S_pos pos, Temp_label l)
+{
+    AS_instrListAppend(code,AS_InstrEx(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l)); //     jsr    l
+}
+
+void CG_transRTS  (AS_instrList code, S_pos pos)
+{
+    AS_instrListAppend(code,AS_Instr(pos, AS_RTS, AS_w_NONE, NULL, NULL));                  //     rts
 }
 
 void CG_transLabel (AS_instrList code, S_pos pos, Temp_label l)
