@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXAMPLE=opubyte
+EXAMPLE=ctrl7
 
 ASMProsrc='/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo.asm'
 

@@ -2853,12 +2853,17 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
 
 void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)
 {
-    AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, AS_w_NONE, NULL, NULL, 0, 0, l));       //     bra    l
+    AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, AS_w_NONE, NULL, NULL, 0, 0, l));            //     bra    l
 }
 
 void CG_transJSR  (AS_instrList code, S_pos pos, Temp_label l)
 {
-    AS_instrListAppend(code,AS_InstrEx(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l)); //     jsr    l
+    // since we have no idea what it is we're calling here, we have to assume
+    // all registers get clobbered, not just the callersaves
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l,     //     jsr   l
+                                          AS_registers(), NULL));
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_NOP, AS_w_NONE, NULL, NULL, 0, 0, NULL,        //     nop ; sink registers
+                                          NULL, AS_registers()));
 }
 
 void CG_transRTS  (AS_instrList code, S_pos pos)
