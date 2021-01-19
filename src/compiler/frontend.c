@@ -36,7 +36,6 @@ struct FE_dim_
     FE_dim   next;
 };
 
-#if 0
 static FE_dim FE_Dim (bool statc, FE_dim next)
 {
     FE_dim p = checked_malloc(sizeof(*p));
@@ -48,7 +47,6 @@ static FE_dim FE_Dim (bool statc, FE_dim next)
 
     return p;
 }
-#endif
 
 /****************************************************************************************
  *
@@ -59,31 +57,6 @@ static FE_dim FE_Dim (bool statc, FE_dim next)
  *
  ****************************************************************************************/
 
-// typedef struct FE_ifBranch_      *FE_ifBranch;
-// struct FE_ifBranch_
-// {
-//     S_pos        pos;
-//     Temp_label   exitLabel;
-// };
-typedef struct FE_selectBranch_  *FE_selectBranch;
-#if 0
-typedef struct FE_selectExp_     *FE_selectExp;
-struct FE_selectExp_
-{
-    CG_item        exp;
-    CG_item        toExp;   // != NULL    -> exp TO exp
-    bool           isIS;    // if TRUE, condOp (below) specifies op: IS <op> exp
-    CG_relOp       condOp;
-    FE_selectExp   next;
-};
-struct FE_selectBranch_
-{
-    S_pos           pos;
-    FE_selectExp    exp;       // NULL -> SELECT ELSE branch
-    AS_instrList    prog;
-    FE_selectBranch next;
-};
-#endif
 typedef struct FE_nestedStmt_    *FE_nestedStmt;
 typedef enum {FE_sleTop, FE_sleProc, FE_sleDo, FE_sleFor, FE_sleWhile, FE_sleSelect, FE_sleType, FE_sleIf} FE_sleKind;
 struct FE_nestedStmt_    // used in EXIT, CONTINUE
@@ -155,7 +128,6 @@ struct FE_SLE_
             CG_item       exp;
             Temp_label    lNext;
             Temp_label    lEndSelect;
-            // FE_selectBranch selectBFirst, selectBLast;
         } selectStmt;
         Ty_proc proc;
     } u;
@@ -189,48 +161,6 @@ static FE_SLE slePop(void)
     g_sleStack = s->prev;
     return s;
 }
-
-#if 0
-static FE_ifBranch FE_IfBranch (S_pos pos, Temp_label exitLabel)
-{
-    FE_ifBranch p = checked_malloc(sizeof(*p));
-
-    p->pos       = pos;
-    p->exitLabel = exitLabel;
-
-    return p;
-}
-
-static FE_selectBranch FE_SelectBranch (S_pos pos, FE_selectExp exp, CG_itemList expList)
-{
-    FE_selectBranch p = checked_malloc(sizeof(*p));
-
-    p->pos     = pos;
-    p->exp     = exp;
-    p->expList = expList;
-    p->next    = NULL;
-
-    return p;
-}
-
-static FE_selectExp FE_SelectExp (CG_item exp, CG_item toExp, bool isIS, CG_relOp condOp)
-{
-    FE_selectExp p = checked_malloc(sizeof(*p));
-
-    p->exp    = exp;
-    p->toExp  = toExp;
-    p->isIS   = isIS;
-    p->condOp = condOp;
-    p->next   = NULL;
-
-    return p;
-}
-
-static void emit (CG_item exp)
-{
-    CG_ItemListAppend(g_sleStack->expList, exp);
-}
-#endif
 
 typedef struct FE_paramList_ *FE_paramList;
 struct FE_paramList_
@@ -1320,28 +1250,27 @@ static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
     return TRUE;
 }
 
-#if 0
-static CG_item transSelIndex(S_pos pos, CG_item e, CG_item idx)
+static bool transSelIndex(S_pos pos, CG_item *e, CG_item *idx)
 {
-    CG_item idx_conv;
-    if (!convert_ty(pos, idx, Ty_Long(), &idx_conv, /*explicit=*/FALSE))
+    if (!convert_ty(idx, pos, Ty_Long(), /*explicit=*/FALSE))
     {
         EM_error(pos, "Array indices must be numeric.");
-        return CG_ZeroItem(pos, Ty_Long());
+        return FALSE;
     }
     Ty_ty ty = CG_ty(e);
-    if ( (ty->kind != Ty_varPtr) ||
-         ((ty->u.pointer->kind != Ty_sarray)  &&
-          (ty->u.pointer->kind != Ty_darray)  &&
-          (ty->u.pointer->kind != Ty_pointer) &&
-          (ty->u.pointer->kind != Ty_string))    )
+    if ( (ty->kind != Ty_sarray)  &&
+         (ty->kind != Ty_darray)  &&
+         (ty->kind != Ty_pointer) &&
+         (ty->kind != Ty_string)    )
     {
         EM_error(pos, "string, array or pointer type expected");
-        return CG_ZeroItem(pos, Ty_Long());
+        return FALSE;
     }
-    return Tr_Index(pos, e, idx_conv);
+    CG_transIndex(g_sleStack->code, pos, e, idx);
+    return TRUE;
 }
 
+#if 0
 static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_item *exp)
 {
     switch (entry->kind)
@@ -1384,6 +1313,7 @@ static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_
     }
     return FALSE;
 }
+#endif
 
 // selector ::= ( ( "[" | "(" ) [ expression ( "," expression)* ] ( "]" | ")" )
 //              | "(" actualArgs ")"
@@ -1391,7 +1321,7 @@ static bool transRecordSelector(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_
 //              | "->" ident )
 static bool selector(S_tkn *tkn, CG_item *exp)
 {
-    Ty_ty ty = CG_ty(*exp);
+    Ty_ty ty = CG_ty(exp);
     switch ((*tkn)->kind)
     {
         case S_LPAREN:
@@ -1403,13 +1333,14 @@ static bool selector(S_tkn *tkn, CG_item *exp)
         case S_LBRACKET:
         {
             CG_item  idx;
-            CG_item  idx_conv;
             int     start_token = (*tkn)->kind;
 
             *tkn = (*tkn)->next;
 
-            if ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_darray) )
+            if ( (ty->kind == Ty_darray) )
             {
+                assert(FALSE); // FIXME
+#if 0
                 // call void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...)
 
                 CG_itemList arglist = CG_ItemList();
@@ -1437,23 +1368,22 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                 if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR", FALSE), arglist, exp))
                     return FALSE;
                 *exp = CG_castItem((*tkn)->pos, *exp, CG_ty(*exp), Ty_VarPtr(FE_mod->name, ty->u.pointer->u.darray.elementTy));
+#endif
             }
             else
             {
                 if (!expression(tkn, &idx))
                     return EM_error((*tkn)->pos, "index expression expected here.");
-                if (!convert_ty((*tkn)->pos, idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
-                    return EM_error((*tkn)->pos, "array index type mismatch");
-                *exp = transSelIndex((*tkn)->pos, *exp, idx_conv);
+                if (!transSelIndex((*tkn)->pos, exp, &idx))
+                    return FALSE;
 
                 while ((*tkn)->kind == S_COMMA)
                 {
                     *tkn = (*tkn)->next;
                     if (!expression(tkn, &idx))
                         return EM_error((*tkn)->pos, "index expression expected here.");
-                    if (!convert_ty((*tkn)->pos, idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
-                        return EM_error((*tkn)->pos, "array index type mismatch");
-                    *exp = transSelIndex((*tkn)->pos, *exp, idx_conv);
+                    if (!transSelIndex((*tkn)->pos, exp, &idx))
+                        return FALSE;
                 }
             }
 
@@ -1468,6 +1398,8 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
         case S_PERIOD:
         {
+            assert(FALSE); // FIXME
+#if 0
             *tkn = (*tkn)->next;
             S_pos pos = (*tkn)->pos;
             if ((*tkn)->kind != S_IDENT)
@@ -1484,9 +1416,12 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                 return EM_error(pos, "unknown UDT entry %s", sym);
 
             return transRecordSelector(pos, tkn, entry, exp);
+#endif
         }
         case S_POINTER:
         {
+            assert(FALSE); // FIXME
+#if 0
             *tkn = (*tkn)->next;
             S_pos    pos = (*tkn)->pos;
 
@@ -1506,6 +1441,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                 return EM_error(pos, "unknown UDT entry %s", sym);
 
             return transRecordSelector(pos, tkn, entry, exp);
+#endif
         }
 
         default:
@@ -1513,7 +1449,6 @@ static bool selector(S_tkn *tkn, CG_item *exp)
     }
     return FALSE;
 }
-#endif
 
 // expDesignator ::= [ '*' | '@' ] ident selector*
 static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHandSide)
@@ -1640,18 +1575,16 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                ((*tkn)->kind == S_PERIOD)   ||
                ((*tkn)->kind == S_POINTER) ) )
         {
-            assert (FALSE); // FIXME
 #if 0
             while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
             {
                 *exp = Tr_Deref((*tkn)->pos, *exp);
                 ty = CG_ty(*exp);
             }
-
+#endif
             if (!selector(tkn, exp))
                 return FALSE;
-            ty = CG_ty(*exp);
-#endif
+            ty = CG_ty(exp);
         }
         else
         {
@@ -2312,11 +2245,8 @@ static bool expression(S_tkn *tkn, CG_item *exp)
 // arrayDimensions ::= [ STATIC ] [ arrayDimension ( "," arrayDimension )* ]
 static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
 {
-    assert(FALSE); // FIXME
-    return FALSE;
-#if 0
-    bool   statc = FALSE;
-    CG_item idxStart, idxEnd = NULL;
+    bool    statc = FALSE;
+    CG_item idxStart, idxEnd;
 
     if (isSym(*tkn, S_STATIC))
     {
@@ -2342,10 +2272,12 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
         else
         {
             idxEnd   = idxStart;
-            idxStart = NULL;
+            CG_NoneItem(&idxStart);
         }
 
-        *dims = FE_Dim(statc, idxStart, idxEnd, *dims);
+        *dims = FE_Dim(statc, *dims);
+        (*dims)->idxStart = idxStart;
+        (*dims)->idxEnd   = idxEnd;
 
         while ((*tkn)->kind == S_COMMA)
         {
@@ -2366,18 +2298,19 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
             else
             {
                 idxEnd   = idxStart;
-                idxStart = NULL;
+                CG_NoneItem(&idxStart);
             }
-            *dims = FE_Dim(statc, idxStart, idxEnd, *dims);
+            *dims = FE_Dim(statc, *dims);
+            (*dims)->idxStart = idxStart;
+            (*dims)->idxEnd   = idxEnd;
         }
     }
     else
     {
-        *dims = FE_Dim(statc, NULL, NULL, *dims);
+        *dims = FE_Dim(statc, *dims);
     }
 
     return TRUE;
-#endif
 }
 
 // typeDesc ::= ( Identifier [PTR]

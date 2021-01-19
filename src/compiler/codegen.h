@@ -150,24 +150,13 @@ CG_fragList     CG_FragList         (CG_frag head, CG_fragList tail);
 
 void            CG_transBinOp       (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty);
 void            CG_transRelOp       (AS_instrList code, S_pos pos, CG_relOp o, CG_item *left, CG_item *right);
+void            CG_transIndex       (AS_instrList code, S_pos pos, CG_item *array, CG_item *idx);
 void            CG_transJump        (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transJSR         (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transRTS         (AS_instrList code, S_pos pos);
 void            CG_transLabel       (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transMergeCond   (AS_instrList code, S_pos pos, CG_item *left, CG_item *right);
 void            CG_transPostCond    (AS_instrList code, S_pos pos, CG_item *left, bool positive);
-#if 0
-void            CG_transCJump       (AS_instrList code, S_pos pos, CG_item *test, Temp_label l);
-void            CG_transForLoop     (AS_instrList code, S_pos pos, CG_item &loopVar, CG_item &fromItem, CG_item &toItem, CG_item &stepItem);
-void            CG_transIf          (S_pos pos, CG_item test, CG_item then, CG_item elsee);
-void            CG_transCast        (S_pos pos, CG_item exp, Ty_ty from_ty, Ty_ty to_ty);
-void            CG_transWhile       (S_pos pos, CG_item exp, CG_item body, Temp_label exitlbl, Temp_label contlbl);
-void            CG_transDo          (S_pos pos, CG_item untilExp, CG_item whileExp, bool condAtEntry, CG_item body, Temp_label exitlbl, Temp_label contlbl);
-void            CG_transGoto        (S_pos pos, Temp_label lbl);
-void            CG_transGosub       (S_pos pos, Temp_label lbl);
-void            CG_transRTS         (S_pos pos);
-#endif
-
 void            CG_transAssignment  (AS_instrList code, S_pos pos,  CG_item *left, CG_item *right);
 void            CG_transCall        (AS_instrList code, S_pos pos,  Ty_proc proc, CG_itemList args, CG_item *result);
 void            CG_transNOP         (AS_instrList code, S_pos pos) ;

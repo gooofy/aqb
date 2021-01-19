@@ -2851,6 +2851,71 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
     }
 }
 
+void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
+{
+    Ty_ty t = CG_ty(ape);
+
+    switch (t->kind)
+    {
+        case Ty_pointer:
+            assert(FALSE); // FIXME
+#if 0
+            Ty_ty et = at->u.pointer;
+            return Tr_binOpExp(pos,
+                               T_plus,
+                               Tr_Deref(pos, ape),
+                               Tr_binOpExp(pos,
+                                           T_mul,
+                                           idx,
+                                           Tr_intExp(pos, Ty_size(et), Ty_Long()),
+                                           Ty_Long()),
+                               Ty_VarPtr(FE_mod->name, et));
+#endif
+            break;
+
+        case Ty_string:
+            assert(FALSE); // FIXME
+#if 0
+            Ty_ty et = Ty_UByte();
+            return Tr_binOpExp(pos,
+                               T_plus,
+                               Tr_Deref(pos, ape),
+                               Tr_binOpExp(pos,
+                                           T_mul,
+                                           idx,
+                                           Tr_intExp(pos, Ty_size(et), Ty_Long()),
+                                           Ty_Long()),
+                               Ty_VarPtr(FE_mod->name, et));
+#endif
+            break;
+
+        case Ty_sarray:
+            assert(FALSE); // FIXME
+#if 0
+            Ty_ty et = at->u.sarray.elementTy;
+
+            return Tr_binOpExp(pos,
+                               T_plus,
+                               ape,
+                               Tr_binOpExp(pos,
+                                           T_mul,
+                                           Tr_binOpExp(pos,
+                                                       T_minus,
+                                                       idx,
+                                                       Tr_intExp(pos, at->u.sarray.iStart, Ty_Long()),
+                                                       Ty_Long()),
+                                           Tr_intExp(pos, Ty_size(et), Ty_Long()),
+                                           Ty_Long()),
+                               Ty_VarPtr(FE_mod->name, et));
+#endif
+            break;
+        default:
+            assert (FALSE);
+    }
+
+    assert (FALSE);
+}
+
 void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)
 {
     AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, AS_w_NONE, NULL, NULL, 0, 0, l));            //     bra    l
