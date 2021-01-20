@@ -2890,7 +2890,32 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
             break;
 
         case Ty_sarray:
-            assert(FALSE); // FIXME
+        {
+            Ty_ty et = t->u.sarray.elementTy;
+            switch (idx->kind)
+            {
+                case IK_const:
+                {
+                    // compute offset
+                    int32_t off = CG_getConstInt(idx) - t->u.sarray.iStart;
+                    off *= Ty_size(et);
+                    switch (ape->kind)
+                    {
+                        case IK_inFrame:
+                            assert(FALSE);
+                            break;
+                        default:
+                            CG_loadRef (code, pos, ape);
+                            if (off)
+                                AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, AS_w_L, NULL, ape->u.varPtr,   // add.x #off, ape
+                                                                      Ty_ConstInt(Ty_Long(), off), 0, NULL));
+                            break;
+                    }
+                    break;
+                }
+                default:
+                    assert(FALSE); // FIXME
+            }
 #if 0
             Ty_ty et = at->u.sarray.elementTy;
 
@@ -2909,11 +2934,10 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                                Ty_VarPtr(FE_mod->name, et));
 #endif
             break;
+        }
         default:
             assert (FALSE);
     }
-
-    assert (FALSE);
 }
 
 void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)

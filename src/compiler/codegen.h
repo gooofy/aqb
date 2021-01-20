@@ -128,7 +128,7 @@ bool            CG_isVar            (CG_item *item);
 bool            CG_isConst          (CG_item *item);
 bool            CG_isNone           (CG_item *item);
 Ty_const        CG_getConst         (CG_item *item);
-int             CG_getConstInt      (CG_item *item);
+int32_t         CG_getConstInt      (CG_item *item);
 double          CG_getConstFloat    (CG_item *item);
 bool            CG_getConstBool     (CG_item *item);
 

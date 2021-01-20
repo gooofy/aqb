@@ -1616,12 +1616,6 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     }
     else
     {
-        while (exp->kind == IK_varPtr)
-        {
-            assert(FALSE); // FIXME
-            // *exp = Tr_Deref(pos, *exp);
-            // ty = CG_ty(*exp);
-        }
         if (ty->kind == Ty_prc)
         {
             assert(FALSE); // FIXME
