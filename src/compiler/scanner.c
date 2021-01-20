@@ -101,7 +101,7 @@ static void print_tkn(S_tkn tkn)
 }
 static void print_tkns(S_tkn tkn)
 {
-    printf("\nTOKENS: ");
+    printf("\n      TOKENS: ");
     while (tkn)
     {
         print_tkn(tkn);
@@ -637,7 +637,12 @@ S_tkn S_nextline(void)
     }
 
     if (OPT_get(OPTION_VERBOSE))
+    {
+#ifdef S_KEEP_SOURCE
+        printf ("%5d %s", g_line-1, S_getSourceLine(g_line-1));
+#endif
         print_tkns(first_tkn);
+    }
 
     return first_tkn;
 }

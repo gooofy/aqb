@@ -1594,23 +1594,24 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
 
     if (isVARPTR)
     {
-        assert(FALSE); // FIXME
-#if 0
-        while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
+
+        switch (exp->kind)
         {
-            *exp = Tr_Deref((*tkn)->pos, *exp);
-            ty = CG_ty(*exp);
+            case IK_inFrame:
+            case IK_inHeap:
+                CG_loadRef (g_sleStack->code, pos, exp);
+                break;
+            case IK_varPtr:
+                break;
+            default:
+                return EM_error(pos, "This object cannot be referenced.");
         }
 
+#if 0
         if (ty->kind == Ty_prc)
         {
             *exp = Tr_heapPtrExp(pos, ty->u.proc->label, Ty_ProcPtr(FE_mod->name, ty->u.proc));
             ty = CG_ty(*exp);
-        }
-        else
-        {
-            if (ty->kind != Ty_varPtr)
-                return EM_error(pos, "This object cannot be referenced.");
         }
 #endif
     }
@@ -6649,7 +6650,7 @@ static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_item v;
     if (!expDesignator(tkn, &v, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return FALSE;
-    Ty_ty ty = CG_ty(v);
+    Ty_ty ty = CG_ty(&v);
     if (ty->kind != Ty_varPtr)
         return EM_error(pos, "This object cannot be referenced.");
 
@@ -6662,6 +6663,7 @@ static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
+#endif
 
 static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
 {
@@ -6681,30 +6683,29 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
     {
         *tkn = (*tkn)->next;
 
-        CG_item e;
-        if (!expression(tkn, &e))
+        if (!expression(tkn, &dimExp))
             return EM_error((*tkn)->pos, "array dimension expression expected here.");
 
-        if (!convert_ty((*tkn)->pos, e, Ty_Integer(), &dimExp, /*explicit=*/FALSE))
+        if (!convert_ty(&dimExp, (*tkn)->pos, Ty_Integer(), /*explicit=*/FALSE))
             return EM_error((*tkn)->pos, "array dimension: integer expression expected here.");
     }
     else
     {
-        dimExp = CG_IntItem((*tkn)->pos, 1, Ty_Integer());
+        CG_IntItem(&dimExp, 1, Ty_Integer());
     }
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    Ty_ty ty = CG_ty(arrayExp);
-    assert(ty->kind == Ty_varPtr);
-    ty = ty->u.pointer;
+    Ty_ty ty = CG_ty(&arrayExp);
 
     switch (ty->kind)
     {
         case Ty_darray:
         {
+            assert(FALSE); // FIXME
+#if 0
             // call UWORD _dyna_[u|l]bound(_dyna * dyna, UWORD dim);
 
             CG_itemList arglist = CG_ItemList();
@@ -6713,15 +6714,16 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
 
             if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, exp))
                 return FALSE;
+#endif
             return TRUE;
         }
         case Ty_sarray:
         {
             // purely static information
-            if (!CG_isConst (dimExp))
+            if (!CG_isConst (&dimExp))
                 return EM_error(pos, "constant dimension number expected here.");
 
-            int nDim = CG_getConstInt(dimExp);
+            int nDim = CG_getConstInt(&dimExp);
             if (nDim<=0)
             {
                 if (isUpper)
@@ -6734,11 +6736,11 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
                         cnt += 1;
                         t = t->u.sarray.elementTy;
                     }
-                    *exp = CG_IntItem((*tkn)->pos, cnt, Ty_Integer());
+                    CG_IntItem(exp, cnt, Ty_Integer());
                 }
                 else
                 {
-                    *exp = CG_IntItem((*tkn)->pos, 1, Ty_Integer());
+                    CG_IntItem(exp, 1, Ty_Integer());
                 }
             }
             else
@@ -6750,13 +6752,13 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
                     cnt += 1;
                     if (cnt == nDim)
                     {
-                        *exp = CG_IntItem((*tkn)->pos, isUpper ? t->u.sarray.iEnd : t->u.sarray.iStart, Ty_Integer());
+                        CG_IntItem(exp, isUpper ? t->u.sarray.iEnd : t->u.sarray.iStart, Ty_Integer());
                         break;
                     }
                     t = t->u.sarray.elementTy;
                 }
                 if (t->kind != Ty_sarray)
-                    *exp = CG_IntItem((*tkn)->pos, 0, Ty_Integer());
+                    CG_IntItem(exp, 0, Ty_Integer());
             }
             break;
         }
@@ -6777,7 +6779,6 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return transArrayBound(tkn, /*isUpper=*/TRUE, exp);
 }
-#endif
 
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
@@ -6950,8 +6951,10 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast          , Ty_ULong());
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());
+#endif
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
+#if 0
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
 #endif
 }

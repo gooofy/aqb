@@ -799,6 +799,16 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
             break;
         }
 
+        case IK_varPtr:
+        {
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+
+            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), item->u.varPtr, t));         //     move.x (item), t
+            InReg (item, t, ty);
+            break;
+        }
+
         default:
             assert(FALSE);
     }
@@ -1078,7 +1088,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                         AS_instrListAppend (code, AS_InstrEx (pos, AS_ADDQ_Imm_AnDn, w, NULL, right->u.inReg,// addq.x #left, right
                                                                               left->u.c, 0, NULL));
                                     else
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, right->u.inReg,   // add.x #left, right
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, right->u.inReg, // add.x #left, right
                                                                               left->u.c, 0, NULL));
                                     *left = *right;
                                     break;
@@ -1210,12 +1220,12 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                             return;
                                         case 2:                         // v * 2 = v + v
                                             *left = *right;
-                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, left->u.inReg, left->u.inReg));  // add.x left, left
                                             return;
                                         case 4:                         // v * 4 = v + v + v + v
                                             *left = *right;
-                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
-                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, left->u.inReg, left->u.inReg));  // add.x left, left
                                             return;
                                         case 8:                         // v * 8 = v << 3
                                         {
@@ -2046,7 +2056,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                         AS_instrListAppend (code, AS_InstrEx (pos, AS_ADDQ_Imm_AnDn, w, NULL, left->u.inReg,// addq.x #right, left
                                                                               right->u.c, 0, NULL));
                                     else
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, w, NULL, left->u.inReg,    // add.x #right, left
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, left->u.inReg, // add.x #right, left
                                                                               right->u.c, 0, NULL));
                                     break;
                                 }
@@ -2072,7 +2082,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                 case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
-                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, right->u.inReg, left->u.inReg)); // add.x right, left
+                                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, right->u.inReg, left->u.inReg)); // add.x right, left
                                     break;
                                 case Ty_single:
                                     emitRegCall (code, pos, "_MathBase", LVOSPAdd, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
@@ -2112,7 +2122,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                         AS_instrListAppend (code, AS_InstrEx (pos, AS_SUBQ_Imm_AnDn, w, NULL, left->u.inReg, // subq.x #right, left
                                                                               right->u.c, 0, NULL));
                                     else
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_Dn, w, NULL, left->u.inReg,    // sub.x  #right, left
+                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_AnDn, w, NULL, left->u.inReg,  // sub.x  #right, left
                                                                               right->u.c, 0, NULL));
                                     break;
                                 }
@@ -2181,11 +2191,11 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                         case 1:                         // v * 1 = v
                                             return;
                                         case 2:                         // v * 2 = v + v
-                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, left->u.inReg, left->u.inReg));  // add.x left, left
                                             return;
                                         case 4:                         // v * 4 = v + v + v + v
-                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
-                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_Dn_Dn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, left->u.inReg, left->u.inReg));  // add.x left, left
+                                            AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, left->u.inReg, left->u.inReg));  // add.x left, left
                                             return;
                                         case 8:                         // v * 8 = v << 3
                                         {
@@ -2767,6 +2777,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
         case IK_inReg:
         case IK_inFrame:
         case IK_inHeap:
+        case IK_varPtr:
             CG_loadVal (code, pos, left);
 
             switch (ty->kind)
@@ -2896,7 +2907,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
             {
                 case IK_const:
                 {
-                    // compute offset
+                    // compute constant offset
                     int32_t off = CG_getConstInt(idx) - t->u.sarray.iStart;
                     off *= Ty_size(et);
                     switch (ape->kind)
@@ -2907,15 +2918,60 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                         default:
                             CG_loadRef (code, pos, ape);
                             if (off)
-                                AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_Dn, AS_w_L, NULL, ape->u.varPtr,   // add.x #off, ape
+                                AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, AS_w_L, NULL, ape->u.varPtr,   // add.l #off, ape
                                                                       Ty_ConstInt(Ty_Long(), off), 0, NULL));
                             break;
                     }
                     break;
                 }
+                case IK_inReg:
+                {
+                    // offset computation
+                    if (t->u.sarray.iStart)
+                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_AnDn, AS_w_L, NULL, idx->u.inReg,            // sub.l #iStart, idx
+                                                              Ty_ConstInt(Ty_Long(), t->u.sarray.iStart), 0, NULL));
+
+                    int ets = Ty_size(et);
+                    switch (ets)
+                    {
+                        case 0:
+                            assert(FALSE);
+                        case 1:
+                            break;
+                        case 2:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #1, idx
+                                                                  Ty_ConstInt(Ty_Long(), 1), 0, NULL));
+                            break;
+                        case 4:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #2, idx
+                                                                  Ty_ConstInt(Ty_Long(), 2), 0, NULL));
+                            break;
+                        case 8:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #3, idx
+                                                                  Ty_ConstInt(Ty_Long(), 3), 0, NULL));
+                            break;
+                        case 16:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #4, idx
+                                                                  Ty_ConstInt(Ty_Long(), 4), 0, NULL));
+                            break;
+                        case 32:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #5, idx
+                                                                  Ty_ConstInt(Ty_Long(), 2), 0, NULL));
+                            break;
+                        default:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULU_Imm_Dn, AS_w_L, NULL, idx->u.inReg,         // mulu #ets, idx
+                                                                  Ty_ConstInt(Ty_Long(), ets), 0, NULL));
+                            break;
+                    }
+
+                    CG_loadRef (code, pos, ape);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, AS_w_L, idx->u.inReg, ape->u.varPtr));      // add.l idx, ape
+                    break;
+                }
                 default:
                     assert(FALSE); // FIXME
             }
+            ape->ty = et;
 #if 0
             Ty_ty et = at->u.sarray.elementTy;
 
@@ -3122,6 +3178,10 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_Ofp, w, NULL, NULL,                        // move.x #right, left.o(fp)
                                                           right->u.c, left->u.inFrameR.offset, NULL));
                     break;
+                case IK_varPtr:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_RAn, w, NULL, left->u.varPtr,              // move.x #right, (left)
+                                                          right->u.c, 0, NULL));
+                    break;
                 default:
                     assert(FALSE);
             }
@@ -3187,6 +3247,16 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
                                                           NULL, 0, right->u.inHeap.l));
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Label, w, temp.u.inReg, NULL,                 // move.x temp, left.l
                                                           NULL, 0, left->u.inHeap.l));
+                    break;
+                }
+                case IK_varPtr:
+                {
+                    // FIXME: move.x right.l, (left)
+                    CG_item temp;
+                    CG_TempItem (&temp, ty);
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Label_AnDn, w, NULL, temp.u.inReg,                 // move.x right.l, temp
+                                                          NULL, 0, right->u.inHeap.l));
+                    AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, temp.u.inReg, left->u.varPtr));         // move.x temp, (left)
                     break;
                 }
                 default:

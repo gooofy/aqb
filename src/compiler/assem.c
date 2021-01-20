@@ -12,8 +12,8 @@
 AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     // mn                  isJump hasLabel hasImm hasSrc hasDst srcDnOnly dstDnOnly srcAnOnly dstAnOnly dstIsAlsoSrc, dstIsOnlySrc
     { AS_LABEL,            FALSE, TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
-    { AS_ADD_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
-    { AS_ADD_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ADD_AnDn_AnDn,    FALSE, FALSE  , FALSE, TRUE , TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_ADD_Imm_AnDn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_ADD_Imm_sp,       FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_ADDQ_Imm_AnDn,    FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_AND_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
@@ -83,7 +83,7 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_RTS,              FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_SNE_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_SUB_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
-    { AS_SUB_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_SUB_Imm_AnDn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_SUBQ_Imm_AnDn,    FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_SWAP_Dn,          FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_TST_Dn,           FALSE, FALSE  , FALSE, TRUE , FALSE , TRUE   , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
@@ -554,9 +554,9 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
     {
         case AS_LABEL:           // label:
             sprintf(str, "%s:", Temp_labelstring(i->label));  break;
-        case AS_ADD_Dn_Dn:
+        case AS_ADD_AnDn_AnDn:
             instrformat(str, "    add`w    `s, `d", i, dialect);       break;
-        case AS_ADD_Imm_Dn:
+        case AS_ADD_Imm_AnDn:
             instrformat(str, "    add`w    #`i, `d", i, dialect);      break;
         case AS_ADD_Imm_sp:
             instrformat(str, "    add`w    #`i, sp", i, dialect);      break;
@@ -692,7 +692,7 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    sne      `d", i, dialect);           break;
         case AS_SUB_Dn_Dn:
             instrformat(str, "    sub`w    `s, `d", i, dialect);       break;
-        case AS_SUB_Imm_Dn:
+        case AS_SUB_Imm_AnDn:
             instrformat(str, "    sub`w    #`i, `d", i, dialect);      break;
         case AS_SUBQ_Imm_AnDn:
             instrformat(str, "    subq`w   #`i, `d", i, dialect);      break;

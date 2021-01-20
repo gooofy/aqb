@@ -32,8 +32,8 @@ enum AS_mn
 {                       //     Example
     AS_LABEL,           //   0 label:
 
-    AS_ADD_Dn_Dn,       //   1 add.x   d1, d2
-    AS_ADD_Imm_Dn,      //   2 add.x   #42, d2
+    AS_ADD_AnDn_AnDn,   //   1 add.x   d1, d2
+    AS_ADD_Imm_AnDn,    //   2 add.x   #42, d2
     AS_ADD_Imm_sp,      //   3 add.x   #42, sp
     AS_ADDQ_Imm_AnDn,   //   4 addq.x  #2, d2
 
@@ -126,7 +126,7 @@ enum AS_mn
     AS_SNE_Dn,          //  70 sne.b   d1
 
     AS_SUB_Dn_Dn,       //  71 sub.x   d1, d2
-    AS_SUB_Imm_Dn,      //  72 sub.x   #42, d2
+    AS_SUB_Imm_AnDn,    //  72 sub.x   #42, d2
     AS_SUBQ_Imm_AnDn,   //  73 subq.x  #2, d2
 
     AS_SWAP_Dn,         //  74 swap.x   d4
