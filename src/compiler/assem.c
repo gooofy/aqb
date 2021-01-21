@@ -41,6 +41,7 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_EOR_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_EOR_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_EXT_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
+    { AS_LEA_Ofp_An,       FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , FALSE       , FALSE },
     { AS_LINK_fp,          FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_LSL_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_LSL_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
@@ -61,6 +62,7 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_MOVE_Label_AnDn,  FALSE, TRUE   , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_AnDn_Label,  FALSE, TRUE   , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Ofp_AnDn,    FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
+    { AS_MOVE_Ofp_RAn,     FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , FALSE       , FALSE },
     { AS_MOVE_AnDn_Ofp,    FALSE, FALSE  , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Imm_Ofp,     FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Imm_Label,   FALSE, TRUE   , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
@@ -612,6 +614,8 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    eor`w    #`i, `d", i, dialect);      break;
         case AS_EXT_Dn:
             instrformat(str, "    ext`w    `d", i, dialect);           break;
+        case AS_LEA_Ofp_An:
+            instrformat(str, "    lea      `o(a5), `d", i, dialect);   break;
         case AS_LINK_fp:
             instrformat(str, "    link     a5, #`i"    , i, dialect);  break;
         case AS_LSL_Dn_Dn:
@@ -644,6 +648,8 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    move`w   #`i, `d", i, dialect);      break;
         case AS_MOVE_Ofp_AnDn:  // move.x  42(a5), d0
             instrformat(str, "    move`w   `o(a5), `d", i, dialect);   break;
+        case AS_MOVE_Ofp_RAn:   // move.x  42(a5), (a2)
+            instrformat(str, "    move`w   `o(a5), (`d)", i, dialect);   break;
         case AS_MOVE_AnDn_Ofp:  // move.x  d0, 42(a5)
             instrformat(str, "    move`w   `s, `o(a5)", i, dialect);   break;
         case AS_MOVE_Imm_Ofp:   // move.x  #23, 42(a5)

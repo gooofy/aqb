@@ -617,7 +617,12 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     }
 
     if (exitlbl)
+    {
+        // we need to generate NOPs between consecutive labels because flowgraph.c cannot handle those
+        if (body->last && (body->last->instr->mn == AS_LABEL))
+            AS_instrListAppend (body, AS_Instr(pos, AS_NOP, AS_w_NONE, NULL, NULL));                        //     nop
         AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
+    }
 
     if (returnVar && (returnVar->kind != IK_none))
     {
@@ -669,6 +674,7 @@ void CG_procEntryExitAS (CG_frag frag)
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, AS_w_NONE, NULL, NULL,                   //      link fp, #-frameSize
                                            Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, frame->name));// label:
+    // FIXME AS_instrListPrepend (body, AS_Instr (pos_start, AS_NOP, AS_w_NONE, NULL, NULL));                       //      nop    ; just make sure we do not have two consecutive labels
 
     // exit code
 
@@ -824,13 +830,11 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
 
         case IK_inFrame:
         {
-            assert(FALSE); // FIXME: lea.x
-            // Ty_ty ty = CG_ty(item);
-            // Temp_temp t = Temp_Temp (ty);
-
-            // AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, AS_tySize(ty), NULL,                      //     move.x o(fp), t
-            //                                       t, NULL, CG_itemOffset(item), NULL));
-            // VarPtr (item, t);
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_LEA_Ofp_An, AS_w_L, NULL,                                   //     lea o(fp), t
+                                                 t, NULL, item->u.inFrameR.offset, NULL));
+            VarPtr (item, t, ty);
             break;
         }
 
@@ -2921,7 +2925,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                     switch (ape->kind)
                     {
                         case IK_inFrame:
-                            assert(FALSE);
+                            ape->u.inFrameR.offset += off;
                             break;
                         default:
                             CG_loadRef (code, pos, ape);
@@ -3253,6 +3257,10 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
                 }
                 case IK_inReg:
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, left->u.inReg,                  // move.x right.o(fp), left.r
+                                                          NULL, right->u.inFrameR.offset, NULL));
+                    break;
+                case IK_varPtr:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_RAn, w, NULL, left->u.varPtr,                  // move.x right.o(fp), (left)
                                                           NULL, right->u.inFrameR.offset, NULL));
                     break;
                 default:
