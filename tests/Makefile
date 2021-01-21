@@ -28,7 +28,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	   const1.bas const2.bas const3.bas constprop.bas \
        ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas ctrl7.bas \
 	   opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
-	   sarray1.bas sarray2.bas sarray3.bas
+	   sarray1.bas sarray2.bas sarray3.bas sarray4.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
 OBJDIR_AMIGAOS_TESTS = aqb_tests/obj

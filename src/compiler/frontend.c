@@ -1607,6 +1607,9 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 return EM_error(pos, "This object cannot be referenced.");
         }
 
+        exp->ty = Ty_Pointer(FE_mod->name, exp->ty);
+        exp->kind = IK_inReg;
+
 #if 0
         if (ty->kind == Ty_prc)
         {
@@ -6675,7 +6678,7 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
 
     CG_item arrayExp;
     pos = (*tkn)->pos;
-    if (!expDesignator (tkn, &arrayExp, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+    if (!expDesignator (tkn, &arrayExp, /*isVARPTR=*/FALSE, /*leftHandSide=*/FALSE))
         return EM_error(pos, "array expected here.");
 
     CG_item dimExp;

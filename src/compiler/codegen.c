@@ -2085,6 +2085,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                         case IK_inFrame:
                         case IK_inReg:
                         case IK_inHeap:
+                        case IK_varPtr:
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
@@ -2881,7 +2882,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
     switch (t->kind)
     {
         case Ty_pointer:
-            assert(FALSE); // FIXME
+        {
 #if 0
             Ty_ty et = at->u.pointer;
             return Tr_binOpExp(pos,
@@ -2894,7 +2895,66 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                                            Ty_Long()),
                                Ty_VarPtr(FE_mod->name, et));
 #endif
+            Ty_ty et = t->u.pointer;
+            CG_loadVal (code, pos, ape);
+            switch (idx->kind)
+            {
+                case IK_const:
+                {
+                    // compute constant offset
+                    int32_t off = CG_getConstInt(idx);
+                    off *= Ty_size(et);
+                    if (off)
+                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, AS_w_L, NULL, ape->u.inReg,            // add.l #off, ape
+                                                              Ty_ConstInt(Ty_Long(), off), 0, NULL));
+                    break;
+                }
+                case IK_inReg:
+                {
+                    // offset computation
+                    int ets = Ty_size(et);
+                    switch (ets)
+                    {
+                        case 0:
+                            assert(FALSE);
+                        case 1:
+                            break;
+                        case 2:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #1, idx
+                                                                  Ty_ConstInt(Ty_Long(), 1), 0, NULL));
+                            break;
+                        case 4:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #2, idx
+                                                                  Ty_ConstInt(Ty_Long(), 2), 0, NULL));
+                            break;
+                        case 8:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #3, idx
+                                                                  Ty_ConstInt(Ty_Long(), 3), 0, NULL));
+                            break;
+                        case 16:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #4, idx
+                                                                  Ty_ConstInt(Ty_Long(), 4), 0, NULL));
+                            break;
+                        case 32:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_LSL_Imm_Dn, AS_w_L, NULL, idx->u.inReg,          // lsl.l #5, idx
+                                                                  Ty_ConstInt(Ty_Long(), 2), 0, NULL));
+                            break;
+                        default:
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULU_Imm_Dn, AS_w_L, NULL, idx->u.inReg,         // mulu #ets, idx
+                                                                  Ty_ConstInt(Ty_Long(), ets), 0, NULL));
+                            break;
+                    }
+
+                    AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, AS_w_L, idx->u.inReg, ape->u.inReg));       // add.l idx, ape
+                    break;
+                }
+                default:
+                    assert(FALSE);
+            }
+            ape->ty = et;
+            ape->kind = IK_varPtr;
             break;
+        }
 
         case Ty_string:
             assert(FALSE); // FIXME
@@ -2981,26 +3041,9 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                     break;
                 }
                 default:
-                    assert(FALSE); // FIXME
+                    assert(FALSE);
             }
             ape->ty = et;
-#if 0
-            Ty_ty et = at->u.sarray.elementTy;
-
-            return Tr_binOpExp(pos,
-                               T_plus,
-                               ape,
-                               Tr_binOpExp(pos,
-                                           T_mul,
-                                           Tr_binOpExp(pos,
-                                                       T_minus,
-                                                       idx,
-                                                       Tr_intExp(pos, at->u.sarray.iStart, Ty_Long()),
-                                                       Ty_Long()),
-                                           Tr_intExp(pos, Ty_size(et), Ty_Long()),
-                                           Ty_Long()),
-                               Ty_VarPtr(FE_mod->name, et));
-#endif
             break;
         }
         default:
