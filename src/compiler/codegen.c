@@ -849,6 +849,9 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
             break;
         }
 
+        case IK_varPtr:
+            break;
+
         default:
             assert(FALSE);
     }
