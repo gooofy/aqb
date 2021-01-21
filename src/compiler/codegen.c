@@ -1024,9 +1024,17 @@ static void emitRegCall(AS_instrList code, S_pos pos, string strName, int lvo, C
                                               0, 0, Temp_namedlabel(strName), AS_callersaves(), argTempSet));
     }
 
-    CG_TempItem(res, resty);
-    AS_instrListAppend (code, AS_InstrEx2(pos, AS_MOVE_AnDn_AnDn, AS_w_L, AS_regs[AS_TEMP_D0], res->u.inReg,        // move.l RV, r
-                                          NULL, 0, NULL, NULL, AS_callersaves()));
+    if (res)
+    {
+        CG_TempItem(res, resty);
+        AS_instrListAppend (code, AS_InstrEx2(pos, AS_MOVE_AnDn_AnDn, AS_w_L, AS_regs[AS_TEMP_D0], res->u.inReg,    // move.l RV, r
+                                              NULL, 0, NULL, NULL, AS_callersaves()));
+    }
+    else
+    {
+        AS_instrListAppend (code, AS_InstrEx2(pos, AS_NOP, AS_w_NONE, NULL, NULL,                                   // nop
+                                              NULL, 0, NULL, NULL, AS_callersaves()));
+    }
 }
 
 // result in left!
@@ -3159,7 +3167,24 @@ void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args,
 // left := right
 void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *right)
 {
-    Ty_ty      ty = CG_ty(right);
+    Ty_ty  ty     = CG_ty(right);
+    int    tySize = Ty_size(ty);
+
+    if (tySize > AS_WORD_SIZE)
+    {
+        CG_loadRef (code, pos, left);
+        CG_loadRef (code, pos, right);
+
+        CG_item tySizeItem;
+        CG_UIntItem (&tySizeItem, tySize, Ty_ULong());
+        CG_loadVal (code, pos, &tySizeItem);
+
+        emitRegCall (code, pos, "_SysBase", LVOCopyMem, CG_RAL(tySizeItem.u.inReg, AS_regs[AS_TEMP_D0], 
+                                                          CG_RAL(right->u.varPtr, AS_regs[AS_TEMP_A0], 
+                                                            CG_RAL(left->u.varPtr, AS_regs[AS_TEMP_A1], NULL))), NULL, NULL);
+        return;
+    }
+
     enum AS_w  w  = AS_tySize(ty);
     switch (right->kind)
     {
@@ -3188,6 +3213,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
             break;
 
         case IK_cond:
+        case IK_varPtr:
             CG_loadVal (code, pos, right);
             // fall through
         case IK_inReg:
@@ -3203,6 +3229,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
                 case IK_inHeap:
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Label, w, right->u.inReg, NULL,           // move.x right.t, left.l
                                                           NULL, 0, left->u.inHeap.l));
+                    break;
+                case IK_varPtr:
+                    AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, right->u.inReg, left->u.varPtr));   // move.x right.t, (left)
                     break;
                 default:
                     assert(FALSE);

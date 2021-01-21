@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXAMPLE=sarray1
+EXAMPLE=sarray2
 
 ASMProsrc='/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo.asm'
 
