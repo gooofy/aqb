@@ -52,6 +52,13 @@ static void InFrame (CG_item *item, int offset, Ty_ty ty)
     item->u.inFrameR.offset = offset;
 }
 
+static void InFrameRef (CG_item *item, int offset, Ty_ty ty)
+{
+    item->kind              = IK_inFrameRef;
+    item->ty                = ty;
+    item->u.inFrameR.offset = offset;
+}
+
 static void InReg (CG_item *item, Temp_temp reg, Ty_ty ty)
 {
     item->kind    = IK_inReg;
@@ -110,11 +117,25 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
         }
         else
         {
-            int size = Ty_size(formal->ty);
-            // gcc seems to push 4 bytes regardless of type (int, long, ...)
-            offset += 4-size;
-            InFrame (&n->item, offset, formal->ty);
-            offset += size;
+            switch (formal->mode)
+            {
+                case Ty_byRef:
+                    InFrameRef (&n->item, offset, formal->ty);
+                    offset += 4;
+                    break;
+                case Ty_byVal:
+                {
+                    int size = Ty_size(formal->ty);
+                    assert (size <= 4);
+                    // gcc seems to push 4 bytes regardless of type (int, long, ...)
+                    offset += 4-size;
+                    InFrame (&n->item, offset, formal->ty);
+                    offset += size;
+                    break;
+                }
+                default:
+                    assert(FALSE);
+            }
         }
     }
 
@@ -361,6 +382,7 @@ Ty_ty CG_ty(CG_item *item)
         case IK_inHeap:
         case IK_cond:
         case IK_varPtr:
+        case IK_inFrameRef:
             return item->ty;
     }
     assert(FALSE);
@@ -851,6 +873,16 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
 
         case IK_varPtr:
             break;
+
+        case IK_inFrameRef:
+        {
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, AS_w_L, NULL,                                //     move.l o(fp), t
+                                                 t, NULL, item->u.inFrameR.offset, NULL));
+            VarPtr (item, t, ty);
+            break;
+        }
 
         default:
             assert(FALSE);
@@ -3293,12 +3325,11 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
             {
                 case IK_inFrame:
                 {
-                    assert(FALSE);
-                    // Temp_temp t = Temp_Temp(ty);
-                    // AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, t,                           // move.x left.o(fp), t
-                    //                                       NULL, left->u.inFrameR.offset, NULL));
-                    // AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, t, NULL,                           // move.x t, right.o(fp)
-                    //                                       NULL, right->u.inFrameR.offset, NULL));
+                    Temp_temp t = Temp_Temp(ty);
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, t,                              // move.x right.o(fp), t
+                                                          NULL, right->u.inFrameR.offset, NULL));
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, t, NULL,                              // move.x t, left.o(fp)
+                                                          NULL, left->u.inFrameR.offset, NULL));
                     break;
                 }
                 case IK_inReg:

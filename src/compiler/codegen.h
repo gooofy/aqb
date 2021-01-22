@@ -17,7 +17,7 @@ typedef struct CG_fragList_      *CG_fragList;
 typedef enum
 {
     IK_none, IK_const, IK_inFrame, IK_inReg, IK_inHeap, IK_cond,
-    IK_varPtr
+    IK_varPtr, IK_inFrameRef
 } CG_itemKind;
 
 typedef enum

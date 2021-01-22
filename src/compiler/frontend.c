@@ -2467,7 +2467,7 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
             if (!convert_ty(init, pos, t, /*explicit=*/FALSE))
                 return EM_error(pos, "initializer type mismatch");
 
-            CG_transAssignment (g_prog, pos, var, init);
+            CG_transAssignment (statc ? g_prog : g_sleStack->code, pos, var, init);
         }
     }
     return TRUE;
@@ -6916,7 +6916,9 @@ static void registerBuiltins(void)
 #if 0
     declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl   , Ty_Void());
     declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl     , Ty_Void());
+#endif
     declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin, Ty_Void());
+#if 0
     declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic       , Ty_Void());
     declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin   , Ty_Void());
     declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
