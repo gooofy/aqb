@@ -2975,9 +2975,15 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                                                                   Ty_ConstInt(Ty_Long(), 2), 0, NULL));
                             break;
                         default:
-                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULU_Imm_Dn, AS_w_L, NULL, idx->u.inReg,         // mulu #ets, idx
+                        {
+                            CG_item temp;
+                            CG_TempItem (&temp, Ty_Long());
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_w_L, NULL, temp.u.inReg,       // move.l #ets, temp
                                                                   Ty_ConstInt(Ty_Long(), ets), 0, NULL));
+                            emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(temp.u.inReg, AS_regs[AS_TEMP_D0],              // mulu.l #ets, idx
+                                                                      CG_RAL(idx->u.inReg, AS_regs[AS_TEMP_D1], NULL)), Ty_Long(), idx);
                             break;
+                        }
                     }
 
                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, AS_w_L, idx->u.inReg, ape->u.inReg));       // add.l idx, ape
@@ -3066,9 +3072,15 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                                                                   Ty_ConstInt(Ty_Long(), 2), 0, NULL));
                             break;
                         default:
-                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MULU_Imm_Dn, AS_w_L, NULL, idx->u.inReg,         // mulu #ets, idx
+                        {
+                            CG_item temp;
+                            CG_TempItem (&temp, Ty_Long());
+                            AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_w_L, NULL, temp.u.inReg,       // move.l #ets, temp
                                                                   Ty_ConstInt(Ty_Long(), ets), 0, NULL));
+                            emitRegCall (code, pos, "___mulsi4", 0, CG_RAL(temp.u.inReg, AS_regs[AS_TEMP_D0],              // mulu.l #ets, idx
+                                                                      CG_RAL(idx->u.inReg, AS_regs[AS_TEMP_D1], NULL)), Ty_Long(), idx);
                             break;
+                        }
                     }
 
                     CG_loadRef (code, pos, ape);
