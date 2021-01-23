@@ -5988,13 +5988,14 @@ static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
     emit(Tr_whileExp(pos, conv_exp, Tr_seqExp(sle->expList), sle->exitlbl, sle->contlbl));
     return TRUE;
 }
+#endif
 
 // letStmt ::= LET expDesignator "=" expression
 static bool stmtLet(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    CG_item     lhs;     // left hand side
-    CG_item     ex;
-    S_pos      pos = (*tkn)->pos;
+    CG_item lhs;     // left hand side
+    CG_item ex;
+    S_pos   pos = (*tkn)->pos;
 
     *tkn = (*tkn)->next;  // skip "LET"
 
@@ -6008,17 +6009,14 @@ static bool stmtLet(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!expression(tkn, &ex))
         return EM_error((*tkn)->pos, "expression expected here.");
 
-    CG_item convexp;
-
-    Ty_ty ty = CG_ty(lhs);
-    if (!convert_ty(pos, ex, ty, &convexp, /*explicit=*/FALSE))
+    Ty_ty ty = CG_ty(&lhs);
+    if (!convert_ty(&ex, pos, ty, /*explicit=*/FALSE))
         return EM_error(pos, "type mismatch (LET).");
 
-    emit(Tr_assignExp(pos, lhs, convexp));
+    CG_transAssignment (g_sleStack->code, pos, &lhs, &ex);
 
     return TRUE;
 }
-#endif
 
 // nestedStmtList ::= [ ( SUB | FUNCTION | DO | FOR | WHILE | SELECT ) ( "," (SUB | FUNCTION | DO | FOR | WHILE | SELECT) )* ]
 static bool stmtNestedStmtList(S_tkn *tkn, FE_nestedStmt *res)
@@ -6924,8 +6922,8 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic       , Ty_Void());
     declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin   , Ty_Void());
     declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
-    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
 #endif
+    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
     declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit         , Ty_Void());
 #if 0
     declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue     , Ty_Void());
