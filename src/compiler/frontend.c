@@ -1630,13 +1630,10 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
 
     if (deref)
     {
-        assert(FALSE); // FIXME
-#if 0
         if (ty->kind != Ty_pointer)
             return EM_error(pos, "This object cannot be dereferenced.");
-        *exp = Tr_Deref(pos, *exp);
-        ty = CG_ty(*exp);
-#endif
+        CG_transDeRef (g_sleStack->code, pos, exp);
+        ty = CG_ty(exp);
     }
 
     return TRUE;
@@ -6537,7 +6534,6 @@ static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // funCast = CAST "(" typeDesc "," expression ")"
 static bool funCast(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6555,23 +6551,20 @@ static bool funCast(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error((*tkn)->pos, ", expected.");
     *tkn = (*tkn)->next;
 
-    CG_item exp2;
-    if (!expression(tkn, &exp2))
+    if (!expression(tkn, exp))
         return EM_error((*tkn)->pos, "CAST: expression expected here.");
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    CG_item conv_exp;
-    if (!convert_ty(pos, exp2, t_dest, &conv_exp, /*explicit=*/TRUE))
+    if (!convert_ty(exp, pos, t_dest, /*explicit=*/TRUE))
         return EM_error(pos, "unsupported cast");
-
-    *exp = conv_exp;
 
     return TRUE;
 }
 
+#if 0
 // funStrDollar = STR$ "(" expression ")"
 static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6956,7 +6949,9 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
 #if 0
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
+#endif
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast          , Ty_ULong());
+#if 0
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());
 #endif
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());

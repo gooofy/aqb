@@ -3403,6 +3403,17 @@ void CG_transNOP (AS_instrList code, S_pos pos)
     AS_instrListAppend (code, AS_Instr (pos, AS_NOP, AS_w_NONE, NULL, NULL));           //      nop
 }
 
+void CG_transDeRef (AS_instrList code, S_pos pos, CG_item *item)
+{
+    Ty_ty ty = CG_ty(item);
+    assert (ty->kind == Ty_pointer);
+    CG_loadVal (code, pos, item);
+    Temp_temp t = Temp_Temp (ty->u.pointer);
+    AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), item->u.inReg, t));         //     move.x (item), t
+    item->u.inReg = t;
+    item->ty = ty->u.pointer;
+}
+
 void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
 {
     Ty_ty from_ty = CG_ty(item);
@@ -3724,12 +3735,20 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 }
                 break;
 
-            case Ty_double:
-                assert(FALSE);
+            case Ty_double:             // double ->
+                assert(FALSE); // FIXME
+                break;
+
+            case Ty_pointer:            // pointer ->
+                if (from_ty->kind == to_ty->kind)
+                {
+                    item->ty = to_ty;
+                    return;
+                }
+                assert(FALSE); // FIXME
                 break;
 
             case Ty_sarray:
-            case Ty_pointer:
             case Ty_procPtr:
             case Ty_string:
                 switch (to_ty->kind)

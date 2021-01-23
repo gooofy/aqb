@@ -160,6 +160,7 @@ void            CG_transPostCond    (AS_instrList code, S_pos pos, CG_item *left
 void            CG_transAssignment  (AS_instrList code, S_pos pos,  CG_item *left, CG_item *right);
 void            CG_transCall        (AS_instrList code, S_pos pos,  Ty_proc proc, CG_itemList args, CG_item *result);
 void            CG_transNOP         (AS_instrList code, S_pos pos) ;
+void            CG_transDeRef       (AS_instrList code, S_pos pos, CG_item *item);
 
 void            CG_castItem         (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty);
 
