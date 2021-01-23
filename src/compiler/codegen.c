@@ -506,11 +506,12 @@ CG_itemList CG_ItemList (void)
     return l;
 }
 
-static CG_itemListNode CG_ItemListNode (CG_itemListNode next)
+static CG_itemListNode CG_ItemListNode (void)
 {
     CG_itemListNode n = checked_malloc(sizeof(*n));
 
-    n->next = next;
+    n->next = NULL;
+    n->prev = NULL;
 
     return n;
 }
@@ -519,7 +520,9 @@ CG_itemListNode CG_itemListAppend (CG_itemList il)
 {
     assert(il);
 
-    CG_itemListNode n = CG_ItemListNode (NULL);
+    CG_itemListNode n = CG_ItemListNode ();
+
+    n->prev = il->last;
 
     if (il->last)
         il->last = il->last->next = n;
@@ -937,7 +940,7 @@ static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
 
     int cnt = 0;
 
-    for (CG_itemListNode n = args->first; n; n=n->next)
+    for (CG_itemListNode n = args->last; n; n=n->prev)
     {
         // apparently, gcc pushes 4 bytes regardless of actual operand size
         CG_item *e = &n->item;
@@ -994,8 +997,8 @@ static void emitBinOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item 
 
     CG_loadVal (code, pos, left);
     CG_loadVal (code, pos, right);
-    iln = CG_itemListAppend (args); iln->item = *right;
     iln = CG_itemListAppend (args); iln->item = *left;
+    iln = CG_itemListAppend (args); iln->item = *right;
 
     int arg_cnt = munchArgsStack(pos, code, 0, args);
     Temp_label l = Temp_namedlabel(sub_name);

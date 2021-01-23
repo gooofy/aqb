@@ -51,7 +51,7 @@ struct CG_item_
 struct CG_itemListNode_
 {
     CG_item         item;
-    CG_itemListNode next;
+    CG_itemListNode prev, next;
 };
 
 struct CG_itemList_

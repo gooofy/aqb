@@ -13,5 +13,5 @@ all: minbrt.asm
 	./as2mot.py $< > $@
 
 clean:
-	rm -f minbrt.asm
+	rm -f minbrt.asm minbrt.s
 

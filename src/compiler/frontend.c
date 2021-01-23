@@ -6518,6 +6518,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
+#endif
 
 // funSizeOf = SIZEOF "(" typeDesc ")"
 static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6526,7 +6527,7 @@ static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    Ty_ty ty;
+    Ty_ty ty=NULL;
     if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
         return FALSE;
 
@@ -6534,10 +6535,11 @@ static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = CG_UIntItem((*tkn)->pos, Ty_size(ty), Ty_ULong());
+    CG_UIntItem(exp, Ty_size(ty), Ty_ULong());
     return TRUE;
 }
 
+#if 0
 // funCast = CAST "(" typeDesc "," expression ")"
 static bool funCast(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6951,8 +6953,10 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
     declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
+#endif
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
+#if 0
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast          , Ty_ULong());
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());

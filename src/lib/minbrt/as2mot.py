@@ -56,6 +56,8 @@ CONVERSION_PATTERNS = [
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+(?P<r0>[ad0-7]+),\((?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t\g<r0>, (\g<r1>)'),
      # move.b (-9,a5),(a0)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+\((?P<off>[+\-0-9]+),(?P<r0>[ad0-7sp]+)\),\((?P<r1>[ad0-7sp]+)\)$'), '\t\g<mn>\t\g<off>(\g<r0>), (\g<r1>)'),
+     # move.l (-4,a5),_g_mem
+     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+\((?P<off>[+\-0-9]+),(?P<r0>[ad0-7sp]+)\),(?P<label>[a-zA-Z0-9_\.]+)$'), '\t\g<mn>\t\g<off>(\g<r0>), \g<label>'),
      # addq.l #1,(-4,a5)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<imm>[+\-0-9]+),\((?P<off>[+\-0-9]+),(?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t#\g<imm>, \g<off>(\g<r1>)'),
      # nop

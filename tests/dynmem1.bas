@@ -14,6 +14,8 @@ DIM i AS INTEGER
 ' _debug_puts2 ( num * SIZEOF (UINTEGER) )
 a = ALLOCATE ( num * SIZEOF (UINTEGER) )
 
+ASSERT a
+
 FOR i = 0 TO num-1
 	' _debug_puts2 i
 	' _debug_puts "::"

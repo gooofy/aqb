@@ -402,6 +402,61 @@ void _debug_cls(void)
 
 /************************************************************************
  *
+ * ALLOCATE / DEALLOCATE
+ *
+ ************************************************************************/
+
+// not using Intuition's AllocRemember here because we want minimal dependencies for the AQB core module
+
+typedef struct AQB_memrec_ *AQB_memrec;
+
+struct AQB_memrec_
+{
+    AQB_memrec next;
+    ULONG      size;
+    APTR      *mem;
+};
+
+static AQB_memrec g_mem = NULL;
+
+APTR ALLOCATE_(ULONG size, ULONG flags)
+{
+    AQB_memrec mem_prev = g_mem;
+
+    //_debug_puts("ALLOCATE size=");
+    //_debug_puts2(size);
+    //_debug_puts(", flags=");
+    //_debug_puts2(flags);
+    //_debug_puts("\n");
+
+    g_mem = (AQB_memrec) AllocMem (sizeof(*g_mem), 0);
+    if (!g_mem)
+    {
+        g_mem = mem_prev;
+        return NULL;
+    }
+
+    g_mem->mem = (APTR) AllocMem (size, flags);
+    if (!g_mem->mem)
+    {
+        FreeMem(g_mem, sizeof (*g_mem));
+        g_mem = mem_prev;
+        return NULL;
+    }
+
+    g_mem->size = size;
+    g_mem->next = mem_prev;
+
+    return g_mem->mem;
+}
+
+void DEALLOCATE (APTR ptr, ULONG size)
+{
+    // FIXME: implement.
+}
+
+/************************************************************************
+ *
  * startup / exit
  *
  ************************************************************************/
@@ -425,6 +480,15 @@ void SYSTEM(void)
 // gets called by _autil_exit
 void _minbrt_exit(void)
 {
+
+    while (g_mem)
+    {
+        AQB_memrec mem_next = g_mem->next;
+        FreeMem(g_mem->mem, g_mem->size);
+        FreeMem(g_mem, sizeof (*g_mem));
+        g_mem = mem_next;
+    }
+
 #ifdef ENABLE_DEBUG
     if (DOSBase)
         _debug_puts("_c_atexit...\n");
