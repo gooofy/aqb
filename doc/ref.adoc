@@ -182,6 +182,24 @@ Examples:
 
 static arrays are much faster than dynamic arrays but offer no runtime bounds checking
 
+=== DO ... LOOP
+
+Syntax A:
+
+	DO [ ( UNTIL | WHILE ) expression ]
+        <code>
+	LOOP
+
+Syntax B:
+
+	DO
+        <code>
+	LOOP [ ( UNTIL | WHILE ) expression ]
+
+generic loop, loops until or while the given expression evaluates to TRUE. Expression test can either happen at the beginning
+or end of loop depending on the syntax used. If no UNTIL/WHILE clause is given, this will create an endless loop
+(which can still be exited from within the loop body using the EXIT statement).
+
 === END
 
 Syntax:
@@ -369,6 +387,10 @@ Syntax:
     LOG "(" l ")"
 
 obtain the natural logarithm of the floating point number
+
+=== LOOP
+
+see DO...LOOP
 
 === MOD
 

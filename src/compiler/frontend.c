@@ -6145,9 +6145,6 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_transLabel (g_sleStack->code, pos, loopcont);
     *tkn = (*tkn)->next; // consume "DO"
 
-    //CG_NoneItem (&sle->u.doLoop.whileExp);
-    //CG_NoneItem (&sle->u.doLoop.untilExp);
-
     sle->u.doLoop.condAtEntry = FALSE;
 
     if (isSym (*tkn, S_UNTIL))
@@ -6209,10 +6206,16 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (sle->u.doLoop.condAtEntry)
             return EM_error(pos, "LOOP: duplicate loop condition");
 
-        assert(FALSE); // FIXME
+        CG_item cond;
+        if (!expression(tkn, &cond))
+            return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
+        if (!convert_ty(&cond, pos, Ty_Bool(), /*explicit=*/FALSE))
+            return EM_error(pos, "LOOP UNTIL: boolean expression expected.");
 
-        //if (!expression(tkn, &sle->u.doLoop.untilExp))
-        //    return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
+        CG_loadCond (g_sleStack->code, pos, &cond);
+        CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
+        CG_transJump  (g_sleStack->code, pos, sle->exitlbl);
+        CG_transLabel (g_sleStack->code, pos, cond.u.condR.l);
     }
     else
     {
@@ -6221,9 +6224,17 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
             *tkn = (*tkn)->next;
             if (sle->u.doLoop.condAtEntry)
                 return EM_error(pos, "LOOP: duplicate loop condition");
-            //if (!expression(tkn, &sle->u.doLoop.whileExp))
-            //    return EM_error((*tkn)->pos, "LOOP WHILE: expression expected here.");
-            assert(FALSE); // FIXME
+
+            CG_item cond;
+            if (!expression(tkn, &cond))
+                return EM_error((*tkn)->pos, "LOOP WHILE: expression expected here.");
+            if (!convert_ty(&cond, pos, Ty_Bool(), /*explicit=*/FALSE))
+                return EM_error(pos, "LOOP WHILE: boolean expression expected.");
+
+            CG_loadCond (g_sleStack->code, pos, &cond);
+            CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ FALSE);
+            CG_transJump  (g_sleStack->code, pos, sle->exitlbl);
+            CG_transLabel (g_sleStack->code, pos, cond.u.condR.l);
         }
     }
 
