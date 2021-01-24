@@ -3396,7 +3396,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
 
 void CG_transNOP (AS_instrList code, S_pos pos)
 {
-    AS_instrListAppend (code, AS_Instr (pos, AS_NOP, AS_w_NONE, NULL, NULL));           //      nop
+    AS_instrListAppend (code, AS_Instr (pos, AS_NOP, AS_w_NONE, NULL, NULL));                                             //      nop
 }
 
 void CG_transDeRef (AS_instrList code, S_pos pos, CG_item *item)
@@ -3405,7 +3405,7 @@ void CG_transDeRef (AS_instrList code, S_pos pos, CG_item *item)
     assert (ty->kind == Ty_pointer);
     CG_loadVal (code, pos, item);
     Temp_temp t = Temp_Temp (ty->u.pointer);
-    AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), item->u.inReg, t));         //     move.x (item), t
+    AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty->u.pointer), item->u.inReg, t));               //     move.x (item), t
     item->u.inReg = t;
     item->ty = ty->u.pointer;
 }

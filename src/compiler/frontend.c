@@ -3480,7 +3480,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_symbol   sLoopVar = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
-    E_env    lenv    = g_sleStack->env;
+    E_env    lenv    = OPT_get(OPTION_EXPLICIT) ? E_EnvScopes(g_sleStack->env) : g_sleStack->env;
     FE_SLE   sle     = slePush(FE_sleFor, pos, g_sleStack->frame, lenv, g_sleStack->code, /*exitLbl=*/NULL, forcont, g_sleStack->returnVar);
     CG_item *loopVar = &sle->u.forLoop.var;
     Ty_ty    varTy   = NULL;
@@ -3492,7 +3492,6 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         *tkn = (*tkn)->next;
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &varTy))
             return EM_error((*tkn)->pos, "FOR: type descriptor expected here.");
-        lenv = E_EnvScopes(lenv);
         sle->env = lenv;
         CG_frame frame = sle->frame;
         if (frame->statc)
@@ -4153,14 +4152,15 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next;    // skip "ASSERT"
 
     CG_itemList arglist = CG_ItemList();
-    CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_StringItem (&n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
-    CG_loadRef (g_sleStack->code, pos, &n->item);
 
-    n = CG_itemListAppend(arglist);
+    CG_itemListNode n = CG_itemListAppend(arglist);
     if (!expression(tkn, &n->item))
         return EM_error((*tkn)->pos, "Assert: expression expected here.");
     CG_loadVal (g_sleStack->code, pos, &n->item);
+
+    n = CG_itemListAppend(arglist);
+    CG_StringItem (&n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
+    CG_loadRef (g_sleStack->code, pos, &n->item);
 
     S_symbol fsym      = S_Symbol("_aqb_assert", TRUE);
     E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
@@ -5954,7 +5954,7 @@ static bool stmtStatic(S_tkn *tkn, E_enventry e, CG_item *exp)
 static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
-    E_env      lenv     = E_EnvScopes(g_sleStack->env);
+    E_env      lenv     = OPT_get(OPTION_EXPLICIT) ? E_EnvScopes(g_sleStack->env) : g_sleStack->env;
     Temp_label loopcont = Temp_newlabel();
     FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->frame, lenv, g_sleStack->code, NULL, loopcont, g_sleStack->returnVar);
 
@@ -6140,7 +6140,7 @@ static bool stmtContinue(S_tkn *tkn, E_enventry e, CG_item *exp)
 static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos      = (*tkn)->pos;
-    E_env      lenv     = E_EnvScopes(g_sleStack->env);
+    E_env      lenv     = OPT_get(OPTION_EXPLICIT) ? E_EnvScopes(g_sleStack->env) : g_sleStack->env;
     Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
     FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->frame, lenv, loopexit, loopcont, g_sleStack->returnVar);
