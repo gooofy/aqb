@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXAMPLE=dynmem1
+EXAMPLE=loop1
 
 ASMProsrc='/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo.asm'
 

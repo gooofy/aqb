@@ -676,7 +676,7 @@ repeat loop body while expression evaluates to TRUE
 
 === WEND
 
-see WHILE ... WEN
+see WHILE ... WEND
 
 == AQB / AmigaBASIC
 

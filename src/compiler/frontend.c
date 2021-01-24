@@ -104,7 +104,6 @@ struct FE_SLE_
             CG_item       toItem, stepItem;
             Temp_label    lHead;
         } forLoop;
-        CG_item whileExp;
         struct
         {
             Temp_label    lElse;
@@ -3494,7 +3493,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &varTy))
             return EM_error((*tkn)->pos, "FOR: type descriptor expected here.");
         lenv = E_EnvScopes(lenv);
-	sle->env = lenv;
+        sle->env = lenv;
         CG_frame frame = sle->frame;
         if (frame->statc)
         {
@@ -5949,20 +5948,30 @@ static bool stmtStatic(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
     return TRUE;
 }
+#endif
 
 // whileBegin ::= WHILE expression
 static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos = (*tkn)->pos;
     E_env      lenv     = E_EnvScopes(g_sleStack->env);
-    Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
-    FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->frame, lenv, loopexit, loopcont, g_sleStack->returnVar);
+    FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->frame, lenv, g_sleStack->code, NULL, loopcont, g_sleStack->returnVar);
 
     *tkn = (*tkn)->next; // consume "WHILE"
 
-    if (!expression(tkn, &sle->u.whileExp))
+    CG_transLabel (g_sleStack->code, pos, loopcont);
+
+    CG_item ex;
+    if (!expression(tkn, &ex))
         return EM_error((*tkn)->pos, "WHILE: expression expected here.");
+
+    if (!convert_ty(&ex, pos, Ty_Bool(), /*explicit=*/FALSE))
+        return EM_error(pos, "WHILE: boolean expression expected.");
+
+    CG_loadCond (g_sleStack->code, pos, &ex);
+    CG_transPostCond (g_sleStack->code, pos, &ex, /*positive=*/ TRUE);
+    sle->exitlbl = ex.u.condR.l;
 
     return TRUE;
 }
@@ -5978,14 +5987,11 @@ static bool stmtWhileEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error(pos, "WEND used outside of a WHILE-loop context");
     slePop();
 
-    CG_item conv_exp;
-    if (!convert_ty(pos, sle->u.whileExp, Ty_Bool(), &conv_exp, /*explicit=*/FALSE))
-        return EM_error(pos, "Boolean expression expected.");
+    CG_transJump (g_sleStack->code, pos, sle->contlbl);
+    CG_transLabel (g_sleStack->code, pos, sle->exitlbl);
 
-    emit(Tr_whileExp(pos, conv_exp, Tr_seqExp(sle->expList), sle->exitlbl, sle->contlbl));
     return TRUE;
 }
-#endif
 
 // letStmt ::= LET expDesignator "=" expression
 static bool stmtLet(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6913,9 +6919,9 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin, Ty_Void());
 #if 0
     declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic       , Ty_Void());
+#endif
     declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin   , Ty_Void());
     declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
-#endif
     declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
     declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit         , Ty_Void());
 #if 0
