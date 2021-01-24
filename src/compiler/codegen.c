@@ -3230,20 +3230,16 @@ void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args,
 
     if (proc->libBase)
     {
-        assert(FALSE); // FIXME
-#if 0
-        F_ral     ral    = NULL;
-        Ty_formal formal = e->u.CALLF.proc->formals;
-        for (; args; args=args->tail)
+        CG_ral    ral    = NULL;
+        Ty_formal formal = proc->formals;
+        for (CG_itemListNode iln=args->first; iln; iln=iln->next)
         {
-            ral = F_RAL(munchExp(args->head, FALSE), formal->reg, ral);
+            CG_loadVal (code, pos, &iln->item);
+            ral = CG_RAL(iln->item.u.inReg, formal->reg, ral);
             formal = formal->next;
         }
 
-        Temp_temp r = emitRegCall(e->pos, e->u.CALLF.proc->libBase, e->u.CALLF.proc->offset, ral, e->ty);
-        if (!ignore_result)
-            return r;
-#endif
+        emitRegCall(code, pos, proc->libBase, proc->offset, ral, proc->returnTy, result);
     }
     else
     {
