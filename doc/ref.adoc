@@ -89,6 +89,14 @@ Syntax B:
 
 declare constants
 
+=== CONTINUE
+
+Syntax:
+
+    CONTINUE [ ( DO | FOR | WHILE ) ]
+
+continue next iteration of a loop
+
 === COS()
 
 Syntax:
