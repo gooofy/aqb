@@ -6116,7 +6116,6 @@ static bool stmtExit(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // continueStmt ::= CONTINUE nestedStmtList
 static bool stmtContinue(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6136,6 +6135,7 @@ static bool stmtContinue(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+#if 0
 // doStmt ::= DO [ ( UNTIL | WHILE ) expression ]
 static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6924,8 +6924,8 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
     declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
     declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit         , Ty_Void());
-#if 0
     declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue     , Ty_Void());
+#if 0
     declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo           , Ty_Void());
     declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop         , Ty_Void());
 #endif
