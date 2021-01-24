@@ -119,8 +119,8 @@ struct FE_SLE_
         } typeDecl;
         struct
         {
-            CG_item untilExp, whileExp;
-            bool   condAtEntry;
+            // FIXME: remove CG_item untilExp, whileExp;
+            bool    condAtEntry;
         } doLoop;
         struct
         {
@@ -5958,9 +5958,8 @@ static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     Temp_label loopcont = Temp_newlabel();
     FE_SLE     sle      = slePush(FE_sleWhile, pos, g_sleStack->frame, lenv, g_sleStack->code, NULL, loopcont, g_sleStack->returnVar);
 
-    *tkn = (*tkn)->next; // consume "WHILE"
-
     CG_transLabel (g_sleStack->code, pos, loopcont);
+    *tkn = (*tkn)->next; // consume "WHILE"
 
     CG_item ex;
     if (!expression(tkn, &ex))
@@ -6135,41 +6134,59 @@ static bool stmtContinue(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // doStmt ::= DO [ ( UNTIL | WHILE ) expression ]
 static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos      pos      = (*tkn)->pos;
     E_env      lenv     = OPT_get(OPTION_EXPLICIT) ? E_EnvScopes(g_sleStack->env) : g_sleStack->env;
-    Temp_label loopexit = Temp_newlabel();
     Temp_label loopcont = Temp_newlabel();
-    FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->frame, lenv, loopexit, loopcont, g_sleStack->returnVar);
+    FE_SLE     sle      = slePush(FE_sleDo, pos, g_sleStack->frame, lenv, g_sleStack->code, NULL, loopcont, g_sleStack->returnVar);
 
+    CG_transLabel (g_sleStack->code, pos, loopcont);
     *tkn = (*tkn)->next; // consume "DO"
 
-    sle->u.doLoop.whileExp = NULL;
-    sle->u.doLoop.untilExp = NULL;
+    //CG_NoneItem (&sle->u.doLoop.whileExp);
+    //CG_NoneItem (&sle->u.doLoop.untilExp);
+
+    sle->u.doLoop.condAtEntry = FALSE;
 
     if (isSym (*tkn, S_UNTIL))
     {
         *tkn = (*tkn)->next;
-        if (!expression(tkn, &sle->u.doLoop.untilExp))
+        CG_item cond;
+        if (!expression(tkn, &cond))
             return EM_error((*tkn)->pos, "DO UNTIL: expression expected here.");
+        if (!convert_ty(&cond, pos, Ty_Bool(), /*explicit=*/FALSE))
+            return EM_error(pos, "DO UNTIL: boolean expression expected.");
+        sle->u.doLoop.condAtEntry = TRUE;
+
+        CG_loadCond (g_sleStack->code, pos, &cond);
+        CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ FALSE);
+        sle->exitlbl = cond.u.condR.l;
     }
     else
     {
         if (isSym (*tkn, S_WHILE))
         {
             *tkn = (*tkn)->next;
-            if (!expression(tkn, &sle->u.doLoop.whileExp))
+            CG_item cond;
+            if (!expression(tkn, &cond))
                 return EM_error((*tkn)->pos, "DO WHILE: expression expected here.");
+            if (!convert_ty(&cond, pos, Ty_Bool(), /*explicit=*/FALSE))
+                return EM_error(pos, "DO WHILE: boolean expression expected.");
+            sle->u.doLoop.condAtEntry = TRUE;
+
+            CG_loadCond (g_sleStack->code, pos, &cond);
+            CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
+            sle->exitlbl = cond.u.condR.l;
         }
     }
 
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    sle->u.doLoop.condAtEntry = sle->u.doLoop.whileExp || sle->u.doLoop.untilExp;
+    if (!sle->u.doLoop.condAtEntry)
+        sle->exitlbl = Temp_newlabel();
 
     return TRUE;
 }
@@ -6192,8 +6209,10 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (sle->u.doLoop.condAtEntry)
             return EM_error(pos, "LOOP: duplicate loop condition");
 
-        if (!expression(tkn, &sle->u.doLoop.untilExp))
-            return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
+        assert(FALSE); // FIXME
+
+        //if (!expression(tkn, &sle->u.doLoop.untilExp))
+        //    return EM_error((*tkn)->pos, "LOOP UNTIL: expression expected here.");
     }
     else
     {
@@ -6202,34 +6221,20 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
             *tkn = (*tkn)->next;
             if (sle->u.doLoop.condAtEntry)
                 return EM_error(pos, "LOOP: duplicate loop condition");
-            if (!expression(tkn, &sle->u.doLoop.whileExp))
-                return EM_error((*tkn)->pos, "LOOP WHILE: expression expected here.");
+            //if (!expression(tkn, &sle->u.doLoop.whileExp))
+            //    return EM_error((*tkn)->pos, "LOOP WHILE: expression expected here.");
+            assert(FALSE); // FIXME
         }
     }
 
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
-    CG_item convUntilExp = NULL;
-    CG_item convWhileExp = NULL;
-
-    if (sle->u.doLoop.untilExp)
-    {
-        if (!convert_ty(pos, sle->u.doLoop.untilExp, Ty_Bool(), &convUntilExp, /*explicit=*/FALSE))
-            return EM_error(pos, "Boolean expression expected.");
-    }
-
-    if (sle->u.doLoop.whileExp)
-    {
-        if (!convert_ty(pos, sle->u.doLoop.whileExp, Ty_Bool(), &convWhileExp, /*explicit=*/FALSE))
-            return EM_error(pos, "Boolean expression expected.");
-    }
-
-    emit(Tr_doExp(pos, convUntilExp, convWhileExp, sle->u.doLoop.condAtEntry, Tr_seqExp(sle->expList), sle->exitlbl, sle->contlbl));
+    CG_transJump  (g_sleStack->code, pos, sle->contlbl);
+    CG_transLabel (g_sleStack->code, pos, sle->exitlbl);
 
     return TRUE;
 }
-#endif
 
 // stmtReturn ::= RETURN [ expression ]
 static bool stmtReturn(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6925,10 +6930,8 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());
     declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit         , Ty_Void());
     declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue     , Ty_Void());
-#if 0
     declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo           , Ty_Void());
     declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop         , Ty_Void());
-#endif
     declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect       , Ty_Void());
     declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase         , Ty_Void());
     declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn       , Ty_Void());
