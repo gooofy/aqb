@@ -31,7 +31,7 @@ PUBLIC DECLARE SUB _aio_inputs4                (BYREF v AS LONG    )
 PUBLIC DECLARE SUB _aio_inputu4                (BYREF v AS ULONG   )
 PUBLIC DECLARE SUB _aio_inputf                 (BYREF v AS SINGLE  )
 PUBLIC DECLARE SUB _aio_inputs                 (BYREF v AS STRING  )
-PUBLIC DECLARE SUB _aio_set_dos_cursor_visible (BYREF visible AS BOOLEAN)
+PUBLIC DECLARE SUB _aio_set_dos_cursor_visible (BYVAL visible AS BOOLEAN)
 
 
 PUBLIC DECLARE SUB      LOCATE  (BYVAL l AS INTEGER=-1, BYVAL c AS INTEGER=-1)

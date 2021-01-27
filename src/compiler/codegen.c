@@ -1015,7 +1015,7 @@ static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
     return cnt;
 }
 
-static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt, bool sink_callersaves)
+static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt)
 {
     if (cnt)
     {
@@ -1025,11 +1025,8 @@ static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt, bool 
     }
     else
     {
-        if (sink_callersaves)
-        {
-            AS_instrListAppend(code, AS_InstrEx2 (pos, AS_NOP, AS_w_NONE, NULL,                           // nop
-                                                  NULL, 0, 0, NULL, NULL, AS_callersaves()));
-        }
+        AS_instrListAppend(code, AS_InstrEx2 (pos, AS_NOP, AS_w_NONE, NULL,                                // nop
+                                              NULL, 0, 0, NULL, NULL, AS_callersaves()));
     }
 }
 
@@ -1049,7 +1046,7 @@ static void emitBinOpJsr(AS_instrList code, S_pos pos, CG_frame frame, string su
     Temp_label l = Temp_namedlabel(sub_name);
     AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l,         // jsr   sub_name
                                           AS_callersaves(), NULL));
-    munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/FALSE);
+    munchCallerRestoreStack(pos, code, arg_cnt);
 
     CG_item d0Item;
     InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
@@ -1070,7 +1067,7 @@ static void emitUnaryOpJsr(AS_instrList code, S_pos pos, CG_frame frame, string 
     Temp_label l = Temp_namedlabel(sub_name);
     AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, l,         // jsr   sub_name
                                           AS_callersaves(), NULL));
-    munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/FALSE);
+    munchCallerRestoreStack(pos, code, arg_cnt);
 
     CG_item d0Item;
     InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
@@ -2948,6 +2945,27 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
                     break;
                 }
+                case Ty_string:
+                {
+                    CG_loadVal (code, pos, right);
+                    Temp_label l = Temp_newlabel();
+
+                    CG_itemListNode iln;
+                    CG_itemList args = CG_ItemList();
+                    iln = CG_itemListAppend (args); iln->item = *left;
+                    iln = CG_itemListAppend (args); iln->item = *right;
+                    int arg_cnt = munchArgsStack(pos, code, 0, args);
+                    Temp_label lcmp = Temp_namedlabel("___astr_cmp");
+                    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, lcmp,    // jsr   ___astr_cmp
+                                                          AS_callersaves(), NULL));
+                    munchCallerRestoreStack(pos, code, arg_cnt);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_TST_Dn, AS_w_W, AS_regs[AS_TEMP_D0], NULL));       //     tst.w  d0
+                    AS_instr bxx = AS_InstrEx (pos, relOp2mnS(relNegated(ro)), AS_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
+                    AS_instrListAppend (code, bxx);
+
+                    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
+                    break;
+                }
                 default:
                     assert(FALSE);
             }
@@ -3307,12 +3325,12 @@ void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, C
         int arg_cnt = munchArgsStack(pos, code, 0, args);
         AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, AS_w_NONE, NULL, NULL, 0, 0, lab,    // jsr   lab
                                               AS_callersaves(), NULL));
-        //munchCallerRestoreStack(e->u.CALLF.proc->isVariadic ? 0 : arg_cnt, ignore_result);
-        munchCallerRestoreStack(pos, code, arg_cnt, /*sink_callersaves=*/!result);
+        munchCallerRestoreStack(pos, code, arg_cnt);
         if (result)
         {
             CG_item d0Item;
             InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
+            CG_TempItem (result, proc->returnTy);
             CG_transAssignment (code, pos, frame, result, &d0Item);
         }
     }
@@ -3333,8 +3351,8 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
         CG_UIntItem (&tySizeItem, tySize, Ty_ULong());
         CG_loadVal (code, pos, &tySizeItem);
 
-        emitRegCall (code, pos, "_SysBase", LVOCopyMem, CG_RAL(tySizeItem.u.inReg, AS_regs[AS_TEMP_D0], 
-                                                          CG_RAL(right->u.varPtr, AS_regs[AS_TEMP_A0], 
+        emitRegCall (code, pos, "_SysBase", LVOCopyMem, CG_RAL(tySizeItem.u.inReg, AS_regs[AS_TEMP_D0],
+                                                          CG_RAL(right->u.varPtr, AS_regs[AS_TEMP_A0],
                                                             CG_RAL(left->u.varPtr, AS_regs[AS_TEMP_A1], NULL))), NULL, NULL);
         return;
     }

@@ -6566,28 +6566,27 @@ static bool funCast(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // funStrDollar = STR$ "(" expression ")"
 static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    S_pos      pos = (*tkn)->pos;
+    S_pos pos = (*tkn)->pos;
 
     if ((*tkn)->kind != S_LPAREN)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    CG_item exp2;
-    if (!expression(tkn, &exp2))
+    CG_itemList arglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    if (!expression(tkn, &n->item))
         return EM_error((*tkn)->pos, "STR$: (numeric) expression expected here.");
+    CG_loadVal (g_sleStack->code, pos, &n->item);
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    CG_itemList arglist = CG_ItemList();
-    CG_ItemListAppend (arglist, exp2);     // single argument list
     S_symbol   fsym    = NULL;            // function sym to call
-    Ty_ty      ty      = CG_ty(exp2);
+    Ty_ty      ty      = CG_ty(&n->item);
     switch (ty->kind)
     {
         case Ty_pointer:
@@ -6627,15 +6626,15 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
         Ty_recordEntry entry;
         if (!E_resolveVFC(g_sleStack->env, fsym, /*checkParents=*/TRUE, &procPtr, &entry))
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        Ty_ty ty = CG_ty(procPtr);
+        Ty_ty ty = CG_ty(&procPtr);
         assert(ty->kind == Ty_prc);
-        Ty_proc proc = ty->u.proc;
 
-        *exp = Tr_callExp(pos, arglist, proc);
+        CG_transCall (g_sleStack->code, pos, g_sleStack->frame, ty->u.proc, arglist, exp);
     }
     return TRUE;
 }
 
+#if 0
 // funIsNull ::= _ISNULL "(" expDesignator ")"
 static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6951,9 +6950,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
 #endif
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast          , Ty_ULong());
-#if 0
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());
-#endif
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
 #if 0
