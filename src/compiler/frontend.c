@@ -1703,7 +1703,7 @@ static bool atom(S_tkn *tkn, CG_item *exp)
             break;
         }
         case S_STRING:
-            CG_StringItem (exp, (*tkn)->u.str);
+            CG_StringItem (g_sleStack->code, pos, exp, (*tkn)->u.str);
             *tkn = (*tkn)->next;
             break;
         case S_LPAREN:
@@ -4149,7 +4149,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_loadVal (g_sleStack->code, pos, &n->item);
 
     n = CG_itemListAppend(arglist);
-    CG_StringItem (&n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
+    CG_StringItem (g_sleStack->code, pos, &n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
     CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &n->item);
 
     S_symbol fsym      = S_Symbol("_aqb_assert", TRUE);
@@ -4253,6 +4253,7 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                 case IK_const:
                 case IK_inFrame:
                 case IK_inHeap:
+                case IK_inReg:
                     CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &iln->item);
                     break;
                 case IK_varPtr:

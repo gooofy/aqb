@@ -418,8 +418,8 @@ enum AS_w AS_tySize(Ty_ty ty)
         case Ty_pointer:
         case Ty_forwardPtr:
         case Ty_procPtr:
-            return AS_w_L;
         case Ty_string:
+            return AS_w_L;
         case Ty_sarray:
         case Ty_darray:
         case Ty_record:

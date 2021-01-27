@@ -184,13 +184,16 @@ void CG_FloatItem (CG_item *item, double f, Ty_ty ty)
     CG_ConstItem (item, Ty_ConstFloat(ty, f));
 }
 
-void CG_StringItem (CG_item *item, string str)
+void CG_StringItem (AS_instrList code, S_pos pos, CG_item *item, string str)
 {
-    Temp_label strlabel = Temp_newlabel();
-    CG_frag frag = CG_StringFrag(strlabel, str);
+    Temp_label strLabel = Temp_newlabel();
+    CG_frag frag = CG_StringFrag(strLabel, str);
     g_fragList = CG_FragList(frag, g_fragList);
 
-    InHeap (item, strlabel, Ty_String());
+    Ty_ty ty = Ty_String();
+    CG_TempItem (item, ty);
+    AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_ILabel_AnDn, AS_w_L, NULL,                            //     move.l #strLabel, item.t
+                                         item->u.inReg, NULL, 0, strLabel));
 }
 
 void CG_HeapPtrItem (CG_item *item, Temp_label label, Ty_ty ty)
@@ -2961,9 +2964,10 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
 
     switch (t->kind)
     {
+        case Ty_string:
         case Ty_pointer:
         {
-            Ty_ty et = t->u.pointer;
+            Ty_ty et = (t->kind == Ty_pointer) ? t->u.pointer : Ty_UByte();
             CG_loadVal (code, pos, ape);
             switch (idx->kind)
             {
@@ -3029,22 +3033,6 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
             ape->kind = IK_varPtr;
             break;
         }
-
-        case Ty_string:
-            assert(FALSE); // FIXME
-#if 0
-            Ty_ty et = Ty_UByte();
-            return Tr_binOpExp(pos,
-                               T_plus,
-                               Tr_Deref(pos, ape),
-                               Tr_binOpExp(pos,
-                                           T_mul,
-                                           idx,
-                                           Tr_intExp(pos, Ty_size(et), Ty_Long()),
-                                           Ty_Long()),
-                               Ty_VarPtr(FE_mod->name, et));
-#endif
-            break;
 
         case Ty_sarray:
         {

@@ -114,7 +114,7 @@ void            CG_BoolItem         (CG_item *item, bool b, Ty_ty ty);
 void            CG_IntItem          (CG_item *item, int32_t i, Ty_ty ty);
 void            CG_UIntItem         (CG_item *item, uint32_t u, Ty_ty ty);
 void            CG_FloatItem        (CG_item *item, double f, Ty_ty ty);
-void            CG_StringItem       (CG_item *item, string str);
+void            CG_StringItem       (AS_instrList code, S_pos pos, CG_item *item, string str);
 void            CG_HeapPtrItem      (CG_item *item, Temp_label label, Ty_ty ty);
 void            CG_ZeroItem         (CG_item *item, Ty_ty ty);
 void            CG_OneItem          (CG_item *item, Ty_ty ty);

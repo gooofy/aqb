@@ -34,6 +34,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	   opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
 	   oop1.bas oop2.bas oop3.bas oop4.bas \
 	   scopes1.bas scopes2.bas scopes3.bas \
+ 	   string1.bas \
 	   sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
