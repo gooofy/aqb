@@ -32,6 +32,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	   extcall2.bas \
 	   loop1.bas loop2.bas loop3.bas loop4.bas loop5.bas loop6.bas loop7.bas loop8.bas loop9.bas loop10.bas loop11.bas loop12.bas \
 	   opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
+	   oop1.bas oop2.bas oop3.bas oop4.bas \
 	   sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm

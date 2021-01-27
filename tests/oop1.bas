@@ -17,7 +17,7 @@ SUB myc1.store (i AS INTEGER)
 
     ' _debug_puts "store() called." : _debug_putnl
 
-    this->field1 = i
+    this.field1 = i
 
 END SUB
 
@@ -25,7 +25,7 @@ FUNCTION myc1.retrieve () AS INTEGER
 
     ' _debug_puts "retrieve() called." : _debug_putnl
 
-    RETURN this->field1
+    RETURN this.field1
 
 END FUNCTION
 
@@ -38,8 +38,8 @@ DIM o AS myc1
 o.store(42)
 DIM res AS INTEGER = o.retrieve()
 ' _debug_puts "retrieved:" : _debug_puts2 res : _debug_putnl
+ASSERT res = 42
 
-ASSERT o.retrieve() = 42
 o.store(23)
 ASSERT o.retrieve() = 23
 

@@ -11,7 +11,7 @@
 #include "errormsg.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     34
+#define SYM_VERSION     35
 
 E_module g_builtinsModule = NULL;
 
@@ -112,6 +112,9 @@ E_env E_EnvWith (E_env parent, CG_item withPrefix)
 {
     E_env p = checked_malloc(sizeof(*p));
 
+    Ty_ty ty = CG_ty(&withPrefix);
+    assert ( ( (withPrefix.kind == IK_varPtr) || (withPrefix.kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
+
     p->kind            = E_withEnv;
     p->u.withPrefix    = withPrefix;
     p->parents         = E_EnvList();
@@ -138,15 +141,13 @@ bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, CG_item *item, Ty
             break;
         case E_withEnv:
         {
-            assert(FALSE); // FIXME
-            //*item = env->u.withPrefix;
+            *item = env->u.withPrefix;
+            Ty_ty ty = CG_ty(item);
+            assert ( ( (item->kind == IK_varPtr) || (item->kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
 
-            //Ty_ty ty = CG_ty(*item);
-            //assert ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_pointer) && (ty->u.pointer->u.pointer->kind == Ty_record) );
-
-            //*entry = S_look(ty->u.pointer->u.pointer->u.record.scope, sym);
-            //if (*entry)
-            //    return TRUE;
+            *entry = S_look(ty->u.record.scope, sym);
+            if (*entry)
+                return TRUE;
             break;
         }
 
@@ -357,8 +358,8 @@ static void E_tyFindTypesInProc(TAB_table type_tab, Ty_proc proc)
         E_tyFindTypes (type_tab, formals->ty);
     if (proc->returnTy)
         E_tyFindTypes (type_tab, proc->returnTy);
-    if (proc->tyClsPtr)
-        E_tyFindTypes (type_tab, proc->tyClsPtr);
+    if (proc->tyCls)
+        E_tyFindTypes (type_tab, proc->tyCls);
 }
 
 static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
@@ -426,8 +427,8 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
 
             if (ty->u.proc->returnTy)
                 E_tyFindTypes (type_tab, ty->u.proc->returnTy);
-            if (ty->u.proc->tyClsPtr)
-                E_tyFindTypes (type_tab, ty->u.proc->tyClsPtr);
+            if (ty->u.proc->tyCls)
+                E_tyFindTypes (type_tab, ty->u.proc->tyCls);
             break;
     }
 }
@@ -645,16 +646,16 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     fwrite(&proc->offset, 4, 1, modf);
     if (proc->offset)
         strserialize(modf, proc->libBase);
-    if (proc->tyClsPtr)
+    if (proc->tyCls)
     {
-        bool tyClsPtrPresent = TRUE;
-        fwrite(&tyClsPtrPresent, 1, 1, modf);
-        E_serializeTyRef(modTable, proc->tyClsPtr);
+        bool tyClsPresent = TRUE;
+        fwrite(&tyClsPresent, 1, 1, modf);
+        E_serializeTyRef(modTable, proc->tyCls);
     }
     else
     {
-        bool tyClsPtrPresent = FALSE;
-        fwrite(&tyClsPtrPresent, 1, 1, modf);
+        bool tyClsPresent = FALSE;
+        fwrite(&tyClsPresent, 1, 1, modf);
     }
 }
 

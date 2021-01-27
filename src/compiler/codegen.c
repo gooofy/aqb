@@ -374,8 +374,7 @@ Ty_ty CG_ty(CG_item *item)
     switch (item->kind)
     {
         case IK_none:
-            assert(FALSE);
-            return NULL;
+            return Ty_Void();
         case IK_const:
         case IK_inFrame:
         case IK_inReg:
@@ -523,9 +522,27 @@ CG_itemListNode CG_itemListAppend (CG_itemList il)
     CG_itemListNode n = CG_ItemListNode ();
 
     n->prev = il->last;
+    n->next = NULL;
 
     if (il->last)
         il->last = il->last->next = n;
+    else
+        il->first = il->last = n;
+
+    return n;
+}
+
+CG_itemListNode CG_itemListPrepend (CG_itemList il)
+{
+    assert(il);
+
+    CG_itemListNode n = CG_ItemListNode ();
+
+    n->next = il->first;
+    n->prev = NULL;
+
+    if (il->first)
+        il->first = il->first->prev = n;
     else
         il->first = il->last = n;
 
@@ -636,7 +653,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 
-            CG_transCall (initCode, pos, init_proc, /*args=*/NULL, /* result=*/ NULL);
+            CG_transCall (initCode, pos, frame, init_proc, /*args=*/NULL, /* result=*/ NULL);
         }
         AS_instrListPrependList (body, initCode);
     }
@@ -653,9 +670,8 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     {
         CG_item d0Item;
         InReg (&d0Item, AS_regs[AS_TEMP_D0], CG_ty(returnVar));
-        CG_transAssignment (body, pos, &d0Item, returnVar);    // d0 := returnVar
+        CG_transAssignment (body, pos, frame, &d0Item, returnVar);    // d0 := returnVar
     }
-
 
 
     CG_frag frag = CG_ProcFrag(pos, frame->name, expt, body, frame);
@@ -840,19 +856,28 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
             break;
         }
 
+        case IK_inFrameRef:
+        {
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (ty);
+            Temp_temp tp = Temp_Temp (Ty_VoidPtr());
+
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, AS_w_L, NULL, tp,                         //     move.l item.o(fp), tp
+                                                 NULL, item->u.inFrameR.offset, NULL));
+            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), tp, t));                     //     move.x (tp.r), t.r
+            InReg (item, t, ty);
+            break;
+        }
+
         default:
             assert(FALSE);
     }
 }
 
-void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
+void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
 {
     switch (item->kind)
     {
-        case IK_inReg:
-            assert(FALSE);
-            return;
-
         case IK_inFrame:
         {
             Ty_ty ty = CG_ty(item);
@@ -884,6 +909,23 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_item *item)
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, AS_w_L, NULL,                                //     move.l o(fp), t
                                                  t, NULL, item->u.inFrameR.offset, NULL));
             VarPtr (item, t, ty);
+            break;
+        }
+
+        case IK_inReg:
+        case IK_const:          // QuickBASIC actually supports passing expressions and consts by reference -> create tmp frame var
+        {
+            CG_loadVal (code, pos, item);
+            Ty_ty ty = CG_ty(item);
+            CG_item tmpVar;
+            CG_allocVar (&tmpVar, frame, /*name=*/NULL, /*expt=*/FALSE, ty);
+
+            AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, AS_tySize(ty), item->u.inReg, NULL,         //     move.x item.t, tmpVar.o(fp)
+                                                  NULL, tmpVar.u.inFrameR.offset, NULL));
+            CG_TempItem (item, ty);
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_LEA_Ofp_An, AS_w_L, NULL, item->u.inReg,                    //     lea tmpVar.o(fp), item.t
+                                                 NULL, tmpVar.u.inFrameR.offset, NULL));
+            VarPtr (item, item->u.inReg, ty);
             break;
         }
 
@@ -989,7 +1031,7 @@ static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt, bool 
 }
 
 /* emit a binary op that requires calling a subroutine */
-static void emitBinOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item *left, CG_item *right, Ty_ty ty)
+static void emitBinOpJsr(AS_instrList code, S_pos pos, CG_frame frame, string sub_name, CG_item *left, CG_item *right, Ty_ty ty)
 {
     CG_itemListNode iln;
 
@@ -1008,11 +1050,11 @@ static void emitBinOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item 
 
     CG_item d0Item;
     InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
-    CG_transAssignment (code, pos, left, &d0Item);
+    CG_transAssignment (code, pos, frame, left, &d0Item);
 }
 
 /* emit a unary op that requires calling a subroutine */
-static void emitUnaryOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_item *left, Ty_ty ty)
+static void emitUnaryOpJsr(AS_instrList code, S_pos pos, CG_frame frame, string sub_name, CG_item *left, Ty_ty ty)
 {
     CG_itemListNode iln;
 
@@ -1029,7 +1071,7 @@ static void emitUnaryOpJsr(AS_instrList code, S_pos pos, string sub_name, CG_ite
 
     CG_item d0Item;
     InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
-    CG_transAssignment (code, pos, left, &d0Item);
+    CG_transAssignment (code, pos, frame, left, &d0Item);
 }
 
 /*
@@ -1080,7 +1122,7 @@ static void emitRegCall(AS_instrList code, S_pos pos, string strName, int lvo, C
 }
 
 // result in left!
-void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty)
+void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty)
 {
     enum AS_w w = AS_tySize(ty);
     switch (left->kind)
@@ -1330,10 +1372,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     switch (ty->kind)
                                     {
                                         case Ty_byte:
-                                            emitBinOpJsr (code, pos, "___mul_s1", left, right, ty);
+                                            emitBinOpJsr (code, pos, frame, "___mul_s1", left, right, ty);
                                             break;
                                         case Ty_ubyte:
-                                            emitBinOpJsr (code, pos, "___mul_u1", left, right, ty);
+                                            emitBinOpJsr (code, pos, frame, "___mul_u1", left, right, ty);
                                             break;
                                         case Ty_integer:
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_MULS_Imm_Dn, w, NULL, right->u.inReg,        // muls #left, right
@@ -1403,10 +1445,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
-                                    emitBinOpJsr (code, pos, "___div_s1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___div_s1", left, right, ty);
                                     break;
                                 case Ty_ubyte:
-                                    emitBinOpJsr (code, pos, "___div_u1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___div_u1", left, right, ty);
                                     break;
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
@@ -1425,7 +1467,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     if (o==CG_div)
                                         emitRegCall (code, pos, "_MathBase", LVOSPDiv, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     else // intDiv
-                                        emitBinOpJsr (code, pos, "___aqb_intdiv_single", left, right, ty);
+                                        emitBinOpJsr (code, pos, frame, "___aqb_intdiv_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1463,10 +1505,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
-                                    emitBinOpJsr (code, pos, "___mod_s1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___mod_s1", left, right, ty);
                                     break;
                                 case Ty_ubyte:
-                                    emitBinOpJsr (code, pos, "___mod_u1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___mod_u1", left, right, ty);
                                     break;
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
@@ -1484,7 +1526,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                                                               CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_mod", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_mod", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1532,7 +1574,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_shl_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_shl_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1580,7 +1622,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_shr_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_shr_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1616,22 +1658,22 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
-                                    emitBinOpJsr (code, pos, "___pow_s1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_s1", left, right, ty);
                                     return;
                                 case Ty_ubyte:
-                                    emitBinOpJsr (code, pos, "___pow_u1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_u1", left, right, ty);
                                     return;
                                 case Ty_integer:
-                                    emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_s2", left, right, ty);
                                     return;
                                 case Ty_uinteger:
-                                    emitBinOpJsr (code, pos, "___pow_u2", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_u2", left, right, ty);
                                     return;
                                 case Ty_long:
-                                    emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_s4", left, right, ty);
                                     return;
                                 case Ty_ulong:
-                                    emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_u4", left, right, ty);
                                     return;
                                 case Ty_single:
                                     CG_loadVal (code, pos, left);
@@ -1715,7 +1757,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_xor_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_xor_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1801,7 +1843,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_eqv_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_eqv_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1886,7 +1928,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_imp_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_imp_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -1994,7 +2036,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_and_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_and_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -2062,7 +2104,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, "___aqb_or_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___aqb_or_single", left, right, ty);
                                     break;
                                 default:
                                     assert(FALSE);
@@ -2295,10 +2337,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                     switch (ty->kind)
                                     {
                                         case Ty_byte:
-                                            emitBinOpJsr (code, pos, "___mul_s1", left, right, ty);
+                                            emitBinOpJsr (code, pos, frame, "___mul_s1", left, right, ty);
                                             break;
                                         case Ty_ubyte:
-                                            emitBinOpJsr (code, pos, "___mul_u1", left, right, ty);
+                                            emitBinOpJsr (code, pos, frame, "___mul_u1", left, right, ty);
                                             break;
                                         case Ty_integer:
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_MULS_Imm_Dn, w, NULL, left->u.inReg,        // muls #right, left
@@ -2337,10 +2379,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
-                                    emitBinOpJsr (code, pos, "___mul_s1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___mul_s1", left, right, ty);
                                     break;
                                 case Ty_ubyte:
-                                    emitBinOpJsr (code, pos, "___mul_u1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___mul_u1", left, right, ty);
                                     break;
                                 case Ty_integer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_MULS_Dn_Dn, w, right->u.inReg, left->u.inReg));    // muls.x right, left
@@ -2375,10 +2417,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     switch (ty->kind)
                     {
                         case Ty_byte:
-                            emitBinOpJsr (code, pos, "___div_s1", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___div_s1", left, right, ty);
                             break;
                         case Ty_ubyte:
-                            emitBinOpJsr (code, pos, "___div_u1", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___div_u1", left, right, ty);
                             break;
                         case Ty_integer:
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
@@ -2397,7 +2439,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             if (o==CG_div)
                                 emitRegCall (code, pos, "_MathBase", LVOSPDiv, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             else // intDiv
-                                emitBinOpJsr (code, pos, "___aqb_intdiv_single", left, right, ty);
+                                emitBinOpJsr (code, pos, frame, "___aqb_intdiv_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2410,10 +2452,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                     switch (ty->kind)
                     {
                         case Ty_byte:
-                            emitBinOpJsr (code, pos, "___mod_s1", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___mod_s1", left, right, ty);
                             break;
                         case Ty_ubyte:
-                            emitBinOpJsr (code, pos, "___mod_u1", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___mod_u1", left, right, ty);
                             break;
                         case Ty_integer:
                             AS_instrListAppend (code, AS_Instr (pos, AS_EXT_Dn, AS_w_L, NULL, left->u.inReg));             // ext.l  left
@@ -2431,7 +2473,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_mod", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_mod", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2465,22 +2507,22 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                                             switch (ty->kind)
                                             {
                                                 case Ty_byte:
-                                                    emitBinOpJsr (code, pos, "___pow_s1", left, right, ty);
+                                                    emitBinOpJsr (code, pos, frame, "___pow_s1", left, right, ty);
                                                     return;
                                                 case Ty_ubyte:
-                                                    emitBinOpJsr (code, pos, "___pow_u1", left, right, ty);
+                                                    emitBinOpJsr (code, pos, frame, "___pow_u1", left, right, ty);
                                                     return;
                                                 case Ty_integer:
-                                                    emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                                    emitBinOpJsr (code, pos, frame, "___pow_s2", left, right, ty);
                                                     return;
                                                 case Ty_uinteger:
-                                                    emitBinOpJsr (code, pos, "___pow_u2", left, right, ty);
+                                                    emitBinOpJsr (code, pos, frame, "___pow_u2", left, right, ty);
                                                     return;
                                                 case Ty_long:
-                                                    emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);
+                                                    emitBinOpJsr (code, pos, frame, "___pow_s4", left, right, ty);
                                                     return;
                                                 case Ty_ulong:
-                                                    emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
+                                                    emitBinOpJsr (code, pos, frame, "___pow_u4", left, right, ty);
                                                     return;
                                                 default:
                                                     assert(FALSE);
@@ -2504,22 +2546,22 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             switch (ty->kind)
                             {
                                 case Ty_byte:
-                                    emitBinOpJsr (code, pos, "___pow_s1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_s1", left, right, ty);
                                     return;
                                 case Ty_ubyte:
-                                    emitBinOpJsr (code, pos, "___pow_u1", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_u1", left, right, ty);
                                     return;
                                 case Ty_integer:
-                                    emitBinOpJsr (code, pos, "___pow_s2", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_s2", left, right, ty);
                                     return;
                                 case Ty_uinteger:
-                                    emitBinOpJsr (code, pos, "___pow_u2", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_u2", left, right, ty);
                                     return;
                                 case Ty_long:
-                                    emitBinOpJsr (code, pos, "___pow_s4", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_s4", left, right, ty);
                                     return;
                                 case Ty_ulong:
-                                    emitBinOpJsr (code, pos, "___pow_u4", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___pow_u4", left, right, ty);
                                     return;
                                 case Ty_single:
                                     CG_loadVal (code, pos, left);
@@ -2552,7 +2594,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_shl_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_shl_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2575,7 +2617,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_shr_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_shr_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2616,7 +2658,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_xor_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_xor_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2640,7 +2682,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_eqv_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_eqv_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2664,7 +2706,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_imp_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_imp_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2685,7 +2727,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
                             break;
                         case Ty_single:
-                            emitUnaryOpJsr (code, pos, "___aqb_not_single", left, ty);
+                            emitUnaryOpJsr (code, pos, frame, "___aqb_not_single", left, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2713,7 +2755,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_and_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_and_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2738,7 +2780,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_binOp o, CG_item *left, CG_
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, "___aqb_or_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___aqb_or_single", left, right, ty);
                             break;
                         default:
                             assert(FALSE);
@@ -2913,7 +2955,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
     }
 }
 
-void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
+void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, CG_item *idx)
 {
     Ty_ty t = CG_ty(ape);
 
@@ -2921,18 +2963,6 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
     {
         case Ty_pointer:
         {
-#if 0
-            Ty_ty et = at->u.pointer;
-            return Tr_binOpExp(pos,
-                               T_plus,
-                               Tr_Deref(pos, ape),
-                               Tr_binOpExp(pos,
-                                           T_mul,
-                                           idx,
-                                           Tr_intExp(pos, Ty_size(et), Ty_Long()),
-                                           Ty_Long()),
-                               Ty_VarPtr(FE_mod->name, et));
-#endif
             Ty_ty et = t->u.pointer;
             CG_loadVal (code, pos, ape);
             switch (idx->kind)
@@ -3032,7 +3062,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                             ape->u.inFrameR.offset += off;
                             break;
                         default:
-                            CG_loadRef (code, pos, ape);
+                            CG_loadRef (code, pos, frame, ape);
                             if (off)
                                 AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, AS_w_L, NULL, ape->u.varPtr,   // add.l #off, ape
                                                                       Ty_ConstInt(Ty_Long(), off), 0, NULL));
@@ -3086,7 +3116,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
                         }
                     }
 
-                    CG_loadRef (code, pos, ape);
+                    CG_loadRef (code, pos, frame, ape);
                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, AS_w_L, idx->u.inReg, ape->u.varPtr));      // add.l idx, ape
                     break;
                 }
@@ -3098,6 +3128,49 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_item *ape, CG_item *idx)
         }
         default:
             assert (FALSE);
+    }
+}
+
+void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry)
+{
+    Ty_ty t = CG_ty(recordPtr);
+
+    switch (t->kind)
+    {
+        case Ty_pointer:
+        {
+            CG_loadVal (code, pos, recordPtr);
+            uint32_t off = entry->u.field.uiOffset;
+            if (off)
+                AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, AS_w_L, NULL, recordPtr->u.inReg,   // add.l #off, recordPtr
+                                                      Ty_ConstInt(Ty_Long(), off), 0, NULL));
+            recordPtr->kind = IK_varPtr;
+            recordPtr->ty   = entry->u.field.ty;
+            break;
+        }
+        case Ty_record:
+        {
+            switch (recordPtr->kind)
+            {
+                case IK_inFrameRef:
+                {
+                    CG_loadRef (code, pos, frame, recordPtr);
+                    assert (recordPtr->kind == IK_varPtr);
+                    uint32_t off = entry->u.field.uiOffset;
+                    if (off)
+                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, AS_w_L, NULL, recordPtr->u.varPtr,   // add.l #off, recordPtr
+                                                              Ty_ConstInt(Ty_Long(), off), 0, NULL));
+                    recordPtr->ty                 = entry->u.field.ty;
+                    break;
+                }
+                default:
+                    break;
+            }
+            break;
+        }
+        default:
+            assert(FALSE);
+            break;
     }
 }
 
@@ -3129,7 +3202,7 @@ void CG_transLabel (AS_instrList code, S_pos pos, Temp_label l)
     AS_instrListAppend (code, AS_InstrEx(pos, AS_LABEL, AS_w_NONE, NULL, NULL, 0, 0, l));         // l:
 }
 
-void CG_transMergeCond (AS_instrList code, S_pos pos, CG_item *left, CG_item *right)
+void CG_transMergeCond (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
 {
     assert (left->kind == IK_cond);
 
@@ -3157,7 +3230,7 @@ void CG_transMergeCond (AS_instrList code, S_pos pos, CG_item *left, CG_item *ri
         Ty_ty ty = CG_ty(right);
         CG_item temp;
         CG_TempItem (&temp, ty);
-        CG_transAssignment (code, pos, &temp, right);
+        CG_transAssignment (code, pos, frame, &temp, right);
         Temp_label le = Temp_newlabel();
         CG_transJump (code, pos, le);
         CG_transLabel (code, pos, left->u.condR.l);
@@ -3171,7 +3244,7 @@ void CG_transMergeCond (AS_instrList code, S_pos pos, CG_item *left, CG_item *ri
             CG_BoolItem (&tfItem, TRUE, Ty_Bool());
             CG_castItem (code, pos, &tfItem, ty);
         }
-        CG_transAssignment (code, pos, &temp, &tfItem);
+        CG_transAssignment (code, pos, frame, &temp, &tfItem);
         CG_transLabel (code, pos, le);
         *left = temp;
     }
@@ -3224,7 +3297,7 @@ void CG_transPostCond (AS_instrList code, S_pos pos, CG_item *item, bool positiv
     AS_instrListAppend (item->u.condR.fixUps, bra);
 }
 
-void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args, CG_item *result)
+void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, CG_itemList args, CG_item *result)
 {
     Temp_label lab = proc->label;
 
@@ -3252,21 +3325,21 @@ void CG_transCall (AS_instrList code, S_pos pos, Ty_proc proc, CG_itemList args,
         {
             CG_item d0Item;
             InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
-            CG_transAssignment (code, pos, result, &d0Item);
+            CG_transAssignment (code, pos, frame, result, &d0Item);
         }
     }
 }
 
 // left := right
-void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *right)
+void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
 {
     Ty_ty  ty     = CG_ty(right);
     int    tySize = Ty_size(ty);
 
     if (tySize > AS_WORD_SIZE)
     {
-        CG_loadRef (code, pos, left);
-        CG_loadRef (code, pos, right);
+        CG_loadRef (code, pos, frame, left);
+        CG_loadRef (code, pos, frame, right);
 
         CG_item tySizeItem;
         CG_UIntItem (&tySizeItem, tySize, Ty_ULong());
@@ -3307,6 +3380,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_item *left, CG_item *r
 
         case IK_cond:
         case IK_varPtr:
+        case IK_inFrameRef:
             CG_loadVal (code, pos, right);
             // fall through
         case IK_inReg:

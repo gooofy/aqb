@@ -473,7 +473,7 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
     return p;
 }
 
-Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyClsPtr)
+Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls)
 {
     Ty_proc p = checked_malloc(sizeof(*p));
 
@@ -491,7 +491,7 @@ Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_sym
     p->forward    = forward;
     p->offset     = offset;
     p->libBase    = libBase;
-    p->tyClsPtr   = tyClsPtr;
+    p->tyCls      = tyCls;
     p->hasBody    = FALSE;
 
     return p;
