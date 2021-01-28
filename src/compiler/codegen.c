@@ -2233,6 +2233,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                         case IK_inFrame:                                // v1 - v2
                         case IK_inReg:
                         case IK_inHeap:
+                        case IK_inFrameRef:
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
@@ -2376,6 +2377,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                         case IK_inFrame:
                         case IK_inReg:
                         case IK_inHeap:
+                        case IK_inFrameRef:
                             CG_loadVal (code, pos, left);
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
@@ -2545,6 +2547,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                         case IK_inFrame:                                // v1 ^ v2
                         case IK_inReg:
                         case IK_inHeap:
+                        case IK_inFrameRef:
                             switch (ty->kind)
                             {
                                 case Ty_byte:
