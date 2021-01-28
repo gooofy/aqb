@@ -4753,7 +4753,6 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // stmtCall ::= CALL ( subCall | expDesignator )
 static bool stmtCall(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -4782,18 +4781,16 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
     }
 
-    CG_item ex = NULL;
+    CG_item ex;
     if (!expDesignator (tkn, &ex, /*isVARPTR=*/FALSE, /*leftHandSide=*/FALSE))
         return FALSE;
 
-    Ty_ty ty = CG_ty(ex);
+    Ty_ty ty = CG_ty(&ex);
     if (ty->kind == Ty_prc)
         return transFunctionCall(tkn, &ex);
 
-    emit (ex);
     return TRUE;
 }
-#endif
 
 // paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _COORD  "(" paramDecl "," paramDecl "," paramDecl ")"
@@ -6909,9 +6906,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
-#if 0
     declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall         , Ty_Void());
-#endif
     declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl    , Ty_Void());
 #if 0
     declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl   , Ty_Void());
