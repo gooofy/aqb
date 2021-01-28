@@ -5898,7 +5898,6 @@ static bool stmtTypeDeclField(S_tkn *tkn)
     return TRUE;
 }
 
-#if 0
 // stmtStatic ::= STATIC ( singleVarDecl ( "," singleVarDecl )*
 //                       | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
 static bool stmtStatic(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -5937,7 +5936,6 @@ static bool stmtStatic(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
     return TRUE;
 }
-#endif
 
 // whileBegin ::= WHILE expression
 static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6921,9 +6919,7 @@ static void registerBuiltins(void)
 #endif
     declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl     , Ty_Void());
     declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin, Ty_Void());
-#if 0
     declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic       , Ty_Void());
-#endif
     declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin   , Ty_Void());
     declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd     , Ty_Void());
     declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet          , Ty_Void());

@@ -94,49 +94,50 @@ enum AS_mn
     AS_MOVE_spPI_AnDn,  //  46 move.x  (sp)+, d1
     AS_MOVE_ILabel_AnDn,//  47 move.x  #label, d1
     AS_MOVE_Label_AnDn, //  48 move.x  label, d6
-    AS_MOVE_AnDn_Label, //  49 move.x  d6, label
-    AS_MOVE_Ofp_AnDn,   //  50 move.x  42(a5), d0
-    AS_MOVE_Ofp_RAn,    //  51 move.x  42(a5), (a0)
-    AS_MOVE_AnDn_Ofp,   //  52 move.x  d0, 42(a5)
-    AS_MOVE_Imm_Ofp,    //  53 move.x  #42, 42(a5)
-    AS_MOVE_Imm_Label,  //  54 move.x  #42, label
-    AS_MOVE_fp_AnDn,    //  55 move.x  a5, d0
+    AS_MOVE_Label_Ofp,  //  49 move.x  label, 23(a5)
+    AS_MOVE_AnDn_Label, //  50 move.x  d6, label
+    AS_MOVE_Ofp_AnDn,   //  51 move.x  42(a5), d0
+    AS_MOVE_Ofp_RAn,    //  52 move.x  42(a5), (a0)
+    AS_MOVE_AnDn_Ofp,   //  53 move.x  d0, 42(a5)
+    AS_MOVE_Imm_Ofp,    //  54 move.x  #42, 42(a5)
+    AS_MOVE_Imm_Label,  //  55 move.x  #42, label
+    AS_MOVE_fp_AnDn,    //  56 move.x  a5, d0
 
-    AS_MOVEM_Rs_PDsp,   //  56 movem.x a2-a5,-(sp)
-    AS_MOVEM_spPI_Rs,   //  57 movem.x (sp)+, a2-a5
+    AS_MOVEM_Rs_PDsp,   //  57 movem.x a2-a5,-(sp)
+    AS_MOVEM_spPI_Rs,   //  58 movem.x (sp)+, a2-a5
 
-    AS_MULS_Dn_Dn,      //  58 muls.x  d1, d2
-    AS_MULS_Imm_Dn,     //  59 muls.x  #42, d2
-    AS_MULU_Dn_Dn,      //  60 mulu.x  d1, d2
-    AS_MULU_Imm_Dn,     //  61 mulu.x  #42, d2
+    AS_MULS_Dn_Dn,      //  59 muls.x  d1, d2
+    AS_MULS_Imm_Dn,     //  60 muls.x  #42, d2
+    AS_MULU_Dn_Dn,      //  61 mulu.x  d1, d2
+    AS_MULU_Imm_Dn,     //  62 mulu.x  #42, d2
 
-    AS_NEG_Dn,          //  62 neg.x   d0
+    AS_NEG_Dn,          //  63 neg.x   d0
 
-    AS_NOT_Dn,          //  63 not.x   d0
+    AS_NOT_Dn,          //  64 not.x   d0
 
-    AS_NOP,             //  64 nop
+    AS_NOP,             //  65 nop
 
-    AS_OR_Dn_Dn,        //  65 or.x  d1, d2
-    AS_OR_Imm_Dn,       //  66 or.x  #42, d2
+    AS_OR_Dn_Dn,        //  66 or.x  d1, d2
+    AS_OR_Imm_Dn,       //  67 or.x  #42, d2
 
-    AS_JMP,             //  67 jmp     label
-    AS_JSR_Label,       //  68 jsr     label
-    AS_JSR_An,          //  69 jsr     (a2)
-    AS_JSR_RAn,         //  70 jsr     -36(a6)
+    AS_JMP,             //  68 jmp     label
+    AS_JSR_Label,       //  69 jsr     label
+    AS_JSR_An,          //  70 jsr     (a2)
+    AS_JSR_RAn,         //  71 jsr     -36(a6)
 
-    AS_RTS,             //  71 rts
+    AS_RTS,             //  72 rts
 
-    AS_SNE_Dn,          //  72 sne.b   d1
+    AS_SNE_Dn,          //  73 sne.b   d1
 
-    AS_SUB_Dn_Dn,       //  73 sub.x   d1, d2
-    AS_SUB_Imm_AnDn,    //  74 sub.x   #42, d2
-    AS_SUBQ_Imm_AnDn,   //  75 subq.x  #2, d2
+    AS_SUB_Dn_Dn,       //  74 sub.x   d1, d2
+    AS_SUB_Imm_AnDn,    //  75 sub.x   #42, d2
+    AS_SUBQ_Imm_AnDn,   //  76 subq.x  #2, d2
 
-    AS_SWAP_Dn,         //  76 swap.x   d4
+    AS_SWAP_Dn,         //  77 swap.x   d4
 
-    AS_TST_Dn,          //  77 tst.x   d0
+    AS_TST_Dn,          //  78 tst.x   d0
 
-    AS_UNLK_fp,         //  78 unlink  a5
+    AS_UNLK_fp,         //  79 unlink  a5
 
     AS_NUM_INSTR
 };
