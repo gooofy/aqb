@@ -4150,7 +4150,6 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     n = CG_itemListAppend(arglist);
     CG_StringItem (g_sleStack->code, pos, &n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
-    CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &n->item);
 
     S_symbol fsym      = S_Symbol("_aqb_assert", TRUE);
     E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);

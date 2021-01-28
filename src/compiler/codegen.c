@@ -925,7 +925,7 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
 
             AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, AS_tySize(ty), item->u.inReg, NULL,         //     move.x item.t, tmpVar.o(fp)
                                                   NULL, tmpVar.u.inFrameR.offset, NULL));
-            CG_TempItem (item, ty);
+            CG_TempItem (item, Ty_VoidPtr());
             AS_instrListAppend(code, AS_InstrEx (pos, AS_LEA_Ofp_An, AS_w_L, NULL, item->u.inReg,                    //     lea tmpVar.o(fp), item.t
                                                  NULL, tmpVar.u.inFrameR.offset, NULL));
             VarPtr (item, item->u.inReg, ty);
@@ -2123,6 +2123,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
         case IK_inReg:
         case IK_inHeap:
         case IK_cond:
+        case IK_inFrameRef:
             switch (o)
             {
                 case CG_plus:                                           // v + ?
@@ -2166,6 +2167,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                         case IK_inReg:
                         case IK_inHeap:
                         case IK_varPtr:
+                        case IK_inFrameRef:
                             CG_loadVal (code, pos, right);
                             switch (ty->kind)
                             {
