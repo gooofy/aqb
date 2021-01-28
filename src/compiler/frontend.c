@@ -4242,7 +4242,16 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
     {
         case Ty_byRef:
         {
-            if (!compatible_ty(formal->ty, CG_ty(exp)))
+            if (iln->item.kind == IK_const)
+            {
+                if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
+                {
+                    EM_error(pos, "%s: BYREF parameter type const mismatch", S_name(formal->name));
+                    return;
+                }                
+            }
+
+            if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
             {
                 EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
                 return;

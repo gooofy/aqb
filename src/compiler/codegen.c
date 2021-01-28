@@ -2871,6 +2871,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
         case IK_inFrame:
         case IK_inHeap:
         case IK_varPtr:
+        case IK_inFrameRef:
             CG_loadVal (code, pos, left);
 
             switch (ty->kind)
