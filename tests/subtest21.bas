@@ -26,5 +26,5 @@ sref j+1
 ASSERT j=2
 
 sref (j)
-ASSERT j=2
+ASSERT j=3
 

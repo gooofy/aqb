@@ -3431,6 +3431,10 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                 case IK_varPtr:
                     AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, right->u.inReg, left->u.varPtr));   // move.x right.t, (left)
                     break;
+                case IK_inFrameRef:
+                    CG_loadRef (code, pos, frame, left);
+                    AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, right->u.inReg, left->u.varPtr));   // move.x right.t, (left)
+                    break;
                 default:
                     assert(FALSE);
             }
