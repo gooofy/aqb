@@ -1548,7 +1548,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, exp);
+            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, proc->returnTy->kind == Ty_void ? NULL : exp);
             ty = CG_ty(exp);
             continue;
         }

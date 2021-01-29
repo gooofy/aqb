@@ -483,12 +483,14 @@ bool CG_getConstBool (CG_item *item)
         case Ty_bool:
             return item->u.c->u.b;
         case Ty_byte:
-        case Ty_ubyte:
         case Ty_integer:
-        case Ty_uinteger:
         case Ty_long:
-        case Ty_ulong:
             return item->u.c->u.i != 0;
+        case Ty_ubyte:
+        case Ty_uinteger:
+        case Ty_ulong:
+        case Ty_pointer:
+            return item->u.c->u.u != 0;
         case Ty_single:
         case Ty_double:
             return item->u.c->u.f != 0.0;
@@ -2914,6 +2916,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                 case Ty_ubyte:
                 case Ty_uinteger:
                 case Ty_ulong:
+                case Ty_procPtr:
                 {
                     enum AS_w w = AS_tySize(ty);
 
