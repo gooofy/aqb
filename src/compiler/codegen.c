@@ -3168,6 +3168,7 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
             switch (recordPtr->kind)
             {
                 case IK_inFrameRef:
+                case IK_inHeap:
                 {
                     CG_loadRef (code, pos, frame, recordPtr);
                     assert (recordPtr->kind == IK_varPtr);
@@ -3179,6 +3180,7 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
                     break;
                 }
                 default:
+                    assert(FALSE);
                     break;
             }
             break;
