@@ -2916,6 +2916,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                 case Ty_ubyte:
                 case Ty_uinteger:
                 case Ty_ulong:
+                case Ty_pointer:
                 case Ty_procPtr:
                 {
                     enum AS_w w = AS_tySize(ty);
