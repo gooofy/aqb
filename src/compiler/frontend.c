@@ -4353,13 +4353,12 @@ static bool lineBF(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 // coord ::= [ STEP ] '(' expression "," expression ")"
 static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
-    assert(FALSE); // FIXME
-#if 0
     CG_item   exp;
 
     if (isSym(*tkn, S_STEP))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, Tr_boolExp((*tkn)->pos, TRUE, Ty_Bool()), /*forceExp=*/FALSE);
+        CG_BoolItem (&exp, TRUE, Ty_Bool());
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
@@ -4374,7 +4373,7 @@ static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_COMMA)
@@ -4383,13 +4382,12 @@ static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, exp, /*forceExp=*/FALSE);
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected here.");
     *tkn = (*tkn)->next;
-#endif
 
     return TRUE;
 }
