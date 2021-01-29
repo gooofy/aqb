@@ -6482,7 +6482,6 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // funVarPtr ::= VARPTR "(" expDesignator ")"
 static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6492,22 +6491,18 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error((*tkn)->pos, "( expected.");
     *tkn = (*tkn)->next;
 
-    CG_item v;
-    if (!expDesignator(tkn, &v, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+    if (!expDesignator(tkn, exp, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return FALSE;
-    Ty_ty ty = CG_ty(v);
-    if (ty->kind != Ty_varPtr)
-        return EM_error(pos, "This object cannot be referenced.");
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    *exp = CG_castItem((*tkn)->pos, v, ty, Ty_Pointer(FE_mod->name, ty->u.pointer));
+    Ty_ty ty = CG_ty(exp);
+    CG_castItem(g_sleStack->code, pos, exp, Ty_Pointer(FE_mod->name, ty->u.pointer));
 
     return TRUE;
 }
-#endif
 
 // funSizeOf = SIZEOF "(" typeDesc ")"
 static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6934,9 +6929,7 @@ static void registerBuiltins(void)
 #endif
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
-#if 0
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
-#endif
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast          , Ty_ULong());
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());

@@ -3524,9 +3524,7 @@ void CG_transDeRef (AS_instrList code, S_pos pos, CG_item *item)
     Ty_ty ty = CG_ty(item);
     assert ( (ty->kind == Ty_pointer) || (ty->kind == Ty_procPtr) );
     CG_loadVal (code, pos, item);
-    Temp_temp t = Temp_Temp (ty->u.pointer);
-    AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty->u.pointer), item->u.inReg, t));               //     move.x (item), t
-    item->u.inReg = t;
+    item->kind = IK_varPtr;
     item->ty = ty->u.pointer;
 }
 
