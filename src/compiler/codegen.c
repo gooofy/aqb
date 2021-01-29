@@ -348,8 +348,7 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
 
         Temp_label label = Temp_namedlabel(ul);
 
-        CG_frag frag = CG_DataFrag(label, expt, Ty_size(ty));
-        g_fragList   = CG_FragList(frag, g_fragList);
+        CG_DataFrag(label, expt, Ty_size(ty));
 
         InHeap (item, label, ty);
         return;
@@ -590,6 +589,8 @@ CG_frag CG_DataFrag (Temp_label label, bool expt, int size)
     f->u.data.expt  = expt;
     f->u.data.size  = size;
     f->u.data.init  = NULL;
+
+    g_fragList = CG_FragList(f, g_fragList);
 
     return f;
 }

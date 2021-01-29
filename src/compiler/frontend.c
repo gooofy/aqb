@@ -23,9 +23,7 @@ static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, 
 static AS_instrList g_prog;
 
 // DATA statement support
-// static bool g_dataInitialRestoreDone = FALSE;
 static CG_frag    g_dataFrag         = NULL;
-static Temp_label g_dataRestoreLabel = NULL;
 
 typedef struct FE_dim_ *FE_dim;
 struct FE_dim_
@@ -3250,6 +3248,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return isLogicalEOL(*tkn);
 }
+#endif
 
 // dataItem ::= ( numLiteral | stringLiteral | ident )
 static bool dataItem(S_tkn *tkn)
@@ -3313,7 +3312,7 @@ static bool dataItem(S_tkn *tkn)
             return EM_error((*tkn)->pos, "DATA: numeric or string literal expected here.");
     }
     *tkn = (*tkn)->next;
-    Tr_dataAdd(c);
+    CG_dataFragAddConst (g_dataFrag, c);
     return TRUE;
 }
 
@@ -3336,29 +3335,16 @@ static bool stmtData(S_tkn *tkn, E_enventry e, CG_item *exp)
             return FALSE;
     }
 
-    if (!g_dataInitialRestoreDone)
-    {
-        g_dataInitialRestoreDone = TRUE;
-        S_symbol fsym = S_Symbol("_aqb_restore", TRUE);
-        E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-        if (!lx)
-            return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        E_enventry func = lx->first->e;
-        CG_itemList arglist = CG_ItemList();
-        CG_ItemListAppend(arglist, Tr_heapPtrExp(pos, Tr_dataGetInitialRestoreLabel(), Ty_VoidPtr()));
-        CG_ItemListPrepend(g_prog, Tr_callExp(pos, arglist, func->u.proc));
-    }
-
     return TRUE;
 }
 
-static bool transRead(S_pos pos, CG_item var)
+static bool transRead(S_pos pos, CG_item *var)
 {
+    CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, var);
     Ty_ty ty = CG_ty(var);
-    assert (ty->kind == Ty_varPtr);
 
     S_symbol fsym = NULL;
-    switch (ty->u.pointer->kind)
+    switch (ty->kind)
     {
         case Ty_byte:
         case Ty_bool:
@@ -3387,8 +3373,9 @@ static bool transRead(S_pos pos, CG_item var)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
-    CG_ItemListAppend(arglist, var);
-    emit(Tr_callExp(pos, arglist, func->u.proc));
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    n->item = *var;
+    CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
     return TRUE;
 }
 
@@ -3399,24 +3386,25 @@ static bool stmtRead(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next; // skip "READ"
 
     CG_item var;
-    if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+    if (!expDesignator(tkn, &var, /*isVARPTR=*/FALSE, /*leftHandSide=*/FALSE))
         return EM_error(pos, "READ: variable designator expected here.");
-    if (!transRead(pos, var))
+    if (!transRead(pos, &var))
         return FALSE;
 
     while ((*tkn)->kind==S_COMMA)
     {
         *tkn = (*tkn)->next;
         pos = (*tkn)->pos;
-        if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+        if (!expDesignator(tkn, &var, /*isVARPTR=*/FALSE, /*leftHandSide=*/FALSE))
             return EM_error(pos, "READ: variable designator expected here.");
-        if (!transRead(pos, var))
+        if (!transRead(pos, &var))
             return FALSE;
     }
 
     return TRUE;
 }
 
+#if 0
 // restoreStmt ::= RESTORE [ dataLabel ]
 static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6921,8 +6909,10 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub        , Ty_Void());
 #if 0
     declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase        , Ty_Void());
+#endif
     declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
+#if 0
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
     declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
@@ -7069,9 +7059,6 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         label = Temp_namedlabel(strprintf("__%s_init", module_name));
     }
 
-    g_dataRestoreLabel = Temp_newlabel();
-    g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
-
     CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
 
     assert(frame); // FIXME: remove
@@ -7113,6 +7100,10 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     CG_NoneItem(&rv);
     slePush(FE_sleTop, /*pos=*/0, frame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
     g_prog = g_sleStack->code;
+
+    // DATA statement support
+    Temp_label dataRestoreLabel = Temp_newlabel();
+    g_dataFrag = CG_DataFrag(dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
 
     // parse logical lines
 
@@ -7171,6 +7162,29 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
                 EM_error(tkn->pos, "syntax error [1]");
                 return NULL;
             }
+        }
+    }
+
+    // if DATA statements were used, we have to restore the global data read ptr at the beginning of the code
+    if (g_dataFrag->u.data.size)
+    {
+        AS_instrList initCode = AS_InstrList();
+
+        S_symbol fsym = S_Symbol("_aqb_restore", TRUE);
+        E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+        if (lx)
+        {
+            E_enventry func = lx->first->e;
+            CG_itemList arglist = CG_ItemList();
+            CG_itemListNode n = CG_itemListAppend(arglist);
+            CG_HeapPtrItem (&n->item, dataRestoreLabel, Ty_VoidPtr());
+            CG_loadRef(initCode, /*pos=*/0, frame, &n->item);
+            CG_transCall (initCode, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+            AS_instrListPrependList (g_prog, initCode);
+        }
+        else
+        {
+            EM_error(/*pos=*/0, "builtin %s not found.", S_name(fsym));
         }
     }
 
