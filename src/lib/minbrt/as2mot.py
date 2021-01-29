@@ -66,6 +66,8 @@ CONVERSION_PATTERNS = [
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+(?P<r1>[ad0-7]+)$'), '\t\g<mn>\t\g<r1>'),
      # move.b #32,(a0)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<imm>[+\-0-9]+),\((?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t#\g<imm>, (\g<r1>)'),
+     # move.w #1,_do_resume
+     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<imm>[+\-0-9]+),(?P<label>[a-zA-Z0-9_\.]+)$'), '\t\g<mn>\t#\g<imm>, \g<label>'),
      # clr.b (a0)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+\((?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t(\g<r1>)'),
      # move.l (16,a5),-(sp)
@@ -107,6 +109,8 @@ CONVERSION_PATTERNS = [
      (re.compile(r'^\s+\.ascii\s+"\\12\\0"$'), '\tDC.B\t 10, 0'),
      # .ascii "\14\0"
      (re.compile(r'^\s+\.ascii\s+"\\14\\0"$'), '\tDC.B\t 12, 0'),
+     # .ascii "*** unhandled runtime error code: \0"'
+     (re.compile(r'^\s+\.ascii\s+"(?P<str>[A-Za-z0-9 ,.?:;!\*]+)\\0"$'), '\tDC.B\t\"\g<str>\", 0'),
 
      (re.compile(r'^\#NO_APP'), ''),
      (re.compile(r'^\#APP'), ''),

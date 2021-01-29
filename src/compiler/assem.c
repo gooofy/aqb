@@ -64,6 +64,7 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_MOVE_AnDn_Label,  FALSE, TRUE   , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Ofp_AnDn,    FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Ofp_RAn,     FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , FALSE   , FALSE   , TRUE    , FALSE       , FALSE },
+    { AS_MOVE_Ofp_Label,   FALSE, TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_AnDn_Ofp,    FALSE, FALSE  , FALSE, TRUE , FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Imm_Ofp,     FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_MOVE_Imm_Label,   FALSE, TRUE   , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
@@ -650,7 +651,9 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
         case AS_MOVE_Ofp_AnDn:  // move.x  42(a5), d0
             instrformat(str, "    move`w   `o(a5), `d", i, dialect);   break;
         case AS_MOVE_Ofp_RAn:   // move.x  42(a5), (a2)
-            instrformat(str, "    move`w   `o(a5), (`d)", i, dialect);   break;
+            instrformat(str, "    move`w   `o(a5), (`d)", i, dialect); break;
+        case AS_MOVE_Ofp_Label: // move.x  42(a5), label
+            instrformat(str, "    move`w   `o(a5), `l", i, dialect);   break;
         case AS_MOVE_AnDn_Ofp:  // move.x  d0, 42(a5)
             instrformat(str, "    move`w   `s, `o(a5)", i, dialect);   break;
         case AS_MOVE_Imm_Ofp:   // move.x  #23, 42(a5)

@@ -457,6 +457,48 @@ void DEALLOCATE (APTR ptr, ULONG size)
 
 /************************************************************************
  *
+ * ON ERROR ...
+ *
+ ************************************************************************/
+
+static void (*error_handler)(void) = NULL;
+static BOOL do_resume = FALSE;
+
+SHORT ERR=0;
+
+void ON_ERROR_CALL(void (*cb)(void))
+{
+    error_handler = cb;
+}
+
+void ERROR (SHORT errcode)
+{
+    do_resume = FALSE;
+    ERR = errcode;
+
+    if (error_handler)
+    {
+        error_handler();
+    }
+    else
+    {
+        _debug_puts("*** unhandled runtime error code: "); _debug_puts2(errcode);
+        _debug_puts("\n");
+    }
+
+    if (!do_resume)
+        _autil_exit(errcode);
+    else
+        ERR=0;
+}
+
+void RESUME_NEXT(void)
+{
+    do_resume = TRUE;
+}
+
+/************************************************************************
+ *
  * startup / exit
  *
  ************************************************************************/

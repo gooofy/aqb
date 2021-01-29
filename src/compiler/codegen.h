@@ -161,6 +161,7 @@ void            CG_transMergeCond   (AS_instrList code, S_pos pos, CG_frame fram
 void            CG_transPostCond    (AS_instrList code, S_pos pos, CG_item *left, bool positive);
 void            CG_transAssignment  (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right);
 void            CG_transCall        (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, CG_itemList args, CG_item *result);
+void            CG_transCallPtr     (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, CG_item *procPtr, CG_itemList args, CG_item *result);
 void            CG_transNOP         (AS_instrList code, S_pos pos) ;
 void            CG_transDeRef       (AS_instrList code, S_pos pos, CG_item *item);
 

@@ -1522,7 +1522,6 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     while (TRUE)
     {
         // function call ?
-        // if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
         if ((ty->kind == Ty_prc) && ((*tkn)->kind==S_LPAREN))
         {
             if (!transFunctionCall(tkn, exp))
@@ -1533,13 +1532,10 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
         }
 
         // function pointer call ?
-        //if ((ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_procPtr) && ((*tkn)->kind==S_LPAREN))
-        if (ty->kind == Ty_procPtr)
+        if ( (ty->kind == Ty_procPtr) && ((*tkn)->kind==S_LPAREN) )
         {
-            assert(FALSE); // FIXME
-#if 0
-            *exp = Tr_Deref((*tkn)->pos, *exp);
-            ty = CG_ty(*exp);
+            // CG_transDeRef (g_sleStack->code, pos, exp);
+            // ty = CG_ty(exp);
             Ty_proc proc = ty->u.procPtr;
 
             *tkn = (*tkn)->next;    // skip "("
@@ -1552,9 +1548,8 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            *exp = Tr_callPtrExp((*tkn)->pos, *exp, assignedArgs, proc);
-            ty = CG_ty(*exp);
-#endif
+            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, exp);
+            ty = CG_ty(exp);
             continue;
         }
 
@@ -2342,8 +2337,6 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
                 {
                     if (ty2->kind == Ty_procPtr)
                         return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
-                    assert(FALSE); // FIXME
-                    //ty2 = Ty_VarPtr(FE_mod->name, ty2);
                 }
 
                 FE_ParamListAppend(paramList, Ty_Formal(/*name=*/NULL, ty2, /*defaultExp=*/NULL, mode, ph, /*reg=*/NULL));
@@ -2374,8 +2367,6 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
                     {
                         if (ty2->kind == Ty_procPtr)
                             return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
-                        assert(FALSE);
-                        //ty2 = Ty_VarPtr(FE_mod->name, ty2);
                     }
 
                     FE_ParamListAppend(paramList, Ty_Formal(/*name=*/NULL, ty2, /*defaultExp=*/NULL, mode, ph, /*reg=*/NULL));
@@ -4485,8 +4476,6 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
     // proc ptrs need special treatment
     if (((*formal)->ty->kind == Ty_procPtr) && ((*tkn)->kind == S_IDENT) && ((*tkn)->next->kind != S_LPAREN))
     {
-        assert(FALSE); // FIXME
-#if 0
         Ty_proc proc = (*formal)->ty->u.procPtr;
         S_symbol name = (*tkn)->u.sym;
 
@@ -4502,7 +4491,9 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
                         continue;
 
                     // if we reach this point, we have a match
-                    CG_ItemListPrepend(assignedArgs, Tr_heapPtrExp((*tkn)->pos, proc2->label, (*formal)->ty));
+                    CG_itemListNode iln = CG_itemListPrepend (assignedArgs);
+                    CG_HeapPtrItem (&iln->item, proc2->label, (*formal)->ty);
+                    CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &iln->item);
                     *formal = (*formal)->next;
                     *tkn = (*tkn)->next;
                     return TRUE;
@@ -4517,14 +4508,16 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
             {
                 if (!entry)
                 {
-                    Ty_ty ty = CG_ty(procPtr);
+                    Ty_ty ty = CG_ty(&procPtr);
                     if (ty->kind == Ty_prc)
                     {
                         Ty_proc proc2 = ty->u.proc;
                         if (matchProcSignatures(proc, proc2))
                         {
                             // if we reach this point, we have a match
-                            CG_ItemListPrepend(assignedArgs, Tr_heapPtrExp((*tkn)->pos, proc2->label, ty));
+                            CG_itemListNode iln = CG_itemListPrepend (assignedArgs);
+                            CG_HeapPtrItem (&iln->item, proc2->label, (*formal)->ty);
+                            CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &iln->item);
                             *formal = (*formal)->next;
                             *tkn = (*tkn)->next;
                             return TRUE;
@@ -4533,7 +4526,6 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
                 }
             }
         }
-#endif
     }
 
     CG_item exp;

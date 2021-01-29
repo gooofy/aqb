@@ -98,46 +98,47 @@ enum AS_mn
     AS_MOVE_AnDn_Label, //  50 move.x  d6, label
     AS_MOVE_Ofp_AnDn,   //  51 move.x  42(a5), d0
     AS_MOVE_Ofp_RAn,    //  52 move.x  42(a5), (a0)
-    AS_MOVE_AnDn_Ofp,   //  53 move.x  d0, 42(a5)
-    AS_MOVE_Imm_Ofp,    //  54 move.x  #42, 42(a5)
-    AS_MOVE_Imm_Label,  //  55 move.x  #42, label
-    AS_MOVE_fp_AnDn,    //  56 move.x  a5, d0
+    AS_MOVE_Ofp_Label,  //  53 move.x  42(a5), label
+    AS_MOVE_AnDn_Ofp,   //  54 move.x  d0, 42(a5)
+    AS_MOVE_Imm_Ofp,    //  55 move.x  #42, 42(a5)
+    AS_MOVE_Imm_Label,  //  56 move.x  #42, label
+    AS_MOVE_fp_AnDn,    //  57 move.x  a5, d0
 
-    AS_MOVEM_Rs_PDsp,   //  57 movem.x a2-a5,-(sp)
-    AS_MOVEM_spPI_Rs,   //  58 movem.x (sp)+, a2-a5
+    AS_MOVEM_Rs_PDsp,   //  58 movem.x a2-a5,-(sp)
+    AS_MOVEM_spPI_Rs,   //  59 movem.x (sp)+, a2-a5
 
-    AS_MULS_Dn_Dn,      //  59 muls.x  d1, d2
-    AS_MULS_Imm_Dn,     //  60 muls.x  #42, d2
-    AS_MULU_Dn_Dn,      //  61 mulu.x  d1, d2
-    AS_MULU_Imm_Dn,     //  62 mulu.x  #42, d2
+    AS_MULS_Dn_Dn,      //  60 muls.x  d1, d2
+    AS_MULS_Imm_Dn,     //  61 muls.x  #42, d2
+    AS_MULU_Dn_Dn,      //  62 mulu.x  d1, d2
+    AS_MULU_Imm_Dn,     //  63 mulu.x  #42, d2
 
-    AS_NEG_Dn,          //  63 neg.x   d0
+    AS_NEG_Dn,          //  64 neg.x   d0
 
-    AS_NOT_Dn,          //  64 not.x   d0
+    AS_NOT_Dn,          //  65 not.x   d0
 
-    AS_NOP,             //  65 nop
+    AS_NOP,             //  66 nop
 
-    AS_OR_Dn_Dn,        //  66 or.x  d1, d2
-    AS_OR_Imm_Dn,       //  67 or.x  #42, d2
+    AS_OR_Dn_Dn,        //  67 or.x  d1, d2
+    AS_OR_Imm_Dn,       //  68 or.x  #42, d2
 
-    AS_JMP,             //  68 jmp     label
-    AS_JSR_Label,       //  69 jsr     label
-    AS_JSR_An,          //  70 jsr     (a2)
-    AS_JSR_RAn,         //  71 jsr     -36(a6)
+    AS_JMP,             //  69 jmp     label
+    AS_JSR_Label,       //  70 jsr     label
+    AS_JSR_An,          //  71 jsr     (a2)
+    AS_JSR_RAn,         //  72 jsr     -36(a6)
 
-    AS_RTS,             //  72 rts
+    AS_RTS,             //  73 rts
 
-    AS_SNE_Dn,          //  73 sne.b   d1
+    AS_SNE_Dn,          //  74 sne.b   d1
 
-    AS_SUB_Dn_Dn,       //  74 sub.x   d1, d2
-    AS_SUB_Imm_AnDn,    //  75 sub.x   #42, d2
-    AS_SUBQ_Imm_AnDn,   //  76 subq.x  #2, d2
+    AS_SUB_Dn_Dn,       //  75 sub.x   d1, d2
+    AS_SUB_Imm_AnDn,    //  76 sub.x   #42, d2
+    AS_SUBQ_Imm_AnDn,   //  77 subq.x  #2, d2
 
-    AS_SWAP_Dn,         //  77 swap.x   d4
+    AS_SWAP_Dn,         //  78 swap.x   d4
 
-    AS_TST_Dn,          //  78 tst.x   d0
+    AS_TST_Dn,          //  79 tst.x   d0
 
-    AS_UNLK_fp,         //  79 unlink  a5
+    AS_UNLK_fp,         //  80 unlink  a5
 
     AS_NUM_INSTR
 };

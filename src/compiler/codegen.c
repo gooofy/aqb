@@ -3342,6 +3342,22 @@ void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, C
     }
 }
 
+void CG_transCallPtr (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, CG_item *procPtr, CG_itemList args, CG_item *result)
+{
+    int arg_cnt = munchArgsStack(pos, code, 0, args);
+    CG_loadVal (code, pos, procPtr);
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_RAn, AS_w_NONE, procPtr->u.inReg, NULL, 0, 0, NULL,      // jsr   (procPtr)
+                                          AS_callersaves(), NULL));
+    munchCallerRestoreStack(pos, code, arg_cnt);
+    if (result)
+    {
+        CG_item d0Item;
+        InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
+        CG_TempItem (result, proc->returnTy);
+        CG_transAssignment (code, pos, frame, result, &d0Item);
+    }
+}
+
 // left := right
 void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
 {
@@ -3437,6 +3453,11 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_RAn, w, NULL, left->u.varPtr,                  // move.x right.o(fp), (left)
                                                           NULL, right->u.inFrameR.offset, NULL));
                     break;
+                case IK_inHeap:
+                    AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_Label, w, NULL, NULL,                          // move.x right.o(fp), left.l
+                                                          NULL, right->u.inFrameR.offset, left->u.inHeap.l));
+                    break;
+
                 default:
                     assert(FALSE);
             }
@@ -3492,7 +3513,7 @@ void CG_transNOP (AS_instrList code, S_pos pos)
 void CG_transDeRef (AS_instrList code, S_pos pos, CG_item *item)
 {
     Ty_ty ty = CG_ty(item);
-    assert (ty->kind == Ty_pointer);
+    assert ( (ty->kind == Ty_pointer) || (ty->kind == Ty_procPtr) );
     CG_loadVal (code, pos, item);
     Temp_temp t = Temp_Temp (ty->u.pointer);
     AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty->u.pointer), item->u.inReg, t));               //     move.x (item), t
