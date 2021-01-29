@@ -6330,6 +6330,7 @@ static bool stmtImport(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
+#endif
 
 static bool getLetter(S_tkn *tkn, char *letter)
 {
@@ -6420,7 +6421,6 @@ static bool stmtDefstr(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return letterRanges(pos, tkn, Ty_String());
 }
-#endif
 
 // stmtGoto ::= GOTO ( num | ident )
 static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6912,11 +6912,11 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
 #if 0
     declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport       , Ty_Void());
+#endif
     declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng       , Ty_Void());
     declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng       , Ty_Void());
     declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint       , Ty_Void());
     declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr       , Ty_Void());
-#endif
     declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto         , Ty_Void());
     declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub        , Ty_Void());
 #if 0
