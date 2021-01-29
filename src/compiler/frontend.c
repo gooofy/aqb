@@ -23,6 +23,7 @@ static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, 
 static AS_instrList g_prog;
 
 // DATA statement support
+static Temp_label g_dataRestoreLabel;
 static CG_frag    g_dataFrag         = NULL;
 
 typedef struct FE_dim_ *FE_dim;
@@ -3404,7 +3405,6 @@ static bool stmtRead(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // restoreStmt ::= RESTORE [ dataLabel ]
 static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -3419,7 +3419,7 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 	else
 	{
-		dataLabel = Tr_dataGetInitialRestoreLabel();
+		dataLabel = g_dataRestoreLabel;
 	}
 
     S_symbol fsym = S_Symbol("_aqb_restore", TRUE);
@@ -3428,12 +3428,13 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
-    CG_ItemListAppend(arglist, Tr_heapPtrExp(pos, dataLabel, Ty_VoidPtr()));
-    emit(Tr_callExp(pos, arglist, func->u.proc));
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    CG_HeapPtrItem (&n->item, dataLabel, Ty_VoidPtr());
+    CG_loadRef(g_sleStack->code, /*pos=*/0, g_sleStack->frame, &n->item);
+    CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
 
     return TRUE;
 }
-#endif
 
 // forBegin ::= FOR ident [ AS ident ] "=" expression TO expression [ STEP expression ]
 static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6912,8 +6913,8 @@ static void registerBuiltins(void)
 #endif
     declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
-#if 0
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
+#if 0
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
     declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
 #endif
@@ -7102,8 +7103,8 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     g_prog = g_sleStack->code;
 
     // DATA statement support
-    Temp_label dataRestoreLabel = Temp_newlabel();
-    g_dataFrag = CG_DataFrag(dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
+    g_dataRestoreLabel = Temp_newlabel();
+    g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
 
     // parse logical lines
 
@@ -7177,7 +7178,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
             E_enventry func = lx->first->e;
             CG_itemList arglist = CG_ItemList();
             CG_itemListNode n = CG_itemListAppend(arglist);
-            CG_HeapPtrItem (&n->item, dataRestoreLabel, Ty_VoidPtr());
+            CG_HeapPtrItem (&n->item, g_dataRestoreLabel, Ty_VoidPtr());
             CG_loadRef(initCode, /*pos=*/0, frame, &n->item);
             CG_transCall (initCode, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
             AS_instrListPrependList (g_prog, initCode);
