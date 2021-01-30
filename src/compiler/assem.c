@@ -241,10 +241,16 @@ void AS_instrListPrepend (AS_instrList al, AS_instr instr)
         al->first = al->last = n;
 }
 
-void AS_instrListPrependList  (AS_instrList il, AS_instrList il2)
+void AS_instrListPrependList (AS_instrList il, AS_instrList il2)
 {
     for (AS_instrListNode n=il2->last; n; n=n->prev)
         AS_instrListPrepend (il, n->instr);
+}
+
+void AS_instrListAppendList (AS_instrList il, AS_instrList il2)
+{
+    for (AS_instrListNode n=il2->first; n; n=n->next)
+        AS_instrListAppend (il, n->instr);
 }
 
 void AS_instrListInsertBefore (AS_instrList al, AS_instrListNode a, AS_instr instr)
@@ -254,12 +260,12 @@ void AS_instrListInsertBefore (AS_instrList al, AS_instrListNode a, AS_instr ins
 
     AS_instrListNode n = AS_InstrListNode(instr);
 
-    n->prev = a->prev; 
-    a->prev = n; 
-    n->next = a; 
- 
-    if (n->prev != NULL) 
-        n->prev->next = n; 
+    n->prev = a->prev;
+    a->prev = n;
+    n->next = a;
+
+    if (n->prev != NULL)
+        n->prev->next = n;
     else
         al->first = n;
 }
@@ -271,9 +277,9 @@ void AS_instrListInsertAfter (AS_instrList al, AS_instrListNode p, AS_instr inst
 
     AS_instrListNode n = AS_InstrListNode(instr);
 
-    n->next = p->next; 
+    n->next = p->next;
     p->next = n;
-    n->prev = p; 
+    n->prev = p;
     if (n->next)
         n->next->prev = n;
     else

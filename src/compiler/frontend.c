@@ -1062,8 +1062,7 @@ static bool transCallBuiltinSub(S_pos pos, string builtinName, CG_itemList argli
     return TRUE;
 }
 #endif
-#if 0
-static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, CG_itemList arglist, CG_item *exp)
+static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, CG_itemList arglist, AS_instrList initInstrs, CG_item *res)
 {
     Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
     if (!tyClass || (tyClass->kind != Ty_record))
@@ -1073,12 +1072,12 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
     if (!entry || (entry->kind != Ty_recMethod))
         return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
 
-    *exp = Tr_callExp(pos, arglist, entry->u.method);
+    Ty_proc proc = entry->u.method;
+    CG_transCall(initInstrs, pos, g_sleStack->frame, proc, arglist, res);
     return TRUE;
 }
-#endif
 
-static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, CG_item *exp)
+static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, AS_instrList initInstrs)
 {
     Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
     if (!tyClass || (tyClass->kind != Ty_record))
@@ -1087,7 +1086,7 @@ static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_ite
     if (!tyClass->u.record.constructor)
         return EM_error(pos, "builtin type %s does not have constructor.", S_name(builtinClass));
 
-    CG_transCall(g_sleStack->code, pos, g_sleStack->frame, tyClass->u.record.constructor, arglist, exp);
+    CG_transCall(initInstrs, pos, g_sleStack->frame, tyClass->u.record.constructor, arglist, NULL);
     return TRUE;
 }
 
@@ -2621,8 +2620,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 numDims++;
             }
 
-            CG_item initExp;
-            CG_NoneItem (&initExp);
+            AS_instrList initInstrs = NULL;
             if (!initDone)
             {
                 // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
@@ -2632,64 +2630,58 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 n = CG_itemListAppend(arglist);
                 n->item = var;
                 CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &n->item);
-                if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
+                initInstrs = AS_InstrList();
+                if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, initInstrs))
                     return FALSE;
             }
 
             if (numDims)
             {
-                assert(FALSE); // FIXME
-#if 0
-                CG_item initExp2;
                 // call __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
+                if (!initInstrs)
+                    initInstrs = AS_InstrList();
                 CG_itemList arglist = CG_ItemList();
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
                     uint32_t start, end;
-                    if (dim->idxStart)
+                    if (!CG_isNone(&dim->idxStart))
                     {
-                        if (!CG_isConst(dim->idxStart))
+                        if (!CG_isConst(&dim->idxStart))
                             return EM_error(pos, "Constant array bounds expected.");
-                        start = CG_getConstInt(dim->idxStart);
+                        start = CG_getConstInt(&dim->idxStart);
                     }
                     else
                     {
                         start = 0;
                     }
-                    if (!CG_isConst(dim->idxEnd))
+                    if (!CG_isConst(&dim->idxEnd))
                         return EM_error(pos, "Constant array bounds expected.");
-                    end = CG_getConstInt(dim->idxEnd);
-                    CG_ItemListPrepend(arglist, CG_IntItem(pos, start, Ty_ULong()));
-                    CG_ItemListPrepend(arglist, CG_IntItem(pos, end  , Ty_ULong()));
+                    end = CG_getConstInt(&dim->idxEnd);
+                    CG_itemListNode n = CG_itemListPrepend(arglist);
+                    CG_UIntItem(&n->item, start, Ty_ULong());
+                    CG_loadVal (initInstrs, pos, &n->item);
+                    n = CG_itemListPrepend(arglist);
+                    CG_UIntItem(&n->item, end , Ty_ULong());
+                    CG_loadVal (initInstrs, pos, &n->item);
                 }
-                CG_ItemListAppend(arglist, CG_IntItem(pos, numDims, Ty_UInteger()));
-                CG_ItemListAppend(arglist, Tr_boolExp(pos, preserve, Ty_Bool()));
-                CG_ItemListAppend(arglist, Tr_DeepCopy(*var));
-                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, &initExp2))
+                CG_itemListNode n = CG_itemListAppend(arglist);
+                CG_UIntItem(&n->item, numDims, Ty_UInteger());
+                CG_loadVal (initInstrs, pos, &n->item);
+                n = CG_itemListAppend(arglist);
+                CG_BoolItem(&n->item, preserve, Ty_Bool());
+                CG_loadVal (initInstrs, pos, &n->item);
+                n = CG_itemListAppend(arglist);
+                n->item = var;
+                CG_loadRef (initInstrs, pos, g_sleStack->frame, &n->item);
+                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, initInstrs, /*res=*/NULL))
                     return FALSE;
-
-                if (initExp)
-                {
-                    CG_itemList el = CG_ItemList();
-                    CG_ItemListAppend(el, initExp);
-                    CG_ItemListAppend(el, initExp2);
-                    initExp = Tr_seqExp(el);
-                }
-                else
-                {
-                    initExp = initExp2;
-                }
-#endif
             }
-            if (!CG_isNone(&initExp))
+            if (initInstrs)
             {
-                assert(FALSE); // FIXME
-#if 0
                 if (statc)
-                    CG_ItemListPrepend(g_prog, initExp);
+                    AS_instrListPrependList(g_prog, initInstrs);
                 else
-                    emit(initExp);
-#endif
+                    AS_instrListAppendList(g_sleStack->code, initInstrs);
             }
         }
         else

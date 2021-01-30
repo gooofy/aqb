@@ -210,6 +210,7 @@ AS_instrList AS_InstrList             (void);
 void         AS_instrListAppend       (AS_instrList il, AS_instr instr);
 void         AS_instrListPrepend      (AS_instrList il, AS_instr instr);
 void         AS_instrListPrependList  (AS_instrList il, AS_instrList il2);
+void         AS_instrListAppendList   (AS_instrList il, AS_instrList il2);
 void         AS_instrListInsertBefore (AS_instrList il, AS_instrListNode n, AS_instr instr);
 void         AS_instrListInsertAfter  (AS_instrList il, AS_instrListNode n, AS_instr instr);
 void         AS_instrListRemove       (AS_instrList il, AS_instrListNode n);
