@@ -1076,6 +1076,7 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
     *exp = Tr_callExp(pos, arglist, entry->u.method);
     return TRUE;
 }
+#endif
 
 static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, CG_item *exp)
 {
@@ -1086,10 +1087,9 @@ static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_ite
     if (!tyClass->u.record.constructor)
         return EM_error(pos, "builtin type %s does not have constructor.", S_name(builtinClass));
 
-    *exp = Tr_callExp(pos, arglist, tyClass->u.record.constructor);
+    CG_transCall(g_sleStack->code, pos, g_sleStack->frame, tyClass->u.record.constructor, arglist, exp);
     return TRUE;
 }
-#endif
 
 static void transBinOp (S_pos pos, CG_binOp oper, CG_item *e1, CG_item *e2)
 {
@@ -2495,7 +2495,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             return EM_error(pos, "REDIM only works for dynamic arrays.");
     }
 
-    // bool initDone = FALSE;
+    bool initDone = FALSE;
 
     CG_item var;
     CG_NoneItem(&var);
@@ -2550,7 +2550,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             }
             else
             {
-                //initDone = TRUE;
+                initDone = TRUE;
                 assert(FALSE); // FIXME
             }
         }
@@ -2621,18 +2621,19 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 numDims++;
             }
 
-            assert(FALSE); // FIXME
-#if 0
-            CG_item initExp=NULL;
+            CG_item initExp;
+            CG_NoneItem (&initExp);
             if (!initDone)
             {
-                assert(FALSE); // FIXME
-                //// call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
-                //CG_itemList arglist = CG_ItemList();
-                //CG_ItemListAppend(arglist, CG_IntItem(pos, Ty_size(t->u.darray.elementTy), Ty_ULong()));
-                //CG_ItemListAppend(arglist, Tr_DeepCopy(*var));
-                //if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
-                //    return FALSE;
+                // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+                CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n = CG_itemListAppend(arglist);
+                CG_UIntItem(&n->item, Ty_size(t->u.darray.elementTy), Ty_ULong());
+                n = CG_itemListAppend(arglist);
+                n->item = var;
+                CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &n->item);
+                if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, &initExp))
+                    return FALSE;
             }
 
             if (numDims)
@@ -2680,7 +2681,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 }
 #endif
             }
-            if (initExp)
+            if (!CG_isNone(&initExp))
             {
                 assert(FALSE); // FIXME
 #if 0
@@ -2690,7 +2691,6 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     emit(initExp);
 #endif
             }
-#endif
         }
         else
         {
