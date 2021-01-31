@@ -2519,8 +2519,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             }
             else
             {
-                //initDone = TRUE;
-                assert(FALSE); // FIXME
+                initDone = TRUE;
             }
         }
         if (E_resolveVFC(FE_mod->env, sVar, /*checkParents=*/FALSE, &var, &entry))
@@ -2531,8 +2530,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             }
             else
             {
-                // initDone = TRUE;
-                assert(FALSE); // FIXME
+                initDone = TRUE;
             }
         }
         if (CG_isNone(&var))
@@ -2559,7 +2557,6 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             else
             {
                 initDone = TRUE;
-                assert(FALSE); // FIXME
             }
         }
         if (CG_isNone(&var))
@@ -2836,11 +2833,6 @@ static bool stmtDim(S_tkn *tkn, E_enventry e, CG_item *exp)
 //                                                                  | AS typeDesc singleVarDecl2 ("," singleVarDecl2 )* )
 static bool stmtReDim(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    // FIXME
-    assert(FALSE);
-    return FALSE;
-
-#if 0
     bool     preserve  = FALSE;
     bool     shared    = FALSE;
     bool     isPrivate = OPT_get(OPTION_PRIVATE);
@@ -2906,7 +2898,6 @@ static bool stmtReDim(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 
     return TRUE;
-#endif
 }
 
 #if 0
@@ -6865,8 +6856,8 @@ static void registerBuiltins(void)
 
     // FIXME
     declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim          , Ty_Void());
-#if 0
     declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim        , Ty_Void());
+#if 0
     declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint        , Ty_Void());
 #endif
     declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin     , Ty_Void());
@@ -7020,19 +7011,20 @@ static bool statementOrAssignment(S_tkn *tkn)
         }
         else
         {
-            assert(FALSE); // FIXME
-#if 0
             // call void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
 
             CG_itemList arglist = CG_ItemList();
-            CG_ItemListAppend(arglist, Tr_MakeRef((*tkn)->pos, convexp));
-            CG_ItemListAppend(arglist, Tr_MakeRef((*tkn)->pos, exp));
+            // CG_ItemListAppend(arglist, Tr_MakeRef((*tkn)->pos, convexp));
+            // CG_ItemListAppend(arglist, Tr_MakeRef((*tkn)->pos, exp));
+            CG_itemListNode n = CG_itemListAppend(arglist);
+            n->item = item;
+            CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
+            n = CG_itemListAppend(arglist);
+            n->item = ex;
+            CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
 
-            CG_item res;
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("COPY", FALSE), arglist, &res))
+            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("COPY", FALSE), arglist, g_sleStack->code, /*res=*/NULL))
                 return FALSE;
-            emit(res);
-#endif
         }
     }
     else
