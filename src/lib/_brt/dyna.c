@@ -80,7 +80,7 @@ void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
 
     //_dyna_create_ (dimCnt, i, 1, 2);
 
-    _debug_puts ("_dyna_idx: dimCnt="); _debug_puts2(dimCnt); _debug_putnl();
+    //_debug_puts ("_dyna_idx: dimCnt="); _debug_puts2(dimCnt); _debug_putnl();
 
     if (!self->data)
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -98,7 +98,7 @@ void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
         ULONG ubound = self->bounds[iDim].ubound;
         ULONG n     = self->bounds[iDim].numElements;
 
-        _debug_puts ("_dyna_idx: dim: iDim="); _debug_puts2(iDim); _debug_puts(", lbound="); _debug_puts2(lbound); _debug_putnl();
+        //_debug_puts ("_dyna_idx: dim: iDim="); _debug_puts2(iDim); _debug_puts(", lbound="); _debug_puts2(lbound); _debug_putnl();
 
         ULONG idx = va_arg(valist, ULONG);
 
@@ -107,12 +107,12 @@ void *__DARRAY_T_IDXPTR_ (_DARRAY_T *self, UWORD dimCnt, ...)
 
         offset += es * (idx - lbound);
         es *= n;
-        _debug_puts ("_dyna_idx: dim: idx="); _debug_puts2(idx); _debug_puts(", offset="); _debug_puts2(offset); _debug_putnl();
+        //_debug_puts ("_dyna_idx: dim: idx="); _debug_puts2(idx); _debug_puts(", offset="); _debug_puts2(offset); _debug_putnl();
     }
     va_end(valist);
 
     void *ptr = self->data+offset;
-    _debug_puts ("_dyna_idx: self="); _debug_putu4((ULONG) self); _debug_puts(", data="); _debug_putu4((ULONG)self->data); _debug_puts (" -> ptr="); _debug_putu4((ULONG)ptr); _debug_putnl();
+    //_debug_puts ("_dyna_idx: self="); _debug_putu4((ULONG) self); _debug_puts(", data="); _debug_putu4((ULONG)self->data); _debug_puts (" -> ptr="); _debug_putu4((ULONG)ptr); _debug_putnl();
 
     return ptr;
 }

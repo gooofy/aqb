@@ -6678,17 +6678,18 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
     {
         case Ty_darray:
         {
-            assert(FALSE); // FIXME
-#if 0
             // call UWORD _dyna_[u|l]bound(_dyna * dyna, UWORD dim);
 
             CG_itemList arglist = CG_ItemList();
-            CG_ItemListAppend(arglist, dimExp);
-            CG_ItemListAppend(arglist, arrayExp);
+            CG_itemListNode n = CG_itemListAppend(arglist);
+            n->item = arrayExp;
+            CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
+            n = CG_itemListAppend(arglist);
+            n->item = dimExp;
+            CG_loadVal (g_sleStack->code, pos, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, exp))
+            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, g_sleStack->code, exp))
                 return FALSE;
-#endif
             return TRUE;
         }
         case Ty_sarray:
