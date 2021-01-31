@@ -8,8 +8,8 @@
             "name": "gcc build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/aqb",
-            "args": ["examples/exp4.bas"],
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "src/lib", "-d", "_brt", "tests/darray4.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -22,7 +22,6 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "build aqb compiler",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]

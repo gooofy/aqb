@@ -390,6 +390,23 @@ Ty_ty CG_ty(CG_item *item)
     return Ty_Void();
 }
 
+enum AS_w CG_itemSize(CG_item *item)
+{
+    switch (item->kind)
+    {
+        case IK_varPtr:
+        case IK_inFrameRef:
+            return AS_w_L;
+        case IK_const:
+        case IK_inFrame:
+        case IK_inReg:
+        case IK_inHeap:
+            return AS_tySize (item->ty);
+        default:
+            assert(FALSE);
+    }
+}
+
 bool CG_isVar (CG_item *item)
 {
     return (item->kind == IK_inFrame) || (item->kind == IK_inReg) || (item->kind == IK_inHeap);

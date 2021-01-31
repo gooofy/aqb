@@ -124,6 +124,7 @@ void            CG_externalVar      (CG_item *item, string name, Ty_ty ty);
 void            CG_allocVar         (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty ty);
 int             CG_itemOffset       (CG_item *item);
 Ty_ty           CG_ty               (CG_item *item);
+enum AS_w       CG_itemSize         (CG_item *item);
 bool            CG_isVar            (CG_item *item);
 bool            CG_isConst          (CG_item *item);
 bool            CG_isNone           (CG_item *item);

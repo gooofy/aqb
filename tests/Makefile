@@ -42,7 +42,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	   types1.bas types2.bas types3.bas types4.bas types5.bas types6.bas types7.bas \
 	   var1.bas var2.bas \
 	   sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas \
- 	   darray1.bas darray2.bas \
+	   darray1.bas darray2.bas darray3.bas darray4.bas darray5.bas darray6.bas \
 	   io2.bas io3.bas io4.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
