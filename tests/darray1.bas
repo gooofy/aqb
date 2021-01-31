@@ -7,18 +7,18 @@ OPTION EXPLICIT
 DIM a%(100)
 
 a%(1) = 42
-''_debug_puts2 a%(1) : _debug_putnl
-'
-'a%(0) = 23
-''_debug_puts2 a%(0) : _debug_putnl
-'
-''_debug_puts2 a%(1) : _debug_putnl
-''_debug_puts2 a%(0) : _debug_putnl
-'
-'ASSERT a%(1) = 42
-'ASSERT a%(0) = 23
-'
-'' _debug_puts2 LBOUND(a%) : _debug_putnl
+'_debug_puts2 a%(1) : _debug_putnl
+
+a%(0) = 23
+'_debug_puts2 a%(0) : _debug_putnl
+
+'_debug_puts2 a%(1) : _debug_putnl
+'_debug_puts2 a%(0) : _debug_putnl
+
+ASSERT a%(1) = 42
+ASSERT a%(0) = 23
+
+' _debug_puts2 LBOUND(a%) : _debug_putnl
 'ASSERT LBOUND(a%   ) = 0
 'ASSERT LBOUND(a%, 0) = 1
 'ASSERT LBOUND(a%, 2) = 0

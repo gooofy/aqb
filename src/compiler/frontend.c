@@ -1344,17 +1344,22 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             if ( (ty->kind == Ty_darray) )
             {
-                assert(FALSE); // FIXME
-#if 0
                 // call void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...)
 
                 CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n = CG_itemListAppend(arglist);
+                n->item = *exp;
+                CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
+                CG_itemListNode nDimCnt = CG_itemListAppend(arglist);
                 int dimCnt=0;
                 if (!expression(tkn, &idx))
                     return EM_error((*tkn)->pos, "index expression expected here.");
-                if (!convert_ty((*tkn)->pos, idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
+                if (!convert_ty(&idx, (*tkn)->pos, Ty_ULong(), /*explicit=*/FALSE))
                     return EM_error((*tkn)->pos, "array index type mismatch");
-                CG_ItemListAppend(arglist, idx_conv);
+                n = CG_itemListAppend(arglist);
+                n->item = idx;
+                CG_loadVal (g_sleStack->code, (*tkn)->pos, &n->item);
+
                 dimCnt++;
 
                 while ((*tkn)->kind == S_COMMA)
@@ -1362,18 +1367,22 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                     *tkn = (*tkn)->next;
                     if (!expression(tkn, &idx))
                         return EM_error((*tkn)->pos, "index expression expected here.");
-                    if (!convert_ty((*tkn)->pos, idx, Ty_ULong(), &idx_conv, /*explicit=*/FALSE))
+                    if (!convert_ty(&idx, (*tkn)->pos, Ty_ULong(), /*explicit=*/FALSE))
                         return EM_error((*tkn)->pos, "array index type mismatch");
-                    CG_ItemListPrepend(arglist, idx_conv);
+                    n = CG_itemListAppend(arglist);
+                    n->item = idx;
+                    CG_loadVal (g_sleStack->code, (*tkn)->pos, &n->item);
                     dimCnt++;
                 }
-                CG_ItemListAppend(arglist, CG_UIntItem((*tkn)->pos, dimCnt, Ty_UInteger()));
-                CG_ItemListAppend(arglist, *exp);
 
-                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR", FALSE), arglist, exp))
+                CG_UIntItem(&nDimCnt->item, dimCnt, Ty_UInteger());
+                CG_loadVal (g_sleStack->code, (*tkn)->pos, &nDimCnt->item);
+
+                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR", FALSE), arglist, g_sleStack->code, exp))
                     return FALSE;
-                *exp = CG_castItem((*tkn)->pos, *exp, CG_ty(*exp), Ty_VarPtr(FE_mod->name, ty->u.pointer->u.darray.elementTy));
-#endif
+                //CG_castItem (g_sleStack->code, (*tkn)->pos, exp, ty->u.darray.elementTy);
+                exp->ty = ty->u.darray.elementTy;
+                exp->kind = IK_varPtr;
             }
             else
             {
@@ -2626,10 +2635,10 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
                 CG_itemList arglist = CG_ItemList();
                 CG_itemListNode n = CG_itemListAppend(arglist);
-                CG_UIntItem(&n->item, Ty_size(t->u.darray.elementTy), Ty_ULong());
-                n = CG_itemListAppend(arglist);
                 n->item = var;
                 CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &n->item);
+                n = CG_itemListAppend(arglist);
+                CG_UIntItem(&n->item, Ty_size(t->u.darray.elementTy), Ty_ULong());
                 initInstrs = AS_InstrList();
                 if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, initInstrs))
                     return FALSE;
@@ -2641,6 +2650,15 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 if (!initInstrs)
                     initInstrs = AS_InstrList();
                 CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n = CG_itemListAppend(arglist);
+                n->item = var;
+                CG_loadRef (initInstrs, pos, g_sleStack->frame, &n->item);
+                n = CG_itemListAppend(arglist);
+                CG_BoolItem(&n->item, preserve, Ty_Bool());
+                CG_loadVal (initInstrs, pos, &n->item);
+                n = CG_itemListAppend(arglist);
+                CG_UIntItem(&n->item, numDims, Ty_UInteger());
+                CG_loadVal (initInstrs, pos, &n->item);
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
                     uint32_t start, end;
@@ -2657,22 +2675,13 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     if (!CG_isConst(&dim->idxEnd))
                         return EM_error(pos, "Constant array bounds expected.");
                     end = CG_getConstInt(&dim->idxEnd);
-                    CG_itemListNode n = CG_itemListPrepend(arglist);
+                    n = CG_itemListAppend(arglist);
                     CG_UIntItem(&n->item, start, Ty_ULong());
                     CG_loadVal (initInstrs, pos, &n->item);
-                    n = CG_itemListPrepend(arglist);
+                    n = CG_itemListAppend(arglist);
                     CG_UIntItem(&n->item, end , Ty_ULong());
                     CG_loadVal (initInstrs, pos, &n->item);
                 }
-                CG_itemListNode n = CG_itemListAppend(arglist);
-                CG_UIntItem(&n->item, numDims, Ty_UInteger());
-                CG_loadVal (initInstrs, pos, &n->item);
-                n = CG_itemListAppend(arglist);
-                CG_BoolItem(&n->item, preserve, Ty_Bool());
-                CG_loadVal (initInstrs, pos, &n->item);
-                n = CG_itemListAppend(arglist);
-                n->item = var;
-                CG_loadRef (initInstrs, pos, g_sleStack->frame, &n->item);
                 if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, initInstrs, /*res=*/NULL))
                     return FALSE;
             }

@@ -20,6 +20,8 @@ BRANCH_TABLE = {
     'jlt' : 'blt',
     'jgt' : 'bgt',
     'jle' : 'ble',
+    'jcc' : 'bcc',
+    'jcs' : 'bcs',
 }
 
 CONVERSION_PATTERNS = [

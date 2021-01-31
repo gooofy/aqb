@@ -54,7 +54,6 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-.vscode/
 src/alib/alibtest
 src/alib/io.s
 src/alib/old/
