@@ -1586,18 +1586,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     if (isVARPTR)
     {
 
-        switch (exp->kind)
-        {
-            case IK_inFrame:
-            case IK_inHeap:
-                CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, exp);
-                break;
-            case IK_varPtr:
-                break;
-            default:
-                return EM_error(pos, "This object cannot be referenced.");
-        }
-
+        CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, exp);
         exp->ty = Ty_Pointer(FE_mod->name, exp->ty);
         exp->kind = IK_inReg;
 
@@ -1613,9 +1602,8 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     {
         if (ty->kind == Ty_prc)
         {
-            assert(FALSE); // FIXME
-            // if (!transFunctionCall(tkn, exp))
-            //     return FALSE;
+            if (!transFunctionCall(tkn, exp))
+                return FALSE;
         }
     }
 
@@ -4177,6 +4165,7 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+// FIXME: remove
 #if 0
 static bool isNullPtr(CG_item *exp)
 {
@@ -4215,6 +4204,15 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
         {
             if (iln->item.kind == IK_const)
             {
+                /*
+                 * FIXME: this is a hack to allow NULL pointers as defaults for dynamic array arguments
+                 *        at some point we'll probably need a better solution for this
+                 */
+                if ((formal->ty->kind == Ty_darray) && CG_getConstInt (&iln->item)==0)
+                {
+                    return;
+                }
+
                 if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
                 {
                     EM_error(pos, "%s: BYREF parameter type const mismatch", S_name(formal->name));
@@ -6469,7 +6467,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_pos pos = (*tkn)->pos;
 
     if ((*tkn)->kind != S_LPAREN)
-        return EM_error((*tkn)->pos, "( expected.");
+        return EM_error((*tkn)->pos, "VARPTR: ( expected.");
     *tkn = (*tkn)->next;
 
     if (!expDesignator(tkn, exp, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
@@ -6489,7 +6487,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
 static bool funSizeOf(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     if ((*tkn)->kind != S_LPAREN)
-        return EM_error((*tkn)->pos, "( expected.");
+        return EM_error((*tkn)->pos, "SIZEOF: ( expected.");
     *tkn = (*tkn)->next;
 
     Ty_ty ty=NULL;
@@ -6510,7 +6508,7 @@ static bool funCast(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_pos      pos = (*tkn)->pos;
 
     if ((*tkn)->kind != S_LPAREN)
-        return EM_error((*tkn)->pos, "( expected.");
+        return EM_error((*tkn)->pos, "CAST: ( expected.");
     *tkn = (*tkn)->next;
 
     Ty_ty t_dest;
@@ -6540,7 +6538,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_pos pos = (*tkn)->pos;
 
     if ((*tkn)->kind != S_LPAREN)
-        return EM_error((*tkn)->pos, "( expected.");
+        return EM_error((*tkn)->pos, "STR$: ( expected.");
     *tkn = (*tkn)->next;
 
     CG_itemList arglist = CG_ItemList();
@@ -6602,40 +6600,40 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 // funIsNull ::= _ISNULL "(" expDesignator ")"
 static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
 
     if ((*tkn)->kind != S_LPAREN)
-        return EM_error((*tkn)->pos, "( expected.");
+        return EM_error((*tkn)->pos, "_ISNULL: ( expected.");
     *tkn = (*tkn)->next;
 
-    CG_item v;
-    if (!expDesignator(tkn, &v, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+    if (!expDesignator(tkn, exp, /*isVARPTR=*/FALSE, /*leftHandSide=*/FALSE))
         return FALSE;
-    Ty_ty ty = CG_ty(&v);
-    if (ty->kind != Ty_varPtr)
-        return EM_error(pos, "This object cannot be referenced.");
+    CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, exp);
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
     *tkn = (*tkn)->next;
 
-    v = CG_castItem(pos, v, ty, Ty_VoidPtr());
-    *exp = CG_transRelOp(pos, CG_eq, v, CG_ZeroItem(pos, Ty_VoidPtr()));
+    exp->kind = IK_inReg;
+    exp->ty = Ty_VoidPtr();
+
+    CG_item z;
+    CG_ZeroItem (&z, Ty_VoidPtr());
+
+    CG_transRelOp (g_sleStack->code, pos, CG_eq, exp, &z);
 
     return TRUE;
 }
-#endif
 
 static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
 {
     S_pos pos;
 
     if ((*tkn)->kind != S_LPAREN)
-        return EM_error((*tkn)->pos, "( expected.");
+        return EM_error((*tkn)->pos, "array bounds: ( expected.");
     *tkn = (*tkn)->next;
 
     CG_item arrayExp;
@@ -6918,9 +6916,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar     , Ty_String());
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
-#if 0
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
-#endif
 }
 
 //

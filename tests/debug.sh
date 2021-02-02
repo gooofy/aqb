@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXAMPLE=darray4
+EXAMPLE=types4
 
 ASMProsrc='/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo.asm'
 
