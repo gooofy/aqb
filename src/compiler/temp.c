@@ -15,9 +15,9 @@
 
 struct Temp_temp_
 {
-    int    num;
-    Ty_ty  ty;
-    string name;
+    int         num;
+    enum Temp_w w;
+    string      name;
 };
 
 string Temp_labelstring(Temp_label s)
@@ -42,20 +42,20 @@ Temp_label Temp_namedlabel(string s)
 
 static int temp_cnt = 0;
 
-Temp_temp Temp_NamedTemp (string name, Ty_ty ty)
+Temp_temp Temp_NamedTemp (string name, enum Temp_w w)
 {
     Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
 
-    p->ty   = ty;
+    p->w    = w;
     p->num  = temp_cnt++;
     p->name = name;
 
     return p;
 }
 
-Temp_temp Temp_Temp(Ty_ty ty)
+Temp_temp Temp_Temp(enum Temp_w w)
 {
-    return Temp_NamedTemp (NULL, ty);
+    return Temp_NamedTemp (NULL, w);
 }
 
 void Temp_printf (Temp_temp t, FILE *out)
@@ -82,9 +82,9 @@ string Temp_strprint (Temp_temp t)
     return String(buf);
 }
 
-Ty_ty Temp_ty(Temp_temp t)
+enum Temp_w Temp_w(Temp_temp t)
 {
-    return t->ty;
+    return t->w;
 }
 
 int Temp_num(Temp_temp t)

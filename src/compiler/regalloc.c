@@ -89,7 +89,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
             CG_item *item = checked_malloc (sizeof (*item));
             if (f)
             {
-                CG_allocVar (item, f, /*name=*/NULL, /*expt=*/ FALSE, Temp_ty(tn->temp));
+                CG_allocVar (item, f, /*name=*/NULL, /*expt=*/ FALSE, Temp_w(tn->temp) == Temp_w_L ? Ty_ULong() : Ty_UInteger());
 #ifdef ENABLE_DEBUG
                 printf("    assigned spilled %s to local fp offset %d\n", Temp_strprint(tn->temp), CG_itemOffset(item));
 #endif
@@ -97,7 +97,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
             else
             {
                 string name = strprintf("__spilledtemp_%06d", Temp_num(tn->temp));
-                CG_allocVar(item, CG_globalFrame(), name, /*expt=*/ FALSE, Temp_ty(tn->temp));
+                CG_allocVar(item, CG_globalFrame(), name, /*expt=*/ FALSE, Temp_w(tn->temp) == Temp_w_L ? Ty_ULong() : Ty_UInteger());
 #ifdef ENABLE_DEBUG
                 printf("    assigned spilled %s to global %s\n", Temp_strprint( tn->temp), Temp_labelstring(l));
 #endif
@@ -119,7 +119,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
             {
                 CG_item *local = (CG_item*) TAB_look(spilledLocal, useSpilled);
                 AS_instrListInsertBefore (il, an,                                                       // move.x localOffset(fp), useSpilled
-                                          AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, AS_tySize(Temp_ty(useSpilled)),
+                                          AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, Temp_w(useSpilled),
                                                      NULL, useSpilled, 0, CG_itemOffset(local), NULL));
             }
 
@@ -127,7 +127,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
             {
                 CG_item *local = (CG_item*) TAB_look(spilledLocal, defSpilled);
                 AS_instrListInsertAfter (il, an,                                                        // move.x defSpilled, localOffset(FP)
-                                         AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, AS_tySize(Temp_ty(defSpilled)),
+                                         AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, Temp_w(defSpilled),
                                                     defSpilled, NULL, 0, CG_itemOffset(local), NULL));
                 an = an->next;
             }

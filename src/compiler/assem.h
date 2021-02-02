@@ -143,6 +143,8 @@ enum AS_mn
     AS_NUM_INSTR
 };
 
+#include "types.h"
+
 typedef struct AS_instr_ *AS_instr;
 struct AS_instr_
 {

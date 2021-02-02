@@ -265,7 +265,8 @@ void CG_OneItem (CG_item *item, Ty_ty ty)
 
 void CG_TempItem (CG_item *item, Ty_ty ty)
 {
-    Temp_temp t = Temp_Temp (ty);
+    enum Temp_w w = AS_tySize (ty);
+    Temp_temp t = Temp_Temp (w);
     InReg (item, t, ty);
 }
 
@@ -402,6 +403,8 @@ enum Temp_w CG_itemSize(CG_item *item)
         case IK_inReg:
         case IK_inHeap:
             return AS_tySize (item->ty);
+        case IK_cond:
+            return Temp_w_B;
         default:
             assert(FALSE);
     }
@@ -822,7 +825,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inFrame:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (CG_itemSize(item));
 
             AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, AS_tySize(ty), NULL,                      //     move.x o(fp), t
                                                   t, NULL, CG_itemOffset(item), NULL));
@@ -833,7 +836,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inHeap:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (CG_itemSize(item));
 
             AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Label_AnDn, AS_tySize(ty), NULL,                    //     move.x l, t
                                                   t, NULL, 0, item->u.inHeap.l));
@@ -844,7 +847,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_const:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (CG_itemSize(item));
 
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x #item, t
                                                  t, item->u.c, 0, NULL));
@@ -855,7 +858,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_cond:
         {
             Ty_ty ty = Ty_Bool();
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (CG_itemSize(item));
             Temp_label lFini = Temp_newlabel();
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x postCond, t
                                                  t, Ty_ConstBool(ty, item->u.condR.postCond), 0, NULL));
@@ -872,7 +875,7 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_varPtr:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (CG_itemSize(item));
 
             AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), item->u.varPtr, t));         //     move.x (item), t
             InReg (item, t, ty);
@@ -882,8 +885,8 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inFrameRef:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
-            Temp_temp tp = Temp_Temp (Ty_VoidPtr());
+            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            Temp_temp tp = Temp_Temp (Temp_w_L);
 
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, Temp_w_L, NULL, tp,                         //     move.l item.o(fp), tp
                                                  NULL, item->u.inFrameR.offset, NULL));
@@ -904,7 +907,7 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         case IK_inFrame:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (Temp_w_L);
             AS_instrListAppend(code, AS_InstrEx (pos, AS_LEA_Ofp_An, Temp_w_L, NULL,                                   //     lea o(fp), t
                                                  t, NULL, item->u.inFrameR.offset, NULL));
             VarPtr (item, t, ty);
@@ -914,7 +917,7 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         case IK_inHeap:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (Temp_w_L);
 
             AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_ILabel_AnDn, Temp_w_L, NULL,                            //     move.l #l, t
                                                   t, NULL, 0, item->u.inHeap.l));
@@ -928,7 +931,7 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         case IK_inFrameRef:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (ty);
+            Temp_temp t = Temp_Temp (Temp_w_L);
             AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, Temp_w_L, NULL,                                //     move.l o(fp), t
                                                  t, NULL, item->u.inFrameR.offset, NULL));
             VarPtr (item, t, ty);
@@ -3466,7 +3469,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
             {
                 case IK_inFrame:
                 {
-                    Temp_temp t = Temp_Temp(ty);
+                    Temp_temp t = Temp_Temp (CG_itemSize(right));
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, w, NULL, t,                              // move.x right.o(fp), t
                                                           NULL, right->u.inFrameR.offset, NULL));
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, t, NULL,                              // move.x t, left.o(fp)

@@ -952,7 +952,7 @@ string AS_regName (int reg)
 void AS_init (void)
 {
     for (int i=0; i<AS_NUM_REGISTERS; i++)
-        AS_regs[i] = Temp_NamedTemp (g_regnames[i], Ty_ULong());
+        AS_regs[i] = Temp_NamedTemp (g_regnames[i], Temp_w_L);
 
     g_allRegs = NULL;
     g_dRegs   = NULL;

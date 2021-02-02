@@ -12,13 +12,11 @@ typedef struct Temp_temp_      *Temp_temp;
 typedef S_symbol                Temp_label;
 typedef struct Temp_labelList_ *Temp_labelList;
 
-#include "types.h"
-
 enum Temp_w { Temp_w_B, Temp_w_W, Temp_w_L, Temp_w_NONE } ;
 
-Temp_temp       Temp_Temp      (Ty_ty ty);
-Temp_temp       Temp_NamedTemp (string name, Ty_ty ty);
-Ty_ty           Temp_ty        (Temp_temp t);
+Temp_temp       Temp_Temp      (enum Temp_w w);
+Temp_temp       Temp_NamedTemp (string name, enum Temp_w w);
+enum Temp_w     Temp_w         (Temp_temp t);
 int             Temp_num       (Temp_temp t);
 void            Temp_printf    (Temp_temp t, FILE *out);
 void            Temp_snprintf  (Temp_temp t, string buf, size_t size);
