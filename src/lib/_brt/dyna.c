@@ -24,6 +24,8 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
     self->numDims     = numDims;
 
     self->bounds = ALLOCATE_ (sizeof (_DARRAY_BOUNDS_T) * numDims, 0);
+    if (!self->bounds)
+        ERROR (ERR_OUT_OF_MEMORY);
 
     va_start (valist, numDims);
     ULONG dataSize = self->elementSize;
@@ -43,6 +45,8 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
     ULONG oDataSize = self->dataSize;
 
     self->data     = ALLOCATE_ (dataSize, 0);
+    if (!self->data)
+        ERROR (ERR_OUT_OF_MEMORY);
     self->dataSize = dataSize;
 
     if (oData)

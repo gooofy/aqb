@@ -593,7 +593,7 @@ static void linearScan (CG_frame f, AS_instrList il)
         else
         {
             CG_item *item = &g_ivs[i]->local;
-            CG_allocVar (item, f, /*name=*/NULL, /*expt=*/FALSE, Temp_w(t) == Temp_w_L ? Ty_ULong() : Ty_UInteger());
+            CG_allocVar (item, f, /*name=*/NULL, /*expt=*/FALSE, Ty_ULong());
             TAB_enter (g_spilledLocals, t, item);
 #ifdef ENABLE_DEBUG
             printf("LS: assigned spilled %s to local fp offset %d\n", Temp_strprint(t), CG_itemOffset(item));
@@ -682,7 +682,7 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                         CG_item *item = TAB_look (g_spilledLocals, inst->src);
                         assert(item);
                         Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? AS_regs[AS_TEMP_A0] : AS_regs[AS_TEMP_D0];
-                        spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, inst->w,     // move.x localOffset(FP), r
+                        spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, Temp_w_L,                      // move.l localOffset(FP), r
                                                       NULL, r, 0, CG_itemOffset(item), NULL);
                         AS_instrListInsertBefore (il, an, spilled_src_move);
                         inst->src = r;
@@ -700,7 +700,7 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                         CG_item *item = TAB_look (g_spilledLocals, inst->dst);
                         assert(item);
                         Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? AS_regs[AS_TEMP_A1] : AS_regs[AS_TEMP_D1];
-                        spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, inst->w,    // move.x r, localOffset(FP)
+                        spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, Temp_w_L,                      // move.l r, localOffset(FP)
                                                       r, NULL, 0, CG_itemOffset(item), NULL);
                         AS_instrListInsertAfter (il, an, spilled_dst_move);
                         inst->dst = r;
