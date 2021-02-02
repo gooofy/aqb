@@ -128,7 +128,7 @@ bool AS_verifyInstr (AS_instr instr)
     return TRUE;
 }
 
-AS_instr AS_Instr (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst)
+AS_instr AS_Instr (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -150,7 +150,7 @@ AS_instr AS_Instr (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_te
     return p;
 }
 
-AS_instr AS_InstrEx (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label)
+AS_instr AS_InstrEx (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -172,7 +172,7 @@ AS_instr AS_InstrEx (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_
     return p;
 }
 
-AS_instr AS_InstrEx2 (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use)
+AS_instr AS_InstrEx2 (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use)
 {
     AS_instr p = (AS_instr) checked_malloc (sizeof *p);
 
@@ -408,17 +408,17 @@ bool AS_instrSetSub (AS_instrSet as, AS_instr i) // returns FALSE if i was not i
     return FALSE;
 }
 
-enum AS_w AS_tySize(Ty_ty ty)
+enum Temp_w AS_tySize(Ty_ty ty)
 {
     switch (ty->kind)
     {
         case Ty_bool:
         case Ty_byte:
         case Ty_ubyte:
-            return AS_w_B;
+            return Temp_w_B;
         case Ty_integer:
         case Ty_uinteger:
-            return AS_w_W;
+            return Temp_w_W;
         case Ty_long:
         case Ty_ulong:
         case Ty_single:
@@ -427,7 +427,7 @@ enum AS_w AS_tySize(Ty_ty ty)
         case Ty_forwardPtr:
         case Ty_procPtr:
         case Ty_string:
-            return AS_w_L;
+            return Temp_w_L;
         case Ty_sarray:
         case Ty_darray:
         case Ty_record:
@@ -436,7 +436,7 @@ enum AS_w AS_tySize(Ty_ty ty)
         case Ty_prc:
             assert(0);
     }
-    return AS_w_L;
+    return Temp_w_L;
 }
 
 static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect dialect)
@@ -455,11 +455,11 @@ static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect d
                     str[pos] = '.'; pos++;
                     switch (instr->w)
                     {
-                        case AS_w_B:
+                        case Temp_w_B:
                             str[pos] = 'b'; pos++; break;
-                        case AS_w_W:
+                        case Temp_w_W:
                             str[pos] = 'w'; pos++; break;
-                        case AS_w_L:
+                        case Temp_w_L:
                             str[pos] = 'l'; pos++; break;
                         default:
                             str[pos] = '?'; pos++; break;
@@ -811,13 +811,13 @@ static uint32_t instr_size (AS_instr instr)
             {
                 switch (instr->w)
                 {
-                    case AS_w_B:
+                    case Temp_w_B:
                         fprintf (stderr, "*** internal error: movea.b does not exist.\n");
                         assert(0);
                         return 0;
-                    case AS_w_W:
+                    case Temp_w_W:
                         return 2;
-                    case AS_w_L:
+                    case Temp_w_L:
                         return 3;
                     default:
                         assert(0);
@@ -828,10 +828,10 @@ static uint32_t instr_size (AS_instr instr)
             {
                 switch (instr->w)
                 {
-                    case AS_w_B:
-                    case AS_w_W:
+                    case Temp_w_B:
+                    case Temp_w_W:
                         return 2;
-                    case AS_w_L:
+                    case Temp_w_L:
                         if (is8BitConst (instr->imm))       // moveq
                             return 1;
                         return 3;

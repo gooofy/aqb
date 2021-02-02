@@ -143,13 +143,11 @@ enum AS_mn
     AS_NUM_INSTR
 };
 
-enum AS_w { AS_w_B, AS_w_W, AS_w_L, AS_w_NONE } ;
-
 typedef struct AS_instr_ *AS_instr;
 struct AS_instr_
 {
     enum AS_mn     mn;
-    enum AS_w      w;
+    enum Temp_w      w;
     Temp_label     label;
     Temp_temp      src, dst;
     Ty_const       imm;
@@ -159,9 +157,9 @@ struct AS_instr_
     S_pos          pos;      // source code reference
 };
 
-AS_instr AS_Instr       (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst);
-AS_instr AS_InstrEx     (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label);
-AS_instr AS_InstrEx2    (S_pos pos, enum AS_mn mn, enum AS_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
+AS_instr AS_Instr       (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst);
+AS_instr AS_InstrEx     (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label);
+AS_instr AS_InstrEx2    (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use);
 
 /*
  * AS_instrInfo: general information about 68k instruction set
@@ -238,7 +236,7 @@ void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2); // add
 bool               AS_instrSetSub      (AS_instrSet as, AS_instr i);      // returns FALSE if i was not in as, TRUE otherwise
 static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NULL; }
 
-enum AS_w          AS_tySize(Ty_ty ty);
+enum Temp_w        AS_tySize(Ty_ty ty);
 
 void               AS_sprint         (string str, AS_instr i, AS_dialect dialect);
 void               AS_printInstrList (FILE *out, AS_instrList iList, AS_dialect dialect);

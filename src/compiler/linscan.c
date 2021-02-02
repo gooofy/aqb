@@ -644,11 +644,11 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                 if (inst->def != AS_callersaves())
                 {
                     long regset = (1<<AS_TEMP_A2) | (1<<AS_TEMP_A3) | (1<<AS_TEMP_D2) | (1<<AS_TEMP_D3) | (1<<AS_TEMP_D4) | (1<<AS_TEMP_D5) | (1<<AS_TEMP_D6);
-                    AS_instr rsave = AS_InstrEx(inst->pos, AS_MOVEM_Rs_PDsp, AS_w_L,         // movem.l   a2-a3/d2-d6,-(sp)
+                    AS_instr rsave = AS_InstrEx(inst->pos, AS_MOVEM_Rs_PDsp, Temp_w_L,         // movem.l   a2-a3/d2-d6,-(sp)
                                                 NULL, NULL, NULL, regset, NULL);
                     AS_instrListInsertBefore (il, an, rsave);
 
-                    AS_instr rrestore = AS_InstrEx(inst->pos, AS_MOVEM_spPI_Rs, AS_w_L,      // movem.l   (sp)+, a2-a3/d2-d6
+                    AS_instr rrestore = AS_InstrEx(inst->pos, AS_MOVEM_spPI_Rs, Temp_w_L,      // movem.l   (sp)+, a2-a3/d2-d6
                                                    NULL, NULL, NULL, regset, NULL);
                     AS_instrListInsertAfter (il, an, rrestore);
                     an = an->next;

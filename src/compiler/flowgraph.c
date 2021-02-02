@@ -59,7 +59,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
             if (AS_instrInfoA[instr->mn].srcAnOnly)
                 n->srcInterf = AS_dRegs();
             else
-                n->srcInterf = instr->w == AS_w_B ? AS_aRegs() : NULL;
+                n->srcInterf = instr->w == Temp_w_B ? AS_aRegs() : NULL;
         }
     }
     else
@@ -83,7 +83,7 @@ static FG_node FG_Node(FG_graph g, AS_instr instr)
             if (AS_instrInfoA[instr->mn].dstAnOnly)
                 n->dstInterf = AS_dRegs();
             else
-                n->dstInterf = instr->w == AS_w_B ? AS_aRegs() : NULL;
+                n->dstInterf = instr->w == Temp_w_B ? AS_aRegs() : NULL;
         }
     }
     else
@@ -215,7 +215,7 @@ FG_graph FG_AssemFlowGraph(AS_instrList il)
 	{
         // add a NOP node so the label points to something
 
-        AS_instr nop = AS_Instr (last_inst->pos, AS_NOP, AS_w_NONE, NULL, NULL);
+        AS_instr nop = AS_Instr (last_inst->pos, AS_NOP, Temp_w_NONE, NULL, NULL);
 		FG_node n = FG_Node(g, nop);
 		nl = FG_NodeList(n, nl);
 		ll = Temp_LabelList(last_inst->label, ll);

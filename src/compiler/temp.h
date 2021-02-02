@@ -14,6 +14,8 @@ typedef struct Temp_labelList_ *Temp_labelList;
 
 #include "types.h"
 
+enum Temp_w { Temp_w_B, Temp_w_W, Temp_w_L, Temp_w_NONE } ;
+
 Temp_temp       Temp_Temp      (Ty_ty ty);
 Temp_temp       Temp_NamedTemp (string name, Ty_ty ty);
 Ty_ty           Temp_ty        (Temp_temp t);
