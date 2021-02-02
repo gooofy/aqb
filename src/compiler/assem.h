@@ -238,8 +238,6 @@ void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2); // add
 bool               AS_instrSetSub      (AS_instrSet as, AS_instr i);      // returns FALSE if i was not in as, TRUE otherwise
 static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NULL; }
 
-enum Temp_w        AS_tySize(Ty_ty ty);
-
 void               AS_sprint         (string str, AS_instr i, AS_dialect dialect);
 void               AS_printInstrList (FILE *out, AS_instrList iList, AS_dialect dialect);
 void               AS_printInstrSet  (FILE *out, AS_instrSet  is   );

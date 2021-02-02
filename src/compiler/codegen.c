@@ -263,9 +263,40 @@ void CG_OneItem (CG_item *item, Ty_ty ty)
     }
 }
 
+static enum Temp_w CG_tySize(Ty_ty ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_bool:
+        case Ty_byte:
+        case Ty_ubyte:
+            return Temp_w_B;
+        case Ty_integer:
+        case Ty_uinteger:
+            return Temp_w_W;
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_single:
+        case Ty_double:
+        case Ty_pointer:
+        case Ty_forwardPtr:
+        case Ty_procPtr:
+        case Ty_string:
+            return Temp_w_L;
+        case Ty_sarray:
+        case Ty_darray:
+        case Ty_record:
+        case Ty_void:
+        case Ty_toLoad:
+        case Ty_prc:
+            assert(0);
+    }
+    return Temp_w_L;
+}
+
 void CG_TempItem (CG_item *item, Ty_ty ty)
 {
-    enum Temp_w w = AS_tySize (ty);
+    enum Temp_w w = CG_tySize (ty);
     Temp_temp t = Temp_Temp (w);
     InReg (item, t, ty);
 }
@@ -402,7 +433,7 @@ enum Temp_w CG_itemSize(CG_item *item)
         case IK_inFrame:
         case IK_inReg:
         case IK_inHeap:
-            return AS_tySize (item->ty);
+            return CG_tySize (item->ty);
         case IK_cond:
             return Temp_w_B;
         default:
@@ -825,9 +856,10 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inFrame:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            enum Temp_w w = CG_itemSize(item);
+            Temp_temp t = Temp_Temp (w);
 
-            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, AS_tySize(ty), NULL,                      //     move.x o(fp), t
+            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Ofp_AnDn, w, NULL,                                 //     move.x o(fp), t
                                                   t, NULL, CG_itemOffset(item), NULL));
             InReg (item, t, ty);
             break;
@@ -836,9 +868,10 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inHeap:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            enum Temp_w w = CG_itemSize(item);
+            Temp_temp t = Temp_Temp (w);
 
-            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Label_AnDn, AS_tySize(ty), NULL,                    //     move.x l, t
+            AS_instrListAppend(code, AS_InstrEx  (pos, AS_MOVE_Label_AnDn, w, NULL,                               //     move.x l, t
                                                   t, NULL, 0, item->u.inHeap.l));
             InReg (item, t, ty);
             break;
@@ -847,9 +880,10 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_const:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            enum Temp_w w = CG_itemSize(item);
+            Temp_temp t = Temp_Temp (w);
 
-            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x #item, t
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, w, NULL,                                  //     move.x #item, t
                                                  t, item->u.c, 0, NULL));
             InReg (item, t, ty);
             break;
@@ -858,14 +892,15 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_cond:
         {
             Ty_ty ty = Ty_Bool();
-            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            enum Temp_w w = CG_itemSize(item);
+            Temp_temp t = Temp_Temp (w);
             Temp_label lFini = Temp_newlabel();
-            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x postCond, t
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, w, NULL,                                  //     move.x postCond, t
                                                  t, Ty_ConstBool(ty, item->u.condR.postCond), 0, NULL));
-            AS_instrListAppend(code, AS_InstrEx (pos, AS_BRA, Temp_w_NONE, NULL,                                    //     bra    lFini
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_BRA, Temp_w_NONE, NULL,                                  //     bra    lFini
                                                  NULL, NULL, 0, lFini));
             CG_transLabel (code, pos, item->u.condR.l);                                                           // item.l:
-            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, AS_tySize(ty), NULL,                      //     move.x !postCond, t
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Imm_AnDn, w, NULL,                                  //     move.x !postCond, t
                                                  t, Ty_ConstBool(ty, !item->u.condR.postCond), 0, NULL));
             CG_transLabel (code, pos, lFini);                                                                     // lFini:
             InReg (item, t, ty);
@@ -875,9 +910,10 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_varPtr:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            enum Temp_w w = CG_tySize(ty);
+            Temp_temp t = Temp_Temp (w);
 
-            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), item->u.varPtr, t));         //     move.x (item), t
+            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, w, item->u.varPtr, t));                     //     move.x (item), t
             InReg (item, t, ty);
             break;
         }
@@ -885,12 +921,13 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inFrameRef:
         {
             Ty_ty ty = CG_ty(item);
-            Temp_temp t = Temp_Temp (CG_itemSize(item));
+            enum Temp_w w = CG_tySize(ty);
+            Temp_temp t = Temp_Temp (w);
             Temp_temp tp = Temp_Temp (Temp_w_L);
 
-            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, Temp_w_L, NULL, tp,                         //     move.l item.o(fp), tp
+            AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_Ofp_AnDn, Temp_w_L, NULL, tp,                       //     move.l item.o(fp), tp
                                                  NULL, item->u.inFrameR.offset, NULL));
-            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, AS_tySize(ty), tp, t));                     //     move.x (tp.r), t.r
+            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_RAn_AnDn, w, tp, t));                                 //     move.x (tp.r), t.r
             InReg (item, t, ty);
             break;
         }
@@ -943,10 +980,11 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         {
             CG_loadVal (code, pos, item);
             Ty_ty ty = CG_ty(item);
+            enum Temp_w w = CG_itemSize(item);
             CG_item tmpVar;
             CG_allocVar (&tmpVar, frame, /*name=*/NULL, /*expt=*/FALSE, ty);
 
-            AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, AS_tySize(ty), item->u.inReg, NULL,         //     move.x item.t, tmpVar.o(fp)
+            AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, item->u.inReg, NULL,                       //     move.x item.t, tmpVar.o(fp)
                                                   NULL, tmpVar.u.inFrameR.offset, NULL));
             CG_TempItem (item, Ty_VoidPtr());
             AS_instrListAppend(code, AS_InstrEx (pos, AS_LEA_Ofp_An, Temp_w_L, NULL, item->u.inReg,                    //     lea tmpVar.o(fp), item.t
@@ -1147,7 +1185,7 @@ static void emitRegCall(AS_instrList code, S_pos pos, string strName, int lvo, C
 // result in left!
 void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty)
 {
-    enum Temp_w w = AS_tySize(ty);
+    enum Temp_w w = CG_tySize(ty);
     switch (left->kind)
     {
         case IK_const:                                                  // c <o> ?
@@ -2909,7 +2947,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                 case Ty_integer:
                 case Ty_long:
                 {
-                    enum Temp_w w = AS_tySize(ty);
+                    enum Temp_w w = CG_tySize(ty);
 
                     // optimization possible ?
 
@@ -2940,7 +2978,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                 case Ty_pointer:
                 case Ty_procPtr:
                 {
-                    enum Temp_w w = AS_tySize(ty);
+                    enum Temp_w w = CG_tySize(ty);
 
                     // optimization possible ?
 
@@ -3406,7 +3444,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
         return;
     }
 
-    enum Temp_w  w  = AS_tySize(ty);
+    enum Temp_w  w  = CG_tySize(ty);
     switch (right->kind)
     {
         case IK_const:

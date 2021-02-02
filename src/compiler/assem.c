@@ -408,37 +408,6 @@ bool AS_instrSetSub (AS_instrSet as, AS_instr i) // returns FALSE if i was not i
     return FALSE;
 }
 
-enum Temp_w AS_tySize(Ty_ty ty)
-{
-    switch (ty->kind)
-    {
-        case Ty_bool:
-        case Ty_byte:
-        case Ty_ubyte:
-            return Temp_w_B;
-        case Ty_integer:
-        case Ty_uinteger:
-            return Temp_w_W;
-        case Ty_long:
-        case Ty_ulong:
-        case Ty_single:
-        case Ty_double:
-        case Ty_pointer:
-        case Ty_forwardPtr:
-        case Ty_procPtr:
-        case Ty_string:
-            return Temp_w_L;
-        case Ty_sarray:
-        case Ty_darray:
-        case Ty_record:
-        case Ty_void:
-        case Ty_toLoad:
-        case Ty_prc:
-            assert(0);
-    }
-    return Temp_w_L;
-}
-
 static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect dialect)
 {
     int pos = 0;
