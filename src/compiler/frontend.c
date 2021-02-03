@@ -2967,7 +2967,6 @@ static bool stmtExternDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
     return singleVarDecl(tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/TRUE);
 }
 
-#if 0
 // print ::= PRINT  [ expression ( [ ';' | ',' ] expression )* ]
 static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -2983,9 +2982,11 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
             return EM_error(pos, "expression expected here.");
 
         CG_itemList arglist = CG_ItemList();           // single argument list
-        CG_ItemListAppend(arglist, ex);
+        CG_itemListNode n = CG_itemListAppend(arglist);
+        n->item = ex;
+        CG_loadVal (g_sleStack->code, pos, &n->item);
         S_symbol   fsym    = NULL;                   // put* function sym to call
-        Ty_ty      ty      = CG_ty(ex);
+        Ty_ty      ty      = CG_ty(&ex);
         switch (ty->kind)
         {
             case Ty_string:
@@ -3027,7 +3028,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
             if (!lx)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
             E_enventry func = lx->first->e;
-            emit(Tr_callExp(pos, arglist, func->u.proc));
+            CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
         }
 
         if (isLogicalEOL(*tkn))
@@ -3049,7 +3050,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
                 E_enventry func = lx->first->e;
-                emit(Tr_callExp(pos, NULL, func->u.proc));
+                CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, NULL, NULL);
                 if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
@@ -3067,13 +3068,14 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
-        emit(Tr_callExp(pos, NULL, func->u.proc));
+        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, NULL, NULL);
         return TRUE;
     }
 
     return FALSE;
 }
 
+#if 0
 static bool inputVar(S_tkn *tkn)
 {
     CG_item var;
@@ -3081,7 +3083,7 @@ static bool inputVar(S_tkn *tkn)
         return EM_error((*tkn)->pos, "INPUT: variable designator expected here.");
 
     S_symbol   fsym    = NULL;                   // put* function sym to call
-    Ty_ty      ty      = CG_ty(var)->u.pointer;
+    Ty_ty      ty      = CG_ty(&var)->u.pointer;
     switch (ty->kind)
     {
         case Ty_string:
@@ -6850,9 +6852,7 @@ static void registerBuiltins(void)
     // FIXME
     declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim          , Ty_Void());
     declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim        , Ty_Void());
-#if 0
     declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint        , Ty_Void());
-#endif
     declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin     , Ty_Void());
     declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd       , Ty_Void());
     declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin      , Ty_Void());
