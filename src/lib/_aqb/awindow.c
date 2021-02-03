@@ -345,12 +345,14 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
 {
     BYTE fgPen=g_rp->FgPen;
 #if 0
-    _aio_puts("x1: "); _aio_puts4(x1);
-    _aio_puts(", y1: "); _aio_puts4(y1);
-    _aio_puts(", x2: "); _aio_puts4(x2);
-    _aio_puts(", y2: "); _aio_puts4(y2);
-    _aio_puts(", flags: "); _aio_puts4(flags);
-    _aio_puts(", color: "); _aio_puts4(color);
+    _aio_puts("s1: ")  ; _aio_puts2(s1);
+    _aio_puts(", x1: "); _aio_puts2(x1);
+    _aio_puts(", y1: "); _aio_puts2(y1);
+    _aio_puts(", s2: "); _aio_puts2(s2);
+    _aio_puts(", x2: "); _aio_puts2(x2);
+    _aio_puts(", y2: "); _aio_puts2(y2);
+    _aio_puts(", c: ") ; _aio_puts2(c);
+    _aio_puts(", bf: "); _aio_puts2(bf);
     _aio_putnl();
 #endif
 

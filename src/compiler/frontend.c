@@ -3075,7 +3075,6 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
     return FALSE;
 }
 
-#if 0
 static bool inputVar(S_tkn *tkn)
 {
     CG_item var;
@@ -3123,8 +3122,10 @@ static bool inputVar(S_tkn *tkn)
             return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
         CG_itemList arglist = CG_ItemList();
-        CG_ItemListAppend(arglist, var);
-        emit(Tr_callExp((*tkn)->pos, arglist, func->u.proc));
+        CG_itemListNode n = CG_itemListAppend(arglist);
+        n->item = var;
+        CG_loadRef(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
+        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, func->u.proc, arglist, NULL);
     }
     return TRUE;
 }
@@ -3165,10 +3166,16 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
-    CG_ItemListAppend(arglist, Tr_boolExp(pos, do_nl, Ty_Bool()));
-    CG_ItemListAppend(arglist, prompt ? CG_StringItem(pos, prompt) : CG_ZeroItem(pos, Ty_String()));
-    CG_ItemListAppend(arglist, Tr_boolExp(pos, qm, Ty_Bool()));
-    emit(Tr_callExp(pos, arglist, func->u.proc));
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    CG_BoolItem(&n->item, do_nl, Ty_Bool());
+    n = CG_itemListAppend(arglist);
+    if (prompt)
+        CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
+    else
+        CG_ZeroItem(&n->item, Ty_String());
+    n = CG_itemListAppend(arglist);
+    CG_BoolItem(&n->item, qm, Ty_Bool());
+    CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
 
     if (!inputVar(tkn))
         return FALSE;
@@ -3183,6 +3190,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     return isLogicalEOL(*tkn);
 }
 
+#if 0
 // lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
 static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -4164,21 +4172,6 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// FIXME: remove
-#if 0
-static bool isNullPtr(CG_item *exp)
-{
-    Ty_ty t = CG_ty(exp);
-    if (t->kind != Ty_pointer)
-        return FALSE;
-    if (t->u.pointer->kind != Ty_void)
-        return FALSE;
-    if (!CG_isConst(exp))
-        return FALSE;
-    return CG_getConstInt(exp)==0;
-}
-#endif
-
 static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal, CG_item *exp, bool forceExp)
 {
     CG_itemListNode iln = CG_itemListAppend (assignedArgs);
@@ -4216,7 +4209,7 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                 {
                     EM_error(pos, "%s: BYREF parameter type const mismatch", S_name(formal->name));
                     return;
-                }                
+                }
             }
 
             if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
@@ -6899,8 +6892,8 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
 #if 0
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
-    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
 #endif
+    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
