@@ -2888,26 +2888,24 @@ static bool stmtReDim(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
 static bool transErase (S_pos pos, S_symbol sVar)
 {
     Ty_recordEntry entry;
-    CG_item var = NULL;
+    CG_item var;
     if (!E_resolveVFC(g_sleStack->env, sVar, /*checkParents=*/FALSE, &var, &entry))
         return EM_error(pos, "ERASE: unknown identifier %s.", S_name(sVar));
 
-    Ty_ty t = CG_ty(var);
-
-    if ( (t->kind != Ty_varPtr) || (t->u.pointer->kind != Ty_darray) )
+    Ty_ty t = CG_ty(&var);
+    if ( t->kind != Ty_darray )
         return EM_error(pos, "ERASE: %s is not a dynamic array.", S_name(sVar));
 
     // call __DARRAY_T_ERASE (_DARRAY_T *self)
     CG_itemList arglist = CG_ItemList();
-    CG_ItemListAppend(arglist, Tr_DeepCopy(var));
-    CG_item callExp;
-    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE", FALSE), arglist, &callExp))
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    n->item = var;
+    CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &n->item);
+    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE", FALSE), arglist, g_sleStack->code, /*res=*/NULL))
         return FALSE;
-    emit (callExp);
 
     return TRUE;
 }
@@ -2945,7 +2943,6 @@ static bool stmtErase(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
-#endif
 
 // externDecl ::= [ PRIVATE | PUBLIC ] EXTERN singleVarDecl
 static bool stmtExternDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -6899,9 +6896,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr       , Ty_Void());
     declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto         , Ty_Void());
     declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub        , Ty_Void());
-#if 0
     declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase        , Ty_Void());
-#endif
     declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
