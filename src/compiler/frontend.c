@@ -4293,11 +4293,11 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
 // lineBF ::= ("B" | "BF")
 static bool lineBF(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
-    assert(FALSE); // FIXME
-#if 0
     if (isSym(*tkn, S_B))
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, CG_IntItem((*tkn)->pos, 1, Ty_Integer()), /*forceExp=*/FALSE);
+        CG_item item;
+        CG_IntItem(&item, 1, Ty_Integer());
+        transAssignArg((*tkn)->pos, assignedArgs, *formal, &item, /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
         *formal = (*formal)->next;
     }
@@ -4305,7 +4305,9 @@ static bool lineBF(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
     {
         if (isSym(*tkn, S_BF))
         {
-            transAssignArg((*tkn)->pos, assignedArgs, *formal, CG_IntItem((*tkn)->pos, 3, Ty_Integer()), /*forceExp=*/FALSE);
+            CG_item item;
+            CG_IntItem(&item, 3, Ty_Integer());
+            transAssignArg((*tkn)->pos, assignedArgs, *formal, &item, /*forceExp=*/FALSE);
             *tkn = (*tkn)->next;
             *formal = (*formal)->next;
         }
@@ -4315,8 +4317,7 @@ static bool lineBF(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
         }
     }
 
-    return TRUE;a
-#endif
+    return TRUE;
 }
 
 // coord ::= [ STEP ] '(' expression "," expression ")"
