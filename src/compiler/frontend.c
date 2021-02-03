@@ -6280,7 +6280,6 @@ static bool stmtPublicPrivate(S_tkn *tkn, E_enventry e, CG_item *exp)
     return EM_error(nextTkn->pos, "DECLARE, SUB, FUNCTION, DIM or TYPE expected here.");
 }
 
-#if 0
 // stmtImport ::= IMPORT ident
 static bool stmtImport(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6306,7 +6305,6 @@ static bool stmtImport(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     return TRUE;
 }
-#endif
 
 static bool getLetter(S_tkn *tkn, char *letter)
 {
@@ -6887,9 +6885,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn       , Ty_Void());
     declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
     declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate, Ty_Void());
-#if 0
     declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport       , Ty_Void());
-#endif
     declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng       , Ty_Void());
     declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng       , Ty_Void());
     declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint       , Ty_Void());

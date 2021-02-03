@@ -44,7 +44,7 @@ BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS_OPT}/%,$(basename $(SRC
 .PRECIOUS: $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s $(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
 
 # all: dirs $(BINS) $(BINS_OPT) mod1 io1 subtest11 runtests
-all: dirs $(BINS) $(BINS_OPT) runtests
+all: dirs $(BINS) $(BINS_OPT) mod1 runtests
 
 # %.o : %.c
 # 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
@@ -79,11 +79,11 @@ subtest11:
 runtests:
 	echo "; AQB test suite" > $(EMUDIR)/runtests
 	for t in $(BINS); do BN=`basename $$t` ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS)/$$BN" >> $(EMUDIR)/runtests ; done
-	# FIXME BN="mod1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="mod1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	# FIXME BN="io1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	# FIXME BN="subtest11" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	for t in $(BINS_OPT); do BN=`basename $$t` ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" >> $(EMUDIR)/runtests ; done
-	# FIXME BN="mod1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="mod1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	# FIXME BN="io1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	# FIXME BN="subtest11" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	cat $(EMUDIR)/runtests
