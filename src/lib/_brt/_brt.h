@@ -11,7 +11,7 @@ extern struct MathTransBase *MathTransBase;
 
 APTR   ALLOCATE_(ULONG size, ULONG flags);
 void   DEALLOCATE (APTR ptr, ULONG size);
-ULONG  FRE_(int x);
+ULONG  FRE_(SHORT x);
 
 void   POKE (ULONG adr, UBYTE  b);
 void   POKEW(ULONG adr, USHORT w);

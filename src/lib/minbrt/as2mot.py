@@ -47,7 +47,7 @@ CONVERSION_PATTERNS = [
      # move.l _g_positiveExpThreshold,(-10,a5)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+(?P<label>[a-zA-Z0-9_\.]+),\((?P<off>[+\-0-9]+),(?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t\g<label>, \g<off>(\g<r1>)'),
      # move.l #.LC0,d0
-     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<label>\.L[a-zA-Z0-9_\.]+),(?P<r1>[ad0-7sp]+)$'), '\t\g<mn>\t#\g<label>, \g<r1>'),
+     (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<label>[a-zA-Z0-9_\.]+),(?P<r1>[ad0-7sp]+)$'), '\t\g<mn>\t#\g<label>, \g<r1>'),
      # move.l #.LC0,(-4,a5)
      (re.compile(r'^\s+(?P<mn>[a-zA-Z][a-zA-Z.]+)\s+#(?P<label>[a-zA-Z0-9_\.]+),\((?P<off>[+\-0-9]+),(?P<r1>[ad0-7]+)\)$'), '\t\g<mn>\t#\g<label>, \g<off>(\g<r1>)'),
      # pea .LC1
