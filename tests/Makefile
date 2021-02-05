@@ -17,7 +17,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
  	   subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \
  	   subtest6.bas subtest7.bas subtest8.bas subtest9.bas \
 	   subtest10.bas subtest12.bas subtest13.bas subtest14.bas subtest15.bas subtest16.bas \
- 	   subtest17.bas subtest18.bas subtest19.bas subtest20.bas subtest21.bas subtest22.bas \
+ 	   subtest17.bas subtest18.bas subtest19.bas subtest20.bas subtest21.bas subtest22.bas subtest23.bas \
 	   types1.bas types2.bas types3.bas types4.bas types5.bas types6.bas types7.bas \
 	   var1.bas var2.bas \
 	   sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas \

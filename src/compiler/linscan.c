@@ -678,7 +678,7 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                     }
                     else
                     {
-                        // spilled
+                        // src spilled
                         CG_item *item = TAB_look (g_spilledLocals, inst->src);
                         assert(item);
                         Temp_temp r = AS_instrInfoA[inst->mn].srcAnOnly ? AS_regs[AS_TEMP_A0] : AS_regs[AS_TEMP_D0];
@@ -697,9 +697,19 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                     }
                     else
                     {
+                        // dst spilled
                         CG_item *item = TAB_look (g_spilledLocals, inst->dst);
                         assert(item);
-                        Temp_temp r = AS_instrInfoA[inst->mn].dstAnOnly ? AS_regs[AS_TEMP_A1] : AS_regs[AS_TEMP_D1];
+                        AS_instrInfo info = AS_instrInfoA[inst->mn];
+                        Temp_temp r = info.dstAnOnly ? AS_regs[AS_TEMP_A1] : AS_regs[AS_TEMP_D1];
+
+                        if (info.dstIsAlsoSrc)
+                        {
+                            spilled_src_move = AS_InstrEx(inst->pos, AS_MOVE_Ofp_AnDn, Temp_w_L,                  // move.l localOffset(FP), r
+                                                          NULL, r, 0, CG_itemOffset(item), NULL);
+                            AS_instrListInsertBefore (il, an, spilled_src_move);
+                        }
+
                         spilled_dst_move = AS_InstrEx(inst->pos, AS_MOVE_AnDn_Ofp, Temp_w_L,                      // move.l r, localOffset(FP)
                                                       r, NULL, 0, CG_itemOffset(item), NULL);
                         AS_instrListInsertAfter (il, an, spilled_dst_move);
