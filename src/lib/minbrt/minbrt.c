@@ -800,6 +800,63 @@ void SYSTEM(void)
     _autil_exit(0);
 }
 
+ULONG FRE_(SHORT x)
+{
+
+    if (x==-2)          // stack
+    {
+        struct Process *Process;
+        struct CommandLineInterface *CLI;
+        ULONG stack;
+
+        Process = (struct Process *) FindTask (0L);
+        if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+        {
+            stack = CLI -> cli_DefaultStack << 2;
+        }
+        else
+        {
+            stack = Process -> pr_StackSize;
+        }
+        return stack;
+    }
+#if 0
+    switch (x)
+    {
+        case -2:        // stack
+        {
+            struct Process *Process;
+            struct CommandLineInterface *CLI;
+            ULONG stack;
+
+            Process = (struct Process *) FindTask (0L);
+            if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+            {
+                stack = CLI -> cli_DefaultStack << 2;
+            }
+            else
+            {
+                stack = Process -> pr_StackSize;
+            }
+            return stack;
+        }
+        case -1:        // chip + fast
+            return AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST);
+        case 0:         // chip
+            return AvailMem(MEMF_CHIP);
+        case 1:         // fast
+            return AvailMem(MEMF_FAST);
+        case 2:         // largest chip
+            return AvailMem(MEMF_CHIP|MEMF_LARGEST);
+        case 3:         // largest fast
+            return AvailMem(MEMF_FAST|MEMF_LARGEST);
+        default:
+            return 0;
+    }
+#endif
+    return 0;
+}
+
 // gets called by _autil_exit
 void _minbrt_exit(void)
 {

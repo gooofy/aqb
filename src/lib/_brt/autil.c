@@ -148,7 +148,7 @@ void SYSTEM(void)
     _autil_exit(0);
 }
 
-ULONG FRE_(int x)
+ULONG FRE_(SHORT x)
 {
 
     switch (x)
