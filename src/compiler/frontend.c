@@ -3511,9 +3511,9 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
      * lHead:
      *      ; ... loop body ...
      * lCont:
+     *      loopVar += stepItem
      *      loopVar < toItem ?
      *      cjump lExit
-     *      loopVar += stepItem
      *      jump  lHead
      * lExit:
      */
@@ -3544,13 +3544,13 @@ static bool stmtForEnd_(S_pos pos, S_symbol varSym)
     }
 
     CG_transLabel      (g_sleStack->code, pos, sle->contlbl);
+    CG_item v = sle->u.forLoop.var;
+    CG_transBinOp      (g_sleStack->code, pos, g_sleStack->frame, CG_plus, &v, &sle->u.forLoop.stepItem, CG_ty(&v));
+    CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &sle->u.forLoop.var, &v);
     CG_item cond = sle->u.forLoop.var;
     CG_transRelOp      (g_sleStack->code, pos, CG_lt, &cond, &sle->u.forLoop.toItem);
     CG_loadCond (g_sleStack->code, pos, &cond);
     CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
-    CG_item v = sle->u.forLoop.var;
-    CG_transBinOp      (g_sleStack->code, pos, g_sleStack->frame, CG_plus, &v, &sle->u.forLoop.stepItem, CG_ty(&v));
-    CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &sle->u.forLoop.var, &v);
     CG_transJump       (g_sleStack->code, pos, sle->u.forLoop.lHead);
     CG_transLabel      (g_sleStack->code, pos, cond.u.condR.l);
     CG_transLabel      (g_sleStack->code, pos, sle->exitlbl);
