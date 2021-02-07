@@ -189,7 +189,7 @@ static void computeLiveIntervals (AS_instrList il)
 
 #ifdef ENABLE_DEBUG
             char buf[1024];
-            AS_sprint (buf, instr);
+            AS_sprint (buf, instr, AS_dialect_gas);
             printf ("LS: %4d %s\n", idx, buf);
 #endif
 
@@ -255,7 +255,7 @@ static void computeLiveIntervals (AS_instrList il)
 #ifdef ENABLE_DEBUG
                 {
                     //char buf[256];
-                    //AS_sprint (buf, instr);
+                    //AS_sprint (buf, instr, AS_dialect_gas);
                     //printf ("   target idx of %d %s is %d\n", idx, buf, targetIdx);
                 }
 #endif
@@ -273,7 +273,7 @@ static void computeLiveIntervals (AS_instrList il)
                     if (c)
                     {
                         char buf[256];
-                        AS_sprint (buf, instr);
+                        AS_sprint (buf, instr, AS_dialect_gas);
                         printf ("   extended interval of %s because of %s\n", Temp_strprint(iv->t), buf);
                     }
 #endif
@@ -311,7 +311,7 @@ static void computeLiveIntervals (AS_instrList il)
             AS_instr instr = in->instr;
 
             char buf[256];
-            AS_sprint (buf, instr);
+            AS_sprint (buf, instr, AS_dialect_gas);
             printf ("LS: %4d %s", idx, buf);
 
             int pos = 5 + strlen(buf);
@@ -654,11 +654,11 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                     an = an->next;
 #ifdef ENABLE_DEBUG
                     char buf[256];
-                    AS_sprint(buf, rsave);
+                    AS_sprint(buf, rsave, AS_dialect_gas);
                     printf("%s /* save regs before GOSUB */\n", buf);
-                    AS_sprint(buf, inst);
+                    AS_sprint(buf, inst, AS_dialect_gas);
                     printf("%s\n", buf);
-                    AS_sprint(buf, rrestore);
+                    AS_sprint(buf, rrestore, AS_dialect_gas);
                     printf("%s /* restore regs after GOSUB */\n", buf);
 #endif
                 }
@@ -721,14 +721,14 @@ bool LS_regalloc(CG_frame f, AS_instrList il)
                 char buf[256];
                 if (spilled_src_move)
                 {
-                    AS_sprint(buf, spilled_src_move);
+                    AS_sprint(buf, spilled_src_move, AS_dialect_gas);
                     printf("%s /* spilled src */\n", buf);
                 }
-                AS_sprint(buf, inst);
+                AS_sprint(buf, inst, AS_dialect_gas);
                 printf("%s\n", buf);
                 if (spilled_dst_move)
                 {
-                    AS_sprint(buf, spilled_dst_move);
+                    AS_sprint(buf, spilled_dst_move, AS_dialect_gas);
                     printf("%s /* spilled dst */\n", buf);
                 }
 #endif
