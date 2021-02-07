@@ -110,6 +110,10 @@ int main (int argc, char *argv[])
     EM_init();
     S_symbol_init();
 
+#ifdef __amigaos__
+    E_addSymPath("AQB:lib");
+#endif
+
     asm_gas_fn[0]=0;
     asm_asmpro_fn[0]=0;
 
