@@ -49,7 +49,7 @@ extern struct DOSBase       *DOSBase;
 
 static void print_usage(char *argv[])
 {
-	fprintf(stderr, "usage: %s [-v] [-s] <program.bas>\n", argv[0]);
+	fprintf(stderr, "usage: %s [ options ] <program.bas>\n", argv[0]);
     fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
 	fprintf(stderr, "    -L <dir>     look in <dir> for symbol files\n");
 	fprintf(stderr, "    -O           enable optimizer\n");
