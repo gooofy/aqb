@@ -35,7 +35,7 @@ TAB_iter TAB_Iter(TAB_table table)
 {
     assert(table);
 
-    TAB_iter p = checked_malloc(sizeof(*p));
+    TAB_iter p = U_poolAlloc (UP_table, sizeof(*p));
 
     p->table  = table;
     p->nexti  = -1;
@@ -72,7 +72,7 @@ bool TAB_next(TAB_iter iter, void **key, void **value)
 
 static binder Binder(void *key, void *value, binder next)
 {
-    binder b = checked_malloc(sizeof(*b));
+    binder b = U_poolAlloc (UP_table, sizeof(*b));
 
     b->key     = key;
     b->value   = value;
@@ -83,7 +83,7 @@ static binder Binder(void *key, void *value, binder next)
 
 TAB_table TAB_empty(void)
 {
-    TAB_table t = checked_malloc(sizeof(*t));
+    TAB_table t = U_poolAlloc (UP_table, sizeof(*t));
 
     for (int i = 0; i < TABSIZE; i++)
         t->table[i] = NULL;

@@ -14,7 +14,7 @@ struct S_symbol_
 
 static S_symbol mksymbol(string name, bool case_sensitive)
 {
-    S_symbol s=checked_malloc(sizeof(*s));
+    S_symbol s=U_poolAlloc (UP_symbol, sizeof(*s));
 
     s->name           = String(name);
     s->case_sensitive = case_sensitive;
@@ -61,7 +61,7 @@ struct S_scope_
 
 S_scope S_beginScope(void)
 {
-    S_scope s = checked_malloc(sizeof(*s));
+    S_scope s = U_poolAlloc (UP_symbol, sizeof(*s));
 
     s->tab      = TAB_empty();
 
@@ -92,7 +92,7 @@ TAB_iter S_Iter(S_scope scope)
 
 S_symlist S_Symlist(S_symbol sym, S_symlist next)
 {
-    S_symlist s=checked_malloc(sizeof(*s));
+    S_symlist s=U_poolAlloc (UP_symbol, sizeof(*s));
 
     s->sym  = sym;
     s->next = next;

@@ -77,7 +77,7 @@ static uint32_t g_uid = 23;
 
 Ty_ty Ty_Record (S_symbol mod)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                  = Ty_record;
     p->u.record.scope        = S_beginScope();
@@ -91,7 +91,7 @@ Ty_ty Ty_Record (S_symbol mod)
 
 Ty_recordEntry Ty_Field (Ty_visibility visibility, S_symbol name, Ty_ty ty)
 {
-    Ty_recordEntry f = checked_malloc(sizeof(*f));
+    Ty_recordEntry f = U_poolAlloc(UP_types, sizeof(*f));
 
     f->kind               = Ty_recField;
     f->u.field.visibility = visibility;
@@ -104,7 +104,7 @@ Ty_recordEntry Ty_Field (Ty_visibility visibility, S_symbol name, Ty_ty ty)
 
 Ty_recordEntry Ty_Method (Ty_proc proc)
 {
-    Ty_recordEntry p = checked_malloc(sizeof(*p));
+    Ty_recordEntry p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_recMethod;
     p->u.method  = proc;
@@ -114,7 +114,7 @@ Ty_recordEntry Ty_Method (Ty_proc proc)
 
 Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_pointer;
     p->u.pointer = ty;
@@ -126,7 +126,7 @@ Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
 
 Ty_ty Ty_ForwardPtr(S_symbol mod, S_symbol sType)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind       = Ty_forwardPtr;
     p->u.sForward = sType;
@@ -138,7 +138,7 @@ Ty_ty Ty_ForwardPtr(S_symbol mod, S_symbol sType)
 
 Ty_ty Ty_Prc(S_symbol mod, Ty_proc proc)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_prc;
     p->u.proc    = proc;
@@ -150,7 +150,7 @@ Ty_ty Ty_Prc(S_symbol mod, Ty_proc proc)
 
 Ty_ty Ty_ProcPtr(S_symbol mod, Ty_proc proc)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_procPtr;
     p->u.procPtr = proc;
@@ -162,7 +162,7 @@ Ty_ty Ty_ProcPtr(S_symbol mod, Ty_proc proc)
 
 Ty_ty Ty_ToLoad(S_symbol mod, uint32_t uid)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                = Ty_toLoad;
     p->mod                 = mod;
@@ -234,7 +234,7 @@ void Ty_computeSize(Ty_ty ty)
 
 Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind               = Ty_sarray;
     p->u.sarray.elementTy = ty;
@@ -250,7 +250,7 @@ Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
 
 Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy)
 {
-    Ty_ty p = checked_malloc(sizeof(*p));
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind               = Ty_darray;
     p->u.darray.elementTy = elementTy;
@@ -315,7 +315,7 @@ static Ty_defRange defRangesLast=NULL;
 
 void Ty_defineRange(Ty_ty ty, char lstart, char lend)
 {
-    Ty_defRange p = checked_malloc(sizeof(*p));
+    Ty_defRange p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->ty     = ty;
     p->lstart = lstart;
@@ -460,7 +460,7 @@ bool Ty_isInt(Ty_ty t)
 
 Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg)
 {
-    Ty_formal p = checked_malloc(sizeof(*p));
+    Ty_formal p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->name       = name;
     p->ty         = ty;
@@ -475,7 +475,7 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
 
 Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls)
 {
-    Ty_proc p = checked_malloc(sizeof(*p));
+    Ty_proc p = U_poolAlloc(UP_types, sizeof(*p));
 
     // assert(name);
 
@@ -499,7 +499,7 @@ Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_sym
 
 Ty_const Ty_ConstBool (Ty_ty ty, bool b)
 {
-    Ty_const p = checked_malloc(sizeof(*p));
+    Ty_const p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.b = b;
@@ -509,7 +509,7 @@ Ty_const Ty_ConstBool (Ty_ty ty, bool b)
 
 Ty_const Ty_ConstInt (Ty_ty ty, int32_t i)
 {
-    Ty_const p = checked_malloc(sizeof(*p));
+    Ty_const p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.i = i;
@@ -519,7 +519,7 @@ Ty_const Ty_ConstInt (Ty_ty ty, int32_t i)
 
 Ty_const Ty_ConstUInt (Ty_ty ty, uint32_t u)
 {
-    Ty_const p = checked_malloc(sizeof(*p));
+    Ty_const p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.u = u;
@@ -529,7 +529,7 @@ Ty_const Ty_ConstUInt (Ty_ty ty, uint32_t u)
 
 Ty_const Ty_ConstFloat (Ty_ty ty, double f)
 {
-    Ty_const p = checked_malloc(sizeof(*p));
+    Ty_const p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.f = f;
@@ -539,7 +539,7 @@ Ty_const Ty_ConstFloat (Ty_ty ty, double f)
 
 Ty_const Ty_ConstString (Ty_ty ty, string s)
 {
-    Ty_const p = checked_malloc(sizeof(*p));
+    Ty_const p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.s = s;

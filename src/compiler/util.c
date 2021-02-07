@@ -26,8 +26,43 @@ extern struct DOSBase       *DOSBase;
 #endif
 
 #include "util.h"
+#include "options.h"
 
-static float g_start_time;
+#define CHUNK_DEFAULT_SIZE 8 * 1024
+
+typedef struct U_memChunk_ *U_memChunk;
+typedef struct U_memPool_  *U_memPool;
+typedef struct U_memRec_   *U_memRec;
+
+struct U_memChunk_
+{
+    void       *mem_start, *mem_next;
+    size_t      avail;
+    U_memChunk  next;
+};
+
+struct U_memPool_
+{
+    size_t      chunk_size;
+    int         num_chunks;
+    int         num_allocs;
+    U_memChunk  first, last;
+};
+
+struct U_memRec_
+{
+    U_memRec   next;
+    size_t     size;
+    void      *mem;
+};
+
+static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL", "HASHMAP",
+                                                "REGALLOC", "LIVENESS", "TABLE", "STRINGS" };
+static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
+static U_memRec   g_mem = NULL;
+static size_t     g_alloc=0;
+static float      g_start_time;
+
 
 static float get_time(void)
 {
@@ -45,27 +80,7 @@ static float get_time(void)
     #endif
 }
 
-void U_memstat(void)
-{
-    float t = get_time();
-    double tdiff = t-g_start_time;
-    // FIXME
-    // printf ("%8.3fs: memory pool stats: used %8zu of %8zu KBytes.\n", tdiff, (g_pool->initial_size - pool_available(g_pool))/1024, g_pool->initial_size/1024);
-    printf ("%8.3fs: memory pool stats: FIXME.\n", tdiff);
-}
-
-static void U_deinit (void)
-{
-    U_memstat();
-}
-
-void U_init (void)
-{
-    g_start_time = get_time();
-    atexit (U_deinit);
-}
-
-void *checked_malloc (size_t len)
+static void *checked_malloc (size_t len)
 {
 #ifdef __amigaos__
     void *p = AllocMem(len, 0);
@@ -81,14 +96,7 @@ void *checked_malloc (size_t len)
     return p;
 }
 
-void *checked_calloc (size_t nmemb, size_t len)
-{
-    void *p = checked_malloc(nmemb * len);
-    memset (p, 0, nmemb * len);
-    return p;
-}
-
-void U_memfree (void *mem, size_t size)
+static void U_memfree (void *mem, size_t size)
 {
 #ifdef __amigaos__
     FreeMem (mem, size);
@@ -97,9 +105,128 @@ void U_memfree (void *mem, size_t size)
 #endif
 }
 
+static U_memChunk U_MemChunk(size_t chunk_size)
+{
+    U_memChunk chunk = checked_malloc(sizeof(*chunk));
+
+    chunk->mem_start = chunk->mem_next = checked_malloc (chunk_size);
+    chunk->avail     = chunk_size;
+    chunk->next      = NULL;
+
+    return chunk;
+}
+
+static void U_memPoolInit (U_memPool pool, size_t chunk_size)
+{
+    pool->chunk_size = chunk_size;
+    pool->first      = pool->last = U_MemChunk(chunk_size);
+    pool->num_chunks = 1;
+    pool->num_allocs = 0;
+}
+
+static U_memPool U_MemPool(size_t chunk_size)
+{
+    U_memPool pool = checked_malloc(sizeof(*pool));
+
+    U_memPoolInit (pool, chunk_size);
+
+    return pool;
+}
+
+
+void *U_poolAlloc (U_poolId pid, size_t size)
+{
+    U_memPool pool = g_pools[pid];
+    assert (pool);
+    assert (size <= pool->chunk_size);
+
+    // alignment
+    size += size % 2;
+
+    U_memChunk chunk = pool->last;
+    if (chunk->avail < size)
+    {
+        chunk = pool->last = pool->last->next = U_MemChunk(pool->chunk_size);
+        pool->num_chunks++;
+    }
+
+    void *mem = chunk->mem_next;
+    chunk->mem_next += size;
+    chunk->avail    -= size;
+    pool->num_allocs++;
+
+    return mem;
+}
+
+void *U_poolCalloc (U_poolId pid, size_t nmemb, size_t len)
+{
+    void *p = U_poolAlloc(pid, nmemb * len);
+    memset (p, 0, nmemb * len);
+    return p;
+}
+
+static void U_poolFree (U_poolId pid, bool destroy)
+{
+    U_memPool pool = g_pools[pid];
+    if (OPT_get(OPTION_VERBOSE))
+        printf ("freeing memory pool: %-12s %5d allocs, %6zd Bytes in %2d chunks.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks);
+
+    U_memChunk nextChunk = pool->first->next;
+    for (U_memChunk chunk = pool->first; chunk; chunk = nextChunk)
+    {
+        nextChunk = chunk->next;
+        U_memfree(chunk->mem_start, pool->chunk_size);
+        U_memfree(chunk, sizeof (*chunk));
+    }
+    if (destroy)
+        U_memfree(pool, sizeof (*pool));
+
+}
+
+void U_poolReset (U_poolId pid)
+{
+    U_poolFree(pid, /*destroy=*/FALSE);
+
+    U_memPool pool = g_pools[pid];
+    U_memPoolInit (pool, pool->chunk_size);
+}
+
+void U_memstat(void)
+{
+    float t = get_time();
+    double tdiff = t-g_start_time;
+
+    for (int i=0; i<UP_numPools; i++)
+    {
+        printf ("%8.3fs: memory pool stats: %-12s %4d allocs, %6zd Bytes in %2d chunks.\n", tdiff, g_pool_names[i], g_pools[i]->num_allocs, (g_pools[i]->num_chunks * g_pools[i]->chunk_size) / 1, g_pools[i]->num_chunks);
+    }
+	printf ("%8.3fs: memory pool stats: OTHER                     %6zd Bytes.\n", tdiff, g_alloc);
+}
+
+void *U_malloc (size_t size)
+{
+    U_memRec mem_prev = g_mem;
+
+    g_mem      = checked_malloc (sizeof(*g_mem));
+    g_mem->mem = checked_malloc (size);
+
+    g_mem->size = size;
+    g_mem->next = mem_prev;
+	g_alloc    += size;
+
+    return g_mem->mem;
+}
+
+void *U_calloc (size_t nmemb, size_t len)
+{
+    void *p = U_malloc(nmemb * len);
+    memset (p, 0, nmemb * len);
+    return p;
+}
+
 string String(const char *s)
 {
-    string p = checked_malloc(strlen(s)+1);
+    string p = U_poolAlloc (UP_strings, strlen(s)+1);
     strcpy(p,s);
     return p;
 }
@@ -108,7 +235,7 @@ string strconcat(const char *s1, const char*s2)
 {
     int l1 = strlen(s1);
     int l2 = strlen(s2);
-    char *buf = checked_malloc(l1+l2+1);
+    char *buf = U_poolAlloc (UP_strings, l1+l2+1);
     memcpy(buf, s1, l1);
     memcpy(buf+l1, s2, l2);
     buf[l1+l2] = 0;
@@ -118,7 +245,7 @@ string strconcat(const char *s1, const char*s2)
 string strlower(const char *s)
 {
     int l = strlen(s);
-    string p = checked_malloc(l+1);
+    string p = U_poolAlloc (UP_strings, l+1);
     for (int i = 0; i<l; i++)
     {
         p[i] = tolower(s[i]);
@@ -142,7 +269,7 @@ string strprintf(const char *format, ...)
     va_end (args);
 
     l = strlen(buf);
-    res = checked_malloc(l+1);
+    res = U_poolAlloc (UP_strings, l+1);
     res[l] = 0;
     memcpy(res, buf, l);
     return res;
@@ -170,7 +297,7 @@ string strdeserialize(FILE *in)
     if (fread(&l, 2, 1, in) != 1)
         return NULL;
 
-    string res = checked_malloc(l+1);
+    string res = U_poolAlloc (UP_strings, l+1);
     if (fread(res, l, 1, in) != 1)
         return NULL;
     res[l]=0;
@@ -241,3 +368,29 @@ float decode_ffp(uint32_t fl)
     float *fp = (float*) &res;
     return *fp;
 }
+
+static void U_deinit (void)
+{
+    for (int i=0; i<UP_numPools; i++)
+        U_poolFree(i, /*destroy=*/TRUE);
+    if (OPT_get(OPTION_VERBOSE))
+        printf ("freeing memory     : %6zd Bytes in OTHER.\n", g_alloc);
+    while (g_mem)
+    {
+        U_memRec mem_next = g_mem->next;
+        U_memfree (g_mem->mem, g_mem->size);
+        U_memfree (g_mem, sizeof (*g_mem));
+        g_mem = mem_next;
+    }
+}
+
+void U_init (void)
+{
+    g_start_time = get_time();
+    atexit (U_deinit);
+
+    for (int i=0; i<UP_numPools; i++)
+        g_pools[i] = U_MemPool (CHUNK_DEFAULT_SIZE);
+
+}
+

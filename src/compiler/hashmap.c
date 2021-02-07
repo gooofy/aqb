@@ -34,9 +34,9 @@ typedef struct _hashmap_map{
  */
 map_t hashmap_new()
 {
-	hashmap_map* m = (hashmap_map*) checked_malloc(sizeof(hashmap_map));
+	hashmap_map* m = (hashmap_map*) U_poolAlloc (UP_hashmap, sizeof(hashmap_map));
 
-	m->data = (hashmap_element*) checked_calloc(INITIAL_SIZE, sizeof(hashmap_element));
+	m->data = (hashmap_element*) U_poolCalloc (UP_hashmap, INITIAL_SIZE, sizeof(hashmap_element));
 
 	m->table_size = INITIAL_SIZE;
 	m->size = 0;
@@ -226,7 +226,7 @@ int hashmap_rehash(map_t in)
 
 	/* Setup the new elements */
 	hashmap_map *m = (hashmap_map *) in;
-	hashmap_element* temp = (hashmap_element *) checked_calloc(2 * m->table_size, sizeof(hashmap_element));
+	hashmap_element* temp = (hashmap_element *) U_calloc (2 * m->table_size, sizeof(hashmap_element));
 
 	/* Update the array */
 	curr = m->data;

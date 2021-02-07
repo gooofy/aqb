@@ -37,7 +37,7 @@ E_moduleListNode E_getLoadedModuleList(void)
 
 E_moduleListNode E_ModuleListNode(E_module m, E_moduleListNode next)
 {
-    E_moduleListNode n = checked_malloc(sizeof(*n));
+    E_moduleListNode n = U_poolAlloc (UP_env, sizeof(*n));
     n->m    = m;
     n->next = next;
     return n;
@@ -48,7 +48,7 @@ void E_declareVFC (E_env env, S_symbol sym, CG_item *var)
 {
     assert(env->kind == E_scopesEnv);
 
-    E_enventry p = checked_malloc(sizeof(*p));
+    E_enventry p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->kind  =  E_vfcEntry;
     p->sym   =  sym;
@@ -63,7 +63,7 @@ void E_declareSub (E_env env, S_symbol sym, Ty_proc proc)
     assert(env->kind == E_scopesEnv);
     assert (proc->returnTy->kind == Ty_void);
 
-    E_enventry p = checked_malloc(sizeof(*p));
+    E_enventry p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->kind       = E_procEntry;
     p->sym        = sym;
@@ -82,7 +82,7 @@ void E_declareType (E_env env, S_symbol sym, Ty_ty ty)
 {
     assert(env->kind == E_scopesEnv);
 
-    E_enventry p = checked_malloc(sizeof(*p));
+    E_enventry p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->kind         = E_typeEntry;
     p->sym          = sym;
@@ -94,7 +94,7 @@ void E_declareType (E_env env, S_symbol sym, Ty_ty ty)
 
 E_env E_EnvScopes (E_env parent)
 {
-    E_env p = checked_malloc(sizeof(*p));
+    E_env p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->kind            = E_scopesEnv;
     p->u.scopes.vfcenv = S_beginScope();
@@ -110,7 +110,7 @@ E_env E_EnvScopes (E_env parent)
 
 E_env E_EnvWith (E_env parent, CG_item withPrefix)
 {
-    E_env p = checked_malloc(sizeof(*p));
+    E_env p = U_poolAlloc (UP_env, sizeof(*p));
 
     Ty_ty ty = CG_ty(&withPrefix);
     assert ( ( (withPrefix.kind == IK_varPtr) || (withPrefix.kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
@@ -216,7 +216,7 @@ E_enventryList E_resolveSub (E_env env, S_symbol sym)
 
 E_enventryList E_EnventryList (void)
 {
-    E_enventryList p = checked_malloc(sizeof(*p));
+    E_enventryList p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->first = NULL;
     p->last  = NULL;
@@ -226,7 +226,7 @@ E_enventryList E_EnventryList (void)
 
 void E_enventryListAppend(E_enventryList lx, E_enventry x)
 {
-    E_enventryListNode n = checked_malloc(sizeof(*n));
+    E_enventryListNode n = U_poolAlloc (UP_env, sizeof(*n));
 
     n->e    = x;
     n->next = NULL;
@@ -244,7 +244,7 @@ void E_enventryListAppend(E_enventryList lx, E_enventry x)
 
 E_envList E_EnvList (void)
 {
-    E_envList p = checked_malloc(sizeof(*p));
+    E_envList p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->first = NULL;
     p->last  = NULL;
@@ -254,7 +254,7 @@ E_envList E_EnvList (void)
 
 void E_envListAppend (E_envList l, E_env env)
 {
-    E_envListNode n = checked_malloc(sizeof(*n));
+    E_envListNode n = U_poolAlloc (UP_env, sizeof(*n));
 
     n->env  = env;
     n->next = NULL;
@@ -277,7 +277,7 @@ void E_import(E_module mod, E_module mod2)
 
 E_module E_Module(S_symbol name)
 {
-    E_module p = checked_malloc(sizeof(*p));
+    E_module p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->name        = name;
     p->env         = E_EnvScopes(NULL);
@@ -1370,7 +1370,7 @@ fail:
 
 void E_addSymPath(string path)
 {
-    E_dirSearchPath p = checked_malloc(sizeof(*p));
+    E_dirSearchPath p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->path      = String(path);
     p->next      = NULL;

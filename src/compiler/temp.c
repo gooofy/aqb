@@ -44,7 +44,7 @@ static int temp_cnt = 0;
 
 Temp_temp Temp_NamedTemp (string name, enum Temp_w w)
 {
-    Temp_temp p = (Temp_temp) checked_malloc(sizeof (*p));
+    Temp_temp p = (Temp_temp) U_poolAlloc(UP_temp, sizeof (*p));
 
     p->w    = w;
     p->num  = temp_cnt++;
@@ -94,7 +94,7 @@ int Temp_num(Temp_temp t)
 
 Temp_labelList Temp_LabelList(Temp_label h, Temp_labelList t)
 {
-    Temp_labelList p = (Temp_labelList) checked_malloc(sizeof (*p));
+    Temp_labelList p = (Temp_labelList) U_poolAlloc(UP_temp, sizeof (*p));
 
     p->head = h;
     p->tail = t;
@@ -108,7 +108,7 @@ Temp_labelList Temp_LabelList(Temp_label h, Temp_labelList t)
 
 Temp_tempSet Temp_TempSet (Temp_temp temp, Temp_tempSet tail)
 {
-    Temp_tempSet s = checked_malloc(sizeof(*s));
+    Temp_tempSet s = U_poolAlloc(UP_temp, sizeof(*s));
 
     s->temp = temp;
     s->tail = tail;
@@ -149,16 +149,6 @@ Temp_tempSet Temp_tempSetUnion (Temp_tempSet tsA, Temp_tempSet tsB)
         res = Temp_tempSetAdd (res, tsB->temp, &b);
 
     return res;
-}
-
-void Temp_tempSetFree (Temp_tempSet ts)
-{
-    Temp_tempSet next=NULL;
-    for (;ts;ts=next)
-    {
-        next = ts->tail;
-        U_memfree (ts, sizeof (*ts));
-    }
 }
 
 string Temp_tempSetSPrint(Temp_tempSet ts)

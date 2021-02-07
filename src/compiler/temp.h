@@ -47,7 +47,6 @@ Temp_tempSet       Temp_TempSet          (Temp_temp temp, Temp_tempSet tail);
 bool               Temp_tempSetContains  (Temp_tempSet ts, Temp_temp t);
 Temp_tempSet       Temp_tempSetAdd       (Temp_tempSet ts, Temp_temp t, bool *bAdded);
 Temp_tempSet       Temp_tempSetUnion     (Temp_tempSet tsA, Temp_tempSet tsB); // return newly allocated TempSet that contains union of nodes from tsA and tsaB
-void               Temp_tempSetFree      (Temp_tempSet ts);
 string             Temp_tempSetSPrint    (Temp_tempSet ts);
 
 #endif

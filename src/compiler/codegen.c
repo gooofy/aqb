@@ -82,7 +82,7 @@ static void VarPtr (CG_item *item, Temp_temp reg, Ty_ty ty)
 
 CG_ral CG_RAL(Temp_temp arg, Temp_temp reg, CG_ral next)
 {
-    CG_ral ral = checked_malloc(sizeof(*ral));
+    CG_ral ral = U_poolAlloc (UP_codegen, sizeof(*ral));
 
     ral->arg  = arg;
     ral->reg  = reg;
@@ -93,7 +93,7 @@ CG_ral CG_RAL(Temp_temp arg, Temp_temp reg, CG_ral next)
 
 CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
 {
-    CG_frame f = checked_malloc(sizeof(*f));
+    CG_frame f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->name   = name;
     f->statc  = statc;
@@ -552,7 +552,7 @@ bool CG_getConstBool (CG_item *item)
 
 CG_itemList CG_ItemList (void)
 {
-    CG_itemList l = checked_malloc(sizeof(*l));
+    CG_itemList l = U_poolAlloc (UP_codegen, sizeof(*l));
 
     l->first = NULL;
     l->last  = NULL;
@@ -562,7 +562,7 @@ CG_itemList CG_ItemList (void)
 
 static CG_itemListNode CG_ItemListNode (void)
 {
-    CG_itemListNode n = checked_malloc(sizeof(*n));
+    CG_itemListNode n = U_poolAlloc (UP_codegen, sizeof(*n));
 
     n->next = NULL;
     n->prev = NULL;
@@ -608,7 +608,7 @@ CG_itemListNode CG_itemListPrepend (CG_itemList il)
 
 CG_frag CG_StringFrag (Temp_label label, string str)
 {
-    CG_frag f = checked_malloc(sizeof(*f));
+    CG_frag f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->kind            = CG_stringFrag;
     f->u.stringg.label = label;
@@ -619,7 +619,7 @@ CG_frag CG_StringFrag (Temp_label label, string str)
 
 CG_frag CG_ProcFrag (S_pos pos, Temp_label label, bool expt, AS_instrList body, CG_frame frame)
 {
-    CG_frag f = checked_malloc(sizeof(*f));
+    CG_frag f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->kind         = CG_procFrag;
     f->u.proc.pos   = pos;
@@ -633,7 +633,7 @@ CG_frag CG_ProcFrag (S_pos pos, Temp_label label, bool expt, AS_instrList body, 
 
 CG_frag CG_DataFrag (Temp_label label, bool expt, int size)
 {
-    CG_frag f = checked_malloc(sizeof(*f));
+    CG_frag f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->kind         = CG_dataFrag;
     f->u.data.label = label;
@@ -650,7 +650,7 @@ void CG_dataFragAddConst (CG_frag dataFrag, Ty_const c)
 {
     assert(dataFrag->kind == CG_dataFrag);
 
-    CG_dataFragNode f = checked_malloc(sizeof(*f));
+    CG_dataFragNode f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->kind = CG_constNode;
     f->u.c  = c;
@@ -667,7 +667,7 @@ void CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label)
 {
     assert(dataFrag->kind == CG_dataFrag);
 
-    CG_dataFragNode f = checked_malloc(sizeof(*f));
+    CG_dataFragNode f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->kind    = CG_labelNode;
     f->u.label = label;
@@ -681,7 +681,7 @@ void CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label)
 
 CG_fragList CG_FragList (CG_frag head, CG_fragList tail)
 {
-    CG_fragList l = checked_malloc(sizeof(*l));
+    CG_fragList l = U_poolAlloc (UP_codegen, sizeof(*l));
 
     l->head = head;
     l->tail = tail;
@@ -3972,7 +3972,7 @@ static void writeASMProc(FILE *out, CG_frag frag, AS_dialect dialect)
 
 char *expand_escapes(const char* src)
 {
-    char *str = checked_malloc(2 * strlen(src) + 10);
+    char *str = U_poolAlloc (UP_codegen, 2 * strlen(src) + 10);
 
     char *dest = str;
     char c;
@@ -4241,7 +4241,7 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
 
 void CG_init (void)
 {
-    global_frame = checked_malloc(sizeof(*global_frame));
+    global_frame = U_poolAlloc (UP_codegen, sizeof(*global_frame));
 
     global_frame->name          = NULL;
     global_frame->statc         = TRUE;

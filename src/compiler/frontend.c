@@ -37,7 +37,7 @@ struct FE_dim_
 
 static FE_dim FE_Dim (bool statc, FE_dim next)
 {
-    FE_dim p = checked_malloc(sizeof(*p));
+    FE_dim p = U_poolAlloc(UP_frontend, sizeof(*p));
 
     p->statc    = statc;
     CG_NoneItem(&p->idxStart);
@@ -137,7 +137,7 @@ static FE_SLE g_sleStack = NULL;
 
 static FE_SLE slePush(FE_sleKind kind, S_pos pos, CG_frame frame, E_env env, AS_instrList code, Temp_label exitlbl, Temp_label contlbl, CG_item rv)
 {
-    FE_SLE s=checked_malloc(sizeof(*s));
+    FE_SLE s=U_poolAlloc(UP_frontend, sizeof(*s));
 
     s->kind       = kind;
     s->pos        = pos;
@@ -168,7 +168,7 @@ struct FE_paramList_
 
 static FE_paramList FE_ParamList(void)
 {
-    FE_paramList p = checked_malloc(sizeof(*p));
+    FE_paramList p = U_poolAlloc(UP_frontend, sizeof(*p));
 
     p->first = NULL;
     p->last  = NULL;
@@ -191,7 +191,7 @@ static void FE_ParamListAppend(FE_paramList pl, Ty_formal formal)
 
 static FE_nestedStmt FE_NestedStmt (S_pos pos, FE_sleKind kind)
 {
-    FE_nestedStmt p = checked_malloc(sizeof(*p));
+    FE_nestedStmt p = U_poolAlloc(UP_frontend, sizeof(*p));
 
     p->kind = kind;
     p->pos  = pos;
@@ -202,7 +202,7 @@ static FE_nestedStmt FE_NestedStmt (S_pos pos, FE_sleKind kind)
 
 static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_ty ty)
 {
-    FE_udtEntry p = checked_malloc(sizeof(*p));
+    FE_udtEntry p = U_poolAlloc(UP_frontend, sizeof(*p));
 
     p->kind          = FE_fieldUDTEntry;
     p->pos           = pos;
@@ -216,7 +216,7 @@ static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_
 
 static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc method)
 {
-    FE_udtEntry p = checked_malloc(sizeof(*p));
+    FE_udtEntry p = U_poolAlloc(UP_frontend, sizeof(*p));
 
     p->kind      = FE_methodUDTEntry;
     p->pos       = pos;

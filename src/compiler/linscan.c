@@ -141,7 +141,7 @@ static bool updateTempInterval (Temp_temp t, int idx, bool needsAReg, bool needs
     LS_interv iv = TAB_look(g_tempIntervals, t);
     if (!iv)
     {
-        iv = (LS_interv) checked_malloc(sizeof (*iv));
+        iv = (LS_interv) U_poolAlloc (UP_linscan, sizeof (*iv));
 
         iv->t         = t;
         iv->iStart    = iv->iEnd = idx;
@@ -220,8 +220,8 @@ static void computeLiveIntervals (AS_instrList il)
         while (TAB_next (iter, (void **)&t, (void **)&iv))
             g_ivCnt++;
 
-        g_ivs = checked_malloc(sizeof (LS_interv) * g_ivCnt);
-        g_ive = checked_malloc(sizeof (LS_interv) * g_ivCnt);
+        g_ivs = U_poolAlloc (UP_linscan, sizeof (LS_interv) * g_ivCnt);
+        g_ive = U_poolAlloc (UP_linscan, sizeof (LS_interv) * g_ivCnt);
         iter = TAB_Iter(g_tempIntervals);
         int i = 0;
         while (TAB_next (iter, (void **)&t, (void **)&iv))

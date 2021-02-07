@@ -130,7 +130,7 @@ bool AS_verifyInstr (AS_instr instr)
 
 AS_instr AS_Instr (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst)
 {
-    AS_instr p = (AS_instr) checked_malloc (sizeof *p);
+    AS_instr p = (AS_instr) U_poolAlloc (UP_assem, sizeof *p);
 
     p->mn     = mn;
     p->w      = w;
@@ -152,7 +152,7 @@ AS_instr AS_Instr (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_
 
 AS_instr AS_InstrEx (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label)
 {
-    AS_instr p = (AS_instr) checked_malloc (sizeof *p);
+    AS_instr p = (AS_instr) U_poolAlloc (UP_assem, sizeof *p);
 
     p->mn     = mn;
     p->w      = w;
@@ -174,7 +174,7 @@ AS_instr AS_InstrEx (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Tem
 
 AS_instr AS_InstrEx2 (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Temp_temp dst, Ty_const imm, long offset, Temp_label label, Temp_tempSet def, Temp_tempSet use)
 {
-    AS_instr p = (AS_instr) checked_malloc (sizeof *p);
+    AS_instr p = (AS_instr) U_poolAlloc (UP_assem, sizeof *p);
 
     p->mn     = mn;
     p->w      = w;
@@ -196,7 +196,7 @@ AS_instr AS_InstrEx2 (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src, Te
 
 AS_instrList AS_InstrList (void)
 {
-    AS_instrList p = (AS_instrList) checked_malloc (sizeof *p);
+    AS_instrList p = (AS_instrList) U_poolAlloc (UP_assem, sizeof *p);
 
     p->first = NULL;
     p->last  = NULL;
@@ -206,7 +206,7 @@ AS_instrList AS_InstrList (void)
 
 static AS_instrListNode AS_InstrListNode (AS_instr i)
 {
-    AS_instrListNode n = checked_malloc(sizeof(*n));
+    AS_instrListNode n = U_poolAlloc (UP_assem, sizeof(*n));
 
     n->prev  = NULL;
     n->next  = NULL;
@@ -318,7 +318,7 @@ void AS_instrListRemove (AS_instrList al, AS_instrListNode n)
 
 AS_instrSet AS_InstrSet (void)
 {
-    AS_instrSet s = checked_malloc(sizeof(*s));
+    AS_instrSet s = U_poolAlloc (UP_assem, sizeof(*s));
 
     s->first = NULL;
     s->last  = NULL;
@@ -328,7 +328,7 @@ AS_instrSet AS_InstrSet (void)
 
 static AS_instrSetNode AS_InstrSetNode (AS_instr i)
 {
-    AS_instrSetNode n = checked_malloc(sizeof(*n));
+    AS_instrSetNode n = U_poolAlloc (UP_assem, sizeof(*n));
 
     n->prev  = NULL;
     n->next  = NULL;

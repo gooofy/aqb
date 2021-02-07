@@ -86,7 +86,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
         TAB_table spilledLocal = TAB_empty();
         for (Temp_tempSet tn = spilled; tn; tn = tn->tail)
         {
-            CG_item *item = checked_malloc (sizeof (*item));
+            CG_item *item = U_poolAlloc (UP_regalloc, sizeof (*item));
             if (f)
             {
                 CG_allocVar (item, f, /*name=*/NULL, /*expt=*/ FALSE, Temp_w(tn->temp) == Temp_w_L ? Ty_ULong() : Ty_UInteger());
@@ -139,7 +139,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
          * free memory
          */
 
-        FG_free (flow);
+        U_poolReset (UP_flowgraph);
 
     }
 

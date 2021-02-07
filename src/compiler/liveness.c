@@ -13,7 +13,7 @@
 
 static Live_graph Live_Graph(void)
 {
-    Live_graph lg = (Live_graph) checked_malloc(sizeof *lg);
+    Live_graph lg = (Live_graph) U_poolAlloc (UP_liveness, sizeof *lg);
 
     lg->nodes                = NULL;
     lg->temp2LGNode          = TAB_empty();
@@ -24,7 +24,7 @@ static Live_graph Live_Graph(void)
 
 LG_nodeList LG_NodeList (LG_node node, LG_nodeList tail)
 {
-    LG_nodeList nl = (LG_nodeList) checked_malloc(sizeof *nl);
+    LG_nodeList nl = (LG_nodeList) U_poolAlloc (UP_liveness, sizeof *nl);
 
     nl->tail = tail;
     nl->node = node;
@@ -233,7 +233,7 @@ static LG_node findOrCreateNode(Live_graph lg, Temp_temp t)
     LG_node ln = (LG_node) TAB_look (lg->temp2LGNode, t);
     if (ln == NULL)
     {
-        ln = (LG_node) checked_malloc(sizeof *ln);
+        ln = (LG_node) U_poolAlloc (UP_liveness, sizeof *ln);
 
         ln->temp         = t;
         ln->adj          = NULL;
@@ -349,7 +349,6 @@ Live_graph Live_liveness(FG_graph flow)
                 }
             }
         }
-        Temp_tempSetFree(defuse);
     }
 
 #ifdef ENABLE_DEBUG

@@ -5,7 +5,7 @@
 
 static FG_graph FG_Graph(void)
 {
-    FG_graph g = (FG_graph) checked_malloc(sizeof (*g));
+    FG_graph g = (FG_graph) U_poolAlloc (UP_flowgraph, sizeof (*g));
 
     g->nodecount = 0;
     g->nodes     = NULL;
@@ -16,7 +16,7 @@ static FG_graph FG_Graph(void)
 
 FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail)
 {
-    FG_nodeList n = (FG_nodeList) checked_malloc(sizeof *n);
+    FG_nodeList n = (FG_nodeList) U_poolAlloc (UP_flowgraph, sizeof *n);
 
     n->head = head;
     n->tail = tail;
@@ -26,7 +26,7 @@ FG_nodeList FG_NodeList(FG_node head, FG_nodeList tail)
 
 static FG_node FG_Node(FG_graph g, AS_instr instr)
 {
-    FG_node n = (FG_node)checked_malloc(sizeof *n);
+    FG_node n = (FG_node)U_poolAlloc (UP_flowgraph, sizeof *n);
 
     FG_nodeList p = FG_NodeList(n, NULL);
 
@@ -242,17 +242,6 @@ FG_graph FG_AssemFlowGraph(AS_instrList il)
     }
 
     return g;
-}
-
-void FG_free (FG_graph g)
-{
-    FG_nodeList nl_tail = NULL;
-    for (FG_nodeList nl=g->nodes; nl; nl=nl_tail)
-    {
-        U_memfree (nl->head, sizeof (*nl->head));
-        nl_tail = nl->tail;
-        U_memfree (nl, sizeof (*nl));
-    }
 }
 
 #define FG_COLUMN_1 20
