@@ -77,3 +77,7 @@ tests/foo.bas
 doc/internal/
 target
 config.mk
+src/lib/minbrt/minbrt.asm
+src/lib/minbrt/minbrt.s
+src/tools/hunk/hunk
+
