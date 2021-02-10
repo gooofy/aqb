@@ -11,7 +11,7 @@ all: _aqb.a _aqb.sym
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
 _aqb.sym : _aqb.bas
-	$(AQB) -L .. -d _brt -S _aqb.sym $<
+	$(AQB) -L .. -d _brt -s _aqb.sym $<
 	pushd .. && rm -f _aqb.sym && ln -s _aqb/_aqb.sym && popd
 	cp $< $(DISTDIR)/libsrc
 

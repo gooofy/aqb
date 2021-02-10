@@ -8,7 +8,7 @@ all: _brt.a startup.o _brt.sym
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
 _brt.sym : _brt.bas
-	$(AQB) -d none -S $@ $<
+	$(AQB) -d none -s $@ $<
 	pushd .. && rm -f _brt.sym && ln -s _brt/_brt.sym && popd
 	cp $< $(DISTDIR)/libsrc
 

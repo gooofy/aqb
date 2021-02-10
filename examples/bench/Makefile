@@ -26,7 +26,7 @@ BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_DEMO_OPT}/%,$(basename $(SRCS
 all:	dirs $(BINS) $(BINS_OPT)
 
 $(ASMS) : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO)/%.s : %.bas
-	$(AQB) $(AQBFLAGS) -o $@ $<
+	$(AQB) $(AQBFLAGS) -a $@ $<
 
 $(OBJS) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO)/%.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
@@ -36,7 +36,7 @@ $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/
 	$(STRIP_AMIGAOS) $@
 
 $(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)/%.s : %.bas
-	$(AQB) $(AQBFLAGS_OPT) -o $@ $<
+	$(AQB) $(AQBFLAGS_OPT) -a $@ $<
 
 $(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)/%.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@

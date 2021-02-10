@@ -748,6 +748,19 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
  **
  ******************************************************************************/
 
+AS_segment AS_CodeSegment (void)
+{
+    AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
+
+    seg->kind     = AS_codeSeg;
+    seg->mem      = U_malloc (INITIAL_CODE_SEGMENT_SIZE);
+    seg->mem_size = INITIAL_CODE_SEGMENT_SIZE;
+    seg->mem_pos  = 0;
+
+    return seg;
+}
+
+#if 0
 static bool is8BitConst (Ty_const c)
 {
     if (c->ty->kind == Ty_bool)
@@ -827,9 +840,60 @@ static uint32_t instr_size (AS_instr instr)
             assert(0);
     }
 }
+#endif
 
-void AS_assemble (AS_instrList proc)
+typedef struct
 {
+    bool   defined;
+    size_t offset;
+} labelInfo;
+
+void AS_assemble (AS_segment seg, AS_instrList il)
+{
+    TAB_table labels = TAB_empty();     // label -> labelInfo*
+
+    /*
+     * pass 1
+     */
+
+    for (AS_instrListNode an = il->first; an; an=an->next)
+    {
+        AS_instr instr = an->instr;
+
+        char buf[255];
+        AS_sprint(buf, instr, AS_dialect_gas);
+        printf("AS_assemble: (mn=%3d) %s\n", instr->mn, buf);
+
+        switch (instr->mn)
+        {
+            case AS_LABEL:
+            {
+                labelInfo *li = TAB_look (labels, instr->label);
+                if (!li)
+                {
+                    li = U_poolAlloc (UP_assem, sizeof (*li));
+                    li->defined = TRUE;
+                    li->offset = seg->mem_pos;
+                    TAB_enter (labels, instr->label, li);
+                }
+                else
+                {
+                    assert (FALSE); // FIXME
+                }
+                break;
+            }
+
+            case AS_LINK_fp:
+                
+
+            default:
+                assert(FALSE);
+        }
+    }
+
+
+    assert(FALSE);
+#if 0
     // step 0: determine size of segment
 
     uint32_t seg_size = 0;
@@ -863,6 +927,7 @@ void AS_assemble (AS_instrList proc)
     //             assert(0);
     //     }
     // }
+#endif
 }
 
 Temp_tempSet AS_registers (void)

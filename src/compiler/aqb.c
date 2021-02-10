@@ -53,10 +53,9 @@ static void print_usage(char *argv[])
     fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
 	fprintf(stderr, "    -L <dir>     look in <dir> for symbol files\n");
 	fprintf(stderr, "    -O           enable optimizer\n");
-	fprintf(stderr, "    -o <foo.s>   gas source output file name\n");
-	fprintf(stderr, "    -A <foo.s>   ASMPro source output file name\n");
+	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
+	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
-	fprintf(stderr, "    -S <foo.sym> create symbol file only (do not create assembly file)\n");
 	fprintf(stderr, "    -v           verbose\n");
 	fprintf(stderr, "    -V           display version info\n");
 }
@@ -97,7 +96,8 @@ int main (int argc, char *argv[])
     static char            asm_asmpro_fn[PATH_MAX];
     static size_t          optind;
     static bool            write_sym = FALSE;
-    static bool            no_asm = FALSE;
+    static bool            write_asm = FALSE;
+    static bool            write_bin = FALSE;
     static char            symfn[PATH_MAX];
     static string          module_name;
 
@@ -142,7 +142,7 @@ int main (int argc, char *argv[])
         	case 'O':
 				OPT_set(OPTION_RACOLOR, TRUE);
 				break;
-        	case 'o':
+        	case 'a':
                 optind++;
                 if (optind >= argc)
                 {
@@ -150,6 +150,7 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 strncpy (asm_gas_fn, argv[optind], PATH_MAX);
+                write_asm = TRUE;
 				break;
         	case 'A':
                 optind++;
@@ -159,6 +160,7 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 strncpy (asm_asmpro_fn, argv[optind], PATH_MAX);
+                write_asm = TRUE;
 				break;
         	case 's':
                 optind++;
@@ -169,17 +171,6 @@ int main (int argc, char *argv[])
                 }
                 strncpy (symfn, argv[optind], PATH_MAX);
                 write_sym = TRUE;
-				break;
-        	case 'S':
-                write_sym = TRUE;
-                no_asm    = TRUE;
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                strncpy (symfn, argv[optind], PATH_MAX);
 				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
@@ -276,7 +267,7 @@ int main (int argc, char *argv[])
         }
     }
 
-    if (no_asm)
+    if (!write_asm)
         exit(0);
 
     /*
@@ -338,7 +329,36 @@ int main (int argc, char *argv[])
         fclose(out);
     }
 
-    // AS_assemble (proc, Temp_layerMap(ra.coloring, Temp_getNameMap()));
+    if (!write_bin)
+        exit(0);
+
+    /*
+     * machine code generation (assembly phase)
+     */
+
+    AS_segment seg_code = AS_CodeSegment();
+
+    for (CG_fragList fl=frags; fl; fl=fl->tail)
+    {
+        CG_frag frag = fl->head;
+        if (frag->kind != CG_procFrag)
+            continue;
+
+        Temp_label   label   = frag->u.proc.label;
+        //CG_frame     frame   = frag->u.proc.frame;
+        AS_instrList body    = frag->u.proc.body;
+
+        if (OPT_get(OPTION_VERBOSE))
+        {
+            fprintf(stdout, "\n************************************************************************************************\n");
+            fprintf(stdout, "**\n");
+            fprintf(stdout, "** machine code generation for %s\n", Temp_labelstring(label));
+            fprintf(stdout, "**\n");
+            fprintf(stdout, "************************************************************************************************\n\n");
+            U_memstat();
+        }
+        AS_assemble (seg_code, body);
+    }
 
     return 0;
 }

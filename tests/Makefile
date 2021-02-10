@@ -52,7 +52,7 @@ all: dirs $(BINS) $(BINS_OPT) mod1 io1 subtest11 runtests
 # 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
 $(ASMS) : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s : %.bas
-	$(AQB) $(AQBFLAGS) -o $@ $<
+	$(AQB) $(AQBFLAGS) -a $@ $<
 
 $(OBJS) : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
@@ -62,7 +62,7 @@ $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS
 	$(STRIP_AMIGAOS) $@
 
 $(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)/%.s : %.bas
-	$(AQB) $(AQBFLAGS_OPT) -o $@ $<
+	$(AQB) $(AQBFLAGS_OPT) -a $@ $<
 
 $(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@

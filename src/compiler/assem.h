@@ -26,6 +26,8 @@
 #define AS_TEMP_D6       12
 #define AS_TEMP_D7       13
 
+#define INITIAL_CODE_SEGMENT_SIZE   16 * 1024
+
 extern Temp_temp AS_regs[AS_NUM_REGISTERS];
 
 enum AS_mn
@@ -149,7 +151,7 @@ typedef struct AS_instr_ *AS_instr;
 struct AS_instr_
 {
     enum AS_mn     mn;
-    enum Temp_w      w;
+    enum Temp_w    w;
     Temp_label     label;
     Temp_temp      src, dst;
     Ty_const       imm;
@@ -238,23 +240,40 @@ void               AS_instrSetAddSet   (AS_instrSet as, AS_instrSet as2); // add
 bool               AS_instrSetSub      (AS_instrSet as, AS_instr i);      // returns FALSE if i was not in as, TRUE otherwise
 static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NULL; }
 
-void               AS_sprint         (string str, AS_instr i, AS_dialect dialect);
-void               AS_printInstrList (FILE *out, AS_instrList iList, AS_dialect dialect);
-void               AS_printInstrSet  (FILE *out, AS_instrSet  is   );
+void               AS_sprint           (string str, AS_instr i, AS_dialect dialect);
+void               AS_printInstrList   (FILE *out, AS_instrList iList, AS_dialect dialect);
+void               AS_printInstrSet    (FILE *out, AS_instrSet  is   );
 
-void               AS_assemble (AS_instrList proc);
+Temp_tempSet       AS_registers        (void);
+Temp_tempSet       AS_callersaves      (void);
+Temp_tempSet       AS_calleesaves      (void);
+Temp_tempSet       AS_aRegs            (void);
+Temp_tempSet       AS_dRegs            (void);
+bool               AS_isAn             (Temp_temp reg);
+bool               AS_isDn             (Temp_temp reg);
+bool               AS_isPrecolored     (Temp_temp reg);
+Temp_temp          AS_lookupReg        (S_symbol sym);
+string             AS_regName          (int reg);
 
-Temp_tempSet       AS_registers      (void);
-Temp_tempSet       AS_callersaves    (void);
-Temp_tempSet       AS_calleesaves    (void);
-Temp_tempSet       AS_aRegs          (void);
-Temp_tempSet       AS_dRegs          (void);
-bool               AS_isAn           (Temp_temp reg);
-bool               AS_isDn           (Temp_temp reg);
-bool               AS_isPrecolored   (Temp_temp reg);
-Temp_temp          AS_lookupReg      (S_symbol sym);
-string             AS_regName        (int reg);
+/*
+ * 68k machine code generation
+ */
 
-void               AS_init (void);
+typedef struct AS_segment_  *AS_segment;
+
+struct AS_segment_
+{
+    enum {AS_codeSeg, AS_dataSeg, AS_bssSeg} kind;
+
+    uint8_t     *mem;
+    size_t       mem_size;
+    size_t       mem_pos;
+};
+
+AS_segment         AS_CodeSegment      (void);
+
+void               AS_assemble         (AS_segment seg, AS_instrList il);
+
+void               AS_init             (void);
 
 #endif

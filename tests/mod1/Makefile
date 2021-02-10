@@ -20,23 +20,23 @@ clean:
 	rm -rf $(TESTDIR_OPT)
 
 $(TESTDIR)/foo.sym:	foo.bas
-	$(AQB) $(AQBFLAGS) -o $(TESTDIR)/foo.s -s $(TESTDIR)/foo.sym foo.bas
+	$(AQB) $(AQBFLAGS) -a $(TESTDIR)/foo.s -s $(TESTDIR)/foo.sym foo.bas
 
 $(TESTDIR)/bar.sym:	bar.bas
-	$(AQB) $(AQBFLAGS) -o $(TESTDIR)/bar.s -s $(TESTDIR)/bar.sym bar.bas
+	$(AQB) $(AQBFLAGS) -a $(TESTDIR)/bar.s -s $(TESTDIR)/bar.sym bar.bas
 
 $(TESTDIR_OPT)/foo.sym:	foo.bas
-	$(AQB) $(AQBFLAGS_OPT) -o $(TESTDIR_OPT)/foo.s -s $(TESTDIR_OPT)/foo.sym foo.bas
+	$(AQB) $(AQBFLAGS_OPT) -a $(TESTDIR_OPT)/foo.s -s $(TESTDIR_OPT)/foo.sym foo.bas
 
 $(TESTDIR_OPT)/bar.sym:	bar.bas
-	$(AQB) $(AQBFLAGS_OPT) -o $(TESTDIR_OPT)/bar.s -s $(TESTDIR_OPT)/bar.sym bar.bas
+	$(AQB) $(AQBFLAGS_OPT) -a $(TESTDIR_OPT)/bar.s -s $(TESTDIR_OPT)/bar.sym bar.bas
 
 # foo.s:		foo.sym
 # 	noop
-# 
+#
 # bar.sym:	bar.bas
 # 	$(AQB) $(AQBFLAGS) -s bar.bas
-# 
+#
 # bar.s:		bar.sym
 # 	noop
 
@@ -44,7 +44,7 @@ $(TESTDIR)/foo.o $(TESTDIR)/bar.o $(TESTDIR)/mod1.o : $(TESTDIR)/%.o:	$(TESTDIR)
 	$(AS_AMIGAOS) $< -o $@
 
 $(TESTDIR)/mod1.s:	mod1.bas $(TESTDIR)/foo.sym $(TESTDIR)/bar.sym
-	$(AQB) $(AQBFLAGS) -o $(TESTDIR)/mod1.s mod1.bas
+	$(AQB) $(AQBFLAGS) -a $(TESTDIR)/mod1.s mod1.bas
 
 $(TESTDIR)/mod1:	$(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o
 	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR)/mod1
@@ -54,7 +54,7 @@ $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o $(TESTDIR_OPT)/mod1.o : $(TESTDIR_OPT)
 	$(AS_AMIGAOS) $< -o $@
 
 $(TESTDIR_OPT)/mod1.s:	mod1.bas $(TESTDIR_OPT)/foo.sym $(TESTDIR_OPT)/bar.sym
-	$(AQB) $(AQBFLAGS_OPT) -o $(TESTDIR_OPT)/mod1.s mod1.bas
+	$(AQB) $(AQBFLAGS_OPT) -a $(TESTDIR_OPT)/mod1.s mod1.bas
 
 $(TESTDIR_OPT)/mod1:	$(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o
 	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR_OPT)/mod1
