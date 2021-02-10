@@ -56,6 +56,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
+	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
 	fprintf(stderr, "    -v           verbose\n");
 	fprintf(stderr, "    -V           display version info\n");
 }
@@ -99,6 +100,7 @@ int main (int argc, char *argv[])
     static bool            write_asm = FALSE;
     static bool            write_bin = FALSE;
     static char            symfn[PATH_MAX];
+    static char            binfn[PATH_MAX];
     static string          module_name;
 
 #ifdef __amigaos__
@@ -172,6 +174,16 @@ int main (int argc, char *argv[])
                 strncpy (symfn, argv[optind], PATH_MAX);
                 write_sym = TRUE;
 				break;
+        	case 'o':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (binfn, argv[optind], PATH_MAX);
+                write_bin = TRUE;
+				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
 				break;
@@ -197,7 +209,7 @@ int main (int argc, char *argv[])
     E_init();
 
 	sourcefn = argv[optind];
-    /* filename.bas -> filename.s, filename.sym, module name, module search path */
+    /* filename.bas -> module name, module search path */
     {
         int l = strlen(sourcefn);
         if (l>1024)
@@ -205,17 +217,6 @@ int main (int argc, char *argv[])
         if (l<4)
             l = 4;
 
-        if (strlen(asm_gas_fn)==0)
-        {
-            strncpy(asm_gas_fn, sourcefn, PATH_MAX-1);
-            asm_gas_fn[l-3] = 's';
-            asm_gas_fn[l-2] = 0;
-        }
-
-        // strncpy(symfn, sourcefn, PATH_MAX-1);
-        // symfn[l-3] = 's';
-        // symfn[l-2] = 'y';
-        // symfn[l-1] = 'm';
         module_name = basename(String(sourcefn));
         l = strlen(module_name);
         module_name[l-4] = 0;
@@ -267,7 +268,7 @@ int main (int argc, char *argv[])
         }
     }
 
-    if (!write_asm)
+    if (!write_asm && !write_bin)
         exit(0);
 
     /*
@@ -318,15 +319,21 @@ int main (int argc, char *argv[])
      * generate target assembly code
      */
 
-    FILE *out = fopen(asm_gas_fn, "w");
-    CG_writeASMFile (out, frags, AS_dialect_gas);
-    fclose(out);
-
-    if (strlen(asm_asmpro_fn)>0)
+    if (write_asm)
     {
-        FILE *out = fopen(asm_asmpro_fn, "w");
-        CG_writeASMFile (out, frags, AS_dialect_ASMPro);
-        fclose(out);
+        if (strlen(asm_gas_fn)>0)
+        {
+            FILE *out = fopen(asm_gas_fn, "w");
+            CG_writeASMFile (out, frags, AS_dialect_gas);
+            fclose(out);
+        }
+
+        if (strlen(asm_asmpro_fn)>0)
+        {
+            FILE *out = fopen(asm_asmpro_fn, "w");
+            CG_writeASMFile (out, frags, AS_dialect_ASMPro);
+            fclose(out);
+        }
     }
 
     if (!write_bin)
