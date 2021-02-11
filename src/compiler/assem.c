@@ -1,7 +1,8 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for strcpy */
+#include <math.h>
+
 #include "util.h"
 #include "symbol.h"
 #include "temp.h"
@@ -9,13 +10,14 @@
 #include "assem.h"
 #include "errormsg.h"
 
+#define ENABLE_DEBUG
+
 AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     // mn                  isJump hasLabel hasImm hasSrc hasDst srcDnOnly dstDnOnly srcAnOnly dstAnOnly dstIsAlsoSrc, dstIsOnlySrc
     { AS_LABEL,            FALSE, TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_ADD_AnDn_AnDn,    FALSE, FALSE  , FALSE, TRUE , TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_ADD_Imm_AnDn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_ADD_Imm_sp,       FALSE, FALSE  , TRUE , FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
-    { AS_ADDQ_Imm_AnDn,    FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_AND_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_AND_Imm_Dn,       FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_ASL_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
@@ -88,7 +90,6 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_SNE_Dn,           FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_SUB_Dn_Dn,        FALSE, FALSE  , FALSE, TRUE , TRUE  , TRUE   , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_SUB_Imm_AnDn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
-    { AS_SUBQ_Imm_AnDn,    FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_SWAP_Dn,          FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_TST_Dn,           FALSE, FALSE  , FALSE, TRUE , FALSE , TRUE   , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
     { AS_UNLK_fp,          FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE } 
@@ -539,8 +540,6 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    add`w    #`i, `d", i, dialect);      break;
         case AS_ADD_Imm_sp:
             instrformat(str, "    add`w    #`i, sp", i, dialect);      break;
-        case AS_ADDQ_Imm_AnDn:
-            instrformat(str, "    addq`w   #`i, `d", i, dialect);      break;
         case AS_AND_Dn_Dn:
             instrformat(str, "    and`w    `s, `d", i, dialect);       break;
         case AS_AND_Imm_Dn:
@@ -671,7 +670,7 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    jsr      `o(`s)", i, dialect);       break;
         case AS_OR_Dn_Dn:
             instrformat(str, "    or`w     `s, `d", i, dialect);       break;
-        case AS_OR_Imm_Dn: 
+        case AS_OR_Imm_Dn:
             instrformat(str, "    or`w     #`i, `d", i, dialect);      break;
         case AS_RTS:
             instrformat(str, "    rts"           , i, dialect);        break;
@@ -681,8 +680,6 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
             instrformat(str, "    sub`w    `s, `d", i, dialect);       break;
         case AS_SUB_Imm_AnDn:
             instrformat(str, "    sub`w    #`i, `d", i, dialect);      break;
-        case AS_SUBQ_Imm_AnDn:
-            instrformat(str, "    subq`w   #`i, `d", i, dialect);      break;
         case AS_SWAP_Dn:
             instrformat(str, "    swap`w   `d", i, dialect);           break;
         case AS_TST_Dn:
@@ -848,6 +845,194 @@ typedef struct
     size_t offset;
 } labelInfo;
 
+static void AS_segFit (AS_segment seg, size_t numAdditionalBytes)
+{
+    size_t room_left = seg->mem_size - seg->mem_pos;
+    if (room_left < numAdditionalBytes)
+        assert(FALSE); // FIXME
+}
+
+static int32_t getConstInt (Ty_const c)
+{
+    switch (c->ty->kind)
+    {
+        case Ty_bool:
+            return c->u.b ? -1 : 0;
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_pointer:
+            return c->u.i;
+        case Ty_single:
+        case Ty_double:
+        {
+            int r = (int) round(c->u.f);
+            return r;
+        }
+        default:
+            assert(0);
+    }
+}
+
+static void emit_u2 (AS_segment seg, uint16_t w)
+{
+#ifdef ENABLE_DEBUG
+    printf ("0x%08zx: 0x%04x\n", seg->mem_pos, w);
+#endif
+
+    AS_segFit (seg, 2);
+    uint16_t *p = (uint16_t *) (seg->mem + seg->mem_pos);
+    *p = w;
+    seg->mem_pos += 2;
+}
+
+static void emit_i2 (AS_segment seg, int16_t w)
+{
+#ifdef ENABLE_DEBUG
+    printf ("0x%08zx: 0x%04x\n", seg->mem_pos, w);
+#endif
+
+    AS_segFit (seg, 2);
+    int16_t *p = (int16_t *) (seg->mem + seg->mem_pos);
+    *p = w;
+    seg->mem_pos += 2;
+}
+
+static void emit_u4 (AS_segment seg, uint32_t w)
+{
+#ifdef ENABLE_DEBUG
+    printf ("0x%08zx: 0x%08x\n", seg->mem_pos, w);
+#endif
+
+    AS_segFit (seg, 4);
+    uint32_t *p = (uint32_t *) (seg->mem + seg->mem_pos);
+    *p = w;
+    seg->mem_pos += 4;
+}
+
+static uint16_t REG_MASK[AS_NUM_REGISTERS] = {
+    0x0100, // a0
+    0x0200, // a1
+    0x0400, // a2
+    0x0800, // a3
+    0x1000, // a4
+    0x4000, // a6
+    0x0001, // d0
+    0x0002, // d1
+    0x0004, // d2
+    0x0008, // d3
+    0x0010, // d4
+    0x0020, // d5
+    0x0040, // d6
+    0x0080  // d7
+};
+
+static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
+    0x0080, // a0
+    0x0040, // a1
+    0x0020, // a2
+    0x0010, // a3
+    0x0080, // a4
+    0x0020, // a6
+    0x8000, // d0
+    0x4000, // d1
+    0x2000, // d2
+    0x1000, // d3
+    0x0800, // d4
+    0x0400, // d5
+    0x0200, // d6
+    0x0100  // d7
+};
+
+static uint32_t getLabelOffset (AS_segment seg, TAB_table labels, Temp_label l)
+{
+    labelInfo *li = TAB_look (labels, l);
+    if (!li)
+    {
+        li = U_poolAlloc (UP_assem, sizeof (*li));
+        li->defined = FALSE;
+        li->offset = seg->mem_pos;
+        TAB_enter (labels, l, li);
+        return 0;
+    }
+    assert (FALSE); // FIXME
+    return 0;
+}
+
+static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
+{
+    //   ADDQ.L  #4,A7           ;003c: 588f
+    c = c == 8 ? 0 : c;
+    uint16_t code = 0x5000 | (c<<9) | (mode<<3) | reg;
+    switch (w)
+    {
+        case Temp_w_B: break;
+        case Temp_w_W: code |= 0x0040; break;
+        case Temp_w_L: code |= 0x0080; break;
+        default: assert(FALSE);
+    }
+    emit_u2(seg, code);
+}
+
+static void emit_MOVE (AS_segment seg, enum Temp_w w, int regDst, int modeDst, int regSrc, int modeSrc)
+{
+    uint16_t code = 0x0000;
+    switch (w)
+    {
+        case Temp_w_B: code |= 0x1000; break;
+        case Temp_w_W: code |= 0x3000; break;
+        case Temp_w_L: code |= 0x2000; break;
+        default: assert(FALSE);
+    }
+
+    code |= regDst  << 9;
+    code |= modeDst << 6;
+    code |= regSrc      ;
+    code |= modeSrc << 3;
+
+    emit_u2 (seg, code);
+}
+
+static void emit_MOVEM (AS_segment seg, enum Temp_w w, uint16_t dr, uint16_t mode, uint16_t regs, uint16_t regDst)
+{
+    // MOVEM.L D2,-(A7)            ;0024: 48e72000
+    // MOVEM.L D2-D3,-(A7)         ;0024: 48e73000
+    // MOVEM.L D2-D3/A2/A6,-(A7)   ;0108: 48e73022
+    // MOVEM.L (A7)+,D2            ;0044: 4cdf0004
+
+    uint16_t code = 0x4880 | (dr<<10) | (mode<<3) | regDst;
+    switch (w)
+    {
+        case Temp_w_W: break;
+        case Temp_w_L: code |= 0x0040; break;
+        default: assert(FALSE);
+    }
+    emit_u2 (seg, code);
+
+    uint16_t regmask = 0;
+    for (int reg=0; reg<AS_NUM_REGISTERS; reg++)
+    {
+        if (regs & (1<<reg))
+        {
+            if (mode==4)
+                regmask |= REG_MASK_PREDECR[reg];
+            else
+                regmask |= REG_MASK[reg];
+        }
+    }
+    emit_u2 (seg, regmask);
+}
+
+static void emit_UNLK (AS_segment seg, uint16_t reg)
+{
+    // UNLK    A5          ;0048: 4e5d
+    uint16_t code = 0x4e58 | reg;
+    emit_u2 (seg, code);
+}
+
 void AS_assemble (AS_segment seg, AS_instrList il)
 {
     TAB_table labels = TAB_empty();     // label -> labelInfo*
@@ -856,6 +1041,7 @@ void AS_assemble (AS_segment seg, AS_instrList il)
      * pass 1
      */
 
+    printf("AS_assemble: *** PASS 1 ***\n");
     for (AS_instrListNode an = il->first; an; an=an->next)
     {
         AS_instr instr = an->instr;
@@ -883,51 +1069,72 @@ void AS_assemble (AS_segment seg, AS_instrList il)
                 break;
             }
 
-            case AS_LINK_fp:
-                
+            case AS_LINK_fp:                // LINK.W  A5,#-40         ;0104: 4e55ffd8
+                emit_u2 (seg, 0x4e55);
+                emit_i2 (seg, instr->offset);
+                break;
+
+            case AS_MOVEM_Rs_PDsp:
+                emit_MOVEM (seg, instr->w, /*dr=*/0, /*mode=*/4, /*regs=*/instr->offset, /*regDst=*/7);
+                break;
+
+            case AS_JSR_Label:              //  JSR LAB_019D        ;00b2: 4eb9000032a4
+                emit_u2 (seg, 0x4eb0);
+                emit_u4 (seg, getLabelOffset (seg, labels, instr->label));
+                break;
+
+            case AS_MOVE_ILabel_AnDn:       // MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
+                assert (!AS_isAn(instr->dst)); // FIXME: movea
+
+                emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
+                                         /*regSrc=*/4, /*modeSrc=*/7);
+                emit_u4 (seg, getLabelOffset (seg, labels, instr->label));
+                break;
+
+            case AS_MOVE_AnDn_PDsp:         //  MOVE.L  D2,-(A7)        ;0034: 2f02
+            {
+                bool isAn = AS_isAn(instr->src);
+                emit_MOVE (seg, instr->w, /*regDst=*/7, /*modeDst=*/4,
+                                         /*regSrc=*/isAn ? Temp_num(instr->src) : Temp_num(instr->src) - AS_TEMP_D0, /*modeSrc=*/isAn ? 1:0);
+                break;
+            }
+
+            case AS_ADD_Imm_sp:
+            {
+                int c = getConstInt (instr->imm);
+
+                if ((c>0) && (c<=8))
+                    emit_ADDQ (seg, instr->w, c, /*mode=*/1, /*reg=*/7);
+                else
+                    assert(FALSE);  // FIXME
+
+                break;
+            }
+
+            case AS_MOVEM_spPI_Rs:
+                emit_MOVEM (seg, instr->w, /*dr=*/1, /*mode=*/3, /*regs=*/instr->offset, /*regDst=*/7);
+                break;
+
+            case AS_UNLK_fp:
+                emit_UNLK (seg, /*reg=*/5);
+                break;
+
+            case AS_RTS:
+                emit_u2 (seg, 0x4e75);
+                break;
 
             default:
                 assert(FALSE);
         }
     }
 
+    /*
+     * pass 2
+     */
+
+    printf("AS_assemble: *** PASS 2 ***\n");
 
     assert(FALSE);
-#if 0
-    // step 0: determine size of segment
-
-    uint32_t seg_size = 0;
-    for (AS_instrListNode an = proc->first; an; an=an->next)
-    {
-        AS_instr instr = an->instr;
-
-        char buf[255];
-        AS_sprint(buf, instr, AS_dialect_gas);
-        printf("AS_assemble: size of %s\n", buf);
-
-        seg_size += instr_size(instr);
-
-    }
-
-
-
-    // for (AS_instrList iList = proc->body; iList; iList=iList->tail)
-    // {
-    //     AS_instr instr = iList->head;
-
-    //     char buf[255];
-    //     AS_sprint(buf, instr, m);
-    //     printf("AS_assemble: %s\n", buf);
-
-
-    //     switch (instr->mn)
-    //     {
-    //         default:
-    //             fprintf (stderr, "*** internal error: unknown mn %d\n", instr->mn);
-    //             assert(0);
-    //     }
-    // }
-#endif
 }
 
 Temp_tempSet AS_registers (void)

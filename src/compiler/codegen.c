@@ -1236,13 +1236,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_long:
                                 case Ty_ulong:
                                 {
-                                    int c = CG_getConstInt (left);
-                                    if ( (c>0) && (c<=8) )
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADDQ_Imm_AnDn, w, NULL, right->u.inReg,// addq.x #left, right
-                                                                              left->u.c, 0, NULL));
-                                    else
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, right->u.inReg, // add.x #left, right
-                                                                              left->u.c, 0, NULL));
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, right->u.inReg, // add.x #left, right
+                                                                          left->u.c, 0, NULL));
                                     *left = *right;
                                     break;
                                 }
@@ -2205,13 +2200,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_long:
                                 case Ty_ulong:
                                 {
-                                    int c = CG_getConstInt (right);
-                                    if ( (c>0) && (c<=8) )
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADDQ_Imm_AnDn, w, NULL, left->u.inReg,// addq.x #right, left
-                                                                              right->u.c, 0, NULL));
-                                    else
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, left->u.inReg, // add.x #right, left
-                                                                              right->u.c, 0, NULL));
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, left->u.inReg, // add.x #right, left
+                                                                          right->u.c, 0, NULL));
                                     break;
                                 }
                                 case Ty_single:
@@ -2273,13 +2263,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_long:
                                 case Ty_ulong:
                                 {
-                                    int c = CG_getConstInt (right);
-                                    if ( (c>0) && (c<=8) )
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUBQ_Imm_AnDn, w, NULL, left->u.inReg, // subq.x #right, left
-                                                                              right->u.c, 0, NULL));
-                                    else
-                                        AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_AnDn, w, NULL, left->u.inReg,  // sub.x  #right, left
-                                                                              right->u.c, 0, NULL));
+                                    AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_AnDn, w, NULL, left->u.inReg,  // sub.x  #right, left
+                                                                          right->u.c, 0, NULL));
                                     break;
                                 }
                                 case Ty_single:

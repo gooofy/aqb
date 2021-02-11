@@ -37,110 +37,108 @@ enum AS_mn
     AS_ADD_AnDn_AnDn,   //   1 add.x   d1, d2
     AS_ADD_Imm_AnDn,    //   2 add.x   #42, d2
     AS_ADD_Imm_sp,      //   3 add.x   #42, sp
-    AS_ADDQ_Imm_AnDn,   //   4 addq.x  #2, d2
 
-    AS_AND_Dn_Dn,       //   5 and.x  d1, d2
-    AS_AND_Imm_Dn,      //   6 and.x  #23, d3
+    AS_AND_Dn_Dn,       //   4 and.x  d1, d2
+    AS_AND_Imm_Dn,      //   5 and.x  #23, d3
 
-    AS_ASL_Dn_Dn,       //   7 asl.x   d1, d2
-    AS_ASL_Imm_Dn,      //   8 asl.x   #42, d2
+    AS_ASL_Dn_Dn,       //   6 asl.x   d1, d2
+    AS_ASL_Imm_Dn,      //   7 asl.x   #42, d2
 
-    AS_ASR_Dn_Dn,       //   9 asr.x   d1, d2
-    AS_ASR_Imm_Dn,      //  10 asr.x   #42, d2
+    AS_ASR_Dn_Dn,       //   8 asr.x   d1, d2
+    AS_ASR_Imm_Dn,      //   9 asr.x   #42, d2
 
-    AS_BEQ,             //  11 beq     label
-    AS_BNE,             //  12 bne     label
-    AS_BLT,             //  13 blt     label
-    AS_BGT,             //  14 bgt     label
-    AS_BLE,             //  15 ble     label
-    AS_BGE,             //  16 bge     label
-    AS_BLO,             //  17 blo     label
-    AS_BHI,             //  18 bhi     label
-    AS_BLS,             //  19 bls     label
-    AS_BHS,             //  20 bhs     label
+    AS_BEQ,             //  10 beq     label
+    AS_BNE,             //  11 bne     label
+    AS_BLT,             //  12 blt     label
+    AS_BGT,             //  13 bgt     label
+    AS_BLE,             //  14 ble     label
+    AS_BGE,             //  15 bge     label
+    AS_BLO,             //  16 blo     label
+    AS_BHI,             //  17 bhi     label
+    AS_BLS,             //  18 bls     label
+    AS_BHS,             //  19 bhs     label
 
-    AS_BRA,             //  21 bra     label
+    AS_BRA,             //  20 bra     label
 
-    AS_CMP_Dn_Dn,       //  22 cmp.x   d0, d7
+    AS_CMP_Dn_Dn,       //  21 cmp.x   d0, d7
 
-    AS_DIVS_Dn_Dn,      //  23 divs.x  d1, d2
-    AS_DIVS_Imm_Dn,     //  24 divs.x  #23, d3
-    AS_DIVU_Dn_Dn,      //  25 divu.x  d1, d2
-    AS_DIVU_Imm_Dn,     //  26 divu.x  #23, d3
+    AS_DIVS_Dn_Dn,      //  22 divs.x  d1, d2
+    AS_DIVS_Imm_Dn,     //  23 divs.x  #23, d3
+    AS_DIVU_Dn_Dn,      //  24 divu.x  d1, d2
+    AS_DIVU_Imm_Dn,     //  25 divu.x  #23, d3
 
-    AS_EOR_Dn_Dn,       //  27 eor.x  d1, d2
-    AS_EOR_Imm_Dn,      //  28 eor.x  #23, d3
+    AS_EOR_Dn_Dn,       //  26 eor.x  d1, d2
+    AS_EOR_Imm_Dn,      //  27 eor.x  #23, d3
 
-    AS_EXT_Dn,          //  29 ext.x   d1
+    AS_EXT_Dn,          //  28 ext.x   d1
 
-    AS_LEA_Ofp_An,      //  30 lea     24(fp), a1
+    AS_LEA_Ofp_An,      //  29 lea     24(fp), a1
 
-    AS_LINK_fp,         //  31 link    a5, #-4
+    AS_LINK_fp,         //  30 link    a5, #-4
 
-    AS_LSL_Dn_Dn,       //  32 lsl.x   d1, d2
-    AS_LSL_Imm_Dn,      //  33 lsl.x   #42, d2
+    AS_LSL_Dn_Dn,       //  31 lsl.x   d1, d2
+    AS_LSL_Imm_Dn,      //  32 lsl.x   #42, d2
 
-    AS_LSR_Dn_Dn,       //  34 lsr.x   d1, d2
-    AS_LSR_Imm_Dn,      //  35 lsr.x   #42, d2
+    AS_LSR_Dn_Dn,       //  33 lsr.x   d1, d2
+    AS_LSR_Imm_Dn,      //  34 lsr.x   #42, d2
 
-    AS_MOVE_AnDn_AnDn,  //  36 move.x  d1, d2
-    AS_MOVE_Imm_OAn,    //  37 move.x  #23, 42(a6)
-    AS_MOVE_Imm_RAn,    //  38 move.x  #23, (a6)
-    AS_MOVE_Imm_AnDn,   //  39 move.x  #23, d0
-    AS_MOVE_AnDn_RAn,   //  40 move.x  d1, (a6)
-    AS_MOVE_RAn_AnDn,   //  41 move.x  (a5), d1
-    AS_MOVE_OAn_AnDn,   //  42 move.x  42(a1), d0
-    AS_MOVE_AnDn_OAn,   //  43 move.x  d0, 42(a3)
-    AS_MOVE_AnDn_PDsp,  //  44 move.x  d1, -(sp)
-    AS_MOVE_Imm_PDsp,   //  45 move.x  #23, -(sp)
-    AS_MOVE_spPI_AnDn,  //  46 move.x  (sp)+, d1
-    AS_MOVE_ILabel_AnDn,//  47 move.x  #label, d1
-    AS_MOVE_Label_AnDn, //  48 move.x  label, d6
-    AS_MOVE_Label_Ofp,  //  49 move.x  label, 23(a5)
-    AS_MOVE_AnDn_Label, //  50 move.x  d6, label
-    AS_MOVE_Ofp_AnDn,   //  51 move.x  42(a5), d0
-    AS_MOVE_Ofp_RAn,    //  52 move.x  42(a5), (a0)
-    AS_MOVE_Ofp_Label,  //  53 move.x  42(a5), label
-    AS_MOVE_AnDn_Ofp,   //  54 move.x  d0, 42(a5)
-    AS_MOVE_Imm_Ofp,    //  55 move.x  #42, 42(a5)
-    AS_MOVE_Imm_Label,  //  56 move.x  #42, label
-    AS_MOVE_fp_AnDn,    //  57 move.x  a5, d0
+    AS_MOVE_AnDn_AnDn,  //  35 move.x  d1, d2
+    AS_MOVE_Imm_OAn,    //  36 move.x  #23, 42(a6)
+    AS_MOVE_Imm_RAn,    //  37 move.x  #23, (a6)
+    AS_MOVE_Imm_AnDn,   //  38 move.x  #23, d0
+    AS_MOVE_AnDn_RAn,   //  39 move.x  d1, (a6)
+    AS_MOVE_RAn_AnDn,   //  40 move.x  (a5), d1
+    AS_MOVE_OAn_AnDn,   //  41 move.x  42(a1), d0
+    AS_MOVE_AnDn_OAn,   //  42 move.x  d0, 42(a3)
+    AS_MOVE_AnDn_PDsp,  //  43 move.x  d1, -(sp)
+    AS_MOVE_Imm_PDsp,   //  44 move.x  #23, -(sp)
+    AS_MOVE_spPI_AnDn,  //  45 move.x  (sp)+, d1
+    AS_MOVE_ILabel_AnDn,//  46 move.x  #label, d1
+    AS_MOVE_Label_AnDn, //  47 move.x  label, d6
+    AS_MOVE_Label_Ofp,  //  48 move.x  label, 23(a5)
+    AS_MOVE_AnDn_Label, //  49 move.x  d6, label
+    AS_MOVE_Ofp_AnDn,   //  50 move.x  42(a5), d0
+    AS_MOVE_Ofp_RAn,    //  51 move.x  42(a5), (a0)
+    AS_MOVE_Ofp_Label,  //  52 move.x  42(a5), label
+    AS_MOVE_AnDn_Ofp,   //  53 move.x  d0, 42(a5)
+    AS_MOVE_Imm_Ofp,    //  54 move.x  #42, 42(a5)
+    AS_MOVE_Imm_Label,  //  55 move.x  #42, label
+    AS_MOVE_fp_AnDn,    //  56 move.x  a5, d0
 
-    AS_MOVEM_Rs_PDsp,   //  58 movem.x a2-a5,-(sp)
-    AS_MOVEM_spPI_Rs,   //  59 movem.x (sp)+, a2-a5
+    AS_MOVEM_Rs_PDsp,   //  57 movem.x a2-a5,-(sp)
+    AS_MOVEM_spPI_Rs,   //  58 movem.x (sp)+, a2-a5
 
-    AS_MULS_Dn_Dn,      //  60 muls.x  d1, d2
-    AS_MULS_Imm_Dn,     //  61 muls.x  #42, d2
-    AS_MULU_Dn_Dn,      //  62 mulu.x  d1, d2
-    AS_MULU_Imm_Dn,     //  63 mulu.x  #42, d2
+    AS_MULS_Dn_Dn,      //  59 muls.x  d1, d2
+    AS_MULS_Imm_Dn,     //  60 muls.x  #42, d2
+    AS_MULU_Dn_Dn,      //  61 mulu.x  d1, d2
+    AS_MULU_Imm_Dn,     //  62 mulu.x  #42, d2
 
-    AS_NEG_Dn,          //  64 neg.x   d0
+    AS_NEG_Dn,          //  63 neg.x   d0
 
-    AS_NOT_Dn,          //  65 not.x   d0
+    AS_NOT_Dn,          //  64 not.x   d0
 
-    AS_NOP,             //  66 nop
+    AS_NOP,             //  65 nop
 
-    AS_OR_Dn_Dn,        //  67 or.x  d1, d2
-    AS_OR_Imm_Dn,       //  68 or.x  #42, d2
+    AS_OR_Dn_Dn,        //  66 or.x  d1, d2
+    AS_OR_Imm_Dn,       //  67 or.x  #42, d2
 
-    AS_JMP,             //  69 jmp     label
-    AS_JSR_Label,       //  70 jsr     label
-    AS_JSR_An,          //  71 jsr     (a2)
-    AS_JSR_RAn,         //  72 jsr     -36(a6)
+    AS_JMP,             //  68 jmp     label
+    AS_JSR_Label,       //  69 jsr     label
+    AS_JSR_An,          //  70 jsr     (a2)
+    AS_JSR_RAn,         //  71 jsr     -36(a6)
 
-    AS_RTS,             //  73 rts
+    AS_RTS,             //  72 rts
 
-    AS_SNE_Dn,          //  74 sne.b   d1
+    AS_SNE_Dn,          //  73 sne.b   d1
 
-    AS_SUB_Dn_Dn,       //  75 sub.x   d1, d2
-    AS_SUB_Imm_AnDn,    //  76 sub.x   #42, d2
-    AS_SUBQ_Imm_AnDn,   //  77 subq.x  #2, d2
+    AS_SUB_Dn_Dn,       //  74 sub.x   d1, d2
+    AS_SUB_Imm_AnDn,    //  75 sub.x   #42, d2
 
-    AS_SWAP_Dn,         //  78 swap.x   d4
+    AS_SWAP_Dn,         //  76 swap.x   d4
 
-    AS_TST_Dn,          //  79 tst.x   d0
+    AS_TST_Dn,          //  77 tst.x   d0
 
-    AS_UNLK_fp,         //  80 unlink  a5
+    AS_UNLK_fp,         //  78 unlink  a5
 
     AS_NUM_INSTR
 };
