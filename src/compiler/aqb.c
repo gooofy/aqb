@@ -344,7 +344,7 @@ int main (int argc, char *argv[])
      * machine code generation (assembly phase)
      */
 
-    AS_segment seg_code = AS_CodeSegment();
+    AS_segment seg_code = AS_Segment(AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
 
     for (CG_fragList fl=frags; fl; fl=fl->tail)
     {
@@ -373,13 +373,26 @@ int main (int argc, char *argv[])
      */
 
     // FIXME: unfinished, hardcoded
-    FILE *fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
+    LI_segmentList sl = LI_SegmentList();
+
+    FILE *fObj = fopen("../src/lib/minbrt/prolog.o", "r");
+    if (!fObj)
+    {
+        fprintf (stderr, "*** ERROR: failed to open prolog.o\n\n");
+        exit(23);
+    }
+    LI_segmentListLoadFile (sl, fObj);
+    fclose(fObj);
+
+    LI_segmentListAppend (sl, seg_code);
+
+    fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
     if (!fObj)
     {
         fprintf (stderr, "*** ERROR: failed to open minbrt.o\n\n");
         exit(23);
     }
-    LI_load(fObj);
+    LI_segmentListLoadFile (sl, fObj);
     fclose(fObj);
 
     return 0;

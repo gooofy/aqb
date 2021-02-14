@@ -48,7 +48,18 @@ typedef char bool;
     #error "Unable to detect endianness for your target."
 #endif
 
+#ifdef AQB_LITTLE_ENDIAN
 
+#define ENDIAN_SWAP_16(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
+#define ENDIAN_SWAP_32(data) ( (((data) >> 24) & 0x000000FF) | (((data) >>  8) & 0x0000FF00) | \
+                               (((data) <<  8) & 0x00FF0000) | (((data) << 24) & 0xFF000000) )
+
+#else
+
+#define ENDIAN_SWAP_16(data) (data)
+#define ENDIAN_SWAP_32(data) (data)
+
+#endif
 
 /*
  * memory management
@@ -56,8 +67,8 @@ typedef char bool;
 
 typedef enum
 {
-    UP_frontend, UP_types, UP_temp, UP_assem, UP_codegen, UP_env, UP_flowgraph, UP_linscan, UP_symbol, 
-    UP_hashmap, UP_regalloc, UP_liveness, UP_table, UP_strings, UP_numPools
+    UP_frontend, UP_types, UP_temp, UP_assem, UP_codegen, UP_env, UP_flowgraph, UP_linscan, UP_symbol,
+    UP_hashmap, UP_regalloc, UP_liveness, UP_table, UP_strings, UP_link, UP_numPools
 } U_poolId;
 
 void *U_poolAlloc  (U_poolId pid, size_t size);

@@ -4,7 +4,7 @@ include ../../../config.mk
 
 .PRECIOUS:	%.s
 
-all: minbrt.asm minbrt.o
+all: minbrt.asm minbrt.o prolog.o
 
 %.s: %.c
 	$(CC_AMIGAOS) -S -Wall -Werror -march=68000 -mcpu=68000 $< -o $@
@@ -16,5 +16,5 @@ all: minbrt.asm minbrt.o
 	./as2mot.py $< > $@
 
 clean:
-	rm -f minbrt.asm minbrt.s
+	rm -f minbrt.asm minbrt.s prolog.o
 

@@ -257,21 +257,56 @@ string             AS_regName          (int reg);
  * 68k machine code generation
  */
 
-typedef struct AS_segment_  *AS_segment;
+#define AS_INITIAL_CODE_SEGMENT_SIZE    16*1024
 
+typedef struct AS_segment_         *AS_segment;
+typedef struct AS_segmentReloc32_  *AS_segmentReloc32;
+typedef struct AS_segmentRef_      *AS_segmentRef;
+typedef struct AS_segmentDef_      *AS_segmentDef;
+
+typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
-    enum {AS_codeSeg, AS_dataSeg, AS_bssSeg} kind;
+    AS_segKind        kind;
 
-    uint8_t     *mem;
-    size_t       mem_size;
-    size_t       mem_pos;
+    uint8_t          *mem;
+    size_t            mem_size;
+    size_t            mem_pos;
+
+    AS_segmentReloc32 relocs;
+    TAB_table         refs;                 // S_symbol -> AS_segmentRef
+    AS_segmentDef     defs;
 };
 
-AS_segment         AS_CodeSegment      (void);
+struct AS_segmentReloc32_
+{
+    uint32_t          offset;
+    AS_segmentReloc32 next;
+};
 
-void               AS_assemble         (AS_segment seg, AS_instrList il);
+struct AS_segmentRef_
+{
+    uint32_t          offset;
+    enum Temp_w       w;
+    AS_segmentRef     next;
+};
 
-void               AS_init             (void);
+struct AS_segmentDef_
+{
+    S_symbol          sym;
+    uint32_t          offset;
+    AS_segmentDef     next;
+};
+
+AS_segment         AS_Segment            (AS_segKind kind, size_t initial_size);
+
+void               AS_segmentAddReloc32  (AS_segment seg, uint32_t off);
+void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w);
+void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
+void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
+
+void               AS_assemble           (AS_segment seg, AS_instrList il);
+
+void               AS_init               (void);
 
 #endif

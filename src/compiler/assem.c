@@ -745,16 +745,56 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
  **
  ******************************************************************************/
 
-AS_segment AS_CodeSegment (void)
+AS_segment AS_Segment (AS_segKind kind, size_t initial_size)
 {
     AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
 
-    seg->kind     = AS_codeSeg;
-    seg->mem      = U_malloc (INITIAL_CODE_SEGMENT_SIZE);
-    seg->mem_size = INITIAL_CODE_SEGMENT_SIZE;
-    seg->mem_pos  = 0;
+    seg->kind        = kind;
+    seg->mem         = initial_size ? U_malloc (initial_size) : NULL;
+    seg->mem_size    = initial_size;
+    seg->mem_pos     = 0;
+    seg->relocs      = NULL;
+    seg->refs        = NULL;
+    seg->defs        = NULL;
 
     return seg;
+}
+
+void AS_segmentAddReloc32 (AS_segment seg, uint32_t off)
+{
+    AS_segmentReloc32 reloc = U_poolAlloc (UP_assem, sizeof(*reloc));
+
+    reloc->offset = off;
+    reloc->next   = seg->relocs;
+    seg->relocs = reloc;
+}
+
+void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w)
+{
+    if (!seg->refs)
+        seg->refs = TAB_empty();
+
+    AS_segmentRef ref = U_poolAlloc (UP_assem, sizeof(*ref));
+
+    ref->offset = off;
+    ref->w      = w;
+    ref->next   = NULL;
+
+    AS_segmentRef prev = TAB_look (seg->refs, sym);
+    if (prev)
+        ref->next = prev;
+
+    TAB_enter (seg->refs, sym, ref);
+}
+
+void AS_segmentAddDef (AS_segment seg, S_symbol sym, uint32_t off)
+{
+    AS_segmentDef def = U_poolAlloc (UP_assem, sizeof(*def));
+
+    def->sym    = sym;
+    def->offset = off;
+    def->next   = seg->defs;
+    seg->defs   = def;
 }
 
 #if 0
@@ -845,11 +885,17 @@ typedef struct
     size_t offset;
 } labelInfo;
 
-static void AS_segFit (AS_segment seg, size_t numAdditionalBytes)
+void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
 {
-    size_t room_left = seg->mem_size - seg->mem_pos;
-    if (room_left < numAdditionalBytes)
-        assert(FALSE); // FIXME
+    if (seg->mem_size < min_size)
+    {
+        if (!seg->mem)
+        {
+            seg->mem  = U_malloc (min_size);
+        }
+        else
+            assert(FALSE); // FIXME
+    }
 }
 
 static int32_t getConstInt (Ty_const c)
@@ -883,7 +929,7 @@ static void emit_u2 (AS_segment seg, uint16_t w)
     printf ("0x%08zx: 0x%04x\n", seg->mem_pos, w);
 #endif
 
-    AS_segFit (seg, 2);
+    AS_ensureSegmentSize (seg, seg->mem_pos+2);
     uint16_t *p = (uint16_t *) (seg->mem + seg->mem_pos);
     *p = w;
     seg->mem_pos += 2;
@@ -895,7 +941,7 @@ static void emit_i2 (AS_segment seg, int16_t w)
     printf ("0x%08zx: 0x%04x\n", seg->mem_pos, w);
 #endif
 
-    AS_segFit (seg, 2);
+    AS_ensureSegmentSize (seg, seg->mem_pos+2);
     int16_t *p = (int16_t *) (seg->mem + seg->mem_pos);
     *p = w;
     seg->mem_pos += 2;
@@ -907,7 +953,7 @@ static void emit_u4 (AS_segment seg, uint32_t w)
     printf ("0x%08zx: 0x%08x\n", seg->mem_pos, w);
 #endif
 
-    AS_segFit (seg, 4);
+    AS_ensureSegmentSize (seg, seg->mem_pos+4);
     uint32_t *p = (uint32_t *) (seg->mem + seg->mem_pos);
     *p = w;
     seg->mem_pos += 4;
