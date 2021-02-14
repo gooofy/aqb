@@ -44,6 +44,7 @@ extern struct DOSBase       *DOSBase;
 #include "regalloc.h"
 #include "options.h"
 #include "env.h"
+#include "link.h"
 
 #define VERSION "0.7.0"
 
@@ -366,6 +367,20 @@ int main (int argc, char *argv[])
         }
         AS_assemble (seg_code, body);
     }
+
+    /*
+     * machine code generation (link phase)
+     */
+
+    // FIXME: unfinished, hardcoded
+    FILE *fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
+    if (!fObj)
+    {
+        fprintf (stderr, "*** ERROR: failed to open minbrt.o\n\n");
+        exit(23);
+    }
+    LI_load(fObj);
+    fclose(fObj);
 
     return 0;
 }

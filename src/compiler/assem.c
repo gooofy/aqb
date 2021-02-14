@@ -1134,7 +1134,19 @@ void AS_assemble (AS_segment seg, AS_instrList il)
 
     printf("AS_assemble: *** PASS 2 ***\n");
 
-    assert(FALSE);
+    TAB_iter i = TAB_Iter(labels);
+
+    Temp_label l;
+    labelInfo *li;
+    while (TAB_next (i, (void **)&l, (void **)&li))
+    {
+        if (li->defined)
+            printf("AS_assemble: XDEF %s\n", S_name (l));
+        else
+            printf("AS_assemble: XREF %s\n", S_name (l));
+    }
+
+    // assert(FALSE); FIXME: unfinished.
 }
 
 Temp_tempSet AS_registers (void)
