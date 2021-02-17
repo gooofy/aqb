@@ -13,3 +13,5 @@ rm -f ${ASMProsrc}.tmp
 
 echo "${ASMProsrc} written."
 
+/home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-objdump -x -d -r foo.hunk
+

@@ -468,7 +468,8 @@ static bool write_hunk_header (LI_segmentList sl, FILE *f)
     }
     for (LI_segmentListNode n = sl->first; n; n=n->next)
     {
-        if (!fwrite_u4 (f, n->seg->mem_pos))
+        uint32_t nw = (n->seg->mem_pos + (n->seg->mem_pos % 4)) / 4;
+        if (!fwrite_u4 (f, nw))
         {
             fprintf (stderr, "link: write error.\n");
             return FALSE;
@@ -486,11 +487,19 @@ bool write_hunk_code (AS_segment seg, FILE *f)
     }
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
+    printf ("link: writing code section, size= %zd = 0x%08zx bytes (%d = 0x%08x LONGs)\n", seg->mem_pos, seg->mem_pos, n, n);
     if (!fwrite_u4 (f, n))
     {
         fprintf (stderr, "link: write error.\n");
         return FALSE;
     }
+#if 1
+    if (fwrite (seg->mem, n*4, 1, f) != 1)
+    {
+        fprintf (stderr, "link: write error.\n");
+        return FALSE;
+    }
+#else
     uint32_t *p = (uint32_t *) seg->mem;
     for (uint32_t i =0; i<n; i++)
     {
@@ -500,6 +509,7 @@ bool write_hunk_code (AS_segment seg, FILE *f)
             return FALSE;
         }
     }
+#endif
     return TRUE;
 }
 
