@@ -381,7 +381,11 @@ int main (int argc, char *argv[])
         fprintf (stderr, "*** ERROR: failed to open prolog.o\n\n");
         exit(23);
     }
-    LI_segmentListLoadFile (sl, fObj);
+    if (!LI_segmentListReadObjectFile (sl, fObj))
+    {
+        fclose(fObj);
+        exit(24);
+    }
     fclose(fObj);
 
     LI_segmentListAppend (sl, seg_code);
@@ -390,10 +394,27 @@ int main (int argc, char *argv[])
     if (!fObj)
     {
         fprintf (stderr, "*** ERROR: failed to open minbrt.o\n\n");
-        exit(23);
+        exit(25);
     }
-    LI_segmentListLoadFile (sl, fObj);
+    if (!LI_segmentListReadObjectFile (sl, fObj))
+    {
+        fclose(fObj);
+        exit(26);
+    }
     fclose(fObj);
+
+    FILE *fLoadFile = fopen(binfn, "w");
+    if (!fLoadFile)
+    {
+        fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", binfn);
+        exit(26);
+    }
+    if (!LI_segmentListWriteLoadFile (sl, fLoadFile))
+    {
+        fclose(fLoadFile);
+        exit(27);
+    }
+    fclose(fLoadFile);
 
     return 0;
 }
