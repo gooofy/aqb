@@ -273,7 +273,7 @@ struct AS_segment_
     size_t            mem_size;
     size_t            mem_pos;
 
-    AS_segmentReloc32 relocs;
+    TAB_table         relocs;               // AS_segment -> AS_segementReloc32...
     TAB_table         refs;                 // S_symbol -> AS_segmentRef
     AS_segmentDef     defs;
 };
@@ -300,7 +300,7 @@ struct AS_segmentDef_
 
 AS_segment         AS_Segment            (AS_segKind kind, size_t initial_size);
 
-void               AS_segmentAddReloc32  (AS_segment seg, uint32_t off);
+void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
 void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w);
 void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);

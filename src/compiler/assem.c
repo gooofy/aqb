@@ -760,13 +760,19 @@ AS_segment AS_Segment (AS_segKind kind, size_t initial_size)
     return seg;
 }
 
-void AS_segmentAddReloc32 (AS_segment seg, uint32_t off)
+void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
 {
+    if (!seg->relocs)
+        seg->relocs = TAB_empty();
+
+    AS_segmentReloc32 prev = TAB_look (seg->relocs, seg_to);
+
     AS_segmentReloc32 reloc = U_poolAlloc (UP_assem, sizeof(*reloc));
 
     reloc->offset = off;
-    reloc->next   = seg->relocs;
-    seg->relocs = reloc;
+    reloc->next   = prev;
+
+    TAB_enter (seg->relocs, seg_to, reloc);
 }
 
 void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w)

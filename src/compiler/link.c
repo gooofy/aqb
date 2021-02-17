@@ -253,7 +253,7 @@ static bool load_hunk_reloc32(FILE *f)
                 fprintf (stderr, "link: read error.\n");
                 return FALSE;
             }
-            AS_segmentAddReloc32 (seg, off);
+            AS_segmentAddReloc32 (g_hunk_cur, seg, off);
         }
     }
 
@@ -556,6 +556,25 @@ bool write_hunk_bss (AS_segment seg, FILE *f)
     return TRUE;
 }
 
+bool write_hunk_reloc32 (AS_segment seg, FILE *f)
+{
+    if (!fwrite_u4 (f, HUNK_TYPE_RELOC32))
+    {
+        fprintf (stderr, "link: write error.\n");
+        return FALSE;
+    }
+
+    TAB_iter segIter = TAB_Iter (seg->relocs);
+    AS_segment seg_to;
+    AS_segmentReloc32 relocs;
+    while (TAB_next (segIter, (void **)&seg_to, (void **)&relocs))
+    {
+        assert(FALSE); //FIXME
+    }
+
+    return TRUE;
+}
+
 bool write_hunk_end (FILE *f)
 {
     if (!fwrite_u4 (f, HUNK_TYPE_END))
@@ -577,21 +596,24 @@ bool LI_segmentListWriteLoadFile (LI_segmentList sl, FILE *f)
             case AS_codeSeg:
                 if (!write_hunk_code (n->seg, f))
                     return FALSE;
-                // FIXME: reloc!
+                if (!write_hunk_reloc32 (n->seg, f))
+                    return FALSE;
                 if (!write_hunk_end (f))
                     return FALSE;
                 break;
             case AS_dataSeg:
                 if (!write_hunk_data (n->seg, f))
                     return FALSE;
-                // FIXME: reloc!
+                if (!write_hunk_reloc32 (n->seg, f))
+                    return FALSE;
                 if (!write_hunk_end (f))
                     return FALSE;
                 break;
             case AS_bssSeg:
                 if (!write_hunk_bss (n->seg, f))
                     return FALSE;
-                // FIXME: reloc!
+                if (!write_hunk_reloc32 (n->seg, f))
+                    return FALSE;
                 if (!write_hunk_end (f))
                     return FALSE;
                 break;
