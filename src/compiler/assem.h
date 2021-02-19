@@ -263,11 +263,14 @@ typedef struct AS_segment_         *AS_segment;
 typedef struct AS_segmentReloc32_  *AS_segmentReloc32;
 typedef struct AS_segmentRef_      *AS_segmentRef;
 typedef struct AS_segmentDef_      *AS_segmentDef;
+typedef struct AS_labelInfo_       *AS_labelInfo;
+typedef struct AS_object_          *AS_object;
 
 typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
     AS_segKind        kind;
+    uint32_t          hunk_id;
 
     uint8_t          *mem;
     size_t            mem_size;
@@ -298,6 +301,19 @@ struct AS_segmentDef_
     AS_segmentDef     next;
 };
 
+struct AS_labelInfo_
+{
+    bool   defined;
+    size_t offset;
+};
+
+struct AS_object_
+{
+    TAB_table         labels;    // label -> AS_labelInfo
+    AS_segment        codeSeg;
+    AS_segment        dataSeg;
+};
+
 AS_segment         AS_Segment            (AS_segKind kind, size_t initial_size);
 
 void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
@@ -305,7 +321,12 @@ void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t
 void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
 
-void               AS_assemble           (AS_segment seg, AS_instrList il);
+AS_object          AS_Object             (void);
+
+void               AS_assembleCode       (AS_object o, AS_instrList il);
+void               AS_assembleString     (AS_object o, Temp_label label, string str);
+
+void               AS_resolveLabels      (AS_object o);
 
 void               AS_init               (void);
 

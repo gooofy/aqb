@@ -344,28 +344,38 @@ int main (int argc, char *argv[])
      * machine code generation (assembly phase)
      */
 
-    AS_segment seg_code = AS_Segment(AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    AS_object obj = AS_Object();
 
     for (CG_fragList fl=frags; fl; fl=fl->tail)
     {
         CG_frag frag = fl->head;
-        if (frag->kind != CG_procFrag)
-            continue;
-
-        Temp_label   label   = frag->u.proc.label;
-        //CG_frame     frame   = frag->u.proc.frame;
-        AS_instrList body    = frag->u.proc.body;
-
-        if (OPT_get(OPTION_VERBOSE))
+        switch (frag->kind)
         {
-            fprintf(stdout, "\n************************************************************************************************\n");
-            fprintf(stdout, "**\n");
-            fprintf(stdout, "** machine code generation for %s\n", Temp_labelstring(label));
-            fprintf(stdout, "**\n");
-            fprintf(stdout, "************************************************************************************************\n\n");
-            U_memstat();
+            case CG_procFrag:
+            {
+                Temp_label   label   = frag->u.proc.label;
+                //CG_frame     frame   = frag->u.proc.frame;
+                AS_instrList body    = frag->u.proc.body;
+
+                if (OPT_get(OPTION_VERBOSE))
+                {
+                    fprintf(stdout, "\n************************************************************************************************\n");
+                    fprintf(stdout, "**\n");
+                    fprintf(stdout, "** machine code generation for %s\n", Temp_labelstring(label));
+                    fprintf(stdout, "**\n");
+                    fprintf(stdout, "************************************************************************************************\n\n");
+                    U_memstat();
+                }
+                AS_assembleCode (obj, body);
+                break;
+            }
+            case CG_stringFrag:
+                AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str);
+                break;
+
+            default:
+                assert(FALSE); // FIXME
         }
-        AS_assemble (seg_code, body);
     }
 
     /*
@@ -388,7 +398,10 @@ int main (int argc, char *argv[])
     }
     fclose(fObj);
 
-    LI_segmentListAppend (sl, seg_code);
+    if (obj->codeSeg)
+        LI_segmentListAppend (sl, obj->codeSeg);
+    if (obj->dataSeg)
+        LI_segmentListAppend (sl, obj->dataSeg);
 
     fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
     if (!fObj)
@@ -403,16 +416,22 @@ int main (int argc, char *argv[])
     }
     fclose(fObj);
 
+    if (!LI_link (sl))
+    {
+        fprintf (stderr, "*** ERROR: failed to link.\n\n");
+        exit(27);
+    }
+
     FILE *fLoadFile = fopen(binfn, "w");
     if (!fLoadFile)
     {
         fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", binfn);
-        exit(26);
+        exit(28);
     }
     if (!LI_segmentListWriteLoadFile (sl, fLoadFile))
     {
         fclose(fLoadFile);
-        exit(27);
+        exit(29);
     }
     fclose(fLoadFile);
 

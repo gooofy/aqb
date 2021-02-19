@@ -745,11 +745,14 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
  **
  ******************************************************************************/
 
+static uint32_t g_hunk_id = 0;
+
 AS_segment AS_Segment (AS_segKind kind, size_t initial_size)
 {
     AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
 
     seg->kind        = kind;
+    seg->hunk_id     = g_hunk_id++;
     seg->mem         = initial_size ? U_malloc (initial_size) : NULL;
     seg->mem_size    = initial_size;
     seg->mem_pos     = 0;
@@ -885,12 +888,6 @@ static uint32_t instr_size (AS_instr instr)
 }
 #endif
 
-typedef struct
-{
-    bool   defined;
-    size_t offset;
-} labelInfo;
-
 void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
 {
     if (seg->mem_size < min_size)
@@ -937,7 +934,7 @@ static void emit_u2 (AS_segment seg, uint16_t w)
 
     AS_ensureSegmentSize (seg, seg->mem_pos+2);
     uint16_t *p = (uint16_t *) (seg->mem + seg->mem_pos);
-    *p = w;
+    *p = ENDIAN_SWAP_16(w);
     seg->mem_pos += 2;
 }
 
@@ -949,7 +946,7 @@ static void emit_i2 (AS_segment seg, int16_t w)
 
     AS_ensureSegmentSize (seg, seg->mem_pos+2);
     int16_t *p = (int16_t *) (seg->mem + seg->mem_pos);
-    *p = w;
+    *p = ENDIAN_SWAP_16(w);
     seg->mem_pos += 2;
 }
 
@@ -961,7 +958,7 @@ static void emit_u4 (AS_segment seg, uint32_t w)
 
     AS_ensureSegmentSize (seg, seg->mem_pos+4);
     uint32_t *p = (uint32_t *) (seg->mem + seg->mem_pos);
-    *p = w;
+    *p = ENDIAN_SWAP_32(w);
     seg->mem_pos += 4;
 }
 
@@ -1001,7 +998,7 @@ static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
 
 static uint32_t getLabelOffset (AS_segment seg, TAB_table labels, Temp_label l)
 {
-    labelInfo *li = TAB_look (labels, l);
+    AS_labelInfo li = TAB_look (labels, l);
     if (!li)
     {
         li = U_poolAlloc (UP_assem, sizeof (*li));
@@ -1027,6 +1024,16 @@ static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode,
         default: assert(FALSE);
     }
     emit_u2(seg, code);
+}
+
+static void emit_JSR (AS_segment seg, int mode, int reg)
+{
+    uint16_t code = 0x4e80;
+
+    code |= mode  << 3;
+    code |= reg;
+
+    emit_u2 (seg, code);
 }
 
 static void emit_MOVE (AS_segment seg, enum Temp_w w, int regDst, int modeDst, int regSrc, int modeSrc)
@@ -1085,34 +1092,39 @@ static void emit_UNLK (AS_segment seg, uint16_t reg)
     emit_u2 (seg, code);
 }
 
-void AS_assemble (AS_segment seg, AS_instrList il)
+AS_object AS_Object (void)
 {
-    TAB_table labels = TAB_empty();     // label -> labelInfo*
+    AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
-    /*
-     * pass 1
-     */
+    obj->labels  = TAB_empty();
+    obj->codeSeg = AS_Segment (AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    obj->dataSeg = AS_Segment (AS_dataSeg, 0);
 
-    printf("AS_assemble: *** PASS 1 ***\n");
+    return obj;
+}
+
+void AS_assembleCode (AS_object obj, AS_instrList il)
+{
+    AS_segment seg = obj->codeSeg;
     for (AS_instrListNode an = il->first; an; an=an->next)
     {
         AS_instr instr = an->instr;
 
         char buf[255];
         AS_sprint(buf, instr, AS_dialect_gas);
-        printf("AS_assemble: (mn=%3d) %s\n", instr->mn, buf);
+        printf("AS_assembleCode: (mn=%3d) %s\n", instr->mn, buf);
 
         switch (instr->mn)
         {
             case AS_LABEL:
             {
-                labelInfo *li = TAB_look (labels, instr->label);
+                AS_labelInfo li = TAB_look (obj->labels, instr->label);
                 if (!li)
                 {
                     li = U_poolAlloc (UP_assem, sizeof (*li));
                     li->defined = TRUE;
                     li->offset = seg->mem_pos;
-                    TAB_enter (labels, instr->label, li);
+                    TAB_enter (obj->labels, instr->label, li);
                 }
                 else
                 {
@@ -1131,8 +1143,8 @@ void AS_assemble (AS_segment seg, AS_instrList il)
                 break;
 
             case AS_JSR_Label:              //  JSR LAB_019D        ;00b2: 4eb9000032a4
-                emit_u2 (seg, 0x4eb0);
-                emit_u4 (seg, getLabelOffset (seg, labels, instr->label));
+                emit_JSR (seg, /*mode=*/7, /*reg=*/1);
+                emit_u4 (seg, getLabelOffset (seg, obj->labels, instr->label));
                 break;
 
             case AS_MOVE_ILabel_AnDn:       // MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
@@ -1140,7 +1152,7 @@ void AS_assemble (AS_segment seg, AS_instrList il)
 
                 emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
                                          /*regSrc=*/4, /*modeSrc=*/7);
-                emit_u4 (seg, getLabelOffset (seg, labels, instr->label));
+                emit_u4 (seg, getLabelOffset (seg, obj->labels, instr->label));
                 break;
 
             case AS_MOVE_AnDn_PDsp:         //  MOVE.L  D2,-(A7)        ;0034: 2f02
@@ -1179,26 +1191,41 @@ void AS_assemble (AS_segment seg, AS_instrList il)
                 assert(FALSE);
         }
     }
+}
 
-    /*
-     * pass 2
-     */
+void AS_assembleString (AS_object obj, Temp_label label, string str)
+{
+    int l = strlen(str);
 
-    printf("AS_assemble: *** PASS 2 ***\n");
+    assert(FALSE); // FIXME
+}
 
-    TAB_iter i = TAB_Iter(labels);
+void AS_resolveLabels (AS_object obj)
+{
+    assert(FALSE);
+#if 0
+    printf("AS_resolveLabels\n");
+
+    TAB_iter i = TAB_Iter(obj->labels);
 
     Temp_label l;
-    labelInfo *li;
+    AS_labelInfo li;
     while (TAB_next (i, (void **)&l, (void **)&li))
     {
         if (li->defined)
-            printf("AS_assemble: XDEF %s\n", S_name (l));
+        {
+            printf("AS_resolveLabels: XDEF %s\n", S_name (l));
+            AS_segmentAddDef (seg, l, li->offset);
+        }
         else
-            printf("AS_assemble: XREF %s\n", S_name (l));
+        {
+            printf("AS_resolveLabels: XREF %s\n", S_name (l));
+            AS_segmentAddRef (seg, l, li->offset, Temp_w_L);
+            uint32_t off2 = *((uint32_t *) (seg->mem+li->offset));
+            assert (!off2); // FIXME: follow the whole chain
+        }
     }
-
-    // assert(FALSE); FIXME: unfinished.
+#endif
 }
 
 Temp_tempSet AS_registers (void)

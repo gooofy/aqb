@@ -426,6 +426,62 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
     return TRUE;
 }
 
+typedef struct symInfo_ *symInfo;
+struct symInfo_
+{
+    AS_segment  seg;
+    uint32_t    offset;
+};
+
+bool LI_link (LI_segmentList sl)
+{
+    TAB_table symTable = TAB_empty();   // S_symbol -> symInfo
+
+    // pass 1: collect all symbol definitions from all segments
+
+    for (LI_segmentListNode node = sl->first; node; node=node->next)
+    {
+        for (AS_segmentDef def = node->seg->defs; def; def=def->next)
+        {
+            symInfo si = U_poolAlloc (UP_link, sizeof(*si));
+            si->seg    = node->seg;
+            si->offset = def->offset;
+
+            TAB_enter (symTable, def->sym, si);
+        }
+    }
+
+    // pass 2: resolve external references
+
+    for (LI_segmentListNode node = sl->first; node; node=node->next)
+    {
+        if (!node->seg->refs)
+            continue;
+        TAB_iter i = TAB_Iter (node->seg->refs);
+        S_symbol sym;
+        AS_segmentRef sr;
+        while (TAB_next (i, (void **)&sym, (void**) &sr))
+        {
+            symInfo si = TAB_look (symTable, sym);
+            if (!si)
+            {
+                fprintf (stderr, "link: *** ERROR: unresolved symbol %s\n\n", S_name(sym));
+                return FALSE;
+            }
+            assert (sr->w == Temp_w_L); // FIXME
+
+            while (sr)
+            {
+                AS_segmentAddReloc32 (node->seg, si->seg, si->offset);
+                sr = sr->next;
+            }
+
+        }
+    }
+
+    return TRUE;
+}
+
 static bool fwrite_u4(FILE *f, uint32_t u)
 {
     u = ENDIAN_SWAP_32 (u);
@@ -558,6 +614,9 @@ bool write_hunk_bss (AS_segment seg, FILE *f)
 
 bool write_hunk_reloc32 (AS_segment seg, FILE *f)
 {
+    if (!seg->relocs)
+        return TRUE;
+
     if (!fwrite_u4 (f, HUNK_TYPE_RELOC32))
     {
         fprintf (stderr, "link: write error.\n");
@@ -569,7 +628,34 @@ bool write_hunk_reloc32 (AS_segment seg, FILE *f)
     AS_segmentReloc32 relocs;
     while (TAB_next (segIter, (void **)&seg_to, (void **)&relocs))
     {
-        assert(FALSE); //FIXME
+        uint32_t cnt = 0;
+        for (AS_segmentReloc32 r = relocs; r; r=r->next)
+            cnt++;
+        if (!fwrite_u4 (f, cnt))
+        {
+            fprintf (stderr, "link: write error.\n");
+            return FALSE;
+        }
+        if (!fwrite_u4 (f, seg_to->hunk_id))
+        {
+            fprintf (stderr, "link: write error.\n");
+            return FALSE;
+        }
+        uint32_t i = 0;
+        for (AS_segmentReloc32 r = relocs; r; r=r->next)
+        {
+            if (!fwrite_u4 (f, r->offset))
+            {
+                fprintf (stderr, "link: write error.\n");
+                return FALSE;
+            }
+            i++;
+        }
+    }
+    if (!fwrite_u4 (f, 0))  // end marker
+    {
+        fprintf (stderr, "link: write error.\n");
+        return FALSE;
     }
 
     return TRUE;
