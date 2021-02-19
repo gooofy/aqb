@@ -12,7 +12,7 @@
 #include <inline/dos.h>
 #include <inline/mathffp.h>
 
-USHORT g_errcode;
+//USHORT g_errcode;
 
 // not using Intuition's AllocRemember here because we want minimal dependencies for the AQB core module
 

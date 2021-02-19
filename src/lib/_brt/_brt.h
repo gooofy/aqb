@@ -33,7 +33,7 @@ void _debug_putf (FLOAT f);
 void _debug_putnl(void);
 void _debug_cls  (void);
 
-extern USHORT g_errcode;
+//extern USHORT g_errcode;
 
 #define ERR_OUT_OF_DATA              4
 #define ERR_OUT_OF_MEMORY            7

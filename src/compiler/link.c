@@ -5,7 +5,7 @@
  */
 
 
-// #define ENABLE_DEBUG
+#define ENABLE_DEBUG
 
 #define HUNK_TYPE_UNIT     0x03E7
 #define HUNK_TYPE_NAME     0x03E8
@@ -64,6 +64,11 @@ static bool fread_u4(FILE *f, uint32_t *u)
 
 static bool load_hunk_unit(FILE *f)
 {
+    for (int i=0; i<MAX_NUM_HUNKS; i++)
+        g_hunk_table[i] = NULL;
+    g_hunk_id_cnt = 0;
+    g_hunk_cur = NULL;
+
     uint32_t name_len;
     if (!fread_u4 (f, &name_len))
     {
@@ -366,11 +371,6 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
     if (!load_hunk_unit(f))
         return FALSE;
 
-    for (int i=0; i<MAX_NUM_HUNKS; i++)
-        g_hunk_table[i] = NULL;
-    g_hunk_id_cnt = 0;
-    g_hunk_cur = NULL;
-
     while (TRUE)
     {
         if (!fread_u4 (f, &ht))
@@ -382,8 +382,9 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
         switch (ht)
         {
             case HUNK_TYPE_UNIT:
-                fprintf (stderr, "link: extra unit hunk detected.\n");
-                return FALSE;
+                if (!load_hunk_unit(f))
+                    return FALSE;
+                break;
             case HUNK_TYPE_NAME:
                 if (!load_hunk_name(f))
                     return FALSE;
@@ -443,6 +444,8 @@ bool LI_link (LI_segmentList sl)
     {
         for (AS_segmentDef def = node->seg->defs; def; def=def->next)
         {
+            printf ("link: pass1: found definition for symbol %s\n", S_name (def->sym));
+
             symInfo si = U_poolAlloc (UP_link, sizeof(*si));
             si->seg    = node->seg;
             si->offset = def->offset;

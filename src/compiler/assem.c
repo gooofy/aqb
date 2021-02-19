@@ -1011,6 +1011,45 @@ static uint32_t getLabelOffset (AS_segment seg, TAB_table labels, Temp_label l)
     return 0;
 }
 
+static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t offset, bool expt)
+{
+    assert (!expt); // FIXME: implement
+    AS_labelInfo li = TAB_look (obj->labels, label);
+    if (li)
+    {
+        if (li->defined)
+        {
+            fprintf (stderr, "error: label %s defined multiple times\n", S_name (label));
+            return FALSE;
+        }
+
+        // fixup
+
+        AS_segment codeSeg = obj->codeSeg;
+        size_t fix_loc = li->offset;
+        while (fix_loc)
+        {
+            printf ("link: FIXUP label=%s at %zd -> %zd\n", S_name(label), fix_loc, offset);
+            uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
+            size_t next_fix_loc = *p;
+            *p = offset;
+            fix_loc = next_fix_loc;
+        }
+    }
+    else
+    {
+        li = U_poolAlloc (UP_assem, sizeof (*li));
+        TAB_enter (obj->labels, label, li);
+    }
+
+    li->defined = TRUE;
+    li->seg     = seg;
+    li->offset  = offset;
+
+    return TRUE;
+}
+
+
 static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
 {
     //   ADDQ.L  #4,A7           ;003c: 588f
@@ -1103,9 +1142,10 @@ AS_object AS_Object (void)
     return obj;
 }
 
-void AS_assembleCode (AS_object obj, AS_instrList il)
+bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 {
     AS_segment seg = obj->codeSeg;
+    bool first_label = TRUE;
     for (AS_instrListNode an = il->first; an; an=an->next)
     {
         AS_instr instr = an->instr;
@@ -1118,18 +1158,9 @@ void AS_assembleCode (AS_object obj, AS_instrList il)
         {
             case AS_LABEL:
             {
-                AS_labelInfo li = TAB_look (obj->labels, instr->label);
-                if (!li)
-                {
-                    li = U_poolAlloc (UP_assem, sizeof (*li));
-                    li->defined = TRUE;
-                    li->offset = seg->mem_pos;
-                    TAB_enter (obj->labels, instr->label, li);
-                }
-                else
-                {
-                    assert (FALSE); // FIXME
-                }
+                if (!defineLabel (obj, instr->label, seg, seg->mem_pos, expt && first_label))
+                    return FALSE;
+                first_label = FALSE;
                 break;
             }
 
@@ -1191,13 +1222,23 @@ void AS_assembleCode (AS_object obj, AS_instrList il)
                 assert(FALSE);
         }
     }
+
+    return TRUE;
 }
 
-void AS_assembleString (AS_object obj, Temp_label label, string str)
+bool AS_assembleString (AS_object obj, Temp_label label, string str)
 {
+    AS_segment seg = obj->dataSeg;
     int l = strlen(str);
 
-    assert(FALSE); // FIXME
+    if (!defineLabel (obj, label, seg, seg->mem_pos, /*expt=*/ FALSE))
+        return FALSE;
+
+    AS_ensureSegmentSize (seg, seg->mem_pos+l+1);
+    memcpy (seg->mem + seg->mem_pos, str, l+1);
+    seg->mem_pos += l+1;
+
+    return TRUE;
 }
 
 void AS_resolveLabels (AS_object obj)

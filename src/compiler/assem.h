@@ -303,8 +303,9 @@ struct AS_segmentDef_
 
 struct AS_labelInfo_
 {
-    bool   defined;
-    size_t offset;
+    bool              defined;
+    AS_segment        seg;
+    size_t            offset;
 };
 
 struct AS_object_
@@ -323,8 +324,8 @@ void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
 
 AS_object          AS_Object             (void);
 
-void               AS_assembleCode       (AS_object o, AS_instrList il);
-void               AS_assembleString     (AS_object o, Temp_label label, string str);
+bool               AS_assembleCode       (AS_object o, AS_instrList il, bool expt);
+bool               AS_assembleString     (AS_object o, Temp_label label, string str);
 
 void               AS_resolveLabels      (AS_object o);
 

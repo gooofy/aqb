@@ -356,6 +356,7 @@ int main (int argc, char *argv[])
                 Temp_label   label   = frag->u.proc.label;
                 //CG_frame     frame   = frag->u.proc.frame;
                 AS_instrList body    = frag->u.proc.body;
+                bool         expt    = frag->u.proc.expt;
 
                 if (OPT_get(OPTION_VERBOSE))
                 {
@@ -366,13 +367,21 @@ int main (int argc, char *argv[])
                     fprintf(stdout, "************************************************************************************************\n\n");
                     U_memstat();
                 }
-                AS_assembleCode (obj, body);
+                if (!AS_assembleCode (obj, body, expt))
+                    exit(19);
                 break;
             }
             case CG_stringFrag:
-                AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str);
+                if (!AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str))
+                    exit(20);
                 break;
-
+            case CG_dataFrag:
+                if (!frag->u.data.size)
+                    break;
+                assert(FALSE); // FIXME: implement
+                //if (!AS_assembleData (obj, frag->u.stringg.label, frag->u.stringg.str))
+                //    exit(21);
+                break;
             default:
                 assert(FALSE); // FIXME
         }
@@ -385,10 +394,11 @@ int main (int argc, char *argv[])
     // FIXME: unfinished, hardcoded
     LI_segmentList sl = LI_SegmentList();
 
-    FILE *fObj = fopen("../src/lib/minbrt/prolog.o", "r");
+    //FILE *fObj = fopen("../src/lib/minbrt/prolog.o", "r");
+    FILE *fObj = fopen("../src/lib/_brt/startup.o", "r");
     if (!fObj)
     {
-        fprintf (stderr, "*** ERROR: failed to open prolog.o\n\n");
+        fprintf (stderr, "*** ERROR: failed to open startup.o\n\n");
         exit(23);
     }
     if (!LI_segmentListReadObjectFile (sl, fObj))
@@ -403,10 +413,11 @@ int main (int argc, char *argv[])
     if (obj->dataSeg)
         LI_segmentListAppend (sl, obj->dataSeg);
 
-    fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
+    //fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
+    fObj = fopen("../src/lib/_brt/_brt.a", "r");
     if (!fObj)
     {
-        fprintf (stderr, "*** ERROR: failed to open minbrt.o\n\n");
+        fprintf (stderr, "*** ERROR: failed to open _brt.a\n\n");
         exit(25);
     }
     if (!LI_segmentListReadObjectFile (sl, fObj))

@@ -16,5 +16,5 @@ all: minbrt.asm minbrt.o prolog.o
 	./as2mot.py $< > $@
 
 clean:
-	rm -f minbrt.asm minbrt.s prolog.o
+	rm -f minbrt.asm minbrt.s prolog.o minbrt.o
 
