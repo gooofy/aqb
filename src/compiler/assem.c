@@ -1230,17 +1230,26 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
     return TRUE;
 }
 
-bool AS_assembleString (AS_object obj, Temp_label label, string str)
+bool AS_assembleString (AS_object obj, Temp_label label, string str, int msize)
 {
     AS_segment seg = obj->dataSeg;
-    int l = strlen(str);
 
     if (!defineLabel (obj, label, seg, seg->mem_pos, /*expt=*/ FALSE))
         return FALSE;
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+l+1);
-    memcpy (seg->mem + seg->mem_pos, str, l+1);
-    seg->mem_pos += l+1;
+    AS_ensureSegmentSize (seg, seg->mem_pos+msize);
+
+    int wc = msize/4;
+    uint32_t *p = (uint32_t*) str;
+    uint32_t *q = (uint32_t*) (seg->mem+seg->mem_pos);
+    for (int i=0; i<wc; i++)
+    {
+        *q = ENDIAN_SWAP_32(*p);
+        q++;
+        p++;
+    }
+
+    seg->mem_pos += msize;
 
     return TRUE;
 }

@@ -74,7 +74,7 @@ struct CG_frag_
     enum {CG_stringFrag, CG_procFrag, CG_dataFrag} kind;
     union
     {
-        struct {Temp_label label; string str;} stringg;
+        struct {Temp_label label; string str; int msize;} stringg;
         struct {S_pos pos; Temp_label label; bool expt; AS_instrList body; CG_frame frame;} proc;
         struct {Temp_label label; bool expt; int size; CG_dataFragNode init; CG_dataFragNode initLast;} data;
     } u;

@@ -612,7 +612,14 @@ CG_frag CG_StringFrag (Temp_label label, string str)
 
     f->kind            = CG_stringFrag;
     f->u.stringg.label = label;
-    f->u.stringg.str   = String(str);
+
+
+    int l = strlen(str);
+    int m = l+1;
+    m = m + (m%4);
+    f->u.stringg.str   = U_poolCalloc (UP_codegen, 1, m);
+    f->u.stringg.msize = m;
+    memcpy (f->u.stringg.str, str, l);
 
     return f;
 }

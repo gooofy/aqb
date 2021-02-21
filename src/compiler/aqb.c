@@ -372,7 +372,7 @@ int main (int argc, char *argv[])
                 break;
             }
             case CG_stringFrag:
-                if (!AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str))
+                if (!AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str, frag->u.stringg.msize))
                     exit(20);
                 break;
             case CG_dataFrag:

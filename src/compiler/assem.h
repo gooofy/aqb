@@ -325,7 +325,7 @@ void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
 AS_object          AS_Object             (void);
 
 bool               AS_assembleCode       (AS_object o, AS_instrList il, bool expt);
-bool               AS_assembleString     (AS_object o, Temp_label label, string str);
+bool               AS_assembleString     (AS_object o, Temp_label label, string str, int msize);
 
 void               AS_resolveLabels      (AS_object o);
 
