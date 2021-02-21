@@ -996,7 +996,7 @@ static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
     0x0100  // d7
 };
 
-static uint32_t getLabelOffset (AS_segment seg, TAB_table labels, Temp_label l)
+static void emit_Label (AS_segment seg, TAB_table labels, Temp_label l)
 {
     AS_labelInfo li = TAB_look (labels, l);
     if (!li)
@@ -1005,15 +1005,16 @@ static uint32_t getLabelOffset (AS_segment seg, TAB_table labels, Temp_label l)
         li->defined = FALSE;
         li->offset = seg->mem_pos;
         TAB_enter (labels, l, li);
-        return 0;
+        emit_u4 (seg, 0);
     }
-    assert (FALSE); // FIXME
-    return 0;
+    else
+    {
+        assert (FALSE); // FIXME
+    }
 }
 
 static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t offset, bool expt)
 {
-    assert (!expt); // FIXME: implement
     AS_labelInfo li = TAB_look (obj->labels, label);
     if (li)
     {
@@ -1032,7 +1033,8 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
             printf ("link: FIXUP label=%s at %zd -> %zd\n", S_name(label), fix_loc, offset);
             uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
             size_t next_fix_loc = *p;
-            *p = offset;
+            *p = ENDIAN_SWAP_32(offset);
+            AS_segmentAddReloc32 (codeSeg, seg, fix_loc);
             fix_loc = next_fix_loc;
         }
     }
@@ -1046,6 +1048,8 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
     li->seg     = seg;
     li->offset  = offset;
 
+    if (expt)
+        AS_segmentAddDef (seg, label, offset);
     return TRUE;
 }
 
@@ -1175,7 +1179,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
             case AS_JSR_Label:              //  JSR LAB_019D        ;00b2: 4eb9000032a4
                 emit_JSR (seg, /*mode=*/7, /*reg=*/1);
-                emit_u4 (seg, getLabelOffset (seg, obj->labels, instr->label));
+                emit_Label (seg, obj->labels, instr->label);
                 break;
 
             case AS_MOVE_ILabel_AnDn:       // MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
@@ -1183,7 +1187,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
                 emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
                                          /*regSrc=*/4, /*modeSrc=*/7);
-                emit_u4 (seg, getLabelOffset (seg, obj->labels, instr->label));
+                emit_Label (seg, obj->labels, instr->label);
                 break;
 
             case AS_MOVE_AnDn_PDsp:         //  MOVE.L  D2,-(A7)        ;0034: 2f02
@@ -1243,9 +1247,8 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str)
 
 void AS_resolveLabels (AS_object obj)
 {
-    assert(FALSE);
-#if 0
     printf("AS_resolveLabels\n");
+    AS_segment seg = obj->codeSeg;
 
     TAB_iter i = TAB_Iter(obj->labels);
 
@@ -1254,19 +1257,13 @@ void AS_resolveLabels (AS_object obj)
     while (TAB_next (i, (void **)&l, (void **)&li))
     {
         if (li->defined)
-        {
-            printf("AS_resolveLabels: XDEF %s\n", S_name (l));
-            AS_segmentAddDef (seg, l, li->offset);
-        }
-        else
-        {
-            printf("AS_resolveLabels: XREF %s\n", S_name (l));
-            AS_segmentAddRef (seg, l, li->offset, Temp_w_L);
-            uint32_t off2 = *((uint32_t *) (seg->mem+li->offset));
-            assert (!off2); // FIXME: follow the whole chain
-        }
+            continue;
+
+        printf("AS_resolveLabels: XREF %s\n", S_name (l));
+        AS_segmentAddRef (seg, l, li->offset, Temp_w_L);
+        uint32_t off2 = *((uint32_t *) (seg->mem+li->offset));
+        assert (!off2); // FIXME: follow the whole chain
     }
-#endif
 }
 
 Temp_tempSet AS_registers (void)

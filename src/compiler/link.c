@@ -340,6 +340,9 @@ static bool load_hunk_ext(FILE *f)
                     return FALSE;
                 }
                 AS_segmentAddDef (g_hunk_cur, sym, offset);
+#ifdef ENABLE_DEBUG
+                printf ("link:   -> ext_def, offset=0x%08x\n", offset);
+#endif
                 break;
             }
             default:
@@ -434,17 +437,36 @@ struct symInfo_
     uint32_t    offset;
 };
 
+#ifdef ENABLE_DEBUG
+static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
+{
+    printf ("HEX: 0x%08x  ", offset);
+    uint32_t cnt=0;
+    while (cnt<num_bytes)
+    {
+        uint32_t w = *( (uint32_t *) (mem+offset+cnt) );
+        printf (" 0x%08x", ENDIAN_SWAP_32(w));
+        cnt+=4;
+    }
+    printf ("\n");
+}
+#endif
+
 bool LI_link (LI_segmentList sl)
 {
     TAB_table symTable = TAB_empty();   // S_symbol -> symInfo
 
-    // pass 1: collect all symbol definitions from all segments
+    // pass 1: collect all symbol definitions from all segments,
+    //         assign unique hunk_ids
 
+    uint32_t hunk_id = 0;
     for (LI_segmentListNode node = sl->first; node; node=node->next)
     {
         for (AS_segmentDef def = node->seg->defs; def; def=def->next)
         {
-            printf ("link: pass1: found definition for symbol %s\n", S_name (def->sym));
+#ifdef ENABLE_DEBUG
+            printf ("link: pass1: found definition for symbol %-20s: offset=0x%08x at hunk #%02d\n", S_name (def->sym), def->offset, node->seg->hunk_id);
+#endif
 
             symInfo si = U_poolAlloc (UP_link, sizeof(*si));
             si->seg    = node->seg;
@@ -452,6 +474,7 @@ bool LI_link (LI_segmentList sl)
 
             TAB_enter (symTable, def->sym, si);
         }
+        node->seg->hunk_id = hunk_id++;
     }
 
     // pass 2: resolve external references
@@ -475,7 +498,16 @@ bool LI_link (LI_segmentList sl)
 
             while (sr)
             {
-                AS_segmentAddReloc32 (node->seg, si->seg, si->offset);
+#ifdef ENABLE_DEBUG
+                printf ("link: pass2: adding reloc32 for symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, offset 0x%08x\n",
+                        S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
+#endif
+                uint32_t *p = (uint32_t *) (node->seg->mem+sr->offset);
+                *p = ENDIAN_SWAP_32(si->offset);
+                AS_segmentAddReloc32 (node->seg, si->seg, sr->offset);
+#ifdef ENABLE_DEBUG
+                hexdump (node->seg->mem, sr->offset-4, 16);
+#endif
                 sr = sr->next;
             }
 
@@ -712,6 +744,6 @@ bool LI_segmentListWriteLoadFile (LI_segmentList sl, FILE *f)
                 assert(FALSE);
         }
     }
-    return FALSE;
+    return TRUE;
 }
 

@@ -305,7 +305,7 @@ struct AS_labelInfo_
 {
     bool              defined;
     AS_segment        seg;
-    size_t            offset;
+    size_t            offset;   // when not defined (yet) this points to the first fixup chain location, otherwise this is the target segment's offset
 };
 
 struct AS_object_

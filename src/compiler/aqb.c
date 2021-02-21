@@ -387,6 +387,8 @@ int main (int argc, char *argv[])
         }
     }
 
+    AS_resolveLabels (obj);
+
     /*
      * machine code generation (link phase)
      */
