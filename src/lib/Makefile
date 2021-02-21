@@ -12,7 +12,7 @@ minbrt:
 	cd minbrt ; make all
 
 clean:
-	rm -f *.sym
+	rm -f *.sym *.o *.a
 	cd _brt ; make clean
 	cd _aqb ; make clean
 	cd minbrt ; make clean

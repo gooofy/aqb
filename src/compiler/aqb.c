@@ -393,7 +393,6 @@ int main (int argc, char *argv[])
      * machine code generation (link phase)
      */
 
-    // FIXME: unfinished, hardcoded
     LI_segmentList sl = LI_SegmentList();
 
     FILE *fObj = E_openModuleFile ("startup.o");
@@ -414,8 +413,8 @@ int main (int argc, char *argv[])
     if (obj->dataSeg)
         LI_segmentListAppend (sl, obj->dataSeg);
 
-    //fObj = fopen("../src/lib/minbrt/minbrt.o", "r");
-    fObj = fopen("../src/lib/_brt/_brt.a", "r");
+    // FIXME: unfinished, hardcoded
+    fObj = E_openModuleFile ("_brt.a");
     if (!fObj)
     {
         fprintf (stderr, "*** ERROR: failed to open _brt.a\n\n");
