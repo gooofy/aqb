@@ -151,9 +151,9 @@ void _cstartup (void)
 
     _amath_init();
 
-    _aqb_main();
+    // _aqb_main();
 
-    _autil_exit(0);
+    // _autil_exit(0);
 }
 
 void __brt_init(void)

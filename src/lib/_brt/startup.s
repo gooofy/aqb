@@ -19,6 +19,11 @@ _start:
 
     jsr     __cstartup
 
+    jsr     __aqb_main
+
+    move.l  #0, -(sp)       /* 0 return code in case we reach this point (i. e. _aqb_main hasn't called _autil_exit(rc)) */
+    jsr     __autil_exit
+
     .globl __autil_exit
 __autil_exit:
 
