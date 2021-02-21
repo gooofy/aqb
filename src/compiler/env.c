@@ -25,7 +25,7 @@ struct E_dirSearchPath_
     E_dirSearchPath next;
 };
 
-static E_dirSearchPath symSP=NULL, symSPLast=NULL;
+static E_dirSearchPath moduleSP=NULL, moduleSPLast=NULL;
 
 static TAB_table        g_modCache; // sym -> E_module
 static E_moduleListNode g_mlFirst=NULL;
@@ -1071,6 +1071,25 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr);
 }
 
+FILE *E_openModuleFile (string filename)
+{
+    for (E_dirSearchPath sp=moduleSP; sp; sp=sp->next)
+    {
+        char modfn[PATH_MAX];
+
+        snprintf(modfn, PATH_MAX, "%s/%s", sp->path, filename);
+
+        if (OPT_get(OPTION_VERBOSE))
+            printf ("Trying to load %s from %s ...\n", filename, modfn);
+
+        FILE *f = fopen(modfn, "r");
+        if (f)
+            return f;
+    }
+    return NULL;
+}
+
+
 E_module E_loadModule(S_symbol sModule)
 {
     E_module mod = TAB_look(g_modCache, sModule);
@@ -1080,314 +1099,303 @@ E_module E_loadModule(S_symbol sModule)
     mod = E_Module(sModule);
     TAB_enter (g_modCache, sModule, mod);
 
-    for (E_dirSearchPath sp=symSP; sp; sp=sp->next)
+    char symfn[PATH_MAX];
+    snprintf(symfn, PATH_MAX, "%s.sym", S_name(sModule));
+
+    FILE *modf = E_openModuleFile (symfn);
+
+    // check header
+
+    uint32_t m;
+    if (fread(&m, 4, 1, modf) != 1) goto fail;
+    if (m != SYM_MAGIC)
     {
-        char modfn[PATH_MAX];
-
-        snprintf(modfn, PATH_MAX, "%s/%s.sym", sp->path, S_name(sModule));
-
-        if (OPT_get(OPTION_VERBOSE))
-            printf ("Trying to load module %s from %s ...\n", S_name(sModule), modfn);
-
-        FILE *modf = fopen(modfn, "r");
-        if (!modf)
-            continue;
-
-        // check header
-
-        uint32_t m;
-        if (fread(&m, 4, 1, modf) != 1) goto fail;
-        if (m != SYM_MAGIC)
-        {
-            printf("%s: head magic mismatch\n", modfn);
-            goto fail;
-        }
-
-        uint16_t v;
-        if (fread(&v, 2, 1, modf) != 1) goto fail;
-        if (v != SYM_VERSION)
-        {
-            printf("%s: version mismatch\n", modfn);
-            goto fail;
-        }
-
-        // read module table
-
-        TAB_table modTable; // mid -> E_module
-        modTable = TAB_empty();
-        TAB_enter (modTable, (void *) (intptr_t) 1, g_builtinsModule);
-        TAB_enter (modTable, (void *) (intptr_t) 2, mod);
-
-        while (TRUE)
-        {
-            uint16_t mid;
-            if (fread(&mid, 2, 1, modf) != 1) goto fail;
-            if (!mid) // end marker detected
-                break;
-
-            string mod_name  = strdeserialize(modf);
-            S_symbol mod_sym = S_Symbol(mod_name, FALSE);
-            if (OPT_get(OPTION_VERBOSE))
-                printf ("%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
-
-            E_module m2 = E_loadModule (mod_sym);
-            if (!m2)
-            {
-                printf ("failed to load module %s", mod_name);
-                goto fail;
-            }
-
-            TAB_enter (modTable, (void *) (intptr_t) mid, m2);
-            E_import (mod, m2);
-        }
-
-        // read types
-        while (TRUE)
-        {
-            uint32_t tuid;
-            if (fread(&tuid, 4, 1, modf) != 1) goto fail;
-            if (!tuid)              // types end marker
-                break;
-
-            Ty_ty ty = TAB_look(mod->tyTable, (void *) (intptr_t) tuid);
-            if (!ty)
-            {
-                ty = Ty_ToLoad(mod->name, tuid);
-                TAB_enter (mod->tyTable, (void *) (intptr_t) tuid, ty);
-            }
-
-            uint8_t b;
-            if (fread(&b, 1, 1, modf) != 1) goto fail;
-            ty->kind = b;
-
-            if (OPT_get(OPTION_VERBOSE))
-                printf ("%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
-
-            switch (ty->kind)
-            {
-                case Ty_darray:
-                    ty->u.darray.elementTy = E_deserializeTyRef(modTable, modf);
-                    break;
-
-                case Ty_sarray:
-                    if (fread(&ty->u.sarray.uiSize, 4, 1, modf) != 1) goto fail;
-                    ty->u.sarray.elementTy = E_deserializeTyRef(modTable, modf);
-                    if (fread(&ty->u.sarray.iStart, 4, 1, modf) != 1) goto fail;
-                    if (fread(&ty->u.sarray.iEnd,   4, 1, modf) != 1) goto fail;
-                    Ty_computeSize(ty);
-                    break;
-
-                case Ty_record:
-                {
-                    if (fread(&ty->u.record.uiSize, 4, 1, modf) != 1) goto fail;
-
-                    uint16_t cnt=0;
-                    if (fread(&cnt, 2, 1, modf) != 1) goto fail;
-
-                    ty->u.record.scope = S_beginScope();
-
-                    for (int i=0; i<cnt; i++)
-                    {
-
-                        uint8_t kind;
-                        if (fread(&kind, 1, 1, modf) != 1) goto fail;
-                        switch (kind)
-                        {
-                            case Ty_recMethod:
-                            {
-                                Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                                Ty_recordEntry re = Ty_Method(proc);
-                                S_enter(ty->u.record.scope, proc->name, re);
-                                break;
-                            }
-                            case Ty_recField:
-                            {
-                                uint8_t visibility;
-                                if (fread(&visibility, 1, 1, modf) != 1) goto fail;
-                                string name = strdeserialize(modf);
-                                uint32_t uiOffset = 0;
-                                if (fread(&uiOffset, 4, 1, modf) != 1) goto fail;
-                                Ty_ty t = E_deserializeTyRef(modTable, modf);
-
-                                S_symbol sym = S_Symbol(name, FALSE);
-                                Ty_recordEntry re = Ty_Field(visibility, sym, t);
-                                re->u.field.uiOffset = uiOffset;
-                                S_enter(ty->u.record.scope, sym, re);
-                                break;
-                            }
-                        }
-                    }
-
-                    uint8_t constructor_present;
-                    if (fread(&constructor_present, 1, 1, modf) != 1) goto fail;
-                    if (constructor_present)
-                        ty->u.record.constructor = E_deserializeTyProc(modTable, modf);
-                    else
-                        ty->u.record.constructor = NULL;
-
-                    break;
-                }
-                case Ty_pointer:
-                    ty->u.pointer = E_deserializeTyRef(modTable, modf);
-                    break;
-                case Ty_procPtr:
-                    ty->u.procPtr = E_deserializeTyProc(modTable, modf);
-                    break;
-
-                case Ty_bool:     break;
-                case Ty_byte:     break;
-                case Ty_ubyte:    break;
-                case Ty_integer:  break;
-                case Ty_uinteger: break;
-                case Ty_long:     break;
-                case Ty_ulong:    break;
-                case Ty_single:   break;
-                case Ty_double:   break;
-                case Ty_void:     break;
-                case Ty_string:   break;
-                default:
-                    assert(0);
-                    break;
-            }
-        }
-
-        // check type table for unresolve ToLoad entries
-        {
-            Ty_ty ty;
-            uint32_t tuid;
-
-            TAB_iter iter = TAB_Iter(mod->tyTable);
-            while (TAB_next (iter, (void *) (intptr_t) &tuid, (void *) &ty))
-            {
-                if (ty->kind == Ty_toLoad)
-                {
-                    printf ("%s: toLoad type detected!\n", modfn);
-                    goto fail;
-                }
-            }
-        }
-
-        // read env entries
-
-        uint8_t kind;
-        while (fread(&kind, 1, 1, modf)==1)
-        {
-            string name = strdeserialize(modf);
-            if (!name)
-            {
-                printf("%s: failed to read env entry symbol name.\n", modfn);
-                goto fail;
-            }
-            S_symbol sym = S_Symbol(name, FALSE);
-
-            if (OPT_get(OPTION_VERBOSE))
-                printf ("%s: reading env entry name=%s\n", S_name(sModule), name);
-
-            switch (kind)
-            {
-                case E_vfcEntry:
-                {
-                    uint8_t k = vfcFunc;
-                    if (fread(&k, 1, 1, modf)!=1)
-                    {
-                        printf("%s: failed to read vcf kind field.\n", modfn);
-                        goto fail;
-                    }
-                    CG_item var;
-                    switch (k)
-                    {
-                        case vfcFunc:
-                        {
-                            Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                            if (!proc)
-                            {
-                                printf("%s: failed to read function proc.\n", modfn);
-                                goto fail;
-                            }
-                            CG_HeapPtrItem (&var, proc->label, Ty_Prc(mod->name, proc));
-                            break;
-                        }
-                        case vfcConst:
-                        {
-                            Ty_ty ty = E_deserializeTyRef(modTable, modf);
-                            if (!ty)
-                            {
-                                printf("%s: failed to read const type.\n", modfn);
-                                goto fail;
-                            }
-                            Ty_const cExp;
-                            if (!E_deserializeTyConst(modTable, modf, &cExp))
-                            {
-                                printf("%s: failed to read const expression.\n", modfn);
-                                goto fail;
-                            }
-                            CG_ConstItem (&var, cExp);
-                            break;
-                        }
-                        case vfcVar:
-                        {
-                            Ty_ty ty = E_deserializeTyRef(modTable, modf);
-                            if (!ty)
-                            {
-                                printf("%s: failed to read variable type.\n", modfn);
-                                goto fail;
-                            }
-                            CG_externalVar (&var, name, ty);
-                            break;
-                        }
-                    }
-                    E_declareVFC (mod->env, sym, &var);
-                    break;
-                }
-                case E_procEntry:
-                {
-                    Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                    if (!proc)
-                    {
-                        printf("%s: failed to read function proc.\n", modfn);
-                        goto fail;
-                    }
-                    E_declareSub (mod->env, sym, proc);
-                    break;
-                }
-                case E_typeEntry:
-                {
-                    Ty_ty ty = E_deserializeTyRef(modTable, modf);
-                    E_declareType (mod->env, sym, ty);
-                    break;
-                }
-            }
-        }
-        fclose(modf);
-
-        // prepend mod to list of loaded modules (initializers will be run in inverse order later)
-        g_mlFirst = E_ModuleListNode(mod, g_mlFirst);
-
-        return mod;
-
-fail:
-        fclose(modf);
-        return NULL;
+        printf("%s: head magic mismatch\n", symfn);
+        goto fail;
     }
 
+    uint16_t v;
+    if (fread(&v, 2, 1, modf) != 1) goto fail;
+    if (v != SYM_VERSION)
+    {
+        printf("%s: version mismatch\n", symfn);
+        goto fail;
+    }
+
+    // read module table
+
+    TAB_table modTable; // mid -> E_module
+    modTable = TAB_empty();
+    TAB_enter (modTable, (void *) (intptr_t) 1, g_builtinsModule);
+    TAB_enter (modTable, (void *) (intptr_t) 2, mod);
+
+    while (TRUE)
+    {
+        uint16_t mid;
+        if (fread(&mid, 2, 1, modf) != 1) goto fail;
+        if (!mid) // end marker detected
+            break;
+
+        string mod_name  = strdeserialize(modf);
+        S_symbol mod_sym = S_Symbol(mod_name, FALSE);
+        if (OPT_get(OPTION_VERBOSE))
+            printf ("%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
+
+        E_module m2 = E_loadModule (mod_sym);
+        if (!m2)
+        {
+            printf ("failed to load module %s", mod_name);
+            goto fail;
+        }
+
+        TAB_enter (modTable, (void *) (intptr_t) mid, m2);
+        E_import (mod, m2);
+    }
+
+    // read types
+    while (TRUE)
+    {
+        uint32_t tuid;
+        if (fread(&tuid, 4, 1, modf) != 1) goto fail;
+        if (!tuid)              // types end marker
+            break;
+
+        Ty_ty ty = TAB_look(mod->tyTable, (void *) (intptr_t) tuid);
+        if (!ty)
+        {
+            ty = Ty_ToLoad(mod->name, tuid);
+            TAB_enter (mod->tyTable, (void *) (intptr_t) tuid, ty);
+        }
+
+        uint8_t b;
+        if (fread(&b, 1, 1, modf) != 1) goto fail;
+        ty->kind = b;
+
+        if (OPT_get(OPTION_VERBOSE))
+            printf ("%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
+
+        switch (ty->kind)
+        {
+            case Ty_darray:
+                ty->u.darray.elementTy = E_deserializeTyRef(modTable, modf);
+                break;
+
+            case Ty_sarray:
+                if (fread(&ty->u.sarray.uiSize, 4, 1, modf) != 1) goto fail;
+                ty->u.sarray.elementTy = E_deserializeTyRef(modTable, modf);
+                if (fread(&ty->u.sarray.iStart, 4, 1, modf) != 1) goto fail;
+                if (fread(&ty->u.sarray.iEnd,   4, 1, modf) != 1) goto fail;
+                Ty_computeSize(ty);
+                break;
+
+            case Ty_record:
+            {
+                if (fread(&ty->u.record.uiSize, 4, 1, modf) != 1) goto fail;
+
+                uint16_t cnt=0;
+                if (fread(&cnt, 2, 1, modf) != 1) goto fail;
+
+                ty->u.record.scope = S_beginScope();
+
+                for (int i=0; i<cnt; i++)
+                {
+
+                    uint8_t kind;
+                    if (fread(&kind, 1, 1, modf) != 1) goto fail;
+                    switch (kind)
+                    {
+                        case Ty_recMethod:
+                        {
+                            Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                            Ty_recordEntry re = Ty_Method(proc);
+                            S_enter(ty->u.record.scope, proc->name, re);
+                            break;
+                        }
+                        case Ty_recField:
+                        {
+                            uint8_t visibility;
+                            if (fread(&visibility, 1, 1, modf) != 1) goto fail;
+                            string name = strdeserialize(modf);
+                            uint32_t uiOffset = 0;
+                            if (fread(&uiOffset, 4, 1, modf) != 1) goto fail;
+                            Ty_ty t = E_deserializeTyRef(modTable, modf);
+
+                            S_symbol sym = S_Symbol(name, FALSE);
+                            Ty_recordEntry re = Ty_Field(visibility, sym, t);
+                            re->u.field.uiOffset = uiOffset;
+                            S_enter(ty->u.record.scope, sym, re);
+                            break;
+                        }
+                    }
+                }
+
+                uint8_t constructor_present;
+                if (fread(&constructor_present, 1, 1, modf) != 1) goto fail;
+                if (constructor_present)
+                    ty->u.record.constructor = E_deserializeTyProc(modTable, modf);
+                else
+                    ty->u.record.constructor = NULL;
+
+                break;
+            }
+            case Ty_pointer:
+                ty->u.pointer = E_deserializeTyRef(modTable, modf);
+                break;
+            case Ty_procPtr:
+                ty->u.procPtr = E_deserializeTyProc(modTable, modf);
+                break;
+
+            case Ty_bool:     break;
+            case Ty_byte:     break;
+            case Ty_ubyte:    break;
+            case Ty_integer:  break;
+            case Ty_uinteger: break;
+            case Ty_long:     break;
+            case Ty_ulong:    break;
+            case Ty_single:   break;
+            case Ty_double:   break;
+            case Ty_void:     break;
+            case Ty_string:   break;
+            default:
+                assert(0);
+                break;
+        }
+    }
+
+    // check type table for unresolve ToLoad entries
+    {
+        Ty_ty ty;
+        uint32_t tuid;
+
+        TAB_iter iter = TAB_Iter(mod->tyTable);
+        while (TAB_next (iter, (void *) (intptr_t) &tuid, (void *) &ty))
+        {
+            if (ty->kind == Ty_toLoad)
+            {
+                printf ("%s: toLoad type detected!\n", symfn);
+                goto fail;
+            }
+        }
+    }
+
+    // read env entries
+
+    uint8_t kind;
+    while (fread(&kind, 1, 1, modf)==1)
+    {
+        string name = strdeserialize(modf);
+        if (!name)
+        {
+            printf("%s: failed to read env entry symbol name.\n", symfn);
+            goto fail;
+        }
+        S_symbol sym = S_Symbol(name, FALSE);
+
+        if (OPT_get(OPTION_VERBOSE))
+            printf ("%s: reading env entry name=%s\n", S_name(sModule), name);
+
+        switch (kind)
+        {
+            case E_vfcEntry:
+            {
+                uint8_t k = vfcFunc;
+                if (fread(&k, 1, 1, modf)!=1)
+                {
+                    printf("%s: failed to read vcf kind field.\n", symfn);
+                    goto fail;
+                }
+                CG_item var;
+                switch (k)
+                {
+                    case vfcFunc:
+                    {
+                        Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                        if (!proc)
+                        {
+                            printf("%s: failed to read function proc.\n", symfn);
+                            goto fail;
+                        }
+                        CG_HeapPtrItem (&var, proc->label, Ty_Prc(mod->name, proc));
+                        break;
+                    }
+                    case vfcConst:
+                    {
+                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                        if (!ty)
+                        {
+                            printf("%s: failed to read const type.\n", symfn);
+                            goto fail;
+                        }
+                        Ty_const cExp;
+                        if (!E_deserializeTyConst(modTable, modf, &cExp))
+                        {
+                            printf("%s: failed to read const expression.\n", symfn);
+                            goto fail;
+                        }
+                        CG_ConstItem (&var, cExp);
+                        break;
+                    }
+                    case vfcVar:
+                    {
+                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                        if (!ty)
+                        {
+                            printf("%s: failed to read variable type.\n", symfn);
+                            goto fail;
+                        }
+                        CG_externalVar (&var, name, ty);
+                        break;
+                    }
+                }
+                E_declareVFC (mod->env, sym, &var);
+                break;
+            }
+            case E_procEntry:
+            {
+                Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                if (!proc)
+                {
+                    printf("%s: failed to read function proc.\n", symfn);
+                    goto fail;
+                }
+                E_declareSub (mod->env, sym, proc);
+                break;
+            }
+            case E_typeEntry:
+            {
+                Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                E_declareType (mod->env, sym, ty);
+                break;
+            }
+        }
+    }
+    fclose(modf);
+
+    // prepend mod to list of loaded modules (initializers will be run in inverse order later)
+    g_mlFirst = E_ModuleListNode(mod, g_mlFirst);
+
+    return mod;
+
+fail:
+    fclose(modf);
     return NULL;
 }
 
-void E_addSymPath(string path)
+void E_addModulePath(string path)
 {
     E_dirSearchPath p = U_poolAlloc (UP_env, sizeof(*p));
 
     p->path      = String(path);
     p->next      = NULL;
 
-    if (symSP)
+    if (moduleSP)
     {
-        symSPLast->next = p;
-        symSPLast = p;
+        moduleSPLast->next = p;
+        moduleSPLast = p;
     }
     else
     {
-        symSP = symSPLast = p;
+        moduleSP = moduleSPLast = p;
     }
 }
 

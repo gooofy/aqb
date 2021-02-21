@@ -2,7 +2,7 @@ include ../../../config.mk
 
 .PHONY: clean all diss
 
-all: _brt.a startup.o _brt.sym
+all: startup.o _brt.a _brt.sym
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
@@ -15,8 +15,11 @@ _brt.sym : _brt.bas
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
-_brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o
+_brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o startup.o
 	$(AR_AMIGAOS) -crs _brt.a $^
+	pushd .. && rm -f startup.o && ln -s _brt/startup.o && popd
+	cp $@ $(DISTDIR)/lib
+	cp startup.o $(DISTDIR)/lib
 
 diss: dyna.o
 	$(OBJDUMP_AMIGAOS) -S -d -x dyna.o

@@ -52,7 +52,7 @@ static void print_usage(char *argv[])
 {
 	fprintf(stderr, "usage: %s [ options ] <program.bas>\n", argv[0]);
     fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
-	fprintf(stderr, "    -L <dir>     look in <dir> for symbol files\n");
+	fprintf(stderr, "    -L <dir>     look in <dir> for modules\n");
 	fprintf(stderr, "    -O           enable optimizer\n");
 	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
@@ -114,7 +114,7 @@ int main (int argc, char *argv[])
     S_symbol_init();
 
 #ifdef __amigaos__
-    E_addSymPath("AQB:lib");
+    E_addModulePath("AQB:lib");
 #endif
 
     asm_gas_fn[0]=0;
@@ -140,7 +140,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                E_addSymPath(argv[optind]);
+                E_addModulePath(argv[optind]);
 				break;
         	case 'O':
 				OPT_set(OPTION_RACOLOR, TRUE);
@@ -222,7 +222,7 @@ int main (int argc, char *argv[])
         l = strlen(module_name);
         module_name[l-4] = 0;
 
-        E_addSymPath(dirname(String(sourcefn)));
+        E_addModulePath(dirname(String(sourcefn)));
     }
 
     /*
@@ -396,8 +396,7 @@ int main (int argc, char *argv[])
     // FIXME: unfinished, hardcoded
     LI_segmentList sl = LI_SegmentList();
 
-    //FILE *fObj = fopen("../src/lib/minbrt/prolog.o", "r");
-    FILE *fObj = fopen("../src/lib/_brt/startup.o", "r");
+    FILE *fObj = E_openModuleFile ("startup.o");
     if (!fObj)
     {
         fprintf (stderr, "*** ERROR: failed to open startup.o\n\n");

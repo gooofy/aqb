@@ -100,7 +100,8 @@ extern E_module g_builtinsModule;
 
 void       E_import(E_module mod, E_module mod2); /* import mod2 into mod's namespace                            */
 
-void       E_addSymPath(string path);             /* look for symbol files in directory <path>                   */
+void       E_addModulePath(string path);          /* look for symbol files in directory <path>                   */
+FILE      *E_openModuleFile (string filename);    /* look for <filename> in module directories                   */
 
 bool       E_saveModule(string symfn, E_module mod);
 E_module   E_loadModule(S_symbol sModule);
