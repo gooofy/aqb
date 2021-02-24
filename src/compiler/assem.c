@@ -892,17 +892,25 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
 {
     if (seg->mem_size < min_size)
     {
+        size_t s = seg->mem_size ? seg->mem_size : 256;
+        while (s<min_size)
+            s = s * 2;
         if (!seg->mem)
         {
-            seg->mem  = U_malloc (min_size);
+            seg->mem  = U_malloc (s);
+#ifdef ENABLE_DEBUG
+            printf ("link: allocating segment mem of %zd bytes\n", s);
+#endif
         }
         else
         {
-            uint8_t *mem = U_malloc (min_size);
+            uint8_t *mem = U_malloc (s);
             memcpy (mem, seg->mem, seg->mem_size);
-
-            assert(FALSE); // FIXME
+#ifdef ENABLE_DEBUG
+            printf ("link: re-allocating segment mem from %zd bytes to %zd bytes\n", seg->mem_size, s);
+#endif
         }
+        seg->mem_size = s;
     }
 }
 
@@ -1056,7 +1064,9 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
         size_t fix_loc = li->offset;
         while (fix_loc)
         {
+#ifdef ENABLE_DEBUG
             printf ("link: FIXUP label=%s at %zd -> %zd\n", S_name(label), fix_loc, offset);
+#endif
             uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
             size_t next_fix_loc = *p;
             *p = ENDIAN_SWAP_32(offset);
@@ -1341,10 +1351,15 @@ void AS_resolveLabels (AS_object obj)
         if (li->defined)
             continue;
 
+#ifdef ENABLE_DEBUG
         printf("AS_resolveLabels: XREF %s\n", S_name (l));
-        AS_segmentAddRef (seg, l, li->offset, Temp_w_L);
-        uint32_t off2 = *((uint32_t *) (seg->mem+li->offset));
-        assert (!off2); // FIXME: follow the whole chain
+#endif
+        uint32_t off = li->offset;
+        while (off)
+        {
+            AS_segmentAddRef (seg, l, off, Temp_w_L);
+            off = *((uint32_t *) (seg->mem+off));
+        }
     }
 }
 
