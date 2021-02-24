@@ -372,15 +372,75 @@ int main (int argc, char *argv[])
                 break;
             }
             case CG_stringFrag:
+                AS_assembleDataAlign2 (obj);
                 if (!AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str, frag->u.stringg.msize))
                     exit(20);
                 break;
             case CG_dataFrag:
                 if (!frag->u.data.size)
                     break;
-                assert(FALSE); // FIXME: implement
-                //if (!AS_assembleData (obj, frag->u.stringg.label, frag->u.stringg.str))
-                //    exit(21);
+                AS_assembleDataAlign2 (obj);
+                if (!AS_assembleDataLabel (obj, frag->u.data.label, frag->u.data.expt))
+                    exit(21);
+                if (frag->u.data.init)
+                {
+                    assert(FALSE); // FIXME: implement
+#if 0
+                    for (CG_dataFragNode n=frag->u.data.init; n; n=n->next)
+                    {
+                        switch (n->kind)
+                        {
+                            case CG_labelNode:
+                                fprintf(out, "%s:\n", Temp_labelstring(n->u.label));
+                                break;
+                            case CG_constNode:
+                            {
+                                Ty_const c = n->u.c;
+                                switch (c->ty->kind)
+                                {
+                                    case Ty_bool:
+                                    case Ty_byte:
+                                    case Ty_ubyte:
+                                        fprintf(out, "    dc.b %d\n", c->u.b);
+                                        break;
+                                    case Ty_uinteger:
+                                    case Ty_integer:
+                                        fprintf(out, "    dc.w %d\n", c->u.i);
+                                        break;
+                                    case Ty_long:
+                                    case Ty_ulong:
+                                    case Ty_pointer:
+                                        fprintf(out, "    dc.l %d\n", c->u.i);
+                                        break;
+                                    case Ty_single:
+                                        fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
+                                        break;
+                                    case Ty_string:
+                                        fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
+                                        break;
+                                    case Ty_sarray:
+                                    case Ty_darray:
+                                    case Ty_record:
+                                    case Ty_void:
+                                    case Ty_forwardPtr:
+                                    case Ty_prc:
+                                    case Ty_procPtr:
+                                    case Ty_toLoad:
+                                    case Ty_double:
+                                        assert(0);
+                                        break;
+                                }
+                                break;
+                            }
+                        }
+                    }
+#endif
+                }
+                else
+                {
+                    AS_assembleDataFill (obj, frag->u.data.size);
+                }
+
                 break;
             default:
                 assert(FALSE); // FIXME

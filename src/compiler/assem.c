@@ -897,7 +897,12 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
             seg->mem  = U_malloc (min_size);
         }
         else
+        {
+            uint8_t *mem = U_malloc (min_size);
+            memcpy (mem, seg->mem, seg->mem_size);
+
             assert(FALSE); // FIXME
+        }
     }
 }
 
@@ -924,6 +929,18 @@ static int32_t getConstInt (Ty_const c)
         default:
             assert(0);
     }
+}
+
+static void emit_u1 (AS_segment seg, uint8_t b)
+{
+#ifdef ENABLE_DEBUG
+    printf ("0x%08zx: 0x%02x\n", seg->mem_pos, b);
+#endif
+
+    AS_ensureSegmentSize (seg, seg->mem_pos+1);
+    uint8_t *p = (uint8_t *) (seg->mem + seg->mem_pos);
+    *p = b;
+    seg->mem_pos += 1;
 }
 
 static void emit_u2 (AS_segment seg, uint16_t w)
@@ -1009,7 +1026,16 @@ static void emit_Label (AS_segment seg, TAB_table labels, Temp_label l)
     }
     else
     {
-        assert (FALSE); // FIXME
+        if (li->defined)
+        {
+            assert (FALSE); // FIXME
+        }
+        else
+        {
+            size_t offset = seg->mem_pos;
+            emit_u4 (seg, li->offset);
+            li->offset = offset;
+        }
     }
 }
 
@@ -1186,7 +1212,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 assert (!AS_isAn(instr->dst)); // FIXME: movea
 
                 emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
-                                         /*regSrc=*/4, /*modeSrc=*/7);
+                                          /*regSrc=*/4, /*modeSrc=*/7);
                 emit_Label (seg, obj->labels, instr->label);
                 break;
 
@@ -1200,7 +1226,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
             case AS_ADD_Imm_sp:
             {
-                int c = getConstInt (instr->imm);
+                int32_t c = getConstInt (instr->imm);
 
                 if ((c>0) && (c<=8))
                     emit_ADDQ (seg, instr->w, c, /*mode=*/1, /*reg=*/7);
@@ -1209,6 +1235,20 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
                 break;
             }
+
+            case AS_MOVE_Label_AnDn: //  47 move.x  label, d6
+                assert (!AS_isAn(instr->dst)); // FIXME: movea
+                emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
+                                          /*regSrc=*/1, /*modeSrc=*/7);
+                emit_Label (seg, obj->labels, instr->label);
+                break;
+
+            case AS_MOVE_Imm_Label:  //  55 move.x  #42, label
+                emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
+                                          /*regSrc=*/4, /*modeSrc=*/7);
+                int32_t c = getConstInt (instr->imm);
+                emit_u4 (seg, c);
+                break;
 
             case AS_MOVEM_spPI_Rs:
                 emit_MOVEM (seg, instr->w, /*dr=*/1, /*mode=*/3, /*regs=*/instr->offset, /*regDst=*/7);
@@ -1230,7 +1270,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
     return TRUE;
 }
 
-bool AS_assembleString (AS_object obj, Temp_label label, string str, int msize)
+bool AS_assembleString (AS_object obj, Temp_label label, string str, size_t msize)
 {
     AS_segment seg = obj->dataSeg;
 
@@ -1239,10 +1279,10 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str, int msize)
 
     AS_ensureSegmentSize (seg, seg->mem_pos+msize);
 
-    int wc = msize/4;
+    size_t wc = msize/4;
     uint32_t *p = (uint32_t*) str;
     uint32_t *q = (uint32_t*) (seg->mem+seg->mem_pos);
-    for (int i=0; i<wc; i++)
+    for (size_t i=0; i<wc; i++)
     {
         *q = ENDIAN_SWAP_32(*p);
         q++;
@@ -1252,6 +1292,39 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str, int msize)
     seg->mem_pos += msize;
 
     return TRUE;
+}
+
+void AS_assembleDataAlign2 (AS_object o)
+{
+    AS_segment seg = o->dataSeg;
+    if (!(seg->mem_pos % 2))
+        emit_u1 (seg, 0);
+}
+
+bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt)
+{
+    if (!defineLabel (o, label, o->dataSeg, o->dataSeg->mem_pos, expt))
+        return FALSE;
+    return TRUE;
+}
+
+void AS_assembleDataFill (AS_object o, size_t size)
+{
+    size_t done = 0;
+    while ((done+4)<size)
+    {
+        emit_u4(o->dataSeg, 0);
+        done += 4;
+    }
+    size_t r = size-done;
+    if (r>=2)
+    {
+        emit_u2(o->dataSeg, 0);
+        done += 2;
+    }
+    r = size-done;
+    if (r)
+        emit_u1(o->dataSeg, 0);
 }
 
 void AS_resolveLabels (AS_object obj)

@@ -38,4 +38,11 @@ ${LD_AMIGAOS}    ../src/lib/_brt/startup.o foo_gnu.o ../src/lib/_brt/_brt.a -o f
 /home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-objdump -x -d -r foo_gnu.bin &>foo_gnu.dump
 #${IRA} -a foo_gnu.bin
 
+#
+# run binary in vamos
+#
+
+echo
+echo "vamos foo"
+vamos foo
 

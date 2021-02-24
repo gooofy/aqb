@@ -4160,10 +4160,10 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
         switch (dialect)
         {
             case AS_dialect_gas:
-                fprintf(out, "    .fill %d\n", df->u.data.size);
+                fprintf(out, "    .fill %zd\n", df->u.data.size);
                 break;
             case AS_dialect_ASMPro:
-                fprintf(out, "    DS.B  %d\n", df->u.data.size);
+                fprintf(out, "    DS.B  %zd\n", df->u.data.size);
                 break;
             default:
                 assert(FALSE);
