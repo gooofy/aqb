@@ -1307,7 +1307,7 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str, size_t msiz
 void AS_assembleDataAlign2 (AS_object o)
 {
     AS_segment seg = o->dataSeg;
-    if (!(seg->mem_pos % 2))
+    if (seg->mem_pos % 2)
         emit_u1 (seg, 0);
 }
 
