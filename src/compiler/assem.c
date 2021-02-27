@@ -1089,10 +1089,10 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
         while (fix_loc)
         {
 #ifdef ENABLE_DEBUG
-            printf ("link: FIXUP label=%s at %zd -> %zd\n", S_name(label), fix_loc, offset);
+            printf ("link: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
 #endif
             uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
-            size_t next_fix_loc = *p;
+            size_t next_fix_loc = ENDIAN_SWAP_32(*p);
             *p = ENDIAN_SWAP_32(offset);
             AS_segmentAddReloc32 (codeSeg, seg, fix_loc);
             fix_loc = next_fix_loc;
@@ -1407,7 +1407,7 @@ void AS_resolveLabels (AS_object obj)
         while (off)
         {
             AS_segmentAddRef (seg, l, off, Temp_w_L);
-            off = *((uint32_t *) (seg->mem+off));
+            off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
         }
     }
 }

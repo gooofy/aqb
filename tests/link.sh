@@ -42,7 +42,7 @@ ${LD_AMIGAOS}    ../src/lib/_brt/startup.o foo_gnu.o ../src/lib/_brt/_brt.a -o f
 # run binary in vamos
 #
 
-echo
-echo "vamos foo"
-vamos foo
+# echo
+# echo "vamos foo"
+# vamos foo
 
