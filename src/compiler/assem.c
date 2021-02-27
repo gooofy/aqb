@@ -1165,6 +1165,28 @@ static void emit_JSR (AS_segment seg, int mode, int reg)
     emit_u2 (seg, code);
 }
 
+static void emit_CMP (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int modeSrc)
+{
+    assert(FALSE); // FIXME
+#if 0
+    uint16_t code = 0xb000;
+    switch (w)
+    {
+        case Temp_w_B: code |= 0; break;
+        case Temp_w_W: code |= 0x3000; break;
+        case Temp_w_L: code |= 0x2000; break;
+        default: assert(FALSE);
+    }
+
+    code |= regDst  << 9;
+    code |= modeDst << 6;
+    code |= regSrc      ;
+    code |= modeSrc << 3;
+
+    emit_u2 (seg, code);
+#endif
+}
+
 static void emit_MOVE (AS_segment seg, enum Temp_w w, int regDst, int modeDst, int regSrc, int modeSrc)
 {
     uint16_t code = 0x0000;
@@ -1254,6 +1276,13 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 break;
             }
 
+            case AS_CMP_Dn_Dn:              //  21 cmp.x   d0, d7
+            {
+                assert (!AS_isAn(instr->dst)); // FIXME: cmpa
+                emit_CMP (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0,
+                                         /*regSrc=*/Temp_num(instr->src) - AS_TEMP_D0, /*modeSrc=*/0);
+                break;
+            }
             case AS_LINK_fp:                // LINK.W  A5,#-40         ;0104: 4e55ffd8
                 emit_u2 (seg, 0x4e55);
                 emit_i2 (seg, instr->offset);
@@ -1276,6 +1305,16 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_Label (seg, obj->labels, instr->label);
                 break;
 
+            case AS_MOVE_Imm_AnDn:           //  38 move.x  #23, d0
+            {
+                bool isAn = AS_isAn(instr->dst);
+                assert (!isAn); // FIXME: movea
+
+                emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
+                                          /*regSrc=*/4, /*modeSrc=*/7);
+                emit_Imm (seg, instr->w, instr->imm);
+                break;
+            }
             case AS_MOVE_AnDn_PDsp:         //  MOVE.L  D2,-(A7)        ;0034: 2f02
             {
                 bool isAn = AS_isAn(instr->src);
