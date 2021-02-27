@@ -951,6 +951,18 @@ static void emit_u1 (AS_segment seg, uint8_t b)
     seg->mem_pos += 1;
 }
 
+static void emit_i1 (AS_segment seg, int8_t b)
+{
+#ifdef ENABLE_DEBUG
+    printf ("0x%08zx: 0x%02x\n", seg->mem_pos, b);
+#endif
+
+    AS_ensureSegmentSize (seg, seg->mem_pos+1);
+    int8_t *p = (int8_t *) (seg->mem + seg->mem_pos);
+    *p = b;
+    seg->mem_pos += 1;
+}
+
 static void emit_u2 (AS_segment seg, uint16_t w)
 {
 #ifdef ENABLE_DEBUG
@@ -983,6 +995,18 @@ static void emit_u4 (AS_segment seg, uint32_t w)
 
     AS_ensureSegmentSize (seg, seg->mem_pos+4);
     uint32_t *p = (uint32_t *) (seg->mem + seg->mem_pos);
+    *p = ENDIAN_SWAP_32(w);
+    seg->mem_pos += 4;
+}
+
+static void emit_i4 (AS_segment seg, int32_t w)
+{
+#ifdef ENABLE_DEBUG
+    printf ("0x%08zx: 0x%08x\n", seg->mem_pos, w);
+#endif
+
+    AS_ensureSegmentSize (seg, seg->mem_pos+4);
+    int32_t *p = (int32_t *) (seg->mem + seg->mem_pos);
     *p = ENDIAN_SWAP_32(w);
     seg->mem_pos += 4;
 }
@@ -1089,6 +1113,32 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
     return TRUE;
 }
 
+static void emit_Imm (AS_segment seg, enum Temp_w w, Ty_const imm)
+{
+    switch (w)
+    {
+        case Temp_w_B:
+        {
+            int8_t c = getConstInt (imm);
+            emit_i1 (seg, c);
+            break;
+        }
+        case Temp_w_W:
+        {
+            int16_t c = getConstInt (imm);
+            emit_i2 (seg, c);
+            break;
+        }
+        case Temp_w_L:
+        {
+            int32_t c = getConstInt (imm);
+            emit_i4 (seg, c);
+            break;
+        }
+        default:
+            assert(FALSE);
+    }
+}
 
 static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
 {
@@ -1256,10 +1306,9 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             case AS_MOVE_Imm_Label:  //  55 move.x  #42, label
                 emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
                                           /*regSrc=*/4, /*modeSrc=*/7);
-                int32_t c = getConstInt (instr->imm);
-                emit_u4 (seg, c);
+                emit_Imm (seg, instr->w, instr->imm);
+                emit_Label (seg, obj->labels, instr->label);
                 break;
-
             case AS_MOVEM_spPI_Rs:
                 emit_MOVEM (seg, instr->w, /*dr=*/1, /*mode=*/3, /*regs=*/instr->offset, /*regDst=*/7);
                 break;
@@ -1308,7 +1357,7 @@ void AS_assembleDataAlign2 (AS_object o)
 {
     AS_segment seg = o->dataSeg;
     if (seg->mem_pos % 2)
-        emit_u1 (seg, 0);
+        emit_u1 (seg, 0x0);
 }
 
 bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt)
