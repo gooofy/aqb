@@ -1045,30 +1045,59 @@ static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
     0x0100  // d7
 };
 
-static void emit_Label (AS_segment seg, TAB_table labels, Temp_label l)
+static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool displacement)
 {
     AS_labelInfo li = TAB_look (labels, l);
     if (!li)
     {
         li = U_poolAlloc (UP_assem, sizeof (*li));
-        li->defined = FALSE;
-        li->offset = seg->mem_pos;
+
+        li->defined      = FALSE;
+        li->displacement = displacement;
+        li->offset       = seg->mem_pos;
+
         TAB_enter (labels, l, li);
-        emit_u4 (seg, 0);
+
+        if (displacement)
+            emit_u2 (seg, 0);
+        else
+            emit_u4 (seg, 0);
     }
     else
     {
         if (li->defined)
         {
-            assert (FALSE); // FIXME
+            if (displacement)
+            {
+                int32_t o = li->offset - seg->mem_pos;
+                if ((o>32767) || (o<-32768))
+                {
+                    fprintf (stderr, "branch offset out of bounds\n");
+                    return FALSE;
+                }
+                emit_i2 (seg, (int16_t) o);
+            }
+            else
+            {
+                emit_u4 (seg, li->offset);
+            }
         }
         else
         {
             size_t offset = seg->mem_pos;
-            emit_u4 (seg, li->offset);
+            if (displacement)
+            {
+                assert (li->offset < 65535); // FIXME
+                emit_u2 (seg, li->offset);
+            }
+            else
+            {
+                emit_u4 (seg, li->offset);
+            }
             li->offset = offset;
         }
     }
+    return TRUE;
 }
 
 static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t offset, bool expt)
@@ -1091,16 +1120,28 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
 #ifdef ENABLE_DEBUG
             printf ("link: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
 #endif
-            uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
-            size_t next_fix_loc = ENDIAN_SWAP_32(*p);
-            *p = ENDIAN_SWAP_32(offset);
-            AS_segmentAddReloc32 (codeSeg, seg, fix_loc);
+            size_t next_fix_loc = 0;
+            if (li->displacement)
+            {
+                uint16_t *p = (uint16_t *) (codeSeg->mem+fix_loc);
+                next_fix_loc = ENDIAN_SWAP_16(*p);
+                uint16_t o = (uint16_t) (offset-fix_loc);
+                *p = ENDIAN_SWAP_16(o);
+            }
+            else
+            {
+                uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
+                next_fix_loc = ENDIAN_SWAP_32(*p);
+                *p = ENDIAN_SWAP_32(offset);
+                AS_segmentAddReloc32 (codeSeg, seg, fix_loc);
+            }
             fix_loc = next_fix_loc;
         }
     }
     else
     {
         li = U_poolAlloc (UP_assem, sizeof (*li));
+        li->displacement = FALSE;
         TAB_enter (obj->labels, label, li);
     }
 
@@ -1140,6 +1181,24 @@ static void emit_Imm (AS_segment seg, enum Temp_w w, Ty_const imm)
     }
 }
 
+static void emit_ADD (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int modeSrc)
+{
+    uint16_t code = 0xd000;
+    switch (w)
+    {
+        case Temp_w_B: break;
+        case Temp_w_W: code |= (1 << 6) ; break;
+        case Temp_w_L: code |= (2 << 6) ; break;
+        default: assert(FALSE);
+    }
+
+    code |= regDst  << 9;
+    code |= regSrc      ;
+    code |= modeSrc << 3;
+
+    emit_u2 (seg, code);
+}
+
 static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
 {
     //   ADDQ.L  #4,A7           ;003c: 588f
@@ -1165,26 +1224,27 @@ static void emit_JSR (AS_segment seg, int mode, int reg)
     emit_u2 (seg, code);
 }
 
+static void emit_Bcc (AS_segment seg, uint16_t cc)
+{
+    emit_u2 (seg, 0x6000 | (cc << 8));
+}
+
 static void emit_CMP (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int modeSrc)
 {
-    assert(FALSE); // FIXME
-#if 0
     uint16_t code = 0xb000;
     switch (w)
     {
-        case Temp_w_B: code |= 0; break;
-        case Temp_w_W: code |= 0x3000; break;
-        case Temp_w_L: code |= 0x2000; break;
+        case Temp_w_B: break;
+        case Temp_w_W: code |= (1 << 6); break;
+        case Temp_w_L: code |= (2 << 6); break;
         default: assert(FALSE);
     }
 
     code |= regDst  << 9;
-    code |= modeDst << 6;
     code |= regSrc      ;
     code |= modeSrc << 3;
 
     emit_u2 (seg, code);
-#endif
 }
 
 static void emit_MOVE (AS_segment seg, enum Temp_w w, int regDst, int modeDst, int regSrc, int modeSrc)
@@ -1276,6 +1336,29 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 break;
             }
 
+            case AS_ADD_Imm_AnDn:    //   2 add.x   #42, d2
+                assert (!AS_isAn(instr->dst)); // FIXME: adda
+                emit_ADD(seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*regSrc=*/4, /*modeSrc=*/7);
+                emit_Imm (seg, instr->w, instr->imm);
+                break;
+
+            case AS_BEQ: emit_Bcc (seg, /*cc=*/ 7); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BNE: emit_Bcc (seg, /*cc=*/ 6); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BLT: emit_Bcc (seg, /*cc=*/13); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BGT: emit_Bcc (seg, /*cc=*/14); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BLE: emit_Bcc (seg, /*cc=*/15); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BGE: emit_Bcc (seg, /*cc=*/12); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BLO: emit_Bcc (seg, /*cc=*/ 5); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BHI: emit_Bcc (seg, /*cc=*/ 2); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BLS: emit_Bcc (seg, /*cc=*/ 3); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+            case AS_BHS: emit_Bcc (seg, /*cc=*/ 4); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
+
+            case AS_BRA:                    //  20 bra     label
+                emit_u2 (seg, 0x6000);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE))
+                    return FALSE;
+                break;
+
             case AS_CMP_Dn_Dn:              //  21 cmp.x   d0, d7
             {
                 assert (!AS_isAn(instr->dst)); // FIXME: cmpa
@@ -1294,15 +1377,8 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
             case AS_JSR_Label:              //  JSR LAB_019D        ;00b2: 4eb9000032a4
                 emit_JSR (seg, /*mode=*/7, /*reg=*/1);
-                emit_Label (seg, obj->labels, instr->label);
-                break;
-
-            case AS_MOVE_ILabel_AnDn:       // MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
-                assert (!AS_isAn(instr->dst)); // FIXME: movea
-
-                emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
-                                          /*regSrc=*/4, /*modeSrc=*/7);
-                emit_Label (seg, obj->labels, instr->label);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
                 break;
 
             case AS_MOVE_Imm_AnDn:           //  38 move.x  #23, d0
@@ -1313,6 +1389,27 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
                                           /*regSrc=*/4, /*modeSrc=*/7);
                 emit_Imm (seg, instr->w, instr->imm);
+                break;
+            }
+
+            case AS_MOVE_ILabel_AnDn:       // MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
+            {
+                bool isAn = AS_isAn(instr->dst);
+                assert (!isAn); // FIXME
+                emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
+                                          /*regSrc=*/4, /*modeSrc=*/7);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
+                break;
+            }
+            case AS_MOVE_AnDn_Label:         //  49 move.x  d6, label
+            {
+                bool isAn = AS_isAn(instr->src);
+                assert (!isAn); // FIXME
+                emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
+                                          /*regSrc=*/Temp_num(instr->src) - AS_TEMP_D0, /*modeSrc=*/0);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
                 break;
             }
             case AS_MOVE_AnDn_PDsp:         //  MOVE.L  D2,-(A7)        ;0034: 2f02
@@ -1339,14 +1436,16 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 assert (!AS_isAn(instr->dst)); // FIXME: movea
                 emit_MOVE (seg, instr->w, /*regDst=*/Temp_num(instr->dst) - AS_TEMP_D0, /*modeDst=*/0,
                                           /*regSrc=*/1, /*modeSrc=*/7);
-                emit_Label (seg, obj->labels, instr->label);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
                 break;
 
             case AS_MOVE_Imm_Label:  //  55 move.x  #42, label
                 emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
                                           /*regSrc=*/4, /*modeSrc=*/7);
                 emit_Imm (seg, instr->w, instr->imm);
-                emit_Label (seg, obj->labels, instr->label);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
                 break;
             case AS_MOVEM_spPI_Rs:
                 emit_MOVEM (seg, instr->w, /*dr=*/1, /*mode=*/3, /*regs=*/instr->offset, /*regDst=*/7);
@@ -1438,6 +1537,8 @@ void AS_resolveLabels (AS_object obj)
     {
         if (li->defined)
             continue;
+
+        assert (!li->displacement);
 
 #ifdef ENABLE_DEBUG
         printf("AS_resolveLabels: XREF %s\n", S_name (l));
