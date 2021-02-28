@@ -778,16 +778,17 @@ void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
     TAB_enter (seg->relocs, seg_to, reloc);
 }
 
-void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w)
+void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size)
 {
     if (!seg->refs)
         seg->refs = TAB_empty();
 
     AS_segmentRef ref = U_poolAlloc (UP_assem, sizeof(*ref));
 
-    ref->offset = off;
-    ref->w      = w;
-    ref->next   = NULL;
+    ref->offset      = off;
+    ref->w           = w;
+    ref->common_size = common_size;
+    ref->next        = NULL;
 
     AS_segmentRef prev = TAB_look (seg->refs, sym);
     if (prev)
@@ -1505,23 +1506,23 @@ bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt)
     return TRUE;
 }
 
-void AS_assembleDataFill (AS_object o, size_t size)
+void AS_assembleDataFill (AS_segment seg, size_t size)
 {
     size_t done = 0;
     while ((done+4)<size)
     {
-        emit_u4(o->dataSeg, 0);
+        emit_u4(seg, 0);
         done += 4;
     }
     size_t r = size-done;
     if (r>=2)
     {
-        emit_u2(o->dataSeg, 0);
+        emit_u2(seg, 0);
         done += 2;
     }
     r = size-done;
     if (r)
-        emit_u1(o->dataSeg, 0);
+        emit_u1(seg, 0);
 }
 
 void AS_resolveLabels (AS_object obj)
@@ -1546,7 +1547,7 @@ void AS_resolveLabels (AS_object obj)
         uint32_t off = li->offset;
         while (off)
         {
-            AS_segmentAddRef (seg, l, off, Temp_w_L);
+            AS_segmentAddRef (seg, l, off, Temp_w_L, /*common_size=*/0);
             off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
         }
     }

@@ -9,12 +9,14 @@
 
 OPTION EXPLICIT
 
+PRINT "Hello, World!"
+
 ' Dim GRID(10,20)
 ' Dim rx(4,4):Dim ry(4,4)
 ' Dim PIECEX(4)
 ' Dim PIECEY(4)
 
-STARTSCREEN:
+' STARTSCREEN:
 
 ' For X=0 To 9
 ' For Y=0 To 19
@@ -26,16 +28,16 @@ STARTSCREEN:
 
 ' COLOR 7,1
 
-WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+' WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
 
 ' =========================================
 ' INPUT TEST
 ' =========================================
 
-DIM AS STRING str
+' DIM AS STRING str
 
-INPUT "Please enter str: ";str
-PRINT "You entered: ";str
+' INPUT "Please enter str: ";str
+' PRINT "You entered: ";str
 
 'DIM AS INTEGER a, b
 'DIM AS UINTEGER u
@@ -65,8 +67,8 @@ PRINT "You entered: ";str
 ' INPUT TEST ENDS
 ' =========================================
 
-WHILE INKEY$() = ""
-WEND
+'WHILE INKEY$() = ""
+'WEND
 
 
 'DIM AS INTEGER level=0

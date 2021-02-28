@@ -291,6 +291,7 @@ struct AS_segmentRef_
 {
     uint32_t          offset;
     enum Temp_w       w;
+    size_t            common_size;
     AS_segmentRef     next;
 };
 
@@ -319,17 +320,17 @@ struct AS_object_
 AS_segment         AS_Segment            (AS_segKind kind, size_t initial_size);
 
 void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
-void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w);
+void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size);
 void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
 
 AS_object          AS_Object             (void);
 
-bool               AS_assembleCode       (AS_object o, AS_instrList il, bool expt);
-bool               AS_assembleString     (AS_object o, Temp_label label, string str, size_t msize);
-void               AS_assembleDataAlign2 (AS_object o);
-bool               AS_assembleDataLabel  (AS_object o, Temp_label label, bool expt);
-void               AS_assembleDataFill   (AS_object o, size_t size);
+bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt);
+bool               AS_assembleString     (AS_object  o, Temp_label label, string str, size_t msize);
+void               AS_assembleDataAlign2 (AS_object  o);
+bool               AS_assembleDataLabel  (AS_object  o, Temp_label label, bool expt);
+void               AS_assembleDataFill   (AS_segment seg, size_t size);
 
 void               AS_resolveLabels      (AS_object o);
 

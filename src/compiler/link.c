@@ -19,6 +19,7 @@
 
 #define EXT_TYPE_DEF            1
 #define EXT_TYPE_REF32        129
+#define EXT_TYPE_COMMON       130
 
 #define MAX_BUF              1024
 #define MAX_NUM_HUNKS          16
@@ -327,7 +328,34 @@ static bool load_hunk_ext(FILE *f)
                         return FALSE;
                     }
 
-                    AS_segmentAddRef (g_hunk_cur, sym, offset, Temp_w_L);
+                    AS_segmentAddRef (g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/0);
+                }
+                break;
+            }
+            case EXT_TYPE_COMMON:
+            {
+                uint32_t common_size;
+                if (!fread_u4 (f, &common_size))
+                {
+                    fprintf (stderr, "link: read error.\n");
+                    return FALSE;
+                }
+                uint32_t num_refs;
+                if (!fread_u4 (f, &num_refs))
+                {
+                    fprintf (stderr, "link: read error.\n");
+                    return FALSE;
+                }
+                for (uint32_t i=0; i<num_refs; i++)
+                {
+                    uint32_t offset;
+                    if (!fread_u4 (f, &offset))
+                    {
+                        fprintf (stderr, "link: read error.\n");
+                        return FALSE;
+                    }
+
+                    AS_segmentAddRef (g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/common_size);
                 }
                 break;
             }
@@ -479,6 +507,8 @@ bool LI_link (LI_segmentList sl)
 
     // pass 2: resolve external references
 
+    AS_segment commonSeg = NULL;
+
     for (LI_segmentListNode node = sl->first; node; node=node->next)
     {
         if (!node->seg->refs)
@@ -491,9 +521,27 @@ bool LI_link (LI_segmentList sl)
             symInfo si = TAB_look (symTable, sym);
             if (!si)
             {
-                fprintf (stderr, "link: *** ERROR: unresolved symbol %s\n\n", S_name(sym));
-                return FALSE;
+                if (!sr->common_size)
+                {
+                    fprintf (stderr, "link: *** ERROR: unresolved symbol %s\n\n", S_name(sym));
+                    return FALSE;
+                }
+                if (!commonSeg)
+                {
+                    commonSeg = AS_Segment (AS_dataSeg, 0);
+                    commonSeg->hunk_id = hunk_id++;
+                    LI_segmentListAppend (sl, commonSeg);
+                }
+
+                si = U_poolAlloc (UP_link, sizeof(*si));
+                si->seg    = commonSeg;
+                si->offset = commonSeg->mem_pos;
+
+                TAB_enter (symTable, sym, si);
+
+                AS_assembleDataFill (commonSeg, sr->common_size);
             }
+
             assert (sr->w == Temp_w_L); // FIXME
 
             while (sr)

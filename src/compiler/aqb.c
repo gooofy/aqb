@@ -438,7 +438,7 @@ int main (int argc, char *argv[])
                 }
                 else
                 {
-                    AS_assembleDataFill (obj, frag->u.data.size);
+                    AS_assembleDataFill (obj->dataSeg, frag->u.data.size);
                 }
 
                 break;
@@ -473,19 +473,23 @@ int main (int argc, char *argv[])
     if (obj->dataSeg)
         LI_segmentListAppend (sl, obj->dataSeg);
 
-    // FIXME: unfinished, hardcoded
-    fObj = E_openModuleFile ("_brt.a");
-    if (!fObj)
+    for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
     {
-        fprintf (stderr, "*** ERROR: failed to open _brt.a\n\n");
-        exit(25);
-    }
-    if (!LI_segmentListReadObjectFile (sl, fObj))
-    {
+        static char mod_fn[PATH_MAX];
+        snprintf (mod_fn, PATH_MAX, "%s.a", S_name (n->m->name));
+        fObj = E_openModuleFile (mod_fn);
+        if (!fObj)
+        {
+            fprintf (stderr, "*** ERROR: failed to open %s\n\n", mod_fn);
+            exit(25);
+        }
+        if (!LI_segmentListReadObjectFile (sl, fObj))
+        {
+            fclose(fObj);
+            exit(26);
+        }
         fclose(fObj);
-        exit(26);
     }
-    fclose(fObj);
 
     if (!LI_link (sl))
     {

@@ -12,7 +12,7 @@ all: _aqb.a _aqb.sym
 
 _aqb.sym : _aqb.bas
 	$(AQB) -L .. -d _brt -s _aqb.sym $<
-	pushd .. && rm -f _aqb.sym && ln -s _aqb/_aqb.sym && popd
+	pushd .. && rm -f _aqb.sym _aqb.a && ln -s _aqb/_aqb.sym && ln -s _aqb/_aqb.a && popd
 	cp $< $(DISTDIR)/libsrc
 
 _aqb.a: awindow.o _aqb.o aio.o
