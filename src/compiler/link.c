@@ -29,6 +29,21 @@ static AS_segment g_hunk_table[MAX_NUM_HUNKS]; // used during hunk object loadin
 static int        g_hunk_id_cnt;
 static AS_segment g_hunk_cur;                  // last code/data/bss hunk read
 
+#ifdef ENABLE_DEBUG
+static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
+{
+    printf ("HEX: 0x%08x  ", offset);
+    uint32_t cnt=0;
+    while (cnt<num_bytes)
+    {
+        uint32_t w = *( (uint32_t *) (mem+offset+cnt) );
+        printf (" 0x%08x", ENDIAN_SWAP_32(w));
+        cnt+=4;
+    }
+    printf ("\n");
+}
+#endif
+
 LI_segmentList LI_SegmentList(void)
 {
     LI_segmentList sl = U_poolAlloc (UP_link, sizeof(*sl));
@@ -201,6 +216,9 @@ static bool load_hunk_data(FILE *f)
         fprintf (stderr, "link: read error.\n");
         return FALSE;
     }
+#ifdef ENABLE_DEBUG
+    //hexdump (g_hunk_cur->mem, 0, data_len);
+#endif
     g_hunk_cur->mem_pos = data_len;
 
     return TRUE;
@@ -465,21 +483,6 @@ struct symInfo_
     uint32_t    offset;
 };
 
-#ifdef ENABLE_DEBUG
-static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
-{
-    printf ("HEX: 0x%08x  ", offset);
-    uint32_t cnt=0;
-    while (cnt<num_bytes)
-    {
-        uint32_t w = *( (uint32_t *) (mem+offset+cnt) );
-        printf (" 0x%08x", ENDIAN_SWAP_32(w));
-        cnt+=4;
-    }
-    printf ("\n");
-}
-#endif
-
 bool LI_link (LI_segmentList sl)
 {
     TAB_table symTable = TAB_empty();   // S_symbol -> symInfo
@@ -536,6 +539,9 @@ bool LI_link (LI_segmentList sl)
                 si = U_poolAlloc (UP_link, sizeof(*si));
                 si->seg    = commonSeg;
                 si->offset = commonSeg->mem_pos;
+#ifdef ENABLE_DEBUG
+                printf ("link: symbol %s allocated in common segment at offset 0x%08x, common_size=%zd\n", S_name(sym), si->offset, sr->common_size);
+#endif
 
                 TAB_enter (symTable, sym, si);
 
@@ -632,23 +638,11 @@ bool write_hunk_code (AS_segment seg, FILE *f)
         fprintf (stderr, "link: write error.\n");
         return FALSE;
     }
-#if 1
     if (fwrite (seg->mem, n*4, 1, f) != 1)
     {
         fprintf (stderr, "link: write error.\n");
         return FALSE;
     }
-#else
-    uint32_t *p = (uint32_t *) seg->mem;
-    for (uint32_t i =0; i<n; i++)
-    {
-        if (!fwrite_u4 (f, *p++))
-        {
-            fprintf (stderr, "link: write error.\n");
-            return FALSE;
-        }
-    }
-#endif
     return TRUE;
 }
 
@@ -666,14 +660,10 @@ bool write_hunk_data (AS_segment seg, FILE *f)
         fprintf (stderr, "link: write error.\n");
         return FALSE;
     }
-    uint32_t *p = (uint32_t *) seg->mem;
-    for (uint32_t i =0; i<n; i++)
+    if (fwrite (seg->mem, n*4, 1, f) != 1)
     {
-        if (!fwrite_u4 (f, *p++))
-        {
-            fprintf (stderr, "link: write error.\n");
-            return FALSE;
-        }
+        fprintf (stderr, "link: write error.\n");
+        return FALSE;
     }
     return TRUE;
 }

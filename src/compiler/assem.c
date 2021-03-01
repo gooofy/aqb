@@ -907,6 +907,7 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
         {
             uint8_t *mem = U_malloc (s);
             memcpy (mem, seg->mem, seg->mem_size);
+            seg->mem = mem;
 #ifdef ENABLE_DEBUG
             printf ("link: re-allocating segment mem from %zd bytes to %zd bytes\n", seg->mem_size, s);
 #endif
@@ -1477,15 +1478,7 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str, size_t msiz
 
     AS_ensureSegmentSize (seg, seg->mem_pos+msize);
 
-    size_t wc = msize/4;
-    uint32_t *p = (uint32_t*) str;
-    uint32_t *q = (uint32_t*) (seg->mem+seg->mem_pos);
-    for (size_t i=0; i<wc; i++)
-    {
-        *q = ENDIAN_SWAP_32(*p);
-        q++;
-        p++;
-    }
+    memcpy (seg->mem+seg->mem_pos, str, msize);
 
     seg->mem_pos += msize;
 
@@ -1509,7 +1502,7 @@ bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt)
 void AS_assembleDataFill (AS_segment seg, size_t size)
 {
     size_t done = 0;
-    while ((done+4)<size)
+    while ((done+4)<=size)
     {
         emit_u4(seg, 0);
         done += 4;

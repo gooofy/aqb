@@ -573,9 +573,15 @@ static void do_scroll(void)
 
 void _aio_puts(const char *s)
 {
+    //_debug_puts("_aio_puts\n");
+
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
-        Write(g_stdout, (CONST APTR) s, len_(s));
+        //_debug_puts("_aio_puts: stdout\n");
+        ULONG l = len_(s);
+        //_debug_puts("_aio_puts: l=");_debug_putu4(l); _debug_putnl();
+        //_debug_puts("_aio_puts: g_stdout=");_debug_putu4((ULONG) g_stdout); _debug_putnl();
+        Write(g_stdout, (CONST APTR) s, l);
         return;
     }
 

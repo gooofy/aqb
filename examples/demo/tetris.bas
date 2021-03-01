@@ -9,6 +9,8 @@
 
 OPTION EXPLICIT
 
+_debug_puts "HUBBA" : _debug_putnl
+
 PRINT "Hello, World!"
 
 ' Dim GRID(10,20)
