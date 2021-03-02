@@ -9,9 +9,11 @@
 
 OPTION EXPLICIT
 
-_debug_puts "HUBBA" : _debug_putnl
-
 PRINT "Hello, World!"
+
+DIM AS SINGLE startTime = TIMER()
+
+PRINT "startTime=";startTime
 
 ' Dim GRID(10,20)
 ' Dim rx(4,4):Dim ry(4,4)
@@ -30,50 +32,49 @@ PRINT "Hello, World!"
 
 ' COLOR 7,1
 
-' WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
 
-' =========================================
-' INPUT TEST
-' =========================================
+CLS
 
-' DIM AS STRING str
+LOCATE  4, 14 : PRINT "Welcome to"
+LOCATE  8, 14 : PRINT "AQB TETRIS"
+LOCATE 12,  4 : PRINT "Based on COLOUR MAXIMITE TETRIS"
+LOCATE 14, 12 : PRINT "By David Murray"
+LOCATE 16,  6 : PRINT "AQB port by Guenter Bartsch"
 
-' INPUT "Please enter str: ";str
-' PRINT "You entered: ";str
+LOCATE 18, 1 : PRINT "Please enter level difficulty between 1-10"
+PRINT "default being 2, 10 being ridiculous, Good Luck!"
 
-'DIM AS INTEGER a, b
-'DIM AS UINTEGER u
-'DIM AS LONG l
-'DIM AS ULONG ul
-'DIM AS SINGLE s
-'
-'INPUT "Please enter a: ";a
-'PRINT "You entered: ";a
-'
-'INPUT "Please enter a, b: ";a,b
-'PRINT "You entered: ";a,b
-'
-'INPUT "Please enter u: ";u
-'PRINT "You entered: ";u
-'
-'INPUT "Please enter l: ";l
-'PRINT "You entered: ";l
-'
-'INPUT "Please enter ul: ";ul
-'PRINT "You entered: ";ul
-'
-'INPUT "Please enter s: ";s
-'PRINT "You entered: ";s
+DIM AS INTEGER t1=0
 
-' =========================================
-' INPUT TEST ENDS
-' =========================================
+WHILE t1=0
+    DIM AS STRING key = INKEY$
 
-'WHILE INKEY$() = ""
-'WEND
+    IF key = "" THEN
+
+        SLEEP
+
+    ELSE
+
+        SELECT CASE ASC(key)
+            CASE 48    : t1= 50 : REM key 0
+            CASE 49    : t1=500 : REM key 1
+            CASE 50, 13: t1=450 : REM key 2 or enter
+            CASE 51    : t1=400 : REM key 3
+            CASE 52    : t1=350 : REM key 4
+            CASE 53    : t1=300 : REM key 5
+            CASE 54    : t1=250 : REM key 6
+            CASE 55    : t1=200 : REM key 7
+            CASE 56    : t1=150 : REM key 8
+            CASE 57    : t1=100 : REM key 9
+        END SELECT
+
+        ' FIXME: IF Timer>=350 Then GoSub PREVIEW:Timer=0
+
+    END IF
+WEND
 
 
-'DIM AS INTEGER level=0
 '
 'WHILE level<1 OR level >10
 '

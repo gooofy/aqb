@@ -578,7 +578,7 @@ void _aio_puts(const char *s)
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
         //_debug_puts("_aio_puts: stdout\n");
-        ULONG l = len_(s);
+        ULONG l = LEN_(s);
         //_debug_puts("_aio_puts: l=");_debug_putu4(l); _debug_putnl();
         //_debug_puts("_aio_puts: g_stdout=");_debug_putu4((ULONG) g_stdout); _debug_putnl();
         Write(g_stdout, (CONST APTR) s, l);
@@ -688,11 +688,11 @@ void LOCATE (short l, short c)
         char buf[20];
         buf[0] = CSI;
         _astr_itoa_ext(l, &buf[1], 10, /*leading_space=*/FALSE);
-        int l = len_(buf);
+        int l = LEN_(buf);
         buf[l] = ';';
         l++;
         _astr_itoa_ext(c, &buf[l], 10, /*leading_space=*/FALSE);
-        l = len_(buf);
+        l = LEN_(buf);
         buf[l] = 'H';
         buf[l+1] = 0;
 
@@ -735,7 +735,7 @@ void _aio_set_dos_cursor_visible (BOOL visible)
     static char csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
 
     char *c = visible ? csr_on : csr_off;
-    Write(g_stdout, (CONST APTR) c, len_(c));
+    Write(g_stdout, (CONST APTR) c, LEN_(c));
 }
 
 static void draw_cursor()

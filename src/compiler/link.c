@@ -325,7 +325,7 @@ static bool load_hunk_ext(FILE *f)
         printf ("link: hunk_ext: ext_type=%d, name_len=%d, name=%s\n", ext_type, name_len, g_buf);
 #endif
 
-        S_symbol sym = S_Symbol ((string) g_buf, /*case_sensitive=*/TRUE);
+        S_symbol sym = S_Symbol ((string) g_buf, /*case_sensitive=*/FALSE);
 
         switch (ext_type)
         {
@@ -496,7 +496,7 @@ bool LI_link (LI_segmentList sl)
         for (AS_segmentDef def = node->seg->defs; def; def=def->next)
         {
 #ifdef ENABLE_DEBUG
-            printf ("link: pass1: found definition for symbol %-20s: offset=0x%08x at hunk #%02d\n", S_name (def->sym), def->offset, node->seg->hunk_id);
+            printf ("link: pass1: found definition for symbol %-20s (%p): offset=0x%08x at hunk #%02d\n", S_name (def->sym), def->sym, def->offset, node->seg->hunk_id);
 #endif
 
             symInfo si = U_poolAlloc (UP_link, sizeof(*si));
@@ -526,7 +526,7 @@ bool LI_link (LI_segmentList sl)
             {
                 if (!sr->common_size)
                 {
-                    fprintf (stderr, "link: *** ERROR: unresolved symbol %s\n\n", S_name(sym));
+                    fprintf (stderr, "link: *** ERROR: unresolved symbol %s (%p)\n\n", S_name(sym), sym);
                     return FALSE;
                 }
                 if (!commonSeg)

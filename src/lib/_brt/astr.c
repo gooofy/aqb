@@ -110,7 +110,7 @@ void _astr_utoa(unsigned int num, char* str, unsigned int base)
     reverse(str, i);
 }
 
-ULONG len_(const char *str)
+ULONG LEN_(const char *str)
 {
     int l = 0;
     while (*str)
@@ -121,7 +121,7 @@ ULONG len_(const char *str)
     return l;
 }
 
-char *chr_(int codepoint)
+char *CHR_(int codepoint)
 {
     char s[2];
     s[0] = codepoint;
@@ -129,9 +129,27 @@ char *chr_(int codepoint)
     return _astr_dup(s);
 }
 
+SHORT ASC_(const char *str)
+{
+    if (!str)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return 0;
+    }
+
+    int l = LEN_(str);
+    if (!l)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return 0;
+    }
+
+    return str[0];
+}
+
 char *_astr_dup(const char* str)
 {
-    ULONG l = len_(str);
+    ULONG l = LEN_(str);
     char *str2 = ALLOCATE_(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
@@ -332,13 +350,13 @@ void _astr_ftoa(FLOAT value, char *buf)
         *--ptr = '.';
 
         // and dump it in the right order
-        ULONG l = len_(buf);
-        CopyMem((APTR) ptr, (APTR) &buf[l], len_(ptr)+1);
+        ULONG l = LEN_(buf);
+        CopyMem((APTR) ptr, (APTR) &buf[l], LEN_(ptr)+1);
     }
 
     if (exponent != 0)
     {
-        ULONG l = len_(buf);
+        ULONG l = LEN_(buf);
         buf[l] = 'e'; buf[l+1] = '-';
         _astr_itoa(exponent, &buf[l+1], 10);
     }
@@ -506,7 +524,7 @@ static char *_val_handle_prefix(char *s, int *base, int *len)
     while ( (*p == ' ') || (*p == '\t') )
         p++;
 
-    *len = len_(p);
+    *len = LEN_(p);
     if (!(*len))
         return s;
 

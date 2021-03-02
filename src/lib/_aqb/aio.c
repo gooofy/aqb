@@ -284,7 +284,7 @@ void _aio_console_input (BOOL qm, char *prompt, BOOL do_nl)
     char *p = qm ? prompt : "?";
     _aio_line_input (p, &g_input_buffer, do_nl);
     g_input_pos = 0;
-    g_input_len = len_(g_input_buffer);
+    g_input_len = LEN_(g_input_buffer);
     g_input_eof = FALSE;
     _input_getch();
 }

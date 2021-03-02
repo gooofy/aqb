@@ -36,6 +36,7 @@ void _debug_cls  (void);
 //extern USHORT g_errcode;
 
 #define ERR_OUT_OF_DATA              4
+#define ERR_ILLEGAL_FUNCTION_CALL    5
 #define ERR_OUT_OF_MEMORY            7
 #define ERR_SUBSCRIPT_OUT_OF_RANGE   9
 #define ERR_INCOMPATIBLE_ARRAY      10
@@ -99,13 +100,13 @@ void _astr_itoa(int num, char *str, int base);
 void _astr_utoa(unsigned int num, char* str, unsigned int base);
 void _astr_ftoa(FLOAT value, char *buf);
 
-
 char *_astr_dup(const char *str);
 SHORT __astr_cmp(const char* s1, const char* s2);
 const char *_astr_strchr(const char *s, char c);
 
-ULONG len_(const char *str);
-char *chr_(int codepoint);
+ULONG  LEN_(const char *str);
+char  *CHR_(int codepoint);
+SHORT  ASC_(const char *str);
 
 /*
  * STR$ support

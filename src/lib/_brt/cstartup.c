@@ -36,7 +36,7 @@ static BPTR _debug_stdout = 0;
 void _debug_puts(const char *s)
 {
     if (_debug_stdout)
-        Write(_debug_stdout, (CONST APTR) s, len_(s));
+        Write(_debug_stdout, (CONST APTR) s, LEN_(s));
 }
 
 void _debug_puts2(SHORT s)
