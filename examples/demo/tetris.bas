@@ -9,11 +9,8 @@
 
 OPTION EXPLICIT
 
-PRINT "Hello, World!"
-
-DIM AS SINGLE startTime = TIMER()
-
-PRINT "startTime=";startTime
+'DIM AS SINGLE startTime = TIMER()
+'PRINT "startTime=";startTime
 
 ' Dim GRID(10,20)
 ' Dim rx(4,4):Dim ry(4,4)
@@ -36,18 +33,21 @@ WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_
 
 CLS
 
-LOCATE  4, 14 : PRINT "Welcome to"
-LOCATE  8, 14 : PRINT "AQB TETRIS"
-LOCATE 12,  4 : PRINT "Based on COLOUR MAXIMITE TETRIS"
-LOCATE 14, 12 : PRINT "By David Murray"
-LOCATE 16,  6 : PRINT "AQB port by Guenter Bartsch"
+LOCATE  2, 28 : PRINT "Welcome to"
+LOCATE  4, 28 : PRINT "AQB TETRIS"
+LOCATE  6, 12 : PRINT "Based on COLOUR MAXIMITE TETRIS"
+LOCATE  8, 24 : PRINT "By David Murray"
+LOCATE 10, 18 : PRINT "AQB port by Guenter Bartsch"
 
-LOCATE 18, 1 : PRINT "Please enter level difficulty between 1-10"
-PRINT "default being 2, 10 being ridiculous, Good Luck!"
+LOCATE 16,  4 : PRINT "Please enter level difficulty between 1-10"
+LOCATE 17,  4 : PRINT "default being 2, 10 being ridiculous, Good Luck!"
+LINE (10,110)-(600,145),3,B
+LINE (6,108)-(604,147),3,B
 
 DIM AS INTEGER t1=0
 
 WHILE t1=0
+
     DIM AS STRING key = INKEY$
 
     IF key = "" THEN
@@ -75,33 +75,10 @@ WHILE t1=0
 WEND
 
 
-'
-'WHILE level<1 OR level >10
-'
-'    CLS
-'
-'    LOCATE  4, 14 : PRINT "Welcome to"
-'    LOCATE  8, 14 : PRINT "AQB TETRIS"
-'    LOCATE 12,  4 : PRINT "Based on COLOUR MAXIMITE TETRIS"
-'    LOCATE 14, 12 : PRINT "By David Murray"
-'    LOCATE 16,  6 : PRINT "AQB port by Guenter Bartsch"
-'
-'    LOCATE 20, 1 : PRINT "Please enter level difficulty"
-'    PRINT "   between 1-10 default being 2"
-'    PRINT "   10 being Ridiculous, Good Luck!"
-'
-'    'LOCATE 22, 1 : INPUT "Difficulty Level";level
-'
-'    level = 2
-'
-'WEND
-
 ' Print
 ' Print @(15,90)" Please select level difficulty
 ' Print "   between 1-10[0] default being 2
 ' Print "   10 being Ridiculous, Good Luck!
-' Line(181,35)-(210,78),7,B
-' Line(10,21)-(210,200),7,B
 
 ' 
 ' T2=0
