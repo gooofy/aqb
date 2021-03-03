@@ -334,6 +334,7 @@ void CLS (void)
         return;
     }
 
+    Move (g_rp, 0, 0);
     ClearScreen(g_rp);
     LOCATE(1,1);
 }
