@@ -776,7 +776,7 @@ void CG_procEntryExitAS (CG_frag frag)
     if (regs)
         AS_instrListPrepend (body, AS_InstrEx(pos_start, AS_MOVEM_Rs_PDsp, Temp_w_L,                         //      movem.l   regs, -(sp)
                                               NULL, NULL, NULL, regs, NULL));
-    AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, Temp_w_NONE, NULL, NULL,                   //      link fp, #-frameSize
+    AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, Temp_w_W, NULL, NULL,                   //      link fp, #-frameSize
                                            Ty_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LABEL, Temp_w_NONE, NULL, NULL, 0, 0, frame->name));// label:
     // FIXME AS_instrListPrepend (body, AS_Instr (pos_start, AS_NOP, Temp_w_NONE, NULL, NULL));                       //      nop    ; just make sure we do not have two consecutive labels

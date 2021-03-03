@@ -1484,7 +1484,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             }
             case AS_LINK_fp:                // LINK.W  A5,#-40         ;0104: 4e55ffd8
                 emit_u2 (seg, 0x4e55);
-                emit_i2 (seg, instr->offset);
+                emit_Imm (seg, instr->w, instr->imm);
                 break;
 
             case AS_MOVEM_Rs_PDsp:
