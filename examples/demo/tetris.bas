@@ -74,44 +74,24 @@ WHILE t1=0
     END IF
 WEND
 
-
-' Print
-' Print @(15,90)" Please select level difficulty
-' Print "   between 1-10[0] default being 2
-' Print "   10 being Ridiculous, Good Luck!
-
-' 
-' T2=0
-' Do While T2=0  
-'   T1=ASC(Inkey$)
-'   If T1=48 Then T2=50  'key 0
-'   If T1=49 Then T2=500 'key 1
-'   If T1=50 or T1=13 Then T1=50: T2=450 'key 2 or Enter 
-'   If T1=51 Then T2=400 'key 3
-'   If T1=52 Then T2=350 'key 4
-'   If T1=53 Then T2=300 'key 5
-'   If T1=54 Then T2=250 'key 6
-'   If T1=55 Then T2=200 'key 7
-'   If T1=56 Then T2=150 'key 8
-'   If T1=57 Then T2=100 'key 9
-'   If Timer>=350 Then GoSub PREVIEW:Timer=0
-' Loop    
-'   
 ' Mode 4,1:Cls
-' SETUPSCREEN:
-' Print" Colour Maximite Tetris by David Murray"
-' Print
-' Print"  CURSOR                       NEXT"
-' Print"   KEYS"
-' Print"   MOVE"
-' Print
-' Print" UP/SPACE"  
-' Print" to ROTATE"
-' Print" Z to DROP
-' Print @(170,190,1) "ESC to
+
+CLS
+
+SETUPSCREEN:
+PRINT " AQB Tetris by David Murray, Guenter Bartsch"
+PRINT
+PRINT "  CURSOR                       NEXT"
+PRINT "   KEYS"
+PRINT "   MOVE"
+PRINT
+PRINT " UP/SPACE"
+PRINT " to ROTATE"
+PRINT " Z to DROP"
+' Print @(170,190,1) "ESC to"
 ' Print @(170,200,1) "PAUSE/EXIT"
 ' Print @(183,90,1) "LINES"
-' Print @(183,140,1) "SCORE
+' Print @(183,140,1) "SCORE"
 ' Line(181,35)-(210,78),7,B
 ' Line(68,13)-(160,215),7,B
 ' Line(69,14)-(159,214),0,BF
@@ -119,6 +99,11 @@ WEND
 ' LINE(182,102)-(213,119),0,BF
 ' Line(181,151)-(214,170),7,B
 ' LINE(182,152)-(213,169),0,BF
+
+WHILE INKEY$=""
+    SLEEP
+WEND
+
 ' 
 ' Colour 7,0
 ' Print @(182,106) S
