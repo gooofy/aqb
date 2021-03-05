@@ -21,6 +21,14 @@ Syntax:
 
 logical conjunction of expr1 and expr2
 
+=== ASC()
+
+Syntax:
+
+    ASC (expr)
+
+return the ascii code of the first character in the given string
+
 === ASSERT
 
 Syntax:
