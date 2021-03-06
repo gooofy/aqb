@@ -17,6 +17,25 @@ OPTION EXPLICIT
 ' Dim PIECEX(4)
 ' Dim PIECEY(4)
 
+SUB PREVIEW
+   LINE (182,36)-(209,77),1,BF
+   DIM AS INTEGER PP=Int(Rnd(1)*7)+1
+'   If PP=1 Then GoSub DEFINEPIECE1
+'   If PP=2 Then GoSub DEFINEPIECE2
+'   If PP=3 Then GoSub DEFINEPIECE3
+'   If PP=4 Then GoSub DEFINEPIECE4
+'   If PP=5 Then GoSub DEFINEPIECE5
+'   If PP=6 Then GoSub DEFINEPIECE6
+'   If PP=7 Then GoSub DEFINEPIECE7
+'   For P=1 To 4
+'     X=PIECEX(P):Y=PIECEY(P)
+'     XT=X*9+77:YT=Y*10+22
+'     Line(XT+70,YT+15)-(XT+77,YT+23),PP,BF
+'     Line(XT+71,YT+16)-(XT+76,YT+16),0
+'     Line(XT+76,YT+16)-(XT+76,YT+22),0
+'     Next P
+END SUB
+
 ' STARTSCREEN:
 
 ' For X=0 To 9
@@ -29,7 +48,7 @@ OPTION EXPLICIT
 
 ' COLOR 7,1
 
-WINDOW 1, "Tetris", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+WINDOW 1, "Tetris", (0,0) - (638, 220), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
 
 CLS
 
@@ -92,22 +111,25 @@ PRINT " Z to DROP"
 ' Print @(170,200,1) "PAUSE/EXIT"
 ' Print @(183,90,1) "LINES"
 ' Print @(183,140,1) "SCORE"
-' Line(181,35)-(210,78),7,B
-' Line(68,13)-(160,215),7,B
-' Line(69,14)-(159,214),0,BF
-' Line(181,101)-(214,120),7,B
-' LINE(182,102)-(213,119),0,BF
-' Line(181,151)-(214,170),7,B
-' LINE(182,152)-(213,169),0,BF
+LINE (181,35)-(210,78),2,B
+LINE (68,13)-(160,215),2,B
+LINE (69,14)-(159,214),1,BF
+LINE (181,101)-(214,120),2,B
+LINE (182,102)-(213,119),1,BF
+LINE (181,151)-(214,170),2,B
+LINE (182,152)-(213,169),1,BF
 
 WHILE INKEY$=""
     SLEEP
 WEND
 
-' 
+
 ' Colour 7,0
 ' Print @(182,106) S
 ' Print @(182,155) T1
+
+PREVIEW
+
 ' GoSub PREVIEW
 ' GoSub NEWPIECE
 ' GoSub DRAWPIECE
@@ -410,25 +432,7 @@ WEND
 '   rx(4,4)=-2:Ry(4,4)=2
 '   Return
 ' 
-' PREVIEW:
-'   Line(182,36)-(209,77),0,BF
-'   PP=Int(Rnd(1)*7)+1
-'   If PP=1 Then GoSub DEFINEPIECE1
-'   If PP=2 Then GoSub DEFINEPIECE2
-'   If PP=3 Then GoSub DEFINEPIECE3
-'   If PP=4 Then GoSub DEFINEPIECE4
-'   If PP=5 Then GoSub DEFINEPIECE5
-'   If PP=6 Then GoSub DEFINEPIECE6
-'   If PP=7 Then GoSub DEFINEPIECE7
-'   For P=1 To 4
-'     X=PIECEX(P):Y=PIECEY(P)
-'     XT=X*9+77:YT=Y*10+22
-'     Line(XT+70,YT+15)-(XT+77,YT+23),PP,BF
-'     Line(XT+71,YT+16)-(XT+76,YT+16),0
-'     Line(XT+76,YT+16)-(XT+76,YT+22),0
-'     Next P
-'   Return
-' 
+
 ' GAMEOVERMAN:
 '   Print @(85,55,2) " GAME OVER"
 '   Print @(85,65,2) " ---------

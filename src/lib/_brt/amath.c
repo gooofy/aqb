@@ -411,3 +411,32 @@ FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
     return SPFlt(a | b);
 }
 
+static ULONG RangeSeed;
+
+static ULONG RangeRand(ULONG maxValue) // source: libnix
+{
+	ULONG a=RangeSeed;
+  	UWORD i=maxValue-1;
+  	do
+  	{
+		ULONG b=a;
+    	a<<=1;
+    	if((LONG)b<=0)
+      		a^=0x1d872b41;
+  	} while((i>>=1));
+  	RangeSeed=a;
+  	if((UWORD)maxValue)
+   		return (UWORD)((UWORD)a*(UWORD)maxValue>>16);
+  	return (UWORD)a;
+}
+
+FLOAT RND_(FLOAT n)
+{
+	ULONG r = RangeRand(0xFFFF);
+
+	FLOAT f = SPFlt (r);
+	FLOAT res = SPDiv (0xffff0050, f); // /65535.0
+
+	return res;
+}
+
