@@ -1037,8 +1037,8 @@ static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
     0x0040, // a1
     0x0020, // a2
     0x0010, // a3
-    0x0080, // a4
-    0x0020, // a6
+    0x0008, // a4
+    0x0002, // a6
     0x8000, // d0
     0x4000, // d1
     0x2000, // d2
@@ -1210,8 +1210,27 @@ static void emit_Imm (AS_segment seg, enum Temp_w w, Ty_const imm)
         }
         case Temp_w_L:
         {
-            int32_t c = getConstInt (imm);
-            emit_i4 (seg, c);
+            switch (imm->ty->kind)
+            {
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_string:
+                case Ty_pointer:
+                    emit_i4 (seg, getConstInt (imm));
+                    break;
+                case Ty_single:
+                case Ty_double:
+                    emit_u4 (seg, encode_ffp(imm->u.f));
+                    break;
+                default:
+                    EM_error(0, "*** assem.c:instrformat: internal error");
+                    assert(0);
+            }
             break;
         }
         default:
@@ -1249,6 +1268,21 @@ static void emit_ADD (AS_segment seg, enum Temp_w w, int regDst, bool dstIsAn, i
     emit_u2 (seg, code);
 }
 
+static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
+{
+    //   ADDQ.L  #4,A7           ;003c: 588f
+    c = c == 8 ? 0 : c;
+    uint16_t code = 0x5000 | (c<<9) | (mode<<3) | reg;
+    switch (w)
+    {
+        case Temp_w_B: break;
+        case Temp_w_W: code |= 0x0040; break;
+        case Temp_w_L: code |= 0x0080; break;
+        default: assert(FALSE);
+    }
+    emit_u2(seg, code);
+}
+
 static void emit_AND (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int modeSrc)
 {
     uint16_t code = 0xc000;
@@ -1265,21 +1299,6 @@ static void emit_AND (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int
     code |= modeSrc << 3;
 
     emit_u2 (seg, code);
-}
-
-static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
-{
-    //   ADDQ.L  #4,A7           ;003c: 588f
-    c = c == 8 ? 0 : c;
-    uint16_t code = 0x5000 | (c<<9) | (mode<<3) | reg;
-    switch (w)
-    {
-        case Temp_w_B: break;
-        case Temp_w_W: code |= 0x0040; break;
-        case Temp_w_L: code |= 0x0080; break;
-        default: assert(FALSE);
-    }
-    emit_u2(seg, code);
 }
 
 static void emit_JSR (AS_segment seg, int mode, int reg)
@@ -1430,11 +1449,13 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 bool isAn = AS_isAn(instr->dst);
                 if ((c>0) && (c<=8))
                 {
-                    assert(FALSE);
-                    // FIXME emit_ADDQ (seg, instr->w, c, /*mode=*/1, /*reg=*/7);
+                    emit_ADDQ (seg, instr->w, c, /*mode=*/isAn ? 1:0, /*reg=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst));
                 }
-                emit_ADD(seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*dstIsAn=*/isAn, /*regSrc=*/4, /*modeSrc=*/7);
-                emit_Imm (seg, instr->w, instr->imm);
+                else
+                {
+                    emit_ADD(seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*dstIsAn=*/isAn, /*regSrc=*/4, /*modeSrc=*/7);
+                    emit_Imm (seg, instr->w, instr->imm);
+                }
                 break;
             }
 
@@ -1497,6 +1518,11 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                     return FALSE;
                 break;
 
+            case AS_JSR_RAn:                 //  71 jsr     -36(a6)
+                emit_JSR (seg, /*mode=*/5, /*reg=*/6);
+                emit_i2 (seg, instr->offset);
+                break;
+
             case AS_MOVE_AnDn_AnDn:          //  35 move.x  d1, d2
             {
                 bool isAn = AS_isAn(instr->dst);
@@ -1554,9 +1580,12 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             }
 
             case AS_MOVE_Label_AnDn: //  47 move.x  label, d6
-                assert (!AS_isAn(instr->dst)); // FIXME: movea
-                emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0,
-                                          /*regSrc=*/1, /*modeSrc=*/7);
+                if (AS_isAn(instr->dst))
+                    emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumAn(instr->dst), /*modeDst=*/1,
+                                              /*regSrc=*/1, /*modeSrc=*/7);
+                else
+                    emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0,
+                                              /*regSrc=*/1, /*modeSrc=*/7);
                 if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
                     return FALSE;
                 break;

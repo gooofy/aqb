@@ -22,6 +22,6 @@ LI_segmentList LI_SegmentList(void);
 void           LI_segmentListAppend         (LI_segmentList sl, AS_segment seg);
 bool           LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f);
 bool           LI_link                      (LI_segmentList sl);
-bool           LI_segmentListWriteLoadFile  (LI_segmentList sl, FILE *f);
+void           LI_segmentListWriteLoadFile  (LI_segmentList sl, string loadfn);
 
 #endif

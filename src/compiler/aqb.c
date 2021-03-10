@@ -497,18 +497,7 @@ int main (int argc, char *argv[])
         exit(27);
     }
 
-    FILE *fLoadFile = fopen(binfn, "w");
-    if (!fLoadFile)
-    {
-        fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", binfn);
-        exit(28);
-    }
-    if (!LI_segmentListWriteLoadFile (sl, fLoadFile))
-    {
-        fclose(fLoadFile);
-        exit(29);
-    }
-    fclose(fLoadFile);
+    LI_segmentListWriteLoadFile (sl, binfn);
 
     return 0;
 }

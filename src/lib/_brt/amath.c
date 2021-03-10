@@ -434,6 +434,10 @@ FLOAT RND_(FLOAT n)
 {
 	ULONG r = RangeRand(0xFFFF);
 
+    _debug_puts ("r=");
+    _debug_putu4 (r);
+    _debug_putnl();
+
 	FLOAT f = SPFlt (r);
 	FLOAT res = SPDiv (0xffff0050, f); // /65535.0
 

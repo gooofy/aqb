@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "link.h"
 
 /*
@@ -28,6 +29,21 @@ static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static AS_segment g_hunk_table[MAX_NUM_HUNKS]; // used during hunk object loading
 static int        g_hunk_id_cnt;
 static AS_segment g_hunk_cur;                  // last code/data/bss hunk read
+static FILE      *g_fLoadFile=NULL;            // load file being written
+
+static void link_fail (string msg)
+{
+    fprintf (stderr, "*** linker error: %s\n", msg);
+    assert(FALSE);
+
+    if (g_fLoadFile)
+    {
+        fclose (g_fLoadFile);
+        g_fLoadFile = NULL;
+    }
+
+    exit(127);
+}
 
 #ifdef ENABLE_DEBUG
 static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
@@ -571,130 +587,69 @@ bool LI_link (LI_segmentList sl)
     return TRUE;
 }
 
-static bool fwrite_u4(FILE *f, uint32_t u)
+static void fwrite_u4(FILE *f, uint32_t u)
 {
     u = ENDIAN_SWAP_32 (u);
     if (fwrite (&u, 4, 1, f) != 1)
-        return FALSE;
-    return TRUE;
+        link_fail ("write error");
 }
 
-static bool write_hunk_header (LI_segmentList sl, FILE *f)
+static void write_hunk_header (LI_segmentList sl, FILE *f)
 {
-    if (!fwrite_u4 (f, HUNK_TYPE_HEADER))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-
-    if (!fwrite_u4 (f, 0))  // no hunk names
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, HUNK_TYPE_HEADER);
+    fwrite_u4 (f, 0);  // no hunk names
 
     uint32_t hunkCnt = 0;
     for (LI_segmentListNode n = sl->first; n; n=n->next)
         hunkCnt++;
-    if (!fwrite_u4 (f, hunkCnt))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-    if (!fwrite_u4 (f, 0))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-    if (!fwrite_u4 (f, hunkCnt-1))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, hunkCnt);
+    fwrite_u4 (f, 0);
+    fwrite_u4 (f, hunkCnt-1);
     for (LI_segmentListNode n = sl->first; n; n=n->next)
     {
         uint32_t nw = (n->seg->mem_pos + (n->seg->mem_pos % 4)) / 4;
-        if (!fwrite_u4 (f, nw))
-        {
-            fprintf (stderr, "link: write error.\n");
-            return FALSE;
-        }
+        fwrite_u4 (f, nw);
     }
-    return TRUE;
 }
 
-bool write_hunk_code (AS_segment seg, FILE *f)
+void write_hunk_code (AS_segment seg, FILE *f)
 {
-    if (!fwrite_u4 (f, HUNK_TYPE_CODE))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, HUNK_TYPE_CODE);
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
     printf ("link: writing code section, size= %zd = 0x%08zx bytes (%d = 0x%08x LONGs)\n", seg->mem_pos, seg->mem_pos, n, n);
-    if (!fwrite_u4 (f, n))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, n);
     if (fwrite (seg->mem, n*4, 1, f) != 1)
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-    return TRUE;
+        link_fail ("write error");
 }
 
-bool write_hunk_data (AS_segment seg, FILE *f)
+void write_hunk_data (AS_segment seg, FILE *f)
 {
-    if (!fwrite_u4 (f, HUNK_TYPE_DATA))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, HUNK_TYPE_DATA);
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
-    if (!fwrite_u4 (f, n))
+    fwrite_u4 (f, n);
+    if (n)
     {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
+        if (fwrite (seg->mem, n*4, 1, f) != 1)
+            link_fail ("write error");
     }
-    if (fwrite (seg->mem, n*4, 1, f) != 1)
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-    return TRUE;
 }
 
-bool write_hunk_bss (AS_segment seg, FILE *f)
+void write_hunk_bss (AS_segment seg, FILE *f)
 {
-    if (!fwrite_u4 (f, HUNK_TYPE_BSS))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, HUNK_TYPE_BSS);
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
-    if (!fwrite_u4 (f, n))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-    return TRUE;
+    fwrite_u4 (f, n);
 }
 
-bool write_hunk_reloc32 (AS_segment seg, FILE *f)
+void write_hunk_reloc32 (AS_segment seg, FILE *f)
 {
     if (!seg->relocs)
-        return TRUE;
+        return;
 
-    if (!fwrite_u4 (f, HUNK_TYPE_RELOC32))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
+    fwrite_u4 (f, HUNK_TYPE_RELOC32);
 
     TAB_iter segIter = TAB_Iter (seg->relocs);
     AS_segment seg_to;
@@ -704,84 +659,60 @@ bool write_hunk_reloc32 (AS_segment seg, FILE *f)
         uint32_t cnt = 0;
         for (AS_segmentReloc32 r = relocs; r; r=r->next)
             cnt++;
-        if (!fwrite_u4 (f, cnt))
-        {
-            fprintf (stderr, "link: write error.\n");
-            return FALSE;
-        }
-        if (!fwrite_u4 (f, seg_to->hunk_id))
-        {
-            fprintf (stderr, "link: write error.\n");
-            return FALSE;
-        }
+        fwrite_u4 (f, cnt);
+        fwrite_u4 (f, seg_to->hunk_id);
         uint32_t i = 0;
         for (AS_segmentReloc32 r = relocs; r; r=r->next)
         {
-            if (!fwrite_u4 (f, r->offset))
-            {
-                fprintf (stderr, "link: write error.\n");
-                return FALSE;
-            }
+            fwrite_u4 (f, r->offset);
             i++;
         }
     }
-    if (!fwrite_u4 (f, 0))  // end marker
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-
-    return TRUE;
+    fwrite_u4 (f, 0);  // end marker
 }
 
-bool write_hunk_end (FILE *f)
+void write_hunk_end (FILE *f)
 {
-    if (!fwrite_u4 (f, HUNK_TYPE_END))
-    {
-        fprintf (stderr, "link: write error.\n");
-        return FALSE;
-    }
-    return TRUE;
+    fwrite_u4 (f, HUNK_TYPE_END);
 }
 
-bool LI_segmentListWriteLoadFile (LI_segmentList sl, FILE *f)
+void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 {
-    write_hunk_header (sl, f);
+    g_fLoadFile = fopen(loadfn, "w");
+    if (!g_fLoadFile)
+    {
+        fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", loadfn);
+        exit(128);
+    }
+    write_hunk_header (sl, g_fLoadFile);
 
     for (LI_segmentListNode n = sl->first; n; n=n->next)
     {
         switch (n->seg->kind)
         {
             case AS_codeSeg:
-                if (!write_hunk_code (n->seg, f))
-                    return FALSE;
-                if (!write_hunk_reloc32 (n->seg, f))
-                    return FALSE;
-                if (!write_hunk_end (f))
-                    return FALSE;
+                write_hunk_code (n->seg, g_fLoadFile);
+                write_hunk_reloc32 (n->seg, g_fLoadFile);
+                write_hunk_end (g_fLoadFile);
                 break;
             case AS_dataSeg:
-                if (!write_hunk_data (n->seg, f))
-                    return FALSE;
-                if (!write_hunk_reloc32 (n->seg, f))
-                    return FALSE;
-                if (!write_hunk_end (f))
-                    return FALSE;
+                write_hunk_data (n->seg, g_fLoadFile);
+                write_hunk_reloc32 (n->seg, g_fLoadFile);
+                write_hunk_end (g_fLoadFile);
                 break;
             case AS_bssSeg:
-                if (!write_hunk_bss (n->seg, f))
-                    return FALSE;
-                if (!write_hunk_reloc32 (n->seg, f))
-                    return FALSE;
-                if (!write_hunk_end (f))
-                    return FALSE;
+                write_hunk_bss (n->seg, g_fLoadFile);
+                write_hunk_reloc32 (n->seg, g_fLoadFile);
+                write_hunk_end (g_fLoadFile);
                 break;
             default:
                 fprintf (stderr, "***error: unknown segment kind %d !\n", n->seg->kind);
-                fflush (f);
+                fflush (g_fLoadFile);
                 assert(FALSE);
         }
     }
-    return TRUE;
+
+    fclose (g_fLoadFile);
+    g_fLoadFile = NULL;
 }
 
