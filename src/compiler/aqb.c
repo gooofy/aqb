@@ -344,7 +344,7 @@ int main (int argc, char *argv[])
      * machine code generation (assembly phase)
      */
 
-    AS_object obj = AS_Object();
+    AS_object obj = AS_Object(binfn);
 
     for (CG_fragList fl=frags; fl; fl=fl->tail)
     {
@@ -461,7 +461,7 @@ int main (int argc, char *argv[])
         fprintf (stderr, "*** ERROR: failed to open startup.o\n\n");
         exit(23);
     }
-    if (!LI_segmentListReadObjectFile (sl, fObj))
+    if (!LI_segmentListReadObjectFile (sl, "startup.o", fObj))
     {
         fclose(fObj);
         exit(24);
@@ -483,7 +483,7 @@ int main (int argc, char *argv[])
             fprintf (stderr, "*** ERROR: failed to open %s\n\n", mod_fn);
             exit(25);
         }
-        if (!LI_segmentListReadObjectFile (sl, fObj))
+        if (!LI_segmentListReadObjectFile (sl, S_name(n->m->name), fObj))
         {
             fclose(fObj);
             exit(26);

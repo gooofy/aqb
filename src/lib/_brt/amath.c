@@ -6,6 +6,8 @@
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
+static FLOAT g_one_half, g_zero, g_65536;
+
 /*
  * ___mulsi3
  *
@@ -281,8 +283,6 @@ uint8_t __mod_u1(uint8_t a, uint8_t b)
     return a%b;
 }
 
-static FLOAT g_one_half, g_zero;
-
 FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 {
     // this is not what quickbasic does
@@ -332,12 +332,6 @@ LONG clng_(FLOAT f)
 	if (SPCmp(f, g_zero)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
-}
-
-void _amath_init(void)
-{
-    g_one_half = SPDiv(SPFlt(2), SPFlt(1));
-    g_zero     = SPFlt(0);
 }
 
 FLOAT __aqb_intdiv_single(FLOAT af, FLOAT bf)
@@ -439,8 +433,15 @@ FLOAT RND_(FLOAT n)
     _debug_putnl();
 
 	FLOAT f = SPFlt (r);
-	FLOAT res = SPDiv (0xffff0050, f); // /65535.0
+	FLOAT res = SPDiv (g_65536, f); // /65535.0
 
 	return res;
+}
+
+void _amath_init(void)
+{
+    g_one_half = SPDiv(SPFlt(2), SPFlt(1));
+    g_zero     = SPFlt(0);
+    g_65536    = SPFlt(65536);
 }
 

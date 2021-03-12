@@ -269,6 +269,7 @@ typedef struct AS_object_          *AS_object;
 typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
+    string            sourcefn;
     AS_segKind        kind;
     uint32_t          hunk_id;
 
@@ -317,14 +318,14 @@ struct AS_object_
     AS_segment        dataSeg;
 };
 
-AS_segment         AS_Segment            (AS_segKind kind, size_t initial_size);
+AS_segment         AS_Segment            (string sourcefn, AS_segKind kind, size_t initial_size);
 
 void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
 void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size);
 void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
 
-AS_object          AS_Object             (void);
+AS_object          AS_Object             (string sourcefn);
 
 bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt);
 bool               AS_assembleString     (AS_object  o, Temp_label label, string str, size_t msize);

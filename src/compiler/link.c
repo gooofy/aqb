@@ -128,7 +128,7 @@ static bool load_hunk_unit(FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_name(FILE *f)
+static bool load_hunk_name(string sourcefn, FILE *f)
 {
     uint32_t name_len;
     if (!fread_u4 (f, &name_len))
@@ -151,13 +151,13 @@ static bool load_hunk_name(FILE *f)
 
     g_buf[name_len] = 0;
 #ifdef ENABLE_DEBUG
-    printf ("link: hunk name: %s\n", g_buf);
+    printf ("link: %s: hunk name: %s\n", sourcefn, g_buf);
 #endif
 
     return TRUE;
 }
 
-AS_segment getOrCreateSegment (int id, AS_segKind kind, size_t min_size)
+AS_segment getOrCreateSegment (string sourcefn, int id, AS_segKind kind, size_t min_size)
 {
     if (id >= MAX_NUM_HUNKS)
     {
@@ -169,7 +169,7 @@ AS_segment getOrCreateSegment (int id, AS_segKind kind, size_t min_size)
 
     if (!seg)
     {
-        seg = AS_Segment(kind, min_size);
+        seg = AS_Segment(sourcefn, kind, min_size);
         g_hunk_table[id] = seg;
         return seg;
     }
@@ -187,7 +187,7 @@ AS_segment getOrCreateSegment (int id, AS_segKind kind, size_t min_size)
     return seg;
 }
 
-static bool load_hunk_code(FILE *f)
+static bool load_hunk_code(string sourcefn, FILE *f)
 {
     uint32_t code_len;
     if (!fread_u4 (f, &code_len))
@@ -197,10 +197,10 @@ static bool load_hunk_code(FILE *f)
     }
     code_len *=4;
 #ifdef ENABLE_DEBUG
-    printf ("link: code hunk size: %d bytes.\n", code_len);
+    printf ("link: %s: code hunk size: %d bytes.\n", sourcefn, code_len);
 #endif
 
-    g_hunk_cur = getOrCreateSegment (g_hunk_id_cnt++, AS_codeSeg, code_len);
+    g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_codeSeg, code_len);
 
     if (fread (g_hunk_cur->mem, code_len, 1, f) != 1)
     {
@@ -212,7 +212,7 @@ static bool load_hunk_code(FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_data(FILE *f)
+static bool load_hunk_data(string sourcefn, FILE *f)
 {
     uint32_t data_len;
     if (!fread_u4 (f, &data_len))
@@ -222,10 +222,10 @@ static bool load_hunk_data(FILE *f)
     }
     data_len *=4;
 #ifdef ENABLE_DEBUG
-    printf ("link: data hunk size: %d bytes.\n", data_len);
+    printf ("link: %s: data hunk size: %d bytes.\n", sourcefn, data_len);
 #endif
 
-    g_hunk_cur = getOrCreateSegment (g_hunk_id_cnt++, AS_dataSeg, data_len);
+    g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_dataSeg, data_len);
 
     if (fread (g_hunk_cur->mem, data_len, 1, f) != 1)
     {
@@ -240,7 +240,7 @@ static bool load_hunk_data(FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_bss(FILE *f)
+static bool load_hunk_bss(string sourcefn, FILE *f)
 {
     uint32_t bss_len;
     if (!fread_u4 (f, &bss_len))
@@ -250,10 +250,10 @@ static bool load_hunk_bss(FILE *f)
     }
     bss_len *=4;
 #ifdef ENABLE_DEBUG
-    printf ("link: bss hunk size: %d bytes.\n", bss_len);
+    printf ("link: %s: bss hunk size: %d bytes.\n", sourcefn, bss_len);
 #endif
 
-    g_hunk_cur = getOrCreateSegment (g_hunk_id_cnt++, AS_bssSeg, 0);
+    g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_bssSeg, 0);
 
     g_hunk_cur->mem_size = bss_len;
     g_hunk_cur->mem_pos  = bss_len;
@@ -261,7 +261,7 @@ static bool load_hunk_bss(FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_reloc32(FILE *f)
+static bool load_hunk_reloc32(string sourcefn, FILE *f)
 {
     uint32_t num_offs, hunk_id;
 
@@ -280,10 +280,10 @@ static bool load_hunk_reloc32(FILE *f)
             return FALSE;
         }
 #ifdef ENABLE_DEBUG
-        printf ("link: reloc32: %d offsets in hunk #%d.\n", num_offs, hunk_id);
+        printf ("link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
 #endif
 
-        AS_segment seg = getOrCreateSegment (hunk_id, AS_unknownSeg, /*min_size=*/0);
+        AS_segment seg = getOrCreateSegment (sourcefn, hunk_id, AS_unknownSeg, /*min_size=*/0);
 
         for (uint32_t i=0; i<num_offs; i++)
         {
@@ -300,11 +300,12 @@ static bool load_hunk_reloc32(FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_ext(FILE *f)
+static bool load_hunk_ext(string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
         fprintf (stderr, "link: ext hunk detected when so segment is defined yet.\n");
+        assert(FALSE);
         return FALSE;
     }
 
@@ -338,7 +339,7 @@ static bool load_hunk_ext(FILE *f)
 
         g_buf[name_len] = 0;
 #ifdef ENABLE_DEBUG
-        printf ("link: hunk_ext: ext_type=%d, name_len=%d, name=%s\n", ext_type, name_len, g_buf);
+        printf ("link: %s: hunk_ext: ext_type=%d, name_len=%d, name=%s\n", sourcefn, ext_type, name_len, g_buf);
 #endif
 
         S_symbol sym = S_Symbol ((string) g_buf, /*case_sensitive=*/FALSE);
@@ -403,7 +404,7 @@ static bool load_hunk_ext(FILE *f)
                 }
                 AS_segmentAddDef (g_hunk_cur, sym, offset);
 #ifdef ENABLE_DEBUG
-                printf ("link:   -> ext_def, offset=0x%08x\n", offset);
+                printf ("link: %s:  -> ext_def, offset=0x%08x\n", sourcefn, offset);
 #endif
                 break;
             }
@@ -416,7 +417,7 @@ static bool load_hunk_ext(FILE *f)
     return TRUE;
 }
 
-bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
+bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
 {
     uint32_t ht;
     if (!fread_u4 (f, &ht))
@@ -425,12 +426,12 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
         return FALSE;
     }
 #ifdef ENABLE_DEBUG
-    printf ("link: hunk type: %08x\n", ht);
+    printf ("link: %s: hunk type: %08x\n", sourcefn, ht);
 #endif
 
     if (ht != HUNK_TYPE_UNIT)
     {
-        fprintf (stderr, "link: This is not an object file, header mismatch: found 0x%08x, expected %08x\n", ht, HUNK_TYPE_UNIT);
+        fprintf (stderr, "link: %s: this is not an object file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_UNIT);
     }
 
     if (!load_hunk_unit(f))
@@ -441,7 +442,7 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
         if (!fread_u4 (f, &ht))
             break;
 #ifdef ENABLE_DEBUG
-        printf ("link: hunk type: %08x\n", ht);
+        printf ("link: %s: hunk type: %08x\n", sourcefn, ht);
 #endif
 
         switch (ht)
@@ -451,27 +452,27 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, FILE *f)
                     return FALSE;
                 break;
             case HUNK_TYPE_NAME:
-                if (!load_hunk_name(f))
+                if (!load_hunk_name(sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_CODE:
-                if (!load_hunk_code(f))
+                if (!load_hunk_code(sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_DATA:
-                if (!load_hunk_data(f))
+                if (!load_hunk_data(sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_BSS:
-                if (!load_hunk_bss(f))
+                if (!load_hunk_bss(sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_RELOC32:
-                if (!load_hunk_reloc32(f))
+                if (!load_hunk_reloc32(sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_EXT:
-                if (!load_hunk_ext(f))
+                if (!load_hunk_ext(sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_END:
@@ -512,7 +513,7 @@ bool LI_link (LI_segmentList sl)
         for (AS_segmentDef def = node->seg->defs; def; def=def->next)
         {
 #ifdef ENABLE_DEBUG
-            printf ("link: pass1: found definition for symbol %-20s (%p): offset=0x%08x at hunk #%02d\n", S_name (def->sym), def->sym, def->offset, node->seg->hunk_id);
+            printf ("link: pass1: found definition for symbol %-20s (%p): offset=0x%08x at hunk #%02d (%s)\n", S_name (def->sym), def->sym, def->offset, node->seg->hunk_id, node->seg->sourcefn);
 #endif
 
             symInfo si = U_poolAlloc (UP_link, sizeof(*si));
@@ -547,7 +548,7 @@ bool LI_link (LI_segmentList sl)
                 }
                 if (!commonSeg)
                 {
-                    commonSeg = AS_Segment (AS_dataSeg, 0);
+                    commonSeg = AS_Segment ("common", AS_dataSeg, 0);
                     commonSeg->hunk_id = hunk_id++;
                     LI_segmentListAppend (sl, commonSeg);
                 }

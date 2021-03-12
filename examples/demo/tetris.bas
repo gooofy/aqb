@@ -18,8 +18,14 @@ OPTION EXPLICIT
 ' Dim PIECEY(4)
 
 SUB PREVIEW
-   LINE (182,36)-(209,77),1,BF
+   ' LINE (182,36)-(209,77),1,BF
+   DIM AS SINGLE r = RND(1)
+   PRINT RND(1)
+   PRINT RND(1)
+   PRINT RND(1)
+   PRINT RND(1)
    DIM AS INTEGER PP=Int(Rnd(1)*7)+1
+   PRINT PP
 '   If PP=1 Then GoSub DEFINEPIECE1
 '   If PP=2 Then GoSub DEFINEPIECE2
 '   If PP=3 Then GoSub DEFINEPIECE3
@@ -48,80 +54,80 @@ END SUB
 
 ' COLOR 7,1
 
-WINDOW 1, "Tetris", (0,0) - (638, 220), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
-
-CLS
-
-LOCATE  2, 28 : PRINT "Welcome to"
-LOCATE  4, 28 : PRINT "AQB TETRIS"
-LOCATE  6, 12 : PRINT "Based on COLOUR MAXIMITE TETRIS"
-LOCATE  8, 24 : PRINT "By David Murray"
-LOCATE 10, 18 : PRINT "AQB port by Guenter Bartsch"
-
-LOCATE 16,  4 : PRINT "Please enter level difficulty between 1-10"
-LOCATE 17,  4 : PRINT "default being 2, 10 being ridiculous, Good Luck!"
-LINE (10,110)-(600,145),3,B
-LINE (6,108)-(604,147),3,B
-
-DIM AS INTEGER t1=0
-
-WHILE t1=0
-
-    DIM AS STRING key = INKEY$
-
-    IF key = "" THEN
-
-        SLEEP
-
-    ELSE
-
-        SELECT CASE ASC(key)
-            CASE 48    : t1= 50 : REM key 0
-            CASE 49    : t1=500 : REM key 1
-            CASE 50, 13: t1=450 : REM key 2 or enter
-            CASE 51    : t1=400 : REM key 3
-            CASE 52    : t1=350 : REM key 4
-            CASE 53    : t1=300 : REM key 5
-            CASE 54    : t1=250 : REM key 6
-            CASE 55    : t1=200 : REM key 7
-            CASE 56    : t1=150 : REM key 8
-            CASE 57    : t1=100 : REM key 9
-        END SELECT
-
-        ' FIXME: IF Timer>=350 Then GoSub PREVIEW:Timer=0
-
-    END IF
-WEND
-
-' Mode 4,1:Cls
-
-CLS
-
-SETUPSCREEN:
-PRINT " AQB Tetris by David Murray, Guenter Bartsch"
-PRINT
-PRINT "  CURSOR                       NEXT"
-PRINT "   KEYS"
-PRINT "   MOVE"
-PRINT
-PRINT " UP/SPACE"
-PRINT " to ROTATE"
-PRINT " Z to DROP"
-' Print @(170,190,1) "ESC to"
-' Print @(170,200,1) "PAUSE/EXIT"
-' Print @(183,90,1) "LINES"
-' Print @(183,140,1) "SCORE"
-LINE (181,35)-(210,78),2,B
-LINE (68,13)-(160,215),2,B
-LINE (69,14)-(159,214),1,BF
-LINE (181,101)-(214,120),2,B
-LINE (182,102)-(213,119),1,BF
-LINE (181,151)-(214,170),2,B
-LINE (182,152)-(213,169),1,BF
-
-WHILE INKEY$=""
-    SLEEP
-WEND
+'WINDOW 1, "Tetris", (0,0) - (638, 220), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+'
+'CLS
+'
+'LOCATE  2, 28 : PRINT "Welcome to"
+'LOCATE  4, 28 : PRINT "AQB TETRIS"
+'LOCATE  6, 12 : PRINT "Based on COLOUR MAXIMITE TETRIS"
+'LOCATE  8, 24 : PRINT "By David Murray"
+'LOCATE 10, 18 : PRINT "AQB port by Guenter Bartsch"
+'
+'LOCATE 16,  4 : PRINT "Please enter level difficulty between 1-10"
+'LOCATE 17,  4 : PRINT "default being 2, 10 being ridiculous, Good Luck!"
+'LINE (10,110)-(600,145),3,B
+'LINE (6,108)-(604,147),3,B
+'
+'DIM AS INTEGER t1=0
+'
+'WHILE t1=0
+'
+'    DIM AS STRING key = INKEY$
+'
+'    IF key = "" THEN
+'
+'        SLEEP
+'
+'    ELSE
+'
+'        SELECT CASE ASC(key)
+'            CASE 48    : t1= 50 : REM key 0
+'            CASE 49    : t1=500 : REM key 1
+'            CASE 50, 13: t1=450 : REM key 2 or enter
+'            CASE 51    : t1=400 : REM key 3
+'            CASE 52    : t1=350 : REM key 4
+'            CASE 53    : t1=300 : REM key 5
+'            CASE 54    : t1=250 : REM key 6
+'            CASE 55    : t1=200 : REM key 7
+'            CASE 56    : t1=150 : REM key 8
+'            CASE 57    : t1=100 : REM key 9
+'        END SELECT
+'
+'        ' FIXME: IF Timer>=350 Then GoSub PREVIEW:Timer=0
+'
+'    END IF
+'WEND
+'
+'' Mode 4,1:Cls
+'
+'CLS
+'
+'SETUPSCREEN:
+'PRINT " AQB Tetris by David Murray, Guenter Bartsch"
+'PRINT
+'PRINT "  CURSOR                       NEXT"
+'PRINT "   KEYS"
+'PRINT "   MOVE"
+'PRINT
+'PRINT " UP/SPACE"
+'PRINT " to ROTATE"
+'PRINT " Z to DROP"
+'' Print @(170,190,1) "ESC to"
+'' Print @(170,200,1) "PAUSE/EXIT"
+'' Print @(183,90,1) "LINES"
+'' Print @(183,140,1) "SCORE"
+'LINE (181,35)-(210,78),2,B
+'LINE (68,13)-(160,215),2,B
+'LINE (69,14)-(159,214),1,BF
+'LINE (181,101)-(214,120),2,B
+'LINE (182,102)-(213,119),1,BF
+'LINE (181,151)-(214,170),2,B
+'LINE (182,152)-(213,169),1,BF
+'
+'WHILE INKEY$=""
+'    SLEEP
+'WEND
 
 
 ' Colour 7,0

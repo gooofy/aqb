@@ -747,10 +747,11 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
 
 static uint32_t g_hunk_id = 0;
 
-AS_segment AS_Segment (AS_segKind kind, size_t initial_size)
+AS_segment AS_Segment (string sourcefn, AS_segKind kind, size_t initial_size)
 {
     AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
 
+    seg->sourcefn    = sourcefn;
     seg->kind        = kind;
     seg->hunk_id     = g_hunk_id++;
     seg->mem         = initial_size ? U_malloc (initial_size) : NULL;
@@ -1410,13 +1411,13 @@ static void emit_UNLK (AS_segment seg, uint16_t reg)
     emit_u2 (seg, code);
 }
 
-AS_object AS_Object (void)
+AS_object AS_Object (string sourcefn)
 {
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
     obj->labels  = TAB_empty();
-    obj->codeSeg = AS_Segment (AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
-    obj->dataSeg = AS_Segment (AS_dataSeg, 0);
+    obj->codeSeg = AS_Segment (sourcefn, AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    obj->dataSeg = AS_Segment (sourcefn, AS_dataSeg, 0);
 
     return obj;
 }
