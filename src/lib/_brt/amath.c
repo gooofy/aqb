@@ -6,7 +6,7 @@
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
-static FLOAT g_one_half, g_zero, g_65536;
+static FLOAT g_one_half, g_zero, g_65535;
 
 /*
  * ___mulsi3
@@ -405,11 +405,14 @@ FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
     return SPFlt(a | b);
 }
 
-static ULONG RangeSeed;
+#define INITIAL_RND_SEED 0x1234abcd
+
+static ULONG g_rangeSeed = INITIAL_RND_SEED;
+static FLOAT g_lastRnd;
 
 static ULONG RangeRand(ULONG maxValue) // source: libnix
 {
-	ULONG a=RangeSeed;
+	ULONG a=g_rangeSeed;
   	UWORD i=maxValue-1;
   	do
   	{
@@ -418,7 +421,7 @@ static ULONG RangeRand(ULONG maxValue) // source: libnix
     	if((LONG)b<=0)
       		a^=0x1d872b41;
   	} while((i>>=1));
-  	RangeSeed=a;
+  	g_rangeSeed=a;
   	if((UWORD)maxValue)
    		return (UWORD)((UWORD)a*(UWORD)maxValue>>16);
   	return (UWORD)a;
@@ -426,22 +429,35 @@ static ULONG RangeRand(ULONG maxValue) // source: libnix
 
 FLOAT RND_(FLOAT n)
 {
+    switch (SPCmp (n, g_zero))
+    {
+        case -1:
+            g_rangeSeed = INITIAL_RND_SEED;
+            break;
+        case 0:
+            return g_lastRnd;
+        default:
+            break;
+    }
+
 	ULONG r = RangeRand(0xFFFF);
 
-    _debug_puts ("r=");
-    _debug_putu4 (r);
-    _debug_putnl();
+    // _debug_puts ("r=");
+    // _debug_putu4 (r);
+    // _debug_putnl();
 
 	FLOAT f = SPFlt (r);
-	FLOAT res = SPDiv (g_65536, f); // /65535.0
+	g_lastRnd = SPDiv (g_65535, f); // /65535.0
 
-	return res;
+	return g_lastRnd;
 }
 
 void _amath_init(void)
 {
-    g_one_half = SPDiv(SPFlt(2), SPFlt(1));
-    g_zero     = SPFlt(0);
-    g_65536    = SPFlt(65536);
+    g_one_half  = SPDiv(SPFlt(2), SPFlt(1));
+    g_zero      = SPFlt(0);
+    g_65535     = SPFlt(65535);
+    g_lastRnd   = RND_(g_65535);
+    g_rangeSeed = INITIAL_RND_SEED;
 }
 

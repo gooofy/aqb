@@ -533,7 +533,7 @@ Syntax:
 returns a random number with a value between 0 (inclusive) and 1 (exclusive).
 
 * n = 0: return the last value returned
-* n < 0: always returns the same value for any given n
+* n < 0: reset the pseudo random number generator to the built-in seed
 * n > 0: the sequence of numbers generated will not change unless RANDOMIZE is initiated
 
 === SELECT CASE
