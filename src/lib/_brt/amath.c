@@ -6,7 +6,7 @@
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
-static FLOAT g_one_half, g_zero, g_65535;
+static FLOAT g_one_half, g_zero, g_65535, g_100;
 
 /*
  * ___mulsi3
@@ -452,10 +452,21 @@ FLOAT RND_(FLOAT n)
 	return g_lastRnd;
 }
 
+void RANDOMIZE (FLOAT seed)
+{
+    g_rangeSeed = SPFix(SPMul(seed, g_100));
+    // _debug_puts ("RANDOMIZE :");
+    // _debug_putf (seed);
+    // _debug_puts (" -> ");
+    // _debug_putu4 (g_rangeSeed);
+    // _debug_putnl();
+}
+
 void _amath_init(void)
 {
     g_one_half  = SPDiv(SPFlt(2), SPFlt(1));
     g_zero      = SPFlt(0);
+    g_100       = SPFlt(100);
     g_65535     = SPFlt(65535);
     g_lastRnd   = RND_(g_65535);
     g_rangeSeed = INITIAL_RND_SEED;

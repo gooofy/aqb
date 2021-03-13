@@ -9,6 +9,8 @@
 
 OPTION EXPLICIT
 
+RANDOMIZE TIMER
+
 'DIM AS SINGLE startTime = TIMER()
 'PRINT "startTime=";startTime
 

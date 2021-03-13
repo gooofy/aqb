@@ -492,6 +492,15 @@ Syntax:
 
 store long (32 bits) value at the specified memory address
 
+=== RANDOMIZE
+
+Syntax:
+
+    RANDOMIZE seed
+
+re-initialize the built-in pseudo random number generator to the
+given seed.
+
 === READ
 
 Syntax:

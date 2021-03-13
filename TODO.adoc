@@ -148,14 +148,14 @@ v0.1, 2020-07-12
 - DONE POKEL
 - DONE POKEW
 -      PUT
--      RANDOMIZE
+- DONE RANDOMIZE
 - DONE READ
--      REM
+- DONE REM
 - DONE RESTORE
 -      RESUME
 - DONE RETURN
 -      RIGHT$()
--      RND
+- DONE RND()
 -      RSET
 -      SADD()
 -      SAVE
