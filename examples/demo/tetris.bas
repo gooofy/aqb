@@ -9,7 +9,7 @@
 
 OPTION EXPLICIT
 
-RANDOMIZE TIMER
+'RANDOMIZE TIMER
 
 DIM AS SINGLE startTime = TIMER()
 'PRINT "startTime=";startTime
@@ -19,12 +19,12 @@ DIM SHARED AS INTEGER rx(4,4), ry(4,4)
 DIM SHARED AS INTEGER piecex(4)
 DIM SHARED AS INTEGER piecey(4)
 
-SUB DEFINEPIECE (p AS INTEGER)
-    LOCATE 7,1 : PRINT "DEFINEPIECE: p=";p
+SUB DEFINEPIECE (BYVAL p AS INTEGER)
+    ' LOCATE 7,1 : PRINT "DEFINEPIECE: p=";p
     SELECT CASE p
         CASE 1
             REM BLUE J PIECE
-            LOCATE 5,1 : PRINT "DEFINEPIECE: BLUE J PIECE"
+            ' LOCATE 5,1 : PRINT "DEFINEPIECE: BLUE J PIECE"
             piecex(1)=5:piecey(1)=0
             piecex(2)=5:piecey(2)=1
             piecex(3)=5:piecey(3)=2
@@ -45,56 +45,53 @@ SUB DEFINEPIECE (p AS INTEGER)
             rx(4,2)=0:ry(4,2)=0
             rx(4,3)=1:ry(4,3)=1
             rx(4,4)=0:ry(4,4)=2
-'   Return
-' DEFINEPIECE2:
-'   Rem GREEN S PIECE
-'   piecex(1)=4:piecey(1)=0
-'   piecex(2)=4:piecey(2)=1
-'   piecex(3)=5:piecey(3)=1
-'   piecex(4)=5:piecey(4)=2
-'   rx(1,1)=-1:ry(1,1)=1
-'   rx(1,2)=0:ry(1,2)=0
-'   rx(1,3)=-1:ry(1,3)=-1
-'   rx(1,4)=0:ry(1,4)=-2
-'   rx(2,1)=1:ry(2,1)=1
-'   rx(2,2)=0:ry(2,2)=0
-'   rx(2,3)=-1:ry(2,3)=1
-'   rx(2,4)=-2:ry(2,4)=0
-'   rx(3,1)=1:ry(3,1)=-1
-'   rx(3,2)=0:ry(3,2)=0
-'   rx(3,3)=1:ry(3,3)=1
-'   rx(3,4)=0:ry(3,4)=2
-'   rx(4,1)=-1:ry(4,1)=-1
-'   rx(4,2)=0:ry(4,2)=0
-'   rx(4,3)=1:ry(4,3)=-1
-'   rx(4,4)=2:ry(4,4)=0
-'   Return
-' DEFINEPIECE3:
-'   Rem CYAN L PIECE
-'   piecex(1)=4:piecey(1)=0
-'   piecex(2)=4:piecey(2)=1
-'   piecex(3)=4:piecey(3)=2
-'   piecex(4)=5:piecey(4)=2
-'   rx(1,1)=-1:ry(1,1)=1
-'   rx(1,2)=0:ry(1,2)=0
-'   rx(1,3)=1:ry(1,3)=-1
-'   rx(1,4)=0:ry(1,4)=-2
-'   rx(2,1)=1:ry(2,1)=1
-'   rx(2,2)=0:ry(2,2)=0
-'   rx(2,3)=-1:ry(2,3)=-1
-'   rx(2,4)=-2:ry(2,4)=0
-'   rx(3,1)=1:ry(3,1)=-1
-'   rx(3,2)=0:ry(3,2)=0
-'   rx(3,3)=-1:ry(3,3)=1
-'   rx(3,4)=0:ry(3,4)=2
-'   rx(4,1)=-1:ry(4,1)=-1
-'   rx(4,2)=0:ry(4,2)=0
-'   rx(4,3)=1:ry(4,3)=1
-'   rx(4,4)=2:ry(4,4)=0
-'   Return
+        CASE 2
+            REM GREEN S PIECE
+            piecex(1)=4:piecey(1)=0
+            piecex(2)=4:piecey(2)=1
+            piecex(3)=5:piecey(3)=1
+            piecex(4)=5:piecey(4)=2
+            rx(1,1)=-1:ry(1,1)=1
+            rx(1,2)=0:ry(1,2)=0
+            rx(1,3)=-1:ry(1,3)=-1
+            rx(1,4)=0:ry(1,4)=-2
+            rx(2,1)=1:ry(2,1)=1
+            rx(2,2)=0:ry(2,2)=0
+            rx(2,3)=-1:ry(2,3)=1
+            rx(2,4)=-2:ry(2,4)=0
+            rx(3,1)=1:ry(3,1)=-1
+            rx(3,2)=0:ry(3,2)=0
+            rx(3,3)=1:ry(3,3)=1
+            rx(3,4)=0:ry(3,4)=2
+            rx(4,1)=-1:ry(4,1)=-1
+            rx(4,2)=0:ry(4,2)=0
+            rx(4,3)=1:ry(4,3)=-1
+            rx(4,4)=2:ry(4,4)=0
+        CASE 3
+            REM CYAN L PIECE
+            piecex(1)=4:piecey(1)=0
+            piecex(2)=4:piecey(2)=1
+            piecex(3)=4:piecey(3)=2
+            piecex(4)=5:piecey(4)=2
+            rx(1,1)=-1:ry(1,1)=1
+            rx(1,2)=0:ry(1,2)=0
+            rx(1,3)=1:ry(1,3)=-1
+            rx(1,4)=0:ry(1,4)=-2
+            rx(2,1)=1:ry(2,1)=1
+            rx(2,2)=0:ry(2,2)=0
+            rx(2,3)=-1:ry(2,3)=-1
+            rx(2,4)=-2:ry(2,4)=0
+            rx(3,1)=1:ry(3,1)=-1
+            rx(3,2)=0:ry(3,2)=0
+            rx(3,3)=-1:ry(3,3)=1
+            rx(3,4)=0:ry(3,4)=2
+            rx(4,1)=-1:ry(4,1)=-1
+            rx(4,2)=0:ry(4,2)=0
+            rx(4,3)=1:ry(4,3)=1
+            rx(4,4)=2:ry(4,4)=0
         CASE 4
             REM RED Z PIECE
-            LOCATE 5,1 : PRINT "DEFINEPIECE: RED Z PIECE"
+            ' LOCATE 5,1 : PRINT "DEFINEPIECE: RED Z PIECE"
             piecex(1)=5:piecey(1)=0
             piecex(2)=5:piecey(2)=1
             piecex(3)=4:piecey(3)=1
@@ -115,94 +112,90 @@ SUB DEFINEPIECE (p AS INTEGER)
             rx(4,2)=0:ry(4,2)=0
             rx(4,3)=-1:ry(4,3)=-1
             rx(4,4)=-2:ry(4,4)=0
-'   Return
-' DEFINEPIECE5:
-'   Rem PURPLE T PIECE
-'   piecex(1)=5:piecey(1)=0
-'   piecex(2)=4:piecey(2)=1
-'   piecex(3)=5:piecey(3)=1
-'   piecex(4)=6:piecey(4)=1
-'   rx(1,1)=-1:ry(1,1)=1
-'   rx(1,2)=1:ry(1,2)=1
-'   rx(1,3)=0:ry(1,3)=0
-'   rx(1,4)=-1:ry(1,4)=-1
-'   rx(2,1)=1:ry(2,1)=1
-'   rx(2,2)=1:ry(2,2)=-1
-'   rx(2,3)=0:ry(2,3)=0
-'   rx(2,4)=-1:ry(2,4)=1
-'   rx(3,1)=1:ry(3,1)=-1
-'   rx(3,2)=-1:ry(3,2)=-1
-'   rx(3,3)=0:ry(3,3)=0
-'   rx(3,4)=1:ry(3,4)=1
-'   rx(4,1)=-1:ry(4,1)=-1
-'   rx(4,2)=-1:ry(4,2)=1
-'   rx(4,3)=0:ry(4,3)=0
-'   rx(4,4)=1:ry(4,4)=-1
-'   Return
-' DEFINEPIECE6:
-'   Rem YELLOW O PIECE
-'   piecex(1)=4:piecey(1)=0
-'   piecex(2)=5:piecey(2)=0
-'   piecex(3)=4:piecey(3)=1
-'   piecex(4)=5:piecey(4)=1
-'   rx(1,1)=0:ry(1,1)=0
-'   rx(1,2)=0:ry(1,2)=0
-'   rx(1,3)=0:ry(1,3)=0
-'   rx(1,4)=0:ry(1,4)=0
-'   rx(2,1)=0:ry(2,1)=0
-'   rx(2,2)=0:ry(2,2)=0
-'   rx(2,3)=0:ry(2,3)=0
-'   rx(2,4)=0:ry(2,4)=0
-'   rx(3,1)=0:ry(3,1)=0
-'   rx(3,2)=0:ry(3,2)=0
-'   rx(3,3)=0:ry(3,3)=0
-'   rx(3,4)=0:ry(3,4)=0
-'   rx(4,1)=0:ry(4,1)=0
-'   rx(4,2)=0:ry(4,2)=0
-'   rx(4,3)=0:ry(4,3)=0
-'   rx(4,4)=0:ry(4,4)=0
-'   Return
-' DEFINEPIECE7:
-'   Rem WHITE I PIECE
-'   piecex(1)=5:piecey(1)=0
-'   piecex(2)=5:piecey(2)=1
-'   piecex(3)=5:piecey(3)=2
-'   piecex(4)=5:piecey(4)=3
-'   rx(1,1)=-1:ry(1,1)=1
-'   rx(1,2)=0:ry(1,2)=0
-'   rx(1,3)=1:ry(1,3)=-1
-'   rx(1,4)=2:ry(1,4)=-2
-'   rx(2,1)=1:ry(2,1)=-1
-'   rx(2,2)=0:ry(2,2)=0
-'   rx(2,3)=-1:ry(2,3)=1
-'   rx(2,4)=-2:ry(2,4)=2
-'   rx(3,1)=-1:ry(3,1)=1
-'   rx(3,2)=0:ry(3,2)=0
-'   rx(3,3)=1:ry(3,3)=-1
-'   rx(3,4)=2:ry(3,4)=-2
-'   rx(4,1)=1:ry(4,1)=-1
-'   rx(4,2)=0:ry(4,2)=0
-'   rx(4,3)=-1:ry(4,3)=1
-'   rx(4,4)=-2:Ry(4,4)=2
-'   Return
+        CASE 5
+            REM PURPLE T PIECE
+            piecex(1)=5:piecey(1)=0
+            piecex(2)=4:piecey(2)=1
+            piecex(3)=5:piecey(3)=1
+            piecex(4)=6:piecey(4)=1
+            rx(1,1)=-1:ry(1,1)=1
+            rx(1,2)=1:ry(1,2)=1
+            rx(1,3)=0:ry(1,3)=0
+            rx(1,4)=-1:ry(1,4)=-1
+            rx(2,1)=1:ry(2,1)=1
+            rx(2,2)=1:ry(2,2)=-1
+            rx(2,3)=0:ry(2,3)=0
+            rx(2,4)=-1:ry(2,4)=1
+            rx(3,1)=1:ry(3,1)=-1
+            rx(3,2)=-1:ry(3,2)=-1
+            rx(3,3)=0:ry(3,3)=0
+            rx(3,4)=1:ry(3,4)=1
+            rx(4,1)=-1:ry(4,1)=-1
+            rx(4,2)=-1:ry(4,2)=1
+            rx(4,3)=0:ry(4,3)=0
+            rx(4,4)=1:ry(4,4)=-1
+        CASE 6
+            REM YELLOW O PIECE
+            piecex(1)=4:piecey(1)=0
+            piecex(2)=5:piecey(2)=0
+            piecex(3)=4:piecey(3)=1
+            piecex(4)=5:piecey(4)=1
+            rx(1,1)=0:ry(1,1)=0
+            rx(1,2)=0:ry(1,2)=0
+            rx(1,3)=0:ry(1,3)=0
+            rx(1,4)=0:ry(1,4)=0
+            rx(2,1)=0:ry(2,1)=0
+            rx(2,2)=0:ry(2,2)=0
+            rx(2,3)=0:ry(2,3)=0
+            rx(2,4)=0:ry(2,4)=0
+            rx(3,1)=0:ry(3,1)=0
+            rx(3,2)=0:ry(3,2)=0
+            rx(3,3)=0:ry(3,3)=0
+            rx(3,4)=0:ry(3,4)=0
+            rx(4,1)=0:ry(4,1)=0
+            rx(4,2)=0:ry(4,2)=0
+            rx(4,3)=0:ry(4,3)=0
+            rx(4,4)=0:ry(4,4)=0
+        CASE 7
+            REM WHITE I PIECE
+            ' LOCATE 5,1 : PRINT "DEFINEPIECE: WHITE I PIECE"
+            piecex(1)=5:piecey(1)=0
+            piecex(2)=5:piecey(2)=1
+            piecex(3)=5:piecey(3)=2
+            piecex(4)=5:piecey(4)=3
+            rx(1,1)=-1:ry(1,1)=1
+            rx(1,2)=0:ry(1,2)=0
+            rx(1,3)=1:ry(1,3)=-1
+            rx(1,4)=2:ry(1,4)=-2
+            rx(2,1)=1:ry(2,1)=-1
+            rx(2,2)=0:ry(2,2)=0
+            rx(2,3)=-1:ry(2,3)=1
+            rx(2,4)=-2:ry(2,4)=2
+            rx(3,1)=-1:ry(3,1)=1
+            rx(3,2)=0:ry(3,2)=0
+            rx(3,3)=1:ry(3,3)=-1
+            rx(3,4)=2:ry(3,4)=-2
+            rx(4,1)=1:ry(4,1)=-1
+            rx(4,2)=0:ry(4,2)=0
+            rx(4,3)=-1:ry(4,3)=1
+            rx(4,4)=-2:Ry(4,4)=2
     END SELECT
 END SUB
- 
+
 SUB PREVIEW
     LINE (182,36)-(209,77),1,BF
     DIM AS INTEGER PP=Int(Rnd(1)*7)+1
 
-    LOCATE 1,1 : PRINT "PREVIEW: PP=";PP
+    ' LOCATE 1,1 : PRINT "PREVIEW: PP=";PP
     DEFINEPIECE PP
 
-
-'   For P=1 To 4
-'     X=piecex(P):Y=piecey(P)
-'     XT=X*9+77:YT=Y*10+22
-'     Line(XT+70,YT+15)-(XT+77,YT+23),PP,BF
-'     Line(XT+71,YT+16)-(XT+76,YT+16),0
-'     Line(XT+76,YT+16)-(XT+76,YT+22),0
-'     Next P
+    FOR P AS INTEGER = 1 TO 4
+      DIM AS INTEGER X=piecex(P), Y=piecey(P)
+      DIM AS INTEGER XT=X*9+77, YT=Y*10+22
+      LINE (XT+70,YT+15)-(XT+77,YT+23),PP,BF
+      LINE (XT+71,YT+16)-(XT+76,YT+16),0
+      LINE (XT+76,YT+16)-(XT+76,YT+22),0
+    NEXT P
 END SUB
 
 STARTSCREEN:

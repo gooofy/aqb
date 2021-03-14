@@ -1335,6 +1335,22 @@ static void emit_CMP (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int
     emit_u2 (seg, code);
 }
 
+static void emit_EXT (AS_segment seg, enum Temp_w w, int reg)
+{
+    uint16_t code = 0x4800;
+    switch (w)
+    {
+        case Temp_w_B: code |= (2 << 6);break;
+        case Temp_w_W: code |= (3 << 6); break;
+        case Temp_w_L: code |= (7 << 6); break;
+        default: assert(FALSE);
+    }
+
+    code |= reg;
+
+    emit_u2 (seg, code);
+}
+
 static void emit_LEA (AS_segment seg, int regDst, int regSrc, int modeSrc)
 {
     uint16_t code = 0x41C0;
@@ -1393,6 +1409,20 @@ static void emit_MOVEM (AS_segment seg, enum Temp_w w, uint16_t dr, uint16_t mod
         }
     }
     emit_u2 (seg, regmask);
+}
+
+static void emit_MULS (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
+{
+    uint16_t code = 0xc1c0;
+    switch (w)
+    {
+        case Temp_w_W: break;
+        default: assert(FALSE);
+    }
+    code |= regDst  << 9;
+    code |= modeSrc << 3;
+    code |= regSrc;
+    emit_u2 (seg, code);
 }
 
 static void emit_MOVEQ (AS_segment seg, uint16_t regDst, Ty_const imm)
@@ -1515,6 +1545,9 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                                          /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
                 break;
             }
+            case AS_EXT_Dn:          //  28 ext.x   d1
+                emit_EXT (seg, instr->w, /*reg=*/AS_regNumDn(instr->dst));
+                break;
             case AS_LEA_Ofp_An:      //  29 lea     24(fp), a1
                 emit_LEA (seg, /*regDst=*/AS_regNumAn(instr->dst),
                           /*regSrc=*/5, /*modeSrc=*/5);
@@ -1640,6 +1673,12 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_i2 (seg, instr->offset);
                 break;
             }
+            case AS_MOVE_Imm_Ofp:    //  54 move.x  #42, 42(a5)
+                emit_MOVE (seg, instr->w, /*regDst=*/5, /*modeDst=*/5,
+                                          /*regSrc=*/4, /*modeSrc=*/7);
+                emit_Imm (seg, instr->w, instr->imm);
+                emit_i2 (seg, instr->offset);
+                break;
             case AS_MOVE_Imm_Label:  //  55 move.x  #42, label
                 emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
                                           /*regSrc=*/4, /*modeSrc=*/7);
@@ -1647,10 +1686,13 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
                     return FALSE;
                 break;
-            case AS_MOVEM_spPI_Rs:
+            case AS_MOVEM_spPI_Rs: // 58
                 emit_MOVEM (seg, instr->w, /*dr=*/1, /*mode=*/3, /*regs=*/instr->offset, /*regDst=*/7);
                 break;
-
+            case AS_MULS_Imm_Dn:     //  60 muls.x  #42, d2
+                emit_MULS (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/4, /*modeSrc=*/7);
+                emit_Imm (seg, instr->w, instr->imm);
+                break;
             case AS_RTS:
                 emit_u2 (seg, 0x4e75);
                 break;
