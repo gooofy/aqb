@@ -14,7 +14,7 @@ OPTION EXPLICIT
 DIM AS SINGLE startTime = TIMER()
 'PRINT "startTime=";startTime
 
-' Dim GRID(10,20)
+DIM SHARED AS INTEGER grid(10,20)
 DIM SHARED AS INTEGER rx(4,4), ry(4,4)
 DIM SHARED AS INTEGER piecex(4)
 DIM SHARED AS INTEGER piecey(4)
@@ -200,11 +200,12 @@ END SUB
 
 STARTSCREEN:
 
-' For X=0 To 9
-' For Y=0 To 19
-' GRID(X,Y)=0
-' Next Y,X
-'
+FOR x AS INTEGER = 0 TO 9
+    FOR y AS INTEGER = 0 TO 19
+        grid(x,y) = 0
+    NEXT y
+NEXT x
+
 ' L=0
 ' S=0
 
@@ -316,7 +317,7 @@ WEND
 '     Next P
 '   If E=1 Then GoSub DRAWPIECE:Return
 '   For P=1 To 4
-'     If GRID(piecex(P)+1,piecey(P))<>0 Then E=1
+'     If grid(piecex(P)+1,piecey(P))<>0 Then E=1
 '     Next P
 '   If E=1 Then GoSub DRAWPIECE:Return
 '   For P=1 To 4:piecex(P)=piecex(P)+1:Next P
@@ -329,7 +330,7 @@ WEND
 '     Next P
 '   If E=1 Then GoSub DRAWPIECE:Return
 '   For P=1 To 4
-'     If GRID(piecex(P)-1,piecey(P))<>0 Then E=1
+'     If grid(piecex(P)-1,piecey(P))<>0 Then E=1
 '     Next P
 '   If E=1 Then GoSub DRAWPIECE:Return
 '   For P=1 To 4:piecex(P)=piecex(P)-1:Next P
@@ -342,7 +343,7 @@ WEND
 '     Next P
 '   If E=1 Then GoSub DRAWPIECE:GoSub NEWPIECE:Return
 '   For P=1 To 4
-'     If GRID(piecex(P),piecey(P)+1)<>0 Then E=1
+'     If grid(piecex(P),piecey(P)+1)<>0 Then E=1
 '     Next P
 '   If E=1 Then GoSub DRAWPIECE:GoSub NEWPIECE:Return
 '   For P=1 To 4:piecey(P)=piecey(P)+1:Next P
@@ -361,39 +362,39 @@ WEND
 '   GoSub DRAWPIECE
 '   Return
 ' 
-' CHECKGRID:
+' CHECKgrid:
 '   For CY=0 To 19
 '     ROW=0
 '     For X=0 To 9
-'       If GRID(X,CY)<>0 Then ROW=ROW+1
+'       If grid(X,CY)<>0 Then ROW=ROW+1
 '       Next X
-'     If ROW=10 Then GoSub DROPGRID
+'     If ROW=10 Then GoSub DROPgrid
 '     If CY=0 and ROW>0 Then Gosub GAMEOVERMAN
 '   Next CY
 '   Return
 ' 
-' DROPGRID:
-'   GoSub CLEARSCREENGRID
+' DROPgrid:
+'   GoSub CLEARSCREENgrid
 '   For X=0 To 9
 '     For YY= CY To 1 Step-1
-'       GRID(X,YY)=GRID(X,YY-1)
+'       grid(X,YY)=grid(X,YY-1)
 '       Next YY,X
 '   L=L+1
 '   S=S+T1
 '   Print @(182,106) L
 '   Print @(182,155) S
-'   GoSub REDRAWSCREENGRID
+'   GoSub REDRAWSCREENgrid
 '   Return
 ' 
-' CLEARSCREENGRID:
+' CLEARSCREENgrid:
 '   Line(69,14)-(159,214),0,BF
 '   Return
 ' 
-' REDRAWSCREENGRID:
+' REDRAWSCREENgrid:
 '   For Y=0 To 19
 '   For X=0 To 9
 '   XT=X*9:YT=Y*10
-'   Line(XT+70,YT+15)-(XT+77,YT+23),GRID(X,Y),BF
+'   Line(XT+70,YT+15)-(XT+77,YT+23),grid(X,Y),BF
 '   Line(XT+71,YT+16)-(XT+76,YT+16),0
 '   Line(XT+76,YT+16)-(XT+76,YT+22),0
 '   Next X,Y
@@ -402,7 +403,7 @@ WEND
 ' DRAWPIECE:
 '   For P=1 To 4
 '   X=piecex(P):Y=piecey(P)
-'   GRID(X,Y)=PC
+'   grid(X,Y)=PC
 '   XT=X*9:YT=Y*10
 '   Line(XT+70,YT+15)-(XT+77,YT+23),PC,BF
 '   Line(XT+71,YT+16)-(XT+76,YT+16),0
@@ -412,12 +413,12 @@ WEND
 ' ERASEPIECE:
 '   For P=1 To 4
 '   X=piecex(P):Y=piecey(P)
-'   GRID(X,Y)=0
+'   grid(X,Y)=0
 '   Line(X*9+70,Y*10+15)-(X*9+77,Y*10+23),0,BF
 '   Next P
 '   Return
 ' NEWPIECE:
-'   GoSub CHECKGRID
+'   GoSub CHECKgrid
 '   ROT=1
 '   PC=PP
 '   GoSub PREVIEW
