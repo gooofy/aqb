@@ -19,6 +19,12 @@ DIM SHARED AS INTEGER rx(4,4), ry(4,4)
 DIM SHARED AS INTEGER piecex(4)
 DIM SHARED AS INTEGER piecey(4)
 
+DIM SHARED AS INTEGER PP  : REM preview piece
+DIM SHARED AS INTEGER PC  : REM current piece
+DIM SHARED AS INTEGER ROT : REM rotation
+' L=0
+' S=0
+
 SUB DEFINEPIECE (BYVAL p AS INTEGER)
     ' LOCATE 7,1 : PRINT "DEFINEPIECE: p=";p
     SELECT CASE p
@@ -184,18 +190,37 @@ END SUB
 
 SUB PREVIEW
     LINE (182,36)-(209,77),1,BF
-    DIM AS INTEGER PP=Int(Rnd(1)*7)+1
+    PP=Int(Rnd(1)*7)+1
 
     ' LOCATE 1,1 : PRINT "PREVIEW: PP=";PP
     DEFINEPIECE PP
 
     FOR P AS INTEGER = 1 TO 4
-      DIM AS INTEGER X=piecex(P), Y=piecey(P)
-      DIM AS INTEGER XT=X*9+77, YT=Y*10+22
-      LINE (XT+70,YT+15)-(XT+77,YT+23),PP,BF
-      LINE (XT+71,YT+16)-(XT+76,YT+16),0
-      LINE (XT+76,YT+16)-(XT+76,YT+22),0
+        DIM AS INTEGER X=piecex(P), Y=piecey(P)
+        DIM AS INTEGER XT=X*9+77, YT=Y*10+22
+        LINE (XT+70,YT+15)-(XT+77,YT+23),PP,BF
+        LINE (XT+71,YT+16)-(XT+76,YT+16),0
+        LINE (XT+76,YT+16)-(XT+76,YT+22),0
     NEXT P
+END SUB
+
+SUB CHECKGRID
+    FOR CY AS INTEGER = 0 TO 19
+        DIM AS INTEGER ROW=0
+        FOR X AS INTEGER = 0 TO 9
+            IF grid(X,CY)<>0 THEN ROW=ROW+1
+        NEXT X
+        ' IF ROW=10 THEN DROPGRID
+        ' IF CY=0 AND ROW>0 THEN GAMEOVERMAN
+    NEXT CY
+END SUB
+
+SUB NEWPIECE
+    CHECKGRID
+    ROT=1
+    PC=PP
+    PREVIEW
+    DEFINEPIECE PC
 END SUB
 
 STARTSCREEN:
@@ -206,12 +231,20 @@ FOR x AS INTEGER = 0 TO 9
     NEXT y
 NEXT x
 
-' L=0
-' S=0
-
 ' COLOR 7,1
 
-WINDOW 1, "Tetris", (0,0) - (638, 220), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+SCREEN 2, 320, 200, 3, AS_MODE_LORES, "Tetris"
+WINDOW 4,,,AW_FLAG_BACKDROP OR AW_FLAG_BORDERLESS,2
+
+PALETTE 0, 0.0, 0.0, 0.0 : REM black
+PALETTE 1, 0.0, 0.0, 1.0 : REM blue
+PALETTE 2, 0.0, 1.0, 0.0 : REM green
+PALETTE 3, 0.0, 1.0, 1.0 : REM cyan
+PALETTE 4, 1.0, 0.0, 0.0 : REM red
+PALETTE 5, 1.0, 0.0, 1.0 : REM purple
+PALETTE 6, 1.0, 1.0, 0.0 : REM yellow
+PALETTE 7, 1.0, 1.0, 1.0 : REM white
+
 
 CLS
 
@@ -287,7 +320,7 @@ LINE (182,152)-(213,169),1,BF
 ' Print @(182,155) T1
 
 PREVIEW
-' GoSub NEWPIECE
+NEWPIECE
 ' GoSub DRAWPIECE
 ' 
 WHILE INKEY$=""
@@ -362,18 +395,8 @@ WEND
 '   GoSub DRAWPIECE
 '   Return
 ' 
-' CHECKgrid:
-'   For CY=0 To 19
-'     ROW=0
-'     For X=0 To 9
-'       If grid(X,CY)<>0 Then ROW=ROW+1
-'       Next X
-'     If ROW=10 Then GoSub DROPgrid
-'     If CY=0 and ROW>0 Then Gosub GAMEOVERMAN
-'   Next CY
-'   Return
 ' 
-' DROPgrid:
+' DROPGRID:
 '   GoSub CLEARSCREENgrid
 '   For X=0 To 9
 '     For YY= CY To 1 Step-1
@@ -416,19 +439,6 @@ WEND
 '   grid(X,Y)=0
 '   Line(X*9+70,Y*10+15)-(X*9+77,Y*10+23),0,BF
 '   Next P
-'   Return
-' NEWPIECE:
-'   GoSub CHECKgrid
-'   ROT=1
-'   PC=PP
-'   GoSub PREVIEW
-'   If PC=1 Then GoSub DEFINEPIECE1
-'   If PC=2 Then GoSub DEFINEPIECE2
-'   If PC=3 Then GoSub DEFINEPIECE3
-'   If PC=4 Then GoSub DEFINEPIECE4
-'   If PC=5 Then GoSub DEFINEPIECE5
-'   If PC=6 Then GoSub DEFINEPIECE6
-'   If PC=7 Then GoSub DEFINEPIECE7
 '   Return
 ' 
 
