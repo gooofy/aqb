@@ -1337,7 +1337,7 @@ static void emit_CMP (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int
 
 static void emit_LEA (AS_segment seg, int regDst, int regSrc, int modeSrc)
 {
-    uint16_t code = 0x4000;
+    uint16_t code = 0x41C0;
 
     code |= regDst  << 9;
     code |= regSrc      ;
@@ -1516,9 +1516,10 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 break;
             }
             case AS_LEA_Ofp_An:      //  29 lea     24(fp), a1
-               emit_LEA (seg, /*regDst=*/AS_regNumAn(instr->dst),
-                         /*regSrc=*/5, /*modeSrc=*/5);
-               break;
+                emit_LEA (seg, /*regDst=*/AS_regNumAn(instr->dst),
+                          /*regSrc=*/5, /*modeSrc=*/5);
+                emit_i2 (seg, instr->offset);
+                break;
 
             case AS_LINK_fp:                // 30 LINK.W  A5,#-40         ;0104: 4e55ffd8
                 emit_u2 (seg, 0x4e55);
@@ -1574,7 +1575,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             {
                 bool isAn = AS_isAn(instr->dst);
                 emit_MOVE (seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/isAn ? 1:0,
-                                          /*regSrc=*/5, /*modeSrc=*/2);
+                                          /*regSrc=*/AS_regNumAn(instr->src), /*modeSrc=*/2);
                 break;
             }
             case AS_MOVE_AnDn_PDsp:         // 43 MOVE.L  D2,-(A7)        ;0034: 2f02
@@ -1587,7 +1588,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
             case AS_MOVE_Imm_PDsp:   //  44 move.x  #23, -(sp)
                 emit_MOVE (seg, instr->w, /*regDst=*/7, /*modeDst=*/4,
-                                          /*regSrc=*/1, /*modeSrc=*/7);
+                                          /*regSrc=*/4, /*modeSrc=*/7);
                 emit_Imm (seg, instr->w, instr->imm);
                 break;
 
