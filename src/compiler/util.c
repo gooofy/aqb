@@ -47,6 +47,9 @@ struct U_memPool_
     int         num_chunks;
     int         num_allocs;
     U_memChunk  first, last;
+    // for allocs >chunk_size:
+    U_memRec    mem;
+    size_t      mem_alloced;
 };
 
 struct U_memRec_
@@ -118,10 +121,12 @@ static U_memChunk U_MemChunk(size_t chunk_size)
 
 static void U_memPoolInit (U_memPool pool, size_t chunk_size)
 {
-    pool->chunk_size = chunk_size;
-    pool->first      = pool->last = U_MemChunk(chunk_size);
-    pool->num_chunks = 1;
-    pool->num_allocs = 0;
+    pool->chunk_size  = chunk_size;
+    pool->first       = pool->last = U_MemChunk(chunk_size);
+    pool->num_chunks  = 1;
+    pool->num_allocs  = 0;
+    pool->mem         = NULL;
+    pool->mem_alloced = 0;
 }
 
 static U_memPool U_MemPool(size_t chunk_size)
@@ -138,7 +143,20 @@ void *U_poolAlloc (U_poolId pid, size_t size)
 {
     U_memPool pool = g_pools[pid];
     assert (pool);
-    assert (size <= pool->chunk_size);
+
+    if (size > pool->chunk_size)
+    {
+        U_memRec mem_prev = pool->mem;
+
+        pool->mem      = checked_malloc (sizeof(*pool->mem));
+        pool->mem->mem = checked_malloc (size);
+
+        pool->mem->size    = size;
+        pool->mem->next    = mem_prev;
+        pool->mem_alloced += size;
+
+        return pool->mem->mem;
+    }
 
     // alignment
     size += size % 2;
@@ -169,7 +187,7 @@ static void U_poolFree (U_poolId pid, bool destroy)
 {
     U_memPool pool = g_pools[pid];
     if (OPT_get(OPTION_VERBOSE))
-        printf ("freeing memory pool: %-12s %5d allocs, %6zd Bytes in %2d chunks.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks);
+        printf ("freeing memory pool: %-12s %5d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks, pool->mem_alloced);
 
     U_memChunk nextChunk = pool->first->next;
     for (U_memChunk chunk = pool->first; chunk; chunk = nextChunk)
@@ -178,9 +196,15 @@ static void U_poolFree (U_poolId pid, bool destroy)
         U_memfree(chunk->mem_start, pool->chunk_size);
         U_memfree(chunk, sizeof (*chunk));
     }
+    while (pool->mem)
+    {
+        U_memRec mem_next = pool->mem->next;
+        U_memfree (pool->mem->mem, pool->mem->size);
+        U_memfree (pool->mem, sizeof (*pool->mem));
+        pool->mem = mem_next;
+    }
     if (destroy)
         U_memfree(pool, sizeof (*pool));
-
 }
 
 void U_poolReset (U_poolId pid)
@@ -198,7 +222,7 @@ void U_memstat(void)
 
     for (int i=0; i<UP_numPools; i++)
     {
-        printf ("%8.3fs: memory pool stats: %-12s %4d allocs, %6zd Bytes in %2d chunks.\n", tdiff, g_pool_names[i], g_pools[i]->num_allocs, (g_pools[i]->num_chunks * g_pools[i]->chunk_size) / 1, g_pools[i]->num_chunks);
+        printf ("%8.3fs: memory pool stats: %-12s %4d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", tdiff, g_pool_names[i], g_pools[i]->num_allocs, (g_pools[i]->num_chunks * g_pools[i]->chunk_size) / 1, g_pools[i]->num_chunks, g_pools[i]->mem_alloced);
     }
 	printf ("%8.3fs: memory pool stats: OTHER                     %6zd Bytes.\n", tdiff, g_alloc);
 }
