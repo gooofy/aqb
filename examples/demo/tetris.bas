@@ -245,19 +245,29 @@ PALETTE 5, 1.0, 0.0, 1.0 : REM purple
 PALETTE 6, 1.0, 1.0, 0.0 : REM yellow
 PALETTE 7, 1.0, 1.0, 1.0 : REM white
 
-
 CLS
 
-LOCATE  2, 28 : PRINT "Welcome to"
-LOCATE  4, 28 : PRINT "AQB TETRIS"
-LOCATE  6, 12 : PRINT "Based on COLOUR MAXIMITE TETRIS"
-LOCATE  8, 24 : PRINT "By David Murray"
-LOCATE 10, 18 : PRINT "AQB port by Guenter Bartsch"
+SUB CPRINT (BYVAL y AS INTEGER, s AS STRING)
 
-LOCATE 16,  4 : PRINT "Please enter level difficulty between 1-10"
-LOCATE 17,  4 : PRINT "default being 2, 10 being ridiculous, Good Luck!"
-LINE (10,110)-(600,145),3,B
-LINE (6,108)-(604,147),3,B
+    DIM AS INTEGER x = 20-LEN(s)/2
+    LOCATE y, x
+    PRINT s
+
+END SUB
+
+COLOR 7
+
+CPRINT  3, "Welcome to"
+CPRINT  5, "AQB TETRIS"
+CPRINT  7, "Based on COLOUR MAXIMITE TETRIS"
+CPRINT  9, "By David Murray"
+CPRINT 11, "AQB port by Guenter Bartsch"
+
+LOCATE 15, 2 : PRINT "Please enter level 1-10"
+LOCATE 16, 2 : PRINT "default being 2, 10 being ridiculous"
+LOCATE 18, 2 : PRINT "Good Luck!"
+LINE (2 ,107)-(317,147),5,B
+LINE (0 ,105)-(319,149),5,B
 
 DIM AS INTEGER t1=0
 
@@ -289,11 +299,10 @@ WHILE t1=0
     END IF
 WEND
 
-' Mode 4,1:Cls
-'
 CLS
 
 SETUPSCREEN:
+COLOR 1
 PRINT " AQB Tetris by David Murray, Guenter Bartsch"
 PRINT
 PRINT "  CURSOR                       NEXT"
