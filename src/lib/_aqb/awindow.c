@@ -91,6 +91,8 @@ void SCREEN (short id, short width, short height, short depth, short mode, char 
         return;
     }
 
+    _debug_puts("SCREEN title: "); _debug_puts(title); _debug_putnl();
+
     g_nscr.Width        = width;
     g_nscr.Height       = height;
     g_nscr.Depth        = depth;
@@ -208,7 +210,7 @@ void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x
     g_nw.TopEdge    = y1;
     g_nw.Width      = w;
     g_nw.Height     = h;
-    g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : NULL;
+    g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : (UBYTE*) "";
 
     g_nw.Flags      = GIMMEZEROZERO | ACTIVATE;
     g_nw.IDCMPFlags = VANILLAKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;

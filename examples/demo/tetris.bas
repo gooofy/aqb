@@ -189,7 +189,7 @@ SUB DEFINEPIECE (BYVAL p AS INTEGER)
 END SUB
 
 SUB PREVIEW
-    LINE (182,36)-(209,77),1,BF
+    LINE (182,36)-(209,77),0,BF
     PP=Int(Rnd(1)*7)+1
 
     ' LOCATE 1,1 : PRINT "PREVIEW: PP=";PP
@@ -223,6 +223,17 @@ SUB NEWPIECE
     DEFINEPIECE PC
 END SUB
 
+SUB DRAWPIECE
+    FOR P AS INTEGER = 1 TO 4
+        DIM AS INTEGER X=piecex(P), Y=piecey(P)
+        grid(X,Y)=PC
+        DIM AS INTEGER XT=X*9, YT=Y*10
+        LINE (XT+70,YT+15)-(XT+77,YT+23),PC,BF
+        LINE (XT+71,YT+16)-(XT+76,YT+16),0
+        LINE (XT+76,YT+16)-(XT+76,YT+22),0
+    NEXT P
+END SUB
+
 STARTSCREEN:
 
 FOR x AS INTEGER = 0 TO 9
@@ -231,9 +242,7 @@ FOR x AS INTEGER = 0 TO 9
     NEXT y
 NEXT x
 
-' COLOR 7,1
-
-SCREEN 2, 320, 200, 3, AS_MODE_LORES, "Tetris"
+SCREEN 2, 320, 200, 3, AS_MODE_LORES, "AQB Tetris"
 WINDOW 4,,,AW_FLAG_BACKDROP OR AW_FLAG_BORDERLESS,2
 
 PALETTE 0, 0.0, 0.0, 0.0 : REM black
@@ -302,27 +311,30 @@ WEND
 CLS
 
 SETUPSCREEN:
-COLOR 1
-PRINT " AQB Tetris by David Murray, Guenter Bartsch"
+COLOR 7
 PRINT
-PRINT "  CURSOR                       NEXT"
-PRINT "   KEYS"
-PRINT "   MOVE"
 PRINT
-PRINT " UP/SPACE"
-PRINT " to ROTATE"
-PRINT " Z to DROP"
+PRINT "CURSOR                   NEXT"
+PRINT " KEYS"
+PRINT " MOVE"
+PRINT
+PRINT "UP/SPACE"
+PRINT "to ROTATE"
+PRINT "Z to DROP"
 ' Print @(170,190,1) "ESC to"
 ' Print @(170,200,1) "PAUSE/EXIT"
 ' Print @(183,90,1) "LINES"
 ' Print @(183,140,1) "SCORE"
 LINE (181,35)-(210,78),2,B
-LINE (68,13)-(160,215),2,B
-LINE (69,14)-(159,214),1,BF
-LINE (181,101)-(214,120),2,B
-LINE (182,102)-(213,119),1,BF
-LINE (181,151)-(214,170),2,B
-LINE (182,152)-(213,169),1,BF
+
+LINE (68,13)-(160,215),7,B
+LINE (69,14)-(159,214),0,BF
+
+LINE (181,101)-(214,120),7,B
+LINE (182,102)-(213,119),0,BF
+
+LINE (181,151)-(214,170),7,B
+LINE (182,152)-(213,169),0,BF
 
 ' Colour 7,0
 ' Print @(182,106) S
@@ -330,7 +342,7 @@ LINE (182,152)-(213,169),1,BF
 
 PREVIEW
 NEWPIECE
-' GoSub DRAWPIECE
+DRAWPIECE
 ' 
 WHILE INKEY$=""
     SLEEP
@@ -432,16 +444,6 @@ WEND
 '   Next X,Y
 '   Return
 ' 
-' DRAWPIECE:
-'   For P=1 To 4
-'   X=piecex(P):Y=piecey(P)
-'   grid(X,Y)=PC
-'   XT=X*9:YT=Y*10
-'   Line(XT+70,YT+15)-(XT+77,YT+23),PC,BF
-'   Line(XT+71,YT+16)-(XT+76,YT+16),0
-'   Line(XT+76,YT+16)-(XT+76,YT+22),0
-'   Next P
-'   Return
 ' ERASEPIECE:
 '   For P=1 To 4
 '   X=piecex(P):Y=piecey(P)

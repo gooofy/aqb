@@ -1620,6 +1620,13 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 }
                 break;
             }
+            case AS_MOVE_AnDn_RAn:   //  39 move.x  d1, (a6)
+            {
+                bool isAn = AS_isAn(instr->src);
+                emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumAn(instr->dst), /*modeDst=*/2,
+                                          /*regSrc=*/isAn ? AS_regNumAn(instr->src):AS_regNumDn(instr->src), /*modeSrc=*/isAn?1:0);
+                break;
+            }
             case AS_MOVE_RAn_AnDn:   //  40 move.x  (a5), d1
             {
                 bool isAn = AS_isAn(instr->dst);
