@@ -109,5 +109,14 @@ void   AREAFILL (short mode);
 void   PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn);
 char  *INKEY_ (void);
 
+/*
+ * ON TIMER support
+ */
+
+
+void _atimer_init(void);
+void _atimer_shutdown(void);
+
+
 #endif
 

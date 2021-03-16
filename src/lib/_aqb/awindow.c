@@ -29,7 +29,7 @@ static struct NewWindow g_nw =
 {
     0, 0, 0, 0,                                                    // LeftEdge, TopEdge, Width, Height
     0, 1,                                                          // DetailPen, BlockPen
-    INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW,  // IDCMPFlags
+    VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW,               // IDCMPFlags
     0,                                                             // Flags
     NULL,                                                          // FirstGadget
     NULL,                                                          // CheckMark
@@ -91,7 +91,7 @@ void SCREEN (short id, short width, short height, short depth, short mode, char 
         return;
     }
 
-    _debug_puts("SCREEN title: "); _debug_puts(title); _debug_putnl();
+    //_debug_puts("SCREEN title: "); _debug_puts(title); _debug_putnl();
 
     g_nscr.Width        = width;
     g_nscr.Height       = height;
