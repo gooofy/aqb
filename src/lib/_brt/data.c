@@ -56,15 +56,15 @@ void _aqb_read4 (void *v)
 
 void _aqb_readStr (void *v)
 {
-    char buf[MAX_STRING_LEN];
+    UBYTE buf[MAX_STRING_LEN];
     if (!g_data_ptr)
     {
         ERROR (ERR_OUT_OF_DATA);
         return;
     }
 
-    char c = 0xff;
-    int l = 0;
+    UBYTE c = 0xff;
+    LONG l = 0;
     while (c && (l<MAX_STRING_LEN-1))
     {
         c = buf[l] = *((char *)g_data_ptr);
@@ -73,6 +73,6 @@ void _aqb_readStr (void *v)
         l++;
     }
     buf[l] = 0;
-    *((char **)v) = _astr_dup(buf);
+    *((UBYTE **)v) = _astr_dup(buf);
 }
 

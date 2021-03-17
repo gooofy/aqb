@@ -516,7 +516,15 @@ bool LI_link (LI_segmentList sl)
             printf ("link: pass1: found definition for symbol %-20s (%p): offset=0x%08x at hunk #%02d (%s)\n", S_name (def->sym), def->sym, def->offset, node->seg->hunk_id, node->seg->sourcefn);
 #endif
 
-            symInfo si = U_poolAlloc (UP_link, sizeof(*si));
+            symInfo si = (symInfo) TAB_look (symTable, def->sym);
+            if (si)
+            {
+                char msg[256];
+                snprintf(msg, 256, "symbol %s defined more than once!", S_name(def->sym));
+                link_fail (msg);
+            }
+
+            si         = U_poolAlloc (UP_link, sizeof(*si));
             si->seg    = node->seg;
             si->offset = def->offset;
 

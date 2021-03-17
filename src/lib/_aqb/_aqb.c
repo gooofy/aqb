@@ -35,10 +35,10 @@ void __aqb_init(void)
     ON_EXIT_CALL(_aqb_shutdown);
 
     if (!(IntuitionBase = (struct IntuitionBase *)OpenLibrary((CONST_STRPTR) "intuition.library", 0)))
-        _cshutdown(20, "*** error: failed to open intuition.library!\n");
+        _cshutdown(20, (UBYTE *)"*** error: failed to open intuition.library!\n");
 
     if (!(GfxBase = (struct GfxBase *)OpenLibrary((CONST_STRPTR) "graphics.library", 0)))
-        _cshutdown(20, "*** error: failed to open graphics.library!\n");
+        _cshutdown(20, (UBYTE *)"*** error: failed to open graphics.library!\n");
 
     _awindow_init();
     awindow_init_done = TRUE;

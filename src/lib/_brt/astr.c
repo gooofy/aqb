@@ -15,7 +15,7 @@
 //#define DEBUG
 
 /* A utility function to reverse a string  */
-static void reverse(char *str, int length)
+static void reverse(UBYTE *str, LONG length)
 {
     int start = 0;
     int end   = length -1;
@@ -29,9 +29,9 @@ static void reverse(char *str, int length)
     }
 }
 
-void _astr_itoa_ext(int num, char* str, int base, BOOL leading_space)
+void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space)
 {
-    int i = 0;
+    LONG i = 0;
     BOOL isNegative = FALSE;
 
     /* Handle 0 explicitely, otherwise empty string is printed for 0 */
@@ -77,12 +77,12 @@ void _astr_itoa_ext(int num, char* str, int base, BOOL leading_space)
     reverse(str, i);
 }
 
-void _astr_itoa(int num, char* str, int base)
+void _astr_itoa(LONG num, UBYTE* str, LONG base)
 {
     _astr_itoa_ext(num, str, base, /*leading_space=*/TRUE);
 }
 
-void _astr_utoa(unsigned int num, char* str, unsigned int base)
+void _astr_utoa(ULONG num, UBYTE* str, ULONG base)
 {
     int i = 0;
 
@@ -110,7 +110,7 @@ void _astr_utoa(unsigned int num, char* str, unsigned int base)
     reverse(str, i);
 }
 
-ULONG LEN_(const char *str)
+ULONG LEN_(const UBYTE *str)
 {
     int l = 0;
     while (*str)
@@ -121,15 +121,15 @@ ULONG LEN_(const char *str)
     return l;
 }
 
-char *CHR_(int codepoint)
+UBYTE *CHR_(LONG codepoint)
 {
-    char s[2];
+    UBYTE s[2];
     s[0] = codepoint;
     s[1] = 0;
     return _astr_dup(s);
 }
 
-SHORT ASC_(const char *str)
+SHORT ASC_(const UBYTE *str)
 {
     if (!str)
     {
@@ -147,22 +147,22 @@ SHORT ASC_(const char *str)
     return str[0];
 }
 
-char *_astr_dup(const char* str)
+UBYTE *_astr_dup(const UBYTE* str)
 {
     ULONG l = LEN_(str);
-    char *str2 = ALLOCATE_(l+1, MEMF_ANY);
+    UBYTE *str2 = ALLOCATE_(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
 }
 
-SHORT __astr_cmp(const char* s1, const char* s2)
+SHORT __astr_cmp(const UBYTE* s1, const UBYTE* s2)
 {
     while(*s1 && (*s1 == *s2))
     {
         s1++;
         s2++;
     }
-    return *(const unsigned char*)s1 - *(const unsigned char*)s2;
+    return *(const UBYTE*)s1 - *(const UBYTE*)s2;
 }
 
 /*
@@ -257,7 +257,7 @@ static SHORT normalizeFloat(FLOAT *value)
     return exponent;
 }
 
-void _astr_ftoa(FLOAT value, char *buf)
+void _astr_ftoa(FLOAT value, UBYTE *buf)
 {
     BOOL negative = FALSE;
 
@@ -337,8 +337,8 @@ void _astr_ftoa(FLOAT value, char *buf)
             width--;
         }
 
-        char buffer[16];
-        char *ptr = buffer + sizeof(buffer) - 1;
+        UBYTE buffer[16];
+        UBYTE *ptr = buffer + sizeof(buffer) - 1;
 
         // write the string in reverse order
         *ptr = 0;
@@ -362,9 +362,9 @@ void _astr_ftoa(FLOAT value, char *buf)
     }
 }
 
-const char *_astr_strchr(const char *s, char c)
+const UBYTE *_astr_strchr(const UBYTE *s, UBYTE c)
 {
-    const char *s2 = s;
+    const UBYTE *s2 = s;
 
     for (; *s2; s2++)
         if (*s2 == c)
@@ -373,65 +373,65 @@ const char *_astr_strchr(const char *s, char c)
     return NULL;
 }
 
-char *_s1toa_   (BYTE   b)
+UBYTE *_s1toa_   (BYTE   b)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_itoa(b, buf, 10);
     return _astr_dup(buf);
 }
 
-char *_s2toa_   (SHORT  i)
+UBYTE *_s2toa_   (SHORT  i)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_itoa(i, buf, 10);
     return _astr_dup(buf);
 }
 
-char *_s4toa_   (LONG   l)
+UBYTE *_s4toa_   (LONG   l)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
     return _astr_dup(buf);
 }
 
-char *_u1toa_   (UBYTE  b)
+UBYTE *_u1toa_   (UBYTE  b)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_utoa(b, buf, 10);
     return _astr_dup(buf);
 }
 
-char *_u2toa_   (USHORT i)
+UBYTE *_u2toa_   (USHORT i)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_utoa(i, buf, 10);
     return _astr_dup(buf);
 }
 
-char *_u4toa_   (ULONG  l)
+UBYTE *_u4toa_   (ULONG  l)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_utoa(l, buf, 10);
     return _astr_dup(buf);
 }
 
-char *_ftoa_    (FLOAT  f)
+UBYTE *_ftoa_    (FLOAT  f)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_ftoa(f, buf);
     return _astr_dup(buf);
 }
 
-char *_booltoa_ (BOOL   b)
+UBYTE *_booltoa_ (BOOL   b)
 {
-    return b ? "TRUE" : "FALSE";
+    return b ? (UBYTE *)"TRUE" : (UBYTE *)"FALSE";
 }
 
 /*
  * VAL* support
  */
 
-LONG _str2i4_ (char *str, int len, int base)
+LONG _str2i4_ (UBYTE *str, LONG len, LONG base)
 {
     LONG v = 0;
     BOOL negative = FALSE;
@@ -516,11 +516,11 @@ LONG _str2i4_ (char *str, int len, int base)
     return v;
 }
 
-static char *_val_handle_prefix(char *s, int *base, int *len)
+static UBYTE *_val_handle_prefix(UBYTE *s, LONG *base, LONG *len)
 {
     // skip whitespace
 
-    char *p = s;
+    UBYTE *p = s;
     while ( (*p == ' ') || (*p == '\t') )
         p++;
 
@@ -562,52 +562,52 @@ static char *_val_handle_prefix(char *s, int *base, int *len)
     return &p[skip];
 }
 
-SHORT VALINT_ (char *s)
+SHORT VALINT_ (UBYTE *s)
 {
     if (!s)
         return 0;
 
-    int base=10, len=0;
+    LONG base=10, len=0;
     s = _val_handle_prefix(s, &base, &len);
 
     return _str2i4_(s, len, base);
 }
 
-USHORT VALUINT_ (char *s)
+USHORT VALUINT_ (UBYTE *s)
 {
     if (!s)
         return 0;
 
-    int base=10, len=0;
+    LONG base=10, len=0;
     s = _val_handle_prefix(s, &base, &len);
 
     LONG l = _str2i4_(s, len, base);
     return (USHORT) l;
 }
 
-LONG VALLNG_ (char *s)
+LONG VALLNG_ (UBYTE *s)
 {
     if (!s)
         return 0;
 
-    int base=10, len=0;
+    LONG base=10, len=0;
     s = _val_handle_prefix(s, &base, &len);
 
     return _str2i4_(s, len, base);
 }
 
-ULONG VALULNG_ (char *s)
+ULONG VALULNG_ (UBYTE *s)
 {
     if (!s)
         return 0;
 
-    int base=10, len=0;
+    LONG base=10, len=0;
     s = _val_handle_prefix(s, &base, &len);
 
     return (ULONG) _str2i4_(s, len, base);
 }
 
-FLOAT _str2f_ (char *str, int len, int base)
+FLOAT _str2f_ (UBYTE *str, LONG len, LONG base)
 {
     LONG v = 0;
     BOOL negative = FALSE;
@@ -625,7 +625,7 @@ FLOAT _str2f_ (char *str, int len, int base)
         }
     }
 
-    int c;
+    LONG c;
     switch (base)
     {
         /* hex */
@@ -820,12 +820,12 @@ FLOAT _str2f_ (char *str, int len, int base)
     return f;
 }
 
-FLOAT VAL_ (char *s)
+FLOAT VAL_ (UBYTE *s)
 {
     if (!s)
         return 0;
 
-    int base=10, len=0;
+    LONG base=10, len=0;
     s = _val_handle_prefix(s, &base, &len);
 
     return _str2f_(s, len, base);

@@ -17,12 +17,12 @@ void _aio_shutdown(void)
 
 void _aio_putnl(void)
 {
-    _aio_puts("\n");
+    _aio_puts((UBYTE*)"\n");
 }
 
-void _aio_puts4(int num)
+void _aio_puts4(LONG num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
@@ -31,61 +31,61 @@ void _aio_puts4(int num)
 
 void _aio_puts2(short num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
     _aio_puts(buf);
 }
 
-void _aio_puts1(char num)
+void _aio_puts1(UBYTE num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
     _aio_puts(buf);
 }
 
-void _aio_putu4(unsigned int num)
+void _aio_putu4(ULONG num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
 }
 
-void _aio_putu2(unsigned short num)
+void _aio_putu2(USHORT num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
 }
 
-void _aio_putu1(unsigned char num)
+void _aio_putu1(UBYTE num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
     _aio_puts(buf);
 }
 
-void _aio_puthex(int num)
+void _aio_puthex(LONG num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 16);
 
     _aio_puts(buf);
 }
 
-void _aio_putbin(int num)
+void _aio_putbin(LONG num)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 2);
 
@@ -94,7 +94,7 @@ void _aio_putbin(int num)
 
 void _aio_putuhex(ULONG l)
 {
-    char  buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     ULONG digit;
 
     for (int i = 7; i>=0; i--)
@@ -113,14 +113,14 @@ void _aio_putuhex(ULONG l)
 
 void _aio_putf(FLOAT f)
 {
-    char buf[40];
+    UBYTE buf[40];
     _astr_ftoa(f, buf);
     _aio_puts(buf);
 }
 
 void _aio_putbool(BOOL b)
 {
-    _aio_puts(b ? "TRUE" : "FALSE");
+    _aio_puts(b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
 }
 
 /*********************************************************
@@ -129,7 +129,7 @@ void _aio_putbool(BOOL b)
  *
  *********************************************************/
 
-void _aio_line_input (char *prompt, char **s, BOOL do_nl)
+void _aio_line_input (UBYTE *prompt, UBYTE **s, BOOL do_nl)
 {
     if (prompt)
         _aio_puts(prompt);
@@ -139,12 +139,12 @@ void _aio_line_input (char *prompt, char **s, BOOL do_nl)
 
 #define MAX_TOKEN_LEN 1024
 
-static char *g_input_buffer;
-static int   g_input_pos;
-static int   g_input_len;
-static BOOL  g_input_eof;
-static char  g_input_ch;
-static char  g_input_token[MAX_TOKEN_LEN+1]; // add room for final \0
+static UBYTE *g_input_buffer;
+static LONG   g_input_pos;
+static LONG   g_input_len;
+static BOOL   g_input_eof;
+static UBYTE  g_input_ch;
+static UBYTE  g_input_token[MAX_TOKEN_LEN+1]; // add room for final \0
 
 static void _input_getch (void)
 {
@@ -279,9 +279,9 @@ fini:
         _input_skip_delimiter ();
 }
 
-void _aio_console_input (BOOL qm, char *prompt, BOOL do_nl)
+void _aio_console_input (BOOL qm, UBYTE *prompt, BOOL do_nl)
 {
-    char *p = qm ? prompt : "?";
+    UBYTE *p = qm ? prompt : (UBYTE*) "?";
     _aio_line_input (p, &g_input_buffer, do_nl);
     g_input_pos = 0;
     g_input_len = LEN_(g_input_buffer);
@@ -324,7 +324,7 @@ void _aio_inputf  (FLOAT  *v)
     _input_next_token ();
     *v = VAL_ (g_input_token);
 }
-void _aio_inputs (char  **v)
+void _aio_inputs (UBYTE **v)
 {
     _input_next_token ();
     *v = _astr_dup(g_input_token);

@@ -82,7 +82,7 @@ static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
 static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout unless re-opened
 
-void SCREEN (short id, short width, short height, short depth, short mode, char *title)
+void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title)
 {
     // error checking
     if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] != NULL) || (width <=0) || (height <= 0) || (depth <= 0) || (depth>6) )
@@ -162,7 +162,7 @@ void SCREEN_CLOSE(short id)
 /*
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
  */
-void WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid)
+void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid)
 {
     USHORT w, h;
 
@@ -574,7 +574,7 @@ static void do_scroll(void)
     }
 }
 
-void _aio_puts(const char *s)
+void _aio_puts(const UBYTE *s)
 {
     //_debug_puts("_aio_puts\n");
 
@@ -683,12 +683,12 @@ void _aio_puttab(void)
 
 #define CSI 0x9b
 
-void LOCATE (short l, short c)
+void LOCATE (SHORT l, SHORT c)
 {
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
 
-        char buf[20];
+        UBYTE buf[20];
         buf[0] = CSI;
         _astr_itoa_ext(l, &buf[1], 10, /*leading_space=*/FALSE);
         int l = LEN_(buf);
@@ -714,7 +714,7 @@ void LOCATE (short l, short c)
     Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize + g_rp->Font->tf_Baseline);
 }
 
-short CSRLIN_ (void)
+SHORT CSRLIN_ (void)
 {
     if ( (g_output_win_id == 1) && g_win1_is_dos )
         return 0;
@@ -722,7 +722,7 @@ short CSRLIN_ (void)
     return g_rp->cp_y / g_rp->Font->tf_YSize + 1;
 }
 
-short POS_ (short dummy)
+SHORT POS_ (SHORT dummy)
 {
     if ( (g_output_win_id == 1) && g_win1_is_dos )
         return 0;
@@ -734,10 +734,10 @@ short POS_ (short dummy)
 
 void _aio_set_dos_cursor_visible (BOOL visible)
 {
-    static char csr_on[]   = { CSI, '1', ' ', 'p', '\0' };
-    static char csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
+    static UBYTE csr_on[]   = { CSI, '1', ' ', 'p', '\0' };
+    static UBYTE csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
 
-    char *c = visible ? csr_on : csr_off;
+    UBYTE *c = visible ? csr_on : csr_off;
     Write(g_stdout, (CONST APTR) c, LEN_(c));
 }
 
@@ -759,15 +759,15 @@ static void draw_cursor()
 
 #define MAXINPUTBUF 1024
 
-static BOOL is_eol (char c)
+static BOOL is_eol (UBYTE c)
 {
     return (c=='\r') || (c=='\n');
 }
 
-void _aio_gets(char **s, BOOL do_nl)
+void _aio_gets(UBYTE **s, BOOL do_nl)
 {
-    static char buf[MAXINPUTBUF];
-    static char twospaces[] = "  ";
+    static UBYTE buf[MAXINPUTBUF];
+    static UBYTE twospaces[] = "  ";
 
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {

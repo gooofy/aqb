@@ -82,13 +82,13 @@ void _autil_shutdown(void)
     }
 }
 
-void _aqb_assert (BOOL b, const char *msg)
+void _aqb_assert (BOOL b, const UBYTE *msg)
 {
     if (b)
         return;
 
     _debug_puts(msg);
-    _debug_puts("\n");
+    _debug_puts((UBYTE *)"\n");
 
     _autil_exit(20);
 }
@@ -114,8 +114,8 @@ void ERROR (SHORT errcode)
     }
     else
     {
-        _debug_puts("*** unhandled runtime error code: "); _debug_puts2(errcode);
-        _debug_puts("\n");
+        _debug_puts((UBYTE*)"*** unhandled runtime error code: "); _debug_puts2(errcode);
+        _debug_puts((UBYTE*)"\n");
     }
 
     if (!do_resume)

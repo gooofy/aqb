@@ -4462,7 +4462,7 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
                         continue;
 
                     // if we reach this point, we have a match
-                    CG_itemListNode iln = CG_itemListPrepend (assignedArgs);
+                    CG_itemListNode iln = CG_itemListAppend (assignedArgs);
                     CG_HeapPtrItem (&iln->item, proc2->label, (*formal)->ty);
                     CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &iln->item);
                     *formal = (*formal)->next;
@@ -4486,7 +4486,7 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
                         if (matchProcSignatures(proc, proc2))
                         {
                             // if we reach this point, we have a match
-                            CG_itemListNode iln = CG_itemListPrepend (assignedArgs);
+                            CG_itemListNode iln = CG_itemListAppend (assignedArgs);
                             CG_HeapPtrItem (&iln->item, proc2->label, (*formal)->ty);
                             CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &iln->item);
                             *formal = (*formal)->next;
@@ -4677,7 +4677,6 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
 static bool transSubCall(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     Ty_proc    proc   = e->u.proc;
-    //FIXME: remove Ty_formal  formal = proc->formals;
 
     assert (e->kind==E_procEntry);
     assert (proc);

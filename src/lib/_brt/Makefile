@@ -15,7 +15,7 @@ _brt.sym : _brt.bas
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
-_brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o startup.o
+_brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o
 	$(AR_AMIGAOS) -crs _brt.a $^
 	pushd .. && rm -f startup.o _brt.a && ln -s _brt/startup.o && ln -s _brt/_brt.a && popd
 	cp $@ $(DISTDIR)/lib
@@ -25,7 +25,7 @@ diss: dyna.o
 	$(OBJDUMP_AMIGAOS) -S -d -x dyna.o
 
 %.asm: %.c
-	$(CC_AMIGAOS) -S -Wall -Werror -march=68000 -mcpu=68000 $< -o $@
+	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
 clean:
 	rm -f *.o alibtest _brt.a *.sym

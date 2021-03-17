@@ -12,31 +12,31 @@ extern struct GfxBase       *GfxBase;
 
 extern BPTR g_stdout;
 
-void _aio_init(void);
-void _aio_shutdown(void);
+void _aio_init       (void);
+void _aio_shutdown   (void);
 
-void _aio_puts4(int num);
-void _aio_puts2(short num);
-void _aio_puts1(char num);
-void _aio_putu4(unsigned int num);
-void _aio_putu2(unsigned short num);
-void _aio_putu1(unsigned char num);
-void _aio_puthex(int num);
-void _aio_putuhex(ULONG l);
-void _aio_putbin(int num);
-void _aio_putf(FLOAT f);
-void _aio_putbool(BOOL b);
+void _aio_puts4      (LONG num);
+void _aio_puts2      (SHORT num);
+void _aio_puts1      (UBYTE num);
+void _aio_putu4      (ULONG num);
+void _aio_putu2      (USHORT num);
+void _aio_putu1      (UBYTE num);
+void _aio_puthex     (LONG num);
+void _aio_putuhex    (ULONG l);
+void _aio_putbin     (LONG num);
+void _aio_putf       (FLOAT f);
+void _aio_putbool    (BOOL b);
 
-void _aio_puts(const char *str);
+void _aio_puts       (const UBYTE *str);
 
-void _aio_putnl(void);
-void _aio_puttab(void);
+void _aio_putnl      (void);
+void _aio_puttab     (void);
 
 // [ LINE ] INPUT support:
 
-void _aio_gets                   (char **s, BOOL do_nl);
-void _aio_line_input             (char *prompt, char **s, BOOL do_nl);
-void _aio_console_input          (BOOL qm, char *prompt, BOOL do_nl);
+void _aio_gets                   (UBYTE **s, BOOL do_nl);
+void _aio_line_input             (UBYTE *prompt, UBYTE **s, BOOL do_nl);
+void _aio_console_input          (BOOL qm, UBYTE *prompt, BOOL do_nl);
 void _aio_inputs1                (BYTE   *v);
 void _aio_inputu1                (UBYTE  *v);
 void _aio_inputs2                (SHORT  *v);
@@ -44,12 +44,12 @@ void _aio_inputu2                (USHORT *v);
 void _aio_inputs4                (LONG   *v);
 void _aio_inputu4                (ULONG  *v);
 void _aio_inputf                 (FLOAT  *v);
-void _aio_inputs                 (char  **v);
+void _aio_inputs                 (UBYTE  **v);
 void _aio_set_dos_cursor_visible (BOOL visible);
 
-void  LOCATE  (short l, short c);
-short CSRLIN_ (void);
-short POS_    (short dummy);
+void  LOCATE                     (SHORT l, SHORT c);
+short CSRLIN_                    (void);
+short POS_                       (SHORT dummy);
 
 /*
  * screens, windows, graphics
@@ -85,29 +85,31 @@ short POS_    (short dummy);
 #define AE_LINE                     111
 #define AE_PSET                     112
 #define AE_INPUT_OUT_OF_DATA        113
+#define AE_ON_TIMER_CALL            114
 
-void _awindow_init(void);
-void _awindow_shutdown(void);
+void _awindow_init     (void);
+void _awindow_shutdown (void);
 
-void   SCREEN (short id, short width, short height, short depth, short mode, char *title);
-void   WINDOW(short id, char *title, BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short flags, short scrid);
-void   CLS(void);
-void   LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf);
-void   SLEEP(void);
-void   ON_WINDOW_CALL(void (*cb)(void));
-void   LOCATE (short l, short c);
-short  CSRLIN_ (void);
-short  POS_ (short dummy);
-ULONG  WINDOW_(short n);
-void   PSET(BOOL s, short x, short y, short color);
-void   PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue);
-void   COLOR(short fg, short bg, short o);
-void   PAINT(BOOL s, short x, short y, short pc, short bc);
-void   AREA(BOOL s, short x, short y);
-void   AREA_OUTLINE(BOOL enabled);
-void   AREAFILL (short mode);
-void   PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn);
-char  *INKEY_ (void);
+void   SCREEN          (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title);
+void   WINDOW          (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
+ULONG  WINDOW_         (SHORT n);
+void   CLS             (void);
+void   LINE            (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
+void   SLEEP           (void);
+void   ON_WINDOW_CALL  (void (*cb)(void));
+void   LOCATE          (SHORT l, SHORT c);
+SHORT  CSRLIN_         (void);
+SHORT  POS_            (SHORT dummy);
+void   PSET            (BOOL s, SHORT x, SHORT y, SHORT color);
+void   PALETTE         (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
+void   COLOR           (SHORT fg, SHORT bg, SHORT o);
+void   PAINT           (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
+void   AREA            (BOOL s, SHORT x, SHORT y);
+void   AREA_OUTLINE    (BOOL enabled);
+void   AREAFILL        (SHORT mode);
+void   PATTERN         (USHORT lineptrn, _DARRAY_T *areaptrn);
+
+char  *INKEY_          (void);
 
 /*
  * ON TIMER support
@@ -116,6 +118,10 @@ char  *INKEY_ (void);
 
 void _atimer_init(void);
 void _atimer_shutdown(void);
+
+void ON_TIMER_CALL     (SHORT id, FLOAT d, void (*cb)(void));
+void TIMER_ON          (SHORT id);
+void TIMER_OFF         (SHORT id);
 
 
 #endif

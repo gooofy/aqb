@@ -33,7 +33,7 @@ static BOOL autil_init_done = FALSE;
 
 static BPTR _debug_stdout = 0;
 
-void _debug_puts(const char *s)
+void _debug_puts(const UBYTE *s)
 {
     if (_debug_stdout)
         Write(_debug_stdout, (CONST APTR) s, LEN_(s));
@@ -41,21 +41,21 @@ void _debug_puts(const char *s)
 
 void _debug_puts2(SHORT s)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_itoa(s, buf, 10);
     _debug_puts(buf);
 }
 
 void _debug_putu4(ULONG l)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
     _debug_puts(buf);
 }
 
 void _debug_putf(FLOAT f)
 {
-    char buf[MAXBUF];
+    UBYTE buf[MAXBUF];
     _astr_ftoa(f, buf);
     _debug_puts(buf);
 }
@@ -119,7 +119,7 @@ void _c_atexit(void)
         CloseLibrary( (struct Library *)DOSBase);
 }
 
-void _cshutdown (LONG return_code, char *msg)
+void _cshutdown (LONG return_code, UBYTE *msg)
 {
     if (msg && DOSBase)
         _debug_puts(msg);
@@ -134,15 +134,15 @@ void _cstartup (void)
     SysBase = (*((struct ExecBase **) 4));
 
     if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
-        _cshutdown(20, "*** error: failed to open dos.library!\n");
+        _cshutdown(20, (UBYTE *) "*** error: failed to open dos.library!\n");
 
     _debug_stdout = Output();
 
     if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
-        _cshutdown(20, "*** error: failed to open mathffp.library!\n");
+        _cshutdown(20, (UBYTE *) "*** error: failed to open mathffp.library!\n");
 
     if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
-        _cshutdown(20, "*** error: failed to open mathtrans.library!\n");
+        _cshutdown(20, (UBYTE *) "*** error: failed to open mathtrans.library!\n");
 
     _autil_init();
     autil_init_done = TRUE;

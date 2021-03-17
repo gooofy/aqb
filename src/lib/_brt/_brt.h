@@ -9,29 +9,29 @@ extern struct DOSBase       *DOSBase;
 extern struct MathBase      *MathBase;
 extern struct MathTransBase *MathTransBase;
 
-APTR   ALLOCATE_(ULONG size, ULONG flags);
-void   DEALLOCATE (APTR ptr, ULONG size);
-ULONG  FRE_(SHORT x);
+APTR   ALLOCATE_   (ULONG size, ULONG flags);
+void   DEALLOCATE  (APTR ptr, ULONG size);
+ULONG  FRE_        (SHORT x);
 
-void   POKE (ULONG adr, UBYTE  b);
-void   POKEW(ULONG adr, USHORT w);
-void   POKEL(ULONG adr, ULONG  l);
+void   POKE        (ULONG adr, UBYTE  b);
+void   POKEW       (ULONG adr, USHORT w);
+void   POKEL       (ULONG adr, ULONG  l);
 
-UBYTE  PEEK_ (ULONG adr);
-USHORT PEEKW_(ULONG adr);
-ULONG  PEEKL_(ULONG adr);
+UBYTE  PEEK_       (ULONG adr);
+USHORT PEEKW_      (ULONG adr);
+ULONG  PEEKL_      (ULONG adr);
 
 void _autil_init(void);
 void _autil_shutdown(void);
 
 // BASIC error handling, utils
 
-void _debug_puts (const char *s);
-void _debug_puts2(SHORT s);
-void _debug_putu4(ULONG l);
-void _debug_putf (FLOAT f);
-void _debug_putnl(void);
-void _debug_cls  (void);
+void _debug_puts  (const UBYTE *s);
+void _debug_puts2 (SHORT s);
+void _debug_putu4 (ULONG l);
+void _debug_putf  (FLOAT f);
+void _debug_putnl (void);
+void _debug_cls   (void);
 
 //extern USHORT g_errcode;
 
@@ -41,19 +41,19 @@ void _debug_cls  (void);
 #define ERR_SUBSCRIPT_OUT_OF_RANGE   9
 #define ERR_INCOMPATIBLE_ARRAY      10
 
-void ERROR (SHORT errcode);
-void _autil_exit(LONG return_code); // implemented in startup.s
+void ERROR        (SHORT errcode);
+void _autil_exit  (LONG return_code); // implemented in startup.s
 
-void _cshutdown (LONG return_code, char *msg); // implemented in cstartup.c
+void _cshutdown   (LONG return_code, UBYTE *msg); // implemented in cstartup.c
 
-void _aqb_assert (BOOL b, const char *msg);
+void _aqb_assert  (BOOL b, const UBYTE *msg);
 
-FLOAT TIMER_ (void);
+FLOAT TIMER_      (void);
 
-void ON_EXIT_CALL(void (*cb)(void));
-void RESUME_NEXT(void);
+void ON_EXIT_CALL (void (*cb)(void));
+void RESUME_NEXT  (void);
 
-void SYSTEM(void);
+void SYSTEM       (void);
 
 #if 0  // exec has these already
 
@@ -79,7 +79,7 @@ void SYSTEM(void);
 
 void _amath_init(void);
 
-FLOAT mod_(FLOAT divident, FLOAT divisor);
+FLOAT mod_  (FLOAT divident, FLOAT divisor);
 
 SHORT fix_  (FLOAT f);
 SHORT int_  (FLOAT f);
@@ -93,46 +93,46 @@ FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
  * string handling
  */
 
-void _astr_init(void);
+void _astr_init           (void);
 
-void _astr_itoa_ext(int num, char *str, int base, BOOL leading_space);
-void _astr_itoa(int num, char *str, int base);
-void _astr_utoa(unsigned int num, char* str, unsigned int base);
-void _astr_ftoa(FLOAT value, char *buf);
+void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space);
+void _astr_itoa           (LONG num, UBYTE *str, LONG base);
+void _astr_utoa           (ULONG num, UBYTE* str, ULONG base);
+void _astr_ftoa           (FLOAT value, UBYTE *buf);
 
-char *_astr_dup(const char *str);
-SHORT __astr_cmp(const char* s1, const char* s2);
-const char *_astr_strchr(const char *s, char c);
+UBYTE *_astr_dup          (const UBYTE *str);
+SHORT __astr_cmp          (const UBYTE* s1, const UBYTE* s2);
+const UBYTE *_astr_strchr (const UBYTE *s, UBYTE c);
 
-ULONG  LEN_(const char *str);
-char  *CHR_(int codepoint);
-SHORT  ASC_(const char *str);
+ULONG  LEN_               (const UBYTE *str);
+UBYTE  *CHR_              (LONG codepoint);
+SHORT  ASC_               (const UBYTE *str);
 
 /*
  * STR$ support
  */
 
-char *_s1toa_   (BYTE   b);
-char *_s2toa_   (SHORT  i);
-char *_s4toa_   (LONG   l);
-char *_u1toa_   (UBYTE  b);
-char *_u2toa_   (USHORT i);
-char *_u4toa_   (ULONG  l);
-char *_ftoa_    (FLOAT  f);
-char *_booltoa_ (BOOL   b);
+UBYTE *_s1toa_   (BYTE   b);
+UBYTE *_s2toa_   (SHORT  i);
+UBYTE *_s4toa_   (LONG   l);
+UBYTE *_u1toa_   (UBYTE  b);
+UBYTE *_u2toa_   (USHORT i);
+UBYTE *_u4toa_   (ULONG  l);
+UBYTE *_ftoa_    (FLOAT  f);
+UBYTE *_booltoa_ (BOOL   b);
 
 /*
  * VAL* support
  */
- 
-LONG _str2i4_ (char *str, int len, int base);
-FLOAT _str2f_ (char *str, int len, int base);
 
-FLOAT  VAL_     (char *s);
-SHORT  VALINT_  (char *s);
-USHORT VALUINT_ (char *s);
-LONG   VALLNG_  (char *s);
-ULONG  VALULNG_ (char *s);
+LONG _str2i4_ (UBYTE *str, LONG len, LONG base);
+FLOAT _str2f_ (UBYTE *str, LONG len, LONG base);
+
+FLOAT  VAL_     (UBYTE *s);
+SHORT  VALINT_  (UBYTE *s);
+USHORT VALUINT_ (UBYTE *s);
+LONG   VALLNG_  (UBYTE *s);
+ULONG  VALULNG_ (UBYTE *s);
 
 /*
  * dynamic array support
