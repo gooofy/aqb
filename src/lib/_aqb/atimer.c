@@ -20,9 +20,9 @@
 typedef struct
 {
 	void (*cb)(void);
-	struct timeval      currentval;
+	struct timeval      tv;
 	struct MsgPort     *timerport;
-	struct timerequest *TimerIO;
+	struct timerequest *timer_io;
 } atimer_t;
 
 static atimer_t g_timers[MAX_NUM_TIMERS] =  {
@@ -35,9 +35,12 @@ static atimer_t g_timers[MAX_NUM_TIMERS] =  {
 												{ NULL, { {0}, {0} }, NULL, NULL },
 												{ NULL, { {0}, {0} }, NULL, NULL }
 											};
+
+static FLOAT g_1000;
+
 void _atimer_init(void)
 {
-    // FIXME
+    g_1000 = SPFlt(1000);
 }
 
 void _atimer_shutdown(void)
@@ -60,7 +63,18 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 		TIMER_OFF(id);
 	}
 
-    // FIXME
+    ULONG secs, usecs;
+    secs = SPFix (d);
+    usecs = SPFix (SPMul (g_1000, SPSub (SPFlt(secs), d)));
+
+    _debug_puts ((UBYTE*)"secs="); _debug_putu4(secs); _debug_putnl();
+    _debug_puts ((UBYTE*)"usecs="); _debug_putu4(usecs); _debug_putnl();
+
+    g_timers[id-1].cb          = cb;
+    g_timers[id-1].tv.tv_sec   = secs;
+    g_timers[id-1].tv.tv_usec  = usecs;
+    g_timers[id-1].timerport   = NULL;
+    g_timers[id-1].timer_io    = NULL;
 }
 
 void TIMER_ON (SHORT id)
