@@ -38,6 +38,8 @@ static atimer_t g_timers[MAX_NUM_TIMERS] =  {
 
 static FLOAT g_1000;
 
+ULONG _g_timer_signals = 0;
+
 void _atimer_init(void)
 {
     g_1000 = SPFlt(1000);
@@ -46,6 +48,12 @@ void _atimer_init(void)
 void _atimer_shutdown(void)
 {
     // FIXME
+}
+
+void _atimer_process_signals(void)
+{
+    // FIXME
+	_debug_puts ((UBYTE*)"_atimer_process_signals"); _debug_putnl();
 }
 
 void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
@@ -79,43 +87,50 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 
 void TIMER_ON (SHORT id)
 {
-
 	_debug_puts ((UBYTE*)"TIMER_ON #"); _debug_puts2(id); _debug_putnl();
 
-	// FIXME
-#if 0
+    if ( (id < 1) || (id > MAX_NUM_TIMERS) || !g_timers[id-1].cb )
+    {
+        ERROR(AE_TIMER_ON);
+        return;
+    }
 
-	LONG error;
-	struct MsgPort *timerport;
-	struct timerequest *TimerIO;
+    if (g_timers[id-1].timer_io)    // if this timer is already on, we do not throw an error
+        return;
 
-	timerport = CreatePort( 0, 0 );
+    g_timers[id-1].timerport = CreatePort( 0, 0 );
 	if (timerport == NULL)
 	{
-        ERROR(AE_SCREEN_OPEN);
-		return( NULL );
+        ERROR(AE_TIMER_ON);
+		return;
 	}
 
-	TimerIO = (struct timerequest *) CreateExtIO( timerport, sizeof( struct timerequest ) );
-	if (TimerIO == NULL )
-		{
-		DeletePort(timerport);   /* Delete message port */
-		return( NULL );
-		}
+    g_timers[id-1].timer_io = (struct timerequest *) CreateExtIO( g_timers[id-1].timerport, sizeof( struct timerequest ) );
+	if (g_timers[id-1].timer_io == NULL)
+    {
+        TIMER_OFF(id);
+        ERROR(AE_TIMER_ON);
+		return;
+    }
 
-	error = OpenDevice( TIMERNAME, unit, (struct IORequest *) TimerIO, 0 );
-	if (error != 0 )
+	LONG error = OpenDevice( TIMERNAME, UNIT_MICROHZ, (struct IORequest *) g_timers[id-1].timer_io, 0 );
+	if (error)
 	{
-		delete_timer( TimerIO );
-		return( NULL );
+        TIMER_OFF(id);
+        ERROR(AE_TIMER_ON);
+		return;
 	}
-	return( TimerIO );
-#endif
+
+    g_timers[id-1].timer_io->tr_node.io_Command = TR_ADDREQUEST;
+    g_timers[id-1].timer_io->tr_node.tr_time    = g_timers[id-1].tv;
+
 }
 
 void TIMER_OFF (SHORT id)
 {
 	_debug_puts ((UBYTE*)"TIMER_OFF #"); _debug_puts2(id); _debug_putnl();
     // FIXME
+		//DeletePort(g_timers[id-1].timerport);
+		//delete_timer( TimerIO );
 }
 

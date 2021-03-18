@@ -452,6 +452,9 @@ void SLEEP(void)
     ULONG signals = Wait (g_signalmask);
     // _aio_puts("sleep: got a signal.\n");
 
+    if (signals & _g_timer_signals)
+        _atimer_process_signals();
+
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {
         // _aio_puts("sleep: checking win "); _aio_puts4(i); _aio_putnl();
