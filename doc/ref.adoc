@@ -820,6 +820,15 @@ Syntax:
 
 move cursor to col / row
 
+=== ON TIMER CALL
+
+Syntax:
+
+    ON TIMER CALL id, t, sub
+
+assign timer #`id` to call `sub` every `t` seconds. After setup
+the timer still has to be enabled using the TIMER ON statement.
+
 === PAINT
 
 Syntax:
@@ -889,6 +898,14 @@ Syntax:
     SCREEN CLOSE id
 
 close screen indicated by id
+
+=== TIMER ON|OFF
+
+Syntax:
+
+    TIMER (ON|OFF) id
+
+Enable or disable events from timer #`id`
 
 .Table mode
 |===

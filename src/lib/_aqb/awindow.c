@@ -70,7 +70,7 @@ static struct NewScreen g_nscr =
     NULL                    // CustomBitMap
 };
 
-static ULONG g_signalmask=0;
+static ULONG _g_signalmask_awindow=0;
 
 static void (*g_win_cb)(void) = NULL;
 
@@ -247,7 +247,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     Move(g_rp, 0, g_rp->Font->tf_YSize - 2);
     SetAPen(g_rp, 1L);
 
-    g_signalmask |= (1L << win->UserPort->mp_SigBit);
+    _g_signalmask_awindow |= (1L << win->UserPort->mp_SigBit);
 
     g_output_win    = win;
     g_output_win_id = id;
@@ -449,11 +449,13 @@ void SLEEP(void)
 {
     struct IntuiMessage *message = NULL;
 
-    ULONG signals = Wait (g_signalmask);
-    // _aio_puts("sleep: got a signal.\n");
+    ULONG signals = Wait (_g_signalmask_awindow | _g_signalmask_atimer);
+#ifdef ENABLE_DEBUG
+    _aio_puts((STRPTR)"sleep: got one ore more signals: "); _aio_putu4(signals); _aio_putnl();
+#endif
 
-    if (signals & _g_timer_signals)
-        _atimer_process_signals();
+    if (signals & _g_signalmask_atimer)
+        _atimer_process_signals(signals);
 
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {

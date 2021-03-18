@@ -87,6 +87,7 @@ short POS_                       (SHORT dummy);
 #define AE_INPUT_OUT_OF_DATA        113
 #define AE_ON_TIMER_CALL            114
 #define AE_TIMER_ON                 115
+#define AE_TIMER_OFF                116
 
 void _awindow_init     (void);
 void _awindow_shutdown (void);
@@ -116,11 +117,11 @@ char  *INKEY_          (void);
  * ON TIMER support
  */
 
-extern ULONG _g_timer_signals;
+extern ULONG _g_signalmask_atimer;
 
 void _atimer_init(void);
 void _atimer_shutdown(void);
-void _atimer_process_signals(void);
+void _atimer_process_signals(ULONG signals);
 
 void ON_TIMER_CALL     (SHORT id, FLOAT d, void (*cb)(void));
 void TIMER_ON          (SHORT id);

@@ -17,6 +17,8 @@
 
 #define MAX_NUM_TIMERS 8
 
+//#define ENABLE_DEBUG
+
 typedef struct
 {
 	void (*cb)(void);
@@ -38,7 +40,7 @@ static atimer_t g_timers[MAX_NUM_TIMERS] =  {
 
 static FLOAT g_1000;
 
-ULONG _g_timer_signals = 0;
+ULONG _g_signalmask_atimer = 0;
 
 void _atimer_init(void)
 {
@@ -47,18 +49,45 @@ void _atimer_init(void)
 
 void _atimer_shutdown(void)
 {
-    // FIXME
+    for (int i=0; i<MAX_NUM_TIMERS; i++)
+        TIMER_OFF(i+1);
 }
 
-void _atimer_process_signals(void)
+void _atimer_process_signals(ULONG signals)
 {
-    // FIXME
-	_debug_puts ((UBYTE*)"_atimer_process_signals"); _debug_putnl();
+#ifdef ENABLE_DEBUG
+	_aio_puts ((UBYTE*)"_atimer_process_signals signals="); _aio_putu4(signals); _aio_putnl();
+#endif
+
+    for (int i=0; i<MAX_NUM_TIMERS; i++)
+    {
+        atimer_t *t = &g_timers[i];
+        if (!t->cb)
+            continue;
+
+        if (!(signals & (1L << t->timerport->mp_SigBit)) )
+            continue;
+
+#ifdef ENABLE_DEBUG
+        _aio_puts ((UBYTE*)"   --> timer #"); _aio_puts2(i+1); _aio_putnl();
+#endif
+
+        t->cb();
+
+        if (g_timers[i].timer_io)
+        {
+            g_timers[i].timer_io->tr_node.io_Command = TR_ADDREQUEST;
+            g_timers[i].timer_io->tr_time            = g_timers[i].tv;
+            SendIO((struct IORequest *)g_timers[i].timer_io);
+        }
+    }
 }
 
 void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 {
-	_debug_puts ((UBYTE*)"ON_TIMER_CALL #"); _debug_puts2(id); _debug_putnl();
+#ifdef ENABLE_DEBUG
+	_aio_puts ((UBYTE*)"ON_TIMER_CALL #"); _aio_puts2(id); _aio_putnl();
+#endif
     // error checking
     if ( (id < 1) || (id > MAX_NUM_TIMERS) )
     {
@@ -75,8 +104,10 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
     secs = SPFix (d);
     usecs = SPFix (SPMul (g_1000, SPSub (SPFlt(secs), d)));
 
-    _debug_puts ((UBYTE*)"secs="); _debug_putu4(secs); _debug_putnl();
-    _debug_puts ((UBYTE*)"usecs="); _debug_putu4(usecs); _debug_putnl();
+#ifdef ENABLE_DEBUG
+    _aio_puts ((UBYTE*)"secs="); _aio_putu4(secs); _aio_putnl();
+    _aio_puts ((UBYTE*)"usecs="); _aio_putu4(usecs); _aio_putnl();
+#endif
 
     g_timers[id-1].cb          = cb;
     g_timers[id-1].tv.tv_sec   = secs;
@@ -87,7 +118,9 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 
 void TIMER_ON (SHORT id)
 {
-	_debug_puts ((UBYTE*)"TIMER_ON #"); _debug_puts2(id); _debug_putnl();
+#ifdef ENABLE_DEBUG
+	_aio_puts ((UBYTE*)"TIMER_ON #"); _aio_puts2(id); _aio_putnl();
+#endif
 
     if ( (id < 1) || (id > MAX_NUM_TIMERS) || !g_timers[id-1].cb )
     {
@@ -124,13 +157,32 @@ void TIMER_ON (SHORT id)
     g_timers[id-1].timer_io->tr_node.io_Command = TR_ADDREQUEST;
     g_timers[id-1].timer_io->tr_time            = g_timers[id-1].tv;
 
+    _g_signalmask_atimer |= (1L << g_timers[id-1].timerport->mp_SigBit);
+    SendIO((struct IORequest *)g_timers[id-1].timer_io);
 }
 
 void TIMER_OFF (SHORT id)
 {
-	_debug_puts ((UBYTE*)"TIMER_OFF #"); _debug_puts2(id); _debug_putnl();
-    // FIXME
-		//DeletePort(g_timers[id-1].timerport);
-		//delete_timer( TimerIO );
+#ifdef ENABLE_DEBUG
+	_aio_puts ((UBYTE*)"TIMER_OFF #"); _aio_puts2(id); _aio_putnl();
+#endif
+    if ( (id < 1) || (id > MAX_NUM_TIMERS) )
+    {
+        ERROR(AE_TIMER_OFF);
+        return;
+    }
+
+    if (g_timers[id-1].timerport)
+    {
+        _autil_delete_port(g_timers[id-1].timerport);
+        g_timers[id-1].timerport = NULL;
+    }
+    if (g_timers[id-1].timer_io)
+    {
+        AbortIO( (struct IORequest *) g_timers[id-1].timer_io );
+        CloseDevice( (struct IORequest *) g_timers[id-1].timer_io );
+        _autil_delete_ext_io ( (struct IORequest *) g_timers[id-1].timer_io );
+        g_timers[id-1].timer_io = NULL;
+    }
 }
 
