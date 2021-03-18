@@ -234,6 +234,34 @@ SUB DRAWPIECE
     NEXT P
 END SUB
 
+SUB ERASEPIECE:
+    FOR P AS INTEGER = 1 TO 4
+        DIM AS INTEGER X=piecex(P), Y=piecey(P)
+        grid(X,Y) = 0
+        LINE (X*9+70,Y*10+15)-(X*9+77,Y*10+23),0,BF
+    NEXT P
+END SUB
+
+SUB MOVEDOWN:
+    PRINT "MOVEDOWN"
+
+    ERASEPIECE
+    DIM AS BOOLEAN E=FALSE
+    ' bottom reached ?
+    FOR P AS INTEGER = 1 TO 4
+        IF piecey(P)=19 THEN E=TRUE
+    NEXT P
+    IF E THEN DRAWPIECE : NEWPIECE : RETURN
+    FOR P AS INTEGER =1 TO 4
+        IF grid(piecex(P),piecey(P)+1)<>0 THEN E=TRUE : REM collision
+    NEXT P
+    IF E THEN DRAWPIECE : NEWPIECE : RETURN
+    FOR P AS INTEGER = 1 To 4 : piecey(P)=piecey(P)+1 : NEXT P
+    DRAWPIECE
+    ' IF A=90 or A=122 THEN MOVEDOWN
+    ' A=0
+END SUB
+
 STARTSCREEN:
 
 FOR x AS INTEGER = 0 TO 9
@@ -278,9 +306,9 @@ LOCATE 18, 2 : PRINT "Good Luck!"
 LINE (2 ,107)-(317,147),5,B
 LINE (0 ,105)-(319,149),5,B
 
-DIM AS INTEGER t1=0
+DIM AS SINGLE t2=0
 
-WHILE t1=0
+WHILE t2=0
 
     DIM AS STRING key = INKEY$
 
@@ -291,16 +319,16 @@ WHILE t1=0
     ELSE
 
         SELECT CASE ASC(key)
-            CASE 48    : t1= 50 : REM key 0
-            CASE 49    : t1=500 : REM key 1
-            CASE 50, 13: t1=450 : REM key 2 or enter
-            CASE 51    : t1=400 : REM key 3
-            CASE 52    : t1=350 : REM key 4
-            CASE 53    : t1=300 : REM key 5
-            CASE 54    : t1=250 : REM key 6
-            CASE 55    : t1=200 : REM key 7
-            CASE 56    : t1=150 : REM key 8
-            CASE 57    : t1=100 : REM key 9
+            CASE 48    : t2= 50 : REM key 0
+            CASE 49    : t2=500 : REM key 1
+            CASE 50, 13: t2=450 : REM key 2 or enter
+            CASE 51    : t2=400 : REM key 3
+            CASE 52    : t2=350 : REM key 4
+            CASE 53    : t2=300 : REM key 5
+            CASE 54    : t2=250 : REM key 6
+            CASE 55    : t2=200 : REM key 7
+            CASE 56    : t2=150 : REM key 8
+            CASE 57    : t2=100 : REM key 9
         END SELECT
 
         ' FIXME: IF Timer>=350 Then GoSub PREVIEW:Timer=0
@@ -349,14 +377,19 @@ PREVIEW
 NEWPIECE
 DRAWPIECE
 
+PRINT t2/100
+
+ON TIMER CALL 1, t2/100, MOVEDOWN
+TIMER ON 1
+
 WHILE INKEY$=""
     SLEEP
 WEND
 
-DIM SHARED AS BOOLEAN q=FALSE
-WHILE NOT q
-    SLEEP
-WEND
+'DIM SHARED AS BOOLEAN q=FALSE
+'WHILE NOT q
+'    SLEEP
+'WEND
 
 ' READKEYBOARD:
 '   A=Asc(Inkey$)
@@ -399,21 +432,6 @@ WEND
 '   For P=1 To 4:piecex(P)=piecex(P)-1:Next P
 '   GoSub DRAWPIECE
 '   Return
-' MOVEDOWN:
-'   GoSub ERASEPIECE
-'   E=0
-'   For P=1 To 4:If piecey(P)=19 Then E=1
-'     Next P
-'   If E=1 Then GoSub DRAWPIECE:GoSub NEWPIECE:Return
-'   For P=1 To 4
-'     If grid(piecex(P),piecey(P)+1)<>0 Then E=1
-'     Next P
-'   If E=1 Then GoSub DRAWPIECE:GoSub NEWPIECE:Return
-'   For P=1 To 4:piecey(P)=piecey(P)+1:Next P
-'   GoSub DRAWPIECE
-'   If A=90 or A=122 Then GoSub MOVEDOWN
-'   A=0
-'   Return
 ' 
 ' ROTATE:
 '   GoSub erasepiece
@@ -453,13 +471,6 @@ WEND
 '   Next X,Y
 '   Return
 ' 
-' ERASEPIECE:
-'   For P=1 To 4
-'   X=piecex(P):Y=piecey(P)
-'   grid(X,Y)=0
-'   Line(X*9+70,Y*10+15)-(X*9+77,Y*10+23),0,BF
-'   Next P
-'   Return
 ' 
 
 ' GAMEOVERMAN:
