@@ -126,6 +126,15 @@ void ON_TIMER_CALL     (SHORT id, FLOAT d, void (*cb)(void));
 void TIMER_ON          (SHORT id);
 void TIMER_OFF         (SHORT id);
 
+/*
+ * utils
+ */
+
+struct MsgPort   *_autil_create_port   (STRPTR name, LONG pri);
+void              _autil_delete_port   (struct MsgPort *port);
+struct IORequest *_autil_create_ext_io (struct MsgPort *port, LONG iosize);
+struct IOStdReq  *_autil_create_std_io (struct MsgPort *port);
+void              _autil_delete_ext_io (struct IORequest *ioreq);
 
 #endif
 

@@ -98,14 +98,14 @@ void TIMER_ON (SHORT id)
     if (g_timers[id-1].timer_io)    // if this timer is already on, we do not throw an error
         return;
 
-    g_timers[id-1].timerport = CreatePort( 0, 0 );
-	if (timerport == NULL)
+    g_timers[id-1].timerport = _autil_create_port (/*name=*/NULL, /*pri=*/0 );
+	if (g_timers[id-1].timerport == NULL)
 	{
         ERROR(AE_TIMER_ON);
 		return;
 	}
 
-    g_timers[id-1].timer_io = (struct timerequest *) CreateExtIO( g_timers[id-1].timerport, sizeof( struct timerequest ) );
+    g_timers[id-1].timer_io = (struct timerequest *) _autil_create_ext_io( g_timers[id-1].timerport, sizeof( struct timerequest ) );
 	if (g_timers[id-1].timer_io == NULL)
     {
         TIMER_OFF(id);
@@ -113,7 +113,7 @@ void TIMER_ON (SHORT id)
 		return;
     }
 
-	LONG error = OpenDevice( TIMERNAME, UNIT_MICROHZ, (struct IORequest *) g_timers[id-1].timer_io, 0 );
+	LONG error = OpenDevice( (UBYTE *)TIMERNAME, UNIT_MICROHZ, (struct IORequest *) g_timers[id-1].timer_io, 0 );
 	if (error)
 	{
         TIMER_OFF(id);
@@ -122,7 +122,7 @@ void TIMER_ON (SHORT id)
 	}
 
     g_timers[id-1].timer_io->tr_node.io_Command = TR_ADDREQUEST;
-    g_timers[id-1].timer_io->tr_node.tr_time    = g_timers[id-1].tv;
+    g_timers[id-1].timer_io->tr_time            = g_timers[id-1].tv;
 
 }
 
