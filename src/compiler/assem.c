@@ -1722,6 +1722,10 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             case AS_SUB_Dn_Dn:       //  74 sub.x   d1, d2
                 emit_SUB (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc*/AS_regNumDn(instr->src), /*modeSrc=*/0);
                 break;
+            case AS_SUB_Imm_AnDn:    //  75 sub.x   #42, d2
+                emit_SUB (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc*/4, /*modeSrc=*/7);
+                emit_Imm (seg, instr->w, instr->imm);
+                break;
             case AS_TST_Dn:          //  77 tst.x   d0
                 emit_TST (seg, instr->w, /*reg=*/ AS_regNumDn(instr->src), /*mode=*/0);
                 break;

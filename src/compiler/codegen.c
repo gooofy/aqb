@@ -2187,6 +2187,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
         case IK_inHeap:
         case IK_cond:
         case IK_inFrameRef:
+        case IK_varPtr:
             switch (o)
             {
                 case CG_plus:                                           // v + ?

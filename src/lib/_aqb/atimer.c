@@ -17,7 +17,7 @@
 
 #define MAX_NUM_TIMERS 8
 
-//#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 typedef struct
 {
@@ -38,13 +38,13 @@ static atimer_t g_timers[MAX_NUM_TIMERS] =  {
 												{ NULL, { {0}, {0} }, NULL, NULL }
 											};
 
-static FLOAT g_1000;
+static FLOAT g_1e6;
 
 ULONG _g_signalmask_atimer = 0;
 
 void _atimer_init(void)
 {
-    g_1000 = SPFlt(1000);
+    g_1e6 = SPFlt(1000000);
 }
 
 void _atimer_shutdown(void)
@@ -102,7 +102,7 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 
     ULONG secs, usecs;
     secs = SPFix (d);
-    usecs = SPFix (SPMul (g_1000, SPSub (SPFlt(secs), d)));
+    usecs = SPFix (SPMul (g_1e6, SPSub (SPFlt(secs), d)));
 
 #ifdef ENABLE_DEBUG
     _aio_puts ((UBYTE*)"secs="); _aio_putu4(secs); _aio_putnl();
