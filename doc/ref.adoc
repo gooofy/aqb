@@ -787,6 +787,54 @@ Syntax:
 
 returns a character entered from the keyboard
 
+.Table (non-ascii) key codes
+|===
+|Key |Code
+
+|Up cursor
+|28
+
+|Down cursor
+|29
+
+|Right cursor
+|30
+
+|Left cursor
+|31
+
+|F1
+|129
+
+|F2
+|130
+
+|F3
+|131
+
+|F4
+|132
+
+|F5
+|133
+
+|F6
+|134
+
+|F7
+|135
+
+|F8
+|136
+
+|F9
+|137
+
+|F10
+|138
+
+|===
+
 === INPUT
 
 Syntax:

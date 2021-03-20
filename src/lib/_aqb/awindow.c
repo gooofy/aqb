@@ -4,7 +4,6 @@
 #include <stdarg.h>
 
 #include <exec/memory.h>
-
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
@@ -22,14 +21,25 @@
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
-BPTR g_stdout, g_stdin;
-static FLOAT g_fp15; // FFP representation of decimal 15, used in PALETTE
+#include <proto/console.h>
+#include <clib/console_protos.h>
+#include <pragmas/console_pragmas.h>
+
+//#define ENABLE_DEBUG
+
+struct Device * ConsoleDevice;
+
+BPTR                     g_stdout, g_stdin;
+static FLOAT             g_fp15; // FFP representation of decimal 15, used in PALETTE
+static struct IOStdReq   g_ioreq; // console.device is used to convert RAWKEY codes
+static BOOL              g_console_device_opened=FALSE;
+static struct InputEvent g_ievent;
 
 static struct NewWindow g_nw =
 {
     0, 0, 0, 0,                                                    // LeftEdge, TopEdge, Width, Height
     0, 1,                                                          // DetailPen, BlockPen
-    VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW,               // IDCMPFlags
+    0,                                                             // IDCMPFlags
     0,                                                             // Flags
     NULL,                                                          // FirstGadget
     NULL,                                                          // CheckMark
@@ -213,7 +223,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : (UBYTE*) "";
 
     g_nw.Flags      = GIMMEZEROZERO | ACTIVATE;
-    g_nw.IDCMPFlags = VANILLAKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
+    g_nw.IDCMPFlags = RAWKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
 
     if (flags & AW_FLAG_SIZE)       { g_nw.Flags |= WINDOWSIZING; g_nw.IDCMPFlags |= NEWSIZE;       }
     if (flags & AW_FLAG_DRAG)       { g_nw.Flags |= WINDOWDRAG  ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
@@ -312,6 +322,8 @@ void _awindow_shutdown(void)
             CloseScreen(g_scrlist[i]);
     }
     _aio_set_dos_cursor_visible (TRUE);
+    if (g_console_device_opened)
+        CloseDevice((struct IORequest *)&g_ioreq);
     //_aio_puts("_awindow_shutdown ... done.\n");
 }
 
@@ -321,6 +333,11 @@ void _awindow_init(void)
     g_stdin  = Input();
     g_fp15   = SPFlt(15);
     _aio_set_dos_cursor_visible (FALSE);
+    if (0 == OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&g_ioreq, 0))
+    {
+        g_console_device_opened=TRUE;
+        ConsoleDevice = g_ioreq.io_Device;
+    }
 }
 
 /*
@@ -445,6 +462,39 @@ static char keybuf[MAXKEYBUF];
 static int  keybuf_start = 0;
 static int  keybuf_end   = 0;
 
+/* Convert RAWKEYs into VANILLAKEYs, also shows special keys like HELP, Cursor Keys,
+** FKeys, etc.  It returns:
+**   -2 if not a RAWKEY event.
+**   -1 if not enough room in the buffer, try again with a bigger buffer.
+**   otherwise, returns the number of characters placed in the buffer.
+*/
+LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
+{
+    if (msg->Class != IDCMP_RAWKEY) return(-2);
+    g_ievent.ie_Class = IECLASS_RAWKEY;
+    g_ievent.ie_Code = msg->Code;
+    g_ievent.ie_Qualifier = msg->Qualifier;
+    g_ievent.ie_position.ie_addr = *((APTR*)msg->IAddress);
+
+    LONG n = RawKeyConvert(&g_ievent, kbuffer, kbsize, /*kmap=*/NULL);
+
+#ifdef ENABLE_DEBUG
+    _aio_puts((STRPTR)"deadKeyConv: n="); _aio_putu4(n);
+    _aio_puts((STRPTR)", Code="); _aio_putu4(msg->Code);
+    _aio_puts((STRPTR)", Qual="); _aio_putu4(msg->Qualifier);
+
+    for (int i=0; i<n; i++)
+    {
+        _aio_puts((STRPTR)", kb["); _aio_putu2(i); _aio_puts((STRPTR)"]=");
+        _aio_putu1(kbuffer[i]);
+    }
+
+    _aio_putnl();
+#endif
+
+    return n;
+}
+
 void SLEEP(void)
 {
     struct IntuiMessage *message = NULL;
@@ -471,7 +521,9 @@ void SLEEP(void)
         {
             ULONG class = message->Class;
 
-            // _aio_puts("sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
+#ifdef ENABLE_DEBUG
+            _aio_puts((STRPTR)"sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
+#endif
 
             switch(class)
             {
@@ -487,10 +539,58 @@ void SLEEP(void)
                     g_active_win_id = i+1;
                     break;
 
-                case VANILLAKEY:
-                    keybuf[keybuf_end] = message->Code;
-                    keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                case RAWKEY:
+                {
+                    UBYTE buf[12];
+                    LONG numchars = deadKeyConvert(message, buf, 11);
+                    switch (numchars)
+                    {
+                        case 1:
+                            keybuf[keybuf_end] = buf[0];
+                            keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                            break;
+
+                        case 2:
+                        case 3:
+                        {
+                            char code=0;
+                            switch (buf[1])
+                            {
+                                // cursor keys
+                                case 65:
+                                case 66:
+                                case 67:
+                                case 68:
+                                    code = buf[1]-37;
+                                    break;
+                                // function keys
+                                case 48:
+                                case 49:
+                                case 50:
+                                case 51:
+                                case 52:
+                                case 53:
+                                case 54:
+                                case 55:
+                                case 56:
+                                case 57:
+                                    code = buf[1]+81;
+                                    break;
+                                default:
+                                    break;
+                                }
+                                if (code)
+                                {
+                                    keybuf[keybuf_end] = code;
+                                    keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                                }
+                                break;
+                        }
+                        default:
+                            break;
+                    }
                     break;
+                }
             }
 
             ReplyMsg ( (struct Message *) message);
