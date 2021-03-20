@@ -267,6 +267,35 @@ SUB MOVEDOWN:
     ' A=0
 END SUB
 
+SUB MOVERIGHT
+    ERASEPIECE
+    DIM AS BOOLEAN e=FALSE
+    FOR p AS INTEGER = 1 TO 4
+        IF piecex(p)=9 THEN e=TRUE
+    NEXT p
+    IF e THEN DRAWPIECE : RETURN
+    FOR p AS INTEGER = 1 TO 4
+        IF grid(piecex(p)+1, piecey(p))<>0 THEN e=TRUE
+    NEXT p
+    IF e THEN DRAWPIECE : RETURN
+    FOR p AS INTEGER = 1 TO 4 : piecex(p)=piecex(p)+1 : NEXT p
+    DRAWPIECE
+END SUB
+
+SUB MOVELEFT
+'   GoSub ERASEPIECE
+'   E=0
+'   For P=1 To 4:If piecex(P)=0 Then E=1
+'     Next P
+'   If E=1 Then GoSub DRAWPIECE:Return
+'   For P=1 To 4
+'     If grid(piecex(P)-1,piecey(P))<>0 Then E=1
+'     Next P
+'   If E=1 Then GoSub DRAWPIECE:Return
+'   For P=1 To 4:piecex(P)=piecex(P)-1:Next P
+'   GoSub DRAWPIECE
+END SUB
+
 SUB CPRINT (BYVAL y AS INTEGER, s AS STRING)
 
     DIM AS INTEGER x = 20-LEN(s)/2
@@ -397,7 +426,16 @@ WHILE NOT gameover
     SLEEP
     DIM AS STRING k = INKEY$
     IF k = "" THEN CONTINUE
-    LOCATE 3,1 : PRINT "KEY=";ASC(k)
+    SELECT CASE ASC(k)
+        CASE 27: ' Escape
+            gameover = True
+        CASE 29: ' cursor down
+            MOVEDOWN
+        CASE 30: ' cursor right
+            MOVERIGHT
+        CASE 31: ' cursor left
+            MOVELEFT
+    END SELECT
 WEND
 
 'DIM SHARED AS BOOLEAN q=FALSE
@@ -418,32 +456,6 @@ WEND
 ' 
 ' LEAVEPIECE:
 '   Gosub MOVEDOWN
-'   GoSub DRAWPIECE
-'   Return
-' MOVERIGHT:
-'   GoSub ERASEPIECE
-'   E=0
-'   For P=1 To 4:If piecex(P)=9 Then E=1
-'     Next P
-'   If E=1 Then GoSub DRAWPIECE:Return
-'   For P=1 To 4
-'     If grid(piecex(P)+1,piecey(P))<>0 Then E=1
-'     Next P
-'   If E=1 Then GoSub DRAWPIECE:Return
-'   For P=1 To 4:piecex(P)=piecex(P)+1:Next P
-'   GoSub DRAWPIECE
-'   Return
-' MOVELEFT:
-'   GoSub ERASEPIECE
-'   E=0
-'   For P=1 To 4:If piecex(P)=0 Then E=1
-'     Next P
-'   If E=1 Then GoSub DRAWPIECE:Return
-'   For P=1 To 4
-'     If grid(piecex(P)-1,piecey(P))<>0 Then E=1
-'     Next P
-'   If E=1 Then GoSub DRAWPIECE:Return
-'   For P=1 To 4:piecex(P)=piecex(P)-1:Next P
 '   GoSub DRAWPIECE
 '   Return
 ' 

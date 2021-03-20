@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXAMPLE=foo
+EXAMPLE=tetris
 
 IRA='/home/guenter/projects/amiga/ira/src/ira/ira'
 AQB="../../target/x86_64-linux/bin/aqb"
