@@ -45,6 +45,7 @@ extern struct DOSBase       *DOSBase;
 #include "options.h"
 #include "env.h"
 #include "link.h"
+#include "ide.h"
 
 #define VERSION "0.7.0"
 
@@ -100,6 +101,7 @@ int main (int argc, char *argv[])
     static bool            write_sym = FALSE;
     static bool            write_asm = FALSE;
     static bool            write_bin = FALSE;
+    static bool            launch_ide = TRUE;
     static char            symfn[PATH_MAX];
     static char            binfn[PATH_MAX];
     static string          module_name;
@@ -154,6 +156,7 @@ int main (int argc, char *argv[])
                 }
                 strncpy (asm_gas_fn, argv[optind], PATH_MAX);
                 write_asm = TRUE;
+                launch_ide = FALSE;
 				break;
         	case 'A':
                 optind++;
@@ -164,6 +167,7 @@ int main (int argc, char *argv[])
                 }
                 strncpy (asm_asmpro_fn, argv[optind], PATH_MAX);
                 write_asm = TRUE;
+                launch_ide = FALSE;
 				break;
         	case 's':
                 optind++;
@@ -174,6 +178,7 @@ int main (int argc, char *argv[])
                 }
                 strncpy (symfn, argv[optind], PATH_MAX);
                 write_sym = TRUE;
+                launch_ide = FALSE;
 				break;
         	case 'o':
                 optind++;
@@ -184,6 +189,7 @@ int main (int argc, char *argv[])
                 }
                 strncpy (binfn, argv[optind], PATH_MAX);
                 write_bin = TRUE;
+                launch_ide = FALSE;
 				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
@@ -203,6 +209,13 @@ int main (int argc, char *argv[])
 		print_usage(argv);
 		exit(EXIT_FAILURE);
 	}
+
+    // run interactive IDE ? (experimental)
+    if (launch_ide)
+    {
+        IDE_open();
+        exit(0);
+    }
 
     // init environment
     AS_init();

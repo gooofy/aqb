@@ -1,7 +1,7 @@
 include ../../config.mk
 
-SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c options.c \
-		errormsg.c symbol.c link.c linscan.c \
+SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c ide.c options.c \
+		errormsg.c symbol.c link.c linscan.c terminal.c \
 		temp.c assem.c env.c types.c \
 		codegen.c regalloc.c liveness.c color.c flowgraph.c table.c
 

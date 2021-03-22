@@ -68,7 +68,7 @@ typedef char bool;
 typedef enum
 {
     UP_frontend, UP_types, UP_temp, UP_assem, UP_codegen, UP_env, UP_flowgraph, UP_linscan, UP_symbol,
-    UP_hashmap, UP_regalloc, UP_liveness, UP_table, UP_strings, UP_link, UP_numPools
+    UP_hashmap, UP_regalloc, UP_liveness, UP_table, UP_strings, UP_link, UP_ide, UP_numPools
 } U_poolId;
 
 void *U_poolAlloc  (U_poolId pid, size_t size);
@@ -78,7 +78,7 @@ void  U_poolReset  (U_poolId pid);   // frees all memory reserved through this p
 void *U_malloc     (size_t size);
 void *U_calloc     (size_t nmemb, size_t len);
 
-void  U_memstat(void);
+void  U_memstat    (void);
 
 /*
  * string support
