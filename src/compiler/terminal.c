@@ -27,27 +27,22 @@ static BPTR                  g_raw_in;
 static struct Window        *g_con_win;
 static struct ConUnit       *g_con_unit;
 
+#define CSI       "\x9b"
+
 #else
 
 #include <signal.h>
 #include <unistd.h>
 #include <time.h>
+#include <termios.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/ioctl.h>
+
+#define CSI       "\033["
 
 #endif
 
-#define CSI       "\x9b"
-
-//#define RESETCON  "\033c"
-//#define CURSOFF   CSI "0 p"
-//#define CURSON    CSI " p"
-//#define CURSMOVE  CSI "%d;%d;H"
-//#define DELCHAR   CSI "P"
-//#define COLOR02   CSI "32m"
-//#define COLOR03   CSI "33m"
-//#define ITALICS   CSI "3m"
-//#define BOLD      CSI "1m"
-//#define UNDERLINE CSI "4m"
-//#define NORMAL    CSI "0m"
 
 #define BUFSIZE   2048
 static char            g_outbuf[BUFSIZE];
@@ -167,7 +162,7 @@ bool TE_getsize(int *rows, int *cols)
     return TRUE;
 }
 
-void TE_exit(int return_code)
+static void TE_exit(void)
 {
     TE_setTextStyle (TE_STYLE_NORMAL);
     TE_putstr(CSI "12}"); /* window resize events de-activated */
@@ -182,11 +177,9 @@ void TE_exit(int return_code)
     {
         Close(g_raw_in);
     }
-
-    exit(return_code);
 }
 
-void TE_init (void)
+bool TE_init (void)
 {
     g_raw_in = Input();
     if (!IsInteractive(g_raw_in))
@@ -195,7 +188,7 @@ void TE_init (void)
         if (!g_raw_in)
         {
             fprintf(stderr, "AQB: Can't open window\n");
-            exit(2);
+            return FALSE;
         }
         g_raw_out = g_raw_in;
     }
@@ -205,12 +198,16 @@ void TE_init (void)
         if (!changeScreenMode(/*raw_mode=*/TRUE))
         {
             fprintf(stderr, "AQB: Can't change to raw mode");
-            exit(2);
+            return FALSE;
         }
     }
 
     TE_putstr(CSI "12{"); /* window resize events activated */
     TE_flush();
+
+	atexit(TE_exit);
+
+	return TRUE;
 }
 
 int TE_getch(void)
@@ -231,7 +228,69 @@ void TE_flush  (void)
 
 int TE_getch (void)
 {
-    assert(FALSE); // FIXME
+    int nread;
+    char c, seq[3];
+    while ((nread = read(STDIN_FILENO,&c,1)) == 0);
+    if (nread == -1)
+        exit(1);
+
+    while(1)
+    {
+        if (c==KEY_ESC) // handle escape sequences
+        {
+            /* If this is just an ESC, we'll timeout here. */
+            if (read(STDIN_FILENO,seq,1) == 0)
+                return KEY_ESC;
+            if (read(STDIN_FILENO,seq+1,1) == 0)
+                return KEY_ESC;
+
+            /* ESC [ sequences. */
+            if (seq[0] == '[')
+            {
+                if (seq[1] >= '0' && seq[1] <= '9')
+                {
+                    /* Extended escape, read additional byte. */
+                    if (read(STDIN_FILENO,seq+2,1) == 0)
+                        return KEY_ESC;
+                    if (seq[2] == '~')
+                    {
+                        switch(seq[1])
+                        {
+                            case '3': return KEY_DEL;
+                            case '5': return KEY_PAGE_UP;
+                            case '6': return KEY_PAGE_DOWN;
+                        }
+                    }
+                }
+                else
+                {
+                    switch(seq[1])
+                    {
+                        case 'A': return KEY_CURSOR_UP;
+                        case 'B': return KEY_CURSOR_DOWN;
+                        case 'C': return KEY_CURSOR_RIGHT;
+                        case 'D': return KEY_CURSOR_LEFT;
+                        case 'H': return KEY_HOME;
+                        case 'F': return KEY_END;
+                    }
+                }
+            }
+
+            /* ESC O sequences. */
+            else if (seq[0] == 'O')
+            {
+                switch(seq[1])
+                {
+                    case 'H': return KEY_HOME;
+                    case 'F': return KEY_END;
+                }
+            }
+        }
+        else
+        {
+            return c;
+        }
+    }
     return 0;
 }
 
@@ -241,21 +300,101 @@ static void handleSigWinCh(int unused __attribute__((unused)))
         g_size_cb();
 }
 
-void TE_init   (void)
-{
-    signal(SIGWINCH, handleSigWinCh);
-    assert(FALSE); // FIXME
-}
-void TE_exit   (int return_code)
+struct termios g_orig_termios;
+static void TE_exit (void)
 {
     TE_setTextStyle (TE_STYLE_NORMAL);
-    assert(FALSE); // FIXME
+	// disable raw mode
+	tcsetattr(STDOUT_FILENO, TCSAFLUSH, &g_orig_termios);
 }
-bool TE_getsize(int *rows, int *cols)
+
+bool TE_init (void)
 {
-    assert(FALSE); // FIXME
+    signal(SIGWINCH, handleSigWinCh);
+
+	// enable raw mode
+    struct termios raw;
+
+    if (!isatty(STDIN_FILENO))
+		goto fatal;
+    atexit(TE_exit);
+    if (tcgetattr(STDOUT_FILENO, &g_orig_termios) == -1)
+		goto fatal;
+
+    raw = g_orig_termios;
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
+
+    if (tcsetattr(STDOUT_FILENO, TCSAFLUSH, &raw) < 0)
+		goto fatal;
+    return TRUE;
+
+fatal:
+    errno = ENOTTY;
     return FALSE;
 }
+
+static bool getCursorPosition(int *rows, int *cols)
+{
+    char buf[32];
+    unsigned int i = 0;
+
+    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
+		return FALSE;
+
+    while (i < sizeof(buf)-1)
+	{
+        if (read(STDIN_FILENO,buf+i,1) != 1)
+			break;
+        if (buf[i] == 'R')
+			break;
+        i++;
+    }
+    buf[i] = '\0';
+
+    if (buf[0] != KEY_ESC || buf[1] != '[')
+		return FALSE;
+    if (sscanf(buf+2,"%d;%d",rows,cols) != 2)
+		return FALSE;
+    return TRUE;
+}
+
+
+bool TE_getsize(int *rows, int *cols)
+{
+    struct winsize ws;
+
+    if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
+	{
+        int orig_row, orig_col;
+
+        if (!getCursorPosition(&orig_row, &orig_col))
+			goto failed;
+
+        if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
+			goto failed;
+        if (!getCursorPosition(rows, cols))
+			goto failed;
+
+        char seq[32];
+        snprintf(seq, 32, "\x1b[%d;%dH", orig_row, orig_col);
+        write(STDOUT_FILENO, seq, strlen(seq));
+    }
+	else
+	{
+        *cols = ws.ws_col;
+        *rows = ws.ws_row;
+    }
+	return TRUE;
+
+failed:
+    return FALSE;
+}
+
 #endif
 
 void TE_putc(char c)
@@ -298,6 +437,16 @@ void TE_moveCursor (int row, int col)
 void TE_eraseToEOL (void)
 {
     TE_putstr (CSI "K");
+}
+
+void TE_eraseDisplay (void)
+{
+    TE_putstr (CSI "J");
+}
+
+void TE_bell (void)
+{
+    TE_putstr ("\007");
 }
 
 void TE_setCursorVisible (bool visible)
