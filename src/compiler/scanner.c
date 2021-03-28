@@ -11,9 +11,9 @@
 #define MAX_TOKENS      256
 #define MAX_STRINGS      16
 #define MAX_STRING_LEN 1024
-#define MAX_LINE_LEN   8192
 
-static FILE         *g_fin=NULL;
+static nextch_cb_t   g_cb = NULL;
+static void         *g_user_data = NULL;
 
 static char          g_ch;
 static bool          g_eof = TRUE;
@@ -114,8 +114,6 @@ static void print_tkns(S_tkn tkn)
 
 static void getch(void)
 {
-    int n;
-
     if (g_eol)
     {
         g_eol = FALSE;
@@ -130,12 +128,8 @@ static void getch(void)
         g_col++;
     }
 
-    n = fread(&g_ch, 1, 1, g_fin);
-    if (n<1)
-    {
-        g_eof = TRUE;
-    }
-    else
+    g_eof = !g_cb(&g_ch, g_user_data);
+    if (!g_eof)
     {
         if (g_ch == '\n')
         {
@@ -647,14 +641,15 @@ S_tkn S_nextline(void)
     return first_tkn;
 }
 
-void S_init(FILE *fin)
+void S_init(nextch_cb_t cb, void *user_data)
 {
 #ifdef S_KEEP_SOURCE
     g_src           = TAB_empty();
 #endif
     g_sym_rem = S_Symbol("REM", FALSE);
 
-    g_fin           = fin;
+    g_cb            = cb;
+    g_user_data     = user_data;
     g_eof           = FALSE;
     g_eol           = FALSE;
     g_line          = 1;

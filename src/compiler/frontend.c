@@ -7015,11 +7015,17 @@ static bool statementOrAssignment(S_tkn *tkn)
     return TRUE;
 }
 
+static bool nextch (char *ch, void *u)
+{
+    int n = fread(ch, 1, 1, (FILE *) u);
+    return n==1;
+}
+
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*
 CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name)
 {
     FE_filename = filename;
-    S_init (inf);
+    S_init (nextch, inf);
 
     userLabels  = TAB_empty();
 

@@ -209,11 +209,12 @@ int main (int argc, char *argv[])
 		print_usage(argv);
 		exit(EXIT_FAILURE);
 	}
+	sourcefn = argv[optind];
 
     // run interactive IDE ? (experimental)
     if (launch_ide)
     {
-        IDE_open();
+        IDE_open(sourcefn);
         exit(0);
     }
 
@@ -222,7 +223,6 @@ int main (int argc, char *argv[])
     CG_init();
     E_init();
 
-	sourcefn = argv[optind];
     /* filename.bas -> module name, module search path */
     {
         int l = strlen(sourcefn);

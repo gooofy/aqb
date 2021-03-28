@@ -51,7 +51,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-d", "none", "-S", "_brt.sym", "_brt.bas"],
+            "args": ["-d", "none", "-s", "_brt.sym", "_brt.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../lib/_brt",
             "environment": [],

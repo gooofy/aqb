@@ -5,11 +5,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 
 #include "util.h"
 #include "terminal.h"
-
-#define MAXLINELEN          1024
+#include "scanner.h"
 
 #define INFOLINE            "X=   1 Y=   1 #=   0 IcATB"
 #define INFOLINE_CURSOR_X      2
@@ -274,7 +274,19 @@ static void IDE_exit(void)
     TE_flush();
 }
 
-void IDE_open(void)
+static void IDE_load (char *sourcefn)
+{
+	FILE *sourcef = fopen(sourcefn, "r");
+	if (!sourcef)
+	{
+		fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
+		exit(2);
+	}
+    //S_init (sourcef);
+    fclose(sourcef);
+}
+
+void IDE_open(char *fn)
 {
     TE_init();
     TE_setCursorVisible (TRUE);
@@ -282,6 +294,10 @@ void IDE_open(void)
     atexit (IDE_exit);
 
 	IDE_editor ed = OpenEditor();
+
+    if (fn)
+        IDE_load (fn);
+
     // FIXME showCursor(ed);
     bool running = TRUE;
     while (running)
