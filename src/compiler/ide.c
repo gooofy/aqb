@@ -41,6 +41,7 @@ struct IDE_editor_
 {
 	IDE_lineList       lines;
 	uint16_t           num_lines;
+	uint16_t           window_width, window_height;
 	uint16_t           scrolloff_col, scrolloff_row;
 	uint16_t           cursor_col, cursor_row;
 	bool               changed;
@@ -48,10 +49,11 @@ struct IDE_editor_
 	bool               tabs;
 	bool               skipblanks;
 	bool               autoindent;
-	uint16_t           window_width, window_height;
 	char               infoline[36];
     uint16_t           infoline_row;
 	uint8_t	           filename[PATH_MAX];
+    char               buf[MAX_LINE_LEN];
+    uint16_t           buf_pos;
 };
 
 IDE_line newLine(IDE_editor ed, uint16_t len)
@@ -274,7 +276,27 @@ static void IDE_exit(void)
     TE_flush();
 }
 
-static void IDE_load (char *sourcefn)
+static bool nextch_cb(char *ch, void *user_data)
+{
+    IDE_editor ed = user_data;
+    *ch = ed->buf[ed->buf_pos++];
+    return (*ch) != 0;
+}
+
+static IDE_line buf2line (IDE_editor ed, int linenum)
+{
+    ed->buf_pos = 0;
+    S_init (nextch_cb, ed); 
+
+    TE_moveCursor (linenum, 0);
+    TE_putstr (ed->buf);
+    TE_eraseToEOL();
+    TE_flush();
+
+    return NULL; // FIXME
+}
+
+static void IDE_load (IDE_editor ed, char *sourcefn)
 {
 	FILE *sourcef = fopen(sourcefn, "r");
 	if (!sourcef)
@@ -282,7 +304,37 @@ static void IDE_load (char *sourcefn)
 		fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
 		exit(2);
 	}
-    //S_init (sourcef);
+
+    int l = 0;
+    bool eof = FALSE;
+    bool eol = FALSE;
+    int linenum = 0;
+    while (!eof)
+    {
+        char ch;
+        int n = fread (&ch, 1, 1, sourcef);
+        if (n==1)
+        {
+            ed->buf[l++] = ch;
+            if ( (l==(MAX_LINE_LEN-1)) || (ch==10)  )
+                eol = TRUE;
+        }
+        else
+        {
+            eof = TRUE;
+            eol = TRUE;
+        }
+
+        if (eol)
+        {
+            ed->buf[l] = 0;
+            l = 0;
+            buf2line (ed, linenum);
+            linenum = (linenum+1) % ed->window_height;
+            eol=FALSE;
+        }
+    }
+
     fclose(sourcef);
 }
 
@@ -296,7 +348,7 @@ void IDE_open(char *fn)
 	IDE_editor ed = OpenEditor();
 
     if (fn)
-        IDE_load (fn);
+        IDE_load (ed, fn);
 
     // FIXME showCursor(ed);
     bool running = TRUE;
