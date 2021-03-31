@@ -114,6 +114,7 @@ int main (int argc, char *argv[])
     Ty_init();
     EM_init();
     S_symbol_init();
+    FE_init();
 
 #ifdef __amigaos__
     E_addModulePath("AQB:lib");

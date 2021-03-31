@@ -237,6 +237,11 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
+#define MAX_KEYWORDS 84
+
+S_symbol FE_keywords[MAX_KEYWORDS];
+int FE_num_keywords;
+
 static S_symbol S_DIM;
 static S_symbol S_SHARED;
 static S_symbol S_AS;
@@ -6754,91 +6759,6 @@ static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef
 
 static void registerBuiltins(void)
 {
-    S_DIM             = S_Symbol("DIM",              FALSE);
-    S_SHARED          = S_Symbol("SHARED",           FALSE);
-    S_AS              = S_Symbol("AS",               FALSE);
-    S_PTR             = S_Symbol("PTR",              FALSE);
-    S_XOR             = S_Symbol("XOR",              FALSE);
-    S_EQV             = S_Symbol("EQV",              FALSE);
-    S_IMP             = S_Symbol("IMP",              FALSE);
-    S_AND             = S_Symbol("AND",              FALSE);
-    S_OR              = S_Symbol("OR",               FALSE);
-    S_SHL             = S_Symbol("SHL",              FALSE);
-    S_SHR             = S_Symbol("SHR",              FALSE);
-    S_MOD             = S_Symbol("MOD",              FALSE);
-    S_NOT             = S_Symbol("NOT",              FALSE);
-    S_PRINT           = S_Symbol("PRINT",            FALSE);
-    S_FOR             = S_Symbol("FOR",              FALSE);
-    S_NEXT            = S_Symbol("NEXT",             FALSE);
-    S_TO              = S_Symbol("TO",               FALSE);
-    S_STEP            = S_Symbol("STEP",             FALSE);
-    S_IF              = S_Symbol("IF",               FALSE);
-    S_THEN            = S_Symbol("THEN",             FALSE);
-    S_END             = S_Symbol("END",              FALSE);
-    S_ELSE            = S_Symbol("ELSE",             FALSE);
-    S_ELSEIF          = S_Symbol("ELSEIF",           FALSE);
-    S_ENDIF           = S_Symbol("ENDIF",            FALSE);
-    S_GOTO            = S_Symbol("GOTO",             FALSE);
-    S_ASSERT          = S_Symbol("ASSERT",           FALSE);
-    S_EXPLICIT        = S_Symbol("EXPLICIT",         FALSE);
-    S_ON              = S_Symbol("ON",               FALSE);
-    S_OFF             = S_Symbol("OFF",              FALSE);
-    S_OPTION          = S_Symbol("OPTION",           FALSE);
-    S_SUB             = S_Symbol("SUB",              FALSE);
-    S_FUNCTION        = S_Symbol("FUNCTION",         FALSE);
-    S_STATIC          = S_Symbol("STATIC",           FALSE);
-    S_CALL            = S_Symbol("CALL",             FALSE);
-    S_CONST           = S_Symbol("CONST",            FALSE);
-    S_SIZEOF          = S_Symbol("SIZEOF",           FALSE);
-    S_EXTERN          = S_Symbol("EXTERN",           FALSE);
-    S_DECLARE         = S_Symbol("DECLARE",          FALSE);
-    S_LIB             = S_Symbol("LIB",              FALSE);
-    S_BYVAL           = S_Symbol("BYVAL",            FALSE);
-    S_BYREF           = S_Symbol("BYREF",            FALSE);
-    S_TYPE            = S_Symbol("TYPE",             FALSE);
-    S_VARPTR          = S_Symbol("VARPTR",           FALSE);
-    S_WHILE           = S_Symbol("WHILE",            FALSE);
-    S_WEND            = S_Symbol("WEND",             FALSE);
-    S_LET             = S_Symbol("LET",              FALSE);
-    S__COORD2         = S_Symbol("_COORD2",          FALSE);
-    S__COORD          = S_Symbol("_COORD",           FALSE);
-    S_EXIT            = S_Symbol("EXIT",             FALSE);
-    S__LINEBF         = S_Symbol("_LINEBF",          FALSE);
-    S_B               = S_Symbol("B",                FALSE);
-    S_BF              = S_Symbol("BF",               FALSE);
-    S_DO              = S_Symbol("DO",               FALSE);
-    S_SELECT          = S_Symbol("SELECT",           FALSE);
-    S_CONTINUE        = S_Symbol("CONTINUE",         FALSE);
-    S_UNTIL           = S_Symbol("UNTIL",            FALSE);
-    S_LOOP            = S_Symbol("LOOP",             FALSE);
-    S_CAST            = S_Symbol("CAST",             FALSE);
-    S_CASE            = S_Symbol("CASE",             FALSE);
-    S_IS              = S_Symbol("IS",               FALSE);
-    S_RETURN          = S_Symbol("RETURN",           FALSE);
-    S_PRIVATE         = S_Symbol("PRIVATE",          FALSE);
-    S_PUBLIC          = S_Symbol("PUBLIC",           FALSE);
-    S_IMPORT          = S_Symbol("IMPORT",           FALSE);
-    S_STRDOLLAR       = S_Symbol("STR$",             FALSE);
-    S_DEFSNG          = S_Symbol("DEFSNG",           FALSE);
-    S_DEFLNG          = S_Symbol("DEFLNG",           FALSE);
-    S_DEFINT          = S_Symbol("DEFINT",           FALSE);
-    S_DEFSTR          = S_Symbol("DEFSTR",           FALSE);
-    S_GOSUB           = S_Symbol("GOSUB",            FALSE);
-    S_CONSTRUCTOR     = S_Symbol("CONSTRUCTOR",      FALSE);
-    S_LBOUND          = S_Symbol("LBOUND",           FALSE);
-    S_UBOUND          = S_Symbol("UBOUND",           FALSE);
-    S_PROTECTED       = S_Symbol("PROTECTED",        FALSE);
-    S__DARRAY_T       = S_Symbol("_DARRAY_T",        FALSE);
-    S_REDIM           = S_Symbol("REDIM",            FALSE);
-    S_PRESERVE        = S_Symbol("PRESERVE",         FALSE);
-    S__ISNULL         = S_Symbol("_ISNULL",          FALSE);
-    S_ERASE           = S_Symbol("ERASE",            FALSE);
-    S_DATA            = S_Symbol("DATA",             FALSE);
-    S_READ            = S_Symbol("READ",             FALSE);
-    S_RESTORE         = S_Symbol("RESTORE",          FALSE);
-    S_LINE            = S_Symbol("LINE",             FALSE);
-    S_INPUT           = S_Symbol("INPUT",            FALSE);
-
     g_parsefs = TAB_empty();
 
     // FIXME
@@ -7186,4 +7106,101 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 bool FE_writeSymFile(string symfn)
 {
     return E_saveModule(symfn, FE_mod);
+}
+
+static S_symbol defineKeyword (char *s)
+{
+    assert (FE_num_keywords<MAX_KEYWORDS);
+    S_symbol kw = S_Symbol(s, FALSE);
+    FE_keywords[FE_num_keywords++] = kw;
+    return kw;
+}
+
+void FE_init(void)
+{
+    FE_num_keywords = 0;
+    S_DIM             = defineKeyword("DIM");
+    S_SHARED          = defineKeyword("SHARED");
+    S_AS              = defineKeyword("AS");
+    S_PTR             = defineKeyword("PTR");
+    S_XOR             = defineKeyword("XOR");
+    S_EQV             = defineKeyword("EQV");
+    S_IMP             = defineKeyword("IMP");
+    S_AND             = defineKeyword("AND");
+    S_OR              = defineKeyword("OR");
+    S_SHL             = defineKeyword("SHL");
+    S_SHR             = defineKeyword("SHR");
+    S_MOD             = defineKeyword("MOD");
+    S_NOT             = defineKeyword("NOT");
+    S_PRINT           = defineKeyword("PRINT");
+    S_FOR             = defineKeyword("FOR");
+    S_NEXT            = defineKeyword("NEXT");
+    S_TO              = defineKeyword("TO");
+    S_STEP            = defineKeyword("STEP");
+    S_IF              = defineKeyword("IF");
+    S_THEN            = defineKeyword("THEN");
+    S_END             = defineKeyword("END");
+    S_ELSE            = defineKeyword("ELSE");
+    S_ELSEIF          = defineKeyword("ELSEIF");
+    S_ENDIF           = defineKeyword("ENDIF");
+    S_GOTO            = defineKeyword("GOTO");
+    S_ASSERT          = defineKeyword("ASSERT");
+    S_EXPLICIT        = defineKeyword("EXPLICIT");
+    S_ON              = defineKeyword("ON");
+    S_OFF             = defineKeyword("OFF");
+    S_OPTION          = defineKeyword("OPTION");
+    S_SUB             = defineKeyword("SUB");
+    S_FUNCTION        = defineKeyword("FUNCTION");
+    S_STATIC          = defineKeyword("STATIC");
+    S_CALL            = defineKeyword("CALL");
+    S_CONST           = defineKeyword("CONST");
+    S_SIZEOF          = defineKeyword("SIZEOF");
+    S_EXTERN          = defineKeyword("EXTERN");
+    S_DECLARE         = defineKeyword("DECLARE");
+    S_LIB             = defineKeyword("LIB");
+    S_BYVAL           = defineKeyword("BYVAL");
+    S_BYREF           = defineKeyword("BYREF");
+    S_TYPE            = defineKeyword("TYPE");
+    S_VARPTR          = defineKeyword("VARPTR");
+    S_WHILE           = defineKeyword("WHILE");
+    S_WEND            = defineKeyword("WEND");
+    S_LET             = defineKeyword("LET");
+    S__COORD2         = defineKeyword("_COORD2");
+    S__COORD          = defineKeyword("_COORD");
+    S_EXIT            = defineKeyword("EXIT");
+    S__LINEBF         = defineKeyword("_LINEBF");
+    S_B               = defineKeyword("B");
+    S_BF              = defineKeyword("BF");
+    S_DO              = defineKeyword("DO");
+    S_SELECT          = defineKeyword("SELECT");
+    S_CONTINUE        = defineKeyword("CONTINUE");
+    S_UNTIL           = defineKeyword("UNTIL");
+    S_LOOP            = defineKeyword("LOOP");
+    S_CAST            = defineKeyword("CAST");
+    S_CASE            = defineKeyword("CASE");
+    S_IS              = defineKeyword("IS");
+    S_RETURN          = defineKeyword("RETURN");
+    S_PRIVATE         = defineKeyword("PRIVATE");
+    S_PUBLIC          = defineKeyword("PUBLIC");
+    S_IMPORT          = defineKeyword("IMPORT");
+    S_STRDOLLAR       = defineKeyword("STR$");
+    S_DEFSNG          = defineKeyword("DEFSNG");
+    S_DEFLNG          = defineKeyword("DEFLNG");
+    S_DEFINT          = defineKeyword("DEFINT");
+    S_DEFSTR          = defineKeyword("DEFSTR");
+    S_GOSUB           = defineKeyword("GOSUB");
+    S_CONSTRUCTOR     = defineKeyword("CONSTRUCTOR");
+    S_LBOUND          = defineKeyword("LBOUND");
+    S_UBOUND          = defineKeyword("UBOUND");
+    S_PROTECTED       = defineKeyword("PROTECTED");
+    S__DARRAY_T       = defineKeyword("_DARRAY_T");
+    S_REDIM           = defineKeyword("REDIM");
+    S_PRESERVE        = defineKeyword("PRESERVE");
+    S__ISNULL         = defineKeyword("_ISNULL");
+    S_ERASE           = defineKeyword("ERASE");
+    S_DATA            = defineKeyword("DATA");
+    S_READ            = defineKeyword("READ");
+    S_RESTORE         = defineKeyword("RESTORE");
+    S_LINE            = defineKeyword("LINE");
+    S_INPUT           = defineKeyword("INPUT");
 }

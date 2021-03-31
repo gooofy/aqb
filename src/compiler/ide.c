@@ -6,10 +6,15 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "util.h"
 #include "terminal.h"
 #include "scanner.h"
+#include "frontend.h"
+
+#define STYLE_NORMAL 0
+#define STYLE_KW     1
 
 #define INFOLINE            "X=   1 Y=   1 #=   0 IcATB"
 #define INFOLINE_CURSOR_X      2
@@ -27,8 +32,10 @@ typedef struct IDE_editor_   *IDE_editor;
 
 struct IDE_line_
 {
-	IDE_line next, prev;
-	uint8_t  len;
+	IDE_line  next, prev;
+	uint16_t  len;
+    char     *buf;
+    char     *style;
 };
 
 struct IDE_lineList_
@@ -56,23 +63,39 @@ struct IDE_editor_
     uint16_t           buf_pos;
 };
 
-IDE_line newLine(IDE_editor ed, uint16_t len)
+IDE_line newLine(IDE_editor ed, char *buf, char *style)
 {
-    IDE_line l = U_poolAlloc (UP_ide, sizeof(*l)+len);
+    int len = strlen(buf);
+    IDE_line l = U_poolAlloc (UP_ide, sizeof(*l)+2*(len+1));
 
 	l->next  = NULL;
 	l->prev  = NULL;
-	l->len   = 0;
+	l->len   = len;
+    l->buf   = (char *) (&l[1]);
+    l->style = l->buf + len + 1;
+
+    memcpy (l->buf, buf, len+1);
+    memcpy (l->style, style, len+1);
 
 	return l;
 }
 
-#if 0
 static void IDE_lineListInsertAfter (IDE_lineList *ll, IDE_line lBefore, IDE_line l)
 {
     if (lBefore)
     {
-        assert(FALSE); // FIXME: implement
+        if (lBefore == ll->last)
+        {
+            ll->last = l;
+            l->next = NULL;
+        }
+        else
+        {
+            l->next = lBefore->next;
+            lBefore->next->prev = l;
+        }
+        l->prev = lBefore;
+        lBefore->next = l;
     }
     else
     {
@@ -87,7 +110,7 @@ static void IDE_lineListInsertAfter (IDE_lineList *ll, IDE_line lBefore, IDE_lin
         }
     }
 }
-#endif
+
 void initWindowSize (IDE_editor ed)
 {
     int rows, cols;
@@ -285,15 +308,149 @@ static bool nextch_cb(char *ch, void *user_data)
 
 static IDE_line buf2line (IDE_editor ed, int linenum)
 {
-    ed->buf_pos = 0;
-    S_init (nextch_cb, ed); 
+    static char buf[MAX_LINE_LEN];
+    static char style[MAX_LINE_LEN];
 
-    TE_moveCursor (linenum, 0);
-    TE_putstr (ed->buf);
+    ed->buf_pos = 0;
+    S_init (nextch_cb, ed);
+
+    S_tkn tkn = S_nextline();
+    int pos = 0;
+    bool first = TRUE;
+    while (tkn && (pos <MAX_LINE_LEN-1))
+    {
+        switch (tkn->kind)
+        {
+            case S_ERRTKN:
+            case S_EOL:
+                break;
+            case S_IDENT:
+            {
+                if (!first)
+                    buf[pos++] = ' ';
+                bool is_kw = FALSE;
+                for (int i =0; i<FE_num_keywords; i++)
+                {
+                    if (FE_keywords[i]==tkn->u.sym)
+                    {
+                        is_kw = TRUE;
+                        break;
+                    }
+                }
+                char *s = S_name(tkn->u.sym);
+                int l = strlen(s);
+                if (pos+l >= MAX_LINE_LEN-1)
+                    l = MAX_LINE_LEN-1-pos;
+                for (int i =0; i<l; i++)
+                {
+                    if (is_kw)
+                    {
+                        buf[pos] = toupper(s[i]);
+                        style[pos++] = STYLE_KW;
+                    }
+                    else
+                    {
+                        buf[pos] = s[i];
+                        style[pos++] = STYLE_NORMAL;
+                    }
+                }
+                break;
+            }
+            case S_STRING:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos++] = '"';
+                for (char *c=tkn->u.str; *c; c++)
+                    buf[pos++] = *c;
+                buf[pos++] = '"';
+                break;
+            case S_COLON:
+            case S_SEMICOLON:
+            case S_COMMA:
+            case S_INUM:
+            case S_FNUM:
+            case S_MINUS:
+            case S_LPAREN:
+            case S_RPAREN:
+            case S_EQUALS:
+                break;
+            case S_EXP:
+            case S_ASTERISK:
+            case S_SLASH:
+            case S_BACKSLASH:
+            case S_PLUS:
+            case S_GREATER:
+            case S_LESS:
+            case S_NOTEQ:
+            case S_LESSEQ:
+            case S_GREATEREQ:
+            case S_POINTER:
+            case S_PERIOD:
+            case S_AT:
+            case S_LBRACKET:
+            case S_RBRACKET:
+            case S_TRIPLEDOTS:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos++] = '?'; // FIXME
+                break;
+        }
+
+        tkn = tkn->next;
+        first = FALSE;
+    }
+    buf[pos] = 0;
+
+    return newLine (ed, buf, style);
+}
+
+static void showLine (IDE_editor ed, IDE_line l, int row)
+{
+    TE_moveCursor (row, 0);
+
+    char s=STYLE_NORMAL;
+    TE_setTextStyle (TE_STYLE_NORMAL);
+    for (int i=0; i<l->len; i++)
+    {
+        char s2 = l->style[i];
+        if (s2 != s)
+        {
+            switch (s2)
+            {
+                case STYLE_NORMAL:
+                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    break;
+                case STYLE_KW:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    break;
+                default:
+                    assert(FALSE);
+            }
+            s = s2;
+        }
+        TE_putc (l->buf[i]);
+    }
     TE_eraseToEOL();
     TE_flush();
+}
 
-    return NULL; // FIXME
+static void showAll (IDE_editor ed)
+{
+    IDE_line l = ed->lines.first;
+    int linenum = 0;
+    while ( l && (linenum < ed->scrolloff_row) )
+    {
+        linenum++;
+        l = l->next;
+    }
+
+    int linenum_end = ed->scrolloff_row + ed->window_height;
+    while (l && (linenum < linenum_end))
+    {
+        showLine (ed, l, linenum - ed->scrolloff_row);
+        linenum++;
+        l = l->next;
+    }
 }
 
 static void IDE_load (IDE_editor ed, char *sourcefn)
@@ -309,6 +466,7 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
     bool eof = FALSE;
     bool eol = FALSE;
     int linenum = 0;
+    IDE_line lastLine = NULL;
     while (!eof)
     {
         char ch;
@@ -329,7 +487,9 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
         {
             ed->buf[l] = 0;
             l = 0;
-            buf2line (ed, linenum);
+            IDE_line line = buf2line (ed, linenum);
+            IDE_lineListInsertAfter (&ed->lines, lastLine, line);
+            lastLine = line;
             linenum = (linenum+1) % ed->window_height;
             eol=FALSE;
         }
@@ -349,6 +509,8 @@ void IDE_open(char *fn)
 
     if (fn)
         IDE_load (ed, fn);
+
+    showAll(ed);
 
     // FIXME showCursor(ed);
     bool running = TRUE;

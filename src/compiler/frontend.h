@@ -13,6 +13,10 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
 bool        FE_writeSymFile(string symfn);
 
+void        FE_init(void);
+
+extern S_symbol FE_keywords[];
+extern int      FE_num_keywords;
 
 #endif
 
