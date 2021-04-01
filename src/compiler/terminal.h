@@ -48,6 +48,14 @@ void  TE_setCursorVisible (bool visible);
 #define TE_STYLE_ITALICS    3
 #define TE_STYLE_UNDERLINE  4
 #define TE_STYLE_INVERSE    7
+#define TE_STYLE_BLACK     30
+#define TE_STYLE_RED       31
+#define TE_STYLE_GREEN     32
+#define TE_STYLE_YELLOW    33
+#define TE_STYLE_BLUE      34
+#define TE_STYLE_MAGENTA   35
+#define TE_STYLE_CYAN      36
+#define TE_STYLE_WHITE     37
 
 void  TE_setTextStyle     (int style);
 

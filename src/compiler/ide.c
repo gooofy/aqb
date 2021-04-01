@@ -15,6 +15,8 @@
 
 #define STYLE_NORMAL 0
 #define STYLE_KW     1
+#define STYLE_STRING 2
+#define STYLE_NUMBER 3
 
 #define INFOLINE            "X=   1 Y=   1 #=   0 IcATB"
 #define INFOLINE_CURSOR_X      2
@@ -317,6 +319,7 @@ static IDE_line buf2line (IDE_editor ed, int linenum)
     S_tkn tkn = S_nextline();
     int pos = 0;
     bool first = TRUE;
+    S_token lastKind = S_ERRTKN;
     while (tkn && (pos <MAX_LINE_LEN-1))
     {
         switch (tkn->kind)
@@ -359,43 +362,187 @@ static IDE_line buf2line (IDE_editor ed, int linenum)
             case S_STRING:
                 if (!first)
                     buf[pos++] = ' ';
-                buf[pos++] = '"';
+                buf[pos] = '"';
+                style[pos++] = STYLE_STRING;
                 for (char *c=tkn->u.str; *c; c++)
-                    buf[pos++] = *c;
-                buf[pos++] = '"';
+                {
+                    buf[pos] = *c;
+                    style[pos++] = STYLE_STRING;
+                }
+                buf[pos] = '"';
+                style[pos++] = STYLE_STRING;
                 break;
             case S_COLON:
+                buf[pos] = ':';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_SEMICOLON:
+                buf[pos] = ';';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_COMMA:
+                buf[pos] = ',';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_INUM:
+            {
+                if (!first && (lastKind != S_MINUS))
+                    buf[pos++] = ' ';
+                static char nbuf[64];
+                snprintf (nbuf, 64, "%d", tkn->u.literal.inum);
+                for (char *c=nbuf; *c; c++)
+                {
+                    buf[pos] = *c;
+                    style[pos++] = STYLE_NUMBER;
+                }
+                break;
+            }
             case S_FNUM:
+            {
+                if (!first && (lastKind != S_MINUS))
+                    buf[pos++] = ' ';
+                static char nbuf[64];
+                snprintf (nbuf, 64, "%g", tkn->u.literal.fnum);
+                for (char *c=nbuf; *c; c++)
+                {
+                    buf[pos] = *c;
+                    style[pos++] = STYLE_NUMBER;
+                }
+                break;
+            }
             case S_MINUS:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '-';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_LPAREN:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '(';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_RPAREN:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = ')';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_EQUALS:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '=';
+                style[pos++] = STYLE_NORMAL;
                 break;
             case S_EXP:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '^';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_ASTERISK:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '*';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_SLASH:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '/';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_BACKSLASH:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '\\';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_PLUS:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '+';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_GREATER:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '>';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_LESS:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '<';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_NOTEQ:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '<';
+                style[pos++] = STYLE_NORMAL;
+                buf[pos] = '>';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_LESSEQ:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '<';
+                style[pos++] = STYLE_NORMAL;
+                buf[pos] = '=';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_GREATEREQ:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '>';
+                style[pos++] = STYLE_NORMAL;
+                buf[pos] = '=';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_POINTER:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '-';
+                style[pos++] = STYLE_NORMAL;
+                buf[pos] = '>';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_PERIOD:
+                buf[pos] = '.';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_AT:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '@';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_LBRACKET:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = '[';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_RBRACKET:
+                if (!first)
+                    buf[pos++] = ' ';
+                buf[pos] = ']';
+                style[pos++] = STYLE_NORMAL;
+                break;
             case S_TRIPLEDOTS:
                 if (!first)
                     buf[pos++] = ' ';
-                buf[pos++] = '?'; // FIXME
+                buf[pos] = '.';
+                style[pos++] = STYLE_NORMAL;
+                buf[pos] = '.';
+                style[pos++] = STYLE_NORMAL;
+                buf[pos] = '.';
+                style[pos++] = STYLE_NORMAL;
                 break;
         }
 
+        lastKind = tkn->kind;
         tkn = tkn->next;
         first = FALSE;
     }
@@ -422,6 +569,15 @@ static void showLine (IDE_editor ed, IDE_line l, int row)
                     break;
                 case STYLE_KW:
                     TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_YELLOW);
+                    break;
+                case STYLE_STRING:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_MAGENTA);
+                    break;
+                case STYLE_NUMBER:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_MAGENTA);
                     break;
                 default:
                     assert(FALSE);
