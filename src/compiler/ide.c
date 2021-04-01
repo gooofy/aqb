@@ -131,7 +131,6 @@ static void updateInfoLine(IDE_editor ed)
     TE_eraseToEOL   ();
     TE_putstr       (ed->infoline);
     TE_setTextStyle (TE_STYLE_NORMAL);
-    TE_flush        ();
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)
@@ -287,9 +286,6 @@ IDE_editor OpenEditor(void)
     ed->autoindent	     = 1;
 
     initWindowSize(ed);
-    TE_moveCursor (0, 0);
-    TE_eraseDisplay();
-    showInfoLine(ed);
 
 	return ed;
 }
@@ -587,7 +583,6 @@ static void showLine (IDE_editor ed, IDE_line l, int row)
         TE_putc (l->buf[i]);
     }
     TE_eraseToEOL();
-    TE_flush();
 }
 
 static void showAll (IDE_editor ed)
@@ -607,6 +602,12 @@ static void showAll (IDE_editor ed)
         linenum++;
         l = l->next;
     }
+}
+
+static void showCursor (IDE_editor ed)
+{
+    TE_moveCursor (ed->cursor_col-ed->scrolloff_col-1, ed->cursor_row-ed->scrolloff_row-1);
+    TE_setCursorVisible (TRUE);
 }
 
 static void IDE_load (IDE_editor ed, char *sourcefn)
@@ -657,7 +658,6 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
 void IDE_open(char *fn)
 {
     TE_init();
-    TE_setCursorVisible (TRUE);
 
     atexit (IDE_exit);
 
@@ -666,9 +666,14 @@ void IDE_open(char *fn)
     if (fn)
         IDE_load (ed, fn);
 
+    TE_setCursorVisible (FALSE);
+    TE_moveCursor (0, 0);
+    TE_eraseDisplay();
     showAll(ed);
+    showInfoLine(ed);
+    showCursor(ed);
+    TE_flush();
 
-    // FIXME showCursor(ed);
     bool running = TRUE;
     while (running)
     {
