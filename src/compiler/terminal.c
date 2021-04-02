@@ -469,6 +469,24 @@ void TE_setTextStyle (int style)
     TE_printf ( CSI "%dm", style);
 }
 
+void TE_setAlternateScreen (bool enabled)
+{
+    if (enabled)
+        TE_printf (CSI "?1049h");
+    else
+        TE_printf (CSI "?1049l");
+}
+
+void TE_scrollUp (void)
+{
+    TE_printf ( CSI "S");
+}
+
+void TE_scrollDown (void)
+{
+    TE_printf ( CSI "T");
+}
+
 float TE_get_time (void)
 {
     #ifdef __amigaos__
