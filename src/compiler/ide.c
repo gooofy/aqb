@@ -573,30 +573,32 @@ static IDE_line buf2line (IDE_editor ed)
     return newLine (ed, buf, style);
 }
 
+static void commitBuf(IDE_editor ed)
+{
+    IDE_line cl = ed->cursor_line;
+    IDE_line l  = buf2line (ed);
+    if (cl->prev)
+        cl->prev->next = l;
+    else
+        ed->line_first = l;
+    if (cl->next)
+        cl->next->prev = l;
+    else
+        ed->line_last = l;
+    l->next = cl->next;
+    ed->editing = FALSE;
+    freeLine (ed, cl);
+    showLine (ed, l->buf, l->style, l->len, ed->cursor_row - ed->scrolloff_row + 1);
+}
+
 static bool cursorDown(IDE_editor ed)
 {
     IDE_line nl = ed->cursor_line->next;
     if (!nl)
         return FALSE;
 
-    IDE_line cl = ed->cursor_line;
     if (ed->editing)
-    {
-        IDE_line l = buf2line (ed);
-        if (cl->prev)
-            cl->prev->next = l;
-        else
-            ed->line_first = l;
-        nl->prev = cl->prev;
-        if (cl->next)
-            cl->next->prev = l;
-        else
-            ed->line_last = l;
-        nl = l->next = cl->next;
-        ed->editing = FALSE;
-        freeLine (ed, cl);
-        showLine (ed, l->buf, l->style, l->len, ed->cursor_row - ed->scrolloff_row + 1);
-    }
+        commitBuf (ed);
 
     ed->cursor_line = nl;
     ed->cursor_row++;
@@ -608,6 +610,19 @@ static bool cursorDown(IDE_editor ed)
         showXPos(ed);
         scrollX(ed);
     }
+    showCursor(ed);
+
+    return TRUE;
+}
+
+static bool cursorLeft(IDE_editor ed)
+{
+    if (ed->cursor_col == 0)
+        return FALSE;
+
+    ed->cursor_col--;
+    showXPos(ed);
+    scrollX(ed);
     showCursor(ed);
 
     return TRUE;
@@ -683,6 +698,10 @@ static bool handleKey (IDE_editor ed, int key)
 
         case KEY_CURSOR_DOWN:
             cursorDown(ed);
+            break;
+
+        case KEY_CURSOR_LEFT:
+            cursorLeft(ed);
             break;
 
         case KEY_CURSOR_RIGHT:
