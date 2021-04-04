@@ -144,8 +144,8 @@ void initWindowSize (IDE_editor ed)
         exit(1);
 
     ed->window_width  = cols;
-    ed->window_height = rows-1;
-    ed->infoline_row  = rows-2;
+    ed->window_height = rows;
+    ed->infoline_row  = rows-1;
 }
 
 static void outputInfoLine(IDE_editor ed)
@@ -199,12 +199,12 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
 
 static void showXPos(IDE_editor ed)
 {
-    _itoa (ed->cursor_col, ed->infoline + INFOLINE_CURSOR_X, 4);
+    _itoa (ed->cursor_col+1, ed->infoline + INFOLINE_CURSOR_X, 4);
     outputInfoLine (ed);
 }
 static void showYPos(IDE_editor ed)
 {
-    _itoa (ed->cursor_row, ed->infoline + INFOLINE_CURSOR_Y, 4);
+    _itoa (ed->cursor_row+1, ed->infoline + INFOLINE_CURSOR_Y, 4);
     outputInfoLine (ed);
 }
 static void showNumLines(IDE_editor ed)
@@ -309,8 +309,7 @@ static void scrollY(IDE_editor ed)
 {
     // scroll up ?
 
-    uint16_t cy = ed->cursor_row-ed->scrolloff_row;
-    if ( (cy > ed->window_height - SCROLL_MARGIN) && (ed->scrolloff_row < ed->num_lines - ed->window_height) )
+    while ( ( (ed->cursor_row-ed->scrolloff_row) > ed->window_height - SCROLL_MARGIN) && (ed->scrolloff_row < ed->num_lines - ed->window_height) )
     {
         ed->scrolloff_row++;
         TE_scrollUp();
@@ -318,6 +317,19 @@ static void scrollY(IDE_editor ed)
         int linenum = ed->scrolloff_row + ed->window_height - 2;
         IDE_line l = getLine (ed, linenum);
         showLine (ed, l->buf, l->style, l->len, ed->window_height-1);
+        showInfoLine(ed);
+    }
+
+    // scroll down ?
+
+    while ( ( (ed->cursor_row-ed->scrolloff_row) < SCROLL_MARGIN ) && ( ed->scrolloff_row > 0 ) )
+    {
+        ed->scrolloff_row--;
+        TE_scrollDown();
+
+        int linenum = ed->scrolloff_row;
+        IDE_line l = getLine (ed, linenum);
+        showLine (ed, l->buf, l->style, l->len, 0);
         showInfoLine(ed);
     }
 }
@@ -591,6 +603,30 @@ static void commitBuf(IDE_editor ed)
     showLine (ed, l->buf, l->style, l->len, ed->cursor_row - ed->scrolloff_row + 1);
 }
 
+static bool cursorUp(IDE_editor ed)
+{
+    IDE_line pl = ed->cursor_line->prev;
+    if (!pl)
+        return FALSE;
+
+    if (ed->editing)
+        commitBuf (ed);
+
+    ed->cursor_line = pl;
+    ed->cursor_row--;
+    showYPos(ed);
+    scrollY(ed);
+    if (ed->cursor_col > pl->len)
+    {
+        ed->cursor_col = pl->len;
+        showXPos(ed);
+        scrollX(ed);
+    }
+    showCursor(ed);
+
+    return TRUE;
+}
+
 static bool cursorDown(IDE_editor ed)
 {
     IDE_line nl = ed->cursor_line->next;
@@ -695,6 +731,10 @@ static bool handleKey (IDE_editor ed, int key)
     {
         case KEY_ESC:
             return FALSE;
+
+        case KEY_CURSOR_UP:
+            cursorUp(ed);
+            break;
 
         case KEY_CURSOR_DOWN:
             cursorDown(ed);
