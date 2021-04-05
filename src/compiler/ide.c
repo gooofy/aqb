@@ -65,6 +65,11 @@ struct IDE_editor_
     char               style[MAX_LINE_LEN];
     uint16_t           buf_len;
     uint16_t           buf_pos;
+
+    // temporary buffer used in edit operations
+    char               buf2[MAX_LINE_LEN];
+    char               style2[MAX_LINE_LEN];
+    uint16_t           buf2_len;
 };
 
 #define LOG_FILENAME "ide.log"
@@ -104,7 +109,7 @@ static void freeLine (IDE_editor ed, IDE_line l)
     // FIXME: implement
 }
 
-static void IDE_lineListInsertAfter (IDE_editor ed, IDE_line lBefore, IDE_line l)
+static void insertLineAfter (IDE_editor ed, IDE_line lBefore, IDE_line l)
 {
     if (lBefore)
     {
@@ -126,7 +131,7 @@ static void IDE_lineListInsertAfter (IDE_editor ed, IDE_line lBefore, IDE_line l
         l->next = ed->line_first;
         if (ed->line_first)
         {
-            ed->line_first = l;
+            ed->line_first = ed->line_first->prev = l;
         }
         else
         {
@@ -195,13 +200,9 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
     }
 }
 
-static void showXPos(IDE_editor ed)
+static void showPos(IDE_editor ed)
 {
     _itoa (ed->cursor_col+1, ed->infoline + INFOLINE_CURSOR_X, 4);
-    outputInfoLine (ed);
-}
-static void showYPos(IDE_editor ed)
-{
     _itoa (ed->cursor_row+1, ed->infoline + INFOLINE_CURSOR_Y, 4);
     outputInfoLine (ed);
 }
@@ -235,8 +236,7 @@ static void showFilename(IDE_editor ed)
 
 static void showInfoLine(IDE_editor ed)
 {
-	showXPos(ed);
-	showYPos(ed);
+	showPos(ed);
 	showNumLines(ed);
 	showFlags(ed);
 	showFilename(ed);
@@ -298,24 +298,22 @@ static void showLine (IDE_editor ed, char *buf, char *style, int len, int row)
     TE_eraseToEOL();
 }
 
-static void scrollX(IDE_editor ed)
-{
-    // FIXME: implement
-}
-
-static void scrollY(IDE_editor ed)
+static void scroll(IDE_editor ed, bool update_screen)
 {
     // scroll up ?
 
     while ( ( (ed->cursor_row-ed->scrolloff_row) > ed->window_height - SCROLL_MARGIN) && (ed->scrolloff_row < ed->num_lines - ed->window_height) )
     {
         ed->scrolloff_row++;
-        TE_scrollUp();
 
-        int linenum = ed->scrolloff_row + ed->window_height - 2;
-        IDE_line l = getLine (ed, linenum);
-        showLine (ed, l->buf, l->style, l->len, ed->window_height-1);
-        showInfoLine(ed);
+        if (update_screen)
+        {
+            TE_scrollUp();
+            int linenum = ed->scrolloff_row + ed->window_height - 2;
+            IDE_line l = getLine (ed, linenum);
+            showLine (ed, l->buf, l->style, l->len, ed->window_height-1);
+            showInfoLine(ed);
+        }
     }
 
     // scroll down ?
@@ -323,13 +321,17 @@ static void scrollY(IDE_editor ed)
     while ( ( (ed->cursor_row-ed->scrolloff_row) < SCROLL_MARGIN ) && ( ed->scrolloff_row > 0 ) )
     {
         ed->scrolloff_row--;
-        TE_scrollDown();
-
-        int linenum = ed->scrolloff_row;
-        IDE_line l = getLine (ed, linenum);
-        showLine (ed, l->buf, l->style, l->len, 0);
-        showInfoLine(ed);
+        if (update_screen)
+        {
+            TE_scrollDown();
+            int linenum = ed->scrolloff_row;
+            IDE_line l = getLine (ed, linenum);
+            showLine (ed, l->buf, l->style, l->len, 0);
+            showInfoLine(ed);
+        }
     }
+
+    // FIXME: implement horizontal scroll
 }
 
 static bool nextch_cb(char *ch, void *user_data)
@@ -583,7 +585,7 @@ static IDE_line buf2line (IDE_editor ed)
     return newLine (ed, buf, style);
 }
 
-static void commitBuf(IDE_editor ed)
+static IDE_line commitBuf(IDE_editor ed)
 {
     IDE_line cl = ed->cursor_line;
     IDE_line l  = buf2line (ed);
@@ -596,9 +598,11 @@ static void commitBuf(IDE_editor ed)
     else
         ed->line_last = l;
     l->next = cl->next;
+    l->prev = cl->prev;
     ed->editing = FALSE;
     freeLine (ed, cl);
     showLine (ed, l->buf, l->style, l->len, ed->cursor_row - ed->scrolloff_row + 1);
+    return l;
 }
 
 static bool cursorUp(IDE_editor ed)
@@ -612,14 +616,12 @@ static bool cursorUp(IDE_editor ed)
 
     ed->cursor_line = pl;
     ed->cursor_row--;
-    showYPos(ed);
-    scrollY(ed);
     if (ed->cursor_col > pl->len)
     {
         ed->cursor_col = pl->len;
-        showXPos(ed);
-        scrollX(ed);
     }
+    showPos(ed);
+    scroll(ed, /*update_screen=*/TRUE);
     showCursor(ed);
 
     return TRUE;
@@ -636,14 +638,10 @@ static bool cursorDown(IDE_editor ed)
 
     ed->cursor_line = nl;
     ed->cursor_row++;
-    showYPos(ed);
-    scrollY(ed);
     if (ed->cursor_col > nl->len)
-    {
         ed->cursor_col = nl->len;
-        showXPos(ed);
-        scrollX(ed);
-    }
+    showPos(ed);
+    scroll(ed, /*update_screen=*/TRUE);
     showCursor(ed);
 
     return TRUE;
@@ -655,8 +653,8 @@ static bool cursorLeft(IDE_editor ed)
         return FALSE;
 
     ed->cursor_col--;
-    showXPos(ed);
-    scrollX(ed);
+    showPos(ed);
+    scroll(ed, /*update_screen=*/TRUE);
     showCursor(ed);
 
     return TRUE;
@@ -669,8 +667,8 @@ static bool cursorRight(IDE_editor ed)
         return FALSE;
 
     ed->cursor_col++;
-    showXPos(ed);
-    scrollX(ed);
+    showPos(ed);
+    scroll(ed, /*update_screen=*/TRUE);
     showCursor(ed);
 
     return TRUE;
@@ -687,6 +685,59 @@ static void line2buf (IDE_editor ed, IDE_line l)
         showFlags(ed);
     }
     ed->buf_len  = l->len;
+}
+
+static void showAll (IDE_editor ed)
+{
+    IDE_line l = getLine (ed, ed->scrolloff_row);
+
+    int linenum_end = ed->scrolloff_row + ed->window_height - 2;
+    int linenum = ed->scrolloff_row;
+    while (l && (linenum <= linenum_end))
+    {
+        showLine (ed, l->buf, l->style, l->len, linenum - ed->scrolloff_row + 1);
+        linenum++;
+        l = l->next;
+    }
+}
+
+static void enterKey (IDE_editor ed)
+{
+    // split line ?
+    uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len;
+    if (ed->cursor_col < l-1)
+    {
+        if (!ed->editing)
+            line2buf (ed, ed->cursor_line);
+
+        memcpy (ed->buf2,   ed->buf+ed->cursor_col  , l - ed->cursor_col);
+        memcpy (ed->style2, ed->style+ed->cursor_col, l - ed->cursor_col);
+
+        ed->buf_len = ed->cursor_col;
+        ed->cursor_line = commitBuf (ed);
+
+        l -= ed->cursor_col;
+
+        memcpy (ed->buf,   ed->buf2  , l);
+        memcpy (ed->style, ed->style2, l);
+        ed->buf_len = l;
+    }
+    else
+    {
+        if (ed->editing)
+            ed->cursor_line = commitBuf (ed);
+        ed->buf_len = 0;
+    }
+
+    IDE_line line = buf2line (ed);
+    insertLineAfter (ed, ed->cursor_line, line);
+    ed->cursor_col = 0;
+    ed->cursor_row++;
+    ed->cursor_line = line;
+    scroll(ed, /*update_screen=*/FALSE);
+    showAll(ed);
+    showPos(ed);
+    showCursor(ed);
 }
 
 static bool printableAsciiChar (uint16_t c)
@@ -746,6 +797,10 @@ static void key_cb (uint16_t key, void *user_data)
             cursorRight(ed);
             break;
 
+        case KEY_ENTER:
+            enterKey(ed);
+            break;
+
         default:
             if (!insertChar(ed, (uint8_t) key))
                 TE_bell();
@@ -777,20 +832,6 @@ IDE_editor OpenEditor(void)
     initWindowSize(ed);
 
 	return ed;
-}
-
-static void showAll (IDE_editor ed)
-{
-    IDE_line l = getLine (ed, ed->scrolloff_row);
-
-    int linenum_end = ed->scrolloff_row + ed->window_height - 2;
-    int linenum = ed->scrolloff_row;
-    while (l && (linenum <= linenum_end))
-    {
-        showLine (ed, l->buf, l->style, l->len, linenum - ed->scrolloff_row + 1);
-        linenum++;
-        l = l->next;
-    }
 }
 
 static void IDE_load (IDE_editor ed, char *sourcefn)
@@ -827,7 +868,7 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
         {
             ed->buf[ed->buf_len] = 0;
             IDE_line line = buf2line (ed);
-            IDE_lineListInsertAfter (ed, lastLine, line);
+            insertLineAfter (ed, lastLine, line);
             lastLine = line;
             linenum = (linenum+1) % ed->window_height;
             eol=FALSE;
