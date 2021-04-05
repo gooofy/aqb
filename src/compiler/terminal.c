@@ -11,21 +11,30 @@
 
 #include <devices/conunit.h>
 
+#include <intuition/intuition.h>
+#include <intuition/intuitionbase.h>
+
+#include <proto/console.h>
+#include <pragmas/console_pragmas.h>
+
 #include <clib/alib_protos.h>
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
+#include <clib/intuition_protos.h>
+#include <clib/graphics_protos.h>
+#include <clib/mathffp_protos.h>
+#include <clib/console_protos.h>
 
 #include <inline/exec.h>
 #include <inline/dos.h>
+#include <inline/intuition.h>
+#include <inline/graphics.h>
+#include <inline/mathffp.h>
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
-
-static BPTR                  g_raw_out;
-static BPTR                  g_raw_in;
-
-static struct Window        *g_con_win;
-static struct ConUnit       *g_con_unit;
+extern struct DOSBase       *DOSBase;
+extern struct IntuitionBase *IntuitionBase;
 
 #define CSI       "\x9b"
 
@@ -43,101 +52,157 @@ static struct ConUnit       *g_con_unit;
 
 #endif
 
-
 #define BUFSIZE   2048
 static char            g_outbuf[BUFSIZE];
 static int             g_bpos = 0;
 static void            (*g_size_cb)(void) = NULL;
 
+static TE_key_cb       g_key_cb = NULL;
+static void           *g_key_cb_user_data = NULL;
 
 #ifdef __amigaos__
 
-static long doDosPacket (struct MsgPort *pid, long action, long *args, long nargs)
-{
-    struct MsgPort        *replyport;
-    struct StandardPacket *packet;
-    long                   count, *pargs, res1;
+#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
+                    /*(l)->lh_Tail = NULL,*/ \
+                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
 
-    replyport = (struct MsgPort *) CreatePort (NULL, 0);
-    if (!replyport)
-        return (0);
-
-    packet = (struct StandardPacket *) AllocMem ((long) sizeof(struct StandardPacket), MEMF_PUBLIC | MEMF_CLEAR);
-    if (!packet)
+static struct NewWindow g_nw =
     {
-        DeletePort(replyport);
-        return 0;
+    0, 0, 640,200,
+    -1,-1,                            /* detailpen, blockpen */
+    CLOSEWINDOW,                      /* IDCMP */
+    WINDOWDEPTH|WINDOWSIZING|
+    WINDOWDRAG|WINDOWCLOSE|
+    SMART_REFRESH|ACTIVATE,           /* window flags */
+    NULL, NULL,
+    (uint8_t *) "AQB",
+    NULL,
+    NULL,
+    100,45,                           /* min width, height */
+    1024, 768,                        /* max width, height */
+    WBENCHSCREEN
+    };
+
+static struct Window   *g_win           = NULL;
+static struct IOStdReq *g_writeReq      = NULL;
+static struct MsgPort  *g_writePort     = NULL;
+static struct IOStdReq *g_readReq       = NULL;
+static struct MsgPort  *g_readPort      = NULL;
+static bool             g_ConOpened = FALSE;
+
+static struct MsgPort *create_port(STRPTR name, LONG pri)
+{
+    struct MsgPort *port = NULL;
+    UBYTE portsig;
+
+    if ((BYTE)(portsig=AllocSignal(-1)) >= 0)
+    {
+        if (!(port=AllocMem(sizeof(*port),MEMF_CLEAR|MEMF_PUBLIC)))
+        {
+            FreeSignal(portsig);
+        }
+        else
+        {
+            port->mp_Node.ln_Type = NT_MSGPORT;
+            port->mp_Node.ln_Pri  = pri;
+            port->mp_Node.ln_Name = (char *)name;
+            /* done via AllocMem
+            port->mp_Flags        = PA_SIGNAL;
+            */
+            port->mp_SigBit       = portsig;
+            port->mp_SigTask      = FindTask(NULL);
+            NEWLIST(&port->mp_MsgList);
+            if (port->mp_Node.ln_Name)
+                AddPort(port);
+        }
     }
-
-    packet->sp_Msg.mn_Node.ln_Name = (char *) &(packet->sp_Pkt);
-    packet->sp_Pkt.dp_Link = &(packet->sp_Msg);
-    packet->sp_Pkt.dp_Port = replyport;
-    packet->sp_Pkt.dp_Type = action;
-
-    pargs = &(packet->sp_Pkt.dp_Arg1);
-    for (count = 0; count < nargs; count++)
-        pargs[count] = args[count];
-
-    PutMsg(pid, (struct Message *)packet);
-
-    WaitPort(replyport);
-    GetMsg(replyport);
-
-    res1 = packet->sp_Pkt.dp_Res1;
-
-    FreeMem (packet, (long) sizeof(struct StandardPacket));
-    DeletePort (replyport);
-
-    return res1;
+    return port;
 }
-
-static bool get_ConUnit(void)
+static void delete_port(struct MsgPort *port)
 {
-    struct MsgPort  *mp;
-    struct InfoData *id;
-    long             arg, res;
-
-    mp = ((struct FileHandle *) (BADDR(g_raw_in)))->fh_Type;
-
-    id = (struct InfoData *) AllocMem (sizeof(struct InfoData), MEMF_PUBLIC | MEMF_CLEAR);
-    if (!id)
-        return FALSE;
-
-    arg = ((ULONG) id) >> 2;
-    res = doDosPacket (mp, ACTION_DISK_INFO, &arg, 1);
-
-    g_con_win = (struct Window *) id->id_VolumeNode;
-    g_con_unit  = (struct ConUnit *) ((struct IOStdReq *) id->id_InUse)->io_Unit;
-
-    FreeMem (id, sizeof(struct InfoData));
-
-    return res != 0;
+    if (port->mp_Node.ln_Name)
+        RemPort(port);
+    FreeSignal(port->mp_SigBit);
+    FreeMem(port,sizeof(*port));
 }
-
-static long changeScreenMode (bool rawMode)
+static struct IORequest *create_ext_io(struct MsgPort *port,LONG iosize)
 {
-    struct MsgPort *mp;
-    long            arg;
+    struct IORequest *ioreq = NULL;
 
-    mp = ((struct FileHandle *) (BADDR(g_raw_in)))->fh_Type;
-    arg = rawMode ? -1 : 0;
-    return doDosPacket(mp, ACTION_SCREEN_MODE, &arg, 1);
+    if (port && (ioreq=AllocMem(iosize,MEMF_CLEAR|MEMF_PUBLIC)))
+    {
+        ioreq->io_Message.mn_Node.ln_Type = NT_REPLYMSG;
+        ioreq->io_Message.mn_ReplyPort    = port;
+        ioreq->io_Message.mn_Length       = iosize;
+    }
+    return ioreq;
 }
+static void delete_ext_io(struct IORequest *ioreq)
+{
+    LONG i;
 
+    i = -1;
+    ioreq->io_Message.mn_Node.ln_Type = i;
+    ioreq->io_Device                  = (struct Device *)i;
+    ioreq->io_Unit                    = (struct Unit *)i;
+    FreeMem(ioreq,ioreq->io_Message.mn_Length);
+}
+static void queue_read(struct IOStdReq *readreq, UBYTE *whereto)
+{
+   readreq->io_Command = CMD_READ;
+   readreq->io_Data = (APTR)whereto;
+   readreq->io_Length = 1;
+   SendIO((struct IORequest *)readreq);
+}
+static LONG con_may_get_char(struct MsgPort *msgport, UBYTE *whereto)
+{
+    struct IOStdReq *readreq;
+
+    if (!(readreq = (struct IOStdReq *) GetMsg(msgport)))
+		return -1;
+    LONG temp = *whereto;                /* get the character */
+    queue_read(readreq, whereto);     /* then re-use the request block */
+    return temp;
+}
+static void cleanexit (char *s, uint32_t n)
+{
+    if (s)
+        printf(s);
+    exit(n);
+}
+static BYTE OpenConsole(void)
+{
+    BYTE error;
+
+    g_writeReq->io_Data = (APTR) g_win;
+    g_writeReq->io_Length = sizeof(struct Window);
+
+    error = OpenDevice((uint8_t*)"console.device", 0, (struct IORequest*) g_writeReq, 0);
+
+    g_readReq->io_Device = g_writeReq->io_Device;
+    g_readReq->io_Unit   = g_writeReq->io_Unit;
+
+    return error;
+}
 void TE_flush(void)
 {
     if (g_bpos != 0)
-        Write(g_raw_out, g_outbuf, g_bpos);
-    g_bpos = 0;
+    {
+        g_writeReq->io_Command = CMD_WRITE;
+        g_writeReq->io_Data    = (APTR) g_outbuf;
+        g_writeReq->io_Length  = g_bpos;
+
+        DoIO((struct IORequest *) g_writeReq);
+
+        g_bpos = 0;
+    }
 }
 
 // FIXME: implement size change callback
 
 bool TE_getsize(int *rows, int *cols)
 {
-    if (!get_ConUnit())
-        return FALSE;
-
+    struct ConUnit *g_con_unit = (struct ConUnit *) g_writeReq->io_Unit;
     *rows = g_con_unit->cu_YMax + 1;
     *cols = g_con_unit->cu_XMax + 1;
 
@@ -164,60 +229,161 @@ bool TE_getsize(int *rows, int *cols)
 
 static void TE_exit(void)
 {
-    TE_setTextStyle (TE_STYLE_NORMAL);
-    TE_putstr(CSI "12}"); /* window resize events de-activated */
     TE_flush();
 
-    if (g_raw_in != g_raw_out)
-    {
-        if (!changeScreenMode(/*raw_mode=*/FALSE))
-            fprintf(stderr, "AQB: Can't change to cooked mode\n");
-    }
-    else
-    {
-        Close(g_raw_in);
-    }
+    /* We always have an outstanding queued read request
+     * so we must abort it if it hasn't completed,
+     * and we must remove it.
+     */
+    if(!(CheckIO((struct IORequest *)g_readReq)))
+		AbortIO((struct IORequest *)g_readReq);
+    WaitIO((struct IORequest *)g_readReq);     /* clear it from our replyport */
+
+    if (g_ConOpened)
+        CloseDevice((struct IORequest *)g_writeReq);
+    if (g_win)
+        CloseWindow(g_win);
+    if (g_readReq)
+        delete_ext_io((struct IORequest *)g_readReq);
+    if (g_readPort)
+        delete_port(g_readPort);
+    if (g_writeReq)
+        delete_ext_io((struct IORequest *)g_writeReq);
+    if (g_writePort)
+        delete_port(g_writePort);
+    if (IntuitionBase)
+        CloseLibrary((struct Library *)IntuitionBase);
 }
+
+static UBYTE g_ibuf;
 
 bool TE_init (void)
 {
-    g_raw_in = Input();
-    if (!IsInteractive(g_raw_in))
-    {
-        g_raw_in = Open((STRPTR) "RAW:0/0/640/200/AQB", MODE_NEWFILE);
-        if (!g_raw_in)
-        {
-            fprintf(stderr, "AQB: Can't open window\n");
-            return FALSE;
-        }
-        g_raw_out = g_raw_in;
-    }
-    else
-    {
-        g_raw_out = Output();
-        if (!changeScreenMode(/*raw_mode=*/TRUE))
-        {
-            fprintf(stderr, "AQB: Can't change to raw mode");
-            return FALSE;
-        }
-    }
+    SysBase = *(APTR *)4L;
+    if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((uint8_t *)"intuition.library",0)))
+         cleanexit("Can't open intuition\n", RETURN_FAIL);
+    if (!(g_writePort = create_port((uint8_t *)"AQB.console.write",0)))
+         cleanexit("Can't create write port\n", RETURN_FAIL);
+    if (!(g_writeReq = (struct IOStdReq *) create_ext_io(g_writePort,(LONG)sizeof(struct IOStdReq))))
+         cleanexit("Can't create write request\n", RETURN_FAIL);
+    if(!(g_readPort = create_port((uint8_t *)"AQB.console.read",0)))
+         cleanexit("Can't create read port\n", RETURN_FAIL);
+    if(!(g_readReq = (struct IOStdReq *) create_ext_io(g_readPort,(LONG)sizeof(struct IOStdReq))))
+         cleanexit("Can't create read request\n", RETURN_FAIL);
+    if (!(g_win = OpenWindow(&g_nw)))
+         cleanexit("Can't open window\n", RETURN_FAIL);
+
+    if (OpenConsole ())
+         cleanexit("Can't open console.device\n", RETURN_FAIL);
+    g_ConOpened = TRUE;
 
     TE_putstr(CSI "12{"); /* window resize events activated */
     TE_flush();
 
+    queue_read(g_readReq, &g_ibuf); /* send the first console read request */
 	atexit(TE_exit);
 
 	return TRUE;
 }
 
-int TE_getch(void)
+// handle CSI sequences: state machine
+
+typedef enum {ESC_idle, ESC_esc1, ESC_csi } ESC_state_t;
+
+static inline void report_key (uint16_t key)
 {
-    char            c;
-    Read(g_raw_in, &c, sizeof(c));
-    return (int) c;
+    if (g_key_cb)
+        g_key_cb (key, g_key_cb_user_data);
 }
 
-#else
+void TE_run (void)
+{
+    UBYTE ch;
+
+    ULONG conreadsig = 1 << g_readPort->mp_SigBit;
+    ULONG windowsig  = 1 << g_win->UserPort->mp_SigBit;
+    ESC_state_t esc_state = ESC_idle;
+
+    BOOL running = TRUE;
+    while (running)
+    {
+        ULONG signals = Wait(conreadsig|windowsig);
+
+        if (signals & conreadsig)
+		{
+			LONG lch;
+            if ((lch = con_may_get_char(g_readPort, &g_ibuf)) != -1)
+			{
+                ch = lch;
+                //printf ("*** got ch: 0x%02x, state=%d\n", ch, esc_state);
+                switch (esc_state)
+                {
+                    case ESC_idle:
+                        if ((ch==0x9b)||(ch==0x1b))
+                            esc_state = ESC_esc1;
+                        else
+                            report_key (ch);
+                        break;
+                    case ESC_esc1:
+                        switch (ch)
+                        {
+                            case '[':
+                                esc_state = ESC_csi;
+                                break;
+                            case 'A':
+                                report_key (KEY_CURSOR_UP);
+                                esc_state = ESC_idle;
+                                break;
+                            case 'B':
+                                report_key (KEY_CURSOR_DOWN);
+                                esc_state = ESC_idle;
+                                break;
+                            case 'C':
+                                report_key (KEY_CURSOR_RIGHT);
+                                esc_state = ESC_idle;
+                                break;
+                            case 'D':
+                                report_key (KEY_CURSOR_LEFT);
+                                esc_state = ESC_idle;
+                                break;
+                            default:
+                                report_key (0x1b);
+                                report_key (ch);
+                                esc_state = ESC_idle;
+                                break;
+                        }
+                        break;
+                    case ESC_csi:
+                        printf ("*** inside CSI sequence: 0x%02x\n", ch);
+                        esc_state = ESC_idle;
+                        break;
+                }
+			}
+		}
+
+        if (signals & windowsig)
+		{
+			struct IntuiMessage *winmsg;
+            while (winmsg = (struct IntuiMessage *)GetMsg(g_win->UserPort))
+			{
+                switch (winmsg->Class)
+				{
+                    case CLOSEWINDOW:
+						running = FALSE;
+						break;
+                    default:
+						break;
+				}
+                ReplyMsg((struct Message *)winmsg);
+			}
+		}
+	}
+
+    exit(RETURN_OK);
+}
+
+
+#else // no __amigaos__ -> linux/posix/ansi
 
 void TE_flush  (void)
 {
@@ -226,7 +392,7 @@ void TE_flush  (void)
     g_bpos = 0;
 }
 
-int TE_getch (void)
+uint16_t TE_getch (void)
 {
     int nread;
     char c, seq[3];
@@ -300,10 +466,22 @@ static void handleSigWinCh(int unused __attribute__((unused)))
         g_size_cb();
 }
 
+static void TE_setAlternateScreen (bool enabled)
+{
+    if (enabled)
+        TE_printf (CSI "?1049h");
+    else
+        TE_printf (CSI "?1049l");
+}
+
 struct termios g_orig_termios;
 static void TE_exit (void)
 {
     TE_setTextStyle (TE_STYLE_NORMAL);
+    TE_moveCursor(0, 0);
+    TE_eraseDisplay();
+    TE_setAlternateScreen(FALSE);
+    TE_flush();
 	// disable raw mode
 	tcsetattr(STDOUT_FILENO, TCSAFLUSH, &g_orig_termios);
 }
@@ -395,6 +573,19 @@ failed:
     return FALSE;
 }
 
+void TE_run(void)
+{
+    bool running = TRUE;
+    while (running)
+    {
+        uint16_t ch = TE_getch();
+#ifdef ENABLE_DEBUG
+        lprintf ("TE_getch() returned %d\n", ch);
+#endif
+        if (g_key_cb)
+            g_key_cb (ch, g_key_cb_user_data);
+    }
+}
 #endif
 
 void TE_putc(char c)
@@ -469,14 +660,6 @@ void TE_setTextStyle (int style)
     TE_printf ( CSI "%dm", style);
 }
 
-void TE_setAlternateScreen (bool enabled)
-{
-    if (enabled)
-        TE_printf (CSI "?1049h");
-    else
-        TE_printf (CSI "?1049l");
-}
-
 void TE_scrollUp (void)
 {
     TE_printf ( CSI "S");
@@ -487,19 +670,8 @@ void TE_scrollDown (void)
     TE_printf ( CSI "T");
 }
 
-float TE_get_time (void)
+void TE_onKeyCall (TE_key_cb cb, void *user_data)
 {
-    #ifdef __amigaos__
-        struct DateStamp datetime;
-        DateStamp(&datetime);
-        return datetime.ds_Minute * 60.0 + datetime.ds_Tick / 50.0;
-
-    #else
-
-        clock_t t = clock();
-        return ((float)t)/CLOCKS_PER_SEC;
-
-    #endif
+    g_key_cb           = cb;
+    g_key_cb_user_data = user_data;
 }
-
-

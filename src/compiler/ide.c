@@ -14,7 +14,7 @@
 #include "scanner.h"
 #include "frontend.h"
 
-//#define ENABLE_DEBUG
+#define ENABLE_DEBUG
 
 #define STYLE_NORMAL 0
 #define STYLE_KW     1
@@ -137,8 +137,6 @@ static void IDE_lineListInsertAfter (IDE_editor ed, IDE_line lBefore, IDE_line l
 
 void initWindowSize (IDE_editor ed)
 {
-    TE_setAlternateScreen(TRUE);
-
     int rows, cols;
     if (!TE_getsize (&rows, &cols))
         exit(1);
@@ -691,12 +689,12 @@ static void line2buf (IDE_editor ed, IDE_line l)
     ed->buf_len  = l->len;
 }
 
-static bool printableAsciiChar (uint8_t c)
+static bool printableAsciiChar (uint16_t c)
 {
     return (c >= 32) && (c <= 126);
 }
 
-static bool insertChar (IDE_editor ed, uint8_t c)
+static bool insertChar (IDE_editor ed, uint16_t c)
 {
     if (!printableAsciiChar(c))
         return FALSE;
@@ -723,14 +721,14 @@ static bool insertChar (IDE_editor ed, uint8_t c)
     return TRUE;
 }
 
-// handle keypress, return value TRUE to keep editor running, FALSE to quit
-static bool handleKey (IDE_editor ed, int key)
+static void key_cb (uint16_t key, void *user_data)
 {
+	IDE_editor ed = (IDE_editor) user_data;
 
     switch (key)
     {
         case KEY_ESC:
-            return FALSE;
+			exit(0);
 
         case KEY_CURSOR_UP:
             cursorUp(ed);
@@ -756,7 +754,6 @@ static bool handleKey (IDE_editor ed, int key)
     }
 
     TE_flush();
-    return TRUE;
 }
 
 IDE_editor OpenEditor(void)
@@ -780,14 +777,6 @@ IDE_editor OpenEditor(void)
     initWindowSize(ed);
 
 	return ed;
-}
-
-static void IDE_exit(void)
-{
-    TE_moveCursor(0, 0);
-    TE_eraseDisplay();
-    TE_setAlternateScreen(FALSE);
-    TE_flush();
 }
 
 static void showAll (IDE_editor ed)
@@ -858,11 +847,10 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
 void IDE_open(char *fn)
 {
     TE_init();
+
 #ifdef ENABLE_DEBUG
     logf = fopen (LOG_FILENAME, "w");
 #endif
-
-    atexit (IDE_exit);
 
 	IDE_editor ed = OpenEditor();
 
@@ -877,11 +865,8 @@ void IDE_open(char *fn)
     showCursor(ed);
     TE_flush();
 
-    bool running = TRUE;
-    while (running)
-    {
-        int ch = TE_getch();
-        running = handleKey(ed, ch);
-    }
+	TE_onKeyCall(key_cb, ed);
+
+	TE_run();
 }
 

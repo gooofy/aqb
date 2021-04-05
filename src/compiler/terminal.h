@@ -31,17 +31,16 @@
 #define KEY_PAGE_UP      1007
 #define KEY_PAGE_DOWN    1008
 
-void  TE_flush              (void);
-void  TE_putc               (char c);
-void  TE_putstr             (string s);
-void  TE_printf             (char* format, ...);
-int   TE_getch              (void);
-void  TE_bell               (void);
+void      TE_flush              (void);
+void      TE_putc               (char c);
+void      TE_putstr             (string s);
+void      TE_printf             (char* format, ...);
+void      TE_bell               (void);
 
-void  TE_moveCursor         (int row, int col);
-void  TE_eraseToEOL         (void);
-void  TE_eraseDisplay       (void);
-void  TE_setCursorVisible   (bool visible);
+void      TE_moveCursor         (int row, int col);
+void      TE_eraseToEOL         (void);
+void      TE_eraseDisplay       (void);
+void      TE_setCursorVisible   (bool visible);
 
 #define TE_STYLE_NORMAL     0
 #define TE_STYLE_BOLD       1
@@ -57,18 +56,21 @@ void  TE_setCursorVisible   (bool visible);
 #define TE_STYLE_CYAN      36
 #define TE_STYLE_WHITE     37
 
-void  TE_setTextStyle       (int style);
-void  TE_setAlternateScreen (bool enabled);
+void      TE_setTextStyle       (int style);
 
-void  TE_scrollUp           (void);
-void  TE_scrollDown         (void);
+void      TE_scrollUp           (void);
+void      TE_scrollDown         (void);
 
-bool  TE_init               (void);
+bool      TE_getsize            (int *rows, int *cols);
+void      TE_onSizeChangeCall   (void (*cb)(void));
 
-bool  TE_getsize            (int *rows, int *cols);
-void  TE_onSizeChangeCall   (void (*cb)(void));
+typedef void (*TE_key_cb)(uint16_t key, void *user_data);
 
-float TE_get_time           (void);
+void      TE_onKeyCall          (TE_key_cb cb, void *user_data);
+
+bool      TE_init               (void);
+
+void      TE_run                (void);
 
 #endif
 
