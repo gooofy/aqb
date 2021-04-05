@@ -689,6 +689,7 @@ static void line2buf (IDE_editor ed, IDE_line l)
 
 static void showAll (IDE_editor ed)
 {
+    TE_setCursorVisible (FALSE);
     IDE_line l = getLine (ed, ed->scrolloff_row);
 
     int linenum_end = ed->scrolloff_row + ed->window_height - 2;
