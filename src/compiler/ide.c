@@ -140,6 +140,19 @@ static void insertLineAfter (IDE_editor ed, IDE_line lBefore, IDE_line l)
     }
 }
 
+static void deleteLine (IDE_editor ed, IDE_line l)
+{
+    if (l->prev)
+        l->prev->next = l->next;
+    else
+        ed->line_first = l->next;
+    if (l->next)
+        l->next->prev = l->prev;
+    else
+        ed->line_last = l->prev;
+    freeLine (ed, l);
+}
+
 void initWindowSize (IDE_editor ed)
 {
     int rows, cols;
@@ -741,6 +754,52 @@ static void enterKey (IDE_editor ed)
     showCursor(ed);
 }
 
+static void backspaceKey (IDE_editor ed)
+{
+    // join lines ?
+    if (ed->cursor_col == 0)
+    {
+        if (!ed->cursor_line->prev)
+            return;
+        IDE_line cl = ed->cursor_line;
+        if (ed->editing)
+            cl = commitBuf (ed);
+        IDE_line pl = cl->prev;
+        line2buf (ed, pl);
+        ed->buf[ed->buf_len] = ' ';
+        ed->style[ed->buf_len] = STYLE_NORMAL;
+        ed->buf_len++;
+        memcpy (ed->buf+ed->buf_len,   cl->buf  , cl->len);
+        memcpy (ed->style+ed->buf_len, cl->style, cl->len);
+        ed->cursor_col = ed->buf_len;
+        ed->cursor_row--;
+        ed->cursor_line = pl;
+        ed->buf_len += cl->len;
+        ed->editing = TRUE;
+        deleteLine (ed, cl);
+        ed->cursor_line = commitBuf (ed);
+        scroll(ed, /*update_screen=*/FALSE);
+        showAll(ed);
+        showPos(ed);
+        showCursor(ed);
+    }
+    else
+    {
+        if (!ed->editing)
+            line2buf (ed, ed->cursor_line);
+
+        for (uint16_t i=ed->cursor_col; i<ed->buf_len; i++)
+        {
+            ed->buf[i-1]   = ed->buf[i];
+            ed->style[i-1] = ed->style[i];
+        }
+        ed->buf_len--;
+
+        showLine (ed, ed->buf, ed->style, ed->buf_len, ed->cursor_row - ed->scrolloff_row + 1);
+        cursorLeft(ed);
+    }
+}
+
 static bool printableAsciiChar (uint16_t c)
 {
     return (c >= 32) && (c <= 126);
@@ -800,6 +859,10 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_ENTER:
             enterKey(ed);
+            break;
+
+        case KEY_BACKSPACE:
+            backspaceKey(ed);
             break;
 
         default:

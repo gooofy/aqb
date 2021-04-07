@@ -240,7 +240,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "../../src/lib", "tetris.bas"],
+            "args": ["-L", "../../src/lib", "3dplot.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../examples/demo/",
             "environment": [],

@@ -287,3 +287,15 @@ v0.1, 2020-07-12
 
 - AMOS / Blitz Libraries
 
+== IDE
+
+- terminal: use uint16_t where possible
+- auto-indent
+- DEL
+- save
+- compile/run
+- search
+- goto line
+- show compiler error messages
+- help system
+
