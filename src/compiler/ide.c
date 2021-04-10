@@ -766,18 +766,20 @@ static void backspaceKey (IDE_editor ed)
             cl = commitBuf (ed);
         IDE_line pl = cl->prev;
         line2buf (ed, pl);
+        ed->cursor_col = ed->buf_len;
+        ed->cursor_row--;
+        ed->cursor_line = pl;
         ed->buf[ed->buf_len] = ' ';
         ed->style[ed->buf_len] = STYLE_NORMAL;
         ed->buf_len++;
         memcpy (ed->buf+ed->buf_len,   cl->buf  , cl->len);
         memcpy (ed->style+ed->buf_len, cl->style, cl->len);
-        ed->cursor_col = ed->buf_len;
-        ed->cursor_row--;
-        ed->cursor_line = pl;
         ed->buf_len += cl->len;
         ed->editing = TRUE;
         deleteLine (ed, cl);
         ed->cursor_line = commitBuf (ed);
+        // if (ed->cursor_col>ed->cursor_line->len)
+        //     ed->cursor_col = ed->cursor_line->len;
         scroll(ed, /*update_screen=*/FALSE);
         showAll(ed);
         showPos(ed);
