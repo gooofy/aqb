@@ -49,8 +49,6 @@ struct IDE_editor_
 {
     IDE_line           line_first, line_last;
 	uint16_t           num_lines;
-	uint16_t           window_width, window_height;
-	uint16_t           scrolloff_col, scrolloff_row;
 	bool               changed;
 	char               infoline[36+PATH_MAX];
     uint16_t           infoline_row;
@@ -58,6 +56,17 @@ struct IDE_editor_
 
 	uint16_t           cursor_col, cursor_row;
     IDE_line           cursor_line;
+
+    // window, scrolling, repaint
+	uint16_t           window_width, window_height;
+	uint16_t           scrolloff_col, scrolloff_row;
+    IDE_line           scrolloff_line;
+    uint16_t           scrolloff_line_row;
+    bool               up2date_row[TE_MAX_ROWS];
+    bool               up2date_il_pos;
+    bool               up2date_il_num_lines;
+    bool               up2date_il_flags;
+    bool               up2date_il_filename;
 
     // cursor_line currently being edited (i.e. represented in buffer):
     bool               editing;
@@ -164,29 +173,6 @@ void initWindowSize (IDE_editor ed)
     ed->infoline_row  = rows-1;
 }
 
-static void outputInfoLine(IDE_editor ed)
-{
-#ifdef ENABLE_DEBUG
-	lprintf ("outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
-#endif
-    TE_setTextStyle (TE_STYLE_NORMAL);
-    TE_setTextStyle (TE_STYLE_INVERSE);
-    TE_moveCursor   (ed->infoline_row+1, 1);
-    char *c = ed->infoline;
-    int col = 1;
-    while (*c && col < ed->window_width)
-    {
-        TE_putc (*c++);
-        col++;
-    }
-    while (col < ed->window_width)
-    {
-        TE_putc (' ');
-        col++;
-    }
-    TE_setTextStyle (TE_STYLE_NORMAL);
-}
-
 static void _itoa(uint16_t num, char* buf, uint16_t width)
 {
     uint16_t i = 0;
@@ -213,54 +199,6 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
     }
 }
 
-static void showPos(IDE_editor ed)
-{
-    _itoa (ed->cursor_col+1, ed->infoline + INFOLINE_CURSOR_X, 4);
-    _itoa (ed->cursor_row+1, ed->infoline + INFOLINE_CURSOR_Y, 4);
-    outputInfoLine (ed);
-}
-static void showNumLines(IDE_editor ed)
-{
-    _itoa (ed->num_lines, ed->infoline + INFOLINE_NUM_LINES, 4);
-    outputInfoLine (ed);
-}
-static void showFlags(IDE_editor ed)
-{
-	char *fs = ed->infoline + INFOLINE_CHANGED;
-
-	if (ed->changed)
-		*fs++ = '*';
-	else
-		*fs++ = ' ';
-    outputInfoLine (ed);
-}
-static void showFilename(IDE_editor ed)
-{
-	char *fs = ed->infoline + INFOLINE_FILENAME;
-
-    for (char *c = ed->filename; *c; c++)
-    {
-        *fs++ = *c;
-    }
-
-    *fs = 0;
-    outputInfoLine (ed);
-}
-
-static void showInfoLine(IDE_editor ed)
-{
-	showPos(ed);
-	showNumLines(ed);
-	showFlags(ed);
-	showFilename(ed);
-}
-
-static void showCursor (IDE_editor ed)
-{
-    TE_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
-    TE_setCursorVisible (TRUE);
-}
-
 static IDE_line getLine (IDE_editor ed, int linenum)
 {
     IDE_line l = ed->line_first;
@@ -273,46 +211,10 @@ static IDE_line getLine (IDE_editor ed, int linenum)
     return l;
 }
 
-static void showLine (IDE_editor ed, char *buf, char *style, int len, int row)
+static void scroll(IDE_editor ed)
 {
-    TE_moveCursor (row, 1);
-
-    char s=STYLE_NORMAL;
-    TE_setTextStyle (TE_STYLE_NORMAL);
-    for (int i=0; i<len; i++)
-    {
-        char s2 = style[i];
-        if (s2 != s)
-        {
-            switch (s2)
-            {
-                case STYLE_NORMAL:
-                    TE_setTextStyle (TE_STYLE_NORMAL);
-                    break;
-                case STYLE_KW:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_YELLOW);
-                    break;
-                case STYLE_STRING:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_MAGENTA);
-                    break;
-                case STYLE_NUMBER:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_MAGENTA);
-                    break;
-                default:
-                    assert(FALSE);
-            }
-            s = s2;
-        }
-        TE_putc (buf[i]);
-    }
-    TE_eraseToEOL();
-}
-
-static void scroll(IDE_editor ed, bool update_screen)
-{
+    // FIXME
+#if 0
     // scroll up ?
 
     while ( ( (ed->cursor_row-ed->scrolloff_row) > ed->window_height - SCROLL_MARGIN) && (ed->scrolloff_row < ed->num_lines - ed->window_height) )
@@ -345,6 +247,7 @@ static void scroll(IDE_editor ed, bool update_screen)
     }
 
     // FIXME: implement horizontal scroll
+#endif
 }
 
 static bool nextch_cb(char *ch, void *user_data)
@@ -614,7 +517,7 @@ static IDE_line commitBuf(IDE_editor ed)
     l->prev = cl->prev;
     ed->editing = FALSE;
     freeLine (ed, cl);
-    showLine (ed, l->buf, l->style, l->len, ed->cursor_row - ed->scrolloff_row + 1);
+    ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
     return l;
 }
 
@@ -633,9 +536,7 @@ static bool cursorUp(IDE_editor ed)
     {
         ed->cursor_col = pl->len;
     }
-    showPos(ed);
-    scroll(ed, /*update_screen=*/TRUE);
-    showCursor(ed);
+    ed->up2date_il_pos = FALSE;
 
     return TRUE;
 }
@@ -653,9 +554,7 @@ static bool cursorDown(IDE_editor ed)
     ed->cursor_row++;
     if (ed->cursor_col > nl->len)
         ed->cursor_col = nl->len;
-    showPos(ed);
-    scroll(ed, /*update_screen=*/TRUE);
-    showCursor(ed);
+    ed->up2date_il_pos = FALSE;
 
     return TRUE;
 }
@@ -666,9 +565,7 @@ static bool cursorLeft(IDE_editor ed)
         return FALSE;
 
     ed->cursor_col--;
-    showPos(ed);
-    scroll(ed, /*update_screen=*/TRUE);
-    showCursor(ed);
+    ed->up2date_il_pos = FALSE;
 
     return TRUE;
 }
@@ -680,9 +577,7 @@ static bool cursorRight(IDE_editor ed)
         return FALSE;
 
     ed->cursor_col++;
-    showPos(ed);
-    scroll(ed, /*update_screen=*/TRUE);
-    showCursor(ed);
+    ed->up2date_il_pos = FALSE;
 
     return TRUE;
 }
@@ -695,24 +590,148 @@ static void line2buf (IDE_editor ed, IDE_line l)
     if (!ed->changed)
     {
         ed->changed  = TRUE;
-        showFlags(ed);
+        ed->up2date_il_flags = FALSE;
     }
     ed->buf_len  = l->len;
 }
 
-static void showAll (IDE_editor ed)
+static void repaintLine (IDE_editor ed, char *buf, char *style, int len, int row)
+{
+    TE_moveCursor (row, 1);
+
+    char s=STYLE_NORMAL;
+    TE_setTextStyle (TE_STYLE_NORMAL);
+    for (int i=0; i<len; i++)
+    {
+        char s2 = style[i];
+        if (s2 != s)
+        {
+            switch (s2)
+            {
+                case STYLE_NORMAL:
+                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    break;
+                case STYLE_KW:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_YELLOW);
+                    break;
+                case STYLE_STRING:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_MAGENTA);
+                    break;
+                case STYLE_NUMBER:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_MAGENTA);
+                    break;
+                default:
+                    assert(FALSE);
+            }
+            s = s2;
+        }
+        TE_putc (buf[i]);
+    }
+    TE_eraseToEOL();
+}
+
+static void repaint (IDE_editor ed)
 {
     TE_setCursorVisible (FALSE);
-    IDE_line l = getLine (ed, ed->scrolloff_row);
+
+    // cache first visible line for speed
+    if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
+    {
+        ed->scrolloff_line = getLine (ed, ed->scrolloff_row);
+        ed->scrolloff_line_row = ed->scrolloff_row;
+    }
+
+    IDE_line l = ed->scrolloff_line;
 
     int linenum_end = ed->scrolloff_row + ed->window_height - 2;
     int linenum = ed->scrolloff_row;
+    int row = 0;
     while (l && (linenum <= linenum_end))
     {
-        showLine (ed, l->buf, l->style, l->len, linenum - ed->scrolloff_row + 1);
+        if (ed->up2date_row[row])
+        {
+            row++;
+            continue;
+        }
+        repaintLine (ed, l->buf, l->style, l->len, row + 1);
         linenum++;
         l = l->next;
+        ed->up2date_row[row] = TRUE;
+        row++;
     }
+
+    // infoline
+
+    bool update_infoline = FALSE;
+    if (!ed->up2date_il_pos)
+    {
+        _itoa (ed->cursor_col+1, ed->infoline + INFOLINE_CURSOR_X, 4);
+        _itoa (ed->cursor_row+1, ed->infoline + INFOLINE_CURSOR_Y, 4);
+        update_infoline = TRUE;
+        ed->up2date_il_pos = TRUE;
+    }
+    if (!ed->up2date_il_num_lines)
+    {
+        _itoa (ed->num_lines, ed->infoline + INFOLINE_NUM_LINES, 4);
+        update_infoline = TRUE;
+        ed->up2date_il_num_lines = TRUE;
+    }
+    if (!ed->up2date_il_flags)
+    {
+        char *fs = ed->infoline + INFOLINE_CHANGED;
+        if (ed->changed)
+            *fs = '*';
+        else
+            *fs = ' ';
+        update_infoline = TRUE;
+        ed->up2date_il_flags = TRUE;
+    }
+    if (!ed->up2date_il_filename)
+    {
+        char *fs = ed->infoline + INFOLINE_FILENAME;
+        for (char *c = ed->filename; *c; c++)
+        {
+            *fs++ = *c;
+        }
+        *fs = 0;
+        update_infoline = TRUE;
+        ed->up2date_il_filename = TRUE;
+    }
+
+    if (update_infoline)
+    {
+#ifdef ENABLE_DEBUG
+        lprintf ("outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
+#endif
+        TE_setTextStyle (TE_STYLE_NORMAL);
+        TE_setTextStyle (TE_STYLE_INVERSE);
+        TE_moveCursor   (ed->infoline_row+1, 1);
+        char *c = ed->infoline;
+        int col = 1;
+        while (*c && col < ed->window_width)
+        {
+            TE_putc (*c++);
+            col++;
+        }
+        while (col < ed->window_width)
+        {
+            TE_putc (' ');
+            col++;
+        }
+        TE_setTextStyle (TE_STYLE_NORMAL);
+    }
+
+    TE_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
+    TE_setCursorVisible (TRUE);
+}
+
+static void invalidateAll (IDE_editor ed)
+{
+    for (uint16_t i=0; i<TE_MAX_ROWS; i++)
+        ed->up2date_row[i] = FALSE;
 }
 
 static void enterKey (IDE_editor ed)
@@ -748,10 +767,8 @@ static void enterKey (IDE_editor ed)
     ed->cursor_col = 0;
     ed->cursor_row++;
     ed->cursor_line = line;
-    scroll(ed, /*update_screen=*/FALSE);
-    showAll(ed);
-    showPos(ed);
-    showCursor(ed);
+    invalidateAll(ed);
+    ed->up2date_il_pos = FALSE;
 }
 
 static void backspaceKey (IDE_editor ed)
@@ -778,12 +795,8 @@ static void backspaceKey (IDE_editor ed)
         ed->editing = TRUE;
         deleteLine (ed, cl);
         ed->cursor_line = commitBuf (ed);
-        // if (ed->cursor_col>ed->cursor_line->len)
-        //     ed->cursor_col = ed->cursor_line->len;
-        scroll(ed, /*update_screen=*/FALSE);
-        showAll(ed);
-        showPos(ed);
-        showCursor(ed);
+        invalidateAll(ed);
+        ed->up2date_il_pos = FALSE;
     }
     else
     {
@@ -796,8 +809,7 @@ static void backspaceKey (IDE_editor ed)
             ed->style[i-1] = ed->style[i];
         }
         ed->buf_len--;
-
-        showLine (ed, ed->buf, ed->style, ed->buf_len, ed->cursor_row - ed->scrolloff_row + 1);
+        ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
         cursorLeft(ed);
     }
 }
@@ -827,7 +839,7 @@ static bool insertChar (IDE_editor ed, uint16_t c)
     ed->style[cp] = STYLE_NORMAL;
     ed->buf_len++;
 
-    showLine (ed, ed->buf, ed->style, ed->buf_len, ed->cursor_row - ed->scrolloff_row + 1);
+    ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
 
     cursorRight(ed);
 
@@ -874,10 +886,12 @@ static void key_cb (uint16_t key, void *user_data)
 
     }
 
+    scroll(ed);
+    repaint(ed);
     TE_flush();
 }
 
-IDE_editor OpenEditor(void)
+IDE_editor openEditor(void)
 {
 	IDE_editor ed = U_poolAlloc (UP_ide, sizeof (*ed));
 
@@ -889,11 +903,18 @@ IDE_editor OpenEditor(void)
     ed->num_lines	     = 0;
     ed->scrolloff_col    = 0;
     ed->scrolloff_row    = 0;
+    ed->scrolloff_line   = NULL;
     ed->cursor_col		 = 0;
     ed->cursor_row		 = 0;
     ed->cursor_line      = NULL;
     ed->changed		     = FALSE;
     ed->editing          = FALSE;
+
+    invalidateAll (ed);
+    ed->up2date_il_pos       = FALSE;
+    ed->up2date_il_num_lines = FALSE;
+    ed->up2date_il_flags     = FALSE;
+    ed->up2date_il_filename  = FALSE;
 
     initWindowSize(ed);
 
@@ -959,7 +980,7 @@ void IDE_open(char *fn)
     logf = fopen (LOG_FILENAME, "w");
 #endif
 
-	IDE_editor ed = OpenEditor();
+	IDE_editor ed = openEditor();
 
     if (fn)
         IDE_load (ed, fn);
@@ -967,9 +988,7 @@ void IDE_open(char *fn)
     TE_setCursorVisible (FALSE);
     TE_moveCursor (0, 0);
     TE_eraseDisplay();
-    showAll(ed);
-    showInfoLine(ed);
-    showCursor(ed);
+    repaint(ed);
     TE_flush();
 
 	TE_onKeyCall(key_cb, ed);
