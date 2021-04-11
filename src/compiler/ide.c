@@ -211,43 +211,62 @@ static IDE_line getLine (IDE_editor ed, int linenum)
     return l;
 }
 
+static void invalidateAll (IDE_editor ed)
+{
+    for (uint16_t i=0; i<TE_MAX_ROWS; i++)
+        ed->up2date_row[i] = FALSE;
+}
+
 static void scroll(IDE_editor ed)
 {
-    // FIXME
-#if 0
+    uint16_t cursor_row = ed->cursor_row - ed->scrolloff_row;
+
     // scroll up ?
 
-    while ( ( (ed->cursor_row-ed->scrolloff_row) > ed->window_height - SCROLL_MARGIN) && (ed->scrolloff_row < ed->num_lines - ed->window_height) )
+    if (cursor_row > ed->window_height - SCROLL_MARGIN)
     {
-        ed->scrolloff_row++;
+        uint16_t scrolloff_row_new = ed->cursor_row - ed->window_height + SCROLL_MARGIN;
+        uint16_t scrolloff_row_max = ed->num_lines - ed->window_height + 1;
 
-        if (update_screen)
+        if (scrolloff_row_new > scrolloff_row_max)
+            scrolloff_row_new = scrolloff_row_max;
+
+        uint16_t diff = scrolloff_row_new - ed->scrolloff_row;
+        ed->scrolloff_row = scrolloff_row_new;
+        switch (diff)
         {
-            TE_scrollUp();
-            int linenum = ed->scrolloff_row + ed->window_height - 2;
-            IDE_line l = getLine (ed, linenum);
-            showLine (ed, l->buf, l->style, l->len, ed->window_height-1);
-            showInfoLine(ed);
+            case 0:
+                break;
+            case 1:
+                TE_scrollUp();
+                ed->up2date_row[ed->window_height - 2] = FALSE;
+                break;
+            default:
+                invalidateAll (ed);
         }
     }
 
     // scroll down ?
 
-    while ( ( (ed->cursor_row-ed->scrolloff_row) < SCROLL_MARGIN ) && ( ed->scrolloff_row > 0 ) )
+    if (cursor_row < SCROLL_MARGIN)
     {
-        ed->scrolloff_row--;
-        if (update_screen)
+        uint16_t scrolloff_row_new = ed->cursor_row > SCROLL_MARGIN ? ed->cursor_row - SCROLL_MARGIN : 0;
+
+        uint16_t diff = ed->scrolloff_row - scrolloff_row_new;
+        ed->scrolloff_row = scrolloff_row_new;
+        switch (diff)
         {
-            TE_scrollDown();
-            int linenum = ed->scrolloff_row;
-            IDE_line l = getLine (ed, linenum);
-            showLine (ed, l->buf, l->style, l->len, 0);
-            showInfoLine(ed);
+            case 0:
+                break;
+            case 1:
+                TE_scrollDown();
+                ed->up2date_row[0] = FALSE;
+                break;
+            default:
+                invalidateAll (ed);
         }
     }
-
     // FIXME: implement horizontal scroll
-#endif
 }
 
 static bool nextch_cb(char *ch, void *user_data)
@@ -730,12 +749,6 @@ static void repaint (IDE_editor ed)
     TE_setCursorVisible (TRUE);
 }
 
-static void invalidateAll (IDE_editor ed)
-{
-    for (uint16_t i=0; i<TE_MAX_ROWS; i++)
-        ed->up2date_row[i] = FALSE;
-}
-
 static void enterKey (IDE_editor ed)
 {
     // split line ?
@@ -769,6 +782,8 @@ static void enterKey (IDE_editor ed)
     ed->cursor_col = 0;
     ed->cursor_row++;
     ed->cursor_line = line;
+    ed->num_lines++;
+    ed->up2date_il_num_lines = FALSE;
     invalidateAll(ed);
     ed->up2date_il_pos = FALSE;
 }
@@ -799,6 +814,8 @@ static void backspaceKey (IDE_editor ed)
         ed->cursor_line = commitBuf (ed);
         invalidateAll(ed);
         ed->up2date_il_pos = FALSE;
+        ed->num_lines--;
+        ed->up2date_il_num_lines = FALSE;
     }
     else
     {
