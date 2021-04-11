@@ -16,10 +16,11 @@
 
 #define ENABLE_DEBUG
 
-#define STYLE_NORMAL 0
-#define STYLE_KW     1
-#define STYLE_STRING 2
-#define STYLE_NUMBER 3
+#define STYLE_NORMAL  0
+#define STYLE_KW      1
+#define STYLE_STRING  2
+#define STYLE_NUMBER  3
+#define STYLE_COMMENT 4
 
 #define INFOLINE            "X=   1 Y=   1 #=   0  new file"
 #define INFOLINE_CURSOR_X      2
@@ -284,7 +285,7 @@ static IDE_line buf2line (IDE_editor ed)
 
     ed->buf_pos = 0;
     ed->buf[ed->buf_len]=0;
-    S_init (nextch_cb, ed);
+    S_init (nextch_cb, ed, /*filter_comments=*/FALSE);
 
     int pos = 0;
     while (TRUE)
@@ -300,6 +301,32 @@ static IDE_line buf2line (IDE_editor ed)
             {
                 case S_ERRTKN:
                 case S_EOL:
+                    break;
+                case S_LCOMMENT:
+                    buf[pos] = '\'';
+                    style[pos++] = STYLE_COMMENT;
+                    buf[pos] = ' ';
+                    style[pos++] = STYLE_COMMENT;
+                    for (char *c=tkn->u.str; *c; c++)
+                    {
+                        buf[pos] = *c;
+                        style[pos++] = STYLE_COMMENT;
+                    }
+                    break;
+                case S_RCOMMENT:
+                    buf[pos] = 'R';
+                    style[pos++] = STYLE_COMMENT;
+                    buf[pos] = 'E';
+                    style[pos++] = STYLE_COMMENT;
+                    buf[pos] = 'M';
+                    style[pos++] = STYLE_COMMENT;
+                    buf[pos] = ' ';
+                    style[pos++] = STYLE_COMMENT;
+                    for (char *c=tkn->u.str; *c; c++)
+                    {
+                        buf[pos] = *c;
+                        style[pos++] = STYLE_COMMENT;
+                    }
                     break;
                 case S_IDENT:
                 {
@@ -651,6 +678,10 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, int len, int row
                 case STYLE_NUMBER:
                     TE_setTextStyle (TE_STYLE_BOLD);
                     TE_setTextStyle (TE_STYLE_MAGENTA);
+                    break;
+                case STYLE_COMMENT:
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_BLUE);
                     break;
                 default:
                     assert(FALSE);

@@ -30,6 +30,7 @@ static S_symbol      g_sym_rem;
 
 static char          g_cur_line[MAX_LINE_LEN];
 static int           g_cur_line_num;
+static bool          g_filter_comments;
 
 #ifdef S_KEEP_SOURCE
 static TAB_table     g_src;     // line number -> string
@@ -70,6 +71,8 @@ static void print_tkn(S_tkn tkn)
     {
         case S_ERRTKN:     printf("[ERR]");       break;
         case S_EOL:        printf("[EOL]");       break;
+        case S_LCOMMENT:   printf("[LCOMMENT %s]", tkn->u.str); break;
+        case S_RCOMMENT:   printf("[RCOMMENT %s]", tkn->u.str); break;
         case S_IDENT:      printf("[IDENT %s]",  S_name(tkn->u.sym)); break;
         case S_STRING:     printf("[STRING %s]", tkn->u.str);         break;
         case S_COLON:      printf("[COLON]");     break;
@@ -301,16 +304,37 @@ static S_tkn number(int base, S_tkn tkn, bool dp)
     return tkn;
 }
 
-static void skip_comment(void)
+static S_tkn handle_comment(bool line_comment)
 {
+    if (g_filter_comments)
+    {
+        while (!g_eof && (g_ch != '\n'))
+            getch();
+        return NULL;
+    }
+
+    if (g_strings_i >= MAX_STRINGS)
+        return NULL;
+
+    char *str = g_strings[g_strings_i];
+    int l = 0;
+    S_tkn tkn = S_Tkn(line_comment ? S_LCOMMENT: S_RCOMMENT);
     while (!g_eof && (g_ch != '\n'))
+    {
         getch();
+        str[l] = g_ch;
+        l++;
+    }
+    str[l] = '\0';
+    tkn->u.str = str;
+   
+    return tkn;
 }
 
 
 static S_tkn ident(char ch)
 {
-    int   l = 0;
+    int l = 0;
 
     if (g_strings_i >= MAX_STRINGS)
         return NULL;
@@ -368,11 +392,13 @@ static S_tkn next_token(void)
         }
     }
 
-    // skip line comments
+    // handle line comments
     if (!g_eof && (g_ch == '\''))
     {
         getch();
-        skip_comment();
+        S_tkn tkn = handle_comment(/*line_comment=*/TRUE);
+        if (!g_filter_comments)
+            return tkn;
     }
 
     if (g_eof)
@@ -386,7 +412,9 @@ static S_tkn next_token(void)
         S_tkn tkn = ident(ch);
         if (tkn->u.sym == g_sym_rem)
         {
-            skip_comment();
+            S_tkn tkn = handle_comment(/*line_comment=*/FALSE);
+            if (!g_filter_comments)
+                return tkn;
             if (g_eof)
                 return NULL;
         }
@@ -641,22 +669,23 @@ S_tkn S_nextline(void)
     return first_tkn;
 }
 
-void S_init(nextch_cb_t cb, void *user_data)
+void S_init(nextch_cb_t cb, void *user_data, bool filter_comments)
 {
 #ifdef S_KEEP_SOURCE
-    g_src           = TAB_empty();
+    g_src             = TAB_empty();
 #endif
     g_sym_rem = S_Symbol("REM", FALSE);
 
-    g_cb            = cb;
-    g_user_data     = user_data;
-    g_eof           = FALSE;
-    g_eol           = FALSE;
-    g_line          = 1;
-    g_col           = 0;
+    g_cb              = cb;
+    g_user_data       = user_data;
+    g_eof             = FALSE;
+    g_eol             = FALSE;
+    g_line            = 1;
+    g_col             = 0;
 
-    g_cur_line[0]   = 0;
-    g_cur_line_num  = 0;
+    g_cur_line[0]     = 0;
+    g_cur_line_num    = 0;
+    g_filter_comments = filter_comments;
 
     getch();
 }

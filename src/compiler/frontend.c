@@ -6945,7 +6945,7 @@ static bool nextch (char *ch, void *u)
 CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name)
 {
     FE_filename = filename;
-    S_init (nextch, inf);
+    S_init (nextch, inf, /*filter_comments=*/TRUE);
 
     userLabels  = TAB_empty();
 
