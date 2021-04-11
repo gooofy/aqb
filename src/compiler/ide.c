@@ -651,15 +651,17 @@ static void repaint (IDE_editor ed)
     int row = 0;
     while (l && (linenum <= linenum_end))
     {
-        if (ed->up2date_row[row])
+        if (!ed->up2date_row[row])
         {
-            row++;
-            continue;
+
+            if (ed->editing && (linenum == ed->cursor_row))
+                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row + 1);
+            else
+                repaintLine (ed, l->buf, l->style, l->len, row + 1);
+            ed->up2date_row[row] = TRUE;
         }
-        repaintLine (ed, l->buf, l->style, l->len, row + 1);
         linenum++;
         l = l->next;
-        ed->up2date_row[row] = TRUE;
         row++;
     }
 
