@@ -16,6 +16,8 @@ bool        FE_writeSymFile(string symfn);
 void        FE_init(void);
 
 extern S_symbol FE_keywords[];
+extern int8_t   FE_keyword_pre_indents[];
+extern int8_t   FE_keyword_post_indents[];
 extern int      FE_num_keywords;
 
 #endif

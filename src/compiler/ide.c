@@ -44,6 +44,9 @@ struct IDE_line_
 	uint16_t  len;
     char     *buf;
     char     *style;
+
+    int8_t    indent;
+    int8_t    pre_indent, post_indent;
 };
 
 struct IDE_editor_
@@ -97,16 +100,19 @@ static void lprintf (const char* format, ...)
 }
 #endif
 
-IDE_line newLine(IDE_editor ed, char *buf, char *style)
+IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)
 {
     int len = strlen(buf);
     IDE_line l = U_poolAlloc (UP_ide, sizeof(*l)+2*(len+1));
 
-	l->next  = NULL;
-	l->prev  = NULL;
-	l->len   = len;
-    l->buf   = (char *) (&l[1]);
-    l->style = l->buf + len + 1;
+	l->next        = NULL;
+	l->prev        = NULL;
+	l->len         = len;
+    l->buf         = (char *) (&l[1]);
+    l->style       = l->buf + len + 1;
+    l->indent      = 0;
+    l->pre_indent  = pre_indent;
+    l->post_indent = post_indent;
 
     memcpy (l->buf, buf, len+1);
     memcpy (l->style, style, len+1);
@@ -288,6 +294,8 @@ static IDE_line buf2line (IDE_editor ed)
     S_init (nextch_cb, ed, /*filter_comments=*/FALSE);
 
     int pos = 0;
+    int8_t pre_indent = 0;
+    int8_t post_indent = 0;
     while (TRUE)
     {
         S_tkn tkn = S_nextline();
@@ -338,6 +346,8 @@ static IDE_line buf2line (IDE_editor ed)
                         if (FE_keywords[i]==tkn->u.sym)
                         {
                             is_kw = TRUE;
+                            pre_indent  += FE_keyword_pre_indents[i];
+                            post_indent += FE_keyword_post_indents[i];
                             break;
                         }
                     }
@@ -554,7 +564,7 @@ static IDE_line buf2line (IDE_editor ed)
     }
     buf[pos] = 0;
 
-    return newLine (ed, buf, style);
+    return newLine (ed, buf, style, pre_indent, post_indent);
 }
 
 static IDE_line commitBuf(IDE_editor ed)
