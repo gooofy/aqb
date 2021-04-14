@@ -322,8 +322,11 @@ static S_tkn handle_comment(bool line_comment)
     while (!g_eof && (g_ch != '\n'))
     {
         getch();
-        str[l] = g_ch;
-        l++;
+        if (g_ch != '\n')
+        {
+            str[l] = g_ch;
+            l++;
+        }
     }
     str[l] = '\0';
     tkn->u.str = str;

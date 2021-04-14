@@ -240,6 +240,8 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
 #define MAX_KEYWORDS 84
 
 S_symbol FE_keywords[MAX_KEYWORDS];
+int8_t   FE_keyword_pre_indents[MAX_KEYWORDS];
+int8_t   FE_keyword_post_indents[MAX_KEYWORDS];
 int FE_num_keywords;
 
 static S_symbol S_DIM;
@@ -7135,23 +7137,23 @@ void FE_init(void)
     S_MOD             = defineKeyword("MOD", 0, 0);
     S_NOT             = defineKeyword("NOT", 0, 0);
     S_PRINT           = defineKeyword("PRINT", 0, 0);
-    S_FOR             = defineKeyword("FOR", 0, 0);
-    S_NEXT            = defineKeyword("NEXT", 0, 0);
+    S_FOR             = defineKeyword("FOR", 0, 1);
+    S_NEXT            = defineKeyword("NEXT", -1, 0);
     S_TO              = defineKeyword("TO", 0, 0);
     S_STEP            = defineKeyword("STEP", 0, 0);
-    S_IF              = defineKeyword("IF", 0, 0);
-    S_THEN            = defineKeyword("THEN", 0, 1);
+    S_IF              = defineKeyword("IF", 0, 1);
+    S_THEN            = defineKeyword("THEN", 0, 0);
     S_END             = defineKeyword("END", -1, 0);
-    S_ELSE            = defineKeyword("ELSE", 0, 0);
-    S_ELSEIF          = defineKeyword("ELSEIF", 0, 0);
-    S_ENDIF           = defineKeyword("ENDIF", 0, 0);
+    S_ELSE            = defineKeyword("ELSE", -1, 1);
+    S_ELSEIF          = defineKeyword("ELSEIF", -1, 1);
+    S_ENDIF           = defineKeyword("ENDIF", -1, 0);
     S_GOTO            = defineKeyword("GOTO", 0, 0);
     S_ASSERT          = defineKeyword("ASSERT", 0, 0);
     S_EXPLICIT        = defineKeyword("EXPLICIT", 0, 0);
     S_ON              = defineKeyword("ON", 0, 0);
     S_OFF             = defineKeyword("OFF", 0, 0);
     S_OPTION          = defineKeyword("OPTION", 0, 0);
-    S_SUB             = defineKeyword("SUB", 0, 0);
+    S_SUB             = defineKeyword("SUB", 0, 1);
     S_FUNCTION        = defineKeyword("FUNCTION", 0, 0);
     S_STATIC          = defineKeyword("STATIC", 0, 0);
     S_CALL            = defineKeyword("CALL", 0, 0);

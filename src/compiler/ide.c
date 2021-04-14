@@ -567,6 +567,33 @@ static IDE_line buf2line (IDE_editor ed)
     return newLine (ed, buf, style, pre_indent, post_indent);
 }
 
+static void indentLine (IDE_line l)
+{
+    if (!l->prev)
+    {
+        l->indent = 0;
+        return;
+    }
+    l->indent = l->prev->indent + l->prev->post_indent + l->pre_indent;
+    if (l->indent < 0)
+        l->indent = 0;
+#ifdef ENABLE_DEBUG
+    lprintf ("identLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
+             l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
+#endif
+}
+
+static void indentSuccLines (IDE_editor ed, IDE_line lp)
+{
+    IDE_line l = lp->next;
+    while (l)
+    {
+        indentLine (l);
+        l = l->next;
+    }
+    invalidateAll (ed);
+}
+
 static IDE_line commitBuf(IDE_editor ed)
 {
     IDE_line cl = ed->cursor_line;
@@ -582,8 +609,13 @@ static IDE_line commitBuf(IDE_editor ed)
     l->next = cl->next;
     l->prev = cl->prev;
     ed->editing = FALSE;
+    int8_t old_indent = cl->indent;
     freeLine (ed, cl);
-    ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
+    indentLine (l);
+    if (l->indent == old_indent)
+        ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
+    else
+        indentSuccLines (ed, l);
     return l;
 }
 
@@ -661,13 +693,21 @@ static void line2buf (IDE_editor ed, IDE_line l)
     ed->buf_len  = l->len;
 }
 
-static void repaintLine (IDE_editor ed, char *buf, char *style, int len, int row)
+static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent)
 {
+    // FIXME: horizontal scroll
+
     TE_moveCursor (row, 1);
 
     char s=STYLE_NORMAL;
     TE_setTextStyle (TE_STYLE_NORMAL);
-    for (int i=0; i<len; i++)
+
+    for (uint16_t i=0; i<indent; i++)
+    {
+        TE_putstr ("    ");
+    }
+
+    for (uint16_t i=0; i<len; i++)
     {
         char s2 = style[i];
         if (s2 != s)
@@ -716,18 +756,18 @@ static void repaint (IDE_editor ed)
 
     IDE_line l = ed->scrolloff_line;
 
-    int linenum_end = ed->scrolloff_row + ed->window_height - 2;
-    int linenum = ed->scrolloff_row;
-    int row = 0;
+    uint16_t linenum_end = ed->scrolloff_row + ed->window_height - 2;
+    uint16_t linenum = ed->scrolloff_row;
+    uint16_t row = 0;
     while (l && (linenum <= linenum_end))
     {
         if (!ed->up2date_row[row])
         {
 
             if (ed->editing && (linenum == ed->cursor_row))
-                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row + 1);
+                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row + 1, 0);
             else
-                repaintLine (ed, l->buf, l->style, l->len, row + 1);
+                repaintLine (ed, l->buf, l->style, l->len, row + 1, l->indent);
             ed->up2date_row[row] = TRUE;
         }
         linenum++;
@@ -1040,6 +1080,8 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
     ed->cursor_col		 = 0;
     ed->cursor_row		 = 0;
     ed->cursor_line      = ed->line_first;
+
+    indentSuccLines (ed, ed->line_first);
 }
 
 void IDE_open(char *fn)
