@@ -35,6 +35,14 @@
 
 #define SCROLL_MARGIN 5
 
+static S_symbol S_IF;
+static S_symbol S_THEN;
+static S_symbol S_END;
+static S_symbol S_SUB;
+static S_symbol S_FUNCTION;
+static S_symbol S_FOR;
+static S_symbol S_NEXT;
+
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_editor_   *IDE_editor;
 
@@ -284,6 +292,10 @@ static bool nextch_cb(char *ch, void *user_data)
     return (*ch) != 0;
 }
 
+typedef enum { STATE_IDLE, STATE_IF, STATE_THEN, STATE_FOR
+               STATE_END, STATE_SUB } state_enum;
+
+
 static IDE_line buf2line (IDE_editor ed)
 {
     static char buf[MAX_LINE_LEN];
@@ -303,12 +315,30 @@ static IDE_line buf2line (IDE_editor ed)
             break;
         bool first = TRUE;
         S_token lastKind = S_ERRTKN;
+        S_tkn lastTkn = NULL;
+        state_enum state = STATE_IDLE;
         while (tkn && (pos <MAX_LINE_LEN-1))
         {
             switch (tkn->kind)
             {
                 case S_ERRTKN:
+                    break;
                 case S_EOL:
+                    switch (state)
+                    {
+                        case STATE_THEN:
+                            if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
+                                post_indent++;
+                            break;
+                        case STATE_SUB:
+                            post_indent++;
+                            break;
+                        case STATE_END:
+                            pre_indent--;
+                            break;
+                        default:
+                            break;
+                    }
                     break;
                 case S_LCOMMENT:
                     buf[pos] = '\'';
@@ -346,8 +376,6 @@ static IDE_line buf2line (IDE_editor ed)
                         if (FE_keywords[i]==tkn->u.sym)
                         {
                             is_kw = TRUE;
-                            pre_indent  += FE_keyword_pre_indents[i];
-                            post_indent += FE_keyword_post_indents[i];
                             break;
                         }
                     }
@@ -367,6 +395,50 @@ static IDE_line buf2line (IDE_editor ed)
                             buf[pos] = s[i];
                             style[pos++] = STYLE_NORMAL;
                         }
+                    }
+
+                    // auto-indentation is based on very crude BASIC parsing
+
+                    switch (state)
+                    {
+                        case STATE_IDLE:
+                            if (tkn->u.sym == S_IF)
+                            {
+                                state = STATE_IF;
+                            }
+                            else if (tkn->u.sym == S_END)
+                            {
+                                state = STATE_END;
+                            }
+                            else if (tkn->u.sym == S_SUB)
+                            {
+                                state = STATE_SUB;
+                            }
+                            else if (tkn->u.sym == S_FUNCTION)
+                            {
+                                state = STATE_SUB;
+                            }
+                            else if (tkn->u.sym == S_FOR)
+                            {
+                                state = STATE_FOR;
+                            }
+                            else if (tkn->u.sym == S_NEXT)
+                            {
+                                state = STATE_END;
+                            }
+                            break;
+                        case STATE_IF:
+                            if (tkn->u.sym == S_THEN)
+                            {
+                                state = STATE_THEN;
+                            }
+                            break;
+                        case STATE_THEN:
+                        case STATE_END:
+                        case STATE_SUB:
+                            break;
+                        default:
+                            assert(FALSE);
                     }
                     break;
                 }
@@ -558,6 +630,7 @@ static IDE_line buf2line (IDE_editor ed)
             }
 
             lastKind = tkn->kind;
+            lastTkn = tkn;
             tkn = tkn->next;
             first = FALSE;
         }
@@ -1087,6 +1160,15 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
 void IDE_open(char *fn)
 {
     TE_init();
+
+    // indentation support
+    S_IF       = S_Symbol ("if", FALSE);
+    S_THEN     = S_Symbol ("then", FALSE);
+    S_END      = S_Symbol ("end", FALSE);
+    S_SUB      = S_Symbol ("sub", FALSE);
+    S_FUNCTION = S_Symbol ("function", FALSE);
+    S_FOR      = S_Symbol ("for", FALSE);
+    S_NEXT     = S_Symbol ("next", FALSE);
 
 #ifdef ENABLE_DEBUG
     logf = fopen (LOG_FILENAME, "w");
