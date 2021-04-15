@@ -1099,6 +1099,35 @@ static bool insertChar (IDE_editor ed, uint16_t c)
     return TRUE;
 }
 
+static void IDE_save (IDE_editor ed)
+{
+    if (ed->editing)
+        commitBuf (ed);
+
+    FILE *sourcef = fopen(ed->filename, "w");
+    if (!sourcef)
+    {
+        fprintf(stderr, "failed to write %s: %s\n\n", ed->filename, strerror(errno));
+        exit(2);
+    }
+
+    static char *indent_str = "    ";
+    static char *lf = "\n";
+
+    for (IDE_line l = ed->line_first; l; l=l->next)
+    {
+        for (int8_t i = 0; i<l->indent; i++)
+            fwrite (indent_str, 4, 1, sourcef);
+        fwrite (l->buf, l->len, 1, sourcef);
+        fwrite (lf, 1, 1, sourcef);
+    }
+
+    fclose (sourcef);
+
+    ed->changed = FALSE;
+    ed->up2date_il_flags = FALSE;
+}
+
 static void key_cb (uint16_t key, void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
@@ -1130,6 +1159,10 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_BACKSPACE:
             backspaceKey(ed);
+            break;
+
+        case KEY_CTRL_S:
+            IDE_save(ed);
             break;
 
         default:
@@ -1244,7 +1277,7 @@ void IDE_open(char *fn)
     S_DO       = S_Symbol ("do", FALSE);
     S_LOOP     = S_Symbol ("loop", FALSE);
     S_WHILE    = S_Symbol ("while", FALSE);
-    S_WEND      = S_Symbol ("wend", FALSE);
+    S_WEND     = S_Symbol ("wend", FALSE);
 
 #ifdef ENABLE_DEBUG
     logf = fopen (LOG_FILENAME, "w");
