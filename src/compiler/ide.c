@@ -35,6 +35,8 @@
 
 #define SCROLL_MARGIN 5
 
+#define INDENT_SPACES 4
+
 static S_symbol S_IF;
 static S_symbol S_ELSEIF;
 static S_symbol S_ELSE;
@@ -740,9 +742,10 @@ static IDE_line commitBuf(IDE_editor ed)
     l->prev = cl->prev;
     ed->editing = FALSE;
     int8_t old_indent = cl->indent;
+    int8_t old_post_indent = cl->post_indent;
     freeLine (ed, cl);
     indentLine (l);
-    if (l->indent == old_indent)
+    if ( (l->indent == old_indent) && (l->post_indent == old_post_indent) )
         ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
     else
         indentSuccLines (ed, l);
@@ -800,7 +803,7 @@ static bool cursorLeft(IDE_editor ed)
 
 static bool cursorRight(IDE_editor ed)
 {
-    int len = ed->editing ? ed->buf_len : ed->cursor_line->len;
+    int len = ed->editing ? ed->buf_len : ed->cursor_line->len + INDENT_SPACES * ed->cursor_line->indent;
     if (ed->cursor_col >= len)
         return FALSE;
 
@@ -812,15 +815,25 @@ static bool cursorRight(IDE_editor ed)
 
 static void line2buf (IDE_editor ed, IDE_line l)
 {
-    memcpy (ed->buf,   l->buf  , l->len+1);
-    memcpy (ed->style, l->style, l->len+1);
+    uint16_t off = 0;
+    for (int8_t i = 0; i<l->indent; i++)
+    {
+        for (int8_t j = 0; j<INDENT_SPACES; j++)
+        {
+            ed->buf[off] = ' ';
+            ed->style[off++] = STYLE_NORMAL;
+        }
+    }
+
+    memcpy (ed->buf+off,   l->buf  , l->len+1);
+    memcpy (ed->style+off, l->style, l->len+1);
     ed->editing  = TRUE;
     if (!ed->changed)
     {
         ed->changed  = TRUE;
         ed->up2date_il_flags = FALSE;
     }
-    ed->buf_len  = l->len;
+    ed->buf_len  = l->len+off;
 }
 
 static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent)
