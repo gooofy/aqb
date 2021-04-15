@@ -36,12 +36,18 @@
 #define SCROLL_MARGIN 5
 
 static S_symbol S_IF;
+static S_symbol S_ELSEIF;
+static S_symbol S_ELSE;
 static S_symbol S_THEN;
 static S_symbol S_END;
 static S_symbol S_SUB;
 static S_symbol S_FUNCTION;
 static S_symbol S_FOR;
 static S_symbol S_NEXT;
+static S_symbol S_DO;
+static S_symbol S_LOOP;
+static S_symbol S_WHILE;
+static S_symbol S_WEND;
 
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_editor_   *IDE_editor;
@@ -292,7 +298,8 @@ static bool nextch_cb(char *ch, void *user_data)
     return (*ch) != 0;
 }
 
-typedef enum { STATE_IDLE, STATE_IF, STATE_THEN, STATE_FOR
+typedef enum { STATE_IDLE, STATE_IF, STATE_ELSEIF, STATE_ELSE, STATE_THEN,
+               STATE_ELSEIFTHEN, STATE_LOOP,
                STATE_END, STATE_SUB } state_enum;
 
 
@@ -328,9 +335,26 @@ static IDE_line buf2line (IDE_editor ed)
                     {
                         case STATE_THEN:
                             if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
+                            {
                                 post_indent++;
+                            }
+                            break;
+                        case STATE_ELSEIFTHEN:
+                            if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
+                            {
+                                pre_indent--;
+                                post_indent++;
+                            }
+                            break;
+                        case STATE_ELSE:
+                            if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_ELSE))
+                            {
+                                pre_indent--;
+                                post_indent++;
+                            }
                             break;
                         case STATE_SUB:
+                        case STATE_LOOP:
                             post_indent++;
                             break;
                         case STATE_END:
@@ -406,6 +430,14 @@ static IDE_line buf2line (IDE_editor ed)
                             {
                                 state = STATE_IF;
                             }
+                            else if (tkn->u.sym == S_ELSEIF)
+                            {
+                                state = STATE_ELSEIF;
+                            }
+                            else if (tkn->u.sym == S_ELSE)
+                            {
+                                state = STATE_ELSE;
+                            }
                             else if (tkn->u.sym == S_END)
                             {
                                 state = STATE_END;
@@ -420,9 +452,25 @@ static IDE_line buf2line (IDE_editor ed)
                             }
                             else if (tkn->u.sym == S_FOR)
                             {
-                                state = STATE_FOR;
+                                state = STATE_LOOP;
+                            }
+                            else if (tkn->u.sym == S_DO)
+                            {
+                                state = STATE_LOOP;
+                            }
+                            else if (tkn->u.sym == S_WHILE)
+                            {
+                                state = STATE_LOOP;
                             }
                             else if (tkn->u.sym == S_NEXT)
+                            {
+                                state = STATE_END;
+                            }
+                            else if (tkn->u.sym == S_LOOP)
+                            {
+                                state = STATE_END;
+                            }
+                            else if (tkn->u.sym == S_WEND)
                             {
                                 state = STATE_END;
                             }
@@ -433,9 +481,18 @@ static IDE_line buf2line (IDE_editor ed)
                                 state = STATE_THEN;
                             }
                             break;
+                        case STATE_ELSEIF:
+                            if (tkn->u.sym == S_THEN)
+                            {
+                                state = STATE_ELSEIFTHEN;
+                            }
+                            break;
                         case STATE_THEN:
+                        case STATE_ELSEIFTHEN:
+                        case STATE_ELSE:
                         case STATE_END:
                         case STATE_SUB:
+                        case STATE_LOOP:
                             break;
                         default:
                             assert(FALSE);
@@ -1163,12 +1220,18 @@ void IDE_open(char *fn)
 
     // indentation support
     S_IF       = S_Symbol ("if", FALSE);
+    S_ELSEIF   = S_Symbol ("elseif", FALSE);
+    S_ELSE     = S_Symbol ("else", FALSE);
     S_THEN     = S_Symbol ("then", FALSE);
     S_END      = S_Symbol ("end", FALSE);
     S_SUB      = S_Symbol ("sub", FALSE);
     S_FUNCTION = S_Symbol ("function", FALSE);
     S_FOR      = S_Symbol ("for", FALSE);
     S_NEXT     = S_Symbol ("next", FALSE);
+    S_DO       = S_Symbol ("do", FALSE);
+    S_LOOP     = S_Symbol ("loop", FALSE);
+    S_WHILE    = S_Symbol ("while", FALSE);
+    S_WEND      = S_Symbol ("wend", FALSE);
 
 #ifdef ENABLE_DEBUG
     logf = fopen (LOG_FILENAME, "w");
