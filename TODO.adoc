@@ -289,13 +289,15 @@ v0.1, 2020-07-12
 
 == IDE
 
-- terminal: use uint16_t where possible
-- auto-indent
-- DEL
-- save
+DONE auto-indent
+DONE save
 - compile/run
+- memory management
+- help system
+- amiga menus
+- DEL
 - search
 - goto line
 - show compiler error messages
-- help system
+- terminal: use uint16_t where possible
 
