@@ -30,6 +30,23 @@
 #define KEY_END          1006
 #define KEY_PAGE_UP      1007
 #define KEY_PAGE_DOWN    1008
+#define KEY_F1           1010
+#define KEY_F2           1011
+#define KEY_F3           1012
+#define KEY_F4           1013
+#define KEY_F5           1014
+#define KEY_F6           1015
+#define KEY_F7           1016
+#define KEY_F8           1017
+#define KEY_F9           1018
+#define KEY_F10          1019
+#define KEY_UNKNOWN1     9993
+#define KEY_UNKNOWN2     9994
+#define KEY_UNKNOWN3     9995
+#define KEY_UNKNOWN4     9996
+#define KEY_UNKNOWN5     9997
+#define KEY_UNKNOWN6     9998
+#define KEY_UNKNOWN7     9999
 
 void      TE_flush              (void);
 void      TE_putc               (char c);

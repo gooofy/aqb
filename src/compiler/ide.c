@@ -14,8 +14,6 @@
 #include "scanner.h"
 #include "frontend.h"
 
-#define ENABLE_DEBUG
-
 #define STYLE_NORMAL  0
 #define STYLE_KW      1
 #define STYLE_STRING  2
@@ -101,20 +99,10 @@ struct IDE_editor_
     uint16_t           buf2_len;
 };
 
+#define DEBUG 0
 #define LOG_FILENAME "ide.log"
-
-#ifdef ENABLE_DEBUG
 static FILE *logf=NULL;
-
-static void lprintf (const char* format, ...)
-{
-    va_list argptr;
-    va_start(argptr, format);
-    vfprintf(logf, format, argptr);
-    va_end(argptr);
-	fflush(logf);
-}
-#endif
+#define dprintf(fmt, ...) do { if (DEBUG) fprintf(logf, fmt, __VA_ARGS__); } while (0)
 
 IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)
 {
@@ -709,10 +697,8 @@ static void indentLine (IDE_line l)
     l->indent = l->prev->indent + l->prev->post_indent + l->pre_indent;
     if (l->indent < 0)
         l->indent = 0;
-#ifdef ENABLE_DEBUG
-    lprintf ("identLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
+    dprintf ("identLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
              l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
-#endif
 }
 
 static void indentSuccLines (IDE_editor ed, IDE_line lp)
@@ -958,9 +944,7 @@ static void repaint (IDE_editor ed)
 
     if (update_infoline)
     {
-#ifdef ENABLE_DEBUG
-        lprintf ("outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
-#endif
+        dprintf ("outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
         TE_setTextStyle (TE_STYLE_NORMAL);
         TE_setTextStyle (TE_STYLE_INVERSE);
         TE_moveCursor   (ed->infoline_row+1, 1);
@@ -1128,6 +1112,11 @@ static void IDE_save (IDE_editor ed)
     ed->up2date_il_flags = FALSE;
 }
 
+static void IDE_exit (IDE_editor ed)
+{
+    exit(0);
+}
+
 static void key_cb (uint16_t key, void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
@@ -1135,7 +1124,9 @@ static void key_cb (uint16_t key, void *user_data)
     switch (key)
     {
         case KEY_ESC:
-			exit(0);
+        case KEY_CTRL_C:
+        case KEY_CTRL_Q:
+            IDE_exit(ed);
 
         case KEY_CURSOR_UP:
             cursorUp(ed);
@@ -1279,8 +1270,8 @@ void IDE_open(char *fn)
     S_WHILE    = S_Symbol ("while", FALSE);
     S_WEND     = S_Symbol ("wend", FALSE);
 
-#ifdef ENABLE_DEBUG
-    logf = fopen (LOG_FILENAME, "w");
+#if DEBUG
+    logf = fopen (LOG_FILENAME, "a");
 #endif
 
 	IDE_editor ed = openEditor();
