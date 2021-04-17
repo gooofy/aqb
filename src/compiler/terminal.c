@@ -206,7 +206,7 @@ void TE_flush(void)
 
 // FIXME: implement size change callback
 
-bool TE_getsize(int *rows, int *cols)
+bool TE_getsize(uint16_t *rows, uint16_t *cols)
 {
     struct ConUnit *g_con_unit = (struct ConUnit *) g_writeReq->io_Unit;
     *rows = g_con_unit->cu_YMax + 1;
@@ -392,6 +392,12 @@ void TE_run (void)
     exit(RETURN_OK);
 }
 
+uint16_t TE_EZRequest (char *body, char *gadgets)
+{
+    assert(FALSE);
+
+    return 0;
+}
 
 #else // no __amigaos__ -> linux/posix/ansi
 
@@ -542,43 +548,6 @@ uint16_t TE_getch (void)
                     return KEY_UNKNOWN7;
 
             }
-
-// DEL PGUP PGDOWN HOME END
-
-#if 0
-            /* ESC [ sequences. */
-            if (seq[0] == '[')
-            {
-                if (seq[1] >= '0' && seq[1] <= '9')
-                {
-                    /* Extended escape, read additional byte. */
-                    if (read(STDIN_FILENO,seq+2,1) == 0)
-                        return KEY_ESC;
-                    if (seq[2] == '~')
-                    {
-                        switch(seq[1])
-                        {
-                            case '3': return KEY_DEL;
-                            case '5': return KEY_PAGE_UP;
-                            case '6': return KEY_PAGE_DOWN;
-                            default: return KEY_UNKNOWN1;
-                        }
-                    }
-                }
-                else
-                {
-                    switch(seq[1])
-                    {
-                        default: return KEY_UNKNOWN2;
-                    }
-                }
-            }
-
-            /* ESC O sequences. */
-            else if (seq[0] == 'O')
-            {
-            }
-#endif
         }
         else
         {
@@ -647,7 +616,7 @@ fatal:
     return FALSE;
 }
 
-static bool getCursorPosition(int *rows, int *cols)
+static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
 {
     char buf[32];
     unsigned int i = 0;
@@ -667,19 +636,19 @@ static bool getCursorPosition(int *rows, int *cols)
 
     if (buf[0] != KEY_ESC || buf[1] != '[')
 		return FALSE;
-    if (sscanf(buf+2,"%d;%d",rows,cols) != 2)
+    if (sscanf(buf+2,"%hd;%hd",rows,cols) != 2)
 		return FALSE;
     return TRUE;
 }
 
 
-bool TE_getsize(int *rows, int *cols)
+bool TE_getsize(uint16_t *rows, uint16_t *cols)
 {
     struct winsize ws;
 
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
 	{
-        int orig_row, orig_col;
+        uint16_t orig_row, orig_col;
 
         if (!getCursorPosition(&orig_row, &orig_col))
 			goto failed;
@@ -688,6 +657,7 @@ bool TE_getsize(int *rows, int *cols)
 			goto failed;
         if (!getCursorPosition(rows, cols))
 			goto failed;
+
 
         char seq[32];
         snprintf(seq, 32, "\x1b[%d;%dH", orig_row, orig_col);
@@ -714,6 +684,77 @@ void TE_run(void)
         if (g_key_cb)
             g_key_cb (ch, g_key_cb_user_data);
     }
+}
+
+uint16_t TE_EZRequest (char *body, char *gadgets)
+{
+    uint16_t rows, cols;
+
+    TE_getsize (&rows, &cols);
+
+    TE_scrollUp();
+    TE_scrollUp();
+
+    TE_moveCursor (rows, 1);
+
+    TE_setTextStyle (TE_STYLE_NORMAL);
+    TE_printf ("%s", body);
+    TE_printf ("\r\n");
+    TE_printf ("\r\n");
+
+    uint16_t cnt;
+    char *c = gadgets;
+    static char buf[256];
+    char *s = buf;
+    while (*c)
+    {
+        if (*c=='|')
+        {
+            *s = 0;
+            TE_printf ("%s", buf);
+            TE_printf ("[%d] ", cnt);
+            cnt++;
+            c++;
+            s = buf;
+        }
+        else
+        {
+            *s++ = *c++;
+        }
+    }
+    *s = 0;
+    TE_printf ("%s", buf);
+    TE_printf ("[%d]", cnt);
+    cnt++;
+
+    TE_flush();
+
+    while (TRUE)
+    {
+        uint16_t ch = TE_getch();
+
+        uint16_t res;
+
+        switch(ch)
+        {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                res = ch - '0';
+                if (res<cnt)
+                    return res;
+                
+        }
+    }
+
+    return 0;
 }
 #endif
 
@@ -804,3 +845,4 @@ void TE_onKeyCall (TE_key_cb cb, void *user_data)
     g_key_cb           = cb;
     g_key_cb_user_data = user_data;
 }
+

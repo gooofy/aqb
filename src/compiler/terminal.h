@@ -78,12 +78,14 @@ void      TE_setTextStyle       (int style);
 void      TE_scrollUp           (void);
 void      TE_scrollDown         (void);
 
-bool      TE_getsize            (int *rows, int *cols);
+bool      TE_getsize            (uint16_t *rows, uint16_t *cols);
 void      TE_onSizeChangeCall   (void (*cb)(void));
 
 typedef void (*TE_key_cb)(uint16_t key, void *user_data);
 
 void      TE_onKeyCall          (TE_key_cb cb, void *user_data);
+
+uint16_t  TE_EZRequest          (char *body, char *gadgets);
 
 bool      TE_init               (void);
 

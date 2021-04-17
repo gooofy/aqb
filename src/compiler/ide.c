@@ -176,7 +176,7 @@ static void deleteLine (IDE_editor ed, IDE_line l)
 
 void initWindowSize (IDE_editor ed)
 {
-    int rows, cols;
+    uint16_t rows, cols;
     if (!TE_getsize (&rows, &cols))
         exit(1);
 
@@ -1114,6 +1114,7 @@ static void IDE_save (IDE_editor ed)
 
 static void IDE_exit (IDE_editor ed)
 {
+    TE_EZRequest ("Really quit?", "Sure!|No!");
     exit(0);
 }
 
