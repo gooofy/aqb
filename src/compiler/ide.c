@@ -997,6 +997,7 @@ static void enterKey (IDE_editor ed)
 
     IDE_line line = buf2line (ed);
     insertLineAfter (ed, ed->cursor_line, line);
+    indentSuccLines (ed, ed->cursor_line);
     ed->cursor_col = 0;
     ed->cursor_row++;
     ed->cursor_line = line;
