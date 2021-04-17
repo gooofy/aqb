@@ -31,10 +31,15 @@
 #include <inline/graphics.h>
 #include <inline/mathffp.h>
 
+#include <libraries/reqtools.h>
+#include <inline/reqtools.h>
+//#include <proto/reqtools.h>
+
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct DOSBase       *DOSBase;
 extern struct IntuitionBase *IntuitionBase;
+struct ReqToolsBase  *ReqToolsBase;
 
 #define CSI       "\x9b"
 
@@ -52,7 +57,7 @@ extern struct IntuitionBase *IntuitionBase;
 
 #endif
 
-#define DEBUG 0
+#define DEBUG 1
 
 #define LOG_FILENAME "ide.log"
 static FILE *logf=NULL;
@@ -257,6 +262,8 @@ static void TE_exit(void)
         delete_ext_io((struct IORequest *)g_writeReq);
     if (g_writePort)
         delete_port(g_writePort);
+    if (ReqToolsBase)
+        CloseLibrary((struct Library *)ReqToolsBase);
     if (IntuitionBase)
         CloseLibrary((struct Library *)IntuitionBase);
 }
@@ -271,7 +278,9 @@ bool TE_init (void)
 
     SysBase = *(APTR *)4L;
     if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((uint8_t *)"intuition.library",0)))
-         cleanexit("Can't open intuition\n", RETURN_FAIL);
+         cleanexit("Can't open intuition.library\n", RETURN_FAIL);
+    if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((uint8_t *)REQTOOLSNAME, REQTOOLSVERSION)))
+         cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
     if (!(g_writePort = create_port((uint8_t *)"AQB.console.write",0)))
          cleanexit("Can't create write port\n", RETURN_FAIL);
     if (!(g_writeReq = (struct IOStdReq *) create_ext_io(g_writePort,(LONG)sizeof(struct IOStdReq))))
@@ -394,9 +403,9 @@ void TE_run (void)
 
 uint16_t TE_EZRequest (char *body, char *gadgets)
 {
-    assert(FALSE);
-
-    return 0;
+	ULONG res = rtEZRequest (body, gadgets, NULL, NULL);
+	dprintf ("rtEZRequest result: %ld\n", res);
+	return res;
 }
 
 #else // no __amigaos__ -> linux/posix/ansi
@@ -710,10 +719,10 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
     {
         if (*c=='|')
         {
+            cnt++;
             *s = 0;
             TE_printf ("%s", buf);
             TE_printf ("[%d] ", cnt);
-            cnt++;
             c++;
             s = buf;
         }
@@ -724,7 +733,7 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
     }
     *s = 0;
     TE_printf ("%s", buf);
-    TE_printf ("[%d]", cnt);
+    TE_printf ("[0]", cnt);
     cnt++;
 
     TE_flush();
@@ -737,6 +746,8 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
 
         switch(ch)
         {
+			case 13:
+				return 1;
             case '0':
             case '1':
             case '2':
@@ -750,7 +761,6 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
                 res = ch - '0';
                 if (res<cnt)
                     return res;
-                
         }
     }
 

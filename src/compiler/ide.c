@@ -1143,7 +1143,11 @@ static void IDE_save (IDE_editor ed)
 
 static void IDE_exit (IDE_editor ed)
 {
-    TE_EZRequest ("Really quit?", "Sure!|No!");
+    if (ed->changed)
+    {
+        if (TE_EZRequest ("Save changes to disk?", "Yes|No"))
+            IDE_save(ed);
+    }
     exit(0);
 }
 
