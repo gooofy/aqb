@@ -841,6 +841,33 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
         char s2 = style[i];
         if (s2 != s)
         {
+#ifdef __amigaos__
+            switch (s2)
+            {
+                case STYLE_NORMAL:
+                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    break;
+                case STYLE_KW:
+                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    TE_setTextStyle (TE_STYLE_BOLD);
+                    TE_setTextStyle (TE_STYLE_BLACK);
+                    break;
+                case STYLE_STRING:
+                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    TE_setTextStyle (TE_STYLE_WHITE);
+                    break;
+                case STYLE_NUMBER:
+                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    TE_setTextStyle (TE_STYLE_WHITE);
+                    break;
+                case STYLE_COMMENT:
+                    TE_setTextStyle (TE_STYLE_ITALICS);
+                    TE_setTextStyle (TE_STYLE_BLUE);
+                    break;
+                default:
+                    assert(FALSE);
+            }
+#else
             switch (s2)
             {
                 case STYLE_NORMAL:
@@ -865,6 +892,7 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
                 default:
                     assert(FALSE);
             }
+#endif
             s = s2;
         }
         TE_putc (buf[i]);
