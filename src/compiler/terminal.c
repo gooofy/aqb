@@ -756,7 +756,19 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
     TE_moveCursor (rows, 1);
 
     TE_setTextStyle (TE_STYLE_NORMAL);
-    TE_printf ("%s", body);
+
+    for (char *p = body; *p; p++)
+    {
+        if (*p != '\n')
+        {
+            TE_putc(*p);
+        }
+        else
+        {
+            TE_putc('\r');
+            TE_putc('\n');
+        }
+    }
     TE_printf ("\r\n");
     TE_printf ("\r\n");
 
@@ -787,16 +799,18 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
 
     TE_flush();
 
-    while (TRUE)
+    uint16_t res = 0;
+    bool running = TRUE;
+    while (running)
     {
         uint16_t ch = TE_getch();
-
-        uint16_t res;
 
         switch(ch)
         {
 			case 13:
-				return 1;
+                res = 1;
+                running = FALSE;
+                break;
             case '0':
             case '1':
             case '2':
@@ -808,12 +822,13 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
             case '8':
             case '9':
                 res = ch - '0';
-                if (res<cnt)
-                    return res;
+                running = FALSE;
+                break;
         }
     }
 
-    return 0;
+    TE_eraseDisplay ();
+    return res;
 }
 #endif
 
@@ -861,6 +876,7 @@ void TE_eraseToEOL (void)
 
 void TE_eraseDisplay (void)
 {
+    TE_moveCursor (1, 1);
     TE_putstr (CSI "J");
 }
 

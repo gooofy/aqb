@@ -227,6 +227,10 @@ static void invalidateAll (IDE_editor ed)
 {
     for (uint16_t i=0; i<TE_MAX_ROWS; i++)
         ed->up2date_row[i] = FALSE;
+    ed->up2date_il_pos       = FALSE;
+    ed->up2date_il_num_lines = FALSE;
+    ed->up2date_il_flags     = FALSE;
+    ed->up2date_il_filename  = FALSE;
 }
 
 static void scroll(IDE_editor ed)
@@ -1153,6 +1157,7 @@ static void show_help(IDE_editor ed)
                   "F1     - this help screen\n"
                   "F7     - compile\n"
                   "Ctrl-C - quit", "Close");
+    invalidateAll (ed);
 }
 
 static void key_cb (uint16_t key, void *user_data)
@@ -1231,10 +1236,6 @@ IDE_editor openEditor(void)
     ed->editing          = FALSE;
 
     invalidateAll (ed);
-    ed->up2date_il_pos       = FALSE;
-    ed->up2date_il_num_lines = FALSE;
-    ed->up2date_il_flags     = FALSE;
-    ed->up2date_il_filename  = FALSE;
 
     initWindowSize(ed);
 
