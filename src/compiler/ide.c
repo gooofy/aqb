@@ -20,12 +20,12 @@
 #define STYLE_NUMBER  3
 #define STYLE_COMMENT 4
 
-#define INFOLINE            "X=   1 Y=   1 #=   0  new file"
-#define INFOLINE_CURSOR_X      2
-#define INFOLINE_CURSOR_Y      9
-#define INFOLINE_NUM_LINES    16
-#define INFOLINE_CHANGED      21
-#define INFOLINE_FILENAME     22
+#define INFOLINE            "F1:help X=   1 Y=   1 #=   0  new file"
+#define INFOLINE_CURSOR_X     10
+#define INFOLINE_CURSOR_Y     17
+#define INFOLINE_NUM_LINES    24
+#define INFOLINE_CHANGED      29
+#define INFOLINE_FILENAME     30
 
 #define CR  13
 #define LF  10
@@ -357,8 +357,6 @@ static IDE_line buf2line (IDE_editor ed)
                 case S_LCOMMENT:
                     buf[pos] = '\'';
                     style[pos++] = STYLE_COMMENT;
-                    buf[pos] = ' ';
-                    style[pos++] = STYLE_COMMENT;
                     for (char *c=tkn->u.str; *c; c++)
                     {
                         buf[pos] = *c;
@@ -371,8 +369,6 @@ static IDE_line buf2line (IDE_editor ed)
                     buf[pos] = 'E';
                     style[pos++] = STYLE_COMMENT;
                     buf[pos] = 'M';
-                    style[pos++] = STYLE_COMMENT;
-                    buf[pos] = ' ';
                     style[pos++] = STYLE_COMMENT;
                     for (char *c=tkn->u.str; *c; c++)
                     {
@@ -854,11 +850,11 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
                     break;
                 case STYLE_STRING:
                     TE_setTextStyle (TE_STYLE_NORMAL);
-                    TE_setTextStyle (TE_STYLE_WHITE);
+                    TE_setTextStyle (TE_STYLE_BLUE);
                     break;
                 case STYLE_NUMBER:
                     TE_setTextStyle (TE_STYLE_NORMAL);
-                    TE_setTextStyle (TE_STYLE_WHITE);
+                    TE_setTextStyle (TE_STYLE_BLUE);
                     break;
                 case STYLE_COMMENT:
                     TE_setTextStyle (TE_STYLE_ITALICS);
@@ -1151,6 +1147,14 @@ static void IDE_exit (IDE_editor ed)
     exit(0);
 }
 
+static void show_help(IDE_editor ed)
+{
+    TE_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
+                  "F1     - this help screen\n"
+                  "F7     - compile\n"
+                  "Ctrl-C - quit", "Close");
+}
+
 static void key_cb (uint16_t key, void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
@@ -1188,6 +1192,11 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_CTRL_S:
             IDE_save(ed);
+            break;
+
+        case KEY_HELP:
+        case KEY_F1:
+            show_help(ed);
             break;
 
         default:

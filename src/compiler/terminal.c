@@ -56,7 +56,7 @@ struct ReqToolsBase         *ReqToolsBase;
 
 #endif
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define LOG_FILENAME "ide.log"
 static FILE *logf=NULL;
@@ -296,6 +296,7 @@ bool TE_init (void)
     g_ConOpened = TRUE;
 
     TE_putstr(CSI "12{"); /* window resize events activated */
+    TE_putstr(CSI ">1l"); /* auto scroll mode deactivated */
     TE_flush();
 
     queue_read(g_readReq, &g_ibuf); /* send the first console read request */
@@ -306,7 +307,7 @@ bool TE_init (void)
 
 // handle CSI sequences: state machine
 
-typedef enum {ESC_idle, ESC_esc1, ESC_csi } ESC_state_t;
+typedef enum {ESC_idle, ESC_esc1, ESC_csi, ESC_tilde } ESC_state_t;
 
 static inline void report_key (uint16_t key)
 {
@@ -364,15 +365,62 @@ void TE_run (void)
                                 report_key (KEY_CURSOR_LEFT);
                                 esc_state = ESC_idle;
                                 break;
+                            case '0':
+                                report_key (KEY_F1);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '1':
+                                report_key (KEY_F2);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '2':
+                                report_key (KEY_F3);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '3':
+                                report_key (KEY_F4);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '4':
+                                report_key (KEY_F5);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '5':
+                                report_key (KEY_F6);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '6':
+                                report_key (KEY_F7);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '7':
+                                report_key (KEY_F8);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '8':
+                                report_key (KEY_F9);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '9':
+                                report_key (KEY_F10);
+                                esc_state = ESC_tilde;
+                                break;
+                            case '?':
+                                report_key (KEY_HELP);
+                                esc_state = ESC_tilde;
+                                break;
                             default:
-                                report_key (0x1b);
-                                report_key (ch);
+                                report_key (KEY_UNKNOWN1);
                                 esc_state = ESC_idle;
                                 break;
                         }
                         break;
                     case ESC_csi:
                         dprintf ("*** inside CSI sequence: 0x%02x\n", ch);
+                        esc_state = ESC_idle;
+                        break;
+                    case ESC_tilde:
+                        dprintf ("*** skipping tilde %c\n", ch);
                         esc_state = ESC_idle;
                         break;
                 }

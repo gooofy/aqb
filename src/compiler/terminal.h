@@ -39,6 +39,7 @@
 #define KEY_F8           1017
 #define KEY_F9           1018
 #define KEY_F10          1019
+#define KEY_HELP         1020
 #define KEY_UNKNOWN1     9993
 #define KEY_UNKNOWN2     9994
 #define KEY_UNKNOWN3     9995
