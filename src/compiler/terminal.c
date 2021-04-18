@@ -33,13 +33,12 @@
 
 #include <libraries/reqtools.h>
 #include <inline/reqtools.h>
-//#include <proto/reqtools.h>
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct DOSBase       *DOSBase;
 extern struct IntuitionBase *IntuitionBase;
-struct ReqToolsBase  *ReqToolsBase;
+struct ReqToolsBase         *ReqToolsBase;
 
 #define CSI       "\x9b"
 
@@ -78,8 +77,8 @@ static void           *g_key_cb_user_data = NULL;
                     (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
 
 static struct NewWindow g_nw =
-    {
-    0, 0, 640,200,
+{
+    0, 0, 640, 200,
     -1,-1,                            /* detailpen, blockpen */
     CLOSEWINDOW,                      /* IDCMP */
     WINDOWDEPTH|WINDOWSIZING|
@@ -92,7 +91,7 @@ static struct NewWindow g_nw =
     100,45,                           /* min width, height */
     1024, 768,                        /* max width, height */
     WBENCHSCREEN
-    };
+};
 
 static struct Window   *g_win           = NULL;
 static struct IOStdReq *g_writeReq      = NULL;
@@ -560,6 +559,8 @@ uint16_t TE_getch (void)
         }
         else
         {
+            if (c==127)
+                return KEY_BACKSPACE;
             return c;
         }
     }

@@ -977,7 +977,7 @@ static void repaint (IDE_editor ed)
         TE_setTextStyle (TE_STYLE_INVERSE);
         TE_moveCursor   (ed->infoline_row+1, 1);
         char *c = ed->infoline;
-        int col = 1;
+        int col = 0;
         while (*c && col < ed->window_width)
         {
             TE_putc (*c++);
