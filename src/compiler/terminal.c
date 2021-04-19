@@ -99,6 +99,8 @@ static struct MsgPort  *g_writePort     = NULL;
 static struct IOStdReq *g_readReq       = NULL;
 static struct MsgPort  *g_readPort      = NULL;
 static bool             g_ConOpened = FALSE;
+static uint16_t         g_scrollStart   = 0;
+static uint16_t         g_scrollEnd     = 10;
 
 static struct MsgPort *create_port(STRPTR name, LONG pri)
 {
@@ -453,6 +455,30 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
 	ULONG res = rtEZRequest (body, gadgets, NULL, NULL);
 	dprintf ("rtEZRequest result: %ld\n", res);
 	return res;
+}
+
+void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
+{
+    g_scrollStart = row_start;
+    g_scrollEnd   = row_end;
+}
+
+void TE_scrollUp (void)
+{
+    //TE_printf ( CSI "%dy", g_scrollStart+1);
+    TE_printf ( CSI "%dt", g_scrollEnd+1);
+    TE_printf ( CSI "S");
+    //TE_printf ( CSI "y");
+    TE_printf ( CSI "t");
+}
+
+void TE_scrollDown (void)
+{
+    //TE_printf ( CSI "%dy", g_scrollStart+1);
+    TE_printf ( CSI "%dt", g_scrollEnd+1);
+    TE_printf ( CSI "T");
+    //TE_printf ( CSI "y");
+    TE_printf ( CSI "t");
 }
 
 #else // no __amigaos__ -> linux/posix/ansi
@@ -830,6 +856,22 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
     TE_eraseDisplay ();
     return res;
 }
+
+void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
+{
+    TE_printf (CSI "%d;%dr", row_start, row_end);
+}
+
+void TE_scrollUp (void)
+{
+    TE_printf ( CSI "S");
+}
+
+void TE_scrollDown (void)
+{
+    TE_printf ( CSI "T");
+}
+
 #endif
 
 void TE_putc(char c)
@@ -903,16 +945,6 @@ void TE_setCursorVisible (bool visible)
 void TE_setTextStyle (int style)
 {
     TE_printf ( CSI "%dm", style);
-}
-
-void TE_scrollUp (void)
-{
-    TE_printf ( CSI "S");
-}
-
-void TE_scrollDown (void)
-{
-    TE_printf ( CSI "T");
 }
 
 void TE_onKeyCall (TE_key_cb cb, void *user_data)

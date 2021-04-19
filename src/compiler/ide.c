@@ -183,6 +183,7 @@ void initWindowSize (IDE_editor ed)
     ed->window_width  = cols;
     ed->window_height = rows;
     ed->infoline_row  = rows-1;
+    TE_setScrollArea (1, rows-1);
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)
@@ -1160,6 +1161,11 @@ static void show_help(IDE_editor ed)
     invalidateAll (ed);
 }
 
+static void compile(IDE_editor ed)
+{
+    invalidateAll (ed);
+}
+
 static void key_cb (uint16_t key, void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
@@ -1202,6 +1208,10 @@ static void key_cb (uint16_t key, void *user_data)
         case KEY_HELP:
         case KEY_F1:
             show_help(ed);
+            break;
+
+        case KEY_F7:
+            compile(ed);
             break;
 
         default:
