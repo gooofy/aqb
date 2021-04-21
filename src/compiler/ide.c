@@ -13,6 +13,8 @@
 #include "terminal.h"
 #include "scanner.h"
 #include "frontend.h"
+#include "compiler.h"
+#include "logger.h"
 
 #define STYLE_NORMAL  0
 #define STYLE_KW      1
@@ -34,6 +36,12 @@
 #define SCROLL_MARGIN 5
 
 #define INDENT_SPACES 4
+
+#ifdef __amigaos__
+#define TMP_BINFN "T:aqb_out.exe"
+#else
+#define TMP_BINFN "/tmp/aqb_out.exe"
+#endif
 
 static S_symbol S_IF;
 static S_symbol S_ELSEIF;
@@ -70,7 +78,8 @@ struct IDE_editor_
 	bool               changed;
 	char               infoline[36+PATH_MAX];
     uint16_t           infoline_row;
-	char 	           filename[PATH_MAX];
+	char 	           sourcefn[PATH_MAX];
+	char 	           binfn[PATH_MAX];
 
 	uint16_t           cursor_col, cursor_row;
     IDE_line           cursor_line;
@@ -84,7 +93,7 @@ struct IDE_editor_
     bool               up2date_il_pos;
     bool               up2date_il_num_lines;
     bool               up2date_il_flags;
-    bool               up2date_il_filename;
+    bool               up2date_il_sourcefn;
 
     // cursor_line currently being edited (i.e. represented in buffer):
     bool               editing;
@@ -231,7 +240,7 @@ static void invalidateAll (IDE_editor ed)
     ed->up2date_il_pos       = FALSE;
     ed->up2date_il_num_lines = FALSE;
     ed->up2date_il_flags     = FALSE;
-    ed->up2date_il_filename  = FALSE;
+    ed->up2date_il_sourcefn  = FALSE;
 }
 
 static void scroll(IDE_editor ed)
@@ -959,16 +968,16 @@ static void repaint (IDE_editor ed)
         update_infoline = TRUE;
         ed->up2date_il_flags = TRUE;
     }
-    if (!ed->up2date_il_filename)
+    if (!ed->up2date_il_sourcefn)
     {
         char *fs = ed->infoline + INFOLINE_FILENAME;
-        for (char *c = ed->filename; *c; c++)
+        for (char *c = ed->sourcefn; *c; c++)
         {
             *fs++ = *c;
         }
         *fs = 0;
         update_infoline = TRUE;
-        ed->up2date_il_filename = TRUE;
+        ed->up2date_il_sourcefn = TRUE;
     }
 
     if (update_infoline)
@@ -1118,10 +1127,10 @@ static void IDE_save (IDE_editor ed)
     if (ed->editing)
         commitBuf (ed);
 
-    FILE *sourcef = fopen(ed->filename, "w");
+    FILE *sourcef = fopen(ed->sourcefn, "w");
     if (!sourcef)
     {
-        fprintf(stderr, "failed to write %s: %s\n\n", ed->filename, strerror(errno));
+        fprintf(stderr, "failed to write %s: %s\n\n", ed->sourcefn, strerror(errno));
         exit(2);
     }
 
@@ -1163,6 +1172,10 @@ static void show_help(IDE_editor ed)
 
 static void compile(IDE_editor ed)
 {
+    CO_compile(ed->sourcefn, /*symfn=*/ NULL,
+               ed->binfn,
+               /*asm_gas_fn=*/ NULL,
+               /*asm_asmpro_fn=*/ NULL);
     invalidateAll (ed);
 }
 
@@ -1232,7 +1245,7 @@ IDE_editor openEditor(void)
 
     strncpy (ed->infoline, INFOLINE, sizeof(ed->infoline));
     ed->infoline_row     = 0;
-    ed->filename[0]      = 0;
+    ed->sourcefn[0]      = 0;
     ed->line_first       = NULL;
     ed->line_last        = NULL;
     ed->num_lines	     = 0;
@@ -1250,6 +1263,28 @@ IDE_editor openEditor(void)
     initWindowSize(ed);
 
 	return ed;
+}
+
+static void IDE_setSourceFn(IDE_editor ed, char *sourcefn)
+{
+    strcpy (ed->sourcefn, sourcefn);
+    int l = strlen(sourcefn);
+
+    if (l>4)
+    {
+        strcpy (ed->binfn, sourcefn);
+        if (   (ed->binfn[l-4]=='.')
+            && (ed->binfn[l-3]=='b')
+            && (ed->binfn[l-2]=='a')
+            && (ed->binfn[l-1]=='s'))
+            ed->binfn[l-4]=0;
+        else
+            strcpy (ed->binfn, TMP_BINFN);
+    }
+    else
+    {
+        strcpy (ed->binfn, TMP_BINFN);
+    }
 }
 
 static void IDE_load (IDE_editor ed, char *sourcefn)
@@ -1297,7 +1332,7 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
 
     fclose(sourcef);
 
-    strcpy (ed->filename, sourcefn);
+    IDE_setSourceFn(ed, sourcefn);
     ed->cursor_col		 = 0;
     ed->cursor_row		 = 0;
     ed->cursor_line      = ed->line_first;
@@ -1305,9 +1340,15 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
     indentSuccLines (ed, ed->line_first);
 }
 
-void IDE_open(char *fn)
+static void log_cb (uint8_t lvl, char *fmt, ...)
+{
+    assert(FALSE); // FIXME
+}
+
+void IDE_open(char *sourcefn)
 {
     TE_init();
+    LOG_init (log_cb);
 
     // indentation support
     S_IF       = S_Symbol ("if", FALSE);
@@ -1330,8 +1371,10 @@ void IDE_open(char *fn)
 
 	IDE_editor ed = openEditor();
 
-    if (fn)
-        IDE_load (ed, fn);
+    if (sourcefn)
+        IDE_load (ed, sourcefn);
+    else
+        assert(FALSE); // FIXME: implement IDE_new
 
     TE_setCursorVisible (FALSE);
     TE_moveCursor (0, 0);

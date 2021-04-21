@@ -9,6 +9,7 @@
 #include "codegen.h"
 #include "options.h"
 #include "errormsg.h"
+#include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
 #define SYM_VERSION     39
@@ -1096,13 +1097,18 @@ E_module E_loadModule(S_symbol sModule)
     if (mod)
         return mod;
 
-    mod = E_Module(sModule);
-    TAB_enter (g_modCache, sModule, mod);
-
     char symfn[PATH_MAX];
     snprintf(symfn, PATH_MAX, "%s.sym", S_name(sModule));
 
     FILE *modf = E_openModuleFile (symfn);
+    if (!modf)
+    {
+        LOG_printf (LOG_ERROR, "failed to read symbol file %s", symfn);
+        return NULL;
+    }
+
+    mod = E_Module(sModule);
+    TAB_enter (g_modCache, sModule, mod);
 
     // check header
 
