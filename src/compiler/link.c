@@ -7,8 +7,6 @@
  */
 
 
-#define ENABLE_DEBUG
-
 #define HUNK_TYPE_UNIT     0x03E7
 #define HUNK_TYPE_NAME     0x03E8
 #define HUNK_TYPE_CODE     0x03E9
@@ -46,7 +44,7 @@ static void link_fail (string msg)
     exit(127);
 }
 
-#ifdef ENABLE_DEBUG
+#if LOG_LEVEL == LOG_DEBUG
 static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
 {
     LOG_printf (LOG_DEBUG, "HEX: 0x%08x  ", offset);
@@ -149,9 +147,7 @@ static bool load_hunk_name(string sourcefn, FILE *f)
     }
 
     g_buf[name_len] = 0;
-#ifdef ENABLE_DEBUG
-    printf ("link: %s: hunk name: %s\n", sourcefn, g_buf);
-#endif
+    LOG_printf (LOG_DEBUG, "link: %s: hunk name: %s\n", sourcefn, g_buf);
 
     return TRUE;
 }
@@ -195,9 +191,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
         return FALSE;
     }
     code_len *=4;
-#ifdef ENABLE_DEBUG
-    printf ("link: %s: code hunk size: %d bytes.\n", sourcefn, code_len);
-#endif
+    LOG_printf (LOG_DEBUG, "link: %s: code hunk size: %d bytes.\n", sourcefn, code_len);
 
     g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_codeSeg, code_len);
 
@@ -220,9 +214,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
         return FALSE;
     }
     data_len *=4;
-#ifdef ENABLE_DEBUG
-    printf ("link: %s: data hunk size: %d bytes.\n", sourcefn, data_len);
-#endif
+    LOG_printf (LOG_DEBUG, "link: %s: data hunk size: %d bytes.\n", sourcefn, data_len);
 
     g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_dataSeg, data_len);
 
@@ -231,9 +223,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
         fprintf (stderr, "link: read error.\n");
         return FALSE;
     }
-#ifdef ENABLE_DEBUG
     //hexdump (g_hunk_cur->mem, 0, data_len);
-#endif
     g_hunk_cur->mem_pos = data_len;
 
     return TRUE;
@@ -248,9 +238,7 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
         return FALSE;
     }
     bss_len *=4;
-#ifdef ENABLE_DEBUG
-    printf ("link: %s: bss hunk size: %d bytes.\n", sourcefn, bss_len);
-#endif
+    LOG_printf (LOG_DEBUG, "link: %s: bss hunk size: %d bytes.\n", sourcefn, bss_len);
 
     g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_bssSeg, 0);
 
@@ -278,9 +266,7 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
             fprintf (stderr, "link: read error.\n");
             return FALSE;
         }
-#ifdef ENABLE_DEBUG
-        printf ("link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
-#endif
+        LOG_printf (LOG_DEBUG, "link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
 
         AS_segment seg = getOrCreateSegment (sourcefn, hunk_id, AS_unknownSeg, /*min_size=*/0);
 
@@ -337,9 +323,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
         }
 
         g_buf[name_len] = 0;
-#ifdef ENABLE_DEBUG
-        printf ("link: %s: hunk_ext: ext_type=%d, name_len=%d, name=%s\n", sourcefn, ext_type, name_len, g_buf);
-#endif
+        LOG_printf (LOG_DEBUG, "link: %s: hunk_ext: ext_type=%d, name_len=%d, name=%s\n", sourcefn, ext_type, name_len, g_buf);
 
         S_symbol sym = S_Symbol ((string) g_buf, /*case_sensitive=*/FALSE);
 
@@ -402,9 +386,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     return FALSE;
                 }
                 AS_segmentAddDef (g_hunk_cur, sym, offset);
-#ifdef ENABLE_DEBUG
-                printf ("link: %s:  -> ext_def, offset=0x%08x\n", sourcefn, offset);
-#endif
+                LOG_printf (LOG_DEBUG, "link: %s:  -> ext_def, offset=0x%08x\n", sourcefn, offset);
                 break;
             }
             default:
@@ -424,9 +406,7 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
         fprintf (stderr, "link: read error.\n");
         return FALSE;
     }
-#ifdef ENABLE_DEBUG
-    printf ("link: %s: hunk type: %08x\n", sourcefn, ht);
-#endif
+    LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
 
     if (ht != HUNK_TYPE_UNIT)
     {
@@ -440,9 +420,7 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
     {
         if (!fread_u4 (f, &ht))
             break;
-#ifdef ENABLE_DEBUG
-        printf ("link: %s: hunk type: %08x\n", sourcefn, ht);
-#endif
+        LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
 
         switch (ht)
         {
@@ -511,9 +489,7 @@ bool LI_link (LI_segmentList sl)
     {
         for (AS_segmentDef def = node->seg->defs; def; def=def->next)
         {
-#ifdef ENABLE_DEBUG
-            printf ("link: pass1: found definition for symbol %-20s (%p): offset=0x%08x at hunk #%02d (%s)\n", S_name (def->sym), def->sym, def->offset, node->seg->hunk_id, node->seg->sourcefn);
-#endif
+            LOG_printf (LOG_DEBUG, "link: pass1: found definition for symbol %-20s (%p): offset=0x%08x at hunk #%02d (%s)\n", S_name (def->sym), def->sym, def->offset, node->seg->hunk_id, node->seg->sourcefn);
 
             symInfo si = (symInfo) TAB_look (symTable, def->sym);
             if (si)
@@ -563,9 +539,7 @@ bool LI_link (LI_segmentList sl)
                 si = U_poolAlloc (UP_link, sizeof(*si));
                 si->seg    = commonSeg;
                 si->offset = commonSeg->mem_pos;
-#ifdef ENABLE_DEBUG
-                printf ("link: symbol %s allocated in common segment at offset 0x%08x, common_size=%zd\n", S_name(sym), si->offset, sr->common_size);
-#endif
+                LOG_printf (LOG_DEBUG, "link: symbol %s allocated in common segment at offset 0x%08x, common_size=%zd\n", S_name(sym), si->offset, sr->common_size);
 
                 TAB_enter (symTable, sym, si);
 
@@ -576,14 +550,12 @@ bool LI_link (LI_segmentList sl)
 
             while (sr)
             {
-#ifdef ENABLE_DEBUG
-                printf ("link: pass2: adding reloc32 for symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, offset 0x%08x\n",
-                        S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
-#endif
+                LOG_printf (LOG_DEBUG, "link: pass2: adding reloc32 for symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, offset 0x%08x\n",
+                            S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
                 uint32_t *p = (uint32_t *) (node->seg->mem+sr->offset);
                 *p = ENDIAN_SWAP_32(si->offset);
                 AS_segmentAddReloc32 (node->seg, si->seg, sr->offset);
-#ifdef ENABLE_DEBUG
+#if LOG_LEVEL == LOG_DEBUG
                 hexdump (node->seg->mem, sr->offset-4, 16);
 #endif
                 sr = sr->next;

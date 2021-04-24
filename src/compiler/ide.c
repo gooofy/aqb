@@ -1350,8 +1350,9 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 	if (lvl >= LOG_INFO)
     {
         TE_scrollUp ();
-        TE_moveCursor (g_ed->window_height, 0);
+        TE_moveCursor (g_ed->window_height+1, 0);
         TE_eraseToEOL ();
+        //TE_moveCursor (g_ed->window_height, 0);
 
         static char buf[1024];
         int l = vsnprintf (buf, 1024, fmt, args);
