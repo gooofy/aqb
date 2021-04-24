@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "link.h"
+#include "logger.h"
 
 /*
  * Amiga Hunk file format related definitions
@@ -33,7 +34,7 @@ static FILE      *g_fLoadFile=NULL;            // load file being written
 
 static void link_fail (string msg)
 {
-    fprintf (stderr, "*** linker error: %s\n", msg);
+    LOG_printf (LOG_ERROR, "*** linker error: %s\n", msg);
     assert(FALSE);
 
     if (g_fLoadFile)
@@ -48,15 +49,15 @@ static void link_fail (string msg)
 #ifdef ENABLE_DEBUG
 static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
 {
-    printf ("HEX: 0x%08x  ", offset);
+    LOG_printf (LOG_DEBUG, "HEX: 0x%08x  ", offset);
     uint32_t cnt=0;
     while (cnt<num_bytes)
     {
         uint32_t w = *( (uint32_t *) (mem+offset+cnt) );
-        printf (" 0x%08x", ENDIAN_SWAP_32(w));
+        LOG_printf (LOG_DEBUG, " 0x%08x", ENDIAN_SWAP_32(w));
         cnt+=4;
     }
-    printf ("\n");
+    LOG_printf (LOG_DEBUG, "\n");
 }
 #endif
 
@@ -104,26 +105,24 @@ static bool load_hunk_unit(FILE *f)
     uint32_t name_len;
     if (!fread_u4 (f, &name_len))
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     name_len *=4;
     if (name_len>=MAX_BUF)
     {
-        fprintf (stderr, "link: unit name too long.\n");
+        LOG_printf (LOG_ERROR, "link: unit name too long.\n");
         return FALSE;
     }
 
     if (fread (g_buf, name_len, 1, f) != 1)
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
 
     g_buf[name_len] = 0;
-#ifdef ENABLE_DEBUG
-    printf ("link: unit name: %s\n", g_buf);
-#endif
+    LOG_printf (LOG_DEBUG, "link: unit name: %s\n", g_buf);
 
     return TRUE;
 }
@@ -626,7 +625,7 @@ void write_hunk_code (AS_segment seg, FILE *f)
     fwrite_u4 (f, HUNK_TYPE_CODE);
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
-    printf ("link: writing code section, size= %zd = 0x%08zx bytes (%d = 0x%08x LONGs)\n", seg->mem_pos, seg->mem_pos, n, n);
+    LOG_printf (LOG_INFO, "link: writing code section, size= %zd = 0x%08zx bytes (%d = 0x%08x LONGs)\n", seg->mem_pos, seg->mem_pos, n, n);
     fwrite_u4 (f, n);
     if (fwrite (seg->mem, n*4, 1, f) != 1)
         link_fail ("write error");

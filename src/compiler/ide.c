@@ -1343,7 +1343,24 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_list args;
     va_start(args, fmt);
 	if (lvl >= LOG_INFO)
-    	TE_vprintf (fmt, args);
+    {
+        static char buf[1024];
+        int l = vsnprintf (buf, 1024, fmt, args);
+        for (int i =0; i<l; i++)
+        {
+            char c = buf[i];
+            if (c=='\n')
+            {
+                TE_putc('\n');
+                TE_putc('\r');
+            }
+            else
+            {
+                TE_putc(c);
+            }
+        }
+    	//TE_vprintf (fmt, args);
+    }
 #if LOG_LEVEL == LOG_DEBUG
 	vfprintf (logf, fmt, args);
 	fflush (logf);
