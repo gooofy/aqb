@@ -52,6 +52,7 @@ void      TE_flush              (void);
 void      TE_putc               (char c);
 void      TE_putstr             (string s);
 void      TE_printf             (char* format, ...);
+void      TE_vprintf            (char* format, va_list ap);
 void      TE_bell               (void);
 
 void      TE_moveCursor         (int row, int col);

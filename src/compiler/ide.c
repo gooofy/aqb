@@ -108,10 +108,8 @@ struct IDE_editor_
     uint16_t           buf2_len;
 };
 
-#define DEBUG 0
 #define LOG_FILENAME "ide.log"
 static FILE *logf=NULL;
-#define dprintf(fmt, ...) do { if (DEBUG) fprintf(logf, fmt, __VA_ARGS__); } while (0)
 
 IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)
 {
@@ -707,8 +705,8 @@ static void indentLine (IDE_line l)
     l->indent = l->prev->indent + l->prev->post_indent + l->pre_indent;
     if (l->indent < 0)
         l->indent = 0;
-    dprintf ("identLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
-             l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
+    LOG_printf (LOG_DEBUG, "identLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
+                l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
 }
 
 static void indentSuccLines (IDE_editor ed, IDE_line lp)
@@ -982,7 +980,7 @@ static void repaint (IDE_editor ed)
 
     if (update_infoline)
     {
-        dprintf ("outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
+        LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
         TE_setTextStyle (TE_STYLE_NORMAL);
         TE_setTextStyle (TE_STYLE_INVERSE);
         TE_moveCursor   (ed->infoline_row+1, 1);
@@ -1342,12 +1340,31 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
 
 static void log_cb (uint8_t lvl, char *fmt, ...)
 {
-    assert(FALSE); // FIXME
+    va_list args;
+    va_start(args, fmt);
+	if (lvl >= LOG_INFO)
+    	TE_vprintf (fmt, args);
+#if LOG_LEVEL == LOG_DEBUG
+	vfprintf (logf, fmt, args);
+	fflush (logf);
+#endif
+    va_end(args);
 }
+
+#if LOG_LEVEL == LOG_DEBUG
+static void close_logf(void)
+{
+	fclose (logf);
+}
+#endif
 
 void IDE_open(char *sourcefn)
 {
     TE_init();
+#if LOG_LEVEL == LOG_DEBUG
+    logf = fopen (LOG_FILENAME, "a");
+	atexit (close_logf);
+#endif
     LOG_init (log_cb);
 
     // indentation support
@@ -1364,10 +1381,6 @@ void IDE_open(char *sourcefn)
     S_LOOP     = S_Symbol ("loop", FALSE);
     S_WHILE    = S_Symbol ("while", FALSE);
     S_WEND     = S_Symbol ("wend", FALSE);
-
-#if DEBUG
-    logf = fopen (LOG_FILENAME, "a");
-#endif
 
 	IDE_editor ed = openEditor();
 

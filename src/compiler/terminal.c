@@ -894,10 +894,15 @@ void TE_putstr(char *s)
 void TE_printf (char* format, ...)
 {
     va_list args;
-    char buf[BUFSIZE];
     va_start(args, format);
-    vsnprintf (buf, BUFSIZE, format, args);
+    TE_vprintf (format, args);
     va_end(args);
+}
+
+void TE_vprintf (char* format, va_list args)
+{
+    static char buf[BUFSIZE];
+    vsnprintf (buf, BUFSIZE, format, args);
     TE_putstr(buf);
 }
 
