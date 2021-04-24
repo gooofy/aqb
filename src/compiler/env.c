@@ -1080,8 +1080,7 @@ FILE *E_openModuleFile (string filename)
 
         snprintf(modfn, PATH_MAX, "%s/%s", sp->path, filename);
 
-        if (OPT_get(OPTION_VERBOSE))
-            printf ("Trying to load %s from %s ...\n", filename, modfn);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "trying to load %s from %s ...\n", filename, modfn);
 
         FILE *f = fopen(modfn, "r");
         if (f)
@@ -1116,7 +1115,7 @@ E_module E_loadModule(S_symbol sModule)
     if (fread(&m, 4, 1, modf) != 1) goto fail;
     if (m != SYM_MAGIC)
     {
-        printf("%s: head magic mismatch\n", symfn);
+        LOG_printf (LOG_ERROR, "%s: head magic mismatch\n", symfn);
         goto fail;
     }
 

@@ -117,6 +117,14 @@ int main (int argc, char *argv[])
 
 #ifdef __amigaos__
     E_addModulePath("AQB:lib");
+#else
+    char *aqb_env = getenv ("AQB");
+    if (aqb_env)
+    {
+        // FIXME: path does not conform to linux fs hier
+        snprintf (symfn, PATH_MAX, "%s/src/lib", aqb_env);
+        E_addModulePath(symfn);
+    }
 #endif
 
     asm_gas_fn[0]=0;
