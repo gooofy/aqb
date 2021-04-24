@@ -50,6 +50,7 @@
 
 void      TE_flush              (void);
 void      TE_putc               (char c);
+uint16_t  TE_waitkey            (void);
 void      TE_putstr             (string s);
 void      TE_printf             (char* format, ...);
 void      TE_vprintf            (char* format, va_list ap);

@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include "logger.h"
 
 #ifdef __amigaos__
 
@@ -57,10 +58,6 @@ struct ReqToolsBase         *ReqToolsBase;
 #endif
 
 #define DEBUG 0
-
-#define LOG_FILENAME "ide.log"
-static FILE *logf=NULL;
-#define dprintf(...) do { if (DEBUG) { fprintf(logf, __VA_ARGS__); fflush(logf);}} while (0)
 
 #define BUFSIZE   2048
 static char            g_outbuf[BUFSIZE];
@@ -336,7 +333,7 @@ void TE_run (void)
             if ((lch = con_may_get_char(g_readPort, &g_ibuf)) != -1)
 			{
                 ch = lch;
-                dprintf ("*** got ch: 0x%02x, state=%d\n", ch, esc_state);
+                LOG_printf (LOG_DEBUG, "terminal: *** got ch: 0x%02x, state=%d\n", ch, esc_state);
                 switch (esc_state)
                 {
                     case ESC_idle:
@@ -418,11 +415,11 @@ void TE_run (void)
                         }
                         break;
                     case ESC_csi:
-                        dprintf ("*** inside CSI sequence: 0x%02x\n", ch);
+                        LOG_printf (LOG_DEBUG, "terminal: *** inside CSI sequence: 0x%02x\n", ch);
                         esc_state = ESC_idle;
                         break;
                     case ESC_tilde:
-                        dprintf ("*** skipping tilde %c\n", ch);
+                        LOG_printf (LOG_DEBUG, "terminal: *** skipping tilde %c\n", ch);
                         esc_state = ESC_idle;
                         break;
                 }
@@ -453,7 +450,7 @@ void TE_run (void)
 uint16_t TE_EZRequest (char *body, char *gadgets)
 {
 	ULONG res = rtEZRequest (body, gadgets, NULL, NULL);
-	dprintf ("rtEZRequest result: %ld\n", res);
+	LOG_printf (LOG_DEBUG, "rtEZRequest result: %ld\n", res);
 	return res;
 }
 
@@ -481,6 +478,12 @@ void TE_scrollDown (void)
     TE_printf ( CSI "t");
 }
 
+uint16_t TE_waitkey (void)
+{
+    assert (FALSE); // FIXME
+    return 0;
+}
+
 #else // no __amigaos__ -> linux/posix/ansi
 
 void TE_flush  (void)
@@ -490,7 +493,7 @@ void TE_flush  (void)
     g_bpos = 0;
 }
 
-uint16_t TE_getch (void)
+static uint16_t TE_getch (void)
 {
     int nread;
     char c, seq[4];
@@ -502,16 +505,16 @@ uint16_t TE_getch (void)
     {
         if (c==KEY_ESC) // handle escape sequences
         {
-            dprintf ("TE_getch(): handling escape sequence...\n");
+            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): handling escape sequence...\n");
             /* If this is just an ESC, we'll timeout here. */
             if (read(STDIN_FILENO,seq,1) == 0)
             {
-                dprintf ("TE_getch(): ESC timeout 1\n");
+                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 1\n");
                 return KEY_ESC;
             }
             if (read(STDIN_FILENO,seq+1,1) == 0)
             {
-                dprintf ("TE_getch(): ESC timeout 2\n");
+                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 2\n");
                 return KEY_ESC;
             }
 
@@ -522,12 +525,12 @@ uint16_t TE_getch (void)
                     switch (seq[1])
                     {
                         case '1':       // ESC [ 1 ...
-                            if (read(STDIN_FILENO,seq+2,1) == 0)
+                            if (read(STDIN_FILENO,seq+2,2) == 0)
                             {
-                                dprintf ("TE_getch(): ESC timeout 3\n");
+                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 3\n");
                                 return KEY_ESC;
                             }
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '5': return KEY_F5;
@@ -540,10 +543,10 @@ uint16_t TE_getch (void)
                         case '2':       // ESC [ 2 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                dprintf ("TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '0': return KEY_F9;
@@ -554,10 +557,10 @@ uint16_t TE_getch (void)
                         case '3':       // ESC [ 3 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                dprintf ("TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_DEL;
@@ -567,10 +570,10 @@ uint16_t TE_getch (void)
                         case '4':       // ESC [ 4 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                dprintf ("TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_END;
@@ -580,10 +583,10 @@ uint16_t TE_getch (void)
                         case '5':       // ESC [ 5 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                dprintf ("TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_PAGE_UP;
@@ -593,10 +596,10 @@ uint16_t TE_getch (void)
                         case '6':       // ESC [ 6 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                dprintf ("TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_PAGE_DOWN;
@@ -608,12 +611,12 @@ uint16_t TE_getch (void)
                         case 'C': return KEY_CURSOR_RIGHT;
                         case 'D': return KEY_CURSOR_LEFT;
                         default:
-                            dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
                             return KEY_UNKNOWN5;
                     }
                     break;
                 case 'O':       // ESC O ...
-                    dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1]);
+                    LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1]);
                     switch(seq[1])
                     {
                         case 'H': return KEY_HOME;
@@ -626,7 +629,7 @@ uint16_t TE_getch (void)
                     }
                     break;
                 default:
-                    dprintf ("TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
+                    LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
                     return KEY_UNKNOWN7;
 
             }
@@ -639,6 +642,11 @@ uint16_t TE_getch (void)
         }
     }
     return 0;
+}
+
+uint16_t TE_waitkey (void)
+{
+    return TE_getch();
 }
 
 static void handleSigWinCh(int unused __attribute__((unused)))
@@ -764,7 +772,7 @@ void TE_run(void)
     while (running)
     {
         uint16_t ch = TE_getch();
-        dprintf ("TE_getch() returned %d\n", ch);
+        LOG_printf (LOG_DEBUG, "terminal: TE_getch() returned %d\n", ch);
         if (g_key_cb)
             g_key_cb (ch, g_key_cb_user_data);
     }

@@ -110,6 +110,7 @@ struct IDE_editor_
 
 #define LOG_FILENAME "ide.log"
 static FILE *logf=NULL;
+static IDE_editor g_ed;
 
 IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)
 {
@@ -1174,6 +1175,10 @@ static void compile(IDE_editor ed)
                ed->binfn,
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL);
+
+    TE_waitkey ();
+
+    TE_eraseDisplay ();
     invalidateAll (ed);
 }
 
@@ -1344,6 +1349,10 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_start(args, fmt);
 	if (lvl >= LOG_INFO)
     {
+        TE_scrollUp ();
+        TE_moveCursor (g_ed->window_height, 0);
+        TE_eraseToEOL ();
+
         static char buf[1024];
         int l = vsnprintf (buf, 1024, fmt, args);
         for (int i =0; i<l; i++)
@@ -1399,20 +1408,20 @@ void IDE_open(char *sourcefn)
     S_WHILE    = S_Symbol ("while", FALSE);
     S_WEND     = S_Symbol ("wend", FALSE);
 
-	IDE_editor ed = openEditor();
+	g_ed = openEditor();
 
     if (sourcefn)
-        IDE_load (ed, sourcefn);
+        IDE_load (g_ed, sourcefn);
     else
         assert(FALSE); // FIXME: implement IDE_new
 
     TE_setCursorVisible (FALSE);
     TE_moveCursor (0, 0);
     TE_eraseDisplay();
-    repaint(ed);
+    repaint(g_ed);
     TE_flush();
 
-	TE_onKeyCall(key_cb, ed);
+	TE_onKeyCall(key_cb, g_ed);
 
 	TE_run();
 }
