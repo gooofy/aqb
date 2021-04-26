@@ -86,7 +86,7 @@ void      TE_setCursorVisible   (bool visible);
 void      TE_setTextStyle       (int style);
 
 void      TE_setScrollArea      (uint16_t row_start, uint16_t row_end);
-void      TE_scrollUp           (void);
+void      TE_scrollUp           (bool fullscreen);
 void      TE_scrollDown         (void);
 
 bool      TE_getsize            (uint16_t *rows, uint16_t *cols);

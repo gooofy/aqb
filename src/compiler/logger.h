@@ -9,6 +9,8 @@
 
 #define LOG_LEVEL LOG_DEBUG
 
+#define LOG_FILENAME "aqb.log"
+
 typedef void (*LOG_cb_t)(uint8_t lvl, char *fmt, ...);
 extern LOG_cb_t LOG_cb;
 

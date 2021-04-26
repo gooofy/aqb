@@ -3,6 +3,6 @@
 
 #include "util.h"
 
-void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn);
+int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn);
 
 #endif

@@ -66,6 +66,8 @@ static void            (*g_size_cb)(void) = NULL;
 
 static TE_key_cb       g_key_cb = NULL;
 static void           *g_key_cb_user_data = NULL;
+static uint16_t        g_scrollStart   = 0;
+static uint16_t        g_scrollEnd     = 10;
 
 #ifdef __amigaos__
 
@@ -96,8 +98,6 @@ static struct MsgPort  *g_writePort     = NULL;
 static struct IOStdReq *g_readReq       = NULL;
 static struct MsgPort  *g_readPort      = NULL;
 static bool             g_ConOpened = FALSE;
-static uint16_t         g_scrollStart   = 0;
-static uint16_t         g_scrollEnd     = 10;
 
 static struct MsgPort *create_port(STRPTR name, LONG pri)
 {
@@ -460,13 +460,19 @@ void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
     g_scrollEnd   = row_end;
 }
 
-void TE_scrollUp (void)
+void TE_scrollUp (bool fullscreen)
 {
-    //TE_printf ( CSI "%dy", g_scrollStart+1);
-    TE_printf ( CSI "%dt", g_scrollEnd+1);
+    if (!fullscreen)
+    {
+        //TE_printf ( CSI "%dy", g_scrollStart+1);
+        TE_printf ( CSI "%dt", g_scrollEnd+1);
+    }
     TE_printf ( CSI "S");
-    //TE_printf ( CSI "y");
-    TE_printf ( CSI "t");
+    if (!fullscreen)
+    {
+        //TE_printf ( CSI "y");
+        TE_printf ( CSI "t");
+    }
 }
 
 void TE_scrollDown (void)
@@ -784,8 +790,8 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
 
     TE_getsize (&rows, &cols);
 
-    TE_scrollUp();
-    TE_scrollUp();
+    TE_scrollUp(/*fullscreen=*/TRUE);
+    TE_scrollUp(/*fullscreen=*/TRUE);
 
     TE_moveCursor (rows, 1);
 
@@ -799,12 +805,12 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
         }
         else
         {
-            TE_putc('\r');
-            TE_putc('\n');
+            TE_scrollUp(/*fullscreen=*/TRUE);
+            TE_moveCursor (rows, 1);
         }
     }
-    TE_printf ("\r\n");
-    TE_printf ("\r\n");
+    TE_scrollUp(/*fullscreen=*/TRUE);
+    TE_moveCursor (rows, 1);
 
     uint16_t cnt;
     char *c = gadgets;
@@ -867,12 +873,20 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
 
 void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
+    g_scrollStart = row_start;
+    g_scrollEnd   = row_end;
     TE_printf (CSI "%d;%dr", row_start, row_end);
 }
 
-void TE_scrollUp (void)
+void TE_scrollUp (bool fullscreen)
 {
+    if (fullscreen)
+        TE_printf (CSI "r");
+
     TE_printf ( CSI "S");
+
+    if (fullscreen)
+        TE_printf (CSI "%d;%dr", g_scrollStart, g_scrollEnd);
 }
 
 void TE_scrollDown (void)

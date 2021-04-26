@@ -12,8 +12,9 @@
 #include "errormsg.h"
 #include "options.h"
 #include "link.h"
+#include "logger.h"
 
-void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
+int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
@@ -46,8 +47,8 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
 	sourcef = fopen(sourcefn, "r");
 	if (!sourcef)
 	{
-		fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
-		exit(2);
+		LOG_printf (LOG_ERROR, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
+		return 2;
 	}
 
 	frags = FE_sourceProgram(sourcef, sourcefn, /*is_main=*/!symfn, module_name);
@@ -55,13 +56,13 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
 
     if (EM_anyErrors)
     {
-        printf ("\n\nfrontend processing failed - exiting.\n");
-        exit(4);
+        LOG_printf (LOG_ERROR, "\n\nfrontend processing failed - exiting.\n");
+        return 4;
     }
 
     if (OPT_get(OPTION_VERBOSE))
     {
-        printf ("\n\nsemantics worked.\n");
+        LOG_printf (LOG_INFO, "\n\nsemantics worked.\n");
         U_memstat();
     }
 
@@ -73,18 +74,17 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
     {
         if (FE_writeSymFile(symfn))
         {
-            if (OPT_get(OPTION_VERBOSE))
-                printf ("\n%s written.\n", symfn);
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n%s written.\n", symfn);
         }
         else
         {
-            printf ("\n** ERROR: failed to write symbol file %s .\n", symfn);
-            exit(23);
+            LOG_printf (LOG_ERROR, "\n** ERROR: failed to write symbol file %s .\n", symfn);
+            return 23;
         }
     }
 
     if (!asm_gas_fn && !asm_asmpro_fn && !binfn)
-        exit(0);
+        return 0;
 
     /*
      * register allocation
@@ -116,7 +116,7 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
         if (!RA_regAlloc(frame, body) || EM_anyErrors)
         {
             printf ("\n\nregister allocation failed - exiting.\n");
-            exit(24);
+            return 24;
         }
 
         CG_procEntryExitAS(frag);
@@ -149,7 +149,7 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
     }
 
     if (!binfn)
-        exit(0);
+        return 0;
 
     /*
      * machine code generation (assembly phase)
@@ -179,20 +179,20 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
                     U_memstat();
                 }
                 if (!AS_assembleCode (obj, body, expt))
-                    exit(19);
+                    return 19;
                 break;
             }
             case CG_stringFrag:
                 AS_assembleDataAlign2 (obj);
                 if (!AS_assembleString (obj, frag->u.stringg.label, frag->u.stringg.str, frag->u.stringg.msize))
-                    exit(20);
+                    return 20;
                 break;
             case CG_dataFrag:
                 if (!frag->u.data.size)
                     break;
                 AS_assembleDataAlign2 (obj);
                 if (!AS_assembleDataLabel (obj, frag->u.data.label, frag->u.data.expt))
-                    exit(21);
+                    return 21;
                 if (frag->u.data.init)
                 {
                     assert(FALSE); // FIXME: implement
@@ -269,13 +269,13 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
     FILE *fObj = E_openModuleFile ("startup.o");
     if (!fObj)
     {
-        fprintf (stderr, "*** ERROR: failed to open startup.o\n\n");
-        exit(23);
+        LOG_printf (LOG_ERROR, "*** ERROR: failed to open startup.o\n\n");
+        return 23;
     }
     if (!LI_segmentListReadObjectFile (sl, "startup.o", fObj))
     {
         fclose(fObj);
-        exit(24);
+        return 24;
     }
     fclose(fObj);
 
@@ -291,25 +291,28 @@ void CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, 
         fObj = E_openModuleFile (mod_fn);
         if (!fObj)
         {
-            fprintf (stderr, "*** ERROR: failed to open %s\n\n", mod_fn);
-            exit(25);
+            LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s\n\n", mod_fn);
+            return 25;
         }
         if (!LI_segmentListReadObjectFile (sl, S_name(n->m->name), fObj))
         {
             fclose(fObj);
-            exit(26);
+            return 26;
         }
         fclose(fObj);
     }
 
     if (!LI_link (sl))
     {
-        fprintf (stderr, "*** ERROR: failed to link.\n\n");
-        exit(27);
+        LOG_printf (LOG_ERROR, "*** ERROR: failed to link.\n\n");
+        return 27;
     }
 
     LI_segmentListWriteLoadFile (sl, binfn);
 
+    LOG_printf (LOG_INFO, "compilation finished.\n");
+
+    return 0;
 }
 
 

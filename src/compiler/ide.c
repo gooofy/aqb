@@ -108,7 +108,6 @@ struct IDE_editor_
     uint16_t           buf2_len;
 };
 
-#define LOG_FILENAME "ide.log"
 static FILE *logf=NULL;
 static IDE_editor g_ed;
 
@@ -263,7 +262,7 @@ static void scroll(IDE_editor ed)
             case 0:
                 break;
             case 1:
-                TE_scrollUp();
+                TE_scrollUp(/*fullscreen=*/FALSE);
                 ed->up2date_row[ed->window_height - 2] = FALSE;
                 break;
             default:
@@ -1171,11 +1170,14 @@ static void show_help(IDE_editor ed)
 
 static void compile(IDE_editor ed)
 {
+    LOG_printf (LOG_INFO, "compilation starts...\n\n");
+
     CO_compile(ed->sourcefn, /*symfn=*/ NULL,
                ed->binfn,
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL);
 
+    LOG_printf (LOG_INFO, "\n\n*** press any key to continue ***\n\n");
     TE_waitkey ();
 
     TE_eraseDisplay ();
@@ -1227,6 +1229,7 @@ static void key_cb (uint16_t key, void *user_data)
             break;
 
         case KEY_F7:
+        case KEY_CTRL_G:
             compile(ed);
             break;
 
@@ -1349,7 +1352,7 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_start(args, fmt);
 	if (lvl >= LOG_INFO)
     {
-        TE_scrollUp ();
+        TE_scrollUp (/*fullscreen=*/TRUE);
         TE_moveCursor (g_ed->window_height+1, 0);
         TE_eraseToEOL ();
         //TE_moveCursor (g_ed->window_height, 0);
@@ -1361,15 +1364,16 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
             char c = buf[i];
             if (c=='\n')
             {
-                TE_putc('\n');
-                TE_putc('\r');
+                TE_scrollUp (/*fullscreen=*/TRUE);
+                TE_moveCursor (g_ed->window_height+1, 0);
+                TE_eraseToEOL ();
             }
             else
             {
                 TE_putc(c);
             }
         }
-    	//TE_vprintf (fmt, args);
+        TE_flush();
     }
 #if LOG_LEVEL == LOG_DEBUG
 	vfprintf (logf, fmt, args);

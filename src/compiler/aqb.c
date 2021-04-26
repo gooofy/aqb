@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
@@ -47,6 +48,7 @@ extern struct DOSBase       *DOSBase;
 #include "link.h"
 #include "ide.h"
 #include "compiler.h"
+#include "logger.h"
 
 #define VERSION "0.7.0"
 
@@ -91,6 +93,33 @@ static void check_stacksize(void)
 }
 #endif
 
+static FILE *logf=NULL;
+
+static void log_cb (uint8_t lvl, char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+	if (lvl >= LOG_INFO)
+    {
+        static char buf[1024];
+        vsnprintf (buf, 1024, fmt, args);
+        printf (buf);
+        fflush (stdout);
+    }
+#if LOG_LEVEL == LOG_DEBUG
+	vfprintf (logf, fmt, args);
+	fflush (logf);
+#endif
+    va_end(args);
+}
+
+#if LOG_LEVEL == LOG_DEBUG
+static void close_logf(void)
+{
+	fclose (logf);
+}
+#endif
+
 int main (int argc, char *argv[])
 {
 	static char           *sourcefn;
@@ -108,6 +137,11 @@ int main (int argc, char *argv[])
 #ifdef __amigaos__
     check_stacksize();
 #endif
+#if LOG_LEVEL == LOG_DEBUG
+    logf = fopen (LOG_FILENAME, "a");
+	atexit (close_logf);
+#endif
+    LOG_init (log_cb);
 
     U_init();
     Ty_init();
