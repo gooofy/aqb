@@ -44,6 +44,7 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
      * frontend: parsing + semantics
      */
 
+    LOG_printf (LOG_INFO, "PASS 1: parser\n");
 	sourcef = fopen(sourcefn, "r");
 	if (!sourcef)
 	{
@@ -90,6 +91,7 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
      * register allocation
      */
 
+    LOG_printf (LOG_INFO, "PASS 2: register allocation\n");
     for (CG_fragList fl=frags; fl; fl=fl->tail)
     {
         CG_frag frag = fl->head;
@@ -155,6 +157,7 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
      * machine code generation (assembly phase)
      */
 
+    LOG_printf (LOG_INFO, "PASS 3: assembler\n");
     AS_object obj = AS_Object(binfn);
 
     for (CG_fragList fl=frags; fl; fl=fl->tail)
@@ -264,6 +267,7 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
      * machine code generation (link phase)
      */
 
+    LOG_printf (LOG_INFO, "PASS 4: linker\n");
     LI_segmentList sl = LI_SegmentList();
 
     FILE *fObj = E_openModuleFile ("startup.o");
@@ -310,7 +314,7 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
 
     LI_segmentListWriteLoadFile (sl, binfn);
 
-    LOG_printf (LOG_INFO, "compilation finished.\n");
+    LOG_printf (LOG_INFO, "\ncompilation finished.\n");
 
     return 0;
 }

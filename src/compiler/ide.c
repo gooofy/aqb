@@ -1177,7 +1177,7 @@ static void compile(IDE_editor ed)
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL);
 
-    LOG_printf (LOG_INFO, "\n\n*** press any key to continue ***\n\n");
+    LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     TE_waitkey ();
 
     TE_eraseDisplay ();

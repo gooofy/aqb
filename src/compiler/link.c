@@ -597,7 +597,7 @@ void write_hunk_code (AS_segment seg, FILE *f)
     fwrite_u4 (f, HUNK_TYPE_CODE);
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
-    LOG_printf (LOG_INFO, "link: code section, size=%zd bytes\n", seg->mem_pos);
+    LOG_printf (LOG_DEBUG, "link: code section, size=%zd bytes\n", seg->mem_pos);
     fwrite_u4 (f, n);
     if (fwrite (seg->mem, n*4, 1, f) != 1)
         link_fail ("write error");
@@ -608,7 +608,7 @@ void write_hunk_data (AS_segment seg, FILE *f)
     fwrite_u4 (f, HUNK_TYPE_DATA);
 
     uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
-    LOG_printf (LOG_INFO, "link: data section, size=%zd bytes\n", seg->mem_pos);
+    LOG_printf (LOG_DEBUG, "link: data section, size=%zd bytes\n", seg->mem_pos);
     fwrite_u4 (f, n);
     if (n)
     {
@@ -659,7 +659,6 @@ void write_hunk_end (FILE *f)
 
 void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 {
-    LOG_printf (LOG_INFO, "link: creating load file %s\n", loadfn);
     g_fLoadFile = fopen(loadfn, "w");
     if (!g_fLoadFile)
     {
@@ -696,6 +695,6 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 
     fclose (g_fLoadFile);
     g_fLoadFile = NULL;
-    LOG_printf (LOG_INFO, "link: finished, created load file: %s\n", loadfn);
+    LOG_printf (LOG_INFO, "link: created load file: %s\n", loadfn);
 }
 

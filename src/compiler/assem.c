@@ -9,8 +9,7 @@
 #include "table.h"
 #include "assem.h"
 #include "errormsg.h"
-
-#define ENABLE_DEBUG
+#include "logger.h"
 
 AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     // mn                  isJump hasLabel hasImm hasSrc hasDst srcDnOnly dstDnOnly srcAnOnly dstAnOnly dstIsAlsoSrc, dstIsOnlySrc
@@ -687,7 +686,7 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
         case AS_UNLK_fp:
             instrformat(str, "    unlk     a5"   , i, dialect);        break;
         default:
-            printf("***internal error: unknown mn %d\n", i->mn);
+            LOG_printf (LOG_ERROR, "***internal error: unknown mn %d\n", i->mn);
             assert(0);
     }
 }
@@ -900,8 +899,8 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
         if (!seg->mem)
         {
             seg->mem  = U_malloc (s);
-#ifdef ENABLE_DEBUG
-            printf ("link: allocating segment mem of %zd bytes\n", s);
+#if LOG_LEVEL == LOG_DEBUG
+            LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes\n", s);
 #endif
         }
         else
@@ -909,8 +908,8 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
             uint8_t *mem = U_malloc (s);
             memcpy (mem, seg->mem, seg->mem_size);
             seg->mem = mem;
-#ifdef ENABLE_DEBUG
-            printf ("link: re-allocating segment mem from %zd bytes to %zd bytes\n", seg->mem_size, s);
+#if LOG_LEVEL == LOG_DEBUG
+            LOG_printf (LOG_DEBUG, "assem: re-allocating segment mem from %zd bytes to %zd bytes\n", seg->mem_size, s);
 #endif
         }
         seg->mem_size = s;
@@ -944,8 +943,8 @@ static int32_t getConstInt (Ty_const c)
 
 static void emit_u1 (AS_segment seg, uint8_t b)
 {
-#ifdef ENABLE_DEBUG
-    printf ("0x%08zx: 0x%02x\n", seg->mem_pos, b);
+#if LOG_LEVEL == LOG_DEBUG
+    LOG_printf (LOG_DEBUG, "0x%08zx: 0x%02x\n", seg->mem_pos, b);
 #endif
 
     AS_ensureSegmentSize (seg, seg->mem_pos+1);
@@ -957,8 +956,8 @@ static void emit_u1 (AS_segment seg, uint8_t b)
 #if 0
 static void emit_i1 (AS_segment seg, int8_t b)
 {
-#ifdef ENABLE_DEBUG
-    printf ("0x%08zx: 0x%02x\n", seg->mem_pos, b);
+#if LOG_LEVEL == LOG_DEBUG
+    LOG_printf (LOG_DEBUG, "0x%08zx: 0x%02x\n", seg->mem_pos, b);
 #endif
 
     AS_ensureSegmentSize (seg, seg->mem_pos+1);
@@ -970,8 +969,8 @@ static void emit_i1 (AS_segment seg, int8_t b)
 
 static void emit_u2 (AS_segment seg, uint16_t w)
 {
-#ifdef ENABLE_DEBUG
-    printf ("0x%08zx: 0x%04x\n", seg->mem_pos, w);
+#if LOG_LEVEL == LOG_DEBUG
+    LOG_printf (LOG_DEBUG, "0x%08zx: 0x%04x\n", seg->mem_pos, w);
 #endif
 
     AS_ensureSegmentSize (seg, seg->mem_pos+2);
@@ -982,8 +981,8 @@ static void emit_u2 (AS_segment seg, uint16_t w)
 
 static void emit_i2 (AS_segment seg, int16_t w)
 {
-#ifdef ENABLE_DEBUG
-    printf ("0x%08zx: 0x%04x\n", seg->mem_pos, w);
+#if LOG_LEVEL == LOG_DEBUG
+    LOG_printf (LOG_DEBUG, "0x%08zx: 0x%04x\n", seg->mem_pos, w);
 #endif
 
     AS_ensureSegmentSize (seg, seg->mem_pos+2);
@@ -994,8 +993,8 @@ static void emit_i2 (AS_segment seg, int16_t w)
 
 static void emit_u4 (AS_segment seg, uint32_t w)
 {
-#ifdef ENABLE_DEBUG
-    printf ("0x%08zx: 0x%08x\n", seg->mem_pos, w);
+#if LOG_LEVEL == LOG_DEBUG
+    LOG_printf (LOG_DEBUG, "0x%08zx: 0x%08x\n", seg->mem_pos, w);
 #endif
 
     AS_ensureSegmentSize (seg, seg->mem_pos+4);
@@ -1006,8 +1005,8 @@ static void emit_u4 (AS_segment seg, uint32_t w)
 
 static void emit_i4 (AS_segment seg, int32_t w)
 {
-#ifdef ENABLE_DEBUG
-    printf ("0x%08zx: 0x%08x\n", seg->mem_pos, w);
+#if LOG_LEVEL == LOG_DEBUG
+    LOG_printf (LOG_DEBUG, "0x%08zx: 0x%08x\n", seg->mem_pos, w);
 #endif
 
     AS_ensureSegmentSize (seg, seg->mem_pos+4);
@@ -1122,8 +1121,8 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
         size_t fix_loc = li->offset;
         while (fix_loc)
         {
-#ifdef ENABLE_DEBUG
-            printf ("link: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
+#if LOG_LEVEL == LOG_DEBUG
+            LOG_printf (LOG_DEBUG, "assem: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
 #endif
             size_t next_fix_loc = 0;
             if (li->displacement)
@@ -1489,7 +1488,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
         char buf[255];
         AS_sprint(buf, instr, AS_dialect_gas);
-        printf("AS_assembleCode: (mn=%3d) %s\n", instr->mn, buf);
+        LOG_printf(LOG_DEBUG, "assem: AS_assembleCode: (mn=%3d) %s\n", instr->mn, buf);
 
         switch (instr->mn)
         {
@@ -1793,7 +1792,7 @@ void AS_assembleDataFill (AS_segment seg, size_t size)
 
 void AS_resolveLabels (AS_object obj)
 {
-    printf("AS_resolveLabels\n");
+    LOG_printf(LOG_DEBUG, "assem: AS_resolveLabels\n");
     AS_segment seg = obj->codeSeg;
 
     TAB_iter i = TAB_Iter(obj->labels);
@@ -1807,8 +1806,8 @@ void AS_resolveLabels (AS_object obj)
 
         assert (!li->displacement);
 
-#ifdef ENABLE_DEBUG
-        printf("AS_resolveLabels: XREF %s\n", S_name (l));
+#if LOG_LEVEL == LOG_DEBUG
+        LOG_printf(LOG_DEBUG, "AS_resolveLabels: XREF %s\n", S_name (l));
 #endif
         uint32_t off = li->offset;
         while (off)
