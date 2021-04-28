@@ -314,13 +314,13 @@ static inline void report_key (uint16_t key)
         g_key_cb (key, g_key_cb_user_data);
 }
 
-void TE_run (void)
+static ESC_state_t g_esc_state = ESC_idle;
+static uint16_t nextKey(void)
 {
     UBYTE ch;
 
     ULONG conreadsig = 1 << g_readPort->mp_SigBit;
     ULONG windowsig  = 1 << g_win->UserPort->mp_SigBit;
-    ESC_state_t esc_state = ESC_idle;
 
     BOOL running = TRUE;
     while (running)
@@ -333,94 +333,94 @@ void TE_run (void)
             if ((lch = con_may_get_char(g_readPort, &g_ibuf)) != -1)
 			{
                 ch = lch;
-                LOG_printf (LOG_DEBUG, "terminal: *** got ch: 0x%02x, state=%d\n", ch, esc_state);
-                switch (esc_state)
+                LOG_printf (LOG_DEBUG, "terminal: *** got ch: 0x%02x, state=%d\n", ch, g_esc_state);
+                switch (g_esc_state)
                 {
                     case ESC_idle:
                         if ((ch==0x9b)||(ch==0x1b))
-                            esc_state = ESC_esc1;
+                            g_esc_state = ESC_esc1;
                         else
-                            report_key (ch);
+                            return ch;
                         break;
                     case ESC_esc1:
                         switch (ch)
                         {
                             case '[':
-                                esc_state = ESC_csi;
+                                g_esc_state = ESC_csi;
                                 break;
                             case 'A':
-                                report_key (KEY_CURSOR_UP);
-                                esc_state = ESC_idle;
+                                g_esc_state = ESC_idle;
+                                return KEY_CURSOR_UP;
                                 break;
                             case 'B':
-                                report_key (KEY_CURSOR_DOWN);
-                                esc_state = ESC_idle;
+                                g_esc_state = ESC_idle;
+                                return KEY_CURSOR_DOWN;
                                 break;
                             case 'C':
-                                report_key (KEY_CURSOR_RIGHT);
-                                esc_state = ESC_idle;
+                                g_esc_state = ESC_idle;
+                                return KEY_CURSOR_RIGHT;
                                 break;
                             case 'D':
-                                report_key (KEY_CURSOR_LEFT);
-                                esc_state = ESC_idle;
+                                g_esc_state = ESC_idle;
+                                return KEY_CURSOR_LEFT;
                                 break;
                             case '0':
-                                report_key (KEY_F1);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F1;
                                 break;
                             case '1':
-                                report_key (KEY_F2);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F2;
                                 break;
                             case '2':
-                                report_key (KEY_F3);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F3;
                                 break;
                             case '3':
-                                report_key (KEY_F4);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F4;
                                 break;
                             case '4':
-                                report_key (KEY_F5);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F5;
                                 break;
                             case '5':
-                                report_key (KEY_F6);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F6;
                                 break;
                             case '6':
-                                report_key (KEY_F7);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F7;
                                 break;
                             case '7':
-                                report_key (KEY_F8);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F8;
                                 break;
                             case '8':
-                                report_key (KEY_F9);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F9;
                                 break;
                             case '9':
-                                report_key (KEY_F10);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_F10;
                                 break;
                             case '?':
-                                report_key (KEY_HELP);
-                                esc_state = ESC_tilde;
+                                g_esc_state = ESC_tilde;
+                                return KEY_HELP;
                                 break;
                             default:
-                                report_key (KEY_UNKNOWN1);
-                                esc_state = ESC_idle;
+                                g_esc_state = ESC_idle;
+                                return KEY_UNKNOWN1;
                                 break;
                         }
                         break;
                     case ESC_csi:
                         LOG_printf (LOG_DEBUG, "terminal: *** inside CSI sequence: 0x%02x\n", ch);
-                        esc_state = ESC_idle;
+                        g_esc_state = ESC_idle;
                         break;
                     case ESC_tilde:
                         LOG_printf (LOG_DEBUG, "terminal: *** skipping tilde %c\n", ch);
-                        esc_state = ESC_idle;
+                        g_esc_state = ESC_idle;
                         break;
                 }
 			}
@@ -443,8 +443,20 @@ void TE_run (void)
 			}
 		}
 	}
+    return KEY_CLOSE;
+}
 
-    exit(RETURN_OK);
+void TE_run (void)
+{
+    BOOL running = TRUE;
+    while (running)
+    {
+        uint16_t key = nextKey();
+        if (key == KEY_CLOSE)
+            running = FALSE;
+        else
+            report_key (key);
+	}
 }
 
 uint16_t TE_EZRequest (char *body, char *gadgets)
@@ -486,8 +498,7 @@ void TE_scrollDown (void)
 
 uint16_t TE_waitkey (void)
 {
-    assert (FALSE); // FIXME
-    return 0;
+    return nextKey();
 }
 
 #else // no __amigaos__ -> linux/posix/ansi
