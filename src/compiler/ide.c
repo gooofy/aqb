@@ -1350,6 +1350,9 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
+    static char buf[1024];
+    int l = vsnprintf (buf, 1024, fmt, args);
+    va_end(args);
 	if (lvl >= LOG_INFO)
     {
         TE_scrollUp (/*fullscreen=*/TRUE);
@@ -1357,8 +1360,6 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
         TE_eraseToEOL ();
         //TE_moveCursor (g_ed->window_height, 0);
 
-        static char buf[1024];
-        int l = vsnprintf (buf, 1024, fmt, args);
         uint16_t col = 0;
         for (int i =0; i<l; i++)
         {
@@ -1388,10 +1389,9 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
         TE_flush();
     }
 #if LOG_LEVEL == LOG_DEBUG
-	vfprintf (logf, fmt, args);
+	fprintf (logf, "%s", buf);
 	fflush (logf);
 #endif
-    va_end(args);
 }
 
 #if LOG_LEVEL == LOG_DEBUG
