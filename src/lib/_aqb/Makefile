@@ -17,6 +17,8 @@ _aqb.sym : _aqb.bas
 
 _aqb.a: awindow.o _aqb.o aio.o atimer.o autil.o
 	$(AR_AMIGAOS) -crs _aqb.a $^
+	pushd .. && rm -f _aqb.a && ln -s _aqb/_aqb.a && popd
+	cp $@ $(DISTDIR)/lib
 
 clean:
 	rm -f *.o _aqb.a *.sym
