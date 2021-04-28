@@ -1359,18 +1359,30 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 
         static char buf[1024];
         int l = vsnprintf (buf, 1024, fmt, args);
+        uint16_t col = 0;
         for (int i =0; i<l; i++)
         {
-            char c = buf[i];
-            if (c=='\n')
+            if (col >= g_ed->window_width)
             {
                 TE_scrollUp (/*fullscreen=*/TRUE);
                 TE_moveCursor (g_ed->window_height+1, 0);
                 TE_eraseToEOL ();
+                col = 0;
+            }
+            char c = buf[i];
+            if (c=='\n')
+            {
+                if (i<l-1)
+                {
+                    TE_scrollUp (/*fullscreen=*/TRUE);
+                    TE_moveCursor (g_ed->window_height+1, 0);
+                    TE_eraseToEOL ();
+                }
             }
             else
             {
                 TE_putc(c);
+                col++;
             }
         }
         TE_flush();
