@@ -15,6 +15,7 @@
 #include "frontend.h"
 #include "compiler.h"
 #include "logger.h"
+#include "run.h"
 
 #define STYLE_NORMAL  0
 #define STYLE_KW      1
@@ -1163,6 +1164,7 @@ static void show_help(IDE_editor ed)
 {
     TE_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
                   "F1     - this help screen\n"
+                  "F5     - compile & run\n"
                   "F7     - compile\n"
                   "Ctrl-C - quit", "Close");
     invalidateAll (ed);
@@ -1176,6 +1178,19 @@ static void compile(IDE_editor ed)
                ed->binfn,
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL);
+
+    LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
+    TE_waitkey ();
+
+    TE_eraseDisplay ();
+    invalidateAll (ed);
+}
+
+static void compileAndRun(IDE_editor ed)
+{
+    // FIXME: compile if not up to date
+
+    RUN_run (ed->binfn);
 
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     TE_waitkey ();
@@ -1226,6 +1241,11 @@ static void key_cb (uint16_t key, void *user_data)
         case KEY_HELP:
         case KEY_F1:
             show_help(ed);
+            break;
+
+        case KEY_F5:
+        case KEY_CTRL_F:
+            compileAndRun(ed);
             break;
 
         case KEY_F7:
