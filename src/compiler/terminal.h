@@ -99,6 +99,12 @@ void      TE_onKeyCall          (TE_key_cb cb, void *user_data);
 
 uint16_t  TE_EZRequest          (char *body, char *gadgets);
 
+#ifdef __amigaos__
+struct FileHandle *TE_output    (void);
+int       TE_termSignal         (void);
+void      TE_runIO              (void);
+#endif
+
 bool      TE_init               (void);
 
 void      TE_run                (void);

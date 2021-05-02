@@ -1,110 +1,118 @@
 #include <assert.h>
+#include <stdlib.h>
 
 #include "run.h"
 #include "logger.h"
 #include "util.h"
+#include "terminal.h"
 
 #ifdef __amigaos__
+
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 #include <inline/exec.h>
 #include <inline/dos.h>
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
-#endif
 
 #define DEFAULT_PRI           0
 #define DEFAULT_STACKSIZE 32768
 
-void RUN_run (const char *binfn)
+struct FakeSegList
 {
-#ifdef __amigaos__
-#if 0
-    struct MsgPort *mp, *reply_mp;
-    struct DosPacket *dp;
-    //SIPTR Res1, Res2;
-    BPTR seg;
+	ULONG 	length;
+	ULONG 	next;
+	UWORD 	jump;
+	APTR 	code;
+};
 
-	dp = AllocDosObject(DOS_STDPKT, NULL);
+static struct Task *g_parentTask;
 
-    reply_mp = CreateMsgPort();
-    seg = CreateSegList(internalBootCliHandler);
-    if (dp == NULL || reply_mp == NULL || seg == BNULL) {
-        if (my_dp)
-            FreeDosObject(DOS_STDPKT, my_dp);
-        DeleteMsgPort(reply_mp);
-        UnLoadSeg(seg);
-        return ERROR_NO_FREE_STORE;
-    }
+static char *g_binfn;
+static BPTR  g_currentDir;
 
-    mp = CreateProc("Boot Mount", 0, seg, AROS_STACKSIZE);
-    if (mp == NULL) {
-        DeleteMsgPort(reply_mp);
-        if (my_dp)
-            FreeDosObject(DOS_STDPKT, my_dp);
-        /* A best guess... */
-        UnLoadSeg(seg);
-        return ERROR_NO_FREE_STORE;
-    }
+typedef int (*startup_t)(void);
 
-    /* Preload the reply with failure */
-    dp->dp_Res1 = DOSFALSE;
-    dp->dp_Res2 = ERROR_NOT_IMPLEMENTED;
-
-    /* Again, doesn't require this Task to be a Process */
-    SendPkt(dp, mp, reply_mp);
-
-    /* Wait for the message from the Boot Cli */
-    WaitPort(reply_mp);
-    GetMsg(reply_mp);
-
-    /* We know that if we've received a reply packet,
-     * that we've been able to execute the handler,
-     * therefore we can dispense with the 'CreateSegList()'
-     * stub.
-     */
-    UnLoadSeg(seg);
-
-    Res1 = dp->dp_Res1;
-    Res2 = dp->dp_Res2;
-
-    if (my_dp)
-        FreeDosObject(DOS_STDPKT, my_dp);
-
-    DeleteMsgPort(reply_mp);
-
-    D(bug("Dos/CliInit: Process returned Res1=%ld, Res2=%ld\n", Res1, Res2));
-
-
-
-#endif
-
-
-
-
-    LOG_printf (LOG_INFO, "loading %s ...\n\n", binfn);
-    BPTR seglist = LoadSeg((STRPTR)binfn);
+static void runner (void)
+{
+    LOG_printf (LOG_INFO, "loading %s ...\n\n", g_binfn);
+    //BPTR seglist = LoadSeg((STRPTR)g_binfn);
+    BPTR seglist = LoadSeg((STRPTR)"SYS:x/foo");
 
     if (!seglist)
     {
-        LOG_printf (LOG_ERROR, "failed to load %s\n\n", binfn);
+        LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
+        Signal (g_parentTask, 1<<TE_termSignal());
         return;
     }
 
-    LOG_printf (LOG_INFO, "running %s ...\n\n", binfn);
-    struct MsgPort *msgport = CreateProc((STRPTR) binfn, DEFAULT_PRI, seglist, DEFAULT_STACKSIZE);
-    assert(msgport);
+    LOG_printf (LOG_INFO, "running %s ...\n\n", g_binfn);
 
-    struct Message *xy_msg = WaitPort(msgport);
-    assert (xy_msg);
-    LOG_printf (LOG_INFO, "got a message\n\n");
+	struct Process *me = (struct Process *) FindTask(NULL);
+    me->pr_COS = MKBADDR(TE_output());
+    me->pr_CurrentDir = g_currentDir;
 
-    //UnLoadSeg(seglist);
+    struct FakeSegList *fsl = (struct FakeSegList *) BADDR(seglist);
+    startup_t f = (startup_t) &fsl->jump;
+
+    f();
+
+    //Write (o, "12345\n", 6);
+	//Delay(50);
+
+    UnLoadSeg(seglist);
+
+	LOG_printf (LOG_DEBUG, "runner ends, sending signal\n");
+
+	Signal (g_parentTask, 1<<TE_termSignal());
+}
+
+
+void RUN_run (const char *binfn)
+{
+	struct FakeSegList *segl;
+
+	if ( (segl = AllocMem (sizeof(struct FakeSegList),MEMF_CLEAR|MEMF_PUBLIC)) )
+	{
+		segl->length = 16;
+		segl->jump   = 0x4EF9;
+		segl->code   = runner;
+
+        g_binfn = (char *)binfn;
+
+		// LOG_printf (LOG_INFO, "running %s ...\n\n", binfn);
+		struct MsgPort *msgport = CreateProc((STRPTR) binfn, DEFAULT_PRI, MKBADDR(segl), DEFAULT_STACKSIZE);
+		assert(msgport);
+
+        TE_runIO();
+
+		// LOG_printf (LOG_INFO, "%s finished.\n\n", binfn);
+
+        // FIXME: cleanup
+
+	}
+	else
+	{
+		LOG_printf (LOG_ERROR, "run: failed to allocate memory for fake seglist!\n");
+	}
+
+}
+
+void RUN_init (void)
+{
+	g_parentTask = FindTask(NULL);
+    g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
+}
 
 #else // no amigaos -> posix / vamos?
 
+void RUN_run (const char *binfn)
+{
     assert(FALSE); // FIXME
-
-#endif
 }
 
+void RUN_init (void)
+{
+}
+
+#endif

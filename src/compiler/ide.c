@@ -1424,6 +1424,7 @@ static void close_logf(void)
 void IDE_open(char *sourcefn)
 {
     TE_init();
+    RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
     logf = fopen (LOG_FILENAME, "a");
 	atexit (close_logf);

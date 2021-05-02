@@ -92,12 +92,16 @@ static struct NewWindow g_nw =
     WBENCHSCREEN
 };
 
-static struct Window   *g_win           = NULL;
-static struct IOStdReq *g_writeReq      = NULL;
-static struct MsgPort  *g_writePort     = NULL;
-static struct IOStdReq *g_readReq       = NULL;
-static struct MsgPort  *g_readPort      = NULL;
-static bool             g_ConOpened = FALSE;
+static struct Window     *g_win           = NULL;
+static struct IOStdReq   *g_writeReq      = NULL;
+static struct MsgPort    *g_writePort     = NULL;
+static struct IOStdReq   *g_readReq       = NULL;
+static struct MsgPort    *g_readPort      = NULL;
+static bool               g_ConOpened     = FALSE;
+static struct FileHandle *g_output        = NULL;
+static struct MsgPort    *g_IOport        = NULL;
+static int                g_termSignalBit = 0;
+
 
 static struct MsgPort *create_port(STRPTR name, LONG pri)
 {
@@ -236,6 +240,89 @@ bool TE_getsize(uint16_t *rows, uint16_t *cols)
     return TRUE;
 }
 
+struct FileHandle *TE_output (void)
+{
+    return g_output;
+}
+
+int TE_termSignal (void)
+{
+    return g_termSignalBit;
+}
+
+static void returnpacket(struct DosPacket *packet, long res1, long res2)
+{
+    struct Message *msg;
+    struct MsgPort *replyport;
+
+    packet->dp_Res1  = res1;
+    packet->dp_Res2  = res2;
+    replyport = packet->dp_Port;
+    msg = packet->dp_Link;
+    packet->dp_Port = g_IOport;
+    msg->mn_Node.ln_Name = (char *)packet;
+    msg->mn_Node.ln_Succ = NULL;
+    msg->mn_Node.ln_Pred = NULL;
+
+    PutMsg(replyport, msg);
+}
+
+static struct DosPacket *getpacket(void)
+{
+    struct Message *msg;
+    msg = GetMsg(g_IOport);
+    return ((struct DosPacket *)msg->mn_Node.ln_Name);
+}
+
+
+void TE_runIO (void)
+{
+    ULONG iosig   = 1 << g_IOport->mp_SigBit;
+	ULONG termsig = 1 << g_termSignalBit;
+
+    BOOL running = TRUE;
+    while (running)
+    {
+        //LOG_printf (LOG_DEBUG, "term: TE_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
+        ULONG signals = Wait(iosig | termsig);
+        //LOG_printf (LOG_DEBUG, "term: TE_runIO: got signals: 0x%08x\n", signals);
+
+        if (signals & iosig)
+		{
+			struct DosPacket *packet = getpacket();
+			LOG_printf (LOG_DEBUG, "term: TE_runIO: got pkg, type=%d\n", packet->dp_Type);
+
+			switch (packet->dp_Type)
+			{
+				case ACTION_WRITE:
+				{
+					LONG l = packet->dp_Arg3;
+					char *buf = (char *)packet->dp_Arg2;
+					//LOG_printf (LOG_DEBUG, "term: TE_runIO: ACTION_WRITE, len=%d\n", l);
+					for (int i = 0; i<l; i++)
+					{
+						TE_putc(buf[i]);
+					}
+					TE_flush();
+
+					returnpacket (packet, l, packet->dp_Res2);
+					break;
+				}
+				default:
+					//LOG_printf (LOG_DEBUG, "term: TE_runIO: rejecting unknown packet type\n");
+					returnpacket (packet, FALSE, ERROR_ACTION_NOT_KNOWN);
+			}
+		}
+        else
+        {
+            if (signals & termsig)
+            {
+                running = FALSE;
+            }
+        }
+	}
+}
+
 static void TE_exit(void)
 {
     TE_flush();
@@ -275,15 +362,15 @@ bool TE_init (void)
 #endif
 
     SysBase = *(APTR *)4L;
-    if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((uint8_t *)"intuition.library",0)))
+    if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library",0)))
          cleanexit("Can't open intuition.library\n", RETURN_FAIL);
-    if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((uint8_t *)REQTOOLSNAME, REQTOOLSVERSION)))
+    if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
-    if (!(g_writePort = create_port((uint8_t *)"AQB.console.write",0)))
+    if (!(g_writePort = create_port((STRPTR)"AQB.console.write",0)))
          cleanexit("Can't create write port\n", RETURN_FAIL);
     if (!(g_writeReq = (struct IOStdReq *) create_ext_io(g_writePort,(LONG)sizeof(struct IOStdReq))))
          cleanexit("Can't create write request\n", RETURN_FAIL);
-    if(!(g_readPort = create_port((uint8_t *)"AQB.console.read",0)))
+    if(!(g_readPort = create_port((STRPTR)"AQB.console.read",0)))
          cleanexit("Can't create read port\n", RETURN_FAIL);
     if(!(g_readReq = (struct IOStdReq *) create_ext_io(g_readPort,(LONG)sizeof(struct IOStdReq))))
          cleanexit("Can't create read request\n", RETURN_FAIL);
@@ -300,6 +387,32 @@ bool TE_init (void)
 
     queue_read(g_readReq, &g_ibuf); /* send the first console read request */
 	atexit(TE_exit);
+
+    /* prepare fake i/o filehandles (for IDE console redirection) */
+
+	if ( !(g_output = AllocMem (sizeof(struct FileHandle), MEMF_CLEAR|MEMF_PUBLIC)) )
+	{
+		LOG_printf (LOG_ERROR, "run: failed to allocate memory for output file handle!\n");
+		exit(24);
+	}
+
+	if (!(g_IOport = create_port ((STRPTR) "aqb_io_port", 0)))
+	{
+		LOG_printf (LOG_ERROR, "run: failed to create i/o port!\n");
+		exit(25);
+	}
+
+	g_output->fh_Type = g_IOport;
+	g_output->fh_Port = 0;
+	g_output->fh_Args = (long)g_output;
+	g_output->fh_Arg2 = (long)0;
+
+	g_termSignalBit = AllocSignal(-1);
+	if (g_termSignalBit == -1)
+	{
+		LOG_printf (LOG_ERROR, "run: failed to allocate signal bit!\n");
+		exit(23);
+	}
 
 	return TRUE;
 }
@@ -680,7 +793,7 @@ static void TE_setAlternateScreen (bool enabled)
         TE_printf (CSI "?1049l");
 }
 
-struct termios g_orig_termios;
+static struct termios g_orig_termios;
 static void TE_exit (void)
 {
     TE_setTextStyle (TE_STYLE_NORMAL);
