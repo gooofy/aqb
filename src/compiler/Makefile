@@ -8,15 +8,12 @@ SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c ide.c options.c \
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 OBJS_LINUX   := $(patsubst %,${OBJDIR_LINUX}/%.o,$(basename $(SRCS)))
 
-DEPFLAGS_AMIGAOS = -MT $@ -MMD -MP -MF $(DEPDIR_AMIGAOS)/$*.d
-DEPFLAGS_LINUX   = -MT $@ -MMD -MP -MF $(DEPDIR_LINUX)/$*.d
-
 .PHONY: clean all
 all:	$(BINDIR_AMIGAOS)/aqb $(BINDIR_LINUX)/aqb
 
 clean:
 	rm -f $(OBJDIR_AMIGAOS)/*.o $(BINDIR_AMIGAOS)/aqb $(OBJDIR_LINUX)/*.o $(BINDIR_LINUX)/aqb
-	rm -rf $(DEPDIR_AMIGAIS) $(DEPDIR_LINUX)
+	rm -rf $(DEPDIR_AMIGAOS) $(DEPDIR_LINUX)
 
 $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $(DEPFLAGS_AMIGAOS) $< -o $@
