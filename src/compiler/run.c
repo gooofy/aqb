@@ -55,8 +55,9 @@ static void runner (void)
     me->pr_COS = MKBADDR(TE_output());
     me->pr_CurrentDir = g_currentDir;
 
-    struct FakeSegList *fsl = (struct FakeSegList *) BADDR(seglist);
-    startup_t f = (startup_t) &fsl->jump;
+    ULONG *code = (ULONG *) BADDR(seglist);
+    code++;
+    startup_t f = (startup_t) code;
 
     f((STRPTR)"fake_aqb_env", 12);
 
