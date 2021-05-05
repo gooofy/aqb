@@ -16,7 +16,7 @@ $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
 
 ${BINDIR_AMIGAOS}/runner:	$(OBJS_AMIGAOS)
 	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^
-	$(STRIP_AMIGAOS) $@
+	# $(STRIP_AMIGAOS) $@
 	cp $@ $(DISTDIR)
 
 $(DEPDIR_AMIGAOS): ; @mkdir -p $@
@@ -25,4 +25,7 @@ DEPFILES_AMIGAOS := $(SRCS:%.c=$(DEPDIR_AMIGAOS)/%.d)
 $(DEPFILES_AMIGAOS):
 
 include $(wildcard $(DEPFILES_AMIGAOS))
+
+diss: ${BINDIR_AMIGAOS}/runner
+	$(OBJDUMP_AMIGAOS) -S -d -x ${BINDIR_AMIGAOS}/runner
 

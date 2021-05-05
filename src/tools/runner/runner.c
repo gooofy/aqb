@@ -7,7 +7,6 @@
 #include <limits.h>
 #include <libgen.h>
 
-#ifdef __amigaos__
 #include <exec/types.h>
 #include <exec/memory.h>
 
@@ -20,44 +19,45 @@
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
-#endif
-
-#ifdef __amigaos__
-
-#define MIN_STACKSIZE 64*1024
-
-static void check_stacksize(void)
+struct FakeSegList
 {
-    struct Process *Process;
-    struct CommandLineInterface *CLI;
-    ULONG stack;
+	ULONG 	length;
+	ULONG 	next;
+	UWORD 	jump;
+	APTR 	code;
+};
 
-    Process = (struct Process *) FindTask (0L);
-    if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
-    {
-        stack = CLI -> cli_DefaultStack << 2;
-    }
-    else
-    {
-        stack = Process -> pr_StackSize;
-    }
-    if (stack < MIN_STACKSIZE)
-    {
-        fprintf (stderr, "*** error: current stack size of %ld bytes is too small for this program, need at least %d bytes.\n", stack, MIN_STACKSIZE);
-        exit(EXIT_FAILURE);
-    }
-}
-#endif
+typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG cmdlen __asm("d0") );
 
+#define BINFN "SYS:x/foo"
 
 int main (int argc, char *argv[])
 {
+    printf ("loading %s ...\n\n", BINFN);
+    BPTR seglist = LoadSeg((STRPTR)BINFN);
 
-#ifdef __amigaos__
-    check_stacksize();
-#endif
+    if (!seglist)
+    {
+        printf ("failed to load %s\n\n", BINFN);
+        return 23;
+    }
 
-    printf ("Hello, world!\n");
+    printf ("running %s ...\n\n", BINFN);
+
+	//struct Process *me = (struct Process *) FindTask(NULL);
+    //me->pr_COS = MKBADDR(TE_output());
+    //me->pr_CurrentDir = g_currentDir;
+
+    ULONG *code = (ULONG *) BADDR(seglist);
+    code++;
+    startup_t f = (startup_t) code;
+
+    f((STRPTR)"fake_aqb_env", 12);
+
+	printf ("returned from sub, UnLoadSeg...\n");
+    UnLoadSeg(seglist);
+
+	printf ("runner ends\n");
 
     return 0;
 }
