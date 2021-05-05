@@ -31,7 +31,10 @@ static struct Task *g_parentTask;
 static char *g_binfn;
 static BPTR  g_currentDir;
 
-typedef int (*startup_t)(void);
+//typedef int (*startup_t)(void);
+
+//long add( register long a __asm("d0"), register long b __asm("d1") );
+typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG cmdlen __asm("d0") );
 
 static void runner (void)
 {
@@ -55,7 +58,7 @@ static void runner (void)
     struct FakeSegList *fsl = (struct FakeSegList *) BADDR(seglist);
     startup_t f = (startup_t) &fsl->jump;
 
-    f();
+    f((STRPTR)"fake_aqb_env", 12);
 
     //Write (o, "12345\n", 6);
 	//Delay(50);
