@@ -1199,14 +1199,16 @@ E_module E_loadModule(S_symbol sModule)
 
                 ty->u.record.scope = S_beginScope();
 
+                LOG_printf (LOG_DEBUG, "loading record type, uiSize=%d, cnt=%d\n", ty->u.record.uiSize, cnt);
+
                 for (int i=0; i<cnt; i++)
                 {
-
                     uint8_t kind = fread_u1(modf);
                     switch (kind)
                     {
                         case Ty_recMethod:
                         {
+                            LOG_printf (LOG_DEBUG, "Ty_recMethod\n");
                             Ty_proc proc = E_deserializeTyProc(modTable, modf);
                             Ty_recordEntry re = Ty_Method(proc);
                             S_enter(ty->u.record.scope, proc->name, re);
@@ -1217,6 +1219,7 @@ E_module E_loadModule(S_symbol sModule)
                             uint8_t visibility = fread_u1(modf);
                             string name = strdeserialize(modf);
                             uint32_t uiOffset = fread_u4(modf);
+                            LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
 
                             S_symbol sym = S_Symbol(name, FALSE);
