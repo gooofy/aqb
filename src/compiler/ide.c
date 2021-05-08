@@ -16,6 +16,7 @@
 #include "compiler.h"
 #include "logger.h"
 #include "run.h"
+#include "options.h"
 
 #define STYLE_NORMAL  0
 #define STYLE_KW      1
@@ -1423,6 +1424,7 @@ static void close_logf(void)
 
 void IDE_open(char *sourcefn)
 {
+    OPT_set (OPTION_VERBOSE, TRUE);
     TE_init();
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG

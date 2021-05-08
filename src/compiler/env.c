@@ -13,7 +13,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     39
+#define SYM_VERSION     40
 
 E_module g_builtinsModule = NULL;
 
@@ -711,8 +711,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
     E_enventry x;
     while (TAB_next(i, (void **) &sym, (void **)&x))
     {
-        if (OPT_get(OPTION_VERBOSE))
-            printf ("flat: saving env entry name=%s\n", S_name(x->sym));
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "E_serializeEnventriesFlat: saving env entry name=%s\n", S_name(x->sym));
         fwrite_u1 (modf, x->kind);
         strserialize(modf, S_name(x->sym));
         switch (x->kind)
@@ -764,8 +763,7 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
         for (E_enventryListNode xn=xl->first; xn; xn=xn->next)
         {
             E_enventry x = xn->e;
-            if (OPT_get(OPTION_VERBOSE))
-                printf ("Overloaded: saving env entry name=%s\n", S_name(x->sym));
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "E_serializeEnventriesOverloaded: saving env entry name=%s\n", S_name(x->sym));
             fwrite_u1 (modf, x->kind);
             strserialize(modf, S_name(x->sym));
             switch (x->kind)
@@ -900,6 +898,7 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
     E_module m = TAB_look (modTable, (void *) (intptr_t) mid);
     if (!m)
     {
+        LOG_printf(LOG_ERROR, "failed to find module mid=%d\n", mid);
         assert(0);
         return NULL;
     }
@@ -998,7 +997,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         string l = strdeserialize(modf);
         if (!l)
         {
-            printf("failed to read function label.\n");
+            LOG_printf(LOG_INFO, "failed to read function label.\n");
             return NULL;
         }
         label = Temp_namedlabel(l);
@@ -1013,13 +1012,13 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         Ty_ty ty = E_deserializeTyRef(modTable, modf);
         if (!ty)
         {
-            printf("failed to read argument type.\n");
+            LOG_printf(LOG_INFO, "failed to read argument type.\n");
             return NULL;
         }
         Ty_const ce;
         if (!E_deserializeTyConst(modTable, modf, &ce))
         {
-            printf("failed to read argument const expression.\n");
+            LOG_printf(LOG_INFO, "failed to read argument const expression.\n");
             return NULL;
         }
         uint8_t mode = fread_u1(modf);
@@ -1031,13 +1030,13 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             string regs = strdeserialize(modf);
             if (!regs)
             {
-                printf("failed to read formal reg string.\n");
+                LOG_printf(LOG_INFO, "failed to read formal reg string.\n");
                 return NULL;
             }
             reg = AS_lookupReg(S_Symbol(regs, FALSE));
             if (!regs)
             {
-                printf("formal reg unknown.\n");
+                LOG_printf(LOG_INFO, "formal reg unknown.\n");
                 return NULL;
             }
         }
@@ -1057,7 +1056,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     Ty_ty returnTy = E_deserializeTyRef(modTable, modf);
     if (!returnTy)
     {
-        printf("failed to read function return type.\n");
+        LOG_printf(LOG_INFO, "failed to read function return type.\n");
         return NULL;
     }
     int32_t offset = fread_i4(modf);
@@ -1067,7 +1066,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         libBase = strdeserialize(modf);
         if (!libBase)
         {
-            printf("failed to read function libBase.\n");
+            LOG_printf(LOG_INFO, "failed to read function libBase.\n");
             return NULL;
         }
     }
@@ -1128,7 +1127,7 @@ E_module E_loadModule(S_symbol sModule)
     uint16_t v=fread_u2(modf);
     if (v != SYM_VERSION)
     {
-        printf("%s: version mismatch\n", symfn);
+        LOG_printf(LOG_DEBUG, "%s: version mismatch\n", symfn);
         goto fail;
     }
 
@@ -1147,13 +1146,12 @@ E_module E_loadModule(S_symbol sModule)
 
         string mod_name  = strdeserialize(modf);
         S_symbol mod_sym = S_Symbol(mod_name, FALSE);
-        if (OPT_get(OPTION_VERBOSE))
-            printf ("%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
 
         E_module m2 = E_loadModule (mod_sym);
         if (!m2)
         {
-            printf ("failed to load module %s", mod_name);
+            LOG_printf (LOG_ERROR, "failed to load module %s", mod_name);
             goto fail;
         }
 
@@ -1177,8 +1175,7 @@ E_module E_loadModule(S_symbol sModule)
 
         ty->kind = fread_u1(modf);
 
-        if (OPT_get(OPTION_VERBOSE))
-            printf ("%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
 
         switch (ty->kind)
         {
@@ -1273,7 +1270,7 @@ E_module E_loadModule(S_symbol sModule)
         {
             if (ty->kind == Ty_toLoad)
             {
-                printf ("%s: toLoad type detected!\n", symfn);
+                LOG_printf (LOG_ERROR, "%s: toLoad type detected!\n", symfn);
                 goto fail;
             }
         }
@@ -1287,13 +1284,12 @@ E_module E_loadModule(S_symbol sModule)
         string name = strdeserialize(modf);
         if (!name)
         {
-            printf("%s: failed to read env entry symbol name.\n", symfn);
+            LOG_printf(LOG_ERROR, "%s: failed to read env entry symbol name.\n", symfn);
             goto fail;
         }
         S_symbol sym = S_Symbol(name, FALSE);
 
-        if (OPT_get(OPTION_VERBOSE))
-            printf ("%s: reading env entry name=%s\n", S_name(sModule), name);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading env entry name=%s\n", S_name(sModule), name);
 
         switch (kind)
         {
@@ -1308,7 +1304,7 @@ E_module E_loadModule(S_symbol sModule)
                         Ty_proc proc = E_deserializeTyProc(modTable, modf);
                         if (!proc)
                         {
-                            printf("%s: failed to read function proc.\n", symfn);
+                            LOG_printf(LOG_ERROR, "%s: failed to read function proc.\n", symfn);
                             goto fail;
                         }
                         CG_HeapPtrItem (&var, proc->label, Ty_Prc(mod->name, proc));
@@ -1319,13 +1315,13 @@ E_module E_loadModule(S_symbol sModule)
                         Ty_ty ty = E_deserializeTyRef(modTable, modf);
                         if (!ty)
                         {
-                            printf("%s: failed to read const type.\n", symfn);
+                            LOG_printf(LOG_ERROR, "%s: failed to read const type.\n", symfn);
                             goto fail;
                         }
                         Ty_const cExp;
                         if (!E_deserializeTyConst(modTable, modf, &cExp))
                         {
-                            printf("%s: failed to read const expression.\n", symfn);
+                            LOG_printf(LOG_ERROR, "%s: failed to read const expression.\n", symfn);
                             goto fail;
                         }
                         CG_ConstItem (&var, cExp);
@@ -1336,7 +1332,7 @@ E_module E_loadModule(S_symbol sModule)
                         Ty_ty ty = E_deserializeTyRef(modTable, modf);
                         if (!ty)
                         {
-                            printf("%s: failed to read variable type.\n", symfn);
+                            LOG_printf(LOG_ERROR, "%s: failed to read variable type.\n", symfn);
                             goto fail;
                         }
                         CG_externalVar (&var, name, ty);
@@ -1351,7 +1347,7 @@ E_module E_loadModule(S_symbol sModule)
                 Ty_proc proc = E_deserializeTyProc(modTable, modf);
                 if (!proc)
                 {
-                    printf("%s: failed to read function proc.\n", symfn);
+                    LOG_printf(LOG_ERROR, "%s: failed to read function proc.\n", symfn);
                     goto fail;
                 }
                 E_declareSub (mod->env, sym, proc);

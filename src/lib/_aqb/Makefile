@@ -15,6 +15,7 @@ _aqb.sym : _aqb.bas
 	pushd .. && rm -f _aqb.sym _aqb.a && ln -s _aqb/_aqb.sym && ln -s _aqb/_aqb.a && popd
 	cp $< $(DISTDIR)/libsrc
 	cp $@ $(DISTDIR)/lib
+	rm -f $(DISTDIR)/lib/*.uaem
 
 _aqb.a: awindow.o _aqb.o aio.o atimer.o autil.o
 	$(AR_AMIGAOS) -crs _aqb.a $^

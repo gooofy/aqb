@@ -12,6 +12,7 @@ _brt.sym : _brt.bas
 	pushd .. && rm -f _brt.sym && ln -s _brt/_brt.sym && popd
 	cp $< $(DISTDIR)/libsrc
 	cp $@ $(DISTDIR)/lib
+	rm -f $(DISTDIR)/lib/*.uaem
 
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
