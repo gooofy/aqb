@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 
@@ -43,7 +44,6 @@ E_moduleListNode E_ModuleListNode(E_module m, E_moduleListNode next)
     n->next = next;
     return n;
 }
-
 
 void E_declareVFC (E_env env, S_symbol sym, CG_item *var)
 {
@@ -302,6 +302,66 @@ static void declare_builtin_const(string name, Ty_const cExp)
 
 static FILE     *modf     = NULL;
 
+static void env_fail (string msg)
+{
+    LOG_printf (LOG_ERROR, "*** env error: %s\n", msg);
+    assert(FALSE);
+
+    if (modf)
+    {
+        fclose (modf);
+        modf = NULL;
+    }
+
+    exit(126);
+}
+
+static void fwrite_u8(FILE *f, uint64_t u)
+{
+    u = ENDIAN_SWAP_64 (u);
+    if (fwrite (&u, 8, 1, f) != 1)
+        env_fail ("write error");
+}
+
+static void fwrite_u4(FILE *f, uint32_t u)
+{
+    u = ENDIAN_SWAP_32 (u);
+    if (fwrite (&u, 4, 1, f) != 1)
+        env_fail ("write error");
+}
+
+static void fwrite_i4(FILE *f, int32_t i)
+{
+    uint32_t u = *((uint32_t*)&i);
+    u = ENDIAN_SWAP_32 (u);
+    if (fwrite (&u, 4, 1, f) != 1)
+        env_fail ("write error");
+}
+
+static void fwrite_u2(FILE *f, uint16_t u)
+{
+    u = ENDIAN_SWAP_16(u);
+    if (fwrite (&u, 2, 1, f) != 1)
+        env_fail ("write error");
+}
+
+static void fwrite_u1(FILE *f, uint8_t u)
+{
+    if (fwrite (&u, 1, 1, f) != 1)
+        env_fail ("write error");
+}
+
+static uint32_t fread_u4(FILE *f)
+{
+    uint32_t u;
+    if (fread (&u, 4, 1, f) != 1)
+        env_fail ("read error");
+
+    u = ENDIAN_SWAP_32 (u);
+
+    return u;
+}
+
 static void E_serializeTyRef(TAB_table modTable, Ty_ty ty)
 {
     if (ty->mod)
@@ -309,21 +369,20 @@ static void E_serializeTyRef(TAB_table modTable, Ty_ty ty)
         uint32_t mid;
         mid = (uint32_t) (intptr_t) TAB_look(modTable, ty->mod);
         assert(mid);
-        fwrite(&mid, 4, 1, modf);
+        fwrite_u4(modf, mid);
     }
     else
     {
-        uint32_t mod = 1;
-        fwrite(&mod, 4, 1, modf);
+        fwrite_u4(modf, 1);
     }
-    fwrite(&ty->uid, 4, 1, modf);
+    fwrite_u4(modf, ty->uid);
 }
 
 static void E_serializeTyConst(TAB_table modTable, Ty_const c)
 {
     uint8_t present = (c != NULL);
 
-    fwrite (&present, 1, 1, modf);
+    fwrite_u1(modf, present);
     if (!present)
         return;
 
@@ -332,7 +391,7 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
     switch (c->ty->kind)
     {
         case Ty_bool:
-            fwrite (&c->u.b, 1, 1, modf);
+            fwrite_u1 (modf, c->u.b);
             break;
         case Ty_byte:
         case Ty_ubyte:
@@ -341,10 +400,10 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
-            fwrite (&c->u.i, 4, 1, modf);
+            fwrite_i4 (modf, c->u.i);
             break;
         case Ty_single:
-            fwrite (&c->u.f, 8, 1, modf);
+            fwrite_u8 (modf, *((uint64_t)&c->u.f));
             break;
         default:
             assert(0);
@@ -756,11 +815,9 @@ bool E_saveModule(string modfn, E_module mod)
 
     // sym file header: magic, version number
 
-    uint32_t m = SYM_MAGIC;
-    fwrite(&m, 4, 1, modf);
+    fwrite_u4 (modf, SYM_MAGIC);
 
-    uint16_t v = SYM_VERSION;
-    fwrite(&v, 2, 1, modf);
+    fwrite_u2 (modf, SYM_VERSION);
 
     // module table (used in type serialization for module referencing)
     TAB_table modTable;  // S_symbol moduleName -> int mid
@@ -793,8 +850,7 @@ bool E_saveModule(string modfn, E_module mod)
     while (TAB_next(iter, &key, (void **)&ty))
         E_serializeType(modTable, ty);
 
-    m = 0;                      // types end marker
-    fwrite(&m, 4, 1, modf);
+    fwrite_u4 (modf, 0);                      // types end marker
 
     // serialize enventries
     E_serializeEnventriesFlat (modTable, mod->env->u.scopes.vfcenv);
@@ -1111,11 +1167,10 @@ E_module E_loadModule(S_symbol sModule)
 
     // check header
 
-    uint32_t m;
-    if (fread(&m, 4, 1, modf) != 1) goto fail;
+    uint32_t m=fread_u4(modf);
     if (m != SYM_MAGIC)
     {
-        LOG_printf (LOG_ERROR, "%s: head magic mismatch\n", symfn);
+        LOG_printf (LOG_ERROR, "%s: head magic mismatch 0x%08x vs 0x%08x\n", symfn, m, SYM_MAGIC);
         goto fail;
     }
 

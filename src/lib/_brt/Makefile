@@ -11,6 +11,7 @@ _brt.sym : _brt.bas
 	$(AQB) -d none -s $@ $<
 	pushd .. && rm -f _brt.sym && ln -s _brt/_brt.sym && popd
 	cp $< $(DISTDIR)/libsrc
+	cp $@ $(DISTDIR)/lib
 
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
