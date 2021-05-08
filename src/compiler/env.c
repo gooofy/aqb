@@ -316,8 +316,10 @@ static void env_fail (string msg)
     exit(126);
 }
 
-static void fwrite_u8(FILE *f, uint64_t u)
+static void fwrite_double(FILE *f, double d)
 {
+    void *p = &d;
+    uint64_t u = *((uint64_t*)p);
     u = ENDIAN_SWAP_64 (u);
     if (fwrite (&u, 8, 1, f) != 1)
         env_fail ("write error");
@@ -349,17 +351,6 @@ static void fwrite_u1(FILE *f, uint8_t u)
 {
     if (fwrite (&u, 1, 1, f) != 1)
         env_fail ("write error");
-}
-
-static uint32_t fread_u4(FILE *f)
-{
-    uint32_t u;
-    if (fread (&u, 4, 1, f) != 1)
-        env_fail ("read error");
-
-    u = ENDIAN_SWAP_32 (u);
-
-    return u;
 }
 
 static void E_serializeTyRef(TAB_table modTable, Ty_ty ty)
@@ -403,7 +394,7 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
             fwrite_i4 (modf, c->u.i);
             break;
         case Ty_single:
-            fwrite_u8 (modf, *((uint64_t)&c->u.f));
+            fwrite_double (modf, c->u.f);
             break;
         default:
             assert(0);
@@ -578,50 +569,48 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc);
 
 static void E_serializeType(TAB_table modTable, Ty_ty ty)
 {
-    fwrite(&ty->uid,  4, 1, modf);
-    uint8_t b = ty->kind;
-    fwrite(&b, 1, 1, modf);
+    fwrite_u4 (modf, ty->uid);
+    fwrite_u1 (modf, ty->kind);
     switch (ty->kind)
     {
         case Ty_darray:
             E_serializeTyRef(modTable, ty->u.sarray.elementTy);
             break;
         case Ty_sarray:
-            fwrite(&ty->u.sarray.uiSize, 4, 1, modf);
+            fwrite_u4(modf, ty->u.sarray.uiSize);
             E_serializeTyRef(modTable, ty->u.sarray.elementTy);
-            fwrite(&ty->u.sarray.iStart, 4, 1, modf);
-            fwrite(&ty->u.sarray.iEnd,   4, 1, modf);
+            fwrite_u4(modf, ty->u.sarray.iStart);
+            fwrite_u4(modf, ty->u.sarray.iEnd);
             break;
         case Ty_record:
         {
             TAB_iter i = S_Iter(ty->u.record.scope);
             S_symbol sym;
             Ty_recordEntry entry;
-            fwrite(&ty->u.record.uiSize, 4, 1, modf);
+            fwrite_u4(modf, ty->u.record.uiSize);
             uint16_t cnt=0;
             while (TAB_next(i, (void **) &sym, (void **)&entry))
                 cnt++;
-            fwrite(&cnt, 2, 1, modf);
+            fwrite_u2(modf, cnt);
             i = S_Iter(ty->u.record.scope);
             while (TAB_next(i, (void **) &sym, (void **)&entry))
             {
-                uint8_t b = entry->kind;
-                fwrite(&b, 1, 1, modf);
+                fwrite_u1(modf, entry->kind);
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
                         E_serializeTyProc(modTable, entry->u.method);
                         break;
                     case Ty_recField:
-                        fwrite(&entry->u.field.visibility, 1, 1, modf);
+                        fwrite_u1(modf, entry->u.field.visibility);
                         strserialize(modf, S_name(entry->u.field.name));
-                        fwrite(&entry->u.field.uiOffset, 4, 1, modf);
+                        fwrite_u4(modf, entry->u.field.uiOffset);
                         E_serializeTyRef(modTable, entry->u.field.ty);
                         break;
                 }
             }
             bool constructor_present = ty->u.record.constructor != NULL;
-            fwrite(&constructor_present, 1, 1, modf);
+            fwrite_u1(modf, constructor_present);
             if (constructor_present)
                 E_serializeTyProc(modTable, ty->u.record.constructor);
             break;
@@ -657,21 +646,20 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
 static void E_serializeOptionalSymbol(S_symbol sym)
 {
     bool present = sym != NULL;
-    fwrite(&present, 1, 1, modf);
+    fwrite_u1(modf, present);
     if (present)
         strserialize(modf, S_name(sym));
 }
 
 static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
 {
-    uint8_t b = proc->kind;
-    fwrite(&b, 1, 1, modf);
-    fwrite(&proc->visibility, 1, 1, modf);
+    fwrite_u1(modf, proc->kind);
+    fwrite_u1(modf, proc->visibility);
     E_serializeOptionalSymbol(proc->name);
     uint8_t cnt = 0;
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
         cnt++;
-    fwrite(&cnt, 1, 1, modf);
+    fwrite_u1(modf, cnt);
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
         strserialize(modf, S_name(sl->sym));
     E_serializeOptionalSymbol(proc->label);
@@ -679,46 +667,40 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     cnt=0;
     for (Ty_formal formal=proc->formals; formal; formal = formal->next)
         cnt++;
-    fwrite(&cnt, 1, 1, modf);
+    fwrite_u1(modf, cnt);
     for (Ty_formal formal=proc->formals; formal; formal = formal->next)
     {
         E_serializeOptionalSymbol(formal->name);
         E_serializeTyRef(modTable, formal->ty);
         E_serializeTyConst(modTable, formal->defaultExp);
-        uint8_t b = formal->mode;
-        fwrite(&b, 1, 1, modf);
-        b = formal->ph;
-        fwrite(&b, 1, 1, modf);
+        fwrite_u1(modf, formal->mode);
+        fwrite_u1(modf, formal->ph);
         if (formal->reg)
         {
-            bool reg_present = TRUE;
-            fwrite(&reg_present, 1, 1, modf);
+            fwrite_u1(modf, TRUE);
             char buf[8];
             Temp_snprintf (formal->reg, buf, 8);
             strserialize(modf, buf);
         }
         else
         {
-            bool reg_present = FALSE;
-            fwrite(&reg_present, 1, 1, modf);
+            fwrite_u1(modf, FALSE);
         }
     }
-    fwrite(&proc->isVariadic, 1, 1, modf);
-    fwrite(&proc->isStatic, 1, 1, modf);
+    fwrite_u1(modf, proc->isVariadic);
+    fwrite_u1(modf, proc->isStatic);
     E_serializeTyRef(modTable, proc->returnTy);
-    fwrite(&proc->offset, 4, 1, modf);
+    fwrite_u4(modf, proc->offset);
     if (proc->offset)
         strserialize(modf, proc->libBase);
     if (proc->tyCls)
     {
-        bool tyClsPresent = TRUE;
-        fwrite(&tyClsPresent, 1, 1, modf);
+        fwrite_u1(modf, TRUE);
         E_serializeTyRef(modTable, proc->tyCls);
     }
     else
     {
-        bool tyClsPresent = FALSE;
-        fwrite(&tyClsPresent, 1, 1, modf);
+        fwrite_u1(modf, FALSE);
     }
 }
 
@@ -731,8 +713,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
     {
         if (OPT_get(OPTION_VERBOSE))
             printf ("flat: saving env entry name=%s\n", S_name(x->sym));
-        uint8_t kind = x->kind;
-        fwrite (&kind, 1, 1, modf);
+        fwrite_u1 (modf, x->kind);
         strserialize(modf, S_name(x->sym));
         switch (x->kind)
         {
@@ -741,8 +722,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
                 Ty_ty ty = CG_ty(&x->u.var);
                 if (CG_isConst(&x->u.var))
                 {
-                    uint8_t k = vfcConst;
-                    fwrite (&k, 1, 1, modf);
+                    fwrite_u1 (modf, vfcConst);
                     E_serializeTyRef(modTable, ty);
                     E_serializeTyConst(modTable, CG_getConst(&x->u.var));
                 }
@@ -752,14 +732,12 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
                     {
                         Ty_proc proc = ty->u.proc;
                         assert (proc->visibility == Ty_visPublic);
-                        uint8_t k = vfcFunc;
-                        fwrite (&k, 1, 1, modf);
+                        fwrite_u1 (modf, vfcFunc);
                         E_serializeTyProc(modTable, proc);
                     }
                     else
                     {
-                        uint8_t k = vfcVar;
-                        fwrite (&k, 1, 1, modf);
+                        fwrite_u1 (modf, vfcVar);
                         assert(CG_isVar(&x->u.var));
                         E_serializeTyRef(modTable, ty);
                     }
@@ -788,8 +766,7 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
             E_enventry x = xn->e;
             if (OPT_get(OPTION_VERBOSE))
                 printf ("Overloaded: saving env entry name=%s\n", S_name(x->sym));
-            uint8_t kind = x->kind;
-            fwrite (&kind, 1, 1, modf);
+            fwrite_u1 (modf, x->kind);
             strserialize(modf, S_name(x->sym));
             switch (x->kind)
             {
@@ -831,12 +808,12 @@ bool E_saveModule(string modfn, E_module mod)
     {
         TAB_enter(modTable, m2->name, (void *) (intptr_t) mid);
 
-        fwrite(&mid, 2, 1, modf);
+        fwrite_u2(modf, mid);
         strserialize(modf, S_name(m2->name));
 
         mid++;
     }
-    mid = 0; fwrite(&mid, 2, 1, modf);  // end marker
+    mid = 0; fwrite_u2(modf, 0);  // end marker
 
     // serialize types
     TAB_table type_tab = TAB_empty();
@@ -862,13 +839,64 @@ bool E_saveModule(string modfn, E_module mod)
     return TRUE;
 }
 
+static double fread_double(FILE *f)
+{
+    uint64_t u;
+    if (fread (&u, 8, 1, f) != 1)
+        env_fail ("read error");
+
+    u = ENDIAN_SWAP_64 (u);
+
+    void *p = &u;
+    return *((double*)p);
+}
+
+static uint32_t fread_u4(FILE *f)
+{
+    uint32_t u;
+    if (fread (&u, 4, 1, f) != 1)
+        env_fail ("read error");
+
+    u = ENDIAN_SWAP_32 (u);
+
+    return u;
+}
+
+static int32_t fread_i4(FILE *f)
+{
+    int32_t i;
+    if (fread (&i, 4, 1, f) != 1)
+        env_fail ("read error");
+
+    i = ENDIAN_SWAP_32 (i);
+
+    return i;
+}
+
+static uint16_t fread_u2(FILE *f)
+{
+    uint16_t u;
+    if (fread (&u, 2, 1, f) != 1)
+        env_fail ("read error");
+
+    u = ENDIAN_SWAP_16 (u);
+
+    return u;
+}
+
+static uint8_t fread_u1(FILE *f)
+{
+    uint8_t u;
+    if (fread (&u, 1, 1, f) != 1)
+        env_fail ("read error");
+
+    return u;
+}
+
 static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
 {
-    uint32_t mid  = 0;
-    uint32_t tuid = 0;
 
-    if (fread(&mid,  4, 1, modf) != 1) return NULL;
-
+    uint32_t mid  = fread_u4(modf);
     E_module m = TAB_look (modTable, (void *) (intptr_t) mid);
     if (!m)
     {
@@ -876,7 +904,7 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
         return NULL;
     }
 
-    if (fread(&tuid, 4, 1, modf) != 1) return NULL;
+    uint32_t tuid = fread_u4(modf);
     Ty_ty ty = TAB_look(m->tyTable, (void *) (intptr_t) tuid);
     if (!ty)
     {
@@ -889,14 +917,7 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
 
 static bool E_deserializeTyConst(TAB_table modTable, FILE *modf, Ty_const *c)
 {
-    int32_t  i;
-    uint32_t u;
-    double   f;
-    uint8_t  b;
-
-    uint8_t present;
-    if (fread(&present, 1, 1, modf) != 1)
-        return FALSE;
+    uint8_t present = fread_u1(modf);
 
     if (!present)
     {
@@ -911,26 +932,22 @@ static bool E_deserializeTyConst(TAB_table modTable, FILE *modf, Ty_const *c)
     switch (ty->kind)
     {
         case Ty_bool:
-            if (fread(&b, 1, 1, modf) != 1) return FALSE;
-            *c = Ty_ConstBool(ty, b);
+            *c = Ty_ConstBool(ty, fread_u1(modf));
             return TRUE;
         case Ty_byte:
         case Ty_integer:
         case Ty_long:
         case Ty_pointer:
-            if (fread(&i, 4, 1, modf) != 1) return FALSE;
-            *c = Ty_ConstInt(ty, i);
+            *c = Ty_ConstInt(ty, fread_i4(modf));
             return TRUE;
         case Ty_ubyte:
         case Ty_uinteger:
         case Ty_ulong:
-            if (fread(&u, 4, 1, modf) != 1) return FALSE;
-            *c = Ty_ConstUInt(ty, u);
+            *c = Ty_ConstUInt(ty, fread_u4(modf));
             return TRUE;
         case Ty_single:
         case Ty_double:
-            if (fread(&f, 8, 1, modf) != 1) return FALSE;
-            *c = Ty_ConstFloat(ty, f);
+            *c = Ty_ConstFloat(ty, fread_double(modf));
             return TRUE;
         default:
             assert(0);
@@ -940,13 +957,7 @@ static bool E_deserializeTyConst(TAB_table modTable, FILE *modf, Ty_const *c)
 
 static S_symbol E_deserializeOptionalSymbol(FILE *modf)
 {
-    uint8_t present;
-    if (fread(&present, 1, 1, modf)!=1)
-    {
-        printf("failed to read optional symbol presence flag.\n");
-        return NULL;
-    }
-
+    uint8_t present = fread_u1(modf);
     if (!present)
         return NULL;
     string s = strdeserialize(modf);
@@ -956,32 +967,17 @@ static S_symbol E_deserializeOptionalSymbol(FILE *modf)
 
 static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
 {
-    uint8_t kind;
-    if (fread(&kind, 1, 1, modf)!=1)
-    {
-        printf("failed to read proc kind.\n");
-        return NULL;
-    }
-    uint8_t visibility;
-    if (fread(&visibility, 1, 1, modf)!=1)
-    {
-        printf("failed to read proc visibility.\n");
-        return NULL;
-    }
+    uint8_t kind = fread_u1(modf);
+    uint8_t visibility = fread_u1(modf);
     S_symbol name = E_deserializeOptionalSymbol(modf);
-    uint8_t cnt = 0;
-    if (fread(&cnt, 1, 1, modf)!=1)
-    {
-        printf("failed to read function extra sym count.\n");
-        return NULL;
-    }
+    uint8_t cnt = fread_u1(modf);
     S_symlist extra_syms=NULL, extra_syms_last=NULL;
     for (int i = 0; i<cnt; i++)
     {
         string str = strdeserialize(modf);
         if (!str)
         {
-            printf("failed to read function extra sym.\n");
+            env_fail("failed to read function extra sym.\n");
             return NULL;
         }
         S_symbol sym = S_Symbol(str, FALSE);
@@ -995,12 +991,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             extra_syms = extra_syms_last = S_Symlist(sym, NULL);
         }
     }
-    uint8_t present;
-    if (fread(&present, 1, 1, modf)!=1)
-    {
-        printf("failed to read function label presence flag.\n");
-        return NULL;
-    }
+    uint8_t present = fread_u1(modf);
     Temp_label label = NULL;
     if (present)
     {
@@ -1013,11 +1004,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         label = Temp_namedlabel(l);
     }
 
-    if (fread(&cnt, 1, 1, modf)!=1)
-    {
-        printf("failed to read function arg count.\n");
-        return NULL;
-    }
+    cnt = fread_u1(modf);
     Ty_formal formals=NULL;
     Ty_formal formals_last = NULL;
     for (int i = 0; i<cnt; i++)
@@ -1035,26 +1022,10 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             printf("failed to read argument const expression.\n");
             return NULL;
         }
-        uint8_t b;
-        if (fread(&b, 1, 1, modf)!=1)
-        {
-            printf("failed to read formal mode.\n");
-            return NULL;
-        }
-        uint8_t mode = b;
-        if (fread(&b, 1, 1, modf)!=1)
-        {
-            printf("failed to read formal parser hint.\n");
-            return NULL;
-        }
-        Ty_formalParserHint ph = b;
+        uint8_t mode = fread_u1(modf);
+        Ty_formalParserHint ph = fread_u1(modf);
         Temp_temp reg=NULL;
-        uint8_t present;
-        if (fread(&present, 1, 1, modf)!=1)
-        {
-            printf("failed to read formal reg presence flag.\n");
-            return NULL;
-        }
+        uint8_t present = fread_u1(modf);
         if (present)
         {
             string regs = strdeserialize(modf);
@@ -1081,30 +1052,15 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             formals_last = formals_last->next;
         }
     }
-    uint8_t isVariadic;
-    if (fread(&isVariadic, 1, 1, modf)!=1)
-    {
-        printf("failed to read function variadic flag.\n");
-        return NULL;
-    }
-    uint8_t isStatic;
-    if (fread(&isStatic, 1, 1, modf)!=1)
-    {
-        printf("failed to read function static flag.\n");
-        return NULL;
-    }
+    uint8_t isVariadic = fread_u1(modf);
+    uint8_t isStatic = fread_u1(modf);
     Ty_ty returnTy = E_deserializeTyRef(modTable, modf);
     if (!returnTy)
     {
         printf("failed to read function return type.\n");
         return NULL;
     }
-    int32_t offset;
-    if (fread(&offset, 4, 1, modf) != 1)
-    {
-        printf("failed to read function offset.\n");
-        return NULL;
-    }
+    int32_t offset = fread_i4(modf);
     string libBase=NULL;
     if (offset)
     {
@@ -1115,12 +1071,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             return NULL;
         }
     }
-    uint8_t tyClsPtrPresent;
-    if (fread(&tyClsPtrPresent, 1, 1, modf)!=1)
-    {
-        printf("failed to read function tyClsPtrPresent flag.\n");
-        return NULL;
-    }
+    uint8_t tyClsPtrPresent = fread_u1(modf);
     Ty_ty tyClsPtr=NULL;
     if (tyClsPtrPresent)
         tyClsPtr = E_deserializeTyRef(modTable, modf);
@@ -1174,8 +1125,7 @@ E_module E_loadModule(S_symbol sModule)
         goto fail;
     }
 
-    uint16_t v;
-    if (fread(&v, 2, 1, modf) != 1) goto fail;
+    uint16_t v=fread_u2(modf);
     if (v != SYM_VERSION)
     {
         printf("%s: version mismatch\n", symfn);
@@ -1191,8 +1141,7 @@ E_module E_loadModule(S_symbol sModule)
 
     while (TRUE)
     {
-        uint16_t mid;
-        if (fread(&mid, 2, 1, modf) != 1) goto fail;
+        uint16_t mid = fread_u2(modf);
         if (!mid) // end marker detected
             break;
 
@@ -1215,8 +1164,7 @@ E_module E_loadModule(S_symbol sModule)
     // read types
     while (TRUE)
     {
-        uint32_t tuid;
-        if (fread(&tuid, 4, 1, modf) != 1) goto fail;
+        uint32_t tuid = fread_u4(modf);
         if (!tuid)              // types end marker
             break;
 
@@ -1227,9 +1175,7 @@ E_module E_loadModule(S_symbol sModule)
             TAB_enter (mod->tyTable, (void *) (intptr_t) tuid, ty);
         }
 
-        uint8_t b;
-        if (fread(&b, 1, 1, modf) != 1) goto fail;
-        ty->kind = b;
+        ty->kind = fread_u1(modf);
 
         if (OPT_get(OPTION_VERBOSE))
             printf ("%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
@@ -1241,27 +1187,25 @@ E_module E_loadModule(S_symbol sModule)
                 break;
 
             case Ty_sarray:
-                if (fread(&ty->u.sarray.uiSize, 4, 1, modf) != 1) goto fail;
+                ty->u.sarray.uiSize = fread_u4(modf);
                 ty->u.sarray.elementTy = E_deserializeTyRef(modTable, modf);
-                if (fread(&ty->u.sarray.iStart, 4, 1, modf) != 1) goto fail;
-                if (fread(&ty->u.sarray.iEnd,   4, 1, modf) != 1) goto fail;
+                ty->u.sarray.iStart = fread_i4(modf);
+                ty->u.sarray.iEnd   = fread_i4(modf);
                 Ty_computeSize(ty);
                 break;
 
             case Ty_record:
             {
-                if (fread(&ty->u.record.uiSize, 4, 1, modf) != 1) goto fail;
+                ty->u.record.uiSize = fread_u4(modf);
 
-                uint16_t cnt=0;
-                if (fread(&cnt, 2, 1, modf) != 1) goto fail;
+                uint16_t cnt=fread_u2(modf);
 
                 ty->u.record.scope = S_beginScope();
 
                 for (int i=0; i<cnt; i++)
                 {
 
-                    uint8_t kind;
-                    if (fread(&kind, 1, 1, modf) != 1) goto fail;
+                    uint8_t kind = fread_u1(modf);
                     switch (kind)
                     {
                         case Ty_recMethod:
@@ -1273,11 +1217,9 @@ E_module E_loadModule(S_symbol sModule)
                         }
                         case Ty_recField:
                         {
-                            uint8_t visibility;
-                            if (fread(&visibility, 1, 1, modf) != 1) goto fail;
+                            uint8_t visibility = fread_u1(modf);
                             string name = strdeserialize(modf);
-                            uint32_t uiOffset = 0;
-                            if (fread(&uiOffset, 4, 1, modf) != 1) goto fail;
+                            uint32_t uiOffset = fread_u4(modf);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
 
                             S_symbol sym = S_Symbol(name, FALSE);
@@ -1289,8 +1231,7 @@ E_module E_loadModule(S_symbol sModule)
                     }
                 }
 
-                uint8_t constructor_present;
-                if (fread(&constructor_present, 1, 1, modf) != 1) goto fail;
+                uint8_t constructor_present = fread_u1(modf);
                 if (constructor_present)
                     ty->u.record.constructor = E_deserializeTyProc(modTable, modf);
                 else
@@ -1358,12 +1299,7 @@ E_module E_loadModule(S_symbol sModule)
         {
             case E_vfcEntry:
             {
-                uint8_t k = vfcFunc;
-                if (fread(&k, 1, 1, modf)!=1)
-                {
-                    printf("%s: failed to read vcf kind field.\n", symfn);
-                    goto fail;
-                }
+                uint8_t k = fread_u1(modf);
                 CG_item var;
                 switch (k)
                 {

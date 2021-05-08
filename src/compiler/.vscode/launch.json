@@ -72,7 +72,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "..", "-d", "_brt", "-S", "-v", "_aqb.bas"],
+            "args": ["-L", "..", "-d", "_brt", "-s", "_aqb.sym", "-v", "_aqb.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../lib/_aqb",
             "environment": [],

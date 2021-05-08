@@ -6989,7 +6989,10 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     {
         E_module modDefault = E_loadModule(S_Symbol(OPT_default_module, FALSE));
         if (!modDefault)
+        {
             EM_error (0, "***ERROR: failed to load %s !", OPT_default_module);
+            return NULL;
+        }
         E_import(FE_mod, modDefault);
     }
 
