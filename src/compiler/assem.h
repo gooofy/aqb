@@ -240,6 +240,7 @@ static inline bool AS_instrSetIsEmpty  (AS_instrSet as) { return as->first == NU
 
 void               AS_sprint           (string str, AS_instr i, AS_dialect dialect);
 void               AS_printInstrList   (FILE *out, AS_instrList iList, AS_dialect dialect);
+void               AS_logInstrList     (AS_instrList iList);
 void               AS_printInstrSet    (FILE *out, AS_instrSet  is   );
 
 Temp_tempSet       AS_registers        (void);

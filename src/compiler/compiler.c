@@ -66,11 +66,8 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
         return 4;
     }
 
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        LOG_printf (LOG_INFO, "\n\nsemantics worked.\n");
-        U_memstat();
-    }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nsemantics worked.\n");
+    U_memstat();
 
     /*
      * generate symbol file
@@ -107,34 +104,28 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
         CG_frame     frame   = frag->u.proc.frame;
         AS_instrList body    = frag->u.proc.body;
 
-        if (OPT_get(OPTION_VERBOSE))
-        {
-            fprintf(stdout, "\n************************************************************************************************\n");
-            fprintf(stdout, "**\n");
-            fprintf(stdout, "** register allocation for %s\n", Temp_labelstring(label));
-            fprintf(stdout, "**\n");
-            fprintf(stdout, "************************************************************************************************\n\n");
-            fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
-            AS_printInstrList (stdout, body, AS_dialect_gas);
-            fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
-            U_memstat();
-        }
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n************************************************************************************************\n");
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "**\n");
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "** register allocation for %s\n", Temp_labelstring(label));
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "**\n");
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "************************************************************************************************\n\n");
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list after codegen, before regalloc:\n", Temp_labelstring(label));
+        AS_logInstrList (body);
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
+        U_memstat();
 
         if (!RA_regAlloc(frame, body) || EM_anyErrors)
         {
-            printf ("\n\nregister allocation failed - exiting.\n");
+            LOG_printf (LOG_ERROR, "\n\nregister allocation failed - exiting.\n");
             return 24;
         }
 
         CG_procEntryExitAS(frag);
 
-        if (OPT_get(OPTION_VERBOSE))
-        {
-            fprintf(stdout, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after CG_procEntryExitAS):\n", Temp_labelstring(label));
-            AS_printInstrList(stdout, body, AS_dialect_gas);
-            fprintf(stdout, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after CG_procEntryExitAS).\n", Temp_labelstring(label));
-            U_memstat();
-        }
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, ">>>>>>>>>>>>>>>>>>>>> Proc %s AS stmt list (after CG_procEntryExitAS):\n", Temp_labelstring(label));
+        AS_logInstrList(body);
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list (after CG_procEntryExitAS).\n", Temp_labelstring(label));
+        U_memstat();
     }
 
     /*
@@ -177,15 +168,13 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
                 AS_instrList body    = frag->u.proc.body;
                 bool         expt    = frag->u.proc.expt;
 
-                if (OPT_get(OPTION_VERBOSE))
-                {
-                    fprintf(stdout, "\n************************************************************************************************\n");
-                    fprintf(stdout, "**\n");
-                    fprintf(stdout, "** machine code generation for %s\n", Temp_labelstring(label));
-                    fprintf(stdout, "**\n");
-                    fprintf(stdout, "************************************************************************************************\n\n");
-                    U_memstat();
-                }
+                LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n************************************************************************************************\n");
+                LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "**\n");
+                LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "** machine code generation for %s\n", Temp_labelstring(label));
+                LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "**\n");
+                LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "************************************************************************************************\n\n");
+                U_memstat();
+
                 if (!AS_assembleCode (obj, body, expt))
                     return 19;
                 break;

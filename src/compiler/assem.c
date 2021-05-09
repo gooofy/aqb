@@ -10,6 +10,7 @@
 #include "assem.h"
 #include "errormsg.h"
 #include "logger.h"
+#include "options.h"
 
 AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     // mn                  isJump hasLabel hasImm hasSrc hasDst srcDnOnly dstDnOnly srcAnOnly dstAnOnly dstIsAlsoSrc, dstIsOnlySrc
@@ -725,6 +726,29 @@ void AS_printInstrList (FILE *out, AS_instrList iList, AS_dialect dialect)
         char buf[255];
         AS_sprint(buf, instr, dialect);
         fprintf(out, "%s\n", buf);
+    }
+}
+
+void AS_logInstrList (AS_instrList iList)
+{
+    int line = 0;
+    for (AS_instrListNode an = iList->first; an; an=an->next)
+    {
+        AS_instr instr = an->instr;
+        int l = S_getline(instr->pos);
+        if (l != line)
+        {
+#ifdef S_KEEP_SOURCE
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n    /* L%05d %s */\n", l, S_getSourceLine(l));
+#else
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n    /* L%05d */\n", l);
+#endif
+            line = l;
+        }
+
+        char buf[255];
+        AS_sprint(buf, instr, AS_dialect_gas);
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s\n", buf);
     }
 }
 

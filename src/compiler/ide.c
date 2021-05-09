@@ -1445,7 +1445,7 @@ static void IDE_deinit(void)
 
 void IDE_open(char *sourcefn)
 {
-    OPT_set (OPTION_VERBOSE, TRUE);
+    //OPT_set (OPTION_VERBOSE, TRUE);
     TE_init();
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
