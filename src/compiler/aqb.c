@@ -140,6 +140,7 @@ int main (int argc, char *argv[])
 #endif
     U_init();
     SYM_init();
+    FE_registerKeywords();
 #ifdef __amigaos__
     OPT_addModulePath("AQB:lib");
 #else

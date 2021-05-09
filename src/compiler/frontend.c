@@ -7120,7 +7120,7 @@ static S_symbol defineKeyword (char *s)
     return kw;
 }
 
-void FE_init(void)
+void FE_registerKeywords(void)
 {
     FE_num_keywords = 0;
     S_DIM             = defineKeyword("DIM");
@@ -7208,3 +7208,7 @@ void FE_init(void)
     S_LINE            = defineKeyword("LINE");
     S_INPUT           = defineKeyword("INPUT");
 }
+void FE_init(void)
+{
+}
+
