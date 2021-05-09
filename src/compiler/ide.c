@@ -1294,70 +1294,88 @@ IDE_editor openEditor(void)
 
 static void IDE_setSourceFn(IDE_editor ed, char *sourcefn)
 {
-    strcpy (ed->sourcefn, sourcefn);
-    int l = strlen(sourcefn);
-
-    if (l>4)
+    if (sourcefn)
     {
-        strcpy (ed->binfn, sourcefn);
-        if (   (ed->binfn[l-4]=='.')
-            && (ed->binfn[l-3]=='b')
-            && (ed->binfn[l-2]=='a')
-            && (ed->binfn[l-1]=='s'))
-            ed->binfn[l-4]=0;
+        strcpy (ed->sourcefn, sourcefn);
+        int l = strlen(sourcefn);
+
+        if (l>4)
+        {
+            strcpy (ed->binfn, sourcefn);
+            if (   (ed->binfn[l-4]=='.')
+                && (ed->binfn[l-3]=='b')
+                && (ed->binfn[l-2]=='a')
+                && (ed->binfn[l-1]=='s'))
+                ed->binfn[l-4]=0;
+            else
+                strcpy (ed->binfn, TMP_BINFN);
+        }
         else
+        {
             strcpy (ed->binfn, TMP_BINFN);
+        }
     }
     else
     {
-        strcpy (ed->binfn, TMP_BINFN);
+        ed->sourcefn[0] = 0;
+        ed->binfn[0]    = 0;
     }
 }
 
 static void IDE_load (IDE_editor ed, char *sourcefn)
 {
-	FILE *sourcef = fopen(sourcefn, "r");
-	if (!sourcef)
-	{
-		fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
-		exit(2);
-	}
-
-    ed->buf_len = 0;
-    bool eof = FALSE;
-    bool eol = FALSE;
-    int linenum = 0;
-    IDE_line lastLine = NULL;
-    while (!eof)
+    assert(!ed->num_lines); // FIXME: free old buffer
+    if (sourcefn)
     {
-        char ch;
-        int n = fread (&ch, 1, 1, sourcef);
-        if (n==1)
+        FILE *sourcef = fopen(sourcefn, "r");
+        if (!sourcef)
         {
-            ed->buf[ed->buf_len++] = ch;
-            if ( (ed->buf_len==(MAX_LINE_LEN-1)) || (ch==10)  )
+            fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
+            exit(2);
+        }
+
+        ed->buf_len = 0;
+        bool eof = FALSE;
+        bool eol = FALSE;
+        IDE_line lastLine = NULL;
+        while (!eof)
+        {
+            char ch;
+            int n = fread (&ch, 1, 1, sourcef);
+            if (n==1)
+            {
+                ed->buf[ed->buf_len++] = ch;
+                if ( (ed->buf_len==(MAX_LINE_LEN-1)) || (ch==10)  )
+                    eol = TRUE;
+            }
+            else
+            {
+                eof = TRUE;
                 eol = TRUE;
-        }
-        else
-        {
-            eof = TRUE;
-            eol = TRUE;
+            }
+
+            if (eol)
+            {
+                ed->buf[ed->buf_len] = 0;
+                IDE_line line = buf2line (ed);
+                insertLineAfter (ed, lastLine, line);
+                lastLine = line;
+                eol=FALSE;
+                ed->num_lines++;
+                ed->buf_len = 0;
+            }
         }
 
-        if (eol)
-        {
-            ed->buf[ed->buf_len] = 0;
-            IDE_line line = buf2line (ed);
-            insertLineAfter (ed, lastLine, line);
-            lastLine = line;
-            linenum = (linenum+1) % ed->window_height;
-            eol=FALSE;
-            ed->num_lines++;
-            ed->buf_len = 0;
-        }
+        fclose(sourcef);
     }
-
-    fclose(sourcef);
+    else
+    {
+        ed->buf_len = 0;
+        ed->buf[ed->buf_len] = 0;
+        IDE_line line = buf2line (ed);
+        insertLineAfter (ed, NULL, line);
+        ed->num_lines++;
+    }
 
     IDE_setSourceFn(ed, sourcefn);
     ed->cursor_col		 = 0;
@@ -1453,10 +1471,7 @@ void IDE_open(char *sourcefn)
 
 	g_ed = openEditor();
 
-    if (sourcefn)
-        IDE_load (g_ed, sourcefn);
-    else
-        assert(FALSE); // FIXME: implement IDE_new
+    IDE_load (g_ed, sourcefn);
 
     TE_setCursorVisible (FALSE);
     TE_moveCursor (0, 0);

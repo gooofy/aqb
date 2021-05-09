@@ -126,7 +126,7 @@ int main (int argc, char *argv[])
 	static char           *sourcefn;
     static char            asm_gas_fn[PATH_MAX];
     static char            asm_asmpro_fn[PATH_MAX];
-    static size_t          optind;
+    static int             optind;
     static bool            write_sym = FALSE;
     static bool            write_asmpro = FALSE;
     static bool            write_asmgas = FALSE;
@@ -238,12 +238,20 @@ int main (int argc, char *argv[])
         }
     }
 
-	if (argc != (optind+1))
-	{
-		print_usage(argv);
-		exit(EXIT_FAILURE);
-	}
-	sourcefn = argv[optind];
+    if ((argc == 0) || (argc==optind))  // workbench launch / no args
+    {
+        launch_ide = TRUE;
+        sourcefn = NULL;
+    }
+    else
+    {
+        if (argc != (optind+1))
+        {
+            print_usage(argv);
+            exit(EXIT_FAILURE);
+        }
+        sourcefn = argv[optind];
+    }
 
     // run interactive IDE ? (experimental)
     if (launch_ide)
