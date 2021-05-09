@@ -1,30 +1,30 @@
 = AQB TODO
 Guenter Bartsch <guenter@zamia.org>
-v0.1, 2020-07-12
+v0.2, 2021-05-09
 
 == Language Concepts
 
 - subprograms
 
-    * implement BY REF argument semantics
     * check forward decl formal types
     * varargs
 
-- OOP ? (VB / FreeBASIC)
+- WIP OOP ? (VB / FreeBASIC)
 
 - enums
 
-- DIM inside of IFs, Loops (scoping)
-
 - assignment operators (+=, *=, ...)
-
-- TYPE ... AS
 
 - C like strings (tbd)
 
-== Compiler, Code Generation, Runtime
 
-- startup code: command line args, workbench startup
+== Compiler, Code Generation
+
+- module deinit(), free memory pools
+
+- string memory pool handling
+
+- scanner: support multiple instances (IDE uses separate scanner instance), memory pool handling
 
 - code generator
     * proc calls: only save registers that carry live values
@@ -44,10 +44,16 @@ v0.1, 2020-07-12
     * optionally: initialize all variables to 0?
     * T_Cast that results in NOP or simple MOVE: introduce T_TypeView node
 
+== Runtime
+
+- startup code: command line args, workbench startup
+
 - Exec error handling / traps
     * division by zero
 
 - Memory management / garbage collection ? / DEALLOCATE
+
+- string handling
 
 == Core Commands
 
@@ -291,7 +297,7 @@ v0.1, 2020-07-12
 
 DONE auto-indent
 DONE save
-- compile/run
+DONE compile/run
 - memory management
 - help system
 - amiga menus
