@@ -605,6 +605,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                         fwrite_u1(modf, entry->u.field.visibility);
                         strserialize(modf, S_name(entry->u.field.name));
                         fwrite_u4(modf, entry->u.field.uiOffset);
+                        LOG_printf (LOG_DEBUG, "serializing Ty_recField visibility=%d, name=%s, offset=%d\n", entry->u.field.visibility, S_name(entry->u.field.name), entry->u.field.uiOffset);
                         E_serializeTyRef(modTable, entry->u.field.ty);
                         break;
                 }

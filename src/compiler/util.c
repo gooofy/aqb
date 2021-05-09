@@ -27,6 +27,7 @@ extern struct DOSBase       *DOSBase;
 
 #include "util.h"
 #include "options.h"
+#include "logger.h"
 
 #define CHUNK_DEFAULT_SIZE 8 * 1024
 
@@ -311,7 +312,8 @@ int strcicmp(string a, string b)
 void strserialize(FILE *out, string str)
 {
     uint16_t l = strlen(str);
-    fwrite(&l, 2, 1, out);
+    uint16_t l_swapped = ENDIAN_SWAP_16 (l);
+    fwrite(&l_swapped, 2, 1, out);
     fwrite(str, l, 1, out);
 }
 
@@ -320,11 +322,14 @@ string strdeserialize(FILE *in)
     uint16_t l;
     if (fread(&l, 2, 1, in) != 1)
         return NULL;
-
+    l = ENDIAN_SWAP_16 (l);
     string res = U_poolAlloc (UP_strings, l+1);
     if (fread(res, l, 1, in) != 1)
         return NULL;
     res[l]=0;
+
+    // LOG_printf (LOG_DEBUG, "deserialized string l=%d, res=%s\n", l, res);
+
     return res;
 }
 
