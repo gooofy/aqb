@@ -15,7 +15,7 @@ bool            FE_writeSymFile(string symfn);
 
 void            FE_init(void);
 
-void            FE_registerKeywords(void);
+void            FE_boot(void);
 extern S_symbol FE_keywords[];
 extern int      FE_num_keywords;
 

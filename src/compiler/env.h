@@ -122,6 +122,7 @@ E_moduleListNode E_getLoadedModuleList(void);
  * init
  */
 
+void       E_boot(void);
 void       E_init(void);
 
 /*

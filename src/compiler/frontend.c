@@ -7120,7 +7120,7 @@ static S_symbol defineKeyword (char *s)
     return kw;
 }
 
-void FE_registerKeywords(void)
+void FE_boot(void)
 {
     FE_num_keywords = 0;
     S_DIM             = defineKeyword("DIM");

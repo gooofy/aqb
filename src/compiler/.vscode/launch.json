@@ -240,7 +240,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "../../src/lib"],
+            "args": ["-L", "../../src/lib", "foo.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../",
             "environment": [],

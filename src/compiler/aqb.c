@@ -138,9 +138,13 @@ int main (int argc, char *argv[])
 #ifdef __amigaos__
     check_stacksize();
 #endif
+
     U_init();
     SYM_init();
-    FE_registerKeywords();
+    FE_boot();
+    AS_boot();
+    E_boot();
+
 #ifdef __amigaos__
     OPT_addModulePath("AQB:lib");
 #else

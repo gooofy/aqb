@@ -92,7 +92,7 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_SUB_Imm_AnDn,     FALSE, FALSE  , TRUE , FALSE, TRUE  , FALSE  , FALSE   , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_SWAP_Dn,          FALSE, FALSE  , FALSE, FALSE, TRUE  , FALSE  , TRUE    , FALSE   , FALSE   , TRUE        , FALSE },
     { AS_TST_Dn,           FALSE, FALSE  , FALSE, TRUE , FALSE , TRUE   , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
-    { AS_UNLK_fp,          FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE } 
+    { AS_UNLK_fp,          FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE }
     };
 
 Temp_temp AS_regs[AS_NUM_REGISTERS];
@@ -1100,7 +1100,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
                 int32_t o = li->offset - seg->mem_pos;
                 if ((o>32767) || (o<-32768))
                 {
-                    fprintf (stderr, "branch offset out of bounds\n");
+                    LOG_printf (LOG_ERROR, "branch offset out of bounds\n");
                     return FALSE;
                 }
                 emit_i2 (seg, (int16_t) o);
@@ -1135,7 +1135,7 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
     {
         if (li->defined)
         {
-            fprintf (stderr, "error: label %s defined multiple times\n", S_name (label));
+            LOG_printf (LOG_ERROR, "error: label %s defined multiple times\n", S_name (label));
             return FALSE;
         }
 
@@ -1896,6 +1896,10 @@ string AS_regName (int reg)
 }
 
 void AS_init (void)
+{
+}
+
+void AS_boot (void)
 {
     for (int i=0; i<AS_NUM_REGISTERS; i++)
         AS_regs[i] = Temp_NamedTemp (g_regnames[i], Temp_w_L);

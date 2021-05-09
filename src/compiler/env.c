@@ -1367,8 +1367,16 @@ fail:
     return NULL;
 }
 
+void E_boot(void)
+{
+}
+
 void E_init(void)
 {
+    g_mlFirst=NULL;
+
+    // module cache
+    g_modCache = TAB_empty();
     g_builtinsModule = E_Module(S_Symbol("__builtins__", TRUE));
 
     declare_builtin_type("BOOLEAN" , Ty_Bool());
@@ -1385,7 +1393,4 @@ void E_init(void)
 
     declare_builtin_const("TRUE",  Ty_ConstBool(Ty_Bool(), TRUE));
     declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));
-
-    // module cache
-    g_modCache = TAB_empty();
 }

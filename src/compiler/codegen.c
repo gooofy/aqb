@@ -4234,6 +4234,8 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
 
 void CG_init (void)
 {
+    g_fragList = NULL;
+
     global_frame = U_poolAlloc (UP_codegen, sizeof(*global_frame));
 
     global_frame->name          = NULL;
@@ -4243,3 +4245,4 @@ void CG_init (void)
     global_frame->globl         = TRUE;
     global_frame->locals_offset = 0;
 }
+
