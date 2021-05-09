@@ -790,7 +790,7 @@ AS_segment AS_Segment (string sourcefn, AS_segKind kind, size_t initial_size)
 void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
 {
     if (!seg->relocs)
-        seg->relocs = TAB_empty();
+        seg->relocs = TAB_empty(UP_assem);
 
     AS_segmentReloc32 prev = TAB_look (seg->relocs, seg_to);
 
@@ -805,7 +805,7 @@ void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
 void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size)
 {
     if (!seg->refs)
-        seg->refs = TAB_empty();
+        seg->refs = TAB_empty(UP_assem);
 
     AS_segmentRef ref = U_poolAlloc (UP_assem, sizeof(*ref));
 
@@ -1495,7 +1495,7 @@ AS_object AS_Object (string sourcefn)
 {
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
-    obj->labels  = TAB_empty();
+    obj->labels  = TAB_empty(UP_assem);
     obj->codeSeg = AS_Segment (sourcefn, AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
     obj->dataSeg = AS_Segment (sourcefn, AS_dataSeg, 0);
 

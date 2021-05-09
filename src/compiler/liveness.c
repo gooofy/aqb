@@ -16,7 +16,7 @@ static Live_graph Live_Graph(void)
     Live_graph lg = (Live_graph) U_poolAlloc (UP_liveness, sizeof *lg);
 
     lg->nodes                = NULL;
-    lg->temp2LGNode          = TAB_empty();
+    lg->temp2LGNode          = TAB_empty(UP_liveness);
     lg->moveWorklist         = AS_InstrSet();
 
     return lg;

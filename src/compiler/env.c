@@ -272,7 +272,7 @@ E_module E_Module(S_symbol name)
 
     p->name        = name;
     p->env         = E_EnvScopes(NULL);
-    p->tyTable     = TAB_empty();
+    p->tyTable     = TAB_empty(UP_env);
 
     return p;
 }
@@ -787,7 +787,7 @@ bool E_saveModule(string modfn, E_module mod)
 
     // module table (used in type serialization for module referencing)
     TAB_table modTable;  // S_symbol moduleName -> int mid
-    modTable = TAB_empty();
+    modTable = TAB_empty(UP_env);
     TAB_enter (modTable, mod->name, (void *) (intptr_t) 2);
     TAB_iter iter = TAB_Iter(g_modCache);
     S_symbol sym;
@@ -805,7 +805,7 @@ bool E_saveModule(string modfn, E_module mod)
     mid = 0; fwrite_u2(modf, 0);  // end marker
 
     // serialize types
-    TAB_table type_tab = TAB_empty();
+    TAB_table type_tab = TAB_empty(UP_env);
     E_findTypesFlat(mod->name, mod->env->u.scopes.vfcenv, type_tab);
     E_findTypesFlat(mod->name, mod->env->u.scopes.tenv, type_tab);
     E_findTypesOverloaded(mod->name, mod->env->u.scopes.senv, type_tab);
@@ -1125,7 +1125,7 @@ E_module E_loadModule(S_symbol sModule)
     // read module table
 
     TAB_table modTable; // mid -> E_module
-    modTable = TAB_empty();
+    modTable = TAB_empty(UP_env);
     TAB_enter (modTable, (void *) (intptr_t) 1, g_builtinsModule);
     TAB_enter (modTable, (void *) (intptr_t) 2, mod);
 
@@ -1376,7 +1376,7 @@ void E_init(void)
     g_mlFirst=NULL;
 
     // module cache
-    g_modCache = TAB_empty();
+    g_modCache = TAB_empty(UP_env);
     g_builtinsModule = E_Module(S_Symbol("__builtins__", TRUE));
 
     declare_builtin_type("BOOLEAN" , Ty_Bool());

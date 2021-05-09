@@ -6759,7 +6759,7 @@ static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef
 
 static void registerBuiltins(void)
 {
-    g_parsefs = TAB_empty();
+    g_parsefs = TAB_empty(UP_frontend);
 
     // FIXME
     declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim          , Ty_Void());
@@ -6947,7 +6947,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     FE_filename = filename;
     S_init (nextch, inf, /*filter_comments=*/TRUE);
 
-    userLabels  = TAB_empty();
+    userLabels  = TAB_empty(UP_frontend);
 
     Temp_label label;
     if (is_main)

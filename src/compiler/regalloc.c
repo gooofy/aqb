@@ -83,7 +83,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
 #endif
 
         // assign memory for spilled temps
-        TAB_table spilledLocal = TAB_empty();
+        TAB_table spilledLocal = TAB_empty(UP_regalloc);
         for (Temp_tempSet tn = spilled; tn; tn = tn->tail)
         {
             CG_item *item = U_poolAlloc (UP_regalloc, sizeof (*item));

@@ -561,8 +561,8 @@ static void linearScan (CG_frame f, AS_instrList il)
     aRegSet[0] = AS_regs[AS_TEMP_A2];
     aRegSet[1] = AS_regs[AS_TEMP_A3];
 
-    g_coloring      = TAB_empty();
-    g_spilledLocals = TAB_empty();
+    g_coloring      = TAB_empty(UP_linscan);
+    g_spilledLocals = TAB_empty(UP_linscan);
 
     for (int i = 0; i<g_ivCnt; i++)
     {
@@ -604,8 +604,8 @@ static void linearScan (CG_frame f, AS_instrList il)
 
 bool LS_regalloc(CG_frame f, AS_instrList il)
 {
-    g_tempIntervals = TAB_empty();
-    g_label2idx     = TAB_empty();
+    g_tempIntervals = TAB_empty(UP_linscan);
+    g_label2idx     = TAB_empty(UP_linscan);
 
     computeLiveIntervals (il);
 

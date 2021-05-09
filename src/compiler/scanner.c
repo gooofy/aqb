@@ -672,7 +672,7 @@ S_tkn S_nextline(void)
 void S_init(nextch_cb_t cb, void *user_data, bool filter_comments)
 {
 #ifdef S_KEEP_SOURCE
-    g_src             = TAB_empty();
+    g_src             = TAB_empty(UP_strings /* FIXME! */);
 #endif
     g_sym_rem = S_Symbol("REM", FALSE);
 

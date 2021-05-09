@@ -479,7 +479,7 @@ struct symInfo_
 
 bool LI_link (LI_segmentList sl)
 {
-    TAB_table symTable = TAB_empty();   // S_symbol -> symInfo
+    TAB_table symTable = TAB_empty(UP_link);   // S_symbol -> symInfo
 
     // pass 1: collect all symbol definitions from all segments,
     //         assign unique hunk_ids

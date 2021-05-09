@@ -63,7 +63,7 @@ S_scope S_beginScope(void)
 {
     S_scope s = U_poolAlloc (UP_types, sizeof(*s));
 
-    s->tab      = TAB_empty();
+    s->tab    = TAB_empty(UP_types);
 
     return s;
 }

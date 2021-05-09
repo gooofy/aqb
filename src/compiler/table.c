@@ -21,7 +21,8 @@ struct binder_
 
 struct TAB_table_
 {
-    binder table[TABSIZE];
+    U_poolId pid;
+    binder   table[TABSIZE];
 };
 
 struct TAB_iter_
@@ -35,7 +36,7 @@ TAB_iter TAB_Iter(TAB_table table)
 {
     assert(table);
 
-    TAB_iter p = U_poolAlloc (UP_table, sizeof(*p));
+    TAB_iter p = U_poolAlloc (table->pid, sizeof(*p));
 
     p->table  = table;
     p->nexti  = -1;
@@ -70,9 +71,9 @@ bool TAB_next(TAB_iter iter, void **key, void **value)
     return TRUE;
 }
 
-static binder Binder(void *key, void *value, binder next)
+static binder Binder(U_poolId pid, void *key, void *value, binder next)
 {
-    binder b = U_poolAlloc (UP_table, sizeof(*b));
+    binder b = U_poolAlloc (pid, sizeof(*b));
 
     b->key     = key;
     b->value   = value;
@@ -81,10 +82,11 @@ static binder Binder(void *key, void *value, binder next)
     return b;
 }
 
-TAB_table TAB_empty(void)
+TAB_table TAB_empty(U_poolId pid)
 {
-    TAB_table t = U_poolAlloc (UP_table, sizeof(*t));
+    TAB_table t = U_poolAlloc (pid, sizeof(*t));
 
+    t->pid = pid;
     for (int i = 0; i < TABSIZE; i++)
         t->table[i] = NULL;
 
@@ -118,7 +120,7 @@ void TAB_enter(TAB_table t, void *key, void *value)
     }
 
     // if we reach this point, <key> is not yet present in table
-    t->table[index] = Binder(key, value, t->table[index]);
+    t->table[index] = Binder(t->pid, key, value, t->table[index]);
 }
 
 void *TAB_look(TAB_table t, void *key)

@@ -575,7 +575,7 @@ struct COL_result COL_color(Live_graph lg)
      * assign colors to non-coalesced temps
      */
 
-    struct COL_result ret = { /* coloring       = */ TAB_empty(),
+    struct COL_result ret = { /* coloring       = */ TAB_empty(UP_regalloc),
                               /* spills         = */ NULL,
                               /* coalescedMoves = */ c.coalescedMoves };
 
