@@ -1415,12 +1415,15 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 #endif
 }
 
-#if LOG_LEVEL == LOG_DEBUG
-static void close_logf(void)
+static void IDE_deinit(void)
 {
+    LOG_printf (LOG_DEBUG, "IDE_deinit.\n");
+    U_deinit();
+    TE_deinit();
+#if LOG_LEVEL == LOG_DEBUG
 	fclose (logf);
-}
 #endif
+}
 
 void IDE_open(char *sourcefn)
 {
@@ -1429,24 +1432,24 @@ void IDE_open(char *sourcefn)
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
     logf = fopen (LOG_FILENAME, "a");
-	atexit (close_logf);
 #endif
+	atexit (IDE_deinit);
     LOG_init (log_cb);
 
     // indentation support
-    S_IF       = S_Symbol ("if", FALSE);
-    S_ELSEIF   = S_Symbol ("elseif", FALSE);
-    S_ELSE     = S_Symbol ("else", FALSE);
-    S_THEN     = S_Symbol ("then", FALSE);
-    S_END      = S_Symbol ("end", FALSE);
-    S_SUB      = S_Symbol ("sub", FALSE);
-    S_FUNCTION = S_Symbol ("function", FALSE);
-    S_FOR      = S_Symbol ("for", FALSE);
-    S_NEXT     = S_Symbol ("next", FALSE);
-    S_DO       = S_Symbol ("do", FALSE);
-    S_LOOP     = S_Symbol ("loop", FALSE);
-    S_WHILE    = S_Symbol ("while", FALSE);
-    S_WEND     = S_Symbol ("wend", FALSE);
+    S_IF       = S_Symbol ("IF"      , FALSE);
+    S_ELSEIF   = S_Symbol ("ELSEIF"  , FALSE);
+    S_ELSE     = S_Symbol ("ELSE"    , FALSE);
+    S_THEN     = S_Symbol ("THEN"    , FALSE);
+    S_END      = S_Symbol ("END"     , FALSE);
+    S_SUB      = S_Symbol ("SUB"     , FALSE);
+    S_FUNCTION = S_Symbol ("FUNCTION", FALSE);
+    S_FOR      = S_Symbol ("FOR"     , FALSE);
+    S_NEXT     = S_Symbol ("NEXT"    , FALSE);
+    S_DO       = S_Symbol ("DO"      , FALSE);
+    S_LOOP     = S_Symbol ("LOOP"    , FALSE);
+    S_WHILE    = S_Symbol ("WHILE"   , FALSE);
+    S_WEND     = S_Symbol ("WEND"    , FALSE);
 
 	g_ed = openEditor();
 

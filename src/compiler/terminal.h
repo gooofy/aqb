@@ -106,6 +106,7 @@ void      TE_runIO              (void);
 #endif
 
 bool      TE_init               (void);
+void      TE_deinit             (void);
 
 void      TE_run                (void);
 

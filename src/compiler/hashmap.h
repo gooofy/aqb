@@ -30,7 +30,7 @@ typedef void *any_t;
 typedef any_t map_t;
 
 /* create an empty hashmap */
-map_t hashmap_new();
+map_t hashmap_new(U_poolId pid);
 
 /* add an element to the hashmap. Return MAP_OK or MAP_OMEM.  */
 int hashmap_put(map_t in, char* key, any_t value, bool case_sensitive);

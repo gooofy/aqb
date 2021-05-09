@@ -21,6 +21,11 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
     static string          module_name;
 
     // init environment
+
+    Ty_init();
+    EM_init();
+    FE_init();
+
     AS_init();
     CG_init();
     E_init();
@@ -37,7 +42,7 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
         l = strlen(module_name);
         module_name[l-4] = 0;
 
-        E_addModulePath(dirname(String(sourcefn)));
+        OPT_addModulePath(dirname(String(sourcefn)));
     }
 
     /*

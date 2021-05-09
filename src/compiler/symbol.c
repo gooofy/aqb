@@ -24,9 +24,9 @@ static S_symbol mksymbol(string name, bool case_sensitive)
 
 static map_t hashtable = NULL;
 
-void S_symbol_init(void)
+void SYM_init(void)
 {
-    hashtable = hashmap_new();
+    hashtable = hashmap_new(UP_symbol);
 }
 
 S_symbol S_Symbol(string name, bool case_sensitive)
@@ -61,7 +61,7 @@ struct S_scope_
 
 S_scope S_beginScope(void)
 {
-    S_scope s = U_poolAlloc (UP_symbol, sizeof(*s));
+    S_scope s = U_poolAlloc (UP_types, sizeof(*s));
 
     s->tab      = TAB_empty();
 
@@ -92,7 +92,7 @@ TAB_iter S_Iter(S_scope scope)
 
 S_symlist S_Symlist(S_symbol sym, S_symlist next)
 {
-    S_symlist s=U_poolAlloc (UP_symbol, sizeof(*s));
+    S_symlist s=U_poolAlloc (UP_frontend, sizeof(*s));
 
     s->sym  = sym;
     s->next = next;

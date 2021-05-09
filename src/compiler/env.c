@@ -19,16 +19,6 @@ E_module g_builtinsModule = NULL;
 
 typedef enum { vfcFunc, vfcConst, vfcVar } vfcKind;
 
-typedef struct E_dirSearchPath_ *E_dirSearchPath;
-
-struct E_dirSearchPath_
-{
-    string          path;
-    E_dirSearchPath next;
-};
-
-static E_dirSearchPath moduleSP=NULL, moduleSPLast=NULL;
-
 static TAB_table        g_modCache; // sym -> E_module
 static E_moduleListNode g_mlFirst=NULL;
 
@@ -1081,7 +1071,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
 
 FILE *E_openModuleFile (string filename)
 {
-    for (E_dirSearchPath sp=moduleSP; sp; sp=sp->next)
+    for (OPT_dirSearchPath sp=OPT_getModulePath(); sp; sp=sp->next)
     {
         char modfn[PATH_MAX];
 
@@ -1375,24 +1365,6 @@ E_module E_loadModule(S_symbol sModule)
 fail:
     fclose(modf);
     return NULL;
-}
-
-void E_addModulePath(string path)
-{
-    E_dirSearchPath p = U_poolAlloc (UP_env, sizeof(*p));
-
-    p->path      = String(path);
-    p->next      = NULL;
-
-    if (moduleSP)
-    {
-        moduleSPLast->next = p;
-        moduleSPLast = p;
-    }
-    else
-    {
-        moduleSP = moduleSPLast = p;
-    }
 }
 
 void E_init(void)

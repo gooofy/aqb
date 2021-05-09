@@ -60,8 +60,8 @@ struct U_memRec_
     void      *mem;
 };
 
-static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL", "HASHMAP",
-                                                "REGALLOC", "LIVENESS", "TABLE", "STRINGS", "LINK" };
+static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL",
+                                                "REGALLOC", "LIVENESS", "TABLE", "STRINGS", "LINK", "IDE" };
 static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
 static U_memRec   g_mem = NULL;
 static size_t     g_alloc=0;
@@ -93,7 +93,7 @@ static void *checked_malloc (size_t len)
 #endif
     if (!p)
     {
-        fprintf(stderr,"\nran out of memory!\n");
+        LOG_printf(LOG_ERROR, "\nran out of memory!\n");
         exit(1);
     }
     // fprintf(stderr, "checked_malloc len=%zu -> p=%p\n", len, p);
@@ -187,8 +187,7 @@ void *U_poolCalloc (U_poolId pid, size_t nmemb, size_t len)
 static void U_poolFree (U_poolId pid, bool destroy)
 {
     U_memPool pool = g_pools[pid];
-    if (OPT_get(OPTION_VERBOSE))
-        printf ("freeing memory pool: %-12s %5d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks, pool->mem_alloced);
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: %-12s %5d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks, pool->mem_alloced);
 
     U_memChunk nextChunk = pool->first->next;
     for (U_memChunk chunk = pool->first; chunk; chunk = nextChunk)
@@ -223,9 +222,10 @@ void U_memstat(void)
 
     for (int i=0; i<UP_numPools; i++)
     {
-        printf ("%8.3fs: memory pool stats: %-12s %4d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", tdiff, g_pool_names[i], g_pools[i]->num_allocs, (g_pools[i]->num_chunks * g_pools[i]->chunk_size) / 1, g_pools[i]->num_chunks, g_pools[i]->mem_alloced);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%5dms: mpool: %-12s %4d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n",
+                    (int)(tdiff * 1000.0), g_pool_names[i], g_pools[i]->num_allocs, (g_pools[i]->num_chunks * g_pools[i]->chunk_size) / 1, g_pools[i]->num_chunks, g_pools[i]->mem_alloced);
     }
-	printf ("%8.3fs: memory pool stats: OTHER                     %6zd Bytes.\n", tdiff, g_alloc);
+	LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%5dms: mpool: OTHER                     %6zd Bytes.\n", (int)(tdiff*1000.0), g_alloc);
 }
 
 void *U_malloc (size_t size)
@@ -398,12 +398,12 @@ float decode_ffp(uint32_t fl)
     return *fp;
 }
 
-static void U_deinit (void)
+void U_deinit (void)
 {
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit.\n", g_alloc);
     for (int i=0; i<UP_numPools; i++)
         U_poolFree(i, /*destroy=*/TRUE);
-    if (OPT_get(OPTION_VERBOSE))
-        printf ("freeing memory     : %6zd Bytes in OTHER.\n", g_alloc);
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory     : %6zd Bytes in OTHER.\n", g_alloc);
     while (g_mem)
     {
         U_memRec mem_next = g_mem->next;
@@ -416,7 +416,6 @@ static void U_deinit (void)
 void U_init (void)
 {
     g_start_time = get_time();
-    atexit (U_deinit);
 
     for (int i=0; i<UP_numPools; i++)
         g_pools[i] = U_MemPool (CHUNK_DEFAULT_SIZE);

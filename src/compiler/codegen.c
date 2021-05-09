@@ -98,7 +98,7 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
     f->name   = name;
     f->statc  = statc;
     if (statc)
-        f->statc_labels = hashmap_new(); // used to make static var labels unique
+        f->statc_labels = hashmap_new(UP_codegen); // used to make static var labels unique
     else
         f->statc_labels = NULL;
 
@@ -4238,7 +4238,7 @@ void CG_init (void)
 
     global_frame->name          = NULL;
     global_frame->statc         = TRUE;
-    global_frame->statc_labels  = hashmap_new(); // used to make static var labels unique
+    global_frame->statc_labels  = hashmap_new(UP_codegen); // used to make static var labels unique
     global_frame->formals       = NULL;
     global_frame->globl         = TRUE;
     global_frame->locals_offset = 0;

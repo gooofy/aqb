@@ -113,12 +113,13 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_end(args);
 }
 
-#if LOG_LEVEL == LOG_DEBUG
-static void close_logf(void)
+static void deinit(void)
 {
+    U_deinit();
+#if LOG_LEVEL == LOG_DEBUG
 	fclose (logf);
-}
 #endif
+}
 
 int main (int argc, char *argv[])
 {
@@ -137,27 +138,17 @@ int main (int argc, char *argv[])
 #ifdef __amigaos__
     check_stacksize();
 #endif
-#if LOG_LEVEL == LOG_DEBUG
-    logf = fopen (LOG_FILENAME, "a");
-	atexit (close_logf);
-#endif
-    LOG_init (log_cb);
-
     U_init();
-    Ty_init();
-    EM_init();
-    S_symbol_init();
-    FE_init();
-
+    SYM_init();
 #ifdef __amigaos__
-    E_addModulePath("AQB:lib");
+    OPT_addModulePath("AQB:lib");
 #else
     char *aqb_env = getenv ("AQB");
     if (aqb_env)
     {
         // FIXME: path does not conform to linux fs hier
         snprintf (symfn, PATH_MAX, "%s/src/lib", aqb_env);
-        E_addModulePath(symfn);
+        OPT_addModulePath(symfn);
     }
 #endif
 
@@ -184,7 +175,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                E_addModulePath(argv[optind]);
+                OPT_addModulePath(argv[optind]);
 				break;
         	case 'O':
 				OPT_set(OPTION_RACOLOR, TRUE);
@@ -261,6 +252,12 @@ int main (int argc, char *argv[])
     }
 
     // run compiler from commandline
+
+#if LOG_LEVEL == LOG_DEBUG
+    logf = fopen (LOG_FILENAME, "a");
+#endif
+	atexit (deinit);
+    LOG_init (log_cb);
 
     CO_compile(sourcefn, write_sym ? symfn : NULL,
                          write_bin ? binfn : NULL,

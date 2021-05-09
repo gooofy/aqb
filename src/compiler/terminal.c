@@ -323,7 +323,7 @@ void TE_runIO (void)
 	}
 }
 
-static void TE_exit(void)
+void TE_deinit(void)
 {
     TE_flush();
 
@@ -386,7 +386,6 @@ bool TE_init (void)
     TE_flush();
 
     queue_read(g_readReq, &g_ibuf); /* send the first console read request */
-	atexit(TE_exit);
 
     /* prepare fake i/o filehandles (for IDE console redirection) */
 
@@ -794,7 +793,7 @@ static void TE_setAlternateScreen (bool enabled)
 }
 
 static struct termios g_orig_termios;
-static void TE_exit (void)
+void TE_deinit (void)
 {
     TE_setTextStyle (TE_STYLE_NORMAL);
     TE_moveCursor(0, 0);
@@ -817,7 +816,6 @@ bool TE_init (void)
 
     if (!isatty(STDIN_FILENO))
 		goto fatal;
-    atexit(TE_exit);
     if (tcgetattr(STDOUT_FILENO, &g_orig_termios) == -1)
 		goto fatal;
 

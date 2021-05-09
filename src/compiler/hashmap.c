@@ -23,20 +23,23 @@ typedef struct _hashmap_element
 
 /* A hashmap has some maximum size and current size,
  * as well as the data to hold. */
-typedef struct _hashmap_map{
-	int table_size;
-	int size;
+typedef struct _hashmap_map
+{
+    U_poolId         pid;
+	int              table_size;
+	int              size;
 	hashmap_element *data;
 } hashmap_map;
 
 /*
  * Return an empty hashmap, or NULL on failure.
  */
-map_t hashmap_new()
+map_t hashmap_new(U_poolId pid)
 {
-	hashmap_map* m = (hashmap_map*) U_poolAlloc (UP_hashmap, sizeof(hashmap_map));
+	hashmap_map* m = (hashmap_map*) U_poolAlloc (pid, sizeof(hashmap_map));
 
-	m->data = (hashmap_element*) U_poolCalloc (UP_hashmap, INITIAL_SIZE, sizeof(hashmap_element));
+    m->pid  = pid;
+	m->data = (hashmap_element*) U_poolCalloc (pid, INITIAL_SIZE, sizeof(hashmap_element));
 
 	m->table_size = INITIAL_SIZE;
 	m->size = 0;
@@ -226,7 +229,7 @@ int hashmap_rehash(map_t in)
 
 	/* Setup the new elements */
 	hashmap_map *m = (hashmap_map *) in;
-	hashmap_element* temp = (hashmap_element *) U_calloc (2 * m->table_size, sizeof(hashmap_element));
+	hashmap_element* temp = (hashmap_element *) U_poolCalloc (m->pid, 2 * m->table_size, sizeof(hashmap_element));
 
 	/* Update the array */
 	curr = m->data;

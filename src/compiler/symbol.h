@@ -8,7 +8,7 @@
  *
  */
 
-void S_symbol_init(void);
+void SYM_init(void);
 
 typedef struct S_symbol_ *S_symbol;
 
