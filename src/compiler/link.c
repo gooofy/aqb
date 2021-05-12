@@ -45,18 +45,19 @@ static void link_fail (string msg)
 }
 
 #if LOG_LEVEL == LOG_DEBUG
-static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
-{
-    LOG_printf (LOG_DEBUG, "HEX: 0x%08x  ", offset);
-    uint32_t cnt=0;
-    while (cnt<num_bytes)
-    {
-        uint32_t w = *( (uint32_t *) (mem+offset+cnt) );
-        LOG_printf (LOG_DEBUG, " 0x%08x", ENDIAN_SWAP_32(w));
-        cnt+=4;
-    }
-    LOG_printf (LOG_DEBUG, "\n");
-}
+//static void hexdump (uint8_t *mem, uint32_t offset, uint32_t num_bytes)
+//{
+//    LOG_printf (LOG_DEBUG, "HEX: 0x%08x  ", offset);
+//    uint32_t cnt=0;
+//    uint32_t num_longs = num_bytes >> 2;
+//    while (cnt<num_longs)
+//    {
+//        uint32_t w = *( (uint32_t *) (mem+offset+cnt*4) );
+//        LOG_printf (LOG_DEBUG, " 0x%08x", ENDIAN_SWAP_32(w));
+//        cnt++;
+//    }
+//    LOG_printf (LOG_DEBUG, "\n");
+//}
 #endif
 
 LI_segmentList LI_SegmentList(void)
@@ -556,7 +557,7 @@ bool LI_link (LI_segmentList sl)
                 *p = ENDIAN_SWAP_32(si->offset);
                 AS_segmentAddReloc32 (node->seg, si->seg, sr->offset);
 #if LOG_LEVEL == LOG_DEBUG
-                hexdump (node->seg->mem, sr->offset-4, 16);
+                //hexdump (node->seg->mem, sr->offset-4, 16);
 #endif
                 sr = sr->next;
             }

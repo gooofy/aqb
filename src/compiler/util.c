@@ -242,10 +242,10 @@ void *U_malloc (size_t size)
     return g_mem->mem;
 }
 
-void *U_calloc (size_t nmemb, size_t len)
+void *U_calloc (size_t size)
 {
-    void *p = U_malloc(nmemb * len);
-    memset (p, 0, nmemb * len);
+    void *p = U_malloc(size);
+    memset (p, 0, size);
     return p;
 }
 

@@ -5,4 +5,6 @@
 
 int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn);
 
+void CO_exit(int return_code);
+
 #endif

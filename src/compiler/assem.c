@@ -922,14 +922,14 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
             s = s * 2;
         if (!seg->mem)
         {
-            seg->mem  = U_malloc (s);
+            seg->mem  = U_calloc (s);
 #if LOG_LEVEL == LOG_DEBUG
             LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes\n", s);
 #endif
         }
         else
         {
-            uint8_t *mem = U_malloc (s);
+            uint8_t *mem = U_calloc (s);
             memcpy (mem, seg->mem, seg->mem_size);
             seg->mem = mem;
 #if LOG_LEVEL == LOG_DEBUG
