@@ -89,8 +89,14 @@ examples/demo/tetris.dump
 examples/demo/tetris.s
 examples/demo/tetris_gnu.bin
 examples/demo/tetris_gnu.dump
+examples/demo/blits.bas
 tests/foo.bas
 tests/foo.s
+tests/foo.asm
+tests/foo.dump
+tests/foo.hunk
+tests/foo_gnu.bin
+tests/foo_gnu.dump
 doc/internal/
 target
 config.mk
@@ -101,4 +107,8 @@ aqb.log
 t.log
 foo
 foo.bas
+ide.log
+examples/demo/blits.bas
+export.sh
+src/lib/_brt/autil.asm
 
