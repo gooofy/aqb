@@ -549,7 +549,7 @@ static IDE_line buf2line (IDE_editor ed)
                     if (!first && (lastKind != S_MINUS))
                         buf[pos++] = ' ';
                     static char nbuf[64];
-                    snprintf (nbuf, 64, "%g", tkn->u.literal.fnum);
+                    U_float2str (tkn->u.literal.fnum, nbuf, 64);
                     for (char *c=nbuf; *c; c++)
                     {
                         buf[pos] = *c;

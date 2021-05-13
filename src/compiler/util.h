@@ -112,6 +112,7 @@ string strdeserialize(FILE *in);
 uint32_t encode_ffp (float        f);
 float    decode_ffp (uint32_t fl);
 
+void     U_float2str(double v, char *buffer, int buf_len);
 
 void     U_init     (void);
 void     U_deinit   (void);

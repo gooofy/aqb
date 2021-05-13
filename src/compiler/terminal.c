@@ -528,6 +528,14 @@ static uint16_t nextKey(void)
                                 g_esc_state = ESC_tilde;
                                 return KEY_HELP;
                                 break;
+                            case 'T':
+                                g_esc_state = ESC_idle;
+                                return KEY_PAGE_UP;
+                                break;
+                            case 'S':
+                                g_esc_state = ESC_idle;
+                                return KEY_PAGE_DOWN;
+                                break;
                             default:
                                 g_esc_state = ESC_idle;
                                 return KEY_UNKNOWN1;
