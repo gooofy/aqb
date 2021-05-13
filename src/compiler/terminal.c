@@ -301,7 +301,19 @@ void TE_runIO (void)
 					//LOG_printf (LOG_DEBUG, "term: TE_runIO: ACTION_WRITE, len=%d\n", l);
 					for (int i = 0; i<l; i++)
 					{
-						TE_putc(buf[i]);
+                        char c = buf[i];
+                        if (c=='\n')
+                        {
+                            uint16_t rows, cols;
+                            TE_getsize(&rows, &cols);
+                            TE_scrollUp (/*fullscreen=*/TRUE);
+                            TE_moveCursor (rows+1, 1);
+                            TE_eraseToEOL ();
+                        }
+                        else
+                        {
+                            TE_putc(c);
+                        }
 					}
 					TE_flush();
 
@@ -357,10 +369,6 @@ static UBYTE g_ibuf;
 
 bool TE_init (void)
 {
-#if DEBUG
-    logf = fopen (LOG_FILENAME, "a");
-#endif
-
     SysBase = *(APTR *)4L;
     if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library",0)))
          cleanexit("Can't open intuition.library\n", RETURN_FAIL);
@@ -806,9 +814,6 @@ void TE_deinit (void)
 
 bool TE_init (void)
 {
-#if DEBUG
-    logf = fopen (LOG_FILENAME, "a");
-#endif
     signal(SIGWINCH, handleSigWinCh);
 
 	// enable raw mode

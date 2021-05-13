@@ -111,7 +111,9 @@ struct IDE_editor_
     uint16_t           buf2_len;
 };
 
+#if LOG_LEVEL == LOG_DEBUG
 static FILE *logf=NULL;
+#endif
 static IDE_editor g_ed;
 
 IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)

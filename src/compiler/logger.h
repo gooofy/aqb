@@ -7,7 +7,7 @@
 #define LOG_INFO   1
 #define LOG_ERROR  2
 
-#define LOG_LEVEL LOG_DEBUG
+#define LOG_LEVEL LOG_INFO
 
 #define LOG_FILENAME "aqb.log"
 

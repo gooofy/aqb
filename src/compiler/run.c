@@ -61,9 +61,6 @@ static void runner (void)
 
     f((STRPTR)"fake_aqb_env", 12);
 
-    //Write (o, "12345\n", 6);
-	//Delay(50);
-
     UnLoadSeg(seglist);
 
 	LOG_printf (LOG_DEBUG, "runner ends, sending signal\n");

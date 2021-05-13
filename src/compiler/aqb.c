@@ -93,7 +93,9 @@ static void check_stacksize(void)
 }
 #endif
 
+#if LOG_LEVEL == LOG_DEBUG
 static FILE *logf=NULL;
+#endif
 
 static void log_cb (uint8_t lvl, char *fmt, ...)
 {
