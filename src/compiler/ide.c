@@ -1176,7 +1176,7 @@ static void show_help(IDE_editor ed)
 
 static void compile(IDE_editor ed)
 {
-    LOG_printf (LOG_INFO, "compilation starts...\n\n");
+    LOG_printf (LOG_INFO, "\ncompilation starts...\n\n");
 
     CO_compile(ed->sourcefn,
                ed->module_name,
@@ -1196,6 +1196,7 @@ static void compileAndRun(IDE_editor ed)
 {
     // FIXME: compile if not up to date
 
+    LOG_printf (LOG_INFO, "\n");
     RUN_run (ed->binfn);
 
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
@@ -1401,9 +1402,9 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_end(args);
 	if (lvl >= LOG_INFO)
     {
-        TE_scrollUp (/*fullscreen=*/TRUE);
-        TE_moveCursor (g_ed->window_height+1, 0);
-        TE_eraseToEOL ();
+        //TE_scrollUp (/*fullscreen=*/TRUE);
+        //TE_moveCursor (g_ed->window_height+1, 0);
+        //TE_eraseToEOL ();
         //TE_moveCursor (g_ed->window_height, 0);
 
         uint16_t col = 0;
@@ -1419,12 +1420,9 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
             char c = buf[i];
             if (c=='\n')
             {
-                if (i<l-1)
-                {
-                    TE_scrollUp (/*fullscreen=*/TRUE);
-                    TE_moveCursor (g_ed->window_height+1, 0);
-                    TE_eraseToEOL ();
-                }
+                TE_scrollUp (/*fullscreen=*/TRUE);
+                TE_moveCursor (g_ed->window_height+1, 0);
+                TE_eraseToEOL ();
             }
             else
             {

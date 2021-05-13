@@ -12,46 +12,53 @@
 #include "util.h"
 #include "errormsg.h"
 #include "frontend.h"
+#include "logger.h"
 
 static bool enable_ansi=FALSE;
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
+#ifdef __amigaos__
+
+#define ANSI_COLOR_ERROR   "\x9b" "33m"
+#define ANSI_RESET         "\x9b" "0m"
+#define ANSI_BOLD          "\x9b" "1m"
+
+#else
+
+#define ANSI_COLOR_ERROR   "\x1b[31m"
 #define ANSI_RESET         "\x1b[0m"
 #define ANSI_BOLD          "\x1b[1m"
+
+#endif
 
 bool EM_anyErrors= FALSE;
 
 bool EM_error(S_pos pos, char *message,...)
 {
     va_list ap;
+    static char buf[1024];
 
     EM_anyErrors=TRUE;
 
     if (enable_ansi)
-        fprintf(stderr,ANSI_BOLD);
-    if (FE_filename) fprintf(stderr,"%s:", FE_filename);
-    fprintf(stderr,"%d:%d: ", S_getline(pos), S_getcol(pos));
+        LOG_printf(LOG_ERROR, ANSI_BOLD);
+    if (FE_filename) LOG_printf(LOG_ERROR, "%s:", FE_filename);
+    LOG_printf(LOG_ERROR, "%d:%d: ", S_getline(pos), S_getcol(pos));
     if (enable_ansi)
-        fprintf(stderr,ANSI_COLOR_RED);
-    fprintf(stderr,"error: ");
+        LOG_printf(LOG_ERROR, ANSI_COLOR_ERROR);
+    LOG_printf(LOG_ERROR, "error: ");
     if (enable_ansi)
-        fprintf(stderr,ANSI_RESET);
-    va_start(ap,message);
-    vfprintf(stderr, message, ap);
+        LOG_printf(LOG_ERROR, ANSI_RESET);
+    va_start(ap, message);
+    vsnprintf (buf, 1024, message, ap);
     va_end(ap);
-    fprintf(stderr,"\n");
+    LOG_printf(LOG_ERROR, "%s\n", buf);
 
     if (S_getcurlinenum() == S_getline(pos))
     {
-        fprintf(stderr, "    %s\n    ", S_getcurline());
+        LOG_printf(LOG_ERROR,  "    %s\n    ", S_getcurline());
         for (int i=1; i<S_getcol(pos); i++)
-            fprintf(stderr, " ");
-        fprintf(stderr, "^\n");
+            LOG_printf(LOG_ERROR,  " ");
+        LOG_printf(LOG_ERROR,  "^\n");
     }
 
     return FALSE;
@@ -75,7 +82,7 @@ void EM_init(void)
 {
     EM_anyErrors = FALSE;
 #ifdef __amigaos__
-    enable_ansi = FALSE;
+    enable_ansi = TRUE;
 #else
     enable_ansi = isatty(fileno(stdout));
 #endif
