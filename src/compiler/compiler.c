@@ -31,6 +31,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string binfn, 
 
     // init environment
 
+    Temp_init();
     Ty_init();
     EM_init();
     FE_init();

@@ -143,7 +143,6 @@ int main (int argc, char *argv[])
     U_init();
     SYM_init();
     FE_boot();
-    AS_boot();
     E_boot();
 
 #ifdef __amigaos__

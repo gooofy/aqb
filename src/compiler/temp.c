@@ -20,17 +20,18 @@ struct Temp_temp_
     string      name;
 };
 
+static int g_labels = 0;
+static int g_temp_cnt = 0;
+
 string Temp_labelstring(Temp_label s)
 {
     return S_name(s);
 }
 
-static int labels = 0;
-
 Temp_label Temp_newlabel(void)
 {
     char buf[100];
-    sprintf(buf,"_L%d",labels++);
+    sprintf(buf,"_L%d", g_labels++);
     return Temp_namedlabel(String(buf));
 }
 
@@ -40,14 +41,12 @@ Temp_label Temp_namedlabel(string s)
     return S_Symbol(s, FALSE);
 }
 
-static int temp_cnt = 0;
-
 Temp_temp Temp_NamedTemp (string name, enum Temp_w w)
 {
     Temp_temp p = (Temp_temp) U_poolAlloc(UP_temp, sizeof (*p));
 
     p->w    = w;
-    p->num  = temp_cnt++;
+    p->num  = g_temp_cnt++;
     p->name = name;
 
     return p;
@@ -165,5 +164,11 @@ string Temp_tempSetSPrint(Temp_tempSet ts)
             res = strprintf("%s", Temp_strprint(t));
     }
     return res;
+}
+
+void Temp_init(void)
+{
+    g_labels = 0;
+    g_temp_cnt = 0;
 }
 

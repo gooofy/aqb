@@ -49,4 +49,6 @@ Temp_tempSet       Temp_tempSetAdd       (Temp_tempSet ts, Temp_temp t, bool *bA
 Temp_tempSet       Temp_tempSetUnion     (Temp_tempSet tsA, Temp_tempSet tsB); // return newly allocated TempSet that contains union of nodes from tsA and tsaB
 string             Temp_tempSetSPrint    (Temp_tempSet ts);
 
+void               Temp_init(void);
+
 #endif

@@ -336,7 +336,6 @@ void               AS_assembleDataFill   (AS_segment seg, size_t size);
 
 void               AS_resolveLabels      (AS_object o);
 
-void               AS_boot               (void);
 void               AS_init               (void);
 
 #endif
