@@ -633,7 +633,7 @@ void TE_flush  (void)
 static uint16_t TE_getch (void)
 {
     int nread;
-    char c, seq[4];
+    char c, seq[5];
     while ((nread = read(STDIN_FILENO,&c,1)) == 0);
     if (nread == -1)
         exit(1);
@@ -652,7 +652,7 @@ static uint16_t TE_getch (void)
             if (read(STDIN_FILENO,seq+1,1) == 0)
             {
                 LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 2\n");
-                return KEY_ESC;
+                return KEY_UNKNOWN1;
             }
 
             switch (seq[0])
@@ -665,9 +665,9 @@ static uint16_t TE_getch (void)
                             if (read(STDIN_FILENO,seq+2,2) == 0)
                             {
                                 LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 3\n");
-                                return KEY_ESC;
+                                return KEY_UNKNOWN1;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2], seq[3], seq[3]);
                             switch (seq[2])
                             {
                                 case '5': return KEY_F5;
@@ -675,6 +675,22 @@ static uint16_t TE_getch (void)
                                 case '8': return KEY_F7;
                                 case '9': return KEY_F8;
                                 case '~': return KEY_HOME;
+                                case ';':
+                                    if (read(STDIN_FILENO,seq+4,1) == 0)
+                                    {
+                                        LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                        return KEY_UNKNOWN1;
+                                    }
+                                    switch (seq[4])
+                                    {
+                                        case 'A':
+                                            return KEY_PAGE_UP;   // SHIFT + CURSOR_UP
+                                        case 'B':
+                                            return KEY_PAGE_DOWN; // SHIFT + CURSOR_DOWN
+                                        default:
+                                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): unknown escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2], seq[3], seq[3], seq[4], seq[4]);
+                                    }
+                                    return KEY_UNKNOWN2;
                             }
                             break;
                         case '2':       // ESC [ 2 ...

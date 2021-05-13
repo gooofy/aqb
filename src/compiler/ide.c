@@ -84,14 +84,14 @@ struct IDE_editor_
 	char 	           module_name[PATH_MAX];
 	char 	           binfn[PATH_MAX];
 
-	uint16_t           cursor_col, cursor_row;
+	int16_t            cursor_col, cursor_row;
     IDE_line           cursor_line;
 
     // window, scrolling, repaint
-	uint16_t           window_width, window_height;
-	uint16_t           scrolloff_col, scrolloff_row;
+	int16_t            window_width, window_height;
+	int16_t            scrolloff_col, scrolloff_row;
     IDE_line           scrolloff_line;
-    uint16_t           scrolloff_line_row;
+    int16_t            scrolloff_line_row;
     bool               up2date_row[TE_MAX_ROWS];
     bool               up2date_il_pos;
     bool               up2date_il_num_lines;
@@ -248,19 +248,19 @@ static void invalidateAll (IDE_editor ed)
 
 static void scroll(IDE_editor ed)
 {
-    uint16_t cursor_row = ed->cursor_row - ed->scrolloff_row;
+    int16_t cursor_row = ed->cursor_row - ed->scrolloff_row;
 
     // scroll up ?
 
     if (cursor_row > ed->window_height - SCROLL_MARGIN)
     {
-        uint16_t scrolloff_row_new = ed->cursor_row - ed->window_height + SCROLL_MARGIN;
-        uint16_t scrolloff_row_max = ed->num_lines - ed->window_height + 1;
+        int16_t scrolloff_row_new = ed->cursor_row - ed->window_height + SCROLL_MARGIN;
+        int16_t scrolloff_row_max = ed->num_lines - ed->window_height + 1;
 
         if (scrolloff_row_new > scrolloff_row_max)
             scrolloff_row_new = scrolloff_row_max;
 
-        uint16_t diff = scrolloff_row_new - ed->scrolloff_row;
+        int16_t diff = scrolloff_row_new - ed->scrolloff_row;
         ed->scrolloff_row = scrolloff_row_new;
         switch (diff)
         {
@@ -279,9 +279,9 @@ static void scroll(IDE_editor ed)
 
     if (cursor_row < SCROLL_MARGIN)
     {
-        uint16_t scrolloff_row_new = ed->cursor_row > SCROLL_MARGIN ? ed->cursor_row - SCROLL_MARGIN : 0;
+        int16_t scrolloff_row_new = ed->cursor_row > SCROLL_MARGIN ? ed->cursor_row - SCROLL_MARGIN : 0;
 
-        uint16_t diff = ed->scrolloff_row - scrolloff_row_new;
+        int16_t diff = ed->scrolloff_row - scrolloff_row_new;
         ed->scrolloff_row = scrolloff_row_new;
         switch (diff)
         {
@@ -812,6 +812,26 @@ static bool cursorRight(IDE_editor ed)
     return TRUE;
 }
 
+static bool pageUp(IDE_editor ed)
+{
+    for (uint16_t i = 0; i<ed->window_height; i++)
+    {
+        if (!cursorUp(ed))
+            return FALSE;
+    }
+    return TRUE;
+}
+
+static bool pageDown(IDE_editor ed)
+{
+    for (uint16_t i = 0; i<ed->window_height; i++)
+    {
+        if (!cursorDown(ed))
+            return FALSE;
+    }
+    return TRUE;
+}
+
 static void line2buf (IDE_editor ed, IDE_line l)
 {
     uint16_t off = 0;
@@ -1168,8 +1188,11 @@ static void show_help(IDE_editor ed)
 {
     TE_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
                   "F1     - this help screen\n"
+                  "S-UP   - page up\n"
+                  "S-DOWN - page down\n"
                   "F5     - compile & run\n"
                   "F7     - compile\n"
+                  "Ctrl-S - save\n"
                   "Ctrl-C - quit", "Close");
     invalidateAll (ed);
 }
@@ -1231,6 +1254,14 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_CURSOR_RIGHT:
             cursorRight(ed);
+            break;
+
+        case KEY_PAGE_UP:
+            pageUp(ed);
+            break;
+
+        case KEY_PAGE_DOWN:
+            pageDown(ed);
             break;
 
         case KEY_ENTER:
