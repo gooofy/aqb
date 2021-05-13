@@ -24,11 +24,10 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
+int CO_compile(string sourcefn, string module_name, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
-    static string          module_name;
 
     // init environment
 
@@ -42,6 +41,21 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
 
     if (setjmp(g_exit_jmp_buf))
     {
+        U_poolReset (UP_env);
+        U_poolReset (UP_codegen);
+        U_poolReset (UP_assem);
+        U_poolReset (UP_frontend);
+        U_poolReset (UP_types);
+
+        U_poolReset (UP_temp);
+        U_poolReset (UP_flowgraph);
+        U_poolReset (UP_linscan);
+        //U_poolReset (UP_symbol);
+        U_poolReset (UP_regalloc);
+        U_poolReset (UP_liveness);
+        //U_poolReset (UP_strings); // FIXME: remove string pool
+        U_poolReset (UP_link);
+
         //E_deInit();
         //CG_deInit();
         //AS_deInit();
@@ -51,21 +65,6 @@ int CO_compile(string sourcefn, string symfn, string binfn, string asm_gas_fn, s
         //Ty_deInit();
 
         return g_return_code;
-    }
-
-    /* filename.bas -> module name, module search path */
-    {
-        int l = strlen(sourcefn);
-        if (l>1024)
-            l = 1024;
-        if (l<4)
-            l = 4;
-
-        module_name = basename(String(sourcefn));
-        l = strlen(module_name);
-        module_name[l-4] = 0;
-
-        OPT_addModulePath(dirname(String(sourcefn)));
     }
 
     /*

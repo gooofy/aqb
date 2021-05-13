@@ -81,6 +81,7 @@ struct IDE_editor_
 	char               infoline[36+PATH_MAX];
     uint16_t           infoline_row;
 	char 	           sourcefn[PATH_MAX];
+	char 	           module_name[PATH_MAX];
 	char 	           binfn[PATH_MAX];
 
 	uint16_t           cursor_col, cursor_row;
@@ -1175,7 +1176,9 @@ static void compile(IDE_editor ed)
 {
     LOG_printf (LOG_INFO, "compilation starts...\n\n");
 
-    CO_compile(ed->sourcefn, /*symfn=*/ NULL,
+    CO_compile(ed->sourcefn,
+               ed->module_name,
+               /*symfn=*/ NULL,
                ed->binfn,
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL);
@@ -1273,6 +1276,7 @@ IDE_editor openEditor(void)
     strncpy (ed->infoline, INFOLINE, sizeof(ed->infoline));
     ed->infoline_row     = 0;
     ed->sourcefn[0]      = 0;
+    ed->module_name[0]   = 0;
     ed->line_first       = NULL;
     ed->line_last        = NULL;
     ed->num_lines	     = 0;
@@ -1292,11 +1296,12 @@ IDE_editor openEditor(void)
 	return ed;
 }
 
-static void IDE_setSourceFn(IDE_editor ed, char *sourcefn)
+static void IDE_setSourceFn(IDE_editor ed, string sourcefn, string module_name)
 {
     if (sourcefn)
     {
         strcpy (ed->sourcefn, sourcefn);
+        strcpy (ed->module_name, module_name);
         int l = strlen(sourcefn);
 
         if (l>4)
@@ -1322,7 +1327,7 @@ static void IDE_setSourceFn(IDE_editor ed, char *sourcefn)
     }
 }
 
-static void IDE_load (IDE_editor ed, char *sourcefn)
+static void IDE_load (IDE_editor ed, string sourcefn, string module_name)
 {
     assert(!ed->num_lines); // FIXME: free old buffer
     if (sourcefn)
@@ -1377,7 +1382,7 @@ static void IDE_load (IDE_editor ed, char *sourcefn)
         ed->num_lines++;
     }
 
-    IDE_setSourceFn(ed, sourcefn);
+    IDE_setSourceFn(ed, sourcefn, module_name);
     ed->cursor_col		 = 0;
     ed->cursor_row		 = 0;
     ed->cursor_line      = ed->line_first;
@@ -1443,7 +1448,7 @@ static void IDE_deinit(void)
 #endif
 }
 
-void IDE_open(char *sourcefn)
+void IDE_open (string sourcefn, string module_name)
 {
     //OPT_set (OPTION_VERBOSE, TRUE);
     TE_init();
@@ -1471,7 +1476,7 @@ void IDE_open(char *sourcefn)
 
 	g_ed = openEditor();
 
-    IDE_load (g_ed, sourcefn);
+    IDE_load (g_ed, sourcefn, module_name);
 
     TE_setCursorVisible (FALSE);
     TE_moveCursor (0, 0);

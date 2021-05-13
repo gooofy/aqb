@@ -1394,3 +1394,4 @@ void E_init(void)
     declare_builtin_const("TRUE",  Ty_ConstBool(Ty_Bool(), TRUE));
     declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));
 }
+

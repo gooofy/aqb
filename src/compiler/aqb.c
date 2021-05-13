@@ -123,17 +123,18 @@ static void deinit(void)
 
 int main (int argc, char *argv[])
 {
-	static char           *sourcefn;
-    static char            asm_gas_fn[PATH_MAX];
-    static char            asm_asmpro_fn[PATH_MAX];
-    static int             optind;
-    static bool            write_sym = FALSE;
-    static bool            write_asmpro = FALSE;
-    static bool            write_asmgas = FALSE;
-    static bool            write_bin = FALSE;
-    static bool            launch_ide = TRUE;
-    static char            symfn[PATH_MAX];
-    static char            binfn[PATH_MAX];
+	static string sourcefn;
+    static string module_name;
+    static char   asm_gas_fn[PATH_MAX];
+    static char   asm_asmpro_fn[PATH_MAX];
+    static int    optind;
+    static bool   write_sym = FALSE;
+    static bool   write_asmpro = FALSE;
+    static bool   write_asmgas = FALSE;
+    static bool   write_bin = FALSE;
+    static bool   launch_ide = TRUE;
+    static char   symfn[PATH_MAX];
+    static char   binfn[PATH_MAX];
 
 #ifdef __amigaos__
     check_stacksize();
@@ -257,10 +258,25 @@ int main (int argc, char *argv[])
         sourcefn = argv[optind];
     }
 
+    /* filename.bas -> module name, module search path */
+    {
+        int l = strlen(sourcefn);
+        if (l>1024)
+            l = 1024;
+        if (l<4)
+            l = 4;
+
+        module_name = basename(String(sourcefn));
+        l = strlen(module_name);
+        module_name[l-4] = 0;
+
+        OPT_addModulePath(dirname(String(sourcefn)));
+    }
+
     // run interactive IDE ? (experimental)
     if (launch_ide)
     {
-        IDE_open(sourcefn);
+        IDE_open(sourcefn, module_name);
         exit(0);
     }
 
@@ -272,10 +288,12 @@ int main (int argc, char *argv[])
 	atexit (deinit);
     LOG_init (log_cb);
 
-    CO_compile(sourcefn, write_sym ? symfn : NULL,
-                         write_bin ? binfn : NULL,
-                         write_asmgas ? asm_gas_fn : NULL,
-                         write_asmpro ? asm_asmpro_fn : NULL);
+    CO_compile(sourcefn,
+               module_name,
+               write_sym ? symfn : NULL,
+               write_bin ? binfn : NULL,
+               write_asmgas ? asm_gas_fn : NULL,
+               write_asmpro ? asm_asmpro_fn : NULL);
 
     return 0;
 }

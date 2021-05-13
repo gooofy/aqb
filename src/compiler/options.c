@@ -21,7 +21,7 @@ static OPT_dirSearchPath g_moduleSP=NULL, g_moduleSPLast=NULL;
 
 void OPT_addModulePath(string path)
 {
-    OPT_dirSearchPath p = U_poolAlloc (UP_env, sizeof(*p));
+    OPT_dirSearchPath p = U_poolAlloc (UP_options, sizeof(*p));
 
     p->path      = String(path);
     p->next      = NULL;
