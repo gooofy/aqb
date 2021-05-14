@@ -1385,6 +1385,23 @@ static void emit_LEA (AS_segment seg, int regDst, int regSrc, int modeSrc)
     emit_u2 (seg, code);
 }
 
+static void emit_LSL_LSR (AS_segment seg, enum Temp_w w, uint16_t cnt_reg, uint16_t dr, uint16_t i_r, uint16_t reg)
+{
+    uint16_t code = 0xe008;
+    switch (w)
+    {
+        case Temp_w_B: code |= (0 << 6); break;
+        case Temp_w_W: code |= (1 << 6); break;
+        case Temp_w_L: code |= (2 << 6); break;
+        default: assert(FALSE);
+    }
+    code |= cnt_reg << 9;
+    code |= dr << 8;
+    code |= i_r << 5;
+    code |= reg;
+    emit_u2 (seg, code);
+}
+
 static void emit_MOVE (AS_segment seg, enum Temp_w w, int regDst, int modeDst, int regSrc, int modeSrc)
 {
     uint16_t code = 0x0000;
@@ -1634,16 +1651,25 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                     return FALSE;
                 break;
 
-            case AS_JSR_RAn:                 //  71 jsr     -36(a6)
-                emit_JSR (seg, /*mode=*/5, /*reg=*/6);
-                emit_i2 (seg, instr->offset);
+            case AS_LSL_Imm_Dn:      //  32 lsl.x   #42, d2
+            {
+                int32_t c = getConstInt (instr->imm);
+                assert ((c>0)&&(c<=8));
+                if (c==8)
+                    c = 0;
+                emit_LSL_LSR (seg, instr->w,
+                              /*cnt_reg=*/c,
+                              /*dr=*/1,
+                              /*i_r=*/0,
+                              /*reg=*/AS_regNumDn(instr->dst));
                 break;
-
+            }
             case AS_MOVE_AnDn_AnDn:          //  35 move.x  d1, d2
             {
-                bool isAn = AS_isAn(instr->dst);
-                emit_MOVE (seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/isAn ? 1:0,
-                                          /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
+                bool isAnDst = AS_isAn(instr->dst);
+                bool isAnSrc = AS_isAn(instr->src);
+                emit_MOVE (seg, instr->w, /*regDst=*/isAnDst ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/isAnDst ? 1:0,
+                                          /*regSrc=*/isAnSrc ? AS_regNumAn(instr->src) : AS_regNumDn(instr->src), /*modeSrc=*/isAnSrc ? 1:0);
                 break;
             }
             case AS_MOVE_Imm_RAn:    //  37 move.x  #23, (a6)
@@ -1762,6 +1788,10 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 break;
             case AS_NOT_Dn:          //  64 not.x   d0
                 emit_NOT (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0);
+                break;
+            case AS_JSR_RAn:                 //  71 jsr     -36(a6)
+                emit_JSR (seg, /*mode=*/5, /*reg=*/6);
+                emit_i2 (seg, instr->offset);
                 break;
             case AS_RTS:             // 72
                 emit_u2 (seg, 0x4e75);
