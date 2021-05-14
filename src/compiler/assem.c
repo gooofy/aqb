@@ -1674,30 +1674,26 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             case AS_MOVE_ILabel_AnDn:       // 46 MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
             {
                 bool isAn = AS_isAn(instr->dst);
-                assert (!isAn); // FIXME
-                emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0,
+                emit_MOVE (seg, instr->w, /*regDst=*/ isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/isAn ? 1:0,
                                           /*regSrc=*/4, /*modeSrc=*/7);
                 if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
                     return FALSE;
                 break;
             }
             case AS_MOVE_Label_AnDn: //  47 move.x  label, d6
-                if (AS_isAn(instr->dst))
-                    emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumAn(instr->dst), /*modeDst=*/1,
-                                              /*regSrc=*/1, /*modeSrc=*/7);
-                else
-                    emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0,
-                                              /*regSrc=*/1, /*modeSrc=*/7);
+            {
+                bool isAn = AS_isAn(instr->dst);
+                emit_MOVE (seg, instr->w, /*regDst=*/ isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/isAn ? 1:0,
+                                          /*regSrc=*/1, /*modeSrc=*/7);
                 if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
                     return FALSE;
                 break;
-
+            }
             case AS_MOVE_AnDn_Label:         //  49 move.x  d6, label
             {
                 bool isAn = AS_isAn(instr->src);
-                assert (!isAn); // FIXME
                 emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
-                                          /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
+                                          /*regSrc=*/isAn ? AS_regNumAn(instr->src) : AS_regNumDn(instr->src), /*modeSrc=*/isAn ? 1:0);
                 if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
                     return FALSE;
                 break;
