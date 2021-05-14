@@ -3,7 +3,9 @@ include ../config.mk
 AQBFLAGS     = -L ../src/lib -d _brt
 AQBFLAGS_OPT = -O -L ../src/lib -d _brt
 
-SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas
+SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
+	   const1.bas const2.bas const3.bas constprop.bas \
+       ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas
 #SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 #	   const1.bas const2.bas const3.bas constprop.bas \
 #       ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas ctrl7.bas ctrl8.bas \

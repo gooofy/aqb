@@ -1539,6 +1539,17 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 break;
             }
 
+            case AS_ADD_AnDn_AnDn:   //   1 add.x   d1, d2
+            {
+                bool isAnDst = AS_isAn(instr->dst);
+                bool isAnSrc = AS_isAn(instr->src);
+                emit_ADD(seg, instr->w,
+                         /*regDst=*/isAnDst ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst),
+                         /*dstIsAn=*/isAnDst,
+                         /*regSrc=*/isAnSrc ? AS_regNumAn(instr->src) : AS_regNumDn(instr->src),
+                         /*modeSrc=*/isAnSrc ? 1:0);
+                break;
+            }
             case AS_ADD_Imm_AnDn:    //   2 add.x   #42, d2
             {
                 int32_t c = getConstInt (instr->imm);
