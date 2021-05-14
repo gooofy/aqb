@@ -158,6 +158,11 @@ int CO_compile(string sourcefn, string module_name, string symfn, string binfn, 
     if (asm_gas_fn)
     {
         FILE *out = fopen(asm_gas_fn, "w");
+        if (!out)
+        {
+            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", asm_gas_fn);
+            CO_exit(32);
+        }
         CG_writeASMFile (out, frags, AS_dialect_gas);
         fclose(out);
     }
@@ -165,6 +170,11 @@ int CO_compile(string sourcefn, string module_name, string symfn, string binfn, 
     if (asm_asmpro_fn)
     {
         FILE *out = fopen(asm_asmpro_fn, "w");
+        if (!out)
+        {
+            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", asm_asmpro_fn);
+            CO_exit(33);
+        }
         CG_writeASMFile (out, frags, AS_dialect_ASMPro);
         fclose(out);
     }

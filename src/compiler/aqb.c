@@ -101,18 +101,18 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
+    static char buf[1024];
+    vsnprintf (buf, 1024, fmt, args);
+    va_end(args);
 	if (lvl >= LOG_INFO)
     {
-        static char buf[1024];
-        vsnprintf (buf, 1024, fmt, args);
-        printf (buf);
+        printf ("%s", buf);
         fflush (stdout);
     }
 #if LOG_LEVEL == LOG_DEBUG
-	vfprintf (logf, fmt, args);
+	fprintf (logf, "%s", buf);
 	fflush (logf);
 #endif
-    va_end(args);
 }
 
 static void deinit(void)
