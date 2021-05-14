@@ -1448,6 +1448,21 @@ static void emit_MULS (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t 
     emit_u2 (seg, code);
 }
 
+static void emit_NOT (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t modeDst)
+{
+    uint16_t code = 0x4600;
+    switch (w)
+    {
+        case Temp_w_B: break;
+        case Temp_w_W: code |= 1<<6 ; break;
+        case Temp_w_L: code |= 2<<6 ; break;
+        default: assert(FALSE);
+    }
+    code |= regDst;
+    code |= modeDst << 3;
+    emit_u2 (seg, code);
+}
+
 static void emit_MOVEQ (AS_segment seg, uint16_t regDst, Ty_const imm)
 {
     uint8_t c = (uint8_t) getConstInt (imm);
@@ -1629,15 +1644,14 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             case AS_MOVE_Imm_AnDn:           //  38 move.x  #23, d0
             {
                 bool isAn = AS_isAn(instr->dst);
-                assert (!isAn); // FIXME: movea
 
-                if (instr->w == Temp_w_B)
+                if ( (instr->w == Temp_w_B) && !isAn )
                 {
                     emit_MOVEQ (seg, /*regDst=*/AS_regNumDn(instr->dst), instr->imm);
                 }
                 else
                 {
-                    emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0,
+                    emit_MOVE (seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/ isAn ? 1:0,
                                               /*regSrc=*/4, /*modeSrc=*/7);
                     emit_Imm (seg, instr->w, instr->imm);
                 }
@@ -1735,7 +1749,10 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_MULS (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/4, /*modeSrc=*/7);
                 emit_Imm (seg, instr->w, instr->imm);
                 break;
-            case AS_RTS:            // 72
+            case AS_NOT_Dn:          //  64 not.x   d0
+                emit_NOT (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0);
+                break;
+            case AS_RTS:             // 72
                 emit_u2 (seg, 0x4e75);
                 break;
             case AS_SUB_Dn_Dn:       //  74 sub.x   d1, d2
