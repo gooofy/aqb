@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <string.h>
+
 #include "link.h"
 #include "logger.h"
 
@@ -14,6 +16,7 @@
 #define HUNK_TYPE_BSS      0x03EB
 #define HUNK_TYPE_RELOC32  0x03EC
 #define HUNK_TYPE_EXT      0x03EF
+#define HUNK_TYPE_SYMBOL   0x03F0
 #define HUNK_TYPE_END      0x03F2
 #define HUNK_TYPE_HEADER   0x03F3
 
@@ -24,10 +27,14 @@
 #define MAX_BUF              1024
 #define MAX_NUM_HUNKS          16
 
+#define ENABLE_SYMBOL_HUNK
+
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
+static char       g_name[MAX_BUF];             // current hunk name
 static AS_segment g_hunk_table[MAX_NUM_HUNKS]; // used during hunk object loading
 static int        g_hunk_id_cnt;
 static AS_segment g_hunk_cur;                  // last code/data/bss hunk read
+static FILE      *g_fObjFile=NULL;             // object file being written
 static FILE      *g_fLoadFile=NULL;            // load file being written
 
 static void link_fail (string msg)
@@ -39,6 +46,12 @@ static void link_fail (string msg)
     {
         fclose (g_fLoadFile);
         g_fLoadFile = NULL;
+    }
+
+    if (g_fObjFile)
+    {
+        fclose (g_fObjFile);
+        g_fObjFile = NULL;
     }
 
     exit(127);
@@ -141,19 +154,19 @@ static bool load_hunk_name(string sourcefn, FILE *f)
         return FALSE;
     }
 
-    if (fread (g_buf, name_len, 1, f) != 1)
+    if (fread (g_name, name_len, 1, f) != 1)
     {
         fprintf (stderr, "link: read error.\n");
         return FALSE;
     }
 
-    g_buf[name_len] = 0;
-    LOG_printf (LOG_DEBUG, "link: %s: hunk name: %s\n", sourcefn, g_buf);
+    g_name[name_len] = 0;
+    LOG_printf (LOG_DEBUG, "link: %s: hunk name: %s\n", sourcefn, g_name);
 
     return TRUE;
 }
 
-AS_segment getOrCreateSegment (string sourcefn, int id, AS_segKind kind, size_t min_size)
+static AS_segment getOrCreateSegment (string sourcefn, string name, int id, AS_segKind kind, size_t min_size)
 {
     if (id >= MAX_NUM_HUNKS)
     {
@@ -165,7 +178,7 @@ AS_segment getOrCreateSegment (string sourcefn, int id, AS_segKind kind, size_t 
 
     if (!seg)
     {
-        seg = AS_Segment(sourcefn, kind, min_size);
+        seg = AS_Segment(sourcefn, name, kind, min_size);
         g_hunk_table[id] = seg;
         return seg;
     }
@@ -177,6 +190,9 @@ AS_segment getOrCreateSegment (string sourcefn, int id, AS_segKind kind, size_t 
         if (kind != seg->kind)
             assert(FALSE);
     }
+
+    if (!seg->name && name)
+        seg->name = name;
 
     AS_ensureSegmentSize (seg, min_size);
 
@@ -194,7 +210,9 @@ static bool load_hunk_code(string sourcefn, FILE *f)
     code_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: code hunk size: %d bytes.\n", sourcefn, code_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_codeSeg, code_len);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(g_name), g_hunk_id_cnt++, AS_codeSeg, code_len);
+
+    strcpy (g_name, "unnamed");
 
     if (fread (g_hunk_cur->mem, code_len, 1, f) != 1)
     {
@@ -217,7 +235,9 @@ static bool load_hunk_data(string sourcefn, FILE *f)
     data_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: data hunk size: %d bytes.\n", sourcefn, data_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_dataSeg, data_len);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(g_name), g_hunk_id_cnt++, AS_dataSeg, data_len);
+
+    strcpy (g_name, "unnamed");
 
     if (fread (g_hunk_cur->mem, data_len, 1, f) != 1)
     {
@@ -241,7 +261,9 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
     bss_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: bss hunk size: %d bytes.\n", sourcefn, bss_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, g_hunk_id_cnt++, AS_bssSeg, 0);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(g_name), g_hunk_id_cnt++, AS_bssSeg, 0);
+
+    strcpy (g_name, "unnamed");
 
     g_hunk_cur->mem_size = bss_len;
     g_hunk_cur->mem_pos  = bss_len;
@@ -269,7 +291,7 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
         }
         LOG_printf (LOG_DEBUG, "link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
 
-        AS_segment seg = getOrCreateSegment (sourcefn, hunk_id, AS_unknownSeg, /*min_size=*/0);
+        AS_segment seg = getOrCreateSegment (sourcefn, NULL, hunk_id, AS_unknownSeg, /*min_size=*/0);
 
         for (uint32_t i=0; i<num_offs; i++)
         {
@@ -417,6 +439,8 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
     if (!load_hunk_unit(f))
         return FALSE;
 
+    strcpy (g_name, "unnamed");
+
     while (TRUE)
     {
         if (!fread_u4 (f, &ht))
@@ -532,7 +556,7 @@ bool LI_link (LI_segmentList sl)
                 }
                 if (!commonSeg)
                 {
-                    commonSeg = AS_Segment ("common", AS_dataSeg, 0);
+                    commonSeg = AS_Segment ("common", "common", AS_dataSeg, 0);
                     commonSeg->hunk_id = hunk_id++;
                     LI_segmentListAppend (sl, commonSeg);
                 }
@@ -575,6 +599,17 @@ static void fwrite_u4(FILE *f, uint32_t u)
         link_fail ("write error");
 }
 
+static void write_hunk_unit (string name, FILE *f)
+{
+    fwrite_u4 (f, HUNK_TYPE_UNIT);
+    uint32_t l = strlen(name);
+    uint32_t n = roundUp(l, 4) / 4;
+    LOG_printf (LOG_DEBUG, "link: write hunk unit %s, n=%d\n", name, n);
+    fwrite_u4 (f, n);
+    if (fwrite (name, n*4, 1, f) != 1)
+        link_fail ("write error");
+}
+
 static void write_hunk_header (LI_segmentList sl, FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_HEADER);
@@ -588,27 +623,39 @@ static void write_hunk_header (LI_segmentList sl, FILE *f)
     fwrite_u4 (f, hunkCnt-1);
     for (LI_segmentListNode n = sl->first; n; n=n->next)
     {
-        uint32_t nw = (n->seg->mem_pos + (n->seg->mem_pos % 4)) / 4;
+        uint32_t nw = roundUp(n->seg->mem_pos, 4) / 4;
         fwrite_u4 (f, nw);
     }
 }
 
-void write_hunk_code (AS_segment seg, FILE *f)
+static void write_hunk_name (AS_segment seg, FILE *f)
+{
+    fwrite_u4 (f, HUNK_TYPE_NAME);
+
+    uint32_t l = strlen(seg->name);
+    uint32_t n = roundUp(l, 4) / 4;
+    LOG_printf (LOG_DEBUG, "link: write hunk name %s, n=%d\n", seg->name, n);
+    fwrite_u4 (f, n);
+    if (fwrite (seg->name, n*4, 1, f) != 1)
+        link_fail ("write error");
+}
+
+static void write_hunk_code (AS_segment seg, FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_CODE);
 
-    uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
+    uint32_t n = roundUp(seg->mem_pos, 4) / 4;
     LOG_printf (LOG_DEBUG, "link: code section, size=%zd bytes\n", seg->mem_pos);
     fwrite_u4 (f, n);
     if (fwrite (seg->mem, n*4, 1, f) != 1)
         link_fail ("write error");
 }
 
-void write_hunk_data (AS_segment seg, FILE *f)
+static void write_hunk_data (AS_segment seg, FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_DATA);
 
-    uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
+    uint32_t n = roundUp(seg->mem_pos, 4) / 4;
     LOG_printf (LOG_DEBUG, "link: data section, size=%zd bytes\n", seg->mem_pos);
     fwrite_u4 (f, n);
     if (n)
@@ -618,15 +665,15 @@ void write_hunk_data (AS_segment seg, FILE *f)
     }
 }
 
-void write_hunk_bss (AS_segment seg, FILE *f)
+static void write_hunk_bss (AS_segment seg, FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_BSS);
 
-    uint32_t  n = (seg->mem_pos + (seg->mem_pos % 4)) / 4;
+    uint32_t n = roundUp(seg->mem_pos, 4) / 4;
     fwrite_u4 (f, n);
 }
 
-void write_hunk_reloc32 (AS_segment seg, FILE *f)
+static void write_hunk_reloc32 (AS_segment seg, FILE *f)
 {
     if (!seg->relocs)
         return;
@@ -653,9 +700,99 @@ void write_hunk_reloc32 (AS_segment seg, FILE *f)
     fwrite_u4 (f, 0);  // end marker
 }
 
-void write_hunk_end (FILE *f)
+#ifdef ENABLE_SYMBOL_HUNK
+static void write_hunk_symbol (AS_segment seg, FILE *f)
+{
+    if (!seg->defs)
+        return;
+    fwrite_u4 (f, HUNK_TYPE_SYMBOL);
+
+    for (AS_segmentDef def = seg->defs; def; def=def->next)
+    {
+        string name = S_name (def->sym);
+        uint32_t l = strlen(name);
+        uint32_t n = roundUp(l,4)/4;
+        fwrite_u4 (f, n);
+        if (fwrite (name, n*4, 1, f) != 1)
+            link_fail ("write error");
+        fwrite_u4 (f, def->offset);
+    }
+
+    fwrite_u4 (f, 0);
+}
+#endif
+
+static void write_hunk_ext (AS_segment seg, FILE *f)
+{
+    if (!seg->defs && !seg->refs)
+        return;
+    fwrite_u4 (f, HUNK_TYPE_EXT);
+
+    TAB_iter i = TAB_Iter(seg->refs);
+    S_symbol sym;
+    AS_segmentRef ref;
+    while (TAB_next(i, (void **) &sym, (void **)&ref))
+    {
+        string name = S_name (sym);
+        uint32_t l = strlen(name);
+        uint32_t n = roundUp(l,4)/4;
+        uint32_t c = (EXT_TYPE_REF32<<24) | n;
+        fwrite_u4 (f, c);
+        if (fwrite (name, n*4, 1, f) != 1)
+            link_fail ("write error");
+
+        uint32_t cnt=0;
+        for (AS_segmentRef r=ref; r; r=r->next)
+            cnt++;
+        fwrite_u4 (f, cnt);
+        for (AS_segmentRef r=ref; r; r=r->next)
+            fwrite_u4 (f, r->offset);
+    }
+
+    for (AS_segmentDef def = seg->defs; def; def=def->next)
+    {
+        string name = S_name (def->sym);
+        uint32_t l = strlen(name);
+        uint32_t n = roundUp(l,4)/4;
+        uint32_t c = (EXT_TYPE_DEF<<24) | n;
+        fwrite_u4 (f, c);
+        if (fwrite (name, n*4, 1, f) != 1)
+            link_fail ("write error");
+        fwrite_u4 (f, def->offset);
+    }
+
+    fwrite_u4 (f, 0);
+}
+static void write_hunk_end (FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_END);
+}
+
+void LI_segmentWriteObjectFile (AS_object obj, string objfn)
+{
+    g_fObjFile = fopen(objfn, "w");
+    if (!g_fObjFile)
+    {
+        fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", objfn);
+        exit(128);
+    }
+    write_hunk_unit (objfn, g_fObjFile);
+
+    write_hunk_name (obj->codeSeg, g_fObjFile);
+    write_hunk_code (obj->codeSeg, g_fObjFile);
+    write_hunk_reloc32 (obj->codeSeg, g_fObjFile);
+    write_hunk_ext (obj->codeSeg, g_fObjFile);
+    write_hunk_end (g_fObjFile);
+
+    write_hunk_name (obj->dataSeg, g_fObjFile);
+    write_hunk_data (obj->dataSeg, g_fObjFile);
+    write_hunk_reloc32 (obj->dataSeg, g_fObjFile);
+    write_hunk_ext (obj->dataSeg, g_fObjFile);
+    write_hunk_end (g_fObjFile);
+
+    fclose (g_fObjFile);
+    g_fObjFile = NULL;
+    LOG_printf (LOG_INFO, "link: created load file: %s\n", objfn);
 }
 
 void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
@@ -673,18 +810,30 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
         switch (n->seg->kind)
         {
             case AS_codeSeg:
+                //write_hunk_name (n->seg, g_fLoadFile);
                 write_hunk_code (n->seg, g_fLoadFile);
                 write_hunk_reloc32 (n->seg, g_fLoadFile);
+#ifdef ENABLE_SYMBOL_HUNK
+                write_hunk_symbol (n->seg, g_fLoadFile);
+#endif
                 write_hunk_end (g_fLoadFile);
                 break;
             case AS_dataSeg:
+                //write_hunk_name (n->seg, g_fLoadFile);
                 write_hunk_data (n->seg, g_fLoadFile);
                 write_hunk_reloc32 (n->seg, g_fLoadFile);
+#ifdef ENABLE_SYMBOL_HUNK
+                write_hunk_symbol (n->seg, g_fLoadFile);
+#endif
                 write_hunk_end (g_fLoadFile);
                 break;
             case AS_bssSeg:
+                //write_hunk_name (n->seg, g_fLoadFile);
                 write_hunk_bss (n->seg, g_fLoadFile);
                 write_hunk_reloc32 (n->seg, g_fLoadFile);
+#ifdef ENABLE_SYMBOL_HUNK
+                write_hunk_symbol (n->seg, g_fLoadFile);
+#endif
                 write_hunk_end (g_fLoadFile);
                 break;
             default:

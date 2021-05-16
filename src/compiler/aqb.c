@@ -62,6 +62,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
 	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
+	fprintf(stderr, "    -p <foo>     create hunk object file\n");
 	fprintf(stderr, "    -v           verbose\n");
 	fprintf(stderr, "    -V           display version info\n");
 }
@@ -133,9 +134,11 @@ int main (int argc, char *argv[])
     static bool   write_sym = FALSE;
     static bool   write_asmpro = FALSE;
     static bool   write_asmgas = FALSE;
+    static bool   write_obj = FALSE;
     static bool   write_bin = FALSE;
     static bool   launch_ide = TRUE;
     static char   symfn[PATH_MAX];
+    static char   objfn[PATH_MAX];
     static char   binfn[PATH_MAX];
 
 #ifdef __amigaos__
@@ -231,6 +234,17 @@ int main (int argc, char *argv[])
                 write_bin = TRUE;
                 launch_ide = FALSE;
 				break;
+        	case 'p':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (objfn, argv[optind], PATH_MAX);
+                write_obj = TRUE;
+                launch_ide = FALSE;
+				break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, TRUE);
 				break;
@@ -292,6 +306,7 @@ int main (int argc, char *argv[])
     CO_compile(sourcefn,
                module_name,
                write_sym ? symfn : NULL,
+               write_obj ? objfn : NULL,
                write_bin ? binfn : NULL,
                write_asmgas ? asm_gas_fn : NULL,
                write_asmpro ? asm_asmpro_fn : NULL);

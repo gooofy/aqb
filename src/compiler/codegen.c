@@ -4027,7 +4027,7 @@ static void writeASMStr(FILE * out, string str, Temp_label label, AS_dialect dia
     switch (dialect)
     {
         case AS_dialect_gas:
-            fprintf(out, "    .align 4\n");
+            fprintf(out, "    .align 2\n");
             break;
         case AS_dialect_ASMPro:
             fprintf(out, "    EVEN\n");
@@ -4057,7 +4057,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
     switch (dialect)
     {
         case AS_dialect_gas:
-            fprintf(out, "    .align 4\n");
+            fprintf(out, "    .align 2\n");
             break;
         case AS_dialect_ASMPro:
             fprintf(out, "    EVEN\n");

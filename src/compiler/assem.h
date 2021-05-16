@@ -134,7 +134,7 @@ enum AS_mn
     AS_SUB_Dn_Dn,       //  74 sub.x   d1, d2
     AS_SUB_Imm_AnDn,    //  75 sub.x   #42, d2
 
-    AS_SWAP_Dn,         //  76 swap.x   d4
+    AS_SWAP_Dn,         //  76 swap     d4
 
     AS_TST_Dn,          //  77 tst.x   d0
 
@@ -271,6 +271,7 @@ typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
     string            sourcefn;
+    string            name;
     AS_segKind        kind;
     uint32_t          hunk_id;
 
@@ -319,14 +320,14 @@ struct AS_object_
     AS_segment        dataSeg;
 };
 
-AS_segment         AS_Segment            (string sourcefn, AS_segKind kind, size_t initial_size);
+AS_segment         AS_Segment            (string sourcefn, string name, AS_segKind kind, size_t initial_size);
 
 void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
 void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size);
 void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
 
-AS_object          AS_Object             (string sourcefn);
+AS_object          AS_Object             (string sourcefn, string name);
 
 bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt);
 bool               AS_assembleString     (AS_object  o, Temp_label label, string str, size_t msize);

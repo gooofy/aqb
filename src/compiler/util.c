@@ -68,7 +68,6 @@ static U_memRec   g_mem = NULL;
 static size_t     g_alloc=0;
 static float      g_start_time;
 
-
 static float get_time(void)
 {
     #ifdef __amigaos__

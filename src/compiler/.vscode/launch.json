@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "../src/lib", "-O", "-d", "_brt", "-a", "/tmp/foo.asm", "-o", "/tmp/cond6.hunk", "ctrl7.bas"],
+            "args": ["-L", "../src/lib", "-O", "-d", "_brt", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "foo.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../tests",
             "environment": [],

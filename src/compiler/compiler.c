@@ -24,7 +24,7 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-int CO_compile(string sourcefn, string module_name, string symfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
+int CO_compile(string sourcefn, string module_name, string symfn, string objfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
@@ -179,7 +179,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string binfn, 
         fclose(out);
     }
 
-    if (!binfn)
+    if (!binfn && !objfn)
         CO_exit(0);
 
     /*
@@ -187,7 +187,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string binfn, 
      */
 
     LOG_printf (LOG_INFO, "PASS 3: assembler\n");
-    AS_object obj = AS_Object(binfn);
+    AS_object obj = AS_Object(binfn, "aqb");
 
     for (CG_fragList fl=frags; fl; fl=fl->tail)
     {
@@ -289,6 +289,12 @@ int CO_compile(string sourcefn, string module_name, string symfn, string binfn, 
     }
 
     AS_resolveLabels (obj);
+
+    if (objfn)
+        LI_segmentWriteObjectFile (obj, objfn);
+
+    if (!binfn)
+        CO_exit(0);
 
     /*
      * machine code generation (link phase)

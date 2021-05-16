@@ -1204,6 +1204,7 @@ static void compile(IDE_editor ed)
     CO_compile(ed->sourcefn,
                ed->module_name,
                /*symfn=*/ NULL,
+               /*objfn=*/ NULL,
                ed->binfn,
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL);

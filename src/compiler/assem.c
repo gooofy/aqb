@@ -12,6 +12,8 @@
 #include "logger.h"
 #include "options.h"
 
+//#define ENABLE_ASSMBLER_OPT
+
 AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     // mn                  isJump hasLabel hasImm hasSrc hasDst srcDnOnly dstDnOnly srcAnOnly dstAnOnly dstIsAlsoSrc, dstIsOnlySrc
     { AS_LABEL,            FALSE, TRUE   , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE },
@@ -770,11 +772,12 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
 
 static uint32_t g_hunk_id = 0;
 
-AS_segment AS_Segment (string sourcefn, AS_segKind kind, size_t initial_size)
+AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, size_t initial_size)
 {
     AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
 
     seg->sourcefn    = sourcefn;
+    seg->name        = name;
     seg->kind        = kind;
     seg->hunk_id     = g_hunk_id++;
     seg->mem         = initial_size ? U_malloc (initial_size) : NULL;
@@ -953,6 +956,7 @@ static int32_t getConstInt (Ty_const c)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
+        case Ty_string:
             return c->u.i;
         case Ty_single:
         case Ty_double:
@@ -1072,6 +1076,32 @@ static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
     0x0200, // d6
     0x0100  // d7
 };
+
+#if 0 // FIXME: remove
+static bool calcLabelOffset (AS_segment seg, TAB_table labels, Temp_label l, int16_t *offset)
+{
+    AS_labelInfo li = TAB_look (labels, l);
+    if (!li)
+        return FALSE;
+    if (!li->defined)
+        return FALSE;
+    int32_t o = li->offset - seg->mem_pos;
+    if ((o>32767) || (o<-32768))
+        return FALSE;
+    *offset = o;
+    return TRUE;
+}
+
+static bool isLabelExternal (AS_segment seg, TAB_table labels, Temp_label l)
+{
+    AS_labelInfo li = TAB_look (labels, l);
+    if (!li)
+        return FALSE;
+    if (!li->defined)
+        return TRUE;
+    return FALSE;
+}
+#endif
 
 static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool displacement)
 {
@@ -1222,8 +1252,9 @@ static void emit_Imm (AS_segment seg, enum Temp_w w, Ty_const imm)
     {
         case Temp_w_B:
         {
-            int8_t c = getConstInt (imm);
-            emit_i2 (seg, c);
+            uint16_t c = getConstInt (imm);
+            c &= 0xFF;
+            emit_u2 (seg, c);
             break;
         }
         case Temp_w_W:
@@ -1307,7 +1338,24 @@ static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode,
     emit_u2(seg, code);
 }
 
-static void emit_AND (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int modeSrc)
+static void emit_ASL_ASR (AS_segment seg, enum Temp_w w, uint16_t cnt_reg, uint16_t dr, uint16_t i_r, uint16_t reg)
+{
+    uint16_t code = 0xe000;
+    switch (w)
+    {
+        case Temp_w_B: code |= (0 << 6); break;
+        case Temp_w_W: code |= (1 << 6); break;
+        case Temp_w_L: code |= (2 << 6); break;
+        default: assert(FALSE);
+    }
+    code |= cnt_reg << 9;
+    code |= dr << 8;
+    code |= i_r << 5;
+    code |= reg;
+    emit_u2 (seg, code);
+}
+
+static void emit_AND (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
 {
     uint16_t code = 0xc000;
     switch (w)
@@ -1321,6 +1369,23 @@ static void emit_AND (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int
     code |= regDst  << 9;
     code |= regSrc      ;
     code |= modeSrc << 3;
+
+    emit_u2 (seg, code);
+}
+
+static void emit_ANDI (AS_segment seg, enum Temp_w w, uint16_t reg, uint16_t mode)
+{
+    uint16_t code = 0x0200;
+    switch (w)
+    {
+        case Temp_w_B: break;
+        case Temp_w_W: code |= (1 << 6) ; break;
+        case Temp_w_L: code |= (2 << 6) ; break;
+        default: assert(FALSE);
+    }
+
+    code |= reg      ;
+    code |= mode << 3;
 
     emit_u2 (seg, code);
 }
@@ -1358,14 +1423,60 @@ static void emit_CMP (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int
     emit_u2 (seg, code);
 }
 
-static void emit_EXT (AS_segment seg, enum Temp_w w, int reg)
+static void emit_DIVS (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
+{
+    uint16_t code = 0x81c0;
+    switch (w)
+    {
+        case Temp_w_W: break;
+        default: assert(FALSE);
+    }
+    code |= regDst  << 9;
+    code |= modeSrc << 3;
+    code |= regSrc;
+    emit_u2 (seg, code);
+}
+
+static void emit_DIVU (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
+{
+    uint16_t code = 0x80c0;
+    switch (w)
+    {
+        case Temp_w_W: break;
+        default: assert(FALSE);
+    }
+    code |= regDst  << 9;
+    code |= modeSrc << 3;
+    code |= regSrc;
+    emit_u2 (seg, code);
+}
+
+static void emit_EOR (AS_segment seg, enum Temp_w w, uint16_t regSrc, uint16_t regDst, uint16_t modeDst)
+{
+    uint16_t code = 0xb000;
+    switch (w)
+    {
+        case Temp_w_B: code |= (4 << 6);break;
+        case Temp_w_W: code |= (5 << 6); break;
+        case Temp_w_L: code |= (6 << 6); break;
+        default: assert(FALSE);
+    }
+
+    code |= regSrc << 9;
+    code |= modeDst << 3;
+    code |= regDst;
+
+    emit_u2 (seg, code);
+}
+
+static void emit_EXT (AS_segment seg, enum Temp_w w, uint16_t reg)
 {
     uint16_t code = 0x4800;
     switch (w)
     {
-        case Temp_w_B: code |= (2 << 6);break;
-        case Temp_w_W: code |= (3 << 6); break;
-        case Temp_w_L: code |= (7 << 6); break;
+        case Temp_w_B: assert(FALSE); break;
+        case Temp_w_W: code |= (2 << 6); break;
+        case Temp_w_L: code |= (3 << 6); break;
         default: assert(FALSE);
     }
 
@@ -1374,7 +1485,7 @@ static void emit_EXT (AS_segment seg, enum Temp_w w, int reg)
     emit_u2 (seg, code);
 }
 
-static void emit_LEA (AS_segment seg, int regDst, int regSrc, int modeSrc)
+static void emit_LEA (AS_segment seg, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
 {
     uint16_t code = 0x41C0;
 
@@ -1465,6 +1576,35 @@ static void emit_MULS (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t 
     emit_u2 (seg, code);
 }
 
+static void emit_MULU (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
+{
+    uint16_t code = 0xc0c0;
+    switch (w)
+    {
+        case Temp_w_W: break;
+        default: assert(FALSE);
+    }
+    code |= regDst  << 9;
+    code |= modeSrc << 3;
+    code |= regSrc;
+    emit_u2 (seg, code);
+}
+
+static void emit_NEG (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t modeDst)
+{
+    uint16_t code = 0x4400;
+    switch (w)
+    {
+        case Temp_w_B: break;
+        case Temp_w_W: code |= 1<<6 ; break;
+        case Temp_w_L: code |= 2<<6 ; break;
+        default: assert(FALSE);
+    }
+    code |= regDst;
+    code |= modeDst << 3;
+    emit_u2 (seg, code);
+}
+
 static void emit_NOT (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t modeDst)
 {
     uint16_t code = 0x4600;
@@ -1480,11 +1620,36 @@ static void emit_NOT (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t m
     emit_u2 (seg, code);
 }
 
+static void emit_OR (AS_segment seg, enum Temp_w w, uint16_t regSrc, uint16_t modeSrc, uint16_t regDst)
+{
+    uint16_t code = 0x8000;
+    switch (w)
+    {
+        case Temp_w_B: code |= (0 << 6);break;
+        case Temp_w_W: code |= (1 << 6); break;
+        case Temp_w_L: code |= (2 << 6); break;
+        default: assert(FALSE);
+    }
+
+    code |= regDst << 9;
+    code |= modeSrc << 3;
+    code |= regSrc;
+
+    emit_u2 (seg, code);
+}
+
+#ifdef ENABLE_ASSMBLER_OPT
 static void emit_MOVEQ (AS_segment seg, uint16_t regDst, Ty_const imm)
 {
     uint8_t c = (uint8_t) getConstInt (imm);
     uint16_t code = 0x7000 | (regDst << 9) | c;
     emit_u2 (seg, code);
+}
+#endif
+
+static void emit_Scc (AS_segment seg, uint16_t cc, uint16_t reg, uint16_t mode)
+{
+    emit_u2 (seg, 0x50C0 | (cc << 8) | (mode <<3) | reg);
 }
 
 static void emit_SUB (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
@@ -1500,6 +1665,44 @@ static void emit_SUB (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t r
     code |= regDst << 9;
     code |= regSrc;
     code |= modeSrc << 3;
+    emit_u2 (seg, code);
+}
+
+static void emit_SUBA (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
+{
+    uint16_t code = 0x9000;
+    switch (w)
+    {
+        case Temp_w_B: assert(FALSE); break;
+        case Temp_w_W: code |= (3 << 6); break;
+        case Temp_w_L: code |= (7 << 6); break;
+        default: assert(FALSE);
+    }
+    code |= regDst << 9;
+    code |= regSrc;
+    code |= modeSrc << 3;
+    emit_u2 (seg, code);
+}
+
+static void emit_SUBQ (AS_segment seg, enum Temp_w w, uint16_t data, uint16_t reg, uint16_t mode)
+{
+    uint16_t code = 0x5100;
+    switch (w)
+    {
+        case Temp_w_B: code |= (0 << 6); break;
+        case Temp_w_W: code |= (1 << 6); break;
+        case Temp_w_L: code |= (2 << 6); break;
+        default: assert(FALSE);
+    }
+    code |= data << 9;
+    code |= mode << 3;
+    code |= reg;
+    emit_u2 (seg, code);
+}
+
+static void emit_SWAP (AS_segment seg, uint16_t reg)
+{
+    uint16_t code = 0x4840 | reg;
     emit_u2 (seg, code);
 }
 
@@ -1523,13 +1726,13 @@ static void emit_UNLK (AS_segment seg, uint16_t reg)
     emit_u2 (seg, code);
 }
 
-AS_object AS_Object (string sourcefn)
+AS_object AS_Object (string sourcefn, string name)
 {
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
     obj->labels  = TAB_empty(UP_assem);
-    obj->codeSeg = AS_Segment (sourcefn, AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
-    obj->dataSeg = AS_Segment (sourcefn, AS_dataSeg, 0);
+    obj->codeSeg = AS_Segment (sourcefn, strprintf (".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    obj->dataSeg = AS_Segment (sourcefn, strprintf (".data", name), AS_dataSeg, 0);
 
     return obj;
 }
@@ -1598,10 +1801,46 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 break;
             }
 
-            case AS_AND_Imm_Dn:      //   5 and.x  #23, d3
-                emit_AND(seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/4, /*modeSrc=*/7);
+            case AS_AND_Dn_Dn:       //   4 and.x  d1, d2
+                emit_AND(seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
+                break;
+
+            case AS_AND_Imm_Dn:      //   5 andi.x  #23, d3
+                emit_ANDI(seg, instr->w, /*reg=*/AS_regNumDn(instr->dst), /*mode=*/0);
                 emit_Imm (seg, instr->w, instr->imm);
                 break;
+
+            case AS_ASL_Dn_Dn:       //   6 asl.x   d1, d2
+            {
+                emit_ASL_ASR (seg, instr->w,
+                              /*cnt_reg=*/AS_regNumDn(instr->src),
+                              /*dr=*/1,
+                              /*i_r=*/1,
+                              /*reg=*/AS_regNumDn(instr->dst));
+                break;
+            }
+            case AS_ASL_Imm_Dn:      //   7 asl.x   #42, d2
+            {
+                int32_t c = getConstInt (instr->imm);
+                assert ((c>0)&&(c<=8));
+                if (c==8)
+                    c = 0;
+                emit_ASL_ASR (seg, instr->w,
+                              /*cnt_reg=*/c,
+                              /*dr=*/1,
+                              /*i_r=*/0,
+                              /*reg=*/AS_regNumDn(instr->dst));
+                break;
+            }
+            case AS_ASR_Dn_Dn:       //   8 asr.x   d1, d2
+            {
+                emit_ASL_ASR (seg, instr->w,
+                              /*cnt_reg=*/AS_regNumDn(instr->src),
+                              /*dr=*/0,
+                              /*i_r=*/1,
+                              /*reg=*/AS_regNumDn(instr->dst));
+                break;
+            }
 
             case AS_BEQ: emit_Bcc (seg, /*cc=*/ 7); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
             case AS_BNE: emit_Bcc (seg, /*cc=*/ 6); if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE)) return FALSE; break;
@@ -1620,15 +1859,24 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                     return FALSE;
                 break;
 
-            case AS_CMP_Dn_Dn:              //  21 cmp.x   d0, d7
+            case AS_CMP_Dn_Dn:       //  21 cmp.x   d0, d7
             {
                 assert (!AS_isAn(instr->dst)); // FIXME: cmpa
                 emit_CMP (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst),
                                          /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
                 break;
             }
+            case AS_DIVS_Dn_Dn:      //  22 divs.x  d1, d2
+                emit_DIVS (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
+                break;
+            case AS_DIVU_Dn_Dn:      //  24 divu.x  d1, d2
+                emit_DIVU (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
+                break;
+            case AS_EOR_Dn_Dn:       //  26 eor.x  d1, d2
+                emit_EOR (seg, instr->w, /*regSrc=*/AS_regNumDn(instr->src), /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0);
+                break;
             case AS_EXT_Dn:          //  28 ext.x   d1
-                emit_EXT (seg, instr->w, /*reg=*/AS_regNumDn(instr->dst));
+                emit_EXT (seg, instr->w, AS_regNumDn(instr->dst));
                 break;
             case AS_LEA_Ofp_An:      //  29 lea     24(fp), a1
                 emit_LEA (seg, /*regDst=*/AS_regNumAn(instr->dst),
@@ -1645,12 +1893,13 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_MOVEM (seg, instr->w, /*dr=*/0, /*mode=*/4, /*regs=*/instr->offset, /*regDst=*/7);
                 break;
 
-            case AS_JSR_Label:              //  JSR LAB_019D        ;00b2: 4eb9000032a4
-                emit_JSR (seg, /*mode=*/7, /*reg=*/1);
-                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
-                    return FALSE;
+            case AS_LSL_Dn_Dn:       //  31 lsl.x   d1, d2
+                emit_LSL_LSR (seg, instr->w,
+                              /*cnt_reg=*/AS_regNumDn(instr->src),
+                              /*dr=*/1,
+                              /*i_r=*/1,
+                              /*reg=*/AS_regNumDn(instr->dst));
                 break;
-
             case AS_LSL_Imm_Dn:      //  32 lsl.x   #42, d2
             {
                 int32_t c = getConstInt (instr->imm);
@@ -1664,6 +1913,13 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                               /*reg=*/AS_regNumDn(instr->dst));
                 break;
             }
+            case AS_LSR_Dn_Dn:       //  33 lsr.x   d1, d2
+                emit_LSL_LSR (seg, instr->w,
+                              /*cnt_reg=*/AS_regNumDn(instr->src),
+                              /*dr=*/0,
+                              /*i_r=*/1,
+                              /*reg=*/AS_regNumDn(instr->dst));
+                break;
             case AS_MOVE_AnDn_AnDn:          //  35 move.x  d1, d2
             {
                 bool isAnDst = AS_isAn(instr->dst);
@@ -1682,16 +1938,20 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             {
                 bool isAn = AS_isAn(instr->dst);
 
+#ifdef ENABLE_ASSMBLER_OPT
                 if ( (instr->w == Temp_w_B) && !isAn )
                 {
                     emit_MOVEQ (seg, /*regDst=*/AS_regNumDn(instr->dst), instr->imm);
                 }
                 else
                 {
+#endif
                     emit_MOVE (seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/ isAn ? 1:0,
                                               /*regSrc=*/4, /*modeSrc=*/7);
                     emit_Imm (seg, instr->w, instr->imm);
+#ifdef ENABLE_ASSMBLER_OPT
                 }
+#endif
                 break;
             }
             case AS_MOVE_AnDn_RAn:   //  39 move.x  d1, (a6)
@@ -1779,39 +2039,119 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
                     return FALSE;
                 break;
-            case AS_MOVEM_spPI_Rs: // 58
+            case AS_MOVEM_spPI_Rs:   // 58
                 emit_MOVEM (seg, instr->w, /*dr=*/1, /*mode=*/3, /*regs=*/instr->offset, /*regDst=*/7);
+                break;
+            case AS_MULS_Dn_Dn:      //  59 muls.x  d1, d2
+                emit_MULS (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
                 break;
             case AS_MULS_Imm_Dn:     //  60 muls.x  #42, d2
                 emit_MULS (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/4, /*modeSrc=*/7);
                 emit_Imm (seg, instr->w, instr->imm);
                 break;
+            case AS_MULU_Dn_Dn:      //  61 mulu.x  d1, d2
+                emit_MULU (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0);
+                break;
+            case AS_MULU_Imm_Dn:     //  62 mulu.x  #42, d2
+                emit_MULU (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc=*/4, /*modeSrc=*/7);
+                emit_Imm (seg, instr->w, instr->imm);
+                break;
+            case AS_NEG_Dn:          //  63 neg.x   d0
+                emit_NEG (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0);
+                break;
             case AS_NOT_Dn:          //  64 not.x   d0
                 emit_NOT (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*modeDst=*/0);
                 break;
-            case AS_JSR_RAn:                 //  71 jsr     -36(a6)
+            case AS_OR_Dn_Dn:        //  66 or.x  d1, d2
+                emit_OR (seg, instr->w, /*regSrc=*/AS_regNumDn(instr->src), /*modeSrc=*/0, /*regDst=*/AS_regNumDn(instr->dst));
+                break;
+            case AS_JSR_Label:       //  69 jsr     label
+            {
+#if 0   // FIXME: remove
+                int16_t offset;
+                if (calcLabelOffset (seg, obj->labels, instr->label, &offset))  // PC-relative jump possible?
+                {
+                    emit_JSR (seg, /*mode=*/7, /*reg=*/2);
+                    emit_i2 (seg, offset);
+                }
+                else
+                {
+                    emit_JSR (seg, /*mode=*/7, /*reg=*/1);
+                    if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                        return FALSE;
+                }
+#endif
+#if 0   // FIXME: remove
+                if (!isLabelExternal (seg, obj->labels, instr->label))  // PC-relative jump possible?
+                {
+                    emit_JSR (seg, /*mode=*/7, /*reg=*/2);
+                    if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/TRUE))
+                        return FALSE;
+                }
+                else
+                {
+                    emit_JSR (seg, /*mode=*/7, /*reg=*/1);
+                    if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                        return FALSE;
+                }
+#endif
+                emit_JSR (seg, /*mode=*/7, /*reg=*/1);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
+                break;
+            }
+            case AS_JSR_RAn:         //  71 jsr     -36(a6)
                 emit_JSR (seg, /*mode=*/5, /*reg=*/6);
                 emit_i2 (seg, instr->offset);
                 break;
-            case AS_RTS:             // 72
+            case AS_RTS:             //  72
                 emit_u2 (seg, 0x4e75);
+                break;
+            case AS_SNE_Dn:          //  73 sne.b   d1
+                emit_Scc (seg, /*cc=*/ 6, /*reg=*/AS_regNumDn(instr->dst), /*mode=*/0);
                 break;
             case AS_SUB_Dn_Dn:       //  74 sub.x   d1, d2
                 emit_SUB (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc*/AS_regNumDn(instr->src), /*modeSrc=*/0);
                 break;
             case AS_SUB_Imm_AnDn:    //  75 sub.x   #42, d2
-                emit_SUB (seg, instr->w, /*regDst=*/AS_regNumDn(instr->dst), /*regSrc*/4, /*modeSrc=*/7);
-                emit_Imm (seg, instr->w, instr->imm);
+            {
+                bool isAnDst = AS_isAn(instr->dst);
+                if (isAnDst)
+                {
+                    emit_SUBA (seg, instr->w, /*regDst=*/ AS_regNumAn(instr->dst), /*regSrc*/4, /*modeSrc=*/7);
+                    emit_Imm (seg, instr->w, instr->imm);
+                }
+                else
+                {
+                    int32_t c = getConstInt (instr->imm);
+                    if ((c>=1) && (c<=8))
+                    {
+                        if (c==8)
+                            c = 0;
+                        emit_SUBQ (seg, instr->w, /*data=*/c, /*reg=*/ AS_regNumDn(instr->dst), /*mode=*/0);
+                    }
+                    else
+                    {
+                        emit_SUB (seg, instr->w, /*regDst=*/ AS_regNumDn(instr->dst), /*regSrc*/4, /*modeSrc=*/7);
+                        emit_Imm (seg, instr->w, instr->imm);
+                    }
+                }
                 break;
+            }
+            case AS_SWAP_Dn:         //  76 swap     d4
+                emit_SWAP (seg, /*reg=*/ AS_regNumDn(instr->dst));
+                break;
+
             case AS_TST_Dn:          //  77 tst.x   d0
                 emit_TST (seg, instr->w, /*reg=*/ AS_regNumDn(instr->src), /*mode=*/0);
                 break;
 
-            case AS_UNLK_fp:
+            case AS_UNLK_fp:         //  78 unlink  a5
                 emit_UNLK (seg, /*reg=*/5);
                 break;
 
             default:
+                LOG_printf (LOG_ERROR, "assem: unknown mn %d\n", instr->mn);
                 assert(FALSE);
         }
     }
@@ -1891,7 +2231,9 @@ void AS_resolveLabels (AS_object obj)
         while (off)
         {
             AS_segmentAddRef (seg, l, off, Temp_w_L, /*common_size=*/0);
-            off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
+            uint32_t next_off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
+            *((uint32_t *) (seg->mem+off)) = 0;
+            off = next_off;
         }
     }
 }
