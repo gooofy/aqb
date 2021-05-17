@@ -203,7 +203,7 @@ struct AS_instrList_
 
 typedef enum
 {
-    AS_dialect_gas, AS_dialect_ASMPro
+    AS_dialect_gas, AS_dialect_ASMPro, AS_dialect_vasm
 } AS_dialect;
 
 AS_instrList AS_InstrList             (void);

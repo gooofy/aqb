@@ -473,6 +473,9 @@ static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect d
                                 case AS_dialect_gas:
                                     pos += sprintf(&str[pos], "0x%08x /* %f */", encode_ffp(instr->imm->u.f), instr->imm->u.f);
                                     break;
+                                case AS_dialect_vasm:
+                                    pos += sprintf(&str[pos], "0x%08x", encode_ffp(instr->imm->u.f));
+                                    break;
                                 case AS_dialect_ASMPro:
                                     pos += sprintf(&str[pos], "$%08x", encode_ffp(instr->imm->u.f));
                                     break;
@@ -713,6 +716,7 @@ void AS_printInstrList (FILE *out, AS_instrList iList, AS_dialect dialect)
 #endif
                     break;
                 case AS_dialect_ASMPro:
+                case AS_dialect_vasm:
 #ifdef S_KEEP_SOURCE
                     fprintf (out, "\n    ; L%05d %s\n", l, S_getSourceLine(l));
 #else
@@ -1137,6 +1141,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
             }
             else
             {
+                AS_segmentAddReloc32 (seg, li->seg, seg->mem_pos);
                 emit_u4 (seg, li->offset);
             }
         }
@@ -1160,6 +1165,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
 
 static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t offset, bool expt)
 {
+    LOG_printf (LOG_DEBUG, "assem: defineLabel label=%s at seg %d %zd (0x%08zx)\n", S_name(label), seg->hunk_id, offset, offset);
     AS_labelInfo li = TAB_look (obj->labels, label);
     if (li)
     {
@@ -1175,9 +1181,7 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
         size_t fix_loc = li->offset;
         while (fix_loc)
         {
-#if LOG_LEVEL == LOG_DEBUG
             LOG_printf (LOG_DEBUG, "assem: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
-#endif
             size_t next_fix_loc = 0;
             if (li->displacement)
             {
@@ -1390,7 +1394,7 @@ static void emit_ANDI (AS_segment seg, enum Temp_w w, uint16_t reg, uint16_t mod
     emit_u2 (seg, code);
 }
 
-static void emit_JSR (AS_segment seg, int mode, int reg)
+static void emit_JSR (AS_segment seg, uint16_t mode, uint16_t reg)
 {
     uint16_t code = 0x4e80;
 
@@ -1405,7 +1409,7 @@ static void emit_Bcc (AS_segment seg, uint16_t cc)
     emit_u2 (seg, 0x6000 | (cc << 8));
 }
 
-static void emit_CMP (AS_segment seg, enum Temp_w w, int regDst, int regSrc, int modeSrc)
+static void emit_CMP (AS_segment seg, enum Temp_w w, uint16_t regDst, uint16_t regSrc, uint16_t modeSrc)
 {
     uint16_t code = 0xb000;
     switch (w)
@@ -1788,6 +1792,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 
             case AS_ADD_Imm_sp:      //   3 add.x   #42, sp
             {
+#ifdef ENABLE_ASSMBLER_OPT
                 int32_t c = getConstInt (instr->imm);
                 if ((c>0) && (c<=8))
                 {
@@ -1795,9 +1800,12 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 }
                 else
                 {
+#endif
                     emit_ADD(seg, instr->w, /*regDst=*/7, /*dstIsAn=*/TRUE, /*regSrc=*/4, /*modeSrc=*/7);
                     emit_Imm (seg, instr->w, instr->imm);
+#ifdef ENABLE_ASSMBLER_OPT
                 }
+#endif
                 break;
             }
 

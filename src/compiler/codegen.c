@@ -3951,6 +3951,7 @@ static void writeASMProc(FILE *out, CG_frag frag, AS_dialect dialect)
         switch (dialect)
         {
             case AS_dialect_gas:
+            case AS_dialect_vasm:
                 fprintf(out, ".globl %s\n\n", S_name(label));
                 break;
             case AS_dialect_ASMPro:
@@ -4027,7 +4028,8 @@ static void writeASMStr(FILE * out, string str, Temp_label label, AS_dialect dia
     switch (dialect)
     {
         case AS_dialect_gas:
-            fprintf(out, "    .align 2\n");
+        case AS_dialect_vasm:
+            fprintf(out, "    .balign 2\n");
             break;
         case AS_dialect_ASMPro:
             fprintf(out, "    EVEN\n");
@@ -4039,6 +4041,7 @@ static void writeASMStr(FILE * out, string str, Temp_label label, AS_dialect dia
     switch (dialect)
     {
         case AS_dialect_gas:
+        case AS_dialect_vasm:
             fprintf(out, "    .ascii \"%s\"\n", expand_escapes(str));
             break;
         case AS_dialect_ASMPro:
@@ -4057,7 +4060,8 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
     switch (dialect)
     {
         case AS_dialect_gas:
-            fprintf(out, "    .align 2\n");
+        case AS_dialect_vasm:
+            fprintf(out, "    .balign 2\n");
             break;
         case AS_dialect_ASMPro:
             fprintf(out, "    EVEN\n");
@@ -4071,6 +4075,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
         switch (dialect)
         {
             case AS_dialect_gas:
+            case AS_dialect_vasm:
                 fprintf(out, ".globl %s\n\n", Temp_labelstring(df->u.data.label));
                 break;
             case AS_dialect_ASMPro:
@@ -4163,6 +4168,9 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
             case AS_dialect_gas:
                 fprintf(out, "    .fill %zd\n", df->u.data.size);
                 break;
+            case AS_dialect_vasm:
+                fprintf(out, "    .space %zd\n", df->u.data.size);
+                break;
             case AS_dialect_ASMPro:
                 fprintf(out, "    DS.B  %zd\n", df->u.data.size);
                 break;
@@ -4180,6 +4188,7 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
     switch (dialect)
     {
         case AS_dialect_gas:
+        case AS_dialect_vasm:
             fprintf(out, ".text\n\n");
             break;
         case AS_dialect_ASMPro:
@@ -4200,6 +4209,7 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
     switch (dialect)
     {
         case AS_dialect_gas:
+        case AS_dialect_vasm:
             fprintf(out, "\n\n.data\n\n");
             break;
         case AS_dialect_ASMPro:
@@ -4223,6 +4233,7 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
     switch (dialect)
     {
         case AS_dialect_gas:
+        case AS_dialect_vasm:
             break;
         case AS_dialect_ASMPro:
             //fprintf(out, "    INCLUDE epilog.asm\n\n");

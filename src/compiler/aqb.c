@@ -60,6 +60,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -O           enable optimizer\n");
 	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
+	fprintf(stderr, "    -B <foo.s>   create vasm source file\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
 	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
 	fprintf(stderr, "    -p <foo>     create hunk object file\n");
@@ -130,9 +131,11 @@ int main (int argc, char *argv[])
     static string module_name;
     static char   asm_gas_fn[PATH_MAX];
     static char   asm_asmpro_fn[PATH_MAX];
+    static char   asm_vasm_fn[PATH_MAX];
     static int    optind;
     static bool   write_sym = FALSE;
     static bool   write_asmpro = FALSE;
+    static bool   write_vasm = FALSE;
     static bool   write_asmgas = FALSE;
     static bool   write_obj = FALSE;
     static bool   write_bin = FALSE;
@@ -210,6 +213,17 @@ int main (int argc, char *argv[])
                 }
                 strncpy (asm_asmpro_fn, argv[optind], PATH_MAX);
                 write_asmpro = TRUE;
+                launch_ide = FALSE;
+				break;
+        	case 'B':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                strncpy (asm_vasm_fn, argv[optind], PATH_MAX);
+                write_vasm = TRUE;
                 launch_ide = FALSE;
 				break;
         	case 's':
@@ -309,7 +323,8 @@ int main (int argc, char *argv[])
                write_obj ? objfn : NULL,
                write_bin ? binfn : NULL,
                write_asmgas ? asm_gas_fn : NULL,
-               write_asmpro ? asm_asmpro_fn : NULL);
+               write_asmpro ? asm_asmpro_fn : NULL,
+               write_vasm ? asm_vasm_fn : NULL);
 
     return 0;
 }

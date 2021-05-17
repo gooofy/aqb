@@ -24,7 +24,7 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-int CO_compile(string sourcefn, string module_name, string symfn, string objfn, string binfn, string asm_gas_fn, string asm_asmpro_fn)
+int CO_compile(string sourcefn, string module_name, string symfn, string objfn, string binfn, string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
@@ -176,6 +176,18 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
             CO_exit(33);
         }
         CG_writeASMFile (out, frags, AS_dialect_ASMPro);
+        fclose(out);
+    }
+
+    if (asm_vasm_fn)
+    {
+        FILE *out = fopen(asm_vasm_fn, "w");
+        if (!out)
+        {
+            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", asm_vasm_fn);
+            CO_exit(33);
+        }
+        CG_writeASMFile (out, frags, AS_dialect_vasm);
         fclose(out);
     }
 
