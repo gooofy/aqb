@@ -38,9 +38,11 @@ typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG 
 
 static void runner (void)
 {
+	struct Process *me = (struct Process *) FindTask(NULL);
+    me->pr_CurrentDir = g_currentDir;
+
     LOG_printf (LOG_INFO, "loading %s ...\n\n", g_binfn);
-    //BPTR seglist = LoadSeg((STRPTR)g_binfn);
-    BPTR seglist = LoadSeg((STRPTR)"SYS:x/foo");
+    BPTR seglist = LoadSeg((STRPTR)g_binfn);
 
     if (!seglist)
     {
@@ -51,9 +53,7 @@ static void runner (void)
 
     LOG_printf (LOG_INFO, "running %s ...\n\n", g_binfn);
 
-	struct Process *me = (struct Process *) FindTask(NULL);
     me->pr_COS = MKBADDR(TE_output());
-    me->pr_CurrentDir = g_currentDir;
 
     ULONG *code = (ULONG *) BADDR(seglist);
     code++;
