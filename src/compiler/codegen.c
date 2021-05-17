@@ -3404,7 +3404,7 @@ void CG_transCallPtr (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc
 {
     int arg_cnt = munchArgsStack(pos, code, 0, args);
     CG_loadVal (code, pos, procPtr);
-    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_RAn, Temp_w_NONE, procPtr->u.inReg, NULL, 0, 0, NULL,      // jsr   (procPtr)
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_An, Temp_w_NONE, procPtr->u.inReg, NULL, 0, 0, NULL,      // jsr   (procPtr)
                                           AS_callersaves(), NULL));
     munchCallerRestoreStack(pos, code, arg_cnt);
     if (result)

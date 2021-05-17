@@ -728,25 +728,28 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
         return;
     fwrite_u4 (f, HUNK_TYPE_EXT);
 
-    TAB_iter i = TAB_Iter(seg->refs);
-    S_symbol sym;
-    AS_segmentRef ref;
-    while (TAB_next(i, (void **) &sym, (void **)&ref))
+    if (seg->refs)
     {
-        string name = S_name (sym);
-        uint32_t l = strlen(name);
-        uint32_t n = roundUp(l,4)/4;
-        uint32_t c = (EXT_TYPE_REF32<<24) | n;
-        fwrite_u4 (f, c);
-        if (fwrite (name, n*4, 1, f) != 1)
-            link_fail ("write error");
+        TAB_iter i = TAB_Iter(seg->refs);
+        S_symbol sym;
+        AS_segmentRef ref;
+        while (TAB_next(i, (void **) &sym, (void **)&ref))
+        {
+            string name = S_name (sym);
+            uint32_t l = strlen(name);
+            uint32_t n = roundUp(l,4)/4;
+            uint32_t c = (EXT_TYPE_REF32<<24) | n;
+            fwrite_u4 (f, c);
+            if (fwrite (name, n*4, 1, f) != 1)
+                link_fail ("write error");
 
-        uint32_t cnt=0;
-        for (AS_segmentRef r=ref; r; r=r->next)
-            cnt++;
-        fwrite_u4 (f, cnt);
-        for (AS_segmentRef r=ref; r; r=r->next)
-            fwrite_u4 (f, r->offset);
+            uint32_t cnt=0;
+            for (AS_segmentRef r=ref; r; r=r->next)
+                cnt++;
+            fwrite_u4 (f, cnt);
+            for (AS_segmentRef r=ref; r; r=r->next)
+                fwrite_u4 (f, r->offset);
+        }
     }
 
     for (AS_segmentDef def = seg->defs; def; def=def->next)

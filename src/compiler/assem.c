@@ -1327,6 +1327,7 @@ static void emit_ADD (AS_segment seg, enum Temp_w w, int regDst, bool dstIsAn, i
     emit_u2 (seg, code);
 }
 
+#ifdef ENABLE_ASSMBLER_OPT
 static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode, uint16_t reg)
 {
     //   ADDQ.L  #4,A7           ;003c: 588f
@@ -1341,6 +1342,7 @@ static void emit_ADDQ (AS_segment seg, enum Temp_w w, uint16_t c, uint16_t mode,
     }
     emit_u2(seg, code);
 }
+#endif
 
 static void emit_ASL_ASR (AS_segment seg, enum Temp_w w, uint16_t cnt_reg, uint16_t dr, uint16_t i_r, uint16_t reg)
 {
@@ -1776,17 +1778,21 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             }
             case AS_ADD_Imm_AnDn:    //   2 add.x   #42, d2
             {
-                int32_t c = getConstInt (instr->imm);
                 bool isAn = AS_isAn(instr->dst);
+#ifdef ENABLE_ASSMBLER_OPT
+                int32_t c = getConstInt (instr->imm);
                 if ((c>0) && (c<=8))
                 {
                     emit_ADDQ (seg, instr->w, c, /*mode=*/isAn ? 1:0, /*reg=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst));
                 }
                 else
                 {
+#endif
                     emit_ADD(seg, instr->w, /*regDst=*/isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*dstIsAn=*/isAn, /*regSrc=*/4, /*modeSrc=*/7);
                     emit_Imm (seg, instr->w, instr->imm);
+#ifdef ENABLE_ASSMBLER_OPT
                 }
+#endif
                 break;
             }
 
@@ -1976,7 +1982,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                                           /*regSrc=*/AS_regNumAn(instr->src), /*modeSrc=*/2);
                 break;
             }
-            case AS_MOVE_AnDn_PDsp:         // 43 MOVE.L  D2,-(A7)        ;0034: 2f02
+            case AS_MOVE_AnDn_PDsp:  // 43 MOVE.L  D2,-(A7)        ;0034: 2f02
             {
                 bool isAn = AS_isAn(instr->src);
                 emit_MOVE (seg, instr->w, /*regDst=*/7, /*modeDst=*/4,
@@ -1990,7 +1996,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_Imm (seg, instr->w, instr->imm);
                 break;
 
-            case AS_MOVE_ILabel_AnDn:       // 46 MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
+            case AS_MOVE_ILabel_AnDn:// 46 MOVE.L  #LAB_01A8,D2        ;002e: 243c00003498
             {
                 bool isAn = AS_isAn(instr->dst);
                 emit_MOVE (seg, instr->w, /*regDst=*/ isAn ? AS_regNumAn(instr->dst) : AS_regNumDn(instr->dst), /*modeDst=*/isAn ? 1:0,
@@ -2008,7 +2014,14 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                     return FALSE;
                 break;
             }
-            case AS_MOVE_AnDn_Label:         //  49 move.x  d6, label
+            case AS_MOVE_Label_Ofp:  //  48 move.x  label, 23(a5)
+                emit_MOVE (seg, instr->w, /*regDst=*/5, /*modeDst=*/5,
+                                          /*regSrc=*/1, /*modeSrc=*/7);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
+                emit_i2 (seg, instr->offset);
+                break;
+            case AS_MOVE_AnDn_Label: //  49 move.x  d6, label
             {
                 bool isAn = AS_isAn(instr->src);
                 emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
@@ -2025,6 +2038,14 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_i2 (seg, instr->offset);
                 break;
             }
+
+            case AS_MOVE_Ofp_Label:  //  52 move.x  42(a5), label
+                emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
+                                          /*regSrc=*/5, /*modeSrc=*/5);
+                emit_i2 (seg, instr->offset);
+                if (!emit_Label (seg, obj->labels, instr->label, /*displacement=*/FALSE))
+                    return FALSE;
+                break;
 
             case AS_MOVE_AnDn_Ofp:   //  53 move.x  d0, 42(a5)
             {
@@ -2108,8 +2129,11 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                     return FALSE;
                 break;
             }
+            case AS_JSR_An:          //  70 jsr     (a2)
+                emit_JSR (seg, /*mode=*/2, /*reg=*/AS_regNumAn(instr->src));
+                break;
             case AS_JSR_RAn:         //  71 jsr     -36(a6)
-                emit_JSR (seg, /*mode=*/5, /*reg=*/6);
+                emit_JSR (seg, /*mode=*/5, /*reg=*/AS_regNumAn(instr->src));
                 emit_i2 (seg, instr->offset);
                 break;
             case AS_RTS:             //  72

@@ -12,14 +12,14 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 		loop1.bas loop2.bas loop3.bas loop4.bas loop5.bas loop6.bas loop7.bas loop8.bas \
 		loop9.bas loop10.bas loop11.bas loop12.bas loop13.bas \
 	    opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
-	    oop1.bas oop2.bas oop3.bas oop4.bas
-	    #scopes1.bas scopes2.bas scopes3.bas \
- 	    #string1.bas string2.bas string3.bas 
- 	    #subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \
- 	    #subtest6.bas subtest7.bas subtest8.bas subtest9.bas \
-	    #subtest10.bas subtest12.bas subtest13.bas subtest14.bas subtest15.bas subtest16.bas \
- 	    #subtest17.bas subtest18.bas subtest19.bas subtest20.bas subtest21.bas subtest22.bas \
-	    #subtest23.bas \
+	    oop1.bas oop2.bas oop3.bas oop4.bas \
+	    scopes1.bas scopes2.bas scopes3.bas \
+ 	    string1.bas string2.bas string3.bas \
+ 	    subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \
+ 	    subtest6.bas subtest7.bas subtest8.bas subtest9.bas \
+	    subtest10.bas subtest12.bas subtest13.bas subtest14.bas subtest15.bas subtest16.bas \
+ 	    subtest17.bas subtest18.bas subtest19.bas subtest20.bas subtest21.bas subtest22.bas \
+	    subtest23.bas 
 	    #types1.bas types2.bas types3.bas types4.bas types5.bas types6.bas types7.bas \
 	    #var1.bas var2.bas \
 	    #sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas \
