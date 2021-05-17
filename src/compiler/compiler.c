@@ -237,14 +237,13 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                     CO_exit(21);
                 if (frag->u.data.init)
                 {
-                    assert(FALSE); // FIXME: implement
-#if 0
                     for (CG_dataFragNode n=frag->u.data.init; n; n=n->next)
                     {
                         switch (n->kind)
                         {
                             case CG_labelNode:
-                                fprintf(out, "%s:\n", Temp_labelstring(n->u.label));
+                                if (!AS_assembleDataLabel (obj, n->u.label, /*expt=*/FALSE))
+                                    CO_exit(22);
                                 break;
                             case CG_constNode:
                             {
@@ -254,22 +253,25 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                                     case Ty_bool:
                                     case Ty_byte:
                                     case Ty_ubyte:
-                                        fprintf(out, "    dc.b %d\n", c->u.b);
+                                        // FIXME AS_assembleData8 (obj->dataSeg, c->u.b);
+                                        assert(FALSE);
                                         break;
                                     case Ty_uinteger:
                                     case Ty_integer:
-                                        fprintf(out, "    dc.w %d\n", c->u.i);
+                                        AS_assembleData16 (obj->dataSeg, c->u.i);
                                         break;
                                     case Ty_long:
                                     case Ty_ulong:
                                     case Ty_pointer:
-                                        fprintf(out, "    dc.l %d\n", c->u.i);
+                                        // FIXME AS_assembleData32 (obj->dataSeg, c->u.i);
+                                        assert(FALSE);
                                         break;
                                     case Ty_single:
-                                        fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
+                                        // FIXME AS_assembleData32 (obj->dataSeg, encode_ffp(c->u.f));
+                                        assert(FALSE);
                                         break;
                                     case Ty_string:
-                                        fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
+                                        AS_assembleDataString (obj->dataSeg, c->u.s);
                                         break;
                                     case Ty_sarray:
                                     case Ty_darray:
@@ -287,7 +289,6 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                             }
                         }
                     }
-#endif
                 }
                 else
                 {

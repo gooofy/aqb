@@ -2038,6 +2038,11 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 emit_i2 (seg, instr->offset);
                 break;
             }
+            case AS_MOVE_Ofp_RAn:    //  51 move.x  42(a5), (a0)
+                emit_MOVE (seg, instr->w, /*regDst=*/AS_regNumAn(instr->dst), /*modeDst=*/2,
+                                          /*regSrc=*/5, /*modeSrc=*/5);
+                emit_i2 (seg, instr->offset);
+                break;
 
             case AS_MOVE_Ofp_Label:  //  52 move.x  42(a5), label
                 emit_MOVE (seg, instr->w, /*regDst=*/1, /*modeDst=*/7,
@@ -2238,6 +2243,18 @@ void AS_assembleDataFill (AS_segment seg, size_t size)
     r = size-done;
     if (r)
         emit_u1(seg, 0);
+}
+
+void AS_assembleData16 (AS_segment seg, uint16_t data)
+{
+    emit_u2(seg, data);
+}
+
+void AS_assembleDataString (AS_segment seg, string data)
+{
+    for (char *c=data; *c; c++)
+        emit_u1(seg, *c);
+    emit_u1(seg, 0);
 }
 
 void AS_resolveLabels (AS_object obj)
