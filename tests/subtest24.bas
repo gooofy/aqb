@@ -1,0 +1,14 @@
+OPTION EXPLICIT
+
+FUNCTION f (a AS INTEGER) AS INTEGER
+
+    IF a > 20 THEN a=20
+
+    a = a * 2
+    RETURN a
+
+END FUNCTION
+
+ASSERT f(2)=4
+ASSERT f(22)=40
+
