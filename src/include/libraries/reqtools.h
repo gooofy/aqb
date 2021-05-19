@@ -2,13 +2,10 @@
 #define LIBRARIES_REQTOOLS_H
 /*
 **	$Filename: libraries/reqtools.h $
-**	$Release: 2.1 $
-**	$Revision: 38.8 $
+**	$Release: 1.0 $
 **
-**	reqtools.library definitions
-**
-**	(C) Copyright 1991/1992 Nico François
-**	All Rights Reserved
+**	(C) Copyright 1991 Nico François
+**	    All Rights Reserved
 */
 
 #ifndef	EXEC_TYPES_H
@@ -23,10 +20,6 @@
 #include <exec/libraries.h>
 #endif	/* EXEC_LIBRARIES_H */
 
-#ifndef LIBRARIES_DOS_H
-#include <libraries/dos.h>
-#endif  /* LIBRARIES_DOS_H */
-
 #ifndef	GRAPHICS_TEXT_H
 #include <graphics/text.h>
 #endif	/* GRAPHICS_TEXT_H */
@@ -36,68 +29,13 @@
 #endif	/* UTILITY_TAGITEM_H */
 
 #define	REQTOOLSNAME		 "reqtools.library"
-#define	REQTOOLSVERSION		 38L
-
-/***********************
-*                      *
-*     Preferences      *
-*                      *
-***********************/
-
-#define RTPREF_FILEREQ		 0L
-#define RTPREF_FONTREQ		 1L
-#define RTPREF_PALETTEREQ	 2L
-#define RTPREF_SCREENMODEREQ	 3L
-#define RTPREF_VOLUMEREQ	 4L
-#define RTPREF_OTHERREQ		 5L
-#define RTPREF_NR_OF_REQ	 6L
-
-struct ReqDefaults {
-   ULONG Size;
-   ULONG ReqPos;
-   UWORD LeftOffset;
-   UWORD TopOffset;
-	UWORD MinEntries;
-	UWORD MaxEntries;
-   };
-
-struct ReqToolsPrefs {
-   /* Size of preferences (_without_ this field and the semaphore) */
-   ULONG PrefsSize;
-   struct SignalSemaphore PrefsSemaphore;
-   /* Start of real preferences */
-   ULONG Flags;
-   struct ReqDefaults ReqDefaults[RTPREF_NR_OF_REQ];
-   };
-
-#define RTPREFS_SIZE \
-   (sizeof (struct ReqToolsPrefs) - sizeof (struct SignalSemaphore) - 4)
-
-/* Flags */
-
-#define RTPRB_DIRSFIRST		 0L
-#define RTPRF_DIRSFIRST		 (1L<<RTPRB_DIRSFIRST)
-#define RTPRB_DIRSMIXED		 1L
-#define RTPRF_DIRSMIXED		 (1L<<RTPRB_DIRSMIXED)
-#define RTPRB_IMMSORT		 2L
-#define RTPRF_IMMSORT		 (1L<<RTPRB_IMMSORT)
-#define RTPRB_NOSCRTOFRONT	 3L
-#define RTPRF_NOSCRTOFRONT	 (1L<<RTPRB_NOSCRTOFRONT)
-
-/***********************
-*                      *
-*     Library Base     *
-*                      *
-***********************/
+#define	REQTOOLSVERSION		 37L
 
 struct ReqToolsBase {
    struct Library LibNode;
-   UBYTE RTFlags;
+   UBYTE Flags;
    UBYTE pad[3];
    BPTR SegList;
-
-   /* PUBLIC FIELDS */
-
    /* The following library bases may be read and used by your program */
    struct IntuitionBase *IntuitionBase;
    struct GfxBase *GfxBase;
@@ -106,28 +44,12 @@ struct ReqToolsBase {
       (1.3 version of reqtools also initializes these when run on 2.0) */
    struct Library *GadToolsBase;
    struct Library *UtilityBase;
-
-   /* PRIVATE FIELDS, THESE WILL CHANGE FROM RELEASE TO RELEASE! */
-
-   /* The RealOpenCnt is for the buffered AvailFonts feature.  Since
-      Kickstart 3.0 offers low memory handlers a release of ReqTools for 3.0
-      will not use this field and start using the normal OpenCnt again. */
-   UWORD RealOpenCnt;
-   UWORD AvailFontsLock;
-   struct AvailFontsHeader *AvailFontsHeader;
-   ULONG FontsAssignType;
-   BPTR FontsAssignLock;
-   struct AssignList *FontsAssignList;
-   struct ReqToolsPrefs ReqToolsPrefs;
-   UWORD prefspad;
    };
 
 /* types of requesters, for rtAllocRequestA() */
 #define RT_FILEREQ		 0L
 #define RT_REQINFO		 1L
 #define RT_FONTREQ		 2L
-/* (V38) */
-#define RT_SCREENMODEREQ	 3L
 
 /***********************
 *                      *
@@ -142,22 +64,12 @@ struct rtFileRequester {
    UWORD LeftOffset;
    UWORD TopOffset;
    ULONG Flags;
-   /* OBSOLETE IN V38! DON'T USE! */ struct Hook *Hook;
-   /* */
-   char  *Dir;		     /* READ ONLY! Change with rtChangeReqAttrA()! */
-   char  *MatchPat;	     /* READ ONLY! Change with rtChangeReqAttrA()! */
-   /* */
+   struct Hook *Hook;
+   char *Dir;                /* READ ONLY! Change with rtChangeReqAttrA()! */
+   char *MatchPat;           /* READ ONLY! Change with rtChangeReqAttrA()! */
    struct TextFont *DefaultFont;
    ULONG WaitPointer;
-   /* (V38) */
-   ULONG LockWindow;
-   ULONG ShareIDCMP;
-   struct Hook *IntuiMsgFunc;
-   UWORD reserved1;
-   UWORD reserved2;
-   UWORD reserved3;
-   UWORD ReqHeight;	     /* READ ONLY!  Use RTFI_Height tag! */
-   /* Private data follows! HANDS OFF :-) */
+   /* Lots of private data follows! HANDS OFF :-) */
    };
 
 /* returned by rtFileRequestA() if multiselect is enabled,
@@ -165,15 +77,7 @@ struct rtFileRequester {
 
 struct rtFileList {
    struct rtFileList *Next;
-   ULONG StrLen;	     /* -1 for directories */
-   char *Name;
-   };
-
-/* structure passed to RTFI_FilterFunc callback hook by
-   volume requester (see RTFI_VolumeRequest tag) */
-
-struct rtVolumeEntry {
-   ULONG Type;		     /* DLT_DEVICE or DLT_DIRECTORY */
+   ULONG StrLen;             /* -1 for directories */
    char *Name;
    };
 
@@ -190,56 +94,11 @@ struct rtFontRequester {
    UWORD LeftOffset;
    UWORD TopOffset;
    ULONG Flags;
-   /* OBSOLETE IN V38! DON'T USE! */ struct Hook *Hook;
-   /* */
-   struct TextAttr Attr;	 /* READ ONLY! */
-   /* */
+   struct Hook *Hook;
+   struct TextAttr Attr;		/* READ ONLY! */
    struct TextFont *DefaultFont;
    ULONG WaitPointer;
-   /* (V38) */
-   ULONG LockWindow;
-   ULONG ShareIDCMP;
-   struct Hook *IntuiMsgFunc;
-   UWORD reserved1;
-   UWORD reserved2;
-   UWORD reserved3;
-   UWORD ReqHeight;		 /* READ ONLY!  Use RTFO_Height tag! */
-   /* Private data follows! HANDS OFF :-) */
-   };
-
-/*************************
-*                        *
-*  ScreenMode requester  *
-*                        *
-*************************/
-
-/* structure _MUST_ be allocated with rtAllocRequest() */
-
-struct rtScreenModeRequester {
-   ULONG ReqPos;
-   UWORD LeftOffset;
-   UWORD TopOffset;
-   ULONG Flags;
-   ULONG private1;
-   /* */
-   ULONG DisplayID;		 /* READ ONLY! */
-   UWORD DisplayWidth;		 /* READ ONLY! */
-   UWORD DisplayHeight;		 /* READ ONLY! */
-   /* */
-   struct TextFont *DefaultFont;
-   ULONG WaitPointer;
-   ULONG LockWindow;
-   ULONG ShareIDCMP;
-   struct Hook *IntuiMsgFunc;
-   UWORD reserved1;
-   UWORD reserved2;
-   UWORD reserved3;
-   UWORD ReqHeight;		 /* READ ONLY!  Use RTSC_Height tag! */
-   /* */
-   UWORD DisplayDepth;		 /* READ ONLY! */
-   UWORD OverscanType;		 /* READ ONLY! */
-   ULONG AutoScroll;		 /* READ ONLY! */
-   /* Private data follows! HANDS OFF :-) */
+   /* Lots of private data follows! HANDS OFF :-) */
    };
 
 /***********************
@@ -255,15 +114,11 @@ struct rtReqInfo {
    ULONG ReqPos;
    UWORD LeftOffset;
    UWORD TopOffset;
-   ULONG Width;			 /* not for rtEZRequestA() */
-   char *ReqTitle;		 /* currently only for rtEZRequestA() */
-   ULONG Flags;
-   struct TextFont *DefaultFont; /* currently only for rtPaletteRequestA() */
+   ULONG Width;                   /* not for rtEZRequestA() */
+   char *ReqTitle;                /* currently only for rtEZRequestA() */
+   ULONG Flags;                   /* only for rtEZRequestA() */
+   struct TextFont *DefaultFont;  /* currently only for rtPaletteRequestA() */
    ULONG WaitPointer;
-   /* (V38) */
-   ULONG LockWindow;
-   ULONG ShareIDCMP;
-   struct Hook *IntuiMsgFunc;
    /* structure may be extended in future */
    };
 
@@ -320,27 +175,13 @@ struct rtHandlerInfo {
 #define RT_DefaultFont		 (RT_TagBase+9)
 /* boolean to set the standard wait pointer in window - default FALSE */
 #define RT_WaitPointer		 (RT_TagBase+10)
-/* (V38) char preceding keyboard shortcut characters (will be underlined) */
-#define RT_Underscore		 (RT_TagBase+11)
-/* (V38) share IDCMP port with window - default FALSE */
-#define RT_ShareIDCMP		 (RT_TagBase+12)
-/* (V38) lock window and set standard wait pointer - default FALSE */
-#define RT_LockWindow		 (RT_TagBase+13)
-/* (V38) boolean to make requester's screen pop to front - default TRUE */
-#define RT_ScreenToFront	 (RT_TagBase+14)
-/* (V38) Requester should use this font - default: screen font */
-#define RT_TextAttr		 (RT_TagBase+15)
-/* (V38) call this hook for every IDCMP message not for requester */
-#define RT_IntuiMsgFunc		 (RT_TagBase+16)
-/* (V38) Locale ReqTools should use for text */
-#define RT_Locale		 (RT_TagBase+17)
 
 /*** tags specific to rtEZRequestA ***
 */
-/* title of requester window - english default "Request" or "Information" */
+/* title of requester window - default "Request" or "Information" */
 #define RTEZ_ReqTitle		 (RT_TagBase+20)
 /* (RT_TagBase+21) reserved
-   various flags (see below) */
+ various flags (see below) */
 #define RTEZ_Flags		 (RT_TagBase+22)
 /* default response (activated by pressing RETURN) - default TRUE */
 #define RTEZ_DefaultResponse	 (RT_TagBase+23)
@@ -355,20 +196,6 @@ struct rtHandlerInfo {
 #define RTGL_Width		 (RT_TagBase+32)
 /* boolean to show the default value - default TRUE */
 #define RTGL_ShowDefault	 (RT_TagBase+33)
-/* (V38) string with possible responses - english default " _Ok |_Cancel" */
-#define RTGL_GadFmt 		 (RT_TagBase+34)
-/* (V38) optional arguments for RTGL_GadFmt */
-#define RTGL_GadFmtArgs		 (RT_TagBase+35)
-/* (V38) invisible typing - default FALSE */
-#define RTGL_Invisible		 (RT_TagBase+36)
-/* (V38) window backfill - default TRUE */
-#define RTGL_BackFill		 (RT_TagBase+37)
-/* (V38) optional text above gadget */
-#define RTGL_TextFmt		 (RT_TagBase+38)
-/* (V38) optional arguments for RTGS_TextFmt */
-#define RTGL_TextFmtArgs	 (RT_TagBase+39)
-/* (V38) various flags (see below) */
-#define RTGL_Flags		 RTEZ_Flags
 
 /*** tags specific to rtGetStringA ***
 */
@@ -376,20 +203,6 @@ struct rtHandlerInfo {
 #define RTGS_Width		 RTGL_Width
 /* allow empty string to be accepted - default FALSE */
 #define RTGS_AllowEmpty		 (RT_TagBase+80)
-/* (V38) string with possible responses - english default " _Ok |_Cancel" */
-#define RTGS_GadFmt 		 RTGL_GadFmt
-/* (V38) optional arguments for RTGS_GadFmt */
-#define RTGS_GadFmtArgs		 RTGL_GadFmtArgs
-/* (V38) invisible typing - default FALSE */
-#define RTGS_Invisible		 RTGL_Invisible
-/* (V38) window backfill - default TRUE */
-#define RTGS_BackFill		 RTGL_BackFill
-/* (V38) optional text above gadget */
-#define RTGS_TextFmt		 RTGL_TextFmt
-/* (V38) optional arguments for RTGS_TextFmt */
-#define RTGS_TextFmtArgs	 RTGL_TextFmtArgs
-/* (V38) various flags (see below) */
-#define RTGS_Flags		 RTEZ_Flags
 
 /*** tags specific to rtFileRequestA ***
 */
@@ -399,12 +212,6 @@ struct rtHandlerInfo {
 #define RTFI_Height		 (RT_TagBase+41)
 /* replacement text for 'Ok' gadget (max 6 chars) */
 #define RTFI_OkText		 (RT_TagBase+42)
-/* (V38) bring up volume requester, tag data holds flags (see below) */
-#define RTFI_VolumeRequest	 (RT_TagBase+43)
-/* (V38) call this hook for every file in the directory */
-#define RTFI_FilterFunc		 (RT_TagBase+44)
-/* (V38) allow empty file to be accepted - default FALSE */
-#define RTFI_AllowEmpty		 (RT_TagBase+45)
 
 /*** tags specific to rtFontRequestA ***
 */
@@ -421,34 +228,6 @@ struct rtHandlerInfo {
 /* maximum height of font displayed */
 #define RTFO_MaxHeight		 (RT_TagBase+62)
 /* [(RT_TagBase+63) to (RT_TagBase+66) used below] */
-/* (V38) call this hook for every font */
-#define RTFO_FilterFunc		 RTFI_FilterFunc
-
-/*** (V38) tags for rtScreenModeRequestA ***
-   various flags (see below) */
-#define RTSC_Flags		 RTFI_Flags
-/* suggested height of screenmode requester */
-#define RTSC_Height		 RTFI_Height
-/* replacement text for 'Ok' gadget (max 6 chars) */
-#define RTSC_OkText		 RTFI_OkText
-/* property flags (see also RTSC_PropertyMask) */
-#define RTSC_PropertyFlags	 (RT_TagBase+90)
-/* property mask - default all bits in RTSC_PropertyFlags considered */
-#define RTSC_PropertyMask	 (RT_TagBase+91)
-/* minimum display width allowed */
-#define RTSC_MinWidth		 (RT_TagBase+92)
-/* maximum display width allowed */
-#define RTSC_MaxWidth		 (RT_TagBase+93)
-/* minimum display height allowed */
-#define RTSC_MinHeight		 (RT_TagBase+94)
-/* maximum display height allowed */
-#define RTSC_MaxHeight		 (RT_TagBase+95)
-/* minimum display depth allowed */
-#define RTSC_MinDepth		 (RT_TagBase+96)
-/* maximum display depth allowed */
-#define RTSC_MaxDepth		 (RT_TagBase+97)
-/* call this hook for every display mode id */
-#define RTSC_FilterFunc		 RTFI_FilterFunc
 
 /*** tags for rtChangeReqAttrA ***
 */
@@ -468,20 +247,6 @@ struct rtHandlerInfo {
 #define RTFO_FontStyle		 (RT_TagBase+65)
 /* font requester - set font flags */
 #define RTFO_FontFlags		 (RT_TagBase+66)
-/* (V38) screenmode requester - get display attributes from screen */
-#define RTSC_ModeFromScreen	 (RT_TagBase+80)
-/* (V38) screenmode requester - set display mode id (32-bit extended) */
-#define RTSC_DisplayID		 (RT_TagBase+81)
-/* (V38) screenmode requester - set display width */
-#define RTSC_DisplayWidth	 (RT_TagBase+82)
-/* (V38) screenmode requester - set display height */
-#define RTSC_DisplayHeight	 (RT_TagBase+83)
-/* (V38) screenmode requester - set display depth */
-#define RTSC_DisplayDepth	 (RT_TagBase+84)
-/* (V38) screenmode requester - set overscan type, 0 for regular size */
-#define RTSC_OverscanType	 (RT_TagBase+85)
-/* (V38) screenmode requester - set autoscroll */
-#define RTSC_AutoScroll		 (RT_TagBase+86)
 
 /*** tags for rtPaletteRequestA ***
 */
@@ -519,6 +284,8 @@ struct rtHandlerInfo {
 ***************************************/
 #define FREQB_NOBUFFER		 2L
 #define FREQF_NOBUFFER		 (1L<<FREQB_NOBUFFER)
+#define FREQB_DOWILDFUNC	 11L
+#define FREQF_DOWILDFUNC	 (1L<<FREQB_DOWILDFUNC)
 
 /*****************************************
 * flags for RTFI_Flags or filereq->Flags *
@@ -550,22 +317,6 @@ struct rtHandlerInfo {
 #define FREQB_STYLE		 10L
 #define FREQF_STYLE		 (1L<<FREQB_STYLE)
 
-/*****************************************************
-* (V38) flags for RTSC_Flags or screenmodereq->Flags *
-*****************************************************/
-#define SCREQB_SIZEGADS		 13L
-#define SCREQF_SIZEGADS		 (1L<<SCREQB_SIZEGADS)
-#define SCREQB_DEPTHGAD		 14L
-#define SCREQF_DEPTHGAD		 (1L<<SCREQB_DEPTHGAD)
-#define SCREQB_NONSTDMODES	 15L
-#define SCREQF_NONSTDMODES	 (1L<<SCREQB_NONSTDMODES)
-#define SCREQB_GUIMODES		 16L
-#define SCREQF_GUIMODES		 (1L<<SCREQB_GUIMODES)
-#define SCREQB_AUTOSCROLLGAD	 18L
-#define SCREQF_AUTOSCROLLGAD	 (1L<<SCREQB_AUTOSCROLLGAD)
-#define SCREQB_OVERSCANGAD	 19L
-#define SCREQF_OVERSCANGAD	 (1L<<SCREQB_OVERSCANGAD)
-
 /*****************************************
 * flags for RTEZ_Flags or reqinfo->Flags *
 *****************************************/
@@ -576,41 +327,10 @@ struct rtHandlerInfo {
 #define EZREQB_CENTERTEXT	 2L
 #define EZREQF_CENTERTEXT	 (1L<<EZREQB_CENTERTEXT)
 
-/***********************************************
-* (V38) flags for RTGL_Flags or reqinfo->Flags *
-***********************************************/
-#define GLREQB_CENTERTEXT	 EZREQB_CENTERTEXT
-#define GLREQF_CENTERTEXT	 EZREQF_CENTERTEXT
-#define GLREQB_HIGHLIGHTTEXT	 3L
-#define GLREQF_HIGHLIGHTTEXT	 (1L<<GLREQB_HIGHLIGHTTEXT)
-
-/***********************************************
-* (V38) flags for RTGS_Flags or reqinfo->Flags *
-***********************************************/
-#define GSREQB_CENTERTEXT	 EZREQB_CENTERTEXT
-#define GSREQF_CENTERTEXT	 EZREQF_CENTERTEXT
-#define GSREQB_HIGHLIGHTTEXT	 GLREQB_HIGHLIGHTTEXT
-#define GSREQF_HIGHLIGHTTEXT	 GLREQF_HIGHLIGHTTEXT
-
-/*****************************************
-* (V38) flags for RTFI_VolumeRequest tag *
-*****************************************/
-#define VREQB_NOASSIGNS		 0L
-#define VREQF_NOASSIGNS		 (1L<<VREQB_NOASSIGNS)
-#define VREQB_NODISKS		 1L
-#define VREQF_NODISKS		 (1L<<VREQB_NODISKS)
-#define VREQB_ALLDISKS		 2L
-#define VREQF_ALLDISKS		 (1L<<VREQB_ALLDISKS)
-
-/*
-   Following things are obsolete in ReqTools V38.
-   DON'T USE THESE IN NEW CODE!
-*/
-#ifndef NO_REQTOOLS_OBSOLETE
-#define REQHOOK_WILDFILE 0L
-#define REQHOOK_WILDFONT 1L
-#define FREQB_DOWILDFUNC 11L                   
-#define FREQF_DOWILDFUNC (1L<<FREQB_DOWILDFUNC)
-#endif
+/********
+* hooks *
+********/
+#define REQHOOK_WILDFILE	 0L
+#define REQHOOK_WILDFONT	 1L
 
 #endif /* LIBRARIES_REQTOOLS_H */
