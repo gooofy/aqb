@@ -604,8 +604,8 @@ void TE_scrollUp (bool fullscreen)
 {
     if (!fullscreen)
     {
-        //TE_printf ( CSI "%dy", g_scrollStart+1);
-        TE_printf ( CSI "%dt", g_scrollEnd+1);
+        //LOG_printf (LOG_DEBUG, "scroll up, g_scrollEnd=%d\n", g_scrollEnd);
+        TE_printf ( CSI "%dt", g_scrollEnd);
     }
     TE_printf ( CSI "S");
     if (!fullscreen)
@@ -617,8 +617,9 @@ void TE_scrollUp (bool fullscreen)
 
 void TE_scrollDown (void)
 {
+    //LOG_printf (LOG_DEBUG, "scroll down, g_scrollEnd=%d\n", g_scrollEnd);
     //TE_printf ( CSI "%dy", g_scrollStart+1);
-    TE_printf ( CSI "%dt", g_scrollEnd+1);
+    TE_printf ( CSI "%dt", g_scrollEnd);
     TE_printf ( CSI "T");
     //TE_printf ( CSI "y");
     TE_printf ( CSI "t");
@@ -1026,18 +1027,18 @@ void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;
     g_scrollEnd   = row_end;
-    TE_printf (CSI "%d;%dr", row_start, row_end);
+    TE_printf (CSI "%d;%dt", row_start, row_end);
 }
 
 void TE_scrollUp (bool fullscreen)
 {
     if (fullscreen)
-        TE_printf (CSI "r");
+        TE_printf (CSI "t");
 
     TE_printf ( CSI "S");
 
     if (fullscreen)
-        TE_printf (CSI "%d;%dr", g_scrollStart, g_scrollEnd);
+        TE_printf (CSI "%d;%dt", g_scrollStart, g_scrollEnd);
 }
 
 void TE_scrollDown (void)
