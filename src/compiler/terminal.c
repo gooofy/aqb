@@ -382,6 +382,15 @@ bool TE_init (void)
          cleanexit("Can't create read port\n", RETURN_FAIL);
     if(!(g_readReq = (struct IOStdReq *) create_ext_io(g_readPort,(LONG)sizeof(struct IOStdReq))))
          cleanexit("Can't create read request\n", RETURN_FAIL);
+
+	struct Screen sc;
+	// get workbench screen size
+	if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
+         cleanexit("Failed to determine wb screen size\n", RETURN_FAIL);
+
+	g_nw.Width = sc.Width;
+	g_nw.Height = sc.Height;
+
     if (!(g_win = OpenWindow(&g_nw)))
          cleanexit("Can't open window\n", RETURN_FAIL);
 
