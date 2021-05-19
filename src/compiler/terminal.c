@@ -446,6 +446,14 @@ static inline void report_key (uint16_t key)
 static ESC_state_t g_esc_state = ESC_idle;
 static uint16_t nextKey(void)
 {
+
+/*
+ * Window Bounds Report
+ * Returned by the console device in response to a Window Status Request
+ * sequence
+ * 9B 31 3B 31 3B <bottom margin> 3B <right margin> 72
+ */
+
     UBYTE ch;
 
     ULONG conreadsig = 1 << g_readPort->mp_SigBit;
