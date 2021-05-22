@@ -339,6 +339,14 @@ static IDE_line buf2line (IDE_editor ed)
             {
                 case S_ERRTKN:
                     break;
+                case S_COLON:
+                    buf[pos] = ' ';
+                    style[pos++] = STYLE_NORMAL;
+                    buf[pos] = ':';
+                    style[pos++] = STYLE_NORMAL;
+                    buf[pos] = ' ';
+                    style[pos++] = STYLE_NORMAL;
+                    /* fall through */
                 case S_EOL:
                     switch (state)
                     {
@@ -531,14 +539,6 @@ static IDE_line buf2line (IDE_editor ed)
                     }
                     buf[pos] = '"';
                     style[pos++] = STYLE_STRING;
-                    break;
-                case S_COLON:
-                    buf[pos] = ' ';
-                    style[pos++] = STYLE_NORMAL;
-                    buf[pos] = ':';
-                    style[pos++] = STYLE_NORMAL;
-                    buf[pos] = ' ';
-                    style[pos++] = STYLE_NORMAL;
                     break;
                 case S_SEMICOLON:
                     buf[pos] = ';';
