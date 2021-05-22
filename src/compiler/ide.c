@@ -58,6 +58,8 @@ static S_symbol S_DO;
 static S_symbol S_LOOP;
 static S_symbol S_WHILE;
 static S_symbol S_WEND;
+static S_symbol S_SELECT;
+static S_symbol S_CASE;
 
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_editor_   *IDE_editor;
@@ -307,7 +309,7 @@ static bool nextch_cb(char *ch, void *user_data)
 
 typedef enum { STATE_IDLE, STATE_IF, STATE_ELSEIF, STATE_ELSE, STATE_THEN,
                STATE_ELSEIFTHEN, STATE_LOOP,
-               STATE_END, STATE_SUB } state_enum;
+               STATE_END, STATE_SUB, STATE_SELECT, STATE_CASE } state_enum;
 
 
 static IDE_line buf2line (IDE_editor ed)
@@ -362,6 +364,11 @@ static IDE_line buf2line (IDE_editor ed)
                             break;
                         case STATE_SUB:
                         case STATE_LOOP:
+                        case STATE_SELECT:
+                            post_indent++;
+                            break;
+                        case STATE_CASE:
+                            pre_indent--;
                             post_indent++;
                             break;
                         case STATE_END:
@@ -477,6 +484,14 @@ static IDE_line buf2line (IDE_editor ed)
                             {
                                 state = STATE_END;
                             }
+                            else if (tkn->u.sym == S_SELECT)
+                            {
+                                state = STATE_SELECT;
+                            }
+                            else if (tkn->u.sym == S_CASE)
+                            {
+                                state = STATE_CASE;
+                            }
                             break;
                         case STATE_IF:
                             if (tkn->u.sym == S_THEN)
@@ -496,6 +511,8 @@ static IDE_line buf2line (IDE_editor ed)
                         case STATE_END:
                         case STATE_SUB:
                         case STATE_LOOP:
+                        case STATE_SELECT:
+                        case STATE_CASE:
                             break;
                         default:
                             assert(FALSE);
@@ -1520,6 +1537,8 @@ void IDE_open (string sourcefn, string module_name)
     S_LOOP     = S_Symbol ("LOOP"    , FALSE);
     S_WHILE    = S_Symbol ("WHILE"   , FALSE);
     S_WEND     = S_Symbol ("WEND"    , FALSE);
+    S_SELECT   = S_Symbol ("SELECT"  , FALSE);
+    S_CASE     = S_Symbol ("CASE"    , FALSE);
 
 	g_ed = openEditor();
 
