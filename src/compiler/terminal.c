@@ -62,7 +62,8 @@ struct ReqToolsBase         *ReqToolsBase;
 #define BUFSIZE   2048
 static char            g_outbuf[BUFSIZE];
 static int             g_bpos = 0;
-static void            (*g_size_cb)(void) = NULL;
+static TE_size_cb      g_size_cb = NULL;
+static void           *g_size_cb_user_data = NULL;
 
 static TE_key_cb       g_key_cb = NULL;
 static void           *g_key_cb_user_data = NULL;
@@ -435,7 +436,8 @@ bool TE_init (void)
 
 // handle CSI sequences: state machine
 
-typedef enum {ESC_idle, ESC_esc1, ESC_csi, ESC_tilde } ESC_state_t;
+typedef enum {ESC_idle, ESC_esc1, ESC_csi, ESC_tilde, ESC_1,
+              ESC_EVENT} ESC_state_t;
 
 static inline void report_key (uint16_t key)
 {
@@ -444,6 +446,7 @@ static inline void report_key (uint16_t key)
 }
 
 static ESC_state_t g_esc_state = ESC_idle;
+#define MAX_EVENT_BUF 32
 static uint16_t nextKey(void)
 {
 
@@ -452,9 +455,12 @@ static uint16_t nextKey(void)
  * Returned by the console device in response to a Window Status Request
  * sequence
  * 9B 31 3B 31 3B <bottom margin> 3B <right margin> 72
+ *CSI  1  ;  1  ;                  ;                r
  */
 
     UBYTE ch;
+    UBYTE event_buf[MAX_EVENT_BUF];
+    uint16_t event_len=0;
 
     ULONG conreadsig = 1 << g_readPort->mp_SigBit;
     ULONG windowsig  = 1 << g_win->UserPort->mp_SigBit;
@@ -506,8 +512,7 @@ static uint16_t nextKey(void)
                                 return KEY_F1;
                                 break;
                             case '1':
-                                g_esc_state = ESC_tilde;
-                                return KEY_F2;
+                                g_esc_state = ESC_1;
                                 break;
                             case '2':
                                 g_esc_state = ESC_tilde;
@@ -566,6 +571,43 @@ static uint16_t nextKey(void)
                     case ESC_tilde:
                         LOG_printf (LOG_DEBUG, "terminal: *** skipping tilde %c\n", ch);
                         g_esc_state = ESC_idle;
+                        break;
+                    case ESC_1:
+                        /*
+                         0x9b 0x31 0x32 0x3b 0x30 0x3b
+                         CSI  1    2    ;    0    ;
+                        */
+                        LOG_printf (LOG_DEBUG, "terminal: ESC_1 %c\n", ch);
+                        switch (ch)
+                        {
+                            case ';':
+                            case '2':
+                                LOG_printf (LOG_DEBUG, "terminal: EVENT stream detected\n", ch);
+                                g_esc_state = ESC_EVENT;
+                                event_len = 0;
+                                break;
+                            default:
+                                return KEY_F2;
+                        }
+                        break;
+                    case ESC_EVENT:
+                        LOG_printf (LOG_DEBUG, "terminal: ESC_EVENT %c\n", ch);
+                        if (ch == '|')
+                        {
+                            event_buf[event_len] = 0;
+                            LOG_printf (LOG_DEBUG, "terminal: event report ended, buf: %s\n", event_buf);
+                            if (g_size_cb)
+                                g_size_cb(g_size_cb_user_data);
+                            g_esc_state = ESC_idle;
+                            break;
+                        }
+                        else
+                        {
+                            if (event_len<MAX_EVENT_BUF-1)
+                            {
+                                event_buf[event_len++] = ch;
+                            }
+                        }
                         break;
                 }
 			}
@@ -831,7 +873,7 @@ uint16_t TE_waitkey (void)
 static void handleSigWinCh(int unused __attribute__((unused)))
 {
     if (g_size_cb)
-        g_size_cb();
+        g_size_cb(g_size_cb_user_data);
 }
 
 static void TE_setAlternateScreen (bool enabled)
@@ -1097,9 +1139,10 @@ void TE_vprintf (char* format, va_list args)
     TE_putstr(buf);
 }
 
-void TE_onSizeChangeCall (void (*cb)(void))
+void TE_onSizeChangeCall (TE_size_cb cb, void *user_data)
 {
     g_size_cb = cb;
+    g_size_cb_user_data = user_data;
 }
 
 void TE_moveCursor (int row, int col)

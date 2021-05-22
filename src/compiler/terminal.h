@@ -91,10 +91,10 @@ void      TE_scrollUp           (bool fullscreen);
 void      TE_scrollDown         (void);
 
 bool      TE_getsize            (uint16_t *rows, uint16_t *cols);
-void      TE_onSizeChangeCall   (void (*cb)(void));
+typedef void (*TE_size_cb)(void *user_data);
+void      TE_onSizeChangeCall   (TE_size_cb cb, void *user_data);
 
 typedef void (*TE_key_cb)(uint16_t key, void *user_data);
-
 void      TE_onKeyCall          (TE_key_cb cb, void *user_data);
 
 uint16_t  TE_EZRequest          (char *body, char *gadgets);

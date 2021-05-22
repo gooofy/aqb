@@ -1121,7 +1121,10 @@ static bool printableAsciiChar (uint16_t c)
 static bool insertChar (IDE_editor ed, uint16_t c)
 {
     if (!printableAsciiChar(c))
+    {
+        LOG_printf (LOG_DEBUG, "ide.c: insertChar: non-printable char %d detected.\n", c);
         return FALSE;
+    }
 
     if (!ed->editing)
     {
@@ -1229,6 +1232,17 @@ static void compileAndRun(IDE_editor ed)
 
     TE_eraseDisplay ();
     invalidateAll (ed);
+}
+
+static void size_cb (void *user_data)
+{
+	IDE_editor ed = (IDE_editor) user_data;
+    invalidateAll (ed);
+    initWindowSize (ed);
+    invalidateAll (ed);
+    scroll(ed);
+    repaint(ed);
+    TE_flush();
 }
 
 static void key_cb (uint16_t key, void *user_data)
@@ -1518,6 +1532,7 @@ void IDE_open (string sourcefn, string module_name)
     TE_flush();
 
 	TE_onKeyCall(key_cb, g_ed);
+    TE_onSizeChangeCall (size_cb, g_ed);
 
 	TE_run();
 }
