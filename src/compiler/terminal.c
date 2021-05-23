@@ -389,8 +389,12 @@ bool TE_init (void)
 	if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
          cleanexit("Failed to determine wb screen size\n", RETURN_FAIL);
 
-	g_nw.Width = sc.Width;
-	g_nw.Height = sc.Height;
+    // FIXME: remove?
+    //printf ("terminal: workbench size is %d x %d (ViewPort: %d x %d)\n", (int)sc.Width, (int)sc.Height, (int)sc.ViewPort.DWidth, (int)sc.ViewPort.DHeight);
+    //g_nw.Width = sc.Width;
+    //g_nw.Height = sc.Height;
+    g_nw.Width = sc.ViewPort.DWidth;
+    g_nw.Height = sc.ViewPort.DHeight;
 
     if (!(g_win = OpenWindow(&g_nw)))
          cleanexit("Can't open window\n", RETURN_FAIL);
