@@ -17,6 +17,7 @@
 #include "logger.h"
 #include "run.h"
 #include "options.h"
+#include "errormsg.h"
 
 #define STYLE_NORMAL  0
 #define STYLE_KW      1
@@ -99,6 +100,7 @@ struct IDE_editor_
     bool               up2date_il_num_lines;
     bool               up2date_il_flags;
     bool               up2date_il_sourcefn;
+    bool               il_show_error;
 
     // cursor_line currently being edited (i.e. represented in buffer):
     bool               editing;
@@ -849,6 +851,27 @@ static bool pageDown(IDE_editor ed)
     return TRUE;
 }
 
+static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
+{
+    if (ed->editing)
+        commitBuf (ed);
+
+    ed->cursor_line = ed->line_first;
+
+    for (uint16_t i = 1; i<line; i++)
+    {
+        if (!ed->cursor_line->next)
+            break;
+        ed->cursor_line = ed->cursor_line->next;
+    }
+
+    ed->cursor_row = line-1;
+    ed->cursor_col = col-1;
+    ed->up2date_il_pos = FALSE;
+
+    return TRUE;
+}
+
 static void line2buf (IDE_editor ed, IDE_line l)
 {
     uint16_t off = 0;
@@ -1011,13 +1034,26 @@ static void repaint (IDE_editor ed)
     if (!ed->up2date_il_sourcefn)
     {
         char *fs = ed->infoline + INFOLINE_FILENAME;
-        for (char *c = ed->sourcefn; *c; c++)
+        if (!ed->il_show_error)
         {
-            *fs++ = *c;
+            for (char *c = ed->sourcefn; *c; c++)
+            {
+                *fs++ = *c;
+            }
+            *fs = 0;
+            update_infoline = TRUE;
+            ed->up2date_il_sourcefn = TRUE;
         }
-        *fs = 0;
-        update_infoline = TRUE;
-        ed->up2date_il_sourcefn = TRUE;
+        else
+        {
+            for (char *c = EM_firstError; *c; c++)
+            {
+                *fs++ = *c;
+            }
+            *fs = 0;
+            update_infoline = TRUE;
+            ed->il_show_error = FALSE;
+        }
     }
 
     if (update_infoline)
@@ -1219,6 +1255,8 @@ static void show_help(IDE_editor ed)
 
 static void compile(IDE_editor ed)
 {
+    // FIXME: save first
+
     LOG_printf (LOG_INFO, "\ncompilation starts...\n\n");
 
     CO_compile(ed->sourcefn,
@@ -1232,6 +1270,12 @@ static void compile(IDE_editor ed)
 
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     TE_waitkey ();
+
+    if (EM_anyErrors)
+    {
+        gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol);
+        ed->il_show_error = TRUE;
+    }
 
     TE_eraseDisplay ();
     invalidateAll (ed);
@@ -1355,6 +1399,7 @@ IDE_editor openEditor(void)
     ed->cursor_line      = NULL;
     ed->changed		     = FALSE;
     ed->editing          = FALSE;
+    ed->il_show_error    = FALSE;
 
     invalidateAll (ed);
 

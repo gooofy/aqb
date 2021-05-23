@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "util.h"
 #include "errormsg.h"
@@ -30,14 +31,17 @@ static bool enable_ansi=FALSE;
 
 #endif
 
-bool EM_anyErrors= FALSE;
+#define MAX_ERROR_LEN 1024
+
+bool     EM_anyErrors = FALSE;
+char     EM_firstError[MAX_ERROR_LEN];
+uint16_t EM_firstErrorLine;
+uint16_t EM_firstErrorCol;
 
 bool EM_error(S_pos pos, char *message,...)
 {
     va_list ap;
-    static char buf[1024];
-
-    EM_anyErrors=TRUE;
+    static char buf[MAX_ERROR_LEN];
 
     if (enable_ansi)
         LOG_printf(LOG_ERROR, ANSI_BOLD);
@@ -49,7 +53,7 @@ bool EM_error(S_pos pos, char *message,...)
     if (enable_ansi)
         LOG_printf(LOG_ERROR, ANSI_RESET);
     va_start(ap, message);
-    vsnprintf (buf, 1024, message, ap);
+    vsnprintf (buf, MAX_ERROR_LEN, message, ap);
     va_end(ap);
     LOG_printf(LOG_ERROR, "%s\n", buf);
 
@@ -61,16 +65,25 @@ bool EM_error(S_pos pos, char *message,...)
         LOG_printf(LOG_ERROR,  "^\n");
     }
 
+    if (!EM_anyErrors)
+    {
+        EM_firstErrorLine = S_getline(pos);
+        EM_firstErrorCol  = S_getcol(pos);
+        strncpy (EM_firstError, buf, MAX_ERROR_LEN);
+    }
+
+    EM_anyErrors=TRUE;
+
     return FALSE;
 }
 
 string EM_format(S_pos pos, char *message,...)
 {
     va_list ap;
-    char buf[1024];
+    char buf[MAX_ERROR_LEN];
 
     va_start(ap,message);
-    vsnprintf(buf, 1024, message, ap);
+    vsnprintf(buf, MAX_ERROR_LEN, message, ap);
     va_end(ap);
 
     if (FE_filename)
