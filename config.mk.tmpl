@@ -17,7 +17,7 @@ OBJDIR_AMIGAOS = $(SELF_DIR)/target/m68k-amigaos/obj
 BINDIR_AMIGAOS = $(SELF_DIR)/target/m68k-amigaos/bin
 DEPDIR_AMIGAOS = $(SELF_DIR)/target/m68k-amigaos/.deps
 
-CFLAGS_AMIGAOS   = -O3 -Wall -Werror -march=68000 -mcpu=68000 -mcrt=nix13 -I$(SELF_DIR)/src/include
+CFLAGS_AMIGAOS   = -O3 -Wall -Werror -march=68000 -mcpu=68000 -mcrt=nix20 -I$(SELF_DIR)/src/include
 DEPFLAGS_AMIGAOS = -MT $@ -MMD -MP -MF $(DEPDIR_AMIGAOS)/$*.d
 ASFLAGS_AMIGAOS  = -march=68000 -mcpu=68000
 LDFLAGS_AMIGAOS  = -lm

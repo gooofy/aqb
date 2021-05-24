@@ -36,8 +36,8 @@
 #include <inline/reqtools.h>
 
 extern struct ExecBase      *SysBase;
-extern struct DOSBase       *DOSBase;
-extern struct DOSBase       *DOSBase;
+//extern struct DOSBase       *DOSBase;
+extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 struct ReqToolsBase         *ReqToolsBase;
 
@@ -362,8 +362,9 @@ void TE_deinit(void)
         delete_port(g_writePort);
     if (ReqToolsBase)
         CloseLibrary((struct Library *)ReqToolsBase);
-    if (IntuitionBase)
-        CloseLibrary((struct Library *)IntuitionBase);
+    //if (IntuitionBase)
+    //    CloseLibrary((struct Library *)IntuitionBase);
+	printf ("TE_deinit() complete.\n");
 }
 
 static UBYTE g_ibuf;
@@ -371,8 +372,8 @@ static UBYTE g_ibuf;
 bool TE_init (void)
 {
     SysBase = *(APTR *)4L;
-    if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library",0)))
-         cleanexit("Can't open intuition.library\n", RETURN_FAIL);
+    //if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library", 36)))
+    //     cleanexit("Can't open intuition.library\n", RETURN_FAIL);
     if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
     if (!(g_writePort = create_port((STRPTR)"AQB.console.write",0)))
@@ -384,20 +385,30 @@ bool TE_init (void)
     if(!(g_readReq = (struct IOStdReq *) create_ext_io(g_readPort,(LONG)sizeof(struct IOStdReq))))
          cleanexit("Can't create read request\n", RETURN_FAIL);
 
-	struct Screen sc;
-	// get workbench screen size
-	if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
-         cleanexit("Failed to determine wb screen size\n", RETURN_FAIL);
+    struct Screen *sc = LockPubScreen (NULL); // default public screen
+    if (!sc)
+         cleanexit("Failed to lock default public screen\n", RETURN_FAIL);
 
-    // FIXME: remove?
-    //printf ("terminal: workbench size is %d x %d (ViewPort: %d x %d)\n", (int)sc.Width, (int)sc.Height, (int)sc.ViewPort.DWidth, (int)sc.ViewPort.DHeight);
-    //g_nw.Width = sc.Width;
-    //g_nw.Height = sc.Height;
-    g_nw.Width = sc.ViewPort.DWidth;
-    g_nw.Height = sc.ViewPort.DHeight;
+	// determine (visible) screen size and open full screen window on it
+
+    ULONG mid = GetVPModeID(&sc->ViewPort);
+    struct DimensionInfo di;
+	if (!GetDisplayInfoData(NULL, (APTR)&di, sizeof(di), DTAG_DIMS, mid))
+         cleanexit("Failed to retrieve display info data\n", RETURN_FAIL);
+
+    printf ("terminal: workbench screen size is %d x %d (TxtOScan: (%d / %d) - (%d / %d)\n", (int)sc->Width, (int)sc->Height,
+            (int)di.TxtOScan.MinX, (int)di.TxtOScan.MinY, (int)di.TxtOScan.MaxX, (int)di.TxtOScan.MaxY);
+
+	WORD maxW = di.TxtOScan.MaxX - di.TxtOScan.MinX + 1;
+	WORD maxH = di.TxtOScan.MaxY - di.TxtOScan.MinY + 1;
+
+	g_nw.Width = sc->Width > maxW ? maxW : sc->Width;
+	g_nw.Height = sc->Height > maxH ? maxH : sc->Height;
 
     if (!(g_win = OpenWindow(&g_nw)))
          cleanexit("Can't open window\n", RETURN_FAIL);
+
+    UnlockPubScreen(NULL, sc);
 
     if (OpenConsole ())
          cleanexit("Can't open console.device\n", RETURN_FAIL);
