@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <ctype.h>
+#include <libgen.h>
 
 #include "util.h"
 #include "ui.h"
@@ -1408,13 +1409,15 @@ IDE_editor openEditor(void)
 	return ed;
 }
 
-static void IDE_setSourceFn(IDE_editor ed, string sourcefn, string module_name)
+static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
 {
     if (sourcefn)
     {
-        strcpy (ed->sourcefn, sourcefn);
-        strcpy (ed->module_name, module_name);
         int l = strlen(sourcefn);
+        if (l>PATH_MAX)
+            l = PATH_MAX;
+
+        strncpy (ed->sourcefn, sourcefn, PATH_MAX);
 
         if (l>4)
         {
@@ -1431,6 +1434,16 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn, string module_name)
         {
             strcpy (ed->binfn, TMP_BINFN);
         }
+
+        string module_name = basename(String(sourcefn));
+        l = strlen(module_name);
+        if (l>PATH_MAX)
+            l = PATH_MAX;
+        if (l>4)
+            module_name[l-4] = 0;
+        strncpy (ed->module_name, module_name, PATH_MAX);
+
+        OPT_addModulePath(dirname(String(sourcefn)));
     }
     else
     {
@@ -1439,9 +1452,12 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn, string module_name)
     }
 }
 
-static void IDE_load (IDE_editor ed, string sourcefn, string module_name)
+static void IDE_load (IDE_editor ed, string sourcefn)
 {
     assert(!ed->num_lines); // FIXME: free old buffer
+
+    IDE_setSourceFn(ed, sourcefn);
+
     if (sourcefn)
     {
         FILE *sourcef = fopen(sourcefn, "r");
@@ -1494,7 +1510,6 @@ static void IDE_load (IDE_editor ed, string sourcefn, string module_name)
         ed->num_lines++;
     }
 
-    IDE_setSourceFn(ed, sourcefn, module_name);
     ed->cursor_col		 = 0;
     ed->cursor_row		 = 0;
     ed->cursor_line      = ed->line_first;
@@ -1557,7 +1572,7 @@ static void IDE_deinit(void)
 #endif
 }
 
-void IDE_open (string sourcefn, string module_name)
+void IDE_open (string sourcefn)
 {
     //OPT_set (OPTION_VERBOSE, TRUE);
     UI_init();
@@ -1587,7 +1602,7 @@ void IDE_open (string sourcefn, string module_name)
 
 	g_ed = openEditor();
 
-    IDE_load (g_ed, sourcefn, module_name);
+    IDE_load (g_ed, sourcefn);
 
     UI_setCursorVisible (FALSE);
     UI_moveCursor (0, 0);

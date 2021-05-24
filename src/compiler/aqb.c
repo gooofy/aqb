@@ -287,6 +287,13 @@ int main (int argc, char *argv[])
         sourcefn = argv[optind];
     }
 
+    // run interactive IDE ? (experimental)
+    if (launch_ide)
+    {
+        IDE_open(sourcefn);
+        exit(0);
+    }
+
     /* filename.bas -> module name, module search path */
     {
         int l = strlen(sourcefn);
@@ -300,13 +307,6 @@ int main (int argc, char *argv[])
         module_name[l-4] = 0;
 
         OPT_addModulePath(dirname(String(sourcefn)));
-    }
-
-    // run interactive IDE ? (experimental)
-    if (launch_ide)
-    {
-        IDE_open(sourcefn, module_name);
-        exit(0);
     }
 
     // run compiler from commandline

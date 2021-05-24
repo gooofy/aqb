@@ -3,7 +3,7 @@
 
 #include "util.h"
 
-void IDE_open (string sourcefn, string module_name);
+void IDE_open (string sourcefn);
 
 #endif
 
