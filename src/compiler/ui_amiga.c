@@ -54,6 +54,8 @@ static void           *g_key_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
 
+void __request (string msg);
+
 #define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
                     /*(l)->lh_Tail = NULL,*/ \
                     (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
@@ -363,10 +365,6 @@ void UI_deinit(void)
         delete_port(g_writePort);
     if (ReqToolsBase)
         CloseLibrary((struct Library *)ReqToolsBase);
-    if (IntuitionBase)
-        CloseLibrary((struct Library *)IntuitionBase);
-    if (GfxBase)
-        CloseLibrary((struct Library *)GfxBase);
 }
 
 static UBYTE g_ibuf;
@@ -374,10 +372,19 @@ static UBYTE g_ibuf;
 bool UI_init (void)
 {
     SysBase = *(APTR *)4L;
-    if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library", 38)))
-         cleanexit("Can't open intuition.library V38+\n", RETURN_FAIL);
-    if (!(GfxBase = (struct GfxBase *) OpenLibrary ((STRPTR)"graphics.library", 38)))
-         cleanexit("Can't open graphics.library V38+\n", RETURN_FAIL);
+
+    // check library versions
+
+    if ( ((struct Library *)IntuitionBase)->lib_Version < 38)
+    {
+        __request ("intuition library is too old, need at least V38");
+        exit(1);
+    }
+    if ( ((struct Library *)GfxBase)->lib_Version < 38)
+    {
+        __request ("graphics library is too old, need at least V38");
+        exit(1);
+    }
     if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
     if (!(g_writePort = create_port((STRPTR)"AQB.console.write",0)))

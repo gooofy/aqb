@@ -75,44 +75,54 @@ static void print_usage(char *argv[])
 
 #define MIN_STACKSIZE 64*1024
 
-// FIXME unsigned long __stack=MIN_STACKSIZE;
+unsigned long __stack=MIN_STACKSIZE;
 
 extern struct WBStartup *_WBenchMsg;
 
-// libnix stdio needs the DOS library to be opened very early
+void __request (string msg);
 
-void __opendos(void)
+static void check_amigaos_env(void)
 {
-	DOSBase = (struct DOSBase *) OpenLibrary ((STRPTR)"dos.library", 0);
-}
+    /*
+     * check minimum library versions
+     */
 
-void __closedos(void)
-{
-	if (DOSBase)
-		CloseLibrary((struct Library *)DOSBase);
-}
+    if ( ((struct Library *)DOSBase)->lib_Version < 38)
+    {
+        __request ("DOS library is too old, need at least V38");
+        exit(1);
+    }
 
-ADD2INIT(__opendos, -100);
-ADD2INIT(__closedos, -100);
+    /*
+     * check stack size
+     */
 
-static void check_stacksize(void)
-{
-    struct Process *Process;
+    struct Process *pr;
     struct CommandLineInterface *CLI;
     ULONG stack;
 
-    Process = (struct Process *) FindTask (0L);
-    if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+    pr = (struct Process *) FindTask (0L);
+    if ( (CLI = (struct CommandLineInterface *) (pr->pr_CLI << 2)) )
     {
-        stack = CLI -> cli_DefaultStack << 2;
+        stack = CLI->cli_DefaultStack << 2;
+        printf ("1\n");
     }
     else
     {
-        stack = Process -> pr_StackSize;
+        stack = pr->pr_StackSize;
     }
+
+	ULONG size;
+	size = (char *)pr->pr_Task.tc_SPUpper - (char *)pr->pr_Task.tc_SPLower;
+	if (pr->pr_CLI)
+		size = *(ULONG *)pr->pr_ReturnAddr;
+
+    printf ("pr->pr_StackSize=%ld, size=%ld\n", pr->pr_StackSize, size);
     if (stack < MIN_STACKSIZE)
     {
-        fprintf (stderr, "*** error: current stack size of %ld bytes is too small for this program, need at least %d bytes.\n", stack, MIN_STACKSIZE);
+        static char buf[255];
+        snprintf (buf, 255, "stack size of %ld bytes is too small, need at least %d bytes.\n", stack, MIN_STACKSIZE);
+        __request(buf);
         exit(EXIT_FAILURE);
     }
 }
@@ -168,7 +178,7 @@ int main (int argc, char *argv[])
     static char   binfn[PATH_MAX];
 
 #ifdef __amigaos__
-    check_stacksize();
+    check_amigaos_env();
 #endif
 
     U_init();
