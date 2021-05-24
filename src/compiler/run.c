@@ -4,7 +4,7 @@
 #include "run.h"
 #include "logger.h"
 #include "util.h"
-#include "terminal.h"
+#include "ui.h"
 
 #ifdef __amigaos__
 
@@ -47,13 +47,13 @@ static void runner (void)
     if (!seglist)
     {
         LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
-        Signal (g_parentTask, 1<<TE_termSignal());
+        Signal (g_parentTask, 1<<UI_termSignal());
         return;
     }
 
     LOG_printf (LOG_INFO, "running %s ...\n\n", g_binfn);
 
-    me->pr_COS = MKBADDR(TE_output());
+    me->pr_COS = MKBADDR(UI_output());
 
     ULONG *code = (ULONG *) BADDR(seglist);
     code++;
@@ -65,7 +65,7 @@ static void runner (void)
 
 	LOG_printf (LOG_DEBUG, "runner ends, sending signal\n");
 
-	Signal (g_parentTask, 1<<TE_termSignal());
+	Signal (g_parentTask, 1<<UI_termSignal());
 }
 
 
@@ -85,7 +85,7 @@ void RUN_run (const char *binfn)
 		struct MsgPort *msgport = CreateProc((STRPTR) binfn, DEFAULT_PRI, MKBADDR(segl), DEFAULT_STACKSIZE);
 		assert(msgport);
 
-        TE_runIO();
+        UI_runIO();
 
 		// LOG_printf (LOG_INFO, "%s finished.\n\n", binfn);
 

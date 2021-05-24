@@ -1,4 +1,4 @@
-#include "terminal.h"
+#include "ui.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -62,10 +62,10 @@ struct ReqToolsBase         *ReqToolsBase;
 #define BUFSIZE   2048
 static char            g_outbuf[BUFSIZE];
 static int             g_bpos = 0;
-static TE_size_cb      g_size_cb = NULL;
+static UI_size_cb      g_size_cb = NULL;
 static void           *g_size_cb_user_data = NULL;
 
-static TE_key_cb       g_key_cb = NULL;
+static UI_key_cb       g_key_cb = NULL;
 static void           *g_key_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
@@ -198,7 +198,7 @@ static BYTE OpenConsole(void)
 
     return error;
 }
-void TE_flush(void)
+void UI_flush(void)
 {
     if (g_bpos != 0)
     {
@@ -214,7 +214,7 @@ void TE_flush(void)
 
 // FIXME: implement size change callback
 
-bool TE_getsize(uint16_t *rows, uint16_t *cols)
+bool UI_getsize(uint16_t *rows, uint16_t *cols)
 {
     struct ConUnit *g_con_unit = (struct ConUnit *) g_writeReq->io_Unit;
     *rows = g_con_unit->cu_YMax + 1;
@@ -228,25 +228,25 @@ bool TE_getsize(uint16_t *rows, uint16_t *cols)
         *rows = 24;
     }
 
-    if (*cols < TE_MIN_COLUMNS)
-        *cols = TE_MIN_COLUMNS;
-    if (*cols > TE_MAX_COLUMNS)
-        *cols = TE_MAX_COLUMNS;
+    if (*cols < UI_MIN_COLUMNS)
+        *cols = UI_MIN_COLUMNS;
+    if (*cols > UI_MAX_COLUMNS)
+        *cols = UI_MAX_COLUMNS;
 
-    if (*rows < TE_MIN_ROWS)
-        *rows = TE_MIN_ROWS;
-    if (*rows > TE_MAX_ROWS)
-        *rows = TE_MAX_ROWS;
+    if (*rows < UI_MIN_ROWS)
+        *rows = UI_MIN_ROWS;
+    if (*rows > UI_MAX_ROWS)
+        *rows = UI_MAX_ROWS;
 
     return TRUE;
 }
 
-struct FileHandle *TE_output (void)
+struct FileHandle *UI_output (void)
 {
     return g_output;
 }
 
-int TE_termSignal (void)
+int UI_termSignal (void)
 {
     return g_termSignalBit;
 }
@@ -276,7 +276,7 @@ static struct DosPacket *getpacket(void)
 }
 
 
-void TE_runIO (void)
+void UI_runIO (void)
 {
     ULONG iosig   = 1 << g_IOport->mp_SigBit;
 	ULONG termsig = 1 << g_termSignalBit;
@@ -284,14 +284,14 @@ void TE_runIO (void)
     BOOL running = TRUE;
     while (running)
     {
-        //LOG_printf (LOG_DEBUG, "term: TE_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
+        //LOG_printf (LOG_DEBUG, "term: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
         ULONG signals = Wait(iosig | termsig);
-        //LOG_printf (LOG_DEBUG, "term: TE_runIO: got signals: 0x%08x\n", signals);
+        //LOG_printf (LOG_DEBUG, "term: UI_runIO: got signals: 0x%08x\n", signals);
 
         if (signals & iosig)
 		{
 			struct DosPacket *packet = getpacket();
-			LOG_printf (LOG_DEBUG, "term: TE_runIO: got pkg, type=%d\n", packet->dp_Type);
+			LOG_printf (LOG_DEBUG, "term: UI_runIO: got pkg, type=%d\n", packet->dp_Type);
 
 			switch (packet->dp_Type)
 			{
@@ -299,30 +299,30 @@ void TE_runIO (void)
 				{
 					LONG l = packet->dp_Arg3;
 					char *buf = (char *)packet->dp_Arg2;
-					//LOG_printf (LOG_DEBUG, "term: TE_runIO: ACTION_WRITE, len=%d\n", l);
+					//LOG_printf (LOG_DEBUG, "term: UI_runIO: ACTION_WRITE, len=%d\n", l);
 					for (int i = 0; i<l; i++)
 					{
                         char c = buf[i];
                         if (c=='\n')
                         {
                             uint16_t rows, cols;
-                            TE_getsize(&rows, &cols);
-                            TE_scrollUp (/*fullscreen=*/TRUE);
-                            TE_moveCursor (rows+1, 1);
-                            TE_eraseToEOL ();
+                            UI_getsize(&rows, &cols);
+                            UI_scrollUp (/*fullscreen=*/TRUE);
+                            UI_moveCursor (rows+1, 1);
+                            UI_eraseToEOL ();
                         }
                         else
                         {
-                            TE_putc(c);
+                            UI_putc(c);
                         }
 					}
-					TE_flush();
+					UI_flush();
 
 					returnpacket (packet, l, packet->dp_Res2);
 					break;
 				}
 				default:
-					//LOG_printf (LOG_DEBUG, "term: TE_runIO: rejecting unknown packet type\n");
+					//LOG_printf (LOG_DEBUG, "term: UI_runIO: rejecting unknown packet type\n");
 					returnpacket (packet, FALSE, ERROR_ACTION_NOT_KNOWN);
 			}
 		}
@@ -336,9 +336,9 @@ void TE_runIO (void)
 	}
 }
 
-void TE_deinit(void)
+void UI_deinit(void)
 {
-    TE_flush();
+    UI_flush();
 
     /* We always have an outstanding queued read request
      * so we must abort it if it hasn't completed,
@@ -364,12 +364,12 @@ void TE_deinit(void)
         CloseLibrary((struct Library *)ReqToolsBase);
     //if (IntuitionBase)
     //    CloseLibrary((struct Library *)IntuitionBase);
-	printf ("TE_deinit() complete.\n");
+	printf ("UI_deinit() complete.\n");
 }
 
 static UBYTE g_ibuf;
 
-bool TE_init (void)
+bool UI_init (void)
 {
     SysBase = *(APTR *)4L;
     //if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library", 36)))
@@ -414,9 +414,9 @@ bool TE_init (void)
          cleanexit("Can't open console.device\n", RETURN_FAIL);
     g_ConOpened = TRUE;
 
-    TE_putstr(CSI "12{"); /* window resize events activated */
-    TE_putstr(CSI ">1l"); /* auto scroll mode deactivated */
-    TE_flush();
+    UI_putstr(CSI "12{"); /* window resize events activated */
+    UI_putstr(CSI ">1l"); /* auto scroll mode deactivated */
+    UI_flush();
 
     queue_read(g_readReq, &g_ibuf); /* send the first console read request */
 
@@ -648,7 +648,7 @@ static uint16_t nextKey(void)
     return KEY_CLOSE;
 }
 
-void TE_run (void)
+void UI_run (void)
 {
     BOOL running = TRUE;
     while (running)
@@ -661,59 +661,59 @@ void TE_run (void)
 	}
 }
 
-uint16_t TE_EZRequest (char *body, char *gadgets)
+uint16_t UI_EZRequest (char *body, char *gadgets)
 {
 	ULONG res = rtEZRequest (body, gadgets, NULL, NULL);
 	LOG_printf (LOG_DEBUG, "rtEZRequest result: %ld\n", res);
 	return res;
 }
 
-void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
+void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;
     g_scrollEnd   = row_end;
 }
 
-void TE_scrollUp (bool fullscreen)
+void UI_scrollUp (bool fullscreen)
 {
     if (!fullscreen)
     {
         //LOG_printf (LOG_DEBUG, "scroll up, g_scrollEnd=%d\n", g_scrollEnd);
-        TE_printf ( CSI "%dt", g_scrollEnd);
+        UI_printf ( CSI "%dt", g_scrollEnd);
     }
-    TE_printf ( CSI "S");
+    UI_printf ( CSI "S");
     if (!fullscreen)
     {
-        //TE_printf ( CSI "y");
-        TE_printf ( CSI "t");
+        //UI_printf ( CSI "y");
+        UI_printf ( CSI "t");
     }
 }
 
-void TE_scrollDown (void)
+void UI_scrollDown (void)
 {
     //LOG_printf (LOG_DEBUG, "scroll down, g_scrollEnd=%d\n", g_scrollEnd);
-    //TE_printf ( CSI "%dy", g_scrollStart+1);
-    TE_printf ( CSI "%dt", g_scrollEnd);
-    TE_printf ( CSI "T");
-    //TE_printf ( CSI "y");
-    TE_printf ( CSI "t");
+    //UI_printf ( CSI "%dy", g_scrollStart+1);
+    UI_printf ( CSI "%dt", g_scrollEnd);
+    UI_printf ( CSI "T");
+    //UI_printf ( CSI "y");
+    UI_printf ( CSI "t");
 }
 
-uint16_t TE_waitkey (void)
+uint16_t UI_waitkey (void)
 {
     return nextKey();
 }
 
 #else // no __amigaos__ -> linux/posix/ansi
 
-void TE_flush  (void)
+void UI_flush  (void)
 {
     if (g_bpos != 0)
         write(STDOUT_FILENO, g_outbuf, g_bpos);
     g_bpos = 0;
 }
 
-static uint16_t TE_getch (void)
+static uint16_t UI_getch (void)
 {
     int nread;
     char c, seq[5];
@@ -725,16 +725,16 @@ static uint16_t TE_getch (void)
     {
         if (c==KEY_ESC) // handle escape sequences
         {
-            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): handling escape sequence...\n");
+            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): handling escape sequence...\n");
             /* If this is just an ESC, we'll timeout here. */
             if (read(STDIN_FILENO,seq,1) == 0)
             {
-                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 1\n");
+                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 1\n");
                 return KEY_ESC;
             }
             if (read(STDIN_FILENO,seq+1,1) == 0)
             {
-                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 2\n");
+                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 2\n");
                 return KEY_UNKNOWN1;
             }
 
@@ -747,10 +747,10 @@ static uint16_t TE_getch (void)
                         case '1':       // ESC [ 1 ...
                             if (read(STDIN_FILENO,seq+2,2) == 0)
                             {
-                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 3\n");
+                                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 3\n");
                                 return KEY_UNKNOWN1;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2], seq[3], seq[3]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2], seq[3], seq[3]);
                             switch (seq[2])
                             {
                                 case '5': return KEY_F5;
@@ -761,7 +761,7 @@ static uint16_t TE_getch (void)
                                 case ';':
                                     if (read(STDIN_FILENO,seq+4,1) == 0)
                                     {
-                                        LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                        LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 4\n");
                                         return KEY_UNKNOWN1;
                                     }
                                     switch (seq[4])
@@ -771,7 +771,7 @@ static uint16_t TE_getch (void)
                                         case 'B':
                                             return KEY_PAGE_DOWN; // SHIFT + CURSOR_DOWN
                                         default:
-                                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): unknown escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2], seq[3], seq[3], seq[4], seq[4]);
+                                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): unknown escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2], seq[3], seq[3], seq[4], seq[4]);
                                     }
                                     return KEY_UNKNOWN2;
                             }
@@ -779,10 +779,10 @@ static uint16_t TE_getch (void)
                         case '2':       // ESC [ 2 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '0': return KEY_F9;
@@ -793,10 +793,10 @@ static uint16_t TE_getch (void)
                         case '3':       // ESC [ 3 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_DEL;
@@ -806,10 +806,10 @@ static uint16_t TE_getch (void)
                         case '4':       // ESC [ 4 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_END;
@@ -819,10 +819,10 @@ static uint16_t TE_getch (void)
                         case '5':       // ESC [ 5 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_PAGE_UP;
@@ -832,10 +832,10 @@ static uint16_t TE_getch (void)
                         case '6':       // ESC [ 6 ...
                             if (read(STDIN_FILENO,seq+2,1) == 0)
                             {
-                                LOG_printf (LOG_DEBUG, "terminal: TE_getch(): ESC timeout 4\n");
+                                LOG_printf (LOG_DEBUG, "terminal: UI_getch(): ESC timeout 4\n");
                                 return KEY_ESC;
                             }
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1], seq[2], seq[2]);
                             switch (seq[2])
                             {
                                 case '~': return KEY_PAGE_DOWN;
@@ -847,12 +847,12 @@ static uint16_t TE_getch (void)
                         case 'C': return KEY_CURSOR_RIGHT;
                         case 'D': return KEY_CURSOR_LEFT;
                         default:
-                            LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
+                            LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
                             return KEY_UNKNOWN5;
                     }
                     break;
                 case 'O':       // ESC O ...
-                    LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1]);
+                    LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x]\n", seq[0], seq[0], seq[1], seq[1]);
                     switch(seq[1])
                     {
                         case 'H': return KEY_HOME;
@@ -865,7 +865,7 @@ static uint16_t TE_getch (void)
                     }
                     break;
                 default:
-                    LOG_printf (LOG_DEBUG, "terminal: TE_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
+                    LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
                     return KEY_UNKNOWN7;
 
             }
@@ -880,9 +880,9 @@ static uint16_t TE_getch (void)
     return 0;
 }
 
-uint16_t TE_waitkey (void)
+uint16_t UI_waitkey (void)
 {
-    return TE_getch();
+    return UI_getch();
 }
 
 static void handleSigWinCh(int unused __attribute__((unused)))
@@ -891,27 +891,27 @@ static void handleSigWinCh(int unused __attribute__((unused)))
         g_size_cb(g_size_cb_user_data);
 }
 
-static void TE_setAlternateScreen (bool enabled)
+static void UI_setAlternateScreen (bool enabled)
 {
     if (enabled)
-        TE_printf (CSI "?1049h");
+        UI_printf (CSI "?1049h");
     else
-        TE_printf (CSI "?1049l");
+        UI_printf (CSI "?1049l");
 }
 
 static struct termios g_orig_termios;
-void TE_deinit (void)
+void UI_deinit (void)
 {
-    TE_setTextStyle (TE_STYLE_NORMAL);
-    TE_moveCursor(0, 0);
-    TE_eraseDisplay();
-    TE_setAlternateScreen(FALSE);
-    TE_flush();
+    UI_setTextStyle (UI_STYLE_NORMAL);
+    UI_moveCursor(0, 0);
+    UI_eraseDisplay();
+    UI_setAlternateScreen(FALSE);
+    UI_flush();
 	// disable raw mode
 	tcsetattr(STDOUT_FILENO, TCSAFLUSH, &g_orig_termios);
 }
 
-bool TE_init (void)
+bool UI_init (void)
 {
     signal(SIGWINCH, handleSigWinCh);
 
@@ -966,7 +966,7 @@ static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
 }
 
 
-bool TE_getsize(uint16_t *rows, uint16_t *cols)
+bool UI_getsize(uint16_t *rows, uint16_t *cols)
 {
     struct winsize ws;
 
@@ -998,45 +998,45 @@ failed:
     return FALSE;
 }
 
-void TE_run(void)
+void UI_run(void)
 {
     bool running = TRUE;
     while (running)
     {
-        uint16_t ch = TE_getch();
-        LOG_printf (LOG_DEBUG, "terminal: TE_getch() returned %d\n", ch);
+        uint16_t ch = UI_getch();
+        LOG_printf (LOG_DEBUG, "terminal: UI_getch() returned %d\n", ch);
         if (g_key_cb)
             g_key_cb (ch, g_key_cb_user_data);
     }
 }
 
-uint16_t TE_EZRequest (char *body, char *gadgets)
+uint16_t UI_EZRequest (char *body, char *gadgets)
 {
     uint16_t rows, cols;
 
-    TE_getsize (&rows, &cols);
+    UI_getsize (&rows, &cols);
 
-    TE_scrollUp(/*fullscreen=*/TRUE);
-    TE_scrollUp(/*fullscreen=*/TRUE);
+    UI_scrollUp(/*fullscreen=*/TRUE);
+    UI_scrollUp(/*fullscreen=*/TRUE);
 
-    TE_moveCursor (rows, 1);
+    UI_moveCursor (rows, 1);
 
-    TE_setTextStyle (TE_STYLE_NORMAL);
+    UI_setTextStyle (UI_STYLE_NORMAL);
 
     for (char *p = body; *p; p++)
     {
         if (*p != '\n')
         {
-            TE_putc(*p);
+            UI_putc(*p);
         }
         else
         {
-            TE_scrollUp(/*fullscreen=*/TRUE);
-            TE_moveCursor (rows, 1);
+            UI_scrollUp(/*fullscreen=*/TRUE);
+            UI_moveCursor (rows, 1);
         }
     }
-    TE_scrollUp(/*fullscreen=*/TRUE);
-    TE_moveCursor (rows, 1);
+    UI_scrollUp(/*fullscreen=*/TRUE);
+    UI_moveCursor (rows, 1);
 
     uint16_t cnt;
     char *c = gadgets;
@@ -1048,8 +1048,8 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
         {
             cnt++;
             *s = 0;
-            TE_printf ("%s", buf);
-            TE_printf ("[%d] ", cnt);
+            UI_printf ("%s", buf);
+            UI_printf ("[%d] ", cnt);
             c++;
             s = buf;
         }
@@ -1059,17 +1059,17 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
         }
     }
     *s = 0;
-    TE_printf ("%s", buf);
-    TE_printf ("[0]", cnt);
+    UI_printf ("%s", buf);
+    UI_printf ("[0]", cnt);
     cnt++;
 
-    TE_flush();
+    UI_flush();
 
     uint16_t res = 0;
     bool running = TRUE;
     while (running)
     {
-        uint16_t ch = TE_getch();
+        uint16_t ch = UI_getch();
 
         switch(ch)
         {
@@ -1093,115 +1093,115 @@ uint16_t TE_EZRequest (char *body, char *gadgets)
         }
     }
 
-    TE_eraseDisplay ();
+    UI_eraseDisplay ();
     return res;
 }
 
-void TE_setScrollArea (uint16_t row_start, uint16_t row_end)
+void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;
     g_scrollEnd   = row_end;
-    TE_printf (CSI "%d;%dt", row_start, row_end);
+    UI_printf (CSI "%d;%dt", row_start, row_end);
 }
 
-void TE_scrollUp (bool fullscreen)
+void UI_scrollUp (bool fullscreen)
 {
     if (fullscreen)
-        TE_printf (CSI "t");
+        UI_printf (CSI "t");
 
-    TE_printf ( CSI "S");
+    UI_printf ( CSI "S");
 
     if (fullscreen)
-        TE_printf (CSI "%d;%dt", g_scrollStart, g_scrollEnd);
+        UI_printf (CSI "%d;%dt", g_scrollStart, g_scrollEnd);
 }
 
-void TE_scrollDown (void)
+void UI_scrollDown (void)
 {
-    TE_printf ( CSI "T");
+    UI_printf ( CSI "T");
 }
 
 #endif
 
-void TE_putc(char c)
+void UI_putc(char c)
 {
     g_outbuf[g_bpos++] = c;
     if (g_bpos >= BUFSIZE)
-        TE_flush();
+        UI_flush();
 }
 
-void TE_putstr(char *s)
+void UI_putstr(char *s)
 {
     while (*s)
     {
         g_outbuf[g_bpos++] = *s++;
         if (g_bpos >= BUFSIZE)
-            TE_flush();
+            UI_flush();
     }
 }
 
-void TE_printf (char* format, ...)
+void UI_printf (char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    TE_vprintf (format, args);
+    UI_vprintf (format, args);
     va_end(args);
 }
 
-void TE_vprintf (char* format, va_list args)
+void UI_vprintf (char* format, va_list args)
 {
     static char buf[BUFSIZE];
     vsnprintf (buf, BUFSIZE, format, args);
-    TE_putstr(buf);
+    UI_putstr(buf);
 }
 
-void TE_onSizeChangeCall (TE_size_cb cb, void *user_data)
+void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
 {
     g_size_cb = cb;
     g_size_cb_user_data = user_data;
 }
 
-void TE_moveCursor (int row, int col)
+void UI_moveCursor (int row, int col)
 {
-    TE_printf (CSI "%d;%d;H", row, col);
+    UI_printf (CSI "%d;%d;H", row, col);
 }
 
-void TE_eraseToEOL (void)
+void UI_eraseToEOL (void)
 {
-    TE_putstr (CSI "K");
+    UI_putstr (CSI "K");
 }
 
-void TE_eraseDisplay (void)
+void UI_eraseDisplay (void)
 {
-    TE_moveCursor (1, 1);
-    TE_putstr (CSI "J");
+    UI_moveCursor (1, 1);
+    UI_putstr (CSI "J");
 }
 
-void TE_bell (void)
+void UI_bell (void)
 {
-    TE_putstr ("\007");
+    UI_putstr ("\007");
 }
 
-void TE_setCursorVisible (bool visible)
+void UI_setCursorVisible (bool visible)
 {
 #ifdef __amiga__
     if (visible)
-        TE_putstr ( CSI " p");
+        UI_putstr ( CSI " p");
     else
-        TE_putstr ( CSI "0 p");
+        UI_putstr ( CSI "0 p");
 #else
     if (visible)
-        TE_putstr ( CSI "?25h");
+        UI_putstr ( CSI "?25h");
     else
-        TE_putstr ( CSI "?25l");
+        UI_putstr ( CSI "?25l");
 #endif
 }
 
-void TE_setTextStyle (int style)
+void UI_setTextStyle (int style)
 {
-    TE_printf ( CSI "%dm", style);
+    UI_printf ( CSI "%dm", style);
 }
 
-void TE_onKeyCall (TE_key_cb cb, void *user_data)
+void UI_onKeyCall (UI_key_cb cb, void *user_data)
 {
     g_key_cb           = cb;
     g_key_cb_user_data = user_data;

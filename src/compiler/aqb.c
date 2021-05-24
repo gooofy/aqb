@@ -263,7 +263,7 @@ int main (int argc, char *argv[])
 				OPT_set(OPTION_VERBOSE, TRUE);
 				break;
         	case 'V':
-                fprintf (stderr, "AQB V" VERSION " (C) 2020 by G. Bartsch.\nLicensed under the Apache License, Version 2.0.\n");
+                fprintf (stderr, "AQB V" VERSION " (C) 2020, 2021 by G. Bartsch.\nLicensed under the Apache License, Version 2.0.\n");
                 exit(0);
 				break;
         	default:

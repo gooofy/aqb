@@ -10,7 +10,7 @@
 #include <ctype.h>
 
 #include "util.h"
-#include "terminal.h"
+#include "ui.h"
 #include "scanner.h"
 #include "frontend.h"
 #include "compiler.h"
@@ -95,7 +95,7 @@ struct IDE_editor_
 	int16_t            scrolloff_col, scrolloff_row;
     IDE_line           scrolloff_line;
     int16_t            scrolloff_line_row;
-    bool               up2date_row[TE_MAX_ROWS];
+    bool               up2date_row[UI_MAX_ROWS];
     bool               up2date_il_pos;
     bool               up2date_il_num_lines;
     bool               up2date_il_flags;
@@ -193,13 +193,13 @@ static void deleteLine (IDE_editor ed, IDE_line l)
 void initWindowSize (IDE_editor ed)
 {
     uint16_t rows, cols;
-    if (!TE_getsize (&rows, &cols))
+    if (!UI_getsize (&rows, &cols))
         exit(1);
 
     ed->window_width  = cols;
     ed->window_height = rows;
     ed->infoline_row  = rows-1;
-    TE_setScrollArea (1, rows-1);
+    UI_setScrollArea (1, rows-1);
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)
@@ -242,7 +242,7 @@ static IDE_line getLine (IDE_editor ed, int linenum)
 
 static void invalidateAll (IDE_editor ed)
 {
-    for (uint16_t i=0; i<TE_MAX_ROWS; i++)
+    for (uint16_t i=0; i<UI_MAX_ROWS; i++)
         ed->up2date_row[i] = FALSE;
     ed->up2date_il_pos       = FALSE;
     ed->up2date_il_num_lines = FALSE;
@@ -271,7 +271,7 @@ static void scroll(IDE_editor ed)
             case 0:
                 break;
             case 1:
-                TE_scrollUp(/*fullscreen=*/FALSE);
+                UI_scrollUp(/*fullscreen=*/FALSE);
                 ed->up2date_row[ed->window_height - 2] = FALSE;
                 break;
             default:
@@ -292,7 +292,7 @@ static void scroll(IDE_editor ed)
             case 0:
                 break;
             case 1:
-                TE_scrollDown();
+                UI_scrollDown();
                 ed->up2date_row[0] = FALSE;
                 break;
             default:
@@ -309,9 +309,9 @@ static bool nextch_cb(char *ch, void *user_data)
     return (*ch) != 0;
 }
 
-typedef enum { STATE_IDLE, STATE_IF, STATE_ELSEIF, STATE_ELSE, STATE_THEN,
-               STATE_ELSEIFTHEN, STATE_LOOP,
-               STATE_END, STATE_SUB, STATE_SELECT, STATE_CASE } state_enum;
+typedef enum { STAUI_IDLE, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
+               STAUI_ELSEIFTHEN, STAUI_LOOP,
+               STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE } state_enum;
 
 
 static IDE_line buf2line (IDE_editor ed)
@@ -334,7 +334,7 @@ static IDE_line buf2line (IDE_editor ed)
         bool first = TRUE;
         S_token lastKind = S_ERRTKN;
         S_tkn lastTkn = NULL;
-        state_enum state = STATE_IDLE;
+        state_enum state = STAUI_IDLE;
         while (tkn && (pos <MAX_LINE_LEN-1))
         {
             switch (tkn->kind)
@@ -352,36 +352,36 @@ static IDE_line buf2line (IDE_editor ed)
                 case S_EOL:
                     switch (state)
                     {
-                        case STATE_THEN:
+                        case STAUI_THEN:
                             if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
                             {
                                 post_indent++;
                             }
                             break;
-                        case STATE_ELSEIFTHEN:
+                        case STAUI_ELSEIFTHEN:
                             if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
                             {
                                 pre_indent--;
                                 post_indent++;
                             }
                             break;
-                        case STATE_ELSE:
+                        case STAUI_ELSE:
                             if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_ELSE))
                             {
                                 pre_indent--;
                                 post_indent++;
                             }
                             break;
-                        case STATE_SUB:
-                        case STATE_LOOP:
-                        case STATE_SELECT:
+                        case STAUI_SUB:
+                        case STAUI_LOOP:
+                        case STAUI_SELECT:
                             post_indent++;
                             break;
-                        case STATE_CASE:
+                        case STAUI_CASE:
                             pre_indent--;
                             post_indent++;
                             break;
-                        case STATE_END:
+                        case STAUI_END:
                             pre_indent--;
                             break;
                         default:
@@ -445,84 +445,84 @@ static IDE_line buf2line (IDE_editor ed)
 
                     switch (state)
                     {
-                        case STATE_IDLE:
+                        case STAUI_IDLE:
                             if (tkn->u.sym == S_IF)
                             {
-                                state = STATE_IF;
+                                state = STAUI_IF;
                             }
                             else if (tkn->u.sym == S_ELSEIF)
                             {
-                                state = STATE_ELSEIF;
+                                state = STAUI_ELSEIF;
                             }
                             else if (tkn->u.sym == S_ELSE)
                             {
-                                state = STATE_ELSE;
+                                state = STAUI_ELSE;
                             }
                             else if (tkn->u.sym == S_END)
                             {
-                                state = STATE_END;
+                                state = STAUI_END;
                             }
                             else if (tkn->u.sym == S_SUB)
                             {
-                                state = STATE_SUB;
+                                state = STAUI_SUB;
                             }
                             else if (tkn->u.sym == S_FUNCTION)
                             {
-                                state = STATE_SUB;
+                                state = STAUI_SUB;
                             }
                             else if (tkn->u.sym == S_FOR)
                             {
-                                state = STATE_LOOP;
+                                state = STAUI_LOOP;
                             }
                             else if (tkn->u.sym == S_DO)
                             {
-                                state = STATE_LOOP;
+                                state = STAUI_LOOP;
                             }
                             else if (tkn->u.sym == S_WHILE)
                             {
-                                state = STATE_LOOP;
+                                state = STAUI_LOOP;
                             }
                             else if (tkn->u.sym == S_NEXT)
                             {
-                                state = STATE_END;
+                                state = STAUI_END;
                             }
                             else if (tkn->u.sym == S_LOOP)
                             {
-                                state = STATE_END;
+                                state = STAUI_END;
                             }
                             else if (tkn->u.sym == S_WEND)
                             {
-                                state = STATE_END;
+                                state = STAUI_END;
                             }
                             else if (tkn->u.sym == S_SELECT)
                             {
-                                state = STATE_SELECT;
+                                state = STAUI_SELECT;
                             }
                             else if (tkn->u.sym == S_CASE)
                             {
-                                state = STATE_CASE;
+                                state = STAUI_CASE;
                             }
                             break;
-                        case STATE_IF:
+                        case STAUI_IF:
                             if (tkn->u.sym == S_THEN)
                             {
-                                state = STATE_THEN;
+                                state = STAUI_THEN;
                             }
                             break;
-                        case STATE_ELSEIF:
+                        case STAUI_ELSEIF:
                             if (tkn->u.sym == S_THEN)
                             {
-                                state = STATE_ELSEIFTHEN;
+                                state = STAUI_ELSEIFTHEN;
                             }
                             break;
-                        case STATE_THEN:
-                        case STATE_ELSEIFTHEN:
-                        case STATE_ELSE:
-                        case STATE_END:
-                        case STATE_SUB:
-                        case STATE_LOOP:
-                        case STATE_SELECT:
-                        case STATE_CASE:
+                        case STAUI_THEN:
+                        case STAUI_ELSEIFTHEN:
+                        case STAUI_ELSE:
+                        case STAUI_END:
+                        case STAUI_SUB:
+                        case STAUI_LOOP:
+                        case STAUI_SELECT:
+                        case STAUI_CASE:
                             break;
                         default:
                             assert(FALSE);
@@ -899,14 +899,14 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 {
     // FIXME: horizontal scroll
 
-    TE_moveCursor (row, 1);
+    UI_moveCursor (row, 1);
 
     char s=STYLE_NORMAL;
-    TE_setTextStyle (TE_STYLE_NORMAL);
+    UI_setTextStyle (UI_STYLE_NORMAL);
 
     for (uint16_t i=0; i<indent; i++)
     {
-        TE_putstr ("    ");
+        UI_putstr ("    ");
     }
 
     for (uint16_t i=0; i<len; i++)
@@ -918,24 +918,24 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
             switch (s2)
             {
                 case STYLE_NORMAL:
-                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    UI_setTextStyle (UI_STYLE_NORMAL);
                     break;
                 case STYLE_KW:
-                    TE_setTextStyle (TE_STYLE_NORMAL);
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_BLACK);
+                    UI_setTextStyle (UI_STYLE_NORMAL);
+                    UI_setTextStyle (UI_STYLE_BOLD);
+                    UI_setTextStyle (UI_STYLE_BLACK);
                     break;
                 case STYLE_STRING:
-                    TE_setTextStyle (TE_STYLE_NORMAL);
-                    TE_setTextStyle (TE_STYLE_BLUE);
+                    UI_setTextStyle (UI_STYLE_NORMAL);
+                    UI_setTextStyle (UI_STYLE_BLUE);
                     break;
                 case STYLE_NUMBER:
-                    TE_setTextStyle (TE_STYLE_NORMAL);
-                    TE_setTextStyle (TE_STYLE_BLUE);
+                    UI_setTextStyle (UI_STYLE_NORMAL);
+                    UI_setTextStyle (UI_STYLE_BLUE);
                     break;
                 case STYLE_COMMENT:
-                    TE_setTextStyle (TE_STYLE_ITALICS);
-                    TE_setTextStyle (TE_STYLE_BLUE);
+                    UI_setTextStyle (UI_STYLE_ITALICS);
+                    UI_setTextStyle (UI_STYLE_BLUE);
                     break;
                 default:
                     assert(FALSE);
@@ -944,23 +944,23 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
             switch (s2)
             {
                 case STYLE_NORMAL:
-                    TE_setTextStyle (TE_STYLE_NORMAL);
+                    UI_setTextStyle (UI_STYLE_NORMAL);
                     break;
                 case STYLE_KW:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_YELLOW);
+                    UI_setTextStyle (UI_STYLE_BOLD);
+                    UI_setTextStyle (UI_STYLE_YELLOW);
                     break;
                 case STYLE_STRING:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_MAGENTA);
+                    UI_setTextStyle (UI_STYLE_BOLD);
+                    UI_setTextStyle (UI_STYLE_MAGENTA);
                     break;
                 case STYLE_NUMBER:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_MAGENTA);
+                    UI_setTextStyle (UI_STYLE_BOLD);
+                    UI_setTextStyle (UI_STYLE_MAGENTA);
                     break;
                 case STYLE_COMMENT:
-                    TE_setTextStyle (TE_STYLE_BOLD);
-                    TE_setTextStyle (TE_STYLE_BLUE);
+                    UI_setTextStyle (UI_STYLE_BOLD);
+                    UI_setTextStyle (UI_STYLE_BLUE);
                     break;
                 default:
                     assert(FALSE);
@@ -968,14 +968,14 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 #endif
             s = s2;
         }
-        TE_putc (buf[i]);
+        UI_putc (buf[i]);
     }
-    TE_eraseToEOL();
+    UI_eraseToEOL();
 }
 
 static void repaint (IDE_editor ed)
 {
-    TE_setCursorVisible (FALSE);
+    UI_setCursorVisible (FALSE);
 
     // cache first visible line for speed
     if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
@@ -1059,26 +1059,26 @@ static void repaint (IDE_editor ed)
     if (update_infoline)
     {
         LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
-        TE_setTextStyle (TE_STYLE_NORMAL);
-        TE_setTextStyle (TE_STYLE_INVERSE);
-        TE_moveCursor   (ed->infoline_row+1, 1);
+        UI_setTextStyle (UI_STYLE_NORMAL);
+        UI_setTextStyle (UI_STYLE_INVERSE);
+        UI_moveCursor   (ed->infoline_row+1, 1);
         char *c = ed->infoline;
         int col = 0;
         while (*c && col < ed->window_width)
         {
-            TE_putc (*c++);
+            UI_putc (*c++);
             col++;
         }
         while (col < ed->window_width)
         {
-            TE_putc (' ');
+            UI_putc (' ');
             col++;
         }
-        TE_setTextStyle (TE_STYLE_NORMAL);
+        UI_setTextStyle (UI_STYLE_NORMAL);
     }
 
-    TE_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
-    TE_setCursorVisible (TRUE);
+    UI_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
+    UI_setCursorVisible (TRUE);
 }
 
 static void enterKey (IDE_editor ed)
@@ -1234,7 +1234,7 @@ static void IDE_exit (IDE_editor ed)
 {
     if (ed->changed)
     {
-        if (TE_EZRequest ("Save changes to disk?", "Yes|No"))
+        if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
             IDE_save(ed);
     }
     exit(0);
@@ -1242,7 +1242,7 @@ static void IDE_exit (IDE_editor ed)
 
 static void show_help(IDE_editor ed)
 {
-    TE_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
+    UI_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
                   "F1     - this help screen\n"
                   "S-UP   - page up\n"
                   "S-DOWN - page down\n"
@@ -1269,7 +1269,7 @@ static void compile(IDE_editor ed)
                /*asm_vasm_fn=*/ NULL);
 
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
-    TE_waitkey ();
+    UI_waitkey ();
 
     if (EM_anyErrors)
     {
@@ -1277,7 +1277,7 @@ static void compile(IDE_editor ed)
         ed->il_show_error = TRUE;
     }
 
-    TE_eraseDisplay ();
+    UI_eraseDisplay ();
     invalidateAll (ed);
 }
 
@@ -1289,9 +1289,9 @@ static void compileAndRun(IDE_editor ed)
     RUN_run (ed->binfn);
 
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
-    TE_waitkey ();
+    UI_waitkey ();
 
-    TE_eraseDisplay ();
+    UI_eraseDisplay ();
     invalidateAll (ed);
 }
 
@@ -1303,7 +1303,7 @@ static void size_cb (void *user_data)
     invalidateAll (ed);
     scroll(ed);
     repaint(ed);
-    TE_flush();
+    UI_flush();
 }
 
 static void key_cb (uint16_t key, void *user_data)
@@ -1370,14 +1370,14 @@ static void key_cb (uint16_t key, void *user_data)
 
         default:
             if (!insertChar(ed, (uint8_t) key))
-                TE_bell();
+                UI_bell();
             break;
 
     }
 
     scroll(ed);
     repaint(ed);
-    TE_flush();
+    UI_flush();
 }
 
 IDE_editor openEditor(void)
@@ -1511,35 +1511,35 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_end(args);
 	if (lvl >= LOG_INFO)
     {
-        //TE_scrollUp (/*fullscreen=*/TRUE);
-        //TE_moveCursor (g_ed->window_height+1, 0);
-        //TE_eraseToEOL ();
-        //TE_moveCursor (g_ed->window_height, 0);
+        //UI_scrollUp (/*fullscreen=*/TRUE);
+        //UI_moveCursor (g_ed->window_height+1, 0);
+        //UI_eraseToEOL ();
+        //UI_moveCursor (g_ed->window_height, 0);
 
         uint16_t col = 0;
         for (int i =0; i<l; i++)
         {
             if (col >= g_ed->window_width)
             {
-                TE_scrollUp (/*fullscreen=*/TRUE);
-                TE_moveCursor (g_ed->window_height+1, 0);
-                TE_eraseToEOL ();
+                UI_scrollUp (/*fullscreen=*/TRUE);
+                UI_moveCursor (g_ed->window_height+1, 0);
+                UI_eraseToEOL ();
                 col = 0;
             }
             char c = buf[i];
             if (c=='\n')
             {
-                TE_scrollUp (/*fullscreen=*/TRUE);
-                TE_moveCursor (g_ed->window_height+1, 0);
-                TE_eraseToEOL ();
+                UI_scrollUp (/*fullscreen=*/TRUE);
+                UI_moveCursor (g_ed->window_height+1, 0);
+                UI_eraseToEOL ();
             }
             else
             {
-                TE_putc(c);
+                UI_putc(c);
                 col++;
             }
         }
-        TE_flush();
+        UI_flush();
     }
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);
@@ -1551,7 +1551,7 @@ static void IDE_deinit(void)
 {
     LOG_printf (LOG_DEBUG, "IDE_deinit.\n");
     U_deinit();
-    TE_deinit();
+    UI_deinit();
 #if LOG_LEVEL == LOG_DEBUG
 	fclose (logf);
 #endif
@@ -1560,7 +1560,7 @@ static void IDE_deinit(void)
 void IDE_open (string sourcefn, string module_name)
 {
     //OPT_set (OPTION_VERBOSE, TRUE);
-    TE_init();
+    UI_init();
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
     logf = fopen (LOG_FILENAME, "a");
@@ -1589,15 +1589,15 @@ void IDE_open (string sourcefn, string module_name)
 
     IDE_load (g_ed, sourcefn, module_name);
 
-    TE_setCursorVisible (FALSE);
-    TE_moveCursor (0, 0);
-    TE_eraseDisplay();
+    UI_setCursorVisible (FALSE);
+    UI_moveCursor (0, 0);
+    UI_eraseDisplay();
     repaint(g_ed);
-    TE_flush();
+    UI_flush();
 
-	TE_onKeyCall(key_cb, g_ed);
-    TE_onSizeChangeCall (size_cb, g_ed);
+	UI_onKeyCall(key_cb, g_ed);
+    UI_onSizeChangeCall (size_cb, g_ed);
 
-	TE_run();
+	UI_run();
 }
 
