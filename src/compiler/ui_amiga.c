@@ -23,20 +23,20 @@
 #include <clib/dos_protos.h>
 #include <clib/intuition_protos.h>
 #include <clib/graphics_protos.h>
-#include <clib/mathffp_protos.h>
+//#include <clib/mathffp_protos.h>
 #include <clib/console_protos.h>
 
 #include <inline/exec.h>
 #include <inline/dos.h>
 #include <inline/intuition.h>
 #include <inline/graphics.h>
-#include <inline/mathffp.h>
+//#include <inline/mathffp.h>
 
 #include <libraries/reqtools.h>
 #include <inline/reqtools.h>
 
 extern struct ExecBase      *SysBase;
-//extern struct DOSBase       *DOSBase;
+extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 struct ReqToolsBase         *ReqToolsBase;
@@ -160,10 +160,29 @@ static LONG con_may_get_char(struct MsgPort *msgport, UBYTE *whereto)
     queue_read(readreq, whereto);     /* then re-use the request block */
     return temp;
 }
+#define MAX_ALERT_BUF 1024
 static void cleanexit (char *s, uint32_t n)
 {
     if (s)
+    {
+        if (IntuitionBase)
+        {
+
+            static char alertBuf[MAX_ALERT_BUF];
+            snprintf (alertBuf, MAX_ALERT_BUF, "xxx%sxxxxPRESS LEFT MOUSE BUTTON TO CONTINUExx", s);
+
+            int alertlen = strlen (alertBuf);
+            int l = strlen(s);
+            alertBuf[0]=0; alertBuf[1]=0x80; alertBuf[2]=0x14; // first line coords
+            alertBuf[2+l]   = 0; // first line terminator
+            alertBuf[2+l+1] = 1; // continuation byte
+            alertBuf[2+l+2]=0; alertBuf[2+l+3]=0x80; alertBuf[2+l+4]=0x24; // second line coords
+            alertBuf[alertlen-2]=0; // termination
+
+            DisplayAlert(RECOVERY_ALERT, (STRPTR) alertBuf, alertlen);
+        }
         printf(s);
+    }
     exit(n);
 }
 static BYTE OpenConsole(void)
@@ -344,9 +363,10 @@ void UI_deinit(void)
         delete_port(g_writePort);
     if (ReqToolsBase)
         CloseLibrary((struct Library *)ReqToolsBase);
-    //if (IntuitionBase)
-    //    CloseLibrary((struct Library *)IntuitionBase);
-	//printf ("UI_deinit() complete.\n");
+    if (IntuitionBase)
+        CloseLibrary((struct Library *)IntuitionBase);
+    if (GfxBase)
+        CloseLibrary((struct Library *)GfxBase);
 }
 
 static UBYTE g_ibuf;
@@ -354,8 +374,10 @@ static UBYTE g_ibuf;
 bool UI_init (void)
 {
     SysBase = *(APTR *)4L;
-    //if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library", 36)))
-    //     cleanexit("Can't open intuition.library\n", RETURN_FAIL);
+    if (!(IntuitionBase = (struct IntuitionBase *) OpenLibrary ((STRPTR)"intuition.library", 38)))
+         cleanexit("Can't open intuition.library V38+\n", RETURN_FAIL);
+    if (!(GfxBase = (struct GfxBase *) OpenLibrary ((STRPTR)"graphics.library", 38)))
+         cleanexit("Can't open graphics.library V38+\n", RETURN_FAIL);
     if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
     if (!(g_writePort = create_port((STRPTR)"AQB.console.write",0)))

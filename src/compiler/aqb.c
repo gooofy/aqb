@@ -25,6 +25,9 @@
 #include <libgen.h>
 
 #ifdef __amigaos__
+
+#include "stabs.h"
+
 #include <exec/types.h>
 #include <exec/memory.h>
 
@@ -71,6 +74,26 @@ static void print_usage(char *argv[])
 #ifdef __amigaos__
 
 #define MIN_STACKSIZE 64*1024
+
+// FIXME unsigned long __stack=MIN_STACKSIZE;
+
+extern struct WBStartup *_WBenchMsg;
+
+// libnix stdio needs the DOS library to be opened very early
+
+void __opendos(void)
+{
+	DOSBase = (struct DOSBase *) OpenLibrary ((STRPTR)"dos.library", 0);
+}
+
+void __closedos(void)
+{
+	if (DOSBase)
+		CloseLibrary((struct Library *)DOSBase);
+}
+
+ADD2INIT(__opendos, -100);
+ADD2INIT(__closedos, -100);
 
 static void check_stacksize(void)
 {
