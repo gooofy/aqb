@@ -167,7 +167,7 @@ static void cleanexit (char *s, uint32_t n)
 {
     if (s)
     {
-        printf(s);
+        printf("%s\n", s);
         __request(s);
     }
     exit(n);
@@ -360,10 +360,10 @@ bool UI_init (void)
 
     // check library versions
 
-    if ( ((struct Library *)IntuitionBase)->lib_Version < 137)
-         cleanexit("intuition library is too old, need at least V37\n", RETURN_FAIL);
-    if ( ((struct Library *)GfxBase)->lib_Version < 137)
-         cleanexit("graphics library is too old, need at least V37\n", RETURN_FAIL);
+    if ( ((struct Library *)IntuitionBase)->lib_Version < 37)
+         cleanexit("intuition library is too old, need at least V37", RETURN_FAIL);
+    if ( ((struct Library *)GfxBase)->lib_Version < 37)
+         cleanexit("graphics library is too old, need at least V37", RETURN_FAIL);
     if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
     if (!(g_writePort = create_port((STRPTR)"AQB.console.write",0)))
