@@ -167,23 +167,8 @@ static void cleanexit (char *s, uint32_t n)
 {
     if (s)
     {
-        if (IntuitionBase)
-        {
-
-            static char alertBuf[MAX_ALERT_BUF];
-            snprintf (alertBuf, MAX_ALERT_BUF, "xxx%sxxxxPRESS LEFT MOUSE BUTTON TO CONTINUExx", s);
-
-            int alertlen = strlen (alertBuf);
-            int l = strlen(s);
-            alertBuf[0]=0; alertBuf[1]=0x80; alertBuf[2]=0x14; // first line coords
-            alertBuf[2+l]   = 0; // first line terminator
-            alertBuf[2+l+1] = 1; // continuation byte
-            alertBuf[2+l+2]=0; alertBuf[2+l+3]=0x80; alertBuf[2+l+4]=0x24; // second line coords
-            alertBuf[alertlen-2]=0; // termination
-
-            DisplayAlert(RECOVERY_ALERT, (STRPTR) alertBuf, alertlen);
-        }
         printf(s);
+        __request(s);
     }
     exit(n);
 }
@@ -375,16 +360,10 @@ bool UI_init (void)
 
     // check library versions
 
-    if ( ((struct Library *)IntuitionBase)->lib_Version < 38)
-    {
-        __request ("intuition library is too old, need at least V38");
-        exit(1);
-    }
-    if ( ((struct Library *)GfxBase)->lib_Version < 38)
-    {
-        __request ("graphics library is too old, need at least V38");
-        exit(1);
-    }
+    if ( ((struct Library *)IntuitionBase)->lib_Version < 137)
+         cleanexit("intuition library is too old, need at least V37\n", RETURN_FAIL);
+    if ( ((struct Library *)GfxBase)->lib_Version < 137)
+         cleanexit("graphics library is too old, need at least V37\n", RETURN_FAIL);
     if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library\n", RETURN_FAIL);
     if (!(g_writePort = create_port((STRPTR)"AQB.console.write",0)))

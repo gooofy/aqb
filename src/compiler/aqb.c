@@ -87,43 +87,10 @@ static void check_amigaos_env(void)
      * check minimum library versions
      */
 
-    if ( ((struct Library *)DOSBase)->lib_Version < 38)
+    if ( ((struct Library *)DOSBase)->lib_Version < 37)
     {
         __request ("DOS library is too old, need at least V38");
         exit(1);
-    }
-
-    /*
-     * check stack size
-     */
-
-    struct Process *pr;
-    struct CommandLineInterface *CLI;
-    ULONG stack;
-
-    pr = (struct Process *) FindTask (0L);
-    if ( (CLI = (struct CommandLineInterface *) (pr->pr_CLI << 2)) )
-    {
-        stack = CLI->cli_DefaultStack << 2;
-        printf ("1\n");
-    }
-    else
-    {
-        stack = pr->pr_StackSize;
-    }
-
-	ULONG size;
-	size = (char *)pr->pr_Task.tc_SPUpper - (char *)pr->pr_Task.tc_SPLower;
-	if (pr->pr_CLI)
-		size = *(ULONG *)pr->pr_ReturnAddr;
-
-    printf ("pr->pr_StackSize=%ld, size=%ld\n", pr->pr_StackSize, size);
-    if (stack < MIN_STACKSIZE)
-    {
-        static char buf[255];
-        snprintf (buf, 255, "stack size of %ld bytes is too small, need at least %d bytes.\n", stack, MIN_STACKSIZE);
-        __request(buf);
-        exit(EXIT_FAILURE);
     }
 }
 #endif
