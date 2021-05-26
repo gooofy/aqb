@@ -1085,7 +1085,7 @@ static void repaint (IDE_editor ed)
 static void enterKey (IDE_editor ed)
 {
     // split line ?
-    uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len;
+    uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
     if (ed->cursor_col < l-1)
     {
         if (!ed->editing)
