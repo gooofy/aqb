@@ -15,7 +15,7 @@
 typedef void (*LOG_cb_t)(uint8_t lvl, char *fmt, ...);
 extern LOG_cb_t LOG_cb;
 
-#define LOG_printf(lvl, ...) do { if (lvl >= LOG_LEVEL) LOG_cb(lvl, __VA_ARGS__); } while (0)
+#define LOG_printf(lvl, ...) do { if ((lvl >= LOG_LEVEL) && LOG_cb) LOG_cb(lvl, __VA_ARGS__); } while (0)
 
 void LOG_init (LOG_cb_t cb);
 
