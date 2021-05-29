@@ -106,14 +106,14 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, 0,},
 
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Custom Screen",       0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Custom Screen",       0 , CHECKIT | MENUTOGGLE, 0, 0,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
-        {   NM_SUB, (STRPTR) "Super dark blue",     0 , 0, 0, (APTR)KEY_COLORSCHEME_0,},
-        {   NM_SUB, (STRPTR) "Dark blue",           0 , 0, 0, (APTR)KEY_COLORSCHEME_1,},
-        {   NM_SUB, (STRPTR) "QB64 Original",       0 , 0, 0, (APTR)KEY_COLORSCHEME_2,},
-        {   NM_SUB, (STRPTR) "Classic QB4.5",       0 , 0, 0, (APTR)KEY_COLORSCHEME_3,},
-        {   NM_SUB, (STRPTR) "CF Dark",             0 , 0, 0, (APTR)KEY_COLORSCHEME_4,},
-        {   NM_SUB, (STRPTR) "Dark side",           0 , 0, 0, (APTR)KEY_COLORSCHEME_5,},
+        {   NM_SUB, (STRPTR) "Super dark blue",     0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
+        {   NM_SUB, (STRPTR) "Dark blue",           0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
+        {   NM_SUB, (STRPTR) "QB64 Original",       0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_COLORSCHEME_2,},
+        {   NM_SUB, (STRPTR) "Classic QB4.5",       0 , CHECKIT | MENUTOGGLE,  ~8, (APTR)KEY_COLORSCHEME_3,},
+        {   NM_SUB, (STRPTR) "CF Dark",             0 , CHECKIT | MENUTOGGLE, ~16, (APTR)KEY_COLORSCHEME_4,},
+        {   NM_SUB, (STRPTR) "Dark side",           0 , CHECKIT | MENUTOGGLE, ~32, (APTR)KEY_COLORSCHEME_5,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
