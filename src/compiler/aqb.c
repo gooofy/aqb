@@ -77,11 +77,7 @@ static void print_usage(char *argv[])
 
 #define MIN_STACKSIZE 64*1024
 
-unsigned long __stack=MIN_STACKSIZE;
-
 extern struct WBStartup *_WBenchMsg;
-
-void __request (string msg);
 
 static void check_amigaos_env(void)
 {
@@ -91,8 +87,27 @@ static void check_amigaos_env(void)
 
     if ( ((struct Library *)DOSBase)->lib_Version < 37)
     {
-        __request ("DOS library is too old, need at least V38");
+        U_request (NULL, NULL, "OK", "DOS library V%d is too old, need at least V37", ((struct Library *)DOSBase)->lib_Version);
         exit(1);
+    }
+
+    struct Process *Process;
+    struct CommandLineInterface *CLI;
+    ULONG stack;
+
+    Process = (struct Process *) FindTask (0L);
+    if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+    {
+        stack = CLI -> cli_DefaultStack << 2;
+    }
+    else
+    {
+        stack = Process -> pr_StackSize;
+    }
+    if (stack < MIN_STACKSIZE)
+    {
+        U_request (NULL, NULL, "OK", "stack of %ld bytes is too small, need at least %d bytes.", stack, MIN_STACKSIZE);
+        exit(EXIT_FAILURE);
     }
 }
 #endif

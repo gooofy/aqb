@@ -14,15 +14,19 @@
 #ifdef __amigaos__
 #include <exec/types.h>
 #include <exec/memory.h>
+#include <exec/execbase.h>
 
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
+#include <clib/intuition_protos.h>
 
 #include <inline/exec.h>
 #include <inline/dos.h>
+#include <inline/intuition.h>
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
+extern struct IntuitionBase *IntuitionBase;
 
 #endif
 
@@ -566,6 +570,32 @@ void U_delay (uint16_t millis)
     Delay (millis / 20);
 #endif
 }
+
+#ifdef __amigaos__
+bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ...)
+{
+    assert (negTxt);
+    static struct IntuiText itBody = { 0, 0, 0, 15, 5, NULL, NULL, NULL };
+    static struct IntuiText itPos  = { 0, 0, 0, 6, 3, NULL, NULL, NULL };
+    static struct IntuiText itNeg  = { 0, 0, 0, 6, 3, NULL, NULL, NULL };
+    static char buf[1024];
+    va_list args;
+
+    va_start(args, format);
+    vsnprintf (buf, 1024, format, args);
+    va_end(args);
+
+    bool res = FALSE;
+
+    itBody.IText = (STRPTR) buf;
+    itNeg.IText  = (STRPTR) negTxt;
+    itPos.IText  = (STRPTR) posTxt;
+    res = AutoRequest(win, &itBody, posTxt ? &itPos : NULL, &itNeg, 0, 0, 640, 72);
+
+    return res;
+}
+#endif
+
 
 void U_deinit (void)
 {

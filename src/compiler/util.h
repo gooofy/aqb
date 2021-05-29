@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#ifdef __amigaos__
+#include <intuition/intuition.h>
+#endif
+
 typedef char *string;
 typedef char bool;
 
@@ -133,6 +137,11 @@ void     U_float2str(double v, char *buffer, int buf_len);
  */
 
 void     U_delay    (uint16_t millis);
+
+#ifdef __amigaos__
+bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ...);
+#endif
+
 
 void     U_init     (void);
 void     U_deinit   (void);

@@ -63,8 +63,6 @@ static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
 static UBYTE           g_ibuf;
 
-void __request (string msg);
-
 #define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
                     /*(l)->lh_Tail = NULL,*/ \
                     (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
@@ -269,7 +267,7 @@ static void cleanexit (char *s, uint32_t n)
     if (s)
     {
         printf("%s\n", s);
-        __request(s);
+        U_request(NULL, NULL, "OK", "%s", s);
     }
     exit(n);
 }
