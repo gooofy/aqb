@@ -1,10 +1,9 @@
 #ifdef __amigaos__
 
-#include "ui.h"
+#define INTUI_V36_NAMES_ONLY
 
 #include <stdlib.h>
 #include <stdarg.h>
-#include "logger.h"
 
 #include <exec/types.h>
 #include <exec/memory.h>
@@ -35,10 +34,19 @@
 #include <libraries/reqtools.h>
 #include <inline/reqtools.h>
 
+#include <libraries/gadtools.h>
+#include <clib/gadtools_protos.h>
+#include <inline/gadtools.h>
+
+#include "ui.h"
+#include "logger.h"
+#include "options.h"
+
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
+struct Library              *GadToolsBase;
 struct ReqToolsBase         *ReqToolsBase;
 
 #define CSI       "\x9b"
@@ -53,6 +61,7 @@ static UI_key_cb       g_key_cb = NULL;
 static void           *g_key_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
+static UBYTE           g_ibuf;
 
 void __request (string msg);
 
@@ -63,20 +72,52 @@ void __request (string msg);
 static struct NewWindow g_nw =
 {
     0, 0, 640, 200,
-    -1,-1,                            /* detailpen, blockpen */
-    CLOSEWINDOW,                      /* IDCMP */
-    WINDOWDEPTH|WINDOWSIZING|
-    WINDOWDRAG|WINDOWCLOSE|
-    SMART_REFRESH|ACTIVATE,           /* window flags */
+    -1,-1,                               /* detailpen, blockpen */
+    IDCMP_CLOSEWINDOW | IDCMP_MENUPICK,  /* IDCMP */
+    WFLG_DEPTHGADGET   |                 /* window flags */
+	WFLG_SIZEGADGET    |
+    WFLG_DRAGBAR       |
+	WFLG_CLOSEGADGET   |
+    WFLG_SMART_REFRESH |
+	WFLG_ACTIVATE,
     NULL, NULL,
     (uint8_t *) "AQB",
     NULL,
     NULL,
-    100,45,                           /* min width, height */
-    1024, 768,                        /* max width, height */
+    100,45,                              /* min width, height */
+    1280, 1024,                          /* max width, height */
     WBENCHSCREEN
 };
 
+static struct NewMenu g_newmenu[] =
+    {
+        { NM_TITLE, (STRPTR) "Project",             0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Open...",   (STRPTR) "O", 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Save",      (STRPTR) "S", 0, 0, 0,},
+        {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Help...",             0 , 0, 0, (APTR)KEY_F1,},
+        {  NM_ITEM, (STRPTR) "About...",            0 , 0, 0, 0,},
+        {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Quit...",   (STRPTR) "Q", 0, 0, (APTR)KEY_CTRL_C,},
+
+        { NM_TITLE, (STRPTR) "Edit",                0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Cut",       (STRPTR) "X", 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Copy",      (STRPTR) "C", 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, 0,},
+
+        { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Custom Screen",       0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
+        {   NM_SUB, (STRPTR) "Super dark blue",     0 , 0, 0, (APTR)KEY_COLORSCHEME_0,},
+        {   NM_SUB, (STRPTR) "Dark blue",           0 , 0, 0, (APTR)KEY_COLORSCHEME_1,},
+        {   NM_SUB, (STRPTR) "QB64 Original",       0 , 0, 0, (APTR)KEY_COLORSCHEME_2,},
+        {   NM_SUB, (STRPTR) "Classic QB4.5",       0 , 0, 0, (APTR)KEY_COLORSCHEME_3,},
+        {   NM_SUB, (STRPTR) "CF Dark",             0 , 0, 0, (APTR)KEY_COLORSCHEME_4,},
+        {   NM_SUB, (STRPTR) "Dark side",           0 , 0, 0, (APTR)KEY_COLORSCHEME_5,},
+        {   NM_END, NULL, 0 , 0, 0, 0,},
+    };
+
+static struct Screen     *g_screen        = NULL;
 static struct Window     *g_win           = NULL;
 static struct IOStdReq   *g_writeReq      = NULL;
 static struct MsgPort    *g_writePort     = NULL;
@@ -86,7 +127,67 @@ static bool               g_ConOpened     = FALSE;
 static struct FileHandle *g_output        = NULL;
 static struct MsgPort    *g_IOport        = NULL;
 static int                g_termSignalBit = 0;
+static APTR               g_vi            = NULL;
+static struct Menu       *g_menuStrip     = NULL;
 
+#define UI_STYLE_NORMAL     0
+#define UI_STYLE_BOLD       1
+#define UI_STYLE_ITALICS    3
+#define UI_STYLE_UNDERLINE  4
+#define UI_STYLE_INVERSE    7
+
+#define UI_WORKBENCH_GREY   30
+#define UI_WORKBENCH_BLACK  31
+#define UI_WORKBENCH_WHITE  32
+#define UI_WORKBENCH_BLUE   33
+
+typedef struct
+{
+    char   *name;
+    UWORD   palette[8];
+    WORD    pens3d[10];
+} UI_theme_t;
+
+#define NUM_THEMES 6
+
+static UI_theme_t g_themes[NUM_THEMES] = {
+    {
+        "Super dark blue",
+        { 0x0002, 0x0ddd, 0x0479, 0x0d64, 0x0fa0, 0x0666, 0x06ad, 0x0234 },
+        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
+        {          0,        1,       1,        6,         7,       2,           0,             2,                2, -1},
+    },
+    {
+        "Dark blue",
+        { 0x0004, 0x0eee, 0x049d, 0x0f8b, 0x0fb0, 0x03cc, 0x06df, 0x0246 },
+        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
+        {          0,        1,       1,        6,         7,       2,           0,             2,                2, -1},
+    },
+    {
+        "QB64 Original",
+        { 0x000a, 0x0eee, 0x09ce, 0x0f8b, 0x0ff5, 0x05ff, 0x0dff, 0x0467 },
+        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
+        {          0,        1,       7,        6,         7,       2,           0,             2,                2, -1},
+    },
+    {
+        "Classic QB4.5",
+        { 0x000a, 0x0bbb, 0x0bbb, 0x0bbb, 0x0bbb, 0x0bbb, 0x0fff, 0x0555 },
+        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
+        {          0,        1,       7,        6,         7,       2,           0,             2,                2, -1 },
+    },
+    {
+        "CF Dark",
+        { 0x0222, 0x0eee, 0x07de, 0x0f28, 0x0fb2, 0x0978, 0x0aff, 0x0367 },
+        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
+        {          0,        1,       7,        6,         7,       2,           0,             2,                2, -1 },
+    },
+    {
+        "Dark side",
+        { 0x0011, 0x0fff, 0x0cc0, 0x0f06, 0x00b0, 0x03bf, 0x0ff0, 0x0660 },
+        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
+        {          0,        1,       0,        6,         7,       2,           0,             2,                2, -1 },
+    },
+};
 
 static struct MsgPort *create_port(STRPTR name, LONG pri)
 {
@@ -339,7 +440,16 @@ void UI_deinit(void)
     if (g_ConOpened)
         CloseDevice((struct IORequest *)g_writeReq);
     if (g_win)
+	{
+		ClearMenuStrip(g_win);
+		if (g_menuStrip)
+			FreeMenus (g_menuStrip);
         CloseWindow(g_win);
+	}
+	if (g_vi)
+		FreeVisualInfo(g_vi);
+	if (g_screen)
+		CloseScreen (g_screen);
     if (g_readReq)
         delete_ext_io((struct IORequest *)g_readReq);
     if (g_readPort)
@@ -352,7 +462,22 @@ void UI_deinit(void)
         CloseLibrary((struct Library *)ReqToolsBase);
 }
 
-static UBYTE g_ibuf;
+void UI_setColorScheme (int scheme)
+{
+    //LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", scheme);
+    if (g_screen)
+    {
+        UI_theme_t *theme = &g_themes[scheme];
+        for (uint16_t i=0; i<8; i++)
+        {
+            UBYTE r = theme->palette[i]>>8;
+            UBYTE g = (theme->palette[i]>>4) & 0xf;
+            UBYTE b = theme->palette[i] & 0xf;
+            // LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d): %d -> %d/%d/%d\n", scheme, i, r, g, b);
+            SetRGB4 (&g_screen->ViewPort, i, r, g, b);
+        }
+    }
+}
 
 bool UI_init (void)
 {
@@ -377,31 +502,74 @@ bool UI_init (void)
 
     struct Screen *sc = LockPubScreen (NULL); // default public screen
     if (!sc)
-         cleanexit("Failed to lock default public screen\n", RETURN_FAIL);
+         cleanexit("Failed to lock default public screen", RETURN_FAIL);
 
-	// determine (visible) screen size and open full screen window on it
+	// determine screen size
+	ULONG mid = GetVPModeID(&sc->ViewPort);
 
-    ULONG mid = GetVPModeID(&sc->ViewPort);
-    struct DimensionInfo di;
+	struct DimensionInfo di;
 	if (!GetDisplayInfoData(NULL, (APTR)&di, sizeof(di), DTAG_DIMS, mid))
-         cleanexit("Failed to retrieve display info data\n", RETURN_FAIL);
+		 cleanexit("Failed to retrieve display info data", RETURN_FAIL);
 
-    //printf ("ui: workbench screen size is %d x %d (TxtOScan: (%d / %d) - (%d / %d)\n", (int)sc->Width, (int)sc->Height,
-    //        (int)di.TxtOScan.MinX, (int)di.TxtOScan.MinY, (int)di.TxtOScan.MaxX, (int)di.TxtOScan.MaxY);
+	//printf ("ui: workbench screen size is %d x %d (TxtOScan: (%d / %d) - (%d / %d)\n", (int)sc->Width, (int)sc->Height,
+	//        (int)di.TxtOScan.MinX, (int)di.TxtOScan.MinY, (int)di.TxtOScan.MaxX, (int)di.TxtOScan.MaxY);
 
 	WORD maxW = di.TxtOScan.MaxX - di.TxtOScan.MinX + 1;
 	WORD maxH = di.TxtOScan.MaxY - di.TxtOScan.MinY + 1;
 
-	g_nw.Width = sc->Width > maxW ? maxW : sc->Width;
-	g_nw.Height = sc->Height > maxH ? maxH : sc->Height;
+	WORD visWidth = sc->Width > maxW ? maxW : sc->Width;
+	WORD visHeight = sc->Height > maxH ? maxH : sc->Height;
 
-    if (!(g_win = OpenWindow(&g_nw)))
-         cleanexit("Can't open window\n", RETURN_FAIL);
+	if (!OPT_prefGetInt (OPT_PREF_CUSTOMSCREEN))
+	{
+		// open a full screen window
+
+		g_nw.Width  = visWidth;
+		g_nw.Height = visHeight;
+
+		if (!(g_win = OpenWindow(&g_nw)))
+			 cleanexit("Can't open window", RETURN_FAIL);
+
+	}
+	else
+	{
+		// open a custom screen that is a clone of the public screen, but has 8 colors and our font
+
+        UI_theme_t *theme = &g_themes[1];
+
+		g_screen = OpenScreenTags(NULL,
+			                      SA_Width,      visWidth,
+			                      SA_Height,     visHeight,
+			                      SA_Depth,      3,
+			                      SA_Overscan,   OSCAN_TEXT,
+			                      SA_AutoScroll, TRUE,
+			                      SA_DisplayID,  mid,
+			                      SA_Title,      (ULONG) (STRPTR) "AQB Screen",
+                                  SA_Pens,       (ULONG) theme->pens3d,
+			                      TAG_END);
+		if (!g_screen)
+			 cleanexit("Can't open screen", RETURN_FAIL);
+
+		UI_setColorScheme(1);
+
+		if (!(g_win = OpenWindowTags(NULL,
+									 WA_Top,           g_screen->BarHeight+1,
+                                     WA_Width,         visWidth,
+									 WA_Height,        visHeight-g_screen->BarHeight-1,
+								     WA_IDCMP,         IDCMP_MENUPICK,
+								     WA_CustomScreen,  (ULONG) g_screen,
+									 WA_Backdrop,      TRUE,
+									 WA_SimpleRefresh, TRUE,
+									 WA_Activate,      TRUE,
+								     WA_Borderless,    TRUE)))
+			 cleanexit("Can't open window", RETURN_FAIL);
+	}
 
     UnlockPubScreen(NULL, sc);
 
+
     if (OpenConsole ())
-         cleanexit("Can't open console.device\n", RETURN_FAIL);
+         cleanexit("Can't open console.device", RETURN_FAIL);
     g_ConOpened = TRUE;
 
     UI_putstr(CSI "12{"); /* window resize events activated */
@@ -413,16 +581,10 @@ bool UI_init (void)
     /* prepare fake i/o filehandles (for IDE console redirection) */
 
 	if ( !(g_output = AllocMem (sizeof(struct FileHandle), MEMF_CLEAR|MEMF_PUBLIC)) )
-	{
-		LOG_printf (LOG_ERROR, "run: failed to allocate memory for output file handle!\n");
-		exit(24);
-	}
+		cleanexit("failed to allocate memory for output file handle", RETURN_FAIL);
 
 	if (!(g_IOport = create_port ((STRPTR) "aqb_io_port", 0)))
-	{
-		LOG_printf (LOG_ERROR, "run: failed to create i/o port!\n");
-		exit(25);
-	}
+		cleanexit("failed to create i/o port", RETURN_FAIL);
 
 	g_output->fh_Type = g_IOport;
 	g_output->fh_Port = 0;
@@ -431,10 +593,20 @@ bool UI_init (void)
 
 	g_termSignalBit = AllocSignal(-1);
 	if (g_termSignalBit == -1)
-	{
-		LOG_printf (LOG_ERROR, "run: failed to allocate signal bit!\n");
-		exit(23);
-	}
+		cleanexit("failed to allocate signal bit", RETURN_FAIL);
+
+	/*
+     * menu
+     */
+
+    if (!(g_vi = GetVisualInfo(g_win->WScreen, TAG_END)))
+		cleanexit ("failed to get screen visual info", RETURN_FAIL);
+	if (!(g_menuStrip = CreateMenus(g_newmenu, TAG_END)))
+		cleanexit("failed to create menu", RETURN_FAIL);
+	if (!LayoutMenus(g_menuStrip, g_vi, TAG_END))
+		cleanexit("failed to layout menu", RETURN_FAIL);
+	if (!SetMenuStrip(g_win, g_menuStrip))
+		cleanexit("failed to set menu strip", RETURN_FAIL);
 
 	return TRUE;
 }
@@ -485,10 +657,19 @@ static uint16_t nextKey(void)
                 switch (g_esc_state)
                 {
                     case ESC_idle:
-                        if ((ch==0x9b)||(ch==0x1b))
-                            g_esc_state = ESC_esc1;
-                        else
-                            return ch;
+						switch (ch)
+						{
+							case 0x9b:
+							case 0x1b:
+								g_esc_state = ESC_esc1;
+								break;
+							case 0x14:
+								return KEY_GOTO_BOF;
+							case 0x02:
+								return KEY_GOTO_EOF;
+							default:
+								return ch;
+						}
                         break;
                     case ESC_esc1:
                         switch (ch)
@@ -625,9 +806,32 @@ static uint16_t nextKey(void)
 			{
                 switch (winmsg->Class)
 				{
-                    case CLOSEWINDOW:
+                    case IDCMP_CLOSEWINDOW:
 						running = FALSE;
 						break;
+
+
+					case IDCMP_MENUPICK:
+					{
+						UWORD menuNumber = winmsg->Code;
+                        //LOG_printf (LOG_DEBUG, "ui_amiga: menu picked, menuNumber=%d\n", menuNumber);
+						while ((menuNumber != MENUNULL))
+						{
+							struct MenuItem *item = ItemAddress(g_menuStrip, menuNumber);
+
+							UWORD menuNum = MENUNUM(menuNumber);
+							UWORD itemNum = ITEMNUM(menuNumber);
+							UWORD subNum  = SUBNUM(menuNumber);
+                            uint32_t k = (uint32_t) GTMENUITEM_USERDATA(item);
+							LOG_printf (LOG_DEBUG, "ui_amiga: menu picked menuNum=%d, itemNum=%d, subNum=%d, userData=%d\n", menuNum, itemNum, subNum, k);
+                            if (k)
+                                return (uint16_t)k;
+
+							menuNumber = item->NextSelect;
+						}
+						break;
+					}
+
                     default:
 						break;
 				}
@@ -653,8 +857,9 @@ void UI_run (void)
 
 uint16_t UI_EZRequest (char *body, char *gadgets)
 {
-	ULONG res = rtEZRequest (body, gadgets, NULL, NULL);
-	LOG_printf (LOG_DEBUG, "rtEZRequest result: %ld\n", res);
+	ULONG tags[] = { RTEZ_ReqTitle, (ULONG)"AQB", RT_Window, (ULONG) g_win, TAG_END };
+	ULONG res = rtEZRequestA (body, gadgets, /*reqinfo=*/NULL, /*argarray=*/NULL, (struct TagItem *)tags);
+	LOG_printf (LOG_DEBUG, "rtEZRequestA result: %ld\n", res);
 	return res;
 }
 
@@ -763,7 +968,71 @@ void UI_setCursorVisible (bool visible)
 
 void UI_setTextStyle (int style)
 {
-    UI_printf ( CSI "%dm", style);
+	if (g_screen)
+	{
+		switch (style)
+		{
+			case UI_TEXT_STYLE_TEXT:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				UI_printf ( CSI "%dm", 31 + style);
+				break;
+			case UI_TEXT_STYLE_KEYWORD:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				//UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+				UI_printf ( CSI "%dm", 31 + style);
+				break;
+			case UI_TEXT_STYLE_NUMBERS:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				UI_printf ( CSI "%dm", 31 + style);
+				break;
+			case UI_TEXT_STYLE_STRING:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				UI_printf ( CSI "%dm", 31 + style);
+				break;
+			case UI_TEXT_STYLE_COMMENT:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				//UI_printf ( CSI "%dm", UI_STYLE_ITALICS);
+				UI_printf ( CSI "%dm", 31 + style);
+				break;
+			case UI_TEXT_STYLE_INVERSE:
+				UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
+				break;
+			default:
+                printf ("UI style %d is unknown.\n", style);
+				assert(FALSE);
+		}
+	}
+	else
+	{
+		switch (style)
+		{
+			case UI_TEXT_STYLE_TEXT:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				break;
+			case UI_TEXT_STYLE_KEYWORD:
+				UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+				UI_printf ( CSI "%dm", UI_WORKBENCH_BLACK);
+				break;
+			case UI_TEXT_STYLE_NUMBERS:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				UI_printf ( CSI "%dm", UI_WORKBENCH_BLUE);
+				break;
+			case UI_TEXT_STYLE_STRING:
+				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+				UI_printf ( CSI "%dm", UI_WORKBENCH_BLUE);
+				break;
+			case UI_TEXT_STYLE_COMMENT:
+				UI_printf ( CSI "%dm", UI_STYLE_ITALICS);
+				UI_printf ( CSI "%dm", UI_WORKBENCH_BLUE);
+				break;
+			case UI_TEXT_STYLE_INVERSE:
+				UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
+				break;
+			default:
+				assert(FALSE);
+		}
+	}
+
 }
 
 void UI_onKeyCall (UI_key_cb cb, void *user_data)

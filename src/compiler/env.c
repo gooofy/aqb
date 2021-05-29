@@ -1081,7 +1081,10 @@ FILE *E_openModuleFile (string filename)
 
         FILE *f = fopen(modfn, "r");
         if (f)
+        {
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s opened for reading\n", modfn);
             return f;
+        }
     }
     return NULL;
 }

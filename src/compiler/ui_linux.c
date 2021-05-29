@@ -15,6 +15,21 @@
 
 #define CSI       "\033["
 
+#define UI_STYLE_NORMAL     0
+#define UI_STYLE_BOLD       1
+#define UI_STYLE_ITALICS    3
+#define UI_STYLE_UNDERLINE  4
+#define UI_STYLE_INVERSE    7
+
+#define UI_STYLE_BLACK     30
+#define UI_STYLE_RED       31
+#define UI_STYLE_GREEN     32
+#define UI_STYLE_YELLOW    33
+#define UI_STYLE_BLUE      34
+#define UI_STYLE_MAGENTA   35
+#define UI_STYLE_CYAN      36
+#define UI_STYLE_WHITE     37
+
 #define BUFSIZE   2048
 static char            g_outbuf[BUFSIZE];
 static int             g_bpos = 0;
@@ -510,7 +525,33 @@ void UI_setCursorVisible (bool visible)
 
 void UI_setTextStyle (int style)
 {
-    UI_printf ( CSI "%dm", style);
+    switch (style)
+    {
+        case UI_TEXT_STYLE_TEXT:
+            UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+            break;
+        case UI_TEXT_STYLE_KEYWORD:
+            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+            UI_printf ( CSI "%dm", UI_STYLE_YELLOW);
+            break;
+        case UI_TEXT_STYLE_NUMBERS:
+            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+            UI_printf ( CSI "%dm", UI_STYLE_MAGENTA);
+            break;
+        case UI_TEXT_STYLE_STRING:
+            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+            UI_printf ( CSI "%dm", UI_STYLE_MAGENTA);
+            break;
+        case UI_TEXT_STYLE_COMMENT:
+            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+            UI_printf ( CSI "%dm", UI_STYLE_BLUE);
+            break;
+        case UI_TEXT_STYLE_INVERSE:
+            UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
+            break;
+        default:
+            assert(FALSE);
+    }
 }
 
 void UI_onKeyCall (UI_key_cb cb, void *user_data)
@@ -519,4 +560,8 @@ void UI_onKeyCall (UI_key_cb cb, void *user_data)
     g_key_cb_user_data = user_data;
 }
 
+void UI_setColorScheme (int scheme)
+{
+    // FIXME: not supported
+}
 #endif

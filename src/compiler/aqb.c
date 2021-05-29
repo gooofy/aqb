@@ -152,9 +152,10 @@ int main (int argc, char *argv[])
     SYM_init();
     FE_boot();
     E_boot();
+    OPT_init();
 
 #ifdef __amigaos__
-    OPT_addModulePath("AQB:lib");
+    OPT_addModulePath("PROGDIR:lib");
 #else
     char *aqb_env = getenv ("AQB");
     if (aqb_env)

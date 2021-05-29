@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "options.h"
 
 static int g_opt=0;
@@ -14,6 +16,22 @@ bool OPT_get(int opt)
 {
     return g_opt & opt;
 }
+
+int OPT_prefGetInt (int pref)
+{
+    // FIXME: just hardcoded defaults, for now
+    switch (pref)
+    {
+        case OPT_PREF_CUSTOMSCREEN:
+            return TRUE;
+        case OPT_PREF_COLORSCHEME:
+            return 0;
+    }
+
+    assert(FALSE);
+    return FALSE;
+}
+
 
 string OPT_default_module = OPT_DEFAULT_MODULE;
 
@@ -40,4 +58,16 @@ void OPT_addModulePath(string path)
 OPT_dirSearchPath OPT_getModulePath (void)
 {
     return g_moduleSP;
+}
+
+void OPT_init(void)
+{
+    // read prefs from disk
+
+#ifdef __amigaos__
+#else
+    char *aqb_env = getenv ("AQB");
+    assert(aqb_env);
+#endif
+
 }

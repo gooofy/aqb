@@ -144,19 +144,19 @@ static bool load_hunk_name(string sourcefn, FILE *f)
     uint32_t name_len;
     if (!fread_u4 (f, &name_len))
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     name_len *=4;
     if (name_len>=MAX_BUF)
     {
-        fprintf (stderr, "link: hunk name too long.\n");
+        LOG_printf (LOG_ERROR, "link: hunk name too long.\n");
         return FALSE;
     }
 
     if (fread (g_name, name_len, 1, f) != 1)
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
 
@@ -170,7 +170,7 @@ static AS_segment getOrCreateSegment (string sourcefn, string name, int id, AS_s
 {
     if (id >= MAX_NUM_HUNKS)
     {
-        fprintf (stderr, "link: hunk table overflow\n");
+        LOG_printf (LOG_ERROR, "link: hunk table overflow\n");
         return FALSE;
     }
 
@@ -204,7 +204,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
     uint32_t code_len;
     if (!fread_u4 (f, &code_len))
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     code_len *=4;
@@ -216,7 +216,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
 
     if (fread (g_hunk_cur->mem, code_len, 1, f) != 1)
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     g_hunk_cur->mem_pos = code_len;
@@ -229,7 +229,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
     uint32_t data_len;
     if (!fread_u4 (f, &data_len))
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     data_len *=4;
@@ -241,7 +241,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
 
     if (fread (g_hunk_cur->mem, data_len, 1, f) != 1)
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     //hexdump (g_hunk_cur->mem, 0, data_len);
@@ -255,7 +255,7 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
     uint32_t bss_len;
     if (!fread_u4 (f, &bss_len))
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     bss_len *=4;
@@ -279,14 +279,14 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
     {
         if (!fread_u4 (f, &num_offs))
         {
-            fprintf (stderr, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error.\n");
             return FALSE;
         }
         if (!num_offs)
             return TRUE; // finished
         if (!fread_u4 (f, &hunk_id))
         {
-            fprintf (stderr, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error.\n");
             return FALSE;
         }
         LOG_printf (LOG_DEBUG, "link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
@@ -298,7 +298,7 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
             uint32_t off;
             if (!fread_u4 (f, &off))
             {
-                fprintf (stderr, "link: read error.\n");
+                LOG_printf (LOG_ERROR, "link: read error.\n");
                 return FALSE;
             }
             AS_segmentAddReloc32 (g_hunk_cur, seg, off);
@@ -312,7 +312,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
-        fprintf (stderr, "link: ext hunk detected when so segment is defined yet.\n");
+        LOG_printf (LOG_ERROR, "link: ext hunk detected when so segment is defined yet.\n");
         assert(FALSE);
         return FALSE;
     }
@@ -322,7 +322,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
         uint32_t c;
         if (!fread_u4 (f, &c))
         {
-            fprintf (stderr, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error.\n");
             return FALSE;
         }
 
@@ -335,13 +335,13 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
         name_len *=4;
         if (name_len>=MAX_BUF)
         {
-            fprintf (stderr, "link: hunk name too long.\n");
+            LOG_printf (LOG_ERROR, "link: hunk name too long.\n");
             return FALSE;
         }
 
         if (fread (g_buf, name_len, 1, f) != 1)
         {
-            fprintf (stderr, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error.\n");
             return FALSE;
         }
 
@@ -357,7 +357,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t num_refs;
                 if (!fread_u4 (f, &num_refs))
                 {
-                    fprintf (stderr, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error.\n");
                     return FALSE;
                 }
                 for (uint32_t i=0; i<num_refs; i++)
@@ -365,7 +365,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     uint32_t offset;
                     if (!fread_u4 (f, &offset))
                     {
-                        fprintf (stderr, "link: read error.\n");
+                        LOG_printf (LOG_ERROR, "link: read error.\n");
                         return FALSE;
                     }
 
@@ -378,13 +378,13 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t common_size;
                 if (!fread_u4 (f, &common_size))
                 {
-                    fprintf (stderr, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error.\n");
                     return FALSE;
                 }
                 uint32_t num_refs;
                 if (!fread_u4 (f, &num_refs))
                 {
-                    fprintf (stderr, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error.\n");
                     return FALSE;
                 }
                 for (uint32_t i=0; i<num_refs; i++)
@@ -392,7 +392,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     uint32_t offset;
                     if (!fread_u4 (f, &offset))
                     {
-                        fprintf (stderr, "link: read error.\n");
+                        LOG_printf (LOG_ERROR, "link: read error.\n");
                         return FALSE;
                     }
 
@@ -405,7 +405,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t offset;
                 if (!fread_u4 (f, &offset))
                 {
-                    fprintf (stderr, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error.\n");
                     return FALSE;
                 }
                 AS_segmentAddDef (g_hunk_cur, sym, offset);
@@ -413,7 +413,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 break;
             }
             default:
-                fprintf (stderr, "link: FIXME: ext type %d not implemented yet.\n", ext_type);
+                LOG_printf (LOG_ERROR, "link: FIXME: ext type %d not implemented yet.\n", ext_type);
                 assert(FALSE);
         }
     }
@@ -426,14 +426,14 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
     uint32_t ht;
     if (!fread_u4 (f, &ht))
     {
-        fprintf (stderr, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error.\n");
         return FALSE;
     }
     LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
 
     if (ht != HUNK_TYPE_UNIT)
     {
-        fprintf (stderr, "link: %s: this is not an object file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_UNIT);
+        LOG_printf (LOG_ERROR, "link: %s: this is not an object file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_UNIT);
     }
 
     if (!load_hunk_unit(f))
@@ -480,14 +480,14 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
             case HUNK_TYPE_END:
                 if (!g_hunk_cur)
                 {
-                    fprintf (stderr, "link: hunk_end detected when no hunk was defined.\n");
+                    LOG_printf (LOG_ERROR, "link: hunk_end detected when no hunk was defined.\n");
                     return FALSE;
                 }
                 LI_segmentListAppend (sl, g_hunk_cur);
                 g_hunk_cur = NULL;
                 break;
             default:
-                fprintf (stderr, "link: unknown hunk type 0x%08x.\n", ht);
+                LOG_printf (LOG_ERROR, "link: unknown hunk type 0x%08x.\n", ht);
                 assert(FALSE);
                 return FALSE;
         }
@@ -551,7 +551,7 @@ bool LI_link (LI_segmentList sl)
             {
                 if (!sr->common_size)
                 {
-                    fprintf (stderr, "link: *** ERROR: unresolved symbol %s (%p)\n\n", S_name(sym), sym);
+                    LOG_printf (LOG_ERROR, "link: *** ERROR: unresolved symbol %s (%p)\n\n", S_name(sym), sym);
                     return FALSE;
                 }
                 if (!commonSeg)
@@ -776,7 +776,7 @@ void LI_segmentWriteObjectFile (AS_object obj, string objfn)
     g_fObjFile = fopen(objfn, "w");
     if (!g_fObjFile)
     {
-        fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", objfn);
+        LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s for writing.\n\n", objfn);
         exit(128);
     }
     write_hunk_unit (objfn, g_fObjFile);
@@ -803,7 +803,7 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
     g_fLoadFile = fopen(loadfn, "w");
     if (!g_fLoadFile)
     {
-        fprintf (stderr, "*** ERROR: failed to open %s for writing.\n\n", loadfn);
+        LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s for writing.\n\n", loadfn);
         exit(128);
     }
     write_hunk_header (sl, g_fLoadFile);
@@ -840,7 +840,7 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
                 write_hunk_end (g_fLoadFile);
                 break;
             default:
-                fprintf (stderr, "***error: unknown segment kind %d !\n", n->seg->kind);
+                LOG_printf (LOG_ERROR, "***error: unknown segment kind %d !\n", n->seg->kind);
                 fflush (g_fLoadFile);
                 assert(FALSE);
         }

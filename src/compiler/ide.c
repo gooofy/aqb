@@ -20,12 +20,6 @@
 #include "options.h"
 #include "errormsg.h"
 
-#define STYLE_NORMAL  0
-#define STYLE_KW      1
-#define STYLE_STRING  2
-#define STYLE_NUMBER  3
-#define STYLE_COMMENT 4
-
 #define INFOLINE            "F1:help X=   1 Y=   1 #=   0  new file"
 #define INFOLINE_CURSOR_X     10
 #define INFOLINE_CURSOR_Y     17
@@ -344,11 +338,11 @@ static IDE_line buf2line (IDE_editor ed)
                     break;
                 case S_COLON:
                     buf[pos] = ' ';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = ':';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = ' ';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     /* fall through */
                 case S_EOL:
                     switch (state)
@@ -391,24 +385,24 @@ static IDE_line buf2line (IDE_editor ed)
                     break;
                 case S_LCOMMENT:
                     buf[pos] = '\'';
-                    style[pos++] = STYLE_COMMENT;
+                    style[pos++] = UI_TEXT_STYLE_COMMENT;
                     for (char *c=tkn->u.str; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = STYLE_COMMENT;
+                        style[pos++] = UI_TEXT_STYLE_COMMENT;
                     }
                     break;
                 case S_RCOMMENT:
                     buf[pos] = 'R';
-                    style[pos++] = STYLE_COMMENT;
+                    style[pos++] = UI_TEXT_STYLE_COMMENT;
                     buf[pos] = 'E';
-                    style[pos++] = STYLE_COMMENT;
+                    style[pos++] = UI_TEXT_STYLE_COMMENT;
                     buf[pos] = 'M';
-                    style[pos++] = STYLE_COMMENT;
+                    style[pos++] = UI_TEXT_STYLE_COMMENT;
                     for (char *c=tkn->u.str; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = STYLE_COMMENT;
+                        style[pos++] = UI_TEXT_STYLE_COMMENT;
                     }
                     break;
                 case S_IDENT:
@@ -433,12 +427,12 @@ static IDE_line buf2line (IDE_editor ed)
                         if (is_kw)
                         {
                             buf[pos] = toupper(s[i]);
-                            style[pos++] = STYLE_KW;
+                            style[pos++] = UI_TEXT_STYLE_KEYWORD;
                         }
                         else
                         {
                             buf[pos] = s[i];
-                            style[pos++] = STYLE_NORMAL;
+                            style[pos++] = UI_TEXT_STYLE_TEXT;
                         }
                     }
 
@@ -534,22 +528,22 @@ static IDE_line buf2line (IDE_editor ed)
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '"';
-                    style[pos++] = STYLE_STRING;
+                    style[pos++] = UI_TEXT_STYLE_STRING;
                     for (char *c=tkn->u.str; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = STYLE_STRING;
+                        style[pos++] = UI_TEXT_STYLE_STRING;
                     }
                     buf[pos] = '"';
-                    style[pos++] = STYLE_STRING;
+                    style[pos++] = UI_TEXT_STYLE_STRING;
                     break;
                 case S_SEMICOLON:
                     buf[pos] = ';';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_COMMA:
                     buf[pos] = ',';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_INUM:
                 {
@@ -560,7 +554,7 @@ static IDE_line buf2line (IDE_editor ed)
                     for (char *c=nbuf; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = STYLE_NUMBER;
+                        style[pos++] = UI_TEXT_STYLE_NUMBERS;
                     }
                     break;
                 }
@@ -573,7 +567,7 @@ static IDE_line buf2line (IDE_editor ed)
                     for (char *c=nbuf; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = STYLE_NUMBER;
+                        style[pos++] = UI_TEXT_STYLE_NUMBERS;
                     }
                     break;
                 }
@@ -581,131 +575,131 @@ static IDE_line buf2line (IDE_editor ed)
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '-';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_LPAREN:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '(';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_RPAREN:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = ')';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_EQUALS:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '=';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_EXP:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '^';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_ASTERISK:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '*';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_SLASH:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '/';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_BACKSLASH:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '\\';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_PLUS:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '+';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_GREATER:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '>';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_LESS:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '<';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_NOTEQ:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '<';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = '>';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_LESSEQ:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '<';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = '=';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_GREATEREQ:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '>';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = '=';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_POINTER:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '-';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = '>';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_PERIOD:
                     buf[pos] = '.';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_AT:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '@';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_LBRACKET:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '[';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_RBRACKET:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = ']';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_TRIPLEDOTS:
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '.';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = '.';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = '.';
-                    style[pos++] = STYLE_NORMAL;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
             }
 
@@ -852,6 +846,39 @@ static bool pageDown(IDE_editor ed)
     return TRUE;
 }
 
+static bool gotoBOF(IDE_editor ed)
+{
+    if (ed->editing)
+        commitBuf (ed);
+
+    ed->cursor_line = ed->line_first;
+
+    ed->cursor_row = 0;
+    ed->cursor_col = 0;
+    ed->up2date_il_pos = FALSE;
+
+    return TRUE;
+}
+
+static bool gotoEOF(IDE_editor ed)
+{
+    if (ed->editing)
+        commitBuf (ed);
+
+    ed->cursor_line = ed->line_first;
+    ed->cursor_row = 0;
+	while (ed->cursor_line->next)
+	{
+		ed->cursor_line = ed->cursor_line->next;
+		ed->cursor_row++;
+	}
+
+    ed->cursor_col = 0;
+    ed->up2date_il_pos = FALSE;
+
+    return TRUE;
+}
+
 static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
 {
     if (ed->editing)
@@ -881,7 +908,7 @@ static void line2buf (IDE_editor ed, IDE_line l)
         for (int8_t j = 0; j<INDENT_SPACES; j++)
         {
             ed->buf[off] = ' ';
-            ed->style[off++] = STYLE_NORMAL;
+            ed->style[off++] = UI_TEXT_STYLE_TEXT;
         }
     }
 
@@ -902,8 +929,8 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 
     UI_moveCursor (row, 1);
 
-    char s=STYLE_NORMAL;
-    UI_setTextStyle (UI_STYLE_NORMAL);
+    char s=UI_TEXT_STYLE_TEXT;
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
 
     for (uint16_t i=0; i<indent; i++)
     {
@@ -914,59 +941,8 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
     {
         char s2 = style[i];
         if (s2 != s)
-        {
-#ifdef __amigaos__
-            switch (s2)
-            {
-                case STYLE_NORMAL:
-                    UI_setTextStyle (UI_STYLE_NORMAL);
-                    break;
-                case STYLE_KW:
-                    UI_setTextStyle (UI_STYLE_NORMAL);
-                    UI_setTextStyle (UI_STYLE_BOLD);
-                    UI_setTextStyle (UI_STYLE_BLACK);
-                    break;
-                case STYLE_STRING:
-                    UI_setTextStyle (UI_STYLE_NORMAL);
-                    UI_setTextStyle (UI_STYLE_BLUE);
-                    break;
-                case STYLE_NUMBER:
-                    UI_setTextStyle (UI_STYLE_NORMAL);
-                    UI_setTextStyle (UI_STYLE_BLUE);
-                    break;
-                case STYLE_COMMENT:
-                    UI_setTextStyle (UI_STYLE_ITALICS);
-                    UI_setTextStyle (UI_STYLE_BLUE);
-                    break;
-                default:
-                    assert(FALSE);
-            }
-#else
-            switch (s2)
-            {
-                case STYLE_NORMAL:
-                    UI_setTextStyle (UI_STYLE_NORMAL);
-                    break;
-                case STYLE_KW:
-                    UI_setTextStyle (UI_STYLE_BOLD);
-                    UI_setTextStyle (UI_STYLE_YELLOW);
-                    break;
-                case STYLE_STRING:
-                    UI_setTextStyle (UI_STYLE_BOLD);
-                    UI_setTextStyle (UI_STYLE_MAGENTA);
-                    break;
-                case STYLE_NUMBER:
-                    UI_setTextStyle (UI_STYLE_BOLD);
-                    UI_setTextStyle (UI_STYLE_MAGENTA);
-                    break;
-                case STYLE_COMMENT:
-                    UI_setTextStyle (UI_STYLE_BOLD);
-                    UI_setTextStyle (UI_STYLE_BLUE);
-                    break;
-                default:
-                    assert(FALSE);
-            }
-#endif
+		{
+			UI_setTextStyle (s2);
             s = s2;
         }
         UI_putc (buf[i]);
@@ -1060,8 +1036,8 @@ static void repaint (IDE_editor ed)
     if (update_infoline)
     {
         LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
-        UI_setTextStyle (UI_STYLE_NORMAL);
-        UI_setTextStyle (UI_STYLE_INVERSE);
+        UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+        UI_setTextStyle (UI_TEXT_STYLE_INVERSE);
         UI_moveCursor   (ed->infoline_row+1, 1);
         char *c = ed->infoline;
         int col = 0;
@@ -1075,7 +1051,7 @@ static void repaint (IDE_editor ed)
             UI_putc (' ');
             col++;
         }
-        UI_setTextStyle (UI_STYLE_NORMAL);
+        UI_setTextStyle (UI_TEXT_STYLE_TEXT);
     }
 
     UI_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
@@ -1138,7 +1114,7 @@ static void backspaceKey (IDE_editor ed)
         ed->cursor_row--;
         ed->cursor_line = pl;
         ed->buf[ed->buf_len] = ' ';
-        ed->style[ed->buf_len] = STYLE_NORMAL;
+        ed->style[ed->buf_len] = UI_TEXT_STYLE_TEXT;
         ed->buf_len++;
         memcpy (ed->buf+ed->buf_len,   cl->buf  , cl->len);
         memcpy (ed->style+ed->buf_len, cl->style, cl->len);
@@ -1192,7 +1168,7 @@ static bool insertChar (IDE_editor ed, uint16_t c)
         ed->style[i] = ed->style[i-1];
     }
     ed->buf[cp]   = c;
-    ed->style[cp] = STYLE_NORMAL;
+    ed->style[cp] = UI_TEXT_STYLE_TEXT;
     ed->buf_len++;
 
     ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
@@ -1247,6 +1223,8 @@ static void show_help(IDE_editor ed)
                   "F1     - this help screen\n"
                   "S-UP   - page up\n"
                   "S-DOWN - page down\n"
+                  "Ctrl-T - goto top of file\n"
+                  "Ctrl-B - goto end of file\n"
                   "F5     - compile & run\n"
                   "F7     - compile\n"
                   "Ctrl-S - save\n"
@@ -1342,6 +1320,14 @@ static void key_cb (uint16_t key, void *user_data)
             pageDown(ed);
             break;
 
+        case KEY_GOTO_BOF:
+            gotoBOF(ed);
+            break;
+
+        case KEY_GOTO_EOF:
+            gotoEOF(ed);
+            break;
+
         case KEY_ENTER:
             enterKey(ed);
             break;
@@ -1368,6 +1354,16 @@ static void key_cb (uint16_t key, void *user_data)
         case KEY_CTRL_G:
             compile(ed);
             break;
+
+		case KEY_COLORSCHEME_0:
+		case KEY_COLORSCHEME_1:
+		case KEY_COLORSCHEME_2:
+		case KEY_COLORSCHEME_3:
+		case KEY_COLORSCHEME_4:
+		case KEY_COLORSCHEME_5:
+			UI_setColorScheme (key - KEY_COLORSCHEME_0);
+            invalidateAll (ed);
+			break;
 
         default:
             if (!insertChar(ed, (uint8_t) key))
@@ -1574,7 +1570,7 @@ static void IDE_deinit(void)
 
 void IDE_open (string sourcefn)
 {
-    //OPT_set (OPTION_VERBOSE, TRUE);
+    OPT_set (OPTION_VERBOSE, TRUE);
     UI_init();
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
