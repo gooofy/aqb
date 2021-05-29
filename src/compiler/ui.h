@@ -51,6 +51,7 @@
 #define KEY_COLORSCHEME_3  1027
 #define KEY_COLORSCHEME_4  1028
 #define KEY_COLORSCHEME_5  1029
+#define KEY_CUSTOMSCREEN   1030
 #define KEY_UNKNOWN1       9993
 #define KEY_UNKNOWN2       9994
 #define KEY_UNKNOWN3       9995
@@ -83,6 +84,8 @@ void      UI_setCursorVisible   (bool visible);
 
 void      UI_setTextStyle       (int style);
 void      UI_setColorScheme     (int scheme);
+void      UI_setCustomScreen    (bool enabled);
+bool      UI_isCustomScreen     (void);
 
 void      UI_setScrollArea      (uint16_t row_start, uint16_t row_end);
 void      UI_scrollUp           (bool fullscreen);

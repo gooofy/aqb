@@ -564,4 +564,13 @@ void UI_setColorScheme (int scheme)
 {
     // FIXME: not supported
 }
+void UI_setCustomScreen (bool enabled)
+{
+    // FIXME: not supported
+}
+bool UI_isCustomScreen (void)
+{
+    // FIXME: not supported
+    return FALSE;
+}
 #endif

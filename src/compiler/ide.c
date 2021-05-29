@@ -1369,6 +1369,11 @@ static void key_cb (uint16_t key, void *user_data)
             invalidateAll (ed);
 			break;
 
+        case KEY_CUSTOMSCREEN:
+            UI_setCustomScreen(!UI_isCustomScreen());
+            invalidateAll (ed);
+            break;
+
         default:
             if (!insertChar(ed, (uint8_t) key))
                 UI_bell();

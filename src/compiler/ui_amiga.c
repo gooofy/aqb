@@ -104,7 +104,7 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, 0,},
 
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Custom Screen",       0 , CHECKIT | MENUTOGGLE, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Custom Screen",       0 , CHECKIT | MENUTOGGLE,   0, (APTR)KEY_CUSTOMSCREEN,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
         {   NM_SUB, (STRPTR) "Super dark blue",     0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
         {   NM_SUB, (STRPTR) "Dark blue",           0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
@@ -165,25 +165,26 @@ static UI_theme_t g_themes[NUM_THEMES] = {
         "QB64 Original",
         { 0x000a, 0x0eee, 0x09ce, 0x0f8b, 0x0ff5, 0x05ff, 0x0dff, 0x0467 },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       7,        6,         7,       2,           0,             2,                2, -1},
+        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
     },
     {
         "Classic QB4.5",
         { 0x000a, 0x0bbb, 0x0bbb, 0x0bbb, 0x0bbb, 0x0bbb, 0x0fff, 0x0555 },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       7,        6,         7,       2,           0,             2,                2, -1 },
+        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
     },
     {
         "CF Dark",
         { 0x0222, 0x0eee, 0x07de, 0x0f28, 0x0fb2, 0x0978, 0x0aff, 0x0367 },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       7,        6,         7,       2,           0,             2,                2, -1 },
+        //{          0,        1,       7,        6,         7,       2,           0,             2,                2, -1 },
+        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
     },
     {
         "Dark side",
         { 0x0011, 0x0fff, 0x0cc0, 0x0f06, 0x00b0, 0x03bf, 0x0ff0, 0x0660 },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       0,        6,         7,       2,           0,             2,                2, -1 },
+        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
     },
 };
 
@@ -482,6 +483,16 @@ void UI_setColorScheme (int scheme)
     }
 }
 
+void UI_setCustomScreen (bool enabled)
+{
+    OPT_prefSetInt (OPT_PREF_CUSTOMSCREEN, enabled ? 1: 0);
+}
+
+bool UI_isCustomScreen (void)
+{
+    return OPT_prefGetInt (OPT_PREF_CUSTOMSCREEN);
+}
+
 bool UI_init (void)
 {
     SysBase = *(APTR *)4L;
@@ -610,6 +621,14 @@ bool UI_init (void)
 		cleanexit("failed to layout menu", RETURN_FAIL);
 	if (!SetMenuStrip(g_win, g_menuStrip))
 		cleanexit("failed to set menu strip", RETURN_FAIL);
+
+	if (OPT_prefGetInt (OPT_PREF_CUSTOMSCREEN))
+    {
+        struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/0, /*sub=*/0));
+        item->Flags |= CHECKED;
+    }
+    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
+    item->Flags |= CHECKED;
 
 	return TRUE;
 }
