@@ -465,6 +465,7 @@ void UI_deinit(void)
 void UI_setColorScheme (int scheme)
 {
     //LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", scheme);
+    OPT_prefSetInt (OPT_PREF_COLORSCHEME, scheme);
     if (g_screen)
     {
         UI_theme_t *theme = &g_themes[scheme];
@@ -535,7 +536,7 @@ bool UI_init (void)
 	{
 		// open a custom screen that is a clone of the public screen, but has 8 colors and our font
 
-        UI_theme_t *theme = &g_themes[1];
+        UI_theme_t *theme = &g_themes[OPT_prefGetInt (OPT_PREF_COLORSCHEME)];
 
 		g_screen = OpenScreenTags(NULL,
 			                      SA_Width,      visWidth,
@@ -550,7 +551,7 @@ bool UI_init (void)
 		if (!g_screen)
 			 cleanexit("Can't open screen", RETURN_FAIL);
 
-		UI_setColorScheme(1);
+		UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
 		if (!(g_win = OpenWindowTags(NULL,
 									 WA_Top,           g_screen->BarHeight+1,

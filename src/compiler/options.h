@@ -23,6 +23,7 @@ bool OPT_get           (int opt);
 #define OPT_PREF_COLORSCHEME  2
 
 int  OPT_prefGetInt  (int pref);
+void OPT_prefSetInt  (int pref, int i);
 
 /*
  * module search path

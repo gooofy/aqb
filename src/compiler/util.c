@@ -333,6 +333,50 @@ string strdeserialize(FILE *in)
     return res;
 }
 
+bool str2int(string str, int *i)
+{
+    assert (str);
+    int res = 0;
+    char *c = str;
+    bool negative = FALSE;
+    bool first = TRUE;
+    while (*c)
+    {
+        if (first && (*c=='-'))
+        {
+            negative = TRUE;
+            c++;
+            continue;
+        }
+        switch (*c)
+        {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                res = res*10 + (*c)-'0';
+                break;
+            case '\r':
+            case '\n':
+                break;
+            default:
+                return FALSE;
+        }
+        c++;
+    }
+    if (negative)
+        res *= -1;
+    *i = res;
+    return TRUE;
+}
+
+
 uint32_t encode_ffp(float f)
 {
     uint32_t  res, fl;

@@ -1570,7 +1570,7 @@ static void IDE_deinit(void)
 
 void IDE_open (string sourcefn)
 {
-    OPT_set (OPTION_VERBOSE, TRUE);
+    OPT_set (OPTION_VERBOSE, FALSE);
     UI_init();
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG

@@ -117,6 +117,8 @@ int    strcicmp(string a, string b); // string ignore case compare
 void   strserialize(FILE *out, string str);
 string strdeserialize(FILE *in);
 
+bool   str2int(string str, int *i);
+
 /*
  * FFP - Motorola Fast Floating Point format support
  */
