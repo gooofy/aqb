@@ -1583,7 +1583,9 @@ void IDE_open (string sourcefn)
     UI_init();
     RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
+    //printf ("opening %s ...\n", LOG_FILENAME);
     logf = fopen (LOG_FILENAME, "a");
+    //printf ("opening %s ... done.\n", LOG_FILENAME);
 #endif
 	atexit (IDE_deinit);
     LOG_init (log_cb);

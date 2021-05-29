@@ -124,7 +124,7 @@ static struct MsgPort    *g_readPort      = NULL;
 static bool               g_ConOpened     = FALSE;
 static struct FileHandle *g_output        = NULL;
 static struct MsgPort    *g_IOport        = NULL;
-static int                g_termSignalBit = 0;
+static int                g_termSignalBit = -1;
 static APTR               g_vi            = NULL;
 static struct Menu       *g_menuStrip     = NULL;
 
@@ -456,8 +456,12 @@ void UI_deinit(void)
         delete_ext_io((struct IORequest *)g_writeReq);
     if (g_writePort)
         delete_port(g_writePort);
+    if (g_IOport)
+        delete_port(g_IOport);
     if (ReqToolsBase)
         CloseLibrary((struct Library *)ReqToolsBase);
+    if (g_termSignalBit != -1)
+        FreeSignal (g_termSignalBit);
 }
 
 void UI_setColorScheme (int scheme)
