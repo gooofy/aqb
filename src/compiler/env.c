@@ -890,7 +890,6 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
     if (!m)
     {
         LOG_printf(LOG_ERROR, "failed to find module mid=%d\n", mid);
-        assert(0);
         return NULL;
     }
 
@@ -1089,9 +1088,9 @@ FILE *E_openModuleFile (string filename)
     return NULL;
 }
 
-
 E_module E_loadModule(S_symbol sModule)
 {
+    LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ...\n", S_name(sModule));
     E_module mod = TAB_look(g_modCache, sModule);
     if (mod)
         return mod;
@@ -1106,7 +1105,9 @@ E_module E_loadModule(S_symbol sModule)
         return NULL;
     }
 
+    LOG_printf(LOG_DEBUG, "env: E_Module(%s) ...\n", S_name(sModule));
     mod = E_Module(sModule);
+    LOG_printf(LOG_DEBUG, "env: TAB_enter(%s) ...\n", S_name(sModule));
     TAB_enter (g_modCache, sModule, mod);
 
     // check header
@@ -1121,7 +1122,7 @@ E_module E_loadModule(S_symbol sModule)
     uint16_t v=fread_u2(modf);
     if (v != SYM_VERSION)
     {
-        LOG_printf(LOG_DEBUG, "%s: version mismatch\n", symfn);
+        LOG_printf(LOG_ERROR, "%s: version mismatch\n", symfn);
         goto fail;
     }
 
@@ -1145,7 +1146,7 @@ E_module E_loadModule(S_symbol sModule)
         E_module m2 = E_loadModule (mod_sym);
         if (!m2)
         {
-            LOG_printf (LOG_ERROR, "failed to load module %s", mod_name);
+            LOG_printf (LOG_ERROR, "failed to load module %s\n", mod_name);
             goto fail;
         }
 
@@ -1353,11 +1354,17 @@ E_module E_loadModule(S_symbol sModule)
             case E_typeEntry:
             {
                 Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                if (!ty)
+                {
+                    LOG_printf(LOG_ERROR, "%s: failed to read declared type.\n", symfn);
+                    goto fail;
+                }
                 E_declareType (mod->env, sym, ty);
                 break;
             }
         }
     }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: complete, fclose()...\n", S_name(sModule));
     fclose(modf);
 
     // prepend mod to list of loaded modules (initializers will be run in inverse order later)

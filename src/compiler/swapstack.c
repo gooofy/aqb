@@ -105,13 +105,13 @@ void __stkinit(long a)
   if (needed <= size)
     return;
 
-  // printf ("swapstack: needed=%ld, size=%ld\n", needed, size);
+  printf ("swapstack: needed=%ld, size=%ld -> swapping stack\n", needed, size);
 
   /* Round size to next long word */
   needed = (needed+(sizeof(LONG)-1))&~(sizeof(LONG)-1);
 
   /* Allocate new stack */
-  newstack = new = AllocVec(needed,MEMF_PUBLIC);
+  newstack = new = AllocVec(needed,MEMF_PUBLIC|MEMF_CLEAR);
   if (!new) {
     __request("Couldn't allocate new stack!");
     exit(RETURN_FAIL);
@@ -124,7 +124,7 @@ void __stkinit(long a)
   stack.stk_Pointer=(APTR)(new-=size);
 
   /* Copy required parts of old stack */
-  CopyMem(sp,new,size);
+  //CopyMem(sp,new,size);
 
   /* Switch to new stack */
   StackSwap(&stack);

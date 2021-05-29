@@ -128,7 +128,8 @@ void *TAB_look(TAB_table t, void *key)
     int    index;
     binder b;
 
-    assert(t && key);
+    assert(t);
+    assert(key);
 
     index = ((unsigned long)key) % TABSIZE;
     for (b=t->table[index]; b; b=b->next)

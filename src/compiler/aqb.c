@@ -55,6 +55,8 @@ extern struct DOSBase       *DOSBase;
 
 #define VERSION "0.7.0"
 
+#define LOG_SLOWDOWN
+
 static void print_usage(char *argv[])
 {
 	fprintf(stderr, "usage: %s [ options ] <program.bas>\n", argv[0]);

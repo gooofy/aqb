@@ -560,6 +560,13 @@ void U_float2str(double v, char *buffer, int buf_len)
     }
 }
 
+void U_delay (uint16_t millis)
+{
+#ifdef __amigaos__
+    Delay (millis / 20);
+#endif
+}
+
 void U_deinit (void)
 {
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit.\n", g_alloc);

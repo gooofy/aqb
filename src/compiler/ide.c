@@ -20,6 +20,8 @@
 #include "options.h"
 #include "errormsg.h"
 
+//#define LOG_SLOWDOWN
+
 #define INFOLINE            "F1:help X=   1 Y=   1 #=   0  new file"
 #define INFOLINE_CURSOR_X     10
 #define INFOLINE_CURSOR_Y     17
@@ -1209,11 +1211,13 @@ static void IDE_save (IDE_editor ed)
 
 static void IDE_exit (IDE_editor ed)
 {
+    LOG_printf (LOG_DEBUG, "ide: IDE_exit\n");
     if (ed->changed)
     {
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
             IDE_save(ed);
     }
+    LOG_printf (LOG_DEBUG, "ide: IDE_exit -> exit(0)\n");
     exit(0);
 }
 
@@ -1555,6 +1559,11 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);
 	fflush (logf);
+#endif
+#ifdef LOG_SLOWDOWN
+	fprintf (logf, "SLOWDOWN\n");
+	fflush (logf);
+    U_delay (50*50);
 #endif
 }
 
