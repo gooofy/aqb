@@ -1168,8 +1168,8 @@ static void killLine (IDE_editor ed)
     if (ed->editing)
         cl = commitBuf (ed);
 
-    if (ed->cursor_col >= nl->len)
-        ed->cursor_col = nl->len-1;
+    if (ed->cursor_col > nl->len)
+        ed->cursor_col = nl->len;
 
     ed->cursor_line = nl;
     deleteLine (ed, cl);
