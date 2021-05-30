@@ -22,6 +22,7 @@
 #define KEY_CTRL_Q           17
 #define KEY_CTRL_S           19
 #define KEY_CTRL_U           21
+#define KEY_CTRL_Y           25
 #define KEY_DEL             127
 #define KEY_CURSOR_LEFT    1000
 #define KEY_CURSOR_RIGHT   1001

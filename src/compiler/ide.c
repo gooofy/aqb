@@ -1145,6 +1145,32 @@ static void backspaceKey (IDE_editor ed)
     }
 }
 
+
+static void killLine (IDE_editor ed)
+{
+    IDE_line cl = ed->cursor_line;
+    IDE_line nl = cl->next;
+
+    if (!nl)
+    {
+        UI_bell();
+        return;
+    }
+
+    if (ed->editing)
+        cl = commitBuf (ed);
+
+    if (ed->cursor_col >= nl->len)
+        ed->cursor_col = nl->len-1;
+
+    ed->cursor_line = nl;
+    deleteLine (ed, cl);
+    invalidateAll(ed);
+    ed->up2date_il_pos = FALSE;
+    ed->num_lines--;
+    ed->up2date_il_num_lines = FALSE;
+}
+
 static bool printableAsciiChar (uint16_t c)
 {
     return (c >= 32) && (c <= 126);
@@ -1229,6 +1255,7 @@ static void show_help(IDE_editor ed)
                   "S-DOWN - page down\n"
                   "Ctrl-T - goto top of file\n"
                   "Ctrl-B - goto end of file\n"
+                  "Ctrl-Y - delete line\n"
                   "F5     - compile & run\n"
                   "F7     - compile\n"
                   "Ctrl-S - save\n"
@@ -1299,6 +1326,10 @@ static void key_cb (uint16_t key, void *user_data)
         case KEY_CTRL_C:
         case KEY_CTRL_Q:
             IDE_exit(ed);
+
+        case KEY_CTRL_Y:
+            killLine(ed);
+            break;
 
         case KEY_CURSOR_UP:
             cursorUp(ed);
