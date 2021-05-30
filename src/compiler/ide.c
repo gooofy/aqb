@@ -1067,7 +1067,7 @@ static void enterKey (IDE_editor ed)
 {
     // split line ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
-    if (ed->cursor_col < l-1)
+    if (ed->cursor_col < l)
     {
         if (!ed->editing)
             line2buf (ed, ed->cursor_line);
@@ -1098,9 +1098,7 @@ static void enterKey (IDE_editor ed)
     ed->cursor_row++;
     ed->cursor_line = line;
     ed->num_lines++;
-    ed->up2date_il_num_lines = FALSE;
     invalidateAll(ed);
-    ed->up2date_il_pos = FALSE;
 }
 
 static void backspaceKey (IDE_editor ed)
@@ -1128,9 +1126,7 @@ static void backspaceKey (IDE_editor ed)
         deleteLine (ed, cl);
         ed->cursor_line = commitBuf (ed);
         invalidateAll(ed);
-        ed->up2date_il_pos = FALSE;
         ed->num_lines--;
-        ed->up2date_il_num_lines = FALSE;
     }
     else
     {
@@ -1145,6 +1141,42 @@ static void backspaceKey (IDE_editor ed)
         ed->buf_len--;
         ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
         cursorLeft(ed);
+    }
+}
+
+static void deleteKey (IDE_editor ed)
+{
+    // join lines ?
+    uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
+    if (ed->cursor_col == l)
+    {
+        if (!ed->cursor_line->next)
+            return;
+        IDE_line cl = ed->cursor_line;
+        if (!ed->editing)
+            line2buf (ed, ed->cursor_line);
+
+        IDE_line nl = cl->next;
+        memcpy (ed->buf+ed->buf_len,   nl->buf  , nl->len);
+        memcpy (ed->style+ed->buf_len, nl->style, nl->len);
+        ed->buf_len += nl->len;
+        deleteLine (ed, nl);
+        ed->cursor_line = commitBuf (ed);
+        ed->num_lines--;
+        invalidateAll(ed);
+    }
+    else
+    {
+        if (!ed->editing)
+            line2buf (ed, ed->cursor_line);
+
+        for (uint16_t i=ed->cursor_col; i<ed->buf_len-1; i++)
+        {
+            ed->buf[i]   = ed->buf[i+1];
+            ed->style[i] = ed->style[i+1];
+        }
+        ed->buf_len--;
+        ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
     }
 }
 
@@ -1169,9 +1201,7 @@ static void killLine (IDE_editor ed)
     ed->cursor_line = nl;
     deleteLine (ed, cl);
     invalidateAll(ed);
-    ed->up2date_il_pos = FALSE;
     ed->num_lines--;
-    ed->up2date_il_num_lines = FALSE;
 }
 
 static bool printableAsciiChar (uint16_t c)
@@ -1372,6 +1402,10 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_BACKSPACE:
             backspaceKey(ed);
+            break;
+
+        case KEY_DEL:
+            deleteKey(ed);
             break;
 
         case KEY_CTRL_S:
