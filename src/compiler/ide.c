@@ -310,7 +310,7 @@ static bool nextch_cb(char *ch, void *user_data)
 }
 
 typedef enum { STAUI_IDLE, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
-               STAUI_ELSEIFTHEN, STAUI_LOOP,
+               STAUI_ELSEIFTHEN, STAUI_LOOP, STAUI_LOOPEND,
                STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE } state_enum;
 
 
@@ -373,7 +373,6 @@ static IDE_line buf2line (IDE_editor ed)
                             }
                             break;
                         case STAUI_SUB:
-                        case STAUI_LOOP:
                         case STAUI_SELECT:
                             post_indent++;
                             break;
@@ -383,6 +382,9 @@ static IDE_line buf2line (IDE_editor ed)
                             break;
                         case STAUI_END:
                             pre_indent--;
+                            break;
+                        case STAUI_LOOP:
+                        case STAUI_LOOPEND:
                             break;
                         default:
                             break;
@@ -465,26 +467,25 @@ static IDE_line buf2line (IDE_editor ed)
                             else if (tkn->u.sym == S_FOR)
                             {
                                 state = STAUI_LOOP;
+                                post_indent++;
                             }
                             else if (tkn->u.sym == S_DO)
                             {
                                 state = STAUI_LOOP;
+                                post_indent++;
                             }
                             else if (tkn->u.sym == S_WHILE)
                             {
                                 state = STAUI_LOOP;
+                                post_indent++;
                             }
-                            else if (tkn->u.sym == S_NEXT)
+                            else if ((tkn->u.sym == S_NEXT) || (tkn->u.sym == S_LOOP) || (tkn->u.sym == S_WEND))
                             {
-                                state = STAUI_END;
-                            }
-                            else if (tkn->u.sym == S_LOOP)
-                            {
-                                state = STAUI_END;
-                            }
-                            else if (tkn->u.sym == S_WEND)
-                            {
-                                state = STAUI_END;
+                                state = STAUI_LOOPEND;
+                                if (post_indent>0)
+                                    post_indent--;
+                                else
+                                    pre_indent--;
                             }
                             else if (tkn->u.sym == S_SELECT)
                             {
@@ -513,6 +514,7 @@ static IDE_line buf2line (IDE_editor ed)
                         case STAUI_END:
                         case STAUI_SUB:
                         case STAUI_LOOP:
+                        case STAUI_LOOPEND:
                         case STAUI_SELECT:
                         case STAUI_CASE:
                             break;
