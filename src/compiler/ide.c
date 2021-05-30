@@ -117,6 +117,7 @@ struct IDE_editor_
 static FILE *logf=NULL;
 #endif
 static IDE_editor g_ed;
+static TAB_table  g_keywords;
 
 IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)
 {
@@ -413,15 +414,7 @@ static IDE_line buf2line (IDE_editor ed)
                 {
                     if (!first)
                         buf[pos++] = ' ';
-                    bool is_kw = FALSE;
-                    for (int i =0; i<FE_num_keywords; i++)
-                    {
-                        if (FE_keywords[i]==tkn->u.sym)
-                        {
-                            is_kw = TRUE;
-                            break;
-                        }
-                    }
+                    bool is_kw = TAB_look(g_keywords, tkn->u.sym) != NULL;
                     char *s = S_name(tkn->u.sym);
                     int l = strlen(s);
                     if (pos+l >= MAX_LINE_LEN-1)
@@ -1651,7 +1644,11 @@ void IDE_open (string sourcefn)
     S_SELECT   = S_Symbol ("SELECT"  , FALSE);
     S_CASE     = S_Symbol ("CASE"    , FALSE);
 
-	g_ed = openEditor();
+    g_keywords = TAB_empty (UP_ide);
+    for (int i =0; i<FE_num_keywords; i++)
+        TAB_enter (g_keywords, FE_keywords[i], (void *) TRUE);
+
+    g_ed = openEditor();
 
     IDE_load (g_ed, sourcefn);
 
