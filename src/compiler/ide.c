@@ -98,6 +98,7 @@ struct IDE_editor_
     bool               up2date_il_flags;
     bool               up2date_il_sourcefn;
     bool               il_show_error;
+    bool               repaint_all;
 
     // cursor_line currently being edited (i.e. represented in buffer):
     bool               editing;
@@ -245,6 +246,7 @@ static void invalidateAll (IDE_editor ed)
     ed->up2date_il_num_lines = FALSE;
     ed->up2date_il_flags     = FALSE;
     ed->up2date_il_sourcefn  = FALSE;
+    ed->repaint_all          = TRUE;
 }
 
 static void scroll(IDE_editor ed)
@@ -955,6 +957,12 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 static void repaint (IDE_editor ed)
 {
     UI_setCursorVisible (FALSE);
+
+    if (ed->repaint_all)
+    {
+        ed->repaint_all = FALSE;
+        UI_eraseDisplay();
+    }
 
     // cache first visible line for speed
     if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
