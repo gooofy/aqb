@@ -432,6 +432,11 @@ uint16_t UI_EZRequest (char *body, char *gadgets)
     return res;
 }
 
+char *UI_FileReq  (char *title)
+{
+    assert(FALSE);
+}
+
 void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;

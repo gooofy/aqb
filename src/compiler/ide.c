@@ -953,12 +953,6 @@ static void repaint (IDE_editor ed)
 {
     UI_setCursorVisible (FALSE);
 
-    if (ed->repaint_all)
-    {
-        ed->repaint_all = FALSE;
-        UI_eraseDisplay();
-    }
-
     // cache first visible line for speed
     if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
     {
@@ -985,6 +979,17 @@ static void repaint (IDE_editor ed)
         linenum++;
         l = l->next;
         row++;
+    }
+
+    if (ed->repaint_all)
+    {
+        ed->repaint_all = FALSE;
+        while (row < ed->infoline_row)
+        {
+            UI_moveCursor (row+1, 1);
+            UI_eraseToEOL ();
+            row++;
+        }
     }
 
     // infoline
@@ -1338,6 +1343,19 @@ static void compileAndRun(IDE_editor ed)
     invalidateAll (ed);
 }
 
+static void IDE_load_FileReq (IDE_editor ed)
+{
+    if (ed->editing)
+        commitBuf (ed);
+    if (ed->changed)
+    {
+        if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
+            IDE_save(ed);
+    }
+
+    UI_FileReq ("Load BASIC source code file");
+}
+
 static void size_cb (void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
@@ -1406,6 +1424,10 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_DEL:
             deleteKey(ed);
+            break;
+
+        case KEY_CTRL_O:
+            IDE_load_FileReq(ed);
             break;
 
         case KEY_CTRL_S:
@@ -1525,7 +1547,7 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
     }
 }
 
-static void IDE_load (IDE_editor ed, string sourcefn)
+static void loadSource (IDE_editor ed, string sourcefn)
 {
     assert(!ed->num_lines); // FIXME: free old buffer
 
@@ -1686,7 +1708,7 @@ void IDE_open (string sourcefn)
 
     g_ed = openEditor();
 
-    IDE_load (g_ed, sourcefn);
+    loadSource (g_ed, sourcefn);
 
     UI_setCursorVisible (FALSE);
     UI_moveCursor (0, 0);

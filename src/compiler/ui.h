@@ -19,6 +19,7 @@
 #define KEY_TAB               9
 #define KEY_CTRL_L           12
 #define KEY_ENTER            13
+#define KEY_CTRL_O           15
 #define KEY_CTRL_Q           17
 #define KEY_CTRL_S           19
 #define KEY_CTRL_U           21
@@ -53,6 +54,7 @@
 #define KEY_COLORSCHEME_4  1028
 #define KEY_COLORSCHEME_5  1029
 #define KEY_CUSTOMSCREEN   1030
+#define KEY_ABOUT          1031
 #define KEY_UNKNOWN1       9993
 #define KEY_UNKNOWN2       9994
 #define KEY_UNKNOWN3       9995
@@ -100,6 +102,7 @@ typedef void (*UI_key_cb)(uint16_t key, void *user_data);
 void      UI_onKeyCall          (UI_key_cb cb, void *user_data);
 
 uint16_t  UI_EZRequest          (char *body, char *gadgets);
+char     *UI_FileReq            (char *title);
 
 #ifdef __amigaos__
 struct FileHandle *UI_output    (void);

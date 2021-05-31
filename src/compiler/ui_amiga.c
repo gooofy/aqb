@@ -90,11 +90,11 @@ static struct NewWindow g_nw =
 static struct NewMenu g_newmenu[] =
     {
         { NM_TITLE, (STRPTR) "Project",             0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Open...",   (STRPTR) "O", 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Save",      (STRPTR) "S", 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Open...",   (STRPTR) "O", 0, 0, (APTR)KEY_CTRL_O,},
+        {  NM_ITEM, (STRPTR) "Save",      (STRPTR) "S", 0, 0, (APTR)KEY_CTRL_S,},
         {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Help...",             0 , 0, 0, (APTR)KEY_F1,},
-        {  NM_ITEM, (STRPTR) "About...",            0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "About...",            0 , 0, 0, (APTR)KEY_ABOUT,},
         {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Quit...",   (STRPTR) "Q", 0, 0, (APTR)KEY_CTRL_C,},
 
@@ -883,6 +883,11 @@ uint16_t UI_EZRequest (char *body, char *gadgets)
 	ULONG res = rtEZRequestA (body, gadgets, /*reqinfo=*/NULL, /*argarray=*/NULL, (struct TagItem *)tags);
 	LOG_printf (LOG_DEBUG, "rtEZRequestA result: %ld\n", res);
 	return res;
+}
+
+char *UI_FileReq  (char *title)
+{
+    assert(FALSE);
 }
 
 void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
