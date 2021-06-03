@@ -22,6 +22,8 @@
 
 //#define LOG_SLOWDOWN
 
+#define ENABLE_REPAINT_BENCHMARK
+
 #define INFOLINE            "F1:help X=   1 Y=   1 #=   0  new file"
 #define INFOLINE_CURSOR_X     10
 #define INFOLINE_CURSOR_Y     17
@@ -554,6 +556,7 @@ static IDE_line buf2line (IDE_editor ed)
                     {
                         buf[pos] = *c;
                         style[pos++] = UI_TEXT_STYLE_NUMBERS;
+                        // style[pos++] = UI_TEXT_STYLE_TEXT;
                     }
                     break;
                 }
@@ -567,6 +570,7 @@ static IDE_line buf2line (IDE_editor ed)
                     {
                         buf[pos] = *c;
                         style[pos++] = UI_TEXT_STYLE_NUMBERS;
+                        // style[pos++] = UI_TEXT_STYLE_TEXT;
                     }
                     break;
                 }
@@ -951,6 +955,10 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 
 static void repaint (IDE_editor ed)
 {
+#ifdef ENABLE_REPAINT_BENCHMARK
+    float startTime = U_getTime();
+#endif
+
     UI_setCursorVisible (FALSE);
 
     // cache first visible line for speed
@@ -1066,6 +1074,11 @@ static void repaint (IDE_editor ed)
 
     UI_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
     UI_setCursorVisible (TRUE);
+
+#ifdef ENABLE_REPAINT_BENCHMARK
+    float stopTime = U_getTime();
+    printf ("IDE: repaint() took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
+#endif
 }
 
 static void enterKey (IDE_editor ed)
