@@ -539,14 +539,6 @@ void UI_setTextStyle (int style)
             UI_printf ( CSI "%dm", UI_STYLE_BOLD);
             UI_printf ( CSI "%dm", UI_STYLE_YELLOW);
             break;
-        case UI_TEXT_STYLE_NUMBERS:
-            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
-            UI_printf ( CSI "%dm", UI_STYLE_MAGENTA);
-            break;
-        case UI_TEXT_STYLE_STRING:
-            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
-            UI_printf ( CSI "%dm", UI_STYLE_MAGENTA);
-            break;
         case UI_TEXT_STYLE_COMMENT:
             UI_printf ( CSI "%dm", UI_STYLE_BOLD);
             UI_printf ( CSI "%dm", UI_STYLE_BLUE);

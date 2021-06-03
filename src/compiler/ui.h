@@ -78,12 +78,12 @@ void      UI_setCursorVisible   (bool visible);
 
 #define UI_TEXT_STYLE_TEXT     0
 #define UI_TEXT_STYLE_KEYWORD  1
-#define UI_TEXT_STYLE_NUMBERS  2
-#define UI_TEXT_STYLE_STRING   3
-#define UI_TEXT_STYLE_COMMENT  4
-#define UI_TEXT_STYLE_SHINE    5
-#define UI_TEXT_STYLE_SHADOW   6
-#define UI_TEXT_STYLE_INVERSE  7
+//#define UI_TEXT_STYLE_NUMBERS  2
+//#define UI_TEXT_STYLE_STRING   3
+#define UI_TEXT_STYLE_COMMENT  2
+//#define UI_TEXT_STYLE_SHINE    5
+//#define UI_TEXT_STYLE_SHADOW   6
+#define UI_TEXT_STYLE_INVERSE  3
 
 void      UI_setTextStyle       (int style);
 void      UI_setColorScheme     (int scheme);

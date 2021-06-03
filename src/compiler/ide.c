@@ -529,14 +529,14 @@ static IDE_line buf2line (IDE_editor ed)
                     if (!first)
                         buf[pos++] = ' ';
                     buf[pos] = '"';
-                    style[pos++] = UI_TEXT_STYLE_STRING;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     for (char *c=tkn->u.str; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_STRING;
+                        style[pos++] = UI_TEXT_STYLE_TEXT;
                     }
                     buf[pos] = '"';
-                    style[pos++] = UI_TEXT_STYLE_STRING;
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_SEMICOLON:
                     buf[pos] = ';';
@@ -555,8 +555,7 @@ static IDE_line buf2line (IDE_editor ed)
                     for (char *c=nbuf; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_NUMBERS;
-                        // style[pos++] = UI_TEXT_STYLE_TEXT;
+                        style[pos++] = UI_TEXT_STYLE_TEXT;
                     }
                     break;
                 }
@@ -569,8 +568,7 @@ static IDE_line buf2line (IDE_editor ed)
                     for (char *c=nbuf; *c; c++)
                     {
                         buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_NUMBERS;
-                        // style[pos++] = UI_TEXT_STYLE_TEXT;
+                        style[pos++] = UI_TEXT_STYLE_TEXT;
                     }
                     break;
                 }

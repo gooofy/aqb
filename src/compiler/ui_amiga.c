@@ -106,12 +106,11 @@ static struct NewMenu g_newmenu[] =
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Custom Screen",       0 , CHECKIT | MENUTOGGLE,   0, (APTR)KEY_CUSTOMSCREEN,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
-        {   NM_SUB, (STRPTR) "Super dark blue",     0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
+        {   NM_SUB, (STRPTR) "Super dark",          0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
         {   NM_SUB, (STRPTR) "Dark blue",           0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
-        {   NM_SUB, (STRPTR) "QB64 Original",       0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_COLORSCHEME_2,},
-        {   NM_SUB, (STRPTR) "Classic QB4.5",       0 , CHECKIT | MENUTOGGLE,  ~8, (APTR)KEY_COLORSCHEME_3,},
-        {   NM_SUB, (STRPTR) "CF Dark",             0 , CHECKIT | MENUTOGGLE, ~16, (APTR)KEY_COLORSCHEME_4,},
-        {   NM_SUB, (STRPTR) "Dark side",           0 , CHECKIT | MENUTOGGLE, ~32, (APTR)KEY_COLORSCHEME_5,},
+        {   NM_SUB, (STRPTR) "QB",                  0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_COLORSCHEME_2,},
+        {   NM_SUB, (STRPTR) "TP",                  0 , CHECKIT | MENUTOGGLE,  ~8, (APTR)KEY_COLORSCHEME_3,},
+        {   NM_SUB, (STRPTR) "OS 2.0",              0 , CHECKIT | MENUTOGGLE, ~16, (APTR)KEY_COLORSCHEME_4,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
@@ -142,49 +141,42 @@ static struct Menu       *g_menuStrip     = NULL;
 typedef struct
 {
     char   *name;
-    UWORD   palette[8];
+    UWORD   palette[4];
     WORD    pens3d[10];
 } UI_theme_t;
 
-#define NUM_THEMES 6
+#define NUM_THEMES 5
 
 static UI_theme_t g_themes[NUM_THEMES] = {
     {
-        "Super dark blue",
-        { 0x0002, 0x0ddd, 0x0479, 0x0d64, 0x0fa0, 0x0666, 0x06ad, 0x0234 },
+        "AQB super dark",
+        { 0x0000, 0x0bbb, 0x05af, 0x006a,  },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        6,         7,       2,           0,             2,                2, -1},
+        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
     },
     {
-        "Dark blue",
-        { 0x0004, 0x0eee, 0x049d, 0x0f8b, 0x0fb0, 0x03cc, 0x06df, 0x0246 },
+        "AQB dark blue",
+        { 0x0004, 0x0bbb, 0x05af, 0x006a,  },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        6,         7,       2,           0,             2,                2, -1},
+        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
     },
     {
-        "QB64 Original",
-        { 0x000a, 0x0eee, 0x09ce, 0x0f8b, 0x0ff5, 0x05ff, 0x0dff, 0x0467 },
+        "QB",
+        { 0x000a, 0x0ddd, 0x09ce, 0x059a },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
+        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
     },
     {
-        "Classic QB4.5",
-        { 0x000a, 0x0bbb, 0x0bbb, 0x0bbb, 0x0bbb, 0x0bbb, 0x0fff, 0x0555 },
+        "TP",
+        { 0x000a, 0x0ee0, 0x09ce, 0x059a },
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
+        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
     },
     {
-        "CF Dark",
-        { 0x0222, 0x0eee, 0x07de, 0x0f28, 0x0fb2, 0x0978, 0x0aff, 0x0367 },
+        "OS 2.0",
+        { 0x0aaa, 0x0000, 0x0fff, 0x047a},
         // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        //{          0,        1,       7,        6,         7,       2,           0,             2,                2, -1 },
-        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
-    },
-    {
-        "Dark side",
-        { 0x0011, 0x0fff, 0x0cc0, 0x0f06, 0x00b0, 0x03bf, 0x0ff0, 0x0660 },
-        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        6,         7,       2,           0,             0,                2, -1},
+        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
     },
 };
 
@@ -472,7 +464,7 @@ void UI_setColorScheme (int scheme)
     if (g_screen)
     {
         UI_theme_t *theme = &g_themes[scheme];
-        for (uint16_t i=0; i<8; i++)
+        for (uint16_t i=0; i<4; i++)
         {
             UBYTE r = theme->palette[i]>>8;
             UBYTE g = (theme->palette[i]>>4) & 0xf;
@@ -554,7 +546,7 @@ bool UI_init (void)
 		g_screen = OpenScreenTags(NULL,
 			                      SA_Width,      visWidth,
 			                      SA_Height,     visHeight,
-			                      SA_Depth,      3,
+			                      SA_Depth,      2,
 			                      SA_Overscan,   OSCAN_TEXT,
 			                      SA_AutoScroll, TRUE,
 			                      SA_DisplayID,  mid,
@@ -1008,14 +1000,6 @@ void UI_setTextStyle (int style)
 				//UI_printf ( CSI "%dm", UI_STYLE_BOLD);
 				UI_printf ( CSI "%dm", 31 + style);
 				break;
-			case UI_TEXT_STYLE_NUMBERS:
-				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
-				UI_printf ( CSI "%dm", 31 + style);
-				break;
-			case UI_TEXT_STYLE_STRING:
-				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
-				UI_printf ( CSI "%dm", 31 + style);
-				break;
 			case UI_TEXT_STYLE_COMMENT:
 				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
 				//UI_printf ( CSI "%dm", UI_STYLE_ITALICS);
@@ -1039,14 +1023,6 @@ void UI_setTextStyle (int style)
 			case UI_TEXT_STYLE_KEYWORD:
 				UI_printf ( CSI "%dm", UI_STYLE_BOLD);
 				UI_printf ( CSI "%dm", UI_WORKBENCH_BLACK);
-				break;
-			case UI_TEXT_STYLE_NUMBERS:
-				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
-				UI_printf ( CSI "%dm", UI_WORKBENCH_BLUE);
-				break;
-			case UI_TEXT_STYLE_STRING:
-				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
-				UI_printf ( CSI "%dm", UI_WORKBENCH_BLUE);
 				break;
 			case UI_TEXT_STYLE_COMMENT:
 				UI_printf ( CSI "%dm", UI_STYLE_ITALICS);
