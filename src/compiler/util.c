@@ -72,7 +72,7 @@ static U_memRec   g_mem = NULL;
 static size_t     g_alloc=0;
 static float      g_start_time;
 
-static float get_time(void)
+float U_getTime(void)
 {
     #ifdef __amigaos__
 
@@ -221,7 +221,7 @@ void U_poolReset (U_poolId pid)
 
 void U_memstat(void)
 {
-    float t = get_time();
+    float t = U_getTime();
     double tdiff = t-g_start_time;
 
     for (int i=0; i<UP_numPools; i++)
@@ -614,7 +614,7 @@ void U_deinit (void)
 
 void U_init (void)
 {
-    g_start_time = get_time();
+    g_start_time = U_getTime();
 
     for (int i=0; i<UP_numPools; i++)
         g_pools[i] = U_MemPool (CHUNK_DEFAULT_SIZE);

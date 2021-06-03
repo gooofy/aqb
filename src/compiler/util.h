@@ -136,6 +136,7 @@ void     U_float2str(double v, char *buffer, int buf_len);
  * misc
  */
 
+float    U_getTime  (void);
 void     U_delay    (uint16_t millis);
 
 #ifdef __amigaos__
