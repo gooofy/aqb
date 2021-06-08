@@ -499,7 +499,7 @@ void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
     g_size_cb_user_data = user_data;
 }
 
-void UI_moveCursor (int row, int col)
+void UI_moveCursor (uint16_t row, uint16_t col)
 {
     UI_printf (CSI "%d;%d;H", row, col);
 }
@@ -509,17 +509,30 @@ void UI_eraseToEOL (void)
     UI_putstr (CSI "K");
 }
 
+void UI_bell (void)
+{
+    UI_putstr ("\007");
+}
+
 void UI_eraseDisplay (void)
 {
     UI_moveCursor (1, 1);
     UI_putstr (CSI "J");
 }
 
-void UI_bell (void)
+void UI_setColorScheme (int scheme)
 {
-    UI_putstr ("\007");
+    // FIXME: not supported
 }
-
+void UI_setCustomScreen (bool enabled)
+{
+    // FIXME: not supported
+}
+bool UI_isCustomScreen (void)
+{
+    // FIXME: not supported
+    return FALSE;
+}
 void UI_setCursorVisible (bool visible)
 {
     if (visible)
@@ -528,7 +541,7 @@ void UI_setCursorVisible (bool visible)
         UI_putstr ( CSI "?25l");
 }
 
-void UI_setTextStyle (int style)
+void UI_setTextStyle (uint16_t style)
 {
     switch (style)
     {
@@ -557,17 +570,13 @@ void UI_onKeyCall (UI_key_cb cb, void *user_data)
     g_key_cb_user_data = user_data;
 }
 
-void UI_setColorScheme (int scheme)
+void  UI_beginLine (uint16_t row)
 {
-    // FIXME: not supported
+    assert(FALSE); // FIXME: implement
 }
-void UI_setCustomScreen (bool enabled)
+void UI_endLine (void)
 {
-    // FIXME: not supported
+    assert(FALSE); // FIXME: implement
 }
-bool UI_isCustomScreen (void)
-{
-    // FIXME: not supported
-    return FALSE;
-}
+
 #endif

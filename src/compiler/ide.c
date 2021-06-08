@@ -928,7 +928,7 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 {
     // FIXME: horizontal scroll
 
-    UI_moveCursor (row, 1);
+    UI_beginLine (row);
 
     char s=UI_TEXT_STYLE_TEXT;
     UI_setTextStyle (UI_TEXT_STYLE_TEXT);
@@ -948,7 +948,7 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
         }
         UI_putc (buf[i]);
     }
-    UI_eraseToEOL();
+    UI_endLine();
 }
 
 static void repaint (IDE_editor ed)
@@ -992,8 +992,8 @@ static void repaint (IDE_editor ed)
         ed->repaint_all = FALSE;
         while (row < ed->infoline_row)
         {
-            UI_moveCursor (row+1, 1);
-            UI_eraseToEOL ();
+            UI_beginLine (row);
+            UI_endLine   ();
             row++;
         }
     }
@@ -1052,9 +1052,8 @@ static void repaint (IDE_editor ed)
     if (update_infoline)
     {
         LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
-        UI_setTextStyle (UI_TEXT_STYLE_TEXT);
         UI_setTextStyle (UI_TEXT_STYLE_INVERSE);
-        UI_moveCursor   (ed->infoline_row+1, 1);
+        UI_beginLine (ed->infoline_row+1);
         char *c = ed->infoline;
         int col = 0;
         while (*c && col < ed->window_width)
@@ -1068,6 +1067,7 @@ static void repaint (IDE_editor ed)
             col++;
         }
         UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+        UI_endLine ();
     }
 
     UI_moveCursor (ed->cursor_row-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
@@ -1375,7 +1375,6 @@ static void size_cb (void *user_data)
     invalidateAll (ed);
     scroll(ed);
     repaint(ed);
-    UI_flush();
 }
 
 static void key_cb (uint16_t key, void *user_data)
@@ -1484,7 +1483,6 @@ static void key_cb (uint16_t key, void *user_data)
 
     scroll(ed);
     repaint(ed);
-    UI_flush();
 }
 
 IDE_editor openEditor(void)
@@ -1643,16 +1641,16 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
             if (col >= g_ed->window_width)
             {
                 UI_scrollUp (/*fullscreen=*/TRUE);
-                UI_moveCursor (g_ed->window_height+1, 0);
-                UI_eraseToEOL ();
+                UI_beginLine (g_ed->window_height+1);
+                UI_endLine   ();
                 col = 0;
             }
             char c = buf[i];
             if (c=='\n')
             {
                 UI_scrollUp (/*fullscreen=*/TRUE);
-                UI_moveCursor (g_ed->window_height+1, 0);
-                UI_eraseToEOL ();
+                UI_beginLine (g_ed->window_height+1);
+                UI_endLine   ();
             }
             else
             {
@@ -1660,7 +1658,6 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
                 col++;
             }
         }
-        UI_flush();
     }
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);
@@ -1725,7 +1722,6 @@ void IDE_open (string sourcefn)
     UI_moveCursor (0, 0);
     UI_eraseDisplay();
     repaint(g_ed);
-    UI_flush();
 
 	UI_onKeyCall(key_cb, g_ed);
     UI_onSizeChangeCall (size_cb, g_ed);

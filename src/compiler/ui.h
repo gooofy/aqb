@@ -63,19 +63,6 @@
 #define KEY_UNKNOWN6       9998
 #define KEY_UNKNOWN7       9999
 
-void      UI_flush              (void);
-void      UI_putc               (char c);
-uint16_t  UI_waitkey            (void);
-void      UI_putstr             (string s);
-void      UI_printf             (char* format, ...);
-void      UI_vprintf            (char* format, va_list ap);
-void      UI_bell               (void);
-
-void      UI_moveCursor         (int row, int col);
-void      UI_eraseToEOL         (void);
-void      UI_eraseDisplay       (void);
-void      UI_setCursorVisible   (bool visible);
-
 #define UI_TEXT_STYLE_TEXT     0
 #define UI_TEXT_STYLE_KEYWORD  1
 //#define UI_TEXT_STYLE_NUMBERS  2
@@ -85,7 +72,20 @@ void      UI_setCursorVisible   (bool visible);
 //#define UI_TEXT_STYLE_SHADOW   6
 #define UI_TEXT_STYLE_INVERSE  3
 
-void      UI_setTextStyle       (int style);
+void      UI_setTextStyle       (uint16_t style);
+void      UI_beginLine          (uint16_t row);
+void      UI_putc               (char c);
+void      UI_putstr             (string s);
+void      UI_printf             (char* format, ...);
+void      UI_vprintf            (char* format, va_list ap);
+void      UI_endLine            (void);
+
+void      UI_setCursorVisible   (bool visible);
+void      UI_moveCursor         (uint16_t row, uint16_t col);
+uint16_t  UI_waitkey            (void);
+void      UI_bell               (void);
+void      UI_eraseDisplay       (void);
+
 void      UI_setColorScheme     (int scheme);
 void      UI_setCustomScreen    (bool enabled);
 bool      UI_isCustomScreen     (void);
