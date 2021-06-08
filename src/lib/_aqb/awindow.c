@@ -846,7 +846,7 @@ void _aio_set_dos_cursor_visible (BOOL visible)
     Write(g_stdout, (CONST APTR) c, LEN_(c));
 }
 
-static void draw_cursor()
+static void draw_cursor(void)
 {
     ULONG   old_fg, old_x, old_y;
 
