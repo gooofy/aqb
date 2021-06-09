@@ -51,26 +51,6 @@ struct ReqToolsBase         *ReqToolsBase;
                     /*(l)->lh_Tail = NULL,*/ \
                     (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
 
-static struct NewWindow g_nw =
-{
-    0, 0, 640, 200,
-    -1,-1,                               /* detailpen, blockpen */
-    IDCMP_CLOSEWINDOW | IDCMP_MENUPICK,  /* IDCMP */
-    WFLG_DEPTHGADGET   |                 /* window flags */
-	WFLG_SIZEGADGET    |
-    WFLG_DRAGBAR       |
-	WFLG_CLOSEGADGET   |
-    WFLG_SMART_REFRESH |
-	WFLG_ACTIVATE,
-    NULL, NULL,
-    (uint8_t *) "AQB",
-    NULL,
-    NULL,
-    100,45,                              /* min width, height */
-    1280, 1024,                          /* max width, height */
-    WBENCHSCREEN
-};
-
 static struct NewMenu g_newmenu[] =
     {
         { NM_TITLE, (STRPTR) "Project",             0 , 0, 0, 0,},
@@ -802,12 +782,18 @@ bool UI_init (void)
 	{
 		// open a full screen window
 
-		g_nw.Width     = visWidth;
-		g_nw.Height    = visHeight;
-        g_nw.MaxWidth  = visWidth;
-        g_nw.MaxHeight = visHeight;
-
-		if (!(g_win = OpenWindow(&g_nw)))
+		if (!(g_win = OpenWindowTags(NULL,
+                                     WA_Width,         visWidth,
+									 WA_Height,        visHeight-g_screen->BarHeight-1,
+								     WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
+                                     WA_SizeGadget,    TRUE,
+                                     WA_DragBar,       TRUE,
+                                     WA_DepthGadget,   TRUE,
+                                     WA_CloseGadget,   TRUE,
+                                     WA_Activate,      TRUE,
+									 WA_SimpleRefresh, TRUE,
+                                     WA_MaxWidth,      visWidth,
+                                     WA_MaxHeight,     visHeight)))
 			 cleanexit("Can't open window", RETURN_FAIL);
 
         g_OffLeft   = g_win->BorderLeft;
@@ -842,7 +828,7 @@ bool UI_init (void)
 									 WA_Top,           g_screen->BarHeight+1,
                                      WA_Width,         visWidth,
 									 WA_Height,        visHeight-g_screen->BarHeight-1,
-								     WA_IDCMP,         IDCMP_MENUPICK,
+								     WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
 								     WA_CustomScreen,  (ULONG) g_screen,
 									 WA_Backdrop,      TRUE,
 									 WA_SimpleRefresh, TRUE,
