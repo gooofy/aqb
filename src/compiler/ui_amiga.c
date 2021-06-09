@@ -103,12 +103,15 @@ static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
 static struct FileHandle *g_output        = NULL;
 static struct MsgPort    *g_IOport        = NULL;
-static int                g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
-static int                g_termSignalBit = -1;
-static APTR               g_vi            = NULL;
-static struct Menu       *g_menuStrip     = NULL;
-static struct TextFont   *g_font          = NULL;
+static UWORD              g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
+static UWORD              g_BMOffTop          = 0;
+static int                g_termSignalBit     = -1;
+static APTR               g_vi                = NULL;
+static struct Menu       *g_menuStrip         = NULL;
+static struct TextFont   *g_font              = NULL;
 static UBYTE              g_fontData[256][8];
+static UWORD              g_fontHeight        = 8;
+static bool               g_renderRTG         = FALSE;
 static struct BitMap      g_renderBM;
 static UBYTE             *g_renderBMPlanes[2];
 static UBYTE             *g_renderBMPtr[2];
@@ -294,10 +297,18 @@ void UI_beginLine (uint16_t row)
 {
     g_renderBMcurCol = 0;
     g_renderBMcurRow = row;
-    g_renderBMPtr[0] = g_renderBMPlanes[0];
-    g_renderBMPtr[1] = g_renderBMPlanes[1];
-    memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*8);
-    memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*8);
+    if (g_renderRTG)
+    {
+        g_renderBMPtr[0] = g_renderBMPlanes[0];
+        g_renderBMPtr[1] = g_renderBMPlanes[1];
+        memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
+        memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
+    }
+    else
+    {
+        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBM.BytesPerRow;
+        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBM.BytesPerRow;
+    }
 }
 
 void UI_putc(char c)
@@ -352,10 +363,10 @@ UWORD mypattern[]={0xf0f0, 0xf0f0};
 static void drawCursor(void)
 {
     uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
-    uint16_t y = (g_cursorRow-1)*8 + g_OffTop;
+    uint16_t y = (g_cursorRow-1)*g_fontHeight + g_OffTop;
     SetDrMd (g_rp, COMPLEMENT);
     g_rp->Mask = 3;
-    RectFill (g_rp, x, y, x+8, y+8);
+    RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
 #if 0
 
 
@@ -394,11 +405,9 @@ static void drawCursor(void)
 
 void UI_endLine (void)
 {
-    if (g_cursorVisible)
-        drawCursor();
-    BltBitMapRastPort (&g_renderBM, 0, 0, g_rp, 0, (g_renderBMcurRow-1)*8, g_renderBMmaxCols*8, 8, 0xc0);
-    if (g_cursorVisible)
-        drawCursor();
+    assert(!g_cursorVisible);
+    if (g_renderRTG)
+        BltBitMapRastPort (&g_renderBM, 0, 0, g_rp, 0, (g_renderBMcurRow-1)*8, g_renderBMmaxCols*8, 8, 0xc0);
 }
 
 void UI_setCursorVisible (bool visible)
@@ -694,10 +703,13 @@ void UI_deinit(void)
         delete_port(g_IOport);
     if (g_font)
         CloseFont(g_font);
-    if (g_renderBMPlanes[0])
-        FreeMem (g_renderBMPlanes[0], g_renderBM.BytesPerRow * 8);
-    if (g_renderBMPlanes[1])
-        FreeMem (g_renderBMPlanes[1], g_renderBM.BytesPerRow * 8);
+    if (g_renderRTG)
+    {
+        if (g_renderBMPlanes[0])
+            FreeMem (g_renderBMPlanes[0], g_renderBM.BytesPerRow * 8);
+        if (g_renderBMPlanes[1])
+            FreeMem (g_renderBMPlanes[1], g_renderBM.BytesPerRow * 8);
+    }
     if (ReqToolsBase)
         CloseLibrary((struct Library *)ReqToolsBase);
     if (g_termSignalBit != -1)
@@ -802,6 +814,8 @@ bool UI_init (void)
         g_OffRight  = g_win->BorderRight;
         g_OffTop    = g_win->BorderTop;
         g_OffBottom = g_win->BorderBottom;
+
+        g_renderRTG = TRUE;
 	}
 	else
 	{
@@ -839,6 +853,7 @@ bool UI_init (void)
         g_OffLeft   = 0;
         g_OffRight  = 0;
         g_OffTop    = 0;
+        g_BMOffTop  = g_screen->BarHeight;
         g_OffBottom = 0;
 	}
 
@@ -846,16 +861,25 @@ bool UI_init (void)
 
     g_rp = g_win->RPort;
 
-    // setup bg render bitmap and engine
+    if (g_renderRTG)
+    {
+        // setup bg render bitmap and engine
 
-    InitBitMap (&g_renderBM, /*Depth=*/2, visWidth, visHeight);
+        InitBitMap (&g_renderBM, /*Depth=*/2, visWidth, visHeight);
 
-    if (! (g_renderBMPlanes[0] = AllocMem (g_renderBM.BytesPerRow * 8, MEMF_CHIP)))
-        cleanexit ("Can't allocate background BitMap planes", RETURN_FAIL);
-    if (! (g_renderBMPlanes[1] = AllocMem (g_renderBM.BytesPerRow * 8, MEMF_CHIP)))
-        cleanexit ("Can't allocate background BitMap planes", RETURN_FAIL);
-    g_renderBM.Planes[0] = g_renderBMPtr[0] = g_renderBMPlanes[0];
-    g_renderBM.Planes[1] = g_renderBMPtr[1] = g_renderBMPlanes[1];
+        if (! (g_renderBMPlanes[0] = AllocMem (g_renderBM.BytesPerRow * 8, MEMF_CHIP)))
+            cleanexit ("Can't allocate background BitMap planes", RETURN_FAIL);
+        if (! (g_renderBMPlanes[1] = AllocMem (g_renderBM.BytesPerRow * 8, MEMF_CHIP)))
+            cleanexit ("Can't allocate background BitMap planes", RETURN_FAIL);
+        g_renderBM.Planes[0] = g_renderBMPtr[0] = g_renderBMPlanes[0];
+        g_renderBM.Planes[1] = g_renderBMPtr[1] = g_renderBMPlanes[1];
+    }
+    else
+    {
+        memcpy(&g_renderBM, &g_screen->BitMap, sizeof(struct BitMap));
+        g_renderBMPtr[0] = g_renderBMPlanes[0] = g_screen->BitMap.Planes[0];
+        g_renderBMPtr[1] = g_renderBMPlanes[1] = g_screen->BitMap.Planes[1];
+    }
 
     g_renderBMmaxCols = visWidth/8;
     UI_beginLine (0);
