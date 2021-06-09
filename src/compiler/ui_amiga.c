@@ -36,6 +36,9 @@
 #include <clib/gadtools_protos.h>
 #include <inline/gadtools.h>
 
+#include <clib/console_protos.h>
+#include <inline/console.h>
+
 #include "ui.h"
 #include "logger.h"
 #include "options.h"
@@ -46,6 +49,7 @@ extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 struct Library              *GadToolsBase;
 struct ReqToolsBase         *ReqToolsBase;
+struct Device               *ConsoleDevice = NULL;
 
 #define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
                     /*(l)->lh_Tail = NULL,*/ \
@@ -83,6 +87,7 @@ static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
 static struct FileHandle *g_output        = NULL;
 static struct MsgPort    *g_IOport        = NULL;
+static struct IOStdReq    console_ioreq;
 static UWORD              g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
 static UWORD              g_BMOffTop          = 0;
 static int                g_termSignalBit     = -1;
@@ -690,6 +695,8 @@ void UI_deinit(void)
         if (g_renderBMPlanes[1])
             FreeMem (g_renderBMPlanes[1], g_renderBM.BytesPerRow * 8);
     }
+    if (ConsoleDevice)
+        CloseDevice((struct IORequest *)&console_ioreq);
     if (ReqToolsBase)
         CloseLibrary((struct Library *)ReqToolsBase);
     if (g_termSignalBit != -1)
@@ -755,6 +762,9 @@ bool UI_init (void)
          cleanexit("graphics library is too old, need at least V37", RETURN_FAIL);
     if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
          cleanexit("Can't open reqtools.library", RETURN_FAIL);
+    if (OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&console_ioreq,0))
+         cleanexit("Can't open console.device", RETURN_FAIL);
+    ConsoleDevice = (struct Device *)console_ioreq.io_Device;
 
     loadAndConvertTextFont();
 
@@ -933,7 +943,6 @@ static uint16_t nextEvent(void)
 						running = FALSE;
 						break;
 
-
 					case IDCMP_MENUPICK:
 					{
 						UWORD menuNumber = winmsg->Code;
@@ -955,6 +964,29 @@ static uint16_t nextEvent(void)
 						break;
 					}
 
+					case IDCMP_RAWKEY:
+                    {
+                        static struct InputEvent ievent;
+                        static UBYTE kbuffer[16];
+                        ievent.ie_Class            = IECLASS_RAWKEY;
+                        ievent.ie_Code             = winmsg->Code;
+                        ievent.ie_Qualifier        = winmsg->Qualifier;
+                        ievent.ie_position.ie_addr = *((APTR*)winmsg->IAddress);
+
+                        USHORT nc = RawKeyConvert(&ievent, kbuffer, 15, /*kmap=*/NULL);
+                        if (nc>0)
+                        {
+                            printf ("RAWKEY EVENT: code=%d, qualifier=%d -> nc=%d, buf=\n",
+                                    winmsg->Code, winmsg->Qualifier,
+                                    nc);
+                            for (int i=0; i<nc; i++)
+                            {
+                                printf (" 0x%02x[%c]", kbuffer[i], kbuffer[i]);
+                            }
+                            printf("\n");
+                        }
+                        break;
+                    }
                     default:
 						break;
 				}
