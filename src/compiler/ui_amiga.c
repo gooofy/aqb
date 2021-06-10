@@ -536,10 +536,7 @@ void UI_runIO (void)
 
 void UI_bell (void)
 {
-    assert(FALSE); // FIXME
-#if 0
     DisplayBeep (g_screen);
-#endif
 }
 
 void UI_eraseDisplay (void)
@@ -649,14 +646,10 @@ void UI_onKeyCall (UI_key_cb cb, void *user_data)
 
 uint16_t UI_EZRequest (char *body, char *gadgets)
 {
-    assert(FALSE); // FIXME
-    return 0;
-#if 0
 	ULONG tags[] = { RTEZ_ReqTitle, (ULONG)"AQB", RT_Window, (ULONG) g_win, TAG_END };
 	ULONG res = rtEZRequestA (body, gadgets, /*reqinfo=*/NULL, /*argarray=*/NULL, (struct TagItem *)tags);
 	LOG_printf (LOG_DEBUG, "rtEZRequestA result: %ld\n", res);
 	return res;
-#endif
 }
 
 char *UI_FileReq  (char *title)
@@ -835,7 +828,7 @@ bool UI_init (void)
 		UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
 		if (!(g_win = OpenWindowTags(NULL,
-									 WA_Top,           g_screen->BarHeight+1,
+									 WA_Top,           g_screen->BarHeight,
                                      WA_Width,         visWidth,
 									 WA_Height,        visHeight-g_screen->BarHeight-1,
 								     WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
@@ -976,14 +969,67 @@ static uint16_t nextEvent(void)
                         USHORT nc = RawKeyConvert(&ievent, kbuffer, 15, /*kmap=*/NULL);
                         if (nc>0)
                         {
-                            printf ("RAWKEY EVENT: code=%d, qualifier=%d -> nc=%d, buf=\n",
-                                    winmsg->Code, winmsg->Qualifier,
-                                    nc);
+                            LOG_printf (LOG_DEBUG, "RAWKEY EVENT: code=%d, qualifier=%d -> nc=%d, buf=\n",
+                                        winmsg->Code, winmsg->Qualifier, nc);
                             for (int i=0; i<nc; i++)
                             {
-                                printf (" 0x%02x[%c]", kbuffer[i], kbuffer[i]);
+                                LOG_printf (LOG_DEBUG, " 0x%02x[%c]", kbuffer[i], kbuffer[i]);
                             }
-                            printf("\n");
+                            LOG_printf(LOG_DEBUG, "\n");
+                            switch (nc)
+                            {
+                                case 1:
+                                    return (UWORD) kbuffer[0];
+                                    break;
+                                case 2:
+                                    switch (kbuffer[0])
+                                    {
+                                        case 0x9b:
+                                            switch (kbuffer[1])
+                                            {
+                                                case 0x41: return KEY_CURSOR_UP;
+                                                case 0x42: return KEY_CURSOR_DOWN;
+                                                case 0x44: return KEY_CURSOR_LEFT;
+                                                case 0x43: return KEY_CURSOR_RIGHT;
+                                                case 0x54: return KEY_PAGE_UP;
+                                                case 0x53: return KEY_PAGE_DOWN;
+                                            }
+                                    }
+                                    break;
+                                case 3:
+                                    switch (kbuffer[0])
+                                    {
+                                        case 0x9b:
+                                            if (kbuffer[2]==0x7e)
+                                            {
+                                                switch (kbuffer[1])
+                                                {
+                                                    case 0x30: return KEY_F1;
+                                                    case 0x31: return KEY_F2;
+                                                    case 0x32: return KEY_F3;
+                                                    case 0x33: return KEY_F4;
+                                                    case 0x34: return KEY_F5;
+                                                    case 0x35: return KEY_F6;
+                                                    case 0x36: return KEY_F7;
+                                                    case 0x37: return KEY_F8;
+                                                    case 0x38: return KEY_F9;
+                                                    case 0x39: return KEY_F10;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (kbuffer[1]==0x20)
+                                                {
+                                                    switch (kbuffer[2])
+                                                    {
+                                                        case 0x41: return KEY_HOME;
+                                                        case 0x40: return KEY_END;
+                                                    }
+                                                }
+                                            }
+                                    }
+                                    break;
+                            }
                         }
                         break;
                     }

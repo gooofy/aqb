@@ -880,6 +880,23 @@ static bool gotoEOF(IDE_editor ed)
     return TRUE;
 }
 
+static bool gotoHome(IDE_editor ed)
+{
+    ed->cursor_col = 0;
+    ed->up2date_il_pos = FALSE;
+    return TRUE;
+}
+
+static bool gotoEnd(IDE_editor ed)
+{
+    if (ed->editing)
+        ed->cursor_col = ed->buf_len;
+    else
+        ed->cursor_col = ed->cursor_line->len + ed->cursor_line->indent * INDENT_SPACES;
+    ed->up2date_il_pos = FALSE;
+    return TRUE;
+}
+
 static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
 {
     if (ed->editing)
@@ -1414,6 +1431,14 @@ static void key_cb (uint16_t key, void *user_data)
 
         case KEY_PAGE_DOWN:
             pageDown(ed);
+            break;
+
+        case KEY_HOME:
+            gotoHome(ed);
+            break;
+
+        case KEY_END:
+            gotoEnd(ed);
             break;
 
         case KEY_GOTO_BOF:
