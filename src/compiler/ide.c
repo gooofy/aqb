@@ -1244,6 +1244,7 @@ static bool printableAsciiChar (uint16_t c)
 
 static bool insertChar (IDE_editor ed, uint16_t c)
 {
+    LOG_printf (LOG_DEBUG, "insertChar %c\n", c);
     if (!printableAsciiChar(c))
     {
         LOG_printf (LOG_DEBUG, "ide.c: insertChar: non-printable char %d detected.\n", c);
@@ -1254,20 +1255,26 @@ static bool insertChar (IDE_editor ed, uint16_t c)
     {
         line2buf (ed, ed->cursor_line);
     }
+    LOG_printf (LOG_DEBUG, "insertChar %c 2\n", c);
 
     uint16_t cp = ed->scrolloff_col + ed->cursor_col;
-    for (uint16_t i=ed->buf_len; i>cp; i--)
+    //LOG_printf (LOG_DEBUG, "insertChar 2.1 cp=%d\n", cp);
+    for (int i=ed->buf_len; i>cp; i--)
     {
+        //LOG_printf (LOG_DEBUG, "insertChar 2.1 i=%d\n", i);
         ed->buf[i]   = ed->buf[i-1];
         ed->style[i] = ed->style[i-1];
     }
+    //LOG_printf (LOG_DEBUG, "insertChar 2.2\n");
     ed->buf[cp]   = c;
     ed->style[cp] = UI_TEXT_STYLE_TEXT;
     ed->buf_len++;
+    LOG_printf (LOG_DEBUG, "insertChar %c 3\n", c);
 
     ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
 
     cursorRight(ed);
+    LOG_printf (LOG_DEBUG, "insertChar %c 4\n", c);
 
     return TRUE;
 }
