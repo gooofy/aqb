@@ -1242,6 +1242,12 @@ static bool printableAsciiChar (uint16_t c)
     return (c >= 32) && (c <= 126);
 }
 
+// FIXME: looks like GCC will emit un-aligned word access code in our
+//        copy loop
+#ifdef __amigaos__
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+#endif
 static bool insertChar (IDE_editor ed, uint16_t c)
 {
     LOG_printf (LOG_DEBUG, "insertChar %c\n", c);
@@ -1255,10 +1261,11 @@ static bool insertChar (IDE_editor ed, uint16_t c)
     {
         line2buf (ed, ed->cursor_line);
     }
-    LOG_printf (LOG_DEBUG, "insertChar %c 2\n", c);
+    //LOG_printf (LOG_DEBUG, "insertChar %c 2\n", c);
 
     uint16_t cp = ed->scrolloff_col + ed->cursor_col;
     //LOG_printf (LOG_DEBUG, "insertChar 2.1 cp=%d\n", cp);
+
     for (int i=ed->buf_len; i>cp; i--)
     {
         //LOG_printf (LOG_DEBUG, "insertChar 2.1 i=%d\n", i);
@@ -1269,16 +1276,18 @@ static bool insertChar (IDE_editor ed, uint16_t c)
     ed->buf[cp]   = c;
     ed->style[cp] = UI_TEXT_STYLE_TEXT;
     ed->buf_len++;
-    LOG_printf (LOG_DEBUG, "insertChar %c 3\n", c);
+    //LOG_printf (LOG_DEBUG, "insertChar %c 3\n", c);
 
     ed->up2date_row[ed->cursor_row - ed->scrolloff_row] = FALSE;
 
     cursorRight(ed);
-    LOG_printf (LOG_DEBUG, "insertChar %c 4\n", c);
+    //LOG_printf (LOG_DEBUG, "insertChar %c 4\n", c);
 
     return TRUE;
 }
-
+#ifdef __amigaos__
+#pragma GCC pop_options
+#endif
 static void IDE_save (IDE_editor ed)
 {
     if (ed->editing)
