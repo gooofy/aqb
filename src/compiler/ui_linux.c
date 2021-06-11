@@ -201,7 +201,7 @@ static uint16_t UI_getch (void)
                     break;
                 default:
                     LOG_printf (LOG_DEBUG, "terminal: UI_getch(): escape sequence detected: ESC %c [0x%02x] %c [0x%02x] *** UNKNOWN ***\n", seq[0], seq[0], seq[1], seq[1]);
-                    return KEY_UNKNOWN7;
+                    return KEY_UNKNOWN6;
 
             }
         }

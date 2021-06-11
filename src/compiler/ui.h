@@ -61,7 +61,7 @@
 #define KEY_UNKNOWN4       9996
 #define KEY_UNKNOWN5       9997
 #define KEY_UNKNOWN6       9998
-#define KEY_UNKNOWN7       9999
+#define KEY_NONE           9999
 
 #define UI_TEXT_STYLE_TEXT     0
 #define UI_TEXT_STYLE_KEYWORD  1
