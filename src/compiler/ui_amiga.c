@@ -103,7 +103,7 @@ static UBYTE             *g_renderBMPtr[2];
 static bool               g_renderBMPE[2]     = { TRUE, FALSE }; // PE: PlaneEnabled
 static bool               g_renderInverse     = FALSE;
 static uint16_t           g_renderBMcurCol    = 0;
-static uint16_t           g_renderBMcurRow    = 0;
+static uint16_t           g_renderBMcurRow    = 1;
 static uint16_t           g_renderBMmaxCols   = 80;
 static UI_size_cb         g_size_cb           = NULL;
 static void              *g_size_cb_user_data = NULL;
@@ -286,14 +286,14 @@ void UI_beginLine (uint16_t row)
     {
         g_renderBMPtr[0] = g_renderBMPlanes[0];
         g_renderBMPtr[1] = g_renderBMPlanes[1];
-        memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
-        memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
     }
     else
     {
         g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBM.BytesPerRow;
         g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBM.BytesPerRow;
     }
+    memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
+    memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
 }
 
 void UI_putc(char c)
@@ -871,7 +871,7 @@ bool UI_init (void)
     }
 
     g_renderBMmaxCols = visWidth/8;
-    UI_beginLine (0);
+    UI_beginLine (1);
 
     /* prepare fake i/o filehandles (for IDE console redirection) */
 
@@ -979,7 +979,12 @@ static uint16_t nextEvent(void)
                             switch (nc)
                             {
                                 case 1:
-                                    return (UWORD) kbuffer[0];
+                                    switch (kbuffer[0])
+                                    {
+                                        case 0x14: return KEY_GOTO_BOF;
+                                        case 0x02: return KEY_GOTO_EOF;
+                                        default: return (UWORD) kbuffer[0];
+                                    }
                                     break;
                                 case 2:
                                     switch (kbuffer[0])
@@ -987,8 +992,8 @@ static uint16_t nextEvent(void)
                                         case 0x9b:
                                             switch (kbuffer[1])
                                             {
-                                                case 0x41: return KEY_CURSOR_UP;
-                                                case 0x42: return KEY_CURSOR_DOWN;
+                                                case 0x41: if (winmsg->Qualifier & 8) return KEY_GOTO_BOF ; else return KEY_CURSOR_UP;
+                                                case 0x42: if (winmsg->Qualifier & 8) return KEY_GOTO_EOF ; else return KEY_CURSOR_DOWN;
                                                 case 0x44: return KEY_CURSOR_LEFT;
                                                 case 0x43: return KEY_CURSOR_RIGHT;
                                                 case 0x54: return KEY_PAGE_UP;
