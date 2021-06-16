@@ -657,11 +657,158 @@ char *UI_FileReq  (char *title)
     assert(FALSE);
 }
 
+typedef enum { esWait, esGet } eventState;
+
+static uint16_t nextEvent(void)
+{
+    static eventState state = esWait;
+
+    ULONG windowsig  = 1 << g_win->UserPort->mp_SigBit;
+    uint16_t res = KEY_NONE;
+    ULONG signals;
+
+    switch (state)
+    {
+        case esWait:
+            //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): Wait...\n");
+            signals = Wait(windowsig);
+            if (!(signals & windowsig))
+                break;
+            state = esGet;
+            /* fall trough */
+        case esGet:
+            {
+                //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): GetMsg...\n");
+                struct IntuiMessage *winmsg;
+                winmsg = (struct IntuiMessage *)GetMsg(g_win->UserPort);
+                if (winmsg)
+                {
+                    state = esGet;
+                    //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got a message, class=%d\n", winmsg->Class);
+                    switch (winmsg->Class)
+				    {
+                        case IDCMP_CLOSEWINDOW:
+                            res = KEY_CLOSE;
+				    		break;
+
+				    	case IDCMP_MENUPICK:
+				    	{
+				    		UWORD menuNumber = winmsg->Code;
+                            //LOG_printf (LOG_DEBUG, "ui_amiga: menu picked, menuNumber=%d\n", menuNumber);
+				    		while ((menuNumber != MENUNULL))
+				    		{
+				    			struct MenuItem *item = ItemAddress(g_menuStrip, menuNumber);
+
+				    			UWORD menuNum = MENUNUM(menuNumber);
+				    			UWORD itemNum = ITEMNUM(menuNumber);
+				    			UWORD subNum  = SUBNUM(menuNumber);
+                                uint32_t k = (uint32_t) GTMENUITEM_USERDATA(item);
+				    			LOG_printf (LOG_DEBUG, "ui_amiga: menu picked menuNum=%d, itemNum=%d, subNum=%d, userData=%d\n", menuNum, itemNum, subNum, k);
+                                if (k)
+                                    res = (uint16_t)k;
+
+				    			menuNumber = item->NextSelect;
+				    		}
+				    		break;
+				    	}
+
+				    	case IDCMP_RAWKEY:
+                        {
+                            //LOG_printf (LOG_DEBUG, "RAWKEY EVENT: code=%d, qualifier=%d\n", winmsg->Code, winmsg->Qualifier);
+
+                            static struct InputEvent ievent;
+                            static UBYTE kbuffer[16];
+                            ievent.ie_Class            = IECLASS_RAWKEY;
+                            ievent.ie_Code             = winmsg->Code;
+                            ievent.ie_Qualifier        = winmsg->Qualifier;
+                            ievent.ie_position.ie_addr = *((APTR*)winmsg->IAddress);
+
+                            USHORT nc = RawKeyConvert(&ievent, kbuffer, 15, /*kmap=*/NULL);
+                            //LOG_printf (LOG_DEBUG, " -> RawKeyConvert nc=%d, buf=\n", nc);
+                            //for (int i=0; i<nc; i++)
+                            //{
+                            //    LOG_printf (LOG_DEBUG, " 0x%02x[%c]", kbuffer[i], kbuffer[i]);
+                            //}
+                            //LOG_printf(LOG_DEBUG, "\n");
+                            switch (nc)
+                            {
+                                case 1:
+                                    switch (kbuffer[0])
+                                    {
+                                        case 0x14: res = KEY_GOTO_BOF; break;
+                                        case 0x02: res = KEY_GOTO_EOF; break;
+                                        default: res = (UWORD) kbuffer[0];
+                                    }
+                                    break;
+                                case 2:
+                                    switch (kbuffer[0])
+                                    {
+                                        case 0x9b:
+                                            switch (kbuffer[1])
+                                            {
+                                                case 0x41: if (winmsg->Qualifier & 8) res = KEY_GOTO_BOF ; else res = KEY_CURSOR_UP  ; break;
+                                                case 0x42: if (winmsg->Qualifier & 8) res = KEY_GOTO_EOF ; else res = KEY_CURSOR_DOWN; break;
+                                                case 0x44: res = KEY_CURSOR_LEFT ; break;
+                                                case 0x43: res = KEY_CURSOR_RIGHT; break;
+                                                case 0x54: res = KEY_PAGE_UP     ; break;
+                                                case 0x53: res = KEY_PAGE_DOWN   ; break;
+                                            }
+                                    }
+                                    break;
+                                case 3:
+                                    switch (kbuffer[0])
+                                    {
+                                        case 0x9b:
+                                            if (kbuffer[2]==0x7e)
+                                            {
+                                                switch (kbuffer[1])
+                                                {
+                                                    case 0x30: res = KEY_F1 ; break;
+                                                    case 0x31: res = KEY_F2 ; break;
+                                                    case 0x32: res = KEY_F3 ; break;
+                                                    case 0x33: res = KEY_F4 ; break;
+                                                    case 0x34: res = KEY_F5 ; break;
+                                                    case 0x35: res = KEY_F6 ; break;
+                                                    case 0x36: res = KEY_F7 ; break;
+                                                    case 0x37: res = KEY_F8 ; break;
+                                                    case 0x38: res = KEY_F9 ; break;
+                                                    case 0x39: res = KEY_F10; break;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (kbuffer[1]==0x20)
+                                                {
+                                                    switch (kbuffer[2])
+                                                    {
+                                                        case 0x41: res = KEY_HOME; break;
+                                                        case 0x40: res = KEY_END ; break;
+                                                    }
+                                                }
+                                            }
+                                    }
+                                    break;
+                            }
+                            break;
+                        }
+                    }
+                    ReplyMsg((struct Message *)winmsg);
+                }
+                else
+                {
+                    //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got no message\n");
+                    state = esWait;
+                }
+            }
+            break;
+    } /* switch (state) */
+
+    //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): done, res=%d\n", res);
+    return res;
+}
 uint16_t UI_waitkey (void)
 {
-    assert(FALSE);  // FIXME
-    return 0;
-    //return nextEvent();
+    return nextEvent();
 }
 
 void UI_deinit(void)
@@ -914,287 +1061,11 @@ bool UI_init (void)
 	return TRUE;
 }
 
-typedef enum { esWait, esGet } eventState;
-
-static uint16_t nextEvent(void)
-{
-    static eventState state = esWait;
-
-    ULONG windowsig  = 1 << g_win->UserPort->mp_SigBit;
-    uint16_t res = KEY_NONE;
-    ULONG signals;
-
-    switch (state)
-    {
-        case esWait:
-            signals = Wait(windowsig);
-            if (!(signals & windowsig))
-                break;
-            state = esGet;
-            /* fall trough */
-        case esGet:
-            {
-                struct IntuiMessage *winmsg;
-                winmsg = (struct IntuiMessage *)GetMsg(g_win->UserPort);
-                if (winmsg)
-                {
-                    state = esGet;
-                    switch (winmsg->Class)
-				    {
-                        case IDCMP_CLOSEWINDOW:
-                            res = KEY_CLOSE;
-				    		break;
-
-				    	case IDCMP_MENUPICK:
-				    	{
-				    		UWORD menuNumber = winmsg->Code;
-                            //LOG_printf (LOG_DEBUG, "ui_amiga: menu picked, menuNumber=%d\n", menuNumber);
-				    		while ((menuNumber != MENUNULL))
-				    		{
-				    			struct MenuItem *item = ItemAddress(g_menuStrip, menuNumber);
-
-				    			UWORD menuNum = MENUNUM(menuNumber);
-				    			UWORD itemNum = ITEMNUM(menuNumber);
-				    			UWORD subNum  = SUBNUM(menuNumber);
-                                uint32_t k = (uint32_t) GTMENUITEM_USERDATA(item);
-				    			LOG_printf (LOG_DEBUG, "ui_amiga: menu picked menuNum=%d, itemNum=%d, subNum=%d, userData=%d\n", menuNum, itemNum, subNum, k);
-                                if (k)
-                                    res = (uint16_t)k;
-
-				    			menuNumber = item->NextSelect;
-				    		}
-				    		break;
-				    	}
-
-				    	case IDCMP_RAWKEY:
-                        {
-                            LOG_printf (LOG_DEBUG, "RAWKEY EVENT: code=%d, qualifier=%d\n", winmsg->Code, winmsg->Qualifier);
-
-                            static struct InputEvent ievent;
-                            static UBYTE kbuffer[16];
-                            ievent.ie_Class            = IECLASS_RAWKEY;
-                            ievent.ie_Code             = winmsg->Code;
-                            ievent.ie_Qualifier        = winmsg->Qualifier;
-                            ievent.ie_position.ie_addr = *((APTR*)winmsg->IAddress);
-
-                            USHORT nc = RawKeyConvert(&ievent, kbuffer, 15, /*kmap=*/NULL);
-                            LOG_printf (LOG_DEBUG, " -> RawKeyConvert nc=%d, buf=\n", nc);
-                            for (int i=0; i<nc; i++)
-                            {
-                                LOG_printf (LOG_DEBUG, " 0x%02x[%c]", kbuffer[i], kbuffer[i]);
-                            }
-                            LOG_printf(LOG_DEBUG, "\n");
-                            switch (nc)
-                            {
-                                case 1:
-                                    switch (kbuffer[0])
-                                    {
-                                        case 0x14: res = KEY_GOTO_BOF; break;
-                                        case 0x02: res = KEY_GOTO_EOF; break;
-                                        default: res = (UWORD) kbuffer[0];
-                                    }
-                                    break;
-                                case 2:
-                                    switch (kbuffer[0])
-                                    {
-                                        case 0x9b:
-                                            switch (kbuffer[1])
-                                            {
-                                                case 0x41: if (winmsg->Qualifier & 8) res = KEY_GOTO_BOF ; else res = KEY_CURSOR_UP  ; break;
-                                                case 0x42: if (winmsg->Qualifier & 8) res = KEY_GOTO_EOF ; else res = KEY_CURSOR_DOWN; break;
-                                                case 0x44: res = KEY_CURSOR_LEFT ; break;
-                                                case 0x43: res = KEY_CURSOR_RIGHT; break;
-                                                case 0x54: res = KEY_PAGE_UP     ; break;
-                                                case 0x53: res = KEY_PAGE_DOWN   ; break;
-                                            }
-                                    }
-                                    break;
-                                case 3:
-                                    switch (kbuffer[0])
-                                    {
-                                        case 0x9b:
-                                            if (kbuffer[2]==0x7e)
-                                            {
-                                                switch (kbuffer[1])
-                                                {
-                                                    case 0x30: res = KEY_F1 ; break;
-                                                    case 0x31: res = KEY_F2 ; break;
-                                                    case 0x32: res = KEY_F3 ; break;
-                                                    case 0x33: res = KEY_F4 ; break;
-                                                    case 0x34: res = KEY_F5 ; break;
-                                                    case 0x35: res = KEY_F6 ; break;
-                                                    case 0x36: res = KEY_F7 ; break;
-                                                    case 0x37: res = KEY_F8 ; break;
-                                                    case 0x38: res = KEY_F9 ; break;
-                                                    case 0x39: res = KEY_F10; break;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                if (kbuffer[1]==0x20)
-                                                {
-                                                    switch (kbuffer[2])
-                                                    {
-                                                        case 0x41: res = KEY_HOME; break;
-                                                        case 0x40: res = KEY_END ; break;
-                                                    }
-                                                }
-                                            }
-                                    }
-                                    break;
-                            }
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    state = esWait;
-                }
-                ReplyMsg((struct Message *)winmsg);
-            }
-            break;
-    } /* switch (state) */
-
-    return res;
-
- #if 0
-
-    BOOL running = TRUE;
-    while (running)
-    {
-        ULONG signals = Wait(windowsig);
-
-        printf ("got signals: 0x%08lx\n", signals);
-
-        if (signals & windowsig)
-		{
-			struct IntuiMessage *winmsg;
-            while (winmsg = (struct IntuiMessage *)GetMsg(g_win->UserPort))
-			{
-                switch (winmsg->Class)
-				{
-                    case IDCMP_CLOSEWINDOW:
-						running = FALSE;
-						break;
-
-					case IDCMP_MENUPICK:
-					{
-						UWORD menuNumber = winmsg->Code;
-                        //LOG_printf (LOG_DEBUG, "ui_amiga: menu picked, menuNumber=%d\n", menuNumber);
-						while ((menuNumber != MENUNULL))
-						{
-							struct MenuItem *item = ItemAddress(g_menuStrip, menuNumber);
-
-							UWORD menuNum = MENUNUM(menuNumber);
-							UWORD itemNum = ITEMNUM(menuNumber);
-							UWORD subNum  = SUBNUM(menuNumber);
-                            uint32_t k = (uint32_t) GTMENUITEM_USERDATA(item);
-							LOG_printf (LOG_DEBUG, "ui_amiga: menu picked menuNum=%d, itemNum=%d, subNum=%d, userData=%d\n", menuNum, itemNum, subNum, k);
-                            if (k)
-                                return (uint16_t)k;
-
-							menuNumber = item->NextSelect;
-						}
-						break;
-					}
-
-					case IDCMP_RAWKEY:
-                    {
-                        LOG_printf (LOG_DEBUG, "RAWKEY EVENT: code=%d, qualifier=%d\n", winmsg->Code, winmsg->Qualifier);
-
-                        static struct InputEvent ievent;
-                        static UBYTE kbuffer[16];
-                        ievent.ie_Class            = IECLASS_RAWKEY;
-                        ievent.ie_Code             = winmsg->Code;
-                        ievent.ie_Qualifier        = winmsg->Qualifier;
-                        ievent.ie_position.ie_addr = *((APTR*)winmsg->IAddress);
-
-                        USHORT nc = RawKeyConvert(&ievent, kbuffer, 15, /*kmap=*/NULL);
-                        if (nc>0)
-                        {
-                            LOG_printf (LOG_DEBUG, " -> RawKeyConvert nc=%d, buf=\n", nc);
-                            for (int i=0; i<nc; i++)
-                            {
-                                LOG_printf (LOG_DEBUG, " 0x%02x[%c]", kbuffer[i], kbuffer[i]);
-                            }
-                            LOG_printf(LOG_DEBUG, "\n");
-                            switch (nc)
-                            {
-                                case 1:
-                                    switch (kbuffer[0])
-                                    {
-                                        case 0x14: return KEY_GOTO_BOF;
-                                        case 0x02: return KEY_GOTO_EOF;
-                                        default: return (UWORD) kbuffer[0];
-                                    }
-                                    break;
-                                case 2:
-                                    switch (kbuffer[0])
-                                    {
-                                        case 0x9b:
-                                            switch (kbuffer[1])
-                                            {
-                                                case 0x41: if (winmsg->Qualifier & 8) return KEY_GOTO_BOF ; else return KEY_CURSOR_UP;
-                                                case 0x42: if (winmsg->Qualifier & 8) return KEY_GOTO_EOF ; else return KEY_CURSOR_DOWN;
-                                                case 0x44: return KEY_CURSOR_LEFT;
-                                                case 0x43: return KEY_CURSOR_RIGHT;
-                                                case 0x54: return KEY_PAGE_UP;
-                                                case 0x53: return KEY_PAGE_DOWN;
-                                            }
-                                    }
-                                    break;
-                                case 3:
-                                    switch (kbuffer[0])
-                                    {
-                                        case 0x9b:
-                                            if (kbuffer[2]==0x7e)
-                                            {
-                                                switch (kbuffer[1])
-                                                {
-                                                    case 0x30: return KEY_F1;
-                                                    case 0x31: return KEY_F2;
-                                                    case 0x32: return KEY_F3;
-                                                    case 0x33: return KEY_F4;
-                                                    case 0x34: return KEY_F5;
-                                                    case 0x35: return KEY_F6;
-                                                    case 0x36: return KEY_F7;
-                                                    case 0x37: return KEY_F8;
-                                                    case 0x38: return KEY_F9;
-                                                    case 0x39: return KEY_F10;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                if (kbuffer[1]==0x20)
-                                                {
-                                                    switch (kbuffer[2])
-                                                    {
-                                                        case 0x41: return KEY_HOME;
-                                                        case 0x40: return KEY_END;
-                                                    }
-                                                }
-                                            }
-                                    }
-                                    break;
-                            }
-                        }
-                        break;
-                    }
-                    default:
-						break;
-				}
-                ReplyMsg((struct Message *)winmsg);
-			}
-		}
-	}
-
-    return KEY_CLOSE;
-    #endif
-}
 
 static inline void report_key (uint16_t key)
 {
+    if (key == KEY_NONE)
+        return;
     if (g_key_cb)
         g_key_cb (key, g_key_cb_user_data);
 }
