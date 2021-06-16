@@ -73,6 +73,9 @@ struct IDE_line_
 
     int8_t    indent;
     int8_t    pre_indent, post_indent;
+
+    // folding support
+    bool      folded, fold_start, fold_end;
 };
 
 struct IDE_editor_
@@ -121,7 +124,7 @@ static FILE *logf=NULL;
 static IDE_editor g_ed;
 static TAB_table  g_keywords;
 
-IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent)
+IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
 {
     int len = strlen(buf);
     IDE_line l = U_poolAlloc (UP_ide, sizeof(*l)+2*(len+1));
@@ -134,6 +137,9 @@ IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_
     l->indent      = 0;
     l->pre_indent  = pre_indent;
     l->post_indent = post_indent;
+    l->folded      = FALSE;
+    l->fold_start  = fold_start;
+    l->fold_end    = fold_end;
 
     memcpy (l->buf, buf, len+1);
     memcpy (l->style, style, len+1);
@@ -328,6 +334,8 @@ static IDE_line buf2line (IDE_editor ed)
     int pos = 0;
     int8_t pre_indent = 0;
     int8_t post_indent = 0;
+    bool fold_start = FALSE;
+    bool fold_end   = FALSE;
     while (TRUE)
     {
         S_tkn tkn = S_nextline();
@@ -461,10 +469,12 @@ static IDE_line buf2line (IDE_editor ed)
                             else if (tkn->u.sym == S_SUB)
                             {
                                 state = STAUI_SUB;
+                                fold_start = TRUE;
                             }
                             else if (tkn->u.sym == S_FUNCTION)
                             {
                                 state = STAUI_SUB;
+                                fold_start = TRUE;
                             }
                             else if (tkn->u.sym == S_FOR)
                             {
@@ -510,10 +520,13 @@ static IDE_line buf2line (IDE_editor ed)
                                 state = STAUI_ELSEIFTHEN;
                             }
                             break;
+                        case STAUI_END:
+                            if (tkn->u.sym == S_SUB)
+                                fold_end = TRUE;
+                            break;
                         case STAUI_THEN:
                         case STAUI_ELSEIFTHEN:
                         case STAUI_ELSE:
-                        case STAUI_END:
                         case STAUI_SUB:
                         case STAUI_LOOP:
                         case STAUI_LOOPEND:
@@ -712,7 +725,7 @@ static IDE_line buf2line (IDE_editor ed)
     }
     buf[pos] = 0;
 
-    return newLine (ed, buf, style, pre_indent, post_indent);
+    return newLine (ed, buf, style, pre_indent, post_indent, fold_start, fold_end);
 }
 
 static void indentLine (IDE_line l)
@@ -941,7 +954,7 @@ static void line2buf (IDE_editor ed, IDE_line l)
     ed->buf_len  = l->len+off;
 }
 
-static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent)
+static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded)
 {
     // FIXME: horizontal scroll
 
@@ -949,6 +962,9 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 
     char s=UI_TEXT_STYLE_TEXT;
     UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+
+    if (folded)
+        UI_putc ('>');
 
     for (uint16_t i=0; i<indent; i++)
     {
@@ -992,15 +1008,26 @@ static void repaint (IDE_editor ed)
     {
         if (!ed->up2date_row[row])
         {
-
             if (ed->editing && (linenum == ed->cursor_row))
-                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row + 1, 0);
+                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row + 1, 0, /*folded=*/FALSE);
             else
-                repaintLine (ed, l->buf, l->style, l->len, row + 1, l->indent);
+                repaintLine (ed, l->buf, l->style, l->len, row + 1, l->indent, l->folded);
             ed->up2date_row[row] = TRUE;
         }
+        if (l->folded)
+        {
+            while (l && !l->fold_end)
+            {
+                l = l->next;
+            }
+            if (l)
+                l = l->next;
+        }
+        else
+        {
+            l = l->next;
+        }
         linenum++;
-        l = l->next;
         row++;
     }
 
@@ -1639,6 +1666,8 @@ static void loadSource (IDE_editor ed, string sourcefn)
             {
                 ed->buf[ed->buf_len] = 0;
                 IDE_line line = buf2line (ed);
+                if (line->fold_start)
+                    line->folded = TRUE;
                 insertLineAfter (ed, lastLine, line);
                 lastLine = line;
                 eol=FALSE;
