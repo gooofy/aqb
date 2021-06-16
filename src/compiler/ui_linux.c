@@ -41,11 +41,91 @@ static void           *g_key_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
 
-void UI_flush  (void)
+static void UI_flush  (void)
 {
     if (g_bpos != 0)
         write(STDOUT_FILENO, g_outbuf, g_bpos);
     g_bpos = 0;
+}
+
+void UI_setTextStyle (uint16_t style)
+{
+    switch (style)
+    {
+        case UI_TEXT_STYLE_TEXT:
+            UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+            break;
+        case UI_TEXT_STYLE_KEYWORD:
+            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+            UI_printf ( CSI "%dm", UI_STYLE_YELLOW);
+            break;
+        case UI_TEXT_STYLE_COMMENT:
+            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
+            UI_printf ( CSI "%dm", UI_STYLE_BLUE);
+            break;
+        case UI_TEXT_STYLE_INVERSE:
+            UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
+            break;
+        default:
+            assert(FALSE);
+    }
+}
+
+void UI_beginLine (uint16_t row)
+{
+    UI_moveCursor (row, 1);
+}
+
+void UI_putc(char c)
+{
+    g_outbuf[g_bpos++] = c;
+    if (g_bpos >= BUFSIZE)
+        UI_flush();
+}
+
+void UI_putstr(char *s)
+{
+    while (*s)
+    {
+        g_outbuf[g_bpos++] = *s++;
+        if (g_bpos >= BUFSIZE)
+            UI_flush();
+    }
+}
+
+void UI_printf (char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    UI_vprintf (format, args);
+    va_end(args);
+}
+
+void UI_vprintf (char* format, va_list args)
+{
+    static char buf[BUFSIZE];
+    vsnprintf (buf, BUFSIZE, format, args);
+    UI_putstr(buf);
+}
+
+void UI_endLine (void)
+{
+    UI_putstr (CSI "K");    // erase to EOL
+    UI_flush();
+}
+
+void UI_setCursorVisible (bool visible)
+{
+    if (visible)
+        UI_putstr ( CSI "?25h");
+    else
+        UI_putstr ( CSI "?25l");
+    UI_flush();
+}
+
+void UI_moveCursor (uint16_t row, uint16_t col)
+{
+    UI_printf (CSI "%d;%d;H", row, col);
 }
 
 static uint16_t UI_getch (void)
@@ -220,6 +300,123 @@ uint16_t UI_waitkey (void)
     return UI_getch();
 }
 
+void UI_bell (void)
+{
+    UI_putstr ("\007");
+    UI_flush();
+}
+
+void UI_eraseDisplay (void)
+{
+    UI_moveCursor (1, 1);
+    UI_putstr (CSI "J");
+}
+
+void UI_setColorScheme (int scheme)
+{
+    // FIXME: not supported
+}
+void UI_setCustomScreen (bool enabled)
+{
+    // FIXME: not supported
+}
+bool UI_isCustomScreen (void)
+{
+    // FIXME: not supported
+    return FALSE;
+}
+
+void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
+{
+    g_scrollStart = row_start;
+    g_scrollEnd   = row_end;
+    UI_printf (CSI "%d;%dt", row_start, row_end);
+    UI_flush();
+}
+
+void UI_scrollUp (bool fullscreen)
+{
+    if (fullscreen)
+        UI_printf (CSI "t");
+
+    UI_printf ( CSI "S");
+
+    if (fullscreen)
+        UI_printf (CSI "%d;%dt", g_scrollStart, g_scrollEnd);
+    UI_flush();
+}
+
+void UI_scrollDown (void)
+{
+    UI_printf ( CSI "T");
+    UI_flush();
+}
+
+static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
+{
+    char buf[32];
+    unsigned int i = 0;
+
+    UI_flush();
+
+    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
+		return FALSE;
+
+    while (i < sizeof(buf)-1)
+	{
+        if (read(STDIN_FILENO,buf+i,1) != 1)
+			break;
+        if (buf[i] == 'R')
+			break;
+        i++;
+    }
+    buf[i] = '\0';
+
+    if (buf[0] != KEY_ESC || buf[1] != '[')
+		return FALSE;
+    if (sscanf(buf+2,"%hd;%hd",rows,cols) != 2)
+		return FALSE;
+    return TRUE;
+}
+
+bool UI_getsize(uint16_t *rows, uint16_t *cols)
+{
+    struct winsize ws;
+
+    if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
+	{
+        uint16_t orig_row, orig_col;
+
+        if (!getCursorPosition(&orig_row, &orig_col))
+			goto failed;
+
+        if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
+			goto failed;
+        if (!getCursorPosition(rows, cols))
+			goto failed;
+
+
+        char seq[32];
+        snprintf(seq, 32, "\x1b[%d;%dH", orig_row, orig_col);
+        write(STDOUT_FILENO, seq, strlen(seq));
+    }
+	else
+	{
+        *cols = ws.ws_col;
+        *rows = ws.ws_row;
+    }
+	return TRUE;
+
+failed:
+    return FALSE;
+}
+
+void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
+{
+    g_size_cb = cb;
+    g_size_cb_user_data = user_data;
+}
+
 static void handleSigWinCh(int unused __attribute__((unused)))
 {
     if (g_size_cb)
@@ -275,63 +472,6 @@ fatal:
     return FALSE;
 }
 
-static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
-{
-    char buf[32];
-    unsigned int i = 0;
-
-    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
-		return FALSE;
-
-    while (i < sizeof(buf)-1)
-	{
-        if (read(STDIN_FILENO,buf+i,1) != 1)
-			break;
-        if (buf[i] == 'R')
-			break;
-        i++;
-    }
-    buf[i] = '\0';
-
-    if (buf[0] != KEY_ESC || buf[1] != '[')
-		return FALSE;
-    if (sscanf(buf+2,"%hd;%hd",rows,cols) != 2)
-		return FALSE;
-    return TRUE;
-}
-
-
-bool UI_getsize(uint16_t *rows, uint16_t *cols)
-{
-    struct winsize ws;
-
-    if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
-	{
-        uint16_t orig_row, orig_col;
-
-        if (!getCursorPosition(&orig_row, &orig_col))
-			goto failed;
-
-        if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
-			goto failed;
-        if (!getCursorPosition(rows, cols))
-			goto failed;
-
-
-        char seq[32];
-        snprintf(seq, 32, "\x1b[%d;%dH", orig_row, orig_col);
-        write(STDOUT_FILENO, seq, strlen(seq));
-    }
-	else
-	{
-        *cols = ws.ws_col;
-        *rows = ws.ws_row;
-    }
-	return TRUE;
-
-failed:
-    return FALSE;
-}
 
 void UI_run(void)
 {
@@ -437,132 +577,6 @@ char *UI_FileReq  (char *title)
     assert(FALSE);
 }
 
-void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
-{
-    g_scrollStart = row_start;
-    g_scrollEnd   = row_end;
-    UI_printf (CSI "%d;%dt", row_start, row_end);
-}
-
-void UI_scrollUp (bool fullscreen)
-{
-    if (fullscreen)
-        UI_printf (CSI "t");
-
-    UI_printf ( CSI "S");
-
-    if (fullscreen)
-        UI_printf (CSI "%d;%dt", g_scrollStart, g_scrollEnd);
-}
-
-void UI_scrollDown (void)
-{
-    UI_printf ( CSI "T");
-}
-
-
-void UI_putc(char c)
-{
-    g_outbuf[g_bpos++] = c;
-    if (g_bpos >= BUFSIZE)
-        UI_flush();
-}
-
-void UI_putstr(char *s)
-{
-    while (*s)
-    {
-        g_outbuf[g_bpos++] = *s++;
-        if (g_bpos >= BUFSIZE)
-            UI_flush();
-    }
-}
-
-void UI_printf (char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    UI_vprintf (format, args);
-    va_end(args);
-}
-
-void UI_vprintf (char* format, va_list args)
-{
-    static char buf[BUFSIZE];
-    vsnprintf (buf, BUFSIZE, format, args);
-    UI_putstr(buf);
-}
-
-void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
-{
-    g_size_cb = cb;
-    g_size_cb_user_data = user_data;
-}
-
-void UI_moveCursor (uint16_t row, uint16_t col)
-{
-    UI_printf (CSI "%d;%d;H", row, col);
-}
-
-void UI_eraseToEOL (void)
-{
-    UI_putstr (CSI "K");
-}
-
-void UI_bell (void)
-{
-    UI_putstr ("\007");
-}
-
-void UI_eraseDisplay (void)
-{
-    UI_moveCursor (1, 1);
-    UI_putstr (CSI "J");
-}
-
-void UI_setColorScheme (int scheme)
-{
-    // FIXME: not supported
-}
-void UI_setCustomScreen (bool enabled)
-{
-    // FIXME: not supported
-}
-bool UI_isCustomScreen (void)
-{
-    // FIXME: not supported
-    return FALSE;
-}
-void UI_setCursorVisible (bool visible)
-{
-    if (visible)
-        UI_putstr ( CSI "?25h");
-    else
-        UI_putstr ( CSI "?25l");
-}
-
-void UI_setTextStyle (uint16_t style)
-{
-    switch (style)
-    {
-        case UI_TEXT_STYLE_TEXT:
-            UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
-            break;
-        case UI_TEXT_STYLE_KEYWORD:
-            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
-            UI_printf ( CSI "%dm", UI_STYLE_YELLOW);
-            break;
-        case UI_TEXT_STYLE_COMMENT:
-            UI_printf ( CSI "%dm", UI_STYLE_BOLD);
-            UI_printf ( CSI "%dm", UI_STYLE_BLUE);
-            break;
-        case UI_TEXT_STYLE_INVERSE:
-            UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
-            break;
-        default:
-            assert(FALSE);
-    }
-}
 
 void UI_onKeyCall (UI_key_cb cb, void *user_data)
 {
@@ -570,13 +584,5 @@ void UI_onKeyCall (UI_key_cb cb, void *user_data)
     g_key_cb_user_data = user_data;
 }
 
-void  UI_beginLine (uint16_t row)
-{
-    assert(FALSE); // FIXME: implement
-}
-void UI_endLine (void)
-{
-    assert(FALSE); // FIXME: implement
-}
 
 #endif
