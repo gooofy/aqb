@@ -76,12 +76,15 @@ struct IDE_line_
 
     // folding support
     bool      folded, fold_start, fold_end;
+    uint16_t  a_line; // absolut line number in file
+    uint16_t  v_line; // virtual line number, takes folding into account
 };
 
 struct IDE_editor_
 {
     IDE_line           line_first, line_last;
 	uint16_t           num_lines;
+    uint16_t           num_vlines;
 	bool               changed;
 	char               infoline[36+PATH_MAX];
     uint16_t           infoline_row;
@@ -140,6 +143,7 @@ IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_
     l->folded      = FALSE;
     l->fold_start  = fold_start;
     l->fold_end    = fold_end;
+    l->v_line      = 0;
 
     memcpy (l->buf, buf, len+1);
     memcpy (l->style, style, len+1);
@@ -238,12 +242,8 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
 static IDE_line getLine (IDE_editor ed, int linenum)
 {
     IDE_line l = ed->line_first;
-    int ln = 0;
-    while ( l && (ln < linenum) )
-    {
-        ln++;
+    while ( l && (l->v_line < linenum) )
         l = l->next;
-    }
     return l;
 }
 
@@ -267,7 +267,7 @@ static void scroll(IDE_editor ed)
     if (cursor_row > ed->window_height - SCROLL_MARGIN)
     {
         int16_t scrolloff_row_new = ed->cursor_row - ed->window_height + SCROLL_MARGIN;
-        int16_t scrolloff_row_max = ed->num_lines - ed->window_height + 1;
+        int16_t scrolloff_row_max = ed->num_vlines - ed->window_height + 1;
 
         if (scrolloff_row_new > scrolloff_row_max)
             scrolloff_row_new = scrolloff_row_max;
@@ -745,11 +745,25 @@ static void indentLine (IDE_line l)
 static void indentSuccLines (IDE_editor ed, IDE_line lp)
 {
     IDE_line l = lp->next;
+    uint16_t al = l->a_line;
+    uint16_t vl = l->v_line;
+    bool folded = FALSE;
     while (l)
     {
         indentLine (l);
+        al++;
+        if (!folded)
+            vl++;
+        if (l->folded)
+            folded = TRUE;
+        if (l->fold_end)
+            folded = FALSE;
+        l->a_line = al;
+        l->v_line = vl;
         l = l->next;
     }
+    ed->num_lines = al;
+    ed->num_vlines = vl;
     invalidateAll (ed);
 }
 
@@ -1260,8 +1274,8 @@ static void killLine (IDE_editor ed)
 
     ed->cursor_line = nl;
     deleteLine (ed, cl);
+    indentSuccLines (ed, nl->prev ? nl->prev : nl);
     invalidateAll(ed);
-    ed->num_lines--;
 }
 
 static bool printableAsciiChar (uint16_t c)
@@ -1567,6 +1581,7 @@ IDE_editor openEditor(void)
     ed->line_first       = NULL;
     ed->line_last        = NULL;
     ed->num_lines	     = 0;
+    ed->num_vlines	     = 0;
     ed->scrolloff_col    = 0;
     ed->scrolloff_row    = 0;
     ed->scrolloff_line   = NULL;
@@ -1671,7 +1686,6 @@ static void loadSource (IDE_editor ed, string sourcefn)
                 insertLineAfter (ed, lastLine, line);
                 lastLine = line;
                 eol=FALSE;
-                ed->num_lines++;
                 ed->buf_len = 0;
             }
         }
@@ -1684,7 +1698,6 @@ static void loadSource (IDE_editor ed, string sourcefn)
         ed->buf[ed->buf_len] = 0;
         IDE_line line = buf2line (ed);
         insertLineAfter (ed, NULL, line);
-        ed->num_lines++;
     }
 
     ed->cursor_col		 = 0;
