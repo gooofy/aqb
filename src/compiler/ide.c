@@ -744,20 +744,15 @@ static void indentLine (IDE_line l)
 
 static void indentSuccLines (IDE_editor ed, IDE_line lp)
 {
+    uint16_t al = lp->a_line;
+    uint16_t vl = lp->v_line;
     IDE_line l = lp->next;
-    uint16_t al = l->a_line;
-    uint16_t vl = l->v_line;
-    bool folded = FALSE;
     while (l)
     {
         indentLine (l);
         al++;
-        if (!folded)
+        if (l->fold_start || !l->folded)
             vl++;
-        if (l->folded)
-            folded = TRUE;
-        if (l->fold_end)
-            folded = FALSE;
         l->a_line = al;
         l->v_line = vl;
         l = l->next;
@@ -1303,6 +1298,30 @@ static void killLine (IDE_editor ed)
     invalidateAll(ed);
 }
 
+static void fold (IDE_editor ed)
+{
+    IDE_line cl = ed->cursor_line;
+    if (!cl->fold_start)
+        return;
+
+    if (ed->editing)
+        cl = commitBuf (ed);
+
+    IDE_line fl = cl; // remember fold start
+
+    do
+    {
+        cl->folded = !cl->folded;
+        cl = cl->next;
+    } while (cl && !cl->fold_end);
+
+    if (cl)
+        cl->folded = !cl->folded;
+
+    indentSuccLines (ed, fl);
+    invalidateAll(ed);
+}
+
 static bool printableAsciiChar (uint16_t c)
 {
     return (c >= 32) && (c <= 126);
@@ -1582,6 +1601,10 @@ static void key_cb (uint16_t key, void *user_data)
             break;
 
         case KEY_NONE:
+            break;
+
+        case KEY_TAB:
+            fold (ed);
             break;
 
         default:
