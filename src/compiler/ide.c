@@ -802,8 +802,16 @@ static bool cursorUp(IDE_editor ed)
     if (ed->editing)
         commitBuf (ed);
 
+    if (pl->folded)
+    {
+        do
+        {
+            pl = pl->prev;
+        } while (pl && !pl->fold_start);
+    }
     ed->cursor_line = pl;
-    ed->cursor_v_line--; // FIXME: find previous line with folding!
+    ed->cursor_a_line = pl->a_line;
+    ed->cursor_v_line = pl->v_line;
     if (ed->cursor_col > pl->len)
     {
         ed->cursor_col = pl->len;
@@ -1679,6 +1687,7 @@ static void loadSource (IDE_editor ed, string sourcefn)
         bool eof = FALSE;
         bool eol = FALSE;
         IDE_line lastLine = NULL;
+        bool folded = FALSE;
         while (!eof)
         {
             char ch;
@@ -1700,7 +1709,22 @@ static void loadSource (IDE_editor ed, string sourcefn)
                 ed->buf[ed->buf_len] = 0;
                 IDE_line line = buf2line (ed);
                 if (line->fold_start)
+                {
                     line->folded = TRUE;
+                    folded = TRUE;
+                }
+                else
+                {
+                    if (line->fold_end)
+                    {
+                        line->folded = TRUE;
+                        folded = FALSE;
+                    }
+                    else
+                    {
+                        line->folded = folded;
+                    }
+                }
                 insertLineAfter (ed, lastLine, line);
                 lastLine = line;
                 eol=FALSE;
