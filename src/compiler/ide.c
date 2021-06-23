@@ -776,6 +776,8 @@ static IDE_line commitBuf(IDE_editor ed)
         ed->line_last = l;
     l->next = cl->next;
     l->prev = cl->prev;
+    l->a_line = cl->a_line;
+    l->v_line = cl->v_line;
     ed->editing = FALSE;
     int8_t old_indent = cl->indent;
     int8_t old_post_indent = cl->post_indent;
@@ -963,8 +965,35 @@ static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
     return TRUE;
 }
 
+static void fold (IDE_editor ed)
+{
+    IDE_line cl = ed->cursor_line;
+    if (!cl->fold_start)
+        return;
+
+    if (ed->editing)
+        cl = commitBuf (ed);
+
+    IDE_line fl = cl; // remember fold start
+
+    do
+    {
+        cl->folded = !cl->folded;
+        cl = cl->next;
+    } while (cl && !cl->fold_end);
+
+    if (cl)
+        cl->folded = !cl->folded;
+
+    indentSuccLines (ed, fl);
+    invalidateAll(ed);
+}
+
 static void line2buf (IDE_editor ed, IDE_line l)
 {
+    if (l->folded)
+        fold(ed);
+
     uint16_t off = 0;
     for (int8_t i = 0; i<l->indent; i++)
     {
@@ -1295,30 +1324,6 @@ static void killLine (IDE_editor ed)
     ed->cursor_line = nl;
     deleteLine (ed, cl);
     indentSuccLines (ed, nl->prev ? nl->prev : nl);
-    invalidateAll(ed);
-}
-
-static void fold (IDE_editor ed)
-{
-    IDE_line cl = ed->cursor_line;
-    if (!cl->fold_start)
-        return;
-
-    if (ed->editing)
-        cl = commitBuf (ed);
-
-    IDE_line fl = cl; // remember fold start
-
-    do
-    {
-        cl->folded = !cl->folded;
-        cl = cl->next;
-    } while (cl && !cl->fold_end);
-
-    if (cl)
-        cl->folded = !cl->folded;
-
-    indentSuccLines (ed, fl);
     invalidateAll(ed);
 }
 
