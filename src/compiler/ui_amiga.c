@@ -343,8 +343,6 @@ void UI_vprintf (char* format, va_list args)
     UI_putstr(buf);
 }
 
-UWORD mypattern[]={0xf0f0, 0xf0f0};
-
 static void drawCursor(void)
 {
     uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
@@ -352,40 +350,6 @@ static void drawCursor(void)
     SetDrMd (g_rp, COMPLEMENT);
     g_rp->Mask = 3;
     RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
-#if 0
-
-
-    //SetAPen (g_rp, 2);
-    //SetBPen (g_rp, 3);
-    //g_rp->AreaPtrn=mypattern; g_rp->AreaPtSz=1;
-    //SetDrMd (g_rp, JAM1 | COMPLEMENT);
-    //SetDrMd (g_rp, JAM1);
-    //RectFill (g_rp, x, y, x+8, y+8);
-    //RectFill (g_rp, 0, 0, 320, 200);
-    //RectFill (g_rp, x, y, x+8, y+8);
-
-    //SetDrMd (g_rp, JAM1);
-    //for (x=0; x<320; x++)
-    //{
-    //    SetAPen (g_rp, x%4);
-    //    Move (g_rp, 160, 200);
-    //    Draw (g_rp, x, 0);
-    //}
-
-    //RectFill (g_rp, 20, 20, 40, 40);
-    //SetDrMd (g_rp, JAM2);
-    //RectFill (g_rp, 30, 30, 50, 50);
-    SetDrMd (g_rp, COMPLEMENT);
-    g_rp->Mask = 3;
-    for (x=0; x<10; x++)
-    {
-        SetAPen (g_rp, x%4);
-        SetBPen (g_rp, x%4);
-        RectFill (g_rp, x*10, x*10, x*10+10, x*10+10);
-    }
-
-    printf ("drawCursor col=%d, row=%d -> x=%d, y=%d\n", g_cursorCol, g_cursorRow, x, y);
-#endif
 }
 
 void UI_endLine (void)
@@ -430,33 +394,6 @@ int UI_termSignal (void)
     return g_termSignalBit;
 #endif
 }
-
-#if 0
-static void returnpacket(struct DosPacket *packet, long res1, long res2)
-{
-    struct Message *msg;
-    struct MsgPort *replyport;
-
-    packet->dp_Res1  = res1;
-    packet->dp_Res2  = res2;
-    replyport = packet->dp_Port;
-    msg = packet->dp_Link;
-    packet->dp_Port = g_IOport;
-    msg->mn_Node.ln_Name = (char *)packet;
-    msg->mn_Node.ln_Succ = NULL;
-    msg->mn_Node.ln_Pred = NULL;
-
-    PutMsg(replyport, msg);
-}
-
-static struct DosPacket *getpacket(void)
-{
-    struct Message *msg;
-    msg = GetMsg(g_IOport);
-    return ((struct DosPacket *)msg->mn_Node.ln_Name);
-}
-#endif
-
 
 void UI_runIO (void)
 {
@@ -521,18 +458,6 @@ void UI_runIO (void)
 	}
 #endif
 }
-
-#if 0
-
-// handle CSI sequences: state machine
-
-//typedef enum {ESC_idle, ESC_esc1, ESC_csi, ESC_tilde, ESC_1,
-//              ESC_EVENT} ESC_state_t;
-
-
-//static ESC_state_t g_esc_state = ESC_idle;
-#define MAX_EVENT_BUF 32
-#endif
 
 void UI_bell (void)
 {
@@ -991,7 +916,21 @@ bool UI_init (void)
         g_OffTop    = 0;
         g_BMOffTop  = g_screen->BarHeight;
         g_OffBottom = 0;
-	}
+
+        // detect RTG screen
+
+        if ( ((struct Library *)GfxBase)->lib_Version >= 39)
+        {
+            ULONG attr = GetBitMapAttr(&g_screen->BitMap, BMA_FLAGS);
+            //printf ("screen bitmap attrs: 0x%08lx BMF_STANDARD=0x%08lx\n", attr, BMF_STANDARD);
+            if (!(attr & BMF_STANDARD))
+            {
+                //printf ("RTG screen detected.\n");
+                g_renderRTG = TRUE;
+            }
+	    }
+
+    }
 
     UnlockPubScreen(NULL, sc);
 
