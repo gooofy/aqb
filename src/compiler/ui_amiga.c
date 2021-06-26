@@ -82,6 +82,7 @@ static struct NewMenu g_newmenu[] =
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
+
 static struct Screen     *g_screen        = NULL;
 static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
@@ -93,11 +94,12 @@ static UWORD              g_BMOffTop          = 0;
 static int                g_termSignalBit     = -1;
 static APTR               g_vi                = NULL;
 static struct Menu       *g_menuStrip         = NULL;
+static UWORD              g_fontHeight        = 8;
+// non-RTG direct-to-bitmap rendering
 static struct TextFont   *g_font              = NULL;
 static UBYTE              g_fontData[256][8];
-static UWORD              g_fontHeight        = 8;
 static bool               g_renderRTG         = FALSE;
-static struct BitMap      g_renderBM;
+static UWORD              g_renderBMBytesPerRow;
 static UBYTE             *g_renderBMPlanes[2];
 static UBYTE             *g_renderBMPtr[2];
 static bool               g_renderBMPE[2]     = { TRUE, FALSE }; // PE: PlaneEnabled
@@ -105,6 +107,10 @@ static bool               g_renderInverse     = FALSE;
 static uint16_t           g_renderBMcurCol    = 0;
 static uint16_t           g_renderBMcurRow    = 1;
 static uint16_t           g_renderBMmaxCols   = 80;
+// RTG graphics library based rendering
+#define BUFSIZE 1024
+static char               g_outbuf[BUFSIZE];
+static int                g_bpos = 0;
 static UI_size_cb         g_size_cb           = NULL;
 static void              *g_size_cb_user_data = NULL;
 static UI_key_cb          g_key_cb            = NULL;
@@ -115,7 +121,6 @@ static bool               g_cursorVisible     = FALSE;
 static uint16_t           g_cursorRow         = 1;
 static uint16_t           g_cursorCol         = 1;
 
-#define BUFSIZE 1024
 
 #if 0
 
@@ -219,36 +224,60 @@ static void cleanexit (char *s, uint32_t n)
     exit(n);
 }
 
+static void UI_flush(void)
+{
+    assert (g_renderRTG);
+    Text (g_rp, (STRPTR) g_outbuf, g_bpos);
+    g_bpos = 0;
+}
+
 void UI_setTextStyle (uint16_t style)
 {
 	if (g_screen)
 	{
-		switch (style)
-		{
-			case UI_TEXT_STYLE_TEXT:
-                g_renderBMPE[0] = TRUE;
-                g_renderBMPE[1] = FALSE;
-                g_renderInverse = FALSE;
-				break;
-			case UI_TEXT_STYLE_KEYWORD:
-                g_renderBMPE[0] = FALSE;
-                g_renderBMPE[1] = TRUE;
-                g_renderInverse = FALSE;
-				break;
-			case UI_TEXT_STYLE_COMMENT:
-                g_renderBMPE[0] = TRUE;
-                g_renderBMPE[1] = TRUE;
-                g_renderInverse = FALSE;
-				break;
-			case UI_TEXT_STYLE_INVERSE:
-                g_renderBMPE[0] = TRUE;
-                g_renderBMPE[1] = FALSE;
-                g_renderInverse = TRUE;
-				break;
-			default:
-                printf ("UI style %d is unknown.\n", style);
-				assert(FALSE);
-		}
+        if (g_renderRTG)
+        {
+            UI_flush();
+            switch (style)
+            {
+                case UI_TEXT_STYLE_TEXT     : SetAPen (g_rp, 1); SetDrMd (g_rp, JAM2); break;
+                case UI_TEXT_STYLE_KEYWORD  : SetAPen (g_rp, 2); SetDrMd (g_rp, JAM2); break;
+                case UI_TEXT_STYLE_COMMENT  : SetAPen (g_rp, 3); SetDrMd (g_rp, JAM2); break;
+                case UI_TEXT_STYLE_INVERSE  : SetAPen (g_rp, 1); SetDrMd (g_rp, COMPLEMENT); break;
+                default:
+                    printf ("UI style %d is unknown.\n", style);
+                    assert(FALSE);
+            }
+        }
+        else
+        {
+            switch (style)
+            {
+                case UI_TEXT_STYLE_TEXT:
+                    g_renderBMPE[0] = TRUE;
+                    g_renderBMPE[1] = FALSE;
+                    g_renderInverse = FALSE;
+                    break;
+                case UI_TEXT_STYLE_KEYWORD:
+                    g_renderBMPE[0] = FALSE;
+                    g_renderBMPE[1] = TRUE;
+                    g_renderInverse = FALSE;
+                    break;
+                case UI_TEXT_STYLE_COMMENT:
+                    g_renderBMPE[0] = TRUE;
+                    g_renderBMPE[1] = TRUE;
+                    g_renderInverse = FALSE;
+                    break;
+                case UI_TEXT_STYLE_INVERSE:
+                    g_renderBMPE[0] = TRUE;
+                    g_renderBMPE[1] = FALSE;
+                    g_renderInverse = TRUE;
+                    break;
+                default:
+                    printf ("UI style %d is unknown.\n", style);
+                    assert(FALSE);
+            }
+        }
 	}
 	else
 	{
@@ -280,46 +309,55 @@ void UI_setTextStyle (uint16_t style)
 
 void UI_beginLine (uint16_t row)
 {
-    g_renderBMcurCol = 0;
-    g_renderBMcurRow = row;
     if (g_renderRTG)
     {
-        g_renderBMPtr[0] = g_renderBMPlanes[0];
-        g_renderBMPtr[1] = g_renderBMPlanes[1];
+        assert (!g_bpos);
+        Move (g_rp, g_OffLeft, g_OffTop + (row-1) * g_fontHeight + g_rp->TxBaseline);
     }
     else
     {
-        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBM.BytesPerRow;
-        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBM.BytesPerRow;
+        g_renderBMcurCol = 0;
+        g_renderBMcurRow = row;
+        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow;
+        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow;
+        memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBMBytesPerRow*g_fontHeight);
+        memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBMBytesPerRow*g_fontHeight);
     }
-    memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
-    memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBM.BytesPerRow*g_fontHeight);
 }
 
 void UI_putc(char c)
 {
-    if (g_renderBMcurCol >= g_renderBMmaxCols)
-        return;
-    g_renderBMcurCol++;
-
-    //printf ("painting char %d (%c)\n", c, c);
-
-    UBYTE ci = c;
-    UBYTE *dst0 = g_renderBMPtr[0];
-    UBYTE *dst1 = g_renderBMPtr[1];
-    //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
-    for (UBYTE y=0; y<8; y++)
+    if (g_renderRTG)
     {
-        UBYTE fd = g_fontData[ci][y];
-        if (g_renderInverse)
-            fd = ~fd;
-        *dst0 = g_renderBMPE[0] ? fd : 0;
-        *dst1 = g_renderBMPE[1] ? fd : 0;
-        dst0 += g_renderBM.BytesPerRow;
-        dst1 += g_renderBM.BytesPerRow;
+        g_outbuf[g_bpos++] = c;
+        if (g_bpos >= BUFSIZE)
+            UI_flush();
     }
-    g_renderBMPtr[0]++;
-    g_renderBMPtr[1]++;
+    else
+    {
+        if (g_renderBMcurCol >= g_renderBMmaxCols)
+            return;
+        g_renderBMcurCol++;
+
+        //printf ("painting char %d (%c)\n", c, c);
+
+        UBYTE ci = c;
+        UBYTE *dst0 = g_renderBMPtr[0];
+        UBYTE *dst1 = g_renderBMPtr[1];
+        //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
+        for (UBYTE y=0; y<8; y++)
+        {
+            UBYTE fd = g_fontData[ci][y];
+            if (g_renderInverse)
+                fd = ~fd;
+            *dst0 = g_renderBMPE[0] ? fd : 0;
+            *dst1 = g_renderBMPE[1] ? fd : 0;
+            dst0 += g_renderBMBytesPerRow;
+            dst1 += g_renderBMBytesPerRow;
+        }
+        g_renderBMPtr[0]++;
+        g_renderBMPtr[1]++;
+    }
 }
 
 void UI_putstr(char *s)
@@ -356,7 +394,24 @@ void UI_endLine (void)
 {
     assert(!g_cursorVisible);
     if (g_renderRTG)
-        BltBitMapRastPort (&g_renderBM, 0, 0, g_rp, 0, (g_renderBMcurRow-1)*8, g_renderBMmaxCols*8, 8, 0xc0);
+    {
+        UI_flush();
+        WORD cp_x = g_rp->cp_x;
+        WORD cp_y = g_rp->cp_y-g_rp->TxBaseline;
+
+        WORD max_x = g_win->Width - g_OffRight-1;
+
+        if (cp_x < max_x)
+        {
+            BYTE FgPen = g_rp->FgPen;
+            BYTE DrawMode = g_rp->DrawMode;
+            SetAPen(g_rp, 0);
+            SetDrMd(g_rp, JAM1);
+            RectFill (g_rp, cp_x, cp_y, max_x, cp_y+g_fontHeight-1);
+            SetAPen(g_rp, FgPen);
+            SetDrMd(g_rp, DrawMode);
+        }
+    }
 }
 
 void UI_setCursorVisible (bool visible)
@@ -753,13 +808,6 @@ void UI_deinit(void)
         delete_port(g_IOport);
     if (g_font)
         CloseFont(g_font);
-    if (g_renderRTG)
-    {
-        if (g_renderBMPlanes[0])
-            FreeMem (g_renderBMPlanes[0], g_renderBM.BytesPerRow * 8);
-        if (g_renderBMPlanes[1])
-            FreeMem (g_renderBMPlanes[1], g_renderBM.BytesPerRow * 8);
-    }
     if (ConsoleDevice)
         CloseDevice((struct IORequest *)&console_ioreq);
     if (ReqToolsBase)
@@ -830,8 +878,6 @@ bool UI_init (void)
     if (OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&console_ioreq,0))
          cleanexit("Can't open console.device", RETURN_FAIL);
     ConsoleDevice = (struct Device *)console_ioreq.io_Device;
-
-    loadAndConvertTextFont();
 
     struct Screen *sc = LockPubScreen (NULL); // default public screen
     if (!sc)
@@ -936,27 +982,16 @@ bool UI_init (void)
 
     g_rp = g_win->RPort;
 
-    if (g_renderRTG)
+    if (!g_renderRTG)
     {
-        // setup bg render bitmap and engine
+        loadAndConvertTextFont();
 
-        InitBitMap (&g_renderBM, /*Depth=*/2, visWidth, visHeight);
-
-        if (! (g_renderBMPlanes[0] = AllocMem (g_renderBM.BytesPerRow * 8, MEMF_CHIP)))
-            cleanexit ("Can't allocate background BitMap planes", RETURN_FAIL);
-        if (! (g_renderBMPlanes[1] = AllocMem (g_renderBM.BytesPerRow * 8, MEMF_CHIP)))
-            cleanexit ("Can't allocate background BitMap planes", RETURN_FAIL);
-        g_renderBM.Planes[0] = g_renderBMPtr[0] = g_renderBMPlanes[0];
-        g_renderBM.Planes[1] = g_renderBMPtr[1] = g_renderBMPlanes[1];
-    }
-    else
-    {
-        memcpy(&g_renderBM, &g_screen->BitMap, sizeof(struct BitMap));
         g_renderBMPtr[0] = g_renderBMPlanes[0] = g_screen->BitMap.Planes[0];
         g_renderBMPtr[1] = g_renderBMPlanes[1] = g_screen->BitMap.Planes[1];
+        g_renderBMmaxCols = visWidth/8;
+        g_renderBMBytesPerRow = g_screen->BitMap.BytesPerRow;
     }
 
-    g_renderBMmaxCols = visWidth/8;
     UI_beginLine (1);
 
     /* prepare fake i/o filehandles (for IDE console redirection) */
