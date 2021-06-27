@@ -115,26 +115,11 @@ static UI_size_cb         g_size_cb           = NULL;
 static void              *g_size_cb_user_data = NULL;
 static UI_key_cb          g_key_cb            = NULL;
 static void              *g_key_cb_user_data  = NULL;
-static uint16_t           g_scrollStart       = 0;
+static uint16_t           g_scrollStart       = 1;
 static uint16_t           g_scrollEnd         = 10;
 static bool               g_cursorVisible     = FALSE;
 static uint16_t           g_cursorRow         = 1;
 static uint16_t           g_cursorCol         = 1;
-
-
-#if 0
-
-#define UI_STYLE_NORMAL     0
-#define UI_STYLE_BOLD       1
-#define UI_STYLE_ITALICS    3
-#define UI_STYLE_UNDERLINE  4
-#define UI_STYLE_INVERSE    7
-
-#define UI_WORKBENCH_GREY   30
-#define UI_WORKBENCH_BLACK  31
-#define UI_WORKBENCH_WHITE  32
-#define UI_WORKBENCH_BLUE   33
-#endif
 
 typedef struct
 {
@@ -240,10 +225,10 @@ void UI_setTextStyle (uint16_t style)
             UI_flush();
             switch (style)
             {
-                case UI_TEXT_STYLE_TEXT     : SetAPen (g_rp, 1); SetDrMd (g_rp, JAM2); break;
-                case UI_TEXT_STYLE_KEYWORD  : SetAPen (g_rp, 2); SetDrMd (g_rp, JAM2); break;
-                case UI_TEXT_STYLE_COMMENT  : SetAPen (g_rp, 3); SetDrMd (g_rp, JAM2); break;
-                case UI_TEXT_STYLE_INVERSE  : SetAPen (g_rp, 1); SetDrMd (g_rp, COMPLEMENT); break;
+                case UI_TEXT_STYLE_TEXT     : SetAPen (g_rp, 1); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2); break;
+                case UI_TEXT_STYLE_KEYWORD  : SetAPen (g_rp, 2); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2); break;
+                case UI_TEXT_STYLE_COMMENT  : SetAPen (g_rp, 3); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2); break;
+                case UI_TEXT_STYLE_INVERSE  : SetAPen (g_rp, 0); SetBPen (g_rp, 1); SetDrMd (g_rp, JAM2); break;
                 default:
                     printf ("UI style %d is unknown.\n", style);
                     assert(FALSE);
@@ -561,33 +546,26 @@ void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 
 void UI_scrollUp (bool fullscreen)
 {
-    assert(FALSE); // FIXME
-#if 0
-    if (!fullscreen)
-    {
-        //LOG_printf (LOG_DEBUG, "scroll up, g_scrollEnd=%d\n", g_scrollEnd);
-        UI_printf ( CSI "%dt", g_scrollEnd);
-    }
-    UI_printf ( CSI "S");
-    if (!fullscreen)
-    {
-        //UI_printf ( CSI "y");
-        UI_printf ( CSI "t");
-    }
-#endif
+    if (g_cursorVisible)
+        drawCursor();
+    WORD min_x = g_OffLeft;
+    WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
+    WORD max_x = g_win->Width - g_OffRight-1;
+    WORD max_y = g_scrollEnd*g_fontHeight-1;
+    //printf ("ScrollRaster (%d/%d)-(%d/%d) g_scrollStart=%d, g_scrollEnd=%d\n", min_x, min_y, max_x, max_y, g_scrollStart, g_scrollEnd);
+    ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+    if (g_cursorVisible)
+        drawCursor();
 }
 
 void UI_scrollDown (void)
 {
-    assert(FALSE); // FIXME
-#if 0
-    //LOG_printf (LOG_DEBUG, "scroll down, g_scrollEnd=%d\n", g_scrollEnd);
-    //UI_printf ( CSI "%dy", g_scrollStart+1);
-    UI_printf ( CSI "%dt", g_scrollEnd);
-    UI_printf ( CSI "T");
-    //UI_printf ( CSI "y");
-    UI_printf ( CSI "t");
-#endif
+    if (g_cursorVisible)
+        drawCursor();
+    WORD max_x = g_win->Width - g_OffRight-1;
+    ScrollRaster(g_rp, 0, -g_fontHeight, g_OffLeft, g_OffTop + (g_scrollStart-1)*g_fontHeight, max_x, (g_scrollEnd-1)*g_fontHeight-1);
+    if (g_cursorVisible)
+        drawCursor();
 }
 
 // FIXME: implement size change callback
@@ -946,7 +924,7 @@ bool UI_init (void)
 		UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
 		if (!(g_win = OpenWindowTags(NULL,
-									 WA_Top,           g_screen->BarHeight,
+									 WA_Top,           g_screen->BarHeight+1,
                                      WA_Width,         visWidth,
 									 WA_Height,        visHeight-g_screen->BarHeight-1,
 								     WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
@@ -960,7 +938,7 @@ bool UI_init (void)
         g_OffLeft   = 0;
         g_OffRight  = 0;
         g_OffTop    = 0;
-        g_BMOffTop  = g_screen->BarHeight;
+        g_BMOffTop  = g_screen->BarHeight+1;
         g_OffBottom = 0;
 
         // detect RTG screen
