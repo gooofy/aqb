@@ -521,7 +521,7 @@ static IDE_line buf2line (IDE_editor ed)
                             }
                             break;
                         case STAUI_END:
-                            if (tkn->u.sym == S_SUB)
+                            if ((tkn->u.sym == S_SUB) || (tkn->u.sym == S_FUNCTION))
                                 fold_end = TRUE;
                             break;
                         case STAUI_THEN:
