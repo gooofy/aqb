@@ -209,10 +209,23 @@ static void cleanexit (char *s, uint32_t n)
     exit(n);
 }
 
+static void drawCursor(void)
+{
+    uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
+    uint16_t y = (g_cursorRow-1)*g_fontHeight + g_OffTop;
+    SetDrMd (g_rp, COMPLEMENT);
+    g_rp->Mask = 3;
+    RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
+}
+
 static void UI_flush(void)
 {
     assert (g_renderRTG);
+    if (g_cursorVisible)
+        drawCursor();
     Text (g_rp, (STRPTR) g_outbuf, g_bpos);
+    if (g_cursorVisible)
+        drawCursor();
     g_bpos = 0;
 }
 
@@ -366,21 +379,13 @@ void UI_vprintf (char* format, va_list args)
     UI_putstr(buf);
 }
 
-static void drawCursor(void)
-{
-    uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
-    uint16_t y = (g_cursorRow-1)*g_fontHeight + g_OffTop;
-    SetDrMd (g_rp, COMPLEMENT);
-    g_rp->Mask = 3;
-    RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
-}
-
 void UI_endLine (void)
 {
-    assert(!g_cursorVisible);
     if (g_renderRTG)
     {
         UI_flush();
+        if (g_cursorVisible)
+            drawCursor();
         WORD cp_x = g_rp->cp_x;
         WORD cp_y = g_rp->cp_y-g_rp->TxBaseline;
 
@@ -396,6 +401,8 @@ void UI_endLine (void)
             SetAPen(g_rp, FgPen);
             SetDrMd(g_rp, DrawMode);
         }
+        if (g_cursorVisible)
+            drawCursor();
     }
 }
 
@@ -551,9 +558,40 @@ void UI_scrollUp (bool fullscreen)
     WORD min_x = g_OffLeft;
     WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
     WORD max_x = g_win->Width - g_OffRight-1;
-    WORD max_y = g_scrollEnd*g_fontHeight-1;
-    //printf ("ScrollRaster (%d/%d)-(%d/%d) g_scrollStart=%d, g_scrollEnd=%d\n", min_x, min_y, max_x, max_y, g_scrollStart, g_scrollEnd);
+    WORD max_y = fullscreen ? g_win->Height-1 : g_scrollEnd*g_fontHeight-1;
+#if 0
+    printf ("ScrollRaster g_screen: %d x %d, rows=%d\n", g_screen->Width, g_screen->Height, g_screen->BitMap.Rows);
+    printf ("ScrollRaster ViewPort: %d x %d\n", g_screen->ViewPort.DWidth, g_screen->ViewPort.DHeight);
+    printf ("ScrollRaster g_win: (%d/%d)-(%d/%d)\n", g_win->LeftEdge, g_win->TopEdge, g_win->Width, g_win->Height);
+    printf ("ScrollRaster (%d/%d)-(%d/%d) g_scrollStart=%d, g_scrollEnd=%d\n", min_x, min_y, max_x, max_y, g_scrollStart, g_scrollEnd);
+    if (fullscreen)
+    {
+        BYTE FgPen = g_rp->FgPen;
+        BYTE DrawMode = g_rp->DrawMode;
+        //struct RastPort *rp = &g_screen->RastPort;
+        struct RastPort *rp = g_rp;
+        SetAPen(rp, 2);
+        SetDrMd(rp, JAM1);
+        //RectFill (g_rp, min_x, min_y, max_x, max_y);
+        Move(rp, min_x, min_y); Draw(rp, max_x, max_y);
+        //Move(rp, 0, 0); Draw(rp, 639, 511-2);
+        //Move(rp, 0, 0); Draw(rp, 639, 511-4);
+        SetAPen(rp, FgPen);
+        SetDrMd(rp, DrawMode);
+
+        //UBYTE *p = g_screen->BitMap.Planes[1] + 507*g_renderBMBytesPerRow;
+        //for (uint16_t i = 0; i<80; i++)
+        //    *p++ = 0xff;
+
+        //ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+    }
+    else
+    {
+        ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+    }
+#else
     ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+#endif
     if (g_cursorVisible)
         drawCursor();
 }
@@ -766,7 +804,12 @@ static uint16_t nextEvent(void)
 }
 uint16_t UI_waitkey (void)
 {
-    return nextEvent();
+    while (TRUE)
+    {
+        uint16_t k = nextEvent();
+        if (k!=KEY_NONE)
+            return k;
+    }
 }
 
 void UI_deinit(void)
@@ -918,6 +961,7 @@ bool UI_init (void)
 			                      SA_Title,      (ULONG) (STRPTR) "AQB Screen",
                                   SA_Pens,       (ULONG) theme->pens3d,
 			                      TAG_END);
+        //printf ("visWidth=%d, visHeight=%d\n", visWidth, visHeight);
 		if (!g_screen)
 			 cleanexit("Can't open screen", RETURN_FAIL);
 
