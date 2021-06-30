@@ -498,7 +498,19 @@ void UI_runIO (void)
 				{
 					LONG l = packet->dp_Arg3;
 					char *buf = (char *)packet->dp_Arg2;
-					//LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
+#if 0
+                    // FIXME: disable debug code
+					LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
+					for (int i = 0; i<l; i++)
+                    {
+                        UBYTE c = (UBYTE)buf[i];
+                        if ((c>=' ') && (c<127))
+                            LOG_printf (LOG_DEBUG, "%c", c);
+                        else
+                            LOG_printf (LOG_DEBUG, "[%d]", c);
+                    }
+                    LOG_printf (LOG_DEBUG, "\n");
+#endif
 					for (int i = 0; i<l; i++)
 					{
                         if (!haveLine)
