@@ -1787,27 +1787,29 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_end(args);
 	if (lvl >= LOG_INFO)
     {
-        //UI_scrollUp (/*fullscreen=*/TRUE);
-        //UI_moveCursor (g_ed->window_height+1, 0);
-        //UI_eraseToEOL ();
-        //UI_moveCursor (g_ed->window_height, 0);
 
         uint16_t col = 0;
+        bool haveLine = FALSE;
         for (int i =0; i<l; i++)
         {
+            if (!haveLine)
+            {
+                UI_scrollUp  (/*fullscreen=*/TRUE);
+                UI_beginLine (g_ed->window_height);
+                haveLine = TRUE;
+            }
             if (col >= g_ed->window_width)
             {
-                UI_scrollUp (/*fullscreen=*/TRUE);
-                UI_beginLine (g_ed->window_height+1);
                 UI_endLine   ();
+                haveLine = FALSE;
                 col = 0;
             }
             char c = buf[i];
             if (c=='\n')
             {
-                UI_scrollUp (/*fullscreen=*/TRUE);
-                UI_beginLine (g_ed->window_height+1);
                 UI_endLine   ();
+                haveLine = FALSE;
+                col = 0;
             }
             else
             {
@@ -1815,6 +1817,8 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
                 col++;
             }
         }
+        if (haveLine)
+            UI_endLine   ();
     }
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);

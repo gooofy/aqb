@@ -307,6 +307,7 @@ void UI_setTextStyle (uint16_t style)
 
 void UI_beginLine (uint16_t row)
 {
+    //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine row=%d\n", row);
     if (g_renderRTG)
     {
         assert (!g_bpos);
@@ -453,14 +454,14 @@ void UI_runIO (void)
     BOOL running = TRUE;
     while (running)
     {
-        //LOG_printf (LOG_DEBUG, "term: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
+        //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
         ULONG signals = Wait(iosig | termsig);
-        //LOG_printf (LOG_DEBUG, "term: UI_runIO: got signals: 0x%08x\n", signals);
+        //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: got signals: 0x%08x\n", signals);
 
         if (signals & iosig)
 		{
 			struct DosPacket *packet = getpacket();
-			LOG_printf (LOG_DEBUG, "term: UI_runIO: got pkg, type=%d\n", packet->dp_Type);
+			LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: got pkg, type=%d\n", packet->dp_Type);
 
 			switch (packet->dp_Type)
 			{
@@ -468,7 +469,7 @@ void UI_runIO (void)
 				{
 					LONG l = packet->dp_Arg3;
 					char *buf = (char *)packet->dp_Arg2;
-					//LOG_printf (LOG_DEBUG, "term: UI_runIO: ACTION_WRITE, len=%d\n", l);
+					//LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
 					for (int i = 0; i<l; i++)
 					{
                         char c = buf[i];
@@ -491,7 +492,7 @@ void UI_runIO (void)
 					break;
 				}
 				default:
-					//LOG_printf (LOG_DEBUG, "term: UI_runIO: rejecting unknown packet type\n");
+					//LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: rejecting unknown packet type\n");
 					returnpacket (packet, FALSE, ERROR_ACTION_NOT_KNOWN);
 			}
 		}
@@ -610,8 +611,10 @@ void UI_scrollDown (void)
 
 bool UI_getsize(uint16_t *rows, uint16_t *cols)
 {
-    *cols = (g_win->Width  - g_OffLeft - g_OffRight ) / g_rp->Font->tf_XSize;
-    *rows = (g_win->Height - g_OffTop  - g_OffBottom) / g_rp->Font->tf_YSize;
+    uint16_t w = g_win->Width  - g_OffLeft - g_OffRight;
+    uint16_t h = g_win->Height - g_OffTop  - g_OffBottom;
+    *cols = w / 8;
+    *rows = h / g_fontHeight;
 
     /* range checks */
 
@@ -624,6 +627,8 @@ bool UI_getsize(uint16_t *rows, uint16_t *cols)
         *rows = UI_MIN_ROWS;
     if (*rows > UI_MAX_ROWS)
         *rows = UI_MAX_ROWS;
+
+    printf ("UI_getsize: w=%d, h=%d -> rows=%d, cols=%d\n", w, h, *rows, *cols);
 
     return TRUE;
 }
