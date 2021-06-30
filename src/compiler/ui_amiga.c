@@ -628,7 +628,7 @@ bool UI_getsize(uint16_t *rows, uint16_t *cols)
     if (*rows > UI_MAX_ROWS)
         *rows = UI_MAX_ROWS;
 
-    printf ("UI_getsize: w=%d, h=%d -> rows=%d, cols=%d\n", w, h, *rows, *cols);
+    LOG_printf (LOG_DEBUG, "UI_getsize: w=%d, h=%d -> rows=%d, cols=%d\n", w, h, *rows, *cols);
 
     return TRUE;
 }
