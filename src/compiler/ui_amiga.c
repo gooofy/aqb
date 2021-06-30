@@ -223,7 +223,8 @@ static void drawCursor(void)
 
 static void UI_flush(void)
 {
-    assert (g_renderRTG);
+    if (!g_renderRTG)
+        return;
     if (g_cursorVisible)
         drawCursor();
     Text (g_rp, (STRPTR) g_outbuf, g_bpos);
@@ -439,31 +440,47 @@ void UI_moveCursor (uint16_t row, uint16_t col)
 
 struct FileHandle *UI_output (void)
 {
-    assert(FALSE); // FIXME
-    return NULL;
-#if 0
     return g_output;
-#endif
 }
 
 int UI_termSignal (void)
 {
-    assert(FALSE); // FIXME
-    return 0;
-#if 0
     return g_termSignalBit;
-#endif
+}
+
+static void returnpacket(struct DosPacket *packet, long res1, long res2)
+{
+    struct Message *msg;
+    struct MsgPort *replyport;
+
+    packet->dp_Res1  = res1;
+    packet->dp_Res2  = res2;
+    replyport = packet->dp_Port;
+    msg = packet->dp_Link;
+    packet->dp_Port = g_IOport;
+    msg->mn_Node.ln_Name = (char *)packet;
+    msg->mn_Node.ln_Succ = NULL;
+    msg->mn_Node.ln_Pred = NULL;
+
+    PutMsg(replyport, msg);
+}
+
+static struct DosPacket *getpacket(void)
+{
+    struct Message *msg;
+    msg = GetMsg(g_IOport);
+    return ((struct DosPacket *)msg->mn_Node.ln_Name);
 }
 
 void UI_runIO (void)
 {
-    assert(FALSE); // FIXME
-#if 0
-
     ULONG iosig   = 1 << g_IOport->mp_SigBit;
 	ULONG termsig = 1 << g_termSignalBit;
 
     BOOL running = TRUE;
+    uint16_t rows, cols;
+    UI_getsize(&rows, &cols);
+    bool haveLine = FALSE;
     while (running)
     {
         //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
@@ -484,14 +501,17 @@ void UI_runIO (void)
 					//LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
 					for (int i = 0; i<l; i++)
 					{
+                        if (!haveLine)
+                        {
+                            UI_scrollUp  (/*fullscreen=*/TRUE);
+                            UI_beginLine (rows);
+                            haveLine = TRUE;
+                        }
                         char c = buf[i];
                         if (c=='\n')
                         {
-                            uint16_t rows, cols;
-                            UI_getsize(&rows, &cols);
-                            UI_scrollUp (/*fullscreen=*/TRUE);
-                            UI_moveCursor (rows+1, 1);
-                            UI_eraseToEOL ();
+                            UI_endLine ();
+                            haveLine = FALSE;
                         }
                         else
                         {
@@ -499,7 +519,6 @@ void UI_runIO (void)
                         }
 					}
 					UI_flush();
-
 					returnpacket (packet, l, packet->dp_Res2);
 					break;
 				}
@@ -516,7 +535,8 @@ void UI_runIO (void)
             }
         }
 	}
-#endif
+    if (haveLine)
+        UI_endLine   ();
 }
 
 void UI_bell (void)
