@@ -213,9 +213,12 @@ static void drawCursor(void)
 {
     uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
     uint16_t y = (g_cursorRow-1)*g_fontHeight + g_OffTop;
+    BYTE DrawMode = g_rp->DrawMode;
     SetDrMd (g_rp, COMPLEMENT);
     g_rp->Mask = 3;
+    //LOG_printf (LOG_DEBUG, "ui_amiga: drawCursor x=%d, y=%d\n", x, y);
     RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
+    SetDrMd (g_rp, DrawMode);
 }
 
 static void UI_flush(void)
