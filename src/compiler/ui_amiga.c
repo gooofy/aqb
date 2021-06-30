@@ -318,12 +318,16 @@ void UI_beginLine (uint16_t row)
     }
     else
     {
+        if (g_cursorVisible)
+            drawCursor();
         g_renderBMcurCol = 0;
         g_renderBMcurRow = row;
         g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow;
         g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow;
         memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBMBytesPerRow*g_fontHeight);
         memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBMBytesPerRow*g_fontHeight);
+        if (g_cursorVisible)
+            drawCursor();
     }
 }
 
@@ -341,6 +345,8 @@ void UI_putc(char c)
             return;
         g_renderBMcurCol++;
 
+        if (g_cursorVisible)
+            drawCursor();
         //printf ("painting char %d (%c)\n", c, c);
 
         UBYTE ci = c;
@@ -359,6 +365,9 @@ void UI_putc(char c)
         }
         g_renderBMPtr[0]++;
         g_renderBMPtr[1]++;
+
+        if (g_cursorVisible)
+            drawCursor();
     }
 }
 

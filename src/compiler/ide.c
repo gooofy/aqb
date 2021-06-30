@@ -1440,7 +1440,6 @@ static void compile(IDE_editor ed)
     // FIXME: save first
 
     LOG_printf (LOG_INFO, "\ncompilation starts...\n\n");
-
     CO_compile(ed->sourcefn,
                ed->module_name,
                /*symfn=*/ NULL,
@@ -1819,6 +1818,7 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
         }
         if (haveLine)
             UI_endLine   ();
+        UI_moveCursor(g_ed->window_height, col+1);
     }
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);
@@ -1880,7 +1880,7 @@ void IDE_open (string sourcefn)
     loadSource (g_ed, sourcefn);
 
     UI_setCursorVisible (FALSE);
-    UI_moveCursor (0, 0);
+    UI_moveCursor (1, 1);
     UI_eraseDisplay();
     repaint(g_ed);
 
