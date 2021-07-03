@@ -7,7 +7,6 @@
 
 static int g_opt=0;
 static char g_pref_fn[PATH_MAX];
-static bool g_pref_customscreen = TRUE;
 static int  g_pref_colorscheme  = 1;
 
 void OPT_set(int opt, bool onoff)
@@ -27,8 +26,6 @@ int OPT_prefGetInt (int pref)
 {
     switch (pref)
     {
-        case OPT_PREF_CUSTOMSCREEN:
-            return g_pref_customscreen;
         case OPT_PREF_COLORSCHEME:
             return g_pref_colorscheme;
     }
@@ -45,7 +42,6 @@ static void save_prefs(void)
         LOG_printf (LOG_ERROR, "failed to open %s for writing\n", g_pref_fn);
         return;
     }
-    fprintf (prefFile, "customscreen=%d\n", g_pref_customscreen);
     fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
     fclose(prefFile);
 }
@@ -54,9 +50,6 @@ void OPT_prefSetInt (int pref, int i)
 {
     switch (pref)
     {
-        case OPT_PREF_CUSTOMSCREEN:
-            g_pref_customscreen = i;
-            break;
         case OPT_PREF_COLORSCHEME:
             g_pref_colorscheme = i;
             break;
@@ -121,12 +114,12 @@ void OPT_init(void)
             }
             char *value = equals+1;
             *equals=0;
-            if (!strcmp(line, "customscreen"))
+            if (!strcmp(line, "colorscheme"))
             {
                 int i;
                 if (str2int (value, &i))
                 {
-                    g_pref_customscreen = i;
+                    g_pref_colorscheme = i;
                 }
                 else
                 {
@@ -135,22 +128,7 @@ void OPT_init(void)
             }
             else
             {
-                if (!strcmp(line, "colorscheme"))
-                {
-                    int i;
-                    if (str2int (value, &i))
-                    {
-                        g_pref_colorscheme = i;
-                    }
-                    else
-                    {
-                        printf ("options: failed to parse value '%s'\n", value);
-                    }
-                }
-                else
-                {
-                    printf ("options: unknown prefs option '%s'\n", line);
-                }
+                printf ("options: unknown prefs option '%s'\n", line);
             }
         }
         fclose(prefFile);

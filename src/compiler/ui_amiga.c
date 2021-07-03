@@ -72,7 +72,6 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, 0,},
 
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Custom Screen",       0 , CHECKIT | MENUTOGGLE,   0, (APTR)KEY_CUSTOMSCREEN,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
         {   NM_SUB, (STRPTR) "Super dark",          0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
         {   NM_SUB, (STRPTR) "Dark blue",           0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
@@ -636,16 +635,6 @@ void UI_setColorScheme (int scheme)
     }
 }
 
-void UI_setCustomScreen (bool enabled)
-{
-    OPT_prefSetInt (OPT_PREF_CUSTOMSCREEN, enabled ? 1: 0);
-}
-
-bool UI_isCustomScreen (void)
-{
-    return OPT_prefGetInt (OPT_PREF_CUSTOMSCREEN);
-}
-
 void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;
@@ -1025,84 +1014,55 @@ bool UI_init (void)
 	WORD visWidth = sc->Width > maxW ? maxW : sc->Width;
 	WORD visHeight = sc->Height > maxH ? maxH : sc->Height;
 
-	if (!OPT_prefGetInt (OPT_PREF_CUSTOMSCREEN))
-	{
-		// open a full screen window
+    // open a custom screen that is a clone of the public screen, but has 8 colors and our font
 
-		if (!(g_win = OpenWindowTags(NULL,
-                                     WA_Width,         visWidth,
-									 WA_Height,        visHeight-g_screen->BarHeight-1,
-								     WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
-                                     WA_SizeGadget,    TRUE,
-                                     WA_DragBar,       TRUE,
-                                     WA_DepthGadget,   TRUE,
-                                     WA_CloseGadget,   TRUE,
-                                     WA_Activate,      TRUE,
-									 WA_SimpleRefresh, TRUE,
-                                     WA_MaxWidth,      visWidth,
-                                     WA_MaxHeight,     visHeight)))
-			 cleanexit("Can't open window", RETURN_FAIL);
+    UI_theme_t *theme = &g_themes[OPT_prefGetInt (OPT_PREF_COLORSCHEME)];
 
-        g_OffLeft   = g_win->BorderLeft;
-        g_OffRight  = g_win->BorderRight;
-        g_OffTop    = g_win->BorderTop;
-        g_OffBottom = g_win->BorderBottom;
+    g_screen = OpenScreenTags(NULL,
+                              SA_Width,      visWidth,
+                              SA_Height,     visHeight,
+                              SA_Depth,      3,
+                              SA_Overscan,   OSCAN_TEXT,
+                              SA_AutoScroll, TRUE,
+                              SA_DisplayID,  mid,
+                              SA_Title,      (ULONG) (STRPTR) "AQB Screen",
+                              SA_Pens,       (ULONG) theme->pens3d,
+                              TAG_END);
+    //printf ("visWidth=%d, visHeight=%d\n", visWidth, visHeight);
+    if (!g_screen)
+         cleanexit("Can't open screen", RETURN_FAIL);
 
-        g_renderRTG = TRUE;
-	}
-	else
-	{
-		// open a custom screen that is a clone of the public screen, but has 8 colors and our font
+    UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
-        UI_theme_t *theme = &g_themes[OPT_prefGetInt (OPT_PREF_COLORSCHEME)];
+    if (!(g_win = OpenWindowTags(NULL,
+                                 WA_Top,           g_screen->BarHeight+1,
+                                 WA_Width,         visWidth,
+                                 WA_Height,        visHeight-g_screen->BarHeight-1,
+                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
+                                 WA_CustomScreen,  (ULONG) g_screen,
+                                 WA_Backdrop,      TRUE,
+                                 WA_SimpleRefresh, TRUE,
+                                 WA_Activate,      TRUE,
+                                 WA_Borderless,    TRUE)))
+         cleanexit("Can't open window", RETURN_FAIL);
 
-		g_screen = OpenScreenTags(NULL,
-			                      SA_Width,      visWidth,
-			                      SA_Height,     visHeight,
-			                      SA_Depth,      3,
-			                      SA_Overscan,   OSCAN_TEXT,
-			                      SA_AutoScroll, TRUE,
-			                      SA_DisplayID,  mid,
-			                      SA_Title,      (ULONG) (STRPTR) "AQB Screen",
-                                  SA_Pens,       (ULONG) theme->pens3d,
-			                      TAG_END);
-        //printf ("visWidth=%d, visHeight=%d\n", visWidth, visHeight);
-		if (!g_screen)
-			 cleanexit("Can't open screen", RETURN_FAIL);
+    g_OffLeft   = 0;
+    g_OffRight  = 0;
+    g_OffTop    = 0;
+    g_BMOffTop  = g_screen->BarHeight+1;
+    g_OffBottom = 0;
 
-		UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
+    // detect RTG screen
 
-		if (!(g_win = OpenWindowTags(NULL,
-									 WA_Top,           g_screen->BarHeight+1,
-                                     WA_Width,         visWidth,
-									 WA_Height,        visHeight-g_screen->BarHeight-1,
-								     WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
-								     WA_CustomScreen,  (ULONG) g_screen,
-									 WA_Backdrop,      TRUE,
-									 WA_SimpleRefresh, TRUE,
-									 WA_Activate,      TRUE,
-								     WA_Borderless,    TRUE)))
-			 cleanexit("Can't open window", RETURN_FAIL);
-
-        g_OffLeft   = 0;
-        g_OffRight  = 0;
-        g_OffTop    = 0;
-        g_BMOffTop  = g_screen->BarHeight+1;
-        g_OffBottom = 0;
-
-        // detect RTG screen
-
-        if ( ((struct Library *)GfxBase)->lib_Version >= 39)
+    if ( ((struct Library *)GfxBase)->lib_Version >= 39)
+    {
+        ULONG attr = GetBitMapAttr(&g_screen->BitMap, BMA_FLAGS);
+        //printf ("screen bitmap attrs: 0x%08lx BMF_STANDARD=0x%08lx\n", attr, BMF_STANDARD);
+        if (!(attr & BMF_STANDARD))
         {
-            ULONG attr = GetBitMapAttr(&g_screen->BitMap, BMA_FLAGS);
-            //printf ("screen bitmap attrs: 0x%08lx BMF_STANDARD=0x%08lx\n", attr, BMF_STANDARD);
-            if (!(attr & BMF_STANDARD))
-            {
-                //printf ("RTG screen detected.\n");
-                g_renderRTG = TRUE;
-            }
-	    }
-
+            //printf ("RTG screen detected.\n");
+            g_renderRTG = TRUE;
+        }
     }
 
     UnlockPubScreen(NULL, sc);
@@ -1151,11 +1111,6 @@ bool UI_init (void)
 	if (!SetMenuStrip(g_win, g_menuStrip))
 		cleanexit("failed to set menu strip", RETURN_FAIL);
 
-	if (OPT_prefGetInt (OPT_PREF_CUSTOMSCREEN))
-    {
-        struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/0, /*sub=*/0));
-        item->Flags |= CHECKED;
-    }
     struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
     item->Flags |= CHECKED;
 
