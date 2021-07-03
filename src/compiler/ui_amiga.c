@@ -49,6 +49,7 @@ extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
+extern struct DiskfontBase  *DiskfontBase;
 struct Library              *GadToolsBase;
 struct ReqToolsBase         *ReqToolsBase;
 struct Device               *ConsoleDevice = NULL;
