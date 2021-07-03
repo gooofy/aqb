@@ -1474,6 +1474,7 @@ static void compileAndRun(IDE_editor ed)
 
     UI_eraseDisplay ();
     invalidateAll (ed);
+    UI_setCursorVisible (TRUE);
 }
 
 static void IDE_load_FileReq (IDE_editor ed)

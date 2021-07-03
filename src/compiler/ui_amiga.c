@@ -472,6 +472,10 @@ static struct DosPacket *getpacket(void)
     return ((struct DosPacket *)msg->mn_Node.ln_Name);
 }
 
+typedef enum { tsText, tsCSI } termState;
+
+#define CSI_BUF_LEN 16
+
 void UI_runIO (void)
 {
     ULONG iosig   = 1 << g_IOport->mp_SigBit;
@@ -481,6 +485,9 @@ void UI_runIO (void)
     uint16_t rows, cols;
     UI_getsize(&rows, &cols);
     bool haveLine = FALSE;
+    termState ts = tsText;
+    static char csiBuf[CSI_BUF_LEN];
+    uint16_t csiBufLen=0;
     while (running)
     {
         //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
@@ -498,7 +505,7 @@ void UI_runIO (void)
 				{
 					LONG l = packet->dp_Arg3;
 					char *buf = (char *)packet->dp_Arg2;
-#if 0
+#if 1
                     // FIXME: disable debug code
 					LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
 					for (int i = 0; i<l; i++)
@@ -519,15 +526,64 @@ void UI_runIO (void)
                             UI_beginLine (rows);
                             haveLine = TRUE;
                         }
-                        char c = buf[i];
-                        if (c=='\n')
+                        UBYTE c = (UBYTE)buf[i];
+                        switch (ts)
                         {
-                            UI_endLine ();
-                            haveLine = FALSE;
-                        }
-                        else
-                        {
-                            UI_putc(c);
+                            case tsText:
+                                switch (c)
+                                {
+                                    case '\n':
+                                        UI_endLine ();
+                                        haveLine = FALSE;
+                                        break;
+                                    case '0':
+                                        UI_endLine ();
+                                        haveLine = FALSE;
+                                        break;
+                                    case 0x9b:
+                                        ts = tsCSI;
+                                        break;
+                                    default:
+                                        UI_putc(c);
+                                }
+                                break;
+                            case tsCSI:
+                                /*
+                                0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
+                                0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
+                                0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
+                                */
+                                if (c>=0x40)
+                                {
+                                    LOG_printf (LOG_DEBUG, "CSI seq detected: %s\n", csiBuf);
+
+                                    switch (c)
+                                    {
+                                        case 'p': // csr on/off
+                                            if (csiBufLen == 2)
+                                            {
+                                                switch (csiBuf[0])
+                                                {
+                                                    case '0':
+                                                       UI_setCursorVisible (FALSE);
+                                                       break;
+                                                    case '1':
+                                                       UI_setCursorVisible (TRUE);
+                                                       break;
+                                                }
+                                            }
+                                            break;
+                                    }
+
+                                    ts = tsText;
+                                    csiBufLen = 0;
+                                }
+                                else
+                                {
+                                    if (csiBufLen<CSI_BUF_LEN)
+                                        csiBuf[csiBufLen++] = c;
+                                }
+                                break;
                         }
 					}
 					UI_flush();
