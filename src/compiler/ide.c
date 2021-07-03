@@ -1840,14 +1840,14 @@ static void IDE_deinit(void)
 void IDE_open (string sourcefn)
 {
     OPT_set (OPTION_VERBOSE, FALSE);
-    UI_init();
-    RUN_init();
 #if LOG_LEVEL == LOG_DEBUG
     //printf ("opening %s ...\n", LOG_FILENAME);
     logf = fopen (LOG_FILENAME, "a");
     //printf ("opening %s ... done.\n", LOG_FILENAME);
 #endif
 	atexit (IDE_deinit);
+    UI_init();
+    RUN_init();
     LOG_init (log_cb);
 
     // indentation support

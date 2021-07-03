@@ -23,11 +23,13 @@
 #include <clib/intuition_protos.h>
 #include <clib/graphics_protos.h>
 #include <clib/console_protos.h>
+#include <clib/diskfont_protos.h>
 
 #include <inline/exec.h>
 #include <inline/dos.h>
 #include <inline/intuition.h>
 #include <inline/graphics.h>
+#include <inline/diskfont.h>
 
 #include <libraries/reqtools.h>
 #include <inline/reqtools.h>
@@ -935,10 +937,13 @@ static void loadAndConvertTextFont(void)
 {
     // load and unpack text font
 
-    static struct TextAttr fontattr = { (STRPTR)"topaz.font", 8, 0, 0 };
+    //static struct TextAttr fontattr = { (STRPTR)"topaz.font", 8, 0, 0 };
+    static struct TextAttr fontattr = { (STRPTR)"dale.font", 6, 0, 0 };
     g_font = OpenFont(&fontattr);
     if (!g_font)
         cleanexit("Can't open topaz.font size 8!", RETURN_FAIL);
+
+    g_fontHeight = g_font->tf_YSize;
 
     for (UWORD ci=0; ci<256; ci++)
         for (UBYTE y=0; y<8; y++)
