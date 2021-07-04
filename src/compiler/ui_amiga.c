@@ -81,6 +81,9 @@ static struct NewMenu g_newmenu[] =
         {   NM_SUB, (STRPTR) "QB",                  0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_COLORSCHEME_2,},
         {   NM_SUB, (STRPTR) "TP",                  0 , CHECKIT | MENUTOGGLE,  ~8, (APTR)KEY_COLORSCHEME_3,},
         {   NM_SUB, (STRPTR) "OS 2.0",              0 , CHECKIT | MENUTOGGLE, ~16, (APTR)KEY_COLORSCHEME_4,},
+        {  NM_ITEM, (STRPTR) "Font",                0 , 0, 0, 0,},
+        {   NM_SUB, (STRPTR) "6",                   0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_6,},
+        {   NM_SUB, (STRPTR) "8",                   0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_8,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
@@ -356,7 +359,7 @@ void UI_putc(char c)
         UBYTE *dst0 = g_renderBMPtr[0];
         UBYTE *dst1 = g_renderBMPtr[1];
         //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
-        for (UBYTE y=0; y<8; y++)
+        for (UBYTE y=0; y<g_fontHeight; y++)
         {
             UBYTE fd = g_fontData[ci][y];
             if (g_renderInverse)
@@ -939,8 +942,8 @@ static void loadAndConvertTextFont(void)
     // load and unpack text font
 
     //static struct TextAttr fontattr = { (STRPTR)"topaz.font", 8, 0, 0 };
-    static struct TextAttr fontattr = { (STRPTR)"dale.font", 6, 0, 0 };
-    g_font = OpenFont(&fontattr);
+    static struct TextAttr fontattr = { (STRPTR)"aqb.font", 6, 0, 0 };
+    g_font = OpenDiskFont(&fontattr);
     if (!g_font)
         cleanexit("Can't open topaz.font size 8!", RETURN_FAIL);
 
@@ -1117,7 +1120,7 @@ bool UI_init (void)
 	if (!SetMenuStrip(g_win, g_menuStrip))
 		cleanexit("failed to set menu strip", RETURN_FAIL);
 
-    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
+    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
     item->Flags |= CHECKED;
 
 	return TRUE;

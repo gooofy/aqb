@@ -53,7 +53,9 @@
 #define KEY_COLORSCHEME_3  1027
 #define KEY_COLORSCHEME_4  1028
 #define KEY_COLORSCHEME_5  1029
-#define KEY_ABOUT          1031
+#define KEY_ABOUT          1030
+#define KEY_FONT_6         1031
+#define KEY_FONT_8         1032
 #define KEY_UNKNOWN1       9993
 #define KEY_UNKNOWN2       9994
 #define KEY_UNKNOWN3       9995

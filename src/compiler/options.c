@@ -5,8 +5,9 @@
 #include "options.h"
 #include "logger.h"
 
-static int g_opt=0;
+static int  g_opt=0;
 static char g_pref_fn[PATH_MAX];
+static int  g_pref_font         = 1;
 static int  g_pref_colorscheme  = 1;
 
 void OPT_set(int opt, bool onoff)
@@ -26,6 +27,8 @@ int OPT_prefGetInt (int pref)
 {
     switch (pref)
     {
+        case OPT_PREF_FONT:
+            return g_pref_font;
         case OPT_PREF_COLORSCHEME:
             return g_pref_colorscheme;
     }
@@ -50,6 +53,9 @@ void OPT_prefSetInt (int pref, int i)
 {
     switch (pref)
     {
+        case OPT_PREF_FONT:
+            g_pref_font = i;
+            break;
         case OPT_PREF_COLORSCHEME:
             g_pref_colorscheme = i;
             break;

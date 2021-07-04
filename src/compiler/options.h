@@ -19,6 +19,7 @@ bool OPT_get           (int opt);
  * (persistent) user preferences
  */
 
+#define OPT_PREF_FONT         1
 #define OPT_PREF_COLORSCHEME  2
 
 int  OPT_prefGetInt  (int pref);
