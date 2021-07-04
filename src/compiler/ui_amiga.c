@@ -88,7 +88,7 @@ static struct NewMenu g_newmenu[] =
     };
 
 static struct TextAttr g_fontattrs[] = {
-        { (STRPTR)"dale.font", 6, 0, 0 },
+        { (STRPTR)"aqb.font", 6, 0, 0 },
         { (STRPTR)"topaz.font", 8, 0, 0 },
     };
 
@@ -971,7 +971,7 @@ void UI_setFont (int font)
         pCharLoc++;
         UWORD bs = *pCharLoc;
         pCharLoc++;
-        //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
+        // printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
         for (UBYTE y=0; y<g_fontHeight; y++)
         {
             char *p = g_font->tf_CharData;
