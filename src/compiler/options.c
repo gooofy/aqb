@@ -45,6 +45,7 @@ static void save_prefs(void)
         LOG_printf (LOG_ERROR, "failed to open %s for writing\n", g_pref_fn);
         return;
     }
+    fprintf (prefFile, "font=%d\n", g_pref_font);
     fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
     fclose(prefFile);
 }
@@ -134,7 +135,22 @@ void OPT_init(void)
             }
             else
             {
-                printf ("options: unknown prefs option '%s'\n", line);
+                if (!strcmp(line, "font"))
+                {
+                    int i;
+                    if (str2int (value, &i))
+                    {
+                        g_pref_font = i;
+                    }
+                    else
+                    {
+                        printf ("options: failed to parse value '%s'\n", value);
+                    }
+                }
+                else
+                {
+                    printf ("options: unknown prefs option '%s'\n", line);
+                }
             }
         }
         fclose(prefFile);

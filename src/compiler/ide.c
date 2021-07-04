@@ -1600,6 +1600,13 @@ static void key_cb (uint16_t key, void *user_data)
             invalidateAll (ed);
 			break;
 
+		case KEY_FONT_0:
+		case KEY_FONT_1:
+			UI_setFont (key - KEY_FONT_0);
+            initWindowSize (ed);
+            invalidateAll (ed);
+			break;
+
         case KEY_NONE:
             break;
 

@@ -317,6 +317,11 @@ void UI_setColorScheme (int scheme)
     // FIXME: not supported
 }
 
+void UI_setFont (int font)
+{
+    // FIXME: not supported
+}
+
 void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;

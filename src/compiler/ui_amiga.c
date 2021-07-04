@@ -82,11 +82,15 @@ static struct NewMenu g_newmenu[] =
         {   NM_SUB, (STRPTR) "TP",                  0 , CHECKIT | MENUTOGGLE,  ~8, (APTR)KEY_COLORSCHEME_3,},
         {   NM_SUB, (STRPTR) "OS 2.0",              0 , CHECKIT | MENUTOGGLE, ~16, (APTR)KEY_COLORSCHEME_4,},
         {  NM_ITEM, (STRPTR) "Font",                0 , 0, 0, 0,},
-        {   NM_SUB, (STRPTR) "6",                   0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_6,},
-        {   NM_SUB, (STRPTR) "8",                   0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_8,},
+        {   NM_SUB, (STRPTR) "6",                   0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_0,},
+        {   NM_SUB, (STRPTR) "8",                   0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_1,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
+static struct TextAttr g_fontattrs[] = {
+        { (STRPTR)"aqb.font", 6, 0, 0 },
+        { (STRPTR)"topaz.font", 8, 0, 0 },
+    };
 
 static struct Screen     *g_screen        = NULL;
 static struct Window     *g_win           = NULL;
@@ -937,16 +941,17 @@ void UI_deinit(void)
         FreeSignal (g_termSignalBit);
 }
 
-static void loadAndConvertTextFont(void)
+void UI_setFont (int font)
 {
+    OPT_prefSetInt (OPT_PREF_FONT, font);
+
     // load and unpack text font
 
-    //static struct TextAttr fontattr = { (STRPTR)"topaz.font", 8, 0, 0 };
-    static struct TextAttr fontattr = { (STRPTR)"aqb.font", 6, 0, 0 };
-    g_font = OpenDiskFont(&fontattr);
+    if (g_font)
+        CloseFont(g_font);
+    g_font = OpenDiskFont(&g_fontattrs[font]);
     if (!g_font)
-        cleanexit("Can't open topaz.font size 8!", RETURN_FAIL);
-
+        cleanexit("Can't open font", RETURN_FAIL);
     g_fontHeight = g_font->tf_YSize;
 
     for (UWORD ci=0; ci<256; ci++)
@@ -1080,7 +1085,7 @@ bool UI_init (void)
 
     if (!g_renderRTG)
     {
-        loadAndConvertTextFont();
+        UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
 
         g_renderBMPtr[0] = g_renderBMPlanes[0] = g_screen->BitMap.Planes[0];
         g_renderBMPtr[1] = g_renderBMPlanes[1] = g_screen->BitMap.Planes[1];
@@ -1121,6 +1126,8 @@ bool UI_init (void)
 		cleanexit("failed to set menu strip", RETURN_FAIL);
 
     struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
+    item->Flags |= CHECKED;
+    item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
     item->Flags |= CHECKED;
 
 	return TRUE;
