@@ -88,7 +88,7 @@ static struct NewMenu g_newmenu[] =
     };
 
 static struct TextAttr g_fontattrs[] = {
-        { (STRPTR)"aqb.font", 6, 0, 0 },
+        { (STRPTR)"dale.font", 6, 0, 0 },
         { (STRPTR)"topaz.font", 8, 0, 0 },
     };
 
@@ -954,6 +954,10 @@ void UI_setFont (int font)
         cleanexit("Can't open font", RETURN_FAIL);
     g_fontHeight = g_font->tf_YSize;
 
+    //printf ("UI_setFont font=%d -> g_fontHeight=%d\n", font, g_fontHeight);
+
+    SetFont (g_rp, g_font);
+
     for (UWORD ci=0; ci<256; ci++)
         for (UBYTE y=0; y<8; y++)
             g_fontData[ci][y] = 0;
@@ -968,7 +972,7 @@ void UI_setFont (int font)
         UWORD bs = *pCharLoc;
         pCharLoc++;
         //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
-        for (UBYTE y=0; y<8; y++)
+        for (UBYTE y=0; y<g_fontHeight; y++)
         {
             char *p = g_font->tf_CharData;
             p += y*g_font->tf_Modulo + byl;
@@ -1083,10 +1087,10 @@ bool UI_init (void)
 
     g_rp = g_win->RPort;
 
+    UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
+
     if (!g_renderRTG)
     {
-        UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
-
         g_renderBMPtr[0] = g_renderBMPlanes[0] = g_screen->BitMap.Planes[0];
         g_renderBMPtr[1] = g_renderBMPlanes[1] = g_screen->BitMap.Planes[1];
         g_renderBMmaxCols = visWidth/8;

@@ -22,7 +22,7 @@
 
 //#define LOG_SLOWDOWN
 
-//#define ENABLE_REPAINT_BENCHMARK
+#define ENABLE_REPAINT_BENCHMARK
 
 #define INFOLINE            "F1:help X=   1 Y=   1 #=   0  new file"
 #define INFOLINE_CURSOR_X     10
