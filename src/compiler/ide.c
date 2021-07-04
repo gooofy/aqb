@@ -143,6 +143,7 @@ IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_
     l->folded      = FALSE;
     l->fold_start  = fold_start;
     l->fold_end    = fold_end;
+    l->a_line      = 0;
     l->v_line      = 0;
 
     memcpy (l->buf, buf, len+1);
