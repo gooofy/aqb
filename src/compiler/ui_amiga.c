@@ -45,6 +45,9 @@
 #include "logger.h"
 #include "options.h"
 
+#define DEBUG_FONTCONV
+#define DEBUG_FONTCONV_NUM 8
+
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
@@ -963,15 +966,23 @@ void UI_setFont (int font)
             g_fontData[ci][y] = 0;
 
     UWORD *pCharLoc = g_font->tf_CharLoc;
+#ifdef DEBUG_FONTCONV
+    uint16_t cnt=0;
+#endif
     for (UBYTE ci=g_font->tf_LoChar; ci<g_font->tf_HiChar; ci++)
     {
         UWORD bl = *pCharLoc;
-        UWORD byl = bl >> 3;
-        BYTE bitl = bl & 3;
+        UWORD byl = bl / 8;
+        BYTE bitl = bl % 8;
         pCharLoc++;
         UWORD bs = *pCharLoc;
         pCharLoc++;
-        // printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
+#ifdef DEBUG_FONTCONV
+        if (cnt<DEBUG_FONTCONV_NUM)
+            printf ("ci=%d(%c) bl=%d -> byl=%d/bitl=%d, bs=%d\n", ci, ci, bl, byl, bitl, bs);
+#endif
+        if (bs>8)
+            bs = 8;
         for (UBYTE y=0; y<g_fontHeight; y++)
         {
             char *p = g_font->tf_CharData;
@@ -981,7 +992,20 @@ void UI_setFont (int font)
             for (BYTE x=7; x>=0; x--)
             {
                 if (*p & (1<<bitlc))
+                {
                     g_fontData[ci][y] |= (1<<x);
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf("*");
+#endif
+                }
+                else
+                {
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf(".");
+#endif
+                }
                 bsc--;
                 if (!bsc)
                     break;
@@ -992,7 +1016,14 @@ void UI_setFont (int font)
                     p++;
                 }
             }
+#ifdef DEBUG_FONTCONV
+            if (cnt<DEBUG_FONTCONV_NUM)
+                printf("\n");
+#endif
         }
+#ifdef DEBUG_FONTCONV
+        cnt++;
+#endif
     }
 }
 
