@@ -45,7 +45,7 @@
 #include "logger.h"
 #include "options.h"
 
-#define DEBUG_FONTCONV
+//#define DEBUG_FONTCONV
 #define DEBUG_FONTCONV_NUM 8
 
 extern struct ExecBase      *SysBase;
@@ -1025,6 +1025,9 @@ void UI_setFont (int font)
         cnt++;
 #endif
     }
+
+    Move (g_rp, 0, 0);
+    ClearScreen(g_rp);
 }
 
 bool UI_init (void)
