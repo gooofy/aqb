@@ -944,31 +944,8 @@ static bool gotoEnd(IDE_editor ed)
     return TRUE;
 }
 
-static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
+static void fold (IDE_editor ed, IDE_line cl)
 {
-    if (ed->editing)
-        commitBuf (ed);
-
-    ed->cursor_line = ed->line_first;
-
-    for (uint16_t i = 1; i<line; i++)
-    {
-        if (!ed->cursor_line->next)
-            break;
-        ed->cursor_line = ed->cursor_line->next;
-    }
-
-    ed->cursor_a_line = ed->cursor_line->a_line;
-    ed->cursor_v_line = ed->cursor_line->v_line;
-    ed->cursor_col = col-1;
-    ed->up2date_il_pos = FALSE;
-
-    return TRUE;
-}
-
-static void fold (IDE_editor ed)
-{
-    IDE_line cl = ed->cursor_line;
     if (!cl->fold_start)
         return;
 
@@ -990,10 +967,41 @@ static void fold (IDE_editor ed)
     invalidateAll(ed);
 }
 
+static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
+{
+    if (ed->editing)
+        commitBuf (ed);
+
+    ed->cursor_line = ed->line_first;
+
+    for (uint16_t i = 1; i<line; i++)
+    {
+        if (!ed->cursor_line->next)
+            break;
+        ed->cursor_line = ed->cursor_line->next;
+    }
+
+    if (ed->cursor_line->folded)
+    {
+        IDE_line fs = ed->cursor_line->prev;
+        while (fs && !fs->fold_start)
+            fs = fs->prev;
+        if (fs)
+            fold(ed, fs);
+    }
+
+    ed->cursor_a_line = ed->cursor_line->a_line;
+    ed->cursor_v_line = ed->cursor_line->v_line;
+    ed->cursor_col = col-1;
+    ed->up2date_il_pos = FALSE;
+
+    return TRUE;
+}
+
 static void line2buf (IDE_editor ed, IDE_line l)
 {
     if (l->folded)
-        fold(ed);
+        fold(ed, l);
 
     uint16_t off = 0;
     for (int8_t i = 0; i<l->indent; i++)
@@ -1612,7 +1620,7 @@ static void key_cb (uint16_t key, void *user_data)
             break;
 
         case KEY_TAB:
-            fold (ed);
+            fold (ed, ed->cursor_line);
             break;
 
         default:
