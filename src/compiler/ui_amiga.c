@@ -245,80 +245,55 @@ static void UI_flush(void)
     g_bpos = 0;
 }
 
-void UI_setTextStyle (uint16_t style)
+static void setTextColor (uint16_t color, BOOL inverse)
 {
-	if (g_screen)
-	{
-        if (g_renderRTG)
+    if (g_renderRTG)
+    {
+        UI_flush();
+        if (inverse)
         {
-            UI_flush();
-            switch (style)
-            {
-                case UI_TEXT_STYLE_TEXT     : SetAPen (g_rp, 1); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2); break;
-                case UI_TEXT_STYLE_KEYWORD  : SetAPen (g_rp, 2); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2); break;
-                case UI_TEXT_STYLE_COMMENT  : SetAPen (g_rp, 3); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2); break;
-                case UI_TEXT_STYLE_INVERSE  : SetAPen (g_rp, 0); SetBPen (g_rp, 1); SetDrMd (g_rp, JAM2); break;
-                default:
-                    printf ("UI style %d is unknown.\n", style);
-                    assert(FALSE);
-            }
+            SetAPen (g_rp, 0); SetBPen (g_rp, color); SetDrMd (g_rp, JAM2);
         }
         else
         {
-            switch (style)
-            {
-                case UI_TEXT_STYLE_TEXT:
-                    g_renderBMPE[0] = TRUE;
-                    g_renderBMPE[1] = FALSE;
-                    g_renderInverse = FALSE;
-                    break;
-                case UI_TEXT_STYLE_KEYWORD:
-                    g_renderBMPE[0] = FALSE;
-                    g_renderBMPE[1] = TRUE;
-                    g_renderInverse = FALSE;
-                    break;
-                case UI_TEXT_STYLE_COMMENT:
-                    g_renderBMPE[0] = TRUE;
-                    g_renderBMPE[1] = TRUE;
-                    g_renderInverse = FALSE;
-                    break;
-                case UI_TEXT_STYLE_INVERSE:
-                    g_renderBMPE[0] = TRUE;
-                    g_renderBMPE[1] = FALSE;
-                    g_renderInverse = TRUE;
-                    break;
-                default:
-                    printf ("UI style %d is unknown.\n", style);
-                    assert(FALSE);
-            }
+            SetAPen (g_rp, color); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2);
         }
-	}
-	else
-	{
-        // FIXME
-        assert(FALSE);
-#if 0
-		switch (style)
-		{
-			case UI_TEXT_STYLE_TEXT:
-				UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
-				break;
-			case UI_TEXT_STYLE_KEYWORD:
-				UI_printf ( CSI "%dm", UI_STYLE_BOLD);
-				UI_printf ( CSI "%dm", UI_WORKBENCH_BLACK);
-				break;
-			case UI_TEXT_STYLE_COMMENT:
-				UI_printf ( CSI "%dm", UI_STYLE_ITALICS);
-				UI_printf ( CSI "%dm", UI_WORKBENCH_BLUE);
-				break;
-			case UI_TEXT_STYLE_INVERSE:
-				UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
-				break;
-			default:
-				assert(FALSE);
-		}
-#endif
-	}
+    }
+    else
+    {
+        if (inverse)
+        {
+            g_renderBMPE[0] = TRUE;
+            g_renderBMPE[1] = FALSE;
+            g_renderInverse = TRUE;
+        }
+        else
+        {
+            switch (color)
+            {
+                case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; break;
+                case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; break;
+                case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; break;
+                case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; break;
+                default: assert(FALSE);
+            }
+            g_renderInverse = FALSE;
+        }
+    }
+}
+
+void UI_setTextStyle (uint16_t style)
+{
+    switch (style)
+    {
+        case UI_TEXT_STYLE_TEXT     : setTextColor (1, FALSE); break;
+        case UI_TEXT_STYLE_KEYWORD  : setTextColor (2, FALSE); break;
+        case UI_TEXT_STYLE_COMMENT  : setTextColor (3, FALSE); break;
+        case UI_TEXT_STYLE_INVERSE  : setTextColor (1,  TRUE); break;
+        default:
+            printf ("UI style %d is unknown.\n", style);
+            assert(FALSE);
+    }
 }
 
 void UI_beginLine (uint16_t row)
@@ -344,8 +319,94 @@ void UI_beginLine (uint16_t row)
     }
 }
 
+#define CSI_BUF_LEN 16
+
 void UI_putc(char c)
 {
+    static BOOL bCSI = FALSE;
+    static char csiBuf[CSI_BUF_LEN];
+    static uint16_t csiBufLen=0;
+    UBYTE uc = (UBYTE) c;
+    //printf ("UI_putc: %c[%d]\n", c, uc);
+    if (!bCSI)
+    {
+        if (uc==0x9b)
+        {
+            bCSI = TRUE;
+            return;
+        }
+    }
+    else
+    {
+        /*
+        0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
+        0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
+        0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
+        */
+        if (uc>=0x40)
+        {
+            //LOG_printf (LOG_DEBUG, "!CSI seq detected: %s%c\n", csiBuf, c);
+            printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
+
+            switch (c)
+            {
+                case 'p': // csr on/off
+                    if (csiBufLen == 2)
+                    {
+                        switch (csiBuf[0])
+                        {
+                            case '0':
+                               UI_setCursorVisible (FALSE);
+                               break;
+                            case '1':
+                               UI_setCursorVisible (TRUE);
+                               break;
+                        }
+                    }
+                    break;
+                case 'm': // presentation
+                    if (csiBufLen == 1)
+                    {
+                        switch (csiBuf[0])
+                        {
+                            case '0':
+                               setTextColor (1, FALSE);
+                               break;
+                        }
+                    }
+                    else
+                    {
+                        if (csiBufLen == 2)
+                        {
+                            uint8_t color = (csiBuf[0]-'0')*10+(csiBuf[1]-'0');
+                            printf ("setting color %d\n", color);
+                            switch (color)
+                            {
+                                case 30: setTextColor (0, FALSE); break;
+                                case 31: setTextColor (1, FALSE); break;
+                                case 32: setTextColor (2, FALSE); break;
+                                case 33: setTextColor (3, FALSE); break;
+                                case 34: setTextColor (0, FALSE); break;
+                                case 35: setTextColor (1, FALSE); break;
+                                case 36: setTextColor (2, FALSE); break;
+                                case 37: setTextColor (3, FALSE); break;
+                            }
+                        }
+                    }
+                    break;
+            }
+
+            bCSI = FALSE;
+            csiBufLen = 0;
+        }
+        else
+        {
+            if (csiBufLen<CSI_BUF_LEN)
+                csiBuf[csiBufLen++] = c;
+        }
+        return;
+    }
+
     if (g_renderRTG)
     {
         g_outbuf[g_bpos++] = c;
@@ -484,10 +545,6 @@ static struct DosPacket *getpacket(void)
     return ((struct DosPacket *)msg->mn_Node.ln_Name);
 }
 
-typedef enum { tsText, tsCSI } termState;
-
-#define CSI_BUF_LEN 16
-
 void UI_runIO (void)
 {
     ULONG iosig   = 1 << g_IOport->mp_SigBit;
@@ -497,9 +554,6 @@ void UI_runIO (void)
     uint16_t rows, cols;
     UI_getsize(&rows, &cols);
     bool haveLine = FALSE;
-    termState ts = tsText;
-    static char csiBuf[CSI_BUF_LEN];
-    uint16_t csiBufLen=0;
     while (running)
     {
         //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
@@ -539,63 +593,15 @@ void UI_runIO (void)
                             haveLine = TRUE;
                         }
                         UBYTE c = (UBYTE)buf[i];
-                        switch (ts)
+                        switch (c)
                         {
-                            case tsText:
-                                switch (c)
-                                {
-                                    case '\n':
-                                        UI_endLine ();
-                                        haveLine = FALSE;
-                                        break;
-                                    case '0':
-                                        UI_endLine ();
-                                        haveLine = FALSE;
-                                        break;
-                                    case 0x9b:
-                                        ts = tsCSI;
-                                        break;
-                                    default:
-                                        UI_putc(c);
-                                }
+                            case '\n':
+                            case '0':
+                                UI_endLine ();
+                                haveLine = FALSE;
                                 break;
-                            case tsCSI:
-                                /*
-                                0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
-                                0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
-                                0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
-                                */
-                                if (c>=0x40)
-                                {
-                                    LOG_printf (LOG_DEBUG, "CSI seq detected: %s\n", csiBuf);
-
-                                    switch (c)
-                                    {
-                                        case 'p': // csr on/off
-                                            if (csiBufLen == 2)
-                                            {
-                                                switch (csiBuf[0])
-                                                {
-                                                    case '0':
-                                                       UI_setCursorVisible (FALSE);
-                                                       break;
-                                                    case '1':
-                                                       UI_setCursorVisible (TRUE);
-                                                       break;
-                                                }
-                                            }
-                                            break;
-                                    }
-
-                                    ts = tsText;
-                                    csiBufLen = 0;
-                                }
-                                else
-                                {
-                                    if (csiBufLen<CSI_BUF_LEN)
-                                        csiBuf[csiBufLen++] = c;
-                                }
-                                break;
+                            default:
+                                UI_putc(c);
                         }
 					}
 					UI_flush();

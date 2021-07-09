@@ -1076,13 +1076,13 @@ static void repaint (IDE_editor ed)
     uint16_t row = 1;
     while (l && (linenum <= linenum_end))
     {
-        if (!ed->up2date_row[row])
+        if (!ed->up2date_row[row-1])
         {
             if (ed->editing && (linenum == ed->cursor_v_line))
                 repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE);
             else
                 repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded);
-            ed->up2date_row[row] = TRUE;
+            ed->up2date_row[row-1] = TRUE;
         }
         if (l->folded)
         {
@@ -1802,8 +1802,8 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 	if (lvl >= LOG_INFO)
     {
 
-        uint16_t col = 0;
-        bool haveLine = FALSE;
+        static uint16_t col = 0;
+        static bool haveLine = FALSE;
         for (int i =0; i<l; i++)
         {
             if (!haveLine)
