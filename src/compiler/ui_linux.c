@@ -64,6 +64,7 @@ void UI_setTextStyle (uint16_t style)
             UI_printf ( CSI "%dm", UI_STYLE_BLUE);
             break;
         case UI_TEXT_STYLE_INVERSE:
+            UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
             UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
             break;
         default:

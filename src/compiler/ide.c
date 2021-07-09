@@ -758,8 +758,8 @@ static void indentSuccLines (IDE_editor ed, IDE_line lp)
         l->v_line = vl;
         l = l->next;
     }
-    ed->num_lines = al;
-    ed->num_vlines = vl;
+    ed->num_lines = al+1;
+    ed->num_vlines = vl+1;
     invalidateAll (ed);
 }
 
@@ -1073,15 +1073,15 @@ static void repaint (IDE_editor ed)
 
     uint16_t linenum_end = ed->scrolloff_row + ed->window_height - 2;
     uint16_t linenum = ed->scrolloff_row;
-    uint16_t row = 0;
+    uint16_t row = 1;
     while (l && (linenum <= linenum_end))
     {
         if (!ed->up2date_row[row])
         {
             if (ed->editing && (linenum == ed->cursor_v_line))
-                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row + 1, 0, /*folded=*/FALSE);
+                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE);
             else
-                repaintLine (ed, l->buf, l->style, l->len, row + 1, l->indent, l->folded);
+                repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded);
             ed->up2date_row[row] = TRUE;
         }
         if (l->folded)
@@ -1331,6 +1331,9 @@ static void killLine (IDE_editor ed)
         ed->cursor_col = nl->len;
 
     ed->cursor_line = nl;
+    if (nl->folded)
+        fold (ed, nl);
+
     deleteLine (ed, cl);
     indentSuccLines (ed, nl->prev ? nl->prev : nl);
     invalidateAll(ed);
@@ -1740,7 +1743,7 @@ static void loadSource (IDE_editor ed, string sourcefn)
             else
             {
                 eof = TRUE;
-                eol = TRUE;
+                eol = ed->buf_len>0;
             }
 
             if (eol)
