@@ -64,10 +64,10 @@ BINS = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS}/%,$(basename $(SRCS)))
 #OBJS_OPT = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_TESTS_OPT}/%.o,$(basename $(SRCS)))
 BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS_OPT}/%,$(basename $(SRCS)))
 
-.PHONY: clean all mod1 io1 subtest11 dirs runtests
+.PHONY: clean all mod1 io1 io5 subtest11 dirs runtests
 .PRECIOUS: $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s $(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
 
-all: dirs $(BINS) $(BINS_OPT) mod1 io1 subtest11 runtests
+all: dirs $(BINS) $(BINS_OPT) mod1 io1 io5 subtest11 runtests
 
 $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : %.bas
 	$(AQB) $(AQBFLAGS) -a $(EMUDIR)/${ASMDIR_AMIGAOS_TESTS}/$<.s -o $@ $<
@@ -99,6 +99,8 @@ mod1:
 	cd mod1 ; make all
 io1:
 	cd io1 ; make all
+io5:
+	cd io5 ; make all
 subtest11:
 	cd subtest11 ; make all
 
@@ -107,10 +109,12 @@ runtests:
 	for t in $(BINS); do BN=`basename $$t` ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS)/$$BN" >> $(EMUDIR)/runtests ; done
 	BN="mod1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="io1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="io5" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="subtest11" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	for t in $(BINS_OPT); do BN=`basename $$t` ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" >> $(EMUDIR)/runtests ; done
 	BN="mod1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="io1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
+	BN="io5" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="subtest11" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	cat $(EMUDIR)/runtests
 
@@ -123,6 +127,7 @@ clean:
 	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)
 	cd mod1 ; make clean
 	cd io1 ; make clean
+	cd io5 ; make clean
 	cd subtest11 ; make clean
 
 dirs:

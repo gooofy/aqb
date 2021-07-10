@@ -11,7 +11,7 @@ DIM AS BOOLEAN  myb = TRUE
 
 ' _debug_puts("iotest") : _debug_putnl
 
-PRINT "i/o Test: ",b;23;ub;i;ui;l;ul;f;myb
+PRINT "i/o Test 1: ",b;23;ub;i;ui;l;ul;f;myb
 
 PRINT "Press any key..."
 

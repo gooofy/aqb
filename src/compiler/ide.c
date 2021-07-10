@@ -560,6 +560,10 @@ static IDE_line buf2line (IDE_editor ed)
                     buf[pos] = ',';
                     style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
+                case S_HASH:
+                    buf[pos] = '#';
+                    style[pos++] = UI_TEXT_STYLE_TEXT;
+                    break;
                 case S_INUM:
                 {
                     if (!first && (lastKind != S_MINUS))

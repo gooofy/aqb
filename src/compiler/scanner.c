@@ -91,6 +91,7 @@ static void print_tkn(S_tkn tkn)
         case S_PLUS:       printf("[PLUS]");      break;
         case S_GREATER:    printf("[GREATER]");   break;
         case S_LESS:       printf("[LESS]");      break;
+        case S_HASH:       printf("[HASH]");      break;
         case S_NOTEQ:      printf("[NOTEQ]");     break;
         case S_LESSEQ:     printf("[LESSEQ]");    break;
         case S_GREATEREQ:  printf("[GREATEREQ]"); break;
@@ -607,6 +608,10 @@ static S_tkn next_token(void)
                     getch();
                 }
             }
+            break;
+        case '#':
+            tkn = S_Tkn(S_HASH);
+            getch();
             break;
         default:
             tkn = S_Tkn(S_ERRTKN);

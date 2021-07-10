@@ -237,7 +237,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 84
+#define MAX_KEYWORDS 90
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -326,6 +326,12 @@ static S_symbol S_READ;
 static S_symbol S_RESTORE;
 static S_symbol S_LINE;
 static S_symbol S_INPUT;
+static S_symbol S_OPEN;
+static S_symbol S_RANDOM;
+static S_symbol S_OUTPUT;
+static S_symbol S_APPEND;
+static S_symbol S_BINARY;
+static S_symbol S_LEN;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3195,7 +3201,70 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     return isLogicalEOL(*tkn);
 }
 
+// open ::= OPEN expFn FOR ( ￼RANDOM |￼INPUT |￼OUTPUT |￼APPEND |￼BINARY ) 
+//          AS [#]expN [LEN = expRln]
+static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "OPEN"
+
+    CG_item expFn;
+    if (!expression(tkn, &expFn))
+        return EM_error(pos, "expression expected here.");
+
+    if (!isSym((*tkn), S_FOR))
+        return EM_error(pos, "OPEN: FOR expected here.");
+    *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error(pos, "OPEN: identifier expected here.");
+
+    int mode = 0;
+    if (isSym(*tkn, S_RANDOM))
+        mode = 0;
+    else if (isSym(*tkn, S_INPUT))
+        mode = 1;
+    else if (isSym(*tkn, S_OUTPUT))
+        mode = 2;
+    else if (isSym(*tkn, S_APPEND))
+        mode = 3;
+    else if (isSym(*tkn, S_BINARY))
+        mode = 4;
+    else
+        return EM_error(pos, "OPEN: unknown mode.");
+    *tkn = (*tkn)->next;
+
+    if (!isSym((*tkn), S_AS))
+        return EM_error(pos, "OPEN: AS expected here.");
+    *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind == S_HASH)
+        *tkn = (*tkn)->next;
+        
+    CG_item expN;
+    if (!expression(tkn, &expN))
+        return EM_error(pos, "expression expected here.");
+
+    if (isSym((*tkn), S_LEN))
+    {
+        assert(FALSE); // FIXME: implement
+    }
+
+    S_symbol fsym = S_Symbol("_aqb_open", FALSE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry func = lx->first->e;
+    CG_itemList arglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    CG_IntItem (&n->item, mode, Ty_Integer());
+    CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+    assert(FALSE); // FIXME
+    return FALSE;
+}
+
 #if 0
+// FIXME
 // lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
 static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6809,9 +6878,11 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
 #if 0
+    // FIXME
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
 #endif
     declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
+    declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen         , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
@@ -7207,7 +7278,14 @@ void FE_boot(void)
     S_RESTORE         = defineKeyword("RESTORE");
     S_LINE            = defineKeyword("LINE");
     S_INPUT           = defineKeyword("INPUT");
+    S_OPEN            = defineKeyword("OPEN");
+    S_RANDOM          = defineKeyword("RANDOM");
+    S_OUTPUT          = defineKeyword("OUTPUT");
+    S_APPEND          = defineKeyword("APPEND");
+    S_BINARY          = defineKeyword("BINARY");
+    S_LEN             = defineKeyword("LEN");
 }
+
 void FE_init(void)
 {
 }
