@@ -318,9 +318,9 @@ static bool nextch_cb(char *ch, void *user_data)
     return (*ch) != 0;
 }
 
-typedef enum { STAUI_IDLE, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
+typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
                STAUI_ELSEIFTHEN, STAUI_LOOP, STAUI_LOOPEND,
-               STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE } state_enum;
+               STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE, STAUI_OTHER } state_enum;
 
 
 static IDE_line buf2line (IDE_editor ed)
@@ -345,7 +345,7 @@ static IDE_line buf2line (IDE_editor ed)
         bool first = TRUE;
         S_token lastKind = S_ERRTKN;
         S_tkn lastTkn = NULL;
-        state_enum state = STAUI_IDLE;
+        state_enum state = STAUI_START;
         while (tkn && (pos <MAX_LINE_LEN-1))
         {
             switch (tkn->kind)
@@ -359,47 +359,42 @@ static IDE_line buf2line (IDE_editor ed)
                     style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = ' ';
                     style[pos++] = UI_TEXT_STYLE_TEXT;
+                    state = STAUI_START;
                     /* fall through */
                 case S_EOL:
-                    switch (state)
+                    // used to have a switch statement here, but m68k gcc became horribly slow
+                    if (state == STAUI_THEN)
                     {
-                        case STAUI_THEN:
-                            if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
-                            {
-                                post_indent++;
-                            }
-                            break;
-                        case STAUI_ELSEIFTHEN:
-                            if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
-                            {
-                                pre_indent--;
-                                post_indent++;
-                            }
-                            break;
-                        case STAUI_ELSE:
-                            if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_ELSE))
-                            {
-                                pre_indent--;
-                                post_indent++;
-                            }
-                            break;
-                        case STAUI_SUB:
-                        case STAUI_SELECT:
+                        if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
+                        {
                             post_indent++;
-                            break;
-                        case STAUI_CASE:
-                            pre_indent--;
-                            post_indent++;
-                            break;
-                        case STAUI_END:
-                            pre_indent--;
-                            break;
-                        case STAUI_LOOP:
-                        case STAUI_LOOPEND:
-                            break;
-                        default:
-                            break;
+                        }
                     }
+                    else if (state == STAUI_ELSEIFTHEN)
+                    {
+                        if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
+                        {
+                            pre_indent--;
+                            post_indent++;
+                        }
+                    }
+                    else if (state == STAUI_ELSE)
+                    {
+                        if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_ELSE))
+                        {
+                            pre_indent--;
+                            post_indent++;
+                        }
+                    }
+                    else if ((state == STAUI_SUB) || (state == STAUI_SELECT))
+                    {
+                        post_indent++;
+                    }
+                    else if (state == STAUI_END)
+                    {
+                        pre_indent--;
+                    }
+                    //else if ((state == STAUI_LOOP) || (state == STAUI_LOOPEND))
                     break;
                 case S_LCOMMENT:
                     buf[pos] = '\'';
@@ -450,7 +445,7 @@ static IDE_line buf2line (IDE_editor ed)
 
                     switch (state)
                     {
-                        case STAUI_IDLE:
+                        case STAUI_START:
                             if (tkn->u.sym == S_IF)
                             {
                                 state = STAUI_IF;
@@ -508,6 +503,10 @@ static IDE_line buf2line (IDE_editor ed)
                             {
                                 state = STAUI_CASE;
                             }
+                            else
+                            {
+                                state = STAUI_OTHER;
+                            }
                             break;
                         case STAUI_IF:
                             if (tkn->u.sym == S_THEN)
@@ -533,6 +532,7 @@ static IDE_line buf2line (IDE_editor ed)
                         case STAUI_LOOPEND:
                         case STAUI_SELECT:
                         case STAUI_CASE:
+                        case STAUI_OTHER:
                             break;
                         default:
                             assert(FALSE);
@@ -561,12 +561,14 @@ static IDE_line buf2line (IDE_editor ed)
                     style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_HASH:
+                    if (!first && (lastKind != S_MINUS))
+                        buf[pos++] = ' ';
                     buf[pos] = '#';
                     style[pos++] = UI_TEXT_STYLE_TEXT;
                     break;
                 case S_INUM:
                 {
-                    if (!first && (lastKind != S_MINUS))
+                    if (!first && (lastKind != S_MINUS) && (lastKind != S_HASH))
                         buf[pos++] = ' ';
                     static char nbuf[64];
                     snprintf (nbuf, 64, "%d", tkn->u.literal.inum);

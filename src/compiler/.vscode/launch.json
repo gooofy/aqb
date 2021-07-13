@@ -110,13 +110,13 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "io1",
+            "name": "io5",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "../../src/lib", "-v", "-s", "io1.bas"],
+            "args": ["-L", "../../src/lib", "-v", "-a", "io5.a", "io5.bas"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/../../tests/io1",
+            "cwd": "${workspaceFolder}/../../tests/io5",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

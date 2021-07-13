@@ -831,6 +831,26 @@ FLOAT VAL_ (UBYTE *s)
     return _str2f_(s, len, base);
 }
 
+#ifdef __amigaos__
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+#endif
+void *memset (void *dst, register int c, register int n)
+{
+    if (n != 0)
+	{
+        register char *d = dst;
+
+        do
+            *d++ = c;
+        while (--n != 0);
+    }
+    return (dst);
+}
+#ifdef __amigaos__
+#pragma GCC pop_options
+#endif
+
 void _astr_init(void)
 {
     g_positiveExpThreshold = SPFlt(10000000l);

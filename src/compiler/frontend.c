@@ -237,7 +237,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 90
+#define MAX_KEYWORDS 92
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -332,6 +332,8 @@ static S_symbol S_OUTPUT;
 static S_symbol S_APPEND;
 static S_symbol S_BINARY;
 static S_symbol S_LEN;
+static S_symbol S_ACCESS;
+static S_symbol S_CLOSE;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -2978,11 +2980,27 @@ static bool stmtExternDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
     return singleVarDecl(tkn, /*isPrivate=*/isPrivate, /*shared=*/TRUE, /*statc=*/FALSE, /*preserve=*/FALSE, /*redim=*/FALSE, /*external=*/TRUE);
 }
 
-// print ::= PRINT  [ expression ( [ ';' | ',' ] expression )* ]
+// print ::= PRINT [ # expFNo , ] [ expression ( [ ';' | ',' ] expression )* ]
 static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "PRINT"
+
+    CG_item exFNo;
+    if ((*tkn)->kind == S_HASH)
+    {
+        *tkn = (*tkn)->next;
+        S_pos pos = (*tkn)->pos;
+        if (!expression(tkn, &exFNo))
+            return EM_error(pos, "PRINT: fno expression expected here.");
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, "PRINT: , expected here.");
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        CG_IntItem (&exFNo, 0, Ty_Integer());
+    }
 
     while (!isLogicalEOL(*tkn))
     {
@@ -2992,8 +3010,12 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!expression(tkn, &ex))
             return EM_error(pos, "expression expected here.");
 
-        CG_itemList arglist = CG_ItemList();           // single argument list
-        CG_itemListNode n = CG_itemListAppend(arglist);
+        CG_itemList arglist = CG_ItemList();
+        CG_itemListNode n;
+        n = CG_itemListAppend(arglist);
+        n->item = exFNo;
+        CG_loadVal (g_sleStack->code, pos, &n->item);
+        n = CG_itemListAppend(arglist);
         n->item = ex;
         CG_loadVal (g_sleStack->code, pos, &n->item);
         S_symbol   fsym    = NULL;                   // put* function sym to call
@@ -3061,7 +3083,12 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
                 E_enventry func = lx->first->e;
-                CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, NULL, NULL);
+                CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n;
+                n = CG_itemListAppend(arglist);
+                n->item = exFNo;
+                CG_loadVal (g_sleStack->code, pos, &n->item);
+                CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
                 if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
@@ -3079,7 +3106,12 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
-        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, NULL, NULL);
+        CG_itemList arglist = CG_ItemList();
+        CG_itemListNode n;
+        n = CG_itemListAppend(arglist);
+        n->item = exFNo;
+        CG_loadVal (g_sleStack->code, pos, &n->item);
+        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
         return TRUE;
     }
 
@@ -3201,15 +3233,15 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     return isLogicalEOL(*tkn);
 }
 
-// open ::= OPEN expFn FOR ( ￼RANDOM |￼INPUT |￼OUTPUT |￼APPEND |￼BINARY ) 
-//          AS [#]expN [LEN = expRln]
+// open ::= OPEN expFn FOR ( ￼RANDOM |￼INPUT |￼OUTPUT |￼APPEND |￼BINARY ) [ ACCESS ( READ [WRITE] | WRITE ) ]
+//          AS ["#"]expN [LEN = expRln]
 static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "OPEN"
 
-    CG_item expFn;
-    if (!expression(tkn, &expFn))
+    CG_item expFName;
+    if (!expression(tkn, &expFName))
         return EM_error(pos, "expression expected here.");
 
     if (!isSym((*tkn), S_FOR))
@@ -3234,33 +3266,108 @@ static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error(pos, "OPEN: unknown mode.");
     *tkn = (*tkn)->next;
 
+    int access = 0;
+    if (isSym((*tkn), S_ACCESS))
+    {
+        assert(FALSE); // FIXME: implement
+    }
+
     if (!isSym((*tkn), S_AS))
         return EM_error(pos, "OPEN: AS expected here.");
     *tkn = (*tkn)->next;
 
     if ((*tkn)->kind == S_HASH)
         *tkn = (*tkn)->next;
-        
-    CG_item expN;
-    if (!expression(tkn, &expN))
+
+    CG_item expFNo;
+    if (!expression(tkn, &expFNo))
         return EM_error(pos, "expression expected here.");
 
+    int recordLen = 0;
     if (isSym((*tkn), S_LEN))
     {
         assert(FALSE); // FIXME: implement
     }
 
-    S_symbol fsym = S_Symbol("_aqb_open", FALSE);
+    S_symbol fsym = S_Symbol("_aio_open", FALSE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
-    CG_itemListNode n = CG_itemListAppend(arglist);
+    CG_itemListNode n;
+    n = CG_itemListAppend(arglist);
+    n->item = expFName;
+    n = CG_itemListAppend(arglist);
     CG_IntItem (&n->item, mode, Ty_Integer());
+    n = CG_itemListAppend(arglist);
+    CG_IntItem (&n->item, access, Ty_Integer());
+    n = CG_itemListAppend(arglist);
+    n->item = expFNo;
+    CG_loadVal (g_sleStack->code, pos, &n->item);
+    n = CG_itemListAppend(arglist);
+    CG_IntItem (&n->item, recordLen, Ty_Integer());
     CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
-    assert(FALSE); // FIXME
-    return FALSE;
+
+    return TRUE;
+}
+
+// close ::= CLOSE [ ["#"] expN ( "," ["#"] expM )* ]
+static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "CLOSE"
+
+    S_symbol fsym = S_Symbol("_aio_close", FALSE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry func = lx->first->e;
+
+    if (isLogicalEOL(*tkn))
+    {
+        CG_itemList arglist = CG_ItemList();
+        CG_itemListNode n;
+        n = CG_itemListAppend(arglist);
+        CG_IntItem (&n->item, 0, Ty_Integer());
+        CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+    }
+    else
+    {
+        if ((*tkn)->kind == S_HASH)
+            *tkn = (*tkn)->next;
+
+        CG_item expFNo;
+        if (!expression(tkn, &expFNo))
+            return EM_error(pos, "expression expected here.");
+
+        CG_itemList arglist = CG_ItemList();
+        CG_itemListNode n;
+        n = CG_itemListAppend(arglist);
+        n->item = expFNo;
+        CG_loadVal (g_sleStack->code, pos, &n->item);
+        CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+
+        if ((*tkn)->kind == S_COMMA)
+        {
+            *tkn = (*tkn)->next;
+
+            if ((*tkn)->kind == S_HASH)
+                *tkn = (*tkn)->next;
+
+            if (!expression(tkn, &expFNo))
+                return EM_error(pos, "expression expected here.");
+
+            CG_itemList arglist = CG_ItemList();
+            CG_itemListNode n;
+            n = CG_itemListAppend(arglist);
+            n->item = expFNo;
+            CG_loadVal (g_sleStack->code, pos, &n->item);
+            CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+        }
+    }
+
+    return TRUE;
 }
 
 #if 0
@@ -6883,6 +6990,7 @@ static void registerBuiltins(void)
 #endif
     declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
     declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen         , Ty_Void());
+    declareBuiltinProc(S_CLOSE        , /*extraSyms=*/ NULL      , stmtClose        , Ty_Void());
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf        , Ty_ULong());
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr        , Ty_VoidPtr());
@@ -7284,6 +7392,8 @@ void FE_boot(void)
     S_APPEND          = defineKeyword("APPEND");
     S_BINARY          = defineKeyword("BINARY");
     S_LEN             = defineKeyword("LEN");
+    S_ACCESS          = defineKeyword("ACCESS");
+    S_CLOSE           = defineKeyword("CLOSE");
 }
 
 void FE_init(void)

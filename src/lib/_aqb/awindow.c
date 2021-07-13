@@ -679,9 +679,15 @@ static void do_scroll(void)
     }
 }
 
-void _aio_puts(const UBYTE *s)
+void _aio_puts(USHORT fno, const UBYTE *s)
 {
     //_debug_puts("_aio_puts\n");
+
+    if (fno)
+    {
+        _aio_fputs (fno, s);
+        return;
+    }
 
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
@@ -773,8 +779,14 @@ void _aio_puts(const UBYTE *s)
         return;
 }
 
-void _aio_puttab(void)
+void _aio_puttab(USHORT fno)
 {
+    if (fno)
+    {
+        _aio_fputs(fno, (STRPTR) "\t");
+        return;
+    }
+
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
         Write(g_stdout, (CONST APTR) "\t", 1);

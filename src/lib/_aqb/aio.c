@@ -7,92 +7,84 @@
 
 #define MAXBUF 40
 
-void _aio_init(void)
+void _aio_putnl(USHORT fno)
 {
+    _aio_puts(fno, (UBYTE*)"\n");
 }
 
-void _aio_shutdown(void)
-{
-}
-
-void _aio_putnl(void)
-{
-    _aio_puts((UBYTE*)"\n");
-}
-
-void _aio_puts4(LONG num)
+void _aio_puts4(USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_puts2(short num)
+void _aio_puts2(USHORT fno, short num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_puts1(UBYTE num)
+void _aio_puts1(USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putu4(ULONG num)
+void _aio_putu4(USHORT fno, ULONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putu2(USHORT num)
+void _aio_putu2(USHORT fno, USHORT num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putu1(UBYTE num)
+void _aio_putu1(USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_puthex(LONG num)
+void _aio_puthex(USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 16);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putbin(LONG num)
+void _aio_putbin(USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 2);
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putuhex(ULONG l)
+void _aio_putuhex(USHORT fno, ULONG l)
 {
     UBYTE buf[MAXBUF];
     ULONG digit;
@@ -108,19 +100,19 @@ void _aio_putuhex(ULONG l)
     }
     buf[8] = 0;
 
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putf(FLOAT f)
+void _aio_putf(USHORT fno, FLOAT f)
 {
     UBYTE buf[40];
     _astr_ftoa(f, buf);
-    _aio_puts(buf);
+    _aio_puts(fno, buf);
 }
 
-void _aio_putbool(BOOL b)
+void _aio_putbool(USHORT fno, BOOL b)
 {
-    _aio_puts(b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+    _aio_puts(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
 }
 
 /*********************************************************
@@ -132,7 +124,7 @@ void _aio_putbool(BOOL b)
 void _aio_line_input (UBYTE *prompt, UBYTE **s, BOOL do_nl)
 {
     if (prompt)
-        _aio_puts(prompt);
+        _aio_puts(/*FIXME*/0, prompt);
 
     _aio_gets(s, do_nl);
 }
@@ -330,4 +322,86 @@ void _aio_inputs (UBYTE **v)
     *v = _astr_dup(g_input_token);
 }
 
+#define AIO_MAX_FILES 16
+
+static struct FileHandle *g_files[AIO_MAX_FILES];
+
+void _aio_open (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen)
+{
+#if 0
+    _aio_puts(0, (STRPTR)"_aio_open: fname=")  ; _aio_puts(0, fname);
+    _aio_puts(0, (STRPTR)", mode: "); _aio_puts2(0, mode);
+    _aio_puts(0, (STRPTR)", access: "); _aio_puts2(0, access);
+    _aio_puts(0, (STRPTR)", fno: "); _aio_puts2(0, fno);
+    _aio_puts(0, (STRPTR)", recordlen: "); _aio_puts2(0, recordlen);
+    _aio_putnl(0);
+#endif
+    if ( !fno || (fno >=AIO_MAX_FILES) || g_files[fno])
+    {
+        ERROR(AE_OPEN);
+        return;
+    }
+
+    int am = (mode == FILE_MODE_OUTPUT) ? MODE_NEWFILE : MODE_OLDFILE;
+    g_files[fno] = BADDR(Open (fname, am));
+    if (!g_files[fno])
+    {
+        ERROR(AE_OPEN);
+        return;
+    }
+
+    if (mode == FILE_MODE_APPEND)
+        Seek (MKBADDR(g_files[fno]), 0, OFFSET_END);
+}
+
+void _aio_fputs(USHORT fno, const UBYTE *s)
+{
+    if ( !fno || (fno >=AIO_MAX_FILES) || !g_files[fno])
+    {
+        ERROR(AE_OUTPUT);
+        return;
+    }
+    ULONG l = LEN_(s);
+    Write(MKBADDR(g_files[fno]), (CONST APTR) s, l);
+}
+
+void _aio_init(void)
+{
+    for (UWORD i=0; i<AIO_MAX_FILES; i++)
+        g_files[i] = NULL;
+}
+
+void _aio_close (USHORT fno)
+{
+    if (!fno)
+    {
+        for (UWORD i=1; i<AIO_MAX_FILES; i++)
+        {
+            if (!g_files[i])
+                continue;
+
+            Close(MKBADDR(g_files[i]));
+            g_files[i] = NULL;
+        }
+    }
+    else
+    {
+        if ( (fno >=AIO_MAX_FILES) || !g_files[fno] )
+        {
+            ERROR(AE_CLOSE);
+            return;
+        }
+        Close(MKBADDR(g_files[fno]));
+        g_files[fno] = NULL;
+    }
+}
+
+void _aio_shutdown(void)
+{
+    for (UWORD i=0; i<AIO_MAX_FILES; i++)
+    {
+        if (g_files[i])
+            Close (MKBADDR(g_files[i]));
+    }
+}
 
