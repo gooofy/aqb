@@ -1457,7 +1457,6 @@ static void compile(IDE_editor ed)
 {
     // FIXME: save first
 
-    LOG_printf (LOG_INFO, "\ncompilation starts...\n\n");
     CO_compile(ed->sourcefn,
                ed->module_name,
                /*symfn=*/ NULL,

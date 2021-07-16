@@ -346,7 +346,7 @@ void UI_putc(char c)
         if (uc>=0x40)
         {
             //LOG_printf (LOG_DEBUG, "!CSI seq detected: %s%c\n", csiBuf, c);
-            printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
+            //printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
 
             switch (c)
             {
@@ -379,7 +379,7 @@ void UI_putc(char c)
                         if (csiBufLen == 2)
                         {
                             uint8_t color = (csiBuf[0]-'0')*10+(csiBuf[1]-'0');
-                            printf ("setting color %d\n", color);
+                            //printf ("setting color %d\n", color);
                             switch (color)
                             {
                                 case 30: setTextColor (0, FALSE); break;

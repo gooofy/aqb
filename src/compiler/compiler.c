@@ -15,6 +15,18 @@
 #include "link.h"
 #include "logger.h"
 
+#ifdef __amigaos__
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <exec/execbase.h>
+
+#include <clib/exec_protos.h>
+
+#include <inline/exec.h>
+
+extern struct ExecBase      *SysBase;
+#endif
+
 static jmp_buf g_exit_jmp_buf;
 static int     g_return_code = 0;
 
@@ -28,6 +40,13 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
+
+    float startTime = U_getTime();
+#ifdef __amigaos__
+    LOG_printf (LOG_INFO, "\ncompilation starts, %d bytes free...\n\n", AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST));
+#else
+    LOG_printf (LOG_INFO, "\ncompilation starts...\n\n");
+#endif
 
     // init environment
 
@@ -65,6 +84,9 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
         //EM_deInit();
         //Ty_deInit();
 
+#ifdef __amigaos__
+        LOG_printf (LOG_INFO, "%d bytes free.\n", AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST));
+#endif
         return g_return_code;
     }
 
@@ -360,7 +382,8 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 
     LI_segmentListWriteLoadFile (sl, binfn);
 
-    LOG_printf (LOG_INFO, "\ncompilation finished.\n");
+    float endTime = U_getTime();
+    LOG_printf (LOG_INFO, "\ncompilation finished, took %ds.\n", (int)(endTime-startTime));
 
     CO_exit(0);
 
