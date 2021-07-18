@@ -53,7 +53,7 @@ struct U_memPool_
     int         num_chunks;
     int         num_allocs;
     U_memChunk  first, last;
-    // for allocs >chunk_size:
+    // for allocs >chunk_size / nonchunk mallocs:
     U_memRec    mem;
     size_t      mem_alloced;
 };
@@ -68,8 +68,6 @@ struct U_memRec_
 static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL",
                                                 "REGALLOC", "LIVENESS", "STRINGS", "LINK", "IDE", "OPTIONS" };
 static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
-static U_memRec   g_mem = NULL;
-static size_t     g_alloc=0;
 static float      g_start_time;
 
 float U_getTime(void)
@@ -143,6 +141,29 @@ static U_memPool U_MemPool(size_t chunk_size)
     return pool;
 }
 
+void *U_poolNonChunkAlloc  (U_poolId pid, size_t size)
+{
+    U_memPool pool = g_pools[pid];
+    assert (pool);
+
+    U_memRec mem_prev = pool->mem;
+
+    pool->mem      = checked_malloc (sizeof(*pool->mem));
+    pool->mem->mem = checked_malloc (size);
+
+    pool->mem->size    = size;
+    pool->mem->next    = mem_prev;
+    pool->mem_alloced += size;
+
+    return pool->mem->mem;
+}
+
+void *U_poolNonChunkCAlloc (U_poolId pid, size_t size)
+{
+    void *p = U_poolNonChunkAlloc(pid, size);
+    memset (p, 0, size);
+    return p;
+}
 
 void *U_poolAlloc (U_poolId pid, size_t size)
 {
@@ -150,18 +171,7 @@ void *U_poolAlloc (U_poolId pid, size_t size)
     assert (pool);
 
     if (size > pool->chunk_size)
-    {
-        U_memRec mem_prev = pool->mem;
-
-        pool->mem      = checked_malloc (sizeof(*pool->mem));
-        pool->mem->mem = checked_malloc (size);
-
-        pool->mem->size    = size;
-        pool->mem->next    = mem_prev;
-        pool->mem_alloced += size;
-
-        return pool->mem->mem;
-    }
+        return U_poolNonChunkAlloc(pid, size);
 
     // alignment
     size += size % 2;
@@ -229,28 +239,6 @@ void U_memstat(void)
         LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%5dms: mpool: %-12s %4d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n",
                     (int)(tdiff * 1000.0), g_pool_names[i], g_pools[i]->num_allocs, (g_pools[i]->num_chunks * g_pools[i]->chunk_size) / 1, g_pools[i]->num_chunks, g_pools[i]->mem_alloced);
     }
-	LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%5dms: mpool: OTHER                     %6zd Bytes.\n", (int)(tdiff*1000.0), g_alloc);
-}
-
-void *U_malloc (size_t size)
-{
-    U_memRec mem_prev = g_mem;
-
-    g_mem      = checked_malloc (sizeof(*g_mem));
-    g_mem->mem = checked_malloc (size);
-
-    g_mem->size = size;
-    g_mem->next = mem_prev;
-	g_alloc    += size;
-
-    return g_mem->mem;
-}
-
-void *U_calloc (size_t size)
-{
-    void *p = U_malloc(size);
-    memset (p, 0, size);
-    return p;
 }
 
 string String(const char *s)
@@ -599,17 +587,9 @@ bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ..
 
 void U_deinit (void)
 {
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit.\n", g_alloc);
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit.\n");
     for (int i=0; i<UP_numPools; i++)
         U_poolFree(i, /*destroy=*/TRUE);
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory     : %6zd Bytes in OTHER.\n", g_alloc);
-    while (g_mem)
-    {
-        U_memRec mem_next = g_mem->next;
-        U_memfree (g_mem->mem, g_mem->size);
-        U_memfree (g_mem, sizeof (*g_mem));
-        g_mem = mem_next;
-    }
 }
 
 void U_init (void)

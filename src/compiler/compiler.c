@@ -43,6 +43,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 
     float startTime = U_getTime();
 #ifdef __amigaos__
+    U_memstat();
     LOG_printf (LOG_INFO, "\ncompilation starts, %d bytes free...\n\n", AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST));
 #else
     LOG_printf (LOG_INFO, "\ncompilation starts...\n\n");
@@ -85,6 +86,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
         //Ty_deInit();
 
 #ifdef __amigaos__
+        U_memstat();
         LOG_printf (LOG_INFO, "%d bytes free.\n", AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST));
 #endif
         return g_return_code;

@@ -784,7 +784,7 @@ AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, size_t ini
     seg->name        = name;
     seg->kind        = kind;
     seg->hunk_id     = g_hunk_id++;
-    seg->mem         = initial_size ? U_malloc (initial_size) : NULL;
+    seg->mem         = initial_size ? U_poolNonChunkAlloc (UP_assem, initial_size) : NULL;
     seg->mem_size    = initial_size;
     seg->mem_pos     = 0;
     seg->relocs      = NULL;
@@ -929,14 +929,14 @@ void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
             s = s * 2;
         if (!seg->mem)
         {
-            seg->mem  = U_calloc (s);
+            seg->mem  = U_poolNonChunkCAlloc (UP_assem, s);
 #if LOG_LEVEL == LOG_DEBUG
             LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes\n", s);
 #endif
         }
         else
         {
-            uint8_t *mem = U_calloc (s);
+            uint8_t *mem = U_poolNonChunkCAlloc (UP_assem, s);
             memcpy (mem, seg->mem, seg->mem_size);
             seg->mem = mem;
 #if LOG_LEVEL == LOG_DEBUG

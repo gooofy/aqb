@@ -96,12 +96,11 @@ typedef enum
     UP_regalloc, UP_liveness, UP_strings, UP_link, UP_ide, UP_options, UP_numPools
 } U_poolId;
 
-void *U_poolAlloc  (U_poolId pid, size_t size);
-void *U_poolCalloc (U_poolId pid, size_t nmemb, size_t len);
-void  U_poolReset  (U_poolId pid);   // frees all memory reserved through this pool, keeps pool itself intact for now allocations
-
-void *U_malloc     (size_t size);
-void *U_calloc     (size_t size);
+void *U_poolAlloc          (U_poolId pid, size_t size);
+void *U_poolCalloc         (U_poolId pid, size_t nmemb, size_t len);
+void *U_poolNonChunkAlloc  (U_poolId pid, size_t size);
+void *U_poolNonChunkCAlloc (U_poolId pid, size_t size);
+void  U_poolReset          (U_poolId pid);   // frees all memory reserved through this pool, keeps pool itself intact for now allocations
 
 void  U_memstat    (void);
 
