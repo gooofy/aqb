@@ -102,6 +102,7 @@ struct FE_SLE_
             CG_item       var;
             CG_item       toItem, stepItem;
             Temp_label    lHead;
+            bool          upwards;
         } forLoop;
         struct
         {
@@ -3677,10 +3678,14 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
             return EM_error((*tkn)->pos, "type mismatch (step expression).");
         if (!CG_isConst(&sle->u.forLoop.stepItem))
             return EM_error((*tkn)->pos, "constant step expression expected here");
+
+        int32_t incr = CG_getConstInt (&sle->u.forLoop.stepItem);
+        sle->u.forLoop.upwards = incr>0;
     }
     else
     {
         CG_OneItem (&sle->u.forLoop.stepItem, varTy);
+        sle->u.forLoop.upwards=TRUE;
     }
 
     /*
@@ -3700,7 +3705,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, loopVar, &fromItem);
     CG_item cond = *loopVar;
-    CG_transRelOp (g_sleStack->code, pos, CG_le, &cond, &sle->u.forLoop.toItem);
+    CG_transRelOp (g_sleStack->code, pos, sle->u.forLoop.upwards ? CG_le : CG_ge, &cond, &sle->u.forLoop.toItem);
     CG_loadCond (g_sleStack->code, pos, &cond);
     CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
     sle->exitlbl = cond.u.condR.l;
@@ -3728,7 +3733,7 @@ static bool stmtForEnd_(S_pos pos, S_symbol varSym)
     CG_transBinOp      (g_sleStack->code, pos, g_sleStack->frame, CG_plus, &v, &sle->u.forLoop.stepItem, CG_ty(&v));
     CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &sle->u.forLoop.var, &v);
     CG_item cond = sle->u.forLoop.var;
-    CG_transRelOp      (g_sleStack->code, pos, CG_le, &cond, &sle->u.forLoop.toItem);
+    CG_transRelOp      (g_sleStack->code, pos, sle->u.forLoop.upwards ? CG_le : CG_ge, &cond, &sle->u.forLoop.toItem);
     CG_loadCond (g_sleStack->code, pos, &cond);
     CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
     CG_transJump       (g_sleStack->code, pos, sle->u.forLoop.lHead);
