@@ -192,14 +192,21 @@ static void insertLineAfter (IDE_editor ed, IDE_line lBefore, IDE_line l)
 static void deleteLine (IDE_editor ed, IDE_line l)
 {
     if (l->prev)
+    {
         l->prev->next = l->next;
+    }
     else
+    {
         ed->line_first = l->next;
+        ed->line_first->a_line=0;
+        ed->line_first->v_line=0;
+    }
     if (l->next)
         l->next->prev = l->prev;
     else
         ed->line_last = l->prev;
     freeLine (ed, l);
+    ed->changed = TRUE;
 }
 
 void initWindowSize (IDE_editor ed)
