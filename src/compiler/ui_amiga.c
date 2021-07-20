@@ -571,7 +571,7 @@ void UI_runIO (void)
 				{
 					LONG l = packet->dp_Arg3;
 					char *buf = (char *)packet->dp_Arg2;
-#if 1
+#if 0
                     // FIXME: disable debug code
 					LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
 					for (int i = 0; i<l; i++)
@@ -591,14 +591,22 @@ void UI_runIO (void)
                             UI_scrollUp  (/*fullscreen=*/TRUE);
                             UI_beginLine (rows);
                             haveLine = TRUE;
+#if 0
+                            // FIXME: disable debug code
+                            LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: starting new line\n", l);
+#endif
                         }
                         UBYTE c = (UBYTE)buf[i];
                         switch (c)
                         {
                             case '\n':
-                            case '0':
+                            case 0:
                                 UI_endLine ();
                                 haveLine = FALSE;
+#if 0
+                                // FIXME: disable debug code
+                                LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ending line\n", l);
+#endif
                                 break;
                             default:
                                 UI_putc(c);
