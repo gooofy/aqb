@@ -56,6 +56,9 @@
 #define KEY_ABOUT          1030
 #define KEY_FONT_0         1031
 #define KEY_FONT_1         1032
+#define KEY_FIND           1033
+#define KEY_FIND_NEXT      1034
+#define KEY_BLOCK          1035
 #define KEY_UNKNOWN1       9993
 #define KEY_UNKNOWN2       9994
 #define KEY_UNKNOWN3       9995

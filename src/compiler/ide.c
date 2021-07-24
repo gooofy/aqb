@@ -1455,8 +1455,19 @@ static void show_help(IDE_editor ed)
                   "Ctrl-Y - delete line\n"
                   "F5     - compile & run\n"
                   "F7     - compile\n"
+                  "Ctrl-F - find\n"
+                  "Ctrl-N - find next\n"
+                  "Ctrl-M - mark block\n"
                   "Ctrl-S - save\n"
                   "Ctrl-C - quit", "Close");
+    invalidateAll (ed);
+}
+
+static void show_about(IDE_editor ed)
+{
+    UI_EZRequest (PROGRAM_NAME_LONG " " VERSION"\n\n"
+                  COPYRIGHT "\n\n"
+                  LICENSE, "Close");
     invalidateAll (ed);
 }
 
@@ -1602,6 +1613,10 @@ static void key_cb (uint16_t key, void *user_data)
         case KEY_HELP:
         case KEY_F1:
             show_help(ed);
+            break;
+
+        case KEY_ABOUT:
+            show_about(ed);
             break;
 
         case KEY_F5:

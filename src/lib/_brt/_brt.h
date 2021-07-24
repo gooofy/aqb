@@ -55,7 +55,7 @@ void RESUME_NEXT  (void);
 
 void SYSTEM       (void);
 
-void *memset (void *dst, register int c, register int n);
+//void *memset (void *dst, register int c, register int n);
 
 #if 0  // exec has these already
 

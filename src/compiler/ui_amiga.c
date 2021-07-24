@@ -76,6 +76,12 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Cut",       (STRPTR) "X", 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Copy",      (STRPTR) "C", 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, 0,},
+        {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Block",     (STRPTR) "B", 0, 0, (APTR)KEY_BLOCK,},
+
+        { NM_TITLE, (STRPTR) "Find",                0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Find...",   (STRPTR) "F", 0, 0, (APTR)KEY_FIND,},
+        {  NM_ITEM, (STRPTR) "Find next", (STRPTR) "N", 0, 0, (APTR)KEY_FIND_NEXT,},
 
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
