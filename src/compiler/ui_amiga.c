@@ -45,6 +45,7 @@
 #include "logger.h"
 #include "options.h"
 
+#define LOG_KEY_EVENTS
 //#define DEBUG_FONTCONV
 #define DEBUG_FONTCONV_NUM 8
 
@@ -777,7 +778,36 @@ uint16_t UI_EZRequest (char *body, char *gadgets)
 
 char *UI_FileReq  (char *title)
 {
+    // FIXME: implement
     assert(FALSE);
+}
+
+bool UI_lineInput (uint16_t row, char *prompt, char *buf, uint16_t buf_len)
+{
+    // FIXME: implement
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+    uint16_t l = strlen(prompt);
+    //uint16_t buflen=strlen(buf);
+    uint16_t curpos = 0;
+
+    while (TRUE)
+    {
+        UI_setCursorVisible (FALSE);
+        UI_beginLine (row);
+        UI_putstr (prompt);
+        UI_putstr (buf);
+        UI_endLine ();
+        UI_moveCursor (row, l+1+curpos); 
+        UI_setCursorVisible (TRUE);
+
+        uint16_t key = UI_waitkey ();
+        switch (key)
+        {
+            case KEY_ESC:
+                return FALSE;
+        }
+    }
+    return FALSE;
 }
 
 typedef enum { esWait, esGet } eventState;
@@ -847,12 +877,14 @@ static uint16_t nextEvent(void)
                             ievent.ie_position.ie_addr = *((APTR*)winmsg->IAddress);
 
                             USHORT nc = RawKeyConvert(&ievent, kbuffer, 15, /*kmap=*/NULL);
-                            //LOG_printf (LOG_DEBUG, " -> RawKeyConvert nc=%d, buf=\n", nc);
-                            //for (int i=0; i<nc; i++)
-                            //{
-                            //    LOG_printf (LOG_DEBUG, " 0x%02x[%c]", kbuffer[i], kbuffer[i]);
-                            //}
-                            //LOG_printf(LOG_DEBUG, "\n");
+#ifdef LOG_KEY_EVENTS
+                            LOG_printf (LOG_DEBUG, " -> RawKeyConvert nc=%d, buf=\n", nc);
+                            for (int i=0; i<nc; i++)
+                            {
+                                LOG_printf (LOG_DEBUG, " 0x%02x[%c]", kbuffer[i], kbuffer[i]);
+                            }
+                            LOG_printf(LOG_DEBUG, "\n");
+#endif
                             switch (nc)
                             {
                                 case 1:

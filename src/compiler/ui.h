@@ -106,6 +106,7 @@ void      UI_onKeyCall          (UI_key_cb cb, void *user_data);
 
 uint16_t  UI_EZRequest          (char *body, char *gadgets);
 char     *UI_FileReq            (char *title);
+bool      UI_lineInput          (uint16_t row, char *prompt, char *buf, uint16_t buf_len);
 
 #ifdef __amigaos__
 struct FileHandle *UI_output    (void);

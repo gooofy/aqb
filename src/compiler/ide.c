@@ -119,6 +119,9 @@ struct IDE_editor_
     char               buf2[MAX_LINE_LEN];
     char               style2[MAX_LINE_LEN];
     uint16_t           buf2_len;
+
+    // find/replace
+    char               find_buf[MAX_LINE_LEN];
 };
 
 #if LOG_LEVEL == LOG_DEBUG
@@ -1512,6 +1515,16 @@ static void compileAndRun(IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
+static void IDE_find(IDE_editor ed)
+{
+    // FIXME: implement
+    UI_lineInput (ed->infoline_row+1, "find: ", ed->find_buf, MAX_LINE_LEN);
+
+    UI_eraseDisplay ();
+    invalidateAll (ed);
+    UI_setCursorVisible (TRUE);
+}
+
 static void IDE_load_FileReq (IDE_editor ed)
 {
     if (ed->editing)
@@ -1620,8 +1633,12 @@ static void key_cb (uint16_t key, void *user_data)
             break;
 
         case KEY_F5:
-        case KEY_CTRL_F:
             compileAndRun(ed);
+            break;
+
+        case KEY_CTRL_F:
+        case KEY_FIND:
+            IDE_find(ed);
             break;
 
         case KEY_F7:
@@ -1686,6 +1703,7 @@ IDE_editor openEditor(void)
     ed->changed		     = FALSE;
     ed->editing          = FALSE;
     ed->il_show_error    = FALSE;
+    ed->find_buf[0]      = 0;
 
     invalidateAll (ed);
 
