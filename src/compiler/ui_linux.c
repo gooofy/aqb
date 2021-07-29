@@ -1,5 +1,6 @@
 #ifndef __amigaos__
 #include "ui.h"
+#include "tui.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -41,6 +42,8 @@ static void           *g_key_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
 
+uint16_t               UI_size_cols=80, UI_size_rows=25;
+
 static void UI_flush  (void)
 {
     if (g_bpos != 0)
@@ -72,9 +75,9 @@ void UI_setTextStyle (uint16_t style)
     }
 }
 
-void UI_beginLine (uint16_t row)
+void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t col_end)
 {
-    UI_moveCursor (row, 1);
+    UI_moveCursor (row, col_start);
 }
 
 void UI_putc(char c)
@@ -111,6 +114,7 @@ void UI_vprintf (char* format, va_list args)
 
 void UI_endLine (void)
 {
+    // FIXME: honor line length
     UI_putstr (CSI "K");    // erase to EOL
     UI_flush();
 }
@@ -376,7 +380,7 @@ static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
     return TRUE;
 }
 
-bool UI_getsize(uint16_t *rows, uint16_t *cols)
+static void updateTerminalSize(void)
 {
     struct winsize ws;
 
@@ -389,9 +393,8 @@ bool UI_getsize(uint16_t *rows, uint16_t *cols)
 
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
 			goto failed;
-        if (!getCursorPosition(rows, cols))
+        if (!getCursorPosition(&UI_size_rows, &UI_size_cols))
 			goto failed;
-
 
         char seq[32];
         snprintf(seq, 32, "\x1b[%d;%dH", orig_row, orig_col);
@@ -399,13 +402,13 @@ bool UI_getsize(uint16_t *rows, uint16_t *cols)
     }
 	else
 	{
-        *cols = ws.ws_col;
-        *rows = ws.ws_row;
+        UI_size_cols = ws.ws_col;
+        UI_size_rows = ws.ws_row;
     }
-	return TRUE;
 
 failed:
-    return FALSE;
+    UI_size_cols = 80;
+    UI_size_rows = 25;
 }
 
 void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
@@ -416,6 +419,7 @@ void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
 
 static void handleSigWinCh(int unused __attribute__((unused)))
 {
+    updateTerminalSize();
     if (g_size_cb)
         g_size_cb(g_size_cb_user_data);
 }
@@ -462,6 +466,9 @@ bool UI_init (void)
 
     if (tcsetattr(STDOUT_FILENO, TCSAFLUSH, &raw) < 0)
 		goto fatal;
+
+    updateTerminalSize();
+
     return TRUE;
 
 fatal:
@@ -484,14 +491,10 @@ void UI_run(void)
 
 uint16_t UI_EZRequest (char *body, char *gadgets)
 {
-    uint16_t rows, cols;
-
-    UI_getsize (&rows, &cols);
-
     UI_scrollUp(/*fullscreen=*/TRUE);
     UI_scrollUp(/*fullscreen=*/TRUE);
 
-    UI_moveCursor (rows, 1);
+    UI_moveCursor (UI_size_rows, 1);
 
     UI_setTextStyle (UI_STYLE_NORMAL);
 
@@ -504,11 +507,11 @@ uint16_t UI_EZRequest (char *body, char *gadgets)
         else
         {
             UI_scrollUp(/*fullscreen=*/TRUE);
-            UI_moveCursor (rows, 1);
+            UI_moveCursor (UI_size_rows, 1);
         }
     }
     UI_scrollUp(/*fullscreen=*/TRUE);
-    UI_moveCursor (rows, 1);
+    UI_moveCursor (UI_size_rows, 1);
 
     uint16_t cnt;
     char *c = gadgets;
@@ -575,11 +578,9 @@ char *UI_FileReq  (char *title)
     assert(FALSE);
 }
 
-bool UI_lineInput (uint16_t row, char *prompt, char *buf, uint16_t buf_len)
+bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
 {
-    // FIXME: implement
-    assert(FALSE);
-    return FALSE;
+    return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
 }
 
 void UI_onKeyCall (UI_key_cb cb, void *user_data)

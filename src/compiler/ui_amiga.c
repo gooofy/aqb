@@ -44,8 +44,9 @@
 #include "ui.h"
 #include "logger.h"
 #include "options.h"
+#include "tui.h"
 
-#define LOG_KEY_EVENTS
+//#define LOG_KEY_EVENTS
 //#define DEBUG_FONTCONV
 #define DEBUG_FONTCONV_NUM 8
 
@@ -57,6 +58,8 @@ extern struct DiskfontBase  *DiskfontBase;
 struct Library              *GadToolsBase;
 struct ReqToolsBase         *ReqToolsBase;
 struct Device               *ConsoleDevice = NULL;
+
+uint16_t UI_size_cols=80, UI_size_rows=25;
 
 #define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
                     /*(l)->lh_Tail = NULL,*/ \
@@ -125,6 +128,8 @@ static bool               g_renderBMPE[2]     = { TRUE, FALSE }; // PE: PlaneEna
 static bool               g_renderInverse     = FALSE;
 static uint16_t           g_renderBMcurCol    = 0;
 static uint16_t           g_renderBMcurRow    = 1;
+static uint16_t           g_curLineStart      = 1;
+static uint16_t           g_curLineCols       = 80;
 static uint16_t           g_renderBMmaxCols   = 80;
 // RTG graphics library based rendering
 #define BUFSIZE 1024
@@ -268,24 +273,15 @@ static void setTextColor (uint16_t color, BOOL inverse)
     }
     else
     {
-        if (inverse)
+        switch (color)
         {
-            g_renderBMPE[0] = TRUE;
-            g_renderBMPE[1] = FALSE;
-            g_renderInverse = TRUE;
+            case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; break;
+            case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; break;
+            case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; break;
+            case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; break;
+            default: assert(FALSE);
         }
-        else
-        {
-            switch (color)
-            {
-                case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; break;
-                case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; break;
-                case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; break;
-                case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; break;
-                default: assert(FALSE);
-            }
-            g_renderInverse = FALSE;
-        }
+        g_renderInverse = inverse;
     }
 }
 
@@ -297,30 +293,37 @@ void UI_setTextStyle (uint16_t style)
         case UI_TEXT_STYLE_KEYWORD  : setTextColor (2, FALSE); break;
         case UI_TEXT_STYLE_COMMENT  : setTextColor (3, FALSE); break;
         case UI_TEXT_STYLE_INVERSE  : setTextColor (1,  TRUE); break;
+        case UI_TEXT_STYLE_DIALOG   : setTextColor (3,  TRUE); break;
         default:
             printf ("UI style %d is unknown.\n", style);
             assert(FALSE);
     }
 }
 
-void UI_beginLine (uint16_t row)
+void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
 {
     //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine row=%d\n", row);
+    g_curLineStart = col_start;
+    g_curLineCols  = cols;
+    //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine g_curLineCols=%d\n", g_curLineCols);
     if (g_renderRTG)
     {
         assert (!g_bpos);
-        Move (g_rp, g_OffLeft, g_OffTop + (row-1) * g_fontHeight + g_rp->TxBaseline);
+        Move (g_rp, g_OffLeft + (col_start-1) * 8, g_OffTop + (row-1) * g_fontHeight + g_rp->TxBaseline);
     }
     else
     {
         if (g_cursorVisible)
             drawCursor();
-        g_renderBMcurCol = 0;
+        g_renderBMcurCol = col_start-1;
         g_renderBMcurRow = row;
-        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow;
-        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow;
-        memset (g_renderBMPtr[0], g_renderInverse ? 0xFF : 0x00, g_renderBMBytesPerRow*g_fontHeight);
-        memset (g_renderBMPtr[1], g_renderInverse ? 0xFF : 0x00, g_renderBMBytesPerRow*g_fontHeight);
+        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1) * 8;
+        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1) * 8;
+        for (uint16_t r = 0; r<g_fontHeight; r++)
+        {
+            memset (g_renderBMPtr[0] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
+            memset (g_renderBMPtr[1] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
+        }
         if (g_cursorVisible)
             drawCursor();
     }
@@ -483,7 +486,9 @@ void UI_endLine (void)
         WORD cp_x = g_rp->cp_x;
         WORD cp_y = g_rp->cp_y-g_rp->TxBaseline;
 
-        WORD max_x = g_win->Width - g_OffRight-1;
+        WORD max_x = (g_curLineStart+g_curLineCols-1)*8+g_OffLeft;
+
+        //LOG_printf (LOG_DEBUG, "UI_endLine: g_curLineStart=%d, g_curLineCols=%d, cp_x=%d, max_x=%d\n", g_curLineStart, g_curLineCols,  cp_x, max_x);
 
         if (cp_x < max_x)
         {
@@ -558,8 +563,6 @@ void UI_runIO (void)
 	ULONG termsig = 1 << g_termSignalBit;
 
     BOOL running = TRUE;
-    uint16_t rows, cols;
-    UI_getsize(&rows, &cols);
     bool haveLine = FALSE;
     while (running)
     {
@@ -596,7 +599,7 @@ void UI_runIO (void)
                         if (!haveLine)
                         {
                             UI_scrollUp  (/*fullscreen=*/TRUE);
-                            UI_beginLine (rows);
+                            UI_beginLine (UI_size_rows, 1, UI_size_cols);
                             haveLine = TRUE;
 #if 0
                             // FIXME: disable debug code
@@ -730,32 +733,6 @@ void UI_scrollDown (void)
         drawCursor();
 }
 
-// FIXME: implement size change callback
-
-bool UI_getsize(uint16_t *rows, uint16_t *cols)
-{
-    uint16_t w = g_win->Width  - g_OffLeft - g_OffRight;
-    uint16_t h = g_win->Height - g_OffTop  - g_OffBottom;
-    *cols = w / 8;
-    *rows = h / g_fontHeight;
-
-    /* range checks */
-
-    if (*cols < UI_MIN_COLUMNS)
-        *cols = UI_MIN_COLUMNS;
-    if (*cols > UI_MAX_COLUMNS)
-        *cols = UI_MAX_COLUMNS;
-
-    if (*rows < UI_MIN_ROWS)
-        *rows = UI_MIN_ROWS;
-    if (*rows > UI_MAX_ROWS)
-        *rows = UI_MAX_ROWS;
-
-    LOG_printf (LOG_DEBUG, "UI_getsize: w=%d, h=%d -> rows=%d, cols=%d\n", w, h, *rows, *cols);
-
-    return TRUE;
-}
-
 void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
 {
     g_size_cb = cb;
@@ -782,32 +759,9 @@ char *UI_FileReq  (char *title)
     assert(FALSE);
 }
 
-bool UI_lineInput (uint16_t row, char *prompt, char *buf, uint16_t buf_len)
+bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
 {
-    // FIXME: implement
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-    uint16_t l = strlen(prompt);
-    //uint16_t buflen=strlen(buf);
-    uint16_t curpos = 0;
-
-    while (TRUE)
-    {
-        UI_setCursorVisible (FALSE);
-        UI_beginLine (row);
-        UI_putstr (prompt);
-        UI_putstr (buf);
-        UI_endLine ();
-        UI_moveCursor (row, l+1+curpos); 
-        UI_setCursorVisible (TRUE);
-
-        uint16_t key = UI_waitkey ();
-        switch (key)
-        {
-            case KEY_ESC:
-                return FALSE;
-        }
-    }
-    return FALSE;
+    return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
 }
 
 typedef enum { esWait, esGet } eventState;
@@ -961,6 +915,7 @@ static uint16_t nextEvent(void)
     //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): done, res=%d\n", res);
     return res;
 }
+
 uint16_t UI_waitkey (void)
 {
     while (TRUE)
@@ -994,6 +949,12 @@ void UI_deinit(void)
         CloseLibrary((struct Library *)ReqToolsBase);
     if (g_termSignalBit != -1)
         FreeSignal (g_termSignalBit);
+}
+
+static void updateTerminalSize(void)
+{
+    UI_size_cols = (g_win->Width  - g_OffLeft - g_OffRight) / 8;
+    UI_size_rows = (g_win->Height - g_OffTop  - g_OffBottom) / g_fontHeight;
 }
 
 void UI_setFont (int font)
@@ -1078,6 +1039,7 @@ void UI_setFont (int font)
 #endif
     }
 
+    updateTerminalSize();
     Move (g_rp, 0, 0);
     ClearScreen(g_rp);
 }
@@ -1183,7 +1145,7 @@ bool UI_init (void)
         g_renderBMBytesPerRow = g_screen->BitMap.BytesPerRow;
     }
 
-    UI_beginLine (1);
+    UI_beginLine (1, 1, UI_size_cols);
 
     /* prepare fake i/o filehandles (for IDE console redirection) */
 

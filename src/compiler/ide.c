@@ -214,14 +214,10 @@ static void deleteLine (IDE_editor ed, IDE_line l)
 
 void initWindowSize (IDE_editor ed)
 {
-    uint16_t rows, cols;
-    if (!UI_getsize (&rows, &cols))
-        exit(1);
-
-    ed->window_width  = cols;
-    ed->window_height = rows;
-    ed->infoline_row  = rows-1;
-    UI_setScrollArea (1, rows-1);
+    ed->window_width  = UI_size_cols;
+    ed->window_height = UI_size_rows;
+    ed->infoline_row  = UI_size_rows-1;
+    UI_setScrollArea (1, UI_size_rows-1);
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)
@@ -1044,7 +1040,7 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
 {
     // FIXME: horizontal scroll
 
-    UI_beginLine (row);
+    UI_beginLine (row, 1, UI_size_cols);
 
     char s=UI_TEXT_STYLE_TEXT;
     UI_setTextStyle (UI_TEXT_STYLE_TEXT);
@@ -1122,7 +1118,7 @@ static void repaint (IDE_editor ed)
         ed->repaint_all = FALSE;
         while (row < ed->infoline_row)
         {
-            UI_beginLine (row);
+            UI_beginLine (row, 1, UI_size_cols);
             UI_endLine   ();
             row++;
         }
@@ -1183,7 +1179,7 @@ static void repaint (IDE_editor ed)
     {
         LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
         UI_setTextStyle (UI_TEXT_STYLE_INVERSE);
-        UI_beginLine (ed->infoline_row+1);
+        UI_beginLine (ed->infoline_row+1, 1, UI_size_cols);
         char *c = ed->infoline;
         int col = 0;
         while (*c && col < ed->window_width)
@@ -1518,7 +1514,8 @@ static void compileAndRun(IDE_editor ed)
 static void IDE_find(IDE_editor ed)
 {
     // FIXME: implement
-    UI_lineInput (ed->infoline_row+1, "find: ", ed->find_buf, MAX_LINE_LEN);
+    bool matchCase=FALSE, wholeWord=FALSE, searchBackwards=FALSE;
+    UI_FindReq (ed->find_buf, MAX_LINE_LEN, &matchCase, &wholeWord, &searchBackwards);
 
     UI_eraseDisplay ();
     invalidateAll (ed);
@@ -1854,19 +1851,19 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
             if (!haveLine)
             {
                 UI_scrollUp  (/*fullscreen=*/TRUE);
-                UI_beginLine (g_ed->window_height);
+                UI_beginLine (g_ed->window_height, 1, UI_size_cols);
                 haveLine = TRUE;
             }
             if (col >= g_ed->window_width)
             {
-                UI_endLine   ();
+                UI_endLine ();
                 haveLine = FALSE;
                 col = 0;
             }
             char c = buf[i];
             if (c=='\n')
             {
-                UI_endLine   ();
+                UI_endLine ();
                 haveLine = FALSE;
                 col = 0;
             }
@@ -1877,7 +1874,7 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
             }
         }
         if (haveLine)
-            UI_endLine   ();
+            UI_endLine ();
         UI_moveCursor(g_ed->window_height, col+1);
     }
 #if LOG_LEVEL == LOG_DEBUG

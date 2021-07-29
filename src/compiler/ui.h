@@ -69,15 +69,12 @@
 
 #define UI_TEXT_STYLE_TEXT     0
 #define UI_TEXT_STYLE_KEYWORD  1
-//#define UI_TEXT_STYLE_NUMBERS  2
-//#define UI_TEXT_STYLE_STRING   3
 #define UI_TEXT_STYLE_COMMENT  2
-//#define UI_TEXT_STYLE_SHINE    5
-//#define UI_TEXT_STYLE_SHADOW   6
 #define UI_TEXT_STYLE_INVERSE  3
+#define UI_TEXT_STYLE_DIALOG   4
 
 void      UI_setTextStyle       (uint16_t style);
-void      UI_beginLine          (uint16_t row);
+void      UI_beginLine          (uint16_t row, uint16_t col_start, uint16_t cols);
 void      UI_putc               (char c);
 void      UI_putstr             (string s);
 void      UI_printf             (char* format, ...);
@@ -97,16 +94,21 @@ void      UI_setScrollArea      (uint16_t row_start, uint16_t row_end);
 void      UI_scrollUp           (bool fullscreen);
 void      UI_scrollDown         (void);
 
-bool      UI_getsize            (uint16_t *rows, uint16_t *cols);
+extern uint16_t UI_size_cols, UI_size_rows;
+
 typedef void (*UI_size_cb)(void *user_data);
 void      UI_onSizeChangeCall   (UI_size_cb cb, void *user_data);
 
 typedef void (*UI_key_cb)(uint16_t key, void *user_data);
 void      UI_onKeyCall          (UI_key_cb cb, void *user_data);
 
+/*
+ * high-level requesters
+ */
+
 uint16_t  UI_EZRequest          (char *body, char *gadgets);
 char     *UI_FileReq            (char *title);
-bool      UI_lineInput          (uint16_t row, char *prompt, char *buf, uint16_t buf_len);
+bool      UI_FindReq            (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards);
 
 #ifdef __amigaos__
 struct FileHandle *UI_output    (void);
