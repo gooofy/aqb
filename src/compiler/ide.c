@@ -1514,8 +1514,10 @@ static void compileAndRun(IDE_editor ed)
 static void IDE_find(IDE_editor ed)
 {
     // FIXME: implement
-    bool matchCase=FALSE, wholeWord=FALSE, searchBackwards=FALSE;
+    static bool matchCase=FALSE, wholeWord=FALSE, searchBackwards=FALSE;
+    LOG_printf (LOG_DEBUG, "IDE_find: BEFORE ed->find_buf='%s' %p\n", ed->find_buf, ed->find_buf);
     UI_FindReq (ed->find_buf, MAX_LINE_LEN, &matchCase, &wholeWord, &searchBackwards);
+    LOG_printf (LOG_DEBUG, "IDE_find: AFTER  ed->find_buf='%s'\n", ed->find_buf);
 
     UI_eraseDisplay ();
     invalidateAll (ed);

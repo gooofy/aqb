@@ -354,7 +354,10 @@ static void textEntryRefreshCb(TUI_widget w)
     }
     UI_endLine ();
     if (w->focused)
+    {
+        //LOG_printf (LOG_DEBUG, "TUI_TextEntry refresh cb: cursor_pos=%d, scroll_offset=%d -> cp=%d\n", entry->cursor_pos, entry->scroll_offset, cp);
         UI_moveCursor (w->y+1, w->x+1+cp);
+    }
 }
 
 static void textEntryEventCb(TUI_widget w, uint16_t event)
@@ -462,10 +465,11 @@ static void textEntryEventCb(TUI_widget w, uint16_t event)
 
 static void textEntryFocusCb(TUI_widget w, bool focus)
 {
+    w->focused = focus;
     if (focus)
     {
-        UI_moveCursor (w->y+1, w->x+1);
         UI_setCursorVisible (TRUE);
+        textEntryRefreshCb(w);
     }
     else
     {
@@ -515,8 +519,7 @@ bool TUI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord,
 {
     TUI_window dlg = TUI_Window ("Find", 60, 14);
 
-    char buf2[256];
-    TUI_widget entry = TUI_TextEntry (2, 2, 56, buf2, 256);
+    TUI_widget entry = TUI_TextEntry (2, 2, 56, buf, buf_len);
     TUI_addWidget (dlg, entry);
 
     TUI_widget checkBox = TUI_CheckBox (2, 5, 27, "Match Upper/Lowercase", matchCase);
