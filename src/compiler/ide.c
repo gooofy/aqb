@@ -121,6 +121,7 @@ struct IDE_editor_
     uint16_t           buf2_len;
 
     // find/replace
+    bool               find_matchCase, find_wholeWord, find_searchBackwards;
     char               find_buf[MAX_LINE_LEN];
 };
 
@@ -979,6 +980,18 @@ static void fold (IDE_editor ed, IDE_line cl)
     invalidateAll(ed);
 }
 
+static void unfoldCursorLine(IDE_editor ed)
+{
+    if (ed->cursor_line->folded)
+    {
+        IDE_line fs = ed->cursor_line;
+        while (fs && !fs->fold_start)
+            fs = fs->prev;
+        if (fs)
+            fold(ed, fs);
+    }
+}
+
 static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
 {
     if (ed->editing)
@@ -993,14 +1006,7 @@ static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
         ed->cursor_line = ed->cursor_line->next;
     }
 
-    if (ed->cursor_line->folded)
-    {
-        IDE_line fs = ed->cursor_line->prev;
-        while (fs && !fs->fold_start)
-            fs = fs->prev;
-        if (fs)
-            fold(ed, fs);
-    }
+    unfoldCursorLine(ed);
 
     ed->cursor_a_line = ed->cursor_line->a_line;
     ed->cursor_v_line = ed->cursor_line->v_line;
@@ -1511,13 +1517,88 @@ static void compileAndRun(IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
-static void IDE_find(IDE_editor ed)
+static char * _strcasestr (const char *s, const char *find)
 {
-    // FIXME: implement
-    static bool matchCase=FALSE, wholeWord=FALSE, searchBackwards=FALSE;
-    LOG_printf (LOG_DEBUG, "IDE_find: BEFORE ed->find_buf='%s' %p\n", ed->find_buf, ed->find_buf);
-    UI_FindReq (ed->find_buf, MAX_LINE_LEN, &matchCase, &wholeWord, &searchBackwards);
-    LOG_printf (LOG_DEBUG, "IDE_find: AFTER  ed->find_buf='%s'\n", ed->find_buf);
+    char c, sc;
+    size_t len;
+
+    if ((c = *find++) != 0)
+	{
+        c = tolower((unsigned char)c);
+        len = strlen(find);
+        do
+		{
+            do
+			{
+                if ((sc = *s++) == 0)
+                    return NULL;
+            } while ((char)tolower((unsigned char)sc) != c);
+        } while (strncasecmp(s, find, len) != 0);
+        s--;
+    }
+    return (char *)s;
+}
+
+
+static void findNext (IDE_editor ed, bool first)
+{
+	if (!strlen(ed->find_buf))
+		return;
+
+    if (ed->editing)
+        commitBuf (ed);
+
+    if (!first)
+    {
+        if (ed->find_searchBackwards)
+            cursorLeft(ed);
+		else
+            cursorRight(ed);
+    }
+
+    int16_t col = ed->cursor_col;
+    IDE_line l = ed->cursor_line;
+
+    bool found = FALSE;
+
+    while (!found && l)
+    {
+        LOG_printf (LOG_DEBUG, "findNext: looking for %s in %s\n", ed->find_buf, l->buf);
+        if (!ed->find_searchBackwards)
+        {
+            char *p = ed->find_matchCase ? strstr (l->buf+col, ed->find_buf) : _strcasestr (l->buf+col, ed->find_buf);
+            if (p)
+            {
+                found = TRUE;
+                ed->cursor_col += p-l->buf-col;
+            }
+            else
+            {
+                l = l->next;
+                col=0;
+            }
+        }
+        else
+        {
+            // FIXME: implement
+            break;
+        }
+    }
+
+    if (found)
+    {
+        ed->cursor_line = l;
+        unfoldCursorLine(ed);
+        ed->cursor_a_line = ed->cursor_line->a_line;
+        ed->cursor_v_line = ed->cursor_line->v_line;
+        ed->up2date_il_pos = FALSE;
+    }
+}
+
+static void IDE_find (IDE_editor ed)
+{
+    if (UI_FindReq (ed->find_buf, MAX_LINE_LEN, &ed->find_matchCase, &ed->find_wholeWord, &ed->find_searchBackwards))
+        findNext (ed, /*first=*/TRUE);
 
     UI_eraseDisplay ();
     invalidateAll (ed);
@@ -1640,6 +1721,10 @@ static void key_cb (uint16_t key, void *user_data)
             IDE_find(ed);
             break;
 
+		case KEY_FIND_NEXT:
+			findNext (ed, /*first=*/FALSE);
+			break;
+
         case KEY_F7:
         case KEY_CTRL_G:
             compile(ed);
@@ -1685,24 +1770,27 @@ IDE_editor openEditor(void)
 	IDE_editor ed = U_poolAlloc (UP_ide, sizeof (*ed));
 
     strncpy (ed->infoline, INFOLINE, sizeof(ed->infoline));
-    ed->infoline_row     = 0;
-    ed->sourcefn[0]      = 0;
-    ed->module_name[0]   = 0;
-    ed->line_first       = NULL;
-    ed->line_last        = NULL;
-    ed->num_lines	     = 0;
-    ed->num_vlines	     = 0;
-    ed->scrolloff_col    = 0;
-    ed->scrolloff_row    = 0;
-    ed->scrolloff_line   = NULL;
-    ed->cursor_col		 = 0;
-    ed->cursor_a_line	 = 0;
-    ed->cursor_v_line	 = 0;
-    ed->cursor_line      = NULL;
-    ed->changed		     = FALSE;
-    ed->editing          = FALSE;
-    ed->il_show_error    = FALSE;
-    ed->find_buf[0]      = 0;
+    ed->infoline_row         = 0;
+    ed->sourcefn[0]          = 0;
+    ed->module_name[0]       = 0;
+    ed->line_first           = NULL;
+    ed->line_last            = NULL;
+    ed->num_lines	         = 0;
+    ed->num_vlines	         = 0;
+    ed->scrolloff_col        = 0;
+    ed->scrolloff_row        = 0;
+    ed->scrolloff_line       = NULL;
+    ed->cursor_col		     = 0;
+    ed->cursor_a_line	     = 0;
+    ed->cursor_v_line	     = 0;
+    ed->cursor_line          = NULL;
+    ed->changed		         = FALSE;
+    ed->editing              = FALSE;
+    ed->il_show_error        = FALSE;
+    ed->find_buf[0]          = 0;
+    ed->find_matchCase       = FALSE;
+    ed->find_wholeWord       = FALSE;
+    ed->find_searchBackwards = FALSE;
 
     invalidateAll (ed);
 

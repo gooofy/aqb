@@ -550,6 +550,6 @@ bool TUI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord,
         TUI_handleEvent (dlg, key);
     }
 
-    return FALSE;
+    return findreq_result;
 }
 
