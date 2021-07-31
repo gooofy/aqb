@@ -237,10 +237,10 @@ static void drawCursor(void)
 {
     uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
     uint16_t y = (g_cursorRow-1)*g_fontHeight + g_OffTop;
+    //LOG_printf (LOG_DEBUG, "ui_amiga: drawCursor g_cursorCol=%d, g_cursorRow=%d, x=%d, y=%d\n", g_cursorCol, g_cursorRow, x, y);
     BYTE DrawMode = g_rp->DrawMode;
     SetDrMd (g_rp, COMPLEMENT);
     g_rp->Mask = 3;
-    //LOG_printf (LOG_DEBUG, "ui_amiga: drawCursor x=%d, y=%d\n", x, y);
     RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
     SetDrMd (g_rp, DrawMode);
 }
@@ -302,7 +302,9 @@ void UI_setTextStyle (uint16_t style)
 
 void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
 {
-    //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine row=%d\n", row);
+    // LOG_printf (LOG_DEBUG,
+    //             "ui_amiga: beginLine row=%d, col_start=%d, cols=%d\n",
+    //             row, col_start, cols);
     g_curLineStart = col_start;
     g_curLineCols  = cols;
     //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine g_curLineCols=%d\n", g_curLineCols);
@@ -317,8 +319,8 @@ void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
             drawCursor();
         g_renderBMcurCol = col_start-1;
         g_renderBMcurRow = row;
-        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1) * 8;
-        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1) * 8;
+        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1);
+        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1);
         for (uint16_t r = 0; r<g_fontHeight; r++)
         {
             memset (g_renderBMPtr[0] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
