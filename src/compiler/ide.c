@@ -1548,19 +1548,32 @@ static void findNext (IDE_editor ed, bool first)
     if (ed->editing)
         commitBuf (ed);
 
-    if (!first)
-    {
-        if (ed->find_searchBackwards)
-            cursorLeft(ed);
-		else
-            cursorRight(ed);
-    }
-
     int16_t col = ed->cursor_col;
     IDE_line l = ed->cursor_line;
 
-    bool found = FALSE;
+    if (!first)
+    {
+        if (ed->find_searchBackwards)
+        {
+            if (col>0)
+            {
+                col--;
+            }
+            else
+            {
+                l = l->prev;
+                if (!l)
+                    return;
+                col = strlen(l->buf);
+            }
+        }
+		else
+        {
+            col++;
+        }
+    }
 
+    bool found = FALSE;
     while (!found && l)
     {
         LOG_printf (LOG_DEBUG, "findNext: looking for %s in %s\n", ed->find_buf, l->buf);
@@ -1570,7 +1583,7 @@ static void findNext (IDE_editor ed, bool first)
             if (p)
             {
                 found = TRUE;
-                ed->cursor_col += p-l->buf-col;
+                ed->cursor_col = p-l->buf;
             }
             else
             {
