@@ -1517,23 +1517,54 @@ static void compileAndRun(IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
-static char * _strcasestr (const char *s, const char *find)
+static bool isWhitespace (char c)
+{
+    switch (c)
+    {
+        case ' ':
+        case '\t':
+        case '\r':
+        case '\n':
+        case '\v':
+        case '\f':
+            return TRUE;
+    }
+    return FALSE;
+}
+
+static char * _strstr (const char *s, const char *find, bool match_case, bool whole_word)
 {
     char c, sc;
     size_t len;
 
     if ((c = *find++) != 0)
 	{
-        c = tolower((unsigned char)c);
+        c = match_case ? c : tolower((unsigned char)c);
         len = strlen(find);
+        bool line_start=TRUE;
         do
 		{
             do
 			{
+                if (whole_word)
+                {
+                    if (!line_start)
+                    {
+                        do
+                        {
+                            if ((sc = *s++) == 0)
+                                return NULL;
+                            LOG_printf (LOG_DEBUG, "find_next: looking for word boundary, sc=%d\n", sc);
+                        } while ( !isWhitespace(sc) );
+                    }
+                }
+                line_start = FALSE;
                 if ((sc = *s++) == 0)
                     return NULL;
-            } while ((char)tolower((unsigned char)sc) != c);
-        } while (strncasecmp(s, find, len) != 0);
+            } while ( (match_case && (sc!=c))
+                      || (!match_case && (char)tolower((unsigned char)sc) != c));
+        } while ( (match_case && strncmp (s, find, len))
+                  || (!match_case && strncasecmp(s, find, len)) );
         s--;
     }
     return (char *)s;
@@ -1579,7 +1610,7 @@ static void findNext (IDE_editor ed, bool first)
         LOG_printf (LOG_DEBUG, "findNext: looking for %s in %s\n", ed->find_buf, l->buf);
         if (!ed->find_searchBackwards)
         {
-            char *p = ed->find_matchCase ? strstr (l->buf+col, ed->find_buf) : _strcasestr (l->buf+col, ed->find_buf);
+            char *p = _strstr (l->buf+col, ed->find_buf, ed->find_matchCase, ed->find_wholeWord);
             if (p)
             {
                 found = TRUE;
