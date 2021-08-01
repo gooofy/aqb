@@ -41,6 +41,8 @@ static UI_key_cb       g_key_cb = NULL;
 static void           *g_key_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
+static uint16_t        g_curLineStart  = 1;
+static uint16_t        g_curLineCols   = 80;
 
 uint16_t               UI_size_cols=80, UI_size_rows=25;
 
@@ -70,14 +72,21 @@ void UI_setTextStyle (uint16_t style)
             UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
             UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
             break;
+        case UI_TEXT_STYLE_DIALOG:
+            UI_printf ( CSI "%dm", UI_STYLE_NORMAL);
+            UI_printf ( CSI "%dm", UI_STYLE_INVERSE);
+            UI_printf ( CSI "%dm", UI_STYLE_BLUE);
+            break;
         default:
             assert(FALSE);
     }
 }
 
-void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t col_end)
+void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
 {
     UI_moveCursor (row, col_start);
+    g_curLineStart = col_start;
+    g_curLineCols  = cols;
 }
 
 void UI_putc(char c)
@@ -112,10 +121,49 @@ void UI_vprintf (char* format, va_list args)
     UI_putstr(buf);
 }
 
+static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
+{
+    char buf[32];
+    unsigned int i = 0;
+
+    UI_flush();
+
+    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
+		return FALSE;
+
+    while (i < sizeof(buf)-1)
+	{
+        if (read(STDIN_FILENO,buf+i,1) != 1)
+			break;
+        if (buf[i] == 'R')
+			break;
+        i++;
+    }
+    buf[i] = '\0';
+
+    if (buf[0] != KEY_ESC || buf[1] != '[')
+		return FALSE;
+    if (sscanf(buf+2,"%hd;%hd",rows,cols) != 2)
+		return FALSE;
+    return TRUE;
+}
+
 void UI_endLine (void)
 {
-    // FIXME: honor line length
-    UI_putstr (CSI "K");    // erase to EOL
+    int16_t line_end = g_curLineCols+g_curLineStart-1;
+
+    if ( line_end < UI_size_cols)
+    {
+        UI_flush();
+        uint16_t r, c;
+        getCursorPosition(&r, &c);
+        for (uint16_t i = c; i<=line_end; i++)
+            UI_putc(' ');
+    }
+    else
+    {
+        UI_putstr (CSI "K");    // erase to EOL
+    }
     UI_flush();
 }
 
@@ -131,6 +179,7 @@ void UI_setCursorVisible (bool visible)
 void UI_moveCursor (uint16_t row, uint16_t col)
 {
     UI_printf (CSI "%d;%d;H", row, col);
+    UI_flush();
 }
 
 static uint16_t UI_getch (void)
@@ -353,33 +402,6 @@ void UI_scrollDown (void)
     UI_flush();
 }
 
-static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
-{
-    char buf[32];
-    unsigned int i = 0;
-
-    UI_flush();
-
-    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
-		return FALSE;
-
-    while (i < sizeof(buf)-1)
-	{
-        if (read(STDIN_FILENO,buf+i,1) != 1)
-			break;
-        if (buf[i] == 'R')
-			break;
-        i++;
-    }
-    buf[i] = '\0';
-
-    if (buf[0] != KEY_ESC || buf[1] != '[')
-		return FALSE;
-    if (sscanf(buf+2,"%hd;%hd",rows,cols) != 2)
-		return FALSE;
-    return TRUE;
-}
-
 static void updateTerminalSize(void)
 {
     struct winsize ws;
@@ -389,12 +411,21 @@ static void updateTerminalSize(void)
         uint16_t orig_row, orig_col;
 
         if (!getCursorPosition(&orig_row, &orig_col))
+        {
+            assert(FALSE);
 			goto failed;
+        }
 
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
+        {
+            assert(FALSE);
 			goto failed;
+        }
         if (!getCursorPosition(&UI_size_rows, &UI_size_cols))
+        {
+            assert(FALSE);
 			goto failed;
+        }
 
         char seq[32];
         snprintf(seq, 32, "\x1b[%d;%dH", orig_row, orig_col);
@@ -405,6 +436,7 @@ static void updateTerminalSize(void)
         UI_size_cols = ws.ws_col;
         UI_size_rows = ws.ws_row;
     }
+    return;
 
 failed:
     UI_size_cols = 80;
