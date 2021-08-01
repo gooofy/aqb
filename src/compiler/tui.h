@@ -50,7 +50,7 @@ void       TUI_setCancelAction (TUI_window w, TUI_action_cb cb, uint32_t user_da
  * widgets
  */
 
-
+TUI_widget TUI_Label     (uint16_t x, uint16_t y, char *label);
 TUI_widget TUI_Button    (uint16_t x, uint16_t y, uint16_t w, char *label, TUI_action_cb cb, uint32_t user_data);
 TUI_widget TUI_CheckBox  (uint16_t x, uint16_t y, uint16_t w, char *label, bool *b);
 TUI_widget TUI_TextEntry (uint16_t x, uint16_t y, uint16_t w, char *buf, uint16_t buf_len);
@@ -59,6 +59,7 @@ TUI_widget TUI_TextEntry (uint16_t x, uint16_t y, uint16_t w, char *buf, uint16_
  * high-level requesters
  */
 
-bool       TUI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards);
+bool       TUI_FindReq   (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards);
+uint16_t   TUI_EZRequest (char *body, char *gadgets);
 
 #endif

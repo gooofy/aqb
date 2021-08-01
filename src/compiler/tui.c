@@ -96,11 +96,17 @@ void TUI_handleEvent (TUI_window w, uint16_t event)
     switch (event)
     {
         case KEY_TAB:
-            if (w->focus->next)
-                TUI_focus (w, w->focus->next);
-            else
-                TUI_focus (w, w->first);
+        {
+            TUI_widget f = w->focus ? w->focus : w->first;
+            do
+            {
+                f = f->next;
+                if (!f)
+                    f = w->first;
+            } while (!f->focus_cb);
+            TUI_focus (w, f);
             break;
+        }
 
         case KEY_ENTER:
             if (w->ok_cb)
@@ -126,6 +132,51 @@ void TUI_setCancelAction (TUI_window w, TUI_action_cb cb, uint32_t user_data)
 {
     w->cancel_cb        = cb;
     w->cancel_user_data = user_data;
+}
+
+/****************************************************************************************
+ **
+ ** Label widget
+ **
+ ****************************************************************************************/
+
+typedef struct TUI_label_s *TUI_label;
+struct TUI_label_s
+{
+    struct TUI_widget_s  w;
+    char                *label;
+};
+
+static void labelRefreshCb(TUI_widget w)
+{
+    TUI_label label = (TUI_label)w;
+
+    UI_setTextStyle (UI_TEXT_STYLE_DIALOG);
+
+    int16_t l = strlen(label->label);
+    UI_beginLine (w->y+1, w->x+1, l);
+    UI_putstr (label->label);
+    UI_endLine ();
+}
+
+TUI_widget TUI_Label (uint16_t x, uint16_t y, char *label)
+{
+    TUI_label wdgt = (TUI_label) U_poolAlloc (UP_ide, sizeof (*wdgt));
+
+    wdgt->w.w          = strlen(label);
+    wdgt->w.h          = 1;
+    wdgt->w.x          = x;
+    wdgt->w.y          = y;
+
+    wdgt->w.next       = NULL;
+    wdgt->w.focused    = FALSE;
+    wdgt->w.refresh_cb = labelRefreshCb;
+    wdgt->w.focus_cb   = NULL;
+    wdgt->w.event_cb   = NULL;
+
+    wdgt->label         = label;
+
+    return &wdgt->w;;
 }
 
 /****************************************************************************************
@@ -551,5 +602,143 @@ bool TUI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord,
     }
 
     return findreq_result;
+}
+
+/****************************************************************************************
+ **
+ ** EZ requester
+ **
+ ****************************************************************************************/
+
+static bool     ezreq_running;
+static uint16_t ezreq_result;
+
+static void ezButtonCB(TUI_widget w, uint32_t user_data)
+{
+    ezreq_running = FALSE;
+    ezreq_result  = user_data;
+}
+
+static uint32_t ezWidgetCode (uint16_t i)
+{
+    uint32_t code;
+    switch (i)
+    {
+        case 0:
+            code = 1;
+            break;
+        case 1:
+            code = 0;
+            break;
+        default:
+            code = i;
+    }
+    return code;
+}
+
+uint16_t TUI_EZRequest (char *body, char *gadgets)
+{
+    uint16_t cnt_lines=1;
+    char *c = body;
+    while (*c)
+    {
+        if (*c=='\n')
+            cnt_lines++;
+        c++;
+    }
+    cnt_lines++;
+
+    TUI_window dlg = TUI_Window ("AQB Requester", 60, cnt_lines+5);
+
+    /*
+     * text labels
+     */
+
+    static char buf2[1024];
+    strncpy (buf2, body, 1024);
+    char *s = buf2;
+    c = buf2;
+    uint16_t i=0;
+    while (*c)
+    {
+        if (*c=='\n')
+        {
+            *c = 0;
+            TUI_widget label = TUI_Label (2, 2+i, s);
+            TUI_addWidget (dlg, label);
+            i++;
+            c++;
+            s=c;
+        }
+        else
+        {
+            c++;
+        }
+    }
+    *c = 0;
+    TUI_widget label = TUI_Label (2, 2+i, s);
+    TUI_addWidget (dlg, label);
+
+    /*
+     * buttons
+     */
+
+    uint16_t cnt_buttons=1;
+    c = gadgets;
+    while (*c)
+    {
+        if (*c=='|')
+            cnt_buttons++;
+        c++;
+    }
+
+    uint16_t gadget_width = 56 / cnt_buttons;
+    uint16_t x = 2;
+    static char buf[256];
+    strncpy (buf, gadgets, 256);
+    s = buf;
+    c = buf;
+    i = 0;
+    while (*c)
+    {
+        if (*c=='|')
+        {
+            *c = 0;
+            uint16_t w = strlen(s);
+
+            TUI_widget button = TUI_Button (x+gadget_width/2-(w+2)/2, cnt_lines+3, w+2, s, ezButtonCB, ezWidgetCode(i));
+            if (i==0)
+                TUI_focus (dlg, button);
+            i++;
+            TUI_addWidget (dlg, button);
+            c++;
+            s=c;
+            x+=gadget_width;
+        }
+        else
+        {
+            c++;
+        }
+    }
+    *c = 0;
+    uint16_t w = strlen(s);
+    TUI_widget button = TUI_Button (x+gadget_width/2-(w+2)/2, cnt_lines+3, w+2, s, ezButtonCB, ezWidgetCode(i));
+    TUI_addWidget (dlg, button);
+    if (i==0)
+        TUI_focus (dlg, button);
+
+    TUI_setOKAction     (dlg, ezButtonCB, 1);
+    TUI_setCancelAction (dlg, ezButtonCB, 0);
+
+    TUI_refresh (dlg);
+
+    ezreq_running = TRUE;
+    while (ezreq_running)
+    {
+        uint16_t key = UI_waitkey ();
+        TUI_handleEvent (dlg, key);
+    }
+
+    return ezreq_result;
 }
 
