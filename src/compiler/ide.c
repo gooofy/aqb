@@ -1527,6 +1527,7 @@ static bool isWhitespace (char c)
         case '\n':
         case '\v':
         case '\f':
+        case 0:
             return TRUE;
     }
     return FALSE;
@@ -1542,10 +1543,11 @@ static char * _strstr (const char *s, const char *find, bool match_case, bool wh
         c = match_case ? c : tolower((unsigned char)c);
         len = strlen(find);
         bool line_start=TRUE;
-        do
+        while (TRUE)
 		{
             do
 			{
+                // match word start ?
                 if (whole_word)
                 {
                     if (!line_start)
@@ -1561,10 +1563,23 @@ static char * _strstr (const char *s, const char *find, bool match_case, bool wh
                 line_start = FALSE;
                 if ((sc = *s++) == 0)
                     return NULL;
+                // repeat until first character matches
             } while ( (match_case && (sc!=c))
                       || (!match_case && (char)tolower((unsigned char)sc) != c));
-        } while ( (match_case && strncmp (s, find, len))
-                  || (!match_case && strncasecmp(s, find, len)) );
+
+            if ( (match_case && strncmp (s, find, len)) || (!match_case && strncasecmp(s, find, len)) )
+                continue;
+            if (whole_word)
+            {
+                if (isWhitespace (*(s+len)))
+                    break;
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        };
         s--;
     }
     return (char *)s;
@@ -1760,6 +1775,7 @@ static void key_cb (uint16_t key, void *user_data)
             compileAndRun(ed);
             break;
 
+        case KEY_CTRL_A:
         case KEY_CTRL_F:
         case KEY_FIND:
             IDE_find(ed);

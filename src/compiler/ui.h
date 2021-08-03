@@ -11,8 +11,11 @@
 #define UI_MAX_ROWS          256
 
 #define KEY_ESC              27
+#define KEY_CTRL_A            1
+#define KEY_CTRL_B            2
 #define KEY_CTRL_C            3
 #define KEY_CTRL_D            4
+#define KEY_CTRL_E            5
 #define KEY_CTRL_F            6
 #define KEY_CTRL_G            7
 #define KEY_BACKSPACE         8
