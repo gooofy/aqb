@@ -96,7 +96,7 @@ static bool RA_color (CG_frame f, AS_instrList il)
             }
             else
             {
-                string name = strprintf("__spilledtemp_%06d", Temp_num(tn->temp));
+                string name = strprintf(UP_regalloc, "__spilledtemp_%06d", Temp_num(tn->temp));
                 CG_allocVar(item, CG_globalFrame(), name, /*expt=*/ FALSE, Temp_w(tn->temp) == Temp_w_L ? Ty_ULong() : Ty_UInteger());
 #ifdef ENABLE_DEBUG
                 printf("    assigned spilled %s to global %s\n", Temp_strprint( tn->temp), Temp_labelstring(l));

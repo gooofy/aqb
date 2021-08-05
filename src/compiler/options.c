@@ -74,7 +74,7 @@ void OPT_addModulePath(string path)
 {
     OPT_dirSearchPath p = U_poolAlloc (UP_options, sizeof(*p));
 
-    p->path      = String(path);
+    p->path      = String(UP_options, path);
     p->next      = NULL;
 
     if (g_moduleSP)

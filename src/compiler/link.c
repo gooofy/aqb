@@ -210,7 +210,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
     code_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: code hunk size: %d bytes.\n", sourcefn, code_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(g_name), g_hunk_id_cnt++, AS_codeSeg, code_len);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_codeSeg, code_len);
 
     strcpy (g_name, "unnamed");
 
@@ -235,7 +235,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
     data_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: data hunk size: %d bytes.\n", sourcefn, data_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(g_name), g_hunk_id_cnt++, AS_dataSeg, data_len);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_dataSeg, data_len);
 
     strcpy (g_name, "unnamed");
 
@@ -261,7 +261,7 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
     bss_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: bss hunk size: %d bytes.\n", sourcefn, bss_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(g_name), g_hunk_id_cnt++, AS_bssSeg, 0);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_bssSeg, 0);
 
     strcpy (g_name, "unnamed");
 

@@ -32,9 +32,9 @@ static char          g_cur_line[MAX_LINE_LEN];
 static int           g_cur_line_num;
 static bool          g_filter_comments;
 
-#ifdef S_KEEP_SOURCE
+static bool          g_keep_source;
+static U_poolId      g_pid;
 static TAB_table     g_src;     // line number -> string
-#endif
 
 static void remember_pos(void)
 {
@@ -122,9 +122,8 @@ static void getch(void)
     {
         g_eol = FALSE;
         g_col = 1;
-#ifdef S_KEEP_SOURCE
-        TAB_enter (g_src, (void *) (long) g_line, String(g_cur_line));
-#endif
+        if (g_keep_source)
+            TAB_enter (g_src, (void *) (long) g_line, String(g_pid, g_cur_line));
         g_line++;
     }
     else
@@ -665,20 +664,20 @@ S_tkn S_nextline(void)
 
     if (OPT_get(OPTION_VERBOSE))
     {
-#ifdef S_KEEP_SOURCE
-        printf ("%5d %s", g_line-1, S_getSourceLine(g_line-1));
-#endif
+        if (g_keep_source)
+            printf ("%5d %s", g_line-1, S_getSourceLine(g_line-1));
         print_tkns(first_tkn);
     }
 
     return first_tkn;
 }
 
-void S_init(nextch_cb_t cb, void *user_data, bool filter_comments)
+void S_init(U_poolId pid, bool keep_source, nextch_cb_t cb, void *user_data, bool filter_comments)
 {
-#ifdef S_KEEP_SOURCE
-    g_src             = TAB_empty(UP_strings /* FIXME! */);
-#endif
+    g_pid             = pid;
+    g_keep_source     = keep_source;
+    if (g_keep_source)
+        g_src         = TAB_empty(pid);
     g_sym_rem = S_Symbol("REM", FALSE);
 
     g_cb              = cb;
@@ -695,7 +694,6 @@ void S_init(nextch_cb_t cb, void *user_data, bool filter_comments)
     getch();
 }
 
-#ifdef S_KEEP_SOURCE
 string  S_getSourceLine (int line)
 {
     if (!line)
@@ -703,4 +701,3 @@ string  S_getSourceLine (int line)
     string s = TAB_look (g_src, (void*) (long) line);
     return s ? s : "";
 }
-#endif

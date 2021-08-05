@@ -280,7 +280,7 @@ int hashmap_put(map_t in, char* key, any_t value, bool case_sensitive)
 
 	/* Set the data */
 	m->data[index].data           = value;
-	m->data[index].key            = String(key);
+	m->data[index].key            = String(m->pid, key);
 	m->data[index].in_use         = TRUE;
 	m->data[index].case_sensitive = case_sensitive;
 	m->size++;

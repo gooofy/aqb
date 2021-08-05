@@ -1737,8 +1737,8 @@ AS_object AS_Object (string sourcefn, string name)
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
     obj->labels  = TAB_empty(UP_assem);
-    obj->codeSeg = AS_Segment (sourcefn, strprintf (".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
-    obj->dataSeg = AS_Segment (sourcefn, strprintf (".data", name), AS_dataSeg, 0);
+    obj->codeSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    obj->dataSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
 
     return obj;
 }

@@ -343,13 +343,13 @@ static string varname_to_label(string varname)
     }
     if (suffix)
     {
-        res = String(res);
+        res = String(UP_codegen, res);
         res[l-1] = 0;
-        res = strprintf("__%s_%s", res, suffix);
+        res = strprintf(UP_codegen, "__%s_%s", res, suffix);
     }
     else
     {
-        res = strprintf("_%s", res);
+        res = strprintf(UP_codegen, "_%s", res);
     }
     return res;
 }
@@ -373,7 +373,7 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
         int cnt = 0;
         while (hashmap_get(frame->statc_labels, ul, (any_t *)&uul, TRUE)==MAP_OK)
         {
-            ul = strprintf("%s_%d", l, cnt);
+            ul = strprintf(UP_codegen, "%s_%d", l, cnt);
             cnt++;
         }
         hashmap_put(frame->statc_labels, ul, ul, TRUE);
@@ -713,7 +713,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
         {
             E_module m2 = n->m;
 
-            S_symbol initializer = S_Symbol(strprintf("__%s_init", S_name(m2->name)), TRUE);
+            S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)), TRUE);
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 

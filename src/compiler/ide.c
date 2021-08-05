@@ -337,7 +337,7 @@ static IDE_line buf2line (IDE_editor ed)
 
     ed->buf_pos = 0;
     ed->buf[ed->buf_len]=0;
-    S_init (nextch_cb, ed, /*filter_comments=*/FALSE);
+    S_init (UP_ide, /*keep_source=*/FALSE, nextch_cb, ed, /*filter_comments=*/FALSE);
 
     int pos = 0;
     int8_t pre_indent = 0;
@@ -1892,7 +1892,7 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
             strcpy (ed->binfn, TMP_BINFN);
         }
 
-        string module_name = basename(String(sourcefn));
+        string module_name = basename(String(UP_ide, sourcefn));
         l = strlen(module_name);
         if (l>PATH_MAX)
             l = PATH_MAX;
@@ -1900,7 +1900,7 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
             module_name[l-4] = 0;
         strncpy (ed->module_name, module_name, PATH_MAX);
 
-        OPT_addModulePath(dirname(String(sourcefn)));
+        OPT_addModulePath(dirname(String(UP_ide, sourcefn)));
     }
     else
     {

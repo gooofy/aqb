@@ -384,7 +384,7 @@ string Ty_removeTypeSuffix(string varname)
         case '&':
         case '!':
         case '#':
-            res = String(res);
+            res = String(UP_types, res);
             res[l-1] = 0;
             break;
     }

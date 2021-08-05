@@ -16,7 +16,7 @@ static S_symbol mksymbol(string name, bool case_sensitive)
 {
     S_symbol s=U_poolAlloc (UP_symbol, sizeof(*s));
 
-    s->name           = String(name);
+    s->name           = String(UP_symbol, name);
     s->case_sensitive = case_sensitive;
 
     return s;

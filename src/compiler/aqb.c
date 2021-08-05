@@ -320,11 +320,11 @@ int main (int argc, char *argv[])
         if (l<4)
             l = 4;
 
-        module_name = basename(String(sourcefn));
+        module_name = basename(String(UP_env, sourcefn));
         l = strlen(module_name);
         module_name[l-4] = 0;
 
-        OPT_addModulePath(dirname(String(sourcefn)));
+        OPT_addModulePath(dirname(String(UP_env, sourcefn)));
     }
 
     // run compiler from commandline

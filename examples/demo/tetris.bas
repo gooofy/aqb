@@ -271,7 +271,7 @@ SUB GAMEOVERMAN
         SLEEP
     ELSE
         IF ( key = "n" ) OR ( key = "N" ) THEN
-            GOTO endlabel
+            GOTO quitlabel
         ELSE
             gameover = TRUE
         END IF

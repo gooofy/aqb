@@ -949,7 +949,7 @@ static S_symbol E_deserializeOptionalSymbol(FILE *modf)
     uint8_t present = fread_u1(modf);
     if (!present)
         return NULL;
-    string s = strdeserialize(modf);
+    string s = strdeserialize(UP_env, modf);
     return S_Symbol(s, FALSE);
 }
 
@@ -963,7 +963,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     S_symlist extra_syms=NULL, extra_syms_last=NULL;
     for (int i = 0; i<cnt; i++)
     {
-        string str = strdeserialize(modf);
+        string str = strdeserialize(UP_env, modf);
         if (!str)
         {
             env_fail("failed to read function extra sym.\n");
@@ -984,7 +984,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     Temp_label label = NULL;
     if (present)
     {
-        string l = strdeserialize(modf);
+        string l = strdeserialize(UP_env, modf);
         if (!l)
         {
             LOG_printf(LOG_INFO, "failed to read function label.\n");
@@ -1017,7 +1017,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         uint8_t present = fread_u1(modf);
         if (present)
         {
-            string regs = strdeserialize(modf);
+            string regs = strdeserialize(UP_env, modf);
             if (!regs)
             {
                 LOG_printf(LOG_INFO, "failed to read formal reg string.\n");
@@ -1053,7 +1053,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     string libBase=NULL;
     if (offset)
     {
-        libBase = strdeserialize(modf);
+        libBase = strdeserialize(UP_env, modf);
         if (!libBase)
         {
             LOG_printf(LOG_INFO, "failed to read function libBase.\n");
@@ -1139,7 +1139,7 @@ E_module E_loadModule(S_symbol sModule)
         if (!mid) // end marker detected
             break;
 
-        string mod_name  = strdeserialize(modf);
+        string mod_name  = strdeserialize(UP_env, modf);
         S_symbol mod_sym = S_Symbol(mod_name, FALSE);
         LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
 
@@ -1212,7 +1212,7 @@ E_module E_loadModule(S_symbol sModule)
                         case Ty_recField:
                         {
                             uint8_t visibility = fread_u1(modf);
-                            string name = strdeserialize(modf);
+                            string name = strdeserialize(UP_env, modf);
                             uint32_t uiOffset = fread_u4(modf);
                             LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
@@ -1279,7 +1279,7 @@ E_module E_loadModule(S_symbol sModule)
     uint8_t kind;
     while (fread(&kind, 1, 1, modf)==1)
     {
-        string name = strdeserialize(modf);
+        string name = strdeserialize(UP_env, modf);
         if (!name)
         {
             LOG_printf(LOG_ERROR, "%s: failed to read env entry symbol name.\n", symfn);

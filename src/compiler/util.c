@@ -66,7 +66,7 @@ struct U_memRec_
 };
 
 static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL",
-                                                "REGALLOC", "LIVENESS", "STRINGS", "LINK", "IDE", "OPTIONS" };
+                                                "REGALLOC", "LIVENESS", "LINK", "IDE", "OPTIONS" };
 static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
 static float      g_start_time;
 
@@ -241,28 +241,28 @@ void U_memstat(void)
     }
 }
 
-string String(const char *s)
+string String(U_poolId pid, const char *s)
 {
-    string p = U_poolAlloc (UP_strings, strlen(s)+1);
+    string p = U_poolAlloc (pid, strlen(s)+1);
     strcpy(p,s);
     return p;
 }
 
-string strconcat(const char *s1, const char*s2)
+string strconcat(U_poolId pid, const char *s1, const char*s2)
 {
     int l1 = strlen(s1);
     int l2 = strlen(s2);
-    char *buf = U_poolAlloc (UP_strings, l1+l2+1);
+    char *buf = U_poolAlloc (pid, l1+l2+1);
     memcpy(buf, s1, l1);
     memcpy(buf+l1, s2, l2);
     buf[l1+l2] = 0;
     return buf;
 }
 
-string strlower(const char *s)
+string strlower(U_poolId pid, const char *s)
 {
     int l = strlen(s);
-    string p = U_poolAlloc (UP_strings, l+1);
+    string p = U_poolAlloc (pid, l+1);
     for (int i = 0; i<l; i++)
     {
         p[i] = tolower(s[i]);
@@ -274,7 +274,7 @@ string strlower(const char *s)
 
 #define MAXBUF 1024
 
-string strprintf(const char *format, ...)
+string strprintf(U_poolId pid, const char *format, ...)
 {
     char    buf[MAXBUF];
     va_list args;
@@ -286,7 +286,7 @@ string strprintf(const char *format, ...)
     va_end (args);
 
     l = strlen(buf);
-    res = U_poolAlloc (UP_strings, l+1);
+    res = U_poolAlloc (pid, l+1);
     res[l] = 0;
     memcpy(res, buf, l);
     return res;
@@ -309,13 +309,13 @@ void strserialize(FILE *out, string str)
     fwrite(str, l, 1, out);
 }
 
-string strdeserialize(FILE *in)
+string strdeserialize(U_poolId pid, FILE *in)
 {
     uint16_t l;
     if (fread(&l, 2, 1, in) != 1)
         return NULL;
     l = ENDIAN_SWAP_16 (l);
-    string res = U_poolAlloc (UP_strings, l+1);
+    string res = U_poolAlloc (pid, l+1);
     if (fread(res, l, 1, in) != 1)
         return NULL;
     res[l]=0;

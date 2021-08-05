@@ -99,7 +99,7 @@ static inline int roundUp(int numToRound, int multiple)
 typedef enum
 {
     UP_frontend, UP_types, UP_temp, UP_assem, UP_codegen, UP_env, UP_flowgraph, UP_linscan, UP_symbol,
-    UP_regalloc, UP_liveness, UP_strings, UP_link, UP_ide, UP_options, UP_numPools
+    UP_regalloc, UP_liveness, UP_link, UP_ide, UP_options, UP_numPools
 } U_poolId;
 
 void *U_poolAlloc          (U_poolId pid, size_t size);
@@ -114,19 +114,19 @@ void  U_memstat    (void);
  * string support
  */
 
-string String(const char *); // allocs mem + copies string
+string String         (U_poolId pid, const char *); // allocs mem + copies string
 
-string strconcat(const char *s1, const char*s2); // allocates mem for concatenated string
+string strconcat      (U_poolId pid, const char *s1, const char*s2); // allocates mem for concatenated string
 
-string strprintf(const char *format, ...); // allocates mem for resulting string
-string strlower(const char *s);  // allocates mem for resulting string
+string strprintf      (U_poolId pid, const char *format, ...); // allocates mem for resulting string
+string strlower       (U_poolId pid, const char *s);  // allocates mem for resulting string
 
-int    strcicmp(string a, string b); // string ignore case compare
+int    strcicmp       (string a, string b); // string ignore case compare
 
-void   strserialize(FILE *out, string str);
-string strdeserialize(FILE *in);
+void   strserialize   (FILE *out, string str);
+string strdeserialize (U_poolId pid, FILE *in);
 
-bool   str2int(string str, int *i);
+bool   str2int        (string str, int *i);
 
 /*
  * FFP - Motorola Fast Floating Point format support

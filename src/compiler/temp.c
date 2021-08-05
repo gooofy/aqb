@@ -32,7 +32,7 @@ Temp_label Temp_newlabel(void)
 {
     char buf[100];
     sprintf(buf,"_L%d", g_labels++);
-    return Temp_namedlabel(String(buf));
+    return Temp_namedlabel(String(UP_temp, buf));
 }
 
 /* The label will be created only if it is not found. */
@@ -78,7 +78,7 @@ string Temp_strprint (Temp_temp t)
 {
     char buf[255];
     Temp_snprintf (t, buf, 255);
-    return String(buf);
+    return String(UP_temp, buf);
 }
 
 enum Temp_w Temp_w(Temp_temp t)
@@ -159,9 +159,9 @@ string Temp_tempSetSPrint(Temp_tempSet ts)
         Temp_temp t = ts->temp;
 
         if (strlen(res))
-            res = strconcat (res, strprintf(", %s", Temp_strprint(t)));
+            res = strconcat (UP_temp, res, strprintf(UP_temp, ", %s", Temp_strprint(t)));
         else
-            res = strprintf("%s", Temp_strprint(t));
+            res = strprintf(UP_temp, "%s", Temp_strprint(t));
     }
     return res;
 }

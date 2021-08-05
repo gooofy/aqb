@@ -23,7 +23,7 @@ typedef uint32_t  S_pos; // 32 bits: cccc cccc llll llll
 
 typedef bool (*nextch_cb_t)(char *ch, void *user_data); // cb for next input character, returns FALSE on EOF, TRUE otherwise
 
-void  S_init(nextch_cb_t cb, void *user_data, bool filter_comments);
+void  S_init(U_poolId pid, bool keep_source, nextch_cb_t cb, void *user_data, bool filter_comments);
 
 int   S_getline(S_pos pos);
 int   S_getcol(S_pos pos);

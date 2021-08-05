@@ -87,8 +87,8 @@ string EM_format(S_pos pos, char *message,...)
     va_end(ap);
 
     if (FE_filename)
-        return strprintf("%s:%d:%d: %s", FE_filename, S_getline(pos), S_getcol(pos), buf);
-    return strprintf("%d:%d: %s", S_getline(pos), S_getcol(pos), buf);
+        return strprintf(UP_frontend, "%s:%d:%d: %s", FE_filename, S_getline(pos), S_getcol(pos), buf);
+    return strprintf(UP_frontend, "%d:%d: %s", S_getline(pos), S_getcol(pos), buf);
 }
 
 void EM_init(void)

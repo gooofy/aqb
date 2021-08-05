@@ -348,7 +348,7 @@ static inline bool isLogicalEOL(S_tkn tkn)
 
 static void transDataAddLabel(Temp_label l)
 {
-    Temp_label dataLabel = Temp_namedlabel(strprintf("__data_%s", S_name(l)));
+    Temp_label dataLabel = Temp_namedlabel(strprintf(UP_frontend, "__data_%s", S_name(l)));
     CG_dataFragAddLabel (g_dataFrag, dataLabel);
 }
 
@@ -392,7 +392,7 @@ static void autovar (CG_item *var, S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty type
 
     if (frame->statc)
     {
-        string varId = strconcat(strconcat(Temp_labelstring(frame->name), "_"), s);
+        string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), s);
         CG_allocVar (var, CG_globalFrame(), varId, /*expt=*/FALSE, t);
     }
     else
@@ -2565,7 +2565,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         {
             if (statc || g_sleStack->frame->statc)
             {
-                string varId = strconcat(strconcat(Temp_labelstring(g_sleStack->frame->name), "_"), S_name(sVar));
+                string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(g_sleStack->frame->name), "_"), S_name(sVar));
                 CG_allocVar (&var, CG_globalFrame(), varId, /*expt=*/FALSE, t);
             }
             else
@@ -3192,7 +3192,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if ((*tkn)->kind == S_STRING)
     {
-        prompt = String((*tkn)->u.str);
+        prompt = String(UP_frontend, (*tkn)->u.str);
         *tkn = (*tkn)->next;
 
         if ((*tkn)->kind != S_COMMA)
@@ -3583,7 +3583,7 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if ((*tkn)->kind==S_IDENT)
     {
-		dataLabel = Temp_namedlabel(strprintf("__data_%s", S_name((*tkn)->u.sym)));
+		dataLabel = Temp_namedlabel(strprintf(UP_frontend, "__data_%s", S_name((*tkn)->u.sym)));
         *tkn = (*tkn)->next;
     }
 	else
@@ -3635,7 +3635,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         CG_frame frame = sle->frame;
         if (frame->statc)
         {
-            string varId = strconcat(strconcat(Temp_labelstring(frame->name), "_"), S_name(sLoopVar));
+            string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), S_name(sLoopVar));
             CG_allocVar(loopVar, CG_globalFrame(), varId, /*expt=*/FALSE, varTy);
         }
         else
@@ -3842,7 +3842,7 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
         if ((*tkn)->kind == S_INUM)
         {
-            Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
+            Temp_label l = Temp_namedlabel(strprintf(UP_frontend, "_L%07d", (*tkn)->u.literal.inum));
             CG_transJump (sle->code, pos, l);
             *tkn = (*tkn)->next;
         }
@@ -3875,7 +3875,7 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     {
         if ((*tkn)->kind == S_INUM)
         {
-            Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
+            Temp_label l = Temp_namedlabel(strprintf(UP_frontend, "_L%07d", (*tkn)->u.literal.inum));
             CG_transJump (sle->code, (*tkn)->pos, l);
             firstStmt = FALSE;
             *tkn = (*tkn)->next;
@@ -3904,7 +3904,7 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
             if (firstStmt && ((*tkn)->kind == S_INUM) )
             {
-                CG_transJump (sle->code, pos, Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum)));
+                CG_transJump (sle->code, pos, Temp_namedlabel(strprintf(UP_frontend, "_L%07d", (*tkn)->u.literal.inum)));
                 firstStmt = FALSE;
                 *tkn = (*tkn)->next;
                 break;
@@ -5224,15 +5224,15 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     // determine label, deal with implicit "this" arg
     if (sCls)
     {
-        label = strconcat("__", strconcat(S_name(sCls), strconcat("_", Ty_removeTypeSuffix(S_name(name)))));
+        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
         FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
     }
     else
     {
-        label = strconcat("_", Ty_removeTypeSuffix(S_name(name)));
+        label = strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)));
     }
     if (kind==Ty_pkFunction)
-        label = strconcat(label, "_");
+        label = strconcat(UP_frontend, label, "_");
 
     // look for extra SUB syms
     if ((kind == Ty_pkSub) && !sCls)
@@ -5248,7 +5248,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
             {
                 extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
             }
-            label = strconcat(label, strconcat("_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+            label = strconcat(UP_frontend, label, strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
             *tkn = (*tkn)->next;
         }
     }
@@ -6585,7 +6585,7 @@ static bool stmtGoto(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if ((*tkn)->kind == S_INUM)
     {
-        Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
+        Temp_label l = Temp_namedlabel(strprintf(UP_frontend, "_L%07d", (*tkn)->u.literal.inum));
         CG_transJump(g_sleStack->code, pos, l);
         *tkn = (*tkn)->next;
         return TRUE;
@@ -6615,7 +6615,7 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if ((*tkn)->kind == S_INUM)
     {
-        Temp_label l = Temp_namedlabel(strprintf("_L%07d", (*tkn)->u.literal.inum));
+        Temp_label l = Temp_namedlabel(strprintf(UP_frontend, "_L%07d", (*tkn)->u.literal.inum));
         CG_transJSR(g_sleStack->code, pos, l);
         *tkn = (*tkn)->next;
         return TRUE;
@@ -7129,7 +7129,7 @@ static bool nextch (char *ch, void *u)
 CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name)
 {
     FE_filename = filename;
-    S_init (nextch, inf, /*filter_comments=*/TRUE);
+    S_init (UP_frontend, /*keep_source=*/TRUE, nextch, inf, /*filter_comments=*/TRUE);
 
     userLabels  = TAB_empty(UP_frontend);
 
@@ -7140,7 +7140,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     }
     else
     {
-        label = Temp_namedlabel(strprintf("__%s_init", module_name));
+        label = Temp_namedlabel(strprintf(UP_frontend, "__%s_init", module_name));
     }
 
     CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
@@ -7209,7 +7209,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         // handle label, if any
         if (tkn->kind == S_INUM)
         {
-            Temp_label l = Temp_namedlabel(strprintf("_L%07d", tkn->u.literal.inum));
+            Temp_label l = Temp_namedlabel(strprintf(UP_frontend, "_L%07d", tkn->u.literal.inum));
             CG_transLabel (g_sleStack->code, tkn->pos, l);
             transDataAddLabel(l);
             tkn = tkn->next;
