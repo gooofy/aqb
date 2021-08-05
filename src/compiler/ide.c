@@ -1533,56 +1533,60 @@ static bool isWhitespace (char c)
     return FALSE;
 }
 
-static char * _strstr (const char *s, const char *find, bool match_case, bool whole_word)
+static int16_t _strstr (const char *s, int16_t col, const char *find, bool match_case, bool whole_word, bool backwards)
 {
-    char c, sc;
-    size_t len;
+    // first character of search string
 
-    if ((c = *find++) != 0)
-	{
-        c = match_case ? c : tolower((unsigned char)c);
-        len = strlen(find);
-        bool line_start=TRUE;
-        while (TRUE)
-		{
-            do
-			{
-                // match word start ?
-                if (whole_word)
-                {
-                    if (!line_start)
-                    {
-                        do
-                        {
-                            if ((sc = *s++) == 0)
-                                return NULL;
-                            LOG_printf (LOG_DEBUG, "find_next: looking for word boundary, sc=%d\n", sc);
-                        } while ( !isWhitespace(sc) );
-                    }
-                }
-                line_start = FALSE;
-                if ((sc = *s++) == 0)
-                    return NULL;
-                // repeat until first character matches
-            } while ( (match_case && (sc!=c))
-                      || (!match_case && (char)tolower((unsigned char)sc) != c));
+    char c;
+    if ((c = *find++) == 0)
+        return -1;
+    c = match_case ? c : tolower((unsigned char)c);
 
-            if ( (match_case && strncmp (s, find, len)) || (!match_case && strncasecmp(s, find, len)) )
-                continue;
-            if (whole_word)
-            {
-                if (isWhitespace (*(s+len)))
-                    break;
-                continue;
-            }
-            else
-            {
-                break;
-            }
-        };
-        s--;
+    int16_t len    = strlen(find);
+    int16_t maxcol = strlen(s) - len;
+
+    if (col > maxcol)
+    {
+        if (backwards)
+            col = maxcol;
+        else
+            return -1;
     }
-    return (char *)s;
+
+    while (TRUE)
+    {
+        // first character matches ?
+        char sc = s[col];
+        if ( (match_case && (sc!=c))
+              || (!match_case && (char)tolower((unsigned char)sc) != c))
+              goto nextcol;
+
+        // does the rest match?
+        if ( (match_case && strncmp (s+col+1, find, len)) || (!match_case && strncasecmp(s+col+1, find, len)) )
+            goto nextcol;
+
+        if (whole_word)
+        {
+            if (col != 0) // BOL is a word boundary
+            {
+                char sc = s[col-1];
+                if (!isWhitespace(sc))
+                    goto nextcol;
+            }
+
+            if (!isWhitespace (s[col+len+1]))
+                goto nextcol;
+        }
+
+        return col;
+
+nextcol:
+        col = backwards ? col - 1 : col + 1;
+        if ( (col > maxcol) || (col < 0) )
+            return -1;
+    };
+
+    return -1;
 }
 
 
@@ -1623,24 +1627,26 @@ static void findNext (IDE_editor ed, bool first)
     while (!found && l)
     {
         LOG_printf (LOG_DEBUG, "findNext: looking for %s in %s\n", ed->find_buf, l->buf);
-        if (!ed->find_searchBackwards)
+        col = _strstr (l->buf, col, ed->find_buf, ed->find_matchCase, ed->find_wholeWord, ed->find_searchBackwards);
+        if (col >= 0)
         {
-            char *p = _strstr (l->buf+col, ed->find_buf, ed->find_matchCase, ed->find_wholeWord);
-            if (p)
-            {
-                found = TRUE;
-                ed->cursor_col = p-l->buf;
-            }
-            else
+            found = TRUE;
+            ed->cursor_col = col;
+        }
+        else
+        {
+            if (!ed->find_searchBackwards)
             {
                 l = l->next;
                 col=0;
             }
-        }
-        else
-        {
-            // FIXME: implement
-            break;
+            else
+            {
+                l = l->prev;
+                if (!l)
+                    return;
+                col = strlen(l->buf);
+            }
         }
     }
 
@@ -1782,6 +1788,7 @@ static void key_cb (uint16_t key, void *user_data)
             break;
 
 		case KEY_FIND_NEXT:
+		case KEY_CTRL_N:
 			findNext (ed, /*first=*/FALSE);
 			break;
 

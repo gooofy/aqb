@@ -22,6 +22,7 @@
 #define KEY_TAB               9
 #define KEY_CTRL_L           12
 #define KEY_ENTER            13
+#define KEY_CTRL_N           14
 #define KEY_CTRL_O           15
 #define KEY_CTRL_Q           17
 #define KEY_CTRL_S           19
