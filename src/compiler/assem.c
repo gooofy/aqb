@@ -2271,7 +2271,11 @@ void AS_resolveLabels (AS_object obj)
         if (li->defined)
             continue;
 
-        assert (!li->displacement);
+        if (li->displacement)
+        {
+            EM_error(0, "assem: undefined label %s\n", Temp_labelstring(l));
+            continue;
+        }
 
 #if LOG_LEVEL == LOG_DEBUG
         LOG_printf(LOG_DEBUG, "AS_resolveLabels: XREF %s\n", S_name (l));
