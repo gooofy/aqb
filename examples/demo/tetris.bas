@@ -1,4 +1,4 @@
-' 1234567890 ABCDEFGHIJKLMNOPQRSTUVWXYZ
+'
 ' AQB Tetris
 '
 ' based on Colour Maximite tetris by David Murray *edited by Daedan Bamkin
@@ -245,17 +245,38 @@ SUB DROPGRID ( BYREF CY AS INTEGER )
     REDRAWSCREENGRID
 END SUB
 
-' GAMEOVERMAN:
-'   Print @(85,55,2) " GAME OVER"
-'   Print @(85,65,2) " ---------
-'   Print @(69,75,2) " WOULD YOU LIKE"
-'   Print @(69,85,2) "TO PLAY ANOTHER"
-'   Print @(85,95,2) " GAME Y/N?" 
-'   ENDGAME:
-'     E=Asc(Inkey$)
-'     If E=89 or E=121 Then GoSub STARTSCREEN
-'     If E=27 or E=78 or E=110 Then PRINT @(55,110,2) " THANKS FOR PLAYING ":END
-'   Goto ENDGAME 
+SUB CPRINT ( BYVAL Y AS INTEGER, S AS STRING )
+    
+    DIM AS INTEGER X = 20 - LEN ( S ) / 2
+    LOCATE Y, X
+    PRINT S
+    
+END SUB
+
+SUB GAMEOVERMAN
+    
+    CPRINT 8, " GAME OVER "
+    CPRINT 9, " --------- "
+    CPRINT 11, " WOULD YOU LIKE "
+    CPRINT 12, " TO PLAY ANOTHER "
+    CPRINT 13, " GAME Y/N? "
+    '   ENDGAME:
+    '     E=Asc(Inkey$)
+    '     If E=89 or E=121 Then GoSub STARTSCREEN
+    '     If E=27 or E=78 or E=110 Then PRINT @(55,110,2) " THANKS FOR PLAYING ":END
+    '   Goto ENDGAME 
+    
+    DIM AS STRING key = INKEY$
+    IF key = "" THEN
+        SLEEP
+    ELSE
+        IF ( key = "n" ) OR ( key = "N" ) THEN
+            GOTO endlabel
+        ELSE
+            gameover = TRUE
+        END IF
+    END IF
+END SUB
 
 SUB CHECKGRID
     FOR CY AS INTEGER = 0 TO 19
@@ -264,7 +285,7 @@ SUB CHECKGRID
             IF grid ( X, CY ) <> 0 THEN ROW = ROW + 1
         NEXT X
         IF ROW = 10 THEN DROPGRID ( CY )
-        ' IF CY=0 AND ROW>0 THEN GAMEOVERMAN
+        IF CY = 0 AND ROW > 0 THEN GAMEOVERMAN
     NEXT CY
 END SUB
 
@@ -355,25 +376,6 @@ SUB MOVELEFT
     
 END SUB
 
-SUB CPRINT ( BYVAL Y AS INTEGER, S AS STRING )
-    
-    DIM AS INTEGER X = 20 - LEN ( S ) / 2
-    LOCATE Y, X
-    PRINT S
-    
-END SUB
-
-' READKEYBOARD:
-'   A=Asc(Inkey$)
-'   If A=129 Then GoSub MOVEDOWN
-'   If A=130 Then GoSub MOVELEFT
-'   If A=131 Then GoSub MOVERIGHT
-'   If A=122 or A=90 Then GoSub LEAVEPIECE
-'   If A=128 or A=32 Then GoSub ROTATE
-'   If A=27 Then GoSub ENDSUB
-'   If Timer>=T2 Then GoSub MOVEDOWN:Timer=L
-'   GoTo READKEYBOARD
-
 SUB LEAVEPIECE
     ERASEPIECE
     WHILE NOT MOVEDOWN : WEND
@@ -403,8 +405,9 @@ SUB endgame
     
     COLOR 7
     
-    CPRINT 10, " QUITTING? ARE "
-    CPRINT 12, " YOU SURE Y/N? "
+    CPRINT 8, " QUITTING? "
+    CPRINT 10, " ARE YOU "
+    CPRINT 11, " SURE Y/N? "
     
     WHILE TRUE
         
@@ -417,6 +420,8 @@ SUB endgame
             IF ( key = "y" ) OR ( key = "Y" ) THEN
                 gameover = TRUE
             ELSE
+                CLEARSCREENGRID
+                REDRAWSCREENGRID
                 TIMER ON 1
             END IF
             
@@ -444,12 +449,6 @@ END SUB
 
 REM OPEN "tetris.log" FOR OUTPUT AS 1
 REM PRINT #1, "tetris log starts"
-
-FOR X AS INTEGER = 0 TO 9
-    FOR Y AS INTEGER = 0 TO 19
-        grid ( X, Y ) = 0
-    NEXT Y
-NEXT X
 
 SCREEN 2, 320, 200, 3, AS_MODE_LORES, "AQB Tetris"
 WINDOW 4,,, AW_FLAG_BACKDROP OR AW_FLAG_BORDERLESS, 2
@@ -512,7 +511,16 @@ WHILE TRUE
         END IF
     WEND
     
-    SETUPSCREEN : 
+    
+    '
+    ' new game
+    '
+    
+    FOR X AS INTEGER = 0 TO 9
+        FOR Y AS INTEGER = 0 TO 19
+            grid ( X, Y ) = 0
+        NEXT Y
+    NEXT X
     
     COLOR 7, 1
     CLS
