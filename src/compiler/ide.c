@@ -1631,7 +1631,7 @@ static void findNext (IDE_editor ed, bool first)
         if (col >= 0)
         {
             found = TRUE;
-            ed->cursor_col = col;
+            ed->cursor_col = col + l->indent * INDENT_SPACES;
         }
         else
         {
