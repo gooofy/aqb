@@ -31,9 +31,6 @@
 #include <inline/graphics.h>
 #include <inline/diskfont.h>
 
-#include <libraries/reqtools.h>
-#include <inline/reqtools.h>
-
 #include <libraries/gadtools.h>
 #include <clib/gadtools_protos.h>
 #include <inline/gadtools.h>
@@ -56,7 +53,6 @@ extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 extern struct DiskfontBase  *DiskfontBase;
 struct Library              *GadToolsBase;
-struct ReqToolsBase         *ReqToolsBase;
 struct Device               *ConsoleDevice = NULL;
 
 uint16_t UI_size_cols=80, UI_size_rows=25;
@@ -749,10 +745,43 @@ void UI_onKeyCall (UI_key_cb cb, void *user_data)
 
 uint16_t UI_EZRequest (char *body, char *gadgets)
 {
-	ULONG tags[] = { RTEZ_ReqTitle, (ULONG)"AQB", RT_Window, (ULONG) g_win, TAG_END };
-	ULONG res = rtEZRequestA (body, gadgets, /*reqinfo=*/NULL, /*argarray=*/NULL, (struct TagItem *)tags);
-	LOG_printf (LOG_DEBUG, "rtEZRequestA result: %ld\n", res);
-	return res;
+    char *posTxt=NULL;
+    char *negTxt=NULL;
+
+    static char buf[256];
+    strncpy (buf, gadgets, 256);
+    char *s = buf;
+    char *c = buf;
+    while (*c)
+    {
+        if (*c=='|')
+        {
+            *c = 0;
+            if (negTxt)
+                posTxt = negTxt;
+            negTxt = s;
+            c++;
+            s=c;
+        }
+        else
+        {
+            c++;
+        }
+    }
+    *c = 0;
+    if (negTxt)
+        posTxt = negTxt;
+    negTxt = s;
+
+    bool b = U_request (g_win, posTxt, negTxt, "%s", body);
+
+    return b ? 1 : 0;
+
+
+	//ULONG tags[] = { RTEZ_ReqTitle, (ULONG)"AQB", RT_Window, (ULONG) g_win, TAG_END };
+	//ULONG res = rtEZRequestA (body, gadgets, /*reqinfo=*/NULL, /*argarray=*/NULL, (struct TagItem *)tags);
+	//LOG_printf (LOG_DEBUG, "rtEZRequestA result: %ld\n", res);
+	//return res;
 }
 
 char *UI_FileReq  (char *title)
@@ -947,8 +976,6 @@ void UI_deinit(void)
         CloseFont(g_font);
     if (ConsoleDevice)
         CloseDevice((struct IORequest *)&console_ioreq);
-    if (ReqToolsBase)
-        CloseLibrary((struct Library *)ReqToolsBase);
     if (g_termSignalBit != -1)
         FreeSignal (g_termSignalBit);
 }
@@ -1056,8 +1083,6 @@ bool UI_init (void)
          cleanexit("intuition library is too old, need at least V37", RETURN_FAIL);
     if ( ((struct Library *)GfxBase)->lib_Version < 37)
          cleanexit("graphics library is too old, need at least V37", RETURN_FAIL);
-    if (!(ReqToolsBase = (struct ReqToolsBase *) OpenLibrary ((STRPTR)REQTOOLSNAME, REQTOOLSVERSION)))
-         cleanexit("Can't open reqtools.library", RETURN_FAIL);
     if (OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&console_ioreq,0))
          cleanexit("Can't open console.device", RETURN_FAIL);
     ConsoleDevice = (struct Device *)console_ioreq.io_Device;
