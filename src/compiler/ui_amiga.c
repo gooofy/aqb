@@ -18,6 +18,7 @@
 #include <pragmas/console_pragmas.h>
 
 #include <clib/alib_protos.h>
+#include <clib/asl_protos.h>
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 #include <clib/intuition_protos.h>
@@ -30,6 +31,7 @@
 #include <inline/intuition.h>
 #include <inline/graphics.h>
 #include <inline/diskfont.h>
+#include <inline/asl.h>
 
 #include <libraries/gadtools.h>
 #include <clib/gadtools_protos.h>
@@ -52,6 +54,7 @@ extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 extern struct DiskfontBase  *DiskfontBase;
+extern struct AslBase       *AslBase;
 struct Library              *GadToolsBase;
 struct Device               *ConsoleDevice = NULL;
 
@@ -776,18 +779,36 @@ uint16_t UI_EZRequest (char *body, char *gadgets)
     bool b = U_request (g_win, posTxt, negTxt, "%s", body);
 
     return b ? 1 : 0;
-
-
-	//ULONG tags[] = { RTEZ_ReqTitle, (ULONG)"AQB", RT_Window, (ULONG) g_win, TAG_END };
-	//ULONG res = rtEZRequestA (body, gadgets, /*reqinfo=*/NULL, /*argarray=*/NULL, (struct TagItem *)tags);
-	//LOG_printf (LOG_DEBUG, "rtEZRequestA result: %ld\n", res);
-	//return res;
 }
 
-char *UI_FileReq  (char *title)
+char *UI_FileReq (char *title)
 {
-    // FIXME: implement
-    assert(FALSE);
+	static char pathbuf[1024];
+
+	struct FileRequester *fr;
+
+	if (fr = (struct FileRequester *) AllocAslRequestTags(ASL_FileRequest,
+			                                              ASL_Hail,      (ULONG)title,
+			                                              ASL_Dir,       (ULONG)"aqb:",
+			                                              ASL_File,      (ULONG)"",
+														  ASL_Pattern,   (ULONG)"#?.bas",
+														  ASL_FuncFlags, FILF_PATGAD,
+			                                              ASL_Window,    (ULONG) g_win,
+			                                              TAG_DONE))
+	{
+		if (AslRequest(fr, 0L))
+		{
+			//printf("PATH=%s FILE=%s\n", fr->rf_Dir, fr->rf_File);
+			strncpy (pathbuf, (char*)fr->rf_Dir, 1024);
+			AddPart ((STRPTR) pathbuf, fr->rf_File, 1024);
+			//printf(" -> %s\n", pathbuf);
+
+			return String (UP_ide, pathbuf);
+		}
+		FreeAslRequest(fr);
+	}
+
+	return NULL;
 }
 
 bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)

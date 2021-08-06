@@ -1122,7 +1122,7 @@ static void repaint (IDE_editor ed)
     if (ed->repaint_all)
     {
         ed->repaint_all = FALSE;
-        while (row < ed->infoline_row)
+        while (row <= ed->infoline_row)
         {
             UI_beginLine (row, 1, UI_size_cols);
             UI_endLine   ();
@@ -1670,6 +1670,141 @@ static void IDE_find (IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
+static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
+{
+    if (sourcefn)
+    {
+        int l = strlen(sourcefn);
+        if (l>PATH_MAX)
+            l = PATH_MAX;
+
+        strncpy (ed->sourcefn, sourcefn, PATH_MAX);
+
+        if (l>4)
+        {
+            strcpy (ed->binfn, sourcefn);
+            if (   (ed->binfn[l-4]=='.')
+                && (ed->binfn[l-3]=='b')
+                && (ed->binfn[l-2]=='a')
+                && (ed->binfn[l-1]=='s'))
+                ed->binfn[l-4]=0;
+            else
+                strcpy (ed->binfn, TMP_BINFN);
+        }
+        else
+        {
+            strcpy (ed->binfn, TMP_BINFN);
+        }
+
+        string module_name = basename(String(UP_ide, sourcefn));
+        l = strlen(module_name);
+        if (l>PATH_MAX)
+            l = PATH_MAX;
+        if (l>4)
+            module_name[l-4] = 0;
+        strncpy (ed->module_name, module_name, PATH_MAX);
+
+        OPT_addModulePath(dirname(String(UP_ide, sourcefn)));
+    }
+    else
+    {
+        ed->sourcefn[0] = 0;
+        ed->binfn[0]    = 0;
+    }
+}
+
+static void loadSource (IDE_editor ed, string sourcefn)
+{
+    IDE_line l=ed->line_first;
+    while (l)
+    {
+        IDE_line nl = l->next;
+        freeLine(ed, l);
+        l = nl;
+    }
+    ed->line_first  = NULL;
+    ed->line_last   = NULL;
+    ed->cursor_line = NULL;
+
+    IDE_setSourceFn(ed, sourcefn);
+
+    if (sourcefn)
+    {
+        FILE *sourcef = fopen(sourcefn, "r");
+        if (!sourcef)
+        {
+            fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
+            exit(2);
+        }
+
+        ed->buf_len = 0;
+        bool eof = FALSE;
+        bool eol = FALSE;
+        IDE_line lastLine = NULL;
+        bool folded = FALSE;
+        while (!eof)
+        {
+            char ch;
+            int n = fread (&ch, 1, 1, sourcef);
+            if (n==1)
+            {
+                ed->buf[ed->buf_len++] = ch;
+                if ( (ed->buf_len==(MAX_LINE_LEN-1)) || (ch==10)  )
+                    eol = TRUE;
+            }
+            else
+            {
+                eof = TRUE;
+                eol = ed->buf_len>0;
+            }
+
+            if (eol)
+            {
+                ed->buf[ed->buf_len] = 0;
+                IDE_line line = buf2line (ed);
+                if (line->fold_start)
+                {
+                    line->folded = TRUE;
+                    folded = TRUE;
+                }
+                else
+                {
+                    if (line->fold_end)
+                    {
+                        line->folded = TRUE;
+                        folded = FALSE;
+                    }
+                    else
+                    {
+                        line->folded = folded;
+                    }
+                }
+                insertLineAfter (ed, lastLine, line);
+                lastLine = line;
+                eol=FALSE;
+                ed->buf_len = 0;
+            }
+        }
+
+        fclose(sourcef);
+    }
+    else
+    {
+        ed->buf_len = 0;
+        ed->buf[ed->buf_len] = 0;
+        IDE_line line = buf2line (ed);
+        insertLineAfter (ed, NULL, line);
+    }
+
+    ed->cursor_col		 = 0;
+    ed->cursor_a_line	 = 0;
+    ed->cursor_v_line	 = 0;
+    ed->cursor_line      = ed->line_first;
+
+    indentSuccLines (ed, ed->line_first);
+    invalidateAll (ed);
+}
+
 static void IDE_load_FileReq (IDE_editor ed)
 {
     if (ed->editing)
@@ -1680,7 +1815,9 @@ static void IDE_load_FileReq (IDE_editor ed)
             IDE_save(ed);
     }
 
-    UI_FileReq ("Load BASIC source code file");
+    char *sourcefn = UI_FileReq ("Load BASIC source code file");
+    if (sourcefn)
+        loadSource (ed, sourcefn);
 }
 
 static void size_cb (void *user_data)
@@ -1864,131 +2001,6 @@ IDE_editor openEditor(void)
     initWindowSize(ed);
 
 	return ed;
-}
-
-static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
-{
-    if (sourcefn)
-    {
-        int l = strlen(sourcefn);
-        if (l>PATH_MAX)
-            l = PATH_MAX;
-
-        strncpy (ed->sourcefn, sourcefn, PATH_MAX);
-
-        if (l>4)
-        {
-            strcpy (ed->binfn, sourcefn);
-            if (   (ed->binfn[l-4]=='.')
-                && (ed->binfn[l-3]=='b')
-                && (ed->binfn[l-2]=='a')
-                && (ed->binfn[l-1]=='s'))
-                ed->binfn[l-4]=0;
-            else
-                strcpy (ed->binfn, TMP_BINFN);
-        }
-        else
-        {
-            strcpy (ed->binfn, TMP_BINFN);
-        }
-
-        string module_name = basename(String(UP_ide, sourcefn));
-        l = strlen(module_name);
-        if (l>PATH_MAX)
-            l = PATH_MAX;
-        if (l>4)
-            module_name[l-4] = 0;
-        strncpy (ed->module_name, module_name, PATH_MAX);
-
-        OPT_addModulePath(dirname(String(UP_ide, sourcefn)));
-    }
-    else
-    {
-        ed->sourcefn[0] = 0;
-        ed->binfn[0]    = 0;
-    }
-}
-
-static void loadSource (IDE_editor ed, string sourcefn)
-{
-    assert(!ed->num_lines); // FIXME: free old buffer
-
-    IDE_setSourceFn(ed, sourcefn);
-
-    if (sourcefn)
-    {
-        FILE *sourcef = fopen(sourcefn, "r");
-        if (!sourcef)
-        {
-            fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
-            exit(2);
-        }
-
-        ed->buf_len = 0;
-        bool eof = FALSE;
-        bool eol = FALSE;
-        IDE_line lastLine = NULL;
-        bool folded = FALSE;
-        while (!eof)
-        {
-            char ch;
-            int n = fread (&ch, 1, 1, sourcef);
-            if (n==1)
-            {
-                ed->buf[ed->buf_len++] = ch;
-                if ( (ed->buf_len==(MAX_LINE_LEN-1)) || (ch==10)  )
-                    eol = TRUE;
-            }
-            else
-            {
-                eof = TRUE;
-                eol = ed->buf_len>0;
-            }
-
-            if (eol)
-            {
-                ed->buf[ed->buf_len] = 0;
-                IDE_line line = buf2line (ed);
-                if (line->fold_start)
-                {
-                    line->folded = TRUE;
-                    folded = TRUE;
-                }
-                else
-                {
-                    if (line->fold_end)
-                    {
-                        line->folded = TRUE;
-                        folded = FALSE;
-                    }
-                    else
-                    {
-                        line->folded = folded;
-                    }
-                }
-                insertLineAfter (ed, lastLine, line);
-                lastLine = line;
-                eol=FALSE;
-                ed->buf_len = 0;
-            }
-        }
-
-        fclose(sourcef);
-    }
-    else
-    {
-        ed->buf_len = 0;
-        ed->buf[ed->buf_len] = 0;
-        IDE_line line = buf2line (ed);
-        insertLineAfter (ed, NULL, line);
-    }
-
-    ed->cursor_col		 = 0;
-    ed->cursor_a_line	 = 0;
-    ed->cursor_v_line	 = 0;
-    ed->cursor_line      = ed->line_first;
-
-    indentSuccLines (ed, ed->line_first);
 }
 
 static void log_cb (uint8_t lvl, char *fmt, ...)
