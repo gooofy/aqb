@@ -1405,13 +1405,68 @@ static bool insertChar (IDE_editor ed, uint16_t c)
 
     return TRUE;
 }
+
+static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
+{
+    if (sourcefn)
+    {
+        int l = strlen(sourcefn);
+        if (l>PATH_MAX)
+            l = PATH_MAX;
+
+        strncpy (ed->sourcefn, sourcefn, PATH_MAX);
+
+        if (l>4)
+        {
+            strcpy (ed->binfn, sourcefn);
+            if (   (ed->binfn[l-4]=='.')
+                && (ed->binfn[l-3]=='b')
+                && (ed->binfn[l-2]=='a')
+                && (ed->binfn[l-1]=='s'))
+                ed->binfn[l-4]=0;
+            else
+                strcpy (ed->binfn, TMP_BINFN);
+        }
+        else
+        {
+            strcpy (ed->binfn, TMP_BINFN);
+        }
+
+        string module_name = basename(String(UP_ide, sourcefn));
+        l = strlen(module_name);
+        if (l>PATH_MAX)
+            l = PATH_MAX;
+        if (l>4)
+            module_name[l-4] = 0;
+        strncpy (ed->module_name, module_name, PATH_MAX);
+
+        OPT_addModulePath(dirname(String(UP_ide, sourcefn)));
+    }
+    else
+    {
+        ed->sourcefn[0] = 0;
+        ed->binfn[0]    = 0;
+    }
+    ed->up2date_il_sourcefn=FALSE;
+}
+
 #ifdef __amigaos__
 #pragma GCC pop_options
 #endif
-static void IDE_save (IDE_editor ed)
+static bool IDE_save (IDE_editor ed)
 {
     if (ed->editing)
         commitBuf (ed);
+
+    if (!strlen(ed->sourcefn))
+    {
+        char *sourcefn = UI_FileReq ("Save BASIC source code as...");
+
+        if (!sourcefn)
+            return FALSE;
+
+        IDE_setSourceFn(ed, sourcefn);
+    }
 
     FILE *sourcef = fopen(ed->sourcefn, "w");
     if (!sourcef)
@@ -1435,6 +1490,8 @@ static void IDE_save (IDE_editor ed)
 
     ed->changed = FALSE;
     ed->up2date_il_flags = FALSE;
+
+    return TRUE;
 }
 
 static void IDE_exit (IDE_editor ed)
@@ -1670,49 +1727,6 @@ static void IDE_find (IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
-static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
-{
-    if (sourcefn)
-    {
-        int l = strlen(sourcefn);
-        if (l>PATH_MAX)
-            l = PATH_MAX;
-
-        strncpy (ed->sourcefn, sourcefn, PATH_MAX);
-
-        if (l>4)
-        {
-            strcpy (ed->binfn, sourcefn);
-            if (   (ed->binfn[l-4]=='.')
-                && (ed->binfn[l-3]=='b')
-                && (ed->binfn[l-2]=='a')
-                && (ed->binfn[l-1]=='s'))
-                ed->binfn[l-4]=0;
-            else
-                strcpy (ed->binfn, TMP_BINFN);
-        }
-        else
-        {
-            strcpy (ed->binfn, TMP_BINFN);
-        }
-
-        string module_name = basename(String(UP_ide, sourcefn));
-        l = strlen(module_name);
-        if (l>PATH_MAX)
-            l = PATH_MAX;
-        if (l>4)
-            module_name[l-4] = 0;
-        strncpy (ed->module_name, module_name, PATH_MAX);
-
-        OPT_addModulePath(dirname(String(UP_ide, sourcefn)));
-    }
-    else
-    {
-        ed->sourcefn[0] = 0;
-        ed->binfn[0]    = 0;
-    }
-}
-
 static void loadSource (IDE_editor ed, string sourcefn)
 {
     IDE_line l=ed->line_first;
@@ -1733,8 +1747,8 @@ static void loadSource (IDE_editor ed, string sourcefn)
         FILE *sourcef = fopen(sourcefn, "r");
         if (!sourcef)
         {
-            fprintf(stderr, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
-            exit(2);
+            UI_EZRequest("failed to read %s:\n%s", "OK", sourcefn, strerror(errno));
+            return;
         }
 
         ed->buf_len = 0;

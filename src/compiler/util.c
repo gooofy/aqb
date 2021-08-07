@@ -560,10 +560,11 @@ void U_delay (uint16_t millis)
 }
 
 #ifdef __amigaos__
+#define MAX_BODY_LINES 20
 bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ...)
 {
     assert (negTxt);
-    static struct IntuiText itBody = { 0, 0, 0, 15, 5, NULL, NULL, NULL };
+    static struct IntuiText itBody[MAX_BODY_LINES];
     static struct IntuiText itPos  = { 0, 0, 0, 6, 3, NULL, NULL, NULL };
     static struct IntuiText itNeg  = { 0, 0, 0, 6, 3, NULL, NULL, NULL };
     static char buf[1024];
@@ -573,12 +574,43 @@ bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ..
     vsnprintf (buf, 1024, format, args);
     va_end(args);
 
+    char *s = buf;
+    char *c = buf;
+    uint16_t i=0;
+    bool finished = FALSE;
+    while (!finished && (i<MAX_BODY_LINES))
+    {
+        if ( (*c=='\n') || (*c==0) )
+        {
+            finished = *c==0;
+            *c = 0;
+            if (i)
+                itBody[i-1].NextText = &itBody[i];
+
+            itBody[i].FrontPen  = 1,
+            itBody[i].BackPen   = 0;
+            itBody[i].DrawMode  = 0;
+            itBody[i].LeftEdge  = 6;
+            itBody[i].TopEdge   = 3 + i*8;
+            itBody[i].ITextFont = NULL;
+            itBody[i].IText     = (STRPTR)s;
+            itBody[i].NextText  = NULL;
+
+            i++;
+            c++;
+            s=c;
+        }
+        else
+        {
+            c++;
+        }
+    }
+
     bool res = FALSE;
 
-    itBody.IText = (STRPTR) buf;
     itNeg.IText  = (STRPTR) negTxt;
     itPos.IText  = (STRPTR) posTxt;
-    res = AutoRequest(win, &itBody, posTxt ? &itPos : NULL, &itNeg, 0, 0, 640, 72);
+    res = AutoRequest(win, &itBody[0], posTxt ? &itPos : NULL, &itNeg, 0, 0, 640, 22 + i*8);
 
     return res;
 }

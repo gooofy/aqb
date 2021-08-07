@@ -110,7 +110,7 @@ void      UI_onKeyCall          (UI_key_cb cb, void *user_data);
  * high-level requesters
  */
 
-uint16_t  UI_EZRequest          (char *body, char *gadgets);
+uint16_t  UI_EZRequest          (char *body, char *gadgets, ...);
 char     *UI_FileReq            (char *title);
 bool      UI_FindReq            (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards);
 

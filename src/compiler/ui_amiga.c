@@ -746,7 +746,7 @@ void UI_onKeyCall (UI_key_cb cb, void *user_data)
     g_key_cb_user_data = user_data;
 }
 
-uint16_t UI_EZRequest (char *body, char *gadgets)
+uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
     char *posTxt=NULL;
     char *negTxt=NULL;
@@ -776,7 +776,12 @@ uint16_t UI_EZRequest (char *body, char *gadgets)
         posTxt = negTxt;
     negTxt = s;
 
-    bool b = U_request (g_win, posTxt, negTxt, "%s", body);
+    va_list args;
+    va_start(args, gadgets);
+    static char buf2[1024];
+    vsnprintf (buf2, 1024, body, args);
+    va_end(args);
+    bool b = U_request (g_win, posTxt, negTxt, "%s", buf2);
 
     return b ? 1 : 0;
 }

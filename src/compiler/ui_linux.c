@@ -521,9 +521,14 @@ void UI_run(void)
     }
 }
 
-uint16_t UI_EZRequest (char *body, char *gadgets)
+uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
-    return TUI_EZRequest (body, gadgets);
+    va_list args;
+    va_start(args, gadgets);
+    static char buf2[1024];
+    vsnprintf (buf2, 1024, body, args);
+    va_end(args);
+    return TUI_EZRequest (buf2, gadgets);
 }
 
 char *UI_FileReq  (char *title)
