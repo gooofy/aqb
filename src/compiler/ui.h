@@ -63,6 +63,11 @@
 #define KEY_FIND           1033
 #define KEY_FIND_NEXT      1034
 #define KEY_BLOCK          1035
+#define KEY_NEW            1036
+#define KEY_OPEN           1037
+#define KEY_SAVE           1038
+#define KEY_SAVE_AS        1039
+#define KEY_QUIT           1040
 #define KEY_UNKNOWN1       9993
 #define KEY_UNKNOWN2       9994
 #define KEY_UNKNOWN3       9995

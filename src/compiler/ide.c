@@ -1454,12 +1454,12 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
 #ifdef __amigaos__
 #pragma GCC pop_options
 #endif
-static bool IDE_save (IDE_editor ed)
+static bool IDE_save (IDE_editor ed, bool save_as)
 {
     if (ed->editing)
         commitBuf (ed);
 
-    if (!strlen(ed->sourcefn))
+    if (!strlen(ed->sourcefn) || save_as)
     {
         char *sourcefn = UI_FileReq ("Save BASIC source code as...");
 
@@ -1501,7 +1501,7 @@ static void IDE_exit (IDE_editor ed)
     if (ed->changed)
     {
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
-            IDE_save(ed);
+            IDE_save(ed, /*save_as=*/FALSE);
     }
     LOG_printf (LOG_DEBUG, "ide: IDE_exit -> exit(0)\n");
     exit(0);
@@ -1536,7 +1536,7 @@ static void show_about(IDE_editor ed)
 
 static bool compile(IDE_editor ed)
 {
-    if (!IDE_save(ed))
+    if (!IDE_save(ed, /*save_as=*/FALSE))
         return FALSE;
 
     CO_compile(ed->sourcefn,
@@ -1756,7 +1756,7 @@ static void IDE_find (IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
-static void loadSource (IDE_editor ed, string sourcefn)
+static void doClear (IDE_editor ed)
 {
     IDE_line l=ed->line_first;
     while (l)
@@ -1765,10 +1765,25 @@ static void loadSource (IDE_editor ed, string sourcefn)
         freeLine(ed, l);
         l = nl;
     }
-    ed->line_first  = NULL;
-    ed->line_last   = NULL;
-    ed->cursor_line = NULL;
+    ed->line_first     = NULL;
+    ed->line_last      = NULL;
+    ed->cursor_line    = NULL;
+    ed->sourcefn[0]    = 0;
+    ed->module_name[0] = 0;
+}
 
+static void doNew (IDE_editor ed)
+{
+    doClear(ed);
+    ed->buf_len = 0;
+    ed->buf[ed->buf_len] = 0;
+    IDE_line line = buf2line (ed);
+    insertLineAfter (ed, NULL, line);
+}
+
+static void loadSource (IDE_editor ed, string sourcefn)
+{
+    doClear (ed);
     IDE_setSourceFn(ed, sourcefn);
 
     if (sourcefn)
@@ -1833,11 +1848,29 @@ static void loadSource (IDE_editor ed, string sourcefn)
     }
     else
     {
-        ed->buf_len = 0;
-        ed->buf[ed->buf_len] = 0;
-        IDE_line line = buf2line (ed);
-        insertLineAfter (ed, NULL, line);
+        doNew(ed);
     }
+
+    ed->cursor_col		 = 0;
+    ed->cursor_a_line	 = 0;
+    ed->cursor_v_line	 = 0;
+    ed->cursor_line      = ed->line_first;
+
+    indentSuccLines (ed, ed->line_first);
+    invalidateAll (ed);
+}
+
+static void IDE_new (IDE_editor ed)
+{
+    if (ed->editing)
+        commitBuf (ed);
+    if (ed->changed)
+    {
+        if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
+            IDE_save(ed, /*save_as=*/FALSE);
+    }
+
+    doNew(ed);
 
     ed->cursor_col		 = 0;
     ed->cursor_a_line	 = 0;
@@ -1855,7 +1888,7 @@ static void IDE_load_FileReq (IDE_editor ed)
     if (ed->changed)
     {
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
-            IDE_save(ed);
+            IDE_save(ed, /*save_as=*/FALSE);
     }
 
     char *sourcefn = UI_FileReq ("Load BASIC source code file");
@@ -1879,9 +1912,9 @@ static void key_cb (uint16_t key, void *user_data)
 
     switch (key)
     {
-        case KEY_ESC:
         case KEY_CTRL_C:
         case KEY_CTRL_Q:
+        case KEY_QUIT:
             IDE_exit(ed);
 
         case KEY_CTRL_Y:
@@ -1940,12 +1973,22 @@ static void key_cb (uint16_t key, void *user_data)
             deleteKey(ed);
             break;
 
+        case KEY_NEW:
+            IDE_new(ed);
+            break;
+
         case KEY_CTRL_O:
+        case KEY_OPEN:
             IDE_load_FileReq(ed);
             break;
 
         case KEY_CTRL_S:
-            IDE_save(ed);
+        case KEY_SAVE:
+            IDE_save(ed, /*save_as=*/FALSE);
+            break;
+
+        case KEY_SAVE_AS:
+            IDE_save(ed, /*save_as=*/TRUE);
             break;
 
         case KEY_HELP:

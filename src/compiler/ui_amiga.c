@@ -67,13 +67,16 @@ uint16_t UI_size_cols=80, UI_size_rows=25;
 static struct NewMenu g_newmenu[] =
     {
         { NM_TITLE, (STRPTR) "Project",             0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Open...",   (STRPTR) "O", 0, 0, (APTR)KEY_CTRL_O,},
-        {  NM_ITEM, (STRPTR) "Save",      (STRPTR) "S", 0, 0, (APTR)KEY_CTRL_S,},
+        {  NM_ITEM, (STRPTR) "New",                 0 , 0, 0, (APTR)KEY_NEW,},
+        {  NM_ITEM, (STRPTR) "Open...",   (STRPTR) "O", 0, 0, (APTR)KEY_OPEN,},
         {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Help...",             0 , 0, 0, (APTR)KEY_F1,},
+        {  NM_ITEM, (STRPTR) "Save",      (STRPTR) "S", 0, 0, (APTR)KEY_SAVE,},
+        {  NM_ITEM, (STRPTR) "Save As...",(STRPTR) "A", 0, 0, (APTR)KEY_SAVE_AS,},
+        {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Help...",             0 , 0, 0, (APTR)KEY_HELP,},
         {  NM_ITEM, (STRPTR) "About...",            0 , 0, 0, (APTR)KEY_ABOUT,},
         {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Quit...",   (STRPTR) "Q", 0, 0, (APTR)KEY_CTRL_C,},
+        {  NM_ITEM, (STRPTR) "Quit...",   (STRPTR) "Q", 0, 0, (APTR)KEY_QUIT,},
 
         { NM_TITLE, (STRPTR) "Edit",                0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Cut",       (STRPTR) "X", 0, 0, 0,},
