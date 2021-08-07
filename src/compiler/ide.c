@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <libgen.h>
+#include <sys/stat.h>
 
 #include "util.h"
 #include "ui.h"
@@ -1564,8 +1565,28 @@ static bool compile(IDE_editor ed)
 
 static void compileAndRun(IDE_editor ed)
 {
-    // FIXME: compile if not up to date
-    if (ed->changed)
+    bool changed = ed->changed || !strlen (ed->sourcefn) || !strlen(ed->binfn);
+    if (!changed)
+    {
+        struct stat srcstat, binstat;
+        if (stat (ed->sourcefn, &srcstat))
+        {
+            changed = TRUE;
+        }
+        else
+        {
+            if (stat (ed->binfn, &binstat))
+            {
+                changed = TRUE;
+            }
+            else
+            {
+                changed = binstat.st_mtime < srcstat.st_mtime;
+            }
+        }
+    }
+
+    if (changed)
     {
         if (!compile(ed))
             return;
