@@ -1533,9 +1533,10 @@ static void show_about(IDE_editor ed)
     invalidateAll (ed);
 }
 
-static void compile(IDE_editor ed)
+static bool compile(IDE_editor ed)
 {
-    // FIXME: save first
+    if (!IDE_save(ed))
+        return FALSE;
 
     CO_compile(ed->sourcefn,
                ed->module_name,
@@ -1549,14 +1550,16 @@ static void compile(IDE_editor ed)
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     UI_waitkey ();
 
+    UI_eraseDisplay ();
+    invalidateAll (ed);
+
     if (EM_anyErrors)
     {
         gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol);
         ed->il_show_error = TRUE;
+        return FALSE;
     }
-
-    UI_eraseDisplay ();
-    invalidateAll (ed);
+    return TRUE;
 }
 
 static void compileAndRun(IDE_editor ed)
