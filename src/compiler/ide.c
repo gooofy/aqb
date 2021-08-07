@@ -1565,6 +1565,11 @@ static bool compile(IDE_editor ed)
 static void compileAndRun(IDE_editor ed)
 {
     // FIXME: compile if not up to date
+    if (ed->changed)
+    {
+        if (!compile(ed))
+            return;
+    }
 
     LOG_printf (LOG_INFO, "\n");
     RUN_run (ed->binfn);
