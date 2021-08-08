@@ -33,6 +33,7 @@ DIM SHARED AS INTEGER S = 0 : REM score
 DIM SHARED AS INTEGER difficulty = 50 : REM score increase per dropped line
 
 DIM SHARED AS BOOLEAN gameover = FALSE
+DIM SHARED AS BOOLEAN doquit = FALSE
 
 SUB DEFINEPIECE ( BYVAL p AS INTEGER )
     ' LOCATE 7,1 : PRINT "DEFINEPIECE: p=";p
@@ -255,27 +256,26 @@ END SUB
 
 SUB GAMEOVERMAN
     
-    CPRINT 8, " GAME OVER "
-    CPRINT 9, " --------- "
-    CPRINT 11, " WOULD YOU LIKE "
+    CPRINT 7, "                 "
+    CPRINT 8, "    GAME OVER    "
+    CPRINT 9, "    ---------    "
+    CPRINT 10, "                 "
+    CPRINT 11, " WOULD YOU LIKE  "
     CPRINT 12, " TO PLAY ANOTHER "
-    CPRINT 13, " GAME Y/N? "
-    '   ENDGAME:
-    '     E=Asc(Inkey$)
-    '     If E=89 or E=121 Then GoSub STARTSCREEN
-    '     If E=27 or E=78 or E=110 Then PRINT @(55,110,2) " THANKS FOR PLAYING ":END
-    '   Goto ENDGAME 
+    CPRINT 13, "    GAME Y/N?    "
+    CPRINT 14, "                 "
     
-    DIM AS STRING key = INKEY$
-    IF key = "" THEN
-        SLEEP
-    ELSE
-        IF ( key = "n" ) OR ( key = "N" ) THEN
-            GOTO quitlabel
+    WHILE NOT gameover
+        DIM AS STRING key = INKEY$
+        IF key = "" THEN
+            SLEEP
         ELSE
             gameover = TRUE
+            IF ( key = "n" ) OR ( key = "N" ) THEN
+                doquit = TRUE
+            END IF
         END IF
-    END IF
+    WEND
 END SUB
 
 SUB CHECKGRID
@@ -462,7 +462,7 @@ PALETTE 5, 1, 0, 1 : REM purple
 PALETTE 6, 1, 1, 0 : REM yellow
 PALETTE 7, 1, 1, 1 : REM white
 
-WHILE TRUE
+WHILE NOT doquit
     
     CLS
     
@@ -570,10 +570,10 @@ WHILE TRUE
     ON TIMER CALL 1, delay, timer_movedown
     TIMER ON 1
     
-    REM FIXME: remove debug code
-    REM FOR X AS INTEGER = 0 TO 9
-    REM grid ( X, 12 ) = 2
-    REM NEXT X
+    ' FIXME: remove debug code
+    ' FOR X AS INTEGER = 0 TO 9
+    ' grid ( X, 12 ) = 2
+    ' NEXT X
     REDRAWSCREENGRID
     
     gameover = FALSE
