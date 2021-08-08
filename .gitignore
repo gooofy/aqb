@@ -74,6 +74,7 @@ src/tools/os2aqb/*.bas
 src/tools/os2aqb/libcalls.py
 src/tools/os2aqb/os_exec.txt
 src/tools/os2aqb/os_mathtrans.txt
+src/tools/colorschemes
 examples/collection/
 examples/demo/TETRIS.BAS
 examples/demo/foo
