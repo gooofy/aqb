@@ -17,6 +17,15 @@ Originally based on
 
 https://github.com/ComMouse/tiger-compiler
 
+## Requirements
+
+* 3 MB RAM
+* OS 2.0 (V36) or newer
+
+## Installation
+
+tbd
+
 ## Type System
 
 ### Basic types:
@@ -42,4 +51,8 @@ Measured on an A500 configuration (PAL 68000, 3MB RAM) in FS-UAE, Kickstart 1.3
 | ctHLBench integer    | 33.94s        | 7.40s          | 6.96s           | 12.41s         | 1.66s  |
 | ctHLBench real       | 23.90s        | 6.88s          | 4.99s           | 4.46s          | 3.12s  |
 | fibonacci            | no recursion  | 54.60s         | guru            | 28.18          | 4.09s  |
+
+## Source Code
+
+https://github.com/gooofy/aqb
 
