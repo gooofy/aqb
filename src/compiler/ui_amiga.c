@@ -48,6 +48,7 @@
 //#define LOG_KEY_EVENTS
 //#define DEBUG_FONTCONV
 #define DEBUG_FONTCONV_NUM 8
+#define ENABLE_FONT_DUMP
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
@@ -121,6 +122,7 @@ static struct Menu       *g_menuStrip         = NULL;
 static UWORD              g_fontHeight        = 8;
 // non-RTG direct-to-bitmap rendering
 static struct TextFont   *g_font              = NULL;
+#include "font.h"
 static UBYTE              g_fontData[256][8];
 static bool               g_renderRTG         = FALSE;
 static UWORD              g_renderBMBytesPerRow;
@@ -1015,6 +1017,114 @@ static void updateTerminalSize(void)
     UI_size_rows = (g_win->Height - g_OffTop  - g_OffBottom) / g_fontHeight;
 }
 
+#ifdef ENABLE_FONT_DUMP
+static void dumpFont(char *fontName, uint16_t fontSize, char *varName, FILE *fSrc)
+{
+    struct TextAttr attr = { (STRPTR)fontName, fontSize, 0, 0 };
+
+    struct TextFont *font = OpenDiskFont(&attr);
+    if (!font)
+        cleanexit("Can't open font", RETURN_FAIL);
+
+    static UBYTE fontData[256][8];
+    for (UWORD ci=0; ci<256; ci++)
+        for (UBYTE y=0; y<8; y++)
+            fontData[ci][y] = 0;
+
+    UWORD *pCharLoc = font->tf_CharLoc;
+#ifdef DEBUG_FONTCONV
+    uint16_t cnt=0;
+#endif
+    for (UBYTE ci=font->tf_LoChar; ci<font->tf_HiChar; ci++)
+    {
+        UWORD bl = *pCharLoc;
+        UWORD byl = bl / 8;
+        BYTE bitl = bl % 8;
+        pCharLoc++;
+        UWORD bs = *pCharLoc;
+        pCharLoc++;
+#ifdef DEBUG_FONTCONV
+        if (cnt<DEBUG_FONTCONV_NUM)
+            printf ("ci=%d(%c) bl=%d -> byl=%d/bitl=%d, bs=%d\n", ci, ci, bl, byl, bitl, bs);
+#endif
+        if (bs>8)
+            bs = 8;
+        for (UBYTE y=0; y<font->tf_YSize; y++)
+        {
+            char *p = font->tf_CharData;
+            p += y*font->tf_Modulo + byl;
+            BYTE bsc = bs;
+            BYTE bitlc = 7-bitl;
+            for (BYTE x=7; x>=0; x--)
+            {
+                if (*p & (1<<bitlc))
+                {
+                    fontData[ci][y] |= (1<<x);
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf("*");
+#endif
+                }
+                else
+                {
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf(".");
+#endif
+                }
+                bsc--;
+                if (!bsc)
+                    break;
+                bitlc--;
+                if (bitlc<0)
+                {
+                    bitlc = 7;
+                    p++;
+                }
+            }
+#ifdef DEBUG_FONTCONV
+            if (cnt<DEBUG_FONTCONV_NUM)
+                printf("\n");
+#endif
+        }
+#ifdef DEBUG_FONTCONV
+        cnt++;
+#endif
+    }
+    CloseFont(font);
+
+    fprintf (fSrc, "static UBYTE %s[256][8] = {\n", varName);
+    fprintf (fSrc, "        {");
+    bool first = TRUE;
+    for (UWORD ci=0; ci<256; ci++)
+    {
+        for (UBYTE y=0; y<8; y++)
+        {
+            if (first)
+                first = FALSE;
+            else
+                fprintf (fSrc, ", ");
+            fprintf (fSrc, "0x%02x", g_fontData[ci][y]);
+        }
+        if (ci<255)
+            fprintf (fSrc, "},\n        {");
+        else
+            fprintf (fSrc, "}\n");
+        first = TRUE;
+    }
+    fprintf (fSrc, "    };\n");
+}
+
+static void dumpFonts(void)
+{
+    FILE *fSrc;
+    fSrc = fopen ("fonts.h", "w");
+    dumpFont ("aqb.font", 6, "g_fontData6px", fSrc);
+    dumpFont ("topaz.font", 8, "g_fontData8px", fSrc);
+    fclose (fSrc);
+}
+#endif
+
 void UI_setFont (int font)
 {
     OPT_prefSetInt (OPT_PREF_FONT, font);
@@ -1100,6 +1210,33 @@ void UI_setFont (int font)
     updateTerminalSize();
     Move (g_rp, 0, 0);
     ClearScreen(g_rp);
+
+#ifdef ENABLE_FONT_DUMP
+    FILE *fSrc;
+    fSrc = fopen ("font.h", "w");
+    fprintf (fSrc, ("static UBYTE g_fontData6px[256][8] = {\n"));
+    fprintf (fSrc, "        {");
+    bool first = TRUE;
+    for (UWORD ci=0; ci<256; ci++)
+    {
+        for (UBYTE y=0; y<8; y++)
+        {
+            if (first)
+                first = FALSE;
+            else
+                fprintf (fSrc, ", ");
+            fprintf (fSrc, "0x%02x", g_fontData[ci][y]);
+        }
+        if (ci<255)
+            fprintf (fSrc, "},\n        {");
+        else
+            fprintf (fSrc, "}\n");
+        first = TRUE;
+    }
+    fprintf (fSrc, "    };\n");
+    fclose (fSrc);
+    dumpFonts();
+#endif
 }
 
 bool UI_init (void)
