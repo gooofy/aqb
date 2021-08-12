@@ -24,13 +24,11 @@
 #include <clib/intuition_protos.h>
 #include <clib/graphics_protos.h>
 #include <clib/console_protos.h>
-#include <clib/diskfont_protos.h>
 
 #include <inline/exec.h>
 #include <inline/dos.h>
 #include <inline/intuition.h>
 #include <inline/graphics.h>
-#include <inline/diskfont.h>
 #include <inline/asl.h>
 
 #include <libraries/gadtools.h>
@@ -46,14 +44,14 @@
 #include "tui.h"
 
 //#define LOG_KEY_EVENTS
-//#define DEBUG_FONTCONV
-#define DEBUG_FONTCONV_NUM 8
+
+#define BM_DEPTH  2
+#define BM_HEIGHT 8
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
-extern struct DiskfontBase  *DiskfontBase;
 extern struct AslBase       *AslBase;
 struct Library              *GadToolsBase;
 struct Device               *ConsoleDevice = NULL;
@@ -102,11 +100,6 @@ static struct NewMenu g_newmenu[] =
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
-static struct TextAttr g_fontattrs[] = {
-        { (STRPTR)"aqb.font", 6, 0, 0 },
-        { (STRPTR)"topaz.font", 8, 0, 0 },
-    };
-
 static struct Screen     *g_screen        = NULL;
 static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
@@ -119,13 +112,12 @@ static int                g_termSignalBit     = -1;
 static APTR               g_vi                = NULL;
 static struct Menu       *g_menuStrip         = NULL;
 static UWORD              g_fontHeight        = 8;
-// non-RTG direct-to-bitmap rendering
-static struct TextFont   *g_font              = NULL;
-#include "font.h"
-static UBYTE              g_fontData[256][8];
+#include "fonts.h"
+static UBYTE              g_curFont           = 1;
 static bool               g_renderRTG         = FALSE;
+static struct BitMap     *g_renderBM;
 static UWORD              g_renderBMBytesPerRow;
-static UBYTE             *g_renderBMPlanes[2];
+static UBYTE             *g_renderBMPlanes[2] = {NULL, NULL};
 static UBYTE             *g_renderBMPtr[2];
 static bool               g_renderBMPE[2]     = { TRUE, FALSE }; // PE: PlaneEnabled
 static bool               g_renderInverse     = FALSE;
@@ -133,11 +125,10 @@ static uint16_t           g_renderBMcurCol    = 0;
 static uint16_t           g_renderBMcurRow    = 1;
 static uint16_t           g_curLineStart      = 1;
 static uint16_t           g_curLineCols       = 80;
+static uint16_t           g_visWidth;
 static uint16_t           g_renderBMmaxCols   = 80;
 // RTG graphics library based rendering
 #define BUFSIZE 1024
-static char               g_outbuf[BUFSIZE];
-static int                g_bpos = 0;
 static UI_size_cb         g_size_cb           = NULL;
 static void              *g_size_cb_user_data = NULL;
 static UI_key_cb          g_key_cb            = NULL;
@@ -248,44 +239,17 @@ static void drawCursor(void)
     SetDrMd (g_rp, DrawMode);
 }
 
-static void UI_flush(void)
-{
-    if (!g_renderRTG)
-        return;
-    if (g_cursorVisible)
-        drawCursor();
-    Text (g_rp, (STRPTR) g_outbuf, g_bpos);
-    if (g_cursorVisible)
-        drawCursor();
-    g_bpos = 0;
-}
-
 static void setTextColor (uint16_t color, BOOL inverse)
 {
-    if (g_renderRTG)
+    switch (color)
     {
-        UI_flush();
-        if (inverse)
-        {
-            SetAPen (g_rp, 0); SetBPen (g_rp, color); SetDrMd (g_rp, JAM2);
-        }
-        else
-        {
-            SetAPen (g_rp, color); SetBPen (g_rp, 0); SetDrMd (g_rp, JAM2);
-        }
+        case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; break;
+        case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; break;
+        case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; break;
+        case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; break;
+        default: assert(FALSE);
     }
-    else
-    {
-        switch (color)
-        {
-            case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; break;
-            case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; break;
-            case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; break;
-            case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; break;
-            default: assert(FALSE);
-        }
-        g_renderInverse = inverse;
-    }
+    g_renderInverse = inverse;
 }
 
 void UI_setTextStyle (uint16_t style)
@@ -311,27 +275,27 @@ void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
     g_curLineStart = col_start;
     g_curLineCols  = cols;
     //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine g_curLineCols=%d\n", g_curLineCols);
+    if (!g_renderRTG && g_cursorVisible)
+        drawCursor();
+    g_renderBMcurCol = col_start-1;
+    g_renderBMcurRow = row;
     if (g_renderRTG)
     {
-        assert (!g_bpos);
-        Move (g_rp, g_OffLeft + (col_start-1) * 8, g_OffTop + (row-1) * g_fontHeight + g_rp->TxBaseline);
+        g_renderBMPtr[0] = g_renderBMPlanes[0];
+        g_renderBMPtr[1] = g_renderBMPlanes[1];
     }
     else
     {
-        if (g_cursorVisible)
-            drawCursor();
-        g_renderBMcurCol = col_start-1;
-        g_renderBMcurRow = row;
         g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1);
         g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1);
-        for (uint16_t r = 0; r<g_fontHeight; r++)
-        {
-            memset (g_renderBMPtr[0] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
-            memset (g_renderBMPtr[1] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
-        }
-        if (g_cursorVisible)
-            drawCursor();
     }
+    for (uint16_t r = 0; r<g_fontHeight; r++)
+    {
+        memset (g_renderBMPtr[0] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
+        memset (g_renderBMPtr[1] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
+    }
+    if (!g_renderRTG && g_cursorVisible)
+        drawCursor();
 }
 
 #define CSI_BUF_LEN 16
@@ -422,42 +386,33 @@ void UI_putc(char c)
         return;
     }
 
-    if (g_renderRTG)
+    if (g_renderBMcurCol >= g_renderBMmaxCols)
+        return;
+    g_renderBMcurCol++;
+
+    if (g_cursorVisible)
+        drawCursor();
+    //printf ("painting char %d (%c)\n", c, c);
+
+    UBYTE ci = c;
+    UBYTE *dst0 = g_renderBMPtr[0];
+    UBYTE *dst1 = g_renderBMPtr[1];
+    //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
+    for (UBYTE y=0; y<g_fontHeight; y++)
     {
-        g_outbuf[g_bpos++] = c;
-        if (g_bpos >= BUFSIZE)
-            UI_flush();
+        UBYTE fd = g_fontData[g_curFont][ci][y];
+        if (g_renderInverse)
+            fd = ~fd;
+        *dst0 = g_renderBMPE[0] ? fd : 0;
+        *dst1 = g_renderBMPE[1] ? fd : 0;
+        dst0 += g_renderBMBytesPerRow;
+        dst1 += g_renderBMBytesPerRow;
     }
-    else
-    {
-        if (g_renderBMcurCol >= g_renderBMmaxCols)
-            return;
-        g_renderBMcurCol++;
+    g_renderBMPtr[0]++;
+    g_renderBMPtr[1]++;
 
-        if (g_cursorVisible)
-            drawCursor();
-        //printf ("painting char %d (%c)\n", c, c);
-
-        UBYTE ci = c;
-        UBYTE *dst0 = g_renderBMPtr[0];
-        UBYTE *dst1 = g_renderBMPtr[1];
-        //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
-        for (UBYTE y=0; y<g_fontHeight; y++)
-        {
-            UBYTE fd = g_fontData[ci][y];
-            if (g_renderInverse)
-                fd = ~fd;
-            *dst0 = g_renderBMPE[0] ? fd : 0;
-            *dst1 = g_renderBMPE[1] ? fd : 0;
-            dst0 += g_renderBMBytesPerRow;
-            dst1 += g_renderBMBytesPerRow;
-        }
-        g_renderBMPtr[0]++;
-        g_renderBMPtr[1]++;
-
-        if (g_cursorVisible)
-            drawCursor();
-    }
+    if (g_cursorVisible)
+        drawCursor();
 }
 
 void UI_putstr(char *s)
@@ -485,26 +440,9 @@ void UI_endLine (void)
 {
     if (g_renderRTG)
     {
-        UI_flush();
         if (g_cursorVisible)
             drawCursor();
-        WORD cp_x = g_rp->cp_x;
-        WORD cp_y = g_rp->cp_y-g_rp->TxBaseline;
-
-        WORD max_x = (g_curLineStart+g_curLineCols-1)*8+g_OffLeft;
-
-        //LOG_printf (LOG_DEBUG, "UI_endLine: g_curLineStart=%d, g_curLineCols=%d, cp_x=%d, max_x=%d\n", g_curLineStart, g_curLineCols,  cp_x, max_x);
-
-        if (cp_x < max_x)
-        {
-            BYTE FgPen = g_rp->FgPen;
-            BYTE DrawMode = g_rp->DrawMode;
-            SetAPen(g_rp, 0);
-            SetDrMd(g_rp, JAM1);
-            RectFill (g_rp, cp_x, cp_y, max_x, cp_y+g_fontHeight-1);
-            SetAPen(g_rp, FgPen);
-            SetDrMd(g_rp, DrawMode);
-        }
+        BltBitMapRastPort (g_renderBM, 0, 0, g_rp, (g_curLineStart-1)*8, (g_renderBMcurRow-1)*g_fontHeight, g_curLineCols*8, g_fontHeight, 0xc0);
         if (g_cursorVisible)
             drawCursor();
     }
@@ -627,7 +565,6 @@ void UI_runIO (void)
                                 UI_putc(c);
                         }
 					}
-					UI_flush();
 					returnpacket (packet, l, packet->dp_Res2);
 					break;
 				}
@@ -989,6 +926,16 @@ uint16_t UI_waitkey (void)
 
 void UI_deinit(void)
 {
+    if (g_renderBM)
+    {
+        for (uint16_t planeNum = 0; planeNum < BM_DEPTH; planeNum++)
+        {
+            if (g_renderBM->Planes[planeNum])
+                FreeRaster(g_renderBM->Planes[planeNum], g_visWidth, BM_HEIGHT);
+        }
+        FreeMem(g_renderBM, sizeof(struct BitMap));
+    }
+
     if (g_win)
 	{
 		ClearMenuStrip(g_win);
@@ -1002,8 +949,6 @@ void UI_deinit(void)
 		CloseScreen (g_screen);
     if (g_IOport)
         delete_port(g_IOport);
-    if (g_font)
-        CloseFont(g_font);
     if (ConsoleDevice)
         CloseDevice((struct IORequest *)&console_ioreq);
     if (g_termSignalBit != -1)
@@ -1019,84 +964,7 @@ static void updateTerminalSize(void)
 void UI_setFont (int font)
 {
     OPT_prefSetInt (OPT_PREF_FONT, font);
-
-    // load and unpack text font
-
-    if (g_font)
-        CloseFont(g_font);
-    g_font = OpenDiskFont(&g_fontattrs[font]);
-    if (!g_font)
-        cleanexit("Can't open font", RETURN_FAIL);
-    g_fontHeight = g_font->tf_YSize;
-
-    //printf ("UI_setFont font=%d -> g_fontHeight=%d\n", font, g_fontHeight);
-
-    SetFont (g_rp, g_font);
-
-    for (UWORD ci=0; ci<256; ci++)
-        for (UBYTE y=0; y<8; y++)
-            g_fontData[ci][y] = 0;
-
-    UWORD *pCharLoc = g_font->tf_CharLoc;
-#ifdef DEBUG_FONTCONV
-    uint16_t cnt=0;
-#endif
-    for (UBYTE ci=g_font->tf_LoChar; ci<g_font->tf_HiChar; ci++)
-    {
-        UWORD bl = *pCharLoc;
-        UWORD byl = bl / 8;
-        BYTE bitl = bl % 8;
-        pCharLoc++;
-        UWORD bs = *pCharLoc;
-        pCharLoc++;
-#ifdef DEBUG_FONTCONV
-        if (cnt<DEBUG_FONTCONV_NUM)
-            printf ("ci=%d(%c) bl=%d -> byl=%d/bitl=%d, bs=%d\n", ci, ci, bl, byl, bitl, bs);
-#endif
-        if (bs>8)
-            bs = 8;
-        for (UBYTE y=0; y<g_fontHeight; y++)
-        {
-            char *p = g_font->tf_CharData;
-            p += y*g_font->tf_Modulo + byl;
-            BYTE bsc = bs;
-            BYTE bitlc = 7-bitl;
-            for (BYTE x=7; x>=0; x--)
-            {
-                if (*p & (1<<bitlc))
-                {
-                    g_fontData[ci][y] |= (1<<x);
-#ifdef DEBUG_FONTCONV
-                    if (cnt<DEBUG_FONTCONV_NUM)
-                        printf("*");
-#endif
-                }
-                else
-                {
-#ifdef DEBUG_FONTCONV
-                    if (cnt<DEBUG_FONTCONV_NUM)
-                        printf(".");
-#endif
-                }
-                bsc--;
-                if (!bsc)
-                    break;
-                bitlc--;
-                if (bitlc<0)
-                {
-                    bitlc = 7;
-                    p++;
-                }
-            }
-#ifdef DEBUG_FONTCONV
-            if (cnt<DEBUG_FONTCONV_NUM)
-                printf("\n");
-#endif
-        }
-#ifdef DEBUG_FONTCONV
-        cnt++;
-#endif
-    }
+    g_curFont = font;
 
     updateTerminalSize();
     Move (g_rp, 0, 0);
@@ -1134,7 +1002,8 @@ bool UI_init (void)
 	WORD maxW = di.TxtOScan.MaxX - di.TxtOScan.MinX + 1;
 	WORD maxH = di.TxtOScan.MaxY - di.TxtOScan.MinY + 1;
 
-	WORD visWidth = sc->Width > maxW ? maxW : sc->Width;
+	g_visWidth = sc->Width > maxW ? maxW : sc->Width;
+    g_renderBMmaxCols = g_visWidth/8;
 	WORD visHeight = sc->Height > maxH ? maxH : sc->Height;
 
     // open a custom screen that is a clone of the public screen, but has 8 colors and our font
@@ -1142,16 +1011,16 @@ bool UI_init (void)
     UI_theme_t *theme = &g_themes[OPT_prefGetInt (OPT_PREF_COLORSCHEME)];
 
     g_screen = OpenScreenTags(NULL,
-                              SA_Width,      visWidth,
+                              SA_Width,      g_visWidth,
                               SA_Height,     visHeight,
-                              SA_Depth,      3,
+                              SA_Depth,      BM_DEPTH,
                               SA_Overscan,   OSCAN_TEXT,
                               SA_AutoScroll, TRUE,
                               SA_DisplayID,  mid,
                               SA_Title,      (ULONG) (STRPTR) "AQB Screen",
                               SA_Pens,       (ULONG) theme->pens3d,
                               TAG_END);
-    //printf ("visWidth=%d, visHeight=%d\n", visWidth, visHeight);
+    //printf ("g_visWidth=%d, visHeight=%d\n", g_visWidth, visHeight);
     if (!g_screen)
          cleanexit("Can't open screen", RETURN_FAIL);
 
@@ -1159,7 +1028,7 @@ bool UI_init (void)
 
     if (!(g_win = OpenWindowTags(NULL,
                                  WA_Top,           g_screen->BarHeight+1,
-                                 WA_Width,         visWidth,
+                                 WA_Width,         g_visWidth,
                                  WA_Height,        visHeight-g_screen->BarHeight-1,
                                  WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
                                  WA_CustomScreen,  (ULONG) g_screen,
@@ -1194,11 +1063,29 @@ bool UI_init (void)
 
     UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
 
-    if (!g_renderRTG)
+    if (g_renderRTG)
+    {
+        g_renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
+        if (!g_renderBM)
+             cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
+
+        InitBitMap(g_renderBM, BM_DEPTH, g_visWidth, BM_HEIGHT);
+
+        for (uint16_t planeNum = 0; planeNum < BM_DEPTH; planeNum++)
+        {
+            g_renderBM->Planes[planeNum] = g_renderBMPlanes[planeNum] = AllocRaster(g_visWidth, BM_HEIGHT);
+            if (!g_renderBM->Planes[planeNum])
+                cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
+        }
+
+        g_renderBMPtr[0] = g_renderBMPlanes[0];
+        g_renderBMPtr[1] = g_renderBMPlanes[1];
+        g_renderBMBytesPerRow = g_renderBM->BytesPerRow;
+    }
+    else
     {
         g_renderBMPtr[0] = g_renderBMPlanes[0] = g_screen->BitMap.Planes[0];
         g_renderBMPtr[1] = g_renderBMPlanes[1] = g_screen->BitMap.Planes[1];
-        g_renderBMmaxCols = visWidth/8;
         g_renderBMBytesPerRow = g_screen->BitMap.BytesPerRow;
     }
 

@@ -25,7 +25,7 @@ extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct DiskfontBase  *DiskfontBase;
 
-static void dumpFont(char *fontName, uint16_t fontSize, char *varName, FILE *fSrc)
+static void dumpFont(char *fontName, uint16_t fontSize, FILE *fSrc)
 {
     struct TextAttr attr = { (STRPTR)fontName, fontSize, 0, 0 };
 
@@ -103,7 +103,7 @@ static void dumpFont(char *fontName, uint16_t fontSize, char *varName, FILE *fSr
     }
     CloseFont(font);
 
-    fprintf (fSrc, "static UBYTE %s[256][8] = {\n", varName);
+    fprintf (fSrc, "    {\n");
     fprintf (fSrc, "        {");
     BOOL first = TRUE;
     for (UWORD ci=0; ci<256; ci++)
@@ -122,7 +122,7 @@ static void dumpFont(char *fontName, uint16_t fontSize, char *varName, FILE *fSr
             fprintf (fSrc, "}\n");
         first = TRUE;
     }
-    fprintf (fSrc, "    };\n");
+    fprintf (fSrc, "    }");
 }
 
 int main (int argc, char *argv[])
@@ -130,8 +130,11 @@ int main (int argc, char *argv[])
     FILE *fSrc;
 
     fSrc = fopen ("fonts.h", "w");
-    dumpFont ("aqb.font", 6, "g_fontData6px", fSrc);
-    dumpFont ("topaz.font", 8, "g_fontData8px", fSrc);
+    fprintf (fSrc, "static UBYTE g_fontData[2][256][8] = {\n");
+    dumpFont ("aqb.font", 6, fSrc);
+    fprintf (fSrc, ",\n");
+    dumpFont ("aqb.font", 8, fSrc);
+    fprintf (fSrc, "\n};\n");
     fclose (fSrc);
 
     printf ("fonts.h written.\n");
