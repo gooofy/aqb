@@ -42,6 +42,7 @@
 #include "logger.h"
 #include "options.h"
 #include "tui.h"
+#include "amigasupport.h"
 
 //#define LOG_KEY_EVENTS
 
@@ -57,10 +58,6 @@ struct Library              *GadToolsBase;
 struct Device               *ConsoleDevice = NULL;
 
 uint16_t UI_size_cols=80, UI_size_rows=25;
-
-#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
-                    /*(l)->lh_Tail = NULL,*/ \
-                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
 
 static struct NewMenu g_newmenu[] =
     {
@@ -181,42 +178,6 @@ static UI_theme_t g_themes[NUM_THEMES] = {
     },
 };
 
-static struct MsgPort *create_port(STRPTR name, LONG pri)
-{
-    struct MsgPort *port = NULL;
-    UBYTE portsig;
-
-    if ((BYTE)(portsig=AllocSignal(-1)) >= 0)
-    {
-        if (!(port=AllocMem(sizeof(*port),MEMF_CLEAR|MEMF_PUBLIC)))
-        {
-            FreeSignal(portsig);
-        }
-        else
-        {
-            port->mp_Node.ln_Type = NT_MSGPORT;
-            port->mp_Node.ln_Pri  = pri;
-            port->mp_Node.ln_Name = (char *)name;
-            /* done via AllocMem
-            port->mp_Flags        = PA_SIGNAL;
-            */
-            port->mp_SigBit       = portsig;
-            port->mp_SigTask      = FindTask(NULL);
-            NEWLIST(&port->mp_MsgList);
-            if (port->mp_Node.ln_Name)
-                AddPort(port);
-        }
-    }
-    return port;
-}
-
-static void delete_port(struct MsgPort *port)
-{
-    if (port->mp_Node.ln_Name)
-        RemPort(port);
-    FreeSignal(port->mp_SigBit);
-    FreeMem(port,sizeof(*port));
-}
 static void cleanexit (char *s, uint32_t n)
 {
     if (s)
@@ -948,7 +909,7 @@ void UI_deinit(void)
 	if (g_screen)
 		CloseScreen (g_screen);
     if (g_IOport)
-        delete_port(g_IOport);
+        ASUP_delete_port(g_IOport);
     if (ConsoleDevice)
         CloseDevice((struct IORequest *)&console_ioreq);
     if (g_termSignalBit != -1)
@@ -1096,7 +1057,7 @@ bool UI_init (void)
 	if ( !(g_output = AllocMem (sizeof(struct FileHandle), MEMF_CLEAR|MEMF_PUBLIC)) )
 		cleanexit("failed to allocate memory for output file handle", RETURN_FAIL);
 
-	if (!(g_IOport = create_port ((STRPTR) "aqb_io_port", 0)))
+	if (!(g_IOport = ASUP_create_port ((STRPTR) "aqb_io_port", 0)))
 		cleanexit("failed to create i/o port", RETURN_FAIL);
 
 	g_output->fh_Type = g_IOport;

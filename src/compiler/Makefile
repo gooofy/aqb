@@ -21,8 +21,8 @@ $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
 $(OBJDIR_LINUX)/%.o : %.c $(DEPDIR_LINUX)/%.d | $(DEPDIR_LINUX)
 	$(CC_LINUX) -c $(CFLAGS_LINUX) $(DEPFLAGS_LINUX) $< -o $@
 
-${BINDIR_AMIGAOS}/aqb:	$(OBJS_AMIGAOS)
-	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^
+${BINDIR_AMIGAOS}/aqb:	$(OBJS_AMIGAOS) $(SELF_DIR)/src/amigasupport/amigasupport.a
+	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^ $(SELF_DIR)/src/amigasupport/amigasupport.a
 	$(STRIP_AMIGAOS) $@
 	cp $@ $(DISTDIR)
 	rm -f $(DISTDIR)/*.uaem

@@ -40,6 +40,8 @@
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
+#include "amigasupport.h"
+
 #endif
 
 #include "frontend.h"
@@ -79,6 +81,8 @@ static void print_usage(char *argv[])
 
 extern struct WBStartup *_WBenchMsg;
 
+static char aqb_home[PATH_MAX];
+
 static void check_amigaos_env(void)
 {
     /*
@@ -91,24 +95,35 @@ static void check_amigaos_env(void)
         exit(1);
     }
 
-    struct Process *Process;
+    struct Process *aqbProc;
     struct CommandLineInterface *CLI;
     ULONG stack;
 
-    Process = (struct Process *) FindTask (0L);
-    if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+    aqbProc = (struct Process *) FindTask (0L);
+    if ( (CLI = (struct CommandLineInterface *) (aqbProc->pr_CLI << 2)) )
     {
-        stack = CLI -> cli_DefaultStack << 2;
+        stack = CLI->cli_DefaultStack << 2;
     }
     else
     {
-        stack = Process -> pr_StackSize;
+        stack = aqbProc->pr_StackSize;
     }
     if (stack < MIN_STACKSIZE)
     {
         U_request (NULL, NULL, "OK", "stack of %ld bytes is too small, need at least %d bytes.", stack, MIN_STACKSIZE);
         exit(EXIT_FAILURE);
     }
+
+    /*
+     * get home (installation) directory
+     */
+
+    if (!ASUP_NameFromLock(aqbProc->pr_HomeDir, (STRPTR)aqb_home, PATH_MAX))
+    {
+        U_request (NULL, NULL, "OK", "Failed to determine AQB installation dir: %d", IoErr());
+        exit(EXIT_FAILURE);
+    }
+    //printf ("detected aqb_home: %s\n", aqb_home);
 }
 #endif
 
@@ -172,7 +187,13 @@ int main (int argc, char *argv[])
     OPT_init();
 
 #ifdef __amigaos__
-    OPT_addModulePath("PROGDIR:lib");
+    static char aqb_lib[PATH_MAX];
+    strncpy (aqb_lib, aqb_home, PATH_MAX);
+    if (AddPart ((STRPTR) aqb_lib, (STRPTR) "lib", PATH_MAX))
+    {
+        //printf ("aqb_lib: %s\n", aqb_lib);
+        OPT_addModulePath(aqb_lib);
+    }
 #else
     char *aqb_env = getenv ("AQB");
     if (aqb_env)
