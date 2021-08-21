@@ -742,3 +742,39 @@ uint16_t TUI_EZRequest (char *body, char *gadgets)
     return ezreq_result;
 }
 
+/****************************************************************************************
+ **
+ ** Help browser
+ **
+ ****************************************************************************************/
+
+static bool     help_running;
+
+static void helpButtonCB(TUI_widget w, uint32_t user_data)
+{
+    help_running = FALSE;
+}
+
+void TUI_HelpBrowser (void)
+{
+    TUI_window dlg = TUI_Window ("AQB Help Browser", 60, 23);
+
+    TUI_widget label = TUI_Label (2, 2, "HELP TEXT HERE");
+    TUI_addWidget (dlg, label);
+
+    TUI_widget button = TUI_Button (2, 21, 12, "Close", helpButtonCB, 1);
+    TUI_focus (dlg, button);
+    TUI_addWidget (dlg, button);
+
+    TUI_setOKAction (dlg, helpButtonCB, 1);
+
+    TUI_refresh (dlg);
+
+    help_running = TRUE;
+    while (help_running)
+    {
+        uint16_t key = UI_waitkey ();
+        TUI_handleEvent (dlg, key);
+    }
+}
+

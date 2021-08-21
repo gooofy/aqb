@@ -1509,20 +1509,21 @@ static void IDE_exit (IDE_editor ed)
 
 static void show_help(IDE_editor ed)
 {
-    UI_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
-                  "F1     - this help screen\n"
-                  "S-UP   - page up\n"
-                  "S-DOWN - page down\n"
-                  "Ctrl-T - goto top of file\n"
-                  "Ctrl-B - goto end of file\n"
-                  "Ctrl-Y - delete line\n"
-                  "F5     - compile & run\n"
-                  "F7     - compile\n"
-                  "Ctrl-F - find\n"
-                  "Ctrl-N - find next\n"
-                  "Ctrl-M - mark block\n"
-                  "Ctrl-S - save\n"
-                  "Ctrl-C - quit", "Close");
+    UI_HelpBrowser();
+    //UI_EZRequest ("AQB Amiga QuickBasic Compiler IDE\n\nKeyboard shortcuts:\n\n"
+    //              "F1     - this help screen\n"
+    //              "S-UP   - page up\n"
+    //              "S-DOWN - page down\n"
+    //              "Ctrl-T - goto top of file\n"
+    //              "Ctrl-B - goto end of file\n"
+    //              "Ctrl-Y - delete line\n"
+    //              "F5     - compile & run\n"
+    //              "F7     - compile\n"
+    //              "Ctrl-F - find\n"
+    //              "Ctrl-N - find next\n"
+    //              "Ctrl-M - mark block\n"
+    //              "Ctrl-S - save\n"
+    //              "Ctrl-C - quit", "Close");
     invalidateAll (ed);
 }
 

@@ -723,6 +723,10 @@ bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, 
     return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
 }
 
+void UI_HelpBrowser (void)
+{
+    TUI_HelpBrowser();
+}
 typedef enum { esWait, esGet } eventState;
 
 static uint16_t nextEvent(void)

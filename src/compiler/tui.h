@@ -59,7 +59,8 @@ TUI_widget TUI_TextEntry (uint16_t x, uint16_t y, uint16_t w, char *buf, uint16_
  * high-level requesters
  */
 
-bool       TUI_FindReq   (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards);
-uint16_t   TUI_EZRequest (char *body, char *gadgets);
+bool       TUI_FindReq     (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards);
+uint16_t   TUI_EZRequest   (char *body, char *gadgets);
+void       TUI_HelpBrowser (void);
 
 #endif
