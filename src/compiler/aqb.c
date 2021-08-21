@@ -57,7 +57,8 @@ extern struct DOSBase       *DOSBase;
 
 #define VERSION "0.7.0"
 
-#define LOG_SLOWDOWN
+char aqb_home[PATH_MAX];
+char aqb_lib[PATH_MAX];
 
 static void print_usage(char *argv[])
 {
@@ -80,8 +81,6 @@ static void print_usage(char *argv[])
 #define MIN_STACKSIZE 64*1024
 
 extern struct WBStartup *_WBenchMsg;
-
-static char aqb_home[PATH_MAX];
 
 static void check_amigaos_env(void)
 {
@@ -124,6 +123,12 @@ static void check_amigaos_env(void)
         exit(EXIT_FAILURE);
     }
     //printf ("detected aqb_home: %s\n", aqb_home);
+    strncpy (aqb_lib, aqb_home, PATH_MAX);
+    if (!AddPart ((STRPTR) aqb_lib, (STRPTR) "lib", PATH_MAX))
+    {
+        U_request (NULL, NULL, "OK", "Failed to determine AQB library dir: %d", IoErr());
+        exit(EXIT_FAILURE);
+    }
 }
 #endif
 
@@ -178,6 +183,19 @@ int main (int argc, char *argv[])
 
 #ifdef __amigaos__
     check_amigaos_env();
+#else
+    char *aqb_env = getenv ("AQB");
+    if (aqb_env)
+    {
+        strncpy (aqb_home, aqb_env, PATH_MAX);
+        // FIXME: path does not conform to linux fs hier
+        snprintf (aqb_lib, PATH_MAX, "%s/src/lib", aqb_env);
+    }
+    else
+    {
+        fprintf (stderr, "AQB: env var not set.\n\n");
+        exit(EXIT_FAILURE);
+    }
 #endif
 
     U_init();
@@ -186,23 +204,7 @@ int main (int argc, char *argv[])
     E_boot();
     OPT_init();
 
-#ifdef __amigaos__
-    static char aqb_lib[PATH_MAX];
-    strncpy (aqb_lib, aqb_home, PATH_MAX);
-    if (AddPart ((STRPTR) aqb_lib, (STRPTR) "lib", PATH_MAX))
-    {
-        //printf ("aqb_lib: %s\n", aqb_lib);
-        OPT_addModulePath(aqb_lib);
-    }
-#else
-    char *aqb_env = getenv ("AQB");
-    if (aqb_env)
-    {
-        // FIXME: path does not conform to linux fs hier
-        snprintf (symfn, PATH_MAX, "%s/src/lib", aqb_env);
-        OPT_addModulePath(symfn);
-    }
-#endif
+    OPT_addModulePath(aqb_lib);
 
     asm_gas_fn[0]=0;
     asm_asmpro_fn[0]=0;

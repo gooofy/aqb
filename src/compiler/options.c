@@ -5,10 +5,16 @@
 #include "options.h"
 #include "logger.h"
 
-static int  g_opt=0;
+#ifdef __amigaos__
+#include <clib/dos_protos.h>
+#include <inline/dos.h>
+extern struct DOSBase       *DOSBase;
+#endif
+
 static char g_pref_fn[PATH_MAX];
 static int  g_pref_font         = 1;
 static int  g_pref_colorscheme  = 1;
+static int  g_opt=0;
 
 void OPT_set(int opt, bool onoff)
 {
@@ -98,11 +104,22 @@ void OPT_init(void)
     // read prefs from disk
 
 #ifdef __amigaos__
-    snprintf (g_pref_fn, PATH_MAX, "PROGDIR:prefs.ini");
+    strncpy (g_pref_fn, aqb_home, PATH_MAX);
+    AddPart ((STRPTR)g_pref_fn, (STRPTR)"prefs.ini", PATH_MAX);
+    // printf ("aqb_home='%s' aqb_lib='%s' g_pref_fn='%s'\n",
+    //         aqb_home, aqb_lib, g_pref_fn);
+    // for (int i = 0; i<5; i++)
+    //     printf ("%c [%d] ", aqb_home[i], aqb_home[i]);
+    // printf ("\n");
+    // for (int i = 0; i<5; i++)
+    //     printf ("%c [%d] ", g_pref_fn[i], g_pref_fn[i]);
+    // printf ("\n");
 #else
-    char *aqb_env = getenv ("AQB");
-    assert(aqb_env);
-    snprintf (g_pref_fn, PATH_MAX, "%s/prefs.ini", aqb_env);
+    if (snprintf (g_pref_fn, PATH_MAX, "%s/prefs.ini", aqb_home)<0)
+    {
+        fprintf (stderr, "prefs.ini path too long\n");
+        exit(42);
+    }
 #endif
 
     //printf ("options: trying to read prefs from %s\n", g_pref_fn);
@@ -155,5 +172,5 @@ void OPT_init(void)
         }
         fclose(prefFile);
     }
-
+    //printf ("options: read prefs from %s.\n", g_pref_fn);
 }

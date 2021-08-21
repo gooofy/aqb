@@ -2,6 +2,14 @@
 #define HAVE_OPTIONS_H
 
 #include "util.h"
+#include <limits.h>
+
+/*
+ * shell environment
+ */
+
+extern char aqb_home[PATH_MAX];
+extern char aqb_lib[PATH_MAX];
 
 /*
  * command line options

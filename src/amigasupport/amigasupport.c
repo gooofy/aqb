@@ -198,15 +198,17 @@ BOOL ASUP_NameFromLock(BPTR lock, STRPTR buffer, LONG length)
 	struct FileLock *fl = BADDR(mylock);
 	struct DeviceList *dl = BADDR(fl->fl_Volume);
 	char *device_name = BADDR(dl->dl_Name);
+    LONG len = *device_name++;
 	// printf ("ASUP_NameFromLock: device_name=%s\n", device_name);
+    // for (int i=0; i<6; i++)
+    //     printf ("%c [%d]\n", device_name[i], device_name[i]);
 
-    LONG len = strlen(device_name);
     if ((STRPTR)(name-len) < buffer)
     {
 		err = TRUE;
         goto clean_exit;
     }
-    CopyMem (device_name, buffer, len);
+    strncpy ((char *)buffer, device_name, len);
 
 	// move to front
     strcpy ((char *) (buffer+len), name);

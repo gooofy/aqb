@@ -1,6 +1,6 @@
-.PHONY: clean all tests src examples directories
+.PHONY: clean all tests src examples help directories
 
-all: directories src tests examples
+all: directories src tests help examples
 
 src:
 	cd src ; make all
@@ -10,6 +10,9 @@ tests:
 
 examples:
 	cd examples ; make all
+
+help:
+	cd help ; make all
 
 directories:
 	mkdir -p target/m68k-amigaos/bin
@@ -21,4 +24,5 @@ clean:
 	cd src ; make clean
 	cd tests ; make clean
 	cd examples ; make clean
+	cd help ; make clean
 	rm -rf target
