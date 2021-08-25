@@ -46,7 +46,6 @@
 
 //#define LOG_KEY_EVENTS
 
-#define BM_DEPTH  2
 #define BM_HEIGHT 8
 
 extern struct ExecBase      *SysBase;
@@ -86,38 +85,32 @@ static struct NewMenu g_newmenu[] =
 
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
-        {   NM_SUB, (STRPTR) "Super dark",          0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
-        {   NM_SUB, (STRPTR) "Dark blue",           0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
-        {   NM_SUB, (STRPTR) "QB",                  0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_COLORSCHEME_2,},
-        {   NM_SUB, (STRPTR) "TP",                  0 , CHECKIT | MENUTOGGLE,  ~8, (APTR)KEY_COLORSCHEME_3,},
-        {   NM_SUB, (STRPTR) "OS 2.0",              0 , CHECKIT | MENUTOGGLE, ~16, (APTR)KEY_COLORSCHEME_4,},
+        {   NM_SUB, (STRPTR) "Dark",                0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
+        {   NM_SUB, (STRPTR) "Light",               0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
         {  NM_ITEM, (STRPTR) "Font",                0 , 0, 0, 0,},
         {   NM_SUB, (STRPTR) "6",                   0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_0,},
         {   NM_SUB, (STRPTR) "8",                   0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_1,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
-static struct Screen     *g_screen        = NULL;
 static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
 static struct FileHandle *g_output        = NULL;
 static struct MsgPort    *g_IOport        = NULL;
 static struct IOStdReq    console_ioreq;
 static UWORD              g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
-static UWORD              g_BMOffTop          = 0;
 static int                g_termSignalBit     = -1;
 static APTR               g_vi                = NULL;
 static struct Menu       *g_menuStrip         = NULL;
 static UWORD              g_fontHeight        = 8;
 #include "fonts.h"
 static UBYTE              g_curFont           = 1;
-static bool               g_renderRTG         = FALSE;
 static struct BitMap     *g_renderBM;
 static UWORD              g_renderBMBytesPerRow;
-static UBYTE             *g_renderBMPlanes[2] = {NULL, NULL};
-static UBYTE             *g_renderBMPtr[2];
-static bool               g_renderBMPE[2]     = { TRUE, FALSE }; // PE: PlaneEnabled
-static bool               g_renderInverse     = FALSE;
+static UBYTE             *g_renderBMPlanes[3] = {NULL, NULL, NULL};
+static UBYTE             *g_renderBMPtr[3];
+static bool               g_renderBMPE[3]     = { TRUE, FALSE, FALSE }; // PE: PlaneEnabled
+static bool               g_renderBMPEI[3]    = {FALSE, FALSE, FALSE }; // PE: PlaneEnabledInverse
 static uint16_t           g_renderBMcurCol    = 0;
 static uint16_t           g_renderBMcurRow    = 1;
 static uint16_t           g_curLineStart      = 1;
@@ -135,48 +128,32 @@ static uint16_t           g_scrollEnd         = 10;
 static bool               g_cursorVisible     = FALSE;
 static uint16_t           g_cursorRow         = 1;
 static uint16_t           g_cursorCol         = 1;
+static uint16_t           g_theme             = 0;
 
 typedef struct
 {
     char   *name;
-    UWORD   palette[8];
-    WORD    pens3d[10];
+    uint8_t fg[5];
+    uint8_t bg[5];
 } UI_theme_t;
 
-#define NUM_THEMES 5
+#define NUM_THEMES 2
 
 static UI_theme_t g_themes[NUM_THEMES] = {
     {
-        "AQB super dark",
-        { 0x0000, 0x0bbb, 0x05af, 0x006a,  },
-        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
+        "Dark",
+        //  TEXT KEYWORD COMMENT INVERSE DIALOG
+        {      2,      3,      0,      1,     3 },
+        {      1,      1,      1,      0,     1 }
     },
     {
-        "AQB dark blue",
-        { 0x0004, 0x0bbb, 0x05af, 0x006a,  },
-        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
-    },
-    {
-        "QB",
-        { 0x000a, 0x0ddd, 0x09ce, 0x059a },
-        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
-    },
-    {
-        "TP",
-        { 0x000a, 0x0ee0, 0x09ce, 0x059a },
-        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
-    },
-    {
-        "OS 2.0",
-        { 0x0aaa, 0x0000, 0x0fff, 0x047a},
-        // DETAILPEN, BLOCKPEN, TEXTPEN, SHINEPEN, SHADOWPEN, FILLPEN, FILLTEXTPEN, BACKGROUNDPEN, HIGHLIGHTTEXTPEN
-        {          0,        1,       1,        2,         3,       0,           0,             0,                2, -1},
+        "Light",
+        //  TEXT KEYWORD COMMENT INVERSE DIALOG
+        {      1,      2,      3,      0,     2 },
+        {      0,      0,      0,      1,     0 }
     },
 };
+
 
 static void cleanexit (char *s, uint32_t n)
 {
@@ -200,32 +177,38 @@ static void drawCursor(void)
     SetDrMd (g_rp, DrawMode);
 }
 
-static void setTextColor (uint16_t color, BOOL inverse)
+static void setTextColor (uint8_t fg, uint8_t bg)
 {
-    switch (color)
+    switch (fg)
     {
-        case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; break;
-        case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; break;
-        case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; break;
-        case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; break;
+        case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] = FALSE; break;
+        case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] = FALSE; break;
+        case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] = FALSE; break;
+        case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] = FALSE; break;
+        case 4: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] =  TRUE; break;
+        case 5: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] =  TRUE; break;
+        case 6: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] =  TRUE; break;
+        case 7: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] =  TRUE; break;
         default: assert(FALSE);
     }
-    g_renderInverse = inverse;
+
+    switch (bg)
+    {
+        case 0: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] = FALSE; break;
+        case 1: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] = FALSE; break;
+        case 2: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] = FALSE; break;
+        case 3: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] = FALSE; break;
+        case 4: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] =  TRUE; break;
+        case 5: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] =  TRUE; break;
+        case 6: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] =  TRUE; break;
+        case 7: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] =  TRUE; break;
+        default: assert(FALSE);
+    }
 }
 
 void UI_setTextStyle (uint16_t style)
 {
-    switch (style)
-    {
-        case UI_TEXT_STYLE_TEXT     : setTextColor (1, FALSE); break;
-        case UI_TEXT_STYLE_KEYWORD  : setTextColor (2, FALSE); break;
-        case UI_TEXT_STYLE_COMMENT  : setTextColor (3, FALSE); break;
-        case UI_TEXT_STYLE_INVERSE  : setTextColor (1,  TRUE); break;
-        case UI_TEXT_STYLE_DIALOG   : setTextColor (3,  TRUE); break;
-        default:
-            printf ("UI style %d is unknown.\n", style);
-            assert(FALSE);
-    }
+    setTextColor (g_themes[g_theme].fg[style], g_themes[g_theme].bg[style]);
 }
 
 void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
@@ -236,27 +219,15 @@ void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
     g_curLineStart = col_start;
     g_curLineCols  = cols;
     //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine g_curLineCols=%d\n", g_curLineCols);
-    if (!g_renderRTG && g_cursorVisible)
-        drawCursor();
     g_renderBMcurCol = col_start-1;
     g_renderBMcurRow = row;
-    if (g_renderRTG)
-    {
-        g_renderBMPtr[0] = g_renderBMPlanes[0];
-        g_renderBMPtr[1] = g_renderBMPlanes[1];
-    }
-    else
-    {
-        g_renderBMPtr[0] = g_renderBMPlanes[0] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1);
-        g_renderBMPtr[1] = g_renderBMPlanes[1] + ((row-1) * g_fontHeight + g_BMOffTop) * g_renderBMBytesPerRow + (col_start-1);
-    }
+    for (uint8_t d = 0; d<g_renderBM->Depth; d++)
+        g_renderBMPtr[d] = g_renderBMPlanes[d];
     for (uint16_t r = 0; r<g_fontHeight; r++)
     {
-        memset (g_renderBMPtr[0] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
-        memset (g_renderBMPtr[1] + r*g_renderBMBytesPerRow, g_renderInverse ? 0xFF : 0x00, g_curLineCols);
+        for (uint16_t d = 0; d<g_renderBM->Depth; d++)
+            memset (g_renderBMPtr[d] + r*g_renderBMBytesPerRow, g_renderBMPEI[d] ? 0xff : 0x00, g_curLineCols);
     }
-    if (!g_renderRTG && g_cursorVisible)
-        drawCursor();
 }
 
 #define CSI_BUF_LEN 16
@@ -310,7 +281,7 @@ void UI_putc(char c)
                         switch (csiBuf[0])
                         {
                             case '0':
-                               setTextColor (1, FALSE);
+                               setTextColor (g_themes[g_theme].fg[0], g_themes[g_theme].bg[0]);
                                break;
                         }
                     }
@@ -322,14 +293,14 @@ void UI_putc(char c)
                             //printf ("setting color %d\n", color);
                             switch (color)
                             {
-                                case 30: setTextColor (0, FALSE); break;
-                                case 31: setTextColor (1, FALSE); break;
-                                case 32: setTextColor (2, FALSE); break;
-                                case 33: setTextColor (3, FALSE); break;
-                                case 34: setTextColor (0, FALSE); break;
-                                case 35: setTextColor (1, FALSE); break;
-                                case 36: setTextColor (2, FALSE); break;
-                                case 37: setTextColor (3, FALSE); break;
+                                case 30: setTextColor (0, g_themes[g_theme].bg[0]); break;
+                                case 31: setTextColor (1, g_themes[g_theme].bg[0]); break;
+                                case 32: setTextColor (2, g_themes[g_theme].bg[0]); break;
+                                case 33: setTextColor (3, g_themes[g_theme].bg[0]); break;
+                                case 34: setTextColor (0, g_themes[g_theme].bg[0]); break;
+                                case 35: setTextColor (1, g_themes[g_theme].bg[0]); break;
+                                case 36: setTextColor (2, g_themes[g_theme].bg[0]); break;
+                                case 37: setTextColor (3, g_themes[g_theme].bg[0]); break;
                             }
                         }
                     }
@@ -356,21 +327,24 @@ void UI_putc(char c)
     //printf ("painting char %d (%c)\n", c, c);
 
     UBYTE ci = c;
-    UBYTE *dst0 = g_renderBMPtr[0];
-    UBYTE *dst1 = g_renderBMPtr[1];
+    UBYTE *dst[3];
+    for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
+        dst[planeNum] = g_renderBMPtr[planeNum];
+
     //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
     for (UBYTE y=0; y<g_fontHeight; y++)
     {
         UBYTE fd = g_fontData[g_curFont][ci][y];
-        if (g_renderInverse)
-            fd = ~fd;
-        *dst0 = g_renderBMPE[0] ? fd : 0;
-        *dst1 = g_renderBMPE[1] ? fd : 0;
-        dst0 += g_renderBMBytesPerRow;
-        dst1 += g_renderBMBytesPerRow;
+        for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
+        {
+            *dst[planeNum]  = g_renderBMPE[planeNum] ? fd : 0;
+            if (g_renderBMPEI[planeNum])
+                *dst[planeNum] |= ~fd;
+            dst[planeNum] += g_renderBMBytesPerRow;
+        }
     }
-    g_renderBMPtr[0]++;
-    g_renderBMPtr[1]++;
+    for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
+        g_renderBMPtr[planeNum]++;
 
     if (g_cursorVisible)
         drawCursor();
@@ -399,14 +373,11 @@ void UI_vprintf (char* format, va_list args)
 
 void UI_endLine (void)
 {
-    if (g_renderRTG)
-    {
-        if (g_cursorVisible)
-            drawCursor();
-        BltBitMapRastPort (g_renderBM, 0, 0, g_rp, (g_curLineStart-1)*8, (g_renderBMcurRow-1)*g_fontHeight, g_curLineCols*8, g_fontHeight, 0xc0);
-        if (g_cursorVisible)
-            drawCursor();
-    }
+    if (g_cursorVisible)
+        drawCursor();
+    BltBitMapRastPort (g_renderBM, 0, 0, g_rp, (g_curLineStart-1)*8+g_OffLeft, (g_renderBMcurRow-1)*g_fontHeight+g_OffTop, g_curLineCols*8, g_fontHeight, 0xc0);
+    if (g_cursorVisible)
+        drawCursor();
 }
 
 void UI_setCursorVisible (bool visible)
@@ -543,36 +514,27 @@ void UI_runIO (void)
         }
 	}
     if (haveLine)
-        UI_endLine   ();
+        UI_endLine ();
 }
 
 void UI_bell (void)
 {
-    DisplayBeep (g_screen);
+    DisplayBeep (NULL);
 }
 
 void UI_eraseDisplay (void)
 {
-    Move (g_rp, 0, 0);
-    ClearScreen(g_rp);
+    SetAPen(g_rp, g_themes[g_theme].bg[0]);
+    SetBPen(g_rp, g_themes[g_theme].bg[0]);
+    SetDrMd(g_rp, JAM1);
+    RectFill (g_rp, g_OffLeft, g_OffTop, g_win->Width-g_OffRight-1, g_win->Height-g_OffBottom-1);
 }
 
-void UI_setColorScheme (int scheme)
+void UI_setColorScheme (int theme)
 {
-    //LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", scheme);
-    OPT_prefSetInt (OPT_PREF_COLORSCHEME, scheme);
-    if (g_screen)
-    {
-        UI_theme_t *theme = &g_themes[scheme];
-        for (uint16_t i=0; i<8; i++)
-        {
-            UBYTE r = theme->palette[i]>>8;
-            UBYTE g = (theme->palette[i]>>4) & 0xf;
-            UBYTE b = theme->palette[i] & 0xf;
-            // LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d): %d -> %d/%d/%d\n", scheme, i, r, g, b);
-            SetRGB4 (&g_screen->ViewPort, i, r, g, b);
-        }
-    }
+    //LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", theme);
+    OPT_prefSetInt (OPT_PREF_COLORSCHEME, theme);
+    g_theme = theme;
 }
 
 void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
@@ -588,10 +550,8 @@ void UI_scrollUp (bool fullscreen)
     WORD min_x = g_OffLeft;
     WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
     WORD max_x = g_win->Width - g_OffRight-1;
-    WORD max_y = fullscreen ? g_win->Height-1 : g_scrollEnd*g_fontHeight-1;
+    WORD max_y = fullscreen ? g_win->Height-g_OffBottom-1 : g_OffTop + g_scrollEnd*g_fontHeight-1;
 #if 0
-    printf ("ScrollRaster g_screen: %d x %d, rows=%d\n", g_screen->Width, g_screen->Height, g_screen->BitMap.Rows);
-    printf ("ScrollRaster ViewPort: %d x %d\n", g_screen->ViewPort.DWidth, g_screen->ViewPort.DHeight);
     printf ("ScrollRaster g_win: (%d/%d)-(%d/%d)\n", g_win->LeftEdge, g_win->TopEdge, g_win->Width, g_win->Height);
     printf ("ScrollRaster (%d/%d)-(%d/%d) g_scrollStart=%d, g_scrollEnd=%d\n", min_x, min_y, max_x, max_y, g_scrollStart, g_scrollEnd);
     if (fullscreen)
@@ -729,6 +689,19 @@ void UI_HelpBrowser (void)
 }
 typedef enum { esWait, esGet } eventState;
 
+static void updateWindowSize(void)
+{
+    g_OffLeft   = g_win->BorderLeft;
+    g_OffRight  = g_win->BorderRight;
+    g_OffTop    = g_win->BorderTop;
+    g_OffBottom = g_win->BorderBottom;
+    g_renderBMmaxCols = (g_win->Width - g_OffLeft - g_OffRight) /8;
+    UI_size_cols = (g_win->Width  - g_OffLeft - g_OffRight) / 8;
+    UI_size_rows = (g_win->Height - g_OffTop  - g_OffBottom) / g_fontHeight;
+    // printf ("updateWindowSize: g_OffLeft=%d, g_OffRight=%d, g_OffTop=%d, g_OffBottom=%d, g_renderBMmaxCols=%d\n",
+    //         g_OffLeft, g_OffRight, g_OffTop, g_OffBottom, g_renderBMmaxCols);
+}
+
 static uint16_t nextEvent(void)
 {
     static eventState state = esWait;
@@ -758,8 +731,18 @@ static uint16_t nextEvent(void)
                     switch (winmsg->Class)
 				    {
                         case IDCMP_CLOSEWINDOW:
-                            res = KEY_CLOSE;
+                            res = KEY_QUIT;
 				    		break;
+
+                        case IDCMP_REFRESHWINDOW:
+                            res = KEY_REFRESH;
+				    		break;
+
+                        case IDCMP_NEWSIZE:
+                            updateWindowSize();
+                            if (g_size_cb)
+                                g_size_cb (g_size_cb_user_data);
+                            break;
 
 				    	case IDCMP_MENUPICK:
 				    	{
@@ -893,7 +876,7 @@ void UI_deinit(void)
 {
     if (g_renderBM)
     {
-        for (uint16_t planeNum = 0; planeNum < BM_DEPTH; planeNum++)
+        for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
         {
             if (g_renderBM->Planes[planeNum])
                 FreeRaster(g_renderBM->Planes[planeNum], g_visWidth, BM_HEIGHT);
@@ -910,8 +893,6 @@ void UI_deinit(void)
 	}
 	if (g_vi)
 		FreeVisualInfo(g_vi);
-	if (g_screen)
-		CloseScreen (g_screen);
     if (g_IOport)
         ASUP_delete_port(g_IOport);
     if (ConsoleDevice)
@@ -920,20 +901,14 @@ void UI_deinit(void)
         FreeSignal (g_termSignalBit);
 }
 
-static void updateTerminalSize(void)
-{
-    UI_size_cols = (g_win->Width  - g_OffLeft - g_OffRight) / 8;
-    UI_size_rows = (g_win->Height - g_OffTop  - g_OffBottom) / g_fontHeight;
-}
-
 void UI_setFont (int font)
 {
     OPT_prefSetInt (OPT_PREF_FONT, font);
     g_curFont = font;
+    g_fontHeight = font ? 8 : 6;
 
-    updateTerminalSize();
-    Move (g_rp, 0, 0);
-    ClearScreen(g_rp);
+    updateWindowSize();
+    UI_eraseDisplay();
 }
 
 bool UI_init (void)
@@ -968,59 +943,34 @@ bool UI_init (void)
 	WORD maxH = di.TxtOScan.MaxY - di.TxtOScan.MinY + 1;
 
 	g_visWidth = sc->Width > maxW ? maxW : sc->Width;
-    g_renderBMmaxCols = g_visWidth/8;
 	WORD visHeight = sc->Height > maxH ? maxH : sc->Height;
 
-    // open a custom screen that is a clone of the public screen, but has 8 colors and our font
-
-    UI_theme_t *theme = &g_themes[OPT_prefGetInt (OPT_PREF_COLORSCHEME)];
-
-    g_screen = OpenScreenTags(NULL,
-                              SA_Width,      g_visWidth,
-                              SA_Height,     visHeight,
-                              SA_Depth,      BM_DEPTH,
-                              SA_Overscan,   OSCAN_TEXT,
-                              SA_AutoScroll, TRUE,
-                              SA_DisplayID,  mid,
-                              SA_Title,      (ULONG) (STRPTR) "AQB Screen",
-                              SA_Pens,       (ULONG) theme->pens3d,
-                              TAG_END);
-    //printf ("g_visWidth=%d, visHeight=%d\n", g_visWidth, visHeight);
-    if (!g_screen)
-         cleanexit("Can't open screen", RETURN_FAIL);
-
-    UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
-
+    // open a full screen window
     if (!(g_win = OpenWindowTags(NULL,
-                                 WA_Top,           g_screen->BarHeight+1,
+                                 WA_Top,           sc->BarHeight+1,
                                  WA_Width,         g_visWidth,
-                                 WA_Height,        visHeight-g_screen->BarHeight-1,
-                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY,
-                                 WA_CustomScreen,  (ULONG) g_screen,
-                                 WA_Backdrop,      TRUE,
+                                 WA_Height,        visHeight-sc->BarHeight-1,
+                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_REFRESHWINDOW | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE,
+                                 WA_Backdrop,      FALSE,
                                  WA_SimpleRefresh, TRUE,
                                  WA_Activate,      TRUE,
-                                 WA_Borderless,    TRUE)))
+                                 WA_Borderless,    FALSE,
+                                 WA_SizeGadget,    TRUE,
+                                 WA_DragBar,       TRUE,
+                                 WA_DepthGadget,   TRUE,
+                                 WA_CloseGadget,   TRUE,
+                                 WA_Title,         (LONG)"AQB",
+                                 WA_MinWidth,      240,
+                                 WA_MinHeight,     100,
+                                 WA_MaxWidth,      g_visWidth,
+                                 WA_MaxHeight,     visHeight)))
          cleanexit("Can't open window", RETURN_FAIL);
 
-    g_OffLeft   = 0;
-    g_OffRight  = 0;
-    g_OffTop    = 0;
-    g_BMOffTop  = g_screen->BarHeight+1;
-    g_OffBottom = 0;
 
-    // detect RTG screen
+    UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
 
-    if ( ((struct Library *)GfxBase)->lib_Version >= 39)
-    {
-        ULONG attr = GetBitMapAttr(&g_screen->BitMap, BMA_FLAGS);
-        //printf ("screen bitmap attrs: 0x%08lx BMF_STANDARD=0x%08lx\n", attr, BMF_STANDARD);
-        if (!(attr & BMF_STANDARD))
-        {
-            //printf ("RTG screen detected.\n");
-            g_renderRTG = TRUE;
-        }
-    }
+    updateWindowSize();
 
     UnlockPubScreen(NULL, sc);
 
@@ -1028,31 +978,22 @@ bool UI_init (void)
 
     UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
 
-    if (g_renderRTG)
+    g_renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
+    if (!g_renderBM)
+         cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
+
+    uint8_t depth = sc->BitMap.Depth > 3 ? 3 : sc->BitMap.Depth;
+
+    InitBitMap(g_renderBM, depth, g_visWidth, BM_HEIGHT);
+
+    for (uint8_t planeNum = 0; planeNum < depth; planeNum++)
     {
-        g_renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
-        if (!g_renderBM)
-             cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
-
-        InitBitMap(g_renderBM, BM_DEPTH, g_visWidth, BM_HEIGHT);
-
-        for (uint16_t planeNum = 0; planeNum < BM_DEPTH; planeNum++)
-        {
-            g_renderBM->Planes[planeNum] = g_renderBMPlanes[planeNum] = AllocRaster(g_visWidth, BM_HEIGHT);
-            if (!g_renderBM->Planes[planeNum])
-                cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
-        }
-
-        g_renderBMPtr[0] = g_renderBMPlanes[0];
-        g_renderBMPtr[1] = g_renderBMPlanes[1];
-        g_renderBMBytesPerRow = g_renderBM->BytesPerRow;
+        g_renderBMPtr[planeNum] = g_renderBM->Planes[planeNum] = g_renderBMPlanes[planeNum] = AllocRaster(g_visWidth, BM_HEIGHT);
+        if (!g_renderBM->Planes[planeNum])
+            cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
     }
-    else
-    {
-        g_renderBMPtr[0] = g_renderBMPlanes[0] = g_screen->BitMap.Planes[0];
-        g_renderBMPtr[1] = g_renderBMPlanes[1] = g_screen->BitMap.Planes[1];
-        g_renderBMBytesPerRow = g_screen->BitMap.BytesPerRow;
-    }
+
+    g_renderBMBytesPerRow = g_renderBM->BytesPerRow;
 
     UI_beginLine (1, 1, UI_size_cols);
 
@@ -1109,7 +1050,7 @@ void UI_run (void)
     while (running)
     {
         uint16_t key = nextEvent();
-        if (key == KEY_CLOSE)
+        if (key == KEY_QUIT)
             running = FALSE;
         else
             report_key (key);

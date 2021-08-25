@@ -1346,12 +1346,13 @@ static void killLine (IDE_editor ed)
     if (ed->editing)
         cl = commitBuf (ed);
 
+    unfoldCursorLine(ed);
     if (ed->cursor_col > nl->len)
         ed->cursor_col = nl->len;
 
     ed->cursor_line = nl;
-    if (nl->folded)
-        fold (ed, nl);
+    //if (nl->folded)
+    //    fold (ed, nl);
 
     deleteLine (ed, cl);
     indentSuccLines (ed, nl->prev ? nl->prev : nl);
@@ -1900,10 +1901,10 @@ static void IDE_load_FileReq (IDE_editor ed)
 static void size_cb (void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
-    invalidateAll (ed);
     initWindowSize (ed);
     invalidateAll (ed);
     scroll(ed);
+    UI_eraseDisplay();
     repaint(ed);
 }
 
@@ -1917,6 +1918,11 @@ static void key_cb (uint16_t key, void *user_data)
         case KEY_CTRL_Q:
         case KEY_QUIT:
             IDE_exit(ed);
+            break;
+
+        case KEY_REFRESH:
+            invalidateAll (ed);
+            break;
 
         case KEY_CTRL_Y:
             killLine(ed);

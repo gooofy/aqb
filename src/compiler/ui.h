@@ -48,7 +48,7 @@
 #define KEY_F9             1018
 #define KEY_F10            1019
 #define KEY_HELP           1020
-#define KEY_CLOSE          1021
+#define KEY_REFRESH        1021
 #define KEY_GOTO_EOF       1022
 #define KEY_GOTO_BOF       1023
 #define KEY_COLORSCHEME_0  1024
