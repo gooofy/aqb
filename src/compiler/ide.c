@@ -1582,19 +1582,23 @@ static void compileAndRun(IDE_editor ed)
     bool changed = ed->changed || !strlen (ed->sourcefn) || !strlen(ed->binfn);
     if (!changed)
     {
+        //printf ("!changed sourcefn=%s binfn=%s\n", ed->sourcefn, ed->binfn);
         struct stat srcstat, binstat;
         if (stat (ed->sourcefn, &srcstat))
         {
+            //printf ("!stat\n");
             changed = TRUE;
         }
         else
         {
             if (stat (ed->binfn, &binstat))
             {
+                //printf ("!stat bin\n");
                 changed = TRUE;
             }
             else
             {
+                //printf ("!stat mtime: binstat.st_mtime=%ld <? srcstat.st_mtime=%ld\n", binstat.st_mtime, srcstat.st_mtime);
                 changed = binstat.st_mtime < srcstat.st_mtime;
             }
         }
