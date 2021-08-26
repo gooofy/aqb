@@ -816,10 +816,10 @@ static bool cursorUp(IDE_editor ed)
 
     if (pl->folded)
     {
-        do
+        while (pl->prev && !pl->fold_start)
         {
             pl = pl->prev;
-        } while (pl && !pl->fold_start);
+        };
     }
     ed->cursor_line = pl;
     ed->cursor_a_line = pl->a_line;
@@ -983,16 +983,21 @@ static void fold (IDE_editor ed, IDE_line cl)
     invalidateAll(ed);
 }
 
-static void unfoldCursorLine(IDE_editor ed)
+static void unfoldLine (IDE_editor ed, IDE_line l)
 {
-    if (ed->cursor_line->folded)
+    if (l->folded)
     {
-        IDE_line fs = ed->cursor_line;
+        IDE_line fs = l;
         while (fs && !fs->fold_start)
             fs = fs->prev;
         if (fs)
             fold(ed, fs);
     }
+}
+
+static void unfoldCursorLine(IDE_editor ed)
+{
+    unfoldLine (ed, ed->cursor_line);
 }
 
 static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
@@ -1268,6 +1273,7 @@ static void backspaceKey (IDE_editor ed)
         if (ed->editing)
             cl = commitBuf (ed);
         IDE_line pl = cl->prev;
+        unfoldLine (ed, pl);
         line2buf (ed, pl);
         ed->cursor_col = ed->buf_len;
         ed->cursor_line = pl;
