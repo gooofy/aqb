@@ -707,10 +707,10 @@ uint16_t TUI_EZRequest (char *body, char *gadgets)
             uint16_t w = strlen(s);
 
             TUI_widget button = TUI_Button (x+gadget_width/2-(w+2)/2, cnt_lines+3, w+2, s, ezButtonCB, ezWidgetCode(i));
+            TUI_addWidget (dlg, button);
             if (i==0)
                 TUI_focus (dlg, button);
             i++;
-            TUI_addWidget (dlg, button);
             c++;
             s=c;
             x+=gadget_width;
