@@ -966,7 +966,12 @@ static void fold (IDE_editor ed, IDE_line cl)
         return;
 
     if (ed->editing)
-        cl = commitBuf (ed);
+    {
+        bool clIsCursorLine = cl == ed->cursor_line;
+        IDE_line cl2 = commitBuf (ed);
+        if (clIsCursorLine)
+            cl = cl2;
+    }
 
     IDE_line fl = cl; // remember fold start
 
@@ -1274,6 +1279,7 @@ static void backspaceKey (IDE_editor ed)
             cl = commitBuf (ed);
         IDE_line pl = cl->prev;
         unfoldLine (ed, pl);
+        unfoldLine (ed, cl);
         line2buf (ed, pl);
         ed->cursor_col = ed->buf_len;
         ed->cursor_line = pl;
@@ -1316,6 +1322,9 @@ static void deleteKey (IDE_editor ed)
         if (!ed->cursor_line->next)
             return;
         IDE_line cl = ed->cursor_line;
+        unfoldLine(ed, cl);
+        unfoldLine(ed, cl->next);
+
         if (!ed->editing)
             line2buf (ed, ed->cursor_line);
 
