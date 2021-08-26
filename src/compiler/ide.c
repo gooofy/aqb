@@ -878,6 +878,8 @@ static bool cursorLeft(IDE_editor ed)
 static bool cursorRight(IDE_editor ed)
 {
     int len = ed->editing ? ed->buf_len : ed->cursor_line->len + INDENT_SPACES * ed->cursor_line->indent;
+    if (ed->cursor_line->folded)
+        len += 1;
     if (ed->cursor_col >= len)
         return FALSE;
 
@@ -1216,6 +1218,8 @@ static void enterKey (IDE_editor ed)
 {
     // split line ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
+    if (ed->cursor_line->folded)
+        l++;
     if (ed->cursor_col < l)
     {
         if (!ed->editing)
@@ -1238,6 +1242,8 @@ static void enterKey (IDE_editor ed)
         if (ed->editing)
             ed->cursor_line = commitBuf (ed);
         ed->buf_len = 0;
+        while (ed->cursor_line->folded && ed->cursor_line->next && ed->cursor_line->next->folded)
+            ed->cursor_line = ed->cursor_line->next;
     }
 
     IDE_line line = buf2line (ed);
