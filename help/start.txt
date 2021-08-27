@@ -15,3 +15,5 @@ Ctrl-N - find next
 Ctrl-M - mark block
 Ctrl-S - save
 Ctrl-C - quit
+
+@{"This is a link" foo}

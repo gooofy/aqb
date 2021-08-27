@@ -59,6 +59,7 @@ extern struct DOSBase       *DOSBase;
 
 char aqb_home[PATH_MAX];
 char aqb_lib[PATH_MAX];
+char aqb_help[PATH_MAX];
 
 static void print_usage(char *argv[])
 {
@@ -127,6 +128,12 @@ static void check_amigaos_env(void)
     if (!AddPart ((STRPTR) aqb_lib, (STRPTR) "lib", PATH_MAX))
     {
         U_request (NULL, NULL, "OK", "Failed to determine AQB library dir: %d", IoErr());
+        exit(EXIT_FAILURE);
+    }
+    strncpy (aqb_help, aqb_home, PATH_MAX);
+    if (!AddPart ((STRPTR) aqb_help, (STRPTR) "help", PATH_MAX))
+    {
+        U_request (NULL, NULL, "OK", "Failed to determine AQB help dir: %d", IoErr());
         exit(EXIT_FAILURE);
     }
 }

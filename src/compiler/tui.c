@@ -1,8 +1,11 @@
 #include <string.h>
+#include <limits.h>
 
 #include "tui.h"
 #include "ui.h"
 #include "logger.h"
+#include "options.h"
+#include "util.h"
 
 TUI_window TUI_Window (char *title, uint16_t w, uint16_t h)
 {
@@ -748,11 +751,64 @@ uint16_t TUI_EZRequest (char *body, char *gadgets)
  **
  ****************************************************************************************/
 
-static bool     help_running;
+static bool help_running;
 
 static void helpButtonCB(TUI_widget w, uint32_t user_data)
 {
     help_running = FALSE;
+}
+
+#define MAX_HELP_LINE_LEN 60
+
+static bool helpLoadNode (char *node)
+{
+    static char helpfn[PATH_MAX];
+    if (snprintf (helpfn, PATH_MAX, "%s/%s.txt", aqb_help, node)<0)
+    {
+        LOG_printf (LOG_ERROR, "Failed to compose help file path for node '%s'\n", node);
+        return FALSE;
+    }
+
+    FILE *helpf = fopen(helpfn, "r");
+    if (!helpf)
+    {
+        LOG_printf (LOG_ERROR, "Failed to open help file: %s\n", helpfn);
+        TUI_EZRequest ("Failed to open help file", "OK");
+        return FALSE;
+    }
+
+    bool eof = FALSE;
+    bool eol = FALSE;
+    char buf[MAX_HELP_LINE_LEN+1];
+    uint16_t bufl=0;
+    while (!eof)
+    {
+        char ch;
+        int n = fread (&ch, 1, 1, helpf);
+        if (n==1)
+        {
+            buf[bufl] = ch;
+            if ( (bufl==MAX_HELP_LINE_LEN-1) || (ch==10)  )
+                eol = TRUE;
+            else
+                bufl++;
+        }
+        else
+        {
+            eof = TRUE;
+        }
+        if (eol || eof)
+        {
+            buf[bufl] = 0;
+            printf ("HELP: %s\n", buf);
+            eol = FALSE;
+            bufl = 0;
+        }
+
+    }
+
+    fclose(helpf);
+    return TRUE;
 }
 
 void TUI_HelpBrowser (void)
@@ -767,6 +823,9 @@ void TUI_HelpBrowser (void)
     TUI_focus (dlg, button);
 
     TUI_setOKAction (dlg, helpButtonCB, 1);
+
+    helpLoadNode("start");
+    //helpRenderNode(0);
 
     TUI_refresh (dlg);
 
