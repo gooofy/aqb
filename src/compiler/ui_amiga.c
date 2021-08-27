@@ -149,8 +149,8 @@ static UI_theme_t g_themes[NUM_THEMES] = {
     {
         "Light",
         //  TEXT KEYWORD COMMENT INVERSE DIALOG
-        {      1,      2,      3,      0,     2 },
-        {      0,      0,      0,      1,     0 }
+        {      1,      2,      3,      0,     0 },
+        {      0,      0,      0,      1,     3 }
     },
 };
 
@@ -656,7 +656,7 @@ char *UI_FileReq (char *title)
 
 	if (fr = (struct FileRequester *) AllocAslRequestTags(ASL_FileRequest,
 			                                              ASL_Hail,      (ULONG)title,
-			                                              ASL_Dir,       (ULONG)"aqb:",
+			                                              ASL_Dir,       (ULONG)aqb_home,
 			                                              ASL_File,      (ULONG)"",
 														  ASL_Pattern,   (ULONG)"#?.bas",
 														  ASL_FuncFlags, FILF_PATGAD,

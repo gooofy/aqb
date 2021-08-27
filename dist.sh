@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION=0.7.0alpha1
+LHA=aqb-${VERSION}.lha
 WORKDIR=target/m68k-amigaos/dist
 
 rm -rf ${WORKDIR}/aqb
@@ -34,9 +36,11 @@ for EX in examples/demo/*.bas ; do
     cp dist/amiga/Icons/`basename $EX`.info ${WORKDIR}/aqb/examples/demo/
 done
 
+cp -r help ${WORKDIR}/aqb/
+
 pushd ${WORKDIR}
-lha a aqb.lha aqb.info aqb
-cp aqb.lha /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
+lha a ${LHA} aqb.info aqb
+cp ${LHA} /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/
 popd
 
 #sudo cp -r Fonts/aqb /mnt/amiga/Fonts/

@@ -13,7 +13,7 @@ extern struct DOSBase       *DOSBase;
 
 static char g_pref_fn[PATH_MAX];
 static int  g_pref_font         = 1;
-static int  g_pref_colorscheme  = 1;
+static int  g_pref_colorscheme  = 0;
 static int  g_opt=0;
 
 void OPT_set(int opt, bool onoff)
