@@ -1,5 +1,7 @@
 # AQB: Amiga QuickBasic Compiler
 
+![AQB IDE Screenshot](doc/screenshot.png?raw=true "AQB IDE")
+
 An experiment in alternate history: what AmigaBASIC could have looked like, had it been developed further
 tailored to the Amiga OS.
 
@@ -10,6 +12,10 @@ Improvements over AmigaBASIC include:
 * Module support (similar to UNITs in TurboPascal, with full type safety and dependencies)
 * Modern syntax inspired by FreeBASIC and VisualBASIC
 * True native 68k compiler
+* Integrated IDE besides compiler command line interface with
+    * syntax highlighting
+    * auto-indent
+    * folding support
 
 [AQB Command Reference](doc/ref.adoc)
 
