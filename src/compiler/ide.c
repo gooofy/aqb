@@ -1525,6 +1525,7 @@ static void IDE_exit (IDE_editor ed)
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
             IDE_save(ed, /*save_as=*/FALSE);
     }
+    UI_setCursorVisible(TRUE);
     LOG_printf (LOG_DEBUG, "ide: IDE_exit -> exit(0)\n");
     exit(0);
 }

@@ -1027,9 +1027,9 @@ bool UI_init (void)
 	if (!SetMenuStrip(g_win, g_menuStrip))
 		cleanexit("failed to set menu strip", RETURN_FAIL);
 
-    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
+    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/3, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
     item->Flags |= CHECKED;
-    item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/2, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
+    item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/3, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
     item->Flags |= CHECKED;
 
 	return TRUE;
