@@ -763,8 +763,8 @@ void TUI_HelpBrowser (void)
     TUI_addWidget (dlg, label);
 
     TUI_widget button = TUI_Button (2, 21, 12, "Close", helpButtonCB, 1);
-    TUI_focus (dlg, button);
     TUI_addWidget (dlg, button);
+    TUI_focus (dlg, button);
 
     TUI_setOKAction (dlg, helpButtonCB, 1);
 

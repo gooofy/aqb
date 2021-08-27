@@ -143,8 +143,8 @@ static UI_theme_t g_themes[NUM_THEMES] = {
     {
         "Dark",
         //  TEXT KEYWORD COMMENT INVERSE DIALOG
-        {      2,      3,      0,      1,     3 },
-        {      1,      1,      1,      0,     1 }
+        {      2,      3,      0,      1,     1 },
+        {      1,      1,      1,      0,     3 }
     },
     {
         "Light",
@@ -963,7 +963,8 @@ bool UI_init (void)
                                  WA_MinWidth,      240,
                                  WA_MinHeight,     100,
                                  WA_MaxWidth,      g_visWidth,
-                                 WA_MaxHeight,     visHeight)))
+                                 WA_MaxHeight,     visHeight,
+                                 WA_NewLookMenus,  TRUE)))
          cleanexit("Can't open window", RETURN_FAIL);
 
 
@@ -1022,7 +1023,7 @@ bool UI_init (void)
 		cleanexit ("failed to get screen visual info", RETURN_FAIL);
 	if (!(g_menuStrip = CreateMenus(g_newmenu, TAG_END)))
 		cleanexit("failed to create menu", RETURN_FAIL);
-	if (!LayoutMenus(g_menuStrip, g_vi, TAG_END))
+	if (!LayoutMenus(g_menuStrip, g_vi, GTMN_NewLookMenus, TRUE, TAG_END))
 		cleanexit("failed to layout menu", RETURN_FAIL);
 	if (!SetMenuStrip(g_win, g_menuStrip))
 		cleanexit("failed to set menu strip", RETURN_FAIL);
