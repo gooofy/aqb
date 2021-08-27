@@ -30,7 +30,8 @@ https://github.com/ComMouse/tiger-compiler
 
 ## Installation
 
-tbd
+Right now no installation is required. Just download a release LHA archive (https://github.com/gooofy/aqb/releases)
+and unpack it wherever you like, but keep the directory structure intact.
 
 ## Type System
 
