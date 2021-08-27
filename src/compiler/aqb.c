@@ -197,6 +197,12 @@ int main (int argc, char *argv[])
         strncpy (aqb_home, aqb_env, PATH_MAX);
         // FIXME: path does not conform to linux fs hier
         snprintf (aqb_lib, PATH_MAX, "%s/src/lib", aqb_env);
+        //printf ("aqb_home: %s\n", aqb_home);
+        if (snprintf (aqb_help, PATH_MAX, "%s/help", aqb_home)<0)
+        {
+            fprintf (stderr, "AQB: failed to compose help path.\n\n");
+            exit(EXIT_FAILURE);
+        }
     }
     else
     {

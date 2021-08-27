@@ -759,6 +759,23 @@ static void helpButtonCB(TUI_widget w, uint32_t user_data)
 }
 
 #define MAX_HELP_LINE_LEN 60
+#define MAX_HELP_LINES    18
+
+typedef struct TUI_helpWdgt_s *TUI_helpWdgt;
+struct TUI_helpNode_s
+{
+    TUI_helpWdgt first, last;
+};
+struct TUI_helpWdgt_s
+{
+    uint16_t     linen;
+    TUI_widget   w;
+    TUI_helpWdgt next;
+};
+
+static struct TUI_helpNode_s g_helpNode;
+
+typedef enum { HS_lineStart, HS_label, HS_link1, HS_link2, HS_link3 } helpState_t;
 
 static bool helpLoadNode (char *node)
 {
@@ -777,46 +794,122 @@ static bool helpLoadNode (char *node)
         return FALSE;
     }
 
+    g_helpNode.first = NULL;
+    g_helpNode.last  = NULL;
+    uint16_t linen = 0;
+
     bool eof = FALSE;
-    bool eol = FALSE;
+    bool create_label = FALSE;
     char buf[MAX_HELP_LINE_LEN+1];
     uint16_t bufl=0;
+    uint16_t col = 0;
+    helpState_t state = HS_lineStart;
     while (!eof)
     {
         char ch;
         int n = fread (&ch, 1, 1, helpf);
         if (n==1)
         {
-            buf[bufl] = ch;
-            if ( (bufl==MAX_HELP_LINE_LEN-1) || (ch==10)  )
-                eol = TRUE;
-            else
-                bufl++;
+            switch (state)
+            {
+                case HS_lineStart:
+                    if ( ch==10 )
+                    {
+                        create_label = TRUE;
+                    }
+                    else
+                    {
+                        if (ch=='@')
+                        {
+                            state = HS_link1;
+                        }
+                        else
+                        {
+                            state = HS_label;
+                            buf[bufl] = ch;
+                            col++;
+                            bufl++;
+                            if (col>=MAX_HELP_LINE_LEN)
+                            {
+                                create_label = TRUE;
+                            }
+                        }
+                    }
+                    break;
+                case HS_label:
+                    if ( ch==10 )
+                    {
+                        state = HS_lineStart;
+                    }
+                    else
+                    {
+                        buf[bufl] = ch;
+                        col++;
+                        bufl++;
+                        if (col>=MAX_HELP_LINE_LEN)
+                        {
+                            create_label = TRUE;
+                        }
+                    }
+                    break;
+                    
+                default:
+                    assert(FALSE);
+            }
         }
         else
         {
             eof = TRUE;
+            create_label = bufl>0;
         }
-        if (eol || eof)
+        if (create_label)
         {
             buf[bufl] = 0;
-            printf ("HELP: %s\n", buf);
-            eol = FALSE;
+            //printf ("HELP: %s\n", buf);
+
+            TUI_widget label = TUI_Label (2, 2, String (UP_ide, buf));
+
+            TUI_helpWdgt l = (TUI_helpWdgt) U_poolAlloc (UP_ide, sizeof (*l));
+
+            if (!g_helpNode.first)
+                g_helpNode.first = g_helpNode.last = l;
+            else
+                g_helpNode.last = g_helpNode.last->next = l;
+            l->next  = NULL;
+            l->w     = label;
+            l->linen = linen++;
+
+            create_label = FALSE;
             bufl = 0;
         }
-
     }
 
     fclose(helpf);
     return TRUE;
 }
 
+static void helpRenderNode (TUI_window dlg, uint16_t startln)
+{
+    TUI_helpWdgt hw = g_helpNode.first;
+    while (hw && hw->linen<startln)
+        hw = hw->next;
+    uint16_t l = 0;
+    while (hw && l<MAX_HELP_LINES)
+    {
+        hw->w->y = 2 + l;
+        TUI_addWidget (dlg, hw->w);
+
+        l++;
+        hw = hw->next;
+    }
+}
+
 void TUI_HelpBrowser (void)
 {
     TUI_window dlg = TUI_Window ("AQB Help Browser", 60, 23);
 
-    TUI_widget label = TUI_Label (2, 2, "HELP TEXT HERE");
-    TUI_addWidget (dlg, label);
+    //TUI_widget label = TUI_Label (2, 2, "HELP TEXT HERE");
+    //TUI_addWidget (dlg, label);
 
     TUI_widget button = TUI_Button (2, 21, 12, "Close", helpButtonCB, 1);
     TUI_addWidget (dlg, button);
@@ -825,7 +918,7 @@ void TUI_HelpBrowser (void)
     TUI_setOKAction (dlg, helpButtonCB, 1);
 
     helpLoadNode("start");
-    //helpRenderNode(0);
+    helpRenderNode(dlg, 0);
 
     TUI_refresh (dlg);
 

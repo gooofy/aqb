@@ -1,7 +1,8 @@
 AQB Amiga QuickBasic Compiler IDE
-
+1
 Keyboard shortcuts:
-
+@{"This is a link" foo}
+2
 F1     - this help screen
 S-UP   - page up
 S-DOWN - page down
@@ -15,5 +16,4 @@ Ctrl-N - find next
 Ctrl-M - mark block
 Ctrl-S - save
 Ctrl-C - quit
-
-@{"This is a link" foo}
+3
