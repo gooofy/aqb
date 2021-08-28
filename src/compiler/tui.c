@@ -775,7 +775,7 @@ struct TUI_helpWdgt_s
 
 static struct TUI_helpNode_s g_helpNode;
 
-typedef enum { HS_lineStart, HS_label, HS_link1, HS_link2, HS_link3 } helpState_t;
+typedef enum { HS_lineStart, HS_label, HS_link1, HS_link2, HS_link3, HS_link4 } helpState_t;
 
 static bool helpLoadNode (char *node)
 {
@@ -836,6 +836,7 @@ static bool helpLoadNode (char *node)
                         }
                     }
                     break;
+
                 case HS_label:
                     if ( ch==10 )
                     {
@@ -852,7 +853,44 @@ static bool helpLoadNode (char *node)
                         }
                     }
                     break;
-                    
+
+                case HS_link1:
+                    if (ch=='{')
+                        state=HS_link2;
+                    else
+                        state=HS_label;
+                    break;
+
+                case HS_link2:
+                    if (ch=='"')
+                        state=HS_link3;
+                    else
+                        state=HS_label;
+                    break;
+
+                case HS_link3:
+                    if (ch!='"')
+                    {
+                    }
+                    else
+                    {
+                        state=HS_link4;
+                    }
+                    break;
+
+                case HS_link4:
+                    if (ch==' ')
+                    {
+                    }
+                    else
+                    {
+                        if (ch=='}')
+                        {
+                            state=HS_label;
+                        }
+                    }
+                    break;
+
                 default:
                     assert(FALSE);
             }
@@ -881,6 +919,7 @@ static bool helpLoadNode (char *node)
 
             create_label = FALSE;
             bufl = 0;
+            col = 0;
         }
     }
 
