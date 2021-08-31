@@ -1,0 +1,13 @@
+== Unreleased
+
+Improvements::
+
+
+
+Bug Fixes::
+
+	* SELECT CASE autoformat fixed
+    * Editor line join folding fixed
+
+== 0.7.0alpha1
+
