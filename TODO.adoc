@@ -68,8 +68,6 @@ v0.7.0, 2021-08-31
     * mark
     * cut/copy/paste
 
-- fix SELECT CASE indentation
-
 - linux TUI file dialog
 
 - find/replace dialog
