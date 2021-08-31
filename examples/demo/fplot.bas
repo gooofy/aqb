@@ -33,7 +33,6 @@ FUNCTION IsWhitespace ( c AS UBYTE )
     RETURN false
 END FUNCTION
 
-
 SUB getsym
     
     WHILE NOT eol AND IsWhitespace ( scCurC )
@@ -41,19 +40,17 @@ SUB getsym
     WEND
     
     SELECT CASE scCurC
-        CASE 42 : REM *
+    CASE 42 : REM *
         scSym = SYM_ASTERISK
-        CASE ELSE
-        IF IsVarChar ( scCurC )
-        scIdentifier
-    ELSE
-        ERROR 1
-    END IF
+    CASE ELSE
+        IF IsVarChar ( scCurC ) THEN
+            scIdentifier
+        ELSE
+            ERROR 1
+        END IF
+        
+    END SELECT
     
-    
-    
-END SELECT
-
 END SUB
 
 SUB scInit

@@ -367,7 +367,6 @@ static IDE_line buf2line (IDE_editor ed)
                     style[pos++] = UI_TEXT_STYLE_TEXT;
                     buf[pos] = ' ';
                     style[pos++] = UI_TEXT_STYLE_TEXT;
-                    state = STAUI_START;
                     /* fall through */
                 case S_EOL:
                     // used to have a switch statement here, but m68k gcc became horribly slow
@@ -402,7 +401,12 @@ static IDE_line buf2line (IDE_editor ed)
                     {
                         pre_indent--;
                     }
-                    //else if ((state == STAUI_LOOP) || (state == STAUI_LOOPEND))
+                    else if (state == STAUI_CASE)
+                    {
+                        pre_indent--;
+                        post_indent++;
+                    }
+                    state = STAUI_START;
                     break;
                 case S_LCOMMENT:
                     buf[pos] = '\'';
