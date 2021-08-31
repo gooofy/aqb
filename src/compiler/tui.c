@@ -765,6 +765,15 @@ typedef struct TUI_helpWdgt_s *TUI_helpWdgt;
 struct TUI_helpNode_s
 {
     TUI_helpWdgt first, last;
+
+    // parser support:
+    char     curtkn[MAX_HELP_LINE_LEN+1];
+    uint16_t curtknl;
+    char     buf[MAX_HELP_LINE_LEN+1];
+    bool     haveButton;
+    uint16_t bufl;
+    uint16_t col;
+    uint16_t linen;
 };
 struct TUI_helpWdgt_s
 {
@@ -776,6 +785,16 @@ struct TUI_helpWdgt_s
 static struct TUI_helpNode_s g_helpNode;
 
 typedef enum { HS_lineStart, HS_label, HS_link1, HS_link2, HS_link3, HS_link4 } helpState_t;
+
+static void helpAddTkn (void)
+{
+    assert(FALSE);
+}
+
+static void helpCreateWidget (void)
+{
+    assert(FALSE);
+}
 
 static bool helpLoadNode (char *node)
 {
@@ -794,16 +813,16 @@ static bool helpLoadNode (char *node)
         return FALSE;
     }
 
-    g_helpNode.first = NULL;
-    g_helpNode.last  = NULL;
-    uint16_t linen = 0;
+    g_helpNode.first      = NULL;
+    g_helpNode.last       = NULL;
+    g_helpNode.curtknl    = 0;
+    g_helpNode.haveButton = FALSE;
+    g_helpNode.bufl       = 0;
+    g_helpNode.col        = 0;
+    g_helpNode.linen      = 0;
 
-    bool eof = FALSE;
-    bool create_label = FALSE;
-    char buf[MAX_HELP_LINE_LEN+1];
-    uint16_t bufl=0;
-    uint16_t col = 0;
     helpState_t state = HS_lineStart;
+    bool eof = FALSE;
     while (!eof)
     {
         char ch;
@@ -815,7 +834,12 @@ static bool helpLoadNode (char *node)
                 case HS_lineStart:
                     if ( ch==10 )
                     {
-                        create_label = TRUE;
+                        helpAddTkn ();
+                        helpCreateWidget ();
+                        g_helpNode.col = 0;
+                        g_helpNode.bufl = 0;
+                        g_helpNode.linen++;
+                        g_helpNode.haveButton = FALSE;
                     }
                     else
                     {
@@ -825,13 +849,15 @@ static bool helpLoadNode (char *node)
                         }
                         else
                         {
+                            if (ch==' ')
+                                helpAddTkn();
                             state = HS_label;
-                            buf[bufl] = ch;
-                            col++;
-                            bufl++;
-                            if (col>=MAX_HELP_LINE_LEN)
+                            g_helpNode.buf[g_helpNode.bufl] = ch;
+                            g_helpNode.col++;
+                            g_helpNode.bufl++;
+                            if (g_helpNode.col>=MAX_HELP_LINE_LEN)
                             {
-                                create_label = TRUE;
+                                // FIXME g_helpNode.create_label = TRUE;
                             }
                         }
                     }
@@ -844,12 +870,12 @@ static bool helpLoadNode (char *node)
                     }
                     else
                     {
-                        buf[bufl] = ch;
-                        col++;
-                        bufl++;
-                        if (col>=MAX_HELP_LINE_LEN)
+                        g_helpNode.buf[g_helpNode.bufl] = ch;
+                        g_helpNode.col++;
+                        g_helpNode.bufl++;
+                        if (g_helpNode.col>=MAX_HELP_LINE_LEN)
                         {
-                            create_label = TRUE;
+                            // FIXME g_helpNode.create_label = TRUE;
                         }
                     }
                     break;
@@ -898,29 +924,30 @@ static bool helpLoadNode (char *node)
         else
         {
             eof = TRUE;
-            create_label = bufl>0;
+            // FIXME create_label = bufl>0;
         }
-        if (create_label)
-        {
-            buf[bufl] = 0;
-            //printf ("HELP: %s\n", buf);
+        // FIXME
+        //if (create_label)
+        //{
+        //    buf[bufl] = 0;
+        //    //printf ("HELP: %s\n", buf);
 
-            TUI_widget label = TUI_Label (2, 2, String (UP_ide, buf));
+        //    TUI_widget label = TUI_Label (2, 2, String (UP_ide, buf));
 
-            TUI_helpWdgt l = (TUI_helpWdgt) U_poolAlloc (UP_ide, sizeof (*l));
+        //    TUI_helpWdgt l = (TUI_helpWdgt) U_poolAlloc (UP_ide, sizeof (*l));
 
-            if (!g_helpNode.first)
-                g_helpNode.first = g_helpNode.last = l;
-            else
-                g_helpNode.last = g_helpNode.last->next = l;
-            l->next  = NULL;
-            l->w     = label;
-            l->linen = linen++;
+        //    if (!g_helpNode.first)
+        //        g_helpNode.first = g_helpNode.last = l;
+        //    else
+        //        g_helpNode.last = g_helpNode.last->next = l;
+        //    l->next  = NULL;
+        //    l->w     = label;
+        //    l->linen = linen++;
 
-            create_label = FALSE;
-            bufl = 0;
-            col = 0;
-        }
+        //    create_label = FALSE;
+        //    bufl = 0;
+        //    col = 0;
+        //}
     }
 
     fclose(helpf);
