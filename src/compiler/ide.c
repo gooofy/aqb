@@ -839,6 +839,8 @@ static bool cursorUp(IDE_editor ed)
 
 static bool cursorDown(IDE_editor ed)
 {
+    if (ed->editing)
+        commitBuf (ed);
     IDE_line nl = ed->cursor_line;
     if (nl->folded)
     {
@@ -855,8 +857,6 @@ static bool cursorDown(IDE_editor ed)
     }
     if (!nl)
         return FALSE;
-    if (ed->editing)
-        commitBuf (ed);
 
     ed->cursor_line = nl;
     ed->cursor_a_line = nl->a_line;
@@ -1298,6 +1298,7 @@ static void backspaceKey (IDE_editor ed)
         ed->editing = TRUE;
         deleteLine (ed, cl);
         ed->cursor_line = commitBuf (ed);
+        indentSuccLines (ed, ed->cursor_line);
         invalidateAll(ed);
         ed->num_lines--;
     }
