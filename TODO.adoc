@@ -1,8 +1,20 @@
 = AQB TODO
 Guenter Bartsch <guenter@zamia.org>
-v0.2, 2021-05-09
+v0.7.0, 2021-08-31
+
+== Documentation
+
+- online help
+    * parser
+    * viewer
+    * port reference doc
+    * add tutorial
+
+* translate forum posts, add useful information to README
 
 == Language Concepts
+
+- check/fix constant visibility in subprograms
 
 - subprograms
 
@@ -17,14 +29,9 @@ v0.2, 2021-05-09
 
 - C like strings (tbd)
 
-
 == Compiler, Code Generation
 
-- module deinit(), free memory pools
-
-- string memory pool handling
-
-- scanner: support multiple instances (IDE uses separate scanner instance), memory pool handling
+- scanner: support multiple instances (IDE uses separate scanner instance)
 
 - code generator
     * proc calls: only save registers that carry live values
@@ -54,6 +61,21 @@ v0.2, 2021-05-09
 - Memory management / garbage collection ? / DEALLOCATE
 
 - string handling
+
+== IDE
+
+- block operations
+    * mark
+    * cut/copy/paste
+
+- fix SELECT CASE indentation
+
+- linux TUI file dialog
+
+- find/replace dialog
+    * replace
+    * port TUI to amiga gadtools
+
 
 == Core Commands
 
