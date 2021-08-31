@@ -55,8 +55,6 @@ extern struct DOSBase       *DOSBase;
 #include "compiler.h"
 #include "logger.h"
 
-#define VERSION "0.7.0"
-
 char aqb_home[PATH_MAX];
 char aqb_lib[PATH_MAX];
 char aqb_help[PATH_MAX];

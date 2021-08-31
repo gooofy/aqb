@@ -83,6 +83,10 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Find...",   (STRPTR) "F", 0, 0, (APTR)KEY_FIND,},
         {  NM_ITEM, (STRPTR) "Find next", (STRPTR) "N", 0, 0, (APTR)KEY_FIND_NEXT,},
 
+        { NM_TITLE, (STRPTR) "Run",                 0 , 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Compile      F7",     0, 0, 0, (APTR)KEY_F7,},
+        {  NM_ITEM, (STRPTR) "Compile+Run  F5",     0, 0, 0, (APTR)KEY_F5,},
+
         { NM_TITLE, (STRPTR) "Settings",            0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
         {   NM_SUB, (STRPTR) "Dark",                0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
@@ -1028,9 +1032,9 @@ bool UI_init (void)
 	if (!SetMenuStrip(g_win, g_menuStrip))
 		cleanexit("failed to set menu strip", RETURN_FAIL);
 
-    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/3, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
+    struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/4, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
     item->Flags |= CHECKED;
-    item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/3, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
+    item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/4, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
     item->Flags |= CHECKED;
 
 	return TRUE;
