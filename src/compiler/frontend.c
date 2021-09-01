@@ -3679,8 +3679,8 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!CG_isConst(&sle->u.forLoop.stepItem))
             return EM_error((*tkn)->pos, "constant step expression expected here");
 
-        int32_t incr = CG_getConstInt (&sle->u.forLoop.stepItem);
-        sle->u.forLoop.upwards = incr>0;
+        double incr = CG_getConstFloat (&sle->u.forLoop.stepItem);
+        sle->u.forLoop.upwards = incr>=0.0;
     }
     else
     {

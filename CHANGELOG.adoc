@@ -6,8 +6,9 @@ Improvements::
 
 Bug Fixes::
 
-	* SELECT CASE autoformat fixed
-    * Editor line join folding fixed
+    * compiler: for loop floating point step fixed
+	* ide: SELECT CASE autoformat fixed
+    * ide: Editor line join folding fixed
 
 == 0.7.0alpha1
 
