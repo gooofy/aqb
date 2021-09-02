@@ -3665,7 +3665,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                     case Ty_uinteger:
                     case Ty_long:
                     case Ty_ulong:
-                        CG_BoolItem (item, i, to_ty);
+                        CG_IntItem (item, i, to_ty);
                         return;
                     case Ty_single:
                         return;
