@@ -15,7 +15,8 @@ _start:
     movel   d0,___commandlen
     */
 
-    move.l   sp,___SaveSP    /* save sp for exit() at any point in the program */
+    move.l   sp,___SaveSP    /* save sp, fp for exit() at any point in the program */
+    move.l   a5,___SaveFP
 
     jsr     __cstartup
 
@@ -30,11 +31,14 @@ __autil_exit:
     jsr     __c_atexit
 
     move.l  4(sp), d0       /* return code */
+    move.l   ___SaveFP,a5
     move.l   ___SaveSP,sp
     rts
 
 .data
     .align 4
 ___SaveSP:
+    dc.l    0
+___SaveFP:
     dc.l    0
 

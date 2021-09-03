@@ -59,13 +59,19 @@ static void runner (void)
     code++;
     startup_t f = (startup_t) code;
 
+    //printf ("run: before f...\n");
+
     f((STRPTR)"fake_aqb_env", 12);
 
+    //printf ("run: after f... 1\n");
     UnLoadSeg(seglist);
 
+    //printf ("run: after f... 2\n");
 	LOG_printf (LOG_DEBUG, "runner ends, sending signal\n");
 
+    //printf ("run: after f... 3\n");
 	Signal (g_parentTask, 1<<UI_termSignal());
+    //printf ("run: after f... 4\n");
 }
 
 

@@ -1,6 +1,10 @@
 = AQB TODO
 Guenter Bartsch <guenter@zamia.org>
-v0.7.0, 2021-08-31
+v0.7.0alpha1, 2021-09-03
+
+== BUGS
+
+- 3dplot
 
 == Documentation
 
@@ -10,11 +14,9 @@ v0.7.0, 2021-08-31
     * port reference doc
     * add tutorial
 
-* translate forum posts, add useful information to README
+DONE translate forum posts, add useful information to README
 
 == Language Concepts
-
-- check/fix constant visibility in subprograms
 
 - subprograms
 
@@ -212,78 +214,78 @@ v0.7.0, 2021-08-31
 
 - DONE AREA
 - DONE AREAFILL
-- BEEP
-- CIRCLE
-- COLLISION ON
-- COLLISION OFF
-- COLLISION STOP
-- COLLISION()
+-      BEEP
+-      CIRCLE
+-      COLLISION ON
+-      COLLISION OFF
+-      COLLISION STOP
+-      COLLISION()
 - DONE COLOR
 - DONE CSRLIN()
-- GET
+-      GET
 - DONE INKEY$
 - DONE LINE
 - DONE LOCATE
-- LPRINT
-- MENU
-- MENU RESET
-- MENU ON
-- MENU OFF
-- MENU SOP
-- MENU()
-- MOUSE ON
-- MOUSE OFF
-- MOUSE STOP
-- MOUSE()
-- OBJECT.AX
-- OBJECT.AY
-- OBJECT.CLOSE
-- OBJECT.HIT
-- OBJECT.OFF
-- OBJECT.ON
-- OBJECT.PRIORITY
-- OBJECT.SHAPE
-- OBJECT.START
-- OBJECT.STOP
-- OBJECT.VX
-- OBJECT.VX()
-- OBJECT.VY
-- OBJECT.VY()
-- OBJECT.X
-- OBJECT.X()
-- OBJECT.Y
-- OBJECT.Y()
-- ON COLLISION
-- ON MENU
-- ON MOUSE
+-      LPRINT
+-      MENU
+-      MENU RESET
+-      MENU ON
+-      MENU OFF
+-      MENU SOP
+-      MENU()
+-      MOUSE ON
+-      MOUSE OFF
+-      MOUSE STOP
+-      MOUSE()
+-      OBJECT.AX
+-      OBJECT.AY
+-      OBJECT.CLOSE
+-      OBJECT.HIT
+-      OBJECT.OFF
+-      OBJECT.ON
+-      OBJECT.PRIORITY
+-      OBJECT.SHAPE
+-      OBJECT.START
+-      OBJECT.STOP
+-      OBJECT.VX
+-      OBJECT.VX()
+-      OBJECT.VY
+-      OBJECT.VY()
+-      OBJECT.X
+-      OBJECT.X()
+-      OBJECT.Y
+-      OBJECT.Y()
+-      ON COLLISION
+-      ON MENU
+-      ON MOUSE
 - DONE ON TIMER
 - DONE PAINT
 - DONE PALETTE
 - DONE PATTERN
-- POINT
+-      POINT
 - DONE POS
 - DONE PRINT
-- PRINT USING
-- PRESET
+-      PRINT USING
+-      PRESET
 - DONE PSET
-- PTAB
-- PUT [STEP]
-- SAY
+-      PTAB
+-      PUT [STEP]
+-      SAY
 - DONE SCREEN
 - DONE SCREEN CLOSE
-- SCROLL
-- SLEEP
-- SOUND
-- SOUND WAIT
-- SOUND RESUME
-- STICK()
-- STRIG()
+-      SCROLL
+-      SLEEP
+-      SOUND
+-      SOUND WAIT
+-      SOUND RESUME
+-      STICK()
+-      STRIG()
 - DONE TIMER ON
 - DONE TIMER OFF
-- TIMER STOP
-- TRANSLATE$()
-- WAVE
-- WIDTH LPRINT
+-      TIMER STOP
+-      TRANSLATE$()
+-      WAVE
+-      WIDTH LPRINT
 - DONE WINDOW
 - DONE WINDOW CLOSE
 - DONE WINDOW OUTPUT
@@ -318,12 +320,14 @@ v0.7.0, 2021-08-31
 DONE auto-indent
 DONE save
 DONE compile/run
-- memory management
-- help system
-- amiga menus
-- DEL
-- search
-- goto line
-- show compiler error messages
-- terminal: use uint16_t where possible
+     memory management
+     help system
+DONE amiga menus
+DONE DEL
+DONE search
+     replace
+     block operations
+DONE goto line
+DONE show compiler error messages
+     terminal: use uint16_t where possible
 
