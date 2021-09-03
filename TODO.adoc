@@ -76,6 +76,7 @@ DONE translate forum posts, add useful information to README
     * replace
     * port TUI to amiga gadtools
 
+- horizontal scrolling
 
 == Core Commands
 

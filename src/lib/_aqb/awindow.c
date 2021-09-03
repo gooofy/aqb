@@ -1081,6 +1081,11 @@ void AREA(BOOL s, short x, short y)
         return;
     }
 
+    // _debug_puts((STRPTR)"AREA: s="); _debug_puts2(s);
+    // _debug_puts((STRPTR)", x="); _debug_puts2(x);
+    // _debug_puts((STRPTR)", y="); _debug_puts2(y);
+    // _debug_putnl();
+
     // first call on this rp? -> initialize Area* related data structures
 
     if (!g_rp->AreaInfo)

@@ -541,11 +541,11 @@ void U_float2str(double v, char *buffer, int buf_len)
 			}
 
 			/* Strip trailing digits and decimal point */
-			while(output_buffer > buffer_start+1 && output_buffer[-1] == '0')
+			while (output_buffer > buffer_start+2 && output_buffer[-1] == '0' && output_buffer[-2] != '.')
 				output_buffer--;
 
-			if(output_buffer > buffer_start && output_buffer[-1] == '.')
-				output_buffer--;
+			//if(output_buffer > buffer_start && output_buffer[-1] == '.')
+			//	output_buffer--;
 		}
 
         *output_buffer = '\0';

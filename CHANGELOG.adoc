@@ -11,6 +11,7 @@ Bug Fixes::
     * runtime: restore a5 frame pointer on premature program end (END / EXIT statements)
 	* ide: SELECT CASE autoformat fixed
     * ide: Editor line join folding fixed
+    * ide: Preserve floating point literals when auto-formatting
 
 == 0.7.0alpha1
 
