@@ -82,6 +82,9 @@ examples/demo/tetris.dump
 examples/demo/tetris.s
 examples/demo/tetris_gnu.bin
 examples/demo/tetris_gnu.dump
+examples/demo/foo.s
+examples/demo/blits.bas
+examples/dev/blits.bas
 examples/dev/TETRIS.BAS
 examples/dev/foo.asm
 examples/dev/foo.dump
@@ -95,6 +98,10 @@ tests/foo.dump
 tests/foo.hunk
 tests/foo_gnu.bin
 tests/foo_gnu.dump
+tests/foo.S
+tests/foo_vasm.bin
+tests/foo_vasm.dump
+tests/foo_vasm.list
 doc/internal/
 target
 config.mk
@@ -106,7 +113,5 @@ t.log
 foo
 foo.bas
 ide.log
-examples/demo/blits.bas
 export.sh
 src/lib/_brt/autil.asm
-
