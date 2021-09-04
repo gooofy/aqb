@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.7.0alpha1
+VERSION=0.7.0alpha2
 LHA=aqb-${VERSION}.lha
 WORKDIR=target/m68k-amigaos/dist
 
@@ -17,7 +17,8 @@ cp src/lib/_brt/_brt.a   ${WORKDIR}/aqb/lib/
 cp src/lib/_aqb/_aqb.sym ${WORKDIR}/aqb/lib/
 cp src/lib/_aqb/_aqb.a   ${WORKDIR}/aqb/lib/
 cp src/lib/startup.o     ${WORKDIR}/aqb/lib/
-cp README.md             ${WORKDIR}/aqb/README
+cp README.adoc           ${WORKDIR}/aqb/README
+cp CHANGELOG.adoc        ${WORKDIR}/aqb/CHANGELOG
 
 cp dist/amiga/Icons/aqb_topdir.info ${WORKDIR}/aqb.info
 cp dist/amiga/Icons/aqb.info ${WORKDIR}/aqb/aqb.info
@@ -25,6 +26,7 @@ cp dist/amiga/Icons/examples.info ${WORKDIR}/aqb/examples.info
 cp dist/amiga/Icons/bench.info ${WORKDIR}/aqb/examples/bench.info
 cp dist/amiga/Icons/demo.info ${WORKDIR}/aqb/examples/demo.info
 cp dist/amiga/Icons/README.info ${WORKDIR}/aqb/README.info
+cp dist/amiga/Icons/CHANGELOG.info ${WORKDIR}/aqb/CHANGELOG.info
 
 for EX in examples/bench/*.bas ; do
     cp $EX ${WORKDIR}/aqb/examples/bench/
