@@ -949,6 +949,9 @@ bool UI_init (void)
 	g_visWidth = sc->Width > maxW ? maxW : sc->Width;
 	WORD visHeight = sc->Height > maxH ? maxH : sc->Height;
 
+    static char winTitle[128];
+    snprintf (winTitle, 128, "%s %s", PROGRAM_NAME_LONG, VERSION);
+
     // open a full screen window
     if (!(g_win = OpenWindowTags(NULL,
                                  WA_Top,           sc->BarHeight+1,
@@ -963,7 +966,7 @@ bool UI_init (void)
                                  WA_DragBar,       TRUE,
                                  WA_DepthGadget,   TRUE,
                                  WA_CloseGadget,   TRUE,
-                                 WA_Title,         (LONG)"AQB",
+                                 WA_Title,         (LONG)winTitle,
                                  WA_MinWidth,      240,
                                  WA_MinHeight,     100,
                                  WA_MaxWidth,      g_visWidth,

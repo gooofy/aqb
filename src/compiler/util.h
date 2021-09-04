@@ -18,7 +18,7 @@ typedef char bool;
 #define VERSION            "0.7.0alpha2"
 #define COPYRIGHT          "(C) 2020, 2021 by G. Bartsch"
 #define PROGRAM_NAME_SHORT "AQB"
-#define PROGRAM_NAME_LONG  "AQB Amiga QuickBasic"
+#define PROGRAM_NAME_LONG  "AQB Amiga BASIC"
 #define LICENSE            "Licensed under the Apache License, Version 2.0."
 
 /*

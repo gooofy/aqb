@@ -2,7 +2,7 @@ ifdef::env-github[]
 :imagesdir: https://raw.githubusercontent.com/gooofy/aqb/master/doc
 endif::[]
 
-== AQB: A BASIC Compiler for Amiga Computers
+== AQB: A BASIC Compiler and IDE for Amiga Computers
 
 image::screenshot.png[]
 
