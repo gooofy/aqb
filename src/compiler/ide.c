@@ -1340,6 +1340,7 @@ static void deleteKey (IDE_editor ed)
         deleteLine (ed, nl);
         ed->cursor_line = commitBuf (ed);
         ed->num_lines--;
+        indentSuccLines (ed, ed->cursor_line);
         invalidateAll(ed);
     }
     else
