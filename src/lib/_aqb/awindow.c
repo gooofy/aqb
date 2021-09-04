@@ -313,7 +313,9 @@ void _awindow_shutdown(void)
         {
             CloseWindow(g_winlist[i]);
             if (g_winlist[i]->RPort->TmpRas)
-                FreeRaster((PLANEPTR) g_winlist[i]->RPort->TmpRas->RasPtr, 640, 512);
+            {
+                FreeVec ((PLANEPTR) g_winlist[i]->RPort->TmpRas->RasPtr);
+            }
         }
     }
     for (int i = 0; i<MAX_NUM_SCREENS; i++)
@@ -1023,6 +1025,30 @@ void COLOR(short fg, short bg, short o)
         g_rp->AOlPen = o;
 }
 
+static void allocTmpRas(void)
+{
+    struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
+    if (!aTmpRas)
+    {
+        ERROR(AE_PAINT);
+        return;
+    }
+
+    ULONG rassize = RASSIZE (g_output_win->Width, g_output_win->Height);
+
+    //_debug_puts((STRPTR)"allocTmpRas: rassize="); _debug_putu4(rassize);
+    //_debug_putnl();
+
+    PLANEPTR amem = AllocVec (rassize, MEMF_CHIP|MEMF_CLEAR);
+    if (!amem)
+    {
+        ERROR(AE_PAINT);
+        return;
+    }
+    InitTmpRas (aTmpRas, amem, rassize);
+    g_rp->TmpRas = aTmpRas;
+}
+
 void PAINT(BOOL s, short x, short y, short pc, short aol)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
@@ -1033,22 +1059,7 @@ void PAINT(BOOL s, short x, short y, short pc, short aol)
 
     // init tmp raster if not done yet
     if (!g_rp->TmpRas)
-    {
-        struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
-        if (!aTmpRas)
-        {
-            ERROR(AE_PAINT);
-            return;
-        }
-        PLANEPTR amem = AllocRaster(640, 512);  // FIXME: size
-        if (!amem)
-        {
-            ERROR(AE_PAINT);
-            return;
-        }
-        InitTmpRas(aTmpRas, amem, RASSIZE(640,512)); // FIXME: size
-        g_rp->TmpRas = aTmpRas;
-    }
+        allocTmpRas();
 
     if (s)
     {
@@ -1108,22 +1119,7 @@ void AREA(BOOL s, short x, short y)
 
     // init tmp raster if not done yet
     if (!g_rp->TmpRas)
-    {
-        struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
-        if (!aTmpRas)
-        {
-            ERROR(AE_AREA);
-            return;
-        }
-        PLANEPTR amem = AllocRaster(640, 512);  // FIXME: size
-        if (!amem)
-        {
-            ERROR(AE_AREA);
-            return;
-        }
-        InitTmpRas(aTmpRas, amem, RASSIZE(640,512)); // FIXME: size
-        g_rp->TmpRas = aTmpRas;
-    }
+        allocTmpRas();
 
     if (s)
     {
@@ -1155,16 +1151,19 @@ void AREAFILL (short mode)
         return;
     }
 
+    dm = g_rp->DrawMode;
     if (mode==1)
     {
-        dm = g_rp->DrawMode;
         SetDrMd(g_rp, COMPLEMENT);
+    }
+    else
+    {
+        SetDrMd(g_rp, JAM2);
     }
 
     AreaEnd(g_rp);
 
-    if (mode==1)
-        SetDrMd(g_rp, dm);
+    SetDrMd(g_rp, dm);
 }
 
 void AREA_OUTLINE(BOOL enabled)
@@ -1202,13 +1201,14 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
         }
 
         ULONG n = areaptrn->bounds[0].ubound - areaptrn->bounds[0].lbound + 1;
-        //_debug_puts("PATTERN area: n="); _debug_puts2(n);
+        //_debug_puts((STRPTR)"PATTERN area: n="); _debug_puts2(n);
 
         // log2
         ULONG ptSz = 0;
         while (n >>= 1) ++ptSz;
 
-        //_debug_puts(", ptSz="); _debug_puts2(ptSz); _debug_putnl();
+        //_debug_puts((STRPTR)", ptSz="); _debug_puts2(ptSz); _debug_putnl();
+        //_debug_puts((STRPTR)"AreaPtrn[0]="); _debug_putu4(*((ULONG*)areaptrn->data)); _debug_putnl();
 
         g_rp->AreaPtrn = areaptrn->data;
         g_rp->AreaPtSz = ptSz;
