@@ -1,7 +1,7 @@
 
-.PHONY: clean all runner printfloat dumpfonts rtgblit
+.PHONY: clean all runner printfloat dumpfonts rtgblit areaptrn
 
-all:	runner printfloat dumpfonts rtgblit
+all:	runner printfloat dumpfonts rtgblit areaptrn
 
 runner:
 	cd runner ; make all
@@ -15,10 +15,14 @@ dumpfonts:
 rtgblit:
 	cd rtgblit ; make all
 
+areaptrn:
+	cd areaptrn ; make all
+
 clean:
 	cd ffputils ; make clean
 	cd runner ; make clean
 	cd printfloat ; make clean
 	cd dumpfonts ; make clean
 	cd rtgblit ; make clean
+	cd areaptrn ; make clean
 
