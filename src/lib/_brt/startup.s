@@ -15,8 +15,9 @@ _start:
     movel   d0,___commandlen
     */
 
-    move.l   sp,___SaveSP    /* save sp, fp for exit() at any point in the program */
-    move.l   a5,___SaveFP
+    /* save sp and all registers so we can restore them in __autil_exit called from any point in the program */
+    movem.l  d2-d7/a2-a6, -(sp)
+    move.l   sp,___SaveSP
 
     jsr     __cstartup
 
@@ -31,14 +32,14 @@ __autil_exit:
     jsr     __c_atexit
 
     move.l  4(sp), d0       /* return code */
-    move.l   ___SaveFP,a5
+
+    /* restore sp, registers */
     move.l   ___SaveSP,sp
+    movem.l  (sp)+,d2-d7/a2-a6
     rts
 
 .data
     .align 4
 ___SaveSP:
-    dc.l    0
-___SaveFP:
     dc.l    0
 

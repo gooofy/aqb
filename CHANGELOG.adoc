@@ -8,7 +8,7 @@ Bug Fixes::
 
     * compiler: for loop floating point step fixed
     * compiler: SINGLE -> INTEGER const conversion fixed
-    * runtime: restore a5 frame pointer on premature program end (END / EXIT statements)
+    * runtime: restore all non-scratch registers on premature program end (END / EXIT statements)
 	* ide: SELECT CASE autoformat fixed
     * ide: Editor line join folding fixed
     * ide: Preserve floating point literals when auto-formatting
