@@ -28,8 +28,8 @@ Improvements over AmigaBASIC include:
 
 * Advanced type system (including UDTs and Pointers, see below)
 * Support for non-static functions and subs (enables recursion)
-* Module support (similar to UNITs in TurboPascal, with full type safety and dependencies)
-* Modern syntax inspired by FreeBASIC and VisualBASIC
+* Module support (similar to UNITs in TurboPascal, with full type safety and
+  dependencies) * Modern syntax inspired by FreeBASIC and VisualBASIC
 * True native 68k compiler
 * Integrated IDE besides compiler command line interface with
     * syntax highlighting
@@ -43,8 +43,9 @@ Improvements over AmigaBASIC include:
 
 === Installation
 
-Right now no installation is required. Just download a release LHA archive (https://github.com/gooofy/aqb/releases)
-and unpack it wherever you like, but keep the directory structure intact.
+Right now no installation is required. Just download a release LHA archive
+(https://github.com/gooofy/aqb/releases) and unpack it wherever you like, but
+keep the directory structure intact.
 
 === Type System
 
@@ -94,14 +95,17 @@ main loop that could look like this:
         SLEEP
     WEND
 
-For event processing you register subroutines using the ON ... CALL <function> family of statements, e.g.
+For event processing you register subroutines using the ON ... CALL <function>
+family of statements, e.g.
 
     ON WINDOW CALL myWindowHandler
 
-see https://github.com/gooofy/aqb/blob/master/examples/demo/gfx1.bas for a simple example of this approach.
+see https://github.com/gooofy/aqb/blob/master/examples/demo/gfx1.bas for a
+simple example of this approach.
 
-Interesting detail: since AQB supports C-like function pointers, the ON ... CALL family of statements is not built into the compiler
-but part of the _aqb runtime:
+Interesting detail: since AQB supports C-like function pointers, the ON ...
+CALL family of statements is not built into the compiler but part of the _aqb
+runtime:
 
     PUBLIC DECLARE SUB ON WINDOW CALL (BYVAL p AS SUB)
 
