@@ -127,6 +127,7 @@ void   AREA            (BOOL s, SHORT x, SHORT y);
 void   AREA_OUTLINE    (BOOL enabled);
 void   AREAFILL        (SHORT mode);
 void   PATTERN         (USHORT lineptrn, _DARRAY_T *areaptrn);
+void   PATTERN_RESTORE (void);
 
 char  *INKEY_          (void);
 

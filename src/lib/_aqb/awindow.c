@@ -1215,6 +1215,21 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
     }
 }
 
+void PATTERN_RESTORE (void)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        ERROR(AE_PATTERN);
+        return;
+    }
+
+    g_rp->LinePtrn   = 0xFFFF;
+    g_rp->Flags     |= FRST_DOT;
+    g_rp->linpatcnt  = 15;
+    g_rp->AreaPtrn   = NULL;
+    g_rp->AreaPtSz   = 0;
+}
+
 static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)

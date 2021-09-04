@@ -2,7 +2,8 @@
 
 Improvements::
 
-    * add "Run" menu
+    * "Run" menu added
+    * PATTERN RESTORE (ACE) statement added
 
 Bug Fixes::
 
@@ -12,6 +13,7 @@ Bug Fixes::
 	* ide: SELECT CASE autoformat fixed
     * ide: Editor line join folding fixed
     * ide: Preserve floating point literals when auto-formatting
+    * examples: 3dplot fixed
 
 == 0.7.0alpha1
 

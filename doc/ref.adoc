@@ -905,6 +905,14 @@ change pattern used to draw lines and areas.
     * lineptrn: 16 bit integer that defines the pattern for lines
     * areaptrn: array of 16 bit integers, number of elements must be a power of 2 (1, 2, 4, 8, ...)
 
+=== PATTERN RESTORE
+
+Syntax:
+
+    PATTERN RESTORE
+
+Restore line and area pattern to default (solid)
+
 === POS()
 
 Syntax:
