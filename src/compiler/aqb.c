@@ -369,15 +369,13 @@ int main (int argc, char *argv[])
 	atexit (deinit);
     LOG_init (log_cb);
 
-    CO_compile(sourcefn,
-               module_name,
-               write_sym ? symfn : NULL,
-               write_obj ? objfn : NULL,
-               write_bin ? binfn : NULL,
-               write_asmgas ? asm_gas_fn : NULL,
-               write_asmpro ? asm_asmpro_fn : NULL,
-               write_vasm ? asm_vasm_fn : NULL);
-
-    return 0;
+    return CO_compile(sourcefn,
+                      module_name,
+                      write_sym ? symfn : NULL,
+                      write_obj ? objfn : NULL,
+                      write_bin ? binfn : NULL,
+                      write_asmgas ? asm_gas_fn : NULL,
+                      write_asmpro ? asm_asmpro_fn : NULL,
+                      write_vasm ? asm_vasm_fn : NULL);
 }
 
