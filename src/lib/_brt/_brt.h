@@ -105,6 +105,7 @@ void _astr_ftoa           (FLOAT value, UBYTE *buf);
 UBYTE *_astr_dup          (const UBYTE *str);
 SHORT __astr_cmp          (const UBYTE* s1, const UBYTE* s2);
 const UBYTE *_astr_strchr (const UBYTE *s, UBYTE c);
+UBYTE *__astr_concat      (const UBYTE *a, const UBYTE *b);
 
 ULONG  LEN_               (const UBYTE *str);
 UBYTE  *CHR_              (LONG codepoint);

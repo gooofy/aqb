@@ -165,6 +165,16 @@ SHORT __astr_cmp(const UBYTE* s1, const UBYTE* s2)
     return *(const UBYTE*)s1 - *(const UBYTE*)s2;
 }
 
+UBYTE *__astr_concat (const UBYTE *a, const UBYTE *b)
+{
+    ULONG la = LEN_(a);
+    ULONG lb = LEN_(b);
+    UBYTE *str2 = ALLOCATE_(la+lb+1, MEMF_ANY);
+    CopyMem((APTR)a, (APTR)str2, la);
+    CopyMem((APTR)b, (APTR)str2+la, lb+1);
+    return str2;
+}
+
 /*
  * Lightweight float to string conversion
  *
