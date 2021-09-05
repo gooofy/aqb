@@ -1,7 +1,7 @@
 
-.PHONY: clean all runner printfloat dumpfonts rtgblit areaptrn
+.PHONY: clean all runner printfloat dumpfonts rtgblit areaptrn gctest
 
-all:	runner printfloat dumpfonts rtgblit areaptrn
+all:	runner printfloat dumpfonts rtgblit areaptrn gctest
 
 runner:
 	cd runner ; make all
@@ -18,6 +18,9 @@ rtgblit:
 areaptrn:
 	cd areaptrn ; make all
 
+gctest:
+	cd gctest ; make all
+
 clean:
 	cd ffputils ; make clean
 	cd runner ; make clean
@@ -25,4 +28,5 @@ clean:
 	cd dumpfonts ; make clean
 	cd rtgblit ; make clean
 	cd areaptrn ; make clean
+	cd gctest ; make clean
 
