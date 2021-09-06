@@ -61,11 +61,10 @@ typedef struct
     BOOL        paused;
     APTR        minptr, maxptr;
     tgc_ptr_t  *items, *frees;
-    double      loadfactor, sweepfactor;
     ULONG       nitems, nslots, mitems, nfrees;
 } tgc_t;
 
-void   tgc_start      (tgc_t *gc, void *stk);
+void   tgc_start      (tgc_t *gc);
 void   tgc_stop       (tgc_t *gc);
 void   tgc_pause      (tgc_t *gc);
 void   tgc_resume     (tgc_t *gc);

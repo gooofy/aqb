@@ -49,13 +49,14 @@ AQB / AmigaOS port done in 2021 by G. Bartsch
 
 #define DEBUG_GC
 //#define DEBUG_GC2
+//#define DEBUG_GC3
 
 extern struct ExecBase      *SysBase;
 
 static inline void *_AllocMem(ULONG byteSize, ULONG attributes)
 {
     APTR ptr = AllocMem(byteSize, attributes);
-#ifdef DEBUG_GC
+#ifdef DEBUG_GC3
     printf ("AllocMem byteSize=%ld -> 0x%08lx\n", byteSize, (ULONG)ptr);
 #endif
     return ptr;
@@ -63,7 +64,7 @@ static inline void *_AllocMem(ULONG byteSize, ULONG attributes)
 
 static inline void _FreeMem(void *ptr, ULONG byteSize)
 {
-#ifdef DEBUG_GC
+#ifdef DEBUG_GC3
     printf ("FreeMem byteSize=%ld, ptr=0x%08lx\n", byteSize, (ULONG)ptr);
 #endif
     FreeMem (ptr, byteSize);
@@ -202,7 +203,8 @@ static const ULONG tgc_primes[TGC_PRIMES_COUNT] = {
 static ULONG tgc_ideal_size(tgc_t* gc, ULONG size)
 {
     ULONG i, last;
-    size = (ULONG)((double)(size+1) / gc->loadfactor);
+    //size = (ULONG)((double)(size+1) / gc->loadfactor);
+    size = (size+1) * 10 / 9;
     for (i = 0; i < TGC_PRIMES_COUNT; i++)
     {
         if (tgc_primes[i] >= size)
@@ -267,7 +269,7 @@ static void tgc_mark_ptr(tgc_t *gc, APTR ptr)
         return;
 
 #ifdef DEBUG_GC2
-    printf ("tgc_mark_ptr: ptr=0x%08x\n", (ULONG)ptr);
+    printf ("tgc_mark_ptr: ptr=0x%08lx\n", (ULONG)ptr);
 #endif
     i = tgc_hash(ptr) % gc->nslots; j = 0;
 
@@ -295,7 +297,7 @@ static void tgc_mark_ptr(tgc_t *gc, APTR ptr)
 
 static void tgc_mark_stack(tgc_t *gc)
 {
-    void *stk, *bot, *top, *p;
+    void *stk, *bot, *top;
     bot = gc->bottom; top = &stk;
 
     if (bot == top)
@@ -304,22 +306,15 @@ static void tgc_mark_stack(tgc_t *gc)
 #ifdef DEBUG_GC2
     printf ("tgc_mark_stack: top=0x%08x bot=0x%08x\n", (uint32_t)top, (uint32_t)bot);
 #endif
-    if (bot < top)
-    {
-        // FIXME: 2-byte steps!
-        for (p = top; p >= bot; p = ((char*)p) - sizeof(void*))
-        {
-            tgc_mark_ptr(gc, *((void**)p));
-        }
-    }
+    APTR pFrom = bot < top ? bot : top;
+    APTR pTo   = bot < top ? top : bot;
 
-    if (bot > top)
+    APTR p = pFrom;
+    while (p < pTo)
     {
-        // FIXME: 2-byte steps!
-        for (p = top; p <= bot; p = ((char*)p) + sizeof(void*))
-        {
-            tgc_mark_ptr(gc, *((void**)p));
-        }
+        ULONG *lp = (ULONG *)p;
+        tgc_mark_ptr(gc, (APTR)*lp);
+        p += 2;
     }
 }
 
@@ -340,7 +335,7 @@ static void tgc_mark(tgc_t *gc)
         if (gc->items[i].flags & TGC_ROOT)
         {
 #ifdef DEBUG_GC2
-            printf ("tgc_mark: marking TGC_ROOT item #%03d: size=%d hash=0x%08x flags=0x%08x\n", i, gc->items[i].size, gc->items[i].hash, gc->items[i].flags);
+            printf ("tgc_mark: marking TGC_ROOT item #%03ld: size=%ld hash=0x%08lx flags=0x%08lx\n", i, gc->items[i].size, gc->items[i].hash, gc->items[i].flags);
 #endif
             gc->items[i].flags |= TGC_MARK;
             if (gc->items[i].flags & TGC_LEAF)
@@ -373,7 +368,7 @@ static void tgc_sweep(tgc_t *gc)
     for (i = 0; i < gc->nslots; i++)
     {
 #ifdef DEBUG_GC2
-        printf ("tgc_sweep: item #%03d: hash=0x%08x flags=0x%08x\n", i, gc->items[i].hash, gc->items[i].flags);
+        //printf ("tgc_sweep: item #%03ld: hash=0x%08lx flags=0x%08lx\n", i, gc->items[i].hash, gc->items[i].flags);
 #endif
         if (gc->items[i].hash ==        0) { continue; }
         if (gc->items[i].flags & TGC_MARK) { continue; }
@@ -382,7 +377,7 @@ static void tgc_sweep(tgc_t *gc)
     }
 
 #ifdef DEBUG_GC2
-    printf ("tgc_sweep: gc->nitems=%d, gc->nfrees=%d\n", gc->nitems, gc->nfrees);
+    printf ("tgc_sweep: gc->nitems=%ld, nfrees=%ld\n", gc->nitems, nfrees);
 #endif
 
     if (!nfrees)
@@ -429,7 +424,7 @@ static void tgc_sweep(tgc_t *gc)
 
     tgc_resize_less(gc);
 
-    gc->mitems = gc->nitems + (ULONG)(gc->nitems * gc->sweepfactor) + 1;
+    gc->mitems = gc->nitems + (gc->nitems /2) + 1;
 
     for (i = 0; i < nfrees; i++)
     {
@@ -447,12 +442,13 @@ static void tgc_sweep(tgc_t *gc)
     }
 }
 
-void tgc_start(tgc_t *gc, void *stk)
+void tgc_start(tgc_t *gc)
 {
+    struct Task *me = FindTask(0L);
+    gc->bottom      = me->tc_SPUpper;
 #ifdef DEBUG_GC
-    printf ("tgc_start\n");
+    printf ("tgc_start, gc->bottom=0x%08lx\n", (ULONG) gc->bottom);
 #endif
-    gc->bottom      = stk;
     gc->paused      = 0;
     gc->nitems      = 0;
     gc->nslots      = 0;
@@ -462,8 +458,6 @@ void tgc_start(tgc_t *gc, void *stk)
     gc->items       = NULL;
     gc->frees       = NULL;
     gc->minptr      = (APTR) 0xFFFFFFFF;
-    gc->loadfactor  = 0.9;
-    gc->sweepfactor = 0.5;
 }
 
 void tgc_stop(tgc_t *gc)
