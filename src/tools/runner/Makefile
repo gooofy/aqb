@@ -1,6 +1,6 @@
 include ../../../config.mk
 
-SRCS = 	runner.c
+SRCS = 	main.c run.c logger.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 
@@ -15,7 +15,7 @@ $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $(DEPFLAGS_AMIGAOS) $< -o $@
 
 ${BINDIR_AMIGAOS}/runner:	$(OBJS_AMIGAOS)
-	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^
+	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^ ../../amigasupport/amigasupport.a
 	# $(STRIP_AMIGAOS) $@
 	cp $@ $(DISTDIR)
 

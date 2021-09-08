@@ -6,8 +6,10 @@
 
 // stuff from amigalib
 
-struct MsgPort *ASUP_create_port(STRPTR name, LONG pri);
-void            ASUP_delete_port(struct MsgPort *port);
+struct MsgPort   *ASUP_create_port   (STRPTR name, LONG pri);
+void              ASUP_delete_port   (struct MsgPort *port);
+struct IORequest *ASUP_create_ext_io (CONST struct MsgPort * port, LONG io_size);
+void              ASUP_delete_ext_io (struct IORequest * io);
 
 // post-1.3 stuff
 

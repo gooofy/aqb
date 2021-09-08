@@ -1,10 +1,9 @@
 = AQB TODO
 Guenter Bartsch <guenter@zamia.org>
-v0.7.0alpha1, 2021-09-03
+v0.7.0alpha2, 2021-09-08
 
 == BUGS
 
-- 3dplot
 
 == Documentation
 
@@ -64,6 +63,10 @@ DONE translate forum posts, add useful information to README
 
 - string handling
 
+- CTRL+C to stop the program at any time
+
+- source level debugging
+
 == IDE
 
 - block operations
@@ -77,6 +80,8 @@ DONE translate forum posts, add useful information to README
     * port TUI to amiga gadtools
 
 - horizontal scrolling
+
+- mouse cursor positioning
 
 == Core Commands
 

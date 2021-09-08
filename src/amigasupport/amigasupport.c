@@ -219,3 +219,23 @@ clean_exit:
 
 	return !err;
 }
+
+struct IORequest *ASUP_create_ext_io(CONST struct MsgPort * port, LONG io_size)
+{
+    struct IORequest * result = NULL;
+
+    if (port == NULL || io_size < (LONG)sizeof(*result))
+        goto out;
+
+    result = CreateIORequest (port, (ULONG)io_size);
+
+out:
+    return result;
+}
+
+void ASUP_delete_ext_io(struct IORequest * io)
+{
+    if (io != NULL)
+        DeleteIORequest((struct IORequest *)io);
+}
+
