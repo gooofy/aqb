@@ -238,7 +238,7 @@ static int tgc_rehash(tgc_t* gc, ULONG new_size)
     for (i = 0; i < old_size; i++)
     {
         if (old_items[i].hash != 0)
-          tgc_add_ptr(gc, old_items[i].ptr, old_items[i].size, old_items[i].flags, old_items[i].dtor);
+            tgc_add_ptr(gc, old_items[i].ptr, old_items[i].size, old_items[i].flags, old_items[i].dtor);
     }
 
     if (old_size)
