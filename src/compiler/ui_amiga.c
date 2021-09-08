@@ -125,8 +125,8 @@ static uint16_t           g_renderBMmaxCols   = 80;
 #define BUFSIZE 1024
 static UI_size_cb         g_size_cb           = NULL;
 static void              *g_size_cb_user_data = NULL;
-static UI_key_cb          g_key_cb            = NULL;
-static void              *g_key_cb_user_data  = NULL;
+static UI_event_cb        g_event_cb            = NULL;
+static void              *g_event_cb_user_data  = NULL;
 static uint16_t           g_scrollStart       = 1;
 static uint16_t           g_scrollEnd         = 10;
 static bool               g_cursorVisible     = FALSE;
@@ -606,10 +606,10 @@ void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
     g_size_cb_user_data = user_data;
 }
 
-void UI_onKeyCall (UI_key_cb cb, void *user_data)
+void UI_onEventCall (UI_event_cb cb, void *user_data)
 {
-    g_key_cb           = cb;
-    g_key_cb_user_data = user_data;
+    g_event_cb           = cb;
+    g_event_cb_user_data = user_data;
 }
 
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
@@ -1048,8 +1048,8 @@ static inline void report_key (uint16_t key)
 {
     if (key == KEY_NONE)
         return;
-    if (g_key_cb)
-        g_key_cb (key, g_key_cb_user_data);
+    if (g_event_cb)
+        g_event_cb (key, g_event_cb_user_data);
 }
 
 void UI_run (void)

@@ -4,7 +4,6 @@
 #include "run.h"
 #include "logger.h"
 #include "util.h"
-#include "ui.h"
 
 #ifdef __amigaos__
 
@@ -28,12 +27,11 @@ struct FakeSegList
 
 static struct Task *g_parentTask;
 
-static char *g_binfn;
-static BPTR  g_currentDir;
+static int                g_termSignal;
+static struct FileHandle *g_output;
+static char              *g_binfn;
+static BPTR               g_currentDir;
 
-//typedef int (*startup_t)(void);
-
-//long add( register long a __asm("d0"), register long b __asm("d1") );
 typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG cmdlen __asm("d0") );
 
 static void runner (void)
@@ -47,13 +45,13 @@ static void runner (void)
     if (!seglist)
     {
         LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
-        Signal (g_parentTask, 1<<UI_termSignal());
+        Signal (g_parentTask, 1<<g_termSignal);
         return;
     }
 
     LOG_printf (LOG_INFO, "running %s ...\n\n", g_binfn);
 
-    me->pr_COS = MKBADDR(UI_output());
+    me->pr_COS = MKBADDR(g_output);
 
     ULONG *code = (ULONG *) BADDR(seglist);
     code++;
@@ -70,12 +68,12 @@ static void runner (void)
 	LOG_printf (LOG_DEBUG, "runner ends, sending signal\n");
 
     //printf ("run: after f... 3\n");
-	Signal (g_parentTask, 1<<UI_termSignal());
+	Signal (g_parentTask, 1<<g_termSignal);
     //printf ("run: after f... 4\n");
 }
 
 
-void RUN_run (const char *binfn)
+void RUN_start (const char *binfn)
 {
 	struct FakeSegList *segl;
 
@@ -90,13 +88,6 @@ void RUN_run (const char *binfn)
 		// LOG_printf (LOG_INFO, "running %s ...\n\n", binfn);
 		struct MsgPort *msgport = CreateProc((STRPTR) binfn, DEFAULT_PRI, MKBADDR(segl), DEFAULT_STACKSIZE);
 		assert(msgport);
-
-        UI_runIO();
-
-		// LOG_printf (LOG_INFO, "%s finished.\n\n", binfn);
-
-        // FIXME: cleanup
-
 	}
 	else
 	{
@@ -105,21 +96,12 @@ void RUN_run (const char *binfn)
 
 }
 
-void RUN_init (void)
+void RUN_init (int termSignal, struct FileHandle *output)
 {
+    g_termSignal = termSignal;
+    g_output     = output;
 	g_parentTask = FindTask(NULL);
     g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
-}
-
-#else // no amigaos -> posix / vamos?
-
-void RUN_run (const char *binfn)
-{
-    assert(FALSE); // FIXME
-}
-
-void RUN_init (void)
-{
 }
 
 #endif

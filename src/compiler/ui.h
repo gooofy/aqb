@@ -108,8 +108,8 @@ extern uint16_t UI_size_cols, UI_size_rows;
 typedef void (*UI_size_cb)(void *user_data);
 void      UI_onSizeChangeCall   (UI_size_cb cb, void *user_data);
 
-typedef void (*UI_key_cb)(uint16_t key, void *user_data);
-void      UI_onKeyCall          (UI_key_cb cb, void *user_data);
+typedef void (*UI_event_cb)(uint16_t event, void *user_data);
+void      UI_onEventCall        (UI_event_cb cb, void *user_data);
 
 /*
  * high-level requesters

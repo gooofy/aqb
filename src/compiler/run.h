@@ -1,8 +1,13 @@
 #ifndef HAVE_RUN_H
 #define HAVE_RUN_H
 
-void RUN_run (const char *binfn);
+#ifdef __amigaos__
 
-void RUN_init (void);
+#include <dos/dosextens.h>
+
+void RUN_start (const char *binfn);
+
+void RUN_init (int termSignal, struct FileHandle *output);
+#endif
 
 #endif

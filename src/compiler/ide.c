@@ -1626,8 +1626,18 @@ static void compileAndRun(IDE_editor ed)
             return;
     }
 
+#ifdef __amigaos__
     LOG_printf (LOG_INFO, "\n");
-    RUN_run (ed->binfn);
+    RUN_start (ed->binfn);
+
+    UI_runIO();
+#else
+    LOG_printf (LOG_INFO, "\n*** FIXME: non-amiga debugging not implemented yet.\n\n");
+#endif
+
+    // LOG_printf (LOG_INFO, "%s finished.\n\n", binfn);
+
+    // FIXME: cleanup
 
     LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     UI_waitkey ();
@@ -1940,7 +1950,7 @@ static void size_cb (void *user_data)
     repaint(ed);
 }
 
-static void key_cb (uint16_t key, void *user_data)
+static void event_cb (uint16_t key, void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
 
@@ -2202,7 +2212,9 @@ void IDE_open (string sourcefn)
 #endif
 	atexit (IDE_deinit);
     UI_init();
-    RUN_init();
+#ifdef __amigaos__
+    RUN_init(UI_termSignal(), UI_output());
+#endif
     LOG_init (log_cb);
 
     // indentation support
@@ -2235,7 +2247,7 @@ void IDE_open (string sourcefn)
     UI_eraseDisplay();
     repaint(g_ed);
 
-	UI_onKeyCall(key_cb, g_ed);
+	UI_onEventCall(event_cb, g_ed);
     UI_onSizeChangeCall (size_cb, g_ed);
 
 	UI_run();

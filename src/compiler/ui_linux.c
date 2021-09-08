@@ -37,8 +37,8 @@ static int             g_bpos = 0;
 static UI_size_cb      g_size_cb = NULL;
 static void           *g_size_cb_user_data = NULL;
 
-static UI_key_cb       g_key_cb = NULL;
-static void           *g_key_cb_user_data = NULL;
+static UI_event_cb     g_event_cb = NULL;
+static void           *g_event_cb_user_data = NULL;
 static uint16_t        g_scrollStart   = 0;
 static uint16_t        g_scrollEnd     = 10;
 static uint16_t        g_curLineStart  = 1;
@@ -516,8 +516,8 @@ void UI_run(void)
     {
         uint16_t ch = UI_getch();
         LOG_printf (LOG_DEBUG, "terminal: UI_getch() returned %d\n", ch);
-        if (g_key_cb)
-            g_key_cb (ch, g_key_cb_user_data);
+        if (g_event_cb)
+            g_event_cb (ch, g_event_cb_user_data);
     }
 }
 
@@ -547,10 +547,10 @@ void UI_HelpBrowser (void)
     TUI_HelpBrowser();
 }
 
-void UI_onKeyCall (UI_key_cb cb, void *user_data)
+void UI_onEventCall (UI_event_cb cb, void *user_data)
 {
-    g_key_cb           = cb;
-    g_key_cb_user_data = user_data;
+    g_event_cb           = cb;
+    g_event_cb_user_data = user_data;
 }
 
 
