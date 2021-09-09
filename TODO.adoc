@@ -52,6 +52,8 @@ DONE translate forum posts, add useful information to README
     * optionally: initialize all variables to 0?
     * T_Cast that results in NOP or simple MOVE: introduce T_TypeView node
 
+- create Icons for Binaries
+
 == Runtime
 
 - startup code: command line args, workbench startup
@@ -66,6 +68,8 @@ DONE translate forum posts, add useful information to README
 - CTRL+C to stop the program at any time
 
 - source level debugging
+
+- tetris game freezes after some 3 minutes (ressource leak? )
 
 == IDE
 
@@ -82,6 +86,8 @@ DONE translate forum posts, add useful information to README
 - horizontal scrolling
 
 - mouse cursor positioning
+
+- workbench arguments (double click source code -> open file in IDE)
 
 == Core Commands
 
