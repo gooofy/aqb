@@ -13,20 +13,20 @@
  * TODO: handle commandline
  */
 
-    #define SysBase 4
+    .set SysBase, 4
 
     /* exec.library */
 
-    #define FindTask -294
-    #define WaitPort -384
-    #define GetMsg -372
-    #define ReplyMsg -378
-    #define Forbid -132
+    .set FindTask, -294
+    .set WaitPort, -384
+    .set GetMsg  , -372
+    .set ReplyMsg, -378
+    .set Forbid  , -132
 
     /* structs */
 
-/*    .set    pr_CLI, 172
-    .set    pr_MsgPort, 92*/
+    .set pr_CLI    , 172
+    .set pr_MsgPort,  92
 
 .text
     .globl  _start
@@ -50,17 +50,14 @@ _start:
 	/* Check process console pointer. If 0 -> started from Workbench. */
 
 	movea.l	 d0, a2			/* process descriptor in A2 */
-	tst.l    172(a2)
-	/*tst.l    pr_CLI(a2) */
+	tst.l    pr_CLI(a2)
 	bne.s    NoWorkbench
 
 	/* Receive Workbench startup message */
 
-	lea		 92(a2), a0	  /* process message port   */
-	/*lea		 pr_MsgPort(a2), a0*/	  /* process message port   */
+	lea		 pr_MsgPort(a2), a0	  /* process message port   */
 	jsr      WaitPort(a6)         /* first wait for message */
-	lea      92(a2), a0	  /* A0 is scratch, could be overwritten */
-	/*lea      pr_MsgPort(a2), a0 */	  /* A0 is scratch, could be overwritten */
+	lea      pr_MsgPort(a2), a0   /* A0 is scratch, could be overwritten */
 	jsr	     GetMsg(a6)           /* then get message from port */
 	move.l	 d0, ___WorkbenchMsg  /* store it for later use */
 
@@ -101,7 +98,5 @@ NoReplyNeeded:
     .align 4
 ___SaveSP:
     dc.l    0
-
 ___WorkbenchMsg:
 	dc.l	0
-

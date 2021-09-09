@@ -414,6 +414,40 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 LOG_printf (LOG_DEBUG, "link: %s:  -> ext_def, offset=0x%08x\n", sourcefn, offset);
                 break;
             }
+            case EXT_TYPE_ABS:
+            {
+                uint32_t v;
+                if (!fread_u4 (f, &v))
+                {
+                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    return FALSE;
+                }
+                // FIXME AS_segmentAddDef (g_hunk_cur, sym, v);
+                LOG_printf (LOG_DEBUG, "link: %s:  -> ext_abs, v=0x%08x\n", sourcefn, v);
+                break;
+            }
+            case EXT_TYPE_ABSREF16:
+            {
+                uint32_t num_refs;
+                if (!fread_u4 (f, &num_refs))
+                {
+                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    return FALSE;
+                }
+                for (uint32_t i=0; i<num_refs; i++)
+                {
+                    uint32_t v;
+                    if (!fread_u4 (f, &v))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error.\n");
+                        return FALSE;
+                    }
+
+                    // FIXME AS_segmentAddRef (g_hunk_cur, sym, v, Temp_w_L, /*common_size=*/0);
+                    LOG_printf (LOG_DEBUG, "link: %s:  -> ext_absref16, v=0x%08x\n", sourcefn, v);
+                }
+                break;
+            }
             default:
                 LOG_printf (LOG_ERROR, "link: FIXME: ext type %d not implemented yet.\n", ext_type);
                 assert(FALSE);
