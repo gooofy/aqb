@@ -23,8 +23,8 @@ _brt.a: cstartup.o astr.o amath.o autil.o dyna.o data.o
 	cp $@ $(DISTDIR)/lib
 	cp startup.o $(DISTDIR)/lib
 
-diss: dyna.o
-	$(OBJDUMP_AMIGAOS) -S -d -x dyna.o
+diss: startup.o
+	$(OBJDUMP_AMIGAOS) -S -d -x startup.o
 
 %.asm: %.c
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@

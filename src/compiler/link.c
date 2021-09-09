@@ -21,8 +21,10 @@
 #define HUNK_TYPE_HEADER   0x03F3
 
 #define EXT_TYPE_DEF            1
+#define EXT_TYPE_ABS            2
 #define EXT_TYPE_REF32        129
 #define EXT_TYPE_COMMON       130
+#define EXT_TYPE_ABSREF16     138
 
 #define MAX_BUF              1024
 #define MAX_NUM_HUNKS          16
