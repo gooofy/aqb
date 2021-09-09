@@ -24,8 +24,8 @@ struct FakeSegList
 	APTR 	code;
 };
 
-static struct Task *g_parentTask;
-
+static struct Task       *g_parentTask;
+static struct Task       *g_childTask;
 static int                g_termSignal;
 static struct FileHandle *g_output;
 static char              *g_binfn;
@@ -36,6 +36,7 @@ typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG 
 static void runner (void)
 {
 	struct Process *me = (struct Process *) FindTask(NULL);
+    g_childTask = (struct Task *) me;
     me->pr_CurrentDir = g_currentDir;
 
     LOG_printf (LOG_INFO, "loading %s ...\n\n", g_binfn);
@@ -93,6 +94,16 @@ void RUN_start (const char *binfn)
 		LOG_printf (LOG_ERROR, "run: failed to allocate memory for fake seglist!\n");
 	}
 
+}
+
+void RUN_stop (void)
+{
+    Forbid();
+
+    //g_childTask->tc_State = TS_WAIT;
+    RemTask (g_childTask);
+
+    Permit();
 }
 
 void RUN_init (int termSignal, struct FileHandle *output)

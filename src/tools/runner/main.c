@@ -102,8 +102,8 @@ int main (int argc, char *argv[])
 
 					DoIO((struct IORequest *)inputReqBlk);
 
-					//LOG_printf (LOG_DEBUG, "runner starts:\n");
-					//RUN_start (BINFN);
+					LOG_printf (LOG_DEBUG, "runner starts:\n");
+					RUN_start (BINFN);
 
 					ULONG termsig  = 1 << g_termSignalBit;
 					ULONG debugsig = 1 << g_debugSignalBit;
@@ -122,7 +122,7 @@ int main (int argc, char *argv[])
                         if (signals & debugsig)
                         {
 							LOG_printf (LOG_DEBUG, "got debugsignal\n");
-							running = FALSE;
+                            RUN_stop ();
                         }
 					}
 

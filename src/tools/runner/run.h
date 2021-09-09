@@ -8,6 +8,9 @@
 void RUN_start (const char *binfn);
 
 void RUN_init (int termSignalBit, struct FileHandle *output);
+
+void RUN_stop (void);
+
 #endif
 
 #endif
