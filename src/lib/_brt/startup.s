@@ -28,6 +28,9 @@
     .set pr_CLI    , 172
     .set pr_MsgPort,  92
 
+    .set dbg_sig,     24
+    .set dbg_exitfn,  28
+
 .text
     .globl  _start
 _start:
@@ -51,7 +54,7 @@ _start:
 
 	movea.l	 d0, a2			/* process descriptor in A2 */
 	tst.l    pr_CLI(a2)
-	bne.s    NoWorkbench
+	bne.s    runMain
 
 	/* Receive Workbench startup message */
 
@@ -61,7 +64,15 @@ _start:
 	jsr	     GetMsg(a6)           /* then get message from port */
 	move.l	 d0, ___WorkbenchMsg  /* store it for later use */
 
-NoWorkbench:
+    /* is this in fact a debug message from the AQB IDE ? */
+    move.l   d0, a0
+    move.l   dbg_sig(a0), d0      /* check signature */
+    cmpi.l   #0xDECA11ED, d0
+    bne.s    runMain              /* regular wb start message */
+
+    move.l   #__autil_exit, dbg_exitfn(a0)
+
+runMain:
 
 	/* main program entry here */
     jsr      __cstartup

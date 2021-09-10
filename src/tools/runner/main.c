@@ -28,6 +28,7 @@ extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
 #define BINFN "SYS:x/foo"
+//#define BINFN "SYS:utilities/clock"
 
 static int g_termSignalBit  =-1;
 static int g_debugSignalBit =-1;
@@ -102,7 +103,7 @@ int main (int argc, char *argv[])
 
 					DoIO((struct IORequest *)inputReqBlk);
 
-					LOG_printf (LOG_DEBUG, "runner starts:\n");
+					LOG_printf (LOG_DEBUG, "main: runner starts:\n");
 					RUN_start (BINFN);
 
 					ULONG termsig  = 1 << g_termSignalBit;
@@ -111,6 +112,7 @@ int main (int argc, char *argv[])
 					BOOL running = TRUE;
 					while (running)
 					{
+                        LOG_printf (LOG_DEBUG, "main: waiting for signals...\n");
 						ULONG signals = Wait(termsig | debugsig);
 
 						if (signals & termsig)
@@ -123,6 +125,7 @@ int main (int argc, char *argv[])
                         {
 							LOG_printf (LOG_DEBUG, "got debugsignal\n");
                             RUN_stop ();
+							running = FALSE;
                         }
 					}
 
