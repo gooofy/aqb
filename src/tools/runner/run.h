@@ -5,11 +5,16 @@
 
 #include <dos/dosextens.h>
 
-void RUN_start (const char *binfn);
+typedef enum {RUN_stateRunning, RUN_stateStopped} RUN_state;
 
-void RUN_init (int termSignalBit, struct FileHandle *output);
+void      RUN_start (const char *binfn);
 
-void RUN_break (void);
+void      RUN_init (struct MsgPort *debugPort, struct FileHandle *output);
+
+void      RUN_handleMessages(void);
+RUN_state RUN_getState(void);
+
+void      RUN_break (void);
 
 #endif
 

@@ -30,134 +30,56 @@ extern struct DOSBase       *DOSBase;
 #define BINFN "SYS:x/foo"
 //#define BINFN "SYS:utilities/clock"
 
-static int g_termSignalBit  =-1;
-static int g_debugSignalBit =-1;
+static struct MsgPort  *g_debugPort;
 
 void __chkabort(void)
 {
 }
 
-static APTR ctrlCCallback ( register struct InputEvent *oldEventChain __asm("a0"),
-                            register APTR               data          __asm("a1"))
-{
-    //LOG_printf (LOG_INFO, "ctrlCCallback called: oldEventChain=0x%08lx data=%ld\n", (ULONG) oldEventChain, (ULONG) data);
-
-    struct InputEvent *e = oldEventChain;
-    while (e)
-    {
-        if ( (e->ie_Class == IECLASS_RAWKEY) && ((e->ie_Code & 0x7f) == 0x33) && (e->ie_Qualifier & IEQUALIFIER_CONTROL) )
-        {
-            struct Task *maintask = data;
-            Signal (maintask, 1<<g_debugSignalBit);
-        }
-
-        e = e->ie_NextEvent;
-    }
-
-	return oldEventChain;
-}
-
-static char *ctrlCHandlerName = "AQB CTRL-C input event handler";
-
 int main (int argc, char *argv[])
 {
-
-    g_termSignalBit = AllocSignal(-1);
-    if (g_termSignalBit == -1)
+    g_debugPort  = ASUP_create_port ((STRPTR) "AQB debug reply port", 0);
+    if (!g_debugPort)
     {
-		LOG_printf (LOG_ERROR, "failed to alloc signal\n");
-        exit(23);
-    }
-
-    g_debugSignalBit = AllocSignal(-1);
-    if (g_debugSignalBit == -1)
-    {
-		LOG_printf (LOG_ERROR, "failed to alloc signal\n");
-        exit(24);
+        // FIXME
+        fprintf (stderr, "run: failed to create debug reply port!\n");
+        exit(42);
     }
 
     BPTR o = Output();
     struct FileHandle *output = (struct FileHandle *) BADDR(o);
 
-    RUN_init (g_termSignalBit, output);
+    RUN_init (g_debugPort, output);
 
-	struct IOStdReq  *inputReqBlk;
-	struct MsgPort   *inputPort;
-	struct Interrupt *inputHandler;
+    LOG_printf (LOG_DEBUG, "main: runner starts:\n");
+    RUN_start (BINFN);
 
-	if ( (inputPort=ASUP_create_port(NULL, 0)) )
-	{
-		if ( (inputHandler=AllocMem(sizeof(struct Interrupt), MEMF_PUBLIC|MEMF_CLEAR)) )
-		{
-			if ( (inputReqBlk=(struct IOStdReq *)ASUP_create_ext_io(inputPort, sizeof(struct IOStdReq))) )
-			{
-				if (!OpenDevice ((STRPTR)"input.device", /*unitNumber=*/0, (struct IORequest *)inputReqBlk, /*flags=*/0))
-				{
-					inputHandler->is_Code         = (APTR) ctrlCCallback;
-					inputHandler->is_Data         = (APTR) FindTask(NULL);
-					inputHandler->is_Node.ln_Pri  = 100;
-					inputHandler->is_Node.ln_Name = ctrlCHandlerName;
+    ULONG debugsig  = 1 << g_debugPort->mp_SigBit;
+    //ULONG debugsig  = g_debugPort->mp_SigBit;
 
-					inputReqBlk->io_Data    = (APTR)inputHandler;
-					inputReqBlk->io_Command = IND_ADDHANDLER;
+    BOOL running = TRUE;
+    while (running)
+    {
+        LOG_printf (LOG_DEBUG, "main: waiting for signals... 0x%08lx\n", debugsig);
+        ULONG signals = Wait(debugsig);
 
-					DoIO((struct IORequest *)inputReqBlk);
+        if (signals & debugsig)
+        {
+            LOG_printf (LOG_DEBUG, "got debugsignal\n");
+            RUN_handleMessages();
+            switch (RUN_getState())
+            {
+                case RUN_stateRunning:
+                    break;
+                case RUN_stateStopped:
+                    running = FALSE;
+            }
+        }
+    }
 
-					LOG_printf (LOG_DEBUG, "main: runner starts:\n");
-					RUN_start (BINFN);
+    LOG_printf (LOG_DEBUG, "runner ends\n");
 
-					ULONG termsig  = 1 << g_termSignalBit;
-					ULONG debugsig = 1 << g_debugSignalBit;
-
-					BOOL running = TRUE;
-					while (running)
-					{
-                        LOG_printf (LOG_DEBUG, "main: waiting for signals...\n");
-						ULONG signals = Wait(termsig | debugsig);
-
-						if (signals & termsig)
-						{
-							LOG_printf (LOG_DEBUG, "got termsignal\n");
-							running = FALSE;
-						}
-
-                        if (signals & debugsig)
-                        {
-							LOG_printf (LOG_DEBUG, "got debugsignal\n");
-                            RUN_break ();
-							running = FALSE;
-                        }
-					}
-
-					LOG_printf (LOG_DEBUG, "runner ends\n");
-
-					inputReqBlk->io_Data    = (APTR)inputHandler;
-					inputReqBlk->io_Command = IND_REMHANDLER;
-
-					DoIO((struct IORequest *)inputReqBlk);
-
-					CloseDevice((struct IORequest *)inputReqBlk);
-				}
-				else
-					printf("Error: Could not open input.device\n");
-
-				ASUP_delete_ext_io((struct IORequest *)inputReqBlk);
-			}
-			else
-				printf("Error: Could not create IORequest\n");
-
-			FreeMem(inputHandler,sizeof(struct Interrupt));
-		}
-		else
-			printf("Error: Could not allocate interrupt struct memory\n");
-
-		ASUP_delete_port(inputPort);
-	}
-	else
-		printf("Error: Could not create message port\n");
-
-
-    FreeSignal (g_termSignalBit);
+    ASUP_delete_port(g_debugPort);
 
     return 0;
 }

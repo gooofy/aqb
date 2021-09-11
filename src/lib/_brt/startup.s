@@ -88,18 +88,22 @@ __autil_exit:
 
     jsr      __c_atexit
 
-	/* if in Workbench mode, reply the startup message now. */
+	/* if in Workbench mode, reply to the startup message now. */
 
 	move.l	 ___WorkbenchMsg, d2
 	tst.l	 d2				 /* check if we've got the message */
 	beq.s	 NoReplyNeeded
+
+    move.l   d2, a0
+    move.l   #42, dbg_exitfn(a0)
+
+	movea.l	 SysBase, a6
 	jsr      Forbid(a6)		 /* disable multitasking */
 	movea.l	 d2, a1
-	jsr		 ReplyMsg(a6)	 /* reply the message */
+	jsr		 ReplyMsg(a6)	 /* reply to the message */
 
 NoReplyNeeded:
     move.l   4(sp), d0       /* return code */
-
     /* restore sp, registers */
     move.l   ___SaveSP,sp
     movem.l  (sp)+,d2-d7/a2-a6

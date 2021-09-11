@@ -19,39 +19,32 @@
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
+static struct MsgPort  *g_debugPort;
+static RUN_state        g_debugState = RUN_stateStopped;
+
 #define DEFAULT_PRI           0
 #define DEFAULT_STACKSIZE 32768
 
 #define TS_FROZEN          0xff
 
-#if 0
-struct FakeSegList
-{
-	ULONG 	length;
-	ULONG 	next;
-	UWORD 	jump;
-	APTR 	code;
-};
-#endif
+#define DEBUG_SIG 0xDECA11ED
 
 /* we send this instead of WBStartup */
 struct DebugMsg
 {
     struct Message  msg;
 	struct MsgPort *port;
-    ULONG           debug_sig;	// 0xDECA11ED
+    ULONG           debug_sig;
 	APTR            exitFn;
 };
 
 static struct Task       *g_parentTask;
 static struct Process    *g_childProc;
-static int                g_termSignal;
 static struct FileHandle *g_output;
 static char              *g_binfn;
 static BPTR               g_currentDir;
 static BPTR               g_seglist;
 static struct DebugMsg    g_dbgMsg;
-static struct MsgPort    *g_replyPort;
 
 
 #if 0
@@ -98,7 +91,6 @@ void RUN_start (const char *binfn)
     if (!g_seglist)
     {
         LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
-        Signal (g_parentTask, 1<<g_termSignal);
         return;
     }
 
@@ -119,16 +111,37 @@ void RUN_start (const char *binfn)
 	g_dbgMsg.msg.mn_Node.ln_Type = NT_MESSAGE;
 	g_dbgMsg.msg.mn_Node.ln_Pri  = 0;
 	g_dbgMsg.msg.mn_Node.ln_Name = NULL;
+    g_dbgMsg.msg.mn_ReplyPort    = g_debugPort;
 	g_dbgMsg.msg.mn_Length       = sizeof(struct DebugMsg);
 	g_dbgMsg.port                = &g_childProc->pr_MsgPort;
-	g_dbgMsg.debug_sig           = 0xDECA11ED;
+	g_dbgMsg.debug_sig           = DEBUG_SIG;
 	g_dbgMsg.exitFn              = NULL;
 
 	LOG_printf (LOG_INFO, "RUN_start: Send debug msg...\n");
 
 	PutMsg (&g_childProc->pr_MsgPort, &g_dbgMsg.msg);
 
+    g_debugState = RUN_stateRunning;
+
 	LOG_printf (LOG_INFO, "RUN_start: done.\n");
+}
+
+void RUN_handleMessages(void)
+{
+    while (TRUE)
+    {
+        struct DebugMsg *msg = (struct DebugMsg *) GetMsg(g_debugPort);
+        if (!msg)
+            return;
+        if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
+            && (msg->debug_sig == DEBUG_SIG))
+            g_debugState = RUN_stateStopped;
+    }
+}
+
+RUN_state RUN_getState(void)
+{
+    return g_debugState;
 }
 
 #if 0
@@ -192,20 +205,12 @@ void RUN_break (void)
     Signal (&g_childProc->pr_Task, SIGBREAKF_CTRL_C);
 }
 
-
-void RUN_init (int termSignal, struct FileHandle *output)
+void RUN_init (struct MsgPort *debugPort, struct FileHandle *output)
 {
-    g_termSignal = termSignal;
     g_output     = output;
 	g_parentTask = FindTask(NULL);
     g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
-    g_replyPort  = ASUP_create_port ((STRPTR) "AQB debug reply port", 0);
-    if (!g_replyPort)
-    {
-        // FIXME
-        fprintf (stderr, "run: failed to create debug reply port!\n");
-        exit(42);
-    }
+    g_debugPort  = debugPort;
 }
 
 #endif
