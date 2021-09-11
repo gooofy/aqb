@@ -124,7 +124,7 @@ int main (int argc, char *argv[])
                         if (signals & debugsig)
                         {
 							LOG_printf (LOG_DEBUG, "got debugsignal\n");
-                            RUN_stop ();
+                            RUN_break ();
 							running = FALSE;
                         }
 					}

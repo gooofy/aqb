@@ -1,9 +1,8 @@
 /*
- * C part of AQB startup
+ * C part of AQB startup and exit
  *
- * opens libraries, initializes other modules,
- * calls __aqbmain
- * and shuts down everything once __aqbmain returns
+ * opens libraries, initializes other modules
+ * handles clean shutdown on exit
  */
 
 #include "_brt.h"
@@ -127,7 +126,25 @@ void _cshutdown (LONG return_code, UBYTE *msg)
     _autil_exit(return_code);
 }
 
-void _aqb_main(void);
+static struct Task *g_task = NULL;
+
+//USHORT _breakCode = 0;
+
+static void _breakHandler (register ULONG signals __asm("d0"), register APTR exceptData __asm("a1"))
+{
+    // dos call pending ?
+
+    Forbid();
+    BOOL inDos = (g_task->tc_SigWait ^ g_task->tc_SigRecvd) & SIGF_DOS;
+    Permit();
+
+    if (inDos)
+        return;
+
+    //_breakCode = BREAK_CTRL_C;
+    _debug_puts ((STRPTR)"\n\n*** _breakHandler called.\n\n");
+    _autil_exit(1);
+}
 
 void _cstartup (void)
 {
@@ -147,13 +164,20 @@ void _cstartup (void)
     _autil_init();
     autil_init_done = TRUE;
 
+    /* set up break signal exception + handler */
+
+    struct Task *g_task = FindTask(NULL);
+
+    Forbid();
+    g_task->tc_ExceptData = NULL;
+    g_task->tc_ExceptCode = _breakHandler;
+    SetSignal (0, SIGBREAKF_CTRL_C);
+    SetExcept (SIGBREAKF_CTRL_C, SIGBREAKF_CTRL_C);
+    Permit();
+
     _astr_init();
 
     _amath_init();
-
-    // _aqb_main();
-
-    // _autil_exit(0);
 }
 
 void __brt_init(void)

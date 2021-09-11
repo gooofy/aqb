@@ -131,7 +131,8 @@ void RUN_start (const char *binfn)
 	LOG_printf (LOG_INFO, "RUN_start: done.\n");
 }
 
-void RUN_stop (void)
+#if 0
+void RUN_freeze (void)
 {
 	LOG_printf (LOG_INFO, "RUN_stop: Freeze...\n");
 
@@ -182,6 +183,15 @@ void RUN_stop (void)
 
 	LOG_printf (LOG_INFO, "RUN_stop: done\n");
 }
+#endif
+
+void RUN_break (void)
+{
+	LOG_printf (LOG_INFO, "RUN_break: sending CTRL+C signal to child\n");
+
+    Signal (&g_childProc->pr_Task, SIGBREAKF_CTRL_C);
+}
+
 
 void RUN_init (int termSignal, struct FileHandle *output)
 {

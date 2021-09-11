@@ -33,6 +33,10 @@ void _debug_putf  (FLOAT f);
 void _debug_putnl (void);
 void _debug_cls   (void);
 
+//#define BREAK_CTRL_C    1
+
+//extern USHORT _breakCode;
+
 //extern USHORT g_errcode;
 
 #define ERR_OUT_OF_DATA              4
