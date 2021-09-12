@@ -116,6 +116,20 @@ UBYTE  *CHR_              (LONG codepoint);
 SHORT  ASC_               (const UBYTE *str);
 
 /*
+ * utils
+ */
+
+
+extern struct Task  *_autil_task;
+
+struct MsgPort   *_autil_create_port   (STRPTR name, LONG pri);
+void              _autil_delete_port   (struct MsgPort *port);
+struct IORequest *_autil_create_ext_io (struct MsgPort *port, LONG iosize);
+struct IOStdReq  *_autil_create_std_io (struct MsgPort *port);
+void              _autil_delete_ext_io (struct IORequest *ioreq);
+void              _autil_ckbrk         (void);
+
+/*
  * STR$ support
  */
 

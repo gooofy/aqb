@@ -104,6 +104,7 @@ __autil_exit:
 
 NoReplyNeeded:
     move.l   4(sp), d0       /* return code */
+
     /* restore sp, registers */
     move.l   ___SaveSP,sp
     movem.l  (sp)+,d2-d7/a2-a6

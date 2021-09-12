@@ -27,8 +27,7 @@
 
 //#define ENABLE_DEBUG
 
-struct Device * ConsoleDevice;
-
+struct Device           *ConsoleDevice;
 BPTR                     g_stdout, g_stdin;
 static FLOAT             g_fp15; // FFP representation of decimal 15, used in PALETTE
 static struct IOStdReq   g_ioreq; // console.device is used to convert RAWKEY codes
@@ -683,6 +682,8 @@ static void do_scroll(void)
 
 void _aio_puts(USHORT fno, const UBYTE *s)
 {
+    _autil_ckbrk();
+
     //_debug_puts("_aio_puts\n");
 
     if (fno)

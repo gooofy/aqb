@@ -14,6 +14,9 @@
 #include <exec/execbase.h>
 #include <exec/memory.h>
 
+#include <devices/inputevent.h>
+#include <devices/input.h>
+
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
@@ -31,6 +34,14 @@ struct MathTransBase *MathTransBase = NULL;
 static BOOL autil_init_done = FALSE;
 
 static BPTR _debug_stdout = 0;
+
+struct Task          *_autil_task             = NULL;
+struct IOStdReq      *g_inputReqBlk           = NULL;
+struct MsgPort       *g_inputPort             = NULL;
+struct Interrupt     *g_inputHandler          = NULL;
+static BOOL           g_inputDeviceOpen       = FALSE;
+static BOOL           g_InputHandlerInstalled = FALSE;
+
 
 void _debug_puts(const UBYTE *s)
 {
@@ -84,6 +95,36 @@ void ON_EXIT_CALL(void (*cb)(void))
     num_exit_handlers++;
 }
 
+static BOOL g_brk = FALSE;
+
+void _autil_ckbrk(void)
+{
+    //ULONG sigRecvd = _autil_task->tc_SigRecvd;
+    if (g_brk)
+        _autil_exit(1);
+}
+
+static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a0"),
+                            register APTR               data          __asm("a1"))
+{
+    //LOG_printf (LOG_INFO, "___inputHandler called: oldEventChain=0x%08lx data=%ld\n", (ULONG) oldEventChain, (ULONG) data);
+
+    struct InputEvent *e = oldEventChain;
+    while (e)
+    {
+        if ( (e->ie_Class == IECLASS_RAWKEY) && ((e->ie_Code & 0x7f) == 0x33) && (e->ie_Qualifier & IEQUALIFIER_CONTROL) )
+        {
+            struct Task *maintask = data;
+            Signal (maintask, SIGBREAKF_CTRL_C);
+            g_brk = TRUE;
+        }
+
+        e = e->ie_NextEvent;
+    }
+
+	return oldEventChain;
+}
+
 // gets called by _autil_exit
 void _c_atexit(void)
 {
@@ -100,6 +141,26 @@ void _c_atexit(void)
 #endif
         exit_handlers[i]();
     }
+
+    if (g_InputHandlerInstalled)
+    {
+        g_inputReqBlk->io_Data    = (APTR)g_inputHandler;
+        g_inputReqBlk->io_Command = IND_REMHANDLER;
+
+        DoIO((struct IORequest *)g_inputReqBlk);
+    }
+
+    if (g_inputDeviceOpen)
+        CloseDevice((struct IORequest *)g_inputReqBlk);
+
+    if (g_inputReqBlk)
+        _autil_delete_ext_io((struct IORequest *)g_inputReqBlk);
+
+    if (g_inputHandler)
+        FreeMem(g_inputHandler, sizeof(struct Interrupt));
+
+    if (g_inputPort)
+        _autil_delete_port(g_inputPort);
 
     if (autil_init_done)
         _autil_shutdown();
@@ -126,25 +187,38 @@ void _cshutdown (LONG return_code, UBYTE *msg)
     _autil_exit(return_code);
 }
 
-static struct Task *g_task = NULL;
-
-//USHORT _breakCode = 0;
-
-static void _breakHandler (register ULONG signals __asm("d0"), register APTR exceptData __asm("a1"))
+void ___breakHandler (register ULONG signals __asm("d0"), register APTR exceptData __asm("a1"))
 {
+#if 0
     // dos call pending ?
 
     Forbid();
-    BOOL inDos = (g_task->tc_SigWait ^ g_task->tc_SigRecvd) & SIGF_DOS;
-    Permit();
+    ULONG sigWait  = g_task->tc_SigWait;
+    ULONG sigRecvd = g_task->tc_SigRecvd;
+    BOOL inDos = (sigWait ^ sigRecvd) & SIGF_DOS;
 
     if (inDos)
+    {
+        Permit();
         return;
+    }
+
+    //Permit();
+
+    //_debug_puts ((STRPTR)"\n\n*** ___breakHandler called g_task->tc_SigWait=");
+    //_debug_putu4 (sigWait);
+    //_debug_puts ((STRPTR)" g_task->tc_SigRecvd=");
+    //_debug_putu4 (sigRecvd);
+    //_debug_puts ((STRPTR)" inDos=");
+    //_debug_puts2 (inDos);
+    //_debug_puts ((STRPTR)"\n\n");
 
     //_breakCode = BREAK_CTRL_C;
-    _debug_puts ((STRPTR)"\n\n*** _breakHandler called.\n\n");
     _autil_exit(1);
+#endif
 }
+
+static char *g_inputHandlerName = "AQB CTRL-C input event handler";
 
 void _cstartup (void)
 {
@@ -166,14 +240,40 @@ void _cstartup (void)
 
     /* set up break signal exception + handler */
 
-    struct Task *g_task = FindTask(NULL);
+    _autil_task = FindTask(NULL);
 
     Forbid();
-    g_task->tc_ExceptData = NULL;
-    g_task->tc_ExceptCode = _breakHandler;
+    _autil_task->tc_ExceptData = NULL;
+    _autil_task->tc_ExceptCode = ___breakHandler;
     SetSignal (0, SIGBREAKF_CTRL_C);
     SetExcept (SIGBREAKF_CTRL_C, SIGBREAKF_CTRL_C);
     Permit();
+
+    /* install CTRL+C input event handler */
+
+	if ( !(g_inputPort=_autil_create_port(NULL, 0)) )
+        _cshutdown(20, (UBYTE *) "*** error: failed to allocate CTRL-C handler input port!\n");
+
+    if ( !(g_inputHandler=AllocMem(sizeof(struct Interrupt), MEMF_PUBLIC|MEMF_CLEAR)) )
+        _cshutdown(20, (UBYTE *) "*** error: failed to allocate CTRL-C handler memory!\n");
+
+    if ( !(g_inputReqBlk=(struct IOStdReq *)_autil_create_ext_io(g_inputPort, sizeof(struct IOStdReq))) )
+        _cshutdown(20, (UBYTE *) "*** error: failed to allocate CTRL-C ext io!\n");
+
+    if (OpenDevice ((STRPTR)"input.device", /*unitNumber=*/0, (struct IORequest *)g_inputReqBlk, /*flags=*/0))
+        _cshutdown(20, (UBYTE *) "*** error: failed to open input.device!\n");
+    g_inputDeviceOpen = TRUE;
+
+    g_inputHandler->is_Code         = (APTR) ___inputHandler;
+    g_inputHandler->is_Data         = (APTR) _autil_task;
+    g_inputHandler->is_Node.ln_Pri  = 100;
+    g_inputHandler->is_Node.ln_Name = g_inputHandlerName;
+
+    g_inputReqBlk->io_Data    = (APTR)g_inputHandler;
+    g_inputReqBlk->io_Command = IND_ADDHANDLER;
+
+    DoIO((struct IORequest *)g_inputReqBlk);
+    g_InputHandlerInstalled = TRUE;
 
     _astr_init();
 
