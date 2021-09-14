@@ -93,6 +93,8 @@ static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout un
 
 void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title)
 {
+    _autil_ckbrk();
+
     // error checking
     if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] != NULL) || (width <=0) || (height <= 0) || (depth <= 0) || (depth>6) )
     {
@@ -173,6 +175,8 @@ void SCREEN_CLOSE(short id)
  */
 void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid)
 {
+    _autil_ckbrk();
+
     USHORT w, h;
 
     // error checking
@@ -347,6 +351,7 @@ void _awindow_init(void)
 
 void CLS (void)
 {
+    _autil_ckbrk();
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
         char form_feed = 0x0c;
@@ -364,6 +369,7 @@ void CLS (void)
  */
 void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
 {
+    _autil_ckbrk();
     BYTE fgPen=g_rp->FgPen;
 #if 0
     _aio_puts("s1: ")  ; _aio_puts2(s1);
@@ -427,6 +433,7 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
 
 void PSET(BOOL s, short x, short y, short color)
 {
+    _autil_ckbrk();
     BYTE fgPen=g_rp->FgPen;
 
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
@@ -498,6 +505,8 @@ LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
 
 void SLEEP(void)
 {
+    _autil_ckbrk();
+
     struct IntuiMessage *message = NULL;
 
     ULONG signals = Wait (_g_signalmask_awindow | _g_signalmask_atimer);
@@ -863,6 +872,8 @@ void _aio_set_dos_cursor_visible (BOOL visible)
 
 static void draw_cursor(void)
 {
+    _autil_ckbrk();
+
     ULONG   old_fg, old_x, old_y;
 
     old_fg = g_rp->FgPen;
@@ -1052,6 +1063,8 @@ static void allocTmpRas(void)
 
 void PAINT(BOOL s, short x, short y, short pc, short aol)
 {
+    _autil_ckbrk();
+
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
         ERROR(AE_PAINT);
@@ -1144,6 +1157,8 @@ void AREA(BOOL s, short x, short y)
 
 void AREAFILL (short mode)
 {
+    _autil_ckbrk();
+
     BYTE dm;
 
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || !g_rp->AreaInfo )
@@ -1235,6 +1250,8 @@ static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)
 {
+    _autil_ckbrk();
+
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
         LONG l = Read(g_stdin, (CONST APTR) inkeybuf, 1);

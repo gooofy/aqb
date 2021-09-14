@@ -8,7 +8,8 @@ Bug Fixes::
 
     * compiler: CLI return code fixed
     * compiler: handle varPtr in BinOp expressions
-    * IDE: do not crash if non-existing file is specified as cmd line argument
+    * ide: do not crash if non-existing file is specified as cmd line argument
+    * runtime/ide: detect and handle CTRL-C break
 
 == 0.7.0alpha2
 
