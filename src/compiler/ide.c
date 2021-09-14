@@ -1639,8 +1639,8 @@ static void compileAndRun(IDE_editor ed)
 
     // FIXME: cleanup
 
-    LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
-    UI_waitkey ();
+    LOG_printf (LOG_INFO, "\n*** press enter to continue ***\n\n");
+    while ( UI_waitkey () != KEY_ENTER ) ;
 
     UI_eraseDisplay ();
     invalidateAll (ed);
@@ -2213,7 +2213,7 @@ void IDE_open (string sourcefn)
 	atexit (IDE_deinit);
     UI_init();
 #ifdef __amigaos__
-    RUN_init(UI_termSignal(), UI_output());
+    RUN_init(UI_debugPort(), UI_output());
 #endif
     LOG_init (log_cb);
 

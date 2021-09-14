@@ -122,7 +122,7 @@ void      UI_HelpBrowser        (void);
 
 #ifdef __amigaos__
 struct FileHandle *UI_output    (void);
-int       UI_termSignal         (void);
+struct MsgPort    *UI_debugPort (void);
 void      UI_runIO              (void);
 #endif
 

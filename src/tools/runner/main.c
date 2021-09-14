@@ -73,6 +73,7 @@ int main (int argc, char *argv[])
                     break;
                 case RUN_stateStopped:
                     running = FALSE;
+                    break;
             }
         }
     }

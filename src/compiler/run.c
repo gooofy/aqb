@@ -3,105 +3,214 @@
 
 #include "run.h"
 #include "logger.h"
-#include "util.h"
 
 #ifdef __amigaos__
+
+#include "amigasupport.h"
+
+#include <exec/execbase.h>
+#include <dos/dostags.h>
 
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 #include <inline/exec.h>
 #include <inline/dos.h>
+
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
+
+static struct MsgPort  *g_debugPort;
+static RUN_state        g_debugState = RUN_stateStopped;
 
 #define DEFAULT_PRI           0
 #define DEFAULT_STACKSIZE 32768
 
-struct FakeSegList
+#define TS_FROZEN          0xff
+
+#define DEBUG_SIG 0xDECA11ED
+
+/* we send this instead of WBStartup */
+struct DebugMsg
 {
-	ULONG 	length;
-	ULONG 	next;
-	UWORD 	jump;
-	APTR 	code;
+    struct Message  msg;
+	struct MsgPort *port;
+    ULONG           debug_sig;
+	APTR            exitFn;
 };
 
-static struct Task *g_parentTask;
-
-static int                g_termSignal;
+static struct Task       *g_parentTask;
+static struct Process    *g_childProc;
 static struct FileHandle *g_output;
 static char              *g_binfn;
 static BPTR               g_currentDir;
+static BPTR               g_seglist;
+static struct DebugMsg    g_dbgMsg;
 
+
+#if 0
 typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG cmdlen __asm("d0") );
 
 static void runner (void)
 {
+#if 0
 	struct Process *me = (struct Process *) FindTask(NULL);
+    g_childTask = (struct Task *) me;
     me->pr_CurrentDir = g_currentDir;
 
-    LOG_printf (LOG_INFO, "loading %s ...\n\n", g_binfn);
-    BPTR seglist = LoadSeg((STRPTR)g_binfn);
+    //LOG_printf (LOG_INFO, "run: runner() running %s ...\n\n", g_binfn);
 
-    if (!seglist)
-    {
-        LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
-        Signal (g_parentTask, 1<<g_termSignal);
-        return;
-    }
-
-    LOG_printf (LOG_INFO, "running %s ...\n\n", g_binfn);
-
-    me->pr_COS = MKBADDR(g_output);
+    //me->pr_COS = MKBADDR(g_output);
 
     ULONG *code = (ULONG *) BADDR(seglist);
     code++;
-    startup_t f = (startup_t) code;
+    //startup_t f = (startup_t) code;
 
-    //printf ("run: before f...\n");
+    //LOG_printf (LOG_INFO, "run: runner() before f ...\n\n");
+#endif
+    while (TRUE);
 
-    f((STRPTR)"fake_aqb_env", 12);
+#if 0
+    //f((STRPTR)"fake_aqb_env", 12);
 
-    //printf ("run: after f... 1\n");
+    //LOG_printf (LOG_INFO, "run: runner() after f... 1\n");
     UnLoadSeg(seglist);
 
-    //printf ("run: after f... 2\n");
-	LOG_printf (LOG_DEBUG, "runner ends, sending signal\n");
+	//LOG_printf (LOG_INFO, "run: runner ends, sending signal\n");
 
-    //printf ("run: after f... 3\n");
 	Signal (g_parentTask, 1<<g_termSignal);
-    //printf ("run: after f... 4\n");
+#endif
 }
-
+#endif
 
 void RUN_start (const char *binfn)
 {
-	struct FakeSegList *segl;
+    g_binfn = (char *)binfn;
 
-	if ( (segl = AllocMem (sizeof(struct FakeSegList),MEMF_CLEAR|MEMF_PUBLIC)) )
-	{
-		segl->length = 16;
-		segl->jump   = 0x4EF9;
-		segl->code   = runner;
+    LOG_printf (LOG_INFO, "RUN_start: loading %s ...\n\n", g_binfn);
+    g_seglist = LoadSeg((STRPTR)g_binfn);
+    if (!g_seglist)
+    {
+        LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
+        return;
+    }
 
-        g_binfn = (char *)binfn;
+    LOG_printf (LOG_INFO, "RUN_start: CreateNewProc for %s ...\n", binfn);
+    g_childProc = CreateNewProcTags(NP_Output,      (ULONG) MKBADDR(g_output),
+                                    NP_Seglist,     (ULONG) g_seglist,
+                                    NP_CloseOutput, FALSE,
+                                    NP_StackSize,   DEFAULT_STACKSIZE,
+								    NP_Name,        (ULONG) g_binfn);
 
-		// LOG_printf (LOG_INFO, "running %s ...\n\n", binfn);
-		struct MsgPort *msgport = CreateProc((STRPTR) binfn, DEFAULT_PRI, MKBADDR(segl), DEFAULT_STACKSIZE);
-		assert(msgport);
-	}
-	else
-	{
-		LOG_printf (LOG_ERROR, "run: failed to allocate memory for fake seglist!\n");
-	}
 
+    LOG_printf (LOG_INFO, "RUN_start: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_childProc);
+
+    // send startup message
+
+	g_dbgMsg.msg.mn_Node.ln_Succ = NULL;
+	g_dbgMsg.msg.mn_Node.ln_Pred = NULL;
+	g_dbgMsg.msg.mn_Node.ln_Type = NT_MESSAGE;
+	g_dbgMsg.msg.mn_Node.ln_Pri  = 0;
+	g_dbgMsg.msg.mn_Node.ln_Name = NULL;
+    g_dbgMsg.msg.mn_ReplyPort    = g_debugPort;
+	g_dbgMsg.msg.mn_Length       = sizeof(struct DebugMsg);
+	g_dbgMsg.port                = &g_childProc->pr_MsgPort;
+	g_dbgMsg.debug_sig           = DEBUG_SIG;
+	g_dbgMsg.exitFn              = NULL;
+
+	LOG_printf (LOG_INFO, "RUN_start: Send debug msg...\n");
+
+	PutMsg (&g_childProc->pr_MsgPort, &g_dbgMsg.msg);
+
+    g_debugState = RUN_stateRunning;
+
+	LOG_printf (LOG_INFO, "RUN_start: done.\n");
 }
 
-void RUN_init (int termSignal, struct FileHandle *output)
+void RUN_handleMessages(void)
 {
-    g_termSignal = termSignal;
+    while (TRUE)
+    {
+        struct DebugMsg *msg = (struct DebugMsg *) GetMsg(g_debugPort);
+        if (!msg)
+            return;
+        if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
+            && (msg->debug_sig == DEBUG_SIG))
+            g_debugState = RUN_stateStopped;
+    }
+}
+
+RUN_state RUN_getState(void)
+{
+    return g_debugState;
+}
+
+#if 0
+void RUN_freeze (void)
+{
+	LOG_printf (LOG_INFO, "RUN_stop: Freeze...\n");
+
+	BOOL done = FALSE;
+	while (!done)
+	{
+		Forbid();
+
+        if (g_childProc->pr_Task.tc_State == TS_READY)
+        {
+            Remove ((struct Node *) g_childProc);
+            g_childProc->pr_Task.tc_State = (BYTE) TS_FROZEN;
+            Enqueue ((struct List *) &SysBase->TaskWait, (struct Node *) g_childProc);
+        }
+        else
+        {
+            LOG_printf (LOG_INFO, "RUN_stop: not TS_READY!\n");
+            Permit();
+			Delay(1);
+            continue;
+        }
+
+        Permit();
+
+		ULONG *sp = (ULONG*) g_childProc->pr_Task.tc_SPReg;
+		ULONG *spp = sp+1;
+		LOG_printf (LOG_INFO, "RUN_stop: sp=0x%08lx *sp=0x%08lx spp=0x%08lx *spp=0x%08lx exitfn=0x%08lx\n", (ULONG)sp, *sp, spp, *spp, g_dbgMsg.exitFn);
+
+		ULONG rts = *spp;
+		if ((rts & 0xfff00000) != 0x00f00000)
+		{
+			*spp = (ULONG) g_dbgMsg.exitFn;
+			done = TRUE;
+			LOG_printf (LOG_INFO, "RUN_stop: force exit!\n");
+		}
+
+		Forbid();
+		Remove ((struct Node *) g_childProc);
+		g_childProc->pr_Task.tc_State = (BYTE) TS_READY;
+		Enqueue ((struct List *) &SysBase->TaskReady, (struct Node *) g_childProc);
+		Permit();
+
+		if (!done)
+		{
+			Delay(1);
+		}
+	}
+
+	LOG_printf (LOG_INFO, "RUN_stop: done\n");
+}
+#endif
+
+void RUN_break (void)
+{
+	LOG_printf (LOG_INFO, "RUN_break: sending CTRL+C signal to child\n");
+
+    Signal (&g_childProc->pr_Task, SIGBREAKF_CTRL_C);
+}
+
+void RUN_init (struct MsgPort *debugPort, struct FileHandle *output)
+{
     g_output     = output;
 	g_parentTask = FindTask(NULL);
     g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
+    g_debugPort  = debugPort;
 }
 
 #endif

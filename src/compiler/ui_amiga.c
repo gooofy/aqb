@@ -42,6 +42,7 @@
 #include "logger.h"
 #include "options.h"
 #include "tui.h"
+#include "run.h"
 #include "amigasupport.h"
 
 //#define LOG_KEY_EVENTS
@@ -101,9 +102,9 @@ static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
 static struct FileHandle *g_output        = NULL;
 static struct MsgPort    *g_IOport        = NULL;
+static struct MsgPort    *g_debugPort     = NULL;
 static struct IOStdReq    console_ioreq;
 static UWORD              g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
-static int                g_termSignalBit     = -1;
 static APTR               g_vi                = NULL;
 static struct Menu       *g_menuStrip         = NULL;
 static UWORD              g_fontHeight        = 8;
@@ -407,9 +408,9 @@ struct FileHandle *UI_output (void)
     return g_output;
 }
 
-int UI_termSignal (void)
+struct MsgPort *UI_debugPort(void)
 {
-    return g_termSignalBit;
+    return g_debugPort;
 }
 
 static void returnpacket(struct DosPacket *packet, long res1, long res2)
@@ -438,16 +439,14 @@ static struct DosPacket *getpacket(void)
 
 void UI_runIO (void)
 {
-    ULONG iosig   = 1 << g_IOport->mp_SigBit;
-	ULONG termsig = 1 << g_termSignalBit;
+    ULONG iosig    = 1 << g_IOport->mp_SigBit;
+	ULONG debugsig = 1 << g_debugPort->mp_SigBit;
 
     BOOL running = TRUE;
     bool haveLine = FALSE;
     while (running)
     {
-        //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: waiting for signal bits %d, %d ...\n", g_IOport->mp_SigBit, g_termSignalBit);
-        ULONG signals = Wait(iosig | termsig);
-        //LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: got signals: 0x%08x\n", signals);
+        ULONG signals = Wait(iosig|debugsig);
 
         if (signals & iosig)
 		{
@@ -511,9 +510,17 @@ void UI_runIO (void)
 		}
         else
         {
-            if (signals & termsig)
+            if (signals & debugsig)
             {
-                running = FALSE;
+                RUN_handleMessages();
+                switch (RUN_getState())
+                {
+                    case RUN_stateRunning:
+                        break;
+                    case RUN_stateStopped:
+                        running = FALSE;
+                        break;
+                }
             }
         }
 	}
@@ -899,10 +906,10 @@ void UI_deinit(void)
 		FreeVisualInfo(g_vi);
     if (g_IOport)
         ASUP_delete_port(g_IOport);
+    if (g_debugPort)
+        ASUP_delete_port(g_debugPort);
     if (ConsoleDevice)
         CloseDevice((struct IORequest *)&console_ioreq);
-    if (g_termSignalBit != -1)
-        FreeSignal (g_termSignalBit);
 }
 
 void UI_setFont (int font)
@@ -1018,10 +1025,6 @@ bool UI_init (void)
 	g_output->fh_Args = (long)g_output;
 	g_output->fh_Arg2 = (long)0;
 
-	g_termSignalBit = AllocSignal(-1);
-	if (g_termSignalBit == -1)
-		cleanexit("failed to allocate signal bit", RETURN_FAIL);
-
 	/*
      * menu
      */
@@ -1039,6 +1042,14 @@ bool UI_init (void)
     item->Flags |= CHECKED;
     item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/4, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
     item->Flags |= CHECKED;
+
+    /*
+     * debug port
+     */
+
+    g_debugPort  = ASUP_create_port ((STRPTR) "AQB debug reply port", 0);
+    if (!g_debugPort)
+		cleanexit("failed to create debug port", RETURN_FAIL);
 
 	return TRUE;
 }
