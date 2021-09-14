@@ -1833,62 +1833,64 @@ static void loadSource (IDE_editor ed, string sourcefn)
     if (sourcefn)
     {
         FILE *sourcef = fopen(sourcefn, "r");
-        if (!sourcef)
+        if (sourcef)
         {
-            UI_EZRequest("failed to read %s:\n%s", "OK", sourcefn, strerror(errno));
-            return;
-        }
-
-        ed->buf_len = 0;
-        bool eof = FALSE;
-        bool eol = FALSE;
-        IDE_line lastLine = NULL;
-        bool folded = FALSE;
-        while (!eof)
-        {
-            char ch;
-            int n = fread (&ch, 1, 1, sourcef);
-            if (n==1)
+            ed->buf_len = 0;
+            bool eof = FALSE;
+            bool eol = FALSE;
+            IDE_line lastLine = NULL;
+            bool folded = FALSE;
+            while (!eof)
             {
-                ed->buf[ed->buf_len++] = ch;
-                if ( (ed->buf_len==(MAX_LINE_LEN-1)) || (ch==10)  )
-                    eol = TRUE;
-            }
-            else
-            {
-                eof = TRUE;
-                eol = ed->buf_len>0;
-            }
-
-            if (eol)
-            {
-                ed->buf[ed->buf_len] = 0;
-                IDE_line line = buf2line (ed);
-                if (line->fold_start)
+                char ch;
+                int n = fread (&ch, 1, 1, sourcef);
+                if (n==1)
                 {
-                    line->folded = TRUE;
-                    folded = TRUE;
+                    ed->buf[ed->buf_len++] = ch;
+                    if ( (ed->buf_len==(MAX_LINE_LEN-1)) || (ch==10)  )
+                        eol = TRUE;
                 }
                 else
                 {
-                    if (line->fold_end)
+                    eof = TRUE;
+                    eol = ed->buf_len>0;
+                }
+
+                if (eol)
+                {
+                    ed->buf[ed->buf_len] = 0;
+                    IDE_line line = buf2line (ed);
+                    if (line->fold_start)
                     {
                         line->folded = TRUE;
-                        folded = FALSE;
+                        folded = TRUE;
                     }
                     else
                     {
-                        line->folded = folded;
+                        if (line->fold_end)
+                        {
+                            line->folded = TRUE;
+                            folded = FALSE;
+                        }
+                        else
+                        {
+                            line->folded = folded;
+                        }
                     }
+                    insertLineAfter (ed, lastLine, line);
+                    lastLine = line;
+                    eol=FALSE;
+                    ed->buf_len = 0;
                 }
-                insertLineAfter (ed, lastLine, line);
-                lastLine = line;
-                eol=FALSE;
-                ed->buf_len = 0;
             }
-        }
 
-        fclose(sourcef);
+            fclose(sourcef);
+        }
+        else
+        {
+            UI_EZRequest("failed to read %s:\n%s", "OK", sourcefn, strerror(errno));
+            doNew(ed);
+        }
     }
     else
     {
