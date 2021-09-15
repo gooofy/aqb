@@ -90,7 +90,7 @@ static short            g_active_win_id = 1;
 static short            g_output_win_id = 1;
 static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
-static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout unless re-opened
+static BOOL             g_win1_is_dos   = TRUE; // when started from CLI, window 1 is the DOS stdout unless re-opened
 
 void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title)
 {
@@ -201,17 +201,15 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         if (!g_active_scr)
         {
             struct Screen sc;
-            // get workbench screen size, calculate inner size for a fullscreen window
+            // get workbench screen size, limit to 640x200 for now (FIXME: limit to visible screen size?)
             if (!GetScreenData ((APTR) &sc, sizeof(struct Screen), WBENCHSCREEN, NULL))
             {
                 ERROR(AE_WIN_OPEN);
                 return;
             }
 
-            // w = sc.Width  - sc.WBorLeft - sc.WBorRight;
-            // h = sc.Height - sc.WBorTop  - sc.WBorBottom;
-            w = sc.Width;
-            h = sc.Height;
+            w = sc.Width  > 640 ? 640 : sc.Width;
+            h = sc.Height > 200 ? 200 : sc.Height;
         }
         else
         {
@@ -345,6 +343,23 @@ void _awindow_init(void)
         g_console_device_opened=TRUE;
         ConsoleDevice = g_ioreq.io_Device;
     }
+    g_win1_is_dos = _startup_mode == STARTUP_CLI;
+}
+
+static BOOL _checkCurWinDos (void)
+{
+    if (g_output_win_id != 1)
+        return FALSE;
+
+    if (g_win1_is_dos)
+        return TRUE;
+
+    // auto-open window ?
+
+    if (!g_winlist[0])
+        WINDOW (/*id=*/1, /*title=*/(STRPTR)"AQB Output", /*s1=*/FALSE, /*x1=*/-1, /*y1=*/-1, /*s2=*/FALSE, /*x2=*/-1, /*y2=*/-1, /*flags=*/15, /*scrid=*/0);
+
+    return FALSE;
 }
 
 /*
@@ -354,7 +369,7 @@ void _awindow_init(void)
 void CLS (void)
 {
     CHKBRK;
-    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    if (_checkCurWinDos())
     {
         char form_feed = 0x0c;
         Write(g_stdout, (CONST APTR) &form_feed, 1);
@@ -703,7 +718,7 @@ void _aio_puts(USHORT fno, const UBYTE *s)
         return;
     }
 
-    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    if (_checkCurWinDos())
     {
         //_debug_puts("_aio_puts: stdout\n");
         ULONG l = LEN_(s);
@@ -801,7 +816,7 @@ void _aio_puttab(USHORT fno)
         return;
     }
 
-    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    if (_checkCurWinDos())
     {
         Write(g_stdout, (CONST APTR) "\t", 1);
         return;
@@ -816,7 +831,7 @@ void _aio_puttab(USHORT fno)
 
 void LOCATE (SHORT l, SHORT c)
 {
-    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    if (_checkCurWinDos())
     {
 
         UBYTE buf[20];
@@ -920,7 +935,7 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
     static UBYTE buf[MAXINPUTBUF];
     static UBYTE twospaces[] = "  ";
 
-    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    if (_checkCurWinDos())
     {
         _aio_set_dos_cursor_visible (TRUE);
         LONG bytes = Read(g_stdin, (CONST APTR) buf, MAXINPUTBUF);
@@ -1272,7 +1287,7 @@ char *INKEY_ (void)
 {
     CHKBRK;
 
-    if ( (g_output_win_id == 1) && g_win1_is_dos)
+    if (_checkCurWinDos())
     {
         LONG l = Read(g_stdin, (CONST APTR) inkeybuf, 1);
         if (l != 1)

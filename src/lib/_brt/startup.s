@@ -62,7 +62,7 @@ _start:
 	jsr      WaitPort(a6)         /* first wait for message */
 	lea      pr_MsgPort(a2), a0   /* A0 is scratch, could be overwritten */
 	jsr	     GetMsg(a6)           /* then get message from port */
-	move.l	 d0, ___WorkbenchMsg  /* store it for later use */
+	move.l	 d0, ___StartupMsg  /* store it for later use */
 
     /* is this in fact a debug message from the AQB IDE ? */
     move.l   d0, a0
@@ -90,7 +90,7 @@ __autil_exit:
 
 	/* if in Workbench mode, reply to the startup message now. */
 
-	move.l	 ___WorkbenchMsg, d2
+	move.l	 ___StartupMsg, d2
 	tst.l	 d2				 /* check if we've got the message */
 	beq.s	 NoReplyNeeded
 
@@ -114,5 +114,7 @@ NoReplyNeeded:
     .align 4
 ___SaveSP:
     dc.l    0
-___WorkbenchMsg:
+
+	.global ___StartupMsg
+___StartupMsg:
 	dc.l	0

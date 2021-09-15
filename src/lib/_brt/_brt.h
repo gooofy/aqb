@@ -53,6 +53,27 @@ void RESUME_NEXT  (void);
 
 void SYSTEM       (void);
 
+// program startup mode / debugger connection
+
+#define STARTUP_CLI    1    // started from shell/cli
+#define STARTUP_WBENCH 2    // started from workbench
+#define STARTUP_DEBUG  3    // started from debugger/ide
+
+extern USHORT _startup_mode;
+
+#define DEBUG_SIG 0xDECA11ED
+
+/* debugger sends this instead of WBStartup */
+struct DebugMsg
+{
+    struct Message  msg;
+    struct MsgPort *port;
+    ULONG           debug_sig;
+    APTR            exitFn;
+};
+
+extern struct DebugMsg *__StartupMsg;
+
 // CTRL-C / CTRL-D (DEBUG) BREAK handling
 
 #define BREAK_CTRL_C    1

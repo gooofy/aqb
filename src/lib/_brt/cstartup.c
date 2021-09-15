@@ -35,13 +35,15 @@ static BOOL autil_init_done = FALSE;
 
 static BPTR _debug_stdout = 0;
 
-struct Task          *_autil_task             = NULL;
-struct IOStdReq      *g_inputReqBlk           = NULL;
-struct MsgPort       *g_inputPort             = NULL;
-struct Interrupt     *g_inputHandler          = NULL;
-static BOOL           g_inputDeviceOpen       = FALSE;
-static BOOL           g_InputHandlerInstalled = FALSE;
+struct Task           *_autil_task             = NULL;
+struct IOStdReq       *g_inputReqBlk           = NULL;
+struct MsgPort        *g_inputPort             = NULL;
+struct Interrupt      *g_inputHandler          = NULL;
+static BOOL            g_inputDeviceOpen       = FALSE;
+static BOOL            g_InputHandlerInstalled = FALSE;
 
+extern struct DebugMsg *__StartupMsg;
+USHORT                  _startup_mode          = 0;
 
 void _debug_puts(const UBYTE *s)
 {
@@ -236,6 +238,17 @@ void _cstartup (void)
 
     _autil_init();
     autil_init_done = TRUE;
+
+    // detect startup mode
+
+    if (!__StartupMsg)
+    {
+        _startup_mode = STARTUP_CLI;
+    }
+    else
+    {
+        _startup_mode = __StartupMsg->debug_sig == DEBUG_SIG ? STARTUP_DEBUG : STARTUP_WBENCH;
+    }
 
     /* set up break signal exception + handler */
 
