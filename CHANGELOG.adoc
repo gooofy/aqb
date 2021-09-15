@@ -5,6 +5,8 @@ Improvements::
     * runtime/ide: detect and handle CTRL-C breaks
     * String concatenation implemented
     * compiler: SLEEP FOR statement added
+    * runtime: workbench startup code added
+    * runtime: auto-open WINDOW 1 on first text output in debug/worbench startup mode
 
 Bug Fixes::
 

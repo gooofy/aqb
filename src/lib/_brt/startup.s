@@ -95,7 +95,7 @@ __autil_exit:
 	beq.s	 NoReplyNeeded
 
     move.l   d2, a0
-    move.l   #42, dbg_exitfn(a0)
+    | move.l   #42, dbg_exitfn(a0)
 
 	movea.l	 SysBase, a6
 	jsr      Forbid(a6)		 /* disable multitasking */
