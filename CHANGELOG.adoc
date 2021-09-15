@@ -2,14 +2,15 @@
 
 Improvements::
 
+    * runtime/ide: detect and handle CTRL-C breaks
     * String concatenation implemented
+    * compiler: SLEEP FOR statement added
 
 Bug Fixes::
 
     * compiler: CLI return code fixed
     * compiler: handle varPtr in BinOp expressions
     * ide: do not crash if non-existing file is specified as cmd line argument
-    * runtime/ide: detect and handle CTRL-C break
 
 == 0.7.0alpha2
 
