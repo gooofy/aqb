@@ -103,7 +103,7 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE
         return;
     }
 
-    //_debug_puts("SCREEN title: "); _debug_puts(title); _debug_putnl();
+    //_debug_puts((STRPTR)"SCREEN title: "); _debug_puts(title); _debug_putnl();
 
     g_nscr.Width        = width;
     g_nscr.Height       = height;
@@ -141,7 +141,7 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE
             return;
     }
 
-    // _debug_puts("g_nscr.ViewModes:"); _debug_puts2(g_nscr.ViewModes); _debug_puts("");
+    // _debug_puts((STRPTR)"g_nscr.ViewModes:"); _debug_puts2(g_nscr.ViewModes); _debug_puts((STRPTR)"");
 
     struct Screen *scr = (struct Screen *)OpenScreen(&g_nscr);
 
@@ -308,27 +308,57 @@ void WINDOW_OUTPUT(short id)
 
 void _awindow_shutdown(void)
 {
-    //_aio_puts("_awindow_shutdown ...\n");
+#ifdef ENABLE_DEBUG
+    _debug_puts((STRPTR)"_awindow_shutdown ...\n");
+#endif
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
         if (g_winlist[i])
         {
-            CloseWindow(g_winlist[i]);
             if (g_winlist[i]->RPort->TmpRas)
             {
+#ifdef ENABLE_DEBUG
+                _debug_puts((STRPTR)"_awindow_shutdown ... FreeVec RasPtr="); _debug_putu4((ULONG)g_winlist[i]->RPort->TmpRas->RasPtr); _debug_putnl();
+                Delay (100);
+#endif
                 FreeVec ((PLANEPTR) g_winlist[i]->RPort->TmpRas->RasPtr);
+#ifdef ENABLE_DEBUG
+                _debug_puts((STRPTR)"_awindow_shutdown ... FreeVec TmpRas="); _debug_putu4((ULONG)g_winlist[i]->RPort->TmpRas); _debug_putnl();
+                Delay (100);
+#endif
+                FreeVec (g_winlist[i]->RPort->TmpRas);
             }
+#ifdef ENABLE_DEBUG
+            _debug_puts((STRPTR)"_awindow_shutdown ... closing window\n");
+            Delay (100);
+#endif
+            CloseWindow(g_winlist[i]);
         }
     }
     for (int i = 0; i<MAX_NUM_SCREENS; i++)
     {
         if (g_scrlist[i])
+        {
+#ifdef ENABLE_DEBUG
+            _debug_puts((STRPTR)"_awindow_shutdown ... CloseScreen\n");
+            Delay (100);
+#endif
             CloseScreen(g_scrlist[i]);
+        }
     }
     _aio_set_dos_cursor_visible (TRUE);
     if (g_console_device_opened)
+    {
+#ifdef ENABLE_DEBUG
+        _debug_puts((STRPTR)"_awindow_shutdown ... CloseDevice\n");
+        Delay (100);
+#endif
         CloseDevice((struct IORequest *)&g_ioreq);
-    //_aio_puts("_awindow_shutdown ... done.\n");
+    }
+#ifdef ENABLE_DEBUG
+    _debug_puts((STRPTR)"_awindow_shutdown ... finished\n");
+    Delay (100);
+#endif
 }
 
 void _awindow_init(void)
@@ -389,15 +419,15 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
     CHKBRK;
     BYTE fgPen=g_rp->FgPen;
 #if 0
-    _aio_puts("s1: ")  ; _aio_puts2(s1);
-    _aio_puts(", x1: "); _aio_puts2(x1);
-    _aio_puts(", y1: "); _aio_puts2(y1);
-    _aio_puts(", s2: "); _aio_puts2(s2);
-    _aio_puts(", x2: "); _aio_puts2(x2);
-    _aio_puts(", y2: "); _aio_puts2(y2);
-    _aio_puts(", c: ") ; _aio_puts2(c);
-    _aio_puts(", bf: "); _aio_puts2(bf);
-    _aio_putnl();
+    _debug_puts((STRPTR)"s1: ")  ; _debug_puts2(s1);
+    _debug_puts((STRPTR)", x1: "); _debug_puts2(x1);
+    _debug_puts((STRPTR)", y1: "); _debug_puts2(y1);
+    _debug_puts((STRPTR)", s2: "); _debug_puts2(s2);
+    _debug_puts((STRPTR)", x2: "); _debug_puts2(x2);
+    _debug_puts((STRPTR)", y2: "); _debug_puts2(y2);
+    _debug_puts((STRPTR)", c: ") ; _debug_puts2(c);
+    _debug_puts((STRPTR)", bf: "); _debug_puts2(bf);
+    _debug_putnl();
 #endif
 
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
@@ -504,17 +534,17 @@ LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
     LONG n = RawKeyConvert(&g_ievent, kbuffer, kbsize, /*kmap=*/NULL);
 
 #ifdef ENABLE_DEBUG
-    _aio_puts((STRPTR)"deadKeyConv: n="); _aio_putu4(n);
-    _aio_puts((STRPTR)", Code="); _aio_putu4(msg->Code);
-    _aio_puts((STRPTR)", Qual="); _aio_putu4(msg->Qualifier);
+    //_debug_puts((STRPTR)"deadKeyConv: n="); _debug_putu4(n);
+    //_debug_puts((STRPTR)", Code="); _debug_putu4(msg->Code);
+    //_debug_puts((STRPTR)", Qual="); _debug_putu4(msg->Qualifier);
 
-    for (int i=0; i<n; i++)
-    {
-        _aio_puts((STRPTR)", kb["); _aio_putu2(i); _aio_puts((STRPTR)"]=");
-        _aio_putu1(kbuffer[i]);
-    }
+    //for (int i=0; i<n; i++)
+    //{
+    //    _debug_puts((STRPTR)", kb["); _debug_putu2(i); _debug_puts((STRPTR)"]=");
+    //    _debug_putu1(kbuffer[i]);
+    //}
 
-    _aio_putnl();
+    //_debug_putnl();
 #endif
 
     return n;
@@ -528,7 +558,7 @@ void SLEEP(void)
 
     ULONG signals = Wait (_g_signalmask_awindow | _g_signalmask_atimer);
 #ifdef ENABLE_DEBUG
-    _aio_puts((STRPTR)"sleep: got one ore more signals: "); _aio_putu4(signals); _aio_putnl();
+    _debug_puts((STRPTR)"sleep: got one ore more signals: "); _debug_putu4(signals); _debug_putnl();
 #endif
 
     if (signals & _g_signalmask_atimer)
@@ -536,7 +566,7 @@ void SLEEP(void)
 
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {
-        // _aio_puts("sleep: checking win "); _aio_puts4(i); _aio_putnl();
+        // _debug_puts((STRPTR)"sleep: checking win "); _debug_puts4(i); _debug_putnl();
         struct Window *win = g_winlist[i];
         if (!win)
             continue;
@@ -549,16 +579,16 @@ void SLEEP(void)
             ULONG class = message->Class;
 
 #ifdef ENABLE_DEBUG
-            _aio_puts((STRPTR)"sleep: got a message, class="); _aio_puts4(class); _aio_putnl();
+            //_debug_puts((STRPTR)"sleep: got a message, class="); _debug_puts4(class); _debug_putnl();
 #endif
 
             switch(class)
             {
                 case CLOSEWINDOW:
-                    // _aio_puts("sleep: CLOSEWINDOW"); _aio_putnl();
+                    // _debug_puts((STRPTR)"sleep: CLOSEWINDOW"); _debug_putnl();
                     if (g_win_cb)
                     {
-                        // _aio_puts("sleep: callback."); _aio_putnl();
+                        // _debug_puts((STRPTR)"sleep: callback."); _debug_putnl();
                         g_win_cb();
                     }
                     break;
@@ -621,7 +651,7 @@ void SLEEP(void)
             }
 
             ReplyMsg ( (struct Message *) message);
-            //_aio_puts("sleep: replied.\n");
+            //_debug_puts((STRPTR)"sleep: replied.\n");
         }
     }
 }
@@ -710,7 +740,7 @@ void _aio_puts(USHORT fno, const UBYTE *s)
 {
     CHKBRK;
 
-    //_debug_puts("_aio_puts\n");
+    //_debug_puts((STRPTR)"_debug_puts\n");
 
     if (fno)
     {
@@ -720,10 +750,10 @@ void _aio_puts(USHORT fno, const UBYTE *s)
 
     if (_checkCurWinDos())
     {
-        //_debug_puts("_aio_puts: stdout\n");
+        //_debug_puts((STRPTR)"_debug_puts: stdout\n");
         ULONG l = LEN_(s);
-        //_debug_puts("_aio_puts: l=");_debug_putu4(l); _debug_putnl();
-        //_debug_puts("_aio_puts: g_stdout=");_debug_putu4((ULONG) g_stdout); _debug_putnl();
+        //_debug_puts((STRPTR)"_debug_puts: l=");_debug_putu4(l); _debug_putnl();
+        //_debug_puts((STRPTR)"_debug_puts: g_stdout=");_debug_putu4((ULONG) g_stdout); _debug_putnl();
         Write(g_stdout, (CONST APTR) s, l);
         return;
     }
@@ -773,9 +803,9 @@ void _aio_puts(USHORT fno, const UBYTE *s)
                     case 9:         // tab
                     {
                         int cx = g_rp->cp_x / g_rp->Font->tf_XSize;          // cursor position in nominal characters
-                        // _debug_puts("[1] cx="); _debug_puts2(cx); _debug_puts("\n");
+                        // _debug_puts((STRPTR)"[1] cx="); _debug_puts2(cx); _debug_puts((STRPTR)"\n");
                         cx = cx + (8-(cx%8));                                // AmigaBASIC TABs are 9 characters wide
-                        // _debug_puts("[2] cx="); _debug_puts2(cx); _debug_puts("\n");
+                        // _debug_puts((STRPTR)"[2] cx="); _debug_puts2(cx); _debug_puts((STRPTR)"\n");
                         Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
                         break;
                     }
@@ -996,13 +1026,13 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 
         if (do_nl)
         {
-            //_aio_puts("do_nl");
+            //_debug_puts((STRPTR)"do_nl");
             Move (g_rp, 0, g_rp->cp_y + g_rp->Font->tf_YSize);
             do_scroll();
         }
         else
         {
-            //_aio_puts("NOT do_nl");
+            //_debug_puts((STRPTR)"NOT do_nl");
         }
     }
 
@@ -1074,13 +1104,16 @@ void COLOR(short fg, short bg, short o)
 
 static void allocTmpRas(void)
 {
-    struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), 0);
+    struct TmpRas *aTmpRas = AllocVec(sizeof(*aTmpRas), MEMF_CLEAR);
     if (!aTmpRas)
     {
         ERROR(AE_PAINT);
         return;
     }
 
+#ifdef ENABLE_DEBUG
+    _debug_puts((STRPTR)"allocTmpRas: AllocVec aTmpRas ->"); _debug_putu4((ULONG)aTmpRas); _debug_putnl();
+#endif
     ULONG rassize = RASSIZE (g_output_win->Width, g_output_win->Height);
 
     //_debug_puts((STRPTR)"allocTmpRas: rassize="); _debug_putu4(rassize);
@@ -1092,6 +1125,9 @@ static void allocTmpRas(void)
         ERROR(AE_PAINT);
         return;
     }
+#ifdef ENABLE_DEBUG
+    _debug_puts((STRPTR)"allocTmpRas: AllocVec amem ->"); _debug_putu4((ULONG)amem); _debug_putnl();
+#endif
     InitTmpRas (aTmpRas, amem, rassize);
     g_rp->TmpRas = aTmpRas;
 }
