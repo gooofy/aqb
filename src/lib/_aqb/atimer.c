@@ -185,4 +185,3 @@ void TIMER_OFF (SHORT id)
         g_timers[id-1].timer_io = NULL;
     }
 }
-

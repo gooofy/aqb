@@ -33,12 +33,6 @@ void _debug_putf  (FLOAT f);
 void _debug_putnl (void);
 void _debug_cls   (void);
 
-//#define BREAK_CTRL_C    1
-
-//extern USHORT _breakCode;
-
-//extern USHORT g_errcode;
-
 #define ERR_OUT_OF_DATA              4
 #define ERR_ILLEGAL_FUNCTION_CALL    5
 #define ERR_OUT_OF_MEMORY            7
@@ -58,6 +52,17 @@ void ON_EXIT_CALL (void (*cb)(void));
 void RESUME_NEXT  (void);
 
 void SYSTEM       (void);
+
+// CTRL-C / CTRL-D (DEBUG) BREAK handling
+
+#define BREAK_CTRL_C    1
+#define BREAK_CTRL_D    2
+
+extern USHORT _break_status;
+
+#define CHKBRK if (_break_status) __handle_break()
+
+void __handle_break(void);
 
 //void *memset (void *dst, register int c, register int n);
 
@@ -119,7 +124,6 @@ SHORT  ASC_               (const UBYTE *str);
  * utils
  */
 
-
 extern struct Task  *_autil_task;
 
 struct MsgPort   *_autil_create_port   (STRPTR name, LONG pri);
@@ -127,7 +131,6 @@ void              _autil_delete_port   (struct MsgPort *port);
 struct IORequest *_autil_create_ext_io (struct MsgPort *port, LONG iosize);
 struct IOStdReq  *_autil_create_std_io (struct MsgPort *port);
 void              _autil_delete_ext_io (struct IORequest *ioreq);
-void              _autil_ckbrk         (void);
 
 /*
  * STR$ support

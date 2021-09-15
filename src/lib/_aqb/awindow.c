@@ -30,6 +30,7 @@
 struct Device           *ConsoleDevice;
 BPTR                     g_stdout, g_stdin;
 static FLOAT             g_fp15; // FFP representation of decimal 15, used in PALETTE
+static FLOAT             g_fp50; // FFP representation of decimal 50, used in SLEEP_FOR
 static struct IOStdReq   g_ioreq; // console.device is used to convert RAWKEY codes
 static BOOL              g_console_device_opened=FALSE;
 static struct InputEvent g_ievent;
@@ -93,7 +94,7 @@ static BOOL             g_win1_is_dos   = TRUE; // window 1 is the DOS stdout un
 
 void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     // error checking
     if ( (id < 1) || (id > MAX_NUM_SCREENS) || (g_scrlist[id-1] != NULL) || (width <=0) || (height <= 0) || (depth <= 0) || (depth>6) )
@@ -175,7 +176,7 @@ void SCREEN_CLOSE(short id)
  */
 void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     USHORT w, h;
 
@@ -337,6 +338,7 @@ void _awindow_init(void)
     g_stdout = Output();
     g_stdin  = Input();
     g_fp15   = SPFlt(15);
+    g_fp50   = SPFlt(50);
     _aio_set_dos_cursor_visible (FALSE);
     if (0 == OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&g_ioreq, 0))
     {
@@ -351,7 +353,7 @@ void _awindow_init(void)
 
 void CLS (void)
 {
-    _autil_ckbrk();
+    CHKBRK;
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {
         char form_feed = 0x0c;
@@ -369,7 +371,7 @@ void CLS (void)
  */
 void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
 {
-    _autil_ckbrk();
+    CHKBRK;
     BYTE fgPen=g_rp->FgPen;
 #if 0
     _aio_puts("s1: ")  ; _aio_puts2(s1);
@@ -433,7 +435,7 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
 
 void PSET(BOOL s, short x, short y, short color)
 {
-    _autil_ckbrk();
+    CHKBRK;
     BYTE fgPen=g_rp->FgPen;
 
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
@@ -505,7 +507,7 @@ LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
 
 void SLEEP(void)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     struct IntuiMessage *message = NULL;
 
@@ -691,7 +693,7 @@ static void do_scroll(void)
 
 void _aio_puts(USHORT fno, const UBYTE *s)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     //_debug_puts("_aio_puts\n");
 
@@ -859,6 +861,24 @@ SHORT POS_ (SHORT dummy)
     return g_rp->cp_x / g_rp->Font->tf_XSize + 1;
 }
 
+void SLEEP_FOR (FLOAT s)
+{
+    LONG ticks = SPFix(SPMul(s, g_fp50));
+
+    if (ticks <= 0)
+        return;
+
+    while (ticks > 25)
+    {
+        CHKBRK;
+        Delay (25);
+        ticks -= 25;
+    }
+
+    CHKBRK;
+    Delay (ticks);
+}
+
 // input statement support
 
 void _aio_set_dos_cursor_visible (BOOL visible)
@@ -872,7 +892,7 @@ void _aio_set_dos_cursor_visible (BOOL visible)
 
 static void draw_cursor(void)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     ULONG   old_fg, old_x, old_y;
 
@@ -1063,7 +1083,7 @@ static void allocTmpRas(void)
 
 void PAINT(BOOL s, short x, short y, short pc, short aol)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
@@ -1157,7 +1177,7 @@ void AREA(BOOL s, short x, short y)
 
 void AREAFILL (short mode)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     BYTE dm;
 
@@ -1250,7 +1270,7 @@ static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)
 {
-    _autil_ckbrk();
+    CHKBRK;
 
     if ( (g_output_win_id == 1) && g_win1_is_dos)
     {

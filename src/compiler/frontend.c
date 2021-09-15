@@ -238,7 +238,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 92
+#define MAX_KEYWORDS 93
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -335,6 +335,7 @@ static S_symbol S_BINARY;
 static S_symbol S_LEN;
 static S_symbol S_ACCESS;
 static S_symbol S_CLOSE;
+static S_symbol S_BREAK;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3605,6 +3606,21 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void _insertBreakCheck(S_pos pos)
+{
+    // IF _break_status <> 0 THEN CALL __handle_break
+
+    CG_item test;
+    CG_item zero;
+    CG_externalVar (&test, "_break_status", Ty_Integer());
+    CG_ZeroItem (&zero, Ty_Integer());
+    CG_transRelOp (g_sleStack->code, pos, CG_ne, &test, &zero);
+    CG_loadCond (g_sleStack->code, pos, &test);
+    Temp_label l = Temp_namedlabel("___handle_break");
+    CG_transJSR(g_sleStack->code, pos, l);
+    CG_transLabel (g_sleStack->code, pos, test.u.condR.l);
+}
+
 // forBegin ::= FOR ident [ AS ident ] "=" expression TO expression [ STEP expression ]
 static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -3711,6 +3727,10 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     sle->exitlbl = cond.u.condR.l;
     sle->u.forLoop.lHead = Temp_newlabel();
     CG_transLabel (g_sleStack->code, pos, sle->u.forLoop.lHead);
+
+    // handle (debug) breaks ?
+    if (OPT_get (OPTION_BREAK))
+        _insertBreakCheck(pos);
 
     return TRUE;
 }
@@ -4314,7 +4334,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// optionStmt ::= OPTION [ EXPLICIT | PRIVATE ] [ ( ON | OFF ) ]
+// optionStmt ::= OPTION [ EXPLICIT | PRIVATE | BREAK ] [ ( ON | OFF ) ]
 static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool onoff=TRUE;
@@ -4334,7 +4354,14 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
         else
         {
-            return EM_error((*tkn)->pos, "EXPLICIT or PRIVATE expected here.");
+            if (isSym(*tkn, S_BREAK))
+            {
+                opt = OPTION_BREAK;
+            }
+            else
+            {
+                return EM_error((*tkn)->pos, "BREAK, EXPLICIT or PRIVATE expected here.");
+            }
         }
     }
     *tkn = (*tkn)->next;
@@ -5462,6 +5489,10 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!proc)
         return FALSE;
 
+    // handle (debug) breaks ? (prevent endless recursion)
+    if (OPT_get (OPTION_BREAK))
+        _insertBreakCheck(pos);
+
     return TRUE;
 }
 
@@ -6100,6 +6131,10 @@ static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_transPostCond (g_sleStack->code, pos, &ex, /*positive=*/ TRUE);
     sle->exitlbl = ex.u.condR.l;
 
+    // handle (debug) breaks ?
+    if (OPT_get (OPTION_BREAK))
+        _insertBreakCheck(pos);
+
     return TRUE;
 }
 
@@ -6312,6 +6347,10 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (!sle->u.doLoop.condAtEntry)
         sle->exitlbl = Temp_newlabel();
+
+    // handle (debug) breaks ?
+    if (OPT_get (OPTION_BREAK))
+        _insertBreakCheck(pos);
 
     return TRUE;
 }
@@ -7399,6 +7438,7 @@ void FE_boot(void)
     S_LEN             = defineKeyword("LEN");
     S_ACCESS          = defineKeyword("ACCESS");
     S_CLOSE           = defineKeyword("CLOSE");
+    S_BREAK           = defineKeyword("BREAK");
 }
 
 void FE_init(void)

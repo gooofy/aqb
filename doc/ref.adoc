@@ -428,6 +428,15 @@ Syntax:
 
 call SUB program handler when an error occurs.
 
+=== OPTION BREAK
+
+Syntax:
+
+    OPTION BREAK [ ( ON | OFF ) ]
+
+instructs the compiler to add checks for CTRL-C/D in loops, subprogram calls so programs can be interrupted when they run into
+an endless loop or recursion. Enabled by default, disable to gain a bit of performance.
+
 === OPTION EXPLICIT
 
 Syntax:
@@ -954,6 +963,14 @@ Syntax:
     SCREEN CLOSE id
 
 close screen indicated by id
+
+=== SLEEP FOR
+
+Syntax:
+
+    SLEEP FOR seconds
+
+Suspend program for the specified number of seconds (floating point value, so fractions of seconds are supported).
 
 === TIMER ON|OFF
 

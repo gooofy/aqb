@@ -95,12 +95,11 @@ void ON_EXIT_CALL(void (*cb)(void))
     num_exit_handlers++;
 }
 
-static BOOL g_brk = FALSE;
+USHORT _break_status = 0;
 
-void _autil_ckbrk(void)
+void __handle_break(void)
 {
-    //ULONG sigRecvd = _autil_task->tc_SigRecvd;
-    if (g_brk)
+    if (_break_status)  // FIXME: debug breaks
         _autil_exit(1);
 }
 
@@ -116,7 +115,6 @@ static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a
         {
             struct Task *maintask = data;
             Signal (maintask, SIGBREAKF_CTRL_C);
-            g_brk = TRUE;
         }
 
         e = e->ie_NextEvent;
@@ -189,6 +187,7 @@ void _cshutdown (LONG return_code, UBYTE *msg)
 
 void ___breakHandler (register ULONG signals __asm("d0"), register APTR exceptData __asm("a1"))
 {
+    _break_status = BREAK_CTRL_C;
 #if 0
     // dos call pending ?
 

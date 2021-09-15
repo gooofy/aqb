@@ -115,6 +115,7 @@ ULONG  WINDOW_         (SHORT n);
 void   CLS             (void);
 void   LINE            (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   SLEEP           (void);
+void   SLEEP_FOR       (FLOAT s);
 void   ON_WINDOW_CALL  (void (*cb)(void));
 void   LOCATE          (SHORT l, SHORT c);
 SHORT  CSRLIN_         (void);
