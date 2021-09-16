@@ -511,11 +511,12 @@ void PSET(BOOL s, short x, short y, short color)
 /* BASIC: SLEEP
    event handling */
 
-#define MAXKEYBUF 256
+#define MAXKEYBUF 4
 
 static char keybuf[MAXKEYBUF];
-static int  keybuf_start = 0;
-static int  keybuf_end   = 0;
+static USHORT keybuf_start = 0;
+static USHORT keybuf_end   = 0;
+static USHORT keybuf_len   = 0;
 
 /* Convert RAWKEYs into VANILLAKEYs, also shows special keys like HELP, Cursor Keys,
 ** FKeys, etc.  It returns:
@@ -603,8 +604,12 @@ void SLEEP(void)
                     switch (numchars)
                     {
                         case 1:
-                            keybuf[keybuf_end] = buf[0];
-                            keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                            if (keybuf_len < MAXKEYBUF)
+                            {
+                                keybuf[keybuf_end] = buf[0];
+                                keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                                keybuf_len++;
+                            }
                             break;
 
                         case 2:
@@ -638,8 +643,12 @@ void SLEEP(void)
                                 }
                                 if (code)
                                 {
-                                    keybuf[keybuf_end] = code;
-                                    keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                                    if (keybuf_len < MAXKEYBUF)
+                                    {
+                                        keybuf[keybuf_end] = code;
+                                        keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                                        keybuf_len++;
+                                    }
                                 }
                                 break;
                         }
@@ -1331,19 +1340,18 @@ char *INKEY_ (void)
         return inkeybuf;
     }
 
-    if (keybuf_start == keybuf_end)
-    {
+    if (!keybuf_len)
         SLEEP();
-    }
 
-    if (keybuf_start == keybuf_end)
+    if (!keybuf_len)
     {
         inkeybuf[0] = 0;
         return inkeybuf;
     }
 
     inkeybuf[0] = keybuf[keybuf_start];
-    keybuf_start++;
+    keybuf_start = (keybuf_start + 1) % MAXKEYBUF;
+    keybuf_len--;
 
     return inkeybuf;
 }

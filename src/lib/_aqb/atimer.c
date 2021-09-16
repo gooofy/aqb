@@ -65,7 +65,7 @@ void _atimer_process_signals(ULONG signals)
     for (int i=0; i<MAX_NUM_TIMERS; i++)
     {
         atimer_t *t = &g_timers[i];
-        if (!t->cb)
+        if (!t->cb || !t->timerport)
             continue;
 
         if (!(signals & (1L << t->timerport->mp_SigBit)) )
