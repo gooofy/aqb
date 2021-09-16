@@ -132,6 +132,22 @@ footprint ideally to a point where it is useful on 1MB or even 512K Amiga
 systems. At that point it might even make sense to implement a 6502 backend
 targeting modern 8 bit systems like the MEGA65, Commander X16 or C256 Foenix.
 
+=== Interrupting / break handling in AQB programs
+
+By default, the runtime will check for break signals in i/o routines. Break
+signals can be sent either by pressing CTRL-C or by using the AmigaDOS BREAK
+command.
+
+Additionally, the compiler will insert checks for break signals in all loop
+statements (to protect against endless loops) and in subprogram startup code
+(to protect against infinite recursion). This is enabled by default but
+since this will make code longer and cost some performance, it can be
+switched off using the
+
+    OPTION BREAK OFF
+
+statement.
+
 === Amiga OS System Programming in AQB
 
 AQB datatypes are very similar to C (C-like strings, structs and pointers)
