@@ -8,60 +8,60 @@ WINDOW 2, "gfx2 - Simple 3D Graphics"
 
 ' cylinder
 
-FOR w AS SINGLE = 0 TO PI STEP .04 * PI
-    DIM x AS SINGLE = 20 * SIN(w)
-    DIM y AS SINGLE = 35 * COS(w)
-    LINE (x + 50, y + 52)-(x + 200, y + 52)
+FOR w AS SINGLE = 0 TO PI STEP 0.04 * PI
+    DIM x AS SINGLE = 20 * SIN ( w )
+    DIM y AS SINGLE = 35 * COS ( w )
+    LINE ( x + 50, y + 52 ) - ( x + 200, y + 52 )
 NEXT
-FOR w AS SINGLE = 0 TO 2 * PI STEP .02 * PI
-    DIM x AS SINGLE = 20 * SIN(w)
-    DIM y AS SINGLE = 35 * COS(w)
-    PSET (x + 50, y + 52)
-    IF w < PI THEN PSET (x + 200, y + 52)
+FOR w AS SINGLE = 0 TO 2 * PI STEP 0.02 * PI
+    DIM x AS SINGLE = 20 * SIN ( w )
+    DIM y AS SINGLE = 35 * COS ( w )
+    PSET ( x + 50, y + 52 )
+    IF w < PI THEN PSET ( x + 200, y + 52 )
 NEXT
 
 ' paraboloid
 
-FOR z AS SINGLE = -3 TO 3 STEP .1
-    DIM a AS SINGLE = .5*z
-    DIM z2 AS SINGLE = z*z
-    FOR x AS SINGLE = -3 TO 3.2 STEP .2
-        DIM y AS SINGLE = 0.5 * (z2 + x*x)
-        PSET ( 430 + 30*(x+a), 90 - 8*(y-a) )
+FOR z AS SINGLE = -3 TO 3 STEP 0.1
+    DIM a AS SINGLE = 0.5 * z
+    DIM z2 AS SINGLE = z * z
+    FOR x AS SINGLE = -3 TO 3.2 STEP 0.2
+        DIM y AS SINGLE = 0.5 * ( z2 + x * x )
+        PSET ( 430 + 30 * ( x + a ), 90 -8 * ( y - a ) )
     NEXT x
 NEXT z
 
 ' pyramid
 
 CONST n AS SINGLE = 5
-CONST AS SINGLE x = 130, y = 97, d = 2 * PI / n
+CONST AS SINGLE x = 130, y = 92, d = 2 * PI / n
 FOR w AS SINGLE = 0 TO 2 * PI STEP d
-    DIM AS SINGLE x1 = 130 + 80 * COS(w)
-    DIM AS SINGLE y1 =  72 + 15 * SIN(w)
-    IF w = 0 THEN PSET (210, y + 72) ELSE LINE -(x1, y + y1)
-    PSET (x, y): LINE -(x1, y + y1)
+    DIM AS SINGLE x1 = 130 + 80 * COS ( w )
+    DIM AS SINGLE y1 = 56 + 15 * SIN ( w )
+    IF w = 0 THEN PSET ( 210, y + 56 ) ELSE LINE - ( x1, y + y1 )
+    PSET ( x, y ) : LINE - ( x1, y + y1 )
 NEXT
 
 ' sinusoid
-LINE (380, 190)-(580, 190)
-LINE (380, 190)-(380, 110)
-LINE (380, 190)-(550, 135)
-LOCATE 24, 45: PRINT "0";
-LOCATE 24, 76: PRINT "X";
-LOCATE 14, 45: PRINT "Y"
-LOCATE 17, 71: PRINT "Z"
-FOR W AS SINGLE = 0 TO 4 * PI STEP PI / 5
-    DIM AS SINGLE Z = 6 * W, X = 80 * SIN(W)
-    IF W = 0 THEN
-        PSET (380 + 2.2 * Z, 190 - .707 * Z)
+LINE ( 380, 182 ) - ( 580, 182 )
+LINE ( 380, 182 ) - ( 380, 102 )
+LINE ( 380, 182 ) - ( 550, 127 )
+LOCATE 23, 45 : PRINT "0";
+LOCATE 23, 76 : PRINT "X";
+LOCATE 13, 45 : PRINT "Y"
+LOCATE 16, 71 : PRINT "Z"
+FOR w AS SINGLE = 0 TO 4 * PI STEP PI / 5
+    DIM AS SINGLE z = 6 * w, x = 80 * SIN ( w )
+    IF w = 0 THEN
+        PSET ( 380 + 2.2 * z, 182 -0.707 * z )
     ELSE
-        LINE -(380 + X + 2.2 * Z, 190 - .707 * Z)
+        LINE - ( 380 + x + 2.2 * z, 182 -0.707 * z )
     END IF
 NEXT
 
-LOCATE 25,1
+LOCATE 22, 1
 PRINT "PRESS ANY KEY TO QUIT"
 
-WHILE INKEY$() = ""
+WHILE INKEY$ ( ) = ""
 WEND
 

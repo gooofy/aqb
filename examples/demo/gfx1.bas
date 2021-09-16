@@ -10,51 +10,51 @@ DIM SHARED finished AS BOOLEAN = FALSE
 
 SUB HandleWindow
     finished = TRUE
-	PRINT "HandleWindow() called"
+    PRINT "HandleWindow() called"
 END SUB
 
-WINDOW 1, "gfx1 - Simple AQB Graphics Demo", (0,0) - (638, 180), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+WINDOW 1, "gfx1 - Simple AQB Graphics Demo", ( 0, 0 ) - ( 638, 180 ), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
 
 ON WINDOW CALL HandleWindow
 
 PRINT "Text output test"
 
 FOR i AS INTEGER = 1 TO 76
-    PRINT CHR$(i MOD 10+48);
+    PRINT CHR$ ( i MOD 10 + 48 );
 NEXT i
 PRINT
 
 FOR i AS INTEGER = 1 TO 10
-    PRINT ".";CHR$(9);
+    PRINT "."; CHR$ ( 9 );
 NEXT i
 PRINT
 
 FOR i AS INTEGER = 1 TO 6
-    PRINT STR$(i),
+    PRINT STR$ ( i ),
 NEXT i
 PRINT
 
 FOR c AS INTEGER = 0 TO 3
-
-    LINE (c*60,33)-(c*60+59,48),3-c,bf
-    LINE (c*60,33)-(c*60+59,48),  c,b
-
+    
+    LINE ( c * 60, 33 ) - ( c * 60 + 59, 48 ), 3 - c, BF
+    LINE ( c * 60, 33 ) - ( c * 60 + 59, 48 ), c, B
+    
 NEXT c
 
 FOR x AS INTEGER = 1 TO 600 STEP 5
-    LINE (x,50)-(300,140),1
+    LINE ( x, 50 ) - ( 300, 140 ), 1
 NEXT
 
-LOCATE , 1 : PRINT "PRESS ANY KEY FOR SCROLL TEST";
+LOCATE, 1 : PRINT "PRESS ANY KEY FOR SCROLL TEST";
 
-WHILE INKEY$() = ""
+WHILE INKEY$ ( ) = ""
 WEND
 
 PRINT
 
 ' test WINDOW() function
 FOR i AS INTEGER = 0 TO 13
-    PRINT "WINDOW(";i;") =", WINDOW(i)
+    PRINT "WINDOW("; i; ") =", WINDOW ( i )
 NEXT i
 
 PRINT
