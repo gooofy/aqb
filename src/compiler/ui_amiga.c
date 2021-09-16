@@ -100,8 +100,6 @@ static struct NewMenu g_newmenu[] =
 
 static struct Window     *g_win           = NULL;
 static struct RastPort   *g_rp            = NULL;
-static struct FileHandle *g_output        = NULL;
-static struct MsgPort    *g_IOport        = NULL;
 static struct MsgPort    *g_debugPort     = NULL;
 static struct IOStdReq    console_ioreq;
 static UWORD              g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
@@ -403,129 +401,9 @@ void UI_moveCursor (uint16_t row, uint16_t col)
         drawCursor();
 }
 
-struct FileHandle *UI_output (void)
-{
-    return g_output;
-}
-
 struct MsgPort *UI_debugPort(void)
 {
     return g_debugPort;
-}
-
-static void returnpacket(struct DosPacket *packet, long res1, long res2)
-{
-    struct Message *msg;
-    struct MsgPort *replyport;
-
-    packet->dp_Res1  = res1;
-    packet->dp_Res2  = res2;
-    replyport = packet->dp_Port;
-    msg = packet->dp_Link;
-    packet->dp_Port = g_IOport;
-    msg->mn_Node.ln_Name = (char *)packet;
-    msg->mn_Node.ln_Succ = NULL;
-    msg->mn_Node.ln_Pred = NULL;
-
-    PutMsg(replyport, msg);
-}
-
-static struct DosPacket *getpacket(void)
-{
-    struct Message *msg;
-    msg = GetMsg(g_IOport);
-    return ((struct DosPacket *)msg->mn_Node.ln_Name);
-}
-
-void UI_runIO (void)
-{
-    ULONG iosig    = 1 << g_IOport->mp_SigBit;
-	ULONG debugsig = 1 << g_debugPort->mp_SigBit;
-
-    BOOL running = TRUE;
-    bool haveLine = FALSE;
-    while (running)
-    {
-        ULONG signals = Wait(iosig|debugsig);
-
-        if (signals & iosig)
-		{
-			struct DosPacket *packet = getpacket();
-			LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: got pkg, type=%d\n", packet->dp_Type);
-
-			switch (packet->dp_Type)
-			{
-				case ACTION_WRITE:
-				{
-					LONG l = packet->dp_Arg3;
-					char *buf = (char *)packet->dp_Arg2;
-#if 0
-                    // FIXME: disable debug code
-					LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ACTION_WRITE, len=%d\n", l);
-					for (int i = 0; i<l; i++)
-                    {
-                        UBYTE c = (UBYTE)buf[i];
-                        if ((c>=' ') && (c<127))
-                            LOG_printf (LOG_DEBUG, "%c", c);
-                        else
-                            LOG_printf (LOG_DEBUG, "[%d]", c);
-                    }
-                    LOG_printf (LOG_DEBUG, "\n");
-#endif
-					for (int i = 0; i<l; i++)
-					{
-                        if (!haveLine)
-                        {
-                            UI_scrollUp  (/*fullscreen=*/TRUE);
-                            UI_beginLine (UI_size_rows, 1, UI_size_cols);
-                            haveLine = TRUE;
-#if 0
-                            // FIXME: disable debug code
-                            LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: starting new line\n", l);
-#endif
-                        }
-                        UBYTE c = (UBYTE)buf[i];
-                        switch (c)
-                        {
-                            case '\n':
-                            case 0:
-                                UI_endLine ();
-                                haveLine = FALSE;
-#if 0
-                                // FIXME: disable debug code
-                                LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: ending line\n", l);
-#endif
-                                break;
-                            default:
-                                UI_putc(c);
-                        }
-					}
-					returnpacket (packet, l, packet->dp_Res2);
-					break;
-				}
-				default:
-					//LOG_printf (LOG_DEBUG, "ui_amiga: UI_runIO: rejecting unknown packet type\n");
-					returnpacket (packet, FALSE, ERROR_ACTION_NOT_KNOWN);
-			}
-		}
-        else
-        {
-            if (signals & debugsig)
-            {
-                RUN_handleMessages();
-                switch (RUN_getState())
-                {
-                    case RUN_stateRunning:
-                        break;
-                    case RUN_stateStopped:
-                        running = FALSE;
-                        break;
-                }
-            }
-        }
-	}
-    if (haveLine)
-        UI_endLine ();
 }
 
 void UI_bell (void)
@@ -698,7 +576,7 @@ void UI_HelpBrowser (void)
 {
     TUI_HelpBrowser();
 }
-typedef enum { esWait, esGet } eventState;
+typedef enum { esWait, esGetWin, esGetDebug } eventState;
 
 static void updateWindowSize(void)
 {
@@ -717,27 +595,26 @@ static uint16_t nextEvent(void)
 {
     static eventState state = esWait;
 
-    ULONG windowsig  = 1 << g_win->UserPort->mp_SigBit;
+    ULONG windowsig = 1 << g_win->UserPort->mp_SigBit;
+	ULONG debugsig  = 1 << g_debugPort->mp_SigBit;
     uint16_t res = KEY_NONE;
-    ULONG signals;
+    static ULONG signals;
 
     switch (state)
     {
         case esWait:
             //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): Wait...\n");
-            signals = Wait(windowsig);
-            if (!(signals & windowsig))
-                break;
-            state = esGet;
+            signals = Wait(windowsig|debugsig);
+            state = esGetWin;
             /* fall trough */
-        case esGet:
+        case esGetWin:
+            if (signals & windowsig)
             {
                 //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): GetMsg...\n");
                 struct IntuiMessage *winmsg;
                 winmsg = (struct IntuiMessage *)GetMsg(g_win->UserPort);
                 if (winmsg)
                 {
-                    state = esGet;
                     //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got a message, class=%d\n", winmsg->Class);
                     switch (winmsg->Class)
 				    {
@@ -859,13 +736,26 @@ static uint16_t nextEvent(void)
                         }
                     }
                     ReplyMsg((struct Message *)winmsg);
+                    break;
                 }
                 else
                 {
                     //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got no message\n");
-                    state = esWait;
+                    state = esGetDebug;
                 }
             }
+            else
+            {
+                    state = esGetDebug;
+            }
+            /* fall trough */
+        case esGetDebug:
+            if (signals & debugsig)
+            {
+                RUN_handleMessages();
+                res = KEY_REFRESH;
+            }
+            state = esWait;
             break;
     } /* switch (state) */
 
@@ -904,8 +794,6 @@ void UI_deinit(void)
 	}
 	if (g_vi)
 		FreeVisualInfo(g_vi);
-    if (g_IOport)
-        ASUP_delete_port(g_IOport);
     if (g_debugPort)
         ASUP_delete_port(g_debugPort);
     if (ConsoleDevice)
@@ -1011,19 +899,6 @@ bool UI_init (void)
     g_renderBMBytesPerRow = g_renderBM->BytesPerRow;
 
     UI_beginLine (1, 1, UI_size_cols);
-
-    /* prepare fake i/o filehandles (for IDE console redirection) */
-
-	if ( !(g_output = AllocMem (sizeof(struct FileHandle), MEMF_CLEAR|MEMF_PUBLIC)) )
-		cleanexit("failed to allocate memory for output file handle", RETURN_FAIL);
-
-	if (!(g_IOport = ASUP_create_port ((STRPTR) "aqb_io_port", 0)))
-		cleanexit("failed to create i/o port", RETURN_FAIL);
-
-	g_output->fh_Type = g_IOport;
-	g_output->fh_Port = 0;
-	g_output->fh_Args = (long)g_output;
-	g_output->fh_Arg2 = (long)0;
 
 	/*
      * menu

@@ -4,6 +4,8 @@
 #include "run.h"
 #include "logger.h"
 
+static RUN_state        g_debugState = RUN_stateStopped;
+
 #ifdef __amigaos__
 
 #include "amigasupport.h"
@@ -20,7 +22,6 @@ extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
 static struct MsgPort  *g_debugPort;
-static RUN_state        g_debugState = RUN_stateStopped;
 
 #define DEFAULT_PRI           0
 #define DEFAULT_STACKSIZE 32768
@@ -40,7 +41,6 @@ struct DebugMsg
 
 static struct Task       *g_parentTask;
 static struct Process    *g_childProc;
-static struct FileHandle *g_output;
 static char              *g_binfn;
 static BPTR               g_currentDir;
 static BPTR               g_seglist;
@@ -86,7 +86,7 @@ void RUN_start (const char *binfn)
 {
     g_binfn = (char *)binfn;
 
-    LOG_printf (LOG_INFO, "RUN_start: loading %s ...\n\n", g_binfn);
+    LOG_printf (LOG_DEBUG, "RUN_start: loading %s ...\n\n", g_binfn);
     g_seglist = LoadSeg((STRPTR)g_binfn);
     if (!g_seglist)
     {
@@ -94,15 +94,14 @@ void RUN_start (const char *binfn)
         return;
     }
 
-    LOG_printf (LOG_INFO, "RUN_start: CreateNewProc for %s ...\n", binfn);
-    g_childProc = CreateNewProcTags(NP_Output,      (ULONG) MKBADDR(g_output),
-                                    NP_Seglist,     (ULONG) g_seglist,
+    LOG_printf (LOG_DEBUG, "RUN_start: CreateNewProc for %s ...\n", binfn);
+    g_childProc = CreateNewProcTags(NP_Seglist,     (ULONG) g_seglist,
                                     NP_CloseOutput, FALSE,
                                     NP_StackSize,   DEFAULT_STACKSIZE,
 								    NP_Name,        (ULONG) g_binfn);
 
 
-    LOG_printf (LOG_INFO, "RUN_start: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_childProc);
+    LOG_printf (LOG_DEBUG, "RUN_start: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_childProc);
 
     // send startup message
 
@@ -117,13 +116,13 @@ void RUN_start (const char *binfn)
 	g_dbgMsg.debug_sig           = DEBUG_SIG;
 	g_dbgMsg.exitFn              = NULL;
 
-	LOG_printf (LOG_INFO, "RUN_start: Send debug msg...\n");
+	LOG_printf (LOG_DEBUG, "RUN_start: Send debug msg...\n");
 
 	PutMsg (&g_childProc->pr_MsgPort, &g_dbgMsg.msg);
 
     g_debugState = RUN_stateRunning;
 
-	LOG_printf (LOG_INFO, "RUN_start: done.\n");
+	LOG_printf (LOG_DEBUG, "RUN_start: done.\n");
 }
 
 void RUN_handleMessages(void)
@@ -137,11 +136,6 @@ void RUN_handleMessages(void)
             && (msg->debug_sig == DEBUG_SIG))
             g_debugState = RUN_stateStopped;
     }
-}
-
-RUN_state RUN_getState(void)
-{
-    return g_debugState;
 }
 
 #if 0
@@ -205,12 +199,17 @@ void RUN_break (void)
     Signal (&g_childProc->pr_Task, SIGBREAKF_CTRL_C);
 }
 
-void RUN_init (struct MsgPort *debugPort, struct FileHandle *output)
+void RUN_init (struct MsgPort *debugPort)
 {
-    g_output     = output;
 	g_parentTask = FindTask(NULL);
     g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
     g_debugPort  = debugPort;
 }
 
 #endif
+
+RUN_state RUN_getState(void)
+{
+    return g_debugState;
+}
+

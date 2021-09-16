@@ -121,9 +121,7 @@ bool      UI_FindReq            (char *buf, uint16_t buf_len, bool *matchCase, b
 void      UI_HelpBrowser        (void);
 
 #ifdef __amigaos__
-struct FileHandle *UI_output    (void);
 struct MsgPort    *UI_debugPort (void);
-void      UI_runIO              (void);
 #endif
 
 bool      UI_init               (void);

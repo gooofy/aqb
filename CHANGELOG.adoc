@@ -13,6 +13,7 @@ Bug Fixes::
     * compiler: CLI return code fixed
     * compiler: handle varPtr in BinOp expressions
     * ide: do not crash if non-existing file is specified as cmd line argument
+    * ide: fix refresh while program is running
     * runtime: fix _aqb shutdown crash
     * runtime: fix INKEY buffer handling
     * runtime: fix TIMER nullpointer access

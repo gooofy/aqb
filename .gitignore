@@ -67,7 +67,11 @@ src/lib/_brt/dyna.asm
 src/lib/_aqb/*.s
 src/lib/_aqb/*.sym
 src/lib/_aqb/simple_timer.c
+src/lib/_aqb/aio.asm
+src/lib/_aqb/atimer.asm
+src/lib/_aqb/awindow.asm
 src/lib/_brt/amath.asm
+src/lib/_brt/autil.asm
 src/alib/tests/*.bin
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
@@ -114,4 +118,5 @@ foo
 foo.bas
 ide.log
 export.sh
-src/lib/_brt/autil.asm
+aqb.readme
+marketing.txt

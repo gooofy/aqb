@@ -1,18 +1,19 @@
 #ifndef HAVE_RUN_H
 #define HAVE_RUN_H
 
+typedef enum {RUN_stateStopped, RUN_stateRunning} RUN_state;
+
+RUN_state RUN_getState(void);
+
 #ifdef __amigaos__
 
 #include <dos/dosextens.h>
 
-typedef enum {RUN_stateRunning, RUN_stateStopped} RUN_state;
-
 void      RUN_start (const char *binfn);
 
-void      RUN_init (struct MsgPort *debugPort, struct FileHandle *output);
+void      RUN_init (struct MsgPort *debugPort);
 
 void      RUN_handleMessages(void);
-RUN_state RUN_getState(void);
 
 void      RUN_break (void);
 

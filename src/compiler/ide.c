@@ -25,12 +25,13 @@
 
 //#define ENABLE_REPAINT_BENCHMARK
 
-#define INFOLINE            "F1:help X=   1 Y=   1 #=   0  new file"
+#define INFOLINE            "F1:help X=   1 Y=   1 #=   0  STOPPED  new file"
 #define INFOLINE_CURSOR_X     10
 #define INFOLINE_CURSOR_Y     17
 #define INFOLINE_NUM_LINES    24
 #define INFOLINE_CHANGED      29
-#define INFOLINE_FILENAME     30
+#define INFOLINE_RUN_STATE    30
+#define INFOLINE_FILENAME     39
 
 #define CR  13
 #define LF  10
@@ -124,6 +125,9 @@ struct IDE_editor_
     // find/replace
     bool               find_matchCase, find_wholeWord, find_searchBackwards;
     char               find_buf[MAX_LINE_LEN];
+
+    // run/debug
+    RUN_state          run_state;
 };
 
 #if LOG_LEVEL == LOG_DEBUG
@@ -131,6 +135,8 @@ static FILE *logf=NULL;
 #endif
 static IDE_editor g_ed;
 static TAB_table  g_keywords;
+
+static char *g_state_strs[2] = {"STOPPED", "RUNNING"};
 
 IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
 {
@@ -1198,6 +1204,21 @@ static void repaint (IDE_editor ed)
         }
     }
 
+    RUN_state rs = RUN_getState();
+    if (rs != ed->run_state)
+    {
+        char *fs = ed->infoline + INFOLINE_RUN_STATE;
+
+        char *s = g_state_strs[rs];
+        for (char *c = s; *c; c++)
+        {
+            *fs++ = *c;
+        }
+
+        ed->run_state   = rs;
+        update_infoline = TRUE;
+    }
+
     if (update_infoline)
     {
         LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
@@ -1595,6 +1616,14 @@ static bool compile(IDE_editor ed)
 
 static void compileAndRun(IDE_editor ed)
 {
+#ifdef __amigaos__
+    if (RUN_getState() != RUN_stateStopped)
+    {
+        RUN_break();
+        return;
+    }
+#endif
+
     bool changed = ed->changed || !strlen (ed->sourcefn) || !strlen(ed->binfn);
     if (!changed)
     {
@@ -1629,18 +1658,11 @@ static void compileAndRun(IDE_editor ed)
 #ifdef __amigaos__
     LOG_printf (LOG_INFO, "\n");
     RUN_start (ed->binfn);
-
-    UI_runIO();
 #else
     LOG_printf (LOG_INFO, "\n*** FIXME: non-amiga debugging not implemented yet.\n\n");
-#endif
-
-    // LOG_printf (LOG_INFO, "%s finished.\n\n", binfn);
-
-    // FIXME: cleanup
-
     LOG_printf (LOG_INFO, "\n*** press enter to continue ***\n\n");
     while ( UI_waitkey () != KEY_ENTER ) ;
+#endif
 
     UI_eraseDisplay ();
     invalidateAll (ed);
@@ -2132,6 +2154,7 @@ IDE_editor openEditor(void)
     ed->find_matchCase       = FALSE;
     ed->find_wholeWord       = FALSE;
     ed->find_searchBackwards = FALSE;
+    ed->run_state            = RUN_stateStopped;
 
     invalidateAll (ed);
 
@@ -2215,7 +2238,7 @@ void IDE_open (string sourcefn)
 	atexit (IDE_deinit);
     UI_init();
 #ifdef __amigaos__
-    RUN_init(UI_debugPort(), UI_output());
+    RUN_init(UI_debugPort());
 #endif
     LOG_init (log_cb);
 
