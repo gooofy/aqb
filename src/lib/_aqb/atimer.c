@@ -12,12 +12,15 @@
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
+#include <clib/dos_protos.h>
+#include <inline/dos.h>
+
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
 #define MAX_NUM_TIMERS 8
 
-// #define ENABLE_DEBUG
+//#define ENABLE_DEBUG
 
 typedef struct
 {
@@ -56,7 +59,7 @@ void _atimer_shutdown(void)
 void _atimer_process_signals(ULONG signals)
 {
 #ifdef ENABLE_DEBUG
-	_aio_puts ((UBYTE*)"_atimer_process_signals signals="); _aio_putu4(signals); _aio_putnl();
+	//_debug_puts ((UBYTE*)"_atimer_process_signals signals="); _debug_putu4(signals); _debug_putnl();
 #endif
 
     for (int i=0; i<MAX_NUM_TIMERS; i++)
@@ -69,7 +72,7 @@ void _atimer_process_signals(ULONG signals)
             continue;
 
 #ifdef ENABLE_DEBUG
-        _aio_puts ((UBYTE*)"   --> timer #"); _aio_puts2(i+1); _aio_putnl();
+        //_debug_puts ((UBYTE*)"   --> timer #"); _debug_puts2(i+1); _debug_putnl();
 #endif
 
         t->cb();
@@ -86,7 +89,7 @@ void _atimer_process_signals(ULONG signals)
 void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 {
 #ifdef ENABLE_DEBUG
-	_aio_puts ((UBYTE*)"ON_TIMER_CALL #"); _aio_puts2(id); _aio_putnl();
+	_debug_puts ((UBYTE*)"ON_TIMER_CALL #"); _debug_puts2(id); _debug_putnl();
 #endif
     // error checking
     if ( (id < 1) || (id > MAX_NUM_TIMERS) )
@@ -105,8 +108,8 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
     usecs = SPFix (SPMul (g_1e6, SPSub (SPFlt(secs), d)));
 
 #ifdef ENABLE_DEBUG
-    _aio_puts ((UBYTE*)"secs="); _aio_putu4(secs); _aio_putnl();
-    _aio_puts ((UBYTE*)"usecs="); _aio_putu4(usecs); _aio_putnl();
+    _debug_puts ((UBYTE*)"secs="); _debug_putu4(secs); _debug_putnl();
+    _debug_puts ((UBYTE*)"usecs="); _debug_putu4(usecs); _debug_putnl();
 #endif
 
     g_timers[id-1].cb          = cb;
@@ -119,7 +122,8 @@ void ON_TIMER_CALL (SHORT id, FLOAT d, void (*cb)(void))
 void TIMER_ON (SHORT id)
 {
 #ifdef ENABLE_DEBUG
-	_aio_puts ((UBYTE*)"TIMER_ON #"); _aio_puts2(id); _aio_putnl();
+	_debug_puts ((UBYTE*)"TIMER_ON #"); _debug_puts2(id); _debug_putnl();
+    Delay(100);
 #endif
 
     if ( (id < 1) || (id > MAX_NUM_TIMERS) || !g_timers[id-1].cb )
@@ -159,12 +163,18 @@ void TIMER_ON (SHORT id)
 
     _g_signalmask_atimer |= (1L << g_timers[id-1].timerport->mp_SigBit);
     SendIO((struct IORequest *)g_timers[id-1].timer_io);
+
+#ifdef ENABLE_DEBUG
+	_debug_puts ((UBYTE*)"TIMER_ON DONE #"); _debug_puts2(id); _debug_putnl();
+    Delay(100);
+#endif
 }
 
 void TIMER_OFF (SHORT id)
 {
 #ifdef ENABLE_DEBUG
-	_aio_puts ((UBYTE*)"TIMER_OFF #"); _aio_puts2(id); _aio_putnl();
+	_debug_puts ((UBYTE*)"TIMER_OFF #"); _debug_puts2(id); _debug_putnl();
+    //Delay(100);
 #endif
     if ( (id < 1) || (id > MAX_NUM_TIMERS) )
     {
@@ -172,11 +182,6 @@ void TIMER_OFF (SHORT id)
         return;
     }
 
-    if (g_timers[id-1].timerport)
-    {
-        _autil_delete_port(g_timers[id-1].timerport);
-        g_timers[id-1].timerport = NULL;
-    }
     if (g_timers[id-1].timer_io)
     {
         AbortIO( (struct IORequest *) g_timers[id-1].timer_io );
@@ -184,4 +189,14 @@ void TIMER_OFF (SHORT id)
         _autil_delete_ext_io ( (struct IORequest *) g_timers[id-1].timer_io );
         g_timers[id-1].timer_io = NULL;
     }
+
+    if (g_timers[id-1].timerport)
+    {
+        _autil_delete_port(g_timers[id-1].timerport);
+        g_timers[id-1].timerport = NULL;
+    }
+#ifdef ENABLE_DEBUG
+	_debug_puts ((UBYTE*)"TIMER_OFF DONE #"); _debug_puts2(id); _debug_putnl();
+    //Delay(100);
+#endif
 }
