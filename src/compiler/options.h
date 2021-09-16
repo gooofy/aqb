@@ -22,8 +22,9 @@ extern char aqb_help[PATH_MAX];
 #define OPTION_RACOLOR   8      // enable register allocation by graph coloring
 #define OPTION_BREAK    16      // add CTRL-C checks in loops and subprograms
 
-void OPT_set           (int opt, bool onoff);
-bool OPT_get           (int opt);
+void OPT_set         (int opt, bool onoff);
+bool OPT_get         (int opt);
+void OPT_reset       (void);                // reset all compiler options to their defaults
 
 /*
  * (persistent) user preferences

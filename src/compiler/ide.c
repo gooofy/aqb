@@ -1590,6 +1590,8 @@ static bool compile(IDE_editor ed)
     if (!IDE_save(ed, /*save_as=*/FALSE))
         return FALSE;
 
+    OPT_reset();
+
     CO_compile(ed->sourcefn,
                ed->module_name,
                /*symfn=*/ NULL,

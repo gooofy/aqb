@@ -11,10 +11,12 @@
 extern struct DOSBase       *DOSBase;
 #endif
 
+#define DEFAULT_OPTS OPTION_BREAK
+
 static char g_pref_fn[PATH_MAX];
 static int  g_pref_font         = 1;
 static int  g_pref_colorscheme  = 0;
-static int  g_opt               = OPTION_BREAK;
+static int  g_opt               = DEFAULT_OPTS;
 
 void OPT_set(int opt, bool onoff)
 {
@@ -27,6 +29,11 @@ void OPT_set(int opt, bool onoff)
 bool OPT_get(int opt)
 {
     return g_opt & opt;
+}
+
+void OPT_reset (void)
+{
+    g_opt = DEFAULT_OPTS;
 }
 
 int OPT_prefGetInt (int pref)
