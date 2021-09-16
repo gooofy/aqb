@@ -22,6 +22,9 @@ _aqb.a: awindow.o _aqb.o aio.o atimer.o
 	pushd .. && rm -f _aqb.a && ln -s _aqb/_aqb.a && popd
 	cp $@ $(DISTDIR)/lib
 
+%.asm: %.c
+	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
+
 clean:
-	rm -f *.o _aqb.a *.sym
+	rm -f *.o _aqb.a *.sym *.asm
 
