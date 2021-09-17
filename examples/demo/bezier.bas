@@ -1,46 +1,53 @@
 OPTION EXPLICIT
 
-DIM AS integer n = 3
+CONST AS INTEGER N = 3
 
-CONST AS integer MAX_N = 10
+DIM AS SINGLE pX ( STATIC N ), pY ( STATIC N )
+DIM AS SINGLE qX ( STATIC N ), qY ( STATIC N )
+DIM AS SINGLE rX ( STATIC N ), rY ( STATIC N )
 
-DIM AS single Px ( MAX_N ), Py ( MAX_N ), Qx ( MAX_N ), Qy ( MAX_N )
-DIM AS single Rx ( MAX_N ), Ry ( MAX_N )
+pX ( 0 ) = 10 : pY ( 0 ) = 10
+pX ( 1 ) = 600 : pY ( 1 ) = 10
+pX ( 2 ) = 50 : pY ( 2 ) = 150
+pX ( 3 ) = 500 : pY ( 3 ) = 130
 
-Px ( 0 ) = 10 : Py ( 0 ) = 10
-Px ( 1 ) = 100 : Py ( 1 ) = 42
-Px ( 2 ) = 200 : Py ( 2 ) = 23
-Px ( 3 ) = 300 : Py ( 3 ) = 100
+CONST AS SINGLE DELTA = 0.05
 
-DIM AS single Delta = 0.01
+DIM AS SINGLE Xold = pX ( 0 ), Yold = pY ( 0 )
 
-DIM AS single Xold = Px ( 0 ), Yold = Py ( 0 )
+DIM AS SINGLE t = - DELTA
 
-DIM AS single T = - Delta
+WINDOW 1, "Bezier Curve Demo"
 
-WHILE T < 1
-    T = T + Delta
-    DIM AS integer M = n
-    FOR i AS integer = 0 TO M
-        Qx ( i ) = Px ( i )
-        Qy ( i ) = Py ( i )
+FOR i AS INTEGER = 0 TO N
+    LINE ( pX ( i ) -4, pY ( i ) -4 ) - ( pX ( i ) + 4, pY ( i ) + 4 ), 3, B
+NEXT i
+
+WHILE t < 1
+    t = t + DELTA
+    DIM AS INTEGER m = N
+    FOR i AS INTEGER = 0 TO m
+        qX ( i ) = pX ( i )
+        qY ( i ) = pY ( i )
     NEXT i
-    WHILE M > 0
-        FOR j AS integer = 0 TO M -1
-            Rx ( j ) = Qx ( j ) + T * ( Qx ( j + 1 ) - Qx ( j ) )
-            Ry ( j ) = Qy ( j ) + T * ( Qy ( j + 1 ) - Qy ( j ) )
+    WHILE m > 0
+        FOR j AS INTEGER = 0 TO m -1
+            rX ( j ) = qX ( j ) + t * ( qX ( j + 1 ) - qX ( j ) )
+            rY ( j ) = qY ( j ) + t * ( qY ( j + 1 ) - qY ( j ) )
         NEXT j
-        M = M -1
-        FOR j AS integer = 0 TO M
-            Qx ( j ) = Rx ( j )
-            Qy ( j ) = Ry ( j )
+        m = m -1
+        FOR j AS INTEGER = 0 TO m
+            qX ( j ) = rX ( j )
+            qY ( j ) = rY ( j )
         NEXT j
     WEND
     REM PRINT Xold; "/"; Yold; " - "; Qx ( 0 ); "/"; Qy ( 0 )
-    LINE ( Xold, Yold ) - ( Qx ( 0 ), Qy ( 0 ) )
+    LINE ( Xold, Yold ) - ( qX ( 0 ), qY ( 0 ) )
     
-    Xold = Qx ( 0 ) : Yold = Qy ( 0 )
+    Xold = qX ( 0 ) : Yold = qY ( 0 )
 WEND
+
+LOCATE 22, 1
 
 PRINT "PRESS ANY KEY"
 
