@@ -43,6 +43,10 @@
 
 #ifdef __amigaos__
 #define TMP_BINFN "T:aqb_out.exe"
+#include "icons.h"
+#include <clib/icon_protos.h>
+#include <inline/icon.h>
+extern struct IconBase      *IconBase;
 #else
 #define TMP_BINFN "/tmp/aqb_out.exe"
 #endif
@@ -1538,6 +1542,10 @@ static bool IDE_save (IDE_editor ed, bool save_as)
 
     fclose (sourcef);
 
+#ifdef __amigaos__
+	PutDiskObject((STRPTR)ed->sourcefn, &aqbsrcIcon);
+#endif
+
     ed->changed = FALSE;
     ed->up2date_il_flags = FALSE;
 
@@ -1612,6 +1620,12 @@ static bool compile(IDE_editor ed)
         gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol);
         ed->il_show_error = TRUE;
         return FALSE;
+    }
+    else
+    {
+#ifdef __amigaos__
+        PutDiskObject((STRPTR)ed->binfn, &aqbbinIcon);
+#endif
     }
     return TRUE;
 }

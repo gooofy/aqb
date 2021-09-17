@@ -4,6 +4,7 @@ Improvements::
 
     * runtime/ide: detect and handle CTRL-C breaks
     * ide: handle workbench startup + argument
+    * ide: create icons for source code files and binaries
     * compiler/runtime: String concatenation implemented
     * compiler: SLEEP FOR statement added
     * runtime: workbench startup code added
