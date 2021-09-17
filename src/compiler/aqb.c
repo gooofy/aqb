@@ -31,6 +31,8 @@
 #include <exec/types.h>
 #include <exec/memory.h>
 
+#include <workbench/startup.h>
+
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 
@@ -324,10 +326,37 @@ int main (int argc, char *argv[])
         }
     }
 
-    if ((argc == 0) || (argc==optind))  // workbench launch / no args
+    if ((argc == 0) || (argc==optind))  // workbench launch
     {
+#ifdef __amigaos__
         launch_ide = TRUE;
         sourcefn = NULL;
+
+        struct WBStartup *wb_msg = (struct WBStartup *) argv;
+		struct WBArg *wbarg = wb_msg->sm_ArgList;
+        for (uint16_t i=0; i < wb_msg->sm_NumArgs; i++, wbarg++)
+		{
+            if ((i>0) && (*wbarg->wa_Name))
+			{
+				if (wbarg->wa_Lock)
+				{
+					static char pb[256];
+					if (ASUP_NameFromLock (wbarg->wa_Lock, (STRPTR)pb, 256))
+					{
+						if (AddPart((STRPTR)pb, (STRPTR)wbarg->wa_Name, 256))
+						{
+							sourcefn = (string) &pb;
+							break;
+						}
+					}
+				}
+				else
+				{
+					sourcefn = (string)wbarg->wa_Name;
+				}
+			}
+		}
+#endif
     }
     else
     {

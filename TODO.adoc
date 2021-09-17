@@ -56,7 +56,9 @@ DONE translate forum posts, add useful information to README
 
 == Runtime
 
-- startup code: command line args, workbench startup
+- DONE startup code: workbench startup
+
+- startup code: command line args
 
 - Exec error handling / traps
     * division by zero
@@ -65,11 +67,11 @@ DONE translate forum posts, add useful information to README
 
 - string handling
 
-- CTRL+C to stop the program at any time
+- DONE CTRL+C to stop the program at any time
 
 - source level debugging
 
-- tetris game freezes after some 3 minutes (ressource leak? )
+- DONE tetris game freezes after some 3 minutes (ressource leak? )
 
 == IDE
 
@@ -87,7 +89,7 @@ DONE translate forum posts, add useful information to README
 
 - mouse cursor positioning
 
-- workbench arguments (double click source code -> open file in IDE)
+- DONE workbench arguments (double click source code -> open file in IDE)
 
 == Core Commands
 
