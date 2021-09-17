@@ -20,3 +20,8 @@ __autil_exit:
 ___SaveSP:
         DC.L    0
 
+        XDEF    __break_status
+        EVEN
+__break_status:
+        DC.L    0
+

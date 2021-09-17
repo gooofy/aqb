@@ -286,7 +286,7 @@ FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
 
 static BPTR _debug_stdout = 0;
 
-ULONG len_(const char *str)
+ULONG len_(const UBYTE *str)
 {
     int l = 0;
     while (*str)
@@ -374,7 +374,7 @@ void _astr_itoa(int num, char* str)
 }
 #endif
 
-void _debug_puts(const char *s)
+void _debug_puts(const UBYTE *s)
 {
     if (_debug_stdout)
         Write(_debug_stdout, (CONST APTR) s, len_(s));
@@ -384,14 +384,14 @@ void _debug_puts2(SHORT s)
 {
     char buf[MAXBUF];
     _astr_itoa(s, buf, 10);
-    _debug_puts(buf);
+    _debug_puts((STRPTR)buf);
 }
 
 void _debug_putu4(ULONG l)
 {
     char buf[MAXBUF];
     _astr_itoa(l, buf, 10);
-    _debug_puts(buf);
+    _debug_puts((STRPTR)buf);
 }
 
 void _debug_putnl(void)
@@ -467,7 +467,7 @@ void DEALLOCATE (APTR ptr, ULONG size)
  *
  ************************************************************************/
 
-char *_astr_dup(const char* str)
+char *_astr_dup(const STRPTR str)
 {
     ULONG l = len_(str);
     char *str2 = ALLOCATE_(l+1, MEMF_ANY);
@@ -502,8 +502,8 @@ void ERROR (SHORT errcode)
     }
     else
     {
-        _debug_puts("*** unhandled runtime error code: "); _debug_puts2(errcode);
-        _debug_puts("\n");
+        _debug_puts((STRPTR)"*** unhandled runtime error code: "); _debug_puts2(errcode);
+        _debug_puts((STRPTR)"\n");
     }
 
     if (!do_resume)
@@ -590,7 +590,7 @@ void _aqb_readStr (void *v)
         l++;
     }
     buf[l] = 0;
-    *((char **)v) = _astr_dup(buf);
+    *((char **)v) = _astr_dup((STRPTR)buf);
 }
 
 /************************************************************************
@@ -777,6 +777,24 @@ void __DARRAY_T_ERASE (_DARRAY_T *self)
 }
 
 
+/************************************************************************
+ *
+ * fake _aqb routines
+ *
+ ************************************************************************/
+
+void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
+{
+    _debug_puts((STRPTR)"s1: ")  ; _debug_puts2(s1);
+    _debug_puts((STRPTR)", x1: "); _debug_puts2(x1);
+    _debug_puts((STRPTR)", y1: "); _debug_puts2(y1);
+    _debug_puts((STRPTR)", s2: "); _debug_puts2(s2);
+    _debug_puts((STRPTR)", x2: "); _debug_puts2(x2);
+    _debug_puts((STRPTR)", y2: "); _debug_puts2(y2);
+    _debug_puts((STRPTR)", c: ") ; _debug_puts2(c);
+    _debug_puts((STRPTR)", bf: "); _debug_puts2(bf);
+    _debug_putnl();
+}
 
 /************************************************************************
  *
@@ -784,13 +802,18 @@ void __DARRAY_T_ERASE (_DARRAY_T *self)
  *
  ************************************************************************/
 
+void __handle_break(void)
+{
+}
+
+
 void _aqb_assert (BOOL b, const char *msg)
 {
     if (b)
         return;
 
-    _debug_puts(msg);
-    _debug_puts("\n");
+    _debug_puts((STRPTR)msg);
+    _debug_puts((STRPTR)"\n");
 
     _autil_exit(20);
 }
@@ -883,7 +906,7 @@ void _minbrt_exit(void)
         CloseLibrary( (struct Library *)DOSBase);
 }
 
-void _cshutdown (LONG return_code, char *msg)
+void _cshutdown (LONG return_code, STRPTR msg)
 {
     if (msg && DOSBase)
         _debug_puts(msg);
@@ -892,6 +915,10 @@ void _cshutdown (LONG return_code, char *msg)
 }
 
 // called from aqb main, unused here
+void __aqb_init(void)
+{
+}
+
 void __brt_init(void)
 {
 }
@@ -901,15 +928,15 @@ static void _minbrt_init (void)
     SysBase = (*((struct ExecBase **) 4));
 
     if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
-        _cshutdown(20, "*** error: failed to open dos.library!\n");
+        _cshutdown(20, (STRPTR)"*** error: failed to open dos.library!\n");
 
     _debug_stdout = Output();
 
     if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
-        _cshutdown(20, "*** error: failed to open mathffp.library!\n");
+        _cshutdown(20, (STRPTR)"*** error: failed to open mathffp.library!\n");
 
     if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
-        _cshutdown(20, "*** error: failed to open mathtrans.library!\n");
+        _cshutdown(20, (STRPTR)"*** error: failed to open mathtrans.library!\n");
 
     g_one_half = SPDiv(SPFlt(2), SPFlt(1));
     g_zero     = SPFlt(0);

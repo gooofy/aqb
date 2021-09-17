@@ -22,3 +22,7 @@ __autil_exit:
 ___SaveSP:
         DC.L    0
 
+    .globl  __break_status
+__break_status:
+        DC.L    0
+
