@@ -780,6 +780,14 @@ Syntax:
 
 set foreground, background and or area outline pen
 
+=== CLS
+
+Syntax:
+    
+    CLS
+
+Clear the current output window and set the cursor position to the upper left corner
+
 === CSRLIN()
 
 Syntax:
@@ -956,6 +964,17 @@ Syntax:
 
 create a new screen
 
+mode is one of:
+
+    * AS_MODE_LORES                = 1
+    * AS_MODE_HIRES                = 2
+    * AS_MODE_LORES_LACED          = 3
+    * AS_MODE_HIRES_LACED          = 4
+    * AS_MODE_HAM                  = 5
+    * AS_MODE_EXTRAHALFBRITE       = 6
+    * AS_MODE_HAM_LACED            = 7
+    * AS_MODE_EXTRAHALFBRITE_LACED = 8
+
 === SCREEN CLOSE
 
 Syntax:
@@ -1024,6 +1043,16 @@ Syntax:
     WINDOW id [ "," [ title ] [ "," [ "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] [ "," [type] [ "," screen-id ]]]]
 
 Create and activate a new window, make it the new output window.
+
+type is an OR combination of:
+
+    * AW_FLAG_SIZE       =  1
+    * AW_FLAG_DRAG       =  2
+    * AW_FLAG_DEPTH      =  4
+    * AW_FLAG_CLOSE      =  8
+    * AW_FLAG_REFRESH    = 16
+    * AW_FLAG_BACKDROP   = 32
+    * AW_FLAG_BORDERLESS = 64
 
 === WINDOW CLOSE
 

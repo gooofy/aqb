@@ -110,13 +110,17 @@ void _awindow_init     (void);
 void _awindow_shutdown (void);
 
 void   SCREEN          (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title);
+void   SCREEN_CLOSE    (short id);
 void   WINDOW          (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
+void   WINDOW_CLOSE    (short id);
+void   WINDOW_OUTPUT   (short id);
 ULONG  WINDOW_         (SHORT n);
 void   CLS             (void);
 void   LINE            (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   SLEEP           (void);
 void   SLEEP_FOR       (FLOAT s);
 void   ON_WINDOW_CALL  (void (*cb)(void));
+void   ON_MOUSE_CALL   (void (*cb)(void));
 void   LOCATE          (SHORT l, SHORT c);
 SHORT  CSRLIN_         (void);
 SHORT  POS_            (SHORT dummy);

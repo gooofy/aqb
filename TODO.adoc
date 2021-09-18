@@ -108,7 +108,7 @@ DONE translate forum posts, add useful information to README
 -      CLEAR
 -      CLNG()
 -      CLOSE
--      CLS
+- DONE CLS
 -      COMMON
 - DONE COS()
 -      CSNG()
@@ -228,6 +228,7 @@ DONE translate forum posts, add useful information to README
 
 - DONE AREA
 - DONE AREAFILL
+- DONE AREA OUTLINE
 -      BEEP
 -      CIRCLE
 -      COLLISION ON
