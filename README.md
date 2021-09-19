@@ -5,7 +5,7 @@
 
 ## About
 
-* [Project Scope](## Project Scope)
+* [Project Scope](#project-scope)
 * [Requirements]
 * [Installation]
 * [Benchmark Results]
