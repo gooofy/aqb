@@ -24,7 +24,6 @@
 
 [Keyboard shortcuts]
 
-[Project Scope]:
 ## Project Scope
 
 An experiment in alternate history: what AmigaBASIC could have looked like,
