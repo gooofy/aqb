@@ -16,13 +16,13 @@
 * [Language reference: Amiga specific commands](help/RefAmiga.md)
 * [Type System](#type-system)
 * [Module System and Runtime](#module-system-and-runtime)
-* [Code Generation and Target Systems]
-* [Interrupting / break handling in AQB programs]
-* [Amiga OS System Programming in AQB]
+* [Code Generation and Target Systems](#code-generation-and-target-systems)
+* [Interrupting / break handling in AQB programs](#interrupting-/-break-handling-in-aqb-programs)
+* [Amiga OS System Programming in AQB](#amiga-os-system-programming-in-aqb)
 
 ## IDE
 
-[Keyboard shortcuts]
+* [Keyboard shortcuts](#keyboard-shortcuts)
 
 ## Project Scope
 
@@ -130,7 +130,6 @@ CALL family of statements is not built into the compiler but part of the
 
     PUBLIC DECLARE SUB ON WINDOW CALL (BYVAL p AS SUB)
 
-[Code Generation and Target Systems]:
 ## Code Generation and Target Systems
 
 At the time of this writing classic 68k Amiga systems is the only compiler
@@ -155,7 +154,6 @@ Amiga systems. At that point it might even make sense to implement a 6502
 backend targeting modern 8 bit systems like the MEGA65, Commander X16 or
 C256 Foenix.
 
-[Interrupting / break handling in AQB programs]:
 ## Interrupting / break handling in AQB programs
 
 By default, the runtime will check for break signals in i/o routines. Break
@@ -172,7 +170,6 @@ switched off using the
 
 statement.
 
-[Amiga OS System Programming in AQB]:
 ## Amiga OS System Programming in AQB
 
 AQB datatypes are very similar to C (C-like strings, structs and pointers)
@@ -221,7 +218,6 @@ resulting AQB declarations typically look like:
 
 ## IDE
 
-[Keyboard shortcuts]:
 ### Keyboard shortcuts:
     * F1     - this help screen
     * S-UP   - page up
@@ -237,7 +233,6 @@ resulting AQB declarations typically look like:
     * Ctrl-S - save
     * Ctrl-C - quit
 
-[Benchmark Results]:
 ## Benchmark Results
 
 Measured on an A500 configuration (PAL 68000, 3MB RAM) in FS-UAE, Kickstart 1.3
@@ -248,7 +243,6 @@ Measured on an A500 configuration (PAL 68000, 3MB RAM) in FS-UAE, Kickstart 1.3
 | ctHLBench real       | 23.90s        | 6.88s          | 4.99s           | 4.46s          | 3.12s |
 | fibonacci            | no recursion  | 54.60s         | guru            | 28.18          | 4.09s |
 
-[Source Code]:
 ## Source Code
 
 https://github.com/gooofy/aqb
