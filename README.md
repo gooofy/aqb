@@ -5,20 +5,20 @@
 
 ## About
 
-[Project Scope]
-[Requirements]
-[Installation]
-[Benchmark Results]
-[Source Code]
+* [Project Scope](## Project Scope)
+* [Requirements]
+* [Installation]
+* [Benchmark Results]
+* [Source Code]
 
 ## AQB Programming Language
-[Language reference: Core](help/RefCore.md)
-[Language reference: Amiga specific commands](help/RefAmiga.md)
-[Type System]
-[Module System and Runtime]
-[Code Generation and Target Systems]
-[Interrupting / break handling in AQB programs]
-[Amiga OS System Programming in AQB]
+* [Language reference: Core](help/RefCore.md)
+* [Language reference: Amiga specific commands](help/RefAmiga.md)
+* [Type System]
+* [Module System and Runtime]
+* [Code Generation and Target Systems]
+* [Interrupting / break handling in AQB programs]
+* [Amiga OS System Programming in AQB]
 
 ## IDE
 
