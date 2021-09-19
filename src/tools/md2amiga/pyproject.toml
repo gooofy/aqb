@@ -1,0 +1,51 @@
+[build-system]
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
+
+[project]
+# PEP 621 project metadata
+# See https://www.python.org/dev/peps/pep-0621/
+authors = [
+    {name = "Frost Ming", email = "mianghong@gmail.com"},
+]
+dynamic = ["version", "classifiers"]
+version = {from = "marko/__init__.py"}
+requires-python = ">=3.6"
+license = {text = "MIT"}
+dependencies = []
+description = "A markdown parser with high extensibility."
+name = "marko"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    'Operating System :: OS Independent',
+]
+
+[project.urls]
+homepage = "https://github.com/frostming/marko"
+Documentation = "https://marko-py.readthedocs.io"
+
+[project.optional-dependencies]
+toc = ["python-slugify"]
+codehilite = ["pygments"]
+benchmark = [
+    "commonmark~=0.9",
+    "markdown~=3.3",
+    "markdown-it-py~=0.6",
+    "mistune~=0.8",
+    "mistletoe~=0.7",
+]
+
+[project.scripts]
+marko = "marko.cli:main"
+
+[tool]
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest<7.0.0,>=6.1.2",
+    "pytest-cov<3.0.0,>=2.10.1",
+    "mypy",
+    "nox~=2020.12",
+]

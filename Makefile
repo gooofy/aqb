@@ -1,3 +1,7 @@
+include config.mk
+
+MD2AGUIDE = src/tools/md2amiga/md2aguide.py
+
 .PHONY: clean all tests src examples help directories
 
 all: directories src tests help examples
@@ -11,7 +15,9 @@ tests:
 examples:
 	cd examples ; make all
 
-help:
+help:	README.md
+	$(MD2AGUIDE) README.md > README.guide
+	cp README.guide $(DISTDIR)
 	cd help ; make all
 
 directories:
@@ -26,3 +32,4 @@ clean:
 	cd examples ; make clean
 	cd help ; make clean
 	rm -rf target
+	rm -f README.guide
