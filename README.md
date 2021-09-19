@@ -6,16 +6,16 @@
 ## About
 
 * [Project Scope](#project-scope)
-* [Requirements]
-* [Installation]
-* [Benchmark Results]
-* [Source Code]
+* [Requirements](#requirements)
+* [Installation](#installation)
+* [Benchmark Results](#benchmark-results)
+* [Source Code](#source-code)
 
 ## AQB Programming Language
 * [Language reference: Core](help/RefCore.md)
 * [Language reference: Amiga specific commands](help/RefAmiga.md)
-* [Type System]
-* [Module System and Runtime]
+* [Type System](#type-system)
+* [Module System and Runtime](#module-system-and-runtime)
 * [Code Generation and Target Systems]
 * [Interrupting / break handling in AQB programs]
 * [Amiga OS System Programming in AQB]
@@ -56,20 +56,17 @@ Improvements over AmigaBASIC include:
     * auto-indent
     * folding support
 
-[Requirements]:
 ## Requirements
 
 * 3 MB RAM
 * OS 2.0 (V36) or newer
 
-[Installation]:
 ## Installation
 
 Right now no installation is required. Just download a release LHA archive
 (https://github.com/gooofy/aqb/releases) and unpack it wherever you like,
 but keep the directory structure intact.
 
-[Type System]:
 ## Type System
 
 ### Basic types:
@@ -86,7 +83,6 @@ but keep the directory structure intact.
 * Pointers (C-like, including function/sub pointers)
 * Strings (0-terminated pointers to UByte, C-compatible)
 
-[Module System and Runtime]:
 ## Module System and Runtime
 
 AQB tries to keep the set of commands that are built into the compiler to a
