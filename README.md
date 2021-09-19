@@ -17,7 +17,7 @@
 * [Type System](#type-system)
 * [Module System and Runtime](#module-system-and-runtime)
 * [Code Generation and Target Systems](#code-generation-and-target-systems)
-* [Interrupting / break handling in AQB programs](#interrupting-/-break-handling-in-aqb-programs)
+* [Interrupting / break handling in AQB programs](#interrupting--break-handling-in-aqb-programs)
 * [Amiga OS System Programming in AQB](#amiga-os-system-programming-in-aqb)
 
 ## IDE
