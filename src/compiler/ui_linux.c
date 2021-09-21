@@ -544,7 +544,7 @@ bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, 
 
 void UI_HelpBrowser (void)
 {
-    TUI_HelpBrowser();
+    // FIXME TUI_HelpBrowser();
 }
 
 void UI_onEventCall (UI_event_cb cb, void *user_data)

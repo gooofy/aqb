@@ -20,9 +20,9 @@ def mangleNode(s):
 
     for c in s:
         if c.isalpha():
-            t = t + c
-        else:
-            t = t + "_"
+            t = t + c.lower()
+        elif c==' ':
+            t = t + "-"
 
     return t
 
@@ -33,46 +33,6 @@ class Document(block.Document):
     def __init__(self, text):
         self.tocnodes = []
         super().__init__(text)
-
-class InternalLinkDef(block.BlockElement):
-
-    #pattern = re.compile(r" {,3}\[\^([^\]]+)\]:[^\n\S]*(?=\S| {4})")
-    #pattern = re.compile(r"\[([^\]]+)\]:[^\n\S]*(?=\S| {4})")
-    pattern = re.compile(r"\[([^\]]+)\]:")
-    priority = 6
-
-    def __init__(self, match):
-        self.label = match.group(1)
-        self._prefix = re.escape(match.group())
-        self._second_prefix = r" {1,4}"
-
-    @classmethod
-    def match(cls, source):
-        return source.expect_re(cls.pattern)
-
-    @classmethod
-    def parse(cls, source):
-        state = cls(source.match)
-        with source.under_state(state):
-            state.children = block.parser.parse(source)
-        if not state.label == "MAIN":
-            source.root.tocnodes.append(state)
-        return state
-
-
-class InternalLinkRef(inline.InlineElement):
-
-    #pattern = re.compile(r"\[\^([^\]]+)\]")
-    pattern = re.compile(r"\[([^\]]+)\](?=([^:(]|$))")
-    priority = 6
-
-    def __init__(self, match):
-        self.label = match.group(1)
-
-    @classmethod
-    def find(cls, text):
-        for match in super().find(text):
-            yield match
 
 class ExternalLinkRef(inline.InlineElement):
 
@@ -110,26 +70,31 @@ class TableOfContents(block.BlockElement):
         source.consume()
         return m
 
+class HeadingTOC(block.Heading):
+    override = True
+
+    @classmethod
+    def parse(cls, source):  # type: (Source) -> Optional[Match]
+        m = source.match
+        level = len(m.group(1))
+        if level == 2:
+            source.root.tocnodes.append(m.group(2).strip())
+        source.consume()
+        return m
+
 
 class AmigaGuideMixin(object):
 
     def __init__(self):
         self.indent = 0
-        self.inNode = False
-
-    def render_internal_link_ref(self, element):
-        return '@{"%s" link "%s"}' % (element.label, mangleNode(element.label))
-
-    def render_internal_link_def(self, element):
-        prf = "\n@endnode\n" if self.inNode else "\n"
-
         self.inNode = True
-
-        return prf + '@node %s "%s"\n' % (mangleNode(element.label), element.label)
 
     def render_external_link_ref(self, element):
         if "http" in element.refdoc:
             return ""
+        if '#' in element.refdoc:
+            return '@{"%s" link "%s"}' % (element.label, element.refdoc[1:])
+
         return '@{"%s" link "%s/main"}' % (element.label, element.refdoc.replace('.md', '.guide'))
 
     def render_link(self, element):
@@ -142,13 +107,22 @@ class AmigaGuideMixin(object):
         else:
             return f"\n{children}\n"
 
+    def _make_node (self, label):
+        if not self.inNode:
+            self.inNode = True
+            return ''
+        prf = "\n@endnode\n"
+        self.inNode = True
+        return prf + '@node %s "%s"\n' % (mangleNode(label), label)
+
     def render_heading(self, element):
 
         if element.level == 1:
             b = self.render_children(element)
-            return "\n\n@{b}%s@{ub}\n\n" % centerline(b)
+            return "\n\n@{b}%s@{ub}\n" % centerline(b)
         elif element.level == 2:
-            return "\n\n@{b}%s@{ub}\n" % self.render_children(element)
+            b = self.render_children(element)
+            return self._make_node (b) + "\n\n@{b}%s@{ub}\n" % b
         elif element.level == 3:
             return "\n\n@{b}%s@{ub}\n" % self.render_children(element)
         else:
@@ -176,8 +150,8 @@ class AmigaGuideMixin(object):
 
         lines = "\n"
 
-        for n in self.root_node.tocnodes:
-            lines = lines + '@{"%s" link "%s"}\n' % (n.label, mangleNode(n.label))
+        for label in self.root_node.tocnodes:
+            lines = lines + '@{"%s" link "%s"}\n' % (label, mangleNode(label))
 
         return lines
 
@@ -188,13 +162,22 @@ class AmigaGuideMixin(object):
         body = "".join(rendered)
 
         if element is self.root_node:
-            suff = "@endnode\n" if self.inNode else ""
-            return "@DATABASE\n" + body + suff
+
+            suff = ("\n"
+                    "@endnode\n"
+                    "@node navidx \"Index\"\n"
+                    "\n\n"
+                    " * @{\"Start\" link \"AQB:README.guide/main\"}\n\n"
+                    " * @{\"Language reference: Core\" link \"AQB:help/RefCore.guide/main\"\n\n"
+                    " * @{\"Language reference: Amiga specific commands\" link \"AQB:help/RefAmiga.guide/main\"}\n"
+                    "@endnode\n"
+                    "@index navidx\n")
+            return "@DATABASE\n@node MAIN\n" + body + suff
         else:
             return body
 
 class AmigaGuide:
-    elements = [InternalLinkDef, InternalLinkRef, ExternalLinkRef, Document, TableOfContents]
+    elements = [HeadingTOC, ExternalLinkRef, Document, TableOfContents]
     renderer_mixins = [AmigaGuideMixin]
 
 

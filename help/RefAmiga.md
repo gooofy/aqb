@@ -1,9 +1,9 @@
-[MAIN]:
+
 # AQB / Amiga specific commands
 
 :toc:
 
-[AREA]:
+
 ## AREA
 
 Syntax:
@@ -12,7 +12,7 @@ Syntax:
 
 add a point to an area to be filled
 
-[AREAFILL]:
+
 ## AREAFILL
 
 Syntax:
@@ -22,7 +22,7 @@ Syntax:
 fill a polygon defined by AREA statements, mode: 0=regular fill, 1=inverted
 fill
 
-[AREA OUTLINE]:
+
 ## AREA OUTLINE
 
 Syntax:
@@ -31,7 +31,7 @@ Syntax:
 
 enable or disable drawing of AREA polygon outlines
 
-[COLOR]:
+
 ## COLOR
 
 Syntax:
@@ -40,7 +40,7 @@ Syntax:
 
 set foreground, background and or area outline pen
 
-[CLS]:
+
 ## CLS
 
 Syntax:
@@ -50,7 +50,7 @@ Syntax:
 Clear the current output window and set the cursor position to the upper
 left corner
 
-[CSRLIN()]:
+
 ## CSRLIN()
 
 Syntax:
@@ -59,7 +59,7 @@ Syntax:
 
 returns the current text row position
 
-[INKEY$()]:
+
 ## INKEY$()
 
 Syntax:
@@ -116,7 +116,7 @@ returns a character entered from the keyboard
 
 |===
 
-[INPUT]:
+
 ## INPUT
 
 Syntax:
@@ -125,7 +125,7 @@ Syntax:
 
 read input from the keyboard, store values in the variables given.
 
-[LINE]:
+
 ## LINE
 
 Syntax:
@@ -135,7 +135,7 @@ Syntax:
 draw a line or a box on the current window, "b": A box is drawn, "bf": a
 filled box is drawn.  If option STEP is set, coordinates are relative.
 
-[LINE INPUT]:
+
 ## LINE INPUT
 
 Syntax:
@@ -144,7 +144,7 @@ Syntax:
 
 request a STRING keyboard entry from a program user.
 
-[LOCATE]:
+
 ## LOCATE
 
 Syntax:
@@ -153,7 +153,7 @@ Syntax:
 
 move cursor to col / row
 
-[ON TIMER CALL]:
+
 ## ON TIMER CALL
 
 Syntax:
@@ -163,7 +163,7 @@ Syntax:
 assign timer #`id` to call `sub` every `t` seconds. After setup
 the timer still has to be enabled using the TIMER ON statement.
 
-[PAINT]:
+
 ## PAINT
 
 Syntax:
@@ -173,7 +173,7 @@ Syntax:
 flood fill an enclosed area surrounded by outlineColor with the specified
 color
 
-[PALETTE]:
+
 ## PALETTE
 
 Syntax:
@@ -183,7 +183,7 @@ Syntax:
 change the color palette entry for pen number n. The red, green and blue
 arguments are be floating point values in the 0.0 ... 1.0 range.
 
-[PATTERN]:
+
 ## PATTERN
 
 Syntax:
@@ -195,7 +195,7 @@ change pattern used to draw lines and areas.
     * lineptrn: 16 bit integer that defines the pattern for lines
     * areaptrn: array of 16 bit integers, number of elements must be a power of 2 (1, 2, 4, 8, ...)
 
-[PATTERN RESTORE]:
+
 ## PATTERN RESTORE
 
 Syntax:
@@ -204,7 +204,7 @@ Syntax:
 
 Restore line and area pattern to default (solid)
 
-[POS()]:
+
 ## POS()
 
 Syntax:
@@ -214,7 +214,7 @@ Syntax:
 returns the column of the cursor in the current window (expression given is
 a dummy value for compatibility reasons, usually 0).
 
-[PRINT]:
+
 ## PRINT
 
 Syntax:
@@ -225,7 +225,7 @@ print the listed expressions to the screen. ";" means no space, "," means
 skip to next 9 col tab, ";" or "," at the end of the line mean no newline
 is printed.
 
-[PSET]:
+
 ## PSET
 
 Syntax:
@@ -234,7 +234,7 @@ Syntax:
 
 set a point in the window
 
-[SCREEN]:
+
 ## SCREEN
 
 Syntax:
@@ -254,7 +254,7 @@ mode is one of:
     * AS_MODE_HAM_LACED            = 7
     * AS_MODE_EXTRAHALFBRITE_LACED = 8
 
-[SCREEN CLOSE]:
+
 ## SCREEN CLOSE
 
 Syntax:
@@ -263,7 +263,7 @@ Syntax:
 
 close screen indicated by id
 
-[SLEEP FOR]:
+
 ## SLEEP FOR
 
 Syntax:
@@ -273,7 +273,7 @@ Syntax:
 Suspend program for the specified number of seconds (floating point value,
 so fractions of seconds are supported).
 
-[TIMER ON|OFF]:
+
 ## TIMER ON|OFF
 
 Syntax:
@@ -282,7 +282,7 @@ Syntax:
 
 Enable or disable events from timer #`id`
 
-[WINDOW]:
+
 ## WINDOW
 
 Syntax:
@@ -301,7 +301,7 @@ type is an OR combination of:
     * AW_FLAG_BACKDROP   = 32
     * AW_FLAG_BORDERLESS = 64
 
-[WINDOW CLOSE]:
+
 ## WINDOW CLOSE
 
 Syntax:
@@ -310,7 +310,7 @@ Syntax:
 
 close window indicated by id.
 
-[WINDOW OUTPUT]:
+
 ## WINDOW OUTPUT
 
 Syntax:
@@ -319,7 +319,7 @@ Syntax:
 
 make window indicated by id the current output window.
 
-[WINDOW()]:
+
 ## WINDOW()
 
 Syntax:

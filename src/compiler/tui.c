@@ -745,6 +745,7 @@ uint16_t TUI_EZRequest (char *body, char *gadgets)
     return ezreq_result;
 }
 
+#if 0
 /****************************************************************************************
  **
  ** Help browser
@@ -995,4 +996,4 @@ void TUI_HelpBrowser (void)
         TUI_handleEvent (dlg, key);
     }
 }
-
+#endif

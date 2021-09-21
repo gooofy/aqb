@@ -1,9 +1,7 @@
-[MAIN]:
 # Core Language
 
 :toc:
 
-[ACOS()]:
 ## ACOS()
 
 Syntax:
@@ -12,7 +10,6 @@ Syntax:
 
 obtain the arccosine of the floating point number
 
-[AND]:
 ## AND
 
 Syntax:
@@ -21,7 +18,6 @@ Syntax:
 
 logical conjunction of expr1 and expr2
 
-[ASC()]:
 ## ASC()
 
 Syntax:
@@ -30,7 +26,6 @@ Syntax:
 
 return the ascii code of the first character in the given string
 
-[ASSERT]:
 ## ASSERT
 
 Syntax:
@@ -40,7 +35,6 @@ Syntax:
 raise an error message including line number information if the given
 expression evaluates to FALSE.
 
-[ASIN()]:
 ## ASIN()
 
 Syntax:
@@ -49,7 +43,6 @@ Syntax:
 
 obtain the arcsine of the floating point number
 
-[ATN()]:
 ## ATN()
 
 Syntax:
@@ -58,7 +51,6 @@ Syntax:
 
 obtain the arctangent of the floating point number
 
-[CALL]:
 ## CALL
 
 Syntax:
@@ -67,7 +59,6 @@ Syntax:
 
 call a SUB or FUNCTION.
 
-[CAST()]:
 ## CAST()
 
 Syntax:
@@ -76,7 +67,6 @@ Syntax:
 
 casts an expression to a different data type
 
-[CHR$()]:
 ## CHR$()
 
 Syntax:
@@ -86,7 +76,6 @@ Syntax:
 returns a string containing the single character associated with the given
 character code
 
-[CINT()]:
 ## CINT()
 
 Syntax:
@@ -95,7 +84,6 @@ Syntax:
 
 convert x to an integer by rounding the fractional portion
 
-[CONST]:
 ## CONST
 
 Syntax A:
@@ -108,7 +96,6 @@ Syntax B:
 
 declare constants
 
-[CONTINUE]:
 ## CONTINUE
 
 Syntax:
@@ -117,7 +104,6 @@ Syntax:
 
 continue next iteration of a loop
 
-[COS()]:
 ## COS()
 
 Syntax:
@@ -126,7 +112,6 @@ Syntax:
 
 obtain the cosine of the floating point number
 
-[DATA]:
 ## DATA
 
 Syntax:
@@ -136,7 +121,6 @@ Syntax:
 add values to the data section of the program. Those values can be later
 READ by the program at runtime.
 
-[DECLARE FUNCTION|SUB]:
 ## DECLARE FUNCTION|SUB
 
 Syntax:
@@ -146,7 +130,7 @@ Syntax:
 Forward declare a SUB or FUNCTION. When the LIB portion of this command is
 used, an OS library function is declared.
 
-[DEFINT]:
+
 ## DEFINT
 
 Syntax:
@@ -156,7 +140,7 @@ Syntax:
 define all variables with names starting with the specified letter (or
 letter range) as INTEGER
 
-[DEFLNG]:
+
 ## DEFLNG
 
 Syntax:
@@ -166,7 +150,7 @@ Syntax:
 define all variables with names starting with the specified letter (or
 letter range) as LONG
 
-[DEFSNG]:
+
 ## DEFSNG
 
 Syntax:
@@ -176,7 +160,7 @@ Syntax:
 define all variables with names starting with the specified letter (or
 letter range) as SINGLE
 
-[DEFSTR]:
+
 ## DEFSTR
 
 Syntax:
@@ -186,7 +170,7 @@ Syntax:
 define all variables with names starting with the specified letter (or
 letter range) as STRING
 
-[DIM]:
+
 ## DIM
 
 Syntax A:
@@ -216,7 +200,7 @@ Examples:
 static arrays are much faster than dynamic arrays but offer no runtime
 bounds checking
 
-[DO ... LOOP]:
+
 ## DO ... LOOP
 
 Syntax A:
@@ -237,7 +221,7 @@ on the syntax used. If no UNTIL/WHILE clause is given, this will create an
 endless loop (which can still be exited from within the loop body using the
 EXIT statement).
 
-[END]:
+
 ## END
 
 Syntax:
@@ -246,7 +230,7 @@ Syntax:
 
 exit the program (same as SYSTEM)
 
-[EQV]:
+
 ## EQV
 
 Syntax:
@@ -255,7 +239,7 @@ Syntax:
 
 logic equivalence of expr1 and expr2
 
-[ERASE]:
+
 ## ERASE
 
 Syntax:
@@ -264,7 +248,7 @@ Syntax:
 
 Free the allocated memory for each dynamic array listed.
 
-[ERR]:
+
 ## ERR
 
 Syntax:
@@ -273,7 +257,7 @@ Syntax:
 
 public variable that contains the last error number.
 
-[ERROR]:
+
 ## ERROR
 
 Syntax:
@@ -284,7 +268,7 @@ raise error code n, exits the program unless a corresponding handler is
 registered using the ON ERROR ... statement. ERR is set to the error number
 specified when calling the error handler.
 
-[EXIT]:
+
 ## EXIT
 
 Syntax:
@@ -294,7 +278,7 @@ Syntax:
 exits a DO, WHILE or FOR loop, a FUNCTION or a SUB procedure, or a SELECT
 statement.
 
-[EXP()]:
+
 ## EXP()
 
 Syntax:
@@ -303,7 +287,7 @@ Syntax:
 
 obtain the exponential of the floating point number
 
-[FIX()]:
+
 ## FIX()
 
 Syntax:
@@ -312,7 +296,7 @@ Syntax:
 
 return the truncated integer part of x
 
-[FOR ... NEXT]:
+
 ## FOR ... NEXT
 
 Syntax:
@@ -324,7 +308,7 @@ Syntax:
 counter loop using specified start and stop numerical boundaries, default
 increment is 1
 
-[FREE()]:
+
 ## FREE()
 
 Syntax:
@@ -355,7 +339,7 @@ Syntax:
 
 |===
 
-[GOTO]:
+
 ## GOTO
 
 Syntax:
@@ -364,7 +348,7 @@ Syntax:
 
 jump a line label or a line number in the program
 
-[GOSUB]:
+
 ## GOSUB
 
 Syntax:
@@ -373,7 +357,7 @@ Syntax:
 
 jump to a subroutine at line label or a line number in the program
 
-[IF ... THEN]:
+
 ## IF ... THEN
 
 Syntax A:
@@ -393,7 +377,7 @@ Syntax B:
 
 executes a statement or statement block depending on specified conditions.
 
-[IMPORT]:
+
 ## IMPORT
 
 Syntax:
@@ -402,7 +386,7 @@ Syntax:
 
 import a module
 
-[INT()]:
+
 ## INT()
 
 Syntax:
@@ -411,7 +395,7 @@ Syntax:
 
 return the largest integer less than or equal to x
 
-[LBOUND()]:
+
 ## LBOUND()
 
 Syntax:
@@ -420,7 +404,7 @@ Syntax:
 
 Return the lower bound for the given array dimension.
 
-[LEN()]:
+
 ## LEN()
 
 Syntax:
@@ -429,7 +413,7 @@ Syntax:
 
 return the length of string s in characters.
 
-[LET]:
+
 ## LET
 
 Syntax:
@@ -439,7 +423,7 @@ Syntax:
 assign the value of an expression to a variable or designator. The LET
 keyword is optional.
 
-[LOG()]:
+
 ## LOG()
 
 Syntax:
@@ -448,12 +432,12 @@ Syntax:
 
 obtain the natural logarithm of the floating point number
 
-[LOOP]:
+
 ## LOOP
 
 see DO...LOOP
 
-[MOD]:
+
 ## MOD
 
 Syntax:
@@ -462,12 +446,12 @@ Syntax:
 
 modulus operation on expr1 and expr2.
 
-[NEXT]:
+
 ## NEXT
 
 see FOR
 
-[NOT]:
+
 ## NOT
 
 Syntax:
@@ -476,7 +460,7 @@ Syntax:
 
 return logical not of expr
 
-[ON ERROR]:
+
 ## ON ERROR
 
 Syntax:
@@ -485,7 +469,7 @@ Syntax:
 
 call SUB program handler when an error occurs.
 
-[OPTION BREAK]:
+
 ## OPTION BREAK
 
 Syntax:
@@ -496,7 +480,7 @@ instructs the compiler to add checks for CTRL-C/D in loops, subprogram
 calls so programs can be interrupted when they run into an endless loop or
 recursion. Enabled by default, disable to gain a bit of performance.
 
-[OPTION EXPLICIT]:
+
 ## OPTION EXPLICIT
 
 Syntax:
@@ -505,7 +489,7 @@ Syntax:
 
 instructs the compiler to require variable declaration
 
-[OPTION PRIVATE]:
+
 ## OPTION PRIVATE
 
 Syntax:
@@ -515,7 +499,7 @@ Syntax:
 make declared variables, types, functions and subprograms private (not
 exported) by default
 
-[PEEK()]:
+
 ## PEEK()
 
 Syntax:
@@ -524,7 +508,7 @@ Syntax:
 
 return a byte from memory at the specified address
 
-[PEEKW()]:
+
 ## PEEKW()
 
 Syntax:
@@ -533,7 +517,7 @@ Syntax:
 
 return a word (16 bits) from memory at the specified address
 
-[PEEKL()]:
+
 ## PEEKL()
 
 Syntax:
@@ -542,7 +526,7 @@ Syntax:
 
 return a long (32 bits) from memory at the specified address
 
-[POKE]:
+
 ## POKE
 
 Syntax:
@@ -551,7 +535,7 @@ Syntax:
 
 store byte value at the specified memory address
 
-[POKEW]:
+
 ## POKEW
 
 Syntax:
@@ -560,7 +544,7 @@ Syntax:
 
 store word (16 bits) value at the specified memory address
 
-[POKEL]:
+
 ## POKEL
 
 Syntax:
@@ -569,7 +553,7 @@ Syntax:
 
 store long (32 bits) value at the specified memory address
 
-[RANDOMIZE]:
+
 ## RANDOMIZE
 
 Syntax:
@@ -579,7 +563,7 @@ Syntax:
 re-initialize the built-in pseudo random number generator to the
 given seed.
 
-[READ]:
+
 ## READ
 
 Syntax:
@@ -588,7 +572,7 @@ Syntax:
 
 read values from the DATA section and assign them to one or more variables
 
-[REDIM]:
+
 ## REDIM
 
 Syntax:
@@ -598,7 +582,7 @@ Syntax:
 declare or resize a dynamic array. Previous values are erased unless the
 PRESERVE keyword is specified.
 
-[RESTORE]:
+
 ## RESTORE
 
 Syntax:
@@ -608,7 +592,7 @@ Syntax:
 restore data read pointer to the specified label, if no label is specified,
 restore read pointer to the first data statement.
 
-[RETURN]:
+
 ## RETURN
 
 Syntax:
@@ -618,7 +602,7 @@ Syntax:
 return from a subroutine or function. In case of return from a function,
 expr specifies the return value
 
-[RND()]:
+
 ## RND()
 
 Syntax:
@@ -633,7 +617,7 @@ returns a random number with a value between 0 (inclusive) and 1
 * n > 0: the sequence of numbers generated will not change unless RANDOMIZE
          is initiated
 
-[SELECT CASE]:
+
 ## SELECT CASE
 
 Syntax:
@@ -661,7 +645,7 @@ Case Expression syntax:
     ( expression [ TO expression ]
     | IS ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) expression )
 
-[SIN()]:
+
 ## SIN()
 
 Syntax:
@@ -670,7 +654,7 @@ Syntax:
 
 obtain the sine of the floating point number
 
-[SIZEOF()]:
+
 ## SIZEOF()
 
 Syntax:
@@ -679,7 +663,7 @@ Syntax:
 
 Returns the memory size in bytes of a given variable or named type
 
-[SQR()]:
+
 ## SQR()
 
 Syntax:
@@ -688,7 +672,7 @@ Syntax:
 
 obtain the square root of the floating point number
 
-[STATIC]:
+
 ## STATIC
 
 Syntax A:
@@ -701,7 +685,7 @@ Syntax B:
 
 declare variable(s) as static.
 
-[STR$()]:
+
 ## STR$()
 
 Syntax:
@@ -711,7 +695,7 @@ Syntax:
 return a string representation (the same one that is used in PRINT output)
 of a given numeric expression
 
-[SYSTEM]:
+
 ## SYSTEM
 
 Syntax:
@@ -720,7 +704,7 @@ Syntax:
 
 exit the program (same as END)
 
-[TAN()]:
+
 ## TAN()
 
 Syntax:
@@ -729,7 +713,7 @@ Syntax:
 
 obtain the tangent of the floating point number
 
-[TIMER()]:
+
 ## TIMER()
 
 Syntax:
@@ -739,7 +723,7 @@ Syntax:
 returns the number of seconds past the previous midnite as a SINGLE float
 value
 
-[TYPE (UDT alias)]:
+
 ## TYPE (UDT alias)
 
 Syntax:
@@ -752,7 +736,7 @@ Example:
 
 declares a new named UDT
 
-[TYPE (UDT record)]:
+
 ## TYPE (UDT record)
 
 Syntax:
@@ -769,7 +753,6 @@ Syntax:
 
 declares a new record UDT
 
-[UBOUND()]:
 ## UBOUND()
 
 Syntax:
@@ -778,7 +761,6 @@ Syntax:
 
 Return the upper bound for the given array dimension.
 
-[VAL()]:
 ## VAL()
 
 Syntax:
@@ -787,7 +769,6 @@ Syntax:
 
 return the floating-point representation of the given string argument str.
 
-[VALINT()]:
 ## VALINT()
 
 Syntax:
@@ -796,7 +777,6 @@ Syntax:
 
 return the integer representation of the given string argument str.
 
-[VALUINT()]:
 ## VALUINT()
 
 Syntax:
@@ -806,7 +786,6 @@ Syntax:
 return the unsigned integer representation of the given string argument
 str.
 
-[VALLNG()]:
 ## VALLNG()
 
 Syntax:
@@ -815,7 +794,6 @@ Syntax:
 
 return the long representation of the given string argument str.
 
-[VALULNG()]:
 ## VALULNG()
 
 Syntax:
@@ -824,7 +802,6 @@ Syntax:
 
 return the unsigned long representation of the given string argument str.
 
-[VARPTR()]:
 ## VARPTR()
 
 Syntax:
@@ -833,7 +810,6 @@ Syntax:
 
 returns the address of a variable
 
-[WHILE ... WEND]:
 ## WHILE ... WEND
 
 Syntax:
@@ -844,7 +820,6 @@ Syntax:
 
 repeat loop body while expression evaluates to TRUE
 
-[WEND]:
 ## WEND
 
 see WHILE ... WEND

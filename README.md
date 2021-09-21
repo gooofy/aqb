@@ -1,9 +1,8 @@
-[MAIN]:
 # AQB: A BASIC Compiler and IDE for Amiga Computers
 
 ![Screenshot](https://raw.githubusercontent.com/gooofy/aqb/master/doc/screenshot.png)
 
-## About
+### About
 
 * [Project Scope](#project-scope)
 * [Requirements](#requirements)
@@ -11,7 +10,7 @@
 * [Benchmark Results](#benchmark-results)
 * [Source Code](#source-code)
 
-## AQB Programming Language
+### AQB Programming Language
 * [Language reference: Core](help/RefCore.md)
 * [Language reference: Amiga specific commands](help/RefAmiga.md)
 * [Type System](#type-system)
@@ -20,7 +19,7 @@
 * [Interrupting / break handling in AQB programs](#interrupting--break-handling-in-aqb-programs)
 * [Amiga OS System Programming in AQB](#amiga-os-system-programming-in-aqb)
 
-## IDE
+### IDE
 
 * [Keyboard shortcuts](#keyboard-shortcuts)
 
@@ -63,9 +62,15 @@ Improvements over AmigaBASIC include:
 
 ## Installation
 
-Right now no installation is required. Just download a release LHA archive
-(https://github.com/gooofy/aqb/releases) and unpack it wherever you like,
-but keep the directory structure intact.
+Download a release LHA archive (https://github.com/gooofy/aqb/releases) and
+unpack it wherever you like, keep the directory structure intact.
+
+AQB should run from this point on without the need for further installation,
+but for convenience add a "AQB:" assign to your `S:user-startup` file, e.g.
+
+;BEGIN AQB
+Assign AQB: "sys:Apps/AQB"
+;END AQB
 
 ## Type System
 
@@ -216,9 +221,7 @@ resulting AQB declarations typically look like:
 
     [...]
 
-## IDE
-
-### Keyboard shortcuts:
+## Keyboard shortcuts:
     * F1     - this help screen
     * S-UP   - page up
     * S-DOWN - page down
