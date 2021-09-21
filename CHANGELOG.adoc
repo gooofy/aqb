@@ -3,6 +3,9 @@
 Improvements::
 
     * documentation: full online documentation in amiga guide format
+    * runtime: ON MOUSE CALL instruction added
+    * runtime: MOUSE ON|OFF instruction added
+    * runtime: MOUSE() function added
 
 Bug Fixes::
 

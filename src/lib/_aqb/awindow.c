@@ -82,7 +82,8 @@ static struct NewScreen g_nscr =
 
 static ULONG _g_signalmask_awindow=0;
 
-static void (*g_win_cb)(void) = NULL;
+static void (*g_win_cb)(void)   = NULL;
+static void (*g_mouse_cb)(void) = NULL;
 
 static struct Screen   *g_active_scr    = NULL;
 static short            g_active_scr_id = 0;
@@ -91,6 +92,21 @@ static short            g_output_win_id = 1;
 static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
 static BOOL             g_win1_is_dos   = TRUE; // when started from CLI, window 1 is the DOS stdout unless re-opened
+
+typedef struct myTimeVal
+{
+    ULONG LeftSeconds;
+    ULONG LeftMicros;
+} MYTIMEVAL;
+
+static BOOL             g_mouse_bev     = FALSE;
+static BOOL             g_mouse_dc      = FALSE; // dc: double click
+static BOOL             g_mouse_down    = FALSE;
+static MYTIMEVAL        g_mouse_tv      = { 0, 0 };
+static WORD             g_mouse_down_x  = 0;
+static WORD             g_mouse_down_y  = 0;
+static WORD             g_mouse_up_x    = 0;
+static WORD             g_mouse_up_y    = 0;
 
 void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title)
 {
@@ -586,13 +602,41 @@ void SLEEP(void)
             switch(class)
             {
                 case CLOSEWINDOW:
-                    // _debug_puts((STRPTR)"sleep: CLOSEWINDOW"); _debug_putnl();
                     if (g_win_cb)
                     {
-                        // _debug_puts((STRPTR)"sleep: callback."); _debug_putnl();
                         g_win_cb();
                     }
                     break;
+
+                case MOUSEBUTTONS:
+                    switch (message->Code)
+					{
+						case SELECTDOWN:
+							g_mouse_down = TRUE;
+							g_mouse_bev  = TRUE;
+							g_mouse_dc = DoubleClick(g_mouse_tv.LeftSeconds, g_mouse_tv.LeftMicros, message->Seconds, message->Micros);
+							if (!g_mouse_dc)
+							{
+								g_mouse_tv.LeftSeconds = message->Seconds;
+								g_mouse_tv.LeftMicros  = message->Micros;
+							}
+							g_mouse_down_x = message->MouseX;
+							g_mouse_down_y = message->MouseY;
+							break;
+						case SELECTUP:
+							g_mouse_bev  = TRUE;
+							g_mouse_down = FALSE;
+							g_mouse_up_x = message->MouseX;
+							g_mouse_up_y = message->MouseY;
+							break;
+					}
+ 
+                    if (g_mouse_cb)
+                    {
+                        g_mouse_cb();
+                    }
+                    break;
+
                 case ACTIVEWINDOW:
                     g_active_win_id = i+1;
                     break;
@@ -725,6 +769,78 @@ ULONG WINDOW_(short n)
 
     }
     return 0;
+}
+
+void MOUSE_ON (void)
+{
+    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    {
+        ERROR(AE_MOUSE);
+        return;
+    }
+
+    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags | MOUSEBUTTONS);
+}
+
+void MOUSE_OFF (void)
+{
+    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    {
+        ERROR(AE_MOUSE);
+        return;
+    }
+
+    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags & ~MOUSEBUTTONS);
+}
+
+void ON_MOUSE_CALL (void (*cb)(void))
+{
+    g_mouse_cb = cb;
+}
+
+WORD MOUSE_ (SHORT n)
+{
+    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    {
+        ERROR(AE_MOUSE);
+        return 0;
+    }
+
+    WORD res = 0;
+
+    switch (n)
+    {
+        case 0:
+			if (g_mouse_bev)
+			{
+				if (g_mouse_down)
+					res = g_mouse_dc ? -2 : -1;
+				else
+					res = g_mouse_dc ? 2 : 1;
+				g_mouse_bev = FALSE;
+			}
+            break;
+
+        case 1:
+            return g_output_win->GZZMouseX;
+        case 2:
+            return g_output_win->GZZMouseY;
+
+        case 3:
+            return g_mouse_down_x;
+        case 4:
+            return g_mouse_down_y;
+
+        case 5:
+            return g_mouse_up_x;
+        case 6:
+            return g_mouse_up_y;
+
+        default:
+            ERROR(AE_MOUSE);
+    }
+
+    return res;
 }
 
 /*

@@ -154,6 +154,49 @@ Syntax:
 move cursor to col / row
 
 
+## MOUSE()
+
+Syntax:
+
+    MOUSE "(" n ")"
+
+return information about the current status of the mouse. Mouse positions
+are reported relative to the upper left corner of the current output
+window.
+
+Valid values for n:
+
+    * 0: number of times the left mouse button was pressed since the last MOUSE(0) call:
+    ** 0: left mouse button was and is not pressed
+    ** 1: left mouse button was pressed once but isn't held down now
+    ** 2: left mouse button was pressed twice but isn't held down now
+    ** -1: left mouse button was pressed once and is still held down
+    ** -2: left mouse button was pressed twice and is still held down
+    * 1: current mouse X location
+    * 2: current mouse Y location
+    * 3: mouse X when last time a button was pressed
+    * 4: mouse Y when last time a button was pressed
+    * 5: mouse X when last time a button was released
+    * 6: mouse Y when last time a button was released
+
+## MOUSE ( ON | OFF )
+
+Syntax:
+
+    MOUSE ON
+    MOUSE OFF
+
+enable or disable mouse button events
+
+## ON MOUSE CALL
+
+Syntax:
+
+    ON MOUSE CALL sub
+
+call `sub` on left mouse button press and release
+
+
 ## ON TIMER CALL
 
 Syntax:

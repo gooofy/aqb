@@ -105,6 +105,7 @@ void _aio_close (USHORT fno);
 #define AE_OPEN                     117
 #define AE_OUTPUT                   118
 #define AE_CLOSE                    119
+#define AE_MOUSE                    120
 
 void _awindow_init     (void);
 void _awindow_shutdown (void);
@@ -114,16 +115,19 @@ void   SCREEN_CLOSE    (short id);
 void   WINDOW          (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
 void   WINDOW_CLOSE    (short id);
 void   WINDOW_OUTPUT   (short id);
+void   ON_WINDOW_CALL  (void (*cb)(void));
 ULONG  WINDOW_         (SHORT n);
-void   CLS             (void);
-void   LINE            (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   SLEEP           (void);
 void   SLEEP_FOR       (FLOAT s);
-void   ON_WINDOW_CALL  (void (*cb)(void));
+void   MOUSE_ON        (void);
+void   MOUSE_OFF       (void);
 void   ON_MOUSE_CALL   (void (*cb)(void));
+WORD   MOUSE_          (SHORT n);
 void   LOCATE          (SHORT l, SHORT c);
 SHORT  CSRLIN_         (void);
 SHORT  POS_            (SHORT dummy);
+void   CLS             (void);
+void   LINE            (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   PSET            (BOOL s, SHORT x, SHORT y, SHORT color);
 void   PALETTE         (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
 void   COLOR           (SHORT fg, SHORT bg, SHORT o);
