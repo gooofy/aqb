@@ -98,7 +98,8 @@ void RUN_start (const char *binfn)
     g_childProc = CreateNewProcTags(NP_Seglist,     (ULONG) g_seglist,
                                     NP_CloseOutput, FALSE,
                                     NP_StackSize,   DEFAULT_STACKSIZE,
-								    NP_Name,        (ULONG) g_binfn);
+								    NP_Name,        (ULONG) g_binfn,
+                                    NP_Output,      Output());
 
 
     LOG_printf (LOG_DEBUG, "RUN_start: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_childProc);

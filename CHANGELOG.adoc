@@ -10,6 +10,7 @@ Improvements::
 Bug Fixes::
 
     * IDE: fix changed marker position
+    * IDE: keep DOS Output() when executing program from within IDE
 
 
 == 0.7.1alpha1
