@@ -479,8 +479,17 @@ void UI_scrollDown (void)
 {
     if (g_cursorVisible)
         drawCursor();
+    WORD min_x = g_OffLeft;
+    WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
+    WORD max_x = g_win->Width - g_OffRight-1;
+    WORD max_y = g_OffTop + g_scrollEnd*g_fontHeight-1;
+    ScrollRaster(g_rp, 0, -g_fontHeight, min_x, min_y, max_x, max_y);
+
+#if 0
     WORD max_x = g_win->Width - g_OffRight-1;
     ScrollRaster(g_rp, 0, -g_fontHeight, g_OffLeft, g_OffTop + (g_scrollStart-1)*g_fontHeight, max_x, (g_scrollEnd-1)*g_fontHeight-1);
+#endif
+
     if (g_cursorVisible)
         drawCursor();
 }
