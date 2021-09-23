@@ -14,6 +14,7 @@ Bug Fixes::
 
     * ide: fix changed marker position
     * ide: keep DOS Output() when executing program from within IDE
+    * ide: fix line length check on cursor up/down
 
 == 0.7.1alpha1
 

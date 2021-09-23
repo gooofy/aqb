@@ -714,9 +714,9 @@ static bool cursorUp(IDE_editor ed)
     ed->cursor_line = pl;
     ed->cursor_a_line = pl->a_line;
     ed->cursor_v_line = pl->v_line;
-    if (ed->cursor_col > pl->len)
+    if (ed->cursor_col > (pl->len+(pl->indent*INDENT_SPACES)))
     {
-        ed->cursor_col = pl->len;
+        ed->cursor_col = pl->len+(pl->indent*INDENT_SPACES);
     }
     ed->up2date_il_pos = FALSE;
 
@@ -747,8 +747,8 @@ static bool cursorDown(IDE_editor ed)
     ed->cursor_line = nl;
     ed->cursor_a_line = nl->a_line;
     ed->cursor_v_line = nl->v_line;
-    if (ed->cursor_col > nl->len)
-        ed->cursor_col = nl->len;
+    if (ed->cursor_col > (nl->len+(nl->indent*INDENT_SPACES)))
+        ed->cursor_col = nl->len+(nl->indent*INDENT_SPACES);
     ed->up2date_il_pos = FALSE;
 
     return TRUE;
