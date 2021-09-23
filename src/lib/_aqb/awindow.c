@@ -82,8 +82,9 @@ static struct NewScreen g_nscr =
 
 static ULONG _g_signalmask_awindow=0;
 
-static void (*g_win_cb)(void)   = NULL;
-static void (*g_mouse_cb)(void) = NULL;
+static void (*g_win_cb)(void)           = NULL;
+static void (*g_mouse_cb)(void)         = NULL;
+static void (*g_mouse_motion_cb)(void)  = NULL;
 
 static struct Screen   *g_active_scr    = NULL;
 static short            g_active_scr_id = 0;
@@ -637,6 +638,14 @@ void SLEEP(void)
                     }
                     break;
 
+                case MOUSEMOVE:
+                    //_debug_puts((STRPTR)"SLEEP: MOUSEMOVE\n");
+                    if (g_mouse_motion_cb)
+                    {
+                        g_mouse_motion_cb();
+                    }
+                    break;
+
                 case ACTIVEWINDOW:
                     g_active_win_id = i+1;
                     break;
@@ -841,6 +850,37 @@ WORD MOUSE_ (SHORT n)
     }
 
     return res;
+}
+
+void MOUSE_MOTION_ON (void)
+{
+    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    {
+        ERROR(AE_MOUSE);
+        return;
+    }
+
+    g_output_win->Flags |= REPORTMOUSE;
+    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags | MOUSEMOVE);
+    //_debug_puts((STRPTR)"MOUSE_MOTION_ON\n");
+}
+
+void MOUSE_MOTION_OFF (void)
+{
+    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    {
+        ERROR(AE_MOUSE);
+        return;
+    }
+
+    g_output_win->Flags &= ~REPORTMOUSE;
+    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags & ~MOUSEMOVE);
+}
+
+void ON_MOUSE_MOTION_CALL (void (*cb)(void))
+{
+    g_mouse_motion_cb = cb;
+    //_debug_puts((STRPTR)"ON_MOUSE_MOTION_CALL\n");
 }
 
 /*

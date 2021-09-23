@@ -6,6 +6,8 @@ Improvements::
     * runtime: ON MOUSE CALL instruction added
     * runtime: MOUSE ON|OFF instruction added
     * runtime: MOUSE() function added
+    * runtime: ON MOUSE MOTION CALL instruction added
+    * runtime: MOUSE MOTION ON|OFF instruction added
 
 Bug Fixes::
 

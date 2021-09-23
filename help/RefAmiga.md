@@ -68,53 +68,22 @@ Syntax:
 
 returns a character entered from the keyboard
 
-.Table (non-ascii) key codes
-|===
-|Key |Code
+Non-ascii key codes:
 
-|Up cursor
-|28
-
-|Down cursor
-|29
-
-|Right cursor
-|30
-
-|Left cursor
-|31
-
-|F1
-|129
-
-|F2
-|130
-
-|F3
-|131
-
-|F4
-|132
-
-|F5
-|133
-
-|F6
-|134
-
-|F7
-|135
-
-|F8
-|136
-
-|F9
-|137
-
-|F10
-|138
-
-|===
+    * 28 Up cursor
+    * 29 Down cursor
+    * 30 Right cursor
+    * 31 Left cursor
+    * 129 F1
+    * 130 F2
+    * 131 F3
+    * 132 F4
+    * 133 F5
+    * 134 F6
+    * 135 F7
+    * 136 F8
+    * 137 F9
+    * 138 F10
 
 
 ## INPUT
@@ -188,6 +157,15 @@ Syntax:
 
 enable or disable mouse button events
 
+## MOUSE MOTION ( ON | OFF )
+
+Syntax:
+
+    MOUSE MOTION ON
+    MOUSE MOTION OFF
+
+enable or disable mouse move events
+
 ## ON MOUSE CALL
 
 Syntax:
@@ -195,6 +173,15 @@ Syntax:
     ON MOUSE CALL sub
 
 call `sub` on left mouse button press and release
+
+
+## ON MOUSE MOTION CALL
+
+Syntax:
+
+    ON MOUSE MOTION CALL sub
+
+call `sub` when mouse is moved
 
 
 ## ON TIMER CALL
@@ -305,6 +292,14 @@ Syntax:
     SCREEN CLOSE id
 
 close screen indicated by id
+
+## SLEEP
+
+Syntax:
+
+    SLEEP
+
+Suspend program until next event occurs.
 
 
 ## SLEEP FOR

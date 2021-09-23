@@ -107,38 +107,41 @@ void _aio_close (USHORT fno);
 #define AE_CLOSE                    119
 #define AE_MOUSE                    120
 
-void _awindow_init     (void);
-void _awindow_shutdown (void);
+void _awindow_init            (void);
+void _awindow_shutdown        (void);
 
-void   SCREEN          (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title);
-void   SCREEN_CLOSE    (short id);
-void   WINDOW          (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
-void   WINDOW_CLOSE    (short id);
-void   WINDOW_OUTPUT   (short id);
-void   ON_WINDOW_CALL  (void (*cb)(void));
-ULONG  WINDOW_         (SHORT n);
-void   SLEEP           (void);
-void   SLEEP_FOR       (FLOAT s);
-void   MOUSE_ON        (void);
-void   MOUSE_OFF       (void);
-void   ON_MOUSE_CALL   (void (*cb)(void));
-WORD   MOUSE_          (SHORT n);
-void   LOCATE          (SHORT l, SHORT c);
-SHORT  CSRLIN_         (void);
-SHORT  POS_            (SHORT dummy);
-void   CLS             (void);
-void   LINE            (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
-void   PSET            (BOOL s, SHORT x, SHORT y, SHORT color);
-void   PALETTE         (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
-void   COLOR           (SHORT fg, SHORT bg, SHORT o);
-void   PAINT           (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
-void   AREA            (BOOL s, SHORT x, SHORT y);
-void   AREA_OUTLINE    (BOOL enabled);
-void   AREAFILL        (SHORT mode);
-void   PATTERN         (USHORT lineptrn, _DARRAY_T *areaptrn);
-void   PATTERN_RESTORE (void);
+void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title);
+void   SCREEN_CLOSE           (short id);
+void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
+void   WINDOW_CLOSE           (short id);
+void   WINDOW_OUTPUT          (short id);
+void   ON_WINDOW_CALL         (void (*cb)(void));
+ULONG  WINDOW_                (SHORT n);
+void   SLEEP                  (void);
+void   SLEEP_FOR              (FLOAT s);
+void   MOUSE_ON               (void);
+void   MOUSE_OFF              (void);
+void   ON_MOUSE_CALL          (void (*cb)(void));
+WORD   MOUSE_                 (SHORT n);
+void   MOUSE_MOTION_ON        (void);
+void   MOUSE_MOTION_OFF       (void);
+void   ON_MOUSE_MOTION_CALL   (void (*cb)(void));
+void   LOCATE                 (SHORT l, SHORT c);
+SHORT  CSRLIN_                (void);
+SHORT  POS_                   (SHORT dummy);
+void   CLS                    (void);
+void   LINE                   (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
+void   PSET                   (BOOL s, SHORT x, SHORT y, SHORT color);
+void   PALETTE                (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
+void   COLOR                  (SHORT fg, SHORT bg, SHORT o);
+void   PAINT                  (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
+void   AREA                   (BOOL s, SHORT x, SHORT y);
+void   AREA_OUTLINE           (BOOL enabled);
+void   AREAFILL               (SHORT mode);
+void   PATTERN                (USHORT lineptrn, _DARRAY_T *areaptrn);
+void   PATTERN_RESTORE        (void);
 
-char  *INKEY_          (void);
+char  *INKEY_                 (void);
 
 /*
  * ON TIMER support
