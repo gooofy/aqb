@@ -135,7 +135,14 @@ void RUN_handleMessages(void)
             return;
         if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
             && (msg->debug_sig == DEBUG_SIG))
+        {
             g_debugState = RUN_stateStopped;
+            if (g_seglist)
+            {
+                UnLoadSeg (g_seglist);
+                g_seglist = 0l;
+            }
+        }
     }
 }
 
