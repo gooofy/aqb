@@ -161,26 +161,6 @@ int S_getcurlinenum(void)
     return g_cur_line_num;
 }
 
-static bool is_whitespace(void)
-{
-    return (g_ch == ' ') || (g_ch == '\t') || (g_ch == '\r');
-}
-
-static bool is_idstart(void)
-{
-    return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) ;
-}
-
-static bool is_digit(void)
-{
-    return (g_ch>='0') && (g_ch<='9');
-}
-
-static bool is_idcont(void)
-{
-    return ((g_ch >= 'a') && (g_ch <= 'z')) || ((g_ch >= 'A') && (g_ch <= 'Z')) || g_ch == '_' || is_digit() ;
-}
-
 static bool get_digit(int *digit, int base)
 {
     char ch = toupper(g_ch);
@@ -344,7 +324,7 @@ static S_tkn ident(char ch)
 
     str[l] = ch;
     l++;
-    while (is_idcont() && !g_eof)
+    while (S_isIDCont(g_ch) && !g_eof)
     {
         str[l] = g_ch;
         l++;
@@ -374,7 +354,7 @@ static S_tkn ident(char ch)
 static S_tkn next_token(void)
 {
     // skip whitespace, line continuations
-    while ((is_whitespace() || g_ch=='_') && !g_eof)
+    while ((S_isWhitespace(g_ch) || g_ch=='_') && !g_eof)
     {
         if (g_ch=='_')
         {
@@ -406,7 +386,7 @@ static S_tkn next_token(void)
 
     remember_pos();
 
-    if (is_idstart())
+    if (S_isIDStart(g_ch))
     {
         char ch = g_ch; getch();
         S_tkn tkn = ident(ch);
@@ -423,7 +403,7 @@ static S_tkn next_token(void)
             return tkn;
         }
     }
-    if (is_digit())
+    if (S_isDigit(g_ch))
     {
         return number (10, NULL, /*dp=*/FALSE);
     }
@@ -566,7 +546,7 @@ static S_tkn next_token(void)
         case '.':
             tkn = S_Tkn(S_PERIOD);
             getch();
-            if (is_digit())
+            if (S_isDigit(g_ch))
                 return number(10, NULL, /*dp=*/TRUE);
             if (g_ch == '.')
             {

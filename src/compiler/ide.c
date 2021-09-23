@@ -66,6 +66,7 @@ static S_symbol S_WHILE;
 static S_symbol S_WEND;
 static S_symbol S_SELECT;
 static S_symbol S_CASE;
+static S_symbol S_REM;
 
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_editor_   *IDE_editor;
@@ -119,7 +120,10 @@ struct IDE_editor_
     char               buf[MAX_LINE_LEN];
     char               style[MAX_LINE_LEN];
     uint16_t           buf_len;
+    // buf2line support:
     uint16_t           buf_pos;
+    char               buf_ch;
+    bool               eol;
 
     // temporary buffer used in edit operations
     char               buf2[MAX_LINE_LEN];
@@ -329,429 +333,301 @@ static void scroll(IDE_editor ed)
     // FIXME: implement horizontal scroll
 }
 
-static bool nextch_cb(char *ch, void *user_data)
-{
-    IDE_editor ed = user_data;
-    *ch = ed->buf[ed->buf_pos++];
-    return (*ch) != 0;
-}
-
 typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
                STAUI_ELSEIFTHEN, STAUI_LOOP, STAUI_LOOPEND,
                STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE, STAUI_OTHER } state_enum;
 
+static void _getch(IDE_editor ed)
+{
+    assert (!ed->eol);
+    ed->buf_ch = ed->buf[ed->buf_pos++];
+    ed->eol = ed->buf_ch == 0;
+}
 
 static IDE_line buf2line (IDE_editor ed)
 {
     static char buf[MAX_LINE_LEN];
     static char style[MAX_LINE_LEN];
+    uint16_t    pos         = 0;
+    int8_t      pre_indent  = 0;
+    int8_t      post_indent = 0;
+    bool        fold_start  = FALSE;
+    bool        fold_end    = FALSE;
+    state_enum  state       = STAUI_START;
+    bool        first       = TRUE;
+    S_symbol    last_sym    = NULL;
 
-    ed->buf_pos = 0;
-    ed->buf[ed->buf_len]=0;
-    S_init (UP_ide, /*keep_source=*/FALSE, nextch_cb, ed, /*filter_comments=*/FALSE);
+    ed->buf_pos             = 0;
+    ed->buf[ed->buf_len]    = 0;
+    ed->eol                 = FALSE;
 
-    int pos = 0;
-    int8_t pre_indent = 0;
-    int8_t post_indent = 0;
-    bool fold_start = FALSE;
-    bool fold_end   = FALSE;
+    _getch(ed);
+
     while (TRUE)
     {
-        S_tkn tkn = S_nextline();
-        if (!tkn)
-            break;
-        bool first = TRUE;
-        S_token lastKind = S_ERRTKN;
-        S_tkn lastTkn = NULL;
-        state_enum state = STAUI_START;
-        while (tkn && (pos <MAX_LINE_LEN-1))
+        while (!ed->eol && (S_isWhitespace(ed->buf_ch) || (ed->buf_ch=='\n') || (ed->buf_ch=='\r')) )
         {
-            switch (tkn->kind)
+            if (!first && (ed->buf_ch!='\n') && (ed->buf_ch!='\r') )
             {
-                case S_ERRTKN:
-                    break;
-                case S_COLON:
-                    buf[pos] = ' ';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = ':';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = ' ';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    /* fall through */
-                case S_EOL:
-                    // used to have a switch statement here, but m68k gcc became horribly slow
-                    if (state == STAUI_THEN)
-                    {
-                        if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
-                        {
-                            post_indent++;
-                        }
-                    }
-                    else if (state == STAUI_ELSEIFTHEN)
-                    {
-                        if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_THEN))
-                        {
-                            pre_indent--;
-                            post_indent++;
-                        }
-                    }
-                    else if (state == STAUI_ELSE)
-                    {
-                        if ((lastKind == S_IDENT) && (lastTkn->u.sym == S_ELSE))
-                        {
-                            pre_indent--;
-                            post_indent++;
-                        }
-                    }
-                    else if ((state == STAUI_SUB) || (state == STAUI_SELECT))
-                    {
-                        post_indent++;
-                    }
-                    else if (state == STAUI_END)
-                    {
-                        pre_indent--;
-                    }
-                    else if (state == STAUI_CASE)
-                    {
-                        pre_indent--;
-                        post_indent++;
-                    }
-                    state = STAUI_START;
-                    break;
-                case S_LCOMMENT:
-                    buf[pos] = '\'';
-                    style[pos++] = UI_TEXT_STYLE_COMMENT;
-                    for (char *c=tkn->u.str; *c; c++)
-                    {
-                        buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_COMMENT;
-                    }
-                    break;
-                case S_RCOMMENT:
-                    buf[pos] = 'R';
-                    style[pos++] = UI_TEXT_STYLE_COMMENT;
-                    buf[pos] = 'E';
-                    style[pos++] = UI_TEXT_STYLE_COMMENT;
-                    buf[pos] = 'M';
-                    style[pos++] = UI_TEXT_STYLE_COMMENT;
-                    for (char *c=tkn->u.str; *c; c++)
-                    {
-                        buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_COMMENT;
-                    }
-                    break;
-                case S_IDENT:
+                buf[pos] = ed->buf_ch;
+                style[pos++] = UI_TEXT_STYLE_TEXT;
+            }
+            _getch(ed);
+        }
+
+        //printf ("last_sym=%s ch=%d\n", last_sym ? S_name(last_sym) : "NULL", ed->buf_ch);
+        if (ed->eol || ed->buf_ch == ':')
+        {
+            //printf ("eol/: state=%d, last_sym=%s\n", state, last_sym ? S_name(last_sym) : "NULL");
+            // used to have a switch statement here, but m68k gcc became horribly slow
+            if (state == STAUI_THEN)
+            {
+                if (last_sym == S_THEN)
                 {
-                    if (!first)
-                        buf[pos++] = ' ';
-                    bool is_kw = TAB_look(g_keywords, tkn->u.sym) != NULL;
-                    char *s = S_name(tkn->u.sym);
-                    int l = strlen(s);
-                    if (pos+l >= MAX_LINE_LEN-1)
-                        l = MAX_LINE_LEN-1-pos;
-                    for (int i =0; i<l; i++)
+                    post_indent++;
+                }
+            }
+            else if (state == STAUI_ELSEIFTHEN)
+            {
+                if (last_sym == S_THEN)
+                {
+                    pre_indent--;
+                    post_indent++;
+                }
+            }
+            else if (state == STAUI_ELSE)
+            {
+                if (last_sym == S_ELSE)
+                {
+                    pre_indent--;
+                    post_indent++;
+                }
+            }
+            else if ((state == STAUI_SUB) || (state == STAUI_SELECT))
+            {
+                post_indent++;
+            }
+            else if (state == STAUI_END)
+            {
+                pre_indent--;
+            }
+            else if (state == STAUI_CASE)
+            {
+                pre_indent--;
+                post_indent++;
+            }
+            state = STAUI_START;
+        }
+
+        if (ed->eol)
+            break;
+
+        first = FALSE;
+
+        // handle line comments
+        if (ed->buf_ch == '\'')
+        {
+            while (!ed->eol)
+            {
+                buf[pos] = ed->buf_ch;
+                style[pos++] = UI_TEXT_STYLE_COMMENT;
+                _getch(ed);
+            }
+            break;
+        }
+
+        // handle strings
+        if (ed->buf_ch == '"')
+        {
+            do
+            {
+                buf[pos] = ed->buf_ch;
+                style[pos++] = UI_TEXT_STYLE_TEXT;
+                _getch(ed);
+            } while (!ed->eol && ed->buf_ch != '"');
+            if (!ed->eol)
+            {
+                buf[pos] = ed->buf_ch;
+                style[pos++] = UI_TEXT_STYLE_TEXT;
+                _getch(ed);
+            }
+            continue;
+        }
+
+        // identifiers is what we're really interested in
+        // (for highlighting + identing + folding)
+        if (S_isIDStart(ed->buf_ch))
+        {
+
+            static char idbuf[MAX_LINE_LEN];
+
+            int l = 0;
+
+            idbuf[l] = ed->buf_ch;
+            l++;
+            _getch(ed);
+            while (S_isIDCont(ed->buf_ch) && !ed->eol)
+            {
+                idbuf[l] = ed->buf_ch;
+                l++;
+                _getch(ed);
+            }
+
+            // type marker?
+            switch (ed->buf_ch)
+            {
+                case '%':
+                case '&':
+                case '!':
+                case '#':
+                case '$':
+                    idbuf[l] = ed->buf_ch;
+                    l++;
+                    _getch(ed);
+                    break;
+            }
+            idbuf[l] = '\0';
+
+            S_symbol sym = S_Symbol (idbuf, /*case_sensitive=*/FALSE);
+            if (sym == S_REM)
+            {
+                for (int i =0; i<l; i++)
+                {
+                    buf[pos] = toupper(idbuf[i]);
+                    style[pos++] = UI_TEXT_STYLE_COMMENT;
+                }
+                while (!ed->eol)
+                {
+                    buf[pos] = ed->buf_ch;
+                    style[pos++] = UI_TEXT_STYLE_COMMENT;
+                    _getch(ed);
+                }
+            }
+            else
+            {
+                bool is_kw = TAB_look(g_keywords, sym) != NULL;
+                for (int i =0; i<l; i++)
+                {
+                    if (is_kw)
                     {
-                        if (is_kw)
+                        buf[pos] = toupper(idbuf[i]);
+                        style[pos++] = UI_TEXT_STYLE_KEYWORD;
+                    }
+                    else
+                    {
+                        buf[pos] = idbuf[i];
+                        style[pos++] = UI_TEXT_STYLE_TEXT;
+                    }
+                }
+
+                // auto-indentation is based on very crude BASIC parsing
+
+                switch (state)
+                {
+                    case STAUI_START:
+                        if (sym == S_IF)
                         {
-                            buf[pos] = toupper(s[i]);
-                            style[pos++] = UI_TEXT_STYLE_KEYWORD;
+                            state = STAUI_IF;
+                        }
+                        else if (sym == S_ELSEIF)
+                        {
+                            state = STAUI_ELSEIF;
+                        }
+                        else if (sym == S_ELSE)
+                        {
+                            state = STAUI_ELSE;
+                        }
+                        else if (sym == S_END)
+                        {
+                            state = STAUI_END;
+                        }
+                        else if (sym == S_SUB)
+                        {
+                            state = STAUI_SUB;
+                            fold_start = TRUE;
+                        }
+                        else if (sym == S_FUNCTION)
+                        {
+                            state = STAUI_SUB;
+                            fold_start = TRUE;
+                        }
+                        else if (sym == S_FOR)
+                        {
+                            state = STAUI_LOOP;
+                            post_indent++;
+                        }
+                        else if (sym == S_DO)
+                        {
+                            state = STAUI_LOOP;
+                            post_indent++;
+                        }
+                        else if (sym == S_WHILE)
+                        {
+                            state = STAUI_LOOP;
+                            post_indent++;
+                        }
+                        else if ((sym == S_NEXT) || (sym == S_LOOP) || (sym == S_WEND))
+                        {
+                            state = STAUI_LOOPEND;
+                            if (post_indent>0)
+                                post_indent--;
+                            else
+                                pre_indent--;
+                        }
+                        else if (sym == S_SELECT)
+                        {
+                            state = STAUI_SELECT;
+                        }
+                        else if (sym == S_CASE)
+                        {
+                            state = STAUI_CASE;
                         }
                         else
                         {
-                            buf[pos] = s[i];
-                            style[pos++] = UI_TEXT_STYLE_TEXT;
+                            state = STAUI_OTHER;
                         }
-                    }
-
-                    // auto-indentation is based on very crude BASIC parsing
-
-                    switch (state)
-                    {
-                        case STAUI_START:
-                            if (tkn->u.sym == S_IF)
-                            {
-                                state = STAUI_IF;
-                            }
-                            else if (tkn->u.sym == S_ELSEIF)
-                            {
-                                state = STAUI_ELSEIF;
-                            }
-                            else if (tkn->u.sym == S_ELSE)
-                            {
-                                state = STAUI_ELSE;
-                            }
-                            else if (tkn->u.sym == S_END)
-                            {
-                                state = STAUI_END;
-                            }
-                            else if (tkn->u.sym == S_SUB)
-                            {
-                                state = STAUI_SUB;
-                                fold_start = TRUE;
-                            }
-                            else if (tkn->u.sym == S_FUNCTION)
-                            {
-                                state = STAUI_SUB;
-                                fold_start = TRUE;
-                            }
-                            else if (tkn->u.sym == S_FOR)
-                            {
-                                state = STAUI_LOOP;
-                                post_indent++;
-                            }
-                            else if (tkn->u.sym == S_DO)
-                            {
-                                state = STAUI_LOOP;
-                                post_indent++;
-                            }
-                            else if (tkn->u.sym == S_WHILE)
-                            {
-                                state = STAUI_LOOP;
-                                post_indent++;
-                            }
-                            else if ((tkn->u.sym == S_NEXT) || (tkn->u.sym == S_LOOP) || (tkn->u.sym == S_WEND))
-                            {
-                                state = STAUI_LOOPEND;
-                                if (post_indent>0)
-                                    post_indent--;
-                                else
-                                    pre_indent--;
-                            }
-                            else if (tkn->u.sym == S_SELECT)
-                            {
-                                state = STAUI_SELECT;
-                            }
-                            else if (tkn->u.sym == S_CASE)
-                            {
-                                state = STAUI_CASE;
-                            }
-                            else
-                            {
-                                state = STAUI_OTHER;
-                            }
-                            break;
-                        case STAUI_IF:
-                            if (tkn->u.sym == S_THEN)
-                            {
-                                state = STAUI_THEN;
-                            }
-                            break;
-                        case STAUI_ELSEIF:
-                            if (tkn->u.sym == S_THEN)
-                            {
-                                state = STAUI_ELSEIFTHEN;
-                            }
-                            break;
-                        case STAUI_END:
-                            if ((tkn->u.sym == S_SUB) || (tkn->u.sym == S_FUNCTION))
-                                fold_end = TRUE;
-                            break;
-                        case STAUI_THEN:
-                        case STAUI_ELSEIFTHEN:
-                        case STAUI_ELSE:
-                        case STAUI_SUB:
-                        case STAUI_LOOP:
-                        case STAUI_LOOPEND:
-                        case STAUI_SELECT:
-                        case STAUI_CASE:
-                        case STAUI_OTHER:
-                            break;
-                        default:
-                            assert(FALSE);
-                    }
-                    break;
+                        break;
+                    case STAUI_IF:
+                        if (sym == S_THEN)
+                        {
+                            state = STAUI_THEN;
+                        }
+                        break;
+                    case STAUI_ELSEIF:
+                        if (sym == S_THEN)
+                        {
+                            state = STAUI_ELSEIFTHEN;
+                        }
+                        break;
+                    case STAUI_END:
+                        if ((sym == S_SUB) || (sym == S_FUNCTION))
+                            fold_end = TRUE;
+                        break;
+                    case STAUI_THEN:
+                    case STAUI_ELSEIFTHEN:
+                    case STAUI_ELSE:
+                    case STAUI_SUB:
+                    case STAUI_LOOP:
+                    case STAUI_LOOPEND:
+                    case STAUI_SELECT:
+                    case STAUI_CASE:
+                    case STAUI_OTHER:
+                        break;
+                    default:
+                        assert(FALSE);
                 }
-                case S_STRING:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '"';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    for (char *c=tkn->u.str; *c; c++)
-                    {
-                        buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_TEXT;
-                    }
-                    buf[pos] = '"';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_SEMICOLON:
-                    buf[pos] = ';';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_COMMA:
-                    buf[pos] = ',';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_HASH:
-                    if (!first && (lastKind != S_MINUS))
-                        buf[pos++] = ' ';
-                    buf[pos] = '#';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_INUM:
-                {
-                    if (!first && (lastKind != S_MINUS) && (lastKind != S_HASH))
-                        buf[pos++] = ' ';
-                    static char nbuf[64];
-                    snprintf (nbuf, 64, "%d", tkn->u.literal.inum);
-                    for (char *c=nbuf; *c; c++)
-                    {
-                        buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_TEXT;
-                    }
-                    break;
-                }
-                case S_FNUM:
-                {
-                    if (!first && (lastKind != S_MINUS))
-                        buf[pos++] = ' ';
-                    static char nbuf[64];
-                    U_float2str (tkn->u.literal.fnum, nbuf, 64);
-                    for (char *c=nbuf; *c; c++)
-                    {
-                        buf[pos] = *c;
-                        style[pos++] = UI_TEXT_STYLE_TEXT;
-                    }
-                    break;
-                }
-                case S_MINUS:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '-';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_LPAREN:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '(';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_RPAREN:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = ')';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_EQUALS:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '=';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_EXP:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '^';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_ASTERISK:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '*';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_SLASH:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '/';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_BACKSLASH:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '\\';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_PLUS:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '+';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_GREATER:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '>';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_LESS:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '<';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_NOTEQ:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '<';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = '>';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_LESSEQ:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '<';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = '=';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_GREATEREQ:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '>';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = '=';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_POINTER:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '-';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = '>';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_PERIOD:
-                    buf[pos] = '.';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_AT:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '@';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_LBRACKET:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '[';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_RBRACKET:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = ']';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
-                case S_TRIPLEDOTS:
-                    if (!first)
-                        buf[pos++] = ' ';
-                    buf[pos] = '.';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = '.';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    buf[pos] = '.';
-                    style[pos++] = UI_TEXT_STYLE_TEXT;
-                    break;
             }
-
-            lastKind = tkn->kind;
-            lastTkn = tkn;
-            tkn = tkn->next;
-            first = FALSE;
+            last_sym = sym;
+        }
+        else
+        {
+            buf[pos] = ed->buf_ch;
+            style[pos++] = UI_TEXT_STYLE_TEXT;
+            _getch(ed);
+            last_sym = NULL;
         }
     }
+
     buf[pos] = 0;
 
     return newLine (ed, buf, style, pre_indent, post_indent, fold_start, fold_end);
@@ -2278,6 +2154,7 @@ void IDE_open (string sourcefn)
     S_WEND     = S_Symbol ("WEND"    , FALSE);
     S_SELECT   = S_Symbol ("SELECT"  , FALSE);
     S_CASE     = S_Symbol ("CASE"    , FALSE);
+    S_REM      = S_Symbol ("REM"     , FALSE);
 
     g_keywords = TAB_empty (UP_ide);
     for (int i =0; i<FE_num_keywords; i++)

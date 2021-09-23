@@ -57,4 +57,24 @@ S_tkn S_nextline(void);
 string  S_getSourceLine (int line);
 #endif
 
+static inline bool S_isWhitespace(char ch)
+{
+    return (ch == ' ') || (ch == '\t') || (ch == '\r');
+}
+
+static inline bool S_isIDStart(char ch)
+{
+    return ((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) ;
+}
+
+static inline bool S_isDigit(char ch)
+{
+    return (ch>='0') && (ch<='9');
+}
+
+static inline bool S_isIDCont(char ch)
+{
+    return ((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) || ch == '_' || S_isDigit(ch) ;
+}
+
 #endif
