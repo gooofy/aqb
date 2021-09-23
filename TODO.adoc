@@ -108,7 +108,6 @@ DONE translate forum posts, add useful information to README
 -      CLEAR
 -      CLNG()
 -      CLOSE
-- DONE CLS
 -      COMMON
 - DONE COS()
 -      CSNG()
@@ -231,6 +230,7 @@ DONE translate forum posts, add useful information to README
 - DONE AREA OUTLINE
 -      BEEP
 -      CIRCLE
+- DONE CLS
 -      COLLISION ON
 -      COLLISION OFF
 -      COLLISION STOP
@@ -272,7 +272,7 @@ DONE translate forum posts, add useful information to README
 -      OBJECT.Y()
 -      ON COLLISION
 -      ON MENU
--      ON MOUSE
+- DONE ON MOUSE
 - DONE ON TIMER
 - DONE PAINT
 - DONE PALETTE
@@ -289,7 +289,7 @@ DONE translate forum posts, add useful information to README
 - DONE SCREEN
 - DONE SCREEN CLOSE
 -      SCROLL
--      SLEEP
+- DONE SLEEP
 -      SOUND
 -      SOUND WAIT
 -      SOUND RESUME
