@@ -29,7 +29,7 @@
 #define INFOLINE_CURSOR_X     10
 #define INFOLINE_CURSOR_Y     17
 #define INFOLINE_NUM_LINES    24
-#define INFOLINE_CHANGED      29
+#define INFOLINE_CHANGED      38
 #define INFOLINE_RUN_STATE    30
 #define INFOLINE_FILENAME     39
 

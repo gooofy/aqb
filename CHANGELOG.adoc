@@ -9,6 +9,7 @@ Improvements::
 
 Bug Fixes::
 
+    * IDE: fix changed marker position
 
 
 == 0.7.1alpha1
