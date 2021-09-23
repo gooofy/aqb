@@ -1,6 +1,6 @@
 OPTION EXPLICIT
 
-CONST AS INTEGER N = 3
+CONST AS INTEGER N=3, BS=4
 
 CONST AS SINGLE DELTA = 0.05
 
@@ -11,19 +11,10 @@ DIM SHARED AS SINGLE rX ( STATIC N ), rY ( STATIC N )
 FUNCTION pointhit ( BYVAL mx AS INTEGER, BYVAL my AS INTEGER ) AS INTEGER
     FOR i AS INTEGER = 0 TO N
         ' PRINT i; ":"; pX ( i ); "/"; pY ( i ); " vs "; mx; "/"; my; "   "
-
-        
-        
-        IF ( pX ( i ) -4 ) <= mx AND ( pX ( i ) + 4 ) >= mx THEN
+        IF ( pX(i) - BS ) <= mx AND ( pX(i) + BS ) >= mx THEN
             ' PRINT "xhit"
-
-            
-            
-            IF pY ( i ) -4 <= my AND pY ( i ) + 4 >= my THEN
+            IF pY(i) - BS <= my AND pY(i) + BS >= my THEN
                 ' PRINT "yhit"
-
-                
-                
                 RETURN i
             END IF
         END IF
@@ -40,10 +31,11 @@ SUB drawBezier
     CLS
     
     FOR i AS INTEGER = 0 TO N
-        LINE (pX (i)-4, pY(i)-4) - (pX(i)+4, pY(i)+4), 3, B
+        LINE (pX(i)-BS, pY(i)-BS) - (pX(i)+BS, pY(i)+BS), 3, B
     NEXT i
     
     ' tangents    
+    
     LINE (pX(0),pY(0)) - (pX(1),pY(1)), 3    
     LINE (pX(3),pY(3)) - (pX(2),pY(2)), 3    
     
@@ -67,6 +59,7 @@ SUB drawBezier
         WEND
         REM PRINT Xold; "/"; Yold; " - "; Qx ( 0 ); "/"; Qy ( 0 )
 
+        
         
         LINE ( Xold, Yold ) - ( qX(0), qY(0) )
         
@@ -100,7 +93,6 @@ SUB mousecb
             
             drawBezier
             
-            
         END IF
         
     END IF
@@ -110,12 +102,14 @@ SUB mousemovecb
     
     IF phit >= 0 THEN
         
-        pX(phit) = MOUSE(1)
-        pY(phit) = MOUSE(2)        
-        
-        'LINE (pX(phit)-4,pY(phit)-4)-(pX(phit)+4,pY(phit)+4),3,B        
-        drawBezier
-        
+        DIM AS INTEGER mx=MOUSE(1), my=MOUSE(2)
+        IF (mx>BS) AND (my>BS) THEN
+            
+            pX(phit) = mx
+            pY(phit) = my        
+            
+            drawBezier
+        END IF
     END IF        
     
 END SUB
