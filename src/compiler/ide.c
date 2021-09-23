@@ -501,8 +501,11 @@ static IDE_line buf2line (IDE_editor ed)
                 }
                 while (!ed->eol)
                 {
-                    buf[pos] = ed->buf_ch;
-                    style[pos++] = UI_TEXT_STYLE_COMMENT;
+                    if ((ed->buf_ch!='\n') && (ed->buf_ch!='\r') )
+                    {
+                        buf[pos] = ed->buf_ch;
+                        style[pos++] = UI_TEXT_STYLE_COMMENT;
+                    }
                     _getch(ed);
                 }
             }
