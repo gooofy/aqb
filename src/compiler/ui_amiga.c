@@ -46,6 +46,7 @@
 #include "amigasupport.h"
 
 //#define LOG_KEY_EVENTS
+//#define ENABLE_SCROLL_BENCHMARK
 
 #define BM_HEIGHT 8
 
@@ -469,7 +470,17 @@ void UI_scrollUp (bool fullscreen)
         ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
     }
 #else
+
+
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float startTime = U_getTime();
+#endif
     ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float stopTime = U_getTime();
+    LOG_printf (LOG_DEBUG, "IDE: ScrollRaster [UP] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
+#endif
+
 #endif
     if (g_cursorVisible)
         drawCursor();
@@ -479,15 +490,19 @@ void UI_scrollDown (void)
 {
     if (g_cursorVisible)
         drawCursor();
+
     WORD min_x = g_OffLeft;
     WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
     WORD max_x = g_win->Width - g_OffRight-1;
     WORD max_y = g_OffTop + g_scrollEnd*g_fontHeight-1;
-    ScrollRaster(g_rp, 0, -g_fontHeight, min_x, min_y, max_x, max_y);
 
-#if 0
-    WORD max_x = g_win->Width - g_OffRight-1;
-    ScrollRaster(g_rp, 0, -g_fontHeight, g_OffLeft, g_OffTop + (g_scrollStart-1)*g_fontHeight, max_x, (g_scrollEnd-1)*g_fontHeight-1);
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float startTime = U_getTime();
+#endif
+    ScrollRaster(g_rp, 0, -g_fontHeight, min_x, min_y, max_x, max_y);
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float stopTime = U_getTime();
+    LOG_printf (LOG_DEBUG, "IDE: ScrollRaster [DOWN] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
 #endif
 
     if (g_cursorVisible)
@@ -632,6 +647,9 @@ static uint16_t nextEvent(void)
 				    		break;
 
                         case IDCMP_REFRESHWINDOW:
+#ifdef ENABLE_SCROLL_BENCHMARK
+                            printf ("IDCMP_REFRESHWINDOW\n");
+#endif
                             res = KEY_REFRESH;
 				    		break;
 
