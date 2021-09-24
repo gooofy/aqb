@@ -17,6 +17,7 @@ Bug Fixes::
     * ide: fix line length check on cursor up/down
     * ide: fix vertical scroll area
     * ide: fix run memleak
+    * compiler: fix EOL token leak, REM comment processing
 
 == 0.7.1alpha1
 

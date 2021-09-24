@@ -53,7 +53,10 @@ int S_getline(S_pos pos)
 static S_tkn S_Tkn(int kind)
 {
     if (g_tkns_i>=MAX_TOKENS)
+    {
+        assert(FALSE);
         return NULL;
+    }
 
     S_tkn p = &g_tkns[g_tkns_i];
     g_tkns_i++;
@@ -288,8 +291,13 @@ static S_tkn handle_comment(bool line_comment)
 {
     if (g_filter_comments)
     {
+        // printf ("skipping comment:\n");
         while (!g_eof && (g_ch != '\n'))
+        {
+            // printf ("%c", g_ch);
             getch();
+        }
+        // printf ("\ncomment done. eof: %d\n", g_eof);
         return NULL;
     }
 
@@ -353,251 +361,256 @@ static S_tkn ident(char ch)
 
 static S_tkn next_token(void)
 {
-    // skip whitespace, line continuations
-    while ((S_isWhitespace(g_ch) || g_ch=='_') && !g_eof)
+    while (TRUE)
     {
-        if (g_ch=='_')
+        // skip whitespace, line continuations
+        while ((S_isWhitespace(g_ch) || g_ch=='_') && !g_eof)
         {
-            getch();
-            if (g_ch == '\r')
+            if (g_ch=='_')
+            {
                 getch();
-            if (g_ch == '\n')
-                getch();
+                if (g_ch == '\r')
+                    getch();
+                if (g_ch == '\n')
+                    getch();
+                else
+                    return ident('_');
+            }
             else
-                return ident('_');
+            {
+                getch();
+            }
         }
-        else
+
+        // handle line comments
+        if (!g_eof && (g_ch == '\''))
         {
             getch();
-        }
-    }
-
-    // handle line comments
-    if (!g_eof && (g_ch == '\''))
-    {
-        getch();
-        S_tkn tkn = handle_comment(/*line_comment=*/TRUE);
-        if (!g_filter_comments)
-            return tkn;
-    }
-
-    if (g_eof)
-        return NULL;
-
-    remember_pos();
-
-    if (S_isIDStart(g_ch))
-    {
-        char ch = g_ch; getch();
-        S_tkn tkn = ident(ch);
-        if (tkn->u.sym == g_sym_rem)
-        {
-            S_tkn tkn = handle_comment(/*line_comment=*/FALSE);
+            S_tkn tkn = handle_comment(/*line_comment=*/TRUE);
             if (!g_filter_comments)
                 return tkn;
-            if (g_eof)
-                return NULL;
         }
-        else
+
+        if (g_eof)
+            return NULL;
+
+        remember_pos();
+
+        if (S_isIDStart(g_ch))
         {
-            return tkn;
+            char ch = g_ch; getch();
+            S_tkn tkn = ident(ch);
+            if (tkn->u.sym == g_sym_rem)
+            {
+                S_tkn tkn = handle_comment(/*line_comment=*/FALSE);
+                if (!g_filter_comments)
+                    return tkn;
+                if (g_eof)
+                    return NULL;
+                g_tkns_i--;
+                continue;
+            }
+            else
+            {
+                return tkn;
+            }
         }
-    }
-    if (S_isDigit(g_ch))
-    {
-        return number (10, NULL, /*dp=*/FALSE);
-    }
-
-    S_tkn tkn;
-
-    switch (g_ch)
-    {
-        case '"':
+        if (S_isDigit(g_ch))
         {
-            if (g_strings_i >= MAX_STRINGS)
-                return NULL;
-            char *str = g_strings[g_strings_i];
-            g_strings_i++;
-            int l = 0;
-
-            tkn = S_Tkn(S_STRING);
-            tkn->u.str = str;
-            getch();
-
-            while ( (g_ch != '"') && !g_eof )
-            {
-                str[l] = g_ch;
-                l++;
-                getch();
-            }
-            if (g_ch == '"')
-                getch();
-            str[l] = '\0';
-            break;
+            return number (10, NULL, /*dp=*/FALSE);
         }
-        case '\n':
-            tkn = S_Tkn(S_EOL);
-            getch();
-            break;
-        case ':':
-            tkn = S_Tkn(S_COLON);
-            getch();
-            break;
-        case ';':
-            tkn = S_Tkn(S_SEMICOLON);
-            getch();
-            break;
-        case ',':
-            tkn = S_Tkn(S_COMMA);
-            getch();
-            break;
-        case '(':
-            tkn = S_Tkn(S_LPAREN);
-            getch();
-            break;
-        case ')':
-            tkn = S_Tkn(S_RPAREN);
-            getch();
-            break;
-        case '[':
-            tkn = S_Tkn(S_LBRACKET);
-            getch();
-            break;
-        case ']':
-            tkn = S_Tkn(S_RBRACKET);
-            getch();
-            break;
-        case '=':
-            tkn = S_Tkn(S_EQUALS);
-            getch();
-            break;
-        case '@':
-            tkn = S_Tkn(S_AT);
-            getch();
-            break;
-        case '-':
-            tkn = S_Tkn(S_MINUS);
-            getch();
-            if (g_ch == '>')
-            {
-                tkn->kind = S_POINTER;
-                getch();
-            }
-            break;
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            return number(10, NULL, /*dp=*/FALSE);
 
-        case '&':   // binary, octal and hex literals
-            tkn = S_Tkn(S_INUM);
-            getch();
-            switch (g_ch)
+        S_tkn tkn;
+
+        switch (g_ch)
+        {
+            case '"':
             {
-                case 'b':
-                case 'B':
-                    getch();
-                    number(2, tkn, /*dp=*/FALSE);
-                    break;
-                case 'o':
-                case 'O':
-                    getch();
-                    number(8, tkn, /*dp=*/FALSE);
-                    break;
-                case 'h':
-                case 'H':
-                    getch();
-                    number(16, tkn, /*dp=*/FALSE);
-                    break;
-                default:
-                    EM_error(tkn->pos, "lexer error: invalid literal type character");
-                    getch();
-                    number(10, tkn, /*dp=*/FALSE);
-                    break;
-            }
-            break;
-        case '^':
-            tkn = S_Tkn(S_EXP);
-            getch();
-            break;
-        case '*':
-            tkn = S_Tkn(S_ASTERISK);
-            getch();
-            break;
-        case '/':
-            tkn = S_Tkn(S_SLASH);
-            getch();
-            break;
-        case '\\':
-            tkn = S_Tkn(S_BACKSLASH);
-            getch();
-            break;
-        case '+':
-            tkn = S_Tkn(S_PLUS);
-            getch();
-            break;
-        case '.':
-            tkn = S_Tkn(S_PERIOD);
-            getch();
-            if (S_isDigit(g_ch))
-                return number(10, NULL, /*dp=*/TRUE);
-            if (g_ch == '.')
-            {
+                if (g_strings_i >= MAX_STRINGS)
+                    return NULL;
+                char *str = g_strings[g_strings_i];
+                g_strings_i++;
+                int l = 0;
+
+                tkn = S_Tkn(S_STRING);
+                tkn->u.str = str;
                 getch();
+
+                while ( (g_ch != '"') && !g_eof )
+                {
+                    str[l] = g_ch;
+                    l++;
+                    getch();
+                }
+                if (g_ch == '"')
+                    getch();
+                str[l] = '\0';
+                break;
+            }
+            case '\n':
+                tkn = S_Tkn(S_EOL);
+                getch();
+                break;
+            case ':':
+                tkn = S_Tkn(S_COLON);
+                getch();
+                break;
+            case ';':
+                tkn = S_Tkn(S_SEMICOLON);
+                getch();
+                break;
+            case ',':
+                tkn = S_Tkn(S_COMMA);
+                getch();
+                break;
+            case '(':
+                tkn = S_Tkn(S_LPAREN);
+                getch();
+                break;
+            case ')':
+                tkn = S_Tkn(S_RPAREN);
+                getch();
+                break;
+            case '[':
+                tkn = S_Tkn(S_LBRACKET);
+                getch();
+                break;
+            case ']':
+                tkn = S_Tkn(S_RBRACKET);
+                getch();
+                break;
+            case '=':
+                tkn = S_Tkn(S_EQUALS);
+                getch();
+                break;
+            case '@':
+                tkn = S_Tkn(S_AT);
+                getch();
+                break;
+            case '-':
+                tkn = S_Tkn(S_MINUS);
+                getch();
+                if (g_ch == '>')
+                {
+                    tkn->kind = S_POINTER;
+                    getch();
+                }
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                return number(10, NULL, /*dp=*/FALSE);
+
+            case '&':   // binary, octal and hex literals
+                tkn = S_Tkn(S_INUM);
+                getch();
+                switch (g_ch)
+                {
+                    case 'b':
+                    case 'B':
+                        getch();
+                        number(2, tkn, /*dp=*/FALSE);
+                        break;
+                    case 'o':
+                    case 'O':
+                        getch();
+                        number(8, tkn, /*dp=*/FALSE);
+                        break;
+                    case 'h':
+                    case 'H':
+                        getch();
+                        number(16, tkn, /*dp=*/FALSE);
+                        break;
+                    default:
+                        EM_error(tkn->pos, "lexer error: invalid literal type character");
+                        getch();
+                        number(10, tkn, /*dp=*/FALSE);
+                        break;
+                }
+                break;
+            case '^':
+                tkn = S_Tkn(S_EXP);
+                getch();
+                break;
+            case '*':
+                tkn = S_Tkn(S_ASTERISK);
+                getch();
+                break;
+            case '/':
+                tkn = S_Tkn(S_SLASH);
+                getch();
+                break;
+            case '\\':
+                tkn = S_Tkn(S_BACKSLASH);
+                getch();
+                break;
+            case '+':
+                tkn = S_Tkn(S_PLUS);
+                getch();
+                break;
+            case '.':
+                tkn = S_Tkn(S_PERIOD);
+                getch();
+                if (S_isDigit(g_ch))
+                    return number(10, NULL, /*dp=*/TRUE);
                 if (g_ch == '.')
                 {
-                    tkn = S_Tkn(S_TRIPLEDOTS);
+                    getch();
+                    if (g_ch == '.')
+                    {
+                        tkn = S_Tkn(S_TRIPLEDOTS);
+                        getch();
+                    }
+                    else
+                    {
+                        tkn = S_Tkn(S_ERRTKN);
+                    }
+                }
+                break;
+            case '>':
+                tkn = S_Tkn(S_GREATER);
+                getch();
+                if (g_ch == '=')
+                {
+                    tkn->kind = S_GREATEREQ;
+                    getch();
+                }
+                break;
+            case '<':
+                tkn = S_Tkn(S_LESS);
+                getch();
+                if (g_ch == '=')
+                {
+                    tkn->kind = S_LESSEQ;
                     getch();
                 }
                 else
                 {
-                    tkn = S_Tkn(S_ERRTKN);
+                    if (g_ch == '>')
+                    {
+                        tkn->kind = S_NOTEQ;
+                        getch();
+                    }
                 }
-            }
-            break;
-        case '>':
-            tkn = S_Tkn(S_GREATER);
-            getch();
-            if (g_ch == '=')
-            {
-                tkn->kind = S_GREATEREQ;
+                break;
+            case '#':
+                tkn = S_Tkn(S_HASH);
                 getch();
-            }
-            break;
-        case '<':
-            tkn = S_Tkn(S_LESS);
-            getch();
-            if (g_ch == '=')
-            {
-                tkn->kind = S_LESSEQ;
+                break;
+            default:
+                tkn = S_Tkn(S_ERRTKN);
                 getch();
-            }
-            else
-            {
-                if (g_ch == '>')
-                {
-                    tkn->kind = S_NOTEQ;
-                    getch();
-                }
-            }
-            break;
-        case '#':
-            tkn = S_Tkn(S_HASH);
-            getch();
-            break;
-        default:
-            tkn = S_Tkn(S_ERRTKN);
-            getch();
-    }
+        }
 
-    return tkn;
+        return tkn;
+    }
 }
 
 
@@ -623,7 +636,10 @@ S_tkn S_nextline(void)
         else
         {
             if ((tkn->kind == S_EOL) && !first_tkn)
+            {
+                g_tkns_i    = 0;
                 continue;
+            }
         }
 
         if (last_tkn)
