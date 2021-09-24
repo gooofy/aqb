@@ -1880,6 +1880,9 @@ static void event_cb (uint16_t key, void *user_data)
 {
 	IDE_editor ed = (IDE_editor) user_data;
 
+#ifdef __amigaos__
+    BOOL bInRefresh = FALSE;
+#endif
     switch (key)
     {
         case KEY_CTRL_C:
@@ -1889,6 +1892,10 @@ static void event_cb (uint16_t key, void *user_data)
             break;
 
         case KEY_REFRESH:
+#ifdef __amigaos__
+            UI_beginRefresh();
+            bInRefresh = TRUE;
+#endif
             invalidateAll (ed);
             break;
 
@@ -2028,6 +2035,10 @@ static void event_cb (uint16_t key, void *user_data)
 
     scroll(ed);
     repaint(ed);
+#ifdef __amigaos__
+    if (bInRefresh)
+        UI_endRefresh();
+#endif
 }
 
 IDE_editor openEditor(void)

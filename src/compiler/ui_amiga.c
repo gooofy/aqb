@@ -407,6 +407,16 @@ struct MsgPort *UI_debugPort(void)
     return g_debugPort;
 }
 
+void UI_beginRefresh (void)
+{
+    BeginRefresh(g_win);
+}
+
+void UI_endRefresh (void)
+{
+    EndRefresh(g_win, TRUE);
+}
+
 void UI_bell (void)
 {
     DisplayBeep (NULL);

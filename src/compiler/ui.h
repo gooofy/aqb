@@ -122,6 +122,8 @@ void      UI_HelpBrowser        (void);
 
 #ifdef __amigaos__
 struct MsgPort    *UI_debugPort (void);
+void      UI_beginRefresh       (void);
+void      UI_endRefresh         (void);
 #endif
 
 bool      UI_init               (void);

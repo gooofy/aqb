@@ -108,11 +108,17 @@ void RUN_start (const char *binfn)
 
     LOG_printf (LOG_DEBUG, "RUN_start: CreateNewProc for %s ...\n", binfn);
     g_childProc = CreateNewProcTags(NP_Seglist,     (ULONG) g_seglist,
+									NP_FreeSeglist, FALSE,
+									NP_Input,       0l,
+                                    NP_Output,      Output(),
+                                    NP_CloseInput,  FALSE,
                                     NP_CloseOutput, FALSE,
                                     NP_StackSize,   DEFAULT_STACKSIZE,
 								    NP_Name,        (ULONG) g_binfn,
-                                    NP_Output,      Output());
-
+									//NP_WindowPtr,   0l,
+									//NP_HomeDir,     0l,
+									NP_CopyVars,    FALSE,
+									TAG_DONE);
 
     LOG_printf (LOG_DEBUG, "RUN_start: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_childProc);
 
