@@ -4,6 +4,8 @@
 #include "run.h"
 #include "logger.h"
 
+// #define SEND_WBSTARTUP_MSG
+
 static RUN_state        g_debugState = RUN_stateStopped;
 
 #ifdef __amigaos__
@@ -12,6 +14,8 @@ static RUN_state        g_debugState = RUN_stateStopped;
 
 #include <exec/execbase.h>
 #include <dos/dostags.h>
+
+#include <workbench/startup.h>
 
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
@@ -29,6 +33,18 @@ static struct MsgPort  *g_debugPort;
 #define TS_FROZEN          0xff
 
 #define DEBUG_SIG 0xDECA11ED
+static struct Task       *g_parentTask;
+static struct Process    *g_childProc;
+static char              *g_binfn;
+static BPTR               g_currentDir;
+static BPTR               g_seglist;
+
+#ifdef SEND_WBSTARTUP_MSG
+
+static struct WBStartup   g_startupMsg;
+static struct WBArg       g_startupArg;
+
+#else
 
 /* we send this instead of WBStartup */
 struct DebugMsg
@@ -39,13 +55,9 @@ struct DebugMsg
 	APTR            exitFn;
 };
 
-static struct Task       *g_parentTask;
-static struct Process    *g_childProc;
-static char              *g_binfn;
-static BPTR               g_currentDir;
-static BPTR               g_seglist;
 static struct DebugMsg    g_dbgMsg;
 
+#endif
 
 #if 0
 typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG cmdlen __asm("d0") );
@@ -106,6 +118,34 @@ void RUN_start (const char *binfn)
 
     // send startup message
 
+#ifdef SEND_WBSTARTUP_MSG
+
+	g_startupMsg.sm_Message.mn_Node.ln_Succ = NULL;
+	g_startupMsg.sm_Message.mn_Node.ln_Pred = NULL;
+	g_startupMsg.sm_Message.mn_Node.ln_Type = NT_MESSAGE;
+	g_startupMsg.sm_Message.mn_Node.ln_Pri  = 0;
+	g_startupMsg.sm_Message.mn_Node.ln_Name = NULL;
+    g_startupMsg.sm_Message.mn_ReplyPort    = g_debugPort;
+	g_startupMsg.sm_Message.mn_Length       = sizeof(struct WBStartup);
+	g_startupMsg.sm_Process                 = &g_childProc->pr_MsgPort;
+	g_startupMsg.sm_Segment                 = g_seglist;
+    g_startupMsg.sm_NumArgs                 = 1;
+    g_startupMsg.sm_ToolWindow              = NULL;
+    g_startupMsg.sm_ArgList                 = &g_startupArg;
+
+    static char dirbuf[256];
+    strncpy (dirbuf, g_binfn, 256);
+    *(PathPart((STRPTR)dirbuf)) = 0;
+
+    g_startupArg.wa_Lock = Lock ((STRPTR)dirbuf, ACCESS_READ);
+    g_startupArg.wa_Name = (BYTE*) FilePart ((STRPTR)g_binfn);
+
+	LOG_printf (LOG_DEBUG, "RUN_start: Send WBSTartup msg (dirbuf=%s)...\n", dirbuf);
+
+	PutMsg (&g_childProc->pr_MsgPort, &g_startupMsg.sm_Message);
+
+#else
+
 	g_dbgMsg.msg.mn_Node.ln_Succ = NULL;
 	g_dbgMsg.msg.mn_Node.ln_Pred = NULL;
 	g_dbgMsg.msg.mn_Node.ln_Type = NT_MESSAGE;
@@ -121,6 +161,8 @@ void RUN_start (const char *binfn)
 
 	PutMsg (&g_childProc->pr_MsgPort, &g_dbgMsg.msg);
 
+#endif
+
     g_debugState = RUN_stateRunning;
 
 	LOG_printf (LOG_DEBUG, "RUN_start: done.\n");
@@ -128,8 +170,30 @@ void RUN_start (const char *binfn)
 
 void RUN_handleMessages(void)
 {
+	LOG_printf (LOG_DEBUG, "RUN_handleMessages: start...\n");
     while (TRUE)
     {
+#ifdef SEND_WBSTARTUP_MSG
+        struct WBStartup *msg = (struct WBStartup *) GetMsg(g_debugPort);
+        LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)msg);
+        if (!msg)
+            return;
+        if (msg->sm_Message.mn_Node.ln_Type == NT_REPLYMSG)
+        {
+            LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a reply message -> state is STOPPED now.\n");
+            g_debugState = RUN_stateStopped;
+            if (g_seglist)
+            {
+                UnLoadSeg (g_seglist);
+                g_seglist = 0l;
+            }
+            if (g_startupArg.wa_Lock)
+            {
+                UnLock (g_startupArg.wa_Lock);
+                g_startupArg.wa_Lock = 0l;
+            }
+        }
+#else
         struct DebugMsg *msg = (struct DebugMsg *) GetMsg(g_debugPort);
         if (!msg)
             return;
@@ -143,6 +207,7 @@ void RUN_handleMessages(void)
                 g_seglist = 0l;
             }
         }
+#endif
     }
 }
 
