@@ -141,6 +141,8 @@ void   AREAFILL               (SHORT mode);
 void   PATTERN                (USHORT lineptrn, _DARRAY_T *areaptrn);
 void   PATTERN_RESTORE        (void);
 
+struct BitMap *BITMAP_        (SHORT width, SHORT height, SHORT depth);
+
 char  *INKEY_                 (void);
 
 /*

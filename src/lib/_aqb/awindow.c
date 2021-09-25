@@ -82,6 +82,20 @@ static struct NewScreen g_nscr =
 
 static ULONG _g_signalmask_awindow=0;
 
+/*
+ * BitMap management
+ */
+
+typedef struct BitMapNode_ *BitMapNode;
+struct BitMapNode_
+{
+    BitMapNode    *next;
+    struct BitMap *bm;
+};
+
+//static BitMapNode g_bmn_first           = NULL;
+//static BitMapNode g_bmn_last            = NULL;
+
 static void (*g_win_cb)(void)           = NULL;
 static void (*g_mouse_cb)(void)         = NULL;
 static void (*g_mouse_motion_cb)(void)  = NULL;
@@ -1481,6 +1495,18 @@ void PATTERN_RESTORE (void)
     g_rp->AreaPtrn   = NULL;
     g_rp->AreaPtSz   = 0;
 }
+
+#if 0
+// FIXME
+struct BitMap *BITMAP_ (SHORT width, SHORT height, SHORT depth)
+{
+    myBitMaps[1] = (struct BitMap *)AllocMem((LONG)sizeof(struct BitMap), MEMF_CLEAR);
+    if (myBitMaps[1] != NULL)
+    {
+        InitBitMap(myBitMaps[0], depth, width, height);
+    }
+}
+#endif
 
 static char inkeybuf[2] = { 0, 0 } ;
 
