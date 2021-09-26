@@ -79,6 +79,7 @@ src/tools/os2aqb/libcalls.py
 src/tools/os2aqb/os_exec.txt
 src/tools/os2aqb/os_mathtrans.txt
 src/tools/colorschemes
+src/tools/md2amiga/marko/__pycache__
 examples/collection/
 examples/demo/tetris
 examples/demo/tetris.asm
@@ -123,4 +124,3 @@ marketing.txt
 README.guide
 help/RefAmiga.guide
 help/RefCore.guide
-
