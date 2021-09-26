@@ -93,7 +93,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "../../src/lib", "-v", "-s", "bar.bas"],
+            "args": ["-L", "../../src/lib", "-L", "/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/aqb_tests/mod1", "-a", "/tmp/mod1.asm","-p", "/tmp/mod1.o", "mod1.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../tests/mod1",
             "environment": [],
