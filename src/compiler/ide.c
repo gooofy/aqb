@@ -693,6 +693,7 @@ static IDE_line commitBuf(IDE_editor ed)
     int8_t old_indent = cl->indent;
     int8_t old_post_indent = cl->post_indent;
     freeLine (ed, cl);
+    ed->cursor_line = l;
     indentLine (l);
     if ( (l->indent == old_indent) && (l->post_indent == old_post_indent) )
         ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
