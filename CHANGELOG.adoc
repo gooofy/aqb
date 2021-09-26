@@ -2,6 +2,10 @@
 
 Improvements::
 
+    * runtime: BLIT() function added
+    * runtime: BLIT FREE instruction added
+    * runtime: GET instruction added
+    * runtime: PUT instruction added
 
 Bug Fixes::
 

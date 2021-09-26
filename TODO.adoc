@@ -237,7 +237,7 @@ DONE translate forum posts, add useful information to README
 -      COLLISION()
 - DONE COLOR
 - DONE CSRLIN()
--      GET
+- DONE GET
 - DONE INKEY$
 - DONE LINE
 - DONE LOCATE
@@ -284,7 +284,7 @@ DONE translate forum posts, add useful information to README
 -      PRESET
 - DONE PSET
 -      PTAB
--      PUT [STEP]
+- DONE PUT [STEP]
 -      SAY
 - DONE SCREEN
 - DONE SCREEN CLOSE

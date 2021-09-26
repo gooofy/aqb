@@ -82,19 +82,8 @@ static struct NewScreen g_nscr =
 
 static ULONG _g_signalmask_awindow=0;
 
-/*
- * BitMap management
- */
-
-typedef struct BitMapNode_ *BitMapNode;
-struct BitMapNode_
-{
-    BitMapNode    *next;
-    struct BitMap *bm;
-};
-
-//static BitMapNode g_bmn_first           = NULL;
-//static BitMapNode g_bmn_last            = NULL;
+static BlitNode g_blit_first           = NULL;
+static BlitNode g_blit_last            = NULL;
 
 static void (*g_win_cb)(void)           = NULL;
 static void (*g_mouse_cb)(void)         = NULL;
@@ -377,6 +366,15 @@ void _awindow_shutdown(void)
             CloseScreen(g_scrlist[i]);
         }
     }
+
+    BlitNode blit = g_blit_first;
+    while (blit)
+    {
+        BlitNode next = blit->next;
+        BLIT_FREE(blit);
+        blit = next;
+    }
+
     _aio_set_dos_cursor_visible (TRUE);
     if (g_console_device_opened)
     {
@@ -1496,17 +1494,139 @@ void PATTERN_RESTORE (void)
     g_rp->AreaPtSz   = 0;
 }
 
-#if 0
-// FIXME
-struct BitMap *BITMAP_ (SHORT width, SHORT height, SHORT depth)
+void BLIT_FREE (BlitNode blit)
 {
-    myBitMaps[1] = (struct BitMap *)AllocMem((LONG)sizeof(struct BitMap), MEMF_CLEAR);
-    if (myBitMaps[1] != NULL)
+    if (blit->prev)
+        blit->prev->next = blit->next;
+    else
+        g_blit_first = blit->next;
+    if (blit->next)
+        blit->next->prev = blit->prev;
+    else
+        g_blit_last = blit->prev;
+
+    for (SHORT plane_num = 0; plane_num < blit->bm.Depth; plane_num++)
     {
-        InitBitMap(myBitMaps[0], depth, width, height);
+       FreeRaster(blit->bm.Planes[plane_num], blit->width, blit->height);
+       blit->bm.Planes[plane_num] = NULL;
     }
+
+    FreeVec (blit);
 }
-#endif
+
+BlitNode BLIT_ (SHORT width, SHORT height, SHORT depth)
+{
+    BlitNode blit = (BlitNode)AllocVec(sizeof(*blit), MEMF_CLEAR);
+    if (!blit)
+    {
+        ERROR(AE_BLIT);
+        return NULL;
+    }
+
+    blit->prev = g_blit_last;
+    if (g_blit_last)
+        g_blit_last = g_blit_last->next = blit;
+    else
+        g_blit_first = g_blit_last = blit;
+
+    blit->width  = width;
+    blit->height = height;
+
+    InitBitMap(&blit->bm, depth, width, height);
+
+    for (SHORT plane_num = 0; plane_num < depth; plane_num++)
+    {
+        blit->bm.Planes[plane_num] = (PLANEPTR)AllocRaster(width, height);
+        if (!blit->bm.Planes[plane_num])
+        {
+            ERROR(AE_BLIT);
+            return NULL;
+        }
+    }
+
+    InitRastPort (&blit->rp);
+    blit->rp.BitMap = &blit->bm;
+
+    return blit;
+}
+
+void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BlitNode blit)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+    if (x1<0)
+        x1 = g_rp->cp_x;
+    if (y1<0)
+        y1 = g_rp->cp_y;
+
+    if (s1)
+    {
+        x1 += g_rp->cp_x;
+        y1 += g_rp->cp_y;
+    }
+    if (s2)
+    {
+        x2 += g_rp->cp_x;
+        y2 += g_rp->cp_y;
+    }
+
+    SHORT w = x2-x1+1;
+    if (w<=0)
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+    SHORT h = y2-y1+1;
+    if (h<=0)
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+
+    ClipBlit(g_rp, x1, y1, &blit->rp, 0, 0, w, h, 0xC0);
+}
+
+void PUT (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
+{
+    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || s1 || s2 )
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+    if (x<0)
+        x = g_rp->cp_x;
+    if (y<0)
+        y = g_rp->cp_y;
+
+    if (s)
+    {
+        x += g_rp->cp_x;
+        y += g_rp->cp_y;
+    }
+
+    if (x1<0) x1 = 0;
+    if (y1<0) y1 = 0;
+    if (x2<0) x2 = blit->width-1;
+    if (y2<0) y2 = blit->height-1;
+
+    SHORT w = x2-x1+1;
+    if (w<=0)
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+    SHORT h = y2-y1+1;
+    if (h<=0)
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+
+    ClipBlit(&blit->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
+}
 
 static char inkeybuf[2] = { 0, 0 } ;
 

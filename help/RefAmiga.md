@@ -31,6 +31,25 @@ Syntax:
 
 enable or disable drawing of AREA polygon outlines
 
+## BLIT FREE
+
+Syntax:
+
+    BLIT FREE ptr
+
+free allocated ressources for a blit buffer
+
+## BLIT()
+
+Syntax:
+
+    BLIT "(" width, height, depth ")"
+
+allocate an offscreen blit (i.e. BitMap) buffer
+
+Example:
+
+    DIM AS VOID PTR b = BLIT (64, 64, 2)
 
 ## COLOR
 
@@ -59,6 +78,23 @@ Syntax:
 
 returns the current text row position
 
+## GET
+
+Syntax:
+
+    GET [[STEP] "(" x1 "," y1 ")" ] "-" [STEP] "(" x2 "," y2 ")" "," blit
+
+copy a rectangular region from current window to a background blit buffer.
+See BLIT() for more information on how to allocate a blit buffer. Use PUT
+to copy a blit buffer back onto the screen.
+
+Example:
+
+    DIM AS VOID PTR b = BLIT (64, 64, 2)
+
+    GET (0,0)-(63,63), b
+
+    PUT (100, 40), b
 
 ## INKEY$()
 
@@ -263,6 +299,30 @@ Syntax:
     PSET [ STEP ] "(" x "," y ")" [ "," color ]
 
 set a point in the window
+
+
+## PUT
+
+Syntax:
+
+    PUT [[STEP] "(" x "," y ")" ], blit, [minterm [ "," [ "(" x1 "," y1 ")" ] "-" "(" x2 "," y2 ")" ] ]
+
+copy a blit buffer onto the screen.
+
+Useful minterms:
+
+	* 0x30 Replace destination area with inverted source.
+	* 0x50 Replace destination area with an inverted version of itself.
+	* 0x80 Only put bits into destination where there is a bit in the same position for both source and destination (sieve operation).
+	* 0xC0 Copy from source to destination.
+
+Example:
+
+    DIM AS VOID PTR b = BLIT (64, 64, 2)
+
+    GET (0,0)-(63,63), b
+
+    PUT (100, 40), b, &HC0, (20,10)-(40,40)
 
 
 ## SCREEN

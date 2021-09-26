@@ -1,6 +1,9 @@
 #ifndef HAVE_AQB_H
 #define HAVE_AQB_H
 
+#include <graphics/rastport.h>
+#include <graphics/gfx.h>
+
 #include "../_brt/_brt.h"
 
 extern struct IntuitionBase *IntuitionBase;
@@ -106,6 +109,7 @@ void _aio_close (USHORT fno);
 #define AE_OUTPUT                   118
 #define AE_CLOSE                    119
 #define AE_MOUSE                    120
+#define AE_BLIT                     121
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
@@ -141,9 +145,25 @@ void   AREAFILL               (SHORT mode);
 void   PATTERN                (USHORT lineptrn, _DARRAY_T *areaptrn);
 void   PATTERN_RESTORE        (void);
 
-struct BitMap *BITMAP_        (SHORT width, SHORT height, SHORT depth);
-
 char  *INKEY_                 (void);
+
+/*
+ * Blits
+ */
+
+typedef struct BlitNode_ *BlitNode;
+struct BlitNode_
+{
+    BlitNode        prev, next;
+    SHORT           width, height;
+    struct BitMap   bm;
+    struct RastPort rp;
+};
+
+BlitNode BLIT_                (SHORT width, SHORT height, SHORT depth);
+void     BLIT_FREE            (BlitNode blit);
+void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BlitNode blit);
+void     PUT                  (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 
 /*
  * ON TIMER support
