@@ -328,10 +328,10 @@ int main (int argc, char *argv[])
 
     if ((argc == 0) || (argc==optind))  // workbench launch
     {
-#ifdef __amigaos__
         launch_ide = TRUE;
         sourcefn = NULL;
 
+#ifdef __amigaos__
         struct WBStartup *wb_msg = (struct WBStartup *) argv;
 		struct WBArg *wbarg = wb_msg->sm_ArgList;
         for (uint16_t i=0; i < wb_msg->sm_NumArgs; i++, wbarg++)
