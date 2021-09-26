@@ -4384,7 +4384,7 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal, CG_item *exp, bool forceExp)
+static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal, CG_item *exp, bool forceExp)
 {
     CG_itemListNode iln = CG_itemListAppend (assignedArgs);
 
@@ -4393,7 +4393,7 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
         if (!formal->defaultExp)
         {
             EM_error(pos, "missing arguments");
-            return;
+            return FALSE;
         }
         CG_ConstItem (&iln->item, formal->defaultExp);
     }
@@ -4414,20 +4414,20 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                  */
                 if ((formal->ty->kind == Ty_darray) && CG_getConstInt (&iln->item)==0)
                 {
-                    return;
+                    return TRUE;
                 }
 
                 if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
                 {
                     EM_error(pos, "%s: BYREF parameter type const mismatch", S_name(formal->name));
-                    return;
+                    return FALSE;
                 }
             }
 
             if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
             {
                 EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
-                return;
+                return FALSE;
             }
 
             switch (iln->item.kind)
@@ -4442,7 +4442,7 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                     break;
                 default:
                     EM_error(pos, "%s: actual cannot be passed by reference", S_name(formal->name));
-                    return;
+                    return FALSE;
             }
 #if 0
             /*
@@ -4487,12 +4487,13 @@ static void transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
             if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
             {
                 EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
-                return;
+                return FALSE;
             }
             CG_loadVal (g_sleStack->code, pos, &iln->item);
             break;
         }
     }
+    return TRUE;
 }
 
 // lineBF ::= ("B" | "BF")
@@ -4725,6 +4726,7 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
 static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item *thisRef, bool defaultsOnly)
 {
     Ty_formal  formal = proc->formals;
+    bool       ok     = TRUE;
 
     if (thisRef)
     {
@@ -4742,23 +4744,23 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
                 switch (formal->ph)
                 {
                     case Ty_phLineBF:
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                         break;
                     case Ty_phCoord:
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                         break;
                     case Ty_phCoord2:
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                         break;
                     case Ty_phNone:
-                        transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                         break;
                     default:
                         assert(0);
@@ -4789,6 +4791,7 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
                         break;
                     case Ty_phNone:
                         transAssignArgExp(tkn, assignedArgs, &formal);
+                        break;
                 }
             }
         }
@@ -4804,23 +4807,23 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
                     switch (formal->ph)
                     {
                         case Ty_phLineBF:
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                             break;
                         case Ty_phCoord:
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                             break;
                         case Ty_phCoord2:
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                             break;
                         case Ty_phNone:
-                            transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE), formal = formal->next;
                             break;
                         default:
                             assert(0);
@@ -4851,6 +4854,7 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
             else
             {
                 EM_error((*tkn)->pos, "too many arguments.");
+                ok = FALSE;
             }
         }
     }
@@ -4861,28 +4865,28 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
         switch (formal->ph)
         {
             case Ty_phLineBF:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             case Ty_phCoord:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             case Ty_phCoord2:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             case Ty_phNone:
-                transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
             default:
                 assert(0);
         }
     }
 
-    return TRUE;
+    return ok;
 }
 
 
