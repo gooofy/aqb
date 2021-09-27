@@ -60,6 +60,15 @@ Syntax:
 set foreground, background and or area outline pen
 
 
+## CLOSE
+
+Syntax:
+
+    CLOSE [ ["#"] expN ( "," ["#"] expM )* ]
+
+close one or more files
+
+
 ## CLS
 
 Syntax:
@@ -230,6 +239,15 @@ assign timer #`id` to call `sub` every `t` seconds. After setup
 the timer still has to be enabled using the TIMER ON statement.
 
 
+## OPEN
+
+Syntax:
+
+    OPEN filename FOR ( RANDOM |￼INPUT |￼OUTPUT |￼APPEND |￼BINARY ) [ ACCESS ( READ [WRITE] | WRITE ) ] AS ["#"] f [LEN = rln]
+
+open a file for input or output
+
+
 ## PAINT
 
 Syntax:
@@ -285,9 +303,9 @@ a dummy value for compatibility reasons, usually 0).
 
 Syntax:
 
-    PRINT  [ expression ( [ ";" | "," ] expression )* ]
+    PRINT [ "#" expFNo "," ]  [ expression ( [ ";" | "," ] expression )* ]
 
-print the listed expressions to the screen. ";" means no space, "," means
+print the listed expressions to the screen or a file (if expFNo is given). ";" means no space, "," means
 skip to next 9 col tab, ";" or "," at the end of the line mean no newline
 is printed.
 

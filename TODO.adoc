@@ -107,7 +107,7 @@ DONE translate forum posts, add useful information to README
 - DONE CINT()
 -      CLEAR
 -      CLNG()
--      CLOSE
+- DONE CLOSE
 -      COMMON
 - DONE COS()
 -      CSNG()
@@ -179,7 +179,7 @@ DONE translate forum posts, add useful information to README
 - DONE ON ERROR
 -      ON GOSUB
 -      ON GOTO
--      OPEN
+- DONE OPEN
 -      OPTION BASE
 -      OR
 - DONE PEEK()
