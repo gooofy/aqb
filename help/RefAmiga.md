@@ -243,7 +243,7 @@ the timer still has to be enabled using the TIMER ON statement.
 
 Syntax:
 
-    OPEN filename FOR ( RANDOM |￼INPUT |￼OUTPUT |￼APPEND |￼BINARY ) [ ACCESS ( READ [WRITE] | WRITE ) ] AS ["#"] f [LEN = rln]
+    OPEN filename FOR ( RANDOM | INPUT | OUTPUT | APPEND | BINARY ) [ ACCESS ( READ [WRITE] | WRITE ) ] AS ["#"] f [LEN = rln]
 
 open a file for input or output
 
