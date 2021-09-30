@@ -1218,8 +1218,7 @@ E_module E_loadModule(S_symbol sModule)
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
 
                             S_symbol sym = S_Symbol(name, FALSE);
-                            Ty_recordEntry re = Ty_Field(visibility, sym, t);
-                            re->u.field.uiOffset = uiOffset;
+                            Ty_recordEntry re = Ty_Field(visibility, sym, uiOffset, t);
                             S_enter(ty->u.record.scope, sym, re);
                             break;
                         }

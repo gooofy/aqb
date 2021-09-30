@@ -238,7 +238,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 93
+#define MAX_KEYWORDS 94
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -336,6 +336,7 @@ static S_symbol S_LEN;
 static S_symbol S_ACCESS;
 static S_symbol S_CLOSE;
 static S_symbol S_BREAK;
+static S_symbol S__FNO;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -4526,6 +4527,23 @@ static bool lineBF(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
     return TRUE;
 }
 
+// fno ::= [ '#' ] expression
+static bool fno(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
+{
+    CG_item   exp;
+
+    if ((*tkn)->kind == S_HASH)
+        *tkn = (*tkn)->next;
+
+    if (!expression(tkn, &exp))
+        return EM_error((*tkn)->pos, "file number expression expected here.");
+
+    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+    *formal = (*formal)->next;
+
+    return TRUE;
+}
+
 // coord ::= [ STEP ] '(' expression "," expression ")"
 static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
@@ -4743,6 +4761,9 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
             {
                 switch (formal->ph)
                 {
+                    case Ty_phFNO:
+                        ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                        break;
                     case Ty_phLineBF:
                         ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                         break;
@@ -4777,6 +4798,10 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
             {
                 switch (formal->ph)
                 {
+                    case Ty_phFNO:
+                        if (!fno(tkn, assignedArgs, &formal))
+                            return FALSE;
+                        break;
                     case Ty_phLineBF:
                         if (!lineBF(tkn, assignedArgs, &formal))
                             return FALSE;
@@ -4806,6 +4831,9 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
                 {
                     switch (formal->ph)
                     {
+                        case Ty_phFNO:
+                            ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                            break;
                         case Ty_phLineBF:
                             ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                             break;
@@ -4833,6 +4861,10 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
 
                 switch (formal->ph)
                 {
+                    case Ty_phFNO:
+                        if (!fno(tkn, assignedArgs, &formal))
+                            return FALSE;
+                        break;
                     case Ty_phLineBF:
                         if (!lineBF(tkn, assignedArgs, &formal))
                             return FALSE;
@@ -4864,6 +4896,9 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
     {
         switch (formal->ph)
         {
+            case Ty_phFNO:
+                ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
+                break;
             case Ty_phLineBF:
                 ok &= transAssignArg((*tkn)->pos, assignedArgs, formal, NULL, /*forceExp=*/FALSE); formal = formal->next;
                 break;
@@ -4971,6 +5006,7 @@ static bool stmtCall(S_tkn *tkn, E_enventry e, CG_item *exp)
 // paramDecl ::= [ BYVAL | BYREF ] ( _COORD2 "(" paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _COORD  "(" paramDecl "," paramDecl "," paramDecl ")"
 //                                 | _LINEBF "(" paramDecl ")"
+//                                 | _FNO    "(" paramDecl ")"
 //                                 | ident [ AS typeDesc ] [ = expression ] )
 static bool paramDecl(S_tkn *tkn, FE_paramList pl)
 {
@@ -5087,55 +5123,72 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
             }
             else
             {
-                name = (*tkn)->u.sym;
-                *tkn = (*tkn)->next;
-
-                bool isArray = FALSE;
-                if ((*tkn)->kind == S_LPAREN)
+                if (isSym(*tkn, S__FNO))
                 {
                     *tkn = (*tkn)->next;
-                    isArray = TRUE;
+                    if ((*tkn)->kind != S_LPAREN)
+                        return EM_error((*tkn)->pos, "( expected here.");
+                    *tkn = (*tkn)->next;
+
+                    paramDecl(tkn, pl);
+                    pl->last->ph = Ty_phFNO;
+
                     if ((*tkn)->kind != S_RPAREN)
                         return EM_error((*tkn)->pos, ") expected here.");
                     *tkn = (*tkn)->next;
                 }
-
-                if (isSym(*tkn, S_AS))
+                else
                 {
+                    name = (*tkn)->u.sym;
                     *tkn = (*tkn)->next;
 
-                    if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
-                        return EM_error((*tkn)->pos, "argument type descriptor expected here.");
-                }
+                    bool isArray = FALSE;
+                    if ((*tkn)->kind == S_LPAREN)
+                    {
+                        *tkn = (*tkn)->next;
+                        isArray = TRUE;
+                        if ((*tkn)->kind != S_RPAREN)
+                            return EM_error((*tkn)->pos, ") expected here.");
+                        *tkn = (*tkn)->next;
+                    }
 
-                if (!ty)
-                    ty = Ty_inferType(S_name(name));
+                    if (isSym(*tkn, S_AS))
+                    {
+                        *tkn = (*tkn)->next;
 
-                if (isArray)
-                {
-                    if (mode != Ty_byRef)
-                        return EM_error((*tkn)->pos, "Arrays must be passed by reference.");
-                    ty = Ty_DArray (FE_mod->name, ty);
-                }
+                        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
+                            return EM_error((*tkn)->pos, "argument type descriptor expected here.");
+                    }
 
-                Ty_ty plainTy = ty;
-                if (mode == Ty_byRef)
-                {
-                    if (ty->kind == Ty_procPtr)
-                        return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
-                }
+                    if (!ty)
+                        ty = Ty_inferType(S_name(name));
 
-                if ((*tkn)->kind == S_EQUALS)
-                {
-                    CG_item exp;
-                    *tkn = (*tkn)->next;
-                    if (!expression(tkn, &exp))
-                        return EM_error((*tkn)->pos, "default expression expected here.");
-                    if (!transConst(pos, plainTy, &exp))
-                        return FALSE;
-                    defaultExp = CG_getConst(&exp);
+                    if (isArray)
+                    {
+                        if (mode != Ty_byRef)
+                            return EM_error((*tkn)->pos, "Arrays must be passed by reference.");
+                        ty = Ty_DArray (FE_mod->name, ty);
+                    }
+
+                    Ty_ty plainTy = ty;
+                    if (mode == Ty_byRef)
+                    {
+                        if (ty->kind == Ty_procPtr)
+                            return EM_error((*tkn)->pos, "BYREF function pointers are not supported.");
+                    }
+
+                    if ((*tkn)->kind == S_EQUALS)
+                    {
+                        CG_item exp;
+                        *tkn = (*tkn)->next;
+                        if (!expression(tkn, &exp))
+                            return EM_error((*tkn)->pos, "default expression expected here.");
+                        if (!transConst(pos, plainTy, &exp))
+                            return FALSE;
+                        defaultExp = CG_getConst(&exp);
+                    }
+                    FE_ParamListAppend(pl, Ty_Formal(name, ty, defaultExp, mode, ph, /*reg=*/NULL));
                 }
-                FE_ParamListAppend(pl, Ty_Formal(name, ty, defaultExp, mode, ph, /*reg=*/NULL));
             }
         }
     }
@@ -5871,7 +5924,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
-                    re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
+                    re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, Ty_recordAddField(sle->u.typeDecl.ty, t), t);
                     S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name, re);
                     break;
                 }
@@ -5886,9 +5939,6 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 }
             }
         }
-
-        Ty_computeSize(sle->u.typeDecl.ty);
-
         return TRUE;
     }
 
@@ -7443,6 +7493,7 @@ void FE_boot(void)
     S_ACCESS          = defineKeyword("ACCESS");
     S_CLOSE           = defineKeyword("CLOSE");
     S_BREAK           = defineKeyword("BREAK");
+    S__FNO            = defineKeyword("_FNO");
 }
 
 void FE_init(void)

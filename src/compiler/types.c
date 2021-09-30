@@ -89,14 +89,68 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-Ty_recordEntry Ty_Field (Ty_visibility visibility, S_symbol name, Ty_ty ty)
+uint32_t Ty_recordAddField (Ty_ty recordType, Ty_ty fieldType)
+{
+    unsigned int s = Ty_size(fieldType);
+
+    // 68k alignment
+    if (s>1 && (recordType->u.record.uiSize % 2))
+        recordType->u.record.uiSize++;
+    uint32_t fieldOffset = recordType->u.record.uiSize;
+
+    recordType->u.record.uiSize += s;
+
+    return fieldOffset;
+
+// FIXME: remove
+#if 0
+
+    entry->u.field.uiOffset = off;
+    off += s;
+
+
+
+        {
+            uint32_t off=0;
+
+            ty->u.record.uiSize = 0;
+            TAB_iter iter = S_Iter(ty->u.record.scope);
+
+            S_symbol sym;
+            Ty_recordEntry entry;
+            while (TAB_next (iter, (void *) (intptr_t) &sym, (void *) &entry))
+            {
+                if (entry->kind != Ty_recField)
+                    continue;
+
+
+                unsigned int s = Ty_size(entry->u.field.ty);
+
+                // 68k alignment
+                if (s>1 && (ty->u.record.uiSize % 2))
+                {
+                    ty->u.record.uiSize++;
+                    off++;
+                }
+
+                ty->u.record.uiSize += s;
+                entry->u.field.uiOffset = off;
+                off += s;
+            }
+            break;
+        }
+    return oldOffset;
+#endif
+}
+
+Ty_recordEntry Ty_Field (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty)
 {
     Ty_recordEntry f = U_poolAlloc(UP_types, sizeof(*f));
 
     f->kind               = Ty_recField;
     f->u.field.visibility = visibility;
     f->u.field.name       = name;
-    f->u.field.uiOffset   = 0;
+    f->u.field.uiOffset   = offset;
     f->u.field.ty         = ty;
 
     return f;
@@ -184,33 +238,8 @@ void Ty_computeSize(Ty_ty ty)
             break;
 
         case Ty_record:
-        {
-            uint32_t off=0;
-
-            ty->u.record.uiSize = 0;
-            TAB_iter iter = S_Iter(ty->u.record.scope);
-
-            S_symbol sym;
-            Ty_recordEntry entry;
-            while (TAB_next (iter, (void *) (intptr_t) &sym, (void *) &entry))
-            {
-                if (entry->kind != Ty_recField)
-                    continue;
-                unsigned int s = Ty_size(entry->u.field.ty);
-
-                // 68k alignment
-                if (s>1 && (ty->u.record.uiSize % 2))
-                {
-                    ty->u.record.uiSize++;
-                    off++;
-                }
-
-                ty->u.record.uiSize += s;
-                entry->u.field.uiOffset = off;
-                off += s;
-            }
-            break;
-        }
+            assert(0);
+            return;
         case Ty_pointer:  break;
         case Ty_string:   break;
         case Ty_procPtr:  break;

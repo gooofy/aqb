@@ -54,7 +54,7 @@ struct Ty_const_
 
 typedef enum {Ty_byRef, Ty_byVal} Ty_formalMode;
 // special AmigaBASIC syntax for coordinates etc., e.g. LINE [[STEP] (x1,y1)] - [STEP] (x2,y2), [colour-id][,b[f]]
-typedef enum {Ty_phNone, Ty_phCoord, Ty_phCoord2, Ty_phLineBF} Ty_formalParserHint;
+typedef enum {Ty_phNone, Ty_phCoord, Ty_phCoord2, Ty_phLineBF, Ty_phFNO} Ty_formalParserHint;
 
 struct Ty_formal_
 {
@@ -124,9 +124,10 @@ Ty_ty           Ty_Prc        (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr    (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad     (S_symbol mod, uint32_t uid);
 
-Ty_ty           Ty_Record (S_symbol mod);
-Ty_recordEntry  Ty_Field  (Ty_visibility visibility, S_symbol name, Ty_ty ty);
-Ty_recordEntry  Ty_Method (Ty_proc proc);
+Ty_ty           Ty_Record         (S_symbol mod);
+Ty_recordEntry  Ty_Field          (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty);
+Ty_recordEntry  Ty_Method         (Ty_proc proc);
+uint32_t        Ty_recordAddField (Ty_ty recordType, Ty_ty fieldType);
 
 Ty_formal       Ty_Formal (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc   (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);

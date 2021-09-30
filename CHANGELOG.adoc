@@ -6,11 +6,13 @@ Improvements::
     * runtime: BLIT FREE instruction added
     * runtime: GET instruction added
     * runtime: PUT instruction added
+    * compiler: add generic #fno syntax
 
 Bug Fixes::
 
     * ide: fix cursor line in buf2line()
     * compiler: fix subprogram call error handling
+    * compiler: fix record/class field memory offsets
 
 == 0.7.2
 
