@@ -1572,6 +1572,23 @@ static void compileAndRun(IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
+static void handleRunStop(IDE_editor ed)
+{
+#ifdef __amigaos__
+    ULONG err = RUN_getERRCode();
+    if (err)
+    {
+        LOG_printf (LOG_INFO, "\n\nprogram exited with error code %d.\n\n", err);
+        LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
+        UI_waitkey ();
+    }
+#endif
+
+    UI_eraseDisplay ();
+    invalidateAll (ed);
+    UI_setCursorVisible (TRUE);
+}
+
 static bool isWhitespace (char c)
 {
     switch (c)
@@ -1985,6 +2002,10 @@ static void event_cb (uint16_t key, void *user_data)
 
         case KEY_F5:
             compileAndRun(ed);
+            break;
+
+        case KEY_STOPPED:
+            handleRunStop (ed);
             break;
 
         case KEY_CTRL_A:

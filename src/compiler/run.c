@@ -3,6 +3,7 @@
 
 #include "run.h"
 #include "logger.h"
+#include "ui.h"
 
 // #define SEND_WBSTARTUP_MSG
 
@@ -52,10 +53,11 @@ struct DebugMsg
     struct Message  msg;
 	struct MsgPort *port;
     ULONG           debug_sig;
-	APTR            exitFn;
+	ULONG           code;
 };
 
 static struct DebugMsg    g_dbgMsg;
+static ULONG              g_ERRCode;
 
 #endif
 
@@ -161,7 +163,8 @@ void RUN_start (const char *binfn)
 	g_dbgMsg.msg.mn_Length       = sizeof(struct DebugMsg);
 	g_dbgMsg.port                = &g_childProc->pr_MsgPort;
 	g_dbgMsg.debug_sig           = DEBUG_SIG;
-	g_dbgMsg.exitFn              = NULL;
+	g_dbgMsg.code                = 0;
+    g_ERRCode                    = 0;
 
 	LOG_printf (LOG_DEBUG, "RUN_start: Send debug msg...\n");
 
@@ -174,16 +177,17 @@ void RUN_start (const char *binfn)
 	LOG_printf (LOG_DEBUG, "RUN_start: done.\n");
 }
 
-void RUN_handleMessages(void)
+uint16_t RUN_handleMessages(void)
 {
 	LOG_printf (LOG_DEBUG, "RUN_handleMessages: start...\n");
+    USHORT key = KEY_NONE;
     while (TRUE)
     {
 #ifdef SEND_WBSTARTUP_MSG
         struct WBStartup *msg = (struct WBStartup *) GetMsg(g_debugPort);
         LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)msg);
         if (!msg)
-            return;
+            return key;
         if (msg->sm_Message.mn_Node.ln_Type == NT_REPLYMSG)
         {
             LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a reply message -> state is STOPPED now.\n");
@@ -202,7 +206,7 @@ void RUN_handleMessages(void)
 #else
         struct DebugMsg *msg = (struct DebugMsg *) GetMsg(g_debugPort);
         if (!msg)
-            return;
+            return key;
         if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
             && (msg->debug_sig == DEBUG_SIG))
         {
@@ -212,9 +216,18 @@ void RUN_handleMessages(void)
                 UnLoadSeg (g_seglist);
                 g_seglist = 0l;
             }
+
+            printf ("program stopped, ERR is %ld\n", msg->code);
+            g_ERRCode = msg->code;
+            key = KEY_STOPPED;
         }
 #endif
     }
+}
+
+ULONG RUN_getERRCode(void)
+{
+    return g_ERRCode;
 }
 
 #if 0

@@ -789,8 +789,7 @@ static uint16_t nextEvent(void)
         case esGetDebug:
             if (signals & debugsig)
             {
-                RUN_handleMessages();
-                res = KEY_REFRESH;
+                res = RUN_handleMessages();
             }
             state = esWait;
             break;

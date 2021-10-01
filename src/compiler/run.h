@@ -13,7 +13,9 @@ void      RUN_start (const char *binfn);
 
 void      RUN_init (struct MsgPort *debugPort);
 
-void      RUN_handleMessages(void);
+uint16_t  RUN_handleMessages(void);
+
+ULONG     RUN_getERRCode(void);
 
 void      RUN_break (void);
 

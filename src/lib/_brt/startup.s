@@ -29,7 +29,7 @@
     .set pr_MsgPort,  92
 
     .set dbg_sig,     24
-    .set dbg_exitfn,  28
+    .set dbg_code,  28
 
 .text
     .globl  _start
@@ -64,14 +64,6 @@ _start:
 	jsr	     GetMsg(a6)           /* then get message from port */
 	move.l	 d0, ___StartupMsg  /* store it for later use */
 
-    /* is this in fact a debug message from the AQB IDE ? */
-    move.l   d0, a0
-    move.l   dbg_sig(a0), d0      /* check signature */
-    cmpi.l   #0xDECA11ED, d0
-    bne.s    runMain              /* regular wb start message */
-
-    move.l   #__autil_exit, dbg_exitfn(a0)
-
 runMain:
 
 	/* main program entry here */
@@ -95,8 +87,18 @@ __autil_exit:
 	beq.s	 NoReplyNeeded
 
     move.l   d2, a0
-    | move.l   #42, dbg_exitfn(a0)
 
+    /* was this in fact a debug message from the AQB IDE ? */
+    move.l   dbg_sig(a0), d0      /* check signature */
+    cmpi.l   #0xDECA11ED, d0
+    bne.s    NoDbgMsg             /* regular wb start message */
+
+    | move.l   4(sp), dbg_code(a0)
+    move.w   _ERR, d0
+    ext.l    d0
+    move.l   d0, dbg_code(a0)
+
+NoDbgMsg:
 	movea.l	 SysBase, a6
 	jsr      Forbid(a6)		 /* disable multitasking */
 	movea.l	 d2, a1
