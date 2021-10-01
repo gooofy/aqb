@@ -176,6 +176,14 @@ class AmigaGuideMixin(object):
         else:
             return body
 
+    def render_plain_text(self, element):
+        if isinstance(element.children, str):
+            return aguideEscape(element.children)
+        return self.render_children(element)
+
+    def render_raw_text(self, element):
+        return aguideEscape(element.children)
+
 class AmigaGuide:
     elements = [HeadingTOC, ExternalLinkRef, Document, TableOfContents]
     renderer_mixins = [AmigaGuideMixin]
