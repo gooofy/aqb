@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-v", "-L", "../src/lib", "-O", "-d", "_brt", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "foo.bas"],
+            "args": ["-v", "-L", "../src/lib", "-O", "-d", "_brt", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "extcall2.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../tests",
             "environment": [],
@@ -243,6 +243,27 @@
             "args": ["-L", "../../src/lib", "foo.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build aqb compiler",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "link",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
+            "args": ["-v", "-L", "../src/lib", "-d", "_aqb", "-a", "/tmp/foo.asm", "-p", "/tmp/foo.o", "-o", "/tmp/foo", "foo.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../tests",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
