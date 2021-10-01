@@ -26,12 +26,27 @@ void _autil_shutdown(void);
 
 // BASIC error handling, utils
 
+void _debug_putc  (const char c);
 void _debug_puts  (const UBYTE *s);
 void _debug_puts2 (SHORT s);
 void _debug_putu4 (ULONG l);
 void _debug_putf  (FLOAT f);
 void _debug_putnl (void);
 void _debug_cls   (void);
+
+#define ENABLE_DPRINTF
+
+#ifdef ENABLE_DPRINTF
+
+#define DPRINTF(...) dprintf(__VA_ARGS__)
+
+void dprintf(const char *format, ...);
+
+#else
+
+#define DPRINTF(...)
+
+#endif
 
 #define ERR_OUT_OF_DATA              4
 #define ERR_ILLEGAL_FUNCTION_CALL    5

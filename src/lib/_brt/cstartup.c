@@ -45,6 +45,12 @@ static BOOL            g_InputHandlerInstalled = FALSE;
 extern struct DebugMsg *__StartupMsg;
 USHORT                  _startup_mode          = 0;
 
+void _debug_putc(const char c)
+{
+    if (_debug_stdout)
+        Write(_debug_stdout, (CONST APTR) &c, 1);
+}
+
 void _debug_puts(const UBYTE *s)
 {
     if (_debug_stdout)
