@@ -1,11 +1,10 @@
-= AQB TODO
+# AQB TODO
 Guenter Bartsch <guenter@zamia.org>
-v0.7.0alpha2, 2021-09-08
 
-== BUGS
+## BUGS
 
 
-== Documentation
+## Documentation
 
 - online help
     * parser
@@ -15,7 +14,7 @@ v0.7.0alpha2, 2021-09-08
 
 DONE translate forum posts, add useful information to README
 
-== Language Concepts
+## Language Concepts
 
 - subprograms
 
@@ -26,11 +25,11 @@ DONE translate forum posts, add useful information to README
 
 - enums
 
-- assignment operators (+=, *=, ...)
+- assignment operators (+=, ...)
 
 - C like strings (tbd)
 
-== Compiler, Code Generation
+## Compiler, Code Generation
 
 - scanner: support multiple instances (IDE uses separate scanner instance)
 
@@ -48,13 +47,13 @@ DONE translate forum posts, add useful information to README
     * backend abstraction layer, enable alternative backends (RISC-V, ARM, x86, LLVM, ...)
     * if / condition constant propagation (test w/ while)
     * fix spilling
-    * translate.c: add #0, tmp ; mul *1 ; div / 1 ; ...
+    * translate.c: add #0, tmp ; mul \*1 ; div / 1 ; ...
     * optionally: initialize all variables to 0?
-    * T_Cast that results in NOP or simple MOVE: introduce T_TypeView node
+    * T\_Cast that results in NOP or simple MOVE: introduce T\_TypeView node
 
 - create Icons for Binaries
 
-== Runtime
+## Runtime
 
 - DONE startup code: workbench startup
 
@@ -73,7 +72,7 @@ DONE translate forum posts, add useful information to README
 
 - DONE tetris game freezes after some 3 minutes (ressource leak? )
 
-== IDE
+## IDE
 
 - block operations
     * mark
@@ -91,7 +90,21 @@ DONE translate forum posts, add useful information to README
 
 - DONE workbench arguments (double click source code -> open file in IDE)
 
-== Core Commands
+- DONE auto-indent
+- DONE save
+- DONE compile/run
+-      memory management
+-      help system
+- DONE amiga menus
+- DONE DEL
+- DONE search
+-      replace
+-      block operations
+- DONE goto line
+- DONE show compiler error messages
+-      terminal: use uint16\_t where possible
+
+## Core Commands
 
 -      ABS()
 - DONE AND
@@ -223,7 +236,7 @@ DONE translate forum posts, add useful information to README
 -      WIDTH
 -      WRITE
 
-== AmigaBASIC Specific Commands
+## AmigaBASIC Specific Commands
 
 - DONE AREA
 - DONE AREAFILL
@@ -306,7 +319,7 @@ DONE translate forum posts, add useful information to README
 - DONE WINDOW OUTPUT
 - DONE WINDOW()
 
-== Examples / Demos / Libraries
+## Examples / Demos / Libraries
 
 - EGads
 
@@ -330,18 +343,3 @@ DONE translate forum posts, add useful information to README
 
 - AMOS / Blitz Libraries
 
-== IDE
-
-- DONE auto-indent
-- DONE save
-- DONE compile/run
--      memory management
--      help system
-- DONE amiga menus
-- DONE DEL
-- DONE search
--      replace
--      block operations
-- DONE goto line
-- DONE show compiler error messages
--      terminal: use uint16_t where possible
