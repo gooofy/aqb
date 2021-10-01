@@ -365,6 +365,16 @@ void _aio_fputs(USHORT fno, const UBYTE *s)
     Write(MKBADDR(g_files[fno]), (CONST APTR) s, l);
 }
 
+struct FileHandle *_aio_getfh (USHORT fno)
+{
+    if ( !fno || (fno >=AIO_MAX_FILES) || !g_files[fno])
+    {
+        ERROR(AE_OUTPUT);
+        return NULL;
+    }
+    return g_files[fno];
+}
+
 void _aio_init(void)
 {
     for (UWORD i=0; i<AIO_MAX_FILES; i++)
