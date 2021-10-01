@@ -332,17 +332,16 @@ DONE translate forum posts, add useful information to README
 
 == IDE
 
-DONE auto-indent
-DONE save
-DONE compile/run
-     memory management
-     help system
-DONE amiga menus
-DONE DEL
-DONE search
-     replace
-     block operations
-DONE goto line
-DONE show compiler error messages
-     terminal: use uint16_t where possible
-
+- DONE auto-indent
+- DONE save
+- DONE compile/run
+-      memory management
+-      help system
+- DONE amiga menus
+- DONE DEL
+- DONE search
+-      replace
+-      block operations
+- DONE goto line
+- DONE show compiler error messages
+-      terminal: use uint16_t where possible
