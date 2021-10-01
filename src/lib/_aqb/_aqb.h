@@ -36,6 +36,8 @@ void _aio_fputs      (USHORT fno, const UBYTE *str);
 void _aio_putnl      (USHORT fno);
 void _aio_puttab     (USHORT fno);
 
+struct FileHandle *_aio_getfh (USHORT fno);
+
 // [ LINE ] INPUT support:
 
 void _aio_gets                   (UBYTE **s, BOOL do_nl);
