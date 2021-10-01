@@ -325,7 +325,7 @@ void FG_show(FILE *out, FG_graph g)
         pos = strlen(buf);
         buf[pos++] = '\n';
         buf[pos] = 0;
-        fprintf(out, buf);
+        fprintf(out, "%s", buf);
     }
 }
 
