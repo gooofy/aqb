@@ -713,7 +713,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
         {
             E_module m2 = n->m;
 
-            S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)), TRUE);
+            S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)), FALSE);
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 

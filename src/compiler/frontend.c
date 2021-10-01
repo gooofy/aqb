@@ -1067,7 +1067,7 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
 #if 0
 static bool transCallBuiltinSub(S_pos pos, string builtinName, CG_itemList arglist, CG_item *exp)
 {
-    S_symbol fsym = S_Symbol(builtinName, TRUE);
+    S_symbol fsym = S_Symbol(builtinName, FALSE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3026,34 +3026,34 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
         switch (ty->kind)
         {
             case Ty_string:
-                fsym = S_Symbol("_aio_puts", TRUE);
+                fsym = S_Symbol("_aio_puts", FALSE);
                 break;
             case Ty_pointer:
-                fsym = S_Symbol("_aio_putu4", TRUE);
+                fsym = S_Symbol("_aio_putu4", FALSE);
                 break;
             case Ty_byte:
-                fsym = S_Symbol("_aio_puts1", TRUE);
+                fsym = S_Symbol("_aio_puts1", FALSE);
                 break;
             case Ty_ubyte:
-                fsym = S_Symbol("_aio_putu1", TRUE);
+                fsym = S_Symbol("_aio_putu1", FALSE);
                 break;
             case Ty_integer:
-                fsym = S_Symbol("_aio_puts2", TRUE);
+                fsym = S_Symbol("_aio_puts2", FALSE);
                 break;
             case Ty_uinteger:
-                fsym = S_Symbol("_aio_putu2", TRUE);
+                fsym = S_Symbol("_aio_putu2", FALSE);
                 break;
             case Ty_long:
-                fsym = S_Symbol("_aio_puts4", TRUE);
+                fsym = S_Symbol("_aio_puts4", FALSE);
                 break;
             case Ty_ulong:
-                fsym = S_Symbol("_aio_putu4", TRUE);
+                fsym = S_Symbol("_aio_putu4", FALSE);
                 break;
             case Ty_single:
-                fsym = S_Symbol("_aio_putf", TRUE);
+                fsym = S_Symbol("_aio_putf", FALSE);
                 break;
             case Ty_bool:
-                fsym = S_Symbol("_aio_putbool", TRUE);
+                fsym = S_Symbol("_aio_putbool", FALSE);
                 break;
             default:
                 return EM_error(pos, "unsupported type in print expression list.");
@@ -3081,7 +3081,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
             case S_COMMA:
             {
                 *tkn = (*tkn)->next;
-                S_symbol fsym   = S_Symbol("_aio_puttab", TRUE);
+                S_symbol fsym   = S_Symbol("_aio_puttab", FALSE);
                 E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3104,7 +3104,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (isLogicalEOL(*tkn))
     {
-        S_symbol fsym   = S_Symbol("_aio_putnl", TRUE);
+        S_symbol fsym   = S_Symbol("_aio_putnl", FALSE);
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3132,31 +3132,31 @@ static bool inputVar(S_tkn *tkn)
     switch (ty->kind)
     {
         case Ty_string:
-            fsym = S_Symbol("_aio_inputs", TRUE);
+            fsym = S_Symbol("_aio_inputs", FALSE);
             break;
         case Ty_pointer:
-            fsym = S_Symbol("_aio_inputu4", TRUE);
+            fsym = S_Symbol("_aio_inputu4", FALSE);
             break;
         case Ty_byte:
-            fsym = S_Symbol("_aio_inputs1", TRUE);
+            fsym = S_Symbol("_aio_inputs1", FALSE);
             break;
         case Ty_ubyte:
-            fsym = S_Symbol("_aio_inputu1", TRUE);
+            fsym = S_Symbol("_aio_inputu1", FALSE);
             break;
         case Ty_integer:
-            fsym = S_Symbol("_aio_inputs2", TRUE);
+            fsym = S_Symbol("_aio_inputs2", FALSE);
             break;
         case Ty_uinteger:
-            fsym = S_Symbol("_aio_inputu2", TRUE);
+            fsym = S_Symbol("_aio_inputu2", FALSE);
             break;
         case Ty_long:
-            fsym = S_Symbol("_aio_inputs4", TRUE);
+            fsym = S_Symbol("_aio_inputs4", FALSE);
             break;
         case Ty_ulong:
-            fsym = S_Symbol("_aio_inputu4", TRUE);
+            fsym = S_Symbol("_aio_inputu4", FALSE);
             break;
         case Ty_single:
-            fsym = S_Symbol("_aio_inputf", TRUE);
+            fsym = S_Symbol("_aio_inputf", FALSE);
             break;
         default:
             return EM_error((*tkn)->pos, "unsupported type in INPUT expression list.");
@@ -3206,7 +3206,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
         *tkn = (*tkn)->next;
     }
 
-    S_symbol fsym   = S_Symbol("_aio_console_input", TRUE);
+    S_symbol fsym   = S_Symbol("_aio_console_input", FALSE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3407,7 +3407,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return EM_error(pos, "LINE INPUT: variable designator expected here.");
 
-    S_symbol fsym   = S_Symbol("_aio_line_input", TRUE);
+    S_symbol fsym   = S_Symbol("_aio_line_input", FALSE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3593,7 +3593,7 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 		dataLabel = g_dataRestoreLabel;
 	}
 
-    S_symbol fsym = S_Symbol("_aqb_restore", TRUE);
+    S_symbol fsym = S_Symbol("_aqb_restore", FALSE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -4324,7 +4324,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     n = CG_itemListAppend(arglist);
     CG_StringItem (g_sleStack->code, pos, &n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
 
-    S_symbol fsym      = S_Symbol("_aqb_assert", TRUE);
+    S_symbol fsym      = S_Symbol("_aqb_assert", FALSE);
     E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -6824,31 +6824,31 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
     switch (ty->kind)
     {
         case Ty_pointer:
-            fsym = S_Symbol("_u4toa", TRUE);
+            fsym = S_Symbol("_u4toa", FALSE);
             break;
         case Ty_byte:
-            fsym = S_Symbol("_s1toa", TRUE);
+            fsym = S_Symbol("_s1toa", FALSE);
             break;
         case Ty_ubyte:
-            fsym = S_Symbol("_u1toa", TRUE);
+            fsym = S_Symbol("_u1toa", FALSE);
             break;
         case Ty_integer:
-            fsym = S_Symbol("_s2toa", TRUE);
+            fsym = S_Symbol("_s2toa", FALSE);
             break;
         case Ty_uinteger:
-            fsym = S_Symbol("_u2toa", TRUE);
+            fsym = S_Symbol("_u2toa", FALSE);
             break;
         case Ty_long:
-            fsym = S_Symbol("_s4toa", TRUE);
+            fsym = S_Symbol("_s4toa", FALSE);
             break;
         case Ty_ulong:
-            fsym = S_Symbol("_u4toa", TRUE);
+            fsym = S_Symbol("_u4toa", FALSE);
             break;
         case Ty_single:
-            fsym = S_Symbol("_ftoa", TRUE);
+            fsym = S_Symbol("_ftoa", FALSE);
             break;
         case Ty_bool:
-            fsym = S_Symbol("_booltoa", TRUE);
+            fsym = S_Symbol("_booltoa", FALSE);
             break;
         default:
             EM_error(pos, "unsupported type in str$ expression.");
@@ -7350,7 +7350,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     {
         AS_instrList initCode = AS_InstrList();
 
-        S_symbol fsym = S_Symbol("_aqb_restore", TRUE);
+        S_symbol fsym = S_Symbol("_aqb_restore", FALSE);
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (lx)
         {

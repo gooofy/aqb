@@ -1386,7 +1386,7 @@ void E_init(void)
 
     // module cache
     g_modCache = TAB_empty(UP_env);
-    g_builtinsModule = E_Module(S_Symbol("__builtins__", TRUE));
+    g_builtinsModule = E_Module(S_Symbol("__builtins__", FALSE));
 
     declare_builtin_type("BOOLEAN" , Ty_Bool());
     declare_builtin_type("BYTE"    , Ty_Byte());

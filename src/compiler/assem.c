@@ -2391,19 +2391,19 @@ void AS_init (void)
     g_calleeSaves = Temp_tempSetAdd (g_calleeSaves, AS_regs[AS_TEMP_A6], &bAdded); assert (bAdded);
 
     g_regScope = S_beginScope();
-    S_enter(g_regScope, S_Symbol("a0", TRUE), AS_regs[AS_TEMP_A0]);
-    S_enter(g_regScope, S_Symbol("a1", TRUE), AS_regs[AS_TEMP_A1]);
-    S_enter(g_regScope, S_Symbol("a2", TRUE), AS_regs[AS_TEMP_A2]);
-    S_enter(g_regScope, S_Symbol("a3", TRUE), AS_regs[AS_TEMP_A3]);
-    S_enter(g_regScope, S_Symbol("a4", TRUE), AS_regs[AS_TEMP_A4]);
-    S_enter(g_regScope, S_Symbol("a6", TRUE), AS_regs[AS_TEMP_A6]);
-    S_enter(g_regScope, S_Symbol("d0", TRUE), AS_regs[AS_TEMP_D0]);
-    S_enter(g_regScope, S_Symbol("d1", TRUE), AS_regs[AS_TEMP_D1]);
-    S_enter(g_regScope, S_Symbol("d2", TRUE), AS_regs[AS_TEMP_D2]);
-    S_enter(g_regScope, S_Symbol("d3", TRUE), AS_regs[AS_TEMP_D3]);
-    S_enter(g_regScope, S_Symbol("d4", TRUE), AS_regs[AS_TEMP_D4]);
-    S_enter(g_regScope, S_Symbol("d5", TRUE), AS_regs[AS_TEMP_D5]);
-    S_enter(g_regScope, S_Symbol("d6", TRUE), AS_regs[AS_TEMP_D6]);
-    S_enter(g_regScope, S_Symbol("d7", TRUE), AS_regs[AS_TEMP_D7]);
+    S_enter(g_regScope, S_Symbol("a0", FALSE), AS_regs[AS_TEMP_A0]);
+    S_enter(g_regScope, S_Symbol("a1", FALSE), AS_regs[AS_TEMP_A1]);
+    S_enter(g_regScope, S_Symbol("a2", FALSE), AS_regs[AS_TEMP_A2]);
+    S_enter(g_regScope, S_Symbol("a3", FALSE), AS_regs[AS_TEMP_A3]);
+    S_enter(g_regScope, S_Symbol("a4", FALSE), AS_regs[AS_TEMP_A4]);
+    S_enter(g_regScope, S_Symbol("a6", FALSE), AS_regs[AS_TEMP_A6]);
+    S_enter(g_regScope, S_Symbol("d0", FALSE), AS_regs[AS_TEMP_D0]);
+    S_enter(g_regScope, S_Symbol("d1", FALSE), AS_regs[AS_TEMP_D1]);
+    S_enter(g_regScope, S_Symbol("d2", FALSE), AS_regs[AS_TEMP_D2]);
+    S_enter(g_regScope, S_Symbol("d3", FALSE), AS_regs[AS_TEMP_D3]);
+    S_enter(g_regScope, S_Symbol("d4", FALSE), AS_regs[AS_TEMP_D4]);
+    S_enter(g_regScope, S_Symbol("d5", FALSE), AS_regs[AS_TEMP_D5]);
+    S_enter(g_regScope, S_Symbol("d6", FALSE), AS_regs[AS_TEMP_D6]);
+    S_enter(g_regScope, S_Symbol("d7", FALSE), AS_regs[AS_TEMP_D7]);
 }
 

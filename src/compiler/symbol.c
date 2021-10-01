@@ -38,6 +38,10 @@ S_symbol S_Symbol(string name, bool case_sensitive)
         sym = mksymbol(name, case_sensitive);
         hashmap_put(hashtable, name, sym, case_sensitive);
     }
+    else
+    {
+        assert (sym->case_sensitive == case_sensitive);
+    }
     return sym;
 }
 
