@@ -4,6 +4,9 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
+#include <clib/exec_protos.h>
+#include <inline/exec.h>
+
 #define MakeID(a,b,c,d)  ( (LONG)(a)<<24L | (LONG)(b)<<16L | (c)<<8 | (d) )
 #define IFF_FORM MakeID('F','O','R','M')
 #define IFF_ILBM MakeID('I','L','B','M')
@@ -24,7 +27,7 @@ static ULONG _ILBM_SEEK_CHUNK (struct FileHandle *fh, ULONG chunkID)
         return 0l;
     }
 
-    _aio_puts (0, (STRPTR)"_ILBM_SEEK_CHUNK: FORM ok."); _aio_putnl(0);
+    DPRINTF ("_ILBM_SEEK_CHUNK: FORM ok.\n");
 
     // ignore FORM length
     l = Read (MKBADDR(fh), &h, 4);
@@ -51,7 +54,7 @@ static ULONG _ILBM_SEEK_CHUNK (struct FileHandle *fh, ULONG chunkID)
         }
         ULONG *p = (ULONG*)hdr;
         *p = cid;
-        _aio_puts (0, (STRPTR)"_ILBM_SEEK_CHUNK: chunk id="); _aio_putu4(0, cid); _aio_puts(0, (STRPTR)hdr); _aio_putnl(0);
+        DPRINTF ("_ILBM_SEEK_CHUNK: chunk id=%d (%s)\n", cid, hdr);
 
         l = Read (MKBADDR(fh), &h, 4);
         if (l != 4)
@@ -61,13 +64,13 @@ static ULONG _ILBM_SEEK_CHUNK (struct FileHandle *fh, ULONG chunkID)
         }
         if (cid == chunkID)
         {
-            _aio_puts (0, (STRPTR)"_ILBM_SEEK_CHUNK: *** CHUNK FOUND ***"); _aio_putnl(0);
-            _aio_puts (0, (STRPTR)"_ILBM_SEEK_CHUNK: length: "); _aio_putu4(0, h);_aio_putnl(0);
+            DPRINTF ("_ILBM_SEEK_CHUNK: *** CHUNK FOUND ***\n");
+            DPRINTF ("_ILBM_SEEK_CHUNK: length: %d\n", h);
             return h;
         }
         else
         {
-            _aio_puts (0, (STRPTR)"_ILBM_SEEK_CHUNK: skipping "); _aio_putu4(0, h);_aio_putnl(0);
+            DPRINTF ("_ILBM_SEEK_CHUNK: skipping %d bytes\n", h);
             Seek (MKBADDR(fh), h, OFFSET_CURRENT);
         }
     }
@@ -124,20 +127,70 @@ void ILBM_LOAD_BODY (USHORT fno, ILBM_BitMapHeader_t *pBMHD, BlitNode blit)
     ULONG len = _ILBM_SEEK_CHUNK (fh, IFF_BODY);
     if (!len)
     {
+        DPRINTF ("ILBM_LOAD_BODY error: BODY chunk not found!\n");
         ERROR(AE_IFF);
         return;
     }
 
     DPRINTF ("ILBM_LOAD_BODY ALLOCATING BUFFER, len=%d\n", len);
 
-    APTR buf = ALLOCATE_(len, 0);
-    if (!buf)
+    BYTE *src = ALLOCATE_(len, 0);
+    if (!src)
     {
         ERROR(AE_IFF);
         return;
     }
 
-    //ERROR(AE_IFF);
+    ULONG l = Read (MKBADDR(fh), src, len);
+    if (l!=len)
+	{
+        ERROR(AE_IFF);
+		return;
+	}
+
+	SHORT linelen = pBMHD->w/8;
+
+	for (SHORT i=0; i<pBMHD->h; i++)
+	{
+		for (SHORT iPlane=0; iPlane<pBMHD->nPlanes; iPlane++)
+		{
+			BYTE *dst = (BYTE *)(blit->bm.Planes[iPlane]) + linelen*i;
+
+			if (pBMHD->compression == 1)	// run length encoding
+			{
+				SHORT rowbytes = linelen;
+
+				while (rowbytes)
+				{
+					BYTE n = *src++;
+
+					if (n>=0)
+					{
+					    CopyMem (src, dst, ++n);
+				        rowbytes -= n;
+					    dst      += n;
+						src      += n;
+					}
+					else
+					{
+					    n         = -n+1;
+						rowbytes -= n;
+  					    _MEMSET (dst, *src++, n);
+					    dst += n;
+					}
+				}
+			}
+			else
+			{
+			    CopyMem (src, dst, linelen);
+			    src += linelen;
+                dst += linelen;
+			}
+		}
+	}
+
+	DEALLOCATE(src);
+
     return;
 }
 
