@@ -153,6 +153,18 @@ char  *INKEY_                 (void);
  * Blits
  */
 
+typedef struct
+{
+    UBYTE           r, g, b;
+} COLOR_t;
+
+typedef struct PALETTE_ *PALETTE_t;
+struct PALETTE_
+{
+    SHORT           numEntries;
+    COLOR_t         colors[256];
+};
+
 typedef struct BlitNode_ *BlitNode;
 struct BlitNode_
 {

@@ -23,8 +23,9 @@ typedef struct
     WORD        pageWidth, pageHeight;  /* source "page" size in pixels */
 } ILBM_BitMapHeader_t;
 
-void     ILBM_LOAD_BMHD       (USHORT fno, ILBM_BitMapHeader_t *pBMHD);
-void     ILBM_LOAD_BODY       (USHORT fno, ILBM_BitMapHeader_t *pBMHD, BlitNode blit);
+void ILBM_LOAD_BMHD (USHORT fno, ILBM_BitMapHeader_t *pBMHD);
+void ILBM_LOAD_CMAP (USHORT fno, PALETTE_t *pPalette);
+void ILBM_LOAD_BODY (USHORT fno, ILBM_BitMapHeader_t *pBMHD, BlitNode blit);
 
 #endif
 

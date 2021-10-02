@@ -8,7 +8,7 @@ all: IFFSupport.a IFFSupport.sym
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) -I../_aqb $< -o $@
 
 IFFSupport.sym : IFFSupport.bas
-	$(AQB) -L .. -d _brt -s IFFSupport.sym $<
+	$(AQB) -L .. -d _aqb -s IFFSupport.sym $<
 	pushd .. && rm -f IFFSupport.sym IFFSupport.a && ln -s IFFSupport/IFFSupport.sym && ln -s IFFSupport/IFFSupport.a && popd
 	cp $< $(DISTDIR)/libsrc
 	cp $@ $(DISTDIR)/lib

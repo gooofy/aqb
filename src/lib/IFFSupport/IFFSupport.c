@@ -102,6 +102,11 @@ void ILBM_LOAD_BMHD (USHORT fno, ILBM_BitMapHeader_t *pBMHD)
 
 }
 
+void ILBM_LOAD_CMAP (USHORT fno, PALETTE_t *pPalette)
+{
+    DPRINTF ("ILBM_LOAD_CMAP fno=%ld\n", fno);
+}
+
 void ILBM_LOAD_BODY (USHORT fno, ILBM_BitMapHeader_t *pBMHD, BlitNode blit)
 {
     struct FileHandle *fh = _aio_getfh(fno);
