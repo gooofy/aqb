@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-v", "-L", "../src/lib", "-O", "-d", "_brt", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "extcall2.bas"],
+            "args": ["-v", "-L", "../src/lib", "-O", "-d", "_brt", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "foo.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../tests",
             "environment": [],
@@ -75,6 +75,27 @@
             "args": ["-L", "..", "-d", "_brt", "-s", "_aqb.sym", "-v", "_aqb.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../lib/_aqb",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build aqb compiler",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "IFFSupport",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
+            "args": ["-L", "..", "-d", "_aqb", "-s", "IFFSupport.sym", "-v", "IFFSupport.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../lib/IFFSupport",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
