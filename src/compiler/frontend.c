@@ -3301,6 +3301,7 @@ static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_itemListNode n;
     n = CG_itemListAppend(arglist);
     n->item = expFName;
+    CG_loadVal (g_sleStack->code, pos, &n->item);
     n = CG_itemListAppend(arglist);
     CG_IntItem (&n->item, mode, Ty_Integer());
     n = CG_itemListAppend(arglist);
