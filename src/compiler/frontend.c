@@ -4736,7 +4736,8 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
     bool forceExp = (*tkn)->kind == S_LPAREN; // basic syntax quirk: (a) passed to a BYREF parameter must result in tmp var being generated
     if (!expression(tkn, &exp))
         return FALSE;
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, forceExp);
+    if (!transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, forceExp))
+        return FALSE;
     *formal = (*formal)->next;
     return TRUE;
 }
