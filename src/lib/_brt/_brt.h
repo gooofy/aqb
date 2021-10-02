@@ -10,7 +10,8 @@ extern struct MathBase      *MathBase;
 extern struct MathTransBase *MathTransBase;
 
 APTR   ALLOCATE_   (ULONG size, ULONG flags);
-void   DEALLOCATE  (APTR ptr, ULONG size);
+void   DEALLOCATE  (APTR ptr);
+void   _MEMSET     (BYTE *dst, BYTE c, ULONG n);
 ULONG  FRE_        (SHORT x);
 
 void   POKE        (ULONG adr, UBYTE  b);

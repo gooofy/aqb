@@ -66,9 +66,21 @@ APTR ALLOCATE_(ULONG size, ULONG flags)
     return g_mem->mem;
 }
 
-void DEALLOCATE (APTR ptr, ULONG size)
+void DEALLOCATE (APTR ptr)
 {
     // FIXME: implement.
+}
+
+void _MEMSET (BYTE *dst, BYTE c, ULONG n)
+{
+    if (n)
+	{
+        BYTE *d = dst;
+
+        do
+            *d++ = c;
+        while (--n != 0);
+    }
 }
 
 static FLOAT f50, f60;

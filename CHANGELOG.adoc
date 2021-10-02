@@ -7,6 +7,7 @@ Improvements::
     * runtime: BLIT FREE instruction added
     * runtime: GET instruction added
     * runtime: PUT instruction added
+    * runtime: ALLOCATE, DEALLOCATE, _MEMSET added
     * compiler: add generic #fno syntax
 
 Bug Fixes::

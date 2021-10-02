@@ -18,11 +18,29 @@ Syntax:
 
 logical conjunction of expr1 and expr2
 
+## ALLOCATE()
+
+Syntax:
+
+    ALLOCATE "(" size [ "," flags ] ")"
+
+Try to allocate `size` number of bytes of memory, return pointer to allocated memory block if ok, NULL otherwise.
+
+Flags is a combination of
+    * 0 MEMF\_ANY
+    * 1 MEMF\_PUBLIC
+    * 2 MEMF\_CHIP
+    * 4 MEMF\_FAST
+    * 256 MEMF\_LOCAL
+    * 512 MEMF\_24BITDMA
+    * 1024 MEMF\_KICK
+    * 65536 MEMF\_CLEAR
+
 ## ASC()
 
 Syntax:
 
-    ASC (expr)
+    ASC "(" expr ")"
 
 return the ascii code of the first character in the given string
 
@@ -120,6 +138,14 @@ Syntax:
 
 add values to the data section of the program. Those values can be later
 READ by the program at runtime.
+
+## DEALLOCATE
+
+Syntax:
+
+    DEALLOCATE ptr
+
+free memory that was allocated at ptr
 
 ## DECLARE FUNCTION|SUB
 
@@ -436,6 +462,15 @@ obtain the natural logarithm of the floating point number
 ## LOOP
 
 see DO...LOOP
+
+
+## _MEMSET
+
+Syntax:
+
+    _MEMSET "(" dst "," c "," n ")"
+
+set n bytes of memory to c starting from dst
 
 
 ## MOD

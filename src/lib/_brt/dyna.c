@@ -57,7 +57,7 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
             CopyMem (oData, self->data, toCopy);
             //_debug_puts ("_dyna_redim: preserve, toCopy="); _debug_puts2(toCopy); _debug_putnl();
         }
-        DEALLOCATE (oData, oDataSize);
+        DEALLOCATE (oData);
     }
 
     //_debug_puts ("_dyna_redim: self="); _debug_putu4((ULONG) self); _debug_puts(", data="); _debug_putu4((ULONG)self->data); _debug_puts (", dataSize="); _debug_puts2(dataSize); _debug_puts (", numDims="); _debug_puts2(numDims); _debug_putnl();
@@ -164,7 +164,7 @@ void __DARRAY_T_ERASE (_DARRAY_T *self)
 {
     if (self->data)
     {
-        DEALLOCATE (self->data, self->dataSize);
+        DEALLOCATE (self->data);
     }
     // FIXME: free bounds!
 
