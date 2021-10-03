@@ -13,7 +13,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     40
+#define SYM_VERSION     41
 
 E_module g_builtinsModule = NULL;
 
@@ -391,20 +391,23 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
     }
 }
 
-static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty);
+static void E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty);
 
-static void E_tyFindTypesInProc(TAB_table type_tab, Ty_proc proc)
+static void E_tyFindTypesInProc(S_symbol smod, TAB_table type_tab, Ty_proc proc)
 {
     for (Ty_formal formals = proc->formals; formals; formals=formals->next)
-        E_tyFindTypes (type_tab, formals->ty);
+        E_tyFindTypes (smod, type_tab, formals->ty);
     if (proc->returnTy)
-        E_tyFindTypes (type_tab, proc->returnTy);
+        E_tyFindTypes (smod, type_tab, proc->returnTy);
     if (proc->tyCls)
-        E_tyFindTypes (type_tab, proc->tyCls);
+        E_tyFindTypes (smod, type_tab, proc->tyCls);
 }
 
-static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
+static void E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
 {
+    if (ty->mod != smod)
+        return;
+
     // already handled? (avoid recursion)
     if (TAB_look(type_tab, (void *) (intptr_t) ty->uid))
         return;
@@ -429,10 +432,10 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
             assert(0);
             break;
         case Ty_sarray:
-            E_tyFindTypes (type_tab, ty->u.sarray.elementTy);
+            E_tyFindTypes (smod, type_tab, ty->u.sarray.elementTy);
             break;
         case Ty_darray:
-            E_tyFindTypes (type_tab, ty->u.darray.elementTy);
+            E_tyFindTypes (smod, type_tab, ty->u.darray.elementTy);
             break;
         case Ty_record:
         {
@@ -444,32 +447,32 @@ static void E_tyFindTypes (TAB_table type_tab, Ty_ty ty)
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
-                        E_tyFindTypesInProc (type_tab, entry->u.method);
+                        E_tyFindTypesInProc (smod, type_tab, entry->u.method);
                         break;
                     case Ty_recField:
-                        E_tyFindTypes (type_tab, entry->u.field.ty);
+                        E_tyFindTypes (smod, type_tab, entry->u.field.ty);
                         break;
                 }
             }
             if (ty->u.record.constructor)
-                E_tyFindTypesInProc(type_tab, ty->u.record.constructor);
+                E_tyFindTypesInProc(smod, type_tab, ty->u.record.constructor);
 
             break;
         }
         case Ty_pointer:
-            E_tyFindTypes (type_tab, ty->u.pointer);
+            E_tyFindTypes (smod, type_tab, ty->u.pointer);
             break;
         case Ty_procPtr:
-            E_tyFindTypesInProc(type_tab, ty->u.procPtr);
+            E_tyFindTypesInProc(smod, type_tab, ty->u.procPtr);
             break;
         case Ty_prc:
             for (Ty_formal formals = ty->u.proc->formals; formals; formals=formals->next)
-                E_tyFindTypes (type_tab, formals->ty);
+                E_tyFindTypes (smod, type_tab, formals->ty);
 
             if (ty->u.proc->returnTy)
-                E_tyFindTypes (type_tab, ty->u.proc->returnTy);
+                E_tyFindTypes (smod, type_tab, ty->u.proc->returnTy);
             if (ty->u.proc->tyCls)
-                E_tyFindTypes (type_tab, ty->u.proc->tyCls);
+                E_tyFindTypes (smod, type_tab, ty->u.proc->tyCls);
             break;
     }
 }
@@ -488,8 +491,7 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 Ty_ty ty = CG_ty(&x->u.var);
                 if (CG_isConst(&x->u.var))
                 {
-                    if (ty->mod == smod)
-                        E_tyFindTypes (type_tab, ty);
+                    E_tyFindTypes (smod, type_tab, ty);
                 }
                 else
                 {
@@ -498,17 +500,14 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                         Ty_proc proc = ty->u.proc;
                         for (Ty_formal formal=proc->formals; formal; formal = formal->next)
                         {
-                            if (formal->ty->mod == smod)
-                                E_tyFindTypes (type_tab, formal->ty);
+                            E_tyFindTypes (smod, type_tab, formal->ty);
                         }
-                        if (proc->returnTy->mod == smod)
-                            E_tyFindTypes (type_tab, proc->returnTy);
+                        E_tyFindTypes (smod, type_tab, proc->returnTy);
                     }
                     else
                     {
                         assert (CG_isVar(&x->u.var));
-                        if (ty->mod == smod)
-                            E_tyFindTypes (type_tab, ty);
+                        E_tyFindTypes (smod, type_tab, ty);
                     }
                 }
                 break;
@@ -517,7 +516,7 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 assert(0); // no subs allowed in this scope
                 break;
             case E_typeEntry:
-                E_tyFindTypes (type_tab, x->u.ty);
+                E_tyFindTypes (smod, type_tab, x->u.ty);
                 break;
         }
     }
@@ -538,12 +537,10 @@ static void E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_t
                 case E_procEntry:
                     for (Ty_formal formal=x->u.proc->formals; formal; formal = formal->next)
                     {
-                        if (formal->ty->mod == smod)
-                            E_tyFindTypes (type_tab, formal->ty);
+                        E_tyFindTypes (smod, type_tab, formal->ty);
                     }
                     if (x->u.proc->returnTy)
-                        if (x->u.proc->returnTy->mod == smod)
-                            E_tyFindTypes (type_tab, x->u.proc->returnTy);
+                        E_tyFindTypes (smod, type_tab, x->u.proc->returnTy);
                     break;
 
                 case E_typeEntry:
@@ -595,7 +592,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                         fwrite_u1(modf, entry->u.field.visibility);
                         strserialize(modf, S_name(entry->u.field.name));
                         fwrite_u4(modf, entry->u.field.uiOffset);
-                        LOG_printf (LOG_DEBUG, "serializing Ty_recField visibility=%d, name=%s, offset=%d\n", entry->u.field.visibility, S_name(entry->u.field.name), entry->u.field.uiOffset);
+                        //LOG_printf (LOG_DEBUG, "serializing Ty_recField visibility=%d, name=%s, offset=%d\n", entry->u.field.visibility, S_name(entry->u.field.name), entry->u.field.uiOffset);
                         E_serializeTyRef(modTable, entry->u.field.ty);
                         break;
                 }
@@ -647,12 +644,17 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     fwrite_u1(modf, proc->kind);
     fwrite_u1(modf, proc->visibility);
     E_serializeOptionalSymbol(proc->name);
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "E_serializeTyProc: name=%s", proc->name ? S_name(proc->name) : "<NONE>");
     uint8_t cnt = 0;
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
         cnt++;
     fwrite_u1(modf, cnt);
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
+    {
         strserialize(modf, S_name(sl->sym));
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " %s", S_name(sl->sym));
+    }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " label=%s\n", proc->label ? S_name(proc->label) : "<NONE>");
     E_serializeOptionalSymbol(proc->label);
 
     cnt=0;
@@ -661,6 +663,8 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     fwrite_u1(modf, cnt);
     for (Ty_formal formal=proc->formals; formal; formal = formal->next)
     {
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   formal %s [%s:%d] -> %s\n", formal->name ? S_name(formal->name) : "<NONE>",
+                    formal->ty->mod ? S_name(formal->ty->mod) : "_builtin_", formal->ty->uid, Ty_toString(formal->ty));
         E_serializeOptionalSymbol(formal->name);
         E_serializeTyRef(modTable, formal->ty);
         E_serializeTyConst(modTable, formal->defaultExp);
@@ -774,6 +778,7 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
 
 bool E_saveModule(string modfn, E_module mod)
 {
+    LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) modfn=%s ...\n", S_name(mod->name), modfn);
     modf = fopen(modfn, "w");
 
     if (!modf)
@@ -800,6 +805,8 @@ bool E_saveModule(string modfn, E_module mod)
         fwrite_u2(modf, mid);
         strserialize(modf, S_name(m2->name));
 
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) imported module: [%d] -> %s\n", S_name(mod->name), mid, S_name(m2->name));
+
         mid++;
     }
     mid = 0; fwrite_u2(modf, 0);  // end marker
@@ -814,7 +821,11 @@ bool E_saveModule(string modfn, E_module mod)
     void *key;
     Ty_ty ty;
     while (TAB_next(iter, &key, (void **)&ty))
+    {
+        assert (ty->mod == mod->name);
+        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
         E_serializeType(modTable, ty);
+    }
 
     fwrite_u4 (modf, 0);                      // types end marker
 
@@ -884,7 +895,6 @@ static uint8_t fread_u1(FILE *f)
 
 static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
 {
-
     uint32_t mid  = fread_u4(modf);
     E_module m = TAB_look (modTable, (void *) (intptr_t) mid);
     if (!m)
@@ -900,6 +910,8 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
         ty = Ty_ToLoad(m->name, tuid);
         TAB_enter (m->tyTable, (void *) (intptr_t) tuid, ty);
     }
+
+    LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> %s\n", mid, S_name(m->name), tuid, Ty_toString(ty));
 
     return ty;
 }
@@ -959,6 +971,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     uint8_t kind = fread_u1(modf);
     uint8_t visibility = fread_u1(modf);
     S_symbol name = E_deserializeOptionalSymbol(modf);
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   E_deserializeTyProc %s", name ? S_name(name) : "<NO NAME>");
     uint8_t cnt = fread_u1(modf);
     S_symlist extra_syms=NULL, extra_syms_last=NULL;
     for (int i = 0; i<cnt; i++)
@@ -970,6 +983,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             return NULL;
         }
         S_symbol sym = S_Symbol(str, FALSE);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " %s", S_name(sym));
         if (extra_syms)
         {
             extra_syms_last->next = S_Symlist(sym, NULL);
@@ -991,6 +1005,11 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             return NULL;
         }
         label = Temp_namedlabel(l);
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " label = %s\n", l);
+    }
+    else
+    {
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " no label\n");
     }
 
     cnt = fread_u1(modf);
@@ -1005,6 +1024,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             LOG_printf(LOG_INFO, "failed to read argument type.\n");
             return NULL;
         }
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "      formal: %s (%s)\n", fname ? S_name(fname) : "<NO NAME>", Ty_toString (ty));
         Ty_const ce;
         if (!E_deserializeTyConst(modTable, modf, &ce))
         {
@@ -1049,6 +1069,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         LOG_printf(LOG_INFO, "failed to read function return type.\n");
         return NULL;
     }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "      return type: %s\n", Ty_toString (returnTy));
     int32_t offset = fread_i4(modf);
     string libBase=NULL;
     if (offset)
@@ -1093,7 +1114,10 @@ E_module E_loadModule(S_symbol sModule)
     LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ...\n", S_name(sModule));
     E_module mod = TAB_look(g_modCache, sModule);
     if (mod)
+    {
+        LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ... already loaded.\n", S_name(sModule));
         return mod;
+    }
 
     char symfn[PATH_MAX];
     snprintf(symfn, PATH_MAX, "%s.sym", S_name(sModule));
@@ -1170,8 +1194,6 @@ E_module E_loadModule(S_symbol sModule)
 
         ty->kind = fread_u1(modf);
 
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading type tuid=%d, kind=%d\n", S_name(sModule), tuid, ty->kind);
-
         switch (ty->kind)
         {
             case Ty_darray:
@@ -1194,7 +1216,7 @@ E_module E_loadModule(S_symbol sModule)
 
                 ty->u.record.scope = S_beginScope();
 
-                LOG_printf (LOG_DEBUG, "loading record type, uiSize=%d, cnt=%d\n", ty->u.record.uiSize, cnt);
+                //LOG_printf (LOG_DEBUG, "loading record type, uiSize=%d, cnt=%d\n", ty->u.record.uiSize, cnt);
 
                 for (int i=0; i<cnt; i++)
                 {
@@ -1203,7 +1225,7 @@ E_module E_loadModule(S_symbol sModule)
                     {
                         case Ty_recMethod:
                         {
-                            LOG_printf (LOG_DEBUG, "Ty_recMethod\n");
+                            //LOG_printf (LOG_DEBUG, "Ty_recMethod\n");
                             Ty_proc proc = E_deserializeTyProc(modTable, modf);
                             Ty_recordEntry re = Ty_Method(proc);
                             S_enter(ty->u.record.scope, proc->name, re);
@@ -1214,7 +1236,7 @@ E_module E_loadModule(S_symbol sModule)
                             uint8_t visibility = fread_u1(modf);
                             string name = strdeserialize(UP_env, modf);
                             uint32_t uiOffset = fread_u4(modf);
-                            LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
+                            //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
 
                             S_symbol sym = S_Symbol(name, FALSE);
@@ -1255,6 +1277,7 @@ E_module E_loadModule(S_symbol sModule)
                 assert(0);
                 break;
         }
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
     }
 
     // check type table for unresolve ToLoad entries
@@ -1358,6 +1381,7 @@ E_module E_loadModule(S_symbol sModule)
                     LOG_printf(LOG_ERROR, "%s: failed to read declared type.\n", symfn);
                     goto fail;
                 }
+                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   %s", Ty_toString(ty));
                 E_declareType (mod->env, sym, ty);
                 break;
             }

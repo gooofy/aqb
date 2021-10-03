@@ -289,12 +289,6 @@ Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy)
     return p;
 }
 
-/* printing functions - used for debugging */
-void Ty_print(Ty_ty t)
-{
-    printf ("%s", Ty_name(t));
-}
-
 int Ty_size(Ty_ty t)
 {
     switch (t->kind)
@@ -420,10 +414,13 @@ string Ty_removeTypeSuffix(string varname)
     return res;
 }
 
-string Ty_name(Ty_ty t)
+static string _toString(Ty_ty t, int depth)
 {
     if (t == NULL)
         return "null";
+
+    if (depth>2)
+        return "...";
 
     switch (t->kind)
     {
@@ -446,13 +443,32 @@ string Ty_name(Ty_ty t)
         case Ty_double:
             return "double";
         case Ty_darray:
-            return "darray";
+            return strprintf (UP_types, "darray([%s:%d]%s)", S_name (t->mod), t->uid, _toString(t->u.darray.elementTy, depth+1));
         case Ty_sarray:
-            return "sarray";
+            return strprintf (UP_types, "sarray([%s:%d]%s)", S_name (t->mod), t->uid, _toString(t->u.sarray.elementTy, depth+1));
         case Ty_record:
-            return "record";
+        {
+            string res = strprintf (UP_types, "record ([%s:%d]", S_name (t->mod), t->uid);
+            TAB_iter i = S_Iter(t->u.record.scope);
+            S_symbol sym;
+            Ty_recordEntry entry;
+            while (TAB_next(i, (void **) &sym, (void **)&entry))
+            {
+                switch (entry->kind)
+                {
+                    case Ty_recMethod:
+                        res = strconcat (UP_types, res, "method,");
+                        break;
+                    case Ty_recField:
+                        res = strconcat (UP_types, res, strprintf (UP_types, "%s:%s,", S_name (entry->u.field.name), _toString(entry->u.field.ty, depth+1)));
+                        break;
+                }
+            }
+
+            return strconcat (UP_types, res, ")");
+        }
         case Ty_pointer:
-            return "pointer";
+            return strprintf (UP_types, "pointer(%s)", _toString(t->u.pointer, depth));
         case Ty_string:
             return "string";
         case Ty_void:
@@ -468,6 +484,11 @@ string Ty_name(Ty_ty t)
     }
     assert(0);
     return "???";
+}
+
+string Ty_toString(Ty_ty t)
+{
+    return _toString (t, 0);
 }
 
 bool Ty_isInt(Ty_ty t)

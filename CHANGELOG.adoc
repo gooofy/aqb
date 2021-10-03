@@ -15,6 +15,7 @@ Bug Fixes::
     * ide: fix cursor line in buf2line()
     * compiler: fix subprogram call error handling
     * compiler: fix record/class field memory offsets
+    * compiler: fix module type serialization
 
 == 0.7.2
 
