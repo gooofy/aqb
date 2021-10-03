@@ -93,7 +93,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "..", "-d", "_aqb", "-s", "IFFSupport.sym", "-v", "IFFSupport.bas"],
+            "args": ["-L", "..", "-v", "-d", "_aqb", "-s", "IFFSupport.sym", "-v", "IFFSupport.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../lib/IFFSupport",
             "environment": [],
