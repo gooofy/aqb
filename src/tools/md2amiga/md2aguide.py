@@ -27,7 +27,7 @@ def mangleNode(s):
     return t
 
 def aguideEscape(s):
-    return s.replace ('\\', '\\\\').replace ('@', '\\@')
+    return s.replace('\\_', '_').replace ('\\', '\\\\').replace ('@', '\\@')
 
 class Document(block.Document):
     def __init__(self, text):
