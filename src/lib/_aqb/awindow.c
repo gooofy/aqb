@@ -1628,6 +1628,21 @@ void PUT (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT
     ClipBlit(&blit->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
 }
 
+
+void PALETTE_LOAD (PALETTE_t p)
+{
+    if (!g_active_scr)
+    {
+        ERROR(AE_PALETTE);
+        return;
+    }
+
+    for (SHORT cid = 0; cid<p->numEntries; cid++)
+    {
+        //DPRINTF("PALETTE_LOAD: entry #%d: %d/%d/%d\n", cid, p->colors[cid].r, p->colors[cid].g, p->colors[cid].b);
+        SetRGB4(&g_active_scr->ViewPort, cid, p->colors[cid].r/16, p->colors[cid].g/16, p->colors[cid].b/16);
+    }
+}
 static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)

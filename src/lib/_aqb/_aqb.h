@@ -178,6 +178,7 @@ BlitNode BLIT_                (SHORT width, SHORT height, SHORT depth);
 void     BLIT_FREE            (BlitNode blit);
 void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BlitNode blit);
 void     PUT                  (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
+void     PALETTE_LOAD         (PALETTE_t p);
 
 /*
  * ON TIMER support
