@@ -15,7 +15,7 @@
 #define IFF_CAMG MakeID('C','A','M','G')
 #define IFF_BODY MakeID('B','O','D','Y')
 
-void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t pPalette, BlitNode blt)
+void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *bm)
 {
     char hdr[5] = {0,0,0,0,0};
 
@@ -148,7 +148,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t pPalette, BlitNode blt
                 }
                 else
                 {
-                    if ( blt && (cid == IFF_BODY) )
+                    if ( bm && (cid == IFF_BODY) )
                     {
                         if (!clen)
                         {
@@ -160,12 +160,12 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t pPalette, BlitNode blt
                         DPRINTF ("ILBM_LOAD BODY: pMeta: %d x %d : %d \n",
                                  (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes);
                         DPRINTF ("ILBM_LOAD BODY: blt : %d x %d : %d \n",
-                                 (signed int) blt->width, (signed int) blt->height, (signed int) blt->bm.Depth);
+                                 (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth);
 
-                        if ((blt->width < pMeta->w) || (blt->height < pMeta->h) || (blt->bm.Depth != pMeta->nPlanes))
+                        if ((bm->width < pMeta->w) || (bm->height < pMeta->h) || (bm->bm.Depth != pMeta->nPlanes))
                         {
                             DPRINTF ("ILBM_LOAD BODY: invalid bit dims %d x %d : %d vs %d x %d : %d\n",
-                                     (signed int) blt->width, (signed int) blt->height, (signed int) blt->bm.Depth,
+                                     (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth,
                                      (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes);
                             ERROR(AE_IFF);
                             return;
@@ -194,7 +194,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t pPalette, BlitNode blt
                         {
                             for (SHORT iPlane=0; iPlane<pMeta->nPlanes; iPlane++)
                             {
-                                BYTE *dst = (BYTE *)(blt->bm.Planes[iPlane]) + linelen*i;
+                                BYTE *dst = (BYTE *)(bm->bm.Planes[iPlane]) + linelen*i;
 
                                 if (pMeta->compression == 1)	// run length encoding
                                 {

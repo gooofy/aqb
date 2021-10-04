@@ -31,25 +31,25 @@ Syntax:
 
 enable or disable drawing of AREA polygon outlines
 
-## BLIT FREE
+## BITMAP FREE
 
 Syntax:
 
-    BLIT FREE ptr
+    BITMAP FREE ptr
 
-free allocated ressources for a blit buffer
+free allocated ressources for a bitmap
 
-## BLIT()
+## BITMAP()
 
 Syntax:
 
-    BLIT "(" width, height, depth ")"
+    BITMAP "(" width, height, depth ")"
 
-allocate an offscreen blit (i.e. BitMap) buffer
+allocate an offscreen bitmap buffer
 
 Example:
 
-    DIM AS VOID PTR b = BLIT (64, 64, 2)
+    DIM AS BITMAP_t PTR b = BITMAP (64, 64, 2)
 
 ## COLOR
 
@@ -91,15 +91,15 @@ returns the current text row position
 
 Syntax:
 
-    GET [[STEP] "(" x1 "," y1 ")" ] "-" [STEP] "(" x2 "," y2 ")" "," blit
+    GET [[STEP] "(" x1 "," y1 ")" ] "-" [STEP] "(" x2 "," y2 ")" "," bm
 
-copy a rectangular region from current window to a background blit buffer.
-See BLIT() for more information on how to allocate a blit buffer. Use PUT
-to copy a blit buffer back onto the screen.
+copy a rectangular region from current window to a background bitmap
+buffer.  See BITMAP() for more information on how to allocate a bitmap. Use
+PUT to copy a bitmap back onto the screen.
 
 Example:
 
-    DIM AS VOID PTR b = BLIT (64, 64, 2)
+    DIM AS BITMAP_t PTR b = BITMAP (64, 64, 2)
 
     GET (0,0)-(63,63), b
 
@@ -323,9 +323,9 @@ set a point in the window
 
 Syntax:
 
-    PUT [[STEP] "(" x "," y ")" ], blit, [minterm [ "," [ "(" x1 "," y1 ")" ] "-" "(" x2 "," y2 ")" ] ]
+    PUT [[STEP] "(" x "," y ")" ], bm, [minterm [ "," [ "(" x1 "," y1 ")" ] "-" "(" x2 "," y2 ")" ] ]
 
-copy a blit buffer onto the screen.
+copy a bitmap onto the screen.
 
 Useful minterms:
 
@@ -336,7 +336,7 @@ Useful minterms:
 
 Example:
 
-    DIM AS VOID PTR b = BLIT (64, 64, 2)
+    DIM AS BITMAP_t PTR b = BITMAP (64, 64, 2)
 
     GET (0,0)-(63,63), b
 

@@ -29,7 +29,7 @@ typedef struct
 
 } ILBM_META_t;
 
-void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t pPalette, BlitNode blt);
+void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *bm);
 
 #endif
 

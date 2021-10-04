@@ -82,8 +82,8 @@ static struct NewScreen g_nscr =
 
 static ULONG _g_signalmask_awindow=0;
 
-static BlitNode g_blit_first           = NULL;
-static BlitNode g_blit_last            = NULL;
+static BITMAP_t *g_bm_first             = NULL;
+static BITMAP_t *g_bm_last              = NULL;
 
 static void (*g_win_cb)(void)           = NULL;
 static void (*g_mouse_cb)(void)         = NULL;
@@ -337,12 +337,12 @@ void _awindow_shutdown(void)
         }
     }
 
-    BlitNode blit = g_blit_first;
-    while (blit)
+    BITMAP_t *bm = g_bm_first;
+    while (bm)
     {
-        BlitNode next = blit->next;
-        BLIT_FREE(blit);
-        blit = next;
+        BITMAP_t *next = bm->next;
+        BITMAP_FREE(bm);
+        bm = next;
     }
 
     _aio_set_dos_cursor_visible (TRUE);
@@ -1464,63 +1464,63 @@ void PATTERN_RESTORE (void)
     g_rp->AreaPtSz   = 0;
 }
 
-void BLIT_FREE (BlitNode blit)
+void BITMAP_FREE (BITMAP_t *bm)
 {
-    if (blit->prev)
-        blit->prev->next = blit->next;
+    if (bm->prev)
+        bm->prev->next = bm->next;
     else
-        g_blit_first = blit->next;
-    if (blit->next)
-        blit->next->prev = blit->prev;
+        g_bm_first = bm->next;
+    if (bm->next)
+        bm->next->prev = bm->prev;
     else
-        g_blit_last = blit->prev;
+        g_bm_last = bm->prev;
 
-    for (SHORT plane_num = 0; plane_num < blit->bm.Depth; plane_num++)
+    for (SHORT plane_num = 0; plane_num < bm->bm.Depth; plane_num++)
     {
-       FreeRaster(blit->bm.Planes[plane_num], blit->width, blit->height);
-       blit->bm.Planes[plane_num] = NULL;
+       FreeRaster(bm->bm.Planes[plane_num], bm->width, bm->height);
+       bm->bm.Planes[plane_num] = NULL;
     }
 
-    FreeVec (blit);
+    FreeVec (bm);
 }
 
-BlitNode BLIT_ (SHORT width, SHORT height, SHORT depth)
+BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth)
 {
-    BlitNode blit = (BlitNode)AllocVec(sizeof(*blit), MEMF_CLEAR);
-    if (!blit)
+    BITMAP_t *bm = AllocVec(sizeof(*bm), MEMF_CLEAR);
+    if (!bm)
     {
         ERROR(AE_BLIT);
         return NULL;
     }
 
-    blit->prev = g_blit_last;
-    if (g_blit_last)
-        g_blit_last = g_blit_last->next = blit;
+    bm->prev = g_bm_last;
+    if (g_bm_last)
+        g_bm_last = g_bm_last->next = bm;
     else
-        g_blit_first = g_blit_last = blit;
+        g_bm_first = g_bm_last = bm;
 
-    blit->width  = width;
-    blit->height = height;
+    bm->width  = width;
+    bm->height = height;
 
-    InitBitMap(&blit->bm, depth, width, height);
+    InitBitMap(&bm->bm, depth, width, height);
 
     for (SHORT plane_num = 0; plane_num < depth; plane_num++)
     {
-        blit->bm.Planes[plane_num] = (PLANEPTR)AllocRaster(width, height);
-        if (!blit->bm.Planes[plane_num])
+        bm->bm.Planes[plane_num] = (PLANEPTR)AllocRaster(width, height);
+        if (!bm->bm.Planes[plane_num])
         {
             ERROR(AE_BLIT);
             return NULL;
         }
     }
 
-    InitRastPort (&blit->rp);
-    blit->rp.BitMap = &blit->bm;
+    InitRastPort (&bm->rp);
+    bm->rp.BitMap = &bm->bm;
 
-    return blit;
+    return bm;
 }
 
-void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BlitNode blit)
+void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
     {
@@ -1556,10 +1556,10 @@ void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BlitNode bli
         return;
     }
 
-    ClipBlit(g_rp, x1, y1, &blit->rp, 0, 0, w, h, 0xC0);
+    ClipBlit(g_rp, x1, y1, &bm->rp, 0, 0, w, h, 0xC0);
 }
 
-void PUT (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
+void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
 {
     if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || s1 || s2 )
     {
@@ -1579,8 +1579,8 @@ void PUT (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT
 
     if (x1<0) x1 = 0;
     if (y1<0) y1 = 0;
-    if (x2<0) x2 = blit->width-1;
-    if (y2<0) y2 = blit->height-1;
+    if (x2<0) x2 = bm->width-1;
+    if (y2<0) y2 = bm->height-1;
 
     SHORT w = x2-x1+1;
     if (w<=0)
@@ -1595,11 +1595,11 @@ void PUT (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT
         return;
     }
 
-    ClipBlit(&blit->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
+    ClipBlit(&bm->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
 }
 
 
-void PALETTE_LOAD (PALETTE_t p)
+void PALETTE_LOAD (PALETTE_t *p)
 {
     if (!g_active_scr)
     {

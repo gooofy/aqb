@@ -158,27 +158,28 @@ typedef struct
     UBYTE           r, g, b;
 } COLOR_t;
 
-typedef struct PALETTE_ *PALETTE_t;
-struct PALETTE_
+typedef struct
 {
     SHORT           numEntries;
     COLOR_t         colors[256];
-};
+} PALETTE_t;
 
-typedef struct BlitNode_ *BlitNode;
-struct BlitNode_
+void     PALETTE_LOAD         (PALETTE_t *p);
+
+typedef struct BITMAP_ BITMAP_t;
+
+struct BITMAP_
 {
-    BlitNode        prev, next;
+    BITMAP_t       *prev, *next;
     SHORT           width, height;
     struct BitMap   bm;
     struct RastPort rp;
 };
 
-BlitNode BLIT_                (SHORT width, SHORT height, SHORT depth);
-void     BLIT_FREE            (BlitNode blit);
-void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BlitNode blit);
-void     PUT                  (BOOL s, SHORT x, SHORT y, BlitNode blit, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
-void     PALETTE_LOAD         (PALETTE_t p);
+BITMAP_t*BITMAP_              (SHORT width, SHORT height, SHORT depth);
+void     BITMAP_FREE          (BITMAP_t *bm);
+void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
+void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 
 /*
  * ON TIMER support
