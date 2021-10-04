@@ -1179,6 +1179,9 @@ static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, CG_item *item, boo
     if (!transConst(pos, t, item))
         return FALSE;
 
+    if (S_look(g_sleStack->env->u.scopes.vfcenv, name))
+        return EM_error(pos, "multiple declarations for %s", S_name(name));
+
     E_declareVFC (g_sleStack->env, name, item);
     if (!isPrivate)
         E_declareVFC (FE_mod->env, name, item);

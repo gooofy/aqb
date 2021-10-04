@@ -18,6 +18,7 @@ Bug Fixes::
     * compiler: fix subprogram call error handling
     * compiler: fix record/class field memory offsets
     * compiler: fix module type serialization
+    * compiler: detect multiple declarations of same constant identifier
 
 == 0.7.2
 
