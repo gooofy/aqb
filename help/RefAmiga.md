@@ -351,17 +351,21 @@ Syntax:
 
 create a new screen
 
-mode is one of:
+mode is a combination of:
 
-    * AS_MODE_LORES                = 1
-    * AS_MODE_HIRES                = 2
-    * AS_MODE_LORES_LACED          = 3
-    * AS_MODE_HIRES_LACED          = 4
-    * AS_MODE_HAM                  = 5
-    * AS_MODE_EXTRAHALFBRITE       = 6
-    * AS_MODE_HAM_LACED            = 7
-    * AS_MODE_EXTRAHALFBRITE_LACED = 8
-
+    * AS\_MODE\_GENLOCK\_VIDEO   = &H0002
+    * AS\_MODE\_LACE            = &H0004
+    * AS\_MODE\_DOUBLESCAN      = &H0008
+    * AS\_MODE\_SUPERHIRES      = &H0020
+    * AS\_MODE\_PFBA            = &H0040
+    * AS\_MODE\_EXTRA\_HALFBRITE = &H0080
+    * AS\_MODE\_GENLOCK\_AUDIO   = &H0100
+    * AS\_MODE\_DUALPF          = &H0400
+    * AS\_MODE\_HAM             = &H0800
+    * AS\_MODE\_EXTENDED\_MODE   = &H1000
+    * AS\_MODE\_VP\_HIDE         = &H2000
+    * AS\_MODE\_SPRITES         = &H4000
+    * AS\_MODE\_HIRES           = &H8000
 
 ## SCREEN CLOSE
 

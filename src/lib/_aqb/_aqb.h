@@ -116,7 +116,7 @@ void _aio_close (USHORT fno);
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
 
-void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title);
+void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title);
 void   SCREEN_CLOSE           (short id);
 void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
 void   WINDOW_CLOSE           (short id);

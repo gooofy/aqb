@@ -112,7 +112,7 @@ static WORD             g_mouse_down_y  = 0;
 static WORD             g_mouse_up_x    = 0;
 static WORD             g_mouse_up_y    = 0;
 
-void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE *title)
+void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title)
 {
     CHKBRK;
 
@@ -129,37 +129,7 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, SHORT mode, UBYTE
     g_nscr.Height       = height;
     g_nscr.Depth        = depth;
     g_nscr.DefaultTitle = title ? (UBYTE *)_astr_dup(title) : (UBYTE*) "";
-    g_nscr.ViewModes    = 0;
-
-    switch (mode)
-    {
-        case AS_MODE_LORES:
-            break;
-        case AS_MODE_HIRES:
-            g_nscr.ViewModes |= HIRES;
-            break;
-        case AS_MODE_LORES_LACED:
-            g_nscr.ViewModes |= LACE;
-            break;
-        case AS_MODE_HIRES_LACED:
-            g_nscr.ViewModes |= HIRES | LACE;
-            break;
-        case AS_MODE_HAM:
-            g_nscr.ViewModes |= HAM;
-            break;
-        case AS_MODE_EXTRAHALFBRITE:
-            g_nscr.ViewModes |= EXTRA_HALFBRITE;
-            break;
-        case AS_MODE_HAM_LACED:
-            g_nscr.ViewModes |= HAM | LACE;
-            break;
-        case AS_MODE_EXTRAHALFBRITE_LACED:
-            g_nscr.ViewModes |= EXTRA_HALFBRITE | LACE;
-            break;
-        default:
-            ERROR(AE_SCREEN_OPEN);
-            return;
-    }
+    g_nscr.ViewModes    = mode;
 
     // _debug_puts((STRPTR)"g_nscr.ViewModes:"); _debug_puts2(g_nscr.ViewModes); _debug_puts((STRPTR)"");
 
