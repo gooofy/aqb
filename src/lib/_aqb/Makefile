@@ -26,5 +26,5 @@ _aqb.a: awindow.o _aqb.o aio.o atimer.o
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
 clean:
-	rm -f *.o _aqb.a *.sym *.asm
+	rm -f *.o _aqb.a *.sym *.asm aqb.log
 
