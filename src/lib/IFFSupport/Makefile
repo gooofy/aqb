@@ -23,5 +23,5 @@ IFFSupport.a: IFFSupport.o
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) -I../_aqb $< -o $@
 
 clean:
-	rm -f *.o IFFSupport.a *.sym *.asm
+	rm -f *.o IFFSupport.a *.sym *.asm aqb.log
 

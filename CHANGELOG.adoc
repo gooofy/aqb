@@ -3,6 +3,7 @@
 Improvements::
 
     * ide/runtime: handle and display program exit ERR code
+    * runtime: IFFSupport module added
     * runtime: BLIT() function added
     * runtime: BLIT FREE instruction added
     * runtime: GET instruction added

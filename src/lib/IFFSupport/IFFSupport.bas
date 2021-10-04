@@ -1,8 +1,11 @@
 ' IFF / ILBM support
 
-PUBLIC CONST AS INTEGER AE_IFF                = 122
+PUBLIC CONST AS INTEGER AE_IFF = 200
 
-PUBLIC TYPE ILBM_BitMapHeader_t
+PUBLIC TYPE ILBM_META_t
+
+    REM BMHD
+
     AS UINTEGER    w, h                   : REM raster width & height in pixels
     AS INTEGER     x, y                   : REM position for this image
     AS UBYTE       nPlanes                : REM # source bitplanes
@@ -12,10 +15,12 @@ PUBLIC TYPE ILBM_BitMapHeader_t
     AS UINTEGER    transparentColor       : REM transparent "color number"
     AS UBYTE       xAspect, yAspect       : REM aspect ratio, a rational number x/y
     AS INTEGER     pageWidth, pageHeight  : REM source "page" size in pixels
+
+    REM CAMG (optional)
+
+    AS ULONG       viewModes
+
 END TYPE
 
-PUBLIC DECLARE SUB ILBM LOAD BMHD (_FNO(BYVAL fno AS UINTEGER), BYVAL pBMHD AS ILBM_BitMapHeader_t PTR)
-PUBLIC DECLARE SUB ILBM LOAD CMAP (_FNO(BYVAL fno AS UINTEGER), BYVAL pPalette AS PALETTE_t PTR)
-PUBLIC DECLARE SUB ILBM LOAD BODY (_FNO(BYVAL fno AS UINTEGER), BYVAL pBMHD AS ILBM_BitMapHeader_t PTR, BYVAL blit AS VOID PTR)
-
+PUBLIC DECLARE SUB ILBM LOAD (_FNO(BYVAL fno AS UINTEGER), BYVAL pMETA AS ILBM_META_t PTR, BYVAL pPalette AS PALETTE_t PTR = NULL, BYVAL blt AS VOID PTR = NULL)
 
