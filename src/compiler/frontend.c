@@ -1441,7 +1441,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             Ty_recordEntry entry = S_look(ty->u.record.scope, sym);
             if (!entry)
-                return EM_error(pos, "unknown UDT entry %s", sym);
+                return EM_error(pos, "unknown UDT entry %s", S_name(sym));
 
             return transSelRecord(pos, tkn, entry, exp);
         }
@@ -1462,7 +1462,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             Ty_recordEntry entry = S_look(ty->u.record.scope, sym);
             if (!entry)
-                return EM_error(pos, "unknown UDT entry %s", sym);
+                return EM_error(pos, "unknown UDT entry %s", S_name(sym));
 
             return transSelRecord(pos, tkn, entry, exp);
         }
