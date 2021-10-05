@@ -407,19 +407,34 @@ Enable or disable events from timer #`id`
 
 Syntax:
 
-    WINDOW id [ "," [ title ] [ "," [ "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] [ "," [type] [ "," screen-id ]]]]
+    WINDOW id [ "," [ title ] [ "," [ "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] [ "," [flags] [ "," screen-id ]]]]
 
 Create and activate a new window, make it the new output window.
 
-type is an OR combination of:
+flags is an OR combination of:
 
-    * AW_FLAG_SIZE       =  1
-    * AW_FLAG_DRAG       =  2
-    * AW_FLAG_DEPTH      =  4
-    * AW_FLAG_CLOSE      =  8
-    * AW_FLAG_REFRESH    = 16
-    * AW_FLAG_BACKDROP   = 32
-    * AW_FLAG_BORDERLESS = 64
+    * AW\_FLAG\_SIZEGADGET     = &H00000001
+    * AW\_FLAG\_DRAGBAR        = &H00000002
+    * AW\_FLAG\_DEPTHGADGET    = &H00000004
+    * AW\_FLAG\_CLOSEGADGET    = &H00000008
+    * AW\_FLAG\_SIZEBRIGHT     = &H00000010
+    * AW\_FLAG\_SIZEBBOTTOM    = &H00000020
+    * AW\_FLAG\_REFRESHBITS    = &H000000C0
+    * AW\_FLAG\_SMART\_REFRESH  = &H00000000
+    * AW\_FLAG\_SIMPLE\_REFRESH = &H00000040
+    * AW\_FLAG\_SUPER\_BITMAP   = &H00000080
+    * AW\_FLAG\_OTHER\_REFRESH  = &H000000C0
+    * AW\_FLAG\_BACKDROP       = &H00000100
+    * AW\_FLAG\_REPORTMOUSE    = &H00000200
+    * AW\_FLAG\_GIMMEZEROZERO  = &H00000400
+    * AW\_FLAG\_BORDERLESS     = &H00000800
+    * AW\_FLAG\_ACTIVATE       = &H00001000
+    * AW\_FLAG\_RMBTRAP        = &H00010000
+    * AW\_FLAG\_NOCAREREFRESH  = &H00020000
+    * AW\_FLAG\_NW\_EXTENDED    = &H00040000
+    * AW\_FLAG\_NEWLOOKMENUS   = &H00200000
+
+default flags: AW\_FLAG\_SIZEGADGET OR AW\_FLAG\_DRAGBAR OR AW\_FLAG\_DEPTHGADGET OR AW\_FLAG\_CLOSEGADGET OR AW\_FLAG\_SMART\_REFRESH OR AW\_FLAG\_GIMMEZEROZERO OR AW\_FLAG\_ACTIVATE
 
 
 ## WINDOW CLOSE

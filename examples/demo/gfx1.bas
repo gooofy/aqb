@@ -13,7 +13,7 @@ SUB HandleWindow
     PRINT "HandleWindow() called"
 END SUB
 
-WINDOW 1, "gfx1 - Simple AQB Graphics Demo", ( 0, 0 ) - ( 638, 180 ), AW_FLAG_SIZE OR AW_FLAG_DRAG OR AW_FLAG_DEPTH OR AW_FLAG_CLOSE
+WINDOW 1, "gfx1 - Simple AQB Graphics Demo", ( 0, 0 ) - ( 638, 180 )
 
 ON WINDOW CALL HandleWindow
 
@@ -48,6 +48,7 @@ NEXT
 LOCATE, 1 : PRINT "PRESS ANY KEY FOR SCROLL TEST";
 
 WHILE INKEY$ ( ) = ""
+    SLEEP
 WEND
 
 PRINT

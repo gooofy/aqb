@@ -71,25 +71,23 @@ void _aio_open  (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT re
 void _aio_close (USHORT fno);
 
 /*
- * screens, windows, graphics
+ * bitmaps, screens, windows, graphics
  */
 
-#define AS_MODE_LORES                1
-#define AS_MODE_HIRES                2
-#define AS_MODE_LORES_LACED          3
-#define AS_MODE_HIRES_LACED          4
-#define AS_MODE_HAM                  5
-#define AS_MODE_EXTRAHALFBRITE       6
-#define AS_MODE_HAM_LACED            7
-#define AS_MODE_EXTRAHALFBRITE_LACED 8
+typedef struct BITMAP_ BITMAP_t;
 
-#define AW_FLAG_SIZE                 1
-#define AW_FLAG_DRAG                 2
-#define AW_FLAG_DEPTH                4
-#define AW_FLAG_CLOSE                8
-#define AW_FLAG_REFRESH             16
-#define AW_FLAG_BACKDROP            32
-#define AW_FLAG_BORDERLESS          64
+struct BITMAP_
+{
+    BITMAP_t       *prev, *next;
+    SHORT           width, height;
+    struct BitMap   bm;
+    struct RastPort rp;
+};
+
+BITMAP_t*BITMAP_              (SHORT width, SHORT height, SHORT depth);
+void     BITMAP_FREE          (BITMAP_t *bm);
+void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
+void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 
 #define AE_WIN_OPEN                 101
 #define AE_SCREEN_OPEN              102
@@ -116,9 +114,9 @@ void _aio_close (USHORT fno);
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
 
-void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title);
+void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);
 void   SCREEN_CLOSE           (short id);
-void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid);
+void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, ULONG flags, SHORT scrid);
 void   WINDOW_CLOSE           (short id);
 void   WINDOW_OUTPUT          (short id);
 void   ON_WINDOW_CALL         (void (*cb)(void));
@@ -138,7 +136,6 @@ SHORT  POS_                   (SHORT dummy);
 void   CLS                    (void);
 void   LINE                   (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   PSET                   (BOOL s, SHORT x, SHORT y, SHORT color);
-void   PALETTE                (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
 void   COLOR                  (SHORT fg, SHORT bg, SHORT o);
 void   PAINT                  (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
 void   AREA                   (BOOL s, SHORT x, SHORT y);
@@ -150,7 +147,7 @@ void   PATTERN_RESTORE        (void);
 char  *INKEY_                 (void);
 
 /*
- * Blits
+ * palettes
  */
 
 typedef struct
@@ -164,22 +161,8 @@ typedef struct
     COLOR_t         colors[256];
 } PALETTE_t;
 
+void     PALETTE              (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
 void     PALETTE_LOAD         (PALETTE_t *p);
-
-typedef struct BITMAP_ BITMAP_t;
-
-struct BITMAP_
-{
-    BITMAP_t       *prev, *next;
-    SHORT           width, height;
-    struct BitMap   bm;
-    struct RastPort rp;
-};
-
-BITMAP_t*BITMAP_              (SHORT width, SHORT height, SHORT depth);
-void     BITMAP_FREE          (BITMAP_t *bm);
-void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
-void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 
 /*
  * ON TIMER support

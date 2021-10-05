@@ -112,7 +112,7 @@ static WORD             g_mouse_down_y  = 0;
 static WORD             g_mouse_up_x    = 0;
 static WORD             g_mouse_up_y    = 0;
 
-void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title)
+void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm)
 {
     CHKBRK;
 
@@ -123,6 +123,8 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE
         return;
     }
 
+    //DPRINTF ("SCREEN: bm=0x%08lx\n", (ULONG)bm);
+
     //_debug_puts((STRPTR)"SCREEN title: "); _debug_puts(title); _debug_putnl();
 
     g_nscr.Width        = width;
@@ -130,6 +132,8 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE
     g_nscr.Depth        = depth;
     g_nscr.DefaultTitle = title ? (UBYTE *)_astr_dup(title) : (UBYTE*) "";
     g_nscr.ViewModes    = mode;
+    g_nscr.CustomBitMap = bm ? &bm->bm : NULL;
+    g_nscr.Type         = bm ? CUSTOMSCREEN|CUSTOMBITMAP|SCREENQUIET : CUSTOMSCREEN;
 
     // _debug_puts((STRPTR)"g_nscr.ViewModes:"); _debug_puts2(g_nscr.ViewModes); _debug_puts((STRPTR)"");
 
@@ -164,7 +168,7 @@ void SCREEN_CLOSE(short id)
 /*
  * WINDOW id [, [Title] [, [(x1,y1)-(x2,y2)] [, [Flags] [, Screen] ] ]
  */
-void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT flags, SHORT scrid)
+void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, ULONG flags, SHORT scrid)
 {
     CHKBRK;
 
@@ -214,15 +218,8 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     g_nw.Height     = h;
     g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : (UBYTE*) "";
 
-    g_nw.Flags      = GIMMEZEROZERO | ACTIVATE;
+    g_nw.Flags      = flags;
     g_nw.IDCMPFlags = RAWKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
-
-    if (flags & AW_FLAG_SIZE)       { g_nw.Flags |= WINDOWSIZING; g_nw.IDCMPFlags |= NEWSIZE;       }
-    if (flags & AW_FLAG_DRAG)       { g_nw.Flags |= WINDOWDRAG  ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
-    if (flags & AW_FLAG_DEPTH)      { g_nw.Flags |= WINDOWDEPTH ; g_nw.IDCMPFlags |= REFRESHWINDOW; }
-    if (flags & AW_FLAG_CLOSE)      { g_nw.Flags |= WINDOWCLOSE ; g_nw.IDCMPFlags |= CLOSEWINDOW;   }
-    if (flags & AW_FLAG_BACKDROP)   { g_nw.Flags |= BACKDROP    ;                                   }
-    if (flags & AW_FLAG_BORDERLESS) { g_nw.Flags |= BORDERLESS  ;                                   }
 
     if (g_active_scr)
     {
@@ -1626,9 +1623,6 @@ char *INKEY_ (void)
             return "";
         return inkeybuf;
     }
-
-    if (!keybuf_len)
-        SLEEP();
 
     if (!keybuf_len)
     {
