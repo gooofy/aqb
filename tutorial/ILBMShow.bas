@@ -5,12 +5,12 @@ REM Load and display a fullscreen IFF image
 REM using a borderless window on a custom bitmap screen
 REM
 
-OPTION EXPLICIT 
-IMPORT IFFSupport 
+OPTION EXPLICIT
+IMPORT IFFSupport
 
 REM open the IFF file for binary read
 
-OPEN "imgs/hope.iff" FOR BINARY AS #1
+OPEN "PROGDIR:imgs/hope.iff" FOR BINARY AS #1
 
 REM read meta and palette information
 
