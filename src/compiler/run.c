@@ -37,7 +37,7 @@ static struct MsgPort  *g_debugPort;
 static struct Task       *g_parentTask;
 static struct Process    *g_childProc;
 static char              *g_binfn;
-static BPTR               g_currentDir;
+static BPTR               g_childHomeDirLock = 0;
 static BPTR               g_seglist;
 
 #ifdef SEND_WBSTARTUP_MSG
@@ -108,6 +108,14 @@ void RUN_start (const char *binfn)
         return;
     }
 
+    // homedir
+
+    static char dirbuf[256];
+    strncpy (dirbuf, g_binfn, 256);
+    *(PathPart((STRPTR)dirbuf)) = 0;
+
+    g_childHomeDirLock = Lock ((STRPTR)dirbuf, ACCESS_READ);
+
     LOG_printf (LOG_DEBUG, "RUN_start: CreateNewProc for %s ...\n", binfn);
     g_childProc = CreateNewProcTags(NP_Seglist,     (ULONG) g_seglist,
 									NP_FreeSeglist, FALSE,
@@ -118,7 +126,7 @@ void RUN_start (const char *binfn)
                                     NP_StackSize,   DEFAULT_STACKSIZE,
 								    NP_Name,        (ULONG) g_binfn,
 									//NP_WindowPtr,   0l,
-									//NP_HomeDir,     0l,
+									NP_HomeDir,     g_childHomeDirLock,
 									NP_CopyVars,    FALSE,
 									TAG_DONE);
 
@@ -140,10 +148,6 @@ void RUN_start (const char *binfn)
     g_startupMsg.sm_NumArgs                 = 1;
     g_startupMsg.sm_ToolWindow              = NULL;
     g_startupMsg.sm_ArgList                 = &g_startupArg;
-
-    static char dirbuf[256];
-    strncpy (dirbuf, g_binfn, 256);
-    *(PathPart((STRPTR)dirbuf)) = 0;
 
     g_startupArg.wa_Lock = Lock ((STRPTR)dirbuf, ACCESS_READ);
     g_startupArg.wa_Name = (BYTE*) FilePart ((STRPTR)g_binfn);
@@ -201,6 +205,11 @@ uint16_t RUN_handleMessages(void)
             {
                 UnLock (g_startupArg.wa_Lock);
                 g_startupArg.wa_Lock = 0l;
+            }
+            if (g_childHomeDirLock)
+            {
+                UnLock (g_childHomeDirLock);
+                g_childHomeDirLock = 0l;
             }
         }
 #else
@@ -294,7 +303,7 @@ void RUN_break (void)
 void RUN_init (struct MsgPort *debugPort)
 {
 	g_parentTask = FindTask(NULL);
-    g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
+    //g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
     g_debugPort  = debugPort;
 }
 
