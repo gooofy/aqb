@@ -1,6 +1,6 @@
 # AQB: A BASIC Compiler and IDE for Amiga Computers
 
-![Screenshot](https://raw.githubusercontent.com/gooofy/aqb/master/doc/screenshot.png)
+![Screenshot](https://raw.githubusercontent.com/gooofy/aqb/master/dist/screenshot.png)
 
 ### About
 
