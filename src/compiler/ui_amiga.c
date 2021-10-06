@@ -99,40 +99,42 @@ static struct NewMenu g_newmenu[] =
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
-static struct Window     *g_win           = NULL;
-static struct RastPort   *g_rp            = NULL;
-static struct MsgPort    *g_debugPort     = NULL;
-static struct IOStdReq    console_ioreq;
-static UWORD              g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
-static APTR               g_vi                = NULL;
-static struct Menu       *g_menuStrip         = NULL;
-static UWORD              g_fontHeight        = 8;
+static struct Window        *g_win               = NULL;
+static struct RastPort      *g_rp                = NULL;
+static struct MsgPort       *g_debugPort         = NULL;
+static struct IOStdReq       console_ioreq;
+static UWORD                 g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
+static APTR                  g_vi                = NULL;
+static struct Menu          *g_menuStrip         = NULL;
+static UWORD                 g_fontHeight        = 8;
 #include "fonts.h"
-static UBYTE              g_curFont           = 1;
-static struct BitMap     *g_renderBM;
-static UWORD              g_renderBMBytesPerRow;
-static UBYTE             *g_renderBMPlanes[3] = {NULL, NULL, NULL};
-static UBYTE             *g_renderBMPtr[3];
-static bool               g_renderBMPE[3]     = { TRUE, FALSE, FALSE }; // PE: PlaneEnabled
-static bool               g_renderBMPEI[3]    = {FALSE, FALSE, FALSE }; // PE: PlaneEnabledInverse
-static uint16_t           g_renderBMcurCol    = 0;
-static uint16_t           g_renderBMcurRow    = 1;
-static uint16_t           g_curLineStart      = 1;
-static uint16_t           g_curLineCols       = 80;
-static uint16_t           g_visWidth;
-static uint16_t           g_renderBMmaxCols   = 80;
+static UBYTE                 g_curFont           = 1;
+static struct BitMap        *g_renderBM;
+static UWORD                 g_renderBMBytesPerRow;
+static UBYTE                *g_renderBMPlanes[3] = {NULL, NULL, NULL};
+static UBYTE                *g_renderBMPtr[3];
+static bool                  g_renderBMPE[3]     = { TRUE, FALSE, FALSE }; // PE: PlaneEnabled
+static bool                  g_renderBMPEI[3]    = {FALSE, FALSE, FALSE }; // PE: PlaneEnabledInverse
+static uint16_t              g_renderBMcurCol    = 0;
+static uint16_t              g_renderBMcurRow    = 1;
+static uint16_t              g_curLineStart      = 1;
+static uint16_t              g_curLineCols       = 80;
+static uint16_t              g_visWidth;
+static uint16_t              g_renderBMmaxCols   = 80;
+static struct FileRequester *g_ASLFileReq        = NULL;;
+
 // RTG graphics library based rendering
 #define BUFSIZE 1024
-static UI_size_cb         g_size_cb           = NULL;
-static void              *g_size_cb_user_data = NULL;
-static UI_event_cb        g_event_cb            = NULL;
-static void              *g_event_cb_user_data  = NULL;
-static uint16_t           g_scrollStart       = 1;
-static uint16_t           g_scrollEnd         = 10;
-static bool               g_cursorVisible     = FALSE;
-static uint16_t           g_cursorRow         = 1;
-static uint16_t           g_cursorCol         = 1;
-static uint16_t           g_theme             = 0;
+static UI_size_cb            g_size_cb           = NULL;
+static void                 *g_size_cb_user_data = NULL;
+static UI_event_cb           g_event_cb          = NULL;
+static void                 *g_event_cb_user_data= NULL;
+static uint16_t              g_scrollStart       = 1;
+static uint16_t              g_scrollEnd         = 10;
+static bool                  g_cursorVisible     = FALSE;
+static uint16_t              g_cursorRow         = 1;
+static uint16_t              g_cursorCol         = 1;
+static uint16_t              g_theme             = 0;
 
 typedef struct
 {
@@ -575,28 +577,15 @@ char *UI_FileReq (char *title)
 {
 	static char pathbuf[1024];
 
-	struct FileRequester *fr;
+    if (AslRequest(g_ASLFileReq, 0L))
+    {
+        //printf("PATH=%s FILE=%s\n", fr->rf_Dir, fr->rf_File);
+        strncpy (pathbuf, (char*)g_ASLFileReq->rf_Dir, 1024);
+        AddPart ((STRPTR) pathbuf, g_ASLFileReq->rf_File, 1024);
+        //printf(" -> %s\n", pathbuf);
 
-	if (fr = (struct FileRequester *) AllocAslRequestTags(ASL_FileRequest,
-			                                              ASL_Hail,      (ULONG)title,
-			                                              ASL_Dir,       (ULONG)aqb_home,
-			                                              ASL_File,      (ULONG)"",
-														  ASL_Pattern,   (ULONG)"#?.bas",
-														  ASL_FuncFlags, FILF_PATGAD,
-			                                              ASL_Window,    (ULONG) g_win,
-			                                              TAG_DONE))
-	{
-		if (AslRequest(fr, 0L))
-		{
-			//printf("PATH=%s FILE=%s\n", fr->rf_Dir, fr->rf_File);
-			strncpy (pathbuf, (char*)fr->rf_Dir, 1024);
-			AddPart ((STRPTR) pathbuf, fr->rf_File, 1024);
-			//printf(" -> %s\n", pathbuf);
-
-			return String (UP_ide, pathbuf);
-		}
-		FreeAslRequest(fr);
-	}
+        return String (UP_ide, pathbuf);
+    }
 
 	return NULL;
 }
@@ -811,6 +800,9 @@ uint16_t UI_waitkey (void)
 
 void UI_deinit(void)
 {
+    if (g_ASLFileReq)
+		FreeAslRequest(g_ASLFileReq);
+
     if (g_renderBM)
     {
         for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
@@ -961,6 +953,20 @@ bool UI_init (void)
     g_debugPort  = ASUP_create_port ((STRPTR) "AQB debug reply port", 0);
     if (!g_debugPort)
 		cleanexit("failed to create debug port", RETURN_FAIL);
+
+    /*
+     * ASL file requester
+     */
+
+	if (! (g_ASLFileReq = (struct FileRequester *) AllocAslRequestTags(ASL_FileRequest,
+			                                                           ASL_Hail,      (ULONG)"AQB",
+			                                                           ASL_Dir,       (ULONG)aqb_home,
+			                                                           ASL_File,      (ULONG)"",
+														               ASL_Pattern,   (ULONG)"#?.bas",
+														               ASL_FuncFlags, FILF_PATGAD,
+			                                                           ASL_Window,    (ULONG) g_win,
+			                                                           TAG_DONE)) )
+		cleanexit("failed to allocate ASL file requester", RETURN_FAIL);
 
 	return TRUE;
 }
