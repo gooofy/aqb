@@ -2,9 +2,9 @@ include config.mk
 
 MD2AGUIDE = src/tools/md2amiga/md2aguide.py
 
-.PHONY: clean all tests src examples help directories
+.PHONY: clean all tests src examples help directories tutorial
 
-all: directories src tests help examples
+all: directories src tests help examples tutorial
 
 src:
 	cd src ; make all
@@ -20,6 +20,9 @@ help:	README.md
 	cp README.guide $(DISTDIR)
 	cd help ; make all
 
+tutorial:
+	cd tutorial ; make all
+
 directories:
 	mkdir -p target/m68k-amigaos/bin
 	mkdir -p target/m68k-amigaos/obj
@@ -31,5 +34,6 @@ clean:
 	cd tests ; make clean
 	cd examples ; make clean
 	cd help ; make clean
+	cd tutorial ; make clean
 	rm -rf target
 	rm -f README.guide
