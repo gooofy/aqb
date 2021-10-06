@@ -171,7 +171,7 @@ static void deinit(void)
 
 int main (int argc, char *argv[])
 {
-	static string sourcefn;
+	static string sourcefn = NULL;
     static string module_name;
     static char   asm_gas_fn[PATH_MAX];
     static char   asm_asmpro_fn[PATH_MAX];
@@ -326,12 +326,9 @@ int main (int argc, char *argv[])
         }
     }
 
-    if ((argc == 0) || (argc==optind))  // workbench launch
-    {
-        launch_ide = TRUE;
-        sourcefn = NULL;
-
 #ifdef __amigaos__
+    if (argc == 0)  // workbench launch
+    {
         struct WBStartup *wb_msg = (struct WBStartup *) argv;
 		struct WBArg *wbarg = wb_msg->sm_ArgList;
         for (uint16_t i=0; i < wb_msg->sm_NumArgs; i++, wbarg++)
@@ -356,7 +353,37 @@ int main (int argc, char *argv[])
 				}
 			}
 		}
-#endif
+    }
+    else
+    {
+        if (argc == optind)
+        {
+            if (!launch_ide)
+            {
+                print_usage(argv);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            if (argc != (optind+1))
+            {
+                print_usage(argv);
+                exit(EXIT_FAILURE);
+            }
+            sourcefn = argv[optind];
+        }
+    }
+
+#else
+
+    if (argc==optind)
+    {
+        if (!launch_ide)
+        {
+            print_usage(argv);
+            exit(EXIT_FAILURE);
+        }
     }
     else
     {
@@ -367,6 +394,7 @@ int main (int argc, char *argv[])
         }
         sourcefn = argv[optind];
     }
+#endif
 
     // run interactive IDE ? (experimental)
     if (launch_ide)
