@@ -383,7 +383,10 @@ static BOOL _checkCurWinDos (void)
     // auto-open window ?
 
     if (!g_winlist[0])
-        WINDOW (/*id=*/1, /*title=*/(STRPTR)"AQB Output", /*s1=*/FALSE, /*x1=*/-1, /*y1=*/-1, /*s2=*/FALSE, /*x2=*/-1, /*y2=*/-1, /*flags=*/15, /*scrid=*/0);
+        WINDOW (/*id=*/1, /*title=*/(STRPTR)"AQB Output",
+                /*s1=*/FALSE, /*x1=*/-1, /*y1=*/-1,
+                /*s2=*/FALSE, /*x2=*/-1, /*y2=*/-1,
+                /*flags=*/WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO | WFLG_ACTIVATE, /*scrid=*/0);
 
     return FALSE;
 }
