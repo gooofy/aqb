@@ -15,6 +15,8 @@
 #define IFF_CAMG MakeID('C','A','M','G')
 #define IFF_BODY MakeID('B','O','D','Y')
 
+#define RowBytes(w)   (((w) + 15) >> 4 << 1)
+
 void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *bm)
 {
     char hdr[5] = {0,0,0,0,0};
@@ -157,8 +159,8 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                         }
                         DPRINTF ("ILBM_LOAD BODY len=%ld\n", clen);
 
-                        DPRINTF ("ILBM_LOAD BODY: pMeta: %d x %d : %d \n",
-                                 (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes);
+                        DPRINTF ("ILBM_LOAD BODY: pMeta: %d x %d : %d compression: %d \n",
+                                 (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes, pMeta->compression);
                         DPRINTF ("ILBM_LOAD BODY: blt : %d x %d : %d \n",
                                  (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth);
 
@@ -188,20 +190,23 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                             return;
                         }
 
-                        SHORT linelen = pMeta->w/8;
+                        SHORT linelen = RowBytes(pMeta->w);
 
                         for (SHORT i=0; i<pMeta->h; i++)
                         {
+                            //DPRINTF ("ILBM_LOAD i=%d pMeta->h=%d\n", i, pMeta->h);
                             for (SHORT iPlane=0; iPlane<pMeta->nPlanes; iPlane++)
                             {
+                                //DPRINTF ("ILBM_LOAD    iPlane=%d pMeta->nPlanes=%d\n", iPlane, pMeta->nPlanes);
                                 BYTE *dst = (BYTE *)(bm->bm.Planes[iPlane]) + linelen*i;
 
                                 if (pMeta->compression == 1)	// run length encoding
                                 {
                                     SHORT rowbytes = linelen;
 
-                                    while (rowbytes)
+                                    while (rowbytes>0)
                                     {
+                                        //DPRINTF ("ILBM_LOAD    rowbytes=%d\n", rowbytes);
                                         BYTE n = *src++;
 
                                         if (n>=0)
@@ -213,10 +218,13 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                                         }
                                         else
                                         {
+                                            if (n != -128)
+                                            {
                                             n         = -n+1;
                                             rowbytes -= n;
                                             _MEMSET (dst, *src++, n);
                                             dst += n;
+                                            }
                                         }
                                     }
                                 }
@@ -241,6 +249,34 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
         }
     }
 }
+
+BITMAP_t *ILBM_LOAD_BITMAP_ (USHORT fno, PALETTE_t *pPalette, int scid)
+{
+
+    BITMAP_t     *bm = NULL;
+    PALETTE_t     pal;
+    ILBM_META_t   meta;
+
+    if (!pPalette)
+        pPalette = &pal;
+
+    ILBM_LOAD (fno, &meta, pPalette, NULL);
+
+    DPRINTF ("ILBM_LOAD_BITMAP_ meta: %d x %d : %d \n",
+             (signed int) meta.w, (signed int) meta.h, (signed int) meta.nPlanes);
+
+    bm = BITMAP_ (meta.w, meta.h, meta.nPlanes);
+    DPRINTF ("ILBM_LOAD_BITMAP_ bitmap: %d x %d bytes per row: %d \n",
+                bm->width, bm->height, bm->bm.BytesPerRow);
+
+    ILBM_LOAD (fno, &meta, NULL, bm);
+
+    if (scid >= 0)
+        PALETTE_LOAD (pPalette);
+
+    return bm;
+}
+
 
 void _IFFSupport_init(void)
 {
