@@ -1599,9 +1599,10 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
 }
 
 
-void PALETTE_LOAD (PALETTE_t *p)
+void _palette_load (SHORT scid, PALETTE_t *p)
 {
-    if (!g_active_scr)
+    struct Screen *scr = g_scrlist[scid-1];
+    if (!scr)
     {
         ERROR(AE_PALETTE);
         return;
@@ -1610,9 +1611,20 @@ void PALETTE_LOAD (PALETTE_t *p)
     for (SHORT cid = 0; cid<p->numEntries; cid++)
     {
         //DPRINTF("PALETTE_LOAD: entry #%d: %d/%d/%d\n", cid, p->colors[cid].r, p->colors[cid].g, p->colors[cid].b);
-        SetRGB4(&g_active_scr->ViewPort, cid, p->colors[cid].r/16, p->colors[cid].g/16, p->colors[cid].b/16);
+        SetRGB4(&scr->ViewPort, cid, p->colors[cid].r/16, p->colors[cid].g/16, p->colors[cid].b/16);
     }
 }
+
+void PALETTE_LOAD (PALETTE_t *p)
+{
+    if (!g_active_scr)
+    {
+        ERROR(AE_PALETTE);
+        return;
+    }
+    _palette_load (g_active_scr_id, p);
+}
+
 static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)

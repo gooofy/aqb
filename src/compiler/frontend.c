@@ -997,6 +997,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
         case Ty_pointer:
         case Ty_procPtr:
         case Ty_string:
+        case Ty_record:
             if (!compatible_ty(ty1, ty2))
             {
                 if (explicit)

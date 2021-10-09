@@ -22,10 +22,14 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
     char hdr[5] = {0,0,0,0,0};
     ULONG f = MKBADDR(fh);
     ILBM_META_t myMeta;
+    PALETTE_t myPalette;
 
     if (!pMeta)
         pMeta = &myMeta;
     pMeta->viewMode = 0;
+
+    if (!pPalette && (scid >=0))
+        pPalette = &myPalette;
 
     ULONG cid;
     ULONG clen;
@@ -137,6 +141,9 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                         pPalette->colors[i].b = *p++;
                     }
                     DEALLOCATE(buf);
+
+                    if (scid >=0)
+                        _palette_load (scid, pPalette);
                 }
                 else
                 {

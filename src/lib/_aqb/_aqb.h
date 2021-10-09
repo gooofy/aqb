@@ -163,6 +163,7 @@ typedef struct
 
 void     PALETTE              (SHORT cid, FLOAT red, FLOAT green, FLOAT blue);
 void     PALETTE_LOAD         (PALETTE_t *p);
+void     _palette_load        (SHORT scid, PALETTE_t *p);
 
 /*
  * ON TIMER support
