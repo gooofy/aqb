@@ -268,8 +268,8 @@ void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMet
     Close (MKBADDR(fh));
 }
 
-#if 0
-void ILBM_READ_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+{
     struct FileHandle *fh = _aio_getfh(fno);
     if (!fh)
     {
@@ -277,37 +277,8 @@ void ILBM_READ_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMet
         return;
     }
 
-    Seek (MKBADDR(fh), 0, OFFSET_BEGINNING);
-#endif
-
-#if 0
-BITMAP_t *ILBM_LOAD_BITMAP_ (USHORT fno, PALETTE_t *pPalette, int scid)
-{
-
-    BITMAP_t     *bm = NULL;
-    PALETTE_t     pal;
-    ILBM_META_t   meta;
-
-    if (!pPalette)
-        pPalette = &pal;
-
-    ILBM_LOAD (fno, &meta, pPalette, NULL);
-
-    DPRINTF ("ILBM_LOAD_BITMAP_ meta: %d x %d : %d \n",
-             (signed int) meta.w, (signed int) meta.h, (signed int) meta.nPlanes);
-
-    bm = BITMAP_ (meta.w, meta.h, meta.nPlanes);
-    DPRINTF ("ILBM_LOAD_BITMAP_ bitmap: %d x %d bytes per row: %d \n",
-                bm->width, bm->height, bm->bm.BytesPerRow);
-
-    ILBM_LOAD (fno, &meta, NULL, bm);
-
-    if (scid >= 0)
-        PALETTE_LOAD (pPalette);
-
-    return bm;
+    _ilbm_read (fh, bm, scid, pMeta, pPalette);
 }
-#endif
 
 void _IFFSupport_init(void)
 {
