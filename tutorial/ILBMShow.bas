@@ -8,32 +8,26 @@ REM
 OPTION EXPLICIT
 IMPORT IFFSupport
 
-REM open the IFF file for binary read
+DIM AS STRING picFileName = "PROGDIR:imgs/hope.iff"
 
-OPEN "PROGDIR:imgs/hope.iff" FOR BINARY AS #1
-
-REM read meta and palette information
+REM read meta and palette information only for now
 
 DIM AS ILBM_META_t meta
 DIM AS PALETTE_t cmap
 
-ILBM LOAD #1, @meta, @cmap
+ILBM LOAD BITMAP picFileName,,, @meta, @cmap
 
-REM create a custom bitmap, screen AND borderless window
+REM create a matching custom bitmap, screen and borderless window
 
 DIM AS BITMAP_t PTR bm = BITMAP (meta.w, meta.h, meta.nPlanes)
-
 SCREEN 1, meta.w, meta.h, meta.nPlanes, meta.viewModes, "IFF DEMO", bm
 PALETTE LOAD @cmap
-
 WINDOW 1, ,(0,0)-(meta.w,meta.h), _
 AW_FLAG_SIMPLE_REFRESH OR AW_FLAG_BORDERLESS OR AW_FLAG_ACTIVATE, 1
 
-REM load the image contents directly into our custom bitmap
+REM now load the image body into our custom screen bitmap
 
-ILBM LOAD #1, @meta,, bm
-
-CLOSE #1
+ILBM LOAD BITMAP "PROGDIR:imgs/hope.iff",bm
 
 REM WAIT FOR MOUSE BUTTON
 

@@ -17,58 +17,48 @@
 
 #define RowBytes(w)   (((w) + 15) >> 4 << 1)
 
-void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *bm)
+void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
 {
     char hdr[5] = {0,0,0,0,0};
+    ULONG f = MKBADDR(fh);
+    ILBM_META_t myMeta;
 
     if (!pMeta)
-    {
-        ERROR(AE_IFF);
-        return;
-    }
+        pMeta = &myMeta;
     pMeta->viewMode = 0;
-
-    struct FileHandle *fh = _aio_getfh(fno);
-    if (!fh)
-    {
-        ERROR(AE_IFF);
-        return;
-    }
-
-    Seek (MKBADDR(fh), 0, OFFSET_BEGINNING);
 
     ULONG cid;
     ULONG clen;
 
-    LONG l = Read (MKBADDR(fh), &cid, 4);
+    LONG l = Read (f, &cid, 4);
     if ((l != 4) || (cid != IFF_FORM))
     {
         ERROR(AE_IFF);
         return;
     }
 
-    DPRINTF ("_ILBM_LOAD: FORM ok.\n");
+    DPRINTF ("_ilbm_read: FORM ok.\n");
 
     // ignore FORM length
-    l = Read (MKBADDR(fh), &clen, 4);
+    l = Read (f, &clen, 4);
     if (l != 4)
     {
         ERROR(AE_IFF);
         return;
     }
 
-    l = Read (MKBADDR(fh), &cid, 4);
+    l = Read (f, &cid, 4);
     if ((l != 4) || (cid != IFF_ILBM))
     {
         ERROR(AE_IFF);
         return;
     }
 
-    DPRINTF ("_ILBM_LOAD: format is ILBM. good.\n");
+    DPRINTF ("_ilbm_read: format is ILBM. good.\n");
 
     while (TRUE)
     {
-        l = Read (MKBADDR(fh), &cid, 4);
+        l = Read (f, &cid, 4);
         if (l != 4)
         {
             break;
@@ -77,14 +67,14 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
         *p = cid;
 
 
-        l = Read (MKBADDR(fh), &clen, 4);
+        l = Read (f, &clen, 4);
         if (l != 4)
         {
             ERROR(AE_IFF);
             return;
         }
 
-        DPRINTF ("_ILBM_LOAD: chunk id=%d (%s) len=%d\n", cid, hdr, clen);
+        DPRINTF ("_ilbm_read: chunk id=%d (%s) len=%d\n", cid, hdr, clen);
 
         if ( cid == IFF_BMHD)
         {
@@ -94,7 +84,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                 return;
             }
 
-            ULONG l = Read (MKBADDR(fh), pMeta, clen);
+            ULONG l = Read (f, pMeta, clen);
             if (l!=clen)
                 ERROR(AE_IFF);
         }
@@ -108,7 +98,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                     return;
                 }
 
-                ULONG l = Read (MKBADDR(fh), &pMeta->viewMode, clen);
+                ULONG l = Read (f, &pMeta->viewMode, clen);
                 if (l!=clen)
                     ERROR(AE_IFF);
             }
@@ -130,7 +120,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                         return;
                     }
 
-                    ULONG l = Read (MKBADDR(fh), buf, clen);
+                    ULONG l = Read (f, buf, clen);
                     if (l!=clen)
                     {
                         DEALLOCATE(buf);
@@ -150,7 +140,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                 }
                 else
                 {
-                    if ( bm && (cid == IFF_BODY) )
+                    if ( bmRef && (cid == IFF_BODY) )
                     {
                         if (!clen)
                         {
@@ -161,12 +151,21 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
 
                         DPRINTF ("ILBM_LOAD BODY: pMeta: %d x %d : %d compression: %d \n",
                                  (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes, pMeta->compression);
-                        DPRINTF ("ILBM_LOAD BODY: blt : %d x %d : %d \n",
+
+                        BITMAP_t *bm = *bmRef;
+                        if (!bm)
+                        {
+                            DPRINTF ("ILBM_LOAD BODY allocating fresh bitmap bmRef=0x%08lx bm=0x%08lx\n", bmRef, bm);
+                            bm = BITMAP_ (pMeta->w, pMeta->h, pMeta->nPlanes);
+                            *bmRef = bm;
+                        }
+
+                        DPRINTF ("ILBM_LOAD BODY: bm : %d x %d : %d \n",
                                  (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth);
 
                         if ((bm->width < pMeta->w) || (bm->height < pMeta->h) || (bm->bm.Depth != pMeta->nPlanes))
                         {
-                            DPRINTF ("ILBM_LOAD BODY: invalid bit dims %d x %d : %d vs %d x %d : %d\n",
+                            DPRINTF ("ILBM_LOAD BODY: invalid bm dims %d x %d : %d vs %d x %d : %d\n",
                                      (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth,
                                      (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes);
                             ERROR(AE_IFF);
@@ -182,7 +181,7 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                             return;
                         }
 
-                        ULONG l = Read (MKBADDR(fh), src, clen);
+                        ULONG l = Read (f, src, clen);
                         if (l!=clen)
                         {
                             DEALLOCATE(src);
@@ -237,12 +236,14 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
                             }
                         }
 
+                        DPRINTF ("ILBM_LOAD BODY decoding done\n");
+
                         DEALLOCATE(src);
                     }
                     else
                     {
                         DPRINTF ("_ILBM_LOAD skipping %d bytes\n", clen);
-                        Seek (MKBADDR(fh), clen, OFFSET_CURRENT);
+                        Seek (f, clen, OFFSET_CURRENT);
                     }
                 }
             }
@@ -250,6 +251,36 @@ void ILBM_LOAD (USHORT fno, ILBM_META_t *pMeta, PALETTE_t *pPalette, BITMAP_t *b
     }
 }
 
+void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+{
+    DPRINTF ("ILBM_LOAD_BITMAP path=%s\n", (char*)path);
+
+    struct FileHandle *fh = BADDR(Open (path, MODE_OLDFILE));
+    if (!fh)
+    {
+        DPRINTF ("ILBM_LOAD_BITMAP open failed.\n");
+        ERROR(AE_IFF);
+        return;
+    }
+
+    _ilbm_read (fh, bm, scid, pMeta, pPalette);
+
+    Close (MKBADDR(fh));
+}
+
+#if 0
+void ILBM_READ_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+    struct FileHandle *fh = _aio_getfh(fno);
+    if (!fh)
+    {
+        ERROR(AE_IFF);
+        return;
+    }
+
+    Seek (MKBADDR(fh), 0, OFFSET_BEGINNING);
+#endif
+
+#if 0
 BITMAP_t *ILBM_LOAD_BITMAP_ (USHORT fno, PALETTE_t *pPalette, int scid)
 {
 
@@ -276,7 +307,7 @@ BITMAP_t *ILBM_LOAD_BITMAP_ (USHORT fno, PALETTE_t *pPalette, int scid)
 
     return bm;
 }
-
+#endif
 
 void _IFFSupport_init(void)
 {
