@@ -21,7 +21,7 @@ cp src/lib/IFFSupport/IFFSupport.sym  ${WORKDIR}/aqb/lib/
 cp src/lib/IFFSupport/IFFSupport.a    ${WORKDIR}/aqb/lib/
 cp src/lib/startup.o                  ${WORKDIR}/aqb/lib/
 cp README.guide                       ${WORKDIR}/aqb/
-cp CHANGELOG.adoc                     ${WORKDIR}/aqb/CHANGELOG
+cp CHANGELOG.md                       ${WORKDIR}/aqb/CHANGELOG
 
 cp dist/amiga/Icons/aqb_topdir.info   ${WORKDIR}/aqb.info
 cp dist/amiga/Icons/aqb.info          ${WORKDIR}/aqb/aqb.info
