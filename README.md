@@ -11,8 +11,9 @@
 * [Source Code](#source-code)
 
 ### AQB Programming Language
-* [Language reference: Core](help/RefCore.md)
-* [Language reference: Amiga specific commands](help/RefAmiga.md)
+* [Reference: Core](help/RefCore.md)
+* [Reference: Amiga specific commands](help/RefAmiga.md)
+* [Reference: IFFSupport](help/IFFSupport.md)
 * [Type System](#type-system)
 * [Module System and Runtime](#module-system-and-runtime)
 * [Code Generation and Target Systems](#code-generation-and-target-systems)

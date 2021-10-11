@@ -151,7 +151,7 @@ class AmigaGuideMixin(object):
         lines = "\n"
 
         for label in self.root_node.tocnodes:
-            lines = lines + '@{"%s" link "%s"}\n' % (label, mangleNode(label))
+            lines = lines + '@{"%s" link "%s"}\n' % (aguideEscape(label), mangleNode(label))
 
         return lines
 
@@ -168,8 +168,9 @@ class AmigaGuideMixin(object):
                     "@node navidx \"Index\"\n"
                     "\n\n"
                     " * @{\"Start\" link \"AQB:README.guide/main\"}\n\n"
-                    " * @{\"Language reference: Core\" link \"AQB:help/RefCore.guide/main\"\n\n"
-                    " * @{\"Language reference: Amiga specific commands\" link \"AQB:help/RefAmiga.guide/main\"}\n"
+                    " * @{\"Reference: Core\" link \"AQB:help/RefCore.guide/main\"\n\n"
+                    " * @{\"Reference: Amiga specific commands\" link \"AQB:help/RefAmiga.guide/main\"}\n"
+                    " * @{\"Reference: Amiga specific commands\" link \"AQB:help/RefAmiga.guide/main\"}\n"
                     "@endnode\n"
                     "@index navidx\n")
             return "@DATABASE\n@node MAIN\n" + body + suff
