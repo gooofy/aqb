@@ -168,9 +168,9 @@ class AmigaGuideMixin(object):
                     "@node navidx \"Index\"\n"
                     "\n\n"
                     " * @{\"Start\" link \"AQB:README.guide/main\"}\n\n"
-                    " * @{\"Reference: Core\" link \"AQB:help/RefCore.guide/main\"\n\n"
+                    " * @{\"Reference: Core\" link \"AQB:help/RefCore.guide/main\"}\n"
                     " * @{\"Reference: Amiga specific commands\" link \"AQB:help/RefAmiga.guide/main\"}\n"
-                    " * @{\"Reference: Amiga specific commands\" link \"AQB:help/RefAmiga.guide/main\"}\n"
+                    " * @{\"Reference: IFFSupport module\" link \"AQB:help/IFFSupport.guide/main\"}\n"
                     "@endnode\n"
                     "@index navidx\n")
             return "@DATABASE\n@node MAIN\n" + body + suff
