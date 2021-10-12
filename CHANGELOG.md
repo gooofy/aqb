@@ -4,6 +4,7 @@ Improvements:
 
     * ide/runtime: handle and display program exit ERR code
     * ide: keep ASL file requester path
+    * ide: fix multiview (help viewer) wb startup
     * runtime: IFFSupport module added
     * runtime: BLIT() function added
     * runtime: BLIT FREE instruction added

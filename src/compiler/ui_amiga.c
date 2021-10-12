@@ -597,10 +597,13 @@ bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, 
 
 void UI_HelpBrowser (void)
 {
-    //    FIXME: homedir
-    RUN_help ("SYS:Utilities/MultiView", "AQB:README.guide");
-    //Execute ((STRPTR)"run multiview AQB:README.guide", 0l, 0l);
+    static char pathbuf[256];
+    strncpy (pathbuf, aqb_home, 256);
+    AddPart ((STRPTR) pathbuf, (STRPTR)"README.guide", 256);
+
+    RUN_help ("SYS:Utilities/MultiView", pathbuf);
 }
+
 typedef enum { esWait, esGetWin, esGetDebug } eventState;
 
 static void updateWindowSize(void)
