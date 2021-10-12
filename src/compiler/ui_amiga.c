@@ -597,7 +597,9 @@ bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, 
 
 void UI_HelpBrowser (void)
 {
-    Execute ((STRPTR)"run multiview AQB:README.guide", 0l, 0l);
+    //    FIXME: homedir
+    RUN_help ("SYS:Utilities/MultiView", "AQB:README.guide");
+    //Execute ((STRPTR)"run multiview AQB:README.guide", 0l, 0l);
 }
 typedef enum { esWait, esGetWin, esGetDebug } eventState;
 

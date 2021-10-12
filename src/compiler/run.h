@@ -10,6 +10,7 @@ RUN_state RUN_getState(void);
 #include <dos/dosextens.h>
 
 void      RUN_start (const char *binfn);
+void      RUN_help (char *binfn, char *arg1);
 
 void      RUN_init (struct MsgPort *debugPort);
 

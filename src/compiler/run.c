@@ -5,8 +5,6 @@
 #include "logger.h"
 #include "ui.h"
 
-// #define SEND_WBSTARTUP_MSG
-
 static RUN_state        g_debugState = RUN_stateStopped;
 
 #ifdef __amigaos__
@@ -26,28 +24,14 @@ static RUN_state        g_debugState = RUN_stateStopped;
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
-static struct MsgPort  *g_debugPort;
-
 #define DEFAULT_PRI           0
 #define DEFAULT_STACKSIZE 32768
 
 #define TS_FROZEN          0xff
 
-#define DEBUG_SIG 0xDECA11ED
-static struct Task       *g_parentTask;
-static struct Process    *g_childProc;
-static char              *g_binfn;
-static BPTR               g_childHomeDirLock = 0;
-static BPTR               g_seglist;
+#define DEBUG_SIG          0xDECA11ED
 
-#ifdef SEND_WBSTARTUP_MSG
-
-static struct WBStartup   g_startupMsg;
-static struct WBArg       g_startupArg;
-
-#else
-
-/* we send this instead of WBStartup */
+/* we send this instead of WBStartup when running a debug process */
 struct DebugMsg
 {
     struct Message  msg;
@@ -56,129 +40,137 @@ struct DebugMsg
 	ULONG           code;
 };
 
-static struct DebugMsg    g_dbgMsg;
-static ULONG              g_ERRCode;
+typedef struct RUN_env_ *RUN_env;
 
-#endif
-
-#if 0
-typedef LONG (*startup_t) ( register STRPTR cmdline __asm("a0"), register ULONG cmdlen __asm("d0") );
-
-static void runner (void)
+struct RUN_env_
 {
-#if 0
-	struct Process *me = (struct Process *) FindTask(NULL);
-    g_childTask = (struct Task *) me;
-    me->pr_CurrentDir = g_currentDir;
-
-    //LOG_printf (LOG_INFO, "run: runner() running %s ...\n\n", g_binfn);
-
-    //me->pr_COS = MKBADDR(g_output);
-
-    ULONG *code = (ULONG *) BADDR(seglist);
-    code++;
-    //startup_t f = (startup_t) code;
-
-    //LOG_printf (LOG_INFO, "run: runner() before f ...\n\n");
-#endif
-    while (TRUE);
-
-#if 0
-    //f((STRPTR)"fake_aqb_env", 12);
-
-    //LOG_printf (LOG_INFO, "run: runner() after f... 1\n");
-    UnLoadSeg(seglist);
-
-	//LOG_printf (LOG_INFO, "run: runner ends, sending signal\n");
-
-	Signal (g_parentTask, 1<<g_termSignal);
-#endif
-}
-#endif
-
-void RUN_start (const char *binfn)
-{
-    g_binfn = (char *)binfn;
-
-    LOG_printf (LOG_DEBUG, "RUN_start: loading %s ...\n\n", g_binfn);
-    g_seglist = LoadSeg((STRPTR)g_binfn);
-    if (!g_seglist)
+    RUN_state          state;
+    struct Process    *childProc;
+    char              *binfn;
+    BPTR               childHomeDirLock;
+    BPTR               seglist;
+    char               dirbuf[256];
+    union
     {
-        LOG_printf (LOG_ERROR, "failed to load %s\n\n", g_binfn);
+        struct
+        {
+            struct DebugMsg    msg;
+            ULONG              err;
+        } dbg;
+        struct
+        {
+            struct WBStartup   msg;
+            struct WBArg       arg0;
+            struct WBArg       arg1;
+        } wb;
+    } u;
+};
+
+static struct MsgPort    *g_debugPort;
+static struct Task       *g_parentTask;
+static struct RUN_env_    g_dbgEnv   = {RUN_stateStopped, NULL, NULL, 0, 0};
+static struct RUN_env_    g_helpEnv  = {RUN_stateStopped, NULL, NULL, 0, 0};
+
+static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
+{
+    env->binfn = binfn;
+
+    LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
+    env->seglist = LoadSeg((STRPTR)binfn);
+    if (!env->seglist)
+    {
+        LOG_printf (LOG_ERROR, "failed to load %s\n\n", binfn);
         return;
     }
 
     // homedir
 
-    static char dirbuf[256];
-    strncpy (dirbuf, g_binfn, 256);
-    *(PathPart((STRPTR)dirbuf)) = 0;
+    strncpy (env->dirbuf, binfn, 256);
+    *(PathPart((STRPTR)env->dirbuf)) = 0;
 
-    g_childHomeDirLock = Lock ((STRPTR)dirbuf, ACCESS_READ);
+    env->childHomeDirLock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
 
-    LOG_printf (LOG_DEBUG, "RUN_start: CreateNewProc for %s ...\n", binfn);
-    g_childProc = CreateNewProcTags(NP_Seglist,     (ULONG) g_seglist,
-									NP_FreeSeglist, FALSE,
-									NP_Input,       0l,
-                                    NP_Output,      Output(),
-                                    NP_CloseInput,  FALSE,
-                                    NP_CloseOutput, FALSE,
-                                    NP_StackSize,   DEFAULT_STACKSIZE,
-								    NP_Name,        (ULONG) g_binfn,
-									//NP_WindowPtr,   0l,
-									NP_HomeDir,     g_childHomeDirLock,
-									NP_CopyVars,    FALSE,
-									TAG_DONE);
+    LOG_printf (LOG_DEBUG, "RUN _launch_process: CreateNewProc for %s ...\n", binfn);
+    env->childProc = CreateNewProcTags(NP_Seglist,     (ULONG) env->seglist,
+									   NP_FreeSeglist, FALSE,
+									   NP_Input,       0l,
+                                       NP_Output,      Output(),
+                                       NP_CloseInput,  FALSE,
+                                       NP_CloseOutput, FALSE,
+                                       NP_StackSize,   DEFAULT_STACKSIZE,
+								       NP_Name,        (ULONG) binfn,
+									   //NP_WindowPtr,   0l,
+									   NP_HomeDir,     env->childHomeDirLock,
+									   NP_CopyVars,    FALSE,
+									   TAG_DONE);
 
-    LOG_printf (LOG_DEBUG, "RUN_start: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_childProc);
+    LOG_printf (LOG_DEBUG, "RUN _launch_process: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) env->childProc);
 
     // send startup message
 
-#ifdef SEND_WBSTARTUP_MSG
+    if (dbg)
+    {
 
-	g_startupMsg.sm_Message.mn_Node.ln_Succ = NULL;
-	g_startupMsg.sm_Message.mn_Node.ln_Pred = NULL;
-	g_startupMsg.sm_Message.mn_Node.ln_Type = NT_MESSAGE;
-	g_startupMsg.sm_Message.mn_Node.ln_Pri  = 0;
-	g_startupMsg.sm_Message.mn_Node.ln_Name = NULL;
-    g_startupMsg.sm_Message.mn_ReplyPort    = g_debugPort;
-	g_startupMsg.sm_Message.mn_Length       = sizeof(struct WBStartup);
-	g_startupMsg.sm_Process                 = &g_childProc->pr_MsgPort;
-	g_startupMsg.sm_Segment                 = g_seglist;
-    g_startupMsg.sm_NumArgs                 = 1;
-    g_startupMsg.sm_ToolWindow              = NULL;
-    g_startupMsg.sm_ArgList                 = &g_startupArg;
+        env->u.dbg.msg.msg.mn_Node.ln_Succ = NULL;
+        env->u.dbg.msg.msg.mn_Node.ln_Pred = NULL;
+        env->u.dbg.msg.msg.mn_Node.ln_Type = NT_MESSAGE;
+        env->u.dbg.msg.msg.mn_Node.ln_Pri  = 0;
+        env->u.dbg.msg.msg.mn_Node.ln_Name = NULL;
+        env->u.dbg.msg.msg.mn_ReplyPort    = g_debugPort;
+        env->u.dbg.msg.msg.mn_Length       = sizeof(struct DebugMsg);
+        env->u.dbg.msg.port                = &env->childProc->pr_MsgPort;
+        env->u.dbg.msg.debug_sig           = DEBUG_SIG;
+        env->u.dbg.msg.code                = 0;
+        env->u.dbg.err                     = 0;
 
-    g_startupArg.wa_Lock = Lock ((STRPTR)dirbuf, ACCESS_READ);
-    g_startupArg.wa_Name = (BYTE*) FilePart ((STRPTR)g_binfn);
+        LOG_printf (LOG_DEBUG, "RUN _launch_process: Send debug msg...\n");
 
-	LOG_printf (LOG_DEBUG, "RUN_start: Send WBSTartup msg (dirbuf=%s)...\n", dirbuf);
+        PutMsg (&env->childProc->pr_MsgPort, &env->u.dbg.msg.msg);
+    }
+    else
+    {
+        env->u.wb.msg.sm_Message.mn_Node.ln_Succ = NULL;
+        env->u.wb.msg.sm_Message.mn_Node.ln_Pred = NULL;
+        env->u.wb.msg.sm_Message.mn_Node.ln_Type = NT_MESSAGE;
+        env->u.wb.msg.sm_Message.mn_Node.ln_Pri  = 0;
+        env->u.wb.msg.sm_Message.mn_Node.ln_Name = NULL;
+        env->u.wb.msg.sm_Message.mn_ReplyPort    = g_debugPort;
+        env->u.wb.msg.sm_Message.mn_Length       = sizeof(struct WBStartup);
+        env->u.wb.msg.sm_Process                 = &env->childProc->pr_MsgPort;
+        env->u.wb.msg.sm_Segment                 = env->seglist;
+        env->u.wb.msg.sm_NumArgs                 = arg1 ? 2 : 1;
+        env->u.wb.msg.sm_ToolWindow              = NULL;
+        env->u.wb.msg.sm_ArgList                 = &env->u.wb.arg0;
 
-	PutMsg (&g_childProc->pr_MsgPort, &g_startupMsg.sm_Message);
+        env->u.wb.arg0.wa_Lock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
+        env->u.wb.arg0.wa_Name = (BYTE*) FilePart ((STRPTR)binfn);
 
-#else
+        if (arg1)
+        {
+            strncpy (env->dirbuf, arg1, 256);
+            *(PathPart((STRPTR)env->dirbuf)) = 0;
 
-	g_dbgMsg.msg.mn_Node.ln_Succ = NULL;
-	g_dbgMsg.msg.mn_Node.ln_Pred = NULL;
-	g_dbgMsg.msg.mn_Node.ln_Type = NT_MESSAGE;
-	g_dbgMsg.msg.mn_Node.ln_Pri  = 0;
-	g_dbgMsg.msg.mn_Node.ln_Name = NULL;
-    g_dbgMsg.msg.mn_ReplyPort    = g_debugPort;
-	g_dbgMsg.msg.mn_Length       = sizeof(struct DebugMsg);
-	g_dbgMsg.port                = &g_childProc->pr_MsgPort;
-	g_dbgMsg.debug_sig           = DEBUG_SIG;
-	g_dbgMsg.code                = 0;
-    g_ERRCode                    = 0;
+            env->u.wb.arg1.wa_Lock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
+            env->u.wb.arg1.wa_Name = (BYTE*) FilePart ((STRPTR)arg1);
+        }
+        LOG_printf (LOG_DEBUG, "RUN _launch_process: Send WBSTartup msg (arg1=%s) ...\n", arg1);
 
-	LOG_printf (LOG_DEBUG, "RUN_start: Send debug msg...\n");
+        PutMsg (&env->childProc->pr_MsgPort, &env->u.wb.msg.sm_Message);
+    }
 
-	PutMsg (&g_childProc->pr_MsgPort, &g_dbgMsg.msg);
+    env->state = RUN_stateRunning;
 
-#endif
+	LOG_printf (LOG_DEBUG, "RUN _launch_process: done.\n");
+}
 
-    g_debugState = RUN_stateRunning;
+void RUN_start (const char *binfn)
+{
+    _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/NULL, /*dbg=*/TRUE);
+}
 
-	LOG_printf (LOG_DEBUG, "RUN_start: done.\n");
+void RUN_help (char *binfn, char *arg1)
+{
+    _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/arg1, /*dbg=*/FALSE);
 }
 
 uint16_t RUN_handleMessages(void)
@@ -187,56 +179,66 @@ uint16_t RUN_handleMessages(void)
     USHORT key = KEY_NONE;
     while (TRUE)
     {
-#ifdef SEND_WBSTARTUP_MSG
-        struct WBStartup *msg = (struct WBStartup *) GetMsg(g_debugPort);
-        LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)msg);
-        if (!msg)
+        struct DebugMsg *m = (struct DebugMsg *) GetMsg(g_debugPort);
+        LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
+        if (!m)
             return key;
-        if (msg->sm_Message.mn_Node.ln_Type == NT_REPLYMSG)
-        {
-            LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a reply message -> state is STOPPED now.\n");
-            g_debugState = RUN_stateStopped;
-            if (g_seglist)
-            {
-                UnLoadSeg (g_seglist);
-                g_seglist = 0l;
-            }
-            if (g_startupArg.wa_Lock)
-            {
-                UnLock (g_startupArg.wa_Lock);
-                g_startupArg.wa_Lock = 0l;
-            }
-            if (g_childHomeDirLock)
-            {
-                UnLock (g_childHomeDirLock);
-                g_childHomeDirLock = 0l;
-            }
-        }
-#else
-        struct DebugMsg *msg = (struct DebugMsg *) GetMsg(g_debugPort);
-        if (!msg)
-            return key;
-        if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
-            && (msg->debug_sig == DEBUG_SIG))
-        {
-            g_debugState = RUN_stateStopped;
-            if (g_seglist)
-            {
-                UnLoadSeg (g_seglist);
-                g_seglist = 0l;
-            }
 
-            printf ("program stopped, ERR is %ld\n", msg->code);
-            g_ERRCode = msg->code;
-            key = KEY_STOPPED;
+        // is this our dbg process or the help window ?
+
+        if (m->port == &g_helpEnv.childProc->pr_MsgPort)
+        {
+            struct WBStartup *msg = (struct WBStartup *) m;
+            if (msg->sm_Message.mn_Node.ln_Type == NT_REPLYMSG)
+            {
+                LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a wb startup reply message for our help window -> state is STOPPED now.\n");
+                g_helpEnv.state = RUN_stateStopped;
+                if (g_helpEnv.seglist)
+                {
+                    UnLoadSeg (g_helpEnv.seglist);
+                    g_helpEnv.seglist = 0l;
+                }
+                if (g_helpEnv.u.wb.arg0.wa_Lock)
+                {
+                    UnLock (g_helpEnv.u.wb.arg0.wa_Lock);
+                    g_helpEnv.u.wb.arg0.wa_Lock = 0l;
+                }
+                if (g_helpEnv.childHomeDirLock)
+                {
+                    UnLock (g_helpEnv.childHomeDirLock);
+                    g_helpEnv.childHomeDirLock = 0l;
+                }
+            }
         }
-#endif
+        else
+        {
+            if (m->port == &g_dbgEnv.childProc->pr_MsgPort)
+            {
+                struct DebugMsg *msg = (struct DebugMsg *) m;
+                if (!msg)
+                    return key;
+                if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
+                    && (msg->debug_sig == DEBUG_SIG))
+                {
+                    g_dbgEnv.state = RUN_stateStopped;
+                    if (g_dbgEnv.seglist)
+                    {
+                        UnLoadSeg (g_dbgEnv.seglist);
+                        g_dbgEnv.seglist = 0l;
+                    }
+
+                    //printf ("program stopped, ERR is %ld\n", msg->code);
+                    g_dbgEnv.u.dbg.err = msg->code;
+                    key = KEY_STOPPED;
+                }
+            }
+        }
     }
 }
 
 ULONG RUN_getERRCode(void)
 {
-    return g_ERRCode;
+    return g_dbgEnv.u.dbg.err;
 }
 
 #if 0
@@ -297,7 +299,7 @@ void RUN_break (void)
 {
 	LOG_printf (LOG_INFO, "RUN_break: sending CTRL+C signal to child\n");
 
-    Signal (&g_childProc->pr_Task, SIGBREAKF_CTRL_C);
+    Signal (&g_dbgEnv.childProc->pr_Task, SIGBREAKF_CTRL_C);
 }
 
 void RUN_init (struct MsgPort *debugPort)
@@ -305,6 +307,8 @@ void RUN_init (struct MsgPort *debugPort)
 	g_parentTask = FindTask(NULL);
     //g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
     g_debugPort  = debugPort;
+    // FIXME: remove g_dbgEnv->childProc->pr_MsgPort = NULL;
+    // FIXME: remove g_helpEnv->childProc->pr_MsgPort = NULL;
 }
 
 #endif
