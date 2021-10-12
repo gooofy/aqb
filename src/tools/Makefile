@@ -1,7 +1,7 @@
 
-.PHONY: clean all runner printfloat dumpfonts rtgblit areaptrn gctest
+.PHONY: clean all runner printfloat dumpfonts rtgblit areaptrn gctest loadfont
 
-all:	runner printfloat dumpfonts rtgblit areaptrn gctest
+all:	runner printfloat dumpfonts rtgblit areaptrn gctest loadfont
 
 runner:
 	cd runner ; make all
@@ -14,6 +14,9 @@ dumpfonts:
 
 rtgblit:
 	cd rtgblit ; make all
+
+loadfont:
+	cd loadfont ; make all
 
 areaptrn:
 	cd areaptrn ; make all
@@ -29,4 +32,5 @@ clean:
 	cd rtgblit ; make clean
 	cd areaptrn ; make clean
 	cd gctest ; make clean
+	cd loadfont ; make clean
 
