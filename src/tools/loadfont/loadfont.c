@@ -10,6 +10,8 @@
 #include <exec/types.h>
 #include <exec/memory.h>
 
+#include <libraries/diskfont.h>
+
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
 #include <clib/graphics_protos.h>
@@ -44,6 +46,15 @@ static void _loadFont (char *font_dir, char *font_name, char *font_size)
     if (seglist)
     {
         printf ("LoadSeg worked: 0x%08lx\n", seglist);
+
+
+		struct DiskFontHeader *dfh;
+		//struct TextFont *tf;
+
+		dfh = (struct DiskFontHeader *) BADDR(seglist) + 8;
+
+		printf ("%s\n", dfh->dfh_Name);
+
         UnLoadSeg (seglist);
     }
     else
