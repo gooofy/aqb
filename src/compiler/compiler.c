@@ -345,6 +345,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
     LOG_printf (LOG_INFO, "PASS 4: linker\n");
     LI_segmentList sl = LI_SegmentList();
 
+    LOG_printf (LOG_INFO, "        reading startup.o\n");
     FILE *fObj = E_openModuleFile ("startup.o");
     if (!fObj)
     {
@@ -367,6 +368,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
     {
         static char mod_fn[PATH_MAX];
         snprintf (mod_fn, PATH_MAX, "%s.a", S_name (n->m->name));
+        LOG_printf (LOG_INFO, "        reading %s\n", mod_fn);
         fObj = E_openModuleFile (mod_fn);
         if (!fObj)
         {

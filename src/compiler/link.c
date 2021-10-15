@@ -119,7 +119,7 @@ static bool load_hunk_unit(FILE *f)
     uint32_t name_len;
     if (!fread_u4 (f, &name_len))
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #1.\n");
         return FALSE;
     }
     name_len *=4;
@@ -131,7 +131,7 @@ static bool load_hunk_unit(FILE *f)
 
     if (fread (g_buf, name_len, 1, f) != 1)
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #2.\n");
         return FALSE;
     }
 
@@ -146,7 +146,7 @@ static bool load_hunk_name(string sourcefn, FILE *f)
     uint32_t name_len;
     if (!fread_u4 (f, &name_len))
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #3.\n");
         return FALSE;
     }
     name_len *=4;
@@ -158,7 +158,7 @@ static bool load_hunk_name(string sourcefn, FILE *f)
 
     if (fread (g_name, name_len, 1, f) != 1)
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #4.\n");
         return FALSE;
     }
 
@@ -206,7 +206,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
     uint32_t code_len;
     if (!fread_u4 (f, &code_len))
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #5.\n");
         return FALSE;
     }
     code_len *=4;
@@ -216,10 +216,13 @@ static bool load_hunk_code(string sourcefn, FILE *f)
 
     strcpy (g_name, "unnamed");
 
-    if (fread (g_hunk_cur->mem, code_len, 1, f) != 1)
+    if (code_len>0)
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
-        return FALSE;
+        if (fread (g_hunk_cur->mem, code_len, 1, f) != 1)
+        {
+            LOG_printf (LOG_ERROR, "link: read error #6.\n");
+            return FALSE;
+        }
     }
     g_hunk_cur->mem_pos = code_len;
 
@@ -231,7 +234,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
     uint32_t data_len;
     if (!fread_u4 (f, &data_len))
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #7.\n");
         return FALSE;
     }
     data_len *=4;
@@ -243,7 +246,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
 
     if (fread (g_hunk_cur->mem, data_len, 1, f) != 1)
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #8.\n");
         return FALSE;
     }
     //hexdump (g_hunk_cur->mem, 0, data_len);
@@ -257,7 +260,7 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
     uint32_t bss_len;
     if (!fread_u4 (f, &bss_len))
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #9.\n");
         return FALSE;
     }
     bss_len *=4;
@@ -281,14 +284,14 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
     {
         if (!fread_u4 (f, &num_offs))
         {
-            LOG_printf (LOG_ERROR, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error #10.\n");
             return FALSE;
         }
         if (!num_offs)
             return TRUE; // finished
         if (!fread_u4 (f, &hunk_id))
         {
-            LOG_printf (LOG_ERROR, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error #11.\n");
             return FALSE;
         }
         LOG_printf (LOG_DEBUG, "link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
@@ -300,7 +303,7 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
             uint32_t off;
             if (!fread_u4 (f, &off))
             {
-                LOG_printf (LOG_ERROR, "link: read error.\n");
+                LOG_printf (LOG_ERROR, "link: read error #12.\n");
                 return FALSE;
             }
             AS_segmentAddReloc32 (g_hunk_cur, seg, off);
@@ -324,7 +327,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
         uint32_t c;
         if (!fread_u4 (f, &c))
         {
-            LOG_printf (LOG_ERROR, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error #13.\n");
             return FALSE;
         }
 
@@ -343,7 +346,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
 
         if (fread (g_buf, name_len, 1, f) != 1)
         {
-            LOG_printf (LOG_ERROR, "link: read error.\n");
+            LOG_printf (LOG_ERROR, "link: read error #14.\n");
             return FALSE;
         }
 
@@ -359,7 +362,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t num_refs;
                 if (!fread_u4 (f, &num_refs))
                 {
-                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error #15.\n");
                     return FALSE;
                 }
                 for (uint32_t i=0; i<num_refs; i++)
@@ -367,7 +370,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     uint32_t offset;
                     if (!fread_u4 (f, &offset))
                     {
-                        LOG_printf (LOG_ERROR, "link: read error.\n");
+                        LOG_printf (LOG_ERROR, "link: read error #16.\n");
                         return FALSE;
                     }
 
@@ -380,13 +383,13 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t common_size;
                 if (!fread_u4 (f, &common_size))
                 {
-                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error #17.\n");
                     return FALSE;
                 }
                 uint32_t num_refs;
                 if (!fread_u4 (f, &num_refs))
                 {
-                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error #18.\n");
                     return FALSE;
                 }
                 for (uint32_t i=0; i<num_refs; i++)
@@ -394,7 +397,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     uint32_t offset;
                     if (!fread_u4 (f, &offset))
                     {
-                        LOG_printf (LOG_ERROR, "link: read error.\n");
+                        LOG_printf (LOG_ERROR, "link: read error #19.\n");
                         return FALSE;
                     }
 
@@ -407,7 +410,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t offset;
                 if (!fread_u4 (f, &offset))
                 {
-                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error #20.\n");
                     return FALSE;
                 }
                 AS_segmentAddDef (g_hunk_cur, sym, offset);
@@ -419,7 +422,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t v;
                 if (!fread_u4 (f, &v))
                 {
-                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error #21.\n");
                     return FALSE;
                 }
                 // FIXME AS_segmentAddDef (g_hunk_cur, sym, v);
@@ -431,7 +434,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 uint32_t num_refs;
                 if (!fread_u4 (f, &num_refs))
                 {
-                    LOG_printf (LOG_ERROR, "link: read error.\n");
+                    LOG_printf (LOG_ERROR, "link: read error #22.\n");
                     return FALSE;
                 }
                 for (uint32_t i=0; i<num_refs; i++)
@@ -439,7 +442,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     uint32_t v;
                     if (!fread_u4 (f, &v))
                     {
-                        LOG_printf (LOG_ERROR, "link: read error.\n");
+                        LOG_printf (LOG_ERROR, "link: read error #23.\n");
                         return FALSE;
                     }
 
@@ -462,7 +465,7 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
     uint32_t ht;
     if (!fread_u4 (f, &ht))
     {
-        LOG_printf (LOG_ERROR, "link: read error.\n");
+        LOG_printf (LOG_ERROR, "link: read error #24.\n");
         return FALSE;
     }
     LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
@@ -683,8 +686,11 @@ static void write_hunk_code (AS_segment seg, FILE *f)
     uint32_t n = roundUp(seg->mem_pos, 4) / 4;
     LOG_printf (LOG_DEBUG, "link: code section, size=%zd bytes\n", seg->mem_pos);
     fwrite_u4 (f, n);
-    if (fwrite (seg->mem, n*4, 1, f) != 1)
-        link_fail ("write error");
+    if (n>0)
+    {
+        if (fwrite (seg->mem, n*4, 1, f) != 1)
+            link_fail ("write error");
+    }
 }
 
 static void write_hunk_data (AS_segment seg, FILE *f)
@@ -694,7 +700,7 @@ static void write_hunk_data (AS_segment seg, FILE *f)
     uint32_t n = roundUp(seg->mem_pos, 4) / 4;
     LOG_printf (LOG_DEBUG, "link: data section, size=%zd bytes\n", seg->mem_pos);
     fwrite_u4 (f, n);
-    if (n)
+    if (n>0)
     {
         if (fwrite (seg->mem, n*4, 1, f) != 1)
             link_fail ("write error");
@@ -776,8 +782,11 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
             uint32_t n = roundUp(l,4)/4;
             uint32_t c = (EXT_TYPE_REF32<<24) | n;
             fwrite_u4 (f, c);
-            if (fwrite (name, n*4, 1, f) != 1)
-                link_fail ("write error");
+            if (n>0)
+            {
+                if (fwrite (name, n*4, 1, f) != 1)
+                    link_fail ("write error");
+            }
 
             uint32_t cnt=0;
             for (AS_segmentRef r=ref; r; r=r->next)
@@ -795,8 +804,11 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
         uint32_t n = roundUp(l,4)/4;
         uint32_t c = (EXT_TYPE_DEF<<24) | n;
         fwrite_u4 (f, c);
-        if (fwrite (name, n*4, 1, f) != 1)
-            link_fail ("write error");
+        if (n>0)
+        {
+            if (fwrite (name, n*4, 1, f) != 1)
+                link_fail ("write error");
+        }
         fwrite_u4 (f, def->offset);
     }
 
