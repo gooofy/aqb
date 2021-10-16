@@ -1,6 +1,7 @@
+
 SCREEN 1, 320, 200, 2, 1
 
-WINDOW 2,"hand",,15,1
+WINDOW 2,"hand",,,1
 
 WINDOW OUTPUT 2
 
@@ -9,19 +10,15 @@ PALETTE 1, 0,0,0
 PALETTE 2,.467,.467,.8
 PALETTE 3,.73,.73,.73
 
-COLOR 1
-LOCATE 1,1
-PRINT "AQB"
-
 OFFSETX% =       70 : OFFSETY% = 15
 TYPE%    =        0 : FINISHED%=0
 
 WHILE FINISHED%=0
-
+    
     READ B1%, B2%
-
+    
     ' PRINT B1%;",";B2%;",";FINISHED%
-
+    
     IF B1%=255 AND B2%=255 THEN
         FINISHED% = 1
     ELSEIF B1%=255 THEN
