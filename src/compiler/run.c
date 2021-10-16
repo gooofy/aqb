@@ -4,6 +4,7 @@
 #include "run.h"
 #include "logger.h"
 #include "ui.h"
+#include "options.h"
 
 static RUN_state        g_debugState = RUN_stateStopped;
 
@@ -94,7 +95,7 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
     env->childProc = CreateNewProcTags(NP_Seglist,     (ULONG) env->seglist,
 									   NP_FreeSeglist, FALSE,
 									   NP_Input,       0l,
-                                       NP_Output,      Output(),
+                                       NP_Output,      aqb_wbstart ? 0 : Output(),
                                        NP_CloseInput,  FALSE,
                                        NP_CloseOutput, FALSE,
                                        NP_StackSize,   DEFAULT_STACKSIZE,

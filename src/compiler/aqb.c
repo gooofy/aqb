@@ -60,6 +60,7 @@ extern struct DOSBase       *DOSBase;
 char aqb_home[PATH_MAX];
 char aqb_lib[PATH_MAX];
 char aqb_help[PATH_MAX];
+bool aqb_wbstart = FALSE;
 
 static void print_usage(char *argv[])
 {
@@ -329,6 +330,7 @@ int main (int argc, char *argv[])
 #ifdef __amigaos__
     if (argc == 0)  // workbench launch
     {
+        aqb_wbstart = TRUE;
         struct WBStartup *wb_msg = (struct WBStartup *) argv;
 		struct WBArg *wbarg = wb_msg->sm_ArgList;
         for (uint16_t i=0; i < wb_msg->sm_NumArgs; i++, wbarg++)

@@ -11,6 +11,7 @@
 extern char aqb_home[PATH_MAX];
 extern char aqb_lib[PATH_MAX];
 extern char aqb_help[PATH_MAX];
+extern bool aqb_wbstart;
 
 /*
  * compiler options
