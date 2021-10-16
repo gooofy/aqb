@@ -219,7 +219,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : (UBYTE*) "";
 
     g_nw.Flags      = flags;
-    g_nw.IDCMPFlags = RAWKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
+    g_nw.IDCMPFlags = CLOSEWINDOW | RAWKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
 
     if (g_active_scr)
     {
