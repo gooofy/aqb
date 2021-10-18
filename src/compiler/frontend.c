@@ -3131,7 +3131,7 @@ static bool inputVar(S_tkn *tkn)
     if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
         return EM_error((*tkn)->pos, "INPUT: variable designator expected here.");
 
-    S_symbol   fsym    = NULL;                   // put* function sym to call
+    S_symbol   fsym    = NULL;                   // _aio_input* function sym to call
     Ty_ty      ty      = CG_ty(&var)->u.pointer;
     switch (ty->kind)
     {
@@ -3174,7 +3174,7 @@ static bool inputVar(S_tkn *tkn)
         CG_itemList arglist = CG_ItemList();
         CG_itemListNode n = CG_itemListAppend(arglist);
         n->item = var;
-        CG_loadRef(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
+        //CG_loadRef(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, func->u.proc, arglist, NULL);
     }
     return TRUE;

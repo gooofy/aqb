@@ -194,7 +194,7 @@ static void _input_skip_delimiter (void)
 
 static void _input_next_token (void)
 {
-    // _aio_puts("skip whitespace...\n");
+    DPRINTF("_input_next_token: skip whitespace...\n");
     _input_skip_whitespace();
     if (g_input_eof)
         ERROR (AE_INPUT_OUT_OF_DATA); // FIXME: in console input, re-prompt the user
@@ -205,7 +205,7 @@ static void _input_next_token (void)
 
     while (!g_input_eof && (len < MAX_TOKEN_LEN))
     {
-        // _aio_puts("token... \n");
+        DPRINTF("_input_next_token: token... (g_input_ch=%c[%d])\n", g_input_ch, g_input_ch);
         switch (g_input_ch)
         {
             case '\n':
@@ -265,6 +265,7 @@ static void _input_next_token (void)
 
 fini:
     g_input_token[len++] = '\0';
+    DPRINTF("_input_next_token: fini g_input_token=%s\n", g_input_token);
 
     // _aio_puts("delim\n");
     if (skip_delim)

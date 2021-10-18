@@ -1,3 +1,14 @@
+## 0.7.4
+
+Improvements:
+
+    *
+
+Bug Fixes:
+
+    * runtime: INPUT statement fixed
+    * build system: makefile portability enhancements
+
 ## 0.7.3
 
 Improvements:

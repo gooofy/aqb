@@ -1129,6 +1129,7 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 
         while (TRUE)
         {
+            SLEEP();
             char *buf2 = INKEY_();
             char c = *buf2;
 
@@ -1182,6 +1183,8 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
             //_debug_puts((STRPTR)"NOT do_nl");
         }
     }
+
+    DPRINTF ("_aio_gets: buf=%s\n", buf);
 
     *s = _astr_dup (buf);
 
