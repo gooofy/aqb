@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.7.3
+VERSION=0.7.4
 WORKDIR=`pwd`/target/m68k-amigaos/dist
 LHA=${WORKDIR}/aqb-${VERSION}.lha
 
@@ -69,16 +69,17 @@ if [ -e "$LAMIGA/Apps" ]; then
 
 fi
 
-EAMIGA=/mnt/amiga
-if [ -e "$EAMIGA/Apps" ]; then
+#EAMIGA=/mnt/amiga
+#if [ -e "$EAMIGA/Apps" ]; then
+#
+#    cp ${LHA} $EAMIGA/x/
+#    pushd "$EAMIGA/Apps"
+#    rm -rf aqb*
+#    lha x ${LHA}
+#    popd
+#
+#fi
 
-    cp ${LHA} $EAMIGA/x/
-    pushd "$EAMIGA/Apps"
-    rm -rf aqb*
-    lha x ${LHA}
-    popd
-
-fi
-
-
+EXPORT=$XAMIGA/../../export
+cp ${LHA} ${EXPORT}
 
