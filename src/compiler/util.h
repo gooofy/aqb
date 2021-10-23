@@ -19,7 +19,7 @@ typedef char bool;
 #define COPYRIGHT          "(C) 2020, 2021 by G. Bartsch"
 #define PROGRAM_NAME_SHORT "AQB"
 #define PROGRAM_NAME_LONG  "AQB Amiga BASIC"
-#define LICENSE            "Licensed under the Apache License, Version 2.0."
+#define LICENSE            "Licensed under the MIT license."
 
 /*
  * endianness
