@@ -29,3 +29,6 @@ include $(wildcard $(DEPFILES_AMIGAOS))
 diss: ${BINDIR_AMIGAOS}/loadfont
 	$(OBJDUMP_AMIGAOS) -S -d -x ${BINDIR_AMIGAOS}/loadfont
 
+%.asm: %.c
+	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
+
