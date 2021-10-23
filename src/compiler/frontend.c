@@ -4013,6 +4013,8 @@ static bool stmtIfElse(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!isLogicalEOL(*tkn))
         return FALSE;
 
+    sle->env = OPT_get(OPTION_EXPLICIT) ? E_EnvScopes(g_sleStack->prev->env) : g_sleStack->env;
+
     return TRUE;
 }
 

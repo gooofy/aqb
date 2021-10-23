@@ -2,13 +2,14 @@
 
 Improvements:
 
-    * compiler: fix BYREF recursive argument passing
     * MIT license applied consistently
 
 Bug Fixes:
 
     * runtime: INPUT statement fixed
     * build system: makefile portability enhancements
+    * compiler: fix BYREF recursive argument passing
+    * compiler: fix IF/ELSE namespaces
 
 ## 0.7.3
 
