@@ -81,6 +81,7 @@ src/tools/os2aqb/os_exec.txt
 src/tools/os2aqb/os_mathtrans.txt
 src/tools/colorschemes
 src/tools/md2amiga/marko/__pycache__
+src/tools/loadfont/*.asm
 examples/collection/
 examples/demo/tetris
 examples/demo/tetris.asm
