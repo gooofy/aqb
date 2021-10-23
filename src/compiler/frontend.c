@@ -4442,6 +4442,7 @@ static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                 case IK_inFrame:
                 case IK_inHeap:
                 case IK_inReg:
+                case IK_inFrameRef:
                     CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &iln->item);
                     break;
                 case IK_varPtr:

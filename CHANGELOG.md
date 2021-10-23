@@ -2,7 +2,8 @@
 
 Improvements:
 
-    *
+    * compiler: fix BYREF recursive argument passing
+    * MIT license applied consistently
 
 Bug Fixes:
 
