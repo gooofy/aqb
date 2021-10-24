@@ -1691,7 +1691,8 @@ BOB_t *BOB_ (BITMAP_t *bm)
 
     bob->vsprite.X          = 0;
     bob->vsprite.Y          = 0;
-    bob->vsprite.Flags      = SAVEBACK | OVERLAY;
+    //bob->vsprite.Flags      = SAVEBACK | OVERLAY;
+    bob->vsprite.Flags      = 0;
     bob->vsprite.Width      = word_width;
     bob->vsprite.Depth      = bm->bm.Depth;
     bob->vsprite.Height     = bm->height;
@@ -1729,7 +1730,7 @@ BOB_t *BOB_ (BITMAP_t *bm)
 
 void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
 {
-	DPRINTF ("BOB_MOVE bob=0x%08lx, x=%d, y=%d\n", bob, x, y);
+	DPRINTF ("BOB_MOVE bob=0x%08lx, x=%d, y=%d, g_rp=0x%08lx, g_vp=0x%08lx\n", bob, x, y, g_rp, g_vp);
 	if (!bob || !g_rp)
 	{
         ERROR(AE_BOB);
@@ -1746,7 +1747,7 @@ void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
 	bob->bob.BobVSprite->X = x;
 	bob->bob.BobVSprite->Y = y;
 
-#if 0
+#if 1
 	SortGList(g_rp);
 	DrawGList(g_rp, g_vp);
 	/* FIXME: If the GelsList includes true VSprites, MrgCop() and LoadView() here */
