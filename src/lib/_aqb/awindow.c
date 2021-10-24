@@ -85,6 +85,9 @@ static ULONG _g_signalmask_awindow=0;
 static BITMAP_t *g_bm_first             = NULL;
 static BITMAP_t *g_bm_last              = NULL;
 
+static BOB_t *g_bob_first               = NULL;
+static BOB_t *g_bob_last                = NULL;
+
 static void (*g_win_cb)(void)           = NULL;
 static void (*g_mouse_cb)(void)         = NULL;
 static void (*g_mouse_motion_cb)(void)  = NULL;
@@ -95,6 +98,7 @@ static short            g_active_win_id = 1;
 static short            g_output_win_id = 1;
 static struct Window   *g_output_win    = NULL;
 static struct RastPort *g_rp            = NULL;
+static struct ViewPort *g_vp            = NULL;
 static BOOL             g_win1_is_dos   = TRUE; // when started from CLI, window 1 is the DOS stdout unless re-opened
 
 typedef struct myTimeVal
@@ -148,6 +152,7 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE
     g_scrlist[id-1] = scr;
     g_active_scr    = scr;
     g_active_scr_id = id;
+	g_vp            = &scr->ViewPort;
 }
 
 /*
@@ -370,6 +375,15 @@ void _awindow_init(void)
         ConsoleDevice = g_ioreq.io_Device;
     }
     g_win1_is_dos = _startup_mode == STARTUP_CLI;
+
+	// default view port
+
+	struct Screen *sc = NULL;
+	if ( (sc = LockPubScreen(NULL)) )
+	{
+		g_vp = &sc->ViewPort;
+		UnlockPubScreen(NULL, sc);
+	}
 }
 
 static BOOL _checkCurWinDos (void)
@@ -1601,6 +1615,144 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
     ClipBlit(&bm->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
 }
 
+BOB_t *BOB_ (BITMAP_t *bm)
+{
+    BOB_t *bob = AllocVec(sizeof(*bob), MEMF_CLEAR);
+    if (!bob)
+    {
+        ERROR(AE_BOB);
+        return NULL;
+    }
+
+    bob->prev = g_bob_last;
+    if (g_bob_last)
+        g_bob_last = g_bob_last->next = bob;
+    else
+        g_bob_first = g_bob_last = bob;
+
+    LONG word_width = (bm->bm.BytesPerRow+1)/2;
+    LONG rassize = (LONG)sizeof(UWORD) * word_width * bm->height * bm->bm.Depth;
+
+    bob->bob.SaveBuffer = (WORD *)AllocVec(rassize, MEMF_CHIP);
+
+    if (!bob->bob.SaveBuffer)
+    {
+        ERROR(AE_BOB);
+        return NULL;
+    }
+
+#if 0
+        bob_data2,  /* nb_Image*/
+        2,          /* nb_WordWidth*/
+        GEL_SIZE,   /* nb_LineHeight*/
+        2,          /* nb_ImageDepth*/
+        3,          /* nb_PlanePick*/
+        0,          /* nb_PlaneOnOff*/
+        SAVEBACK | OVERLAY,/* nb_BFlags*/
+        0,          /*nb_DBuf */
+        8,          /* nb_RasDepth*/
+        160,        /* nb_X*/
+        100,        /* nb_Y*/
+        0,          /* nb_HitMask*/
+        0,          /* nb_MeMask*/
+        };
+
+            nVSprite.nvs_WordWidth  = nBob->nb_WordWidth;
+            nVSprite.nvs_LineHeight = nBob->nb_LineHeight;
+            nVSprite.nvs_ImageDepth = nBob->nb_ImageDepth;
+            nVSprite.nvs_Image      = nBob->nb_Image;
+            nVSprite.nvs_X          = nBob->nb_X;
+            nVSprite.nvs_Y          = nBob->nb_Y;
+            nVSprite.nvs_ColorSet   = NULL;
+            nVSprite.nvs_Flags      = nBob->nb_BFlags;
+            /* Push the values into the NEWVSPRITE structure for use in makeVSprite(). */
+            nVSprite.nvs_MeMask     = nBob->nb_MeMask;
+            nVSprite.nvs_HitMask    = nBob->nb_HitMask;
+
+            if ((vsprite = makeVSprite(&nVSprite)) != NULL)
+#endif
+
+    LONG line_size  = 2 * word_width;
+    LONG plane_size = line_size * bm->height;
+
+    bob->vsprite.BorderLine = (WORD *)AllocVec(line_size, MEMF_CHIP);
+    if (!bob->vsprite.BorderLine)
+    {
+        ERROR(AE_BOB);
+        return NULL;
+    }
+
+    bob->vsprite.CollMask = (WORD *)AllocVec(plane_size, MEMF_CHIP);
+    if (!bob->vsprite.CollMask)
+    {
+        ERROR(AE_BOB);
+        return NULL;
+    }
+
+    bob->vsprite.X          = 0;
+    bob->vsprite.Y          = 0;
+    bob->vsprite.Flags      = SAVEBACK | OVERLAY;
+    bob->vsprite.Width      = word_width;
+    bob->vsprite.Depth      = bm->bm.Depth;
+    bob->vsprite.Height     = bm->height;
+    bob->vsprite.MeMask     = 0;
+    bob->vsprite.HitMask    = 0;
+    bob->vsprite.ImageData  = (WORD *) bm->bm.Planes[0];
+    bob->vsprite.SprColors  = NULL;
+    bob->vsprite.PlanePick  = 0x00;
+    bob->vsprite.PlaneOnOff = 0x00;
+
+    InitMasks(&bob->vsprite);
+
+	bob->vsprite.VSBob   = &bob->bob;
+	bob->bob.BobVSprite  = &bob->vsprite;
+	bob->bob.ImageShadow = bob->vsprite.CollMask;
+	bob->bob.Flags       = 0;
+	bob->bob.Before      = NULL;
+	bob->bob.After       = NULL;
+	bob->bob.BobComp     = NULL;
+	bob->bob.DBuffer     = NULL;
+#if 0
+	if (nBob->nb_DBuf)
+		{
+		if (NULL != (bob->DBuffer = (struct DBufPacket *)
+				AllocMem((LONG)sizeof(struct DBufPacket), MEMF_CLEAR)))
+			{
+			if (NULL != (bob->DBuffer->BufBuffer = (WORD *)AllocMem(rassize, MEMF_CHIP)))
+				return(bob);
+#endif
+
+	DPRINTF ("BOB allocation done, bob=0x%08lx, VSprite: width=%d, height=%d, depth=%d\n", bob, bob->vsprite.Width, bob->vsprite.Height, bob->vsprite.Depth);
+
+    return bob;
+}
+
+void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
+{
+	DPRINTF ("BOB_MOVE bob=0x%08lx, x=%d, y=%d\n", bob, x, y);
+	if (!bob || !g_rp)
+	{
+        ERROR(AE_BOB);
+        return;
+	}
+
+	if (!bob->active)
+	{
+		DPRINTF ("BOB_MOVE adding bob to rp bob=0x%08lx\n", bob);
+        AddBob(&bob->bob, g_rp);
+		bob->active = TRUE;
+	}
+
+	bob->bob.BobVSprite->X = x;
+	bob->bob.BobVSprite->Y = y;
+
+#if 0
+	SortGList(g_rp);
+	DrawGList(g_rp, g_vp);
+	/* FIXME: If the GelsList includes true VSprites, MrgCop() and LoadView() here */
+	WaitTOF(); /* FIXME: VSYNC command! */
+#endif
+}
 
 void _palette_load (SHORT scid, PALETTE_t *p)
 {

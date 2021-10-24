@@ -3,6 +3,7 @@
 
 #include <graphics/rastport.h>
 #include <graphics/gfx.h>
+#include <graphics/gels.h>
 
 #include "../_brt/_brt.h"
 
@@ -89,6 +90,23 @@ void     BITMAP_FREE          (BITMAP_t *bm);
 void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
 void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 
+/*
+ * GELs
+ */
+
+typedef struct BOB_ BOB_t;
+
+struct BOB_
+{
+    BOB_t          *prev, *next;
+    struct Bob      bob;
+    struct VSprite  vsprite;
+	BOOL            active;
+};
+
+BOB_t   *BOB_               (BITMAP_t *bm);
+void     BOB_MOVE           (BOB_t *bob, BOOL s, SHORT x, SHORT y);
+
 #define AE_WIN_OPEN                 101
 #define AE_SCREEN_OPEN              102
 #define AE_PALETTE                  103
@@ -110,6 +128,7 @@ void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE min
 #define AE_CLOSE                    119
 #define AE_MOUSE                    120
 #define AE_BLIT                     121
+#define AE_BOB                      122
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);

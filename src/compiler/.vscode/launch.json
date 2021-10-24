@@ -257,6 +257,27 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
+            "name": "banana",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
+            "args": ["-L", "../../src/lib", "-v", "-o", "tetris", "banana.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../examples/demo/",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build aqb compiler",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
             "name": "ide",
             "type": "cppdbg",
             "request": "launch",

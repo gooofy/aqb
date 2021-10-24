@@ -9,6 +9,11 @@
 
 #define AE_IFF                      200
 
+#define mskNone                0
+#define mskHasMask             1
+#define mskHasTransparentColor 2
+#define mskLasso               3
+
 typedef struct
 {
     // BitMapHeader (BMHD chunk)

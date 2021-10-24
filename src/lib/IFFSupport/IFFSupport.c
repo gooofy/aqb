@@ -91,6 +91,8 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
             ULONG l = Read (f, pMeta, clen);
             if (l!=clen)
                 ERROR(AE_IFF);
+            DPRINTF ("_ilbm_read: BMHD: w=%d, h=%d, x=%d, y=%d, nPlanes=%d, masking=%d, compression=%d\n",
+                     pMeta->w, pMeta->h, pMeta->x, pMeta->y, pMeta->nPlanes, pMeta->masking, pMeta->compression);
         }
         else
         {
@@ -156,25 +158,27 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                         }
                         DPRINTF ("ILBM_LOAD BODY len=%ld\n", clen);
 
+                        UBYTE depth = pMeta->masking == mskHasMask ? pMeta->nPlanes-1 : pMeta->nPlanes;
+
                         DPRINTF ("ILBM_LOAD BODY: pMeta: %d x %d : %d compression: %d \n",
-                                 (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes, pMeta->compression);
+                                 (signed int) pMeta->w, (signed int) pMeta->h, depth, pMeta->compression);
 
                         BITMAP_t *bm = *bmRef;
                         if (!bm)
                         {
                             DPRINTF ("ILBM_LOAD BODY allocating fresh bitmap bmRef=0x%08lx bm=0x%08lx\n", bmRef, bm);
-                            bm = BITMAP_ (pMeta->w, pMeta->h, pMeta->nPlanes);
+                            bm = BITMAP_ (pMeta->w, pMeta->h, depth);
                             *bmRef = bm;
                         }
 
                         DPRINTF ("ILBM_LOAD BODY: bm : %d x %d : %d \n",
                                  (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth);
 
-                        if ((bm->width < pMeta->w) || (bm->height < pMeta->h) || (bm->bm.Depth != pMeta->nPlanes))
+                        if ((bm->width < pMeta->w) || (bm->height < pMeta->h) || (bm->bm.Depth != depth))
                         {
                             DPRINTF ("ILBM_LOAD BODY: invalid bm dims %d x %d : %d vs %d x %d : %d\n",
                                      (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth,
-                                     (signed int) pMeta->w, (signed int) pMeta->h, (signed int) pMeta->nPlanes);
+                                     (signed int) pMeta->w, (signed int) pMeta->h, depth);
                             ERROR(AE_IFF);
                             return;
                         }
@@ -203,6 +207,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                             //DPRINTF ("ILBM_LOAD i=%d pMeta->h=%d\n", i, pMeta->h);
                             for (SHORT iPlane=0; iPlane<pMeta->nPlanes; iPlane++)
                             {
+                                BOOL maskPlane = (pMeta->masking == mskHasMask) && (iPlane==pMeta->nPlanes-1);
                                 //DPRINTF ("ILBM_LOAD    iPlane=%d pMeta->nPlanes=%d\n", iPlane, pMeta->nPlanes);
                                 BYTE *dst = (BYTE *)(bm->bm.Planes[iPlane]) + linelen*i;
 
@@ -217,28 +222,45 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
 
                                         if (n>=0)
                                         {
-                                            CopyMem (src, dst, ++n);
+                                            if (!maskPlane)
+                                            {
+                                                CopyMem (src, dst, ++n);
+                                                dst      += n;
+                                            }
+                                            else
+                                            {
+                                                ++n;
+                                            }
                                             rowbytes -= n;
-                                            dst      += n;
                                             src      += n;
                                         }
                                         else
                                         {
                                             if (n != -128)
                                             {
-                                            n         = -n+1;
-                                            rowbytes -= n;
-                                            _MEMSET (dst, *src++, n);
-                                            dst += n;
+                                                n         = -n+1;
+                                                rowbytes -= n;
+                                                if (!maskPlane)
+                                                {
+                                                    _MEMSET (dst, *src++, n);
+                                                    dst += n;
+                                                }
+                                                else
+                                                {
+                                                    src++;
+                                                }
                                             }
                                         }
                                     }
                                 }
                                 else
                                 {
-                                    CopyMem (src, dst, linelen);
+                                    if (!maskPlane)
+                                    {
+                                        CopyMem (src, dst, linelen);
+                                        dst += linelen;
+                                    }
                                     src += linelen;
-                                    dst += linelen;
                                 }
                             }
                         }
