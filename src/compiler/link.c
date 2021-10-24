@@ -3,6 +3,7 @@
 
 #include "link.h"
 #include "logger.h"
+#include "compiler.h"
 
 /*
  * Amiga Hunk file format related definitions
@@ -42,7 +43,7 @@ static FILE      *g_fLoadFile=NULL;            // load file being written
 static void link_fail (string msg)
 {
     LOG_printf (LOG_ERROR, "*** linker error: %s\n", msg);
-    assert(FALSE);
+    //assert(FALSE);
 
     if (g_fLoadFile)
     {
@@ -56,7 +57,7 @@ static void link_fail (string msg)
         g_fObjFile = NULL;
     }
 
-    exit(127);
+    CO_exit(127);
 }
 
 #if LOG_LEVEL == LOG_DEBUG

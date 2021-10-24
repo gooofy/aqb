@@ -11,6 +11,7 @@ Bug Fixes:
     * compiler: fix BYREF recursive argument passing
     * compiler: fix BYREF argument assignment
     * compiler: fix IF/ELSE namespaces
+    * linker: handle duplicate symbols gracefully
 
 ## 0.7.3
 
