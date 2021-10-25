@@ -1487,22 +1487,38 @@ void BITMAP_FREE (BITMAP_t *bm)
         bm->prev->next = bm->next;
     else
         g_bm_first = bm->next;
-    if (bm->next)
-        bm->next->prev = bm->prev;
-    else
-        g_bm_last = bm->prev;
 
-    for (SHORT plane_num = 0; plane_num < bm->bm.Depth; plane_num++)
-    {
-       FreeRaster(bm->bm.Planes[plane_num], bm->width, bm->height);
-       bm->bm.Planes[plane_num] = NULL;
-    }
+    if (bm->next)
+	{
+        bm->next->prev = bm->prev;
+	}
+    else
+	{
+        g_bm_last = bm->prev;
+	}
+
+	if (bm->continous)
+	{
+	   FreeVec(bm->bm.Planes[0]);
+	   bm->bm.Planes[0] = NULL;
+	}
+	else
+	{
+		for (SHORT plane_num = 0; plane_num < bm->bm.Depth; plane_num++)
+		{
+		   FreeRaster(bm->bm.Planes[plane_num], bm->width, bm->height);
+		   bm->bm.Planes[plane_num] = NULL;
+		}
+	}
 
     FreeVec (bm);
 }
 
 BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth)
 {
+	// FIXME: turn into an argument
+	BOOL cont = TRUE;
+
     BITMAP_t *bm = AllocVec(sizeof(*bm), MEMF_CLEAR);
     if (!bm)
     {
@@ -1518,18 +1534,38 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth)
 
     bm->width  = width;
     bm->height = height;
+	bm->continous = cont;
 
     InitBitMap(&bm->bm, depth, width, height);
 
-    for (SHORT plane_num = 0; plane_num < depth; plane_num++)
-    {
-        bm->bm.Planes[plane_num] = (PLANEPTR)AllocRaster(width, height);
-        if (!bm->bm.Planes[plane_num])
-        {
-            ERROR(AE_BLIT);
-            return NULL;
-        }
-    }
+	if (cont)
+	{
+		ULONG rs = RASSIZE (width, height);
+		BYTE *p = AllocVec (rs * depth, MEMF_CHIP | MEMF_CLEAR);
+		if (!p)
+		{
+			DPRINTF ("BITMAP_: continous plane alloc of %d bytes failed\n", rs * depth);
+			ERROR(AE_BLIT);
+			return NULL;
+		}
+		for (SHORT plane_num = 0; plane_num < depth; plane_num++)
+		{
+			bm->bm.Planes[plane_num] = (PLANEPTR)p;
+			p += rs;
+		}
+	}
+	else
+	{
+		for (SHORT plane_num = 0; plane_num < depth; plane_num++)
+		{
+			bm->bm.Planes[plane_num] = (PLANEPTR)AllocRaster(width, height);
+			if (!bm->bm.Planes[plane_num])
+			{
+				ERROR(AE_BLIT);
+				return NULL;
+			}
+		}
+	}
 
     InitRastPort (&bm->rp);
     bm->rp.BitMap = &bm->bm;
@@ -1615,6 +1651,47 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
     ClipBlit(&bm->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
 }
 
+static struct GelsInfo *_setupGelSys(struct RastPort *rPort, BYTE sprRsrvd)
+{
+	struct GelsInfo *gInfo;
+	struct VSprite  *vsHead;
+	struct VSprite  *vsTail;
+
+	if (NULL != (gInfo = (struct GelsInfo *)AllocMem(sizeof(struct GelsInfo), MEMF_CLEAR)))
+	{
+		if (NULL != (gInfo->nextLine = (WORD *)AllocMem(sizeof(WORD) * 8, MEMF_CLEAR)))
+		{
+			if (NULL != (gInfo->lastColor = (WORD **)AllocMem(sizeof(LONG) * 8, MEMF_CLEAR)))
+			{
+				if (NULL != (gInfo->collHandler = (struct collTable *) AllocMem(sizeof(struct collTable),MEMF_CLEAR)))
+				{
+					if (NULL != (vsHead = (struct VSprite *) AllocMem((LONG)sizeof(struct VSprite), MEMF_CLEAR)))
+					{
+						if (NULL != (vsTail = (struct VSprite *) AllocMem(sizeof(struct VSprite), MEMF_CLEAR)))
+						{
+							gInfo->sprRsrvd   = sprRsrvd;
+							/* Set left- and top-most to 1 to better keep items */
+							/* inside the display boundaries.                   */
+							gInfo->leftmost   = gInfo->topmost    = 1;
+							gInfo->rightmost  = (rPort->BitMap->BytesPerRow << 3) - 1;
+							gInfo->bottommost = rPort->BitMap->Rows - 1;
+							rPort->GelsInfo = gInfo;
+							InitGels(vsHead, vsTail, gInfo);
+							return(gInfo);
+						}
+						FreeMem(vsHead, (LONG)sizeof(*vsHead));
+					}
+					FreeMem(gInfo->collHandler, (LONG)sizeof(struct collTable));
+				}
+				FreeMem(gInfo->lastColor, (LONG)sizeof(LONG) * 8);
+			}
+			FreeMem(gInfo->nextLine, (LONG)sizeof(WORD) * 8);
+		}
+		FreeMem(gInfo, (LONG)sizeof(*gInfo));
+	}
+	return NULL;
+}
+
 BOB_t *BOB_ (BITMAP_t *bm)
 {
     BOB_t *bob = AllocVec(sizeof(*bob), MEMF_CLEAR);
@@ -1691,8 +1768,8 @@ BOB_t *BOB_ (BITMAP_t *bm)
 
     bob->vsprite.X          = 0;
     bob->vsprite.Y          = 0;
-    //bob->vsprite.Flags      = SAVEBACK | OVERLAY;
-    bob->vsprite.Flags      = 0;
+    bob->vsprite.Flags      = SAVEBACK | OVERLAY;
+    //bob->vsprite.Flags      = 0;
     bob->vsprite.Width      = word_width;
     bob->vsprite.Depth      = bm->bm.Depth;
     bob->vsprite.Height     = bm->height;
@@ -1700,7 +1777,7 @@ BOB_t *BOB_ (BITMAP_t *bm)
     bob->vsprite.HitMask    = 0;
     bob->vsprite.ImageData  = (WORD *) bm->bm.Planes[0];
     bob->vsprite.SprColors  = NULL;
-    bob->vsprite.PlanePick  = 0x00;
+    bob->vsprite.PlanePick  = 0xff;
     bob->vsprite.PlaneOnOff = 0x00;
 
     InitMasks(&bob->vsprite);
@@ -1737,6 +1814,15 @@ void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
         return;
 	}
 
+	if (!g_rp->GelsInfo)
+	{
+		if (!_setupGelSys(g_rp, /*sprRsrvd=*/0x03))
+		{
+			ERROR(AE_BOB);
+			return;
+		}
+	}
+
 	if (!bob->active)
 	{
 		DPRINTF ("BOB_MOVE adding bob to rp bob=0x%08lx\n", bob);
@@ -1747,12 +1833,10 @@ void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
 	bob->bob.BobVSprite->X = x;
 	bob->bob.BobVSprite->Y = y;
 
-#if 1
 	SortGList(g_rp);
 	DrawGList(g_rp, g_vp);
 	/* FIXME: If the GelsList includes true VSprites, MrgCop() and LoadView() here */
 	WaitTOF(); /* FIXME: VSYNC command! */
-#endif
 }
 
 void _palette_load (SHORT scid, PALETTE_t *p)

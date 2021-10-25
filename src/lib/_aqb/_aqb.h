@@ -81,6 +81,7 @@ struct BITMAP_
 {
     BITMAP_t       *prev, *next;
     SHORT           width, height;
+    BOOL            continous;      // BOBs need all plane data allocated in one cont block
     struct BitMap   bm;
     struct RastPort rp;
 };
