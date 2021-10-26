@@ -34,7 +34,7 @@ CONST AS INTEGER OUTCOME_NOTHING=0, OUTCOME_BUILDING=1, OUTCOME_PLAYER=2
 REM TYPE OUTCOME=(NOTHING,BUILDING,PLAYER);
 REM VAR t:TERMTYPE;
 REM     s:ARRAY [0..79] OF CHAR;
-DIM SHARED AS UBYTE   screen          (79,24)
+DIM SHARED AS UBYTE   scrbuf          (79,24)
 DIM SHARED AS INTEGER buildingWidths  (9)
 DIM SHARED AS INTEGER buildingHeights (9)
 DIM SHARED AS INTEGER colors          (9)
@@ -43,9 +43,9 @@ REM
 REM PROCEDURE ClearBrick(x,y:CARDINAL;ch:CHAR;simulation:BOOLEAN);
 REM BEGIN
 REM   IF (x>0) AND (x<80) AND (y>0) AND (y<25) THEN
-REM     IF (screen[x][y]=1C) THEN
+REM     IF (scrbuf[x][y]=1C) THEN
 REM       CursorXY(x,y); WRITE(ch);
-REM       IF NOT simulation THEN screen[x][y]:=0C END;
+REM       IF NOT simulation THEN scrbuf[x][y]:=0C END;
 REM     END;
 REM   END;
 REM END ClearBrick;
@@ -62,19 +62,19 @@ REM END HitBuilding;
 
 FUNCTION IsInnerBuildingHit(BYVAL x AS INTEGER, BYVAL y AS INTEGER) AS BOOLEAN
     IF (x>1) AND (x<79) THEN
-        RETURN (screen(x-1,y) = &H1C) AND (screen(x+1,y) = &H1C)
+        RETURN (scrbuf(x-1,y) = &H1C) AND (scrbuf(x+1,y) = &H1C)
     ELSEIF x=1 THEN
-        RETURN screen(2,y) = &H1C
+        RETURN scrbuf(2,y) = &H1C
     ELSE
-        RETURN screen(78,y) = &H1C
+        RETURN scrbuf(78,y) = &H1C
     END IF
 END FUNCTION : REM IsInnerBuildingHit
 
 FUNCTION LookUpstairs(BYREF x AS INTEGER, BYREF y AS INTEGER) AS INTEGER
-    WHILE (y>1) AND (screen(x,y)=&H1C) 
+    WHILE (y>1) AND (scrbuf(x,y)=&H1C) 
         y=y-1
     WEND
-    IF screen(x,y) = &H2C THEN
+    IF scrbuf(x,y) = &H2C THEN
         RETURN OUTCOME_PLAYER
     ELSE
         y = y+1
@@ -99,9 +99,9 @@ FUNCTION TraceBullet(BYVAL j AS INTEGER, BYVAL i AS INTEGER, BYVAL y0 AS INTEGER
         yInt = y
     END IF
     IF (yInt>=1) AND (yInt<25) THEN
-        IF screen(i,yInt) = &H2C THEN
+        IF scrbuf(i,yInt) = &H2C THEN
             result = OUTCOME_PLAYER
-        ELSEIF screen(i,yInt) = &H1C THEN
+        ELSEIF scrbuf(i,yInt) = &H1C THEN
             IF IsInnerBuildingHit(i,yInt) THEN
                 result = LookUpstairs(i,yInt)
             ELSE
@@ -184,10 +184,10 @@ SUB DrawPlayer(BYVAL x AS INTEGER, BYVAL y AS INTEGER)
     LOCATE y-2, x-1 : PRINT " o "
     LOCATE y-1, x-1 : PRINT "-|-"
     LOCATE   y, x-1 : PRINT "/ \"
-    REM   screen[x][y-2]:=2C;
+    REM   scrbuf[x][y-2]:=2C;
     REM   FOR i:=x-1 TO x+1 DO
     REM     FOR j:=y-1 TO y DO
-    REM       screen[i][j]:=2C
+    REM       scrbuf[i][j]:=2C
     REM     END
     REM   END
 END SUB : REM DrawPlayer
@@ -236,7 +236,7 @@ SUB DrawBuilding(BYREF c AS INTEGER, BYVAL x AS INTEGER, BYVAL h AS INTEGER, w A
         REM       WRITE(SEQ[REVERSE],line);
         REM END IF
         FOR j AS INTEGER = 1 TO w
-            REM       screen[x+j-1,i]:=1C;
+            REM       scrbuf[x+j-1,i]:=1C;
             IF (i<23) AND (count MOD 2=0) THEN
                 IF (j=w) OR (j MOD 2=1) THEN
                     LINE ((x+j)*8, i*8) - ((x+j)*8+7, i*8+7), 0, BF                    
@@ -286,7 +286,7 @@ SUB InitBuildingDimensions
         buildingHeights(i) = RND(1)*15+5
         REM PRINT "InitBuildingDimensions: i=";i;", j=";j;", h=";buildingHeights(i)        
     NEXT i
-    REM   FILL(ADR(screen),1896,0);
+    REM   FILL(ADR(scrbuf),1896,0);
     
 END SUB : REM InitBuildingDimensions
 

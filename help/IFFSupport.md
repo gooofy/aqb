@@ -7,7 +7,7 @@
 
 Syntax:
 
-	ILBM LOAD BITMAP path [, [bmPtr] [, [scid] [, [pMETA] [, [pPalette] ] ] ] ]
+	ILBM LOAD BITMAP path [, [bmPtr] [, [scid] [, [pMETA] [, [pPalette] [, [cont] ] ] ] ] ]
 
 load a bitmap from an IFF ILBM file
 
@@ -19,6 +19,7 @@ Arguments:
 	* scid: screen id - if given, colors will be applied to it
 	* pMETA: pointer to metadata
 	* pPalette: pointer to a palette
+    * cont: if TRUE, allocate bitplanes in a continous memory area suitable for BOBs
 
 Example:
 
@@ -30,9 +31,24 @@ Example:
 
 Syntax:
 
-	ILBM READ BITMAP fno, [, [bmPtr] [, [scid] [, [pMETA] [, [pPalette] ] ] ] ]
+	ILBM READ BITMAP fno, [, [bmPtr] [, [scid] [, [pMETA] [, [pPalette] [, [cont] ] ] ] ] ]
 
-load a bitmap from an IFF ILBM file stream. see ILBM LOAD BITMAP for details.
+load a bitmap from an IFF ILBM file stream. See ILBM LOAD BITMAP for details.
+
+## ILBM READ BOB
+
+Syntax:
+
+	ILBM LOAD BOB path [, [bobPtr] [, [scid] [, [pMETA] [, [pPalette] ] ] ] ]
+
+load a bob from an IFF ILBM file. See ILBM LOAD BITMAP for details.
+
+Example:
+
+	DIM AS BOB\_t PTR dragon = NULL
+
+	ILBM LOAD BOB "PROGDIR:imgs/dragon.iff", bob, 1
+
 
 ## ILBM\_META\_t
 

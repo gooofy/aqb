@@ -43,9 +43,10 @@ free allocated ressources for a bitmap
 
 Syntax:
 
-    BITMAP "(" width, height, depth ")"
+    BITMAP "(" width, height, depth [ , cont ] ")"
 
-allocate an offscreen bitmap buffer
+allocate an offscreen bitmap buffer. If cont is TRUE, planes will be
+allocated in one continous memory space suitable for BOBs.
 
 Example:
 
@@ -402,6 +403,14 @@ Syntax:
 
 Enable or disable events from timer #`id`
 
+
+## VWAIT
+
+Syntax:
+
+    VWAIT
+
+Wait for vertical blank to occur
 
 ## WINDOW
 

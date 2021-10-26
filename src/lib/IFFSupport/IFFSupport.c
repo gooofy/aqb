@@ -17,7 +17,7 @@
 
 #define RowBytes(w)   (((w) + 15) >> 4 << 1)
 
-void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont)
 {
     char hdr[5] = {0,0,0,0,0};
     ULONG f = MKBADDR(fh);
@@ -167,7 +167,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                         if (!bm)
                         {
                             DPRINTF ("ILBM_LOAD BODY allocating fresh bitmap bmRef=0x%08lx bm=0x%08lx\n", bmRef, bm);
-                            bm = BITMAP_ (pMeta->w, pMeta->h, depth);
+                            bm = BITMAP_ (pMeta->w, pMeta->h, depth, cont);
                             *bmRef = bm;
                         }
 
@@ -280,7 +280,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
     }
 }
 
-void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont)
 {
     DPRINTF ("ILBM_LOAD_BITMAP path=%s\n", (char*)path);
 
@@ -292,12 +292,12 @@ void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMet
         return;
     }
 
-    _ilbm_read (fh, bm, scid, pMeta, pPalette);
+    _ilbm_read (fh, bm, scid, pMeta, pPalette, cont);
 
     Close (MKBADDR(fh));
 }
 
-void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont)
 {
     struct FileHandle *fh = _aio_getfh(fno);
     if (!fh)
@@ -306,7 +306,28 @@ void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta
         return;
     }
 
-    _ilbm_read (fh, bm, scid, pMeta, pPalette);
+    _ilbm_read (fh, bm, scid, pMeta, pPalette, cont);
+}
+
+void ILBM_LOAD_BOB (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+{
+    DPRINTF ("ILBM_LOAD_BOB path=%s\n", (char*)path);
+
+    struct FileHandle *fh = BADDR(Open (path, MODE_OLDFILE));
+    if (!fh)
+    {
+        DPRINTF ("ILBM_LOAD_BOB open failed.\n");
+        ERROR(AE_IFF);
+        return;
+    }
+
+    BITMAP_t *bm=NULL;
+
+    _ilbm_read (fh, &bm, scid, pMeta, pPalette, /*cont=*/TRUE);
+
+    Close (MKBADDR(fh));
+
+    *bob = BOB_(bm);
 }
 
 void _IFFSupport_init(void)

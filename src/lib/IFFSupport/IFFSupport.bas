@@ -28,11 +28,19 @@ PUBLIC DECLARE SUB ILBM LOAD BITMAP (BYVAL path AS STRING, _
                                      BYREF bm AS BITMAP_t PTR = NULL, _
                                      BYVAL scid AS INTEGER=-1, _
                                      BYVAL pMETA AS ILBM_META_t PTR = NULL, _
+                                     BYVAL pPalette AS PALETTE_t PTR = NULL, _
+                                     BYVAL cont AS BOOLEAN = FALSE)
+
+PUBLIC DECLARE SUB ILBM READ BITMAP (_FNO(BYVAL fno AS UINTEGER), _
+                                     BYREF bm AS BITMAP_t PTR = NULL, _
+                                     BYVAL scid AS INTEGER=-1, _
+                                     BYVAL pMETA AS ILBM_META_t PTR = NULL, _
+                                     BYVAL pPalette AS PALETTE_t PTR = NULL, _
+                                     BYVAL cont AS BOOLEAN = FALSE)
+
+PUBLIC DECLARE SUB ILBM LOAD BOB    (BYVAL path AS STRING, _
+                                     BYREF bob AS BOB_t PTR, _
+                                     BYVAL scid AS INTEGER=-1, _
+                                     BYVAL pMETA AS ILBM_META_t PTR = NULL, _
                                      BYVAL pPalette AS PALETTE_t PTR = NULL)
 
-PUBLIC DECLARE SUB ILBM READ BITMAP (_FNO(BYVAL fno AS UINTEGER), BYREF bm AS BITMAP_t PTR = NULL, BYVAL scid AS INTEGER=-1, _
-                                     BYVAL pMETA AS ILBM_META_t PTR = NULL, BYVAL pPalette AS PALETTE_t PTR = NULL)
-
-REM PUBLIC DECLARE SUB ILBM LOAD (_FNO(BYVAL fno AS UINTEGER), BYVAL pMETA AS ILBM_META_t PTR, BYVAL pPalette AS PALETTE_t PTR = NULL, BYVAL bm AS BITMAP_t PTR = NULL)
-
-REM PUBLIC DECLARE FUNCTION ILBM_LOAD_BITMAP (_FNO(BYVAL fno AS UINTEGER), BYVAL pPalette AS PALETTE_t PTR = NULL, BYVAL scid AS INTEGER=-1) AS BITMAP_t PTR

@@ -298,6 +298,23 @@ void WINDOW_OUTPUT(short id)
     }
 }
 
+static void _cleanupGelSys(struct RastPort *rPort)
+{
+	struct GelsInfo *gInfo = rPort->GelsInfo;
+	if (gInfo)
+	{
+		DPRINTF ("_cleanupGelSys rPort=0x%08lx\n", rPort);
+		rPort->GelsInfo = NULL;
+		FreeMem(gInfo->collHandler, (LONG)sizeof(struct collTable));
+		FreeMem(gInfo->lastColor, (LONG)sizeof(LONG) * 8);
+		FreeMem(gInfo->nextLine, (LONG)sizeof(WORD) * 8);
+		FreeMem(gInfo->gelHead, (LONG)sizeof(struct VSprite));
+		FreeMem(gInfo->gelTail, (LONG)sizeof(struct VSprite));
+		FreeMem(gInfo, (LONG)sizeof(*gInfo));
+	}
+}
+
+
 void _awindow_shutdown(void)
 {
 #ifdef ENABLE_DEBUG
@@ -320,6 +337,7 @@ void _awindow_shutdown(void)
 #endif
                 FreeVec (g_winlist[i]->RPort->TmpRas);
             }
+			_cleanupGelSys(g_winlist[i]->RPort);
 #ifdef ENABLE_DEBUG
             _debug_puts((STRPTR)"_awindow_shutdown ... closing window\n");
             Delay (100);
@@ -564,23 +582,26 @@ LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
     return n;
 }
 
-void SLEEP(void)
+static void _handleSignals(BOOL doWait)
 {
     CHKBRK;
 
     struct IntuiMessage *message = NULL;
 
-    ULONG signals = Wait (_g_signalmask_awindow | _g_signalmask_atimer);
-#ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"sleep: got one ore more signals: "); _debug_putu4(signals); _debug_putnl();
-#endif
+    ULONG signals = 0;
+
+	if (doWait)
+		signals = Wait (_g_signalmask_awindow | _g_signalmask_atimer);
+	else
+		signals = SetSignal (0, _g_signalmask_awindow | _g_signalmask_atimer);
+
+	DPRINTF("_handleSignals: signals=0x%08lx\n", signals);
 
     if (signals & _g_signalmask_atimer)
         _atimer_process_signals(signals);
 
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {
-        // _debug_puts((STRPTR)"sleep: checking win "); _debug_puts4(i); _debug_putnl();
         struct Window *win = g_winlist[i];
         if (!win)
             continue;
@@ -592,9 +613,7 @@ void SLEEP(void)
         {
             ULONG class = message->Class;
 
-#ifdef ENABLE_DEBUG
-            //_debug_puts((STRPTR)"sleep: got a message, class="); _debug_puts4(class); _debug_putnl();
-#endif
+            DPRINTF("_handleSignals: got a message, class=0x%08lx\n", class);
 
             switch(class)
             {
@@ -635,7 +654,6 @@ void SLEEP(void)
                     break;
 
                 case MOUSEMOVE:
-                    //_debug_puts((STRPTR)"SLEEP: MOUSEMOVE\n");
                     if (g_mouse_motion_cb)
                     {
                         g_mouse_motion_cb();
@@ -712,6 +730,35 @@ void SLEEP(void)
             //_debug_puts((STRPTR)"sleep: replied.\n");
         }
     }
+}
+
+void SLEEP(void)
+{
+	_handleSignals(/*doWait=*/TRUE);
+}
+
+void SLEEP_FOR (FLOAT s)
+{
+    LONG ticks = SPFix(SPMul(s, g_fp50));
+
+    if (ticks <= 0)
+        return;
+
+    while (ticks > 25)
+    {
+		_handleSignals(/*doWait=*/FALSE);
+        Delay (25);
+        ticks -= 25;
+    }
+
+    Delay (ticks);
+	_handleSignals(/*doWait=*/FALSE);
+}
+
+void VWAIT (void)
+{
+	WaitTOF();
+	_handleSignals(/*doWait=*/FALSE);
 }
 
 void ON_WINDOW_CALL(void (*cb)(void))
@@ -1065,24 +1112,6 @@ SHORT POS_ (SHORT dummy)
         return 0;
 
     return g_rp->cp_x / g_rp->Font->tf_XSize + 1;
-}
-
-void SLEEP_FOR (FLOAT s)
-{
-    LONG ticks = SPFix(SPMul(s, g_fp50));
-
-    if (ticks <= 0)
-        return;
-
-    while (ticks > 25)
-    {
-        CHKBRK;
-        Delay (25);
-        ticks -= 25;
-    }
-
-    CHKBRK;
-    Delay (ticks);
 }
 
 // input statement support
@@ -1511,13 +1540,14 @@ void BITMAP_FREE (BITMAP_t *bm)
 		}
 	}
 
+	_cleanupGelSys(&bm->rp);
+
     FreeVec (bm);
 }
 
-BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth)
+BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 {
-	// FIXME: turn into an argument
-	BOOL cont = TRUE;
+    DPRINTF ("BITMAP_: allocarting new bitmap, width=%d, height=%d, depth=%d, cont=%d\n", width, height, depth, cont);
 
     BITMAP_t *bm = AllocVec(sizeof(*bm), MEMF_CLEAR);
     if (!bm)
@@ -1718,37 +1748,6 @@ BOB_t *BOB_ (BITMAP_t *bm)
         return NULL;
     }
 
-#if 0
-        bob_data2,  /* nb_Image*/
-        2,          /* nb_WordWidth*/
-        GEL_SIZE,   /* nb_LineHeight*/
-        2,          /* nb_ImageDepth*/
-        3,          /* nb_PlanePick*/
-        0,          /* nb_PlaneOnOff*/
-        SAVEBACK | OVERLAY,/* nb_BFlags*/
-        0,          /*nb_DBuf */
-        8,          /* nb_RasDepth*/
-        160,        /* nb_X*/
-        100,        /* nb_Y*/
-        0,          /* nb_HitMask*/
-        0,          /* nb_MeMask*/
-        };
-
-            nVSprite.nvs_WordWidth  = nBob->nb_WordWidth;
-            nVSprite.nvs_LineHeight = nBob->nb_LineHeight;
-            nVSprite.nvs_ImageDepth = nBob->nb_ImageDepth;
-            nVSprite.nvs_Image      = nBob->nb_Image;
-            nVSprite.nvs_X          = nBob->nb_X;
-            nVSprite.nvs_Y          = nBob->nb_Y;
-            nVSprite.nvs_ColorSet   = NULL;
-            nVSprite.nvs_Flags      = nBob->nb_BFlags;
-            /* Push the values into the NEWVSPRITE structure for use in makeVSprite(). */
-            nVSprite.nvs_MeMask     = nBob->nb_MeMask;
-            nVSprite.nvs_HitMask    = nBob->nb_HitMask;
-
-            if ((vsprite = makeVSprite(&nVSprite)) != NULL)
-#endif
-
     LONG line_size  = 2 * word_width;
     LONG plane_size = line_size * bm->height;
 
@@ -1769,7 +1768,6 @@ BOB_t *BOB_ (BITMAP_t *bm)
     bob->vsprite.X          = 0;
     bob->vsprite.Y          = 0;
     bob->vsprite.Flags      = SAVEBACK | OVERLAY;
-    //bob->vsprite.Flags      = 0;
     bob->vsprite.Width      = word_width;
     bob->vsprite.Depth      = bm->bm.Depth;
     bob->vsprite.Height     = bm->height;
@@ -1832,11 +1830,28 @@ void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
 
 	bob->bob.BobVSprite->X = x;
 	bob->bob.BobVSprite->Y = y;
+}
+
+void BOB_REPAINT (void)
+{
+	if (!g_rp || !g_vp)
+	{
+        ERROR(AE_BOB);
+        return;
+	}
+
+	if (!g_rp->GelsInfo)
+	{
+		if (!_setupGelSys(g_rp, /*sprRsrvd=*/0x03))
+		{
+			ERROR(AE_BOB);
+			return;
+		}
+	}
 
 	SortGList(g_rp);
 	DrawGList(g_rp, g_vp);
 	/* FIXME: If the GelsList includes true VSprites, MrgCop() and LoadView() here */
-	WaitTOF(); /* FIXME: VSYNC command! */
 }
 
 void _palette_load (SHORT scid, PALETTE_t *p)

@@ -86,7 +86,7 @@ struct BITMAP_
     struct RastPort rp;
 };
 
-BITMAP_t*BITMAP_              (SHORT width, SHORT height, SHORT depth);
+BITMAP_t*BITMAP_              (SHORT width, SHORT height, SHORT depth, BOOL cont);
 void     BITMAP_FREE          (BITMAP_t *bm);
 void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
 void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
@@ -100,13 +100,14 @@ typedef struct BOB_ BOB_t;
 struct BOB_
 {
     BOB_t          *prev, *next;
+	BOOL            active;
     struct Bob      bob;
     struct VSprite  vsprite;
-	BOOL            active;
 };
 
 BOB_t   *BOB_               (BITMAP_t *bm);
 void     BOB_MOVE           (BOB_t *bob, BOOL s, SHORT x, SHORT y);
+void     BOB_REPAINT        (void);
 
 #define AE_WIN_OPEN                 101
 #define AE_SCREEN_OPEN              102
@@ -143,6 +144,7 @@ void   ON_WINDOW_CALL         (void (*cb)(void));
 ULONG  WINDOW_                (SHORT n);
 void   SLEEP                  (void);
 void   SLEEP_FOR              (FLOAT s);
+void   VWAIT                  (void);
 void   MOUSE_ON               (void);
 void   MOUSE_OFF              (void);
 void   ON_MOUSE_CALL          (void (*cb)(void));

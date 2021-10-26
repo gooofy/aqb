@@ -3,6 +3,9 @@
 Improvements:
 
     * MIT license applied consistently
+    * runtime: VWAIT command added
+    * runtime: ILBM LOAD BOB command added
+    * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
 
 Bug Fixes:
 
