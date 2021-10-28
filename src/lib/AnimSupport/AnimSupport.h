@@ -1,0 +1,43 @@
+#ifndef HAVE_ANIM_SUPPORT_H
+#define HAVE_ANIM_SUPPORT_H
+
+#include <graphics/rastport.h>
+#include <graphics/gfx.h>
+#include <graphics/gels.h>
+
+#include "../_brt/_brt.h"
+#include "../_aqb/_aqb.h"
+#include "../IFFSupport/IFFSupport.h"
+
+#define AE_GELS_INIT                300
+#define AE_BOB                      301
+
+/*
+ * GELs
+ */
+
+void GELS_INIT      (UBYTE sprRsrvd);
+void GELS_REPAINT   (void);
+
+/*
+ * BOBs
+ */
+
+typedef struct BOB_ BOB_t;
+
+struct BOB_
+{
+    BOB_t          *prev, *next;
+	BOOL            active;
+    struct Bob      bob;
+    struct VSprite  vsprite;
+};
+
+BOB_t *BOB_               (BITMAP_t *bm);
+void   BOB_MOVE           (BOB_t *bob, BOOL s, SHORT x, SHORT y);
+void   BOB_REPAINT        (void);
+
+void   ILBM_LOAD_BOB      (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette);
+
+#endif
+

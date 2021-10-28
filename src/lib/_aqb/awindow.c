@@ -63,6 +63,22 @@ static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL
 };
 
+// window callback
+
+typedef struct win_cb_node_s *win_cb_node_t;
+struct win_cb_node_s
+{
+    win_cb_node_t       next;
+    window_close_cb_t   cb;
+};
+
+static win_cb_node_t g_win_cb_list[MAX_NUM_WINDOWS] = {
+    NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL
+};
+
 #define MAX_NUM_SCREENS 4
 static struct Screen * g_scrlist[MAX_NUM_SCREENS] = { NULL, NULL, NULL, NULL };
 
@@ -80,26 +96,26 @@ static struct NewScreen g_nscr =
     NULL                    // CustomBitMap
 };
 
-static ULONG _g_signalmask_awindow=0;
+static ULONG                 _g_signalmask_awindow=0;
 
-static BITMAP_t *g_bm_first             = NULL;
-static BITMAP_t *g_bm_last              = NULL;
+static BITMAP_t             *g_bm_first      = NULL;
+static BITMAP_t             *g_bm_last       = NULL;
 
-static BOB_t *g_bob_first               = NULL;
-static BOB_t *g_bob_last                = NULL;
+static void (*g_win_cb)(void)                = NULL;
+static void (*g_mouse_cb)(void)              = NULL;
+static void (*g_mouse_motion_cb)(void)       = NULL;
 
-static void (*g_win_cb)(void)           = NULL;
-static void (*g_mouse_cb)(void)         = NULL;
-static void (*g_mouse_motion_cb)(void)  = NULL;
+static short                 g_active_scr_id = 0;
+static short                 g_active_win_id = 1;
+static short                 g_output_win_id = 1;
 
-static struct Screen   *g_active_scr    = NULL;
-static short            g_active_scr_id = 0;
-static short            g_active_win_id = 1;
-static short            g_output_win_id = 1;
-static struct Window   *g_output_win    = NULL;
-static struct RastPort *g_rp            = NULL;
-static struct ViewPort *g_vp            = NULL;
-static BOOL             g_win1_is_dos   = TRUE; // when started from CLI, window 1 is the DOS stdout unless re-opened
+struct Screen        *_g_cur_scr    = NULL;
+struct Window        *_g_cur_win    = NULL;
+struct RastPort      *_g_cur_rp     = NULL;
+struct ViewPort      *_g_cur_vp     = NULL;
+BITMAP_t             *_g_cur_bm     = NULL;
+
+static enum _aqb_output_type g_cur_ot        = _aqb_ot_none;
 
 typedef struct myTimeVal
 {
@@ -150,9 +166,11 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE
     }
 
     g_scrlist[id-1] = scr;
-    g_active_scr    = scr;
+    _g_cur_scr      = scr;
     g_active_scr_id = id;
-	g_vp            = &scr->ViewPort;
+	_g_cur_vp       = &scr->ViewPort;
+    g_cur_ot        = _aqb_ot_screen;
+    _g_cur_rp       = &scr->RastPort;
 }
 
 /*
@@ -197,7 +215,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         x1 = 0;
         y1 = 0;
 
-        if (!g_active_scr)
+        if (!_g_cur_scr)
         {
             struct Screen sc;
             // get workbench screen size, limit to 640x200 for now (FIXME: limit to visible screen size?)
@@ -212,8 +230,8 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         }
         else
         {
-            w = g_active_scr->Width;
-            h = g_active_scr->Height;
+            w = _g_cur_scr->Width;
+            h = _g_cur_scr->Height;
         }
     }
 
@@ -226,9 +244,9 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     g_nw.Flags      = flags;
     g_nw.IDCMPFlags = CLOSEWINDOW | RAWKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
 
-    if (g_active_scr)
+    if (_g_cur_scr)
     {
-        g_nw.Screen   = g_active_scr;
+        g_nw.Screen   = _g_cur_scr;
         g_nw.Type     = CUSTOMSCREEN;
     }
     else
@@ -246,18 +264,16 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     }
 
     g_winlist[id-1] = win;
-    g_rp            = win->RPort;
-
-    Move(g_rp, 0, g_rp->Font->tf_YSize - 2);
-    SetAPen(g_rp, 1L);
 
     _g_signalmask_awindow |= (1L << win->UserPort->mp_SigBit);
 
-    g_output_win    = win;
+    _g_cur_win      = win;
+    _g_cur_rp       = win->RPort;
     g_output_win_id = id;
+    g_cur_ot        = _aqb_ot_window;
 
-    if (id == 1)
-        g_win1_is_dos = FALSE;
+    LOCATE (1,1);
+    COLOR (1, 0, 1);
 }
 
 /*
@@ -265,14 +281,40 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
  */
 void WINDOW_CLOSE(short id)
 {
+    DPRINTF ("WINDOW_CLOSE id=%d\n", id);
+
     // error checking
     if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
     {
         ERROR(AE_WIN_CLOSE);
         return;
     }
+
+    // call close callbacks first
+    for (win_cb_node_t n=g_win_cb_list[id-1]; n; n=n->next)
+        n->cb(g_winlist[id-1]);
+
+    if (g_winlist[id-1]->RPort->TmpRas)
+    {
+        FreeVec ((PLANEPTR) g_winlist[id-1]->RPort->TmpRas->RasPtr);
+        FreeVec (g_winlist[id-1]->RPort->TmpRas);
+    }
     CloseWindow(g_winlist[id-1]);
     g_winlist[id-1]=NULL;
+}
+
+void _window_add_close_cb (window_close_cb_t cb)
+{
+    DPRINTF ("_window_add_close_cb g_active_win_id=%d, cb=0x%08lx\n", g_active_win_id, cb);
+    win_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
+    if (!node)
+    {
+        ERROR (AE_WIN_CLOSE);
+        return;
+    }
+    node->next = g_win_cb_list[g_active_win_id-1];
+    node->cb   = cb;
+    g_win_cb_list[g_active_win_id-1] = node;
 }
 
 /*
@@ -280,6 +322,16 @@ void WINDOW_CLOSE(short id)
  */
 void WINDOW_OUTPUT(short id)
 {
+    // switch (back) to console output?
+    if ( (id == 1) && !g_winlist[0] && (_startup_mode == STARTUP_CLI) )
+    {
+        g_output_win_id = 1;
+        _g_cur_win      = NULL;
+        _g_cur_rp       = NULL;
+        g_cur_ot        = _aqb_ot_console;
+        return;
+    }
+
     // error checking
     if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
     {
@@ -289,31 +341,12 @@ void WINDOW_OUTPUT(short id)
 
     g_output_win_id = id;
 
-    if ((id != 1) || !g_win1_is_dos)
-    {
-        struct Window *win = g_winlist[id-1];
+    struct Window *win = g_winlist[id-1];
 
-        g_output_win    = win;
-        g_rp            = win->RPort;
-    }
+    _g_cur_win      = win;
+    _g_cur_rp       = win->RPort;
+    g_cur_ot        = _aqb_ot_window;
 }
-
-static void _cleanupGelSys(struct RastPort *rPort)
-{
-	struct GelsInfo *gInfo = rPort->GelsInfo;
-	if (gInfo)
-	{
-		DPRINTF ("_cleanupGelSys rPort=0x%08lx\n", rPort);
-		rPort->GelsInfo = NULL;
-		FreeMem(gInfo->collHandler, (LONG)sizeof(struct collTable));
-		FreeMem(gInfo->lastColor, (LONG)sizeof(LONG) * 8);
-		FreeMem(gInfo->nextLine, (LONG)sizeof(WORD) * 8);
-		FreeMem(gInfo->gelHead, (LONG)sizeof(struct VSprite));
-		FreeMem(gInfo->gelTail, (LONG)sizeof(struct VSprite));
-		FreeMem(gInfo, (LONG)sizeof(*gInfo));
-	}
-}
-
 
 void _awindow_shutdown(void)
 {
@@ -323,27 +356,7 @@ void _awindow_shutdown(void)
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
         if (g_winlist[i])
-        {
-            if (g_winlist[i]->RPort->TmpRas)
-            {
-#ifdef ENABLE_DEBUG
-                _debug_puts((STRPTR)"_awindow_shutdown ... FreeVec RasPtr="); _debug_putu4((ULONG)g_winlist[i]->RPort->TmpRas->RasPtr); _debug_putnl();
-                Delay (100);
-#endif
-                FreeVec ((PLANEPTR) g_winlist[i]->RPort->TmpRas->RasPtr);
-#ifdef ENABLE_DEBUG
-                _debug_puts((STRPTR)"_awindow_shutdown ... FreeVec TmpRas="); _debug_putu4((ULONG)g_winlist[i]->RPort->TmpRas); _debug_putnl();
-                Delay (100);
-#endif
-                FreeVec (g_winlist[i]->RPort->TmpRas);
-            }
-			_cleanupGelSys(g_winlist[i]->RPort);
-#ifdef ENABLE_DEBUG
-            _debug_puts((STRPTR)"_awindow_shutdown ... closing window\n");
-            Delay (100);
-#endif
-            CloseWindow(g_winlist[i]);
-        }
+            WINDOW_CLOSE(i+1);
     }
     for (int i = 0; i<MAX_NUM_SCREENS; i++)
     {
@@ -392,35 +405,52 @@ void _awindow_init(void)
         g_console_device_opened=TRUE;
         ConsoleDevice = g_ioreq.io_Device;
     }
-    g_win1_is_dos = _startup_mode == STARTUP_CLI;
+
+    g_cur_ot = _startup_mode == STARTUP_CLI ? _aqb_ot_console : _aqb_ot_none;
 
 	// default view port
 
 	struct Screen *sc = NULL;
 	if ( (sc = LockPubScreen(NULL)) )
 	{
-		g_vp = &sc->ViewPort;
+		_g_cur_vp = &sc->ViewPort;
 		UnlockPubScreen(NULL, sc);
 	}
 }
 
-static BOOL _checkCurWinDos (void)
+enum _aqb_output_type  _aqb_get_output (BOOL needGfx)
 {
-    if (g_output_win_id != 1)
-        return FALSE;
+    CHKBRK;
 
-    if (g_win1_is_dos)
-        return TRUE;
+    // auto-open graphical window 1 ?
+    if (needGfx)
+    {
+        if ((g_cur_ot == _aqb_ot_console) || (g_cur_ot == _aqb_ot_none) )
+        {
+            WINDOW (/*id=*/1, /*title=*/(STRPTR)"AQB Output",
+                    /*s1=*/FALSE, /*x1=*/-1, /*y1=*/-1,
+                    /*s2=*/FALSE, /*x2=*/-1, /*y2=*/-1,
+                    /*flags=*/WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO | WFLG_ACTIVATE, /*scrid=*/0);
+        }
 
-    // auto-open window ?
+        if (!_g_cur_rp)
+        {
+            ERROR (AE_RASTPORT);
+            return g_cur_ot;
+        }
+    }
+    else
+    {
+        if (g_cur_ot == _aqb_ot_none)
+        {
+            WINDOW (/*id=*/1, /*title=*/(STRPTR)"AQB Output",
+                    /*s1=*/FALSE, /*x1=*/-1, /*y1=*/-1,
+                    /*s2=*/FALSE, /*x2=*/-1, /*y2=*/-1,
+                    /*flags=*/WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO | WFLG_ACTIVATE, /*scrid=*/0);
+        }
+    }
 
-    if (!g_winlist[0])
-        WINDOW (/*id=*/1, /*title=*/(STRPTR)"AQB Output",
-                /*s1=*/FALSE, /*x1=*/-1, /*y1=*/-1,
-                /*s2=*/FALSE, /*x2=*/-1, /*y2=*/-1,
-                /*flags=*/WFLG_SIZEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET | WFLG_CLOSEGADGET | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO | WFLG_ACTIVATE, /*scrid=*/0);
-
-    return FALSE;
+    return g_cur_ot;
 }
 
 /*
@@ -429,17 +459,16 @@ static BOOL _checkCurWinDos (void)
 
 void CLS (void)
 {
-    CHKBRK;
-    if (_checkCurWinDos())
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         char form_feed = 0x0c;
         Write(g_stdout, (CONST APTR) &form_feed, 1);
         return;
     }
 
-    Move (g_rp, 0, 0);
-    ClearScreen(g_rp);
-    LOCATE(1,1);
+    Move (_g_cur_rp, 0, 0);
+    ClearScreen(_g_cur_rp);
+    LOCATE(1, 1);
 }
 
 /*
@@ -447,96 +476,73 @@ void CLS (void)
  */
 void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
 {
-    CHKBRK;
-    BYTE fgPen=g_rp->FgPen;
-#if 0
-    _debug_puts((STRPTR)"s1: ")  ; _debug_puts2(s1);
-    _debug_puts((STRPTR)", x1: "); _debug_puts2(x1);
-    _debug_puts((STRPTR)", y1: "); _debug_puts2(y1);
-    _debug_puts((STRPTR)", s2: "); _debug_puts2(s2);
-    _debug_puts((STRPTR)", x2: "); _debug_puts2(x2);
-    _debug_puts((STRPTR)", y2: "); _debug_puts2(y2);
-    _debug_puts((STRPTR)", c: ") ; _debug_puts2(c);
-    _debug_puts((STRPTR)", bf: "); _debug_puts2(bf);
-    _debug_putnl();
-#endif
+    _aqb_get_output (/*needGfx=*/TRUE);
 
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_LINE);
-        return;
-    }
-
+    BYTE fgPen=_g_cur_rp->FgPen;
     if (x1<0)
-        x1 = g_rp->cp_x;
+        x1 = _g_cur_rp->cp_x;
     if (y1<0)
-        y1 = g_rp->cp_y;
+        y1 = _g_cur_rp->cp_y;
 
     if (s1)
     {
-        x1 += g_rp->cp_x;
-        y1 += g_rp->cp_y;
+        x1 += _g_cur_rp->cp_x;
+        y1 += _g_cur_rp->cp_y;
     }
     if (s2)
     {
-        x2 += g_rp->cp_x;
-        y2 += g_rp->cp_y;
+        x2 += _g_cur_rp->cp_x;
+        y2 += _g_cur_rp->cp_y;
     }
     if (c >= 0)
-        SetAPen(g_rp, c);
+        SetAPen(_g_cur_rp, c);
     if (bf & 1)
     {
         if (bf & 2)
         {
-            RectFill (g_rp, x1, y1, x2, y2);
+            RectFill (_g_cur_rp, x1, y1, x2, y2);
         }
         else
         {
-            Move (g_rp, x1, y1);
-            Draw (g_rp, x2, y1);
-            Draw (g_rp, x2, y2);
-            Draw (g_rp, x1, y2);
-            Draw (g_rp, x1, y1);
+            Move (_g_cur_rp, x1, y1);
+            Draw (_g_cur_rp, x2, y1);
+            Draw (_g_cur_rp, x2, y2);
+            Draw (_g_cur_rp, x1, y2);
+            Draw (_g_cur_rp, x1, y1);
         }
     }
     else
     {
-        Move (g_rp, x1, y1);
-        Draw (g_rp, x2, y2);
+        Move (_g_cur_rp, x1, y1);
+        Draw (_g_cur_rp, x2, y2);
     }
 
     if ( c >=0 )
-        SetAPen(g_rp, fgPen);
+        SetAPen(_g_cur_rp, fgPen);
 }
 
 void PSET(BOOL s, short x, short y, short color)
 {
-    CHKBRK;
-    BYTE fgPen=g_rp->FgPen;
-
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_PSET);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
+    BYTE fgPen=_g_cur_rp->FgPen;
 
     if (s)
     {
-        x += g_rp->cp_x;
-        y += g_rp->cp_y;
+        x += _g_cur_rp->cp_x;
+        y += _g_cur_rp->cp_y;
     }
     // if (flags & AW_PSET_RESET)
-    //    SetAPen(g_rp, g_rp->BgPen);
+    //    SetAPen(_g_cur_rp, _g_cur_rp->BgPen);
     if (color >= 0)
-        SetAPen(g_rp, color);
+        SetAPen(_g_cur_rp, color);
 
-    Move (g_rp, x, y);
-    WritePixel(g_rp, x, y);
+    Move (_g_cur_rp, x, y);
+    WritePixel(_g_cur_rp, x, y);
 
     //if ( (flags & AW_PSET_RESET) || color >=0 )
-    //    SetAPen(g_rp, fgPen);
+    //    SetAPen(_g_cur_rp, fgPen);
     if ( color >=0 )
-        SetAPen(g_rp, fgPen);
+        SetAPen(_g_cur_rp, fgPen);
 }
 
 /* BASIC: SLEEP
@@ -775,47 +781,47 @@ ULONG WINDOW_(short n)
         case 1:                                 //  1: current output window id
             return g_output_win_id;
         case 2:                                 //  2: current output window width
-            if (!g_output_win)
+            if (!_g_cur_win)
                 return 0;
-            return g_output_win->GZZWidth;
+            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZWidth : _g_cur_win->Width;
         case 3:                                 //  3: current output window height
-            if (!g_output_win)
+            if (!_g_cur_win)
                 return 0;
-            return g_output_win->GZZHeight;
+            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZHeight : _g_cur_win->Height;
         case 4:                                 //  4: current output cursor X
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return g_rp->cp_x;
+            return _g_cur_rp->cp_x;
         case 5:                                 //  5: current output cursor Y
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return g_rp->cp_y;
+            return _g_cur_rp->cp_y;
         case 6:                                 //  6: highest color index
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return (1<<g_rp->BitMap->Depth)-1;
+            return (1<<_g_cur_rp->BitMap->Depth)-1;
         case 7:                                 //  7: pointer to current intuition output window
-            return (ULONG) g_output_win;
+            return (ULONG) _g_cur_win;
         case 8:                                 //  8: pointer to current rastport
-            return (ULONG) g_rp;
+            return (ULONG) _g_cur_rp;
         case 9:                                 //  9: output file handle (ACE)
             return (ULONG) g_stdout;
         case 10:                                // 10: foreground pen (ACE)
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return g_rp->FgPen;
+            return _g_cur_rp->FgPen;
         case 11:                                // 11: background pen (ACE)
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return g_rp->BgPen;
+            return _g_cur_rp->BgPen;
         case 12:                                // 12: text width (ACE)
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return g_rp->TxWidth;
+            return _g_cur_rp->TxWidth;
         case 13:                                // 13: text height (ACE)
-            if (!g_rp)
+            if (!_g_cur_rp)
                 return 0;
-            return g_rp->TxHeight;
+            return _g_cur_rp->TxHeight;
         case 14:                                // 14: input file handle (AQB)
             return (ULONG) g_stdin;
 
@@ -825,24 +831,26 @@ ULONG WINDOW_(short n)
 
 void MOUSE_ON (void)
 {
-    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    _aqb_get_output (/*needGfx=*/TRUE);
+    if ( !_g_cur_win )
     {
         ERROR(AE_MOUSE);
         return;
     }
 
-    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags | MOUSEBUTTONS);
+    ModifyIDCMP (_g_cur_win, _g_cur_win->IDCMPFlags | MOUSEBUTTONS);
 }
 
 void MOUSE_OFF (void)
 {
-    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    _aqb_get_output (/*needGfx=*/TRUE);
+    if ( !_g_cur_win )
     {
         ERROR(AE_MOUSE);
         return;
     }
 
-    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags & ~MOUSEBUTTONS);
+    ModifyIDCMP (_g_cur_win, _g_cur_win->IDCMPFlags & ~MOUSEBUTTONS);
 }
 
 void ON_MOUSE_CALL (void (*cb)(void))
@@ -852,7 +860,8 @@ void ON_MOUSE_CALL (void (*cb)(void))
 
 WORD MOUSE_ (SHORT n)
 {
-    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    _aqb_get_output (/*needGfx=*/TRUE);
+    if ( !_g_cur_win )
     {
         ERROR(AE_MOUSE);
         return 0;
@@ -874,9 +883,9 @@ WORD MOUSE_ (SHORT n)
             break;
 
         case 1:
-            return g_output_win->GZZMouseX;
+            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZMouseX : _g_cur_win->MouseX;
         case 2:
-            return g_output_win->GZZMouseY;
+            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZMouseY : _g_cur_win->MouseY;
 
         case 3:
             return g_mouse_down_x;
@@ -897,27 +906,28 @@ WORD MOUSE_ (SHORT n)
 
 void MOUSE_MOTION_ON (void)
 {
-    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    _aqb_get_output (/*needGfx=*/TRUE);
+    if ( !_g_cur_win )
     {
         ERROR(AE_MOUSE);
         return;
     }
 
-    g_output_win->Flags |= REPORTMOUSE;
-    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags | MOUSEMOVE);
-    //_debug_puts((STRPTR)"MOUSE_MOTION_ON\n");
+    _g_cur_win->Flags |= REPORTMOUSE;
+    ModifyIDCMP (_g_cur_win, _g_cur_win->IDCMPFlags | MOUSEMOVE);
 }
 
 void MOUSE_MOTION_OFF (void)
 {
-    if ( ((g_output_win_id == 1) && g_win1_is_dos) || !g_output_win )
+    _aqb_get_output (/*needGfx=*/TRUE);
+    if ( !_g_cur_win )
     {
         ERROR(AE_MOUSE);
         return;
     }
 
-    g_output_win->Flags &= ~REPORTMOUSE;
-    ModifyIDCMP (g_output_win, g_output_win->IDCMPFlags & ~MOUSEMOVE);
+    _g_cur_win->Flags &= ~REPORTMOUSE;
+    ModifyIDCMP (_g_cur_win, _g_cur_win->IDCMPFlags & ~MOUSEMOVE);
 }
 
 void ON_MOUSE_MOTION_CALL (void (*cb)(void))
@@ -932,22 +942,24 @@ void ON_MOUSE_MOTION_CALL (void (*cb)(void))
 
 static void do_scroll(void)
 {
-    WORD max_lines = g_output_win->GZZHeight / g_rp->Font->tf_YSize - 1;
-    WORD cy = g_rp->cp_y / g_rp->Font->tf_YSize;
-    WORD scroll_y = cy - max_lines;
+    WORD win_x      = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? 0 : _g_cur_win->BorderLeft;
+    WORD win_y      = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? 0 : _g_cur_win->BorderTop;
+    WORD win_width  = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZWidth : _g_cur_win->Width - _g_cur_win->BorderLeft - _g_cur_win->BorderRight;
+    WORD win_height = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZHeight : _g_cur_win->Height - _g_cur_win->BorderTop - _g_cur_win->BorderBottom;
+    WORD max_lines  = win_height / _g_cur_rp->Font->tf_YSize - 1;
+    WORD cy         = _g_cur_rp->cp_y / _g_cur_rp->Font->tf_YSize;
+    WORD scroll_y   = cy - max_lines;
 
     if (scroll_y > 0)
     {
-        scroll_y *= g_rp->Font->tf_YSize;
-        ScrollRaster (g_rp, 0, scroll_y, 0, 0, g_output_win->GZZWidth, g_output_win->GZZHeight);
-        Move (g_rp, g_rp->cp_x, g_rp->cp_y-scroll_y);
+        scroll_y *= _g_cur_rp->Font->tf_YSize;
+        ScrollRaster (_g_cur_rp, win_x, win_y+scroll_y, win_x, win_y, win_width, win_height);
+        Move (_g_cur_rp, _g_cur_rp->cp_x, _g_cur_rp->cp_y-scroll_y);
     }
 }
 
 void _aio_puts(USHORT fno, const UBYTE *s)
 {
-    CHKBRK;
-
     //_debug_puts((STRPTR)"_debug_puts\n");
 
     if (fno)
@@ -956,7 +968,7 @@ void _aio_puts(USHORT fno, const UBYTE *s)
         return;
     }
 
-    if (_checkCurWinDos())
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         //_debug_puts((STRPTR)"_debug_puts: stdout\n");
         ULONG l = LEN_(s);
@@ -988,7 +1000,7 @@ void _aio_puts(USHORT fno, const UBYTE *s)
                 // this is a control character - print text so far first, then act on it
                 SHORT length = pos-startpos;
                 if (length > 0)
-                    Text (g_rp, (UBYTE *) &s[startpos], length);
+                    Text (_g_cur_rp, (UBYTE *) &s[startpos], length);
 
                 switch (ch)
                 {
@@ -1000,36 +1012,36 @@ void _aio_puts(USHORT fno, const UBYTE *s)
                         break;
 
                     case 8:         // backspace
-                        if (g_rp->cp_x >= g_rp->Font->tf_XSize)
+                        if (_g_cur_rp->cp_x >= _g_cur_rp->Font->tf_XSize)
                         {
-                            Move (g_rp, g_rp->cp_x-g_rp->Font->tf_XSize, g_rp->cp_y);
-                            Text (g_rp, (UBYTE*) " ", 1);
-                            Move (g_rp, g_rp->cp_x-g_rp->Font->tf_XSize, g_rp->cp_y);
+                            Move (_g_cur_rp, _g_cur_rp->cp_x-_g_cur_rp->Font->tf_XSize, _g_cur_rp->cp_y);
+                            Text (_g_cur_rp, (UBYTE*) " ", 1);
+                            Move (_g_cur_rp, _g_cur_rp->cp_x-_g_cur_rp->Font->tf_XSize, _g_cur_rp->cp_y);
                         }
                         break;
 
                     case 9:         // tab
                     {
-                        int cx = g_rp->cp_x / g_rp->Font->tf_XSize;          // cursor position in nominal characters
+                        int cx = _g_cur_rp->cp_x / _g_cur_rp->Font->tf_XSize;          // cursor position in nominal characters
                         // _debug_puts((STRPTR)"[1] cx="); _debug_puts2(cx); _debug_puts((STRPTR)"\n");
                         cx = cx + (8-(cx%8));                                // AmigaBASIC TABs are 9 characters wide
                         // _debug_puts((STRPTR)"[2] cx="); _debug_puts2(cx); _debug_puts((STRPTR)"\n");
-                        Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
+                        Move (_g_cur_rp, cx * _g_cur_rp->Font->tf_XSize, _g_cur_rp->cp_y);
                         break;
                     }
                     case 10:        // linefeed
-                        Move (g_rp, 0, g_rp->cp_y + g_rp->Font->tf_YSize);
+                        Move (_g_cur_rp, 0, _g_cur_rp->cp_y + _g_cur_rp->Font->tf_YSize);
                         do_scroll();
                         break;
 
                     case 12:        // clear screen
-                        Move (g_rp, 0, 0);
-                        SetRast (g_rp, g_rp->BgPen);
-                        Move (g_rp, 0, g_rp->Font->tf_Baseline);
+                        Move (_g_cur_rp, 0, 0);
+                        SetRast (_g_cur_rp, _g_cur_rp->BgPen);
+                        Move (_g_cur_rp, 0, _g_cur_rp->Font->tf_Baseline);
                         break;
 
                     case 13:        // carriage return
-                        Move (g_rp, 0, g_rp->cp_y);
+                        Move (_g_cur_rp, 0, _g_cur_rp->cp_y);
                         break;
                 }
 
@@ -1054,22 +1066,22 @@ void _aio_puttab(USHORT fno)
         return;
     }
 
-    if (_checkCurWinDos())
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         Write(g_stdout, (CONST APTR) "\t", 1);
         return;
     }
 
-    int cx = g_rp->cp_x / g_rp->Font->tf_XSize;          // cursor position in nominal characters
+    int cx = _g_cur_rp->cp_x / _g_cur_rp->Font->tf_XSize;          // cursor position in nominal characters
     cx = cx + (14-(cx%14));                              // PRINT comma TABs are 15 characters wide
-    Move (g_rp, cx * g_rp->Font->tf_XSize, g_rp->cp_y);
+    Move (_g_cur_rp, cx * _g_cur_rp->Font->tf_XSize, _g_cur_rp->cp_y);
 }
 
 #define CSI 0x9b
 
 void LOCATE (SHORT l, SHORT c)
 {
-    if (_checkCurWinDos())
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
 
         UBYTE buf[20];
@@ -1095,23 +1107,26 @@ void LOCATE (SHORT l, SHORT c)
     l--;
     c--;
 
-    Move (g_rp, c * g_rp->Font->tf_XSize, l * g_rp->Font->tf_YSize + g_rp->Font->tf_Baseline);
+    WORD win_x = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? 0 : _g_cur_win->BorderLeft;
+    WORD win_y = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? 0 : _g_cur_win->BorderTop;
+
+    Move (_g_cur_rp, win_x + c * _g_cur_rp->Font->tf_XSize, win_y + l * _g_cur_rp->Font->tf_YSize + _g_cur_rp->Font->tf_Baseline);
 }
 
 SHORT CSRLIN_ (void)
 {
-    if ( (g_output_win_id == 1) && g_win1_is_dos )
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
         return 0;
 
-    return g_rp->cp_y / g_rp->Font->tf_YSize + 1;
+    return _g_cur_rp->cp_y / _g_cur_rp->Font->tf_YSize + 1;
 }
 
 SHORT POS_ (SHORT dummy)
 {
-    if ( (g_output_win_id == 1) && g_win1_is_dos )
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
         return 0;
 
-    return g_rp->cp_x / g_rp->Font->tf_XSize + 1;
+    return _g_cur_rp->cp_x / _g_cur_rp->Font->tf_XSize + 1;
 }
 
 // input statement support
@@ -1131,16 +1146,16 @@ static void draw_cursor(void)
 
     ULONG   old_fg, old_x, old_y;
 
-    old_fg = g_rp->FgPen;
-    old_x  = g_rp->cp_x;
-    old_y  = g_rp->cp_y;
+    old_fg = _g_cur_rp->FgPen;
+    old_x  = _g_cur_rp->cp_x;
+    old_y  = _g_cur_rp->cp_y;
 
-    SetAPen (g_rp, (1<<g_rp->BitMap->Depth)-1);
-    RectFill (g_rp, old_x+1, old_y - g_rp->TxBaseline,
-                    old_x+2, old_y - g_rp->TxBaseline + g_rp->TxHeight - 1);
+    SetAPen (_g_cur_rp, (1<<_g_cur_rp->BitMap->Depth)-1);
+    RectFill (_g_cur_rp, old_x+1, old_y - _g_cur_rp->TxBaseline,
+                    old_x+2, old_y - _g_cur_rp->TxBaseline + _g_cur_rp->TxHeight - 1);
 
-    Move (g_rp, old_x, old_y);
-    SetAPen (g_rp, old_fg);
+    Move (_g_cur_rp, old_x, old_y);
+    SetAPen (_g_cur_rp, old_fg);
 }
 
 #define MAXINPUTBUF 1024
@@ -1155,7 +1170,7 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
     static UBYTE buf[MAXINPUTBUF];
     static UBYTE twospaces[] = "  ";
 
-    if (_checkCurWinDos())
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         _aio_set_dos_cursor_visible (TRUE);
         LONG bytes = Read(g_stdin, (CONST APTR) buf, MAXINPUTBUF);
@@ -1184,7 +1199,7 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
                 if (is_eol(c))
                     break;
 
-                Text (g_rp, (UBYTE *) buf2, 1);
+                Text (_g_cur_rp, (UBYTE *) buf2, 1);
                 draw_cursor();
 
                 buf[col] = c;
@@ -1194,15 +1209,15 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
             {
                 if (col > 0)
                 {
-                    int x = g_rp->cp_x - g_rp->Font->tf_XSize;
-                    int y = g_rp->cp_y;
+                    int x = _g_cur_rp->cp_x - _g_cur_rp->Font->tf_XSize;
+                    int y = _g_cur_rp->cp_y;
 
                     // erase last char + cursor
-                    Move(g_rp, x, y);
-                    Text(g_rp, (UBYTE*) &twospaces, 2);
+                    Move(_g_cur_rp, x, y);
+                    Text(_g_cur_rp, (UBYTE*) &twospaces, 2);
 
                     // draw new cursor
-                    Move(g_rp, x, y);
+                    Move(_g_cur_rp, x, y);
                     draw_cursor();
 
                     col--;
@@ -1213,12 +1228,12 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
         buf[col] = '\0';
 
         // cleanup cursor
-        Text (g_rp, (UBYTE *) &twospaces, 1);
+        Text (_g_cur_rp, (UBYTE *) &twospaces, 1);
 
         if (do_nl)
         {
             //_debug_puts((STRPTR)"do_nl");
-            Move (g_rp, 0, g_rp->cp_y + g_rp->Font->tf_YSize);
+            Move (_g_cur_rp, 0, _g_cur_rp->cp_y + _g_cur_rp->Font->tf_YSize);
             do_scroll();
         }
         else
@@ -1243,7 +1258,7 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 
 void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
 {
-    if (!g_active_scr)
+    if (!_g_cur_vp)
     {
         ERROR(AE_PALETTE);
         return;
@@ -1276,23 +1291,19 @@ void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
         return;
     }
 
-    SetRGB4(&g_active_scr->ViewPort, cid, r, g, b);
+    SetRGB4(_g_cur_vp, cid, r, g, b);
 }
 
 void COLOR(short fg, short bg, short o)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_COLOR);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
 
     if (fg >= 0)
-        SetAPen (g_rp, fg);
+        SetAPen (_g_cur_rp, fg);
     if (bg >= 0)
-        SetBPen (g_rp, bg);
+        SetBPen (_g_cur_rp, bg);
     if (o >= 0)
-        g_rp->AOlPen = o;
+        _g_cur_rp->AOlPen = o;
 }
 
 static void allocTmpRas(void)
@@ -1307,7 +1318,7 @@ static void allocTmpRas(void)
 #ifdef ENABLE_DEBUG
     _debug_puts((STRPTR)"allocTmpRas: AllocVec aTmpRas ->"); _debug_putu4((ULONG)aTmpRas); _debug_putnl();
 #endif
-    ULONG rassize = RASSIZE (g_output_win->Width, g_output_win->Height);
+    ULONG rassize = RASSIZE (_g_cur_win->Width, _g_cur_win->Height);
 
     //_debug_puts((STRPTR)"allocTmpRas: rassize="); _debug_putu4(rassize);
     //_debug_putnl();
@@ -1322,62 +1333,47 @@ static void allocTmpRas(void)
     _debug_puts((STRPTR)"allocTmpRas: AllocVec amem ->"); _debug_putu4((ULONG)amem); _debug_putnl();
 #endif
     InitTmpRas (aTmpRas, amem, rassize);
-    g_rp->TmpRas = aTmpRas;
+    _g_cur_rp->TmpRas = aTmpRas;
 }
 
 void PAINT(BOOL s, short x, short y, short pc, short aol)
 {
-    CHKBRK;
-
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_PAINT);
-        return;
-    }
+   _aqb_get_output (/*needGfx=*/TRUE);
 
     // init tmp raster if not done yet
-    if (!g_rp->TmpRas)
+    if (!_g_cur_rp->TmpRas)
         allocTmpRas();
 
     if (s)
     {
-        x += g_rp->cp_x;
-        y += g_rp->cp_y;
+        x += _g_cur_rp->cp_x;
+        y += _g_cur_rp->cp_y;
     }
 
-    BYTE fgPen=g_rp->FgPen;
-    BYTE aolPen=g_rp->AOlPen;
+    BYTE fgPen=_g_cur_rp->FgPen;
+    BYTE aolPen=_g_cur_rp->AOlPen;
     if (pc >= 0)
-        SetAPen(g_rp, pc);
+        SetAPen(_g_cur_rp, pc);
     if (aol >= 0)
-        g_rp->AOlPen = aol;
+        _g_cur_rp->AOlPen = aol;
 
-    Flood (g_rp, 0, x, y);
+    Flood (_g_cur_rp, 0, x, y);
 
     if ( pc >=0 )
-        SetAPen(g_rp, fgPen);
+        SetAPen(_g_cur_rp, fgPen);
     if ( aol >= 0 )
-        g_rp->AOlPen = aolPen;
+        _g_cur_rp->AOlPen = aolPen;
 }
 
 #define AREA_MAX_CNT    100
 
 void AREA(BOOL s, short x, short y)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_AREA);
-        return;
-    }
-
-    // _debug_puts((STRPTR)"AREA: s="); _debug_puts2(s);
-    // _debug_puts((STRPTR)", x="); _debug_puts2(x);
-    // _debug_puts((STRPTR)", y="); _debug_puts2(y);
-    // _debug_putnl();
+    _aqb_get_output (/*needGfx=*/TRUE);
 
     // first call on this rp? -> initialize Area* related data structures
 
-    if (!g_rp->AreaInfo)
+    if (!_g_cur_rp->AreaInfo)
     {
         struct AreaInfo *ai = ALLOCATE_(sizeof (*ai), 0);
         if (!ai)
@@ -1392,20 +1388,20 @@ void AREA(BOOL s, short x, short y)
             return;
         }
         InitArea(ai, adata, AREA_MAX_CNT);
-        g_rp->AreaInfo = ai;
+        _g_cur_rp->AreaInfo = ai;
     }
 
     // init tmp raster if not done yet
-    if (!g_rp->TmpRas)
+    if (!_g_cur_rp->TmpRas)
         allocTmpRas();
 
     if (s)
     {
-        x += g_rp->cp_x;
-        y += g_rp->cp_y;
+        x += _g_cur_rp->cp_x;
+        y += _g_cur_rp->cp_y;
     }
 
-    WORD cnt = g_rp->AreaInfo->Count;
+    WORD cnt = _g_cur_rp->AreaInfo->Count;
 
     if (cnt >= AREA_MAX_CNT)
     {
@@ -1414,63 +1410,49 @@ void AREA(BOOL s, short x, short y)
     }
 
     if (cnt==0)
-        AreaMove (g_rp, x, y);
+        AreaMove (_g_cur_rp, x, y);
     else
-        AreaDraw (g_rp, x, y);
+        AreaDraw (_g_cur_rp, x, y);
 }
 
 void AREAFILL (short mode)
 {
-    CHKBRK;
-
     BYTE dm;
 
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || !g_rp->AreaInfo )
-    {
-        ERROR(AE_AREA);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
 
-    dm = g_rp->DrawMode;
+    dm = _g_cur_rp->DrawMode;
     if (mode==1)
     {
-        SetDrMd(g_rp, COMPLEMENT);
+        SetDrMd(_g_cur_rp, COMPLEMENT);
     }
     else
     {
-        SetDrMd(g_rp, JAM2);
+        SetDrMd(_g_cur_rp, JAM2);
     }
 
-    AreaEnd(g_rp);
+    AreaEnd(_g_cur_rp);
 
-    SetDrMd(g_rp, dm);
+    SetDrMd(_g_cur_rp, dm);
 }
 
 void AREA_OUTLINE(BOOL enabled)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_AREA);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
 
     if (enabled)
-        g_rp->Flags |= AREAOUTLINE;
+        _g_cur_rp->Flags |= AREAOUTLINE;
     else
-        g_rp->Flags &= ~AREAOUTLINE;
+        _g_cur_rp->Flags &= ~AREAOUTLINE;
 }
 
 void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_PATTERN);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
 
-    g_rp->LinePtrn   = lineptrn;
-    g_rp->Flags     |= FRST_DOT;
-    g_rp->linpatcnt  = 15;
+    _g_cur_rp->LinePtrn   = lineptrn;
+    _g_cur_rp->Flags     |= FRST_DOT;
+    _g_cur_rp->linpatcnt  = 15;
 
     if (areaptrn)
     {
@@ -1490,24 +1472,20 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
         //_debug_puts((STRPTR)", ptSz="); _debug_puts2(ptSz); _debug_putnl();
         //_debug_puts((STRPTR)"AreaPtrn[0]="); _debug_putu4(*((ULONG*)areaptrn->data)); _debug_putnl();
 
-        g_rp->AreaPtrn = areaptrn->data;
-        g_rp->AreaPtSz = ptSz;
+        _g_cur_rp->AreaPtrn = areaptrn->data;
+        _g_cur_rp->AreaPtSz = ptSz;
     }
 }
 
 void PATTERN_RESTORE (void)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_PATTERN);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
 
-    g_rp->LinePtrn   = 0xFFFF;
-    g_rp->Flags     |= FRST_DOT;
-    g_rp->linpatcnt  = 15;
-    g_rp->AreaPtrn   = NULL;
-    g_rp->AreaPtSz   = 0;
+    _g_cur_rp->LinePtrn   = 0xFFFF;
+    _g_cur_rp->Flags     |= FRST_DOT;
+    _g_cur_rp->linpatcnt  = 15;
+    _g_cur_rp->AreaPtrn   = NULL;
+    _g_cur_rp->AreaPtSz   = 0;
 }
 
 void BITMAP_FREE (BITMAP_t *bm)
@@ -1539,8 +1517,6 @@ void BITMAP_FREE (BITMAP_t *bm)
 		   bm->bm.Planes[plane_num] = NULL;
 		}
 	}
-
-	_cleanupGelSys(&bm->rp);
 
     FreeVec (bm);
 }
@@ -1605,25 +1581,22 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 
 void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp )
-    {
-        ERROR(AE_BLIT);
-        return;
-    }
+    _aqb_get_output (/*needGfx=*/TRUE);
+
     if (x1<0)
-        x1 = g_rp->cp_x;
+        x1 = _g_cur_rp->cp_x;
     if (y1<0)
-        y1 = g_rp->cp_y;
+        y1 = _g_cur_rp->cp_y;
 
     if (s1)
     {
-        x1 += g_rp->cp_x;
-        y1 += g_rp->cp_y;
+        x1 += _g_cur_rp->cp_x;
+        y1 += _g_cur_rp->cp_y;
     }
     if (s2)
     {
-        x2 += g_rp->cp_x;
-        y2 += g_rp->cp_y;
+        x2 += _g_cur_rp->cp_x;
+        y2 += _g_cur_rp->cp_y;
     }
 
     SHORT w = x2-x1+1;
@@ -1639,25 +1612,26 @@ void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm
         return;
     }
 
-    ClipBlit(g_rp, x1, y1, &bm->rp, 0, 0, w, h, 0xC0);
+    ClipBlit(_g_cur_rp, x1, y1, &bm->rp, 0, 0, w, h, 0xC0);
 }
 
 void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
 {
-    if ( ( (g_output_win_id == 1) && g_win1_is_dos) || !g_rp || s1 || s2 )
+    _aqb_get_output (/*needGfx=*/TRUE);
+    if ( s1 || s2 )
     {
         ERROR(AE_BLIT);
         return;
     }
     if (x<0)
-        x = g_rp->cp_x;
+        x = _g_cur_rp->cp_x;
     if (y<0)
-        y = g_rp->cp_y;
+        y = _g_cur_rp->cp_y;
 
     if (s)
     {
-        x += g_rp->cp_x;
-        y += g_rp->cp_y;
+        x += _g_cur_rp->cp_x;
+        y += _g_cur_rp->cp_y;
     }
 
     if (x1<0) x1 = 0;
@@ -1678,180 +1652,7 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
         return;
     }
 
-    ClipBlit(&bm->rp, x1, y1, g_rp, x, y, w, h, 0xC0);
-}
-
-static struct GelsInfo *_setupGelSys(struct RastPort *rPort, BYTE sprRsrvd)
-{
-	struct GelsInfo *gInfo;
-	struct VSprite  *vsHead;
-	struct VSprite  *vsTail;
-
-	if (NULL != (gInfo = (struct GelsInfo *)AllocMem(sizeof(struct GelsInfo), MEMF_CLEAR)))
-	{
-		if (NULL != (gInfo->nextLine = (WORD *)AllocMem(sizeof(WORD) * 8, MEMF_CLEAR)))
-		{
-			if (NULL != (gInfo->lastColor = (WORD **)AllocMem(sizeof(LONG) * 8, MEMF_CLEAR)))
-			{
-				if (NULL != (gInfo->collHandler = (struct collTable *) AllocMem(sizeof(struct collTable),MEMF_CLEAR)))
-				{
-					if (NULL != (vsHead = (struct VSprite *) AllocMem((LONG)sizeof(struct VSprite), MEMF_CLEAR)))
-					{
-						if (NULL != (vsTail = (struct VSprite *) AllocMem(sizeof(struct VSprite), MEMF_CLEAR)))
-						{
-							gInfo->sprRsrvd   = sprRsrvd;
-							/* Set left- and top-most to 1 to better keep items */
-							/* inside the display boundaries.                   */
-							gInfo->leftmost   = gInfo->topmost    = 1;
-							gInfo->rightmost  = (rPort->BitMap->BytesPerRow << 3) - 1;
-							gInfo->bottommost = rPort->BitMap->Rows - 1;
-							rPort->GelsInfo = gInfo;
-							InitGels(vsHead, vsTail, gInfo);
-							return(gInfo);
-						}
-						FreeMem(vsHead, (LONG)sizeof(*vsHead));
-					}
-					FreeMem(gInfo->collHandler, (LONG)sizeof(struct collTable));
-				}
-				FreeMem(gInfo->lastColor, (LONG)sizeof(LONG) * 8);
-			}
-			FreeMem(gInfo->nextLine, (LONG)sizeof(WORD) * 8);
-		}
-		FreeMem(gInfo, (LONG)sizeof(*gInfo));
-	}
-	return NULL;
-}
-
-BOB_t *BOB_ (BITMAP_t *bm)
-{
-    BOB_t *bob = AllocVec(sizeof(*bob), MEMF_CLEAR);
-    if (!bob)
-    {
-        ERROR(AE_BOB);
-        return NULL;
-    }
-
-    bob->prev = g_bob_last;
-    if (g_bob_last)
-        g_bob_last = g_bob_last->next = bob;
-    else
-        g_bob_first = g_bob_last = bob;
-
-    LONG word_width = (bm->bm.BytesPerRow+1)/2;
-    LONG rassize = (LONG)sizeof(UWORD) * word_width * bm->height * bm->bm.Depth;
-
-    bob->bob.SaveBuffer = (WORD *)AllocVec(rassize, MEMF_CHIP);
-
-    if (!bob->bob.SaveBuffer)
-    {
-        ERROR(AE_BOB);
-        return NULL;
-    }
-
-    LONG line_size  = 2 * word_width;
-    LONG plane_size = line_size * bm->height;
-
-    bob->vsprite.BorderLine = (WORD *)AllocVec(line_size, MEMF_CHIP);
-    if (!bob->vsprite.BorderLine)
-    {
-        ERROR(AE_BOB);
-        return NULL;
-    }
-
-    bob->vsprite.CollMask = (WORD *)AllocVec(plane_size, MEMF_CHIP);
-    if (!bob->vsprite.CollMask)
-    {
-        ERROR(AE_BOB);
-        return NULL;
-    }
-
-    bob->vsprite.X          = 0;
-    bob->vsprite.Y          = 0;
-    bob->vsprite.Flags      = SAVEBACK | OVERLAY;
-    bob->vsprite.Width      = word_width;
-    bob->vsprite.Depth      = bm->bm.Depth;
-    bob->vsprite.Height     = bm->height;
-    bob->vsprite.MeMask     = 0;
-    bob->vsprite.HitMask    = 0;
-    bob->vsprite.ImageData  = (WORD *) bm->bm.Planes[0];
-    bob->vsprite.SprColors  = NULL;
-    bob->vsprite.PlanePick  = 0xff;
-    bob->vsprite.PlaneOnOff = 0x00;
-
-    InitMasks(&bob->vsprite);
-
-	bob->vsprite.VSBob   = &bob->bob;
-	bob->bob.BobVSprite  = &bob->vsprite;
-	bob->bob.ImageShadow = bob->vsprite.CollMask;
-	bob->bob.Flags       = 0;
-	bob->bob.Before      = NULL;
-	bob->bob.After       = NULL;
-	bob->bob.BobComp     = NULL;
-	bob->bob.DBuffer     = NULL;
-#if 0
-	if (nBob->nb_DBuf)
-		{
-		if (NULL != (bob->DBuffer = (struct DBufPacket *)
-				AllocMem((LONG)sizeof(struct DBufPacket), MEMF_CLEAR)))
-			{
-			if (NULL != (bob->DBuffer->BufBuffer = (WORD *)AllocMem(rassize, MEMF_CHIP)))
-				return(bob);
-#endif
-
-	DPRINTF ("BOB allocation done, bob=0x%08lx, VSprite: width=%d, height=%d, depth=%d\n", bob, bob->vsprite.Width, bob->vsprite.Height, bob->vsprite.Depth);
-
-    return bob;
-}
-
-void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
-{
-	DPRINTF ("BOB_MOVE bob=0x%08lx, x=%d, y=%d, g_rp=0x%08lx, g_vp=0x%08lx\n", bob, x, y, g_rp, g_vp);
-	if (!bob || !g_rp)
-	{
-        ERROR(AE_BOB);
-        return;
-	}
-
-	if (!g_rp->GelsInfo)
-	{
-		if (!_setupGelSys(g_rp, /*sprRsrvd=*/0x03))
-		{
-			ERROR(AE_BOB);
-			return;
-		}
-	}
-
-	if (!bob->active)
-	{
-		DPRINTF ("BOB_MOVE adding bob to rp bob=0x%08lx\n", bob);
-        AddBob(&bob->bob, g_rp);
-		bob->active = TRUE;
-	}
-
-	bob->bob.BobVSprite->X = x;
-	bob->bob.BobVSprite->Y = y;
-}
-
-void BOB_REPAINT (void)
-{
-	if (!g_rp || !g_vp)
-	{
-        ERROR(AE_BOB);
-        return;
-	}
-
-	if (!g_rp->GelsInfo)
-	{
-		if (!_setupGelSys(g_rp, /*sprRsrvd=*/0x03))
-		{
-			ERROR(AE_BOB);
-			return;
-		}
-	}
-
-	SortGList(g_rp);
-	DrawGList(g_rp, g_vp);
-	/* FIXME: If the GelsList includes true VSprites, MrgCop() and LoadView() here */
+    ClipBlit(&bm->rp, x1, y1, _g_cur_rp, x, y, w, h, 0xC0);
 }
 
 void _palette_load (SHORT scid, PALETTE_t *p)
@@ -1872,7 +1673,7 @@ void _palette_load (SHORT scid, PALETTE_t *p)
 
 void PALETTE_LOAD (PALETTE_t *p)
 {
-    if (!g_active_scr)
+    if (!_g_cur_scr)
     {
         ERROR(AE_PALETTE);
         return;
@@ -1884,9 +1685,7 @@ static char inkeybuf[2] = { 0, 0 } ;
 
 char *INKEY_ (void)
 {
-    CHKBRK;
-
-    if (_checkCurWinDos())
+    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         LONG l = Read(g_stdin, (CONST APTR) inkeybuf, 1);
         if (l != 1)

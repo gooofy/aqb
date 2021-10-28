@@ -73,6 +73,7 @@ src/lib/_aqb/awindow.asm
 src/lib/_brt/amath.asm
 src/lib/_brt/autil.asm
 src/lib/IFFSupport/*.sym
+src/lib/AnimSupport/*.sym
 src/alib/tests/*.bin
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas

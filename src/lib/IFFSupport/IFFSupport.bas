@@ -38,9 +38,3 @@ PUBLIC DECLARE SUB ILBM READ BITMAP (_FNO(BYVAL fno AS UINTEGER), _
                                      BYVAL pPalette AS PALETTE_t PTR = NULL, _
                                      BYVAL cont AS BOOLEAN = FALSE)
 
-PUBLIC DECLARE SUB ILBM LOAD BOB    (BYVAL path AS STRING, _
-                                     BYREF bob AS BOB_t PTR, _
-                                     BYVAL scid AS INTEGER=-1, _
-                                     BYVAL pMETA AS ILBM_META_t PTR = NULL, _
-                                     BYVAL pPalette AS PALETTE_t PTR = NULL)
-

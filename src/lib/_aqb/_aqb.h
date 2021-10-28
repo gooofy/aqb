@@ -5,6 +5,8 @@
 #include <graphics/gfx.h>
 #include <graphics/gels.h>
 
+#include <intuition/intuition.h>
+
 #include "../_brt/_brt.h"
 
 extern struct IntuitionBase *IntuitionBase;
@@ -91,24 +93,6 @@ void     BITMAP_FREE          (BITMAP_t *bm);
 void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
 void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 
-/*
- * GELs
- */
-
-typedef struct BOB_ BOB_t;
-
-struct BOB_
-{
-    BOB_t          *prev, *next;
-	BOOL            active;
-    struct Bob      bob;
-    struct VSprite  vsprite;
-};
-
-BOB_t   *BOB_               (BITMAP_t *bm);
-void     BOB_MOVE           (BOB_t *bob, BOOL s, SHORT x, SHORT y);
-void     BOB_REPAINT        (void);
-
 #define AE_WIN_OPEN                 101
 #define AE_SCREEN_OPEN              102
 #define AE_PALETTE                  103
@@ -130,18 +114,34 @@ void     BOB_REPAINT        (void);
 #define AE_CLOSE                    119
 #define AE_MOUSE                    120
 #define AE_BLIT                     121
-#define AE_BOB                      122
+#define AE_RASTPORT                 122
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
 
+enum _aqb_output_type {_aqb_ot_none, _aqb_ot_console, _aqb_ot_window, _aqb_ot_screen, _aqb_ot_bitmap};
+
+// consider these readonly, use _aqb_get_output() before using them to auto-open window 1 if necessary
+extern struct Screen        *_g_cur_scr;
+extern struct Window        *_g_cur_win;
+extern struct RastPort      *_g_cur_rp ;
+extern struct ViewPort      *_g_cur_vp ;
+extern BITMAP_t             *_g_cur_bm ;
+
+enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
+
 void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);
 void   SCREEN_CLOSE           (short id);
+
 void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, ULONG flags, SHORT scrid);
 void   WINDOW_CLOSE           (short id);
 void   WINDOW_OUTPUT          (short id);
 void   ON_WINDOW_CALL         (void (*cb)(void));
 ULONG  WINDOW_                (SHORT n);
+
+typedef void (*window_close_cb_t)(struct Window *win);
+void   _window_add_close_cb   (window_close_cb_t cb);
+
 void   SLEEP                  (void);
 void   SLEEP_FOR              (FLOAT s);
 void   VWAIT                  (void);

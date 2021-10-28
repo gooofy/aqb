@@ -309,27 +309,6 @@ void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta
     _ilbm_read (fh, bm, scid, pMeta, pPalette, cont);
 }
 
-void ILBM_LOAD_BOB (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
-{
-    DPRINTF ("ILBM_LOAD_BOB path=%s\n", (char*)path);
-
-    struct FileHandle *fh = BADDR(Open (path, MODE_OLDFILE));
-    if (!fh)
-    {
-        DPRINTF ("ILBM_LOAD_BOB open failed.\n");
-        ERROR(AE_IFF);
-        return;
-    }
-
-    BITMAP_t *bm=NULL;
-
-    _ilbm_read (fh, &bm, scid, pMeta, pPalette, /*cont=*/TRUE);
-
-    Close (MKBADDR(fh));
-
-    *bob = BOB_(bm);
-}
-
 void _IFFSupport_init(void)
 {
 }
