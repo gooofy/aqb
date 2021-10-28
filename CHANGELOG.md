@@ -3,9 +3,14 @@
 Improvements:
 
     * MIT license applied consistently
-    * runtime: VWAIT command added
-    * runtime: ILBM LOAD BOB command added
     * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
+    * runtime: VWAIT command added
+    * runtime: new AnimSupport module added
+    * runtime: GELS INIT command added
+    * runtime: GELS REPAINT command added
+    * runtime: BOB() function added
+    * runtime: BOB MOVE command added
+    * runtime: ILBM LOAD BOB command added
 
 Bug Fixes:
 

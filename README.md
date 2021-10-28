@@ -10,10 +10,14 @@
 * [Benchmark Results](#benchmark-results)
 * [Source Code](#source-code)
 
-### AQB Programming Language
+### Command Reference
+
 * [Reference: Core](help/RefCore.md)
 * [Reference: Amiga specific commands](help/RefAmiga.md)
 * [Reference: IFFSupport](help/IFFSupport.md)
+* [Reference: AnimSupport](help/AnimSupport.md)
+
+### AQB Programming Language
 * [Type System](#type-system)
 * [Module System and Runtime](#module-system-and-runtime)
 * [Code Generation and Target Systems](#code-generation-and-target-systems)

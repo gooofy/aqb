@@ -171,6 +171,7 @@ class AmigaGuideMixin(object):
                     " * @{\"Reference: Core\" link \"help/RefCore.guide/main\"}\n"
                     " * @{\"Reference: Amiga specific commands\" link \"help/RefAmiga.guide/main\"}\n"
                     " * @{\"Reference: IFFSupport module\" link \"help/IFFSupport.guide/main\"}\n"
+                    " * @{\"Reference: AnimSupport module\" link \"help/AnimSupport.guide/main\"}\n"
                     "@endnode\n"
                     "@index navidx\n")
             return "@DATABASE\n@node MAIN\n" + body + suff

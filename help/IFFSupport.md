@@ -35,21 +35,6 @@ Syntax:
 
 load a bitmap from an IFF ILBM file stream. See ILBM LOAD BITMAP for details.
 
-## ILBM READ BOB
-
-Syntax:
-
-	ILBM LOAD BOB path [, [bobPtr] [, [scid] [, [pMETA] [, [pPalette] ] ] ] ]
-
-load a bob from an IFF ILBM file. See ILBM LOAD BITMAP for details.
-
-Example:
-
-	DIM AS BOB\_t PTR dragon = NULL
-
-	ILBM LOAD BOB "PROGDIR:imgs/dragon.iff", bob, 1
-
-
 ## ILBM\_META\_t
 
 Structure of IFF ILBM image meta data information:
