@@ -53,6 +53,16 @@ static void _win_gels_cleanup_cb (struct Window *win)
 {
     struct RastPort *rPort = win->RPort;
     DPRINTF ("_win_gels_cleanup_cb called, win=0x%08lx, rPort=0x%08lx\n", win, rPort);
+
+    // HIDE all bobs currently active in this rastport:
+
+    for (BOB_t *bob=g_bob_first; bob; bob=bob->next)
+    {
+        if (bob->rp != rPort)
+            continue;
+        BOB_HIDE (bob);
+    }
+
     _cleanupGelSys (rPort);
 }
 
@@ -222,26 +232,40 @@ void BOB_SHOW (BOB_t *bob)
         return;
 	}
 
-	if (bob->active)
+	if (bob->rp)
         return;
 
     DPRINTF ("BOB_SHOW adding bob to rp bob=0x%08lx\n", bob);
     AddBob(&bob->bob, _g_cur_rp);
-    bob->active = TRUE;
+    bob->rp = _g_cur_rp;
 }
 
 void BOB_HIDE (BOB_t *bob)
 {
+    DPRINTF ("BOB_HIDE: bob=0x%08lx\n", bob);
 	if (!bob)
 	{
         ERROR(AE_BOB);
         return;
 	}
-    if (!bob->active)
+    if (!bob->rp)
         return;
 
     RemBob(&bob->bob);
-    bob->active = FALSE;
+    bob->rp = NULL;
+}
+
+void BOB_FREE (BOB_t *bob)
+{
+    DPRINTF ("BOB_FREE: bob=0x%08lx\n", bob);
+	if (!bob)
+	{
+        ERROR(AE_BOB);
+        return;
+	}
+    if (bob->rp)
+        BOB_HIDE(bob);
+    // FIXME: implement
 }
 
 void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
@@ -286,7 +310,23 @@ void ILBM_LOAD_BOB (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PA
     *bob = BOB_(bm);
 }
 
+static void _AnimSupport_shutdown(void)
+{
+    DPRINTF ("_AnimSupport_shutdown called\n");
+
+    BOB_t *bob = g_bob_first;
+    while (bob)
+    {
+        BOB_t *nb = bob->next;
+        if (bob->rp)
+            BOB_HIDE (bob);
+        BOB_FREE (bob);
+        bob = nb;
+    }
+}
+
 void _AnimSupport_init(void)
 {
+    ON_EXIT_CALL(_AnimSupport_shutdown);
 }
 

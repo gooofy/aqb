@@ -68,6 +68,15 @@ Syntax:
 
 move bob to a new location
 
+## BOB FREE
+
+Syntax:
+
+    BOB FREE bob
+
+release all resources allocated by this bob, hide BOB first if still
+visible.
+
 ## ILBM READ BOB
 
 Syntax:

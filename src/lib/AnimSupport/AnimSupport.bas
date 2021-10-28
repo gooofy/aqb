@@ -24,7 +24,7 @@ PUBLIC DECLARE SUB GELS REPAINT
 
 PUBLIC TYPE BOB_t
     AS BOB_t PTR        prev, next
-    AS BOOLEAN          active
+    AS VOID PTR         rp
     ' FIXME: struct Bob      bob
     ' FIXME: struct VSprite  vsprite
 END TYPE

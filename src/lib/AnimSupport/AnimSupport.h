@@ -27,10 +27,10 @@ typedef struct BOB_ BOB_t;
 
 struct BOB_
 {
-    BOB_t          *prev, *next;
-	BOOL            active;
-    struct Bob      bob;
-    struct VSprite  vsprite;
+    BOB_t           *prev, *next;
+    struct RastPort *rp;
+    struct Bob       bob;
+    struct VSprite   vsprite;
 };
 
 BOB_t *BOB_               (BITMAP_t *bm);
