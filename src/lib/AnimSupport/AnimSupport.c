@@ -211,6 +211,39 @@ BOB_t *BOB_ (BITMAP_t *bm)
     return bob;
 }
 
+void BOB_SHOW (BOB_t *bob)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+	DPRINTF ("BOB_SHOW bob=0x%08lx, _g_cur_rp=0x%08lx, _g_cur_vp=0x%08lx\n", bob, _g_cur_rp, _g_cur_vp);
+	if (!bob || !_g_cur_vp || !_g_cur_rp->GelsInfo)
+	{
+        ERROR(AE_BOB);
+        return;
+	}
+
+	if (bob->active)
+        return;
+
+    DPRINTF ("BOB_SHOW adding bob to rp bob=0x%08lx\n", bob);
+    AddBob(&bob->bob, _g_cur_rp);
+    bob->active = TRUE;
+}
+
+void BOB_HIDE (BOB_t *bob)
+{
+	if (!bob)
+	{
+        ERROR(AE_BOB);
+        return;
+	}
+    if (!bob->active)
+        return;
+
+    RemBob(&bob->bob);
+    bob->active = FALSE;
+}
+
 void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
 {
     _aqb_get_output (/*needGfx=*/TRUE);
@@ -220,13 +253,6 @@ void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
 	{
         ERROR(AE_BOB);
         return;
-	}
-
-	if (!bob->active)
-	{
-		DPRINTF ("BOB_MOVE adding bob to rp bob=0x%08lx\n", bob);
-        AddBob(&bob->bob, _g_cur_rp);
-		bob->active = TRUE;
 	}
 
 	bob->bob.BobVSprite->X = x;
@@ -247,6 +273,7 @@ void GELS_REPAINT (void)
 	DrawGList(_g_cur_rp, _g_cur_vp);
 	/* FIXME: If the GelsList includes true VSprites, MrgCop() and LoadView() here */
 }
+
 
 void ILBM_LOAD_BOB (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
 {

@@ -35,7 +35,8 @@ struct BOB_
 
 BOB_t *BOB_               (BITMAP_t *bm);
 void   BOB_MOVE           (BOB_t *bob, BOOL s, SHORT x, SHORT y);
-void   BOB_REPAINT        (void);
+void   BOB_HIDE           (BOB_t *bob);
+void   BOB_FREE           (BOB_t *bob);
 
 void   ILBM_LOAD_BOB      (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette);
 

@@ -44,6 +44,22 @@ Example:
 
     gbob = BOB (gorilla)
 
+## BOB SHOW
+
+Syntax:
+
+    BOB SHOW bob
+
+make bob visible on the current window, screen or bitmap
+
+## BOB HIDE
+
+Syntax:
+
+    BOB HIDE bob
+
+remove bob from current window, screen or bitmap
+
 ## BOB MOVE
 
 Syntax:

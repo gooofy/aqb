@@ -10,6 +10,8 @@ Improvements:
     * runtime: GELS REPAINT command added
     * runtime: BOB() function added
     * runtime: BOB MOVE command added
+    * runtime: BOB SHOW command added
+    * runtime: BOB HIDE command added
     * runtime: ILBM LOAD BOB command added
 
 Bug Fixes:
