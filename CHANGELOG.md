@@ -7,6 +7,7 @@ Improvements:
     * runtime: BITMAP OUTPUT command added
     * runtime: VWAIT command added
     * runtime: LOCATE XY command added
+    * runtime: CIRCLE command added
     * runtime: COLOR command: optional draw mode argument added
     * runtime: new AnimSupport module added
     * runtime: GELS INIT command added

@@ -242,7 +242,7 @@ DONE translate forum posts, add useful information to README
 - DONE AREAFILL
 - DONE AREA OUTLINE
 - \_\_\_\_ BEEP
-- \_\_\_\_ CIRCLE
+- DONE CIRCLE
 - DONE CLS
 - \_\_\_\_ COLLISION ON
 - \_\_\_\_ COLLISION OFF

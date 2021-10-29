@@ -21,11 +21,17 @@
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
+#include <clib/mathtrans_protos.h>
+#include <inline/mathtrans.h>
+
 #include <proto/console.h>
 #include <clib/console_protos.h>
 #include <pragmas/console_pragmas.h>
 
 //#define ENABLE_DEBUG
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 struct Device           *ConsoleDevice;
 BPTR                     g_stdout, g_stdin;
@@ -541,6 +547,79 @@ void PSET(BOOL s, short x, short y, short color)
 
     //if ( (flags & AW_PSET_RESET) || color >=0 )
     //    SetAPen(_g_cur_rp, fgPen);
+    if ( color >=0 )
+        SetAPen(_g_cur_rp, fgPen);
+}
+
+void CIRCLE (BOOL s, SHORT x, SHORT y, SHORT ry, SHORT color, SHORT start, SHORT fini, FLOAT ratio)
+{
+    DPRINTF ("CIRCLE: x=%d, y=%d, ry=%d, color=%d, start=%d, end=%d\n", x, y, ry, color, start, fini);
+
+    _aqb_get_output (/*needGfx=*/TRUE);
+    BYTE fgPen=_g_cur_rp->FgPen;
+
+    if (s)
+    {
+        x += _g_cur_rp->cp_x;
+        y += _g_cur_rp->cp_y;
+    }
+
+    if (color >= 0)
+        SetAPen(_g_cur_rp, color);
+
+    SHORT rx = SPFix(SPDiv (ratio, SPFlt(ry)));
+    if ((start == 0) && (fini == 359))
+    {
+        DrawEllipse (_g_cur_rp, x, y, rx, ry);
+    }
+	else
+    {
+        // FLOAT xold, yold, xnew, ynew;
+        // FLOAT sin_rxbyry, sin_rybyrx, costheta, theta;
+        // int num;
+
+        FLOAT min_theta = SPDiv(SPFlt(100), SPFlt(1));
+
+        FLOAT theta = MAX(SPFlt(1) / MAX(rx, ry), min_theta);
+
+        // DPRINTF ("theta*1000 = %d, min_theta*1000 = %d\n", SPFix(SPMul(theta, SPFlt(1000))), SPFix(SPMul(min_theta, SPFlt(1000))));
+
+        FLOAT M_PI = SPFlt(314159) / SPFlt(100000);
+        // DPRINTF ("M_PI = %d\n", SPFix(M_PI));
+
+        int num = SPFix(M_PI * SPFlt(SPAbs (fini-start)) / SPFlt(180) / theta);
+
+        // DPRINTF ("num=%d\n", num);
+
+        FLOAT rrx = SPFlt(rx);
+        FLOAT rry = SPFlt(ry);
+
+        FLOAT sin_rxbyry = rrx/rry * SPSin(theta);
+        FLOAT sin_rybyrx = rry/rrx * SPSin(theta);
+        FLOAT costheta = SPCos(theta);
+
+        FLOAT xold = rrx * SPCos(M_PI * start / SPFlt(180));
+        FLOAT yold = rry * SPSin(M_PI * start / SPFlt(180));
+
+        WORD cp_x = _g_cur_rp->cp_x;
+        WORD cp_y = _g_cur_rp->cp_y;
+
+        Move (_g_cur_rp, x+SPFix(xold), y+SPFix(yold));
+
+        for(; num; num--)
+        {
+            // DPRINTF ("num: %d\n", num);
+            FLOAT xnew = xold * costheta - yold * sin_rxbyry;
+            FLOAT ynew = xold * sin_rybyrx + yold * costheta;
+            // DPRINTF ("xnew=%d, ynew=%d\n", SPFix(xnew), SPFix(ynew));
+            //mappixel((int)rint(xnew+xc), (int)rint(ynew+yc));
+            xold = xnew, yold = ynew;
+            Draw (_g_cur_rp, x+SPFix(xold), y+SPFix(yold));
+        }
+
+        Move (_g_cur_rp, cp_x, cp_y);
+	}
+
     if ( color >=0 )
         SetAPen(_g_cur_rp, fgPen);
 }
@@ -1538,7 +1617,7 @@ void BITMAP_FREE (BITMAP_t *bm)
 
 BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 {
-    DPRINTF ("BITMAP_: allocarting new bitmap, width=%d, height=%d, depth=%d, cont=%d\n", width, height, depth, cont);
+    DPRINTF ("BITMAP_: allocating new bitmap, width=%d, height=%d, depth=%d, cont=%d\n", width, height, depth, cont);
 
     BITMAP_t *bm = AllocVec(sizeof(*bm), MEMF_CLEAR);
     if (!bm)

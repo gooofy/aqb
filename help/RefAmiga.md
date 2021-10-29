@@ -60,6 +60,22 @@ Example:
 
     DIM AS BITMAP_t PTR b = BITMAP (64, 64, 2)
 
+## CIRCLE
+
+Syntax:
+
+    CIRCLE [STEP] "(" x "," y ")" "," r [ "," [color] [ "," [start] [ "," [fini] [ "," ratio ] ] ] ]
+
+draw a circle or ellipse.
+
+Arguments:
+
+    * x, y : center coordinates
+    * r : radius
+    * color : color register to use
+    * start, end: start and end angles of ellipse arc
+    * aspect ratio of ellipse (rx vs ry radius, default: 0.44)
+
 ## COLOR
 
 Syntax:
