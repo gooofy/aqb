@@ -1113,6 +1113,19 @@ void LOCATE (SHORT l, SHORT c)
     Move (_g_cur_rp, win_x + c * _g_cur_rp->Font->tf_XSize, win_y + l * _g_cur_rp->Font->tf_YSize + _g_cur_rp->Font->tf_Baseline);
 }
 
+void LOCATE_XY (BOOL s, SHORT x, SHORT y)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+    if (s)
+    {
+        x += _g_cur_rp->cp_x;
+        y += _g_cur_rp->cp_y;
+    }
+
+    Move (_g_cur_rp, x, y);
+}
+
 SHORT CSRLIN_ (void)
 {
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)

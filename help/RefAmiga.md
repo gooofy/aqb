@@ -183,6 +183,15 @@ Syntax:
 move cursor to col / row
 
 
+## LOCATE XY
+
+Syntax:
+
+    LOCATE XY "(" x "," y ")"
+
+move cursor to coordinates (x/y)
+
+
 ## MOUSE()
 
 Syntax:

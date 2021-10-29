@@ -154,6 +154,7 @@ void   MOUSE_MOTION_ON        (void);
 void   MOUSE_MOTION_OFF       (void);
 void   ON_MOUSE_MOTION_CALL   (void (*cb)(void));
 void   LOCATE                 (SHORT l, SHORT c);
+void   LOCATE_XY              (BOOL s, SHORT x, SHORT y);
 SHORT  CSRLIN_                (void);
 SHORT  POS_                   (SHORT dummy);
 void   CLS                    (void);
