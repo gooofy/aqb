@@ -102,7 +102,7 @@ default runtime strives to implement a modern QuickBASIC like dialect
 tailored to the Amiga, it is quite possible to implement alternative
 runtime modules that could provide AQB with a different "personality", e.g.
 one that is closer to AmigaBASIC or GFA BASIC or even languages like
-BlitzBasic ot AMOS.
+BlitzBasic or AMOS.
 
 The goal for AQB's default runtime is to provide a rich set of commands
 covering typical Amiga OS programming topics like GUI programming,
