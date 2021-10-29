@@ -159,7 +159,7 @@ SHORT  POS_                   (SHORT dummy);
 void   CLS                    (void);
 void   LINE                   (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   PSET                   (BOOL s, SHORT x, SHORT y, SHORT color);
-void   COLOR                  (SHORT fg, SHORT bg, SHORT o);
+void   COLOR                  (SHORT fg, SHORT bg, SHORT o, SHORT drmd);
 void   PAINT                  (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
 void   AREA                   (BOOL s, SHORT x, SHORT y);
 void   AREA_OUTLINE           (BOOL enabled);

@@ -64,10 +64,16 @@ Example:
 
 Syntax:
 
-    COLOR [ fg ] ["," [bg] ["," o]]
+    COLOR [ fg ] ["," [bg] ["," [o] [ "," drmd ] ]]
 
-set foreground, background and or area outline pen
+set foreground, background, area outline pen and or draw mode.
 
+Useful draw mode values include:
+
+    DRMD\_JAM1       = 0
+    DRMD\_JAM2       = 1 : REM default
+    DRMD\_COMPLEMENT = 2
+    DRMD\_INVERSVID  = 4
 
 ## CLOSE
 

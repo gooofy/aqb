@@ -273,7 +273,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     g_cur_ot        = _aqb_ot_window;
 
     LOCATE (1,1);
-    COLOR (1, 0, 1);
+    COLOR (1, 0, 1, JAM2);
 }
 
 /*
@@ -1294,7 +1294,7 @@ void PALETTE(short cid, FLOAT red, FLOAT green, FLOAT blue)
     SetRGB4(_g_cur_vp, cid, r, g, b);
 }
 
-void COLOR(short fg, short bg, short o)
+void COLOR(short fg, short bg, short o, short drmd)
 {
     _aqb_get_output (/*needGfx=*/TRUE);
 
@@ -1304,6 +1304,8 @@ void COLOR(short fg, short bg, short o)
         SetBPen (_g_cur_rp, bg);
     if (o >= 0)
         _g_cur_rp->AOlPen = o;
+    if (drmd >=0)
+        SetDrMd (_g_cur_rp, drmd);
 }
 
 static void allocTmpRas(void)

@@ -6,6 +6,7 @@ Improvements:
     * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
     * runtime: BITMAP OUTPUT command added
     * runtime: VWAIT command added
+    * runtime: COLOR command: optional draw mode argument added
     * runtime: new AnimSupport module added
     * runtime: GELS INIT command added
     * runtime: GELS REPAINT command added
