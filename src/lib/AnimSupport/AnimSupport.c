@@ -265,7 +265,21 @@ void BOB_FREE (BOB_t *bob)
 	}
     if (bob->rp)
         BOB_HIDE(bob);
-    // FIXME: implement
+
+    if (bob->prev)
+        bob->prev->next = bob->next;
+    else
+        g_bob_first = bob->next;
+
+    if (bob->next)
+        bob->next->prev = bob->prev;
+    else
+        g_bob_last = bob->prev;
+
+    FreeVec (bob->vsprite.CollMask);
+    FreeVec (bob->vsprite.BorderLine);
+    FreeVec (bob->bob.SaveBuffer);
+    FreeVec (bob);
 }
 
 void BOB_MOVE (BOB_t *bob, BOOL s, SHORT x, SHORT y)
