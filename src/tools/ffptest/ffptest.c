@@ -29,6 +29,9 @@ int _aqb_main (int argc, char *argv[])
 
     DPRINTF ("b = f1 < f2 = %d\n", b);
 
+    FLOAT f5 = f2 - f1;
+
+    DPRINTF ("f5 = f2 - f1 = %d\n", SPFix(f5));
 
     return 0;
 }
