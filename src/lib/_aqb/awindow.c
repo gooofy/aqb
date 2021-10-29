@@ -1579,6 +1579,18 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
     return bm;
 }
 
+void BITMAP_OUTPUT (BITMAP_t *bm)
+{
+    if (!bm)
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+    _g_cur_bm       = bm;
+    _g_cur_rp       = &bm->rp;
+    g_cur_ot        = _aqb_ot_bitmap;
+}
+
 void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm)
 {
     _aqb_get_output (/*needGfx=*/TRUE);

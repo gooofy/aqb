@@ -90,6 +90,7 @@ struct BITMAP_
 
 BITMAP_t*BITMAP_              (SHORT width, SHORT height, SHORT depth, BOOL cont);
 void     BITMAP_FREE          (BITMAP_t *bm);
+void     BITMAP_OUTPUT        (BITMAP_t *bm);
 void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
 void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 

@@ -35,9 +35,17 @@ enable or disable drawing of AREA polygon outlines
 
 Syntax:
 
-    BITMAP FREE ptr
+    BITMAP FREE bm
 
 free allocated ressources for a bitmap
+
+## BITMAP OUTPUT
+
+Syntax:
+
+    BITMAP OUTPUT bm
+
+redirect drawing commands output to bm
 
 ## BITMAP()
 
