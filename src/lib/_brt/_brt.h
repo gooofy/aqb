@@ -121,6 +121,11 @@ void __handle_break(void);
 
 #endif
 
+//typedef long int SFVALUE;
+#ifndef SItype
+#define SItype long int
+#endif
+
 /*
  * amath
  */

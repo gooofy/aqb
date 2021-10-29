@@ -405,6 +405,49 @@ FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
     return SPFlt(a | b);
 }
 
+// gcc FLOAT -> FFP support
+
+FLOAT __floatsisf(SItype a)
+{
+    return SPFlt(a);
+}
+
+int __gtsf2(FLOAT a, FLOAT b)
+{
+    return SPCmp(a, b);
+}
+
+FLOAT __mulsf3(FLOAT a, FLOAT b)
+{
+    return SPMul(a, b);
+}
+
+FLOAT __divsf3(FLOAT a, FLOAT b)
+{
+    return SPDiv(b, a);
+}
+
+FLOAT __addsf3(FLOAT a, FLOAT b)
+{
+    return SPAdd(b, a);
+}
+
+FLOAT __subsf3(FLOAT a, FLOAT b)
+{
+    return SPSub(b, a);
+}
+
+SItype __fixsfsi(FLOAT a)
+{
+    return SPFix(a);
+}
+
+int __ltsf2(FLOAT a, FLOAT b)
+{
+    return SPCmp(a, b);
+}
+
+
 #define INITIAL_RND_SEED 0x1234abcd
 
 static ULONG g_rangeSeed = INITIAL_RND_SEED;
