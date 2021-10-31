@@ -6,8 +6,6 @@
 #include "ui.h"
 #include "options.h"
 
-static RUN_state        g_debugState = RUN_stateStopped;
-
 #ifdef __amigaos__
 
 #include "amigasupport.h"
@@ -161,7 +159,7 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 
     env->state = RUN_stateRunning;
 
-	LOG_printf (LOG_DEBUG, "RUN _launch_process: done.\n");
+	LOG_printf (LOG_DEBUG, "RUN _launch_process: done. state is %d now.\n", env->state);
 }
 
 void RUN_start (const char *binfn)
@@ -221,6 +219,7 @@ uint16_t RUN_handleMessages(void)
                 if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
                     && (msg->debug_sig == DEBUG_SIG))
                 {
+                    LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for our help window -> state is STOPPED now.\n");
                     g_dbgEnv.state = RUN_stateStopped;
                     if (g_dbgEnv.seglist)
                     {
@@ -312,10 +311,18 @@ void RUN_init (struct MsgPort *debugPort)
     // FIXME: remove g_helpEnv->childProc->pr_MsgPort = NULL;
 }
 
-#endif
+RUN_state RUN_getState(void)
+{
+    return g_dbgEnv.state;
+}
+
+#else
+
+// FIXME: implement?
 
 RUN_state RUN_getState(void)
 {
-    return g_debugState;
+    return RUN_stateStopped;
 }
 
+#endif

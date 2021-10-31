@@ -26,6 +26,7 @@ Bug Fixes:
     * compiler: fix BYREF argument assignment
     * compiler: fix IF/ELSE namespaces
     * linker: handle duplicate symbols gracefully
+    * ide: fix run state display
 
 ## 0.7.3
 

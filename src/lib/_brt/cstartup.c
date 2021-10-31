@@ -80,14 +80,12 @@ void _debug_putf(FLOAT f)
 
 void _debug_putnl(void)
 {
-    if (_debug_stdout)
-        Write(_debug_stdout, "\n", 1);
+    _debug_putc('\n');
 }
 
 void _debug_cls(void)
 {
-    if (_debug_stdout)
-        Write(_debug_stdout, "\f", 1);
+    _debug_putc('\f');
 }
 
 #define MAX_EXIT_HANDLERS 16
