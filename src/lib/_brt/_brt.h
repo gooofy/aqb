@@ -79,13 +79,23 @@ extern USHORT _startup_mode;
 
 #define DEBUG_SIG 0xDECA11ED
 
+#define DEBUG_CMD_START    23
+#define DEBUG_CMD_PUTC     24
+#define DEBUG_CMD_PUTS     25
+
 /* debugger sends this instead of WBStartup */
 struct DebugMsg
 {
     struct Message  msg;
     struct MsgPort *port;
-    ULONG           debug_sig;
-    APTR            exitFn;
+    ULONG           debug_sig;					// 24
+    UWORD           debug_cmd;					// 28
+    union
+    {
+        ULONG   err;    // START return msg		// 30
+        char    c;      // putc					// 30
+        char   *str;    // puts					// 30
+    }u;
 };
 
 extern struct DebugMsg *__StartupMsg;

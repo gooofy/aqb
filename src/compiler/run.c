@@ -30,13 +30,23 @@ extern struct DOSBase       *DOSBase;
 
 #define DEBUG_SIG          0xDECA11ED
 
+#define DEBUG_CMD_START    23
+#define DEBUG_CMD_PUTC     24
+#define DEBUG_CMD_PUTS     25
+
 /* we send this instead of WBStartup when running a debug process */
 struct DebugMsg
 {
     struct Message  msg;
 	struct MsgPort *port;
     ULONG           debug_sig;
-	ULONG           code;
+    UWORD           debug_cmd;
+    union
+    {
+        ULONG   err;    // START return msg
+        char    c;      // putc
+        char   *str;    // puts
+    }u;
 };
 
 typedef struct RUN_env_ *RUN_env;
@@ -119,10 +129,10 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
         env->u.dbg.msg.msg.mn_Length       = sizeof(struct DebugMsg);
         env->u.dbg.msg.port                = &env->childProc->pr_MsgPort;
         env->u.dbg.msg.debug_sig           = DEBUG_SIG;
-        env->u.dbg.msg.code                = 0;
+        env->u.dbg.msg.debug_cmd           = DEBUG_CMD_START;
         env->u.dbg.err                     = 0;
 
-        LOG_printf (LOG_DEBUG, "RUN _launch_process: Send debug msg...\n");
+        LOG_printf (LOG_DEBUG, "RUN _launch_process: Send debug msg, g_debugPort=0x%08lx...\n", g_debugPort);
 
         PutMsg (&env->childProc->pr_MsgPort, &env->u.dbg.msg.msg);
     }
@@ -174,10 +184,11 @@ void RUN_help (char *binfn, char *arg1)
 
 uint16_t RUN_handleMessages(void)
 {
-	LOG_printf (LOG_DEBUG, "RUN_handleMessages: start...\n");
+	LOG_printf (LOG_DEBUG, "RUN_handleMessages: start, g_debugPort=0x%08lx\n", g_debugPort);
     USHORT key = KEY_NONE;
     while (TRUE)
     {
+        LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg...\n");
         struct DebugMsg *m = (struct DebugMsg *) GetMsg(g_debugPort);
         LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
         if (!m)
@@ -211,25 +222,42 @@ uint16_t RUN_handleMessages(void)
         }
         else
         {
-            if (m->port == &g_dbgEnv.childProc->pr_MsgPort)
+            struct DebugMsg *msg = (struct DebugMsg *) m;
+            if (msg->debug_sig == DEBUG_SIG)
             {
-                struct DebugMsg *msg = (struct DebugMsg *) m;
-                if (!msg)
-                    return key;
-                if (   (msg->msg.mn_Node.ln_Type == NT_REPLYMSG)
-                    && (msg->debug_sig == DEBUG_SIG))
+                LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
+                switch (msg->debug_cmd)
                 {
-                    LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for our help window -> state is STOPPED now.\n");
-                    g_dbgEnv.state = RUN_stateStopped;
-                    if (g_dbgEnv.seglist)
-                    {
-                        UnLoadSeg (g_dbgEnv.seglist);
-                        g_dbgEnv.seglist = 0l;
-                    }
+                    case DEBUG_CMD_START:
+                        if ((m->port == &g_dbgEnv.childProc->pr_MsgPort) && (msg->msg.mn_Node.ln_Type == NT_REPLYMSG))
+                        {
+                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for our help window -> state is STOPPED now.\n");
+                            g_dbgEnv.state = RUN_stateStopped;
+                            if (g_dbgEnv.seglist)
+                            {
+                                UnLoadSeg (g_dbgEnv.seglist);
+                                g_dbgEnv.seglist = 0l;
+                            }
 
-                    //printf ("program stopped, ERR is %ld\n", msg->code);
-                    g_dbgEnv.u.dbg.err = msg->code;
-                    key = KEY_STOPPED;
+                            //printf ("program stopped, ERR is %ld\n", msg->code);
+                            g_dbgEnv.u.dbg.err = msg->u.err;
+                            key = KEY_STOPPED;
+                        }
+                        else
+                        {
+                            LOG_printf (LOG_ERROR, "RUN_handleMessages: invalid DEBUG_CMD_START command received\n");
+                        }
+                        break;
+                    case DEBUG_CMD_PUTC:
+                        LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTC c=%d\n", msg->u.c);
+                        LOG_printf (LOG_INFO, "%c", msg->u.c);
+                        ReplyMsg (&msg->msg);
+                        break;
+                    case DEBUG_CMD_PUTS:
+                        LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTS str=\"%s\" (0x%08lx)\n", msg->u.str, msg->u.str);
+                        LOG_printf (LOG_INFO, "%s", msg->u.str);
+                        ReplyMsg (&msg->msg);
+                        break;
                 }
             }
         }

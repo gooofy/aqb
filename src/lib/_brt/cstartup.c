@@ -33,28 +33,70 @@ struct MathTransBase *MathTransBase = NULL;
 
 static BOOL autil_init_done = FALSE;
 
-static BPTR _debug_stdout = 0;
+struct Task             *_autil_task             = NULL;
+static struct IOStdReq  *g_inputReqBlk           = NULL;
+static struct MsgPort   *g_inputPort             = NULL;
+static struct Interrupt *g_inputHandler          = NULL;
+static BOOL              g_inputDeviceOpen       = FALSE;
+static BOOL              g_InputHandlerInstalled = FALSE;
 
-struct Task           *_autil_task             = NULL;
-struct IOStdReq       *g_inputReqBlk           = NULL;
-struct MsgPort        *g_inputPort             = NULL;
-struct Interrupt      *g_inputHandler          = NULL;
-static BOOL            g_inputDeviceOpen       = FALSE;
-static BOOL            g_InputHandlerInstalled = FALSE;
-
-extern struct DebugMsg *__StartupMsg;
-USHORT                  _startup_mode          = 0;
+extern struct DebugMsg  *__StartupMsg;
+USHORT                   _startup_mode           = 0;
+static BPTR              _debug_stdout           = 0;
+static struct DebugMsg   _dbgOutputMsg;
+static struct MsgPort   *g_dbgPort               = NULL;
 
 void _debug_putc(const char c)
 {
-    if (_debug_stdout)
-        Write(_debug_stdout, (CONST APTR) &c, 1);
+    if (_startup_mode == STARTUP_DEBUG)
+	{
+        _dbgOutputMsg.msg.mn_Node.ln_Succ = NULL;
+        _dbgOutputMsg.msg.mn_Node.ln_Pred = NULL;
+        _dbgOutputMsg.msg.mn_Node.ln_Pri  = 0;
+        _dbgOutputMsg.msg.mn_Node.ln_Name = NULL;
+		_dbgOutputMsg.msg.mn_Node.ln_Type = NT_MESSAGE;
+		_dbgOutputMsg.msg.mn_Length       = sizeof(struct DebugMsg);
+		_dbgOutputMsg.msg.mn_ReplyPort    = g_dbgPort;
+		_dbgOutputMsg.debug_sig           = DEBUG_SIG;
+		_dbgOutputMsg.debug_cmd           = DEBUG_CMD_PUTC;
+		_dbgOutputMsg.u.c                 = c;
+
+		PutMsg (__StartupMsg->msg.mn_ReplyPort, &_dbgOutputMsg.msg);
+		WaitPort(g_dbgPort);
+        GetMsg(g_dbgPort); // discard reply
+	}
+    else
+    {
+        if (_debug_stdout)
+            Write(_debug_stdout, (CONST APTR) &c, 1);
+    }
 }
 
 void _debug_puts(const UBYTE *s)
 {
-    if (_debug_stdout)
-        Write(_debug_stdout, (CONST APTR) s, LEN_(s));
+    if (_startup_mode == STARTUP_DEBUG)
+	{
+        _dbgOutputMsg.msg.mn_Node.ln_Succ = NULL;
+        _dbgOutputMsg.msg.mn_Node.ln_Pred = NULL;
+        _dbgOutputMsg.msg.mn_Node.ln_Pri  = 0;
+        _dbgOutputMsg.msg.mn_Node.ln_Name = NULL;
+		_dbgOutputMsg.msg.mn_Node.ln_Type = NT_MESSAGE;
+		_dbgOutputMsg.msg.mn_Length       = sizeof(struct DebugMsg);
+		_dbgOutputMsg.msg.mn_ReplyPort    = g_dbgPort;
+		_dbgOutputMsg.debug_sig           = DEBUG_SIG;
+		_dbgOutputMsg.debug_cmd           = DEBUG_CMD_PUTS;
+		_dbgOutputMsg.u.str               = (char *) s;
+
+        // Write(_debug_stdout, (STRPTR) "_debug_puts:2PutMsg\n", 20);
+		PutMsg (__StartupMsg->msg.mn_ReplyPort, &_dbgOutputMsg.msg);
+		WaitPort(g_dbgPort);
+        GetMsg(g_dbgPort); // discard reply
+    }
+    else
+    {
+		if (_debug_stdout)
+			Write(_debug_stdout, (CONST APTR) s, LEN_(s));
+	}
 }
 
 void _debug_puts2(SHORT s)
@@ -166,6 +208,9 @@ void _c_atexit(void)
     if (g_inputPort)
         _autil_delete_port(g_inputPort);
 
+    if (g_dbgPort)
+        _autil_delete_port(g_dbgPort);
+
     if (autil_init_done)
         _autil_shutdown();
 
@@ -251,7 +296,16 @@ void _cstartup (void)
     }
     else
     {
-        _startup_mode = __StartupMsg->debug_sig == DEBUG_SIG ? STARTUP_DEBUG : STARTUP_WBENCH;
+		if (__StartupMsg->debug_sig == DEBUG_SIG)
+		{
+			_startup_mode = STARTUP_DEBUG;
+			if ( !(g_dbgPort=_autil_create_port(NULL, 0)) )
+				_cshutdown(20, (UBYTE *) "*** error: failed to allocate debug port!\n");
+		}
+		else
+		{
+			_startup_mode = STARTUP_WBENCH;
+		}
     }
 
     /* set up break signal exception + handler */

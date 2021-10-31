@@ -29,7 +29,7 @@
     .set pr_MsgPort,  92
 
     .set dbg_sig,     24
-    .set dbg_code,  28
+    .set dbg_code,    30
 
 .text
     .globl  _start
@@ -93,7 +93,7 @@ __autil_exit:
     cmpi.l   #0xDECA11ED, d0
     bne.s    NoDbgMsg             /* regular wb start message */
 
-    | move.l   4(sp), dbg_code(a0)
+    /* put error code in our reply message */
     move.w   _ERR, d0
     ext.l    d0
     move.l   d0, dbg_code(a0)
