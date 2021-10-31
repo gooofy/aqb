@@ -248,6 +248,17 @@ endless loop (which can still be exited from within the loop body using the
 EXIT statement).
 
 
+## DPRINT
+
+Syntax:
+
+    DPRINT [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to the debug console. ";" means no space, "," means
+skip to next 9 col tab, ";" or "," at the end of the line mean no newline
+is printed.
+
+
 ## END
 
 Syntax:

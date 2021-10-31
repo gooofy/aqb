@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-v", "-L", "../src/lib", "-O", "-d", "_aqb", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "subtest26.bas"],
+            "args": ["-v", "-L", "../src/lib", "-O", "-d", "_aqb", "-a", "/tmp/foo.asm","-p", "/tmp/foo.o", "foo.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/../../tests",
             "environment": [],

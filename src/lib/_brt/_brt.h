@@ -27,13 +27,18 @@ void _autil_shutdown(void);
 
 // BASIC error handling, utils
 
-void _debug_putc  (const char c);
-void _debug_puts  (const UBYTE *s);
-void _debug_puts2 (SHORT s);
-void _debug_putu4 (ULONG l);
-void _debug_putf  (FLOAT f);
-void _debug_putnl (void);
-void _debug_cls   (void);
+void _debug_putc   (const char c);
+void _debug_puts   (const UBYTE *s);
+void _debug_puts1  (BYTE s);
+void _debug_puts2  (SHORT s);
+void _debug_puts4  (LONG l);
+void _debug_putu1  (UBYTE num);
+void _debug_putu2  (UWORD num);
+void _debug_putu4  (ULONG num);
+void _debug_putf   (FLOAT f);
+void _debug_puttab (void);
+void _debug_putnl  (void);
+void _debug_cls    (void);
 
 //#define ENABLE_DPRINTF
 

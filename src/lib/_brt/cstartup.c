@@ -99,6 +99,13 @@ void _debug_puts(const UBYTE *s)
 	}
 }
 
+void _debug_puts1(BYTE s)
+{
+    UBYTE buf[MAXBUF];
+    _astr_itoa(s, buf, 10);
+    _debug_puts(buf);
+}
+
 void _debug_puts2(SHORT s)
 {
     UBYTE buf[MAXBUF];
@@ -106,10 +113,31 @@ void _debug_puts2(SHORT s)
     _debug_puts(buf);
 }
 
-void _debug_putu4(ULONG l)
+void _debug_puts4(LONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
+    _debug_puts(buf);
+}
+
+void _debug_putu1(UBYTE num)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa(num, buf, 10);
+    _debug_puts(buf);
+}
+
+void _debug_putu2(UWORD num)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa(num, buf, 10);
+    _debug_puts(buf);
+}
+
+void _debug_putu4(ULONG l)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa(l, buf, 10);
     _debug_puts(buf);
 }
 
@@ -118,6 +146,16 @@ void _debug_putf(FLOAT f)
     UBYTE buf[MAXBUF];
     _astr_ftoa(f, buf);
     _debug_puts(buf);
+}
+
+void _debug_putbool(BOOL b)
+{
+    _debug_puts(b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+}
+
+void _debug_puttab(void)
+{
+    _debug_putc('\t');
 }
 
 void _debug_putnl(void)

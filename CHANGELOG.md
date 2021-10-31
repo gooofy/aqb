@@ -3,6 +3,8 @@
 Improvements:
 
     * MIT license applied consistently
+    * ide: debug mode mode plus output added
+    * compiler: DPRINT statement added
     * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
     * runtime: BITMAP OUTPUT command added
     * runtime: VWAIT command added
