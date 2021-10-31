@@ -69,7 +69,7 @@
 #define KEY_SAVE_AS        1039
 #define KEY_QUIT           1040
 
-// runner/debugger 2xxx
+// debugger
 #define KEY_STOPPED        2000
 
 #define KEY_UNKNOWN1       9993

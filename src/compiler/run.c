@@ -264,10 +264,13 @@ uint16_t RUN_handleMessages(void)
     }
 }
 
+#if 0
 ULONG RUN_getERRCode(void)
 {
+
     return g_dbgEnv.u.dbg.err;
 }
+#endif
 
 #if 0
 void RUN_freeze (void)
@@ -344,6 +347,63 @@ RUN_state RUN_getState(void)
     return g_dbgEnv.state;
 }
 
+void  RUN_handleEvent (uint16_t key)
+{
+#if 0
+    BOOL bInRefresh = FALSE;
+    switch (key)
+    {
+        case KEY_CTRL_C:
+        case KEY_CTRL_Q:
+        case KEY_QUIT:
+            IDE_exit(ed);
+            break;
+
+        case KEY_REFRESH:
+            UI_beginRefresh();
+            bInRefresh = TRUE;
+            invalidateAll (ed);
+            break;
+
+        case KEY_HELP:
+        case KEY_F1:
+            show_help(ed);
+            break;
+
+		case KEY_COLORSCHEME_0:
+		case KEY_COLORSCHEME_1:
+		case KEY_COLORSCHEME_2:
+		case KEY_COLORSCHEME_3:
+		case KEY_COLORSCHEME_4:
+		case KEY_COLORSCHEME_5:
+			UI_setColorScheme (key - KEY_COLORSCHEME_0);
+            invalidateAll (ed);
+			break;
+
+		case KEY_FONT_0:
+		case KEY_FONT_1:
+			UI_setFont (key - KEY_FONT_0);
+            initWindowSize (ed);
+            invalidateAll (ed);
+			break;
+
+        case KEY_NONE:
+            break;
+
+        default:
+            UI_bell();
+            break;
+
+    }
+
+    scroll(ed);
+    repaint(ed);
+    if (bInRefresh)
+        UI_endRefresh();
+#endif
+
+}
+
 #else
 
 // FIXME: implement?
@@ -351,6 +411,11 @@ RUN_state RUN_getState(void)
 RUN_state RUN_getState(void)
 {
     return RUN_stateStopped;
+}
+
+void  RUN_handleEvent (uint16_t key)
+{
+    // FIXME
 }
 
 #endif

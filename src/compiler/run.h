@@ -1,7 +1,11 @@
 #ifndef HAVE_RUN_H
 #define HAVE_RUN_H
 
+#include <inttypes.h>
+
 typedef enum {RUN_stateStopped, RUN_stateRunning} RUN_state;
+
+void      RUN_handleEvent (uint16_t key);
 
 RUN_state RUN_getState(void);
 
@@ -15,8 +19,6 @@ void      RUN_help (char *binfn, char *arg1);
 void      RUN_init (struct MsgPort *debugPort);
 
 uint16_t  RUN_handleMessages(void);
-
-ULONG     RUN_getERRCode(void);
 
 void      RUN_break (void);
 
