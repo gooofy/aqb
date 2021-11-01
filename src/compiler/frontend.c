@@ -3103,10 +3103,13 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                         return EM_error(pos, "builtin %s not found.", S_name(fsym));
                     E_enventry func = lx->first->e;
                     CG_itemList arglist = CG_ItemList();
-                    CG_itemListNode n;
-                    n = CG_itemListAppend(arglist);
-                    n->item = exFNo;
-                    CG_loadVal (g_sleStack->code, pos, &n->item);
+                    if (!dbg)
+                    {
+                        CG_itemListNode n;
+                        n = CG_itemListAppend(arglist);
+                        n->item = exFNo;
+                        CG_loadVal (g_sleStack->code, pos, &n->item);
+                    }
                     CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
                 }
                 if (isLogicalEOL(*tkn))
@@ -3129,10 +3132,13 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
             E_enventry func = lx->first->e;
             CG_itemList arglist = CG_ItemList();
-            CG_itemListNode n;
-            n = CG_itemListAppend(arglist);
-            n->item = exFNo;
-            CG_loadVal (g_sleStack->code, pos, &n->item);
+            if (!dbg)
+            {
+                CG_itemListNode n;
+                n = CG_itemListAppend(arglist);
+                n->item = exFNo;
+                CG_loadVal (g_sleStack->code, pos, &n->item);
+            }
             CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
         }
         return TRUE;
@@ -3148,6 +3154,32 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 static bool stmtDPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return _stmtPrint (tkn, e, exp, /*dbg=*/TRUE);
+}
+
+// break ::= BREAK [ expression ]
+static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "BREAK"
+
+    if (!isLogicalEOL(*tkn))
+    {
+        //CG_item ex;
+        assert (FALSE); // FIXME: implement conditional bp
+    }
+
+    if (OPT_get (OPTION_DEBUG))
+    {
+        S_symbol fsym =  S_Symbol("_debug_break", FALSE);
+        E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+        if (!lx)
+            return EM_error(pos, "builtin %s not found.", S_name(fsym));
+        E_enventry func = lx->first->e;
+        CG_itemList arglist = CG_ItemList();
+        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+    }
+
+    return TRUE;
 }
 
 static bool inputVar(S_tkn *tkn)
@@ -7139,6 +7171,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
     declareBuiltinProc(S_DPRINT       , /*extraSyms=*/ NULL      , stmtDPrint       , Ty_Void());
+    declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak        , Ty_Void());
 }
 
 //

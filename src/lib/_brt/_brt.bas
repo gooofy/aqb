@@ -23,6 +23,7 @@ PUBLIC DECLARE SUB _debug_putf (BYVAL f AS SINGLE)
 PUBLIC DECLARE SUB _debug_puttab
 PUBLIC DECLARE SUB _debug_putnl
 PUBLIC DECLARE SUB _debug_cls
+PUBLIC DECLARE SUB _debug_break
 
 ' AmigaOS library bases
 

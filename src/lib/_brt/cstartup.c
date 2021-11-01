@@ -168,6 +168,13 @@ void _debug_cls(void)
     _debug_putc('\f');
 }
 
+void _debug_break(void)
+{
+asm(
+"		trap    #1"
+);
+}
+
 #define MAX_EXIT_HANDLERS 16
 static void (*exit_handlers[MAX_EXIT_HANDLERS])(void);
 static int num_exit_handlers = 0;

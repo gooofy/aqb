@@ -39,6 +39,7 @@ void _debug_putf   (FLOAT f);
 void _debug_puttab (void);
 void _debug_putnl  (void);
 void _debug_cls    (void);
+void _debug_break  (void);
 
 //#define ENABLE_DPRINTF
 
