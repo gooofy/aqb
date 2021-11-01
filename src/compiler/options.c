@@ -11,7 +11,7 @@
 extern struct DOSBase       *DOSBase;
 #endif
 
-#define DEFAULT_OPTS OPTION_BREAK
+#define DEFAULT_OPTS ( OPTION_BREAK | OPTION_DEBUG )
 
 static char g_pref_fn[PATH_MAX];
 static int  g_pref_font         = 1;

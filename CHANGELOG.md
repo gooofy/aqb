@@ -4,6 +4,7 @@ Improvements:
 
     * MIT license applied consistently
     * ide: debug mode mode plus output added
+    * compiler: OPTION DEBUG statement added
     * compiler: DPRINT statement added
     * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
     * runtime: BITMAP OUTPUT command added

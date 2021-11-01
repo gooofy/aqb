@@ -22,6 +22,7 @@ extern bool aqb_wbstart;
 #define OPTION_PRIVATE   4      // set PRIVATE by default
 #define OPTION_RACOLOR   8      // enable register allocation by graph coloring
 #define OPTION_BREAK    16      // add CTRL-C checks in loops and subprograms
+#define OPTION_DEBUG    32      // generate debug code and information
 
 void OPT_set         (int opt, bool onoff);
 bool OPT_get         (int opt);

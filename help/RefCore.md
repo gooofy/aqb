@@ -527,6 +527,15 @@ calls so programs can be interrupted when they run into an endless loop or
 recursion. Enabled by default, disable to gain a bit of performance.
 
 
+## OPTION DEBUG
+
+Syntax:
+
+    OPTION DEBUG [ ( ON | OFF ) ]
+
+instructs the compiler to generate debug code (i.e. DPRINT etc.) or not
+
+
 ## OPTION EXPLICIT
 
 Syntax:

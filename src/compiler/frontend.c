@@ -238,7 +238,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 95
+#define MAX_KEYWORDS 96
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -338,6 +338,7 @@ static S_symbol S_CLOSE;
 static S_symbol S_BREAK;
 static S_symbol S__FNO;
 static S_symbol S_DPRINT;
+static S_symbol S_DEBUG;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3020,61 +3021,64 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
         if (!expression(tkn, &ex))
             return EM_error(pos, "expression expected here.");
 
-        CG_itemList arglist = CG_ItemList();
-        CG_itemListNode n;
-        if (!dbg)
+        if (!dbg || OPT_get (OPTION_DEBUG))
         {
+            CG_itemList arglist = CG_ItemList();
+            CG_itemListNode n;
+            if (!dbg)
+            {
+                n = CG_itemListAppend(arglist);
+                n->item = exFNo;
+                CG_loadVal (g_sleStack->code, pos, &n->item);
+            }
             n = CG_itemListAppend(arglist);
-            n->item = exFNo;
+            n->item = ex;
             CG_loadVal (g_sleStack->code, pos, &n->item);
-        }
-        n = CG_itemListAppend(arglist);
-        n->item = ex;
-        CG_loadVal (g_sleStack->code, pos, &n->item);
-        S_symbol   fsym    = NULL;                   // put* function sym to call
-        Ty_ty      ty      = CG_ty(&ex);
-        switch (ty->kind)
-        {
-            case Ty_string:
-                fsym = dbg ? S_Symbol("_debug_puts", FALSE) : S_Symbol("_aio_puts", FALSE);
-                break;
-            case Ty_pointer:
-                fsym = dbg ? S_Symbol("_debug_putu4", FALSE) :  S_Symbol("_aio_putu4", FALSE);
-                break;
-            case Ty_byte:
-                fsym = dbg ? S_Symbol("_debug_puts1", FALSE) :  S_Symbol("_aio_puts1", FALSE);
-                break;
-            case Ty_ubyte:
-                fsym = dbg ? S_Symbol("_debug_putu1", FALSE) :  S_Symbol("_aio_putu1", FALSE);
-                break;
-            case Ty_integer:
-                fsym = dbg ? S_Symbol("_debug_puts2", FALSE) :  S_Symbol("_aio_puts2", FALSE);
-                break;
-            case Ty_uinteger:
-                fsym = dbg ? S_Symbol("_debug_putu2", FALSE) :  S_Symbol("_aio_putu2", FALSE);
-                break;
-            case Ty_long:
-                fsym = dbg ? S_Symbol("_debug_puts4", FALSE) :  S_Symbol("_aio_puts4", FALSE);
-                break;
-            case Ty_ulong:
-                fsym = dbg ? S_Symbol("_debug_putu4", FALSE) :  S_Symbol("_aio_putu4", FALSE);
-                break;
-            case Ty_single:
-                fsym = dbg ? S_Symbol("_debug_putf", FALSE) :  S_Symbol("_aio_putf", FALSE);
-                break;
-            case Ty_bool:
-                fsym = dbg ? S_Symbol("_debug_putbool", FALSE) :  S_Symbol("_aio_putbool", FALSE);
-                break;
-            default:
-                return EM_error(pos, "unsupported type in print expression list.");
-        }
-        if (fsym)
-        {
-            E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-            if (!lx)
-                return EM_error(pos, "builtin %s not found.", S_name(fsym));
-            E_enventry func = lx->first->e;
-            CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+            S_symbol   fsym    = NULL;                   // put* function sym to call
+            Ty_ty      ty      = CG_ty(&ex);
+            switch (ty->kind)
+            {
+                case Ty_string:
+                    fsym = dbg ? S_Symbol("_debug_puts", FALSE) : S_Symbol("_aio_puts", FALSE);
+                    break;
+                case Ty_pointer:
+                    fsym = dbg ? S_Symbol("_debug_putu4", FALSE) :  S_Symbol("_aio_putu4", FALSE);
+                    break;
+                case Ty_byte:
+                    fsym = dbg ? S_Symbol("_debug_puts1", FALSE) :  S_Symbol("_aio_puts1", FALSE);
+                    break;
+                case Ty_ubyte:
+                    fsym = dbg ? S_Symbol("_debug_putu1", FALSE) :  S_Symbol("_aio_putu1", FALSE);
+                    break;
+                case Ty_integer:
+                    fsym = dbg ? S_Symbol("_debug_puts2", FALSE) :  S_Symbol("_aio_puts2", FALSE);
+                    break;
+                case Ty_uinteger:
+                    fsym = dbg ? S_Symbol("_debug_putu2", FALSE) :  S_Symbol("_aio_putu2", FALSE);
+                    break;
+                case Ty_long:
+                    fsym = dbg ? S_Symbol("_debug_puts4", FALSE) :  S_Symbol("_aio_puts4", FALSE);
+                    break;
+                case Ty_ulong:
+                    fsym = dbg ? S_Symbol("_debug_putu4", FALSE) :  S_Symbol("_aio_putu4", FALSE);
+                    break;
+                case Ty_single:
+                    fsym = dbg ? S_Symbol("_debug_putf", FALSE) :  S_Symbol("_aio_putf", FALSE);
+                    break;
+                case Ty_bool:
+                    fsym = dbg ? S_Symbol("_debug_putbool", FALSE) :  S_Symbol("_aio_putbool", FALSE);
+                    break;
+                default:
+                    return EM_error(pos, "unsupported type in print expression list.");
+            }
+            if (fsym)
+            {
+                E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+                if (!lx)
+                    return EM_error(pos, "builtin %s not found.", S_name(fsym));
+                E_enventry func = lx->first->e;
+                CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+            }
         }
 
         if (isLogicalEOL(*tkn))
@@ -3091,17 +3095,20 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             case S_COMMA:
             {
                 *tkn = (*tkn)->next;
-                S_symbol fsym   =  dbg ? S_Symbol("_debug_puttab", FALSE) : S_Symbol("_aio_puttab", FALSE);
-                E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-                if (!lx)
-                    return EM_error(pos, "builtin %s not found.", S_name(fsym));
-                E_enventry func = lx->first->e;
-                CG_itemList arglist = CG_ItemList();
-                CG_itemListNode n;
-                n = CG_itemListAppend(arglist);
-                n->item = exFNo;
-                CG_loadVal (g_sleStack->code, pos, &n->item);
-                CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+                if (!dbg || OPT_get (OPTION_DEBUG))
+                {
+                    S_symbol fsym   =  dbg ? S_Symbol("_debug_puttab", FALSE) : S_Symbol("_aio_puttab", FALSE);
+                    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+                    if (!lx)
+                        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+                    E_enventry func = lx->first->e;
+                    CG_itemList arglist = CG_ItemList();
+                    CG_itemListNode n;
+                    n = CG_itemListAppend(arglist);
+                    n->item = exFNo;
+                    CG_loadVal (g_sleStack->code, pos, &n->item);
+                    CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+                }
                 if (isLogicalEOL(*tkn))
                     return TRUE;
                 break;
@@ -3114,17 +3121,20 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
 
     if (isLogicalEOL(*tkn))
     {
-        S_symbol fsym   = dbg ? S_Symbol("_debug_putnl", FALSE) : S_Symbol("_aio_putnl", FALSE);
-        E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-        if (!lx)
-            return EM_error(pos, "builtin %s not found.", S_name(fsym));
-        E_enventry func = lx->first->e;
-        CG_itemList arglist = CG_ItemList();
-        CG_itemListNode n;
-        n = CG_itemListAppend(arglist);
-        n->item = exFNo;
-        CG_loadVal (g_sleStack->code, pos, &n->item);
-        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+        if (!dbg || OPT_get (OPTION_DEBUG))
+        {
+            S_symbol fsym   = dbg ? S_Symbol("_debug_putnl", FALSE) : S_Symbol("_aio_putnl", FALSE);
+            E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+            if (!lx)
+                return EM_error(pos, "builtin %s not found.", S_name(fsym));
+            E_enventry func = lx->first->e;
+            CG_itemList arglist = CG_ItemList();
+            CG_itemListNode n;
+            n = CG_itemListAppend(arglist);
+            n->item = exFNo;
+            CG_loadVal (g_sleStack->code, pos, &n->item);
+            CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+        }
         return TRUE;
     }
 
@@ -4357,7 +4367,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// optionStmt ::= OPTION [ EXPLICIT | PRIVATE | BREAK ] [ ( ON | OFF ) ]
+// optionStmt ::= OPTION [ EXPLICIT | PRIVATE | BREAK | DEBUG ] [ ( ON | OFF ) ]
 static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     bool onoff=TRUE;
@@ -4383,7 +4393,14 @@ static bool stmtOption(S_tkn *tkn, E_enventry e, CG_item *exp)
             }
             else
             {
-                return EM_error((*tkn)->pos, "BREAK, EXPLICIT or PRIVATE expected here.");
+                if (isSym(*tkn, S_DEBUG))
+                {
+                    opt = OPTION_DEBUG;
+                }
+                else
+                {
+                    return EM_error((*tkn)->pos, "BREAK, EXPLICIT, PRIVATE or DEBUG expected here.");
+                }
             }
         }
     }
@@ -7520,6 +7537,7 @@ void FE_boot(void)
     S_BREAK           = defineKeyword("BREAK");
     S__FNO            = defineKeyword("_FNO");
     S_DPRINT          = defineKeyword("DPRINT");
+    S_DEBUG           = defineKeyword("DEBUG");
 }
 
 void FE_init(void)
