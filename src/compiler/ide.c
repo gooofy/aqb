@@ -1894,23 +1894,12 @@ static void event_cb (uint16_t key, void *user_data)
         return;
     }
 
-#ifdef __amigaos__
-    BOOL bInRefresh = FALSE;
-#endif
     switch (key)
     {
         case KEY_CTRL_C:
         case KEY_CTRL_Q:
         case KEY_QUIT:
             IDE_exit(ed);
-            break;
-
-        case KEY_REFRESH:
-#ifdef __amigaos__
-            UI_beginRefresh();
-            bInRefresh = TRUE;
-#endif
-            invalidateAll (ed);
             break;
 
         case KEY_CTRL_Y:
@@ -2053,10 +2042,6 @@ static void event_cb (uint16_t key, void *user_data)
 
     scroll(ed);
     repaint(ed);
-#ifdef __amigaos__
-    if (bInRefresh)
-        UI_endRefresh();
-#endif
 }
 
 IDE_editor openEditor(void)
@@ -2098,44 +2083,10 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     static char buf[1024];
-    int l = vsnprintf (buf, 1024, fmt, args);
+    vsnprintf (buf, 1024, fmt, args);
     va_end(args);
 	if (lvl >= LOG_INFO)
-    {
-
-        static uint16_t col = 0;
-        static bool haveLine = FALSE;
-        for (int i =0; i<l; i++)
-        {
-            if (!haveLine)
-            {
-                UI_scrollUp  (/*fullscreen=*/TRUE);
-                UI_beginLine (g_ed->window_height, 1, UI_size_cols);
-                haveLine = TRUE;
-            }
-            if (col >= g_ed->window_width)
-            {
-                UI_endLine ();
-                haveLine = FALSE;
-                col = 0;
-            }
-            char c = buf[i];
-            if (c=='\n')
-            {
-                UI_endLine ();
-                haveLine = FALSE;
-                col = 0;
-            }
-            else
-            {
-                UI_putc(c);
-                col++;
-            }
-        }
-        if (haveLine)
-            UI_endLine ();
-        UI_moveCursor(g_ed->window_height, col+1);
-    }
+        UI_tprintf ("%s", buf);
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);
 	fflush (logf);

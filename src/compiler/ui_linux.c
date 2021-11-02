@@ -553,5 +553,52 @@ void UI_onEventCall (UI_event_cb cb, void *user_data)
     g_event_cb_user_data = user_data;
 }
 
+void UI_tprintf (char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    UI_tvprintf (format, args);
+    va_end(args);
+}
+
+void UI_tvprintf (char* format, va_list args)
+{
+    static char buf[BUFSIZE];
+    int l = vsnprintf (buf, BUFSIZE, format, args);
+
+    static uint16_t col = 0;
+    static bool haveLine = FALSE;
+    for (int i =0; i<l; i++)
+    {
+        if (!haveLine)
+        {
+            UI_scrollUp  (/*fullscreen=*/TRUE);
+            UI_beginLine (UI_size_rows, 1, UI_size_cols);
+            haveLine = TRUE;
+        }
+        if (col >= UI_size_cols)
+        {
+            UI_endLine ();
+            haveLine = FALSE;
+            col = 0;
+        }
+        char c = buf[i];
+        if (c=='\n')
+        {
+            UI_endLine ();
+            haveLine = FALSE;
+            col = 0;
+        }
+        else
+        {
+            UI_putc(c);
+            col++;
+        }
+    }
+    if (haveLine)
+        UI_endLine ();
+    UI_moveCursor(UI_size_rows, col+1);
+}
+
 
 #endif

@@ -4,8 +4,10 @@ Improvements:
 
     * MIT license applied consistently
     * ide: debug mode mode plus output added
+    * ide: SMART\_REFRESH window for faster+reliable refresh handling
     * compiler: OPTION DEBUG statement added
     * compiler: DPRINT statement added
+    * compiler: BREAK statement added
     * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
     * runtime: BITMAP OUTPUT command added
     * runtime: VWAIT command added

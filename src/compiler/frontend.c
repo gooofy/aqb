@@ -3156,17 +3156,14 @@ static bool stmtDPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
     return _stmtPrint (tkn, e, exp, /*dbg=*/TRUE);
 }
 
-// break ::= BREAK [ expression ]
+// break ::= BREAK
 static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "BREAK"
 
     if (!isLogicalEOL(*tkn))
-    {
-        //CG_item ex;
-        assert (FALSE); // FIXME: implement conditional bp
-    }
+        return FALSE;
 
     if (OPT_get (OPTION_DEBUG))
     {

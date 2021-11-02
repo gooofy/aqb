@@ -42,3 +42,5 @@ $(DEPFILES_LINUX):
 include $(wildcard $(DEPFILES_AMIGAOS))
 include $(wildcard $(DEPFILES_LINUX))
 
+%.asm: %.c
+	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@

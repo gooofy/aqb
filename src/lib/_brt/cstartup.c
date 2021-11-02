@@ -171,7 +171,7 @@ void _debug_cls(void)
 void _debug_break(void)
 {
 asm(
-"		trap    #1"
+"		trap    #1;"
 );
 }
 

@@ -69,6 +69,14 @@ Syntax:
 
 obtain the arctangent of the floating point number
 
+## BREAK
+
+Syntax:
+
+    BREAK
+
+insert a debug breakpoint here
+
 ## CALL
 
 Syntax:

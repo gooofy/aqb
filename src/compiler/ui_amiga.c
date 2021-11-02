@@ -117,6 +117,8 @@ static bool                  g_renderBMPE[3]     = { TRUE, FALSE, FALSE }; // PE
 static bool                  g_renderBMPEI[3]    = {FALSE, FALSE, FALSE }; // PE: PlaneEnabledInverse
 static uint16_t              g_renderBMcurCol    = 0;
 static uint16_t              g_renderBMcurRow    = 1;
+static uint8_t               g_renderBMcurFG     = 1;
+static uint8_t               g_renderBMcurBG     = 0;
 static uint16_t              g_curLineStart      = 1;
 static uint16_t              g_curLineCols       = 80;
 static uint16_t              g_visWidth;
@@ -210,6 +212,9 @@ static void setTextColor (uint8_t fg, uint8_t bg)
         case 7: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] =  TRUE; break;
         default: assert(FALSE);
     }
+
+    g_renderBMcurFG = fg;
+    g_renderBMcurBG = bg;
 }
 
 void UI_setTextStyle (uint16_t style)
@@ -326,6 +331,7 @@ void UI_putc(char c)
 
     if (g_renderBMcurCol >= g_renderBMmaxCols)
         return;
+
     g_renderBMcurCol++;
 
     if (g_cursorVisible)
@@ -533,6 +539,53 @@ void UI_onEventCall (UI_event_cb cb, void *user_data)
     g_event_cb_user_data = user_data;
 }
 
+void UI_tprintf (char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    UI_tvprintf (format, args);
+    va_end(args);
+}
+
+void UI_tvprintf (char* format, va_list args)
+{
+    static char buf[BUFSIZE];
+    int l = vsnprintf (buf, BUFSIZE, format, args);
+
+    static uint16_t col = 0;
+    static bool haveLine = FALSE;
+    for (int i =0; i<l; i++)
+    {
+        if (!haveLine)
+        {
+            UI_scrollUp  (/*fullscreen=*/TRUE);
+            UI_beginLine (UI_size_rows, 1, UI_size_cols);
+            haveLine = TRUE;
+        }
+        if (col >= UI_size_cols)
+        {
+            UI_endLine ();
+            haveLine = FALSE;
+            col = 0;
+        }
+        char c = buf[i];
+        if (c=='\n')
+        {
+            UI_endLine ();
+            haveLine = FALSE;
+            col = 0;
+        }
+        else
+        {
+            UI_putc(c);
+            col++;
+        }
+    }
+    if (haveLine)
+        UI_endLine ();
+    UI_moveCursor(UI_size_rows, col+1);
+}
+
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
     char *posTxt=NULL;
@@ -648,13 +701,6 @@ static uint16_t nextEvent(void)
 				    {
                         case IDCMP_CLOSEWINDOW:
                             res = KEY_QUIT;
-				    		break;
-
-                        case IDCMP_REFRESHWINDOW:
-#ifdef ENABLE_SCROLL_BENCHMARK
-                            printf ("IDCMP_REFRESHWINDOW\n");
-#endif
-                            res = KEY_REFRESH;
 				    		break;
 
                         case IDCMP_NEWSIZE:
@@ -885,9 +931,9 @@ bool UI_init (void)
                                  WA_Top,           sc->BarHeight+1,
                                  WA_Width,         g_visWidth,
                                  WA_Height,        visHeight-sc->BarHeight-1,
-                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_REFRESHWINDOW | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE,
+                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE,
                                  WA_Backdrop,      FALSE,
-                                 WA_SimpleRefresh, TRUE,
+                                 WA_SmartRefresh,  TRUE,
                                  WA_Activate,      TRUE,
                                  WA_Borderless,    FALSE,
                                  WA_SizeGadget,    TRUE,

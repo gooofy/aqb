@@ -48,7 +48,6 @@
 #define KEY_F9             1018
 #define KEY_F10            1019
 #define KEY_HELP           1020
-#define KEY_REFRESH        1021
 #define KEY_GOTO_EOF       1022
 #define KEY_GOTO_BOF       1023
 #define KEY_COLORSCHEME_0  1024
@@ -116,6 +115,13 @@ typedef void (*UI_event_cb)(uint16_t event, void *user_data);
 void      UI_onEventCall        (UI_event_cb cb, void *user_data);
 
 /*
+ * simple terminal emulation
+ */
+
+void      UI_tprintf            (char* format, ...);
+void      UI_tvprintf           (char* format, va_list ap);
+
+/*
  * high-level requesters
  */
 
@@ -126,8 +132,6 @@ void      UI_HelpBrowser        (void);
 
 #ifdef __amigaos__
 struct MsgPort    *UI_debugPort (void);
-void      UI_beginRefresh       (void);
-void      UI_endRefresh         (void);
 #endif
 
 bool      UI_init               (void);
