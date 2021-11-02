@@ -96,11 +96,12 @@ struct DebugMsg
     struct MsgPort *port;
     ULONG           debug_sig;					// 24
     UWORD           debug_cmd;					// 28
+    ULONG           debug_exitFn;               // 30
     union
     {
-        ULONG   err;    // START return msg		// 30
-        char    c;      // putc					// 30
-        char   *str;    // puts					// 30
+        ULONG   err;    // START return msg		// 34
+        char    c;      // putc					// 34
+        char   *str;    // puts					// 34
     }u;
 };
 

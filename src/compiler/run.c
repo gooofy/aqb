@@ -42,6 +42,7 @@ struct DebugMsg
 	struct MsgPort *port;
     ULONG           debug_sig;
     UWORD           debug_cmd;
+    ULONG           debug_exitFn;
     union
     {
         ULONG   err;    // START return msg
@@ -525,7 +526,31 @@ void RUN_help (char *binfn, char *arg1)
 
 static void _debug(struct DebugMsg *msg)
 {
-    UI_tprintf ("\n*** AQB debugger, trap code: %d ***\n\n", g_trapCode);
+    UI_tprintf ("\n\n*** AQB DEBUG ***\n\n");
+
+    switch (g_trapCode)
+    {
+        case 2:
+            UI_tprintf("ACCESS FAULT\n\n");
+            break;
+        case 3:
+            UI_tprintf("ADDRESS ERROR\n\n");
+            break;
+        case 4:
+            UI_tprintf("ILLEGAL INSTRUCTION\n\n");
+            break;
+        case 5:
+            UI_tprintf("INTEGER DIVIDE BY ZERO\n\n");
+            break;
+        case 32:
+            UI_tprintf("CTRL-C BREAK\n\n");
+            break;
+        case 33:
+            UI_tprintf("BREAKPOINT HIT\n\n");
+            break;
+        default:
+            UI_tprintf("TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
+    }
 
     // register dump
 
@@ -538,10 +563,31 @@ static void _debug(struct DebugMsg *msg)
     UI_tprintf ("\nPC mem dump:\n");
     hexdump ((UBYTE *)g_dbgPC, 32, 16);
 
-    UI_tprintf ("\n\n*** PRESS ENTER TO CONTINUE ***\n\n");
-    UI_waitkey();
+    BOOL finished = FALSE;
+    while (!finished)
+    {
+        UI_tprintf ("\n\nPRESS C:continue, E:exit\n\n");
+        uint16_t key = UI_waitkey();
+        switch (key)
+        {
+            case 'c':
+            case 'C':
+                ReplyMsg (&msg->msg);
+                finished = TRUE;
+                break;
+            case 'e':
+            case 'E':
+                // manipulate the return PC, make it point to the exit function:
+                //UI_tprintf ("----> setting PC to 0x%08lx\n", g_dbgEnv.u.dbg.msg.debug_exitFn);
+                g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
+                ReplyMsg (&msg->msg);
+                finished = TRUE;
+                break;
 
-    ReplyMsg (&msg->msg);
+            default:
+                UI_tprintf ("\n\n*** ERROR: UNKNOWN KEY ***\n\n");
+        }
+    }
 }
 
 uint16_t RUN_handleMessages(void)

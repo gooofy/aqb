@@ -1864,8 +1864,8 @@ static void size_cb (void *user_data)
 static void handleRunStop(IDE_editor ed)
 {
 #ifdef __amigaos__
-    LOG_printf (LOG_INFO, "\n\nprogram exited\n\n");
-    LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
+    LOG_printf (LOG_INFO, "\n\nPROGRAM EXITED\n\n");
+    LOG_printf (LOG_INFO, "\n*** PRESS ANY KEY TO CONTINUE ***\n\n");
     UI_waitkey ();
 #endif
 

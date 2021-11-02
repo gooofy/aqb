@@ -29,7 +29,8 @@
     .set pr_MsgPort,  92
 
     .set dbg_sig,     24
-    .set dbg_code,    30
+    .set dbg_code,    34
+    .set dbg_exitFn,  30
 
 .text
     .globl  _start
@@ -62,8 +63,20 @@ _start:
 	jsr      WaitPort(a6)         /* first wait for message */
 	lea      pr_MsgPort(a2), a0   /* A0 is scratch, could be overwritten */
 	jsr	     GetMsg(a6)           /* then get message from port */
-	move.l	 d0, ___StartupMsg  /* store it for later use */
+	move.l	 d0, ___StartupMsg    /* store it for later use */
 
+    /* was this a dbg message sent by the AQB IDE ? */
+
+    move.l  d0, a0
+    move.l   dbg_sig(a0), d1      /* check signature */
+    cmpi.l   #0xDECA11ED, d1
+    bne.s    runMain              /* regular wb start message */
+
+    /* this _is_ a debug message -> put exit function pointer into it */
+
+    move.l  #__autil_exit, dbg_exitFn(a0)
+
+    .globl __autil_exit
 runMain:
 
 	/* main program entry here */

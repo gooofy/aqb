@@ -192,8 +192,18 @@ USHORT _break_status = 0;
 
 void __handle_break(void)
 {
-    if (_break_status)  // FIXME: debug breaks
-        _autil_exit(1);
+    if (_break_status)
+    {
+        if (_startup_mode == STARTUP_DEBUG)
+        {
+            _break_status = 0;
+            asm ("  trap #0;\n");           // break into debugger
+        }
+        else
+        {
+            _autil_exit(1);
+        }
+    }
 }
 
 static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a0"),
