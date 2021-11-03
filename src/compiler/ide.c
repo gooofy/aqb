@@ -1538,7 +1538,6 @@ static void compileAndRun(IDE_editor ed)
     }
 
 #ifdef __amigaos__
-    UI_eraseDisplay ();
     UI_setCursorVisible (FALSE);
 
     LOG_printf (LOG_INFO, "\nrunning: %s\n\n", ed->binfn);
