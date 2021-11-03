@@ -776,7 +776,7 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
 
 static uint32_t g_hunk_id = 0;
 
-AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, size_t initial_size)
+AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, uint32_t initial_size)
 {
     AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
 
@@ -790,6 +790,8 @@ AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, size_t ini
     seg->relocs      = NULL;
     seg->refs        = NULL;
     seg->defs        = NULL;
+    seg->srcMap      = NULL;
+    seg->srcMapLast  = NULL;
 
     return seg;
 }
@@ -809,7 +811,7 @@ void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
     TAB_enter (seg->relocs, seg_to, reloc);
 }
 
-void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size)
+void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size)
 {
     if (!seg->refs)
         seg->refs = TAB_empty(UP_assem);
@@ -920,11 +922,11 @@ static uint32_t instr_size (AS_instr instr)
 }
 #endif
 
-void AS_ensureSegmentSize (AS_segment seg, size_t min_size)
+void AS_ensureSegmentSize (AS_segment seg, uint32_t min_size)
 {
     if (seg->mem_size < min_size)
     {
-        size_t s = seg->mem_size ? seg->mem_size : 256;
+        uint32_t s = seg->mem_size ? seg->mem_size : 256;
         while (s<min_size)
             s = s * 2;
         if (!seg->mem)
@@ -1147,7 +1149,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
         }
         else
         {
-            size_t offset = seg->mem_pos;
+            uint32_t offset = seg->mem_pos;
             if (displacement)
             {
                 assert (li->offset < 65535); // FIXME
@@ -1163,7 +1165,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
     return TRUE;
 }
 
-static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t offset, bool expt)
+static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32_t offset, bool expt)
 {
     LOG_printf (LOG_DEBUG, "assem: defineLabel label=%s at seg %d %zd (0x%08zx)\n", S_name(label), seg->hunk_id, offset, offset);
     AS_labelInfo li = TAB_look (obj->labels, label);
@@ -1178,11 +1180,11 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, size_t
         // fixup
 
         AS_segment codeSeg = obj->codeSeg;
-        size_t fix_loc = li->offset;
+        uint32_t fix_loc = li->offset;
         while (fix_loc)
         {
             LOG_printf (LOG_DEBUG, "assem: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
-            size_t next_fix_loc = 0;
+            uint32_t next_fix_loc = 0;
             if (li->displacement)
             {
                 uint16_t *p = (uint16_t *) (codeSeg->mem+fix_loc);
@@ -1732,19 +1734,6 @@ static void emit_UNLK (AS_segment seg, uint16_t reg)
     emit_u2 (seg, code);
 }
 
-static void emit_dbgHdr(AS_segment dbg)
-{
-    emit_u4 (dbg, DEBUG_MAGIC);
-    emit_u2 (dbg, DEBUG_VERSION);
-}
-
-static void emit_DbgLineInfo(AS_segment dbg, AS_segment code, int l)
-{
-    emit_u2 (dbg, DEBUG_INFO_LINE);
-    emit_u4 (dbg, code->mem_pos);
-    emit_u4 (dbg, l);
-}
-
 AS_object AS_Object (string sourcefn, string name)
 {
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
@@ -1752,21 +1741,27 @@ AS_object AS_Object (string sourcefn, string name)
     obj->labels  = TAB_empty(UP_assem);
     obj->codeSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
     obj->dataSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
-    if (OPT_get (OPTION_DEBUG))
-        obj->debugSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".debug", name), AS_debugSeg, 0);
-    else
-        obj->debugSeg = NULL;
 
     return obj;
+}
+
+static void _addSrcMapping (AS_segment seg, uint16_t l)
+{
+    AS_srcMapNode mapping = U_poolAlloc (UP_assem, sizeof (*mapping));
+
+    mapping->next   = NULL;
+    mapping->line   = l;
+    mapping->offset = seg->mem_pos;
+
+    if (seg->srcMapLast)
+        seg->srcMapLast = seg->srcMapLast->next = mapping;
+    else
+        seg->srcMap = seg->srcMapLast = mapping;
 }
 
 bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 {
     AS_segment seg = obj->codeSeg;
-
-    AS_segment dbg = obj->debugSeg;
-    if (dbg)
-        emit_dbgHdr(dbg);
 
     bool first_label = TRUE;
     int cur_line = -1;
@@ -1778,12 +1773,12 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
         AS_sprint(buf, instr, AS_dialect_gas);
         LOG_printf(LOG_DEBUG, "assem: AS_assembleCode: (mn=%3d) %s\n", instr->mn, buf);
 
-        if (dbg)
+        if (OPT_get (OPTION_DEBUG))
         {
             int l = S_getline (instr->pos);
             if (l>cur_line)
             {
-                emit_DbgLineInfo(dbg, seg, l);
+                _addSrcMapping(seg, l);
                 cur_line = l;
             }
         }
@@ -2229,7 +2224,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
     return TRUE;
 }
 
-bool AS_assembleString (AS_object obj, Temp_label label, string str, size_t msize)
+bool AS_assembleString (AS_object obj, Temp_label label, string str, uint32_t msize)
 {
     AS_segment seg = obj->dataSeg;
 
@@ -2259,15 +2254,15 @@ bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt)
     return TRUE;
 }
 
-void AS_assembleDataFill (AS_segment seg, size_t size)
+void AS_assembleDataFill (AS_segment seg, uint32_t size)
 {
-    size_t done = 0;
+    uint32_t done = 0;
     while ((done+4)<=size)
     {
         emit_u4(seg, 0);
         done += 4;
     }
-    size_t r = size-done;
+    uint32_t r = size-done;
     if (r>=2)
     {
         emit_u2(seg, 0);

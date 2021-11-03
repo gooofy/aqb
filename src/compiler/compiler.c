@@ -361,8 +361,6 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 
     if (obj->codeSeg)
         LI_segmentListAppend (sl, obj->codeSeg);
-    if (obj->debugSeg)
-        LI_segmentListAppend (sl, obj->debugSeg);
     if (obj->dataSeg)
         LI_segmentListAppend (sl, obj->dataSeg);
 

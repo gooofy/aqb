@@ -28,10 +28,6 @@
 
 #define INITIAL_CODE_SEGMENT_SIZE   16 * 1024
 
-#define DEBUG_MAGIC     0x44425141  // AQBD - marks beginning of debug hunk
-#define DEBUG_VERSION   1
-#define DEBUG_INFO_LINE 1
-
 extern Temp_temp AS_regs[AS_NUM_REGISTERS];
 
 enum AS_mn
@@ -270,8 +266,9 @@ typedef struct AS_segmentRef_      *AS_segmentRef;
 typedef struct AS_segmentDef_      *AS_segmentDef;
 typedef struct AS_labelInfo_       *AS_labelInfo;
 typedef struct AS_object_          *AS_object;
+typedef struct AS_srcMapNode_      *AS_srcMapNode;
 
-typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_debugSeg, AS_unknownSeg} AS_segKind;
+typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
     string            sourcefn;
@@ -280,12 +277,13 @@ struct AS_segment_
     uint32_t          hunk_id;
 
     uint8_t          *mem;
-    size_t            mem_size;
-    size_t            mem_pos;
+    uint32_t          mem_size;
+    uint32_t          mem_pos;
 
     TAB_table         relocs;               // AS_segment -> AS_segementReloc32...
     TAB_table         refs;                 // S_symbol -> AS_segmentRef
     AS_segmentDef     defs;
+    AS_srcMapNode     srcMap, srcMapLast;   // debug info
 };
 
 struct AS_segmentReloc32_
@@ -298,7 +296,7 @@ struct AS_segmentRef_
 {
     uint32_t          offset;
     enum Temp_w       w;
-    size_t            common_size;
+    uint32_t          common_size;
     AS_segmentRef     next;
 };
 
@@ -314,7 +312,7 @@ struct AS_labelInfo_
     bool              defined;
     bool              displacement;
     AS_segment        seg;
-    size_t            offset;   // when not defined (yet) this points to the first fixup chain location, otherwise this is the target segment's offset
+    uint32_t          offset;   // when not defined (yet) this points to the first fixup chain location, otherwise this is the target segment's offset
 };
 
 struct AS_object_
@@ -322,23 +320,29 @@ struct AS_object_
     TAB_table         labels;    // label -> AS_labelInfo
     AS_segment        codeSeg;
     AS_segment        dataSeg;
-    AS_segment        debugSeg;
 };
 
-AS_segment         AS_Segment            (string sourcefn, string name, AS_segKind kind, size_t initial_size);
+struct AS_srcMapNode_
+{
+    AS_srcMapNode     next;
+    uint16_t          line;
+    uint32_t          offset;
+};
+
+AS_segment         AS_Segment            (string sourcefn, string name, AS_segKind kind, uint32_t initial_size);
 
 void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
-void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, size_t common_size);
+void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
 void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
-void               AS_ensureSegmentSize  (AS_segment seg, size_t min_size);
+void               AS_ensureSegmentSize  (AS_segment seg, uint32_t min_size);
 
 AS_object          AS_Object             (string sourcefn, string name);
 
 bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt);
-bool               AS_assembleString     (AS_object  o, Temp_label label, string str, size_t msize);
+bool               AS_assembleString     (AS_object  o, Temp_label label, string str, uint32_t msize);
 void               AS_assembleDataAlign2 (AS_object  o);
 bool               AS_assembleDataLabel  (AS_object  o, Temp_label label, bool expt);
-void               AS_assembleDataFill   (AS_segment seg, size_t size);
+void               AS_assembleDataFill   (AS_segment seg, uint32_t size);
 void               AS_assembleData16     (AS_segment seg, uint16_t data);
 void               AS_assembleDataString (AS_segment seg, string data);
 

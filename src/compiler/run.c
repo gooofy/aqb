@@ -5,6 +5,7 @@
 #include "logger.h"
 #include "ui.h"
 #include "options.h"
+#include "link.h"
 
 #ifdef __amigaos__
 
@@ -416,10 +417,43 @@ asm(
 
 #endif
 
+#if 0
+static LI_segmentList _loadSeg(char *binfn)
+{
+    LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
+
+    FILE *f = fopen (binfn, "r");
+    if (!f)
+    {
+        LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s\n\n", binfn);
+        return NULL;
+    }
+    LI_segmentList sl = LI_SegmentList();
+
+    if (!LI_segmentListReadLoadFile (sl, binfn, f))
+    {
+        fclose (f);
+        LOG_printf (LOG_ERROR, "*** ERROR: failed to read %s\n\n", binfn);
+        return NULL;
+    }
+    fclose (f);
+
+    return sl;
+}
+#endif
 
 static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
+
+#if 0
+    // FIXME: experimental custom loader, handles debug info
+    LI_segmentList sl = _loadSeg(binfn);
+    if (!sl)
+        return;
+#endif
+
+#if 1
 
     LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
     env->seglist = LoadSeg((STRPTR)binfn);
@@ -428,6 +462,8 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
         LOG_printf (LOG_ERROR, "failed to load %s\n\n", binfn);
         return;
     }
+
+    LOG_printf (LOG_INFO, "Running %s ...\n\n", binfn);
 
     // homedir
 
@@ -512,6 +548,7 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
     env->state = RUN_stateRunning;
 
 	LOG_printf (LOG_DEBUG, "RUN _launch_process: done. state is %d now.\n", env->state);
+    #endif
 }
 
 void RUN_start (const char *binfn)

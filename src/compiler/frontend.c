@@ -337,7 +337,7 @@ static S_symbol S_ACCESS;
 static S_symbol S_CLOSE;
 static S_symbol S_BREAK;
 static S_symbol S__FNO;
-static S_symbol S_DPRINT;
+static S_symbol S_TRACE;
 static S_symbol S_DEBUG;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
@@ -2999,7 +2999,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
     if ((*tkn)->kind == S_HASH)
     {
         if (dbg)
-            return EM_error(pos, "DPRINT: fno expression not supported.");
+            return EM_error(pos, "TRACE: fno expression not supported.");
         *tkn = (*tkn)->next;
         S_pos pos = (*tkn)->pos;
         if (!expression(tkn, &exFNo))
@@ -3151,7 +3151,7 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return _stmtPrint (tkn, e, exp, /*dbg=*/FALSE);
 }
-static bool stmtDPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
+static bool stmtTrace(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return _stmtPrint (tkn, e, exp, /*dbg=*/TRUE);
 }
@@ -7167,7 +7167,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound        , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound        , Ty_ULong());
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
-    declareBuiltinProc(S_DPRINT       , /*extraSyms=*/ NULL      , stmtDPrint       , Ty_Void());
+    declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace        , Ty_Void());
     declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak        , Ty_Void());
 }
 
@@ -7566,7 +7566,7 @@ void FE_boot(void)
     S_CLOSE           = defineKeyword("CLOSE");
     S_BREAK           = defineKeyword("BREAK");
     S__FNO            = defineKeyword("_FNO");
-    S_DPRINT          = defineKeyword("DPRINT");
+    S_TRACE           = defineKeyword("TRACE");
     S_DEBUG           = defineKeyword("DEBUG");
 }
 

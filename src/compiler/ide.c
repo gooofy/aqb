@@ -1538,19 +1538,20 @@ static void compileAndRun(IDE_editor ed)
     }
 
 #ifdef __amigaos__
+
     UI_setCursorVisible (FALSE);
-
-    LOG_printf (LOG_INFO, "\nrunning: %s\n\n", ed->binfn);
-
     RUN_start (ed->binfn);
     // RUN_start ("SYS:Utilities/Clock"); // debug purposes only
+
 #else
+
     LOG_printf (LOG_INFO, "\n*** FIXME: non-amiga debugging not implemented yet.\n\n");
     LOG_printf (LOG_INFO, "\n*** press enter to continue ***\n\n");
     while ( UI_waitkey () != KEY_ENTER ) ;
     UI_eraseDisplay ();
     invalidateAll (ed);
     UI_setCursorVisible (TRUE);
+
 #endif
 
 }

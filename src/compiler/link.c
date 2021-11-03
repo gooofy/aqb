@@ -33,6 +33,10 @@
 
 #define ENABLE_SYMBOL_HUNK
 
+#define DEBUG_MAGIC     0x44425141  // AQBD - marks beginning of debug hunk
+#define DEBUG_VERSION   1
+#define DEBUG_INFO_LINE 1
+
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static char       g_name[MAX_BUF];             // current hunk name
 static AS_segment g_hunk_table[MAX_NUM_HUNKS]; // used during hunk object loading
@@ -475,6 +479,7 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
     if (ht != HUNK_TYPE_UNIT)
     {
         LOG_printf (LOG_ERROR, "link: %s: this is not an object file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_UNIT);
+        return FALSE;
     }
 
     if (!load_hunk_unit(f))
@@ -631,6 +636,13 @@ bool LI_link (LI_segmentList sl)
     }
 
     return TRUE;
+}
+
+static void fwrite_u2(FILE *f, uint16_t u)
+{
+    u = ENDIAN_SWAP_16 (u);
+    if (fwrite (&u, 2, 1, f) != 1)
+        link_fail ("write error");
 }
 
 static void fwrite_u4(FILE *f, uint32_t u)
@@ -819,15 +831,27 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
 
 static void write_hunk_debug (AS_segment seg, FILE *f)
 {
+    if (!seg->srcMap)
+        return;
+
+    int numSrcMappings = 0;
+    for (AS_srcMapNode n = seg->srcMap; n; n=n->next)
+        numSrcMappings++;
+
     fwrite_u4 (f, HUNK_TYPE_DEBUG);
 
-    uint32_t n = roundUp(seg->mem_pos, 4) / 4;
-    LOG_printf (LOG_DEBUG, "link: debug section, size=%zd bytes\n", seg->mem_pos);
-    fwrite_u4 (f, n);
-    if (n>0)
+    uint32_t hunk_size = 2 + numSrcMappings*2;
+
+    LOG_printf (LOG_DEBUG, "link: debug section, size=%zd bytes\n", hunk_size*4);
+    fwrite_u4 (f, hunk_size);
+
+    fwrite_u4 (f, DEBUG_MAGIC);
+    fwrite_u4 (f, DEBUG_VERSION);
+    for (AS_srcMapNode n = seg->srcMap; n; n=n->next)
     {
-        if (fwrite (seg->mem, n*4, 1, f) != 1)
-            link_fail ("write error");
+        fwrite_u2 (f, DEBUG_INFO_LINE);
+        fwrite_u2 (f, n->line);
+        fwrite_u4 (f, n->offset);
     }
 }
 
@@ -846,26 +870,19 @@ void LI_segmentWriteObjectFile (AS_object obj, string objfn)
     }
     write_hunk_unit (objfn, g_fObjFile);
 
-    write_hunk_name (obj->codeSeg, g_fObjFile);
-    write_hunk_code (obj->codeSeg, g_fObjFile);
+    write_hunk_name    (obj->codeSeg, g_fObjFile);
+    write_hunk_code    (obj->codeSeg, g_fObjFile);
     write_hunk_reloc32 (obj->codeSeg, g_fObjFile);
-    write_hunk_ext (obj->codeSeg, g_fObjFile);
-    write_hunk_end (g_fObjFile);
+    write_hunk_ext     (obj->codeSeg, g_fObjFile);
+    write_hunk_debug   (obj->codeSeg, g_fObjFile);
+    write_hunk_end     (g_fObjFile);
 
-    if (obj->debugSeg)
-    {
-        write_hunk_name (obj->debugSeg, g_fObjFile);
-        write_hunk_debug (obj->debugSeg, g_fObjFile);
-        //write_hunk_reloc32 (obj->debugSeg, g_fObjFile);
-        //write_hunk_ext (obj->debugSeg, g_fObjFile);
-        write_hunk_end (g_fObjFile);
-    }
-
-    write_hunk_name (obj->dataSeg, g_fObjFile);
-    write_hunk_data (obj->dataSeg, g_fObjFile);
+    write_hunk_name    (obj->dataSeg, g_fObjFile);
+    write_hunk_data    (obj->dataSeg, g_fObjFile);
     write_hunk_reloc32 (obj->dataSeg, g_fObjFile);
-    write_hunk_ext (obj->dataSeg, g_fObjFile);
-    write_hunk_end (g_fObjFile);
+    write_hunk_ext     (obj->dataSeg, g_fObjFile);
+    write_hunk_debug   (obj->dataSeg, g_fObjFile);
+    write_hunk_end     (g_fObjFile);
 
     fclose (g_fObjFile);
     g_fObjFile = NULL;
@@ -893,6 +910,7 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 #ifdef ENABLE_SYMBOL_HUNK
                 write_hunk_symbol (n->seg, g_fLoadFile);
 #endif
+                write_hunk_debug (n->seg, g_fLoadFile);
                 write_hunk_end (g_fLoadFile);
                 break;
             case AS_dataSeg:
@@ -913,15 +931,6 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 #endif
                 write_hunk_end (g_fLoadFile);
                 break;
-            case AS_debugSeg:
-                //write_hunk_name (n->seg, g_fLoadFile);
-                write_hunk_debug (n->seg, g_fLoadFile);
-                //write_hunk_reloc32 (n->seg, g_fLoadFile);
-#ifdef ENABLE_SYMBOL_HUNK
-                //write_hunk_symbol (n->seg, g_fLoadFile);
-#endif
-                write_hunk_end (g_fLoadFile);
-                break;
             default:
                 LOG_printf (LOG_ERROR, "***error: unknown segment kind %d !\n", n->seg->kind);
                 fflush (g_fLoadFile);
@@ -932,5 +941,82 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
     fclose (g_fLoadFile);
     g_fLoadFile = NULL;
     LOG_printf (LOG_INFO, "link: created load file: %s\n", loadfn);
+}
+
+bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
+{
+    uint32_t ht;
+    if (!fread_u4 (f, &ht))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #24.\n");
+        return FALSE;
+    }
+    LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
+
+    if (ht != HUNK_TYPE_HEADER)
+    {
+        LOG_printf (LOG_ERROR, "link: %s: this is not a load file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_HEADER);
+        return FALSE;
+    }
+
+#if 0
+    if (!load_hunk_unit(f))
+        return FALSE;
+
+    strcpy (g_name, "unnamed");
+
+    while (TRUE)
+    {
+        if (!fread_u4 (f, &ht))
+            break;
+        LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
+
+        switch (ht)
+        {
+            case HUNK_TYPE_UNIT:
+                if (!load_hunk_unit(f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_NAME:
+                if (!load_hunk_name(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_CODE:
+                if (!load_hunk_code(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_DATA:
+                if (!load_hunk_data(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_BSS:
+                if (!load_hunk_bss(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_RELOC32:
+                if (!load_hunk_reloc32(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_EXT:
+                if (!load_hunk_ext(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_END:
+                if (!g_hunk_cur)
+                {
+                    LOG_printf (LOG_ERROR, "link: hunk_end detected when no hunk was defined.\n");
+                    return FALSE;
+                }
+                LI_segmentListAppend (sl, g_hunk_cur);
+                g_hunk_cur = NULL;
+                break;
+            default:
+                LOG_printf (LOG_ERROR, "link: unknown hunk type 0x%08x.\n", ht);
+                assert(FALSE);
+                return FALSE;
+        }
+    }
+    #endif
+    return TRUE;
 }
 
