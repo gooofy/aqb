@@ -18,6 +18,7 @@
 #define HUNK_TYPE_RELOC32  0x03EC
 #define HUNK_TYPE_EXT      0x03EF
 #define HUNK_TYPE_SYMBOL   0x03F0
+#define HUNK_TYPE_DEBUG    0x03F1
 #define HUNK_TYPE_END      0x03F2
 #define HUNK_TYPE_HEADER   0x03F3
 
@@ -815,6 +816,21 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
 
     fwrite_u4 (f, 0);
 }
+
+static void write_hunk_debug (AS_segment seg, FILE *f)
+{
+    fwrite_u4 (f, HUNK_TYPE_DEBUG);
+
+    uint32_t n = roundUp(seg->mem_pos, 4) / 4;
+    LOG_printf (LOG_DEBUG, "link: debug section, size=%zd bytes\n", seg->mem_pos);
+    fwrite_u4 (f, n);
+    if (n>0)
+    {
+        if (fwrite (seg->mem, n*4, 1, f) != 1)
+            link_fail ("write error");
+    }
+}
+
 static void write_hunk_end (FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_END);
@@ -835,6 +851,15 @@ void LI_segmentWriteObjectFile (AS_object obj, string objfn)
     write_hunk_reloc32 (obj->codeSeg, g_fObjFile);
     write_hunk_ext (obj->codeSeg, g_fObjFile);
     write_hunk_end (g_fObjFile);
+
+    if (obj->debugSeg)
+    {
+        write_hunk_name (obj->debugSeg, g_fObjFile);
+        write_hunk_debug (obj->debugSeg, g_fObjFile);
+        //write_hunk_reloc32 (obj->debugSeg, g_fObjFile);
+        //write_hunk_ext (obj->debugSeg, g_fObjFile);
+        write_hunk_end (g_fObjFile);
+    }
 
     write_hunk_name (obj->dataSeg, g_fObjFile);
     write_hunk_data (obj->dataSeg, g_fObjFile);
@@ -885,6 +910,15 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
                 write_hunk_reloc32 (n->seg, g_fLoadFile);
 #ifdef ENABLE_SYMBOL_HUNK
                 write_hunk_symbol (n->seg, g_fLoadFile);
+#endif
+                write_hunk_end (g_fLoadFile);
+                break;
+            case AS_debugSeg:
+                //write_hunk_name (n->seg, g_fLoadFile);
+                write_hunk_debug (n->seg, g_fLoadFile);
+                //write_hunk_reloc32 (n->seg, g_fLoadFile);
+#ifdef ENABLE_SYMBOL_HUNK
+                //write_hunk_symbol (n->seg, g_fLoadFile);
 #endif
                 write_hunk_end (g_fLoadFile);
                 break;

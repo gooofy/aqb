@@ -28,6 +28,10 @@
 
 #define INITIAL_CODE_SEGMENT_SIZE   16 * 1024
 
+#define DEBUG_MAGIC     0x44425141  // AQBD - marks beginning of debug hunk
+#define DEBUG_VERSION   1
+#define DEBUG_INFO_LINE 1
+
 extern Temp_temp AS_regs[AS_NUM_REGISTERS];
 
 enum AS_mn
@@ -267,7 +271,7 @@ typedef struct AS_segmentDef_      *AS_segmentDef;
 typedef struct AS_labelInfo_       *AS_labelInfo;
 typedef struct AS_object_          *AS_object;
 
-typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
+typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_debugSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
     string            sourcefn;
@@ -318,6 +322,7 @@ struct AS_object_
     TAB_table         labels;    // label -> AS_labelInfo
     AS_segment        codeSeg;
     AS_segment        dataSeg;
+    AS_segment        debugSeg;
 };
 
 AS_segment         AS_Segment            (string sourcefn, string name, AS_segKind kind, size_t initial_size);

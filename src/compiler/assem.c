@@ -1732,6 +1732,19 @@ static void emit_UNLK (AS_segment seg, uint16_t reg)
     emit_u2 (seg, code);
 }
 
+static void emit_dbgHdr(AS_segment dbg)
+{
+    emit_u4 (dbg, DEBUG_MAGIC);
+    emit_u2 (dbg, DEBUG_VERSION);
+}
+
+static void emit_DbgLineInfo(AS_segment dbg, AS_segment code, int l)
+{
+    emit_u2 (dbg, DEBUG_INFO_LINE);
+    emit_u4 (dbg, code->mem_pos);
+    emit_u4 (dbg, l);
+}
+
 AS_object AS_Object (string sourcefn, string name)
 {
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
@@ -1739,6 +1752,10 @@ AS_object AS_Object (string sourcefn, string name)
     obj->labels  = TAB_empty(UP_assem);
     obj->codeSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
     obj->dataSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
+    if (OPT_get (OPTION_DEBUG))
+        obj->debugSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".debug", name), AS_debugSeg, 0);
+    else
+        obj->debugSeg = NULL;
 
     return obj;
 }
@@ -1746,7 +1763,13 @@ AS_object AS_Object (string sourcefn, string name)
 bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
 {
     AS_segment seg = obj->codeSeg;
+
+    AS_segment dbg = obj->debugSeg;
+    if (dbg)
+        emit_dbgHdr(dbg);
+
     bool first_label = TRUE;
+    int cur_line = -1;
     for (AS_instrListNode an = il->first; an; an=an->next)
     {
         AS_instr instr = an->instr;
@@ -1754,6 +1777,16 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
         char buf[255];
         AS_sprint(buf, instr, AS_dialect_gas);
         LOG_printf(LOG_DEBUG, "assem: AS_assembleCode: (mn=%3d) %s\n", instr->mn, buf);
+
+        if (dbg)
+        {
+            int l = S_getline (instr->pos);
+            if (l>cur_line)
+            {
+                emit_DbgLineInfo(dbg, seg, l);
+                cur_line = l;
+            }
+        }
 
         switch (instr->mn)
         {
