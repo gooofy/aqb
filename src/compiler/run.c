@@ -417,7 +417,7 @@ asm(
 
 #endif
 
-#if 0
+#if 1
 static LI_segmentList _loadSeg(char *binfn)
 {
     LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
@@ -446,7 +446,7 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
 
-#if 0
+#if 1
     // FIXME: experimental custom loader, handles debug info
     LI_segmentList sl = _loadSeg(binfn);
     if (!sl)

@@ -7,6 +7,8 @@
 
 /*
  * Amiga Hunk file format related definitions
+ *
+ * see http://amiga-dev.wikidot.com/file-format:hunk
  */
 
 
@@ -29,7 +31,7 @@
 #define EXT_TYPE_ABSREF16     138
 
 #define MAX_BUF              1024
-#define MAX_NUM_HUNKS          16
+#define MAX_NUM_HUNKS          64
 
 #define ENABLE_SYMBOL_HUNK
 
@@ -943,12 +945,71 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
     LOG_printf (LOG_INFO, "link: created load file: %s\n", loadfn);
 }
 
+static bool load_hunk_header(FILE *f)
+{
+    for (int i=0; i<MAX_NUM_HUNKS; i++)
+        g_hunk_table[i] = NULL;
+    g_hunk_id_cnt = 0;
+    g_hunk_cur = NULL;
+
+    // library names
+    uint32_t num_longs;
+    if (!fread_u4 (f, &num_longs))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #26.\n");
+        return FALSE;
+    }
+    if (num_longs)
+    {
+        // library names are unsupported in this loader
+        LOG_printf (LOG_ERROR, "link: read error #27.\n");
+        return FALSE;
+    }
+
+    uint32_t table_size;
+    uint32_t first_hunk_slot;
+    uint32_t last_hunk_slot;
+
+    if (!fread_u4 (f, &table_size))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #28.\n");
+        return FALSE;
+    }
+    if (!fread_u4 (f, &first_hunk_slot))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #29.\n");
+        return FALSE;
+    }
+    if (!fread_u4 (f, &last_hunk_slot))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #30.\n");
+        return FALSE;
+    }
+
+    uint32_t num_hunk_sizes = last_hunk_slot - first_hunk_slot + 1;
+
+    LOG_printf (LOG_DEBUG, "link: reading hunk header, table_size=%d, first_hunk_slot=%d, last_hunk_slot=%d\n", table_size, first_hunk_slot, last_hunk_slot);
+
+    // hunk_sizes = []
+    for (uint32_t i = 0; i<num_hunk_sizes; i++)
+    {
+        uint32_t hs;
+        if (!fread_u4 (f, &hs))
+        {
+            LOG_printf (LOG_ERROR, "link: read error #31.\n");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
 {
     uint32_t ht;
     if (!fread_u4 (f, &ht))
     {
-        LOG_printf (LOG_ERROR, "link: read error #24.\n");
+        LOG_printf (LOG_ERROR, "link: read error #25.\n");
         return FALSE;
     }
     LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
@@ -959,11 +1020,8 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
         return FALSE;
     }
 
-#if 0
-    if (!load_hunk_unit(f))
+    if (!load_hunk_header(f))
         return FALSE;
-
-    strcpy (g_name, "unnamed");
 
     while (TRUE)
     {
@@ -1016,7 +1074,6 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
                 return FALSE;
         }
     }
-    #endif
     return TRUE;
 }
 
