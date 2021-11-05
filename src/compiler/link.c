@@ -325,7 +325,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
-        LOG_printf (LOG_ERROR, "link: ext hunk detected when so segment is defined yet.\n");
+        LOG_printf (LOG_ERROR, "link: ext hunk detected when no segment is defined yet.\n");
         assert(FALSE);
         return FALSE;
     }
@@ -464,6 +464,88 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                 assert(FALSE);
         }
     }
+
+    return TRUE;
+}
+
+static bool load_hunk_symbol(string sourcefn, FILE *f)
+{
+    if (!g_hunk_cur)
+    {
+        LOG_printf (LOG_ERROR, "link: symbol hunk detected when so segment is defined yet.\n");
+        assert(FALSE);
+        return FALSE;
+    }
+
+    while (TRUE)
+    {
+        uint32_t num_longs;
+        if (!fread_u4 (f, &num_longs))
+        {
+            LOG_printf (LOG_ERROR, "link: read error #32.\n");
+            return FALSE;
+        }
+
+        if (!num_longs)
+            return TRUE;
+
+        uint32_t name_len = num_longs * 4;
+        if (name_len>=MAX_BUF)
+        {
+            LOG_printf (LOG_ERROR, "link: symbol name too long.\n");
+            return FALSE;
+        }
+
+        if (fread (g_buf, name_len, 1, f) != 1)
+        {
+            LOG_printf (LOG_ERROR, "link: read error #33.\n");
+            return FALSE;
+        }
+
+        g_buf[name_len] = 0;
+
+        uint32_t offset;
+        if (!fread_u4 (f, &offset))
+        {
+            LOG_printf (LOG_ERROR, "link: read error #34.\n");
+            return FALSE;
+        }
+        LOG_printf (LOG_DEBUG, "link: hunk_symbol: name=%s(len=%d) offset=0x%08lx\n", g_buf, name_len, offset);
+    }
+
+    return TRUE;
+}
+
+static bool load_hunk_debug(string sourcefn, FILE *f)
+{
+    if (!g_hunk_cur)
+    {
+        LOG_printf (LOG_ERROR, "link: debug hunk detected when so segment is defined yet.\n");
+        assert(FALSE);
+        return FALSE;
+    }
+
+    uint32_t num_longs;
+    if (!fread_u4 (f, &num_longs))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #35.\n");
+        return FALSE;
+    }
+
+    if (!num_longs)
+        return TRUE;
+
+    for (uint32_t i=0; i<num_longs; i++)
+    {
+        uint32_t n;
+        if (!fread_u4 (f, &n))
+        {
+            LOG_printf (LOG_ERROR, "link: read error #36.\n");
+            return FALSE;
+        }
+    }
+
+    LOG_printf (LOG_DEBUG, "link: hunk_debug: num_longs=%d\n", num_longs);
 
     return TRUE;
 }
@@ -1006,17 +1088,19 @@ static bool load_hunk_header(FILE *f)
 
 bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
 {
+    LOG_printf (LOG_DEBUG, "link: LI_segmentListReadLoadFile: sourcefn=%s\n", sourcefn);
+
     uint32_t ht;
     if (!fread_u4 (f, &ht))
     {
-        LOG_printf (LOG_ERROR, "link: read error #25.\n");
+        LOG_printf (LOG_ERROR, "link: LI_segmentListReadLoadFile: read error #25.\n");
         return FALSE;
     }
-    LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
+    LOG_printf (LOG_DEBUG, "link: LI_segmentListReadLoadFile: %s: hunk type: %08x\n", sourcefn, ht);
 
     if (ht != HUNK_TYPE_HEADER)
     {
-        LOG_printf (LOG_ERROR, "link: %s: this is not a load file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_HEADER);
+        LOG_printf (LOG_ERROR, "link: LI_segmentListReadLoadFile: %s: this is not a load file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_HEADER);
         return FALSE;
     }
 
@@ -1027,7 +1111,7 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
     {
         if (!fread_u4 (f, &ht))
             break;
-        LOG_printf (LOG_DEBUG, "link: %s: hunk type: %08x\n", sourcefn, ht);
+        LOG_printf (LOG_DEBUG, "link: LI_segmentListReadLoadFile: %s: hunk type: %08x\n", sourcefn, ht);
 
         switch (ht)
         {
@@ -1059,17 +1143,25 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
                 if (!load_hunk_ext(sourcefn, f))
                     return FALSE;
                 break;
+            case HUNK_TYPE_SYMBOL:
+                if (!load_hunk_symbol(sourcefn, f))
+                    return FALSE;
+                break;
+            case HUNK_TYPE_DEBUG:
+                if (!load_hunk_debug(sourcefn, f))
+                    return FALSE;
+                break;
             case HUNK_TYPE_END:
                 if (!g_hunk_cur)
                 {
-                    LOG_printf (LOG_ERROR, "link: hunk_end detected when no hunk was defined.\n");
+                    LOG_printf (LOG_ERROR, "link: LI_segmentListReadLoadFile: hunk_end detected when no hunk was defined.\n");
                     return FALSE;
                 }
                 LI_segmentListAppend (sl, g_hunk_cur);
                 g_hunk_cur = NULL;
                 break;
             default:
-                LOG_printf (LOG_ERROR, "link: unknown hunk type 0x%08x.\n", ht);
+                LOG_printf (LOG_ERROR, "link: LI_segmentListReadLoadFile: unknown hunk type 0x%08x.\n", ht);
                 assert(FALSE);
                 return FALSE;
         }

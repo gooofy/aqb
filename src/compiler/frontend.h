@@ -18,6 +18,7 @@ void            FE_init(void);
 void            FE_boot(void);
 extern S_symbol FE_keywords[];
 extern int      FE_num_keywords;
+bool            FE_isKeyword (S_symbol sym);
 
 #endif
 

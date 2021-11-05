@@ -7381,8 +7381,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         }
         else
         {
-            if ((tkn->kind == S_IDENT) && tkn->next && (tkn->next->kind == S_COLON)
-                && !isSym(tkn, S_PUBLIC) && !isSym(tkn, S_PRIVATE) && !isSym(tkn, S_PROTECTED) )
+            if ( (tkn->kind == S_IDENT) && tkn->next && (tkn->next->kind == S_COLON) && !FE_isKeyword(tkn->u.sym) )
             {
                 Temp_label l = Temp_namedlabel(S_name(tkn->u.sym));
                 if (TAB_look (userLabels, l))
@@ -7467,6 +7466,14 @@ static S_symbol defineKeyword (char *s)
     FE_keywords[FE_num_keywords] = kw;
     FE_num_keywords++;
     return kw;
+}
+
+bool FE_isKeyword (S_symbol sym)
+{
+    for (int i =0; i<FE_num_keywords; i++)
+        if (sym==FE_keywords[i])
+            return TRUE;
+    return FALSE;
 }
 
 void FE_boot(void)

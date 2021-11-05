@@ -276,6 +276,10 @@ struct AS_segment_
     AS_segKind        kind;
     uint32_t          hunk_id;
 
+    // next two fields are used to create an AmigaOS LoadSeg() compatible segment list:
+    uint32_t          segmentSize;
+    uint32_t          bptrNextSegment;
+
     uint8_t          *mem;
     uint32_t          mem_size;
     uint32_t          mem_pos;

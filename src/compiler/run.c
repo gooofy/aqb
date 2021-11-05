@@ -417,8 +417,18 @@ asm(
 
 #endif
 
-#if 1
-static LI_segmentList _loadSeg(char *binfn)
+static void dumpSegmentList(BPTR seglist)
+{
+    ULONG *sl = BADDR(seglist);
+
+    while (sl)
+    {
+        LOG_printf (LOG_INFO, "dumpSegmentList: SEGMENT 0x%08lx size=%d bytes, next: 0x%08lx\n", sl, *(sl-1), *sl);
+        sl = BADDR(*sl);
+    }
+}
+
+static BPTR _loadSeg(char *binfn)
 {
     LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
 
@@ -426,21 +436,39 @@ static LI_segmentList _loadSeg(char *binfn)
     if (!f)
     {
         LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s\n\n", binfn);
-        return NULL;
+        return 0;
     }
+
     LI_segmentList sl = LI_SegmentList();
 
     if (!LI_segmentListReadLoadFile (sl, binfn, f))
     {
         fclose (f);
         LOG_printf (LOG_ERROR, "*** ERROR: failed to read %s\n\n", binfn);
-        return NULL;
+        return 0;
     }
     fclose (f);
 
-    return sl;
+    // FIXME: LI_relocate (sl);
+
+    // create AmigaDOS style seglist
+
+    for (LI_segmentListNode sln=sl->first; sln; sln=sln->next)
+    {
+        AS_segment seg = sln->seg;
+        seg->segmentSize = seg->mem_pos+8;
+        if (sln->next)
+        {
+            seg->bptrNextSegment = MKBADDR(&sln->next->seg->bptrNextSegment);
+        }
+        else
+        {
+            seg->bptrNextSegment = 0;
+        }
+    }
+
+    return sl->first ? MKBADDR(&sl->first->seg->bptrNextSegment) : 0;
 }
-#endif
 
 static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 {
@@ -448,9 +476,10 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 
 #if 1
     // FIXME: experimental custom loader, handles debug info
-    LI_segmentList sl = _loadSeg(binfn);
-    if (!sl)
+    BPTR seglist = _loadSeg(binfn);
+    if (!seglist)
         return;
+    dumpSegmentList(seglist);
 #endif
 
 #if 1
@@ -462,6 +491,8 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
         LOG_printf (LOG_ERROR, "failed to load %s\n\n", binfn);
         return;
     }
+
+    dumpSegmentList(env->seglist);
 
     LOG_printf (LOG_INFO, "Running %s ...\n\n", binfn);
 
