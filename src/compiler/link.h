@@ -27,5 +27,6 @@ bool           LI_link                      (LI_segmentList sl);
 void           LI_segmentListWriteLoadFile  (LI_segmentList sl, string loadfn);
 
 bool           LI_segmentListReadLoadFile   (LI_segmentList sl, string sourcefn, FILE *f);
+bool           LI_relocate                  (LI_segmentList sl);
 
 #endif

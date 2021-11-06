@@ -284,7 +284,7 @@ struct AS_segment_
     uint32_t          mem_size;
     uint32_t          mem_pos;
 
-    TAB_table         relocs;               // AS_segment -> AS_segementReloc32...
+    TAB_table         relocs;               // AS_segment -> AS_segmentReloc32...
     TAB_table         refs;                 // S_symbol -> AS_segmentRef
     AS_segmentDef     defs;
     AS_srcMapNode     srcMap, srcMapLast;   // debug info

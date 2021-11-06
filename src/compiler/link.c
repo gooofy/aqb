@@ -1111,7 +1111,7 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
     {
         if (!fread_u4 (f, &ht))
             break;
-        LOG_printf (LOG_DEBUG, "link: LI_segmentListReadLoadFile: %s: hunk type: %08x\n", sourcefn, ht);
+        LOG_printf (LOG_DEBUG, "link: LI_segmentListReadLoadFile: %s: hunk type: %08x g_hunk_id_cnt=%d\n", sourcefn, ht, g_hunk_id_cnt);
 
         switch (ht)
         {
@@ -1166,6 +1166,35 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
                 return FALSE;
         }
     }
+    return TRUE;
+}
+
+bool LI_relocate (LI_segmentList sl)
+{
+    for (LI_segmentListNode node = sl->first; node; node=node->next)
+    {
+        if (!node->seg->relocs)
+            continue;
+        TAB_iter i = TAB_Iter (node->seg->relocs);
+        AS_segment seg;
+        AS_segmentReloc32 r32;
+        while (TAB_next (i, (void **)&seg, (void**) &r32))
+        {
+            while (r32)
+            {
+                uint32_t *ptr = (uint32_t *)(node->seg->mem + r32->offset);
+                uint32_t ov = *ptr;
+                uint32_t seg_mem = (uint32_t) (uintptr_t) seg->mem;
+                uint32_t nv = ov + seg_mem;
+                LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
+                            node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
+                assert(seg_mem);
+                *ptr = nv;
+                r32 = r32->next;
+            }
+        }
+    }
+
     return TRUE;
 }
 

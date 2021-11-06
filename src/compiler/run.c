@@ -428,7 +428,7 @@ static void dumpSegmentList(BPTR seglist)
     }
 }
 
-static BPTR _loadSeg(char *binfn)
+static LI_segmentList _loadSeg(char *binfn)
 {
     LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
 
@@ -449,7 +449,9 @@ static BPTR _loadSeg(char *binfn)
     }
     fclose (f);
 
-    // FIXME: LI_relocate (sl);
+    LI_relocate (sl);
+    LOG_printf (LOG_INFO, "\n hex dump: beginning of first segment\n");
+    hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
 
     // create AmigaDOS style seglist
 
@@ -467,24 +469,25 @@ static BPTR _loadSeg(char *binfn)
         }
     }
 
-    return sl->first ? MKBADDR(&sl->first->seg->bptrNextSegment) : 0;
+    // clear cpu caches
+    CacheClearU();
+
+    return sl;
 }
 
 static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
 
+    LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
 #if 1
     // FIXME: experimental custom loader, handles debug info
-    BPTR seglist = _loadSeg(binfn);
-    if (!seglist)
+    LI_segmentList sl = _loadSeg(binfn);
+    if (!sl || !sl->first)
         return;
-    dumpSegmentList(seglist);
 #endif
 
-#if 1
-
-    LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
+#if 0
     env->seglist = LoadSeg((STRPTR)binfn);
     if (!env->seglist)
     {
@@ -492,7 +495,18 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
         return;
     }
 
+#endif
+    env->seglist = MKBADDR(&sl->first->seg->bptrNextSegment);
     dumpSegmentList(env->seglist);
+
+#if 0
+    // insert a breakpoint right at the start
+
+    {
+        uint32_t *ptr = (uint32_t *) sl->first->seg->mem;
+        *ptr = 0x4e41; // trap #1
+    }
+#endif
 
     LOG_printf (LOG_INFO, "Running %s ...\n\n", binfn);
 
@@ -579,7 +593,6 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
     env->state = RUN_stateRunning;
 
 	LOG_printf (LOG_DEBUG, "RUN _launch_process: done. state is %d now.\n", env->state);
-    #endif
 }
 
 void RUN_start (const char *binfn)
