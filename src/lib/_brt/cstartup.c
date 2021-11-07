@@ -48,7 +48,7 @@ static struct MsgPort   *g_dbgPort               = NULL;
 
 void _debug_putc(const char c)
 {
-    if (_startup_mode == STARTUP_DEBUG)
+    if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
 	{
         _dbgOutputMsg.msg.mn_Node.ln_Succ = NULL;
         _dbgOutputMsg.msg.mn_Node.ln_Pred = NULL;
@@ -74,7 +74,7 @@ void _debug_putc(const char c)
 
 void _debug_puts(const UBYTE *s)
 {
-    if (_startup_mode == STARTUP_DEBUG)
+    if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
 	{
         _dbgOutputMsg.msg.mn_Node.ln_Succ = NULL;
         _dbgOutputMsg.msg.mn_Node.ln_Pred = NULL;
@@ -229,22 +229,20 @@ static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a
 // gets called by _autil_exit
 void _c_atexit(void)
 {
-#ifdef ENABLE_DEBUG
-    if (DOSBase)
-        _debug_puts("_c_atexit...\n");
-#endif
+    DPRINTF("_c_atexit...\n");
+    Delay(50);
 
     for (int i = num_exit_handlers-1; i>=0; i--)
     {
-#ifdef ENABLE_DEBUG
-        if (DOSBase)
-            _debug_puts("calling user exit handler...\n");
-#endif
+        DPRINTF("_c_atexit: calling user exit handler #%d...\n", i);
+        Delay(50);
         exit_handlers[i]();
     }
 
     if (g_InputHandlerInstalled)
     {
+        DPRINTF("_c_atexit: remove input handler\n");
+        Delay(50);
         g_inputReqBlk->io_Data    = (APTR)g_inputHandler;
         g_inputReqBlk->io_Command = IND_REMHANDLER;
 
@@ -252,35 +250,69 @@ void _c_atexit(void)
     }
 
     if (g_inputDeviceOpen)
+    {
+        DPRINTF("_c_atexit: close input.device\n");
+        Delay(50);
         CloseDevice((struct IORequest *)g_inputReqBlk);
+    }
 
     if (g_inputReqBlk)
+    {
+        DPRINTF("_c_atexit: delete input io req\n");
+        Delay(50);
         _autil_delete_ext_io((struct IORequest *)g_inputReqBlk);
+    }
 
     if (g_inputHandler)
+    {
+        DPRINTF("_c_atexit: free input handler\n");
+        Delay(50);
         FreeMem(g_inputHandler, sizeof(struct Interrupt));
+    }
 
     if (g_inputPort)
+    {
+        DPRINTF("_c_atexit: delete input port\n");
+        Delay(50);
         _autil_delete_port(g_inputPort);
+    }
 
     if (g_dbgPort)
+    {
+        DPRINTF("_c_atexit: delete dbg port\n");
+        Delay(50);
         _autil_delete_port(g_dbgPort);
+        g_dbgPort = NULL;
+    }
 
     if (autil_init_done)
+    {
+        DPRINTF("_c_atexit: _autil_shutdown\n");
+        Delay(50);
         _autil_shutdown();
+    }
 
     if (MathTransBase)
+    {
+        DPRINTF("_c_atexit: close mathtrans.library\n");
+        Delay(50);
         CloseLibrary( (struct Library *)MathTransBase);
+    }
     if (MathBase)
+    {
+        DPRINTF("_c_atexit: close mathbase.library\n");
+        Delay(50);
         CloseLibrary( (struct Library *)MathBase);
+    }
 
-#ifdef ENABLE_DEBUG
-    if (DOSBase)
-        _debug_puts("_c_atexit... finishing.\n");
-#endif
+    DPRINTF("_c_atexit: finishing.\n");
+    Delay(50);
 
     if (DOSBase)
+    {
+        _debug_stdout = 0;
         CloseLibrary( (struct Library *)DOSBase);
+    }
 }
 
 void _cshutdown (LONG return_code, UBYTE *msg)
@@ -294,33 +326,6 @@ void _cshutdown (LONG return_code, UBYTE *msg)
 void ___breakHandler (register ULONG signals __asm("d0"), register APTR exceptData __asm("a1"))
 {
     _break_status = BREAK_CTRL_C;
-#if 0
-    // dos call pending ?
-
-    Forbid();
-    ULONG sigWait  = g_task->tc_SigWait;
-    ULONG sigRecvd = g_task->tc_SigRecvd;
-    BOOL inDos = (sigWait ^ sigRecvd) & SIGF_DOS;
-
-    if (inDos)
-    {
-        Permit();
-        return;
-    }
-
-    //Permit();
-
-    //_debug_puts ((STRPTR)"\n\n*** ___breakHandler called g_task->tc_SigWait=");
-    //_debug_putu4 (sigWait);
-    //_debug_puts ((STRPTR)" g_task->tc_SigRecvd=");
-    //_debug_putu4 (sigRecvd);
-    //_debug_puts ((STRPTR)" inDos=");
-    //_debug_puts2 (inDos);
-    //_debug_puts ((STRPTR)"\n\n");
-
-    //_breakCode = BREAK_CTRL_C;
-    _autil_exit(1);
-#endif
 }
 
 static char *g_inputHandlerName = "AQB CTRL-C input event handler";
