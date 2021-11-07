@@ -132,6 +132,7 @@ void      UI_HelpBrowser        (void);
 
 #ifdef __amigaos__
 struct MsgPort    *UI_debugPort (void);
+void      UI_toFront            (void);
 #endif
 
 bool      UI_init               (void);

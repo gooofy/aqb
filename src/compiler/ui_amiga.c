@@ -1044,5 +1044,12 @@ void UI_run (void)
 	}
 }
 
+void UI_toFront(void)
+{
+    WBenchToFront();
+    WindowToFront(g_win);
+    ActivateWindow(g_win);
+}
+
 #endif
 

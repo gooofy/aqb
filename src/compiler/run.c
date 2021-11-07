@@ -614,6 +614,7 @@ void RUN_help (char *binfn, char *arg1)
 
 static void _debug(struct DebugMsg *msg)
 {
+    UI_toFront();
     UI_tprintf ("\n\n*** AQB DEBUG ***\n\n");
 
     switch (g_trapCode)
