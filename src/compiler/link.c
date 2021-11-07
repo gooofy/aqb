@@ -42,6 +42,7 @@
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static char       g_name[MAX_BUF];             // current hunk name
 static AS_segment g_hunk_table[MAX_NUM_HUNKS]; // used during hunk object loading
+static uint32_t   g_hunk_sizes[MAX_NUM_HUNKS]; // used during load file loading
 static int        g_hunk_id_cnt;
 static AS_segment g_hunk_cur;                  // last code/data/bss hunk read
 static FILE      *g_fObjFile=NULL;             // object file being written
@@ -272,9 +273,10 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
         return FALSE;
     }
     bss_len *=4;
-    LOG_printf (LOG_DEBUG, "link: %s: bss hunk size: %d bytes.\n", sourcefn, bss_len);
+    LOG_printf (LOG_DEBUG, "link: %s: bss hunk size: %d bytes (hdr: %d bytes).\n", sourcefn, bss_len, g_hunk_sizes[g_hunk_id_cnt]*4);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_bssSeg, 0);
+    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt, AS_bssSeg, g_hunk_sizes[g_hunk_id_cnt]*4);
+    g_hunk_id_cnt++;
 
     strcpy (g_name, "unnamed");
 
@@ -565,6 +567,9 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
         LOG_printf (LOG_ERROR, "link: %s: this is not an object file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_UNIT);
         return FALSE;
     }
+
+    for (uint32_t i = 0; i<MAX_NUM_HUNKS; i++)
+        g_hunk_sizes[i] = 0;
 
     if (!load_hunk_unit(f))
         return FALSE;
@@ -1068,15 +1073,13 @@ static bool load_hunk_header(FILE *f)
         return FALSE;
     }
 
-    uint32_t num_hunk_sizes = last_hunk_slot - first_hunk_slot + 1;
-
     LOG_printf (LOG_DEBUG, "link: reading hunk header, table_size=%d, first_hunk_slot=%d, last_hunk_slot=%d\n", table_size, first_hunk_slot, last_hunk_slot);
 
-    // hunk_sizes = []
-    for (uint32_t i = 0; i<num_hunk_sizes; i++)
+    assert (last_hunk_slot < MAX_NUM_HUNKS);
+
+    for (uint32_t i = first_hunk_slot; i<=last_hunk_slot; i++)
     {
-        uint32_t hs;
-        if (!fread_u4 (f, &hs))
+        if (!fread_u4 (f, &g_hunk_sizes[i]))
         {
             LOG_printf (LOG_ERROR, "link: read error #31.\n");
             return FALSE;
@@ -1103,6 +1106,9 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
         LOG_printf (LOG_ERROR, "link: LI_segmentListReadLoadFile: %s: this is not a load file, header mismatch: found 0x%08x, expected %08x\n", sourcefn, ht, HUNK_TYPE_HEADER);
         return FALSE;
     }
+
+    for (uint32_t i = 0; i<MAX_NUM_HUNKS; i++)
+        g_hunk_sizes[i] = 0;
 
     if (!load_hunk_header(f))
         return FALSE;
@@ -1182,12 +1188,14 @@ bool LI_relocate (LI_segmentList sl)
         {
             while (r32)
             {
+                assert (r32->offset < node->seg->mem_size);
                 uint32_t *ptr = (uint32_t *)(node->seg->mem + r32->offset);
                 uint32_t ov = *ptr;
                 uint32_t seg_mem = (uint32_t) (uintptr_t) seg->mem;
                 uint32_t nv = ov + seg_mem;
                 LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
                             node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
+                assert (ov < seg->mem_size);
                 assert(seg_mem);
                 *ptr = nv;
                 r32 = r32->next;

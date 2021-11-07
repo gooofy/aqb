@@ -423,11 +423,12 @@ static void dumpSegmentList(BPTR seglist)
 
     while (sl)
     {
-        LOG_printf (LOG_INFO, "dumpSegmentList: SEGMENT 0x%08lx size=%d bytes, next: 0x%08lx\n", sl, *(sl-1), *sl);
+        LOG_printf (LOG_DEBUG, "dumpSegmentList: SEGMENT 0x%08lx size=%d bytes, next: 0x%08lx\n", sl, *(sl-1), *sl);
         sl = BADDR(*sl);
     }
 }
 
+#if 1
 static LI_segmentList _loadSeg(char *binfn)
 {
     LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
@@ -474,6 +475,7 @@ static LI_segmentList _loadSeg(char *binfn)
 
     return sl;
 }
+#endif
 
 static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 {
@@ -485,9 +487,8 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
     LI_segmentList sl = _loadSeg(binfn);
     if (!sl || !sl->first)
         return;
-#endif
-
-#if 0
+    env->seglist = MKBADDR(&sl->first->seg->bptrNextSegment);
+#else
     env->seglist = LoadSeg((STRPTR)binfn);
     if (!env->seglist)
     {
@@ -496,7 +497,6 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
     }
 
 #endif
-    env->seglist = MKBADDR(&sl->first->seg->bptrNextSegment);
     dumpSegmentList(env->seglist);
 
 #if 0

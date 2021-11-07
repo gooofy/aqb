@@ -924,9 +924,10 @@ static uint32_t instr_size (AS_instr instr)
 
 void AS_ensureSegmentSize (AS_segment seg, uint32_t min_size)
 {
+    uint32_t ms = min_size ? min_size : 64;
     if (seg->mem_size < min_size)
     {
-        uint32_t s = seg->mem_size ? seg->mem_size : 256;
+        uint32_t s = seg->mem_size ? seg->mem_size : ms;
         while (s<min_size)
             s = s * 2;
         if (!seg->mem)
