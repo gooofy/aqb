@@ -28,7 +28,7 @@
 #include <clib/console_protos.h>
 #include <pragmas/console_pragmas.h>
 
-//#define ENABLE_DEBUG
+#define ENABLE_DEBUG
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -298,13 +298,17 @@ void WINDOW_CLOSE(short id)
 
     // call close callbacks first
     for (win_cb_node_t n=g_win_cb_list[id-1]; n; n=n->next)
+    {
+        DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
         n->cb(g_winlist[id-1]);
+    }
 
     if (g_winlist[id-1]->RPort->TmpRas)
     {
         FreeVec ((PLANEPTR) g_winlist[id-1]->RPort->TmpRas->RasPtr);
         FreeVec (g_winlist[id-1]->RPort->TmpRas);
     }
+    DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, g_winlist[id-1]);
     CloseWindow(g_winlist[id-1]);
     g_winlist[id-1]=NULL;
 }
@@ -361,6 +365,9 @@ void _awindow_shutdown(void)
 #endif
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_awindow_shutdown g_winlist[%d]=0x%08lx\n", i, g_winlist[i]);
+#endif
         if (g_winlist[i])
             WINDOW_CLOSE(i+1);
     }
