@@ -177,7 +177,7 @@ static bool load_hunk_name(string sourcefn, FILE *f)
     return TRUE;
 }
 
-static AS_segment getOrCreateSegment (string sourcefn, string name, int id, AS_segKind kind, size_t min_size)
+static AS_segment getOrCreateSegment (U_poolId pid, string sourcefn, string name, int id, AS_segKind kind, size_t min_size)
 {
     if (id >= MAX_NUM_HUNKS)
     {
@@ -189,7 +189,7 @@ static AS_segment getOrCreateSegment (string sourcefn, string name, int id, AS_s
 
     if (!seg)
     {
-        seg = AS_Segment(sourcefn, name, kind, min_size);
+        seg = AS_Segment(pid, sourcefn, name, kind, min_size);
         g_hunk_table[id] = seg;
         return seg;
     }
@@ -205,12 +205,12 @@ static AS_segment getOrCreateSegment (string sourcefn, string name, int id, AS_s
     if (!seg->name && name)
         seg->name = name;
 
-    AS_ensureSegmentSize (seg, min_size);
+    AS_ensureSegmentSize (pid, seg, min_size);
 
     return seg;
 }
 
-static bool load_hunk_code(string sourcefn, FILE *f)
+static bool load_hunk_code(U_poolId pid, string sourcefn, FILE *f)
 {
     uint32_t code_len;
     if (!fread_u4 (f, &code_len))
@@ -221,7 +221,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
     code_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: code hunk size: %d bytes.\n", sourcefn, code_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_codeSeg, code_len);
+    g_hunk_cur = getOrCreateSegment (pid, sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_codeSeg, code_len);
 
     strcpy (g_name, "unnamed");
 
@@ -238,7 +238,7 @@ static bool load_hunk_code(string sourcefn, FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_data(string sourcefn, FILE *f)
+static bool load_hunk_data(U_poolId pid, string sourcefn, FILE *f)
 {
     uint32_t data_len;
     if (!fread_u4 (f, &data_len))
@@ -249,7 +249,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
     data_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: data hunk size: %d bytes.\n", sourcefn, data_len);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_dataSeg, data_len);
+    g_hunk_cur = getOrCreateSegment (pid, sourcefn, String(UP_link, g_name), g_hunk_id_cnt++, AS_dataSeg, data_len);
 
     strcpy (g_name, "unnamed");
 
@@ -264,7 +264,7 @@ static bool load_hunk_data(string sourcefn, FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_bss(string sourcefn, FILE *f)
+static bool load_hunk_bss(U_poolId pid, string sourcefn, FILE *f)
 {
     uint32_t bss_len;
     if (!fread_u4 (f, &bss_len))
@@ -275,7 +275,7 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
     bss_len *=4;
     LOG_printf (LOG_DEBUG, "link: %s: bss hunk size: %d bytes (hdr: %d bytes).\n", sourcefn, bss_len, g_hunk_sizes[g_hunk_id_cnt]*4);
 
-    g_hunk_cur = getOrCreateSegment (sourcefn, String(UP_link, g_name), g_hunk_id_cnt, AS_bssSeg, g_hunk_sizes[g_hunk_id_cnt]*4);
+    g_hunk_cur = getOrCreateSegment (pid, sourcefn, String(UP_link, g_name), g_hunk_id_cnt, AS_bssSeg, g_hunk_sizes[g_hunk_id_cnt]*4);
     g_hunk_id_cnt++;
 
     strcpy (g_name, "unnamed");
@@ -286,7 +286,7 @@ static bool load_hunk_bss(string sourcefn, FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_reloc32(string sourcefn, FILE *f)
+static bool load_hunk_reloc32(U_poolId pid, string sourcefn, FILE *f)
 {
     uint32_t num_offs, hunk_id;
 
@@ -306,7 +306,7 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
         }
         LOG_printf (LOG_DEBUG, "link: %s: reloc32: %d offsets in hunk #%d.\n", sourcefn, num_offs, hunk_id);
 
-        AS_segment seg = getOrCreateSegment (sourcefn, NULL, hunk_id, AS_unknownSeg, /*min_size=*/0);
+        AS_segment seg = getOrCreateSegment (pid, sourcefn, NULL, hunk_id, AS_unknownSeg, /*min_size=*/0);
 
         for (uint32_t i=0; i<num_offs; i++)
         {
@@ -316,14 +316,14 @@ static bool load_hunk_reloc32(string sourcefn, FILE *f)
                 LOG_printf (LOG_ERROR, "link: read error #12.\n");
                 return FALSE;
             }
-            AS_segmentAddReloc32 (g_hunk_cur, seg, off);
+            AS_segmentAddReloc32 (pid, g_hunk_cur, seg, off);
         }
     }
 
     return TRUE;
 }
 
-static bool load_hunk_ext(string sourcefn, FILE *f)
+static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
@@ -384,7 +384,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                         return FALSE;
                     }
 
-                    AS_segmentAddRef (g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/0);
+                    AS_segmentAddRef (pid, g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/0);
                 }
                 break;
             }
@@ -411,7 +411,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                         return FALSE;
                     }
 
-                    AS_segmentAddRef (g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/common_size);
+                    AS_segmentAddRef (pid, g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/common_size);
                 }
                 break;
             }
@@ -423,7 +423,7 @@ static bool load_hunk_ext(string sourcefn, FILE *f)
                     LOG_printf (LOG_ERROR, "link: read error #20.\n");
                     return FALSE;
                 }
-                AS_segmentAddDef (g_hunk_cur, sym, offset);
+                AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
                 LOG_printf (LOG_DEBUG, "link: %s:  -> ext_def, offset=0x%08x\n", sourcefn, offset);
                 break;
             }
@@ -552,7 +552,7 @@ static bool load_hunk_debug(string sourcefn, FILE *f)
     return TRUE;
 }
 
-bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
+bool LI_segmentListReadObjectFile (U_poolId pid, LI_segmentList sl, string sourcefn, FILE *f)
 {
     uint32_t ht;
     if (!fread_u4 (f, &ht))
@@ -593,23 +593,23 @@ bool LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f)
                     return FALSE;
                 break;
             case HUNK_TYPE_CODE:
-                if (!load_hunk_code(sourcefn, f))
+                if (!load_hunk_code(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_DATA:
-                if (!load_hunk_data(sourcefn, f))
+                if (!load_hunk_data(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_BSS:
-                if (!load_hunk_bss(sourcefn, f))
+                if (!load_hunk_bss(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_RELOC32:
-                if (!load_hunk_reloc32(sourcefn, f))
+                if (!load_hunk_reloc32(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_EXT:
-                if (!load_hunk_ext(sourcefn, f))
+                if (!load_hunk_ext(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_END:
@@ -637,7 +637,7 @@ struct symInfo_
     uint32_t    offset;
 };
 
-bool LI_link (LI_segmentList sl)
+bool LI_link (U_poolId pid, LI_segmentList sl)
 {
     TAB_table symTable = TAB_empty(UP_link);   // S_symbol -> symInfo
 
@@ -691,7 +691,7 @@ bool LI_link (LI_segmentList sl)
                 }
                 if (!commonSeg)
                 {
-                    commonSeg = AS_Segment ("common", "common", AS_dataSeg, 0);
+                    commonSeg = AS_Segment (pid, "common", "common", AS_dataSeg, 0);
                     commonSeg->hunk_id = hunk_id++;
                     LI_segmentListAppend (sl, commonSeg);
                 }
@@ -714,7 +714,7 @@ bool LI_link (LI_segmentList sl)
                             S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
                 uint32_t *p = (uint32_t *) (node->seg->mem+sr->offset);
                 *p = ENDIAN_SWAP_32(si->offset);
-                AS_segmentAddReloc32 (node->seg, si->seg, sr->offset);
+                AS_segmentAddReloc32 (pid, node->seg, si->seg, sr->offset);
 #if LOG_LEVEL == LOG_DEBUG
                 //hexdump (node->seg->mem, sr->offset-4, 16);
 #endif
@@ -1089,7 +1089,7 @@ static bool load_hunk_header(FILE *f)
     return TRUE;
 }
 
-bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
+bool LI_segmentListReadLoadFile (U_poolId pid, LI_segmentList sl, string sourcefn, FILE *f)
 {
     LOG_printf (LOG_DEBUG, "link: LI_segmentListReadLoadFile: sourcefn=%s\n", sourcefn);
 
@@ -1130,23 +1130,23 @@ bool LI_segmentListReadLoadFile (LI_segmentList sl, string sourcefn, FILE *f)
                     return FALSE;
                 break;
             case HUNK_TYPE_CODE:
-                if (!load_hunk_code(sourcefn, f))
+                if (!load_hunk_code(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_DATA:
-                if (!load_hunk_data(sourcefn, f))
+                if (!load_hunk_data(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_BSS:
-                if (!load_hunk_bss(sourcefn, f))
+                if (!load_hunk_bss(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_RELOC32:
-                if (!load_hunk_reloc32(sourcefn, f))
+                if (!load_hunk_reloc32(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_EXT:
-                if (!load_hunk_ext(sourcefn, f))
+                if (!load_hunk_ext(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_SYMBOL:

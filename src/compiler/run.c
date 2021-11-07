@@ -421,6 +421,7 @@ static void dumpSegmentList(BPTR seglist)
 {
     ULONG *sl = BADDR(seglist);
 
+    LOG_printf (LOG_DEBUG, "dumpSegmentList: seglist=0x%08lx sl=0x%08lx\n", seglist, sl);
     while (sl)
     {
         uint16_t *p = (uint16_t*)(sl+1);
@@ -443,7 +444,7 @@ static LI_segmentList _loadSeg(char *binfn)
 
     LI_segmentList sl = LI_SegmentList();
 
-    if (!LI_segmentListReadLoadFile (sl, binfn, f))
+    if (!LI_segmentListReadLoadFile (UP_runChild, sl, binfn, f))
     {
         fclose (f);
         LOG_printf (LOG_ERROR, "*** ERROR: failed to read %s\n\n", binfn);
@@ -472,11 +473,14 @@ static LI_segmentList _loadSeg(char *binfn)
         {
             ptr[1] = 0;
         }
-        LOG_printf (LOG_DEBUG, "seglist: 0x%08lx 0x%08lx 0x%08lx\n", ptr[0], ptr[1], ptr[2]);
+        LOG_printf (LOG_DEBUG, "_loadSeg: creating seglist: 0x%08lx 0x%08lx 0x%08lx\n", ptr[0], ptr[1], ptr[2]);
     }
+    LOG_printf (LOG_DEBUG, "_loadSeg: creating seglist: done.\n");
 
     // clear cpu caches
     CacheClearU();
+
+    LOG_printf (LOG_DEBUG, "_loadSeg: done.\n");
 
     return sl;
 }

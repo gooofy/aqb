@@ -329,12 +329,12 @@ struct AS_srcMapNode_
     uint32_t          offset;
 };
 
-AS_segment         AS_Segment            (string sourcefn, string name, AS_segKind kind, uint32_t initial_size);
+AS_segment         AS_Segment            (U_poolId pid, string sourcefn, string name, AS_segKind kind, uint32_t initial_size);
 
-void               AS_segmentAddReloc32  (AS_segment seg, AS_segment seg_to, uint32_t off);
-void               AS_segmentAddRef      (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
-void               AS_segmentAddDef      (AS_segment seg, S_symbol sym, uint32_t off);
-void               AS_ensureSegmentSize  (AS_segment seg, uint32_t min_size);
+void               AS_segmentAddReloc32  (U_poolId pid, AS_segment seg, AS_segment seg_to, uint32_t off);
+void               AS_segmentAddRef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
+void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off);
+void               AS_ensureSegmentSize  (U_poolId pid, AS_segment seg, uint32_t min_size);
 
 AS_object          AS_Object             (string sourcefn, string name);
 

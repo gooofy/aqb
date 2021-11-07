@@ -22,11 +22,11 @@ LI_segmentList LI_SegmentList(void);
 void           LI_segmentWriteObjectFile    (AS_object obj, string objfn);
 
 void           LI_segmentListAppend         (LI_segmentList sl, AS_segment seg);
-bool           LI_segmentListReadObjectFile (LI_segmentList sl, string sourcefn, FILE *f);
-bool           LI_link                      (LI_segmentList sl);
+bool           LI_segmentListReadObjectFile (U_poolId pid, LI_segmentList sl, string sourcefn, FILE *f);
+bool           LI_link                      (U_poolId pid, LI_segmentList sl);
 void           LI_segmentListWriteLoadFile  (LI_segmentList sl, string loadfn);
 
-bool           LI_segmentListReadLoadFile   (LI_segmentList sl, string sourcefn, FILE *f);
+bool           LI_segmentListReadLoadFile   (U_poolId pid, LI_segmentList sl, string sourcefn, FILE *f);
 bool           LI_relocate                  (LI_segmentList sl);
 
 #endif

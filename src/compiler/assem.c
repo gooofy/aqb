@@ -778,15 +778,15 @@ void AS_printInstrSet (FILE *out, AS_instrSet iSet)
 
 static uint32_t g_hunk_id = 0;
 
-AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, uint32_t initial_size)
+AS_segment AS_Segment (U_poolId pid, string sourcefn, string name, AS_segKind kind, uint32_t initial_size)
 {
-    AS_segment seg = U_poolAlloc (UP_assem, sizeof(*seg));
+    AS_segment seg = U_poolAlloc (pid, sizeof(*seg));
 
     seg->sourcefn    = sourcefn;
     seg->name        = name;
     seg->kind        = kind;
     seg->hunk_id     = g_hunk_id++;
-    seg->mem         = initial_size ? U_poolNonChunkAlloc (UP_assem, initial_size) : NULL;
+    seg->mem         = initial_size ? U_poolNonChunkAlloc (pid, initial_size) : NULL;
     seg->mem_size    = initial_size;
     seg->mem_pos     = 0;
     seg->relocs      = NULL;
@@ -798,14 +798,14 @@ AS_segment AS_Segment (string sourcefn, string name, AS_segKind kind, uint32_t i
     return seg;
 }
 
-void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
+void AS_segmentAddReloc32 (U_poolId pid, AS_segment seg, AS_segment seg_to, uint32_t off)
 {
     if (!seg->relocs)
-        seg->relocs = TAB_empty(UP_assem);
+        seg->relocs = TAB_empty(pid);
 
     AS_segmentReloc32 prev = TAB_look (seg->relocs, seg_to);
 
-    AS_segmentReloc32 reloc = U_poolAlloc (UP_assem, sizeof(*reloc));
+    AS_segmentReloc32 reloc = U_poolAlloc (pid, sizeof(*reloc));
 
     reloc->offset = off;
     reloc->next   = prev;
@@ -813,12 +813,12 @@ void AS_segmentAddReloc32 (AS_segment seg, AS_segment seg_to, uint32_t off)
     TAB_enter (seg->relocs, seg_to, reloc);
 }
 
-void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size)
+void AS_segmentAddRef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size)
 {
     if (!seg->refs)
-        seg->refs = TAB_empty(UP_assem);
+        seg->refs = TAB_empty(pid);
 
-    AS_segmentRef ref = U_poolAlloc (UP_assem, sizeof(*ref));
+    AS_segmentRef ref = U_poolAlloc (pid, sizeof(*ref));
 
     ref->offset      = off;
     ref->w           = w;
@@ -832,9 +832,9 @@ void AS_segmentAddRef (AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w
     TAB_enter (seg->refs, sym, ref);
 }
 
-void AS_segmentAddDef (AS_segment seg, S_symbol sym, uint32_t off)
+void AS_segmentAddDef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off)
 {
-    AS_segmentDef def = U_poolAlloc (UP_assem, sizeof(*def));
+    AS_segmentDef def = U_poolAlloc (pid, sizeof(*def));
 
     def->sym    = sym;
     def->offset = off;
@@ -924,7 +924,7 @@ static uint32_t instr_size (AS_instr instr)
 }
 #endif
 
-void AS_ensureSegmentSize (AS_segment seg, uint32_t min_size)
+void AS_ensureSegmentSize (U_poolId pid, AS_segment seg, uint32_t min_size)
 {
     uint32_t ms = min_size ? min_size : 64;
     if (seg->mem_size < min_size)
@@ -932,16 +932,19 @@ void AS_ensureSegmentSize (AS_segment seg, uint32_t min_size)
         uint32_t s = seg->mem_size ? seg->mem_size : ms;
         while (s<min_size)
             s = s * 2;
+
+        uint8_t *mem = U_poolNonChunkCAlloc (pid, s+SEGLIST_HEADER_SIZE);
+        mem += SEGLIST_HEADER_SIZE;
+
         if (!seg->mem)
         {
-            seg->mem  = U_poolNonChunkCAlloc (UP_assem, s+SEGLIST_HEADER_SIZE) + SEGLIST_HEADER_SIZE;
+            seg->mem  = mem;
 #if LOG_LEVEL == LOG_DEBUG
             LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes\n", s);
 #endif
         }
         else
         {
-            uint8_t *mem = U_poolNonChunkCAlloc (UP_assem, s+SEGLIST_HEADER_SIZE) + SEGLIST_HEADER_SIZE;
             memcpy (mem, seg->mem, seg->mem_size);
             seg->mem = mem;
 #if LOG_LEVEL == LOG_DEBUG
@@ -984,7 +987,7 @@ static void emit_u1 (AS_segment seg, uint8_t b)
     LOG_printf (LOG_DEBUG, "0x%08zx: 0x%02x\n", seg->mem_pos, b);
 #endif
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+1);
+    AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+1);
     uint8_t *p = (uint8_t *) (seg->mem + seg->mem_pos);
     *p = b;
     seg->mem_pos += 1;
@@ -1010,7 +1013,7 @@ static void emit_u2 (AS_segment seg, uint16_t w)
     LOG_printf (LOG_DEBUG, "0x%08zx: 0x%04x\n", seg->mem_pos, w);
 #endif
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+2);
+    AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+2);
     uint16_t *p = (uint16_t *) (seg->mem + seg->mem_pos);
     *p = ENDIAN_SWAP_16(w);
     seg->mem_pos += 2;
@@ -1022,7 +1025,7 @@ static void emit_i2 (AS_segment seg, int16_t w)
     LOG_printf (LOG_DEBUG, "0x%08zx: 0x%04x\n", seg->mem_pos, w);
 #endif
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+2);
+    AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+2);
     int16_t *p = (int16_t *) (seg->mem + seg->mem_pos);
     *p = ENDIAN_SWAP_16(w);
     seg->mem_pos += 2;
@@ -1034,7 +1037,7 @@ static void emit_u4 (AS_segment seg, uint32_t w)
     LOG_printf (LOG_DEBUG, "0x%08zx: 0x%08x\n", seg->mem_pos, w);
 #endif
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+4);
+    AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+4);
     uint32_t *p = (uint32_t *) (seg->mem + seg->mem_pos);
     *p = ENDIAN_SWAP_32(w);
     seg->mem_pos += 4;
@@ -1046,7 +1049,7 @@ static void emit_i4 (AS_segment seg, int32_t w)
     LOG_printf (LOG_DEBUG, "0x%08zx: 0x%08x\n", seg->mem_pos, w);
 #endif
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+4);
+    AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+4);
     int32_t *p = (int32_t *) (seg->mem + seg->mem_pos);
     *p = ENDIAN_SWAP_32(w);
     seg->mem_pos += 4;
@@ -1146,7 +1149,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
             }
             else
             {
-                AS_segmentAddReloc32 (seg, li->seg, seg->mem_pos);
+                AS_segmentAddReloc32 (UP_assem, seg, li->seg, seg->mem_pos);
                 emit_u4 (seg, li->offset);
             }
         }
@@ -1200,7 +1203,7 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32
                 uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
                 next_fix_loc = ENDIAN_SWAP_32(*p);
                 *p = ENDIAN_SWAP_32(offset);
-                AS_segmentAddReloc32 (codeSeg, seg, fix_loc);
+                AS_segmentAddReloc32 (UP_assem, codeSeg, seg, fix_loc);
             }
             fix_loc = next_fix_loc;
         }
@@ -1217,7 +1220,7 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32
     li->offset  = offset;
 
     if (expt)
-        AS_segmentAddDef (seg, label, offset);
+        AS_segmentAddDef (UP_assem, seg, label, offset);
     return TRUE;
 }
 
@@ -1742,8 +1745,8 @@ AS_object AS_Object (string sourcefn, string name)
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
     obj->labels  = TAB_empty(UP_assem);
-    obj->codeSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
-    obj->dataSeg = AS_Segment (sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
+    obj->codeSeg = AS_Segment (UP_assem, sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    obj->dataSeg = AS_Segment (UP_assem, sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
 
     return obj;
 }
@@ -2234,7 +2237,7 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str, uint32_t ms
     if (!defineLabel (obj, label, seg, seg->mem_pos, /*expt=*/ FALSE))
         return FALSE;
 
-    AS_ensureSegmentSize (seg, seg->mem_pos+msize);
+    AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+msize);
 
     memcpy (seg->mem+seg->mem_pos, str, msize);
 
@@ -2314,7 +2317,7 @@ void AS_resolveLabels (AS_object obj)
         uint32_t off = li->offset;
         while (off)
         {
-            AS_segmentAddRef (seg, l, off, Temp_w_L, /*common_size=*/0);
+            AS_segmentAddRef (UP_assem, seg, l, off, Temp_w_L, /*common_size=*/0);
             uint32_t next_off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
             *((uint32_t *) (seg->mem+off)) = 0;
             off = next_off;

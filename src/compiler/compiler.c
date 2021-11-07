@@ -352,7 +352,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
         LOG_printf (LOG_ERROR, "*** ERROR: failed to open startup.o\n\n");
         CO_exit(14);
     }
-    if (!LI_segmentListReadObjectFile (sl, "startup.o", fObj))
+    if (!LI_segmentListReadObjectFile (UP_link, sl, "startup.o", fObj))
     {
         fclose(fObj);
         CO_exit(15);
@@ -375,7 +375,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
             LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s\n\n", mod_fn);
             CO_exit(16);
         }
-        if (!LI_segmentListReadObjectFile (sl, S_name(n->m->name), fObj))
+        if (!LI_segmentListReadObjectFile (UP_link, sl, S_name(n->m->name), fObj))
         {
             fclose(fObj);
             CO_exit(17);
@@ -383,7 +383,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
         fclose(fObj);
     }
 
-    if (!LI_link (sl))
+    if (!LI_link (UP_link, sl))
     {
         LOG_printf (LOG_ERROR, "*** ERROR: failed to link.\n\n");
         CO_exit(18);
