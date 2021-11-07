@@ -730,11 +730,14 @@ uint16_t RUN_handleMessages(void)
                         {
                             LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for debug child -> state is STOPPED now.\n");
                             g_dbgEnv.state = RUN_stateStopped;
+                            // FIXME
+                            #if 0
                             if (g_dbgEnv.seglist)
                             {
                                 UnLoadSeg (g_dbgEnv.seglist);
                                 g_dbgEnv.seglist = 0l;
                             }
+                            #endif
 
                             //printf ("program stopped, ERR is %ld\n", msg->code);
                             LOG_printf (LOG_DEBUG, "RUN_handleMessages: program stopped, ERR is %ld, trap code is %ld\n", msg->u.err, g_trapCode);

@@ -23,7 +23,7 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
-// #define ENABLE_DEBUG
+#define ENABLE_DEBUG
 #define MAXBUF 40
 
 struct ExecBase      *SysBase       = NULL;
@@ -229,20 +229,26 @@ static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a
 // gets called by _autil_exit
 void _c_atexit(void)
 {
+#ifdef ENABLE_DEBUG
     DPRINTF("_c_atexit...\n");
     Delay(50);
+#endif
 
     for (int i = num_exit_handlers-1; i>=0; i--)
     {
-        DPRINTF("_c_atexit: calling user exit handler #%d...\n", i);
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: calling exit handler #%d/%d...\n", i+1, num_exit_handlers);
         Delay(50);
+#endif
         exit_handlers[i]();
     }
 
     if (g_InputHandlerInstalled)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: remove input handler\n");
         Delay(50);
+#endif
         g_inputReqBlk->io_Data    = (APTR)g_inputHandler;
         g_inputReqBlk->io_Command = IND_REMHANDLER;
 
@@ -251,62 +257,80 @@ void _c_atexit(void)
 
     if (g_inputDeviceOpen)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: close input.device\n");
         Delay(50);
+#endif
         CloseDevice((struct IORequest *)g_inputReqBlk);
     }
 
     if (g_inputReqBlk)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: delete input io req\n");
         Delay(50);
+#endif
         _autil_delete_ext_io((struct IORequest *)g_inputReqBlk);
     }
 
     if (g_inputHandler)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: free input handler\n");
         Delay(50);
+#endif
         FreeMem(g_inputHandler, sizeof(struct Interrupt));
     }
 
     if (g_inputPort)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: delete input port\n");
         Delay(50);
+#endif
         _autil_delete_port(g_inputPort);
     }
 
     if (g_dbgPort)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: delete dbg port\n");
         Delay(50);
+#endif
         _autil_delete_port(g_dbgPort);
         g_dbgPort = NULL;
     }
 
     if (autil_init_done)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: _autil_shutdown\n");
         Delay(50);
+#endif
         _autil_shutdown();
     }
 
     if (MathTransBase)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: close mathtrans.library\n");
         Delay(50);
+#endif
         CloseLibrary( (struct Library *)MathTransBase);
     }
     if (MathBase)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: close mathbase.library\n");
         Delay(50);
+#endif
         CloseLibrary( (struct Library *)MathBase);
     }
 
+#ifdef ENABLE_DEBUG
     DPRINTF("_c_atexit: finishing.\n");
     Delay(50);
+#endif
 
     if (DOSBase)
     {
