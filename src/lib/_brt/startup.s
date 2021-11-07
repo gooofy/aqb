@@ -41,6 +41,11 @@ _start:
     movel   d0,___commandlen
     */
 
+eloop:
+    /*nop
+    nop
+    bra.s   eloop */
+
     /* save sp and all registers so we can restore them in __autil_exit called from any point in the program */
     movem.l  d2-d7/a2-a6, -(sp)
     move.l   sp,___SaveSP

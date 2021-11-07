@@ -423,7 +423,8 @@ static void dumpSegmentList(BPTR seglist)
 
     while (sl)
     {
-        LOG_printf (LOG_DEBUG, "dumpSegmentList: SEGMENT 0x%08lx size=%d bytes, next: 0x%08lx\n", sl, *(sl-1), *sl);
+        uint16_t *p = (uint16_t*)(sl+1);
+        LOG_printf (LOG_DEBUG, "dumpSegmentList: SEGMENT 0x%08lx size=%5d next=0x%08lx bytes: 0x%04x 0x%04x 0x%04x 0x%04x\n", sl, *(sl-1), *sl, p[0], p[1], p[2], p[3]);
         sl = BADDR(*sl);
     }
 }
@@ -451,7 +452,7 @@ static LI_segmentList _loadSeg(char *binfn)
     fclose (f);
 
     LI_relocate (sl);
-    LOG_printf (LOG_INFO, "\n hex dump: beginning of first segment\n");
+    LOG_printf (LOG_INFO, "\nhex dump: beginning of first segment\n");
     hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
 
     // create AmigaDOS style seglist
@@ -459,15 +460,19 @@ static LI_segmentList _loadSeg(char *binfn)
     for (LI_segmentListNode sln=sl->first; sln; sln=sln->next)
     {
         AS_segment seg = sln->seg;
-        seg->segmentSize = seg->mem_pos+8;
+
+        uint32_t *ptr = (uint32_t *) seg->mem;
+        ptr -= 2;
+        ptr[0] = (uint32_t) seg->mem_pos+8;
         if (sln->next)
         {
-            seg->bptrNextSegment = MKBADDR(&sln->next->seg->bptrNextSegment);
+            ptr[1] = MKBADDR((uint32_t)sln->next->seg->mem - 4);
         }
         else
         {
-            seg->bptrNextSegment = 0;
+            ptr[1] = 0;
         }
+        LOG_printf (LOG_DEBUG, "seglist: 0x%08lx 0x%08lx 0x%08lx\n", ptr[0], ptr[1], ptr[2]);
     }
 
     // clear cpu caches
@@ -487,7 +492,7 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
     LI_segmentList sl = _loadSeg(binfn);
     if (!sl || !sl->first)
         return;
-    env->seglist = MKBADDR(&sl->first->seg->bptrNextSegment);
+    env->seglist = MKBADDR(sl->first->seg->mem)-1;
 #else
     env->seglist = LoadSeg((STRPTR)binfn);
     if (!env->seglist)
@@ -498,15 +503,6 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 
 #endif
     dumpSegmentList(env->seglist);
-
-#if 0
-    // insert a breakpoint right at the start
-
-    {
-        uint32_t *ptr = (uint32_t *) sl->first->seg->mem;
-        *ptr = 0x4e41; // trap #1
-    }
-#endif
 
     LOG_printf (LOG_INFO, "Running %s ...\n\n", binfn);
 
@@ -542,6 +538,17 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 
         // install trap handler first
         env->childProc->pr_Task.tc_TrapCode = has_68010_or_up ? (APTR) &_trap_handler_20 : (APTR) &_trap_handler_00;
+
+#if 0
+        // insert a breakpoint right at the start
+
+        {
+            uint16_t *ptr = (uint16_t *) sl->first->seg->mem;
+            LOG_printf (LOG_DEBUG, "RUN _launch_process: injecting breakpoint at 0x%08lx: 0x%04lx->0x%04lx\n", ptr, *ptr, 0x4e41);
+            *ptr = 0x4e41; // trap #1
+            CacheClearU();
+        }
+#endif
 
         env->u.dbg.msg.msg.mn_Node.ln_Succ = NULL;
         env->u.dbg.msg.msg.mn_Node.ln_Pred = NULL;
@@ -720,7 +727,7 @@ uint16_t RUN_handleMessages(void)
                     case DEBUG_CMD_START:
                         if ((m->port == &g_dbgEnv.childProc->pr_MsgPort) && (msg->msg.mn_Node.ln_Type == NT_REPLYMSG))
                         {
-                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for our help window -> state is STOPPED now.\n");
+                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for debug child -> state is STOPPED now.\n");
                             g_dbgEnv.state = RUN_stateStopped;
                             if (g_dbgEnv.seglist)
                             {

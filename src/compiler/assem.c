@@ -97,6 +97,8 @@ AS_instrInfo AS_instrInfoA[AS_NUM_INSTR] = {
     { AS_UNLK_fp,          FALSE, FALSE  , FALSE, FALSE, FALSE , FALSE  , FALSE   , FALSE   , FALSE   , FALSE       , FALSE }
     };
 
+#define SEGLIST_HEADER_SIZE 8       // seglist header: 4 bytes size, 4 bytes ptr to next seg
+
 Temp_temp AS_regs[AS_NUM_REGISTERS];
 
 static Temp_tempSet  g_allRegs, g_dRegs, g_aRegs;
@@ -932,14 +934,14 @@ void AS_ensureSegmentSize (AS_segment seg, uint32_t min_size)
             s = s * 2;
         if (!seg->mem)
         {
-            seg->mem  = U_poolNonChunkCAlloc (UP_assem, s);
+            seg->mem  = U_poolNonChunkCAlloc (UP_assem, s+SEGLIST_HEADER_SIZE) + SEGLIST_HEADER_SIZE;
 #if LOG_LEVEL == LOG_DEBUG
             LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes\n", s);
 #endif
         }
         else
         {
-            uint8_t *mem = U_poolNonChunkCAlloc (UP_assem, s);
+            uint8_t *mem = U_poolNonChunkCAlloc (UP_assem, s+SEGLIST_HEADER_SIZE) + SEGLIST_HEADER_SIZE;
             memcpy (mem, seg->mem, seg->mem_size);
             seg->mem = mem;
 #if LOG_LEVEL == LOG_DEBUG
