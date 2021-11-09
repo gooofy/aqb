@@ -909,6 +909,11 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
     {
         ty = Ty_ToLoad(m->name, tuid);
         TAB_enter (m->tyTable, (void *) (intptr_t) tuid, ty);
+        //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> toLoad\n", mid, S_name(m->name), tuid);
+    }
+    else
+    {
+        //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> already loaded, kind is %d\n", mid, S_name(m->name), tuid, ty->kind);
     }
 
     LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> %s\n", mid, S_name(m->name), tuid, Ty_toString(ty));
@@ -1112,6 +1117,7 @@ FILE *E_openModuleFile (string filename)
 E_module E_loadModule(S_symbol sModule)
 {
     LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ...\n", S_name(sModule));
+    //U_delay(1000);
     E_module mod = TAB_look(g_modCache, sModule);
     if (mod)
     {
@@ -1185,6 +1191,8 @@ E_module E_loadModule(S_symbol sModule)
         if (!tuid)              // types end marker
             break;
 
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading type tuid=%d\n", S_name(sModule), tuid);
+
         Ty_ty ty = TAB_look(mod->tyTable, (void *) (intptr_t) tuid);
         if (!ty)
         {
@@ -1192,9 +1200,12 @@ E_module E_loadModule(S_symbol sModule)
             TAB_enter (mod->tyTable, (void *) (intptr_t) tuid, ty);
         }
 
-        ty->kind = fread_u1(modf);
+        int kind = fread_u1(modf); // do not set ty->kind right away so toString() will not run into unitialized values in case of record types
+        ty->kind = Ty_toLoad;
 
-        switch (ty->kind)
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading type tuid=%d kind=%d\n", S_name(sModule), tuid, kind);
+
+        switch (kind)
         {
             case Ty_darray:
                 ty->u.darray.elementTy = E_deserializeTyRef(modTable, modf);
@@ -1205,7 +1216,6 @@ E_module E_loadModule(S_symbol sModule)
                 ty->u.sarray.elementTy = E_deserializeTyRef(modTable, modf);
                 ty->u.sarray.iStart = fread_i4(modf);
                 ty->u.sarray.iEnd   = fread_i4(modf);
-                Ty_computeSize(ty);
                 break;
 
             case Ty_record:
@@ -1220,8 +1230,8 @@ E_module E_loadModule(S_symbol sModule)
 
                 for (int i=0; i<cnt; i++)
                 {
-                    uint8_t kind = fread_u1(modf);
-                    switch (kind)
+                    uint8_t fkind = fread_u1(modf);
+                    switch (fkind)
                     {
                         case Ty_recMethod:
                         {
@@ -1277,10 +1287,13 @@ E_module E_loadModule(S_symbol sModule)
                 assert(0);
                 break;
         }
+        ty->kind = kind;
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: finished reading type tuid=%d\n", S_name(sModule), tuid);
         LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
     }
 
     // check type table for unresolve ToLoad entries
+    //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: checking type table for unresolve ToLoad entries\n", S_name(sModule));
     {
         Ty_ty ty;
         uint32_t tuid;
@@ -1295,6 +1308,21 @@ E_module E_loadModule(S_symbol sModule)
             }
         }
     }
+
+    // compute sarray sizes
+    //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: computing static array sizes\n", S_name(sModule));
+    {
+        Ty_ty ty;
+        uint32_t tuid;
+
+        TAB_iter iter = TAB_Iter(mod->tyTable);
+        while (TAB_next (iter, (void *) (intptr_t) &tuid, (void *) &ty))
+        {
+            if (ty->kind == Ty_sarray)
+                Ty_computeSize(ty);
+        }
+    }
+
 
     // read env entries
 
@@ -1392,6 +1420,9 @@ E_module E_loadModule(S_symbol sModule)
 
     // prepend mod to list of loaded modules (initializers will be run in inverse order later)
     g_mlFirst = E_ModuleListNode(mod, g_mlFirst);
+
+    LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ... done.\n", S_name(sModule));
+    //U_delay(1000);
 
     return mod;
 

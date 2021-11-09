@@ -66,7 +66,7 @@ struct U_memRec_
 };
 
 static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL",
-                                                "REGALLOC", "LIVENESS", "LINK", "IDE", "OPTIONS" };
+                                                "REGALLOC", "LIVENESS", "LINK", "IDE", "OPTIONS", "RUN_CHILD" };
 static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
 static float      g_start_time;
 
@@ -202,23 +202,28 @@ static void U_poolFree (U_poolId pid, bool destroy)
 {
     U_memPool pool = g_pools[pid];
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: %-12s %5d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks, pool->mem_alloced);
+    //U_delay(1000);
 
     U_memChunk nextChunk = pool->first->next;
     for (U_memChunk chunk = pool->first; chunk; chunk = nextChunk)
     {
         nextChunk = chunk->next;
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: freeing chunk %d bytes at 0x%08lx\n", pool->chunk_size, chunk->mem_start);
         U_memfree(chunk->mem_start, pool->chunk_size);
         U_memfree(chunk, sizeof (*chunk));
     }
     while (pool->mem)
     {
         U_memRec mem_next = pool->mem->next;
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: freeing mem %d bytes at 0x%08lx\n", pool->mem->mem, pool->mem->size);
         U_memfree (pool->mem->mem, pool->mem->size);
         U_memfree (pool->mem, sizeof (*pool->mem));
         pool->mem = mem_next;
     }
     if (destroy)
         U_memfree(pool, sizeof (*pool));
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: done.\n");
+    //U_delay(1000);
 }
 
 void U_poolReset (U_poolId pid)
@@ -621,7 +626,11 @@ void U_deinit (void)
 {
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit.\n");
     for (int i=0; i<UP_numPools; i++)
+    {
         U_poolFree(i, /*destroy=*/TRUE);
+    }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit done.\n");
+    //U_delay(1000);
 }
 
 void U_init (void)

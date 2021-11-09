@@ -5,6 +5,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "types.h"
+#include "logger.h"
 
 #define _DARRAY_T_SIZE 18
 
@@ -422,6 +423,8 @@ static string _toString(Ty_ty t, int depth)
     if (depth>2)
         return "...";
 
+    // LOG_printf(LOG_DEBUG, "types: toString: uid=%d, kind=%d\n", t->uid, t->kind);
+
     switch (t->kind)
     {
         case Ty_bool:
@@ -454,6 +457,7 @@ static string _toString(Ty_ty t, int depth)
             Ty_recordEntry entry;
             while (TAB_next(i, (void **) &sym, (void **)&entry))
             {
+                //LOG_printf(LOG_DEBUG, "types: toString: record field %s kind=%d\n", S_name (entry->u.field.name), entry->u.field.ty->kind);
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
@@ -482,6 +486,7 @@ static string _toString(Ty_ty t, int depth)
         case Ty_toLoad:
             return "toLoad";
     }
+    LOG_printf(LOG_ERROR, "types: toString: unknown type kind %d!\n", t->kind);
     assert(0);
     return "???";
 }

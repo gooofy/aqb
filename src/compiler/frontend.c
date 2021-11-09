@@ -10,6 +10,7 @@
 #include "options.h"
 #include "table.h"
 #include "symbol.h"
+#include "logger.h"
 
 const char *FE_filename = NULL;
 
@@ -7359,11 +7360,8 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     // parse logical lines
 
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        printf ("FE_sourceProgram:\n");
-        printf ("-----------------\n");
-    }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "FE_sourceProgram:\n");
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "-----------------\n");
 
     while (TRUE)
     {
@@ -7416,6 +7414,9 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         }
     }
 
+    LOG_printf (LOG_DEBUG, "parsing done.\n");
+    //U_delay(1000);
+
     // if DATA statements were used, we have to restore the global data read ptr at the beginning of the code
     if (g_dataFrag->u.data.size)
     {
@@ -7441,15 +7442,15 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     slePop();
 
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        printf ("--------------\n");
-    }
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "-----------------\n");
 
     if (!g_prog->first)
         CG_transNOP (g_prog, 0);
 
     CG_procEntryExit (0, frame, g_prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+
+    LOG_printf (LOG_DEBUG, "frontend processing done.\n");
+    //U_delay(1000);
 
     return CG_getResult();
 }
