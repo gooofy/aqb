@@ -685,13 +685,13 @@ static void _debug(struct DebugMsg *msg)
 
 uint16_t RUN_handleMessages(void)
 {
-	LOG_printf (LOG_DEBUG, "RUN_handleMessages: start, g_debugPort=0x%08lx\n", g_debugPort);
+	//LOG_printf (LOG_DEBUG, "RUN_handleMessages: start, g_debugPort=0x%08lx\n", g_debugPort);
     USHORT key = KEY_NONE;
     while (TRUE)
     {
-        LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg...\n");
+        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg...\n");
         struct DebugMsg *m = (struct DebugMsg *) GetMsg(g_debugPort);
-        LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
+        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
         if (!m)
             return key;
 
@@ -726,27 +726,26 @@ uint16_t RUN_handleMessages(void)
             struct DebugMsg *msg = (struct DebugMsg *) m;
             if (msg->debug_sig == DEBUG_SIG)
             {
-                LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
+                //LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
                 switch (msg->debug_cmd)
                 {
                     case DEBUG_CMD_START:
                         if ((m->port == &g_dbgEnv.childProc->pr_MsgPort) && (msg->msg.mn_Node.ln_Type == NT_REPLYMSG))
                         {
                             LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for debug child -> state is STOPPED now.\n");
+                            //U_delay(2000);
                             g_dbgEnv.state = RUN_stateStopped;
-                            // FIXME
-                            #if 0
-                            if (g_dbgEnv.seglist)
-                            {
-                                UnLoadSeg (g_dbgEnv.seglist);
-                                g_dbgEnv.seglist = 0l;
-                            }
-                            #endif
+                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: pool reset\n");
+                            //U_delay(2000);
+                            U_poolReset (UP_runChild);
 
                             //printf ("program stopped, ERR is %ld\n", msg->code);
                             LOG_printf (LOG_DEBUG, "RUN_handleMessages: program stopped, ERR is %ld, trap code is %ld\n", msg->u.err, g_trapCode);
+                            //U_delay(2000);
                             g_dbgEnv.u.dbg.err = msg->u.err;
                             key = KEY_STOPPED;
+                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: program stopped -> done.\n");
+                            //U_delay(2000);
                         }
                         else
                         {
@@ -754,12 +753,12 @@ uint16_t RUN_handleMessages(void)
                         }
                         break;
                     case DEBUG_CMD_PUTC:
-                        LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTC c=%d\n", msg->u.c);
+                        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTC c=%d\n", msg->u.c);
                         UI_tprintf ("%c", msg->u.c);
                         ReplyMsg (&msg->msg);
                         break;
                     case DEBUG_CMD_PUTS:
-                        LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTS str=\"%s\" (0x%08lx)\n", msg->u.str, msg->u.str);
+                        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTS str=\"%s\" (0x%08lx)\n", msg->u.str, msg->u.str);
                         UI_tprintf ("%s", msg->u.str);
                         ReplyMsg (&msg->msg);
                         break;

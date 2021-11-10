@@ -209,13 +209,15 @@ static void U_poolFree (U_poolId pid, bool destroy)
     {
         nextChunk = chunk->next;
         //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: freeing chunk %d bytes at 0x%08lx\n", pool->chunk_size, chunk->mem_start);
+        //U_delay(1000);
         U_memfree(chunk->mem_start, pool->chunk_size);
         U_memfree(chunk, sizeof (*chunk));
     }
     while (pool->mem)
     {
         U_memRec mem_next = pool->mem->next;
-        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: freeing mem %d bytes at 0x%08lx\n", pool->mem->mem, pool->mem->size);
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: freeing mem %d bytes at 0x%08lx\n", pool->mem->size, pool->mem->mem);
+        //U_delay(1000);
         U_memfree (pool->mem->mem, pool->mem->size);
         U_memfree (pool->mem, sizeof (*pool->mem));
         pool->mem = mem_next;

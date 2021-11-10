@@ -28,7 +28,7 @@
 #include <clib/console_protos.h>
 #include <pragmas/console_pragmas.h>
 
-#define ENABLE_DEBUG
+//#define ENABLE_DEBUG
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -287,7 +287,9 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
  */
 void WINDOW_CLOSE(short id)
 {
+#ifdef ENABLE_DEBUG
     DPRINTF ("WINDOW_CLOSE id=%d\n", id);
+#endif
 
     // error checking
     if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
@@ -299,7 +301,9 @@ void WINDOW_CLOSE(short id)
     // call close callbacks first
     for (win_cb_node_t n=g_win_cb_list[id-1]; n; n=n->next)
     {
+#ifdef ENABLE_DEBUG
         DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
+#endif
         n->cb(g_winlist[id-1]);
     }
 
@@ -308,14 +312,18 @@ void WINDOW_CLOSE(short id)
         FreeVec ((PLANEPTR) g_winlist[id-1]->RPort->TmpRas->RasPtr);
         FreeVec (g_winlist[id-1]->RPort->TmpRas);
     }
+#ifdef ENABLE_DEBUG
     DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, g_winlist[id-1]);
+#endif
     CloseWindow(g_winlist[id-1]);
     g_winlist[id-1]=NULL;
 }
 
 void _window_add_close_cb (window_close_cb_t cb)
 {
+#ifdef ENABLE_DEBUG
     DPRINTF ("_window_add_close_cb g_active_win_id=%d, cb=0x%08lx\n", g_active_win_id, cb);
+#endif
     win_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
     if (!node)
     {
@@ -377,7 +385,7 @@ void _awindow_shutdown(void)
         {
 #ifdef ENABLE_DEBUG
             _debug_puts((STRPTR)"_awindow_shutdown ... CloseScreen\n");
-            Delay (100);
+            //Delay (100);
 #endif
             CloseScreen(g_scrlist[i]);
         }
@@ -396,13 +404,13 @@ void _awindow_shutdown(void)
     {
 #ifdef ENABLE_DEBUG
         _debug_puts((STRPTR)"_awindow_shutdown ... CloseDevice\n");
-        Delay (100);
+        //Delay (100);
 #endif
         CloseDevice((struct IORequest *)&g_ioreq);
     }
 #ifdef ENABLE_DEBUG
     _debug_puts((STRPTR)"_awindow_shutdown ... finished\n");
-    Delay (100);
+    //Delay (100);
 #endif
 }
 
@@ -560,7 +568,9 @@ void PSET(BOOL s, short x, short y, short color)
 
 void CIRCLE (BOOL s, SHORT x, SHORT y, SHORT ry, SHORT color, SHORT start, SHORT fini, FLOAT ratio)
 {
+#ifdef ENABLE_DEBUG
     DPRINTF ("CIRCLE: x=%d, y=%d, ry=%d, color=%d, start=%d, end=%d\n", x, y, ry, color, start, fini);
+#endif
 
     _aqb_get_output (/*needGfx=*/TRUE);
     BYTE fgPen=_g_cur_rp->FgPen;
@@ -687,7 +697,9 @@ static void _handleSignals(BOOL doWait)
 	else
 		signals = SetSignal (0, _g_signalmask_awindow | _g_signalmask_atimer);
 
+#ifdef ENABLE_DEBUG
 	DPRINTF("_handleSignals: signals=0x%08lx\n", signals);
+#endif
 
     if (signals & _g_signalmask_atimer)
         _atimer_process_signals(signals);
@@ -705,7 +717,9 @@ static void _handleSignals(BOOL doWait)
         {
             ULONG class = message->Class;
 
+#ifdef ENABLE_DEBUG
             DPRINTF("_handleSignals: got a message, class=0x%08lx\n", class);
+#endif
 
             switch(class)
             {
@@ -1341,7 +1355,9 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
         }
     }
 
+#ifdef ENABLE_DEBUG
     DPRINTF ("_aio_gets: buf=%s\n", buf);
+#endif
 
     *s = _astr_dup (buf);
 
@@ -1624,7 +1640,9 @@ void BITMAP_FREE (BITMAP_t *bm)
 
 BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 {
+#ifdef ENABLE_DEBUG
     DPRINTF ("BITMAP_: allocating new bitmap, width=%d, height=%d, depth=%d, cont=%d\n", width, height, depth, cont);
+#endif
 
     BITMAP_t *bm = AllocVec(sizeof(*bm), MEMF_CLEAR);
     if (!bm)
@@ -1651,7 +1669,9 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 		BYTE *p = AllocVec (rs * depth, MEMF_CHIP | MEMF_CLEAR);
 		if (!p)
 		{
+#ifdef ENABLE_DEBUG
 			DPRINTF ("BITMAP_: continous plane alloc of %d bytes failed\n", rs * depth);
+#endif
 			ERROR(AE_BLIT);
 			return NULL;
 		}

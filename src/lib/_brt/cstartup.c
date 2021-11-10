@@ -23,7 +23,7 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
-#define ENABLE_DEBUG
+//#define ENABLE_DEBUG
 #define MAXBUF 40
 
 struct ExecBase      *SysBase       = NULL;
@@ -326,7 +326,7 @@ void _c_atexit(void)
     {
 #ifdef ENABLE_DEBUG
         DPRINTF("_c_atexit: delete dbg port\n");
-        Delay(50);
+        //Delay(50);
 #endif
         _autil_delete_port(g_dbgPort);
         g_dbgPort = NULL;
@@ -334,6 +334,10 @@ void _c_atexit(void)
 
     if (DOSBase)
     {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: closing dos library\n");
+        //Delay(50);
+#endif
         _debug_stdout = 0;
         CloseLibrary( (struct Library *)DOSBase);
     }

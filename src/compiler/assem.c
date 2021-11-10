@@ -786,14 +786,16 @@ AS_segment AS_Segment (U_poolId pid, string sourcefn, string name, AS_segKind ki
     seg->name        = name;
     seg->kind        = kind;
     seg->hunk_id     = g_hunk_id++;
-    seg->mem         = initial_size ? U_poolNonChunkAlloc (pid, initial_size) : NULL;
-    seg->mem_size    = initial_size;
+    seg->mem         = NULL;
+    seg->mem_size    = 0;
     seg->mem_pos     = 0;
     seg->relocs      = NULL;
     seg->refs        = NULL;
     seg->defs        = NULL;
     seg->srcMap      = NULL;
     seg->srcMapLast  = NULL;
+
+    AS_ensureSegmentSize (pid, seg, initial_size);
 
     return seg;
 }
@@ -926,6 +928,7 @@ static uint32_t instr_size (AS_instr instr)
 
 void AS_ensureSegmentSize (U_poolId pid, AS_segment seg, uint32_t min_size)
 {
+    LOG_printf (LOG_DEBUG, "assem: AS_ensureSegmentSize: id=%d kind=%d mem_size=%d, min_size=%d\n", seg->hunk_id, seg->name, seg->kind, seg->mem_size, min_size);
     uint32_t ms = min_size ? min_size : 64;
     if (seg->mem_size < min_size)
     {
@@ -933,25 +936,26 @@ void AS_ensureSegmentSize (U_poolId pid, AS_segment seg, uint32_t min_size)
         while (s<min_size)
             s = s * 2;
 
-        uint8_t *mem = U_poolNonChunkCAlloc (pid, s+SEGLIST_HEADER_SIZE);
+        uint32_t alloc_size = s+SEGLIST_HEADER_SIZE;
+        uint8_t *mem = U_poolNonChunkCAlloc (pid, alloc_size);
         mem += SEGLIST_HEADER_SIZE;
 
         if (!seg->mem)
         {
             seg->mem  = mem;
-#if LOG_LEVEL == LOG_DEBUG
-            LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes\n", s);
-#endif
+            LOG_printf (LOG_DEBUG, "assem: allocating segment mem of %zd bytes, alloc_size=%d\n", s, alloc_size);
         }
         else
         {
             memcpy (mem, seg->mem, seg->mem_size);
             seg->mem = mem;
-#if LOG_LEVEL == LOG_DEBUG
-            LOG_printf (LOG_DEBUG, "assem: re-allocating segment mem from %zd bytes to %zd bytes\n", seg->mem_size, s);
-#endif
+            LOG_printf (LOG_DEBUG, "assem: re-allocating segment mem from %zd bytes to %zd bytes, alloc_size=%d\n", seg->mem_size, s, alloc_size);
         }
         seg->mem_size = s;
+    }
+    else
+    {
+        LOG_printf (LOG_DEBUG, "assem: AS_ensureSegmentSize: already big enough.\n");
     }
 }
 
