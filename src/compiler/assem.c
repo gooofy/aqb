@@ -1755,13 +1755,13 @@ AS_object AS_Object (string sourcefn, string name)
     return obj;
 }
 
-static void _addSrcMapping (AS_segment seg, uint16_t l)
+void AS_segmentAddSrcMap (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off)
 {
-    AS_srcMapNode mapping = U_poolAlloc (UP_assem, sizeof (*mapping));
+    AS_srcMapNode mapping = U_poolAlloc (pid, sizeof (*mapping));
 
     mapping->next   = NULL;
     mapping->line   = l;
-    mapping->offset = seg->mem_pos;
+    mapping->offset = off;
 
     if (seg->srcMapLast)
         seg->srcMapLast = seg->srcMapLast->next = mapping;
@@ -1788,7 +1788,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
             int l = S_getline (instr->pos);
             if (l>cur_line)
             {
-                _addSrcMapping(seg, l);
+                AS_segmentAddSrcMap(UP_assem, seg, l, seg->mem_pos);
                 cur_line = l;
             }
         }

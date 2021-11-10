@@ -38,6 +38,7 @@
 #define DEBUG_MAGIC     0x44425141  // AQBD - marks beginning of debug hunk
 #define DEBUG_VERSION   1
 #define DEBUG_INFO_LINE 1
+#define DEBUG_INFO_END  0xFEDC
 
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static char       g_name[MAX_BUF];             // current hunk name
@@ -114,6 +115,16 @@ static bool fread_u4(FILE *f, uint32_t *u)
         return FALSE;
 
     *u = ENDIAN_SWAP_32 (*u);
+
+    return TRUE;
+}
+
+static bool fread_u2(FILE *f, uint16_t *u)
+{
+    if (fread (u, 2, 1, f) != 1)
+        return FALSE;
+
+    *u = ENDIAN_SWAP_16 (*u);
 
     return TRUE;
 }
@@ -518,7 +529,7 @@ static bool load_hunk_symbol(string sourcefn, FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_debug(string sourcefn, FILE *f)
+static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
@@ -537,18 +548,69 @@ static bool load_hunk_debug(string sourcefn, FILE *f)
     if (!num_longs)
         return TRUE;
 
-    for (uint32_t i=0; i<num_longs; i++)
+    if (num_longs < 2)
     {
-        uint32_t n;
-        if (!fread_u4 (f, &n))
+        LOG_printf (LOG_ERROR, "link: debug hunk too short.\n");
+        return FALSE;
+    }
+
+    uint32_t magic, version;
+    if (!fread_u4 (f, &magic))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #37.\n");
+        return FALSE;
+    }
+    if (!fread_u4 (f, &version))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #38.\n");
+        return FALSE;
+    }
+
+    if ((magic != DEBUG_MAGIC) || (version != DEBUG_VERSION))
+    {
+        LOG_printf (LOG_ERROR, "link: debug hunk format not recognized.\n");
+        return FALSE;
+    }
+
+    num_longs -= 2;
+    while (num_longs>0)
+    {
+        uint16_t cmd;
+        if (!fread_u2 (f, &cmd))
         {
             LOG_printf (LOG_ERROR, "link: read error #36.\n");
             return FALSE;
         }
+
+        switch (cmd)
+        {
+            case DEBUG_INFO_LINE:
+            {
+                uint16_t line;
+                uint32_t offset;
+                if (!fread_u2 (f, &line))
+                {
+                    LOG_printf (LOG_ERROR, "link: read error #37.\n");
+                    return FALSE;
+                }
+                if (!fread_u4 (f, &offset))
+                {
+                    LOG_printf (LOG_ERROR, "link: read error #38.\n");
+                    return FALSE;
+                }
+                LOG_printf (LOG_DEBUG, "link: hunk_debug: INFO_LINE line=%4d offset=0x%08lx\n", line, offset);
+                AS_segmentAddSrcMap (pid, g_hunk_cur, line, offset);
+                num_longs -= 2;
+                break;
+            }
+            case DEBUG_INFO_END:
+                num_longs = 0;
+                break;
+            default:
+                LOG_printf (LOG_ERROR, "link: debug hunk: unknown entry 0x%04x\n", cmd);
+                return FALSE;
+        }
     }
-
-    LOG_printf (LOG_DEBUG, "link: hunk_debug: num_longs=%d\n", num_longs);
-
     return TRUE;
 }
 
@@ -1154,7 +1216,7 @@ bool LI_segmentListReadLoadFile (U_poolId pid, LI_segmentList sl, string sourcef
                     return FALSE;
                 break;
             case HUNK_TYPE_DEBUG:
-                if (!load_hunk_debug(sourcefn, f))
+                if (!load_hunk_debug(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_END:
@@ -1179,27 +1241,38 @@ bool LI_relocate (LI_segmentList sl)
 {
     for (LI_segmentListNode node = sl->first; node; node=node->next)
     {
-        if (!node->seg->relocs)
-            continue;
-        TAB_iter i = TAB_Iter (node->seg->relocs);
-        AS_segment seg;
-        AS_segmentReloc32 r32;
-        while (TAB_next (i, (void **)&seg, (void**) &r32))
+
+        // apply relocs, if any
+
+        if (node->seg->relocs)
         {
-            while (r32)
+            TAB_iter i = TAB_Iter (node->seg->relocs);
+            AS_segment seg;
+            AS_segmentReloc32 r32;
+            while (TAB_next (i, (void **)&seg, (void**) &r32))
             {
-                assert (r32->offset < node->seg->mem_size);
-                uint32_t *ptr = (uint32_t *)(node->seg->mem + r32->offset);
-                uint32_t ov = *ptr;
-                uint32_t seg_mem = (uint32_t) (uintptr_t) seg->mem;
-                uint32_t nv = ov + seg_mem;
-                // LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
-                //             node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
-                assert (ov < seg->mem_size);
-                assert(seg_mem);
-                *ptr = nv;
-                r32 = r32->next;
+                while (r32)
+                {
+                    assert (r32->offset < node->seg->mem_size);
+                    uint32_t *ptr = (uint32_t *)(node->seg->mem + r32->offset);
+                    uint32_t ov = *ptr;
+                    uint32_t seg_mem = (uint32_t) (uintptr_t) seg->mem;
+                    uint32_t nv = ov + seg_mem;
+                    // LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
+                    //             node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
+                    assert (ov < seg->mem_size);
+                    assert(seg_mem);
+                    *ptr = nv;
+                    r32 = r32->next;
+                }
             }
+        }
+
+        // relocate debug information, if any
+
+        for (AS_srcMapNode n = node->seg->srcMap; n; n=n->next)
+        {
+            n->offset += (uint32_t) (uintptr_t) node->seg->mem;
         }
     }
 

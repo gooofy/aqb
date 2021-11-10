@@ -3078,7 +3078,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
                 E_enventry func = lx->first->e;
-                CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+                CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
             }
         }
 
@@ -3111,7 +3111,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                         n->item = exFNo;
                         CG_loadVal (g_sleStack->code, pos, &n->item);
                     }
-                    CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+                    CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
                 }
                 if (isLogicalEOL(*tkn))
                     return TRUE;
@@ -3140,7 +3140,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 n->item = exFNo;
                 CG_loadVal (g_sleStack->code, pos, &n->item);
             }
-            CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+            CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
         }
         return TRUE;
     }
@@ -3174,7 +3174,7 @@ static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
         E_enventry func = lx->first->e;
         CG_itemList arglist = CG_ItemList();
-        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+        CG_transCall (g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
     }
 
     return TRUE;

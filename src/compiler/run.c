@@ -60,6 +60,7 @@ struct RUN_env_
     struct Process    *childProc;
     char              *binfn;
     BPTR               childHomeDirLock;
+    LI_segmentList     sl;
     BPTR               seglist;
     char               dirbuf[256];
     union
@@ -430,7 +431,6 @@ static void dumpSegmentList(BPTR seglist)
     }
 }
 
-#if 1
 static LI_segmentList _loadSeg(char *binfn)
 {
     LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
@@ -484,28 +484,18 @@ static LI_segmentList _loadSeg(char *binfn)
 
     return sl;
 }
-#endif
 
 static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
 
     LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
-#if 1
-    // FIXME: experimental custom loader, handles debug info
-    LI_segmentList sl = _loadSeg(binfn);
-    if (!sl || !sl->first)
-        return;
-    env->seglist = MKBADDR(sl->first->seg->mem)-1;
-#else
-    env->seglist = LoadSeg((STRPTR)binfn);
-    if (!env->seglist)
-    {
-        LOG_printf (LOG_ERROR, "failed to load %s\n\n", binfn);
-        return;
-    }
 
-#endif
+    // use our custom loader which handles debug info
+    env->sl = _loadSeg(binfn);
+    if (!env->sl || !env->sl->first)
+        return;
+    env->seglist = MKBADDR(env->sl->first->seg->mem)-1;
     dumpSegmentList(env->seglist);
 
     LOG_printf (LOG_INFO, "Running %s ...\n\n", binfn);
@@ -616,6 +606,64 @@ void RUN_help (char *binfn, char *arg1)
     _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/arg1, /*dbg=*/FALSE);
 }
 
+static int16_t _find_src_line (uint32_t pc)
+{
+    int16_t l = -1;
+    for (LI_segmentListNode sln=g_dbgEnv.sl->first; sln; sln=sln->next)
+    {
+        ULONG seg_start = (uint32_t) (uintptr_t) sln->seg->mem;
+        ULONG seg_end   = seg_start + sln->seg->mem_size;
+
+        LOG_printf (LOG_DEBUG, "_debug: looking for segment, pc=0x%08lx seg_start=0x%08lx seg_end=0x%08lx kind=%d srcMap=0x%08lx\n",
+                    pc, seg_start, seg_end, sln->seg->kind, sln->seg->srcMap);
+
+        if ((pc<seg_start) || (pc>=seg_end))
+            continue;
+        LOG_printf (LOG_DEBUG, "_debug: segment matched.\n");
+
+        for (AS_srcMapNode n = sln->seg->srcMap; n; n=n->next)
+        {
+            LOG_printf (LOG_DEBUG, "_debug: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
+            
+            if (pc > n->offset)
+                l = n->line;
+        }
+    }
+    return l;
+}
+
+static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
+{
+    struct Task *task = &g_dbgEnv.childProc->pr_Task;
+    uint32_t sp_lower = (uint32_t) task->tc_SPLower;
+    uint32_t sp_upper = (uint32_t) task->tc_SPUpper;
+
+    uint32_t spn = *a5;
+    //UI_tprintf ("_getParentFrame: spn=0x%08lx\n", spn);
+
+    // is this a valid stack pointer ?
+
+    if ( (spn % 2) || (spn<sp_lower) || (spn>sp_upper) )
+    {
+        //UI_tprintf ("_getParentFrame: sp 0x%08lx is invalid (stack bounds: 0x%08lx-0x%08lx)\n", spn, sp_lower, sp_upper);
+        return FALSE;
+    }
+
+    uint32_t *sp = (uint32_t *) spn;
+
+    //hexdump ((UBYTE *)sp, 32, 16);
+
+    uint32_t prev_a5 = *sp++;
+    uint32_t prev_pc = *sp++;
+
+    //LOG_printf (LOG_DEBUG, "_getParentFrame: a5=0x%08lx -> prev_a5=0x%08lx, prev_pc=0x%08lx\n", *a5, prev_a5, prev_pc);
+
+    *a5 = prev_a5;
+    *pc = prev_pc;
+
+    return TRUE;
+}
+
 static void _debug(struct DebugMsg *msg)
 {
     UI_toFront();
@@ -653,6 +701,50 @@ static void _debug(struct DebugMsg *msg)
     UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
 
     UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n", g_dbgSR, g_dbgPC, g_dbgFMT);
+
+    // get stack trace
+
+    uint32_t pc = g_dbgPC;
+    uint32_t a5 = g_dbgStateBuf.a5;
+    int cnt = 0;
+    while ( TRUE )
+    {
+        int16_t l = _find_src_line (pc);
+        UI_tprintf ("stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
+        if (!_getParentFrame(&a5, &pc))
+            break;
+
+        cnt++;
+        if (cnt>10)
+            break;
+    }
+
+    // find closest source line
+
+    int16_t l = -1;
+    pc = g_dbgPC;
+    a5 = g_dbgStateBuf.a5;
+    cnt = 0;
+    while ( TRUE )
+    {
+        l = _find_src_line (pc);
+        UI_tprintf ("source line: pc=0x%08lx a5=0x%08lx -> %d\n", pc, a5, l);
+
+        if (l<0)
+        {
+            if (!_getParentFrame(&a5, &pc))
+                break;
+        }
+        else
+        {
+            break;
+        }
+
+        cnt++;
+        if (cnt>3)
+            break;
+    }
+
     UI_tprintf ("\nPC mem dump:\n");
     hexdump ((UBYTE *)g_dbgPC, 32, 16);
 

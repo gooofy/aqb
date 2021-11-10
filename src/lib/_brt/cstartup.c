@@ -168,12 +168,15 @@ void _debug_cls(void)
     _debug_putc('\f');
 }
 
-void _debug_break(void)
-{
 asm(
-"		trap    #1;"
+"   .align 2\n"
+"   .globl  __debug_break\n"
+"   __debug_break:\n"
+"		link    a5, #0;\n"
+"		trap    #1;\n"
+"		unlk    a5;\n"
+"		rts;\n"
 );
-}
 
 #define MAX_EXIT_HANDLERS 16
 static void (*exit_handlers[MAX_EXIT_HANDLERS])(void);

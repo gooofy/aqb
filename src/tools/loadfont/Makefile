@@ -12,7 +12,7 @@ clean:
 	rm -rf $(DEPDIR_AMIGAOS)
 
 $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
-	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $(DEPFLAGS_AMIGAOS) $< -o $@
+	$(CC_AMIGAOS) -c -g $(CFLAGS_AMIGAOS) $(DEPFLAGS_AMIGAOS) $< -o $@
 
 ${BINDIR_AMIGAOS}/loadfont:	$(OBJS_AMIGAOS)
 	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^
@@ -30,5 +30,5 @@ diss: ${BINDIR_AMIGAOS}/loadfont
 	$(OBJDUMP_AMIGAOS) -S -d -x ${BINDIR_AMIGAOS}/loadfont
 
 %.asm: %.c
-	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
+	$(CC_AMIGAOS) -S -g $(CFLAGS_AMIGAOS) $< -o $@
 
