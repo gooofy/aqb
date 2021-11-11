@@ -42,8 +42,8 @@
 #include "logger.h"
 #include "options.h"
 #include "tui.h"
-#include "run.h"
 #include "amigasupport.h"
+#include "ide.h"
 
 //#define LOG_KEY_EVENTS
 //#define ENABLE_SCROLL_BENCHMARK
@@ -654,7 +654,7 @@ void UI_HelpBrowser (void)
     strncpy (pathbuf, aqb_home, 256);
     AddPart ((STRPTR) pathbuf, (STRPTR)"README.guide", 256);
 
-    RUN_help ("SYS:Utilities/MultiView", pathbuf);
+    DEBUG_help ("SYS:Utilities/MultiView", pathbuf);
 }
 
 typedef enum { esWait, esGetWin, esGetDebug } eventState;
@@ -829,7 +829,7 @@ static uint16_t nextEvent(void)
         case esGetDebug:
             if (signals & debugsig)
             {
-                res = RUN_handleMessages();
+                res = DEBUG_handleMessages();
             }
             state = esWait;
             break;

@@ -2,10 +2,13 @@
 #define HAVE_IDE_H
 
 #include <limits.h>
+#include <inttypes.h>
 
 #include "util.h"
 #include "ui.h"
 #include "scanner.h"
+
+typedef enum {DEBUG_stateStopped, DEBUG_stateRunning} DEBUG_state;
 
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_instance_ *IDE_instance;
@@ -74,7 +77,35 @@ struct IDE_instance_
     char               find_buf[MAX_LINE_LEN];
 };
 
-void IDE_open (string sourcefn);
+/*
+ * IDE
+ */
+
+void     IDE_open (string sourcefn);
+
+IDE_line IDE_getVLine (IDE_instance ed, int linenum);   // virtual line -> folded lines do not count
+IDE_line IDE_getALine (IDE_instance ed, int linenum);   // actual line -> raw line numbers not taking folding into account
+
+/*
+ * debugger
+ */
+
+DEBUG_state DEBUG_getState(void);
+
+#ifdef __amigaos__
+
+#include <dos/dosextens.h>
+
+void      DEBUG_start          (const char *binfn);
+void      DEBUG_help           (char *binfn, char *arg1);
+
+void      DEBUG_init           (IDE_instance ide, struct MsgPort *debugPort);
+
+uint16_t  DEBUG_handleMessages (void);  // called by ui_amiga when message arrive at our debugPort
+
+void      DEBUG_break          (void);  // send SIGBREAKF_CTRL_C to child
+
+#endif
 
 #endif
 

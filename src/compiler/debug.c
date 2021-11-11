@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "run.h"
+#include "ide.h"
 #include "logger.h"
 #include "ui.h"
 #include "options.h"
@@ -52,11 +52,11 @@ struct DebugMsg
     }u;
 };
 
-typedef struct RUN_env_ *RUN_env;
+typedef struct DEBUG_env_ *DEBUG_env;
 
-struct RUN_env_
+struct DEBUG_env_
 {
-    RUN_state          state;
+    DEBUG_state          state;
     struct Process    *childProc;
     char              *binfn;
     BPTR               childHomeDirLock;
@@ -89,16 +89,17 @@ struct dbgState
     UBYTE   exceptionData[DBG_EXC_BUF_LEN];
 };
 
-static struct MsgPort    *g_debugPort;
-static struct Task       *g_parentTask;
-static struct Task       *g_childTask;
-static struct RUN_env_    g_dbgEnv   = {RUN_stateStopped, NULL, NULL, 0, 0};
-static struct RUN_env_    g_helpEnv  = {RUN_stateStopped, NULL, NULL, 0, 0};
-static ULONG              g_trapCode = 0;
-static UWORD              g_dbgSR    = 0;
-static ULONG              g_dbgPC    = 0;
-static UWORD              g_dbgFMT   = 0;
-static struct dbgState    g_dbgStateBuf;
+static IDE_instance         g_ide;
+static struct MsgPort      *g_debugPort;
+static struct Task         *g_parentTask;
+static struct Task         *g_childTask;
+static struct DEBUG_env_    g_dbgEnv   = {DEBUG_stateStopped, NULL, NULL, 0, 0};
+static struct DEBUG_env_    g_helpEnv  = {DEBUG_stateStopped, NULL, NULL, 0, 0};
+static ULONG                g_trapCode = 0;
+static UWORD                g_dbgSR    = 0;
+static ULONG                g_dbgPC    = 0;
+static UWORD                g_dbgFMT   = 0;
+static struct dbgState      g_dbgStateBuf;
 
 static BOOL has_fpu         = FALSE;
 static BOOL has_68060_or_up = FALSE;
@@ -485,7 +486,7 @@ static LI_segmentList _loadSeg(char *binfn)
     return sl;
 }
 
-static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
+static void _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
 
@@ -591,17 +592,17 @@ static void _launch_process (RUN_env env, char *binfn, char *arg1, bool dbg)
         PutMsg (&env->childProc->pr_MsgPort, &env->u.wb.msg.sm_Message);
     }
 
-    env->state = RUN_stateRunning;
+    env->state = DEBUG_stateRunning;
 
 	LOG_printf (LOG_DEBUG, "RUN _launch_process: done. state is %d now.\n", env->state);
 }
 
-void RUN_start (const char *binfn)
+void DEBUG_start (const char *binfn)
 {
     _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/NULL, /*dbg=*/TRUE);
 }
 
-void RUN_help (char *binfn, char *arg1)
+void DEBUG_help (char *binfn, char *arg1)
 {
     _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/arg1, /*dbg=*/FALSE);
 }
@@ -624,7 +625,7 @@ static int16_t _find_src_line (uint32_t pc)
         for (AS_srcMapNode n = sln->seg->srcMap; n; n=n->next)
         {
             LOG_printf (LOG_DEBUG, "_debug: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
-            
+
             if (pc > n->offset)
                 l = n->line;
         }
@@ -745,6 +746,23 @@ static void _debug(struct DebugMsg *msg)
             break;
     }
 
+    // list source code context:
+
+    if (l>=0)
+    {
+        for (int ln = l-5; ln<l+5; ln++)
+        {
+            if (ln<0)
+                continue;
+
+            IDE_line line = IDE_getALine (g_ide, ln);
+            if (!line)
+                continue;
+
+            UI_tprintf ("%4d %-4s %s\n", ln+1, l==ln+1 ? "-->" : "", line->buf);
+        }
+    }
+
     UI_tprintf ("\nPC mem dump:\n");
     hexdump ((UBYTE *)g_dbgPC, 32, 16);
 
@@ -775,15 +793,15 @@ static void _debug(struct DebugMsg *msg)
     }
 }
 
-uint16_t RUN_handleMessages(void)
+uint16_t DEBUG_handleMessages(void)
 {
-	//LOG_printf (LOG_DEBUG, "RUN_handleMessages: start, g_debugPort=0x%08lx\n", g_debugPort);
+	//LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: start, g_debugPort=0x%08lx\n", g_debugPort);
     USHORT key = KEY_NONE;
     while (TRUE)
     {
-        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg...\n");
+        //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: GetMsg...\n");
         struct DebugMsg *m = (struct DebugMsg *) GetMsg(g_debugPort);
-        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
+        //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
         if (!m)
             return key;
 
@@ -794,8 +812,8 @@ uint16_t RUN_handleMessages(void)
             struct WBStartup *msg = (struct WBStartup *) m;
             if (msg->sm_Message.mn_Node.ln_Type == NT_REPLYMSG)
             {
-                LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a wb startup reply message for our help window -> state is STOPPED now.\n");
-                g_helpEnv.state = RUN_stateStopped;
+                LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: this is a wb startup reply message for our help window -> state is STOPPED now.\n");
+                g_helpEnv.state = DEBUG_stateStopped;
                 if (g_helpEnv.seglist)
                 {
                     UnLoadSeg (g_helpEnv.seglist);
@@ -818,39 +836,39 @@ uint16_t RUN_handleMessages(void)
             struct DebugMsg *msg = (struct DebugMsg *) m;
             if (msg->debug_sig == DEBUG_SIG)
             {
-                //LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
+                //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
                 switch (msg->debug_cmd)
                 {
                     case DEBUG_CMD_START:
                         if ((m->port == &g_dbgEnv.childProc->pr_MsgPort) && (msg->msg.mn_Node.ln_Type == NT_REPLYMSG))
                         {
-                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: this is a debug reply message for debug child -> state is STOPPED now.\n");
+                            LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: this is a debug reply message for debug child -> state is STOPPED now.\n");
                             //U_delay(2000);
-                            g_dbgEnv.state = RUN_stateStopped;
-                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: pool reset\n");
+                            g_dbgEnv.state = DEBUG_stateStopped;
+                            LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: pool reset\n");
                             //U_delay(2000);
                             U_poolReset (UP_runChild);
 
                             //printf ("program stopped, ERR is %ld\n", msg->code);
-                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: program stopped, ERR is %ld, trap code is %ld\n", msg->u.err, g_trapCode);
+                            LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: program stopped, ERR is %ld, trap code is %ld\n", msg->u.err, g_trapCode);
                             //U_delay(2000);
                             g_dbgEnv.u.dbg.err = msg->u.err;
                             key = KEY_STOPPED;
-                            LOG_printf (LOG_DEBUG, "RUN_handleMessages: program stopped -> done.\n");
+                            LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: program stopped -> done.\n");
                             //U_delay(2000);
                         }
                         else
                         {
-                            LOG_printf (LOG_ERROR, "RUN_handleMessages: invalid DEBUG_CMD_START command received\n");
+                            LOG_printf (LOG_ERROR, "DEBUG_handleMessages: invalid DEBUG_CMD_START command received\n");
                         }
                         break;
                     case DEBUG_CMD_PUTC:
-                        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTC c=%d\n", msg->u.c);
+                        //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG_CMD_PUTC c=%d\n", msg->u.c);
                         UI_tprintf ("%c", msg->u.c);
                         ReplyMsg (&msg->msg);
                         break;
                     case DEBUG_CMD_PUTS:
-                        //LOG_printf (LOG_DEBUG, "RUN_handleMessages: DEBUG_CMD_PUTS str=\"%s\" (0x%08lx)\n", msg->u.str, msg->u.str);
+                        //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG_CMD_PUTS str=\"%s\" (0x%08lx)\n", msg->u.str, msg->u.str);
                         UI_tprintf ("%s", msg->u.str);
                         ReplyMsg (&msg->msg);
                         break;
@@ -864,7 +882,7 @@ uint16_t RUN_handleMessages(void)
 }
 
 #if 0
-ULONG RUN_getERRCode(void)
+ULONG DEBUG_getERRCode(void)
 {
 
     return g_dbgEnv.u.dbg.err;
@@ -872,9 +890,9 @@ ULONG RUN_getERRCode(void)
 #endif
 
 #if 0
-void RUN_freeze (void)
+void DEBUG_freeze (void)
 {
-	LOG_printf (LOG_INFO, "RUN_stop: Freeze...\n");
+	LOG_printf (LOG_INFO, "DEBUG_stop: Freeze...\n");
 
 	BOOL done = FALSE;
 	while (!done)
@@ -889,7 +907,7 @@ void RUN_freeze (void)
         }
         else
         {
-            LOG_printf (LOG_INFO, "RUN_stop: not TS_READY!\n");
+            LOG_printf (LOG_INFO, "DEBUG_stop: not TS_READY!\n");
             Permit();
 			Delay(1);
             continue;
@@ -899,14 +917,14 @@ void RUN_freeze (void)
 
 		ULONG *sp = (ULONG*) g_childProc->pr_Task.tc_SPReg;
 		ULONG *spp = sp+1;
-		LOG_printf (LOG_INFO, "RUN_stop: sp=0x%08lx *sp=0x%08lx spp=0x%08lx *spp=0x%08lx exitfn=0x%08lx\n", (ULONG)sp, *sp, spp, *spp, g_dbgMsg.exitFn);
+		LOG_printf (LOG_INFO, "DEBUG_stop: sp=0x%08lx *sp=0x%08lx spp=0x%08lx *spp=0x%08lx exitfn=0x%08lx\n", (ULONG)sp, *sp, spp, *spp, g_dbgMsg.exitFn);
 
 		ULONG rts = *spp;
 		if ((rts & 0xfff00000) != 0x00f00000)
 		{
 			*spp = (ULONG) g_dbgMsg.exitFn;
 			done = TRUE;
-			LOG_printf (LOG_INFO, "RUN_stop: force exit!\n");
+			LOG_printf (LOG_INFO, "DEBUG_stop: force exit!\n");
 		}
 
 		Forbid();
@@ -921,20 +939,21 @@ void RUN_freeze (void)
 		}
 	}
 
-	LOG_printf (LOG_INFO, "RUN_stop: done\n");
+	LOG_printf (LOG_INFO, "DEBUG_stop: done\n");
 }
 #endif
 
-void RUN_break (void)
+void DEBUG_break (void)
 {
-	LOG_printf (LOG_INFO, "RUN_break: sending CTRL+C signal to child\n");
+	LOG_printf (LOG_INFO, "DEBUG_break: sending CTRL+C signal to child\n");
 
     Signal (&g_dbgEnv.childProc->pr_Task, SIGBREAKF_CTRL_C);
 }
 
-void RUN_init (struct MsgPort *debugPort)
+void DEBUG_init (IDE_instance ide, struct MsgPort *debugPort)
 {
-	g_parentTask = FindTask(NULL);
+    g_ide         = ide;
+	g_parentTask  = FindTask(NULL);
     //g_currentDir = ((struct Process *)g_parentTask)->pr_CurrentDir;
     g_debugPort   = debugPort;
 
@@ -946,80 +965,19 @@ void RUN_init (struct MsgPort *debugPort)
     has_68010_or_up = has_68020_or_up || (SysBase->AttnFlags & AFF_68010);
 }
 
-RUN_state RUN_getState(void)
+DEBUG_state DEBUG_getState(void)
 {
     return g_dbgEnv.state;
 }
 
-void  RUN_handleEvent (uint16_t key)
-{
-#if 0
-    BOOL bInRefresh = FALSE;
-    switch (key)
-    {
-        case KEY_CTRL_C:
-        case KEY_CTRL_Q:
-        case KEY_QUIT:
-            IDE_exit(ed);
-            break;
-
-        case KEY_REFRESH:
-            UI_beginRefresh();
-            bInRefresh = TRUE;
-            invalidateAll (ed);
-            break;
-
-        case KEY_HELP:
-        case KEY_F1:
-            show_help(ed);
-            break;
-
-		case KEY_COLORSCHEME_0:
-		case KEY_COLORSCHEME_1:
-		case KEY_COLORSCHEME_2:
-		case KEY_COLORSCHEME_3:
-		case KEY_COLORSCHEME_4:
-		case KEY_COLORSCHEME_5:
-			UI_setColorScheme (key - KEY_COLORSCHEME_0);
-            invalidateAll (ed);
-			break;
-
-		case KEY_FONT_0:
-		case KEY_FONT_1:
-			UI_setFont (key - KEY_FONT_0);
-            initWindowSize (ed);
-            invalidateAll (ed);
-			break;
-
-        case KEY_NONE:
-            break;
-
-        default:
-            UI_bell();
-            break;
-
-    }
-
-    scroll(ed);
-    repaint(ed);
-    if (bInRefresh)
-        UI_endRefresh();
-#endif
-
-}
 
 #else
 
 // FIXME: implement?
 
-RUN_state RUN_getState(void)
+DEBUG_state DEBUG_getState(void)
 {
-    return RUN_stateStopped;
-}
-
-void  RUN_handleEvent (uint16_t key)
-{
-    // FIXME
+    return DEBUG_stateStopped;
 }
 
 #endif

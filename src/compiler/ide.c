@@ -17,7 +17,6 @@
 #include "frontend.h"
 #include "compiler.h"
 #include "logger.h"
-#include "run.h"
 #include "options.h"
 #include "errormsg.h"
 
@@ -70,7 +69,7 @@ static S_symbol S_REM;
 #if LOG_LEVEL == LOG_DEBUG
 static FILE *logf=NULL;
 #endif
-static IDE_instance g_ed;
+static IDE_instance g_ide;
 static TAB_table  g_keywords;
 
 IDE_line newLine(IDE_instance ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
@@ -189,10 +188,18 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
     }
 }
 
-static IDE_line getLine (IDE_instance ed, int linenum)
+IDE_line IDE_getVLine (IDE_instance ed, int linenum)
 {
     IDE_line l = ed->line_first;
     while ( l && (l->v_line < linenum) )
+        l = l->next;
+    return l;
+}
+
+IDE_line IDE_getALine (IDE_instance ed, int linenum)
+{
+    IDE_line l = ed->line_first;
+    while ( l && (l->a_line < linenum) )
         l = l->next;
     return l;
 }
@@ -920,7 +927,7 @@ static void repaint (IDE_instance ed)
     // cache first visible line for speed
     if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
     {
-        ed->scrolloff_line = getLine (ed, ed->scrolloff_row);
+        ed->scrolloff_line = IDE_getVLine (ed, ed->scrolloff_row);
         ed->scrolloff_line_row = ed->scrolloff_row;
     }
 
@@ -1432,9 +1439,9 @@ static bool compile(IDE_instance ed)
 static void compileAndRun(IDE_instance ed)
 {
 #ifdef __amigaos__
-    if (RUN_getState() != RUN_stateStopped)
+    if (DEBUG_getState() != DEBUG_stateStopped)
     {
-        RUN_break();
+        DEBUG_break();
         return;
     }
 #endif
@@ -1473,8 +1480,8 @@ static void compileAndRun(IDE_instance ed)
 #ifdef __amigaos__
 
     UI_setCursorVisible (FALSE);
-    RUN_start (ed->binfn);
-    // RUN_start ("SYS:Utilities/Clock"); // debug purposes only
+    DEBUG_start (ed->binfn);
+    // DEBUG_start ("SYS:Utilities/Clock"); // debug purposes only
 
 #else
 
@@ -1813,12 +1820,12 @@ static void event_cb (uint16_t key, void *user_data)
 
     // are we in debug mode right now ?
 
-    RUN_state rs = RUN_getState();
-    if (rs != RUN_stateStopped)
+    DEBUG_state rs = DEBUG_getState();
+    if (rs != DEBUG_stateStopped)
     {
-        RUN_handleEvent (key);
-        rs = RUN_getState();
-        if (rs == RUN_stateStopped)
+        // DEBUG_handleEvent (key);
+        rs = DEBUG_getState();
+        if (rs == DEBUG_stateStopped)
         {
             UI_eraseDisplay ();
             invalidateAll (ed);
@@ -2051,9 +2058,6 @@ void IDE_open (string sourcefn)
 #endif
 	atexit (IDE_deinit);
     UI_init();
-#ifdef __amigaos__
-    RUN_init(UI_debugPort());
-#endif
     LOG_init (log_cb);
 
     // indentation support
@@ -2078,17 +2082,20 @@ void IDE_open (string sourcefn)
     for (int i =0; i<FE_num_keywords; i++)
         TAB_enter (g_keywords, FE_keywords[i], (void *) TRUE);
 
-    g_ed = openEditor();
+    g_ide = openEditor();
+#ifdef __amigaos__
+    DEBUG_init (g_ide, UI_debugPort());
+#endif
 
-    loadSource (g_ed, sourcefn);
+    loadSource (g_ide, sourcefn);
 
     UI_setCursorVisible (FALSE);
     UI_moveCursor (1, 1);
     UI_eraseDisplay();
-    repaint(g_ed);
+    repaint(g_ide);
 
-	UI_onEventCall(event_cb, g_ed);
-    UI_onSizeChangeCall (size_cb, g_ed);
+	UI_onEventCall      (event_cb, g_ide);
+    UI_onSizeChangeCall (size_cb,  g_ide);
 
 	UI_run();
 }
