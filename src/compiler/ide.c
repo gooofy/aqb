@@ -67,80 +67,13 @@ static S_symbol S_SELECT;
 static S_symbol S_CASE;
 static S_symbol S_REM;
 
-typedef struct IDE_line_     *IDE_line;
-typedef struct IDE_editor_   *IDE_editor;
-
-struct IDE_line_
-{
-	IDE_line  next, prev;
-	uint16_t  len;
-    char     *buf;
-    char     *style;
-
-    int8_t    indent;
-    int8_t    pre_indent, post_indent;
-
-    // folding support
-    bool      folded, fold_start, fold_end;
-    uint16_t  a_line; // absolut line number in file
-    uint16_t  v_line; // virtual line number, takes folding into account
-};
-
-struct IDE_editor_
-{
-    IDE_line           line_first, line_last;
-	uint16_t           num_lines;
-    uint16_t           num_vlines;
-	bool               changed;
-	char               infoline[36+PATH_MAX];
-    uint16_t           infoline_row;
-	char 	           sourcefn[PATH_MAX];
-	char 	           module_name[PATH_MAX];
-	char 	           binfn[PATH_MAX];
-
-	int16_t            cursor_col, cursor_a_line, cursor_v_line;
-    IDE_line           cursor_line;
-
-    // window, scrolling, repaint
-	int16_t            window_width, window_height;
-	int16_t            scrolloff_col, scrolloff_row;
-    IDE_line           scrolloff_line;
-    int16_t            scrolloff_line_row;
-    bool               up2date_row[UI_MAX_ROWS];
-    bool               up2date_il_pos;
-    bool               up2date_il_num_lines;
-    bool               up2date_il_flags;
-    bool               up2date_il_sourcefn;
-    bool               il_show_error;
-    bool               repaint_all;
-
-    // cursor_line currently being edited (i.e. represented in buffer):
-    bool               editing;
-    char               buf[MAX_LINE_LEN];
-    char               style[MAX_LINE_LEN];
-    uint16_t           buf_len;
-    // buf2line support:
-    uint16_t           buf_pos;
-    char               buf_ch;
-    bool               eol;
-
-    // temporary buffer used in edit operations
-    char               buf2[MAX_LINE_LEN];
-    char               style2[MAX_LINE_LEN];
-    uint16_t           buf2_len;
-
-    // find/replace
-    bool               find_matchCase, find_wholeWord, find_searchBackwards;
-    char               find_buf[MAX_LINE_LEN];
-};
-
 #if LOG_LEVEL == LOG_DEBUG
 static FILE *logf=NULL;
 #endif
-static IDE_editor g_ed;
+static IDE_instance g_ed;
 static TAB_table  g_keywords;
 
-IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
+IDE_line newLine(IDE_instance ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
 {
     int len = strlen(buf);
     IDE_line l = U_poolAlloc (UP_ide, sizeof(*l)+2*(len+1));
@@ -165,13 +98,13 @@ IDE_line newLine(IDE_editor ed, char *buf, char *style, int8_t pre_indent, int8_
 	return l;
 }
 
-static void freeLine (IDE_editor ed, IDE_line l)
+static void freeLine (IDE_instance ed, IDE_line l)
 {
     // FIXME: implement
     ed->scrolloff_line = NULL;
 }
 
-static void insertLineAfter (IDE_editor ed, IDE_line lBefore, IDE_line l)
+static void insertLineAfter (IDE_instance ed, IDE_line lBefore, IDE_line l)
 {
     if (lBefore)
     {
@@ -202,7 +135,7 @@ static void insertLineAfter (IDE_editor ed, IDE_line lBefore, IDE_line l)
     }
 }
 
-static void deleteLine (IDE_editor ed, IDE_line l)
+static void deleteLine (IDE_instance ed, IDE_line l)
 {
     if (l->prev)
     {
@@ -222,7 +155,7 @@ static void deleteLine (IDE_editor ed, IDE_line l)
     ed->changed = TRUE;
 }
 
-void initWindowSize (IDE_editor ed)
+void initWindowSize (IDE_instance ed)
 {
     ed->window_width  = UI_size_cols;
     ed->window_height = UI_size_rows;
@@ -256,7 +189,7 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
     }
 }
 
-static IDE_line getLine (IDE_editor ed, int linenum)
+static IDE_line getLine (IDE_instance ed, int linenum)
 {
     IDE_line l = ed->line_first;
     while ( l && (l->v_line < linenum) )
@@ -264,7 +197,7 @@ static IDE_line getLine (IDE_editor ed, int linenum)
     return l;
 }
 
-static void invalidateAll (IDE_editor ed)
+static void invalidateAll (IDE_instance ed)
 {
     for (uint16_t i=0; i<UI_MAX_ROWS; i++)
         ed->up2date_row[i] = FALSE;
@@ -275,7 +208,7 @@ static void invalidateAll (IDE_editor ed)
     ed->repaint_all          = TRUE;
 }
 
-static void scroll(IDE_editor ed)
+static void scroll(IDE_instance ed)
 {
     int16_t cursor_row = ed->cursor_v_line - ed->scrolloff_row;
 
@@ -331,14 +264,14 @@ typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
                STAUI_ELSEIFTHEN, STAUI_LOOP, STAUI_LOOPEND,
                STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE, STAUI_OTHER } state_enum;
 
-static void _getch(IDE_editor ed)
+static void _getch(IDE_instance ed)
 {
     assert (!ed->eol);
     ed->buf_ch = ed->buf[ed->buf_pos++];
     ed->eol = ed->buf_ch == 0;
 }
 
-static IDE_line buf2line (IDE_editor ed)
+static IDE_line buf2line (IDE_instance ed)
 {
     static char buf[MAX_LINE_LEN];
     static char style[MAX_LINE_LEN];
@@ -647,7 +580,7 @@ static void indentLine (IDE_line l)
                 l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
 }
 
-static void indentSuccLines (IDE_editor ed, IDE_line lp)
+static void indentSuccLines (IDE_instance ed, IDE_line lp)
 {
     uint16_t al = lp->a_line;
     uint16_t vl = lp->v_line;
@@ -667,7 +600,7 @@ static void indentSuccLines (IDE_editor ed, IDE_line lp)
     invalidateAll (ed);
 }
 
-static IDE_line commitBuf(IDE_editor ed)
+static IDE_line commitBuf(IDE_instance ed)
 {
     IDE_line cl = ed->cursor_line;
     IDE_line l  = buf2line (ed);
@@ -696,7 +629,7 @@ static IDE_line commitBuf(IDE_editor ed)
     return l;
 }
 
-static bool cursorUp(IDE_editor ed)
+static bool cursorUp(IDE_instance ed)
 {
     IDE_line pl = ed->cursor_line->prev;
     if (!pl)
@@ -724,7 +657,7 @@ static bool cursorUp(IDE_editor ed)
     return TRUE;
 }
 
-static bool cursorDown(IDE_editor ed)
+static bool cursorDown(IDE_instance ed)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -755,7 +688,7 @@ static bool cursorDown(IDE_editor ed)
     return TRUE;
 }
 
-static bool cursorLeft(IDE_editor ed)
+static bool cursorLeft(IDE_instance ed)
 {
     if (ed->cursor_col == 0)
         return FALSE;
@@ -766,7 +699,7 @@ static bool cursorLeft(IDE_editor ed)
     return TRUE;
 }
 
-static bool cursorRight(IDE_editor ed)
+static bool cursorRight(IDE_instance ed)
 {
     int len = ed->editing ? ed->buf_len : ed->cursor_line->len + INDENT_SPACES * ed->cursor_line->indent;
     if (ed->cursor_line->folded)
@@ -780,7 +713,7 @@ static bool cursorRight(IDE_editor ed)
     return TRUE;
 }
 
-static bool pageUp(IDE_editor ed)
+static bool pageUp(IDE_instance ed)
 {
     for (uint16_t i = 0; i<ed->window_height; i++)
     {
@@ -790,7 +723,7 @@ static bool pageUp(IDE_editor ed)
     return TRUE;
 }
 
-static bool pageDown(IDE_editor ed)
+static bool pageDown(IDE_instance ed)
 {
     for (uint16_t i = 0; i<ed->window_height; i++)
     {
@@ -800,7 +733,7 @@ static bool pageDown(IDE_editor ed)
     return TRUE;
 }
 
-static bool gotoBOF(IDE_editor ed)
+static bool gotoBOF(IDE_instance ed)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -815,7 +748,7 @@ static bool gotoBOF(IDE_editor ed)
     return TRUE;
 }
 
-static bool gotoEOF(IDE_editor ed)
+static bool gotoEOF(IDE_instance ed)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -834,14 +767,14 @@ static bool gotoEOF(IDE_editor ed)
     return TRUE;
 }
 
-static bool gotoHome(IDE_editor ed)
+static bool gotoHome(IDE_instance ed)
 {
     ed->cursor_col = 0;
     ed->up2date_il_pos = FALSE;
     return TRUE;
 }
 
-static bool gotoEnd(IDE_editor ed)
+static bool gotoEnd(IDE_instance ed)
 {
     if (ed->editing)
         ed->cursor_col = ed->buf_len;
@@ -851,7 +784,7 @@ static bool gotoEnd(IDE_editor ed)
     return TRUE;
 }
 
-static void fold (IDE_editor ed, IDE_line cl)
+static void fold (IDE_instance ed, IDE_line cl)
 {
     if (!cl->fold_start)
         return;
@@ -879,7 +812,7 @@ static void fold (IDE_editor ed, IDE_line cl)
     invalidateAll(ed);
 }
 
-static void unfoldLine (IDE_editor ed, IDE_line l)
+static void unfoldLine (IDE_instance ed, IDE_line l)
 {
     if (l->folded)
     {
@@ -891,12 +824,12 @@ static void unfoldLine (IDE_editor ed, IDE_line l)
     }
 }
 
-static void unfoldCursorLine(IDE_editor ed)
+static void unfoldCursorLine(IDE_instance ed)
 {
     unfoldLine (ed, ed->cursor_line);
 }
 
-static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
+static bool gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -920,7 +853,7 @@ static bool gotoLine(IDE_editor ed, uint16_t line, uint16_t col)
     return TRUE;
 }
 
-static void line2buf (IDE_editor ed, IDE_line l)
+static void line2buf (IDE_instance ed, IDE_line l)
 {
     if (l->folded)
         fold(ed, l);
@@ -946,7 +879,7 @@ static void line2buf (IDE_editor ed, IDE_line l)
     ed->buf_len  = l->len+off;
 }
 
-static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded)
+static void repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded)
 {
     // FIXME: horizontal scroll
 
@@ -976,7 +909,7 @@ static void repaintLine (IDE_editor ed, char *buf, char *style, uint16_t len, ui
     UI_endLine();
 }
 
-static void repaint (IDE_editor ed)
+static void repaint (IDE_instance ed)
 {
 #ifdef ENABLE_REPAINT_BENCHMARK
     float startTime = U_getTime();
@@ -1115,7 +1048,7 @@ static void repaint (IDE_editor ed)
 #endif
 }
 
-static void enterKey (IDE_editor ed)
+static void enterKey (IDE_instance ed)
 {
     // split line ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
@@ -1158,7 +1091,7 @@ static void enterKey (IDE_editor ed)
     invalidateAll(ed);
 }
 
-static void backspaceKey (IDE_editor ed)
+static void backspaceKey (IDE_instance ed)
 {
     // join lines ?
     if (ed->cursor_col == 0)
@@ -1205,7 +1138,7 @@ static void backspaceKey (IDE_editor ed)
     }
 }
 
-static void deleteKey (IDE_editor ed)
+static void deleteKey (IDE_instance ed)
 {
     // join lines ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
@@ -1246,7 +1179,7 @@ static void deleteKey (IDE_editor ed)
 }
 
 
-static void killLine (IDE_editor ed)
+static void killLine (IDE_instance ed)
 {
     IDE_line cl = ed->cursor_line;
     IDE_line nl = cl->next;
@@ -1284,7 +1217,7 @@ static bool printableAsciiChar (uint16_t c)
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 #endif
-static bool insertChar (IDE_editor ed, uint16_t c)
+static bool insertChar (IDE_instance ed, uint16_t c)
 {
     LOG_printf (LOG_DEBUG, "insertChar %c\n", c);
     if (!printableAsciiChar(c))
@@ -1322,7 +1255,7 @@ static bool insertChar (IDE_editor ed, uint16_t c)
     return TRUE;
 }
 
-static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
+static void IDE_setSourceFn(IDE_instance ed, string sourcefn)
 {
     if (sourcefn)
     {
@@ -1369,7 +1302,7 @@ static void IDE_setSourceFn(IDE_editor ed, string sourcefn)
 #ifdef __amigaos__
 #pragma GCC pop_options
 #endif
-static bool IDE_save (IDE_editor ed, bool save_as)
+static bool IDE_save (IDE_instance ed, bool save_as)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -1414,7 +1347,7 @@ static bool IDE_save (IDE_editor ed, bool save_as)
     return TRUE;
 }
 
-static void IDE_exit (IDE_editor ed)
+static void IDE_exit (IDE_instance ed)
 {
     LOG_printf (LOG_DEBUG, "ide: IDE_exit\n");
     if (ed->changed)
@@ -1427,7 +1360,7 @@ static void IDE_exit (IDE_editor ed)
     exit(0);
 }
 
-static void show_help(IDE_editor ed)
+static void show_help(IDE_instance ed)
 {
 #ifdef __amigaos__
     UI_HelpBrowser();
@@ -1451,7 +1384,7 @@ static void show_help(IDE_editor ed)
 #endif
 }
 
-static void show_about(IDE_editor ed)
+static void show_about(IDE_instance ed)
 {
     UI_EZRequest (PROGRAM_NAME_LONG " " VERSION"\n\n"
                   COPYRIGHT "\n\n"
@@ -1459,7 +1392,7 @@ static void show_about(IDE_editor ed)
     invalidateAll (ed);
 }
 
-static bool compile(IDE_editor ed)
+static bool compile(IDE_instance ed)
 {
     if (!IDE_save(ed, /*save_as=*/FALSE))
         return FALSE;
@@ -1496,7 +1429,7 @@ static bool compile(IDE_editor ed)
     return TRUE;
 }
 
-static void compileAndRun(IDE_editor ed)
+static void compileAndRun(IDE_instance ed)
 {
 #ifdef __amigaos__
     if (RUN_getState() != RUN_stateStopped)
@@ -1629,7 +1562,7 @@ nextcol:
 }
 
 
-static void findNext (IDE_editor ed, bool first)
+static void findNext (IDE_instance ed, bool first)
 {
 	if (!strlen(ed->find_buf))
 		return;
@@ -1699,7 +1632,7 @@ static void findNext (IDE_editor ed, bool first)
     }
 }
 
-static void IDE_find (IDE_editor ed)
+static void IDE_find (IDE_instance ed)
 {
     if (UI_FindReq (ed->find_buf, MAX_LINE_LEN, &ed->find_matchCase, &ed->find_wholeWord, &ed->find_searchBackwards))
         findNext (ed, /*first=*/TRUE);
@@ -1709,7 +1642,7 @@ static void IDE_find (IDE_editor ed)
     UI_setCursorVisible (TRUE);
 }
 
-static void doClear (IDE_editor ed)
+static void doClear (IDE_instance ed)
 {
     IDE_line l=ed->line_first;
     while (l)
@@ -1725,7 +1658,7 @@ static void doClear (IDE_editor ed)
     ed->module_name[0] = 0;
 }
 
-static void doNew (IDE_editor ed)
+static void doNew (IDE_instance ed)
 {
     doClear(ed);
     ed->buf_len = 0;
@@ -1734,7 +1667,7 @@ static void doNew (IDE_editor ed)
     insertLineAfter (ed, NULL, line);
 }
 
-static void loadSource (IDE_editor ed, string sourcefn)
+static void loadSource (IDE_instance ed, string sourcefn)
 {
     doClear (ed);
     IDE_setSourceFn(ed, sourcefn);
@@ -1815,7 +1748,7 @@ static void loadSource (IDE_editor ed, string sourcefn)
     invalidateAll (ed);
 }
 
-static void IDE_new (IDE_editor ed)
+static void IDE_new (IDE_instance ed)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -1836,7 +1769,7 @@ static void IDE_new (IDE_editor ed)
     invalidateAll (ed);
 }
 
-static void IDE_load_FileReq (IDE_editor ed)
+static void IDE_load_FileReq (IDE_instance ed)
 {
     if (ed->editing)
         commitBuf (ed);
@@ -1853,7 +1786,7 @@ static void IDE_load_FileReq (IDE_editor ed)
 
 static void size_cb (void *user_data)
 {
-	IDE_editor ed = (IDE_editor) user_data;
+	IDE_instance ed = (IDE_instance) user_data;
     initWindowSize (ed);
     invalidateAll (ed);
     scroll(ed);
@@ -1861,7 +1794,7 @@ static void size_cb (void *user_data)
     repaint(ed);
 }
 
-static void handleRunStop(IDE_editor ed)
+static void handleRunStop(IDE_instance ed)
 {
 #ifdef __amigaos__
     LOG_printf (LOG_INFO, "\n\nPROGRAM EXITED\n\n");
@@ -1876,7 +1809,7 @@ static void handleRunStop(IDE_editor ed)
 
 static void event_cb (uint16_t key, void *user_data)
 {
-	IDE_editor ed = (IDE_editor) user_data;
+	IDE_instance ed = (IDE_instance) user_data;
 
     // are we in debug mode right now ?
 
@@ -2044,9 +1977,9 @@ static void event_cb (uint16_t key, void *user_data)
     repaint(ed);
 }
 
-IDE_editor openEditor(void)
+IDE_instance openEditor(void)
 {
-	IDE_editor ed = U_poolAlloc (UP_ide, sizeof (*ed));
+	IDE_instance ed = U_poolAlloc (UP_ide, sizeof (*ed));
 
     strncpy (ed->infoline, INFOLINE, sizeof(ed->infoline));
     ed->infoline_row         = 0;
