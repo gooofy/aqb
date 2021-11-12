@@ -930,7 +930,7 @@ void AS_ensureSegmentSize (U_poolId pid, AS_segment seg, uint32_t min_size)
 {
     LOG_printf (LOG_DEBUG, "assem: AS_ensureSegmentSize: id=%d kind=%d mem_size=%d, min_size=%d\n", seg->hunk_id, seg->name, seg->kind, seg->mem_size, min_size);
     uint32_t ms = min_size ? min_size : 64;
-    if (seg->mem_size < min_size)
+    if (!seg->mem || (seg->mem_size < min_size))    // make sure we allocate at least those 8 bytes for seglist chaining
     {
         uint32_t s = seg->mem_size ? seg->mem_size : ms;
         while (s<min_size)

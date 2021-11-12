@@ -454,8 +454,8 @@ static LI_segmentList _loadSeg(char *binfn)
     fclose (f);
 
     LI_relocate (sl);
-    LOG_printf (LOG_INFO, "\nhex dump: beginning of first segment\n");
-    hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
+    //LOG_printf (LOG_INFO, "\nhex dump: beginning of first segment\n");
+    //hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
 
     // create AmigaDOS style seglist
 
@@ -474,9 +474,12 @@ static LI_segmentList _loadSeg(char *binfn)
         {
             ptr[1] = 0;
         }
-        LOG_printf (LOG_DEBUG, "_loadSeg: creating seglist: 0x%08lx 0x%08lx 0x%08lx\n", ptr[0], ptr[1], ptr[2]);
+        LOG_printf (LOG_DEBUG, "_loadSeg: creating seglist: kind=%d, hunk_id=%d, next=0x%08lx -> len=%6d next=0x%08lx code:0x%08lx...\n",
+                    seg->kind, seg->hunk_id, sln->next, ptr[0], ptr[1], ptr[2]);
+        //U_delay(1000);
     }
     LOG_printf (LOG_DEBUG, "_loadSeg: creating seglist: done.\n");
+    //U_delay(1000);
 
     // clear cpu caches
     CacheClearU();
@@ -668,8 +671,13 @@ static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
 static void _debug(struct DebugMsg *msg)
 {
     UI_toFront();
-    UI_tprintf ("\n\n*** AQB DEBUG ***\n\n");
+    UI_tprintf ("\n");
+    UI_setTextStyle (UI_TEXT_STYLE_INVERSE);
+    UI_tprintf (" *** AQB Source Level Debugger *** \n");
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+    UI_tprintf ("\n");
 
+    UI_setTextStyle (UI_TEXT_STYLE_KEYWORD);
     switch (g_trapCode)
     {
         case 2:
@@ -694,6 +702,7 @@ static void _debug(struct DebugMsg *msg)
             UI_tprintf("TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
     }
 
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
     // register dump
 
     UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
