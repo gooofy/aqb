@@ -701,16 +701,7 @@ static void _debug(struct DebugMsg *msg)
         default:
             UI_tprintf("TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
     }
-
     UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-    // register dump
-
-    UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
-    UI_tprintf ("d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
-    UI_tprintf ("a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
-    UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
-
-    UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n", g_dbgSR, g_dbgPC, g_dbgFMT);
 
     // get stack trace
 
@@ -738,7 +729,7 @@ static void _debug(struct DebugMsg *msg)
     while ( TRUE )
     {
         l = _find_src_line (pc);
-        UI_tprintf ("source line: pc=0x%08lx a5=0x%08lx -> %d\n", pc, a5, l);
+        // UI_tprintf ("source line: pc=0x%08lx a5=0x%08lx -> %d\n", pc, a5, l);
 
         if (l<0)
         {
@@ -772,16 +763,38 @@ static void _debug(struct DebugMsg *msg)
         }
     }
 
-    UI_tprintf ("\nPC mem dump:\n");
-    hexdump ((UBYTE *)g_dbgPC, 32, 16);
 
     BOOL finished = FALSE;
     while (!finished)
     {
-        UI_tprintf ("\n\nPRESS C:continue, E:exit\n\n");
+        UI_setTextStyle (UI_TEXT_STYLE_KEYWORD);
+        UI_tprintf ("\n\nPRESS C:continue, E:terminate, R: registers, W: stack, L: list, M: mem dump\n\n");
+        UI_setTextStyle (UI_TEXT_STYLE_TEXT);
         uint16_t key = UI_waitkey();
         switch (key)
         {
+            case 'r':
+            case 'R':
+                // register dump
+
+                UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
+                UI_tprintf ("d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
+                UI_tprintf ("a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
+                UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
+
+                UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n", g_dbgSR, g_dbgPC, g_dbgFMT);
+                break;
+
+            case 'm':
+            case 'M':
+                UI_tprintf ("\nPC mem dump:\n");
+                hexdump ((UBYTE *)g_dbgPC, 32, 16);
+                break;
+
+            // case 'w':
+            // case 'W':
+            //     _print_stack();
+            //     break;
             case 'c':
             case 'C':
                 ReplyMsg (&msg->msg);
