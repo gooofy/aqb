@@ -56,7 +56,7 @@ typedef struct DEBUG_env_ *DEBUG_env;
 
 struct DEBUG_env_
 {
-    DEBUG_state          state;
+    DEBUG_state        state;
     struct Process    *childProc;
     char              *binfn;
     BPTR               childHomeDirLock;
@@ -607,7 +607,82 @@ void DEBUG_start (const char *binfn)
 
 void DEBUG_help (char *binfn, char *arg1)
 {
-    _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/arg1, /*dbg=*/FALSE);
+    if (g_helpEnv.state != DEBUG_stateStopped)
+    {
+        LOG_printf (LOG_ERROR, "help viewer is already active.\n");
+        return;
+    }
+
+    g_helpEnv.binfn = binfn;
+
+    LOG_printf (LOG_DEBUG, "DEBUG_help: loading %s ...\n\n", binfn);
+
+    g_helpEnv.sl = NULL;
+    g_helpEnv.seglist = LoadSeg ((STRPTR)binfn);
+    if (!g_helpEnv.seglist)
+    {
+        LOG_printf (LOG_ERROR, "failed to load %s\n\n", binfn);
+        return;
+    }
+
+    // homedir
+
+    strncpy (g_helpEnv.dirbuf, binfn, 256);
+    *(PathPart((STRPTR)g_helpEnv.dirbuf)) = 0;
+
+    g_helpEnv.childHomeDirLock = Lock ((STRPTR)g_helpEnv.dirbuf, ACCESS_READ);
+
+    LOG_printf (LOG_DEBUG, "DEBUG_help: CreateNewProc for %s ...\n", binfn);
+    g_helpEnv.childProc = CreateNewProcTags(NP_Seglist,     (ULONG) g_helpEnv.seglist,
+									   NP_FreeSeglist, FALSE,
+									   NP_Input,       0l,
+                                       NP_Output,      aqb_wbstart ? 0 : Output(),
+                                       NP_CloseInput,  FALSE,
+                                       NP_CloseOutput, FALSE,
+                                       NP_StackSize,   DEFAULT_STACKSIZE,
+								       NP_Name,        (ULONG) binfn,
+									   //NP_WindowPtr,   0l,
+									   NP_HomeDir,     g_helpEnv.childHomeDirLock,
+									   NP_CopyVars,    FALSE,
+									   TAG_DONE);
+
+    g_childTask = &g_helpEnv.childProc->pr_Task;
+
+    LOG_printf (LOG_DEBUG, "DEBUG_help: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) g_helpEnv.childProc);
+
+    // send startup message
+
+    g_helpEnv.u.wb.msg.sm_Message.mn_Node.ln_Succ = NULL;
+    g_helpEnv.u.wb.msg.sm_Message.mn_Node.ln_Pred = NULL;
+    g_helpEnv.u.wb.msg.sm_Message.mn_Node.ln_Type = NT_MESSAGE;
+    g_helpEnv.u.wb.msg.sm_Message.mn_Node.ln_Pri  = 0;
+    g_helpEnv.u.wb.msg.sm_Message.mn_Node.ln_Name = NULL;
+    g_helpEnv.u.wb.msg.sm_Message.mn_ReplyPort    = g_debugPort;
+    g_helpEnv.u.wb.msg.sm_Message.mn_Length       = sizeof(struct WBStartup);
+    g_helpEnv.u.wb.msg.sm_Process                 = &g_helpEnv.childProc->pr_MsgPort;
+    g_helpEnv.u.wb.msg.sm_Segment                 = g_helpEnv.seglist;
+    g_helpEnv.u.wb.msg.sm_NumArgs                 = arg1 ? 2 : 1;
+    g_helpEnv.u.wb.msg.sm_ToolWindow              = NULL;
+    g_helpEnv.u.wb.msg.sm_ArgList                 = &g_helpEnv.u.wb.arg0;
+
+    g_helpEnv.u.wb.arg0.wa_Lock = Lock ((STRPTR)g_helpEnv.dirbuf, ACCESS_READ);
+    g_helpEnv.u.wb.arg0.wa_Name = (BYTE*) FilePart ((STRPTR)binfn);
+
+    if (arg1)
+    {
+        strncpy (g_helpEnv.dirbuf, arg1, 256);
+        *(PathPart((STRPTR)g_helpEnv.dirbuf)) = 0;
+
+        g_helpEnv.u.wb.arg1.wa_Lock = Lock ((STRPTR)g_helpEnv.dirbuf, ACCESS_READ);
+        g_helpEnv.u.wb.arg1.wa_Name = (BYTE*) FilePart ((STRPTR)arg1);
+    }
+    LOG_printf (LOG_DEBUG, "DEBUG_help: Send WBSTartup msg (arg1=%s) ...\n", arg1);
+
+    PutMsg (&g_helpEnv.childProc->pr_MsgPort, &g_helpEnv.u.wb.msg.sm_Message);
+
+    g_helpEnv.state = DEBUG_stateRunning;
+
+	LOG_printf (LOG_DEBUG, "DEBUG_help: done. state is %d now.\n", g_helpEnv.state);
 }
 
 static int16_t _find_src_line (uint32_t pc)
