@@ -37,8 +37,6 @@
 
 #define SCROLL_MARGIN 5
 
-#define INDENT_SPACES 4
-
 #ifdef __amigaos__
 #define TMP_BINFN "T:aqb_out.exe"
 #include "icons.h"

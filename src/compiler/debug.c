@@ -89,6 +89,15 @@ struct dbgState
     UBYTE   exceptionData[DBG_EXC_BUF_LEN];
 };
 
+typedef struct DEBUG_stackInfo_ *DEBUG_stackInfo;
+
+struct DEBUG_stackInfo_
+{
+    DEBUG_stackInfo next, prev;
+    ULONG   pc;
+    int16_t line;
+};
+
 static IDE_instance         g_ide;
 static struct MsgPort      *g_debugPort;
 static struct Task         *g_parentTask;
@@ -743,6 +752,94 @@ static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
     return TRUE;
 }
 
+static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, int16_t line)
+{
+    DEBUG_stackInfo si = U_poolAlloc (UP_runChild, sizeof (*si));
+
+    si->prev = NULL;
+    si->next = NULL;
+    si->pc   = pc;
+    si->line = line;
+
+    return si;
+}
+
+static void _print_stack(DEBUG_stackInfo si, DEBUG_stackInfo si_cur)
+{
+    UI_tprintf ("stack trace:\n\n");
+    while (si)
+    {
+        if (si == si_cur)
+            UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+        else
+            UI_setTextStyle (UI_TEXT_STYLE_COMMENT);
+
+        if (si->line>=0)
+        {
+            UI_tprintf ("%s 0x%08lx %s:%d\n", si==si_cur ? "-->" : "   ", si->pc, g_ide->sourcefn, si->line);
+        }
+        else
+        {
+            UI_tprintf ("%s 0x%08lx runtime/os\n", si==si_cur ? "-->" : "   ", si->pc);
+        }
+        si = si->next;
+    }
+
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+    UI_tprintf ("\n\n");
+}
+
+static void _print_listing (DEBUG_stackInfo si)
+{
+    if (!si)
+        return;
+
+    int16_t l = si->line;
+    if (l<0)
+    {
+        // FIXME: disassembly ?
+
+        hexdump ((UBYTE *)si->pc, 32, 16);
+        UI_tprintf ("\n");
+        return;
+    }
+
+    // list source code context:
+
+    UI_tprintf ("source code listing:\n\n");
+    for (int ln = l-5; ln<l+5; ln++)
+    {
+        if (ln<0)
+            continue;
+
+        IDE_line line = IDE_getALine (g_ide, ln);
+        if (!line)
+            continue;
+
+        if (l==ln+1)
+        {
+            UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+            UI_tprintf ("--> ");
+        }
+        else
+        {
+            UI_setTextStyle (UI_TEXT_STYLE_COMMENT);
+            UI_tprintf ("    ");
+        }
+
+        for (int8_t i = 0; i<line->indent; i++)
+        {
+            for (int8_t j = 0; j<INDENT_SPACES; j++)
+            {
+                UI_tprintf (" ");
+            }
+        }
+        UI_tprintf ("%s\n", line->buf);
+    }
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+    UI_tprintf ("\n");
+}
+
 static void _debug(struct DebugMsg *msg)
 {
     UI_toFront();
@@ -780,96 +877,73 @@ static void _debug(struct DebugMsg *msg)
 
     // get stack trace
 
+    DEBUG_stackInfo stack_first = NULL, stack_last = NULL;
+
     uint32_t pc = g_dbgPC;
     uint32_t a5 = g_dbgStateBuf.a5;
     int cnt = 0;
     while ( TRUE )
     {
         int16_t l = _find_src_line (pc);
-        UI_tprintf ("stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
+        //UI_tprintf ("stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
         if (!_getParentFrame(&a5, &pc))
             break;
+
+        DEBUG_stackInfo si = DEBUG_StackInfo (pc, l);
+        si->prev = stack_last;
+        if (!stack_first)
+            stack_last = stack_first = si;
+        else
+            stack_last = stack_last->next = si;
 
         cnt++;
         if (cnt>10)
             break;
     }
 
-    // find closest source line
+    // determine current stack frame (first one we have a valid source line for, if any)
+    DEBUG_stackInfo stack_cur = stack_first;
+    while (stack_cur && stack_cur->line<0)
+        stack_cur = stack_cur->next;
+    if (!stack_cur)
+        stack_cur = stack_first;
 
-    int16_t l = -1;
-    pc = g_dbgPC;
-    a5 = g_dbgStateBuf.a5;
-    cnt = 0;
-    while ( TRUE )
-    {
-        l = _find_src_line (pc);
-        // UI_tprintf ("source line: pc=0x%08lx a5=0x%08lx -> %d\n", pc, a5, l);
+    _print_stack (stack_first, stack_cur);
 
-        if (l<0)
-        {
-            if (!_getParentFrame(&a5, &pc))
-                break;
-        }
-        else
-        {
-            break;
-        }
-
-        cnt++;
-        if (cnt>3)
-            break;
-    }
-
-    // list source code context:
-
-    if (l>=0)
-    {
-        for (int ln = l-5; ln<l+5; ln++)
-        {
-            if (ln<0)
-                continue;
-
-            IDE_line line = IDE_getALine (g_ide, ln);
-            if (!line)
-                continue;
-
-            UI_tprintf ("%4d %-4s %s\n", ln+1, l==ln+1 ? "-->" : "", line->buf);
-        }
-    }
-
+    _print_listing (stack_cur);
 
     BOOL finished = FALSE;
     while (!finished)
     {
         UI_setTextStyle (UI_TEXT_STYLE_KEYWORD);
-        UI_tprintf ("\n\nPRESS C:continue, E:terminate, R: registers, W: stack, L: list, M: mem dump\n\n");
+        UI_tprintf ("PRESS C:continue, E:terminate, R: registers, W: stack, L: list, M: mem dump\n\n");
         UI_setTextStyle (UI_TEXT_STYLE_TEXT);
         uint16_t key = UI_waitkey();
         switch (key)
         {
             case 'r':
             case 'R':
-                // register dump
+                UI_tprintf ("register dump:\n\n");
 
                 UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
                 UI_tprintf ("d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
                 UI_tprintf ("a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
                 UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
 
-                UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n", g_dbgSR, g_dbgPC, g_dbgFMT);
+                UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n\n", g_dbgSR, g_dbgPC, g_dbgFMT);
                 break;
 
             case 'm':
             case 'M':
-                UI_tprintf ("\nPC mem dump:\n");
+                UI_tprintf ("PC mem dump:\n\n");
                 hexdump ((UBYTE *)g_dbgPC, 32, 16);
+                UI_tprintf ("\n");
                 break;
 
-            // case 'w':
-            // case 'W':
-            //     _print_stack();
-            //     break;
+            case 'w':
+            case 'W':
+                _print_stack (stack_first, stack_cur);
+                break;
             case 'c':
             case 'C':
                 ReplyMsg (&msg->msg);

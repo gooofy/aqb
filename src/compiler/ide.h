@@ -8,6 +8,8 @@
 #include "ui.h"
 #include "scanner.h"
 
+#define INDENT_SPACES 4
+
 typedef enum {DEBUG_stateStopped, DEBUG_stateRunning} DEBUG_state;
 
 typedef struct IDE_line_     *IDE_line;
