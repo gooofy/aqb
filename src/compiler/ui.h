@@ -120,6 +120,7 @@ void      UI_onEventCall        (UI_event_cb cb, void *user_data);
 
 void      UI_tprintf            (char* format, ...);
 void      UI_tvprintf           (char* format, va_list ap);
+void      UI_readline           (char *buf, int16_t buf_len);
 
 /*
  * high-level requesters

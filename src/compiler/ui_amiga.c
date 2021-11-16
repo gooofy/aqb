@@ -586,6 +586,150 @@ void UI_tvprintf (char* format, va_list args)
     UI_moveCursor(UI_size_rows, col+1);
 }
 
+static void _readline_repaint(char *buf, int16_t cursor_pos, int16_t *scroll_offset, int16_t row, int16_t col, int16_t width)
+{
+    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+
+    int16_t cp=0;
+    while (TRUE)
+    {
+        cp = cursor_pos - *scroll_offset;
+        if ( (cp>=0) && (cp<width) )
+            break;
+        else if (cp<0)
+            *scroll_offset -= 1;
+        else
+            *scroll_offset += 1;
+    }
+
+    UI_beginLine (row, col, width);
+    int16_t l = strlen(buf);
+    for (uint16_t c = 0; c<width; c++)
+    {
+        int16_t bp = c+*scroll_offset;
+        if (bp<l)
+            UI_putc(buf[bp]);
+        else
+            UI_putc (' ');
+    }
+    UI_endLine ();
+    UI_moveCursor (row, col+cp);
+}
+
+void UI_readline (char *buf, int16_t buf_len)
+{
+    int16_t scroll_offset=0;
+    int16_t cursor_pos=0;
+
+    int16_t col = g_cursorCol;
+    int16_t row = g_cursorRow;
+
+    BOOL finished = FALSE;
+
+    while (!finished)
+    {
+        uint16_t event = UI_waitkey();
+        switch (event)
+        {
+            case KEY_CURSOR_LEFT:
+                if (cursor_pos>0)
+                {
+                    cursor_pos--;
+                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                }
+                else
+                {
+                    UI_bell();
+                }
+                break;
+
+            case KEY_CURSOR_RIGHT:
+                if (cursor_pos<(strlen(buf)))
+                {
+                    cursor_pos++;
+                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                }
+                else
+                {
+                    UI_bell();
+                }
+                break;
+
+            case KEY_HOME:
+                cursor_pos = 0;
+                _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                break;
+
+            case KEY_END:
+                cursor_pos = strlen(buf);
+                _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                break;
+
+            case KEY_BACKSPACE:
+                if (cursor_pos>0)
+                {
+                    uint16_t l = strlen(buf);
+                    for (uint16_t i=cursor_pos; i<l; i++)
+                        buf[i-1] = buf[i];
+                    buf[l-1] = 0;
+                    cursor_pos--;
+                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                }
+                else
+                {
+                    UI_bell();
+                }
+                break;
+
+            case KEY_DEL:
+            {
+                uint16_t l = strlen(buf);
+                if (cursor_pos<l)
+                {
+                    for (uint16_t i=cursor_pos; i<l-1; i++)
+                        buf[i] = buf[i+1];
+                    buf[l-1] = 0;
+                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                }
+                else
+                {
+                    UI_bell();
+                }
+                break;
+            }
+
+            case KEY_NONE:
+                break;
+
+            case KEY_ENTER:
+                finished = TRUE;
+                break;
+
+            default:
+            {
+                uint16_t l = strlen(buf);
+                if ( (event >= 32) && (event <= 126) && (l < buf_len-1) )
+                {
+                    for (int i=l; i>cursor_pos; i--)
+                    {
+                        buf[i]   = buf[i-1];
+                    }
+                    buf[cursor_pos] = event;
+                    buf[l+1] = 0;
+                    cursor_pos++;
+                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
+                }
+                else
+                {
+                    UI_bell();
+                }
+                break;
+            }
+        }
+    }
+}
+
+
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
     char *posTxt=NULL;

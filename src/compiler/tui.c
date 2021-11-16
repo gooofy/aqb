@@ -420,7 +420,7 @@ static void textEntryEventCb(TUI_widget w, uint16_t event)
     switch (event)
     {
         case KEY_ESC:
-            // FIXME: aktivate cancel button
+            // FIXME: activate cancel button
             break;
 
         case KEY_CURSOR_LEFT:

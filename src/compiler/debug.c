@@ -840,6 +840,13 @@ static void _print_listing (DEBUG_stackInfo si)
     UI_tprintf ("\n");
 }
 
+#define MAX_NUM_PARTS 10
+
+static BOOL is_whitespace(char c)
+{
+    return c<=32;
+}
+
 static void _debug(struct DebugMsg *msg)
 {
     UI_toFront();
@@ -912,55 +919,108 @@ static void _debug(struct DebugMsg *msg)
 
     _print_listing (stack_cur);
 
-    BOOL finished = FALSE;
-    while (!finished)
+    while (TRUE)
     {
+        static char cmdline[256];
+        cmdline[0]=0;
+
         UI_setTextStyle (UI_TEXT_STYLE_KEYWORD);
-        UI_tprintf ("PRESS C:continue, E:terminate, R: registers, W: stack, L: list, M: mem dump\n\n");
+        UI_tprintf ("dbg (h for help) > ");
         UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-        uint16_t key = UI_waitkey();
-        switch (key)
+        UI_readline(cmdline, 256);
+
+        UI_tprintf ("\n\n");
+
+        // split cmdline and arguments
+
+        char *parts[MAX_NUM_PARTS];
+        uint16_t num_parts = 0;
+
+        char *p = cmdline;
+        while (*p && (num_parts < MAX_NUM_PARTS))
         {
-            case 'r':
-            case 'R':
-                UI_tprintf ("register dump:\n\n");
-
-                UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
-                UI_tprintf ("d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
-                UI_tprintf ("a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
-                UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
-
-                UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n\n", g_dbgSR, g_dbgPC, g_dbgFMT);
+            // skip whitespace
+            while (*p && is_whitespace(*p))
+                p++;
+            if (!(*p))
                 break;
 
-            case 'm':
-            case 'M':
-                UI_tprintf ("PC mem dump:\n\n");
-                hexdump ((UBYTE *)g_dbgPC, 32, 16);
-                UI_tprintf ("\n");
-                break;
-
-            case 'w':
-            case 'W':
-                _print_stack (stack_first, stack_cur);
-                break;
-            case 'c':
-            case 'C':
-                ReplyMsg (&msg->msg);
-                finished = TRUE;
-                break;
-            case 'e':
-            case 'E':
-                // manipulate the return PC, make it point to the exit function:
-                //UI_tprintf ("----> setting PC to 0x%08lx\n", g_dbgEnv.u.dbg.msg.debug_exitFn);
-                g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
-                ReplyMsg (&msg->msg);
-                finished = TRUE;
-                break;
-
-            default:
-                UI_tprintf ("\n\n*** ERROR: UNKNOWN KEY ***\n\n");
+            parts[num_parts++] = p;
+            while (*p && !is_whitespace(*p))
+                p++;
+            if (*p)
+            {
+                *p = 0;
+                p++;
+            }
         }
+
+        if (!num_parts)
+            continue;
+
+        //UI_tprintf ("cmdline parsing result: %d parts, first part: %s\n\n", num_parts, parts[0]);
+        char *cmd = parts[0];
+
+        if (cmd[0] == 'e')                          // exit/terminate
+        {
+            // manipulate the return PC, make it point to the exit function:
+            //UI_tprintf ("----> setting PC to 0x%08lx\n", g_dbgEnv.u.dbg.msg.debug_exitFn);
+            g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
+            ReplyMsg (&msg->msg);
+            break;
+        }
+
+        if (cmd[0] == 'c')                          // continue
+        {
+            ReplyMsg (&msg->msg);
+            break;
+        }
+
+        if (cmd[0] == 'm')                          // mem dump (FIXME: argument)
+        {
+            UI_tprintf ("PC mem dump:\n\n");
+            hexdump ((UBYTE *)g_dbgPC, 32, 16);
+            UI_tprintf ("\n");
+            continue;
+        }
+
+        if (cmd[0]=='l')                            // list
+        {
+            _print_listing (stack_cur);
+            continue;
+        }
+
+        if (cmd[0]=='w')                            // where
+        {
+            _print_stack (stack_first, stack_cur);
+            continue;
+        }
+
+        if (cmd[0]=='r')                            // registers
+        {
+            UI_tprintf ("register dump:\n\n");
+
+            UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
+            UI_tprintf ("d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
+            UI_tprintf ("a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
+            UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
+
+            UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n\n", g_dbgSR, g_dbgPC, g_dbgFMT);
+            continue;
+        }
+
+        // print help
+
+        UI_tprintf ("available commands:\n\n");
+
+        UI_tprintf ("c        - continue\n");
+        UI_tprintf ("e        - exit (terminate program)\n");
+        UI_tprintf ("h        - this help text\n");
+        UI_tprintf ("l        - list program\n");
+        UI_tprintf ("m <addr> - memory dump\n");
+        UI_tprintf ("r        - register dump\n");
+        UI_tprintf ("w        - where (stack trace)\n");
+        UI_tprintf ("\n");
     }
 }
 
