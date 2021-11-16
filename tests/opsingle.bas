@@ -151,6 +151,20 @@ ASSERT f=     -1
 f = lT1&
 ASSERT f= 100000
 
+DIM AS BYTE bT1 = 23
+f = bT1
+ASSERT f = 23
+
+DIM AS UBYTE ubT1 = 234
+f = ubT1
+' TRACE f
+ASSERT f = 234
+
+DIM AS UINTEGER uiT1 = 23456
+f = uiT1
+' TRACE f
+ASSERT f = 23456
+
 ' rounding tests (FIXME: some of these are not equivalent to QuickBasic!)
 
 ' PRINT INT(2.5), CINT(2.5), FIX(2.5)

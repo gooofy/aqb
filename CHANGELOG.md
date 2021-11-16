@@ -32,6 +32,7 @@ Bug Fixes:
     * compiler: fix BYREF recursive argument passing
     * compiler: fix BYREF argument assignment
     * compiler: fix IF/ELSE namespaces
+    * compiler: fix BYTE/UBYTE/UINTEGER to SINGLE conversion
     * linker: handle duplicate symbols gracefully
     * ide: fix run state display
 

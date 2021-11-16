@@ -3761,6 +3761,12 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         item->ty = to_ty;
                         break;
                     case Ty_single:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_W, NULL, item->u.inReg));        //     ext.w   t
+                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_L, NULL, item->u.inReg));        //     ext.l   t
+                        emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        item->ty = to_ty;
+                        break;
                     case Ty_double:
                         assert(FALSE); // FIXME
                         break;
@@ -3795,6 +3801,12 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         item->ty = to_ty;
                         break;
                     case Ty_single:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, Temp_w_L, NULL,           // and.l  #0xFF, t
+                                                            item->u.inReg, Ty_ConstInt(Ty_UInteger(), 0xff), 0, NULL));
+                        emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        item->ty = to_ty;
+                        break;
                     case Ty_double:
                         assert(FALSE); // FIXME
                         break;
@@ -3857,6 +3869,12 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         item->ty = to_ty;
                         break;
                     case Ty_single:
+                        CG_loadVal (code, pos, item);
+                        AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, Temp_w_L, NULL,           // and.l  #65535, t
+                                                            item->u.inReg, Ty_ConstInt(Ty_UInteger(), 65535), 0, NULL));
+                        emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
+                        item->ty = to_ty;
+                        break;
                     case Ty_double:
                         assert(FALSE); // FIXME
                         break;
