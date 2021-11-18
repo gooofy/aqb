@@ -485,7 +485,7 @@ static bool load_hunk_symbol(string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
-        LOG_printf (LOG_ERROR, "link: symbol hunk detected when so segment is defined yet.\n");
+        LOG_printf (LOG_ERROR, "link: symbol hunk detected when no segment is defined yet.\n");
         assert(FALSE);
         return FALSE;
     }
