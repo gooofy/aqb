@@ -152,10 +152,43 @@ void hexdump ( const void * addr, const int len, int perLine) {
     UI_tprintf ("  %s\n", buff);
 }
 
-extern APTR _unfreeze;
+extern APTR _unfreeze_20, _unfreeze_00;
 
 asm (
-"__unfreeze:\n"
+"__unfreeze_00:\n"
+
+"       move.l  #_g_dbgStateBuf, a5;\n"  // from this point on, a5 points to cur location in _g_dbgStateBuf
+
+	    // restore registers
+
+"	    move.l	a5@+,d0;\n"
+"	    move.l	a5@+,d1;\n"
+"	    move.l	a5@+,d2;\n"
+"	    move.l	a5@+,d3;\n"
+"	    move.l	a5@+,d4;\n"
+"	    move.l	a5@+,d5;\n"
+"	    move.l	a5@+,d6;\n"
+"	    move.l	a5@+,d7;\n"
+"	    move.l	a5@+,a0;\n"
+"	    move.l	a5@+,a1;\n"
+"	    move.l	a5@+,a2;\n"
+"	    move.l	a5@+,a3;\n"
+"	    move.l	a5@+,a4;\n"
+"	    move.l	a5@+,ssp@-;\n"
+"	    move.l	a5@+,a6;\n"
+
+"	    move.l	a5@+,a5;\n"     // a7
+"	    move.l	a5,usp;\n"
+
+"	    move.l	ssp@+, a5;\n"   // real a5
+
+		// create a new stack frame with the original return address + sr
+"       move.l  _g_dbgPC, ssp@-;\n"			// pc
+"       move.w  _g_dbgSR, ssp@-;\n"         // sr
+
+"       rte;\n"
+
+"__unfreeze_20:\n"
 
 "       move.l  #_g_dbgStateBuf, a5;\n"  // from this point on, a5 points to cur location in _g_dbgStateBuf
 
@@ -230,7 +263,7 @@ void _freeze_myself(void)
 
 	// continue execution of our program
 
-	Supervisor((void *)&_unfreeze);
+	Supervisor(has_68010_or_up ? (void *)&_unfreeze_20 : (void *)&_unfreeze_00);
 }
 
 /*
@@ -251,10 +284,41 @@ extern APTR _trap_handler_20;
 
 asm(
 "__trap_handler_00:\n"
-    // FIXME
-"       move.l  ssp@+, _g_trapCode;\n" 	    // save trap code
-"       "
-"       rte;"
+
+"       move.l  (ssp), _g_trapCode;\n" 	    // save trap code
+"	    move.l  a5,(ssp);\n"		        // save a5
+
+"       move.l  #_g_dbgStateBuf, a5;\n"     // from this point on, a5 points to cur location in _g_dbgStateBuf
+
+	    // save registers in state buf
+"	    move.l	d0,a5@+;\n"
+"	    move.l	d1,a5@+;\n"
+"	    move.l	d2,a5@+;\n"
+"	    move.l	d3,a5@+;\n"
+"	    move.l	d4,a5@+;\n"
+"	    move.l	d5,a5@+;\n"
+"	    move.l	d6,a5@+;\n"
+"	    move.l	d7,a5@+;\n"
+"	    move.l	a0,a5@+;\n"
+"	    move.l	a1,a5@+;\n"
+"	    move.l	a2,a5@+;\n"
+"	    move.l	a3,a5@+;\n"
+"	    move.l	a4,a5@+;\n"
+"       move.l  ssp@+, a4;\n"	            // use real, saved a5 state
+"	    move.l	a4,a5@+;\n"
+"	    move.l	a6,a5@+;\n"
+"	    move.l	usp, a0;\n"
+"	    move.l	a0,a5@+;\n"
+
+	    // now, save stack frame info
+"       move.w  ssp@+,_g_dbgSR;\n"	        // sr
+"       move.l	ssp@+,_g_dbgPC;\n"	        // pc
+
+		// create a new stack frame with a manipulated return address
+"       move.l  #__freeze_myself, ssp@-;\n" // pc
+"       move.w  a5@(-6), ssp@-;\n"          // sr
+
+"       rte;\n"
 
 "__trap_handler_20:\n"
 
