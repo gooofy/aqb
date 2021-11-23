@@ -853,6 +853,20 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
     IDE_cprintf (ed, "\n\n");
 }
 
+static void _goto_line (IDE_instance ed, DEBUG_stackInfo si)
+{
+    if (!si)
+        return;
+
+    int16_t l = si->line;
+    if (l<0)
+        return;
+
+    IDE_gotoLine (ed, l, 1, /*hilight=*/TRUE);
+}
+
+// FIXME: remove
+#if 0
 static void _print_listing (IDE_instance ed, DEBUG_stackInfo si)
 {
     if (!si)
@@ -903,6 +917,7 @@ static void _print_listing (IDE_instance ed, DEBUG_stackInfo si)
     UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_TEXT);
     IDE_cprintf (ed, "\n");
 }
+#endif
 
 #define MAX_NUM_PARTS 10
 
@@ -914,10 +929,6 @@ static BOOL is_whitespace(char c)
 static void _debug(struct DebugMsg *msg)
 {
     UI_toFront();
-    IDE_cprintf (g_ide, "\n");
-    UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_INVERSE);
-    IDE_cprintf (g_ide, " *** AQB Source Level Debugger *** \n");
-    UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_TEXT);
     IDE_cprintf (g_ide, "\n");
 
     UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_KEYWORD);
@@ -981,7 +992,7 @@ static void _debug(struct DebugMsg *msg)
 
     _print_stack (g_ide, stack_first, stack_cur);
 
-    _print_listing (g_ide, stack_cur);
+    _goto_line (g_ide, stack_cur);
 
     while (TRUE)
     {
@@ -1048,12 +1059,6 @@ static void _debug(struct DebugMsg *msg)
             continue;
         }
 
-        if (cmd[0]=='l')                            // list
-        {
-            _print_listing (g_ide, stack_cur);
-            continue;
-        }
-
         if (cmd[0]=='w')                            // where
         {
             _print_stack (g_ide, stack_first, stack_cur);
@@ -1080,12 +1085,13 @@ static void _debug(struct DebugMsg *msg)
         IDE_cprintf (g_ide, "c        - continue\n");
         IDE_cprintf (g_ide, "e        - exit (terminate program)\n");
         IDE_cprintf (g_ide, "h        - this help text\n");
-        IDE_cprintf (g_ide, "l        - list program\n");
         IDE_cprintf (g_ide, "m <addr> - memory dump\n");
         IDE_cprintf (g_ide, "r        - register dump\n");
         IDE_cprintf (g_ide, "w        - where (stack trace)\n");
         IDE_cprintf (g_ide, "\n");
     }
+
+    IDE_clearHilight(g_ide);
 }
 
 uint16_t DEBUG_handleMessages(void)

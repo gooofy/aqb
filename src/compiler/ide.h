@@ -29,6 +29,9 @@ struct IDE_line_
     bool      folded, fold_start, fold_end;
     uint16_t  a_line; // absolut line number in file
     uint16_t  v_line; // virtual line number, takes folding into account
+
+    // hilighting
+    uint16_t  h_start, h_end;
 };
 
 struct IDE_instance_
@@ -88,10 +91,10 @@ struct IDE_instance_
  * IDE
  */
 
-void     IDE_open      (string sourcefn);
+void     IDE_open         (string sourcefn);
 
-IDE_line IDE_getVLine  (IDE_instance ed, int linenum);   // virtual line -> folded lines do not count
-IDE_line IDE_getALine  (IDE_instance ed, int linenum);   // actual line -> raw line numbers not taking folding into account
+void     IDE_gotoLine     (IDE_instance ed, uint16_t line, uint16_t col, bool hilight);
+void     IDE_clearHilight (IDE_instance ed);
 
 /*
  * console view (simple terminal emulation)

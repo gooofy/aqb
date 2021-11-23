@@ -89,6 +89,8 @@ static IDE_line _newLine(IDE_instance ed, char *buf, char *style, int8_t pre_ind
     l->fold_end    = fold_end;
     l->a_line      = 0;
     l->v_line      = 0;
+    l->h_start     = 0;
+    l->h_end       = 0;
 
     memcpy (l->buf, buf, len+1);
     memcpy (l->style, style, len+1);
@@ -216,7 +218,7 @@ static void _scroll(IDE_instance ed)
     // FIXME: implement horizontal scroll
 }
 
-static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded)
+static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded, uint16_t h_start, uint16_t h_end)
 {
     // FIXME: horizontal scroll
 
@@ -230,21 +232,46 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
     if (folded)
         UI_putc (view, '>');
 
+    uint16_t x = 0;
+
     for (uint16_t i=0; i<indent; i++)
     {
+        char s2 = UI_TEXT_STYLE_TEXT;
+        if ((x>=h_start) && (x<h_end))
+            s2 = UI_TEXT_STYLE_INVERSE;
+        if (s2 != s)
+		{
+            UI_setTextStyle (view, s2);
+            s = s2;
+        }
+
         UI_putstr (view, "    ");
+        x += 4;
     }
 
     for (uint16_t i=0; i<len; i++)
     {
         char s2 = style[i];
+        if ((x>=h_start) && (x<h_end))
+            s2 = UI_TEXT_STYLE_INVERSE;
         if (s2 != s)
 		{
-			UI_setTextStyle (view, s2);
+            UI_setTextStyle (view, s2);
             s = s2;
         }
         UI_putc (view, buf[i]);
+        x++;
     }
+    if ((x>=h_start) && (x<h_end))
+    {
+        UI_setTextStyle (view, UI_TEXT_STYLE_INVERSE);
+        while (x<ed->window_width)
+        {
+            UI_putc (view, ' ');
+            x++;
+        }
+    }
+    UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
     UI_endLine(view);
 }
 
@@ -274,6 +301,26 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
     }
 }
 
+// virtual line -> folded lines do not count
+static IDE_line _getVLine (IDE_instance ed, int linenum)
+{
+    IDE_line l = ed->line_first;
+    while ( l && (l->v_line < linenum) )
+        l = l->next;
+    return l;
+}
+
+#if 0
+// actual line -> raw line numbers not taking folding into account
+static IDE_line _getALine (IDE_instance ed, int linenum)
+{
+    IDE_line l = ed->line_first;
+    while ( l && (l->a_line < linenum) )
+        l = l->next;
+    return l;
+}
+#endif
+
 static void _repaint (IDE_instance ed)
 {
 #ifdef ENABLE_REPAINT_BENCHMARK
@@ -287,7 +334,7 @@ static void _repaint (IDE_instance ed)
     // cache first visible line for speed
     if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
     {
-        ed->scrolloff_line = IDE_getVLine (ed, ed->scrolloff_row);
+        ed->scrolloff_line = _getVLine (ed, ed->scrolloff_row);
         ed->scrolloff_line_row = ed->scrolloff_row;
     }
 
@@ -301,9 +348,9 @@ static void _repaint (IDE_instance ed)
         if (!ed->up2date_row[row-1])
         {
             if (ed->editing && (linenum == ed->cursor_v_line))
-                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE);
+                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE, /*hl_start=*/0, /*hl_end=*/0);
             else
-                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded);
+                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded, l->h_start, l->h_end);
             ed->up2date_row[row-1] = TRUE;
         }
         if (l->folded)
@@ -426,22 +473,6 @@ static void _editor_size_cb (UI_view view, void *user_data)
     _scroll(ed);
     UI_clearView(view);
     _repaint(ed);
-}
-
-IDE_line IDE_getVLine (IDE_instance ed, int linenum)
-{
-    IDE_line l = ed->line_first;
-    while ( l && (l->v_line < linenum) )
-        l = l->next;
-    return l;
-}
-
-IDE_line IDE_getALine (IDE_instance ed, int linenum)
-{
-    IDE_line l = ed->line_first;
-    while ( l && (l->a_line < linenum) )
-        l = l->next;
-    return l;
 }
 
 typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
@@ -1013,7 +1044,7 @@ static void _unfoldCursorLine(IDE_instance ed)
     _unfoldLine (ed, ed->cursor_line);
 }
 
-static bool _gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
+static void _gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight)
 {
     if (ed->editing)
         _commitBuf (ed);
@@ -1034,7 +1065,38 @@ static bool _gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
     ed->cursor_col = col-1;
     ed->up2date_il_pos = FALSE;
 
-    return TRUE;
+    if (hilight)
+    {
+        ed->cursor_line->h_start = 0;
+        ed->cursor_line->h_end   = ed->cursor_line->indent * INDENT_SPACES + ed->cursor_line->len + 1;
+    }
+}
+
+static void _clearHilight(IDE_instance ed)
+{
+    IDE_line l = ed->line_first;
+
+    while (l)
+    {
+        l->h_start = l->h_end = 0;
+        l = l->next;
+    }
+}
+
+void IDE_gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight)
+{
+    _clearHilight(ed);
+    _gotoLine (ed, line, col, hilight);
+    _invalidateAll(ed); // FIXME: optimize
+    _scroll(ed);
+    _repaint(ed);
+}
+
+void IDE_clearHilight (IDE_instance ed)
+{
+    _clearHilight(ed);
+    _invalidateAll(ed); // FIXME: optimize
+    _repaint(ed);
 }
 
 static void _line2buf (IDE_instance ed, IDE_line l)
@@ -1432,7 +1494,7 @@ static bool _compile(IDE_instance ed)
 
     if (EM_anyErrors)
     {
-        _gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol);
+        _gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol, /*hilight=*/FALSE);
         ed->il_show_error = TRUE;
         return FALSE;
     }
