@@ -952,6 +952,40 @@ static void _debug(struct DebugMsg *msg)
         case 33:
             IDE_cprintf(g_ide, "BREAKPOINT HIT\n\n");
             break;
+        case 34:
+            IDE_cprintf(g_ide, "ASSERTION FAILED\n\n");
+            break;
+        case 35:
+            IDE_cprintf(g_ide, "RUNTIME ERROR %d ", g_dbgEnv.u.dbg.msg.u.err);
+            switch (g_dbgEnv.u.dbg.msg.u.err)
+            {
+                case 101: IDE_cprintf(g_ide, "(WIN OPEN)"); break;
+                case 102: IDE_cprintf(g_ide, "(SCREEN OPEN)"); break;
+                case 103: IDE_cprintf(g_ide, "(PALETTE)"); break;
+                case 104: IDE_cprintf(g_ide, "(COLOR)"); break;
+                case 105: IDE_cprintf(g_ide, "(AREA)"); break;
+                case 106: IDE_cprintf(g_ide, "(PATTERN)"); break;
+                case 107: IDE_cprintf(g_ide, "(WIN CLOSE)"); break;
+                case 108: IDE_cprintf(g_ide, "(WIN OUTPUT)"); break;
+                case 109: IDE_cprintf(g_ide, "(SCREEN CLOSE)"); break;
+                case 110: IDE_cprintf(g_ide, "(PAINT)"); break;
+                case 111: IDE_cprintf(g_ide, "(LINE)"); break;
+                case 112: IDE_cprintf(g_ide, "(PSET)"); break;
+                case 113: IDE_cprintf(g_ide, "(INPUT OUT OF DATA)"); break;
+                case 114: IDE_cprintf(g_ide, "(ON TIMER CALL)"); break;
+                case 115: IDE_cprintf(g_ide, "(TIMER ON)"); break;
+                case 116: IDE_cprintf(g_ide, "(TIMER OFF)"); break;
+                case 117: IDE_cprintf(g_ide, "(OPEN)"); break;
+                case 118: IDE_cprintf(g_ide, "(OUTPUT)"); break;
+                case 119: IDE_cprintf(g_ide, "(CLOSE)"); break;
+                case 120: IDE_cprintf(g_ide, "(MOUSE)"); break;
+                case 121: IDE_cprintf(g_ide, "(BLIT)"); break;
+                case 200: IDE_cprintf(g_ide, "(IFF)"); break;
+                case 300: IDE_cprintf(g_ide, "(GELS INIT)"); break;
+                case 301: IDE_cprintf(g_ide, "(BOB)"); break;
+            }
+            IDE_cprintf(g_ide, "\n\n");
+            break;
         default:
             IDE_cprintf(g_ide, "TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
     }

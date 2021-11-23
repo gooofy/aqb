@@ -112,7 +112,7 @@ void _aqb_assert (BOOL b, const UBYTE *msg)
 
     if (_startup_mode == STARTUP_DEBUG)
     {
-        asm ("  trap #0;\n");           // break into debugger
+        asm ("  trap #2;\n");           // break into debugger
     }
     else
     {
@@ -149,7 +149,8 @@ void ERROR (SHORT errcode)
     {
         if (_startup_mode == STARTUP_DEBUG)
         {
-            asm ("  trap #0;\n");           // break into debugger
+            __StartupMsg->u.err = errcode;
+            asm ("  trap #3;\n");           // break into debugger
         }
         else
         {
