@@ -28,7 +28,7 @@
 #define INFOLINE_CURSOR_X     10
 #define INFOLINE_CURSOR_Y     17
 #define INFOLINE_NUM_LINES    24
-#define INFOLINE_CHANGED      38
+#define INFOLINE_CHANGED      29
 #define INFOLINE_FILENAME     30
 
 #define CR  13
@@ -70,7 +70,8 @@ static FILE *logf=NULL;
 static IDE_instance g_ide;
 static TAB_table  g_keywords;
 
-IDE_line newLine(IDE_instance ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
+
+static IDE_line _newLine(IDE_instance ed, char *buf, char *style, int8_t pre_indent, int8_t post_indent, bool fold_start, bool fold_end)
 {
     int len = strlen(buf);
     IDE_line l = U_poolAlloc (UP_ide, sizeof(*l)+2*(len+1));
@@ -95,13 +96,13 @@ IDE_line newLine(IDE_instance ed, char *buf, char *style, int8_t pre_indent, int
 	return l;
 }
 
-static void freeLine (IDE_instance ed, IDE_line l)
+static void _freeLine (IDE_instance ed, IDE_line l)
 {
     // FIXME: implement
     ed->scrolloff_line = NULL;
 }
 
-static void insertLineAfter (IDE_instance ed, IDE_line lBefore, IDE_line l)
+static void _insertLineAfter (IDE_instance ed, IDE_line lBefore, IDE_line l)
 {
     if (lBefore)
     {
@@ -132,7 +133,7 @@ static void insertLineAfter (IDE_instance ed, IDE_line lBefore, IDE_line l)
     }
 }
 
-static void deleteLine (IDE_instance ed, IDE_line l)
+static void _deleteLine (IDE_instance ed, IDE_line l)
 {
     if (l->prev)
     {
@@ -148,16 +149,103 @@ static void deleteLine (IDE_instance ed, IDE_line l)
         l->next->prev = l->prev;
     else
         ed->line_last = l->prev;
-    freeLine (ed, l);
+    _freeLine (ed, l);
     ed->changed = TRUE;
 }
 
-void initWindowSize (IDE_instance ed)
+static void _invalidateAll (IDE_instance ed)
 {
-    ed->window_width  = UI_size_cols;
-    ed->window_height = UI_size_rows;
-    ed->infoline_row  = UI_size_rows-1;
-    UI_setScrollArea (1, UI_size_rows-1);
+    for (uint16_t i=0; i<UI_MAX_ROWS; i++)
+        ed->up2date_row[i] = FALSE;
+    ed->up2date_il_pos       = FALSE;
+    ed->up2date_il_num_lines = FALSE;
+    ed->up2date_il_flags     = FALSE;
+    ed->up2date_il_sourcefn  = FALSE;
+    ed->repaint_all          = TRUE;
+}
+
+static void _scroll(IDE_instance ed)
+{
+    int16_t cursor_row = ed->cursor_v_line - ed->scrolloff_row;
+
+    // scroll up ?
+
+    if (cursor_row > ed->window_height - SCROLL_MARGIN)
+    {
+        int16_t scrolloff_row_new = ed->cursor_v_line - ed->window_height + SCROLL_MARGIN;
+        int16_t scrolloff_row_max = ed->num_vlines - ed->window_height + 1;
+
+        if (scrolloff_row_new > scrolloff_row_max)
+            scrolloff_row_new = scrolloff_row_max;
+
+        int16_t diff = scrolloff_row_new - ed->scrolloff_row;
+        ed->scrolloff_row = scrolloff_row_new;
+        switch (diff)
+        {
+            case 0:
+                break;
+            case 1:
+                UI_scrollUp(ed->view_editor);
+                ed->up2date_row[ed->window_height - 1] = FALSE;
+                break;
+            default:
+                _invalidateAll (ed);
+        }
+    }
+
+    // scroll down ?
+
+    if (cursor_row < SCROLL_MARGIN)
+    {
+        int16_t scrolloff_row_new = ed->cursor_v_line > SCROLL_MARGIN ? ed->cursor_v_line - SCROLL_MARGIN : 0;
+
+        int16_t diff = ed->scrolloff_row - scrolloff_row_new;
+        ed->scrolloff_row = scrolloff_row_new;
+        switch (diff)
+        {
+            case 0:
+                break;
+            case 1:
+                UI_scrollDown(ed->view_editor);
+                ed->up2date_row[0] = FALSE;
+                break;
+            default:
+                _invalidateAll (ed);
+        }
+    }
+    // FIXME: implement horizontal scroll
+}
+
+static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded)
+{
+    // FIXME: horizontal scroll
+
+    UI_view view = ed->view_editor;
+
+    UI_beginLine (view, row, 1, ed->window_width);
+
+    char s=UI_TEXT_STYLE_TEXT;
+    UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
+
+    if (folded)
+        UI_putc (view, '>');
+
+    for (uint16_t i=0; i<indent; i++)
+    {
+        UI_putstr (view, "    ");
+    }
+
+    for (uint16_t i=0; i<len; i++)
+    {
+        char s2 = style[i];
+        if (s2 != s)
+		{
+			UI_setTextStyle (view, s2);
+            s = s2;
+        }
+        UI_putc (view, buf[i]);
+    }
+    UI_endLine(view);
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)
@@ -186,6 +274,160 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
     }
 }
 
+static void _repaint (IDE_instance ed)
+{
+#ifdef ENABLE_REPAINT_BENCHMARK
+    float startTime = U_getTime();
+#endif
+
+    UI_view view = ed->view_editor;
+
+    UI_setCursorVisible (view, FALSE);
+
+    // cache first visible line for speed
+    if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
+    {
+        ed->scrolloff_line = IDE_getVLine (ed, ed->scrolloff_row);
+        ed->scrolloff_line_row = ed->scrolloff_row;
+    }
+
+    IDE_line l = ed->scrolloff_line;
+
+    uint16_t linenum_end = ed->scrolloff_row + ed->window_height - 1;
+    uint16_t linenum = ed->scrolloff_row;
+    uint16_t row = 1;
+    while (l && (linenum <= linenum_end))
+    {
+        if (!ed->up2date_row[row-1])
+        {
+            if (ed->editing && (linenum == ed->cursor_v_line))
+                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE);
+            else
+                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded);
+            ed->up2date_row[row-1] = TRUE;
+        }
+        if (l->folded)
+        {
+            while (l && !l->fold_end)
+            {
+                l = l->next;
+            }
+            if (l)
+                l = l->next;
+        }
+        else
+        {
+            l = l->next;
+        }
+        linenum++;
+        row++;
+    }
+
+    if (ed->repaint_all)
+    {
+        ed->repaint_all = FALSE;
+        while (row <= ed->window_height)
+        {
+            UI_beginLine (view, row, 1, ed->window_width);
+            UI_endLine   (view);
+            row++;
+        }
+    }
+
+    // infoline
+
+    bool update_infoline = FALSE;
+    if (!ed->up2date_il_pos)
+    {
+        _itoa (ed->cursor_col+1, ed->infoline + INFOLINE_CURSOR_X, 4);
+        _itoa (ed->cursor_a_line+1, ed->infoline + INFOLINE_CURSOR_Y, 4);
+        update_infoline = TRUE;
+        ed->up2date_il_pos = TRUE;
+    }
+    if (!ed->up2date_il_num_lines)
+    {
+        _itoa (ed->num_lines, ed->infoline + INFOLINE_NUM_LINES, 4);
+        update_infoline = TRUE;
+        ed->up2date_il_num_lines = TRUE;
+    }
+    if (!ed->up2date_il_flags)
+    {
+        char *fs = ed->infoline + INFOLINE_CHANGED;
+        if (ed->changed)
+            *fs = '*';
+        else
+            *fs = ' ';
+        update_infoline = TRUE;
+        ed->up2date_il_flags = TRUE;
+    }
+    if (!ed->up2date_il_sourcefn)
+    {
+        char *fs = ed->infoline + INFOLINE_FILENAME;
+        if (!ed->il_show_error)
+        {
+            for (char *c = ed->sourcefn; *c; c++)
+            {
+                *fs++ = *c;
+            }
+            *fs = 0;
+            update_infoline = TRUE;
+            ed->up2date_il_sourcefn = TRUE;
+        }
+        else
+        {
+            for (char *c = EM_firstError; *c; c++)
+            {
+                *fs++ = *c;
+            }
+            *fs = 0;
+            update_infoline = TRUE;
+            ed->il_show_error = FALSE;
+        }
+    }
+
+    if (update_infoline)
+    {
+        LOG_printf (LOG_DEBUG, "outputInfoLine: txt=%s\n", ed->infoline);
+        UI_setTextStyle (ed->view_status, UI_TEXT_STYLE_INVERSE);
+        UI_beginLine (ed->view_status, 1, 1, ed->window_width);
+        char *c = ed->infoline;
+        int col = 0;
+        while (*c && col < ed->window_width)
+        {
+            UI_putc (ed->view_status, *c++);
+            col++;
+        }
+        while (col < ed->window_width)
+        {
+            UI_putc (ed->view_status, ' ');
+            col++;
+        }
+        UI_setTextStyle (ed->view_status, UI_TEXT_STYLE_TEXT);
+        UI_endLine (ed->view_status);
+    }
+
+    UI_moveCursor (view, ed->cursor_v_line-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
+    UI_setCursorVisible (view, TRUE);
+
+#ifdef ENABLE_REPAINT_BENCHMARK
+    float stopTime = U_getTime();
+    printf ("IDE: repaint() took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
+#endif
+}
+
+static void _editor_size_cb (UI_view view, void *user_data)
+{
+	IDE_instance ed = (IDE_instance) user_data;
+
+    LOG_printf (LOG_DEBUG, "IDE: _editor_size_cb called.\n");
+
+    UI_getViewSize (view, &ed->window_height, &ed->window_width);
+    _invalidateAll (ed);
+    _scroll(ed);
+    UI_clearView(view);
+    _repaint(ed);
+}
+
 IDE_line IDE_getVLine (IDE_instance ed, int linenum)
 {
     IDE_line l = ed->line_first;
@@ -202,69 +444,6 @@ IDE_line IDE_getALine (IDE_instance ed, int linenum)
     return l;
 }
 
-static void invalidateAll (IDE_instance ed)
-{
-    for (uint16_t i=0; i<UI_MAX_ROWS; i++)
-        ed->up2date_row[i] = FALSE;
-    ed->up2date_il_pos       = FALSE;
-    ed->up2date_il_num_lines = FALSE;
-    ed->up2date_il_flags     = FALSE;
-    ed->up2date_il_sourcefn  = FALSE;
-    ed->repaint_all          = TRUE;
-}
-
-static void scroll(IDE_instance ed)
-{
-    int16_t cursor_row = ed->cursor_v_line - ed->scrolloff_row;
-
-    // scroll up ?
-
-    if (cursor_row > ed->window_height - SCROLL_MARGIN)
-    {
-        int16_t scrolloff_row_new = ed->cursor_v_line - ed->window_height + SCROLL_MARGIN;
-        int16_t scrolloff_row_max = ed->num_vlines - ed->window_height + 1;
-
-        if (scrolloff_row_new > scrolloff_row_max)
-            scrolloff_row_new = scrolloff_row_max;
-
-        int16_t diff = scrolloff_row_new - ed->scrolloff_row;
-        ed->scrolloff_row = scrolloff_row_new;
-        switch (diff)
-        {
-            case 0:
-                break;
-            case 1:
-                UI_scrollUp(/*fullscreen=*/FALSE);
-                ed->up2date_row[ed->window_height - 2] = FALSE;
-                break;
-            default:
-                invalidateAll (ed);
-        }
-    }
-
-    // scroll down ?
-
-    if (cursor_row < SCROLL_MARGIN)
-    {
-        int16_t scrolloff_row_new = ed->cursor_v_line > SCROLL_MARGIN ? ed->cursor_v_line - SCROLL_MARGIN : 0;
-
-        int16_t diff = ed->scrolloff_row - scrolloff_row_new;
-        ed->scrolloff_row = scrolloff_row_new;
-        switch (diff)
-        {
-            case 0:
-                break;
-            case 1:
-                UI_scrollDown();
-                ed->up2date_row[0] = FALSE;
-                break;
-            default:
-                invalidateAll (ed);
-        }
-    }
-    // FIXME: implement horizontal scroll
-}
-
 typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
                STAUI_ELSEIFTHEN, STAUI_LOOP, STAUI_LOOPEND,
                STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE, STAUI_OTHER } state_enum;
@@ -276,7 +455,7 @@ static void _getch(IDE_instance ed)
     ed->eol = ed->buf_ch == 0;
 }
 
-static IDE_line buf2line (IDE_instance ed)
+static IDE_line _buf2line (IDE_instance ed)
 {
     static char buf[MAX_LINE_LEN];
     static char style[MAX_LINE_LEN];
@@ -568,10 +747,10 @@ static IDE_line buf2line (IDE_instance ed)
 
     buf[pos] = 0;
 
-    return newLine (ed, buf, style, pre_indent, post_indent, fold_start, fold_end);
+    return _newLine (ed, buf, style, pre_indent, post_indent, fold_start, fold_end);
 }
 
-static void indentLine (IDE_line l)
+static void _indentLine (IDE_line l)
 {
     if (!l->prev)
     {
@@ -592,7 +771,7 @@ static void indentSuccLines (IDE_instance ed, IDE_line lp)
     IDE_line l = lp->next;
     while (l)
     {
-        indentLine (l);
+        _indentLine (l);
         al++;
         if (l->fold_start || !l->folded)
             vl++;
@@ -602,13 +781,13 @@ static void indentSuccLines (IDE_instance ed, IDE_line lp)
     }
     ed->num_lines = al+1;
     ed->num_vlines = vl+1;
-    invalidateAll (ed);
+    _invalidateAll (ed);
 }
 
-static IDE_line commitBuf(IDE_instance ed)
+static IDE_line _commitBuf(IDE_instance ed)
 {
     IDE_line cl = ed->cursor_line;
-    IDE_line l  = buf2line (ed);
+    IDE_line l  = _buf2line (ed);
     if (cl->prev)
         cl->prev->next = l;
     else
@@ -624,9 +803,9 @@ static IDE_line commitBuf(IDE_instance ed)
     ed->editing = FALSE;
     int8_t old_indent = cl->indent;
     int8_t old_post_indent = cl->post_indent;
-    freeLine (ed, cl);
+    _freeLine (ed, cl);
     ed->cursor_line = l;
-    indentLine (l);
+    _indentLine (l);
     if ( (l->indent == old_indent) && (l->post_indent == old_post_indent) )
         ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
     else
@@ -634,14 +813,14 @@ static IDE_line commitBuf(IDE_instance ed)
     return l;
 }
 
-static bool cursorUp(IDE_instance ed)
+static bool _cursorUp(IDE_instance ed)
 {
     IDE_line pl = ed->cursor_line->prev;
     if (!pl)
         return FALSE;
 
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
 
     if (pl->folded)
     {
@@ -662,10 +841,10 @@ static bool cursorUp(IDE_instance ed)
     return TRUE;
 }
 
-static bool cursorDown(IDE_instance ed)
+static bool _cursorDown(IDE_instance ed)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
     IDE_line nl = ed->cursor_line;
     if (nl->folded)
     {
@@ -693,7 +872,7 @@ static bool cursorDown(IDE_instance ed)
     return TRUE;
 }
 
-static bool cursorLeft(IDE_instance ed)
+static bool _cursorLeft(IDE_instance ed)
 {
     if (ed->cursor_col == 0)
         return FALSE;
@@ -704,7 +883,7 @@ static bool cursorLeft(IDE_instance ed)
     return TRUE;
 }
 
-static bool cursorRight(IDE_instance ed)
+static bool _cursorRight(IDE_instance ed)
 {
     int len = ed->editing ? ed->buf_len : ed->cursor_line->len + INDENT_SPACES * ed->cursor_line->indent;
     if (ed->cursor_line->folded)
@@ -718,30 +897,30 @@ static bool cursorRight(IDE_instance ed)
     return TRUE;
 }
 
-static bool pageUp(IDE_instance ed)
+static bool _pageUp(IDE_instance ed)
 {
     for (uint16_t i = 0; i<ed->window_height; i++)
     {
-        if (!cursorUp(ed))
+        if (!_cursorUp(ed))
             return FALSE;
     }
     return TRUE;
 }
 
-static bool pageDown(IDE_instance ed)
+static bool _pageDown(IDE_instance ed)
 {
     for (uint16_t i = 0; i<ed->window_height; i++)
     {
-        if (!cursorDown(ed))
+        if (!_cursorDown(ed))
             return FALSE;
     }
     return TRUE;
 }
 
-static bool gotoBOF(IDE_instance ed)
+static bool _gotoBOF(IDE_instance ed)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
 
     ed->cursor_line = ed->line_first;
 
@@ -753,10 +932,10 @@ static bool gotoBOF(IDE_instance ed)
     return TRUE;
 }
 
-static bool gotoEOF(IDE_instance ed)
+static bool _gotoEOF(IDE_instance ed)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
 
     ed->cursor_line = ed->line_first;
 	while (ed->cursor_line->next)
@@ -772,14 +951,14 @@ static bool gotoEOF(IDE_instance ed)
     return TRUE;
 }
 
-static bool gotoHome(IDE_instance ed)
+static bool _gotoHome(IDE_instance ed)
 {
     ed->cursor_col = 0;
     ed->up2date_il_pos = FALSE;
     return TRUE;
 }
 
-static bool gotoEnd(IDE_instance ed)
+static bool _gotoEnd(IDE_instance ed)
 {
     if (ed->editing)
         ed->cursor_col = ed->buf_len;
@@ -789,7 +968,7 @@ static bool gotoEnd(IDE_instance ed)
     return TRUE;
 }
 
-static void fold (IDE_instance ed, IDE_line cl)
+static void _fold (IDE_instance ed, IDE_line cl)
 {
     if (!cl->fold_start)
         return;
@@ -797,7 +976,7 @@ static void fold (IDE_instance ed, IDE_line cl)
     if (ed->editing)
     {
         bool clIsCursorLine = cl == ed->cursor_line;
-        IDE_line cl2 = commitBuf (ed);
+        IDE_line cl2 = _commitBuf (ed);
         if (clIsCursorLine)
             cl = cl2;
     }
@@ -814,10 +993,10 @@ static void fold (IDE_instance ed, IDE_line cl)
         cl->folded = !cl->folded;
 
     indentSuccLines (ed, fl);
-    invalidateAll(ed);
+    _invalidateAll(ed);
 }
 
-static void unfoldLine (IDE_instance ed, IDE_line l)
+static void _unfoldLine (IDE_instance ed, IDE_line l)
 {
     if (l->folded)
     {
@@ -825,19 +1004,19 @@ static void unfoldLine (IDE_instance ed, IDE_line l)
         while (fs && !fs->fold_start)
             fs = fs->prev;
         if (fs)
-            fold(ed, fs);
+            _fold(ed, fs);
     }
 }
 
-static void unfoldCursorLine(IDE_instance ed)
+static void _unfoldCursorLine(IDE_instance ed)
 {
-    unfoldLine (ed, ed->cursor_line);
+    _unfoldLine (ed, ed->cursor_line);
 }
 
-static bool gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
+static bool _gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
 
     ed->cursor_line = ed->line_first;
 
@@ -848,7 +1027,7 @@ static bool gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
         ed->cursor_line = ed->cursor_line->next;
     }
 
-    unfoldCursorLine(ed);
+    _unfoldCursorLine(ed);
 
     ed->cursor_a_line = ed->cursor_line->a_line;
     ed->cursor_v_line = ed->cursor_line->v_line;
@@ -858,10 +1037,10 @@ static bool gotoLine(IDE_instance ed, uint16_t line, uint16_t col)
     return TRUE;
 }
 
-static void line2buf (IDE_instance ed, IDE_line l)
+static void _line2buf (IDE_instance ed, IDE_line l)
 {
     if (l->folded)
-        fold(ed, l);
+        _fold(ed, l);
 
     uint16_t off = 0;
     for (int8_t i = 0; i<l->indent; i++)
@@ -884,176 +1063,7 @@ static void line2buf (IDE_instance ed, IDE_line l)
     ed->buf_len  = l->len+off;
 }
 
-static void repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded)
-{
-    // FIXME: horizontal scroll
-
-    UI_beginLine (row, 1, UI_size_cols);
-
-    char s=UI_TEXT_STYLE_TEXT;
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-
-    if (folded)
-        UI_putc ('>');
-
-    for (uint16_t i=0; i<indent; i++)
-    {
-        UI_putstr ("    ");
-    }
-
-    for (uint16_t i=0; i<len; i++)
-    {
-        char s2 = style[i];
-        if (s2 != s)
-		{
-			UI_setTextStyle (s2);
-            s = s2;
-        }
-        UI_putc (buf[i]);
-    }
-    UI_endLine();
-}
-
-static void repaint (IDE_instance ed)
-{
-#ifdef ENABLE_REPAINT_BENCHMARK
-    float startTime = U_getTime();
-#endif
-
-    UI_setCursorVisible (FALSE);
-
-    // cache first visible line for speed
-    if (!ed->scrolloff_line || (ed->scrolloff_line_row != ed->scrolloff_row))
-    {
-        ed->scrolloff_line = IDE_getVLine (ed, ed->scrolloff_row);
-        ed->scrolloff_line_row = ed->scrolloff_row;
-    }
-
-    IDE_line l = ed->scrolloff_line;
-
-    uint16_t linenum_end = ed->scrolloff_row + ed->window_height - 2;
-    uint16_t linenum = ed->scrolloff_row;
-    uint16_t row = 1;
-    while (l && (linenum <= linenum_end))
-    {
-        if (!ed->up2date_row[row-1])
-        {
-            if (ed->editing && (linenum == ed->cursor_v_line))
-                repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE);
-            else
-                repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded);
-            ed->up2date_row[row-1] = TRUE;
-        }
-        if (l->folded)
-        {
-            while (l && !l->fold_end)
-            {
-                l = l->next;
-            }
-            if (l)
-                l = l->next;
-        }
-        else
-        {
-            l = l->next;
-        }
-        linenum++;
-        row++;
-    }
-
-    if (ed->repaint_all)
-    {
-        ed->repaint_all = FALSE;
-        while (row <= ed->infoline_row)
-        {
-            UI_beginLine (row, 1, UI_size_cols);
-            UI_endLine   ();
-            row++;
-        }
-    }
-
-    // infoline
-
-    bool update_infoline = FALSE;
-    if (!ed->up2date_il_pos)
-    {
-        _itoa (ed->cursor_col+1, ed->infoline + INFOLINE_CURSOR_X, 4);
-        _itoa (ed->cursor_a_line+1, ed->infoline + INFOLINE_CURSOR_Y, 4);
-        update_infoline = TRUE;
-        ed->up2date_il_pos = TRUE;
-    }
-    if (!ed->up2date_il_num_lines)
-    {
-        _itoa (ed->num_lines, ed->infoline + INFOLINE_NUM_LINES, 4);
-        update_infoline = TRUE;
-        ed->up2date_il_num_lines = TRUE;
-    }
-    if (!ed->up2date_il_flags)
-    {
-        char *fs = ed->infoline + INFOLINE_CHANGED;
-        if (ed->changed)
-            *fs = '*';
-        else
-            *fs = ' ';
-        update_infoline = TRUE;
-        ed->up2date_il_flags = TRUE;
-    }
-    if (!ed->up2date_il_sourcefn)
-    {
-        char *fs = ed->infoline + INFOLINE_FILENAME;
-        if (!ed->il_show_error)
-        {
-            for (char *c = ed->sourcefn; *c; c++)
-            {
-                *fs++ = *c;
-            }
-            *fs = 0;
-            update_infoline = TRUE;
-            ed->up2date_il_sourcefn = TRUE;
-        }
-        else
-        {
-            for (char *c = EM_firstError; *c; c++)
-            {
-                *fs++ = *c;
-            }
-            *fs = 0;
-            update_infoline = TRUE;
-            ed->il_show_error = FALSE;
-        }
-    }
-
-    if (update_infoline)
-    {
-        LOG_printf (LOG_DEBUG, "outputInfoLine: row=%d, txt=%s\n", ed->infoline_row, ed->infoline);
-        UI_setTextStyle (UI_TEXT_STYLE_INVERSE);
-        UI_beginLine (ed->infoline_row+1, 1, UI_size_cols);
-        char *c = ed->infoline;
-        int col = 0;
-        while (*c && col < ed->window_width)
-        {
-            UI_putc (*c++);
-            col++;
-        }
-        while (col < ed->window_width)
-        {
-            UI_putc (' ');
-            col++;
-        }
-        UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-        UI_endLine ();
-    }
-
-    UI_moveCursor (ed->cursor_v_line-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
-    UI_setCursorVisible (TRUE);
-
-#ifdef ENABLE_REPAINT_BENCHMARK
-    float stopTime = U_getTime();
-    printf ("IDE: repaint() took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
-#endif
-}
-
-static void enterKey (IDE_instance ed)
+static void _enterKey (IDE_instance ed)
 {
     // split line ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
@@ -1062,13 +1072,13 @@ static void enterKey (IDE_instance ed)
     if (ed->cursor_col < l)
     {
         if (!ed->editing)
-            line2buf (ed, ed->cursor_line);
+            _line2buf (ed, ed->cursor_line);
 
         memcpy (ed->buf2,   ed->buf+ed->cursor_col  , l - ed->cursor_col);
         memcpy (ed->style2, ed->style+ed->cursor_col, l - ed->cursor_col);
 
         ed->buf_len = ed->cursor_col;
-        ed->cursor_line = commitBuf (ed);
+        ed->cursor_line = _commitBuf (ed);
 
         l -= ed->cursor_col;
 
@@ -1079,24 +1089,24 @@ static void enterKey (IDE_instance ed)
     else
     {
         if (ed->editing)
-            ed->cursor_line = commitBuf (ed);
+            ed->cursor_line = _commitBuf (ed);
         ed->buf_len = 0;
         while (ed->cursor_line->folded && ed->cursor_line->next && ed->cursor_line->next->folded)
             ed->cursor_line = ed->cursor_line->next;
     }
 
-    IDE_line line = buf2line (ed);
-    insertLineAfter (ed, ed->cursor_line, line);
+    IDE_line line = _buf2line (ed);
+    _insertLineAfter (ed, ed->cursor_line, line);
     indentSuccLines (ed, ed->cursor_line);
     ed->cursor_col = 0;
     ed->cursor_line = line;
     ed->cursor_a_line = ed->cursor_line->a_line;
     ed->cursor_v_line = ed->cursor_line->v_line;
     ed->num_lines++;
-    invalidateAll(ed);
+    _invalidateAll(ed);
 }
 
-static void backspaceKey (IDE_instance ed)
+static void _backspaceKey (IDE_instance ed)
 {
     // join lines ?
     if (ed->cursor_col == 0)
@@ -1105,11 +1115,11 @@ static void backspaceKey (IDE_instance ed)
             return;
         IDE_line cl = ed->cursor_line;
         if (ed->editing)
-            cl = commitBuf (ed);
+            cl = _commitBuf (ed);
         IDE_line pl = cl->prev;
-        unfoldLine (ed, pl);
-        unfoldLine (ed, cl);
-        line2buf (ed, pl);
+        _unfoldLine (ed, pl);
+        _unfoldLine (ed, cl);
+        _line2buf (ed, pl);
         ed->cursor_col = ed->buf_len;
         ed->cursor_line = pl;
         ed->cursor_a_line = ed->cursor_line->a_line;
@@ -1121,16 +1131,16 @@ static void backspaceKey (IDE_instance ed)
         memcpy (ed->style+ed->buf_len, cl->style, cl->len);
         ed->buf_len += cl->len;
         ed->editing = TRUE;
-        deleteLine (ed, cl);
-        ed->cursor_line = commitBuf (ed);
+        _deleteLine (ed, cl);
+        ed->cursor_line = _commitBuf (ed);
         indentSuccLines (ed, ed->cursor_line);
-        invalidateAll(ed);
+        _invalidateAll(ed);
         ed->num_lines--;
     }
     else
     {
         if (!ed->editing)
-            line2buf (ed, ed->cursor_line);
+            _line2buf (ed, ed->cursor_line);
 
         for (uint16_t i=ed->cursor_col; i<ed->buf_len; i++)
         {
@@ -1139,11 +1149,11 @@ static void backspaceKey (IDE_instance ed)
         }
         ed->buf_len--;
         ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
-        cursorLeft(ed);
+        _cursorLeft(ed);
     }
 }
 
-static void deleteKey (IDE_instance ed)
+static void _deleteKey (IDE_instance ed)
 {
     // join lines ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
@@ -1152,26 +1162,26 @@ static void deleteKey (IDE_instance ed)
         if (!ed->cursor_line->next)
             return;
         IDE_line cl = ed->cursor_line;
-        unfoldLine(ed, cl);
-        unfoldLine(ed, cl->next);
+        _unfoldLine(ed, cl);
+        _unfoldLine(ed, cl->next);
 
         if (!ed->editing)
-            line2buf (ed, ed->cursor_line);
+            _line2buf (ed, ed->cursor_line);
 
         IDE_line nl = cl->next;
         memcpy (ed->buf+ed->buf_len,   nl->buf  , nl->len);
         memcpy (ed->style+ed->buf_len, nl->style, nl->len);
         ed->buf_len += nl->len;
-        deleteLine (ed, nl);
-        ed->cursor_line = commitBuf (ed);
+        _deleteLine (ed, nl);
+        ed->cursor_line = _commitBuf (ed);
         ed->num_lines--;
         indentSuccLines (ed, ed->cursor_line);
-        invalidateAll(ed);
+        _invalidateAll(ed);
     }
     else
     {
         if (!ed->editing)
-            line2buf (ed, ed->cursor_line);
+            _line2buf (ed, ed->cursor_line);
 
         for (uint16_t i=ed->cursor_col; i<ed->buf_len-1; i++)
         {
@@ -1183,8 +1193,7 @@ static void deleteKey (IDE_instance ed)
     }
 }
 
-
-static void killLine (IDE_instance ed)
+static void _killLine (IDE_instance ed)
 {
     IDE_line cl = ed->cursor_line;
     IDE_line nl = cl->next;
@@ -1196,22 +1205,22 @@ static void killLine (IDE_instance ed)
     }
 
     if (ed->editing)
-        cl = commitBuf (ed);
+        cl = _commitBuf (ed);
 
-    unfoldCursorLine(ed);
+    _unfoldCursorLine(ed);
     if (ed->cursor_col > nl->len)
         ed->cursor_col = nl->len;
 
     ed->cursor_line = nl;
     //if (nl->folded)
-    //    fold (ed, nl);
+    //    _fold (ed, nl);
 
-    deleteLine (ed, cl);
+    _deleteLine (ed, cl);
     indentSuccLines (ed, nl->prev ? nl->prev : nl);
-    invalidateAll(ed);
+    _invalidateAll(ed);
 }
 
-static bool printableAsciiChar (uint16_t c)
+static bool _isPrintableAsciiChar (uint16_t c)
 {
     return (c >= 32) && (c <= 126);
 }
@@ -1222,45 +1231,46 @@ static bool printableAsciiChar (uint16_t c)
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 #endif
-static bool insertChar (IDE_instance ed, uint16_t c)
+
+static bool _insertChar (IDE_instance ed, uint16_t c)
 {
-    LOG_printf (LOG_DEBUG, "insertChar %c\n", c);
-    if (!printableAsciiChar(c))
+    LOG_printf (LOG_DEBUG, "_insertChar %c\n", c);
+    if (!_isPrintableAsciiChar(c))
     {
-        LOG_printf (LOG_DEBUG, "ide.c: insertChar: non-printable char %d detected.\n", c);
+        LOG_printf (LOG_DEBUG, "ide.c: _insertChar: non-printable char %d detected.\n", c);
         return FALSE;
     }
 
     if (!ed->editing)
     {
-        line2buf (ed, ed->cursor_line);
+        _line2buf (ed, ed->cursor_line);
     }
-    //LOG_printf (LOG_DEBUG, "insertChar %c 2\n", c);
+    //LOG_printf (LOG_DEBUG, "_insertChar %c 2\n", c);
 
     uint16_t cp = ed->scrolloff_col + ed->cursor_col;
-    //LOG_printf (LOG_DEBUG, "insertChar 2.1 cp=%d\n", cp);
+    //LOG_printf (LOG_DEBUG, "_insertChar 2.1 cp=%d\n", cp);
 
     for (int i=ed->buf_len; i>cp; i--)
     {
-        //LOG_printf (LOG_DEBUG, "insertChar 2.1 i=%d\n", i);
+        //LOG_printf (LOG_DEBUG, "_insertChar 2.1 i=%d\n", i);
         ed->buf[i]   = ed->buf[i-1];
         ed->style[i] = ed->style[i-1];
     }
-    //LOG_printf (LOG_DEBUG, "insertChar 2.2\n");
+    //LOG_printf (LOG_DEBUG, "_insertChar 2.2\n");
     ed->buf[cp]   = c;
     ed->style[cp] = UI_TEXT_STYLE_TEXT;
     ed->buf_len++;
-    //LOG_printf (LOG_DEBUG, "insertChar %c 3\n", c);
+    //LOG_printf (LOG_DEBUG, "_insertChar %c 3\n", c);
 
     ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
 
-    cursorRight(ed);
-    //LOG_printf (LOG_DEBUG, "insertChar %c 4\n", c);
+    _cursorRight(ed);
+    //LOG_printf (LOG_DEBUG, "_insertChar %c 4\n", c);
 
     return TRUE;
 }
 
-static void IDE_setSourceFn(IDE_instance ed, string sourcefn)
+static void _setSourceFn(IDE_instance ed, string sourcefn)
 {
     if (sourcefn)
     {
@@ -1303,14 +1313,14 @@ static void IDE_setSourceFn(IDE_instance ed, string sourcefn)
     }
     ed->up2date_il_sourcefn=FALSE;
 }
-
 #ifdef __amigaos__
 #pragma GCC pop_options
 #endif
-static bool IDE_save (IDE_instance ed, bool save_as)
+
+static bool _ide_save (IDE_instance ed, bool save_as)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
 
     if (!strlen(ed->sourcefn) || save_as)
     {
@@ -1319,7 +1329,7 @@ static bool IDE_save (IDE_instance ed, bool save_as)
         if (!sourcefn)
             return FALSE;
 
-        IDE_setSourceFn(ed, sourcefn);
+        _setSourceFn(ed, sourcefn);
     }
 
     FILE *sourcef = fopen(ed->sourcefn, "w");
@@ -1352,20 +1362,20 @@ static bool IDE_save (IDE_instance ed, bool save_as)
     return TRUE;
 }
 
-static void IDE_exit (IDE_instance ed)
+static void _ide_exit (IDE_instance ed)
 {
-    LOG_printf (LOG_DEBUG, "ide: IDE_exit\n");
+    LOG_printf (LOG_DEBUG, "ide: _ide_exit\n");
     if (ed->changed)
     {
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
-            IDE_save(ed, /*save_as=*/FALSE);
+            _ide_save(ed, /*save_as=*/FALSE);
     }
-    UI_setCursorVisible(TRUE);
-    LOG_printf (LOG_DEBUG, "ide: IDE_exit -> exit(0)\n");
+    UI_setCursorVisible(ed->view_editor, TRUE);
+    LOG_printf (LOG_DEBUG, "ide: _ide_exit -> exit(0)\n");
     exit(0);
 }
 
-static void show_help(IDE_instance ed)
+static void _show_help(IDE_instance ed)
 {
 #ifdef __amigaos__
     UI_HelpBrowser();
@@ -1385,22 +1395,24 @@ static void show_help(IDE_instance ed)
                   "Ctrl-M - mark block\n"
                   "Ctrl-S - save\n"
                   "Ctrl-C - quit", "Close");
-    invalidateAll (ed);
+    _invalidateAll (ed);
 #endif
 }
 
-static void show_about(IDE_instance ed)
+static void _show_about(IDE_instance ed)
 {
     UI_EZRequest (PROGRAM_NAME_LONG " " VERSION"\n\n"
                   COPYRIGHT "\n\n"
                   LICENSE, "Close");
-    invalidateAll (ed);
+    _invalidateAll (ed);
 }
 
-static bool compile(IDE_instance ed)
+static bool _compile(IDE_instance ed)
 {
-    if (!IDE_save(ed, /*save_as=*/FALSE))
+    if (!_ide_save(ed, /*save_as=*/FALSE))
         return FALSE;
+
+    IDE_conSet (ed, /*visible=*/TRUE, /*active=*/TRUE);
 
     OPT_reset();
 
@@ -1413,15 +1425,14 @@ static bool compile(IDE_instance ed)
                /*asm_asmpro_fn=*/ NULL,
                /*asm_vasm_fn=*/ NULL);
 
-    LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
-    UI_waitkey ();
+    //LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
+    //UI_waitkey ();
 
-    UI_eraseDisplay ();
-    invalidateAll (ed);
+    IDE_conSet (ed, /*visible=*/TRUE, /*active=*/FALSE);
 
     if (EM_anyErrors)
     {
-        gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol);
+        _gotoLine (ed, EM_firstErrorLine, EM_firstErrorCol);
         ed->il_show_error = TRUE;
         return FALSE;
     }
@@ -1434,7 +1445,7 @@ static bool compile(IDE_instance ed)
     return TRUE;
 }
 
-static void compileAndRun(IDE_instance ed)
+static void _compileAndRun(IDE_instance ed)
 {
 #ifdef __amigaos__
     if (DEBUG_getState() != DEBUG_stateStopped)
@@ -1471,25 +1482,23 @@ static void compileAndRun(IDE_instance ed)
 
     if (changed)
     {
-        if (!compile(ed))
+        if (!_compile(ed))
             return;
     }
 
 #ifdef __amigaos__
 
-    UI_setCursorVisible (FALSE);
+    IDE_conSet (ed, /*visible=*/TRUE, /*active=*/TRUE);
     DEBUG_start (ed->binfn);
-    // DEBUG_start ("SYS:Utilities/Clock"); // debug purposes only
 
 #else
 
     LOG_printf (LOG_INFO, "\n*** FIXME: non-amiga debugging not implemented yet.\n\n");
     LOG_printf (LOG_INFO, "\n*** press enter to continue ***\n\n");
     while ( UI_waitkey () != KEY_ENTER ) ;
-    UI_eraseDisplay ();
-    invalidateAll (ed);
-    UI_setCursorVisible (TRUE);
-
+    //UI_eraseDisplay ();
+    //_invalidateAll (ed);
+    //UI_setCursorVisible (TRUE);
 #endif
 
 }
@@ -1567,13 +1576,13 @@ nextcol:
 }
 
 
-static void findNext (IDE_instance ed, bool first)
+static void _find_next (IDE_instance ed, bool first)
 {
 	if (!strlen(ed->find_buf))
 		return;
 
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
 
     int16_t col = ed->cursor_col;
     IDE_line l = ed->cursor_line;
@@ -1603,7 +1612,7 @@ static void findNext (IDE_instance ed, bool first)
     bool found = FALSE;
     while (!found && l)
     {
-        LOG_printf (LOG_DEBUG, "findNext: looking for %s in %s\n", ed->find_buf, l->buf);
+        LOG_printf (LOG_DEBUG, "_find_next: looking for %s in %s\n", ed->find_buf, l->buf);
         col = _strstr (l->buf, col, ed->find_buf, ed->find_matchCase, ed->find_wholeWord, ed->find_searchBackwards);
         if (col >= 0)
         {
@@ -1630,30 +1639,30 @@ static void findNext (IDE_instance ed, bool first)
     if (found)
     {
         ed->cursor_line = l;
-        unfoldCursorLine(ed);
+        _unfoldCursorLine(ed);
         ed->cursor_a_line = ed->cursor_line->a_line;
         ed->cursor_v_line = ed->cursor_line->v_line;
         ed->up2date_il_pos = FALSE;
     }
 }
 
-static void IDE_find (IDE_instance ed)
+static void _ide_find (IDE_instance ed)
 {
     if (UI_FindReq (ed->find_buf, MAX_LINE_LEN, &ed->find_matchCase, &ed->find_wholeWord, &ed->find_searchBackwards))
-        findNext (ed, /*first=*/TRUE);
+        _find_next (ed, /*first=*/TRUE);
 
-    UI_eraseDisplay ();
-    invalidateAll (ed);
-    UI_setCursorVisible (TRUE);
+    UI_clearView (ed->view_editor);
+    _invalidateAll (ed);
+    UI_setCursorVisible (ed->view_editor, TRUE);
 }
 
-static void doClear (IDE_instance ed)
+static void _doClear (IDE_instance ed)
 {
     IDE_line l=ed->line_first;
     while (l)
     {
         IDE_line nl = l->next;
-        freeLine(ed, l);
+        _freeLine(ed, l);
         l = nl;
     }
     ed->line_first     = NULL;
@@ -1663,19 +1672,19 @@ static void doClear (IDE_instance ed)
     ed->module_name[0] = 0;
 }
 
-static void doNew (IDE_instance ed)
+static void _doNew (IDE_instance ed)
 {
-    doClear(ed);
+    _doClear(ed);
     ed->buf_len = 0;
     ed->buf[ed->buf_len] = 0;
-    IDE_line line = buf2line (ed);
-    insertLineAfter (ed, NULL, line);
+    IDE_line line = _buf2line (ed);
+    _insertLineAfter (ed, NULL, line);
 }
 
-static void loadSource (IDE_instance ed, string sourcefn)
+static void _loadSource (IDE_instance ed, string sourcefn)
 {
-    doClear (ed);
-    IDE_setSourceFn(ed, sourcefn);
+    _doClear (ed);
+    _setSourceFn(ed, sourcefn);
 
     if (sourcefn)
     {
@@ -1706,7 +1715,7 @@ static void loadSource (IDE_instance ed, string sourcefn)
                 if (eol)
                 {
                     ed->buf[ed->buf_len] = 0;
-                    IDE_line line = buf2line (ed);
+                    IDE_line line = _buf2line (ed);
                     if (line->fold_start)
                     {
                         line->folded = TRUE;
@@ -1724,7 +1733,7 @@ static void loadSource (IDE_instance ed, string sourcefn)
                             line->folded = folded;
                         }
                     }
-                    insertLineAfter (ed, lastLine, line);
+                    _insertLineAfter (ed, lastLine, line);
                     lastLine = line;
                     eol=FALSE;
                     ed->buf_len = 0;
@@ -1736,12 +1745,12 @@ static void loadSource (IDE_instance ed, string sourcefn)
         else
         {
             UI_EZRequest("failed to read %s:\n%s", "OK", sourcefn, strerror(errno));
-            doNew(ed);
+            _doNew(ed);
         }
     }
     else
     {
-        doNew(ed);
+        _doNew(ed);
     }
 
     ed->cursor_col		 = 0;
@@ -1750,20 +1759,20 @@ static void loadSource (IDE_instance ed, string sourcefn)
     ed->cursor_line      = ed->line_first;
 
     indentSuccLines (ed, ed->line_first);
-    invalidateAll (ed);
+    _invalidateAll (ed);
 }
 
-static void IDE_new (IDE_instance ed)
+static void _ide_new (IDE_instance ed)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
     if (ed->changed)
     {
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
-            IDE_save(ed, /*save_as=*/FALSE);
+            _ide_save(ed, /*save_as=*/FALSE);
     }
 
-    doNew(ed);
+    _doNew(ed);
 
     ed->cursor_col		 = 0;
     ed->cursor_a_line	 = 0;
@@ -1771,180 +1780,137 @@ static void IDE_new (IDE_instance ed)
     ed->cursor_line      = ed->line_first;
 
     indentSuccLines (ed, ed->line_first);
-    invalidateAll (ed);
+    _invalidateAll (ed);
 }
 
-static void IDE_load_FileReq (IDE_instance ed)
+static void _ide_load_FileReq (IDE_instance ed)
 {
     if (ed->editing)
-        commitBuf (ed);
+        _commitBuf (ed);
     if (ed->changed)
     {
         if (UI_EZRequest ("Save changes to disk?", "Yes|No"))
-            IDE_save(ed, /*save_as=*/FALSE);
+            _ide_save(ed, /*save_as=*/FALSE);
     }
 
     char *sourcefn = UI_FileReq ("Load BASIC source code file");
     if (sourcefn)
-        loadSource (ed, sourcefn);
+        _loadSource (ed, sourcefn);
 }
 
-static void size_cb (void *user_data)
+static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
 {
 	IDE_instance ed = (IDE_instance) user_data;
-    initWindowSize (ed);
-    invalidateAll (ed);
-    scroll(ed);
-    UI_eraseDisplay();
-    repaint(ed);
-}
-
-static void handleRunStop(IDE_instance ed)
-{
-#ifdef __amigaos__
-    LOG_printf (LOG_INFO, "\n\nPROGRAM EXITED\n\n");
-    LOG_printf (LOG_INFO, "\n*** PRESS ANY KEY TO CONTINUE ***\n\n");
-    UI_waitkey ();
-#endif
-
-    UI_eraseDisplay ();
-    invalidateAll (ed);
-    UI_setCursorVisible (TRUE);
-}
-
-static void event_cb (uint16_t key, void *user_data)
-{
-	IDE_instance ed = (IDE_instance) user_data;
-
-    // are we in debug mode right now ?
-
-    DEBUG_state rs = DEBUG_getState();
-    if (rs != DEBUG_stateStopped)
-    {
-        // DEBUG_handleEvent (key);
-        rs = DEBUG_getState();
-        if (rs == DEBUG_stateStopped)
-        {
-            UI_eraseDisplay ();
-            invalidateAll (ed);
-            UI_setCursorVisible (TRUE);
-        }
-        return;
-    }
 
     switch (key)
     {
         case KEY_CTRL_C:
         case KEY_CTRL_Q:
         case KEY_QUIT:
-            IDE_exit(ed);
+            _ide_exit(ed);
             break;
 
         case KEY_CTRL_Y:
-            killLine(ed);
+            _killLine(ed);
             break;
 
         case KEY_CURSOR_UP:
-            cursorUp(ed);
+            _cursorUp(ed);
             break;
 
         case KEY_CURSOR_DOWN:
-            cursorDown(ed);
+            _cursorDown(ed);
             break;
 
         case KEY_CURSOR_LEFT:
-            cursorLeft(ed);
+            _cursorLeft(ed);
             break;
 
         case KEY_CURSOR_RIGHT:
-            cursorRight(ed);
+            _cursorRight(ed);
             break;
 
         case KEY_PAGE_UP:
-            pageUp(ed);
+            _pageUp(ed);
             break;
 
         case KEY_PAGE_DOWN:
-            pageDown(ed);
+            _pageDown(ed);
             break;
 
         case KEY_HOME:
-            gotoHome(ed);
+            _gotoHome(ed);
             break;
 
         case KEY_END:
-            gotoEnd(ed);
+            _gotoEnd(ed);
             break;
 
         case KEY_GOTO_BOF:
-            gotoBOF(ed);
+            _gotoBOF(ed);
             break;
 
         case KEY_GOTO_EOF:
-            gotoEOF(ed);
+            _gotoEOF(ed);
             break;
 
         case KEY_ENTER:
-            enterKey(ed);
+            _enterKey(ed);
             break;
 
         case KEY_BACKSPACE:
-            backspaceKey(ed);
+            _backspaceKey(ed);
             break;
 
         case KEY_DEL:
-            deleteKey(ed);
+            _deleteKey(ed);
             break;
 
         case KEY_NEW:
-            IDE_new(ed);
+            _ide_new(ed);
             break;
 
         case KEY_CTRL_O:
         case KEY_OPEN:
-            IDE_load_FileReq(ed);
+            _ide_load_FileReq(ed);
             break;
 
         case KEY_CTRL_S:
         case KEY_SAVE:
-            IDE_save(ed, /*save_as=*/FALSE);
+            _ide_save(ed, /*save_as=*/FALSE);
             break;
 
         case KEY_SAVE_AS:
-            IDE_save(ed, /*save_as=*/TRUE);
+            _ide_save(ed, /*save_as=*/TRUE);
             break;
 
         case KEY_HELP:
         case KEY_F1:
-            show_help(ed);
+            _show_help(ed);
             break;
 
         case KEY_ABOUT:
-            show_about(ed);
+            _show_about(ed);
             break;
 
         case KEY_F5:
-            compileAndRun(ed);
-            break;
-
-        case KEY_STOPPED:
-            handleRunStop(ed);
+            _compileAndRun(ed);
             break;
 
         case KEY_CTRL_A:
         case KEY_CTRL_F:
         case KEY_FIND:
-            IDE_find(ed);
+            _ide_find(ed);
             break;
 
 		case KEY_FIND_NEXT:
 		case KEY_CTRL_N:
-			findNext (ed, /*first=*/FALSE);
+			_find_next (ed, /*first=*/FALSE);
 			break;
 
         case KEY_F7:
         case KEY_CTRL_G:
-            compile(ed);
+            _compile(ed);
             break;
 
 		case KEY_COLORSCHEME_0:
@@ -1954,66 +1920,34 @@ static void event_cb (uint16_t key, void *user_data)
 		case KEY_COLORSCHEME_4:
 		case KEY_COLORSCHEME_5:
 			UI_setColorScheme (key - KEY_COLORSCHEME_0);
-            invalidateAll (ed);
+            _invalidateAll (ed);
 			break;
 
 		case KEY_FONT_0:
 		case KEY_FONT_1:
 			UI_setFont (key - KEY_FONT_0);
-            initWindowSize (ed);
-            invalidateAll (ed);
+            _editor_size_cb (ed->view_editor, ed);
 			break;
 
         case KEY_NONE:
             break;
 
         case KEY_TAB:
-            fold (ed, ed->cursor_line);
+            _fold (ed, ed->cursor_line);
+            break;
+
+        case KEY_ESC:
+            UI_setViewVisible (ed->view_console, !UI_isViewVisible (ed->view_console));
             break;
 
         default:
-            if (!insertChar(ed, (uint8_t) key))
+            if (!_insertChar(ed, (uint8_t) key))
                 UI_bell();
             break;
-
     }
 
-    scroll(ed);
-    repaint(ed);
-}
-
-IDE_instance openEditor(void)
-{
-	IDE_instance ed = U_poolAlloc (UP_ide, sizeof (*ed));
-
-    strncpy (ed->infoline, INFOLINE, sizeof(ed->infoline));
-    ed->infoline_row         = 0;
-    ed->sourcefn[0]          = 0;
-    ed->module_name[0]       = 0;
-    ed->line_first           = NULL;
-    ed->line_last            = NULL;
-    ed->num_lines	         = 0;
-    ed->num_vlines	         = 0;
-    ed->scrolloff_col        = 0;
-    ed->scrolloff_row        = 0;
-    ed->scrolloff_line       = NULL;
-    ed->cursor_col		     = 0;
-    ed->cursor_a_line	     = 0;
-    ed->cursor_v_line	     = 0;
-    ed->cursor_line          = NULL;
-    ed->changed		         = FALSE;
-    ed->editing              = FALSE;
-    ed->il_show_error        = FALSE;
-    ed->find_buf[0]          = 0;
-    ed->find_matchCase       = FALSE;
-    ed->find_wholeWord       = FALSE;
-    ed->find_searchBackwards = FALSE;
-
-    invalidateAll (ed);
-
-    initWindowSize(ed);
-
-	return ed;
+    _scroll(ed);
+    _repaint(ed);
 }
 
 static void log_cb (uint8_t lvl, char *fmt, ...)
@@ -2024,7 +1958,7 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     vsnprintf (buf, 1024, fmt, args);
     va_end(args);
 	if (lvl >= LOG_INFO)
-        UI_tprintf ("%s", buf);
+        IDE_cprintf (g_ide, "%s", buf);
 #if LOG_LEVEL == LOG_DEBUG
 	fprintf (logf, "%s", buf);
 	fflush (logf);
@@ -2038,9 +1972,23 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 
 static void IDE_deinit(void)
 {
-    LOG_printf (LOG_DEBUG, "IDE_deinit.\n");
-    U_deinit();
+    static bool done=FALSE;
+
+    if (done)
+        return;
+    done = TRUE;
+
+    LOG_printf (LOG_DEBUG, "IDE_deinit -> UI_deinit()\n");
+    //U_delay (1000);
     UI_deinit();
+    LOG_printf (LOG_DEBUG, "IDE_deinit -> UI_deinit() done.\n");
+    //U_delay (1000);
+
+    LOG_printf (LOG_DEBUG, "IDE_deinit -> U_deinit()\n");
+    //U_delay (1000);
+    U_deinit();
+    LOG_printf (LOG_DEBUG, "IDE_deinit -> U_deinit() done.\n");
+    //U_delay (1000);
 #if LOG_LEVEL == LOG_DEBUG
 	fclose (logf);
 #endif
@@ -2080,20 +2028,50 @@ void IDE_open (string sourcefn)
     for (int i =0; i<FE_num_keywords; i++)
         TAB_enter (g_keywords, FE_keywords[i], (void *) TRUE);
 
-    g_ide = openEditor();
+    g_ide = U_poolAlloc (UP_ide, sizeof (*g_ide));
+
+    strncpy (g_ide->infoline, INFOLINE, sizeof(g_ide->infoline));
+    g_ide->sourcefn[0]          = 0;
+    g_ide->module_name[0]       = 0;
+    g_ide->line_first           = NULL;
+    g_ide->line_last            = NULL;
+    g_ide->num_lines	        = 0;
+    g_ide->num_vlines	        = 0;
+    g_ide->scrolloff_col        = 0;
+    g_ide->scrolloff_row        = 0;
+    g_ide->scrolloff_line       = NULL;
+    g_ide->cursor_col		    = 0;
+    g_ide->cursor_a_line	    = 0;
+    g_ide->cursor_v_line	    = 0;
+    g_ide->cursor_line          = NULL;
+    g_ide->changed		        = FALSE;
+    g_ide->editing              = FALSE;
+    g_ide->il_show_error        = FALSE;
+    g_ide->find_buf[0]          = 0;
+    g_ide->find_matchCase       = FALSE;
+    g_ide->find_wholeWord       = FALSE;
+    g_ide->find_searchBackwards = FALSE;
+
+    g_ide->view_editor          = UI_getView (UI_viewEditor);
+    g_ide->view_status          = UI_getView (UI_viewStatusBar);
+
+    UI_onSizeChangeCall (g_ide->view_editor, _editor_size_cb, g_ide);
+    UI_onEventCall (g_ide->view_editor, _editor_event_cb, g_ide);
+
+    IDE_conInit(g_ide);
+
 #ifdef __amigaos__
     DEBUG_init (g_ide, UI_debugPort());
 #endif
 
-    loadSource (g_ide, sourcefn);
+    _loadSource (g_ide, sourcefn);
 
-    UI_setCursorVisible (FALSE);
-    UI_moveCursor (1, 1);
-    UI_eraseDisplay();
-    repaint(g_ide);
+    UI_activateView (g_ide->view_editor);
+    UI_setCursorVisible (g_ide->view_editor, FALSE);
+    UI_moveCursor (g_ide->view_editor, 1, 1);
+    UI_clearView (g_ide->view_editor);
 
-	UI_onEventCall      (event_cb, g_ide);
-    UI_onSizeChangeCall (size_cb,  g_ide);
+    _editor_size_cb (g_ide->view_editor, g_ide);
 
 	UI_run();
 }

@@ -49,6 +49,7 @@
 //#define ENABLE_SCROLL_BENCHMARK
 
 #define BM_HEIGHT 8
+#define NUM_VIEWS 3
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
@@ -58,7 +59,7 @@ extern struct AslBase       *AslBase;
 struct Library              *GadToolsBase;
 struct Device               *ConsoleDevice = NULL;
 
-uint16_t UI_size_cols=80, UI_size_rows=25;
+// FIXME: remove uint16_t UI_size_cols=80, UI_size_rows=25;
 
 static struct NewMenu g_newmenu[] =
     {
@@ -99,44 +100,57 @@ static struct NewMenu g_newmenu[] =
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
+struct UI_view_
+{
+    WORD                  x, y, w, h;
+
+    BOOL                  visible;
+
+    WORD                  visWidth;
+    BOOL                  renderBMPE[3]     ; // PE: PlaneEnabled
+    BOOL                  renderBMPEI[3]    ; // PE: PlaneEnabledInverse
+    UBYTE                 renderBMcurFG;
+    UBYTE                 renderBMcurBG;
+
+    struct BitMap        *renderBM;
+    UBYTE                *renderBMPtr[3];
+    UBYTE                *renderBMPlanes[3];
+    UWORD                 renderBMBytesPerRow;
+
+    WORD                  curLineStart;
+    WORD                  curLineCols;
+    WORD                  renderBMcurCol;
+    WORD                  renderBMcurRow;
+    WORD                  renderBMmaxCols;
+
+    BOOL                  cursorVisible;
+    WORD                  cursorRow;
+    WORD                  cursorCol;
+
+    UI_size_cb            size_cb;
+    void                 *size_cb_user_data;
+
+    UI_event_cb           event_cb;
+    void                 *event_cb_user_data;
+};
+
 static struct Window        *g_win               = NULL;
 static struct RastPort      *g_rp                = NULL;
 static struct MsgPort       *g_debugPort         = NULL;
 static struct IOStdReq       console_ioreq;
-static UWORD                 g_OffLeft, g_OffRight, g_OffTop, g_OffBottom;
-static APTR                  g_vi                = NULL;
 static struct Menu          *g_menuStrip         = NULL;
+static APTR                  g_vi                = NULL;
+static UI_view               g_views[NUM_VIEWS]  = {NULL, NULL, NULL};
+static UI_view               g_active_view       = NULL;
 static UWORD                 g_fontHeight        = 8;
-#include "fonts.h"
 static UBYTE                 g_curFont           = 1;
-static struct BitMap        *g_renderBM;
-static UWORD                 g_renderBMBytesPerRow;
-static UBYTE                *g_renderBMPlanes[3] = {NULL, NULL, NULL};
-static UBYTE                *g_renderBMPtr[3];
-static bool                  g_renderBMPE[3]     = { TRUE, FALSE, FALSE }; // PE: PlaneEnabled
-static bool                  g_renderBMPEI[3]    = {FALSE, FALSE, FALSE }; // PE: PlaneEnabledInverse
-static uint16_t              g_renderBMcurCol    = 0;
-static uint16_t              g_renderBMcurRow    = 1;
-static uint8_t               g_renderBMcurFG     = 1;
-static uint8_t               g_renderBMcurBG     = 0;
-static uint16_t              g_curLineStart      = 1;
-static uint16_t              g_curLineCols       = 80;
-static uint16_t              g_visWidth;
-static uint16_t              g_renderBMmaxCols   = 80;
+static uint16_t              g_theme             = 0;
+
+#include "fonts.h"
+
 static struct FileRequester *g_ASLFileReq        = NULL;;
 
-// RTG graphics library based rendering
 #define BUFSIZE 1024
-static UI_size_cb            g_size_cb           = NULL;
-static void                 *g_size_cb_user_data = NULL;
-static UI_event_cb           g_event_cb          = NULL;
-static void                 *g_event_cb_user_data= NULL;
-static uint16_t              g_scrollStart       = 1;
-static uint16_t              g_scrollEnd         = 10;
-static bool                  g_cursorVisible     = FALSE;
-static uint16_t              g_cursorRow         = 1;
-static uint16_t              g_cursorCol         = 1;
-static uint16_t              g_theme             = 0;
 
 typedef struct
 {
@@ -162,7 +176,6 @@ static UI_theme_t g_themes[NUM_THEMES] = {
     },
 };
 
-
 static void cleanexit (char *s, uint32_t n)
 {
     if (s)
@@ -173,269 +186,52 @@ static void cleanexit (char *s, uint32_t n)
     exit(n);
 }
 
-static void drawCursor(void)
+static UI_view UI_View(UBYTE depth, WORD visWidth)
 {
-    uint16_t x = (g_cursorCol-1)*8 + g_OffLeft;
-    uint16_t y = (g_cursorRow-1)*g_fontHeight + g_OffTop;
-    //LOG_printf (LOG_DEBUG, "ui_amiga: drawCursor g_cursorCol=%d, g_cursorRow=%d, x=%d, y=%d\n", g_cursorCol, g_cursorRow, x, y);
-    BYTE DrawMode = g_rp->DrawMode;
-    SetDrMd (g_rp, COMPLEMENT);
-    g_rp->Mask = 3;
-    RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
-    SetDrMd (g_rp, DrawMode);
-}
+    UI_view view = U_poolAlloc(UP_ide, sizeof(*view));
 
-static void setTextColor (uint8_t fg, uint8_t bg)
-{
-    switch (fg)
+    view->x                 = 0;
+    view->y                 = 0;
+    view->w                 = 0;
+    view->h                 = 0;
+
+    view->visible           = TRUE;
+
+    view->visWidth          = visWidth;
+    view->cursorVisible     = FALSE;
+
+    view->size_cb           = NULL;
+    view->size_cb_user_data = NULL;
+
+    UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
+
+    view->renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
+    if (!view->renderBM)
+         cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
+
+    InitBitMap(view->renderBM, depth, visWidth, BM_HEIGHT);
+
+    for (uint8_t planeNum = 0; planeNum < depth; planeNum++)
     {
-        case 0: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] = FALSE; break;
-        case 1: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] = FALSE; break;
-        case 2: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] = FALSE; break;
-        case 3: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] = FALSE; break;
-        case 4: g_renderBMPE[0] = FALSE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] =  TRUE; break;
-        case 5: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] = FALSE; g_renderBMPE[2] =  TRUE; break;
-        case 6: g_renderBMPE[0] = FALSE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] =  TRUE; break;
-        case 7: g_renderBMPE[0] =  TRUE; g_renderBMPE[1] =  TRUE; g_renderBMPE[2] =  TRUE; break;
-        default: assert(FALSE);
+        view->renderBMPtr[planeNum] = view->renderBM->Planes[planeNum] = view->renderBMPlanes[planeNum] = AllocRaster(visWidth, BM_HEIGHT);
+        if (!view->renderBM->Planes[planeNum])
+            cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
     }
 
-    switch (bg)
-    {
-        case 0: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] = FALSE; break;
-        case 1: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] = FALSE; break;
-        case 2: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] = FALSE; break;
-        case 3: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] = FALSE; break;
-        case 4: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] =  TRUE; break;
-        case 5: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] = FALSE; g_renderBMPEI[2] =  TRUE; break;
-        case 6: g_renderBMPEI[0] = FALSE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] =  TRUE; break;
-        case 7: g_renderBMPEI[0] =  TRUE; g_renderBMPEI[1] =  TRUE; g_renderBMPEI[2] =  TRUE; break;
-        default: assert(FALSE);
-    }
+    view->renderBMBytesPerRow = view->renderBM->BytesPerRow;
 
-    g_renderBMcurFG = fg;
-    g_renderBMcurBG = bg;
+    return view;
 }
 
-void UI_setTextStyle (uint16_t style)
+UI_view UI_getView (UI_viewId id)
 {
-    setTextColor (g_themes[g_theme].fg[style], g_themes[g_theme].bg[style]);
+    return g_views[id];
 }
 
-void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
+void UI_getViewSize (UI_view view, uint16_t *rows, uint16_t *cols)
 {
-    // LOG_printf (LOG_DEBUG,
-    //             "ui_amiga: beginLine row=%d, col_start=%d, cols=%d\n",
-    //             row, col_start, cols);
-    g_curLineStart = col_start;
-    g_curLineCols  = cols;
-    //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine g_curLineCols=%d\n", g_curLineCols);
-    g_renderBMcurCol = col_start-1;
-    g_renderBMcurRow = row;
-    for (uint8_t d = 0; d<g_renderBM->Depth; d++)
-        g_renderBMPtr[d] = g_renderBMPlanes[d];
-    for (uint16_t r = 0; r<g_fontHeight; r++)
-    {
-        for (uint16_t d = 0; d<g_renderBM->Depth; d++)
-            memset (g_renderBMPtr[d] + r*g_renderBMBytesPerRow, g_renderBMPEI[d] ? 0xff : 0x00, g_curLineCols);
-    }
-}
-
-#define CSI_BUF_LEN 16
-
-void UI_putc(char c)
-{
-    static BOOL bCSI = FALSE;
-    static char csiBuf[CSI_BUF_LEN];
-    static uint16_t csiBufLen=0;
-    UBYTE uc = (UBYTE) c;
-    //printf ("UI_putc: %c[%d]\n", c, uc);
-    if (!bCSI)
-    {
-        if (uc==0x9b)
-        {
-            bCSI = TRUE;
-            return;
-        }
-    }
-    else
-    {
-        /*
-        0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
-        0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
-        0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
-        */
-        if (uc>=0x40)
-        {
-            //LOG_printf (LOG_DEBUG, "!CSI seq detected: %s%c\n", csiBuf, c);
-            //printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
-
-            switch (c)
-            {
-                case 'p': // csr on/off
-                    if (csiBufLen == 2)
-                    {
-                        switch (csiBuf[0])
-                        {
-                            case '0':
-                               UI_setCursorVisible (FALSE);
-                               break;
-                            case '1':
-                               UI_setCursorVisible (TRUE);
-                               break;
-                        }
-                    }
-                    break;
-                case 'm': // presentation
-                    if (csiBufLen == 1)
-                    {
-                        switch (csiBuf[0])
-                        {
-                            case '0':
-                               setTextColor (g_themes[g_theme].fg[0], g_themes[g_theme].bg[0]);
-                               break;
-                        }
-                    }
-                    else
-                    {
-                        if (csiBufLen == 2)
-                        {
-                            uint8_t color = (csiBuf[0]-'0')*10+(csiBuf[1]-'0');
-                            //printf ("setting color %d\n", color);
-                            switch (color)
-                            {
-                                case 30: setTextColor (0, g_themes[g_theme].bg[0]); break;
-                                case 31: setTextColor (1, g_themes[g_theme].bg[0]); break;
-                                case 32: setTextColor (2, g_themes[g_theme].bg[0]); break;
-                                case 33: setTextColor (3, g_themes[g_theme].bg[0]); break;
-                                case 34: setTextColor (0, g_themes[g_theme].bg[0]); break;
-                                case 35: setTextColor (1, g_themes[g_theme].bg[0]); break;
-                                case 36: setTextColor (2, g_themes[g_theme].bg[0]); break;
-                                case 37: setTextColor (3, g_themes[g_theme].bg[0]); break;
-                            }
-                        }
-                    }
-                    break;
-            }
-
-            bCSI = FALSE;
-            csiBufLen = 0;
-        }
-        else
-        {
-            if (csiBufLen<CSI_BUF_LEN)
-                csiBuf[csiBufLen++] = c;
-        }
-        return;
-    }
-
-    if (g_renderBMcurCol >= g_renderBMmaxCols)
-        return;
-
-    g_renderBMcurCol++;
-
-    if (g_cursorVisible)
-        drawCursor();
-    //printf ("painting char %d (%c)\n", c, c);
-
-    UBYTE ci = c;
-    UBYTE *dst[3];
-    for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
-        dst[planeNum] = g_renderBMPtr[planeNum];
-
-    //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
-    for (UBYTE y=0; y<g_fontHeight; y++)
-    {
-        UBYTE fd = g_fontData[g_curFont][ci][y];
-        for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
-        {
-            *dst[planeNum]  = g_renderBMPE[planeNum] ? fd : 0;
-            if (g_renderBMPEI[planeNum])
-                *dst[planeNum] |= ~fd;
-            dst[planeNum] += g_renderBMBytesPerRow;
-        }
-    }
-    for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
-        g_renderBMPtr[planeNum]++;
-
-    if (g_cursorVisible)
-        drawCursor();
-}
-
-void UI_putstr(char *s)
-{
-    while (*s)
-        UI_putc (*s++);
-}
-
-void UI_printf (char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    UI_vprintf (format, args);
-    va_end(args);
-}
-
-void UI_vprintf (char* format, va_list args)
-{
-    static char buf[BUFSIZE];
-    vsnprintf (buf, BUFSIZE, format, args);
-    UI_putstr(buf);
-}
-
-void UI_endLine (void)
-{
-    if (g_cursorVisible)
-        drawCursor();
-    BltBitMapRastPort (g_renderBM, 0, 0, g_rp, (g_curLineStart-1)*8+g_OffLeft, (g_renderBMcurRow-1)*g_fontHeight+g_OffTop, g_curLineCols*8, g_fontHeight, 0xc0);
-    if (g_cursorVisible)
-        drawCursor();
-}
-
-void UI_setCursorVisible (bool visible)
-{
-    if ((visible && !g_cursorVisible) || (!visible && g_cursorVisible))
-        drawCursor();
-
-    g_cursorVisible = visible;
-}
-
-void UI_moveCursor (uint16_t row, uint16_t col)
-{
-    if (g_cursorVisible)
-        drawCursor();
-    g_cursorRow = row;
-    g_cursorCol = col;
-    if (g_cursorVisible)
-        drawCursor();
-}
-
-struct MsgPort *UI_debugPort(void)
-{
-    return g_debugPort;
-}
-
-void UI_beginRefresh (void)
-{
-    BeginRefresh(g_win);
-}
-
-void UI_endRefresh (void)
-{
-    EndRefresh(g_win, TRUE);
-}
-
-void UI_bell (void)
-{
-    DisplayBeep (NULL);
-}
-
-void UI_eraseDisplay (void)
-{
-    SetAPen(g_rp, g_themes[g_theme].bg[0]);
-    SetBPen(g_rp, g_themes[g_theme].bg[0]);
-    SetDrMd(g_rp, JAM1);
-    RectFill (g_rp, g_OffLeft, g_OffTop, g_win->Width-g_OffRight-1, g_win->Height-g_OffBottom-1);
+    *cols = view->renderBMmaxCols;
+    *rows = view->h/g_fontHeight;
 }
 
 void UI_setColorScheme (int theme)
@@ -445,380 +241,77 @@ void UI_setColorScheme (int theme)
     g_theme = theme;
 }
 
-void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
+static void _view_resize (UI_view view, WORD x, WORD y, WORD w, WORD h)
 {
-    g_scrollStart = row_start;
-    g_scrollEnd   = row_end;
+    LOG_printf (LOG_DEBUG, "UI: _view_resize: view=0x%08lx x=%d y=%d w=%d h=%d\n", view, x, y, w, h);
+
+    view->x               = x;
+    view->y               = y;
+    view->w               = w;
+    view->h               = h;
+    view->renderBMmaxCols = w/8;
 }
 
-void UI_scrollUp (bool fullscreen)
+static void _updateLayout(void)
 {
-    if (g_cursorVisible)
-        drawCursor();
-    WORD min_x = g_OffLeft;
-    WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
-    WORD max_x = g_win->Width - g_OffRight-1;
-    WORD max_y = fullscreen ? g_win->Height-g_OffBottom-1 : g_OffTop + g_scrollEnd*g_fontHeight-1;
-#if 0
-    printf ("ScrollRaster g_win: (%d/%d)-(%d/%d)\n", g_win->LeftEdge, g_win->TopEdge, g_win->Width, g_win->Height);
-    printf ("ScrollRaster (%d/%d)-(%d/%d) g_scrollStart=%d, g_scrollEnd=%d\n", min_x, min_y, max_x, max_y, g_scrollStart, g_scrollEnd);
-    if (fullscreen)
+    WORD y = g_win->BorderTop;
+    WORD w = g_win->Width - g_win->BorderLeft - g_win->BorderRight;
+
+    WORD h = g_win->Height - g_win->BorderTop - g_win->BorderBottom;
+
+    WORD status_h  = g_fontHeight;
+    WORD console_h = h / 4;
+    WORD editor_h  = g_views[UI_viewConsole]->visible ? h - status_h - console_h : h - status_h;
+
+    if (g_views[UI_viewEditor]->visible)
     {
-        BYTE FgPen = g_rp->FgPen;
-        BYTE DrawMode = g_rp->DrawMode;
-        //struct RastPort *rp = &g_screen->RastPort;
-        struct RastPort *rp = g_rp;
-        SetAPen(rp, 2);
-        SetDrMd(rp, JAM1);
-        //RectFill (g_rp, min_x, min_y, max_x, max_y);
-        Move(rp, min_x, min_y); Draw(rp, max_x, max_y);
-        //Move(rp, 0, 0); Draw(rp, 639, 511-2);
-        //Move(rp, 0, 0); Draw(rp, 639, 511-4);
-        SetAPen(rp, FgPen);
-        SetDrMd(rp, DrawMode);
-
-        //UBYTE *p = g_screen->BitMap.Planes[1] + 507*g_renderBMBytesPerRow;
-        //for (uint16_t i = 0; i<80; i++)
-        //    *p++ = 0xff;
-
-        //ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+        _view_resize(g_views[UI_viewEditor]   , g_win->BorderLeft, y, w, editor_h);
+        y += editor_h;
     }
-    else
+    if (g_views[UI_viewStatusBar]->visible)
     {
-        ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+        _view_resize(g_views[UI_viewStatusBar], g_win->BorderLeft, y, w, status_h);
+        y += status_h;
     }
-#else
-
-
-#ifdef ENABLE_SCROLL_BENCHMARK
-    float startTime = U_getTime();
-#endif
-    ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
-#ifdef ENABLE_SCROLL_BENCHMARK
-    float stopTime = U_getTime();
-    LOG_printf (LOG_DEBUG, "IDE: ScrollRaster [UP] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
-#endif
-
-#endif
-    if (g_cursorVisible)
-        drawCursor();
-}
-
-void UI_scrollDown (void)
-{
-    if (g_cursorVisible)
-        drawCursor();
-
-    WORD min_x = g_OffLeft;
-    WORD min_y = g_OffTop + (g_scrollStart-1)*g_fontHeight;
-    WORD max_x = g_win->Width - g_OffRight-1;
-    WORD max_y = g_OffTop + g_scrollEnd*g_fontHeight-1;
-
-#ifdef ENABLE_SCROLL_BENCHMARK
-    float startTime = U_getTime();
-#endif
-    ScrollRaster(g_rp, 0, -g_fontHeight, min_x, min_y, max_x, max_y);
-#ifdef ENABLE_SCROLL_BENCHMARK
-    float stopTime = U_getTime();
-    LOG_printf (LOG_DEBUG, "IDE: ScrollRaster [DOWN] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
-#endif
-
-    if (g_cursorVisible)
-        drawCursor();
-}
-
-void UI_onSizeChangeCall (UI_size_cb cb, void *user_data)
-{
-    g_size_cb = cb;
-    g_size_cb_user_data = user_data;
-}
-
-void UI_onEventCall (UI_event_cb cb, void *user_data)
-{
-    g_event_cb           = cb;
-    g_event_cb_user_data = user_data;
-}
-
-void UI_tprintf (char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    UI_tvprintf (format, args);
-    va_end(args);
-}
-
-void UI_tvprintf (char* format, va_list args)
-{
-    static char buf[BUFSIZE];
-    int l = vsnprintf (buf, BUFSIZE, format, args);
-
-    static uint16_t col = 0;
-    static bool haveLine = FALSE;
-    for (int i =0; i<l; i++)
+    if (g_views[UI_viewConsole]->visible)
     {
-        if (!haveLine)
-        {
-            UI_scrollUp  (/*fullscreen=*/TRUE);
-            UI_beginLine (UI_size_rows, 1, UI_size_cols);
-            haveLine = TRUE;
-        }
-        if (col >= UI_size_cols)
-        {
-            UI_endLine ();
-            haveLine = FALSE;
-            col = 0;
-        }
-        char c = buf[i];
-        if (c=='\n')
-        {
-            UI_endLine ();
-            haveLine = FALSE;
-            col = 0;
-        }
-        else
-        {
-            UI_putc(c);
-            col++;
-        }
-    }
-    if (haveLine)
-        UI_endLine ();
-    UI_moveCursor(UI_size_rows, col+1);
-}
-
-static void _readline_repaint(char *buf, int16_t cursor_pos, int16_t *scroll_offset, int16_t row, int16_t col, int16_t width)
-{
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-
-    int16_t cp=0;
-    while (TRUE)
-    {
-        cp = cursor_pos - *scroll_offset;
-        if ( (cp>=0) && (cp<width) )
-            break;
-        else if (cp<0)
-            *scroll_offset -= 1;
-        else
-            *scroll_offset += 1;
+        _view_resize(g_views[UI_viewConsole]  , g_win->BorderLeft, y, w, console_h);
     }
 
-    UI_beginLine (row, col, width);
-    int16_t l = strlen(buf);
-    for (uint16_t c = 0; c<width; c++)
+    for (int i = 0; i<NUM_VIEWS; i++)
     {
-        int16_t bp = c+*scroll_offset;
-        if (bp<l)
-            UI_putc(buf[bp]);
-        else
-            UI_putc (' ');
-    }
-    UI_endLine ();
-    UI_moveCursor (row, col+cp);
-}
-
-void UI_readline (char *buf, int16_t buf_len)
-{
-    int16_t scroll_offset=0;
-    int16_t cursor_pos=0;
-
-    int16_t col = g_cursorCol;
-    int16_t row = g_cursorRow;
-
-    BOOL finished = FALSE;
-
-    while (!finished)
-    {
-        uint16_t event = UI_waitkey();
-        switch (event)
-        {
-            case KEY_CURSOR_LEFT:
-                if (cursor_pos>0)
-                {
-                    cursor_pos--;
-                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                }
-                else
-                {
-                    UI_bell();
-                }
-                break;
-
-            case KEY_CURSOR_RIGHT:
-                if (cursor_pos<(strlen(buf)))
-                {
-                    cursor_pos++;
-                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                }
-                else
-                {
-                    UI_bell();
-                }
-                break;
-
-            case KEY_HOME:
-                cursor_pos = 0;
-                _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                break;
-
-            case KEY_END:
-                cursor_pos = strlen(buf);
-                _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                break;
-
-            case KEY_BACKSPACE:
-                if (cursor_pos>0)
-                {
-                    uint16_t l = strlen(buf);
-                    for (uint16_t i=cursor_pos; i<l; i++)
-                        buf[i-1] = buf[i];
-                    buf[l-1] = 0;
-                    cursor_pos--;
-                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                }
-                else
-                {
-                    UI_bell();
-                }
-                break;
-
-            case KEY_DEL:
-            {
-                uint16_t l = strlen(buf);
-                if (cursor_pos<l)
-                {
-                    for (uint16_t i=cursor_pos; i<l-1; i++)
-                        buf[i] = buf[i+1];
-                    buf[l-1] = 0;
-                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                }
-                else
-                {
-                    UI_bell();
-                }
-                break;
-            }
-
-            case KEY_NONE:
-                break;
-
-            case KEY_ENTER:
-                finished = TRUE;
-                break;
-
-            default:
-            {
-                uint16_t l = strlen(buf);
-                if ( (event >= 32) && (event <= 126) && (l < buf_len-1) )
-                {
-                    for (int i=l; i>cursor_pos; i--)
-                    {
-                        buf[i]   = buf[i-1];
-                    }
-                    buf[cursor_pos] = event;
-                    buf[l+1] = 0;
-                    cursor_pos++;
-                    _readline_repaint(buf, cursor_pos, &scroll_offset, row, col, UI_size_cols-col);
-                }
-                else
-                {
-                    UI_bell();
-                }
-                break;
-            }
-        }
+        if (g_views[i]->visible && g_views[i]->size_cb)
+            g_views[i]->size_cb(g_views[i], g_views[i]->size_cb_user_data);
     }
 }
 
-
-uint16_t UI_EZRequest (char *body, char *gadgets, ...)
+void UI_setFont (int font)
 {
-    char *posTxt=NULL;
-    char *negTxt=NULL;
+    OPT_prefSetInt (OPT_PREF_FONT, font);
+    g_curFont = font;
+    g_fontHeight = font ? 8 : 6;
 
-    static char buf[256];
-    strncpy (buf, gadgets, 256);
-    char *s = buf;
-    char *c = buf;
-    while (*c)
-    {
-        if (*c=='|')
-        {
-            *c = 0;
-            if (negTxt)
-                posTxt = negTxt;
-            negTxt = s;
-            c++;
-            s=c;
-        }
-        else
-        {
-            c++;
-        }
-    }
-    *c = 0;
-    if (negTxt)
-        posTxt = negTxt;
-    negTxt = s;
-
-    va_list args;
-    va_start(args, gadgets);
-    static char buf2[1024];
-    vsnprintf (buf2, 1024, body, args);
-    va_end(args);
-    bool b = U_request (g_win, posTxt, negTxt, "%s", buf2);
-
-    return b ? 1 : 0;
+    _updateLayout();
 }
 
-char *UI_FileReq (char *title)
+void UI_bell (void)
 {
-	static char pathbuf[1024];
-
-    if (AslRequest(g_ASLFileReq, 0L))
-    {
-        //printf("PATH=%s FILE=%s\n", fr->rf_Dir, fr->rf_File);
-        strncpy (pathbuf, (char*)g_ASLFileReq->rf_Dir, 1024);
-        AddPart ((STRPTR) pathbuf, g_ASLFileReq->rf_File, 1024);
-        //printf(" -> %s\n", pathbuf);
-
-        return String (UP_ide, pathbuf);
-    }
-
-	return NULL;
+    DisplayBeep (NULL);
 }
 
-bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
+void UI_toFront(void)
 {
-    return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
-}
-
-void UI_HelpBrowser (void)
-{
-    static char pathbuf[256];
-    strncpy (pathbuf, aqb_home, 256);
-    AddPart ((STRPTR) pathbuf, (STRPTR)"README.guide", 256);
-
-    DEBUG_help ("SYS:Utilities/MultiView", pathbuf);
+    WBenchToFront();
+    WindowToFront(g_win);
+    ActivateWindow(g_win);
 }
 
 typedef enum { esWait, esGetWin, esGetDebug } eventState;
 
-static void updateWindowSize(void)
-{
-    g_OffLeft   = g_win->BorderLeft;
-    g_OffRight  = g_win->BorderRight;
-    g_OffTop    = g_win->BorderTop;
-    g_OffBottom = g_win->BorderBottom;
-    g_renderBMmaxCols = (g_win->Width - g_OffLeft - g_OffRight) /8;
-    UI_size_cols = (g_win->Width  - g_OffLeft - g_OffRight) / 8;
-    UI_size_rows = (g_win->Height - g_OffTop  - g_OffBottom) / g_fontHeight;
-    // printf ("updateWindowSize: g_OffLeft=%d, g_OffRight=%d, g_OffTop=%d, g_OffBottom=%d, g_renderBMmaxCols=%d\n",
-    //         g_OffLeft, g_OffRight, g_OffTop, g_OffBottom, g_renderBMmaxCols);
-}
-
 static uint16_t nextEvent(void)
 {
     static eventState state = esWait;
+
 
     ULONG windowsig = 1 << g_win->UserPort->mp_SigBit;
 	ULONG debugsig  = 1 << g_debugPort->mp_SigBit;
@@ -848,9 +341,7 @@ static uint16_t nextEvent(void)
 				    		break;
 
                         case IDCMP_NEWSIZE:
-                            updateWindowSize();
-                            if (g_size_cb)
-                                g_size_cb (g_size_cb_user_data);
+                            _updateLayout();
                             break;
 
 				    	case IDCMP_MENUPICK:
@@ -993,19 +484,511 @@ uint16_t UI_waitkey (void)
     }
 }
 
+static void _setTextColor (UI_view view, uint8_t fg, uint8_t bg)
+{
+    switch (fg)
+    {
+        case 0: view->renderBMPE[0] = FALSE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] = FALSE; break;
+        case 1: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] = FALSE; break;
+        case 2: view->renderBMPE[0] = FALSE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] = FALSE; break;
+        case 3: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] = FALSE; break;
+        case 4: view->renderBMPE[0] = FALSE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] =  TRUE; break;
+        case 5: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] =  TRUE; break;
+        case 6: view->renderBMPE[0] = FALSE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] =  TRUE; break;
+        case 7: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] =  TRUE; break;
+        default: assert(FALSE);
+    }
+
+    switch (bg)
+    {
+        case 0: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] = FALSE; break;
+        case 1: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] = FALSE; break;
+        case 2: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] = FALSE; break;
+        case 3: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] = FALSE; break;
+        case 4: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] =  TRUE; break;
+        case 5: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] =  TRUE; break;
+        case 6: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
+        case 7: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
+        default: assert(FALSE);
+    }
+
+    view->renderBMcurFG = fg;
+    view->renderBMcurBG = bg;
+}
+
+void UI_setTextStyle (UI_view view, uint16_t style)
+{
+    _setTextColor (view, g_themes[g_theme].fg[style], g_themes[g_theme].bg[style]);
+}
+
+void UI_beginLine (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols)
+{
+    // LOG_printf (LOG_DEBUG,
+    //             "ui_amiga: beginLine row=%d, col_start=%d, cols=%d\n",
+    //             row, col_start, cols);
+
+    assert (cols <= view->renderBMmaxCols);
+
+    view->curLineStart = col_start;
+    view->curLineCols  = cols;
+    //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine view->curLineCols=%d\n", view->curLineCols);
+    view->renderBMcurCol = col_start-1;
+    view->renderBMcurRow = row;
+    for (uint8_t d = 0; d<view->renderBM->Depth; d++)
+        view->renderBMPtr[d] = view->renderBMPlanes[d];
+    for (uint16_t r = 0; r<g_fontHeight; r++)
+    {
+        for (uint16_t d = 0; d<view->renderBM->Depth; d++)
+            memset (view->renderBMPtr[d] + r*view->renderBMBytesPerRow, view->renderBMPEI[d] ? 0xff : 0x00, view->curLineCols);
+    }
+}
+
+static void _drawCursor(UI_view view)
+{
+    if (!view->visible)
+        return;
+
+    uint16_t x = (view->cursorCol-1)*8 + view->x;
+    uint16_t y = (view->cursorRow-1)*g_fontHeight + view->y;
+    //LOG_printf (LOG_DEBUG, "ui_amiga: drawCursor view->cursorCol=%d, view->cursorRow=%d, x=%d, y=%d\n", view->cursorCol, view->cursorRow, x, y);
+    BYTE DrawMode = g_rp->DrawMode;
+    SetDrMd (g_rp, COMPLEMENT);
+    g_rp->Mask = 3;
+    RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
+    SetDrMd (g_rp, DrawMode);
+}
+
+#define CSI_BUF_LEN 16
+
+void UI_putc(UI_view view, char c)
+{
+    if (!view->visible)
+        return;
+
+    static BOOL bCSI = FALSE;
+    static char csiBuf[CSI_BUF_LEN];
+    static uint16_t csiBufLen=0;
+    UBYTE uc = (UBYTE) c;
+    //printf ("UI_putc: %c[%d]\n", c, uc);
+    if (!bCSI)
+    {
+        if (uc==0x9b)
+        {
+            bCSI = TRUE;
+            return;
+        }
+    }
+    else
+    {
+        /*
+        0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
+        0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
+        0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
+        */
+        if (uc>=0x40)
+        {
+            //LOG_printf (LOG_DEBUG, "!CSI seq detected: %s%c\n", csiBuf, c);
+            //printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
+
+            switch (c)
+            {
+                case 'p': // csr on/off
+                    if (csiBufLen == 2)
+                    {
+                        switch (csiBuf[0])
+                        {
+                            case '0':
+                               UI_setCursorVisible (view, FALSE);
+                               break;
+                            case '1':
+                               UI_setCursorVisible (view, TRUE);
+                               break;
+                        }
+                    }
+                    break;
+                case 'm': // presentation
+                    if (csiBufLen == 1)
+                    {
+                        switch (csiBuf[0])
+                        {
+                            case '0':
+                               _setTextColor (view, g_themes[g_theme].fg[0], g_themes[g_theme].bg[0]);
+                               break;
+                        }
+                    }
+                    else
+                    {
+                        if (csiBufLen == 2)
+                        {
+                            uint8_t color = (csiBuf[0]-'0')*10+(csiBuf[1]-'0');
+                            //printf ("setting color %d\n", color);
+                            switch (color)
+                            {
+                                case 30: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
+                                case 31: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
+                                case 32: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
+                                case 33: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
+                                case 34: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
+                                case 35: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
+                                case 36: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
+                                case 37: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
+                            }
+                        }
+                    }
+                    break;
+            }
+
+            bCSI = FALSE;
+            csiBufLen = 0;
+        }
+        else
+        {
+            if (csiBufLen<CSI_BUF_LEN)
+                csiBuf[csiBufLen++] = c;
+        }
+        return;
+    }
+
+    if (view->renderBMcurCol >= view->renderBMmaxCols)
+        return;
+
+    view->renderBMcurCol++;
+
+    if (view->cursorVisible && view->visible && (view==g_active_view) )
+        _drawCursor(view);
+    //printf ("painting char %d (%c)\n", c, c);
+
+    UBYTE ci = c;
+    UBYTE *dst[3];
+    for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+        dst[planeNum] = view->renderBMPtr[planeNum];
+
+    //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
+    for (UBYTE y=0; y<g_fontHeight; y++)
+    {
+        UBYTE fd = g_fontData[g_curFont][ci][y];
+        for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+        {
+            *dst[planeNum]  = view->renderBMPE[planeNum] ? fd : 0;
+            if (view->renderBMPEI[planeNum])
+                *dst[planeNum] |= ~fd;
+            dst[planeNum] += view->renderBMBytesPerRow;
+        }
+    }
+    for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+        view->renderBMPtr[planeNum]++;
+
+    if (view->cursorVisible && view->visible && (view==g_active_view) )
+        _drawCursor(view);
+}
+
+void UI_putstr (UI_view view, char *s)
+{
+    while (*s)
+        UI_putc (view, *s++);
+}
+
+void UI_printf (UI_view view, char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    UI_vprintf (view, format, args);
+    va_end(args);
+}
+
+void UI_vprintf (UI_view view, char* format, va_list args)
+{
+    static char buf[BUFSIZE];
+    vsnprintf (buf, BUFSIZE, format, args);
+    UI_putstr(view, buf);
+}
+
+void UI_endLine (UI_view view)
+{
+    if (!view->visible)
+        return;
+
+    if (view->cursorVisible && (view==g_active_view) )
+        _drawCursor(view);
+    BltBitMapRastPort (view->renderBM, 0, 0, g_rp, (view->curLineStart-1)*8+view->x, (view->renderBMcurRow-1)*g_fontHeight+view->y, view->curLineCols*8, g_fontHeight, 0xc0);
+    if (view->cursorVisible && (view==g_active_view) )
+        _drawCursor(view);
+}
+
+void UI_setCursorVisible (UI_view view, bool visible)
+{
+    if (view->visible && g_active_view == view)
+    {
+        if ((visible && !view->cursorVisible) || (!visible && view->cursorVisible))
+            _drawCursor(view);
+    }
+
+    view->cursorVisible = visible;
+}
+
+void UI_moveCursor (UI_view view, uint16_t row, uint16_t col)
+{
+    if (view->cursorVisible && view->visible && (view==g_active_view) )
+        _drawCursor(view);
+    view->cursorRow = row;
+    view->cursorCol = col;
+    if (view->cursorVisible && view->visible && (view==g_active_view) )
+        _drawCursor(view);
+}
+
+void UI_getCursorPos (UI_view view, uint16_t *row, uint16_t *col)
+{
+    *row = view->cursorRow;
+    *col = view->cursorCol;
+}
+
+void UI_activateView (UI_view view)
+{
+    if (g_active_view && g_active_view->cursorVisible && g_active_view->visible)
+        _drawCursor(g_active_view);
+
+    g_active_view = view;
+
+    if (g_active_view && g_active_view->cursorVisible && g_active_view->visible)
+        _drawCursor(g_active_view);
+}
+
+void UI_setViewVisible (UI_view view, bool visible)
+{
+    view->visible = visible;
+    _updateLayout();
+}
+
+bool UI_isViewVisible (UI_view view)
+{
+    return view->visible;
+}
+
+void UI_clearView (UI_view view)
+{
+    if (!view->visible)
+        return;
+
+    SetAPen(g_rp, g_themes[g_theme].bg[0]);
+    SetBPen(g_rp, g_themes[g_theme].bg[0]);
+    SetDrMd(g_rp, JAM1);
+    RectFill (g_rp, view->x, view->y, view->x + view->w - 1, view->y + view->h - 1);
+}
+
+void UI_scrollUp (UI_view view)
+{
+    if (!view->visible)
+        return;
+
+    if (view->cursorVisible && (view==g_active_view) )
+        _drawCursor(view);
+    WORD min_x = view->x;
+    WORD min_y = view->y;
+    WORD max_x = view->x+view->w-1;
+    WORD max_y = view->y+view->h-1; // FIXME fullscreen ? g_win->Height-g_OffBottom-1 : g_OffTop + g_scrollEnd*g_fontHeight-1;
+    LOG_printf (LOG_DEBUG, "UI: view: view->x=%d, view->y=%d, view->w=%d, view->h=%d\n", view->x, view->y, view->w, view->h);
+    LOG_printf (LOG_DEBUG, "UI: scrollUp (%d/%d)-(%d/%d)\n", min_x, min_y, max_x, max_y);
+#if 0
+    printf ("ScrollRaster g_win: (%d/%d)-(%d/%d)\n", g_win->LeftEdge, g_win->TopEdge, g_win->Width, g_win->Height);
+    printf ("ScrollRaster (%d/%d)-(%d/%d) g_scrollStart=%d, g_scrollEnd=%d\n", min_x, min_y, max_x, max_y, g_scrollStart, g_scrollEnd);
+    if (fullscreen)
+    {
+        BYTE FgPen = g_rp->FgPen;
+        BYTE DrawMode = g_rp->DrawMode;
+        //struct RastPort *rp = &g_screen->RastPort;
+        struct RastPort *rp = g_rp;
+        SetAPen(rp, 2);
+        SetDrMd(rp, JAM1);
+        //RectFill (g_rp, min_x, min_y, max_x, max_y);
+        Move(rp, min_x, min_y); Draw(rp, max_x, max_y);
+        //Move(rp, 0, 0); Draw(rp, 639, 511-2);
+        //Move(rp, 0, 0); Draw(rp, 639, 511-4);
+        SetAPen(rp, FgPen);
+        SetDrMd(rp, DrawMode);
+
+        //UBYTE *p = g_screen->BitMap.Planes[1] + 507*g_renderBMBytesPerRow;
+        //for (uint16_t i = 0; i<80; i++)
+        //    *p++ = 0xff;
+
+        //ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+    }
+    else
+    {
+        ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+    }
+#else
+
+
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float startTime = U_getTime();
+#endif
+    ScrollRaster(g_rp, 0, g_fontHeight, min_x, min_y, max_x, max_y);
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float stopTime = U_getTime();
+    LOG_printf (LOG_DEBUG, "UI: ScrollRaster [UP] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
+#endif
+
+#endif
+    if (view->cursorVisible && (view==g_active_view) )
+        _drawCursor(view);
+}
+
+void UI_scrollDown (UI_view view)
+{
+    if (!view->visible)
+        return;
+
+    if (view->cursorVisible && (view==g_active_view) )
+        _drawCursor(view);
+
+    WORD min_x = view->x;
+    WORD min_y = view->y;
+    WORD max_x = view->x+view->w-1;
+    WORD max_y = view->y+view->h-1; // FIXME: + g_scrollEnd*g_fontHeight-1;
+
+    LOG_printf (LOG_DEBUG, "UI: view: view->x=%d, view->y=%d, view->w=%d, view->h=%d\n", view->x, view->y, view->w, view->h);
+    LOG_printf (LOG_DEBUG, "UI: scrollDown (%d/%d)-(%d/%d)\n", min_x, min_y, max_x, max_y);
+
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float startTime = U_getTime();
+#endif
+    ScrollRaster(g_rp, 0, -g_fontHeight, min_x, min_y, max_x, max_y);
+#ifdef ENABLE_SCROLL_BENCHMARK
+    float stopTime = U_getTime();
+    LOG_printf (LOG_DEBUG, "IDE: ScrollRaster [DOWN] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
+#endif
+
+    if (view->cursorVisible && (view==g_active_view) )
+        _drawCursor(view);
+}
+
+void UI_onSizeChangeCall (UI_view view, UI_size_cb cb, void *user_data)
+{
+    view->size_cb = cb;
+    view->size_cb_user_data = user_data;
+}
+
+void UI_onEventCall (UI_view view, UI_event_cb cb, void *user_data)
+{
+    view->event_cb = cb;
+    view->event_cb_user_data = user_data;
+}
+
+#if 0
+
+void UI_beginRefresh (void)
+{
+    BeginRefresh(g_win);
+}
+
+void UI_endRefresh (void)
+{
+    EndRefresh(g_win, TRUE);
+}
+#endif
+
+uint16_t UI_EZRequest (char *body, char *gadgets, ...)
+{
+    char *posTxt=NULL;
+    char *negTxt=NULL;
+
+    static char buf[256];
+    strncpy (buf, gadgets, 256);
+    char *s = buf;
+    char *c = buf;
+    while (*c)
+    {
+        if (*c=='|')
+        {
+            *c = 0;
+            if (negTxt)
+                posTxt = negTxt;
+            negTxt = s;
+            c++;
+            s=c;
+        }
+        else
+        {
+            c++;
+        }
+    }
+    *c = 0;
+    if (negTxt)
+        posTxt = negTxt;
+    negTxt = s;
+
+    va_list args;
+    va_start(args, gadgets);
+    static char buf2[1024];
+    vsnprintf (buf2, 1024, body, args);
+    va_end(args);
+    bool b = U_request (g_win, posTxt, negTxt, "%s", buf2);
+
+    return b ? 1 : 0;
+}
+
+char *UI_FileReq (char *title)
+{
+	static char pathbuf[1024];
+
+    if (AslRequest(g_ASLFileReq, 0L))
+    {
+        //printf("PATH=%s FILE=%s\n", fr->rf_Dir, fr->rf_File);
+        strncpy (pathbuf, (char*)g_ASLFileReq->rf_Dir, 1024);
+        AddPart ((STRPTR) pathbuf, g_ASLFileReq->rf_File, 1024);
+        //printf(" -> %s\n", pathbuf);
+
+        return String (UP_ide, pathbuf);
+    }
+
+	return NULL;
+}
+
+bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
+{
+    // FIXME
+    assert(FALSE);
+#if 0
+    return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
+#endif
+    return FALSE;
+}
+
+void UI_HelpBrowser (void)
+{
+    static char pathbuf[256];
+    strncpy (pathbuf, aqb_home, 256);
+    AddPart ((STRPTR) pathbuf, (STRPTR)"README.guide", 256);
+
+    DEBUG_help ("SYS:Utilities/MultiView", pathbuf);
+}
+
+struct MsgPort *UI_debugPort(void)
+{
+    return g_debugPort;
+}
+
 void UI_deinit(void)
 {
     if (g_ASLFileReq)
 		FreeAslRequest(g_ASLFileReq);
 
-    if (g_renderBM)
+    for (int i=0; i<NUM_VIEWS; i++)
     {
-        for (uint8_t planeNum = 0; planeNum < g_renderBM->Depth; planeNum++)
+        UI_view view = g_views[i];
+        if (!view)
+            continue;
+
+        if (view->renderBM)
         {
-            if (g_renderBM->Planes[planeNum])
-                FreeRaster(g_renderBM->Planes[planeNum], g_visWidth, BM_HEIGHT);
+            for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+            {
+                if (view->renderBM->Planes[planeNum])
+                    FreeRaster(view->renderBM->Planes[planeNum], view->visWidth, BM_HEIGHT);
+            }
+            FreeMem(view->renderBM, sizeof(struct BitMap));
         }
-        FreeMem(g_renderBM, sizeof(struct BitMap));
+        g_views[i] = NULL;
     }
 
     if (g_win)
@@ -1021,16 +1004,6 @@ void UI_deinit(void)
         ASUP_delete_port(g_debugPort);
     if (ConsoleDevice)
         CloseDevice((struct IORequest *)&console_ioreq);
-}
-
-void UI_setFont (int font)
-{
-    OPT_prefSetInt (OPT_PREF_FONT, font);
-    g_curFont = font;
-    g_fontHeight = font ? 8 : 6;
-
-    updateWindowSize();
-    UI_eraseDisplay();
 }
 
 bool UI_init (void)
@@ -1064,7 +1037,7 @@ bool UI_init (void)
 	WORD maxW = di.TxtOScan.MaxX - di.TxtOScan.MinX + 1;
 	WORD maxH = di.TxtOScan.MaxY - di.TxtOScan.MinY + 1;
 
-	g_visWidth = sc->Width > maxW ? maxW : sc->Width;
+	WORD visWidth  = sc->Width > maxW ? maxW : sc->Width;
 	WORD visHeight = sc->Height > maxH ? maxH : sc->Height;
 
     static char winTitle[128];
@@ -1073,7 +1046,7 @@ bool UI_init (void)
     // open a full screen window
     if (!(g_win = OpenWindowTags(NULL,
                                  WA_Top,           sc->BarHeight+1,
-                                 WA_Width,         g_visWidth,
+                                 WA_Width,         visWidth,
                                  WA_Height,        visHeight-sc->BarHeight-1,
                                  WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE,
                                  WA_Backdrop,      FALSE,
@@ -1087,41 +1060,27 @@ bool UI_init (void)
                                  WA_Title,         (LONG)winTitle,
                                  WA_MinWidth,      240,
                                  WA_MinHeight,     100,
-                                 WA_MaxWidth,      g_visWidth,
+                                 WA_MaxWidth,      visWidth,
                                  WA_MaxHeight,     visHeight,
                                  WA_NewLookMenus,  TRUE)))
          cleanexit("Can't open window", RETURN_FAIL);
 
-
     UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
 
-    updateWindowSize();
+    // create views
+    UBYTE depth = sc->BitMap.Depth > 3 ? 3 : sc->BitMap.Depth;
+
+    g_views[UI_viewEditor]    = UI_View(depth, visWidth);
+    g_views[UI_viewConsole]   = UI_View(depth, visWidth);
+    g_views[UI_viewStatusBar] = UI_View(depth, visWidth);
+    UI_setViewVisible(g_views[UI_viewConsole], FALSE);
+    _updateLayout();
 
     UnlockPubScreen(NULL, sc);
 
     g_rp = g_win->RPort;
 
     UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
-
-    g_renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
-    if (!g_renderBM)
-         cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
-
-    uint8_t depth = sc->BitMap.Depth > 3 ? 3 : sc->BitMap.Depth;
-
-    InitBitMap(g_renderBM, depth, g_visWidth, BM_HEIGHT);
-
-    for (uint8_t planeNum = 0; planeNum < depth; planeNum++)
-    {
-        g_renderBMPtr[planeNum] = g_renderBM->Planes[planeNum] = g_renderBMPlanes[planeNum] = AllocRaster(g_visWidth, BM_HEIGHT);
-        if (!g_renderBM->Planes[planeNum])
-            cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
-    }
-
-    g_renderBMBytesPerRow = g_renderBM->BytesPerRow;
-
-    UI_beginLine (1, 1, UI_size_cols);
 
 	/*
      * menu
@@ -1166,15 +1125,6 @@ bool UI_init (void)
 	return TRUE;
 }
 
-
-static inline void report_key (uint16_t key)
-{
-    if (key == KEY_NONE)
-        return;
-    if (g_event_cb)
-        g_event_cb (key, g_event_cb_user_data);
-}
-
 void UI_run (void)
 {
     BOOL running = TRUE;
@@ -1184,15 +1134,15 @@ void UI_run (void)
         if (key == KEY_QUIT)
             running = FALSE;
         else
-            report_key (key);
+        {
+            if (key == KEY_NONE)
+                continue;
+            if (!g_active_view)
+                continue;
+            if (g_active_view->event_cb)
+                g_active_view->event_cb (g_active_view, key, g_active_view->event_cb_user_data);
+        }
 	}
-}
-
-void UI_toFront(void)
-{
-    WBenchToFront();
-    WindowToFront(g_win);
-    ActivateWindow(g_win);
 }
 
 #endif

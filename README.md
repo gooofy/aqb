@@ -228,6 +228,7 @@ resulting AQB declarations typically look like:
 
 ## Keyboard shortcuts:
     * F1     - this help screen
+    * ESC    - toggle console visibility
     * S-UP   - page up
     * S-DOWN - page down
     * Ctrl-T - goto top of file

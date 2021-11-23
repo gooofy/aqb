@@ -33,12 +33,13 @@ struct IDE_line_
 
 struct IDE_instance_
 {
+    UI_view            view_editor, view_status;
+
     IDE_line           line_first, line_last;
 	uint16_t           num_lines;
     uint16_t           num_vlines;
 	bool               changed;
 	char               infoline[36+PATH_MAX];
-    uint16_t           infoline_row;
 	char 	           sourcefn[PATH_MAX];
 	char 	           module_name[PATH_MAX];
 	char 	           binfn[PATH_MAX];
@@ -47,7 +48,7 @@ struct IDE_instance_
     IDE_line           cursor_line;
 
     // window, scrolling, repaint
-	int16_t            window_width, window_height;
+	uint16_t           window_width, window_height;
 	int16_t            scrolloff_col, scrolloff_row;
     IDE_line           scrolloff_line;
     int16_t            scrolloff_line_row;
@@ -77,16 +78,30 @@ struct IDE_instance_
     // find/replace
     bool               find_matchCase, find_wholeWord, find_searchBackwards;
     char               find_buf[MAX_LINE_LEN];
+
+    // console view
+    UI_view            view_console;
+    uint16_t           con_rows, con_cols;
 };
 
 /*
  * IDE
  */
 
-void     IDE_open (string sourcefn);
+void     IDE_open      (string sourcefn);
 
-IDE_line IDE_getVLine (IDE_instance ed, int linenum);   // virtual line -> folded lines do not count
-IDE_line IDE_getALine (IDE_instance ed, int linenum);   // actual line -> raw line numbers not taking folding into account
+IDE_line IDE_getVLine  (IDE_instance ed, int linenum);   // virtual line -> folded lines do not count
+IDE_line IDE_getALine  (IDE_instance ed, int linenum);   // actual line -> raw line numbers not taking folding into account
+
+/*
+ * console view (simple terminal emulation)
+ */
+
+void     IDE_conInit   (IDE_instance ed);
+void     IDE_conSet    (IDE_instance ed, bool visible, bool active);
+void     IDE_cprintf   (IDE_instance ed, char* format, ...);
+void     IDE_cvprintf  (IDE_instance ed, char* format, va_list ap);
+void     IDE_readline  (IDE_instance ed, char *buf, int16_t buf_len);
 
 /*
  * debugger

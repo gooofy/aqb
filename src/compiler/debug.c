@@ -118,24 +118,24 @@ static BOOL has_68020_or_up = FALSE;
 static BOOL has_68010_or_up = FALSE;
 
 // Usage:
-//     hexdump(addr, len, perLine);
+//     _hexdump(addr, len, perLine);
 //         addr:    the address to start dumping from.
 //         len:     the number of bytes to dump.
 //         perLine: number of bytes on each output line.
 
-void hexdump ( const void * addr, const int len, int perLine) {
-
+static void _hexdump (IDE_instance ed, const void * addr, const int len, int perLine)
+{
     int i;
     unsigned char buff[perLine+1];
     const unsigned char * pc = (const unsigned char *)addr;
 
     for (i = 0; i < len; i++) {
         if ((i % perLine) == 0) {
-            if (i != 0) UI_tprintf ("  %s\n", buff);
-            UI_tprintf ("  %04x ", i);
+            if (i != 0) IDE_cprintf (ed, "  %s\n", buff);
+            IDE_cprintf (ed, "  %04x ", i);
         }
 
-        UI_tprintf (" %02x", pc[i]);
+        IDE_cprintf (ed, " %02x", pc[i]);
 
         if ((pc[i] < 0x20) || (pc[i] > 0x7e))
             buff[i % perLine] = '.';
@@ -145,11 +145,11 @@ void hexdump ( const void * addr, const int len, int perLine) {
     }
 
     while ((i % perLine) != 0) {
-        UI_tprintf ("   ");
+        IDE_cprintf (ed, "   ");
         i++;
     }
 
-    UI_tprintf ("  %s\n", buff);
+    IDE_cprintf (ed, "  %s\n", buff);
 }
 
 extern APTR _unfreeze_20, _unfreeze_00;
@@ -528,7 +528,7 @@ static LI_segmentList _loadSeg(char *binfn)
 
     LI_relocate (sl);
     //LOG_printf (LOG_INFO, "\nhex dump: beginning of first segment\n");
-    //hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
+    //_hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
 
     // create AmigaDOS style seglist
 
@@ -766,16 +766,16 @@ static int16_t _find_src_line (uint32_t pc)
         ULONG seg_start = (uint32_t) (uintptr_t) sln->seg->mem;
         ULONG seg_end   = seg_start + sln->seg->mem_size;
 
-        LOG_printf (LOG_DEBUG, "_debug: looking for segment, pc=0x%08lx seg_start=0x%08lx seg_end=0x%08lx kind=%d srcMap=0x%08lx\n",
+        LOG_printf (LOG_DEBUG, "_find_src_line: looking for segment, pc=0x%08lx seg_start=0x%08lx seg_end=0x%08lx kind=%d srcMap=0x%08lx\n",
                     pc, seg_start, seg_end, sln->seg->kind, sln->seg->srcMap);
 
         if ((pc<seg_start) || (pc>=seg_end))
             continue;
-        LOG_printf (LOG_DEBUG, "_debug: segment matched.\n");
+        LOG_printf (LOG_DEBUG, "_find_src_line: segment matched.\n");
 
         for (AS_srcMapNode n = sln->seg->srcMap; n; n=n->next)
         {
-            LOG_printf (LOG_DEBUG, "_debug: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
+            LOG_printf (LOG_DEBUG, "_find_src_line: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
 
             if (pc > n->offset)
                 l = n->line;
@@ -791,19 +791,19 @@ static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
     uint32_t sp_upper = (uint32_t) task->tc_SPUpper;
 
     uint32_t spn = *a5;
-    //UI_tprintf ("_getParentFrame: spn=0x%08lx\n", spn);
+    //IDE_cprintf ("_getParentFrame: spn=0x%08lx\n", spn);
 
     // is this a valid stack pointer ?
 
     if ( (spn % 2) || (spn<sp_lower) || (spn>sp_upper) )
     {
-        //UI_tprintf ("_getParentFrame: sp 0x%08lx is invalid (stack bounds: 0x%08lx-0x%08lx)\n", spn, sp_lower, sp_upper);
+        //IDE_cprintf ("_getParentFrame: sp 0x%08lx is invalid (stack bounds: 0x%08lx-0x%08lx)\n", spn, sp_lower, sp_upper);
         return FALSE;
     }
 
     uint32_t *sp = (uint32_t *) spn;
 
-    //hexdump ((UBYTE *)sp, 32, 16);
+    //_hexdump ((UBYTE *)sp, 32, 16);
 
     uint32_t prev_a5 = *sp++;
     uint32_t prev_pc = *sp++;
@@ -828,32 +828,32 @@ static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, int16_t line)
     return si;
 }
 
-static void _print_stack(DEBUG_stackInfo si, DEBUG_stackInfo si_cur)
+static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si_cur)
 {
-    UI_tprintf ("stack trace:\n\n");
+    IDE_cprintf (ed, "stack trace:\n\n");
     while (si)
     {
         if (si == si_cur)
-            UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+            UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_TEXT);
         else
-            UI_setTextStyle (UI_TEXT_STYLE_COMMENT);
+            UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_COMMENT);
 
         if (si->line>=0)
         {
-            UI_tprintf ("%s 0x%08lx %s:%d\n", si==si_cur ? "-->" : "   ", si->pc, g_ide->sourcefn, si->line);
+            IDE_cprintf (ed, "%s 0x%08lx %s:%d\n", si==si_cur ? "-->" : "   ", si->pc, g_ide->sourcefn, si->line);
         }
         else
         {
-            UI_tprintf ("%s 0x%08lx runtime/os\n", si==si_cur ? "-->" : "   ", si->pc);
+            IDE_cprintf (ed, "%s 0x%08lx runtime/os\n", si==si_cur ? "-->" : "   ", si->pc);
         }
         si = si->next;
     }
 
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-    UI_tprintf ("\n\n");
+    UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_TEXT);
+    IDE_cprintf (ed, "\n\n");
 }
 
-static void _print_listing (DEBUG_stackInfo si)
+static void _print_listing (IDE_instance ed, DEBUG_stackInfo si)
 {
     if (!si)
         return;
@@ -863,14 +863,14 @@ static void _print_listing (DEBUG_stackInfo si)
     {
         // FIXME: disassembly ?
 
-        hexdump ((UBYTE *)si->pc, 32, 16);
-        UI_tprintf ("\n");
+        _hexdump (ed, (UBYTE *)si->pc, 32, 16);
+        IDE_cprintf (ed, "\n");
         return;
     }
 
     // list source code context:
 
-    UI_tprintf ("source code listing:\n\n");
+    IDE_cprintf (ed, "source code listing:\n\n");
     for (int ln = l-5; ln<l+5; ln++)
     {
         if (ln<0)
@@ -882,26 +882,26 @@ static void _print_listing (DEBUG_stackInfo si)
 
         if (l==ln+1)
         {
-            UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-            UI_tprintf ("--> ");
+            UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_TEXT);
+            IDE_cprintf (ed, "--> ");
         }
         else
         {
-            UI_setTextStyle (UI_TEXT_STYLE_COMMENT);
-            UI_tprintf ("    ");
+            UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_COMMENT);
+            IDE_cprintf (ed, "    ");
         }
 
         for (int8_t i = 0; i<line->indent; i++)
         {
             for (int8_t j = 0; j<INDENT_SPACES; j++)
             {
-                UI_tprintf (" ");
+                IDE_cprintf (ed, " ");
             }
         }
-        UI_tprintf ("%s\n", line->buf);
+        IDE_cprintf (ed, "%s\n", line->buf);
     }
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-    UI_tprintf ("\n");
+    UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_TEXT);
+    IDE_cprintf (ed, "\n");
 }
 
 #define MAX_NUM_PARTS 10
@@ -914,37 +914,37 @@ static BOOL is_whitespace(char c)
 static void _debug(struct DebugMsg *msg)
 {
     UI_toFront();
-    UI_tprintf ("\n");
-    UI_setTextStyle (UI_TEXT_STYLE_INVERSE);
-    UI_tprintf (" *** AQB Source Level Debugger *** \n");
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-    UI_tprintf ("\n");
+    IDE_cprintf (g_ide, "\n");
+    UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_INVERSE);
+    IDE_cprintf (g_ide, " *** AQB Source Level Debugger *** \n");
+    UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_TEXT);
+    IDE_cprintf (g_ide, "\n");
 
-    UI_setTextStyle (UI_TEXT_STYLE_KEYWORD);
+    UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_KEYWORD);
     switch (g_trapCode)
     {
         case 2:
-            UI_tprintf("ACCESS FAULT\n\n");
+            IDE_cprintf(g_ide, "ACCESS FAULT\n\n");
             break;
         case 3:
-            UI_tprintf("ADDRESS ERROR\n\n");
+            IDE_cprintf(g_ide, "ADDRESS ERROR\n\n");
             break;
         case 4:
-            UI_tprintf("ILLEGAL INSTRUCTION\n\n");
+            IDE_cprintf(g_ide, "ILLEGAL INSTRUCTION\n\n");
             break;
         case 5:
-            UI_tprintf("INTEGER DIVIDE BY ZERO\n\n");
+            IDE_cprintf(g_ide, "INTEGER DIVIDE BY ZERO\n\n");
             break;
         case 32:
-            UI_tprintf("CTRL-C BREAK\n\n");
+            IDE_cprintf(g_ide, "CTRL-C BREAK\n\n");
             break;
         case 33:
-            UI_tprintf("BREAKPOINT HIT\n\n");
+            IDE_cprintf(g_ide, "BREAKPOINT HIT\n\n");
             break;
         default:
-            UI_tprintf("TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
+            IDE_cprintf(g_ide, "TRAP #%d (\?\?\?) occured.\n\n", g_trapCode);
     }
-    UI_setTextStyle (UI_TEXT_STYLE_TEXT);
+    UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_TEXT);
 
     // get stack trace
 
@@ -956,7 +956,7 @@ static void _debug(struct DebugMsg *msg)
     while ( TRUE )
     {
         int16_t l = _find_src_line (pc);
-        //UI_tprintf ("stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
+        //IDE_cprintf (g_ide, "stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
         if (!_getParentFrame(&a5, &pc))
             break;
 
@@ -979,21 +979,21 @@ static void _debug(struct DebugMsg *msg)
     if (!stack_cur)
         stack_cur = stack_first;
 
-    _print_stack (stack_first, stack_cur);
+    _print_stack (g_ide, stack_first, stack_cur);
 
-    _print_listing (stack_cur);
+    _print_listing (g_ide, stack_cur);
 
     while (TRUE)
     {
         static char cmdline[256];
         cmdline[0]=0;
 
-        UI_setTextStyle (UI_TEXT_STYLE_KEYWORD);
-        UI_tprintf ("dbg (h for help) > ");
-        UI_setTextStyle (UI_TEXT_STYLE_TEXT);
-        UI_readline(cmdline, 256);
+        UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_KEYWORD);
+        IDE_cprintf (g_ide, "dbg (h for help) > ");
+        UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_TEXT);
+        IDE_readline (g_ide, cmdline, 256);
 
-        UI_tprintf ("\n\n");
+        IDE_cprintf (g_ide, "\n\n");
 
         // split cmdline and arguments
 
@@ -1022,13 +1022,13 @@ static void _debug(struct DebugMsg *msg)
         if (!num_parts)
             continue;
 
-        //UI_tprintf ("cmdline parsing result: %d parts, first part: %s\n\n", num_parts, parts[0]);
+        //IDE_cprintf (g_ide, "cmdline parsing result: %d parts, first part: %s\n\n", num_parts, parts[0]);
         char *cmd = parts[0];
 
         if (cmd[0] == 'e')                          // exit/terminate
         {
             // manipulate the return PC, make it point to the exit function:
-            //UI_tprintf ("----> setting PC to 0x%08lx\n", g_dbgEnv.u.dbg.msg.debug_exitFn);
+            //IDE_cprintf (g_ide, "----> setting PC to 0x%08lx\n", g_dbgEnv.u.dbg.msg.debug_exitFn);
             g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
             ReplyMsg (&msg->msg);
             break;
@@ -1042,49 +1042,49 @@ static void _debug(struct DebugMsg *msg)
 
         if (cmd[0] == 'm')                          // mem dump (FIXME: argument)
         {
-            UI_tprintf ("PC mem dump:\n\n");
-            hexdump ((UBYTE *)g_dbgPC, 32, 16);
-            UI_tprintf ("\n");
+            IDE_cprintf (g_ide, "PC mem dump:\n\n");
+            _hexdump (g_ide, (UBYTE *)g_dbgPC, 32, 16);
+            IDE_cprintf (g_ide, "\n");
             continue;
         }
 
         if (cmd[0]=='l')                            // list
         {
-            _print_listing (stack_cur);
+            _print_listing (g_ide, stack_cur);
             continue;
         }
 
         if (cmd[0]=='w')                            // where
         {
-            _print_stack (stack_first, stack_cur);
+            _print_stack (g_ide, stack_first, stack_cur);
             continue;
         }
 
         if (cmd[0]=='r')                            // registers
         {
-            UI_tprintf ("register dump:\n\n");
+            IDE_cprintf (g_ide, "register dump:\n\n");
 
-            UI_tprintf ("d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
-            UI_tprintf ("d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
-            UI_tprintf ("a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
-            UI_tprintf ("a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
+            IDE_cprintf (g_ide, "d0=%08lx d1=%08lx d2=%08lx d3=%08lx\n", g_dbgStateBuf.d0, g_dbgStateBuf.d1, g_dbgStateBuf.d2, g_dbgStateBuf.d3);
+            IDE_cprintf (g_ide, "d4=%08lx d5=%08lx d6=%08lx d7=%08lx\n", g_dbgStateBuf.d4, g_dbgStateBuf.d5, g_dbgStateBuf.d6, g_dbgStateBuf.d7);
+            IDE_cprintf (g_ide, "a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n", g_dbgStateBuf.a0, g_dbgStateBuf.a1, g_dbgStateBuf.a2, g_dbgStateBuf.a3);
+            IDE_cprintf (g_ide, "a4=%08lx a5=%08lx a6=%08lx a7=%08lx\n", g_dbgStateBuf.a4, g_dbgStateBuf.a5, g_dbgStateBuf.a6, g_dbgStateBuf.a7);
 
-            UI_tprintf ("\nSR=%04x PC=%08lx FMT=%04x\n\n", g_dbgSR, g_dbgPC, g_dbgFMT);
+            IDE_cprintf (g_ide, "\nSR=%04x PC=%08lx FMT=%04x\n\n", g_dbgSR, g_dbgPC, g_dbgFMT);
             continue;
         }
 
         // print help
 
-        UI_tprintf ("available commands:\n\n");
+        IDE_cprintf (g_ide, "available commands:\n\n");
 
-        UI_tprintf ("c        - continue\n");
-        UI_tprintf ("e        - exit (terminate program)\n");
-        UI_tprintf ("h        - this help text\n");
-        UI_tprintf ("l        - list program\n");
-        UI_tprintf ("m <addr> - memory dump\n");
-        UI_tprintf ("r        - register dump\n");
-        UI_tprintf ("w        - where (stack trace)\n");
-        UI_tprintf ("\n");
+        IDE_cprintf (g_ide, "c        - continue\n");
+        IDE_cprintf (g_ide, "e        - exit (terminate program)\n");
+        IDE_cprintf (g_ide, "h        - this help text\n");
+        IDE_cprintf (g_ide, "l        - list program\n");
+        IDE_cprintf (g_ide, "m <addr> - memory dump\n");
+        IDE_cprintf (g_ide, "r        - register dump\n");
+        IDE_cprintf (g_ide, "w        - where (stack trace)\n");
+        IDE_cprintf (g_ide, "\n");
     }
 }
 
@@ -1159,12 +1159,12 @@ uint16_t DEBUG_handleMessages(void)
                         break;
                     case DEBUG_CMD_PUTC:
                         //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG_CMD_PUTC c=%d\n", msg->u.c);
-                        UI_tprintf ("%c", msg->u.c);
+                        IDE_cprintf (g_ide, "%c", msg->u.c);
                         ReplyMsg (&msg->msg);
                         break;
                     case DEBUG_CMD_PUTS:
                         //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG_CMD_PUTS str=\"%s\" (0x%08lx)\n", msg->u.str, msg->u.str);
-                        UI_tprintf ("%s", msg->u.str);
+                        IDE_cprintf (g_ide, "%s", msg->u.str);
                         ReplyMsg (&msg->msg);
                         break;
                     case DEBUG_CMD_TRAP:

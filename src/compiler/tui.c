@@ -7,6 +7,8 @@
 #include "options.h"
 #include "util.h"
 
+#if 0
+
 TUI_window TUI_Window (char *title, uint16_t w, uint16_t h)
 {
     TUI_window win = (TUI_window) U_poolAlloc (UP_ide, sizeof (*win));
@@ -996,4 +998,6 @@ void TUI_HelpBrowser (void)
         TUI_handleEvent (dlg, key);
     }
 }
+#endif
+
 #endif

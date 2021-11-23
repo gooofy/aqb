@@ -85,42 +85,47 @@
 #define UI_TEXT_STYLE_INVERSE  3
 #define UI_TEXT_STYLE_DIALOG   4
 
-void      UI_setTextStyle       (uint16_t style);
-void      UI_beginLine          (uint16_t row, uint16_t col_start, uint16_t cols);
-void      UI_putc               (char c);
-void      UI_putstr             (string s);
-void      UI_printf             (char* format, ...);
-void      UI_vprintf            (char* format, va_list ap);
-void      UI_endLine            (void);
+typedef struct UI_view_ *UI_view;
 
-void      UI_setCursorVisible   (bool visible);
-void      UI_moveCursor         (uint16_t row, uint16_t col);
-uint16_t  UI_waitkey            (void);
-void      UI_bell               (void);
-void      UI_eraseDisplay       (void);
+typedef enum
+{
+    UI_viewEditor, UI_viewConsole, UI_viewStatusBar
+} UI_viewId;
 
+UI_view   UI_getView            (UI_viewId id);
+void      UI_getViewSize        (UI_view view, uint16_t *rows, uint16_t *cols);
 void      UI_setColorScheme     (int scheme);
 void      UI_setFont            (int font);
+void      UI_bell               (void);
+void      UI_toFront            (void);
+uint16_t  UI_waitkey            (void);
 
-void      UI_setScrollArea      (uint16_t row_start, uint16_t row_end);
-void      UI_scrollUp           (bool fullscreen);
-void      UI_scrollDown         (void);
+void      UI_setTextStyle       (UI_view view, uint16_t style);
+void      UI_beginLine          (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols);
+void      UI_putc               (UI_view view, char c);
+void      UI_putstr             (UI_view view, string s);
+void      UI_printf             (UI_view view, char* format, ...);
+void      UI_vprintf            (UI_view view, char* format, va_list ap);
+void      UI_endLine            (UI_view view);
 
-extern uint16_t UI_size_cols, UI_size_rows;
+void      UI_setCursorVisible   (UI_view view, bool visible);
+void      UI_moveCursor         (UI_view view, uint16_t row, uint16_t col);
+void      UI_getCursorPos       (UI_view view, uint16_t *row, uint16_t *col);
+void      UI_activateView       (UI_view view);
+void      UI_setViewVisible     (UI_view view, bool visible);
+bool      UI_isViewVisible      (UI_view view);
+void      UI_clearView          (UI_view view);
 
-typedef void (*UI_size_cb)(void *user_data);
-void      UI_onSizeChangeCall   (UI_size_cb cb, void *user_data);
+void      UI_scrollUp           (UI_view view);
+void      UI_scrollDown         (UI_view view);
 
-typedef void (*UI_event_cb)(uint16_t event, void *user_data);
-void      UI_onEventCall        (UI_event_cb cb, void *user_data);
+// FIXME: remove extern uint16_t UI_size_cols, UI_size_rows;
 
-/*
- * simple terminal emulation
- */
+typedef void (*UI_size_cb) (UI_view view, void *user_data);
+void      UI_onSizeChangeCall   (UI_view view, UI_size_cb cb, void *user_data);
 
-void      UI_tprintf            (char* format, ...);
-void      UI_tvprintf           (char* format, va_list ap);
-void      UI_readline           (char *buf, int16_t buf_len);
+typedef void (*UI_event_cb) (UI_view view, uint16_t event, void *user_data);
+void      UI_onEventCall        (UI_view view, UI_event_cb cb, void *user_data);
 
 /*
  * high-level requesters
@@ -133,7 +138,6 @@ void      UI_HelpBrowser        (void);
 
 #ifdef __amigaos__
 struct MsgPort    *UI_debugPort (void);
-void      UI_toFront            (void);
 #endif
 
 bool      UI_init               (void);

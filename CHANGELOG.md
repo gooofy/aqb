@@ -2,13 +2,15 @@
 
 Improvements:
 
-    * MIT license applied consistently
     * ide: debug mode mode plus output added
-    * ide: exit or continue choice on traps and debug breaks
+    * ide: debug/console view added
     * ide: SMART\_REFRESH window for faster+reliable refresh handling
     * compiler: OPTION DEBUG statement added
     * compiler: TRACE statement added
     * compiler: BREAK statement added
+    * compiler: generate debug info
+    * debugger: exit or continue choice on traps, runtime errors and debug breaks
+    * debugger: display stacktrace, source line and registers
     * runtime: CTRL-C will issue a DEBUG BREAK when debugger is active
     * runtime: BITMAP\_t supports continous plane allocation suitable for BOB use now
     * runtime: BITMAP OUTPUT command added
@@ -24,6 +26,7 @@ Improvements:
     * runtime: BOB SHOW command added
     * runtime: BOB HIDE command added
     * runtime: ILBM LOAD BOB command added
+    * MIT license applied consistently
 
 Bug Fixes:
 

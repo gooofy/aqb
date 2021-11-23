@@ -14,6 +14,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 
+#if 0
+
 #define CSI       "\033["
 
 #define UI_STYLE_NORMAL     0
@@ -53,8 +55,20 @@ static void UI_flush  (void)
     g_bpos = 0;
 }
 
-void UI_setTextStyle (uint16_t style)
+#endif
+
+uint16_t UI_waitkey (void)
 {
+    assert(FALSE); // FIXME
+#if 0
+    return UI_getch();
+#endif
+    return 0;
+}
+void UI_setTextStyle (UI_view view, uint16_t style)
+{
+    assert(FALSE); // FIXME
+#if 0
     switch (style)
     {
         case UI_TEXT_STYLE_TEXT:
@@ -80,32 +94,43 @@ void UI_setTextStyle (uint16_t style)
         default:
             assert(FALSE);
     }
+#endif
 }
 
-void UI_beginLine (uint16_t row, uint16_t col_start, uint16_t cols)
+void UI_beginLine (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols)
 {
+    assert(FALSE); // FIXME
+#if 0
     UI_moveCursor (row, col_start);
     g_curLineStart = col_start;
     g_curLineCols  = cols;
+#endif
 }
 
-void UI_putc(char c)
+void UI_putc(UI_view view, char c)
 {
+    assert(FALSE); // FIXME
+#if 0
     g_outbuf[g_bpos++] = c;
     if (g_bpos >= BUFSIZE)
         UI_flush();
+#endif
 }
 
-void UI_putstr(char *s)
+void UI_putstr (UI_view view, char *s)
 {
+    assert(FALSE); // FIXME
+#if 0
     while (*s)
     {
         g_outbuf[g_bpos++] = *s++;
         if (g_bpos >= BUFSIZE)
             UI_flush();
     }
+#endif
 }
 
+#if 0
 void UI_printf (char* format, ...)
 {
     va_list args;
@@ -147,9 +172,22 @@ static bool getCursorPosition(uint16_t *rows, uint16_t *cols)
 		return FALSE;
     return TRUE;
 }
+#endif
 
-void UI_endLine (void)
+UI_view UI_getView (UI_viewId id)
 {
+    assert(FALSE); // FIXME
+}
+
+void  UI_getViewSize (UI_view view, uint16_t *rows, uint16_t *cols)
+{
+    assert (FALSE); // FIXME
+}
+
+void UI_endLine (UI_view view)
+{
+    assert(FALSE); // FIXME
+#if 0
     int16_t line_end = g_curLineCols+g_curLineStart-1;
 
     if ( line_end < UI_size_cols)
@@ -165,22 +203,82 @@ void UI_endLine (void)
         UI_putstr (CSI "K");    // erase to EOL
     }
     UI_flush();
+#endif
 }
 
-void UI_setCursorVisible (bool visible)
+void UI_setCursorVisible (UI_view view, bool visible)
 {
+    // FIXME
+    assert(FALSE);
+#if 0
     if (visible)
         UI_putstr ( CSI "?25h");
     else
         UI_putstr ( CSI "?25l");
     UI_flush();
+#endif
 }
 
-void UI_moveCursor (uint16_t row, uint16_t col)
+void UI_moveCursor (UI_view view, uint16_t row, uint16_t col)
 {
+    // FIXME
+    assert(FALSE);
+#if 0
     UI_printf (CSI "%d;%d;H", row, col);
     UI_flush();
+#endif
 }
+
+void UI_getCursorPos (UI_view view, uint16_t *row, uint16_t *col)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+void UI_activateView (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+void UI_setViewVisible (UI_view view, bool visible)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+bool UI_isViewVisible (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+    return TRUE;
+}
+
+void UI_clearView (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+void UI_scrollUp (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+void UI_scrollDown (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+void UI_onSizeChangeCall (UI_view view, UI_size_cb cb, void *user_data)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+#if 0
 
 static uint16_t UI_getch (void)
 {
@@ -349,22 +447,25 @@ static uint16_t UI_getch (void)
     return 0;
 }
 
-uint16_t UI_waitkey (void)
-{
-    return UI_getch();
-}
+#endif
 
 void UI_bell (void)
 {
+    // FIXME: implement
+    assert(FALSE);
+#if 0
     UI_putstr ("\007");
     UI_flush();
+#endif
 }
 
+#if 0
 void UI_eraseDisplay (void)
 {
     UI_moveCursor (1, 1);
     UI_putstr (CSI "J");
 }
+#endif
 
 void UI_setColorScheme (int scheme)
 {
@@ -376,6 +477,7 @@ void UI_setFont (int font)
     // FIXME: not supported
 }
 
+#if 0
 void UI_setScrollArea (uint16_t row_start, uint16_t row_end)
 {
     g_scrollStart = row_start;
@@ -465,8 +567,12 @@ static void UI_setAlternateScreen (bool enabled)
 }
 
 static struct termios g_orig_termios;
+#endif
 void UI_deinit (void)
 {
+    // FIXME
+    assert(FALSE);
+#if 0
     UI_setTextStyle (UI_STYLE_NORMAL);
     UI_moveCursor(0, 0);
     UI_eraseDisplay();
@@ -474,10 +580,15 @@ void UI_deinit (void)
     UI_flush();
 	// disable raw mode
 	tcsetattr(STDOUT_FILENO, TCSAFLUSH, &g_orig_termios);
+#endif
 }
 
 bool UI_init (void)
 {
+    // FIXME
+    assert(FALSE);
+    return FALSE;
+#if 0
     signal(SIGWINCH, handleSigWinCh);
 
 	// enable raw mode
@@ -506,11 +617,15 @@ bool UI_init (void)
 fatal:
     errno = ENOTTY;
     return FALSE;
+#endif
 }
 
 
 void UI_run(void)
 {
+    // FIXME
+    assert(FALSE);
+#if 0
     bool running = TRUE;
     while (running)
     {
@@ -519,16 +634,22 @@ void UI_run(void)
         if (g_event_cb)
             g_event_cb (ch, g_event_cb_user_data);
     }
+#endif
 }
 
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
+    // FIXME
+    assert(FALSE);
+#if 0
     va_list args;
     va_start(args, gadgets);
     static char buf2[1024];
     vsnprintf (buf2, 1024, body, args);
     va_end(args);
     return TUI_EZRequest (buf2, gadgets);
+#endif
+    return 0;
 }
 
 char *UI_FileReq  (char *title)
@@ -539,7 +660,12 @@ char *UI_FileReq  (char *title)
 
 bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
 {
+    // FIXME
+    assert(FALSE);
+#if 0
     return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
+#endif
+    return FALSE;
 }
 
 void UI_HelpBrowser (void)
@@ -547,12 +673,17 @@ void UI_HelpBrowser (void)
     // FIXME TUI_HelpBrowser();
 }
 
-void UI_onEventCall (UI_event_cb cb, void *user_data)
+void UI_onEventCall (UI_view view, UI_event_cb cb, void *user_data)
 {
+    // FIXME: implement
+    assert(FALSE);
+#if 0
     g_event_cb           = cb;
     g_event_cb_user_data = user_data;
+#endif
 }
 
+#if 0
 void UI_tprintf (char* format, ...)
 {
     va_list args;
@@ -602,3 +733,6 @@ void UI_tvprintf (char* format, va_list args)
 
 
 #endif
+
+#endif
+

@@ -110,7 +110,14 @@ void _aqb_assert (BOOL b, const UBYTE *msg)
     _debug_puts(msg);
     _debug_puts((UBYTE *)"\n");
 
-    _autil_exit(20);
+    if (_startup_mode == STARTUP_DEBUG)
+    {
+        asm ("  trap #0;\n");           // break into debugger
+    }
+    else
+    {
+        _autil_exit(20);
+    }
 }
 
 static void (*error_handler)(void) = NULL;
@@ -139,9 +146,20 @@ void ERROR (SHORT errcode)
     }
 
     if (!do_resume)
-        _autil_exit(errcode);
+    {
+        if (_startup_mode == STARTUP_DEBUG)
+        {
+            asm ("  trap #0;\n");           // break into debugger
+        }
+        else
+        {
+            _autil_exit(errcode);
+        }
+    }
     else
+    {
         ERR=0;
+    }
 }
 
 void RESUME_NEXT(void)
