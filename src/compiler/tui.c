@@ -1,3 +1,5 @@
+#ifndef __amigaos__
+
 #include <string.h>
 #include <limits.h>
 
@@ -1001,3 +1003,5 @@ void TUI_HelpBrowser (void)
 #endif
 
 #endif
+
+#endif // ifndef amigaos

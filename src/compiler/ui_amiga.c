@@ -24,16 +24,18 @@
 #include <clib/intuition_protos.h>
 #include <clib/graphics_protos.h>
 #include <clib/console_protos.h>
+#include <clib/utility_protos.h>
+#include <clib/gadtools_protos.h>
 
 #include <inline/exec.h>
 #include <inline/dos.h>
 #include <inline/intuition.h>
 #include <inline/graphics.h>
 #include <inline/asl.h>
+#include <inline/utility.h>
+#include <inline/gadtools.h>
 
 #include <libraries/gadtools.h>
-#include <clib/gadtools_protos.h>
-#include <inline/gadtools.h>
 
 #include <clib/console_protos.h>
 #include <inline/console.h>
@@ -41,7 +43,6 @@
 #include "ui.h"
 #include "logger.h"
 #include "options.h"
-#include "tui.h"
 #include "amigasupport.h"
 #include "ide.h"
 
@@ -56,10 +57,9 @@ extern struct DOSBase       *DOSBase;
 extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 extern struct AslBase       *AslBase;
+extern struct UtilityBase   *UtilityBase;
 struct Library              *GadToolsBase;
 struct Device               *ConsoleDevice = NULL;
-
-// FIXME: remove uint16_t UI_size_cols=80, UI_size_rows=25;
 
 static struct NewMenu g_newmenu[] =
     {
@@ -148,7 +148,31 @@ static uint16_t              g_theme             = 0;
 
 #include "fonts.h"
 
-static struct FileRequester *g_ASLFileReq        = NULL;;
+struct TextAttr Topaz80 = { (STRPTR)"topaz.font", 8, 0, 0, };
+// FIXME
+#if 0
+#define NL 0
+
+#define REDP 3
+#define BLKP 2
+#define WHTP 1
+#define BLUP 0
+
+static struct IntuiText text = {
+  BLUP, WHTP, JAM2,
+  58, 5, NL,
+  (UBYTE *) "Regular requestor",
+  NL
+};
+
+
+
+static struct Window         g_FindReq;
+static struct Gadget        *g_FRGadgetList = NULL;
+static struct Gadget        *g_FRFindButton;
+#endif
+
+static struct FileRequester *g_ASLFileReq   = NULL;
 
 #define BUFSIZE 1024
 
@@ -336,6 +360,12 @@ static uint16_t nextEvent(void)
                     //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got a message, class=%d\n", winmsg->Class);
                     switch (winmsg->Class)
 				    {
+                        case IDCMP_REFRESHWINDOW:
+                            // FIXME: gadtools
+                            BeginRefresh (g_win);
+                            EndRefresh (g_win, TRUE);
+				    		break;
+
                         case IDCMP_CLOSEWINDOW:
                             res = KEY_QUIT;
 				    		break;
@@ -944,14 +974,180 @@ char *UI_FileReq (char *title)
 	return NULL;
 }
 
+#define FR_GID_FIND   1
+#define FR_GID_CANCEL 2
+#define FR_GID_STRING 3
+
+#define _createGadgetTags(kind, prev, x, y, w, h, txt, id, flags, ___tagList, ...) \
+    ({_sfdc_vararg _tags[] = { ___tagList, __VA_ARGS__ }; _createGadgetTagList((kind), (prev), (x), (y), (w), (h), (txt), (id), (flags), (const struct TagItem *) _tags); })
+
+
+static struct Gadget *_createGadgetTagList (ULONG kind, struct Gadget *prev, WORD x, WORD y, WORD w, WORD h,
+                                            char *txt, UWORD id, ULONG flags, const struct TagItem *tags)
+{
+    //_sfdc_vararg tags[] = { ___tagList, __VA_ARGS__ };
+    //OpenScreenTagList((___newScreen), (const struct TagItem *) _tags); }
+
+    struct NewGadget ng;
+
+    ng.ng_LeftEdge   = x + g_win->BorderLeft;
+    ng.ng_TopEdge    = y + g_win->BorderTop;
+    ng.ng_Width      = w;
+    ng.ng_Height     = h;
+    ng.ng_TextAttr   = &Topaz80;
+    ng.ng_VisualInfo = g_vi;
+    ng.ng_GadgetText = (STRPTR) txt;
+    ng.ng_GadgetID   = id;
+    ng.ng_Flags      = flags;
+
+    struct TagItem *ti = FindTagItem (GTST_String, tags);
+
+    LOG_printf (LOG_DEBUG, "_createGadget: GTST_String ti=0x%08lx\n", ti);
+    if (ti)
+        LOG_printf (LOG_DEBUG, "   ->value=0x%08lx (%s)\n", ti->ti_Data, (char *) ti->ti_Data);
+
+    ti = FindTagItem (GTST_MaxChars, tags);
+
+    LOG_printf (LOG_DEBUG, "_createGadget: GTST_MaxChars ti=0x%08lx -> %ld\n", ti, ti ? ti->ti_Data : 0);
+
+    return CreateGadgetA (kind, prev, &ng, tags);
+}
+
 bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
 {
-    // FIXME
-    assert(FALSE);
-#if 0
-    return TUI_FindReq (buf, buf_len, matchCase, wholeWord, searchBackwards);
-#endif
-    return FALSE;
+
+    struct Window   *reqwin = NULL;
+    bool             asleep = FALSE;
+    struct Gadget   *glist  = NULL;
+    struct Gadget   *gad    = NULL;
+    struct Gadget   *sgad=NULL, *caseGad=NULL, *wordGad=NULL, *backwardsGad=NULL;
+    bool             res    = FALSE;
+
+    if (! (gad = CreateContext(&glist)) )
+        goto closedown;
+
+    LOG_printf (LOG_DEBUG, "UI_FindReq buf: 0x%08lx (%s)\n", buf, buf);
+    if ( !(sgad = gad = _createGadgetTags (STRING_KIND, gad, 55, 5, 327, 14, "Find:", FR_GID_STRING, 0, GTST_String, (ULONG) buf, GTST_MaxChars, buf_len, TAG_END)) )
+        goto closedown;
+
+    if ( !(caseGad = gad = _createGadgetTags (CHECKBOX_KIND, gad, 56, 25, 23, 14, "Match Case", 0, PLACETEXT_RIGHT, GTCB_Checked, *matchCase, TAG_END)) )
+        goto closedown;
+
+    if ( !(wordGad = gad = _createGadgetTags (CHECKBOX_KIND, gad, 56, 41, 23, 14, "Whole Word", 0, PLACETEXT_RIGHT, GTCB_Checked, *wholeWord, TAG_END)) )
+        goto closedown;
+
+    if ( !(backwardsGad = gad = _createGadgetTags (CHECKBOX_KIND, gad, 215, 25, 23, 14, "Backwards", 0, PLACETEXT_RIGHT, GTCB_Checked, *searchBackwards, TAG_END)) )
+        goto closedown;
+
+    if ( !(gad = _createGadgetTags (BUTTON_KIND, gad, 27, 58, 112, 12, "Find", FR_GID_FIND, 0, TAG_END)) )
+        goto closedown;
+
+    if ( !(gad = _createGadgetTags (BUTTON_KIND, gad, 248, 58, 112, 12, "Cancel", FR_GID_CANCEL, 0, TAG_END)) )
+        goto closedown;
+
+    if (!(reqwin = OpenWindowTags(  NULL,
+                                    WA_Left,        g_win->LeftEdge + g_win->Width/2 - 200,
+                                    WA_Top,         g_win->TopEdge + g_win->Height/2 - 45,
+                                    WA_Width,       400,
+                                    WA_Height,      90,
+                                    WA_IDCMP,       IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_GADGETUP,
+                                    // FIXME WA_Flags,       ,
+                                    // FIXME WA_AutoAdjust,  TRUE,
+                                    // FIXME WA_CustomScreen,screen,
+                                    WA_Title,         (ULONG) "Find...",
+                                    WA_SmartRefresh,  TRUE,
+                                    WA_Activate,      TRUE,
+                                    WA_Borderless,    FALSE,
+                                    WA_SizeGadget,    FALSE,
+                                    WA_DragBar,       TRUE,
+                                    WA_DepthGadget,   TRUE,
+                                    WA_CloseGadget,   TRUE,
+                                    WA_Gadgets,       (ULONG) glist,
+                                    TAG_DONE)) )
+        goto closedown;
+
+    // block main window via a sleep requester
+
+    struct Requester sleepReq;
+
+    InitRequester(&sleepReq);
+    asleep = Request(&sleepReq, g_win);
+
+    GT_RefreshWindow (reqwin, NULL);
+    ActivateGadget (sgad, reqwin, NULL);
+
+    bool looping = TRUE;
+    while (looping)
+    {
+        struct IntuiMessage *msg;
+
+        if (!(msg = GT_GetIMsg(reqwin->UserPort)))
+        {
+            Wait (1L<<reqwin->UserPort->mp_SigBit);
+            continue;
+        }
+
+        ULONG class = msg->Class;
+        UWORD code = msg->Code;
+        struct Gadget *gad = (struct Gadget *)msg->IAddress;
+        GT_ReplyIMsg(msg);
+
+        LOG_printf (LOG_DEBUG, "UI_FindReq got GT intui message, class=%d\n", class);
+
+        switch (class)
+        {
+            case IDCMP_GADGETUP:
+                switch (gad->GadgetID)
+                {
+                    case FR_GID_FIND:
+                        looping = FALSE;
+                        res = TRUE;
+                        break;
+                    case FR_GID_CANCEL:
+                        looping = FALSE;
+                        break;
+                }
+                break;
+            case IDCMP_CLOSEWINDOW:
+                looping = FALSE;
+                break;
+            case IDCMP_REFRESHWINDOW:
+                GT_BeginRefresh(reqwin);
+                GT_EndRefresh(reqwin, TRUE);
+                break;
+            case IDCMP_RAWKEY:
+                LOG_printf (LOG_DEBUG, "IDCMP_RAWKEY code=%d\n", code);
+                switch (code)
+                {
+                    case 0x44:	// enter
+                        looping = FALSE;
+                        res = TRUE;
+                        break;
+                    case 0x45:	// escape
+                        looping = FALSE;
+                        break;
+                }
+                break;
+        }
+    }
+
+    strncpy (buf, (char *) ((struct StringInfo *)sgad->SpecialInfo)->Buffer, buf_len);
+    *matchCase = caseGad->Flags & GFLG_SELECTED;
+    *wholeWord = wordGad->Flags & GFLG_SELECTED;
+    *searchBackwards = backwardsGad->Flags & GFLG_SELECTED;
+
+closedown:
+
+    if (asleep)
+        EndRequest (&sleepReq, g_win);
+
+    if (reqwin)
+        CloseWindow(reqwin);
+
+    if (glist)
+        FreeGadgets (glist);
+
+    return res;
 }
 
 void UI_HelpBrowser (void)
@@ -970,6 +1166,8 @@ struct MsgPort *UI_debugPort(void)
 
 void UI_deinit(void)
 {
+	// FIXME: free find requester
+
     if (g_ASLFileReq)
 		FreeAslRequest(g_ASLFileReq);
 
@@ -1048,7 +1246,7 @@ bool UI_init (void)
                                  WA_Top,           sc->BarHeight+1,
                                  WA_Width,         visWidth,
                                  WA_Height,        visHeight-sc->BarHeight-1,
-                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE,
+                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE | IDCMP_GADGETUP | IDCMP_REQCLEAR,
                                  WA_Backdrop,      FALSE,
                                  WA_SmartRefresh,  TRUE,
                                  WA_Activate,      TRUE,
