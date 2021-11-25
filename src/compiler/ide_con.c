@@ -45,6 +45,7 @@ void IDE_conInit (IDE_instance ed)
     UI_onEventCall (ed->view_console, _console_event_cb, ed);
     _console_size_cb (ed->view_console, ed);
     UI_setCursorVisible (ed->view_console, TRUE);
+    ed->con_lines = 0;
 }
 
 void IDE_conSet (IDE_instance ed, bool visible, bool active)

@@ -132,6 +132,8 @@ struct UI_view_
 
     UI_event_cb           event_cb;
     void                 *event_cb_user_data;
+
+    bool                  scrollable;
 };
 
 static struct Window        *g_win               = NULL;
@@ -139,6 +141,8 @@ static struct RastPort      *g_rp                = NULL;
 static struct MsgPort       *g_debugPort         = NULL;
 static struct IOStdReq       console_ioreq;
 static struct Menu          *g_menuStrip         = NULL;
+static struct Gadget        *g_glist             = NULL; // gadtools context
+static struct Gadget        *g_gad               = NULL;
 static APTR                  g_vi                = NULL;
 static UI_view               g_views[NUM_VIEWS]  = {NULL, NULL, NULL};
 static UI_view               g_active_view       = NULL;
@@ -210,7 +214,46 @@ static void cleanexit (char *s, uint32_t n)
     exit(n);
 }
 
-static UI_view UI_View(UBYTE depth, WORD visWidth)
+#define _createGadgetTags(kind, prev, x, y, w, h, txt, id, flags, ___tagList, ...) \
+    ({_sfdc_vararg _tags[] = { ___tagList, __VA_ARGS__ }; _createGadgetTagList((kind), (prev), (x), (y), (w), (h), (txt), (id), (flags), (const struct TagItem *) _tags); })
+
+
+static struct Gadget *_createGadgetTagList (ULONG kind, struct Gadget *prev, WORD x, WORD y, WORD w, WORD h,
+                                            char *txt, UWORD id, ULONG flags, const struct TagItem *tags)
+{
+    //_sfdc_vararg tags[] = { ___tagList, __VA_ARGS__ };
+    //OpenScreenTagList((___newScreen), (const struct TagItem *) _tags); }
+
+    struct NewGadget ng;
+
+    ng.ng_LeftEdge   = x + g_win->BorderLeft;
+    ng.ng_TopEdge    = y + g_win->BorderTop;
+    ng.ng_Width      = w;
+    ng.ng_Height     = h;
+    ng.ng_TextAttr   = &Topaz80;
+    ng.ng_VisualInfo = g_vi;
+    ng.ng_GadgetText = (STRPTR) txt;
+    ng.ng_GadgetID   = id;
+    ng.ng_Flags      = flags;
+
+    // FIXME: remove debug code
+#if 0
+    struct TagItem *ti = FindTagItem (GTST_String, tags);
+
+    LOG_printf (LOG_DEBUG, "_createGadget: GTST_String ti=0x%08lx\n", ti);
+    if (ti)
+        LOG_printf (LOG_DEBUG, "   ->value=0x%08lx (%s)\n", ti->ti_Data, (char *) ti->ti_Data);
+
+    ti = FindTagItem (GTST_MaxChars, tags);
+
+    LOG_printf (LOG_DEBUG, "_createGadget: GTST_MaxChars ti=0x%08lx -> %ld\n", ti, ti ? ti->ti_Data : 0);
+    printf ("_createGadgetTagList: prev=%08lx, x=%d, y=%d, w=%d, h=%d, txt=%s, id=%d, flags=%ld\n", (ULONG) prev, x, y, w, h, txt, id, flags);
+#endif
+
+    return CreateGadgetA (kind, prev, &ng, tags);
+}
+
+static UI_view UI_View(UBYTE depth, WORD visWidth, BOOL scrollable)
 {
     UI_view view = U_poolAlloc(UP_ide, sizeof(*view));
 
@@ -226,6 +269,8 @@ static UI_view UI_View(UBYTE depth, WORD visWidth)
 
     view->size_cb           = NULL;
     view->size_cb_user_data = NULL;
+
+    view->scrollable        = scrollable;
 
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
 
@@ -287,9 +332,31 @@ static void _updateLayout(void)
     WORD console_h = h / 4;
     WORD editor_h  = g_views[UI_viewConsole]->visible ? h - status_h - console_h : h - status_h;
 
+    if (g_glist)
+    {
+        RemoveGList (g_win, g_glist, -1);
+        FreeGadgets (g_glist);
+        g_glist = NULL;
+        g_gad = CreateContext (&g_glist);
+    }
+
+    SetAPen(g_rp, 3);
+    SetBPen(g_rp, 3);
+    SetDrMd(g_rp, JAM1);
+    RectFill (g_rp, g_win->Width - g_win->BorderRight, g_win->BorderTop, g_win->Width - 1, g_win->Height - 1 - 10);
+
     if (g_views[UI_viewEditor]->visible)
     {
         _view_resize(g_views[UI_viewEditor]   , g_win->BorderLeft, y, w, editor_h);
+
+        if (g_views[UI_viewEditor]->scrollable)
+        {
+            g_gad = _createGadgetTags (SCROLLER_KIND, g_gad,
+                                       g_win->Width - g_win->BorderRight - g_win->BorderLeft,
+                                       y-g_win->BorderTop, g_win->BorderRight, editor_h, "V", 0, 0,
+                                       GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows,10, PGA_Freedom, LORIENT_VERT, TAG_END);
+        }
+
         y += editor_h;
     }
     if (g_views[UI_viewStatusBar]->visible)
@@ -300,12 +367,29 @@ static void _updateLayout(void)
     if (g_views[UI_viewConsole]->visible)
     {
         _view_resize(g_views[UI_viewConsole]  , g_win->BorderLeft, y, w, console_h);
+        if (g_views[UI_viewConsole]->scrollable)
+        {
+            g_gad = _createGadgetTags (SCROLLER_KIND, g_gad,
+                                       g_win->Width - g_win->BorderRight - g_win->BorderLeft,
+                                       y-g_win->BorderTop, g_win->BorderRight, console_h-8, "V", 0, 0,
+                                       GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows,10, PGA_Freedom, LORIENT_VERT, TAG_END);
+        }
+
     }
 
     for (int i = 0; i<NUM_VIEWS; i++)
     {
         if (g_views[i]->visible && g_views[i]->size_cb)
             g_views[i]->size_cb(g_views[i], g_views[i]->size_cb_user_data);
+    }
+
+    if (g_glist)
+    {
+        AddGList (g_win, g_glist, 1000, -1, NULL);
+        GT_RefreshWindow (g_win, NULL);
+        RefreshGadgets (g_glist, g_win, NULL);
+        GT_BeginRefresh (g_win);
+        GT_EndRefresh (g_win, TRUE);
     }
 }
 
@@ -904,19 +988,6 @@ void UI_onEventCall (UI_view view, UI_event_cb cb, void *user_data)
     view->event_cb_user_data = user_data;
 }
 
-#if 0
-
-void UI_beginRefresh (void)
-{
-    BeginRefresh(g_win);
-}
-
-void UI_endRefresh (void)
-{
-    EndRefresh(g_win, TRUE);
-}
-#endif
-
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
     char *posTxt=NULL;
@@ -977,41 +1048,6 @@ char *UI_FileReq (char *title)
 #define FR_GID_FIND   1
 #define FR_GID_CANCEL 2
 #define FR_GID_STRING 3
-
-#define _createGadgetTags(kind, prev, x, y, w, h, txt, id, flags, ___tagList, ...) \
-    ({_sfdc_vararg _tags[] = { ___tagList, __VA_ARGS__ }; _createGadgetTagList((kind), (prev), (x), (y), (w), (h), (txt), (id), (flags), (const struct TagItem *) _tags); })
-
-
-static struct Gadget *_createGadgetTagList (ULONG kind, struct Gadget *prev, WORD x, WORD y, WORD w, WORD h,
-                                            char *txt, UWORD id, ULONG flags, const struct TagItem *tags)
-{
-    //_sfdc_vararg tags[] = { ___tagList, __VA_ARGS__ };
-    //OpenScreenTagList((___newScreen), (const struct TagItem *) _tags); }
-
-    struct NewGadget ng;
-
-    ng.ng_LeftEdge   = x + g_win->BorderLeft;
-    ng.ng_TopEdge    = y + g_win->BorderTop;
-    ng.ng_Width      = w;
-    ng.ng_Height     = h;
-    ng.ng_TextAttr   = &Topaz80;
-    ng.ng_VisualInfo = g_vi;
-    ng.ng_GadgetText = (STRPTR) txt;
-    ng.ng_GadgetID   = id;
-    ng.ng_Flags      = flags;
-
-    struct TagItem *ti = FindTagItem (GTST_String, tags);
-
-    LOG_printf (LOG_DEBUG, "_createGadget: GTST_String ti=0x%08lx\n", ti);
-    if (ti)
-        LOG_printf (LOG_DEBUG, "   ->value=0x%08lx (%s)\n", ti->ti_Data, (char *) ti->ti_Data);
-
-    ti = FindTagItem (GTST_MaxChars, tags);
-
-    LOG_printf (LOG_DEBUG, "_createGadget: GTST_MaxChars ti=0x%08lx -> %ld\n", ti, ti ? ti->ti_Data : 0);
-
-    return CreateGadgetA (kind, prev, &ng, tags);
-}
 
 bool UI_FindReq (char *buf, uint16_t buf_len, bool *matchCase, bool *wholeWord, bool *searchBackwards)
 {
@@ -1196,6 +1232,7 @@ void UI_deinit(void)
 			FreeMenus (g_menuStrip);
         CloseWindow(g_win);
 	}
+    FreeGadgets(g_glist);
 	if (g_vi)
 		FreeVisualInfo(g_vi);
     if (g_debugPort)
@@ -1265,16 +1302,27 @@ bool UI_init (void)
 
     UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
+    /*
+     * gadgets
+     */
+
+    if (!(g_vi = GetVisualInfo(g_win->WScreen, TAG_END)))
+		cleanexit ("failed to get screen visual info", RETURN_FAIL);
+    if (! (g_gad = CreateContext (&g_glist)))
+        cleanexit("failed to create gadtools context", RETURN_FAIL);
+
     // create views
     UBYTE depth = sc->BitMap.Depth > 3 ? 3 : sc->BitMap.Depth;
 
-    g_views[UI_viewEditor]    = UI_View(depth, visWidth);
-    g_views[UI_viewConsole]   = UI_View(depth, visWidth);
-    g_views[UI_viewStatusBar] = UI_View(depth, visWidth);
-    UI_setViewVisible(g_views[UI_viewConsole], FALSE);
-    _updateLayout();
-
     UnlockPubScreen(NULL, sc);
+
+    g_views[UI_viewEditor]    = UI_View(depth, visWidth, /* scrollable=*/ FALSE);
+    g_views[UI_viewStatusBar] = UI_View(depth, visWidth, /* scrollable=*/ FALSE);
+    g_views[UI_viewConsole]   = UI_View(depth, visWidth, /* scrollable=*/ TRUE);
+
+    UI_setViewVisible(g_views[UI_viewConsole], FALSE);
+
+    _updateLayout();
 
     g_rp = g_win->RPort;
 
@@ -1284,8 +1332,6 @@ bool UI_init (void)
      * menu
      */
 
-    if (!(g_vi = GetVisualInfo(g_win->WScreen, TAG_END)))
-		cleanexit ("failed to get screen visual info", RETURN_FAIL);
 	if (!(g_menuStrip = CreateMenus(g_newmenu, TAG_END)))
 		cleanexit("failed to create menu", RETURN_FAIL);
 	if (!LayoutMenus(g_menuStrip, g_vi, GTMN_NewLookMenus, TRUE, TAG_END))

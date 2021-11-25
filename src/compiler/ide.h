@@ -10,6 +10,9 @@
 
 #define INDENT_SPACES 4
 
+#define MAX_CON_LINES    128
+#define MAX_CON_LINE_LEN  80
+
 typedef enum {DEBUG_stateStopped, DEBUG_stateRunning} DEBUG_state;
 
 typedef struct IDE_line_     *IDE_line;
@@ -85,6 +88,9 @@ struct IDE_instance_
     // console view
     UI_view            view_console;
     uint16_t           con_rows, con_cols;
+    char               con_buf  [MAX_CON_LINES][MAX_CON_LINE_LEN];
+    char               con_style[MAX_CON_LINES][MAX_CON_LINE_LEN];
+    uint16_t           con_lines;
 };
 
 /*
