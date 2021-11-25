@@ -90,7 +90,7 @@ struct IDE_instance_
     uint16_t           con_rows, con_cols;
     char               con_buf  [MAX_CON_LINES][MAX_CON_LINE_LEN];
     char               con_style[MAX_CON_LINES][MAX_CON_LINE_LEN];
-    uint16_t           con_lines;
+    uint16_t           con_line, con_col;
 };
 
 /*

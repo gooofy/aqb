@@ -9,6 +9,23 @@
 #include "logger.h"
 #include "util.h"
 
+static void _repaintConsole (IDE_instance ed)
+{
+    UI_view view = ed->view_console;
+    UI_clearView(view);
+    // FIXME: unfinished
+#if 0
+    uint16_t offset = UI_getViewScrollPos (view);
+
+    for (int16_t i=0; i<ed->con_rows; i++)
+    {
+        int16_t l = ed->conoffset+i;
+
+        UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+    }
+#endif
+}
+
 static void _console_size_cb (UI_view view, void *user_data)
 {
 	IDE_instance ed = (IDE_instance) user_data;
@@ -17,10 +34,8 @@ static void _console_size_cb (UI_view view, void *user_data)
 
     // FIXME
     UI_getViewSize (view, &ed->con_rows, &ed->con_cols);
-    //_invalidateAll (ed);
-    //_scroll(ed);
-    UI_clearView(view);
-    //_repaint(ed);
+    UI_cfgViewScroller (ed->view_console, MAX_CON_LINES-ed->con_rows, MAX_CON_LINES, ed->con_rows);
+    _repaintConsole (ed);
 }
 
 static void _console_event_cb (UI_view view, uint16_t key, void *user_data)
@@ -44,8 +59,9 @@ void IDE_conInit (IDE_instance ed)
     UI_onSizeChangeCall (ed->view_console, _console_size_cb, ed);
     UI_onEventCall (ed->view_console, _console_event_cb, ed);
     _console_size_cb (ed->view_console, ed);
-    UI_setCursorVisible (ed->view_console, TRUE);
-    ed->con_lines = 0;
+    UI_setCursorVisible (ed->view_console, FALSE);
+    ed->con_line = 0;
+    ed->con_col  = 0;
 }
 
 void IDE_conSet (IDE_instance ed, bool visible, bool active)
@@ -72,38 +88,33 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
     if (!UI_isViewVisible (ed->view_console))
         UI_setViewVisible (ed->view_console, TRUE);
 
-    static uint16_t col = 0;
-    static bool haveLine = FALSE;
+    LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n",
+                buf, ed->con_rows);
+
+    // fixme: scroll
+    UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+
     for (int i =0; i<l; i++)
     {
-        if (!haveLine)
-        {
-            UI_scrollUp  (ed->view_console);
-            UI_beginLine (ed->view_console, ed->con_rows, 1, ed->con_cols);
-            haveLine = TRUE;
-        }
-        if (col >= ed->con_cols)
-        {
-            UI_endLine (ed->view_console);
-            haveLine = FALSE;
-            col = 0;
-        }
         char c = buf[i];
-        if (c=='\n')
+        if ((c=='\n') || (ed->con_col>=MAX_CON_LINE_LEN-1))
         {
             UI_endLine (ed->view_console);
-            haveLine = FALSE;
-            col = 0;
+            UI_scrollUp  (ed->view_console);
+            ed->con_buf[ed->con_line][ed->con_col]=0;
+            ed->con_line = (ed->con_line+1) % MAX_CON_LINES;
+            ed->con_col=0;
+            UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
         }
         else
         {
+            ed->con_buf[ed->con_line][ed->con_col]=c;
             UI_putc(ed->view_console, c);
-            col++;
+            ed->con_col++;
         }
     }
-    if (haveLine)
-        UI_endLine (ed->view_console);
-    UI_moveCursor(ed->view_console, ed->con_rows, col+1);
+    UI_endLine (ed->view_console);
+    //UI_moveCursor(ed->view_console, ed->con_rows, col+1);
 }
 
 static void _readline_repaint(UI_view view, char *buf, int16_t cursor_pos, int16_t *scroll_offset, int16_t row, int16_t col, int16_t width)

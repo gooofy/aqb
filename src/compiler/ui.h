@@ -94,6 +94,8 @@ typedef enum
 
 UI_view   UI_getView            (UI_viewId id);
 void      UI_getViewSize        (UI_view view, uint16_t *rows, uint16_t *cols);
+void      UI_cfgViewScroller    (UI_view view, uint16_t top, uint16_t total, uint16_t visible);
+void      UI_getViewScrollPos   (UI_view view);
 void      UI_setColorScheme     (int scheme);
 void      UI_setFont            (int font);
 void      UI_bell               (void);

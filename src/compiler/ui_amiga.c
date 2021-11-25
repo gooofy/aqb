@@ -134,6 +134,7 @@ struct UI_view_
     void                 *event_cb_user_data;
 
     bool                  scrollable;
+    struct Gadget        *scrollbar;
 };
 
 static struct Window        *g_win               = NULL;
@@ -303,6 +304,13 @@ void UI_getViewSize (UI_view view, uint16_t *rows, uint16_t *cols)
     *rows = view->h/g_fontHeight;
 }
 
+void UI_cfgViewScroller (UI_view view, uint16_t top, uint16_t total, uint16_t visible)
+{
+    assert (view->scrollable);
+    GT_SetGadgetAttrs (view->scrollbar, g_win, NULL, 
+                       GTSC_Top, top, GTSC_Total, total, GTSC_Visible, visible, TAG_END);
+}
+
 void UI_setColorScheme (int theme)
 {
     //LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", theme);
@@ -355,6 +363,7 @@ static void _updateLayout(void)
                                        g_win->Width - g_win->BorderRight - g_win->BorderLeft,
                                        y-g_win->BorderTop, g_win->BorderRight, editor_h, "V", 0, 0,
                                        GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows,10, PGA_Freedom, LORIENT_VERT, TAG_END);
+            g_views[UI_viewEditor]->scrollbar = g_gad;
         }
 
         y += editor_h;
@@ -373,6 +382,7 @@ static void _updateLayout(void)
                                        g_win->Width - g_win->BorderRight - g_win->BorderLeft,
                                        y-g_win->BorderTop, g_win->BorderRight, console_h-8, "V", 0, 0,
                                        GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows,10, PGA_Freedom, LORIENT_VERT, TAG_END);
+            g_views[UI_viewConsole]->scrollbar = g_gad;
         }
 
     }

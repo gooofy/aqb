@@ -467,6 +467,12 @@ void UI_eraseDisplay (void)
 }
 #endif
 
+void UI_cfgViewScroller (UI_view view, uint16_t top, uint16_t total, uint16_t visible)
+{
+    // FIXME
+    assert(FALSE);
+}
+
 void UI_setColorScheme (int scheme)
 {
     // FIXME: not supported
