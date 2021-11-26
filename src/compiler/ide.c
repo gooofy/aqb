@@ -67,7 +67,7 @@ static S_symbol S_REM;
 #if LOG_LEVEL == LOG_DEBUG
 static FILE *logf=NULL;
 #endif
-static IDE_instance g_ide;
+static IDE_instance g_ide=NULL;
 static TAB_table  g_keywords;
 
 
@@ -466,13 +466,14 @@ static void _editor_size_cb (UI_view view, void *user_data)
 {
 	IDE_instance ed = (IDE_instance) user_data;
 
-    LOG_printf (LOG_DEBUG, "IDE: _editor_size_cb called.\n");
+    LOG_printf (LOG_DEBUG, "IDE: _editor_size_cb called view=0x%08lx, ed=0x%08lx\n", view, ed);
 
     UI_getViewSize (view, &ed->window_height, &ed->window_width);
     _invalidateAll (ed);
     _scroll(ed);
     UI_clearView(view);
     _repaint(ed);
+    LOG_printf (LOG_DEBUG, "IDE: _editor_size_cb done view=0x%08lx, ed=0x%08lx\n", view, ed);
 }
 
 typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
@@ -2068,9 +2069,10 @@ void IDE_open (string sourcefn)
     logf = fopen (LOG_FILENAME, "a");
     //printf ("opening %s ... done.\n", LOG_FILENAME);
 #endif
+    LOG_init (log_cb);
+    LOG_printf (LOG_DEBUG, "logger initialized.\n");
 	atexit (IDE_deinit);
     UI_init();
-    LOG_init (log_cb);
 
     // indentation support
     S_IF       = S_Symbol ("IF"      , FALSE);

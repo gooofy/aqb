@@ -10,7 +10,7 @@
 
 #define INDENT_SPACES 4
 
-#define MAX_CON_LINES    128
+#define MAX_CON_LINES     64
 #define MAX_CON_LINE_LEN  80
 
 typedef enum {DEBUG_stateStopped, DEBUG_stateRunning} DEBUG_state;

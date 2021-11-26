@@ -266,9 +266,12 @@ static UI_view UI_View(UBYTE depth, WORD visWidth, BOOL scrollable)
     view->visWidth          = visWidth;
     view->cursorVisible     = FALSE;
 
+    view->event_cb          = NULL;
+
     view->scrollable        = scrollable;
     view->scrollbar         = NULL;
     view->scrollPos         = 0;
+
 
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
 
@@ -334,6 +337,8 @@ static void _view_resize (UI_view view, WORD x, WORD y, WORD w, WORD h)
 
 static void _updateLayout(void)
 {
+    LOG_printf (LOG_DEBUG, "UI: _updateLayout starts\n");
+
     WORD y = g_win->BorderTop;
     WORD w = g_win->Width - g_win->BorderLeft - g_win->BorderRight;
 
@@ -391,7 +396,10 @@ static void _updateLayout(void)
     for (int i = 0; i<NUM_VIEWS; i++)
     {
         if (g_views[i]->visible && g_views[i]->event_cb)
+        {
+            LOG_printf (LOG_DEBUG, "UI: calling event cb for view #%d...\n", i);
             g_views[i]->event_cb(g_views[i], KEY_RESIZE, g_views[i]->event_cb_user_data);
+        }
     }
 
     if (g_glist)
@@ -402,6 +410,8 @@ static void _updateLayout(void)
         GT_BeginRefresh (g_win);
         GT_EndRefresh (g_win, TRUE);
     }
+
+    LOG_printf (LOG_DEBUG, "UI: _updateLayout done\n");
 }
 
 void UI_setFont (int font)
@@ -1265,6 +1275,8 @@ void UI_deinit(void)
 
 bool UI_init (void)
 {
+    LOG_printf (LOG_DEBUG, "UI_init starts.\n");
+
     SysBase = *(APTR *)4L;
 
     // check library versions
@@ -1322,6 +1334,8 @@ bool UI_init (void)
                                  WA_NewLookMenus,  TRUE)))
          cleanexit("Can't open window", RETURN_FAIL);
 
+    LOG_printf (LOG_DEBUG, "UI_init window opened.\n");
+
     UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
     /*
@@ -1349,6 +1363,8 @@ bool UI_init (void)
     g_rp = g_win->RPort;
 
     UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
+
+    LOG_printf (LOG_DEBUG, "UI_init views created.\n");
 
 	/*
      * menu
@@ -1388,6 +1404,7 @@ bool UI_init (void)
 			                                                           TAG_DONE)) )
 		cleanexit("failed to allocate ASL file requester", RETURN_FAIL);
 
+    LOG_printf (LOG_DEBUG, "UI_init complete.\n");
 	return TRUE;
 }
 

@@ -22,31 +22,35 @@ static void _repaintConsole (IDE_instance ed)
      * MAX_CON_LINES-ed->con_rows = 
      *            123                        118
      *
-     *            console view   buffer      console view   buffer
-     *            line  txt                  line txt
-     *            1     l4       [38]        1              [33] 
-     *            2     l3       [39]        2              [34]
-     *            3     l2       [40]        3              [35]
-     *            4     l1       [41]        4              [36]
-     * con_line-> 5     l0       [42]        5              [ con_line - MAX_CON_LINES + offset ]
-     *                                                        42       - 128           + 118 - 1 + i  = 32
+     *            console view   buffer      i console view   buffer
+     *            line  txt                    line txt
+     *            1     l4       [38]        0 1              [33] 
+     *            2     l3       [39]        1 2              [34]
+     *            3     l2       [40]        2 3              [35]
+     *            4     l1       [41]        3 4              [36]
+     * con_line-> 5     l0       [42]        4 5              [ con_line - MAX_CON_LINES + offset + i + 1]
+     *                                                        42       - 128           + 123      + 4   = 41 
      *
      */
 
-    uint16_t offset = UI_getViewScrollPos (view);
+    LOG_printf (LOG_DEBUG, "ide_con: _repaint_console: ed->con_rows=%d\n", ed->con_rows);
+
+    int16_t offset = UI_getViewScrollPos (view);
+
+    ed->con_buf[ed->con_line][ed->con_col]=0;
 
     for (int16_t i=0; i<ed->con_rows; i++)
     {
-        int16_t l = ed->con_line - MAX_CON_LINES + offset - 1 + i;
-        printf ("ide_con: _repaint_console: l = ed->con_line=%d - MAX_CON_LINES=%d + offset=%d -1 + i=%d -> %d\n",
-                               ed->con_line, MAX_CON_LINES, offset, i, l);
+        int16_t l = ed->con_line - MAX_CON_LINES + offset + 1 + i;
 
-        if (l<0)
-            l += MAX_CON_LINES;
+        int16_t l2 = l>=0 ? l : MAX_CON_LINES + l;
 
-        // FIXME
-        //UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+        LOG_printf (LOG_DEBUG, "ide_con: _repaint_console: l = ed->con_line=%d - MAX_CON_LINES=%d + offset=%d + 1 + i=%d -> %d (%d) %s\n",
+                    ed->con_line, MAX_CON_LINES, offset, i, l, l2, ed->con_buf[l2]);
 
+        UI_beginLine (ed->view_console, i+1, 1, ed->con_cols);
+        UI_putstr (ed->view_console, ed->con_buf[l2]);
+        UI_endLine (ed->view_console);
     }
 }
 
@@ -85,12 +89,15 @@ static void _console_event_cb (UI_view view, uint16_t key, void *user_data)
 
 void IDE_conInit (IDE_instance ed)
 {
+    ed->con_line = 0;
+    ed->con_col  = 0;
     ed->view_console = UI_getView (UI_viewConsole);
+    for (int16_t i=0; i<MAX_CON_LINES; i++)
+        ed->con_buf[i][0]=0;
+
     UI_onEventCall (ed->view_console, _console_event_cb, ed);
     _console_size_cb (ed);
     UI_setCursorVisible (ed->view_console, FALSE);
-    ed->con_line = 0;
-    ed->con_col  = 0;
 }
 
 void IDE_conSet (IDE_instance ed, bool visible, bool active)
@@ -111,14 +118,22 @@ void IDE_cprintf (IDE_instance ed, char* format, ...)
 
 void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
 {
+    if (!ed)
+        return;
+
     static char buf[UI_MAX_COLUMNS];
     int l = vsnprintf (buf, UI_MAX_COLUMNS, format, args);
 
     if (!UI_isViewVisible (ed->view_console))
         UI_setViewVisible (ed->view_console, TRUE);
 
-    LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n",
-                buf, ed->con_rows);
+    // scroll to bottom
+
+    int16_t offset = UI_getViewScrollPos (ed->view_console);
+    if (offset != MAX_CON_LINES-ed->con_rows)
+        _console_size_cb (ed);
+
+    LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n", buf, ed->con_rows);
 
     UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
 
