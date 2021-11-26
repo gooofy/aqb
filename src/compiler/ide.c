@@ -2002,6 +2002,10 @@ static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
             UI_setViewVisible (ed->view_console, !UI_isViewVisible (ed->view_console));
             break;
 
+        case KEY_RESIZE:
+            _editor_size_cb (ed->view_editor, ed);
+            break;
+
         default:
             if (!_insertChar(ed, (uint8_t) key))
                 UI_bell();
@@ -2117,7 +2121,6 @@ void IDE_open (string sourcefn)
     g_ide->view_editor          = UI_getView (UI_viewEditor);
     g_ide->view_status          = UI_getView (UI_viewStatusBar);
 
-    UI_onSizeChangeCall (g_ide->view_editor, _editor_size_cb, g_ide);
     UI_onEventCall (g_ide->view_editor, _editor_event_cb, g_ide);
 
     IDE_conInit(g_ide);

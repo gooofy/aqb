@@ -13,22 +13,46 @@ static void _repaintConsole (IDE_instance ed)
 {
     UI_view view = ed->view_console;
     UI_clearView(view);
-    // FIXME: unfinished
-#if 0
+
+    /*
+     * MAX_CON_LINES = 128
+     * ed->con_rows  = 5
+     *
+     * offset =               
+     * MAX_CON_LINES-ed->con_rows = 
+     *            123                        118
+     *
+     *            console view   buffer      console view   buffer
+     *            line  txt                  line txt
+     *            1     l4       [38]        1              [33] 
+     *            2     l3       [39]        2              [34]
+     *            3     l2       [40]        3              [35]
+     *            4     l1       [41]        4              [36]
+     * con_line-> 5     l0       [42]        5              [ con_line - MAX_CON_LINES + offset ]
+     *                                                        42       - 128           + 118 - 1 + i  = 32
+     *
+     */
+
     uint16_t offset = UI_getViewScrollPos (view);
 
     for (int16_t i=0; i<ed->con_rows; i++)
     {
-        int16_t l = ed->conoffset+i;
+        int16_t l = ed->con_line - MAX_CON_LINES + offset - 1 + i;
+        printf ("ide_con: _repaint_console: l = ed->con_line=%d - MAX_CON_LINES=%d + offset=%d -1 + i=%d -> %d\n",
+                               ed->con_line, MAX_CON_LINES, offset, i, l);
 
-        UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+        if (l<0)
+            l += MAX_CON_LINES;
+
+        // FIXME
+        //UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+
     }
-#endif
 }
 
-static void _console_size_cb (UI_view view, void *user_data)
+static void _console_size_cb (IDE_instance ed)
 {
-	IDE_instance ed = (IDE_instance) user_data;
+    UI_view view = ed->view_console;
 
     LOG_printf (LOG_DEBUG, "IDE: _console_size_cb called.\n");
 
@@ -48,6 +72,12 @@ static void _console_event_cb (UI_view view, uint16_t key, void *user_data)
             LOG_printf (LOG_INFO, "\n\n*** PROGRAM EXITED ***\n\n");
             IDE_conSet (ed, /*visible=*/TRUE, /*active=*/FALSE);
             break;
+        case KEY_RESIZE:
+            _console_size_cb (ed);
+            break;
+        case KEY_SCROLLV:
+            _repaintConsole (ed);
+            break;
         default:
             UI_bell();
     }
@@ -56,9 +86,8 @@ static void _console_event_cb (UI_view view, uint16_t key, void *user_data)
 void IDE_conInit (IDE_instance ed)
 {
     ed->view_console = UI_getView (UI_viewConsole);
-    UI_onSizeChangeCall (ed->view_console, _console_size_cb, ed);
     UI_onEventCall (ed->view_console, _console_event_cb, ed);
-    _console_size_cb (ed->view_console, ed);
+    _console_size_cb (ed);
     UI_setCursorVisible (ed->view_console, FALSE);
     ed->con_line = 0;
     ed->con_col  = 0;
@@ -91,7 +120,6 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
     LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n",
                 buf, ed->con_rows);
 
-    // fixme: scroll
     UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
 
     for (int i =0; i<l; i++)
@@ -154,7 +182,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
     if (!UI_isViewVisible (view))
         UI_setViewVisible (view, TRUE);
 
-    uint16_t view_cols, view_rows;
+    int16_t view_cols, view_rows;
     UI_getViewSize (view, &view_rows, &view_cols);
 
     int16_t scroll_offset=0;

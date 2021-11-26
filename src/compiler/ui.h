@@ -10,7 +10,6 @@
 #define UI_MIN_ROWS          5
 #define UI_MAX_ROWS          256
 
-#define KEY_ESC              27
 #define KEY_CTRL_A            1
 #define KEY_CTRL_B            2
 #define KEY_CTRL_C            3
@@ -28,6 +27,7 @@
 #define KEY_CTRL_S           19
 #define KEY_CTRL_U           21
 #define KEY_CTRL_Y           25
+#define KEY_ESC              27
 #define KEY_DEL             127
 #define KEY_CURSOR_LEFT    1000
 #define KEY_CURSOR_RIGHT   1001
@@ -71,6 +71,10 @@
 // debugger
 #define KEY_STOPPED        2000
 
+// views
+#define KEY_RESIZE         3000
+#define KEY_SCROLLV        3001
+
 #define KEY_UNKNOWN1       9993
 #define KEY_UNKNOWN2       9994
 #define KEY_UNKNOWN3       9995
@@ -93,9 +97,9 @@ typedef enum
 } UI_viewId;
 
 UI_view   UI_getView            (UI_viewId id);
-void      UI_getViewSize        (UI_view view, uint16_t *rows, uint16_t *cols);
+void      UI_getViewSize        (UI_view view, int16_t *rows, int16_t *cols);
 void      UI_cfgViewScroller    (UI_view view, uint16_t top, uint16_t total, uint16_t visible);
-void      UI_getViewScrollPos   (UI_view view);
+uint16_t  UI_getViewScrollPos   (UI_view view);
 void      UI_setColorScheme     (int scheme);
 void      UI_setFont            (int font);
 void      UI_bell               (void);
@@ -120,11 +124,6 @@ void      UI_clearView          (UI_view view);
 
 void      UI_scrollUp           (UI_view view);
 void      UI_scrollDown         (UI_view view);
-
-// FIXME: remove extern uint16_t UI_size_cols, UI_size_rows;
-
-typedef void (*UI_size_cb) (UI_view view, void *user_data);
-void      UI_onSizeChangeCall   (UI_view view, UI_size_cb cb, void *user_data);
 
 typedef void (*UI_event_cb) (UI_view view, uint16_t event, void *user_data);
 void      UI_onEventCall        (UI_view view, UI_event_cb cb, void *user_data);

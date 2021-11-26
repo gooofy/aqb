@@ -127,14 +127,12 @@ struct UI_view_
     WORD                  cursorRow;
     WORD                  cursorCol;
 
-    UI_size_cb            size_cb;
-    void                 *size_cb_user_data;
-
     UI_event_cb           event_cb;
     void                 *event_cb_user_data;
 
     bool                  scrollable;
     struct Gadget        *scrollbar;
+    uint16_t              scrollPos;
 };
 
 static struct Window        *g_win               = NULL;
@@ -268,10 +266,9 @@ static UI_view UI_View(UBYTE depth, WORD visWidth, BOOL scrollable)
     view->visWidth          = visWidth;
     view->cursorVisible     = FALSE;
 
-    view->size_cb           = NULL;
-    view->size_cb_user_data = NULL;
-
     view->scrollable        = scrollable;
+    view->scrollbar         = NULL;
+    view->scrollPos         = 0;
 
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
 
@@ -298,7 +295,7 @@ UI_view UI_getView (UI_viewId id)
     return g_views[id];
 }
 
-void UI_getViewSize (UI_view view, uint16_t *rows, uint16_t *cols)
+void UI_getViewSize (UI_view view, int16_t *rows, int16_t *cols)
 {
     *cols = view->renderBMmaxCols;
     *rows = view->h/g_fontHeight;
@@ -307,8 +304,14 @@ void UI_getViewSize (UI_view view, uint16_t *rows, uint16_t *cols)
 void UI_cfgViewScroller (UI_view view, uint16_t top, uint16_t total, uint16_t visible)
 {
     assert (view->scrollable);
-    GT_SetGadgetAttrs (view->scrollbar, g_win, NULL, 
+    view->scrollPos = top;
+    GT_SetGadgetAttrs (view->scrollbar, g_win, NULL,
                        GTSC_Top, top, GTSC_Total, total, GTSC_Visible, visible, TAG_END);
+}
+
+uint16_t UI_getViewScrollPos (UI_view view)
+{
+    return view->scrollPos;
 }
 
 void UI_setColorScheme (int theme)
@@ -348,10 +351,7 @@ static void _updateLayout(void)
         g_gad = CreateContext (&g_glist);
     }
 
-    SetAPen(g_rp, 3);
-    SetBPen(g_rp, 3);
-    SetDrMd(g_rp, JAM1);
-    RectFill (g_rp, g_win->Width - g_win->BorderRight, g_win->BorderTop, g_win->Width - 1, g_win->Height - 1 - 10);
+    RefreshWindowFrame (g_win);
 
     if (g_views[UI_viewEditor]->visible)
     {
@@ -361,8 +361,9 @@ static void _updateLayout(void)
         {
             g_gad = _createGadgetTags (SCROLLER_KIND, g_gad,
                                        g_win->Width - g_win->BorderRight - g_win->BorderLeft,
-                                       y-g_win->BorderTop, g_win->BorderRight, editor_h, "V", 0, 0,
-                                       GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows,10, PGA_Freedom, LORIENT_VERT, TAG_END);
+                                       y-g_win->BorderTop, g_win->BorderRight, editor_h, "V", UI_viewEditor, 0,
+                                       GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows, 10, PGA_Freedom, LORIENT_VERT,
+                                       GA_RelVerify, TRUE, TAG_END);
             g_views[UI_viewEditor]->scrollbar = g_gad;
         }
 
@@ -380,8 +381,8 @@ static void _updateLayout(void)
         {
             g_gad = _createGadgetTags (SCROLLER_KIND, g_gad,
                                        g_win->Width - g_win->BorderRight - g_win->BorderLeft,
-                                       y-g_win->BorderTop, g_win->BorderRight, console_h-8, "V", 0, 0,
-                                       GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows,10, PGA_Freedom, LORIENT_VERT, TAG_END);
+                                       y-g_win->BorderTop, g_win->BorderRight, console_h-8, "V", UI_viewConsole, 0,
+                                       GTSC_Total, 1000, GTSC_Visible, 25, GTSC_Arrows, 10, PGA_Freedom, LORIENT_VERT, GA_RelVerify, TRUE, TAG_END);
             g_views[UI_viewConsole]->scrollbar = g_gad;
         }
 
@@ -389,8 +390,8 @@ static void _updateLayout(void)
 
     for (int i = 0; i<NUM_VIEWS; i++)
     {
-        if (g_views[i]->visible && g_views[i]->size_cb)
-            g_views[i]->size_cb(g_views[i], g_views[i]->size_cb_user_data);
+        if (g_views[i]->visible && g_views[i]->event_cb)
+            g_views[i]->event_cb(g_views[i], KEY_RESIZE, g_views[i]->event_cb_user_data);
     }
 
     if (g_glist)
@@ -430,7 +431,6 @@ static uint16_t nextEvent(void)
 {
     static eventState state = esWait;
 
-
     ULONG windowsig = 1 << g_win->UserPort->mp_SigBit;
 	ULONG debugsig  = 1 << g_debugPort->mp_SigBit;
     uint16_t res = KEY_NONE;
@@ -446,18 +446,16 @@ static uint16_t nextEvent(void)
         case esGetWin:
             if (signals & windowsig)
             {
-                //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): GetMsg...\n");
-                struct IntuiMessage *winmsg;
-                winmsg = (struct IntuiMessage *)GetMsg(g_win->UserPort);
+                //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): GetIMsg...\n");
+                struct IntuiMessage *winmsg = GT_GetIMsg(g_win->UserPort);
                 if (winmsg)
                 {
-                    //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got a message, class=%d\n", winmsg->Class);
+                    LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): got a message, class=0x%x\n", winmsg->Class);
                     switch (winmsg->Class)
 				    {
                         case IDCMP_REFRESHWINDOW:
-                            // FIXME: gadtools
-                            BeginRefresh (g_win);
-                            EndRefresh (g_win, TRUE);
+                            GT_BeginRefresh (g_win);
+                            GT_EndRefresh (g_win, TRUE);
 				    		break;
 
                         case IDCMP_CLOSEWINDOW:
@@ -570,8 +568,28 @@ static uint16_t nextEvent(void)
                             }
                             break;
                         }
+
+                        case IDCMP_GADGETUP:
+                        {
+                            LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): IDCMP_GADGETUP, code=%d\n", winmsg->Code);
+                            struct Gadget *gad = (struct Gadget *)winmsg->IAddress;
+                            switch (gad->GadgetID)
+                            {
+                                case UI_viewEditor:
+                                case UI_viewStatusBar:
+                                case UI_viewConsole:
+                                {
+                                    UI_view view = g_views[gad->GadgetID];
+                                    view->scrollPos = winmsg->Code;
+                                    if (view->visible && view->event_cb)
+                                        view->event_cb(view, KEY_SCROLLV, view->event_cb_user_data);
+                                    break;
+                                }
+                            }
+                            break;
+                        }
                     }
-                    ReplyMsg((struct Message *)winmsg);
+                    GT_ReplyIMsg(winmsg);
                     break;
                 }
                 else
@@ -984,12 +1002,6 @@ void UI_scrollDown (UI_view view)
 
     if (view->cursorVisible && (view==g_active_view) )
         _drawCursor(view);
-}
-
-void UI_onSizeChangeCall (UI_view view, UI_size_cb cb, void *user_data)
-{
-    view->size_cb = cb;
-    view->size_cb_user_data = user_data;
 }
 
 void UI_onEventCall (UI_view view, UI_event_cb cb, void *user_data)

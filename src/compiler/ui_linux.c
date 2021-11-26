@@ -179,7 +179,7 @@ UI_view UI_getView (UI_viewId id)
     assert(FALSE); // FIXME
 }
 
-void  UI_getViewSize (UI_view view, uint16_t *rows, uint16_t *cols)
+void  UI_getViewSize (UI_view view, int16_t *rows, int16_t *cols)
 {
     assert (FALSE); // FIXME
 }
@@ -272,14 +272,7 @@ void UI_scrollDown (UI_view view)
     assert(FALSE);
 }
 
-void UI_onSizeChangeCall (UI_view view, UI_size_cb cb, void *user_data)
-{
-    // FIXME
-    assert(FALSE);
-}
-
 #if 0
-
 static uint16_t UI_getch (void)
 {
     int nread;
@@ -471,6 +464,13 @@ void UI_cfgViewScroller (UI_view view, uint16_t top, uint16_t total, uint16_t vi
 {
     // FIXME
     assert(FALSE);
+}
+
+uint16_t UI_getViewScrollPos (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+    return 0;
 }
 
 void UI_setColorScheme (int scheme)

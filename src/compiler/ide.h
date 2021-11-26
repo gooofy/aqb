@@ -54,7 +54,7 @@ struct IDE_instance_
     IDE_line           cursor_line;
 
     // window, scrolling, repaint
-	uint16_t           window_width, window_height;
+	int16_t            window_width, window_height;
 	int16_t            scrolloff_col, scrolloff_row;
     IDE_line           scrolloff_line;
     int16_t            scrolloff_line_row;
@@ -87,10 +87,10 @@ struct IDE_instance_
 
     // console view
     UI_view            view_console;
-    uint16_t           con_rows, con_cols;
+    int16_t            con_rows, con_cols;                          // current size of console view
     char               con_buf  [MAX_CON_LINES][MAX_CON_LINE_LEN];
     char               con_style[MAX_CON_LINES][MAX_CON_LINE_LEN];
-    uint16_t           con_line, con_col;
+    int16_t            con_line, con_col;                           // curent caret line/col in console buffer
 };
 
 /*
