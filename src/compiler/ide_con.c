@@ -116,48 +116,150 @@ void IDE_cprintf (IDE_instance ed, char* format, ...)
     va_end(args);
 }
 
+#define CSI_BUF_LEN 16
+
+// provides simplistic ANSI terminal emulation
+
 void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
 {
     if (!ed)
         return;
 
+    UI_view view = ed->view_console;
+
     static char buf[UI_MAX_COLUMNS];
     int l = vsnprintf (buf, UI_MAX_COLUMNS, format, args);
 
-    if (!UI_isViewVisible (ed->view_console))
-        UI_setViewVisible (ed->view_console, TRUE);
+    if (!UI_isViewVisible (view))
+        UI_setViewVisible (view, TRUE);
 
     // scroll to bottom
 
-    int16_t offset = UI_getViewScrollPos (ed->view_console);
+    int16_t offset = UI_getViewScrollPos (view);
     if (offset != MAX_CON_LINES-ed->con_rows)
         _console_size_cb (ed);
 
     LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n", buf, ed->con_rows);
 
-    UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+    UI_beginLine (view, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+
+    bool     bCSI = FALSE;
+    char     csiBuf[CSI_BUF_LEN];
+    uint16_t csiBufLen=0;
 
     for (int i =0; i<l; i++)
     {
         char c = buf[i];
         if ((c=='\n') || (ed->con_col>=MAX_CON_LINE_LEN-1))
         {
-            UI_endLine (ed->view_console);
-            UI_scrollUp  (ed->view_console);
+            UI_endLine (view);
+            UI_scrollUp  (view);
             ed->con_buf[ed->con_line][ed->con_col]=0;
             ed->con_line = (ed->con_line+1) % MAX_CON_LINES;
             ed->con_col=0;
-            UI_beginLine (ed->view_console, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+            UI_beginLine (view, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
         }
         else
         {
+
+// -----------------------------------------------------------------------------------------------
+
+            uint8_t uc = (uint8_t) c;
+            if (!bCSI)
+            {
+                if (uc==0x9b)
+                {
+                    bCSI = TRUE;
+                    continue;
+                }
+            }
+            else
+            {
+                /*
+                0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
+                0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
+                0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
+                */
+                if (uc>=0x40)
+                {
+                    //LOG_printf (LOG_DEBUG, "!CSI seq detected: %s%c\n", csiBuf, c);
+                    //printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
+
+                    switch (c)
+                    {
+                        case 'p': // csr on/off
+                            if (csiBufLen == 2)
+                            {
+                                switch (csiBuf[0])
+                                {
+                                    case '0':
+                                       UI_setCursorVisible (view, FALSE);
+                                       break;
+                                    case '1':
+                                       UI_setCursorVisible (view, TRUE);
+                                       break;
+                                }
+                            }
+                            break;
+                        case 'm': // presentation
+                            if (csiBufLen == 1)
+                            {
+                                switch (csiBuf[0])
+                                {
+                                    case '0':
+                                        UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
+                                       break;
+                                }
+                            }
+                            else
+                            {
+                                if (csiBufLen == 2)
+                                {
+                                    uint8_t color = (csiBuf[0]-'0')*10+(csiBuf[1]-'0');
+                                    //printf ("setting color %d\n", color);
+                                    switch (color)
+                                    {
+                                        case 30: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_0); break;
+                                        case 31: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_1); break;
+                                        case 32: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_2); break;
+                                        case 33: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_3); break;
+                                        case 34: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_4); break;
+                                        case 35: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_5); break;
+                                        case 36: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_6); break;
+                                        case 37: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_7); break;
+                                        // FIXME: remove case 30: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 31: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 32: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 33: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 34: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 35: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 36: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
+                                        // FIXME: remove case 37: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+
+                    bCSI = FALSE;
+                    csiBufLen = 0;
+                }
+                else
+                {
+                    if (csiBufLen<CSI_BUF_LEN)
+                        csiBuf[csiBufLen++] = c;
+                }
+                continue;
+            }
+
+// -----------------------------------------------------------------------------------------------
             ed->con_buf[ed->con_line][ed->con_col]=c;
-            UI_putc(ed->view_console, c);
+            UI_putc(view, c);
             ed->con_col++;
         }
     }
-    UI_endLine (ed->view_console);
-    //UI_moveCursor(ed->view_console, ed->con_rows, col+1);
+    UI_endLine (view);
+    //UI_moveCursor(view, ed->con_rows, col+1);
 }
 
 static void _readline_repaint(UI_view view, char *buf, int16_t cursor_pos, int16_t *scroll_offset, int16_t row, int16_t col, int16_t width)

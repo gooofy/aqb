@@ -89,6 +89,15 @@
 #define UI_TEXT_STYLE_INVERSE  3
 #define UI_TEXT_STYLE_DIALOG   4
 
+#define UI_TEXT_STYLE_ANSI_0   5
+#define UI_TEXT_STYLE_ANSI_1   6
+#define UI_TEXT_STYLE_ANSI_2   7
+#define UI_TEXT_STYLE_ANSI_3   8
+#define UI_TEXT_STYLE_ANSI_4   9
+#define UI_TEXT_STYLE_ANSI_5  10
+#define UI_TEXT_STYLE_ANSI_6  11
+#define UI_TEXT_STYLE_ANSI_7  12
+
 typedef struct UI_view_ *UI_view;
 
 typedef enum

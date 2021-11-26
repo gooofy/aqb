@@ -182,8 +182,8 @@ static struct FileRequester *g_ASLFileReq   = NULL;
 typedef struct
 {
     char   *name;
-    uint8_t fg[5];
-    uint8_t bg[5];
+    uint8_t fg[13];
+    uint8_t bg[13];
 } UI_theme_t;
 
 #define NUM_THEMES 2
@@ -191,15 +191,15 @@ typedef struct
 static UI_theme_t g_themes[NUM_THEMES] = {
     {
         "Dark",
-        //  TEXT KEYWORD COMMENT INVERSE DIALOG
-        {      2,      3,      0,      1,     1 },
-        {      1,      1,      1,      0,     3 }
+        //  TEXT KEYWORD COMMENT INVERSE DIALOG ANSI0 ANSI1 ANSI2 ANSI3 ANSI4 ANSI5 ANSI6 ANSI7
+        {      2,      3,      0,      1,     1,    0,    1,    2,    3,    0,    1,    2,    3  },
+        {      1,      1,      1,      0,     3,    1,    1,    1,    1,    1,    1,    1,    1  }
     },
     {
         "Light",
-        //  TEXT KEYWORD COMMENT INVERSE DIALOG
-        {      1,      2,      3,      0,     0 },
-        {      0,      0,      0,      1,     3 }
+        //  TEXT KEYWORD COMMENT INVERSE DIALOG ANSI0 ANSI1 ANSI2 ANSI3 ANSI4 ANSI5 ANSI6 ANSI7
+        {      1,      2,      3,      0,     0,    0,    1,    2,    3,    0,    1,    2,    3  },
+        {      0,      0,      0,      1,     3,    0,    0,    0,    0,    0,    0,    0,    0  }
     },
 };
 
@@ -710,96 +710,10 @@ static void _drawCursor(UI_view view)
     SetDrMd (g_rp, DrawMode);
 }
 
-#define CSI_BUF_LEN 16
-
 void UI_putc(UI_view view, char c)
 {
     if (!view->visible)
         return;
-
-    static BOOL bCSI = FALSE;
-    static char csiBuf[CSI_BUF_LEN];
-    static uint16_t csiBufLen=0;
-    UBYTE uc = (UBYTE) c;
-    //printf ("UI_putc: %c[%d]\n", c, uc);
-    if (!bCSI)
-    {
-        if (uc==0x9b)
-        {
-            bCSI = TRUE;
-            return;
-        }
-    }
-    else
-    {
-        /*
-        0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
-        0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
-        0x40–0x7E (ASCII @A–Z[\]^_`a–z{|}~)          final byte
-        */
-        if (uc>=0x40)
-        {
-            //LOG_printf (LOG_DEBUG, "!CSI seq detected: %s%c\n", csiBuf, c);
-            //printf ("CSI seq detected: %s%c csiBufLen=%d\n", csiBuf, c, csiBufLen);
-
-            switch (c)
-            {
-                case 'p': // csr on/off
-                    if (csiBufLen == 2)
-                    {
-                        switch (csiBuf[0])
-                        {
-                            case '0':
-                               UI_setCursorVisible (view, FALSE);
-                               break;
-                            case '1':
-                               UI_setCursorVisible (view, TRUE);
-                               break;
-                        }
-                    }
-                    break;
-                case 'm': // presentation
-                    if (csiBufLen == 1)
-                    {
-                        switch (csiBuf[0])
-                        {
-                            case '0':
-                               _setTextColor (view, g_themes[g_theme].fg[0], g_themes[g_theme].bg[0]);
-                               break;
-                        }
-                    }
-                    else
-                    {
-                        if (csiBufLen == 2)
-                        {
-                            uint8_t color = (csiBuf[0]-'0')*10+(csiBuf[1]-'0');
-                            //printf ("setting color %d\n", color);
-                            switch (color)
-                            {
-                                case 30: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
-                                case 31: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
-                                case 32: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
-                                case 33: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
-                                case 34: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
-                                case 35: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
-                                case 36: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
-                                case 37: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
-                            }
-                        }
-                    }
-                    break;
-            }
-
-            bCSI = FALSE;
-            csiBufLen = 0;
-        }
-        else
-        {
-            if (csiBufLen<CSI_BUF_LEN)
-                csiBuf[csiBufLen++] = c;
-        }
-        return;
-    }
 
     if (view->renderBMcurCol >= view->renderBMmaxCols)
         return;
