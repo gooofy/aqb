@@ -109,8 +109,7 @@ struct UI_view_
     WORD                  visWidth;
     BOOL                  renderBMPE[3]     ; // PE: PlaneEnabled
     BOOL                  renderBMPEI[3]    ; // PE: PlaneEnabledInverse
-    UBYTE                 renderBMcurFG;
-    UBYTE                 renderBMcurBG;
+    UBYTE                 renderBMCurStyle;
 
     struct BitMap        *renderBM;
     UBYTE                *renderBMPtr[3];
@@ -271,7 +270,6 @@ static UI_view UI_View(UBYTE depth, WORD visWidth, BOOL scrollable)
     view->scrollable        = scrollable;
     view->scrollbar         = NULL;
     view->scrollPos         = 0;
-
 
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
 
@@ -663,14 +661,17 @@ static void _setTextColor (UI_view view, uint8_t fg, uint8_t bg)
         case 7: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
         default: assert(FALSE);
     }
-
-    view->renderBMcurFG = fg;
-    view->renderBMcurBG = bg;
 }
 
-void UI_setTextStyle (UI_view view, uint16_t style)
+void UI_setTextStyle (UI_view view, uint8_t style)
 {
     _setTextColor (view, g_themes[g_theme].fg[style], g_themes[g_theme].bg[style]);
+    view->renderBMCurStyle = style;
+}
+
+uint8_t UI_getTextStyle (UI_view view)
+{
+    return view->renderBMCurStyle;
 }
 
 void UI_beginLine (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols)

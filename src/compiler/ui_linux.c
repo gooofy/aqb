@@ -65,7 +65,7 @@ uint16_t UI_waitkey (void)
 #endif
     return 0;
 }
-void UI_setTextStyle (UI_view view, uint16_t style)
+void UI_setTextStyle (UI_view view, uint8_t style)
 {
     assert(FALSE); // FIXME
 #if 0
@@ -95,6 +95,13 @@ void UI_setTextStyle (UI_view view, uint16_t style)
             assert(FALSE);
     }
 #endif
+}
+
+uint8_t UI_getTextStyle (UI_view view)
+{
+    // FIXME
+    assert(FALSE);
+    return 0;
 }
 
 void UI_beginLine (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols)

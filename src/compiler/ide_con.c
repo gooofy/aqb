@@ -38,6 +38,8 @@ static void _repaintConsole (IDE_instance ed)
     int16_t offset = UI_getViewScrollPos (view);
 
     ed->con_buf[ed->con_line][ed->con_col]=0;
+    uint8_t s = UI_TEXT_STYLE_TEXT;
+    UI_setTextStyle (view, s);
 
     for (int16_t i=0; i<ed->con_rows; i++)
     {
@@ -49,7 +51,19 @@ static void _repaintConsole (IDE_instance ed)
                     ed->con_line, MAX_CON_LINES, offset, i, l, l2, ed->con_buf[l2]);
 
         UI_beginLine (ed->view_console, i+1, 1, ed->con_cols);
-        UI_putstr (ed->view_console, ed->con_buf[l2]);
+
+        int16_t bufl = strlen(ed->con_buf[l2]);
+        for (int16_t j=0; j<bufl; j++)
+        {
+            uint8_t s2 = ed->con_style[l2][j];
+            if (s2 != s)
+            {
+                s = s2;
+                UI_setTextStyle (view, s);
+            }
+            UI_putc (ed->view_console, ed->con_buf[l2][j]);
+        }
+
         UI_endLine (ed->view_console);
     }
 }
@@ -147,6 +161,8 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
     char     csiBuf[CSI_BUF_LEN];
     uint16_t csiBufLen=0;
 
+    char s = UI_getTextStyle (view);
+
     for (int i =0; i<l; i++)
     {
         char c = buf[i];
@@ -162,8 +178,6 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
         else
         {
 
-// -----------------------------------------------------------------------------------------------
-
             uint8_t uc = (uint8_t) c;
             if (!bCSI)
             {
@@ -175,6 +189,7 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
             }
             else
             {
+                char s2 = s;
                 /*
                 0x30–0x3F (ASCII 0–9:;<=>?)                  parameter bytes
                 0x20–0x2F (ASCII space and !\"#$%&'()*+,-./) intermediate bytes
@@ -206,9 +221,7 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
                             {
                                 switch (csiBuf[0])
                                 {
-                                    case '0':
-                                        UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
-                                       break;
+                                    case '0': s2 = UI_TEXT_STYLE_TEXT; break;
                                 }
                             }
                             else
@@ -219,22 +232,14 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
                                     //printf ("setting color %d\n", color);
                                     switch (color)
                                     {
-                                        case 30: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_0); break;
-                                        case 31: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_1); break;
-                                        case 32: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_2); break;
-                                        case 33: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_3); break;
-                                        case 34: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_4); break;
-                                        case 35: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_5); break;
-                                        case 36: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_6); break;
-                                        case 37: UI_setTextStyle (view, UI_TEXT_STYLE_ANSI_7); break;
-                                        // FIXME: remove case 30: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 31: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 32: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 33: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 34: _setTextColor (view, 0, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 35: _setTextColor (view, 1, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 36: _setTextColor (view, 2, g_themes[g_theme].bg[0]); break;
-                                        // FIXME: remove case 37: _setTextColor (view, 3, g_themes[g_theme].bg[0]); break;
+                                        case 30: s2 = UI_TEXT_STYLE_ANSI_0; break;
+                                        case 31: s2 = UI_TEXT_STYLE_ANSI_1; break;
+                                        case 32: s2 = UI_TEXT_STYLE_ANSI_2; break;
+                                        case 33: s2 = UI_TEXT_STYLE_ANSI_3; break;
+                                        case 34: s2 = UI_TEXT_STYLE_ANSI_4; break;
+                                        case 35: s2 = UI_TEXT_STYLE_ANSI_5; break;
+                                        case 36: s2 = UI_TEXT_STYLE_ANSI_6; break;
+                                        case 37: s2 = UI_TEXT_STYLE_ANSI_7; break;
                                     }
                                 }
                             }
@@ -249,11 +254,16 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
                     if (csiBufLen<CSI_BUF_LEN)
                         csiBuf[csiBufLen++] = c;
                 }
+                if (s2 != s)
+                {
+                    s = s2;
+                    UI_setTextStyle (view, s);
+                }
                 continue;
             }
 
-// -----------------------------------------------------------------------------------------------
-            ed->con_buf[ed->con_line][ed->con_col]=c;
+            ed->con_buf  [ed->con_line][ed->con_col] = c;
+            ed->con_style[ed->con_line][ed->con_col] = s;
             UI_putc(view, c);
             ed->con_col++;
         }
