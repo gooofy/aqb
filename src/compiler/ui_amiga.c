@@ -1232,7 +1232,7 @@ bool UI_init (void)
                                  WA_Top,           sc->BarHeight+1,
                                  WA_Width,         visWidth,
                                  WA_Height,        visHeight-sc->BarHeight-1,
-                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE | IDCMP_GADGETUP | IDCMP_REQCLEAR,
+                                 WA_IDCMP,         IDCMP_MENUPICK | IDCMP_RAWKEY | IDCMP_CLOSEWINDOW | IDCMP_NEWSIZE | IDCMP_GADGETUP | IDCMP_GADGETDOWN,
                                  WA_Backdrop,      FALSE,
                                  WA_SmartRefresh,  TRUE,
                                  WA_Activate,      TRUE,
