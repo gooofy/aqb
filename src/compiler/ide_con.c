@@ -276,11 +276,13 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
         }
     }
     UI_endLine (view);
-    //UI_moveCursor(view, ed->con_rows, col+1);
+    UI_moveCursor(view, ed->con_rows, ed->con_col+1);
 }
 
-static void _readline_repaint(UI_view view, char *buf, int16_t cursor_pos, int16_t *scroll_offset, int16_t row, int16_t col, int16_t width)
+static void _readline_repaint(IDE_instance ed, char *buf, int16_t cursor_pos, int16_t *scroll_offset, int16_t row, int16_t col, int16_t width)
 {
+    UI_view view = ed->view_console;
+    _scrollToBottom (ed);
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
 
     int16_t cp=0;
@@ -295,6 +297,7 @@ static void _readline_repaint(UI_view view, char *buf, int16_t cursor_pos, int16
             *scroll_offset += 1;
     }
 
+    //LOG_printf (LOG_DEBUG, "_readline_repaint: UI_beginLine col=%d, width=%d\n", col, width);
     UI_beginLine (view, row, col, width);
     int16_t l = strlen(buf);
     for (uint16_t c = 0; c<width; c++)
@@ -330,6 +333,8 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
 
     uint16_t width = view_cols-col-1;
 
+    //LOG_printf (LOG_DEBUG, "IDE_readline: view_cols=%d, col=%d, width=%d\n", view_cols, col, width);
+
     bool finished = FALSE;
 
     while (!finished)
@@ -341,7 +346,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                 if (cursor_pos>0)
                 {
                     cursor_pos--;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                    _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -353,7 +358,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                 if (cursor_pos<(strlen(buf)))
                 {
                     cursor_pos++;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                    _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -363,12 +368,12 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
 
             case KEY_HOME:
                 cursor_pos = 0;
-                _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 break;
 
             case KEY_END:
                 cursor_pos = strlen(buf);
-                _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 break;
 
             case KEY_BACKSPACE:
@@ -379,7 +384,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                         buf[i-1] = buf[i];
                     buf[l-1] = 0;
                     cursor_pos--;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                    _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -395,7 +400,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                     for (uint16_t i=cursor_pos; i<l-1; i++)
                         buf[i] = buf[i+1];
                     buf[l-1] = 0;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                    _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -423,7 +428,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                     buf[cursor_pos] = event;
                     buf[l+1] = 0;
                     cursor_pos++;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
+                    _readline_repaint(ed, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
