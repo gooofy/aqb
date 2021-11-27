@@ -109,6 +109,8 @@ static UWORD                g_dbgSR    = 0;
 static ULONG                g_dbgPC    = 0;
 static UWORD                g_dbgFMT   = 0;
 static struct dbgState      g_dbgStateBuf;
+static struct Message      *g_trapMsg   = NULL;
+static BOOL                 g_terminate = FALSE;
 
 static BOOL has_fpu         = FALSE;
 static BOOL has_68060_or_up = FALSE;
@@ -1081,6 +1083,7 @@ static void _debug(struct DebugMsg *msg)
 
         if (cmd[0] == 'c')                          // continue
         {
+            g_dbgEnv.state = DEBUG_stateRunning;
             ReplyMsg (&msg->msg);
             break;
         }
@@ -1208,7 +1211,17 @@ uint16_t DEBUG_handleMessages(void)
                         ReplyMsg (&msg->msg);
                         break;
                     case DEBUG_CMD_TRAP:
-                        _debug (msg);
+                        if (g_terminate)
+                        {
+                            g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
+                            ReplyMsg (&msg->msg);
+                        }
+                        else
+                        {
+                            g_dbgEnv.state = DEBUG_stateTrapped;
+                            g_trapMsg = &msg->msg;
+                            _debug (msg);
+                        }
                         break;
                 }
             }
@@ -1278,11 +1291,27 @@ void DEBUG_freeze (void)
 }
 #endif
 
-void DEBUG_break (void)
+void DEBUG_break (bool waitForTermination)
 {
-	LOG_printf (LOG_INFO, "DEBUG_break: sending CTRL+C signal to child\n");
+    switch (g_dbgEnv.state)
+    {
+        case DEBUG_stateStopped:
+            return;
 
-    Signal (&g_dbgEnv.childProc->pr_Task, SIGBREAKF_CTRL_C);
+        case DEBUG_stateRunning:
+            LOG_printf (LOG_INFO, "DEBUG_break: sending CTRL+C signal to child\n");
+            Signal (&g_dbgEnv.childProc->pr_Task, SIGBREAKF_CTRL_C);
+            break;
+
+        case DEBUG_stateTrapped:
+            g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
+            ReplyMsg (g_trapMsg);
+            break;
+
+    }
+
+    if (waitForTermination)
+        UI_waitDebugTerm();
 }
 
 void DEBUG_init (IDE_instance ide, struct MsgPort *debugPort)

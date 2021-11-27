@@ -634,6 +634,16 @@ uint16_t UI_waitkey (void)
     }
 }
 
+void UI_waitDebugTerm (void)
+{
+    while (TRUE)
+    {
+        uint16_t k = nextEvent();
+        if (k == KEY_STOPPED)
+            return;
+    }
+}
+
 static void _setTextColor (UI_view view, uint8_t fg, uint8_t bg)
 {
     switch (fg)

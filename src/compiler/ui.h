@@ -114,6 +114,7 @@ void      UI_setFont            (int font);
 void      UI_bell               (void);
 void      UI_toFront            (void);
 uint16_t  UI_waitkey            (void);
+void      UI_waitDebugTerm      (void);
 
 void      UI_setTextStyle       (UI_view view, uint8_t style);
 uint8_t   UI_getTextStyle       (UI_view view);

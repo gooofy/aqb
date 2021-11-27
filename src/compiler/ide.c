@@ -1513,7 +1513,7 @@ static void _compileAndRun(IDE_instance ed)
 #ifdef __amigaos__
     if (DEBUG_getState() != DEBUG_stateStopped)
     {
-        DEBUG_break();
+        DEBUG_break(/*waitForTermination=*/FALSE);
         return;
     }
 #endif
@@ -2044,6 +2044,16 @@ static void IDE_deinit(void)
     if (done)
         return;
     done = TRUE;
+
+#ifdef __amigaos__
+    if (DEBUG_getState() != DEBUG_stateStopped)
+    {
+        LOG_printf (LOG_DEBUG, "IDE_deinit -> DEBUG_terminate()\n");
+        //U_delay (1000);
+        DEBUG_break(/*waitForTermination=*/TRUE);
+        LOG_printf (LOG_DEBUG, "IDE_deinit -> DEBUG_terminate() done.\n");
+    }
+#endif
 
     LOG_printf (LOG_DEBUG, "IDE_deinit -> UI_deinit()\n");
     //U_delay (1000);

@@ -13,7 +13,7 @@
 #define MAX_CON_LINES     64
 #define MAX_CON_LINE_LEN  80
 
-typedef enum {DEBUG_stateStopped, DEBUG_stateRunning} DEBUG_state;
+typedef enum {DEBUG_stateStopped, DEBUG_stateRunning, DEBUG_stateTrapped} DEBUG_state;
 
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_instance_ *IDE_instance;
@@ -129,7 +129,7 @@ void      DEBUG_init           (IDE_instance ide, struct MsgPort *debugPort);
 
 uint16_t  DEBUG_handleMessages (void);  // called by ui_amiga when message arrive at our debugPort
 
-void      DEBUG_break          (void);  // send SIGBREAKF_CTRL_C to child
+void      DEBUG_break          (bool waitForTermination);  // send SIGBREAKF_CTRL_C to child
 
 #endif
 

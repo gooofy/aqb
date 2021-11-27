@@ -18,18 +18,18 @@ static void _repaintConsole (IDE_instance ed)
      * MAX_CON_LINES = 128
      * ed->con_rows  = 5
      *
-     * offset =               
-     * MAX_CON_LINES-ed->con_rows = 
+     * offset =
+     * MAX_CON_LINES-ed->con_rows =
      *            123                        118
      *
      *            console view   buffer      i console view   buffer
      *            line  txt                    line txt
-     *            1     l4       [38]        0 1              [33] 
+     *            1     l4       [38]        0 1              [33]
      *            2     l3       [39]        1 2              [34]
      *            3     l2       [40]        2 3              [35]
      *            4     l1       [41]        3 4              [36]
      * con_line-> 5     l0       [42]        4 5              [ con_line - MAX_CON_LINES + offset + i + 1]
-     *                                                        42       - 128           + 123      + 4   = 41 
+     *                                                        42       - 128           + 123      + 4   = 41
      *
      */
 
@@ -130,6 +130,17 @@ void IDE_cprintf (IDE_instance ed, char* format, ...)
     va_end(args);
 }
 
+static void _scrollToBottom (IDE_instance ed)
+{
+    UI_view view = ed->view_console;
+
+    // scroll to bottom
+
+    int16_t offset = UI_getViewScrollPos (view);
+    if (offset != MAX_CON_LINES-ed->con_rows)
+        _console_size_cb (ed);
+}
+
 #define CSI_BUF_LEN 16
 
 // provides simplistic ANSI terminal emulation
@@ -147,11 +158,7 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
     if (!UI_isViewVisible (view))
         UI_setViewVisible (view, TRUE);
 
-    // scroll to bottom
-
-    int16_t offset = UI_getViewScrollPos (view);
-    if (offset != MAX_CON_LINES-ed->con_rows)
-        _console_size_cb (ed);
+    _scrollToBottom (ed);
 
     LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n", buf, ed->con_rows);
 
@@ -312,11 +319,16 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
     int16_t view_cols, view_rows;
     UI_getViewSize (view, &view_rows, &view_cols);
 
+    _scrollToBottom (ed);
+
     int16_t scroll_offset=0;
     int16_t cursor_pos=0;
 
     uint16_t col, row;
     UI_getCursorPos (view, &row, &col);
+    UI_setCursorVisible (view, TRUE);
+
+    uint16_t width = view_cols-col-1;
 
     bool finished = FALSE;
 
@@ -329,7 +341,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                 if (cursor_pos>0)
                 {
                     cursor_pos--;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -341,7 +353,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                 if (cursor_pos<(strlen(buf)))
                 {
                     cursor_pos++;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -351,12 +363,12 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
 
             case KEY_HOME:
                 cursor_pos = 0;
-                _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 break;
 
             case KEY_END:
                 cursor_pos = strlen(buf);
-                _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 break;
 
             case KEY_BACKSPACE:
@@ -367,7 +379,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                         buf[i-1] = buf[i];
                     buf[l-1] = 0;
                     cursor_pos--;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -383,7 +395,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                     for (uint16_t i=cursor_pos; i<l-1; i++)
                         buf[i] = buf[i+1];
                     buf[l-1] = 0;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -411,7 +423,7 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                     buf[cursor_pos] = event;
                     buf[l+1] = 0;
                     cursor_pos++;
-                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, view_cols-col);
+                    _readline_repaint(view, buf, cursor_pos, &scroll_offset, row, col, width);
                 }
                 else
                 {
@@ -421,5 +433,6 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
             }
         }
     }
+    UI_setCursorVisible (view, FALSE);
 }
 
