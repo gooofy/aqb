@@ -122,7 +122,7 @@ DEBUG_state DEBUG_getState(void);
 
 #include <dos/dosextens.h>
 
-void      DEBUG_start          (const char *binfn);
+bool      DEBUG_start          (const char *binfn);
 void      DEBUG_help           (char *binfn, char *arg1);
 
 void      DEBUG_init           (IDE_instance ide, struct MsgPort *debugPort);

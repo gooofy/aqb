@@ -1552,16 +1552,15 @@ static void _compileAndRun(IDE_instance ed)
 #ifdef __amigaos__
 
     IDE_conSet (ed, /*visible=*/TRUE, /*active=*/TRUE);
-    DEBUG_start (ed->binfn);
+    if (!DEBUG_start (ed->binfn))
+        IDE_conSet (ed, /*visible=*/TRUE, /*active=*/FALSE);
 
 #else
 
     LOG_printf (LOG_INFO, "\n*** FIXME: non-amiga debugging not implemented yet.\n\n");
     LOG_printf (LOG_INFO, "\n*** press enter to continue ***\n\n");
     while ( UI_waitkey () != KEY_ENTER ) ;
-    //UI_eraseDisplay ();
-    //_invalidateAll (ed);
-    //UI_setCursorVisible (TRUE);
+
 #endif
 
 }

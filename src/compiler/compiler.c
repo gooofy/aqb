@@ -233,7 +233,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
             case CG_procFrag:
             {
                 Temp_label   label   = frag->u.proc.label;
-                //CG_frame     frame   = frag->u.proc.frame;
+                CG_frame     frame   = frag->u.proc.frame;
                 AS_instrList body    = frag->u.proc.body;
                 bool         expt    = frag->u.proc.expt;
 
@@ -244,7 +244,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                 LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "************************************************************************************************\n\n");
                 U_memstat();
 
-                if (!AS_assembleCode (obj, body, expt))
+                if (!AS_assembleCode (obj, body, expt, frame))
                     CO_exit(9);
                 break;
             }

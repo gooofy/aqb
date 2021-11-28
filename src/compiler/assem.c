@@ -782,18 +782,20 @@ AS_segment AS_Segment (U_poolId pid, string sourcefn, string name, AS_segKind ki
 {
     AS_segment seg = U_poolAlloc (pid, sizeof(*seg));
 
-    seg->sourcefn    = sourcefn;
-    seg->name        = name;
-    seg->kind        = kind;
-    seg->hunk_id     = g_hunk_id++;
-    seg->mem         = NULL;
-    seg->mem_size    = 0;
-    seg->mem_pos     = 0;
-    seg->relocs      = NULL;
-    seg->refs        = NULL;
-    seg->defs        = NULL;
-    seg->srcMap      = NULL;
-    seg->srcMapLast  = NULL;
+    seg->sourcefn     = sourcefn;
+    seg->name         = name;
+    seg->kind         = kind;
+    seg->hunk_id      = g_hunk_id++;
+    seg->mem          = NULL;
+    seg->mem_size     = 0;
+    seg->mem_pos      = 0;
+    seg->relocs       = NULL;
+    seg->refs         = NULL;
+    seg->defs         = NULL;
+    seg->srcMap       = NULL;
+    seg->srcMapLast   = NULL;
+    seg->frameMap     = NULL;
+    seg->frameMapLast = NULL;
 
     AS_ensureSegmentSize (pid, seg, initial_size);
 
@@ -1769,9 +1771,26 @@ void AS_segmentAddSrcMap (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off
         seg->srcMap = seg->srcMapLast = mapping;
 }
 
-bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
+void AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end)
+{
+    AS_frameMapNode mapping = U_poolAlloc (pid, sizeof (*mapping));
+
+    mapping->next       = NULL;
+    mapping->label      = label;
+    mapping->code_start = code_start;
+    mapping->code_end   = code_end;
+
+    if (seg->frameMapLast)
+        seg->frameMapLast = seg->frameMapLast->next = mapping;
+    else
+        seg->frameMap = seg->frameMapLast = mapping;
+}
+
+bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt, CG_frame frame)
 {
     AS_segment seg = obj->codeSeg;
+
+    uint32_t code_start = seg->mem_pos;
 
     bool first_label = TRUE;
     int cur_line = -1;
@@ -2230,6 +2249,9 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt)
                 assert(FALSE);
         }
     }
+
+    if (OPT_get (OPTION_DEBUG))
+        AS_segmentAddFrameMap(UP_assem, seg, frame->name, code_start, seg->mem_pos);
 
     return TRUE;
 }

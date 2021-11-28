@@ -94,8 +94,9 @@ typedef struct DEBUG_stackInfo_ *DEBUG_stackInfo;
 struct DEBUG_stackInfo_
 {
     DEBUG_stackInfo next, prev;
-    ULONG   pc;
-    int16_t line;
+    ULONG           pc;
+    int16_t         line;
+    AS_frameMapNode fmn;
 };
 
 static IDE_instance         g_ide;
@@ -564,7 +565,7 @@ static LI_segmentList _loadSeg(char *binfn)
     return sl;
 }
 
-static void _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
+static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
 
@@ -573,7 +574,7 @@ static void _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
     // use our custom loader which handles debug info
     env->sl = _loadSeg(binfn);
     if (!env->sl || !env->sl->first)
-        return;
+        return FALSE;
     env->seglist = MKBADDR(env->sl->first->seg->mem)-1;
     dumpSegmentList(env->seglist);
 
@@ -673,11 +674,13 @@ static void _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
     env->state = DEBUG_stateRunning;
 
 	LOG_printf (LOG_DEBUG, "RUN _launch_process: done. state is %d now.\n", env->state);
+
+    return TRUE;
 }
 
-void DEBUG_start (const char *binfn)
+bool DEBUG_start (const char *binfn)
 {
-    _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/NULL, /*dbg=*/TRUE);
+    return _launch_process (&g_dbgEnv, (char *)binfn, /*arg=*/NULL, /*dbg=*/TRUE);
 }
 
 void DEBUG_help (char *binfn, char *arg1)
@@ -760,30 +763,40 @@ void DEBUG_help (char *binfn, char *arg1)
 	LOG_printf (LOG_DEBUG, "DEBUG_help: done. state is %d now.\n", g_helpEnv.state);
 }
 
-static int16_t _find_src_line (uint32_t pc)
+static void _find_debug_info (uint32_t pc, int16_t *l, AS_frameMapNode *fmn)
 {
-    int16_t l = -1;
+    *l = -1;
+    *fmn = NULL;
     for (LI_segmentListNode sln=g_dbgEnv.sl->first; sln; sln=sln->next)
     {
         ULONG seg_start = (uint32_t) (uintptr_t) sln->seg->mem;
         ULONG seg_end   = seg_start + sln->seg->mem_size;
 
-        LOG_printf (LOG_DEBUG, "_find_src_line: looking for segment, pc=0x%08lx seg_start=0x%08lx seg_end=0x%08lx kind=%d srcMap=0x%08lx\n",
+        LOG_printf (LOG_DEBUG, "_find_debug_info: looking for segment, pc=0x%08lx seg_start=0x%08lx seg_end=0x%08lx kind=%d srcMap=0x%08lx\n",
                     pc, seg_start, seg_end, sln->seg->kind, sln->seg->srcMap);
 
         if ((pc<seg_start) || (pc>=seg_end))
             continue;
-        LOG_printf (LOG_DEBUG, "_find_src_line: segment matched.\n");
+        LOG_printf (LOG_DEBUG, "_find_debug_info: segment matched.\n");
 
         for (AS_srcMapNode n = sln->seg->srcMap; n; n=n->next)
         {
-            LOG_printf (LOG_DEBUG, "_find_src_line: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
+            LOG_printf (LOG_DEBUG, "_find_debug_info: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
 
             if (pc > n->offset)
-                l = n->line;
+                *l = n->line;
+        }
+
+        for (AS_frameMapNode n = sln->seg->frameMap; n; n=n->next)
+        {
+            LOG_printf (LOG_DEBUG, "_find_debug_info: looking for frame, pc=0x%08lx n->code_start=0x%08lx n->code_end=0x%08lx -> label=%s\n",
+                        pc, n->code_start, n->code_end, *fmn ? S_name((*fmn)->label) : "NULL");
+
+            if ((pc >= n->code_start) && (pc < n->code_end))
+                *fmn = n;
         }
     }
-    return l;
+
 }
 
 static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
@@ -818,7 +831,7 @@ static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
     return TRUE;
 }
 
-static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, int16_t line)
+static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, int16_t line, AS_frameMapNode fmn)
 {
     DEBUG_stackInfo si = U_poolAlloc (UP_runChild, sizeof (*si));
 
@@ -826,6 +839,7 @@ static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, int16_t line)
     si->next = NULL;
     si->pc   = pc;
     si->line = line;
+    si->fmn  = fmn;
 
     return si;
 }
@@ -842,7 +856,10 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
 
         if (si->line>=0)
         {
-            IDE_cprintf (ed, "%s 0x%08lx %s:%d\n", si==si_cur ? "-->" : "   ", si->pc, g_ide->sourcefn, si->line);
+            IDE_cprintf (ed, "%s 0x%08lx %s:%d %s\n",
+                         si==si_cur ? "-->" : "   ",
+                         si->pc, g_ide->sourcefn, si->line,
+                         si->fmn ? S_name(si->fmn->label) : "???");
         }
         else
         {
@@ -1002,12 +1019,15 @@ static void _debug(struct DebugMsg *msg)
     int cnt = 0;
     while ( TRUE )
     {
-        int16_t l = _find_src_line (pc);
+        int16_t l;
+        AS_frameMapNode fmn;
+
+        _find_debug_info (pc, &l, &fmn);
         //IDE_cprintf (g_ide, "stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
         if (!_getParentFrame(&a5, &pc))
             break;
 
-        DEBUG_stackInfo si = DEBUG_StackInfo (pc, l);
+        DEBUG_stackInfo si = DEBUG_StackInfo (pc, l, fmn);
         si->prev = stack_last;
         if (!stack_first)
             stack_last = stack_first = si;

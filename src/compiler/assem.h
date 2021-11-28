@@ -5,8 +5,29 @@
 #ifndef ASSEM_H
 #define ASSEM_H
 
+typedef struct AS_instr_           *AS_instr;
+typedef struct AS_instrInfo_        AS_instrInfo;
+typedef struct AS_instrList_       *AS_instrList;
+typedef struct AS_instrListNode_   *AS_instrListNode;
+typedef struct AS_instrSet_        *AS_instrSet;
+typedef struct AS_instrSetNode_    *AS_instrSetNode;
+typedef struct AS_segment_         *AS_segment;
+typedef struct AS_segmentReloc32_  *AS_segmentReloc32;
+typedef struct AS_segmentRef_      *AS_segmentRef;
+typedef struct AS_segmentDef_      *AS_segmentDef;
+typedef struct AS_labelInfo_       *AS_labelInfo;
+typedef struct AS_object_          *AS_object;
+typedef struct AS_srcMapNode_      *AS_srcMapNode;
+typedef struct AS_frameMapNode_    *AS_frameMapNode;
+
+typedef enum
+{
+    AS_dialect_gas, AS_dialect_ASMPro, AS_dialect_vasm
+} AS_dialect;
+
 #include "scanner.h"
 #include "temp.h"
+#include "codegen.h"
 
 #define AS_WORD_SIZE      4
 #define AS_NUM_REGISTERS 14
@@ -145,7 +166,6 @@ enum AS_mn
 
 #include "types.h"
 
-typedef struct AS_instr_ *AS_instr;
 struct AS_instr_
 {
     enum AS_mn     mn;
@@ -167,8 +187,6 @@ AS_instr AS_InstrEx2    (S_pos pos, enum AS_mn mn, enum Temp_w w, Temp_temp src,
  * AS_instrInfo: general information about 68k instruction set
  */
 
-typedef struct AS_instrInfo_ AS_instrInfo;
-
 struct AS_instrInfo_
 {
     enum AS_mn  mn;
@@ -187,9 +205,6 @@ extern AS_instrInfo AS_instrInfoA[AS_NUM_INSTR]; // array of AS_instrInfos, inde
 
 // AS_instrList: mutable, ordered doubly-linked list of assembly instructions
 
-typedef struct AS_instrList_     *AS_instrList;
-typedef struct AS_instrListNode_ *AS_instrListNode;
-
 struct AS_instrListNode_
 {
     AS_instrListNode next, prev;
@@ -201,11 +216,6 @@ struct AS_instrList_
     AS_instrListNode first, last;
 };
 
-typedef enum
-{
-    AS_dialect_gas, AS_dialect_ASMPro, AS_dialect_vasm
-} AS_dialect;
-
 AS_instrList AS_InstrList             (void);
 void         AS_instrListAppend       (AS_instrList il, AS_instr instr);
 void         AS_instrListPrepend      (AS_instrList il, AS_instr instr);
@@ -216,9 +226,6 @@ void         AS_instrListInsertAfter  (AS_instrList il, AS_instrListNode n, AS_i
 void         AS_instrListRemove       (AS_instrList il, AS_instrListNode n);
 
 // AS_instrSet: mutable set of instrs, still represented as a linked list for speed and iteration
-
-typedef struct AS_instrSet_     *AS_instrSet;
-typedef struct AS_instrSetNode_ *AS_instrSetNode;
 
 struct AS_instrSetNode_
 {
@@ -260,14 +267,6 @@ string             AS_regName          (int reg);
 
 #define AS_INITIAL_CODE_SEGMENT_SIZE    16*1024
 
-typedef struct AS_segment_         *AS_segment;
-typedef struct AS_segmentReloc32_  *AS_segmentReloc32;
-typedef struct AS_segmentRef_      *AS_segmentRef;
-typedef struct AS_segmentDef_      *AS_segmentDef;
-typedef struct AS_labelInfo_       *AS_labelInfo;
-typedef struct AS_object_          *AS_object;
-typedef struct AS_srcMapNode_      *AS_srcMapNode;
-
 typedef enum {AS_codeSeg, AS_dataSeg, AS_bssSeg, AS_unknownSeg} AS_segKind;
 struct AS_segment_
 {
@@ -280,10 +279,11 @@ struct AS_segment_
     uint32_t          mem_size;
     uint32_t          mem_pos;
 
-    TAB_table         relocs;               // AS_segment -> AS_segmentReloc32...
-    TAB_table         refs;                 // S_symbol -> AS_segmentRef
+    TAB_table         relocs;                  // AS_segment -> AS_segmentReloc32...
+    TAB_table         refs;                    // S_symbol -> AS_segmentRef
     AS_segmentDef     defs;
-    AS_srcMapNode     srcMap, srcMapLast;   // debug info
+    AS_srcMapNode     srcMap, srcMapLast;      // debug info (source lines)
+    AS_frameMapNode   frameMap, frameMapLast;  // debug info (variables)
 };
 
 struct AS_segmentReloc32_
@@ -329,17 +329,25 @@ struct AS_srcMapNode_
     uint32_t          offset;
 };
 
+struct AS_frameMapNode_
+{
+    AS_frameMapNode   next;
+    Temp_label        label;
+    uint32_t          code_start, code_end;
+};
+
 AS_segment         AS_Segment            (U_poolId pid, string sourcefn, string name, AS_segKind kind, uint32_t initial_size);
 
 void               AS_segmentAddReloc32  (U_poolId pid, AS_segment seg, AS_segment seg_to, uint32_t off);
 void               AS_segmentAddRef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
 void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_segmentAddSrcMap   (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off);
+void               AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end);
 void               AS_ensureSegmentSize  (U_poolId pid, AS_segment seg, uint32_t min_size);
 
 AS_object          AS_Object             (string sourcefn, string name);
 
-bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt);
+bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt, CG_frame frame);
 bool               AS_assembleString     (AS_object  o, Temp_label label, string str, uint32_t msize);
 void               AS_assembleDataAlign2 (AS_object  o);
 bool               AS_assembleDataLabel  (AS_object  o, Temp_label label, bool expt);

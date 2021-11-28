@@ -1,11 +1,6 @@
 #ifndef HAVE_CODEGEN_H
 #define HAVE_CODEGEN_H
 
-#include "scanner.h"
-#include "types.h"
-#include "hashmap.h"
-#include "assem.h"
-
 typedef struct CG_item_           CG_item;
 typedef struct CG_itemList_      *CG_itemList;
 typedef struct CG_itemListNode_  *CG_itemListNode;
@@ -13,6 +8,11 @@ typedef struct CG_frame_         *CG_frame;
 typedef struct CG_frag_          *CG_frag;
 typedef struct CG_dataFragNode_  *CG_dataFragNode;
 typedef struct CG_fragList_      *CG_fragList;
+
+#include "scanner.h"
+#include "types.h"
+#include "hashmap.h"
+#include "assem.h"
 
 typedef enum
 {
