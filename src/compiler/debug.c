@@ -94,7 +94,7 @@ typedef struct DEBUG_stackInfo_ *DEBUG_stackInfo;
 struct DEBUG_stackInfo_
 {
     DEBUG_stackInfo next, prev;
-    ULONG           pc;
+    ULONG           pc, fp;
     int16_t         line;
     AS_frameMapNode fmn;
 };
@@ -831,13 +831,14 @@ static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
     return TRUE;
 }
 
-static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, int16_t line, AS_frameMapNode fmn)
+static DEBUG_stackInfo DEBUG_StackInfo (ULONG pc, ULONG fp, int16_t line, AS_frameMapNode fmn)
 {
     DEBUG_stackInfo si = U_poolAlloc (UP_runChild, sizeof (*si));
 
     si->prev = NULL;
     si->next = NULL;
     si->pc   = pc;
+    si->fp   = fp;
     si->line = line;
     si->fmn  = fmn;
 
@@ -869,6 +870,35 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
     }
 
     UI_setTextStyle (ed->view_console, UI_TEXT_STYLE_TEXT);
+    IDE_cprintf (ed, "\n\n");
+}
+
+static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
+{
+    if (!si || !si->fmn || !si->fmn->vars)
+        return;
+
+    AS_frameVarNode v = si->fmn->vars;
+    uint8_t *fp = (uint8_t *) si->fp;
+
+    IDE_cprintf (ed, "variables:\n\n");
+    while (v)
+    {
+        switch (v->ty->kind)
+        {
+            case Ty_integer:
+            {
+                int16_t *p = (int16_t *) (fp + v->offset);
+                IDE_cprintf (ed, "%s kind=%2d offset=%d fp=0x%08lx p=0x%08lx -> %d\n", S_name(v->sym), v->ty->kind, v->offset, fp, p, *p);
+                break;
+            }
+            default:
+                IDE_cprintf (ed, "%s (%2d) %d\n", S_name(v->sym), v->ty->kind, v->offset);
+        }
+
+        v = v->next;
+    }
+
     IDE_cprintf (ed, "\n\n");
 }
 
@@ -1020,14 +1050,16 @@ static void _debug(struct DebugMsg *msg)
     while ( TRUE )
     {
         int16_t l;
+        uint32_t a5next=a5;
         AS_frameMapNode fmn;
 
         _find_debug_info (pc, &l, &fmn);
         //IDE_cprintf (g_ide, "stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
-        if (!_getParentFrame(&a5, &pc))
+        if (!_getParentFrame(&a5next, &pc))
             break;
 
-        DEBUG_stackInfo si = DEBUG_StackInfo (pc, l, fmn);
+        DEBUG_stackInfo si = DEBUG_StackInfo (pc, a5, l, fmn);
+        a5 = a5next;
         si->prev = stack_last;
         if (!stack_first)
             stack_last = stack_first = si;
@@ -1116,6 +1148,12 @@ static void _debug(struct DebugMsg *msg)
             continue;
         }
 
+        if (cmd[0]=='v')                            // variables
+        {
+            _print_variables (g_ide, stack_cur);
+            continue;
+        }
+
         if (cmd[0]=='w')                            // where
         {
             _print_stack (g_ide, stack_first, stack_cur);
@@ -1144,6 +1182,7 @@ static void _debug(struct DebugMsg *msg)
         IDE_cprintf (g_ide, "h        - this help text\n");
         IDE_cprintf (g_ide, "m <addr> - memory dump\n");
         IDE_cprintf (g_ide, "r        - register dump\n");
+        IDE_cprintf (g_ide, "v        - variables\n");
         IDE_cprintf (g_ide, "w        - where (stack trace)\n");
         IDE_cprintf (g_ide, "\n");
     }

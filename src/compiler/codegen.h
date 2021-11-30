@@ -4,6 +4,7 @@
 typedef struct CG_item_           CG_item;
 typedef struct CG_itemList_      *CG_itemList;
 typedef struct CG_itemListNode_  *CG_itemListNode;
+typedef struct CG_frameVarInfo_  *CG_frameVarInfo;
 typedef struct CG_frame_         *CG_frame;
 typedef struct CG_frag_          *CG_frag;
 typedef struct CG_dataFragNode_  *CG_dataFragNode;
@@ -59,14 +60,24 @@ struct CG_itemList_
     CG_itemListNode first, last;
 };
 
+struct CG_frameVarInfo_
+{
+    CG_frameVarInfo next;
+
+    S_symbol        sym;
+    Ty_ty           ty;
+    int             offset;
+};
+
 struct CG_frame_
 {
-    Temp_label     name;
-    bool           statc;
-    map_t          statc_labels;
-    CG_itemList    formals;
-    bool           globl;           // global frame? FALSE -> local
-    int            locals_offset;
+    Temp_label      name;
+    bool            statc;
+    map_t           statc_labels;
+    CG_itemList     formals;
+    bool            globl;           // global frame? FALSE -> local
+    int             locals_offset;
+    CG_frameVarInfo vars;
 };
 
 struct CG_frag_
@@ -108,6 +119,7 @@ CG_ral          CG_RAL              (Temp_temp arg, Temp_temp reg, CG_ral next);
 
 CG_frame        CG_Frame            (S_pos pos, Temp_label name, Ty_formal formals, bool statc);
 CG_frame        CG_globalFrame      (void);
+void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, Ty_ty ty, int offset);
 
 void            CG_ConstItem        (CG_item *item, Ty_const c);
 void            CG_BoolItem         (CG_item *item, bool b, Ty_ty ty);

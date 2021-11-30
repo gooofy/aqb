@@ -1771,19 +1771,34 @@ void AS_segmentAddSrcMap (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off
         seg->srcMap = seg->srcMapLast = mapping;
 }
 
-void AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end)
+AS_frameMapNode AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end)
 {
-    AS_frameMapNode mapping = U_poolAlloc (pid, sizeof (*mapping));
+    AS_frameMapNode fmn = U_poolAlloc (pid, sizeof (*fmn));
 
-    mapping->next       = NULL;
-    mapping->label      = label;
-    mapping->code_start = code_start;
-    mapping->code_end   = code_end;
+    fmn->next       = NULL;
+    fmn->label      = label;
+    fmn->code_start = code_start;
+    fmn->code_end   = code_end;
+    fmn->vars       = NULL;
 
     if (seg->frameMapLast)
-        seg->frameMapLast = seg->frameMapLast->next = mapping;
+        seg->frameMapLast = seg->frameMapLast->next = fmn;
     else
-        seg->frameMap = seg->frameMapLast = mapping;
+        seg->frameMap = seg->frameMapLast = fmn;
+
+    return fmn;
+}
+
+void AS_frameMapAddFVI (U_poolId pid, AS_frameMapNode fmn, S_symbol sym, Ty_ty ty, int offset)
+{
+    AS_frameVarNode fvn = U_poolAlloc (pid, sizeof (*fvn));
+
+    fvn->next       = fmn->vars;
+    fvn->sym        = sym;
+    fvn->ty         = ty;
+    fvn->offset     = offset;
+
+    fmn->vars = fvn;
 }
 
 bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt, CG_frame frame)
@@ -2250,8 +2265,19 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt, CG_frame frame)
         }
     }
 
+
     if (OPT_get (OPTION_DEBUG))
-        AS_segmentAddFrameMap(UP_assem, seg, frame->name, code_start, seg->mem_pos);
+    {
+        LOG_printf (LOG_DEBUG, "assem: adding frame debug info for frame %s ... \n", S_name (frame->name));
+        AS_frameMapNode fmn = AS_segmentAddFrameMap(UP_assem, seg, frame->name, code_start, seg->mem_pos);
+
+        for (CG_frameVarInfo fvi = frame->vars; fvi; fvi=fvi->next)
+        {
+            LOG_printf (LOG_DEBUG, "assem: adding frame var info fvi=0x%08lx\n", fvi);
+            LOG_printf (LOG_DEBUG, "assem: frame debug info: %s\n", S_name (fvi->sym));
+            AS_frameMapAddFVI (UP_assem, fmn, fvi->sym, fvi->ty, fvi->offset);
+        }
+    }
 
     return TRUE;
 }

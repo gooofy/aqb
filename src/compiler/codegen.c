@@ -4,6 +4,8 @@
 #include "codegen.h"
 #include "errormsg.h"
 #include "env.h"
+#include "options.h"
+#include "logger.h"
 
 static CG_fragList g_fragList = NULL;
 
@@ -142,6 +144,7 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
     f->formals       = acl;
     f->globl         = FALSE;
     f->locals_offset = 0;
+    f->vars          = NULL;
 
     return f;
 }
@@ -151,6 +154,21 @@ static CG_frame global_frame = NULL;
 CG_frame CG_globalFrame (void)
 {
     return global_frame;
+}
+
+void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset)
+{
+    //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo starts\n");
+    CG_frameVarInfo fvi = U_poolAlloc (UP_codegen, sizeof(*fvi));
+
+    fvi->next    = frame->vars;
+    fvi->sym     = sym;
+    fvi->ty      = ty;
+    fvi->offset  = offset;
+
+    frame->vars = fvi;
+
+    //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo ends.\n");
 }
 
 void CG_ConstItem (CG_item *item, Ty_const c)
@@ -383,6 +401,10 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
         CG_DataFrag(label, expt, Ty_size(ty));
 
         InHeap (item, label, ty);
+
+        // FIXME if (name && OPT_get (OPTION_DEBUG))
+        // FIXME     CG_addDebugInfo (frame, S_Symbol(name, FALSE), ty, /*inFrame=*/FALSE, /*offset=*/0, label);
+
         return;
     }
 
@@ -395,6 +417,9 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
     frame->locals_offset -= size % 2;
 
     InFrame (item, frame->locals_offset, ty);
+
+    if (name && OPT_get (OPTION_DEBUG))
+        CG_addFrameVarInfo (frame, S_Symbol(name, FALSE), ty, /*offset=*/frame->locals_offset);
 }
 
 int CG_itemOffset (CG_item *item)
@@ -4299,5 +4324,6 @@ void CG_init (void)
     global_frame->formals       = NULL;
     global_frame->globl         = TRUE;
     global_frame->locals_offset = 0;
+    global_frame->vars          = NULL;
 }
 

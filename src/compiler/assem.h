@@ -18,6 +18,7 @@ typedef struct AS_segmentDef_      *AS_segmentDef;
 typedef struct AS_labelInfo_       *AS_labelInfo;
 typedef struct AS_object_          *AS_object;
 typedef struct AS_srcMapNode_      *AS_srcMapNode;
+typedef struct AS_frameVarNode_    *AS_frameVarNode;
 typedef struct AS_frameMapNode_    *AS_frameMapNode;
 
 typedef enum
@@ -329,11 +330,20 @@ struct AS_srcMapNode_
     uint32_t          offset;
 };
 
+struct AS_frameVarNode_
+{
+    AS_frameVarNode   next;
+    S_symbol          sym;
+    Ty_ty             ty;
+    int               offset;
+};
+
 struct AS_frameMapNode_
 {
     AS_frameMapNode   next;
     Temp_label        label;
     uint32_t          code_start, code_end;
+    AS_frameVarNode   vars;
 };
 
 AS_segment         AS_Segment            (U_poolId pid, string sourcefn, string name, AS_segKind kind, uint32_t initial_size);
@@ -342,7 +352,8 @@ void               AS_segmentAddReloc32  (U_poolId pid, AS_segment seg, AS_segme
 void               AS_segmentAddRef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
 void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off);
 void               AS_segmentAddSrcMap   (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off);
-void               AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end);
+AS_frameMapNode    AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end);
+void               AS_frameMapAddFVI     (U_poolId pid, AS_frameMapNode fmn, S_symbol sym, Ty_ty ty, int offset);
 void               AS_ensureSegmentSize  (U_poolId pid, AS_segment seg, uint32_t min_size);
 
 AS_object          AS_Object             (string sourcefn, string name);

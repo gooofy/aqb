@@ -36,7 +36,7 @@
 #define ENABLE_SYMBOL_HUNK
 
 #define DEBUG_MAGIC      0x44425141  // AQBD - marks beginning of debug hunk
-#define DEBUG_VERSION    2
+#define DEBUG_VERSION    3
 #define DEBUG_INFO_LINE  1
 #define DEBUG_INFO_FRAME 2
 #define DEBUG_INFO_END   0xFEDC
@@ -120,6 +120,16 @@ static bool fread_u4(FILE *f, uint32_t *u)
     return TRUE;
 }
 
+static bool fread_i4(FILE *f, int32_t *i)
+{
+    if (fread (i, 4, 1, f) != 1)
+        return FALSE;
+
+    *i = ENDIAN_SWAP_32 (*i);
+
+    return TRUE;
+}
+
 static bool fread_u2(FILE *f, uint16_t *u)
 {
     if (fread (u, 2, 1, f) != 1)
@@ -135,6 +145,17 @@ static bool fread_u1(FILE *f, uint8_t *u)
     if (fread (u, 1, 1, f) != 1)
         return FALSE;
 
+    return TRUE;
+}
+
+static bool fread_str(FILE *f, char *buf)
+{
+    uint16_t l;
+    if (!fread_u2 (f, &l))
+        return FALSE;
+    if (fread (buf, l, 1, f) != 1)
+        return FALSE;
+    buf[l]=0;
     return TRUE;
 }
 
@@ -620,19 +641,12 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
             }
             case DEBUG_INFO_FRAME:
             {
-                uint16_t l;
                 uint32_t code_start, code_end;
-                if (!fread_u2 (f, &l))
+                if (!fread_str (f, (char *) g_buf))
                 {
                     LOG_printf (LOG_ERROR, "link: read error #39.\n");
                     return FALSE;
                 }
-                if (fread (g_buf, l, 1, f) != 1)
-                {
-                    LOG_printf (LOG_ERROR, "link: read error #40.\n");
-                    return FALSE;
-                }
-                g_buf[l]=0;
                 if (!fread_u4 (f, &code_start))
                 {
                     LOG_printf (LOG_ERROR, "link: read error #41.\n");
@@ -644,7 +658,65 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
                     return FALSE;
                 }
                 LOG_printf (LOG_DEBUG, "link: hunk_debug: INFO_FRAME label=%s, code_start=0x%08lx, code_end=0x%08lx\n", g_buf, code_start, code_end);
-                AS_segmentAddFrameMap (pid, g_hunk_cur, Temp_namedlabel((char *) g_buf), code_start, code_end);
+                AS_frameMapNode fmn = AS_segmentAddFrameMap (pid, g_hunk_cur, Temp_namedlabel((char *) g_buf), code_start, code_end);
+
+                uint16_t cnt;
+                if (!fread_u2 (f, &cnt))
+                {
+                    LOG_printf (LOG_ERROR, "link: read error #43.\n");
+                    return FALSE;
+                }
+                for (uint16_t i=0; i<cnt; i++)
+                {
+                    uint8_t ty_kind;
+                    int32_t offset;
+                    if (!fread_str (f, (char *) g_buf))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #44.\n");
+                        return FALSE;
+                    }
+                    if (!fread_u1 (f, &ty_kind))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #45.\n");
+                        return FALSE;
+                    }
+                    if (!fread_i4 (f, &offset))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #46.\n");
+                        return FALSE;
+                    }
+                    LOG_printf (LOG_DEBUG, "link: load_hunk_debug: frame var info name=%s, type=%d, offset=%d\n", g_buf, ty_kind, offset);
+                    Ty_ty ty = NULL;
+                    switch (ty_kind)
+                    {
+                        case Ty_bool:     ty = Ty_Bool()    ; break;
+                        case Ty_byte:     ty = Ty_Byte()    ; break;
+                        case Ty_ubyte:    ty = Ty_UByte()   ; break;
+                        case Ty_integer:  ty = Ty_Integer() ; break;
+                        case Ty_uinteger: ty = Ty_UInteger(); break;
+                        case Ty_long:     ty = Ty_Long()    ; break;
+                        case Ty_ulong:    ty = Ty_ULong()   ; break;
+                        case Ty_single:   ty = Ty_Single()  ; break;
+                        case Ty_double:   ty = Ty_Double()  ; break;
+
+                        // FIXME:
+                        case Ty_sarray:
+                        case Ty_darray:
+                        case Ty_record:
+                        case Ty_pointer:
+                        case Ty_string:
+                        case Ty_void:
+                        case Ty_forwardPtr:
+                        case Ty_procPtr:
+                        case Ty_toLoad:
+                        case Ty_prc:
+                            LOG_printf (LOG_ERROR, "link: load_hunk_debug: unknown fvi type kind %d\n", ty_kind);
+                            break;
+
+                     }
+                     if (ty)
+                         AS_frameMapAddFVI (pid, fmn, S_Symbol((char *)g_buf, FALSE), ty, offset);
+                }
                 break;
             }
             case DEBUG_INFO_END:
@@ -871,6 +943,21 @@ static void fwrite_u4(FILE *f, uint32_t u)
         link_fail ("write error");
 }
 
+static void fwrite_i4(FILE *f, int32_t i)
+{
+    i = ENDIAN_SWAP_32 (i);
+    if (fwrite (&i, 4, 1, f) != 1)
+        link_fail ("write error");
+}
+
+static void fwrite_str(FILE *f, char *str)
+{
+    uint16_t l = strlen(str);
+    fwrite_u2 (f, l);
+    if (fwrite (str, l, 1, f) != 1)
+        link_fail ("write error");
+}
+
 static void write_hunk_unit (string name, FILE *f)
 {
     fwrite_u4 (f, HUNK_TYPE_UNIT);
@@ -1053,40 +1140,6 @@ static void write_hunk_debug (AS_segment seg, FILE *f)
     if (!seg->srcMap)
         return;
 
-    // FIXME: remove
-#if 0
-    uint32_t numSrcMappings = 0;
-    for (AS_srcMapNode n = seg->srcMap; n; n=n->next)
-        numSrcMappings++;
-
-    uint32_t frameMapSize = 0;
-    for (AS_frameMapNode n = seg->frameMap; n; n=n->next)
-    {
-        char *name = S_name (n->frame->name);
-        uint32_t l = strlen(name);
-        frameMapSize += roundUp(l,4)/4;
-        frameMapSize += 2; // code_start/code_end
-
-        LOG_printf (LOG_DEBUG, "link: write_hunk_debug: frame map entry name=%s, code_start=%d, code_end=%d frame_size=%d\n", name, n->code_start, n->code_end, frameMapSize);
-    }
-
-    fwrite_u4 (f, HUNK_TYPE_DEBUG);
-
-    uint32_t hunk_size = 2 + numSrcMappings*2;
-
-    LOG_printf (LOG_DEBUG, "link: debug section, size=%zd bytes\n", hunk_size*4);
-    fwrite_u4 (f, hunk_size);
-
-    fwrite_u4 (f, DEBUG_MAGIC);
-    fwrite_u4 (f, DEBUG_VERSION);
-    for (AS_srcMapNode n = seg->srcMap; n; n=n->next)
-    {
-        fwrite_u2 (f, DEBUG_INFO_LINE);
-        fwrite_u2 (f, n->line);
-        fwrite_u4 (f, n->offset);
-    }
-#endif
-
     fwrite_u4 (f, HUNK_TYPE_DEBUG);
 
     LOG_printf (LOG_DEBUG, "link: debug section\n");
@@ -1106,15 +1159,25 @@ static void write_hunk_debug (AS_segment seg, FILE *f)
     for (AS_frameMapNode n = seg->frameMap; n; n=n->next)
     {
         char *name = S_name (n->label);
-        uint16_t l = strlen(name);
         LOG_printf (LOG_DEBUG, "link: write_hunk_debug: frame map entry name=%s, code_start=%d, code_end=%d\n", name, n->code_start, n->code_end);
 
         fwrite_u2 (f, DEBUG_INFO_FRAME);
-        fwrite_u2 (f, l);
-        if (fwrite (name, l, 1, f) != 1)
-            link_fail ("write_hunk_debug: frame name write error");
+        fwrite_str (f, name);
         fwrite_u4 (f, n->code_start);
         fwrite_u4 (f, n->code_end);
+
+        uint16_t cnt = 0;
+        for (AS_frameVarNode m = n->vars; m; m=m->next)
+            cnt++;
+        fwrite_u2 (f, cnt);
+        for (AS_frameVarNode m = n->vars; m; m=m->next)
+        {
+            char *vname = S_name (m->sym);
+            LOG_printf (LOG_DEBUG, "link: write_hunk_debug: frame var info name=%s, type=%d, offset=%d\n", vname, m->ty->kind, m->offset);
+            fwrite_str (f, vname);
+            fwrite_u1  (f, m->ty->kind);
+            fwrite_i4  (f, m->offset);
+        }
     }
 
     fwrite_u2 (f, DEBUG_INFO_END);
