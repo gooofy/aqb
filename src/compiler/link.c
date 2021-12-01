@@ -35,11 +35,12 @@
 
 #define ENABLE_SYMBOL_HUNK
 
-#define DEBUG_MAGIC      0x44425141  // AQBD - marks beginning of debug hunk
-#define DEBUG_VERSION    3
-#define DEBUG_INFO_LINE  1
-#define DEBUG_INFO_FRAME 2
-#define DEBUG_INFO_END   0xFEDC
+#define DEBUG_MAGIC            0x44425141  // AQBD - marks beginning of debug hunk
+#define DEBUG_VERSION          3
+#define DEBUG_INFO_LINE        1
+#define DEBUG_INFO_FRAME       2
+#define DEBUG_INFO_GLOBAL_VARS 3
+#define DEBUG_INFO_END         0xFEDC
 
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static char       g_name[MAX_BUF];             // current hunk name
@@ -559,6 +560,45 @@ static bool load_hunk_symbol(string sourcefn, FILE *f)
     return TRUE;
 }
 
+static bool fread_ty (FILE *f, Ty_ty *ty)
+{
+    *ty = NULL;
+    uint8_t ty_kind;
+    if (!fread_u1 (f, &ty_kind))
+    {
+        LOG_printf (LOG_ERROR, "link: read error #45.\n");
+        return FALSE;
+    }
+    switch (ty_kind)
+    {
+        case Ty_bool:     *ty = Ty_Bool()    ; break;
+        case Ty_byte:     *ty = Ty_Byte()    ; break;
+        case Ty_ubyte:    *ty = Ty_UByte()   ; break;
+        case Ty_integer:  *ty = Ty_Integer() ; break;
+        case Ty_uinteger: *ty = Ty_UInteger(); break;
+        case Ty_long:     *ty = Ty_Long()    ; break;
+        case Ty_ulong:    *ty = Ty_ULong()   ; break;
+        case Ty_single:   *ty = Ty_Single()  ; break;
+        case Ty_double:   *ty = Ty_Double()  ; break;
+
+        // FIXME:
+        case Ty_sarray:
+        case Ty_darray:
+        case Ty_record:
+        case Ty_pointer:
+        case Ty_string:
+        case Ty_void:
+        case Ty_forwardPtr:
+        case Ty_procPtr:
+        case Ty_toLoad:
+        case Ty_prc:
+            LOG_printf (LOG_ERROR, "link: load_hunk_debug: unknown fvi type kind %d\n", ty_kind);
+            break;
+
+     }
+    return TRUE;
+}
+
 static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
@@ -668,14 +708,14 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
                 }
                 for (uint16_t i=0; i<cnt; i++)
                 {
-                    uint8_t ty_kind;
                     int32_t offset;
+                    Ty_ty ty = NULL;
                     if (!fread_str (f, (char *) g_buf))
                     {
                         LOG_printf (LOG_ERROR, "link: read error #44.\n");
                         return FALSE;
                     }
-                    if (!fread_u1 (f, &ty_kind))
+                    if (!fread_ty (f, &ty))
                     {
                         LOG_printf (LOG_ERROR, "link: read error #45.\n");
                         return FALSE;
@@ -685,37 +725,45 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
                         LOG_printf (LOG_ERROR, "link: read error #46.\n");
                         return FALSE;
                     }
-                    LOG_printf (LOG_DEBUG, "link: load_hunk_debug: frame var info name=%s, type=%d, offset=%d\n", g_buf, ty_kind, offset);
-                    Ty_ty ty = NULL;
-                    switch (ty_kind)
-                    {
-                        case Ty_bool:     ty = Ty_Bool()    ; break;
-                        case Ty_byte:     ty = Ty_Byte()    ; break;
-                        case Ty_ubyte:    ty = Ty_UByte()   ; break;
-                        case Ty_integer:  ty = Ty_Integer() ; break;
-                        case Ty_uinteger: ty = Ty_UInteger(); break;
-                        case Ty_long:     ty = Ty_Long()    ; break;
-                        case Ty_ulong:    ty = Ty_ULong()   ; break;
-                        case Ty_single:   ty = Ty_Single()  ; break;
-                        case Ty_double:   ty = Ty_Double()  ; break;
-
-                        // FIXME:
-                        case Ty_sarray:
-                        case Ty_darray:
-                        case Ty_record:
-                        case Ty_pointer:
-                        case Ty_string:
-                        case Ty_void:
-                        case Ty_forwardPtr:
-                        case Ty_procPtr:
-                        case Ty_toLoad:
-                        case Ty_prc:
-                            LOG_printf (LOG_ERROR, "link: load_hunk_debug: unknown fvi type kind %d\n", ty_kind);
-                            break;
-
-                     }
+                    LOG_printf (LOG_DEBUG, "link: load_hunk_debug: frame var info name=%s, offset=%d\n", g_buf, offset);
                      if (ty)
                          AS_frameMapAddFVI (pid, fmn, S_Symbol((char *)g_buf, FALSE), ty, offset);
+                }
+                break;
+            }
+            case DEBUG_INFO_GLOBAL_VARS:
+            {
+                uint16_t cnt;
+                if (!fread_u2 (f, &cnt))
+                {
+                    LOG_printf (LOG_ERROR, "link: read error #47.\n");
+                    return FALSE;
+                }
+                for (uint16_t i=0; i<cnt; i++)
+                {
+                    S_symbol name;
+                    Temp_label label;
+                    Ty_ty ty = NULL;
+                    if (!fread_str (f, (char *) g_buf))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #44.\n");
+                        return FALSE;
+                    }
+                    name = S_Symbol ((char *) g_buf, FALSE);
+                    if (!fread_ty (f, &ty))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #45.\n");
+                        return FALSE;
+                    }
+                    if (!fread_str (f, (char *) g_buf))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #46.\n");
+                        return FALSE;
+                    }
+                    label = S_Symbol ((char *)g_buf, FALSE);
+
+                    if (ty)
+                        AS_segmentAddGVI (pid, g_hunk_cur, name, ty, label);
                 }
                 break;
             }
@@ -1178,6 +1226,21 @@ static void write_hunk_debug (AS_segment seg, FILE *f)
             fwrite_u1  (f, m->ty->kind);
             fwrite_i4  (f, m->offset);
         }
+    }
+
+    fwrite_u2 (f, DEBUG_INFO_GLOBAL_VARS);
+    uint16_t cnt = 0;
+    for (AS_globalVarNode m = seg->globals; m; m=m->next)
+        cnt++;
+    fwrite_u2 (f, cnt);
+    for (AS_globalVarNode n = seg->globals; n; n=n->next)
+    {
+        char *vname = S_name (n->sym);
+        char *label = S_name (n->label);
+        LOG_printf (LOG_DEBUG, "link: write_hunk_debug: global var info name=%s, type=%d, label=%s\n", vname, n->ty->kind, label);
+        fwrite_str (f, vname);
+        fwrite_u1  (f, n->ty->kind);
+        fwrite_str (f, label);
     }
 
     fwrite_u2 (f, DEBUG_INFO_END);

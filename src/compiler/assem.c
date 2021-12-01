@@ -796,6 +796,7 @@ AS_segment AS_Segment (U_poolId pid, string sourcefn, string name, AS_segKind ki
     seg->srcMapLast   = NULL;
     seg->frameMap     = NULL;
     seg->frameMapLast = NULL;
+    seg->globals      = NULL;
 
     AS_ensureSegmentSize (pid, seg, initial_size);
 
@@ -1799,6 +1800,18 @@ void AS_frameMapAddFVI (U_poolId pid, AS_frameMapNode fmn, S_symbol sym, Ty_ty t
     fvn->offset     = offset;
 
     fmn->vars = fvn;
+}
+
+void AS_segmentAddGVI (U_poolId pid, AS_segment seg, S_symbol sym, Ty_ty ty, Temp_label label)
+{
+    AS_globalVarNode gvn = U_poolAlloc (pid, sizeof (*gvn));
+
+    gvn->next       = seg->globals;
+    gvn->sym        = sym;
+    gvn->ty         = ty;
+    gvn->label      = label;
+
+    seg->globals = gvn;
 }
 
 bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt, CG_frame frame)

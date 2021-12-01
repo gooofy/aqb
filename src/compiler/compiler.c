@@ -246,6 +246,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 
                 if (!AS_assembleCode (obj, body, expt, frame))
                     CO_exit(9);
+
                 break;
             }
             case CG_stringFrag:
@@ -322,6 +323,16 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                 break;
             default:
                 assert(FALSE); // FIXME
+        }
+    }
+
+    if (OPT_get (OPTION_DEBUG))
+    {
+        CG_frame frame = CG_globalFrame ();
+        for (CG_globalVarInfo gvi = frame->globals; gvi; gvi=gvi->next)
+        {
+            LOG_printf (LOG_DEBUG, "compiler: adding global var debug info: %s\n", S_name (gvi->sym));
+            AS_segmentAddGVI (UP_assem, obj->codeSeg, gvi->sym, gvi->ty, gvi->label);
         }
     }
 
