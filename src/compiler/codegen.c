@@ -4341,5 +4341,6 @@ void CG_init (void)
     global_frame->globl         = TRUE;
     global_frame->locals_offset = 0;
     global_frame->vars          = NULL;
+    global_frame->globals       = NULL;
 }
 

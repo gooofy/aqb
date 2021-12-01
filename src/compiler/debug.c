@@ -919,6 +919,14 @@ static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
         v = v->next;
     }
 
+    for (LI_segmentListNode sln=g_dbgEnv.sl->first; sln; sln=sln->next)
+    {
+        for (AS_globalVarNode n = sln->seg->globals; n; n=n->next)
+        {
+            IDE_cprintf (ed, " global var: %s\n", S_name (n->sym));
+        }
+    }
+
     IDE_cprintf (ed, "\n\n");
 }
 
