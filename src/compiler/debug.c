@@ -873,6 +873,36 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
     IDE_cprintf (ed, "\n\n");
 }
 
+static void _print_variable (IDE_instance ed, AS_frameVarNode v, uint8_t *fp)
+{
+    uint8_t *p = fp + v->offset;
+    switch (v->ty->kind)
+    {
+        case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-12s = %s\n", S_name(v->sym), *p ? "TRUE" : "FALSE"); break;
+        case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-12s = %d\n", S_name(v->sym), *p);                    break;
+        case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-12s = %d\n", S_name(v->sym), *((uint8_t *)p));       break;
+        case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-12s = %d\n", S_name(v->sym), *((int16_t *)p));       break;
+        case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-12s = %d\n", S_name(v->sym), *((uint16_t *)p));      break;
+        case Ty_long:     IDE_cprintf (ed, "  LONG     %-12s = %d\n", S_name(v->sym), *((int32_t *)p));       break;
+        case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-12s = %d\n", S_name(v->sym), *((uint32_t *)p));      break;
+        case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-12s = %f\n", S_name(v->sym), decode_ffp(*((uint32_t *)p))); break;
+
+        case Ty_double:
+        case Ty_sarray:
+        case Ty_darray:
+        case Ty_record:
+        case Ty_pointer:
+        case Ty_string:
+        case Ty_void:
+        case Ty_forwardPtr:
+        case Ty_procPtr:
+        case Ty_toLoad:
+        case Ty_prc:
+            IDE_cprintf (ed, "%s (%2d) %d\n", S_name(v->sym), v->ty->kind, v->offset);
+    }
+
+}
+
 static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
 {
     if (!si || !si->fmn || !si->fmn->vars)
@@ -884,17 +914,7 @@ static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
     IDE_cprintf (ed, "variables:\n\n");
     while (v)
     {
-        switch (v->ty->kind)
-        {
-            case Ty_integer:
-            {
-                int16_t *p = (int16_t *) (fp + v->offset);
-                IDE_cprintf (ed, "%s kind=%2d offset=%d fp=0x%08lx p=0x%08lx -> %d\n", S_name(v->sym), v->ty->kind, v->offset, fp, p, *p);
-                break;
-            }
-            default:
-                IDE_cprintf (ed, "%s (%2d) %d\n", S_name(v->sym), v->ty->kind, v->offset);
-        }
+        _print_variable (ed, v, fp);
 
         v = v->next;
     }
