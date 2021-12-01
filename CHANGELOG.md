@@ -32,6 +32,7 @@ Bug Fixes:
 
     * runtime: INPUT statement fixed
     * build system: makefile portability enhancements
+    * build system: fix library link order (J. Becher)
     * compiler: fix BYREF recursive argument passing
     * compiler: fix BYREF argument assignment
     * compiler: fix IF/ELSE namespaces

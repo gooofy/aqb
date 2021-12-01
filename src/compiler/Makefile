@@ -22,13 +22,13 @@ $(OBJDIR_LINUX)/%.o : %.c $(DEPDIR_LINUX)/%.d | $(DEPDIR_LINUX)
 	$(CC_LINUX) -c $(CFLAGS_LINUX) $(DEPFLAGS_LINUX) $< -o $@
 
 ${BINDIR_AMIGAOS}/aqb:	$(OBJS_AMIGAOS) $(SELF_DIR)/src/amigasupport/amigasupport.a
-	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -o $@ $^ $(SELF_DIR)/src/amigasupport/amigasupport.a
+	$(CC_AMIGAOS) $(CFLAGS_AMIGAOS) -o $@ $^ $(LDFLAGS_AMIGAOS) $(SELF_DIR)/src/amigasupport/amigasupport.a
 	$(STRIP_AMIGAOS) $@
 	cp $@ $(DISTDIR)
 	rm -f $(DISTDIR)/*.uaem
 
 ${BINDIR_LINUX}/aqb:	$(OBJS_LINUX)
-	$(CC_LINUX) $(CFLAGS_LINUX) $(LDFLAGS_LINUX) -o $@ $^
+	$(CC_LINUX) $(CFLAGS_LINUX) -o $@ $^ $(LDFLAGS_LINUX)
 
 $(DEPDIR_AMIGAOS): ; @mkdir -p $@
 $(DEPDIR_LINUX): ; @mkdir -p $@
