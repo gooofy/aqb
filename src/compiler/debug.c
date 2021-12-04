@@ -158,6 +158,8 @@ static void _hexdump (IDE_instance ed, const void * addr, const int len, int per
 extern APTR _unfreeze_20, _unfreeze_00;
 
 asm (
+"       .text\n"
+"       .align 2\n"
 "__unfreeze_00:\n"
 
 "       move.l  #_g_dbgStateBuf, a5;\n"  // from this point on, a5 points to cur location in _g_dbgStateBuf
@@ -286,6 +288,8 @@ extern APTR _trap_handler_00;
 extern APTR _trap_handler_20;
 
 asm(
+"       .text\n"
+"       .align 2\n"
 "__trap_handler_00:\n"
 
 "       move.l  (ssp), _g_trapCode;\n" 	    // save trap code
@@ -1005,6 +1009,7 @@ static BOOL is_whitespace(char c)
 
 static void _debug(struct DebugMsg *msg)
 {
+    LOG_printf (LOG_DEBUG, "_debug: starts...\n");
     UI_toFront();
     IDE_cprintf (g_ide, "\n");
 
@@ -1022,6 +1027,9 @@ static void _debug(struct DebugMsg *msg)
             break;
         case 5:
             IDE_cprintf(g_ide, "INTEGER DIVIDE BY ZERO\n\n");
+            break;
+        case 9:
+            IDE_cprintf(g_ide, "TRACE SINGLE STEP\n\n");
             break;
         case 32:
             IDE_cprintf(g_ide, "CTRL-C BREAK\n\n");
@@ -1070,6 +1078,8 @@ static void _debug(struct DebugMsg *msg)
 
     // get stack trace
 
+    LOG_printf (LOG_DEBUG, "_debug: get stack trace...\n");
+
     DEBUG_stackInfo stack_first = NULL, stack_last = NULL;
 
     uint32_t pc = g_dbgPC;
@@ -1112,6 +1122,7 @@ static void _debug(struct DebugMsg *msg)
 
     while (TRUE)
     {
+        LOG_printf (LOG_DEBUG, "_debug: cmd line loop...\n");
         static char cmdline[256];
         cmdline[0]=0;
 
@@ -1157,14 +1168,18 @@ static void _debug(struct DebugMsg *msg)
             // manipulate the return PC, make it point to the exit function:
             //IDE_cprintf (g_ide, "----> setting PC to 0x%08lx\n", g_dbgEnv.u.dbg.msg.debug_exitFn);
             g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;
+            g_dbgSR &= 0x7FFF;
             ReplyMsg (&msg->msg);
             break;
         }
 
         if (cmd[0] == 'c')                          // continue
         {
+            LOG_printf (LOG_DEBUG, "_debug: continue...\n");
             g_dbgEnv.state = DEBUG_stateRunning;
+            g_dbgSR &= 0x7FFF;
             ReplyMsg (&msg->msg);
+            LOG_printf (LOG_DEBUG, "_debug: continue... done.\n");
             break;
         }
 
@@ -1174,6 +1189,16 @@ static void _debug(struct DebugMsg *msg)
             _hexdump (g_ide, (UBYTE *)g_dbgPC, 32, 16);
             IDE_cprintf (g_ide, "\n");
             continue;
+        }
+
+        if (cmd[0] == 's')                          // step
+        {
+            LOG_printf (LOG_DEBUG, "_debug: step...\n");
+            g_dbgEnv.state = DEBUG_stateRunning;
+            g_dbgSR |= 0x8000;
+            ReplyMsg (&msg->msg);
+            LOG_printf (LOG_DEBUG, "_debug: step... done.\n");
+            break;
         }
 
         if (cmd[0]=='v')                            // variables
@@ -1210,12 +1235,17 @@ static void _debug(struct DebugMsg *msg)
         IDE_cprintf (g_ide, "h        - this help text\n");
         IDE_cprintf (g_ide, "m <addr> - memory dump\n");
         IDE_cprintf (g_ide, "r        - register dump\n");
+        IDE_cprintf (g_ide, "s        - step\n");
         IDE_cprintf (g_ide, "v        - variables\n");
         IDE_cprintf (g_ide, "w        - where (stack trace)\n");
         IDE_cprintf (g_ide, "\n");
     }
 
+    LOG_printf (LOG_DEBUG, "_debug: IDE_clearHilight...\n");
+
     IDE_clearHilight(g_ide);
+
+    LOG_printf (LOG_DEBUG, "_debug: done...\n");
 }
 
 uint16_t DEBUG_handleMessages(void)
@@ -1224,9 +1254,9 @@ uint16_t DEBUG_handleMessages(void)
     USHORT key = KEY_NONE;
     while (TRUE)
     {
-        //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: GetMsg...\n");
+        LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: GetMsg...\n");
         struct DebugMsg *m = (struct DebugMsg *) GetMsg(g_debugPort);
-        //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
+        LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: GetMsg returned: 0x%08lx\n", (ULONG)m);
         if (!m)
             return key;
 
@@ -1261,7 +1291,7 @@ uint16_t DEBUG_handleMessages(void)
             struct DebugMsg *msg = (struct DebugMsg *) m;
             if (msg->debug_sig == DEBUG_SIG)
             {
-                //LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
+                LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG message detected, cmd=%d, succ=0x%08lx\n", msg->debug_cmd, msg->msg.mn_Node.ln_Succ);
                 switch (msg->debug_cmd)
                 {
                     case DEBUG_CMD_START:
@@ -1298,6 +1328,7 @@ uint16_t DEBUG_handleMessages(void)
                         ReplyMsg (&msg->msg);
                         break;
                     case DEBUG_CMD_TRAP:
+                        LOG_printf (LOG_DEBUG, "DEBUG_handleMessages: DEBUG_CMD_TRAP g_terminate=%d\n", g_terminate);
                         if (g_terminate)
                         {
                             g_dbgPC = g_dbgEnv.u.dbg.msg.debug_exitFn;

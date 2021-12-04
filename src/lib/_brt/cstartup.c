@@ -169,6 +169,7 @@ void _debug_cls(void)
 }
 
 asm(
+"   .text\n"
 "   .align 2\n"
 "   .globl  __debug_break\n"
 "   __debug_break:\n"
@@ -193,6 +194,19 @@ void ON_EXIT_CALL(void (*cb)(void))
 
 USHORT _break_status = 0;
 
+asm(
+"   .text\n"
+"   .align 2\n"
+"   .globl  __ctrlc_break\n"
+"   __ctrlc_break:\n"
+"		link    a5, #0;\n"
+"		trap    #0;\n"
+"		unlk    a5;\n"
+"		rts;\n"
+);
+
+void _ctrlc_break(void);
+
 void __handle_break(void)
 {
     if (_break_status)
@@ -200,7 +214,8 @@ void __handle_break(void)
         if (_startup_mode == STARTUP_DEBUG)
         {
             _break_status = 0;
-            asm ("  trap #0;\n");           // break into debugger
+            //asm ("  trap #0;\n");           // break into debugger
+            _ctrlc_break();
         }
         else
         {

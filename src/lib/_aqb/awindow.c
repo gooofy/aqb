@@ -1300,7 +1300,9 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 
         while (TRUE)
         {
+            DPRINTF ("_aio_gets: sleep...\n");
             SLEEP();
+            DPRINTF ("_aio_gets: sleep... returned.\n");
             char *buf2 = INKEY_();
             char c = *buf2;
 
