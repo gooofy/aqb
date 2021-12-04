@@ -131,6 +131,8 @@ uint16_t  DEBUG_handleMessages (void);  // called by ui_amiga when message arriv
 
 void      DEBUG_break          (bool waitForTermination);  // send SIGBREAKF_CTRL_C to child
 
+void      DEBUG_disasm         (IDE_instance ed, unsigned long int start, unsigned long int end);
+
 #endif
 
 #endif

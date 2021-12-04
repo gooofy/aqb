@@ -1163,6 +1163,14 @@ static void _debug(struct DebugMsg *msg)
         //IDE_cprintf (g_ide, "cmdline parsing result: %d parts, first part: %s\n\n", num_parts, parts[0]);
         char *cmd = parts[0];
 
+        if (cmd[0] == 'd')                          // disassemble
+        {
+            IDE_cprintf (g_ide, "disassembly:\n\n");
+            DEBUG_disasm (g_ide, g_dbgPC, g_dbgPC+32);
+            IDE_cprintf (g_ide, "\n");
+            continue;
+        }
+
         if (cmd[0] == 'e')                          // exit/terminate
         {
             // manipulate the return PC, make it point to the exit function:
@@ -1231,6 +1239,7 @@ static void _debug(struct DebugMsg *msg)
         IDE_cprintf (g_ide, "available commands:\n\n");
 
         IDE_cprintf (g_ide, "c        - continue\n");
+        IDE_cprintf (g_ide, "d        - disassemble\n");
         IDE_cprintf (g_ide, "e        - exit (terminate program)\n");
         IDE_cprintf (g_ide, "h        - this help text\n");
         IDE_cprintf (g_ide, "m <addr> - memory dump\n");
