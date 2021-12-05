@@ -27,6 +27,6 @@ bool           LI_link                      (U_poolId pid, LI_segmentList sl);
 void           LI_segmentListWriteLoadFile  (LI_segmentList sl, string loadfn);
 
 bool           LI_segmentListReadLoadFile   (U_poolId pid, LI_segmentList sl, string sourcefn, FILE *f);
-bool           LI_relocate                  (LI_segmentList sl);
+void           LI_relocate                  (LI_segmentList sl, TAB_table symbols);
 
 #endif

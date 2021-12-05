@@ -62,6 +62,7 @@ struct DEBUG_env_
     BPTR               childHomeDirLock;
     LI_segmentList     sl;
     BPTR               seglist;
+    TAB_table          symbols;
     char               dirbuf[256];
     union
     {
@@ -552,7 +553,7 @@ static void dumpSegmentList(BPTR seglist)
     }
 }
 
-static LI_segmentList _loadSeg(char *binfn)
+static LI_segmentList _loadSeg(char *binfn, TAB_table symbols)
 {
     LOG_printf (LOG_INFO, "Loading %s ...\n", binfn);
 
@@ -573,7 +574,7 @@ static LI_segmentList _loadSeg(char *binfn)
     }
     fclose (f);
 
-    LI_relocate (sl);
+    LI_relocate (sl, symbols);
     //LOG_printf (LOG_INFO, "\nhex dump: beginning of first segment\n");
     //_hexdump ((UBYTE *)sl->first->seg->mem, /*len=*/32, /*perLine=*/16);
 
@@ -616,7 +617,8 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
     LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
 
     // use our custom loader which handles debug info
-    env->sl = _loadSeg(binfn);
+    env->symbols = TAB_empty (UP_runChild);
+    env->sl = _loadSeg(binfn, env->symbols);
     if (!env->sl || !env->sl->first)
         return FALSE;
     env->seglist = MKBADDR(env->sl->first->seg->mem)-1;
@@ -917,34 +919,62 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
     IDE_cprintf (ed, "\n\n");
 }
 
-static void _print_variable (IDE_instance ed, AS_frameVarNode v, uint8_t *fp)
+static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty)
 {
-    uint8_t *p = fp + v->offset;
-    switch (v->ty->kind)
+    if (p)
     {
-        case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-12s = %s\n", S_name(v->sym), *p ? "TRUE" : "FALSE"); break;
-        case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-12s = %d\n", S_name(v->sym), *p);                    break;
-        case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-12s = %d\n", S_name(v->sym), *((uint8_t *)p));       break;
-        case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-12s = %d\n", S_name(v->sym), *((int16_t *)p));       break;
-        case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-12s = %d\n", S_name(v->sym), *((uint16_t *)p));      break;
-        case Ty_long:     IDE_cprintf (ed, "  LONG     %-12s = %d\n", S_name(v->sym), *((int32_t *)p));       break;
-        case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-12s = %d\n", S_name(v->sym), *((uint32_t *)p));      break;
-        case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-12s = %f\n", S_name(v->sym), decode_ffp(*((uint32_t *)p))); break;
+        switch (ty->kind)
+        {
+            case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-12s = %s\n", S_name(sym), *p ? "TRUE" : "FALSE"); break;
+            case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-12s = %d\n", S_name(sym), *p);                    break;
+            case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-12s = %d\n", S_name(sym), *((uint8_t *)p));       break;
+            case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-12s = %d\n", S_name(sym), *((int16_t *)p));       break;
+            case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-12s = %d\n", S_name(sym), *((uint16_t *)p));      break;
+            case Ty_long:     IDE_cprintf (ed, "  LONG     %-12s = %d\n", S_name(sym), *((int32_t *)p));       break;
+            case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-12s = %d\n", S_name(sym), *((uint32_t *)p));      break;
+            case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-12s = %f\n", S_name(sym), decode_ffp(*((uint32_t *)p))); break;
 
-        case Ty_double:
-        case Ty_sarray:
-        case Ty_darray:
-        case Ty_record:
-        case Ty_pointer:
-        case Ty_string:
-        case Ty_void:
-        case Ty_forwardPtr:
-        case Ty_procPtr:
-        case Ty_toLoad:
-        case Ty_prc:
-            IDE_cprintf (ed, "%s (%2d) %d\n", S_name(v->sym), v->ty->kind, v->offset);
+            case Ty_double:
+            case Ty_sarray:
+            case Ty_darray:
+            case Ty_record:
+            case Ty_pointer:
+            case Ty_string:
+            case Ty_void:
+            case Ty_forwardPtr:
+            case Ty_procPtr:
+            case Ty_toLoad:
+            case Ty_prc:
+                IDE_cprintf (ed, "%s (%2d)\n", S_name(sym), ty->kind);
+        }
     }
+    else
+    {
+        switch (ty->kind)
+        {
+            case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-12s = ???\n", S_name(sym)); break;
+            case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-12s = ???\n", S_name(sym)); break;
+            case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-12s = ???\n", S_name(sym)); break;
+            case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-12s = ???\n", S_name(sym)); break;
+            case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-12s = ???\n", S_name(sym)); break;
+            case Ty_long:     IDE_cprintf (ed, "  LONG     %-12s = ???\n", S_name(sym)); break;
+            case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-12s = ???\n", S_name(sym)); break;
+            case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-12s = ???\n", S_name(sym)); break;
 
+            case Ty_double:
+            case Ty_sarray:
+            case Ty_darray:
+            case Ty_record:
+            case Ty_pointer:
+            case Ty_string:
+            case Ty_void:
+            case Ty_forwardPtr:
+            case Ty_procPtr:
+            case Ty_toLoad:
+            case Ty_prc:
+                IDE_cprintf (ed, "%s (%2d)\n", S_name(sym), ty->kind);
+        }
+    }
 }
 
 static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
@@ -958,7 +988,8 @@ static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
     IDE_cprintf (ed, "variables:\n\n");
     while (v)
     {
-        _print_variable (ed, v, fp);
+        uint8_t *p = fp + v->offset;
+        _print_variable (ed, p, v->sym, v->ty);
 
         v = v->next;
     }
@@ -967,7 +998,9 @@ static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
     {
         for (AS_globalVarNode n = sln->seg->globals; n; n=n->next)
         {
-            IDE_cprintf (ed, " global var: %s\n", S_name (n->sym));
+            //uint32_t offset = (uint32_t) (uintptr_t) TAB_look (g_dbgEnv.symbols, n->sym);
+            uint8_t *p = TAB_look (g_dbgEnv.symbols, n->sym);
+            _print_variable (ed, p, n->sym, n->ty);
         }
     }
 

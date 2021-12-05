@@ -512,7 +512,7 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_symbol(string sourcefn, FILE *f)
+static bool load_hunk_symbol(U_poolId pid, string sourcefn, FILE *f)
 {
     if (!g_hunk_cur)
     {
@@ -555,6 +555,8 @@ static bool load_hunk_symbol(string sourcefn, FILE *f)
             return FALSE;
         }
         LOG_printf (LOG_DEBUG, "link: hunk_symbol: name=%s(len=%d) offset=0x%08lx\n", g_buf, name_len, offset);
+        S_symbol sym = S_Symbol ((char *)g_buf, FALSE);
+        AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
     }
 
     return TRUE;
@@ -1469,7 +1471,7 @@ bool LI_segmentListReadLoadFile (U_poolId pid, LI_segmentList sl, string sourcef
                     return FALSE;
                 break;
             case HUNK_TYPE_SYMBOL:
-                if (!load_hunk_symbol(sourcefn, f))
+                if (!load_hunk_symbol(pid, sourcefn, f))
                     return FALSE;
                 break;
             case HUNK_TYPE_DEBUG:
@@ -1494,11 +1496,10 @@ bool LI_segmentListReadLoadFile (U_poolId pid, LI_segmentList sl, string sourcef
     return TRUE;
 }
 
-bool LI_relocate (LI_segmentList sl)
+void LI_relocate (LI_segmentList sl, TAB_table symbols)
 {
     for (LI_segmentListNode node = sl->first; node; node=node->next)
     {
-
         // apply relocs, if any
 
         if (node->seg->relocs)
@@ -1525,6 +1526,15 @@ bool LI_relocate (LI_segmentList sl)
             }
         }
 
+        // relocate symbols
+
+        for (AS_segmentDef def = node->seg->defs; def; def=def->next)
+        {
+            uint32_t offset = def->offset + (uint32_t) (uintptr_t) node->seg->mem;
+            TAB_enter (symbols, def->sym, (void *) (uintptr_t)offset);
+            LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating symbol %s 0x%08lx->0x%08lx\n", S_name (def->sym), def->offset, offset);
+        }
+
         // relocate debug information, if any
 
         for (AS_srcMapNode n = node->seg->srcMap; n; n=n->next)
@@ -1538,7 +1548,5 @@ bool LI_relocate (LI_segmentList sl)
             n->code_end   += (uint32_t) (uintptr_t) node->seg->mem;
         }
     }
-
-    return TRUE;
 }
 
