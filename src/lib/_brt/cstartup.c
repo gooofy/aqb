@@ -209,16 +209,20 @@ void _ctrlc_break(void);
 
 void __handle_break(void)
 {
+    DPRINTF ("__handle_break...\n");
     if (_break_status)
     {
+        DPRINTF ("__handle_break... _break_status!=0\n");
         if (_startup_mode == STARTUP_DEBUG)
         {
+            DPRINTF ("__handle_break... -> TRAP\n");
             _break_status = 0;
             //asm ("  trap #0;\n");           // break into debugger
             _ctrlc_break();
         }
         else
         {
+            DPRINTF ("__handle_break... -> exit\n");
             _autil_exit(1);
         }
     }
@@ -234,8 +238,10 @@ static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a
     {
         if ( (e->ie_Class == IECLASS_RAWKEY) && ((e->ie_Code & 0x7f) == 0x33) && (e->ie_Qualifier & IEQUALIFIER_CONTROL) )
         {
-            struct Task *maintask = data;
-            Signal (maintask, SIGBREAKF_CTRL_C);
+            //DPRINTF("___inputHandler: CTRL-C detected\n");
+            _break_status = BREAK_CTRL_C;
+            //struct Task *maintask = data;
+            //Signal (maintask, SIGBREAKF_CTRL_C);
         }
 
         e = e->ie_NextEvent;

@@ -226,11 +226,38 @@ asm (
 "       move.w  _g_dbgSR, ssp@-;\n"         // sr
 
 "       rte;\n"
+
+"__debug_display_beep:\n"
+"       move.l  d0, sp@-;\n"
+"       moveq   #-1, d0;\n"
+"_flash:\n"
+"       move.l  d0, 0xdff180;\n"
+"       dbra    d0, _flash;\n"
+"       move.l  sp@+,d0;\n"
+"       rts;\n"
 );
 
+void _debug_display_beep(void);
+
+#if 0
+static void _cflash(void)
+{
+    ULONG *p = (ULONG *)0xdff180;
+    for (int cnt = 0; cnt<100; cnt++)
+    {
+        for (ULONG l=1; l++; l)
+        {
+            *p = l;
+        }
+    }
+}
+#endif
 
 void _freeze_myself(void)
 {
+    // debug flash
+    //_debug_display_beep();
+
 	// we need a temporary reply port
 
     struct MsgPort *replyPort  = ASUP_create_port ((STRPTR) "AQB trap reply port", 0);
@@ -323,7 +350,7 @@ asm(
 
 		// create a new stack frame with a manipulated return address
 "       move.l  #__freeze_myself, ssp@-;\n" // pc
-"       move.w  a5@(-6), ssp@-;\n"          // sr
+"       move.w  #0, ssp@-;\n"               // sr
 
 "       rte;\n"
 
@@ -362,7 +389,20 @@ asm(
 		// create a new, format $0 stack frame with a manipulated return address
 "       move.w  #0, ssp@-;\n"				// frame format
 "       move.l  #__freeze_myself, ssp@-;\n" // pc
-"       move.w  a5@(-6), ssp@-;\n"          // sr
+"       move.w  #0, ssp@-;\n"               // sr
+
+#if 0
+// ---------------------------------------------------------------
+// FIXME: debug flash code, remove
+"       move.l  d0, ssp@-;\n"
+"       moveq   #-1, d0;\n"
+"_flash:\n"
+"       move.l  d0, 0xdff180;\n"
+"       dbra    d0, _flash;\n"
+"       move.l  ssp@+,d0;\n"
+// FIXME: debug flash code, remove
+// ---------------------------------------------------------------
+#endif
 
 "       rte;\n"
 );
@@ -1088,21 +1128,19 @@ static void _debug(struct DebugMsg *msg)
     while ( TRUE )
     {
         int16_t l;
-        uint32_t a5next=a5;
         AS_frameMapNode fmn;
 
         _find_debug_info (pc, &l, &fmn);
-        //IDE_cprintf (g_ide, "stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
-        if (!_getParentFrame(&a5next, &pc))
-            break;
-
         DEBUG_stackInfo si = DEBUG_StackInfo (pc, a5, l, fmn);
-        a5 = a5next;
         si->prev = stack_last;
         if (!stack_first)
             stack_last = stack_first = si;
         else
             stack_last = stack_last->next = si;
+
+        //IDE_cprintf (g_ide, "stack: pc=0x%08lx a5=0x%08lx -> source line = %d\n", pc, a5, l);
+        if (!_getParentFrame(&a5, &pc))
+            break;
 
         cnt++;
         if (cnt>10)

@@ -1060,7 +1060,7 @@ static void do_scroll(void)
 
 void _aio_puts(USHORT fno, const UBYTE *s)
 {
-    //_debug_puts((STRPTR)"_debug_puts\n");
+    //DPRINTF ("_aio_puts: fno=%d s=%s\n", fno, s);
 
     if (fno)
     {
@@ -1255,17 +1255,20 @@ void _aio_set_dos_cursor_visible (BOOL visible)
 
 static void draw_cursor(void)
 {
-    CHKBRK;
-
-    ULONG   old_fg, old_x, old_y;
+    BYTE   old_fg, fg;
+    WORD   old_x, old_y;
 
     old_fg = _g_cur_rp->FgPen;
     old_x  = _g_cur_rp->cp_x;
     old_y  = _g_cur_rp->cp_y;
 
-    SetAPen (_g_cur_rp, (1<<_g_cur_rp->BitMap->Depth)-1);
+    fg = (1<<_g_cur_rp->BitMap->Depth)-1;
+
+    DPRINTF ("draw_cursor: old_fg=%d old_x=%d old_y=%d fg=%d\n", old_fg, old_x, old_y, fg);
+
+    SetAPen (_g_cur_rp, fg);
     RectFill (_g_cur_rp, old_x+1, old_y - _g_cur_rp->TxBaseline,
-                    old_x+2, old_y - _g_cur_rp->TxBaseline + _g_cur_rp->TxHeight - 1);
+                         old_x+2, old_y - _g_cur_rp->TxBaseline + _g_cur_rp->TxHeight - 1);
 
     Move (_g_cur_rp, old_x, old_y);
     SetAPen (_g_cur_rp, old_fg);
@@ -1300,9 +1303,11 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 
         while (TRUE)
         {
-            DPRINTF ("_aio_gets: sleep...\n");
+            //DPRINTF ("_aio_gets: sleep...\n");
+            //CHKBRK;
             SLEEP();
-            DPRINTF ("_aio_gets: sleep... returned.\n");
+            //DPRINTF ("_aio_gets: sleep... returned.\n");
+
             char *buf2 = INKEY_();
             char c = *buf2;
 
@@ -1362,8 +1367,6 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 #endif
 
     *s = _astr_dup (buf);
-
-    return;
 }
 
 

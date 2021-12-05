@@ -123,6 +123,8 @@ void _aio_putbool(USHORT fno, BOOL b)
 
 void _aio_line_input (UBYTE *prompt, UBYTE **s, BOOL do_nl)
 {
+    DPRINTF ("_aio_line_input: prompt=%s, *s=0x%08lx, do_nl=%d\n", prompt ? (char *) prompt : "NULL", *s, do_nl);
+
     if (prompt)
         _aio_puts(/*FIXME*/0, prompt);
 
