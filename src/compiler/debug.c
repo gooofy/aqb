@@ -1203,9 +1203,12 @@ static void _debug(struct DebugMsg *msg)
 
         if (cmd[0] == 'd')                          // disassemble
         {
-            IDE_cprintf (g_ide, "disassembly:\n\n");
-            DEBUG_disasm (g_ide, g_dbgPC, g_dbgPC+32);
-            IDE_cprintf (g_ide, "\n");
+            if (stack_cur)
+            {
+                IDE_cprintf (g_ide, "disassembly:\n\n");
+                DEBUG_disasm (g_ide, stack_cur->pc, stack_cur->pc+32);
+                IDE_cprintf (g_ide, "\n");
+            }
             continue;
         }
 
@@ -1247,6 +1250,23 @@ static void _debug(struct DebugMsg *msg)
             break;
         }
 
+        if ((cmd[0]=='U') || (cmd[0]=='D'))         // stack up/down
+        {
+            if (cmd[0]=='U')
+            {
+                if (stack_cur && stack_cur->prev)
+                    stack_cur = stack_cur->prev;
+            }
+            else
+            {
+                if (stack_cur && stack_cur->next)
+                    stack_cur = stack_cur->next;
+            }
+            _print_stack (g_ide, stack_first, stack_cur);
+            _goto_line (g_ide, stack_cur);
+            continue;
+        }
+
         if (cmd[0]=='v')                            // variables
         {
             _print_variables (g_ide, stack_cur);
@@ -1283,6 +1303,7 @@ static void _debug(struct DebugMsg *msg)
         IDE_cprintf (g_ide, "m <addr> - memory dump\n");
         IDE_cprintf (g_ide, "r        - register dump\n");
         IDE_cprintf (g_ide, "s        - step\n");
+        IDE_cprintf (g_ide, "U/D      - stack move up/down\n");
         IDE_cprintf (g_ide, "v        - variables\n");
         IDE_cprintf (g_ide, "w        - where (stack trace)\n");
         IDE_cprintf (g_ide, "\n");
