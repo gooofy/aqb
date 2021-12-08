@@ -145,7 +145,6 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
     f->globl         = FALSE;
     f->locals_offset = 0;
     f->vars          = NULL;
-    f->globals       = NULL;
 
     return f;
 }
@@ -170,21 +169,6 @@ void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset)
     frame->vars = fvi;
 
     //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo ends.\n");
-}
-
-void CG_addGlobalVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, Temp_label label)
-{
-    //LOG_printf (LOG_DEBUG, "codegen: CG_addGlobalVarInfo starts\n");
-    CG_globalVarInfo gvi = U_poolAlloc (UP_codegen, sizeof(*gvi));
-
-    gvi->next    = frame->globals;
-    gvi->sym     = sym;
-    gvi->ty      = ty;
-    gvi->label   = label;
-
-    frame->globals = gvi;
-
-    //LOG_printf (LOG_DEBUG, "codegen: CG_addGlobalVarInfo ends.\n");
 }
 
 void CG_ConstItem (CG_item *item, Ty_const c)
@@ -414,12 +398,9 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
 
         Temp_label label = Temp_namedlabel(ul);
 
-        CG_DataFrag(label, expt, Ty_size(ty));
+        CG_DataFrag(label, expt, Ty_size(ty), ty);
 
         InHeap (item, label, ty);
-
-        if (name && OPT_get (OPTION_DEBUG))
-            CG_addGlobalVarInfo (frame, S_Symbol(name, FALSE), ty, label);
 
         return;
     }
@@ -679,7 +660,7 @@ CG_frag CG_ProcFrag (S_pos pos, Temp_label label, bool expt, AS_instrList body, 
     return f;
 }
 
-CG_frag CG_DataFrag (Temp_label label, bool expt, int size)
+CG_frag CG_DataFrag (Temp_label label, bool expt, int size, Ty_ty ty)
 {
     CG_frag f = U_poolAlloc (UP_codegen, sizeof(*f));
 
@@ -687,6 +668,7 @@ CG_frag CG_DataFrag (Temp_label label, bool expt, int size)
     f->u.data.label = label;
     f->u.data.expt  = expt;
     f->u.data.size  = size;
+    f->u.data.ty    = ty;
     f->u.data.init  = NULL;
 
     g_fragList = CG_FragList(f, g_fragList);
@@ -4341,6 +4323,5 @@ void CG_init (void)
     global_frame->globl         = TRUE;
     global_frame->locals_offset = 0;
     global_frame->vars          = NULL;
-    global_frame->globals       = NULL;
 }
 

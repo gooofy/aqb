@@ -318,6 +318,26 @@
             ],
             "preLaunchTask": "build aqb compiler",
             "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "objdump",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-objdump",
+            "args": ["-x", "/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo"],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}/../../tests",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
         }
-   ]
+    ]
 }

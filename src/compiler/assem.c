@@ -1062,6 +1062,16 @@ static void emit_i4 (AS_segment seg, int32_t w)
     seg->mem_pos += 4;
 }
 
+#if 0
+static void emit_str(AS_segment seg, char *str)
+{
+    uint16_t l = strlen(str);
+    emit_u2 (seg, l);
+    for (uint16_t i=0; i<l; i++)
+        emit_u1 (seg, str[i]);
+}
+#endif
+
 static uint16_t REG_MASK[AS_NUM_REGISTERS] = {
     0x0100, // a0
     0x0200, // a1
@@ -1132,6 +1142,9 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
         li->defined      = FALSE;
         li->displacement = displacement;
         li->offset       = seg->mem_pos;
+        li->label        = l;
+        li->seg          = seg;
+        li->ty           = NULL;
 
         TAB_enter (labels, l, li);
 
@@ -1178,7 +1191,7 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
     return TRUE;
 }
 
-static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32_t offset, bool expt)
+static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32_t offset, bool expt, Ty_ty ty)
 {
     LOG_printf (LOG_DEBUG, "assem: defineLabel label=%s at seg %d %zd (0x%08zx)\n", S_name(label), seg->hunk_id, offset, offset);
     AS_labelInfo li = TAB_look (obj->labels, label);
@@ -1223,8 +1236,10 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32
     }
 
     li->defined = TRUE;
+    li->label   = label;
     li->seg     = seg;
     li->offset  = offset;
+    li->ty      = ty;
 
     if (expt)
         AS_segmentAddDef (UP_assem, seg, label, offset);
@@ -1751,9 +1766,9 @@ AS_object AS_Object (string sourcefn, string name)
 {
     AS_object obj = U_poolAlloc (UP_assem, sizeof(*obj));
 
-    obj->labels  = TAB_empty(UP_assem);
-    obj->codeSeg = AS_Segment (UP_assem, sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
-    obj->dataSeg = AS_Segment (UP_assem, sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
+    obj->labels   = TAB_empty(UP_assem);
+    obj->codeSeg  = AS_Segment (UP_assem, sourcefn, strprintf (UP_assem, ".text"), AS_codeSeg, AS_INITIAL_CODE_SEGMENT_SIZE);
+    obj->dataSeg  = AS_Segment (UP_assem, sourcefn, strprintf (UP_assem, ".data", name), AS_dataSeg, 0);
 
     return obj;
 }
@@ -1802,14 +1817,18 @@ void AS_frameMapAddFVI (U_poolId pid, AS_frameMapNode fmn, S_symbol sym, Ty_ty t
     fmn->vars = fvn;
 }
 
-void AS_segmentAddGVI (U_poolId pid, AS_segment seg, S_symbol sym, Ty_ty ty, Temp_label label)
+void AS_segmentAddGVI (U_poolId pid, AS_segment seg, Temp_label label, Ty_ty ty, uint32_t offset)
 {
+    LOG_printf(LOG_DEBUG, "assem: AS_segmentAddGVI label=%s offset=%d ty=0x%08lx\n", S_name(label), offset, ty);
+    //U_delay(1000);
+
     AS_globalVarNode gvn = U_poolAlloc (pid, sizeof (*gvn));
 
     gvn->next       = seg->globals;
-    gvn->sym        = sym;
-    gvn->ty         = ty;
     gvn->label      = label;
+    gvn->ty         = ty;
+    gvn->seg        = seg;
+    gvn->offset     = offset;
 
     seg->globals = gvn;
 }
@@ -1844,7 +1863,7 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt, CG_frame frame)
         {
             case AS_LABEL:
             {
-                if (!defineLabel (obj, instr->label, seg, seg->mem_pos, expt && first_label))
+                if (!defineLabel (obj, instr->label, seg, seg->mem_pos, expt && first_label, /*ty=*/NULL))
                     return FALSE;
                 first_label = FALSE;
                 break;
@@ -2299,7 +2318,7 @@ bool AS_assembleString (AS_object obj, Temp_label label, string str, uint32_t ms
 {
     AS_segment seg = obj->dataSeg;
 
-    if (!defineLabel (obj, label, seg, seg->mem_pos, /*expt=*/ FALSE))
+    if (!defineLabel (obj, label, seg, seg->mem_pos, /*expt=*/ FALSE, /*ty=*/NULL))
         return FALSE;
 
     AS_ensureSegmentSize (UP_assem, seg, seg->mem_pos+msize);
@@ -2318,9 +2337,9 @@ void AS_assembleDataAlign2 (AS_object o)
         emit_u1 (seg, 0x0);
 }
 
-bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt)
+bool AS_assembleDataLabel (AS_object o, Temp_label label, bool expt, Ty_ty ty)
 {
-    if (!defineLabel (o, label, o->dataSeg, o->dataSeg->mem_pos, expt))
+    if (!defineLabel (o, label, o->dataSeg, o->dataSeg->mem_pos, expt, ty))
         return FALSE;
     return TRUE;
 }
@@ -2356,7 +2375,7 @@ void AS_assembleDataString (AS_segment seg, string data)
     emit_u1(seg, 0);
 }
 
-void AS_resolveLabels (AS_object obj)
+void AS_resolveLabels (U_poolId pid, AS_object obj)
 {
     LOG_printf(LOG_DEBUG, "assem: AS_resolveLabels\n");
     AS_segment seg = obj->codeSeg;
@@ -2367,27 +2386,36 @@ void AS_resolveLabels (AS_object obj)
     AS_labelInfo li;
     while (TAB_next (i, (void **)&l, (void **)&li))
     {
-        if (li->defined)
-            continue;
-
-        if (li->displacement)
+        if (!li->defined)
         {
-            EM_error(0, "assem: undefined label %s\n", Temp_labelstring(l));
-            continue;
-        }
+            if (li->displacement)
+            {
+                EM_error(0, "assem: undefined label %s\n", Temp_labelstring(l));
+                continue;
+            }
 
 #if LOG_LEVEL == LOG_DEBUG
-        LOG_printf(LOG_DEBUG, "AS_resolveLabels: XREF %s\n", S_name (l));
+            LOG_printf(LOG_DEBUG, "AS_resolveLabels: XREF %s\n", S_name (l));
 #endif
-        uint32_t off = li->offset;
-        while (off)
+            uint32_t off = li->offset;
+            while (off)
+            {
+                AS_segmentAddRef (UP_assem, seg, l, off, Temp_w_L, /*common_size=*/0);
+                uint32_t next_off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
+                *((uint32_t *) (seg->mem+off)) = 0;
+                off = next_off;
+            }
+        }
+
+        if (OPT_get (OPTION_DEBUG) && li->ty)
         {
-            AS_segmentAddRef (UP_assem, seg, l, off, Temp_w_L, /*common_size=*/0);
-            uint32_t next_off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
-            *((uint32_t *) (seg->mem+off)) = 0;
-            off = next_off;
+            //LOG_printf(LOG_DEBUG, "assem: AS_resolveLabels: AS_segmentAddGVI li->label=0x%08lx ...\n", li->label);
+            //U_delay(1000);
+            AS_segmentAddGVI (pid, li->seg, li->label, li->ty, li->offset);
         }
     }
+    //LOG_printf(LOG_DEBUG, "assem: AS_resolveLabels done\n");
+    //U_delay(1000);
 }
 
 Temp_tempSet AS_registers (void)

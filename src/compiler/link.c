@@ -4,6 +4,7 @@
 #include "link.h"
 #include "logger.h"
 #include "compiler.h"
+#include "options.h"
 
 /*
  * Amiga Hunk file format related definitions
@@ -34,13 +35,6 @@
 #define MAX_NUM_HUNKS          64
 
 #define ENABLE_SYMBOL_HUNK
-
-#define DEBUG_MAGIC            0x44425141  // AQBD - marks beginning of debug hunk
-#define DEBUG_VERSION          3
-#define DEBUG_INFO_LINE        1
-#define DEBUG_INFO_FRAME       2
-#define DEBUG_INFO_GLOBAL_VARS 3
-#define DEBUG_INFO_END         0xFEDC
 
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static char       g_name[MAX_BUF];             // current hunk name
@@ -603,13 +597,6 @@ static bool fread_ty (FILE *f, Ty_ty *ty)
 
 static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
 {
-    if (!g_hunk_cur)
-    {
-        LOG_printf (LOG_ERROR, "link: debug hunk detected when so segment is defined yet.\n");
-        assert(FALSE);
-        return FALSE;
-    }
-
     uint32_t num_longs;
     if (!fread_u4 (f, &num_longs))
     {
@@ -743,29 +730,27 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
                 }
                 for (uint16_t i=0; i<cnt; i++)
                 {
-                    S_symbol name;
                     Temp_label label;
                     Ty_ty ty = NULL;
-                    if (!fread_str (f, (char *) g_buf))
-                    {
-                        LOG_printf (LOG_ERROR, "link: read error #44.\n");
-                        return FALSE;
-                    }
-                    name = S_Symbol ((char *) g_buf, FALSE);
-                    if (!fread_ty (f, &ty))
-                    {
-                        LOG_printf (LOG_ERROR, "link: read error #45.\n");
-                        return FALSE;
-                    }
+                    uint32_t offset;
                     if (!fread_str (f, (char *) g_buf))
                     {
                         LOG_printf (LOG_ERROR, "link: read error #46.\n");
                         return FALSE;
                     }
                     label = S_Symbol ((char *)g_buf, FALSE);
-
+                    if (!fread_ty (f, &ty))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #45.\n");
+                        return FALSE;
+                    }
+                    if (!fread_u4 (f, &offset))
+                    {
+                        LOG_printf (LOG_ERROR, "link: read error #48.\n");
+                        return FALSE;
+                    }
                     if (ty)
-                        AS_segmentAddGVI (pid, g_hunk_cur, name, ty, label);
+                        AS_segmentAddGVI (pid, g_hunk_cur, label, ty, offset);
                 }
                 break;
             }
@@ -1187,12 +1172,17 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
 
 static void write_hunk_debug (AS_segment seg, FILE *f)
 {
-    if (!seg->srcMap)
+    LOG_printf (LOG_DEBUG, "link: write_hunk_debug starts\n");
+
+    if (!seg->srcMap && !seg->frameMap && !seg->globals)
+    {
+        LOG_printf (LOG_DEBUG, "link: write_hunk_debug no debug info on this segment -> returning\n");
         return;
+    }
 
     fwrite_u4 (f, HUNK_TYPE_DEBUG);
 
-    LOG_printf (LOG_DEBUG, "link: debug section\n");
+    LOG_printf (LOG_DEBUG, "link: write_hunk_debug: debug section starts\n");
     fwrite_u4 (f, 0);   // we will fit that in once we're done writing
     int32_t start_pos = ftell(f);
 
@@ -1237,12 +1227,11 @@ static void write_hunk_debug (AS_segment seg, FILE *f)
     fwrite_u2 (f, cnt);
     for (AS_globalVarNode n = seg->globals; n; n=n->next)
     {
-        char *vname = S_name (n->sym);
         char *label = S_name (n->label);
-        LOG_printf (LOG_DEBUG, "link: write_hunk_debug: global var info name=%s, type=%d, label=%s\n", vname, n->ty->kind, label);
-        fwrite_str (f, vname);
-        fwrite_u1  (f, n->ty->kind);
+        LOG_printf (LOG_DEBUG, "link: write_hunk_debug: global var info type=%d, label=%s, offset=%d\n", n->ty->kind, label, n->offset);
         fwrite_str (f, label);
+        fwrite_u1  (f, n->ty->kind);
+        fwrite_u4  (f, n->offset);
     }
 
     fwrite_u2 (f, DEBUG_INFO_END);
@@ -1252,7 +1241,7 @@ static void write_hunk_debug (AS_segment seg, FILE *f)
     int32_t size = end_pos-start_pos;
     int32_t size4 = roundUp(size, 4);
 
-    LOG_printf (LOG_DEBUG, "link: debug section: finishing, size=%ld, size4=%ld\n", size, size4);
+    LOG_printf (LOG_DEBUG, "link: write_hunk_debug: debug section: finishing, size=%ld, size4=%ld\n", size, size4);
 
     while (size<size4)
     {
@@ -1284,23 +1273,28 @@ void LI_segmentWriteObjectFile (AS_object obj, string objfn)
     write_hunk_code    (obj->codeSeg, g_fObjFile);
     write_hunk_reloc32 (obj->codeSeg, g_fObjFile);
     write_hunk_ext     (obj->codeSeg, g_fObjFile);
-    write_hunk_debug   (obj->codeSeg, g_fObjFile);
+    if (OPT_get (OPTION_DEBUG))
+        write_hunk_debug   (obj->codeSeg, g_fObjFile);
     write_hunk_end     (g_fObjFile);
 
     write_hunk_name    (obj->dataSeg, g_fObjFile);
     write_hunk_data    (obj->dataSeg, g_fObjFile);
     write_hunk_reloc32 (obj->dataSeg, g_fObjFile);
     write_hunk_ext     (obj->dataSeg, g_fObjFile);
-    write_hunk_debug   (obj->dataSeg, g_fObjFile);
+    if (OPT_get (OPTION_DEBUG))
+        write_hunk_debug   (obj->dataSeg, g_fObjFile);
     write_hunk_end     (g_fObjFile);
 
     fclose (g_fObjFile);
     g_fObjFile = NULL;
-    LOG_printf (LOG_INFO, "link: created load file: %s\n", objfn);
+    LOG_printf (LOG_INFO, "link: created object file: %s\n", objfn);
 }
 
 void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 {
+    LOG_printf (LOG_INFO, "link: creating load file: %s\n", loadfn);
+    //U_delay(1000);
+
     g_fLoadFile = fopen(loadfn, "w");
     if (!g_fLoadFile)
     {
@@ -1309,8 +1303,10 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
     }
     write_hunk_header (sl, g_fLoadFile);
 
+    uint32_t hunk_id = 0;
     for (LI_segmentListNode n = sl->first; n; n=n->next)
     {
+        assert (n->seg->hunk_id == hunk_id++);
         switch (n->seg->kind)
         {
             case AS_codeSeg:
@@ -1320,7 +1316,8 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 #ifdef ENABLE_SYMBOL_HUNK
                 write_hunk_symbol (n->seg, g_fLoadFile);
 #endif
-                write_hunk_debug (n->seg, g_fLoadFile);
+                if (OPT_get (OPTION_DEBUG))
+                    write_hunk_debug (n->seg, g_fLoadFile);
                 write_hunk_end (g_fLoadFile);
                 break;
             case AS_dataSeg:
@@ -1330,6 +1327,8 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
 #ifdef ENABLE_SYMBOL_HUNK
                 write_hunk_symbol (n->seg, g_fLoadFile);
 #endif
+                if (OPT_get (OPTION_DEBUG))
+                    write_hunk_debug (n->seg, g_fLoadFile);
                 write_hunk_end (g_fLoadFile);
                 break;
             case AS_bssSeg:
@@ -1516,8 +1515,8 @@ void LI_relocate (LI_segmentList sl, TAB_table symbols)
                     uint32_t ov = *ptr;
                     uint32_t seg_mem = (uint32_t) (uintptr_t) seg->mem;
                     uint32_t nv = ov + seg_mem;
-                    // LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
-                    //             node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
+                    LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
+                                node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
                     assert (ov < seg->mem_size);
                     assert(seg_mem);
                     *ptr = nv;

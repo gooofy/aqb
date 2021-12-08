@@ -31,6 +31,13 @@ typedef enum
 #include "temp.h"
 #include "codegen.h"
 
+#define DEBUG_MAGIC            0x44425141  // AQBD - marks beginning of debug hunk
+#define DEBUG_VERSION          3
+#define DEBUG_INFO_LINE        1
+#define DEBUG_INFO_FRAME       2
+#define DEBUG_INFO_GLOBAL_VARS 3
+#define DEBUG_INFO_END         0xFEDC
+
 #define AS_WORD_SIZE      4
 #define AS_NUM_REGISTERS 14
 
@@ -316,6 +323,8 @@ struct AS_labelInfo_
     bool              displacement;
     AS_segment        seg;
     uint32_t          offset;   // when not defined (yet) this points to the first fixup chain location, otherwise this is the target segment's offset
+    Temp_label        label;    // debug info
+    Ty_ty             ty;       // debug info, NULL if this is not a global variable
 };
 
 struct AS_object_
@@ -343,9 +352,10 @@ struct AS_frameVarNode_
 struct AS_globalVarNode_
 {
     AS_globalVarNode  next;
-    S_symbol          sym;
-    Ty_ty             ty;
     Temp_label        label;
+    Ty_ty             ty;
+    AS_segment        seg;
+    uint32_t          offset;
 };
 
 struct AS_frameMapNode_
@@ -364,7 +374,7 @@ void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol
 void               AS_segmentAddSrcMap   (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off);
 AS_frameMapNode    AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end);
 void               AS_frameMapAddFVI     (U_poolId pid, AS_frameMapNode fmn, S_symbol sym, Ty_ty ty, int offset);
-void               AS_segmentAddGVI      (U_poolId pid, AS_segment seg, S_symbol sym, Ty_ty ty, Temp_label label);
+void               AS_segmentAddGVI      (U_poolId pid, AS_segment seg, Temp_label label, Ty_ty ty, uint32_t offset);
 void               AS_ensureSegmentSize  (U_poolId pid, AS_segment seg, uint32_t min_size);
 
 AS_object          AS_Object             (string sourcefn, string name);
@@ -372,12 +382,12 @@ AS_object          AS_Object             (string sourcefn, string name);
 bool               AS_assembleCode       (AS_object  o, AS_instrList il, bool expt, CG_frame frame);
 bool               AS_assembleString     (AS_object  o, Temp_label label, string str, uint32_t msize);
 void               AS_assembleDataAlign2 (AS_object  o);
-bool               AS_assembleDataLabel  (AS_object  o, Temp_label label, bool expt);
+bool               AS_assembleDataLabel  (AS_object  o, Temp_label label, bool expt, Ty_ty ty);
 void               AS_assembleDataFill   (AS_segment seg, uint32_t size);
 void               AS_assembleData16     (AS_segment seg, uint16_t data);
 void               AS_assembleDataString (AS_segment seg, string data);
 
-void               AS_resolveLabels      (AS_object o);
+void               AS_resolveLabels      (U_poolId pid, AS_object o);
 
 void               AS_init               (void);
 

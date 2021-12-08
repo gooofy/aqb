@@ -258,7 +258,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                 if (!frag->u.data.size)
                     break;
                 AS_assembleDataAlign2 (obj);
-                if (!AS_assembleDataLabel (obj, frag->u.data.label, frag->u.data.expt))
+                if (!AS_assembleDataLabel (obj, frag->u.data.label, frag->u.data.expt, frag->u.data.ty))
                     CO_exit(11);
                 if (frag->u.data.init)
                 {
@@ -267,7 +267,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                         switch (n->kind)
                         {
                             case CG_labelNode:
-                                if (!AS_assembleDataLabel (obj, n->u.label, /*expt=*/FALSE))
+                                if (!AS_assembleDataLabel (obj, n->u.label, /*expt=*/FALSE, /*ty=*/NULL))
                                     CO_exit(12);
                                 break;
                             case CG_constNode:
@@ -326,17 +326,8 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
         }
     }
 
-    if (OPT_get (OPTION_DEBUG))
-    {
-        CG_frame frame = CG_globalFrame ();
-        for (CG_globalVarInfo gvi = frame->globals; gvi; gvi=gvi->next)
-        {
-            LOG_printf (LOG_DEBUG, "compiler: adding global var debug info: %s\n", S_name (gvi->sym));
-            AS_segmentAddGVI (UP_assem, obj->codeSeg, gvi->sym, gvi->ty, gvi->label);
-        }
-    }
+    AS_resolveLabels (UP_assem, obj);
 
-    AS_resolveLabels (obj);
     if (EM_anyErrors)
     {
         LOG_printf (LOG_ERROR, "\n\nassembler failed - exiting.\n");

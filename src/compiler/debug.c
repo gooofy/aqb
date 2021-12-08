@@ -979,8 +979,8 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
 
 static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
 {
-    if (!si || !si->fmn || !si->fmn->vars)
-        return;
+    //if (!si || !si->fmn || !si->fmn->vars )
+    //    return;
 
     AS_frameVarNode v = si->fmn->vars;
     uint8_t *fp = (uint8_t *) si->fp;
@@ -999,8 +999,9 @@ static void _print_variables(IDE_instance ed, DEBUG_stackInfo si)
         for (AS_globalVarNode n = sln->seg->globals; n; n=n->next)
         {
             //uint32_t offset = (uint32_t) (uintptr_t) TAB_look (g_dbgEnv.symbols, n->sym);
-            uint8_t *p = TAB_look (g_dbgEnv.symbols, n->sym);
-            _print_variable (ed, p, n->sym, n->ty);
+            //uint8_t *p = TAB_look (g_dbgEnv.symbols, n->sym);
+            uint8_t *p = n->seg->mem + n->offset;
+            _print_variable (ed, p, n->label, n->ty);
         }
     }
 

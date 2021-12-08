@@ -5,7 +5,6 @@ typedef struct CG_item_           CG_item;
 typedef struct CG_itemList_      *CG_itemList;
 typedef struct CG_itemListNode_  *CG_itemListNode;
 typedef struct CG_frameVarInfo_  *CG_frameVarInfo;
-typedef struct CG_globalVarInfo_ *CG_globalVarInfo;
 typedef struct CG_frame_         *CG_frame;
 typedef struct CG_frag_          *CG_frag;
 typedef struct CG_dataFragNode_  *CG_dataFragNode;
@@ -70,15 +69,6 @@ struct CG_frameVarInfo_
     int              offset;
 };
 
-struct CG_globalVarInfo_
-{
-    CG_globalVarInfo next;
-
-    S_symbol         sym;
-    Ty_ty            ty;
-    Temp_label       label;
-};
-
 struct CG_frame_
 {
     Temp_label       name;
@@ -88,7 +78,6 @@ struct CG_frame_
     bool             globl;           // global frame? FALSE -> local
     int              locals_offset;
     CG_frameVarInfo  vars;
-    CG_globalVarInfo globals;
 };
 
 struct CG_frag_
@@ -98,7 +87,7 @@ struct CG_frag_
     {
         struct {Temp_label label; string str; size_t msize;} stringg;
         struct {S_pos pos; Temp_label label; bool expt; AS_instrList body; CG_frame frame;} proc;
-        struct {Temp_label label; bool expt; size_t size; CG_dataFragNode init; CG_dataFragNode initLast;} data;
+        struct {Temp_label label; bool expt; size_t size; Ty_ty ty; CG_dataFragNode init; CG_dataFragNode initLast;} data;
     } u;
 };
 struct CG_dataFragNode_
@@ -131,7 +120,6 @@ CG_ral          CG_RAL              (Temp_temp arg, Temp_temp reg, CG_ral next);
 CG_frame        CG_Frame            (S_pos pos, Temp_label name, Ty_formal formals, bool statc);
 CG_frame        CG_globalFrame      (void);
 void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, Ty_ty ty, int offset);
-void            CG_addGlobalVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, Temp_label label);
 
 void            CG_ConstItem        (CG_item *item, Ty_const c);
 void            CG_BoolItem         (CG_item *item, bool b, Ty_ty ty);
@@ -167,7 +155,7 @@ CG_itemListNode CG_itemListPrepend  (CG_itemList il);
 
 CG_frag         CG_StringFrag       (Temp_label label, string str);
 CG_frag         CG_ProcFrag         (S_pos pos, Temp_label label, bool expt, AS_instrList body, CG_frame frame);
-CG_frag         CG_DataFrag         (Temp_label label, bool expt, int size);
+CG_frag         CG_DataFrag         (Temp_label label, bool expt, int size, Ty_ty ty);
 
 void            CG_dataFragAddConst (CG_frag dataFrag, Ty_const c);
 void            CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label);

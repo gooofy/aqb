@@ -7356,7 +7356,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     // DATA statement support
     g_dataRestoreLabel = Temp_newlabel();
-    g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0);
+    g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
 
     // parse logical lines
 
