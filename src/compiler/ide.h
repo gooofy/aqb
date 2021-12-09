@@ -35,6 +35,8 @@ struct IDE_line_
 
     // hilighting
     uint16_t  h_start, h_end;
+
+    bool      up2date; // false -> needs redraw if visible on screen
 };
 
 struct IDE_instance_
@@ -58,7 +60,6 @@ struct IDE_instance_
 	int16_t            scrolloff_col, scrolloff_row;
     IDE_line           scrolloff_line;
     int16_t            scrolloff_line_row;
-    bool               up2date_row[UI_MAX_ROWS];
     bool               up2date_il_pos;
     bool               up2date_il_num_lines;
     bool               up2date_il_flags;

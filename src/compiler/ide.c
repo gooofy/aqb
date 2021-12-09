@@ -91,6 +91,7 @@ static IDE_line _newLine(IDE_instance ed, char *buf, char *style, int8_t pre_ind
     l->v_line      = 0;
     l->h_start     = 0;
     l->h_end       = 0;
+    l->up2date     = FALSE;
 
     memcpy (l->buf, buf, len+1);
     memcpy (l->style, style, len+1);
@@ -157,8 +158,8 @@ static void _deleteLine (IDE_instance ed, IDE_line l)
 
 static void _invalidateAll (IDE_instance ed)
 {
-    for (uint16_t i=0; i<UI_MAX_ROWS; i++)
-        ed->up2date_row[i] = FALSE;
+    for (IDE_line l=ed->line_first; l; l=l->next)
+        l->up2date = FALSE;
     ed->up2date_il_pos       = FALSE;
     ed->up2date_il_num_lines = FALSE;
     ed->up2date_il_flags     = FALSE;
@@ -187,9 +188,21 @@ static void _scroll(IDE_instance ed)
             case 0:
                 break;
             case 1:
+            {
                 UI_scrollUp(ed->view_editor);
-                ed->up2date_row[ed->window_height - 1] = FALSE;
+                int cnt = ed->window_height+1;
+                IDE_line l = ed->scrolloff_line;
+                while (cnt && l)
+                {
+                    cnt--;
+                    l=l->next;
+                }
+                if (l)
+                    l->up2date = FALSE;
+                else
+                    _invalidateAll (ed);
                 break;
+            }
             default:
                 _invalidateAll (ed);
         }
@@ -209,7 +222,8 @@ static void _scroll(IDE_instance ed)
                 break;
             case 1:
                 UI_scrollDown(ed->view_editor);
-                ed->up2date_row[0] = FALSE;
+                if (ed->scrolloff_line && ed->scrolloff_line->prev)
+                    ed->scrolloff_line->prev->up2date = FALSE;
                 break;
             default:
                 _invalidateAll (ed);
@@ -345,13 +359,13 @@ static void _repaint (IDE_instance ed)
     uint16_t row = 1;
     while (l && (linenum <= linenum_end))
     {
-        if (!ed->up2date_row[row-1])
+        if (!l->up2date)
         {
             if (ed->editing && (linenum == ed->cursor_v_line))
                 _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE, /*hl_start=*/0, /*hl_end=*/0);
             else
                 _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded, l->h_start, l->h_end);
-            ed->up2date_row[row-1] = TRUE;
+            l->up2date = TRUE;
         }
         if (l->folded)
         {
@@ -839,7 +853,7 @@ static IDE_line _commitBuf(IDE_instance ed)
     ed->cursor_line = l;
     _indentLine (l);
     if ( (l->indent == old_indent) && (l->post_indent == old_post_indent) )
-        ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
+        l->up2date = FALSE;
     else
         indentSuccLines (ed, l);
     return l;
@@ -1211,7 +1225,7 @@ static void _backspaceKey (IDE_instance ed)
             ed->style[i-1] = ed->style[i];
         }
         ed->buf_len--;
-        ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
+        ed->cursor_line->up2date = FALSE;
         _cursorLeft(ed);
     }
 }
@@ -1252,14 +1266,14 @@ static void _deleteKey (IDE_instance ed)
             ed->style[i] = ed->style[i+1];
         }
         ed->buf_len--;
-        ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
+        ed->cursor_line->up2date = FALSE;
     }
 }
 
 static void _killLine (IDE_instance ed)
 {
     IDE_line cl = ed->cursor_line;
-    IDE_line nl = cl->next;
+    IDE_line nl = cl->next ? cl->next : cl->prev;
 
     if (!nl)
     {
@@ -1274,12 +1288,17 @@ static void _killLine (IDE_instance ed)
     if (ed->cursor_col > nl->len)
         ed->cursor_col = nl->len;
 
-    ed->cursor_line = nl;
     //if (nl->folded)
     //    _fold (ed, nl);
 
     _deleteLine (ed, cl);
     indentSuccLines (ed, nl->prev ? nl->prev : nl);
+
+    ed->cursor_line   = nl;
+    ed->cursor_a_line = nl->a_line;
+    ed->cursor_v_line = nl->v_line;
+    _unfoldCursorLine(ed);
+
     _invalidateAll(ed);
 }
 
@@ -1325,7 +1344,7 @@ static bool _insertChar (IDE_instance ed, uint16_t c)
     ed->buf_len++;
     //LOG_printf (LOG_DEBUG, "_insertChar %c 3\n", c);
 
-    ed->up2date_row[ed->cursor_v_line - ed->scrolloff_row] = FALSE;
+    ed->cursor_line->up2date = FALSE;
 
     _cursorRight(ed);
     //LOG_printf (LOG_DEBUG, "_insertChar %c 4\n", c);
