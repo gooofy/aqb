@@ -1084,6 +1084,7 @@ static void _gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight
     {
         ed->cursor_line->h_start = 0;
         ed->cursor_line->h_end   = ed->cursor_line->indent * INDENT_SPACES + ed->cursor_line->len + 1;
+        ed->cursor_line->up2date = FALSE;
     }
 }
 
@@ -1093,7 +1094,11 @@ static void _clearHilight(IDE_instance ed)
 
     while (l)
     {
-        l->h_start = l->h_end = 0;
+        if (l->h_start<l->h_end)
+        {
+            l->h_start = l->h_end = 0;
+            l->up2date = FALSE;
+        }
         l = l->next;
     }
 }
@@ -1102,7 +1107,6 @@ void IDE_gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight)
 {
     _clearHilight(ed);
     _gotoLine (ed, line, col, hilight);
-    _invalidateAll(ed); // FIXME: optimize
     _scroll(ed);
     _repaint(ed);
 }
@@ -1110,7 +1114,6 @@ void IDE_gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight)
 void IDE_clearHilight (IDE_instance ed)
 {
     _clearHilight(ed);
-    _invalidateAll(ed); // FIXME: optimize
     _repaint(ed);
 }
 
