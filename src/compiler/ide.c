@@ -91,6 +91,8 @@ static IDE_line _newLine(IDE_instance ed, char *buf, char *style, int8_t pre_ind
     l->v_line      = 0;
     l->h_start     = 0;
     l->h_end       = 0;
+    l->mark        = FALSE;
+    l->bp          = FALSE;
     l->up2date     = FALSE;
 
     memcpy (l->buf, buf, len+1);
@@ -232,13 +234,13 @@ static void _scroll(IDE_instance ed)
     // FIXME: implement horizontal scroll
 }
 
-static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded, uint16_t h_start, uint16_t h_end)
+static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded, uint16_t h_start, uint16_t h_end, bool mark, bool bp)
 {
     // FIXME: horizontal scroll
 
     UI_view view = ed->view_editor;
 
-    UI_beginLine (view, row, 1, ed->window_width);
+    UI_beginLine (view, row, 1+BP_MARGIN, ed->window_width-BP_MARGIN);
 
     char s=UI_TEXT_STYLE_TEXT;
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
@@ -247,6 +249,7 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
         UI_putc (view, '>');
 
     uint16_t x = 0;
+    uint16_t max_x = ed->window_width - BP_MARGIN;
 
     for (uint16_t i=0; i<indent; i++)
     {
@@ -261,6 +264,8 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
 
         UI_putstr (view, "    ");
         x += 4;
+        if (x>=max_x)
+            break;
     }
 
     for (uint16_t i=0; i<len; i++)
@@ -275,17 +280,33 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
         }
         UI_putc (view, buf[i]);
         x++;
+        if (x>=max_x)
+            break;
     }
     if ((x>=h_start) && (x<h_end))
     {
         UI_setTextStyle (view, UI_TEXT_STYLE_INVERSE);
-        while (x<ed->window_width)
+        while (x<max_x)
         {
             UI_putc (view, ' ');
             x++;
         }
     }
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
+    UI_endLine(view);
+
+    UI_beginLine (view, row, 1, BP_MARGIN);
+    if (mark)
+    {
+        UI_putstr (view, "-->");
+    }
+    else
+    {
+        if (bp)
+            UI_putstr (view, " * ");
+        else
+            UI_putstr (view, "   ");
+    }
     UI_endLine(view);
 }
 
@@ -362,9 +383,9 @@ static void _repaint (IDE_instance ed)
         if (!l->up2date)
         {
             if (ed->editing && (linenum == ed->cursor_v_line))
-                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE, /*hl_start=*/0, /*hl_end=*/0);
+                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE, /*hl_start=*/0, /*hl_end=*/0, /*mark=*/FALSE, /*bp=*/l->bp);
             else
-                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded, l->h_start, l->h_end);
+                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded, l->h_start, l->h_end, l->mark, l->bp);
             l->up2date = TRUE;
         }
         if (l->folded)
@@ -467,7 +488,7 @@ static void _repaint (IDE_instance ed)
         UI_endLine (ed->view_status);
     }
 
-    UI_moveCursor (view, ed->cursor_v_line-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1);
+    UI_moveCursor (view, ed->cursor_v_line-ed->scrolloff_row+1, ed->cursor_col-ed->scrolloff_col+1+BP_MARGIN);
     UI_setCursorVisible (view, TRUE);
 
 #ifdef ENABLE_REPAINT_BENCHMARK
@@ -1084,6 +1105,7 @@ static void _gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight
     {
         ed->cursor_line->h_start = 0;
         ed->cursor_line->h_end   = ed->cursor_line->indent * INDENT_SPACES + ed->cursor_line->len + 1;
+        ed->cursor_line->mark    = TRUE;
         ed->cursor_line->up2date = FALSE;
     }
 }
@@ -1097,6 +1119,7 @@ static void _clearHilight(IDE_instance ed)
         if (l->h_start<l->h_end)
         {
             l->h_start = l->h_end = 0;
+            l->mark    = FALSE;
             l->up2date = FALSE;
         }
         l = l->next;
@@ -1475,6 +1498,7 @@ static void _show_help(IDE_instance ed)
                   "Ctrl-Y - delete line\n"
                   "F5     - compile & run\n"
                   "F7     - compile\n"
+                  "F9     - toggle breakpoint\n"
                   "Ctrl-F - find\n"
                   "Ctrl-N - find next\n"
                   "Ctrl-M - mark block\n"
@@ -1585,6 +1609,15 @@ static void _compileAndRun(IDE_instance ed)
 
 #endif
 
+}
+
+static void _toggleBreakPoint(IDE_instance ed)
+{
+    if (!ed->cursor_line)
+        return;
+
+    ed->cursor_line->bp = !ed->cursor_line->bp;
+    ed->cursor_line->up2date = FALSE;
 }
 
 static bool isWhitespace (char c)
@@ -1981,6 +2014,10 @@ static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
             _compileAndRun(ed);
             break;
 
+        case KEY_F9:
+            _toggleBreakPoint(ed);
+            break;
+
         case KEY_CTRL_A:
         case KEY_CTRL_F:
         case KEY_FIND:
@@ -2166,7 +2203,7 @@ void IDE_open (string sourcefn)
 
     UI_activateView (g_ide->view_editor);
     UI_setCursorVisible (g_ide->view_editor, FALSE);
-    UI_moveCursor (g_ide->view_editor, 1, 1);
+    UI_moveCursor (g_ide->view_editor, 1, 1+BP_MARGIN);
     UI_clearView (g_ide->view_editor);
 
     _editor_size_cb (g_ide->view_editor, g_ide);

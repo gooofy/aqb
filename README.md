@@ -236,6 +236,7 @@ resulting AQB declarations typically look like:
     * Ctrl-Y - delete line
     * F5     - compile & run
     * F7     - compile
+    * F9     - toggle breakpoint
     * Ctrl-F - find
     * Ctrl-N - find next
     * Ctrl-M - mark block

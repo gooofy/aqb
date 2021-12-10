@@ -8,7 +8,8 @@
 #include "ui.h"
 #include "scanner.h"
 
-#define INDENT_SPACES 4
+#define INDENT_SPACES      4
+#define BP_MARGIN          3
 
 #define MAX_CON_LINES     64
 #define MAX_CON_LINE_LEN  80
@@ -33,8 +34,10 @@ struct IDE_line_
     uint16_t  a_line; // absolut line number in file
     uint16_t  v_line; // virtual line number, takes folding into account
 
-    // hilighting
+    // hilighting, line marks (i.e. breakpoints)
     uint16_t  h_start, h_end;
+    bool      mark;
+    bool      bp;
 
     bool      up2date; // false -> needs redraw if visible on screen
 };
