@@ -213,12 +213,6 @@ void UI_endLine (UI_view view)
 #endif
 }
 
-void UI_drawLineMark (UI_view view, uint16_t row, uint16_t col, UI_mark mark)
-{
-    // FIXME
-    assert(FALSE);
-}
-
 void UI_setCursorVisible (UI_view view, bool visible)
 {
     // FIXME

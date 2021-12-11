@@ -110,6 +110,10 @@ typedef enum
     UI_markNone, UI_markBreakPoint, UI_markArrow, UI_markBreakPointArrow
 } UI_mark;
 
+#define UI_MARK_CHAR_BREAKPOINT        1
+#define UI_MARK_CHAR_ARROW             2
+#define UI_MARK_CHAR_BREAKPOINT_ARROW  3
+
 UI_view   UI_getView            (UI_viewId id);
 void      UI_getViewSize        (UI_view view, int16_t *rows, int16_t *cols);
 void      UI_cfgViewScroller    (UI_view view, uint16_t top, uint16_t total, uint16_t visible);
@@ -129,7 +133,6 @@ void      UI_putstr             (UI_view view, string s);
 void      UI_printf             (UI_view view, char* format, ...);
 void      UI_vprintf            (UI_view view, char* format, va_list ap);
 void      UI_endLine            (UI_view view);
-void      UI_drawLineMark       (UI_view view, uint16_t row, uint16_t col, UI_mark mark);
 
 void      UI_setCursorVisible   (UI_view view, bool visible);
 void      UI_moveCursor         (UI_view view, uint16_t row, uint16_t col);

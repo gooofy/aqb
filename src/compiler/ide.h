@@ -9,7 +9,7 @@
 #include "scanner.h"
 
 #define INDENT_SPACES      4
-#define BP_MARGIN          3
+#define BP_MARGIN          1
 
 #define MAX_CON_LINES     64
 #define MAX_CON_LINE_LEN  80

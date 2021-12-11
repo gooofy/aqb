@@ -240,10 +240,25 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
 
     UI_view view = ed->view_editor;
 
-    UI_beginLine (view, row, 1+BP_MARGIN, ed->window_width-BP_MARGIN);
-
     char s=UI_TEXT_STYLE_TEXT;
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
+
+    UI_beginLine (view, row, 1, ed->window_width);
+
+    if (mark)
+    {
+        if (bp)
+            UI_putc (view, UI_MARK_CHAR_BREAKPOINT_ARROW);
+        else
+            UI_putc (view, UI_MARK_CHAR_ARROW);
+    }
+    else
+    {
+        if (bp)
+            UI_putc (view, UI_MARK_CHAR_BREAKPOINT);
+        else
+            UI_putc (view, ' ');
+    }
 
     if (folded)
         UI_putc (view, '>');
@@ -294,20 +309,6 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
     }
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
     UI_endLine(view);
-
-    //UI_beginLine (view, row, 1, BP_MARGIN);
-    if (mark)
-    {
-        UI_drawLineMark (view, row, 1, UI_markArrow);
-    }
-    else
-    {
-        if (bp)
-            UI_drawLineMark (view, row, 1, UI_markBreakPoint);
-        else
-            UI_drawLineMark (view, row, 1, UI_markNone);
-    }
-    //UI_endLine(view);
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)
