@@ -28,7 +28,7 @@ extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 
 #define FONT_DIR  "SYS:x/Fonts"
-#define FONT_NAME "computer"
+#define FONT_NAME "bubba"
 #define FONT_SIZE "8"
 
 static void _loadFont (char *font_dir, char *font_name, char *font_size)
@@ -47,13 +47,19 @@ static void _loadFont (char *font_dir, char *font_name, char *font_size)
     {
         printf ("LoadSeg worked: 0x%08lx\n", seglist);
 
-
 		struct DiskFontHeader *dfh;
-		//struct TextFont *tf;
 
-		dfh = (struct DiskFontHeader *) BADDR(seglist) + 8;
+		dfh = (struct DiskFontHeader *) (BADDR(seglist) + 8);
 
-		printf ("%s\n", dfh->dfh_Name);
+		printf ("dfh->dfh_Name: %s, revision: %d\n", dfh->dfh_Name, dfh->dfh_Revision);
+
+		struct TextFont *tf = &dfh->dfh_TF;
+		printf ("tf->tf_YSize    =%d\n", tf->tf_YSize    );
+		printf ("tf->tf_Style    =%d\n", tf->tf_Style    );
+		printf ("tf->tf_Flags    =%d\n", tf->tf_Flags    );
+		printf ("tf->tf_XSize    =%d\n", tf->tf_XSize    );
+		printf ("tf->tf_Baseline =%d\n", tf->tf_Baseline );
+		printf ("tf->tf_BoldSmear=%d\n", tf->tf_BoldSmear);
 
         UnLoadSeg (seglist);
     }
