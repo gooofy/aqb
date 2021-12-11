@@ -295,19 +295,19 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
     UI_endLine(view);
 
-    UI_beginLine (view, row, 1, BP_MARGIN);
+    //UI_beginLine (view, row, 1, BP_MARGIN);
     if (mark)
     {
-        UI_putstr (view, "-->");
+        UI_drawLineMark (view, row, 1, UI_markArrow);
     }
     else
     {
         if (bp)
-            UI_putstr (view, " * ");
+            UI_drawLineMark (view, row, 1, UI_markBreakPoint);
         else
-            UI_putstr (view, "   ");
+            UI_drawLineMark (view, row, 1, UI_markNone);
     }
-    UI_endLine(view);
+    //UI_endLine(view);
 }
 
 static void _itoa(uint16_t num, char* buf, uint16_t width)

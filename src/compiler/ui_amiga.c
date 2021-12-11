@@ -151,27 +151,71 @@ static uint16_t              g_theme             = 0;
 #include "fonts.h"
 
 struct TextAttr Topaz80 = { (STRPTR)"topaz.font", 8, 0, 0, };
-// FIXME
+
+static USHORT __attribute__((chip)) mark_none[] = {
+        0x1800,
+        0x3c00,
+        0xfe00,
+        0x3c00,
+        0x1800,
+        0x0000,
+        };
+
+static USHORT __attribute__((chip)) mark_bp[] = {
+        0b0001100000000000,
+        0b0111111000000000,
+        0b1111111100000000,
+        0b1111111100000000,
+        0b0111111000000000,
+        0b0011000000000000 
+        };
 #if 0
-#define NL 0
+static USHORT __attribute__((chip)) mark_arrow[] = {
+         /* 1st bitplane */
+        0x1800,
+        0x0c00,
+        0xfe00,
+        0x0c00,
+        0x1800,
+        0x0000,
+         /* 2nd bitplane */
+        0x0000,
+        0x0000,
+        0x0000,
+        0x0000,
+        0x0000,
+        0x0000 };
 
-#define REDP 3
-#define BLKP 2
-#define WHTP 1
-#define BLUP 0
+static USHORT __attribute__((chip)) mark_arrowbp[] = {
+         /* 1st bitplane */
+        0x1800,
+        0x3c00,
+        0xfe00,
+        0x3c00,
+        0x1800,
+        0x0000,
+         /* 2nd bitplane */
+        0x0000,
+        0x3000,
+        0x0000,
+        0x3000,
+        0x0000,
+        0x0000 };
+#endif
 
-static struct IntuiText text = {
-  BLUP, WHTP, JAM2,
-  58, 5, NL,
-  (UBYTE *) "Regular requestor",
-  NL
+static struct BitMap g_markBMs[] = {
+    { 2, 6, 0, 2, 0,  { (PLANEPTR) mark_none, (PLANEPTR) mark_none, NULL, NULL, NULL, NULL, NULL, NULL }},
+    { 2, 6, 0, 2, 0,  { (PLANEPTR) mark_bp,   (PLANEPTR) mark_none, NULL, NULL, NULL, NULL, NULL, NULL }},
+    { 2, 6, 0, 2, 0,  { (PLANEPTR) mark_bp,   (PLANEPTR) mark_none, NULL, NULL, NULL, NULL, NULL, NULL }},
+    { 2, 6, 0, 2, 0,  { (PLANEPTR) mark_bp,   (PLANEPTR) mark_none, NULL, NULL, NULL, NULL, NULL, NULL }},
 };
 
-
-
-static struct Window         g_FindReq;
-static struct Gadget        *g_FRGadgetList = NULL;
-static struct Gadget        *g_FRFindButton;
+#if 0
+static struct Image g_markImages[] =
+        {{ 0, 0, 8, 6, 2, mark_none   , 3, 0, NULL },
+         { 0, 0, 8, 6, 2, mark_bp     , 2, 0, NULL },
+         { 0, 0, 8, 6, 2, mark_arrow  , 3, 0, NULL },
+         { 0, 0, 8, 6, 2, mark_arrowbp, 3, 0, NULL } };
 #endif
 
 static struct FileRequester *g_ASLFileReq   = NULL;
@@ -790,6 +834,15 @@ void UI_endLine (UI_view view)
     BltBitMapRastPort (view->renderBM, 0, 0, g_rp, (view->curLineStart-1)*8+view->x, (view->renderBMcurRow-1)*g_fontHeight+view->y, view->curLineCols*8, g_fontHeight, 0xc0);
     if (view->cursorVisible && (view==g_active_view) )
         _drawCursor(view);
+}
+
+void UI_drawLineMark (UI_view view, uint16_t row, uint16_t col, UI_mark mark)
+{
+
+    LOG_printf (LOG_DEBUG, "UI_drawLineMark: bm flags: 0x%02x\n", g_rp->BitMap->Flags);
+
+	//DrawImage (g_rp, &g_markImages[mark], (col-1)*8+view->x, (row-1)*g_fontHeight+view->y);
+    BltBitMapRastPort (&g_markBMs[mark], 0, 0, g_rp, (col-1)*8+view->x, (row-1)*g_fontHeight+view->y, 8, 6, 0x30);
 }
 
 void UI_setCursorVisible (UI_view view, bool visible)
