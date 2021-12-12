@@ -1,3 +1,19 @@
+/*
+ * AQB source level debugger
+ *
+ * Copyright 2021 G. Bartsch
+ * license: MIT
+ *
+ * trap/instructions used to cause child exceptions:
+ *
+ * ILLEGAL  - editor (dynamic) breakpoints
+ * TRAP 0   - runtime CTRL-C catched
+ * TRAP 1   - runtime (hard coded) breakpoints
+ * TRAP 2   - runtime asserts
+ * TRAP 3   - runtime unhandled errors (ERROR statement)
+ *
+ */
+
 #include <assert.h>
 #include <stdlib.h>
 
@@ -120,6 +136,22 @@ static BOOL has_68040_or_up = FALSE;
 static BOOL has_68030_or_up = FALSE;
 static BOOL has_68020_or_up = FALSE;
 static BOOL has_68010_or_up = FALSE;
+
+// store original code which is replaced by ILLEGAL instructions when we insert
+// dynamic breakpoints
+typedef struct
+{
+    uint32_t addr;
+    uint16_t code;
+} bpCode_t;
+
+#define MAX_NUM_BREAKPOINTS 10
+
+static bpCode_t g_bpCodes[MAX_NUM_BREAKPOINTS] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 },
+                                                   { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
+
+#define OPCODE_ILLEGAL 0x4afc
+#define OPCODE_TRAP1   0x4e41
 
 // Usage:
 //     _hexdump(addr, len, perLine);
@@ -614,7 +646,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
 {
     env->binfn = binfn;
 
-    LOG_printf (LOG_DEBUG, "RUN _launch_process: loading %s ...\n\n", binfn);
+    LOG_printf (LOG_DEBUG, "DEBUG _launch_process: loading %s ...\n\n", binfn);
 
     // use our custom loader which handles debug info
     env->symbols = TAB_empty (UP_runChild);
@@ -633,7 +665,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
 
     env->childHomeDirLock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
 
-    LOG_printf (LOG_DEBUG, "RUN _launch_process: CreateNewProc for %s ...\n", binfn);
+    LOG_printf (LOG_DEBUG, "DEBUG _launch_process: CreateNewProc for %s ...\n", binfn);
     env->childProc = CreateNewProcTags(NP_Seglist,     (ULONG) env->seglist,
 									   NP_FreeSeglist, FALSE,
 									   NP_Input,       0l,
@@ -649,7 +681,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
 
     g_childTask = &env->childProc->pr_Task;
 
-    LOG_printf (LOG_DEBUG, "RUN _launch_process: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) env->childProc);
+    LOG_printf (LOG_DEBUG, "DEBUG _launch_process: CreateProc for %s ... done. process: 0x%08lx\n", binfn, (ULONG) env->childProc);
 
     // send startup message
 
@@ -659,16 +691,47 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
         // install trap handler first
         env->childProc->pr_Task.tc_TrapCode = has_68010_or_up ? (APTR) &_trap_handler_20 : (APTR) &_trap_handler_00;
 
-#if 0
-        // insert a breakpoint right at the start
+        // apply editor breakpoints
 
+        for (IDE_line line = g_ide->line_first; line; line=line->next)
         {
-            uint16_t *ptr = (uint16_t *) sl->first->seg->mem;
-            LOG_printf (LOG_DEBUG, "RUN _launch_process: injecting breakpoint at 0x%08lx: 0x%04lx->0x%04lx\n", ptr, *ptr, 0x4e41);
-            *ptr = 0x4e41; // trap #1
+            if (!line->bp)
+                continue;
+
+            int linenum = line->a_line+1;
+
+            for (LI_segmentListNode sln=g_dbgEnv.sl->first; sln; sln=sln->next)
+            {
+                LOG_printf (LOG_DEBUG, "DEBUG _launch_process: looking for source line #%d\n", linenum);
+                //ULONG seg_start = (uint32_t) (uintptr_t) sln->seg->mem;
+                //ULONG seg_end   = seg_start + sln->seg->mem_size;
+
+                for (AS_srcMapNode n = sln->seg->srcMap; n; n=n->next)
+                {
+                    LOG_printf (LOG_DEBUG, "DEBUG _launch_process: looking for source line #%d, n->offset=0x%08lx n->line=%d\n", linenum, n->offset, n->line);
+
+                    if (n->line == linenum)
+                    {
+                        LOG_printf (LOG_DEBUG, "DEBUG _launch_process: found source line #%d, n->offset=0x%08lx n->line=%d\n", linenum, n->offset, n->line);
+                        uint16_t *ptr = (uint16_t *) n->offset; //sl->first->seg->mem;
+                        for (uint16_t i=0; i<MAX_NUM_BREAKPOINTS; i++)
+                        {
+                            if (!g_bpCodes[i].addr)
+                            {
+                                LOG_printf (LOG_DEBUG, "DEBUG _launch_process: injecting breakpoint #%d at 0x%08lx: 0x%04lx->0x%04lx\n", i, ptr, *ptr, OPCODE_ILLEGAL);
+                                g_bpCodes[i].addr = n->offset;
+                                g_bpCodes[i].code = *ptr;
+                                *ptr = OPCODE_ILLEGAL;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+
             CacheClearU();
         }
-#endif
 
         env->u.dbg.msg.msg.mn_Node.ln_Succ = NULL;
         env->u.dbg.msg.msg.mn_Node.ln_Pred = NULL;
@@ -682,7 +745,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
         env->u.dbg.msg.debug_cmd           = DEBUG_CMD_START;
         env->u.dbg.err                     = 0;
 
-        LOG_printf (LOG_DEBUG, "RUN _launch_process: Send debug msg, g_debugPort=0x%08lx...\n", g_debugPort);
+        LOG_printf (LOG_DEBUG, "DEBUG _launch_process: Send debug msg, g_debugPort=0x%08lx...\n", g_debugPort);
 
         PutMsg (&env->childProc->pr_MsgPort, &env->u.dbg.msg.msg);
     }
@@ -712,14 +775,14 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
             env->u.wb.arg1.wa_Lock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
             env->u.wb.arg1.wa_Name = (BYTE*) FilePart ((STRPTR)arg1);
         }
-        LOG_printf (LOG_DEBUG, "RUN _launch_process: Send WBSTartup msg (arg1=%s) ...\n", arg1);
+        LOG_printf (LOG_DEBUG, "DEBUG _launch_process: Send WBSTartup msg (arg1=%s) ...\n", arg1);
 
         PutMsg (&env->childProc->pr_MsgPort, &env->u.wb.msg.sm_Message);
     }
 
     env->state = DEBUG_stateRunning;
 
-	LOG_printf (LOG_DEBUG, "RUN _launch_process: done. state is %d now.\n", env->state);
+	LOG_printf (LOG_DEBUG, "DEBUG _launch_process: done. state is %d now.\n", env->state);
 
     return TRUE;
 }
@@ -1258,6 +1321,26 @@ static void _debug(struct DebugMsg *msg)
             LOG_printf (LOG_DEBUG, "_debug: continue...\n");
             g_dbgEnv.state = DEBUG_stateRunning;
             g_dbgSR &= 0x7FFF;
+            if (g_trapCode == 4)
+            {
+                // re-insert original instruction
+                bool found = FALSE;
+                for (uint16_t i=0; i<MAX_NUM_BREAKPOINTS; i++)
+                {
+                    if (g_bpCodes[i].addr == g_dbgPC)
+                    {
+                        uint16_t *ptr = (uint16_t *) g_dbgPC;
+                        *ptr = g_bpCodes[i].code;
+                        found = TRUE;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    LOG_printf (LOG_ERROR, "_debug: bp original code not found in table!\n");
+                }
+                // FIXME: step mode!
+            }
             ReplyMsg (&msg->msg);
             LOG_printf (LOG_DEBUG, "_debug: continue... done.\n");
             break;
@@ -1531,6 +1614,11 @@ void DEBUG_break (bool waitForTermination)
         UI_waitDebugTerm();
 }
 
+DEBUG_state DEBUG_getState(void)
+{
+    return g_dbgEnv.state;
+}
+
 void DEBUG_init (IDE_instance ide, struct MsgPort *debugPort)
 {
     g_ide         = ide;
@@ -1544,21 +1632,6 @@ void DEBUG_init (IDE_instance ide, struct MsgPort *debugPort)
     has_68030_or_up = has_68040_or_up || (SysBase->AttnFlags & AFF_68030);
     has_68020_or_up = has_68030_or_up || (SysBase->AttnFlags & AFF_68020);
     has_68010_or_up = has_68020_or_up || (SysBase->AttnFlags & AFF_68010);
-}
-
-DEBUG_state DEBUG_getState(void)
-{
-    return g_dbgEnv.state;
-}
-
-
-#else
-
-// FIXME: implement?
-
-DEBUG_state DEBUG_getState(void)
-{
-    return DEBUG_stateStopped;
 }
 
 #endif

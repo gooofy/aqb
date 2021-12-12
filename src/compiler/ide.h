@@ -8,6 +8,10 @@
 #include "ui.h"
 #include "scanner.h"
 
+#ifdef __amigaos__
+#include <dos/dosextens.h>
+#endif
+
 #define INDENT_SPACES      4
 #define BP_MARGIN          1
 
@@ -31,7 +35,7 @@ struct IDE_line_
 
     // folding support
     bool      folded, fold_start, fold_end;
-    uint16_t  a_line; // absolut line number in file
+    uint16_t  a_line; // absolute line number in file
     uint16_t  v_line; // virtual line number, takes folding into account
 
     // hilighting, line marks (i.e. breakpoints)
@@ -101,41 +105,40 @@ struct IDE_instance_
  * IDE
  */
 
-void     IDE_open         (string sourcefn);
+void        IDE_open             (string sourcefn);
 
-void     IDE_gotoLine     (IDE_instance ed, uint16_t line, uint16_t col, bool hilight);
-void     IDE_clearHilight (IDE_instance ed);
+void        IDE_gotoLine         (IDE_instance ed, uint16_t line, uint16_t col, bool hilight);
+void        IDE_clearHilight     (IDE_instance ed);
 
 /*
  * console view (simple terminal emulation)
  */
 
-void     IDE_conInit   (IDE_instance ed);
-void     IDE_conSet    (IDE_instance ed, bool visible, bool active);
-void     IDE_cprintf   (IDE_instance ed, char* format, ...);
-void     IDE_cvprintf  (IDE_instance ed, char* format, va_list ap);
-uint16_t IDE_readline  (IDE_instance ed, char *buf, int16_t buf_len);
+void        IDE_conInit          (IDE_instance ed);
+void        IDE_conSet           (IDE_instance ed, bool visible, bool active);
+void        IDE_cprintf          (IDE_instance ed, char* format, ...);
+void        IDE_cvprintf         (IDE_instance ed, char* format, va_list ap);
+uint16_t    IDE_readline         (IDE_instance ed, char *buf, int16_t buf_len);
 
 /*
  * debugger
  */
 
-DEBUG_state DEBUG_getState(void);
 
 #ifdef __amigaos__
 
-#include <dos/dosextens.h>
+bool        DEBUG_start          (const char *binfn);
+void        DEBUG_help           (char *binfn, char *arg1);
 
-bool      DEBUG_start          (const char *binfn);
-void      DEBUG_help           (char *binfn, char *arg1);
+uint16_t    DEBUG_handleMessages (void);  // called by ui_amiga when messages arrive at our debugPort
 
-void      DEBUG_init           (IDE_instance ide, struct MsgPort *debugPort);
+void        DEBUG_break          (bool waitForTermination);  // send SIGBREAKF_CTRL_C to child
 
-uint16_t  DEBUG_handleMessages (void);  // called by ui_amiga when message arrive at our debugPort
+void        DEBUG_disasm         (IDE_instance ed, unsigned long int start, unsigned long int end);
 
-void      DEBUG_break          (bool waitForTermination);  // send SIGBREAKF_CTRL_C to child
+DEBUG_state DEBUG_getState       (void);
 
-void      DEBUG_disasm         (IDE_instance ed, unsigned long int start, unsigned long int end);
+void        DEBUG_init           (IDE_instance ide, struct MsgPort *debugPort);
 
 #endif
 
