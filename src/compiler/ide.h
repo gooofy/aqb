@@ -114,7 +114,7 @@ void     IDE_conInit   (IDE_instance ed);
 void     IDE_conSet    (IDE_instance ed, bool visible, bool active);
 void     IDE_cprintf   (IDE_instance ed, char* format, ...);
 void     IDE_cvprintf  (IDE_instance ed, char* format, va_list ap);
-void     IDE_readline  (IDE_instance ed, char *buf, int16_t buf_len);
+uint16_t IDE_readline  (IDE_instance ed, char *buf, int16_t buf_len);
 
 /*
  * debugger

@@ -548,7 +548,7 @@ static bool load_hunk_symbol(U_poolId pid, string sourcefn, FILE *f)
             LOG_printf (LOG_ERROR, "link: read error #34.\n");
             return FALSE;
         }
-        LOG_printf (LOG_DEBUG, "link: hunk_symbol: name=%s(len=%d) offset=0x%08lx\n", g_buf, name_len, offset);
+        //LOG_printf (LOG_DEBUG, "link: hunk_symbol: name=%s(len=%d) offset=0x%08lx\n", g_buf, name_len, offset);
         S_symbol sym = S_Symbol ((char *)g_buf, FALSE);
         AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
     }
@@ -1515,8 +1515,8 @@ void LI_relocate (LI_segmentList sl, TAB_table symbols)
                     uint32_t ov = *ptr;
                     uint32_t seg_mem = (uint32_t) (uintptr_t) seg->mem;
                     uint32_t nv = ov + seg_mem;
-                    LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
-                                node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
+                    //LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating seg (hunk id #%d at 0x%08lx -> #%d at 0x%08lx) at offset %d: 0x%08lx->0x%08lx\n",
+                    //            node->seg->hunk_id, node->seg->mem, seg->hunk_id, seg->mem, r32->offset, ov, nv);
                     assert (ov < seg->mem_size);
                     assert(seg_mem);
                     *ptr = nv;
@@ -1531,7 +1531,7 @@ void LI_relocate (LI_segmentList sl, TAB_table symbols)
         {
             uint32_t offset = def->offset + (uint32_t) (uintptr_t) node->seg->mem;
             TAB_enter (symbols, def->sym, (void *) (uintptr_t)offset);
-            LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating symbol %s 0x%08lx->0x%08lx\n", S_name (def->sym), def->offset, offset);
+            //LOG_printf (LOG_DEBUG, "link: LI_relocate: relocating symbol %s 0x%08lx->0x%08lx\n", S_name (def->sym), def->offset, offset);
         }
 
         // relocate debug information, if any

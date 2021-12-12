@@ -312,8 +312,10 @@ static void _readline_repaint(IDE_instance ed, char *buf, int16_t cursor_pos, in
     UI_moveCursor (view, row, col+cp);
 }
 
-void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
+uint16_t IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
 {
+    uint16_t res = KEY_NONE;
+
     UI_view view = ed->view_console;
 
     if (!UI_isViewVisible (view))
@@ -416,6 +418,20 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
                 finished = TRUE;
                 break;
 
+            case KEY_F1:
+            case KEY_F2:
+            case KEY_F3:
+            case KEY_F4:
+            case KEY_F5:
+            case KEY_F6:
+            case KEY_F7:
+            case KEY_F8:
+            case KEY_F9:
+            case KEY_F10:
+                res = event;
+                finished = TRUE;
+                break;
+
             default:
             {
                 uint16_t l = strlen(buf);
@@ -439,5 +455,6 @@ void IDE_readline (IDE_instance ed, char *buf, int16_t buf_len)
         }
     }
     UI_setCursorVisible (view, FALSE);
+    return res;
 }
 

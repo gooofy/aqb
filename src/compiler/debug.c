@@ -903,14 +903,14 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
 
         if (si->line>=0)
         {
-            IDE_cprintf (ed, "%s 0x%08lx %s:%d %s\n",
-                         si==si_cur ? "-->" : "   ",
+            IDE_cprintf (ed, "%c 0x%08lx %s:%d %s\n",
+                         si==si_cur ? UI_MARK_CHAR_ARROW : ' ',
                          si->pc, g_ide->sourcefn, si->line,
                          si->fmn ? S_name(si->fmn->label) : "???");
         }
         else
         {
-            IDE_cprintf (ed, "%s 0x%08lx runtime/os\n", si==si_cur ? "-->" : "   ", si->pc);
+            IDE_cprintf (ed, "%c 0x%08lx runtime/os\n", si==si_cur ? UI_MARK_CHAR_ARROW : ' ', si->pc);
         }
         si = si->next;
     }
@@ -1201,7 +1201,7 @@ static void _debug(struct DebugMsg *msg)
         UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_KEYWORD);
         IDE_cprintf (g_ide, "dbg (h for help) > ");
         UI_setTextStyle (g_ide->view_console, UI_TEXT_STYLE_TEXT);
-        IDE_readline (g_ide, cmdline, 256);
+        uint16_t key = IDE_readline (g_ide, cmdline, 256);
 
         IDE_cprintf (g_ide, "\n\n");
 
@@ -1229,11 +1229,8 @@ static void _debug(struct DebugMsg *msg)
             }
         }
 
-        if (!num_parts)
-            continue;
-
         //IDE_cprintf (g_ide, "cmdline parsing result: %d parts, first part: %s\n\n", num_parts, parts[0]);
-        char *cmd = parts[0];
+        char *cmd = num_parts>0 ? parts[0] : "";
 
         if (cmd[0] == 'd')                          // disassemble
         {
@@ -1256,7 +1253,7 @@ static void _debug(struct DebugMsg *msg)
             break;
         }
 
-        if (cmd[0] == 'c')                          // continue
+        if ( (key==KEY_F5) || (cmd[0] == 'c') )     // continue
         {
             LOG_printf (LOG_DEBUG, "_debug: continue...\n");
             g_dbgEnv.state = DEBUG_stateRunning;
@@ -1274,7 +1271,7 @@ static void _debug(struct DebugMsg *msg)
             continue;
         }
 
-        if (cmd[0] == 's')                          // step
+        if ( (key==KEY_F10) || (cmd[0] == 's'))     // step
         {
             LOG_printf (LOG_DEBUG, "_debug: step...\n");
             g_dbgEnv.state = DEBUG_stateRunning;
@@ -1330,13 +1327,13 @@ static void _debug(struct DebugMsg *msg)
 
         IDE_cprintf (g_ide, "available commands:\n\n");
 
-        IDE_cprintf (g_ide, "c        - continue\n");
+        IDE_cprintf (g_ide, "c or F5  - continue\n");
         IDE_cprintf (g_ide, "d        - disassemble\n");
         IDE_cprintf (g_ide, "e        - exit (terminate program)\n");
         IDE_cprintf (g_ide, "h        - this help text\n");
         IDE_cprintf (g_ide, "m <addr> - memory dump\n");
         IDE_cprintf (g_ide, "r        - register dump\n");
-        IDE_cprintf (g_ide, "s        - step\n");
+        IDE_cprintf (g_ide, "s or F10 - step\n");
         IDE_cprintf (g_ide, "U/D      - stack move up/down\n");
         IDE_cprintf (g_ide, "v        - variables\n");
         IDE_cprintf (g_ide, "w        - where (stack trace)\n");

@@ -828,8 +828,8 @@ static void _indentLine (IDE_line l)
     l->indent = l->prev->indent + l->prev->post_indent + l->pre_indent;
     if (l->indent < 0)
         l->indent = 0;
-    LOG_printf (LOG_DEBUG, "identLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
-                l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
+    //LOG_printf (LOG_DEBUG, "indentLine: l->prev->indent (%d) + l->prev->post_indent (%d) + l->pre_indent (%d) = %d\n",
+    //            l->prev->indent, l->prev->post_indent, l->pre_indent, l->indent);
 }
 
 static void indentSuccLines (IDE_instance ed, IDE_line lp)
