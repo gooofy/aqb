@@ -1146,7 +1146,32 @@ static BOOL is_whitespace(char c)
 
 static void _debug(struct DebugMsg *msg)
 {
-    LOG_printf (LOG_DEBUG, "_debug: starts...\n");
+    LOG_printf (LOG_DEBUG, "_debug: starts... g_dbgEnv.state=%d, g_trapCode=%d\n", g_dbgEnv.state, g_trapCode);
+
+    // first step after continuing from editor breakpoint?
+    if ((g_dbgEnv.state == DEBUG_stateContinuing) && (g_trapCode == 9))
+    {
+        // restore breakpoints
+
+        for (uint16_t i=0; i<MAX_NUM_BREAKPOINTS; i++)
+        {
+            uint32_t addr = g_bpCodes[i].addr;
+            if (!addr)
+                continue;
+            UWORD *ptr = (UWORD *) addr;
+            *ptr = OPCODE_ILLEGAL;
+        }
+
+        // continue
+        g_dbgEnv.state = DEBUG_stateRunning;
+        g_dbgSR &= 0x7FFF;
+
+        ReplyMsg (&msg->msg);
+
+        return;
+    }
+
+    g_dbgEnv.state = DEBUG_stateTrapped;
     UI_toFront();
     IDE_cprintf (g_ide, "\n");
 
@@ -1339,7 +1364,9 @@ static void _debug(struct DebugMsg *msg)
                 {
                     LOG_printf (LOG_ERROR, "_debug: bp original code not found in table!\n");
                 }
-                // FIXME: step mode!
+                // do a single step so we can re-insert the ILLEGAL opcode again
+                g_dbgSR |= 0x8000;
+                g_dbgEnv.state = DEBUG_stateContinuing;
             }
             ReplyMsg (&msg->msg);
             LOG_printf (LOG_DEBUG, "_debug: continue... done.\n");
@@ -1518,7 +1545,6 @@ uint16_t DEBUG_handleMessages(void)
                         }
                         else
                         {
-                            g_dbgEnv.state = DEBUG_stateTrapped;
                             g_trapMsg = &msg->msg;
                             _debug (msg);
                         }
@@ -1599,6 +1625,7 @@ void DEBUG_break (bool waitForTermination)
             return;
 
         case DEBUG_stateRunning:
+        case DEBUG_stateContinuing:
             LOG_printf (LOG_INFO, "DEBUG_break: sending CTRL+C signal to child\n");
             Signal (&g_dbgEnv.childProc->pr_Task, SIGBREAKF_CTRL_C);
             break;

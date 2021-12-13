@@ -18,7 +18,7 @@
 #define MAX_CON_LINES     64
 #define MAX_CON_LINE_LEN  80
 
-typedef enum {DEBUG_stateStopped, DEBUG_stateRunning, DEBUG_stateTrapped} DEBUG_state;
+typedef enum {DEBUG_stateStopped, DEBUG_stateRunning, DEBUG_stateTrapped, DEBUG_stateContinuing } DEBUG_state;
 
 typedef struct IDE_line_     *IDE_line;
 typedef struct IDE_instance_ *IDE_instance;
