@@ -201,7 +201,7 @@ FOR gz AS INTEGER = 0 TO arr_sz_z - prec_z STEP prec_z
 NEXT gz
 
 
-LOCATE 22, 1
+LOCATE 21, 1
 COLOR 1, 0
 PRINT "PRESS ANY KEY TO QUIT"
 
