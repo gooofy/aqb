@@ -890,9 +890,9 @@ static void _find_debug_info (uint32_t pc, int16_t *l, AS_frameMapNode *fmn)
 
         for (AS_srcMapNode n = sln->seg->srcMap; n; n=n->next)
         {
-            LOG_printf (LOG_DEBUG, "_find_debug_info: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> l=%d\n", pc, n->offset, n->line, l);
+            LOG_printf (LOG_DEBUG, "_find_debug_info: looking for source line, pc=0x%08lx n->offset=0x%08lx n->line=%d -> *l=%d\n", pc, n->offset, n->line, *l);
 
-            if (pc > n->offset)
+            if (pc >= n->offset)
                 *l = n->line;
         }
 
@@ -935,7 +935,7 @@ static BOOL _getParentFrame (uint32_t *a5, uint32_t *pc)
     //LOG_printf (LOG_DEBUG, "_getParentFrame: a5=0x%08lx -> prev_a5=0x%08lx, prev_pc=0x%08lx\n", *a5, prev_a5, prev_pc);
 
     *a5 = prev_a5;
-    *pc = prev_pc;
+    *pc = prev_pc-2;
 
     return TRUE;
 }
@@ -1185,7 +1185,7 @@ static void _debug(struct DebugMsg *msg)
             IDE_cprintf(g_ide, "ADDRESS ERROR\n\n");
             break;
         case 4:
-            IDE_cprintf(g_ide, "ILLEGAL INSTRUCTION\n\n");
+            IDE_cprintf(g_ide, "EDITOR BREAKPOINT HIT (ILGL INSTR)\n\n");
             break;
         case 5:
             IDE_cprintf(g_ide, "INTEGER DIVIDE BY ZERO\n\n");
@@ -1244,7 +1244,7 @@ static void _debug(struct DebugMsg *msg)
 
     DEBUG_stackInfo stack_first = NULL, stack_last = NULL;
 
-    uint32_t pc = g_dbgPC;
+    uint32_t pc = g_trapCode==4 ?  g_dbgPC : g_dbgPC-2; // ILLEGAL stops before the opcode is executed, TRAP* afterwards
     uint32_t a5 = g_dbgStateBuf.a5;
     int cnt = 0;
     while ( TRUE )
