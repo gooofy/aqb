@@ -1160,6 +1160,7 @@ static void _debug(struct DebugMsg *msg)
                 continue;
             UWORD *ptr = (UWORD *) addr;
             *ptr = OPCODE_ILLEGAL;
+            CacheClearU();
         }
 
         // continue
@@ -1356,6 +1357,7 @@ static void _debug(struct DebugMsg *msg)
                     {
                         uint16_t *ptr = (uint16_t *) g_dbgPC;
                         *ptr = g_bpCodes[i].code;
+                        CacheClearU();
                         found = TRUE;
                         break;
                     }
