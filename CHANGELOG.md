@@ -1,10 +1,13 @@
-## 0.7.4
+## 0.8.0
 
 Improvements:
+
+    * Major new feature: source level debugging
 
     * ide: debug mode mode plus output added
     * ide: debug/console view added
     * ide: SMART\_REFRESH window for faster+reliable refresh handling
+    * ide: editor breakpoints (F9)
     * compiler: OPTION DEBUG statement added
     * compiler: TRACE statement added
     * compiler: BREAK statement added

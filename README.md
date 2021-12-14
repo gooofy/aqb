@@ -59,6 +59,7 @@ Improvements over AmigaBASIC include:
     * syntax highlighting
     * auto-indent
     * folding support
+    * source level debugging
 
 ## Requirements
 
