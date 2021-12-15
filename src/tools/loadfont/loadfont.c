@@ -85,16 +85,22 @@ typedef UBYTE fontData_t[256][8];
 
 static void _fontConv(struct TextFont *font, fontData_t *fontData)
 {
+    printf ("fontConv... blanking\n"); Delay(100);
     for (UWORD ci=0; ci<256; ci++)
+    {
+        printf ("   ci=%d\n", ci);
         for (UBYTE y=0; y<8; y++)
             *fontData[ci][y] = 0;
+    }
 
     UWORD *pCharLoc = font->tf_CharLoc;
 #ifdef DEBUG_FONTCONV
     uint16_t cnt=0;
 #endif
+    printf ("fontConv... converting\n"); Delay(100);
     for (UBYTE ci=font->tf_LoChar; ci<font->tf_HiChar; ci++)
     {
+        printf ("   ci=%d\n", ci);
         UWORD bl = *pCharLoc;
         UWORD byl = bl / 8;
         BYTE bitl = bl % 8;
@@ -153,70 +159,22 @@ static void _fontConv(struct TextFont *font, fontData_t *fontData)
 
 int main (int argc, char *argv[])
 {
-    struct Screen *my_screen;
-    ULONG  screen_modeID;
+    struct DiskFontHeader *dfh = _loadFont (FONT_DIR, FONT_NAME, FONT_SIZE);
 
-    struct Screen   *pub_screen = NULL;
-    struct DrawInfo *screen_drawinfo = NULL;
-
-    STRPTR pub_screen_name = (STRPTR)"workbench";
-
-    pub_screen = LockPubScreen(pub_screen_name);
-    if (pub_screen != NULL)
+    if (dfh)
     {
-        screen_drawinfo = GetScreenDrawInfo(pub_screen);
-        if (screen_drawinfo != NULL)
-        {
-            screen_modeID = GetVPModeID(&(pub_screen->ViewPort));
-            if( screen_modeID != INVALID_ID )
-            {
-                my_screen = OpenScreenTags(NULL,
-                    SA_Width,      pub_screen->Width,
-                    SA_Height,     pub_screen->Height,
-                    SA_Depth,      screen_drawinfo->dri_Depth,
-                    SA_Overscan,   OSCAN_TEXT,
-                    SA_AutoScroll, TRUE,
-                    SA_Pens,       (ULONG)(screen_drawinfo->dri_Pens),
-                    SA_DisplayID,  screen_modeID,
-                    SA_Title,      (ULONG) "Cloned Screen",
-                    TAG_END);
-                if (my_screen != NULL)
-                {
-                    FreeScreenDrawInfo(pub_screen,screen_drawinfo);
-                    screen_drawinfo = NULL;
-                    UnlockPubScreen(pub_screen_name,pub_screen);
-                    pub_screen = NULL;
+        struct TextFont *tf = &dfh->dfh_TF;
 
-                    struct DiskFontHeader *dfh = _loadFont (FONT_DIR, FONT_NAME, FONT_SIZE);
+        printf ("font loaded. rf=0x%08x\n", (uint32_t)tf);
+        Delay(100);
 
-                    if (dfh)
-                    {
-                        struct TextFont *tf = &dfh->dfh_TF;
-                        struct RastPort *rp = &my_screen->RastPort;
+        static fontData_t fontData;
+        _fontConv (tf, &fontData);
 
-                        SetFont (rp, tf);
-                        SetAPen (rp, 1);
-                        Move (rp, 10, 30);
-                        char *str = "Hello, World! 1234567890 ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                        Text (rp, (STRPTR)str, strlen(str));
+        Delay(300);   /* should be rest_of_program */
 
-                        static fontData_t fontData;
-                        _fontConv (tf, &fontData);
-
-                        Delay(300);   /* should be rest_of_program */
-
-                        _freeFont(dfh);
-                    }
-                    CloseScreen(my_screen);
-                }
-            }
-        }
+        _freeFont(dfh);
     }
-
-    if (screen_drawinfo != NULL )
-        FreeScreenDrawInfo(pub_screen,screen_drawinfo);
-    if (pub_screen != NULL )
-        UnlockPubScreen(pub_screen_name,pub_screen);
 
     return 0;
 }
