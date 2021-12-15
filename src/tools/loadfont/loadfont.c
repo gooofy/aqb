@@ -28,7 +28,7 @@ extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 
 #define FONT_DIR  "SYS:x/Fonts"
-#define FONT_NAME "Dale"
+#define FONT_NAME "Dungeon"
 #define FONT_SIZE "8"
 
 static struct DiskFontHeader *_loadFont (char *font_dir, char *font_name, char *font_size)
@@ -81,6 +81,76 @@ static void _freeFont (struct DiskFontHeader *dfh)
     UnLoadSeg (seglist);
 }
 
+typedef UBYTE fontData_t[256][8];
+
+static void _fontConv(struct TextFont *font, fontData_t *fontData)
+{
+    for (UWORD ci=0; ci<256; ci++)
+        for (UBYTE y=0; y<8; y++)
+            *fontData[ci][y] = 0;
+
+    UWORD *pCharLoc = font->tf_CharLoc;
+#ifdef DEBUG_FONTCONV
+    uint16_t cnt=0;
+#endif
+    for (UBYTE ci=font->tf_LoChar; ci<font->tf_HiChar; ci++)
+    {
+        UWORD bl = *pCharLoc;
+        UWORD byl = bl / 8;
+        BYTE bitl = bl % 8;
+        pCharLoc++;
+        UWORD bs = *pCharLoc;
+        pCharLoc++;
+#ifdef DEBUG_FONTCONV
+        if (cnt<DEBUG_FONTCONV_NUM)
+            printf ("ci=%d(%c) bl=%d -> byl=%d/bitl=%d, bs=%d\n", ci, ci, bl, byl, bitl, bs);
+#endif
+        if (bs>8)
+            bs = 8;
+        for (UBYTE y=0; y<font->tf_YSize; y++)
+        {
+            char *p = font->tf_CharData;
+            p += y*font->tf_Modulo + byl;
+            BYTE bsc = bs;
+            BYTE bitlc = 7-bitl;
+            for (BYTE x=7; x>=0; x--)
+            {
+                if (*p & (1<<bitlc))
+                {
+                    *fontData[ci][y] |= (1<<x);
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf("*");
+#endif
+                }
+                else
+                {
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf(".");
+#endif
+                }
+                bsc--;
+                if (!bsc)
+                    break;
+                bitlc--;
+                if (bitlc<0)
+                {
+                    bitlc = 7;
+                    p++;
+                }
+            }
+#ifdef DEBUG_FONTCONV
+            if (cnt<DEBUG_FONTCONV_NUM)
+                printf("\n");
+#endif
+        }
+#ifdef DEBUG_FONTCONV
+        cnt++;
+#endif
+    }
+}
+
 int main (int argc, char *argv[])
 {
     struct Screen *my_screen;
@@ -129,6 +199,9 @@ int main (int argc, char *argv[])
                         Move (rp, 10, 30);
                         char *str = "Hello, World! 1234567890 ABCDEFGHIJKLMNOPQRSTUVWXYZ";
                         Text (rp, (STRPTR)str, strlen(str));
+
+                        static fontData_t fontData;
+                        _fontConv (tf, &fontData);
 
                         Delay(300);   /* should be rest_of_program */
 
