@@ -28,10 +28,10 @@ extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 
 #define FONT_DIR  "SYS:x/Fonts"
-#define FONT_NAME "Dungeon"
+#define FONT_NAME "Dale"
 #define FONT_SIZE "8"
 
-static struct DiskFontHeader *_loadFont (char *font_dir, char *font_name, char *font_size)
+struct DiskFontHeader *_loadFont (char *font_dir, char *font_name, char *font_size)
 {
     static char fontPath[256];
 
@@ -72,7 +72,7 @@ static struct DiskFontHeader *_loadFont (char *font_dir, char *font_name, char *
     return NULL;
 }
 
-static void _freeFont (struct DiskFontHeader *dfh)
+void _freeFont (struct DiskFontHeader *dfh)
 {
     BPTR seglist = dfh->dfh_Segment;
     if (!seglist)
@@ -81,16 +81,17 @@ static void _freeFont (struct DiskFontHeader *dfh)
     UnLoadSeg (seglist);
 }
 
-typedef UBYTE fontData_t[256][8];
+//typedef UBYTE glyph8_t[8];
+//typedef glyph8_t fontData_t[256];
 
-static void _fontConv(struct TextFont *font, fontData_t *fontData)
+void _fontConv(struct TextFont *font, UBYTE *fontData)
 {
     printf ("fontConv... blanking\n"); Delay(100);
     for (UWORD ci=0; ci<256; ci++)
     {
         printf ("   ci=%d\n", ci);
         for (UBYTE y=0; y<8; y++)
-            *fontData[ci][y] = 0;
+            *(fontData + ci*8+y) = 0;
     }
 
     UWORD *pCharLoc = font->tf_CharLoc;
@@ -123,7 +124,7 @@ static void _fontConv(struct TextFont *font, fontData_t *fontData)
             {
                 if (*p & (1<<bitlc))
                 {
-                    *fontData[ci][y] |= (1<<x);
+                    *(fontData + ci*8+y) |= (1<<x);
 #ifdef DEBUG_FONTCONV
                     if (cnt<DEBUG_FONTCONV_NUM)
                         printf("*");
@@ -168,8 +169,8 @@ int main (int argc, char *argv[])
         printf ("font loaded. rf=0x%08x\n", (uint32_t)tf);
         Delay(100);
 
-        static fontData_t fontData;
-        _fontConv (tf, &fontData);
+        static UBYTE fontData[256][8];
+        _fontConv (tf, (UBYTE *)fontData);
 
         Delay(300);   /* should be rest_of_program */
 
