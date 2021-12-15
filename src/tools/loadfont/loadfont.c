@@ -28,10 +28,10 @@ extern struct GfxBase       *GfxBase;
 extern struct IntuitionBase *IntuitionBase;
 
 #define FONT_DIR  "SYS:x/Fonts"
-#define FONT_NAME "bubba"
+#define FONT_NAME "Dale"
 #define FONT_SIZE "8"
 
-static void _loadFont (char *font_dir, char *font_name, char *font_size)
+static struct DiskFontHeader *_loadFont (char *font_dir, char *font_name, char *font_size)
 {
     static char fontPath[256];
 
@@ -50,6 +50,7 @@ static void _loadFont (char *font_dir, char *font_name, char *font_size)
 		struct DiskFontHeader *dfh;
 
 		dfh = (struct DiskFontHeader *) (BADDR(seglist) + 8);
+        dfh->dfh_Segment = seglist;
 
 		printf ("dfh->dfh_Name: %s, revision: %d\n", dfh->dfh_Name, dfh->dfh_Revision);
 
@@ -61,12 +62,23 @@ static void _loadFont (char *font_dir, char *font_name, char *font_size)
 		printf ("tf->tf_Baseline =%d\n", tf->tf_Baseline );
 		printf ("tf->tf_BoldSmear=%d\n", tf->tf_BoldSmear);
 
-        UnLoadSeg (seglist);
+        return dfh;
     }
     else
     {
         printf ("LoadSeg failed!\n");
     }
+
+    return NULL;
+}
+
+static void _freeFont (struct DiskFontHeader *dfh)
+{
+    BPTR seglist = dfh->dfh_Segment;
+    if (!seglist)
+        return;
+    dfh->dfh_Segment = 0l;
+    UnLoadSeg (seglist);
 }
 
 int main (int argc, char *argv[])
@@ -105,10 +117,23 @@ int main (int argc, char *argv[])
                     UnlockPubScreen(pub_screen_name,pub_screen);
                     pub_screen = NULL;
 
-                    _loadFont (FONT_DIR, FONT_NAME, FONT_SIZE);
+                    struct DiskFontHeader *dfh = _loadFont (FONT_DIR, FONT_NAME, FONT_SIZE);
 
-                    Delay(300);   /* should be rest_of_program */
+                    if (dfh)
+                    {
+                        struct TextFont *tf = &dfh->dfh_TF;
+                        struct RastPort *rp = &my_screen->RastPort;
 
+                        SetFont (rp, tf);
+                        SetAPen (rp, 1);
+                        Move (rp, 10, 30);
+                        char *str = "Hello, World! 1234567890 ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                        Text (rp, (STRPTR)str, strlen(str));
+
+                        Delay(300);   /* should be rest_of_program */
+
+                        _freeFont(dfh);
+                    }
                     CloseScreen(my_screen);
                 }
             }
