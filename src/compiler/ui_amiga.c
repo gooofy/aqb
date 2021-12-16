@@ -434,34 +434,34 @@ static struct DiskFontHeader *_loadFont (char *font_name, char *font_size)
     AddPart ((STRPTR) fontPath, (STRPTR)font_name, 256);
     AddPart ((STRPTR) fontPath, (STRPTR)font_size, 256);
 
-    printf ("fontPath: %s\n", fontPath);
+    LOG_printf (LOG_DEBUG, "UI: _loadFont: fontPath: %s\n", fontPath);
 
     BPTR seglist = LoadSeg ((STRPTR)fontPath);
 
     if (seglist)
     {
-        printf ("LoadSeg worked: 0x%08lx\n", seglist);
+        //printf ("LoadSeg worked: 0x%08lx\n", seglist);
 
 		struct DiskFontHeader *dfh;
 
 		dfh = (struct DiskFontHeader *) (BADDR(seglist) + 8);
         dfh->dfh_Segment = seglist;
 
-		printf ("dfh->dfh_Name: %s, revision: %d\n", dfh->dfh_Name, dfh->dfh_Revision);
+		//printf ("dfh->dfh_Name: %s, revision: %d\n", dfh->dfh_Name, dfh->dfh_Revision);
 
-		struct TextFont *tf = &dfh->dfh_TF;
-		printf ("tf->tf_YSize    =%d\n", tf->tf_YSize    );
-		printf ("tf->tf_Style    =%d\n", tf->tf_Style    );
-		printf ("tf->tf_Flags    =%d\n", tf->tf_Flags    );
-		printf ("tf->tf_XSize    =%d\n", tf->tf_XSize    );
-		printf ("tf->tf_Baseline =%d\n", tf->tf_Baseline );
-		printf ("tf->tf_BoldSmear=%d\n", tf->tf_BoldSmear);
+		// struct TextFont *tf = &dfh->dfh_TF;
+		//printf ("tf->tf_YSize    =%d\n", tf->tf_YSize    );
+		//printf ("tf->tf_Style    =%d\n", tf->tf_Style    );
+		//printf ("tf->tf_Flags    =%d\n", tf->tf_Flags    );
+		//printf ("tf->tf_XSize    =%d\n", tf->tf_XSize    );
+		//printf ("tf->tf_Baseline =%d\n", tf->tf_Baseline );
+		//printf ("tf->tf_BoldSmear=%d\n", tf->tf_BoldSmear);
 
         return dfh;
     }
     else
     {
-        printf ("LoadSeg failed!\n");
+        LOG_printf (LOG_ERROR, "UI: _loadFont: LoadSeg failed!\n");
     }
 
     return NULL;

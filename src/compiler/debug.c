@@ -988,14 +988,14 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
     {
         switch (ty->kind)
         {
-            case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-12s = %s\n", S_name(sym), *p ? "TRUE" : "FALSE"); break;
-            case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-12s = %d\n", S_name(sym), *p);                    break;
-            case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-12s = %d\n", S_name(sym), *((uint8_t *)p));       break;
-            case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-12s = %d\n", S_name(sym), *((int16_t *)p));       break;
-            case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-12s = %d\n", S_name(sym), *((uint16_t *)p));      break;
-            case Ty_long:     IDE_cprintf (ed, "  LONG     %-12s = %d\n", S_name(sym), *((int32_t *)p));       break;
-            case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-12s = %d\n", S_name(sym), *((uint32_t *)p));      break;
-            case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-12s = %f\n", S_name(sym), decode_ffp(*((uint32_t *)p))); break;
+            case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-20s = %s\n", S_name(sym), *p ? "TRUE" : "FALSE"); break;
+            case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-20s = %d\n", S_name(sym), *p);                    break;
+            case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-20s = %d\n", S_name(sym), *((uint8_t *)p));       break;
+            case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-20s = %d\n", S_name(sym), *((int16_t *)p));       break;
+            case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-20s = %d\n", S_name(sym), *((uint16_t *)p));      break;
+            case Ty_long:     IDE_cprintf (ed, "  LONG     %-20s = %d\n", S_name(sym), *((int32_t *)p));       break;
+            case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-20s = %d\n", S_name(sym), *((uint32_t *)p));      break;
+            case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-20s = %f\n", S_name(sym), decode_ffp(*((uint32_t *)p))); break;
 
             case Ty_double:
             case Ty_sarray:
@@ -1015,14 +1015,14 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
     {
         switch (ty->kind)
         {
-            case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-12s = ???\n", S_name(sym)); break;
-            case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-12s = ???\n", S_name(sym)); break;
-            case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-12s = ???\n", S_name(sym)); break;
-            case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-12s = ???\n", S_name(sym)); break;
-            case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-12s = ???\n", S_name(sym)); break;
-            case Ty_long:     IDE_cprintf (ed, "  LONG     %-12s = ???\n", S_name(sym)); break;
-            case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-12s = ???\n", S_name(sym)); break;
-            case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-12s = ???\n", S_name(sym)); break;
+            case Ty_bool:     IDE_cprintf (ed, "  BOOL     %-20s = ???\n", S_name(sym)); break;
+            case Ty_byte:     IDE_cprintf (ed, "  BYTE     %-20s = ???\n", S_name(sym)); break;
+            case Ty_ubyte:    IDE_cprintf (ed, "  UBYTE    %-20s = ???\n", S_name(sym)); break;
+            case Ty_integer:  IDE_cprintf (ed, "  INTEGER  %-20s = ???\n", S_name(sym)); break;
+            case Ty_uinteger: IDE_cprintf (ed, "  UINTEGER %-20s = ???\n", S_name(sym)); break;
+            case Ty_long:     IDE_cprintf (ed, "  LONG     %-20s = ???\n", S_name(sym)); break;
+            case Ty_ulong:    IDE_cprintf (ed, "  ULONG    %-20s = ???\n", S_name(sym)); break;
+            case Ty_single:   IDE_cprintf (ed, "  SINGLE   %-20s = ???\n", S_name(sym)); break;
 
             case Ty_double:
             case Ty_sarray:
