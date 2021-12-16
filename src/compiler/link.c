@@ -588,7 +588,7 @@ static bool fread_ty (FILE *f, Ty_ty *ty)
         case Ty_procPtr:
         case Ty_toLoad:
         case Ty_prc:
-            LOG_printf (LOG_ERROR, "link: load_hunk_debug: unknown fvi type kind %d\n", ty_kind);
+            LOG_printf (LOG_DEBUG, "link: load_hunk_debug: unknown fvi type kind %d\n", ty_kind);
             break;
 
      }
