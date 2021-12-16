@@ -2047,6 +2047,7 @@ static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
 
 		case KEY_FONT_0:
 		case KEY_FONT_1:
+		case KEY_FONT_2:
 			UI_setFont (key - KEY_FONT_0);
             _editor_size_cb (ed->view_editor, ed);
 			break;

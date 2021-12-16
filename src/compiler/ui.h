@@ -57,8 +57,6 @@
 #define KEY_COLORSCHEME_4  1028
 #define KEY_COLORSCHEME_5  1029
 #define KEY_ABOUT          1030
-#define KEY_FONT_0         1031
-#define KEY_FONT_1         1032
 #define KEY_FIND           1033
 #define KEY_FIND_NEXT      1034
 #define KEY_BLOCK          1035
@@ -67,6 +65,11 @@
 #define KEY_SAVE           1038
 #define KEY_SAVE_AS        1039
 #define KEY_QUIT           1040
+
+// fonts
+#define KEY_FONT_0         1500
+#define KEY_FONT_1         1501
+#define KEY_FONT_2         1502
 
 // debugger
 #define KEY_STOPPED        2000

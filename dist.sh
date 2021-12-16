@@ -52,6 +52,8 @@ cp -r tutorial/imgs ${WORKDIR}/aqb/tutorial/
 
 cp -r help ${WORKDIR}/aqb/
 
+cp -r dist/amiga/Fonts ${WORKDIR}/aqb/
+
 pushd ${WORKDIR}
 lha a ${LHA} aqb.info aqb
 popd

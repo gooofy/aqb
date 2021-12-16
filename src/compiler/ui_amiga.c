@@ -36,6 +36,7 @@
 #include <inline/gadtools.h>
 
 #include <libraries/gadtools.h>
+#include <libraries/diskfont.h>
 
 #include <clib/console_protos.h>
 #include <inline/console.h>
@@ -95,8 +96,9 @@ static struct NewMenu g_newmenu[] =
         {   NM_SUB, (STRPTR) "Dark",                0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
         {   NM_SUB, (STRPTR) "Light",               0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
         {  NM_ITEM, (STRPTR) "Font",                0 , 0, 0, 0,},
-        {   NM_SUB, (STRPTR) "6",                   0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_0,},
-        {   NM_SUB, (STRPTR) "8",                   0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_1,},
+        {   NM_SUB, (STRPTR) "AQB 6",               0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_0,},
+        {   NM_SUB, (STRPTR) "AQB 8",               0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_1,},
+        {   NM_SUB, (STRPTR) "TOPAZ 80",            0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_2,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
@@ -134,23 +136,23 @@ struct UI_view_
     uint16_t              scrollPos;
 };
 
-static struct Window        *g_win               = NULL;
-static struct RastPort      *g_rp                = NULL;
-static struct MsgPort       *g_debugPort         = NULL;
-static struct IOStdReq       console_ioreq;
-static struct Menu          *g_menuStrip         = NULL;
-static struct Gadget        *g_glist             = NULL; // gadtools context
-static struct Gadget        *g_gad               = NULL;
-static APTR                  g_vi                = NULL;
-static UI_view               g_views[NUM_VIEWS]  = {NULL, NULL, NULL};
-static UI_view               g_active_view       = NULL;
-static UWORD                 g_fontHeight        = 8;
-static UBYTE                 g_curFont           = 1;
-static uint16_t              g_theme             = 0;
+static struct Window         *g_win               = NULL;
+static struct RastPort       *g_rp                = NULL;
+static struct MsgPort        *g_debugPort         = NULL;
+static struct IOStdReq        console_ioreq;
+static struct Menu           *g_menuStrip         = NULL;
+static struct Gadget         *g_glist             = NULL; // gadtools context
+static struct Gadget         *g_gad               = NULL;
+static APTR                   g_vi                = NULL;
+static UI_view                g_views[NUM_VIEWS]  = {NULL, NULL, NULL};
+static UI_view                g_active_view       = NULL;
+static UWORD                  g_fontHeight        = 8;
+static UBYTE                  g_curFont           = 1;
+static uint16_t               g_theme             = 0;
 
-#include "fonts.h"
+static struct TextAttr        g_topaz80Attr       = { (STRPTR)"topaz.font", 8, 0, 0, };
 
-struct TextAttr Topaz80 = { (STRPTR)"topaz.font", 8, 0, 0, };
+static UBYTE                  g_fontData[256][8];
 
 static UBYTE g_markCharData[3][8] = {
     {
@@ -239,7 +241,7 @@ static struct Gadget *_createGadgetTagList (ULONG kind, struct Gadget *prev, WOR
     ng.ng_TopEdge    = y + g_win->BorderTop;
     ng.ng_Width      = w;
     ng.ng_Height     = h;
-    ng.ng_TextAttr   = &Topaz80;
+    ng.ng_TextAttr   = &g_topaz80Attr;
     ng.ng_VisualInfo = g_vi;
     ng.ng_GadgetText = (STRPTR) txt;
     ng.ng_GadgetID   = id;
@@ -423,11 +425,172 @@ static void _updateLayout(void)
     LOG_printf (LOG_DEBUG, "UI: _updateLayout done\n");
 }
 
+static struct DiskFontHeader *_loadFont (char *font_name, char *font_size)
+{
+    static char fontPath[256];
+
+    strncpy (fontPath, aqb_home, 256);
+    AddPart ((STRPTR) fontPath, (STRPTR)"Fonts",   256);
+    AddPart ((STRPTR) fontPath, (STRPTR)font_name, 256);
+    AddPart ((STRPTR) fontPath, (STRPTR)font_size, 256);
+
+    printf ("fontPath: %s\n", fontPath);
+
+    BPTR seglist = LoadSeg ((STRPTR)fontPath);
+
+    if (seglist)
+    {
+        printf ("LoadSeg worked: 0x%08lx\n", seglist);
+
+		struct DiskFontHeader *dfh;
+
+		dfh = (struct DiskFontHeader *) (BADDR(seglist) + 8);
+        dfh->dfh_Segment = seglist;
+
+		printf ("dfh->dfh_Name: %s, revision: %d\n", dfh->dfh_Name, dfh->dfh_Revision);
+
+		struct TextFont *tf = &dfh->dfh_TF;
+		printf ("tf->tf_YSize    =%d\n", tf->tf_YSize    );
+		printf ("tf->tf_Style    =%d\n", tf->tf_Style    );
+		printf ("tf->tf_Flags    =%d\n", tf->tf_Flags    );
+		printf ("tf->tf_XSize    =%d\n", tf->tf_XSize    );
+		printf ("tf->tf_Baseline =%d\n", tf->tf_Baseline );
+		printf ("tf->tf_BoldSmear=%d\n", tf->tf_BoldSmear);
+
+        return dfh;
+    }
+    else
+    {
+        printf ("LoadSeg failed!\n");
+    }
+
+    return NULL;
+}
+
+static void _freeFont (struct DiskFontHeader *dfh)
+{
+    BPTR seglist = dfh->dfh_Segment;
+    if (!seglist)
+        return;
+    dfh->dfh_Segment = 0l;
+    UnLoadSeg (seglist);
+}
+
+static void _fontConv(struct TextFont *font, UBYTE *fontData)
+{
+    //printf ("fontConv... blanking\n"); Delay(100);
+    for (UWORD ci=0; ci<256; ci++)
+    {
+        //printf ("   ci=%d\n", ci);
+        for (UBYTE y=0; y<8; y++)
+            *(fontData + ci*8+y) = 0;
+    }
+
+    UWORD *pCharLoc = font->tf_CharLoc;
+#ifdef DEBUG_FONTCONV
+    uint16_t cnt=0;
+#endif
+    //printf ("fontConv... converting\n"); Delay(100);
+    for (UBYTE ci=font->tf_LoChar; ci<font->tf_HiChar; ci++)
+    {
+        //printf ("   ci=%d\n", ci);
+        UWORD bl = *pCharLoc;
+        UWORD byl = bl / 8;
+        BYTE bitl = bl % 8;
+        pCharLoc++;
+        UWORD bs = *pCharLoc;
+        pCharLoc++;
+#ifdef DEBUG_FONTCONV
+        if (cnt<DEBUG_FONTCONV_NUM)
+            printf ("ci=%d(%c) bl=%d -> byl=%d/bitl=%d, bs=%d\n", ci, ci, bl, byl, bitl, bs);
+#endif
+        if (bs>8)
+            bs = 8;
+        for (UBYTE y=0; y<font->tf_YSize; y++)
+        {
+            char *p = font->tf_CharData;
+            p += y*font->tf_Modulo + byl;
+            BYTE bsc = bs;
+            BYTE bitlc = 7-bitl;
+            for (BYTE x=7; x>=0; x--)
+            {
+                if (*p & (1<<bitlc))
+                {
+                    *(fontData + ci*8+y) |= (1<<x);
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf("*");
+#endif
+                }
+                else
+                {
+#ifdef DEBUG_FONTCONV
+                    if (cnt<DEBUG_FONTCONV_NUM)
+                        printf(".");
+#endif
+                }
+                bsc--;
+                if (!bsc)
+                    break;
+                bitlc--;
+                if (bitlc<0)
+                {
+                    bitlc = 7;
+                    p++;
+                }
+            }
+#ifdef DEBUG_FONTCONV
+            if (cnt<DEBUG_FONTCONV_NUM)
+                printf("\n");
+#endif
+        }
+#ifdef DEBUG_FONTCONV
+        cnt++;
+#endif
+    }
+}
+
 void UI_setFont (int font)
 {
     OPT_prefSetInt (OPT_PREF_FONT, font);
     g_curFont = font;
     g_fontHeight = font ? 8 : 6;
+
+    switch (font)
+    {
+        case 0:
+        {
+            struct DiskFontHeader *dfh = _loadFont ("AQB", "6");
+            if (!dfh)
+                cleanexit ("Can't open aqb 6 font", RETURN_FAIL);
+            struct TextFont *tf = &dfh->dfh_TF;
+            _fontConv (tf, (UBYTE*) g_fontData);
+            _freeFont (dfh);
+            break;
+        }
+        case 1:
+        {
+            struct DiskFontHeader *dfh = _loadFont ("AQB", "8");
+            if (!dfh)
+                cleanexit ("Can't open aqb 6 font", RETURN_FAIL);
+            struct TextFont *tf = &dfh->dfh_TF;
+            _fontConv (tf, (UBYTE*) g_fontData);
+            _freeFont (dfh);
+            break;
+        }
+        case 2:
+        default:
+        {
+            struct TextFont *topaz = OpenFont (&g_topaz80Attr);
+            if (!topaz)
+                cleanexit ("Can't open topaz 80 font", RETURN_FAIL);
+
+            _fontConv (topaz, (UBYTE*) g_fontData);
+
+            CloseFont (topaz);
+            break;
+        }
+    }
 
     // patch special mark characters
 
@@ -435,7 +598,7 @@ void UI_setFont (int font)
     {
         for (uint16_t y=0; y<8; y++)
         {
-            g_fontData[font][ci][y] = g_markCharData[ci-1][y];
+            g_fontData[ci][y] = g_markCharData[ci-1][y];
         }
     }
 
@@ -764,7 +927,7 @@ void UI_putc(UI_view view, char c)
     //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
     for (UBYTE y=0; y<g_fontHeight; y++)
     {
-        UBYTE fd = g_fontData[g_curFont][ci][y];
+        UBYTE fd = g_fontData[ci][y];
         for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
         {
             *dst[planeNum]  = view->renderBMPE[planeNum] ? fd : 0;
@@ -1234,6 +1397,8 @@ bool UI_init (void)
     if (OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&console_ioreq,0))
          cleanexit("Can't open console.device", RETURN_FAIL);
     ConsoleDevice = (struct Device *)console_ioreq.io_Device;
+
+    strncpy (aqb_help, aqb_home, PATH_MAX);
 
     struct Screen *sc = LockPubScreen (NULL); // default public screen
     if (!sc)
