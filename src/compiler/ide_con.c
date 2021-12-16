@@ -297,16 +297,25 @@ static void _readline_repaint(IDE_instance ed, char *buf, int16_t cursor_pos, in
             *scroll_offset += 1;
     }
 
-    //LOG_printf (LOG_DEBUG, "_readline_repaint: UI_beginLine col=%d, width=%d\n", col, width);
+    //LOG_printf (LOG_DEBUG, "_readline_repaint: UI_beginLine col=%d, width=%d, ed->con_line=%d\n", col, width, ed->con_line);
+    //LOG_printf (LOG_DEBUG, "_readline_repaint: con_buf[%d]=%s\n", ed->con_line, ed->con_buf[ed->con_line]);
     UI_beginLine (view, row, col, width);
     int16_t l = strlen(buf);
     for (uint16_t c = 0; c<width; c++)
     {
         int16_t bp = c+*scroll_offset;
         if (bp<l)
+        {
             UI_putc(view, buf[bp]);
+            ed->con_buf  [ed->con_line][col+c-1] = buf[bp];
+            ed->con_col = col+c;
+        }
         else
+        {
             UI_putc (view, ' ');
+            ed->con_buf  [ed->con_line][col+c-1] = 0;
+        }
+        ed->con_style[ed->con_line][col+c-1] = UI_TEXT_STYLE_TEXT;
     }
     UI_endLine (view);
     UI_moveCursor (view, row, col+cp);
