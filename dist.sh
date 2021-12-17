@@ -50,6 +50,11 @@ for EX in tutorial/*.bas ; do
 done
 cp -r tutorial/imgs ${WORKDIR}/aqb/tutorial/
 
+# remove unfinished examples from distribution
+
+rm -f ${WORKDIR}/aqb/examples/demo/fplot*
+rm -f ${WORKDIR}/aqb/examples/demo/banana*
+
 cp -r help ${WORKDIR}/aqb/
 
 cp -r dist/amiga/Fonts ${WORKDIR}/aqb/
