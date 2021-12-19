@@ -28,8 +28,225 @@
 
 #include "AnimSupport.h"
 
-static BOB_t *g_bob_first               = NULL;
-static BOB_t *g_bob_last                = NULL;
+static SPRITE_t *g_sprite_first = NULL;
+static SPRITE_t *g_sprite_last  = NULL;
+
+#define NUM_HW_SPRITES 7
+
+typedef struct
+{
+    struct ViewPort     *vp;
+    struct SimpleSprite  sprite;
+} hwsprite_t;
+
+static hwsprite_t  g_hwsprites[NUM_HW_SPRITES];
+
+static BOB_t      *g_bob_first    = NULL;
+static BOB_t      *g_bob_last     = NULL;
+
+SPRITE_t *SPRITE_ (BITMAP_t *bm)
+{
+    if (!bm || bm->width>16)
+    {
+        DPRINTF ("SPRITE_: bm->width=%d > 16\n", bm->width);
+        ERROR(AE_SPRITE);
+        return NULL;
+    }
+
+    UWORD *posctldata = AllocVec(8 + 2*2*bm->height, MEMF_CHIP | MEMF_CLEAR);
+    if (!posctldata)
+    {
+        DPRINTF ("SPRITE: failed to allocate posctldata\n");
+        ERROR(AE_SPRITE);
+        return NULL;
+    }
+
+    for (SHORT y=0; y<bm->height; y++)
+    {
+        for (SHORT x=0; x<bm->width; x++)
+        {
+            LONG penno = ReadPixel (&bm->rp, x, y);
+            if (penno & 1)
+                posctldata[2+y*2]   |= (1<<(15-x));
+            if (penno & 2)
+                posctldata[2+y*2+1] |= (1<<(15-x));
+        }
+    }
+
+    SPRITE_t *sprite = AllocVec(sizeof(*sprite), MEMF_CLEAR);
+    if (!sprite)
+    {
+        DPRINTF ("SPRITE_: failed to allocate sprite mem\n");
+        FreeVec (posctldata);
+        ERROR(AE_SPRITE);
+        return NULL;
+    }
+
+    sprite->posctldata = posctldata;
+    sprite->width      = bm->width;
+    sprite->height     = bm->height;
+
+    sprite->prev = g_sprite_last;
+    if (g_sprite_last)
+        g_sprite_last = g_sprite_last->next = sprite;
+    else
+        g_sprite_first = g_sprite_last = sprite;
+
+    return sprite;
+}
+
+void SPRITE_SHOW (SHORT spnum, SPRITE_t *sprite)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+	DPRINTF ("SPRITE_SHOW sprite=0x%08lx, spnum=%d\n", sprite, spnum);
+	if (!sprite || (spnum<1) || (spnum>NUM_HW_SPRITES+1) )
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    hwsprite_t *hwsp = &g_hwsprites[spnum-1];
+    struct ViewPort *vp = hwsp->vp;
+    if (!vp)
+    {
+        vp = _g_cur_vp;
+
+        hwsp->sprite.posctldata = sprite->posctldata;
+        hwsp->sprite.height     = sprite->height;
+        hwsp->sprite.x          = 0;
+        hwsp->sprite.y          = 0;
+        hwsp->sprite.num        = 0;
+
+        if (GetSprite (&hwsp->sprite, spnum)<0)
+        {
+            DPRINTF ("SPRITE_: GetSprite failed\n");
+            ERROR(AE_SPRITE);
+            return;
+        }
+
+        hwsp->vp = vp;
+    }
+    else
+    {
+        ChangeSprite (vp, &hwsp->sprite, sprite->posctldata);
+    }
+}
+
+void SPRITE_HIDE (SHORT spnum)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+	DPRINTF ("SPRITE_HIDE spnum=%d\n", spnum);
+	if ( (spnum<1) || (spnum>NUM_HW_SPRITES+1) )
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    hwsprite_t *hwsp = &g_hwsprites[spnum-1];
+    if (!hwsp->vp)
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    FreeSprite (spnum);
+    hwsp->vp = NULL;
+}
+
+void SPRITE_MOVE (SHORT spnum, BOOL s, SHORT x, SHORT y)
+{
+	DPRINTF ("SPRITE_MOVE spnum=%d, x=%d, y=%d\n", spnum, x, y);
+	if ((spnum<1) || (spnum>NUM_HW_SPRITES+1))
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    hwsprite_t *hwsp = &g_hwsprites[spnum-1];
+    if (!hwsp->vp)
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    MoveSprite (hwsp->vp, &hwsp->sprite, x, y);
+}
+
+void SPRITE_FREE (SPRITE_t *sprite)
+{
+    DPRINTF ("SPRITE_FREE: sprite=0x%08lx\n", sprite);
+	if (!sprite)
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    if (sprite->prev)
+        sprite->prev->next = sprite->next;
+    else
+        g_sprite_first = sprite->next;
+
+    if (sprite->next)
+        sprite->next->prev = sprite->prev;
+    else
+        g_sprite_last = sprite->prev;
+
+    // if this sprite is still in use as a hw sprite, free that hw sprite
+
+    for (SHORT i=0; i<NUM_HW_SPRITES; i++)
+    {
+        hwsprite_t *hwsp = &g_hwsprites[i];
+        if (!hwsp->vp || (hwsp->sprite.posctldata != sprite->posctldata))
+            continue;
+        FreeSprite (i+1);
+        hwsp->vp = NULL;
+    }
+
+    // this sprite may also be in use as a custom mouse pointer
+
+    for (SHORT i=0; i<MAX_NUM_WINDOWS; i++)
+    {
+        if (!_g_winlist[i] || (_g_winlist[i]->Pointer != sprite->posctldata))
+            continue;
+        ClearPointer (_g_winlist[i]);
+    }
+
+    FreeVec (sprite->posctldata);
+    FreeVec (sprite);
+}
+
+void ILBM_LOAD_SPRITE (STRPTR path, SPRITE_t **sprite, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette)
+{
+    DPRINTF ("ILBM_LOAD_SPRITE path=%s\n", (char*)path);
+
+    BITMAP_t *bm=NULL;
+
+    ILBM_LOAD_BITMAP (path, &bm, scid, pMeta, pPalette, /*cont=*/TRUE);
+
+    *sprite = SPRITE_(bm);
+}
+
+void POINTER_SPRITE (SPRITE_t *sprite, SHORT xoffset, SHORT yoffset)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+    DPRINTF ("POINTER_SPRITE: sprite=0x%08lx\n", sprite);
+	if (!sprite)
+	{
+        ERROR(AE_SPRITE);
+        return;
+	}
+
+    SetPointer (_g_cur_win, sprite->posctldata, sprite->height, sprite->width, xoffset, yoffset);
+}
+
+void POINTER_CLEAR (void)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    ClearPointer (_g_cur_win);
+}
 
 static void _cleanupGelSys(struct RastPort *rPort)
 {
@@ -337,10 +554,22 @@ static void _AnimSupport_shutdown(void)
         BOB_FREE (bob);
         bob = nb;
     }
+
+    SPRITE_t *sprite = g_sprite_first;
+    while (sprite)
+    {
+        SPRITE_t *nsp = sprite->next;
+
+        SPRITE_FREE (sprite);
+        sprite = nsp;
+    }
 }
 
 void _AnimSupport_init(void)
 {
+    for (SHORT i=0; i<NUM_HW_SPRITES; i++)
+        g_hwsprites[i].vp = NULL;
+
     ON_EXIT_CALL(_AnimSupport_shutdown);
 }
 

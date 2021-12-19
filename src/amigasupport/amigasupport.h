@@ -3,6 +3,7 @@
 
 #include <exec/types.h>
 #include <dos/dos.h>
+#include <intuition/classusr.h>
 
 // stuff from amigalib
 
@@ -26,6 +27,10 @@ struct DosPacket *ASUP_WaitPkt        (struct MsgPort *msgPort);
 void              ASUP_FreePkt        (struct DosPacket *dp);
 LONG              ASUP_DoPkt          (LONG *res2, struct MsgPort *port, LONG action, LONG arg1, LONG arg2, LONG arg3, LONG arg4, LONG arg5, LONG arg6, LONG arg7);
 BOOL              ASUP_NameFromLock   (BPTR lock, STRPTR buffer, LONG len);
+
+ULONG             ASUP_CallHookA      (struct Hook *, Object *, APTR );
+ULONG             ASUP_DoMethodA      (Object * obj,Msg msg);
+ULONG             ASUP_DoMethod       (Object *obj, ULONG method_id, ...);
 
 #endif
 

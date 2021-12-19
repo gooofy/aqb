@@ -129,6 +129,9 @@ extern struct RastPort      *_g_cur_rp ;
 extern struct ViewPort      *_g_cur_vp ;
 extern BITMAP_t             *_g_cur_bm ;
 
+#define MAX_NUM_WINDOWS 16
+extern struct Window        *_g_winlist[MAX_NUM_WINDOWS];
+
 enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
 
 void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);

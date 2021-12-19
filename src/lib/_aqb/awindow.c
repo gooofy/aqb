@@ -60,9 +60,8 @@ static struct NewWindow g_nw =
  * keep track of window and screen ids
  */
 
-#define MAX_NUM_WINDOWS 16
 
-static struct Window * g_winlist[MAX_NUM_WINDOWS] = {
+struct Window * _g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL,
     NULL,NULL,NULL,NULL,
     NULL,NULL,NULL,NULL,
@@ -204,7 +203,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     USHORT w, h;
 
     // error checking
-    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] != NULL) || (x1 > x2) || (y1 > y2) )
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1] != NULL) || (x1 > x2) || (y1 > y2) )
     {
         ERROR(AE_WIN_OPEN);
         return;
@@ -269,7 +268,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         return;
     }
 
-    g_winlist[id-1] = win;
+    _g_winlist[id-1] = win;
 
     _g_signalmask_awindow |= (1L << win->UserPort->mp_SigBit);
 
@@ -292,7 +291,7 @@ void WINDOW_CLOSE(short id)
 #endif
 
     // error checking
-    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1] == NULL) )
     {
         ERROR(AE_WIN_CLOSE);
         return;
@@ -304,19 +303,19 @@ void WINDOW_CLOSE(short id)
 #ifdef ENABLE_DEBUG
         DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
 #endif
-        n->cb(g_winlist[id-1]);
+        n->cb(_g_winlist[id-1]);
     }
 
-    if (g_winlist[id-1]->RPort->TmpRas)
+    if (_g_winlist[id-1]->RPort->TmpRas)
     {
-        FreeVec ((PLANEPTR) g_winlist[id-1]->RPort->TmpRas->RasPtr);
-        FreeVec (g_winlist[id-1]->RPort->TmpRas);
+        FreeVec ((PLANEPTR) _g_winlist[id-1]->RPort->TmpRas->RasPtr);
+        FreeVec (_g_winlist[id-1]->RPort->TmpRas);
     }
 #ifdef ENABLE_DEBUG
-    DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, g_winlist[id-1]);
+    DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, _g_winlist[id-1]);
 #endif
-    CloseWindow(g_winlist[id-1]);
-    g_winlist[id-1]=NULL;
+    CloseWindow(_g_winlist[id-1]);
+    _g_winlist[id-1]=NULL;
 }
 
 void _window_add_close_cb (window_close_cb_t cb)
@@ -341,7 +340,7 @@ void _window_add_close_cb (window_close_cb_t cb)
 void WINDOW_OUTPUT(short id)
 {
     // switch (back) to console output?
-    if ( (id == 1) && !g_winlist[0] && (_startup_mode == STARTUP_CLI) )
+    if ( (id == 1) && !_g_winlist[0] && (_startup_mode == STARTUP_CLI) )
     {
         g_output_win_id = 1;
         _g_cur_win      = NULL;
@@ -351,7 +350,7 @@ void WINDOW_OUTPUT(short id)
     }
 
     // error checking
-    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (g_winlist[id-1] == NULL) )
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1] == NULL) )
     {
         ERROR(AE_WIN_OUTPUT);
         return;
@@ -359,7 +358,7 @@ void WINDOW_OUTPUT(short id)
 
     g_output_win_id = id;
 
-    struct Window *win = g_winlist[id-1];
+    struct Window *win = _g_winlist[id-1];
 
     _g_cur_win      = win;
     _g_cur_rp       = win->RPort;
@@ -374,9 +373,9 @@ void _awindow_shutdown(void)
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
 #ifdef ENABLE_DEBUG
-        DPRINTF("_awindow_shutdown g_winlist[%d]=0x%08lx\n", i, g_winlist[i]);
+        DPRINTF("_awindow_shutdown _g_winlist[%d]=0x%08lx\n", i, _g_winlist[i]);
 #endif
-        if (g_winlist[i])
+        if (_g_winlist[i])
             WINDOW_CLOSE(i+1);
     }
     for (int i = 0; i<MAX_NUM_SCREENS; i++)
@@ -706,7 +705,7 @@ static void _handleSignals(BOOL doWait)
 
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {
-        struct Window *win = g_winlist[i];
+        struct Window *win = _g_winlist[i];
         if (!win)
             continue;
 

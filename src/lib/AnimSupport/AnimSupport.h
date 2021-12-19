@@ -11,6 +11,35 @@
 
 #define AE_GELS_INIT                300
 #define AE_BOB                      301
+#define AE_SPRITE                   302
+
+/*
+ * SPRITEs
+ */
+
+typedef struct SPRITE_ SPRITE_t;
+
+struct SPRITE_
+{
+    SPRITE_t *prev, *next;
+    UWORD    *posctldata;
+    UWORD     width, height;
+};
+
+SPRITE_t *SPRITE_               (BITMAP_t *bm);
+void      SPRITE_SHOW           (SHORT spnum, SPRITE_t *sprite);
+void      SPRITE_HIDE           (SHORT spnum);
+void      SPRITE_MOVE           (SHORT spnum, BOOL s, SHORT x, SHORT y);
+void      SPRITE_FREE           (SPRITE_t *sprite);
+
+void      ILBM_LOAD_SPRITE      (STRPTR path, SPRITE_t **sprite, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette);
+
+/*
+ * custom mouse pointers
+ */
+
+void      POINTER_SPRITE        (SPRITE_t *sprite, SHORT xoffset, SHORT yoffset);
+void      POINTER_CLEAR         (void);
 
 /*
  * GELs

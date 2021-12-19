@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.8.0
+VERSION=0.8.1
 WORKDIR=`pwd`/target/m68k-amigaos/dist
 LHA=${WORKDIR}/aqb-${VERSION}.lha
 

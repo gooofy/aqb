@@ -12,6 +12,7 @@
 
 #include <inline/exec.h>
 #include <inline/dos.h>
+#include <inline/intuition.h>
 
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
@@ -238,4 +239,85 @@ void ASUP_delete_ext_io(struct IORequest * io)
     if (io != NULL)
         DeleteIORequest((struct IORequest *)io);
 }
+
+asm("
+
+h_Entry = 8
+
+    .text
+    .even
+
+|---------------------------------------------------------------------------
+| new hook standard
+| use struct Hook (with minnode at the top)
+|
+| *** register calling convention: ***
+|   A0 - pointer to hook itself
+|   A1 - pointer to parameter packed ('message')
+|   A2 - Hook specific address data ('object,' e.g, gadget )
+|
+| ***  C conventions: ***
+| Note that parameters are in unusual register order: a0, a2, a1.
+| This is to provide a performance boost for assembly language
+| programming (the object in a2 is most frequently untouched).
+| It is also no problem in 'register direct' C function parameters.
+|
+| calling through a hook
+|   CallHook( hook, object, msgid, p1, p2, ... );
+|   CallHookA( hook, object, msgpkt );
+|
+| using a C function:   CFunction( hook, object, message );
+|   hook.h_Entry = HookEntry;
+|   hook.h_SubEntry = CFunction;
+|
+|---------------------------------------------------------------------------
+
+| C calling hook interface for prepared message packet
+
+    .globl  _ASUP_CallHookA
+
+_ASUP_CallHookA:
+
+    moveml  a2/a6,sp@-
+    moveal  sp@(12),a0
+    moveal  sp@(16),a2
+    moveal  sp@(20),a1
+    pea     callhooka_return
+    movel   a0@(h_Entry),sp@-
+    rts
+
+callhooka_return:
+
+    moveml  sp@+,a2/a6
+    rts
+
+");
+
+ULONG ASUP_DoMethodA(Object * obj,Msg msg)
+{
+    ULONG result = 0;
+
+    if(obj != NULL)
+    {
+        Class * cl;
+
+        cl = OCLASS(obj);
+
+        if(cl != NULL)
+            result = ASUP_CallHookA(&cl->cl_Dispatcher, obj, msg);
+    }
+
+    return result;
+}
+
+ULONG ASUP_DoMethod(Object *obj, ULONG method_id, ...)
+{
+    ULONG result = 0;
+
+    if (obj != NULL)
+        result = ASUP_DoMethodA(obj,(Msg)&method_id);
+
+    return result;
+}
+
 

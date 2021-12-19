@@ -1,3 +1,19 @@
+## 0.8.1
+
+Improvements:
+
+    * runtime: SPRITE() function added
+    * runtime: SPRITE SHOW command added
+    * runtime: SPRITE MOVE command added
+    * runtime: SPRITE FREE command added
+    * runtime: ILBM LOAD SPRITE command added
+    * runtime: POINTER SPRITE command added
+    * runtime: POINTER CLEAR command added
+
+Bug Fixes:
+
+
+
 ## 0.8.0
 
 Improvements:
