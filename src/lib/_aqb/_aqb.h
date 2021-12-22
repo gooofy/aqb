@@ -11,6 +11,7 @@
 
 extern struct IntuitionBase *IntuitionBase;
 extern struct GfxBase       *GfxBase;
+extern struct Library       *DiskfontBase;
 
 /*
  * print statement support
@@ -74,7 +75,7 @@ void _aio_open  (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT re
 void _aio_close (USHORT fno);
 
 /*
- * bitmaps, screens, windows, graphics
+ * bitmaps, screens, windows, fonts, graphics
  */
 
 typedef struct BITMAP_ BITMAP_t;
@@ -93,6 +94,19 @@ void     BITMAP_FREE          (BITMAP_t *bm);
 void     BITMAP_OUTPUT        (BITMAP_t *bm);
 void     GET                  (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm);
 void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
+
+typedef struct FONT_ FONT_t;
+
+struct FONT_
+{
+    FONT_t                *prev, *next;
+    struct DiskFontHeader *dfh;
+    struct TextFont       *tf;
+};
+
+FONT_t  *FONT_                (UBYTE *name, SHORT size, UBYTE *fontdir);
+void     FONT                 (FONT_t *font);
+void     FONT_FREE            (FONT_t *font);
 
 #define AE_WIN_OPEN                 101
 #define AE_SCREEN_OPEN              102
@@ -116,6 +130,7 @@ void     PUT                  (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE min
 #define AE_MOUSE                    120
 #define AE_BLIT                     121
 #define AE_RASTPORT                 122
+#define AE_FONT                     123
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);

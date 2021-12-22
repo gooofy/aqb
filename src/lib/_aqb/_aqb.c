@@ -6,8 +6,11 @@
 #include <clib/intuition_protos.h>
 #include <inline/intuition.h>
 
-struct IntuitionBase *IntuitionBase = NULL;
-struct GfxBase       *GfxBase       = NULL;
+#include <inline/diskfont.h>
+
+struct IntuitionBase  *IntuitionBase = NULL;
+struct GfxBase        *GfxBase       = NULL;
+struct Library        *DiskfontBase  = NULL;
 
 static BOOL aio_init_done      = FALSE;
 static BOOL awindow_init_done  = FALSE;
@@ -22,6 +25,8 @@ void _aqb_shutdown(void)
     if (aio_init_done)
         _aio_shutdown();
 
+    if (DiskfontBase)
+        CloseLibrary( (struct Library *)DiskfontBase);
     if (GfxBase)
         CloseLibrary( (struct Library *)GfxBase);
     if (IntuitionBase)
@@ -39,6 +44,9 @@ void __aqb_init(void)
 
     if (!(GfxBase = (struct GfxBase *)OpenLibrary((CONST_STRPTR) "graphics.library", 0)))
         _cshutdown(20, (UBYTE *)"*** error: failed to open graphics.library!\n");
+
+    if (!(DiskfontBase = (struct Library *)OpenLibrary((CONST_STRPTR) "diskfont.library", 0)))
+        _cshutdown(20, (UBYTE *)"*** error: failed to open diskfont.library!\n");
 
     _awindow_init();
     awindow_init_done = TRUE;

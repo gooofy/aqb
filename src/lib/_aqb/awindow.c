@@ -28,6 +28,9 @@
 #include <clib/console_protos.h>
 #include <pragmas/console_pragmas.h>
 
+#include <libraries/diskfont.h>
+#include <inline/diskfont.h>
+
 //#define ENABLE_DEBUG
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -59,7 +62,6 @@ static struct NewWindow g_nw =
 /*
  * keep track of window and screen ids
  */
-
 
 struct Window * _g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL,
@@ -105,6 +107,9 @@ static ULONG                 _g_signalmask_awindow=0;
 
 static BITMAP_t             *g_bm_first      = NULL;
 static BITMAP_t             *g_bm_last       = NULL;
+
+static FONT_t               *g_font_first    = NULL;
+static FONT_t               *g_font_last     = NULL;
 
 static void (*g_win_cb)(void)                = NULL;
 static void (*g_mouse_cb)(void)              = NULL;
@@ -396,6 +401,14 @@ void _awindow_shutdown(void)
         BITMAP_t *next = bm->next;
         BITMAP_FREE(bm);
         bm = next;
+    }
+
+    FONT_t *font = g_font_first;
+    while (font)
+    {
+        FONT_t *next = font->next;
+        FONT_FREE(font);
+        font = next;
     }
 
     _aio_set_dos_cursor_visible (TRUE);
@@ -1790,6 +1803,156 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
     }
 
     ClipBlit(&bm->rp, x1, y1, _g_cur_rp, x, y, w, h, 0xC0);
+}
+
+static struct DiskFontHeader *_loadFont (char *font_path)
+{
+#ifdef ENABLE_DEBUG
+    DPRINTF ("_loadFont: font_path: %s\n", font_path);
+#endif
+
+    BPTR seglist = LoadSeg ((STRPTR)font_path);
+
+    if (seglist)
+    {
+        struct DiskFontHeader *dfh;
+
+        dfh = (struct DiskFontHeader *) (BADDR(seglist) + 8);
+        dfh->dfh_Segment = seglist;
+
+        return dfh;
+    }
+    else
+    {
+        DPRINTF("_loadFont: LoadSeg failed!\n");
+    }
+
+    return NULL;
+}
+
+static void _freeFont (struct DiskFontHeader *dfh)
+{
+    BPTR seglist = dfh->dfh_Segment;
+    if (!seglist)
+        return;
+    dfh->dfh_Segment = 0l;
+    UnLoadSeg (seglist);
+}
+
+void FONT_FREE (FONT_t *font)
+{
+    if (font->prev)
+        font->prev->next = font->next;
+    else
+        g_font_first = font->next;
+
+    if (font->next)
+	{
+        font->next->prev = font->prev;
+	}
+    else
+	{
+        g_font_last = font->prev;
+	}
+
+    if (font->tf)
+        CloseFont(font->tf);
+
+    if (font->dfh)
+        _freeFont (font->dfh);
+
+    FreeVec (font);
+}
+
+FONT_t *FONT_ (UBYTE *font_name, SHORT font_size, UBYTE *font_dir)
+{
+#ifdef ENABLE_DEBUG
+    DPRINTF ("FONT_: allocating new font, font_name=%s, font_size=%d\n", font_name, font_size);
+    DPRINTF ("                            font_dir=%s\n", font_dir ? (char *)font_dir : "NULL");
+#endif
+
+	struct TextFont *tf = NULL;
+	struct DiskFontHeader *dfh = NULL;
+	if (font_dir)
+	{
+		static char font_path[256];
+		static char str_font_size[10];
+
+		_astr_itoa_ext (font_size, (STRPTR) str_font_size, 10, /*leading_space=*/FALSE);
+
+		ULONG l = LEN_(font_dir);
+		ULONG l2 = LEN_(font_name);
+		if (l+l2>254)
+        {
+            DPRINTF ("FONT_: font path overflow\n");
+			ERROR(AE_FONT);
+			return NULL;
+        }
+		CopyMem ((APTR)font_dir, (APTR)font_path, l+1);
+		AddPart ((STRPTR) font_path, (STRPTR)font_name, 256);
+        // remove .font suffix
+		l = LEN_((STRPTR) font_path);
+        if (l<6)
+        {
+            DPRINTF ("FONT_: font name is too short\n");
+			ERROR(AE_FONT);
+			return NULL;
+        }
+        font_path[l-5]=0;
+		AddPart ((STRPTR) font_path, (STRPTR)str_font_size, 256);
+
+		dfh = _loadFont (font_path);
+
+		if (!dfh)
+		{
+            DPRINTF ("FONT_: _dfh==NULL\n");
+			ERROR(AE_FONT);
+			return NULL;
+		}
+
+		tf = &dfh->dfh_TF;
+	}
+	else
+	{
+		struct TextAttr textattr = {(STRPTR)font_name, font_size, 0, 0};
+
+		tf = OpenDiskFont (&textattr);
+		if (!tf)
+		{
+            DPRINTF ("FONT_: OpenDiskFont failed\n");
+			ERROR(AE_FONT);
+			return NULL;
+		}
+	}
+
+
+    FONT_t *font = AllocVec(sizeof(*font), MEMF_CLEAR);
+    if (!font)
+    {
+        ERROR(AE_FONT);
+        return NULL;
+    }
+
+    font->prev = g_font_last;
+    if (g_font_last)
+	{
+        g_font_last = g_font_last->next = font;
+	}
+    else
+	{
+        g_font_first = g_font_last = font;
+	}
+
+	font->dfh = dfh;
+	font->tf  = tf;
+
+    return font;
+}
+
+void FONT (FONT_t *font)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    SetFont (_g_cur_rp, font->tf);
 }
 
 void _palette_load (SHORT scid, PALETTE_t *p)

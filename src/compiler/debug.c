@@ -1228,6 +1228,8 @@ static void _debug(struct DebugMsg *msg)
                 case 119: IDE_cprintf(g_ide, "(CLOSE)"); break;
                 case 120: IDE_cprintf(g_ide, "(MOUSE)"); break;
                 case 121: IDE_cprintf(g_ide, "(BLIT)"); break;
+                case 122: IDE_cprintf(g_ide, "(RASTPORT)"); break;
+                case 123: IDE_cprintf(g_ide, "(FONT)"); break;
                 case 200: IDE_cprintf(g_ide, "(IFF)"); break;
                 case 300: IDE_cprintf(g_ide, "(GELS INIT)"); break;
                 case 301: IDE_cprintf(g_ide, "(BOB)"); break;

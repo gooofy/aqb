@@ -9,6 +9,8 @@ Improvements:
     * runtime: ILBM LOAD SPRITE command added
     * runtime: POINTER SPRITE command added
     * runtime: POINTER CLEAR command added
+    * runtime: FONT and FONT FREE commands added
+    * runtime: FONT() function added
 
 Bug Fixes:
 

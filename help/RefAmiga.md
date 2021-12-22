@@ -37,7 +37,7 @@ Syntax:
 
     BITMAP FREE bm
 
-free allocated ressources for a bitmap
+free allocated resources for a bitmap
 
 ## BITMAP OUTPUT
 
@@ -117,6 +117,35 @@ Syntax:
     CSRLIN "(" ")"
 
 returns the current text row position
+
+## FONT FREE
+
+Syntax:
+
+    FONT FREE font
+
+free allocated resources for a font
+
+## FONT
+
+Syntax:
+
+    FONT font
+
+set current font to be used for text output
+
+## FONT()
+
+Syntax:
+
+    FONT "(" name "," size [ "," dir ] ")"
+
+load a new font by name and size. If dir is specified the font is loaded
+from that directory, otherwise tries to load a system font.
+
+Example:
+
+    DIM AS FONT_t PTR f = FONT ("opal.font", 12)
 
 ## GET
 
