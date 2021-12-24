@@ -20,6 +20,7 @@ Bug Fixes:
 
     * write INI file on deinit only (seems to help with AmigaOS 3.2 68000 stability)
     * fix function node refs in amigaguide help
+    * disable unavailable/unimplemented menu items
 
 ## 0.8.0
 

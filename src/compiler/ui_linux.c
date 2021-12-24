@@ -696,6 +696,12 @@ void UI_onEventCall (UI_view view, UI_event_cb cb, void *user_data)
 #endif
 }
 
+void UI_updateMenu (bool inDebugMode)
+{
+    // FIXME: implement
+    assert(FALSE);
+}
+
 #if 0
 void UI_tprintf (char* format, ...)
 {

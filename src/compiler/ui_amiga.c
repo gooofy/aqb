@@ -1341,6 +1341,42 @@ struct MsgPort *UI_debugPort(void)
     return g_debugPort;
 }
 
+static void _setMenuItemEnabled (WORD menu, WORD item, WORD sub, BOOL enabled)
+{
+    struct MenuItem *menuItem = ItemAddress(g_menuStrip, FULLMENUNUM(menu, item, sub));
+    if (!menuItem)
+        return;
+    if (enabled)
+        menuItem->Flags |= ITEMENABLED;
+    else
+        menuItem->Flags &= ~ITEMENABLED;
+}
+
+void UI_updateMenu (bool inDebugMode)
+{
+    // disable edit menu entries (those are not implemented yet)
+
+    _setMenuItemEnabled (1, 0, NOSUB, FALSE); // Cut
+    _setMenuItemEnabled (1, 1, NOSUB, FALSE); // Copy
+    _setMenuItemEnabled (1, 2, NOSUB, FALSE); // Paste
+    _setMenuItemEnabled (1, 4, NOSUB, FALSE); // Block
+
+    for (int i =0; i<10; i++)
+        _setMenuItemEnabled (0, i, NOSUB, !inDebugMode); // whole project menu
+    for (int i =0; i<2; i++)
+        _setMenuItemEnabled (2, i, NOSUB, !inDebugMode); // find menu
+    for (int i =0; i<2; i++)
+        _setMenuItemEnabled (3, i, NOSUB, !inDebugMode); // run menu
+
+    // settings menu
+    _setMenuItemEnabled (4, 0, 0, !inDebugMode);
+    _setMenuItemEnabled (4, 0, 1, !inDebugMode);
+    _setMenuItemEnabled (4, 1, 0, !inDebugMode);
+    _setMenuItemEnabled (4, 1, 1, !inDebugMode);
+    _setMenuItemEnabled (4, 1, 2, !inDebugMode);
+}
+
+
 void UI_deinit(void)
 {
 	// FIXME: free find requester
@@ -1492,6 +1528,8 @@ bool UI_init (void)
     item->Flags |= CHECKED;
     item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/4, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
     item->Flags |= CHECKED;
+
+    UI_updateMenu(/*inDebugMode=*/FALSE);
 
     /*
      * debug port

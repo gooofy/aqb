@@ -1601,6 +1601,8 @@ static void _compileAndRun(IDE_instance ed)
     IDE_conSet (ed, /*visible=*/TRUE, /*active=*/TRUE);
     if (!DEBUG_start (ed->binfn))
         IDE_conSet (ed, /*visible=*/TRUE, /*active=*/FALSE);
+    else
+        UI_updateMenu (/*inDebugMode=*/TRUE);
 
 #else
 

@@ -89,6 +89,7 @@ static void _console_event_cb (UI_view view, uint16_t key, void *user_data)
         case KEY_STOPPED:
             LOG_printf (LOG_INFO, "\n\n*** PROGRAM EXITED ***\n\n");
             IDE_conSet (ed, /*visible=*/TRUE, /*active=*/FALSE);
+            UI_updateMenu (/*inDebugMode=*/FALSE);
             break;
         case KEY_RESIZE:
             _console_size_cb (ed);
