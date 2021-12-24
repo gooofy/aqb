@@ -50,19 +50,6 @@ int OPT_prefGetInt (int pref)
     return FALSE;
 }
 
-static void save_prefs(void)
-{
-    FILE *prefFile = fopen(g_pref_fn, "w");
-    if (!prefFile)
-    {
-        LOG_printf (LOG_ERROR, "failed to open %s for writing\n", g_pref_fn);
-        return;
-    }
-    fprintf (prefFile, "font=%d\n", g_pref_font);
-    fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
-    fclose(prefFile);
-}
-
 void OPT_prefSetInt (int pref, int i)
 {
     switch (pref)
@@ -76,7 +63,6 @@ void OPT_prefSetInt (int pref, int i)
         default:
             assert(FALSE);
     }
-    save_prefs();
 }
 
 string OPT_default_module = OPT_DEFAULT_MODULE;
@@ -181,3 +167,21 @@ void OPT_init(void)
     }
     //printf ("options: read prefs from %s.\n", g_pref_fn);
 }
+
+void OPT_deinit(void)
+{
+    LOG_printf (LOG_DEBUG, "OPT_deinit g_pref_fn=%s\n", g_pref_fn);
+    FILE *prefFile = fopen(g_pref_fn, "w");
+    if (!prefFile)
+    {
+        LOG_printf (LOG_ERROR, "failed to open %s for writing\n", g_pref_fn);
+        return;
+    }
+#if 1
+    fprintf (prefFile, "font=%d\n", g_pref_font);
+    fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
+#endif
+    fclose(prefFile);
+    LOG_printf (LOG_DEBUG, "OPT_deinit done\n");
+}
+

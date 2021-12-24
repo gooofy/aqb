@@ -1,4 +1,4 @@
-## 0.8.1
+## 0.8.1preview1
 
 Improvements:
 
@@ -11,10 +11,11 @@ Improvements:
     * runtime: POINTER CLEAR command added
     * runtime: FONT and FONT FREE commands added
     * runtime: FONT() function added
+    * runtime: TEXTWIDTH() function added
 
 Bug Fixes:
 
-
+    * write INI file on deinit only (seems to help with AmigaOS 3.2 68000 stability)
 
 ## 0.8.0
 

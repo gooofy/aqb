@@ -60,5 +60,6 @@ OPT_dirSearchPath OPT_getModulePath (void);
 extern string OPT_default_module;
 
 void OPT_init(void);
+void OPT_deinit(void);
 
 #endif

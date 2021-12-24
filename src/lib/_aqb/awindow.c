@@ -1955,6 +1955,13 @@ void FONT (FONT_t *font)
     SetFont (_g_cur_rp, font->tf);
 }
 
+SHORT TEXTWIDTH_ (UBYTE *s)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    SHORT l = LEN_(s);
+    return TextLength (_g_cur_rp, s, l);
+}
+
 void _palette_load (SHORT scid, PALETTE_t *p)
 {
     struct Screen *scr = g_scrlist[scid-1];

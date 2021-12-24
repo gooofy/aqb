@@ -8,11 +8,11 @@ WINDOW 1, "Font tutorial"
 
 ' load a system font
 
-DIM AS FONT_t PTR sysfont = FONT ("Opal.font", 12)
+DIM AS FONT_t PTR sysfont = FONT ("opal.font", 12)
 
 ' load a font from a specific directory
 
-DIM AS FONT_t PTR myfont = FONT ("Future.font", 30, "PROGDIR:/Fonts")
+DIM AS FONT_t PTR myfont = FONT ("future.font", 30, "PROGDIR:/Fonts")
 
 ' use our custom font
 
@@ -20,7 +20,7 @@ FONT myfont
 
 LOCATE 1, 1
 
-PRINT "Custom font"
+PRINT "future.font"
 
 ' use the system font
 
@@ -28,11 +28,26 @@ FONT sysfont
 
 LOCATE 5, 1
 
-PRINT "System font"
+PRINT "opal.font"
 
 LOCATE 7,1
 
-PRINT "*** PRESS ENTER TO QUIT ***"
+' use pixel resolution text width and cursor location
+' for font-agnostic text centering
+
+SUB CPRINT (BYVAL yoff AS INTEGER, BYVAL s AS STRING)
+    DIM AS INTEGER w = TEXTWIDTH(s)
+    LOCATE XY (320-w/2, yoff)
+    PRINT s;    
+END SUB
+
+CPRINT 100, "centered text in opal.font"
+
+FONT myfont
+CPRINT 140, "future.font centered"
+
+FONT sysfont
+CPRINT 180, "*** PRESS ENTER TO QUIT ***"
 
 WHILE INKEY$=""
     SLEEP

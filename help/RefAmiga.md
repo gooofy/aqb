@@ -463,6 +463,15 @@ Suspend program for the specified number of seconds (floating point value,
 so fractions of seconds are supported).
 
 
+## TEXTWIDTH()
+
+Syntax:
+
+    TEXTWIDTH "(" s ")"
+
+Returns the width of s in pixels, taking the current font into account.
+
+
 ## TIMER ON|OFF
 
 Syntax:

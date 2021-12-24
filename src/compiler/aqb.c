@@ -166,16 +166,21 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
         fflush (stdout);
     }
 #if LOG_LEVEL == LOG_DEBUG
-	fprintf (logf, "%s", buf);
-	fflush (logf);
+    if (logf)
+    {
+	    fprintf (logf, "%s", buf);
+	    fflush (logf);
+    }
 #endif
 }
 
 static void deinit(void)
 {
+    OPT_deinit();
     U_deinit();
 #if LOG_LEVEL == LOG_DEBUG
 	fclose (logf);
+    logf = NULL;
 #endif
 }
 

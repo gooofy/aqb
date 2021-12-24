@@ -2087,12 +2087,18 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 	if (lvl >= LOG_INFO)
         IDE_cprintf (g_ide, "%s", buf);
 #if LOG_LEVEL == LOG_DEBUG
-	fprintf (logf, "%s", buf);
-	fflush (logf);
+    if (logf)
+    {
+        fprintf (logf, "%s", buf);
+        fflush (logf);
+    }
 #endif
 #ifdef LOG_SLOWDOWN
-	fprintf (logf, "SLOWDOWN\n");
-	fflush (logf);
+    if (logf)
+    {
+        fprintf (logf, "SLOWDOWN\n");
+        fflush (logf);
+    }
     U_delay (50*50);
 #endif
 }
@@ -2121,6 +2127,9 @@ static void IDE_deinit(void)
     LOG_printf (LOG_DEBUG, "IDE_deinit -> UI_deinit() done.\n");
     //U_delay (1000);
 
+    LOG_printf (LOG_DEBUG, "IDE_deinit -> OPT_deinit()\n");
+    //U_delay (1000);
+    OPT_deinit();
     LOG_printf (LOG_DEBUG, "IDE_deinit -> U_deinit()\n");
     //U_delay (1000);
     U_deinit();
@@ -2140,7 +2149,8 @@ void IDE_open (string sourcefn)
     //printf ("opening %s ... done.\n", LOG_FILENAME);
 #endif
     LOG_init (log_cb);
-    LOG_printf (LOG_DEBUG, "logger initialized.\n");
+    LOG_printf (LOG_DEBUG, "IDE_open: logger initialized.\n");
+    LOG_printf (LOG_DEBUG, "IDE_open: sourcefn=%s\n", sourcefn ? sourcefn : "NULL");
 	atexit (IDE_deinit);
     UI_init();
 
