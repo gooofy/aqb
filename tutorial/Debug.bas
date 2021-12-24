@@ -68,7 +68,7 @@ REM failed assertions as well:
 
 ASSERT FALSE
 
-REM pressing CTRL-C will also through into the debugger
+REM pressing CTRL-C will also trigger the debugger
 
 PRINT "endless loop (press CTRL-C)..."
 WHILE TRUE

@@ -98,7 +98,7 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Font",                0 , 0, 0, 0,},
         {   NM_SUB, (STRPTR) "AQB 6",               0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_0,},
         {   NM_SUB, (STRPTR) "AQB 8",               0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_1,},
-        {   NM_SUB, (STRPTR) "TOPAZ 80",            0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_2,},
+        {   NM_SUB, (STRPTR) "TOPAZ 80",            0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_FONT_2,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
@@ -1046,7 +1046,7 @@ void UI_scrollUp (UI_view view)
     WORD min_x = view->x;
     WORD min_y = view->y;
     WORD max_x = view->x+view->w-1;
-    WORD max_y = view->y+view->h-1; // FIXME fullscreen ? g_win->Height-g_OffBottom-1 : g_OffTop + g_scrollEnd*g_fontHeight-1;
+    WORD max_y = view->y+view->h-1;
     LOG_printf (LOG_DEBUG, "UI: view: view->x=%d, view->y=%d, view->w=%d, view->h=%d\n", view->x, view->y, view->w, view->h);
     LOG_printf (LOG_DEBUG, "UI: scrollUp (%d/%d)-(%d/%d)\n", min_x, min_y, max_x, max_y);
 #if 0
