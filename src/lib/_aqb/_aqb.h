@@ -107,6 +107,8 @@ struct FONT_
 FONT_t  *FONT_                (UBYTE *name, SHORT size, UBYTE *fontdir);
 void     FONT                 (FONT_t *font);
 void     FONT_FREE            (FONT_t *font);
+void     FONTSTYLE            (ULONG style);
+ULONG    FONTSTYLE_           (void);
 SHORT    TEXTWIDTH_           (UBYTE *s);
 
 #define AE_WIN_OPEN                 101

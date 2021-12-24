@@ -1955,6 +1955,18 @@ void FONT (FONT_t *font)
     SetFont (_g_cur_rp, font->tf);
 }
 
+void FONTSTYLE (ULONG style)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    SetSoftStyle (_g_cur_rp, style, 0xFF);
+}
+
+ULONG FONTSTYLE_ (void)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    return AskSoftStyle (_g_cur_rp);
+}
+
 SHORT TEXTWIDTH_ (UBYTE *s)
 {
     _aqb_get_output (/*needGfx=*/TRUE);

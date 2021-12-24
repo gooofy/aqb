@@ -12,6 +12,8 @@ Improvements:
     * runtime: FONT and FONT FREE commands added
     * runtime: FONT() function added
     * runtime: TEXTWIDTH() function added
+    * runtime: FONSTYLE command added
+    * runtime: FONSTYLE() function added
 
 Bug Fixes:
 

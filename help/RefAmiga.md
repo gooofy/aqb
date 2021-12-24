@@ -147,6 +147,29 @@ Example:
 
     DIM AS FONT_t PTR f = FONT ("opal.font", 12)
 
+## FONTSTYLE
+
+Syntax:
+
+    FONTSTYLE style
+
+set font soft styling used for text output. style can be any OR combination of
+
+    * FSF\_UNDERLINED = 1
+    * FSF\_BOLD       = 2
+    * FSF\_ITALIC     = 4
+    * FSF\_EXTENDED   = 8
+
+
+## FONSTYLE()
+
+Syntax:
+
+    FONTSTYLE "(" ")"
+
+return the current soft font styling flags.
+
+
 ## GET
 
 Syntax:

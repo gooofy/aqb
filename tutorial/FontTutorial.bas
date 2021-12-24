@@ -8,7 +8,7 @@ WINDOW 1, "Font tutorial"
 
 ' load a system font
 
-DIM AS FONT_t PTR sysfont = FONT ("opal.font", 12)
+DIM AS FONT_t PTR emeraldfont = FONT ("emerald.font", 17)
 
 ' load a font from a specific directory
 
@@ -24,11 +24,11 @@ PRINT "future.font"
 
 ' use the system font
 
-FONT sysfont
+FONT emeraldfont
 
-LOCATE 5, 1
+LOCATE 4, 1
 
-PRINT "opal.font"
+PRINT "emerald.font"
 
 LOCATE 7,1
 
@@ -41,12 +41,15 @@ SUB CPRINT (BYVAL yoff AS INTEGER, BYVAL s AS STRING)
     PRINT s;    
 END SUB
 
-CPRINT 100, "centered text in opal.font"
+CPRINT 100, "centered text in emerald.font"
 
 FONT myfont
 CPRINT 140, "future.font centered"
 
-FONT sysfont
+' fonts support soft styling
+
+FONT emeraldfont
+FONTSTYLE FSF_BOLD OR FSF_UNDERLINED
 CPRINT 180, "*** PRESS ENTER TO QUIT ***"
 
 WHILE INKEY$=""
