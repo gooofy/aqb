@@ -207,16 +207,32 @@ asm(
 
 void _ctrlc_break(void);
 
+static void (*break_handler)(void) = NULL;
+
+void ON_BREAK_CALL(void (*cb)(void))
+{
+    break_handler = cb;
+}
+
 void __handle_break(void)
 {
     DPRINTF ("__handle_break...\n");
     if (_break_status)
     {
         DPRINTF ("__handle_break... _break_status!=0\n");
+        _break_status = 0;
+
+        if (break_handler)
+        {
+            _do_resume = FALSE;
+            break_handler();
+            if (_do_resume)
+                return;
+        }
+
         if (_startup_mode == STARTUP_DEBUG)
         {
             DPRINTF ("__handle_break... -> TRAP\n");
-            _break_status = 0;
             //asm ("  trap #0;\n");           // break into debugger
             _ctrlc_break();
         }
@@ -236,9 +252,9 @@ static APTR ___inputHandler ( register struct InputEvent *oldEventChain __asm("a
     struct InputEvent *e = oldEventChain;
     while (e)
     {
-        if ( (e->ie_Class == IECLASS_RAWKEY) && ((e->ie_Code & 0x7f) == 0x33) && (e->ie_Qualifier & IEQUALIFIER_CONTROL) )
+        if ( (e->ie_Class == IECLASS_RAWKEY) && ((e->ie_Code & 0x7f) == 0x33) && ((e->ie_Code & IECODE_UP_PREFIX)==0) && (e->ie_Qualifier & IEQUALIFIER_CONTROL) )
         {
-            //DPRINTF("___inputHandler: CTRL-C detected\n");
+            //DPRINTF("___inputHandler: CTRL-C detected, e->ie_Code=0x%08lx\n", e->ie_Code);
             _break_status = BREAK_CTRL_C;
             //struct Task *maintask = data;
             //Signal (maintask, SIGBREAKF_CTRL_C);

@@ -61,19 +61,19 @@ void dprintf(const char *format, ...);
 #define ERR_SUBSCRIPT_OUT_OF_RANGE   9
 #define ERR_INCOMPATIBLE_ARRAY      10
 
-void ERROR        (SHORT errcode);
-void _autil_exit  (LONG return_code); // implemented in startup.s
+void _aqb_assert   (BOOL b, const UBYTE *msg);
+void ERROR         (SHORT errcode);
+void RESUME_NEXT   (void);
+void ON_ERROR_CALL (void (*cb)(void));
+void ON_EXIT_CALL  (void (*cb)(void));
+void ON_BREAK_CALL (void (*cb)(void));
+void _autil_exit   (LONG return_code); // implemented in startup.s
 
-void _cshutdown   (LONG return_code, UBYTE *msg); // implemented in cstartup.c
+void _cshutdown    (LONG return_code, UBYTE *msg); // implemented in cstartup.c
 
-void _aqb_assert  (BOOL b, const UBYTE *msg);
+FLOAT TIMER_       (void);
 
-FLOAT TIMER_      (void);
-
-void ON_EXIT_CALL (void (*cb)(void));
-void RESUME_NEXT  (void);
-
-void SYSTEM       (void);
+void SYSTEM        (void);
 
 // program startup mode / debugger connection
 
@@ -81,7 +81,8 @@ void SYSTEM       (void);
 #define STARTUP_WBENCH 2    // started from workbench
 #define STARTUP_DEBUG  3    // started from debugger/ide
 
-extern USHORT _startup_mode;
+extern USHORT   _startup_mode;
+extern BOOL     _do_resume;     // set by RESUME NEXT
 
 #define DEBUG_SIG 0xDECA11ED
 

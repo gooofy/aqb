@@ -121,7 +121,7 @@ void _aqb_assert (BOOL b, const UBYTE *msg)
 }
 
 static void (*error_handler)(void) = NULL;
-static BOOL do_resume = FALSE;
+BOOL _do_resume = FALSE;
 
 SHORT ERR=0;
 
@@ -132,7 +132,7 @@ void ON_ERROR_CALL(void (*cb)(void))
 
 void ERROR (SHORT errcode)
 {
-    do_resume = FALSE;
+    _do_resume = FALSE;
     ERR = errcode;
 
     if (error_handler)
@@ -145,7 +145,7 @@ void ERROR (SHORT errcode)
         _debug_puts((UBYTE*)"\n");
     }
 
-    if (!do_resume)
+    if (!_do_resume)
     {
         if (_startup_mode == STARTUP_DEBUG)
         {
@@ -160,12 +160,13 @@ void ERROR (SHORT errcode)
     else
     {
         ERR=0;
+        _do_resume = FALSE;
     }
 }
 
 void RESUME_NEXT(void)
 {
-    do_resume = TRUE;
+    _do_resume = TRUE;
 }
 
 FLOAT TIMER_ (void)

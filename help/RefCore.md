@@ -513,6 +513,16 @@ Syntax:
 call SUB program handler when an error occurs.
 
 
+## ON BREAK
+
+Syntax:
+
+    ON BREAK CALL handler
+
+call SUB program handler when CTRL-C is detected. The handler may call
+RESUME NEXT to ignore the CTRL-C signal.
+
+
 ## OPTION BREAK
 
 Syntax:

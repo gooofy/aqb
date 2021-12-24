@@ -1,4 +1,4 @@
-## 0.8.1preview1
+## 0.8.1
 
 Improvements:
 
@@ -14,6 +14,7 @@ Improvements:
     * runtime: TEXTWIDTH() function added
     * runtime: FONSTYLE command added
     * runtime: FONSTYLE() function added
+    * runtime: ON BREAK CALL command added
 
 Bug Fixes:
 
