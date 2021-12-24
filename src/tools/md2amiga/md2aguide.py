@@ -23,6 +23,10 @@ def mangleNode(s):
             t = t + c.lower()
         elif c==' ':
             t = t + "-"
+        elif c=='(':
+            t = t + "("
+        elif c==')':
+            t = t + ")"
 
     return t
 
