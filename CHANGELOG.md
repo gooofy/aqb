@@ -17,6 +17,7 @@ Improvements:
     * runtime: ON BREAK CALL command added
     * ide: editor will use the system text font now
     * ide: editor RTG high/true color rendering fixed
+    * ide: editor horizontal scrolling implemented
 
 Bug Fixes:
 

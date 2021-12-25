@@ -231,13 +231,26 @@ static void _scroll(IDE_instance ed)
                 _invalidateAll (ed);
         }
     }
-    // FIXME: implement horizontal scroll
+
+    // horizontal scroll
+
+    while ( (ed->scrolloff_col>0) && ((ed->cursor_col-ed->scrolloff_col) < SCROLL_MARGIN) )
+    {
+        ed->scrolloff_col -= SCROLL_MARGIN;
+        if (ed->scrolloff_col < 0)
+            ed->scrolloff_col = 0;
+        ed->cursor_line->up2date = FALSE;
+    }
+
+    while ( (ed->cursor_col-ed->scrolloff_col) > (ed->window_width-SCROLL_MARGIN) )
+    {
+        ed->scrolloff_col += SCROLL_MARGIN;
+        ed->cursor_line->up2date = FALSE;
+    }
 }
 
-static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded, uint16_t h_start, uint16_t h_end, bool mark, bool bp)
+static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len, uint16_t row, uint16_t indent, bool folded, uint16_t h_start, uint16_t h_end, bool mark, bool bp, int16_t h_scroll)
 {
-    // FIXME: horizontal scroll
-
     UI_view view = ed->view_editor;
 
     char s=UI_TEXT_STYLE_TEXT;
@@ -261,7 +274,7 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
         UI_putc (view, '>');
 
     uint16_t x = 0;
-    uint16_t max_x = ed->window_width - BP_MARGIN;
+    uint16_t max_x = ed->window_width - BP_MARGIN + h_scroll;
 
     for (uint16_t i=0; i<indent; i++)
     {
@@ -274,8 +287,14 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
             s = s2;
         }
 
-        UI_putstr (view, "    ");
-        x += 4;
+        for (int16_t o=0; o<4; o++)
+        {
+            if (x >= h_scroll)
+                UI_putc (view, ' ');
+            x++;
+            if (x>=max_x)
+                break;
+        }
         if (x>=max_x)
             break;
     }
@@ -290,7 +309,8 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
             UI_setTextStyle (view, s2);
             s = s2;
         }
-        UI_putc (view, buf[i]);
+        if (x >= h_scroll)
+            UI_putc (view, buf[i]);
         x++;
         if (x>=max_x)
             break;
@@ -381,9 +401,9 @@ static void _repaint (IDE_instance ed)
         if (!l->up2date)
         {
             if (ed->editing && (linenum == ed->cursor_v_line))
-                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE, /*hl_start=*/0, /*hl_end=*/0, /*mark=*/FALSE, /*bp=*/l->bp);
+                _repaintLine (ed, ed->buf, ed->style, ed->buf_len, row, 0, /*folded=*/FALSE, /*hl_start=*/0, /*hl_end=*/0, /*mark=*/FALSE, /*bp=*/l->bp, ed->scrolloff_col);
             else
-                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded, l->h_start, l->h_end, l->mark, l->bp);
+                _repaintLine (ed, l->buf, l->style, l->len, row, l->indent, l->folded, l->h_start, l->h_end, l->mark, l->bp, /*hscroll=*/linenum == ed->cursor_v_line ? ed->scrolloff_col:0);
             l->up2date = TRUE;
         }
         if (l->folded)
@@ -870,6 +890,7 @@ static IDE_line _commitBuf(IDE_instance ed)
     int8_t old_post_indent = cl->post_indent;
     _freeLine (ed, cl);
     ed->cursor_line = l;
+    ed->scrolloff_col = 0;
     _indentLine (l);
     if ( (l->indent == old_indent) && (l->post_indent == old_post_indent) )
         l->up2date = FALSE;
@@ -886,6 +907,12 @@ static bool _cursorUp(IDE_instance ed)
 
     if (ed->editing)
         _commitBuf (ed);
+
+    if (ed->scrolloff_col)
+    {
+        ed->scrolloff_col = 0;
+        ed->cursor_line->up2date=FALSE;
+    }
 
     if (pl->folded)
     {
@@ -910,6 +937,13 @@ static bool _cursorDown(IDE_instance ed)
 {
     if (ed->editing)
         _commitBuf (ed);
+
+    if (ed->scrolloff_col)
+    {
+        ed->scrolloff_col = 0;
+        ed->cursor_line->up2date=FALSE;
+    }
+
     IDE_line nl = ed->cursor_line;
     if (nl->folded)
     {
@@ -1353,7 +1387,7 @@ static bool _insertChar (IDE_instance ed, uint16_t c)
     }
     //LOG_printf (LOG_DEBUG, "_insertChar %c 2\n", c);
 
-    uint16_t cp = ed->scrolloff_col + ed->cursor_col;
+    uint16_t cp = ed->cursor_col;
     //LOG_printf (LOG_DEBUG, "_insertChar 2.1 cp=%d\n", cp);
 
     for (int i=ed->buf_len; i>cp; i--)
