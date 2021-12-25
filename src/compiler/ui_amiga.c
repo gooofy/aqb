@@ -49,6 +49,7 @@
 
 //#define LOG_KEY_EVENTS
 //#define ENABLE_SCROLL_BENCHMARK
+//#define ENABLE_END_LINE_BENCHMARK
 
 #define BM_HEIGHT 8
 #define NUM_VIEWS 3
@@ -95,10 +96,6 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Colorscheme",         0 , 0, 0, 0,},
         {   NM_SUB, (STRPTR) "Dark",                0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_COLORSCHEME_0,},
         {   NM_SUB, (STRPTR) "Light",               0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_COLORSCHEME_1,},
-        {  NM_ITEM, (STRPTR) "Font",                0 , 0, 0, 0,},
-        {   NM_SUB, (STRPTR) "AQB 6",               0 , CHECKIT | MENUTOGGLE,  ~1, (APTR)KEY_FONT_0,},
-        {   NM_SUB, (STRPTR) "AQB 8",               0 , CHECKIT | MENUTOGGLE,  ~2, (APTR)KEY_FONT_1,},
-        {   NM_SUB, (STRPTR) "TOPAZ 80",            0 , CHECKIT | MENUTOGGLE,  ~4, (APTR)KEY_FONT_2,},
         {   NM_END, NULL, 0 , 0, 0, 0,},
     };
 
@@ -138,6 +135,7 @@ struct UI_view_
 
 static struct Window         *g_win               = NULL;
 static struct RastPort       *g_rp                = NULL;
+static bool                   g_rtg_mode          = TRUE;
 static struct MsgPort        *g_debugPort         = NULL;
 static struct IOStdReq        console_ioreq;
 static struct Menu           *g_menuStrip         = NULL;
@@ -146,46 +144,14 @@ static struct Gadget         *g_gad               = NULL;
 static APTR                   g_vi                = NULL;
 static UI_view                g_views[NUM_VIEWS]  = {NULL, NULL, NULL};
 static UI_view                g_active_view       = NULL;
+static UWORD                  g_fontWidth         = 8;
 static UWORD                  g_fontHeight        = 8;
-static UBYTE                  g_curFont           = 1;
+static UWORD                  g_fontBaseLine      = 6;
 static uint16_t               g_theme             = 0;
 
 static struct TextAttr        g_topaz80Attr       = { (STRPTR)"topaz.font", 8, 0, 0, };
 
 static UBYTE                  g_fontData[256][8];
-
-static UBYTE g_markCharData[3][8] = {
-    {
-        0b00000000,
-        0b00111000,
-        0b01111100,
-        0b01111100,
-        0b00111000,
-        0b00000000,
-        0b00000000,
-        0b00000000,
-    },
-    {
-        0b00000000,
-        0b00001100,
-        0b00000110,
-        0b11111111,
-        0b00000110,
-        0b00001100,
-        0b00000000,
-        0b00000000,
-    },
-    {
-        0b00000000,
-        0b00101100,
-        0b01110110,
-        0b11111111,
-        0b01110110,
-        0b00101100,
-        0b00000000,
-        0b00000000,
-    },
-};
 
 static struct FileRequester *g_ASLFileReq   = NULL;
 
@@ -286,20 +252,30 @@ static UI_view UI_View(UBYTE depth, WORD visWidth, BOOL scrollable)
 
     UI_setTextStyle (view, UI_TEXT_STYLE_TEXT);
 
-    view->renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
-    if (!view->renderBM)
-         cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
-
-    InitBitMap(view->renderBM, depth, visWidth, BM_HEIGHT);
-
-    for (uint8_t planeNum = 0; planeNum < depth; planeNum++)
+    if (g_rtg_mode)
     {
-        view->renderBMPtr[planeNum] = view->renderBM->Planes[planeNum] = view->renderBMPlanes[planeNum] = AllocRaster(visWidth, BM_HEIGHT);
-        if (!view->renderBM->Planes[planeNum])
-            cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
+        view->renderBM = NULL;
+        for (uint8_t planeNum = 0; planeNum < depth; planeNum++)
+            view->renderBMPtr[planeNum] = view->renderBMPlanes[planeNum] = NULL;
+        view->renderBMBytesPerRow = 0;
     }
+    else
+    {
+        view->renderBM = AllocMem(sizeof(struct BitMap), MEMF_PUBLIC | MEMF_CLEAR);
+        if (!view->renderBM)
+             cleanexit("Failed to allocate render BitMap struct", RETURN_FAIL);
 
-    view->renderBMBytesPerRow = view->renderBM->BytesPerRow;
+        InitBitMap(view->renderBM, depth, visWidth, BM_HEIGHT);
+
+        for (uint8_t planeNum = 0; planeNum < depth; planeNum++)
+        {
+            view->renderBMPtr[planeNum] = view->renderBM->Planes[planeNum] = view->renderBMPlanes[planeNum] = AllocRaster(visWidth, BM_HEIGHT);
+            if (!view->renderBM->Planes[planeNum])
+                cleanexit ("Failed to allocate render BitMap plane", RETURN_FAIL);
+        }
+
+        view->renderBMBytesPerRow = view->renderBM->BytesPerRow;
+    }
 
     return view;
 }
@@ -330,7 +306,7 @@ uint16_t UI_getViewScrollPos (UI_view view)
 
 void UI_setColorScheme (int theme)
 {
-    //LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", theme);
+    LOG_printf (LOG_DEBUG, "UI_setColorScheme(%d)\n", theme);
     OPT_prefSetInt (OPT_PREF_COLORSCHEME, theme);
     g_theme = theme;
 }
@@ -343,7 +319,7 @@ static void _view_resize (UI_view view, WORD x, WORD y, WORD w, WORD h)
     view->y               = y;
     view->w               = w;
     view->h               = h;
-    view->renderBMmaxCols = w/8;
+    view->renderBMmaxCols = w/g_fontWidth;
 }
 
 static void _updateLayout(void)
@@ -425,57 +401,6 @@ static void _updateLayout(void)
     LOG_printf (LOG_DEBUG, "UI: _updateLayout done\n");
 }
 
-static struct DiskFontHeader *_loadFont (char *font_name, char *font_size)
-{
-    static char fontPath[256];
-
-    strncpy (fontPath, aqb_home, 256);
-    AddPart ((STRPTR) fontPath, (STRPTR)"Fonts",   256);
-    AddPart ((STRPTR) fontPath, (STRPTR)font_name, 256);
-    AddPart ((STRPTR) fontPath, (STRPTR)font_size, 256);
-
-    LOG_printf (LOG_DEBUG, "UI: _loadFont: fontPath: %s\n", fontPath);
-
-    BPTR seglist = LoadSeg ((STRPTR)fontPath);
-
-    if (seglist)
-    {
-        //printf ("LoadSeg worked: 0x%08lx\n", seglist);
-
-		struct DiskFontHeader *dfh;
-
-		dfh = (struct DiskFontHeader *) (BADDR(seglist) + 8);
-        dfh->dfh_Segment = seglist;
-
-		//printf ("dfh->dfh_Name: %s, revision: %d\n", dfh->dfh_Name, dfh->dfh_Revision);
-
-		// struct TextFont *tf = &dfh->dfh_TF;
-		//printf ("tf->tf_YSize    =%d\n", tf->tf_YSize    );
-		//printf ("tf->tf_Style    =%d\n", tf->tf_Style    );
-		//printf ("tf->tf_Flags    =%d\n", tf->tf_Flags    );
-		//printf ("tf->tf_XSize    =%d\n", tf->tf_XSize    );
-		//printf ("tf->tf_Baseline =%d\n", tf->tf_Baseline );
-		//printf ("tf->tf_BoldSmear=%d\n", tf->tf_BoldSmear);
-
-        return dfh;
-    }
-    else
-    {
-        LOG_printf (LOG_ERROR, "UI: _loadFont: LoadSeg failed!\n");
-    }
-
-    return NULL;
-}
-
-static void _freeFont (struct DiskFontHeader *dfh)
-{
-    BPTR seglist = dfh->dfh_Segment;
-    if (!seglist)
-        return;
-    dfh->dfh_Segment = 0l;
-    UnLoadSeg (seglist);
-}
-
 static void _fontConv(struct TextFont *font, UBYTE *fontData)
 {
     //printf ("fontConv... blanking\n"); Delay(100);
@@ -548,61 +473,6 @@ static void _fontConv(struct TextFont *font, UBYTE *fontData)
         cnt++;
 #endif
     }
-}
-
-void UI_setFont (int font)
-{
-    OPT_prefSetInt (OPT_PREF_FONT, font);
-    g_curFont = font;
-    g_fontHeight = font ? 8 : 6;
-
-    switch (font)
-    {
-        case 0:
-        {
-            struct DiskFontHeader *dfh = _loadFont ("AQB", "6");
-            if (!dfh)
-                cleanexit ("Can't open aqb 6 font", RETURN_FAIL);
-            struct TextFont *tf = &dfh->dfh_TF;
-            _fontConv (tf, (UBYTE*) g_fontData);
-            _freeFont (dfh);
-            break;
-        }
-        case 1:
-        {
-            struct DiskFontHeader *dfh = _loadFont ("AQB", "8");
-            if (!dfh)
-                cleanexit ("Can't open aqb 6 font", RETURN_FAIL);
-            struct TextFont *tf = &dfh->dfh_TF;
-            _fontConv (tf, (UBYTE*) g_fontData);
-            _freeFont (dfh);
-            break;
-        }
-        case 2:
-        default:
-        {
-            struct TextFont *topaz = OpenFont (&g_topaz80Attr);
-            if (!topaz)
-                cleanexit ("Can't open topaz 80 font", RETURN_FAIL);
-
-            _fontConv (topaz, (UBYTE*) g_fontData);
-
-            CloseFont (topaz);
-            break;
-        }
-    }
-
-    // patch special mark characters
-
-    for (uint16_t ci=1; ci<4; ci++)
-    {
-        for (uint16_t y=0; y<8; y++)
-        {
-            g_fontData[ci][y] = g_markCharData[ci-1][y];
-        }
-    }
-
-    _updateLayout();
 }
 
 void UI_bell (void)
@@ -830,30 +700,39 @@ void UI_waitDebugTerm (void)
 
 static void _setTextColor (UI_view view, uint8_t fg, uint8_t bg)
 {
-    switch (fg)
+    if (g_rtg_mode)
     {
-        case 0: view->renderBMPE[0] = FALSE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] = FALSE; break;
-        case 1: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] = FALSE; break;
-        case 2: view->renderBMPE[0] = FALSE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] = FALSE; break;
-        case 3: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] = FALSE; break;
-        case 4: view->renderBMPE[0] = FALSE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] =  TRUE; break;
-        case 5: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] =  TRUE; break;
-        case 6: view->renderBMPE[0] = FALSE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] =  TRUE; break;
-        case 7: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] =  TRUE; break;
-        default: assert(FALSE);
+        SetDrMd(g_rp, JAM2);
+        SetAPen (g_rp, fg);
+        SetBPen (g_rp, bg);
     }
-
-    switch (bg)
+    else
     {
-        case 0: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] = FALSE; break;
-        case 1: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] = FALSE; break;
-        case 2: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] = FALSE; break;
-        case 3: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] = FALSE; break;
-        case 4: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] =  TRUE; break;
-        case 5: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] =  TRUE; break;
-        case 6: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
-        case 7: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
-        default: assert(FALSE);
+        switch (fg)
+        {
+            case 0: view->renderBMPE[0] = FALSE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] = FALSE; break;
+            case 1: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] = FALSE; break;
+            case 2: view->renderBMPE[0] = FALSE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] = FALSE; break;
+            case 3: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] = FALSE; break;
+            case 4: view->renderBMPE[0] = FALSE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] =  TRUE; break;
+            case 5: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] = FALSE; view->renderBMPE[2] =  TRUE; break;
+            case 6: view->renderBMPE[0] = FALSE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] =  TRUE; break;
+            case 7: view->renderBMPE[0] =  TRUE; view->renderBMPE[1] =  TRUE; view->renderBMPE[2] =  TRUE; break;
+            default: assert(FALSE);
+        }
+
+        switch (bg)
+        {
+            case 0: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] = FALSE; break;
+            case 1: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] = FALSE; break;
+            case 2: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] = FALSE; break;
+            case 3: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] = FALSE; break;
+            case 4: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] =  TRUE; break;
+            case 5: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] = FALSE; view->renderBMPEI[2] =  TRUE; break;
+            case 6: view->renderBMPEI[0] = FALSE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
+            case 7: view->renderBMPEI[0] =  TRUE; view->renderBMPEI[1] =  TRUE; view->renderBMPEI[2] =  TRUE; break;
+            default: assert(FALSE);
+        }
     }
 }
 
@@ -870,9 +749,9 @@ uint8_t UI_getTextStyle (UI_view view)
 
 void UI_beginLine (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols)
 {
-    // LOG_printf (LOG_DEBUG,
-    //             "ui_amiga: beginLine row=%d, col_start=%d, cols=%d\n",
-    //             row, col_start, cols);
+    LOG_printf (LOG_DEBUG,
+                "ui_amiga: beginLine row=%d, col_start=%d, cols=%d\n",
+                row, col_start, cols);
 
     assert (cols <= view->renderBMmaxCols);
 
@@ -881,12 +760,22 @@ void UI_beginLine (UI_view view, uint16_t row, uint16_t col_start, uint16_t cols
     //LOG_printf (LOG_DEBUG, "ui_amiga: beginLine view->curLineCols=%d\n", view->curLineCols);
     view->renderBMcurCol = col_start-1;
     view->renderBMcurRow = row;
-    for (uint8_t d = 0; d<view->renderBM->Depth; d++)
-        view->renderBMPtr[d] = view->renderBMPlanes[d];
-    for (uint16_t r = 0; r<g_fontHeight; r++)
+
+    if (g_rtg_mode)
     {
-        for (uint16_t d = 0; d<view->renderBM->Depth; d++)
-            memset (view->renderBMPtr[d] + r*view->renderBMBytesPerRow, view->renderBMPEI[d] ? 0xff : 0x00, view->curLineCols);
+        uint16_t x1 = (col_start-1) * g_fontWidth + view->x;
+        uint16_t y1 = (row-1) * g_fontHeight + view->y;
+        Move (g_rp, x1, y1+g_fontBaseLine);
+    }
+    else
+    {
+        for (uint8_t d = 0; d<view->renderBM->Depth; d++)
+            view->renderBMPtr[d] = view->renderBMPlanes[d];
+        for (uint16_t r = 0; r<g_fontHeight; r++)
+        {
+            for (uint16_t d = 0; d<view->renderBM->Depth; d++)
+                memset (view->renderBMPtr[d] + r*view->renderBMBytesPerRow, view->renderBMPEI[d] ? 0xff : 0x00, view->curLineCols);
+        }
     }
 }
 
@@ -895,13 +784,13 @@ static void _drawCursor(UI_view view)
     if (!view->visible)
         return;
 
-    uint16_t x = (view->cursorCol-1)*8 + view->x;
+    uint16_t x = (view->cursorCol-1)*g_fontWidth + view->x;
     uint16_t y = (view->cursorRow-1)*g_fontHeight + view->y;
     //LOG_printf (LOG_DEBUG, "ui_amiga: drawCursor view->cursorCol=%d, view->cursorRow=%d, x=%d, y=%d\n", view->cursorCol, view->cursorRow, x, y);
     BYTE DrawMode = g_rp->DrawMode;
     SetDrMd (g_rp, COMPLEMENT);
     g_rp->Mask = 3;
-    RectFill (g_rp, x, y, x+7, y+g_fontHeight-1);
+    RectFill (g_rp, x, y, x+g_fontWidth-1, y+g_fontHeight-1);
     SetDrMd (g_rp, DrawMode);
 }
 
@@ -917,27 +806,37 @@ void UI_putc(UI_view view, char c)
 
     if (view->cursorVisible && view->visible && (view==g_active_view) )
         _drawCursor(view);
-    //printf ("painting char %d (%c)\n", c, c);
 
-    UBYTE ci = c;
-    UBYTE *dst[3];
-    for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
-        dst[planeNum] = view->renderBMPtr[planeNum];
-
-    //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
-    for (UBYTE y=0; y<g_fontHeight; y++)
+    if (g_rtg_mode)
     {
-        UBYTE fd = g_fontData[ci][y];
-        for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
-        {
-            *dst[planeNum]  = view->renderBMPE[planeNum] ? fd : 0;
-            if (view->renderBMPEI[planeNum])
-                *dst[planeNum] |= ~fd;
-            dst[planeNum] += view->renderBMBytesPerRow;
-        }
+        unsigned char s[1] = {c};
+        Text (g_rp, s, 1);
     }
-    for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
-        view->renderBMPtr[planeNum]++;
+    else
+    {
+        //printf ("painting char %d (%c)\n", c, c);
+
+        UBYTE ci = c;
+        UBYTE *dst[3];
+        for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+            dst[planeNum] = view->renderBMPtr[planeNum];
+
+        //printf ("ci=%d (%c) bl=%d byl=%d bs=%d\n", ci, ci, bl, byl, bs);
+        for (UBYTE y=0; y<g_fontHeight; y++)
+        {
+            UBYTE fd = g_fontData[ci][y];
+            for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+            {
+                *dst[planeNum]  = view->renderBMPE[planeNum] ? fd : 0;
+                if (view->renderBMPEI[planeNum])
+                    *dst[planeNum] |= ~fd;
+                dst[planeNum] += view->renderBMBytesPerRow;
+            }
+        }
+        for (uint8_t planeNum = 0; planeNum < view->renderBM->Depth; planeNum++)
+            view->renderBMPtr[planeNum]++;
+
+    }
 
     if (view->cursorVisible && view->visible && (view==g_active_view) )
         _drawCursor(view);
@@ -945,8 +844,17 @@ void UI_putc(UI_view view, char c)
 
 void UI_putstr (UI_view view, char *s)
 {
-    while (*s)
-        UI_putc (view, *s++);
+    if (g_rtg_mode)
+    {
+        int l = strlen(s);
+        view->renderBMcurCol += l;
+        Text (g_rp, (STRPTR)s, l);
+    }
+    else
+    {
+        while (*s)
+            UI_putc (view, *s++);
+    }
 }
 
 void UI_printf (UI_view view, char* format, ...)
@@ -971,7 +879,32 @@ void UI_endLine (UI_view view)
 
     if (view->cursorVisible && (view==g_active_view) )
         _drawCursor(view);
-    BltBitMapRastPort (view->renderBM, 0, 0, g_rp, (view->curLineStart-1)*8+view->x, (view->renderBMcurRow-1)*g_fontHeight+view->y, view->curLineCols*8, g_fontHeight, 0xc0);
+
+    if (g_rtg_mode)
+    {
+        uint16_t x1 = view->renderBMcurCol * g_fontWidth + view->x;
+        uint16_t y1 = (view->renderBMcurRow-1) * g_fontHeight + view->y;
+        uint16_t x2 = (view->curLineStart + view->curLineCols -1) * g_fontWidth -1 + view->x;
+        uint16_t y2 = y1 + g_fontHeight-1;
+        if (x1<x2)
+        {
+            SetAPen (g_rp, g_themes[g_theme].bg[view->renderBMCurStyle]);
+            RectFill (g_rp, x1, y1, x2, y2);
+            SetAPen (g_rp, g_themes[g_theme].fg[view->renderBMCurStyle]);
+        }
+    }
+    else
+    {
+    #ifdef ENABLE_END_LINE_BENCHMARK
+        float startTime = U_getTime() * 1000.0;
+    #endif
+        BltBitMapRastPort (view->renderBM, 0, 0, g_rp, (view->curLineStart-1)*g_fontWidth+view->x, (view->renderBMcurRow-1)*g_fontHeight+view->y, view->curLineCols*g_fontWidth, g_fontHeight, 0xc0);
+    #ifdef ENABLE_END_LINE_BENCHMARK
+        float stopTime = U_getTime() * 1000.0;
+        LOG_printf (LOG_DEBUG, "UI: BltBitMapRastPort took %d ms\n", (int) (stopTime-startTime));
+    #endif
+    }
+
     if (view->cursorVisible && (view==g_active_view) )
         _drawCursor(view);
 }
@@ -1116,7 +1049,7 @@ void UI_scrollDown (UI_view view)
     ScrollRaster(g_rp, 0, -g_fontHeight, min_x, min_y, max_x, max_y);
 #ifdef ENABLE_SCROLL_BENCHMARK
     float stopTime = U_getTime();
-    LOG_printf (LOG_DEBUG, "IDE: ScrollRaster [DOWN] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
+    LOG_printf (LOG_DEBUG, "UI: ScrollRaster [DOWN] took %d-%d = %d ms\n", (int)stopTime, (int)startTime, (int) (1000.0 * (stopTime-startTime)));
 #endif
 
     if (view->cursorVisible && (view==g_active_view) )
@@ -1371,9 +1304,6 @@ void UI_updateMenu (bool inDebugMode)
     // settings menu
     _setMenuItemEnabled (4, 0, 0, !inDebugMode);
     _setMenuItemEnabled (4, 0, 1, !inDebugMode);
-    _setMenuItemEnabled (4, 1, 0, !inDebugMode);
-    _setMenuItemEnabled (4, 1, 1, !inDebugMode);
-    _setMenuItemEnabled (4, 1, 2, !inDebugMode);
 }
 
 
@@ -1483,19 +1413,50 @@ bool UI_init (void)
 
     LOG_printf (LOG_DEBUG, "UI_init window opened.\n");
 
+    g_rp = g_win->RPort;
+
     UI_setColorScheme(OPT_prefGetInt (OPT_PREF_COLORSCHEME));
 
     /*
      * gadgets
      */
 
+    LOG_printf (LOG_DEBUG, "UI_init gadgets...\n");
+
     if (!(g_vi = GetVisualInfo(g_win->WScreen, TAG_END)))
 		cleanexit ("failed to get screen visual info", RETURN_FAIL);
     if (! (g_gad = CreateContext (&g_glist)))
         cleanexit("failed to create gadtools context", RETURN_FAIL);
 
-    // create views
-    UBYTE depth = sc->BitMap.Depth > 3 ? 3 : sc->BitMap.Depth;
+    /*
+     * create views
+     */
+
+    LOG_printf (LOG_DEBUG, "UI_init creating views...\n");
+
+    UBYTE depth = sc->BitMap.Depth > 2 ? 2 : sc->BitMap.Depth;
+
+    // determine RTG mode
+
+    struct TextFont *font = g_win->IFont;
+    struct BitMap   *bm = &sc->BitMap;
+    LOG_printf (LOG_DEBUG, "UI_init RTG? font->tf_YSize=%d, font->tf_XSize=%d, font->Flags=0x%08lx\n",
+                font->tf_YSize, font->tf_XSize, font->tf_Flags);
+    LOG_printf (LOG_DEBUG, "UI_init RTG? bm->Depth=%d, bm->Flags=0x%08lx, TypeOfMem(Bitmap->Planes[0])=0x%08lx\n",
+                bm->Depth, bm->Flags, TypeOfMem(bm->Planes[0]));
+
+    g_rtg_mode = (font->tf_YSize > 8) || (font->tf_XSize != 8) || (bm->Depth>4) || !(TypeOfMem(bm->Planes[0]) & MEMF_CHIP);
+
+    LOG_printf (LOG_DEBUG, "UI_init g_rtg_mode=%d\n", g_rtg_mode);
+
+    g_fontWidth    = font->tf_XSize;
+    g_fontHeight   = font->tf_YSize;
+    g_fontBaseLine = font->tf_Baseline;
+
+    if (!g_rtg_mode)
+	{
+        _fontConv (font, (UBYTE*) g_fontData);
+	}
 
     UnlockPubScreen(NULL, sc);
 
@@ -1506,10 +1467,6 @@ bool UI_init (void)
     UI_setViewVisible(g_views[UI_viewConsole], FALSE);
 
     _updateLayout();
-
-    g_rp = g_win->RPort;
-
-    UI_setFont(OPT_prefGetInt (OPT_PREF_FONT));
 
     LOG_printf (LOG_DEBUG, "UI_init views created.\n");
 
@@ -1525,8 +1482,6 @@ bool UI_init (void)
 		cleanexit("failed to set menu strip", RETURN_FAIL);
 
     struct MenuItem *item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/4, /*item=*/0, /*sub=*/OPT_prefGetInt (OPT_PREF_COLORSCHEME)));
-    item->Flags |= CHECKED;
-    item = ItemAddress(g_menuStrip, FULLMENUNUM(/*menu=*/4, /*item=*/1, /*sub=*/OPT_prefGetInt (OPT_PREF_FONT)));
     item->Flags |= CHECKED;
 
     UI_updateMenu(/*inDebugMode=*/FALSE);

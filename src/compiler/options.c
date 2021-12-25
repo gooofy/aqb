@@ -14,7 +14,6 @@ extern struct DOSBase       *DOSBase;
 #define DEFAULT_OPTS ( OPTION_BREAK | OPTION_DEBUG )
 
 static char g_pref_fn[PATH_MAX];
-static int  g_pref_font         = 2;
 static int  g_pref_colorscheme  = 0;
 static int  g_opt               = DEFAULT_OPTS;
 
@@ -40,8 +39,6 @@ int OPT_prefGetInt (int pref)
 {
     switch (pref)
     {
-        case OPT_PREF_FONT:
-            return g_pref_font;
         case OPT_PREF_COLORSCHEME:
             return g_pref_colorscheme;
     }
@@ -54,9 +51,6 @@ void OPT_prefSetInt (int pref, int i)
 {
     switch (pref)
     {
-        case OPT_PREF_FONT:
-            g_pref_font = i;
-            break;
         case OPT_PREF_COLORSCHEME:
             g_pref_colorscheme = i;
             break;
@@ -145,22 +139,7 @@ void OPT_init(void)
             }
             else
             {
-                if (!strcmp(line, "font"))
-                {
-                    int i;
-                    if (str2int (value, &i))
-                    {
-                        g_pref_font = i;
-                    }
-                    else
-                    {
-                        printf ("options: failed to parse value '%s'\n", value);
-                    }
-                }
-                else
-                {
-                    printf ("options: unknown prefs option '%s'\n", line);
-                }
+                printf ("options: unknown prefs option '%s'\n", line);
             }
         }
         fclose(prefFile);
@@ -178,7 +157,6 @@ void OPT_deinit(void)
         return;
     }
 #if 1
-    fprintf (prefFile, "font=%d\n", g_pref_font);
     fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
 #endif
     fclose(prefFile);

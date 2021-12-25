@@ -66,11 +66,6 @@
 #define KEY_SAVE_AS        1039
 #define KEY_QUIT           1040
 
-// fonts
-#define KEY_FONT_0         1500
-#define KEY_FONT_1         1501
-#define KEY_FONT_2         1502
-
 // debugger
 #define KEY_STOPPED        2000
 
@@ -108,21 +103,11 @@ typedef enum
     UI_viewEditor, UI_viewConsole, UI_viewStatusBar
 } UI_viewId;
 
-typedef enum
-{
-    UI_markNone, UI_markBreakPoint, UI_markArrow, UI_markBreakPointArrow
-} UI_mark;
-
-#define UI_MARK_CHAR_BREAKPOINT        1
-#define UI_MARK_CHAR_ARROW             2
-#define UI_MARK_CHAR_BREAKPOINT_ARROW  3
-
 UI_view   UI_getView            (UI_viewId id);
 void      UI_getViewSize        (UI_view view, int16_t *rows, int16_t *cols);
 void      UI_cfgViewScroller    (UI_view view, uint16_t top, uint16_t total, uint16_t visible);
 uint16_t  UI_getViewScrollPos   (UI_view view);
 void      UI_setColorScheme     (int scheme);
-void      UI_setFont            (int font);
 void      UI_bell               (void);
 void      UI_toFront            (void);
 uint16_t  UI_waitkey            (void);

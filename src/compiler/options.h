@@ -32,7 +32,6 @@ void OPT_reset       (void);                // reset all compiler options to the
  * (persistent) user preferences
  */
 
-#define OPT_PREF_FONT         1
 #define OPT_PREF_COLORSCHEME  2
 
 int  OPT_prefGetInt  (int pref);

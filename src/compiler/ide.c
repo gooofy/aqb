@@ -247,15 +247,12 @@ static void _repaintLine (IDE_instance ed, char *buf, char *style, uint16_t len,
 
     if (mark)
     {
-        if (bp)
-            UI_putc (view, UI_MARK_CHAR_BREAKPOINT_ARROW);
-        else
-            UI_putc (view, UI_MARK_CHAR_ARROW);
+        UI_putc (view, '>');
     }
     else
     {
         if (bp)
-            UI_putc (view, UI_MARK_CHAR_BREAKPOINT);
+            UI_putc (view, '*');
         else
             UI_putc (view, ' ');
     }
@@ -2045,13 +2042,6 @@ static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
 		case KEY_COLORSCHEME_5:
 			UI_setColorScheme (key - KEY_COLORSCHEME_0);
             _invalidateAll (ed);
-			break;
-
-		case KEY_FONT_0:
-		case KEY_FONT_1:
-		case KEY_FONT_2:
-			UI_setFont (key - KEY_FONT_0);
-            _editor_size_cb (ed->view_editor, ed);
 			break;
 
         case KEY_NONE:

@@ -967,13 +967,13 @@ static void _print_stack(IDE_instance ed, DEBUG_stackInfo si, DEBUG_stackInfo si
         if (si->line>=0)
         {
             IDE_cprintf (ed, "%c 0x%08lx %s:%d %s\n",
-                         si==si_cur ? UI_MARK_CHAR_ARROW : ' ',
+                         si==si_cur ? '>' : ' ',
                          si->pc, g_ide->sourcefn, si->line,
                          si->fmn ? S_name(si->fmn->label) : "???");
         }
         else
         {
-            IDE_cprintf (ed, "%c 0x%08lx runtime/os\n", si==si_cur ? UI_MARK_CHAR_ARROW : ' ', si->pc);
+            IDE_cprintf (ed, "%c 0x%08lx runtime/os\n", si==si_cur ? '>' : ' ', si->pc);
         }
         si = si->next;
     }
