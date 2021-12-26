@@ -1,4 +1,4 @@
-## 0.8.1preview2
+## 0.8.1
 
 Improvements:
 
@@ -15,6 +15,7 @@ Improvements:
     * runtime: FONSTYLE command added
     * runtime: FONSTYLE() function added
     * runtime: ON BREAK CALL command added
+    * runtime: BOB() function x/y offset arguments added
     * ide: editor will use the system text font now
     * ide: editor RTG high/true color rendering fixed
     * ide: editor horizontal scrolling implemented

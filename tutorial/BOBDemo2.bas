@@ -1,5 +1,5 @@
 REM
-REM Load a BOB from an IFF ILBM file, animate it
+REM Load BOBs from an IFF ILBM file, animate them
 REM
 
 OPTION EXPLICIT
@@ -14,11 +14,16 @@ AW_FLAG_BACKDROP OR AW_FLAG_SIMPLE_REFRESH OR AW_FLAG_BORDERLESS OR AW_FLAG_ACTI
 
 GELS INIT
 
-REM load BOB from IFF file
+REM load BOBs from IFF ILBM file
 
-DIM AS BOB_t PTR gorilla = NULL
+DIM AS BITMAP_t PTR gorillaBM = NULL
+DIM AS BOB_t PTR gorilla(2)
 
-ILBM LOAD BOB "PROGDIR:imgs/gorilla_32bb0.iff", gorilla, 1
+ILBM LOAD BITMAP "PROGDIR:imgs/gorilla.iff", gorillaBM, 1
+
+FOR i AS INTEGER = 0 TO 2
+    gorilla(i) = BOB (gorillaBM, (i*32,0) - (i*32+31, 31))
+NEXT i    
 
 REM draw something on the background
 
@@ -44,14 +49,25 @@ MOUSE ON
 DIM AS INTEGER vx=1, vy=1
 DIM AS INTEGER x=100, y=100
 
-BOB SHOW gorilla
+DIM AS INTEGER curBOB=0
+
+BOB SHOW gorilla(curBOB)
 
 WHILE TRUE
     VWAIT
-    BOB MOVE gorilla, (x, y)
+    BOB MOVE gorilla(curBOB), (x, y)
     
     x = x + vx
     y = y + vy
+    
+    IF x MOD 10 = 0 THEN
+        
+        BOB HIDE gorilla(curBOB)        
+        curBOB = (curBOB+1) MOD 3
+        BOB MOVE gorilla(curBOB), (x, y)        
+        BOB SHOW gorilla(curBOB)        
+        
+    END IF        
     
     IF (x>500) OR (x<10) THEN
         vx = -vx        

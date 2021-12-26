@@ -117,7 +117,7 @@ repaint all VSPRITEs and BOBs in the current window, screen or bitmap
 
 Syntax:
 
-    BOB "(" bm ")"
+    BOB "(" bm  [ "," "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] ")"
 
 create a new BOB from a bitmap. Important: the bitmap must have been created in continous mode.
 

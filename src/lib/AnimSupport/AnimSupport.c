@@ -376,8 +376,23 @@ void GELS_INIT (UBYTE sprRsrvd)
         ERROR(AE_GELS_INIT);
 }
 
-BOB_t *BOB_ (BITMAP_t *bm)
+BOB_t *BOB_ (BITMAP_t *bm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
 {
+    if (!bm)
+    {
+        ERROR(AE_BOB);
+        return NULL;
+    }
+
+    if ((x2>=0) && (y2>=0))
+    {
+        SHORT w = x2-x1+1;
+        SHORT h = y2-y1+1;
+        BITMAP_t *bm2 = BITMAP_(w, h, bm->bm.Depth, /*cont=*/TRUE);
+        BltBitMap (&bm->bm, x1, y1, &bm2->bm, 0, 0, w, h, 0xc0, 0xff, NULL);
+        bm = bm2;
+    }
+
     BOB_t *bob = AllocVec(sizeof(*bob), MEMF_CLEAR);
     if (!bob)
     {
@@ -557,7 +572,7 @@ void ILBM_LOAD_BOB (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PA
 
     ILBM_LOAD_BITMAP (path, &bm, scid, pMeta, pPalette, /*cont=*/TRUE);
 
-    *bob = BOB_(bm);
+    *bob = BOB_(bm, FALSE, 0, 0, FALSE, -1, -1);
 }
 
 static void _AnimSupport_shutdown(void)

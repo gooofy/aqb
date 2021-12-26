@@ -45,8 +45,8 @@ void      POINTER_CLEAR         (void);
  * GELs
  */
 
-void GELS_INIT      (UBYTE sprRsrvd);
-void GELS_REPAINT   (void);
+void      GELS_INIT             (UBYTE sprRsrvd);
+void      GELS_REPAINT          (void);
 
 /*
  * BOBs
@@ -62,12 +62,12 @@ struct BOB_
     struct VSprite   vsprite;
 };
 
-BOB_t *BOB_               (BITMAP_t *bm);
-void   BOB_MOVE           (BOB_t *bob, BOOL s, SHORT x, SHORT y);
-void   BOB_HIDE           (BOB_t *bob);
-void   BOB_FREE           (BOB_t *bob);
+BOB_t    *BOB_                  (BITMAP_t *bm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
+void      BOB_MOVE              (BOB_t *bob, BOOL s, SHORT x, SHORT y);
+void      BOB_HIDE              (BOB_t *bob);
+void      BOB_FREE              (BOB_t *bob);
 
-void   ILBM_LOAD_BOB      (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette);
+void      ILBM_LOAD_BOB         (STRPTR path, BOB_t **bob, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette);
 
 #endif
 
