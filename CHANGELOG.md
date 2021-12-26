@@ -17,14 +17,14 @@ Improvements:
     * runtime: ON BREAK CALL command added
     * runtime: BOB() function x/y offset arguments added
     * ide: editor will use the system text font now
-    * ide: editor RTG high/true color rendering fixed
     * ide: editor horizontal scrolling implemented
 
 Bug Fixes:
 
-    * write INI file on deinit only (seems to help with AmigaOS 3.2 68000 stability)
-    * fix function node refs in amigaguide help
-    * disable unavailable/unimplemented menu items
+    * ide: editor RTG high/true color rendering fixed
+    * ide: write INI file on deinit only (seems to help with AmigaOS 3.2 68000 stability)
+    * ide: disable unavailable/unimplemented menu items
+    * help: fix function node refs in amigaguide help
 
 ## 0.8.0
 
