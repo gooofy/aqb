@@ -44,16 +44,35 @@ static hwsprite_t  g_hwsprites[NUM_HW_SPRITES];
 static BOB_t      *g_bob_first    = NULL;
 static BOB_t      *g_bob_last     = NULL;
 
-SPRITE_t *SPRITE_ (BITMAP_t *bm)
+SPRITE_t *SPRITE_ (BITMAP_t *bm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
 {
-    if (!bm || bm->width>16)
+    if (!bm)
     {
-        DPRINTF ("SPRITE_: bm->width=%d > 16\n", bm->width);
+        DPRINTF ("SPRITE_: !bm\n");
         ERROR(AE_SPRITE);
         return NULL;
     }
 
-    UWORD *posctldata = AllocVec(8 + 2*2*bm->height, MEMF_CHIP | MEMF_CLEAR);
+    if (x2<0)
+        x2 = bm->width-1;
+    if (x2 > bm->width-1)
+        x2 = bm->width-1;
+    if (y2<0)
+        y2 = bm->height-1;
+    if (y2>bm->height-1)
+        y2 = bm->height-1;
+
+    SHORT w = x2-x1+1;
+    SHORT h = y2-y1+1;
+
+    if (w>16)
+    {
+        DPRINTF ("SPRITE_: w=%d > 16\n", w);
+        ERROR(AE_SPRITE);
+        return NULL;
+    }
+
+    UWORD *posctldata = AllocVec(8 + 2*2*h, MEMF_CHIP | MEMF_CLEAR);
     if (!posctldata)
     {
         DPRINTF ("SPRITE: failed to allocate posctldata\n");
@@ -61,15 +80,15 @@ SPRITE_t *SPRITE_ (BITMAP_t *bm)
         return NULL;
     }
 
-    for (SHORT y=0; y<bm->height; y++)
+    for (SHORT y=y1; y<=y2; y++)
     {
-        for (SHORT x=0; x<bm->width; x++)
+        for (SHORT x=x1; x<=x2; x++)
         {
             LONG penno = ReadPixel (&bm->rp, x, y);
             if (penno & 1)
-                posctldata[2+y*2]   |= (1<<(15-x));
+                posctldata[2+(y-y1)*2] |= (1<<(15-(x-x1)));
             if (penno & 2)
-                posctldata[2+y*2+1] |= (1<<(15-x));
+                posctldata[2+(y-y1)*2+1] |= (1<<(15-(x-x1)));
         }
     }
 
@@ -83,8 +102,8 @@ SPRITE_t *SPRITE_ (BITMAP_t *bm)
     }
 
     sprite->posctldata = posctldata;
-    sprite->width      = bm->width;
-    sprite->height     = bm->height;
+    sprite->width      = w;
+    sprite->height     = h;
 
     sprite->prev = g_sprite_last;
     if (g_sprite_last)
@@ -225,7 +244,7 @@ void ILBM_LOAD_SPRITE (STRPTR path, SPRITE_t **sprite, SHORT scid, ILBM_META_t *
 
     ILBM_LOAD_BITMAP (path, &bm, scid, pMeta, pPalette, /*cont=*/TRUE);
 
-    *sprite = SPRITE_(bm);
+    *sprite = SPRITE_(bm, FALSE, 0, 0, FALSE, bm->width-1, bm->height-1);
 }
 
 void POINTER_SPRITE (SPRITE_t *sprite, SHORT xoffset, SHORT yoffset)

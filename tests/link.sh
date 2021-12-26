@@ -22,8 +22,8 @@ rm -f /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/*.uaem
 # AQB
 #
 
-../target/x86_64-linux/bin/aqb -v -L ../src/lib -d _aqb -a foo.s -B foo.S -p foo.o -o foo ${EXAMPLE}.bas || exit
-#../target/x86_64-linux/bin/aqb -v -L ../src/lib -d _brt -a foo.s -B foo.S -p foo.o -o foo ${EXAMPLE}.bas || exit
+#../target/x86_64-linux/bin/aqb -v -L ../src/lib -d _aqb -a foo.s -B foo.S -p foo.o -o foo ${EXAMPLE}.bas || exit
+../target/x86_64-linux/bin/aqb -v -L ../src/lib -d _brt -a foo.s -B foo.S -p foo.o -o foo ${EXAMPLE}.bas || exit
 
 # analyze object or load file produced by aqb's internal assembler/linker
 

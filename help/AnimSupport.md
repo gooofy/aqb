@@ -7,7 +7,7 @@
 
 Syntax:
 
-    SPRITE "(" bm ")"
+    SPRITE "(" bm [ "," "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ]")"
 
 create a new SPRITE from a bitmap.
 

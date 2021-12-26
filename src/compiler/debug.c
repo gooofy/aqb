@@ -1207,6 +1207,8 @@ static void _debug(struct DebugMsg *msg)
             IDE_cprintf(g_ide, "RUNTIME ERROR %d ", g_dbgEnv.u.dbg.msg.u.err);
             switch (g_dbgEnv.u.dbg.msg.u.err)
             {
+                case   7: IDE_cprintf(g_ide, "(OUT OF MEMORY)"); break;
+                case   9: IDE_cprintf(g_ide, "(ARRAY SUBSCRIPT OUT OF RANGE)"); break;
                 case 101: IDE_cprintf(g_ide, "(WIN OPEN)"); break;
                 case 102: IDE_cprintf(g_ide, "(SCREEN OPEN)"); break;
                 case 103: IDE_cprintf(g_ide, "(PALETTE)"); break;

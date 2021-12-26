@@ -26,7 +26,7 @@ struct SPRITE_
     UWORD     width, height;
 };
 
-SPRITE_t *SPRITE_               (BITMAP_t *bm);
+SPRITE_t *SPRITE_               (BITMAP_t *bm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2);
 void      SPRITE_SHOW           (SHORT spnum, SPRITE_t *sprite);
 void      SPRITE_HIDE           (SHORT spnum);
 void      SPRITE_MOVE           (SHORT spnum, BOOL s, SHORT x, SHORT y);

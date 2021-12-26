@@ -1,5 +1,5 @@
 REM
-REM Sprite animation
+REM Sprite animation, extract multiple frames from one IFF
 REM
 
 OPTION EXPLICIT
@@ -7,12 +7,22 @@ IMPORT AnimSupport
 
 WINDOW 1, "SPRITE Demo 3 - Animation"
 
-DIM AS SPRITE_t PTR sp1, sp2, sp3, sp4
+DIM AS BITMAP_t PTR bananaBM = NULL
 
-ILBM LOAD SPRITE "PROGDIR:imgs/banana1.iff", sp1
-ILBM LOAD SPRITE "PROGDIR:imgs/banana2.iff", sp2
-ILBM LOAD SPRITE "PROGDIR:imgs/banana3.iff", sp3
-ILBM LOAD SPRITE "PROGDIR:imgs/banana4.iff", sp4
+ILBM LOAD BITMAP "PROGDIR:imgs/banana.iff", bananaBM
+
+DIM AS SPRITE_t PTR sp(23)
+
+FOR i AS INTEGER = 0 TO 11
+    sp(i) = SPRITE (bananaBM, (i*16,0)-(i*16+15,15))
+    sp(i+12) = SPRITE (bananaBM, (i*16,16)-(i*16+15,31))    
+NEXT i    
+
+REM sprite colors
+
+PALETTE 21, 0.8, 0.8, 0
+PALETTE 22, 0, 0, 0
+PALETTE 23, 1, 1, 0
 
 REM draw something on the background
 
@@ -43,19 +53,11 @@ DIM AS INTEGER spmov=0
 WHILE TRUE
     VWAIT
     
-    spmov = (spmov + 1) MOD 30
-    SELECT CASE spmov/10
-    CASE 0
-        SPRITE SHOW 1, sp1
-    CASE 1
-        SPRITE SHOW 1, sp2
-    CASE 2
-        SPRITE SHOW 1, sp3
-    CASE 3
-        SPRITE SHOW 1, sp4
-    END SELECT
+    spmov = (spmov + 1) MOD 24
+    SPRITE SHOW 2, sp(spmov)    
     
-    SPRITE MOVE 1, (x, y)    
+    
+    SPRITE MOVE 2, (x, y)    
     
     x = x + vx
     y = y + vy
