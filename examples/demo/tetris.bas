@@ -11,14 +11,13 @@ OPTION EXPLICIT
 
 RANDOMIZE TIMER
 
-CONST AS INTEGER SCALE_X = 9, SCALE_Y = 9
-CONST AS INTEGER GRID_XO = 115, GRID_YO = 6
-CONST AS INTEGER PREVIEW_XO = 242, PREVIEW_YO = 37
-CONST AS INTEGER LINES_XO = 242, LINES_YO = 100
-CONST AS INTEGER SCORE_XO = 242, SCORE_YO = 148
+CONST AS INTEGER SCALE_X    =   9, SCALE_Y    =   9
+CONST AS INTEGER GRID_XO    = 115, GRID_YO    =   6
+CONST AS INTEGER PREVIEW_XO = 242, PREVIEW_YO =  37
+CONST AS INTEGER LINES_XO   = 242, LINES_YO   = 100
+CONST AS INTEGER SCORE_XO   = 242, SCORE_YO   = 148
 
 DIM AS SINGLE startTime = TIMER ( )
-'PRINT "startTime=";startTime
 
 DIM SHARED AS INTEGER grid ( 10, 20 )
 DIM SHARED AS INTEGER rx ( 4, 4 ), ry ( 4, 4 )
@@ -33,14 +32,12 @@ DIM SHARED AS INTEGER S = 0 : REM score
 DIM SHARED AS INTEGER difficulty = 50 : REM score increase per dropped line
 
 DIM SHARED AS BOOLEAN gameover = FALSE
-DIM SHARED AS BOOLEAN doquit = FALSE
+DIM SHARED AS BOOLEAN doquit   = FALSE
 
 SUB DEFINEPIECE ( BYVAL p AS INTEGER )
-    ' LOCATE 7,1 : PRINT "DEFINEPIECE: p=";p
     SELECT CASE p
-        CASE 1
+    CASE 1
         REM BLUE J PIECE
-        ' LOCATE 5,1 : PRINT "DEFINEPIECE: BLUE J PIECE"
         piecex ( 1 ) = 5 : piecey ( 1 ) = 0
         piecex ( 2 ) = 5 : piecey ( 2 ) = 1
         piecex ( 3 ) = 5 : piecey ( 3 ) = 2
@@ -61,7 +58,7 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
         rx ( 4, 2 ) = 0 : ry ( 4, 2 ) = 0
         rx ( 4, 3 ) = 1 : ry ( 4, 3 ) = 1
         rx ( 4, 4 ) = 0 : ry ( 4, 4 ) = 2
-        CASE 2
+    CASE 2
         REM GREEN S PIECE
         piecex ( 1 ) = 4 : piecey ( 1 ) = 0
         piecex ( 2 ) = 4 : piecey ( 2 ) = 1
@@ -83,7 +80,7 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
         rx ( 4, 2 ) = 0 : ry ( 4, 2 ) = 0
         rx ( 4, 3 ) = 1 : ry ( 4, 3 ) = -1
         rx ( 4, 4 ) = 2 : ry ( 4, 4 ) = 0
-        CASE 3
+    CASE 3
         REM CYAN L PIECE
         piecex ( 1 ) = 4 : piecey ( 1 ) = 0
         piecex ( 2 ) = 4 : piecey ( 2 ) = 1
@@ -105,9 +102,8 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
         rx ( 4, 2 ) = 0 : ry ( 4, 2 ) = 0
         rx ( 4, 3 ) = 1 : ry ( 4, 3 ) = 1
         rx ( 4, 4 ) = 2 : ry ( 4, 4 ) = 0
-        CASE 4
+    CASE 4
         REM RED Z PIECE
-        ' LOCATE 5,1 : PRINT "DEFINEPIECE: RED Z PIECE"
         piecex ( 1 ) = 5 : piecey ( 1 ) = 0
         piecex ( 2 ) = 5 : piecey ( 2 ) = 1
         piecex ( 3 ) = 4 : piecey ( 3 ) = 1
@@ -128,7 +124,7 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
         rx ( 4, 2 ) = 0 : ry ( 4, 2 ) = 0
         rx ( 4, 3 ) = -1 : ry ( 4, 3 ) = -1
         rx ( 4, 4 ) = -2 : ry ( 4, 4 ) = 0
-        CASE 5
+    CASE 5
         REM PURPLE T PIECE
         piecex ( 1 ) = 5 : piecey ( 1 ) = 0
         piecex ( 2 ) = 4 : piecey ( 2 ) = 1
@@ -150,7 +146,7 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
         rx ( 4, 2 ) = -1 : ry ( 4, 2 ) = 1
         rx ( 4, 3 ) = 0 : ry ( 4, 3 ) = 0
         rx ( 4, 4 ) = 1 : ry ( 4, 4 ) = -1
-        CASE 6
+    CASE 6
         REM YELLOW O PIECE
         piecex ( 1 ) = 4 : piecey ( 1 ) = 0
         piecex ( 2 ) = 5 : piecey ( 2 ) = 0
@@ -172,9 +168,8 @@ SUB DEFINEPIECE ( BYVAL p AS INTEGER )
         rx ( 4, 2 ) = 0 : ry ( 4, 2 ) = 0
         rx ( 4, 3 ) = 0 : ry ( 4, 3 ) = 0
         rx ( 4, 4 ) = 0 : ry ( 4, 4 ) = 0
-        CASE 7
+    CASE 7
         REM WHITE I PIECE
-        ' LOCATE 5,1 : PRINT "DEFINEPIECE: WHITE I PIECE"
         piecex ( 1 ) = 5 : piecey ( 1 ) = 0
         piecex ( 2 ) = 5 : piecey ( 2 ) = 1
         piecex ( 3 ) = 5 : piecey ( 3 ) = 2
@@ -231,6 +226,14 @@ SUB REDRAWSCREENGRID
     NEXT Y
 END SUB
 
+SUB SHOWSCORE
+    LINE ( LINES_XO, LINES_YO ) - ( LINES_XO + 6 * SCALE_X, LINES_YO + 2 * SCALE_Y ), 0, BF
+    LINE ( SCORE_XO, SCORE_YO ) - ( SCORE_XO + 6 * SCALE_X, SCORE_YO + 2 * SCALE_Y ), 0, BF
+    COLOR 7, 0
+    LOCATE XY (256, 160) : PRINT S;
+    LOCATE XY (256, 112) : PRINT L;    
+END SUB    
+
 SUB DROPGRID ( BYREF CY AS INTEGER )
     FOR X AS INTEGER = 0 TO 9
         FOR YY AS INTEGER = CY TO 1 STEP -1
@@ -239,31 +242,32 @@ SUB DROPGRID ( BYREF CY AS INTEGER )
     NEXT X
     L = L + 1
     S = S + difficulty
-    COLOR 7, 0
-    LOCATE 20, 32 : PRINT S
-    LOCATE 14, 32 : PRINT L
+    SHOWSCORE    
     CLEARSCREENGRID
     REDRAWSCREENGRID
 END SUB
 
 SUB CPRINT ( BYVAL Y AS INTEGER, S AS STRING )
     
-    DIM AS INTEGER X = 20 - LEN ( S ) / 2
-    LOCATE Y, X
-    PRINT S
+    DIM AS INTEGER X = 160 - TEXTWIDTH ( S ) / 2
+    LOCATE XY (X, Y)
+    PRINT S;
     
 END SUB
 
 SUB GAMEOVERMAN
     
-    CPRINT 7, "                 "
-    CPRINT 8, "    GAME OVER    "
-    CPRINT 9, "    ---------    "
-    CPRINT 10, "                 "
-    CPRINT 11, " WOULD YOU LIKE  "
-    CPRINT 12, " TO PLAY ANOTHER "
-    CPRINT 13, "    GAME Y/N?    "
-    CPRINT 14, "                 "
+    LINE (80, 60)-(240, 170),5,B
+    LINE (81, 61)-(239, 169),0,BF    
+    
+    CPRINT  77, "                 "
+    CPRINT  88, "    GAME OVER    "
+    CPRINT  99, "    ---------    "
+    CPRINT 110, "                 "
+    CPRINT 121, " WOULD YOU LIKE  "
+    CPRINT 132, " TO PLAY ANOTHER "
+    CPRINT 143, "    GAME Y/N?    "
+    CPRINT 154, "                 "
     
     WHILE NOT gameover
         DIM AS STRING key = INKEY$
@@ -399,15 +403,15 @@ SUB ROTATEPIECE
     DRAWPIECE
 END SUB
 
-SUB endgame
+SUB ENDGAME
     
     TIMER OFF 1
     
     COLOR 7
     
-    CPRINT 8, " QUITTING? "
-    CPRINT 10, " ARE YOU "
-    CPRINT 11, " SURE Y/N? "
+    CPRINT 64, " QUITTING? "
+    CPRINT 75, " ARE YOU "
+    CPRINT 86, " SURE Y/N? "
     
     WHILE TRUE
         
@@ -430,25 +434,7 @@ SUB endgame
         END IF
     WEND
     
-    
-    ' ENDSUB:
-    '   Print @(80,15,1) "QUITING? ARE "
-    '   Print @(78,25,1) "YOU SURE Y/N?" 
-    '   END1:
-    '   E=Asc(Inkey$)
-    '   If E=89 or E=121 Then GOSUB GAMEOVERMAN
-    '   If E=27 or E=78 or E=110 Then 
-    '     colour 0
-    '     Print @(80,15,1) "QUITING? ARE "
-    '     Print @(78,25,1) "YOU SURE Y/N?" 
-    '     colour 7
-    '     Return
-    '   Endif  
-    '   Goto END1
 END SUB
-
-REM OPEN "tetris.log" FOR OUTPUT AS 1
-REM PRINT #1, "tetris log starts"
 
 SCREEN 2, 320, 200, 3, 0, "AQB Tetris"
 WINDOW 4,,, AW_FLAG_BACKDROP OR AW_FLAG_BORDERLESS OR AW_FLAG_ACTIVATE OR AW_FLAG_GIMMEZEROZERO, 2
@@ -462,23 +448,28 @@ PALETTE 5, 1, 0, 1 : REM purple
 PALETTE 6, 1, 1, 0 : REM yellow
 PALETTE 7, 1, 1, 1 : REM white
 
+DIM AS FONT_t PTR fontHeadline = FONT("future.font", 22, "PROGDIR://fonts")
+DIM AS FONT_t PTR fontText     = FONT("future.font", 11, "PROGDIR://fonts")
+
 WHILE NOT doquit
     
     CLS
     
-    COLOR 7
+    COLOR 7 : FONT fontText
     
-    CPRINT 3, "Welcome to"
-    CPRINT 5, "AQB TETRIS"
-    CPRINT 7, "Based on COLOUR MAXIMITE TETRIS"
-    CPRINT 9, "By David Murray"
-    CPRINT 11, "AQB port by Guenter Bartsch"
+    CPRINT 22, "Welcome to"
+    FONT fontHeadline    
+    CPRINT 44, "AQB TETRIS"
+    FONT fontText 
+    CPRINT 66, "Based on COLOUR MAXIMITE TETRIS"
+    CPRINT 88, "By David Murray"
+    CPRINT 99, "AQB port by Guenter Bartsch"
     
-    LOCATE 15, 2 : PRINT "Please enter level 1-10"
-    LOCATE 16, 2 : PRINT "default being 2, 10 being ridiculous"
-    LOCATE 18, 2 : PRINT "Good Luck!"
-    LINE ( 2, 107 ) - ( 317, 147 ), 5, B
-    LINE ( 0, 105 ) - ( 319, 149 ), 5, B
+    LOCATE XY (15, 128) : PRINT "Please enter level 1-10";
+    LOCATE XY (15, 139) : PRINT "default being 2, 10 being ridiculous";
+    LOCATE XY (15, 150) : PRINT "Good Luck!";
+    LINE ( 2, 116 ) - ( 317, 156 ), 5, B
+    LINE ( 0, 114 ) - ( 319, 158 ), 5, B
     
     DIM AS SINGLE t2 = 0
     
@@ -493,17 +484,17 @@ WHILE NOT doquit
         ELSE
             
             SELECT CASE ASC ( key )
-                CASE 48 : t2 = 50 : difficulty = 500 : REM key 0
-                CASE 49 : t2 = 500 : difficulty = 50 : REM key 1
-                CASE 50, 13 : t2 = 450 : difficulty = 100 : REM key 2 or enter
-                CASE 51 : t2 = 400 : difficulty = 150 : REM key 3
-                CASE 52 : t2 = 350 : difficulty = 200 : REM key 4
-                CASE 53 : t2 = 300 : difficulty = 250 : REM key 5
-                CASE 54 : t2 = 250 : difficulty = 300 : REM key 6
-                CASE 55 : t2 = 200 : difficulty = 350 : REM key 7
-                CASE 56 : t2 = 150 : difficulty = 400 : REM key 8
-                CASE 57 : t2 = 100 : difficulty = 450 : REM key 9
-                CASE 27 : GOTO quitlabel
+            CASE 48 : t2 = 50 : difficulty = 500 : REM key 0
+            CASE 49 : t2 = 500 : difficulty = 50 : REM key 1
+            CASE 50, 13 : t2 = 450 : difficulty = 100 : REM key 2 or enter
+            CASE 51 : t2 = 400 : difficulty = 150 : REM key 3
+            CASE 52 : t2 = 350 : difficulty = 200 : REM key 4
+            CASE 53 : t2 = 300 : difficulty = 250 : REM key 5
+            CASE 54 : t2 = 250 : difficulty = 300 : REM key 6
+            CASE 55 : t2 = 200 : difficulty = 350 : REM key 7
+            CASE 56 : t2 = 150 : difficulty = 400 : REM key 8
+            CASE 57 : t2 = 100 : difficulty = 450 : REM key 9
+            CASE 27 : GOTO quitlabel
             END SELECT
             
             ' FIXME: IF Timer>=350 Then GoSub PREVIEW:Timer=0
@@ -525,55 +516,40 @@ WHILE NOT doquit
     COLOR 7, 1
     CLS
     
-    PRINT
-    PRINT
-    PRINT " LEFT/RIGHT"
-    PRINT " MOVE"
-    PRINT
-    PRINT
-    PRINT " UP"
-    PRINT " ROTATE"
-    PRINT
-    PRINT
-    PRINT " DOWN"
-    PRINT " DROP"
-    PRINT
-    PRINT
-    PRINT " ESC"
-    PRINT " PAUSE/EXIT"
+    LOCATE XY (10,  33) : PRINT "LEFT/RIGHT";
+    LOCATE XY (10,  44) : PRINT "MOVE";
+    LOCATE XY (10,  66) : PRINT "UP";
+    LOCATE XY (10,  77) : PRINT "ROTATE";
+    LOCATE XY (10,  99) : PRINT "DOWN";
+    LOCATE XY (10, 110) : PRINT "DROP";
+    LOCATE XY (10, 132) : PRINT "ESC";
+    LOCATE XY (10, 143) : PRINT "PAUSE/EXIT";
     
-    LOCATE 4, 31 : PRINT "NEXT"
+    LOCATE XY (248, 32) : PRINT "NEXT";
     LINE ( PREVIEW_XO -1, PREVIEW_YO -2 ) - ( PREVIEW_XO + 4 * SCALE_X + 1, PREVIEW_YO + 4 * SCALE_Y ), 7, B
     
     LINE ( GRID_XO -1, GRID_YO -1 ) - ( GRID_XO + 10 * SCALE_X + 1, GRID_YO + 20 * SCALE_Y + 1 ), 7, B
     LINE ( GRID_XO, GRID_YO ) - ( GRID_XO + 10 * SCALE_X, GRID_YO + 20 * SCALE_Y ), 0, BF
     
-    LOCATE 12, 31 : PRINT "LINES"
+    LOCATE XY (248, 96) : PRINT "LINES"
     LINE ( LINES_XO -1, LINES_YO -1 ) - ( LINES_XO + 6 * SCALE_X + 1, LINES_YO + 2 * SCALE_Y + 1 ), 7, B
     LINE ( LINES_XO, LINES_YO ) - ( LINES_XO + 6 * SCALE_X, LINES_YO + 2 * SCALE_Y ), 0, BF
     
-    LOCATE 18, 31 : PRINT "SCORE"
+    LOCATE XY (248, 144) : PRINT "SCORE"
     LINE ( SCORE_XO -1, SCORE_YO -1 ) - ( SCORE_XO + 6 * SCALE_X + 1, SCORE_YO + 2 * SCALE_Y + 1 ), 7, B
     LINE ( SCORE_XO, SCORE_YO ) - ( SCORE_XO + 6 * SCALE_X, SCORE_YO + 2 * SCALE_Y ), 0, BF
     
-    COLOR 7, 0
-    LOCATE 20, 32 : PRINT S
-    LOCATE 14, 32 : PRINT L
+    SHOWSCORE    
     
     PREVIEW
     NEWPIECE
     DRAWPIECE
     
     DIM delay AS SINGLE = t2 / 1000
-    'LOCATE 2,1 : PRINT "delay=";delay
     
     ON TIMER CALL 1, delay, timer_movedown
     TIMER ON 1
     
-    ' FIXME: remove debug code
-    ' FOR X AS INTEGER = 0 TO 9
-    ' grid ( X, 12 ) = 2
-    ' NEXT X
     REDRAWSCREENGRID
     
     gameover = FALSE
@@ -583,15 +559,15 @@ WHILE NOT doquit
         DIM AS STRING k = INKEY$
         IF k = "" THEN CONTINUE
         SELECT CASE ASC ( k )
-            CASE 27 : ' Escape
-            endgame
-            CASE 29 : ' cursor down
+        CASE 27 : ' Escape
+            ENDGAME
+        CASE 29 : ' cursor down
             LEAVEPIECE
-            CASE 28 :  : REM cursor up
+        CASE 28 :  : REM cursor up
             ROTATEPIECE
-            CASE 30 : ' cursor right
+        CASE 30 : ' cursor right
             MOVERIGHT
-            CASE 31 : ' cursor left
+        CASE 31 : ' cursor left
             MOVELEFT
         END SELECT
     WEND

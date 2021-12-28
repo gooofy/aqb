@@ -1,3 +1,12 @@
+## 0.8.2
+
+Improvements:
+
+
+Bug Fixes:
+
+    * examples: tetris code cleanup, use custom fonts
+
 ## 0.8.1
 
 Improvements:
