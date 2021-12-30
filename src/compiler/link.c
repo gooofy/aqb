@@ -62,7 +62,7 @@ static void link_fail (string msg)
         g_fObjFile = NULL;
     }
 
-    CO_exit(127);
+    CO_exit(EXIT_FAILURE);
 }
 
 #if LOG_LEVEL == LOG_DEBUG
@@ -1265,7 +1265,7 @@ void LI_segmentWriteObjectFile (AS_object obj, string objfn)
     if (!g_fObjFile)
     {
         LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s for writing.\n\n", objfn);
-        exit(128);
+        CO_exit(EXIT_FAILURE);
     }
     write_hunk_unit (objfn, g_fObjFile);
 
@@ -1299,7 +1299,7 @@ void LI_segmentListWriteLoadFile (LI_segmentList sl, string loadfn)
     if (!g_fLoadFile)
     {
         LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s for writing.\n\n", loadfn);
-        exit(128);
+        CO_exit(EXIT_FAILURE);
     }
     write_hunk_header (sl, g_fLoadFile);
 

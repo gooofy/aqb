@@ -1033,7 +1033,7 @@ void DEBUG_disasm(IDE_instance ed, unsigned long int start, unsigned long int en
 					} break;
 
 					default : printf("opnum out of range in switch (=%i)\n", opnum);
-						exit(1);
+						exit(EXIT_FAILURE);
 				}
 			}
 			if (decoded) opnum = 88;

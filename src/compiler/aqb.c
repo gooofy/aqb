@@ -102,7 +102,7 @@ static void check_amigaos_env(void)
     if ( ((struct Library *)DOSBase)->lib_Version < 37)
     {
         U_request (NULL, NULL, "OK", "DOS library V%d is too old, need at least V37", ((struct Library *)DOSBase)->lib_Version);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     struct Process *aqbProc;

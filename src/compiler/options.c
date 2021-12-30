@@ -105,7 +105,7 @@ void OPT_init(void)
     if (snprintf (g_pref_fn, PATH_MAX, "%s/prefs.ini", aqb_home)<0)
     {
         fprintf (stderr, "prefs.ini path too long\n");
-        exit(42);
+        exit(EXIT_FAILURE);
     }
 #endif
 

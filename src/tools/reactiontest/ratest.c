@@ -105,15 +105,15 @@ int main(void)
         cleanexit("failed to open intuition.library\n");
     DPRINTF ("intuition.library opened\n");
 
-    if (! (WindowBase = OpenLibrary((STRPTR)"window.class", 47)) )
+    if (! (WindowBase = OpenLibrary((STRPTR)"window.class", 37)) )
         cleanexit("failed to open window.class\n");
     DPRINTF ("window.class opened\n");
 
-    if (! (LayoutBase = OpenLibrary((STRPTR)"gadgets/layout.gadget", 47)) )
+    if (! (LayoutBase = OpenLibrary((STRPTR)"gadgets/layout.gadget", 37)) )
         cleanexit("failed to open gadgets/layout.gadget\n");
     DPRINTF ("gadgets/layout.gadget opened\n");
 
-    if (! (ButtonBase = OpenLibrary((STRPTR)"gadgets/button.gadget", 47)) )
+    if (! (ButtonBase = OpenLibrary((STRPTR)"gadgets/button.gadget", 0)) )
         cleanexit("failed to open gadgets/button.gadget\n");
     DPRINTF ("gadgets/button.gadget opened\n");
 

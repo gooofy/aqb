@@ -286,7 +286,7 @@ static uint16_t UI_getch (void)
     char c, seq[5];
     while ((nread = read(STDIN_FILENO,&c,1)) == 0);
     if (nread == -1)
-        exit(1);
+        exit(EXIT_FAILURE);
 
     while(1)
     {

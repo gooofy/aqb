@@ -6,6 +6,7 @@ Improvements:
 Bug Fixes:
 
     * examples: tetris code cleanup, use custom fonts
+    * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
 
 ## 0.8.1
 

@@ -303,7 +303,7 @@ static void env_fail (string msg)
         modf = NULL;
     }
 
-    exit(126);
+    exit(EXIT_FAILURE);
 }
 
 static void fwrite_double(FILE *f, double d)

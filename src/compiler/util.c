@@ -96,7 +96,7 @@ static void *checked_malloc (size_t len)
     if (!p)
     {
         LOG_printf(LOG_ERROR, "\nran out of memory!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     // fprintf(stderr, "checked_malloc len=%zu -> p=%p\n", len, p);
     return p;
