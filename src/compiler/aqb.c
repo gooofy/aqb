@@ -89,6 +89,8 @@ static void print_usage(char *argv[])
 
 #ifdef __amigaos__
 
+char *versionstr = "\0$VER: " PROGRAM_NAME_SHORT " " VERSION " (" PROGRAM_DATE ")";
+
 #define MIN_STACKSIZE 64*1024
 
 extern struct WBStartup *_WBenchMsg;
