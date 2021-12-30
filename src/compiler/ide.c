@@ -1475,8 +1475,9 @@ static bool _ide_save (IDE_instance ed, bool save_as)
     FILE *sourcef = fopen(ed->sourcefn, "w");
     if (!sourcef)
     {
-        fprintf(stderr, "failed to write %s: %s\n\n", ed->sourcefn, strerror(errno));
-        exit(EXIT_FAILURE);
+        UI_EZRequest ("failed to write %s: %s", "OK", ed->sourcefn, strerror(errno));
+        //fprintf(stderr, "failed to write %s: %s\n\n", ed->sourcefn, strerror(errno));
+        return FALSE;
     }
 
     static char *indent_str = "    ";

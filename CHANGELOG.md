@@ -5,6 +5,7 @@ Improvements:
 
 Bug Fixes:
 
+    * ide: EZRequest on source write fails instead of a plain exit()
     * examples: tetris code cleanup, use custom fonts
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
 
