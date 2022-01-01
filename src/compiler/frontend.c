@@ -4619,16 +4619,17 @@ static bool fno(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
     CG_item   exp;
+    bool      ok=TRUE;
 
     if (isSym(*tkn, S_STEP))
     {
         CG_BoolItem (&exp, TRUE, Ty_Bool());
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
     }
     *formal = (*formal)->next;
 
@@ -4638,7 +4639,7 @@ static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+    ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_COMMA)
@@ -4647,30 +4648,31 @@ static bool coord(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+    ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected here.");
     *tkn = (*tkn)->next;
 
-    return TRUE;
+    return ok;
 }
 
 // coord2 ::= [ [ STEP ] '(' expression "," expression ")" ] "-" [STEP] "(" expression "," expression ")"
 static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 {
     CG_item   exp;
+    bool      ok=TRUE;
 
     if (isSym(*tkn, S_STEP))
     {
         CG_BoolItem (&exp, TRUE, Ty_Bool());
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
     }
     *formal = (*formal)->next;
 
@@ -4680,7 +4682,7 @@ static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
 
         if ((*tkn)->kind != S_COMMA)
@@ -4689,7 +4691,7 @@ static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
         if (!expression(tkn, &exp))
             return EM_error((*tkn)->pos, "expression expected here.");
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
 
         if ((*tkn)->kind != S_RPAREN)
@@ -4698,9 +4700,9 @@ static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
         *formal = (*formal)->next;
     }
 
@@ -4711,12 +4713,12 @@ static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
     if (isSym(*tkn, S_STEP))
     {
         CG_BoolItem (&exp, TRUE, Ty_Bool());
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
         *tkn = (*tkn)->next;
     }
     else
     {
-        transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
+        ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, NULL, /*forceExp=*/FALSE);
     }
     *formal = (*formal)->next;
 
@@ -4726,7 +4728,7 @@ static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+    ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_COMMA)
@@ -4735,14 +4737,14 @@ static bool coord2(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
 
     if (!expression(tkn, &exp))
         return EM_error((*tkn)->pos, "expression expected here.");
-    transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
+    ok &= transAssignArg((*tkn)->pos, assignedArgs, *formal, &exp, /*forceExp=*/FALSE);
     *formal = (*formal)->next;
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected here.");
     *tkn = (*tkn)->next;
 
-    return TRUE;
+    return ok;
 }
 
 static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *formal)
