@@ -2,6 +2,8 @@
 
 Improvements:
 
+    * runtime: WAVE, WAVE FREE, SOUND, SOUND WAIT, SOUND STOP, SOUND START commands added
+    * runtime: WAVE() function added
 
 Bug Fixes:
 

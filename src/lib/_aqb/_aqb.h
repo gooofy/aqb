@@ -134,6 +134,7 @@ SHORT    TEXTWIDTH_           (UBYTE *s);
 #define AE_BLIT                     121
 #define AE_RASTPORT                 122
 #define AE_FONT                     123
+#define AE_AUDIO                    124
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
@@ -224,6 +225,42 @@ void _atimer_process_signals(ULONG signals);
 void ON_TIMER_CALL     (SHORT id, FLOAT d, void (*cb)(void));
 void TIMER_ON          (SHORT id);
 void TIMER_OFF         (SHORT id);
+
+/*
+ * audio support
+ */
+
+typedef struct WAVE_ WAVE_t;
+
+struct WAVE_
+{
+    WAVE_t       *prev, *next;
+
+    ULONG         oneShotHiSamples;
+    ULONG         repeatHiSamples;
+    ULONG         samplesPerHiCycle;
+    ULONG         samplesPerSec;
+    SHORT         ctOctave;
+    FLOAT         volume;
+
+    BYTE         *data;
+};
+
+WAVE_t *_wave_alloc          (BYTE *data,
+                              ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
+                              ULONG samplesPerSec, SHORT ctOctave, FLOAT volume);
+WAVE_t *WAVE_                (_DARRAY_T *data,
+                              ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
+                              ULONG samplesPerSec, SHORT ctOctave, FLOAT volume);
+void    WAVE                 (SHORT channel, WAVE_t *wave);
+void    WAVE_FREE            (WAVE_t *wave);
+void    SOUND                (FLOAT freq, FLOAT duration, SHORT vol, SHORT channel);
+void    SOUND_WAIT           (SHORT channel);
+void    SOUND_STOP           (SHORT channel);
+void    SOUND_START          (SHORT channel);
+
+void _asound_init            (void);
+void _asound_shutdown        (void);
 
 #endif
 

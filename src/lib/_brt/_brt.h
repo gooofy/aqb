@@ -41,7 +41,7 @@ void _debug_putnl  (void);
 void _debug_cls    (void);
 void _debug_break  (void);
 
-//#define ENABLE_DPRINTF
+// #define ENABLE_DPRINTF
 
 #ifdef ENABLE_DPRINTF
 
@@ -191,6 +191,7 @@ void              _autil_delete_port   (struct MsgPort *port);
 struct IORequest *_autil_create_ext_io (struct MsgPort *port, LONG iosize);
 struct IOStdReq  *_autil_create_std_io (struct MsgPort *port);
 void              _autil_delete_ext_io (struct IORequest *ioreq);
+void              _autil_begin_io      (struct IORequest *iorequest);
 
 /*
  * STR$ support

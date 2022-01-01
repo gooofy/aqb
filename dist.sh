@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.8.2
+VERSION=0.8.2preview1
 WORKDIR=`pwd`/target/m68k-amigaos/dist
 LHA=${WORKDIR}/aqb-${VERSION}.lha
 
@@ -58,6 +58,7 @@ rm -f ${WORKDIR}/aqb/examples/demo/banana*
 cp -r help ${WORKDIR}/aqb/
 
 cp -r dist/amiga/Fonts ${WORKDIR}/aqb/
+cp -r dist/amiga/8svx  ${WORKDIR}/aqb/
 
 pushd ${WORKDIR}
 lha a ${LHA} aqb.info aqb

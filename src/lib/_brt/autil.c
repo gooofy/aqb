@@ -5,6 +5,8 @@
 #include <exec/memory.h>
 #include <exec/ports.h>
 #include <exec/io.h>
+#include <exec/devices.h>
+
 
 #include <clib/exec_protos.h>
 #include <clib/dos_protos.h>
@@ -331,4 +333,12 @@ void _autil_delete_ext_io(struct IORequest *ioreq)
     ioreq->io_Device                  = (struct Device *)i;
     ioreq->io_Unit                    = (struct Unit *)i;
     FreeMem(ioreq,ioreq->io_Message.mn_Length);
+}
+
+void _autil_begin_io (struct IORequest *iorequest)
+{
+    register struct IORequest *a1 __asm("a1")=iorequest;
+    register struct Device    *a6 __asm("a6")=iorequest->io_Device;
+
+    __asm volatile ("jsr a6@(-30:W)" :: "r" (a1), "r" (a6));
 }

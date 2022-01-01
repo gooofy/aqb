@@ -34,9 +34,11 @@ typedef struct
 
 } ILBM_META_t;
 
-void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont);
+void ILBM_LOAD_BITMAP  (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont);
+void ILBM_READ_BITMAP  (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont);
 
-void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta, PALETTE_t *pPalette, BOOL cont);
+void IFF8SVX_LOAD_WAVE (STRPTR path, WAVE_t **w);
+void IFF8SVX_READ_WAVE (USHORT fno, WAVE_t **w);
 
 #endif
 

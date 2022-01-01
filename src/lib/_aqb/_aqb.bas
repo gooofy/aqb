@@ -84,6 +84,8 @@ PUBLIC CONST AS INTEGER AE_CLOSE              = 119
 PUBLIC CONST AS INTEGER AE_MOUSE              = 120
 PUBLIC CONST AS INTEGER AE_BLIT               = 121
 PUBLIC CONST AS INTEGER AE_RASTPORT           = 122
+PUBLIC CONST AS INTEGER AE_FONT               = 123
+PUBLIC CONST AS INTEGER AE_AUDIO              = 124
 
 ' colors and palettes
 
@@ -228,7 +230,36 @@ PUBLIC DECLARE SUB      PATTERN RESTORE
 
 ' ON TIMER support
 
-PUBLIC DECLARE SUB ON TIMER CALL             (BYVAL id AS INTEGER, BYVAL seconds AS SINGLE, BYVAL p AS SUB)
-PUBLIC DECLARE SUB TIMER ON                  (BYVAL id AS INTEGER)
-PUBLIC DECLARE SUB TIMER OFF                 (BYVAL id AS INTEGER)
+PUBLIC DECLARE SUB      ON TIMER CALL        (BYVAL id AS INTEGER, BYVAL seconds AS SINGLE, BYVAL p AS SUB)
+PUBLIC DECLARE SUB      TIMER ON             (BYVAL id AS INTEGER)
+PUBLIC DECLARE SUB      TIMER OFF            (BYVAL id AS INTEGER)
+
+' audio
+
+PUBLIC TYPE WAVE_t
+    AS WAVE_t PTR prev, next
+
+    AS ULONG      oneShotHiSamples
+    AS ULONG      repeatHiSamples
+    AS ULONG      samplesPerHiCycle
+    AS ULONG      samplesPerSec
+    AS INTEGER    ctOctave
+    AS SINGLE     volume
+
+    AS BYTE PTR   data
+END TYPE
+
+PUBLIC DECLARE FUNCTION WAVE                 (BYREF wd() AS BYTE, _
+                                              BYVAL oneShotHiSamples AS ULONG = 0, _
+                                              BYVAL repeatHiSamples AS ULONG = 32, _
+                                              BYVAL samplesPerHiCycle AS ULONG = 32, _
+                                              BYVAL samplesPerSec AS ULONG = 8192, _
+                                              BYVAL ctOctave AS INTEGER = 1, _
+                                              BYVAL volume AS SINGLE = &H10000) AS WAVE_t PTR
+PUBLIC DECLARE SUB      WAVE                 (BYVAL channel AS INTEGER, BYVAL w AS WAVE_t PTR)
+PUBLIC DECLARE SUB      WAVE FREE            (BYVAL w AS WAVE_t PTR)
+PUBLIC DECLARE SUB      SOUND                (BYVAL freq AS SINGLE=0, BYVAL duration AS SINGLE=0, BYVAL volume AS INTEGER=127, BYVAL channel AS INTEGER=0)
+PUBLIC DECLARE SUB      SOUND WAIT           (BYVAL channel AS INTEGER=-1)
+PUBLIC DECLARE SUB      SOUND STOP           (BYVAL channel AS INTEGER=-1)
+PUBLIC DECLARE SUB      SOUND START          (BYVAL channel AS INTEGER=-1)
 

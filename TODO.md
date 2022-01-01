@@ -303,8 +303,8 @@ DONE translate forum posts, add useful information to README
 - DONE SCREEN CLOSE
 - \_\_\_\_ SCROLL
 - DONE SLEEP
-- \_\_\_\_ SOUND
-- \_\_\_\_ SOUND WAIT
+- DONE SOUND
+- DONE SOUND WAIT
 - \_\_\_\_ SOUND RESUME
 - \_\_\_\_ STICK()
 - \_\_\_\_ STRIG()
@@ -312,7 +312,7 @@ DONE translate forum posts, add useful information to README
 - DONE TIMER OFF
 - \_\_\_\_ TIMER STOP
 - \_\_\_\_ TRANSLATE$()
-- \_\_\_\_ WAVE
+- DONE WAVE
 - \_\_\_\_ WIDTH LPRINT
 - DONE WINDOW
 - DONE WINDOW CLOSE
