@@ -2368,6 +2368,11 @@ void AS_assembleData16 (AS_segment seg, uint16_t data)
     emit_u2(seg, data);
 }
 
+void AS_assembleData32 (AS_segment seg, uint32_t data)
+{
+    emit_u4(seg, data);
+}
+
 void AS_assembleDataString (AS_segment seg, string data)
 {
     for (char *c=data; *c; c++)

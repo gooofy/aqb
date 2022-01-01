@@ -288,12 +288,11 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                                     case Ty_long:
                                     case Ty_ulong:
                                     case Ty_pointer:
-                                        // FIXME AS_assembleData32 (obj->dataSeg, c->u.i);
+                                        AS_assembleData32 (obj->dataSeg, c->u.i);
                                         assert(FALSE);
                                         break;
                                     case Ty_single:
-                                        // FIXME AS_assembleData32 (obj->dataSeg, encode_ffp(c->u.f));
-                                        assert(FALSE);
+                                        AS_assembleData32 (obj->dataSeg, encode_ffp(c->u.f));
                                         break;
                                     case Ty_string:
                                         AS_assembleDataString (obj->dataSeg, c->u.s);

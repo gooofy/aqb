@@ -7,6 +7,7 @@ Bug Fixes:
 
     * ide: EZRequest on source write fails instead of a plain exit()
     * examples: tetris code cleanup, use custom fonts
+    * compiler: fix float handling in DATA statements
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
     * add "$VER" version string
 

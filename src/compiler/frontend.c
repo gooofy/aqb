@@ -3528,6 +3528,7 @@ static bool dataItem(S_tkn *tkn)
             {
                 case S_thSingle  : ty = Ty_Single()  ; break;
                 case S_thDouble  : ty = Ty_Double()  ; break;
+                case S_thNone    : ty = Ty_Single()  ; break;
                 default: assert(0);
             }
 			c = Ty_ConstFloat (ty, (*tkn)->u.literal.fnum);
