@@ -59,3 +59,31 @@ Structure of IFF ILBM image meta data information:
 
 	END TYPE
 
+
+## IFF8SVX LOAD WAVE
+
+Syntax:
+
+    IFF8SVX LOAD WAVE path "," w
+
+load an instrument from an IFF 8SVX file
+
+Arguments:
+    * path: pathname of the file to load the instrument from
+    * w: reference to a WAVE\_t pointer
+
+Example:
+
+    DIM AS WAVE\_t PTR w = NULL
+    IFF8SVX LOAD WAVE "PROGDIR:/8svx/BassGt.8svx", w
+
+
+## IFF8SVX READ WAVE
+
+Syntax:
+
+    IFF8SVX READ WAVE fno "," w
+
+load an instrument from an IFF 8SVX file stream. see IFF8SVX LOAD WAVE for details.
+
+

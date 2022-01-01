@@ -4,6 +4,7 @@ Improvements:
 
     * runtime: WAVE, WAVE FREE, SOUND, SOUND WAIT, SOUND STOP, SOUND START commands added
     * runtime: WAVE() function added
+    * runtime: IFF8SVX LOAD WAVE, IFF8SVX READ WAVE commands added
 
 Bug Fixes:
 
