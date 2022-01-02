@@ -391,26 +391,30 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
     }
 }
 
-static void E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty);
+static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty);
 
-static void E_tyFindTypesInProc(S_symbol smod, TAB_table type_tab, Ty_proc proc)
+static bool E_tyFindTypesInProc(S_symbol smod, TAB_table type_tab, Ty_proc proc)
 {
+    bool ok = TRUE;
     for (Ty_formal formals = proc->formals; formals; formals=formals->next)
-        E_tyFindTypes (smod, type_tab, formals->ty);
+        ok &= E_tyFindTypes (smod, type_tab, formals->ty);
     if (proc->returnTy)
-        E_tyFindTypes (smod, type_tab, proc->returnTy);
+        ok &= E_tyFindTypes (smod, type_tab, proc->returnTy);
     if (proc->tyCls)
-        E_tyFindTypes (smod, type_tab, proc->tyCls);
+        ok &= E_tyFindTypes (smod, type_tab, proc->tyCls);
+    return ok;
 }
 
-static void E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
+static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
 {
     if (ty->mod != smod)
-        return;
+        return TRUE;
 
     // already handled? (avoid recursion)
     if (TAB_look(type_tab, (void *) (intptr_t) ty->uid))
-        return;
+        return TRUE;
+
+    bool ok = TRUE;
 
     TAB_enter (type_tab, (void *) (intptr_t) ty->uid, ty);
     switch (ty->kind)
@@ -428,14 +432,18 @@ static void E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
         case Ty_string:
             break;
         case Ty_forwardPtr:
+            EM_error (0, "unresolved forwarded type (%s)", S_name (ty->u.sForward));
+            ok = FALSE;
+            break;
         case Ty_toLoad:
-            assert(0);
+            EM_error (0, "unresolved toLoad type");
+            ok = FALSE;
             break;
         case Ty_sarray:
-            E_tyFindTypes (smod, type_tab, ty->u.sarray.elementTy);
+            ok &= E_tyFindTypes (smod, type_tab, ty->u.sarray.elementTy);
             break;
         case Ty_darray:
-            E_tyFindTypes (smod, type_tab, ty->u.darray.elementTy);
+            ok &= E_tyFindTypes (smod, type_tab, ty->u.darray.elementTy);
             break;
         case Ty_record:
         {
@@ -447,41 +455,44 @@ static void E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
-                        E_tyFindTypesInProc (smod, type_tab, entry->u.method);
+                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method);
                         break;
                     case Ty_recField:
-                        E_tyFindTypes (smod, type_tab, entry->u.field.ty);
+                        ok &= E_tyFindTypes (smod, type_tab, entry->u.field.ty);
                         break;
                 }
             }
             if (ty->u.record.constructor)
-                E_tyFindTypesInProc(smod, type_tab, ty->u.record.constructor);
+                ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.record.constructor);
 
             break;
         }
         case Ty_pointer:
-            E_tyFindTypes (smod, type_tab, ty->u.pointer);
+            ok &= E_tyFindTypes (smod, type_tab, ty->u.pointer);
             break;
         case Ty_procPtr:
-            E_tyFindTypesInProc(smod, type_tab, ty->u.procPtr);
+            ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.procPtr);
             break;
         case Ty_prc:
             for (Ty_formal formals = ty->u.proc->formals; formals; formals=formals->next)
-                E_tyFindTypes (smod, type_tab, formals->ty);
+                ok &= E_tyFindTypes (smod, type_tab, formals->ty);
 
             if (ty->u.proc->returnTy)
-                E_tyFindTypes (smod, type_tab, ty->u.proc->returnTy);
+                ok &= E_tyFindTypes (smod, type_tab, ty->u.proc->returnTy);
             if (ty->u.proc->tyCls)
-                E_tyFindTypes (smod, type_tab, ty->u.proc->tyCls);
+                ok &= E_tyFindTypes (smod, type_tab, ty->u.proc->tyCls);
             break;
     }
+
+    return ok;
 }
 
-static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
+static bool E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
 {
     TAB_iter i = S_Iter(scope);
     S_symbol sym;
     E_enventry x;
+    bool ok = TRUE;
     while (TAB_next(i, (void **) &sym, (void **)&x))
     {
         switch (x->kind)
@@ -491,7 +502,7 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 Ty_ty ty = CG_ty(&x->u.var);
                 if (CG_isConst(&x->u.var))
                 {
-                    E_tyFindTypes (smod, type_tab, ty);
+                    ok &= E_tyFindTypes (smod, type_tab, ty);
                 }
                 else
                 {
@@ -500,14 +511,14 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                         Ty_proc proc = ty->u.proc;
                         for (Ty_formal formal=proc->formals; formal; formal = formal->next)
                         {
-                            E_tyFindTypes (smod, type_tab, formal->ty);
+                            ok &= E_tyFindTypes (smod, type_tab, formal->ty);
                         }
-                        E_tyFindTypes (smod, type_tab, proc->returnTy);
+                        ok &= E_tyFindTypes (smod, type_tab, proc->returnTy);
                     }
                     else
                     {
                         assert (CG_isVar(&x->u.var));
-                        E_tyFindTypes (smod, type_tab, ty);
+                        ok &= E_tyFindTypes (smod, type_tab, ty);
                     }
                 }
                 break;
@@ -516,17 +527,19 @@ static void E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 assert(0); // no subs allowed in this scope
                 break;
             case E_typeEntry:
-                E_tyFindTypes (smod, type_tab, x->u.ty);
+                ok &= E_tyFindTypes (smod, type_tab, x->u.ty);
                 break;
         }
     }
+    return ok;
 }
 
-static void E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_tab)
+static bool E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_tab)
 {
     TAB_iter i = S_Iter(scope);
     S_symbol sym;
     E_enventryList xl;
+    bool ok = TRUE;
     while (TAB_next(i, (void **) &sym, (void **)&xl))
     {
         for (E_enventryListNode xn=xl->first; xn; xn=xn->next)
@@ -537,10 +550,10 @@ static void E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_t
                 case E_procEntry:
                     for (Ty_formal formal=x->u.proc->formals; formal; formal = formal->next)
                     {
-                        E_tyFindTypes (smod, type_tab, formal->ty);
+                        ok &= E_tyFindTypes (smod, type_tab, formal->ty);
                     }
                     if (x->u.proc->returnTy)
-                        E_tyFindTypes (smod, type_tab, x->u.proc->returnTy);
+                        ok &= E_tyFindTypes (smod, type_tab, x->u.proc->returnTy);
                     break;
 
                 case E_typeEntry:
@@ -550,6 +563,7 @@ static void E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_t
             }
         }
     }
+    return ok;
 }
 
 static void E_serializeTyProc(TAB_table modTable, Ty_proc proc);
@@ -625,8 +639,10 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_string:
             break;
         case Ty_forwardPtr:
+            EM_error (0, "tried to serialize forwarded type (%s)", S_name (ty->u.sForward));
+            break;
         case Ty_toLoad:
-            assert(0);
+            EM_error (0, "tried to serialize toLoad type");
             break;
     }
 }

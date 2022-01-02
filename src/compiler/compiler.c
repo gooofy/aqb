@@ -131,6 +131,10 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
             LOG_printf (LOG_ERROR, "\n** ERROR: failed to write symbol file %s .\n", symfn);
             CO_exit(EXIT_FAILURE);
         }
+
+        // unresolved forwarded types will result in error messages here
+        if (EM_anyErrors)
+            CO_exit(EXIT_FAILURE);
     }
 
     if (!asm_gas_fn && !asm_asmpro_fn && !binfn)
