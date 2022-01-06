@@ -1175,12 +1175,12 @@ static bool transConst(S_pos pos, Ty_ty t, CG_item *item)
     return TRUE;
 }
 
-static bool transConstDecl(S_pos pos, Ty_ty t, S_symbol name, CG_item *item, bool isPrivate)
+static bool transConstDecl(S_pos pos, S_pos posExp, Ty_ty t, S_symbol name, CG_item *item, bool isPrivate)
 {
     if (!t)
         t = Ty_inferType(S_name(name));
 
-    if (!transConst(pos, t, item))
+    if (!transConst(posExp, t, item))
         return FALSE;
 
     if (S_look(g_sleStack->env->u.scopes.vfcenv, name))
@@ -5758,10 +5758,11 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
             return EM_error((*tkn)->pos, "constant declaration: = expected here.");
         *tkn = (*tkn)->next;
 
+        S_pos posExp = (*tkn)->pos;
         if (!expression(tkn, &init))
-            return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
+            return EM_error(posExp, "constant declaration: expression expected here.");
 
-        if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
+        if (!transConstDecl(pos, posExp, ty, sConst, &init, isPrivate))
             return FALSE;
 
         while ((*tkn)->kind == S_COMMA)
@@ -5779,10 +5780,11 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
                 return EM_error((*tkn)->pos, "constant declaration: = expected here.");
             *tkn = (*tkn)->next;
 
+            posExp = (*tkn)->pos;
             if (!expression(tkn, &init))
-                return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
+                return EM_error(posExp, "constant declaration: expression expected here.");
 
-            if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
+            if (!transConstDecl(pos, posExp, ty, sConst, &init, isPrivate))
                 return FALSE;
         }
 
@@ -5807,10 +5809,11 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error((*tkn)->pos, "constant declaration: = expected here.");
     *tkn = (*tkn)->next;
 
+    S_pos posExp = (*tkn)->pos;
     if (!expression(tkn, &init))
-        return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
+        return EM_error(posExp, "constant declaration: expression expected here.");
 
-    if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
+    if (!transConstDecl(pos, posExp, ty, sConst, &init, isPrivate))
         return FALSE;
 
     while ((*tkn)->kind == S_COMMA)
@@ -5836,10 +5839,11 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
             return EM_error((*tkn)->pos, "constant declaration: = expected here.");
         *tkn = (*tkn)->next;
 
+        posExp = (*tkn)->pos;
         if (!expression(tkn, &init))
-            return EM_error((*tkn)->pos, "constant declaration: expression expected here.");
+            return EM_error(posExp, "constant declaration: expression expected here.");
 
-        if (!transConstDecl(pos, ty, sConst, &init, isPrivate))
+        if (!transConstDecl(pos, posExp, ty, sConst, &init, isPrivate))
             return FALSE;
     }
     return TRUE;
@@ -7440,6 +7444,39 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         else
         {
             EM_error(/*pos=*/0, "builtin %s not found.", S_name(fsym));
+        }
+    }
+
+    // resolve leftover forward ptrs
+
+    TAB_iter i = S_Iter(g_sleStack->env->u.scopes.tenv);
+    S_symbol sym;
+    E_enventry x;
+    while (TAB_next(i, (void **) &sym, (void **)&x))
+    {
+        if (x->kind != E_typeEntry)
+            continue;
+
+        Ty_ty ty = x->u.ty;
+        if (ty->kind != Ty_record)
+            continue;
+
+        TAB_iter j = S_Iter(ty->u.record.scope);
+        S_symbol sym2;
+        Ty_recordEntry entry;
+        while (TAB_next(j, (void **) &sym2, (void **)&entry))
+        {
+            if (entry->kind != Ty_recField)
+                continue;
+            if (entry->u.field.ty->kind == Ty_forwardPtr)
+            {
+                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(sym2));
+                Ty_ty tyForward = E_resolveType(g_sleStack->env, entry->u.field.ty->u.sForward);
+                if (!tyForward)
+                    EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(sym2));
+
+                entry->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
+            }
         }
     }
 

@@ -13,6 +13,8 @@ Bug Fixes:
     * compiler: fix float handling in DATA statements
     * compiler: fix coord/coord2 error handling
     * compiler: do not abort on type system inconsistencies (e.g. unresolved forwarded types)
+    * compiler: check and resolve all forward ptrs
+    * compiler: fix err msg position for constant declaration expression
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
     * add "$VER" version string
 
