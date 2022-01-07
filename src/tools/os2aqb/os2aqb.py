@@ -6,10 +6,12 @@
 
 import re
 import sys
+import io
 
 in_type = False
+input_stream = io.TextIOWrapper(sys.stdin.buffer, encoding='latin1')
 
-for line in sys.stdin:
+for line in input_stream:
 
     if not line:
         continue
