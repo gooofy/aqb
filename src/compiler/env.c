@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "symbol.h"
@@ -679,8 +680,9 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     fwrite_u1(modf, cnt);
     for (Ty_formal formal=proc->formals; formal; formal = formal->next)
     {
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   formal %s [%s:%d] -> %s\n", formal->name ? S_name(formal->name) : "<NONE>",
-                    formal->ty->mod ? S_name(formal->ty->mod) : "_builtin_", formal->ty->uid, Ty_toString(formal->ty));
+        // warning: Ty_toString can be quite expensive memory-wise!
+        // LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   formal %s [%s:%d] -> %s\n", formal->name ? S_name(formal->name) : "<NONE>",
+        //             formal->ty->mod ? S_name(formal->ty->mod) : "_builtin_", formal->ty->uid, Ty_toString(formal->ty));
         E_serializeOptionalSymbol(formal->name);
         E_serializeTyRef(modTable, formal->ty);
         E_serializeTyConst(modTable, formal->defaultExp);
@@ -839,7 +841,8 @@ bool E_saveModule(string modfn, E_module mod)
     while (TAB_next(iter, &key, (void **)&ty))
     {
         assert (ty->mod == mod->name);
-        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
+        // warning: Ty_toString can be quite expensive memory-wise!
+        // LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
         E_serializeType(modTable, ty);
     }
 
@@ -932,7 +935,8 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
         //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> already loaded, kind is %d\n", mid, S_name(m->name), tuid, ty->kind);
     }
 
-    LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> %s\n", mid, S_name(m->name), tuid, Ty_toString(ty));
+    // warning: Ty_toString can be quite expensive memory-wise!
+    // LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> %s\n", mid, S_name(m->name), tuid, Ty_toString(ty));
 
     return ty;
 }
@@ -1090,7 +1094,8 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         LOG_printf(LOG_INFO, "failed to read function return type.\n");
         return NULL;
     }
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "      return type: %s\n", Ty_toString (returnTy));
+    // warning: Ty_toString can be quite expensive memory-wise!
+    // LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "      return type: %s\n", Ty_toString (returnTy));
     int32_t offset = fread_i4(modf);
     string libBase=NULL;
     if (offset)
@@ -1132,14 +1137,14 @@ FILE *E_openModuleFile (string filename)
 
 E_module E_loadModule(S_symbol sModule)
 {
-    LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ...\n", S_name(sModule));
-    //U_delay(1000);
     E_module mod = TAB_look(g_modCache, sModule);
     if (mod)
     {
-        LOG_printf(LOG_DEBUG, "env: E_loadModule(%s) ... already loaded.\n", S_name(sModule));
+        LOG_printf(LOG_DEBUG, "env: E_loadModule(%s): already loaded.\n", S_name(sModule));
         return mod;
     }
+
+    LOG_printf(LOG_DEBUG, "env: E_loadModule(%s): loading from file... \n", S_name(sModule));
 
     char symfn[PATH_MAX];
     snprintf(symfn, PATH_MAX, "%s.sym", S_name(sModule));
@@ -1151,10 +1156,28 @@ E_module E_loadModule(S_symbol sModule)
         return NULL;
     }
 
-    LOG_printf(LOG_DEBUG, "env: E_Module(%s) ...\n", S_name(sModule));
     mod = E_Module(sModule);
-    LOG_printf(LOG_DEBUG, "env: TAB_enter(%s) ...\n", S_name(sModule));
+    LOG_printf(LOG_DEBUG, "env: E_loadModule(%s): TAB_enter ...\n", S_name(sModule));
     TAB_enter (g_modCache, sModule, mod);
+
+    // check if <module>.a exists
+
+    {
+        char libfn[PATH_MAX];
+        snprintf(libfn, PATH_MAX, "%s.a", S_name(sModule));
+        FILE *f2 = E_openModuleFile (libfn);
+        if (f2)
+        {
+            fclose(f2);
+            mod->hasCode = TRUE;
+        }
+        else
+        {
+            mod->hasCode = FALSE;
+        }
+
+        LOG_printf (LOG_DEBUG, "env: E_loadModule(%s): hasCode=%d (libfn=%s)\n", S_name(sModule), mod->hasCode, libfn);
+    }
 
     // check header
 
@@ -1305,7 +1328,8 @@ E_module E_loadModule(S_symbol sModule)
         }
         ty->kind = kind;
         //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: finished reading type tuid=%d\n", S_name(sModule), tuid);
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
+        // warning: Ty_toString can be quite expensive memory-wise!
+        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
     }
 
     // check type table for unresolve ToLoad entries
@@ -1425,7 +1449,8 @@ E_module E_loadModule(S_symbol sModule)
                     LOG_printf(LOG_ERROR, "%s: failed to read declared type.\n", symfn);
                     goto fail;
                 }
-                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   %s", Ty_toString(ty));
+                // warning: Ty_toString can be quite expensive memory-wise!
+                // LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   %s", Ty_toString(ty));
                 E_declareType (mod->env, sym, ty);
                 break;
             }

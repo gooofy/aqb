@@ -92,6 +92,7 @@ struct E_module_
     S_symbol    name;
     E_env       env;
     TAB_table   tyTable; // tuid -> Ty_ty, used in module load
+    bool        hasCode; // true -> name + ".a" static library exists that should be linked to our binary
 };
 
 E_module   E_Module(S_symbol name);               /* create a new, empty module named <name>                     */

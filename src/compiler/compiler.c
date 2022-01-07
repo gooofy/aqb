@@ -371,6 +371,9 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 
     for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
     {
+        if (!n->m->hasCode)
+            continue;
+
         static char mod_fn[PATH_MAX];
         snprintf (mod_fn, PATH_MAX, "%s.a", S_name (n->m->name));
         LOG_printf (LOG_INFO, "        reading %s\n", mod_fn);
