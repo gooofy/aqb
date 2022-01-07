@@ -115,9 +115,9 @@ static void (*g_win_cb)(void)                = NULL;
 static void (*g_mouse_cb)(void)              = NULL;
 static void (*g_mouse_motion_cb)(void)       = NULL;
 
-static short                 g_active_scr_id = 0;
-static short                 g_active_win_id = 1;
-static short                 g_output_win_id = 1;
+short                 _g_active_scr_id = 0;
+short                 _g_active_win_id = 1;
+short                 _g_output_win_id = 1;
 
 struct Screen        *_g_cur_scr    = NULL;
 struct Window        *_g_cur_win    = NULL;
@@ -175,12 +175,12 @@ void SCREEN (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE
         return;
     }
 
-    g_scrlist[id-1] = scr;
-    _g_cur_scr      = scr;
-    g_active_scr_id = id;
-	_g_cur_vp       = &scr->ViewPort;
-    g_cur_ot        = _aqb_ot_screen;
-    _g_cur_rp       = &scr->RastPort;
+    g_scrlist[id-1]  = scr;
+    _g_cur_scr       = scr;
+    _g_active_scr_id = id;
+	_g_cur_vp        = &scr->ViewPort;
+    g_cur_ot         = _aqb_ot_screen;
+    _g_cur_rp        = &scr->RastPort;
 }
 
 /*
@@ -277,10 +277,10 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
 
     _g_signalmask_awindow |= (1L << win->UserPort->mp_SigBit);
 
-    _g_cur_win      = win;
-    _g_cur_rp       = win->RPort;
-    g_output_win_id = id;
-    g_cur_ot        = _aqb_ot_window;
+    _g_cur_win       = win;
+    _g_cur_rp        = win->RPort;
+    _g_output_win_id = id;
+    g_cur_ot         = _aqb_ot_window;
 
     LOCATE (1,1);
     COLOR (1, 0, 1, JAM2);
@@ -334,9 +334,9 @@ void _window_add_close_cb (window_close_cb_t cb)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = g_win_cb_list[g_active_win_id-1];
+    node->next = g_win_cb_list[_g_active_win_id-1];
     node->cb   = cb;
-    g_win_cb_list[g_active_win_id-1] = node;
+    g_win_cb_list[_g_active_win_id-1] = node;
 }
 
 /*
@@ -347,10 +347,10 @@ void WINDOW_OUTPUT(short id)
     // switch (back) to console output?
     if ( (id == 1) && !_g_winlist[0] && (_startup_mode == STARTUP_CLI) )
     {
-        g_output_win_id = 1;
-        _g_cur_win      = NULL;
-        _g_cur_rp       = NULL;
-        g_cur_ot        = _aqb_ot_console;
+        _g_output_win_id = 1;
+        _g_cur_win       = NULL;
+        _g_cur_rp        = NULL;
+        g_cur_ot         = _aqb_ot_console;
         return;
     }
 
@@ -361,7 +361,7 @@ void WINDOW_OUTPUT(short id)
         return;
     }
 
-    g_output_win_id = id;
+    _g_output_win_id = id;
 
     struct Window *win = _g_winlist[id-1];
 
@@ -779,7 +779,7 @@ static void _handleSignals(BOOL doWait)
                     break;
 
                 case ACTIVEWINDOW:
-                    g_active_win_id = i+1;
+                    _g_active_win_id = i+1;
                     break;
 
                 case RAWKEY:
@@ -889,9 +889,9 @@ ULONG WINDOW_(short n)
     switch(n)
     {
         case 0:                                 //  0: current active window
-            return g_active_win_id;
+            return _g_active_win_id;
         case 1:                                 //  1: current output window id
-            return g_output_win_id;
+            return _g_output_win_id;
         case 2:                                 //  2: current output window width
             if (!_g_cur_win)
                 return 0;
@@ -1997,7 +1997,7 @@ void PALETTE_LOAD (PALETTE_t *p)
         ERROR(AE_PALETTE);
         return;
     }
-    _palette_load (g_active_scr_id, p);
+    _palette_load (_g_active_scr_id, p);
 }
 
 static char inkeybuf[2] = { 0, 0 } ;
