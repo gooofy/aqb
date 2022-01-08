@@ -218,6 +218,7 @@ DONE translate forum posts, add useful information to README
 - DONE SIN()
 - \_\_\_\_ SPACE$()
 - \_\_\_\_ SPC()
+- DONE SQR()
 - DONE STATIC
 - DONE STR$()
 - \_\_\_\_ STRING$()
