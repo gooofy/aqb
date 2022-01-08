@@ -16,8 +16,9 @@ Bug Fixes:
     * compiler: do not abort on type system inconsistencies (e.g. unresolved forwarded types)
     * compiler: check and resolve all forward ptrs
     * compiler: fix err msg position for constant declaration expression
-    * compiler: fix string type coercion
+    * compiler: fix string type coercion (fixes #17, thanks to Tom Wilson for reporting this one)
     * compiler: fix negative numeric literal handling in DATA statements
+    * compiler: fix string handling in DATA statements (fixes #18, thanks to Tom Wilson for reporting this one)
     * runtime: fix INT() behavior (matches ACE now), add CLNG() to online help
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
     * add "$VER" version string

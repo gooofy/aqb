@@ -3576,7 +3576,7 @@ static bool dataItem(S_tkn *tkn)
 			c = Ty_ConstString (Ty_String(), S_name((*tkn)->u.sym));
             break;
         case S_STRING:
-			c = Ty_ConstString (Ty_String(), (*tkn)->u.str);
+			c = Ty_ConstString (Ty_String(), String(UP_frontend, (*tkn)->u.str));
             break;
         default:
             return EM_error((*tkn)->pos, "DATA: numeric or string literal expected here.");
