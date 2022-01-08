@@ -117,7 +117,7 @@ DONE translate forum posts, add useful information to README
 - DONE CHR$()
 - DONE CINT()
 - \_\_\_\_ CLEAR
-- \_\_\_\_ CLNG()
+- DONE CLNG()
 - DONE CLOSE
 - \_\_\_\_ COMMON
 - DONE COS()

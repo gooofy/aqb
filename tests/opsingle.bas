@@ -21,7 +21,7 @@ ASSERT (b  /  a)         =   100.00
 ASSERT INT((e  /  d)*1000.0) =   2333
 ASSERT (b  \  a)         =   104.00
 ASSERT INT((e  \  d)*1000.0) =   2000
-ASSERT INT((b^c)*1000.0) =  1198
+ASSERT INT((b^c)*1000.0) =  1197
 ASSERT (b MOD a)         =     2
 ASSERT -b                =  -314
 ASSERT INT(d SHL e)      =   384
@@ -45,8 +45,8 @@ ASSERT (3.14e+2  \        a)   =  104.00
 ASSERT (      b  \     3.14)   =  104.00
 ASSERT INT((e  \ 3!)*1000.0) =   2000
 ASSERT INT((7! \  d)*1000.0) =   2000
-ASSERT INT((3.14e+2^c)*1000.0) = 1198
-ASSERT INT((b^3.14e-2)*1000.0) = 1198
+ASSERT INT((3.14e+2^c)*1000.0) = 1197
+ASSERT INT((b^3.14e-2)*1000.0) = 1197
 ASSERT (3.14e+2 MOD       a)   =    2
 ASSERT (      b MOD    3.14)   =    2
 ASSERT INT(3 SHL e)            =  384
@@ -170,7 +170,7 @@ ASSERT f = 23456
 ' PRINT INT(2.5), CINT(2.5), FIX(2.5)
 ' PRINT INT(-2.5), CINT(-2.5), FIX(-2.5)
 
-ASSERT(INT ( 2.5) = 3)
+ASSERT(INT ( 2.5) = 2)
 ASSERT(CINT( 2.5) = 3)
 ASSERT(FIX ( 2.5) = 2)
 
@@ -181,7 +181,7 @@ ASSERT(FIX (-2.5) =-2)
 ' PRINT INT(3.5), CINT(3.5), FIX(3.5)
 ' PRINT INT(-3.5), CINT(-3.5), FIX(-3.5)
 
-ASSERT(INT ( 3.5) = 4)
+ASSERT(INT ( 3.5) = 3)
 ASSERT(CINT( 3.5) = 4)
 ASSERT(FIX ( 3.5) = 3)
 

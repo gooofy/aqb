@@ -102,13 +102,28 @@ Syntax:
 returns a string containing the single character associated with the given
 character code
 
+
 ## CINT()
 
 Syntax:
 
     CINT "(" x ")"
 
-convert x to an integer by rounding the fractional portion
+convert x to an integer by rounding the fractional portion.
+
+NOTE: When the fractional portion is exactly .5, CINT always rounds up.
+
+
+## CLNG()
+
+Syntax:
+
+    CLNG "(" x ")"
+
+convert x to a long integer by rounding the fractional portion.
+
+NOTE: When the fractional portion is exactly .5, CLNG always rounds up.
+
 
 ## CONST
 
@@ -122,6 +137,7 @@ Syntax B:
 
 declare constants
 
+
 ## CONTINUE
 
 Syntax:
@@ -130,6 +146,7 @@ Syntax:
 
 continue next iteration of a loop
 
+
 ## COS()
 
 Syntax:
@@ -137,6 +154,7 @@ Syntax:
     COS "(" a ")"
 
 obtain the cosine of the floating point number
+
 
 ## DATA
 
@@ -147,6 +165,7 @@ Syntax:
 add values to the data section of the program. Those values can be later
 READ by the program at runtime.
 
+
 ## DEALLOCATE
 
 Syntax:
@@ -154,6 +173,7 @@ Syntax:
     DEALLOCATE ptr
 
 free memory that was allocated at ptr
+
 
 ## DECLARE FUNCTION|SUB
 
@@ -328,7 +348,7 @@ Syntax:
 
     FIX "(" x ")"
 
-return the truncated integer part of x
+return the truncated integer portion of x
 
 
 ## FOR ... NEXT

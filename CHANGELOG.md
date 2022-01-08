@@ -18,6 +18,7 @@ Bug Fixes:
     * compiler: fix err msg position for constant declaration expression
     * compiler: fix string type coercion
     * compiler: fix negative numeric literal handling in DATA statements
+    * runtime: fix INT() behavior (matches ACE now), add CLNG() to online help
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
     * add "$VER" version string
 

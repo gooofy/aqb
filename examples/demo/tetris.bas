@@ -196,9 +196,6 @@ END SUB
 SUB PREVIEW
     PP = Int ( Rnd ( 1 ) * 7 ) + 1
     
-    REM FIXME: this shouldn`t be necessary
-    IF PP > 7 THEN PP = 7
-    
     DEFINEPIECE PP
     
     LINE ( PREVIEW_XO, PREVIEW_YO -1 ) - ( PREVIEW_XO + 4 * SCALE_X, PREVIEW_YO + 4 * SCALE_Y -1 ), 0, BF

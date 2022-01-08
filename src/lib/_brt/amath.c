@@ -315,9 +315,7 @@ SHORT fix_(FLOAT f)
 
 SHORT int_(FLOAT f)
 {
-	if (SPCmp(f, g_zero)<0)
-		return SPFix(SPSub(g_one_half, f));
-    return SPFix(SPAdd(f, g_one_half));
+    return SPFix(SPFloor(f));
 }
 
 SHORT cint_(FLOAT f)
