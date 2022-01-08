@@ -16,6 +16,7 @@ extern struct DOSBase       *DOSBase;
 static char g_pref_fn[PATH_MAX];
 static int  g_pref_colorscheme  = 0;
 static int  g_opt               = DEFAULT_OPTS;
+static bool g_changed           = FALSE;
 
 void OPT_set(int opt, bool onoff)
 {
@@ -33,6 +34,7 @@ bool OPT_get(int opt)
 void OPT_reset (void)
 {
     g_opt = DEFAULT_OPTS;
+    g_changed = TRUE;
 }
 
 int OPT_prefGetInt (int pref)
@@ -57,6 +59,7 @@ void OPT_prefSetInt (int pref, int i)
         default:
             assert(FALSE);
     }
+    g_changed = TRUE;
 }
 
 string OPT_default_module = OPT_DEFAULT_MODULE;
@@ -150,16 +153,17 @@ void OPT_init(void)
 void OPT_deinit(void)
 {
     LOG_printf (LOG_DEBUG, "OPT_deinit g_pref_fn=%s\n", g_pref_fn);
-    FILE *prefFile = fopen(g_pref_fn, "w");
-    if (!prefFile)
+    if (g_changed)
     {
-        LOG_printf (LOG_ERROR, "failed to open %s for writing\n", g_pref_fn);
-        return;
+        FILE *prefFile = fopen(g_pref_fn, "w");
+        if (!prefFile)
+        {
+            LOG_printf (LOG_ERROR, "failed to open %s for writing\n", g_pref_fn);
+            return;
+        }
+        fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
+        fclose(prefFile);
     }
-#if 1
-    fprintf (prefFile, "colorscheme=%d\n", g_pref_colorscheme);
-#endif
-    fclose(prefFile);
     LOG_printf (LOG_DEBUG, "OPT_deinit done\n");
 }
 
