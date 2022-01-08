@@ -771,7 +771,7 @@ static void _handleSignals(BOOL doWait)
                 }
             }
 
-            if (handled)
+            if (!handled)
             {
                 switch(class)
                 {
