@@ -6,12 +6,7 @@ Guenter Bartsch <guenter@zamia.org>
 
 ## Documentation
 
-- online help
-    * parser
-    * viewer
-    * port reference doc
-    * add tutorial
-
+DONE - online help
 DONE translate forum posts, add useful information to README
 
 ## Language Concepts
@@ -71,6 +66,9 @@ DONE translate forum posts, add useful information to README
 - source level debugging
 
 - DONE tetris game freezes after some 3 minutes (ressource leak? )
+
+- MOD / protracker playback (maybe using https://aminet.net/package/mus/play/ptplayer)
+
 
 ## IDE
 
