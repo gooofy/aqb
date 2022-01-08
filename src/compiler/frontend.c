@@ -3484,8 +3484,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 }
 #endif
 
-// dataItem ::= ( numLiteral | stringLiteral | ident )
-static bool dataItem(S_tkn *tkn)
+static bool _dataItemNumeric (S_tkn *tkn, bool neg)
 {
 	Ty_const c;
     switch ((*tkn)->kind)
@@ -3510,19 +3509,23 @@ static bool dataItem(S_tkn *tkn)
                 case S_thULong   : ty = Ty_ULong()   ; break;
                 default: assert(0);
             }
+            int32_t n = (*tkn)->u.literal.inum;
+            if (neg)
+                n = -n;
             switch (ty->kind)
             {
                 case Ty_ubyte:
                 case Ty_uinteger:
                 case Ty_ulong:
-                    c = Ty_ConstUInt (ty, (*tkn)->u.literal.inum);
+                    c = Ty_ConstUInt (ty, n);
                     break;
 
                 default:
-                    c = Ty_ConstInt (ty, (*tkn)->u.literal.inum);
+                    c = Ty_ConstInt (ty, n);
             }
             break;
         }
+
         case S_FNUM:
         {
             Ty_ty ty = Ty_Single();
@@ -3533,9 +3536,41 @@ static bool dataItem(S_tkn *tkn)
                 case S_thNone    : ty = Ty_Single()  ; break;
                 default: assert(0);
             }
-			c = Ty_ConstFloat (ty, (*tkn)->u.literal.fnum);
+            double f = (*tkn)->u.literal.fnum;
+            if (neg)
+                f = -f;
+			c = Ty_ConstFloat (ty, f);
             break;
         }
+
+        default:
+            return EM_error((*tkn)->pos, "DATA: numeric literal expected here.");
+    }
+    *tkn = (*tkn)->next;
+    CG_dataFragAddConst (g_dataFrag, c);
+    return TRUE;
+}
+
+
+// dataItem ::= ( [ '-' | '+' ] numLiteral | stringLiteral | ident )
+static bool dataItem(S_tkn *tkn)
+{
+	Ty_const c;
+    switch ((*tkn)->kind)
+    {
+        case S_INUM:
+            return _dataItemNumeric(tkn, /*neg=*/ FALSE);
+
+        case S_MINUS:
+            *tkn = (*tkn)->next;
+            return _dataItemNumeric(tkn, /*neg=*/ TRUE);
+
+        case S_PLUS:
+            *tkn = (*tkn)->next;
+            return _dataItemNumeric(tkn, /*neg=*/ FALSE);
+
+        case S_FNUM:
+            return _dataItemNumeric(tkn, /*neg=*/ FALSE);
 
         case S_IDENT:
 			c = Ty_ConstString (Ty_String(), S_name((*tkn)->u.sym));

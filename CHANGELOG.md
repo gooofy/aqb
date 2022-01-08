@@ -17,6 +17,7 @@ Bug Fixes:
     * compiler: check and resolve all forward ptrs
     * compiler: fix err msg position for constant declaration expression
     * compiler: fix string type coercion
+    * compiler: fix negative numeric literal handling in DATA statements
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
     * add "$VER" version string
 
