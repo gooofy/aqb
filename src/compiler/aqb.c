@@ -81,6 +81,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
 	fprintf(stderr, "    -B <foo.s>   create vasm source file\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
+	fprintf(stderr, "    -I           interface module (no code)\n");
 	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
 	fprintf(stderr, "    -p <foo>     create hunk object file\n");
 	fprintf(stderr, "    -v           verbose\n");
@@ -201,6 +202,7 @@ int main (int argc, char *argv[])
     static bool   write_obj = FALSE;
     static bool   write_bin = FALSE;
     static bool   launch_ide = TRUE;
+    static bool   hasCode = TRUE;
     static char   symfn[PATH_MAX];
     static char   objfn[PATH_MAX];
     static char   binfn[PATH_MAX];
@@ -263,6 +265,9 @@ int main (int argc, char *argv[])
 				break;
         	case 'O':
 				OPT_set(OPTION_RACOLOR, TRUE);
+				break;
+        	case 'I':
+				hasCode = FALSE;
 				break;
         	case 'a':
                 optind++;
@@ -451,6 +456,7 @@ int main (int argc, char *argv[])
                       write_bin ? binfn : NULL,
                       write_asmgas ? asm_gas_fn : NULL,
                       write_asmpro ? asm_asmpro_fn : NULL,
-                      write_vasm ? asm_vasm_fn : NULL);
+                      write_vasm ? asm_vasm_fn : NULL,
+                      hasCode);
 }
 

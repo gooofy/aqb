@@ -36,7 +36,8 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-int CO_compile(string sourcefn, string module_name, string symfn, string objfn, string binfn, string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn)
+int CO_compile(string sourcefn, string module_name, string symfn, string objfn, string binfn,
+               string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
@@ -122,7 +123,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
 
     if (symfn)
     {
-        if (FE_writeSymFile(symfn))
+        if (FE_writeSymFile(symfn, hasCode))
         {
             LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n%s written.\n", symfn);
         }

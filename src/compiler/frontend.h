@@ -11,7 +11,7 @@ extern E_module    FE_mod;
 
 CG_fragList     FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name);
 
-bool            FE_writeSymFile(string symfn);
+bool            FE_writeSymFile(string symfn, bool hasCode);
 
 void            FE_init(void);
 

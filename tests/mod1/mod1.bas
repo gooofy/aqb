@@ -12,7 +12,7 @@ ASSERT foobares = 23
 foobar(42)
 ASSERT foobares = 42
 
-TRACE v1.i1, v1.l1
+' TRACE v1.i1, v1.l1
 ASSERT v1.i1 = 23
 ASSERT v1.l1 = 123456
 

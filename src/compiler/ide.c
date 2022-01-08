@@ -1565,7 +1565,8 @@ static bool _compile(IDE_instance ed)
                ed->binfn,
                /*asm_gas_fn=*/ NULL,
                /*asm_asmpro_fn=*/ NULL,
-               /*asm_vasm_fn=*/ NULL);
+               /*asm_vasm_fn=*/ NULL,
+               /*hasCode=*/ TRUE);
 
     //LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     //UI_waitkey ();

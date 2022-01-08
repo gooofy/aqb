@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     41
+#define SYM_VERSION     42
 
 E_module g_builtinsModule = NULL;
 
@@ -808,6 +808,8 @@ bool E_saveModule(string modfn, E_module mod)
 
     fwrite_u2 (modf, SYM_VERSION);
 
+    fwrite_u1 (modf, mod->hasCode);
+
     // module table (used in type serialization for module referencing)
     TAB_table modTable;  // S_symbol moduleName -> int mid
     modTable = TAB_empty(UP_env);
@@ -1162,25 +1164,6 @@ E_module E_loadModule(S_symbol sModule)
     LOG_printf(LOG_DEBUG, "env: E_loadModule(%s): TAB_enter ...\n", S_name(sModule));
     TAB_enter (g_modCache, sModule, mod);
 
-    // check if <module>.a exists
-
-    {
-        char libfn[PATH_MAX];
-        snprintf(libfn, PATH_MAX, "%s.a", S_name(sModule));
-        FILE *f2 = E_openModuleFile (libfn);
-        if (f2)
-        {
-            fclose(f2);
-            mod->hasCode = TRUE;
-        }
-        else
-        {
-            mod->hasCode = FALSE;
-        }
-
-        LOG_printf (LOG_DEBUG, "env: E_loadModule(%s): hasCode=%d (libfn=%s)\n", S_name(sModule), mod->hasCode, libfn);
-    }
-
     // check header
 
     uint32_t m=fread_u4(modf);
@@ -1196,6 +1179,8 @@ E_module E_loadModule(S_symbol sModule)
         LOG_printf(LOG_ERROR, "%s: version mismatch\n", symfn);
         goto fail;
     }
+
+    mod->hasCode = fread_u1(modf);
 
     // read module table
 

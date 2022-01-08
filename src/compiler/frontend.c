@@ -7532,8 +7532,9 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     return CG_getResult();
 }
 
-bool FE_writeSymFile(string symfn)
+bool FE_writeSymFile(string symfn, bool hasCode)
 {
+    FE_mod->hasCode = hasCode;
     return E_saveModule(symfn, FE_mod);
 }
 

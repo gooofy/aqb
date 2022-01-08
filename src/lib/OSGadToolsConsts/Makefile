@@ -5,7 +5,7 @@ include ../../../config.mk
 all: OSGadToolsConsts.sym
 
 OSGadToolsConsts.sym : OSGadToolsConsts.bas
-	$(AQB) -L .. -d _aqb -s OSGadToolsConsts.sym $<
+	$(AQB) -L .. -I -d _aqb -s OSGadToolsConsts.sym $<
 	pushd .. && rm -f OSGadToolsConsts.sym OSGadToolsConsts.a && ln -s OSGadToolsConsts/OSGadToolsConsts.sym && ln -s OSGadToolsConsts/OSGadToolsConsts.a && popd
 	cp $< $(DISTDIR)/libsrc
 	cp $@ $(DISTDIR)/lib
