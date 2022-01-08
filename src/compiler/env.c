@@ -661,7 +661,7 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     fwrite_u1(modf, proc->kind);
     fwrite_u1(modf, proc->visibility);
     E_serializeOptionalSymbol(proc->name);
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "E_serializeTyProc: name=%s", proc->name ? S_name(proc->name) : "<NONE>");
+    LOG_printf (LOG_DEBUG, "E_serializeTyProc: name=%s", proc->name ? S_name(proc->name) : "<NONE>");
     uint8_t cnt = 0;
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
         cnt++;
@@ -669,9 +669,9 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     for (S_symlist sl=proc->extraSyms; sl; sl=sl->next)
     {
         strserialize(modf, S_name(sl->sym));
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " %s", S_name(sl->sym));
+        LOG_printf (LOG_DEBUG, " %s", S_name(sl->sym));
     }
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " label=%s\n", proc->label ? S_name(proc->label) : "<NONE>");
+    LOG_printf (LOG_DEBUG, " label=%s\n", proc->label ? S_name(proc->label) : "<NONE>");
     E_serializeOptionalSymbol(proc->label);
 
     cnt=0;
@@ -681,7 +681,7 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     for (Ty_formal formal=proc->formals; formal; formal = formal->next)
     {
         // warning: Ty_toString can be quite expensive memory-wise!
-        // LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   formal %s [%s:%d] -> %s\n", formal->name ? S_name(formal->name) : "<NONE>",
+        // LOG_printf (LOG_DEBUG, "   formal %s [%s:%d] -> %s\n", formal->name ? S_name(formal->name) : "<NONE>",
         //             formal->ty->mod ? S_name(formal->ty->mod) : "_builtin_", formal->ty->uid, Ty_toString(formal->ty));
         E_serializeOptionalSymbol(formal->name);
         E_serializeTyRef(modTable, formal->ty);
@@ -724,7 +724,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
     E_enventry x;
     while (TAB_next(i, (void **) &sym, (void **)&x))
     {
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "E_serializeEnventriesFlat: saving env entry name=%s\n", S_name(x->sym));
+        LOG_printf (LOG_DEBUG, "E_serializeEnventriesFlat: saving env entry name=%s\n", S_name(x->sym));
         fwrite_u1 (modf, x->kind);
         strserialize(modf, S_name(x->sym));
         switch (x->kind)
@@ -776,7 +776,7 @@ static void E_serializeEnventriesOverloaded (TAB_table modTable, S_scope scope)
         for (E_enventryListNode xn=xl->first; xn; xn=xn->next)
         {
             E_enventry x = xn->e;
-            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "E_serializeEnventriesOverloaded: saving env entry name=%s\n", S_name(x->sym));
+            LOG_printf (LOG_DEBUG, "E_serializeEnventriesOverloaded: saving env entry name=%s\n", S_name(x->sym));
             fwrite_u1 (modf, x->kind);
             strserialize(modf, S_name(x->sym));
             switch (x->kind)
@@ -823,7 +823,7 @@ bool E_saveModule(string modfn, E_module mod)
         fwrite_u2(modf, mid);
         strserialize(modf, S_name(m2->name));
 
-        LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) imported module: [%d] -> %s\n", S_name(mod->name), mid, S_name(m2->name));
+        LOG_printf(LOG_DEBUG, "env: E_saveModule(%s) imported module: [%d] -> %s\n", S_name(mod->name), mid, S_name(m2->name));
 
         mid++;
     }
@@ -842,7 +842,7 @@ bool E_saveModule(string modfn, E_module mod)
     {
         assert (ty->mod == mod->name);
         // warning: Ty_toString can be quite expensive memory-wise!
-        // LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
+        // LOG_printf(LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
         E_serializeType(modTable, ty);
     }
 
@@ -997,7 +997,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     uint8_t kind = fread_u1(modf);
     uint8_t visibility = fread_u1(modf);
     S_symbol name = E_deserializeOptionalSymbol(modf);
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   E_deserializeTyProc %s", name ? S_name(name) : "<NO NAME>");
+    LOG_printf (LOG_DEBUG, "   E_deserializeTyProc %s", name ? S_name(name) : "<NO NAME>");
     uint8_t cnt = fread_u1(modf);
     S_symlist extra_syms=NULL, extra_syms_last=NULL;
     for (int i = 0; i<cnt; i++)
@@ -1009,7 +1009,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             return NULL;
         }
         S_symbol sym = S_Symbol(str, FALSE);
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " %s", S_name(sym));
+        LOG_printf (LOG_DEBUG, " %s", S_name(sym));
         if (extra_syms)
         {
             extra_syms_last->next = S_Symlist(sym, NULL);
@@ -1031,11 +1031,11 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             return NULL;
         }
         label = Temp_namedlabel(l);
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " label = %s\n", l);
+        LOG_printf (LOG_DEBUG, " label = %s\n", l);
     }
     else
     {
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, " no label\n");
+        LOG_printf (LOG_DEBUG, " no label\n");
     }
 
     cnt = fread_u1(modf);
@@ -1050,7 +1050,8 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             LOG_printf(LOG_INFO, "failed to read argument type.\n");
             return NULL;
         }
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "      formal: %s (%s)\n", fname ? S_name(fname) : "<NO NAME>", Ty_toString (ty));
+        // warning: Ty_toString can be quite expensive memory-wise!
+        //LOG_printf (LOG_DEBUG, "      formal: %s (%s)\n", fname ? S_name(fname) : "<NO NAME>", Ty_toString (ty));
         Ty_const ce;
         if (!E_deserializeTyConst(modTable, modf, &ce))
         {
@@ -1096,7 +1097,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         return NULL;
     }
     // warning: Ty_toString can be quite expensive memory-wise!
-    // LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "      return type: %s\n", Ty_toString (returnTy));
+    // LOG_printf (LOG_DEBUG, "      return type: %s\n", Ty_toString (returnTy));
     int32_t offset = fread_i4(modf);
     string libBase=NULL;
     if (offset)
@@ -1129,7 +1130,7 @@ FILE *E_openModuleFile (string filename)
         FILE *f = fopen(modfn, "r");
         if (f)
         {
-            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s opened for reading\n", modfn);
+            LOG_printf (LOG_DEBUG, "%s opened for reading\n", modfn);
             return f;
         }
     }
@@ -1231,7 +1232,7 @@ E_module E_loadModule(S_symbol sModule)
         if (!tuid)              // types end marker
             break;
 
-        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading type tuid=%d\n", S_name(sModule), tuid);
+        //LOG_printf (LOG_DEBUG, "%s: reading type tuid=%d\n", S_name(sModule), tuid);
 
         Ty_ty ty = TAB_look(mod->tyTable, (void *) (intptr_t) tuid);
         if (!ty)
@@ -1243,7 +1244,7 @@ E_module E_loadModule(S_symbol sModule)
         int kind = fread_u1(modf); // do not set ty->kind right away so toString() will not run into unitialized values in case of record types
         ty->kind = Ty_toLoad;
 
-        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading type tuid=%d kind=%d\n", S_name(sModule), tuid, kind);
+        //LOG_printf (LOG_DEBUG, "%s: reading type tuid=%d kind=%d\n", S_name(sModule), tuid, kind);
 
         switch (kind)
         {
@@ -1328,13 +1329,13 @@ E_module E_loadModule(S_symbol sModule)
                 break;
         }
         ty->kind = kind;
-        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: finished reading type tuid=%d\n", S_name(sModule), tuid);
+        //LOG_printf (LOG_DEBUG, "%s: finished reading type tuid=%d\n", S_name(sModule), tuid);
         // warning: Ty_toString can be quite expensive memory-wise!
-        //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
+        //LOG_printf (LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
     }
 
     // check type table for unresolve ToLoad entries
-    //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: checking type table for unresolve ToLoad entries\n", S_name(sModule));
+    //LOG_printf (LOG_DEBUG, "%s: checking type table for unresolve ToLoad entries\n", S_name(sModule));
     {
         Ty_ty ty;
         uint32_t tuid;
@@ -1351,7 +1352,7 @@ E_module E_loadModule(S_symbol sModule)
     }
 
     // compute sarray sizes
-    //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: computing static array sizes\n", S_name(sModule));
+    //LOG_printf (LOG_DEBUG, "%s: computing static array sizes\n", S_name(sModule));
     {
         Ty_ty ty;
         uint32_t tuid;
@@ -1378,7 +1379,7 @@ E_module E_loadModule(S_symbol sModule)
         }
         S_symbol sym = S_Symbol(name, FALSE);
 
-        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: reading env entry name=%s\n", S_name(sModule), name);
+        LOG_printf (LOG_DEBUG, "%s: reading env entry name=%s\n", S_name(sModule), name);
 
         switch (kind)
         {
@@ -1451,13 +1452,13 @@ E_module E_loadModule(S_symbol sModule)
                     goto fail;
                 }
                 // warning: Ty_toString can be quite expensive memory-wise!
-                // LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "   %s", Ty_toString(ty));
+                // LOG_printf (LOG_DEBUG, "   %s", Ty_toString(ty));
                 E_declareType (mod->env, sym, ty);
                 break;
             }
         }
     }
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: complete, fclose()...\n", S_name(sModule));
+    LOG_printf (LOG_DEBUG, "%s: complete, fclose()...\n", S_name(sModule));
     fclose(modf);
 
     // prepend mod to list of loaded modules (initializers will be run in inverse order later)
