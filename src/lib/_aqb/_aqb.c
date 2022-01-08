@@ -11,7 +11,6 @@
 struct IntuitionBase  *IntuitionBase = NULL;
 struct GfxBase        *GfxBase       = NULL;
 struct Library        *DiskfontBase  = NULL;
-struct Library        *GadToolsBase  = NULL;
 
 static BOOL aio_init_done       = FALSE;
 static BOOL awindow_init_done   = FALSE;
@@ -29,8 +28,6 @@ void _aqb_shutdown(void)
     if (aio_init_done)
         _aio_shutdown();
 
-    if (GadToolsBase)
-        CloseLibrary( GadToolsBase);
     if (DiskfontBase)
         CloseLibrary( DiskfontBase);
     if (GfxBase)
@@ -53,9 +50,6 @@ void __aqb_init(void)
 
     if (!(DiskfontBase = OpenLibrary((CONST_STRPTR) "diskfont.library", 0)))
         _cshutdown(20, (UBYTE *)"*** error: failed to open diskfont.library!\n");
-
-    if (!(GadToolsBase = OpenLibrary((CONST_STRPTR) "gadtools.library", 0)))
-        _cshutdown(20, (UBYTE *)"*** error: failed to open gadtools.library!\n");
 
     _awindow_init();
     awindow_init_done = TRUE;

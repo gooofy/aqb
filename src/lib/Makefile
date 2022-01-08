@@ -1,6 +1,8 @@
-.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport
+include ../../config.mk
 
-all: _brt _aqb minbrt IFFSupport AnimSupport
+.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts UISupport
+
+all: _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts UISupport
 
 _brt:
 	cd _brt ; make all
@@ -17,10 +19,21 @@ IFFSupport:
 AnimSupport:
 	cd AnimSupport ; make all
 
+OSGadToolsConsts:
+	cd OSGadToolsConsts ; make all
+
+UISupport:
+	cd UISupport ; make all
+
 clean:
 	rm -f *.sym *.o *.a
+	rm -f $(DISTDIR)/lib/*.sym
+	rm -f $(DISTDIR)/lib/*.a
+	rm -f $(DISTDIR)/lib/*.o
 	cd _brt ; make clean
 	cd _aqb ; make clean
 	cd minbrt ; make clean
 	cd IFFSupport ; make clean
 	cd AnimSupport ; make clean
+	cd OSGadToolsConsts ; make clean
+	cd UISupport ; make clean

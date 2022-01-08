@@ -135,7 +135,6 @@ SHORT    TEXTWIDTH_           (UBYTE *s);
 #define AE_RASTPORT                 122
 #define AE_FONT                     123
 #define AE_AUDIO                    124
-#define AE_GTGADGET                 125
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
@@ -150,7 +149,7 @@ extern struct ViewPort      *_g_cur_vp ;
 extern BITMAP_t             *_g_cur_bm ;
 extern short                 _g_active_scr_id;
 extern short                 _g_active_win_id;
-extern short                 _g_output_win_id;
+extern short                 _g_cur_win_id;
 
 #define MAX_NUM_WINDOWS 16
 extern struct Window        *_g_winlist[MAX_NUM_WINDOWS];
@@ -166,8 +165,11 @@ void   WINDOW_OUTPUT          (short id);
 void   ON_WINDOW_CALL         (void (*cb)(void));
 ULONG  WINDOW_                (SHORT n);
 
-typedef void (*window_close_cb_t)(struct Window *win);
+typedef void (*window_close_cb_t)(short id);
 void   _window_add_close_cb   (window_close_cb_t cb);
+
+typedef BOOL (*window_msg_cb_t)(SHORT wid, struct Window *win, struct IntuiMessage *message);
+void   _window_add_msg_cb     (window_msg_cb_t cb);
 
 void   SLEEP                  (void);
 void   SLEEP_FOR              (FLOAT s);
@@ -265,26 +267,6 @@ void    SOUND_START          (SHORT channel);
 
 void _asound_init            (void);
 void _asound_shutdown        (void);
-
-/*
- * gadtools support
- */
-
-typedef struct GTGADGET_ GTGADGET_t;
-
-struct GTGADGET_
-{
-    GTGADGET_t    *prev, *next;
-
-    struct Gadget *gad;
-};
-
-GTGADGET_t *GTGADGET_       (SHORT kind,
-                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                             char *txt, ULONG flags, ...);
-
-void _gtgadgets_init        (void);
-void _gtgadgets_shutdown    (void);
 
 #endif
 

@@ -70,16 +70,28 @@ struct Window * _g_winlist[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL
 };
 
-// window callback
+// window callbacks
 
-typedef struct win_cb_node_s *win_cb_node_t;
-struct win_cb_node_s
+typedef struct win_close_cb_node_s *win_close_cb_node_t;
+struct win_close_cb_node_s
 {
-    win_cb_node_t       next;
+    win_close_cb_node_t next;
     window_close_cb_t   cb;
 };
+static win_close_cb_node_t g_win_close_cb_list[MAX_NUM_WINDOWS] = {
+    NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL,
+    NULL,NULL,NULL,NULL
+};
 
-static win_cb_node_t g_win_cb_list[MAX_NUM_WINDOWS] = {
+typedef struct win_msg_cb_node_s *win_msg_cb_node_t;
+struct win_msg_cb_node_s
+{
+    win_msg_cb_node_t next;
+    window_msg_cb_t   cb;
+};
+static win_msg_cb_node_t g_win_msg_cb_list[MAX_NUM_WINDOWS] = {
     NULL,NULL,NULL,NULL,
     NULL,NULL,NULL,NULL,
     NULL,NULL,NULL,NULL,
@@ -117,7 +129,7 @@ static void (*g_mouse_motion_cb)(void)       = NULL;
 
 short                 _g_active_scr_id = 0;
 short                 _g_active_win_id = 1;
-short                 _g_output_win_id = 1;
+short                 _g_cur_win_id    = 1;
 
 struct Screen        *_g_cur_scr    = NULL;
 struct Window        *_g_cur_win    = NULL;
@@ -277,10 +289,10 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
 
     _g_signalmask_awindow |= (1L << win->UserPort->mp_SigBit);
 
-    _g_cur_win       = win;
-    _g_cur_rp        = win->RPort;
-    _g_output_win_id = id;
-    g_cur_ot         = _aqb_ot_window;
+    _g_cur_win    = win;
+    _g_cur_rp     = win->RPort;
+    _g_cur_win_id = id;
+    g_cur_ot      = _aqb_ot_window;
 
     LOCATE (1,1);
     COLOR (1, 0, 1, JAM2);
@@ -303,12 +315,12 @@ void WINDOW_CLOSE(short id)
     }
 
     // call close callbacks first
-    for (win_cb_node_t n=g_win_cb_list[id-1]; n; n=n->next)
+    for (win_close_cb_node_t n=g_win_close_cb_list[id-1]; n; n=n->next)
     {
 #ifdef ENABLE_DEBUG
         DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
 #endif
-        n->cb(_g_winlist[id-1]);
+        n->cb(id-1);
     }
 
     if (_g_winlist[id-1]->RPort->TmpRas)
@@ -326,17 +338,33 @@ void WINDOW_CLOSE(short id)
 void _window_add_close_cb (window_close_cb_t cb)
 {
 #ifdef ENABLE_DEBUG
-    DPRINTF ("_window_add_close_cb g_active_win_id=%d, cb=0x%08lx\n", g_active_win_id, cb);
+    DPRINTF ("_window_add_close_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
 #endif
-    win_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
+    win_close_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
     if (!node)
     {
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = g_win_cb_list[_g_active_win_id-1];
+    node->next = g_win_close_cb_list[_g_cur_win_id-1];
     node->cb   = cb;
-    g_win_cb_list[_g_active_win_id-1] = node;
+    g_win_close_cb_list[_g_cur_win_id-1] = node;
+}
+
+void _window_add_msg_cb (window_msg_cb_t cb)
+{
+#ifdef ENABLE_DEBUG
+    DPRINTF ("_window_add_msg_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
+#endif
+    win_msg_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
+    if (!node)
+    {
+        ERROR (AE_WIN_CLOSE);
+        return;
+    }
+    node->next = g_win_msg_cb_list[_g_cur_win_id-1];
+    node->cb   = cb;
+    g_win_msg_cb_list[_g_cur_win_id-1] = node;
 }
 
 /*
@@ -347,10 +375,10 @@ void WINDOW_OUTPUT(short id)
     // switch (back) to console output?
     if ( (id == 1) && !_g_winlist[0] && (_startup_mode == STARTUP_CLI) )
     {
-        _g_output_win_id = 1;
-        _g_cur_win       = NULL;
-        _g_cur_rp        = NULL;
-        g_cur_ot         = _aqb_ot_console;
+        _g_cur_win_id = 1;
+        _g_cur_win    = NULL;
+        _g_cur_rp     = NULL;
+        g_cur_ot      = _aqb_ot_console;
         return;
     }
 
@@ -361,19 +389,18 @@ void WINDOW_OUTPUT(short id)
         return;
     }
 
-    _g_output_win_id = id;
-
     struct Window *win = _g_winlist[id-1];
 
-    _g_cur_win      = win;
-    _g_cur_rp       = win->RPort;
-    g_cur_ot        = _aqb_ot_window;
+    _g_cur_win_id = id;
+    _g_cur_win    = win;
+    _g_cur_rp     = win->RPort;
+    g_cur_ot      = _aqb_ot_window;
 }
 
 void _awindow_shutdown(void)
 {
 #ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"_awindow_shutdown ...\n");
+    DPRINTF("_awindow_shutdown ...\n");
 #endif
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
@@ -388,7 +415,7 @@ void _awindow_shutdown(void)
         if (g_scrlist[i])
         {
 #ifdef ENABLE_DEBUG
-            _debug_puts((STRPTR)"_awindow_shutdown ... CloseScreen\n");
+            DPRINTF("_awindow_shutdown ... CloseScreen\n");
             //Delay (100);
 #endif
             CloseScreen(g_scrlist[i]);
@@ -415,13 +442,13 @@ void _awindow_shutdown(void)
     if (g_console_device_opened)
     {
 #ifdef ENABLE_DEBUG
-        _debug_puts((STRPTR)"_awindow_shutdown ... CloseDevice\n");
+        DPRINTF((STRPTR)"_awindow_shutdown ... CloseDevice\n");
         //Delay (100);
 #endif
         CloseDevice((struct IORequest *)&g_ioreq);
     }
 #ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"_awindow_shutdown ... finished\n");
+    DPRINTF((STRPTR)"_awindow_shutdown ... finished\n");
     //Delay (100);
 #endif
 }
@@ -733,114 +760,132 @@ static void _handleSignals(BOOL doWait)
             DPRINTF("_handleSignals: got a message, class=0x%08lx\n", class);
 #endif
 
-            switch(class)
+            BOOL handled = FALSE;
+
+            for (win_msg_cb_node_t node = g_win_msg_cb_list[i]; node; node=node->next)
             {
-                case CLOSEWINDOW:
-                    if (g_win_cb)
-                    {
-                        g_win_cb();
-                    }
-                    break;
-
-                case MOUSEBUTTONS:
-                    switch (message->Code)
-					{
-						case SELECTDOWN:
-							g_mouse_down = TRUE;
-							g_mouse_bev  = TRUE;
-							g_mouse_dc = DoubleClick(g_mouse_tv.LeftSeconds, g_mouse_tv.LeftMicros, message->Seconds, message->Micros);
-							if (!g_mouse_dc)
-							{
-								g_mouse_tv.LeftSeconds = message->Seconds;
-								g_mouse_tv.LeftMicros  = message->Micros;
-							}
-							g_mouse_down_x = message->MouseX;
-							g_mouse_down_y = message->MouseY;
-							break;
-						case SELECTUP:
-							g_mouse_bev  = TRUE;
-							g_mouse_down = FALSE;
-							g_mouse_up_x = message->MouseX;
-							g_mouse_up_y = message->MouseY;
-							break;
-					}
- 
-                    if (g_mouse_cb)
-                    {
-                        g_mouse_cb();
-                    }
-                    break;
-
-                case MOUSEMOVE:
-                    if (g_mouse_motion_cb)
-                    {
-                        g_mouse_motion_cb();
-                    }
-                    break;
-
-                case ACTIVEWINDOW:
-                    _g_active_win_id = i+1;
-                    break;
-
-                case RAWKEY:
+                if (node->cb (i, win, message))
                 {
-                    UBYTE buf[12];
-                    LONG numchars = deadKeyConvert(message, buf, 11);
-                    switch (numchars)
-                    {
-                        case 1:
-                            if (keybuf_len < MAXKEYBUF)
-                            {
-                                keybuf[keybuf_end] = buf[0];
-                                keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
-                                keybuf_len++;
-                            }
-                            break;
+                    handled = TRUE;
+                    break;
+                }
+            }
 
-                        case 2:
-                        case 3:
+            if (handled)
+            {
+                switch(class)
+                {
+                    case CLOSEWINDOW:
+                        if (g_win_cb)
                         {
-                            char code=0;
-                            switch (buf[1])
-                            {
-                                // cursor keys
-                                case 65:
-                                case 66:
-                                case 67:
-                                case 68:
-                                    code = buf[1]-37;
-                                    break;
-                                // function keys
-                                case 48:
-                                case 49:
-                                case 50:
-                                case 51:
-                                case 52:
-                                case 53:
-                                case 54:
-                                case 55:
-                                case 56:
-                                case 57:
-                                    code = buf[1]+81;
-                                    break;
-                                default:
-                                    break;
-                                }
-                                if (code)
+                            g_win_cb();
+                        }
+                        break;
+
+                    case MOUSEBUTTONS:
+                        switch (message->Code)
+                        {
+                            case SELECTDOWN:
+                                g_mouse_down = TRUE;
+                                g_mouse_bev  = TRUE;
+                                g_mouse_dc = DoubleClick(g_mouse_tv.LeftSeconds, g_mouse_tv.LeftMicros, message->Seconds, message->Micros);
+                                if (!g_mouse_dc)
                                 {
-                                    if (keybuf_len < MAXKEYBUF)
-                                    {
-                                        keybuf[keybuf_end] = code;
-                                        keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
-                                        keybuf_len++;
-                                    }
+                                    g_mouse_tv.LeftSeconds = message->Seconds;
+                                    g_mouse_tv.LeftMicros  = message->Micros;
                                 }
+                                g_mouse_down_x = message->MouseX;
+                                g_mouse_down_y = message->MouseY;
+                                break;
+                            case SELECTUP:
+                                g_mouse_bev  = TRUE;
+                                g_mouse_down = FALSE;
+                                g_mouse_up_x = message->MouseX;
+                                g_mouse_up_y = message->MouseY;
                                 break;
                         }
-                        default:
-                            break;
+
+                        if (g_mouse_cb)
+                        {
+                            g_mouse_cb();
+                        }
+                        break;
+
+                    case MOUSEMOVE:
+                        if (g_mouse_motion_cb)
+                        {
+                            g_mouse_motion_cb();
+                        }
+                        break;
+
+                    case ACTIVEWINDOW:
+                        _g_active_win_id = i+1;
+                        break;
+
+                    case RAWKEY:
+                    {
+                        UBYTE buf[12];
+                        LONG numchars = deadKeyConvert(message, buf, 11);
+                        switch (numchars)
+                        {
+                            case 1:
+                                if (keybuf_len < MAXKEYBUF)
+                                {
+                                    keybuf[keybuf_end] = buf[0];
+                                    keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                                    keybuf_len++;
+                                }
+                                break;
+
+                            case 2:
+                            case 3:
+                            {
+                                char code=0;
+                                switch (buf[1])
+                                {
+                                    // cursor keys
+                                    case 65:
+                                    case 66:
+                                    case 67:
+                                    case 68:
+                                        code = buf[1]-37;
+                                        break;
+                                    // function keys
+                                    case 48:
+                                    case 49:
+                                    case 50:
+                                    case 51:
+                                    case 52:
+                                    case 53:
+                                    case 54:
+                                    case 55:
+                                    case 56:
+                                    case 57:
+                                        code = buf[1]+81;
+                                        break;
+                                    default:
+                                        break;
+                                    }
+                                    if (code)
+                                    {
+                                        if (keybuf_len < MAXKEYBUF)
+                                        {
+                                            keybuf[keybuf_end] = code;
+                                            keybuf_end = (keybuf_end + 1) % MAXKEYBUF;
+                                            keybuf_len++;
+                                        }
+                                    }
+                                    break;
+                            }
+                            default:
+                                break;
+                        }
+                        break;
                     }
-                    break;
+                    case IDCMP_REFRESHWINDOW:
+                        BeginRefresh (win);
+                        EndRefresh (win, TRUE);
+                        break;
                 }
             }
 
@@ -891,7 +936,7 @@ ULONG WINDOW_(short n)
         case 0:                                 //  0: current active window
             return _g_active_win_id;
         case 1:                                 //  1: current output window id
-            return _g_output_win_id;
+            return _g_cur_win_id;
         case 2:                                 //  2: current output window width
             if (!_g_cur_win)
                 return 0;

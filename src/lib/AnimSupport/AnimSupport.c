@@ -285,8 +285,9 @@ static void _cleanupGelSys(struct RastPort *rPort)
 	}
 }
 
-static void _win_gels_cleanup_cb (struct Window *win)
+static void _win_gels_cleanup_cb (short id)
 {
+    struct Window *win = _g_winlist[id];
     struct RastPort *rPort = win->RPort;
     DPRINTF ("_win_gels_cleanup_cb called, win=0x%08lx, rPort=0x%08lx\n", win, rPort);
 

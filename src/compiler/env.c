@@ -976,6 +976,7 @@ static bool E_deserializeTyConst(TAB_table modTable, FILE *modf, Ty_const *c)
             *c = Ty_ConstFloat(ty, fread_double(modf));
             return TRUE;
         default:
+            printf ("ty->kind=%d\n", ty->kind);
             assert(0);
     }
     return FALSE;

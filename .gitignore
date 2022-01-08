@@ -74,6 +74,8 @@ src/lib/_brt/amath.asm
 src/lib/_brt/autil.asm
 src/lib/IFFSupport/*.sym
 src/lib/AnimSupport/*.sym
+src/lib/OSGadToolsConsts/*.sym
+src/lib/UISupport/*.sym
 src/alib/tests/*.bin
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
@@ -116,6 +118,7 @@ config.mk
 src/lib/minbrt/minbrt.asm
 src/lib/minbrt/minbrt.s
 src/tools/hunk/hunk
+src/lib/os/
 aqb.log
 t.log
 foo
