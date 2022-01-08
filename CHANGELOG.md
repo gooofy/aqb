@@ -16,6 +16,7 @@ Bug Fixes:
     * compiler: do not abort on type system inconsistencies (e.g. unresolved forwarded types)
     * compiler: check and resolve all forward ptrs
     * compiler: fix err msg position for constant declaration expression
+    * compiler: fix string type coercion
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
     * add "$VER" version string
 

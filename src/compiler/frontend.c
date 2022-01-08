@@ -721,6 +721,8 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             }
             break;
         case Ty_string:
+            *res = ty1;
+            return FALSE;
         case Ty_toLoad:
         case Ty_prc:
             assert(0);
