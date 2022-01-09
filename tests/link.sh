@@ -2,10 +2,10 @@
 
 EXAMPLE=foo
 
-IRA='/home/guenter/projects/amiga/ira/src/ira/ira'
+IRA='/home/guenter/projects/amiga/misc/ira/src/ira/ira'
 
 AS_AMIGAOS='/home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-as'
-VASM='/home/guenter/projects/amiga/vasm/src/vasm/vasmm68k_std'
+VASM='/home/guenter/projects/amiga/misc/vasm/src/vasm/vasmm68k_std'
 LD_AMIGAOS='/home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-ld'
 OBJDUMP_AMIGAOS='/home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-objdump'
 STRIP_AMIGAOS='/home/guenter/projects/amiga/amiga-gcc/bin/m68k-amigaos-strip'
