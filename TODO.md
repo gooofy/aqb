@@ -104,7 +104,7 @@ DONE translate forum posts, add useful information to README
 
 ## Core Commands
 
-- \_\_\_\_ ABS()
+- DONE ABS()
 - DONE AND
 - \_\_\_\_ ASC()
 - DONE ATN()

@@ -2,13 +2,21 @@
 
 :toc:
 
+## ABS()
+
+Syntax:
+
+    ABS "(" a ")"
+
+obtain the absolute value of a
+
 ## ACOS()
 
 Syntax:
 
     ACOS "(" a ")"
 
-obtain the arccosine of the floating point number
+obtain the arccosine of a
 
 ## AND
 
