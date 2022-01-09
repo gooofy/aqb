@@ -116,7 +116,7 @@ DONE translate forum posts, add useful information to README
 - \_\_\_\_ CHDIR
 - DONE CHR$()
 - DONE CINT()
-- \_\_\_\_ CLEAR
+- DONE CLEAR
 - DONE CLNG()
 - DONE CLOSE
 - \_\_\_\_ COMMON

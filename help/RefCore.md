@@ -114,6 +114,30 @@ convert x to an integer by rounding the fractional portion.
 NOTE: When the fractional portion is exactly .5, CINT always rounds up.
 
 
+## CLEAR
+
+Syntax:
+
+    CLEAR [ "," "," stack ]
+
+Resets global and static variables to their initializer values. Also resets
+dynamic arrays to contain all zeros.
+
+NOTE: Will not reset local variables or global variables that do not have constant
+initializers. Will also not reset static arrays, UDTs nor objects.
+
+If stack is specified the program will reserve and switch to a custom stack of
+the specified size on startup.
+
+NOTE: Stack size can be set only once and will be in effect for the whole
+program run, no matter where the corresponding CLEAR statement appears in the
+program.
+
+Example:
+
+    CLEAR ,,8192    : REM allocate custom stack of 8192 bytes
+
+
 ## CLNG()
 
 Syntax:
