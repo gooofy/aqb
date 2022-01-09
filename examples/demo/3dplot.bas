@@ -4,10 +4,7 @@
 
 OPTION EXPLICIT
 
-IF FRE ( -2 ) < 20000 THEN
-    PRINT "*** Error: stack size too small (need at least 20KBytes)"
-    ERROR 42
-END IF
+CLEAR ,,20000 : REM need 20KBytes stack minimum
 
 SCREEN 2, 640, 200, 3, AS_MODE_HIRES, "3D Function Plot"
 
