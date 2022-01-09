@@ -52,7 +52,8 @@ struct OPT_dirSearchPath_
 void              OPT_addModulePath (string path);          /* look for symbol files in directory <path>                   */
 OPT_dirSearchPath OPT_getModulePath (void);
 
-#define AQB_MAIN_NAME "__aqb_main"
+#define AQB_MAIN_NAME  "__aqb_main"
+#define AQB_CLEAR_NAME "__aqb_clear"
 
 #define OPT_DEFAULT_MODULE "_aqb"
 

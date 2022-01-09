@@ -1,0 +1,30 @@
+OPTION EXPLICIT
+
+DIM AS INTEGER i=42
+DIM AS INTEGER a(1)
+
+CLEAR ,,1024
+
+TRACE "stack size: ", FRE(-2)
+ASSERT FRE(-2)=1024
+
+TRACE i, a(0), a(1)
+ASSERT i=42
+ASSERT a(0)=0
+ASSERT a(1)=0
+
+i=23
+a(0)=1 : a(1)=2
+
+TRACE i, a(0), a(1)
+ASSERT i=23
+ASSERT a(0)=1
+ASSERT a(1)=2
+
+CLEAR
+
+TRACE i, a(0), a(1)
+ASSERT i=42
+ASSERT a(0)=0
+ASSERT a(1)=0
+

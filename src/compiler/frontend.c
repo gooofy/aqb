@@ -20,8 +20,11 @@ E_module FE_mod = NULL;
 // map of builtin subs and functions that special parse functions:
 static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp)
 
-// program we're compiling right now, can also be used to prepend static initializers
+// program we're compiling right now, can also be used to prepend static constructor calls
 static AS_instrList g_prog;
+
+// static initializers will get added here, will be called on startup and by CLEAR
+static AS_instrList g_varInitIL;
 
 // DATA statement support
 static Temp_label g_dataRestoreLabel;
@@ -2468,7 +2471,10 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
                 return EM_error(pos, "initializer type mismatch");
 
             CG_transAssignment (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, var, init);
+            if ( (statc || !g_sleStack->prev) && CG_isConst(init))
+                CG_transAssignment ( g_varInitIL, pos, NULL, var, init);
         }
+
     }
     return TRUE;
 }
@@ -2656,6 +2662,17 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 initInstrs = AS_InstrList();
                 if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, initInstrs))
                     return FALSE;
+
+                // static / main var ? -> add call to __DARRAY_T_CLEAR (_DARRAY_T *self) to CLEAR varInitCode
+                if (statc || !g_sleStack->prev)
+                {
+                    arglist = CG_ItemList();
+                    n = CG_itemListAppend(arglist);
+                    n->item = var;
+                    CG_loadRef(g_varInitIL, pos, NULL, &n->item);
+                    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("CLEAR", FALSE), arglist, g_varInitIL, /*res=*/NULL))
+                        return FALSE;
+                }
             }
 
             if (numDims)
@@ -2702,7 +2719,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             if (initInstrs)
             {
                 if (statc)
-                    AS_instrListPrependList(g_prog, initInstrs);
+                    AS_instrListAppendList(g_prog, initInstrs);
                 else
                     AS_instrListAppendList(g_sleStack->code, initInstrs);
             }
@@ -6853,7 +6870,13 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     *tkn = (*tkn)->next; // consume "CLEAR"
 
-    // FIXME: call clear() auto-gen func
+    // call __aqb_clear
+
+    S_symbol clear = S_Symbol(AQB_CLEAR_NAME, FALSE);
+    Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
+
+    // swap stack if specified
 
     if ((*tkn)->kind == S_COMMA)
     {
@@ -7433,6 +7456,9 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     slePush(FE_sleTop, /*pos=*/0, frame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
     g_prog = g_sleStack->code;
 
+    // static initializers
+    g_varInitIL = AS_InstrList();
+
     // DATA statement support
     g_dataRestoreLabel = Temp_newlabel();
     g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
@@ -7558,6 +7584,25 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "-----------------\n");
 
+    // generate __aqb_clear():
+    if (is_main)
+    {
+        if (!g_varInitIL->first)
+            CG_transNOP (g_varInitIL, 0);
+        Temp_label label = Temp_namedlabel(AQB_CLEAR_NAME);
+        CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
+        CG_procEntryExit(0,
+                         frame,
+                         g_varInitIL,
+                         frame->formals,
+                         /*returnVar=*/NULL,
+                         /*exitlbl=*/ NULL,
+                         /*is_main=*/FALSE,
+                         /*expt=*/TRUE);
+    }
+
+    // generate __aqb_main():
+
     if (!g_prog->first)
         CG_transNOP (g_prog, 0);
 
@@ -7565,8 +7610,11 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     // stack size (used in _brt stackswap)
 
-    CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__aqb_stack_size"), /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
-    CG_dataFragAddConst (stackSizeFrag, Ty_ConstUInt (Ty_ULong(), g_stack_size));
+    if (is_main)
+    {
+        CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__aqb_stack_size"), /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
+        CG_dataFragAddConst (stackSizeFrag, Ty_ConstUInt (Ty_ULong(), g_stack_size));
+    }
 
     LOG_printf (LOG_DEBUG, "frontend processing done.\n");
     //U_delay(1000);

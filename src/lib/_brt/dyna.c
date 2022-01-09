@@ -59,6 +59,10 @@ void __DARRAY_T_REDIM (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...)
         }
         DEALLOCATE (oData);
     }
+    else
+    {
+        __DARRAY_T_CLEAR (self);
+    }
 
     //_debug_puts ("_dyna_redim: self="); _debug_putu4((ULONG) self); _debug_puts(", data="); _debug_putu4((ULONG)self->data); _debug_puts (", dataSize="); _debug_puts2(dataSize); _debug_puts (", numDims="); _debug_puts2(numDims); _debug_putnl();
 }
@@ -172,5 +176,13 @@ void __DARRAY_T_ERASE (_DARRAY_T *self)
     self->numDims     = 0;
     self->dataSize    = 0;
     self->bounds      = NULL;
+}
+
+void __DARRAY_T_CLEAR (_DARRAY_T *self)
+{
+    if (!self->data || !self->dataSize)
+        return;
+
+    _MEMSET (self->data, 0, self->dataSize);
 }
 

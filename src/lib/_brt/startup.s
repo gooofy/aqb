@@ -105,7 +105,7 @@ noStackSwap:
     jsr      __aqb_main
 
     move.l   #0, -(sp)       /* 0 return code in case we reach this point (i. e. _aqb_main hasn't called _autil_exit(rc)) */
-    jsr      __autil_exit
+    bsr      __autil_exit
 
 
     .globl __autil_exit
@@ -115,13 +115,14 @@ __autil_exit:
     move.l   __g_stack, d0
     beq.s    noStackRestore
 
-    move.l   (sp)+, d2       /* fetch return code from custom stack */
+    move.l   4(sp), d2       /* fetch return code from custom stack */
 
     lea      ___StackSwap, a0
 	movea.l	 SysBase, a6
 	jsr      StackSwap(A6)
 
     move.l   d2, -(sp)       /* push return code on os stack */
+    move.l   d2, -(sp)       /* fake return addr (doesn't matter, we will reset sp down below anyway) */
 
 noStackRestore:
 

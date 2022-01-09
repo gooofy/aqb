@@ -116,38 +116,38 @@ Ty_ty           Ty_String(void);
 Ty_ty           Ty_Void(void);
 Ty_ty           Ty_VoidPtr(void);
 
-Ty_ty           Ty_SArray     (S_symbol mod, Ty_ty ty, int start, int end);
-Ty_ty           Ty_DArray     (S_symbol mod, Ty_ty elementTy);
-Ty_ty           Ty_Pointer    (S_symbol mod, Ty_ty ty);
-Ty_ty           Ty_ForwardPtr (S_symbol mod, S_symbol sType);
-Ty_ty           Ty_Prc        (S_symbol mod, Ty_proc proc);
-Ty_ty           Ty_ProcPtr    (S_symbol mod, Ty_proc proc);
-Ty_ty           Ty_ToLoad     (S_symbol mod, uint32_t uid);
+Ty_ty           Ty_SArray           (S_symbol mod, Ty_ty ty, int start, int end);
+Ty_ty           Ty_DArray           (S_symbol mod, Ty_ty elementTy);
+Ty_ty           Ty_Pointer          (S_symbol mod, Ty_ty ty);
+Ty_ty           Ty_ForwardPtr       (S_symbol mod, S_symbol sType);
+Ty_ty           Ty_Prc              (S_symbol mod, Ty_proc proc);
+Ty_ty           Ty_ProcPtr          (S_symbol mod, Ty_proc proc);
+Ty_ty           Ty_ToLoad           (S_symbol mod, uint32_t uid);
 
-Ty_ty           Ty_Record         (S_symbol mod);
-Ty_recordEntry  Ty_Field          (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty);
-Ty_recordEntry  Ty_Method         (Ty_proc proc);
-uint32_t        Ty_recordAddField (Ty_ty recordType, Ty_ty fieldType);
+Ty_ty           Ty_Record           (S_symbol mod);
+Ty_recordEntry  Ty_Field            (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty);
+Ty_recordEntry  Ty_Method           (Ty_proc proc);
+uint32_t        Ty_recordAddField   (Ty_ty recordType, Ty_ty fieldType);
 
-Ty_formal       Ty_Formal (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc   (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);
+Ty_formal       Ty_Formal           (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
+Ty_proc         Ty_Proc             (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);
 
-Ty_const        Ty_ConstBool   (Ty_ty ty, bool     b);
-Ty_const        Ty_ConstInt    (Ty_ty ty, int32_t  i);
-Ty_const        Ty_ConstUInt   (Ty_ty ty, uint32_t u);
-Ty_const        Ty_ConstFloat  (Ty_ty ty, double   f);
-Ty_const        Ty_ConstString (Ty_ty ty, string   s);
+Ty_const        Ty_ConstBool        (Ty_ty ty, bool     b);
+Ty_const        Ty_ConstInt         (Ty_ty ty, int32_t  i);
+Ty_const        Ty_ConstUInt        (Ty_ty ty, uint32_t u);
+Ty_const        Ty_ConstFloat       (Ty_ty ty, double   f);
+Ty_const        Ty_ConstString      (Ty_ty ty, string   s);
 
-int             Ty_size(Ty_ty t);
-void            Ty_computeSize(Ty_ty ty);
+int             Ty_size             (Ty_ty t);
+void            Ty_computeSize      (Ty_ty ty);
 
-void            Ty_defineRange(Ty_ty ty, char lstart, char lend);
-Ty_ty           Ty_inferType(string varname);
-string          Ty_removeTypeSuffix(string varname);
-string          Ty_toString(Ty_ty t); // debugging purposes only!
+void            Ty_defineRange      (Ty_ty ty, char lstart, char lend);
+Ty_ty           Ty_inferType        (string varname);
+string          Ty_removeTypeSuffix (string varname);
+string          Ty_toString         (Ty_ty t); // debugging purposes only!
 
-bool            Ty_isInt(Ty_ty t);
+bool            Ty_isInt            (Ty_ty t);
 
-void            Ty_init(void);
+void            Ty_init             (void);
 
 #endif

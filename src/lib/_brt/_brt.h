@@ -41,7 +41,7 @@ void _debug_putnl  (void);
 void _debug_cls    (void);
 void _debug_break  (void);
 
-#define ENABLE_DPRINTF
+//#define ENABLE_DPRINTF
 
 #ifdef ENABLE_DPRINTF
 
@@ -249,6 +249,7 @@ WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
 WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
 void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
 void  __DARRAY_T_ERASE    (_DARRAY_T *self);
+void  __DARRAY_T_CLEAR    (_DARRAY_T *self);
 
 
 // DATA / READ / RESTORE support

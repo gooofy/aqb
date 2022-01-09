@@ -729,8 +729,9 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
     if (!pos)
         pos = body->first->instr->pos;
 
-    if (is_main)        // run module initializers?
+    if (is_main)
     {
+        // run module initializers
         AS_instrList initCode = AS_InstrList();
         for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
         {
@@ -745,6 +746,12 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
 
             CG_transCall (initCode, pos, frame, init_proc, /*args=*/NULL, /* result=*/ NULL);
         }
+
+        // run __aqb_clear
+        S_symbol clear = S_Symbol(AQB_CLEAR_NAME, FALSE);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        CG_transCall (initCode, pos, frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
+
         AS_instrListPrependList (body, initCode);
     }
 
