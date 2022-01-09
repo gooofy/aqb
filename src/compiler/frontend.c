@@ -6870,11 +6870,14 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     *tkn = (*tkn)->next; // consume "CLEAR"
 
-    // call __aqb_clear
+    if (g_sleStack->prev || g_sleStack->code->first) // small optimization: if CLEAR appears right at the beginning of main, we do not need to call it since it is called implicitely anyway
+    {
+        // call __aqb_clear
 
-    S_symbol clear = S_Symbol(AQB_CLEAR_NAME, FALSE);
-    Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
-    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
+        S_symbol clear = S_Symbol(AQB_CLEAR_NAME, FALSE);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
+    }
 
     // swap stack if specified
 
