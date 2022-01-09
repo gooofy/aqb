@@ -147,6 +147,28 @@ SHORT ASC_(const UBYTE *str)
     return str[0];
 }
 
+UBYTE *MID_(const UBYTE *str, SHORT n, SHORT m)
+{
+    DPRINTF ("mid$: str=0x%08lx, n=%d, m=%d\n", str, n, m);
+    int l = LEN_(str);
+    n--;
+    if (n<0)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return _astr_dup((STRPTR)"");
+    }
+    if (n>=l)
+        return _astr_dup((STRPTR)"");
+    int l2 = l-n;
+    if ((m>=0) && (m<l2))
+        l2 = m;
+
+    UBYTE *str2 = ALLOCATE_(l2+1, MEMF_ANY);
+    CopyMem((APTR) (str+n), (APTR)str2, l2);
+    str2[l2]=0;
+    return str2;
+}
+
 UBYTE *_astr_dup(const UBYTE* str)
 {
     ULONG l = LEN_(str);

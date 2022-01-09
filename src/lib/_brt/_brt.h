@@ -184,6 +184,7 @@ UBYTE *__astr_concat      (const UBYTE *a, const UBYTE *b);
 ULONG  LEN_               (const UBYTE *str);
 UBYTE  *CHR_              (LONG codepoint);
 SHORT  ASC_               (const UBYTE *str);
+UBYTE  *MID_              (const UBYTE *str, SHORT n, SHORT m);
 
 /*
  * utils

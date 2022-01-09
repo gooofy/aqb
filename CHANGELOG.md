@@ -6,6 +6,7 @@ Improvements:
     * runtime: WAVE() function added
     * runtime: IFF8SVX LOAD WAVE, IFF8SVX READ WAVE commands added
     * runtime: CLEAR statement added
+    * runtime: MID$ function added
     * compiler: support pure interface modules that have no code
 
 Bug Fixes:

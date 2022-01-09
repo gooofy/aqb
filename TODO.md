@@ -176,7 +176,7 @@ DONE translate forum posts, add useful information to README
 - DONE LOG()
 - \_\_\_\_ LPOS()
 - \_\_\_\_ LSET
-- \_\_\_\_ MID$()
+- DONE MID$()
 - \_\_\_\_ MKI$()
 - \_\_\_\_ MKL$()
 - \_\_\_\_ MKS$()

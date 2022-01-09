@@ -525,6 +525,27 @@ Syntax:
 set n bytes of memory to c starting from dst
 
 
+## MID$()
+
+Syntax:
+
+    MID$ "(" s "," n ["," m] ")"
+
+Return portion of string s beginning at character position n (1 based) and
+length m.  When m is not specified, the function returns the remainder of the
+string from the starting character position.  If m reaches beyound the string
+end it will be trimmed automatically.
+
+Example:
+
+    DIM AS STRING s, s1, s2, s3
+
+    s = "SundayMondayTuesday"
+
+    s1 = MID$(s, 7, 6)
+    ASSERT s1="Monday"
+
+
 ## MOD
 
 Syntax:
