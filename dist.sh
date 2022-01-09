@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.8.2preview1
+VERSION=0.8.2preview2
 WORKDIR=`pwd`/target/m68k-amigaos/dist
 LHA=${WORKDIR}/aqb-${VERSION}.lha
 
@@ -12,27 +12,30 @@ mkdir -p ${WORKDIR}/aqb/examples/bench
 mkdir -p ${WORKDIR}/aqb/examples/demo
 mkdir -p ${WORKDIR}/aqb/tutorial
 
-cp target/m68k-amigaos/bin/aqb          ${WORKDIR}/aqb/
-cp src/lib/_brt/_brt.sym                ${WORKDIR}/aqb/lib/
-cp src/lib/_brt/_brt.a                  ${WORKDIR}/aqb/lib/
-cp src/lib/_aqb/_aqb.sym                ${WORKDIR}/aqb/lib/
-cp src/lib/_aqb/_aqb.a                  ${WORKDIR}/aqb/lib/
-cp src/lib/IFFSupport/IFFSupport.sym    ${WORKDIR}/aqb/lib/
-cp src/lib/IFFSupport/IFFSupport.a      ${WORKDIR}/aqb/lib/
-cp src/lib/AnimSupport/AnimSupport.sym  ${WORKDIR}/aqb/lib/
-cp src/lib/AnimSupport/AnimSupport.a    ${WORKDIR}/aqb/lib/
-cp src/lib/startup.o                    ${WORKDIR}/aqb/lib/
-cp README.guide                         ${WORKDIR}/aqb/
-cp CHANGELOG.md                         ${WORKDIR}/aqb/CHANGELOG
+cp target/m68k-amigaos/bin/aqb                   ${WORKDIR}/aqb/
+cp src/lib/_brt/_brt.sym                         ${WORKDIR}/aqb/lib/
+cp src/lib/_brt/_brt.a                           ${WORKDIR}/aqb/lib/
+cp src/lib/_aqb/_aqb.sym                         ${WORKDIR}/aqb/lib/
+cp src/lib/_aqb/_aqb.a                           ${WORKDIR}/aqb/lib/
+cp src/lib/IFFSupport/IFFSupport.sym             ${WORKDIR}/aqb/lib/
+cp src/lib/IFFSupport/IFFSupport.a               ${WORKDIR}/aqb/lib/
+cp src/lib/AnimSupport/AnimSupport.sym           ${WORKDIR}/aqb/lib/
+cp src/lib/AnimSupport/AnimSupport.a             ${WORKDIR}/aqb/lib/
+cp src/lib/UISupport/UISupport.sym               ${WORKDIR}/aqb/lib/
+cp src/lib/UISupport/UISupport.a                 ${WORKDIR}/aqb/lib/
+cp src/lib/OSGadToolsConsts/OSGadToolsConsts.sym ${WORKDIR}/aqb/lib/
+cp src/lib/startup.o                             ${WORKDIR}/aqb/lib/
+cp README.guide                                  ${WORKDIR}/aqb/
+cp CHANGELOG.md                                  ${WORKDIR}/aqb/CHANGELOG
 
-cp dist/amiga/Icons/aqb_topdir.info     ${WORKDIR}/aqb.info
-cp dist/amiga/Icons/aqb.info            ${WORKDIR}/aqb/aqb.info
-cp dist/amiga/Icons/examples.info       ${WORKDIR}/aqb/examples.info
-cp dist/amiga/Icons/bench.info          ${WORKDIR}/aqb/examples/bench.info
-cp dist/amiga/Icons/demo.info           ${WORKDIR}/aqb/examples/demo.info
-cp dist/amiga/Icons/README.guide.info   ${WORKDIR}/aqb/
-cp dist/amiga/Icons/CHANGELOG.info      ${WORKDIR}/aqb/CHANGELOG.info
-cp dist/amiga/Icons/tutorial.info       ${WORKDIR}/aqb/
+cp dist/amiga/Icons/aqb_topdir.info              ${WORKDIR}/aqb.info
+cp dist/amiga/Icons/aqb.info                     ${WORKDIR}/aqb/aqb.info
+cp dist/amiga/Icons/examples.info                ${WORKDIR}/aqb/examples.info
+cp dist/amiga/Icons/bench.info                   ${WORKDIR}/aqb/examples/bench.info
+cp dist/amiga/Icons/demo.info                    ${WORKDIR}/aqb/examples/demo.info
+cp dist/amiga/Icons/README.guide.info            ${WORKDIR}/aqb/
+cp dist/amiga/Icons/CHANGELOG.info               ${WORKDIR}/aqb/CHANGELOG.info
+cp dist/amiga/Icons/tutorial.info                ${WORKDIR}/aqb/
 
 for EX in examples/bench/*.bas ; do
     cp $EX ${WORKDIR}/aqb/examples/bench/
