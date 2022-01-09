@@ -159,11 +159,11 @@ DONE translate forum posts, add useful information to README
 - DONE INPUT
 - \_\_\_\_ INPUT$()
 - \_\_\_\_ INPUT #
-- \_\_\_\_ INSTR()
+- DONE INSTR()
 - DONE INT()
 - \_\_\_\_ KILL
 - DONE LBOUND()
-- \_\_\_\_ LEFT$()
+- DONE LEFT$()
 - DONE LEN()
 - DONE LET
 - \_\_\_\_ LIBRARY
@@ -206,7 +206,7 @@ DONE translate forum posts, add useful information to README
 - DONE RESTORE
 - \_\_\_\_ RESUME
 - DONE RETURN
-- \_\_\_\_ RIGHT$()
+- DONE RIGHT$()
 - DONE RND()
 - \_\_\_\_ RSET
 - \_\_\_\_ SADD()
@@ -227,7 +227,7 @@ DONE translate forum posts, add useful information to README
 - DONE TAN()
 - \_\_\_\_ TIME$()
 - DONE UBOUND()
-- \_\_\_\_ UCASE$()
+- DONE UCASE$()
 - DONE VAL()
 - DONE VARPTR()
 - DONE WEND

@@ -3,16 +3,22 @@
 #include <exec/memory.h>
 
 #include <clib/exec_protos.h>
-#include <clib/mathffp_protos.h>
-#include <clib/mathtrans_protos.h>
-
 #include <inline/exec.h>
+
+#include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
+
+#include <clib/mathtrans_protos.h>
 #include <inline/mathtrans.h>
+
+#include <clib/utility_protos.h>
+#include <inline/utility.h>
 
 #define MAXBUF 40
 
 //#define DEBUG
+
+extern struct UtilityBase   *UtilityBase;
 
 /* A utility function to reverse a string  */
 static void reverse(UBYTE *str, LONG length)
@@ -150,13 +156,13 @@ SHORT ASC_(const UBYTE *str)
 UBYTE *MID_(const UBYTE *str, SHORT n, SHORT m)
 {
     DPRINTF ("mid$: str=0x%08lx, n=%d, m=%d\n", str, n, m);
-    int l = LEN_(str);
-    n--;
-    if (n<0)
+    if (!str || (n<1))
     {
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
         return _astr_dup((STRPTR)"");
     }
+    int l = LEN_(str);
+    n--;
     if (n>=l)
         return _astr_dup((STRPTR)"");
     int l2 = l-n;
@@ -167,6 +173,116 @@ UBYTE *MID_(const UBYTE *str, SHORT n, SHORT m)
     CopyMem((APTR) (str+n), (APTR)str2, l2);
     str2[l2]=0;
     return str2;
+}
+
+UBYTE *UCASE_ (const UBYTE *s)
+{
+    if (!s)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return _astr_dup((STRPTR)"");
+    }
+    UBYTE *s2 = _astr_dup(s);
+    int l = LEN_(s2);
+    for (int i=0; i<l; i++)
+        s2[i] =ToUpper(s[i]);
+
+    return s2;
+}
+
+UBYTE *LCASE_ (const UBYTE *s)
+{
+    if (!s)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return _astr_dup((STRPTR)"");
+    }
+    UBYTE *s2 = _astr_dup(s);
+    int l = LEN_(s2);
+    for (int i=0; i<l; i++)
+        s2[i] =ToLower(s[i]);
+
+    return s2;
+}
+
+UBYTE *LEFT_ (const UBYTE *s, SHORT n)
+{
+    if (!s || (n<0))
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return _astr_dup((STRPTR)"");
+    }
+
+    int l = LEN_(s);
+    if (n>l)
+        n = l;
+
+    UBYTE *str2 = ALLOCATE_(n+1, MEMF_ANY);
+    CopyMem((APTR) (s), (APTR)str2, n);
+    str2[n]=0;
+
+    return str2;
+}
+
+UBYTE *RIGHT_ (const UBYTE *s, SHORT n)
+{
+    if (!s || (n<0))
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return _astr_dup((STRPTR)"");
+    }
+    int l = LEN_(s);
+    if (n>l)
+        n = l;
+
+    return MID_(s, l-n+1, -1);
+}
+
+const UBYTE *_astr_strstr(const UBYTE *s1, const UBYTE *s2)
+{
+
+	const UBYTE *c1, *c2;
+
+    do
+	{
+        c1 = s1; c2 = s2;
+        while (*c1 && *c1==*c2)
+		{
+            c1++;
+			c2++;
+        }
+
+        if (!*c2)
+            return s1;
+
+    } while (*s1++);
+
+    return NULL;
+}
+
+
+SHORT INSTR_ (SHORT n, const UBYTE *x, const UBYTE *y)
+{
+    n-=1;
+    if (!x || !y || (n<0))
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return 0;
+    }
+
+    int l = LEN_(x);
+    if (n>=l)
+	{
+        return 0;
+	}
+
+	x += n;
+
+	const UBYTE *s = _astr_strstr(x, y);
+	if (!s)
+		return 0;
+
+	return s-x+1+n;
 }
 
 UBYTE *_astr_dup(const UBYTE* str)

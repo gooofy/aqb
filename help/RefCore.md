@@ -473,6 +473,17 @@ Syntax:
 import a module
 
 
+## INSTR()
+
+Syntax:
+
+    INSTR "(" [n] "," x "," y ")"
+
+look for the first occurence of string y in string x and return the (1-based)
+character position, if found, 0 otherwise. If n is specified, the search will
+start at the nth character of x, otherwise search will start at the beginning.
+
+
 ## INT()
 
 Syntax:
@@ -489,6 +500,24 @@ Syntax:
     LBOUND "(" array [ "," dimension ] ")"
 
 Return the lower bound for the given array dimension.
+
+
+## LCASE$()
+
+Syntax:
+
+    LCASE$ "(" s ")"
+
+return an all-lowercase version of s
+
+
+## LEFT$()
+
+Syntax:
+
+    LEFT$ "(" s "," n)
+
+returns the leftmost n characters in s
 
 
 ## LEN()
@@ -738,6 +767,15 @@ return from a subroutine or function. In case of return from a function,
 expr specifies the return value
 
 
+## RIGHT$()
+
+Syntax:
+
+    RIGHT$ "(" s "," n)
+
+returns the rightmost n characters in s
+
+
 ## RND()
 
 Syntax:
@@ -905,7 +943,17 @@ Syntax:
 
     UBOUND "(" array [ "," dimension ] ")"
 
-Return the upper bound for the given array dimension.
+return the upper bound for the given array dimension.
+
+
+## UCASE$()
+
+Syntax:
+
+    UCASE$ "(" s ")"
+
+return an all-uppercase version of s
+
 
 ## VAL()
 

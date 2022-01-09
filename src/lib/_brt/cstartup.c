@@ -23,6 +23,9 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
+#include <clib/utility_protos.h>
+#include <inline/utility.h>
+
 //#define ENABLE_DEBUG
 #define MAXBUF 40
 
@@ -30,6 +33,7 @@ struct ExecBase      *SysBase       = NULL;
 struct DOSBase       *DOSBase       = NULL;
 struct MathBase      *MathBase      = NULL;
 struct MathTransBase *MathTransBase = NULL;
+struct UtilityBase   *UtilityBase   = NULL;
 
 static BOOL autil_init_done = FALSE;
 
@@ -344,6 +348,14 @@ void _c_atexit(void)
         _autil_shutdown();
     }
 
+    if (UtilityBase)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: close utility.library\n");
+        //Delay(50);
+#endif
+        CloseLibrary((struct Library *)UtilityBase);
+    }
     if (MathTransBase)
     {
 #ifdef ENABLE_DEBUG
@@ -407,16 +419,19 @@ void _cstartup (void)
 {
     SysBase = (*((struct ExecBase **) 4));
 
-    if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 0)))
+    if (!(DOSBase = (struct DOSBase *)OpenLibrary((CONST_STRPTR) "dos.library", 37)))
         _cshutdown(20, (UBYTE *) "*** error: failed to open dos.library!\n");
 
     _debug_stdout = Output();
 
-    if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 0)))
+    if (!(MathBase = (struct MathBase *)OpenLibrary((CONST_STRPTR) "mathffp.library", 37)))
         _cshutdown(20, (UBYTE *) "*** error: failed to open mathffp.library!\n");
 
-    if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
+    if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 37)))
         _cshutdown(20, (UBYTE *) "*** error: failed to open mathtrans.library!\n");
+
+    if (!(UtilityBase = (struct UtilityBase *)OpenLibrary((CONST_STRPTR) "utility.library", 37)))
+        _cshutdown(20, (UBYTE *) "*** error: failed to open utility.library!\n");
 
     DPRINTF ("_cstartup: _aqb_stack_size=%d\n", _aqb_stack_size);
     if (_aqb_stack_size)

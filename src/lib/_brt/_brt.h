@@ -185,6 +185,11 @@ ULONG  LEN_               (const UBYTE *str);
 UBYTE  *CHR_              (LONG codepoint);
 SHORT  ASC_               (const UBYTE *str);
 UBYTE  *MID_              (const UBYTE *str, SHORT n, SHORT m);
+UBYTE *UCASE_             (const UBYTE *s);
+UBYTE *LCASE_             (const UBYTE *s);
+UBYTE *LEFT_              (const UBYTE *s, SHORT n);
+UBYTE *RIGHT_             (const UBYTE *s, SHORT n);
+SHORT  INSTR              (SHORT n, const UBYTE *x, const UBYTE *y);
 
 /*
  * utils
