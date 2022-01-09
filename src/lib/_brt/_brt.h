@@ -41,7 +41,7 @@ void _debug_putnl  (void);
 void _debug_cls    (void);
 void _debug_break  (void);
 
-//#define ENABLE_DPRINTF
+#define ENABLE_DPRINTF
 
 #ifdef ENABLE_DPRINTF
 
@@ -107,6 +107,11 @@ struct DebugMsg
 };
 
 extern struct DebugMsg *__StartupMsg;
+
+// stack swap support
+
+extern ULONG                   _aqb_stack_size;
+extern ULONG                  *_g_stack;
 
 // CTRL-C / CTRL-D (DEBUG) BREAK handling
 

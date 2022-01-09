@@ -4183,7 +4183,14 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_long:
                         case Ty_ulong:
                         case Ty_pointer:
-                            fprintf(out, "    dc.l %d\n", c->u.i);
+                            switch (dialect)
+                            {
+                                case AS_dialect_gas:    fprintf(out, "    dc.l  %d\n", c->u.i); break;
+                                case AS_dialect_vasm:   fprintf(out, "    .long %d\n", c->u.i); break;
+                                case AS_dialect_ASMPro: fprintf(out, "    dc.l  %d\n", c->u.i); break;
+                                default:
+                                    assert(FALSE);
+                            }
                             break;
                         case Ty_single:
                             fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);

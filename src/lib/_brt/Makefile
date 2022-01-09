@@ -30,5 +30,5 @@ diss: startup.o
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
 clean:
-	rm -f *.o alibtest _brt.a *.sym aqb.log
+	rm -f *.o alibtest _brt.a *.sym *.asm aqb.log
 

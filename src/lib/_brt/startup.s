@@ -17,11 +17,12 @@
 
     /* exec.library */
 
-    .set FindTask, -294
-    .set WaitPort, -384
-    .set GetMsg  , -372
-    .set ReplyMsg, -378
-    .set Forbid  , -132
+    .set FindTask , -294
+    .set WaitPort , -384
+    .set GetMsg   , -372
+    .set ReplyMsg , -378
+    .set Forbid   , -132
+    .set StackSwap, -732
 
     /* structs */
 
@@ -40,11 +41,6 @@ _start:
     movel   a0,___commandline
     movel   d0,___commandlen
     */
-
-eloop:
-    /*nop
-    nop
-    bra.s   eloop */
 
     /* save sp and all registers so we can restore them in __autil_exit called from any point in the program */
     movem.l  d2-d7/a2-a6, -(sp)
@@ -72,20 +68,39 @@ eloop:
 
     /* was this a dbg message sent by the AQB IDE ? */
 
-    move.l  d0, a0
+    move.l   d0, a0
     move.l   dbg_sig(a0), d1      /* check signature */
     cmpi.l   #0xDECA11ED, d1
     bne.s    runMain              /* regular wb start message */
 
     /* this _is_ a debug message -> put exit function pointer into it */
 
-    move.l  #__autil_exit, dbg_exitFn(a0)
+    move.l   #__autil_exit, dbg_exitFn(a0)
 
-    .globl __autil_exit
 runMain:
 
 	/* main program entry here */
     jsr      __cstartup
+
+    /* swap stack ? */
+
+    move.l   __g_stack, d0
+    beq.s    noStackSwap
+
+    /* setup struct StackSwapStruct */
+    lea      ___StackSwap, a0
+	move.l   d0, (a0)+
+	add.l    __aqb_stack_size, d0
+	move.l   d0, (a0)+
+	moveq    #-16, d1
+	add.l    d0, d1
+	move.l   d1, (a0)
+
+    /* call exec StackSwap() */
+    lea      ___StackSwap, a0
+	jsr      StackSwap(A6)
+
+noStackSwap:
 
     jsr      __aqb_main
 
@@ -95,6 +110,20 @@ runMain:
 
     .globl __autil_exit
 __autil_exit:
+
+    /* restore stack in case we swapped it */
+    move.l   __g_stack, d0
+    beq.s    noStackRestore
+
+    move.l   (sp)+, d2       /* fetch return code from custom stack */
+
+    lea      ___StackSwap, a0
+	movea.l	 SysBase, a6
+	jsr      StackSwap(A6)
+
+    move.l   d2, -(sp)       /* push return code on os stack */
+
+noStackRestore:
 
     jsr      __c_atexit
 
@@ -137,4 +166,9 @@ ___SaveSP:
 
 	.global ___StartupMsg
 ___StartupMsg:
+	dc.l	0
+
+___StackSwap:
+	dc.l	0
+	dc.l	0
 	dc.l	0

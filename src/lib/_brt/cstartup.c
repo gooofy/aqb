@@ -46,6 +46,10 @@ static BPTR              _debug_stdout           = 0;
 static struct DebugMsg   _dbgOutputMsg;
 static struct MsgPort   *g_dbgPort               = NULL;
 
+static char *g_inputHandlerName = "AQB CTRL-C input event handler";
+
+ULONG *_g_stack = NULL;
+
 void _debug_putc(const char c)
 {
     if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
@@ -381,6 +385,9 @@ void _c_atexit(void)
         _debug_stdout = 0;
         CloseLibrary( (struct Library *)DOSBase);
     }
+
+    if (_g_stack)
+        FreeVec (_g_stack);
 }
 
 void _cshutdown (LONG return_code, UBYTE *msg)
@@ -396,8 +403,6 @@ void ___breakHandler (register ULONG signals __asm("d0"), register APTR exceptDa
     _break_status = BREAK_CTRL_C;
 }
 
-static char *g_inputHandlerName = "AQB CTRL-C input event handler";
-
 void _cstartup (void)
 {
     SysBase = (*((struct ExecBase **) 4));
@@ -412,6 +417,16 @@ void _cstartup (void)
 
     if (!(MathTransBase = (struct MathTransBase *)OpenLibrary((CONST_STRPTR) "mathtrans.library", 0)))
         _cshutdown(20, (UBYTE *) "*** error: failed to open mathtrans.library!\n");
+
+    DPRINTF ("_cstartup: _aqb_stack_size=%d\n", _aqb_stack_size);
+    if (_aqb_stack_size)
+    {
+        _g_stack = AllocVec (_aqb_stack_size, MEMF_PUBLIC);
+        if (!_g_stack)
+            _cshutdown(20, (UBYTE *) "*** error: failed to allocate stack!\n");
+
+        DPRINTF ("_cstartup: allocated custom stack: 0x%08lx\n", _g_stack);
+    }
 
     _autil_init();
     autil_init_done = TRUE;

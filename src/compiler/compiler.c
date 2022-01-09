@@ -294,7 +294,6 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                                     case Ty_ulong:
                                     case Ty_pointer:
                                         AS_assembleData32 (obj->dataSeg, c->u.i);
-                                        assert(FALSE);
                                         break;
                                     case Ty_single:
                                         AS_assembleData32 (obj->dataSeg, encode_ffp(c->u.f));

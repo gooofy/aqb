@@ -27,6 +27,9 @@ static AS_instrList g_prog;
 static Temp_label g_dataRestoreLabel;
 static CG_frag    g_dataFrag         = NULL;
 
+// _brt stackswap
+static int        g_stack_size = 0;
+
 typedef struct FE_dim_ *FE_dim;
 struct FE_dim_
 {
@@ -239,7 +242,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 96
+#define MAX_KEYWORDS 97
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -340,6 +343,7 @@ static S_symbol S_BREAK;
 static S_symbol S__FNO;
 static S_symbol S_TRACE;
 static S_symbol S_DEBUG;
+static S_symbol S_CLEAR;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -6844,6 +6848,38 @@ static bool stmtGosub(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+// stmtClear ::= CLEAR [ "," "," expr ]
+static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
+{
+    *tkn = (*tkn)->next; // consume "CLEAR"
+
+    // FIXME: call clear() auto-gen func
+
+    if ((*tkn)->kind == S_COMMA)
+    {
+        *tkn = (*tkn)->next;
+        if ((*tkn)->kind == S_COMMA)
+        {
+            *tkn = (*tkn)->next;
+            CG_item stackSize;
+            if (!expression(tkn, &stackSize))
+                return EM_error((*tkn)->pos, "clear: stack size expression expected here.");
+
+            if (!CG_isConst (&stackSize))
+                return EM_error((*tkn)->pos, "clear: constant stack size expected here.");
+
+            if (g_stack_size)
+                return EM_error((*tkn)->pos, "clear: stack size specified more than once.");
+
+            g_stack_size = CG_getConstInt(&stackSize);
+
+            return TRUE;
+        }
+    }
+
+    return isLogicalEOL(*tkn);
+}
+
 // funVarPtr ::= VARPTR "(" expDesignator ")"
 static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -7168,9 +7204,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall         , Ty_Void());
     declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl    , Ty_Void());
-#if 0
     declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl   , Ty_Void());
-#endif
     declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl     , Ty_Void());
     declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin, Ty_Void());
     declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic       , Ty_Void());
@@ -7214,6 +7248,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull        , Ty_Bool());
     declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace        , Ty_Void());
     declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak        , Ty_Void());
+    declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear        , Ty_Void());
 }
 
 //
@@ -7402,6 +7437,8 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     g_dataRestoreLabel = Temp_newlabel();
     g_dataFrag = CG_DataFrag(g_dataRestoreLabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
 
+    g_stack_size = 0;
+
     // parse logical lines
 
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "FE_sourceProgram:\n");
@@ -7525,6 +7562,11 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         CG_transNOP (g_prog, 0);
 
     CG_procEntryExit (0, frame, g_prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+
+    // stack size (used in _brt stackswap)
+
+    CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__aqb_stack_size"), /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
+    CG_dataFragAddConst (stackSizeFrag, Ty_ConstUInt (Ty_ULong(), g_stack_size));
 
     LOG_printf (LOG_DEBUG, "frontend processing done.\n");
     //U_delay(1000);
@@ -7654,6 +7696,7 @@ void FE_boot(void)
     S__FNO            = defineKeyword("_FNO");
     S_TRACE           = defineKeyword("TRACE");
     S_DEBUG           = defineKeyword("DEBUG");
+    S_CLEAR           = defineKeyword("CLEAR");
 }
 
 void FE_init(void)

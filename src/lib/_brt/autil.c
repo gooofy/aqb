@@ -197,20 +197,25 @@ ULONG FRE_(SHORT x)
     {
         case -2:        // stack
         {
-            struct Process *Process;
-            struct CommandLineInterface *CLI;
-            ULONG stack;
+            APTR  upper, lower;
+            ULONG total;
 
-            Process = (struct Process *) FindTask (0L);
-            if ( (CLI = (struct CommandLineInterface *) (Process -> pr_CLI << 2)) )
+            struct Process *pr = (struct Process*) FindTask (0L);
+
+            if ( (pr->pr_Task.tc_Node.ln_Type == NT_PROCESS) && pr->pr_CLI && !_g_stack )
             {
-                stack = CLI -> cli_DefaultStack << 2;
+                upper = (APTR) pr->pr_ReturnAddr + 4;
+                total = * ((ULONG *)pr->pr_ReturnAddr);
+                lower = upper-total;
             }
             else
             {
-                stack = Process -> pr_StackSize;
+                upper = pr->pr_Task.tc_SPUpper;
+                lower = pr->pr_Task.tc_SPLower;
+                total = upper-lower;
             }
-            return stack;
+
+            return total;
         }
         case -1:        // chip + fast
             return AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST);
