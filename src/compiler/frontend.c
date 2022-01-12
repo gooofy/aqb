@@ -3456,8 +3456,6 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-#if 0
-// FIXME
 // lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
 static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -3479,7 +3477,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if ((*tkn)->kind == S_STRING)
     {
-        prompt = String((*tkn)->u.str);
+        prompt = String(UP_frontend, (*tkn)->u.str);
         *tkn = (*tkn)->next;
         if ((*tkn)->kind != S_SEMICOLON)
             return EM_error((*tkn)->pos, "LINE INPUT: semicolon expected here.");
@@ -3496,14 +3494,19 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
-    CG_ItemListAppend(arglist, Tr_boolExp(pos, do_nl, Ty_Bool()));
-    CG_ItemListAppend(arglist, var);
-    CG_ItemListAppend(arglist, prompt ? CG_StringItem(pos, prompt) : CG_ZeroItem(pos, Ty_String()));
-    emit(Tr_callExp(pos, arglist, func->u.proc));
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    if (prompt)
+        CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
+    else
+        CG_ZeroItem(&n->item, Ty_String());
+    n = CG_itemListAppend(arglist);
+    n->item = var;
+    n = CG_itemListAppend(arglist);
+    CG_BoolItem (&n->item, do_nl, Ty_Bool());
+    CG_transCall (g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
 
     return isLogicalEOL(*tkn);
 }
-#endif
 
 static bool _dataItemNumeric (S_tkn *tkn, bool neg)
 {
@@ -7257,10 +7260,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData         , Ty_Void());
     declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead         , Ty_Void());
     declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore      , Ty_Void());
-#if 0
-    // FIXME
     declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput    , Ty_Void());
-#endif
     declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput        , Ty_Void());
     declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen         , Ty_Void());
     declareBuiltinProc(S_CLOSE        , /*extraSyms=*/ NULL      , stmtClose        , Ty_Void());
