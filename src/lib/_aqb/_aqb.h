@@ -19,28 +19,28 @@ extern struct Library       *DiskfontBase;
 
 extern BPTR g_stdout;
 
-void _aio_init       (void);
-void _aio_shutdown   (void);
+void _aio_init                   (void);
+void _aio_shutdown               (void);
 
-void _aio_puts4      (USHORT fno, LONG num);
-void _aio_puts2      (USHORT fno, SHORT num);
-void _aio_puts1      (USHORT fno, UBYTE num);
-void _aio_putu4      (USHORT fno, ULONG num);
-void _aio_putu2      (USHORT fno, USHORT num);
-void _aio_putu1      (USHORT fno, UBYTE num);
-void _aio_puthex     (USHORT fno, LONG num);
-void _aio_putuhex    (USHORT fno, ULONG l);
-void _aio_putbin     (USHORT fno, LONG num);
-void _aio_putf       (USHORT fno, FLOAT f);
-void _aio_putbool    (USHORT fno, BOOL b);
+void _aio_puts4                  (USHORT fno, LONG num);
+void _aio_puts2                  (USHORT fno, SHORT num);
+void _aio_puts1                  (USHORT fno, UBYTE num);
+void _aio_putu4                  (USHORT fno, ULONG num);
+void _aio_putu2                  (USHORT fno, USHORT num);
+void _aio_putu1                  (USHORT fno, UBYTE num);
+void _aio_puthex                 (USHORT fno, LONG num);
+void _aio_putuhex                (USHORT fno, ULONG l);
+void _aio_putbin                 (USHORT fno, LONG num);
+void _aio_putf                   (USHORT fno, FLOAT f);
+void _aio_putbool                (USHORT fno, BOOL b);
 
-void _aio_puts       (USHORT fno, const UBYTE *str);
-void _aio_fputs      (USHORT fno, const UBYTE *str);
+void _aio_puts                   (USHORT fno, const UBYTE *str);
+void _aio_fputs                  (USHORT fno, const UBYTE *str);
 
-void _aio_putnl      (USHORT fno);
-void _aio_puttab     (USHORT fno);
+void _aio_putnl                  (USHORT fno);
+void _aio_puttab                 (USHORT fno);
 
-struct FileHandle *_aio_getfh (USHORT fno);
+struct FileHandle *_aio_getfh    (USHORT fno);
 
 // [ LINE ] INPUT support:
 
