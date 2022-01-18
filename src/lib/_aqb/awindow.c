@@ -33,16 +33,18 @@
 
 //#define ENABLE_DEBUG
 
+#define MAXINPUTBUF 1024
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 struct Device           *ConsoleDevice;
-BPTR                     g_stdout, g_stdin;
 static FLOAT             g_fp15; // FFP representation of decimal 15, used in PALETTE
 static FLOAT             g_fp50; // FFP representation of decimal 50, used in SLEEP_FOR
 static struct IOStdReq   g_ioreq; // console.device is used to convert RAWKEY codes
 static BOOL              g_console_device_opened=FALSE;
 static struct InputEvent g_ievent;
+static BPTR              g_stdout, g_stdin;
 
 static struct NewWindow g_nw =
 {
@@ -438,7 +440,6 @@ void _awindow_shutdown(void)
         font = next;
     }
 
-    _aio_set_dos_cursor_visible (TRUE);
     if (g_console_device_opened)
     {
 #ifdef ENABLE_DEBUG
@@ -451,31 +452,6 @@ void _awindow_shutdown(void)
     DPRINTF((STRPTR)"_awindow_shutdown ... finished\n");
     //Delay (100);
 #endif
-}
-
-void _awindow_init(void)
-{
-    g_stdout = Output();
-    g_stdin  = Input();
-    g_fp15   = SPFlt(15);
-    g_fp50   = SPFlt(50);
-    _aio_set_dos_cursor_visible (FALSE);
-    if (0 == OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&g_ioreq, 0))
-    {
-        g_console_device_opened=TRUE;
-        ConsoleDevice = g_ioreq.io_Device;
-    }
-
-    g_cur_ot = _startup_mode == STARTUP_CLI ? _aqb_ot_console : _aqb_ot_none;
-
-	// default view port
-
-	struct Screen *sc = NULL;
-	if ( (sc = LockPubScreen(NULL)) )
-	{
-		_g_cur_vp = &sc->ViewPort;
-		UnlockPubScreen(NULL, sc);
-	}
 }
 
 enum _aqb_output_type  _aqb_get_output (BOOL needGfx)
@@ -1115,24 +1091,13 @@ static void do_scroll(void)
     }
 }
 
-void _aio_puts(USHORT fno, const UBYTE *s)
+static BOOL _awindow_puts(UBYTE *s)
 {
-    //DPRINTF ("_aio_puts: fno=%d s=%s\n", fno, s);
-
-    if (fno)
-    {
-        _aio_fputs (fno, s);
-        return;
-    }
-
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
-        //_debug_puts((STRPTR)"_debug_puts: stdout\n");
         ULONG l = LEN_(s);
-        //_debug_puts((STRPTR)"_debug_puts: l=");_debug_putu4(l); _debug_putnl();
-        //_debug_puts((STRPTR)"_debug_puts: g_stdout=");_debug_putu4((ULONG) g_stdout); _debug_putnl();
         Write(g_stdout, (CONST APTR) s, l);
-        return;
+        return TRUE;
     }
 
     // do a crude terminal emulation, reacting to control characters
@@ -1179,10 +1144,8 @@ void _aio_puts(USHORT fno, const UBYTE *s)
 
                     case 9:         // tab
                     {
-                        int cx = _g_cur_rp->cp_x / _g_cur_rp->Font->tf_XSize;          // cursor position in nominal characters
-                        // _debug_puts((STRPTR)"[1] cx="); _debug_puts2(cx); _debug_puts((STRPTR)"\n");
-                        cx = cx + (8-(cx%8));                                // AmigaBASIC TABs are 9 characters wide
-                        // _debug_puts((STRPTR)"[2] cx="); _debug_puts2(cx); _debug_puts((STRPTR)"\n");
+                        int cx = _g_cur_rp->cp_x / _g_cur_rp->Font->tf_XSize;           // cursor position in nominal characters
+                        cx = cx + (8-(cx%8));                                           // AmigaBASIC TABs are 9 characters wide
                         Move (_g_cur_rp, cx * _g_cur_rp->Font->tf_XSize, _g_cur_rp->cp_y);
                         break;
                     }
@@ -1212,26 +1175,7 @@ void _aio_puts(USHORT fno, const UBYTE *s)
 
     }
     fini:
-        return;
-}
-
-void _aio_puttab(USHORT fno)
-{
-    if (fno)
-    {
-        _aio_fputs(fno, (STRPTR) "\t");
-        return;
-    }
-
-    if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
-    {
-        Write(g_stdout, (CONST APTR) "\t", 1);
-        return;
-    }
-
-    int cx = _g_cur_rp->cp_x / _g_cur_rp->Font->tf_XSize;          // cursor position in nominal characters
-    cx = cx + (14-(cx%14));                              // PRINT comma TABs are 15 characters wide
-    Move (_g_cur_rp, cx * _g_cur_rp->Font->tf_XSize, _g_cur_rp->cp_y);
+        return TRUE;
 }
 
 #define CSI 0x9b
@@ -1301,15 +1245,6 @@ SHORT POS_ (SHORT dummy)
 
 // input statement support
 
-void _aio_set_dos_cursor_visible (BOOL visible)
-{
-    static UBYTE csr_on[]   = { CSI, '1', ' ', 'p', '\0' };
-    static UBYTE csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
-
-    UBYTE *c = visible ? csr_on : csr_off;
-    Write(g_stdout, (CONST APTR) c, LEN_(c));
-}
-
 static void draw_cursor(void)
 {
     BYTE   old_fg, fg;
@@ -1331,14 +1266,12 @@ static void draw_cursor(void)
     SetAPen (_g_cur_rp, old_fg);
 }
 
-#define MAXINPUTBUF 1024
-
 static BOOL is_eol (UBYTE c)
 {
     return (c=='\r') || (c=='\n');
 }
 
-void _aio_gets(UBYTE **s, BOOL do_nl)
+static BOOL _awindow_gets(UBYTE **s, BOOL do_nl)
 {
     static UBYTE buf[MAXINPUTBUF];
     static UBYTE twospaces[] = "  ";
@@ -1352,7 +1285,6 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
     }
     else
     {
-
         // do a crude terminal emulation, handle backspace
 
         long col = 0;
@@ -1424,6 +1356,8 @@ void _aio_gets(UBYTE **s, BOOL do_nl)
 #endif
 
     *s = _astr_dup (buf);
+
+    return TRUE;
 }
 
 
@@ -2068,5 +2002,33 @@ char *INKEY_ (void)
     keybuf_len--;
 
     return inkeybuf;
+}
+
+void _awindow_init(void)
+{
+    g_stdout = Output();
+    g_stdin  = Input();
+    _aio_puts_cb = _awindow_puts;
+    _aio_gets_cb = _awindow_gets;
+
+    g_fp15   = SPFlt(15);
+    g_fp50   = SPFlt(50);
+
+    if (0 == OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&g_ioreq, 0))
+    {
+        g_console_device_opened=TRUE;
+        ConsoleDevice = g_ioreq.io_Device;
+    }
+
+    g_cur_ot = _startup_mode == STARTUP_CLI ? _aqb_ot_console : _aqb_ot_none;
+
+	// default view port
+
+	struct Screen *sc = NULL;
+	if ( (sc = LockPubScreen(NULL)) )
+	{
+		_g_cur_vp = &sc->ViewPort;
+		UnlockPubScreen(NULL, sc);
+	}
 }
 

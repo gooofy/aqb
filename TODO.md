@@ -63,11 +63,13 @@ DONE translate forum posts, add useful information to README
 
 - DONE CTRL+C to stop the program at any time
 
-- source level debugging
+- DONE source level debugging
 
 - DONE tetris game freezes after some 3 minutes (ressource leak? )
 
 - MOD / protracker playback (maybe using https://aminet.net/package/mus/play/ptplayer)
+
+- open RTG custom screens
 
 
 ## IDE
@@ -138,7 +140,7 @@ DONE translate forum posts, add useful information to README
 - DONE DEFSTR
 - DONE DIM
 - DONE END
-- \_\_\_\_ EOF()
+- DONE EOF()
 - DONE EQV
 - DONE ERASE
 - \_\_\_\_ ERL

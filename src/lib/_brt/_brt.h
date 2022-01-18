@@ -55,11 +55,16 @@ void dprintf(const char *format, ...);
 
 #endif
 
-#define ERR_OUT_OF_DATA              4
-#define ERR_ILLEGAL_FUNCTION_CALL    5
-#define ERR_OUT_OF_MEMORY            7
-#define ERR_SUBSCRIPT_OUT_OF_RANGE   9
-#define ERR_INCOMPATIBLE_ARRAY      10
+#define ERR_OUT_OF_DATA                4
+#define ERR_ILLEGAL_FUNCTION_CALL      5
+#define ERR_OUT_OF_MEMORY              7
+#define ERR_SUBSCRIPT_OUT_OF_RANGE     9
+#define ERR_INCOMPATIBLE_ARRAY        10
+
+#define ERR_BAD_FILE_NUMBER           52
+#define ERR_BAD_FILE_MODE             54
+#define ERR_IO_ERROR                  57
+#define ERR_BAD_FILE_NAME             64
 
 void _aqb_assert   (BOOL b, const UBYTE *msg);
 void ERROR         (SHORT errcode);
@@ -265,5 +270,71 @@ void _aqb_read1   (void *v);
 void _aqb_read2   (void *v);
 void _aqb_read4   (void *v);
 void _aqb_readStr (void *v);
+
+/*
+ * print statement support
+ */
+
+typedef BOOL (*_aio_puts_cb_t)   (UBYTE *s);
+typedef BOOL (*_aio_puttab_cb_t) (void);
+typedef BOOL (*_aio_gets_cb_t)   (UBYTE **s, BOOL do_nl);
+
+extern _aio_puts_cb_t   _aio_puts_cb;
+extern _aio_gets_cb_t   _aio_gets_cb;
+
+void _aio_init                   (void);
+void _aio_shutdown               (void);
+
+void _aio_puts4                  (USHORT fno, LONG num);
+void _aio_puts2                  (USHORT fno, SHORT num);
+void _aio_puts1                  (USHORT fno, UBYTE num);
+void _aio_putu4                  (USHORT fno, ULONG num);
+void _aio_putu2                  (USHORT fno, USHORT num);
+void _aio_putu1                  (USHORT fno, UBYTE num);
+void _aio_puthex                 (USHORT fno, LONG num);
+void _aio_putuhex                (USHORT fno, ULONG l);
+void _aio_putbin                 (USHORT fno, LONG num);
+void _aio_putf                   (USHORT fno, FLOAT f);
+void _aio_putbool                (USHORT fno, BOOL b);
+
+void _aio_puts                   (USHORT fno, const UBYTE *str);
+
+void _aio_putnl                  (USHORT fno);
+void _aio_puttab                 (USHORT fno);
+
+struct FileHandle *_aio_getfh    (USHORT fno);
+
+// [ LINE ] INPUT support:
+
+void _aio_line_input             (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl);
+void _aio_console_input          (BOOL qm, UBYTE *prompt, BOOL do_nl);
+void _aio_inputs1                (USHORT fno, BYTE   *v);
+void _aio_inputu1                (USHORT fno, UBYTE  *v);
+void _aio_inputs2                (USHORT fno, SHORT  *v);
+void _aio_inputu2                (USHORT fno, USHORT *v);
+void _aio_inputs4                (USHORT fno, LONG   *v);
+void _aio_inputu4                (USHORT fno, ULONG  *v);
+void _aio_inputf                 (USHORT fno, FLOAT  *v);
+void _aio_inputs                 (USHORT fno, UBYTE  **v);
+void _aio_set_dos_cursor_visible (BOOL visible);
+
+void  LOCATE                     (SHORT l, SHORT c);
+short CSRLIN_                    (void);
+short POS_                       (SHORT dummy);
+
+#define FILE_MODE_RANDOM      0
+#define FILE_MODE_INPUT       1
+#define FILE_MODE_OUTPUT      2
+#define FILE_MODE_APPEND      3
+#define FILE_MODE_BINARY      4
+
+#define FILE_ACCESS_READ      0
+#define FILE_ACCESS_WRITE     1
+#define FILE_ACCESS_READWRITE 2
+
+void _aio_open  (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen);
+void _aio_close (USHORT fno);
+
+BOOL EOF_       (USHORT fno);
 
 #endif

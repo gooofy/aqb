@@ -25,7 +25,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	    sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas \
 	    darray1.bas darray2.bas darray3.bas darray4.bas darray5.bas darray6.bas darray7.bas \
 		darray8.bas darray9.bas darray10.bas \
-	    io2.bas io3.bas io4.bas
+	    io1.bas io2.bas io3.bas io4.bas io5.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
 OBJDIR_AMIGAOS_TESTS = aqb_tests/obj
@@ -43,10 +43,10 @@ BINS = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS}/%,$(basename $(SRCS)))
 #OBJS_OPT = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_TESTS_OPT}/%.o,$(basename $(SRCS)))
 BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS_OPT}/%,$(basename $(SRCS)))
 
-.PHONY: clean all mod1 io1 io5 subtest11 dirs runtests
+.PHONY: clean all mod1 subtest11 dirs runtests
 .PRECIOUS: $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s $(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
 
-all: dirs $(BINS) $(BINS_OPT) mod1 io1 io5 subtest11 runtests
+all: dirs $(BINS) $(BINS_OPT) mod1 subtest11 runtests
 
 $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : %.bas
 	$(AQB) $(AQBFLAGS) -a $(EMUDIR)/${ASMDIR_AMIGAOS_TESTS}/$<.s -o $@ $<
@@ -76,10 +76,6 @@ $(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/% : %.bas
 
 mod1:
 	cd mod1 ; make all
-io1:
-	cd io1 ; make all
-io5:
-	cd io5 ; make all
 subtest11:
 	cd subtest11 ; make all
 
@@ -87,13 +83,9 @@ runtests:
 	echo "; AQB test suite" > $(EMUDIR)/runtests
 	for t in $(BINS); do BN=`basename $$t` ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS)/$$BN" >> $(EMUDIR)/runtests ; done
 	BN="mod1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
-	BN="io1" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
-	BN="io5" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="subtest11" ; echo "echo $$BN" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	for t in $(BINS_OPT); do BN=`basename $$t` ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" >> $(EMUDIR)/runtests ; done
 	BN="mod1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
-	BN="io1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
-	BN="io5" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="subtest11" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	cat $(EMUDIR)/runtests
 
@@ -105,8 +97,6 @@ clean:
 	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)
 	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)
 	cd mod1 ; make clean
-	cd io1 ; make clean
-	cd io5 ; make clean
 	cd subtest11 ; make clean
 
 dirs:

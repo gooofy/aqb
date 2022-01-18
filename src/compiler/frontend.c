@@ -3203,7 +3203,7 @@ static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-static bool inputVar(S_tkn *tkn)
+static bool inputVar(S_tkn *tkn, CG_item exFNo)
 {
     CG_item var;
     if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
@@ -3251,6 +3251,8 @@ static bool inputVar(S_tkn *tkn)
         E_enventry func = lx->first->e;
         CG_itemList arglist = CG_ItemList();
         CG_itemListNode n = CG_itemListAppend(arglist);
+        n->item = exFNo;
+        n = CG_itemListAppend(arglist);
         n->item = var;
         //CG_loadRef(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, func->u.proc, arglist, NULL);
@@ -3258,60 +3260,93 @@ static bool inputVar(S_tkn *tkn)
     return TRUE;
 }
 
-// input ::= INPUT [ ";" ] [ stringLiteral (";" | ",") ] expDesignator ( "," expDesignator* )
+// input ::= INPUT ( [ ";" ] [ stringLiteral (";" | ",") ] expDesignator ( "," expDesignator* )
+//                 | # expFNo  "," expDesignator ( "," expDesignator* ) )
 static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    bool   do_nl  = TRUE;
-    bool   qm     = FALSE;
-    string prompt = NULL;
 
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "INPUT"
 
-    if ((*tkn)->kind == S_SEMICOLON)
-    {
-        do_nl = FALSE;
-        *tkn = (*tkn)->next;
-    }
+    CG_item exFNo;
 
-    if ((*tkn)->kind == S_STRING)
+    if ((*tkn)->kind == S_HASH)
     {
-        prompt = String(UP_frontend, (*tkn)->u.str);
+
         *tkn = (*tkn)->next;
+        S_pos pos = (*tkn)->pos;
+
+        if (!expression(tkn, &exFNo))
+            return EM_error(pos, "INPUT: fno expression expected here.");
 
         if ((*tkn)->kind != S_COMMA)
-        {
-            if ((*tkn)->kind != S_SEMICOLON)
-                return EM_error((*tkn)->pos, "INPUT: comma or semicolon expected here.");
-            qm = TRUE;
-        }
+            return EM_error((*tkn)->pos, "INPUT: , expected here.");
         *tkn = (*tkn)->next;
+
+        // FIXME: remove
+        // S_symbol fsym   = S_Symbol("_aio_file_input", FALSE);
+        // E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+        // if (!lx)
+        //     return EM_error(pos, "builtin %s not found.", S_name(fsym));
+        // E_enventry func = lx->first->e;
+        // CG_itemList arglist = CG_ItemList();
+        // CG_itemListNode n = CG_itemListAppend(arglist);
+        // n->item = exFNo;
+        // CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+    }
+    else
+    {
+        bool    do_nl  = TRUE;
+        bool    qm     = FALSE;
+        string  prompt = NULL;
+
+        if ((*tkn)->kind == S_SEMICOLON)
+        {
+            do_nl = FALSE;
+            *tkn = (*tkn)->next;
+        }
+
+        if ((*tkn)->kind == S_STRING)
+        {
+            prompt = String(UP_frontend, (*tkn)->u.str);
+            *tkn = (*tkn)->next;
+
+            if ((*tkn)->kind != S_COMMA)
+            {
+                if ((*tkn)->kind != S_SEMICOLON)
+                    return EM_error((*tkn)->pos, "INPUT: comma or semicolon expected here.");
+                qm = TRUE;
+            }
+            *tkn = (*tkn)->next;
+        }
+
+        S_symbol fsym   = S_Symbol("_aio_console_input", FALSE);
+        E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+        if (!lx)
+            return EM_error(pos, "builtin %s not found.", S_name(fsym));
+        E_enventry func = lx->first->e;
+        CG_itemList arglist = CG_ItemList();
+        CG_itemListNode n = CG_itemListAppend(arglist);
+        CG_BoolItem(&n->item, qm, Ty_Bool());
+        n = CG_itemListAppend(arglist);
+        if (prompt)
+            CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
+        else
+            CG_ZeroItem(&n->item, Ty_String());
+        n = CG_itemListAppend(arglist);
+        CG_BoolItem(&n->item, do_nl, Ty_Bool());
+        CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
+
+        CG_ZeroItem(&exFNo, Ty_UInteger());
     }
 
-    S_symbol fsym   = S_Symbol("_aio_console_input", FALSE);
-    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-    if (!lx)
-        return EM_error(pos, "builtin %s not found.", S_name(fsym));
-    E_enventry func = lx->first->e;
-    CG_itemList arglist = CG_ItemList();
-    CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_BoolItem(&n->item, do_nl, Ty_Bool());
-    n = CG_itemListAppend(arglist);
-    if (prompt)
-        CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
-    else
-        CG_ZeroItem(&n->item, Ty_String());
-    n = CG_itemListAppend(arglist);
-    CG_BoolItem(&n->item, qm, Ty_Bool());
-    CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
-
-    if (!inputVar(tkn))
+    if (!inputVar(tkn, exFNo))
         return FALSE;
 
     while ((*tkn)->kind == S_COMMA)
     {
         *tkn = (*tkn)->next;
-        if (!inputVar(tkn))
+        if (!inputVar(tkn, exFNo))
             return FALSE;
     }
 
@@ -3456,11 +3491,14 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// lineInput ::= LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
+// lineInput ::= LINE INPUT  ( [ ";" ] [ stringLiteral ";" ] expDesignator
+//                           |  # expFNo ,  expDesignator )
 static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-    bool   do_nl  = TRUE;
-    string prompt = NULL;
+    bool    do_nl  = TRUE;
+    string  prompt = NULL;
+    CG_item exFNo;
+    CG_item var;
 
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "LINE"
@@ -3469,24 +3507,45 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
         return FALSE;
     *tkn = (*tkn)->next; // skip "INPUT"
 
-    if ((*tkn)->kind == S_SEMICOLON)
+    if ((*tkn)->kind == S_HASH)
     {
-        do_nl = FALSE;
         *tkn = (*tkn)->next;
+        S_pos pos = (*tkn)->pos;
+
+        if (!expression(tkn, &exFNo))
+            return EM_error(pos, "LINE INPUT: fno expression expected here.");
+
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, "LINE INPUT: , expected here.");
+        *tkn = (*tkn)->next;
+
+        if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+            return EM_error(pos, "LINE INPUT: variable designator expected here.");
+
+    }
+    else
+    {
+        CG_ZeroItem (&exFNo, Ty_UInteger());
+
+        if ((*tkn)->kind == S_SEMICOLON)
+        {
+            do_nl = FALSE;
+            *tkn = (*tkn)->next;
+        }
+
+        if ((*tkn)->kind == S_STRING)
+        {
+            prompt = String(UP_frontend, (*tkn)->u.str);
+            *tkn = (*tkn)->next;
+            if ((*tkn)->kind != S_SEMICOLON)
+                return EM_error((*tkn)->pos, "LINE INPUT: semicolon expected here.");
+            *tkn = (*tkn)->next;
+        }
+
+        if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
+            return EM_error(pos, "LINE INPUT: variable designator expected here.");
     }
 
-    if ((*tkn)->kind == S_STRING)
-    {
-        prompt = String(UP_frontend, (*tkn)->u.str);
-        *tkn = (*tkn)->next;
-        if ((*tkn)->kind != S_SEMICOLON)
-            return EM_error((*tkn)->pos, "LINE INPUT: semicolon expected here.");
-        *tkn = (*tkn)->next;
-    }
-
-    CG_item var;
-    if (!expDesignator(tkn, &var, /*isVARPTR=*/TRUE, /*leftHandSide=*/FALSE))
-        return EM_error(pos, "LINE INPUT: variable designator expected here.");
 
     S_symbol fsym   = S_Symbol("_aio_line_input", FALSE);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
@@ -3495,6 +3554,8 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
     CG_itemListNode n = CG_itemListAppend(arglist);
+    n->item = exFNo;
+    n = CG_itemListAppend(arglist);
     if (prompt)
         CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
     else

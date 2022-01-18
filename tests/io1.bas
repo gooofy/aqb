@@ -9,13 +9,12 @@ DIM AS ULONG    ul  = 100000
 DIM AS SINGLE   f   = 3.1415
 DIM AS BOOLEAN  myb = TRUE
 
-' _debug_puts("iotest") : _debug_putnl
-
 PRINT "i/o Test 1: ",b;23;ub;i;ui;l;ul;f;myb
 
 PRINT "Press any key..."
 
 WHILE INKEY$ = ""
+    SLEEP
 WEND
 
 PRINT "Thank you."

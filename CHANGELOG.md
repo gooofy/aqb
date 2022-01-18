@@ -8,6 +8,7 @@ Improvements:
     * runtime: CLEAR statement added
     * runtime: MID$, UCASE$, LCASE$, INSTR, LEFT$, RIGHT$ functions added
     * runtime: ABS function added
+    * runtime: EOF() function added
     * compiler: support pure interface modules that have no code
 
 Bug Fixes:

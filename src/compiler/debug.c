@@ -1207,8 +1207,15 @@ static void _debug(struct DebugMsg *msg)
             IDE_cprintf(g_ide, "RUNTIME ERROR %d ", g_dbgEnv.u.dbg.msg.u.err);
             switch (g_dbgEnv.u.dbg.msg.u.err)
             {
+                case   4: IDE_cprintf(g_ide, "(OUT OF DATA)"); break;
+                case   5: IDE_cprintf(g_ide, "(ILLEGAL FUNCTION CALL)"); break;
                 case   7: IDE_cprintf(g_ide, "(OUT OF MEMORY)"); break;
                 case   9: IDE_cprintf(g_ide, "(ARRAY SUBSCRIPT OUT OF RANGE)"); break;
+                case  10: IDE_cprintf(g_ide, "(INCOMPATIBLE ARRAY)"); break;
+                case  52: IDE_cprintf(g_ide, "(BAD FILE NUMBER)"); break;
+                case  54: IDE_cprintf(g_ide, "(BAD FILE MODE)"); break;
+                case  57: IDE_cprintf(g_ide, "(I/O ERROR)"); break;
+                case  64: IDE_cprintf(g_ide, "(BAD FILE NAME)"); break;
                 case 101: IDE_cprintf(g_ide, "(WIN OPEN)"); break;
                 case 102: IDE_cprintf(g_ide, "(SCREEN OPEN)"); break;
                 case 103: IDE_cprintf(g_ide, "(PALETTE)"); break;
@@ -1221,13 +1228,9 @@ static void _debug(struct DebugMsg *msg)
                 case 110: IDE_cprintf(g_ide, "(PAINT)"); break;
                 case 111: IDE_cprintf(g_ide, "(LINE)"); break;
                 case 112: IDE_cprintf(g_ide, "(PSET)"); break;
-                case 113: IDE_cprintf(g_ide, "(INPUT OUT OF DATA)"); break;
                 case 114: IDE_cprintf(g_ide, "(ON TIMER CALL)"); break;
                 case 115: IDE_cprintf(g_ide, "(TIMER ON)"); break;
                 case 116: IDE_cprintf(g_ide, "(TIMER OFF)"); break;
-                case 117: IDE_cprintf(g_ide, "(OPEN)"); break;
-                case 118: IDE_cprintf(g_ide, "(OUTPUT)"); break;
-                case 119: IDE_cprintf(g_ide, "(CLOSE)"); break;
                 case 120: IDE_cprintf(g_ide, "(MOUSE)"); break;
                 case 121: IDE_cprintf(g_ide, "(BLIT)"); break;
                 case 122: IDE_cprintf(g_ide, "(RASTPORT)"); break;

@@ -1,9 +1,0 @@
-OPTION EXPLICIT
-
-' FIXME DIM Zeile AS STRING, DNr AS INTEGER = FREEFILE
-DIM Zeile AS STRING, DNr AS INTEGER = 1
-OPEN "io5_tmp.txt" FOR OUTPUT AS #DNr
-PRINT #DNr, "this is a line"
-PRINT #DNr, "this is anoter line"
-CLOSE #DNr
-

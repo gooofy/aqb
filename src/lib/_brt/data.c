@@ -21,6 +21,8 @@ void _aqb_read1 (void *v)
         return;
     }
 
+    g_data_ptr += 1;    // skip stuffing byte
+
     *((BYTE*) v) = *((BYTE *)g_data_ptr);
 
     g_data_ptr += 1;

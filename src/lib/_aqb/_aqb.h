@@ -14,67 +14,6 @@ extern struct GfxBase       *GfxBase;
 extern struct Library       *DiskfontBase;
 
 /*
- * print statement support
- */
-
-extern BPTR g_stdout;
-
-void _aio_init                   (void);
-void _aio_shutdown               (void);
-
-void _aio_puts4                  (USHORT fno, LONG num);
-void _aio_puts2                  (USHORT fno, SHORT num);
-void _aio_puts1                  (USHORT fno, UBYTE num);
-void _aio_putu4                  (USHORT fno, ULONG num);
-void _aio_putu2                  (USHORT fno, USHORT num);
-void _aio_putu1                  (USHORT fno, UBYTE num);
-void _aio_puthex                 (USHORT fno, LONG num);
-void _aio_putuhex                (USHORT fno, ULONG l);
-void _aio_putbin                 (USHORT fno, LONG num);
-void _aio_putf                   (USHORT fno, FLOAT f);
-void _aio_putbool                (USHORT fno, BOOL b);
-
-void _aio_puts                   (USHORT fno, const UBYTE *str);
-void _aio_fputs                  (USHORT fno, const UBYTE *str);
-
-void _aio_putnl                  (USHORT fno);
-void _aio_puttab                 (USHORT fno);
-
-struct FileHandle *_aio_getfh    (USHORT fno);
-
-// [ LINE ] INPUT support:
-
-void _aio_gets                   (UBYTE **s, BOOL do_nl);
-void _aio_line_input             (UBYTE *prompt, UBYTE **s, BOOL do_nl);
-void _aio_console_input          (BOOL qm, UBYTE *prompt, BOOL do_nl);
-void _aio_inputs1                (BYTE   *v);
-void _aio_inputu1                (UBYTE  *v);
-void _aio_inputs2                (SHORT  *v);
-void _aio_inputu2                (USHORT *v);
-void _aio_inputs4                (LONG   *v);
-void _aio_inputu4                (ULONG  *v);
-void _aio_inputf                 (FLOAT  *v);
-void _aio_inputs                 (UBYTE  **v);
-void _aio_set_dos_cursor_visible (BOOL visible);
-
-void  LOCATE                     (SHORT l, SHORT c);
-short CSRLIN_                    (void);
-short POS_                       (SHORT dummy);
-
-#define FILE_MODE_RANDOM      0
-#define FILE_MODE_INPUT       1
-#define FILE_MODE_OUTPUT      2
-#define FILE_MODE_APPEND      3
-#define FILE_MODE_BINARY      4
-
-#define FILE_ACCESS_READ      0
-#define FILE_ACCESS_WRITE     1
-#define FILE_ACCESS_READWRITE 2
-
-void _aio_open  (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen);
-void _aio_close (USHORT fno);
-
-/*
  * bitmaps, screens, windows, fonts, graphics
  */
 
@@ -123,13 +62,9 @@ SHORT    TEXTWIDTH_           (UBYTE *s);
 #define AE_PAINT                    110
 #define AE_LINE                     111
 #define AE_PSET                     112
-#define AE_INPUT_OUT_OF_DATA        113
 #define AE_ON_TIMER_CALL            114
 #define AE_TIMER_ON                 115
 #define AE_TIMER_OFF                116
-#define AE_OPEN                     117
-#define AE_OUTPUT                   118
-#define AE_CLOSE                    119
 #define AE_MOUSE                    120
 #define AE_BLIT                     121
 #define AE_RASTPORT                 122
