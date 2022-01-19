@@ -1278,6 +1278,7 @@ static BOOL _awindow_gets(UBYTE **s, BOOL do_nl)
 
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
+        _aio_init();
         _aio_set_dos_cursor_visible (TRUE);
         LONG bytes = Read(g_stdin, (CONST APTR) buf, MAXINPUTBUF);
         buf[bytes-1] = '\0';

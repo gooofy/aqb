@@ -12,7 +12,6 @@ struct IntuitionBase  *IntuitionBase = NULL;
 struct GfxBase        *GfxBase       = NULL;
 struct Library        *DiskfontBase  = NULL;
 
-static BOOL aio_init_done       = FALSE;
 static BOOL awindow_init_done   = FALSE;
 static BOOL atimer_init_done    = FALSE;
 static BOOL asound_init_done    = FALSE;
@@ -25,8 +24,6 @@ void _aqb_shutdown(void)
         _atimer_shutdown();
     if (awindow_init_done)
         _awindow_shutdown();
-    if (aio_init_done)
-        _aio_shutdown();
 
     if (DiskfontBase)
         CloseLibrary( DiskfontBase);
@@ -53,9 +50,6 @@ void __aqb_init(void)
 
     _awindow_init();
     awindow_init_done = TRUE;
-
-    _aio_init();
-    aio_init_done = TRUE;
 
     _atimer_init();
     atimer_init_done = TRUE;

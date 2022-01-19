@@ -36,6 +36,7 @@ struct MathTransBase *MathTransBase = NULL;
 struct UtilityBase   *UtilityBase   = NULL;
 
 static BOOL autil_init_done = FALSE;
+static BOOL aio_init_done   = FALSE;
 
 struct Task             *_autil_task             = NULL;
 static struct IOStdReq  *g_inputReqBlk           = NULL;
@@ -339,6 +340,15 @@ void _c_atexit(void)
         _autil_delete_port(g_inputPort);
     }
 
+    if (aio_init_done)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: _aio_shutdown\n");
+        //Delay(50);
+#endif
+        _aio_shutdown();
+    }
+
     if (autil_init_done)
     {
 #ifdef ENABLE_DEBUG
@@ -506,6 +516,9 @@ void _cstartup (void)
     _astr_init();
 
     _amath_init();
+
+    _aio_init();
+    aio_init_done = TRUE;
 }
 
 void __brt_init(void)

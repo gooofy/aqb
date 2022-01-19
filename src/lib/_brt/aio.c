@@ -68,7 +68,7 @@ void _aio_puts (USHORT fno, const UBYTE *s)
         return;
     }
 
-    DPRINTF ("_aio_puts: fno=%d -> CLI\n", fno);
+    DPRINTF ("_aio_puts: fno=%d -> CLI, s='%s'\n", fno, s);
     ULONG l = LEN_(s);
     Write(g_stdout, (CONST APTR) s, l);
 }
@@ -474,18 +474,40 @@ void _aio_console_input (BOOL qm, UBYTE *prompt, BOOL do_nl)
 {
     DPRINTF ("aio: _aio_console_input qm=%d, prompt=%s, do_nl=%d\n", qm, prompt ? (char *)prompt : "NULL", do_nl);
 
-#if 0
     if (prompt)
-        _aio_puts (0, prompt);
+        _aio_puts (/*fno=*/0, prompt);
     if (qm)
-        _aio_puts (0, (STRPTR)"?");
+        _aio_puts (/*fno=*/0, (STRPTR)"?");
 
-    _aio_line_input (/*fno=*/0, /*prompt=*/NULL, &g_input_buffer, do_nl);
-    g_input_pos = 0;
-    g_input_len = LEN_(g_input_buffer);
-    g_input_eof = FALSE;
-    _input_getch();
-#endif
+    fileinfo_t *fi = g_fis[0];
+
+    if (!fi)
+    {
+        fi = AllocVec(sizeof(*fi), MEMF_CLEAR);
+        if (!fi)
+        {
+            DPRINTF ("_aio_console_input: out of memory\n");
+            ERROR(ERR_OUT_OF_MEMORY);
+            return;
+        }
+
+        fi->fhBPTR     = 0;
+        fi->fh         = NULL;
+        fi->input_pos  = 0;
+        fi->input_len  = 0;
+        fi->eof        = FALSE;
+        fi->getch_done = FALSE;
+
+        g_fis[0] = fi;
+    }
+
+    _aio_line_input (/*fno=*/0, /*prompt=*/NULL, (UBYTE**) &fi->input_buffer, do_nl);
+
+    fi->input_pos = 0;
+    fi->input_len = LEN_(fi->input_buffer);
+    fi->eof       = FALSE;
+
+    _input_getch(/*fno=*/0);
 }
 
 void _aio_inputs1 (USHORT fno, BYTE   *v)
