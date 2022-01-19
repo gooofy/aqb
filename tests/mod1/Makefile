@@ -47,7 +47,7 @@ $(TESTDIR)/mod1.s:	mod1.bas $(TESTDIR)/foo.sym $(TESTDIR)/bar.sym
 	$(AQB) $(AQBFLAGS) -a $(TESTDIR)/mod1.s mod1.bas
 
 $(TESTDIR)/mod1:	$(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o
-	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR)/mod1
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR)/mod1.o $(TESTDIR)/foo.o $(TESTDIR)/bar.o ../../src/lib/_aqb/_aqb.a ../../src/lib/_brt/_brt.a -o $(TESTDIR)/mod1
 
 
 $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o $(TESTDIR_OPT)/mod1.o : $(TESTDIR_OPT)/%.o:	$(TESTDIR_OPT)/%.s
@@ -57,5 +57,5 @@ $(TESTDIR_OPT)/mod1.s:	mod1.bas $(TESTDIR_OPT)/foo.sym $(TESTDIR_OPT)/bar.sym
 	$(AQB) $(AQBFLAGS_OPT) -a $(TESTDIR_OPT)/mod1.s mod1.bas
 
 $(TESTDIR_OPT)/mod1:	$(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o
-	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a -o $(TESTDIR_OPT)/mod1
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $(TESTDIR_OPT)/mod1.o $(TESTDIR_OPT)/foo.o $(TESTDIR_OPT)/bar.o ../../src/lib/_aqb/_aqb.a ../../src/lib/_brt/_brt.a -o $(TESTDIR_OPT)/mod1
 
