@@ -317,6 +317,15 @@ Syntax:
 exit the program (same as SYSTEM)
 
 
+## EOF()
+
+Syntax:
+
+    EOF "(" fileNo ")"
+
+return TRUE if end of file is reached for input stream #fileNo, FALSE otherwise.
+
+
 ## EQV
 
 Syntax:
