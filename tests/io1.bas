@@ -11,11 +11,11 @@ DIM AS BOOLEAN  myb = TRUE
 
 PRINT "i/o Test 1: ",b;23;ub;i;ui;l;ul;f;myb
 
-PRINT "Press any key..."
+PRINT "Press RETURN..."
 
-WHILE INKEY$ = ""
-    SLEEP
-WEND
+DIM AS STRING answer
+
+INPUT answer
 
 PRINT "Thank you."
 
