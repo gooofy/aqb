@@ -668,7 +668,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
     LOG_printf (LOG_DEBUG, "DEBUG _launch_process: CreateNewProc for %s ...\n", binfn);
     env->childProc = CreateNewProcTags(NP_Seglist,     (ULONG) env->seglist,
 									   NP_FreeSeglist, FALSE,
-									   NP_Input,       0l,
+									   NP_Input,       aqb_wbstart ? 0 : Input(),
                                        NP_Output,      aqb_wbstart ? 0 : Output(),
                                        NP_CloseInput,  FALSE,
                                        NP_CloseOutput, FALSE,
