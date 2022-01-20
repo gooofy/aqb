@@ -296,9 +296,7 @@ void _aio_line_input (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
     buf[bytes-1] = '\0';
     _aio_set_dos_cursor_visible (FALSE);
 
-#ifdef ENABLE_DEBUG
     DPRINTF ("aio_line_input: buf=%s\n", buf);
-#endif
 
     *s = _astr_dup (buf);
 }
