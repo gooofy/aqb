@@ -100,16 +100,6 @@ Syntax:
 close one or more files
 
 
-## CLS
-
-Syntax:
-
-    CLS
-
-Clear the current output window and set the cursor position to the upper
-left corner
-
-
 ## CSRLIN()
 
 Syntax:
@@ -240,15 +230,6 @@ Syntax:
     LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
 
 request a STRING keyboard entry from a program user.
-
-
-## LOCATE
-
-Syntax:
-
-    LOCATE [ row ] [ "," col ]
-
-move cursor to col / row
 
 
 ## LOCATE XY

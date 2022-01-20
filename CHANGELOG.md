@@ -9,6 +9,7 @@ Improvements:
     * runtime: MID$, UCASE$, LCASE$, INSTR, LEFT$, RIGHT$ functions added
     * runtime: ABS function added
     * runtime: EOF() function added
+    * runtime: CLS, LOCATE moved from \_aqb to \_brt
     * compiler: support pure interface modules that have no code
 
 Bug Fixes:

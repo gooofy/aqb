@@ -489,22 +489,19 @@ enum _aqb_output_type  _aqb_get_output (BOOL needGfx)
     return g_cur_ot;
 }
 
-/*
- * CLS
- */
-
-void CLS (void)
+static BOOL _awindow_cls (void)
 {
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         char form_feed = 0x0c;
         Write(g_stdout, (CONST APTR) &form_feed, 1);
-        return;
+        return TRUE;
     }
 
     Move (_g_cur_rp, 0, 0);
     ClearScreen(_g_cur_rp);
     LOCATE(1, 1);
+    return TRUE;
 }
 
 /*
@@ -1180,7 +1177,7 @@ static BOOL _awindow_puts(UBYTE *s)
 
 #define CSI 0x9b
 
-void LOCATE (SHORT l, SHORT c)
+static BOOL _awindow_locate (SHORT l, SHORT c)
 {
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
@@ -1197,7 +1194,7 @@ void LOCATE (SHORT l, SHORT c)
         buf[l+1] = 0;
 
         Write(g_stdout, (CONST APTR) buf, l+1);
-        return;
+        return TRUE;
     }
 
     if (l<=0)
@@ -1212,6 +1209,8 @@ void LOCATE (SHORT l, SHORT c)
     WORD win_y = _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? 0 : _g_cur_win->BorderTop;
 
     Move (_g_cur_rp, win_x + c * _g_cur_rp->Font->tf_XSize, win_y + l * _g_cur_rp->Font->tf_YSize + _g_cur_rp->Font->tf_Baseline);
+
+    return TRUE;
 }
 
 void LOCATE_XY (BOOL s, SHORT x, SHORT y)
@@ -2009,8 +2008,11 @@ void _awindow_init(void)
 {
     g_stdout = Output();
     g_stdin  = Input();
-    _aio_puts_cb = _awindow_puts;
-    _aio_gets_cb = _awindow_gets;
+
+    _aio_puts_cb   = _awindow_puts;
+    _aio_gets_cb   = _awindow_gets;
+    _aio_cls_cb    = _awindow_cls;
+    _aio_locate_cb = _awindow_locate;
 
     g_fp15   = SPFlt(15);
     g_fp50   = SPFlt(50);

@@ -157,6 +157,16 @@ convert x to a long integer by rounding the fractional portion.
 NOTE: When the fractional portion is exactly .5, CLNG always rounds up.
 
 
+## CLS
+
+Syntax:
+
+    CLS
+
+Clear the current output window and set the cursor position to the upper
+left corner
+
+
 ## CONST
 
 Syntax A:
@@ -546,6 +556,15 @@ Syntax:
 
 assign the value of an expression to a variable or designator. The LET
 keyword is optional.
+
+
+## LOCATE
+
+Syntax:
+
+    LOCATE [ row ] [ "," col ]
+
+move cursor to col / row
 
 
 ## LOG()

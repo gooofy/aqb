@@ -180,6 +180,10 @@ PUBLIC DECLARE SUB _aio_inputf                 (BYVAL fno AS UINTEGER, BYREF v A
 PUBLIC DECLARE SUB _aio_inputs                 (BYVAL fno AS UINTEGER, BYREF v AS STRING  )
 PUBLIC DECLARE SUB _aio_set_dos_cursor_visible (BYVAL visible AS BOOLEAN)
 
+PUBLIC DECLARE SUB CLS
+PUBLIC DECLARE SUB LOCATE                      (BYVAL l AS INTEGER=-1, BYVAL c AS INTEGER=-1)
+
+
 ' file i/o
 
 PUBLIC CONST AS UINTEGER FILE_MODE_RANDOM      = 0

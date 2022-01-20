@@ -272,15 +272,19 @@ void _aqb_read4   (void *v);
 void _aqb_readStr (void *v);
 
 /*
- * print statement support
+ * PRINT / INPUT / terminal statement support
  */
 
 typedef BOOL (*_aio_puts_cb_t)   (UBYTE *s);
 typedef BOOL (*_aio_puttab_cb_t) (void);
 typedef BOOL (*_aio_gets_cb_t)   (UBYTE **s, BOOL do_nl);
+typedef BOOL (*_aio_cls_cb_t)    (void);
+typedef BOOL (*_aio_locate_cb_t) (SHORT l, SHORT c);
 
-extern _aio_puts_cb_t   _aio_puts_cb;
-extern _aio_gets_cb_t   _aio_gets_cb;
+extern _aio_puts_cb_t    _aio_puts_cb;
+extern _aio_gets_cb_t    _aio_gets_cb;
+extern _aio_cls_cb_t     _aio_cls_cb;
+extern _aio_locate_cb_t  _aio_locate_cb;
 
 void _aio_init                   (void);
 void _aio_shutdown               (void);
@@ -319,8 +323,7 @@ void _aio_inputs                 (USHORT fno, UBYTE  **v);
 void _aio_set_dos_cursor_visible (BOOL visible);
 
 void  LOCATE                     (SHORT l, SHORT c);
-short CSRLIN_                    (void);
-short POS_                       (SHORT dummy);
+void  CLS                        (void);
 
 #define FILE_MODE_RANDOM      0
 #define FILE_MODE_INPUT       1

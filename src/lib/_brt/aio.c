@@ -33,17 +33,10 @@ typedef struct
 
 static fileinfo_t *g_fis[AIO_MAX_FILES];
 
-// static struct FileHandle *g_files[AIO_MAX_FILES];
-//
-// static UBYTE *g_input_buffer;
-// static LONG   g_input_pos;
-// static LONG   g_input_len;
-// static BOOL   g_input_eof;
-// static UBYTE  g_input_ch;
-// static UBYTE  g_input_token[MAX_TOKEN_LEN+1]; // add room for final \0
-
-_aio_puts_cb_t _aio_puts_cb = NULL;
-_aio_gets_cb_t _aio_gets_cb = NULL;
+_aio_puts_cb_t   _aio_puts_cb   = NULL;
+_aio_gets_cb_t   _aio_gets_cb   = NULL;
+_aio_cls_cb_t    _aio_cls_cb    = NULL;
+_aio_locate_cb_t _aio_locate_cb = NULL;
 
 static BPTR g_stdout, g_stdin;
 
@@ -706,6 +699,44 @@ BOOL EOF_ (USHORT fno)
 
     return !_buffer (fno);
 }
+
+void CLS (void)
+{
+    if (_aio_cls_cb && _aio_cls_cb() )
+    {
+        DPRINTF ("CLS: _aqb\n");
+        return;
+    }
+
+    char form_feed = 0x0c;
+    Write(g_stdout, (CONST APTR) &form_feed, 1);
+    return;
+}
+
+void LOCATE (SHORT line, SHORT col)
+{
+    if (_aio_locate_cb && _aio_locate_cb(line, col) )
+    {
+        DPRINTF ("LOCATE: _aqb\n");
+        return;
+    }
+
+    UBYTE buf[20];
+    buf[0] = CSI;
+    _astr_itoa_ext(line, &buf[1], 10, /*leading_space=*/FALSE);
+
+    int l = LEN_(buf);
+    buf[l] = ';';
+    l++;
+    _astr_itoa_ext(col, &buf[l], 10, /*leading_space=*/FALSE);
+    l = LEN_(buf);
+    buf[l] = 'H';
+    buf[l+1] = 0;
+
+    Write(g_stdout, (CONST APTR) buf, l+1);
+    return;
+}
+
 
 void _aio_shutdown(void)
 {
