@@ -277,7 +277,7 @@ void _aqb_readStr (void *v);
 
 typedef BOOL (*_aio_puts_cb_t)   (UBYTE *s);
 typedef BOOL (*_aio_puttab_cb_t) (void);
-typedef BOOL (*_aio_gets_cb_t)   (UBYTE **s, BOOL do_nl);
+typedef BOOL (*_aio_gets_cb_t)   (UBYTE *buf, USHORT buf_len, BOOL do_nl);
 typedef BOOL (*_aio_cls_cb_t)    (void);
 typedef BOOL (*_aio_locate_cb_t) (SHORT l, SHORT c);
 

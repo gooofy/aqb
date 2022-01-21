@@ -251,6 +251,22 @@ static BOOL _input_getch (USHORT fno)
     return TRUE;
 }
 
+static void _aio_gets (UBYTE *buf, USHORT buf_len, BOOL do_nl)
+{
+    if (_aio_gets_cb && _aio_gets_cb(buf, buf_len, do_nl) )
+    {
+        DPRINTF ("_aio_gets: _aqb\n");
+        return;
+    }
+
+    _aio_set_dos_cursor_visible (TRUE);
+    LONG bytes = Read(g_stdin, (CONST APTR) buf, MAX_LINE_LEN);
+    buf[bytes-1] = '\0';
+    _aio_set_dos_cursor_visible (FALSE);
+
+    DPRINTF ("_aio_gets: buf=%s\n", buf);
+}
+
 void _aio_line_input (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
 {
     static UBYTE buf[MAX_LINE_LEN+1];
@@ -259,7 +275,7 @@ void _aio_line_input (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
 
     if (fno)
     {
-        DPRINTF ("_aio_puts: fno=%d -> file i/o\n", fno);
+        DPRINTF ("_aio_line_input: fno=%d -> file i/o\n", fno);
         if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
         {
             ERROR(ERR_BAD_FILE_NUMBER);
@@ -285,18 +301,7 @@ void _aio_line_input (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
     if (prompt)
         _aio_puts(/*fno=*/0, prompt);
 
-    if (_aio_gets_cb && _aio_gets_cb(s, do_nl) )
-    {
-        DPRINTF ("_aio_gets: _aqb\n");
-        return;
-    }
-
-    _aio_set_dos_cursor_visible (TRUE);
-    LONG bytes = Read(g_stdin, (CONST APTR) buf, MAX_LINE_LEN);
-    buf[bytes-1] = '\0';
-    _aio_set_dos_cursor_visible (FALSE);
-
-    DPRINTF ("aio_line_input: buf=%s\n", buf);
+    _aio_gets (buf, MAX_LINE_LEN, do_nl);
 
     *s = _astr_dup (buf);
 }
@@ -492,13 +497,13 @@ void _aio_console_input (BOOL qm, UBYTE *prompt, BOOL do_nl)
         g_fis[0] = fi;
     }
 
-    _aio_line_input (/*fno=*/0, /*prompt=*/NULL, (UBYTE**) &fi->input_buffer, do_nl);
+    _aio_gets (fi->input_buffer, MAX_INPUT_BUF, do_nl);
 
     fi->input_pos = 0;
     fi->input_len = LEN_(fi->input_buffer);
     fi->eof       = FALSE;
 
-    _input_getch(/*fno=*/0);
+    //_input_getch(/*fno=*/0);
 }
 
 void _aio_inputs1 (USHORT fno, BYTE   *v)

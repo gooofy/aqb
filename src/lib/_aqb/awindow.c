@@ -1270,16 +1270,15 @@ static BOOL is_eol (UBYTE c)
     return (c=='\r') || (c=='\n');
 }
 
-static BOOL _awindow_gets(UBYTE **s, BOOL do_nl)
+static BOOL _awindow_gets(UBYTE *buf, USHORT buf_len, BOOL do_nl)
 {
-    static UBYTE buf[MAXINPUTBUF];
     static UBYTE twospaces[] = "  ";
 
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         _aio_init();
         _aio_set_dos_cursor_visible (TRUE);
-        LONG bytes = Read(g_stdin, (CONST APTR) buf, MAXINPUTBUF);
+        LONG bytes = Read(g_stdin, (CONST APTR) buf, buf_len);
         buf[bytes-1] = '\0';
         _aio_set_dos_cursor_visible (FALSE);
     }
@@ -1354,8 +1353,6 @@ static BOOL _awindow_gets(UBYTE **s, BOOL do_nl)
 #ifdef ENABLE_DEBUG
     DPRINTF ("_aio_gets: buf=%s\n", buf);
 #endif
-
-    *s = _astr_dup (buf);
 
     return TRUE;
 }
