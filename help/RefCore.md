@@ -670,7 +670,7 @@ Syntax:
 
     OPTION DEBUG [ ( ON | OFF ) ]
 
-instructs the compiler to generate debug code (i.e. DPRINT etc.) or not
+instructs the compiler to generate debug code (i.e. TRACE etc.) or not
 
 
 ## OPTION EXPLICIT
@@ -744,6 +744,17 @@ Syntax:
     POKEL address, value
 
 store long (32 bits) value at the specified memory address
+
+
+## PRINT
+
+Syntax:
+
+    PRINT [ "#" expFNo "," ]  [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to the screen or a file (if expFNo is given). ";" means no space, "," means
+skip to next 9 col tab, ";" or "," at the end of the line mean no newline
+is printed.
 
 
 ## RANDOMIZE

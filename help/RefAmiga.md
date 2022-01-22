@@ -372,17 +372,6 @@ returns the column of the cursor in the current window (expression given is
 a dummy value for compatibility reasons, usually 0).
 
 
-## PRINT
-
-Syntax:
-
-    PRINT [ "#" expFNo "," ]  [ expression ( [ ";" | "," ] expression )* ]
-
-print the listed expressions to the screen or a file (if expFNo is given). ";" means no space, "," means
-skip to next 9 col tab, ";" or "," at the end of the line mean no newline
-is printed.
-
-
 ## PSET
 
 Syntax:

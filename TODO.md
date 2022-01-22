@@ -121,6 +121,7 @@ DONE translate forum posts, add useful information to README
 - DONE CLEAR
 - DONE CLNG()
 - DONE CLOSE
+- DONE CLS
 - \_\_\_\_ COMMON
 - DONE COS()
 - \_\_\_\_ CSNG()
@@ -175,6 +176,7 @@ DONE translate forum posts, add useful information to README
 - \_\_\_\_ LLIST
 - \_\_\_\_ LOC()
 - \_\_\_\_ LOF()
+- DONE LOCATE
 - DONE LOG()
 - \_\_\_\_ LPOS()
 - \_\_\_\_ LSET
@@ -202,6 +204,8 @@ DONE translate forum posts, add useful information to README
 - DONE POKEL
 - DONE POKEW
 - \_\_\_\_ PUT
+- DONE PRINT
+- \_\_\_\_ PRINT USING
 - DONE RANDOMIZE
 - DONE READ
 - DONE REM
@@ -244,7 +248,6 @@ DONE translate forum posts, add useful information to README
 - DONE AREA OUTLINE
 - \_\_\_\_ BEEP
 - DONE CIRCLE
-- DONE CLS
 - \_\_\_\_ COLLISION ON
 - \_\_\_\_ COLLISION OFF
 - \_\_\_\_ COLLISION STOP
@@ -254,7 +257,6 @@ DONE translate forum posts, add useful information to README
 - DONE GET
 - DONE INKEY$
 - DONE LINE
-- DONE LOCATE
 - \_\_\_\_ LPRINT
 - \_\_\_\_ MENU
 - \_\_\_\_ MENU RESET
@@ -293,8 +295,6 @@ DONE translate forum posts, add useful information to README
 - DONE PATTERN
 - \_\_\_\_ POINT
 - DONE POS
-- DONE PRINT
-- \_\_\_\_ PRINT USING
 - \_\_\_\_ PRESET
 - DONE PSET
 - \_\_\_\_ PTAB
