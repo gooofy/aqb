@@ -172,7 +172,7 @@ DONE translate forum posts, add useful information to README
 - \_\_\_\_ LIBRARY
 - \_\_\_\_ LIBRARY CLOSE
 - DONE LINE INPUT
-- \_\_\_\_ LINE INPUT#
+- DONE LINE INPUT#
 - \_\_\_\_ LLIST
 - \_\_\_\_ LOC()
 - \_\_\_\_ LOF()
