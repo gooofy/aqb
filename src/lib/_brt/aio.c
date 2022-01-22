@@ -361,15 +361,13 @@ static void _input_skip_delimiter (USHORT fno)
 
 static void _input_next_token (USHORT fno)
 {
-    fileinfo_t *fi = g_fis[fno];
+    fileinfo_t *fi  = g_fis[fno];
+    BOOL        eof = FALSE;
 
     if (!fi->getch_done)
     {
         if (!_input_getch(fno))
-        {
-            ERROR (ERR_OUT_OF_DATA); // FIXME: in console input, re-prompt the user
-            return;
-        }
+            eof = TRUE;
         fi->getch_done = TRUE;
     }
     DPRINTF("_input_next_token: getch_done=%d, input_ch=%d\n", fi->getch_done, fi->input_ch);
@@ -381,7 +379,6 @@ static void _input_next_token (USHORT fno)
     BOOL        skip_delim = TRUE;
     BOOL        in_quote   = FALSE;
     int         len        = 0;
-    BOOL        eof        = FALSE;
 
     while (!eof && (len < MAX_TOKEN_LEN))
     {
