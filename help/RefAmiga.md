@@ -214,15 +214,6 @@ draw a line or a box on the current window, "b": A box is drawn, "bf": a
 filled box is drawn.  If option STEP is set, coordinates are relative.
 
 
-## LINE INPUT
-
-Syntax:
-
-    LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
-
-request a STRING keyboard entry from a program user.
-
-
 ## LOCATE XY
 
 Syntax:

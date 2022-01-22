@@ -576,6 +576,15 @@ assign the value of an expression to a variable or designator. The LET
 keyword is optional.
 
 
+## LINE INPUT
+
+Syntax:
+
+    LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
+
+request a STRING keyboard entry from a program user.
+
+
 ## LOCATE
 
 Syntax:
