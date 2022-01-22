@@ -492,6 +492,15 @@ Syntax:
 import a module
 
 
+## INPUT
+
+Syntax:
+
+    INPUT [ ";" ] [ prompt (";" | ",") ] expDesignator ( "," expDesignator* )
+
+read input from the keyboard, store values in the variables given.
+
+
 ## INSTR()
 
 Syntax:

@@ -204,15 +204,6 @@ Non-ascii key codes:
     * 138 F10
 
 
-## INPUT
-
-Syntax:
-
-    INPUT [ ";" ] [ prompt (";" | ",") ] expDesignator ( "," expDesignator* )
-
-read input from the keyboard, store values in the variables given.
-
-
 ## LINE
 
 Syntax:
