@@ -501,6 +501,15 @@ Syntax:
 read input from the keyboard, store values in the variables given.
 
 
+## INPUT\#
+
+Syntax:
+
+    INPUT "#" expFNo "," expDesignator ( "," expDesignator* )
+
+read input from file stream, store values in the variables given.
+
+
 ## INSTR()
 
 Syntax:
@@ -759,9 +768,20 @@ store long (32 bits) value at the specified memory address
 
 Syntax:
 
-    PRINT [ "#" expFNo "," ]  [ expression ( [ ";" | "," ] expression )* ]
+    PRINT [ expression ( [ ";" | "," ] expression )* ]
 
-print the listed expressions to the screen or a file (if expFNo is given). ";" means no space, "," means
+print the listed expressions to the screen. ";" means no space, "," means
+skip to next 9 col tab, ";" or "," at the end of the line mean no newline
+is printed.
+
+
+## PRINT#
+
+Syntax:
+
+    PRINT "#" expFNo "," [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to given file stream. ";" means no space, "," means
 skip to next 9 col tab, ";" or "," at the end of the line mean no newline
 is printed.
 

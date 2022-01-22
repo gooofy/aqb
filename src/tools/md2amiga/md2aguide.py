@@ -27,11 +27,13 @@ def mangleNode(s):
             t = t + "("
         elif c==')':
             t = t + ")"
+        elif c=='#':
+            t = t + "#"
 
     return t
 
 def aguideEscape(s):
-    return s.replace('\\_', '_').replace ('\\', '\\\\').replace ('@', '\\@')
+    return s.replace('\\_', '_').replace('\\#', '#').replace ('\\', '\\\\').replace('@', '\\@')
 
 class Document(block.Document):
     def __init__(self, text):

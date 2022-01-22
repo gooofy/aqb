@@ -161,7 +161,7 @@ DONE translate forum posts, add useful information to README
 - \_\_\_\_ IMP
 - DONE INPUT
 - \_\_\_\_ INPUT$()
-- \_\_\_\_ INPUT #
+- DONE INPUT #
 - DONE INSTR()
 - DONE INT()
 - \_\_\_\_ KILL
@@ -205,6 +205,7 @@ DONE translate forum posts, add useful information to README
 - DONE POKEW
 - \_\_\_\_ PUT
 - DONE PRINT
+- DONE PRINT \#
 - \_\_\_\_ PRINT USING
 - DONE RANDOMIZE
 - DONE READ
