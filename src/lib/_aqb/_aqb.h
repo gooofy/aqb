@@ -107,7 +107,6 @@ typedef BOOL (*window_msg_cb_t)(SHORT wid, struct Window *win, struct IntuiMessa
 void   _window_add_msg_cb     (window_msg_cb_t cb);
 
 void   SLEEP                  (void);
-void   SLEEP_FOR              (FLOAT s);
 void   VWAIT                  (void);
 void   MOUSE_ON               (void);
 void   MOUSE_OFF              (void);

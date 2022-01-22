@@ -66,19 +66,20 @@ void dprintf(const char *format, ...);
 #define ERR_IO_ERROR                  57
 #define ERR_BAD_FILE_NAME             64
 
-void _aqb_assert   (BOOL b, const UBYTE *msg);
-void ERROR         (SHORT errcode);
-void RESUME_NEXT   (void);
-void ON_ERROR_CALL (void (*cb)(void));
-void ON_EXIT_CALL  (void (*cb)(void));
-void ON_BREAK_CALL (void (*cb)(void));
-void _autil_exit   (LONG return_code); // implemented in startup.s
+void  _aqb_assert   (BOOL b, const UBYTE *msg);
+void  ERROR         (SHORT errcode);
+void  RESUME_NEXT   (void);
+void  ON_ERROR_CALL (void (*cb)(void));
+void  ON_EXIT_CALL  (void (*cb)(void));
+void  ON_BREAK_CALL (void (*cb)(void));
+void  _autil_exit   (LONG return_code); // implemented in startup.s
 
-void _cshutdown    (LONG return_code, UBYTE *msg); // implemented in cstartup.c
+void  _cshutdown    (LONG return_code, UBYTE *msg); // implemented in cstartup.c
 
-FLOAT TIMER_       (void);
+FLOAT TIMER_        (void);
+void  SLEEP_FOR     (FLOAT s);
 
-void SYSTEM        (void);
+void  SYSTEM        (void);
 
 // program startup mode / debugger connection
 
@@ -275,16 +276,18 @@ void _aqb_readStr (void *v);
  * PRINT / INPUT / terminal statement support
  */
 
-typedef BOOL (*_aio_puts_cb_t)   (UBYTE *s);
-typedef BOOL (*_aio_puttab_cb_t) (void);
-typedef BOOL (*_aio_gets_cb_t)   (UBYTE *buf, USHORT buf_len, BOOL do_nl);
-typedef BOOL (*_aio_cls_cb_t)    (void);
-typedef BOOL (*_aio_locate_cb_t) (SHORT l, SHORT c);
+typedef BOOL (*_aio_puts_cb_t)        (UBYTE *s);
+typedef BOOL (*_aio_puttab_cb_t)      (void);
+typedef BOOL (*_aio_gets_cb_t)        (UBYTE *buf, USHORT buf_len, BOOL do_nl);
+typedef BOOL (*_aio_cls_cb_t)         (void);
+typedef BOOL (*_aio_locate_cb_t)      (SHORT l, SHORT c);
+typedef void (*_autil_sleep_for_cb_t) (FLOAT s);
 
-extern _aio_puts_cb_t    _aio_puts_cb;
-extern _aio_gets_cb_t    _aio_gets_cb;
-extern _aio_cls_cb_t     _aio_cls_cb;
-extern _aio_locate_cb_t  _aio_locate_cb;
+extern _aio_puts_cb_t        _aio_puts_cb;
+extern _aio_gets_cb_t        _aio_gets_cb;
+extern _aio_cls_cb_t         _aio_cls_cb;
+extern _aio_locate_cb_t      _aio_locate_cb;
+extern _autil_sleep_for_cb_t _autil_sleep_for_cb;
 
 void _aio_init                   (void);
 void _aio_shutdown               (void);

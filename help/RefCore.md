@@ -865,6 +865,16 @@ Syntax:
 Returns the memory size in bytes of a given variable or named type
 
 
+## SLEEP FOR
+
+Syntax:
+
+    SLEEP FOR seconds
+
+Suspend program for the specified number of seconds (floating point value,
+so fractions of seconds are supported).
+
+
 ## SQR()
 
 Syntax:

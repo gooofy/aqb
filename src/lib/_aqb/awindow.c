@@ -40,7 +40,7 @@
 
 struct Device           *ConsoleDevice;
 static FLOAT             g_fp15; // FFP representation of decimal 15, used in PALETTE
-static FLOAT             g_fp50; // FFP representation of decimal 50, used in SLEEP_FOR
+static FLOAT             g_fp50; // FFP representation of decimal 50, used in _awindow_sleep_for
 static struct IOStdReq   g_ioreq; // console.device is used to convert RAWKEY codes
 static BOOL              g_console_device_opened=FALSE;
 static struct InputEvent g_ievent;
@@ -873,7 +873,7 @@ void SLEEP(void)
 	_handleSignals(/*doWait=*/TRUE);
 }
 
-void SLEEP_FOR (FLOAT s)
+static void _awindow_sleep_for (FLOAT s)
 {
     LONG ticks = SPFix(SPMul(s, g_fp50));
 
@@ -2006,10 +2006,11 @@ void _awindow_init(void)
     g_stdout = Output();
     g_stdin  = Input();
 
-    _aio_puts_cb   = _awindow_puts;
-    _aio_gets_cb   = _awindow_gets;
-    _aio_cls_cb    = _awindow_cls;
-    _aio_locate_cb = _awindow_locate;
+    _aio_puts_cb        = _awindow_puts;
+    _aio_gets_cb        = _awindow_gets;
+    _aio_cls_cb         = _awindow_cls;
+    _aio_locate_cb      = _awindow_locate;
+    _autil_sleep_for_cb = _awindow_sleep_for;
 
     g_fp15   = SPFlt(15);
     g_fp50   = SPFlt(50);

@@ -457,16 +457,6 @@ Syntax:
 Suspend program until next event occurs.
 
 
-## SLEEP FOR
-
-Syntax:
-
-    SLEEP FOR seconds
-
-Suspend program for the specified number of seconds (floating point value,
-so fractions of seconds are supported).
-
-
 ## SOUND
 
 Syntax:

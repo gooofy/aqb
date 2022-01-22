@@ -37,6 +37,9 @@ struct AQB_memrec_
 
 static AQB_memrec g_mem = NULL;
 
+_autil_sleep_for_cb_t _autil_sleep_for_cb = NULL;
+static FLOAT g_fp50, g_fp60;
+
 APTR ALLOCATE_(ULONG size, ULONG flags)
 {
     AQB_memrec mem_prev = g_mem;
@@ -82,25 +85,6 @@ void _MEMSET (BYTE *dst, BYTE c, ULONG n)
         do
             *d++ = c;
         while (--n != 0);
-    }
-}
-
-static FLOAT f50, f60;
-
-void _autil_init(void)
-{
-	f60 = SPFlt(60);
-    f50 = SPFlt(50);
-}
-
-void _autil_shutdown(void)
-{
-    while (g_mem)
-    {
-        AQB_memrec mem_next = g_mem->next;
-        FreeMem(g_mem->mem, g_mem->size);
-        FreeMem(g_mem, sizeof (*g_mem));
-        g_mem = mem_next;
     }
 }
 
@@ -180,9 +164,20 @@ FLOAT TIMER_ (void)
 	DateStamp(&datetime);
 
 	res = SPFlt(datetime.ds_Minute);
-	res = SPAdd(SPMul(res, f60), SPDiv(f50, SPFlt(datetime.ds_Tick)));
+	res = SPAdd(SPMul(res, g_fp60), SPDiv(g_fp50, SPFlt(datetime.ds_Tick)));
 
 	return res;
+}
+
+void SLEEP_FOR (FLOAT s)
+{
+    if (_autil_sleep_for_cb)
+    {
+        _autil_sleep_for_cb (s);
+        return;
+    }
+    LONG ticks = SPFix(SPMul(s, g_fp50));
+    Delay (ticks);
 }
 
 void SYSTEM(void)
@@ -347,3 +342,21 @@ void _autil_begin_io (struct IORequest *iorequest)
 
     __asm volatile ("jsr a6@(-30:W)" :: "r" (a1), "r" (a6));
 }
+
+void _autil_init(void)
+{
+	g_fp60 = SPFlt(60);
+    g_fp50 = SPFlt(50);
+}
+
+void _autil_shutdown(void)
+{
+    while (g_mem)
+    {
+        AQB_memrec mem_next = g_mem->next;
+        FreeMem(g_mem->mem, g_mem->size);
+        FreeMem(g_mem, sizeof (*g_mem));
+        g_mem = mem_next;
+    }
+}
+
