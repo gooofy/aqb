@@ -130,7 +130,7 @@ DONE translate forum posts, add useful information to README
 - \_\_\_\_ CVL()
 - \_\_\_\_ CVS()
 - DONE DATA
-- \_\_\_\_ DATE$()
+- DONE DATE$()
 - DONE DECLARE FUNCTION
 - DONE DECLARE SUB
 - \_\_\_\_ DEF FN

@@ -66,20 +66,21 @@ void dprintf(const char *format, ...);
 #define ERR_IO_ERROR                  57
 #define ERR_BAD_FILE_NAME             64
 
-void  _aqb_assert   (BOOL b, const UBYTE *msg);
-void  ERROR         (SHORT errcode);
-void  RESUME_NEXT   (void);
-void  ON_ERROR_CALL (void (*cb)(void));
-void  ON_EXIT_CALL  (void (*cb)(void));
-void  ON_BREAK_CALL (void (*cb)(void));
-void  _autil_exit   (LONG return_code); // implemented in startup.s
+void   _aqb_assert   (BOOL b, const UBYTE *msg);
+void   ERROR         (SHORT errcode);
+void   RESUME_NEXT   (void);
+void   ON_ERROR_CALL (void (*cb)(void));
+void   ON_EXIT_CALL  (void (*cb)(void));
+void   ON_BREAK_CALL (void (*cb)(void));
+void   _autil_exit   (LONG return_code); // implemented in startup.s
 
-void  _cshutdown    (LONG return_code, UBYTE *msg); // implemented in cstartup.c
+void   _cshutdown    (LONG return_code, UBYTE *msg); // implemented in cstartup.c
 
-FLOAT TIMER_        (void);
-void  SLEEP_FOR     (FLOAT s);
+FLOAT  TIMER_        (void);
+STRPTR DATE_         (void);
+void   SLEEP_FOR     (FLOAT s);
 
-void  SYSTEM        (void);
+void   SYSTEM        (void);
 
 // program startup mode / debugger connection
 

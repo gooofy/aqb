@@ -208,6 +208,17 @@ add values to the data section of the program. Those values can be later
 READ by the program at runtime.
 
 
+## DATE$
+
+Syntax:
+
+    DATE$
+
+return a string representation of the current date.
+
+Date format used is mm-dd-yyyy
+
+
 ## DEALLOCATE
 
 Syntax:

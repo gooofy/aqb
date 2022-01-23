@@ -6,23 +6,24 @@
 #include <exec/ports.h>
 #include <exec/io.h>
 #include <exec/devices.h>
-
-
+#include <proto/exec.h>
 #include <clib/exec_protos.h>
-#include <clib/dos_protos.h>
-#include <clib/mathffp_protos.h>
-
 #include <inline/exec.h>
+
+#include <clib/dos_protos.h>
 #include <inline/dos.h>
+
+#include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
-#include <proto/exec.h>
+#include <clib/utility_protos.h>
+#include <inline/utility.h>
 
 #define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
                     /*(l)->lh_Tail = NULL,*/ \
                     (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
 
-//USHORT g_errcode;
+extern struct UtilityBase   *UtilityBase;
 
 // not using Intuition's AllocRemember here because we want minimal dependencies for the AQB core module
 
@@ -167,6 +168,41 @@ FLOAT TIMER_ (void)
 	res = SPAdd(SPMul(res, g_fp60), SPDiv(g_fp50, SPFlt(datetime.ds_Tick)));
 
 	return res;
+}
+
+STRPTR DATE_ (void)
+{
+    struct DateStamp datetime;
+    LONG             seconds;
+    struct ClockData cd;
+
+	DateStamp(&datetime);
+
+    seconds = datetime.ds_Days*24*60*60 + datetime.ds_Minute*60 + datetime.ds_Tick/TICKS_PER_SECOND;
+
+    DPRINTF ("DATE$: seconds=%ld\n", seconds);
+
+    Amiga2Date (seconds, &cd);
+
+    DPRINTF ("DATE$: %02d-%02d-%04d %02d:%02d:%02d\n", cd.month, cd.mday, cd.year, cd.hour, cd.min, cd.sec);
+
+    char buf[10] = "00-00-0000";
+
+    buf[0] = '0' + cd.month/10;
+    buf[1] = '0' + cd.month%10;
+
+    buf[3] = '0' + cd.mday/10;
+    buf[4] = '0' + cd.mday%10;
+
+    LONG y = cd.year;
+    buf[6] = '0' + y/1000;
+    y %= 1000;
+    buf[7] = '0' + y/100;
+    y %= 100;
+    buf[8] = '0' + y/10;
+    buf[9] = '0' + y%10;
+
+    return _astr_dup((STRPTR)buf);
 }
 
 void SLEEP_FOR (FLOAT s)
