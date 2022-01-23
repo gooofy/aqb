@@ -4538,15 +4538,17 @@ static void stmtSelectEnd_(S_pos pos)
 // stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT | CONSTRUCTOR ) ]
 static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
-   if (isSym(*tkn, S_ENDIF))
+    FE_SLE sle = g_sleStack;
+    if (isSym(*tkn, S_ENDIF))
     {
+        if (sle->kind != FE_sleIf)
+            return EM_error((*tkn)->pos, "ENDIF used outside of an IF-statement context");
         stmtIfEnd_((*tkn)->pos);
         *tkn = (*tkn)->next;
         return TRUE;
     }
 
     *tkn = (*tkn)->next;        // skip "END"
-    FE_SLE sle = g_sleStack;
 
     if (isSym(*tkn, S_IF))
     {

@@ -26,6 +26,7 @@ Bug Fixes:
     * compiler: fix string type coercion (fixes #17, thanks to Tom Wilson for reporting this one)
     * compiler: fix negative numeric literal handling in DATA statements
     * compiler: fix string handling in DATA statements (fixes #18, thanks to Tom Wilson for reporting this one)
+    * compiler: fix ENDIF SLE stack underflow
     * runtime: fix INT() behavior (matches ACE now), add CLNG() to online help
     * runtime: fix LINE INPUT
     * use EXIT\_FAILURE for fatal error conditions (fixes issue #13 by polluks)
