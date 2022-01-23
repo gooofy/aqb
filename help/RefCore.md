@@ -1114,3 +1114,26 @@ repeat loop body while expression evaluates to TRUE
 
 see WHILE ... WEND
 
+
+## WRITE
+
+Syntax:
+
+    WRITE [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to the screen, separated by comma.
+Numeric values will be printed without a leading space,
+string values will be enclosed in "".
+
+
+## WRITE#
+
+Syntax:
+
+    WRITE "#" expFNo "," [ expression ( [ ";" | "," ] expression )* ]
+
+print the listed expressions to given file stream, separated by comma.
+Numeric values will be printed without a leading space,
+string values will be enclosed in "".
+
+

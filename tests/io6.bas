@@ -1,4 +1,4 @@
-REM FILE i/o test 1 (print/line input)
+REM FILE i/o test 2 (print/line input)
 
 OPTION EXPLICIT
 

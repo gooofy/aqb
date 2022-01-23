@@ -240,7 +240,8 @@ DONE translate forum posts, add useful information to README
 - DONE WEND
 - DONE WHILE
 - \_\_\_\_ WIDTH
-- \_\_\_\_ WRITE
+- DONE WRITE
+- DONE WRITE#
 
 ## AmigaBASIC Specific Commands
 

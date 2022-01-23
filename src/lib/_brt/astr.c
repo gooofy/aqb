@@ -88,14 +88,15 @@ void _astr_itoa(LONG num, UBYTE* str, LONG base)
     _astr_itoa_ext(num, str, base, /*leading_space=*/TRUE);
 }
 
-void _astr_utoa(ULONG num, UBYTE* str, ULONG base)
+void _astr_utoa_ext(ULONG num, UBYTE* str, ULONG base, BOOL leading_space)
 {
     int i = 0;
 
     /* Handle 0 explicitely, otherwise empty string is printed for 0 */
     if (num == 0)
     {
-        str[i++] = ' ';
+        if (leading_space)
+            str[i++] = ' ';
         str[i++] = '0';
         str[i] = '\0';
         return;
@@ -109,11 +110,17 @@ void _astr_utoa(ULONG num, UBYTE* str, ULONG base)
         num = num/base;
     }
 
-    str[i++] = ' ';  // Append space (not negative)
+    if (leading_space)
+        str[i++] = ' ';  // Append space (not negative)
     str[i] = '\0'; // Append string terminator
 
     // Reverse the string
     reverse(str, i);
+}
+
+void _astr_utoa(ULONG num, UBYTE* str, ULONG base)
+{
+    _astr_utoa_ext(num, str, base, /*leading_space=*/TRUE);
 }
 
 ULONG LEN_(const UBYTE *str)
@@ -405,7 +412,7 @@ static SHORT normalizeFloat(FLOAT *value)
     return exponent;
 }
 
-void _astr_ftoa(FLOAT value, UBYTE *buf)
+void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
 {
     BOOL negative = FALSE;
 
@@ -469,14 +476,13 @@ void _astr_ftoa(FLOAT value, UBYTE *buf)
      */
 
 
-    _astr_itoa(integralPart, &buf[0], 10);
+    _astr_itoa_ext(integralPart, &buf[0], 10, /*leading_space=*/ leading_space ? TRUE : negative);
     if (negative)
         buf[0] = '-';
 
     if (decimalPart)
     {
         int width = 9;
-        // writeDecimals(decimalPart, &buf[l]);
 
         // remove trailing zeros
         while (decimalPart % 10 == 0 && width > 0)
@@ -508,6 +514,11 @@ void _astr_ftoa(FLOAT value, UBYTE *buf)
         buf[l] = 'e'; buf[l+1] = '-';
         _astr_itoa(exponent, &buf[l+1], 10);
     }
+}
+
+void _astr_ftoa(FLOAT value, UBYTE *buf)
+{
+    _astr_ftoa_ext (value, buf, /*leading_space=*/TRUE);
 }
 
 const UBYTE *_astr_strchr(const UBYTE *s, UBYTE c)

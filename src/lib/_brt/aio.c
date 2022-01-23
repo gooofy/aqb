@@ -193,6 +193,93 @@ void _aio_putbool(USHORT fno, BOOL b)
 
 /*********************************************************
  *
+ * WRITE support
+ *
+ *********************************************************/
+
+void _aio_writes4 (USHORT fno, LONG num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+
+    _aio_puts(fno, buf);
+}
+
+void _aio_writes2 (USHORT fno, short num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+
+    _aio_puts(fno, buf);
+}
+
+void _aio_writes1 (USHORT fno, UBYTE num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+
+    _aio_puts(fno, buf);
+}
+
+void _aio_writeu4 (USHORT fno, ULONG num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+
+    _aio_puts(fno, buf);
+}
+
+void _aio_writeu2 (USHORT fno, USHORT num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+
+    _aio_puts(fno, buf);
+}
+
+void _aio_writeu1 (USHORT fno, UBYTE num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+
+    _aio_puts(fno, buf);
+}
+
+void _aio_writef (USHORT fno, FLOAT f)
+{
+    //DPRINTF ("_aio_writef: fno=%d\n", fno);
+    //Delay(200);
+    UBYTE buf[40];
+    _astr_ftoa_ext (f, buf, /*leading_space=*/FALSE);
+    //DPRINTF ("_aio_writef: -> _aio_writes buf=%s\n", buf); Delay(200);
+    _aio_puts(fno, buf);
+}
+
+void _aio_writebool (USHORT fno, BOOL b)
+{
+    _aio_puts(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+}
+
+void _aio_writes (USHORT fno, const UBYTE *str)
+{
+    _aio_puts(fno, (STRPTR)"\"");
+    _aio_puts(fno, str);
+    _aio_puts(fno, (STRPTR)"\"");
+}
+
+void _aio_writecomma (USHORT fno, BOOL b)
+{
+    _aio_puts(fno, (STRPTR)",");
+}
+
+/*********************************************************
+ *
  * [LINE] INPUT support
  *
  *********************************************************/

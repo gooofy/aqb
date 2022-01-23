@@ -10,7 +10,7 @@ Improvements:
     * runtime: ABS function added
     * runtime: EOF() function added
     * runtime: CLS, LOCATE, SLEEP FOR, PRINT, PRINT#, INPUT, LINE INPUT moved from \_aqb to \_brt
-    * runtime: INPUT#, LINE INPUT# statements added
+    * runtime: INPUT#, LINE INPUT#, WRITE, WRITE# statements added
     * compiler: support pure interface modules that have no code
 
 Bug Fixes:

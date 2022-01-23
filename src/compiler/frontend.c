@@ -245,7 +245,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 97
+#define MAX_KEYWORDS 98
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -347,6 +347,7 @@ static S_symbol S__FNO;
 static S_symbol S_TRACE;
 static S_symbol S_DEBUG;
 static S_symbol S_CLEAR;
+static S_symbol S_WRITE;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -3178,6 +3179,135 @@ static bool stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp)
 static bool stmtTrace(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     return _stmtPrint (tkn, e, exp, /*dbg=*/TRUE);
+}
+
+static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "WRITE"
+
+    CG_item exFNo;
+    if ((*tkn)->kind == S_HASH)
+    {
+        *tkn = (*tkn)->next;
+        S_pos pos = (*tkn)->pos;
+        if (!expression(tkn, &exFNo))
+            return EM_error(pos, "WRITE: fno expression expected here.");
+        if ((*tkn)->kind != S_COMMA)
+            return EM_error((*tkn)->pos, "WRITE: , expected here.");
+        *tkn = (*tkn)->next;
+    }
+    else
+    {
+        CG_IntItem (&exFNo, 0, Ty_Integer());
+    }
+
+    while (!isLogicalEOL(*tkn))
+    {
+        CG_item ex;
+        pos = (*tkn)->pos;
+
+        if (!expression(tkn, &ex))
+            return EM_error(pos, "expression expected here.");
+
+        CG_itemList arglist = CG_ItemList();
+        CG_itemListNode n;
+        n = CG_itemListAppend(arglist);
+        n->item = exFNo;
+        CG_loadVal (g_sleStack->code, pos, &n->item);
+        n = CG_itemListAppend(arglist);
+        n->item = ex;
+        CG_loadVal (g_sleStack->code, pos, &n->item);
+        S_symbol   fsym    = NULL;                   // write* function sym to call
+        Ty_ty      ty      = CG_ty(&ex);
+        switch (ty->kind)
+        {
+            case Ty_string:
+                fsym = S_Symbol("_aio_writes", FALSE);
+                break;
+            case Ty_pointer:
+                fsym = S_Symbol("_aio_writeu4", FALSE);
+                break;
+            case Ty_byte:
+                fsym = S_Symbol("_aio_writes1", FALSE);
+                break;
+            case Ty_ubyte:
+                fsym = S_Symbol("_aio_writeu1", FALSE);
+                break;
+            case Ty_integer:
+                fsym = S_Symbol("_aio_writes2", FALSE);
+                break;
+            case Ty_uinteger:
+                fsym = S_Symbol("_aio_writeu2", FALSE);
+                break;
+            case Ty_long:
+                fsym = S_Symbol("_aio_writes4", FALSE);
+                break;
+            case Ty_ulong:
+                fsym = S_Symbol("_aio_writeu4", FALSE);
+                break;
+            case Ty_single:
+                fsym = S_Symbol("_aio_writef", FALSE);
+                break;
+            case Ty_bool:
+                fsym = S_Symbol("_aio_writebool", FALSE);
+                break;
+            default:
+                return EM_error(pos, "unsupported type in write expression list.");
+        }
+        if (fsym)
+        {
+            E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+            if (!lx)
+                return EM_error(pos, "builtin %s not found.", S_name(fsym));
+            E_enventry func = lx->first->e;
+            CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+        }
+
+        if (isLogicalEOL(*tkn))
+            break;
+
+        switch ((*tkn)->kind)
+        {
+            case S_COMMA:
+            case S_SEMICOLON:
+            {
+                *tkn = (*tkn)->next;
+                if (isLogicalEOL(*tkn))
+                    return EM_error(pos, "WRITE: expression expected here.");
+
+                S_symbol fsym   = S_Symbol("_aio_writecomma", FALSE);
+                E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+                if (!lx)
+                    return EM_error(pos, "builtin %s not found.", S_name(fsym));
+                E_enventry func = lx->first->e;
+                CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n;
+                n = CG_itemListAppend(arglist);
+                n->item = exFNo;
+                CG_loadVal (g_sleStack->code, pos, &n->item);
+                CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+
+                break;
+            }
+            default:
+                return EM_error(pos, "WRITE: , or ; expected here.");
+        }
+    }
+
+    S_symbol fsym   = S_Symbol("_aio_putnl", FALSE);
+    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
+    if (!lx)
+        return EM_error(pos, "builtin %s not found.", S_name(fsym));
+    E_enventry func = lx->first->e;
+    CG_itemList arglist = CG_ItemList();
+    CG_itemListNode n;
+    n = CG_itemListAppend(arglist);
+    n->item = exFNo;
+    CG_loadVal (g_sleStack->code, pos, &n->item);
+    CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+
+    return TRUE;
 }
 
 // break ::= BREAK
@@ -7336,6 +7466,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace        , Ty_Void());
     declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak        , Ty_Void());
     declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear        , Ty_Void());
+    declareBuiltinProc(S_WRITE        , /*extraSyms=*/ NULL      , stmtWrite        , Ty_Void());
 }
 
 //
@@ -7809,6 +7940,7 @@ void FE_boot(void)
     S_TRACE           = defineKeyword("TRACE");
     S_DEBUG           = defineKeyword("DEBUG");
     S_CLEAR           = defineKeyword("CLEAR");
+    S_WRITE           = defineKeyword("WRITE");
 }
 
 void FE_init(void)

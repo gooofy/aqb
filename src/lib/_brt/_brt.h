@@ -180,7 +180,9 @@ void _astr_init           (void);
 void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space);
 void _astr_itoa           (LONG num, UBYTE *str, LONG base);
 void _astr_utoa           (ULONG num, UBYTE* str, ULONG base);
+void _astr_utoa_ext       (ULONG num, UBYTE* str, ULONG base, BOOL leading_space);
 void _astr_ftoa           (FLOAT value, UBYTE *buf);
+void _astr_ftoa_ext       (FLOAT value, UBYTE *buf, BOOL leading_space);
 
 UBYTE *_astr_dup          (const UBYTE *str);
 SHORT __astr_cmp          (const UBYTE* s1, const UBYTE* s2);
@@ -310,6 +312,17 @@ void _aio_putnl                  (USHORT fno);
 void _aio_puttab                 (USHORT fno);
 
 struct FileHandle *_aio_getfh    (USHORT fno);
+
+void _aio_writes4                (USHORT fno, LONG num);
+void _aio_writes2                (USHORT fno, SHORT num);
+void _aio_writes1                (USHORT fno, UBYTE num);
+void _aio_writeu4                (USHORT fno, ULONG num);
+void _aio_writeu2                (USHORT fno, USHORT num);
+void _aio_writeu1                (USHORT fno, UBYTE num);
+void _aio_writef                 (USHORT fno, FLOAT f);
+void _aio_writebool              (USHORT fno, BOOL b);
+void _aio_writes                 (USHORT fno, const UBYTE *str);
+void _aio_writecomma             (USHORT fno, BOOL b);
 
 // [ LINE ] INPUT support:
 
