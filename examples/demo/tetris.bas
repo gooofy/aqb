@@ -387,7 +387,8 @@ SUB ROTATEPIECE
     REM is there enough room to rotate?
     FOR p AS INTEGER = 1 TO 4
         DIM AS INTEGER X = piecex ( p ) + rx ( ROT, p )
-        IF ( X < 1 ) OR ( X > 10 ) THEN
+        REM TRACE "ROTATEPIECE X=";X        
+        IF ( X < 0 ) OR ( X > 9 ) THEN
             RETURN
         END IF
     NEXT p
