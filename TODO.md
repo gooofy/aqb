@@ -266,10 +266,10 @@ DONE translate forum posts, add useful information to README
 - \_\_\_\_ MENU OFF
 - \_\_\_\_ MENU SOP
 - \_\_\_\_ MENU()
-- \_\_\_\_ MOUSE ON
-- \_\_\_\_ MOUSE OFF
+- DONE MOUSE ON
+- DONE MOUSE OFF
 - \_\_\_\_ MOUSE STOP
-- \_\_\_\_ MOUSE()
+- DONE MOUSE()
 - \_\_\_\_ OBJECT.AX
 - \_\_\_\_ OBJECT.AY
 - \_\_\_\_ OBJECT.CLOSE
