@@ -17,6 +17,7 @@ Improvements:
 Bug Fixes:
 
     * ide: EZRequest on source write fails instead of a plain exit()
+    * ide: ENDIF auto-indentation fixed
     * examples: tetris code cleanup, use custom fonts
     * compiler: fix float handling in DATA statements
     * compiler: fix coord/coord2 error handling

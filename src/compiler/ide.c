@@ -52,6 +52,7 @@ static S_symbol S_ELSEIF;
 static S_symbol S_ELSE;
 static S_symbol S_THEN;
 static S_symbol S_END;
+static S_symbol S_ENDIF;
 static S_symbol S_SUB;
 static S_symbol S_FUNCTION;
 static S_symbol S_FOR;
@@ -739,7 +740,7 @@ static IDE_line _buf2line (IDE_instance ed)
                         {
                             state = STAUI_ELSE;
                         }
-                        else if (sym == S_END)
+                        else if ((sym == S_END) || (sym == S_ENDIF))
                         {
                             state = STAUI_END;
                         }
@@ -2188,6 +2189,7 @@ void IDE_open (string sourcefn)
     S_ELSE     = S_Symbol ("ELSE"    , FALSE);
     S_THEN     = S_Symbol ("THEN"    , FALSE);
     S_END      = S_Symbol ("END"     , FALSE);
+    S_ENDIF    = S_Symbol ("ENDIF"   , FALSE);
     S_SUB      = S_Symbol ("SUB"     , FALSE);
     S_FUNCTION = S_Symbol ("FUNCTION", FALSE);
     S_FOR      = S_Symbol ("FOR"     , FALSE);
