@@ -578,6 +578,12 @@ void PSET(BOOL s, short x, short y, short color)
         SetAPen(_g_cur_rp, fgPen);
 }
 
+SHORT POINT_ (SHORT x, SHORT y)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    return ReadPixel (_g_cur_rp, x, y);
+}
+
 void CIRCLE (BOOL s, SHORT x, SHORT y, SHORT ry, SHORT color, SHORT start, SHORT fini, FLOAT ratio)
 {
 #ifdef ENABLE_DEBUG

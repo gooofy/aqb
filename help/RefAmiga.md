@@ -341,7 +341,16 @@ Syntax:
 
     PATTERN RESTORE
 
-Restore line and area pattern to default (solid)
+restore line and area pattern to default (solid)
+
+
+## POINT()
+
+Syntax:
+
+    POINT "(" x "," y ")"
+
+returns the pen number of a point in the current window or bitmap
 
 
 ## POS()

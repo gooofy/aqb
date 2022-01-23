@@ -120,6 +120,7 @@ SHORT  CSRLIN_                (void);
 SHORT  POS_                   (SHORT dummy);
 void   LINE                   (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, SHORT c, SHORT bf);
 void   PSET                   (BOOL s, SHORT x, SHORT y, SHORT color);
+SHORT  POINT_                 (SHORT x, SHORT y);
 void   CIRCLE                 (BOOL s, SHORT x, SHORT y, SHORT r, SHORT color, SHORT start, SHORT fini, FLOAT ratio);
 void   COLOR                  (SHORT fg, SHORT bg, SHORT o, SHORT drmd);
 void   PAINT                  (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);

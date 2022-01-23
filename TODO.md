@@ -295,7 +295,7 @@ DONE translate forum posts, add useful information to README
 - DONE PAINT
 - DONE PALETTE
 - DONE PATTERN
-- \_\_\_\_ POINT
+- DONE POINT
 - DONE POS
 - \_\_\_\_ PRESET
 - DONE PSET
