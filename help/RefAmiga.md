@@ -382,10 +382,10 @@ copy a bitmap onto the screen.
 
 Useful minterms:
 
-	* 0x30 Replace destination area with inverted source.
-	* 0x50 Replace destination area with an inverted version of itself.
-	* 0x80 Only put bits into destination where there is a bit in the same position for both source and destination (sieve operation).
-	* 0xC0 Copy from source to destination.
+	* &H30 Replace destination area with inverted source.
+	* &H50 Replace destination area with an inverted version of itself.
+	* &H80 Only put bits into destination where there is a bit in the same position for both source and destination (sieve operation).
+	* &HC0 Copy from source to destination.
 
 Example:
 
