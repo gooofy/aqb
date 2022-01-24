@@ -39,6 +39,30 @@ Syntax:
 
 free allocated resources for a bitmap
 
+
+## BITMAP MASK
+
+Syntax:
+
+    BITMAP MASK bm
+
+allocate (is not already done) a new mask plane for
+the given bitmask and compute its contents.
+
+Allows for transparent background clipping of bm using
+minterm &HE0.
+
+Example:
+
+    DIM AS BITMAP_t PTR notesbm=NULL
+
+    ILBM LOAD BITMAP "PROGDIR:notes.ilbm", notesbm
+
+    BITMAP MASK notesbm
+
+    PUT (10, 10), notesbm, &HE0
+
+
 ## BITMAP OUTPUT
 
 Syntax:
@@ -46,6 +70,7 @@ Syntax:
     BITMAP OUTPUT bm
 
 redirect drawing commands output to bm
+
 
 ## BITMAP()
 
@@ -59,6 +84,7 @@ allocated in one continous memory space suitable for BOBs.
 Example:
 
     DIM AS BITMAP_t PTR b = BITMAP (64, 64, 2)
+
 
 ## CIRCLE
 
@@ -75,6 +101,7 @@ Arguments:
     * color : color register to use
     * start, end: start and end angles of ellipse arc
     * aspect ratio of ellipse (rx vs ry radius, default: 0.44)
+
 
 ## COLOR
 
@@ -386,6 +413,7 @@ Useful minterms:
 	* &H50 Replace destination area with an inverted version of itself.
 	* &H80 Only put bits into destination where there is a bit in the same position for both source and destination (sieve operation).
 	* &HC0 Copy from source to destination.
+	* &HE0 Copy from source to destination through mask.
 
 Example:
 

@@ -2,6 +2,7 @@
 #include "../_brt/_brt.h"
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <exec/memory.h>
 #include <clib/exec_protos.h>
@@ -1620,6 +1621,12 @@ void BITMAP_FREE (BITMAP_t *bm)
         g_bm_last = bm->prev;
 	}
 
+    if (bm->mask)
+    {
+        FreeVec(bm->mask);
+        bm->mask = NULL;
+    }
+
 	if (bm->continous)
 	{
 	   FreeVec(bm->bm.Planes[0]);
@@ -1656,9 +1663,10 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
     else
         g_bm_first = g_bm_last = bm;
 
-    bm->width  = width;
-    bm->height = height;
+    bm->width     = width;
+    bm->height    = height;
 	bm->continous = cont;
+    bm->mask      = NULL;
 
     InitBitMap(&bm->bm, depth, width, height);
 
@@ -1711,6 +1719,42 @@ void BITMAP_OUTPUT (BITMAP_t *bm)
     g_cur_ot        = _aqb_ot_bitmap;
 }
 
+static void _bitmap_compute_mask (BITMAP_t *bm)
+{
+    ULONG rs = RASSIZE (bm->width, bm->height);
+    UWORD *dst = (UWORD*) bm->mask;
+    memset (dst, 0, rs);
+    for (UWORD d=0; d<bm->bm.Depth; d++)
+    {
+        dst = (UWORD*)bm->mask;
+        UWORD *src = (UWORD*)bm->bm.Planes[d];
+        for (ULONG i=0; i<rs/2; i++)
+            *dst++ |= *src++;
+    }
+}
+
+void BITMAP_MASK (BITMAP_t *bm)
+{
+    if (!bm)
+    {
+        ERROR(AE_BLIT);
+        return;
+    }
+
+    ULONG rs = RASSIZE (bm->width, bm->height);
+    if (!bm->mask)
+    {
+        bm->mask = AllocVec (rs, MEMF_CHIP);
+        if (!bm->mask)
+        {
+            ERROR(AE_BLIT);
+            return;
+        }
+    }
+
+    _bitmap_compute_mask (bm);
+}
+
 void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm)
 {
     _aqb_get_output (/*needGfx=*/TRUE);
@@ -1745,6 +1789,8 @@ void GET (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BITMAP_t *bm
     }
 
     ClipBlit(_g_cur_rp, x1, y1, &bm->rp, 0, 0, w, h, 0xC0);
+    if (bm->mask)
+        _bitmap_compute_mask (bm);
 }
 
 void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2)
@@ -1784,7 +1830,10 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
         return;
     }
 
-    ClipBlit(&bm->rp, x1, y1, _g_cur_rp, x, y, w, h, minterm);
+    if (bm->mask)
+        BltMaskBitMapRastPort (&bm->bm, x1, y1, _g_cur_rp, x, y, w, h, minterm, bm->mask);
+    else
+        ClipBlit(&bm->rp, x1, y1, _g_cur_rp, x, y, w, h, minterm);
 }
 
 static struct DiskFontHeader *_loadFont (char *font_path)

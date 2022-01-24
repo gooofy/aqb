@@ -5,6 +5,7 @@ Improvements:
     * runtime: WAVE, WAVE FREE, SOUND, SOUND WAIT, SOUND STOP, SOUND START commands added
     * runtime: WAVE() function added
     * runtime: IFF8SVX LOAD WAVE, IFF8SVX READ WAVE commands added
+    * runtime: BITMAP MASK statement added
     * runtime: CLEAR statement added
     * runtime: MID$, UCASE$, LCASE$, INSTR, LEFT$, RIGHT$ functions added
     * runtime: ABS function added
