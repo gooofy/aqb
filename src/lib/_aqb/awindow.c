@@ -1784,7 +1784,7 @@ void PUT (BOOL s, SHORT x, SHORT y, BITMAP_t *bm, UBYTE minterm, BOOL s1, SHORT 
         return;
     }
 
-    ClipBlit(&bm->rp, x1, y1, _g_cur_rp, x, y, w, h, 0xC0);
+    ClipBlit(&bm->rp, x1, y1, _g_cur_rp, x, y, w, h, minterm);
 }
 
 static struct DiskFontHeader *_loadFont (char *font_path)
