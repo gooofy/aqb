@@ -60,7 +60,7 @@ PUBLIC TYPE BITMAP_t
     AS BITMAP_t PTR     prev, next
     AS INTEGER          width, height
     AS BOOLEAN          cont
-    AS VOID PTR         mask
+    AS VOID PTR         MASK
     ' FIXME struct BitMap   bm
     ' FIXME struct RastPort rp
 END TYPE
