@@ -52,6 +52,7 @@ for EX in tutorial/*.bas ; do
     cp dist/amiga/Icons/`basename $EX`.info ${WORKDIR}/aqb/tutorial/
 done
 cp -r tutorial/imgs ${WORKDIR}/aqb/tutorial/
+cp -r examples/demo/imgs ${WORKDIR}/aqb/examples/demo/
 
 # remove unfinished examples from distribution
 
@@ -60,8 +61,12 @@ rm -f ${WORKDIR}/aqb/examples/demo/banana*
 
 cp -r help ${WORKDIR}/aqb/
 
-cp -r dist/amiga/Fonts ${WORKDIR}/aqb/
-cp -r dist/amiga/8svx  ${WORKDIR}/aqb/
+cp -r dist/amiga/Fonts ${WORKDIR}/aqb/tutorial
+cp -r dist/amiga/8svx  ${WORKDIR}/aqb/tutorial
+cp -r dist/amiga/imgs  ${WORKDIR}/aqb/tutorial
+cp -r dist/amiga/Fonts ${WORKDIR}/aqb/examples/demo
+cp -r dist/amiga/8svx  ${WORKDIR}/aqb/examples/demo
+cp -r dist/amiga/imgs  ${WORKDIR}/aqb/examples/demo
 
 pushd ${WORKDIR}
 lha a ${LHA} aqb.info aqb

@@ -123,15 +123,15 @@ initScore
 
 WINDOW 1, "Music Demo"
 
-ILBM LOAD BITMAP "PROGDIR:clef.ilbm", clefbm
-ILBM LOAD BITMAP "PROGDIR:notes.ilbm", notesbm
+ILBM LOAD BITMAP "PROGDIR:imgs/clef.ilbm", clefbm
+ILBM LOAD BITMAP "PROGDIR:imgs/notes.ilbm", notesbm
 
 BITMAP MASK notesbm
 
 REM load .8svx instrument
 
 DIM AS WAVE_t PTR w=NULL
-IFF8SVX LOAD WAVE "PROGDIR:/8svx/Piano.8svx", w
+IFF8SVX LOAD WAVE "PROGDIR:8svx/Piano.8svx", w
 
 WAVE 0, w
 WAVE 1, w

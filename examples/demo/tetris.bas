@@ -446,8 +446,8 @@ PALETTE 5, 1, 0, 1 : REM purple
 PALETTE 6, 1, 1, 0 : REM yellow
 PALETTE 7, 1, 1, 1 : REM white
 
-DIM AS FONT_t PTR fontHeadline = FONT("future.font", 22, "PROGDIR://fonts")
-DIM AS FONT_t PTR fontText     = FONT("future.font", 11, "PROGDIR://fonts")
+DIM AS FONT_t PTR fontHeadline = FONT("cubberly.font", 32, "PROGDIR:Fonts")
+DIM AS FONT_t PTR fontText     = FONT("2001.font",      8, "PROGDIR:Fonts")
 
 WHILE NOT doquit
     

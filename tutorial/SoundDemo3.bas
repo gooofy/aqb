@@ -7,7 +7,7 @@ OPTION EXPLICIT
 REM load .8svx instrument
 
 DIM AS WAVE_t PTR w = NULL
-IFF8SVX LOAD WAVE "PROGDIR:/8svx/BassGt.8svx", w
+IFF8SVX LOAD WAVE "PROGDIR:8svx/BassGt.8svx", w
 
 WAVE 0, w
 
