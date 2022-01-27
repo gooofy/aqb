@@ -12,7 +12,7 @@ DIM AS FONT_t PTR emeraldfont = FONT ("emerald.font", 17)
 
 ' load a font from a specific directory
 
-DIM AS FONT_t PTR myfont = FONT ("future.font", 30, "PROGDIR:/Fonts")
+DIM AS FONT_t PTR myfont = FONT ("future.font", 30, "PROGDIR:Fonts")
 
 ' use our custom font
 
