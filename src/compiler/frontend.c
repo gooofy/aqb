@@ -4727,97 +4727,110 @@ static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
         iln->item = *exp;
     }
 
-    switch (formal->mode)
+    if (formal)
     {
-        case Ty_byRef:
+        switch (formal->mode)
         {
-            if (iln->item.kind == IK_const)
+            case Ty_byRef:
             {
+                if (iln->item.kind == IK_const)
+                {
+                    /*
+                     * FIXME: this is a hack to allow NULL pointers as defaults for dynamic array arguments
+                     *        at some point we'll probably need a better solution for this
+                     */
+                    if ((formal->ty->kind == Ty_darray) && CG_getConstInt (&iln->item)==0)
+                    {
+                        return TRUE;
+                    }
+
+                    if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
+                    {
+                        EM_error(pos, "%s: BYREF parameter type const mismatch", S_name(formal->name));
+                        return FALSE;
+                    }
+                }
+
+                if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
+                {
+                    EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
+                    return FALSE;
+                }
+
+                switch (iln->item.kind)
+                {
+                    case IK_const:
+                    case IK_inFrame:
+                    case IK_inHeap:
+                    case IK_inReg:
+                    case IK_inFrameRef:
+                        CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &iln->item);
+                        break;
+                    case IK_varPtr:
+                        break;
+                    default:
+                        EM_error(pos, "%s: actual cannot be passed by reference", S_name(formal->name));
+                        return FALSE;
+                }
+    #if 0
                 /*
                  * FIXME: this is a hack to allow NULL pointers as defaults for dynamic array arguments
                  *        at some point we'll probably need a better solution for this
                  */
-                if ((formal->ty->kind == Ty_darray) && CG_getConstInt (&iln->item)==0)
+
+                if ( (formal->ty->kind == Ty_varPtr) && (formal->ty->u.pointer->kind == Ty_darray) && isNullPtr (exp) )
                 {
-                    return TRUE;
-                }
-
-                if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
-                {
-                    EM_error(pos, "%s: BYREF parameter type const mismatch", S_name(formal->name));
-                    return FALSE;
-                }
-            }
-
-            if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
-            {
-                EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
-                return FALSE;
-            }
-
-            switch (iln->item.kind)
-            {
-                case IK_const:
-                case IK_inFrame:
-                case IK_inHeap:
-                case IK_inReg:
-                case IK_inFrameRef:
-                    CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &iln->item);
-                    break;
-                case IK_varPtr:
-                    break;
-                default:
-                    EM_error(pos, "%s: actual cannot be passed by reference", S_name(formal->name));
-                    return FALSE;
-            }
-#if 0
-            /*
-             * FIXME: this is a hack to allow NULL pointers as defaults for dynamic array arguments
-             *        at some point we'll probably need a better solution for this
-             */
-
-            if ( (formal->ty->kind == Ty_varPtr) && (formal->ty->u.pointer->kind == Ty_darray) && isNullPtr (exp) )
-            {
-                CG_ItemListPrepend(assignedArgs, exp);
-            }
-            else
-            {
-                CG_item expRef = forceExp ? NULL : Tr_MakeRef(pos, exp);
-                if (!expRef)
-                {
-                    expRef = CG_AccessItem(pos, CG_allocVar(g_sleStack->frame, /*name=*/NULL, /*expt=*/FALSE, formal->ty->u.pointer));
-                    CG_item conv_actual;
-                    if (!convert_ty(pos, exp, formal->ty->u.pointer, &conv_actual, /*explicit=*/FALSE))
-                    {
-                        EM_error(pos, "%s: TMP BYREF parameter type mismatch", S_name(formal->name));
-                        return;
-                    }
-                    emit (Tr_assignExp(pos, Tr_Deref(pos, expRef), conv_actual));
+                    CG_ItemListPrepend(assignedArgs, exp);
                 }
                 else
                 {
-                    if (!compatible_ty(formal->ty->u.pointer, CG_ty(exp)))
+                    CG_item expRef = forceExp ? NULL : Tr_MakeRef(pos, exp);
+                    if (!expRef)
                     {
-                        EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
-                        return;
+                        expRef = CG_AccessItem(pos, CG_allocVar(g_sleStack->frame, /*name=*/NULL, /*expt=*/FALSE, formal->ty->u.pointer));
+                        CG_item conv_actual;
+                        if (!convert_ty(pos, exp, formal->ty->u.pointer, &conv_actual, /*explicit=*/FALSE))
+                        {
+                            EM_error(pos, "%s: TMP BYREF parameter type mismatch", S_name(formal->name));
+                            return;
+                        }
+                        emit (Tr_assignExp(pos, Tr_Deref(pos, expRef), conv_actual));
                     }
+                    else
+                    {
+                        if (!compatible_ty(formal->ty->u.pointer, CG_ty(exp)))
+                        {
+                            EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
+                            return;
+                        }
+                    }
+                    CG_ItemListPrepend(assignedArgs, expRef);
                 }
-                CG_ItemListPrepend(assignedArgs, expRef);
-            }
-#endif
+    #endif
 
-            break;
-        }
-        case Ty_byVal:
-        {
-            if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
-            {
-                EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
-                return FALSE;
+                break;
             }
-            CG_loadVal (g_sleStack->code, pos, &iln->item);
-            break;
+            case Ty_byVal:
+            {
+                if (!convert_ty(&iln->item, pos, formal->ty, /*explicit=*/FALSE))
+                {
+                    EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
+                    return FALSE;
+                }
+                CG_loadVal (g_sleStack->code, pos, &iln->item);
+                break;
+            }
         }
+    }
+    else
+    {
+        // no formal given (->variadic args)
+        if (!convert_ty(&iln->item, pos, Ty_ULong(), /*explicit=*/FALSE))
+        {
+            EM_error(pos, "variadic parameter type mismatch");
+            return FALSE;
+        }
+        CG_loadVal (g_sleStack->code, pos, &iln->item);
     }
     return TRUE;
 }
@@ -5118,6 +5131,7 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
             else
             {
                 EM_error((*tkn)->pos, "too many arguments.");
+                ok = FALSE;
             }
         }
         else
@@ -5213,8 +5227,24 @@ static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, 
             }
             else
             {
-                EM_error((*tkn)->pos, "too many arguments.");
-                ok = FALSE;
+                if (proc->isVariadic)
+                {
+                    CG_item exp;
+                    if (expression(tkn, &exp))
+                    {
+                        if (!transAssignArg((*tkn)->pos, assignedArgs, /*formal=*/NULL, &exp, /*forceExp=*/FALSE))
+                            return FALSE;
+                    }
+                    else
+                    {
+                        ok = FALSE;
+                    }
+                }
+                else
+                {
+                    EM_error((*tkn)->pos, "too many arguments.");
+                    ok = FALSE;
+                }
             }
         }
     }

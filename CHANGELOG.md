@@ -2,6 +2,7 @@
 
 Improvements:
 
+    * compiler: support for variadic function argument passing
 
 Bug Fixes:
 
