@@ -805,7 +805,11 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
     switch (ty1->kind)
     {
         case Ty_long:
+        case Ty_ulong:
         case Ty_integer:
+        case Ty_uinteger:
+        case Ty_byte:
+        case Ty_ubyte:
         case Ty_single:
         case Ty_bool:
             return ty2->kind == ty1->kind;
