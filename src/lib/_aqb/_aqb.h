@@ -14,6 +14,31 @@ extern struct GfxBase       *GfxBase;
 extern struct Library       *DiskfontBase;
 
 /*
+ * error codes
+ */
+
+#define AE_WIN_OPEN                 101
+#define AE_SCREEN_OPEN              102
+#define AE_PALETTE                  103
+#define AE_COLOR                    104
+#define AE_AREA                     105
+#define AE_PATTERN                  106
+#define AE_WIN_CLOSE                107
+#define AE_WIN_OUTPUT               108
+#define AE_SCREEN_CLOSE             109
+#define AE_PAINT                    110
+#define AE_LINE                     111
+#define AE_PSET                     112
+#define AE_ON_TIMER_CALL            114
+#define AE_TIMER_ON                 115
+#define AE_TIMER_OFF                116
+#define AE_MOUSE                    120
+#define AE_BLIT                     121
+#define AE_RASTPORT                 122
+#define AE_FONT                     123
+#define AE_AUDIO                    124
+
+/*
  * bitmaps, screens, windows, fonts, graphics
  */
 
@@ -51,27 +76,6 @@ void     FONT_FREE            (FONT_t *font);
 void     FONTSTYLE            (ULONG style);
 ULONG    FONTSTYLE_           (void);
 SHORT    TEXTWIDTH_           (UBYTE *s);
-
-#define AE_WIN_OPEN                 101
-#define AE_SCREEN_OPEN              102
-#define AE_PALETTE                  103
-#define AE_COLOR                    104
-#define AE_AREA                     105
-#define AE_PATTERN                  106
-#define AE_WIN_CLOSE                107
-#define AE_WIN_OUTPUT               108
-#define AE_SCREEN_CLOSE             109
-#define AE_PAINT                    110
-#define AE_LINE                     111
-#define AE_PSET                     112
-#define AE_ON_TIMER_CALL            114
-#define AE_TIMER_ON                 115
-#define AE_TIMER_OFF                116
-#define AE_MOUSE                    120
-#define AE_BLIT                     121
-#define AE_RASTPORT                 122
-#define AE_FONT                     123
-#define AE_AUDIO                    124
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
