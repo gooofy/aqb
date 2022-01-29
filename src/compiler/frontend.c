@@ -5524,7 +5524,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
     return TRUE;
 }
 
-// parameterList ::= '(' [ paramDecl ( ',' ( paramDecl | '...' ) )* ] ')'
+// parameterList ::= '(' ( '...' | paramDecl ( ',' ( paramDecl | '...' ) )* ) ')'
 static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
 {
     *tkn = (*tkn)->next; // consume "("
@@ -5532,22 +5532,30 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
 
     if ((*tkn)->kind != S_RPAREN)
     {
-        if (!paramDecl(tkn, paramList))
-            return FALSE;
-
-        while ((*tkn)->kind == S_COMMA)
+        if ((*tkn)->kind == S_TRIPLEDOTS)
         {
+            *variadic = TRUE;
             *tkn = (*tkn)->next;
-
-            if ((*tkn)->kind == S_TRIPLEDOTS)
-            {
-                *variadic = TRUE;
-                *tkn = (*tkn)->next;
-                break;
-            }
-
+        }
+        else
+        {
             if (!paramDecl(tkn, paramList))
                 return FALSE;
+
+            while ((*tkn)->kind == S_COMMA)
+            {
+                *tkn = (*tkn)->next;
+
+                if ((*tkn)->kind == S_TRIPLEDOTS)
+                {
+                    *variadic = TRUE;
+                    *tkn = (*tkn)->next;
+                    break;
+                }
+
+                if (!paramDecl(tkn, paramList))
+                    return FALSE;
+            }
         }
     }
 

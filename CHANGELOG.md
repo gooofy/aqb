@@ -6,6 +6,7 @@ Improvements:
 Bug Fixes:
 
     * ide: udt (TYPE) auto-indentation fixed
+    * compiler: fix syntax for pure variadic functions
 
 ## 0.8.2
 
