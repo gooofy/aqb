@@ -64,6 +64,7 @@ static S_symbol S_WEND;
 static S_symbol S_SELECT;
 static S_symbol S_CASE;
 static S_symbol S_REM;
+static S_symbol S_TYPE;
 
 #if LOG_LEVEL == LOG_DEBUG
 static FILE *logf=NULL;
@@ -532,7 +533,7 @@ static void _editor_size_cb (UI_view view, void *user_data)
 
 typedef enum { STAUI_START, STAUI_IF, STAUI_ELSEIF, STAUI_ELSE, STAUI_THEN,
                STAUI_ELSEIFTHEN, STAUI_LOOP, STAUI_LOOPEND,
-               STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE, STAUI_OTHER } state_enum;
+               STAUI_END, STAUI_SUB, STAUI_SELECT, STAUI_CASE, STAUI_OTHER, STAUI_TYPE } state_enum;
 
 static void _getch(IDE_instance ed)
 {
@@ -769,6 +770,11 @@ static IDE_line _buf2line (IDE_instance ed)
                             state = STAUI_LOOP;
                             post_indent++;
                         }
+                        else if (sym == S_TYPE)
+                        {
+                            state = STAUI_TYPE;
+                            post_indent++;
+                        }
                         else if ((sym == S_NEXT) || (sym == S_LOOP) || (sym == S_WEND))
                         {
                             state = STAUI_LOOPEND;
@@ -811,6 +817,7 @@ static IDE_line _buf2line (IDE_instance ed)
                     case STAUI_ELSE:
                     case STAUI_SUB:
                     case STAUI_LOOP:
+                    case STAUI_TYPE:
                     case STAUI_LOOPEND:
                     case STAUI_SELECT:
                     case STAUI_CASE:
@@ -2201,6 +2208,7 @@ void IDE_open (string sourcefn)
     S_SELECT   = S_Symbol ("SELECT"  , FALSE);
     S_CASE     = S_Symbol ("CASE"    , FALSE);
     S_REM      = S_Symbol ("REM"     , FALSE);
+    S_TYPE     = S_Symbol ("TYPE"    , FALSE);
 
     g_keywords = TAB_empty (UP_ide);
     for (int i =0; i<FE_num_keywords; i++)

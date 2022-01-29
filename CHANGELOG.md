@@ -5,6 +5,7 @@ Improvements:
 
 Bug Fixes:
 
+    * ide: udt (TYPE) auto-indentation fixed
 
 ## 0.8.2
 
