@@ -76,6 +76,7 @@ src/lib/IFFSupport/*.sym
 src/lib/AnimSupport/*.sym
 src/lib/OSGadToolsConsts/*.sym
 src/lib/UISupport/*.sym
+src/lib/OSUtility/*.sym
 src/alib/tests/*.bin
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas

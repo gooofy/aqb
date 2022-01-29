@@ -1,5 +1,7 @@
 #include "_aqb.h"
 
+#include <stdarg.h>
+
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 

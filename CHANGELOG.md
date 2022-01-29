@@ -2,6 +2,8 @@
 
 Improvements:
 
+    * runtime: TAGITEMS(), TAGS() functions added
+    * runtime: OSUtility module containing utility.library declarations added
     * compiler: support for variadic function argument passing
 
 Bug Fixes:

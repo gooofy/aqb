@@ -34,6 +34,27 @@ PUBLIC CONST AS INTEGER AE_AUDIO             = 124
 
 ' --------------------------------------------------------------------------------------------------------
 ' --
+' -- tags
+' --
+' --------------------------------------------------------------------------------------------------------
+
+PUBLIC TYPE TagItem
+    AS ULONG     ti_Tag
+    AS ULONG     ti_Data
+END TYPE
+
+PUBLIC CONST AS ULONG TAG_DONE   = &H00000000
+PUBLIC CONST AS ULONG TAG_END	  = &H00000000
+PUBLIC CONST AS ULONG TAG_IGNORE = &H00000001
+PUBLIC CONST AS ULONG TAG_MORE   = &H00000002
+PUBLIC CONST AS ULONG TAG_SKIP   = &H00000003
+PUBLIC CONST AS ULONG TAG_USER   = &H80000000
+
+PUBLIC DECLARE FUNCTION TAGITEMS     (BYVAL ti_Tag AS ULONG, ...) AS TAGITEM PTR
+PUBLIC DECLARE FUNCTION TAGS         (BYVAL ti_Tag AS ULONG, ...) AS ULONG PTR
+
+' --------------------------------------------------------------------------------------------------------
+' --
 ' -- bitmaps, screens, windows and graphics
 ' --
 ' --------------------------------------------------------------------------------------------------------

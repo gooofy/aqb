@@ -1156,7 +1156,7 @@ E_module E_loadModule(S_symbol sModule)
     FILE *modf = E_openModuleFile (symfn);
     if (!modf)
     {
-        LOG_printf (LOG_ERROR, "failed to read symbol file %s", symfn);
+        LOG_printf (LOG_ERROR, "failed to read symbol file %s\n", symfn);
         return NULL;
     }
 

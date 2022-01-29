@@ -1,8 +1,8 @@
 include ../../config.mk
 
-.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts UISupport
+.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts OSUtility UISupport
 
-all: _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts UISupport
+all: _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts OSUtility UISupport
 
 _brt:
 	cd _brt ; make all
@@ -22,6 +22,9 @@ AnimSupport:
 OSGadToolsConsts:
 	cd OSGadToolsConsts ; make all
 
+OSUtility:
+	cd OSUtility ; make all
+
 UISupport:
 	cd UISupport ; make all
 
@@ -36,4 +39,5 @@ clean:
 	cd IFFSupport ; make clean
 	cd AnimSupport ; make clean
 	cd OSGadToolsConsts ; make clean
+	cd OSUtility ; make clean
 	cd UISupport ; make clean

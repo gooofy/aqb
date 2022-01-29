@@ -24,6 +24,7 @@ cp src/lib/AnimSupport/AnimSupport.a             ${WORKDIR}/aqb/lib/
 cp src/lib/UISupport/UISupport.sym               ${WORKDIR}/aqb/lib/
 cp src/lib/UISupport/UISupport.a                 ${WORKDIR}/aqb/lib/
 cp src/lib/OSGadToolsConsts/OSGadToolsConsts.sym ${WORKDIR}/aqb/lib/
+cp src/lib/OSUtility/OSUtility.sym               ${WORKDIR}/aqb/lib/
 cp src/lib/startup.o                             ${WORKDIR}/aqb/lib/
 cp README.guide                                  ${WORKDIR}/aqb/
 cp CHANGELOG.md                                  ${WORKDIR}/aqb/CHANGELOG

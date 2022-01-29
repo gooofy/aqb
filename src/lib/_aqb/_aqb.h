@@ -39,6 +39,21 @@ extern struct Library       *DiskfontBase;
 #define AE_AUDIO                    124
 
 /*
+ * tags
+ */
+
+typedef struct TAGITEM_ TAGITEM_t;
+
+struct TAGITEM_
+{
+    ULONG ti_Tag;
+    ULONG ti_Data;
+};
+
+TAGITEM_t *TAGITEMS_           (ULONG ti_Tag, ...);
+ULONG     *TAGS_               (ULONG ti_Tag, ...);
+
+/*
  * bitmaps, screens, windows, fonts, graphics
  */
 

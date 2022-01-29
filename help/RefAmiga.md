@@ -471,7 +471,7 @@ Syntax:
 
 	SOUND [freq], [duration], [volume], [channel]
 
-Play a sound of given frequency, duration, volume on the channel specified.
+play a sound of given frequency, duration, volume on the channel specified.
 Sound output is non-blocking, this statement just queues the audio request,
 i.e. program execution will continue as long as free audio request slots are
 available.  See SOUND WAIT for information on how to sync audio output.
@@ -490,7 +490,7 @@ Syntax:
 
 	SOUND START [channel]
 
-Resume audio output on the specified channel (or all channels, if not specified).
+resume audio output on the specified channel (or all channels, if not specified).
 
 	* channel: audio channel to ststart, default: start all channels
 
@@ -501,7 +501,7 @@ Syntax:
 
 	SOUND STOP [channel]
 
-Stop audio output on the specified channel (or all channels, if not specified). Further
+stop audio output on the specified channel (or all channels, if not specified). Further
 audio requests will be queued until SOUND START is used to resume playback.
 
 Warning: program execution will be blocked if sound output is stopped and
@@ -516,10 +516,49 @@ Syntax:
 
 	SOUND WAIT [channel]
 
-Wait for audio playback to finish on the given channel if specified, on all
+wait for audio playback to finish on the given channel if specified, on all
 channels otherwise
 
 	* channel: audio channel to wait for, default: wait for all channels
+
+
+## TAGITEMS()
+
+Syntax:
+
+    TAGITEMS "(" tag [ "," value [...] ] ")"
+
+allocate and initialize a new array of tagitems, suitable for passing as
+taglists to OS calls.
+
+DEALLOCATE() can be used to free the list once no longer used.
+
+IMPORTANT: always terminate the tag list with TAG\_DONE!
+
+Example:
+
+    REM allocate a list of 3 tag items:
+
+    DIM AS TAGITEM_t PTR mytagitems = TAGITEMS (42, 2, 23, 0, TAG_DONE)
+
+
+## TAGS()
+
+Syntax:
+
+    TAGS "(" tag [ "," tag [...] ] ")"
+
+allocate and initialize a new array of tags.
+
+DEALLOCATE() can be used to free the list once no longer used.
+
+IMPORTANT: always terminate the tag list with TAG\_END!
+
+Example:
+
+    REM allocate a list of 4 tags items:
+
+    DIM AS ULONG PTR mytags = TAGS (1,2,3,TAG_END)
 
 
 ## TEXTWIDTH()
@@ -528,7 +567,7 @@ Syntax:
 
     TEXTWIDTH "(" s ")"
 
-Returns the width of s in pixels, taking the current font into account.
+return the width of s in pixels, taking the current font into account.
 
 
 ## TIMER ON|OFF
