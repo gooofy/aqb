@@ -103,8 +103,8 @@ static struct Gadget *_createGadgetTagList (ULONG kind, struct Gadget *prev, WOR
                                             char *txt, APTR user_data, ULONG flags, struct TextAttr *ta, struct VisualInfo *vinfo,
                                             const struct TagItem *tags)
 {
-    //_sfdc_vararg tags[] = { ___tagList, __VA_ARGS__ };
-    //OpenScreenTagList((___newScreen), (const struct TagItem *) _tags); }
+
+    DPRINTF ("_createGadgetTagList: flags=0x%08lx\n", flags);
 
     struct NewGadget ng;
 
@@ -119,30 +119,16 @@ static struct Gadget *_createGadgetTagList (ULONG kind, struct Gadget *prev, WOR
     ng.ng_Flags      = flags;
     ng.ng_UserData   = user_data;
 
-    // FIXME: remove debug code
-#if 0
-    struct TagItem *ti = FindTagItem (GTST_String, tags);
-
-    LOG_printf (LOG_DEBUG, "_createGadget: GTST_String ti=0x%08lx\n", ti);
-    if (ti)
-        LOG_printf (LOG_DEBUG, "   ->value=0x%08lx (%s)\n", ti->ti_Data, (char *) ti->ti_Data);
-
-    ti = FindTagItem (GTST_MaxChars, tags);
-
-    LOG_printf (LOG_DEBUG, "_createGadget: GTST_MaxChars ti=0x%08lx -> %ld\n", ti, ti ? ti->ti_Data : 0);
-    printf ("_createGadgetTagList: prev=%08lx, x=%d, y=%d, w=%d, h=%d, txt=%s, id=%d, flags=%ld\n", (ULONG) prev, x, y, w, h, txt, id, flags);
-#endif
-
     return CreateGadgetA (kind, prev, &ng, tags);
 }
 
 GTGADGET_t *GTGADGET_ (SHORT kind,
                        BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                       char *txt, ULONG flags, SHORT id, ...)
+                       char *txt, ULONG flags, SHORT id, ULONG ti_Tag, ...)
 {
 
     DPRINTF ("GTGADGET_: creating a gadtools gadget of kind %d %d/%d - %d/%d\n", kind, x1, y1, x2, y2);
-    //Delay (50);
+    DPRINTF ("           txt=%s, flags=0x%08lx, id=%d\n", txt ? txt : "NULL", flags, id);
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
@@ -164,9 +150,6 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
 		_window_add_close_cb (window_close_cb);
 		ext->close_cb_installed = TRUE;
 	}
-
-    DPRINTF ("GTGADGET_: #0\n");
-    //Delay (50);
 
     if (!ext->vinfo)
     {
@@ -199,10 +182,14 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
 
     gtgadget->id = id;
 
-    DPRINTF ("GTGADGET_: #1\n");
-    //Delay (50);
+    va_list ap;
+    va_start (ap, ti_Tag);
+    struct TagItem *tags = _vatagitems (ti_Tag, ap);
+    va_end(ap);
 
-	ext->gad = _createGadgetTags (kind, ext->gad, x1, y1, x2-x1+1, y2-y1+1, txt, gtgadget, flags, &ext->ta, ext->vinfo,  TAG_END);
+	ext->gad = _createGadgetTagList (kind, ext->gad, x1, y1, x2-x1+1, y2-y1+1, txt, gtgadget, flags, &ext->ta, ext->vinfo, tags);
+
+    DEALLOCATE (tags);
 
 	if (!ext->gad)
 	{

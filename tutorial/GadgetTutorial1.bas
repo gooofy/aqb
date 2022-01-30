@@ -21,7 +21,7 @@ REM create a simple button gadget
 
 DIM AS GTGADGET_t PTR gadget
 
-gadget = GTGADGET (BUTTON_KIND, (15, 26)-(114, 56), "QUIT")
+gadget = GTGADGET (BUTTON_KIND, (15, 26)-(114, 56), "QUIT", 0, 1, TAG_DONE)
 
 REM connect our callback
 

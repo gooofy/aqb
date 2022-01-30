@@ -18,7 +18,7 @@ struct GTGADGET_
 
 GTGADGET_t *GTGADGET_ (SHORT kind,
                        BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                       char *txt, ULONG flags, SHORT id, ...);
+                       char *txt, ULONG flags, SHORT id, ULONG ti_Tag, ...);
 
 void GTGADGETS_DEPLOY (void);
 void GTGADGETS_FREE   (void);
