@@ -886,6 +886,8 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         case Ty_record:
             return FALSE; // unless identical, see above
         case Ty_string:
+            if (ty2->kind == Ty_ulong)
+                return TRUE;    // allow string const passing to tag data
             if (ty2->kind != Ty_pointer)
                 return FALSE;
             if (  (ty2->u.pointer->kind == Ty_void)
