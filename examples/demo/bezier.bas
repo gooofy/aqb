@@ -58,7 +58,7 @@ SUB drawBezier
             NEXT j
         WEND
         REM PRINT Xold; "/"; Yold; " - "; Qx ( 0 ); "/"; Qy ( 0 )
-
+        
         
         
         LINE ( Xold, Yold ) - ( qX(0), qY(0) )
@@ -114,7 +114,7 @@ SUB mousemovecb
     
 END SUB
 
-SUB windowcb
+SUB windowcb (BYVAL wid AS INTEGER)
     SYSTEM
 END SUB
 
@@ -131,7 +131,7 @@ MOUSE ON
 ON MOUSE MOTION CALL mousemovecb
 MOUSE MOTION ON
 
-ON WINDOW CALL windowcb
+ON WINDOW CLOSE CALL 1, windowcb
 
 drawBezier
 

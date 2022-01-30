@@ -130,7 +130,7 @@ typically form a main loop that could look like this:
 For event processing you register subroutines using the ON ... CALL
 <function> family of statements, e.g.
 
-    ON WINDOW CALL myWindowHandler
+    ON WINDOW CLOSE CALL 1, myWindowHandler
 
 see https://github.com/gooofy/aqb/blob/master/examples/demo/gfx1.bas for a
 simple example of this approach.
@@ -139,7 +139,7 @@ Interesting detail: since AQB supports C-like function pointers, the ON ...
 CALL family of statements is not built into the compiler but part of the
 `_aqb` runtime:
 
-    PUBLIC DECLARE SUB ON WINDOW CALL (BYVAL p AS SUB)
+    PUBLIC DECLARE SUB ON WINDOW CLOSE CALL (BYVAL wid AS INTEGER, BYVAL p AS SUB (BYVAL INTEGER))
 
 ## Code Generation and Target Systems
 

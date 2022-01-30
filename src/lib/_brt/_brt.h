@@ -41,7 +41,7 @@ void _debug_putnl  (void);
 void _debug_cls    (void);
 void _debug_break  (void);
 
-// #define ENABLE_DPRINTF
+//#define ENABLE_DPRINTF
 
 #ifdef ENABLE_DPRINTF
 

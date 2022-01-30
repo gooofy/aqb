@@ -103,24 +103,24 @@ extern short                 _g_active_win_id;
 extern short                 _g_cur_win_id;
 
 #define MAX_NUM_WINDOWS 16
-extern struct Window        *_g_winlist[MAX_NUM_WINDOWS];
+
+typedef void (*window_close_cb_t)(SHORT id);
+typedef BOOL (*window_msg_cb_t  )(SHORT wid, struct Window *win, struct IntuiMessage *message);
 
 enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
+struct Window         *_aqb_get_win    (SHORT wid);
+
+void   _window_add_close_cb   (window_close_cb_t cb);
+void   _window_add_msg_cb     (window_msg_cb_t cb);
 
 void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);
-void   SCREEN_CLOSE           (short id);
+void   SCREEN_CLOSE           (SHORT id);
 
 void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, ULONG flags, SHORT scrid);
-void   WINDOW_CLOSE           (short id);
-void   WINDOW_OUTPUT          (short id);
-void   ON_WINDOW_CALL         (void (*cb)(void));
+void   WINDOW_CLOSE           (SHORT id);
+void   WINDOW_OUTPUT          (SHORT id);
+void   ON_WINDOW_CLOSE_CALL   (SHORT id, window_close_cb_t cb);
 ULONG  WINDOW_                (SHORT n);
-
-typedef void (*window_close_cb_t)(short id);
-void   _window_add_close_cb   (window_close_cb_t cb);
-
-typedef BOOL (*window_msg_cb_t)(SHORT wid, struct Window *win, struct IntuiMessage *message);
-void   _window_add_msg_cb     (window_msg_cb_t cb);
 
 void   SLEEP                  (void);
 void   VWAIT                  (void);

@@ -321,6 +321,25 @@ assign timer #`id` to call `sub` every `t` seconds. After setup
 the timer still has to be enabled using the TIMER ON statement.
 
 
+## ON WINDOW CLOSE CALL
+
+Syntax:
+
+    ON WINDOW CLOSE CALL id "," cb
+
+call subroute cb when the close button on window #id is clicked.
+
+Example:
+
+    SUB winCloseCB (BYVAL wid AS INTEGER)
+        TRACE "window close cb called, wid=";wid
+        SYSTEM
+    END SUB
+
+    WINDOW 1, "Window close callback demo"
+    ON WINDOW CLOSE CALL 1, winCloseCB
+
+
 ## OPEN
 
 Syntax:

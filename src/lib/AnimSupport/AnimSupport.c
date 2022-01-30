@@ -227,9 +227,10 @@ void SPRITE_FREE (SPRITE_t *sprite)
 
     for (SHORT i=0; i<MAX_NUM_WINDOWS; i++)
     {
-        if (!_g_winlist[i] || (_g_winlist[i]->Pointer != sprite->posctldata))
+        struct Window *win = _aqb_get_win(i);
+        if (!win || (win->Pointer != sprite->posctldata))
             continue;
-        ClearPointer (_g_winlist[i]);
+        ClearPointer (win);
     }
 
     FreeVec (sprite->posctldata);
@@ -287,7 +288,7 @@ static void _cleanupGelSys(struct RastPort *rPort)
 
 static void _win_gels_cleanup_cb (short id)
 {
-    struct Window *win = _g_winlist[id];
+    struct Window *win = _aqb_get_win(id);
     struct RastPort *rPort = win->RPort;
     DPRINTF ("_win_gels_cleanup_cb called, win=0x%08lx, rPort=0x%08lx\n", win, rPort);
 

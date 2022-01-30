@@ -6,7 +6,7 @@ IMPORT UISupport
 
 REM GTGADGETUP callback
 
-SUB finish (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER,_
+SUB gadgetCB (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER,_
     BYVAL g AS GTGADGET_t PTR)
     
     TRACE "finish called."
@@ -15,7 +15,13 @@ SUB finish (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER,_
     
 END SUB    
 
+SUB winCloseCB (BYVAL wid AS INTEGER)
+    TRACE "window close cb called, wid=";wid
+    SYSTEM
+END SUB    
+
 WINDOW 1, "A simple button gadget"
+ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create a simple button gadget
 
@@ -25,7 +31,7 @@ gadget = GTGADGET (BUTTON_KIND, (15, 26)-(114, 56), "QUIT", 0, 1, TAG_DONE)
 
 REM connect our callback
 
-ON GTGADGETUP CALL gadget, finish
+ON GTGADGETUP CALL gadget, gadgetCB
 
 REM deploy our gadgets to the current window
 

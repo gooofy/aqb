@@ -8,14 +8,14 @@ OPTION EXPLICIT
 
 DIM SHARED finished AS BOOLEAN = FALSE
 
-SUB HandleWindow
+SUB HandleWindow (BYVAL wid AS INTEGER)
     finished = TRUE
     PRINT "HandleWindow() called"
 END SUB
 
 WINDOW 1, "gfx1 - Simple AQB Graphics Demo", ( 0, 0 ) - ( 638, 180 )
 
-ON WINDOW CALL HandleWindow
+ON WINDOW CLOSE CALL 1, HandleWindow
 
 PRINT "Text output test"
 

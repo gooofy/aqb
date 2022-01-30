@@ -4,6 +4,7 @@ Improvements:
 
     * runtime: TAGITEMS(), TAGS() functions added
     * runtime: OSUtility module containing utility.library declarations added
+    * runtime: [breaking] refactored window close button msg handling, done via ON WINDOW CLOSE CALL now
     * compiler: support for variadic function argument passing
 
 Bug Fixes:

@@ -92,7 +92,8 @@ static void window_close_cb (short win_id)
     DPRINTF ("UISupport: window_close_cb called on win #%d\n", win_id);
 
     ui_win_ext_t *ext = &g_win_ext[win_id];
-    _gtgadgets_free (_g_winlist[win_id], ext);
+    struct Window *win = _aqb_get_win(win_id);
+    _gtgadgets_free (win, ext);
 }
 
 #define _createGadgetTags(kind, prev, x, y, w, h, txt, user_data, flags, ta, vinfo, ___tagList, ...) \

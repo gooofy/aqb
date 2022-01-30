@@ -3,7 +3,7 @@ include ../../config.mk
 AQBFLAGS     = -L ../../src/lib
 AQBFLAGS_OPT = -O -L ../../src/lib
 
-SRCS = gfx1.bas gfx2.bas 3dplot.bas hand.bas tetris.bas mandelbrot.bas banana.bas music.bas
+SRCS = gfx1.bas gfx2.bas 3dplot.bas hand.bas tetris.bas mandelbrot.bas banana.bas music.bas bezier.bas
 
 ASMDIR_AMIGAOS_DEMO = aqb_demo/asm
 OBJDIR_AMIGAOS_DEMO = aqb_demo/obj

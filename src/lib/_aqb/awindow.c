@@ -66,26 +66,11 @@ static struct NewWindow g_nw =
  * keep track of window and screen ids
  */
 
-struct Window * _g_winlist[MAX_NUM_WINDOWS] = {
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL
-};
-
-// window callbacks
-
 typedef struct win_close_cb_node_s *win_close_cb_node_t;
 struct win_close_cb_node_s
 {
     win_close_cb_node_t next;
     window_close_cb_t   cb;
-};
-static win_close_cb_node_t g_win_close_cb_list[MAX_NUM_WINDOWS] = {
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL
 };
 
 typedef struct win_msg_cb_node_s *win_msg_cb_node_t;
@@ -94,12 +79,18 @@ struct win_msg_cb_node_s
     win_msg_cb_node_t next;
     window_msg_cb_t   cb;
 };
-static win_msg_cb_node_t g_win_msg_cb_list[MAX_NUM_WINDOWS] = {
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL,
-    NULL,NULL,NULL,NULL
-};
+
+typedef struct
+{
+    struct Window       *win;
+
+    window_close_cb_t    aqb_close_cb;
+    win_close_cb_node_t  close_cbs;
+    win_msg_cb_node_t    msg_cbs;
+
+} AQBWindow_t;
+
+static AQBWindow_t _g_winlist[MAX_NUM_WINDOWS];
 
 #define MAX_NUM_SCREENS 4
 static struct Screen * g_scrlist[MAX_NUM_SCREENS] = { NULL, NULL, NULL, NULL };
@@ -126,7 +117,6 @@ static BITMAP_t             *g_bm_last       = NULL;
 static FONT_t               *g_font_first    = NULL;
 static FONT_t               *g_font_last     = NULL;
 
-static void (*g_win_cb)(void)                = NULL;
 static void (*g_mouse_cb)(void)              = NULL;
 static void (*g_mouse_motion_cb)(void)       = NULL;
 
@@ -223,7 +213,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     USHORT w, h;
 
     // error checking
-    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1] != NULL) || (x1 > x2) || (y1 > y2) )
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1].win != NULL) || (x1 > x2) || (y1 > y2) )
     {
         ERROR(AE_WIN_OPEN);
         return;
@@ -288,7 +278,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         return;
     }
 
-    _g_winlist[id-1] = win;
+    _g_winlist[id-1].win = win;
 
     _g_signalmask_awindow |= (1L << win->UserPort->mp_SigBit);
 
@@ -311,14 +301,14 @@ void WINDOW_CLOSE(short id)
 #endif
 
     // error checking
-    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1] == NULL) )
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1].win == NULL) )
     {
         ERROR(AE_WIN_CLOSE);
         return;
     }
 
     // call close callbacks first
-    for (win_close_cb_node_t n=g_win_close_cb_list[id-1]; n; n=n->next)
+    for (win_close_cb_node_t n=_g_winlist[id-1].close_cbs; n; n=n->next)
     {
 #ifdef ENABLE_DEBUG
         DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
@@ -326,16 +316,16 @@ void WINDOW_CLOSE(short id)
         n->cb(id-1);
     }
 
-    if (_g_winlist[id-1]->RPort->TmpRas)
+    if (_g_winlist[id-1].win->RPort->TmpRas)
     {
-        FreeVec ((PLANEPTR) _g_winlist[id-1]->RPort->TmpRas->RasPtr);
-        FreeVec (_g_winlist[id-1]->RPort->TmpRas);
+        FreeVec ((PLANEPTR) _g_winlist[id-1].win->RPort->TmpRas->RasPtr);
+        FreeVec (_g_winlist[id-1].win->RPort->TmpRas);
     }
 #ifdef ENABLE_DEBUG
-    DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, _g_winlist[id-1]);
+    DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, _g_winlist[id-1].win);
 #endif
-    CloseWindow(_g_winlist[id-1]);
-    _g_winlist[id-1]=NULL;
+    CloseWindow(_g_winlist[id-1].win);
+    _g_winlist[id-1].win=NULL;
 }
 
 void _window_add_close_cb (window_close_cb_t cb)
@@ -349,9 +339,9 @@ void _window_add_close_cb (window_close_cb_t cb)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = g_win_close_cb_list[_g_cur_win_id-1];
+    node->next = _g_winlist[_g_cur_win_id-1].close_cbs;
     node->cb   = cb;
-    g_win_close_cb_list[_g_cur_win_id-1] = node;
+    _g_winlist[_g_cur_win_id-1].close_cbs = node;
 }
 
 void _window_add_msg_cb (window_msg_cb_t cb)
@@ -365,9 +355,9 @@ void _window_add_msg_cb (window_msg_cb_t cb)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = g_win_msg_cb_list[_g_cur_win_id-1];
+    node->next = _g_winlist[_g_cur_win_id-1].msg_cbs;
     node->cb   = cb;
-    g_win_msg_cb_list[_g_cur_win_id-1] = node;
+    _g_winlist[_g_cur_win_id-1].msg_cbs = node;
 }
 
 /*
@@ -376,7 +366,7 @@ void _window_add_msg_cb (window_msg_cb_t cb)
 void WINDOW_OUTPUT(short id)
 {
     // switch (back) to console output?
-    if ( (id == 1) && !_g_winlist[0] && (_startup_mode == STARTUP_CLI) )
+    if ( (id == 1) && !_g_winlist[0].win && (_startup_mode == STARTUP_CLI) )
     {
         _g_cur_win_id = 1;
         _g_cur_win    = NULL;
@@ -386,13 +376,13 @@ void WINDOW_OUTPUT(short id)
     }
 
     // error checking
-    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1] == NULL) )
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) || (_g_winlist[id-1].win == NULL) )
     {
         ERROR(AE_WIN_OUTPUT);
         return;
     }
 
-    struct Window *win = _g_winlist[id-1];
+    struct Window *win = _g_winlist[id-1].win;
 
     _g_cur_win_id = id;
     _g_cur_win    = win;
@@ -408,9 +398,9 @@ void _awindow_shutdown(void)
     for (int i = 0; i<MAX_NUM_WINDOWS; i++)
     {
 #ifdef ENABLE_DEBUG
-        DPRINTF("_awindow_shutdown _g_winlist[%d]=0x%08lx\n", i, _g_winlist[i]);
+        DPRINTF("_awindow_shutdown _g_winlist[%d].win=0x%08lx\n", i, _g_winlist[i].win);
 #endif
-        if (_g_winlist[i])
+        if (_g_winlist[i].win)
             WINDOW_CLOSE(i+1);
     }
     for (int i = 0; i<MAX_NUM_SCREENS; i++)
@@ -444,13 +434,13 @@ void _awindow_shutdown(void)
     if (g_console_device_opened)
     {
 #ifdef ENABLE_DEBUG
-        DPRINTF((STRPTR)"_awindow_shutdown ... CloseDevice\n");
+        DPRINTF("_awindow_shutdown ... CloseDevice\n");
         //Delay (100);
 #endif
         CloseDevice((struct IORequest *)&g_ioreq);
     }
 #ifdef ENABLE_DEBUG
-    DPRINTF((STRPTR)"_awindow_shutdown ... finished\n");
+    DPRINTF("_awindow_shutdown ... finished\n");
     //Delay (100);
 #endif
 }
@@ -488,6 +478,12 @@ enum _aqb_output_type  _aqb_get_output (BOOL needGfx)
     }
 
     return g_cur_ot;
+}
+
+struct Window *_aqb_get_win (SHORT wid)
+{
+    struct Window *win = _g_winlist[wid].win;
+    return win;
 }
 
 static BOOL _awindow_cls (void)
@@ -718,17 +714,22 @@ static void _handleSignals(BOOL doWait)
 
 #ifdef ENABLE_DEBUG
 	DPRINTF("_handleSignals: signals=0x%08lx\n", signals);
+    //Delay(100);
 #endif
 
     if (signals & _g_signalmask_atimer)
         _atimer_process_signals(signals);
 
-    for (int i =0; i<MAX_NUM_WINDOWS; i++)
+    for (int wid=0; wid<MAX_NUM_WINDOWS; wid++)
     {
-        struct Window *win = _g_winlist[i];
+        struct Window *win = _g_winlist[wid].win;
         if (!win)
             continue;
 
+#ifdef ENABLE_DEBUG
+        DPRINTF("_handleSignals: checking wid=%d, win=0x%08lx\n", wid, win);
+        //Delay(50);
+#endif
         if (!(signals & (1L << win->UserPort->mp_SigBit)) )
             continue;
 
@@ -737,14 +738,18 @@ static void _handleSignals(BOOL doWait)
             ULONG class = message->Class;
 
 #ifdef ENABLE_DEBUG
-            DPRINTF("_handleSignals: got a message, class=0x%08lx\n", class);
+            DPRINTF("_handleSignals: got a message, class=0x%08lx, wid=%d\n", class, wid);
+            //Delay(100);
 #endif
 
             BOOL handled = FALSE;
 
-            for (win_msg_cb_node_t node = g_win_msg_cb_list[i]; node; node=node->next)
+            for (win_msg_cb_node_t node = _g_winlist[wid].msg_cbs; node; node=node->next)
             {
-                if (node->cb (i, win, message))
+#ifdef ENABLE_DEBUG
+                DPRINTF("_handleSignals: calling msg_cb 0x%08lx\n", node->cb);
+#endif
+                if (node->cb (wid, win, message))
                 {
                     handled = TRUE;
                     break;
@@ -756,9 +761,15 @@ static void _handleSignals(BOOL doWait)
                 switch(class)
                 {
                     case CLOSEWINDOW:
-                        if (g_win_cb)
+#ifdef ENABLE_DEBUG
+                        DPRINTF ("_handleSignals: CLOSEWINDOW wid=%d, aqb_close_cb=0x%08lx\n", wid, _g_winlist[wid].aqb_close_cb);
+                        for (int j=0; j<MAX_NUM_WINDOWS; j++)
+                            DPRINTF ("                            j=%d, aqb_close_cb=0x%08lx\n", j, _g_winlist[j].aqb_close_cb);
+#endif
+
+                        if (_g_winlist[wid].aqb_close_cb)
                         {
-                            g_win_cb();
+                            _g_winlist[wid].aqb_close_cb(wid+1);
                         }
                         break;
 
@@ -799,7 +810,7 @@ static void _handleSignals(BOOL doWait)
                         break;
 
                     case ACTIVEWINDOW:
-                        _g_active_win_id = i+1;
+                        _g_active_win_id = wid+1;
                         break;
 
                     case RAWKEY:
@@ -869,10 +880,21 @@ static void _handleSignals(BOOL doWait)
                 }
             }
 
+#ifdef ENABLE_DEBUG
+            DPRINTF("_handleSignals: ReplyMsg...\n");
+            //Delay(100);
+#endif
             ReplyMsg ( (struct Message *) message);
-            //_debug_puts((STRPTR)"sleep: replied.\n");
+#ifdef ENABLE_DEBUG
+            DPRINTF("_handleSignals: ReplyMsg... done.\n");
+            //Delay(100);
+#endif
         }
     }
+#ifdef ENABLE_DEBUG
+    DPRINTF("_handleSignals: done.\n");
+    //Delay(100);
+#endif
 }
 
 void SLEEP(void)
@@ -904,9 +926,25 @@ void VWAIT (void)
 	_handleSignals(/*doWait=*/FALSE);
 }
 
-void ON_WINDOW_CALL(void (*cb)(void))
+void ON_WINDOW_CLOSE_CALL(short id, void (*cb)(short id))
 {
-    g_win_cb = cb;
+#ifdef ENABLE_DEBUG
+    DPRINTF ("ON_WINDOW_CLOSE_CALL: id=%d, cb=0x%08lx\n", id, cb);
+    //Delay (100);
+#endif
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) )
+    {
+        ERROR(AE_WIN_CLOSE);
+        return;
+    }
+    AQBWindow_t *aqbw = &_g_winlist[id-1];
+    aqbw->aqb_close_cb = cb;
+#ifdef ENABLE_DEBUG
+    DPRINTF ("ON_WINDOW_CLOSE_CALL: aqbw=0x%08lx\n", aqbw);
+    //for (int j=0; j<MAX_NUM_WINDOWS; j++)
+    //    DPRINTF ("                            j=%d, aqb_close_cb=0x%08lx\n", j, _g_winlist[j].aqb_close_cb);
+    //Delay (100);
+#endif
 }
 
 ULONG WINDOW_(short n)
@@ -2066,6 +2104,15 @@ void _awindow_init(void)
     _aio_cls_cb         = _awindow_cls;
     _aio_locate_cb      = _awindow_locate;
     _autil_sleep_for_cb = _awindow_sleep_for;
+
+    for (int i =0; i<MAX_NUM_WINDOWS; i++)
+    {
+        // DPRINTF ("awindow initializing, i=%d _g_winlist[i]=0x%08lx, sizeof(_g_winlist)=%ld\n", i, &_g_winlist[i], sizeof (_g_winlist));
+        _g_winlist[i].win          = NULL;
+        _g_winlist[i].aqb_close_cb = NULL;
+        _g_winlist[i].close_cbs    = NULL;
+        _g_winlist[i].msg_cbs      = NULL;
+    }
 
     g_fp15   = SPFlt(15);
     g_fp50   = SPFlt(50);
