@@ -1,6 +1,8 @@
 #ifndef HAVE_AQB_H
 #define HAVE_AQB_H
 
+#include <stdarg.h>
+
 #include <graphics/rastport.h>
 #include <graphics/gfx.h>
 #include <graphics/gels.h>
@@ -50,6 +52,7 @@ struct TAGITEM_
     ULONG ti_Data;
 };
 
+TAGITEM_t *_vatagitems         (ULONG ti_Tag, va_list tags);
 TAGITEM_t *TAGITEMS_           (ULONG ti_Tag, ...);
 ULONG     *TAGS_               (ULONG ti_Tag, ...);
 

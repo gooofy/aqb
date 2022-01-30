@@ -1,35 +1,47 @@
 #include "_aqb.h"
 
-#include <stdarg.h>
-
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
-TAGITEM_t *TAGITEMS_ (ULONG ti_Tag, ...)
-{
-    DPRINTF ("TAGITEMS_: first ti_Tag=%ld\n", ti_Tag);
+#define MAX_TAGS    64
 
-	int     num_tags = 1;
-    va_list ap;
+TAGITEM_t *_vatagitems (ULONG ti_Tag, va_list ap)
+{
+	int              num_tags = 1;
+    static TAGITEM_t tagbuf[MAX_TAGS];
+
+    DPRINTF ("_vatagitems: first ti_Tag=%ld\n", ti_Tag);
+    tagbuf[0].ti_Tag = ti_Tag;
 
 	if (ti_Tag)
 	{
-		va_start(ap, ti_Tag);
-		va_arg (ap, ULONG);             // ignore first tag's data
+		tagbuf[0].ti_Data = va_arg (ap, ULONG);
 
         ULONG tag;
         do
         {
+            tagbuf[num_tags].ti_Tag  = tag = va_arg (ap, ULONG);
+            tagbuf[num_tags].ti_Data       = va_arg (ap, ULONG);
             num_tags++;
-            tag  = va_arg (ap, ULONG);
-            va_arg (ap, ULONG);         // ignore tag's data
-            DPRINTF ("TAGITEMS_: tag=%ld\n", tag);
+            DPRINTF ("_vatagitems: tag=%ld\n", tag);
+
+            if (num_tags > MAX_TAGS)
+            {
+                DPRINTF ("TAGITEMS_: too many tags!\n");
+                ERROR (ERR_OUT_OF_MEMORY);
+                return NULL;
+            }
+
         } while (tag);
 
 		va_end(ap);
 	}
+    else
+    {
+		tagbuf[0].ti_Data = 0;
+    }
 
-	DPRINTF ("TAGITEMS_: num_tags=%d\n", num_tags);
+	DPRINTF ("_vatagitems: num_tags=%d\n", num_tags);
 
     ULONG tsize = 2*4*num_tags;
 	TAGITEM_t *tags = (TAGITEM_t *) ALLOCATE_ (tsize, 0);
@@ -40,32 +52,20 @@ TAGITEM_t *TAGITEMS_ (ULONG ti_Tag, ...)
 		return NULL;
 	}
 
-	DPRINTF ("TAGITEMS_: tags (tsize=%ld) allocated at 0x%08lx\n", tsize, tags);
-    TAGITEM_t *ti = tags;
-	ti->ti_Tag = ti_Tag;
+    CopyMem (tagbuf, tags, tsize);
 
-	if (ti_Tag)
-	{
-		va_start(ap, ti_Tag);
-		ti->ti_Data = va_arg (ap, ULONG);
-        DPRINTF ("TAGITEMS_: set first TagItem: tag=%ld, data=%ld\n", ti->ti_Tag, ti->ti_Data);
-		ti++;
+    return tags;
+}
 
-        ULONG tag;
-        do
-        {
-            tag  = va_arg (ap, ULONG);
-            ti->ti_Tag = tag;
-            if (tag)
-                ti->ti_Data = va_arg (ap, ULONG);
-            else
-                ti->ti_Data = 0;
-            DPRINTF ("TAGITEMS_: set next TagItem: tag=%ld, data=%ld\n", ti->ti_Tag, ti->ti_Data);
-            ti++;
-        } while (tag);
+TAGITEM_t *TAGITEMS_ (ULONG ti_Tag, ...)
+{
+    DPRINTF ("TAGITEMS_: first ti_Tag=%ld\n", ti_Tag);
 
-		va_end(ap);
-	}
+    va_list ap;
+
+    va_start(ap, ti_Tag);
+    TAGITEM_t *tags = _vatagitems (ti_Tag, ap);
+    va_end(ap);
 
     return tags;
 }
