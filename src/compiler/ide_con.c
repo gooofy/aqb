@@ -161,9 +161,20 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
 
     _scrollToBottom (ed);
 
-    LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d\n", buf, ed->con_rows);
+    if (ed->con_col >= ed->con_cols)
+    {
+        UI_scrollUp  (view);
+        ed->con_buf[ed->con_line][ed->con_col]=0;
+        ed->con_line = (ed->con_line+1) % MAX_CON_LINES;
+        ed->con_col=0;
+    }
 
-    UI_beginLine (view, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+    uint16_t cols = ed->con_cols-ed->con_col;
+
+    LOG_printf (LOG_DEBUG, "IDE: IDE_cvprintf buf=%s, ed->con_rows=%d, ed->con_cols=%d, ed->con_col=%d -> cols=%d\n",
+                           buf, ed->con_rows, ed->con_cols, ed->con_col, cols);
+
+    UI_beginLine (view, ed->con_rows, ed->con_col+1, cols);
 
     bool     bCSI = FALSE;
     char     csiBuf[CSI_BUF_LEN];
@@ -181,7 +192,7 @@ void IDE_cvprintf (IDE_instance ed, char* format, va_list args)
             ed->con_buf[ed->con_line][ed->con_col]=0;
             ed->con_line = (ed->con_line+1) % MAX_CON_LINES;
             ed->con_col=0;
-            UI_beginLine (view, ed->con_rows, ed->con_col+1, ed->con_cols-ed->con_col);
+            UI_beginLine (view, ed->con_rows, 1, ed->con_cols-ed->con_col);
         }
         else
         {
