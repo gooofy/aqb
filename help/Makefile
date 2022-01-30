@@ -4,7 +4,7 @@ MD2AGUIDE = ../src/tools/md2amiga/md2aguide.py
 
 .PHONY: clean all
 
-all:	RefAmiga.guide RefCore.guide IFFSupport.guide AnimSupport.guide
+all:	RefAmiga.guide RefCore.guide IFFSupport.guide AnimSupport.guide OSUtility.guide
 	mkdir -p $(DISTDIR)/help
 	cp *.guide $(DISTDIR)/help/
 
