@@ -3741,11 +3741,14 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         item->ty = to_ty;
                         break;
                     case Ty_integer:
+                    case Ty_uinteger:
                         CG_loadVal (code, pos, item);
                         AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_W, NULL, item->u.inReg));    //     ext.w   t
                         item->ty = to_ty;
                         break;
                     case Ty_long:
+                    case Ty_ulong:
+                    case Ty_pointer:
                         CG_loadVal (code, pos, item);
                         AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_W, NULL, item->u.inReg));    //     ext.w   t
                         AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_L, NULL, item->u.inReg));    //     ext.l   t
@@ -3758,10 +3761,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                         emitRegCall (code, pos, "_MathBase", LVOSPFlt, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
                         item->ty = to_ty;
                         break;
-                    case Ty_uinteger:
-                    case Ty_ulong:
                     case Ty_double:
-                    case Ty_pointer:
                         assert(FALSE); // FIXME
                         break;
                     default:

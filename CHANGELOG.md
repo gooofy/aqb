@@ -12,6 +12,7 @@ Bug Fixes:
     * ide: udt (TYPE) auto-indentation fixed
     * ide: console line wrapping fixed
     * compiler: fix syntax for pure variadic functions
+    * compiler: type conversion bugfixes
 
 ## 0.8.2
 
