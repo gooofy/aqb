@@ -5,10 +5,10 @@
 
 #define MAX_TAGS    64
 
-TAGITEM_t *_vatagitems (ULONG ti_Tag, va_list ap)
+struct TagItem *_vatagitems (ULONG ti_Tag, va_list ap)
 {
 	int              num_tags = 1;
-    static TAGITEM_t tagbuf[MAX_TAGS];
+    static struct TagItem tagbuf[MAX_TAGS];
 
     DPRINTF ("_vatagitems: first ti_Tag=%ld\n", ti_Tag);
     tagbuf[0].ti_Tag = ti_Tag;
@@ -44,7 +44,7 @@ TAGITEM_t *_vatagitems (ULONG ti_Tag, va_list ap)
 	DPRINTF ("_vatagitems: num_tags=%d\n", num_tags);
 
     ULONG tsize = 2*4*num_tags;
-	TAGITEM_t *tags = (TAGITEM_t *) ALLOCATE_ (tsize, 0);
+	struct TagItem *tags = (struct TagItem *) ALLOCATE_ (tsize, 0);
 	if (!tags)
 	{
 		DPRINTF ("TAGITEMS_: out of memory!\n");
@@ -57,14 +57,14 @@ TAGITEM_t *_vatagitems (ULONG ti_Tag, va_list ap)
     return tags;
 }
 
-TAGITEM_t *TAGITEMS_ (ULONG ti_Tag, ...)
+struct TagItem *TAGITEMS_ (ULONG ti_Tag, ...)
 {
     DPRINTF ("TAGITEMS_: first ti_Tag=%ld\n", ti_Tag);
 
     va_list ap;
 
     va_start(ap, ti_Tag);
-    TAGITEM_t *tags = _vatagitems (ti_Tag, ap);
+    struct TagItem *tags = _vatagitems (ti_Tag, ap);
     va_end(ap);
 
     return tags;

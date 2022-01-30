@@ -44,16 +44,8 @@ extern struct Library       *DiskfontBase;
  * tags
  */
 
-typedef struct TAGITEM_ TAGITEM_t;
-
-struct TAGITEM_
-{
-    ULONG ti_Tag;
-    ULONG ti_Data;
-};
-
-TAGITEM_t *_vatagitems         (ULONG ti_Tag, va_list tags);
-TAGITEM_t *TAGITEMS_           (ULONG ti_Tag, ...);
+struct TagItem *_vatagitems    (ULONG ti_Tag, va_list tags);
+struct TagItem *TAGITEMS_      (ULONG ti_Tag, ...);
 ULONG     *TAGS_               (ULONG ti_Tag, ...);
 
 /*
