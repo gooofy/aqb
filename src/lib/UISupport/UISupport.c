@@ -49,6 +49,7 @@ static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *m
             GT_BeginRefresh (win);
             GT_EndRefresh (win, TRUE);
             return TRUE;    // handled.
+
         case IDCMP_GADGETUP:
         {
             struct Gadget *g = (struct Gadget *) message->IAddress;
@@ -62,6 +63,23 @@ static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *m
 
             if (gtg->gadgetup_cb)
                 gtg->gadgetup_cb (wid, gtg->id, gtg);
+
+            return TRUE;    // handled.
+        }
+
+        case IDCMP_GADGETDOWN:
+        {
+            struct Gadget *g = (struct Gadget *) message->IAddress;
+
+            if (!g)
+                return FALSE;
+
+            GTGADGET_t *gtg = (GTGADGET_t *) g->UserData;
+            if (!gtg)
+                return FALSE;
+
+            if (gtg->gadgetdown_cb)
+                gtg->gadgetdown_cb (wid, gtg->id, gtg);
 
             return TRUE;    // handled.
         }
@@ -141,7 +159,7 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
         if (!ext->gad)
         {
             DPRINTF ("GTGADGET_: CreateContext() failed.\n");
-            ERROR(AE_GTGADGET_CREATE);
+            ERROR(AE_GTG_CREATE);
             return NULL;
         }
     }
@@ -158,7 +176,7 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
         if (!ext->vinfo)
         {
             DPRINTF ("GTGADGET_: GetVisualInfo() failed.\n");
-            ERROR(AE_GTGADGET_CREATE);
+            ERROR(AE_GTG_CREATE);
             return NULL;
         }
 
@@ -171,7 +189,7 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
     GTGADGET_t *gtgadget = AllocVec(sizeof(*gtgadget), MEMF_CLEAR);
     if (!gtgadget)
     {
-        ERROR(AE_GTGADGET_CREATE);
+        ERROR(AE_GTG_CREATE);
         return NULL;
     }
 
@@ -181,21 +199,22 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
     else
         g_gtgadget_first = g_gtgadget_last = gtgadget;
 
-    gtgadget->id = id;
+    gtgadget->id  = id;
+    gtgadget->win = _g_cur_win;
 
     va_list ap;
     va_start (ap, ti_Tag);
     struct TagItem *tags = _vatagitems (ti_Tag, ap);
     va_end(ap);
 
-	ext->gad = _createGadgetTagList (kind, ext->gad, x1, y1, x2-x1+1, y2-y1+1, txt, gtgadget, flags, &ext->ta, ext->vinfo, tags);
+	gtgadget->gad = ext->gad = _createGadgetTagList (kind, ext->gad, x1, y1, x2-x1+1, y2-y1+1, txt, gtgadget, flags, &ext->ta, ext->vinfo, tags);
 
     DEALLOCATE (tags);
 
 	if (!ext->gad)
 	{
 		DPRINTF ("GTGADGET_: CreateGadget() failed.\n");
-		ERROR(AE_GTGADGET_CREATE);
+		ERROR(AE_GTG_CREATE);
 		return NULL;
 	}
 
@@ -237,6 +256,41 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
     return gtgadget;
 }
 
+void GTG_MODIFY (GTGADGET_t *g, ULONG ti_Tag, ...)
+{
+    DPRINTF ("GTG_MODIFY called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTG_MODIFY: invalid gadget\n");
+		ERROR(AE_GTG_MODIFY);
+		return;
+    }
+
+    va_list ap;
+    va_start (ap, ti_Tag);
+    struct TagItem *tags = _vatagitems (ti_Tag, ap);
+    va_end(ap);
+
+    GT_SetGadgetAttrsA (g->gad, g->win, /*req=*/NULL, tags);
+
+    DEALLOCATE (tags);
+}
+
+BOOL GTGSELECTED_ (GTGADGET_t *g)
+{
+    DPRINTF ("GTGSELECTED_ called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTGSELECTED_: invalid gadget\n");
+		ERROR(AE_GTG_SELECTED);
+		return FALSE;
+    }
+
+    return g->gad->Flags & GFLG_SELECTED;
+}
+
 void GTGADGETS_DEPLOY (void)
 {
     DPRINTF ("GADGETS_DEPLOY called\n");
@@ -248,14 +302,14 @@ void GTGADGETS_DEPLOY (void)
     if (!ext->gadList)
     {
 		DPRINTF ("GTGADGETS_DEPLOY: g_gadList is NULL for this window\n");
-		ERROR(AE_GTGADGET_DEPLOY);
+		ERROR(AE_GTG_DEPLOY);
 		return;
     }
 
     if (ext->deployed)
     {
 		DPRINTF ("GTGADGETS_DEPLOY: already deployed\n");
-		ERROR(AE_GTGADGET_DEPLOY);
+		ERROR(AE_GTG_DEPLOY);
 		return;
     }
 
@@ -279,9 +333,28 @@ void GTGADGETS_FREE (void)
     _gtgadgets_free (_g_cur_win, ext);
 }
 
-void ON_GTGADGETUP_CALL (GTGADGET_t *g, gtgadgetup_cb_t cb)
+void ON_GTG_UP_CALL (GTGADGET_t *g, gtgadget_cb_t cb)
 {
+    if (!g || !g->gad)
+    {
+		DPRINTF ("ON_GTG_UP_CALL: invalid gadget\n");
+		ERROR(AE_GTG_CALLBACK);
+		return;
+    }
+
     g->gadgetup_cb = cb;
+}
+
+void ON_GTG_DOWN_CALL (GTGADGET_t *g, gtgadget_cb_t cb)
+{
+    if (!g || !g->gad)
+    {
+		DPRINTF ("ON_GTG_UP_CALL: invalid gadget\n");
+		ERROR(AE_GTG_CALLBACK);
+		return;
+    }
+
+    g->gadgetdown_cb = cb;
 }
 
 static void _UISupport_shutdown(void)

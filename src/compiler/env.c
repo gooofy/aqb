@@ -1148,7 +1148,7 @@ E_module E_loadModule(S_symbol sModule)
         return mod;
     }
 
-    LOG_printf(LOG_DEBUG, "env: E_loadModule(%s): loading from file... \n", S_name(sModule));
+    LOG_printf (LOG_INFO, "        reading symbols for %s\n", S_name(sModule));
 
     char symfn[PATH_MAX];
     snprintf(symfn, PATH_MAX, "%s.sym", S_name(sModule));
