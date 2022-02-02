@@ -1110,8 +1110,15 @@ static void write_hunk_symbol (AS_segment seg, FILE *f)
         uint32_t l = strlen(name);
         uint32_t n = roundUp(l,4)/4;
         fwrite_u4 (f, n);
-        if (fwrite (name, n*4, 1, f) != 1)
-            link_fail ("write error");
+        if (n)
+        {
+            uint32_t todo=n*4;
+            if (fwrite (name, l, 1, f) != 1)
+                link_fail ("write error");
+            todo -= l;
+            while (todo--)
+                fwrite_u1 (f, 0);
+        }
         fwrite_u4 (f, def->offset);
     }
 
@@ -1139,8 +1146,12 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
             fwrite_u4 (f, c);
             if (n>0)
             {
-                if (fwrite (name, n*4, 1, f) != 1)
+                uint32_t todo=n*4;
+                if (fwrite (name, l, 1, f) != 1)
                     link_fail ("write error");
+                todo -= l;
+                while (todo--)
+                    fwrite_u1 (f, 0);
             }
 
             uint32_t cnt=0;
@@ -1161,8 +1172,12 @@ static void write_hunk_ext (AS_segment seg, FILE *f)
         fwrite_u4 (f, c);
         if (n>0)
         {
-            if (fwrite (name, n*4, 1, f) != 1)
+            uint32_t todo=n*4;
+            if (fwrite (name, l, 1, f) != 1)
                 link_fail ("write error");
+            todo -= l;
+            while (todo--)
+                fwrite_u1 (f, 0);
         }
         fwrite_u4 (f, def->offset);
     }

@@ -15,6 +15,7 @@ Bug Fixes:
     * ide: console line wrapping fixed
     * compiler: fix syntax for pure variadic functions
     * compiler: type conversion bugfixes
+    * linker: fix unitialized write buffer bug
 
 ## 0.8.2
 
