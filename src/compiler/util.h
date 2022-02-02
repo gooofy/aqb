@@ -107,6 +107,7 @@ void *U_poolAlloc          (U_poolId pid, size_t size);
 void *U_poolCalloc         (U_poolId pid, size_t nmemb, size_t len);
 void *U_poolNonChunkAlloc  (U_poolId pid, size_t size);
 void *U_poolNonChunkCAlloc (U_poolId pid, size_t size);
+void  U_poolNonChunkFree   (U_poolId pid, void *mem);
 void  U_poolReset          (U_poolId pid);   // frees all memory reserved through this pool, keeps pool itself intact for now allocations
 
 void  U_memstat    (void);

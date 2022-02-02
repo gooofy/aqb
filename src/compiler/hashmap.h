@@ -33,7 +33,7 @@ typedef any_t map_t;
 map_t hashmap_new(U_poolId pid);
 
 /* add an element to the hashmap. Return MAP_OK or MAP_OMEM.  */
-int hashmap_put(map_t in, char* key, any_t value);
+int hashmap_put(map_t in, char* key, any_t value, bool copy_key);
 
 /* get an element from the hashmap. Return MAP_OK or MAP_MISSING.  */
 int hashmap_get(map_t in, char* key, any_t *value);

@@ -394,7 +394,7 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
             ul = strprintf(UP_codegen, "%s_%d", l, cnt);
             cnt++;
         }
-        hashmap_put(frame->statc_labels, ul, ul);
+        hashmap_put(frame->statc_labels, ul, ul, /*copy_key=*/FALSE);
 
         Temp_label label = Temp_namedlabel(ul);
 

@@ -9,6 +9,7 @@
 #include <ctype.h>
 
 #include "util.h"
+#include "logger.h"
 
 #define INITIAL_SIZE (256)
 #define MAX_CHAIN_LENGTH (8)
@@ -17,8 +18,8 @@
 typedef struct _hashmap_element
 {
 	char *key;
-	bool  in_use;
 	any_t data;
+	bool  in_use;
 } hashmap_element;
 
 /* A hashmap has some maximum size and current size,
@@ -39,7 +40,7 @@ map_t hashmap_new(U_poolId pid)
 	hashmap_map* m = (hashmap_map*) U_poolAlloc (pid, sizeof(hashmap_map));
 
     m->pid  = pid;
-	m->data = (hashmap_element*) U_poolCalloc (pid, INITIAL_SIZE, sizeof(hashmap_element));
+	m->data = (hashmap_element*) U_poolNonChunkCAlloc (pid, INITIAL_SIZE * sizeof(hashmap_element));
 
 	m->table_size = INITIAL_SIZE;
 	m->size = 0;
@@ -206,10 +207,10 @@ static int hashmap_hash(map_t in, char* key)
 	/* Linear probing */
 	for(i = 0; i< MAX_CHAIN_LENGTH; i++)
     {
-		if(m->data[curr].in_use == 0)
+		if ( !m->data[curr].in_use )
 			return curr;
 
-		if(m->data[curr].in_use == 1 && (strcmp(m->data[curr].key,key)==0))
+		if ( m->data[curr].in_use && (strcmp(m->data[curr].key, key)==0) )
 			return curr;
 
 		curr = (curr + 1) % m->table_size;
@@ -223,21 +224,25 @@ static int hashmap_hash(map_t in, char* key)
  */
 int hashmap_rehash(map_t in)
 {
-	int i;
-	int old_size;
-	hashmap_element* curr;
+	int              i;
+	int              old_size, new_size;
+	hashmap_element *old_data;
 
-	/* Setup the new elements */
 	hashmap_map *m = (hashmap_map *) in;
-	hashmap_element* temp = (hashmap_element *) U_poolCalloc (m->pid, 2 * m->table_size, sizeof(hashmap_element));
+
+    new_size = 2 * m->table_size;
+	hashmap_element* temp = (hashmap_element *) U_poolNonChunkCAlloc (m->pid, new_size * sizeof(hashmap_element));
 
 	/* Update the array */
-	curr = m->data;
+	old_data = m->data;
 	m->data = temp;
 
 	/* Update the size */
 	old_size = m->table_size;
-	m->table_size = 2 * m->table_size;
+    // LOG_printf (LOG_INFO, "hashmap rehash: updating table size from %d*%d=%d -> %d*%d=%d\n",
+    //             old_size, sizeof(hashmap_element), old_size*sizeof(hashmap_element),
+    //             new_size, sizeof(hashmap_element), new_size*sizeof(hashmap_element));
+	m->table_size = new_size;
 	m->size = 0;
 
 	/* Rehash the elements */
@@ -245,13 +250,15 @@ int hashmap_rehash(map_t in)
     {
         int status;
 
-        if (curr[i].in_use == 0)
+        if (!old_data[i].in_use)
             continue;
 
-		status = hashmap_put(m, curr[i].key, curr[i].data);
+		status = hashmap_put(m, old_data[i].key, old_data[i].data, /*copy_key=*/FALSE);
 		if (status != MAP_OK)
 			return status;
 	}
+
+    U_poolNonChunkFree (m->pid, old_data);
 
 	return MAP_OK;
 }
@@ -259,7 +266,7 @@ int hashmap_rehash(map_t in)
 /*
  * Add a pointer to the hashmap with some key
  */
-int hashmap_put(map_t in, char* key, any_t value)
+int hashmap_put(map_t in, char* key, any_t value, bool copy_key)
 {
 	int index;
 	hashmap_map* m;
@@ -269,7 +276,7 @@ int hashmap_put(map_t in, char* key, any_t value)
 
 	/* Find a place to put our value */
 	index = hashmap_hash(in, key);
-	while(index == MAP_FULL)
+	while (index == MAP_FULL)
     {
 		if (hashmap_rehash(in) == MAP_OMEM)
         {
@@ -278,11 +285,19 @@ int hashmap_put(map_t in, char* key, any_t value)
 		index = hashmap_hash(in, key);
 	}
 
-	/* Set the data */
-	m->data[index].data           = value;
-	m->data[index].key            = String(m->pid, key);
-	m->data[index].in_use         = TRUE;
-	m->size++;
+    if (!m->data[index].in_use)
+    {
+        /* Set the data */
+        m->data[index].data    = value;
+        m->data[index].key     = copy_key ? String(m->pid, key) : key;
+        m->data[index].in_use  = TRUE;
+        m->size++;
+        //LOG_printf (LOG_INFO, "hashmap_put map2=%p key=%s NEW, m->size=%d\n", in, key, m->size);
+    }
+    else
+    {
+        //LOG_printf (LOG_INFO, "hashmap_put map=0x%llx key=%s ALREADY THERE\n", (intptr_t) in, key);
+    }
 
 	return MAP_OK;
 }
@@ -342,15 +357,18 @@ int hashmap_remove(map_t in, char* key)
 	curr = hashmap_hash_int(m, key);
 
 	/* Linear probing, if necessary */
-	for(i = 0; i<MAX_CHAIN_LENGTH; i++){
+	for(i = 0; i<MAX_CHAIN_LENGTH; i++)
+    {
 
-        int in_use = m->data[curr].in_use;
-        if (in_use == 1){
-            if (strcmp(m->data[curr].key,key)==0){
+        bool in_use = m->data[curr].in_use;
+        if (in_use)
+        {
+            if (strcmp(m->data[curr].key, key)==0)
+            {
                 /* Blank out the fields */
-                m->data[curr].in_use = 0;
-                m->data[curr].data = NULL;
-                m->data[curr].key = NULL;
+                m->data[curr].in_use = FALSE;
+                m->data[curr].data   = NULL;
+                m->data[curr].key    = NULL;
 
                 /* Reduce the size */
                 m->size--;

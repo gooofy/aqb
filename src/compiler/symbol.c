@@ -34,7 +34,7 @@ S_symbol S_Symbol(string name)
     if (res != MAP_OK)
     {
         sym = mksymbol(name);
-        hashmap_put(hashtable, name, sym);
+        hashmap_put(hashtable, sym->name, sym, /*copy_key=*/FALSE);
     }
     return sym;
 }

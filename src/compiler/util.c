@@ -30,6 +30,9 @@ extern struct IntuitionBase *IntuitionBase;
 
 #endif
 
+// this will cause memory not to be freed so valgrind will report all memory allocated
+//#define MEM_PROFILING
+
 #include "util.h"
 #include "options.h"
 #include "logger.h"
@@ -155,8 +158,11 @@ void *U_poolNonChunkAlloc  (U_poolId pid, size_t size)
     pool->mem->next    = mem_prev;
     pool->mem_alloced += size;
 
+    //LOG_printf (LOG_INFO, "U_poolNonChunkAlloc: pid=%d alloced 0x%08lx\n", pid, pool->mem->mem);
+
     return pool->mem->mem;
 }
+
 
 void *U_poolNonChunkCAlloc (U_poolId pid, size_t size)
 {
@@ -204,6 +210,7 @@ static void U_poolFree (U_poolId pid, bool destroy)
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: %-12s %5d allocs, %6zd bytes in %2d chunks + %6zd non-chunked bytes.\n", g_pool_names[pid], pool->num_allocs, (pool->num_chunks * pool->chunk_size) / 1, pool->num_chunks, pool->mem_alloced);
     //U_delay(1000);
 
+#ifndef MEM_PROFILING
     U_memChunk nextChunk = pool->first->next;
     for (U_memChunk chunk = pool->first; chunk; chunk = nextChunk)
     {
@@ -224,16 +231,51 @@ static void U_poolFree (U_poolId pid, bool destroy)
     }
     if (destroy)
         U_memfree(pool, sizeof (*pool));
-    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: done.\n");
+    //LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "freeing memory pool: done.\n");
     //U_delay(1000);
+#endif
 }
 
 void U_poolReset (U_poolId pid)
 {
     U_poolFree(pid, /*destroy=*/FALSE);
 
+#ifndef MEM_PROFILING
     U_memPool pool = g_pools[pid];
     U_memPoolInit (pool, pool->chunk_size);
+#endif
+}
+
+void U_poolNonChunkFree (U_poolId pid, void *mem)
+{
+    // LOG_printf (LOG_INFO, "U_poolNonChunkFree: pid=%d mem=%08lx\n", pid, mem);
+
+    U_memPool pool = g_pools[pid];
+    U_memRec mr_prev = NULL;
+
+    U_memRec mr = pool->mem;
+    while (mr && mr->mem != mem)
+    {
+        //LOG_printf (LOG_INFO, "U_poolNonChunkFree: mr->mem=%08lx\n", mr->mem);
+        mr_prev = mr;
+        mr = mr->next;
+    }
+
+    assert(mr);
+    if (!mr)
+    {
+        LOG_printf (LOG_ERROR, "U_poolNonChunkFree: tried to free non-allocated non-chunk mem!\n");
+        return;
+    }
+
+    if (mr_prev)
+        mr_prev->next = mr->next;
+    else
+        pool->mem = mr->next;
+
+    pool->mem_alloced -= mr->size;
+    U_memfree (mr->mem, mr->size);
+    U_memfree (mr, sizeof (*mr));
 }
 
 void U_memstat(void)
