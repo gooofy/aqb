@@ -2,12 +2,12 @@ REM A simple GadTools Button Gadget
 
 OPTION EXPLICIT
 
-IMPORT UISupport
+IMPORT GadToolsSupport
 
 REM GTGADGETUP callback
 
 SUB gadgetCB (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER,_
-    BYVAL g AS GTGADGET_t PTR)
+    BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
     
     TRACE "finish called."
     
@@ -31,7 +31,7 @@ gadget = GTGADGET (BUTTON_KIND, (15, 26)-(114, 56), "QUIT", 0, 1, TAG_DONE)
 
 REM connect our callback
 
-ON GTGADGETUP CALL gadget, gadgetCB
+ON GTG UP CALL gadget, gadgetCB, NULL
 
 REM deploy our gadgets to the current window
 

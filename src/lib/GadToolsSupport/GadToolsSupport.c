@@ -1,7 +1,7 @@
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
 
-#include "UISupport.h"
+#include "GadToolsSupport.h"
 
 #include <exec/types.h>
 #include <exec/memory.h>
@@ -20,7 +20,7 @@
 #include <clib/dos_protos.h>
 #include <inline/dos.h>
 
-struct Library           *GadToolsBase  = NULL;
+extern struct Library    *GadToolsBase ;
 
 static GTGADGET_t        *g_gtgadget_first = NULL;
 static GTGADGET_t        *g_gtgadget_last  = NULL;
@@ -40,52 +40,83 @@ static ui_win_ext_t    g_win_ext[MAX_NUM_WINDOWS];
 
 static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *message)
 {
-    DPRINTF ("UISupport: window_msg_cb called\n");
+    BOOL handled = FALSE;
 
-    ULONG class = message->Class;
-    switch (class)
+    struct IntuiMessage *imsg = GT_FilterIMsg(message);
+
+    if (imsg)
     {
-        case IDCMP_REFRESHWINDOW:
-            GT_BeginRefresh (win);
-            GT_EndRefresh (win, TRUE);
-            return TRUE;    // handled.
+        ULONG class = imsg->Class;
 
-        case IDCMP_GADGETUP:
+        DPRINTF ("GadToolsSupport: window_msg_cb class=0x%08lx\n", class);
+
+        switch (class)
         {
-            struct Gadget *g = (struct Gadget *) message->IAddress;
+            case IDCMP_REFRESHWINDOW:
+                GT_BeginRefresh (win);
+                GT_EndRefresh (win, TRUE);
+                handled = TRUE;
+                break;
 
-            if (!g)
-                return FALSE;
+            case IDCMP_GADGETUP:
+            {
+                struct Gadget *g = (struct Gadget *) imsg->IAddress;
 
-            GTGADGET_t *gtg = (GTGADGET_t *) g->UserData;
-            if (!gtg)
-                return FALSE;
+                if (!g)
+                    break;
 
-            if (gtg->gadgetup_cb)
-                gtg->gadgetup_cb (wid, gtg->id, gtg);
+                GTGADGET_t *gtg = (GTGADGET_t *) g->UserData;
+                if (!gtg)
+                    break;
 
-            return TRUE;    // handled.
-        }
+                if (gtg->gadgetup_cb)
+                    gtg->gadgetup_cb (wid, gtg->id, imsg->Code, gtg->gadgetup_user_data);
 
-        case IDCMP_GADGETDOWN:
-        {
-            struct Gadget *g = (struct Gadget *) message->IAddress;
+                handled = TRUE;
+                break;
+            }
 
-            if (!g)
-                return FALSE;
+            case IDCMP_GADGETDOWN:
+            {
+                struct Gadget *g = (struct Gadget *) imsg->IAddress;
 
-            GTGADGET_t *gtg = (GTGADGET_t *) g->UserData;
-            if (!gtg)
-                return FALSE;
+                if (!g)
+                    break;
 
-            if (gtg->gadgetdown_cb)
-                gtg->gadgetdown_cb (wid, gtg->id, gtg);
+                GTGADGET_t *gtg = (GTGADGET_t *) g->UserData;
+                if (!gtg)
+                    break;
 
-            return TRUE;    // handled.
+                if (gtg->gadgetdown_cb)
+                    gtg->gadgetdown_cb (wid, gtg->id, imsg->Code, gtg->gadgetdown_user_data);
+
+                handled = TRUE;
+                break;
+            }
+
+            case IDCMP_MOUSEMOVE:
+            {
+                struct Gadget *g = (struct Gadget *) imsg->IAddress;
+
+                if (!g)
+                    break;
+
+                GTGADGET_t *gtg = (GTGADGET_t *) g->UserData;
+                if (!gtg)
+                    break;
+
+                if (gtg->gadgetmove_cb)
+                    gtg->gadgetmove_cb (wid, gtg->id, imsg->Code, gtg->gadgetmove_user_data);
+
+                handled = TRUE;
+                break;
+            }
         }
     }
 
-    return FALSE; // not handled -> std msg handling will take over
+    GT_PostFilterIMsg (imsg);
+
+    return handled;
 }
 
 static void _gtgadgets_free (struct Window *win, ui_win_ext_t *ext)
@@ -107,7 +138,7 @@ static void _gtgadgets_free (struct Window *win, ui_win_ext_t *ext)
 
 static void window_close_cb (short win_id)
 {
-    DPRINTF ("UISupport: window_close_cb called on win #%d\n", win_id);
+    DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
 
     ui_win_ext_t *ext = &g_win_ext[win_id];
     struct Window *win = _aqb_get_win(win_id);
@@ -333,7 +364,7 @@ void GTGADGETS_FREE (void)
     _gtgadgets_free (_g_cur_win, ext);
 }
 
-void ON_GTG_UP_CALL (GTGADGET_t *g, gtgadget_cb_t cb)
+void ON_GTG_UP_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data)
 {
     if (!g || !g->gad)
     {
@@ -342,24 +373,39 @@ void ON_GTG_UP_CALL (GTGADGET_t *g, gtgadget_cb_t cb)
 		return;
     }
 
-    g->gadgetup_cb = cb;
+    g->gadgetup_cb        = cb;
+    g->gadgetup_user_data = user_data;
 }
 
-void ON_GTG_DOWN_CALL (GTGADGET_t *g, gtgadget_cb_t cb)
+void ON_GTG_DOWN_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data)
 {
     if (!g || !g->gad)
     {
-		DPRINTF ("ON_GTG_UP_CALL: invalid gadget\n");
+		DPRINTF ("ON_GTG_DOWN_CALL: invalid gadget\n");
 		ERROR(AE_GTG_CALLBACK);
 		return;
     }
 
-    g->gadgetdown_cb = cb;
+    g->gadgetdown_cb        = cb;
+    g->gadgetdown_user_data = user_data;
 }
 
-static void _UISupport_shutdown(void)
+void ON_GTG_MOVE_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data)
 {
-    DPRINTF ("_UISupport_shutdown called\n");
+    if (!g || !g->gad)
+    {
+		DPRINTF ("ON_GTG_MOVE_CALL: invalid gadget\n");
+		ERROR(AE_GTG_CALLBACK);
+		return;
+    }
+
+    g->gadgetmove_cb        = cb;
+    g->gadgetmove_user_data = user_data;
+}
+
+static void _GadToolsSupport_shutdown(void)
+{
+    DPRINTF ("_GadToolsSupport_shutdown called\n");
 
     GTGADGET_t *g = g_gtgadget_first;
     while (g)
@@ -371,29 +417,20 @@ static void _UISupport_shutdown(void)
 
     for (int i=0; i<MAX_NUM_WINDOWS; i++)
     {
-        DPRINTF ("_UISupport_shutdown window #%d\n", i);
+        DPRINTF ("_GadToolsSupport_shutdown window #%d\n", i);
         ui_win_ext_t *ext = &g_win_ext[i];
         if (ext->vinfo)
         {
-            DPRINTF ("_UISupport_shutdown FreeVisualInfo()\n");
+            DPRINTF ("_GadToolsSupport_shutdown FreeVisualInfo()\n");
             FreeVisualInfo (ext->vinfo);
         }
     }
 
-    if (GadToolsBase)
-    {
-        DPRINTF ("_UISupport_shutdown CloseLibrary (GadToolsBase)\n");
-        CloseLibrary (GadToolsBase);
-    }
-
-    DPRINTF ("_UISupport_shutdown done\n");
+    DPRINTF ("_GadToolsSupport_shutdown done\n");
 }
 
-void _UISupport_init(void)
+void _GadToolsSupport_init(void)
 {
-    if (!(GadToolsBase = OpenLibrary((CONST_STRPTR) "gadtools.library", 0)))
-        _cshutdown(20, (UBYTE *)"*** error: failed to open gadtools.library!\n");
-
     for (int i=0; i<MAX_NUM_WINDOWS; i++)
     {
         ui_win_ext_t *ext = &g_win_ext[i];
@@ -406,6 +443,6 @@ void _UISupport_init(void)
         ext->deployed           = FALSE;
     }
 
-    ON_EXIT_CALL(_UISupport_shutdown);
+    ON_EXIT_CALL(_GadToolsSupport_shutdown);
 }
 

@@ -75,8 +75,14 @@ src/lib/_brt/autil.asm
 src/lib/IFFSupport/*.sym
 src/lib/AnimSupport/*.sym
 src/lib/OSGadToolsConsts/*.sym
-src/lib/UISupport/*.sym
 src/lib/OSUtility/*.sym
+src/lib/GadToolsSupport/GadToolsSupport.sym
+src/lib/OSDevices/OSDevices.sym
+src/lib/OSExec/OSExec.sym
+src/lib/OSGadTools/OSGadTools.sym
+src/lib/OSGraphics/OSGraphics.sym
+src/lib/OSHardware/OSHardware.sym
+src/lib/OSIntuition/OSIntuition.sym
 src/alib/tests/*.bin
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas

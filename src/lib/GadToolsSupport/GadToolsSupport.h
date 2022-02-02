@@ -9,7 +9,7 @@
 
 typedef struct GTGADGET_ GTGADGET_t;
 
-typedef void (*gtgadget_cb_t)(SHORT wid, SHORT gid, GTGADGET_t *g);
+typedef void (*gtgadget_cb_t)(SHORT wid, SHORT gid, USHORT code, void* user_data);
 
 struct GTGADGET_
 {
@@ -20,7 +20,11 @@ struct GTGADGET_
     struct Window    *win;
 
     gtgadget_cb_t     gadgetup_cb;
+    void             *gadgetup_user_data;
     gtgadget_cb_t     gadgetdown_cb;
+    void             *gadgetdown_user_data;
+    gtgadget_cb_t     gadgetmove_cb;
+    void             *gadgetmove_user_data;
 };
 
 GTGADGET_t *GTGADGET_ (SHORT kind,
@@ -33,8 +37,9 @@ BOOL GTGSELECTED_     (GTGADGET_t *g);
 void GTGADGETS_DEPLOY (void);
 void GTGADGETS_FREE   (void);
 
-void ON_GTG_UP_CALL   (GTGADGET_t *g, gtgadget_cb_t cb);
-void ON_GTG_DOWN_CALL (GTGADGET_t *g, gtgadget_cb_t cb);
+void ON_GTG_UP_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+void ON_GTG_DOWN_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+void ON_GTG_MOVE_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
 
 #endif
 

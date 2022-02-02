@@ -1,8 +1,8 @@
 include ../../config.mk
 
-.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts OSUtility UISupport
+.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools GadToolsSupport
 
-all: _brt _aqb minbrt IFFSupport AnimSupport OSGadToolsConsts OSUtility UISupport
+all: _brt _aqb minbrt IFFSupport AnimSupport OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools GadToolsSupport
 
 _brt:
 	cd _brt ; make all
@@ -19,14 +19,29 @@ IFFSupport:
 AnimSupport:
 	cd AnimSupport ; make all
 
-OSGadToolsConsts:
-	cd OSGadToolsConsts ; make all
+OSExec:
+	cd OSExec ; make all
 
 OSUtility:
 	cd OSUtility ; make all
 
-UISupport:
-	cd UISupport ; make all
+OSHardware:
+	cd OSHardware ; make all
+
+OSGraphics:
+	cd OSGraphics ; make all
+
+OSDevices:
+	cd OSDevices ; make all
+
+OSIntuition:
+	cd OSIntuition ; make all
+
+OSGadTools:
+	cd OSGadTools ; make all
+
+GadToolsSupport:
+	cd GadToolsSupport ; make all
 
 clean:
 	rm -f *.sym *.o *.a
@@ -38,6 +53,11 @@ clean:
 	cd minbrt ; make clean
 	cd IFFSupport ; make clean
 	cd AnimSupport ; make clean
-	cd OSGadToolsConsts ; make clean
+	cd OSExec ; make clean
+	cd OSHardware ; make clean
+	cd OSGraphics ; make clean
+	cd OSDevices ; make clean
+	cd OSIntuition ; make clean
 	cd OSUtility ; make clean
-	cd UISupport ; make clean
+	cd OSGadTools ; make clean
+	cd GadToolsSupport ; make clean
