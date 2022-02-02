@@ -280,7 +280,7 @@ E_module E_Module(S_symbol name)
 
 static void declare_builtin_type(string name, Ty_ty ty)
 {
-    E_declareType(g_builtinsModule->env, S_Symbol(name, FALSE), ty);
+    E_declareType(g_builtinsModule->env, S_Symbol(name), ty);
     TAB_enter (g_builtinsModule->tyTable, (void *) (intptr_t) ty->uid, ty);
 }
 
@@ -288,7 +288,7 @@ static void declare_builtin_const(string name, Ty_const cExp)
 {
     CG_item c;
     CG_ConstItem (&c, cExp);
-    E_declareVFC(g_builtinsModule->env, S_Symbol(name, FALSE), &c);
+    E_declareVFC(g_builtinsModule->env, S_Symbol(name), &c);
 }
 
 static FILE     *modf     = NULL;
@@ -990,7 +990,7 @@ static S_symbol E_deserializeOptionalSymbol(FILE *modf)
     if (!present)
         return NULL;
     string s = strdeserialize(UP_env, modf);
-    return S_Symbol(s, FALSE);
+    return S_Symbol(s);
 }
 
 
@@ -1010,7 +1010,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             env_fail("failed to read function extra sym.\n");
             return NULL;
         }
-        S_symbol sym = S_Symbol(str, FALSE);
+        S_symbol sym = S_Symbol(str);
         LOG_printf (LOG_DEBUG, " %s", S_name(sym));
         if (extra_syms)
         {
@@ -1072,7 +1072,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
                 LOG_printf(LOG_INFO, "failed to read formal reg string.\n");
                 return NULL;
             }
-            reg = AS_lookupReg(S_Symbol(regs, FALSE));
+            reg = AS_lookupReg(S_Symbol(regs));
             if (!regs)
             {
                 LOG_printf(LOG_INFO, "formal reg unknown.\n");
@@ -1196,7 +1196,7 @@ E_module E_loadModule(S_symbol sModule)
             break;
 
         string mod_name  = strdeserialize(UP_env, modf);
-        S_symbol mod_sym = S_Symbol(mod_name, FALSE);
+        S_symbol mod_sym = S_Symbol(mod_name);
         LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "%s: loading imported module %d: %s\n", S_name(sModule), mid, mod_name);
 
         E_module m2 = E_loadModule (mod_sym);
@@ -1275,7 +1275,7 @@ E_module E_loadModule(S_symbol sModule)
                             //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
 
-                            S_symbol sym = S_Symbol(name, FALSE);
+                            S_symbol sym = S_Symbol(name);
                             Ty_recordEntry re = Ty_Field(visibility, sym, uiOffset, t);
                             S_enter(ty->u.record.scope, sym, re);
                             break;
@@ -1362,7 +1362,7 @@ E_module E_loadModule(S_symbol sModule)
             LOG_printf(LOG_ERROR, "%s: failed to read env entry symbol name.\n", symfn);
             goto fail;
         }
-        S_symbol sym = S_Symbol(name, FALSE);
+        S_symbol sym = S_Symbol(name);
 
         LOG_printf (LOG_DEBUG, "%s: reading env entry name=%s\n", S_name(sModule), name);
 
@@ -1469,7 +1469,7 @@ void E_init(void)
 
     // module cache
     g_modCache = TAB_empty(UP_env);
-    g_builtinsModule = E_Module(S_Symbol("__builtins__", FALSE));
+    g_builtinsModule = E_Module(S_Symbol("__builtins__"));
 
     declare_builtin_type("BOOLEAN" , Ty_Bool());
     declare_builtin_type("BYTE"    , Ty_Byte());

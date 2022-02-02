@@ -9,15 +9,13 @@
 struct S_symbol_
 {
     string   name;
-    bool     case_sensitive;
 };
 
-static S_symbol mksymbol(string name, bool case_sensitive)
+static S_symbol mksymbol(string name)
 {
     S_symbol s=U_poolAlloc (UP_symbol, sizeof(*s));
 
     s->name           = String(UP_symbol, name);
-    s->case_sensitive = case_sensitive;
 
     return s;
 }
@@ -29,18 +27,14 @@ void SYM_init(void)
     hashtable = hashmap_new(UP_symbol);
 }
 
-S_symbol S_Symbol(string name, bool case_sensitive)
+S_symbol S_Symbol(string name)
 {
     S_symbol sym;
-    int res = hashmap_get(hashtable, name, (any_t *) &sym, case_sensitive);
+    int res = hashmap_get(hashtable, name, (any_t *) &sym);
     if (res != MAP_OK)
     {
-        sym = mksymbol(name, case_sensitive);
-        hashmap_put(hashtable, name, sym, case_sensitive);
-    }
-    else
-    {
-        assert (sym->case_sensitive == case_sensitive);
+        sym = mksymbol(name);
+        hashmap_put(hashtable, name, sym);
     }
     return sym;
 }

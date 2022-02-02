@@ -399,7 +399,7 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
         g_buf[name_len] = 0;
         LOG_printf (LOG_DEBUG, "link: %s: hunk_ext: ext_type=%d, name_len=%d, name=%s\n", sourcefn, ext_type, name_len, g_buf);
 
-        S_symbol sym = S_Symbol ((string) g_buf, /*case_sensitive=*/FALSE);
+        S_symbol sym = S_Symbol ((string) g_buf);
 
         switch (ext_type)
         {
@@ -549,7 +549,7 @@ static bool load_hunk_symbol(U_poolId pid, string sourcefn, FILE *f)
             return FALSE;
         }
         //LOG_printf (LOG_DEBUG, "link: hunk_symbol: name=%s(len=%d) offset=0x%08lx\n", g_buf, name_len, offset);
-        S_symbol sym = S_Symbol ((char *)g_buf, FALSE);
+        S_symbol sym = S_Symbol ((char *)g_buf);
         AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
     }
 
@@ -716,7 +716,7 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
                     }
                     LOG_printf (LOG_DEBUG, "link: load_hunk_debug: frame var info name=%s, offset=%d\n", g_buf, offset);
                      if (ty)
-                         AS_frameMapAddFVI (pid, fmn, S_Symbol((char *)g_buf, FALSE), ty, offset);
+                         AS_frameMapAddFVI (pid, fmn, S_Symbol((char *)g_buf), ty, offset);
                 }
                 break;
             }
@@ -738,7 +738,7 @@ static bool load_hunk_debug(U_poolId pid, string sourcefn, FILE *f)
                         LOG_printf (LOG_ERROR, "link: read error #46.\n");
                         return FALSE;
                     }
-                    label = S_Symbol ((char *)g_buf, FALSE);
+                    label = S_Symbol ((char *)g_buf);
                     if (!fread_ty (f, &ty))
                     {
                         LOG_printf (LOG_ERROR, "link: read error #45.\n");

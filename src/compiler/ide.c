@@ -689,7 +689,7 @@ static IDE_line _buf2line (IDE_instance ed)
             }
             idbuf[l] = '\0';
 
-            S_symbol sym = S_Symbol (idbuf, /*case_sensitive=*/FALSE);
+            S_symbol sym = S_Symbol(idbuf);
             if (sym == S_REM)
             {
                 for (int i =0; i<l; i++)
@@ -2191,24 +2191,24 @@ void IDE_open (string sourcefn)
     UI_init();
 
     // indentation support
-    S_IF       = S_Symbol ("IF"      , FALSE);
-    S_ELSEIF   = S_Symbol ("ELSEIF"  , FALSE);
-    S_ELSE     = S_Symbol ("ELSE"    , FALSE);
-    S_THEN     = S_Symbol ("THEN"    , FALSE);
-    S_END      = S_Symbol ("END"     , FALSE);
-    S_ENDIF    = S_Symbol ("ENDIF"   , FALSE);
-    S_SUB      = S_Symbol ("SUB"     , FALSE);
-    S_FUNCTION = S_Symbol ("FUNCTION", FALSE);
-    S_FOR      = S_Symbol ("FOR"     , FALSE);
-    S_NEXT     = S_Symbol ("NEXT"    , FALSE);
-    S_DO       = S_Symbol ("DO"      , FALSE);
-    S_LOOP     = S_Symbol ("LOOP"    , FALSE);
-    S_WHILE    = S_Symbol ("WHILE"   , FALSE);
-    S_WEND     = S_Symbol ("WEND"    , FALSE);
-    S_SELECT   = S_Symbol ("SELECT"  , FALSE);
-    S_CASE     = S_Symbol ("CASE"    , FALSE);
-    S_REM      = S_Symbol ("REM"     , FALSE);
-    S_TYPE     = S_Symbol ("TYPE"    , FALSE);
+    S_IF       = S_Symbol("IF"      );
+    S_ELSEIF   = S_Symbol("ELSEIF"  );
+    S_ELSE     = S_Symbol("ELSE"    );
+    S_THEN     = S_Symbol("THEN"    );
+    S_END      = S_Symbol("END"     );
+    S_ENDIF    = S_Symbol("ENDIF"   );
+    S_SUB      = S_Symbol("SUB"     );
+    S_FUNCTION = S_Symbol("FUNCTION");
+    S_FOR      = S_Symbol("FOR"     );
+    S_NEXT     = S_Symbol("NEXT"    );
+    S_DO       = S_Symbol("DO"      );
+    S_LOOP     = S_Symbol("LOOP"    );
+    S_WHILE    = S_Symbol("WHILE"   );
+    S_WEND     = S_Symbol("WEND"    );
+    S_SELECT   = S_Symbol("SELECT"  );
+    S_CASE     = S_Symbol("CASE"    );
+    S_REM      = S_Symbol("REM"     );
+    S_TYPE     = S_Symbol("TYPE"    );
 
     g_keywords = TAB_empty (UP_ide);
     for (int i =0; i<FE_num_keywords; i++)

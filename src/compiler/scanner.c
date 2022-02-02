@@ -354,7 +354,7 @@ static S_tkn ident(char ch)
     }
     str[l] = '\0';
 
-    tkn->u.sym = S_Symbol(str, FALSE);
+    tkn->u.sym = S_Symbol(str);
 
     return tkn;
 }
@@ -674,7 +674,7 @@ void S_init(U_poolId pid, bool keep_source, nextch_cb_t cb, void *user_data, boo
     g_keep_source     = keep_source;
     if (g_keep_source)
         g_src         = TAB_empty(pid);
-    g_sym_rem = S_Symbol("REM", FALSE);
+    g_sym_rem = S_Symbol("REM");
 
     g_cb              = cb;
     g_user_data       = user_data;

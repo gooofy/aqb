@@ -38,7 +38,7 @@ Temp_label Temp_newlabel(void)
 /* The label will be created only if it is not found. */
 Temp_label Temp_namedlabel(string s)
 {
-    return S_Symbol(s, FALSE);
+    return S_Symbol(s);
 }
 
 Temp_temp Temp_NamedTemp (string name, enum Temp_w w)

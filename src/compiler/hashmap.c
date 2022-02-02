@@ -17,7 +17,7 @@
 typedef struct _hashmap_element
 {
 	char *key;
-	bool  in_use, case_sensitive;
+	bool  in_use;
 	any_t data;
 } hashmap_element;
 
@@ -147,7 +147,7 @@ static unsigned long crc32_tab[] = {
    };
 
 /* return a 32-bit CRC of the contents of the buffer. */
-static unsigned long crc32(const unsigned char *s, unsigned int len, bool case_sensitive)
+static unsigned long crc32(const unsigned char *s, unsigned int len)
 {
     unsigned int i;
     unsigned long crc32val;
@@ -155,7 +155,7 @@ static unsigned long crc32(const unsigned char *s, unsigned int len, bool case_s
     crc32val = 0;
     for (i = 0;  i < len;  i ++)
     {
-        char c = case_sensitive ? s[i] : tolower(s[i]);
+        char c = tolower(s[i]);
         crc32val = crc32_tab[(crc32val ^ c) & 0xff] ^ (crc32val >> 8);
     }
     return crc32val;
@@ -164,9 +164,9 @@ static unsigned long crc32(const unsigned char *s, unsigned int len, bool case_s
 /*
  * Hashing function for a string
  */
-unsigned int hashmap_hash_int(hashmap_map * m, char* keystring, bool case_sensitive)
+unsigned int hashmap_hash_int(hashmap_map * m, char* keystring)
 {
-    unsigned long key = crc32((unsigned char*)(keystring), strlen(keystring), case_sensitive);
+    unsigned long key = crc32((unsigned char*)(keystring), strlen(keystring));
 
 	/* Robert Jenkins' 32 bit Mix Function */
 	key += (key << 12);
@@ -188,7 +188,7 @@ unsigned int hashmap_hash_int(hashmap_map * m, char* keystring, bool case_sensit
  * Return the integer of the location in data
  * to store the point to the item, or MAP_FULL.
  */
-static int hashmap_hash(map_t in, char* key, bool case_sensitive)
+static int hashmap_hash(map_t in, char* key)
 {
 	int curr;
 	int i;
@@ -201,7 +201,7 @@ static int hashmap_hash(map_t in, char* key, bool case_sensitive)
         return MAP_FULL;
 
 	/* Find the best index */
-	curr = hashmap_hash_int(m, key, case_sensitive);
+	curr = hashmap_hash_int(m, key);
 
 	/* Linear probing */
 	for(i = 0; i< MAX_CHAIN_LENGTH; i++)
@@ -248,7 +248,7 @@ int hashmap_rehash(map_t in)
         if (curr[i].in_use == 0)
             continue;
 
-		status = hashmap_put(m, curr[i].key, curr[i].data, curr[i].case_sensitive);
+		status = hashmap_put(m, curr[i].key, curr[i].data);
 		if (status != MAP_OK)
 			return status;
 	}
@@ -259,7 +259,7 @@ int hashmap_rehash(map_t in)
 /*
  * Add a pointer to the hashmap with some key
  */
-int hashmap_put(map_t in, char* key, any_t value, bool case_sensitive)
+int hashmap_put(map_t in, char* key, any_t value)
 {
 	int index;
 	hashmap_map* m;
@@ -268,21 +268,20 @@ int hashmap_put(map_t in, char* key, any_t value, bool case_sensitive)
 	m = (hashmap_map *) in;
 
 	/* Find a place to put our value */
-	index = hashmap_hash(in, key, case_sensitive);
+	index = hashmap_hash(in, key);
 	while(index == MAP_FULL)
     {
 		if (hashmap_rehash(in) == MAP_OMEM)
         {
 			return MAP_OMEM;
 		}
-		index = hashmap_hash(in, key, case_sensitive);
+		index = hashmap_hash(in, key);
 	}
 
 	/* Set the data */
 	m->data[index].data           = value;
 	m->data[index].key            = String(m->pid, key);
 	m->data[index].in_use         = TRUE;
-	m->data[index].case_sensitive = case_sensitive;
 	m->size++;
 
 	return MAP_OK;
@@ -291,7 +290,7 @@ int hashmap_put(map_t in, char* key, any_t value, bool case_sensitive)
 /*
  * Get your pointer out of the hashmap with a key
  */
-int hashmap_get(map_t in, char* key, any_t *value, bool case_sensitive)
+int hashmap_get(map_t in, char* key, any_t *value)
 {
 
 	int curr;
@@ -302,7 +301,7 @@ int hashmap_get(map_t in, char* key, any_t *value, bool case_sensitive)
 	m = (hashmap_map *) in;
 
 	/* Find data location */
-	curr = hashmap_hash_int(m, key, case_sensitive);
+	curr = hashmap_hash_int(m, key);
 
 	/* Linear probing, if necessary */
 	for(i = 0; i<MAX_CHAIN_LENGTH; i++)
@@ -330,7 +329,7 @@ int hashmap_get(map_t in, char* key, any_t *value, bool case_sensitive)
 /*
  * Remove an element with that key from the map
  */
-int hashmap_remove(map_t in, char* key, bool case_sensitive)
+int hashmap_remove(map_t in, char* key)
 {
 	int i;
 	int curr;
@@ -340,7 +339,7 @@ int hashmap_remove(map_t in, char* key, bool case_sensitive)
 	m = (hashmap_map *) in;
 
 	/* Find key */
-	curr = hashmap_hash_int(m, key, case_sensitive);
+	curr = hashmap_hash_int(m, key);
 
 	/* Linear probing, if necessary */
 	for(i = 0; i<MAX_CHAIN_LENGTH; i++){

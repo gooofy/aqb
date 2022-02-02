@@ -33,13 +33,13 @@ typedef any_t map_t;
 map_t hashmap_new(U_poolId pid);
 
 /* add an element to the hashmap. Return MAP_OK or MAP_OMEM.  */
-int hashmap_put(map_t in, char* key, any_t value, bool case_sensitive);
+int hashmap_put(map_t in, char* key, any_t value);
 
 /* get an element from the hashmap. Return MAP_OK or MAP_MISSING.  */
-int hashmap_get(map_t in, char* key, any_t *value, bool case_sensitive);
+int hashmap_get(map_t in, char* key, any_t *value);
 
 /* remove an element from the hashmap. Return MAP_OK or MAP_MISSING.  */
-int hashmap_remove(map_t in, char* key, bool case_sensitive);
+int hashmap_remove(map_t in, char* key);
 
 /* get the current size of a hashmap */
 extern int hashmap_length(map_t in);

@@ -389,12 +389,12 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
         string ul = l;
         char *uul;
         int cnt = 0;
-        while (hashmap_get(frame->statc_labels, ul, (any_t *)&uul, TRUE)==MAP_OK)
+        while (hashmap_get(frame->statc_labels, ul, (any_t *)&uul)==MAP_OK)
         {
             ul = strprintf(UP_codegen, "%s_%d", l, cnt);
             cnt++;
         }
-        hashmap_put(frame->statc_labels, ul, ul, TRUE);
+        hashmap_put(frame->statc_labels, ul, ul);
 
         Temp_label label = Temp_namedlabel(ul);
 
@@ -416,7 +416,7 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
     InFrame (item, frame->locals_offset, ty);
 
     if (name && OPT_get (OPTION_DEBUG))
-        CG_addFrameVarInfo (frame, S_Symbol(name, FALSE), ty, /*offset=*/frame->locals_offset);
+        CG_addFrameVarInfo (frame, S_Symbol(name), ty, /*offset=*/frame->locals_offset);
 }
 
 int CG_itemOffset (CG_item *item)
@@ -740,7 +740,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
             if (!m2->hasCode)
                 continue;
 
-            S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)), FALSE);
+            S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)));
 
             Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 
@@ -748,7 +748,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
         }
 
         // run __aqb_clear
-        S_symbol clear = S_Symbol(AQB_CLEAR_NAME, FALSE);
+        S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
         Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
         CG_transCall (initCode, pos, frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
 

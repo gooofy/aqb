@@ -1087,7 +1087,7 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
 #if 0
 static bool transCallBuiltinSub(S_pos pos, string builtinName, CG_itemList arglist, CG_item *exp)
 {
-    S_symbol fsym = S_Symbol(builtinName, FALSE);
+    S_symbol fsym = S_Symbol(builtinName);
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -1417,7 +1417,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                 CG_UIntItem(&nDimCnt->item, dimCnt, Ty_UInteger());
                 CG_loadVal (g_sleStack->code, (*tkn)->pos, &nDimCnt->item);
 
-                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR", FALSE), arglist, g_sleStack->code, exp))
+                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR"), arglist, g_sleStack->code, exp))
                     return FALSE;
                 //CG_castItem (g_sleStack->code, (*tkn)->pos, exp, ty->u.darray.elementTy);
                 exp->ty = ty->u.darray.elementTy;
@@ -2677,7 +2677,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     n = CG_itemListAppend(arglist);
                     n->item = var;
                     CG_loadRef(g_varInitIL, pos, NULL, &n->item);
-                    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("CLEAR", FALSE), arglist, g_varInitIL, /*res=*/NULL))
+                    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("CLEAR"), arglist, g_varInitIL, /*res=*/NULL))
                         return FALSE;
                 }
             }
@@ -2720,7 +2720,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     CG_UIntItem(&n->item, end , Ty_ULong());
                     CG_loadVal (initInstrs, pos, &n->item);
                 }
-                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM", FALSE), arglist, initInstrs, /*res=*/NULL))
+                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM"), arglist, initInstrs, /*res=*/NULL))
                     return FALSE;
             }
             if (initInstrs)
@@ -2957,7 +2957,7 @@ static bool transErase (S_pos pos, S_symbol sVar)
     CG_itemListNode n = CG_itemListAppend(arglist);
     n->item = var;
     CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &n->item);
-    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE", FALSE), arglist, g_sleStack->code, /*res=*/NULL))
+    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE"), arglist, g_sleStack->code, /*res=*/NULL))
         return FALSE;
 
     return TRUE;
@@ -3070,34 +3070,34 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             switch (ty->kind)
             {
                 case Ty_string:
-                    fsym = dbg ? S_Symbol("_debug_puts", FALSE) : S_Symbol("_aio_puts", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_puts") : S_Symbol("_aio_puts");
                     break;
                 case Ty_pointer:
-                    fsym = dbg ? S_Symbol("_debug_putu4", FALSE) :  S_Symbol("_aio_putu4", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_putu4") :  S_Symbol("_aio_putu4");
                     break;
                 case Ty_byte:
-                    fsym = dbg ? S_Symbol("_debug_puts1", FALSE) :  S_Symbol("_aio_puts1", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_puts1") :  S_Symbol("_aio_puts1");
                     break;
                 case Ty_ubyte:
-                    fsym = dbg ? S_Symbol("_debug_putu1", FALSE) :  S_Symbol("_aio_putu1", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_putu1") :  S_Symbol("_aio_putu1");
                     break;
                 case Ty_integer:
-                    fsym = dbg ? S_Symbol("_debug_puts2", FALSE) :  S_Symbol("_aio_puts2", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_puts2") :  S_Symbol("_aio_puts2");
                     break;
                 case Ty_uinteger:
-                    fsym = dbg ? S_Symbol("_debug_putu2", FALSE) :  S_Symbol("_aio_putu2", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_putu2") :  S_Symbol("_aio_putu2");
                     break;
                 case Ty_long:
-                    fsym = dbg ? S_Symbol("_debug_puts4", FALSE) :  S_Symbol("_aio_puts4", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_puts4") :  S_Symbol("_aio_puts4");
                     break;
                 case Ty_ulong:
-                    fsym = dbg ? S_Symbol("_debug_putu4", FALSE) :  S_Symbol("_aio_putu4", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_putu4") :  S_Symbol("_aio_putu4");
                     break;
                 case Ty_single:
-                    fsym = dbg ? S_Symbol("_debug_putf", FALSE) :  S_Symbol("_aio_putf", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_putf") :  S_Symbol("_aio_putf");
                     break;
                 case Ty_bool:
-                    fsym = dbg ? S_Symbol("_debug_putbool", FALSE) :  S_Symbol("_aio_putbool", FALSE);
+                    fsym = dbg ? S_Symbol("_debug_putbool") :  S_Symbol("_aio_putbool");
                     break;
                 default:
                     return EM_error(pos, "unsupported type in print expression list.");
@@ -3128,7 +3128,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 *tkn = (*tkn)->next;
                 if (!dbg || OPT_get (OPTION_DEBUG))
                 {
-                    S_symbol fsym   =  dbg ? S_Symbol("_debug_puttab", FALSE) : S_Symbol("_aio_puttab", FALSE);
+                    S_symbol fsym   =  dbg ? S_Symbol("_debug_puttab") : S_Symbol("_aio_puttab");
                     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                     if (!lx)
                         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3157,7 +3157,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
     {
         if (!dbg || OPT_get (OPTION_DEBUG))
         {
-            S_symbol fsym   = dbg ? S_Symbol("_debug_putnl", FALSE) : S_Symbol("_aio_putnl", FALSE);
+            S_symbol fsym   = dbg ? S_Symbol("_debug_putnl") : S_Symbol("_aio_putnl");
             E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
             if (!lx)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3229,34 +3229,34 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         switch (ty->kind)
         {
             case Ty_string:
-                fsym = S_Symbol("_aio_writes", FALSE);
+                fsym = S_Symbol("_aio_writes");
                 break;
             case Ty_pointer:
-                fsym = S_Symbol("_aio_writeu4", FALSE);
+                fsym = S_Symbol("_aio_writeu4");
                 break;
             case Ty_byte:
-                fsym = S_Symbol("_aio_writes1", FALSE);
+                fsym = S_Symbol("_aio_writes1");
                 break;
             case Ty_ubyte:
-                fsym = S_Symbol("_aio_writeu1", FALSE);
+                fsym = S_Symbol("_aio_writeu1");
                 break;
             case Ty_integer:
-                fsym = S_Symbol("_aio_writes2", FALSE);
+                fsym = S_Symbol("_aio_writes2");
                 break;
             case Ty_uinteger:
-                fsym = S_Symbol("_aio_writeu2", FALSE);
+                fsym = S_Symbol("_aio_writeu2");
                 break;
             case Ty_long:
-                fsym = S_Symbol("_aio_writes4", FALSE);
+                fsym = S_Symbol("_aio_writes4");
                 break;
             case Ty_ulong:
-                fsym = S_Symbol("_aio_writeu4", FALSE);
+                fsym = S_Symbol("_aio_writeu4");
                 break;
             case Ty_single:
-                fsym = S_Symbol("_aio_writef", FALSE);
+                fsym = S_Symbol("_aio_writef");
                 break;
             case Ty_bool:
-                fsym = S_Symbol("_aio_writebool", FALSE);
+                fsym = S_Symbol("_aio_writebool");
                 break;
             default:
                 return EM_error(pos, "unsupported type in write expression list.");
@@ -3282,7 +3282,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
                 if (isLogicalEOL(*tkn))
                     return EM_error(pos, "WRITE: expression expected here.");
 
-                S_symbol fsym   = S_Symbol("_aio_writecomma", FALSE);
+                S_symbol fsym   = S_Symbol("_aio_writecomma");
                 E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3301,7 +3301,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
     }
 
-    S_symbol fsym   = S_Symbol("_aio_putnl", FALSE);
+    S_symbol fsym   = S_Symbol("_aio_putnl");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3327,7 +3327,7 @@ static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (OPT_get (OPTION_DEBUG))
     {
-        S_symbol fsym =  S_Symbol("_debug_break", FALSE);
+        S_symbol fsym =  S_Symbol("_debug_break");
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3350,31 +3350,31 @@ static bool inputVar(S_tkn *tkn, CG_item exFNo)
     switch (ty->kind)
     {
         case Ty_string:
-            fsym = S_Symbol("_aio_inputs", FALSE);
+            fsym = S_Symbol("_aio_inputs");
             break;
         case Ty_pointer:
-            fsym = S_Symbol("_aio_inputu4", FALSE);
+            fsym = S_Symbol("_aio_inputu4");
             break;
         case Ty_byte:
-            fsym = S_Symbol("_aio_inputs1", FALSE);
+            fsym = S_Symbol("_aio_inputs1");
             break;
         case Ty_ubyte:
-            fsym = S_Symbol("_aio_inputu1", FALSE);
+            fsym = S_Symbol("_aio_inputu1");
             break;
         case Ty_integer:
-            fsym = S_Symbol("_aio_inputs2", FALSE);
+            fsym = S_Symbol("_aio_inputs2");
             break;
         case Ty_uinteger:
-            fsym = S_Symbol("_aio_inputu2", FALSE);
+            fsym = S_Symbol("_aio_inputu2");
             break;
         case Ty_long:
-            fsym = S_Symbol("_aio_inputs4", FALSE);
+            fsym = S_Symbol("_aio_inputs4");
             break;
         case Ty_ulong:
-            fsym = S_Symbol("_aio_inputu4", FALSE);
+            fsym = S_Symbol("_aio_inputu4");
             break;
         case Ty_single:
-            fsym = S_Symbol("_aio_inputf", FALSE);
+            fsym = S_Symbol("_aio_inputf");
             break;
         default:
             return EM_error((*tkn)->pos, "unsupported type in INPUT expression list.");
@@ -3420,7 +3420,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
         *tkn = (*tkn)->next;
 
         // FIXME: remove
-        // S_symbol fsym   = S_Symbol("_aio_file_input", FALSE);
+        // S_symbol fsym   = S_Symbol("_aio_file_input");
         // E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         // if (!lx)
         //     return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3456,7 +3456,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
             *tkn = (*tkn)->next;
         }
 
-        S_symbol fsym   = S_Symbol("_aio_console_input", FALSE);
+        S_symbol fsym   = S_Symbol("_aio_console_input");
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3545,7 +3545,7 @@ static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
         assert(FALSE); // FIXME: implement
     }
 
-    S_symbol fsym = S_Symbol("_aio_open", FALSE);
+    S_symbol fsym = S_Symbol("_aio_open");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3575,7 +3575,7 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "CLOSE"
 
-    S_symbol fsym = S_Symbol("_aio_close", FALSE);
+    S_symbol fsym = S_Symbol("_aio_close");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3683,7 +3683,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 
 
-    S_symbol fsym   = S_Symbol("_aio_line_input", FALSE);
+    S_symbol fsym   = S_Symbol("_aio_line_input");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3840,20 +3840,20 @@ static bool transRead(S_pos pos, CG_item *var)
         case Ty_byte:
         case Ty_bool:
         case Ty_ubyte:
-            fsym = S_Symbol("_aqb_read1", FALSE);
+            fsym = S_Symbol("_aqb_read1");
             break;
         case Ty_integer:
         case Ty_uinteger:
-            fsym = S_Symbol("_aqb_read2", FALSE);
+            fsym = S_Symbol("_aqb_read2");
             break;
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
         case Ty_single:
-            fsym = S_Symbol("_aqb_read4", FALSE);
+            fsym = S_Symbol("_aqb_read4");
             break;
         case Ty_string:
-            fsym = S_Symbol("_aqb_readStr", FALSE);
+            fsym = S_Symbol("_aqb_readStr");
             break;
         default:
             return EM_error(pos, "READ: unsupported type.");
@@ -3912,7 +3912,7 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 		dataLabel = g_dataRestoreLabel;
 	}
 
-    S_symbol fsym = S_Symbol("_aqb_restore", FALSE);
+    S_symbol fsym = S_Symbol("_aqb_restore");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -4608,7 +4608,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
                     {
                         if (isLogicalEOL(*tkn))
                         {
-                            S_symbol fsym      = S_Symbol("SYSTEM", FALSE);
+                            S_symbol fsym      = S_Symbol("SYSTEM");
                             E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
                             if (!lx)
                                 return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
@@ -4647,7 +4647,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     n = CG_itemListAppend(arglist);
     CG_StringItem (g_sleStack->code, pos, &n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
 
-    S_symbol fsym      = S_Symbol("_aqb_assert", FALSE);
+    S_symbol fsym      = S_Symbol("_aqb_assert");
     E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -5669,7 +5669,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
 
                 *tkn = (*tkn)->next;
             }
-            name = S_Symbol("__init__", FALSE);
+            name = S_Symbol("__init__");
         }
         else
         {
@@ -5681,7 +5681,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     if (sCls)
     {
         label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
-        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this", FALSE), tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
+        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this"), tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
     }
     else
     {
@@ -7114,7 +7114,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
     {
         // call __aqb_clear
 
-        S_symbol clear = S_Symbol(AQB_CLEAR_NAME, FALSE);
+        S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
         Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
@@ -7241,31 +7241,31 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
     switch (ty->kind)
     {
         case Ty_pointer:
-            fsym = S_Symbol("_u4toa", FALSE);
+            fsym = S_Symbol("_u4toa");
             break;
         case Ty_byte:
-            fsym = S_Symbol("_s1toa", FALSE);
+            fsym = S_Symbol("_s1toa");
             break;
         case Ty_ubyte:
-            fsym = S_Symbol("_u1toa", FALSE);
+            fsym = S_Symbol("_u1toa");
             break;
         case Ty_integer:
-            fsym = S_Symbol("_s2toa", FALSE);
+            fsym = S_Symbol("_s2toa");
             break;
         case Ty_uinteger:
-            fsym = S_Symbol("_u2toa", FALSE);
+            fsym = S_Symbol("_u2toa");
             break;
         case Ty_long:
-            fsym = S_Symbol("_s4toa", FALSE);
+            fsym = S_Symbol("_s4toa");
             break;
         case Ty_ulong:
-            fsym = S_Symbol("_u4toa", FALSE);
+            fsym = S_Symbol("_u4toa");
             break;
         case Ty_single:
-            fsym = S_Symbol("_ftoa", FALSE);
+            fsym = S_Symbol("_ftoa");
             break;
         case Ty_bool:
-            fsym = S_Symbol("_booltoa", FALSE);
+            fsym = S_Symbol("_booltoa");
             break;
         default:
             EM_error(pos, "unsupported type in str$ expression.");
@@ -7362,7 +7362,7 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
             n->item = dimExp;
             CG_loadVal (g_sleStack->code, pos, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol (isUpper ? "UBOUND" : "LBOUND", FALSE), arglist, g_sleStack->code, exp))
+            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol(isUpper ? "UBOUND" : "LBOUND"), arglist, g_sleStack->code, exp))
                 return FALSE;
             return TRUE;
         }
@@ -7615,7 +7615,7 @@ static bool statementOrAssignment(S_tkn *tkn)
             n->item = ex;
             CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("COPY", FALSE), arglist, g_sleStack->code, /*res=*/NULL))
+            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol("COPY"), arglist, g_sleStack->code, /*res=*/NULL))
                 return FALSE;
         }
     }
@@ -7673,14 +7673,14 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
      *    E_env main()    E_env proc1()    E_env proc2()  ...
      */
 
-    FE_mod     = E_Module(S_Symbol(module_name, FALSE));
+    FE_mod     = E_Module(S_Symbol(module_name));
 
     registerBuiltins();
 
     E_import(FE_mod, g_builtinsModule);
     if (strcmp (OPT_default_module, "none"))
     {
-        E_module modDefault = E_loadModule(S_Symbol(OPT_default_module, FALSE));
+        E_module modDefault = E_loadModule(S_Symbol(OPT_default_module));
         if (!modDefault)
         {
             EM_error (0, "***ERROR: failed to load %s !", OPT_default_module);
@@ -7770,7 +7770,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     {
         AS_instrList initCode = AS_InstrList();
 
-        S_symbol fsym = S_Symbol("_aqb_restore", FALSE);
+        S_symbol fsym = S_Symbol("_aqb_restore");
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (lx)
         {
@@ -7872,7 +7872,7 @@ bool FE_writeSymFile(string symfn, bool hasCode)
 static S_symbol defineKeyword (char *s)
 {
     assert (FE_num_keywords<MAX_KEYWORDS);
-    S_symbol kw = S_Symbol(s, FALSE);
+    S_symbol kw = S_Symbol(s);
     FE_keywords[FE_num_keywords] = kw;
     FE_num_keywords++;
     return kw;
