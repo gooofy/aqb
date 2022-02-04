@@ -19,7 +19,6 @@ typedef struct _hashmap_element
 {
 	char *key;
 	any_t data;
-	bool  in_use;
 } hashmap_element;
 
 /* A hashmap has some maximum size and current size,
@@ -207,10 +206,10 @@ static int hashmap_hash(map_t in, char* key)
 	/* Linear probing */
 	for(i = 0; i< MAX_CHAIN_LENGTH; i++)
     {
-		if ( !m->data[curr].in_use )
+		if ( !m->data[curr].key )
 			return curr;
 
-		if ( m->data[curr].in_use && (strcmp(m->data[curr].key, key)==0) )
+		if ( m->data[curr].key && (strcmp(m->data[curr].key, key)==0) )
 			return curr;
 
 		curr = (curr + 1) % m->table_size;
@@ -250,7 +249,7 @@ int hashmap_rehash(map_t in)
     {
         int status;
 
-        if (!old_data[i].in_use)
+        if (!old_data[i].key)
             continue;
 
 		status = hashmap_put(m, old_data[i].key, old_data[i].data, /*copy_key=*/FALSE);
@@ -285,12 +284,11 @@ int hashmap_put(map_t in, char* key, any_t value, bool copy_key)
 		index = hashmap_hash(in, key);
 	}
 
-    if (!m->data[index].in_use)
+    if (!m->data[index].key)
     {
         /* Set the data */
         m->data[index].data    = value;
         m->data[index].key     = copy_key ? String(m->pid, key) : key;
-        m->data[index].in_use  = TRUE;
         m->size++;
         //LOG_printf (LOG_INFO, "hashmap_put map2=%p key=%s NEW, m->size=%d\n", in, key, m->size);
     }
@@ -322,8 +320,7 @@ int hashmap_get(map_t in, char* key, any_t *value)
 	for(i = 0; i<MAX_CHAIN_LENGTH; i++)
     {
 
-        int in_use = m->data[curr].in_use;
-        if (in_use == 1)
+        if (m->data[curr].key)
         {
             if (strcicmp(m->data[curr].key, key)==0)
             {
@@ -360,13 +357,11 @@ int hashmap_remove(map_t in, char* key)
 	for(i = 0; i<MAX_CHAIN_LENGTH; i++)
     {
 
-        bool in_use = m->data[curr].in_use;
-        if (in_use)
+        if (m->data[curr].key)
         {
             if (strcmp(m->data[curr].key, key)==0)
             {
                 /* Blank out the fields */
-                m->data[curr].in_use = FALSE;
                 m->data[curr].data   = NULL;
                 m->data[curr].key    = NULL;
 
