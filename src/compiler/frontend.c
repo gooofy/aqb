@@ -1104,7 +1104,7 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
     if (!tyClass || (tyClass->kind != Ty_record))
         return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
 
-    Ty_recordEntry entry = S_look(tyClass->u.record.scope, builtinMethod);
+    Ty_recordEntry entry = Ty_recordFindEntry(tyClass, builtinMethod);
     if (!entry || (entry->kind != Ty_recMethod))
         return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
 
@@ -1462,7 +1462,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
             if ( ty->kind != Ty_record )
                 return EM_error(pos, "record type expected");
 
-            Ty_recordEntry entry = S_look(ty->u.record.scope, sym);
+            Ty_recordEntry entry = Ty_recordFindEntry(ty, sym);
             if (!entry)
                 return EM_error(pos, "unknown UDT entry %s", S_name(sym));
 
@@ -1483,7 +1483,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             ty = ty->u.pointer;
 
-            Ty_recordEntry entry = S_look(ty->u.record.scope, sym);
+            Ty_recordEntry entry = Ty_recordFindEntry(ty, sym);
             if (!entry)
                 return EM_error(pos, "unknown UDT entry %s", S_name(sym));
 
@@ -6297,20 +6297,22 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         t = Ty_SArray(FE_mod->name, t, start, end);
                     }
 
-                    Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name);
+                    Ty_recordEntry re = Ty_recordFindEntry(sle->u.typeDecl.ty, f->u.fieldr.name);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
-                    re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, Ty_recordAddField(sle->u.typeDecl.ty, t), t);
-                    S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.fieldr.name, re);
+                    //re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, Ty_recordAddField(sle->u.typeDecl.ty, t), t);
+                    re = Ty_recordAddField (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
                     break;
                 }
                 case FE_methodUDTEntry:
                 {
-                    Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name);
+                    // Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name);
+                    Ty_recordEntry re = Ty_recordFindEntry (sle->u.typeDecl.ty, f->u.methodr->name);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
-                    re = Ty_Method(f->u.methodr);
-                    S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name, re);
+                    // re = Ty_Method(f->u.methodr);
+                    // S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name, re);
+                    re = Ty_recordAddMethod (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.methodr->name, f->u.methodr);
                     break;
                 }
             }
@@ -7802,19 +7804,16 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         if (ty->kind != Ty_record)
             continue;
 
-        TAB_iter j = S_Iter(ty->u.record.scope);
-        S_symbol sym2;
-        Ty_recordEntry entry;
-        while (TAB_next(j, (void **) &sym2, (void **)&entry))
+        for (Ty_recordEntry entry = ty->u.record.entries; entry; entry=entry->next)
         {
             if (entry->kind != Ty_recField)
                 continue;
             if (entry->u.field.ty->kind == Ty_forwardPtr)
             {
-                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(sym2));
+                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(entry->name));
                 Ty_ty tyForward = E_resolveType(g_sleStack->env, entry->u.field.ty->u.sForward);
                 if (!tyForward)
-                    EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(sym2));
+                    EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(entry->name));
 
                 entry->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
             }

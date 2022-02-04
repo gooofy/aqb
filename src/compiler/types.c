@@ -81,7 +81,7 @@ Ty_ty Ty_Record (S_symbol mod)
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                  = Ty_record;
-    p->u.record.scope        = S_beginScope();
+    p->u.record.entries      = NULL;
     p->u.record.constructor  = NULL;
     p->u.record.uiSize       = 0;
     p->mod                   = mod;
@@ -90,6 +90,8 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
+// FIXME
+#if 0
 uint32_t Ty_recordAddField (Ty_ty recordType, Ty_ty fieldType)
 {
     unsigned int s = Ty_size(fieldType);
@@ -166,6 +168,7 @@ Ty_recordEntry Ty_Method (Ty_proc proc)
 
     return p;
 }
+#endif
 
 Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
 {
@@ -452,6 +455,7 @@ static string _toString(Ty_ty t, int depth)
         case Ty_record:
         {
             string res = strprintf (UP_types, "record ([%s:%d]", S_name (t->mod), t->uid);
+#if 0
             TAB_iter i = S_Iter(t->u.record.scope);
             S_symbol sym;
             Ty_recordEntry entry;
@@ -468,7 +472,7 @@ static string _toString(Ty_ty t, int depth)
                         break;
                 }
             }
-
+#endif
             return strconcat (UP_types, res, ")");
         }
         case Ty_pointer:

@@ -137,7 +137,7 @@ bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, CG_item *item, Ty
             Ty_ty ty = CG_ty(item);
             assert ( ( (item->kind == IK_varPtr) || (item->kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
 
-            *entry = S_look(ty->u.record.scope, sym);
+            *entry = Ty_recordFindEntry(ty, sym);
             if (*entry)
                 return TRUE;
             break;
@@ -448,10 +448,7 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
             break;
         case Ty_record:
         {
-            TAB_iter i = S_Iter(ty->u.record.scope);
-            S_symbol sym;
-            Ty_recordEntry entry;
-            while (TAB_next(i, (void **) &sym, (void **)&entry))
+            for (Ty_recordEntry entry=ty->u.record.entries; entry; entry=entry->next)
             {
                 switch (entry->kind)
                 {
@@ -586,16 +583,12 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             break;
         case Ty_record:
         {
-            TAB_iter i = S_Iter(ty->u.record.scope);
-            S_symbol sym;
-            Ty_recordEntry entry;
             fwrite_u4(modf, ty->u.record.uiSize);
             uint16_t cnt=0;
-            while (TAB_next(i, (void **) &sym, (void **)&entry))
+            for (Ty_recordEntry entry = ty->u.record.entries; entry; entry=entry->next)
                 cnt++;
             fwrite_u2(modf, cnt);
-            i = S_Iter(ty->u.record.scope);
-            while (TAB_next(i, (void **) &sym, (void **)&entry))
+            for (Ty_recordEntry entry = ty->u.record.entries; entry; entry=entry->next)
             {
                 fwrite_u1(modf, entry->kind);
                 switch (entry->kind)
@@ -1250,7 +1243,7 @@ E_module E_loadModule(S_symbol sModule)
 
                 uint16_t cnt=fread_u2(modf);
 
-                ty->u.record.scope = S_beginScope();
+                ty->u.record.entries = NULL;
 
                 //LOG_printf (LOG_DEBUG, "loading record type, uiSize=%d, cnt=%d\n", ty->u.record.uiSize, cnt);
 
@@ -1262,9 +1255,9 @@ E_module E_loadModule(S_symbol sModule)
                         case Ty_recMethod:
                         {
                             //LOG_printf (LOG_DEBUG, "Ty_recMethod\n");
+                            // FIXME: visibility!
                             Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                            Ty_recordEntry re = Ty_Method(proc);
-                            S_enter(ty->u.record.scope, proc->name, re);
+                            Ty_recordAddMethod (ty, Ty_visPublic, proc->name, proc);
                             break;
                         }
                         case Ty_recField:
@@ -1274,10 +1267,9 @@ E_module E_loadModule(S_symbol sModule)
                             uint32_t uiOffset = fread_u4(modf);
                             //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
-
                             S_symbol sym = S_Symbol(name);
-                            Ty_recordEntry re = Ty_Field(visibility, sym, uiOffset, t);
-                            S_enter(ty->u.record.scope, sym, re);
+                            Ty_recordEntry field = Ty_recordAddField (ty, visibility, sym, t);
+                            field->u.field.uiOffset = uiOffset;
                             break;
                         }
                     }

@@ -25,7 +25,7 @@ struct Ty_ty_
         Ty_ty                                                                 pointer;
         struct {Ty_proc  constructor;
                 uint32_t uiSize;
-                S_scope  scope; /* symbol -> Ty_recordEntry */              } record;
+                Ty_recordEntry entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
         struct {Ty_ty elementTy;                                            } darray;
         S_symbol                                                              sForward;
@@ -90,6 +90,8 @@ struct Ty_proc_
 
 struct Ty_recordEntry_
 {
+    Ty_recordEntry                     next;
+    S_symbol                           name;
     enum { Ty_recMethod, Ty_recField } kind;
     union
     {
@@ -125,9 +127,12 @@ Ty_ty           Ty_ProcPtr          (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad           (S_symbol mod, uint32_t uid);
 
 Ty_ty           Ty_Record           (S_symbol mod);
-Ty_recordEntry  Ty_Field            (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty);
-Ty_recordEntry  Ty_Method           (Ty_proc proc);
-uint32_t        Ty_recordAddField   (Ty_ty recordType, Ty_ty fieldType);
+//Ty_recordEntry  Ty_Field            (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty);
+//Ty_recordEntry  Ty_Method           (Ty_proc proc);
+//uint32_t        Ty_recordAddField   (Ty_ty recordType, S_symbol name, Ty_ty fieldType);
+Ty_recordEntry  Ty_recordAddField   (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty fieldType);
+Ty_recordEntry  Ty_recordAddMethod  (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc method);
+Ty_recordEntry  Ty_recordFindEntry  (Ty_ty recordType, S_symbol name);
 
 Ty_formal       Ty_Formal           (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc             (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);
