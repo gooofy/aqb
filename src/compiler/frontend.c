@@ -6301,7 +6301,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
                     //re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, Ty_recordAddField(sle->u.typeDecl.ty, t), t);
-                    re = Ty_recordAddField (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
+                    re = Ty_recordAddField (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t, /*calcOffset=*/TRUE);
                     break;
                 }
                 case FE_methodUDTEntry:

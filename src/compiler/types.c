@@ -90,85 +90,65 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-// FIXME
-#if 0
-uint32_t Ty_recordAddField (Ty_ty recordType, Ty_ty fieldType)
+Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
 {
-    unsigned int s = Ty_size(fieldType);
+    //LOG_printf(LOG_INFO, "%d\n", recordType->kind);
+    assert (recordType->kind == Ty_record);
 
-    // 68k alignment
-    if (s>1 && (recordType->u.record.uiSize % 2))
-        recordType->u.record.uiSize++;
-    uint32_t fieldOffset = recordType->u.record.uiSize;
-
-    recordType->u.record.uiSize += s;
-
-    return fieldOffset;
-
-// FIXME: remove
-#if 0
-
-    entry->u.field.uiOffset = off;
-    off += s;
-
-
-
-        {
-            uint32_t off=0;
-
-            ty->u.record.uiSize = 0;
-            TAB_iter iter = S_Iter(ty->u.record.scope);
-
-            S_symbol sym;
-            Ty_recordEntry entry;
-            while (TAB_next (iter, (void *) (intptr_t) &sym, (void *) &entry))
-            {
-                if (entry->kind != Ty_recField)
-                    continue;
-
-
-                unsigned int s = Ty_size(entry->u.field.ty);
-
-                // 68k alignment
-                if (s>1 && (ty->u.record.uiSize % 2))
-                {
-                    ty->u.record.uiSize++;
-                    off++;
-                }
-
-                ty->u.record.uiSize += s;
-                entry->u.field.uiOffset = off;
-                off += s;
-            }
-            break;
-        }
-    return oldOffset;
-#endif
-}
-
-Ty_recordEntry Ty_Field (Ty_visibility visibility, S_symbol name, uint32_t offset, Ty_ty ty)
-{
     Ty_recordEntry f = U_poolAlloc(UP_types, sizeof(*f));
 
-    f->kind               = Ty_recField;
-    f->u.field.visibility = visibility;
-    f->u.field.name       = name;
-    f->u.field.uiOffset   = offset;
-    f->u.field.ty         = ty;
+    f->kind       = Ty_recField;
+    f->name       = name;
+    f->visibility = visibility;
+    f->next       = recordType->u.record.entries;
+    recordType->u.record.entries = f;
+
+    if (calcOffset) // env.c will provide offsets when loading types from modules
+    {
+        // 68k alignment
+        unsigned int s = Ty_size(fieldType);
+        if (s>1 && (recordType->u.record.uiSize % 2))
+            recordType->u.record.uiSize++;
+        uint32_t fieldOffset = recordType->u.record.uiSize;
+
+        recordType->u.record.uiSize += s;
+
+        f->u.field.uiOffset   = fieldOffset;
+    }
+
+    f->u.field.ty         = fieldType;
 
     return f;
 }
 
-Ty_recordEntry Ty_Method (Ty_proc proc)
+Ty_recordEntry Ty_recordAddMethod (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc method)
 {
+    assert (recordType->kind == Ty_record);
+
     Ty_recordEntry p = U_poolAlloc(UP_types, sizeof(*p));
 
-    p->kind      = Ty_recMethod;
-    p->u.method  = proc;
+    p->kind       = Ty_recMethod;
+    p->name       = name;
+    p->visibility = visibility;
+    p->next       = recordType->u.record.entries;
+    recordType->u.record.entries = p;
+    p->u.method   = method;
 
     return p;
 }
-#endif
+
+Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name)
+{
+    assert (recordType->kind == Ty_record);
+
+    for (Ty_recordEntry entry = recordType->u.record.entries; entry; entry=entry->next)
+    {
+        if (entry->name == name)
+            return entry;
+    }
+
+    return NULL;
+}
 
 Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
 {

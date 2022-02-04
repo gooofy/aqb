@@ -597,8 +597,8 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                         E_serializeTyProc(modTable, entry->u.method);
                         break;
                     case Ty_recField:
-                        fwrite_u1(modf, entry->u.field.visibility);
-                        strserialize(modf, S_name(entry->u.field.name));
+                        fwrite_u1(modf, entry->visibility);
+                        strserialize(modf, S_name(entry->name));
                         fwrite_u4(modf, entry->u.field.uiOffset);
                         //LOG_printf (LOG_DEBUG, "serializing Ty_recField visibility=%d, name=%s, offset=%d\n", entry->u.field.visibility, S_name(entry->u.field.name), entry->u.field.uiOffset);
                         E_serializeTyRef(modTable, entry->u.field.ty);
@@ -1244,6 +1244,7 @@ E_module E_loadModule(S_symbol sModule)
                 uint16_t cnt=fread_u2(modf);
 
                 ty->u.record.entries = NULL;
+                ty->kind = Ty_record;
 
                 //LOG_printf (LOG_DEBUG, "loading record type, uiSize=%d, cnt=%d\n", ty->u.record.uiSize, cnt);
 
@@ -1268,7 +1269,7 @@ E_module E_loadModule(S_symbol sModule)
                             //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
                             S_symbol sym = S_Symbol(name);
-                            Ty_recordEntry field = Ty_recordAddField (ty, visibility, sym, t);
+                            Ty_recordEntry field = Ty_recordAddField (ty, visibility, sym, t, /*calcOffset=*/FALSE);
                             field->u.field.uiOffset = uiOffset;
                             break;
                         }

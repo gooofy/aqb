@@ -17,6 +17,7 @@ Bug Fixes:
     * compiler: type conversion bugfixes
     * compiler: reduced symboltable/hashmap memory footprint
     * compiler: fix boolean RelOp constant propagation
+    * compiler: reduced record (udt) type memory footprint
     * linker: fix unitialized write buffer bug
 
 ## 0.8.2
