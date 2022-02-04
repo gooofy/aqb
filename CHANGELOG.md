@@ -16,6 +16,7 @@ Bug Fixes:
     * compiler: fix syntax for pure variadic functions
     * compiler: type conversion bugfixes
     * compiler: reduced symboltable/hashmap memory footprint
+    * compiler: fix boolean RelOp constant propagation
     * linker: fix unitialized write buffer bug
 
 ## 0.8.2

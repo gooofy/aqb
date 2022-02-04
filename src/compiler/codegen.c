@@ -2941,12 +2941,12 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_relOp ro, CG_item *left, CG
                     case Ty_ulong:
                         switch (ro)
                         {
-                            case CG_eq: CG_BoolItem (left, left->u.c->u.i == right->u.c->u.i, Ty_Bool()); return;
-                            case CG_ne: CG_BoolItem (left, left->u.c->u.i != right->u.c->u.i, Ty_Bool()); return;
-                            case CG_lt: CG_BoolItem (left, left->u.c->u.i <  right->u.c->u.i, Ty_Bool()); return;
-                            case CG_gt: CG_BoolItem (left, left->u.c->u.i >  right->u.c->u.i, Ty_Bool()); return;
-                            case CG_le: CG_BoolItem (left, left->u.c->u.i <= right->u.c->u.i, Ty_Bool()); return;
-                            case CG_ge: CG_BoolItem (left, left->u.c->u.i >= right->u.c->u.i, Ty_Bool()); return;
+                            case CG_eq: CG_BoolItem (left, CG_getConstInt(left) == CG_getConstInt(right), Ty_Bool()); return;
+                            case CG_ne: CG_BoolItem (left, CG_getConstInt(left) != CG_getConstInt(right), Ty_Bool()); return;
+                            case CG_lt: CG_BoolItem (left, CG_getConstInt(left) <  CG_getConstInt(right), Ty_Bool()); return;
+                            case CG_gt: CG_BoolItem (left, CG_getConstInt(left) >  CG_getConstInt(right), Ty_Bool()); return;
+                            case CG_le: CG_BoolItem (left, CG_getConstInt(left) <= CG_getConstInt(right), Ty_Bool()); return;
+                            case CG_ge: CG_BoolItem (left, CG_getConstInt(left) >= CG_getConstInt(right), Ty_Bool()); return;
                         }
                         break;
                     case Ty_single:
