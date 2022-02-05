@@ -322,6 +322,22 @@ BOOL GTGSELECTED_ (GTGADGET_t *g)
     return g->gad->Flags & GFLG_SELECTED;
 }
 
+STRPTR GTGBUFFER_ (GTGADGET_t *g)
+{
+    DPRINTF ("GTGBUFFER_ called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTGBUFFER_: invalid gadget\n");
+		ERROR(AE_GTG_BUFFER);
+		return FALSE;
+    }
+
+    struct StringInfo * si = (struct StringInfo *)g->gad->SpecialInfo;
+
+    return si->Buffer;
+}
+
 void GTGADGETS_DEPLOY (void)
 {
     DPRINTF ("GADGETS_DEPLOY called\n");
