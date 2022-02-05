@@ -231,21 +231,22 @@ resulting AQB declarations typically look like:
     [...]
 
 ## Keyboard shortcuts:
-    * F1     - this help screen
-    * ESC    - toggle console visibility
-    * S-UP   - page up
-    * S-DOWN - page down
-    * Ctrl-T - goto top of file
-    * Ctrl-B - goto end of file
-    * Ctrl-Y - delete line
-    * F5     - compile & run
-    * F7     - compile
-    * F9     - toggle breakpoint
-    * Ctrl-F - find
-    * Ctrl-N - find next
-    * Ctrl-M - mark block
-    * Ctrl-S - save
-    * Ctrl-C - quit
+    * F1        - this help screen
+    * ESC       - toggle console visibility
+    * S-UP      - page up
+    * S-DOWN    - page down
+    * Ctrl-Up   - goto top of file
+    * Ctrl-Down - goto end of file
+    * Ctrl-B    - mark block
+    * Ctrl-Y    - delete line
+    * F5        - compile & run
+    * F7        - compile
+    * F9        - toggle breakpoint
+    * Ctrl-F    - find
+    * Ctrl-N    - find next
+    * Ctrl-M    - mark block
+    * Ctrl-S    - save
+    * Ctrl-C    - quit
 
 ## Benchmark Results
 
