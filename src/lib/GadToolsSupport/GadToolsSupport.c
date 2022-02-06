@@ -338,6 +338,22 @@ STRPTR GTGBUFFER_ (GTGADGET_t *g)
     return si->Buffer;
 }
 
+LONG GTGNUM_ (GTGADGET_t *g)
+{
+    DPRINTF ("GTGNUM_ called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTGNUM_: invalid gadget\n");
+		ERROR(AE_GTG_NUM);
+		return FALSE;
+    }
+
+    struct StringInfo * si = (struct StringInfo *)g->gad->SpecialInfo;
+
+    return si->LongInt;
+}
+
 void GTGADGETS_DEPLOY (void)
 {
     DPRINTF ("GADGETS_DEPLOY called\n");

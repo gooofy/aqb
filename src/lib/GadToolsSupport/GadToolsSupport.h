@@ -7,6 +7,7 @@
 #define AE_GTG_SELECTED 403
 #define AE_GTG_CALLBACK 404
 #define AE_GTG_BUFFER   405
+#define AE_GTG_NUM      406
 
 typedef struct GTGADGET_ GTGADGET_t;
 
@@ -36,6 +37,7 @@ void        GTG_MODIFY       (GTGADGET_t *g, ULONG ti_Tag, ...);
 
 BOOL        GTGSELECTED_     (GTGADGET_t *g);
 STRPTR      GTGBUFFER_       (GTGADGET_t *g);
+LONG        GTGNUM_          (GTGADGET_t *g);
 
 void        GTGADGETS_DEPLOY (void);
 void        GTGADGETS_FREE   (void);
