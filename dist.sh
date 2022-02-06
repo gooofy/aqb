@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.8.3
+VERSION=0.8.3preview1
 WORKDIR=`pwd`/target/m68k-amigaos/dist
 LHA=${WORKDIR}/aqb-${VERSION}.lha
 
@@ -21,9 +21,15 @@ cp src/lib/IFFSupport/IFFSupport.sym             ${WORKDIR}/aqb/lib/
 cp src/lib/IFFSupport/IFFSupport.a               ${WORKDIR}/aqb/lib/
 cp src/lib/AnimSupport/AnimSupport.sym           ${WORKDIR}/aqb/lib/
 cp src/lib/AnimSupport/AnimSupport.a             ${WORKDIR}/aqb/lib/
-cp src/lib/UISupport/UISupport.sym               ${WORKDIR}/aqb/lib/
-cp src/lib/UISupport/UISupport.a                 ${WORKDIR}/aqb/lib/
-cp src/lib/OSGadToolsConsts/OSGadToolsConsts.sym ${WORKDIR}/aqb/lib/
+cp src/lib/GadToolsSupport/GadToolsSupport.sym   ${WORKDIR}/aqb/lib/
+cp src/lib/GadToolsSupport/GadToolsSupport.a     ${WORKDIR}/aqb/lib/
+cp src/lib/OSDevices/OSDevices.sym               ${WORKDIR}/aqb/lib/
+cp src/lib/OSExec/OSExec.sym                     ${WORKDIR}/aqb/lib/
+cp src/lib/OSGraphics/OSGraphics.sym             ${WORKDIR}/aqb/lib/
+cp src/lib/OSHardware/OSHardware.sym             ${WORKDIR}/aqb/lib/
+cp src/lib/OSIntuition/OSIntuition.sym           ${WORKDIR}/aqb/lib/
+cp src/lib/OSGadTools/OSGadTools.sym             ${WORKDIR}/aqb/lib/
+cp src/lib/OSGadTools/OSGadTools.a               ${WORKDIR}/aqb/lib/
 cp src/lib/OSUtility/OSUtility.sym               ${WORKDIR}/aqb/lib/
 cp src/lib/startup.o                             ${WORKDIR}/aqb/lib/
 cp README.guide                                  ${WORKDIR}/aqb/
