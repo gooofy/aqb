@@ -907,11 +907,72 @@ static IDE_line _commitBuf(IDE_instance ed)
     return l;
 }
 
+static void _clearHilight(IDE_instance ed)
+{
+    IDE_line l = ed->line_first;
+
+    while (l)
+    {
+        if (l->h_start<l->h_end)
+        {
+            l->h_start = l->h_end = 0;
+            l->mark    = FALSE;
+            l->up2date = FALSE;
+        }
+        l = l->next;
+    }
+}
+
+static void _cancel_mark_mode (IDE_instance ed)
+{
+    ed->mark_mode = FALSE;
+    _clearHilight(ed);
+}
+
+static void _updateCursorLineMark (IDE_instance ed)
+{
+    if (ed->mark_mode)
+    {
+        if (ed->cursor_line->folded || ed->cursor_a_line < ed->mark_line)
+        {
+            _cancel_mark_mode (ed);
+        }
+        else
+        {
+            if (ed->cursor_a_line == ed->mark_line)
+            {
+                if (ed->cursor_col >= ed->mark_col)
+                {
+                    ed->cursor_line->h_start = ed->mark_col;
+                    ed->cursor_line->h_end   = ed->cursor_col;
+                    ed->cursor_line->up2date = FALSE;
+                }
+            }
+            else
+            {
+                if (ed->cursor_a_line > ed->mark_line)
+                {
+                    ed->cursor_line->h_start = 0;
+                    ed->cursor_line->h_end   = ed->cursor_col;
+                    ed->cursor_line->up2date = FALSE;
+                }
+            }
+        }
+    }
+}
+
 static bool _cursorUp(IDE_instance ed)
 {
     IDE_line pl = ed->cursor_line->prev;
     if (!pl)
         return FALSE;
+
+    if (ed->mark_mode)
+    {
+        ed->cursor_line->h_start = 0;
+        ed->cursor_line->h_end   = 0;
+        ed->cursor_line->up2date = FALSE;
+    }
 
     if (ed->editing)
         _commitBuf (ed);
@@ -938,6 +999,8 @@ static bool _cursorUp(IDE_instance ed)
     }
     ed->up2date_il_pos = FALSE;
 
+    _updateCursorLineMark (ed);
+
     return TRUE;
 }
 
@@ -945,6 +1008,25 @@ static bool _cursorDown(IDE_instance ed)
 {
     if (ed->editing)
         _commitBuf (ed);
+
+    if (ed->mark_mode)
+    {
+        if (ed->cursor_a_line == ed->mark_line)
+        {
+            ed->cursor_line->h_start = ed->mark_col;
+            ed->cursor_line->h_end   = ed->cursor_line->len;
+            ed->cursor_line->up2date = FALSE;
+        }
+        else
+        {
+            if (ed->cursor_a_line > ed->mark_line)
+            {
+                ed->cursor_line->h_start = 0;
+                ed->cursor_line->h_end   = ed->cursor_line->len;
+                ed->cursor_line->up2date = FALSE;
+            }
+        }
+    }
 
     if (ed->scrolloff_col)
     {
@@ -976,6 +1058,8 @@ static bool _cursorDown(IDE_instance ed)
         ed->cursor_col = nl->len+(nl->indent*INDENT_SPACES);
     ed->up2date_il_pos = FALSE;
 
+    _updateCursorLineMark (ed);
+
     return TRUE;
 }
 
@@ -986,6 +1070,8 @@ static bool _cursorLeft(IDE_instance ed)
 
     ed->cursor_col--;
     ed->up2date_il_pos = FALSE;
+
+    _updateCursorLineMark (ed);
 
     return TRUE;
 }
@@ -1000,6 +1086,8 @@ static bool _cursorRight(IDE_instance ed)
 
     ed->cursor_col++;
     ed->up2date_il_pos = FALSE;
+
+    _updateCursorLineMark (ed);
 
     return TRUE;
 }
@@ -1029,6 +1117,9 @@ static bool _gotoBOF(IDE_instance ed)
     if (ed->editing)
         _commitBuf (ed);
 
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
+
     ed->cursor_line = ed->line_first;
 
     ed->cursor_a_line = 0;
@@ -1044,6 +1135,9 @@ static bool _gotoEOF(IDE_instance ed)
     if (ed->editing)
         _commitBuf (ed);
 
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
+
     ed->cursor_line = ed->line_first;
 	while (ed->cursor_line->next)
 	{
@@ -1058,20 +1152,28 @@ static bool _gotoEOF(IDE_instance ed)
     return TRUE;
 }
 
-static bool _gotoHome(IDE_instance ed)
+static bool _gotoBOL(IDE_instance ed)
 {
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
     ed->cursor_col = 0;
     ed->up2date_il_pos = FALSE;
+
+    _updateCursorLineMark (ed);
+
     return TRUE;
 }
 
-static bool _gotoEnd(IDE_instance ed)
+static bool _gotoEOL(IDE_instance ed)
 {
     if (ed->editing)
         ed->cursor_col = ed->buf_len;
     else
         ed->cursor_col = ed->cursor_line->len + ed->cursor_line->indent * INDENT_SPACES;
     ed->up2date_il_pos = FALSE;
+
+    _updateCursorLineMark (ed);
+
     return TRUE;
 }
 
@@ -1087,6 +1189,9 @@ static void _fold (IDE_instance ed, IDE_line cl)
         if (clIsCursorLine)
             cl = cl2;
     }
+
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
 
     IDE_line fl = cl; // remember fold start
 
@@ -1150,22 +1255,6 @@ static void _gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight
     }
 }
 
-static void _clearHilight(IDE_instance ed)
-{
-    IDE_line l = ed->line_first;
-
-    while (l)
-    {
-        if (l->h_start<l->h_end)
-        {
-            l->h_start = l->h_end = 0;
-            l->mark    = FALSE;
-            l->up2date = FALSE;
-        }
-        l = l->next;
-    }
-}
-
 void IDE_gotoLine(IDE_instance ed, uint16_t line, uint16_t col, bool hilight)
 {
     _clearHilight(ed);
@@ -1208,6 +1297,9 @@ static void _line2buf (IDE_instance ed, IDE_line l)
 
 static void _enterKey (IDE_instance ed)
 {
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
+
     // split line ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
     if (ed->cursor_line->folded)
@@ -1251,6 +1343,9 @@ static void _enterKey (IDE_instance ed)
 
 static void _backspaceKey (IDE_instance ed)
 {
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
+
     // join lines ?
     if (ed->cursor_col == 0)
     {
@@ -1298,6 +1393,9 @@ static void _backspaceKey (IDE_instance ed)
 
 static void _deleteKey (IDE_instance ed)
 {
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
+
     // join lines ?
     uint16_t l = ed->editing ? ed->buf_len : ed->cursor_line->len + ed->cursor_line->indent*INDENT_SPACES;
     if (ed->cursor_col == l)
@@ -1349,6 +1447,9 @@ static void _killLine (IDE_instance ed)
 
     if (ed->editing)
         cl = _commitBuf (ed);
+
+    if (ed->mark_mode)
+        _cancel_mark_mode (ed);
 
     _unfoldCursorLine(ed);
     if (ed->cursor_col > nl->len)
@@ -1939,6 +2040,7 @@ static void _ide_new (IDE_instance ed)
     ed->cursor_a_line	 = 0;
     ed->cursor_v_line	 = 0;
     ed->cursor_line      = ed->line_first;
+    ed->mark_mode        = FALSE;
 
     indentSuccLines (ed, ed->line_first);
     _invalidateAll (ed);
@@ -1957,6 +2059,124 @@ static void _ide_load_FileReq (IDE_instance ed)
     char *sourcefn = UI_FileReq ("Load BASIC source code file");
     if (sourcefn)
         _loadSource (ed, sourcefn);
+}
+
+static void _edit_block (IDE_instance ed)
+{
+    if (ed->mark_mode)
+    {
+        _cancel_mark_mode (ed);
+        return;
+    }
+
+    if (ed->editing)
+        _commitBuf (ed);
+
+    ed->mark_mode = TRUE;
+    ed->mark_col  = ed->cursor_col;
+    ed->mark_line = ed->cursor_a_line;
+}
+
+static void _edit_cut_copy (IDE_instance ed, bool do_cut)
+{
+    if (!ed->mark_mode)
+        return;
+    _cancel_mark_mode (ed);
+
+    IDE_line cur = ed->line_first;
+    while (cur && cur->a_line < ed->mark_line)
+        cur = cur->next;
+
+    if (!cur)
+	{
+        return;
+	}
+
+    ed->copy_buf_len = 0;
+    int16_t start = ed->mark_col;
+    int16_t mark_lines = ed->cursor_a_line - ed->mark_line+1;
+    for (int16_t li=0; li<mark_lines; li++)
+    {
+        if (!cur)
+            break;
+        
+        bool is_last_line = li==(mark_lines-1);
+
+        int16_t end = is_last_line ? ed->cursor_col-1 : cur->len-1;
+
+        LOG_printf (LOG_DEBUG, "IDE: cut_copy: copying line #%d [%d-%d] to clipboard: %s, do_cut=%d\n", cur->a_line, start, end, cur->buf+start, do_cut);
+
+        for (int16_t i = start; i<=end; i++)
+        {
+            if (ed->copy_buf_len >= COPY_BUF_SIZE)
+                break;
+            ed->copy_buf[ed->copy_buf_len++] = cur->buf[i];
+        }
+
+        if (do_cut)
+        {
+            ed->cursor_line = cur;
+            _line2buf (ed, ed->cursor_line);
+
+            uint16_t block_len = end-start+1;
+            LOG_printf (LOG_DEBUG, "IDE: cut: block_len=%d, start=%d, end=%d\n", block_len, start, end);
+
+            for (uint16_t i=end+1; i<=ed->buf_len; i++)
+            {
+                LOG_printf (LOG_DEBUG, "IDE: cut: ed->buf[%d] = ed->buf[%d]\n", start+i-end-1, i);
+                ed->buf  [start+i-end-1] = ed->buf  [i];
+                ed->style[start+i-end-1] = ed->style[i];
+            }
+            ed->buf_len -= block_len;
+            ed->cursor_line->up2date = FALSE;
+            cur = _commitBuf (ed);
+        }
+
+        if (is_last_line)
+            break;
+
+        LOG_printf (LOG_DEBUG, "IDE: cut_copy: adding a NL to clipboard\n");
+        if (ed->copy_buf_len >= COPY_BUF_SIZE)
+            break;
+        ed->copy_buf[ed->copy_buf_len++] = '\n';
+
+        cur = cur->next;
+        start = 0;
+    }
+	UI_clipWrite (ed->copy_buf_len, ed->copy_buf);
+
+    if (do_cut)
+    {
+        ed->cursor_line = ed->line_first;
+        while (ed->cursor_line && ed->cursor_line->a_line < ed->mark_line)
+            ed->cursor_line = ed->cursor_line->next;
+        ed->cursor_a_line = ed->cursor_line->a_line;
+        ed->cursor_v_line = ed->cursor_line->v_line;
+        ed->cursor_col = ed->mark_col;
+        for (int16_t li=1; li<mark_lines; li++)
+            _deleteKey (ed);
+    }
+}
+
+static void _edit_paste (IDE_instance ed)
+{
+    _cancel_mark_mode (ed);
+
+    ed->copy_buf_len = UI_clipRead (COPY_BUF_SIZE, ed->copy_buf);
+    if (!ed->copy_buf_len)
+        return;
+
+    for (uint32_t i=0; i<ed->copy_buf_len; i++)
+    {
+        char c = ed->copy_buf[i];
+
+        if (c==10)
+            _enterKey(ed);
+        else
+            _insertChar (ed, c);
+    }
+    if (ed->editing)
+        _commitBuf (ed);
 }
 
 static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
@@ -2000,11 +2220,11 @@ static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
             break;
 
         case KEY_HOME:
-            _gotoHome(ed);
+            _gotoBOL(ed);
             break;
 
         case KEY_END:
-            _gotoEnd(ed);
+            _gotoEOL(ed);
             break;
 
         case KEY_GOTO_BOF:
@@ -2025,6 +2245,22 @@ static void _editor_event_cb (UI_view view, uint16_t key, void *user_data)
 
         case KEY_DEL:
             _deleteKey(ed);
+            break;
+
+        case KEY_BLOCK:
+            _edit_block (ed);
+            break;
+
+        case KEY_COPY:
+            _edit_cut_copy (ed, /*do_cut=*/FALSE);
+            break;
+
+        case KEY_CUT:
+            _edit_cut_copy (ed, /*do_cut=*/TRUE);
+            break;
+
+        case KEY_PASTE:
+            _edit_paste (ed);
             break;
 
         case KEY_NEW:
@@ -2230,6 +2466,7 @@ void IDE_open (string sourcefn)
     g_ide->cursor_a_line	    = 0;
     g_ide->cursor_v_line	    = 0;
     g_ide->cursor_line          = NULL;
+    g_ide->mark_mode            = FALSE;
     g_ide->changed		        = FALSE;
     g_ide->editing              = FALSE;
     g_ide->il_show_error        = FALSE;

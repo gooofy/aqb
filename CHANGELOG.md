@@ -1,7 +1,8 @@
-## 0.8.3
+## 0.8.3preview1
 
 Improvements:
 
+    * ide: clipboard cut/copy/paste support added
     * runtime: TAGITEMS(), TAGS() functions added
     * runtime: OSUtility module containing utility.library declarations added
     * runtime: OSDevices, OSExec, OSGadTools, OSGraphics, OSHardware, OSIntuition modules added

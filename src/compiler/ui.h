@@ -65,6 +65,9 @@
 #define KEY_SAVE           1038
 #define KEY_SAVE_AS        1039
 #define KEY_QUIT           1040
+#define KEY_CUT            1041
+#define KEY_COPY           1042
+#define KEY_PASTE          1043
 
 // debugger
 #define KEY_STOPPED        2000
@@ -135,6 +138,13 @@ void      UI_scrollDown         (UI_view view);
 
 typedef void (*UI_event_cb) (UI_view view, uint16_t event, void *user_data);
 void      UI_onEventCall        (UI_view view, UI_event_cb cb, void *user_data);
+
+/*
+ * OS clipboard interface
+ */
+
+void      UI_clipWrite          (uint32_t len, void *data);
+uint32_t  UI_clipRead           (uint32_t buf_len, void *buf);
 
 /*
  * high-level requesters

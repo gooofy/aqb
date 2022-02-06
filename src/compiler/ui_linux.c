@@ -645,6 +645,20 @@ void UI_run(void)
 #endif
 }
 
+void UI_clipWrite (uint32_t len, void *data)
+{
+    // FIXME
+    assert(FALSE);
+}
+
+uint32_t UI_clipRead (uint32_t buf_len, void *buf)
+{
+    // FIXME
+    assert(FALSE);
+    return 0;
+}
+
+
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
     // FIXME

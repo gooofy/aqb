@@ -12,11 +12,13 @@
 #include <dos/dosextens.h>
 #endif
 
-#define INDENT_SPACES      4
-#define BP_MARGIN          1
+#define INDENT_SPACES        4
+#define BP_MARGIN            1
 
-#define MAX_CON_LINES     64
-#define MAX_CON_LINE_LEN  80
+#define MAX_CON_LINES       64
+#define MAX_CON_LINE_LEN    80
+
+#define COPY_BUF_SIZE     8192
 
 typedef enum {DEBUG_stateStopped, DEBUG_stateRunning, DEBUG_stateTrapped, DEBUG_stateContinuing } DEBUG_state;
 
@@ -61,6 +63,12 @@ struct IDE_instance_
 
 	int16_t            cursor_col, cursor_a_line, cursor_v_line;
     IDE_line           cursor_line;
+
+    // clipboard support
+    bool               mark_mode;
+    int16_t            mark_col, mark_line;
+    char               copy_buf[COPY_BUF_SIZE];
+    uint32_t           copy_buf_len;
 
     // window, scrolling, repaint
 	int16_t            window_width, window_height;

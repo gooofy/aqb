@@ -10,6 +10,7 @@
 #include <exec/execbase.h>
 
 #include <devices/conunit.h>
+#include <devices/clipboard.h>
 
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
@@ -51,6 +52,11 @@
 //#define ENABLE_SCROLL_BENCHMARK
 //#define ENABLE_END_LINE_BENCHMARK
 
+#define MakeID(a,b,c,d)  ( (LONG)(a)<<24L | (LONG)(b)<<16L | (c)<<8 | (d) )
+#define IFF_FORM MakeID('F','O','R','M')
+#define IFF_FTXT MakeID('F','T','X','T')
+#define IFF_CHRS MakeID('C','H','R','S')
+
 #define BM_HEIGHT 8
 #define NUM_VIEWS 3
 
@@ -78,9 +84,9 @@ static struct NewMenu g_newmenu[] =
         {  NM_ITEM, (STRPTR) "Quit...",   (STRPTR) "Q", 0, 0, (APTR)KEY_QUIT,},
 
         { NM_TITLE, (STRPTR) "Edit",                0 , 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Cut",       (STRPTR) "X", 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Copy",      (STRPTR) "C", 0, 0, 0,},
-        {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, 0,},
+        {  NM_ITEM, (STRPTR) "Cut",       (STRPTR) "X", 0, 0, (APTR)KEY_CUT,},
+        {  NM_ITEM, (STRPTR) "Copy",      (STRPTR) "C", 0, 0, (APTR)KEY_COPY,},
+        {  NM_ITEM, (STRPTR) "Paste",     (STRPTR) "V", 0, 0, (APTR)KEY_PASTE,},
         {  NM_ITEM, NM_BARLABEL,                    0 , 0, 0, 0,},
         {  NM_ITEM, (STRPTR) "Block",     (STRPTR) "B", 0, 0, (APTR)KEY_BLOCK,},
 
@@ -137,7 +143,9 @@ static struct Window         *g_win               = NULL;
 static struct RastPort       *g_rp                = NULL;
 static bool                   g_rtg_mode          = TRUE;
 static struct MsgPort        *g_debugPort         = NULL;
-static struct IOStdReq        console_ioreq;
+static struct IOStdReq        g_console_ioreq;
+static struct MsgPort        *g_clipBoardPort     = NULL;
+static struct IOClipReq      *g_clipBoardIOR      = NULL;
 static struct Menu           *g_menuStrip         = NULL;
 static struct Gadget         *g_glist             = NULL; // gadtools context
 static struct Gadget         *g_gad               = NULL;
@@ -575,7 +583,7 @@ static uint16_t nextEvent(void)
                                     switch (kbuffer[0])
                                     {
                                         case 0x14: res = KEY_GOTO_BOF; break;
-                                        case 0x02: res = KEY_GOTO_EOF; break;
+                                        case 0x02: res = KEY_BLOCK   ; break;
                                         default: res = (UWORD) kbuffer[0];
                                     }
                                     break;
@@ -1062,6 +1070,158 @@ void UI_onEventCall (UI_view view, UI_event_cb cb, void *user_data)
     view->event_cb_user_data = user_data;
 }
 
+static void _clipWriteLong (uint32_t *ldata)
+{
+	g_clipBoardIOR->io_Data    = (STRPTR)ldata;
+	g_clipBoardIOR->io_Length  = 4;
+	g_clipBoardIOR->io_Command = CMD_WRITE;
+	DoIO ( (struct IORequest *) g_clipBoardIOR);
+}
+
+void UI_clipWrite (uint32_t len, void *data)
+{
+	if (!len)
+        return;
+
+	bool odd = (len & 1);
+
+	uint32_t length = (odd) ? len+1 : len;
+
+	g_clipBoardIOR->io_Offset = 0;
+	g_clipBoardIOR->io_Error  = 0;
+	g_clipBoardIOR->io_ClipID = 0;
+
+	// IFF header
+
+	_clipWriteLong ((uint32_t *) "FORM");
+
+    LOG_printf (LOG_DEBUG, "UI_clipWrite: len=%d -> length=%d\n", len, length);
+
+	length += 12;
+	_clipWriteLong (&length);
+	_clipWriteLong ((uint32_t *) "FTXT");
+	_clipWriteLong ((uint32_t *) "CHRS");
+	_clipWriteLong (&len);
+
+	// body
+
+	g_clipBoardIOR->io_Data    = (STRPTR)data;
+	g_clipBoardIOR->io_Length  = len;
+	g_clipBoardIOR->io_Command = CMD_WRITE;
+	DoIO( (struct IORequest *) g_clipBoardIOR);
+
+	if (odd)
+	{
+		g_clipBoardIOR->io_Data   = (STRPTR)"";
+		g_clipBoardIOR->io_Length = 1L;
+		DoIO( (struct IORequest *) g_clipBoardIOR);
+	}
+
+	// finish
+
+	g_clipBoardIOR->io_Command = CMD_UPDATE;
+	DoIO( (struct IORequest *) g_clipBoardIOR);
+}
+
+static bool _clipReadLong (ULONG *ldata)
+{
+	g_clipBoardIOR->io_Command = CMD_READ;
+	g_clipBoardIOR->io_Data    = (STRPTR)ldata;
+	g_clipBoardIOR->io_Length  = 4;
+
+	DoIO( (struct IORequest *) g_clipBoardIOR);
+
+	if (g_clipBoardIOR->io_Actual == 4)
+		return  g_clipBoardIOR->io_Error ? FALSE : TRUE;
+
+	return FALSE;
+}
+
+uint32_t UI_clipRead (uint32_t buf_len, void *buf)
+{
+	uint32_t len_read = 0;
+
+	g_clipBoardIOR->io_Offset = 0;      
+	g_clipBoardIOR->io_Error  = 0;      
+	g_clipBoardIOR->io_ClipID = 0;      
+
+	// look for "FORM[size]FTXT"
+                     
+	g_clipBoardIOR->io_Command = CMD_READ;         
+	g_clipBoardIOR->io_Data    = (STRPTR)buf;
+	g_clipBoardIOR->io_Length  = 12;
+				
+	DoIO( (struct IORequest *) g_clipBoardIOR);
+        
+	if (g_clipBoardIOR->io_Actual == 12L)
+    {
+		ULONG *hdr = buf;
+
+		if ( (hdr[0] == IFF_FORM) && (hdr[2] == IFF_FTXT))
+		{
+			// find next CHRS chunk
+
+			bool looking = TRUE;
+
+			while (looking)
+			{
+				looking = FALSE;
+
+				ULONG chunk;
+				if (_clipReadLong(&chunk))
+			    {
+					if (chunk == IFF_CHRS)
+					{
+						ULONG size;
+						if (_clipReadLong(&size))
+						{
+							if (size)
+							{
+								if (size>buf_len)
+									size = buf_len;
+								g_clipBoardIOR->io_Command = CMD_READ;         
+								g_clipBoardIOR->io_Data    = (STRPTR)buf;
+								g_clipBoardIOR->io_Length  = size;
+								DoIO( (struct IORequest *) g_clipBoardIOR);
+								len_read = g_clipBoardIOR->io_Actual;
+							}
+						}
+					}
+					else
+					{
+						ULONG size;
+					    if (_clipReadLong(&size))
+						{
+						    looking = TRUE;
+							if (size & 1)
+								size++;
+
+						    g_clipBoardIOR->io_Offset += size;
+					    }
+					}
+		        }
+		    }
+		}
+    }
+
+	// tell clipboard.device we're done reading
+	// to do that, we need to continue reading until io_Actual == 0
+
+	char scratchbuf[256];
+
+	g_clipBoardIOR->io_Command = CMD_READ;
+	g_clipBoardIOR->io_Data    = (STRPTR)scratchbuf;
+	g_clipBoardIOR->io_Length  = 254;
+
+	while (g_clipBoardIOR->io_Actual)
+    {
+        if (DoIO( (struct IORequest *) g_clipBoardIOR))
+      	    break; 
+    }
+
+	return len_read;
+}
+
 uint16_t UI_EZRequest (char *body, char *gadgets, ...)
 {
     char *posTxt=NULL;
@@ -1287,13 +1447,6 @@ static void _setMenuItemEnabled (WORD menu, WORD item, WORD sub, BOOL enabled)
 
 void UI_updateMenu (bool inDebugMode)
 {
-    // disable edit menu entries (those are not implemented yet)
-
-    _setMenuItemEnabled (1, 0, NOSUB, FALSE); // Cut
-    _setMenuItemEnabled (1, 1, NOSUB, FALSE); // Copy
-    _setMenuItemEnabled (1, 2, NOSUB, FALSE); // Paste
-    _setMenuItemEnabled (1, 4, NOSUB, FALSE); // Block
-
     for (int i =0; i<10; i++)
         _setMenuItemEnabled (0, i, NOSUB, !inDebugMode); // whole project menu
     for (int i =0; i<2; i++)
@@ -1345,7 +1498,30 @@ void UI_deinit(void)
     if (g_debugPort)
         ASUP_delete_port(g_debugPort);
     if (ConsoleDevice)
-        CloseDevice((struct IORequest *)&console_ioreq);
+        CloseDevice((struct IORequest *)&g_console_ioreq);
+
+	if (g_clipBoardIOR)
+	{
+		if (g_clipBoardIOR->io_Device)
+		{
+            g_clipBoardIOR->io_Command = CMD_CLEAR;
+            DoIO( (struct IORequest *) g_clipBoardIOR);
+			//LOG_printf (LOG_DEBUG, "UI: closing clipboard device...\n");
+			//Delay(50);
+			CloseDevice ((struct IORequest *)g_clipBoardIOR);
+		}
+		//LOG_printf (LOG_DEBUG, "UI: deleting clipboard IOR ...\n");
+		//Delay(50);
+		ASUP_delete_ext_io ((struct IORequest *)g_clipBoardIOR);
+	}
+	if (g_clipBoardPort)
+	{
+		//LOG_printf (LOG_DEBUG, "UI: deleting clipboard message port ...\n");
+		//Delay(50);
+		ASUP_delete_port (g_clipBoardPort);
+	}
+	//LOG_printf (LOG_DEBUG, "UI: deinit done\n");
+	//Delay(50);
 }
 
 bool UI_init (void)
@@ -1360,9 +1536,23 @@ bool UI_init (void)
          cleanexit("intuition library is too old, need at least V37", RETURN_FAIL);
     if ( ((struct Library *)GfxBase)->lib_Version < 37)
          cleanexit("graphics library is too old, need at least V37", RETURN_FAIL);
-    if (OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&console_ioreq,0))
+
+    // console.device
+
+    if (OpenDevice((STRPTR)"console.device", -1, (struct IORequest *)&g_console_ioreq,0))
          cleanexit("Can't open console.device", RETURN_FAIL);
-    ConsoleDevice = (struct Device *)console_ioreq.io_Device;
+    ConsoleDevice = (struct Device *)g_console_ioreq.io_Device;
+
+    // clipboard.device
+
+	if ( !(g_clipBoardPort = ASUP_create_port(NULL, 0)) )
+		cleanexit ("Can't allocate clipboard port", RETURN_FAIL);
+
+    if ( !(g_clipBoardIOR = (struct IOClipReq *) ASUP_create_ext_io (g_clipBoardPort, sizeof(struct IOClipReq))) )
+		cleanexit ("Can't allocate clipboard IO request", RETURN_FAIL);
+
+	if (OpenDevice ((STRPTR)"clipboard.device", 0, (struct IORequest *)g_clipBoardIOR, 0))
+         cleanexit("Can't open clipboard.device", RETURN_FAIL);
 
     strncpy (aqb_help, aqb_home, PATH_MAX);
 
