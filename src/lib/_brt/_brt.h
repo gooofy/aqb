@@ -35,6 +35,7 @@ void _debug_puts4  (LONG l);
 void _debug_putu1  (UBYTE num);
 void _debug_putu2  (UWORD num);
 void _debug_putu4  (ULONG num);
+void _debug_puthex (ULONG num);
 void _debug_putf   (FLOAT f);
 void _debug_puttab (void);
 void _debug_putnl  (void);

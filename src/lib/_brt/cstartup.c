@@ -150,6 +150,13 @@ void _debug_putu4(ULONG l)
     _debug_puts(buf);
 }
 
+void _debug_puthex(ULONG l)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa(l, buf, 16);
+    _debug_puts(buf);
+}
+
 void _debug_putf(FLOAT f)
 {
     UBYTE buf[MAXBUF];

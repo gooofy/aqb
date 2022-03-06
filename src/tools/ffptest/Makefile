@@ -12,7 +12,7 @@ clean:
 	rm -rf $(DEPDIR_AMIGAOS)
 
 $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
-	$(CC_AMIGAOS) -v -c $(CFLAGS_AMIGAOS) -I../../lib $(DEPFLAGS_AMIGAOS) $< -o $@
+	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) -I../../lib $(DEPFLAGS_AMIGAOS) $< -o $@
 
 ${BINDIR_AMIGAOS}/ffptest:	$(OBJS_AMIGAOS)
 	${LD_AMIGAOS} ../../lib/_brt/startup.o $^ ../../lib/_brt/_brt.a -o $@
