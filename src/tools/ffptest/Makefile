@@ -8,7 +8,7 @@ OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 all:	$(BINDIR_AMIGAOS)/ffptest
 
 clean:
-	rm -f $(OBJDIR_AMIGAOS)/*.o $(BINDIR_AMIGAOS)/ffptest
+	rm -f $(OBJDIR_AMIGAOS)/*.o $(BINDIR_AMIGAOS)/ffptest ffptest.asm
 	rm -rf $(DEPDIR_AMIGAOS)
 
 $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
@@ -16,8 +16,6 @@ $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
 
 ${BINDIR_AMIGAOS}/ffptest:	$(OBJS_AMIGAOS)
 	${LD_AMIGAOS} ../../lib/_brt/startup.o $^ ../../lib/_brt/_brt.a -o $@
-	# $(CC_AMIGAOS) $(CFLAGS_AMIGAOS) $(LDFLAGS_AMIGAOS) -v -o $@ $^
-	# $(STRIP_AMIGAOS) $@
 	cp $@ $(DISTDIR)
 
 $(DEPDIR_AMIGAOS): ; @mkdir -p $@
@@ -30,3 +28,5 @@ include $(wildcard $(DEPFILES_AMIGAOS))
 diss: ${BINDIR_AMIGAOS}/ffptest
 	$(OBJDUMP_AMIGAOS) -S -d -x ${BINDIR_AMIGAOS}/ffptest
 
+%.asm: %.c
+	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) -I../../lib $< -o $@
