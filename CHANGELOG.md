@@ -20,6 +20,7 @@ Bug Fixes:
     * compiler: fix boolean RelOp constant propagation
     * compiler: reduced record (udt) type memory footprint
     * linker: fix unitialized write buffer bug
+    * runtime: fix FFP to string conversion bugs
 
 ## 0.8.2
 

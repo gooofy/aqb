@@ -346,67 +346,66 @@ static SHORT normalizeFloat(FLOAT *value)
 
     SHORT exponent = 0;
 
-    if (SPCmp(*value, g_positiveExpThreshold) >=0)
+    if (*value >= g_positiveExpThreshold)
     {
-        if (SPCmp(g_1e16, *value) >= 0)
+        if (*value >= g_1e16)
         {
-            *value = SPDiv(g_1e16, *value);
+            *value /= g_1e16;
             exponent += 16;
         }
-        if (SPCmp(g_1e8, *value) >= 0)
+        if (*value >= g_1e8)
         {
-            *value = SPDiv(g_1e8, *value);
+            *value /= g_1e8;
             exponent += 8;
         }
-        if (SPCmp(g_1e4, *value) >= 0)
+        if (*value >= g_1e4)
         {
-            *value = SPDiv(g_1e4, *value);
+            *value /= g_1e4;
             exponent += 4;
         }
-        if (SPCmp(g_1e2, *value) >= 0)
+        if (*value >= g_1e2)
         {
-            *value = SPDiv(g_1e2, *value);
+            *value /= g_1e2;
             exponent += 2;
         }
-        if (SPCmp(g_1e1, *value) >= 0)
+        if (*value >= g_1e1)
         {
-            *value = SPDiv(g_1e1, *value);
+            *value /= g_1e1;
             exponent += 1;
         }
     }
 
-    if ( (SPCmp(0, *value) > 0) &&
-         (SPCmp(g_negativeExpThreshold, *value) <= 0) )
+    if ( (g_0 > *value ) && (g_negativeExpThreshold <= *value) )
     {
-        if (SPCmp(g_1en15, *value) <0)
+        if (g_1en15 < *value)
         {
-            *value = SPMul(*value, g_1e16);
+            *value *= g_1e16;
             exponent -= 16;
         }
-        if (SPCmp(g_1en7, *value) <0)
+        if (g_1en7 < *value)
         {
-            *value  = SPMul(*value, g_1e8);
+            *value *= g_1e8;
             exponent -= 8;
         }
-        if (SPCmp(g_1en3, *value) <0)
+        if (g_1en3 < *value)
         {
-            *value  = SPMul(*value, g_1e4);
+            *value *= g_1e4;
             exponent -= 4;
         }
-        if (SPCmp(g_1en1, *value) <0)
+        if (g_1en1 < *value)
         {
-            *value  = SPMul(*value, g_1e2);
+            *value *= g_1e2;
             exponent -= 2;
         }
-        if (SPCmp(g_1, *value) <0)
+        if (g_1 < *value)
         {
-            *value  = SPMul(*value, g_1e1);
+            *value *= g_1e1;
             exponent -= 1;
         }
     }
 
 #ifdef DEBUG
-    _aio_puts("exponent:"); _aio_puts4(exponent); _aio_putnl();
+    _debug_puts((STRPTR) "exponent:"); _debug_puts4(exponent); _debug_putnl();
 #endif
 
     return exponent;
@@ -416,18 +415,14 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
 {
     BOOL negative = FALSE;
 
-    // if (isnan(value)) return _aio_puts("nan");
-
-    if (SPCmp(value, g_0)<0)
+    if (value < g_0)
     {
         value = SPMul(value, g_m1);
         negative = TRUE;
 #ifdef DEBUG
-        _aio_puts("negative.\n");
+        _debug_puts((STRPTR) "negative.\n");
 #endif
     }
-
-    // if (isinf(value)) return _aio_puts("inf");
 
     /*
      * split float into integral part, decimal part and exponent
@@ -442,21 +437,18 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
     integralPart = SPFix(value);
     FLOAT remainder = SPSub(SPFlt(integralPart), value);
 #ifdef DEBUG
-    _aio_puts("integralPart:"); _aio_puts4(integralPart); _aio_putnl();
-    _aio_puts("10-4="); _aio_puts4(SPFix(SPSub(SPFlt(4), SPFlt(10)))); _aio_putnl();
-    _aio_puts("2^3=");  _aio_puts4(SPFix(SPPow(SPFlt(3), SPFlt(2)))); _aio_putnl();
-    _aio_puts("12/3=");  _aio_puts4(SPFix(SPDiv(SPFlt(3), SPFlt(12)))); _aio_putnl();
+    _debug_puts((STRPTR)"integralPart:"); _debug_puts4(integralPart); _debug_putnl();
 #endif
 
-    remainder = SPMul(remainder, g_1e9);
+    remainder *= g_1e9;
     decimalPart = SPFix(remainder);
 #ifdef DEBUG
-    _aio_puts("decimalPart:"); _aio_puts4(decimalPart); _aio_putnl();
+    _debug_puts((STRPTR)"decimalPart:"); _debug_puts4(decimalPart); _debug_putnl();
 #endif
 
     // rounding
-    remainder = SPSub(SPFlt(decimalPart), remainder);
-    if (SPCmp(g_05, remainder) >=0)
+    remainder -= SPFlt(decimalPart);
+    if (remainder >= g_05)
     {
         decimalPart = decimalPart + 1;
         if (decimalPart >= 1000000000)
@@ -474,7 +466,6 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
     /*
      * produce ascii string
      */
-
 
     _astr_itoa_ext(integralPart, &buf[0], 10, /*leading_space=*/ leading_space ? TRUE : negative);
     if (negative)
@@ -515,6 +506,7 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
         _astr_itoa(exponent, &buf[l+1], 10);
     }
 }
+
 
 void _astr_ftoa(FLOAT value, UBYTE *buf)
 {
