@@ -445,6 +445,20 @@ int __ltsf2(FLOAT a, FLOAT b)
     return SPCmp(a, b);
 }
 
+int __gedf2(FLOAT a, FLOAT b)
+{
+    return SPCmp(a, b);
+}
+
+int __lesf2(FLOAT a, FLOAT b)
+{
+    return SPCmp(a, b);
+}
+
+int __gesf2(FLOAT a, FLOAT b)
+{
+    return SPCmp(a, b);
+}
 
 #define INITIAL_RND_SEED 0x1234abcd
 
