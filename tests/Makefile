@@ -87,7 +87,10 @@ runtests:
 	for t in $(BINS_OPT); do BN=`basename $$t` ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" >> $(EMUDIR)/runtests ; done
 	BN="mod1" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	BN="subtest11" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
-	cat $(EMUDIR)/runtests
+	# cat $(EMUDIR)/runtests
+
+test:
+	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN" || break ; done
 
 clean:
 	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)

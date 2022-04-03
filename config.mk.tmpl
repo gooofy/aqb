@@ -8,10 +8,14 @@ SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 export AQB = $(SELF_DIR)
 
-EMUDIR = /home/guenter/media/emu/amiga/FS-UAE/hdd/system/x
-DISTDIR = /home/guenter/media/emu/amiga/FS-UAE/hdd/system/Apps/AQB
+EMUHDD = /home/guenter/media/emu/amiga/FS-UAE/hdd/system
+
+WORKDIR = x
+EMUDIR  = $(EMUHDD)/$(WORKDIR)
+DISTDIR = $(EMUHDD)/Apps/aqb
 
 AQB = $(SELF_DIR)/target/x86_64-linux/bin/aqb
+LXA_HOME = /home/guenter/projects/amiga/lxa
 
 #
 # Amiga OS toolchain related config
@@ -35,6 +39,9 @@ LD_AMIGAOS      = $(TOOLCHAIN_AMIGAOS_PREFIX)/bin/m68k-amigaos-ld
 AR_AMIGAOS      = $(TOOLCHAIN_AMIGAOS_PREFIX)/bin/m68k-amigaos-ar
 STRIP_AMIGAOS   = $(TOOLCHAIN_AMIGAOS_PREFIX)/bin/m68k-amigaos-strip
 OBJDUMP_AMIGAOS = $(TOOLCHAIN_AMIGAOS_PREFIX)/bin/m68k-amigaos-objdump
+
+LXA             = $(LXA_HOME)/target/x86_64-linux/bin/lxa
+LXA_ROM         = $(LXA_HOME)/src/rom/my.rom
 
 #
 # GNU/Linux toolchain related config

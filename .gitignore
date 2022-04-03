@@ -93,6 +93,9 @@ src/tools/colorschemes
 src/tools/md2amiga/marko/__pycache__
 src/tools/loadfont/*.asm
 src/tools/arostest
+src/tools/cordic/
+src/tools/ffp/
+src/tools/ffpmath/cordic/
 examples/collection/
 examples/demo/tetris
 examples/demo/tetris.asm
