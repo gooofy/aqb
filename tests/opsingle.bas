@@ -17,7 +17,10 @@ ASSERT (a  +  b)         =    317.14
 ASSERT (a  +  c)         =     3.1714
 ASSERT (a  -  b)         =  -310.86
 ASSERT (a  *  b)         =   985.96
-ASSERT (b  /  a)         =   100.00
+
+' TRACE "b=";b;", a=";a;" -> b/a=";b/a;" -> CINT=";CINT(b/a)
+
+ASSERT CINT(b  /  a)      =   100
 ASSERT INT((e  /  d)*1000.0) =   2333
 ASSERT (b  \  a)         =   104.00
 ASSERT INT((e  \  d)*1000.0) =   2000
@@ -37,8 +40,8 @@ ASSERT (      a  -  3.14e+2)   = -310.86
 ASSERT (   3.14  -        b)   = -310.86
 ASSERT (      a  *  3.14e+2)   =  985.96
 ASSERT (   3.14  *        b)   =  985.96
-ASSERT (3.14e+2  /        a)   =  100.00
-ASSERT (      b  /     3.14)   =  100.00
+ASSERT CINT(3.14e+2  /        a)   =  100.00
+ASSERT CINT(      b  /     3.14)   =  100.00
 ASSERT INT((e  / 3!)*1000.0) =   2333
 ASSERT INT((7! /  d)*1000.0) =   2333
 ASSERT (3.14e+2  \        a)   =  104.00
