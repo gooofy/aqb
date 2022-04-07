@@ -92,6 +92,9 @@ runtests:
 test:
 	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN" || break ; done
 
+single:
+	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/io5"
+
 clean:
 	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)
 	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)

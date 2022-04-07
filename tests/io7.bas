@@ -31,7 +31,7 @@ ASSERT myuint1=myuint2
 ASSERT mylong1=mylong2
 ASSERT myulong1=myulong2
 INPUT #3, myf2, mys2
-ASSERT myf1=myf2
+ASSERT CINT(myf1*100)=CINT(myf2*100)
 ASSERT mys1=mys2
 CLOSE #3
 
