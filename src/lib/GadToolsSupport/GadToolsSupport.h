@@ -29,22 +29,24 @@ struct GTGADGET_
     void             *gadgetmove_user_data;
 };
 
-GTGADGET_t *GTGADGET_        (SHORT kind,
-                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                              char *txt, ULONG flags, SHORT id, ULONG ti_Tag, ...);
+GTGADGET_t *GTGADGET_          (SHORT kind,
+                                BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                                char *txt, ULONG flags, SHORT id, ULONG ti_Tag, ...);
 
-void        GTG_MODIFY       (GTGADGET_t *g, ULONG ti_Tag, ...);
+void        GTG_MODIFY         (GTGADGET_t *g, ULONG ti_Tag, ...);
 
-BOOL        GTGSELECTED_     (GTGADGET_t *g);
-STRPTR      GTGBUFFER_       (GTGADGET_t *g);
-LONG        GTGNUM_          (GTGADGET_t *g);
+BOOL        GTGSELECTED_       (GTGADGET_t *g);
+STRPTR      GTGBUFFER_         (GTGADGET_t *g);
+LONG        GTGNUM_            (GTGADGET_t *g);
 
-void        GTGADGETS_DEPLOY (void);
-void        GTGADGETS_FREE   (void);
+void        GTGADGETS_DEPLOY   (void);
+void        GTGADGETS_FREE     (void);
 
-void        ON_GTG_UP_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
-void        ON_GTG_DOWN_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
-void        ON_GTG_MOVE_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+void        GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BOOL recessed );
+
+void        ON_GTG_UP_CALL     (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+void        ON_GTG_DOWN_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+void        ON_GTG_MOVE_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
 
 #endif
 

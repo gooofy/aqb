@@ -398,6 +398,19 @@ void GTGADGETS_FREE (void)
     _gtgadgets_free (_g_cur_win, ext);
 }
 
+void GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BOOL recessed )
+{
+    DPRINTF ("GTG_DRAW_BEVEL_BOX: %d/%d - %d/%d recessed=%d\n", x1, y1, x2, y2, recessed);
+
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    if (recessed)
+        DrawBevelBox (_g_cur_rp, x1, y1, x2-x1+1, y2-y1+1, GTBB_Recessed, TRUE, GT_VisualInfo, (ULONG) ext->vinfo, TAG_DONE);
+    else
+        DrawBevelBox (_g_cur_rp, x1, y1, x2-x1+1, y2-y1+1, GT_VisualInfo, (ULONG) ext->vinfo, TAG_DONE);
+}
+
 void ON_GTG_UP_CALL (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data)
 {
     if (!g || !g->gad)
