@@ -39,6 +39,7 @@ extern struct Library       *DiskfontBase;
 #define AE_RASTPORT                 122
 #define AE_FONT                     123
 #define AE_AUDIO                    124
+#define AE_WIN_CALL                 125
 
 /*
  * tags
@@ -86,6 +87,7 @@ void     FONT_FREE            (FONT_t *font);
 void     FONTSTYLE            (ULONG style);
 ULONG    FONTSTYLE_           (void);
 SHORT    TEXTWIDTH_           (UBYTE *s);
+void     TEXTEXTEND           (UBYTE *s, SHORT *w, SHORT *h);
 
 void _awindow_init            (void);
 void _awindow_shutdown        (void);
@@ -104,13 +106,15 @@ extern short                 _g_cur_win_id;
 
 #define MAX_NUM_WINDOWS 16
 
-typedef void (*window_close_cb_t)(SHORT id);
-typedef BOOL (*window_msg_cb_t  )(SHORT wid, struct Window *win, struct IntuiMessage *message);
+typedef void (*window_close_cb_t  )(SHORT id, void *ud);
+typedef void (*window_newsize_cb_t)(SHORT id, SHORT w, SHORT h, void *ud);
+typedef void (*window_refresh_cb_t)(SHORT id, void *ud);
+typedef BOOL (*window_msg_cb_t    )(SHORT wid, struct Window *win, struct IntuiMessage *message, window_refresh_cb_t refresh_cb, void *ud);
 
 enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
 struct Window         *_aqb_get_win    (SHORT wid);
 
-void   _window_add_close_cb   (window_close_cb_t cb);
+void   _window_add_close_cb   (window_close_cb_t cb, void *ud);
 void   _window_add_msg_cb     (window_msg_cb_t cb);
 
 void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);
@@ -119,18 +123,21 @@ void   SCREEN_CLOSE           (SHORT id);
 void   WINDOW                 (SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, ULONG flags, SHORT scrid);
 void   WINDOW_CLOSE           (SHORT id);
 void   WINDOW_OUTPUT          (SHORT id);
-void   ON_WINDOW_CLOSE_CALL   (SHORT id, window_close_cb_t cb);
+void   ON_WINDOW_CLOSE_CALL   (SHORT id, window_close_cb_t   cb, void *ud);
+void   ON_WINDOW_NEWSIZE_CALL (SHORT id, window_newsize_cb_t cb, void *ud);
+void   ON_WINDOW_REFRESH_CALL (SHORT id, window_refresh_cb_t cb, void *ud);
 ULONG  WINDOW_                (SHORT n);
 
+typedef void (*mouse_cb_t)(SHORT id, BOOL button, SHORT x, SHORT y, void *ud);
 void   SLEEP                  (void);
 void   VWAIT                  (void);
 void   MOUSE_ON               (void);
 void   MOUSE_OFF              (void);
-void   ON_MOUSE_CALL          (void (*cb)(void));
+void   ON_MOUSE_CALL          (mouse_cb_t cb, void *ud);
 WORD   MOUSE_                 (SHORT n);
 void   MOUSE_MOTION_ON        (void);
 void   MOUSE_MOTION_OFF       (void);
-void   ON_MOUSE_MOTION_CALL   (void (*cb)(void));
+void   ON_MOUSE_MOTION_CALL   (mouse_cb_t cb, void *ud);
 void   LOCATE_XY              (BOOL s, SHORT x, SHORT y);
 SHORT  CSRLIN_                (void);
 SHORT  POS_                   (SHORT dummy);

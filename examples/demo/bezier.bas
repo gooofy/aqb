@@ -70,9 +70,7 @@ END SUB
 
 DIM SHARED AS INTEGER phit = -1
 
-SUB mousecb
-    
-    DIM AS INTEGER mx=MOUSE(1), my=MOUSE(2)
+SUB mousecb (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS VOID PTR)
     
     IF MOUSE(0) < 0 THEN
         
@@ -98,11 +96,10 @@ SUB mousecb
     END IF
 END SUB
 
-SUB mousemovecb
+SUB mousemovecb (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS VOID PTR)
     
     IF phit >= 0 THEN
         
-        DIM AS INTEGER mx=MOUSE(1), my=MOUSE(2)
         IF (mx>BS) AND (my>BS) THEN
             
             pX(phit) = mx
@@ -114,7 +111,7 @@ SUB mousemovecb
     
 END SUB
 
-SUB windowcb (BYVAL wid AS INTEGER)
+SUB windowcb (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
     SYSTEM
 END SUB
 

@@ -38,7 +38,7 @@ typedef struct
 
 static ui_win_ext_t    g_win_ext[MAX_NUM_WINDOWS];
 
-static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *message)
+static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *message, window_refresh_cb_t refresh_cb, void *refresh_ud)
 {
     BOOL handled = FALSE;
 
@@ -54,6 +54,8 @@ static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *m
         {
             case IDCMP_REFRESHWINDOW:
                 GT_BeginRefresh (win);
+                if (refresh_cb)
+                    refresh_cb(wid+1, refresh_ud);
                 GT_EndRefresh (win, TRUE);
                 handled = TRUE;
                 break;
@@ -136,7 +138,7 @@ static void _gtgadgets_free (struct Window *win, ui_win_ext_t *ext)
     }
 }
 
-static void window_close_cb (short win_id)
+static void window_close_cb (short win_id, void *ud)
 {
     DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
 
@@ -197,7 +199,7 @@ GTGADGET_t *GTGADGET_ (SHORT kind,
 	if (!ext->close_cb_installed)
 	{
 		DPRINTF ("GTGADGET_: installing custom close callback for the current window\n");
-		_window_add_close_cb (window_close_cb);
+		_window_add_close_cb (window_close_cb, NULL);
 		ext->close_cb_installed = TRUE;
 	}
 

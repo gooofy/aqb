@@ -8,7 +8,7 @@ OPTION EXPLICIT
 
 DIM SHARED finished AS BOOLEAN = FALSE
 
-SUB HandleWindow (BYVAL wid AS INTEGER)
+SUB HandleWindow (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
     finished = TRUE
     PRINT "HandleWindow() called"
 END SUB

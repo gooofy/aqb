@@ -11,28 +11,28 @@ REM callbacks
 
 SUB winCloseCB (BYVAL wid AS INTEGER)
     SYSTEM
-END SUB    
+END SUB
 
 SUB strcb(BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-    
-    TRACE "String gadget UP cb"    
-    TRACE "str is: "; GTGBUFFER(strgadget)    
-    
-END SUB    
+
+    TRACE "String gadget UP cb"
+    TRACE "str is: "; GTGBUFFER(strgadget)
+
+END SUB
 
 SUB intcb(BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-    
-    TRACE "Integer gadget UP cb"    
-    TRACE "num is: "; GTGNUM(intgadget)    
+
+    TRACE "Integer gadget UP cb"
+    TRACE "num is: "; GTGNUM(intgadget)
     GTG MODIFY numgadget, GTNM_Number, GTGNUM(intgadget), TAG_DONE
-    
-END SUB    
+
+END SUB
 
 SUB reset(BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
     GTG MODIFY strgadget, GTST_String, "ABC abc 123", TAG_DONE
     GTG MODIFY intgadget, GTIN_Number, 42, TAG_DONE
     GTG MODIFY numgadget, GTNM_Number, 42, TAG_DONE
-END SUB    
+END SUB
 
 WINDOW 1, "GadgetTutorial 4"
 ON WINDOW CLOSE CALL 1, winCloseCB

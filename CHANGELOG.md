@@ -8,6 +8,9 @@ Improvements:
     * runtime: OSDevices, OSExec, OSGadTools, OSGraphics, OSHardware, OSIntuition modules added
     * runtime: [breaking] refactored window close button msg handling, done via ON WINDOW CLOSE CALL now
     * runtime: GadToolsSupport module added
+    * runtime: TEXTEXTEND statement added
+    * runtime: ON WINDOW CLOSE CALL, ON MOUSE CALL, ON MOUSE MOTION CALL: user data pointer added
+    * runtime: ON WINDOW NEWSIZE CALL, ON WINDOW REFRESH CALL instructions added
     * compiler: support for variadic function argument passing
 
 Bug Fixes:

@@ -32,7 +32,7 @@
 #include <libraries/diskfont.h>
 #include <inline/diskfont.h>
 
-//#define ENABLE_DEBUG
+#define ENABLE_DEBUG
 
 #define MAXINPUTBUF 1024
 
@@ -71,6 +71,7 @@ struct win_close_cb_node_s
 {
     win_close_cb_node_t next;
     window_close_cb_t   cb;
+    void               *ud;
 };
 
 typedef struct win_msg_cb_node_s *win_msg_cb_node_t;
@@ -85,6 +86,11 @@ typedef struct
     struct Window       *win;
 
     window_close_cb_t    aqb_close_cb;
+    void                *aqb_close_ud;
+    window_newsize_cb_t  aqb_newsize_cb;
+    void                *aqb_newsize_ud;
+    window_refresh_cb_t  aqb_refresh_cb;
+    void                *aqb_refresh_ud;
     win_close_cb_node_t  close_cbs;
     win_msg_cb_node_t    msg_cbs;
 
@@ -109,16 +115,18 @@ static struct NewScreen g_nscr =
     NULL                    // CustomBitMap
 };
 
-static ULONG                 _g_signalmask_awindow=0;
+static ULONG                 _g_signalmask_awindow = 0;
 
-static BITMAP_t             *g_bm_first      = NULL;
-static BITMAP_t             *g_bm_last       = NULL;
+static BITMAP_t             *g_bm_first            = NULL;
+static BITMAP_t             *g_bm_last             = NULL;
 
-static FONT_t               *g_font_first    = NULL;
-static FONT_t               *g_font_last     = NULL;
+static FONT_t               *g_font_first          = NULL;
+static FONT_t               *g_font_last           = NULL;
 
-static void (*g_mouse_cb)(void)              = NULL;
-static void (*g_mouse_motion_cb)(void)       = NULL;
+static mouse_cb_t            g_mouse_cb            = NULL;
+static void                 *g_mouse_ud            = NULL;
+static mouse_cb_t            g_mouse_motion_cb     = NULL;
+static void                 *g_mouse_motion_ud     = NULL;
 
 short                 _g_active_scr_id = 0;
 short                 _g_active_win_id = 1;
@@ -257,7 +265,7 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
     g_nw.Title      = title ? (UBYTE *) _astr_dup(title) : (UBYTE*) "";
 
     g_nw.Flags      = flags;
-    g_nw.IDCMPFlags = CLOSEWINDOW | RAWKEY | ACTIVEWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
+    g_nw.IDCMPFlags = CLOSEWINDOW | RAWKEY | ACTIVEWINDOW | IDCMP_REFRESHWINDOW; // INTUITICKS | VANILLAKEY | MENUPICK | GADGETUP | ACTIVEWINDOW;
 
     if (_g_cur_scr)
     {
@@ -313,7 +321,7 @@ void WINDOW_CLOSE(short id)
 #ifdef ENABLE_DEBUG
         DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
 #endif
-        n->cb(id-1);
+        n->cb(id-1, n->ud);
     }
 
     if (_g_winlist[id-1].win->RPort->TmpRas)
@@ -328,7 +336,7 @@ void WINDOW_CLOSE(short id)
     _g_winlist[id-1].win=NULL;
 }
 
-void _window_add_close_cb (window_close_cb_t cb)
+void _window_add_close_cb (window_close_cb_t cb, void *ud)
 {
 #ifdef ENABLE_DEBUG
     DPRINTF ("_window_add_close_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
@@ -341,6 +349,7 @@ void _window_add_close_cb (window_close_cb_t cb)
     }
     node->next = _g_winlist[_g_cur_win_id-1].close_cbs;
     node->cb   = cb;
+    node->ud   = ud;
     _g_winlist[_g_cur_win_id-1].close_cbs = node;
 }
 
@@ -749,7 +758,7 @@ static void _handleSignals(BOOL doWait)
 #ifdef ENABLE_DEBUG
                 DPRINTF("_handleSignals: calling msg_cb 0x%08lx\n", node->cb);
 #endif
-                if (node->cb (wid, win, message))
+                if (node->cb (wid, win, message, _g_winlist[wid].aqb_refresh_cb, _g_winlist[wid].aqb_refresh_ud))
                 {
                     handled = TRUE;
                     break;
@@ -769,7 +778,16 @@ static void _handleSignals(BOOL doWait)
 
                         if (_g_winlist[wid].aqb_close_cb)
                         {
-                            _g_winlist[wid].aqb_close_cb(wid+1);
+                            _g_winlist[wid].aqb_close_cb(wid+1, _g_winlist[wid].aqb_close_ud);
+                        }
+                        break;
+
+                    case IDCMP_NEWSIZE:
+                        if (_g_winlist[wid].aqb_newsize_cb)
+                        {
+                            WORD w = _g_winlist[wid].win->Flags & WFLG_GIMMEZEROZERO ? _g_winlist[wid].win->GZZWidth  : _g_winlist[wid].win->Width ;
+                            WORD h = _g_winlist[wid].win->Flags & WFLG_GIMMEZEROZERO ? _g_winlist[wid].win->GZZHeight : _g_winlist[wid].win->Height;
+                            _g_winlist[wid].aqb_newsize_cb(wid+1, w, h, _g_winlist[wid].aqb_newsize_ud);
                         }
                         break;
 
@@ -798,14 +816,14 @@ static void _handleSignals(BOOL doWait)
 
                         if (g_mouse_cb)
                         {
-                            g_mouse_cb();
+                            g_mouse_cb(wid, g_mouse_down, message->MouseX, message->MouseY, g_mouse_ud);
                         }
                         break;
 
                     case MOUSEMOVE:
                         if (g_mouse_motion_cb)
                         {
-                            g_mouse_motion_cb();
+                            g_mouse_motion_cb(wid, g_mouse_down, message->MouseX, message->MouseY, g_mouse_ud);
                         }
                         break;
 
@@ -875,6 +893,8 @@ static void _handleSignals(BOOL doWait)
                     }
                     case IDCMP_REFRESHWINDOW:
                         BeginRefresh (win);
+                        if (_g_winlist[wid].aqb_refresh_cb)
+                            _g_winlist[wid].aqb_refresh_cb(wid+1, _g_winlist[wid].aqb_refresh_ud);
                         EndRefresh (win, TRUE);
                         break;
                 }
@@ -926,7 +946,7 @@ void VWAIT (void)
 	_handleSignals(/*doWait=*/FALSE);
 }
 
-void ON_WINDOW_CLOSE_CALL(short id, void (*cb)(short id))
+void ON_WINDOW_CLOSE_CALL(short id, window_close_cb_t cb, void *ud)
 {
 #ifdef ENABLE_DEBUG
     DPRINTF ("ON_WINDOW_CLOSE_CALL: id=%d, cb=0x%08lx\n", id, cb);
@@ -934,7 +954,7 @@ void ON_WINDOW_CLOSE_CALL(short id, void (*cb)(short id))
 #endif
     if ( (id < 1) || (id > MAX_NUM_WINDOWS) )
     {
-        ERROR(AE_WIN_CLOSE);
+        ERROR(AE_WIN_CALL);
         return;
     }
     AQBWindow_t *aqbw = &_g_winlist[id-1];
@@ -945,6 +965,31 @@ void ON_WINDOW_CLOSE_CALL(short id, void (*cb)(short id))
     //    DPRINTF ("                            j=%d, aqb_close_cb=0x%08lx\n", j, _g_winlist[j].aqb_close_cb);
     //Delay (100);
 #endif
+}
+
+void ON_WINDOW_NEWSIZE_CALL (SHORT id, window_newsize_cb_t cb, void *ud)
+{
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) )
+    {
+        ERROR(AE_WIN_CALL);
+        return;
+    }
+    AQBWindow_t *aqbw = &_g_winlist[id-1];
+    aqbw->aqb_newsize_cb = cb;
+    aqbw->aqb_newsize_ud = ud;
+    ModifyIDCMP (aqbw->win, aqbw->win->IDCMPFlags | IDCMP_NEWSIZE);
+}
+
+void ON_WINDOW_REFRESH_CALL (SHORT id, window_refresh_cb_t cb, void *ud)
+{
+    if ( (id < 1) || (id > MAX_NUM_WINDOWS) )
+    {
+        ERROR(AE_WIN_CALL);
+        return;
+    }
+    AQBWindow_t *aqbw = &_g_winlist[id-1];
+    aqbw->aqb_refresh_cb = cb;
+    aqbw->aqb_refresh_ud = ud;
 }
 
 ULONG WINDOW_(short n)
@@ -1028,9 +1073,10 @@ void MOUSE_OFF (void)
     ModifyIDCMP (_g_cur_win, _g_cur_win->IDCMPFlags & ~MOUSEBUTTONS);
 }
 
-void ON_MOUSE_CALL (void (*cb)(void))
+void ON_MOUSE_CALL (mouse_cb_t cb, void *ud)
 {
     g_mouse_cb = cb;
+    g_mouse_ud = ud;
 }
 
 WORD MOUSE_ (SHORT n)
@@ -1105,9 +1151,10 @@ void MOUSE_MOTION_OFF (void)
     ModifyIDCMP (_g_cur_win, _g_cur_win->IDCMPFlags & ~MOUSEMOVE);
 }
 
-void ON_MOUSE_MOTION_CALL (void (*cb)(void))
+void ON_MOUSE_MOTION_CALL (mouse_cb_t cb, void *ud)
 {
     g_mouse_motion_cb = cb;
+    g_mouse_motion_ud = ud;
     //_debug_puts((STRPTR)"ON_MOUSE_MOTION_CALL\n");
 }
 
@@ -2043,6 +2090,16 @@ SHORT TEXTWIDTH_ (UBYTE *s)
     return TextLength (_g_cur_rp, s, l);
 }
 
+void TEXTEXTEND (UBYTE *s, SHORT *w, SHORT *h)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    SHORT l = LEN_(s);
+    struct TextExtent te;
+    TextExtent (_g_cur_rp, s, l, &te);
+    *w = te.te_Width;
+    *h = te.te_Height;
+}
+
 void _palette_load (SHORT scid, PALETTE_t *p)
 {
     struct Screen *scr = g_scrlist[scid-1];
@@ -2108,10 +2165,15 @@ void _awindow_init(void)
     for (int i =0; i<MAX_NUM_WINDOWS; i++)
     {
         // DPRINTF ("awindow initializing, i=%d _g_winlist[i]=0x%08lx, sizeof(_g_winlist)=%ld\n", i, &_g_winlist[i], sizeof (_g_winlist));
-        _g_winlist[i].win          = NULL;
-        _g_winlist[i].aqb_close_cb = NULL;
-        _g_winlist[i].close_cbs    = NULL;
-        _g_winlist[i].msg_cbs      = NULL;
+        _g_winlist[i].win            = NULL;
+        _g_winlist[i].aqb_close_cb   = NULL;
+        _g_winlist[i].aqb_close_ud   = NULL;
+        _g_winlist[i].aqb_newsize_cb = NULL;
+        _g_winlist[i].aqb_newsize_ud = NULL;
+        _g_winlist[i].aqb_refresh_cb = NULL;
+        _g_winlist[i].aqb_refresh_ud = NULL;
+        _g_winlist[i].close_cbs      = NULL;
+        _g_winlist[i].msg_cbs        = NULL;
     }
 
     g_fp15   = SPFlt(15);

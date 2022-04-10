@@ -284,6 +284,7 @@ Syntax:
 
 enable or disable mouse button events
 
+
 ## MOUSE MOTION ( ON | OFF )
 
 Syntax:
@@ -293,6 +294,7 @@ Syntax:
 
 enable or disable mouse move events
 
+
 ## ON MOUSE CALL
 
 Syntax:
@@ -300,6 +302,15 @@ Syntax:
     ON MOUSE CALL sub
 
 call `sub` on left mouse button press and release
+
+Example:
+
+    SUB mousecb (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS VOID PTR)
+        ...
+    END SUB
+
+    ON MOUSE CALL mousecb, NULL
+    MOUSE ON
 
 
 ## ON MOUSE MOTION CALL
@@ -309,6 +320,15 @@ Syntax:
     ON MOUSE MOTION CALL sub
 
 call `sub` when mouse is moved
+
+Example:
+
+    SUB mousemovecb (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS VOID PTR)
+        ...
+    END SUB
+
+    ON MOUSE MOTION CALL mousemovecb
+    MOUSE MOTION ON
 
 
 ## ON TIMER CALL
@@ -331,13 +351,49 @@ call subroute cb when the close button on window #id is clicked.
 
 Example:
 
-    SUB winCloseCB (BYVAL wid AS INTEGER)
+    SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
         TRACE "window close cb called, wid=";wid
         SYSTEM
     END SUB
 
     WINDOW 1, "Window close callback demo"
-    ON WINDOW CLOSE CALL 1, winCloseCB
+    ON WINDOW CLOSE CALL 1, winCloseCB, NULL
+
+
+## ON WINDOW NEWSIZE CALL
+
+Syntax:
+
+    ON WINDOW NEWSIZE CALL id "," cb
+
+call subroute cb when window #id is resized.
+
+Example:
+
+    SUB winNewsizeCB (BYVAL wid AS INTEGER, BYVAL w AS INTEGER, BYVAL h AS INTEGER, BYVAL ud AS VOID PTR)
+        TRACE "window newsize cb called, wid=";wid
+    END SUB
+
+    WINDOW 1, "Window newsize callback demo"
+    ON WINDOW NEWSIZE CALL 1, winNewsizeCB, NULL
+
+
+## ON WINDOW REFRESH CALL
+
+Syntax:
+
+    ON WINDOW REFRESH CALL id "," cb
+
+call subroute cb when window #id needs to be repainted.
+
+Example:
+
+    SUB winRefreshCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
+        TRACE "window refresh cb called, wid=";wid
+    END SUB
+
+    WINDOW 1, "Window refresh callback demo"
+    ON WINDOW REFRESH CALL 1, winRefreshCB, NULL
 
 
 ## OPEN
@@ -578,6 +634,16 @@ Example:
     REM allocate a list of 4 tags items:
 
     DIM AS ULONG PTR mytags = TAGS (1,2,3,TAG_END)
+
+
+## TEXTEXTEND
+
+Syntax:
+
+    TEXTEXTEND s, w, h
+
+compute the width and height of s in pixels, taking the current font into
+account. w and h are BYREF arguments that will contain the result.
 
 
 ## TEXTWIDTH()

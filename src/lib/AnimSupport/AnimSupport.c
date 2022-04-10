@@ -286,7 +286,7 @@ static void _cleanupGelSys(struct RastPort *rPort)
 	}
 }
 
-static void _win_gels_cleanup_cb (short id)
+static void _win_gels_cleanup_cb (short id, void *ud)
 {
     struct Window *win = _aqb_get_win(id);
     struct RastPort *rPort = win->RPort;
@@ -349,7 +349,7 @@ void GELS_INIT (UBYTE sprRsrvd)
                             switch (ot)
                             {
                                 case _aqb_ot_window:
-                                    _window_add_close_cb (_win_gels_cleanup_cb);
+                                    _window_add_close_cb (_win_gels_cleanup_cb, NULL);
                                     break;
                                 case  _aqb_ot_screen:
                                     // FIXME
