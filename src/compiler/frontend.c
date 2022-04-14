@@ -245,7 +245,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 98
+#define MAX_KEYWORDS 99
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -348,6 +348,7 @@ static S_symbol S_TRACE;
 static S_symbol S_DEBUG;
 static S_symbol S_CLEAR;
 static S_symbol S_WRITE;
+static S_symbol S_NEW;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1657,10 +1658,74 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     return TRUE;
 }
 
+// creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
+static bool creatorExpression(S_tkn *tkn, CG_item *exp)
+{
+    *tkn = (*tkn)->next; // skip "new"
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "new: class identifier expected here");
+
+    S_symbol sClass = (*tkn)->u.sym;
+
+    Ty_ty tyClass = E_resolveType(g_sleStack->env, sClass);
+    if (!tyClass || (tyClass->kind != Ty_record))
+        return EM_error((*tkn)->pos, "new: unknown class");
+
+    /*
+     * generate allocation code
+     */
+
+    CG_itemList arglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(arglist);
+    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
+    n = CG_itemListAppend(arglist);
+    CG_UIntItem (&n->item, tyClass->u.record.uiSize, Ty_UInteger());
+
+    S_symbol allocSym = S_Symbol("ALLOCATE");
+    CG_item procPtr;
+    Ty_recordEntry entry;
+    if (!E_resolveVFC(g_sleStack->env, allocSym, /*checkParents=*/TRUE, &procPtr, &entry))
+        return EM_error((*tkn)->pos, "builtin %s not found.", S_name(allocSym));
+    Ty_ty ty = CG_ty(&procPtr);
+    assert(ty->kind == Ty_prc);
+    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, ty->u.proc, arglist, exp);
+
+    // cast ALLOCATE result to properly typed ptr
+    #if 0
+    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, ty->u.pointer)
+    if (!convert_ty(exp, pos, t_dest, /*explicit=*/TRUE))
+    #endif
+    *tkn = (*tkn)->next;
+
+    // FIXME
+#if 0
+    CG_itemList constructorAssignedArgs = NULL;
+    if ((*tkn)->kind == S_LPAREN)
+    {
+        *tkn = (*tkn)->next; // skip '('
+        constructorAssignedArgs = CG_ItemList();
+
+        if (((*tkn)->kind != S_RPAREN) && tyClass->u.record.constructor)
+        {
+            //CG_item thisRef = var;
+            if (!transActualArgs(tkn, tyClass->u.record.constructor, constructorAssignedArgs, thisRef, /*defaultsOnly=*/FALSE)
+                return FALSE;
+        }
+
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, "new: ) expected here");
+        *tkn = (*tkn)->next; // skip ')'
+    }
+#endif
+    assert(FALSE);
+}
+
 // atom ::= ( expDesignator
 //          | numLiteral
 //          | stringLiteral
 //          | '(' expression ')'
+//          | creatorExpression
 //          )
 
 static bool atom(S_tkn *tkn, CG_item *exp)
@@ -1672,6 +1737,8 @@ static bool atom(S_tkn *tkn, CG_item *exp)
         case S_AT:                  // @designator
         case S_ASTERISK:            // *designator (pointer deref)
         case S_IDENT:
+            if (isSym((*tkn), S_NEW))  // new -> creator expression
+                return creatorExpression(tkn, exp);
             return expDesignator(tkn, exp, /*isVARPTR=*/ FALSE, /*leftHandSide=*/FALSE);
 
         case S_INUM:
@@ -1747,8 +1814,6 @@ static bool atom(S_tkn *tkn, CG_item *exp)
                 return EM_error((*tkn)->pos, ") expected here.");
             *tkn = (*tkn)->next;
             break;
-
-
         default:
             return FALSE;
     }
@@ -7986,6 +8051,7 @@ void FE_boot(void)
     S_DEBUG           = defineKeyword("DEBUG");
     S_CLEAR           = defineKeyword("CLEAR");
     S_WRITE           = defineKeyword("WRITE");
+    S_NEW             = defineKeyword("NEW");
 }
 
 void FE_init(void)
