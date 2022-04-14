@@ -5,7 +5,7 @@ include ../../../config.mk
 all: OSIntuition.sym
 
 OSIntuition.sym : OSIntuition.bas
-	$(AQB) -L .. -I -d _aqb -s OSIntuition.sym $<
+	$(AQB) -L .. -I -d _brt -s OSIntuition.sym $<
 	# pushd .. && rm -f OSIntuition.sym OSIntuition.a && ln -s OSIntuition/OSIntuition.sym && ln -s OSIntuition/OSIntuition.a && popd
 	pushd .. && rm -f OSIntuition.sym && ln -s OSIntuition/OSIntuition.sym && popd
 	cp $< $(DISTDIR)/libsrc

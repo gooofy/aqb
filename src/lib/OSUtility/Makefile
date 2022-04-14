@@ -5,7 +5,7 @@ include ../../../config.mk
 all: OSUtility.sym
 
 OSUtility.sym : OSUtility.bas
-	$(AQB) -L .. -I -d _aqb -s OSUtility.sym $<
+	$(AQB) -L .. -I -d _brt -s OSUtility.sym $<
 	# pushd .. && rm -f OSUtility.sym OSUtility.a && ln -s OSUtility/OSUtility.sym && ln -s OSUtility/OSUtility.a && popd
 	pushd .. && rm -f OSUtility.sym && ln -s OSUtility/OSUtility.sym && popd
 	cp $< $(DISTDIR)/libsrc

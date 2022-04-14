@@ -8,7 +8,7 @@ all: OSGadTools.sym OSGadTools.a
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) -I../_aqb $< -o $@
 
 OSGadTools.sym : OSGadTools.bas
-	$(AQB) -L .. -d _aqb -s OSGadTools.sym $<
+	$(AQB) -L .. -d _brt -s OSGadTools.sym $<
 	pushd .. && rm -f OSGadTools.sym OSGadTools.a && ln -s OSGadTools/OSGadTools.sym && popd
 	cp $< $(DISTDIR)/libsrc
 	cp $@ $(DISTDIR)/lib

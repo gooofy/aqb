@@ -1,8 +1,8 @@
 include ../../config.mk
 
-.PHONY: clean _brt _aqb minbrt IFFSupport AnimSupport OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools GadToolsSupport
+.PHONY: clean _brt minbrt IFFSupport AnimSupport OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools _aqb GadToolsSupport
 
-all: _brt _aqb minbrt IFFSupport AnimSupport OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools GadToolsSupport
+all: _brt minbrt OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools _aqb IFFSupport AnimSupport GadToolsSupport
 
 _brt:
 	cd _brt ; make all

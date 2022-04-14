@@ -3,6 +3,8 @@
 
 #include <stdarg.h>
 
+#include <exec/lists.h>
+
 #include <graphics/rastport.h>
 #include <graphics/gfx.h>
 #include <graphics/gels.h>
@@ -40,6 +42,29 @@ extern struct Library       *DiskfontBase;
 #define AE_FONT                     123
 #define AE_AUDIO                    124
 #define AE_WIN_CALL                 125
+#define AE_EXEC_LIST                126
+
+/*
+ * Exec lists: OOP Wrapper
+ */
+
+typedef struct
+{
+    struct Node n;
+
+
+} ExecNode;
+
+void _ExecNode___init__ (ExecNode *n, UBYTE ln_Type, BYTE ln_Pri, STRPTR ln_Name);
+
+typedef struct
+{
+    struct List  l;
+
+} ExecList;
+
+void _ExecList___init__ (ExecList *l, UBYTE lh_Type);
+void _ExecList_AddTail  (ExecList *l, ExecNode *n);
 
 /*
  * tags

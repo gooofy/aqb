@@ -5,7 +5,7 @@ include ../../../config.mk
 all: OSGraphics.sym
 
 OSGraphics.sym : OSGraphics.bas
-	$(AQB) -L .. -I -d _aqb -s OSGraphics.sym $<
+	$(AQB) -L .. -I -d _brt -s OSGraphics.sym $<
 	# pushd .. && rm -f OSGraphics.sym OSGraphics.a && ln -s OSGraphics/OSGraphics.sym && ln -s OSGraphics/OSGraphics.a && popd
 	pushd .. && rm -f OSGraphics.sym && ln -s OSGraphics/OSGraphics.sym && popd
 	cp $< $(DISTDIR)/libsrc

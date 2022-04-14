@@ -5,6 +5,9 @@
 OPTION EXPLICIT
 OPTION PRIVATE
 
+IMPORT OSExec
+IMPORT OSUtility
+
 ' --------------------------------------------------------------------------------------------------------
 ' --
 ' -- error codes
@@ -32,24 +35,37 @@ PUBLIC CONST AS INTEGER AE_RASTPORT          = 122
 PUBLIC CONST AS INTEGER AE_FONT              = 123
 PUBLIC CONST AS INTEGER AE_AUDIO             = 124
 PUBLIC CONST AS INTEGER AE_WIN_CALL          = 125
+PUBLIC CONST AS INTEGER AE_EXEC_LIST         = 126
+
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- Exec lists: OOP Wrapper
+' --
+' --------------------------------------------------------------------------------------------------------
+
+PUBLIC TYPE ExecNode
+
+    AS Node n
+
+    DECLARE CONSTRUCTOR (BYVAL ln_Type AS UBYTE, BYVAL ln_Pri AS BYTE, BYVAL ln_Name AS STRING)
+
+END TYPE
+
+PUBLIC TYPE ExecList
+
+    AS List  l
+
+    DECLARE CONSTRUCTOR (BYVAL lh_Type AS UBYTE)
+
+    DECLARE SUB AddTail (BYVAL n AS ExecNode PTR)
+
+END TYPE
 
 ' --------------------------------------------------------------------------------------------------------
 ' --
 ' -- tags
 ' --
 ' --------------------------------------------------------------------------------------------------------
-
-PUBLIC TYPE TagItem
-    AS ULONG     ti_Tag
-    AS ULONG     ti_Data
-END TYPE
-
-PUBLIC CONST AS ULONG TAG_DONE   = &H00000000
-PUBLIC CONST AS ULONG TAG_END	  = &H00000000
-PUBLIC CONST AS ULONG TAG_IGNORE = &H00000001
-PUBLIC CONST AS ULONG TAG_MORE   = &H00000002
-PUBLIC CONST AS ULONG TAG_SKIP   = &H00000003
-PUBLIC CONST AS ULONG TAG_USER   = &H80000000
 
 PUBLIC DECLARE FUNCTION TAGITEMS     (BYVAL ti_Tag AS ULONG, ...) AS TAGITEM PTR
 PUBLIC DECLARE FUNCTION TAGS         (BYVAL ti_Tag AS ULONG, ...) AS ULONG PTR
