@@ -12,6 +12,7 @@ Improvements:
     * runtime: GadToolsSupport module added
     * runtime: TEXTEXTEND statement added
     * compiler: support for variadic function argument passing
+    * compiler: NEW operator added
 
 Bug Fixes:
 

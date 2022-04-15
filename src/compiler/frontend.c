@@ -1678,9 +1678,9 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
 
     CG_itemList arglist = CG_ItemList();
     CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
-    n = CG_itemListAppend(arglist);
     CG_UIntItem (&n->item, tyClass->u.record.uiSize, Ty_UInteger());
+    n = CG_itemListAppend(arglist);
+    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
 
     S_symbol allocSym = S_Symbol("ALLOCATE");
     CG_item procPtr;
@@ -1692,14 +1692,20 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
     CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, ty->u.proc, arglist, exp);
 
     // cast ALLOCATE result to properly typed ptr
-    #if 0
-    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, ty->u.pointer)
-    if (!convert_ty(exp, pos, t_dest, /*explicit=*/TRUE))
-    #endif
+    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyClass);
+    if (!convert_ty(exp, (*tkn)->pos, tyClassPtr, /*explicit=*/TRUE))
+        return EM_error((*tkn)->pos, "new: internal error");
+
     *tkn = (*tkn)->next;
 
-    // FIXME
-#if 0
+    // constructor call, if any
+
+    // turn this into a varRef
+    CG_item thisRef = *exp;
+    CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
+    thisRef.kind = IK_varPtr;
+    thisRef.ty   = tyClass;
+
     CG_itemList constructorAssignedArgs = NULL;
     if ((*tkn)->kind == S_LPAREN)
     {
@@ -1708,8 +1714,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
 
         if (((*tkn)->kind != S_RPAREN) && tyClass->u.record.constructor)
         {
-            //CG_item thisRef = var;
-            if (!transActualArgs(tkn, tyClass->u.record.constructor, constructorAssignedArgs, thisRef, /*defaultsOnly=*/FALSE)
+            if (!transActualArgs(tkn, tyClass->u.record.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
         }
 
@@ -1717,8 +1722,11 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
             return EM_error((*tkn)->pos, "new: ) expected here");
         *tkn = (*tkn)->next; // skip ')'
     }
-#endif
-    assert(FALSE);
+
+    if (tyClass->u.record.constructor)
+        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyClass->u.record.constructor, constructorAssignedArgs, NULL);
+
+    return TRUE;
 }
 
 // atom ::= ( expDesignator

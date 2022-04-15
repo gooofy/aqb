@@ -667,6 +667,22 @@ Syntax:
 modulus operation on expr1 and expr2.
 
 
+## NEW()
+
+Syntax:
+
+    NEW ident [ "(" actualArgs ")" ]
+
+dynamically allocate a new object of class ident passing the given arguments
+to its constructor, if any.
+
+Example:
+
+    DIM AS ExecList PTR choices = NEW ExecList(NT_USER)
+
+    choices->AddTail(NEW ExecNode(,,"First"))
+
+
 ## NEXT
 
 see FOR

@@ -1236,6 +1236,8 @@ static void _debug(struct DebugMsg *msg)
                 case 122: IDE_cprintf(g_ide, "(RASTPORT)"); break;
                 case 123: IDE_cprintf(g_ide, "(FONT)"); break;
                 case 124: IDE_cprintf(g_ide, "(AUDIO)"); break;
+                case 125: IDE_cprintf(g_ide, "(WINDOW CALL)"); break;
+                case 126: IDE_cprintf(g_ide, "(EXEC LIST)"); break;
                 case 200: IDE_cprintf(g_ide, "(IFF)"); break;
                 case 300: IDE_cprintf(g_ide, "(GELS INIT)"); break;
                 case 301: IDE_cprintf(g_ide, "(BOB)"); break;

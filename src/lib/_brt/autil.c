@@ -45,11 +45,7 @@ APTR ALLOCATE_(ULONG size, ULONG flags)
 {
     AQB_memrec mem_prev = g_mem;
 
-    //_debug_puts("ALLOCATE size=");
-    //_debug_puts2(size);
-    //_debug_puts(", flags=");
-    //_debug_puts2(flags);
-    //_debug_puts("\n");
+    DPRINTF ("ALLOCATE_: size=%ld, flags=%ld\n", size, flags);
 
     g_mem = (AQB_memrec) AllocMem (sizeof(*g_mem), 0);
     if (!g_mem)

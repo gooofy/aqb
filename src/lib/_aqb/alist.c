@@ -5,6 +5,7 @@
 
 void _ExecNode___init__ (ExecNode *n, UBYTE ln_Type, BYTE ln_Pri, STRPTR ln_Name)
 {
+    DPRINTF ("_ExecNode___init__: n=0x%08lx, ln_Type=%d, ln_Pri=%d, ln_Name=%s\n", n, ln_Type, ln_Pri, ln_Name ? ln_Name : (STRPTR)"NULL");
     n->n.ln_Succ = NULL;
     n->n.ln_Pred = NULL;
     n->n.ln_Type = ln_Type;
@@ -14,6 +15,7 @@ void _ExecNode___init__ (ExecNode *n, UBYTE ln_Type, BYTE ln_Pri, STRPTR ln_Name
 
 void _ExecList___init__ (ExecList *l, UBYTE lh_Type)
 {
+    DPRINTF ("_ExecList___init__: l=0x%08lx, lh_Type=%d\n", l, lh_Type);
     l->l.lh_TailPred = (struct Node *) &l->l;
     l->l.lh_Head     = (struct Node *) &l->l.lh_Tail;
     l->l.lh_Tail     = 0;
@@ -21,6 +23,7 @@ void _ExecList___init__ (ExecList *l, UBYTE lh_Type)
 
 void _ExecList_AddTail  (ExecList *l, ExecNode *n)
 {
+    DPRINTF ("_ExecList_AddTail: l=0x%08lx, n=0x%08lx\n", l, n);
     if (!l || !n)
     {
         ERROR (AE_EXEC_LIST);

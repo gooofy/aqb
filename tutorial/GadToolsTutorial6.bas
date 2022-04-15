@@ -32,13 +32,9 @@ REM create a ListView gadget
 
 DIM AS ExecList choices = ExecList(NT_USER)
 
-DIM AS ExecNode n1 = ExecNode(NT_USER, 0, "First")
-DIM AS ExecNode n2 = ExecNode(NT_USER, 0, "Second")
-DIM AS ExecNode n3 = ExecNode(NT_USER, 0, "Third")
-
-choices.AddTail(@n1)
-choices.AddTail(@n2)
-choices.AddTail(@n3)
+choices.AddTail(NEW ExecNode (,,"First"))
+choices.AddTail(NEW ExecNode (,,"Second"))
+choices.AddTail(NEW ExecNode (,,"Third"))
 
 lv = GTGADGET (LISTVIEW_KIND,  ( 75, 20)-(235, 132), "ListView", 0, 1,_
 GTLV_ShowSelected, NULL, GTLV_Labels, @choices.l, TAG_DONE)
