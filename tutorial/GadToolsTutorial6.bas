@@ -1,11 +1,11 @@
-REM GadTools Tutorial 6: ListView, MX, Palette
+REM GadTools Tutorial 6: ListView, MX, Palette, Cycle
 
 OPTION EXPLICIT
 
 IMPORT OSIntuition
 IMPORT GadToolsSupport
 
-DIM SHARED AS GTGADGET_t PTR lv, mx, pl
+DIM SHARED AS GTGADGET_t PTR lv, mx, pl, cy
 
 REM callbacks
 
@@ -23,6 +23,10 @@ END SUB
 
 SUB plcb(BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
     TRACE "PL cb: wid=";wid;", gid=";gid;", code=";code    
+END SUB    
+
+SUB cycb(BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
+    TRACE "CY cb: wid=";wid;", gid=";gid;", code=";code    
 END SUB    
 
 WINDOW 1, "GadTools Tutorial 6"
@@ -52,8 +56,14 @@ GTMX_Labels, @mxlabels(0), GTMX_Active, 1, GTMX_Spacing, 3, TAG_DONE)
 
 REM create a palette gadget
 
-pl = GTGADGET (PALETTE_KIND, (490, 20)-(550, 100), "Palette", 0, 2,_
+pl = GTGADGET (PALETTE_KIND, (490, 20)-(550, 100), "Palette", 0, 3,_
 GTPA_Depth, 2, TAG_DONE)
+
+REM create a cycle gadget
+
+cy = GTGADGET (CYCLE_KIND, (350, 100)-(450, 114), "Cycle", 0, 4,_
+GTCY_Labels, @mxlabels(0), TAG_DONE)
+
 
 GTGADGETS DEPLOY
 
@@ -62,6 +72,7 @@ REM message handling
 ON GTG UP   CALL lv, lvcb, NULL
 ON GTG DOWN CALL mx, mxcb, NULL
 ON GTG UP   CALL pl, plcb, NULL
+ON GTG UP   CALL cy, cycb, NULL
 
 WHILE TRUE
     SLEEP
