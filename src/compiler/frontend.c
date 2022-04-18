@@ -245,7 +245,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 100
+#define MAX_KEYWORDS 102
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -350,6 +350,8 @@ static S_symbol S_CLEAR;
 static S_symbol S_WRITE;
 static S_symbol S_NEW;
 static S_symbol S_EXTENDS;
+static S_symbol S_BASE;
+static S_symbol S_THIS;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1106,7 +1108,7 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
     if (!tyClass || (tyClass->kind != Ty_record))
         return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
 
-    Ty_recordEntry entry = Ty_recordFindEntry(tyClass, builtinMethod);
+    Ty_recordEntry entry = Ty_recordFindEntry(tyClass, builtinMethod, /*checkbase=*/TRUE);
     if (!entry || (entry->kind != Ty_recMethod))
         return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
 
@@ -1480,7 +1482,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
             if ( ty->kind != Ty_record )
                 return EM_error(pos, "record type expected");
 
-            Ty_recordEntry entry = Ty_recordFindEntry(ty, sym);
+            Ty_recordEntry entry = Ty_recordFindEntry(ty, sym, /*checkbase=*/TRUE);
             if (!entry)
                 return EM_error(pos, "unknown UDT entry %s", S_name(sym));
 
@@ -1501,7 +1503,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             ty = ty->u.pointer;
 
-            Ty_recordEntry entry = Ty_recordFindEntry(ty, sym);
+            Ty_recordEntry entry = Ty_recordFindEntry(ty, sym, /*checkbase=*/TRUE);
             if (!entry)
                 return EM_error(pos, "unknown UDT entry %s", S_name(sym));
 
@@ -1542,43 +1544,69 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     S_symbol sym = (*tkn)->u.sym;
     S_pos    pos = (*tkn)->pos;
 
-    // is this a known var, function or const ?
+    // BASE ?
 
-    Ty_recordEntry entry;
-    if (E_resolveVFC(g_sleStack->env, sym, /*checkParents=*/TRUE, exp, &entry))
+    if (isSym((*tkn), S_BASE))
     {
-        if (entry)
+        // resolve "this", cast it
+        Ty_recordEntry entry;
+        if (!E_resolveVFC(g_sleStack->env, S_THIS, /*checkParents=*/TRUE, exp, &entry))
         {
-            *tkn = (*tkn)->next;
-            if (!transSelRecord(pos, tkn, entry, exp))
-                return FALSE;
+            EM_error((*tkn)->pos, "expDesignator: \"this\" reference not found");
+            return FALSE;
         }
-        else
+
+        Ty_ty ty = CG_ty(exp);
+        if ( (ty->kind != Ty_record) || !ty->u.record.baseType)
         {
-            Ty_ty ty = CG_ty(exp);
-
-            if (ty->kind == Ty_prc)
-            {
-                // syntax quirk: this could be a function return value assignment
-                // FUNCTION f ()
-                //     f = 42
-
-                if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) && ((*tkn)->u.sym == ty->u.proc->name) )
-                {
-                    *exp = g_sleStack->returnVar;
-                    *tkn = (*tkn)->next;
-                    return TRUE;
-                }
-            }
-
-            *tkn = (*tkn)->next;
+            EM_error((*tkn)->pos, "expDesignator: no base type found");
+            return FALSE;
         }
+
+        exp->ty = ty->u.record.baseType;
+
+        *tkn = (*tkn)->next;
     }
     else
     {
-        // implicit variable
-        autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
-        *tkn = (*tkn)->next;
+        // is this a known var, function or const ?
+
+        Ty_recordEntry entry;
+        if (E_resolveVFC(g_sleStack->env, sym, /*checkParents=*/TRUE, exp, &entry))
+        {
+            if (entry)
+            {
+                *tkn = (*tkn)->next;
+                if (!transSelRecord(pos, tkn, entry, exp))
+                    return FALSE;
+            }
+            else
+            {
+                Ty_ty ty = CG_ty(exp);
+
+                if (ty->kind == Ty_prc)
+                {
+                    // syntax quirk: this could be a function return value assignment
+                    // FUNCTION f ()
+                    //     f = 42
+
+                    if ( leftHandSide && ((*tkn)->next->kind == S_EQUALS) && ((*tkn)->u.sym == ty->u.proc->name) )
+                    {
+                        *exp = g_sleStack->returnVar;
+                        *tkn = (*tkn)->next;
+                        return TRUE;
+                    }
+                }
+
+                *tkn = (*tkn)->next;
+            }
+        }
+        else
+        {
+            // implicit variable
+            autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
+            *tkn = (*tkn)->next;
+        }
     }
 
     Ty_ty ty = CG_ty(exp);
@@ -5759,7 +5787,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
 
                 *tkn = (*tkn)->next;
             }
-            name = S_Symbol("__init__");
+            name = S_CONSTRUCTOR;
         }
         else
         {
@@ -5771,7 +5799,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     if (sCls)
     {
         label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
-        FE_ParamListAppend(paramList, Ty_Formal(S_Symbol("this"), tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
+        FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
     }
     else
     {
@@ -5836,64 +5864,82 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
 static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
 {
     Ty_proc decl=NULL;
-    if ( (proc->returnTy->kind != Ty_void) || proc->tyCls)
-    {
-        CG_item d;
-        Ty_recordEntry entry;
 
-        if (E_resolveVFC(g_sleStack->env, proc->name, /*checkParents=*/TRUE, &d, &entry))
+    if (proc->tyCls)
+    {
+        // methods and constructors _must_ have a declaration
+
+        Ty_recordEntry e = Ty_recordFindEntry (proc->tyCls, proc->name, /*checkBase=*/FALSE);
+
+        if (!e || (e->kind != Ty_recMethod))
         {
-            if (entry)
-            {
-                if (entry->kind != Ty_recMethod)
-                {
-                    EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
-                    return NULL;
-                }
-                decl = entry->u.method;
-            }
-            else
-            {
-                Ty_ty ty = CG_ty(&d);
-                if (ty->kind != Ty_prc)
-                {
-                    EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
-                    return NULL;
-                }
-                decl = ty->u.proc;
-            }
+            EM_error(pos, "undeclared method %s", S_name(proc->name));
+            return NULL;
         }
+
+        decl = e->u.method;
     }
     else
     {
-        E_enventryList lx = E_resolveSub(g_sleStack->env, proc->name);
-        if (lx)
+        if ( (proc->returnTy->kind != Ty_void))
         {
-            // we need an exact match (same extra syms)
-            for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
+            CG_item d;
+            Ty_recordEntry entry;
+
+            if (E_resolveVFC(g_sleStack->env, proc->name, /*checkParents=*/TRUE, &d, &entry))
             {
-                E_enventry x2 = nx->e;
-
-                bool match = TRUE;
-                S_symlist esl1 = proc->extraSyms;
-                S_symlist esl2 = x2->u.proc->extraSyms;
-
-                while (esl1 && esl2)
+                if (entry)
                 {
-                    if ( esl1->sym != esl2->sym )
+                    if (entry->kind != Ty_recMethod)
                     {
-                        match = FALSE;
+                        EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
+                        return NULL;
+                    }
+                    decl = entry->u.method;
+                }
+                else
+                {
+                    Ty_ty ty = CG_ty(&d);
+                    if (ty->kind != Ty_prc)
+                    {
+                        EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
+                        return NULL;
+                    }
+                    decl = ty->u.proc;
+                }
+            }
+        }
+        else
+        {
+            E_enventryList lx = E_resolveSub(g_sleStack->env, proc->name);
+            if (lx)
+            {
+                // we need an exact match (same extra syms)
+                for (E_enventryListNode nx = lx->first; nx; nx=nx->next)
+                {
+                    E_enventry x2 = nx->e;
+
+                    bool match = TRUE;
+                    S_symlist esl1 = proc->extraSyms;
+                    S_symlist esl2 = x2->u.proc->extraSyms;
+
+                    while (esl1 && esl2)
+                    {
+                        if ( esl1->sym != esl2->sym )
+                        {
+                            match = FALSE;
+                            break;
+                        }
+                        esl1 = esl1->next;
+                        esl2 = esl2->next;
+                    }
+                    if (esl1 || esl2)
+                        continue;
+                    if (match)
+                    {
+                        decl = x2->u.proc;
                         break;
                     }
-                    esl1 = esl1->next;
-                    esl2 = esl2->next;
-                }
-                if (esl1 || esl2)
-                    continue;
-                if (match)
-                {
-                    decl = x2->u.proc;
-                    break;
                 }
             }
         }
@@ -6405,7 +6451,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         t = Ty_SArray(FE_mod->name, t, start, end);
                     }
 
-                    Ty_recordEntry re = Ty_recordFindEntry(sle->u.typeDecl.ty, f->u.fieldr.name);
+                    Ty_recordEntry re = Ty_recordFindEntry(sle->u.typeDecl.ty, f->u.fieldr.name, /*checkbase=*/FALSE);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
                     //re = Ty_Field(sle->u.typeDecl.memberVis, f->u.fieldr.name, Ty_recordAddField(sle->u.typeDecl.ty, t), t);
@@ -6415,7 +6461,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 case FE_methodUDTEntry:
                 {
                     // Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name);
-                    Ty_recordEntry re = Ty_recordFindEntry (sle->u.typeDecl.ty, f->u.methodr->name);
+                    Ty_recordEntry re = Ty_recordFindEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
                     // re = Ty_Method(f->u.methodr);
@@ -6511,30 +6557,17 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
                 return FALSE;
 
-            switch (proc->kind)
+            if (g_sleStack->u.typeDecl.eFirst)
             {
-                case Ty_pkFunction:
-                case Ty_pkSub:
-                {
-                    if (g_sleStack->u.typeDecl.eFirst)
-                    {
-                        g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, proc);
-                        g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
-                    }
-                    else
-                    {
-                        g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, proc);
-                    }
-                    break;
-                }
-                case Ty_pkConstructor:
-                {
-                    g_sleStack->u.typeDecl.ty->u.record.constructor = proc;
-                    break;
-                }
-                default:
-                    assert(0);
+                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, proc);
+                g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
             }
+            else
+            {
+                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, proc);
+            }
+            if (proc->kind == Ty_pkConstructor)
+                g_sleStack->u.typeDecl.ty->u.record.constructor = proc;
         }
         else
         {
@@ -8096,6 +8129,8 @@ void FE_boot(void)
     S_WRITE           = defineKeyword("WRITE");
     S_NEW             = defineKeyword("NEW");
     S_EXTENDS         = defineKeyword("EXTENDS");
+    S_BASE            = defineKeyword("BASE");
+    S_THIS            = defineKeyword("THIS");
 }
 
 void FE_init(void)

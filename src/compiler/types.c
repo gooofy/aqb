@@ -140,7 +140,7 @@ Ty_recordEntry Ty_recordAddMethod (Ty_ty recordType, Ty_visibility visibility, S
     return p;
 }
 
-Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name)
+Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name, bool checkBase)
 {
     assert (recordType->kind == Ty_record);
 
@@ -150,8 +150,8 @@ Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name)
             return entry;
     }
 
-    if (recordType->u.record.baseType)
-        return Ty_recordFindEntry (recordType->u.record.baseType, name);
+    if (checkBase && recordType->u.record.baseType)
+        return Ty_recordFindEntry (recordType->u.record.baseType, name, /*checkbase=*/TRUE);
 
     return NULL;
 }

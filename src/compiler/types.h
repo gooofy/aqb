@@ -129,7 +129,7 @@ Ty_ty           Ty_ToLoad           (S_symbol mod, uint32_t uid);
 Ty_ty           Ty_Record           (S_symbol mod, Ty_ty baseType);
 Ty_recordEntry  Ty_recordAddField   (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
 Ty_recordEntry  Ty_recordAddMethod  (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc method);
-Ty_recordEntry  Ty_recordFindEntry  (Ty_ty recordType, S_symbol name);
+Ty_recordEntry  Ty_recordFindEntry  (Ty_ty recordType, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal           (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc             (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);

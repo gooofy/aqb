@@ -77,6 +77,28 @@ Syntax:
 
 obtain the arctangent of the floating point number
 
+
+## BASE
+
+Syntax:
+
+    BASE "." [ ident | CONSTRUCTOR ]
+
+get a reference to the base class of the current class. Used to
+access methods and fields of the base class that could be
+hidden otherwise.
+
+Can also be used to call the base classe's constructor.
+
+Example:
+
+    CONSTRUCTOR myc2 (BYVAL iv1 AS INTEGER, BYVAL iv2 AS INTEGER)
+
+        BASE.CONSTRUCTOR(iv1)
+
+    END CONSTRUCTOR
+
+
 ## BREAK
 
 Syntax:

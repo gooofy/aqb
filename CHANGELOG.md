@@ -13,7 +13,7 @@ Improvements:
     * runtime: TEXTEXTEND statement added
     * compiler: support for variadic function argument passing
     * compiler: NEW operator added
-    * compiler: EXTENDS keyword added (OOP inheritance)
+    * compiler: EXTENDS, BASE keywords added (OOP inheritance)
 
 Bug Fixes:
 

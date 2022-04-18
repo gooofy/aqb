@@ -137,7 +137,7 @@ bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, CG_item *item, Ty
             Ty_ty ty = CG_ty(item);
             assert ( ( (item->kind == IK_varPtr) || (item->kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
 
-            *entry = Ty_recordFindEntry(ty, sym);
+            *entry = Ty_recordFindEntry(ty, sym, /*checkbase=*/TRUE);
             if (*entry)
                 return TRUE;
             break;

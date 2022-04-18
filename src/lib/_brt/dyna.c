@@ -7,7 +7,7 @@
 
 #include <inline/exec.h>
 
-void __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+void __DARRAY_T_CONSTRUCTOR (_DARRAY_T *self, ULONG elementSize)
 {
     // _debug_puts ("__DARRAY_T___init__: elementSize="); _debug_puts2(elementSize); _debug_putnl();
     self->data        = NULL;
