@@ -1079,7 +1079,7 @@ declares a new named UDT
 
 Syntax:
 
-    TYPE ident
+    TYPE ident [ EXTENDS baseCls ]
 
       [PRIVATE:|PUBLIC:|PROTECTED:]
       var [ "(" arrayDimensions ")" ] AS typedesc
