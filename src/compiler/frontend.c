@@ -245,7 +245,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 99
+#define MAX_KEYWORDS 100
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -349,6 +349,7 @@ static S_symbol S_DEBUG;
 static S_symbol S_CLEAR;
 static S_symbol S_WRITE;
 static S_symbol S_NEW;
+static S_symbol S_EXTENDS;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1318,8 +1319,24 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_item 
             *tkn = (*tkn)->next;
 
             CG_itemList assignedArgs = CG_ItemList();
-            CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, exp);
-            if (!transActualArgs(tkn, entry->u.method, assignedArgs,  /*thisRef=*/exp, /*defaultsOnly=*/FALSE))
+
+            CG_item thisRef = *exp;
+            switch (exp->ty->kind)
+            {
+                case Ty_pointer:
+                    // turn this into a varRef
+                    CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
+                    thisRef.kind = IK_varPtr;
+                    thisRef.ty   = exp->ty->u.pointer;
+                    break;
+                case Ty_record:
+                    CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
+                    break;
+                default:
+                    assert(FALSE);
+            }
+
+            if (!transActualArgs(tkn, entry->u.method, assignedArgs,  /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
             if ((*tkn)->kind != S_RPAREN)
@@ -6220,7 +6237,7 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier [ AS typedesc [ "(" arrayDimensions ")" ] ]
+// typeDeclBegin ::= [ PUBLIC | PRIVATE ] TYPE Identifier [ ( EXTENDS Identifier | AS typedesc [ "(" arrayDimensions ")" ] ) ]
 static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos    pos = (*tkn)->pos;
@@ -6315,7 +6332,25 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (tyOther)
             EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
-        sle->u.typeDecl.ty    = Ty_Record(FE_mod->name);
+        Ty_ty tyBase = NULL;
+        if (isSym(*tkn, S_EXTENDS))
+        {
+            *tkn = (*tkn)->next;
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "base type identifier expected here.");
+
+            S_symbol sBaseType = (*tkn)->u.sym;
+
+            tyBase = E_resolveType(g_sleStack->env, sBaseType);
+            if (!tyBase)
+                EM_error ((*tkn)->pos, "Base type %s not found.", S_name(sBaseType));
+            if (tyBase->kind != Ty_record)
+                EM_error ((*tkn)->pos, "Base type %s is not a UDT.", S_name(sBaseType));
+
+            *tkn = (*tkn)->next;
+        }
+
+        sle->u.typeDecl.ty = Ty_Record(FE_mod->name, tyBase);
 
         E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
         if (sle->u.typeDecl.udtVis == Ty_visPublic)
@@ -8060,6 +8095,7 @@ void FE_boot(void)
     S_CLEAR           = defineKeyword("CLEAR");
     S_WRITE           = defineKeyword("WRITE");
     S_NEW             = defineKeyword("NEW");
+    S_EXTENDS         = defineKeyword("EXTENDS");
 }
 
 void FE_init(void)

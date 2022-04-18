@@ -76,11 +76,12 @@ void Ty_init(void)
 
 static uint32_t g_uid = 23;
 
-Ty_ty Ty_Record (S_symbol mod)
+Ty_ty Ty_Record (S_symbol mod, Ty_ty baseType)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                  = Ty_record;
+    p->u.record.baseType     = baseType;
     p->u.record.entries      = NULL;
     p->u.record.constructor  = NULL;
     p->u.record.uiSize       = 0;
@@ -105,6 +106,8 @@ Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_
 
     if (calcOffset) // env.c will provide offsets when loading types from modules
     {
+        uint32_t baseOffset = recordType->u.record.baseType ? recordType->u.record.baseType->u.record.uiSize : 0;
+
         // 68k alignment
         unsigned int s = Ty_size(fieldType);
         if (s>1 && (recordType->u.record.uiSize % 2))
@@ -113,7 +116,7 @@ Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_
 
         recordType->u.record.uiSize += s;
 
-        f->u.field.uiOffset   = fieldOffset;
+        f->u.field.uiOffset   = fieldOffset + baseOffset;
     }
 
     f->u.field.ty         = fieldType;
@@ -146,6 +149,9 @@ Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name)
         if (entry->name == name)
             return entry;
     }
+
+    if (recordType->u.record.baseType)
+        return Ty_recordFindEntry (recordType->u.record.baseType, name);
 
     return NULL;
 }

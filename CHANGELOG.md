@@ -13,6 +13,7 @@ Improvements:
     * runtime: TEXTEXTEND statement added
     * compiler: support for variadic function argument passing
     * compiler: NEW operator added
+    * compiler: EXTENDS keyword added (OOP inheritance)
 
 Bug Fixes:
 
@@ -23,6 +24,7 @@ Bug Fixes:
     * compiler: reduced symboltable/hashmap memory footprint
     * compiler: fix boolean RelOp constant propagation
     * compiler: reduced record (udt) type memory footprint
+    * compiler: fix method call via pointer
     * linker: fix unitialized write buffer bug
     * runtime: fix FFP to string conversion bugs
 

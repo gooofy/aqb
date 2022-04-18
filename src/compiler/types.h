@@ -23,7 +23,8 @@ struct Ty_ty_
     union
     {
         Ty_ty                                                                 pointer;
-        struct {Ty_proc  constructor;
+        struct {Ty_ty baseType;
+                Ty_proc  constructor;
                 uint32_t uiSize;
                 Ty_recordEntry entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
@@ -125,7 +126,7 @@ Ty_ty           Ty_Prc              (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr          (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad           (S_symbol mod, uint32_t uid);
 
-Ty_ty           Ty_Record           (S_symbol mod);
+Ty_ty           Ty_Record           (S_symbol mod, Ty_ty baseType);
 Ty_recordEntry  Ty_recordAddField   (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
 Ty_recordEntry  Ty_recordAddMethod  (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc method);
 Ty_recordEntry  Ty_recordFindEntry  (Ty_ty recordType, S_symbol name);

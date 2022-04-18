@@ -404,6 +404,15 @@ Syntax:
 obtain the exponential of the floating point number
 
 
+## EXTENDS
+
+Syntax:
+
+    TYPE ident1 EXTENDS ident2
+
+OOP: declare class ident1 as child of class ident2
+
+
 ## FIX()
 
 Syntax:
