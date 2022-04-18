@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     42
+#define SYM_VERSION     43
 
 E_module g_builtinsModule = NULL;
 
@@ -346,6 +346,11 @@ static void fwrite_u1(FILE *f, uint8_t u)
 
 static void E_serializeTyRef(TAB_table modTable, Ty_ty ty)
 {
+    if (!ty)
+    {
+        fwrite_u4(modf, 0);
+        return;
+    }
     if (ty->mod)
     {
         uint32_t mid;
@@ -584,6 +589,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_record:
         {
             fwrite_u4(modf, ty->u.record.uiSize);
+            E_serializeTyRef(modTable, ty->u.record.baseType);
             uint16_t cnt=0;
             for (Ty_recordEntry entry = ty->u.record.entries; entry; entry=entry->next)
                 cnt++;
@@ -910,6 +916,8 @@ static uint8_t fread_u1(FILE *f)
 static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
 {
     uint32_t mid  = fread_u4(modf);
+    if (!mid)
+        return NULL;
     E_module m = TAB_look (modTable, (void *) (intptr_t) mid);
     if (!m)
     {
@@ -1240,6 +1248,7 @@ E_module E_loadModule(S_symbol sModule)
             case Ty_record:
             {
                 ty->u.record.uiSize = fread_u4(modf);
+                ty->u.record.baseType = E_deserializeTyRef(modTable, modf);
 
                 uint16_t cnt=fread_u2(modf);
 
