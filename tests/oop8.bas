@@ -36,8 +36,8 @@ END PROPERTY
 
 DIM o AS myc1 PTR = NEW myc1(23)
 
-ASSERT o->p = 23
+ASSERT o->p1 = 23
 
-o->p = 42
-ASSERT o->p = 42
+o->p1 = 42
+ASSERT o->p1 = 42
 

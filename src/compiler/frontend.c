@@ -5861,6 +5861,9 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
     name  = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
+    // implicit "this" arg
+    FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
+
     if ((*tkn)->kind == S_LPAREN)
     {
         if (!parameterList(tkn, paramList, &isVariadic))
@@ -5877,9 +5880,8 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
         kind = Ty_pkFunction;
     }
 
-    // determine label, deal with implicit "this" arg
+    // determine label
     label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
-    FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
     if (kind==Ty_pkFunction)
         label = strconcat(UP_frontend, label, "_");
 
