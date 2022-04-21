@@ -76,11 +76,12 @@ struct FE_udtEntry_
 {
     S_pos      pos;
 
-    enum {FE_fieldUDTEntry, FE_methodUDTEntry} kind;
+    enum {FE_fieldUDTEntry, FE_methodUDTEntry, FE_propertyUDTEntry} kind;
     union
     {
         struct { S_symbol name; FE_dim dims; Ty_ty ty; } fieldr;
         Ty_proc methodr;
+        Ty_proc property;
     } u;
 
     FE_udtEntry next;
@@ -234,6 +235,18 @@ static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc method)
     return p;
 }
 
+static FE_udtEntry FE_UDTEntryProperty(S_pos pos, Ty_proc method)
+{
+    FE_udtEntry p = U_poolAlloc(UP_frontend, sizeof(*p));
+
+    p->kind       = FE_propertyUDTEntry;
+    p->pos        = pos;
+    p->u.property = method;
+    p->next       = NULL;
+
+    return p;
+}
+
 static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit labels declared by the user
 
 /*******************************************************************
@@ -245,7 +258,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 102
+#define MAX_KEYWORDS 103
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -352,6 +365,7 @@ static S_symbol S_NEW;
 static S_symbol S_EXTENDS;
 static S_symbol S_BASE;
 static S_symbol S_THIS;
+static S_symbol S_PROPERTY;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1375,6 +1389,10 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_item 
             CG_transField(g_sleStack->code, pos, g_sleStack->frame, exp, entry);
             return TRUE;
         }
+        case Ty_recProperty:
+            // FIXME
+            assert(FALSE);
+            break;
     }
     return FALSE;
 }
@@ -5720,6 +5738,141 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
     return TRUE;
 }
 
+
+// udtProperty ::= PROPERTY ident [ "." ident ] [ parameterList ] [ AS typeDesc ]
+static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
+{
+    Ty_procKind  kind       = Ty_pkFunction;
+    S_symbol     name;
+    bool         isVariadic = FALSE;
+    FE_paramList paramList  = FE_ParamList();
+    Ty_ty        returnTy   = NULL;
+    string       label      = NULL;
+    S_symbol     sCls       = NULL;
+    Ty_ty        tyCls      = NULL;
+
+    // UDT context?
+    if (g_sleStack && g_sleStack->kind == FE_sleType)
+    {
+        sCls       = g_sleStack->u.typeDecl.sType;
+        tyCls      = g_sleStack->u.typeDecl.ty;
+    }
+
+    assert (isSym(*tkn, S_PROPERTY));
+    *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "identifier expected here.");
+    name  = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
+
+    if (!sCls)
+    {
+        if ((*tkn)->kind != S_PERIOD)
+            return EM_error((*tkn)->pos, ". expected here.");
+
+        *tkn = (*tkn)->next;
+
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error((*tkn)->pos, "identifier expected here.");
+
+        sCls = name;
+
+        tyCls = E_resolveType(g_sleStack->env, sCls);
+        if (!tyCls)
+            EM_error ((*tkn)->pos, "Class %s not found.", S_name(sCls));
+
+        if ((*tkn)->kind != S_IDENT)
+            return EM_error ((*tkn)->pos, "property identifier expected here.");
+        name = (*tkn)->u.sym;
+        *tkn = (*tkn)->next;
+    }
+
+    // determine label, deal with implicit "this" arg
+    label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
+    FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
+
+    if ((*tkn)->kind == S_LPAREN)
+    {
+        if (!parameterList(tkn, paramList, &isVariadic))
+            return FALSE;
+    }
+
+    returnTy = Ty_Void();
+    if (isSym(*tkn, S_AS))
+    {
+        *tkn = (*tkn)->next;
+
+        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
+            return EM_error((*tkn)->pos, "return type descriptor expected here.");
+
+        label = strconcat(UP_frontend, label, "_");
+    }
+
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+
+    return TRUE;
+}
+
+// propertyHeader ::= PROPERTY ident "." ident [ parameterList ] [ AS typeDesc ]
+static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_proc *proc)
+{
+    Ty_procKind  kind       = Ty_pkSub;
+    S_symbol     name;
+    bool         isVariadic = FALSE;
+    bool         isStatic   = FALSE;
+    FE_paramList paramList  = FE_ParamList();
+    Ty_ty        returnTy   = NULL;
+    string       label      = NULL;
+    S_symbol     sCls       = NULL;
+    Ty_ty        tyCls      = NULL;
+
+    *tkn = (*tkn)->next; // skip "PROPERTY"
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "class identifier expected here.");
+    sCls  = (*tkn)->u.sym;
+    tyCls = E_resolveType(g_sleStack->env, sCls);
+    if (!tyCls)
+        EM_error ((*tkn)->pos, "Class %s not found.", S_name(sCls));
+    *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind != S_PERIOD)
+        return EM_error((*tkn)->pos, ". expected here.");
+    *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "property identifier expected here.");
+    name  = (*tkn)->u.sym;
+    *tkn = (*tkn)->next;
+
+    if ((*tkn)->kind == S_LPAREN)
+    {
+        if (!parameterList(tkn, paramList, &isVariadic))
+            return FALSE;
+    }
+
+    returnTy = Ty_Void();
+    if (isSym(*tkn, S_AS))
+    {
+        *tkn = (*tkn)->next;
+
+        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
+            return EM_error((*tkn)->pos, "return type descriptor expected here.");
+        kind = Ty_pkFunction;
+    }
+
+    // determine label, deal with implicit "this" arg
+    label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
+    FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
+    if (kind==Ty_pkFunction)
+        label = strconcat(UP_frontend, label, "_");
+
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+
+    return TRUE;
+}
+
 // procHeader ::= ( ( SUB ident ( ident* | "." ident) | FUNCTION ident [ "." ident ] | CONSTRUCTOR [ ident ] ) [ parameterList ] [ AS typeDesc ] [ STATIC ]
 static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
 {
@@ -5791,7 +5944,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         }
         else
         {
-            return EM_error((*tkn)->pos, "SUB, FUNCTION or CONSTRUCTOR expected here.");
+            return EM_error((*tkn)->pos, "SUB, FUNCTION, CONSTRUCTOR or PROPERTY expected here.");
         }
     }
 
@@ -5871,13 +6024,16 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
 
         Ty_recordEntry e = Ty_recordFindEntry (proc->tyCls, proc->name, /*checkBase=*/FALSE);
 
-        if (!e || (e->kind != Ty_recMethod))
+        if (!e || ( (e->kind != Ty_recMethod) && (e->kind != Ty_recProperty)) )
         {
-            EM_error(pos, "undeclared method %s", S_name(proc->name));
+            EM_error(pos, "undeclared method/property %s", S_name(proc->name));
             return NULL;
         }
 
-        decl = e->u.method;
+        if (e->kind == Ty_recMethod)
+            decl = e->u.method;
+        else
+            decl = proc->returnTy->kind == Ty_void ? e->u.property.setter : e->u.property.getter;
     }
     else
     {
@@ -5991,7 +6147,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     return decl;
 }
 
-// procStmtBegin ::= [ PRIVATE | PUBLIC ] procHeader
+// procStmtBegin ::= [ PRIVATE | PUBLIC ] ( procHeader | propertyHeader )
 static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     S_pos         pos        = (*tkn)->pos;
@@ -6012,8 +6168,16 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 
     Ty_proc proc;
-    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
-        return FALSE;
+    if (isSym(*tkn, S_PROPERTY))
+    {
+        if (!propertyHeader(tkn, pos, visibility, &proc))
+            return FALSE;
+    }
+    else
+    {
+        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
+            return FALSE;
+    }
     proc->hasBody = TRUE;
 
     CG_frame  funFrame = CG_Frame (pos, proc->label, proc->formals, proc->isStatic);
@@ -6412,6 +6576,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
 //                   | procDecl
+//                   | udtProperty
 //                   | [ PUBLIC | PRIVATE | PROTECTED ] ":"
 //                   | END TYPE
 //                   )
@@ -6460,13 +6625,39 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 }
                 case FE_methodUDTEntry:
                 {
-                    // Ty_recordEntry re = (Ty_recordEntry) S_look(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name);
                     Ty_recordEntry re = Ty_recordFindEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
-                    // re = Ty_Method(f->u.methodr);
-                    // S_enter(sle->u.typeDecl.ty->u.record.scope, f->u.methodr->name, re);
                     re = Ty_recordAddMethod (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.methodr->name, f->u.methodr);
+                    break;
+                }
+                case FE_propertyUDTEntry:
+                {
+                    bool isSub = f->u.property->returnTy->kind == Ty_void;
+                    Ty_recordEntry re = Ty_recordFindEntry (sle->u.typeDecl.ty, f->u.property->name, /*checkbase=*/FALSE);
+                    if (re)
+                    {
+                        if (re->kind != Ty_recProperty)
+                            return EM_error (f->pos, "Not a property.");
+
+                        if (isSub)
+                        {
+                            if (re->u.property.setter)
+                                return EM_error (f->pos, "Duplicate property setter.");
+                            re->u.property.setter = f->u.property;
+                        }
+                        else
+                        {
+                            if (re->u.property.getter)
+                                return EM_error (f->pos, "Duplicate property getter.");
+                            re->u.property.getter = f->u.property;
+                        }
+                    }
+                    else
+                    {
+                        re = Ty_recordAddProperty (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.property->name,
+                                                   isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
+                    }
                     break;
                 }
             }
@@ -6553,21 +6744,34 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             S_pos mpos = (*tkn)->pos;
             *tkn = (*tkn)->next; // consume "DECLARE"
 
-            Ty_proc proc;
-            if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
-                return FALSE;
+            FE_udtEntry e;
+
+            if (isSym (*tkn, S_PROPERTY))
+            {
+                Ty_proc proc=NULL;
+                if (!udtProperty(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
+                    return FALSE;
+                e = FE_UDTEntryProperty(mpos, proc);
+            }
+            else
+            {
+                Ty_proc proc=NULL;
+                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
+                    return FALSE;
+                e = FE_UDTEntryMethod(mpos, proc);
+                if (proc->kind == Ty_pkConstructor)
+                    g_sleStack->u.typeDecl.ty->u.record.constructor = proc;
+            }
 
             if (g_sleStack->u.typeDecl.eFirst)
             {
-                g_sleStack->u.typeDecl.eLast->next = FE_UDTEntryMethod(mpos, proc);
+                g_sleStack->u.typeDecl.eLast->next = e;
                 g_sleStack->u.typeDecl.eLast = g_sleStack->u.typeDecl.eLast->next;
             }
             else
             {
-                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = FE_UDTEntryMethod(mpos, proc);
+                g_sleStack->u.typeDecl.eFirst = g_sleStack->u.typeDecl.eLast = e;
             }
-            if (proc->kind == Ty_pkConstructor)
-                g_sleStack->u.typeDecl.ty->u.record.constructor = proc;
         }
         else
         {
@@ -7595,7 +7799,6 @@ static void registerBuiltins(void)
 {
     g_parsefs = TAB_empty(UP_frontend);
 
-    // FIXME
     declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim          , Ty_Void());
     declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim        , Ty_Void());
     declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint        , Ty_Void());
@@ -7611,6 +7814,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
+    declareBuiltinProc(S_PROPERTY     , /*extraSyms=*/ NULL      , stmtProcBegin    , Ty_Void());
     declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall         , Ty_Void());
     declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl    , Ty_Void());
     declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl   , Ty_Void());
@@ -8131,6 +8335,7 @@ void FE_boot(void)
     S_EXTENDS         = defineKeyword("EXTENDS");
     S_BASE            = defineKeyword("BASE");
     S_THIS            = defineKeyword("THIS");
+    S_PROPERTY        = defineKeyword("PROPERTY");
 }
 
 void FE_init(void)

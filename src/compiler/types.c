@@ -140,6 +140,23 @@ Ty_recordEntry Ty_recordAddMethod (Ty_ty recordType, Ty_visibility visibility, S
     return p;
 }
 
+Ty_recordEntry Ty_recordAddProperty (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc setter, Ty_proc getter)
+{
+    assert (recordType->kind == Ty_record);
+
+    Ty_recordEntry p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->kind              = Ty_recProperty;
+    p->name              = name;
+    p->visibility        = visibility;
+    p->next              = recordType->u.record.entries;
+    recordType->u.record.entries = p;
+    p->u.property.setter = setter;
+    p->u.property.getter = getter;
+
+    return p;
+}
+
 Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name, bool checkBase)
 {
     assert (recordType->kind == Ty_record);
