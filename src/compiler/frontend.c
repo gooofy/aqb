@@ -1669,13 +1669,6 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                ((*tkn)->kind == S_PERIOD)   ||
                ((*tkn)->kind == S_POINTER) ) )
         {
-#if 0
-            while ( (ty->kind == Ty_varPtr) && (ty->u.pointer->kind == Ty_varPtr) )
-            {
-                *exp = Tr_Deref((*tkn)->pos, *exp);
-                ty = CG_ty(*exp);
-            }
-#endif
             if (!selector(tkn, exp))
                 return FALSE;
             ty = CG_ty(exp);
