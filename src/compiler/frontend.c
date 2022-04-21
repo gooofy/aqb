@@ -4677,7 +4677,7 @@ static void stmtSelectEnd_(S_pos pos)
         CG_transLabel (g_sleStack->code, pos, sle->u.selectStmt.lEndSelect);
 }
 
-// stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT | CONSTRUCTOR ) ]
+// stmtEnd  ::=  END [ ( SUB | FUNCTION | IF | SELECT | CONSTRUCTOR | PROPERTY ) ]
 static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     FE_SLE sle = g_sleStack;
@@ -4742,20 +4742,31 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
                     }
                     else
                     {
-                        if (isLogicalEOL(*tkn))
+                        if (isSym(*tkn, S_PROPERTY))
                         {
-                            S_symbol fsym      = S_Symbol("SYSTEM");
-                            E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
-                            if (!lx)
-                                return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
-                            E_enventry func    = lx->first->e;
-
-                            CG_itemList arglist = CG_ItemList();
-
-                            CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, func->u.proc, arglist, NULL);
-
+                            if (sle->kind != FE_sleProc)
+                                return EM_error((*tkn)->pos, "END PROPERTY used outside of a PROPERTY context");
                             *tkn = (*tkn)->next;
+                            stmtProcEnd_();
                             return TRUE;
+                        }
+                        else
+                        {
+                            if (isLogicalEOL(*tkn))
+                            {
+                                S_symbol fsym      = S_Symbol("SYSTEM");
+                                E_enventryList lx  = E_resolveSub(g_sleStack->env, fsym);
+                                if (!lx)
+                                    return EM_error((*tkn)->pos, "builtin %s not found.", S_name(fsym));
+                                E_enventry func    = lx->first->e;
+
+                                CG_itemList arglist = CG_ItemList();
+
+                                CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, func->u.proc, arglist, NULL);
+
+                                *tkn = (*tkn)->next;
+                                return TRUE;
+                            }
                         }
                     }
                 }
@@ -4763,7 +4774,7 @@ static bool stmtEnd(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
     }
 
-    return EM_error((*tkn)->pos, "SUB, FUNCTION, IF, SELECT OR CONSTRUCTOR expected here.");
+    return EM_error((*tkn)->pos, "SUB, FUNCTION, IF, SELECT, CONSTRUCTOR or PROPERTY expected here.");
 }
 
 // stmtAssert ::= ASSERT expression
@@ -5807,6 +5818,10 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
             return EM_error((*tkn)->pos, "return type descriptor expected here.");
 
         label = strconcat(UP_frontend, label, "_");
+    }
+    else
+    {
+        kind  = Ty_pkSub;
     }
 
     *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
