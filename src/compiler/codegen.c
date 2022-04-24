@@ -3515,6 +3515,38 @@ void CG_transCallPtr (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc
     }
 }
 
+static void _call_property_setter (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
+{
+    assert (left->kind == IK_property);
+
+    Ty_proc proc = left->u.property.p->u.property.setter;
+
+    if (!proc)
+    {
+        EM_error(pos, "property has no setter");
+        return;
+    }
+
+    CG_loadVal (code, pos, right);
+
+    CG_itemList     args = CG_ItemList();
+    CG_itemListNode iln  = CG_itemListPrepend (args);
+    iln->item.kind    = IK_inReg;
+    iln->item.ty      = left->u.property.thisTy;
+    iln->item.u.inReg = left->u.property.thisReg;
+
+    iln = CG_itemListAppend (args);
+    iln->item = *right;
+
+    int arg_cnt = munchArgsStack(pos, code, 0, args);
+
+    Temp_label lab = proc->label;
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, Temp_w_NONE, NULL, NULL, 0, 0, lab,    // jsr   lab
+                        AS_callersaves(), NULL));
+
+    munchCallerRestoreStack(pos, code, arg_cnt);
+}
+
 // left := right
 void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
 {
@@ -3563,6 +3595,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_RAn, w, NULL, left->u.varPtr,
                                                           right->u.c, 0, NULL));                                      // move.x #right, (left)
                     break;
+                case IK_property:
+                    _call_property_setter (code, pos, frame, left, right);
+                    break;
                 default:
                     assert(FALSE);
             }
@@ -3593,6 +3628,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                 case IK_inFrameRef:
                     CG_loadRef (code, pos, frame, left);
                     AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, right->u.inReg, left->u.varPtr));   // move.x right.t, (left)
+                    break;
+                case IK_property:
+                    _call_property_setter (code, pos, frame, left, right);
                     break;
                 default:
                     assert(FALSE);
@@ -3628,6 +3666,10 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     CG_loadRef (code, pos, frame, left);
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Ofp_RAn, w, NULL, left->u.varPtr,                  // move.x right.o(fp), (left)
                                                           NULL, right->u.inFrameR.offset, NULL));
+                    break;
+
+                case IK_property:
+                    _call_property_setter (code, pos, frame, left, right);
                     break;
 
                 default:
@@ -3667,6 +3709,11 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Label_Ofp, w, NULL, NULL,                          // move.x right.l, left.o(fp)
                                                           NULL, left->u.inFrameR.offset, right->u.inHeap.l));
                     break;
+
+                case IK_property:
+                    _call_property_setter (code, pos, frame, left, right);
+                    break;
+
                 default:
                     assert(FALSE);
             }

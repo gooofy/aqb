@@ -260,6 +260,26 @@ Forward declare a SUB or FUNCTION. When the LIB portion of this command is
 used, an OS library function is declared.
 
 
+## DECLARE PROPERTY
+
+Syntax:
+
+    [ PRIVATE | PUBLIC ] DECLARE PROPERTY ident [ parameterList ] [ AS typeDesc ]
+
+Forward declare PROPERTY setter or getter in a UDT.
+
+Example:
+
+    TYPE myc1
+
+        ' ...
+
+        DECLARE PROPERTY p1 AS INTEGER              : REM getter
+        DECLARE PROPERTY p1 (BYVAL f AS INTEGER)    : REM setter
+
+    END TYPE
+
+
 ## DEFINT
 
 Syntax:
@@ -860,6 +880,34 @@ Syntax:
 print the listed expressions to given file stream. ";" means no space, "," means
 skip to next 9 col tab, ";" or "," at the end of the line mean no newline
 is printed.
+
+
+## PROPERTY
+
+Syntax:
+
+    PROPERTY ident1 "." ident2 [ parameterList ] [ AS typeDesc ]
+
+Implement a UDT property setter or getter.
+
+Example:
+
+    TYPE myc1
+
+        field1 AS INTEGER
+
+        DECLARE PROPERTY p1 AS INTEGER
+        DECLARE PROPERTY p1 (BYVAL f AS INTEGER)
+
+    END TYPE
+
+    PROPERTY myc1.p1 AS INTEGER
+        return field1
+    END PROPERTY
+
+    PROPERTY myc1.p1 (BYVAL f AS INTEGER)
+        field1 = f
+    END PROPERTY
 
 
 ## RANDOMIZE
