@@ -140,7 +140,7 @@ Ty_recordEntry Ty_recordAddMethod (Ty_ty recordType, Ty_visibility visibility, S
     return p;
 }
 
-Ty_recordEntry Ty_recordAddProperty (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc setter, Ty_proc getter)
+Ty_recordEntry Ty_recordAddProperty (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty ty, Ty_proc setter, Ty_proc getter)
 {
     assert (recordType->kind == Ty_record);
 
@@ -151,6 +151,7 @@ Ty_recordEntry Ty_recordAddProperty (Ty_ty recordType, Ty_visibility visibility,
     p->visibility        = visibility;
     p->next              = recordType->u.record.entries;
     recordType->u.record.entries = p;
+    p->u.property.ty     = ty;
     p->u.property.setter = setter;
     p->u.property.getter = getter;
 

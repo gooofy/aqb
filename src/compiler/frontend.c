@@ -1389,10 +1389,10 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_recordEntry entry, CG_item 
             CG_transField(g_sleStack->code, pos, g_sleStack->frame, exp, entry);
             return TRUE;
         }
+
         case Ty_recProperty:
-            // FIXME
-            assert(FALSE);
-            break;
+            CG_transProperty(g_sleStack->code, pos, g_sleStack->frame, exp, entry);
+            return TRUE;
     }
     return FALSE;
 }
@@ -6650,23 +6650,35 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         if (re->kind != Ty_recProperty)
                             return EM_error (f->pos, "Not a property.");
 
+                        Ty_ty ty=NULL;
                         if (isSub)
                         {
                             if (re->u.property.setter)
                                 return EM_error (f->pos, "Duplicate property setter.");
                             re->u.property.setter = f->u.property;
+                            Ty_ty ty = re->u.property.setter->formals->next->ty;
+                            if (!compatible_ty(ty, re->u.property.ty))
+                                return EM_error (f->pos, "property setter/getter types do not match");
                         }
                         else
                         {
                             if (re->u.property.getter)
                                 return EM_error (f->pos, "Duplicate property getter.");
                             re->u.property.getter = f->u.property;
+                            ty = re->u.property.getter->returnTy;
+                            if (!compatible_ty(ty, re->u.property.ty))
+                                return EM_error (f->pos, "property setter/getter types do not match");
                         }
                     }
                     else
                     {
+                        Ty_ty ty=NULL;
+                        if (isSub)
+                            ty = f->u.property->formals->next->ty;
+                        else
+                            ty = f->u.property->returnTy;
                         re = Ty_recordAddProperty (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.property->name,
-                                                   isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
+                                                   ty, isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
                     }
                     break;
                 }

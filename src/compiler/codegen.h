@@ -18,7 +18,7 @@ typedef struct CG_fragList_      *CG_fragList;
 typedef enum
 {
     IK_none, IK_const, IK_inFrame, IK_inReg, IK_inHeap, IK_cond,
-    IK_varPtr, IK_inFrameRef
+    IK_varPtr, IK_inFrameRef, IK_property
 } CG_itemKind;
 
 typedef enum
@@ -46,6 +46,7 @@ struct CG_item_
         struct { Temp_label l;                                     }   inHeap;
         struct { Temp_label l; AS_instrList fixUps; bool postCond; }   condR;
         Temp_temp                                                      varPtr;
+        struct { Temp_temp thisReg; Ty_ty thisTy; Ty_recordEntry p;}   property;
     } u;
 };
 
@@ -166,6 +167,7 @@ void            CG_transBinOp       (AS_instrList code, S_pos pos, CG_frame fram
 void            CG_transRelOp       (AS_instrList code, S_pos pos, CG_relOp o, CG_item *left, CG_item *right);
 void            CG_transIndex       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *array, CG_item *idx);
 void            CG_transField       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry);
+void            CG_transProperty    (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry);
 void            CG_transJump        (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transJSR         (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transRTS         (AS_instrList code, S_pos pos);
