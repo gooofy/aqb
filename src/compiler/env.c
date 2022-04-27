@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     43
+#define SYM_VERSION     45
 
 E_module g_builtinsModule = NULL;
 
@@ -464,8 +464,7 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                         ok &= E_tyFindTypes (smod, type_tab, entry->u.field.ty);
                         break;
                     case Ty_recProperty:
-                        // FIXME
-                        assert(FALSE);
+                        ok &= E_tyFindTypes (smod, type_tab, entry->u.property.ty);
                         break;
                 }
             }
@@ -604,6 +603,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
+                        fwrite_u1(modf, entry->visibility);
                         E_serializeTyProc(modTable, entry->u.method);
                         break;
                     case Ty_recField:
@@ -614,8 +614,11 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                         E_serializeTyRef(modTable, entry->u.field.ty);
                         break;
                     case Ty_recProperty:
-                        // FIXME
-                        assert(FALSE);
+                        fwrite_u1(modf, entry->visibility);
+                        strserialize(modf, S_name(entry->name));
+                        E_serializeTyRef(modTable, entry->u.property.ty);
+                        E_serializeTyProc(modTable, entry->u.property.getter);
+                        E_serializeTyProc(modTable, entry->u.property.setter);
                         break;
                 }
             }
@@ -665,6 +668,12 @@ static void E_serializeOptionalSymbol(S_symbol sym)
 
 static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
 {
+    if (!proc)
+    {
+        fwrite_u1(modf, 0);
+        return;
+    }
+    fwrite_u1(modf, 1);
     fwrite_u1(modf, proc->kind);
     fwrite_u1(modf, proc->visibility);
     E_serializeOptionalSymbol(proc->name);
@@ -1005,6 +1014,10 @@ static S_symbol E_deserializeOptionalSymbol(FILE *modf)
 
 static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
 {
+    uint8_t present = fread_u1(modf);
+    if (!present)
+        return NULL;
+
     uint8_t kind = fread_u1(modf);
     uint8_t visibility = fread_u1(modf);
     S_symbol name = E_deserializeOptionalSymbol(modf);
@@ -1031,7 +1044,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
             extra_syms = extra_syms_last = S_Symlist(sym, NULL);
         }
     }
-    uint8_t present = fread_u1(modf);
+    present = fread_u1(modf);
     Temp_label label = NULL;
     if (present)
     {
@@ -1272,10 +1285,9 @@ E_module E_loadModule(S_symbol sModule)
                     {
                         case Ty_recMethod:
                         {
-                            //LOG_printf (LOG_DEBUG, "Ty_recMethod\n");
-                            // FIXME: visibility!
+                            uint8_t visibility = fread_u1(modf);
                             Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                            Ty_recordAddMethod (ty, Ty_visPublic, proc->name, proc);
+                            Ty_recordAddMethod (ty, visibility, proc->name, proc);
                             break;
                         }
                         case Ty_recField:
@@ -1290,6 +1302,18 @@ E_module E_loadModule(S_symbol sModule)
                             field->u.field.uiOffset = uiOffset;
                             break;
                         }
+                        case Ty_recProperty:
+                        {
+                            uint8_t visibility = fread_u1(modf);
+                            string  name       = strdeserialize(UP_env, modf);
+                            Ty_ty   t          = E_deserializeTyRef(modTable, modf);
+                            Ty_proc getter     = E_deserializeTyProc(modTable, modf);
+                            Ty_proc setter     = E_deserializeTyProc(modTable, modf);
+                            Ty_recordAddProperty (ty, visibility, S_Symbol(name), t, setter, getter);
+                            break;
+                        }
+                        default:
+                            assert(FALSE);
                     }
                 }
 
