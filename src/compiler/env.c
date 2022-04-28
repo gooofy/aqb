@@ -401,6 +401,8 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty);
 
 static bool E_tyFindTypesInProc(S_symbol smod, TAB_table type_tab, Ty_proc proc)
 {
+    if (!proc)
+        return TRUE;
     bool ok = TRUE;
     for (Ty_formal formals = proc->formals; formals; formals=formals->next)
         ok &= E_tyFindTypes (smod, type_tab, formals->ty);
@@ -465,6 +467,8 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                         break;
                     case Ty_recProperty:
                         ok &= E_tyFindTypes (smod, type_tab, entry->u.property.ty);
+                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.getter);
+                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.setter);
                         break;
                 }
             }
@@ -1364,7 +1368,7 @@ E_module E_loadModule(S_symbol sModule)
         {
             if (ty->kind == Ty_toLoad)
             {
-                LOG_printf (LOG_ERROR, "%s: toLoad type detected!\n", symfn);
+                LOG_printf (LOG_ERROR, "%s: toLoad type detected! (tuid=%d)\n", symfn, tuid);
                 goto fail;
             }
         }
