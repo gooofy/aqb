@@ -84,7 +84,7 @@ Ty_ty Ty_Record (S_symbol mod, Ty_ty baseType)
     p->u.record.baseType     = baseType;
     p->u.record.entries      = NULL;
     p->u.record.constructor  = NULL;
-    p->u.record.uiSize       = 0;
+    p->u.record.uiSize       = baseType ? Ty_size(baseType) : 0;
     p->mod                   = mod;
     p->uid                   = g_uid++;
 
