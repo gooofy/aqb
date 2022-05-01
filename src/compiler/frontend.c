@@ -1621,9 +1621,31 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
         }
         else
         {
-            // implicit variable
-            autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
-            *tkn = (*tkn)->next;
+
+            // SUB pointer ?
+            E_enventryList el = NULL;
+            if (!leftHandSide)
+                el = E_resolveSub(g_sleStack->env, sym);
+            if (el)
+            {
+                if (el->first->next)
+                    return EM_error(pos, "ambigous SUB reference");
+                E_enventry entry = el->first->e;
+                if (entry->kind != E_procEntry)
+                    return EM_error(pos, "SUB identifier expected here");
+
+                CG_HeapPtrItem (exp, entry->u.proc->label, Ty_ProcPtr (FE_mod->name, entry->u.proc));
+                CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, exp);
+                exp->kind = IK_inReg;
+
+                *tkn = (*tkn)->next;
+            }
+            else
+            {
+                // implicit variable
+                autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
+                *tkn = (*tkn)->next;
+            }
         }
     }
 

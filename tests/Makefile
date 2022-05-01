@@ -7,7 +7,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 		const1.bas const2.bas const3.bas constprop.bas \
 		ctrl1.bas ctrl2.bas ctrl3.bas ctrl4.bas ctrl5.bas ctrl6.bas ctrl7.bas ctrl8.bas ctrl9.bas \
 		dynmem1.bas \
-		exp1.bas exp2.bas \
+		exp1.bas exp2.bas exp3.bas \
 		extcall2.bas \
 		loop1.bas loop2.bas loop3.bas loop4.bas loop5.bas loop6.bas loop7.bas loop8.bas \
 		loop9.bas loop10.bas loop11.bas loop12.bas loop13.bas loop14.bas loop15.bas \
@@ -94,7 +94,7 @@ test:
 	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" || break ; done
 
 single:
-	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/oop8"
+	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/exp3"
 
 clean:
 	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)
