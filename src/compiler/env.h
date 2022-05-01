@@ -49,7 +49,7 @@ struct E_enventry_
     S_symbol sym;
     union
     {
-        CG_item   var;
+        CG_item  var;
         Ty_proc  proc;
         Ty_ty    ty;
     } u;
