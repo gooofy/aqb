@@ -865,6 +865,17 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return FALSE;
             if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
                 return TRUE;
+
+            // OOP: child -> base class assignment is legal
+            if ( (ty1->u.pointer->kind == Ty_record) && (ty2->u.pointer->kind == Ty_record) )
+            {
+                Ty_ty tyr1 = ty1->u.pointer;
+                Ty_ty tyr2 = ty2->u.pointer;
+                while (tyr1 && (tyr1 != tyr2) && (tyr1->u.record.baseType))
+                    tyr1 = tyr1->u.record.baseType;
+                return tyr1 == tyr2;
+            }
+
             return compatible_ty(ty1->u.pointer, ty2->u.pointer);
         case Ty_procPtr:
         {

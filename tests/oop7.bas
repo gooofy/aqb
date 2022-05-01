@@ -71,6 +71,7 @@ END FUNCTION
 '
 
 DIM o AS myc2 PTR = NEW myc2(23, 42)
+DIM b AS myc1 PTR = o : REM check base type compatibility
 
 ASSERT o->retrieve()  = 23
 ASSERT o->retrieve2() = 42
