@@ -12,7 +12,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 		loop1.bas loop2.bas loop3.bas loop4.bas loop5.bas loop6.bas loop7.bas loop8.bas \
 		loop9.bas loop10.bas loop11.bas loop12.bas loop13.bas loop14.bas loop15.bas \
 	    opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
-	    oop1.bas oop2.bas oop3.bas oop4.bas oop5.bas oop6.bas oop7.bas oop8.bas \
+	    oop1.bas oop2.bas oop3.bas oop4.bas oop5.bas oop6.bas oop7.bas oop8.bas oop9.bas \
 	    scopes1.bas scopes2.bas scopes3.bas \
  	    string1.bas string2.bas string3.bas string4.bas string5.bas string6.bas \
  	    subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \
@@ -94,7 +94,7 @@ test:
 	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" || break ; done
 
 single:
-	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/exp3"
+	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/oop9"
 
 clean:
 	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)

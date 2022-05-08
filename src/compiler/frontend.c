@@ -1801,7 +1801,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
         *tkn = (*tkn)->next; // skip '('
         constructorAssignedArgs = CG_ItemList();
 
-        if (((*tkn)->kind != S_RPAREN) && tyClass->u.record.constructor)
+        if (tyClass->u.record.constructor)
         {
             if (!transActualArgs(tkn, tyClass->u.record.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
