@@ -1149,6 +1149,7 @@ void CG_loadCond (AS_instrList code, S_pos pos, CG_item *item)
         case IK_inReg:
         case IK_inHeap:
         case IK_inFrame:
+        case IK_property:
         {
             CG_item zero;
             CG_ZeroItem (&zero, CG_ty(item));
