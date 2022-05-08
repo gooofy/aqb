@@ -110,8 +110,10 @@ Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_
 
         // 68k alignment
         unsigned int s = Ty_size(fieldType);
-        if (s>1 && (recordType->u.record.uiSize % 2))
-            recordType->u.record.uiSize++;
+        //if (s>1 && (recordType->u.record.uiSize % 2))
+        //    recordType->u.record.uiSize++;
+        if (s<2)
+            s=2;
         uint32_t fieldOffset = recordType->u.record.uiSize;
 
         recordType->u.record.uiSize += s;
