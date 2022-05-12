@@ -138,6 +138,7 @@ typedef BOOL (*window_msg_cb_t    )(SHORT wid, struct Window *win, struct IntuiM
 
 enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
 struct Window         *_aqb_get_win    (SHORT wid);
+SHORT                  _aqb_get_win_id (struct Window *win);
 
 void   _window_add_close_cb   (window_close_cb_t cb, void *ud);
 void   _window_add_msg_cb     (window_msg_cb_t cb);

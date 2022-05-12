@@ -321,7 +321,7 @@ void WINDOW_CLOSE(short id)
 #ifdef ENABLE_DEBUG
         DPRINTF ("WINDOW_CLOSE calling close cb 0x%08lx)\n", n->cb);
 #endif
-        n->cb(id-1, n->ud);
+        n->cb(id, n->ud);
     }
 
     if (_g_winlist[id-1].win->RPort->TmpRas)
@@ -493,6 +493,16 @@ struct Window *_aqb_get_win (SHORT wid)
 {
     struct Window *win = _g_winlist[wid].win;
     return win;
+}
+
+SHORT _aqb_get_win_id (struct Window *win)
+{
+    for (int i =0; i<MAX_NUM_WINDOWS; i++)
+    {
+        if (_g_winlist[i].win==win)
+            return i+1;
+    }
+    return 0;
 }
 
 static BOOL _awindow_cls (void)
