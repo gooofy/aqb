@@ -1,6 +1,6 @@
 include ../../../config.mk
 
-CFLAGS_MUI = -I/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/mui/SDK/MUI/C/include
+CFLAGS_MUI = -I../../MUI/Developer/C/Include
 CFLAGS_AMIGAOS2   = -O3 -march=68000 -mcpu=68000 -mcrt=nix20 -I$(SELF_DIR)/src/amigasupport
 
 SRCS = 	muitest.c
