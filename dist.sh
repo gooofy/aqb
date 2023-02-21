@@ -75,9 +75,9 @@ cp -r dist/amiga/Fonts ${WORKDIR}/aqb/examples/demo
 cp -r dist/amiga/8svx  ${WORKDIR}/aqb/examples/demo
 cp -r dist/amiga/imgs  ${WORKDIR}/aqb/examples/demo
 
-pushd ${WORKDIR}
+cd ${WORKDIR}
 lha a ${LHA} aqb.info aqb
-popd
+cd -
 
 echo "${LHA} created."
 
@@ -87,10 +87,10 @@ cp ${LHA} $XAMIGA
 
 if [ -e "$LAMIGA/Apps" ]; then
 
-    pushd "$LAMIGA/Apps"
+    cd "$LAMIGA/Apps"
     rm -rf aqb*
     lha x -f ${LHA}
-    popd
+    cd -
 
 fi
 
@@ -98,13 +98,12 @@ fi
 #if [ -e "$EAMIGA/Apps" ]; then
 #
 #    cp ${LHA} $EAMIGA/x/
-#    pushd "$EAMIGA/Apps"
+#    cd "$EAMIGA/Apps"
 #    rm -rf aqb*
 #    lha x ${LHA}
-#    popd
+#    cd -
 #
 #fi
 
 EXPORT=$XAMIGA/../../export
 cp ${LHA} ${EXPORT}
-
