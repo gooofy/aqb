@@ -4,33 +4,32 @@
 all:	runner printfloat dumpfonts rtgblit areaptrn gctest loadfont
 
 runner:
-	cd runner ; make all
+	make -C $@ all
 
 printfloat:
-	cd printfloat ; make all
+	make -C $@ all
 
 dumpfonts:
-	cd dumpfonts ; make all
+	make -C $@ all
 
 rtgblit:
-	cd rtgblit ; make all
+	make -C $@ all
 
 loadfont:
-	cd loadfont ; make all
+	make -C $@ all
 
 areaptrn:
-	cd areaptrn ; make all
+	make -C $@ all
 
 gctest:
-	cd gctest ; make all
+	make -C $@ all
 
 clean:
-	cd ffputils ; make clean
-	cd runner ; make clean
-	cd printfloat ; make clean
-	cd dumpfonts ; make clean
-	cd rtgblit ; make clean
-	cd areaptrn ; make clean
-	cd gctest ; make clean
-	cd loadfont ; make clean
-
+	make -C ffputils clean
+	make -C runner clean
+	make -C printfloat clean
+	make -C dumpfonts clean
+	make -C rtgblit clean
+	make -C areaptrn clean
+	make -C gctest clean
+	make -C loadfont clean
