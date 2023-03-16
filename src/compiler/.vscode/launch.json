@@ -89,13 +89,13 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "UISupport",
+            "name": "GadToolsSupport",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/../../target/x86_64-linux/bin/aqb",
-            "args": ["-L", "..", "-v", "-d", "_aqb", "-s", "UISupport.sym", "-v", "UISupport.bas"],
+            "args": ["-L", "..", "-v", "-d", "_aqb", "-s", "GadToolsSupport.sym", "-v", "GadToolsSupport.bas"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/../lib/UISupport",
+            "cwd": "${workspaceFolder}/../lib/GadToolsSupport",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
