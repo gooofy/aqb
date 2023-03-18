@@ -4,6 +4,7 @@
 #include <exec/types.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 /*
  * minrt: minimalistic AQB runtime
