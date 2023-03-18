@@ -1,15 +1,15 @@
 include ../../../config.mk
 
-CFLAGS_AMIGAOS2   = -O3 -march=68000 -mcpu=68000 -nostdlib -fno-builtin
+CFLAGS_AMIGAOS2   = -O3 -march=68000 -mcpu=68000 -nostdlib -fno-builtin -I$(SELF_DIR)/src/commonrt/minrt
 #-mcrt=nix20 -fomit-frame-pointer
 # -I$(SELF_DIR)/src/amigasupport
 
 LDFLAGS_AMIGAOS  =
 
 STARTUP = $(SELF_DIR)/src/commonrt/startup/startup.o
+MINRT   = $(SELF_DIR)/src/commonrt/minrt/minrt.a
 
-SRCS = amigasupport.c break_handler.c  cstartup.c  debugger.c  io.c  rttest.c \
-	   strings.c math.c
+SRCS = rttest.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 
@@ -24,7 +24,7 @@ $(OBJDIR_AMIGAOS)/%.o : %.c $(DEPDIR_AMIGAOS)/%.d | $(DEPDIR_AMIGAOS)
 	$(CC_AMIGAOS) -c -g $(CFLAGS_AMIGAOS2) $(DEPFLAGS_AMIGAOS) $< -o $@
 
 ${BINDIR_AMIGAOS}/rttest:	$(OBJS_AMIGAOS)
-	$(CC_AMIGAOS) -g $(CFLAGS_AMIGAOS2) $(LDFLAGS_AMIGAOS) -o $@ $(STARTUP) $^
+	$(CC_AMIGAOS) -g $(CFLAGS_AMIGAOS2) $(LDFLAGS_AMIGAOS) -o $@ $(STARTUP) $^ $(MINRT)
 	# $(STRIP_AMIGAOS) $@
 	cp $@ $(DISTDIR)
 
