@@ -77,9 +77,11 @@ unpack it wherever you like, keep the directory structure intact.
 AQB should run from this point on without the need for further installation,
 but for convenience add a "AQB:" assign to your `S:user-startup` file, e.g.
 
+```
 ;BEGIN AQB
 Assign AQB: "sys:Apps/AQB"
 ;END AQB
+```
 
 ## Type System
 
@@ -242,6 +244,7 @@ resulting AQB declarations typically look like:
     * F5        - compile & run
     * F7        - compile
     * F9        - toggle breakpoint
+	* TAB		- fold or unfold subprograms
     * Ctrl-F    - find
     * Ctrl-N    - find next
     * Ctrl-M    - mark block
