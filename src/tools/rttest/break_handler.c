@@ -1,5 +1,16 @@
 #include "minrt.h"
 
+#include <stdlib.h>
+
+#include <clib/alib_protos.h>
+
+#include <exec/interrupts.h>
+#include <clib/exec_protos.h>
+#include <inline/exec.h>
+
+#include <devices/inputevent.h>
+#include <devices/input.h>
+
 USHORT _break_status = 0;
 
 struct Task             *_autil_task             = NULL;
@@ -8,8 +19,7 @@ static struct MsgPort   *g_inputPort             = NULL;
 static struct Interrupt *g_inputHandler          = NULL;
 static BOOL              g_inputDeviceOpen       = FALSE;
 static BOOL              g_InputHandlerInstalled = FALSE;
-
-static char *g_inputHandlerName = "AQB CTRL-C input event handler";
+static char             *g_inputHandlerName      = "AQB CTRL-C input event handler";
 
 asm(
 "   .text\n"
@@ -24,9 +34,9 @@ asm(
 
 void _ctrlc_break(void);
 
-static void (*break_handler)(void) = NULL;
+static bool (*break_handler)(void) = NULL;
 
-void ON_BREAK_CALL(void (*cb)(void))
+void _atbreak(bool (*cb)(void))
 {
     break_handler = cb;
 }
@@ -41,9 +51,7 @@ void __handle_break(void)
 
         if (break_handler)
         {
-            _do_resume = FALSE;
-            break_handler();
-            if (_do_resume)
+            if (break_handler())
                 return;
         }
 
@@ -56,7 +64,7 @@ void __handle_break(void)
         else
         {
             DPRINTF ("__handle_break... -> exit\n");
-            _autil_exit(1);
+            exit(1);
         }
     }
 }
@@ -88,8 +96,61 @@ static void ___breakHandler (register ULONG signals __asm("d0"), register APTR e
     _break_status = BREAK_CTRL_C;
 }
 
+static void _break_handler_shutdown(void)
+{
+    if (g_InputHandlerInstalled)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: remove input handler\n");
+        //Delay(50);
+#endif
+        g_inputReqBlk->io_Data    = (APTR)g_inputHandler;
+        g_inputReqBlk->io_Command = IND_REMHANDLER;
+
+        DoIO((struct IORequest *)g_inputReqBlk);
+    }
+
+    if (g_inputDeviceOpen)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: close input.device\n");
+        //Delay(50);
+#endif
+        CloseDevice((struct IORequest *)g_inputReqBlk);
+    }
+
+    if (g_inputReqBlk)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: delete input io req\n");
+        //Delay(50);
+#endif
+        DeleteExtIO((struct IORequest *)g_inputReqBlk);
+    }
+
+    if (g_inputHandler)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: free input handler\n");
+        //Delay(50);
+#endif
+        FreeMem(g_inputHandler, sizeof(struct Interrupt));
+    }
+
+    if (g_inputPort)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: delete input port\n");
+        //Delay(50);
+#endif
+        DeletePort(g_inputPort);
+    }
+}
+
 void _break_handler_init(void)
 {
+    atexit (_break_handler_shutdown);
+
     /* set up break signal exception + handler */
 
     _autil_task = FindTask(NULL);
@@ -103,17 +164,17 @@ void _break_handler_init(void)
 
     /* install CTRL+C input event handler */
 
-	if ( !(g_inputPort=_autil_create_port(NULL, 0)) )
-        _cshutdown(20, (UBYTE *) "*** error: failed to allocate CTRL-C handler input port!\n");
+	if ( !(g_inputPort=CreatePort(NULL, 0)) )
+        _exit_msg(20, (UBYTE *) "*** error: failed to allocate CTRL-C handler input port!\n");
 
     if ( !(g_inputHandler=AllocMem(sizeof(struct Interrupt), MEMF_PUBLIC|MEMF_CLEAR)) )
-        _cshutdown(20, (UBYTE *) "*** error: failed to allocate CTRL-C handler memory!\n");
+        _exit_msg(20, (UBYTE *) "*** error: failed to allocate CTRL-C handler memory!\n");
 
-    if ( !(g_inputReqBlk=(struct IOStdReq *)_autil_create_ext_io(g_inputPort, sizeof(struct IOStdReq))) )
-        _cshutdown(20, (UBYTE *) "*** error: failed to allocate CTRL-C ext io!\n");
+    if ( !(g_inputReqBlk=(struct IOStdReq *)CreateExtIO(g_inputPort, sizeof(struct IOStdReq))) )
+        _exit_msg(20, (UBYTE *) "*** error: failed to allocate CTRL-C ext io!\n");
 
     if (OpenDevice ((STRPTR)"input.device", /*unitNumber=*/0, (struct IORequest *)g_inputReqBlk, /*flags=*/0))
-        _cshutdown(20, (UBYTE *) "*** error: failed to open input.device!\n");
+        _exit_msg(20, (UBYTE *) "*** error: failed to open input.device!\n");
     g_inputDeviceOpen = TRUE;
 
     g_inputHandler->is_Code         = (APTR) ___inputHandler;

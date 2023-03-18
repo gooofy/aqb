@@ -42,7 +42,7 @@ _start:
     movel   d0,___commandlen
     */
 
-    /* save sp and all registers so we can restore them in __autil_exit called from any point in the program */
+    /* save sp and all registers so we can restore them in _exit called from any point in the program */
     movem.l  d2-d7/a2-a6, -(sp)
     move.l   sp,___SaveSP
 
@@ -75,7 +75,7 @@ _start:
 
     /* this _is_ a debug message -> put exit function pointer into it */
 
-    move.l   #__autil_exit, dbg_exitFn(a0)
+    move.l   #_exit, dbg_exitFn(a0)
 
 runMain:
 
@@ -102,14 +102,14 @@ runMain:
 
 noStackSwap:
 
-    jsr      __aqb_main
+    jsr      _main
 
     move.l   #0, -(sp)       /* 0 return code in case we reach this point (i. e. _aqb_main hasn't called _autil_exit(rc)) */
-    bsr      __autil_exit
+    bsr      _exit
 
 
-    .globl __autil_exit
-__autil_exit:
+    .globl _exit
+_exit:
 
     /* restore stack in case we swapped it */
     move.l   __g_stack, d0
@@ -126,7 +126,7 @@ __autil_exit:
 
 noStackRestore:
 
-    jsr      __c_atexit
+    jsr      __cexit         /* run minrt's _cexit(), which will call the exit handlers */
 
 	/* if in Workbench mode, reply to the startup message now. */
 

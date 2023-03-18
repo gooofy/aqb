@@ -1,7 +1,3 @@
-#include "gtltest.h"
-
-#ifdef ENABLE_DPRINTF
-
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
@@ -136,7 +132,7 @@ int isdigit(int c)
     return _ctype_[1+c]&4;
 }
 
-static void vdprintf(const char *format, va_list args)
+void vcbprintf(const char *format, va_list args, void (*cb)(char c))
 {
 	while (*format)
     {
@@ -290,39 +286,29 @@ static void vdprintf(const char *format, va_list args)
 
 			if (flags & ZEROPADFLAG) /* print sign and that like */
 				for (i = 0; i < size1; i++)
-					_debug_putc(buffer1[i]);
+					cb(buffer1[i]);
 
 			if (!(flags & LALIGNFLAG)) /* Pad left */
 				for (i = 0; i < pad; i++)
-					_debug_putc(flags&ZEROPADFLAG?'0':' ');
+					cb(flags&ZEROPADFLAG?'0':' ');
 
 			if (!(flags & ZEROPADFLAG)) /* print sign if not zero padded */
 				for (i = 0; i < size1; i++)
-					_debug_putc(buffer1[i]);
+					cb(buffer1[i]);
 
 			for (i = size2; i < preci; i++) /* extend to precision */
-				_debug_putc('0');
+				cb('0');
 
 			for (i = 0; i < size2; i++) /* print body */
-				_debug_putc(buffer2[i]);
+				cb(buffer2[i]);
 
 			if (flags & LALIGNFLAG) /* Pad right */
 				for (i = 0; i < pad; i++)
-					_debug_putc(' ');
+					cb(' ');
 
 			format = ptr;
 		} else
-			_debug_putc(*format++);
+			cb(*format++);
 	}
 }
 
-void dprintf(const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    vdprintf(format, args);
-    va_end(args);
-}
-
-#endif
