@@ -237,6 +237,8 @@ resulting AQB declarations typically look like:
     * ESC       - toggle console visibility
     * S-UP      - page up
     * S-DOWN    - page down
+    * S-LEFT    - goto start of line
+	* S-RIGHT   - goto end of line
     * Ctrl-Up   - goto top of file
     * Ctrl-Down - goto end of file
     * Ctrl-B    - mark block
@@ -248,8 +250,9 @@ resulting AQB declarations typically look like:
     * Ctrl-F    - find
     * Ctrl-N    - find next
     * Ctrl-M    - mark block
-    * Ctrl-S    - save
-    * Ctrl-C    - quit
+	* Ctrl-O    - open file in editor
+    * Ctrl-S    - save file
+    * Ctrl-Q    - quit (also Ctrl-C)
 
 ## Benchmark Results
 
