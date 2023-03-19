@@ -50,6 +50,12 @@ DONE translate forum posts, add useful information to README
 
 ## Runtime
 
+- do stackswap only on demand
+
+- switch \_brt, \_aqb to commonrt
+
+- switch IDE to commonrt
+
 - DONE startup code: workbench startup
 
 - startup code: command line args
@@ -323,6 +329,8 @@ DONE translate forum posts, add useful information to README
 - DONE WINDOW()
 
 ## Examples / Demos / Libraries
+
+- include examples from blackborn66 https://github.com/blackborn66/aqb-tests-demos
 
 - EGads
 

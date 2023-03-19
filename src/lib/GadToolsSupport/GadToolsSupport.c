@@ -102,7 +102,7 @@ void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, GTGADGET_t *parent,
     }
 }
 
-STRPTR _GTGADGET_text_ (GTGADGET_t *this)
+CONST_STRPTR _GTGADGET_text_ (GTGADGET_t *this)
 {
     return this->ng.ng_GadgetText;
 }

@@ -765,7 +765,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
         env->u.wb.msg.sm_ArgList                 = &env->u.wb.arg0;
 
         env->u.wb.arg0.wa_Lock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
-        env->u.wb.arg0.wa_Name = (BYTE*) FilePart ((STRPTR)binfn);
+        env->u.wb.arg0.wa_Name = FilePart ((STRPTR)binfn);
 
         if (arg1)
         {
@@ -773,7 +773,7 @@ static bool _launch_process (DEBUG_env env, char *binfn, char *arg1, bool dbg)
             *(PathPart((STRPTR)env->dirbuf)) = 0;
 
             env->u.wb.arg1.wa_Lock = Lock ((STRPTR)env->dirbuf, ACCESS_READ);
-            env->u.wb.arg1.wa_Name = (BYTE*) FilePart ((STRPTR)arg1);
+            env->u.wb.arg1.wa_Name = FilePart ((STRPTR)arg1);
         }
         LOG_printf (LOG_DEBUG, "DEBUG _launch_process: Send WBSTartup msg (arg1=%s) ...\n", arg1);
 
@@ -853,7 +853,7 @@ void DEBUG_help (char *binfn, char *arg1)
     g_helpEnv.u.wb.msg.sm_ArgList                 = &g_helpEnv.u.wb.arg0;
 
     g_helpEnv.u.wb.arg0.wa_Lock = Lock ((STRPTR)g_helpEnv.dirbuf, ACCESS_READ);
-    g_helpEnv.u.wb.arg0.wa_Name = (BYTE*) FilePart ((STRPTR)binfn);
+    g_helpEnv.u.wb.arg0.wa_Name = FilePart ((STRPTR)binfn);
 
     if (arg1)
     {
@@ -861,7 +861,7 @@ void DEBUG_help (char *binfn, char *arg1)
         *(PathPart((STRPTR)g_helpEnv.dirbuf)) = 0;
 
         g_helpEnv.u.wb.arg1.wa_Lock = Lock ((STRPTR)g_helpEnv.dirbuf, ACCESS_READ);
-        g_helpEnv.u.wb.arg1.wa_Name = (BYTE*) FilePart ((STRPTR)arg1);
+        g_helpEnv.u.wb.arg1.wa_Name = FilePart ((STRPTR)arg1);
     }
     LOG_printf (LOG_DEBUG, "DEBUG_help: Send WBSTartup msg (arg1=%s) ...\n", arg1);
 

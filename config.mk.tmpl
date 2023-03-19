@@ -31,7 +31,7 @@ DEPFLAGS_AMIGAOS = -MT $@ -MMD -MP -MF $(DEPDIR_AMIGAOS)/$*.d
 ASFLAGS_AMIGAOS  = -march=68000 -mcpu=68000
 LDFLAGS_AMIGAOS  = -lm
 
-TOOLCHAIN_AMIGAOS_PREFIX = /home/guenter/projects/amiga/amiga-gcc
+TOOLCHAIN_AMIGAOS_PREFIX = /opt/amiga
 
 CC_AMIGAOS      = $(TOOLCHAIN_AMIGAOS_PREFIX)/bin/m68k-amigaos-gcc
 AS_AMIGAOS      = $(TOOLCHAIN_AMIGAOS_PREFIX)/bin/m68k-amigaos-as

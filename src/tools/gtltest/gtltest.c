@@ -23,7 +23,6 @@
 #include "include/proto/gtlayout_protos.h"
 #include "include/inline/gtlayout.h"
 
-
 ULONG _aqb_stack_size = 0;
 
 extern struct WBStartup     *_WBenchMsg;
@@ -106,12 +105,28 @@ int main(void)
 	         LA_Type,      END_KIND,    /* This ends the current group. */
 	      TAG_DONE);
 	   }
-
 	   if ((Window = LT_Build(Handle,
-	                          LAWN_Title,     (ULONG)"Window title",
-	                          LAWN_IDCMP,     IDCMP_CLOSEWINDOW,
-	                          WA_CloseGadget, TRUE,
-	                          TAG_DONE)))
+	        	LAWN_Title, (ULONG) "Hubba",
+	        	LAWN_IDCMP, IDCMP_CLOSEWINDOW,
+	        	LAWN_BelowMouse, TRUE,
+	        	LAWN_SmartZoom, TRUE,
+	        	WA_SimpleRefresh, TRUE,
+	        	WA_Activate, TRUE,
+	        	WA_CloseGadget, TRUE,
+	        	WA_DepthGadget, TRUE,
+	        	WA_DragBar, TRUE,
+	        	TAG_END)))
+	   //if ((Window = LT_Build(Handle,
+	   //                       LAWN_IDCMP,     IDCMP_CLOSEWINDOW,
+       //                       LAWN_BelowMouse, TRUE,
+       //                       LAWN_SmartZoom, TRUE,
+       //                       WA_SimpleRefresh, TRUE,
+       //                       WA_Activate, TRUE,
+       //                       WA_CloseGadget, TRUE,
+       //                       WA_DepthGadget, TRUE,
+       //                       WA_DragBar, TRUE,
+	   //                       LAWN_Title,     (ULONG)"HUBBA title",
+	   //                       TAG_DONE)))
 	   {
            DPRINTF ("LT_Build worked.\n");
            Delay(50);

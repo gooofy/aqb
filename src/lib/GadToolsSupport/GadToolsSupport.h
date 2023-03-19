@@ -51,13 +51,13 @@ void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, GTGADGET_t *parent,
                             void *user_data, ULONG flags, ULONG underscore);
 
 // GTGADGET properties
-STRPTR _GTGADGET_text_      (GTGADGET_t *this);
-void   _GTGADGET_text       (GTGADGET_t *this, STRPTR text);
-SHORT  _GTGADGET_id_        (GTGADGET_t *this);
-void   _GTGADGET_id         (GTGADGET_t *this, SHORT id);
-ULONG  _GTGADGET_flags_     (GTGADGET_t *this);
-void   _GTGADGET_flags      (GTGADGET_t *this, ULONG flags);
-BOOL   _GTGADGET_deployed_  (GTGADGET_t *this);
+CONST_STRPTR _GTGADGET_text_      (GTGADGET_t *this);
+void         _GTGADGET_text       (GTGADGET_t *this, STRPTR text);
+SHORT        _GTGADGET_id_        (GTGADGET_t *this);
+void         _GTGADGET_id         (GTGADGET_t *this, SHORT id);
+ULONG        _GTGADGET_flags_     (GTGADGET_t *this);
+void         _GTGADGET_flags      (GTGADGET_t *this, ULONG flags);
+BOOL         _GTGADGET_deployed_  (GTGADGET_t *this);
 
 struct GTLAYOUT_
 {
