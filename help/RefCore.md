@@ -476,11 +476,11 @@ counter loop using specified start and stop numerical boundaries, default
 increment is 1
 
 
-## FREE()
+## FRE()
 
 Syntax:
 
-    FREE "(" x ")"
+    FRE "(" x ")"
 
 .Table x values
 |===
