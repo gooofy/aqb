@@ -163,7 +163,7 @@ BOOL ASUP_NameFromLock(BPTR lock, STRPTR buffer, LONG length)
         if (Examine (mylock, fib))
         {
 			//printf ("ASUP_NameFromLock: fib->fib_FileName=%s\n", fib->fib_FileName);
-            LONG len = strlen (fib->fib_FileName);
+            LONG len = strlen ((char*) fib->fib_FileName);
             if ((STRPTR)(name-(len+4)) < buffer)
             {
                 UnLock(mylock2);
@@ -228,7 +228,7 @@ struct IORequest *ASUP_create_ext_io(CONST struct MsgPort * port, LONG io_size)
     if (port == NULL || io_size < (LONG)sizeof(*result))
         goto out;
 
-    result = CreateIORequest (port, (ULONG)io_size);
+    result = CreateIORequest ((struct MsgPort *)port, (ULONG)io_size);
 
 out:
     return result;

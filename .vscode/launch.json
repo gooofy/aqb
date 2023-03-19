@@ -5,11 +5,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "gcc build and debug active file",
+            "name": "darray4",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
             "args": ["-L", "src/lib", "-d", "_brt", "tests/darray4.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "cond1",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/cond1.bas.s", "-o", "/tmp/cond1", "tests/cond1.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
