@@ -401,6 +401,7 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
 
         S_symbol sym = S_Symbol ((string) g_buf);
 
+        if (ext_type < 200) ext_type &= ~0x60; // stolen from binutils' bfd/amigaos.c
         switch (ext_type)
         {
             case EXT_TYPE_REF32:

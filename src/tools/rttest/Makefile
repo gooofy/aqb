@@ -1,6 +1,6 @@
 include ../../../config.mk
 
-CFLAGS_AMIGAOS2   = -O3 -march=68000 -mcpu=68000 -nostdlib -fno-builtin -I$(SELF_DIR)/src/commonrt/minrt
+CFLAGS_AMIGAOS2   = -O3 -march=68000 -mcpu=68000 -nostdlib -I$(SELF_DIR)/src/commonrt/minrt
 #-mcrt=nix20 -fomit-frame-pointer
 # -I$(SELF_DIR)/src/amigasupport
 

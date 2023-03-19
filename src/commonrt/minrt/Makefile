@@ -9,7 +9,7 @@ LDFLAGS_AMIGAOS  =
 STARTUP = $(SELF_DIR)/src/commonrt/startup/startup.o
 
 SRCS = amigasupport.c break_handler.c  cstartup.c  debugger.c  io.c \
-	   strings.c math.c
+	   strings.c math.c mem.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 

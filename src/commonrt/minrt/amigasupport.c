@@ -228,7 +228,7 @@ struct IORequest *CreateExtIO(CONST struct MsgPort *port, LONG io_size)
     if (port == NULL || io_size < (LONG)sizeof(*result))
         goto out;
 
-    result = CreateIORequest (port, (ULONG)io_size);
+    result = CreateIORequest ((struct MsgPort *)port, (ULONG)io_size);
 
 out:
     return result;
