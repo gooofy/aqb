@@ -148,7 +148,5 @@ void _cstartup (void)
 
         DPRINTF ("_cstartup: allocated custom stack: 0x%08lx\n", _g_stack);
     }
-
-    _debugger_init();
 }
 
