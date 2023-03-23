@@ -28,6 +28,8 @@ directories:
 	mkdir -p target/m68k-amigaos/obj
 	mkdir -p target/x86_64-linux/bin
 	mkdir -p target/x86_64-linux/obj
+	mkdir -p $(DISTDIR)/lib
+	mkdir -p $(DISTDIR)/libsrc
 
 clean:
 	cd src ; make clean
