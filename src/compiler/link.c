@@ -25,14 +25,34 @@
 #define HUNK_TYPE_END      0x03F2
 #define HUNK_TYPE_HEADER   0x03F3
 
-#define EXT_TYPE_DEF            1
-#define EXT_TYPE_ABS            2
-#define EXT_TYPE_REF32        129
-#define EXT_TYPE_COMMON       130
-#define EXT_TYPE_ABSREF16     138
+/* hunk_ext sub-types */
+#define EXT_TYPE_SYMB            0
+#define EXT_TYPE_DEF             1
+#define EXT_TYPE_ABS             2
+#define EXT_TYPE_RES             3
+#define EXT_TYPE_REF32         129
+#define EXT_TYPE_COMMON        130
+#define EXT_TYPE_REF16         131
+#define EXT_TYPE_REF8          132
+#define EXT_TYPE_DEXT32        133
+#define EXT_TYPE_DEXT16        134
+#define EXT_TYPE_DEXT8         135
+#define EXT_TYPE_RELREF32      136
+#define EXT_TYPE_RELCOMMON     137
+#define EXT_TYPE_ABSREF16      138
+#define EXT_TYPE_ABSREF8       139
+/* vbcc extensions */
+#define EXT_TYPE_DEXT32COMMON  208
+#define EXT_TYPE_DEXT16COMMON  209
+#define EXT_TYPE_DEXT8COMMON   210
+/* EHF extensions */
+#define EXT_TYPE_RELREF26      229
+/* flags for symbol types < 200 */
+#define EXT_FLAG_WEAK          0x40
+#define EXT_FLAG_LOCAL         0x20
 
-#define MAX_BUF              1024
-#define MAX_NUM_HUNKS          64
+#define MAX_BUF               1024
+#define MAX_NUM_HUNKS           64
 
 #define ENABLE_SYMBOL_HUNK
 
@@ -401,7 +421,12 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
 
         S_symbol sym = S_Symbol ((string) g_buf);
 
-        if (ext_type < 200) ext_type &= ~0x60; // stolen from binutils' bfd/amigaos.c
+        uint8_t ext_flags = 0;
+        if (ext_type < 200)
+        {
+            ext_flags = ext_type & 0x60;
+            ext_type &= ~0x60;
+        }
         switch (ext_type)
         {
             case EXT_TYPE_REF32:
@@ -460,8 +485,9 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
                     LOG_printf (LOG_ERROR, "link: read error #20.\n");
                     return FALSE;
                 }
-                AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
-                LOG_printf (LOG_DEBUG, "link: %s:  -> ext_def, offset=0x%08x\n", sourcefn, offset);
+                if (!(ext_flags & EXT_FLAG_LOCAL))
+                    AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
+                LOG_printf (LOG_DEBUG, "link: %s:  -> ext_def, offset=0x%08x, flags=0x%02x\n", sourcefn, offset, ext_flags);
                 break;
             }
             case EXT_TYPE_ABS:
@@ -887,7 +913,7 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
             if (si)
             {
                 char msg[256];
-                snprintf(msg, 256, "symbol %s defined more than once!", S_name(def->sym));
+                snprintf(msg, 256, "symbol %s defined more than once! (%s and %s)", S_name(def->sym), si->seg->sourcefn, node->seg->sourcefn);
                 link_fail (msg);
             }
 
