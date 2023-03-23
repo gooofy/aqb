@@ -32,7 +32,7 @@
 #include <libraries/diskfont.h>
 #include <inline/diskfont.h>
 
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 #define MAXINPUTBUF 1024
 
