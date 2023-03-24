@@ -5,6 +5,7 @@ REM
 OPTION EXPLICIT
 IMPORT AnimSupport
 
+SCREEN 1, 640, 200, 3, AS_MODE_HIRES, "Sprite Demo"
 WINDOW 1, "SPRITE Demo"
 
 REM create a bitmap, draw into it and create the SPRITE

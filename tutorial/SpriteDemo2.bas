@@ -5,6 +5,7 @@ REM
 OPTION EXPLICIT
 IMPORT AnimSupport
 
+SCREEN 1, 640, 200, 3, AS_MODE_HIRES, "Sprite Demo 2"
 WINDOW 1, "SPRITE Demo 2 - IFF ILBM"
 
 REM load a sprite from an ILBM file
