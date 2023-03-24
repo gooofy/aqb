@@ -5,6 +5,7 @@ REM
 OPTION EXPLICIT
 IMPORT AnimSupport
 
+SCREEN 1, 640, 200, 3, AS_MODE_HIRES, "Sprite Demo 3"
 WINDOW 1, "SPRITE Demo 3 - Animation"
 
 DIM AS BITMAP_t PTR bananaBM = NULL

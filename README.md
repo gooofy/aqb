@@ -77,9 +77,11 @@ unpack it wherever you like, keep the directory structure intact.
 AQB should run from this point on without the need for further installation,
 but for convenience add a "AQB:" assign to your `S:user-startup` file, e.g.
 
+```
 ;BEGIN AQB
 Assign AQB: "sys:Apps/AQB"
 ;END AQB
+```
 
 ## Type System
 
@@ -88,6 +90,7 @@ Assign AQB: "sys:Apps/AQB"
 * Integer, UInteger (16 bits)
 * Long, ULong (32 bits)
 * Single (32 Bit FFP floats)
+* Boolean (8 bits)
 
 ### Advanced types
 
@@ -235,6 +238,8 @@ resulting AQB declarations typically look like:
     * ESC       - toggle console visibility
     * S-UP      - page up
     * S-DOWN    - page down
+    * S-LEFT    - goto start of line
+	* S-RIGHT   - goto end of line
     * Ctrl-Up   - goto top of file
     * Ctrl-Down - goto end of file
     * Ctrl-B    - mark block
@@ -242,11 +247,13 @@ resulting AQB declarations typically look like:
     * F5        - compile & run
     * F7        - compile
     * F9        - toggle breakpoint
+	* TAB		- fold or unfold subprograms
     * Ctrl-F    - find
     * Ctrl-N    - find next
     * Ctrl-M    - mark block
-    * Ctrl-S    - save
-    * Ctrl-C    - quit
+	* Ctrl-O    - open file in editor
+    * Ctrl-S    - save file
+    * Ctrl-Q    - quit (also Ctrl-C)
 
 ## Benchmark Results
 

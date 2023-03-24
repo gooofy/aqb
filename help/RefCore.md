@@ -476,11 +476,11 @@ counter loop using specified start and stop numerical boundaries, default
 increment is 1
 
 
-## FREE()
+## FRE()
 
 Syntax:
 
-    FREE "(" x ")"
+    FRE "(" x ")"
 
 .Table x values
 |===
@@ -644,7 +644,7 @@ Syntax:
 
     LINE INPUT [ ";" ] [ stringLiteral ";" ] expDesignator
 
-request a STRING keyboard entry from a program user.
+request a STRING keyboard entry from a program user
 
 
 ## LINE INPUT\#
@@ -653,7 +653,7 @@ Syntax:
 
     LINE INPUT "#" expFNo "," expDesignator
 
-request a STRING keyboard entry from a program user.
+request a STRING input from file stream
 
 
 ## LOCATE
