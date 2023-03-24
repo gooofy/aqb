@@ -90,6 +90,7 @@ Assign AQB: "sys:Apps/AQB"
 * Integer, UInteger (16 bits)
 * Long, ULong (32 bits)
 * Single (32 Bit FFP floats)
+* Boolean (8 bits)
 
 ### Advanced types
 
