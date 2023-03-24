@@ -6184,7 +6184,10 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         {
             CG_item item;
             CG_HeapPtrItem (&item, proc->label, Ty_Prc(FE_mod->name, proc));
-            E_declareVFC (FE_mod->env, proc->name, &item);
+
+            E_declareVFC (g_sleStack->env, proc->name, &item);
+            if (proc->visibility == Ty_visPublic)
+                E_declareVFC (FE_mod->env, proc->name, &item);
         }
     }
     return decl;
