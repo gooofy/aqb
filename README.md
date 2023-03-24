@@ -9,6 +9,7 @@
 * [Installation](#installation)
 * [Benchmark Results](#benchmark-results)
 * [Source Code](#source-code)
+* [Authors](#authors)
 
 ### Command Reference
 
@@ -239,7 +240,7 @@ resulting AQB declarations typically look like:
     * S-UP      - page up
     * S-DOWN    - page down
     * S-LEFT    - goto start of line
-	* S-RIGHT   - goto end of line
+    * S-RIGHT   - goto end of line
     * Ctrl-Up   - goto top of file
     * Ctrl-Down - goto end of file
     * Ctrl-B    - mark block
@@ -247,11 +248,11 @@ resulting AQB declarations typically look like:
     * F5        - compile & run
     * F7        - compile
     * F9        - toggle breakpoint
-	* TAB		- fold or unfold subprograms
+    * TAB       - fold or unfold subprograms
     * Ctrl-F    - find
     * Ctrl-N    - find next
     * Ctrl-M    - mark block
-	* Ctrl-O    - open file in editor
+    * Ctrl-O    - open file in editor
     * Ctrl-S    - save file
     * Ctrl-Q    - quit (also Ctrl-C)
 
@@ -268,4 +269,9 @@ Measured on an A500 configuration (PAL 68000, 3MB RAM) in FS-UAE, Kickstart 1.3
 ## Source Code
 
 https://github.com/gooofy/aqb
+
+## Authors
+
+* Günter Bartsch (https://github.com/gooofy) Main Author
+* S. Hi (https://github.com/blackborn66) Bugfixes, Documentation, Testing, Feedback
 
