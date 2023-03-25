@@ -4,9 +4,9 @@
 #include "GadToolsSupport.h"
 
 #include <exec/types.h>
-#include <exec/memory.h>
-#include <clib/exec_protos.h>
-#include <inline/exec.h>
+//#include <exec/memory.h>
+//#include <clib/exec_protos.h>
+//#include <inline/exec.h>
 
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
@@ -19,30 +19,16 @@
 #include <clib/gadtools_protos.h>
 #include <inline/gadtools.h>
 
-#include <clib/dos_protos.h>
-#include <inline/dos.h>
+//#include <clib/dos_protos.h>
+//#include <inline/dos.h>
 
 extern struct Library    *GadToolsBase ;
 
-typedef struct
-{
-    GTGADGET_t        *first;
-    GTGADGET_t        *last;
-    struct Gadget     *gad;
-    struct Gadget     *gadList;
-    APTR              *vinfo;
-    struct TextAttr    ta;
-    BOOL               close_cb_installed;
-    BOOL               msg_cb_installed;
-    BOOL               deployed;
-    SHORT              id;
-} ui_win_ext_t;
-
-static ui_win_ext_t    g_win_ext[MAX_NUM_WINDOWS];
+static gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
 
 SHORT _GTGADGET_NEXT_ID (void)
 {
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
     return ext->id++;
 }
 
@@ -53,7 +39,7 @@ void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt,
 
     DPRINTF("_GTGADGET_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, txt=%s\n", this, x1, y1, txt ? txt : "NULL");
 
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
 
     if (ext->deployed)
     {
@@ -344,7 +330,7 @@ LONG GTGNUM_ (GTGADGET_t *g)
 }
 #endif
 
-static void _gtgadgets_free (struct Window *win, ui_win_ext_t *ext)
+static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
 {
     if (ext->deployed)
     {
@@ -365,7 +351,7 @@ static void window_close_cb (short win_id, void *ud)
 {
     DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
 
-    ui_win_ext_t *ext = &g_win_ext[win_id];
+    gt_win_ext_t *ext = &_g_gt_win_ext[win_id];
     struct Window *win = _aqb_get_win(win_id);
     _gtgadgets_free (win, ext);
 }
@@ -459,7 +445,7 @@ void GTGADGETS_DEPLOY (void)
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
 
     if (ext->deployed)
     {
@@ -533,7 +519,7 @@ void GTGADGETS_FREE (void)
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
 
     _gtgadgets_free (_g_cur_win, ext);
 }
@@ -544,7 +530,7 @@ void GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
     if (recessed)
         DrawBevelBox (_g_cur_rp, x1, y1, x2-x1+1, y2-y1+1, GTBB_Recessed, TRUE, GT_VisualInfo, (ULONG) ext->vinfo, TAG_DONE);
     else
@@ -598,7 +584,7 @@ static void _GadToolsSupport_shutdown(void)
     for (int i=0; i<MAX_NUM_WINDOWS; i++)
     {
         DPRINTF ("_GadToolsSupport_shutdown window #%d\n", i);
-        ui_win_ext_t *ext = &g_win_ext[i];
+        gt_win_ext_t *ext = &_g_gt_win_ext[i];
         if (ext->vinfo)
         {
             DPRINTF ("_GadToolsSupport_shutdown FreeVisualInfo()\n");
@@ -613,7 +599,7 @@ void _GadToolsSupport_init(void)
 {
     for (int i=0; i<MAX_NUM_WINDOWS; i++)
     {
-        ui_win_ext_t *ext = &g_win_ext[i];
+        gt_win_ext_t *ext = &_g_gt_win_ext[i];
 
         ext->first              = NULL;
         ext->last               = NULL;

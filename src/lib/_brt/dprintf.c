@@ -1,6 +1,6 @@
 #include "_brt.h"
 
-#ifdef ENABLE_DPRINTF
+//#ifdef ENABLE_DPRINTF
 
 #include <stdint.h>
 #include <stdarg.h>
@@ -324,4 +324,4 @@ void dprintf(const char *format, ...)
     va_end(args);
 }
 
-#endif
+// #endif // ENABLE_DPRINTF

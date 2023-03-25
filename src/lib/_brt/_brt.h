@@ -44,11 +44,12 @@ void _debug_break  (void);
 
 // #define ENABLE_DPRINTF
 
+void dprintf(const char *format, ...);
+
 #ifdef ENABLE_DPRINTF
 
 #define DPRINTF(...) dprintf(__VA_ARGS__)
 
-void dprintf(const char *format, ...);
 
 #else
 

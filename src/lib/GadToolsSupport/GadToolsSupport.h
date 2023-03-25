@@ -1,6 +1,11 @@
 #ifndef HAVE_GADTOOLS_SUPPORT_H
 #define HAVE_GADTOOLS_SUPPORT_H
 
+#include <exec/types.h>
+
+#include <intuition/intuition.h>
+#include <intuition/intuitionbase.h>
+
 #include <libraries/gadtools.h>
 
 #define AE_GTG_CREATE   400
@@ -106,6 +111,28 @@ void        GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, 
 //void        ON_GTG_MOVE_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
 
 SHORT _GTGADGET_NEXT_ID (void);
+
+/********************************************
+ *
+ * private data
+ *
+ ********************************************/
+
+typedef struct
+{
+    GTGADGET_t        *first;
+    GTGADGET_t        *last;
+    struct Gadget     *gad;
+    struct Gadget     *gadList;
+    APTR              *vinfo;
+    struct TextAttr    ta;
+    BOOL               close_cb_installed;
+    BOOL               msg_cb_installed;
+    BOOL               deployed;
+    SHORT              id;
+} gt_win_ext_t;
+
+extern gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
 
 #endif
 
