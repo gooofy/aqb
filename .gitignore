@@ -83,7 +83,6 @@ src/lib/OSGadTools/OSGadTools.sym
 src/lib/OSGraphics/OSGraphics.sym
 src/lib/OSHardware/OSHardware.sym
 src/lib/OSIntuition/OSIntuition.sym
-src/alib/tests/*.bin
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
 src/tools/os2aqb/libcalls.py
@@ -115,6 +114,8 @@ examples/dev/foo_gnu.dump
 tests/insights/footprint/foo.S
 tests/insights/footprint/foo.s
 tests/insights/footprint/*.txt
+tests/mod2/mod2.sym
+tests/mod2/foo
 doc/internal/
 target
 config.mk
@@ -124,8 +125,6 @@ src/tools/hunk/hunk
 src/lib/os/
 aqb.log
 t.log
-foo
-foo.bas
 ide.log
 export.sh
 prefs.ini

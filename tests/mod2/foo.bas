@@ -1,0 +1,6 @@
+OPTION EXPLICIT
+
+IMPORT mod2
+
+PRINT "Hello, World!"
+
