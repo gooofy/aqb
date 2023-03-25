@@ -12,45 +12,44 @@
 #define AE_GTG_NUM      406
 
 typedef struct GTBUTTON_   GTBUTTON_t;
-typedef struct GTLAYOUT_   GTLAYOUT_t;
+typedef struct GTCHECKBOX_ GTCHECKBOX_t;
 typedef struct GTGADGET_   GTGADGET_t;
 
 typedef void (*gtgadget_cb_t)(GTGADGET_t *gtg, USHORT code);
-typedef struct Gadget * (*gtgadget_deploy_cb_t)(GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta,
-                                                SHORT x, SHORT y, SHORT w, SHORT h);
-typedef void (*gtgadget_add_child_cb_t)(GTGADGET_t *gtg, GTGADGET_t *child);
-
-#define GT_DOMAIN_MINIMUM     0
-#define GT_DOMAIN_NOMINAL     1
-#define GT_DOMAIN_MAXIMUM     2
-typedef void (*gtgadget_domain_cb_t)(GTGADGET_t *gtg, SHORT which, SHORT *w, SHORT *h);
+typedef struct Gadget * (*gtgadget_deploy_cb_t)(GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta);
 
 struct GTGADGET_
 {
-    gtgadget_cb_t           gadgetup_cb;
-    gtgadget_cb_t           gadgetdown_cb;
-    gtgadget_cb_t           gadgetmove_cb;
+    gtgadget_cb_t         gadgetup_cb;
+    gtgadget_cb_t         gadgetdown_cb;
+    gtgadget_cb_t         gadgetmove_cb;
 
-    void                   *user_data;
-    ULONG                   underscore;
+    void                 *user_data;
+    ULONG                 underscore;
 
-    GTGADGET_t             *prev, *next;
+    GTGADGET_t           *prev, *next;
 
-    struct NewGadget        ng;
+    struct NewGadget      ng;
 
-    struct Gadget          *gad;
-    SHORT                   win_id;
+    struct Gadget        *gad;
+    struct Window        *win;
 
-    gtgadget_deploy_cb_t    deploy_cb;
-    gtgadget_add_child_cb_t add_child_cb;
-    gtgadget_domain_cb_t    domain_cb;
+    gtgadget_deploy_cb_t  deploy_cb;
 };
 
-void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, GTGADGET_t *parent,
-                            char *txt, SHORT id,
+void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt, SHORT id,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
 // GTGADGET properties
+SHORT        _GTGADGET_x1_        (GTGADGET_t *this);
+void         _GTGADGET_x1         (GTGADGET_t *this, SHORT x1);
+SHORT        _GTGADGET_y1_        (GTGADGET_t *this);
+void         _GTGADGET_y1         (GTGADGET_t *this, SHORT y1);
+SHORT        _GTGADGET_x2_        (GTGADGET_t *this);
+void         _GTGADGET_x2         (GTGADGET_t *this, SHORT x2);
+SHORT        _GTGADGET_y2_        (GTGADGET_t *this);
+void         _GTGADGET_y2         (GTGADGET_t *this, SHORT y2);
 CONST_STRPTR _GTGADGET_text_      (GTGADGET_t *this);
 void         _GTGADGET_text       (GTGADGET_t *this, STRPTR text);
 SHORT        _GTGADGET_id_        (GTGADGET_t *this);
@@ -59,23 +58,14 @@ ULONG        _GTGADGET_flags_     (GTGADGET_t *this);
 void         _GTGADGET_flags      (GTGADGET_t *this, ULONG flags);
 BOOL         _GTGADGET_deployed_  (GTGADGET_t *this);
 
-struct GTLAYOUT_
-{
-    GTGADGET_t      gadget;
-    BOOL            horiz;
-    GTGADGET_t     *child_first, *child_last;
-};
-
-void _GTLAYOUT_CONSTRUCTOR (GTLAYOUT_t *this, GTGADGET_t *parent, BOOL horiz);
-
 struct GTBUTTON_
 {
     GTGADGET_t      gadget;
     BOOL            disabled;
 };
 
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, GTGADGET_t *parent,
-                            char *txt, SHORT id,
+void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt, SHORT id,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
 // GTBUTTON properties
@@ -83,10 +73,37 @@ BOOL _GTBUTTON_disabled_ (GTBUTTON_t *this);
 void _GTBUTTON_disabled  (GTBUTTON_t *this, BOOL disabled);
 
 
+struct GTCHECKBOX_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    BOOL            checked;
+};
+
+void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt, SHORT id,
+                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                              void *user_data, ULONG flags, ULONG underscore);
+
+// GTCHECKBOX properties
+BOOL _GTCHECKBOX_disabled_ (GTCHECKBOX_t *this);
+void _GTCHECKBOX_disabled  (GTCHECKBOX_t *this, BOOL disabled);
+BOOL _GTCHECKBOX_checked_  (GTCHECKBOX_t *this);
+void _GTCHECKBOX_checked   (GTCHECKBOX_t *this, BOOL checked);
+
+//void        GTG_MODIFY         (GTGADGET_t *g, ULONG ti_Tag, ...);
+
+//BOOL        GTGSELECTED_       (GTGADGET_t *g);
+//STRPTR      GTGBUFFER_         (GTGADGET_t *g);
+//LONG        GTGNUM_            (GTGADGET_t *g);
+
 void        GTGADGETS_DEPLOY   (void);
 void        GTGADGETS_FREE     (void);
 
 void        GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2, BOOL recessed );
+
+//void        ON_GTG_UP_CALL     (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+//void        ON_GTG_DOWN_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+//void        ON_GTG_MOVE_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
 
 #endif
 

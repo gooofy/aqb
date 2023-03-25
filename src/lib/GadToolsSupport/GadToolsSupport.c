@@ -26,7 +26,8 @@ extern struct Library    *GadToolsBase ;
 
 typedef struct
 {
-    GTGADGET_t        *root;
+    GTGADGET_t        *first;
+    GTGADGET_t        *last;
     struct Gadget     *gad;
     struct Gadget     *gadList;
     APTR              *vinfo;
@@ -38,13 +39,14 @@ typedef struct
 
 static ui_win_ext_t    g_win_ext[MAX_NUM_WINDOWS];
 
-void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, GTGADGET_t *parent,
-                            char *txt, SHORT id,
+void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt, SHORT id,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id-1];
 
-    DPRINTF("_GTGADGET_CONSTRUCTOR: this=0x%08lx, parent=0x%08lx, root=0x%08lx\n", this, parent, ext->root);
+    DPRINTF("_GTGADGET_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, txt=%s\n", this, x1, y1, txt ? txt : "NULL");
+
+    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
 
     if (ext->deployed)
     {
@@ -53,53 +55,64 @@ void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, GTGADGET_t *parent,
 		return;
     }
 
-    if (ext->root)
-    {
-        if (!parent)
-        {
-            DPRINTF ("_GTGADGET_CONSTRUCTOR: already have a root gadget\n");
-            ERROR(AE_GTG_CREATE);
-            return;
-        }
-    }
+    this->next = NULL;
+    this->prev = ext->last;
+    if (ext->last)
+        ext->last = ext->last->next = this;
     else
-    {
-        if (parent)
-        {
-            DPRINTF ("_GTGADGET_CONSTRUCTOR: need exactly one root gadget\n");
-            ERROR(AE_GTG_CREATE);
-            return;
-        }
-        ext->root = this;
-    }
+        ext->first = ext->last = this;
 
-    this->gadgetup_cb      = NULL;
-    this->gadgetdown_cb    = NULL;
-    this->gadgetmove_cb    = NULL;
-    this->user_data        = user_data;
-    this->underscore       = underscore;
-    this->next             = NULL;
-    this->prev             = NULL;
-    this->gad              = NULL;
-    this->win_id           = _g_cur_win_id;
-    this->deploy_cb        = NULL;
-    this->add_child_cb     = NULL;
-    this->domain_cb        = NULL;
+    this->ng.ng_LeftEdge   = x1;
+    this->ng.ng_TopEdge    = y1;
+    this->ng.ng_Width      = x2-x1+1;
+    this->ng.ng_Height     = y2-y1+1;
     this->ng.ng_GadgetText = (STRPTR) txt;
     this->ng.ng_GadgetID   = id;
     this->ng.ng_Flags      = flags;
     this->ng.ng_UserData   = this;
+    this->gad              = NULL;
+    this->win              = _g_cur_win;
+    this->user_data        = user_data;
+    this->underscore       = underscore;
+    this->gadgetup_cb      = NULL;
+    this->gadgetdown_cb    = NULL;
+    this->gadgetmove_cb    = NULL;
+}
 
-    if (parent)
-    {
-        if (!parent->add_child_cb)
-        {
-            DPRINTF ("_GTGADGET_CONSTRUCTOR: parent is not a container gadget\n");
-            ERROR(AE_GTG_CREATE);
-            return;
-        }
-        parent->add_child_cb (parent, this);
-    }
+SHORT _GTGADGET_x1_ (GTGADGET_t *this)
+{
+    return this->ng.ng_LeftEdge;
+}
+void _GTGADGET_x1 (GTGADGET_t *this, SHORT x1)
+{
+    this->ng.ng_LeftEdge = x1;
+}
+
+SHORT _GTGADGET_y1_ (GTGADGET_t *this)
+{
+    return this->ng.ng_TopEdge;
+}
+void _GTGADGET_y1 (GTGADGET_t *this, SHORT y1)
+{
+    this->ng.ng_TopEdge = y1;
+}
+
+SHORT _GTGADGET_x2_ (GTGADGET_t *this)
+{
+    return this->ng.ng_LeftEdge + this->ng.ng_Width - 1;
+}
+void _GTGADGET_x2 (GTGADGET_t *this, SHORT x2)
+{
+    this->ng.ng_Width = x2-this->ng.ng_LeftEdge+1;
+}
+
+SHORT _GTGADGET_y2_ (GTGADGET_t *this)
+{
+    return this->ng.ng_TopEdge + this->ng.ng_Height - 1;
+}
+void _GTGADGET_y2 (GTGADGET_t *this, SHORT y2)
+{
+    this->ng.ng_Height = y2-this->ng.ng_TopEdge+1;
 }
 
 CONST_STRPTR _GTGADGET_text_ (GTGADGET_t *this)
@@ -135,162 +148,13 @@ BOOL _GTGADGET_deployed_ (GTGADGET_t *this)
     return this->gad != NULL;
 }
 
-static void _GTLAYOUT_add_child_cb (GTGADGET_t *gtg, GTGADGET_t *child)
-{
-    GTLAYOUT_t *layout = (GTLAYOUT_t *)gtg;
 
-    child->next = NULL;
-    if (!layout->child_first)
-    {
-        layout->child_first = layout->child_last = child;
-        child->prev = NULL;
-    }
-    else
-    {
-        child->prev = layout->child_last;
-        layout->child_last = layout->child_last->next = child;
-    }
-}
-
-static void _GTLAYOUT_calc_layout (GTLAYOUT_t *layout, SHORT which, SHORT *w, SHORT *h, SHORT *childc)
-{
-    *w=0, *h=0, *childc=0;
-
-    if (layout->horiz)
-    {
-        GTGADGET_t *child = layout->child_first;
-        while (child)
-        {
-            SHORT cw, ch;
-            child->domain_cb (child, which, &cw, &ch);
-            DPRINTF("_GTLAYOUT_calc_layout: child=0x%08lx -> nom dom cw=%d, ch=%d\n", child, cw, ch);
-            if (ch > *h)
-                *h = ch;
-            *w += cw;
-            *childc = *childc + 1;
-            child = child->next;
-        }
-
-        DPRINTF("_GTLAYOUT_calc_layout: horizontal layout -> w=%d, h=%d\n", *w, *h);
-    }
-    else /* vertical layout */
-    {
-        GTGADGET_t *child = layout->child_first;
-        while (child)
-        {
-            SHORT cw, ch;
-            child->domain_cb (child, which, &cw, &ch);
-            DPRINTF("_GTLAYOUT_calc_layout: child=0x%08lx -> nom dom cw=%d, ch=%d\n", child, cw, ch);
-            if (cw > *w)
-                *w = cw;
-            *h += ch;
-            *childc = *childc + 1;
-            child = child->next;
-        }
-
-        DPRINTF("_GTLAYOUT_calc_layout: vertical layout -> w=%d, h=%d\n", *w, *h);
-    }
-}
-
-static struct Gadget *_GTLAYOUT_apply_layout (GTLAYOUT_t *layout, struct Gadget *gad, APTR vinfo, struct TextAttr *ta,
-                                              SHORT which, SHORT x, SHORT y, SHORT w, SHORT h, SHORT childw, SHORT childh, SHORT childc)
-{
-    if (childc)
-    {
-        if (layout->horiz)
-        {
-            SHORT curx=x;
-            SHORT extraw = (w-childw)/childc;
-            GTGADGET_t *child = layout->child_first;
-            while (child)
-            {
-                SHORT cw, ch;
-                child->domain_cb (child, GT_DOMAIN_NOMINAL, &cw, &ch);
-                gad = child->deploy_cb (child, gad, vinfo, ta, curx, y, cw+extraw, h);
-                curx += cw+extraw;
-                child = child->next;
-            }
-        }
-        else /* vertical layout */
-        {
-            SHORT cury=y;
-            SHORT extrah = (h-childh)/childc;
-            GTGADGET_t *child = layout->child_first;
-            while (child)
-            {
-                SHORT cw, ch;
-                child->domain_cb (child, GT_DOMAIN_NOMINAL, &cw, &ch);
-                gad = child->deploy_cb (child, gad, vinfo, ta, x, cury, w, ch+extrah);
-                cury += ch+extrah;
-                child = child->next;
-            }
-        }
-    }
-    return gad;
-}
-
-static struct Gadget *_GTLAYOUT_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta,
-                                           SHORT x, SHORT y, SHORT w, SHORT h)
-{
-    GTLAYOUT_t *layout = (GTLAYOUT_t *)gtg;
-    DPRINTF("_GTLAYOUT_deploy_cb: gtg=0x%08lx, x=%d, y=%d, w=%d, h=%d\n", gtg, x, y, w, h);
-
-    // try nominal sizes first
-
-    SHORT childw=0, childh=0, childc=0;
-
-    _GTLAYOUT_calc_layout (layout, GT_DOMAIN_NOMINAL, &childw, &childh, &childc);
-
-    // FIXME: minimal layout in case nominal doesn't fit
-
-    // apply layout
-
-    return _GTLAYOUT_apply_layout(layout, gad, vinfo, ta, GT_DOMAIN_NOMINAL, x, y, w, h, childw, childh, childc);
-}
-
-static void _GTLAYOUT_domain_cb(GTGADGET_t *gtg, SHORT which, SHORT *w, SHORT *h)
-{
-    DPRINTF("_GTLAYOUT_domain_cb: gtg=0x%08lx, which=%d\n", gtg, which);
-
-    GTLAYOUT_t *layout = (GTLAYOUT_t *)gtg;
-
-    SHORT childc=0;
-
-    _GTLAYOUT_calc_layout (layout, which, w, h, &childc);
-}
-
-void _GTLAYOUT_CONSTRUCTOR (GTLAYOUT_t *this, GTGADGET_t *parent, BOOL horiz)
-{
-    DPRINTF("_GTLAYOUT_CONSTRUCTOR: this=0x%08lx, parent=0x%08lx, horiz=%d\n", this, parent, horiz);
-
-    if (!this)
-    {
-            DPRINTF ("_GTLAYOUT_CONSTRUCTOR: this==NULL\n");
-            ERROR(AE_GTG_CREATE);
-            return;
-    }
-
-    _GTGADGET_CONSTRUCTOR (&this->gadget, parent, /*txt=*/NULL, /*id=*/0, /*user_data=*/NULL, /*flags=*/0, /*underscore=*/0);
-    this->horiz       = horiz;
-    this->child_first = NULL;
-    this->child_last  = NULL;
-
-    this->gadget.add_child_cb = _GTLAYOUT_add_child_cb;
-    this->gadget.domain_cb    = _GTLAYOUT_domain_cb;
-    this->gadget.deploy_cb    = _GTLAYOUT_deploy_cb;
-}
-
-static struct Gadget *_GTBUTTON_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta,
-                                           SHORT x, SHORT y, SHORT w, SHORT h)
+struct Gadget *_gtbutton_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
     GTBUTTON_t *button = (GTBUTTON_t *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
-    gtg->ng.ng_LeftEdge   = x;
-    gtg->ng.ng_TopEdge    = y;
-    gtg->ng.ng_Width      = w;
-    gtg->ng.ng_Height     = h;
 
     gtg->gad = CreateGadget (BUTTON_KIND, gad, &gtg->ng, GA_Disabled, button->disabled, GT_Underscore, gtg->underscore, TAG_DONE);
 
@@ -304,32 +168,21 @@ static struct Gadget *_GTBUTTON_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, 
     // take care of IDCMP flags
     ULONG gidcmp = BUTTONIDCMP;
 
-    struct Window *win = _aqb_get_win(gtg->win_id-1);
-	DPRINTF("_gtbutton_deploy_cb: win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", win->IDCMPFlags, gidcmp);
+	DPRINTF("_gtbutton_deploy_cb: gtg->win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", gtg->win->IDCMPFlags, gidcmp);
 
-	if (gidcmp && ( (win->IDCMPFlags & gidcmp) != gidcmp ) )
-		ModifyIDCMP (win, win->IDCMPFlags | gidcmp);
+	if (gidcmp && ( (gtg->win->IDCMPFlags & gidcmp) != gidcmp ) )
+		ModifyIDCMP (gtg->win, gtg->win->IDCMPFlags | gidcmp);
 
     return gtg->gad;
 }
 
-static void _GTBUTTON_domain_cb(GTGADGET_t *gtg, SHORT which, SHORT *w, SHORT *h)
-{
-    DPRINTF("_GTBUTTON_domain_cb: gtg=0x%08lx, which=%d\n", gtg, which);
-
-    // FIXME: implement
-    *w = 100;
-    *h = 23;
-}
-
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, GTGADGET_t *parent,
-                            char *txt, SHORT id,
+void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt, SHORT id,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTBUTTON_CONSTRUCTOR: this=0x%08lx, id=%d, txt=%s\n", this, id, txt ? txt : "NULL");
-    _GTGADGET_CONSTRUCTOR (&this->gadget, parent, txt, id, user_data, flags, underscore);
-    this->gadget.deploy_cb = _GTBUTTON_deploy_cb;
-    this->gadget.domain_cb = _GTBUTTON_domain_cb;
+    DPRINTF("_GTBUTTON_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, txt=%s\n", this, x1, y1, x2, y2, txt ? txt : "NULL");
+    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, id, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    this->gadget.deploy_cb = _gtbutton_deploy_cb;
     this->disabled         = FALSE;
 }
 
@@ -340,12 +193,149 @@ BOOL _GTBUTTON_disabled_ (GTBUTTON_t *this)
 void _GTBUTTON_disabled (GTBUTTON_t *this, BOOL disabled)
 {
     if (_GTGADGET_deployed_ (&this->gadget))
-    {
-        struct Window *win = _aqb_get_win(this->gadget.win_id);
-        GT_SetGadgetAttrs (this->gadget.gad, win, NULL, GA_Disabled, disabled, TAG_DONE);
-    }
+        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     this->disabled = disabled;
 }
+
+struct Gadget *_gtcheckbox_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+{
+    GTCHECKBOX_t *cb = (GTCHECKBOX_t *)gtg;
+
+	DPRINTF("_gtcheckbox_deploy_cb: cb=0x%08lx, checked=%d\n", cb, cb->checked);
+
+    gtg->ng.ng_VisualInfo = vinfo;
+    gtg->ng.ng_TextAttr   = ta;
+
+    gtg->gad = CreateGadget (CHECKBOX_KIND, gad, &gtg->ng, GA_Disabled, cb->disabled, GT_Underscore, gtg->underscore, GTCB_Checked, cb->checked, TAG_DONE);
+
+	if (!gtg->gad)
+	{
+		DPRINTF ("_gtcheckbox_deploy_cb: CreateGadget() failed.\n");
+		ERROR(AE_GTG_CREATE);
+		return gad;
+	}
+
+    // take care of IDCMP flags
+    ULONG gidcmp = CHECKBOXIDCMP;
+
+	DPRINTF("_gtcheckbox_deploy_cb: gtg->win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", gtg->win->IDCMPFlags, gidcmp);
+
+	if (gidcmp && ( (gtg->win->IDCMPFlags & gidcmp) != gidcmp ) )
+		ModifyIDCMP (gtg->win, gtg->win->IDCMPFlags | gidcmp);
+
+    return gtg->gad;
+}
+
+void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt, SHORT id,
+                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                              void *user_data, ULONG flags, ULONG underscore)
+{
+    DPRINTF("_GTCHECKBOX_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, txt=%s\n", this, x1, y1, x2, y2, txt ? txt : "NULL");
+    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, id, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    this->gadget.deploy_cb = _gtcheckbox_deploy_cb;
+    this->disabled         = FALSE;
+    this->checked          = FALSE;
+}
+
+BOOL _GTCHECKBOX_disabled_ (GTCHECKBOX_t *this)
+{
+    return this->disabled;
+}
+void _GTCHECKBOX_disabled (GTCHECKBOX_t *this, BOOL disabled)
+{
+    if (_GTGADGET_deployed_ (&this->gadget))
+        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
+    this->disabled = disabled;
+}
+
+BOOL _GTCHECKBOX_checked_ (GTCHECKBOX_t *this)
+{
+    if (_GTGADGET_deployed_ (&this->gadget))
+        return this->gadget.gad->Flags & GFLG_SELECTED;
+    return this->checked;
+}
+void _GTCHECKBOX_checked (GTCHECKBOX_t *this, BOOL checked)
+{
+    DPRINTF ("_GTCHECKBOX_checked: this=0x%08x, checked=%d, size=%d\n", this, checked, sizeof (GTCHECKBOX_t));
+    #if 1
+    if (_GTGADGET_deployed_ (&this->gadget))
+    {
+        DPRINTF ("_GTCHECKBOX_checked: is deployed, gad=0x%08x\n", this->gadget.gad);
+        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCB_Checked, checked, TAG_DONE);
+    }
+    this->checked = checked;
+    DPRINTF ("_GTCHECKBOX_checked: this=0x%08x, this->checked=%d\n", this, this->checked);
+    #endif
+}
+
+#if 0
+void GTG_MODIFY (GTGADGET_t *g, ULONG ti_Tag, ...)
+{
+    DPRINTF ("GTG_MODIFY called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTG_MODIFY: invalid gadget\n");
+		ERROR(AE_GTG_MODIFY);
+		return;
+    }
+
+    va_list ap;
+    va_start (ap, ti_Tag);
+    struct TagItem *tags = _vatagitems (ti_Tag, ap);
+    va_end(ap);
+
+    GT_SetGadgetAttrsA (g->gad, g->win, /*req=*/NULL, tags);
+
+    DEALLOCATE (tags);
+}
+
+BOOL GTGSELECTED_ (GTGADGET_t *g)
+{
+    DPRINTF ("GTGSELECTED_ called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTGSELECTED_: invalid gadget\n");
+		ERROR(AE_GTG_SELECTED);
+		return FALSE;
+    }
+
+    return g->gad->Flags & GFLG_SELECTED;
+}
+
+STRPTR GTGBUFFER_ (GTGADGET_t *g)
+{
+    DPRINTF ("GTGBUFFER_ called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTGBUFFER_: invalid gadget\n");
+		ERROR(AE_GTG_BUFFER);
+		return FALSE;
+    }
+
+    struct StringInfo * si = (struct StringInfo *)g->gad->SpecialInfo;
+
+    return si->Buffer;
+}
+
+LONG GTGNUM_ (GTGADGET_t *g)
+{
+    DPRINTF ("GTGNUM_ called\n");
+
+    if (!g || !g->gad)
+    {
+		DPRINTF ("GTGNUM_: invalid gadget\n");
+		ERROR(AE_GTG_NUM);
+		return FALSE;
+    }
+
+    struct StringInfo * si = (struct StringInfo *)g->gad->SpecialInfo;
+
+    return si->LongInt;
+}
+#endif
 
 static void _gtgadgets_free (struct Window *win, ui_win_ext_t *ext)
 {
@@ -368,12 +358,10 @@ static void window_close_cb (short win_id, void *ud)
 {
     DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
 
-    ui_win_ext_t *ext = &g_win_ext[win_id-1];
-    struct Window *win = _aqb_get_win(win_id-1);
+    ui_win_ext_t *ext = &g_win_ext[win_id];
+    struct Window *win = _aqb_get_win(win_id);
     _gtgadgets_free (win, ext);
 }
-
-static void _gtgadgets_deploy (short win_id);
 
 static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *message, window_refresh_cb_t refresh_cb, void *refresh_ud)
 {
@@ -450,16 +438,6 @@ static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *m
                 handled = TRUE;
                 break;
             }
-
-            case IDCMP_NEWSIZE:
-            {
-                SHORT win_id = _aqb_get_win_id (win);
-
-                _gtgadgets_deploy (win_id);
-
-                // FIXME handled = TRUE;
-                break;
-            }
         }
     }
 
@@ -468,17 +446,18 @@ static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *m
     return handled;
 }
 
-static void _gtgadgets_deploy (short win_id)
+void GTGADGETS_DEPLOY (void)
 {
-    DPRINTF ("_gadgets_deploy called, win_id=%d\n", win_id);
-    ui_win_ext_t *ext = &g_win_ext[win_id-1];
-    struct Window *win = _aqb_get_win(win_id-1);
+    DPRINTF ("GADGETS_DEPLOY called\n");
 
-    DPRINTF ("_gtgadgets_deploy: ext=0x%08lx, win=0x%08lx\n", ext, win);
+    _aqb_get_output (/*needGfx=*/TRUE);
+
+    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
 
     if (ext->deployed)
     {
-		DPRINTF ("_gtgadgets_deploy: already deployed -> redeploy\n");
+		DPRINTF ("GTGADGETS_DEPLOY: already deployed -> redeploy\n");
+        struct Window *win = _aqb_get_win(_g_cur_win_id);
         _gtgadgets_free (win, ext);
         Move (_g_cur_rp, 0, 0);
         ClearScreen(_g_cur_rp);
@@ -487,7 +466,7 @@ static void _gtgadgets_deploy (short win_id)
 
 	if (!ext->close_cb_installed)
 	{
-		DPRINTF ("_gtgadgets_deploy: installing custom close callback for the current window\n");
+		DPRINTF ("GTGADGETS_DEPLOY: installing custom close callback for the current window\n");
 		_window_add_close_cb (window_close_cb, NULL);
 		ext->close_cb_installed = TRUE;
 	}
@@ -497,7 +476,7 @@ static void _gtgadgets_deploy (short win_id)
         ext->vinfo = GetVisualInfo(_g_cur_win->WScreen, TAG_END);
         if (!ext->vinfo)
         {
-            DPRINTF ("_gtgadgets_deploy: GetVisualInfo() failed.\n");
+            DPRINTF ("GTGADGETS_DEPLOY: GetVisualInfo() failed.\n");
             ERROR(AE_GTG_CREATE);
             return;
         }
@@ -511,38 +490,17 @@ static void _gtgadgets_deploy (short win_id)
     ext->gad = CreateContext (&ext->gadList);
     if (!ext->gad)
     {
-        DPRINTF ("_gtgadgets_deploy: CreateContext() failed.\n");
+        DPRINTF ("GTGADGET_: CreateContext() failed.\n");
         ERROR(AE_GTG_CREATE);
         return;
     }
 
-    GTGADGET_t *gtg = ext->root;
-    if (gtg)
+    GTGADGET_t *gtg = ext->first;
+    while (gtg)
     {
         if (gtg->deploy_cb)
-        {
-            SHORT x, y, w, h;
-            if (win->Flags & WFLG_GIMMEZEROZERO)
-            {
-                x=0;
-                y=0;
-                w=win->GZZWidth;
-                h=win->GZZHeight;
-            }
-            else
-            {
-                x=win->BorderLeft;
-                y=win->BorderTop;
-                w=win->Width - win->BorderLeft - win->BorderRight;
-                h=win->Height - win->BorderTop - win->BorderBottom;
-            }
-            DPRINTF ("_gtgadgets_deploy: ->deploy win=0x%08lx x=%d, y=%d, w=%d, h=%d\n", win, x, y, w, h);
-            ext->gad = gtg->deploy_cb(gtg, ext->gad, ext->vinfo, &ext->ta, x, y, w, h);
-        }
-        else
-        {
-            ext->gad = NULL;
-        }
+            ext->gad = gtg->deploy_cb(gtg, ext->gad, ext->vinfo, &ext->ta);
+        gtg = gtg->next;
     }
 
     if (!ext->msg_cb_installed)
@@ -550,13 +508,6 @@ static void _gtgadgets_deploy (short win_id)
         DPRINTF ("GTGADGET_: installing custom msg callback for the current window\n");
         _window_add_msg_cb (window_msg_cb);
         ext->msg_cb_installed = TRUE;
-
-        // take care of IDCMP flags
-        ULONG widcmp = IDCMP_NEWSIZE;
-
-        if ((win->IDCMPFlags & widcmp) != widcmp )
-            ModifyIDCMP (win, win->IDCMPFlags | widcmp);
-
     }
 
     AddGList (_g_cur_win, ext->gadList, 1000, -1, NULL);
@@ -568,16 +519,6 @@ static void _gtgadgets_deploy (short win_id)
     ext->deployed = TRUE;
 }
 
-void GTGADGETS_DEPLOY (void)
-{
-    DPRINTF ("GADGETS_DEPLOY called\n");
-
-    _aqb_get_output (/*needGfx=*/TRUE);
-
-    _gtgadgets_deploy (_g_cur_win_id);
-
-}
-
 #if 0
 void GTGADGETS_FREE (void)
 {
@@ -585,7 +526,7 @@ void GTGADGETS_FREE (void)
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id-1];
+    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
 
     _gtgadgets_free (_g_cur_win, ext);
 }
@@ -596,7 +537,7 @@ void GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id-1];
+    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
     if (recessed)
         DrawBevelBox (_g_cur_rp, x1, y1, x2-x1+1, y2-y1+1, GTBB_Recessed, TRUE, GT_VisualInfo, (ULONG) ext->vinfo, TAG_DONE);
     else
@@ -667,7 +608,8 @@ void _GadToolsSupport_init(void)
     {
         ui_win_ext_t *ext = &g_win_ext[i];
 
-        ext->root               = NULL;
+        ext->first              = NULL;
+        ext->last               = NULL;
         ext->gad                = NULL;
         ext->gadList            = NULL;
         ext->vinfo              = NULL;
