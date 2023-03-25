@@ -15,9 +15,9 @@ typedef char bool;
 #define TRUE  1
 #define FALSE 0
 
-#define VERSION            "0.8.3preview1"
-#define PROGRAM_DATE       "29.01.2022"
-#define COPYRIGHT          "(C) 2020, 2021, 2022 by G. Bartsch"
+#define VERSION            "0.9.0alpha1"
+#define PROGRAM_DATE       "25.03.2023"
+#define COPYRIGHT          "(C) 2020, 2021, 2022, 2023 by G. Bartsch"
 #define PROGRAM_NAME_SHORT "AQB"
 #define PROGRAM_NAME_LONG  "AQB Amiga BASIC"
 #define LICENSE            "Licensed under the MIT license."

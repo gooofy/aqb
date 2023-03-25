@@ -1,4 +1,4 @@
-## 0.8.3preview1
+## 0.9.0alpha1
 
 Improvements:
 
@@ -28,6 +28,7 @@ Bug Fixes:
     * compiler: fix method call via pointer
     * linker: fix unitialized write buffer bug
     * runtime: fix FFP to string conversion bugs
+    * adapted to bebbo's current GCC
 
 ## 0.8.2
 
