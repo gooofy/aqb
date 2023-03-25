@@ -24,7 +24,7 @@
 
 extern struct Library    *GadToolsBase ;
 
-static gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
+gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
 
 SHORT _GTGADGET_NEXT_ID (void)
 {
