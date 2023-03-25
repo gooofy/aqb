@@ -35,11 +35,18 @@ typedef struct
     BOOL               close_cb_installed;
     BOOL               msg_cb_installed;
     BOOL               deployed;
+    SHORT              id;
 } ui_win_ext_t;
 
 static ui_win_ext_t    g_win_ext[MAX_NUM_WINDOWS];
 
-void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt, SHORT id,
+SHORT _GTGADGET_NEXT_ID (void)
+{
+    ui_win_ext_t *ext = &g_win_ext[_g_cur_win_id];
+    return ext->id++;
+}
+
+void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
@@ -67,7 +74,7 @@ void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt, SHORT id,
     this->ng.ng_Width      = x2-x1+1;
     this->ng.ng_Height     = y2-y1+1;
     this->ng.ng_GadgetText = (STRPTR) txt;
-    this->ng.ng_GadgetID   = id;
+    this->ng.ng_GadgetID   = _GTGADGET_NEXT_ID();
     this->ng.ng_Flags      = flags;
     this->ng.ng_UserData   = this;
     this->gad              = NULL;
@@ -176,12 +183,12 @@ struct Gadget *_gtbutton_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vi
     return gtg->gad;
 }
 
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt, SHORT id,
+void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_GTBUTTON_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, txt=%s\n", this, x1, y1, x2, y2, txt ? txt : "NULL");
-    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, id, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtbutton_deploy_cb;
     this->disabled         = FALSE;
 }
@@ -226,12 +233,12 @@ struct Gadget *_gtcheckbox_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR 
     return gtg->gad;
 }
 
-void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt, SHORT id,
+void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_GTCHECKBOX_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, txt=%s\n", this, x1, y1, x2, y2, txt ? txt : "NULL");
-    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, id, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtcheckbox_deploy_cb;
     this->disabled         = FALSE;
     this->checked          = FALSE;
@@ -616,6 +623,7 @@ void _GadToolsSupport_init(void)
         ext->msg_cb_installed   = FALSE;
         ext->close_cb_installed = FALSE;
         ext->deployed           = FALSE;
+        ext->id                 = 1;
     }
 
     ON_EXIT_CALL(_GadToolsSupport_shutdown);

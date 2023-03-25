@@ -37,7 +37,7 @@ struct GTGADGET_
     gtgadget_deploy_cb_t  deploy_cb;
 };
 
-void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt, SHORT id,
+void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
@@ -64,7 +64,7 @@ struct GTBUTTON_
     BOOL            disabled;
 };
 
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt, SHORT id,
+void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
@@ -80,7 +80,7 @@ struct GTCHECKBOX_
     BOOL            checked;
 };
 
-void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt, SHORT id,
+void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore);
 
@@ -104,6 +104,8 @@ void        GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, 
 //void        ON_GTG_UP_CALL     (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
 //void        ON_GTG_DOWN_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
 //void        ON_GTG_MOVE_CALL   (GTGADGET_t *g, gtgadget_cb_t cb, void *user_data);
+
+SHORT _GTGADGET_NEXT_ID (void);
 
 #endif
 

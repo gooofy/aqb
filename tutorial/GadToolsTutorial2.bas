@@ -37,9 +37,9 @@ ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create our gadgets (one button and two checkboxes)
 
-button = NEW GTBUTTON   ("_Invert"   , 1, ( 15, 126)-(114, 146),,,ASC("_")) 
-cb1    = NEW GTCHECKBOX ("Checkbox _1", 2, ( 115, 20)-(135,  40),,,ASC("_"))
-cb2    = NEW GTCHECKBOX ("Checkbox _2", 3, ( 115, 45)-(135,  65),,,ASC("_"))
+button = NEW GTBUTTON   ("_Invert"    , ( 15, 126) - (114, 146)) 
+cb1    = NEW GTCHECKBOX ("Checkbox _1", (115,  20) - (135,  40))
+cb2    = NEW GTCHECKBOX ("Checkbox _2", (115,  45) - (135,  65))
 
 REM preselect cb2
 
