@@ -56,6 +56,14 @@
 
 #define ENABLE_SYMBOL_HUNK
 
+typedef struct symInfo_ *symInfo;
+struct symInfo_
+{
+    AS_segment  seg;
+    uint32_t    offset;
+    bool        abs;
+};
+
 static uint8_t    g_buf[MAX_BUF];              // scratch buffer
 static char       g_name[MAX_BUF];             // current hunk name
 static AS_segment g_hunk_table[MAX_NUM_HUNKS]; // used during hunk object loading
@@ -105,8 +113,9 @@ LI_segmentList LI_SegmentList(void)
 {
     LI_segmentList sl = U_poolAlloc (UP_link, sizeof(*sl));
 
-    sl->first = NULL;
-    sl->last  = NULL;
+    sl->first      = NULL;
+    sl->last       = NULL;
+    sl->commonSyms = TAB_empty(UP_link);
 
     return sl;
 }
@@ -379,7 +388,7 @@ static bool load_hunk_reloc32(U_poolId pid, string sourcefn, FILE *f)
     return TRUE;
 }
 
-static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
+static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f, TAB_table commonSyms)
 {
     if (!g_hunk_cur)
     {
@@ -446,7 +455,7 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
                         return FALSE;
                     }
 
-                    AS_segmentAddRef (pid, g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/0);
+                    AS_segmentAddRef (pid, g_hunk_cur, sym, offset, Temp_w_L);
                 }
                 break;
             }
@@ -464,6 +473,24 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
                     LOG_printf (LOG_ERROR, "link: read error #18.\n");
                     return FALSE;
                 }
+
+                symInfo si = TAB_look (commonSyms, sym);
+                if (!si)
+                {
+                    si         = U_poolAlloc (UP_link, sizeof(*si));
+                    si->seg    = NULL;         // common segment will be created in LI_link()
+                    si->offset = common_size;  // for now, LI_link() will compute common offsets
+                    si->abs    = FALSE;
+                    TAB_enter (commonSyms, sym, si);
+                }
+                else
+                {
+                    if (si->offset < common_size)
+                        si->offset = common_size;
+                }
+
+                LOG_printf (LOG_DEBUG, "link: symbol %s allocated in common segment, common_size=%zd\n", S_name(sym), common_size);
+
                 for (uint32_t i=0; i<num_refs; i++)
                 {
                     uint32_t offset;
@@ -473,7 +500,8 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
                         return FALSE;
                     }
 
-                    AS_segmentAddRef (pid, g_hunk_cur, sym, offset, Temp_w_L, /*common_size=*/common_size);
+                    LOG_printf (LOG_DEBUG, "link: common symbol %s referenced in hunk #%02d at offset 0x%08lx\n", S_name(sym), g_hunk_cur->hunk_id, offset);
+                    AS_segmentAddRef (pid, g_hunk_cur, sym, offset, Temp_w_L);
                 }
                 break;
             }
@@ -521,6 +549,7 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
 
                     // FIXME AS_segmentAddRef (g_hunk_cur, sym, v, Temp_w_L, /*common_size=*/0);
                     LOG_printf (LOG_DEBUG, "link: %s:  -> ext_absref16, v=0x%08x\n", sourcefn, v);
+                    assert(FALSE);
                 }
                 break;
             }
@@ -867,7 +896,7 @@ bool LI_segmentListReadObjectFile (U_poolId pid, LI_segmentList sl, string sourc
                     return FALSE;
                 break;
             case HUNK_TYPE_EXT:
-                if (!load_hunk_ext(pid, sourcefn, f))
+                if (!load_hunk_ext(pid, sourcefn, f, sl->commonSyms))
                     return FALSE;
                 break;
             case HUNK_TYPE_END:
@@ -888,20 +917,12 @@ bool LI_segmentListReadObjectFile (U_poolId pid, LI_segmentList sl, string sourc
     return TRUE;
 }
 
-typedef struct symInfo_ *symInfo;
-struct symInfo_
-{
-    AS_segment  seg;
-    uint32_t    offset;
-    bool        abs;
-};
-
 bool LI_link (U_poolId pid, LI_segmentList sl)
 {
     TAB_table symTable = TAB_empty(UP_link);   // S_symbol -> symInfo
 
-    // pass 1: collect all symbol definitions from all segments,
-    //         assign unique hunk_ids
+    // pass 1/3: collect all symbol definitions from all segments,
+    //           assign unique hunk_ids
 
     uint32_t hunk_id = 0;
     for (LI_segmentListNode node = sl->first; node; node=node->next)
@@ -928,9 +949,41 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
         node->seg->hunk_id = hunk_id++;
     }
 
-    // pass 2: resolve external references
+    // pass 2/3: allocate common symbols
 
     AS_segment commonSeg = NULL;
+    TAB_iter i = TAB_Iter (sl->commonSyms);
+    S_symbol sym;
+    symInfo si;
+    while (TAB_next (i, (void **)&sym, (void**) &si))
+    {
+        if (!commonSeg)
+        {
+            commonSeg = AS_Segment (pid, "common", "common", AS_bssSeg, 0);
+            commonSeg->hunk_id = hunk_id++;
+            LI_segmentListAppend (sl, commonSeg);
+        }
+        uint32_t common_size = si->offset;
+        if (!common_size)
+        {
+            LOG_printf (LOG_ERROR, "link: *** ERROR: no size information for common symbol %s\n\n", S_name(sym));
+            return FALSE;
+        }
+        si->offset = commonSeg->mem_pos;
+        si->seg    = commonSeg;
+        // FIXME: remove AS_assembleDataFill (commonSeg, common_size);
+        AS_assembleBSSAlign2 (commonSeg);
+        AS_assembleBSS (commonSeg, common_size);
+
+        TAB_enter (symTable, sym, si);
+
+        AS_segmentAddDef (pid, commonSeg, sym, si->offset, /*absolute=*/FALSE);
+
+        LOG_printf (LOG_DEBUG, "link: symbol %s located in common hunk #%02d at offset 0x%08x, common_size=%zd\n",
+                    S_name(sym), commonSeg->hunk_id, si->offset, common_size);
+    }
+
+    // pass 3/3: resolve external references
 
     for (LI_segmentListNode node = sl->first; node; node=node->next)
     {
@@ -944,27 +997,8 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
             symInfo si = TAB_look (symTable, sym);
             if (!si)
             {
-                if (!sr->common_size)
-                {
-                    LOG_printf (LOG_ERROR, "link: *** ERROR: unresolved symbol %s (%p)\n\n", S_name(sym), sym);
-                    return FALSE;
-                }
-                if (!commonSeg)
-                {
-                    commonSeg = AS_Segment (pid, "common", "common", AS_dataSeg, 0);
-                    commonSeg->hunk_id = hunk_id++;
-                    LI_segmentListAppend (sl, commonSeg);
-                }
-
-                si = U_poolAlloc (UP_link, sizeof(*si));
-                si->seg    = commonSeg;
-                si->offset = commonSeg->mem_pos;
-                si->abs    = FALSE;
-                LOG_printf (LOG_DEBUG, "link: symbol %s allocated in common segment at offset 0x%08x, common_size=%zd\n", S_name(sym), si->offset, sr->common_size);
-
-                TAB_enter (symTable, sym, si);
-
-                AS_assembleDataFill (commonSeg, sr->common_size);
+                LOG_printf (LOG_ERROR, "link: *** ERROR: unresolved symbol %s (%p)\n\n", S_name(sym), sym);
+                return FALSE;
             }
 
             assert (sr->w == Temp_w_L); // FIXME
@@ -976,7 +1010,7 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
                 {
                     LOG_printf (LOG_DEBUG, "link: pass2: adding reloc32 for symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, offset 0x%08x\n",
                                 S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
-                    *p = ENDIAN_SWAP_32(si->offset);
+                    *p += ENDIAN_SWAP_32(si->offset);
                     AS_segmentAddReloc32 (pid, node->seg, si->seg, sr->offset);
                 }
                 else
@@ -1411,7 +1445,7 @@ static bool load_hunk_header(FILE *f)
     for (int i=0; i<MAX_NUM_HUNKS; i++)
         g_hunk_table[i] = NULL;
     g_hunk_id_cnt = 0;
-    g_hunk_cur = NULL;
+    g_hunk_cur    = NULL;
 
     // library names
     uint32_t num_longs;
@@ -1520,7 +1554,7 @@ bool LI_segmentListReadLoadFile (U_poolId pid, LI_segmentList sl, string sourcef
                     return FALSE;
                 break;
             case HUNK_TYPE_EXT:
-                if (!load_hunk_ext(pid, sourcefn, f))
+                if (!load_hunk_ext(pid, sourcefn, f, sl->commonSyms))
                     return FALSE;
                 break;
             case HUNK_TYPE_SYMBOL:

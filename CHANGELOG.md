@@ -27,6 +27,8 @@ Bug Fixes:
     * compiler: reduced record (udt) type memory footprint
     * compiler: fix method call via pointer
     * linker: fix unitialized write buffer bug
+    * linker: implement ext hunk TYPE_ABS
+    * linker: fix common symbols
     * runtime: fix FFP to string conversion bugs
     * adapted to bebbo's current GCC
 

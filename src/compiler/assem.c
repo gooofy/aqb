@@ -818,7 +818,7 @@ void AS_segmentAddReloc32 (U_poolId pid, AS_segment seg, AS_segment seg_to, uint
     TAB_enter (seg->relocs, seg_to, reloc);
 }
 
-void AS_segmentAddRef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size)
+void AS_segmentAddRef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w)
 {
     if (!seg->refs)
         seg->refs = TAB_empty(pid);
@@ -827,7 +827,6 @@ void AS_segmentAddRef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off,
 
     ref->offset      = off;
     ref->w           = w;
-    ref->common_size = common_size;
     ref->next        = NULL;
 
     AS_segmentRef prev = TAB_look (seg->refs, sym);
@@ -2381,6 +2380,17 @@ void AS_assembleDataString (AS_segment seg, string data)
     emit_u1(seg, 0);
 }
 
+void AS_assembleBSSAlign2 (AS_segment seg)
+{
+    if (seg->mem_pos % 2)
+        seg->mem_pos++;
+}
+
+void AS_assembleBSS (AS_segment seg, uint32_t size)
+{
+    seg->mem_pos += size;
+}
+
 void AS_resolveLabels (U_poolId pid, AS_object obj)
 {
     LOG_printf(LOG_DEBUG, "assem: AS_resolveLabels\n");
@@ -2406,7 +2416,7 @@ void AS_resolveLabels (U_poolId pid, AS_object obj)
             uint32_t off = li->offset;
             while (off)
             {
-                AS_segmentAddRef (UP_assem, seg, l, off, Temp_w_L, /*common_size=*/0);
+                AS_segmentAddRef (UP_assem, seg, l, off, Temp_w_L);
                 uint32_t next_off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
                 *((uint32_t *) (seg->mem+off)) = 0;
                 off = next_off;

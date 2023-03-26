@@ -306,7 +306,6 @@ struct AS_segmentRef_
 {
     uint32_t          offset;
     enum Temp_w       w;
-    uint32_t          common_size;
     AS_segmentRef     next;
 };
 
@@ -370,7 +369,7 @@ struct AS_frameMapNode_
 AS_segment         AS_Segment            (U_poolId pid, string sourcefn, string name, AS_segKind kind, uint32_t initial_size);
 
 void               AS_segmentAddReloc32  (U_poolId pid, AS_segment seg, AS_segment seg_to, uint32_t off);
-void               AS_segmentAddRef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
+void               AS_segmentAddRef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w);
 void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, bool absolute);
 void               AS_segmentAddSrcMap   (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off);
 AS_frameMapNode    AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end);
@@ -388,6 +387,8 @@ void               AS_assembleDataFill   (AS_segment seg, uint32_t size);
 void               AS_assembleData16     (AS_segment seg, uint16_t data);
 void               AS_assembleData32     (AS_segment seg, uint32_t data);
 void               AS_assembleDataString (AS_segment seg, string data);
+void               AS_assembleBSSAlign2  (AS_segment seg);
+void               AS_assembleBSS        (AS_segment seg, uint32_t size);
 
 void               AS_resolveLabels      (U_poolId pid, AS_object o);
 

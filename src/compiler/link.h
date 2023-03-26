@@ -15,6 +15,7 @@ struct LI_segmentListNode_
 struct LI_segmentList_
 {
     LI_segmentListNode first, last;
+    TAB_table          commonSyms;   // symbols for the .common segment, S_symbol -> symInfo
 };
 
 LI_segmentList LI_SegmentList(void);
