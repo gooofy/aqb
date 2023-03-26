@@ -314,6 +314,7 @@ struct AS_segmentDef_
 {
     S_symbol          sym;
     uint32_t          offset;
+    bool              abs;
     AS_segmentDef     next;
 };
 
@@ -370,7 +371,7 @@ AS_segment         AS_Segment            (U_poolId pid, string sourcefn, string 
 
 void               AS_segmentAddReloc32  (U_poolId pid, AS_segment seg, AS_segment seg_to, uint32_t off);
 void               AS_segmentAddRef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, enum Temp_w w, uint32_t common_size);
-void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off);
+void               AS_segmentAddDef      (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, bool absolute);
 void               AS_segmentAddSrcMap   (U_poolId pid, AS_segment seg, uint16_t l, uint32_t off);
 AS_frameMapNode    AS_segmentAddFrameMap (U_poolId pid, AS_segment seg, Temp_label label, uint32_t code_start, uint32_t code_end);
 void               AS_frameMapAddFVI     (U_poolId pid, AS_frameMapNode fmn, S_symbol sym, Ty_ty ty, int offset);

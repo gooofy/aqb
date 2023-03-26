@@ -486,7 +486,7 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
                     return FALSE;
                 }
                 if (!(ext_flags & EXT_FLAG_LOCAL))
-                    AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
+                    AS_segmentAddDef (pid, g_hunk_cur, sym, offset, /*absolute=*/FALSE);
                 LOG_printf (LOG_DEBUG, "link: %s:  -> ext_def, offset=0x%08x, flags=0x%02x\n", sourcefn, offset, ext_flags);
                 break;
             }
@@ -498,8 +498,8 @@ static bool load_hunk_ext(U_poolId pid, string sourcefn, FILE *f)
                     LOG_printf (LOG_ERROR, "link: read error #21.\n");
                     return FALSE;
                 }
-                // FIXME AS_segmentAddDef (g_hunk_cur, sym, v);
                 LOG_printf (LOG_DEBUG, "link: %s:  -> ext_abs, v=0x%08x\n", sourcefn, v);
+                AS_segmentAddDef (pid, g_hunk_cur, sym, v, /*absolute=*/TRUE);
                 break;
             }
             case EXT_TYPE_ABSREF16:
@@ -577,7 +577,7 @@ static bool load_hunk_symbol(U_poolId pid, string sourcefn, FILE *f)
         }
         //LOG_printf (LOG_DEBUG, "link: hunk_symbol: name=%s(len=%d) offset=0x%08lx\n", g_buf, name_len, offset);
         S_symbol sym = S_Symbol ((char *)g_buf);
-        AS_segmentAddDef (pid, g_hunk_cur, sym, offset);
+        AS_segmentAddDef (pid, g_hunk_cur, sym, offset, /*absolute=*/FALSE);
     }
 
     return TRUE;
@@ -893,6 +893,7 @@ struct symInfo_
 {
     AS_segment  seg;
     uint32_t    offset;
+    bool        abs;
 };
 
 bool LI_link (U_poolId pid, LI_segmentList sl)
@@ -920,6 +921,7 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
             si         = U_poolAlloc (UP_link, sizeof(*si));
             si->seg    = node->seg;
             si->offset = def->offset;
+            si->abs    = def->abs;
 
             TAB_enter (symTable, def->sym, si);
         }
@@ -957,6 +959,7 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
                 si = U_poolAlloc (UP_link, sizeof(*si));
                 si->seg    = commonSeg;
                 si->offset = commonSeg->mem_pos;
+                si->abs    = FALSE;
                 LOG_printf (LOG_DEBUG, "link: symbol %s allocated in common segment at offset 0x%08x, common_size=%zd\n", S_name(sym), si->offset, sr->common_size);
 
                 TAB_enter (symTable, sym, si);
@@ -968,11 +971,20 @@ bool LI_link (U_poolId pid, LI_segmentList sl)
 
             while (sr)
             {
-                LOG_printf (LOG_DEBUG, "link: pass2: adding reloc32 for symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, offset 0x%08x\n",
-                            S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
                 uint32_t *p = (uint32_t *) (node->seg->mem+sr->offset);
-                *p = ENDIAN_SWAP_32(si->offset);
-                AS_segmentAddReloc32 (pid, node->seg, si->seg, sr->offset);
+                if (!si->abs)
+                {
+                    LOG_printf (LOG_DEBUG, "link: pass2: adding reloc32 for symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, offset 0x%08x\n",
+                                S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
+                    *p = ENDIAN_SWAP_32(si->offset);
+                    AS_segmentAddReloc32 (pid, node->seg, si->seg, sr->offset);
+                }
+                else
+                {
+                    LOG_printf (LOG_DEBUG, "link: pass2: resolving absolute symbol %-20s in hunk #%02d at offset 0x%08x -> hunk #%02d, value 0x%08x\n",
+                                S_name (sym), node->seg->hunk_id, sr->offset, si->seg->hunk_id, si->offset);
+                    *p += ENDIAN_SWAP_32(si->offset);
+                }
 #if LOG_LEVEL == LOG_DEBUG
                 //hexdump (node->seg->mem, sr->offset-4, 16);
 #endif

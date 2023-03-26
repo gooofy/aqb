@@ -837,12 +837,13 @@ void AS_segmentAddRef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off,
     TAB_enter (seg->refs, sym, ref);
 }
 
-void AS_segmentAddDef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off)
+void AS_segmentAddDef (U_poolId pid, AS_segment seg, S_symbol sym, uint32_t off, bool absolute)
 {
     AS_segmentDef def = U_poolAlloc (pid, sizeof(*def));
 
     def->sym    = sym;
     def->offset = off;
+    def->abs    = absolute;
     def->next   = seg->defs;
     seg->defs   = def;
 }
@@ -1242,7 +1243,7 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32
     li->ty      = ty;
 
     if (expt)
-        AS_segmentAddDef (UP_assem, seg, label, offset);
+        AS_segmentAddDef (UP_assem, seg, label, offset, /*absolute=*/FALSE);
     return TRUE;
 }
 
