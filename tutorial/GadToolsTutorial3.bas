@@ -16,21 +16,22 @@ SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
     SYSTEM
 END SUB
 
-'SUB sliderDown (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    level = code
-'    GTG MODIFY label, GTTX_Text, "SliderDown, level="+STR$(level), TAG_DONE
-'END SUB
-'
-'SUB sliderUp (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    level = code
-'    GTG MODIFY label, GTTX_Text, "SliderUp  , level="+STR$(level), TAG_DONE
-'END SUB
-'
-'SUB sliderMove (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    level = code
-'    GTG MODIFY label, GTTX_Text, "SliderMove, level="+STR$(level), TAG_DONE
-'END SUB
-'
+SUB sliderDown (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    level = code
+    PRINT "down level: "; level    
+    'GTG MODIFY label, GTTX_Text, "SliderDown, level="+STR$(level), TAG_DONE
+END SUB
+
+SUB sliderUp (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    level = code
+    'GTG MODIFY label, GTTX_Text, "SliderUp  , level="+STR$(level), TAG_DONE
+END SUB
+
+SUB sliderMove (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    level = code
+    'GTG MODIFY label, GTTX_Text, "SliderMove, level="+STR$(level), TAG_DONE
+END SUB
+
 'SUB scrollerDown (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
 '    level = code
 '    GTG MODIFY label, GTTX_Text, "ScrollerDown, level="+STR$(level), TAG_DONE
@@ -48,7 +49,7 @@ END SUB
 
 SUB reset(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     level = 0
-    'GTG MODIFY slider, GTSL_Level, level, TAG_DONE
+    slider->level = level    
     'GTG MODIFY scroller, GTSC_Top, level, TAG_DONE
     'GTG MODIFY label, GTTX_Text, "RESET.", TAG_DONE
 END SUB
@@ -58,12 +59,18 @@ ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create our gadgets
 
-slider = NEW GTSLIDER (-10, 10, 0, ( 75, 20)-(235, 32))
+slider = NEW GTSLIDER (-10, 10, 0, LORIENT_HORIZ, ( 75, 20)-(235, 32))
+slider->immediate   = TRUE
+slider->relVerify   = TRUE
+slider->levelFormat = "%3ld"
+slider->maxLevelLen = 3
+slider->levelPlace  = PLACETEXT_RIGHT
 
 'slider = GTGADGET (SLIDER_KIND, ( 75, 20)-(235, 32), "Slider", 0, 1,_
 'GA_Immediate, TRUE, GA_RelVerify, TRUE,_
 'GTSL_MIN, -10, GTSL_MAX, 10, GTSL_Level, 0,_
-'GTSL_LevelFormat, "%3ld", GTSL_MaxLevelLen, 3, GTSL_LevelPlace, PLACETEXT_RIGHT, TAG_DONE)
+'GTSL_LevelFormat, "%3ld", GTSL_MaxLevelLen, 3, 
+'GTSL_LevelPlace, PLACETEXT_RIGHT, TAG_DONE)
 '
 'scroller = GTGADGET (SCROLLER_KIND, ( 75, 50)-(235, 62), "Scroller", 0, 1,_
 'GA_Immediate, TRUE, GA_RelVerify, TRUE,_
@@ -89,6 +96,10 @@ REM connect callbacks to gadget events
 'ON GTG MOVE CALL scroller, scrollerMove, NULL
 
 button->gadgetup_cb = reset
+
+slider->gadgetdown_cb = sliderDown
+slider->gadgetup_cb   = sliderUp
+slider->gadgetmove_cb = sliderMove
 
 WHILE TRUE
     SLEEP

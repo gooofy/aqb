@@ -1,3 +1,5 @@
+#define ENABLE_DPRINTF
+
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
 
@@ -48,12 +50,14 @@ void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt,
 		return;
     }
 
+    DPRINTF("_GTGADGET_CONSTRUCTOR: 0 ext=0x%08lx, ext->last=0x%08lx, ext->first=0x%08lx\n", ext, ext->last, ext->first);
     this->next = NULL;
     this->prev = ext->last;
     if (ext->last)
         ext->last = ext->last->next = this;
     else
         ext->first = ext->last = this;
+    DPRINTF("_GTGADGET_CONSTRUCTOR: 1 ext=0x%08lx, ext->last=0x%08lx, ext->first=0x%08lx\n", ext, ext->last, ext->first);
 
     this->ng.ng_LeftEdge   = x1;
     this->ng.ng_TopEdge    = y1;
@@ -141,125 +145,6 @@ BOOL _GTGADGET_deployed_ (GTGADGET_t *this)
     return this->gad != NULL;
 }
 
-
-struct Gadget *_gtbutton_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
-{
-    GTBUTTON_t *button = (GTBUTTON_t *)gtg;
-
-    gtg->ng.ng_VisualInfo = vinfo;
-    gtg->ng.ng_TextAttr   = ta;
-
-    gtg->gad = CreateGadget (BUTTON_KIND, gad, &gtg->ng, GA_Disabled, button->disabled, GT_Underscore, gtg->underscore, TAG_DONE);
-
-	if (!gtg->gad)
-	{
-		DPRINTF ("_gtbutton_deploy_cb: CreateGadget() failed.\n");
-		ERROR(AE_GTG_CREATE);
-		return gad;
-	}
-
-    // take care of IDCMP flags
-    ULONG gidcmp = BUTTONIDCMP;
-
-	DPRINTF("_gtbutton_deploy_cb: gtg->win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", gtg->win->IDCMPFlags, gidcmp);
-
-	if (gidcmp && ( (gtg->win->IDCMPFlags & gidcmp) != gidcmp ) )
-		ModifyIDCMP (gtg->win, gtg->win->IDCMPFlags | gidcmp);
-
-    return gtg->gad;
-}
-
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt,
-                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                            void *user_data, ULONG flags, ULONG underscore)
-{
-    DPRINTF("_GTBUTTON_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, txt=%s\n", this, x1, y1, x2, y2, txt ? txt : "NULL");
-    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
-    this->gadget.deploy_cb = _gtbutton_deploy_cb;
-    this->disabled         = FALSE;
-}
-
-BOOL _GTBUTTON_disabled_ (GTBUTTON_t *this)
-{
-    return this->disabled;
-}
-void _GTBUTTON_disabled (GTBUTTON_t *this, BOOL disabled)
-{
-    if (_GTGADGET_deployed_ (&this->gadget))
-        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
-    this->disabled = disabled;
-}
-
-struct Gadget *_gtcheckbox_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
-{
-    GTCHECKBOX_t *cb = (GTCHECKBOX_t *)gtg;
-
-	DPRINTF("_gtcheckbox_deploy_cb: cb=0x%08lx, checked=%d\n", cb, cb->checked);
-
-    gtg->ng.ng_VisualInfo = vinfo;
-    gtg->ng.ng_TextAttr   = ta;
-
-    gtg->gad = CreateGadget (CHECKBOX_KIND, gad, &gtg->ng, GA_Disabled, cb->disabled, GT_Underscore, gtg->underscore, GTCB_Checked, cb->checked, TAG_DONE);
-
-	if (!gtg->gad)
-	{
-		DPRINTF ("_gtcheckbox_deploy_cb: CreateGadget() failed.\n");
-		ERROR(AE_GTG_CREATE);
-		return gad;
-	}
-
-    // take care of IDCMP flags
-    ULONG gidcmp = CHECKBOXIDCMP;
-
-	DPRINTF("_gtcheckbox_deploy_cb: gtg->win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", gtg->win->IDCMPFlags, gidcmp);
-
-	if (gidcmp && ( (gtg->win->IDCMPFlags & gidcmp) != gidcmp ) )
-		ModifyIDCMP (gtg->win, gtg->win->IDCMPFlags | gidcmp);
-
-    return gtg->gad;
-}
-
-void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt,
-                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                              void *user_data, ULONG flags, ULONG underscore)
-{
-    DPRINTF("_GTCHECKBOX_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, txt=%s\n", this, x1, y1, x2, y2, txt ? txt : "NULL");
-    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
-    this->gadget.deploy_cb = _gtcheckbox_deploy_cb;
-    this->disabled         = FALSE;
-    this->checked          = FALSE;
-}
-
-BOOL _GTCHECKBOX_disabled_ (GTCHECKBOX_t *this)
-{
-    return this->disabled;
-}
-void _GTCHECKBOX_disabled (GTCHECKBOX_t *this, BOOL disabled)
-{
-    if (_GTGADGET_deployed_ (&this->gadget))
-        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
-    this->disabled = disabled;
-}
-
-BOOL _GTCHECKBOX_checked_ (GTCHECKBOX_t *this)
-{
-    if (_GTGADGET_deployed_ (&this->gadget))
-        return this->gadget.gad->Flags & GFLG_SELECTED;
-    return this->checked;
-}
-void _GTCHECKBOX_checked (GTCHECKBOX_t *this, BOOL checked)
-{
-    DPRINTF ("_GTCHECKBOX_checked: this=0x%08x, checked=%d, size=%d\n", this, checked, sizeof (GTCHECKBOX_t));
-    #if 1
-    if (_GTGADGET_deployed_ (&this->gadget))
-    {
-        DPRINTF ("_GTCHECKBOX_checked: is deployed, gad=0x%08x\n", this->gadget.gad);
-        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCB_Checked, checked, TAG_DONE);
-    }
-    this->checked = checked;
-    DPRINTF ("_GTCHECKBOX_checked: this=0x%08x, this->checked=%d\n", this, this->checked);
-    #endif
-}
 
 #if 0
 void GTG_MODIFY (GTGADGET_t *g, ULONG ti_Tag, ...)
@@ -466,6 +351,7 @@ void GTGADGETS_DEPLOY (void)
 
     if (!ext->vinfo)
     {
+		DPRINTF ("GTGADGETS_DEPLOY: GetVisualInfo() for the current window\n");
         ext->vinfo = GetVisualInfo(_g_cur_win->WScreen, TAG_END);
         if (!ext->vinfo)
         {
@@ -480,25 +366,30 @@ void GTGADGETS_DEPLOY (void)
         ext->ta.ta_Flags = _g_cur_rp->Font->tf_Flags;
     }
 
-    ext->gad = CreateContext (&ext->gadList);
+    struct Gadget **pGadList = &ext->gadList;
+    //DPRINTF("_GTGADGET_DEPLOY: CreateContext(), ext->gadList=0x%08lx, pGadList=0x%08lx\n", ext->gadList, pGadList);
+    ext->gad = CreateContext (pGadList);
     if (!ext->gad)
     {
-        DPRINTF ("GTGADGET_: CreateContext() failed.\n");
+        DPRINTF ("GTGADGETS_DEPLOY: CreateContext() failed.\n");
         ERROR(AE_GTG_CREATE);
         return;
     }
-
     GTGADGET_t *gtg = ext->first;
     while (gtg)
     {
+        //DPRINTF ("GTGADGETS_DEPLOY: gtg=0x%08lx, gtg->deploy_cb=0x%08lx\n", gtg, gtg->deploy_cb);
         if (gtg->deploy_cb)
+        {
+            //DPRINTF ("GTGADGETS_DEPLOY: gtg->deploy_cb()\n");
             ext->gad = gtg->deploy_cb(gtg, ext->gad, ext->vinfo, &ext->ta);
+        }
         gtg = gtg->next;
     }
 
     if (!ext->msg_cb_installed)
     {
-        DPRINTF ("GTGADGET_: installing custom msg callback for the current window\n");
+        DPRINTF ("GTGADGETS_DEPLOY: installing custom msg callback for the current window\n");
         _window_add_msg_cb (window_msg_cb);
         ext->msg_cb_installed = TRUE;
     }
@@ -613,5 +504,10 @@ void _GadToolsSupport_init(void)
     }
 
     ON_EXIT_CALL(_GadToolsSupport_shutdown);
+
+    //DPRINTF("gadtools version=%d, revision=%d, id=%s\n",
+    //        (int)GadToolsBase->lib_Version,
+    //        (int)GadToolsBase->lib_Revision,
+    //        GadToolsBase->lib_IdString);
 }
 

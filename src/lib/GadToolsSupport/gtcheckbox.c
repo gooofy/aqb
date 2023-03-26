@@ -78,6 +78,7 @@ BOOL _GTCHECKBOX_checked_ (GTCHECKBOX_t *this)
         return this->gadget.gad->Flags & GFLG_SELECTED;
     return this->checked;
 }
+
 void _GTCHECKBOX_checked (GTCHECKBOX_t *this, BOOL checked)
 {
     DPRINTF ("_GTCHECKBOX_checked: this=0x%08x, checked=%d, size=%d\n", this, checked, sizeof (GTCHECKBOX_t));
