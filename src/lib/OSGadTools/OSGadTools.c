@@ -1,3 +1,4 @@
+//#define ENABLE_DPRINTF
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
 
@@ -37,6 +38,11 @@ void _OSGadTools_init(void)
 {
     if (!(GadToolsBase = OpenLibrary((CONST_STRPTR) "gadtools.library", 0)))
         _cshutdown(20, (UBYTE *)"*** error: failed to open gadtools.library!\n");
+
+    DPRINTF("OSGadtools: gadtools.library version=%d, revision=%d, id=%s\n",
+            (int)GadToolsBase->lib_Version,
+            (int)GadToolsBase->lib_Revision,
+            GadToolsBase->lib_IdString);
 
     ON_EXIT_CALL(_OSGadTools_shutdown);
 }
