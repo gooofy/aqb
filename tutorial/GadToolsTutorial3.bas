@@ -7,7 +7,8 @@ IMPORT GadToolsSupport
 
 DIM SHARED AS GTSLIDER   PTR slider
 DIM SHARED AS GTBUTTON   PTR button
-' FIXME DIM SHARED AS GTGADGET_t PTR slider, scroller, label, button
+DIM SHARED AS GTTEXT     PTR label
+DIM SHARED AS GTSCROLLER PTR scroller
 DIM SHARED AS INTEGER level=0
 
 REM callbacks
@@ -18,40 +19,39 @@ END SUB
 
 SUB sliderDown (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     level = code
-    PRINT "down level: "; level    
-    'GTG MODIFY label, GTTX_Text, "SliderDown, level="+STR$(level), TAG_DONE
+    label->text = "SliderDown, level="+STR$(level)
 END SUB
 
 SUB sliderUp (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     level = code
-    'GTG MODIFY label, GTTX_Text, "SliderUp  , level="+STR$(level), TAG_DONE
+    label->text = "SliderUp  , level="+STR$(level)
 END SUB
 
 SUB sliderMove (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     level = code
-    'GTG MODIFY label, GTTX_Text, "SliderMove, level="+STR$(level), TAG_DONE
+    label->text = "SliderMove, level="+STR$(level)
 END SUB
 
-'SUB scrollerDown (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    level = code
-'    GTG MODIFY label, GTTX_Text, "ScrollerDown, level="+STR$(level), TAG_DONE
-'END SUB
-'
-'SUB scrollerUp (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    level = code
-'    GTG MODIFY label, GTTX_Text, "ScrollerUp  , level="+STR$(level), TAG_DONE
-'END SUB
-'
-'SUB scrollerMove (BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    level = code
-'    GTG MODIFY label, GTTX_Text, "ScrollerMove, level="+STR$(level), TAG_DONE
-'END SUB
+SUB scrollerDown (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    level = code
+    label->text = "ScrollerDown, level="+STR$(level)
+END SUB
+
+SUB scrollerUp (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    level = code
+    label->text = "ScrollerUp  , level="+STR$(level)
+END SUB
+
+SUB scrollerMove (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    level = code
+    label->text = "ScrollerMove, level="+STR$(level)
+END SUB
 
 SUB reset(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     level = 0
     slider->level = level    
-    'GTG MODIFY scroller, GTSC_Top, level, TAG_DONE
-    'GTG MODIFY label, GTTX_Text, "RESET.", TAG_DONE
+    scroller->top = level
+    label->text = "RESET."
 END SUB
 
 WINDOW 1, "GadgetTutorial 3"
@@ -59,47 +59,35 @@ ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create our gadgets
 
-slider = NEW GTSLIDER (-10, 10, 0, LORIENT_HORIZ, ( 75, 20)-(235, 32))
+slider = NEW GTSLIDER ("Slider:", -10, 10, 0, LORIENT_HORIZ, ( 85, 20)-(235, 32))
 slider->immediate   = TRUE
 slider->relVerify   = TRUE
 slider->levelFormat = "%3ld"
 slider->maxLevelLen = 3
 slider->levelPlace  = PLACETEXT_RIGHT
 
-'slider = GTGADGET (SLIDER_KIND, ( 75, 20)-(235, 32), "Slider", 0, 1,_
-'GA_Immediate, TRUE, GA_RelVerify, TRUE,_
-'GTSL_MIN, -10, GTSL_MAX, 10, GTSL_Level, 0,_
-'GTSL_LevelFormat, "%3ld", GTSL_MaxLevelLen, 3, 
-'GTSL_LevelPlace, PLACETEXT_RIGHT, TAG_DONE)
-'
-'scroller = GTGADGET (SCROLLER_KIND, ( 75, 50)-(235, 62), "Scroller", 0, 1,_
-'GA_Immediate, TRUE, GA_RelVerify, TRUE,_
-'GTSC_Top, 0, GTSC_Total, 100, GTSC_Visible, 10, GTSC_Arrows, 18, TAG_DONE)
+scroller = NEW GTSCROLLER ("Scroller:",  0 , 100, 10, LORIENT_HORIZ, ( 85, 50)-(235, 62), "Scroller")
+scroller->immediate = TRUE
+scroller->relVerify = TRUE
+scroller->arrows    = 18
 
 button = NEW GTBUTTON   ("_Reset"   , (315, 26)-(414, 56))
-'button = GTGADGET (BUTTON_KIND, (315, 26)-(414, 56), "Reset", 0, 1, TAG_DONE)
 
-'label = GTGADGET (TEXT_KIND, (75, 170)-(600, 183), "Status", 0, 2, GTTX_BORDER, TRUE, TAG_DONE)
-
-'GTG MODIFY label, GTTX_Text, "Try moving the slider...", TAG_DONE
+label = NEW GTTEXT ("Status:", "READY.", (75, 170)-(600, 183))
 
 GTGADGETS DEPLOY
 
 REM connect callbacks to gadget events
-
-'ON GTG DOWN CALL slider, sliderDown, NULL
-'ON GTG UP   CALL slider, sliderUp  , NULL
-'ON GTG MOVE CALL slider, sliderMove, NULL
-
-'ON GTG DOWN CALL scroller, scrollerDown, NULL
-'ON GTG UP   CALL scroller, scrollerUp  , NULL
-'ON GTG MOVE CALL scroller, scrollerMove, NULL
 
 button->gadgetup_cb = reset
 
 slider->gadgetdown_cb = sliderDown
 slider->gadgetup_cb   = sliderUp
 slider->gadgetmove_cb = sliderMove
+
+scroller->gadgetdown_cb = scrollerDown
+scroller->gadgetup_cb   = scrollerUp
+scroller->gadgetmove_cb = scrollerMove
 
 WHILE TRUE
     SLEEP

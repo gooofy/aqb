@@ -14,7 +14,7 @@ TYPE GTGADGET
 
     PUBLIC:
 
-        DECLARE CONSTRUCTOR (BYVAL txt AS STRING, _
+        DECLARE CONSTRUCTOR (BYVAL label AS STRING, _
                              _COORD2(BYVAL s1 AS BOOLEAN, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
@@ -65,7 +65,7 @@ END TYPE
 TYPE GTBUTTON EXTENDS GTGADGET
 
     PUBLIC:
-       DECLARE CONSTRUCTOR (BYVAL txt AS STRING, _
+       DECLARE CONSTRUCTOR (BYVAL label AS STRING, _
                             _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
                             BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
@@ -80,7 +80,7 @@ END TYPE
 TYPE GTCHECKBOX EXTENDS GTGADGET
 
     PUBLIC:
-        DECLARE CONSTRUCTOR (BYVAL txt AS STRING, _
+        DECLARE CONSTRUCTOR (BYVAL label AS STRING, _
                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
@@ -100,7 +100,7 @@ TYPE GTSLIDER EXTENDS GTGADGET
 
     PUBLIC:
 
-        DECLARE CONSTRUCTOR (BYVAL min AS INTEGER, BYVAL max AS INTEGER, BYVAL level AS INTEGER, BYVAL freedom AS ULONG, _
+        DECLARE CONSTRUCTOR (BYVAL label AS STRING, BYVAL min AS INTEGER, BYVAL max AS INTEGER, BYVAL level AS INTEGER, BYVAL freedom AS ULONG, _
                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
@@ -142,6 +142,134 @@ TYPE GTSLIDER EXTENDS GTGADGET
         AS STRING   _levelFormat
         AS ULONG    _levelPlace
         AS BOOLEAN  _immediate, _relVerify
+
+END TYPE
+
+TYPE GTTEXT EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING, BYVAL text AS STRING, _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY text AS STRING
+        DECLARE PROPERTY text (BYVAL value AS STRING)
+
+        DECLARE PROPERTY copyText AS BOOLEAN
+        DECLARE PROPERTY copyText (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY border AS BOOLEAN
+        DECLARE PROPERTY border (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY frontPen AS UBYTE
+        DECLARE PROPERTY frontPen (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY backPen AS UBYTE
+        DECLARE PROPERTY backPen (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY justification AS UBYTE
+        DECLARE PROPERTY justification (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY clipped AS BOOLEAN
+        DECLARE PROPERTY clipped (BYVAL value AS BOOLEAN)
+
+    PRIVATE:
+
+        AS STRING       _text
+        AS BOOLEAN      _copyText
+        AS BOOLEAN      _border
+        AS UBYTE        _frontPen
+        AS UBYTE        _backPen
+        AS UBYTE        _justification
+        AS BOOLEAN      _clipped
+
+END TYPE
+
+TYPE GTSCROLLER EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING, BYVAL top AS INTEGER, BYVAL total AS INTEGER, BYVAL visible AS INTEGER, BYVAL freedom AS ULONG,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY relVerify AS BOOLEAN
+        DECLARE PROPERTY relVerify (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY immediate AS BOOLEAN
+        DECLARE PROPERTY immediate (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY top AS INTEGER
+        DECLARE PROPERTY top (BYVAL value AS INTEGER)
+
+        DECLARE PROPERTY total AS INTEGER
+        DECLARE PROPERTY total (BYVAL value AS INTEGER)
+
+        DECLARE PROPERTY visible AS BOOLEAN
+        DECLARE PROPERTY visible (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY arrows AS UINTEGER
+        DECLARE PROPERTY arrows (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY freedom AS ULONG
+        DECLARE PROPERTY freedom (BYVAL value AS ULONG)
+
+    PRIVATE:
+
+        AS BOOLEAN      _disabled
+        AS BOOLEAN      _relVerify
+        AS BOOLEAN      _immediate
+        AS INTEGER      _top
+        AS INTEGER      _total
+        AS BOOLEAN      _visible
+        AS UINTEGER     _arrows
+        AS ULONG        _freedom
+
+END TYPE
+
+TYPE GTSTRING EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY immediate AS BOOLEAN
+        DECLARE PROPERTY immediate (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY tabCycle AS BOOLEAN
+        DECLARE PROPERTY tabCycle (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY str AS STRING
+        DECLARE PROPERTY str (BYVAL value AS STRING)
+
+        DECLARE PROPERTY maxChars AS UINTEGER
+        DECLARE PROPERTY maxChars (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY exitHelp AS BOOLEAN
+        DECLARE PROPERTY exitHelp (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY justification AS STRING
+        DECLARE PROPERTY justification (BYVAL value AS STRING)
+
+        DECLARE PROPERTY replaceMode AS BOOLEAN
+        DECLARE PROPERTY replaceMode (BYVAL value AS BOOLEAN)
+
+    PRIVATE:
+
+        AS BOOLEAN      _disabled
+        AS BOOLEAN      _immediate
+        AS BOOLEAN      _tabCycle
+        AS STRING       _str
+        AS UINTEGER     _maxChars
+        AS BOOLEAN      _exitHelp
+        AS STRING       _justification
+        AS BOOLEAN      _replaceMode
 
 END TYPE
 

@@ -1,4 +1,4 @@
-#define ENABLE_DPRINTF
+// #define ENABLE_DPRINTF
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
@@ -34,7 +34,7 @@ SHORT _GTGADGET_NEXT_ID (void)
     return ext->id++;
 }
 
-void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt,
+void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, CONST_STRPTR txt,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {

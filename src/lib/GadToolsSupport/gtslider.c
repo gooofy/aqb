@@ -25,7 +25,7 @@ static struct Gadget *_gtslider_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, 
 {
     GTSLIDER_t *slider = (GTSLIDER_t *)gtg;
 
-	DPRINTF("_gtslider_deploy_cb: slider=0x%08lx, min=%d, max=%d, level=%d\n", slider, slider->min, slider->max, slider->level);
+    DPRINTF("_gtslider_deploy_cb: slider=0x%08lx, min=%d, max=%d, level=%d\n", slider, slider->min, slider->max, slider->level);
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -44,31 +44,31 @@ static struct Gadget *_gtslider_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, 
                              GA_RelVerify    , slider->relVerify,
                              TAG_DONE);
 
-	if (!gtg->gad)
-	{
-		DPRINTF ("_gtslider_deploy_cb: CreateGadget() failed.\n");
-		ERROR(AE_GTG_CREATE);
-		return gad;
-	}
+    if (!gtg->gad)
+    {
+        DPRINTF ("_gtslider_deploy_cb: CreateGadget() failed.\n");
+        ERROR(AE_GTG_CREATE);
+        return gad;
+    }
 
     // take care of IDCMP flags
     ULONG gidcmp = SLIDERIDCMP;
 
-	DPRINTF("_gtslider_deploy_cb: gtg->win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", gtg->win->IDCMPFlags, gidcmp);
+    DPRINTF("_gtslider_deploy_cb: gtg->win->IDCMPFlags=0x%08lx, gidcmp=0x%08lx\n", gtg->win->IDCMPFlags, gidcmp);
 
-	if (gidcmp && ( (gtg->win->IDCMPFlags & gidcmp) != gidcmp ) )
-		ModifyIDCMP (gtg->win, gtg->win->IDCMPFlags | gidcmp);
+    if (gidcmp && ( (gtg->win->IDCMPFlags & gidcmp) != gidcmp ) )
+        ModifyIDCMP (gtg->win, gtg->win->IDCMPFlags | gidcmp);
 
     return gtg->gad;
 }
 
-void _GTSLIDER_CONSTRUCTOR (GTSLIDER_t *this,
+void _GTSLIDER_CONSTRUCTOR (GTSLIDER_t *this, CONST_STRPTR txt,
                             SHORT min, SHORT max, SHORT level, ULONG freedom,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_GTSLIDER_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _GTGADGET_CONSTRUCTOR (&this->gadget, "", s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _GTGADGET_CONSTRUCTOR (&this->gadget, txt, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtslider_deploy_cb;
     this->disabled         = FALSE;
     this->min              = min;

@@ -16,16 +16,13 @@
 #define AE_GTG_BUFFER   405
 #define AE_GTG_NUM      406
 
-typedef struct GTBUTTON_   GTBUTTON_t;
-typedef struct GTCHECKBOX_ GTCHECKBOX_t;
-typedef struct GTSLIDER_   GTSLIDER_t;
-typedef struct GTGADGET_   GTGADGET_t;
-
 /***********************************************************************************
  *
  * GTGADGET
  *
  ***********************************************************************************/
+
+typedef struct GTGADGET_   GTGADGET_t;
 
 typedef void (*gtgadget_cb_t)(GTGADGET_t *gtg, USHORT code);
 typedef struct Gadget * (*gtgadget_deploy_cb_t)(GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta);
@@ -49,7 +46,7 @@ struct GTGADGET_
     gtgadget_deploy_cb_t  deploy_cb;
 };
 
-void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, char *txt,
+void _GTGADGET_CONSTRUCTOR (GTGADGET_t *this, CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
@@ -76,13 +73,14 @@ BOOL         _GTGADGET_deployed_  (GTGADGET_t *this);
  *
  ***********************************************************************************/
 
+typedef struct GTBUTTON_   GTBUTTON_t;
 struct GTBUTTON_
 {
     GTGADGET_t      gadget;
     BOOL            disabled;
 };
 
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, char *txt,
+void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
@@ -96,6 +94,7 @@ void _GTBUTTON_disabled  (GTBUTTON_t *this, BOOL disabled);
  *
  ***********************************************************************************/
 
+typedef struct GTCHECKBOX_ GTCHECKBOX_t;
 struct GTCHECKBOX_
 {
     GTGADGET_t      gadget;
@@ -103,7 +102,7 @@ struct GTCHECKBOX_
     BOOL            checked;
 };
 
-void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, char *txt,
+void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, CONST_STRPTR label,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore);
 
@@ -119,6 +118,7 @@ void _GTCHECKBOX_checked   (GTCHECKBOX_t *this, BOOL checked);
  *
  ***********************************************************************************/
 
+typedef struct GTSLIDER_   GTSLIDER_t;
 struct GTSLIDER_
 {
     GTGADGET_t      gadget;
@@ -131,7 +131,7 @@ struct GTSLIDER_
     BOOL            immediate, relVerify;
 };
 
-void _GTSLIDER_CONSTRUCTOR (GTSLIDER_t *this,
+void _GTSLIDER_CONSTRUCTOR (GTSLIDER_t *this, CONST_STRPTR label,
                             SHORT min, SHORT max, SHORT level, ULONG orient,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
@@ -166,6 +166,152 @@ void          _GTSLIDER_relVerify  (GTSLIDER_t *this, BOOL b);
 
 ULONG         _GTSLIDER_freedom_ (GTSLIDER_t *this);
 void          _GTSLIDER_freedom  (GTSLIDER_t *this, ULONG u);
+
+/***********************************************************************************
+ *
+ * GTTEXT
+ *
+ ***********************************************************************************/
+
+typedef struct GTTEXT_ GTTEXT_t;
+
+struct GTTEXT_
+{
+    GTGADGET_t      gadget;
+    CONST_STRPTR    text;
+    BOOL            copyText;
+    BOOL            border;
+    UBYTE           frontPen;
+    UBYTE           backPen;
+    UBYTE           justification;
+    BOOL            clipped;
+};
+
+void _GTTEXT_CONSTRUCTOR (GTTEXT_t *this, CONST_STRPTR label, CONST_STRPTR text,
+                          BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                          void *user_data, ULONG flags, ULONG underscore);
+
+CONST_STRPTR           _GTTEXT_text_ (GTTEXT_t *this);
+void                   _GTTEXT_text  (GTTEXT_t *this, CONST_STRPTR value);
+
+BOOL                   _GTTEXT_copyText_ (GTTEXT_t *this);
+void                   _GTTEXT_copyText  (GTTEXT_t *this, BOOL value);
+
+BOOL                   _GTTEXT_border_ (GTTEXT_t *this);
+void                   _GTTEXT_border  (GTTEXT_t *this, BOOL value);
+
+UBYTE                  _GTTEXT_frontPen_ (GTTEXT_t *this);
+void                   _GTTEXT_frontPen  (GTTEXT_t *this, UBYTE value);
+
+UBYTE                  _GTTEXT_backPen_ (GTTEXT_t *this);
+void                   _GTTEXT_backPen  (GTTEXT_t *this, UBYTE value);
+
+UBYTE                  _GTTEXT_justification_ (GTTEXT_t *this);
+void                   _GTTEXT_justification  (GTTEXT_t *this, UBYTE value);
+
+BOOL                   _GTTEXT_clipped_ (GTTEXT_t *this);
+void                   _GTTEXT_clipped  (GTTEXT_t *this, BOOL value);
+
+/***********************************************************************************
+ *
+ * GTSCROLLER
+ *
+ ***********************************************************************************/
+
+typedef struct GTSCROLLER_ GTSCROLLER_t;
+
+struct GTSCROLLER_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    BOOL            relVerify;
+    BOOL            immediate;
+    SHORT           top;
+    SHORT           total;
+    SHORT           visible;
+    USHORT          arrows;
+    ULONG           freedom;
+};
+
+void _GTSCROLLER_CONSTRUCTOR (GTSCROLLER_t *this, CONST_STRPTR label,
+                              SHORT top, SHORT total, SHORT visible, ULONG freedom,
+                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                              void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTSCROLLER_disabled_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_disabled  (GTSCROLLER_t *this, BOOL value);
+
+BOOL                   _GTSCROLLER_relVerify_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_relVerify  (GTSCROLLER_t *this, BOOL value);
+
+BOOL                   _GTSCROLLER_immediate_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_immediate  (GTSCROLLER_t *this, BOOL value);
+
+SHORT                  _GTSCROLLER_top_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_top  (GTSCROLLER_t *this, SHORT value);
+
+SHORT                  _GTSCROLLER_total_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_total  (GTSCROLLER_t *this, SHORT value);
+
+BOOL                   _GTSCROLLER_visible_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_visible  (GTSCROLLER_t *this, BOOL value);
+
+USHORT                 _GTSCROLLER_arrows_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_arrows  (GTSCROLLER_t *this, USHORT value);
+
+ULONG                  _GTSCROLLER_freedom_ (GTSCROLLER_t *this);
+void                   _GTSCROLLER_freedom  (GTSCROLLER_t *this, ULONG value);
+
+/***********************************************************************************
+ *
+ * GTSTRING
+ *
+ ***********************************************************************************/
+
+typedef struct GTSTRING_ GTSTRING_t;
+
+struct GTSTRING_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    BOOL            immediate;
+    BOOL            tabCycle;
+    CONST_STRPTR    str;
+    USHORT          maxChars;
+    BOOL            exitHelp;
+    CONST_STRPTR    justification;
+    BOOL            replaceMode;
+};
+
+void _GTSTRING_CONSTRUCTOR (GTSTRING_t *this,
+                            CONST_STRPTR label,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                            void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTSTRING_disabled_ (GTSTRING_t *this);
+void                   _GTSTRING_disabled  (GTSTRING_t *this, BOOL value);
+
+BOOL                   _GTSTRING_immediate_ (GTSTRING_t *this);
+void                   _GTSTRING_immediate  (GTSTRING_t *this, BOOL value);
+
+BOOL                   _GTSTRING_tabCycle_ (GTSTRING_t *this);
+void                   _GTSTRING_tabCycle  (GTSTRING_t *this, BOOL value);
+
+CONST_STRPTR           _GTSTRING_str_ (GTSTRING_t *this);
+void                   _GTSTRING_str  (GTSTRING_t *this, CONST_STRPTR value);
+
+USHORT                 _GTSTRING_maxChars_ (GTSTRING_t *this);
+void                   _GTSTRING_maxChars  (GTSTRING_t *this, USHORT value);
+
+BOOL                   _GTSTRING_exitHelp_ (GTSTRING_t *this);
+void                   _GTSTRING_exitHelp  (GTSTRING_t *this, BOOL value);
+
+CONST_STRPTR           _GTSTRING_justification_ (GTSTRING_t *this);
+void                   _GTSTRING_justification  (GTSTRING_t *this, CONST_STRPTR value);
+
+BOOL                   _GTSTRING_replaceMode_ (GTSTRING_t *this);
+void                   _GTSTRING_replaceMode  (GTSTRING_t *this, BOOL value);
+
 
 /********************************************
  *
