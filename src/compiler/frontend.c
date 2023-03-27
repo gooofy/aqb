@@ -1527,8 +1527,8 @@ static bool selector(S_tkn *tkn, CG_item *exp)
             S_symbol sym = (*tkn)->u.sym;
             *tkn = (*tkn)->next;
 
-            if ( (ty->kind != Ty_pointer) || (ty->u.pointer->kind != Ty_record) )
-                EM_error(pos, "record pointer type expected");
+            if ( (ty->kind != Ty_pointer) || !ty->u.pointer || (ty->u.pointer->kind != Ty_record) )
+                return EM_error(pos, "record pointer type expected");
 
             ty = ty->u.pointer;
 
