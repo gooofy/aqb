@@ -128,7 +128,11 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
                 case Ty_byVal:
                 {
                     int size = Ty_size(formal->ty);
-                    assert (size <= 4);
+                    if (size>4)
+                    {
+                        EM_error(pos, "cannot pass arguments of this type by value");
+                        size=4;
+                    }
                     // gcc seems to push 4 bytes regardless of type (int, long, ...)
                     offset += 4-size;
                     InFrame (&n->item, offset, formal->ty);
