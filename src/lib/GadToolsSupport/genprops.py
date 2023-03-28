@@ -93,15 +93,32 @@
 #                 ]
 #        }
 
-PROPS = { 'name' : 'GTCYCLE',
-          'kind' : 'CYCLE_KIND',
-          'idcmp': 'CYCLEIDCMP',
+#PROPS = { 'name' : 'GTCYCLE',
+#          'kind' : 'CYCLE_KIND',
+#          'idcmp': 'CYCLEIDCMP',
+#          'label': True,
+#                     # name                , OS, type        , getter , default
+#          'props': [
+#                     ( 'GA_Disabled'       , 36, 'BOOLEAN'   , True   , 'FALSE'         ),
+#                     ( 'GTCY_Labels'       , 36, 'STRING PTR', True   , None            ),
+#                     ( 'GTCY_Active'       , 36, 'UINTEGER'  , True   , '0'             ),
+#                 ]
+#        }
+
+PROPS = { 'name' : 'GTPALETTE',
+          'kind' : 'PALETTE_KIND',
+          'idcmp': 'PALETTEIDCMP',
           'label': True,
-                     # name                , OS, type        , getter , default
+                     # name                  , OS, type        , getter , default
           'props': [
-                     ( 'GA_Disabled'       , 36, 'BOOLEAN'   , True   , 'FALSE'         ),
-                     ( 'GTCY_Labels'       , 36, 'STRING PTR', True   , None            ),
-                     ( 'GTCY_Active'       , 36, 'UINTEGER'  , True   , '0'             ),
+                     ( 'GA_Disabled'         , 39, 'BOOLEAN'   , True   , 'FALSE'        ),
+                     ( 'GTPA_Depth'          , 36, 'UINTEGER'  , False  , None           ),
+                     ( 'GTPA_Color'          , 39, 'UBYTE'     , True   , '1'            ),
+                     ( 'GTPA_ColorOffset'    , 39, 'UBYTE'     , True   , '0'            ),
+                     ( 'GTPA_IndicatorWidth' , 36, 'UINTEGER'  , False  , '0'            ),
+                     ( 'GTPA_IndicatorHeight', 36, 'UINTEGER'  , False  , '0'            ),
+                     ( 'GTPA_ColorTable'     , 39, 'UBYTE PTR' , True   , 'NULL'         ),
+                     ( 'GTPA_NumColors'      , 39, 'UINTEGER'  , False  , '2'            ),
                  ]
         }
 
@@ -143,6 +160,7 @@ def gen_basic (f, props):
 
 BT2CT = {'STRING': 'CONST_STRPTR',
          'STRING PTR' : 'CONST_STRPTR *',
+         'UBYTE PTR' : 'UBYTE *',
          'BOOLEAN' : 'BOOL',
          'UBYTE': 'UBYTE',
          'BYTE': 'BYTE',

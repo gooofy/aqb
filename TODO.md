@@ -92,7 +92,7 @@ Guenter Bartsch <guenter@zamia.org>
 	-      LISTVIEW
 	- DONE MX
 	- DONE NUMBER
-	-      PALETTE
+	- DONE PALETTE
 	- DONE SCROLLER
 	- DONE SLIDER
 	- DONE STRING

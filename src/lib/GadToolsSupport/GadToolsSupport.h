@@ -491,6 +491,53 @@ void                   _GTCYCLE_labels  (GTCYCLE_t *this, CONST_STRPTR * value);
 USHORT                 _GTCYCLE_active_ (GTCYCLE_t *this);
 void                   _GTCYCLE_active  (GTCYCLE_t *this, USHORT value);
 
+/***********************************************************************************
+ *
+ * GTPALETTE
+ *
+ ***********************************************************************************/
+
+typedef struct GTPALETTE_ GTPALETTE_t;
+
+struct GTPALETTE_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    USHORT          depth;
+    UBYTE           color;
+    UBYTE           colorOffset;
+    USHORT          indicatorWidth;
+    USHORT          indicatorHeight;
+    UBYTE *         colorTable;
+    USHORT          numColors;
+};
+
+void _GTPALETTE_CONSTRUCTOR (GTPALETTE_t *this,
+                            CONST_STRPTR label, USHORT numColors, 
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                            void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTPALETTE_disabled_ (GTPALETTE_t *this);
+void                   _GTPALETTE_disabled  (GTPALETTE_t *this, BOOL value);
+
+UBYTE                  _GTPALETTE_color_ (GTPALETTE_t *this);
+void                   _GTPALETTE_color  (GTPALETTE_t *this, UBYTE value);
+
+UBYTE                  _GTPALETTE_colorOffset_ (GTPALETTE_t *this);
+void                   _GTPALETTE_colorOffset  (GTPALETTE_t *this, UBYTE value);
+
+USHORT                 _GTPALETTE_indicatorWidth_ (GTPALETTE_t *this);
+void                   _GTPALETTE_indicatorWidth  (GTPALETTE_t *this, USHORT value);
+
+USHORT                 _GTPALETTE_indicatorHeight_ (GTPALETTE_t *this);
+void                   _GTPALETTE_indicatorHeight  (GTPALETTE_t *this, USHORT value);
+
+UBYTE *                _GTPALETTE_colorTable_ (GTPALETTE_t *this);
+void                   _GTPALETTE_colorTable  (GTPALETTE_t *this, UBYTE * value);
+
+USHORT                 _GTPALETTE_numColors_ (GTPALETTE_t *this);
+void                   _GTPALETTE_numColors  (GTPALETTE_t *this, USHORT value);
+
 
 /********************************************
  *

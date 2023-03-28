@@ -429,6 +429,46 @@ TYPE GTCYCLE EXTENDS GTGADGET
 
 END TYPE
 
+TYPE GTPALETTE EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING, BYVAL numColors AS UINTEGER,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY color AS UBYTE
+        DECLARE PROPERTY color (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY colorOffset AS UBYTE
+        DECLARE PROPERTY colorOffset (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY indicatorWidth AS UINTEGER
+        DECLARE PROPERTY indicatorWidth (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY indicatorHeight AS UINTEGER
+        DECLARE PROPERTY indicatorHeight (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY colorTable AS UBYTE PTR
+        DECLARE PROPERTY colorTable (BYVAL value AS UBYTE PTR)
+
+        DECLARE PROPERTY numColors AS UINTEGER
+        DECLARE PROPERTY numColors (BYVAL value AS UINTEGER)
+
+    PRIVATE:
+
+        AS BOOLEAN      _disabled
+        AS UBYTE        _color
+        AS UBYTE        _colorOffset
+        AS UINTEGER     _indicatorWidth
+        AS UINTEGER     _indicatorHeight
+        AS UBYTE PTR    _colorTable
+        AS UINTEGER     _numColors
+
+END TYPE
+
 DECLARE SUB      GTGADGETS DEPLOY
 DECLARE SUB      GTGADGETS FREE
 
