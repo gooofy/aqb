@@ -104,6 +104,26 @@
                 }
             ],
             "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "GadToolsTutorial4",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "${workspaceFolder}/src/lib", "-d", "_aqb", "-a", "/tmp/foo.s", "-o", "/tmp/foo", "GadToolsTutorial4.bas"],
+            "stopAtEntry": false,
+            "cwd": "/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
         }
     ]
 }

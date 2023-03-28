@@ -7,11 +7,11 @@ IMPORT GadToolsSupport
 REM GTGADGETUP callback
 
 SUB buttonCB (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
-    
+
     TRACE "buttonCB called."
-    
+
     SYSTEM
-    
+
 END SUB
 
 SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
