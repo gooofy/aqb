@@ -128,6 +128,7 @@ tests/insights/link/foo_vasm.dump
 tests/insights/link/foo_vasm.list
 tests/mod2/mod2.sym
 tests/mod2/foo
+tests/lxa.log
 doc/internal/
 target
 config.mk
