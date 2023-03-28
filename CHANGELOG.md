@@ -32,6 +32,9 @@ Bug Fixes:
     * runtime: fix FFP to string conversion bugs
     * adapted to bebbo's current GCC
 
+Requirements:
+    * OS 3.1 (V39)
+
 ## 0.8.2
 
 Improvements:

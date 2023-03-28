@@ -68,7 +68,7 @@ Improvements over AmigaBASIC include:
 ## Requirements
 
 * 3 MB RAM
-* OS 2.0 (V36) or newer
+* OS 3.1 (V39) or newer
 
 ## Installation
 
