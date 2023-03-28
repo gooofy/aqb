@@ -3611,6 +3611,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
         case IK_cond:
         case IK_varPtr:
         case IK_inFrameRef:
+        case IK_property:
             CG_loadVal (code, pos, right);
             // fall through
         case IK_inReg:
