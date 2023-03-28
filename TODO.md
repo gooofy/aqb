@@ -90,7 +90,7 @@ Guenter Bartsch <guenter@zamia.org>
 	-      CYCLE
 	- DONE INTEGER
 	-      LISTVIEW
-	-      MX
+	- DONE MX
 	- DONE NUMBER
 	-      PALETTE
 	- DONE SCROLLER

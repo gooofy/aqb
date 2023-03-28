@@ -419,6 +419,48 @@ void                   _GTNUMBER_maxNumberLen  (GTNUMBER_t *this, ULONG value);
 BOOL                   _GTNUMBER_clipped_ (GTNUMBER_t *this);
 void                   _GTNUMBER_clipped  (GTNUMBER_t *this, BOOL value);
 
+/***********************************************************************************
+ *
+ * GTMX
+ *
+ ***********************************************************************************/
+
+typedef struct GTMX_ GTMX_t;
+
+struct GTMX_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    CONST_STRPTR *  labels;
+    USHORT          active;
+    USHORT          spacing;
+    BOOL            scaled;
+    ULONG           titlePlace;
+};
+
+void _GTMX_CONSTRUCTOR (GTMX_t *this,
+                            CONST_STRPTR label, CONST_STRPTR * labels, 
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                            void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTMX_disabled_ (GTMX_t *this);
+void                   _GTMX_disabled  (GTMX_t *this, BOOL value);
+
+CONST_STRPTR *         _GTMX_labels_ (GTMX_t *this);
+void                   _GTMX_labels  (GTMX_t *this, CONST_STRPTR * value);
+
+USHORT                 _GTMX_active_ (GTMX_t *this);
+void                   _GTMX_active  (GTMX_t *this, USHORT value);
+
+USHORT                 _GTMX_spacing_ (GTMX_t *this);
+void                   _GTMX_spacing  (GTMX_t *this, USHORT value);
+
+BOOL                   _GTMX_scaled_ (GTMX_t *this);
+void                   _GTMX_scaled  (GTMX_t *this, BOOL value);
+
+ULONG                  _GTMX_titlePlace_ (GTMX_t *this);
+void                   _GTMX_titlePlace  (GTMX_t *this, ULONG value);
+
 
 /********************************************
  *

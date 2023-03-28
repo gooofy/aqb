@@ -62,19 +62,34 @@
 #                 ]
 #        }
 
-PROPS = { 'name' : 'GTNUMBER',
-          'kind' : 'NUMBER_KIND',
-          'idcmp': 'NUMBERIDCMP',
+#PROPS = { 'name' : 'GTNUMBER',
+#          'kind' : 'NUMBER_KIND',
+#          'idcmp': 'NUMBERIDCMP',
+#          'label': True,
+#                     # name                , OS, type     , getter , default
+#          'props': [ ( 'GTNM_Number'       , 36, 'LONG'   , True   , None          ),
+#                     ( 'GTNM_Border'       , 36, 'BOOLEAN', False  , 'TRUE'        ),
+#                     ( 'GTNM_FrontPen'     , 39, 'UBYTE',   False  , '1'           ),
+#                     ( 'GTNM_BackPen'      , 39, 'UBYTE',   False  , '0'           ),
+#                     ( 'GTNM_Justification', 39, 'UBYTE'  , False  , 'GTJ_LEFT'    ),
+#                     ( 'GTNM_Format'       , 39, 'STRING' , False  , '%ld'         ),
+#                     ( 'GTNM_MaxNumberLen' , 39, 'ULONG'  , False  , '10'          ),
+#                     ( 'GTNM_Clipped'      , 39, 'BOOLEAN', False  , 'TRUE'        )
+#                 ]
+#        }
+
+PROPS = { 'name' : 'GTMX',
+          'kind' : 'MX_KIND',
+          'idcmp': 'MXIDCMP',
           'label': True,
-                     # name                , OS, type     , getter , default
-          'props': [ ( 'GTNM_Number'       , 36, 'LONG'   , True   , None          ),
-                     ( 'GTNM_Border'       , 36, 'BOOLEAN', False  , 'TRUE'        ),
-                     ( 'GTNM_FrontPen'     , 39, 'UBYTE',   False  , '1'           ),
-                     ( 'GTNM_BackPen'      , 39, 'UBYTE',   False  , '0'           ),
-                     ( 'GTNM_Justification', 39, 'UBYTE'  , False  , 'GTJ_LEFT'    ),
-                     ( 'GTNM_Format'       , 39, 'STRING' , False  , '%ld'         ),
-                     ( 'GTNM_MaxNumberLen' , 39, 'ULONG'  , False  , '10'          ),
-                     ( 'GTNM_Clipped'      , 39, 'BOOLEAN', False  , 'TRUE'        )
+                     # name                , OS, type        , getter , default
+          'props': [
+                     ( 'GA_Disabled'       , 36, 'BOOLEAN'   , True   , 'FALSE'         ),
+                     ( 'GTMX_Labels'       , 36, 'STRING PTR', False  , None            ),
+                     ( 'GTMX_Active'       , 36, 'UINTEGER'  , True   , '0'             ),
+                     ( 'GTMX_Spacing'      , 36, 'UINTEGER'  , False  , '1'             ),
+                     ( 'GTMX_Scaled'       , 39, 'BOOLEAN'   , False  , 'FALSE'         ),
+                     ( 'GTMX_TitlePlace'   , 39, 'ULONG'     , False  , 'PLACETEXT_LEFT'),
                  ]
         }
 
@@ -115,6 +130,7 @@ def gen_basic (f, props):
     genline (f, 'END TYPE')
 
 BT2CT = {'STRING': 'CONST_STRPTR',
+         'STRING PTR' : 'CONST_STRPTR *',
          'BOOLEAN' : 'BOOL',
          'UBYTE': 'UBYTE',
          'BYTE': 'BYTE',

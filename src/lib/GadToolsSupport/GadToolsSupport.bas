@@ -369,6 +369,42 @@ TYPE GTNUMBER EXTENDS GTGADGET
 
 END TYPE
 
+TYPE GTMX EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING, BYVAL labels AS STRING PTR,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY labels AS STRING PTR
+        DECLARE PROPERTY labels (BYVAL value AS STRING PTR)
+
+        DECLARE PROPERTY active AS UINTEGER
+        DECLARE PROPERTY active (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY spacing AS UINTEGER
+        DECLARE PROPERTY spacing (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY scaled AS BOOLEAN
+        DECLARE PROPERTY scaled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY titlePlace AS ULONG
+        DECLARE PROPERTY titlePlace (BYVAL value AS ULONG)
+
+    PRIVATE:
+
+        AS BOOLEAN      _disabled
+        AS STRING PTR   _labels
+        AS UINTEGER     _active
+        AS UINTEGER     _spacing
+        AS BOOLEAN      _scaled
+        AS ULONG        _titlePlace
+
+END TYPE
+
 DECLARE SUB      GTGADGETS DEPLOY
 DECLARE SUB      GTGADGETS FREE
 
