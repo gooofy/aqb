@@ -147,27 +147,6 @@ BOOL _GTGADGET_deployed_ (GTGADGET_t *this)
 
 
 #if 0
-void GTG_MODIFY (GTGADGET_t *g, ULONG ti_Tag, ...)
-{
-    DPRINTF ("GTG_MODIFY called\n");
-
-    if (!g || !g->gad)
-    {
-		DPRINTF ("GTG_MODIFY: invalid gadget\n");
-		ERROR(AE_GTG_MODIFY);
-		return;
-    }
-
-    va_list ap;
-    va_start (ap, ti_Tag);
-    struct TagItem *tags = _vatagitems (ti_Tag, ap);
-    va_end(ap);
-
-    GT_SetGadgetAttrsA (g->gad, g->win, /*req=*/NULL, tags);
-
-    DEALLOCATE (tags);
-}
-
 BOOL GTGSELECTED_ (GTGADGET_t *g)
 {
     DPRINTF ("GTGSELECTED_ called\n");

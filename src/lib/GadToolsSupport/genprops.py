@@ -45,20 +45,36 @@
 #                 ]
 #        }
 
-PROPS = { 'name' : 'GTINTEGER',
-          'kind' : 'INTEGER_KIND',
-          'idcmp': 'INTEGERIDCMP',
+#PROPS = { 'name' : 'GTINTEGER',
+#          'kind' : 'INTEGER_KIND',
+#          'idcmp': 'INTEGERIDCMP',
+#          'label': True,
+#                     # name                   , OS, type      , getter , default
+#          'props': [
+#                     ( 'GA_Disabled'          , 36, 'BOOLEAN' , True    , 'FALSE'          ),
+#                     ( 'GA_Immediate'         , 39, 'BOOLEAN' , False   , 'FALSE'          ),
+#                     ( 'GA_TabCycle'          , 37, 'BOOLEAN' , False   , 'TRUE'           ),
+#                     ( 'GTIN_Number'          , 36, 'LONG'    , True    , '0'              ),
+#                     ( 'GTIN_MaxChars'        , 36, 'UINTEGER', False   , '10'             ),
+#                     ( 'STRINGA_ExitHelp'     , 37, 'BOOLEAN' , False   , 'FALSE'          ),
+#                     ( 'STRINGA_Justification', 37, 'STRING'  , False   , 'GACT_STRINGLEFT'),
+#                     ( 'STRINGA_ReplaceMode'  , 37, 'BOOLEAN' , False   , 'FALSE'          )
+#                 ]
+#        }
+
+PROPS = { 'name' : 'GTNUMBER',
+          'kind' : 'NUMBER_KIND',
+          'idcmp': 'NUMBERIDCMP',
           'label': True,
-                     # name                   , OS, type      , getter , default
-          'props': [
-                     ( 'GA_Disabled'          , 36, 'BOOLEAN' , True    , 'FALSE'          ),
-                     ( 'GA_Immediate'         , 39, 'BOOLEAN' , False   , 'FALSE'          ),
-                     ( 'GA_TabCycle'          , 37, 'BOOLEAN' , False   , 'TRUE'           ),
-                     ( 'GTIN_Number'          , 36, 'LONG'    , True    , '0'              ),
-                     ( 'GTIN_MaxChars'        , 36, 'UINTEGER', False   , '10'             ),
-                     ( 'STRINGA_ExitHelp'     , 37, 'BOOLEAN' , False   , 'FALSE'          ),
-                     ( 'STRINGA_Justification', 37, 'STRING'  , False   , 'GACT_STRINGLEFT'),
-                     ( 'STRINGA_ReplaceMode'  , 37, 'BOOLEAN' , False   , 'FALSE'          )
+                     # name                , OS, type     , getter , default
+          'props': [ ( 'GTNM_Number'       , 36, 'LONG'   , True   , None          ),
+                     ( 'GTNM_Border'       , 36, 'BOOLEAN', False  , 'TRUE'        ),
+                     ( 'GTNM_FrontPen'     , 39, 'UBYTE',   False  , '1'           ),
+                     ( 'GTNM_BackPen'      , 39, 'UBYTE',   False  , '0'           ),
+                     ( 'GTNM_Justification', 39, 'UBYTE'  , False  , 'GTJ_LEFT'    ),
+                     ( 'GTNM_Format'       , 39, 'STRING' , False  , '%ld'         ),
+                     ( 'GTNM_MaxNumberLen' , 39, 'ULONG'  , False  , '10'          ),
+                     ( 'GTNM_Clipped'      , 39, 'BOOLEAN', False  , 'TRUE'        )
                  ]
         }
 

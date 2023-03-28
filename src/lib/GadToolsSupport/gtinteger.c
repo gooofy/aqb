@@ -59,7 +59,7 @@ static struct Gadget *_gtinteger_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad,
 }
 
 void _GTINTEGER_CONSTRUCTOR (GTINTEGER_t *this,
-                            CONST_STRPTR label, 
+                            CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {

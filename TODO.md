@@ -91,7 +91,7 @@ Guenter Bartsch <guenter@zamia.org>
 	- DONE INTEGER
 	-      LISTVIEW
 	-      MX
-	-      NUMBER
+	- DONE NUMBER
 	-      PALETTE
 	- DONE SCROLLER
 	- DONE SLIDER

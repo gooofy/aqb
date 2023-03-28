@@ -369,6 +369,56 @@ void                   _GTINTEGER_justification  (GTINTEGER_t *this, CONST_STRPT
 BOOL                   _GTINTEGER_replaceMode_ (GTINTEGER_t *this);
 void                   _GTINTEGER_replaceMode  (GTINTEGER_t *this, BOOL value);
 
+/***********************************************************************************
+ *
+ * GTNUMBER
+ *
+ ***********************************************************************************/
+
+typedef struct GTNUMBER_ GTNUMBER_t;
+
+struct GTNUMBER_
+{
+    GTGADGET_t      gadget;
+    LONG            number;
+    BOOL            border;
+    UBYTE           frontPen;
+    UBYTE           backPen;
+    UBYTE           justification;
+    CONST_STRPTR    format;
+    ULONG           maxNumberLen;
+    BOOL            clipped;
+};
+
+void _GTNUMBER_CONSTRUCTOR (GTNUMBER_t *this,
+                            CONST_STRPTR label, LONG number,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                            void *user_data, ULONG flags, ULONG underscore);
+
+LONG                   _GTNUMBER_number_ (GTNUMBER_t *this);
+void                   _GTNUMBER_number  (GTNUMBER_t *this, LONG value);
+
+BOOL                   _GTNUMBER_border_ (GTNUMBER_t *this);
+void                   _GTNUMBER_border  (GTNUMBER_t *this, BOOL value);
+
+UBYTE                  _GTNUMBER_frontPen_ (GTNUMBER_t *this);
+void                   _GTNUMBER_frontPen  (GTNUMBER_t *this, UBYTE value);
+
+UBYTE                  _GTNUMBER_backPen_ (GTNUMBER_t *this);
+void                   _GTNUMBER_backPen  (GTNUMBER_t *this, UBYTE value);
+
+UBYTE                  _GTNUMBER_justification_ (GTNUMBER_t *this);
+void                   _GTNUMBER_justification  (GTNUMBER_t *this, UBYTE value);
+
+CONST_STRPTR           _GTNUMBER_format_ (GTNUMBER_t *this);
+void                   _GTNUMBER_format  (GTNUMBER_t *this, CONST_STRPTR value);
+
+ULONG                  _GTNUMBER_maxNumberLen_ (GTNUMBER_t *this);
+void                   _GTNUMBER_maxNumberLen  (GTNUMBER_t *this, ULONG value);
+
+BOOL                   _GTNUMBER_clipped_ (GTNUMBER_t *this);
+void                   _GTNUMBER_clipped  (GTNUMBER_t *this, BOOL value);
+
 
 /********************************************
  *

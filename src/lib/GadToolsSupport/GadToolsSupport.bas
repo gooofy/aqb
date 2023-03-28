@@ -325,6 +325,50 @@ TYPE GTINTEGER EXTENDS GTGADGET
 
 END TYPE
 
+TYPE GTNUMBER EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING, BYVAL number AS LONG,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY number AS LONG
+        DECLARE PROPERTY number (BYVAL value AS LONG)
+
+        DECLARE PROPERTY border AS BOOLEAN
+        DECLARE PROPERTY border (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY frontPen AS UBYTE
+        DECLARE PROPERTY frontPen (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY backPen AS UBYTE
+        DECLARE PROPERTY backPen (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY justification AS UBYTE
+        DECLARE PROPERTY justification (BYVAL value AS UBYTE)
+
+        DECLARE PROPERTY format AS STRING
+        DECLARE PROPERTY format (BYVAL value AS STRING)
+
+        DECLARE PROPERTY maxNumberLen AS ULONG
+        DECLARE PROPERTY maxNumberLen (BYVAL value AS ULONG)
+
+        DECLARE PROPERTY clipped AS BOOLEAN
+        DECLARE PROPERTY clipped (BYVAL value AS BOOLEAN)
+
+    PRIVATE:
+
+        AS LONG         _number
+        AS BOOLEAN      _border
+        AS UBYTE        _frontPen
+        AS UBYTE        _backPen
+        AS UBYTE        _justification
+        AS STRING       _format
+        AS ULONG        _maxNumberLen
+        AS BOOLEAN      _clipped
+
+END TYPE
+
 DECLARE SUB      GTGADGETS DEPLOY
 DECLARE SUB      GTGADGETS FREE
 
