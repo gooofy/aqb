@@ -243,18 +243,20 @@ resulting AQB declarations typically look like:
     * S-RIGHT   - goto end of line
     * Ctrl-Up   - goto top of file
     * Ctrl-Down - goto end of file
-    * Ctrl-B    - mark block
     * Ctrl-Y    - delete line
     * F5        - compile & run
     * F7        - compile
     * F9        - toggle breakpoint
     * TAB       - fold or unfold subprograms
-    * Ctrl-F    - find
-    * Ctrl-N    - find next
-    * Ctrl-M    - mark block
-    * Ctrl-O    - open file in editor
-    * Ctrl-S    - save file
-    * Ctrl-Q    - quit (also Ctrl-C)
+    * Amiga-F   - find
+    * Amiga-N   - find next
+    * Amiga-B   - mark block
+    * Amiga-X   - cut
+    * Amiga-C   - copy
+    * Amiga-V   - paste
+    * Amiga-O   - open file in editor
+    * Amiga-S   - save file
+    * Amiga-Q   - quit (also Ctrl-C)
 
 ## Benchmark Results
 
