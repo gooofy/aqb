@@ -59,6 +59,7 @@ void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, CONST_STRPTR label,
     this->gadget.deploy_cb = _gtcheckbox_deploy_cb;
     this->disabled         = FALSE;
     this->checked          = FALSE;
+    this->scaled           = FALSE;
 }
 
 BOOL _GTCHECKBOX_disabled_ (GTCHECKBOX_t *this)
@@ -91,6 +92,18 @@ void _GTCHECKBOX_checked (GTCHECKBOX_t *this, BOOL checked)
     this->checked = checked;
     DPRINTF ("_GTCHECKBOX_checked: this=0x%08x, this->checked=%d\n", this, this->checked);
     #endif
+}
+
+BOOL _GTCHECKBOX_scaled_ (GTCHECKBOX_t *this)
+{
+    return this->scaled;
+}
+
+void _GTCHECKBOX_scaled (GTCHECKBOX_t *this, BOOL scaled)
+{
+    if (_GTGADGET_deployed_ (&this->gadget))
+        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCB_Scaled, scaled, TAG_DONE);
+    this->scaled = scaled;
 }
 
 

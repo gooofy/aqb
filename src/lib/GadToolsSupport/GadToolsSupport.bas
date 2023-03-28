@@ -77,6 +77,7 @@ TYPE GTBUTTON EXTENDS GTGADGET
 
     PRIVATE:
         AS BOOLEAN  _disabled
+        AS BOOLEAN  _immediate
 
 END TYPE
 
@@ -93,9 +94,13 @@ TYPE GTCHECKBOX EXTENDS GTGADGET
         DECLARE PROPERTY checked AS BOOLEAN
         DECLARE PROPERTY checked (BYVAL b AS BOOLEAN)
 
+        DECLARE PROPERTY scaled AS BOOLEAN
+        DECLARE PROPERTY scaled (BYVAL b AS BOOLEAN)
+
     PRIVATE:
         AS BOOLEAN  _disabled
         AS BOOLEAN  _checked
+        AS BOOLEAN  _scaled
 
 END TYPE
 

@@ -104,6 +104,7 @@ struct GTCHECKBOX_
     GTGADGET_t      gadget;
     BOOL            disabled;
     BOOL            checked;
+    BOOL            scaled;
 };
 
 void _GTCHECKBOX_CONSTRUCTOR (GTCHECKBOX_t *this, CONST_STRPTR label,
@@ -115,6 +116,8 @@ BOOL _GTCHECKBOX_disabled_ (GTCHECKBOX_t *this);
 void _GTCHECKBOX_disabled  (GTCHECKBOX_t *this, BOOL disabled);
 BOOL _GTCHECKBOX_checked_  (GTCHECKBOX_t *this);
 void _GTCHECKBOX_checked   (GTCHECKBOX_t *this, BOOL checked);
+BOOL _GTCHECKBOX_scaled_   (GTCHECKBOX_t *this);
+void _GTCHECKBOX_scaled    (GTCHECKBOX_t *this, BOOL scaled);
 
 /***********************************************************************************
  *
