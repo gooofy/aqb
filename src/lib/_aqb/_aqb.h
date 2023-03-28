@@ -154,7 +154,7 @@ void   ON_WINDOW_NEWSIZE_CALL (SHORT id, window_newsize_cb_t cb, void *ud);
 void   ON_WINDOW_REFRESH_CALL (SHORT id, window_refresh_cb_t cb, void *ud);
 ULONG  WINDOW_                (SHORT n);
 
-typedef void (*mouse_cb_t)(SHORT id, BOOL button, SHORT x, SHORT y, void *ud);
+typedef void (*mouse_cb_t)(SHORT window_id, BOOL button, SHORT x, SHORT y, void *ud);
 void   SLEEP                  (void);
 void   VWAIT                  (void);
 void   MOUSE_ON               (void);
