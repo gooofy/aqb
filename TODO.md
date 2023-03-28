@@ -85,10 +85,10 @@ Guenter Bartsch <guenter@zamia.org>
 - open RTG custom screens
 
 - GadToolsSupport
-	-      BUTTON
+	- DONE BUTTON
 	-      CHECKBOX
 	-      CYCLE
-	-      INTEGER
+	- DONE INTEGER
 	-      LISTVIEW
 	-      MX
 	-      NUMBER
@@ -97,7 +97,9 @@ Guenter Bartsch <guenter@zamia.org>
 	- DONE SLIDER
 	-      STRING
 	-      TEXT
+
     -      Menus
+    -      Keyboard shortcuts
 
 - gtlayout.library
 

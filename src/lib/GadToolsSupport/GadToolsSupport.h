@@ -78,6 +78,7 @@ struct GTBUTTON_
 {
     GTGADGET_t      gadget;
     BOOL            disabled;
+    BOOL            immediate;
 };
 
 void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, CONST_STRPTR label,
@@ -87,6 +88,9 @@ void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, CONST_STRPTR label,
 // GTBUTTON properties
 BOOL _GTBUTTON_disabled_ (GTBUTTON_t *this);
 void _GTBUTTON_disabled  (GTBUTTON_t *this, BOOL disabled);
+
+BOOL _GTBUTTON_immediate_ (GTBUTTON_t *this);
+void _GTBUTTON_immediate  (GTBUTTON_t *this, BOOL value);
 
 /***********************************************************************************
  *
@@ -311,6 +315,56 @@ void                   _GTSTRING_justification  (GTSTRING_t *this, CONST_STRPTR 
 
 BOOL                   _GTSTRING_replaceMode_ (GTSTRING_t *this);
 void                   _GTSTRING_replaceMode  (GTSTRING_t *this, BOOL value);
+
+/***********************************************************************************
+ *
+ * GTINTEGER
+ *
+ ***********************************************************************************/
+
+typedef struct GTINTEGER_ GTINTEGER_t;
+
+struct GTINTEGER_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    BOOL            immediate;
+    BOOL            tabCycle;
+    LONG            number;
+    USHORT          maxChars;
+    BOOL            exitHelp;
+    CONST_STRPTR    justification;
+    BOOL            replaceMode;
+};
+
+void _GTINTEGER_CONSTRUCTOR (GTINTEGER_t *this,
+                            CONST_STRPTR label,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                            void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTINTEGER_disabled_ (GTINTEGER_t *this);
+void                   _GTINTEGER_disabled  (GTINTEGER_t *this, BOOL value);
+
+BOOL                   _GTINTEGER_immediate_ (GTINTEGER_t *this);
+void                   _GTINTEGER_immediate  (GTINTEGER_t *this, BOOL value);
+
+BOOL                   _GTINTEGER_tabCycle_ (GTINTEGER_t *this);
+void                   _GTINTEGER_tabCycle  (GTINTEGER_t *this, BOOL value);
+
+LONG                   _GTINTEGER_number_ (GTINTEGER_t *this);
+void                   _GTINTEGER_number  (GTINTEGER_t *this, LONG value);
+
+USHORT                 _GTINTEGER_maxChars_ (GTINTEGER_t *this);
+void                   _GTINTEGER_maxChars  (GTINTEGER_t *this, USHORT value);
+
+BOOL                   _GTINTEGER_exitHelp_ (GTINTEGER_t *this);
+void                   _GTINTEGER_exitHelp  (GTINTEGER_t *this, BOOL value);
+
+CONST_STRPTR           _GTINTEGER_justification_ (GTINTEGER_t *this);
+void                   _GTINTEGER_justification  (GTINTEGER_t *this, CONST_STRPTR value);
+
+BOOL                   _GTINTEGER_replaceMode_ (GTINTEGER_t *this);
+void                   _GTINTEGER_replaceMode  (GTINTEGER_t *this, BOOL value);
 
 
 /********************************************

@@ -65,12 +65,15 @@ END TYPE
 TYPE GTBUTTON EXTENDS GTGADGET
 
     PUBLIC:
-       DECLARE CONSTRUCTOR (BYVAL label AS STRING, _
-                            _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                            BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+        DECLARE CONSTRUCTOR (BYVAL label AS STRING, _
+                             _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                             BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
-       DECLARE PROPERTY disabled AS BOOLEAN
-       DECLARE PROPERTY disabled (BYVAL b AS BOOLEAN)
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL b AS BOOLEAN)
+
+        DECLARE PROPERTY immediate AS BOOLEAN
+        DECLARE PROPERTY immediate (BYVAL b AS BOOLEAN)
 
     PRIVATE:
         AS BOOLEAN  _disabled
@@ -266,6 +269,50 @@ TYPE GTSTRING EXTENDS GTGADGET
         AS BOOLEAN      _immediate
         AS BOOLEAN      _tabCycle
         AS STRING       _str
+        AS UINTEGER     _maxChars
+        AS BOOLEAN      _exitHelp
+        AS STRING       _justification
+        AS BOOLEAN      _replaceMode
+
+END TYPE
+
+TYPE GTINTEGER EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY immediate AS BOOLEAN
+        DECLARE PROPERTY immediate (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY tabCycle AS BOOLEAN
+        DECLARE PROPERTY tabCycle (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY number AS LONG
+        DECLARE PROPERTY number (BYVAL value AS LONG)
+
+        DECLARE PROPERTY maxChars AS UINTEGER
+        DECLARE PROPERTY maxChars (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY exitHelp AS BOOLEAN
+        DECLARE PROPERTY exitHelp (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY justification AS STRING
+        DECLARE PROPERTY justification (BYVAL value AS STRING)
+
+        DECLARE PROPERTY replaceMode AS BOOLEAN
+        DECLARE PROPERTY replaceMode (BYVAL value AS BOOLEAN)
+
+    PRIVATE:
+
+        AS BOOLEAN      _disabled
+        AS BOOLEAN      _immediate
+        AS BOOLEAN      _tabCycle
+        AS LONG         _number
         AS UINTEGER     _maxChars
         AS BOOLEAN      _exitHelp
         AS STRING       _justification

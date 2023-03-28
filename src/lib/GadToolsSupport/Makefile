@@ -14,7 +14,7 @@ GadToolsSupport.sym : GadToolsSupport.bas
 	cp $@ $(DISTDIR)/lib
 	rm -f $(DISTDIR)/lib/*.uaem
 
-GadToolsSupport.a: GadToolsSupport.o gtbutton.o gtcheckbox.o gtslider.o gttext.o gtscroller.o gtstring.o
+GadToolsSupport.a: GadToolsSupport.o gtbutton.o gtcheckbox.o gtslider.o gttext.o gtscroller.o gtstring.o gtinteger.o
 	$(AR_AMIGAOS) -crs GadToolsSupport.a $^
 	pushd .. && rm -f GadToolsSupport.a && ln -s GadToolsSupport/GadToolsSupport.a && popd
 	cp $@ $(DISTDIR)/lib

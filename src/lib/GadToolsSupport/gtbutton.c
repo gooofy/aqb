@@ -29,7 +29,11 @@ struct Gadget *_gtbutton_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vi
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
 
-    gtg->gad = CreateGadget (BUTTON_KIND, gad, &gtg->ng, GA_Disabled, button->disabled, GT_Underscore, gtg->underscore, TAG_DONE);
+    gtg->gad = CreateGadget (BUTTON_KIND, gad, &gtg->ng,
+                             GA_Disabled     , button->disabled,
+                             GA_Immediate    , button->immediate,
+                             GT_Underscore   , gtg->underscore,
+                             TAG_DONE);
 
 	if (!gtg->gad)
 	{
@@ -69,3 +73,17 @@ void _GTBUTTON_disabled (GTBUTTON_t *this, BOOL disabled)
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     this->disabled = disabled;
 }
+
+BOOL _GTBUTTON_immediate_ (GTBUTTON_t *this)
+{
+    return this->immediate;
+}
+void _GTBUTTON_immediate (GTBUTTON_t *this, BOOL immediate)
+{
+    if (_GTGADGET_deployed_ (&this->gadget))
+    {
+        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Immediate, immediate, TAG_DONE);
+    }
+    this->immediate = immediate;
+}
+
