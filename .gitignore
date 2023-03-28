@@ -114,6 +114,16 @@ examples/dev/foo_gnu.dump
 tests/insights/footprint/foo.S
 tests/insights/footprint/foo.s
 tests/insights/footprint/*.txt
+tests/insights/debug/dump.txt
+tests/insights/debug/foo.hunk
+tests/insights/footprint/foo
+tests/insights/link/foo
+tests/insights/link/foo.S
+tests/insights/link/foo.dump
+tests/insights/link/foo.s
+tests/insights/link/foo_gnu.dump
+tests/insights/link/foo_vasm.dump
+tests/insights/link/foo_vasm.list
 tests/mod2/mod2.sym
 tests/mod2/foo
 doc/internal/
