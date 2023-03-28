@@ -78,18 +78,30 @@
 #                 ]
 #        }
 
-PROPS = { 'name' : 'GTMX',
-          'kind' : 'MX_KIND',
-          'idcmp': 'MXIDCMP',
+#PROPS = { 'name' : 'GTMX',
+#          'kind' : 'MX_KIND',
+#          'idcmp': 'MXIDCMP',
+#          'label': True,
+#                     # name                , OS, type        , getter , default
+#          'props': [
+#                     ( 'GA_Disabled'       , 36, 'BOOLEAN'   , True   , 'FALSE'         ),
+#                     ( 'GTMX_Labels'       , 36, 'STRING PTR', False  , None            ),
+#                     ( 'GTMX_Active'       , 36, 'UINTEGER'  , True   , '0'             ),
+#                     ( 'GTMX_Spacing'      , 36, 'UINTEGER'  , False  , '1'             ),
+#                     ( 'GTMX_Scaled'       , 39, 'BOOLEAN'   , False  , 'FALSE'         ),
+#                     ( 'GTMX_TitlePlace'   , 39, 'ULONG'     , False  , 'PLACETEXT_LEFT'),
+#                 ]
+#        }
+
+PROPS = { 'name' : 'GTCYCLE',
+          'kind' : 'CYCLE_KIND',
+          'idcmp': 'CYCLEIDCMP',
           'label': True,
                      # name                , OS, type        , getter , default
           'props': [
                      ( 'GA_Disabled'       , 36, 'BOOLEAN'   , True   , 'FALSE'         ),
-                     ( 'GTMX_Labels'       , 36, 'STRING PTR', False  , None            ),
-                     ( 'GTMX_Active'       , 36, 'UINTEGER'  , True   , '0'             ),
-                     ( 'GTMX_Spacing'      , 36, 'UINTEGER'  , False  , '1'             ),
-                     ( 'GTMX_Scaled'       , 39, 'BOOLEAN'   , False  , 'FALSE'         ),
-                     ( 'GTMX_TitlePlace'   , 39, 'ULONG'     , False  , 'PLACETEXT_LEFT'),
+                     ( 'GTCY_Labels'       , 36, 'STRING PTR', True   , None            ),
+                     ( 'GTCY_Active'       , 36, 'UINTEGER'  , True   , '0'             ),
                  ]
         }
 

@@ -87,7 +87,7 @@ Guenter Bartsch <guenter@zamia.org>
 - GadToolsSupport
 	- DONE BUTTON
 	- DONE CHECKBOX
-	-      CYCLE
+	- DONE CYCLE
 	- DONE INTEGER
 	-      LISTVIEW
 	- DONE MX

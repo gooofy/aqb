@@ -461,6 +461,36 @@ void                   _GTMX_scaled  (GTMX_t *this, BOOL value);
 ULONG                  _GTMX_titlePlace_ (GTMX_t *this);
 void                   _GTMX_titlePlace  (GTMX_t *this, ULONG value);
 
+/***********************************************************************************
+ *
+ * GTCYCLE
+ *
+ ***********************************************************************************/
+
+typedef struct GTCYCLE_ GTCYCLE_t;
+
+struct GTCYCLE_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    CONST_STRPTR *  labels;
+    USHORT          active;
+};
+
+void _GTCYCLE_CONSTRUCTOR (GTCYCLE_t *this,
+                            CONST_STRPTR label, CONST_STRPTR * labels,
+                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                            void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTCYCLE_disabled_ (GTCYCLE_t *this);
+void                   _GTCYCLE_disabled  (GTCYCLE_t *this, BOOL value);
+
+CONST_STRPTR *         _GTCYCLE_labels_ (GTCYCLE_t *this);
+void                   _GTCYCLE_labels  (GTCYCLE_t *this, CONST_STRPTR * value);
+
+USHORT                 _GTCYCLE_active_ (GTCYCLE_t *this);
+void                   _GTCYCLE_active  (GTCYCLE_t *this, USHORT value);
+
 
 /********************************************
  *
