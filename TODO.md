@@ -95,8 +95,8 @@ Guenter Bartsch <guenter@zamia.org>
 	-      PALETTE
 	- DONE SCROLLER
 	- DONE SLIDER
-	-      STRING
-	-      TEXT
+	- DONE STRING
+	- DONE TEXT
 
     -      Menus
     -      Keyboard shortcuts
