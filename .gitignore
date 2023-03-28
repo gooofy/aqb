@@ -77,6 +77,8 @@ src/lib/AnimSupport/*.sym
 src/lib/OSGadToolsConsts/*.sym
 src/lib/OSUtility/*.sym
 src/lib/GadToolsSupport/GadToolsSupport.sym
+src/lib/GadToolsSupport/foo.bas
+src/lib/GadToolsSupport/foo.h
 src/lib/OSDevices/OSDevices.sym
 src/lib/OSExec/OSExec.sym
 src/lib/OSGadTools/OSGadTools.sym
