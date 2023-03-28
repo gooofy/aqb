@@ -4,10 +4,13 @@ Guenter Bartsch <guenter@zamia.org>
 ## BUGS
 
 
-## Documentation
+## Documentation, Tutorials
 
-DONE - online help
-DONE translate forum posts, add useful information to README
+- DONE online help
+- DONE translate forum posts, add useful information to README
+- GadToolsSupport
+- adapt all tutorials to 0.9.0
+- OS* modules
 
 ## Language Concepts
 
@@ -16,7 +19,9 @@ DONE translate forum posts, add useful information to README
     * check forward decl formal types
     * varargs
 
-- WIP OOP ? (VB / FreeBASIC)
+- OOP
+    * interfaces
+    * virtual functions
 
 - enums
 
@@ -67,6 +72,8 @@ DONE translate forum posts, add useful information to README
 
 - string handling
 
+- collections
+
 - DONE CTRL+C to stop the program at any time
 
 - DONE source level debugging
@@ -77,12 +84,30 @@ DONE translate forum posts, add useful information to README
 
 - open RTG custom screens
 
+- GadToolsSupport
+	-      BUTTON
+	-      CHECKBOX
+	-      CYCLE
+	-      INTEGER
+	-      LISTVIEW
+	-      MX
+	-      NUMBER
+	-      PALETTE
+	- DONE SCROLLER
+	- DONE SLIDER
+	-      STRING
+	-      TEXT
+    -      Menus
+
+- gtlayout.library
+
+- asl.library
 
 ## IDE
 
-- block operations
-    * mark
-    * cut/copy/paste
+- DONE block operations
+    * DONE  mark
+    * DONE cut/copy/paste
 
 - linux TUI file dialog
 
@@ -93,6 +118,8 @@ DONE translate forum posts, add useful information to README
 - horizontal scrolling
 
 - mouse cursor positioning
+
+- mark block in the IDE #28 https://github.com/gooofy/aqb/issues/28
 
 - DONE workbench arguments (double click source code -> open file in IDE)
 
