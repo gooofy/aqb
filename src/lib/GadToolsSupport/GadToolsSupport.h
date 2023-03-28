@@ -538,6 +538,52 @@ void                   _GTPALETTE_colorTable  (GTPALETTE_t *this, UBYTE * value)
 USHORT                 _GTPALETTE_numColors_ (GTPALETTE_t *this);
 void                   _GTPALETTE_numColors  (GTPALETTE_t *this, USHORT value);
 
+/***********************************************************************************
+ *
+ * GTLISTVIEW
+ *
+ ***********************************************************************************/
+
+typedef struct GTLISTVIEW_ GTLISTVIEW_t;
+
+struct GTLISTVIEW_
+{
+    GTGADGET_t      gadget;
+    BOOL            disabled;
+    SHORT           makeVisible;
+    struct List *   labels;
+    BOOL            readOnly;
+    USHORT          scrollWidth;
+    USHORT          selected;
+    USHORT          spacing;
+};
+
+void _GTLISTVIEW_CONSTRUCTOR (GTLISTVIEW_t *this,
+                              CONST_STRPTR label, struct List * labels,
+                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                              void *user_data, ULONG flags, ULONG underscore);
+
+BOOL                   _GTLISTVIEW_disabled_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_disabled  (GTLISTVIEW_t *this, BOOL value);
+
+SHORT                  _GTLISTVIEW_makeVisible_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_makeVisible  (GTLISTVIEW_t *this, SHORT value);
+
+struct List *          _GTLISTVIEW_labels_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_labels  (GTLISTVIEW_t *this, struct List * value);
+
+BOOL                   _GTLISTVIEW_readOnly_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_readOnly  (GTLISTVIEW_t *this, BOOL value);
+
+USHORT                 _GTLISTVIEW_scrollWidth_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_scrollWidth  (GTLISTVIEW_t *this, USHORT value);
+
+USHORT                 _GTLISTVIEW_selected_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_selected  (GTLISTVIEW_t *this, USHORT value);
+
+USHORT                 _GTLISTVIEW_spacing_ (GTLISTVIEW_t *this);
+void                   _GTLISTVIEW_spacing  (GTLISTVIEW_t *this, USHORT value);
+
 
 /********************************************
  *

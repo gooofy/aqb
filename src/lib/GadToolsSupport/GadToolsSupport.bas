@@ -469,6 +469,46 @@ TYPE GTPALETTE EXTENDS GTGADGET
 
 END TYPE
 
+TYPE GTLISTVIEW EXTENDS GTGADGET
+
+    PUBLIC:
+        DECLARE CONSTRUCTOR ( BYVAL label AS STRING, BYVAL labels AS ExecList PTR,  _
+                              _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
+                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+
+        DECLARE PROPERTY disabled AS BOOLEAN
+        DECLARE PROPERTY disabled (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY makeVisible AS INTEGER
+        DECLARE PROPERTY makeVisible (BYVAL value AS INTEGER)
+
+        DECLARE PROPERTY labels AS ExecList PTR
+        DECLARE PROPERTY labels (BYVAL value AS ExecList PTR)
+
+        DECLARE PROPERTY readOnly AS BOOLEAN
+        DECLARE PROPERTY readOnly (BYVAL value AS BOOLEAN)
+
+        DECLARE PROPERTY scrollWidth AS UINTEGER
+        DECLARE PROPERTY scrollWidth (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY selected AS UINTEGER
+        DECLARE PROPERTY selected (BYVAL value AS UINTEGER)
+
+        DECLARE PROPERTY spacing AS UINTEGER
+        DECLARE PROPERTY spacing (BYVAL value AS UINTEGER)
+
+    PRIVATE:
+
+        AS BOOLEAN      _disabled
+        AS INTEGER      _makeVisible
+        AS ExecList PTR _labels
+        AS BOOLEAN      _readOnly
+        AS UINTEGER     _scrollWidth
+        AS UINTEGER     _selected
+        AS UINTEGER     _spacing
+
+END TYPE
+
 DECLARE SUB      GTGADGETS DEPLOY
 DECLARE SUB      GTGADGETS FREE
 

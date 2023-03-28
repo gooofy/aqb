@@ -3,7 +3,7 @@
 #PROPS = { 'name' : 'GTTEXT',
 #          'kind' : 'TEXT_KIND',
 #          'idcmp': 'TEXTIDCMP',
-#                     # name                , OS, type     , getter , default    
+#                     # name                , OS, type     , getter , default
 #          'props': [ ( 'GTTX_Text'         , 36, 'STRING' , True   , None          ),
 #                     ( 'GTTX_CopyText'     , 37, 'BOOLEAN', False  , 'FALSE'       ),
 #                     ( 'GTTX_Border'       , 36, 'BOOLEAN', False  , 'TRUE'        ),
@@ -16,7 +16,7 @@
 #PROPS = { 'name' : 'GTSCROLLER',
 #          'kind' : 'SCROLLER_KIND',
 #          'idcmp': 'SCROLLERIDCMP',
-#                     # name                , OS, type      , getter , default    
+#                     # name                , OS, type      , getter , default
 #          'props': [
 #                     ( 'GA_Disabled'       , 36, 'BOOLEAN' , True   , 'FALSE'       ),
 #                     ( 'GA_RelVerify'      , 36, 'BOOLEAN' , False  , 'FALSE'       ),
@@ -105,20 +105,36 @@
 #                 ]
 #        }
 
-PROPS = { 'name' : 'GTPALETTE',
-          'kind' : 'PALETTE_KIND',
-          'idcmp': 'PALETTEIDCMP',
+#PROPS = { 'name' : 'GTPALETTE',
+#          'kind' : 'PALETTE_KIND',
+#          'idcmp': 'PALETTEIDCMP',
+#          'label': True,
+#                     # name                  , OS, type        , getter , default
+#          'props': [
+#                     ( 'GA_Disabled'         , 39, 'BOOLEAN'   , True   , 'FALSE'        ),
+#                     ( 'GTPA_Depth'          , 36, 'UINTEGER'  , False  , None           ),
+#                     ( 'GTPA_Color'          , 39, 'UBYTE'     , True   , '1'            ),
+#                     ( 'GTPA_ColorOffset'    , 39, 'UBYTE'     , True   , '0'            ),
+#                     ( 'GTPA_IndicatorWidth' , 36, 'UINTEGER'  , False  , '0'            ),
+#                     ( 'GTPA_IndicatorHeight', 36, 'UINTEGER'  , False  , '0'            ),
+#                     ( 'GTPA_ColorTable'     , 39, 'UBYTE PTR' , True   , 'NULL'         ),
+#                     ( 'GTPA_NumColors'      , 39, 'UINTEGER'  , False  , '2'            ),
+#                 ]
+#        }
+
+PROPS = { 'name' : 'GTLISTVIEW',
+          'kind' : 'LISTVIEW_KIND',
+          'idcmp': 'LISTVIEWIDCMP',
           'label': True,
-                     # name                  , OS, type        , getter , default
+                     # name                  , OS, type          , getter , default
           'props': [
-                     ( 'GA_Disabled'         , 39, 'BOOLEAN'   , True   , 'FALSE'        ),
-                     ( 'GTPA_Depth'          , 36, 'UINTEGER'  , False  , None           ),
-                     ( 'GTPA_Color'          , 39, 'UBYTE'     , True   , '1'            ),
-                     ( 'GTPA_ColorOffset'    , 39, 'UBYTE'     , True   , '0'            ),
-                     ( 'GTPA_IndicatorWidth' , 36, 'UINTEGER'  , False  , '0'            ),
-                     ( 'GTPA_IndicatorHeight', 36, 'UINTEGER'  , False  , '0'            ),
-                     ( 'GTPA_ColorTable'     , 39, 'UBYTE PTR' , True   , 'NULL'         ),
-                     ( 'GTPA_NumColors'      , 39, 'UINTEGER'  , False  , '2'            ),
+                     ( 'GA_Disabled'         , 39, 'BOOLEAN'     , True   , 'FALSE'       ),
+                     ( 'GTLV_MakeVisible'    , 39, 'INTEGER'     , True   , '0'           ),
+                     ( 'GTLV_Labels'         , 36, 'ExecList PTR', True   , None          ),
+                     ( 'GTLV_ReadOnly'       , 36, 'BOOLEAN'     , False  , 'FALSE'       ),
+                     ( 'GTLV_ScrollWidth'    , 36, 'UINTEGER'    , False  , '16'          ),
+                     ( 'GTLV_Selected'       , 36, 'UINTEGER'    , True   , '~0'          ),
+                     ( 'LAYOUTA_Spacing'     , 36, 'UINTEGER'    , False  , '0'           ),
                  ]
         }
 
@@ -160,6 +176,7 @@ def gen_basic (f, props):
 
 BT2CT = {'STRING': 'CONST_STRPTR',
          'STRING PTR' : 'CONST_STRPTR *',
+         'ExecList PTR' : 'struct List *',
          'UBYTE PTR' : 'UBYTE *',
          'BOOLEAN' : 'BOOL',
          'UBYTE': 'UBYTE',

@@ -5,7 +5,7 @@ OPTION EXPLICIT
 IMPORT OSIntuition
 IMPORT GadToolsSupport
 
-'DIM SHARED AS GTGADGET_t PTR lv, pl
+DIM SHARED AS GTLISTVIEW PTR lv
 DIM SHARED AS GTMX PTR mx
 DIM SHARED AS GTCYCLE PTR cy
 DIM SHARED AS GTPALETTE PTR pl
@@ -16,13 +16,16 @@ SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
     SYSTEM
 END SUB    
 
-'SUB lvcb(BYVAL wid AS INTEGER, BYVAL gid AS INTEGER, BYVAL code AS UINTEGER, BYVAL ud AS VOID PTR)
-'    TRACE "LV cb: wid=";wid;", gid=";gid;", code=";code    
-'END SUB    
+SUB lvcb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    TRACE "LV cb: code=";code;", selected=";lv->selected
+    cy->active = lv->selected
+    mx->active = lv->selected
+END SUB    
 
 SUB mxcb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     TRACE "MX cb: code=";code;", active="; mx->active
-    cy->active = mx->active    
+    cy->active = mx->active
+    lv->selected = mx->active    
 END SUB    
 
 SUB plcb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
@@ -31,7 +34,8 @@ END SUB
 
 SUB cycb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     TRACE "CY cb: code=";code;", active="; cy->active
-    mx->active=cy->active    
+    mx->active = cy->active
+    lv->selected = mx->active    
 END SUB    
 
 WINDOW 1, "GadTools Tutorial 6"
@@ -39,14 +43,16 @@ ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create a ListView gadget
 
-'DIM AS ExecList choices = ExecList(NT_USER)
+DIM AS ExecList choices = ExecList(NT_USER)
 
-'choices.AddTail(NEW ExecNode (,,"First"))
-'choices.AddTail(NEW ExecNode (,,"Second"))
-'choices.AddTail(NEW ExecNode (,,"Third"))
+choices.AddTail(NEW ExecNode (,,"First"))
+choices.AddTail(NEW ExecNode (,,"Second"))
+choices.AddTail(NEW ExecNode (,,"Third"))
 
-'lv = GTGADGET (LISTVIEW_KIND,  ( 75, 20)-(235, 132), "ListView", 0, 1,_
-'GTLV_ShowSelected, NULL, GTLV_Labels, @choices.l, TAG_DONE)
+lv = NEW GTLISTVIEW ("ListView", @choices, ( 75, 20)-(235, 132))
+lv->makeVisible=2
+lv->readOnly = FALSE
+lv->selected = 0
 
 REM create a MX gadget
 
@@ -70,7 +76,7 @@ GTGADGETS DEPLOY
 
 REM message handling
 
-'ON GTG UP   CALL lv, lvcb, NULL
+lv->gadgetup_cb = lvcb
 mx->gadgetdown_cb = mxcb
 pl->gadgetup_cb = plcb
 cy->gadgetup_cb = cycb

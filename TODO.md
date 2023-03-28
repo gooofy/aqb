@@ -89,7 +89,7 @@ Guenter Bartsch <guenter@zamia.org>
 	- DONE CHECKBOX
 	- DONE CYCLE
 	- DONE INTEGER
-	-      LISTVIEW
+	- DONE LISTVIEW
 	- DONE MX
 	- DONE NUMBER
 	- DONE PALETTE
