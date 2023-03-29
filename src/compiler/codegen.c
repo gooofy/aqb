@@ -3603,8 +3603,12 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                 case IK_property:
                     _call_property_setter (code, pos, frame, left, right);
                     break;
+                case IK_const:
+                    EM_error (pos, "cannot assign to constants");
+                    return;
                 default:
-                    assert(FALSE);
+                    EM_error (pos, "cannot assign to right hand side");
+                    return;
             }
             break;
 
@@ -3638,8 +3642,12 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                 case IK_property:
                     _call_property_setter (code, pos, frame, left, right);
                     break;
+                case IK_const:
+                    EM_error (pos, "cannot assign to constants");
+                    return;
                 default:
-                    assert(FALSE);
+                    EM_error (pos, "cannot assign to right hand side");
+                    return;
             }
             break;
 
@@ -3678,8 +3686,12 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     _call_property_setter (code, pos, frame, left, right);
                     break;
 
+                case IK_const:
+                    EM_error (pos, "cannot assign to constants");
+                    return;
                 default:
-                    assert(FALSE);
+                    EM_error (pos, "cannot assign to right hand side");
+                    return;
             }
             break;
 
@@ -3720,8 +3732,12 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     _call_property_setter (code, pos, frame, left, right);
                     break;
 
+                case IK_const:
+                    EM_error (pos, "cannot assign to constants");
+                    return;
                 default:
-                    assert(FALSE);
+                    EM_error (pos, "cannot assign to right hand side");
+                    return;
             }
             break;
 

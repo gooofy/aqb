@@ -15,6 +15,7 @@ Improvements:
     * compiler: NEW operator added
     * compiler: EXTENDS, BASE keywords added (OOP inheritance)
     * compiler: PROPERTY support added (OOP)
+    * compiler: generate proper error message when a constant is assigned to (#24)
 
 Bug Fixes:
 
