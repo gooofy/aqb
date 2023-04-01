@@ -482,29 +482,14 @@ Syntax:
 
     FRE "(" x ")"
 
-.Table x values
-|===
-|Value | Description
+return the amount of free memory
 
-|-2
-|stack size
-
-|-1
-|chip + fast mem
-
-|0
-|chip mem
-
-|1
-|fast mem
-
-|2
-|largest chip mem
-
-|3
-|largest fast mem
-
-|===
+    * -2: stack size
+    * -1: chip + fast mem
+    *  0: chip mem
+    *  1: fast mem
+    *  2: largest chip mem
+    *  3: largest fast mem
 
 
 ## GOTO
