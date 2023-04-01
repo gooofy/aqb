@@ -122,7 +122,7 @@ PUBLIC TYPE _DARRAY_BOUNDS_T
         AS ULONG lbound, ubound, numElements
 END TYPE
 
-PUBLIC TYPE _DARRAY_T
+PUBLIC CLASS _DARRAY_T
 
     PUBLIC:
         DECLARE CONSTRUCTOR (BYVAL elementSize AS ULONG)
@@ -142,7 +142,7 @@ PUBLIC TYPE _DARRAY_T
         AS ULONG                elementSize
         AS _DARRAY_BOUNDS_T PTR bounds
 
-END TYPE
+END CLASS
 
 ' DATA / READ / RESTORE support
 

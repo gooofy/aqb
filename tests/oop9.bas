@@ -6,7 +6,7 @@
 
 OPTION EXPLICIT
 
-TYPE myc1
+CLASS myc1
 
     field1 AS INTEGER
 
@@ -15,7 +15,7 @@ TYPE myc1
     DECLARE SUB store (BYVAL i AS INTEGER)
     DECLARE FUNCTION retrieve () AS INTEGER
 
-END TYPE
+END CLASS
 
 CONSTRUCTOR myc1 (BYVAL initValue AS INTEGER)
     ' TRACE "CONSTRUCTOR myc1 called, this="; @this; ", initValue="; initValue

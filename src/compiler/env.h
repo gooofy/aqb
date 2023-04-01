@@ -73,7 +73,7 @@ void           E_declareVFC  (E_env env, S_symbol sym, CG_item *var );
 void           E_declareSub  (E_env env, S_symbol sym, Ty_proc  proc);
 void           E_declareType (E_env env, S_symbol sym, Ty_ty    ty  );
 
-bool           E_resolveVFC  (E_env env, S_symbol sym, bool checkParents, CG_item *exp, Ty_recordEntry *entry);
+bool           E_resolveVFC  (E_env env, S_symbol sym, bool checkParents, CG_item *exp, Ty_member *entry);
 Ty_ty          E_resolveType (E_env env, S_symbol sym);
 E_enventryList E_resolveSub  (E_env env, S_symbol sym);
 

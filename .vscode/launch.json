@@ -29,7 +29,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
-            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/cond1.bas.s", "-o", "/tmp/cond1", "tests/cond1.bas"],
+            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/cond1.bas.s", "-o", "/tmp/cond1", "tests/oop3.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -73,6 +73,66 @@
             "args": ["-L", "..", "-I", "-d", "_brt", "-s", "OSUtility.sym", "OSUtility.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/src/lib/OSUtility",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "_brt",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-d", "none", "-s", "_brt.sym", "_brt.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/lib/_brt",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "_aqb",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "..", "-d", "_brt", "-s", "_aqb.sym", "_aqb.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/lib/_aqb",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "Collections",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "..", "-I", "-d", "none", "-s", "Collections.sym", "Collections.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/lib/Collections",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

@@ -76,37 +76,62 @@ void Ty_init(void)
 
 static uint32_t g_uid = 23;
 
-Ty_ty Ty_Record (S_symbol mod, Ty_ty baseType)
+Ty_ty Ty_Record (S_symbol mod)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                  = Ty_record;
-    p->u.record.baseType     = baseType;
     p->u.record.entries      = NULL;
-    p->u.record.constructor  = NULL;
-    p->u.record.uiSize       = baseType ? Ty_size(baseType) : 0;
+    p->u.record.uiSize       = 0;
     p->mod                   = mod;
     p->uid                   = g_uid++;
 
     return p;
 }
 
-Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
+Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType)
 {
-    //LOG_printf(LOG_INFO, "%d\n", recordType->kind);
-    assert (recordType->kind == Ty_record);
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
-    Ty_recordEntry f = U_poolAlloc(UP_types, sizeof(*f));
+    p->kind                  = Ty_class;
+    p->u.cls.baseType        = baseType;
+    p->u.cls.members         = NULL;
+    p->u.cls.implements      = NULL;
+    p->u.cls.constructor     = NULL;
+    p->u.cls.uiSize          = baseType ? Ty_size(baseType) : 0;
+    p->mod                   = mod;
+    p->uid                   = g_uid++;
+
+    return p;
+}
+
+Ty_ty Ty_Interface (S_symbol mod)
+{
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->kind                   = Ty_interface;
+    p->u.interface.members    = NULL;
+    p->u.interface.implements = NULL;
+    p->mod                    = mod;
+    p->uid                    = g_uid++;
+
+    return p;
+}
+
+static Ty_member Ty_recordAddField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
+{
+    assert (ty->kind == Ty_record);
+    Ty_member f = U_poolAlloc(UP_types, sizeof(*f));
 
     f->kind       = Ty_recField;
     f->name       = name;
     f->visibility = visibility;
-    f->next       = recordType->u.record.entries;
-    recordType->u.record.entries = f;
+    f->next       = ty->u.record.entries;
+    ty->u.record.entries = f;
 
     if (calcOffset) // env.c will provide offsets when loading types from modules
     {
-        uint32_t baseOffset = recordType->u.record.baseType ? recordType->u.record.baseType->u.record.uiSize : 0;
+        uint32_t baseOffset = 0;
 
         // 68k alignment
         unsigned int s = Ty_size(fieldType);
@@ -114,9 +139,9 @@ Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_
         //    recordType->u.record.uiSize++;
         if (s<2)
             s=2;
-        uint32_t fieldOffset = recordType->u.record.uiSize;
+        uint32_t fieldOffset = ty->u.record.uiSize;
 
-        recordType->u.record.uiSize += s;
+        ty->u.record.uiSize += s;
 
         f->u.field.uiOffset   = fieldOffset + baseOffset;
     }
@@ -126,53 +151,175 @@ Ty_recordEntry Ty_recordAddField (Ty_ty recordType, Ty_visibility visibility, S_
     return f;
 }
 
-Ty_recordEntry Ty_recordAddMethod (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc method)
+static Ty_member Ty_classAddField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
 {
-    assert (recordType->kind == Ty_record);
+    assert (ty->kind == Ty_class);
+    Ty_member f = U_poolAlloc(UP_types, sizeof(*f));
 
-    Ty_recordEntry p = U_poolAlloc(UP_types, sizeof(*p));
+    f->kind       = Ty_recField;
+    f->name       = name;
+    f->visibility = visibility;
+    f->next       = ty->u.cls.members;
+    ty->u.cls.members = f;
+
+    if (calcOffset) // env.c will provide offsets when loading types from modules
+    {
+        uint32_t baseOffset = ty->u.cls.baseType ? ty->u.cls.baseType->u.cls.uiSize : 0;
+
+        // 68k alignment
+        unsigned int s = Ty_size(fieldType);
+        //if (s>1 && (recordType->u.record.uiSize % 2))
+        //    recordType->u.record.uiSize++;
+        if (s<2)
+            s=2;
+        uint32_t fieldOffset = ty->u.cls.uiSize;
+
+        ty->u.cls.uiSize += s;
+
+        f->u.field.uiOffset   = fieldOffset + baseOffset;
+    }
+
+    f->u.field.ty         = fieldType;
+
+    return f;
+}
+
+void Ty_implements (Ty_ty ty, Ty_ty intf)
+{
+    Ty_intfList impl = U_poolAlloc(UP_types, sizeof(*impl));
+    impl->intf = intf;
+
+    switch (ty->kind)
+    {
+        case Ty_interface:
+            impl->next = ty->u.interface.implements;
+            ty->u.interface.implements = impl;
+            break;
+        case Ty_class:
+            impl->next = ty->u.cls.implements;
+            ty->u.cls.implements = impl;
+            break;
+        default:
+            assert(FALSE);
+    }
+}
+
+Ty_member Ty_addField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
+{
+    switch (ty->kind)
+    {
+        case Ty_record:
+            return Ty_recordAddField (ty, visibility, name, fieldType, calcOffset);
+        case Ty_class:
+            return Ty_classAddField (ty, visibility, name, fieldType, calcOffset);
+        default:
+            assert(FALSE);
+    }
+    return NULL;
+}
+
+Ty_member Ty_addMethod (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_proc method)
+{
+    Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind       = Ty_recMethod;
     p->name       = name;
     p->visibility = visibility;
-    p->next       = recordType->u.record.entries;
-    recordType->u.record.entries = p;
     p->u.method   = method;
+
+    switch (ty->kind)
+    {
+        case Ty_class:
+            p->next       = ty->u.cls.members;
+            ty->u.cls.members = p;
+            break;
+        case Ty_interface:
+            p->next       = ty->u.interface.members;
+            ty->u.interface.members = p;
+            break;
+        default:
+            assert(FALSE);
+    }
 
     return p;
 }
 
-Ty_recordEntry Ty_recordAddProperty (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty ty, Ty_proc setter, Ty_proc getter)
+Ty_member Ty_addProperty (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty tyProp, Ty_proc setter, Ty_proc getter)
 {
-    assert (recordType->kind == Ty_record);
+    assert (ty->kind == Ty_class);
 
-    Ty_recordEntry p = U_poolAlloc(UP_types, sizeof(*p));
+    Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind              = Ty_recProperty;
     p->name              = name;
     p->visibility        = visibility;
-    p->next              = recordType->u.record.entries;
-    recordType->u.record.entries = p;
-    p->u.property.ty     = ty;
+    p->next              = ty->u.cls.members;
+    ty->u.cls.members = p;
+    p->u.property.ty     = tyProp;
     p->u.property.setter = setter;
     p->u.property.getter = getter;
 
     return p;
 }
 
-Ty_recordEntry Ty_recordFindEntry (Ty_ty recordType, S_symbol name, bool checkBase)
+Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
 {
-    assert (recordType->kind == Ty_record);
-
-    for (Ty_recordEntry entry = recordType->u.record.entries; entry; entry=entry->next)
+    switch (ty->kind)
     {
-        if (entry->name == name)
-            return entry;
+        case Ty_class:
+
+            for (Ty_member member = ty->u.cls.members; member; member=member->next)
+            {
+                if (member->name == name)
+                    return member;
+            }
+
+            if (checkBase)
+            {
+                if (ty->u.cls.baseType)
+                    return Ty_findEntry (ty->u.cls.baseType, name, /*checkbase=*/TRUE);
+                for (Ty_intfList implements=ty->u.cls.implements; implements; implements=implements->next)
+                {
+                    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
+                    if (member)
+                        return member;
+                }
+            }
+
+            break;
+
+        case Ty_record:
+
+            for (Ty_member entry = ty->u.record.entries; entry; entry=entry->next)
+            {
+                if (entry->name == name)
+                    return entry;
+            }
+
+            break;
+
+        case Ty_interface:
+
+            for (Ty_member member = ty->u.interface.members; member; member=member->next)
+            {
+                if (member->name == name)
+                    return member;
+            }
+
+            if (checkBase)
+            {
+                for (Ty_intfList implements=ty->u.interface.implements; implements; implements=implements->next)
+                {
+                    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
+                    if (member)
+                        return member;
+                }
+            }
+
+            break;
+        default:
+            assert(FALSE);
     }
-
-    if (checkBase && recordType->u.record.baseType)
-        return Ty_recordFindEntry (recordType->u.record.baseType, name, /*checkbase=*/TRUE);
-
     return NULL;
 }
 
@@ -248,8 +395,11 @@ void Ty_computeSize(Ty_ty ty)
             break;
 
         case Ty_record:
+        case Ty_class:
+        case Ty_interface:
             assert(0);
             return;
+
         case Ty_pointer:  break;
         case Ty_string:   break;
         case Ty_procPtr:  break;
@@ -327,6 +477,8 @@ int Ty_size(Ty_ty t)
             return t->u.sarray.uiSize;
         case Ty_record:
             return t->u.record.uiSize;
+        case Ty_class:
+            return t->u.cls.uiSize;
         default:
             assert(0);
             return 4;
@@ -458,6 +610,16 @@ static string _toString(Ty_ty t, int depth)
             return strprintf (UP_types, "darray([%s:%d]%s)", S_name (t->mod), t->uid, _toString(t->u.darray.elementTy, depth+1));
         case Ty_sarray:
             return strprintf (UP_types, "sarray([%s:%d]%s)", S_name (t->mod), t->uid, _toString(t->u.sarray.elementTy, depth+1));
+        case Ty_class:
+        {
+            string res = strprintf (UP_types, "class ([%s:%d]", S_name (t->mod), t->uid);
+            return strconcat (UP_types, res, ")");
+        }
+        case Ty_interface:
+        {
+            string res = strprintf (UP_types, "interface ([%s:%d]", S_name (t->mod), t->uid);
+            return strconcat (UP_types, res, ")");
+        }
         case Ty_record:
         {
             string res = strprintf (UP_types, "record ([%s:%d]", S_name (t->mod), t->uid);

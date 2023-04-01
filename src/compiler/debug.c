@@ -1001,6 +1001,8 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
             case Ty_sarray:
             case Ty_darray:
             case Ty_record:
+            case Ty_class:
+            case Ty_interface:
             case Ty_pointer:
             case Ty_string:
             case Ty_void:
@@ -1028,6 +1030,8 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
             case Ty_sarray:
             case Ty_darray:
             case Ty_record:
+            case Ty_class:
+            case Ty_interface:
             case Ty_pointer:
             case Ty_string:
             case Ty_void:

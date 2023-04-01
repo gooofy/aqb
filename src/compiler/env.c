@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     45
+#define SYM_VERSION     47
 
 E_module g_builtinsModule = NULL;
 
@@ -105,7 +105,10 @@ E_env E_EnvWith (E_env parent, CG_item withPrefix)
     E_env p = U_poolAlloc (UP_env, sizeof(*p));
 
     Ty_ty ty = CG_ty(&withPrefix);
-    assert ( ( (withPrefix.kind == IK_varPtr) || (withPrefix.kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
+    assert ( (    (withPrefix.kind == IK_varPtr)
+               || ( (withPrefix.kind == IK_inFrameRef) && (    (ty->kind == Ty_record)
+                                                            || (ty->kind == Ty_class)
+                                                            || (ty->kind == Ty_interface) ) ) ) );
 
     p->kind            = E_withEnv;
     p->u.withPrefix    = withPrefix;
@@ -117,7 +120,7 @@ E_env E_EnvWith (E_env parent, CG_item withPrefix)
     return p;
 }
 
-bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, CG_item *item, Ty_recordEntry *entry)
+bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, CG_item *item, Ty_member *entry)
 {
     E_enventry x = NULL;
     *entry = NULL;
@@ -135,9 +138,12 @@ bool E_resolveVFC (E_env env, S_symbol sym, bool checkParents, CG_item *item, Ty
         {
             *item = env->u.withPrefix;
             Ty_ty ty = CG_ty(item);
-            assert ( ( (item->kind == IK_varPtr) || (item->kind == IK_inFrameRef) ) && (ty->kind == Ty_record) );
+            assert ( (    (item->kind == IK_varPtr)
+                       || ( (item->kind == IK_inFrameRef) && (    (ty->kind == Ty_record)
+                                                               || (ty->kind == Ty_class)
+                                                               || (ty->kind == Ty_interface) ) ) ) );
 
-            *entry = Ty_recordFindEntry(ty, sym, /*checkbase=*/TRUE);
+            *entry = Ty_findEntry(ty, sym, /*checkbase=*/TRUE);
             if (*entry)
                 return TRUE;
             break;
@@ -455,7 +461,22 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
             break;
         case Ty_record:
         {
-            for (Ty_recordEntry entry=ty->u.record.entries; entry; entry=entry->next)
+            for (Ty_member entry=ty->u.record.entries; entry; entry=entry->next)
+            {
+                switch (entry->kind)
+                {
+                    case Ty_recField:
+                        ok &= E_tyFindTypes (smod, type_tab, entry->u.field.ty);
+                        break;
+                    default:
+                        assert(FALSE);
+                }
+            }
+            break;
+        }
+        case Ty_class:
+        {
+            for (Ty_member entry=ty->u.cls.members; entry; entry=entry->next)
             {
                 switch (entry->kind)
                 {
@@ -472,9 +493,24 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                         break;
                 }
             }
-            if (ty->u.record.constructor)
-                ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.record.constructor);
+            if (ty->u.cls.constructor)
+                ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.cls.constructor);
 
+            break;
+        }
+        case Ty_interface:
+        {
+            for (Ty_member entry=ty->u.interface.members; entry; entry=entry->next)
+            {
+                switch (entry->kind)
+                {
+                    case Ty_recMethod:
+                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method);
+                        break;
+                    default:
+                        assert(FALSE);
+                }
+            }
             break;
         }
         case Ty_pointer:
@@ -596,12 +632,44 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_record:
         {
             fwrite_u4(modf, ty->u.record.uiSize);
-            E_serializeTyRef(modTable, ty->u.record.baseType);
             uint16_t cnt=0;
-            for (Ty_recordEntry entry = ty->u.record.entries; entry; entry=entry->next)
+            for (Ty_member entry = ty->u.record.entries; entry; entry=entry->next)
                 cnt++;
             fwrite_u2(modf, cnt);
-            for (Ty_recordEntry entry = ty->u.record.entries; entry; entry=entry->next)
+            for (Ty_member entry = ty->u.record.entries; entry; entry=entry->next)
+            {
+                fwrite_u1(modf, entry->kind);
+                switch (entry->kind)
+                {
+                    case Ty_recField:
+                        fwrite_u1(modf, entry->visibility);
+                        strserialize(modf, S_name(entry->name));
+                        fwrite_u4(modf, entry->u.field.uiOffset);
+                        //LOG_printf (LOG_DEBUG, "serializing Ty_recField visibility=%d, name=%s, offset=%d\n", entry->u.field.visibility, S_name(entry->u.field.name), entry->u.field.uiOffset);
+                        E_serializeTyRef(modTable, entry->u.field.ty);
+                        break;
+                    default:
+                        assert(FALSE);
+                }
+            }
+            break;
+        }
+        case Ty_class:
+            fwrite_u4(modf, ty->u.cls.uiSize);
+            E_serializeTyRef(modTable, ty->u.cls.baseType);
+            uint16_t cnt=0;
+            for (Ty_intfList intf = ty->u.cls.implements; intf; intf=intf->next)
+                cnt++;
+            fwrite_u2(modf, cnt);
+            for (Ty_intfList intf = ty->u.cls.implements; intf; intf=intf->next)
+            {
+                E_serializeTyRef(modTable, intf->intf);
+            }
+            cnt=0;
+            for (Ty_member entry = ty->u.cls.members; entry; entry=entry->next)
+                cnt++;
+            fwrite_u2(modf, cnt);
+            for (Ty_member entry = ty->u.cls.members; entry; entry=entry->next)
             {
                 fwrite_u1(modf, entry->kind);
                 switch (entry->kind)
@@ -626,12 +694,50 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
                         break;
                 }
             }
-            bool constructor_present = ty->u.record.constructor != NULL;
+            bool constructor_present = ty->u.cls.constructor != NULL;
             fwrite_u1(modf, constructor_present);
             if (constructor_present)
-                E_serializeTyProc(modTable, ty->u.record.constructor);
+                E_serializeTyProc(modTable, ty->u.cls.constructor);
             break;
-        }
+        case Ty_interface:
+            // FIXME: implement
+            assert(FALSE);
+            //fwrite_u4(modf, ty->u.record.uiSize);
+            //E_serializeTyRef(modTable, ty->u.record.baseType);
+            //uint16_t cnt=0;
+            //for (Ty_member entry = ty->u.record.entries; entry; entry=entry->next)
+            //    cnt++;
+            //fwrite_u2(modf, cnt);
+            //for (Ty_member entry = ty->u.record.entries; entry; entry=entry->next)
+            //{
+            //    fwrite_u1(modf, entry->kind);
+            //    switch (entry->kind)
+            //    {
+            //        case Ty_recMethod:
+            //            fwrite_u1(modf, entry->visibility);
+            //            E_serializeTyProc(modTable, entry->u.method);
+            //            break;
+            //        case Ty_recField:
+            //            fwrite_u1(modf, entry->visibility);
+            //            strserialize(modf, S_name(entry->name));
+            //            fwrite_u4(modf, entry->u.field.uiOffset);
+            //            //LOG_printf (LOG_DEBUG, "serializing Ty_recField visibility=%d, name=%s, offset=%d\n", entry->u.field.visibility, S_name(entry->u.field.name), entry->u.field.uiOffset);
+            //            E_serializeTyRef(modTable, entry->u.field.ty);
+            //            break;
+            //        case Ty_recProperty:
+            //            fwrite_u1(modf, entry->visibility);
+            //            strserialize(modf, S_name(entry->name));
+            //            E_serializeTyRef(modTable, entry->u.property.ty);
+            //            E_serializeTyProc(modTable, entry->u.property.getter);
+            //            E_serializeTyProc(modTable, entry->u.property.setter);
+            //            break;
+            //    }
+            //}
+            //bool constructor_present = ty->u.cls.constructor != NULL;
+            //fwrite_u1(modf, constructor_present);
+            //if (constructor_present)
+            //    E_serializeTyProc(modTable, ty->u.cls.constructor);
+            break;
         case Ty_pointer:
             E_serializeTyRef(modTable, ty->u.pointer);
             break;
@@ -1273,7 +1379,6 @@ E_module E_loadModule(S_symbol sModule)
             case Ty_record:
             {
                 ty->u.record.uiSize = fread_u4(modf);
-                ty->u.record.baseType = E_deserializeTyRef(modTable, modf);
 
                 uint16_t cnt=fread_u2(modf);
 
@@ -1287,11 +1392,53 @@ E_module E_loadModule(S_symbol sModule)
                     uint8_t fkind = fread_u1(modf);
                     switch (fkind)
                     {
+                        case Ty_recField:
+                        {
+                            uint8_t visibility = fread_u1(modf);
+                            string name = strdeserialize(UP_env, modf);
+                            uint32_t uiOffset = fread_u4(modf);
+                            //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
+                            Ty_ty t = E_deserializeTyRef(modTable, modf);
+                            S_symbol sym = S_Symbol(name);
+                            Ty_member field = Ty_addField (ty, visibility, sym, t, /*calcOffset=*/FALSE);
+                            field->u.field.uiOffset = uiOffset;
+                            break;
+                        }
+                        default:
+                            assert(FALSE);
+                    }
+                }
+                break;
+            }
+            case Ty_class:
+            {
+                ty->u.cls.uiSize = fread_u4(modf);
+                ty->u.cls.baseType = E_deserializeTyRef(modTable, modf);
+
+                uint16_t cnt=fread_u2(modf);
+                ty->u.cls.implements = NULL;
+                for (int i=0; i<cnt; i++)
+                {
+                    Ty_ty intf = E_deserializeTyRef(modTable, modf);
+                    Ty_implements (ty, intf);
+                }
+
+                cnt=fread_u2(modf);
+                ty->u.cls.members = NULL;
+                ty->kind = Ty_class;
+
+                //LOG_printf (LOG_DEBUG, "loading class type, uiSize=%d, cnt=%d\n", ty->u.cls.uiSize, cnt);
+
+                for (int i=0; i<cnt; i++)
+                {
+                    uint8_t fkind = fread_u1(modf);
+                    switch (fkind)
+                    {
                         case Ty_recMethod:
                         {
                             uint8_t visibility = fread_u1(modf);
                             Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                            Ty_recordAddMethod (ty, visibility, proc->name, proc);
+                            Ty_addMethod (ty, visibility, proc->name, proc);
                             break;
                         }
                         case Ty_recField:
@@ -1302,7 +1449,7 @@ E_module E_loadModule(S_symbol sModule)
                             //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
                             Ty_ty t = E_deserializeTyRef(modTable, modf);
                             S_symbol sym = S_Symbol(name);
-                            Ty_recordEntry field = Ty_recordAddField (ty, visibility, sym, t, /*calcOffset=*/FALSE);
+                            Ty_member field = Ty_addField (ty, visibility, sym, t, /*calcOffset=*/FALSE);
                             field->u.field.uiOffset = uiOffset;
                             break;
                         }
@@ -1313,7 +1460,7 @@ E_module E_loadModule(S_symbol sModule)
                             Ty_ty   t          = E_deserializeTyRef(modTable, modf);
                             Ty_proc getter     = E_deserializeTyProc(modTable, modf);
                             Ty_proc setter     = E_deserializeTyProc(modTable, modf);
-                            Ty_recordAddProperty (ty, visibility, S_Symbol(name), t, setter, getter);
+                            Ty_addProperty (ty, visibility, S_Symbol(name), t, setter, getter);
                             break;
                         }
                         default:
@@ -1323,12 +1470,75 @@ E_module E_loadModule(S_symbol sModule)
 
                 uint8_t constructor_present = fread_u1(modf);
                 if (constructor_present)
-                    ty->u.record.constructor = E_deserializeTyProc(modTable, modf);
+                    ty->u.cls.constructor = E_deserializeTyProc(modTable, modf);
                 else
-                    ty->u.record.constructor = NULL;
+                    ty->u.cls.constructor = NULL;
 
                 break;
             }
+
+            case Ty_interface:
+            {
+                // FIXME: implement
+                assert(FALSE);
+                //ty->u.record.uiSize = fread_u4(modf);
+                //ty->u.record.baseType = E_deserializeTyRef(modTable, modf);
+
+                //uint16_t cnt=fread_u2(modf);
+
+                //ty->u.record.entries = NULL;
+                //ty->kind = Ty_record;
+
+                ////LOG_printf (LOG_DEBUG, "loading record type, uiSize=%d, cnt=%d\n", ty->u.record.uiSize, cnt);
+
+                //for (int i=0; i<cnt; i++)
+                //{
+                //    uint8_t fkind = fread_u1(modf);
+                //    switch (fkind)
+                //    {
+                //        case Ty_recMethod:
+                //        {
+                //            uint8_t visibility = fread_u1(modf);
+                //            Ty_proc proc = E_deserializeTyProc(modTable, modf);
+                //            Ty_recordAddMethod (ty, visibility, proc->name, proc);
+                //            break;
+                //        }
+                //        case Ty_recField:
+                //        {
+                //            uint8_t visibility = fread_u1(modf);
+                //            string name = strdeserialize(UP_env, modf);
+                //            uint32_t uiOffset = fread_u4(modf);
+                //            //LOG_printf (LOG_DEBUG, "Ty_recField visibility=%d, name=%s, offset=%d\n", visibility, name, uiOffset);
+                //            Ty_ty t = E_deserializeTyRef(modTable, modf);
+                //            S_symbol sym = S_Symbol(name);
+                //            Ty_member field = Ty_recordAddField (ty, visibility, sym, t, /*calcOffset=*/FALSE);
+                //            field->u.field.uiOffset = uiOffset;
+                //            break;
+                //        }
+                //        case Ty_recProperty:
+                //        {
+                //            uint8_t visibility = fread_u1(modf);
+                //            string  name       = strdeserialize(UP_env, modf);
+                //            Ty_ty   t          = E_deserializeTyRef(modTable, modf);
+                //            Ty_proc getter     = E_deserializeTyProc(modTable, modf);
+                //            Ty_proc setter     = E_deserializeTyProc(modTable, modf);
+                //            Ty_recordAddProperty (ty, visibility, S_Symbol(name), t, setter, getter);
+                //            break;
+                //        }
+                //        default:
+                //            assert(FALSE);
+                //    }
+                //}
+
+                //uint8_t constructor_present = fread_u1(modf);
+                //if (constructor_present)
+                //    ty->u.cls.constructor = E_deserializeTyProc(modTable, modf);
+                //else
+                //    ty->u.cls.constructor = NULL;
+
+                break;
+            }
+
             case Ty_pointer:
                 ty->u.pointer = E_deserializeTyRef(modTable, modf);
                 break;

@@ -307,6 +307,8 @@ static enum Temp_w CG_tySize(Ty_ty ty)
             return Temp_w_L;
         case Ty_sarray:
         case Ty_darray:
+        case Ty_class:
+        case Ty_interface:
         case Ty_record:
         case Ty_void:
         case Ty_toLoad:
@@ -3283,7 +3285,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
     }
 }
 
-void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry)
+void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry)
 {
     Ty_ty t = CG_ty(recordPtr);
 
@@ -3301,6 +3303,7 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
             break;
         }
         case Ty_record:
+        case Ty_class:
         {
             switch (recordPtr->kind)
             {
@@ -3329,7 +3332,7 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
     }
 }
 
-void CG_transProperty (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry)
+void CG_transProperty (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry)
 {
     // we have to delay code generation here until we know whether we need to call the getter or the setter
 
@@ -4334,6 +4337,8 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                             break;
                         case Ty_sarray:
                         case Ty_darray:
+                        case Ty_class:
+                        case Ty_interface:
                         case Ty_record:
                         case Ty_void:
                         case Ty_forwardPtr:

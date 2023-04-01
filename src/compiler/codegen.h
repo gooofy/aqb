@@ -46,7 +46,7 @@ struct CG_item_
         struct { Temp_label l;                                     }   inHeap;
         struct { Temp_label l; AS_instrList fixUps; bool postCond; }   condR;
         Temp_temp                                                      varPtr;
-        struct { Temp_temp thisReg; Ty_ty thisTy; Ty_recordEntry p;}   property;
+        struct { Temp_temp thisReg; Ty_ty thisTy; Ty_member p;     }   property;
     } u;
 };
 
@@ -166,8 +166,8 @@ CG_fragList     CG_FragList         (CG_frag head, CG_fragList tail);
 void            CG_transBinOp       (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty);
 void            CG_transRelOp       (AS_instrList code, S_pos pos, CG_relOp o, CG_item *left, CG_item *right);
 void            CG_transIndex       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *array, CG_item *idx);
-void            CG_transField       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry);
-void            CG_transProperty    (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_recordEntry entry);
+void            CG_transField       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry);
+void            CG_transProperty    (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry);
 void            CG_transJump        (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transJSR         (AS_instrList code, S_pos pos, Temp_label l);
 void            CG_transRTS         (AS_instrList code, S_pos pos);

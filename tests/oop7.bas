@@ -6,7 +6,7 @@
 
 OPTION EXPLICIT
 
-TYPE myc1
+CLASS myc1
 
     field1 AS INTEGER
 
@@ -15,7 +15,7 @@ TYPE myc1
     DECLARE SUB store (BYVAL i AS INTEGER)
     DECLARE FUNCTION retrieve () AS INTEGER
 
-END TYPE
+END CLASS
 
 CONSTRUCTOR myc1 (BYVAL initValue AS INTEGER)
     ' TRACE "CONSTRUCTOR myc1 called, initValue="; initValue
@@ -31,7 +31,7 @@ FUNCTION myc1.retrieve () AS INTEGER
     RETURN field1
 END FUNCTION
 
-TYPE myc2 EXTENDS myc1
+CLASS myc2 EXTENDS myc1
 
     field1 AS INTEGER
 
@@ -42,7 +42,7 @@ TYPE myc2 EXTENDS myc1
 
     DECLARE FUNCTION mul() AS INTEGER
 
-END TYPE
+END CLASS
 
 CONSTRUCTOR myc2 (BYVAL iv1 AS INTEGER, BYVAL iv2 AS INTEGER)
     ' TRACE "CONSTRUCTOR myc2 called, iv1="; iv1; ", iv2="; iv2

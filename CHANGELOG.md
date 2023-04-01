@@ -13,8 +13,9 @@ Improvements:
     * runtime: TEXTEXTEND statement added
     * compiler: support for variadic function argument passing
     * compiler: NEW operator added
-    * compiler: EXTENDS, BASE keywords added (OOP inheritance)
+    * compiler: EXTENDS, BASE, IMPLEMENTS keywords added (OOP inheritance)
     * compiler: PROPERTY support added (OOP)
+    * compiler: [breaking] CLASS/END CLASS, INTERFACE/END INTERFACE added (OOP virtual methods)
     * compiler: generate proper error message when a constant is assigned to (#24)
 
 Bug Fixes:

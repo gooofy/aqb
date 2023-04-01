@@ -303,6 +303,8 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                                         break;
                                     case Ty_sarray:
                                     case Ty_darray:
+                                    case Ty_class:
+                                    case Ty_interface:
                                     case Ty_record:
                                     case Ty_void:
                                     case Ty_forwardPtr:

@@ -6,7 +6,7 @@
 
 OPTION EXPLICIT
 
-TYPE myc1
+CLASS myc1
 
     field1 AS INTEGER
 
@@ -17,7 +17,7 @@ TYPE myc1
 
     DECLARE FUNCTION square() AS INTEGER
 
-END TYPE
+END CLASS
 
 CONSTRUCTOR myc1 (initValue AS INTEGER)
     ' _debug_puts "CONSTRUCTOR called." : _debug_putnl
@@ -48,11 +48,19 @@ END FUNCTION
 ' main
 '
 
+' TRACE "1"
+
 DIM o AS myc1 PTR = NEW myc1(10)
 
+' TRACE "2"
 o->store(42)
 
+' TRACE "3"
 ASSERT o->retrieve() = 42
+'TRACE "4"
 o->store(23)
+'TRACE "5"
 ASSERT o->retrieve() = 23
+'TRACE "6"
 ASSERT o->square() = 529
+

@@ -4,14 +4,14 @@
 
 OPTION EXPLICIT
 
-TYPE myc1
+CLASS myc1
 
     field1 AS INTEGER
 
     DECLARE SUB store (o AS INTEGER)
     DECLARE FUNCTION retrieve () AS INTEGER
 
-END TYPE
+END CLASS
 
 SUB myc1.store (i AS INTEGER)
 

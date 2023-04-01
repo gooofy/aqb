@@ -43,15 +43,15 @@ PUBLIC CONST AS INTEGER AE_EXEC_LIST         = 126
 ' --
 ' --------------------------------------------------------------------------------------------------------
 
-PUBLIC TYPE ExecNode
+PUBLIC CLASS ExecNode
 
     AS Node n
 
     DECLARE CONSTRUCTOR (BYVAL ln_Type AS UBYTE = 254, BYVAL ln_Pri AS BYTE = 0, BYVAL ln_Name AS STRING = NULL)
 
-END TYPE
+END CLASS
 
-PUBLIC TYPE ExecList
+PUBLIC CLASS ExecList
 
     AS List  l
 
@@ -59,7 +59,7 @@ PUBLIC TYPE ExecList
 
     DECLARE SUB AddTail (BYVAL n AS ExecNode PTR)
 
-END TYPE
+END CLASS
 
 ' --------------------------------------------------------------------------------------------------------
 ' --

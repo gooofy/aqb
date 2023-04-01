@@ -7,7 +7,8 @@ typedef struct Ty_ty_           *Ty_ty;
 typedef struct Ty_const_        *Ty_const;
 typedef struct Ty_formal_       *Ty_formal;
 typedef struct Ty_proc_         *Ty_proc;
-typedef struct Ty_recordEntry_  *Ty_recordEntry;
+typedef struct Ty_member_  *Ty_member;
+typedef struct Ty_intfList_     *Ty_intfList;
 
 #include "temp.h"
 
@@ -17,28 +18,34 @@ struct Ty_ty_
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
            Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
-           Ty_void, Ty_forwardPtr, Ty_procPtr, Ty_toLoad, Ty_prc } kind;
+           Ty_void, Ty_forwardPtr, Ty_procPtr,
+           Ty_class, Ty_interface,
+           Ty_toLoad, Ty_prc } kind;
            // Ty_toLoad: used for module loading in env.c
 
     union
     {
         Ty_ty                                                                 pointer;
-        struct {Ty_ty baseType;
-                Ty_proc  constructor;
-                uint32_t uiSize;
-                Ty_recordEntry entries;                                     } record;
+        struct {uint32_t       uiSize;
+                Ty_member      entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
         struct {Ty_ty elementTy;                                            } darray;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
+        struct {Ty_ty          baseType;
+                Ty_intfList    implements;
+                Ty_proc        constructor;
+                uint32_t       uiSize;
+                Ty_member      members;                                     } cls;
+        struct {Ty_intfList    implements;
+                Ty_member      members;                                     } interface;
     } u;
 
     // serialization / symbol file / import / export support:
     S_symbol mod; // module this type is defined in, NULL to indicate built-in type
     uint32_t uid; // unique id of this type within the module it is defined in
 };
-
 
 struct Ty_const_
 {
@@ -89,9 +96,9 @@ struct Ty_proc_
     bool             hasBody;
 };
 
-struct Ty_recordEntry_
+struct Ty_member_
 {
-    Ty_recordEntry                                     next;
+    Ty_member                                     next;
     enum { Ty_recMethod, Ty_recField, Ty_recProperty } kind;
     S_symbol                                           name;
     Ty_visibility                                      visibility;
@@ -103,11 +110,17 @@ struct Ty_recordEntry_
             Ty_ty         ty;
         }                                              field;
         struct {
-            Ty_ty       ty;
-            Ty_proc     getter;
-            Ty_proc     setter;
+            Ty_ty         ty;
+            Ty_proc       getter;
+            Ty_proc       setter;
         }                                              property;
     } u;
+};
+
+struct Ty_intfList_
+{
+    Ty_intfList     next;
+    Ty_ty           intf;
 };
 
 Ty_ty           Ty_Bool(void);
@@ -131,11 +144,14 @@ Ty_ty           Ty_Prc               (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr           (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
 
-Ty_ty           Ty_Record            (S_symbol mod, Ty_ty baseType);
-Ty_recordEntry  Ty_recordAddField    (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
-Ty_recordEntry  Ty_recordAddMethod   (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_proc method);
-Ty_recordEntry  Ty_recordAddProperty (Ty_ty recordType, Ty_visibility visibility, S_symbol name, Ty_ty ty, Ty_proc setter, Ty_proc getter);
-Ty_recordEntry  Ty_recordFindEntry   (Ty_ty recordType, S_symbol name, bool checkBase);
+Ty_ty           Ty_Record            (S_symbol mod);
+Ty_ty           Ty_Interface         (S_symbol mod);
+Ty_ty           Ty_Class             (S_symbol mod, Ty_ty baseClass);
+void            Ty_implements        (Ty_ty clsIntfType, Ty_ty intf);
+Ty_member       Ty_addField          (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
+Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_proc method);
+Ty_member       Ty_addProperty       (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
+Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);

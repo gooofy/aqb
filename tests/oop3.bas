@@ -6,7 +6,7 @@
 
 OPTION EXPLICIT
 
-TYPE myc1
+CLASS myc1
 
     field1 AS INTEGER
 
@@ -15,7 +15,7 @@ TYPE myc1
     DECLARE SUB store (i AS INTEGER)
     DECLARE FUNCTION retrieve () AS INTEGER
 
-END TYPE
+END CLASS
 
 CONSTRUCTOR myc1 (initValue AS INTEGER)
     ' _debug_puts "CONSTRUCTOR called." : _debug_putnl
