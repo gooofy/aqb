@@ -749,14 +749,14 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList 
 
             S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)));
 
-            Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+            Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
 
             CG_transCall (initCode, pos, frame, init_proc, /*args=*/NULL, /* result=*/ NULL);
         }
 
         // run __aqb_clear
         S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
         CG_transCall (initCode, pos, frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
 
         AS_instrListPrependList (body, initCode);

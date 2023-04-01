@@ -258,7 +258,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 106
+#define MAX_KEYWORDS 107
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -369,6 +369,7 @@ static S_symbol S_PROPERTY;
 static S_symbol S_INTERFACE;
 static S_symbol S_CLASS;
 static S_symbol S_IMPLEMENTS;
+static S_symbol S_VIRTUAL;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -2618,7 +2619,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = Ty_Void();
         }
 
-        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL, /*isVirtual=*/FALSE);
         *ty = Ty_ProcPtr(FE_mod->name, proc);
     }
     else
@@ -5880,7 +5881,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         kind  = Ty_pkSub;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*isVirtual=*/FALSE);
 
     return TRUE;
 }
@@ -5941,12 +5942,15 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
     if (kind==Ty_pkFunction)
         label = strconcat(UP_frontend, label, "_");
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*isVirtual=*/FALSE);
 
     return TRUE;
 }
 
-// procHeader ::= ( ( SUB ident ( ident* | "." ident) | FUNCTION ident [ "." ident ] | CONSTRUCTOR [ ident ] ) [ parameterList ] [ AS typeDesc ] [ STATIC ]
+// procHeader ::= [ VIRTUAL ] ( SUB ident ( ident* | "." ident)
+//                            | FUNCTION ident [ "." ident ]
+//                            | CONSTRUCTOR [ ident ] )
+//                                                               [ parameterList ] [ AS typeDesc ] [ STATIC ]
 static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkSub;
@@ -5954,6 +5958,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     S_symlist    extra_syms = NULL, extra_syms_last=NULL;
     bool         isVariadic = FALSE;
     bool         isStatic   = FALSE;
+    bool         isVirtual  = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
     string       label      = NULL;
@@ -5965,6 +5970,12 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     {
         sCls       = g_sleStack->u.typeDecl.sType;
         tyCls      = g_sleStack->u.typeDecl.ty;
+
+        if (isSym(*tkn, S_VIRTUAL))
+        {
+            isVirtual = TRUE;
+            *tkn = (*tkn)->next;
+        }
     }
 
     if (isSym(*tkn, S_SUB) || isSym(*tkn, S_FUNCTION))
@@ -6080,7 +6091,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, isVirtual);
 
     return TRUE;
 }
@@ -7722,7 +7733,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
         // call __aqb_clear
 
         S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
 
@@ -8039,7 +8050,7 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
 
     if (kind == Ty_pkSub)
     {
@@ -8623,6 +8634,7 @@ void FE_boot(void)
     S_INTERFACE       = defineKeyword("INTERFACE");
     S_CLASS           = defineKeyword("CLASS");
     S_IMPLEMENTS      = defineKeyword("IMPLEMENTS");
+    S_VIRTUAL         = defineKeyword("VIRTUAL");
 }
 
 void FE_init(void)
