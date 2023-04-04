@@ -1,27 +1,46 @@
 '
-' SUB pointer assignment
+' OOP Test 10
+'
+' virtual function
 '
 
 OPTION EXPLICIT
 
-DIM SHARED g AS INTEGER
+CLASS myb
 
-DIM AS SUB (BYVAL INTEGER) s1
+    field1 AS INTEGER
 
-SUB mys (BYVAL i AS INTEGER)
+    DECLARE VIRTUAL FUNCTION f1(BYVAL i AS INTEGER) AS INTEGER
+    DECLARE VIRTUAL FUNCTION f2(BYVAL i AS INTEGER) AS INTEGER
 
-    TRACE "mys called, i=";i
+END CLASS
 
-    g = i
+FUNCTION myb.f1 (BYVAL i AS INTEGER) AS INTEGER
+    field1 = i
+    RETURN i+23
+END FUNCTION
 
-END SUB
+FUNCTION myb.f2 (BYVAL i AS INTEGER) AS INTEGER
+    RETURN i+i
+END FUNCTION
 
-g = 23
 
-s1 = mys
-
-s1(42)
-
-ASSERT g=42
-
+' CLASS myc1 EXTENDS myb
+' 
+'     DECLARE VIRTUAL FUNCTION f1(BYVAL i AS INTEGER) AS INTEGER
+' 
+' END CLASS
+' 
+' FUNCTION myc1.f1 (BYVAL i AS INTEGER) AS INTEGER
+'     RETURN i*i
+' END FUNCTION
+' 
+' '
+' ' main
+' '
+' 
+DIM o1 AS myb PTR = NEW myb()
+' DIM o2 AS myb PTR = NEW myc1()
+' 
+ASSERT o1->f1(19) = 42
 

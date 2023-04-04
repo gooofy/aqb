@@ -93,11 +93,11 @@ struct CG_frag_
 };
 struct CG_dataFragNode_
 {
-    enum {CG_labelNode, CG_constNode} kind;
+    enum {CG_labelNode, CG_constNode, CG_ptrNode} kind;
     union
     {
-        Temp_label label;
-        Ty_const   c;
+        Temp_label label;   // label + ptr kind
+        Ty_const   c;       // const       kind
     } u;
     CG_dataFragNode next;
 };
@@ -160,6 +160,7 @@ CG_frag         CG_DataFrag         (Temp_label label, bool expt, int size, Ty_t
 
 void            CG_dataFragAddConst (CG_frag dataFrag, Ty_const c);
 void            CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label);
+void            CG_dataFragAddPtr   (CG_frag dataFrag, Temp_label label);
 
 CG_fragList     CG_FragList         (CG_frag head, CG_fragList tail);
 
@@ -182,7 +183,7 @@ void            CG_transDeRef       (AS_instrList code, S_pos pos, CG_item *item
 
 void            CG_castItem         (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty);
 
-void            CG_procEntryExit    (S_pos pos, CG_frame frame, AS_instrList body, CG_itemList formals, CG_item *returnVar, Temp_label exitlbl, bool is_main, bool expt);
+void            CG_procEntryExit    (S_pos pos, CG_frame frame, AS_instrList body, CG_item *returnVar, Temp_label exitlbl, bool is_main, bool expt);
 void            CG_procEntryExitAS  (CG_frag frag);
 
 CG_fragList     CG_getResult        (void);

@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     48
+#define SYM_VERSION     49
 
 E_module g_builtinsModule = NULL;
 
@@ -841,7 +841,7 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     {
         fwrite_u1(modf, FALSE);
     }
-    fwrite_u1(modf, proc->isVirtual);
+    fwrite_i4(modf, proc->vTableIdx);
 }
 
 static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
@@ -1249,9 +1249,9 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     if (tyClsPtrPresent)
         tyClsPtr = E_deserializeTyRef(modTable, modf);
 
-    uint8_t isVirtual = fread_u1(modf);
+    int32_t vTableIdx = fread_i4(modf);
 
-    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr, isVirtual);
+    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, offset, libBase, tyClsPtr, vTableIdx);
 }
 
 FILE *E_openModuleFile (string filename)
@@ -1441,7 +1441,7 @@ E_module E_loadModule(S_symbol sModule)
                         {
                             uint8_t visibility = fread_u1(modf);
                             Ty_proc proc = E_deserializeTyProc(modTable, modf);
-                            Ty_addMethod (ty, visibility, proc->name, proc);
+                            Ty_addMethod (ty, visibility, proc, /*vtable=*/NULL); // FIXME
                             break;
                         }
                         case Ty_recField:

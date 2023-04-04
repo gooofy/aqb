@@ -7,8 +7,10 @@ typedef struct Ty_ty_           *Ty_ty;
 typedef struct Ty_const_        *Ty_const;
 typedef struct Ty_formal_       *Ty_formal;
 typedef struct Ty_proc_         *Ty_proc;
-typedef struct Ty_member_  *Ty_member;
+typedef struct Ty_member_       *Ty_member;
 typedef struct Ty_intfList_     *Ty_intfList;
+typedef struct Ty_vtable_       *Ty_vtable;
+typedef struct Ty_vtableEntry_  *Ty_vtableEntry;
 
 #include "temp.h"
 
@@ -37,9 +39,11 @@ struct Ty_ty_
                 Ty_intfList    implements;
                 Ty_proc        constructor;
                 uint32_t       uiSize;
-                Ty_member      members;                                     } cls;
+                Ty_member      members;
+                Ty_vtable      vtable;                                      } cls;
         struct {Ty_intfList    implements;
-                Ty_member      members;                                     } interface;
+                Ty_member      members;
+                Ty_vtable      vtable;                                      } interface;
     } u;
 
     // serialization / symbol file / import / export support:
@@ -93,13 +97,17 @@ struct Ty_proc_
     int32_t          offset;
     string           libBase;
     Ty_ty            tyCls;     // methods only: pointer to class (for now: record) type
-    bool             isVirtual; // methods only: virtual -> call via vtable
+    int32_t          vTableIdx; // methods only: vtable entry # for virtual methods, see constants below
     bool             hasBody;
 };
 
+// vtable index:
+#define VTABLE_IDX_NONVIRTUAL   -2  // method is not declared virtual -> no vtable index
+#define VTABLE_IDX_TODO         -1  // mthos  is declared virtual but no vtable index has been assigned yet
+
 struct Ty_member_
 {
-    Ty_member                                     next;
+    Ty_member                                          next;
     enum { Ty_recMethod, Ty_recField, Ty_recProperty } kind;
     S_symbol                                           name;
     Ty_visibility                                      visibility;
@@ -122,6 +130,19 @@ struct Ty_intfList_
 {
     Ty_intfList     next;
     Ty_ty           intf;
+};
+
+struct Ty_vtable_
+{
+    int32_t         thisOffset;     // interface vtables only
+    int32_t         numEntries;
+    Ty_vtableEntry  first, last;
+};
+
+struct Ty_vtableEntry_
+{
+    Ty_vtableEntry  next;
+    Ty_proc         proc;
 };
 
 Ty_ty           Ty_Bool(void);
@@ -150,12 +171,15 @@ Ty_ty           Ty_Interface         (S_symbol mod);
 Ty_ty           Ty_Class             (S_symbol mod, Ty_ty baseClass);
 void            Ty_implements        (Ty_ty clsIntfType, Ty_ty intf);
 Ty_member       Ty_addField          (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
-Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_proc method);
+Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_vtable vtable);
 Ty_member       Ty_addProperty       (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
 Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, bool isVirtual);
+Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, int32_t vTableIdx);
+
+Ty_vtable       Ty_VTable            (void);
+void            Ty_vtAddEntry        (Ty_vtable vtable, Ty_proc proc);
 
 Ty_const        Ty_ConstBool         (Ty_ty ty, bool     b);
 Ty_const        Ty_ConstInt          (Ty_ty ty, int32_t  i);

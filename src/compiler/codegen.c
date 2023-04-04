@@ -716,6 +716,23 @@ void CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label)
         dataFrag->u.data.initLast = dataFrag->u.data.init = f;
 }
 
+void CG_dataFragAddPtr (CG_frag dataFrag, Temp_label label)
+{
+    assert(dataFrag->kind == CG_dataFrag);
+
+    CG_dataFragNode f = U_poolAlloc (UP_codegen, sizeof(*f));
+
+    f->kind    = CG_ptrNode;
+    f->u.label = label;
+    f->next    = NULL;
+
+    if (dataFrag->u.data.init)
+        dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
+    else
+        dataFrag->u.data.initLast = dataFrag->u.data.init = f;
+    dataFrag->u.data.size++;
+}
+
 CG_fragList CG_FragList (CG_frag head, CG_fragList tail)
 {
     CG_fragList l = U_poolAlloc (UP_codegen, sizeof(*l));
@@ -731,7 +748,7 @@ CG_fragList CG_getResult(void)
     return g_fragList;
 }
 
-void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_itemList formals, CG_item *returnVar, Temp_label exitlbl, bool is_main, bool expt)
+void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *returnVar, Temp_label exitlbl, bool is_main, bool expt)
 {
     if (!pos)
         pos = body->first->instr->pos;
@@ -4348,6 +4365,16 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_double:
                             assert(0);
                             break;
+                    }
+                    break;
+                case CG_ptrNode:
+                    switch (dialect)
+                    {
+                        case AS_dialect_gas:    fprintf(out, "    dc.l  %s\n", S_name(n->u.label)); break;
+                        case AS_dialect_vasm:   fprintf(out, "    .long %s\n", S_name(n->u.label)); break;
+                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  %s\n", S_name(n->u.label)); break;
+                        default:
+                            assert(FALSE);
                     }
                     break;
                 }

@@ -124,6 +124,7 @@ struct FE_SLE_
             Ty_ty         ty;
             Ty_visibility udtVis;    /* visibility if the whole UDT - private or public only */
             Ty_visibility memberVis; /* visibility for the next declared member - changes when public/protected/private stmts are encountered */
+            CG_frag       vtableFrag;/* data fragment holding vtable entries if this is a class or interface */
         } typeDecl;
         struct
         {
@@ -370,6 +371,7 @@ static S_symbol S_INTERFACE;
 static S_symbol S_CLASS;
 static S_symbol S_IMPLEMENTS;
 static S_symbol S_VIRTUAL;
+static S_symbol S__VTABLEPTR;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1176,9 +1178,6 @@ static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_ite
     if (!tyClass || (tyClass->kind != Ty_class))
         return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
 
-    if (!tyClass->u.cls.constructor)
-        return EM_error(pos, "builtin type %s does not have constructor.", S_name(builtinClass));
-
     CG_transCall(initInstrs, pos, g_sleStack->frame, tyClass->u.cls.constructor, arglist, NULL);
     return TRUE;
 }
@@ -1818,7 +1817,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
 
     *tkn = (*tkn)->next;
 
-    // constructor call, if any
+    // constructor call
 
     // turn this into a varRef
     CG_item thisRef = *exp;
@@ -1832,19 +1831,15 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
         *tkn = (*tkn)->next; // skip '('
         constructorAssignedArgs = CG_ItemList();
 
-        if (tyClass->u.cls.constructor)
-        {
-            if (!transActualArgs(tkn, tyClass->u.cls.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
-                return FALSE;
-        }
+        if (!transActualArgs(tkn, tyClass->u.cls.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
+            return FALSE;
 
         if ((*tkn)->kind != S_RPAREN)
             return EM_error((*tkn)->pos, "new: ) expected here");
         *tkn = (*tkn)->next; // skip ')'
     }
 
-    if (tyClass->u.cls.constructor)
-        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyClass->u.cls.constructor, constructorAssignedArgs, NULL);
+    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyClass->u.cls.constructor, constructorAssignedArgs, NULL);
 
     return TRUE;
 }
@@ -2619,7 +2614,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = Ty_Void();
         }
 
-        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL, /*isVirtual=*/FALSE);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
         *ty = Ty_ProcPtr(FE_mod->name, proc);
     }
     else
@@ -2655,13 +2650,11 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
     {
         if (init)
             return EM_error(pos, "class initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
-        if (t->u.cls.constructor)
-        {
-            if (!constructorAssignedArgs)
-                return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
 
-            CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
-        }
+        if (!constructorAssignedArgs)
+            return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
+
+        CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
     }
     else
     {
@@ -4715,7 +4708,6 @@ static void stmtProcEnd_(void)
     CG_procEntryExit(sle->pos,
                      sle->frame,
                      sle->code,
-                     sle->frame->formals,
                      &sle->returnVar,
                      sle->exitlbl,
                      /*is_main=*/FALSE,
@@ -5881,7 +5873,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         kind  = Ty_pkSub;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*isVirtual=*/FALSE);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
 
     return TRUE;
 }
@@ -5942,7 +5934,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
     if (kind==Ty_pkFunction)
         label = strconcat(UP_frontend, label, "_");
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*isVirtual=*/FALSE);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
 
     return TRUE;
 }
@@ -6091,7 +6083,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, isVirtual);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, isVirtual ? VTABLE_IDX_TODO : VTABLE_IDX_NONVIRTUAL);
 
     return TRUE;
 }
@@ -6592,6 +6584,9 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     sle->u.typeDecl.ty = Ty_Class(FE_mod->name, tyBase);
 
+    if (!tyBase)
+        Ty_addField (sle->u.typeDecl.ty, Ty_visProtected, S__VTABLEPTR, Ty_VoidPtr(), /*calcOffset=*/TRUE);
+
     if (isSym(*tkn, S_IMPLEMENTS))
     {
         // FIXME: implement
@@ -6617,6 +6612,11 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     sle->u.typeDecl.eFirst    = NULL;
     sle->u.typeDecl.eLast     = NULL;
+
+    // create vtable data frag + ptr entry in class
+
+    char *label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sType), "__vtable"));
+    sle->u.typeDecl.vtableFrag = CG_DataFrag (Temp_namedlabel(label), /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
 
     return TRUE;
 }
@@ -6802,12 +6802,20 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void _assembleVTable (Ty_vtable vtable, CG_frag frag)
+{
+    for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
+    {
+        CG_dataFragAddPtr (frag, entry->proc->label);
+    }
+}
+
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
 //                   | procDecl
 //                   | udtProperty
 //                   | [ PUBLIC | PRIVATE | PROTECTED ] ":"
-//                   | END TYPE
+//                   | END ( TYPE | CLASS | INTERFACE )
 //                   )
 static bool stmtTypeDeclField(S_tkn *tkn)
 {
@@ -6877,9 +6885,21 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     Ty_member re = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
-                    if ( (sle->u.typeDecl.ty->kind != Ty_interface) && (sle->u.typeDecl.ty->kind != Ty_class) )
-                        return EM_error (f->pos, "Only interface and class types can have methods");
-                    re = Ty_addMethod (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.methodr->name, f->u.methodr);
+
+                    Ty_vtable vtable = NULL;
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_interface:
+                            vtable = sle->u.typeDecl.ty->u.interface.vtable;
+                            break;
+                        case Ty_class:
+                            vtable = sle->u.typeDecl.ty->u.cls.vtable;
+                            break;
+                        default:
+                            return EM_error (f->pos, "Only interface and class types can have methods");
+                    }
+
+                    re = Ty_addMethod (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.methodr, vtable);
                     if (!re)
                         return FALSE;
                     break;
@@ -6927,6 +6947,65 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 }
             }
         }
+
+        // assemble vtable for classes and interfaces,
+        // prepend vtable set instruction to class construtor
+
+        if (sle->u.typeDecl.ty->kind == Ty_class)
+        {
+            _assembleVTable (sle->u.typeDecl.ty->u.cls.vtable, sle->u.typeDecl.vtableFrag);
+
+            // generate default constructor if there is none
+
+            if (!sle->u.typeDecl.ty->u.cls.constructor)
+            {
+                Ty_formal formals = Ty_Formal(S_THIS, sle->u.typeDecl.ty, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+                Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s_%s", S_name(sle->u.typeDecl.sType), S_name(S_CONSTRUCTOR)));
+                sle->u.typeDecl.ty->u.cls.constructor = Ty_Proc  (Ty_visPublic, Ty_pkConstructor, S_CONSTRUCTOR,
+                                                                  /*extraSyms=*/NULL,
+                                                                  label,
+                                                                  formals,
+                                                                  /*isVariadic=*/FALSE,
+                                                                  /*isStatic=*/FALSE,
+                                                                  /*returnTy=*/NULL,
+                                                                  /*forward=*/FALSE,
+                                                                  /*offset=*/0,
+                                                                  /*libBase=*/NULL,
+                                                                  /*tyCls=*/sle->u.typeDecl.ty,
+                                                                  /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+
+                CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
+                AS_instrList il = AS_InstrList();
+                CG_procEntryExit(sle->pos,
+                                 frame,
+                                 il,
+                                 /*returnVar=*/NULL,
+                                 /*exitlbl=*/ NULL,
+                                 /*is_main=*/FALSE,
+                                 /*expt=*/TRUE);
+
+
+                CG_item objVTablePtr;
+                objVTablePtr = frame->formals->first->item; // <this>
+                Ty_member vtpm = Ty_findEntry(sle->u.typeDecl.ty, S__VTABLEPTR, /*checkbase=*/TRUE);
+                CG_transField(il, sle->pos, frame, &objVTablePtr, vtpm);
+
+                CG_item classVTablePtr;
+                CG_HeapPtrItem (&classVTablePtr, sle->u.typeDecl.vtableFrag->u.data.label, Ty_VoidPtr());
+                CG_loadRef (il, sle->pos, frame, &classVTablePtr);
+                classVTablePtr.kind = IK_inReg;
+
+                CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
+            }
+            else
+            {
+                // FIXME: prepend above code to user-defined constructor
+                assert(FALSE);
+            }
+        }
+        if (sle->u.typeDecl.ty->kind == Ty_interface)
+            _assembleVTable (sle->u.typeDecl.ty->u.interface.vtable, sle->u.typeDecl.vtableFrag);
+
         return TRUE;
     }
 
@@ -7025,7 +7104,11 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     return FALSE;
                 e = FE_UDTEntryMethod(mpos, proc);
                 if (proc->kind == Ty_pkConstructor)
-                    g_sleStack->u.typeDecl.ty->u.cls.constructor = proc;
+                {
+                    // FIXME: append instructions to default constructor
+                    // g_sleStack->u.typeDecl.ty->u.cls.constructor = proc;
+                    assert(FALSE);
+                }
             }
 
             if (g_sleStack->u.typeDecl.eFirst)
@@ -7733,7 +7816,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
         // call __aqb_clear
 
         S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
 
@@ -8050,7 +8133,7 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
 
     if (kind == Ty_pkSub)
     {
@@ -8474,7 +8557,6 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         CG_procEntryExit(0,
                          frame,
                          g_varInitIL,
-                         frame->formals,
                          /*returnVar=*/NULL,
                          /*exitlbl=*/ NULL,
                          /*is_main=*/FALSE,
@@ -8486,7 +8568,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     if (!g_prog->first)
         CG_transNOP (g_prog, 0);
 
-    CG_procEntryExit (0, frame, g_prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+    CG_procEntryExit (0, frame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
 
     // stack size (used in _brt stackswap)
 
@@ -8635,6 +8717,7 @@ void FE_boot(void)
     S_CLASS           = defineKeyword("CLASS");
     S_IMPLEMENTS      = defineKeyword("IMPLEMENTS");
     S_VIRTUAL         = defineKeyword("VIRTUAL");
+    S__VTABLEPTR      = S_Symbol("_vtableptr");
 }
 
 void FE_init(void)

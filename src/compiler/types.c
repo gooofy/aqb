@@ -98,6 +98,7 @@ Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType)
     p->u.cls.members         = NULL;
     p->u.cls.implements      = NULL;
     p->u.cls.constructor     = NULL;
+    p->u.cls.vtable          = Ty_VTable();
     p->u.cls.uiSize          = baseType ? Ty_size(baseType) : 0;
     p->mod                   = mod;
     p->uid                   = g_uid++;
@@ -112,6 +113,7 @@ Ty_ty Ty_Interface (S_symbol mod)
     p->kind                   = Ty_interface;
     p->u.interface.members    = NULL;
     p->u.interface.implements = NULL;
+    p->u.interface.vtable     = Ty_VTable();
     p->mod                    = mod;
     p->uid                    = g_uid++;
 
@@ -156,10 +158,10 @@ static Ty_member Ty_classAddField (Ty_ty ty, Ty_visibility visibility, S_symbol 
     assert (ty->kind == Ty_class);
     Ty_member f = U_poolAlloc(UP_types, sizeof(*f));
 
-    f->kind       = Ty_recField;
-    f->name       = name;
-    f->visibility = visibility;
-    f->next       = ty->u.cls.members;
+    f->kind           = Ty_recField;
+    f->name           = name;
+    f->visibility     = visibility;
+    f->next           = ty->u.cls.members;
     ty->u.cls.members = f;
 
     if (calcOffset) // env.c will provide offsets when loading types from modules
@@ -218,12 +220,12 @@ Ty_member Ty_addField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty 
     return NULL;
 }
 
-Ty_member Ty_addMethod (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_proc method)
+Ty_member Ty_addMethod (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_vtable vtable)
 {
     Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind       = Ty_recMethod;
-    p->name       = name;
+    p->name       = method->name;
     p->visibility = visibility;
     p->u.method   = method;
 
@@ -240,6 +242,9 @@ Ty_member Ty_addMethod (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_pr
         default:
             assert(FALSE);
     }
+
+    if (method->vTableIdx == VTABLE_IDX_TODO)
+        Ty_vtAddEntry(vtable, method);
 
     return p;
 }
@@ -700,7 +705,7 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
     return p;
 }
 
-Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, bool isVirtual)
+Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, int32_t vTableIdx)
 {
     Ty_proc p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -719,10 +724,38 @@ Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_sym
     p->offset     = offset;
     p->libBase    = libBase;
     p->tyCls      = tyCls;
-    p->isVirtual  = isVirtual;
+    p->vTableIdx  = vTableIdx;
     p->hasBody    = FALSE;
 
     return p;
+}
+
+Ty_vtable Ty_VTable (void)
+{
+    Ty_vtable p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->thisOffset = 0;
+    p->numEntries = 0;
+    p->first      = NULL;
+    p->last       = NULL;
+
+    return p;
+}
+
+void Ty_vtAddEntry (Ty_vtable vtable, Ty_proc proc)
+{
+    assert(vtable);
+    assert(proc->vTableIdx == VTABLE_IDX_TODO);
+    proc->vTableIdx = vtable->numEntries++;
+
+    Ty_vtableEntry p = U_poolAlloc(UP_types, sizeof(*p));
+    p->proc = proc;
+    p->next = NULL;
+
+    if (vtable->last)
+        vtable->last = vtable->last->next = p;
+    else
+        vtable->first = vtable->last = p;
 }
 
 Ty_const Ty_ConstBool (Ty_ty ty, bool b)
