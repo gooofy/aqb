@@ -45,6 +45,10 @@ Ty_ty Ty_Void(void) {return &tyvoid;}
 static struct Ty_ty_ tyvoidptr = {Ty_pointer, {&tyvoid}};
 Ty_ty Ty_VoidPtr(void) {return &tyvoidptr;}
 
+static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyvoidptr, 0, -1, 0}}};
+static struct Ty_ty_ tyvtableptr = {Ty_pointer, {&tyvtable}};
+Ty_ty Ty_VTablePtr(void) {return &tyvtableptr;}
+
 void Ty_init(void)
 {
     tybool.uid     =  1;
@@ -89,7 +93,7 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType)
+Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType, Ty_vtable vtable)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -98,7 +102,7 @@ Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType)
     p->u.cls.members         = NULL;
     p->u.cls.implements      = NULL;
     p->u.cls.constructor     = NULL;
-    p->u.cls.vtable          = Ty_VTable();
+    p->u.cls.vtable          = vtable;
     p->u.cls.uiSize          = baseType ? Ty_size(baseType) : 0;
     p->mod                   = mod;
     p->uid                   = g_uid++;
@@ -106,14 +110,14 @@ Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType)
     return p;
 }
 
-Ty_ty Ty_Interface (S_symbol mod)
+Ty_ty Ty_Interface (S_symbol mod, Ty_vtable vtable)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                   = Ty_interface;
     p->u.interface.members    = NULL;
     p->u.interface.implements = NULL;
-    p->u.interface.vtable     = Ty_VTable();
+    p->u.interface.vtable     = vtable;
     p->mod                    = mod;
     p->uid                    = g_uid++;
 
@@ -166,7 +170,7 @@ static Ty_member Ty_classAddField (Ty_ty ty, Ty_visibility visibility, S_symbol 
 
     if (calcOffset) // env.c will provide offsets when loading types from modules
     {
-        uint32_t baseOffset = ty->u.cls.baseType ? ty->u.cls.baseType->u.cls.uiSize : 0;
+        //uint32_t baseOffset = ty->u.cls.baseType ? ty->u.cls.baseType->u.cls.uiSize : 0;
 
         // 68k alignment
         unsigned int s = Ty_size(fieldType);
@@ -178,7 +182,7 @@ static Ty_member Ty_classAddField (Ty_ty ty, Ty_visibility visibility, S_symbol 
 
         ty->u.cls.uiSize += s;
 
-        f->u.field.uiOffset   = fieldOffset + baseOffset;
+        f->u.field.uiOffset   = fieldOffset;
     }
 
     f->u.field.ty         = fieldType;
@@ -244,7 +248,21 @@ Ty_member Ty_addMethod (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_v
     }
 
     if (method->vTableIdx == VTABLE_IDX_TODO)
-        Ty_vtAddEntry(vtable, method);
+    {
+        // check existing entries: is this an override?
+        bool done=FALSE;
+        for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
+        {
+            if (entry->proc->name == method->name)
+            {
+                entry->proc = method;
+                done = TRUE;
+                break;
+            }
+        }
+        if (!done)
+            Ty_vtAddEntry(vtable, method);
+    }
 
     return p;
 }
@@ -730,11 +748,12 @@ Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_sym
     return p;
 }
 
-Ty_vtable Ty_VTable (void)
+Ty_vtable Ty_VTable (Temp_label label)
 {
     Ty_vtable p = U_poolAlloc(UP_types, sizeof(*p));
 
-    p->thisOffset = 0;
+    //p->thisOffset = 0;
+    p->label      = label;
     p->numEntries = 0;
     p->first      = NULL;
     p->last       = NULL;
@@ -745,8 +764,10 @@ Ty_vtable Ty_VTable (void)
 void Ty_vtAddEntry (Ty_vtable vtable, Ty_proc proc)
 {
     assert(vtable);
-    assert(proc->vTableIdx == VTABLE_IDX_TODO);
-    proc->vTableIdx = vtable->numEntries++;
+    if (proc->vTableIdx == VTABLE_IDX_TODO)
+        proc->vTableIdx = vtable->numEntries++;
+    else
+        assert (proc->vTableIdx == vtable->numEntries++);
 
     Ty_vtableEntry p = U_poolAlloc(UP_types, sizeof(*p));
     p->proc = proc;

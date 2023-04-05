@@ -1,7 +1,7 @@
 '
-' OOP Test 10
+' OOP Test 11
 '
-' virtual function call
+' virtual function override
 '
 
 OPTION EXPLICIT
@@ -24,12 +24,30 @@ FUNCTION myb.f2 (BYVAL i AS INTEGER) AS INTEGER
     RETURN i+i
 END FUNCTION
 
+
+CLASS myc1 EXTENDS myb
+
+    DECLARE VIRTUAL FUNCTION f1(BYVAL i AS INTEGER) AS INTEGER
+
+END CLASS
+
+FUNCTION myc1.f1 (BYVAL i AS INTEGER) AS INTEGER
+    RETURN i*i
+END FUNCTION
+
 '
 ' main
 '
 
 DIM o1 AS myb PTR = NEW myb()
+DIM o2 AS myb PTR = NEW myc1()
+
+'TRACE "testing o1..."
 
 ASSERT o1->f1(19) = 42
 ASSERT o1->f2(21) = 42
+
+'TRACE "testing o2..."
+ASSERT o2->f1(19) = 361
+ASSERT o2->f2(21) = 42
 

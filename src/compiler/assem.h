@@ -16,6 +16,7 @@ typedef struct AS_segmentReloc32_  *AS_segmentReloc32;
 typedef struct AS_segmentRef_      *AS_segmentRef;
 typedef struct AS_segmentDef_      *AS_segmentDef;
 typedef struct AS_labelInfo_       *AS_labelInfo;
+typedef struct AS_labelFixup_      *AS_labelFixup;
 typedef struct AS_object_          *AS_object;
 typedef struct AS_srcMapNode_      *AS_srcMapNode;
 typedef struct AS_frameVarNode_    *AS_frameVarNode;
@@ -320,11 +321,19 @@ struct AS_segmentDef_
 struct AS_labelInfo_
 {
     bool              defined;
-    bool              displacement;
     AS_segment        seg;
-    uint32_t          offset;   // when not defined (yet) this points to the first fixup chain location, otherwise this is the target segment's offset
+    uint32_t          offset;
+    AS_labelFixup     fixups;   // if the label is referenced before it has been defined, this points to a list of fixup locations
     Temp_label        label;    // debug info
     Ty_ty             ty;       // debug info, NULL if this is not a global variable
+};
+
+struct AS_labelFixup_
+{
+    AS_labelFixup     next;
+    AS_segment        seg;
+    uint32_t          offset;
+    bool              displacement;
 };
 
 struct AS_object_
@@ -387,6 +396,7 @@ void               AS_assembleDataFill   (AS_segment seg, uint32_t size);
 void               AS_assembleData16     (AS_segment seg, uint16_t data);
 void               AS_assembleData32     (AS_segment seg, uint32_t data);
 void               AS_assembleDataString (AS_segment seg, string data);
+void               AS_assembleDataPtr    (AS_object  o, Temp_label label);
 void               AS_assembleBSSAlign2  (AS_segment seg);
 void               AS_assembleBSS        (AS_segment seg, uint32_t size);
 

@@ -10,7 +10,7 @@ AQBFLAGS="-v"
 OBJDUMP="/opt/amiga/bin/m68k-amigaos-objdump"
 
 ASMProsrctmp='foo.asm'
-ASMProsrc='/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x/foo.asm'
+ASMProsrc="${AMIGA_X}/foo.asm"
 OBJDUMPOUT='dump.txt'
 
 rm -f aqb.log ${ASMProsrctmp} foo.hunk foo.s ${ASMProsrc}
@@ -28,3 +28,4 @@ ${OBJDUMP} -x -d -r foo.hunk 2>&1 >${OBJDUMPOUT}
 
 echo "${OBJDUMPOUT} written."
 
+cp foo.hunk ${AMIGA_X}

@@ -134,7 +134,8 @@ struct Ty_intfList_
 
 struct Ty_vtable_
 {
-    int32_t         thisOffset;     // interface vtables only
+    Temp_label      label;
+    // FIXME: todo int32_t         thisOffset;     // interface vtables only
     int32_t         numEntries;
     Ty_vtableEntry  first, last;
 };
@@ -157,6 +158,7 @@ Ty_ty           Ty_Double(void);
 Ty_ty           Ty_String(void);
 Ty_ty           Ty_Void(void);
 Ty_ty           Ty_VoidPtr(void);
+Ty_ty           Ty_VTablePtr(void);
 
 Ty_ty           Ty_SArray            (S_symbol mod, Ty_ty ty, int start, int end);
 Ty_ty           Ty_DArray            (S_symbol mod, Ty_ty elementTy);
@@ -167,8 +169,8 @@ Ty_ty           Ty_ProcPtr           (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
 
 Ty_ty           Ty_Record            (S_symbol mod);
-Ty_ty           Ty_Interface         (S_symbol mod);
-Ty_ty           Ty_Class             (S_symbol mod, Ty_ty baseClass);
+Ty_ty           Ty_Interface         (S_symbol mod, Ty_vtable vtable);
+Ty_ty           Ty_Class             (S_symbol mod, Ty_ty baseClass, Ty_vtable vtable);
 void            Ty_implements        (Ty_ty clsIntfType, Ty_ty intf);
 Ty_member       Ty_addField          (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
 Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_vtable vtable);
@@ -178,7 +180,7 @@ Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
 Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, int32_t vTableIdx);
 
-Ty_vtable       Ty_VTable            (void);
+Ty_vtable       Ty_VTable            (Temp_label label);
 void            Ty_vtAddEntry        (Ty_vtable vtable, Ty_proc proc);
 
 Ty_const        Ty_ConstBool         (Ty_ty ty, bool     b);

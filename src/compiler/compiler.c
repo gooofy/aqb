@@ -319,9 +319,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
                             }
                             case CG_ptrNode:
                             {
-                                AS_labelInfo li = TAB_look(obj->labels, n->u.label);
-                                assert(li);
-                                AS_segmentAddRef (UP_assem, obj->codeSeg, n->u.label, li->offset, Temp_w_L);
+                                AS_assembleDataPtr (obj, n->u.label);
                                 break;
                             }
                         }

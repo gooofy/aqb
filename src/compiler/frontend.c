@@ -1408,7 +1408,33 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                 exp = NULL;
             }
 
-            CG_transCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method, assignedArgs, exp);
+            if (entry->u.method->vTableIdx<0)
+            {
+                assert (entry->u.method->vTableIdx==VTABLE_IDX_NONVIRTUAL);
+                CG_transCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method, assignedArgs, exp);
+            }
+            else
+            {
+                // call virtual method via vtable entry
+                switch (thisRef.ty->kind)
+                {
+                    case Ty_class:
+                    {
+                        CG_item methodPtr = thisRef;
+                        Ty_member vtpm = Ty_findEntry(thisRef.ty, S__VTABLEPTR, /*checkbase=*/TRUE);
+                        CG_transField   (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &methodPtr, vtpm);
+                        CG_transDeRef (g_sleStack->code, (*tkn)->pos, &methodPtr);
+                        CG_item idx;
+                        CG_IntItem (&idx, entry->u.method->vTableIdx, Ty_Integer());
+                        CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
+                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method, &methodPtr, assignedArgs, exp);
+                        break;
+                    }
+                    default:
+                        // FIXME: implement interface method calls
+                        assert(FALSE);
+                }
+            }
 
             return TRUE;
         }
@@ -2652,7 +2678,13 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
             return EM_error(pos, "class initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
 
         if (!constructorAssignedArgs)
-            return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
+        {
+            CG_item thisRef = *var;
+            CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &thisRef);
+            constructorAssignedArgs = CG_ItemList();
+            if (!transActualArgs(/*tkn=*/NULL, t->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/TRUE))
+                return FALSE;
+        }
 
         CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
     }
@@ -6226,6 +6258,21 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     return decl;
 }
 
+static void _generateVTableAsssignment (S_pos pos, AS_instrList il, CG_frame frame, Ty_ty clsTy)
+{
+    CG_item objVTablePtr;
+    objVTablePtr = frame->formals->first->item; // <this>
+    Ty_member vtpm = Ty_findEntry(clsTy, S__VTABLEPTR, /*checkbase=*/TRUE);
+    CG_transField(il, pos, frame, &objVTablePtr, vtpm);
+
+    CG_item classVTablePtr;
+    CG_HeapPtrItem (&classVTablePtr, clsTy->u.cls.vtable->label, Ty_VoidPtr());
+    CG_loadRef (il, pos, frame, &classVTablePtr);
+    classVTablePtr.kind = IK_inReg;
+
+    CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
+}
+
 // procStmtBegin ::= [ PRIVATE | PUBLIC ] ( procHeader | propertyHeader )
 static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6278,6 +6325,12 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 
     AS_instrList body = AS_InstrList();
+
+    if (proc->kind==Ty_pkConstructor)
+    {
+        // set vtable ptr
+        _generateVTableAsssignment (pos, body, funFrame, proc->tyCls);
+    }
 
     // function return var
     if (proc->returnTy->kind != Ty_void)
@@ -6582,10 +6635,22 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         *tkn = (*tkn)->next;
     }
 
-    sle->u.typeDecl.ty = Ty_Class(FE_mod->name, tyBase);
+    Temp_label vtlabel = Temp_namedlabel(strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sType), "__vtable")));
+    sle->u.typeDecl.vtableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+    Ty_vtable vtable = Ty_VTable(vtlabel);
+
+    sle->u.typeDecl.ty = Ty_Class(FE_mod->name, tyBase, vtable);
 
     if (!tyBase)
-        Ty_addField (sle->u.typeDecl.ty, Ty_visProtected, S__VTABLEPTR, Ty_VoidPtr(), /*calcOffset=*/TRUE);
+    {
+        Ty_addField (sle->u.typeDecl.ty, Ty_visProtected, S__VTABLEPTR, Ty_VTablePtr(), /*calcOffset=*/TRUE);
+    }
+    else
+    {
+        // copy base class vtable entries
+        for (Ty_vtableEntry entry = tyBase->u.cls.vtable->first; entry; entry=entry->next)
+            Ty_vtAddEntry (vtable, entry->proc);
+    }
 
     if (isSym(*tkn, S_IMPLEMENTS))
     {
@@ -6612,11 +6677,6 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     sle->u.typeDecl.eFirst    = NULL;
     sle->u.typeDecl.eLast     = NULL;
-
-    // create vtable data frag + ptr entry in class
-
-    char *label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sType), "__vtable"));
-    sle->u.typeDecl.vtableFrag = CG_DataFrag (Temp_namedlabel(label), /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
 
     return TRUE;
 }
@@ -6678,14 +6738,16 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         //*tkn = (*tkn)->next;
     }
 
-    sle->u.typeDecl.ty = Ty_Interface(FE_mod->name);
+    // FIXME: implement
+    assert(FALSE);
+    //sle->u.typeDecl.ty = Ty_Interface(FE_mod->name);
 
-    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
-    if (sle->u.typeDecl.udtVis == Ty_visPublic)
-        E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+    //E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+    //if (sle->u.typeDecl.udtVis == Ty_visPublic)
+    //    E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
 
-    sle->u.typeDecl.eFirst    = NULL;
-    sle->u.typeDecl.eLast     = NULL;
+    //sle->u.typeDecl.eFirst    = NULL;
+    //sle->u.typeDecl.eLast     = NULL;
 
     return TRUE;
 }
@@ -6804,9 +6866,17 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
 static void _assembleVTable (Ty_vtable vtable, CG_frag frag)
 {
-    for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
+    if (vtable->first)
     {
-        CG_dataFragAddPtr (frag, entry->proc->label);
+        for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
+        {
+            CG_dataFragAddPtr (frag, entry->proc->label);
+        }
+    }
+    else
+    {
+        // ensure vtable always exists
+        CG_dataFragAddConst (frag, Ty_ConstInt(Ty_ULong(), 0));
     }
 }
 
@@ -6984,23 +7054,13 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                                  /*is_main=*/FALSE,
                                  /*expt=*/TRUE);
 
-
-                CG_item objVTablePtr;
-                objVTablePtr = frame->formals->first->item; // <this>
-                Ty_member vtpm = Ty_findEntry(sle->u.typeDecl.ty, S__VTABLEPTR, /*checkbase=*/TRUE);
-                CG_transField(il, sle->pos, frame, &objVTablePtr, vtpm);
-
-                CG_item classVTablePtr;
-                CG_HeapPtrItem (&classVTablePtr, sle->u.typeDecl.vtableFrag->u.data.label, Ty_VoidPtr());
-                CG_loadRef (il, sle->pos, frame, &classVTablePtr);
-                classVTablePtr.kind = IK_inReg;
-
-                CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
+                // assign vtableptr
+                _generateVTableAsssignment (sle->pos, il, frame, sle->u.typeDecl.ty);
             }
             else
             {
                 // FIXME: prepend above code to user-defined constructor
-                assert(FALSE);
+                // assert(FALSE);
             }
         }
         if (sle->u.typeDecl.ty->kind == Ty_interface)
@@ -7105,9 +7165,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 e = FE_UDTEntryMethod(mpos, proc);
                 if (proc->kind == Ty_pkConstructor)
                 {
-                    // FIXME: append instructions to default constructor
-                    // g_sleStack->u.typeDecl.ty->u.cls.constructor = proc;
-                    assert(FALSE);
+                     g_sleStack->u.typeDecl.ty->u.cls.constructor = proc;
                 }
             }
 
