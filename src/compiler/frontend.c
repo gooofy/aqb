@@ -6256,7 +6256,9 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         decl = proc;
         if (proc->returnTy->kind == Ty_void)
         {
-            E_declareSub (FE_mod->env, proc->name, proc);
+            E_declareSub (g_sleStack->env, proc->name, proc);
+            if (proc->visibility == Ty_visPublic)
+                E_declareSub (FE_mod->env, proc->name, proc);
         }
         else
         {
@@ -8498,9 +8500,16 @@ static void _checkLeftoverForwards(S_scope env)
                 break;
             }
             case E_procEntry:
-                if (!x->u.proc->hasBody && !x->u.proc->isExtern)
-                    EM_error(0, "missing implementation of %s", S_name(x->u.proc->name));
+            {
+                assert(FALSE);
+                // E_enventryList lx = (E_enventryList) x;
+                // for (E_enventryListNode xn=lx->first; xn; xn=xn->next)
+                // {
+                //     if (!xn->e->u.proc->hasBody && !xn->e->u.proc->isExtern)
+                //         EM_error(0, "missing implementation of %s", S_name(xn->e->u.proc->name));
+                // }
                 break;
+            }
             case E_typeEntry:
             {
                 Ty_ty ty = x->u.ty;
@@ -8557,6 +8566,23 @@ static void _checkLeftoverForwards(S_scope env)
                         continue;
                 }
             }
+        }
+    }
+}
+
+static void _checkLeftoverForwardSubs(S_scope env)
+{
+    TAB_iter i = S_Iter(env);
+    S_symbol sym;
+    E_enventryList lx;
+    while (TAB_next(i, (void **) &sym, (void **)&lx))
+    {
+        for (E_enventryListNode xn=lx->first; xn; xn=xn->next)
+        {
+            E_enventry e = xn->e;
+            assert(e->kind == E_procEntry);
+            if (!e->u.proc->hasBody && !e->u.proc->isExtern)
+                EM_error(0, "missing implementation of %s", S_name(xn->e->u.proc->name));
         }
     }
 }
@@ -8719,7 +8745,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     _checkLeftoverForwards(g_sleStack->env->u.scopes.vfcenv);
     _checkLeftoverForwards(g_sleStack->env->u.scopes.tenv);
-    _checkLeftoverForwards(g_sleStack->env->u.scopes.senv);
+    _checkLeftoverForwardSubs(g_sleStack->env->u.scopes.senv);
 
     slePop();
 
