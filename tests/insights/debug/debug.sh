@@ -6,7 +6,8 @@ AQB=../../../target/x86_64-linux/bin/aqb
 AQBLIBS=../../../src/lib
 # AQBRT=_aqb
 AQBRT=_brt
-AQBFLAGS="-v"
+# AQBFLAGS="-v"
+AQBFLAGS=""
 OBJDUMP="/opt/amiga/bin/m68k-amigaos-objdump"
 
 ASMProsrctmp='foo.asm'

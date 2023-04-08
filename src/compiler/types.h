@@ -8,7 +8,7 @@ typedef struct Ty_const_        *Ty_const;
 typedef struct Ty_formal_       *Ty_formal;
 typedef struct Ty_proc_         *Ty_proc;
 typedef struct Ty_member_       *Ty_member;
-typedef struct Ty_intfList_     *Ty_intfList;
+typedef struct Ty_implements_   *Ty_implements;
 typedef struct Ty_vtable_       *Ty_vtable;
 typedef struct Ty_vtableEntry_  *Ty_vtableEntry;
 
@@ -35,13 +35,15 @@ struct Ty_ty_
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
-        struct {Ty_ty          baseType;
-                Ty_intfList    implements;
-                Ty_proc        constructor;
+        struct {S_symbol       name;
                 uint32_t       uiSize;
+                Ty_ty          baseType;
+                Ty_implements  implements;
+                Ty_proc        constructor;
                 Ty_member      members;
-                Ty_vtable      vtable;                                      } cls;
-        struct {Ty_intfList    implements;
+                Ty_vtable      vtable;
+                Ty_member      vTablePtr;                                   } cls;
+        struct {Ty_implements  implements;
                 Ty_member      members;
                 Ty_vtable      vtable;                                      } interface;
     } u;
@@ -94,10 +96,11 @@ struct Ty_proc_
     bool             isStatic;
     Ty_ty            returnTy;
     bool             forward;
+    bool             isExtern;
     int32_t          offset;
     string           libBase;
-    Ty_ty            tyCls;     // methods only: pointer to class (for now: record) type
-    int32_t          vTableIdx; // methods only: vtable entry # for virtual methods, see constants below
+    Ty_ty            tyOwner;   // methods only: pointer to class or interface this method belongs to
+    int16_t          vTableIdx; // methods only: vtable entry # for virtual methods, see constants below
     bool             hasBody;
 };
 
@@ -126,17 +129,16 @@ struct Ty_member_
     } u;
 };
 
-struct Ty_intfList_
+struct Ty_implements_
 {
-    Ty_intfList     next;
+    Ty_implements   next;
     Ty_ty           intf;
+    Ty_member       vtablePtr;
 };
 
 struct Ty_vtable_
 {
-    Temp_label      label;
-    // FIXME: todo int32_t         thisOffset;     // interface vtables only
-    int32_t         numEntries;
+    int16_t         numEntries;
     Ty_vtableEntry  first, last;
 };
 
@@ -170,17 +172,17 @@ Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
 
 Ty_ty           Ty_Record            (S_symbol mod);
 Ty_ty           Ty_Interface         (S_symbol mod, Ty_vtable vtable);
-Ty_ty           Ty_Class             (S_symbol mod, Ty_ty baseClass, Ty_vtable vtable);
-void            Ty_implements        (Ty_ty clsIntfType, Ty_ty intf);
+Ty_ty           Ty_Class             (S_symbol mod, S_symbol name, Ty_ty baseClass);
+Ty_implements   Ty_Implements        (Ty_ty intf, Ty_member vtablePtr);
 Ty_member       Ty_addField          (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
 Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_vtable vtable);
 Ty_member       Ty_addProperty       (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
 Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, int32_t vTableIdx);
+Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner, int16_t vTableIdx);
 
-Ty_vtable       Ty_VTable            (Temp_label label);
+Ty_vtable       Ty_VTable            (void);
 void            Ty_vtAddEntry        (Ty_vtable vtable, Ty_proc proc);
 
 Ty_const        Ty_ConstBool         (Ty_ty ty, bool     b);

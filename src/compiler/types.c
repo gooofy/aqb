@@ -51,31 +51,35 @@ Ty_ty Ty_VTablePtr(void) {return &tyvtableptr;}
 
 void Ty_init(void)
 {
-    tybool.uid     =  1;
-    tybyte.uid     =  2;
-    tyubyte.uid    =  3;
-    tyinteger .uid =  4;
-    tyuinteger.uid =  5;
-    tylong.uid     =  6;
-    tyulong.uid    =  7;
-    tysingle.uid   =  8;
-    tydouble.uid   =  9;
-    tystring.uid   = 10;
-    tyvoid.uid     = 11;
-    tyvoidptr.uid  = 12;
+    tybool.uid      =  1;
+    tybyte.uid      =  2;
+    tyubyte.uid     =  3;
+    tyinteger .uid  =  4;
+    tyuinteger.uid  =  5;
+    tylong.uid      =  6;
+    tyulong.uid     =  7;
+    tysingle.uid    =  8;
+    tydouble.uid    =  9;
+    tystring.uid    = 10;
+    tyvoid.uid      = 11;
+    tyvoidptr.uid   = 12;
+    tyvtable.uid    = 13;
+    tyvtableptr.uid = 14;
 
-    tybool.mod     = NULL;
-    tybyte.mod     = NULL;
-    tyubyte.mod    = NULL;
-    tyinteger .mod = NULL;
-    tyuinteger.mod = NULL;
-    tylong.mod     = NULL;
-    tyulong.mod    = NULL;
-    tysingle.mod   = NULL;
-    tydouble.mod   = NULL;
-    tystring.mod   = NULL;
-    tyvoid.mod     = NULL;
-    tyvoidptr.mod  = NULL;
+    tybool.mod      = NULL;
+    tybyte.mod      = NULL;
+    tyubyte.mod     = NULL;
+    tyinteger .mod  = NULL;
+    tyuinteger.mod  = NULL;
+    tylong.mod      = NULL;
+    tyulong.mod     = NULL;
+    tysingle.mod    = NULL;
+    tydouble.mod    = NULL;
+    tystring.mod    = NULL;
+    tyvoid.mod      = NULL;
+    tyvoidptr.mod   = NULL;
+    tyvtable.mod    = NULL;
+    tyvtableptr.mod = NULL;
 }
 
 static uint32_t g_uid = 23;
@@ -93,17 +97,19 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-Ty_ty Ty_Class (S_symbol mod, Ty_ty baseType, Ty_vtable vtable)
+Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                  = Ty_class;
+    p->u.cls.name            = name;
+    p->u.cls.uiSize          = baseType ? Ty_size(baseType) : 0;
     p->u.cls.baseType        = baseType;
-    p->u.cls.members         = NULL;
     p->u.cls.implements      = NULL;
     p->u.cls.constructor     = NULL;
-    p->u.cls.vtable          = vtable;
-    p->u.cls.uiSize          = baseType ? Ty_size(baseType) : 0;
+    p->u.cls.members         = NULL;
+    p->u.cls.vtable          = NULL;
+    p->u.cls.vTablePtr       = NULL;
     p->mod                   = mod;
     p->uid                   = g_uid++;
 
@@ -190,24 +196,15 @@ static Ty_member Ty_classAddField (Ty_ty ty, Ty_visibility visibility, S_symbol 
     return f;
 }
 
-void Ty_implements (Ty_ty ty, Ty_ty intf)
+Ty_implements Ty_Implements (Ty_ty intf, Ty_member vtablePtr)
 {
-    Ty_intfList impl = U_poolAlloc(UP_types, sizeof(*impl));
-    impl->intf = intf;
+    Ty_implements impl = U_poolAlloc(UP_types, sizeof(*impl));
 
-    switch (ty->kind)
-    {
-        case Ty_interface:
-            impl->next = ty->u.interface.implements;
-            ty->u.interface.implements = impl;
-            break;
-        case Ty_class:
-            impl->next = ty->u.cls.implements;
-            ty->u.cls.implements = impl;
-            break;
-        default:
-            assert(FALSE);
-    }
+    impl->next      = NULL;
+    impl->intf      = intf;
+    impl->vtablePtr = vtablePtr;
+
+    return impl;
 }
 
 Ty_member Ty_addField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
@@ -301,12 +298,14 @@ Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
             {
                 if (ty->u.cls.baseType)
                     return Ty_findEntry (ty->u.cls.baseType, name, /*checkbase=*/TRUE);
-                for (Ty_intfList implements=ty->u.cls.implements; implements; implements=implements->next)
-                {
-                    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
-                    if (member)
-                        return member;
-                }
+                // FIXME: implement
+                assert(FALSE);
+                //for (Ty_intfList implements=ty->u.cls.implements; implements; implements=implements->next)
+                //{
+                //    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
+                //    if (member)
+                //        return member;
+                //}
             }
 
             break;
@@ -331,12 +330,14 @@ Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
 
             if (checkBase)
             {
-                for (Ty_intfList implements=ty->u.interface.implements; implements; implements=implements->next)
-                {
-                    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
-                    if (member)
-                        return member;
-                }
+                // FIXME: implement
+                assert(FALSE);
+                //for (Ty_intfList implements=ty->u.interface.implements; implements; implements=implements->next)
+                //{
+                //    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
+                //    if (member)
+                //        return member;
+                //}
             }
 
             break;
@@ -723,7 +724,7 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
     return p;
 }
 
-Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls, int32_t vTableIdx)
+Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner, int16_t vTableIdx)
 {
     Ty_proc p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -737,23 +738,22 @@ Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_sym
     p->formals    = formals;
     p->isVariadic = isVariadic;
     p->isStatic   = isStatic;
+    p->isExtern   = isExtern;
     p->returnTy   = returnTy;
     p->forward    = forward;
     p->offset     = offset;
     p->libBase    = libBase;
-    p->tyCls      = tyCls;
+    p->tyOwner    = tyOwner;
     p->vTableIdx  = vTableIdx;
     p->hasBody    = FALSE;
 
     return p;
 }
 
-Ty_vtable Ty_VTable (Temp_label label)
+Ty_vtable Ty_VTable ()
 {
     Ty_vtable p = U_poolAlloc(UP_types, sizeof(*p));
 
-    //p->thisOffset = 0;
-    p->label      = label;
     p->numEntries = 0;
     p->first      = NULL;
     p->last       = NULL;
