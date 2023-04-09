@@ -6658,7 +6658,9 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!tyBase)
     {
         S_symbol sVTablePtr = S_Symbol("_vtableptr");
-        Ty_member vTablePtr = Ty_addField (tyCls, Ty_visProtected, sVTablePtr, Ty_VTablePtr(), /*calcOffset=*/TRUE);
+        Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTablePtr, Ty_VTablePtr());
+        Ty_fieldCalcOffset (tyCls, vTablePtr);
+        Ty_addMember (tyCls, vTablePtr);
         tyCls->u.cls.vTablePtr = vTablePtr;
     }
     else
@@ -6704,7 +6706,9 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
             S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", S_name(sIntf)));
 
-            Ty_member vtablePtr = Ty_addField (tyCls, Ty_visProtected, sVTableEntry, Ty_VTablePtr(), /*calcOffset=*/TRUE);
+            Ty_member vtablePtr = Ty_MemberField (Ty_visProtected, sVTableEntry, Ty_VTablePtr());
+            Ty_fieldCalcOffset (tyCls, vtablePtr);
+            Ty_addMember (tyCls, vtablePtr);
             Ty_implements implements = Ty_Implements (tyIntf, vtablePtr);
 
             implements->next = tyCls->u.cls.implements;
@@ -7008,31 +7012,49 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     if ( (sle->u.typeDecl.ty->kind != Ty_record) && (sle->u.typeDecl.ty->kind != Ty_class) )
                         return EM_error (f->pos, "Only record and class types can have fields");
 
-                    re = Ty_addField (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t, /*calcOffset=*/TRUE);
+                    re = Ty_MemberField (sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
+                    Ty_fieldCalcOffset (sle->u.typeDecl.ty, re);
+                    Ty_addMember (sle->u.typeDecl.ty, re);
                     break;
                 }
                 case FE_methodUDTEntry:
                 {
-                    Ty_member re = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
-                    if (re)
+                    Ty_member member = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
+                    if (member)
                         return EM_error (f->pos, "Duplicate UDT entry.");
 
-                    Ty_vtable vtable = NULL;
-                    switch (sle->u.typeDecl.ty->kind)
-                    {
-                        case Ty_interface:
-                            vtable = sle->u.typeDecl.ty->u.interface.vtable;
-                            break;
-                        case Ty_class:
-                            vtable = sle->u.typeDecl.ty->u.cls.vtable;
-                            break;
-                        default:
-                            return EM_error (f->pos, "Only interface and class types can have methods");
-                    }
+                    member = Ty_MemberMethod (sle->u.typeDecl.memberVis, f->u.methodr);
+                    Ty_addMember (sle->u.typeDecl.ty, member);
 
-                    re = Ty_addMethod (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.methodr, vtable);
-                    if (!re)
-                        return FALSE;
+                    if (f->u.methodr->vTableIdx == VTABLE_IDX_TODO)
+                    {
+                        Ty_vtable vtable = NULL;
+                        switch (sle->u.typeDecl.ty->kind)
+                        {
+                            case Ty_interface:
+                                vtable = sle->u.typeDecl.ty->u.interface.vtable;
+                                break;
+                            case Ty_class:
+                                vtable = sle->u.typeDecl.ty->u.cls.vtable;
+                                break;
+                            default:
+                                return EM_error (f->pos, "Only interface and class types can have methods");
+                        }
+
+                        // check existing entries: is this an override?
+                        bool done=FALSE;
+                        for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
+                        {
+                            if (entry->proc->name == f->u.methodr->name)
+                            {
+                                entry->proc = f->u.methodr;
+                                done = TRUE;
+                                break;
+                            }
+                        }
+                        if (!done)
+                            Ty_vtAddEntry(vtable, f->u.methodr);
+                    }
                     break;
                 }
                 case FE_propertyUDTEntry:
@@ -7071,8 +7093,9 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                             ty = f->u.property->formals->next->ty;
                         else
                             ty = f->u.property->returnTy;
-                        re = Ty_addProperty (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.property->name,
-                                             ty, isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
+                        re = Ty_MemberProperty (sle->u.typeDecl.memberVis, f->u.property->name,
+                                                ty, isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
+                        Ty_addMember (sle->u.typeDecl.ty, re);
                     }
                     break;
                 }

@@ -97,6 +97,20 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
+Ty_ty Ty_Interface (S_symbol mod, Ty_vtable vtable)
+{
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->kind                   = Ty_interface;
+    p->u.interface.members    = NULL;
+    p->u.interface.implements = NULL;
+    p->u.interface.vtable     = vtable;
+    p->mod                    = mod;
+    p->uid                    = g_uid++;
+
+    return p;
+}
+
 Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
@@ -116,86 +130,6 @@ Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
     return p;
 }
 
-Ty_ty Ty_Interface (S_symbol mod, Ty_vtable vtable)
-{
-    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
-
-    p->kind                   = Ty_interface;
-    p->u.interface.members    = NULL;
-    p->u.interface.implements = NULL;
-    p->u.interface.vtable     = vtable;
-    p->mod                    = mod;
-    p->uid                    = g_uid++;
-
-    return p;
-}
-
-static Ty_member Ty_recordAddField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
-{
-    assert (ty->kind == Ty_record);
-    Ty_member f = U_poolAlloc(UP_types, sizeof(*f));
-
-    f->kind       = Ty_recField;
-    f->name       = name;
-    f->visibility = visibility;
-    f->next       = ty->u.record.entries;
-    ty->u.record.entries = f;
-
-    if (calcOffset) // env.c will provide offsets when loading types from modules
-    {
-        uint32_t baseOffset = 0;
-
-        // 68k alignment
-        unsigned int s = Ty_size(fieldType);
-        //if (s>1 && (recordType->u.record.uiSize % 2))
-        //    recordType->u.record.uiSize++;
-        if (s<2)
-            s=2;
-        uint32_t fieldOffset = ty->u.record.uiSize;
-
-        ty->u.record.uiSize += s;
-
-        f->u.field.uiOffset   = fieldOffset + baseOffset;
-    }
-
-    f->u.field.ty         = fieldType;
-
-    return f;
-}
-
-static Ty_member Ty_classAddField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
-{
-    assert (ty->kind == Ty_class);
-    Ty_member f = U_poolAlloc(UP_types, sizeof(*f));
-
-    f->kind           = Ty_recField;
-    f->name           = name;
-    f->visibility     = visibility;
-    f->next           = ty->u.cls.members;
-    ty->u.cls.members = f;
-
-    if (calcOffset) // env.c will provide offsets when loading types from modules
-    {
-        //uint32_t baseOffset = ty->u.cls.baseType ? ty->u.cls.baseType->u.cls.uiSize : 0;
-
-        // 68k alignment
-        unsigned int s = Ty_size(fieldType);
-        //if (s>1 && (recordType->u.record.uiSize % 2))
-        //    recordType->u.record.uiSize++;
-        if (s<2)
-            s=2;
-        uint32_t fieldOffset = ty->u.cls.uiSize;
-
-        ty->u.cls.uiSize += s;
-
-        f->u.field.uiOffset   = fieldOffset;
-    }
-
-    f->u.field.ty         = fieldType;
-
-    return f;
-}
-
 Ty_implements Ty_Implements (Ty_ty intf, Ty_member vtablePtr)
 {
     Ty_implements impl = U_poolAlloc(UP_types, sizeof(*impl));
@@ -207,79 +141,94 @@ Ty_implements Ty_Implements (Ty_ty intf, Ty_member vtablePtr)
     return impl;
 }
 
-Ty_member Ty_addField (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset)
+Ty_member Ty_MemberField (Ty_visibility visibility, S_symbol name, Ty_ty fieldType)
 {
+    Ty_member f = U_poolAlloc(UP_types, sizeof(*f));
+
+    f->next               = NULL;
+    f->kind               = Ty_recField;
+    f->name               = name;
+    f->visibility         = visibility;
+    f->u.field.uiOffset   = 0;
+    f->u.field.ty         = fieldType;
+
+    return f;
+}
+
+void Ty_fieldCalcOffset (Ty_ty ty, Ty_member field)
+{
+    assert (field->kind == Ty_recField);
+
+    // 68k alignment
+    unsigned int s = Ty_size(field->u.field.ty);
+    //if (s>1 && (recordType->u.record.uiSize % 2))
+    //    recordType->u.record.uiSize++;
+    if (s<2)
+        s=2;
+
     switch (ty->kind)
     {
         case Ty_record:
-            return Ty_recordAddField (ty, visibility, name, fieldType, calcOffset);
+            field->u.field.uiOffset   = ty->u.record.uiSize;
+            ty->u.record.uiSize += s;
+            break;
         case Ty_class:
-            return Ty_classAddField (ty, visibility, name, fieldType, calcOffset);
+            field->u.field.uiOffset   = ty->u.cls.uiSize;
+            ty->u.cls.uiSize += s;
+            break;
         default:
             assert(FALSE);
     }
-    return NULL;
 }
 
-Ty_member Ty_addMethod (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_vtable vtable)
+Ty_member Ty_MemberMethod (Ty_visibility visibility, Ty_proc method)
 {
     Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
+    p->next       = NULL;
     p->kind       = Ty_recMethod;
     p->name       = method->name;
     p->visibility = visibility;
     p->u.method   = method;
 
-    switch (ty->kind)
-    {
-        case Ty_class:
-            p->next       = ty->u.cls.members;
-            ty->u.cls.members = p;
-            break;
-        case Ty_interface:
-            p->next       = ty->u.interface.members;
-            ty->u.interface.members = p;
-            break;
-        default:
-            assert(FALSE);
-    }
-
-    if (method->vTableIdx == VTABLE_IDX_TODO)
-    {
-        // check existing entries: is this an override?
-        bool done=FALSE;
-        for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
-        {
-            if (entry->proc->name == method->name)
-            {
-                entry->proc = method;
-                done = TRUE;
-                break;
-            }
-        }
-        if (!done)
-            Ty_vtAddEntry(vtable, method);
-    }
-
     return p;
 }
 
-Ty_member Ty_addProperty (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty tyProp, Ty_proc setter, Ty_proc getter)
+Ty_member Ty_MemberProperty (Ty_visibility visibility, S_symbol name, Ty_ty tyProp, Ty_proc setter, Ty_proc getter)
 {
-    assert (ty->kind == Ty_class);
-
     Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
+    p->next              = NULL;
     p->kind              = Ty_recProperty;
     p->name              = name;
     p->visibility        = visibility;
-    p->next              = ty->u.cls.members;
-    ty->u.cls.members = p;
     p->u.property.ty     = tyProp;
     p->u.property.setter = setter;
     p->u.property.getter = getter;
 
     return p;
+}
+
+
+void Ty_addMember (Ty_ty ty, Ty_member member)
+{
+    switch (ty->kind)
+    {
+        case Ty_record:
+            member->next = ty->u.record.entries;
+            ty->u.record.entries = member;
+            break;
+        case Ty_class:
+            member->next = ty->u.cls.members;
+            ty->u.cls.members = member;
+            break;
+        case Ty_interface:
+            member->next = ty->u.interface.members;
+            ty->u.interface.members = member;
+            break;
+        default:
+            assert(FALSE);
+    }
 }
 
 Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)

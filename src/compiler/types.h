@@ -174,9 +174,11 @@ Ty_ty           Ty_Record            (S_symbol mod);
 Ty_ty           Ty_Interface         (S_symbol mod, Ty_vtable vtable);
 Ty_ty           Ty_Class             (S_symbol mod, S_symbol name, Ty_ty baseClass);
 Ty_implements   Ty_Implements        (Ty_ty intf, Ty_member vtablePtr);
-Ty_member       Ty_addField          (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
-Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, Ty_proc method, Ty_vtable vtable);
-Ty_member       Ty_addProperty       (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
+Ty_member       Ty_MemberField       (Ty_visibility visibility, S_symbol name, Ty_ty fieldType);
+void            Ty_fieldCalcOffset   (Ty_ty ty, Ty_member field);
+Ty_member       Ty_MemberMethod      (Ty_visibility visibility, Ty_proc method);
+Ty_member       Ty_MemberProperty    (Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
+void            Ty_addMember         (Ty_ty ty, Ty_member member);
 Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
