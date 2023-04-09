@@ -43,7 +43,8 @@ struct Ty_ty_
                 Ty_member      members;
                 Ty_vtable      vtable;
                 Ty_member      vTablePtr;                                   } cls;
-        struct {Ty_implements  implements;
+        struct {S_symbol       name;
+                Ty_implements  implements;
                 Ty_member      members;
                 Ty_vtable      vtable;                                      } interface;
     } u;
@@ -171,9 +172,10 @@ Ty_ty           Ty_ProcPtr           (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
 
 Ty_ty           Ty_Record            (S_symbol mod);
-Ty_ty           Ty_Interface         (S_symbol mod, Ty_vtable vtable);
+Ty_ty           Ty_Interface         (S_symbol mod, S_symbol name, Ty_vtable vtable);
 Ty_ty           Ty_Class             (S_symbol mod, S_symbol name, Ty_ty baseClass);
 Ty_implements   Ty_Implements        (Ty_ty intf, Ty_member vtablePtr);
+bool            Ty_checkImplements   (Ty_ty ty, Ty_ty tyInf);
 Ty_member       Ty_MemberField       (Ty_visibility visibility, S_symbol name, Ty_ty fieldType);
 void            Ty_fieldCalcOffset   (Ty_ty ty, Ty_member field);
 Ty_member       Ty_MemberMethod      (Ty_visibility visibility, Ty_proc method);

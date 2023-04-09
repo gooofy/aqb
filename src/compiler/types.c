@@ -97,11 +97,12 @@ Ty_ty Ty_Record (S_symbol mod)
     return p;
 }
 
-Ty_ty Ty_Interface (S_symbol mod, Ty_vtable vtable)
+Ty_ty Ty_Interface (S_symbol mod, S_symbol name, Ty_vtable vtable)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                   = Ty_interface;
+    p->u.interface.name       = name;
     p->u.interface.members    = NULL;
     p->u.interface.implements = NULL;
     p->u.interface.vtable     = vtable;
@@ -139,6 +140,33 @@ Ty_implements Ty_Implements (Ty_ty intf, Ty_member vtablePtr)
     impl->vtablePtr = vtablePtr;
 
     return impl;
+}
+
+bool Ty_checkImplements (Ty_ty ty, Ty_ty tyIntf)
+{
+    assert (tyIntf->kind == Ty_interface);
+    switch (ty->kind)
+    {
+        case Ty_interface:
+            if (ty==tyIntf)
+                return TRUE;
+            for (Ty_implements implements=ty->u.interface.implements; implements; implements=implements->next)
+            {
+                if (Ty_checkImplements (implements->intf, tyIntf))
+                    return TRUE;
+            }
+            break;
+        case Ty_class:
+            for (Ty_implements implements=ty->u.cls.implements; implements; implements=implements->next)
+            {
+                if (Ty_checkImplements (implements->intf, tyIntf))
+                    return TRUE;
+            }
+            break;
+        default:
+            assert(FALSE);
+    }
+    return FALSE;
 }
 
 Ty_member Ty_MemberField (Ty_visibility visibility, S_symbol name, Ty_ty fieldType)
@@ -247,14 +275,6 @@ Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
             {
                 if (ty->u.cls.baseType)
                     return Ty_findEntry (ty->u.cls.baseType, name, /*checkbase=*/TRUE);
-                // FIXME: implement
-                assert(FALSE);
-                //for (Ty_intfList implements=ty->u.cls.implements; implements; implements=implements->next)
-                //{
-                //    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
-                //    if (member)
-                //        return member;
-                //}
             }
 
             break;

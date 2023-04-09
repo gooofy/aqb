@@ -953,6 +953,12 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return TRUE;
             return FALSE;
 
+        case Ty_interface:
+            if ((ty2->kind == Ty_interface) || (ty2->kind == Ty_class))
+                return Ty_checkImplements (ty2, ty1);
+            return FALSE;
+            break;
+
         default:
             assert(0);
     }
@@ -6246,7 +6252,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         }
         if (!matchProcSignatures (proc, decl))
         {
-            EM_error (pos, "Function declaration vs definition mismatch.");
+            EM_error (pos, "Sub or function declaration vs definition mismatch.");
             return NULL;
         }
         decl->hasBody = TRUE;
@@ -6275,7 +6281,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
 
 static void _generateVTableAsssignment (S_pos pos, AS_instrList il, CG_frame frame, Ty_ty clsTy)
 {
-    assert(FALSE); // FIXME
+    //assert(FALSE); // FIXME
     //CG_item objVTablePtr;
     //objVTablePtr = frame->formals->first->item; // <this>
     //Ty_member vtpm = Ty_findEntry(clsTy, S__VTABLEPTR, /*checkbase=*/TRUE);
@@ -6765,10 +6771,10 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_symbol sType = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
-        sle->u.typeDecl.sType = sType;
-        Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
-        if (tyOther)
-            EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
+    sle->u.typeDecl.sType = sType;
+    Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
+    if (tyOther)
+        EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
     if (isSym(*tkn, S_IMPLEMENTS))
     {
@@ -6790,7 +6796,7 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 
     Ty_vtable vtable = Ty_VTable();
-    sle->u.typeDecl.ty = Ty_Interface(FE_mod->name, vtable);
+    sle->u.typeDecl.ty = Ty_Interface(FE_mod->name, sType, vtable);
 
     E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
     if (sle->u.typeDecl.udtVis == Ty_visPublic)
@@ -6937,11 +6943,43 @@ static void _assembleVTables (Ty_ty tyCls)
 
     for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
     {
-        // FIXME
-        assert(FALSE);
-        //        Temp_label vtableLabel = Temp_namedlabel(strprintf (UP_frontend, "__intf_vtable_%s_%s", S_name(sType), S_name(sIntf)));
-        //        Ty_vtable vtable = Ty_VTable (vtableLabel);
-        //        assert(FALSE); // FIXME: set up vtable entries
+        vtlabel = Temp_namedlabel(strprintf (UP_frontend, "__intf_vtable_%s_%s",
+                                                          S_name(tyCls->u.cls.name),
+                                                          S_name(implements->intf->u.interface.name)));
+        CG_frag vtableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+        int32_t offset = implements->vtablePtr->u.field.uiOffset;
+        CG_dataFragAddConst (vtableFrag, Ty_ConstInt(Ty_Long(), offset));
+        for (Ty_vtableEntry entry=implements->intf->u.interface.vtable->first; entry; entry=entry->next)
+        {
+            Ty_member member = Ty_findEntry (tyCls, entry->proc->name, /*checkbase=*/TRUE);
+            if (!member || (member->kind != Ty_recMethod))
+            {
+                EM_error (0, "Class %s is missing an implementation for %s.%s",
+                          S_name(tyCls->u.cls.name),
+                          S_name(implements->intf->u.interface.name),
+                          S_name(entry->proc->name));
+                continue;
+            }
+            Ty_proc proc = member->u.method;
+            if (proc->vTableIdx == VTABLE_IDX_NONVIRTUAL)
+            {
+                EM_error (0, "Class %s: implementation for %s.%s needs to be declared as virtual",
+                          S_name(tyCls->u.cls.name),
+                          S_name(implements->intf->u.interface.name),
+                          S_name(entry->proc->name));
+                continue;
+            }
+            if (!matchProcSignatures (proc, entry->proc))
+            {
+                EM_error (0, "Class %s: implementation for %s.%s signature mismatch",
+                          S_name(tyCls->u.cls.name),
+                          S_name(implements->intf->u.interface.name),
+                          S_name(entry->proc->name));
+                continue;
+            }
+
+            CG_dataFragAddPtr (vtableFrag, proc->label);
+        }
     }
 }
 

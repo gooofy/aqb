@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     53
+#define SYM_VERSION     54
 
 E_module g_builtinsModule = NULL;
 
@@ -737,6 +737,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             E_serializeMember(modTable, ty->u.cls.vTablePtr);
             break;
         case Ty_interface:
+            strserialize(modf, S_name(ty->u.interface.name));
             E_serializeImplements(modTable, ty->u.interface.implements);
             E_serializeMembers(modTable, ty->u.interface.members);
             E_serializeVTable(modTable, ty->u.interface.vtable);
@@ -1278,7 +1279,7 @@ static Ty_implements E_deserializeImplements(TAB_table modTable, FILE *modf)
         // FIXME: implement
         assert(FALSE);
     }
-    
+
     return NULL;
 }
 
@@ -1291,7 +1292,7 @@ static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
         {
             uint8_t visibility = fread_u1(modf);
             Ty_proc proc = E_deserializeTyProc(modTable, modf);
-            return Ty_MemberMethod (visibility, proc); 
+            return Ty_MemberMethod (visibility, proc);
         }
         case Ty_recField:
         {
@@ -1522,6 +1523,7 @@ E_module E_loadModule(S_symbol sModule)
 
             case Ty_interface:
                 ty->kind = Ty_interface;
+                ty->u.interface.name = S_Symbol(strdeserialize(UP_env, modf));
                 ty->u.interface.implements = E_deserializeImplements(modTable, modf);
                 E_deserializeMembers(modTable, modf, ty);
                 ty->u.interface.vtable = E_deserializeVTable(modTable, modf);

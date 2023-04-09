@@ -4371,9 +4371,9 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                 case CG_ptrNode:
                     switch (dialect)
                     {
-                        case AS_dialect_gas:    fprintf(out, "    dc.l  %s\n", S_name(n->u.label)); break;
-                        case AS_dialect_vasm:   fprintf(out, "    .long %s\n", S_name(n->u.label)); break;
-                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  %s\n", S_name(n->u.label)); break;
+                        case AS_dialect_gas:    fprintf(out, "    dc.l  #%s\n", S_name(n->u.label)); break;
+                        case AS_dialect_vasm:   fprintf(out, "    .long #%s\n", S_name(n->u.label)); break;
+                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  #%s\n", S_name(n->u.label)); break;
                         default:
                             assert(FALSE);
                     }
