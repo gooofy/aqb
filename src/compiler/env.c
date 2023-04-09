@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     54
+#define SYM_VERSION     55
 
 E_module g_builtinsModule = NULL;
 
@@ -728,10 +728,8 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             fwrite_u4(modf, ty->u.cls.uiSize);
             E_serializeTyRef(modTable, ty->u.cls.baseType);
             E_serializeImplements(modTable, ty->u.cls.implements);
-            bool constructor_present = ty->u.cls.constructor != NULL;
-            fwrite_u1(modf, constructor_present);
-            if (constructor_present)
-                E_serializeTyProc(modTable, ty->u.cls.constructor);
+            E_serializeTyProc(modTable, ty->u.cls.constructor);
+            E_serializeTyProc(modTable, ty->u.cls.init_vtables);
             E_serializeMembers(modTable, ty->u.cls.members);
             E_serializeVTable(modTable, ty->u.cls.vtable);
             E_serializeMember(modTable, ty->u.cls.vTablePtr);
@@ -1509,11 +1507,8 @@ E_module E_loadModule(S_symbol sModule)
                 ty->u.cls.uiSize = fread_u4(modf);
                 ty->u.cls.baseType = E_deserializeTyRef(modTable, modf);
                 ty->u.cls.implements = E_deserializeImplements(modTable, modf);
-                uint8_t constructor_present = fread_u1(modf);
-                if (constructor_present)
-                    ty->u.cls.constructor = E_deserializeTyProc(modTable, modf);
-                else
-                    ty->u.cls.constructor = NULL;
+                ty->u.cls.constructor = E_deserializeTyProc(modTable, modf);
+                ty->u.cls.init_vtables = E_deserializeTyProc(modTable, modf);
                 ty->kind = Ty_class;
                 E_deserializeMembers(modTable, modf, ty);
                 ty->u.cls.vtable = E_deserializeVTable(modTable, modf);

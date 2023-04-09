@@ -122,6 +122,7 @@ Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
     p->u.cls.baseType        = baseType;
     p->u.cls.implements      = NULL;
     p->u.cls.constructor     = NULL;
+    p->u.cls.init_vtables    = NULL;
     p->u.cls.members         = NULL;
     p->u.cls.vtable          = NULL;
     p->u.cls.vTablePtr       = NULL;
@@ -131,13 +132,13 @@ Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
     return p;
 }
 
-Ty_implements Ty_Implements (Ty_ty intf, Ty_member vtablePtr)
+Ty_implements Ty_Implements (Ty_ty intf, Ty_member vTablePtr)
 {
     Ty_implements impl = U_poolAlloc(UP_types, sizeof(*impl));
 
     impl->next      = NULL;
     impl->intf      = intf;
-    impl->vtablePtr = vtablePtr;
+    impl->vTablePtr = vTablePtr;
 
     return impl;
 }
