@@ -42,7 +42,8 @@ END FUNCTION
 ' main
 '
 
-'TRACE "HUBBA"
+
+' create object, test functionality via object ptr
 
 DIM o AS myc1 PTR = NEW myc1(23)
 
@@ -52,6 +53,14 @@ i = o->retrieve()
 TRACE "i="; i
 ASSERT i = 23
 
+o->store(42)
+i = o->retrieve()
+TRACE "i="; i
+ASSERT i = 42
+
+' now, convert o to interface ptr, test functionality by calling the intf procs
+
+DIM iptr AS i1 PTR = o
 
 
 

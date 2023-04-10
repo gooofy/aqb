@@ -904,6 +904,10 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
                 return tyr1 == tyr2;
             }
 
+            // OOP: class -> implemented interface assignment is legal
+            if ( (ty1->u.pointer->kind == Ty_class) && (ty2->u.pointer->kind == Ty_interface) )
+                return Ty_checkImplements (ty1->u.pointer, ty2->u.pointer);
+
             return compatible_ty(ty1->u.pointer, ty2->u.pointer);
         case Ty_procPtr:
         {
