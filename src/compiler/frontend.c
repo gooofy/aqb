@@ -1808,7 +1808,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
 }
 
 // creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
-static bool creatorExpression(S_tkn *tkn, CG_item *exp)
+static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
 {
     *tkn = (*tkn)->next; // skip "new"
 
@@ -1817,82 +1817,74 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
 
     S_symbol sClass = (*tkn)->u.sym;
 
-    Ty_ty tyClass = E_resolveType(g_sleStack->env, sClass);
-    if (!tyClass || (tyClass->kind != Ty_class))
+    Ty_ty tyCls = E_resolveType(g_sleStack->env, sClass);
+    if (!tyCls || (tyCls->kind != Ty_class))
         return EM_error((*tkn)->pos, "new: unknown class");
-
-    /*
-     * generate allocation code
-     */
-
-    CG_itemList arglist = CG_ItemList();
-    CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_UIntItem (&n->item, tyClass->u.cls.uiSize, Ty_UInteger());
-    n = CG_itemListAppend(arglist);
-    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
-
-    S_symbol allocSym = S_Symbol("ALLOCATE");
-    CG_item procPtr;
-    Ty_member entry;
-    if (!E_resolveVFC(g_sleStack->env, allocSym, /*checkParents=*/TRUE, &procPtr, &entry))
-        return EM_error((*tkn)->pos, "builtin %s not found.", S_name(allocSym));
-    Ty_ty ty = CG_ty(&procPtr);
-    assert(ty->kind == Ty_prc);
-    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, ty->u.proc, arglist, exp);
-
-    // cast ALLOCATE result to properly typed ptr
-    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyClass);
-    if (!convert_ty(exp, (*tkn)->pos, tyClassPtr, /*explicit=*/TRUE))
-        return EM_error((*tkn)->pos, "new: internal error");
 
     *tkn = (*tkn)->next;
 
+    // ALLOCATE() memory for our new object
+
+    S_symbol allocSym = S_Symbol("ALLOCATE");
+    CG_item allocProcPtr;
+    Ty_member allocEntry;
+    if (!E_resolveVFC(g_sleStack->env, allocSym, /*checkParents=*/TRUE, &allocProcPtr, &allocEntry))
+        return EM_error(0, "builtin %s not found.", S_name(allocSym));
+    Ty_ty allocTy = CG_ty(&allocProcPtr);
+    assert(allocTy->kind == Ty_prc);
+
+    CG_itemList allocArglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(allocArglist);
+    CG_UIntItem (&n->item, tyCls->u.cls.uiSize, Ty_UInteger());
+    n = CG_itemListAppend(allocArglist);
+    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
+
+    CG_transCall (g_sleStack->code, 0, g_sleStack->frame, allocTy->u.proc, allocArglist, thisPtr);
+
+    // cast ALLOCATE result to properly typed ptr
+    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
+    if (!convert_ty(thisPtr, 0, tyClassPtr, /*explicit=*/TRUE))
+        return EM_error(0, "new: internal error: cannot convert this pointer");
+
+    // this ref
+
+    CG_item thisRef = *thisPtr;
+    CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
+    thisRef.kind = IK_varPtr;
+    thisRef.ty   = tyCls;
+
     // __init call
-    if (tyClass->u.cls.init_vtables)
-    {
-        // turn this into a varRef
-        CG_item thisRef = *exp;
-        CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
-        thisRef.kind = IK_varPtr;
-        thisRef.ty   = tyClass;
 
-        CG_itemList initAssignedArgs = CG_ItemList();
-        CG_itemListNode iln = CG_itemListPrepend (initAssignedArgs);
-        iln->item = thisRef;
-
-        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyClass->u.cls.init_vtables, initAssignedArgs, NULL);
-    }
+    CG_itemList initArglist = CG_ItemList();
+    n = CG_itemListAppend(initArglist);
+    n->item = thisRef;
+    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyCls->u.cls.__init, /*args=*/initArglist, /*result=*/NULL);
 
     // constructor call
 
-    if (tyClass->u.cls.constructor)
+    CG_itemList constructorAssignedArgs = CG_ItemList();
+    if ((*tkn)->kind == S_LPAREN)
     {
-        // turn this into a varRef
-        CG_item thisRef = *exp;
-        CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
-        thisRef.kind = IK_varPtr;
-        thisRef.ty   = tyClass;
+        *tkn = (*tkn)->next; // skip '('
 
-        CG_itemList constructorAssignedArgs = CG_ItemList();
-        if ((*tkn)->kind == S_LPAREN)
+        if (tyCls->u.cls.constructor)
         {
-            *tkn = (*tkn)->next; // skip '('
-
-            if (!transActualArgs(tkn, tyClass->u.cls.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, tyCls->u.cls.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
-
-            if ((*tkn)->kind != S_RPAREN)
-                return EM_error((*tkn)->pos, "new: ) expected here");
-            *tkn = (*tkn)->next; // skip ')'
-        }
-        else
-        {
-            CG_itemListNode iln = CG_itemListPrepend (constructorAssignedArgs);
-            iln->item = thisRef;
         }
 
-        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyClass->u.cls.constructor, constructorAssignedArgs, NULL);
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, "new: ) expected here");
+        *tkn = (*tkn)->next; // skip ')'
     }
+    else
+    {
+        CG_itemListNode iln = CG_itemListPrepend (constructorAssignedArgs);
+        iln->item = thisRef;
+    }
+
+    if (tyCls->u.cls.constructor)
+        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyCls->u.cls.constructor, constructorAssignedArgs, NULL);
 
     return TRUE;
 }
@@ -2704,23 +2696,34 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
     Ty_ty t = CG_ty(var);
     assert (CG_isVar(var));
 
-    // assign initial value or run constructor ?
+    // assign initial value or run __init/constructor ?
 
     if (t->kind == Ty_class)
     {
         if (init)
             return EM_error(pos, "class initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
 
-        if (!constructorAssignedArgs)
-        {
-            CG_item thisRef = *var;
-            CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &thisRef);
-            constructorAssignedArgs = CG_ItemList();
-            if (!transActualArgs(/*tkn=*/NULL, t->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/TRUE))
-                return FALSE;
-        }
+        // run __init
+        CG_item thisRef = *var;
+        CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &thisRef);
+        CG_itemList initArgs = CG_ItemList();
+        CG_itemListNode n = CG_itemListAppend(initArgs);
+        n->item = thisRef;
+        CG_transCall (g_sleStack->code, pos, g_sleStack->frame, t->u.cls.__init, /*args=*/initArgs, /*result=*/NULL);
 
-        CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
+        // run constructor, if any
+
+        if (t->u.cls.constructor)
+        {
+            if (!constructorAssignedArgs)
+            {
+                constructorAssignedArgs = CG_ItemList();
+                if (!transActualArgs(/*tkn=*/NULL, t->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/TRUE))
+                    return FALSE;
+            }
+
+            CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
+        }
     }
     else
     {
@@ -5866,7 +5869,7 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
 
 
 // udtProperty ::= PROPERTY ident [ "." ident ] [ parameterList ] [ AS typeDesc ]
-static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
+static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkFunction;
     S_symbol     name;
@@ -5939,13 +5942,13 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         kind  = Ty_pkSub;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*isExtern=*/FALSE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
 
     return TRUE;
 }
 
 // propertyHeader ::= PROPERTY ident "." ident [ parameterList ] [ AS typeDesc ]
-static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_proc *proc)
+static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool isExtern, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
@@ -6000,16 +6003,16 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
     if (kind==Ty_pkFunction)
         label = strconcat(UP_frontend, label, "_");
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*isExtern=*/FALSE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
 
     return TRUE;
 }
 
-// procHeader ::= [EXTERN] [ VIRTUAL ] ( SUB ident ( ident* | "." ident)
-//                                     | FUNCTION ident [ "." ident ]
-//                                     | CONSTRUCTOR [ ident ] )
-//                                                               [ parameterList ] [ AS typeDesc ] [ STATIC ]
-static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
+// procHeader ::= [ VIRTUAL ] ( SUB ident ( ident* | "." ident)
+//                            | FUNCTION ident [ "." ident ]
+//                            | CONSTRUCTOR [ ident ] )
+//                                                      [ parameterList ] [ AS typeDesc ] [ STATIC ]
+static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
@@ -6017,18 +6020,11 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     bool         isVariadic = FALSE;
     bool         isStatic   = FALSE;
     bool         isVirtual  = FALSE;
-    bool         isExtern   = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
     string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
-
-    if (isSym(*tkn, S_EXTERN))
-    {
-        isExtern = TRUE;
-        *tkn = (*tkn)->next;
-    }
 
     // UDT context? -> method declaration
     if (g_sleStack && g_sleStack->kind == FE_sleType)
@@ -6325,12 +6321,12 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     Ty_proc proc;
     if (isSym(*tkn, S_PROPERTY))
     {
-        if (!propertyHeader(tkn, pos, visibility, &proc))
+        if (!propertyHeader(tkn, pos, visibility, /*isExtern=*/FALSE, &proc))
             return FALSE;
     }
     else
     {
-        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
+        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, /*isExtern=*/FALSE, &proc))
             return FALSE;
     }
     proc->hasBody = TRUE;
@@ -6380,12 +6376,13 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
+// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE [EXTERN] procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     Ty_proc       proc=NULL;
     S_pos         pos        = (*tkn)->pos;
     Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
+    bool          isExtern   = FALSE;
 
     if (isSym(*tkn, S_PRIVATE))
     {
@@ -6403,7 +6400,13 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     *tkn = (*tkn)->next; // consume "DECLARE"
 
-    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
+    if (isSym(*tkn, S_EXTERN))
+    {
+        isExtern = TRUE;
+        *tkn = (*tkn)->next;
+    }
+
+    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, isExtern, &proc))
         return FALSE;
     proc = checkProcMultiDecl(pos, proc);
     if (!proc)
@@ -6923,23 +6926,24 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
 static void _assembleVTables (Ty_ty tyCls)
 {
-    // generate __init_vtables method which assigns the vtable pointers in this class
+    // generate __init method which allocates memory and assigns the vtable pointers in this class
 
     Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
-    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s_init_vtables", S_name(tyCls->u.cls.name)));
-    tyCls->u.cls.init_vtables = Ty_Proc  (Ty_visPublic, Ty_pkConstructor, S_Symbol("__init_vtables"),
-                                          /*extraSyms=*/NULL,
-                                          label,
-                                          formals,
-                                          /*isVariadic=*/FALSE,
-                                          /*isStatic=*/FALSE,
-                                          /*returnTy=*/Ty_Void(),
-                                          /*forward=*/FALSE,
-                                          /*isExtern=*/FALSE,
-                                          /*offset=*/0,
-                                          /*libBase=*/NULL,
-                                          /*tyCls=*/tyCls,
-                                          /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+    //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
+    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___init", S_name(tyCls->u.cls.name)));
+    tyCls->u.cls.__init = Ty_Proc  (Ty_visPublic, Ty_pkConstructor, S_Symbol("__init"),
+                                    /*extraSyms=*/NULL,
+                                    label,
+                                    formals,
+                                    /*isVariadic=*/FALSE,
+                                    /*isStatic=*/FALSE,
+                                    /*returnTy=*/Ty_Void(),
+                                    /*forward=*/FALSE,
+                                    /*isExtern=*/FALSE,
+                                    /*offset=*/0,
+                                    /*libBase=*/NULL,
+                                    /*tyCls=*/tyCls,
+                                    /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
 
     CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
     AS_instrList il = AS_InstrList();
@@ -7042,8 +7046,7 @@ static void _assembleVTables (Ty_ty tyCls)
 
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
-//                   | procDecl
-//                   | udtProperty
+//                   | DECLARE [ EXTERN ] ( procHeader | udtProperty )
 //                   | [ PUBLIC | PRIVATE | PROTECTED ] ":"
 //                   | END ( TYPE | CLASS | INTERFACE )
 //                   )
@@ -7287,19 +7290,26 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             S_pos mpos = (*tkn)->pos;
             *tkn = (*tkn)->next; // consume "DECLARE"
 
+            bool isExtern=FALSE;
+            if (isSym(*tkn, S_EXTERN))
+            {
+                isExtern = TRUE;
+                *tkn = (*tkn)->next;
+            }
+
             FE_udtEntry e;
 
             if (isSym (*tkn, S_PROPERTY))
             {
                 Ty_proc proc=NULL;
-                if (!udtProperty(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
+                if (!udtProperty(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, isExtern, &proc))
                     return FALSE;
                 e = FE_UDTEntryProperty(mpos, proc);
             }
             else
             {
                 Ty_proc proc=NULL;
-                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
+                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, isExtern, &proc))
                     return FALSE;
                 e = FE_UDTEntryMethod(mpos, proc);
                 switch (g_sleStack->u.typeDecl.ty->kind)
@@ -8578,13 +8588,7 @@ static void _checkLeftoverForwards(S_scope env)
             }
             case E_procEntry:
             {
-                assert(FALSE);
-                // E_enventryList lx = (E_enventryList) x;
-                // for (E_enventryListNode xn=lx->first; xn; xn=xn->next)
-                // {
-                //     if (!xn->e->u.proc->hasBody && !xn->e->u.proc->isExtern)
-                //         EM_error(0, "missing implementation of %s", S_name(xn->e->u.proc->name));
-                // }
+                assert(FALSE); // see _checkLeftoverForwardSubs()
                 break;
             }
             case E_typeEntry:
@@ -8630,9 +8634,9 @@ static void _checkLeftoverForwards(S_scope env)
                                         EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
                                     break;
                                 case Ty_recProperty:
-                                    if (member->u.property.getter && !member->u.property.getter->hasBody)
+                                    if (member->u.property.getter && !member->u.property.getter->hasBody && !member->u.property.getter->isExtern)
                                         EM_error(0, "missing implementation of getter for %s.%s", S_name(sym), S_name(member->name));
-                                    if (member->u.property.setter && !member->u.property.setter->hasBody)
+                                    if (member->u.property.setter && !member->u.property.setter->hasBody && !member->u.property.setter->isExtern)
                                         EM_error(0, "missing implementation of setter for %s.%s", S_name(sym), S_name(member->name));
                                     break;
                             }

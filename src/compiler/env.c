@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     55
+#define SYM_VERSION     56
 
 E_module g_builtinsModule = NULL;
 
@@ -501,6 +501,7 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                         break;
                 }
             }
+            ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.cls.__init);
             if (ty->u.cls.constructor)
                 ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.cls.constructor);
 
@@ -729,7 +730,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             E_serializeTyRef(modTable, ty->u.cls.baseType);
             E_serializeImplements(modTable, ty->u.cls.implements);
             E_serializeTyProc(modTable, ty->u.cls.constructor);
-            E_serializeTyProc(modTable, ty->u.cls.init_vtables);
+            E_serializeTyProc(modTable, ty->u.cls.__init);
             E_serializeMembers(modTable, ty->u.cls.members);
             E_serializeVTable(modTable, ty->u.cls.vtable);
             E_serializeMember(modTable, ty->u.cls.vTablePtr);
@@ -1508,7 +1509,7 @@ E_module E_loadModule(S_symbol sModule)
                 ty->u.cls.baseType = E_deserializeTyRef(modTable, modf);
                 ty->u.cls.implements = E_deserializeImplements(modTable, modf);
                 ty->u.cls.constructor = E_deserializeTyProc(modTable, modf);
-                ty->u.cls.init_vtables = E_deserializeTyProc(modTable, modf);
+                ty->u.cls.__init = E_deserializeTyProc(modTable, modf);
                 ty->kind = Ty_class;
                 E_deserializeMembers(modTable, modf, ty);
                 ty->u.cls.vtable = E_deserializeVTable(modTable, modf);

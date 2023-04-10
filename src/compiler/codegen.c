@@ -967,7 +967,17 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_item *item)
     switch (item->kind)
     {
         case IK_inReg:
-            return;
+        {
+            // we still need to allocate a new temp here in case result gets processed further
+            Ty_ty ty = CG_ty(item);
+            enum Temp_w w = CG_itemSize(item);
+            Temp_temp t = Temp_Temp (w);
+
+            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_AnDn_AnDn, w, item->u.inReg, t));   // move.x item, t
+            InReg (item, t, ty);
+
+            break;
+        }
 
         case IK_inFrame:
         {
@@ -4371,9 +4381,9 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                 case CG_ptrNode:
                     switch (dialect)
                     {
-                        case AS_dialect_gas:    fprintf(out, "    dc.l  #%s\n", S_name(n->u.label)); break;
-                        case AS_dialect_vasm:   fprintf(out, "    .long #%s\n", S_name(n->u.label)); break;
-                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  #%s\n", S_name(n->u.label)); break;
+                        case AS_dialect_gas:    fprintf(out, "    dc.l  %s\n", S_name(n->u.label)); break;
+                        case AS_dialect_vasm:   fprintf(out, "    .long %s\n", S_name(n->u.label)); break;
+                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  %s\n", S_name(n->u.label)); break;
                         default:
                             assert(FALSE);
                     }

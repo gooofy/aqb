@@ -46,6 +46,15 @@ END FUNCTION
 
 DIM o AS myc1 PTR = NEW myc1(23)
 
+DIM i AS INTEGER
+
+i = o->retrieve()
+TRACE "i="; i
+ASSERT i = 23
+
+
+
+
 'ASSERT o->retrieve()  = 23
 'ASSERT o->retrieve2() = 42
 

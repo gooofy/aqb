@@ -40,7 +40,7 @@ struct Ty_ty_
                 Ty_ty          baseType;
                 Ty_implements  implements;
                 Ty_proc        constructor;
-                Ty_proc        init_vtables;
+                Ty_proc        __init;
                 Ty_member      members;
                 Ty_vtable      vtable;
                 Ty_member      vTablePtr;                                   } cls;

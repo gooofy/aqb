@@ -122,7 +122,7 @@ Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
     p->u.cls.baseType        = baseType;
     p->u.cls.implements      = NULL;
     p->u.cls.constructor     = NULL;
-    p->u.cls.init_vtables    = NULL;
+    p->u.cls.__init          = NULL;
     p->u.cls.members         = NULL;
     p->u.cls.vtable          = NULL;
     p->u.cls.vTablePtr       = NULL;
