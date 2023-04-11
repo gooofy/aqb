@@ -968,22 +968,22 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
     }
 }
 
-static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
+static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
 {
-    Ty_ty ty1 = CG_ty(item);
+    Ty_ty tyFrom = CG_ty(item);
 
-    if (ty1 == ty2)
+    if (tyFrom == tyTo)
     {
         return TRUE;
     }
 
-    switch (ty1->kind)
+    switch (tyFrom->kind)
     {
         case Ty_bool:
-            switch (ty2->kind)
+            switch (tyTo->kind)
             {
                 case Ty_bool:
-                    item->ty = ty2;
+                    item->ty = tyTo;
                     return TRUE;
 
                 case Ty_byte:
@@ -994,7 +994,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                    CG_castItem(g_sleStack->code, pos, item, ty2);
+                    CG_castItem(g_sleStack->code, pos, item, tyTo);
                     return TRUE;
                 default:
                     return FALSE;
@@ -1005,32 +1005,32 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
         case Ty_ubyte:
         case Ty_uinteger:
         case Ty_integer:
-            if (ty2->kind == Ty_pointer)
+            if (tyTo->kind == Ty_pointer)
             {
-                CG_castItem(g_sleStack->code, pos, item, ty2);
+                CG_castItem(g_sleStack->code, pos, item, tyTo);
                 return TRUE;
             }
             /* fallthrough */
         case Ty_long:
         case Ty_ulong:
-            if ( (ty2->kind == Ty_single) || (ty2->kind == Ty_double) || (ty2->kind == Ty_bool) )
+            if ( (tyTo->kind == Ty_single) || (tyTo->kind == Ty_double) || (tyTo->kind == Ty_bool) )
             {
-                CG_castItem (g_sleStack->code, pos, item, ty2);
+                CG_castItem (g_sleStack->code, pos, item, tyTo);
                 return TRUE;
             }
-            if (ty2->kind == Ty_pointer)
+            if (tyTo->kind == Ty_pointer)
             {
-                item->ty = ty2;
-                return TRUE;
-            }
-
-            if (Ty_size(ty1) == Ty_size(ty2))
-            {
-                item->ty = ty2;
+                item->ty = tyTo;
                 return TRUE;
             }
 
-            switch (ty2->kind)
+            if (Ty_size(tyFrom) == Ty_size(tyTo))
+            {
+                item->ty = tyTo;
+                return TRUE;
+            }
+
+            switch (tyTo->kind)
             {
                 case Ty_byte:
                 case Ty_ubyte:
@@ -1038,13 +1038,13 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_integer:
                 case Ty_long:
                 case Ty_ulong:
-                    if (Ty_size(ty1) == Ty_size(ty2))
+                    if (Ty_size(tyFrom) == Ty_size(tyTo))
                     {
-                        item->ty = ty2;
+                        item->ty = tyTo;
                         return TRUE;
                     }
 
-                    CG_castItem(g_sleStack->code, pos, item, ty2);
+                    CG_castItem(g_sleStack->code, pos, item, tyTo);
                     return TRUE;
                 default:
                     return FALSE;
@@ -1053,13 +1053,13 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
 
         case Ty_single:
         case Ty_double:
-            if (ty1->kind == ty2->kind)
+            if (tyFrom->kind == tyTo->kind)
             {
-                item->ty = ty2;
+                item->ty = tyTo;
                 return TRUE;
             }
 
-            switch (ty2->kind)
+            switch (tyTo->kind)
             {
                 case Ty_bool:
                 case Ty_byte:
@@ -1070,7 +1070,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                    CG_castItem (g_sleStack->code, pos, item, ty2);
+                    CG_castItem (g_sleStack->code, pos, item, tyTo);
                     return TRUE;
 
                 default:
@@ -1080,20 +1080,69 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
 
         case Ty_sarray:
         case Ty_darray:
-        case Ty_pointer:
         case Ty_procPtr:
         case Ty_string:
         case Ty_record:
-            if (!compatible_ty(ty1, ty2))
+            if (!compatible_ty(tyFrom, tyTo))
             {
                 if (explicit)
                 {
-                    CG_castItem (g_sleStack->code, pos, item, ty2);
+                    CG_castItem (g_sleStack->code, pos, item, tyTo);
                     return TRUE;
                 }
                 return FALSE;
             }
-            item->ty = ty2;
+            item->ty = tyTo;
+            return TRUE;
+
+        case Ty_pointer:
+            if (!compatible_ty(tyFrom, tyTo))
+            {
+                if (explicit)
+                {
+                    CG_castItem (g_sleStack->code, pos, item, tyTo);
+                    return TRUE;
+                }
+                return FALSE;
+            }
+            else
+            {
+                // OOP: take care of pointer offset class <--> interface
+                Ty_ty tyFromPtr = tyFrom->u.pointer;
+                Ty_ty tyToPtr   = tyTo->u.pointer;
+
+                switch (tyFromPtr->kind)
+                {
+                    case Ty_class:
+                        if (tyToPtr->kind == Ty_interface)
+                        {
+                            Ty_implements implements = tyFromPtr->u.cls.implements;
+                            while (implements)
+                            {
+                                if (implements->intf == tyToPtr)
+                                    break;
+                                implements=implements->next;
+                            }
+                            if (!implements)
+                                return FALSE;
+                            CG_transDeRef (g_sleStack->code, pos, item);
+                            CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+                            assert (item->kind == IK_varPtr);
+                            item->kind = IK_inReg;
+                            item->ty = tyTo;
+                        }
+                        else
+                        {
+                            item->ty = tyTo;
+                        }
+                        break;
+                    case Ty_interface:
+                        assert(FALSE); // FIXME: implement
+                        break;
+                    default:
+                        item->ty = tyTo;
+                }
+            }
             return TRUE;
 
         default:
@@ -1438,8 +1487,42 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                         CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method, &methodPtr, assignedArgs, exp);
                         break;
                     }
+
+                    case Ty_interface:
+                    {
+                        // for interfaces, thisRef points to the object's vTablePtr field
+                        // that corresponds to this interface
+
+                        CG_item vTable = thisRef;
+                        assert(vTable.kind==IK_varPtr);
+                        vTable.ty = Ty_VTablePtr();
+                        CG_transDeRef (g_sleStack->code, pos, &vTable);
+
+                        CG_item methodPtr = vTable;
+                        CG_item idx;
+                        // interface tables have a this_offset as their first entry, hence +1
+                        CG_IntItem (&idx, entry->u.method->vTableIdx+1, Ty_Integer());
+                        CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
+
+                        // compute interface object's actual this pointer by taking this_offset into account
+                        CG_item this_offset = vTable;
+                        assert(this_offset.kind==IK_varPtr);
+                        this_offset.ty = Ty_Long();
+                        CG_loadVal(g_sleStack->code, pos, &this_offset);
+
+                        CG_item intfThis = thisRef;
+                        assert(intfThis.kind==IK_varPtr);
+                        intfThis.ty = Ty_VoidPtr();
+                        intfThis.kind = IK_inReg;
+                        CG_loadVal(g_sleStack->code, pos, &intfThis);
+                        CG_transBinOp (g_sleStack->code, pos, g_sleStack->frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
+                        assignedArgs->first->item = intfThis;
+
+                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method, &methodPtr, assignedArgs, exp);
+                        break;
+                    }
+
                     default:
-                        // FIXME: implement interface method calls
                         assert(FALSE);
                 }
             }

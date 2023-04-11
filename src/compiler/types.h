@@ -162,6 +162,7 @@ Ty_ty           Ty_Double(void);
 Ty_ty           Ty_String(void);
 Ty_ty           Ty_Void(void);
 Ty_ty           Ty_VoidPtr(void);
+Ty_ty           Ty_VTableTy(void);
 Ty_ty           Ty_VTablePtr(void);
 
 Ty_ty           Ty_SArray            (S_symbol mod, Ty_ty ty, int start, int end);

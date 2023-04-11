@@ -46,6 +46,7 @@ static struct Ty_ty_ tyvoidptr = {Ty_pointer, {&tyvoid}};
 Ty_ty Ty_VoidPtr(void) {return &tyvoidptr;}
 
 static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyvoidptr, 0, -1, 0}}};
+Ty_ty Ty_VTableTy(void) {return &tyvtable;}
 static struct Ty_ty_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 Ty_ty Ty_VTablePtr(void) {return &tyvtableptr;}
 

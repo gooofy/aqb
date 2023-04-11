@@ -42,7 +42,6 @@ END FUNCTION
 ' main
 '
 
-
 ' create object, test functionality via object ptr
 
 DIM o AS myc1 PTR = NEW myc1(23)
@@ -50,12 +49,12 @@ DIM o AS myc1 PTR = NEW myc1(23)
 DIM i AS INTEGER
 
 i = o->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 23
 
 o->store(42)
 i = o->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 42
 
 ' now, convert o to interface ptr, test functionality by calling the intf procs
@@ -63,24 +62,16 @@ ASSERT i = 42
 DIM iptr AS i1 PTR = o
 
 i = iptr->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 42
 
 iptr->store(23)
 
 i = iptr->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 23
 
-ASSERT o->retrieve()  = 23
-'ASSERT o->retrieve2() = 42
+' finally, test via object ptr again
 
-'o->store(42)
-'ASSERT o->retrieve() = 42
-'ASSERT o->retrieve2() = 42
-'
-'o->store2(23)
-'ASSERT o->retrieve() = 42
-'ASSERT o->retrieve2() = 23
-'ASSERT o->square() = 1764
+ASSERT o->retrieve()  = 23
 

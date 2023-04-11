@@ -642,11 +642,11 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
         case AS_MOVE_ILabel_AnDn:
             instrformat(str, "    move`w   #`l, `d", i, dialect);      break;
         case AS_MOVE_Label_AnDn:
-            instrformat(str, "    move`w    `l, `d", i, dialect);      break;
+            instrformat(str, "    move`w   `l, `d", i, dialect);      break;
         case AS_MOVE_Label_Ofp:
             instrformat(str, "    move`w    `l, `o(a5)", i, dialect);      break;
         case AS_MOVE_AnDn_Label:
-            instrformat(str, "    move`w    `s, `l", i, dialect);      break;
+            instrformat(str, "    move`w   `s, `l", i, dialect);      break;
         case AS_MOVE_Imm_Label:
             instrformat(str, "    move`w   #`i, `l", i, dialect);      break;
         case AS_MOVEM_Rs_PDsp:

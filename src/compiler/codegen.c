@@ -1126,8 +1126,15 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         }
 
         case IK_varPtr:
-            break;
+        {
+            // we still need to allocate a new temp here in case result gets processed further
+            Ty_ty ty = CG_ty(item);
+            Temp_temp t = Temp_Temp (Temp_w_L);
 
+            AS_instrListAppend(code, AS_Instr (pos, AS_MOVE_AnDn_AnDn, Temp_w_L, item->u.inReg, t));   // move.x item, t
+            VarPtr (item, t, ty);
+            break;
+        }
         case IK_inFrameRef:
         {
             Ty_ty ty = CG_ty(item);
@@ -2314,6 +2321,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
+                                case Ty_pointer:
                                 {
                                     AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, w, NULL, left->u.inReg, // add.x #right, left
                                                                           right->u.c, 0, NULL));
@@ -2343,6 +2351,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
+                                case Ty_pointer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_ADD_AnDn_AnDn, w, right->u.inReg, left->u.inReg)); // add.x right, left
                                     break;
                                 case Ty_single:
@@ -2380,6 +2389,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
+                                case Ty_pointer:
                                 {
                                     AS_instrListAppend (code, AS_InstrEx (pos, AS_SUB_Imm_AnDn, w, NULL, left->u.inReg,  // sub.x  #right, left
                                                                           right->u.c, 0, NULL));
@@ -2408,6 +2418,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_uinteger:
                                 case Ty_long:
                                 case Ty_ulong:
+                                case Ty_pointer:
                                     AS_instrListAppend (code, AS_Instr (pos, AS_SUB_Dn_Dn, w, right->u.inReg, left->u.inReg)); // sub.x right, left
                                     break;
                                 case Ty_single:
