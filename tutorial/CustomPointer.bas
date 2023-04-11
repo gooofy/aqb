@@ -32,7 +32,7 @@ PRINT "Press mouse button to quit"
 
 REM main loop
 
-SUB doQuit
+SUB doQuit (BYVAL wid AS INTEGER, BYVAL b AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS VOID PTR)
     SYSTEM
 END SUB
 ON MOUSE CALL doQuit
