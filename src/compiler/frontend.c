@@ -6798,7 +6798,6 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
                     EM_error ((*tkn)->pos, "Interface %s implemented more than once.", S_name(sIntf));
                     break;
                 }
-                implements = implements->next;
             }
 
             S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", S_name(sIntf)));

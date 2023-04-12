@@ -301,14 +301,12 @@ Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
 
             if (checkBase)
             {
-                // FIXME: implement
-                assert(FALSE);
-                //for (Ty_intfList implements=ty->u.interface.implements; implements; implements=implements->next)
-                //{
-                //    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
-                //    if (member)
-                //        return member;
-                //}
+                for (Ty_implements implements=ty->u.interface.implements; implements; implements=implements->next)
+                {
+                    Ty_member member = Ty_findEntry (implements->intf, name, /*checkbase=*/TRUE);
+                    if (member)
+                        return member;
+                }
             }
 
             break;

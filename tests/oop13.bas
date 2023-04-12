@@ -52,7 +52,6 @@ END FUNCTION
 ' main
 '
 
-
 ' create object, test functionality via object ptr
 
 DIM o AS myc1 PTR = NEW myc1(23)
@@ -60,12 +59,12 @@ DIM o AS myc1 PTR = NEW myc1(23)
 DIM i AS INTEGER
 
 i = o->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 23
 
 o->store(42)
 i = o->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 42
 
 ASSERT o->square() = 1764
@@ -75,13 +74,13 @@ ASSERT o->square() = 1764
 DIM iptr AS i1 PTR = o
 
 i = iptr->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 42
 
 iptr->store(23)
 
 i = iptr->retrieve()
-TRACE "i="; i
+'TRACE "i="; i
 ASSERT i = 23
 
 ' test i2
@@ -89,7 +88,7 @@ ASSERT i = 23
 DIM iptr2 AS i2 PTR = o
 
 i = iptr2->square()
-TRACE "square result: "; i
+'TRACE "square result: "; i
 ASSERT i=529
 
 ASSERT o->retrieve()  = 23
