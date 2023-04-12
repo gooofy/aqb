@@ -19,8 +19,7 @@ Syntax:
 
     AREAFILL [mode]
 
-fill a polygon defined by AREA statements, mode: 0=regular fill, 1=inverted
-fill
+fill a polygon defined by AREA statements, mode: 0=regular fill, 1=inverted fill
 
 
 ## AREA OUTLINE
@@ -113,10 +112,10 @@ set foreground, background, area outline pen and or draw mode.
 
 Useful draw mode values include:
 
-    DRMD\_JAM1       = 0
-    DRMD\_JAM2       = 1 : REM default
-    DRMD\_COMPLEMENT = 2
-    DRMD\_INVERSVID  = 4
+    DRMD_JAM1       = 0
+    DRMD_JAM2       = 1 : REM default
+    DRMD_COMPLEMENT = 2
+    DRMD_INVERSVID  = 4
 
 ## CLOSE
 
@@ -172,10 +171,10 @@ Syntax:
 
 set font soft styling used for text output. style can be any OR combination of
 
-    * FSF\_UNDERLINED = 1
-    * FSF\_BOLD       = 2
-    * FSF\_ITALIC     = 4
-    * FSF\_EXTENDED   = 8
+    * FSF_UNDERLINED = 1
+    * FSF_BOLD       = 2
+    * FSF_ITALIC     = 4
+    * FSF_EXTENDED   = 8
 
 
 ## FONSTYLE()
@@ -509,19 +508,19 @@ create a new screen
 
 mode is a combination of:
 
-    * AS\_MODE\_GENLOCK\_VIDEO   = &H0002
-    * AS\_MODE\_LACE            = &H0004
-    * AS\_MODE\_DOUBLESCAN      = &H0008
-    * AS\_MODE\_SUPERHIRES      = &H0020
-    * AS\_MODE\_PFBA            = &H0040
-    * AS\_MODE\_EXTRA\_HALFBRITE = &H0080
-    * AS\_MODE\_GENLOCK\_AUDIO   = &H0100
-    * AS\_MODE\_DUALPF          = &H0400
-    * AS\_MODE\_HAM             = &H0800
-    * AS\_MODE\_EXTENDED\_MODE   = &H1000
-    * AS\_MODE\_VP\_HIDE         = &H2000
-    * AS\_MODE\_SPRITES         = &H4000
-    * AS\_MODE\_HIRES           = &H8000
+    * AS_MODE_GENLOCK_VIDEO   = &H0002
+    * AS_MODE_LACE            = &H0004
+    * AS_MODE_DOUBLESCAN      = &H0008
+    * AS_MODE_SUPERHIRES      = &H0020
+    * AS_MODE_PFBA            = &H0040
+    * AS_MODE_EXTRA_HALFBRITE = &H0080
+    * AS_MODE_GENLOCK_AUDIO   = &H0100
+    * AS_MODE_DUALPF          = &H0400
+    * AS_MODE_HAM             = &H0800
+    * AS_MODE_EXTENDED_MODE   = &H1000
+    * AS_MODE_VP_HIDE         = &H2000
+    * AS_MODE_SPRITES         = &H4000
+    * AS_MODE_HIRES           = &H8000
 
 ## SCREEN CLOSE
 
@@ -608,7 +607,7 @@ taglists to OS calls.
 
 DEALLOCATE() can be used to free the list once no longer used.
 
-IMPORTANT: always terminate the tag list with TAG\_DONE!
+IMPORTANT: always terminate the tag list with TAG_DONE!
 
 Example:
 
@@ -627,7 +626,7 @@ allocate and initialize a new array of tags.
 
 DEALLOCATE() can be used to free the list once no longer used.
 
-IMPORTANT: always terminate the tag list with TAG\_END!
+IMPORTANT: always terminate the tag list with TAG_END!
 
 Example:
 
@@ -707,7 +706,7 @@ Example:
 		wavedata(i+16) = -127
 	NEXT i
 
-	DIM AS WAVE\_t PTR w = WAVE (wavedata)
+	DIM AS WAVE_t PTR w = WAVE (wavedata)
 
 
 ## WAVE FREE
@@ -730,28 +729,28 @@ Create and activate a new window, make it the new output window.
 
 flags is an OR combination of:
 
-    * AW\_FLAG\_SIZEGADGET     = &H00000001
-    * AW\_FLAG\_DRAGBAR        = &H00000002
-    * AW\_FLAG\_DEPTHGADGET    = &H00000004
-    * AW\_FLAG\_CLOSEGADGET    = &H00000008
-    * AW\_FLAG\_SIZEBRIGHT     = &H00000010
-    * AW\_FLAG\_SIZEBBOTTOM    = &H00000020
-    * AW\_FLAG\_REFRESHBITS    = &H000000C0
-    * AW\_FLAG\_SMART\_REFRESH  = &H00000000
-    * AW\_FLAG\_SIMPLE\_REFRESH = &H00000040
-    * AW\_FLAG\_SUPER\_BITMAP   = &H00000080
-    * AW\_FLAG\_OTHER\_REFRESH  = &H000000C0
-    * AW\_FLAG\_BACKDROP       = &H00000100
-    * AW\_FLAG\_REPORTMOUSE    = &H00000200
-    * AW\_FLAG\_GIMMEZEROZERO  = &H00000400
-    * AW\_FLAG\_BORDERLESS     = &H00000800
-    * AW\_FLAG\_ACTIVATE       = &H00001000
-    * AW\_FLAG\_RMBTRAP        = &H00010000
-    * AW\_FLAG\_NOCAREREFRESH  = &H00020000
-    * AW\_FLAG\_NW\_EXTENDED    = &H00040000
-    * AW\_FLAG\_NEWLOOKMENUS   = &H00200000
+    * AW_FLAG_SIZEGADGET     = &H00000001
+    * AW_FLAG_DRAGBAR        = &H00000002
+    * AW_FLAG_DEPTHGADGET    = &H00000004
+    * AW_FLAG_CLOSEGADGET    = &H00000008
+    * AW_FLAG_SIZEBRIGHT     = &H00000010
+    * AW_FLAG_SIZEBBOTTOM    = &H00000020
+    * AW_FLAG_REFRESHBITS    = &H000000C0
+    * AW_FLAG_SMART_REFRESH  = &H00000000
+    * AW_FLAG_SIMPLE_REFRESH = &H00000040
+    * AW_FLAG_SUPER_BITMAP   = &H00000080
+    * AW_FLAG_OTHER_REFRESH  = &H000000C0
+    * AW_FLAG_BACKDROP       = &H00000100
+    * AW_FLAG_REPORTMOUSE    = &H00000200
+    * AW_FLAG_GIMMEZEROZERO  = &H00000400
+    * AW_FLAG_BORDERLESS     = &H00000800
+    * AW_FLAG_ACTIVATE       = &H00001000
+    * AW_FLAG_RMBTRAP        = &H00010000
+    * AW_FLAG_NOCAREREFRESH  = &H00020000
+    * AW_FLAG_NW_EXTENDED    = &H00040000
+    * AW_FLAG_NEWLOOKMENUS   = &H00200000
 
-default flags: AW\_FLAG\_SIZEGADGET OR AW\_FLAG\_DRAGBAR OR AW\_FLAG\_DEPTHGADGET OR AW\_FLAG\_CLOSEGADGET OR AW\_FLAG\_SMART\_REFRESH OR AW\_FLAG\_GIMMEZEROZERO OR AW\_FLAG\_ACTIVATE
+default flags: AW_FLAG_SIZEGADGET OR AW_FLAG_DRAGBAR OR AW_FLAG_DEPTHGADGET OR AW_FLAG_CLOSEGADGET OR AW_FLAG_SMART_REFRESH OR AW_FLAG_GIMMEZEROZERO OR AW_FLAG_ACTIVATE
 
 
 ## WINDOW CLOSE
