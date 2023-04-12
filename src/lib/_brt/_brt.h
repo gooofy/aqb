@@ -242,6 +242,20 @@ LONG   VALLNG_  (UBYTE *s);
 ULONG  VALULNG_ (UBYTE *s);
 
 /*
+ * OOP
+ */
+
+typedef struct
+{
+    void ***_vTablePtr;
+} Object_t;
+
+void  _Object___init      (Object_t *self);
+char *_Object_ToString_   (Object_t *self);
+BOOL  _Object_Equals_     (Object_t *self, Object_t *pObjB);
+ULONG _Object_GetHashCode (Object_t *self);
+
+/*
  * dynamic array support
  */
 

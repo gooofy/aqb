@@ -79,25 +79,25 @@ DIM o3 AS myc PTR = NEW myc(23)
 
 s = o1->ToString()
 
-TRACE "o1=";o1;", s=";s
+'TRACE "o1=";o1;", s=";s
 ASSERT INSTR(, s, "obj@")=1
 
 s = o2->ToString()
-TRACE "o2=";o2;", s=";s
+'TRACE "o2=";o2;", s=";s
 ASSERT INSTR(, s, "obj@")=1
 
 s = o3->ToString()
-TRACE "o3=";o3;", s=";s
+'TRACE "o3=";o3;", s=";s
 ASSERT s = "< 23>"
 
 '
 ' test Equals()
 '
 
-TRACE "o3 = o2 -> ";o2=o3
-TRACE "o3 <> o2 -> ";o2<>o3
-ASSERT o2<>o3
-TRACE "o3->Equals(o2) -> ";o3->Equals(*o2)
+'TRACE "o3 <> o2 -> ";o2<>o3
+ASSERT o2 <> o3
+' TRACE "o3->Equals(o2) -> ";o3->Equals(*o2)
+ASSERT o3->Equals(*o2)
 
 '
 ' test GetHashCode()

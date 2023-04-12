@@ -371,6 +371,9 @@ static S_symbol S_CLASS;
 static S_symbol S_IMPLEMENTS;
 static S_symbol S_VIRTUAL;
 
+static S_symbol S_ToString;
+static S_symbol S_OBJECT;
+
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
     return (tkn->kind == S_IDENT) && (tkn->u.sym == sym);
@@ -1103,7 +1106,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
             return TRUE;
 
         case Ty_pointer:
-            if (!compatible_ty(tyFrom, tyTo))
+            if (!compatible_ty(tyFrom, tyTo) || explicit)
             {
                 if (explicit)
                 {
@@ -1424,6 +1427,81 @@ static bool transSelIndex(S_pos pos, CG_item *e, CG_item *idx)
     return TRUE;
 }
 
+static bool transMethodCall (S_pos pos, CG_item thisRef, Ty_member entry, CG_itemList assignedArgs, CG_item *exp)
+{
+    if (entry->u.method.proc->returnTy->kind != Ty_void)
+    {
+        CG_TempItem (exp, entry->u.method.proc->returnTy);
+    }
+    else
+    {
+        CG_NoneItem (exp);
+        exp = NULL;
+    }
+
+    if (!entry->u.method.proc->isVirtual)
+    {
+        CG_transCall(g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, assignedArgs, exp);
+    }
+    else
+    {
+        // call virtual method via vtable entry
+        switch (thisRef.ty->kind)
+        {
+            case Ty_class:
+            {
+                CG_item methodPtr = thisRef;
+                Ty_member vtpm = thisRef.ty->u.cls.vTablePtr;
+                CG_transField   (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, vtpm);
+                CG_transDeRef (g_sleStack->code, pos, &methodPtr);
+                CG_item idx;
+                CG_IntItem (&idx, entry->u.method.vTableIdx, Ty_Integer());
+                CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
+                CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, &methodPtr, assignedArgs, exp);
+                break;
+            }
+
+            case Ty_interface:
+            {
+                // for interfaces, thisRef points to the object's vTablePtr field
+                // that corresponds to this interface
+
+                CG_item vTable = thisRef;
+                assert(vTable.kind==IK_varPtr);
+                vTable.ty = Ty_VTablePtr();
+                CG_transDeRef (g_sleStack->code, pos, &vTable);
+
+                CG_item methodPtr = vTable;
+                CG_item idx;
+                // interface tables have a this_offset as their first entry, hence +1
+                CG_IntItem (&idx, entry->u.method.vTableIdx+1, Ty_Integer());
+                CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
+
+                // compute interface object's actual this pointer by taking this_offset into account
+                CG_item this_offset = vTable;
+                assert(this_offset.kind==IK_varPtr);
+                this_offset.ty = Ty_Long();
+                CG_loadVal(g_sleStack->code, pos, &this_offset);
+
+                CG_item intfThis = thisRef;
+                assert(intfThis.kind==IK_varPtr);
+                intfThis.ty = Ty_VoidPtr();
+                intfThis.kind = IK_inReg;
+                CG_loadVal(g_sleStack->code, pos, &intfThis);
+                CG_transBinOp (g_sleStack->code, pos, g_sleStack->frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
+                assignedArgs->first->item = intfThis;
+
+                CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, &methodPtr, assignedArgs, exp);
+                break;
+            }
+
+            default:
+                assert(FALSE);
+        }
+    }
+    return TRUE;
+}
+
 static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
 {
     switch (entry->kind)
@@ -1462,78 +1540,7 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            if (entry->u.method.proc->returnTy->kind != Ty_void)
-            {
-                CG_TempItem (exp, entry->u.method.proc->returnTy);
-            }
-            else
-            {
-                CG_NoneItem (exp);
-                exp = NULL;
-            }
-
-            if (!entry->u.method.proc->isVirtual)
-            {
-                CG_transCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method.proc, assignedArgs, exp);
-            }
-            else
-            {
-                // call virtual method via vtable entry
-                switch (thisRef.ty->kind)
-                {
-                    case Ty_class:
-                    {
-                        CG_item methodPtr = thisRef;
-                        Ty_member vtpm = thisRef.ty->u.cls.vTablePtr;
-                        CG_transField   (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &methodPtr, vtpm);
-                        CG_transDeRef (g_sleStack->code, (*tkn)->pos, &methodPtr);
-                        CG_item idx;
-                        CG_IntItem (&idx, entry->u.method.vTableIdx, Ty_Integer());
-                        CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
-                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, &methodPtr, assignedArgs, exp);
-                        break;
-                    }
-
-                    case Ty_interface:
-                    {
-                        // for interfaces, thisRef points to the object's vTablePtr field
-                        // that corresponds to this interface
-
-                        CG_item vTable = thisRef;
-                        assert(vTable.kind==IK_varPtr);
-                        vTable.ty = Ty_VTablePtr();
-                        CG_transDeRef (g_sleStack->code, pos, &vTable);
-
-                        CG_item methodPtr = vTable;
-                        CG_item idx;
-                        // interface tables have a this_offset as their first entry, hence +1
-                        CG_IntItem (&idx, entry->u.method.vTableIdx+1, Ty_Integer());
-                        CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
-
-                        // compute interface object's actual this pointer by taking this_offset into account
-                        CG_item this_offset = vTable;
-                        assert(this_offset.kind==IK_varPtr);
-                        this_offset.ty = Ty_Long();
-                        CG_loadVal(g_sleStack->code, pos, &this_offset);
-
-                        CG_item intfThis = thisRef;
-                        assert(intfThis.kind==IK_varPtr);
-                        intfThis.ty = Ty_VoidPtr();
-                        intfThis.kind = IK_inReg;
-                        CG_loadVal(g_sleStack->code, pos, &intfThis);
-                        CG_transBinOp (g_sleStack->code, pos, g_sleStack->frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
-                        assignedArgs->first->item = intfThis;
-
-                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, &methodPtr, assignedArgs, exp);
-                        break;
-                    }
-
-                    default:
-                        assert(FALSE);
-                }
-            }
-
-            return TRUE;
+            return transMethodCall((*tkn)->pos, thisRef, entry, assignedArgs, exp);
         }
 
         case Ty_recField:
@@ -3402,6 +3409,29 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
 
         if (!dbg || OPT_get (OPTION_DEBUG))
         {
+            Ty_ty ty = CG_ty(&ex);
+            if ( (ty->kind == Ty_pointer) && (ty->u.pointer->kind == Ty_class) )
+            {
+                // call ToString() Method
+                Ty_ty tyCls = ty->u.pointer;
+                // turn this pointer into a varRef
+                CG_item thisRef = ex;
+                CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
+                thisRef.kind = IK_varPtr;
+                thisRef.ty   = tyCls;
+
+                Ty_member entry = Ty_findEntry(tyCls, S_ToString, /*checkbase=*/TRUE);
+                if (!entry)
+                    return EM_error(pos, "ToString() method not found!");
+
+                CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n = CG_itemListAppend(arglist);
+                n->item = thisRef;
+
+                transMethodCall ((*tkn)->pos, thisRef, entry, arglist, &ex);
+                ty = CG_ty(&ex);
+            }
+
             CG_itemList arglist = CG_ItemList();
             CG_itemListNode n;
             if (!dbg)
@@ -3414,7 +3444,6 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             n->item = ex;
             CG_loadVal (g_sleStack->code, pos, &n->item);
             S_symbol   fsym    = NULL;                   // put* function sym to call
-            Ty_ty      ty      = CG_ty(&ex);
             switch (ty->kind)
             {
                 case Ty_string:
@@ -6771,12 +6800,27 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         S_symbol sBaseType = (*tkn)->u.sym;
 
         tyBase = E_resolveType(g_sleStack->env, sBaseType);
+
         if (!tyBase)
             EM_error ((*tkn)->pos, "Base type %s not found.", S_name(sBaseType));
         if (tyBase->kind != Ty_class)
             EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(sBaseType));
 
         *tkn = (*tkn)->next;
+    }
+    else
+    {
+        // every class except Object itself inherits from Object implicitly
+
+        if (sType != S_OBJECT)
+        {
+            tyBase = E_resolveType(g_sleStack->env, S_OBJECT);
+
+            if (!tyBase)
+                EM_error ((*tkn)->pos, "Base type %s not found.", S_name(S_OBJECT));
+            if (tyBase->kind != Ty_class)
+                EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(S_OBJECT));
+        }
     }
 
     Ty_ty tyCls = Ty_Class(FE_mod->name, sType, tyBase);
@@ -9209,6 +9253,9 @@ void FE_boot(void)
     S_CLASS           = defineKeyword("CLASS");
     S_IMPLEMENTS      = defineKeyword("IMPLEMENTS");
     S_VIRTUAL         = defineKeyword("VIRTUAL");
+
+    S_ToString        = S_Symbol("ToString");
+    S_OBJECT          = S_Symbol("OBJECT");
 }
 
 void FE_init(void)

@@ -286,7 +286,8 @@ E_module E_Module(S_symbol name)
 
 static void declare_builtin_type(string name, Ty_ty ty)
 {
-    E_declareType(g_builtinsModule->env, S_Symbol(name), ty);
+    if (name)
+        E_declareType(g_builtinsModule->env, S_Symbol(name), ty);
     TAB_enter (g_builtinsModule->tyTable, (void *) (intptr_t) ty->uid, ty);
 }
 
@@ -1696,6 +1697,9 @@ void E_init(void)
     declare_builtin_type("DOUBLE"  , Ty_Double());
     declare_builtin_type("STRING"  , Ty_String());
     declare_builtin_type("VOID"    , Ty_Void());
+    declare_builtin_type(NULL      , Ty_VoidPtr());
+    declare_builtin_type(NULL      , Ty_VTableTy());
+    declare_builtin_type(NULL      , Ty_VTablePtr());
 
     declare_builtin_const("TRUE",  Ty_ConstBool(Ty_Bool(), TRUE));
     declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));

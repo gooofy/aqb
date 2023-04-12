@@ -115,6 +115,18 @@ PUBLIC DECLARE EXTERN FUNCTION PEEKL (BYVAL adr AS ULONG) AS ULONG
 PUBLIC DECLARE EXTERN FUNCTION RND       (BYVAL n AS SINGLE = 1) AS SINGLE
 PUBLIC DECLARE EXTERN SUB      RANDOMIZE (BYVAL seed AS SINGLE)
 
+' OOP support: every class inherits from Object which is declared here
+
+PUBLIC CLASS Object
+
+    PUBLIC:
+
+        DECLARE EXTERN VIRTUAL FUNCTION ToString    ()                    AS STRING
+        DECLARE EXTERN VIRTUAL FUNCTION Equals      (BYREF obj AS Object) AS BOOLEAN
+        DECLARE EXTERN VIRTUAL FUNCTION GetHashCode ()                    AS ULONG
+
+END CLASS
+
 ' dynamic array support
 
 PUBLIC TYPE _DARRAY_BOUNDS_T

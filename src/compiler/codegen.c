@@ -742,6 +742,7 @@ void CG_dataFragSetPtr (CG_frag dataFrag, Temp_label label, int idx)
         assert (init);
         assert (init->kind == CG_ptrNode);
         init = init->next;
+        i++;
     }
     assert (init);
     assert (init->kind == CG_ptrNode);
@@ -4161,12 +4162,15 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty)
                 break;
 
             case Ty_pointer:            // pointer ->
-                if (from_ty->kind == to_ty->kind)
+                switch (to_ty->kind)
                 {
-                    item->ty = to_ty;
-                    return;
+                    case Ty_pointer:
+                    case Ty_ulong:
+                        item->ty = to_ty;
+                        return;
+                    default:
+                        assert(FALSE); // FIXME
                 }
-                assert(FALSE); // FIXME
                 break;
 
             case Ty_sarray:
