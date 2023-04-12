@@ -13,7 +13,7 @@ create a new SPRITE from a bitmap.
 
 Example:
 
-    DIM AS BITMAP\_t PTR spbm = NULL
+    DIM AS BITMAP_t PTR spbm = NULL
 
     ILBM LOAD BITMAP "sprite.iff", spbm
 
@@ -63,14 +63,14 @@ load a sprite from an IFF ILBM file.
 
 Arguments:
 	* path: pathname of the file to load the bitmap from
-	* spritePtr: reference to a SPRITE\_t pointer, will be used to store the newly created SPRITE
+	* spritePtr: reference to a SPRITE_t pointer, will be used to store the newly created SPRITE
 	* scid: screen id - if given, colors will be applied to it
 	* pMETA: pointer to metadata
 	* pPalette: pointer to a palette
 
 Example:
 
-	DIM AS SPRITE\_t PTR sp = NULL
+	DIM AS SPRITE_t PTR sp = NULL
 
 	ILBM LOAD SPRITE "PROGDIR:imgs/dragon.iff", sp
 
@@ -123,7 +123,7 @@ create a new BOB from a bitmap. Important: the bitmap must have been created in 
 
 Example:
 
-    DIM AS BITMAP\_t PTR gorilla = NULL
+    DIM AS BITMAP_t PTR gorilla = NULL
 
     ILBM LOAD BITMAP "gorilla.iff", gorilla,,,,TRUE
 
@@ -161,8 +161,7 @@ Syntax:
 
     BOB FREE bob
 
-release all resources allocated by this bob, hide BOB first if still
-visible.
+release all resources allocated by this bob, hide BOB first if still visible.
 
 ## ILBM LOAD BOB
 
@@ -174,14 +173,14 @@ load a bob from an IFF ILBM file.
 
 Arguments:
 	* path: pathname of the file to load the bitmap from
-	* bobPtr: reference to a BOB\_t pointer, will be used to store the newly created BOB
+	* bobPtr: reference to a BOB_t pointer, will be used to store the newly created BOB
 	* scid: screen id - if given, colors will be applied to it
 	* pMETA: pointer to metadata
 	* pPalette: pointer to a palette
 
 Example:
 
-	DIM AS BOB\_t PTR bob = NULL
+	DIM AS BOB_t PTR bob = NULL
 
 	ILBM LOAD BOB "PROGDIR:imgs/dragon.iff", bob, 1
 
