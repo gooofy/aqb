@@ -62,11 +62,11 @@ Syntax:
 load a sprite from an IFF ILBM file.
 
 Arguments:
-	* path: pathname of the file to load the bitmap from
-	* spritePtr: reference to a SPRITE_t pointer, will be used to store the newly created SPRITE
-	* scid: screen id - if given, colors will be applied to it
-	* pMETA: pointer to metadata
-	* pPalette: pointer to a palette
+ * path: pathname of the file to load the bitmap from
+ * spritePtr: reference to a SPRITE_t pointer, will be used to store the newly created SPRITE
+ * scid: screen id - if given, colors will be applied to it
+ * pMETA: pointer to metadata
+ * pPalette: pointer to a palette
 
 Example:
 
@@ -100,10 +100,10 @@ init the GELs animation system. Has to be called on any screen, window or
 bitmap once before any of the commands in this module can be used.
 
 Arguments:
-    * sprRsvd: bitmask, each bit corresponds to one of the 8 hardware
-               sprites. Sprites that have their corresponding bit set in
-               this mask will be reserved for VSPRITES, if any.
-               Default: &H00 (no sprites will be reserved)
+ * sprRsvd: bitmask, each bit corresponds to one of the 8 hardware sprites. 
+            Sprites that have their corresponding bit set in this mask will be reserved for VSPRITES, 
+            if any.
+ Default: &H00 (no sprites will be reserved)
 
 ## GELS REPAINT
 
@@ -172,11 +172,11 @@ Syntax:
 load a bob from an IFF ILBM file.
 
 Arguments:
-	* path: pathname of the file to load the bitmap from
-	* bobPtr: reference to a BOB_t pointer, will be used to store the newly created BOB
-	* scid: screen id - if given, colors will be applied to it
-	* pMETA: pointer to metadata
-	* pPalette: pointer to a palette
+ * path: pathname of the file to load the bitmap from
+ * bobPtr: reference to a BOB_t pointer, will be used to store the newly created BOB
+ * scid: screen id - if given, colors will be applied to it
+ * pMETA: pointer to metadata
+ * pPalette: pointer to a palette
 
 Example:
 
