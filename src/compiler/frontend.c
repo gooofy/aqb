@@ -843,12 +843,12 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
     return FALSE;
 }
 
-static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
+static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
 {
-    if (ty1 == ty2)
+    if (tyTo == tyFrom)
         return TRUE;
 
-    switch (ty1->kind)
+    switch (tyTo->kind)
     {
         case Ty_long:
         case Ty_ulong:
@@ -858,71 +858,71 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         case Ty_ubyte:
         case Ty_single:
         case Ty_bool:
-            return ty2->kind == ty1->kind;
+            return tyFrom->kind == tyTo->kind;
         case Ty_sarray:
-            if (ty2->kind != Ty_sarray)
+            if (tyFrom->kind != Ty_sarray)
                 return FALSE;
-            if (ty2->u.sarray.uiSize != ty1->u.sarray.uiSize)
+            if (tyFrom->u.sarray.uiSize != tyTo->u.sarray.uiSize)
                 return FALSE;
             return TRUE;
         case Ty_darray:
-            if (ty2->kind != Ty_darray)
+            if (tyFrom->kind != Ty_darray)
                 return FALSE;
-            return compatible_ty(ty2->u.darray.elementTy, ty1->u.darray.elementTy);;
+            return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
         case Ty_pointer:
-            if (Ty_isInt(ty2))
+            if (Ty_isInt(tyFrom))
                 return TRUE;
 
-            if ( (ty2->kind == Ty_procPtr) && (ty1->u.pointer->kind == Ty_void) )
+            if ( (tyFrom->kind == Ty_procPtr) && (tyTo->u.pointer->kind == Ty_void) )
                 return TRUE;
 
-            if (ty2->kind == Ty_string)
+            if (tyFrom->kind == Ty_string)
             {
-                if (  (ty1->u.pointer->kind == Ty_void)
-                   || (ty1->u.pointer->kind == Ty_byte)
-                   || (ty1->u.pointer->kind == Ty_ubyte))
+                if (  (tyTo->u.pointer->kind == Ty_void)
+                   || (tyTo->u.pointer->kind == Ty_byte)
+                   || (tyTo->u.pointer->kind == Ty_ubyte))
                     return TRUE;
                 return FALSE;
             }
 
 			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
-			if ((ty2->kind==Ty_darray) && (ty1->kind==Ty_pointer) && (ty1->u.pointer->kind==Ty_void))
+			if ((tyFrom->kind==Ty_darray) && (tyTo->kind==Ty_pointer) && (tyTo->u.pointer->kind==Ty_void))
 				return TRUE;
 
-            if (ty2->kind != Ty_pointer)
+            if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
+            if ((tyTo->u.pointer->kind == Ty_void) || (tyFrom->u.pointer->kind == Ty_void))
                 return TRUE;
 
             // OOP: child -> base class assignment is legal
-            if ( (ty1->u.pointer->kind == Ty_class) && (ty2->u.pointer->kind == Ty_class) )
+            if ( (tyTo->u.pointer->kind == Ty_class) && (tyFrom->u.pointer->kind == Ty_class) )
             {
-                Ty_ty tyr1 = ty1->u.pointer;
-                Ty_ty tyr2 = ty2->u.pointer;
+                Ty_ty tyr1 = tyTo->u.pointer;
+                Ty_ty tyr2 = tyFrom->u.pointer;
                 while (tyr1 && (tyr1 != tyr2) && (tyr1->u.cls.baseType))
                     tyr1 = tyr1->u.cls.baseType;
                 return tyr1 == tyr2;
             }
 
             // OOP: class -> implemented interface assignment is legal
-            if ( (ty1->u.pointer->kind == Ty_class) && (ty2->u.pointer->kind == Ty_interface) )
-                return Ty_checkImplements (ty1->u.pointer, ty2->u.pointer);
+            if ( (tyTo->u.pointer->kind == Ty_class) && (tyFrom->u.pointer->kind == Ty_interface) )
+                return Ty_checkImplements (tyTo->u.pointer, tyFrom->u.pointer);
 
-            return compatible_ty(ty1->u.pointer, ty2->u.pointer);
+            return compatible_ty(tyTo->u.pointer, tyFrom->u.pointer);
         case Ty_procPtr:
         {
-            if (ty2->kind != Ty_procPtr)
+            if (tyFrom->kind != Ty_procPtr)
                 return FALSE;
 
-            if ( (ty1->u.procPtr->returnTy && !ty2->u.procPtr->returnTy) ||
-                 (!ty1->u.procPtr->returnTy && ty2->u.procPtr->returnTy) )
+            if ( (tyTo->u.procPtr->returnTy && !tyFrom->u.procPtr->returnTy) ||
+                 (!tyTo->u.procPtr->returnTy && tyFrom->u.procPtr->returnTy) )
                  return FALSE;
 
-            if (ty1->u.procPtr->returnTy && !compatible_ty(ty1->u.procPtr->returnTy, ty2->u.procPtr->returnTy))
+            if (tyTo->u.procPtr->returnTy && !compatible_ty(tyTo->u.procPtr->returnTy, tyFrom->u.procPtr->returnTy))
                 return FALSE;
 
-            Ty_formal f1 = ty1->u.procPtr->formals;
-            Ty_formal f2 = ty2->u.procPtr->formals;
+            Ty_formal f1 = tyTo->u.procPtr->formals;
+            Ty_formal f2 = tyFrom->u.procPtr->formals;
             while (f1)
             {
                 if (!f2)
@@ -943,25 +943,32 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
             return TRUE;
         }
         case Ty_void:
-            return ty2->kind == Ty_void;
+            return tyFrom->kind == Ty_void;
         case Ty_record:
             return FALSE; // unless identical, see above
         case Ty_string:
-            if (ty2->kind == Ty_ulong)
+            if (tyFrom->kind == Ty_ulong)
                 return TRUE;    // allow string const passing to tag data
-            if (ty2->kind != Ty_pointer)
+            if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if (  (ty2->u.pointer->kind == Ty_void)
-               || (ty2->u.pointer->kind == Ty_byte)
-               || (ty2->u.pointer->kind == Ty_ubyte))
+            if (  (tyFrom->u.pointer->kind == Ty_void)
+               || (tyFrom->u.pointer->kind == Ty_byte)
+               || (tyFrom->u.pointer->kind == Ty_ubyte))
                 return TRUE;
             return FALSE;
 
         case Ty_interface:
-            if ((ty2->kind == Ty_interface) || (ty2->kind == Ty_class))
-                return Ty_checkImplements (ty2, ty1);
+            if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
+                return Ty_checkImplements (tyFrom, tyTo);
             return FALSE;
             break;
+
+        case Ty_class:
+            if (tyFrom->kind == Ty_class)
+                return Ty_checkInherits (tyFrom, tyTo);
+            return FALSE;
+            break;
+
 
         default:
             assert(0);
@@ -1224,7 +1231,7 @@ static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol bu
     if (!entry || (entry->kind != Ty_recMethod))
         return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
 
-    Ty_proc proc = entry->u.method;
+    Ty_proc proc = entry->u.method.proc;
     CG_transCall(initInstrs, pos, g_sleStack->frame, proc, arglist, res);
     return TRUE;
 }
@@ -1448,16 +1455,16 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                     assert(FALSE);
             }
 
-            if (!transActualArgs(tkn, entry->u.method, assignedArgs,  /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, entry->u.method.proc, assignedArgs,  /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
             if ((*tkn)->kind != S_RPAREN)
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            if (entry->u.method->returnTy->kind != Ty_void)
+            if (entry->u.method.proc->returnTy->kind != Ty_void)
             {
-                CG_TempItem (exp, entry->u.method->returnTy);
+                CG_TempItem (exp, entry->u.method.proc->returnTy);
             }
             else
             {
@@ -1465,10 +1472,9 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                 exp = NULL;
             }
 
-            if (entry->u.method->vTableIdx<0)
+            if (!entry->u.method.proc->isVirtual)
             {
-                assert (entry->u.method->vTableIdx==VTABLE_IDX_NONVIRTUAL);
-                CG_transCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method, assignedArgs, exp);
+                CG_transCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method.proc, assignedArgs, exp);
             }
             else
             {
@@ -1482,9 +1488,9 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                         CG_transField   (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &methodPtr, vtpm);
                         CG_transDeRef (g_sleStack->code, (*tkn)->pos, &methodPtr);
                         CG_item idx;
-                        CG_IntItem (&idx, entry->u.method->vTableIdx, Ty_Integer());
+                        CG_IntItem (&idx, entry->u.method.vTableIdx, Ty_Integer());
                         CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
-                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method, &methodPtr, assignedArgs, exp);
+                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, &methodPtr, assignedArgs, exp);
                         break;
                     }
 
@@ -1501,7 +1507,7 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                         CG_item methodPtr = vTable;
                         CG_item idx;
                         // interface tables have a this_offset as their first entry, hence +1
-                        CG_IntItem (&idx, entry->u.method->vTableIdx+1, Ty_Integer());
+                        CG_IntItem (&idx, entry->u.method.vTableIdx+1, Ty_Integer());
                         CG_transIndex  (g_sleStack->code, pos, g_sleStack->frame, &methodPtr, &idx);
 
                         // compute interface object's actual this pointer by taking this_offset into account
@@ -1518,7 +1524,7 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                         CG_transBinOp (g_sleStack->code, pos, g_sleStack->frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
                         assignedArgs->first->item = intfThis;
 
-                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method, &methodPtr, assignedArgs, exp);
+                        CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, entry->u.method.proc, &methodPtr, assignedArgs, exp);
                         break;
                     }
 
@@ -2753,7 +2759,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = Ty_Void();
         }
 
-        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL, /*isVirtual=*/FALSE);
         *ty = Ty_ProcPtr(FE_mod->name, proc);
     }
     else
@@ -6029,7 +6035,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         kind  = Ty_pkSub;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*isVirtual=*/FALSE);
 
     return TRUE;
 }
@@ -6090,7 +6096,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
     if (kind==Ty_pkFunction)
         label = strconcat(UP_frontend, label, "_");
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, /*isVirtual=*/FALSE);
 
     return TRUE;
 }
@@ -6239,7 +6245,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, isVirtual ? VTABLE_IDX_TODO : VTABLE_IDX_NONVIRTUAL);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls, isVirtual);
 
     return TRUE;
 }
@@ -6263,7 +6269,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         }
 
         if (e->kind == Ty_recMethod)
-            decl = e->u.method;
+            decl = e->u.method.proc;
         else
             decl = proc->returnTy->kind == Ty_void ? e->u.property.setter : e->u.property.getter;
     }
@@ -6283,7 +6289,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
                         EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
                         return NULL;
                     }
-                    decl = entry->u.method;
+                    decl = entry->u.method.proc;
                 }
                 else
                 {
@@ -6692,6 +6698,31 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void _clsAddIntfImplRecursive(Ty_ty tyCls, Ty_ty tyIntf)
+{
+    for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
+    {
+        if (implements->intf == tyIntf)
+            return; // we already know this interface
+    }
+    
+    S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", S_name(tyIntf->u.interface.name)));
+
+    Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTableEntry, Ty_VTablePtr());
+    Ty_fieldCalcOffset (tyCls, vTablePtr);
+    Ty_addMember (tyCls->u.cls.members, vTablePtr);
+
+    Ty_implements implements = Ty_Implements (tyIntf, vTablePtr);
+
+    implements->next = tyCls->u.cls.implements;
+    tyCls->u.cls.implements = implements;
+
+    // recursion over sub-interface -> squash all of them down into a linear list
+
+    for (Ty_implements implements = tyIntf->u.interface.implements; implements; implements=implements->next)
+        _clsAddIntfImplRecursive (tyCls, implements->intf);
+}
+
 // classDeclBegin ::= [ PUBLIC | PRIVATE ] CLASS Identifier [ EXTENDS Identifier ] [ IMPLEMENTS Identifier ( "," Identifier )* ] 
 static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6751,27 +6782,26 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     Ty_ty tyCls = Ty_Class(FE_mod->name, sType, tyBase);
     sle->u.typeDecl.ty = tyCls;
 
-    tyCls->u.cls.vtable = Ty_VTable();
     if (!tyBase)
     {
         S_symbol sVTablePtr = S_Symbol("_vtableptr");
         Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTablePtr, Ty_VTablePtr());
         Ty_fieldCalcOffset (tyCls, vTablePtr);
-        Ty_addMember (tyCls, vTablePtr);
+        Ty_addMember (tyCls->u.cls.members, vTablePtr);
         tyCls->u.cls.vTablePtr = vTablePtr;
     }
     else
     {
         // copy base class vtable entries
-        for (Ty_vtableEntry entry = tyBase->u.cls.vtable->first; entry; entry=entry->next)
-            Ty_vtAddEntry (tyCls->u.cls.vtable, entry->proc);
+        //for (Ty_vtableEntry entry = tyBase->u.cls.vtable->first; entry; entry=entry->next)
+        //    Ty_vtAddEntry (tyCls->u.cls.vtable, entry->proc);
         tyCls->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
 
-        for (Ty_implements implements = tyBase->u.cls.implements; implements; implements=implements->next)
-        {
-            // FIXME: copy base class implements
-            assert(FALSE);
-        }
+        //for (Ty_implements implements = tyBase->u.cls.implements; implements; implements=implements->next)
+        //{
+        //    // FIXME: copy base class implements
+        //    assert(FALSE);
+        //}
     }
 
     if (isSym(*tkn, S_IMPLEMENTS))
@@ -6791,24 +6821,7 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
             if (tyIntf->kind != Ty_interface)
                 EM_error ((*tkn)->pos, "%s is not an interface.", S_name(sIntf));
 
-            for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
-            {
-                if (implements->intf == tyIntf)
-                {
-                    EM_error ((*tkn)->pos, "Interface %s implemented more than once.", S_name(sIntf));
-                    break;
-                }
-            }
-
-            S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", S_name(sIntf)));
-
-            Ty_member vtablePtr = Ty_MemberField (Ty_visProtected, sVTableEntry, Ty_VTablePtr());
-            Ty_fieldCalcOffset (tyCls, vtablePtr);
-            Ty_addMember (tyCls, vtablePtr);
-            Ty_implements implements = Ty_Implements (tyIntf, vtablePtr);
-
-            implements->next = tyCls->u.cls.implements;
-            tyCls->u.cls.implements = implements;
+            _clsAddIntfImplRecursive (tyCls, tyIntf);
 
             *tkn = (*tkn)->next;
             if ((*tkn)->kind != S_COMMA)
@@ -6866,31 +6879,64 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (tyOther)
         EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
+    Ty_ty tyIntf = Ty_Interface(FE_mod->name, sType);
+    sle->u.typeDecl.ty = tyIntf;
+
     if (isSym(*tkn, S_IMPLEMENTS))
     {
-        // FIXME: implement
-        assert(FALSE);
-        //*tkn = (*tkn)->next;
-        //if ((*tkn)->kind != S_IDENT)
-        //    return EM_error((*tkn)->pos, "base type identifier expected here.");
+        *tkn = (*tkn)->next;
 
-        //S_symbol sBaseType = (*tkn)->u.sym;
+        do
+        {
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "base interface identifier expected here.");
 
-        //tyBase = E_resolveType(g_sleStack->env, sBaseType);
-        //if (!tyBase)
-        //    EM_error ((*tkn)->pos, "Base type %s not found.", S_name(sBaseType));
-        //if (tyBase->kind != Ty_class)
-        //    EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(sBaseType));
+            S_symbol sBaseType = (*tkn)->u.sym;
 
-        //*tkn = (*tkn)->next;
+            Ty_ty tyBase = E_resolveType(g_sleStack->env, sBaseType);
+            if (!tyBase)
+                return EM_error ((*tkn)->pos, "Base interface %s not found.", S_name(sBaseType));
+            if (tyBase->kind != Ty_interface)
+                return EM_error ((*tkn)->pos, "Base type %s is not an interface.", S_name(sBaseType));
+
+            Ty_implements implements = Ty_Implements (tyBase, /*vTablePtr=*/NULL);
+
+            implements->next = tyIntf->u.interface.implements;
+            tyIntf->u.interface.implements = implements;
+
+            // merge base interface members
+            for (Ty_member member = tyBase->u.interface.members->first; member; member=member->next)
+            {
+                assert (member->kind == Ty_recMethod);
+                Ty_member member2 = Ty_findEntry (tyIntf, member->u.method.proc->name, /*checkBase=*/FALSE);
+
+                if (member2)
+                {
+                    if (!matchProcSignatures(member->u.method.proc, member2->u.method.proc))
+                        return EM_error ((*tkn)->pos, "Method %s.%s vs %s.%s signature mismatch",
+                                         S_name (tyIntf->u.interface.name), S_name(member2->u.method.proc->name),
+                                         S_name (tyBase->u.interface.name), S_name(member->u.method.proc->name));
+                }
+                else
+                {
+                    member2 = Ty_MemberMethod (member->visibility, member->u.method.proc, tyIntf->u.interface.virtualMethodCnt++);
+                    Ty_addMember (tyIntf->u.interface.members, member2);
+                }
+            }
+
+            *tkn = (*tkn)->next;
+
+            if ((*tkn)->kind != S_COMMA)
+                break;
+            *tkn = (*tkn)->next;
+
+        } while (TRUE);
+
     }
 
-    Ty_vtable vtable = Ty_VTable();
-    sle->u.typeDecl.ty = Ty_Interface(FE_mod->name, sType, vtable);
-
-    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, tyIntf);
     if (sle->u.typeDecl.udtVis == Ty_visPublic)
-        E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+        E_declareType(FE_mod->env, sle->u.typeDecl.sType, tyIntf);
 
     sle->u.typeDecl.eFirst    = NULL;
     sle->u.typeDecl.eLast     = NULL;
@@ -7010,6 +7056,28 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls, int *idx)
+{
+    if (tyCls->u.cls.baseType)
+        _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType, idx);
+
+    for (Ty_member member=tyCls->u.cls.members->first; member; member=member->next)
+    {
+        if ( (member->kind != Ty_recMethod) || (!member->u.method.proc->isVirtual) )
+            continue;
+        if (member->u.method.vTableIdx == *idx)
+        {
+            CG_dataFragAddPtr (vTableFrag, member->u.method.proc->label);
+            *idx = *idx + 1;
+        }
+        else
+        {
+            // apparently an override
+            CG_dataFragSetPtr (vTableFrag, member->u.method.proc->label, member->u.method.vTableIdx);
+        }
+    }
+}
+
 static void _assembleVTables (Ty_ty tyCls)
 {
     // generate __init method which allocates memory and assigns the vtable pointers in this class
@@ -7029,29 +7097,23 @@ static void _assembleVTables (Ty_ty tyCls)
                                     /*offset=*/0,
                                     /*libBase=*/NULL,
                                     /*tyCls=*/tyCls,
-                                    /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+                                    /*isVirtual=*/FALSE);
 
     CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
     AS_instrList il = AS_InstrList();
 
     // assemble vtable for tyCls
 
-    Ty_vtable vtable = tyCls->u.cls.vtable;
-
     Temp_label vtlabel = Temp_namedlabel(strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(tyCls->u.cls.name), "__vtable")));
-    CG_frag vtableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+    CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
 
-    if (vtable->first)
-    {
-        for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
-        {
-            CG_dataFragAddPtr (vtableFrag, entry->proc->label);
-        }
-    }
-    else
+    int idx=0;
+    _assembleClassVTable (vTableFrag, tyCls, &idx);
+
+    if (!idx)
     {
         // ensure vtable always exists
-        CG_dataFragAddConst (vtableFrag, Ty_ConstInt(Ty_ULong(), 0));
+        CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_ULong(), 0));
     }
 
     // add code to __init function that assigns vtableptr
@@ -7076,36 +7138,46 @@ static void _assembleVTables (Ty_ty tyCls)
         CG_frag vtableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
         int32_t offset = implements->vTablePtr->u.field.uiOffset;
         CG_dataFragAddConst (vtableFrag, Ty_ConstInt(Ty_Long(), offset));
-        for (Ty_vtableEntry entry=implements->intf->u.interface.vtable->first; entry; entry=entry->next)
+
+        Ty_ty tyIntf = implements->intf;
+
+        int idx=0;
+        for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
         {
-            Ty_member member = Ty_findEntry (tyCls, entry->proc->name, /*checkbase=*/TRUE);
+            assert (intfMember->u.method.vTableIdx == idx++);
+
+            Ty_proc intfProc = intfMember->u.method.proc;
+            assert (intfProc->isVirtual);
+
+            Ty_member member = Ty_findEntry (tyCls, intfProc->name, /*checkbase=*/TRUE);
             if (!member || (member->kind != Ty_recMethod))
             {
                 EM_error (0, "Class %s is missing an implementation for %s.%s",
                           S_name(tyCls->u.cls.name),
-                          S_name(implements->intf->u.interface.name),
-                          S_name(entry->proc->name));
+                          S_name(tyIntf->u.interface.name),
+                          S_name(intfProc->name));
                 continue;
             }
-            Ty_proc proc = member->u.method;
-            if (proc->vTableIdx == VTABLE_IDX_NONVIRTUAL)
+            Ty_proc proc = member->u.method.proc;
+            if (!proc->isVirtual)
             {
                 EM_error (0, "Class %s: implementation for %s.%s needs to be declared as virtual",
                           S_name(tyCls->u.cls.name),
-                          S_name(implements->intf->u.interface.name),
-                          S_name(entry->proc->name));
+                          S_name(tyIntf->u.interface.name),
+                          S_name(intfProc->name));
                 continue;
             }
-            if (!matchProcSignatures (proc, entry->proc))
+            if (!matchProcSignatures (proc, intfProc))
             {
                 EM_error (0, "Class %s: implementation for %s.%s signature mismatch",
                           S_name(tyCls->u.cls.name),
-                          S_name(implements->intf->u.interface.name),
-                          S_name(entry->proc->name));
+                          S_name(tyIntf->u.interface.name),
+                          S_name(intfProc->name));
                 continue;
             }
 
             CG_dataFragAddPtr (vtableFrag, proc->label);
+
         }
 
         // add code to __init function that assigns vtableptr
@@ -7193,52 +7265,91 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
 
-                    if ( (sle->u.typeDecl.ty->kind != Ty_record) && (sle->u.typeDecl.ty->kind != Ty_class) )
-                        return EM_error (f->pos, "Only record and class types can have fields");
-
                     re = Ty_MemberField (sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
                     Ty_fieldCalcOffset (sle->u.typeDecl.ty, re);
-                    Ty_addMember (sle->u.typeDecl.ty, re);
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_record:
+                            Ty_addMember (sle->u.typeDecl.ty->u.record.entries, re);
+                            break;
+                        case Ty_class:
+                            Ty_addMember (sle->u.typeDecl.ty->u.cls.members, re);
+                            break;
+                        default:
+                            return EM_error (f->pos, "Only record and class types can have fields");
+                    }
                     break;
                 }
                 case FE_methodUDTEntry:
                 {
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_interface:
+                            break;
+                        case Ty_class:
+                            break;
+                        default:
+                            return EM_error (f->pos, "Only interface and class types can have methods");
+                    }
+
                     Ty_member member = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
                     if (member)
                         return EM_error (f->pos, "Duplicate UDT entry.");
 
-                    member = Ty_MemberMethod (sle->u.typeDecl.memberVis, f->u.methodr);
-                    Ty_addMember (sle->u.typeDecl.ty, member);
-
-                    if (f->u.methodr->vTableIdx == VTABLE_IDX_TODO)
+                    // check existing entries: is this an override?
+                    int16_t vTableIdx = -1;
+                    if (sle->u.typeDecl.ty->kind == Ty_class)
                     {
-                        Ty_vtable vtable = NULL;
+                        member = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/TRUE);
+                        if (member)
+                        {
+                            if (member->kind != Ty_recMethod)
+                                return EM_error (f->pos, "%s is already declared as something other than a method",
+                                                 S_name(f->u.methodr->name));
+
+                            if (f->u.methodr->isVirtual)
+                            {
+                                if (!member->u.method.proc->isVirtual)
+                                    return EM_error (f->pos, "%s: only virtual methods can be overriden",
+                                                     S_name(f->u.methodr->name));
+
+                                if (!matchProcSignatures (f->u.methodr, member->u.method.proc))
+                                    return EM_error (f->pos, "%s: virtual method override signature mismatch",
+                                                     S_name(f->u.methodr->name));
+
+                                vTableIdx = member->u.method.vTableIdx;
+                            }
+                        }
+                    }
+
+                    if (f->u.methodr->isVirtual && (vTableIdx<0))
+                    {
                         switch (sle->u.typeDecl.ty->kind)
                         {
                             case Ty_interface:
-                                vtable = sle->u.typeDecl.ty->u.interface.vtable;
+                                vTableIdx = sle->u.typeDecl.ty->u.interface.virtualMethodCnt++;
                                 break;
                             case Ty_class:
-                                vtable = sle->u.typeDecl.ty->u.cls.vtable;
+                                vTableIdx = sle->u.typeDecl.ty->u.cls.virtualMethodCnt++;
                                 break;
                             default:
-                                return EM_error (f->pos, "Only interface and class types can have methods");
+                                assert(FALSE);
                         }
-
-                        // check existing entries: is this an override?
-                        bool done=FALSE;
-                        for (Ty_vtableEntry entry=vtable->first; entry; entry=entry->next)
-                        {
-                            if (entry->proc->name == f->u.methodr->name)
-                            {
-                                entry->proc = f->u.methodr;
-                                done = TRUE;
-                                break;
-                            }
-                        }
-                        if (!done)
-                            Ty_vtAddEntry(vtable, f->u.methodr);
                     }
+
+                    member = Ty_MemberMethod (sle->u.typeDecl.memberVis, f->u.methodr, vTableIdx);
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_interface:
+                            Ty_addMember (sle->u.typeDecl.ty->u.interface.members, member);
+                            break;
+                        case Ty_class:
+                            Ty_addMember (sle->u.typeDecl.ty->u.cls.members, member);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+
                     break;
                 }
                 case FE_propertyUDTEntry:
@@ -7279,7 +7390,17 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                             ty = f->u.property->returnTy;
                         re = Ty_MemberProperty (sle->u.typeDecl.memberVis, f->u.property->name,
                                                 ty, isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
-                        Ty_addMember (sle->u.typeDecl.ty, re);
+                        switch (sle->u.typeDecl.ty->kind)
+                        {
+                            case Ty_interface:
+                                Ty_addMember (sle->u.typeDecl.ty->u.interface.members, re);
+                                break;
+                            case Ty_class:
+                                Ty_addMember (sle->u.typeDecl.ty->u.cls.members, re);
+                                break;
+                            default:
+                                return EM_error (f->pos, "only classes and interfaces can have properties");
+                        }
                     }
                     break;
                 }
@@ -7413,7 +7534,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         {
                             case Ty_pkSub:
                             case Ty_pkFunction:
-                                if (proc->vTableIdx != VTABLE_IDX_TODO)
+                                if (!proc->isVirtual)
                                     return EM_error((*tkn)->pos, "interface: only virtual subs and functions allowed");
                                 break;
                             default:
@@ -8131,7 +8252,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
         // call __aqb_clear
 
         S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
 
@@ -8448,7 +8569,7 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL, /*vTableIdx=*/VTABLE_IDX_NONVIRTUAL);
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL, /*isVirtual=*/FALSE);
 
     if (kind == Ty_pkSub)
     {
@@ -8683,7 +8804,7 @@ static void _checkLeftoverForwards(S_scope env)
                 switch (ty->kind)
                 {
                     case Ty_record:
-                        for (Ty_member member = ty->u.record.entries; member; member=member->next)
+                        for (Ty_member member = ty->u.record.entries->first; member; member=member->next)
                         {
                             if (member->kind != Ty_recField)
                                 continue;
@@ -8700,7 +8821,7 @@ static void _checkLeftoverForwards(S_scope env)
                         break;
 
                     case Ty_class:
-                        for (Ty_member member = ty->u.cls.members; member; member=member->next)
+                        for (Ty_member member = ty->u.cls.members->first; member; member=member->next)
                         {
                             switch (member->kind)
                             {
@@ -8716,7 +8837,7 @@ static void _checkLeftoverForwards(S_scope env)
                                     }
                                     break;
                                 case Ty_recMethod:
-                                    if (!member->u.method->hasBody && !member->u.method->isExtern)
+                                    if (!member->u.method.proc->hasBody && !member->u.method.proc->isExtern)
                                         EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
                                     break;
                                 case Ty_recProperty:

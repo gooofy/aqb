@@ -1,106 +1,53 @@
 '
-' OOP Test 13
+' OOP Test 11
 '
-' multiple interfaces
+' virtual function override
 '
 
 OPTION EXPLICIT
 
-INTERFACE i1
-
-    DECLARE VIRTUAL SUB store (BYVAL i AS INTEGER)
-    DECLARE VIRTUAL FUNCTION retrieve () AS INTEGER
-
-END INTERFACE
-
-INTERFACE i2
-
-    DECLARE VIRTUAL FUNCTION square () AS INTEGER
-
-END INTERFACE
-
-CLASS myc1 IMPLEMENTS i1, i2
+CLASS myb
 
     field1 AS INTEGER
 
-    DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
-
-    DECLARE VIRTUAL SUB store (BYVAL i AS INTEGER)
-    DECLARE VIRTUAL FUNCTION retrieve () AS INTEGER
-
-    DECLARE VIRTUAL FUNCTION square() AS INTEGER
+    DECLARE VIRTUAL FUNCTION f1(BYVAL i AS INTEGER) AS INTEGER
+    DECLARE VIRTUAL FUNCTION f2(BYVAL i AS INTEGER) AS INTEGER
 
 END CLASS
 
-CONSTRUCTOR myc1 (BYVAL initValue AS INTEGER)
-    field1 = initValue
-END CONSTRUCTOR
-
-SUB myc1.store (BYVAL i AS INTEGER)
+FUNCTION myb.f1 (BYVAL i AS INTEGER) AS INTEGER
     field1 = i
-END SUB
-
-FUNCTION myc1.retrieve() AS INTEGER
-    RETURN field1
+    RETURN i+23
 END FUNCTION
 
-FUNCTION myc1.square() AS INTEGER
-    RETURN field1*field1
+FUNCTION myb.f2 (BYVAL i AS INTEGER) AS INTEGER
+    RETURN i+i
+END FUNCTION
+
+
+CLASS myc1 EXTENDS myb
+
+    DECLARE VIRTUAL FUNCTION f1(BYVAL i AS INTEGER) AS INTEGER
+
+END CLASS
+
+FUNCTION myc1.f1 (BYVAL i AS INTEGER) AS INTEGER
+    RETURN i*i
 END FUNCTION
 
 '
 ' main
 '
 
+DIM o1 AS myb PTR = NEW myb()
+DIM o2 AS myb PTR = NEW myc1()
 
-' create object, test functionality via object ptr
+TRACE "testing o1..."
 
-DIM o AS myc1 PTR = NEW myc1(23)
+ASSERT o1->f1(19) = 42
+ASSERT o1->f2(21) = 42
 
-DIM i AS INTEGER
-
-i = o->retrieve()
-TRACE "i="; i
-ASSERT i = 23
-
-o->store(42)
-i = o->retrieve()
-TRACE "i="; i
-ASSERT i = 42
-
-ASSERT o->square() = 1764
-
-' now, convert o to interface ptr, test functionality by calling the intf procs
-
-DIM iptr AS i1 PTR = o
-
-i = iptr->retrieve()
-TRACE "i="; i
-ASSERT i = 42
-
-iptr->store(23)
-
-i = iptr->retrieve()
-TRACE "i="; i
-ASSERT i = 23
-
-' test i2
-
-DIM iptr2 AS i2 PTR = o
-
-i = iptr2->square()
-TRACE "square result: "; i
-ASSERT i=529
-
-ASSERT o->retrieve()  = 23
-'ASSERT o->retrieve2() = 42
-
-'o->store(42)
-'ASSERT o->retrieve() = 42
-'ASSERT o->retrieve2() = 42
-'
-'o->store2(23)
-'ASSERT o->retrieve() = 42
-'ASSERT o->retrieve2() = 23
-'ASSERT o->square() = 1764
+TRACE "testing o2..."
+ASSERT o2->f1(19) = 361
+ASSERT o2->f2(21) = 42
 

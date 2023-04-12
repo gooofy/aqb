@@ -161,6 +161,7 @@ CG_frag         CG_DataFrag         (Temp_label label, bool expt, int size, Ty_t
 void            CG_dataFragAddConst (CG_frag dataFrag, Ty_const c);
 void            CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label);
 void            CG_dataFragAddPtr   (CG_frag dataFrag, Temp_label label);
+void            CG_dataFragSetPtr   (CG_frag dataFrag, Temp_label label, int idx);
 
 CG_fragList     CG_FragList         (CG_frag head, CG_fragList tail);
 

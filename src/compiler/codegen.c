@@ -733,6 +733,21 @@ void CG_dataFragAddPtr (CG_frag dataFrag, Temp_label label)
     dataFrag->u.data.size++;
 }
 
+void CG_dataFragSetPtr (CG_frag dataFrag, Temp_label label, int idx)
+{
+    CG_dataFragNode init = dataFrag->u.data.init;
+    int i = 0;
+    while (i<idx)
+    {
+        assert (init);
+        assert (init->kind == CG_ptrNode);
+        init = init->next;
+    }
+    assert (init);
+    assert (init->kind == CG_ptrNode);
+    init->u.label = label;
+}
+
 CG_fragList CG_FragList (CG_frag head, CG_fragList tail)
 {
     CG_fragList l = U_poolAlloc (UP_codegen, sizeof(*l));
