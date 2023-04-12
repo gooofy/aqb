@@ -16,7 +16,8 @@ examples:
 	cd examples ; make all
 
 help:	README.md
-	$(MD2AGUIDE) README.md > README.guide
+	$(MD2AGUIDE) README.md > README.utf
+	iconv -t "windows-1252" -f "UTF-8" README.utf -o README.guide	
 	cp README.guide $(DISTDIR)
 	cd help ; make all
 
