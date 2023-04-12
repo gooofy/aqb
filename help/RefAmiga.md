@@ -98,8 +98,8 @@ Arguments:
     * x, y : center coordinates
     * r : radius
     * color : color register to use
-    * start, end: start and end angles of ellipse arc
-    * aspect ratio of ellipse (rx vs ry radius, default: 0.44)
+    * start, fini : start and end angles of ellipse arc
+    * ratio : aspect ratio of ellipse (rx vs ry radius, default: 0.44)
 
 
 ## COLOR
