@@ -130,7 +130,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
-            "args": ["-L", "..", "-I", "-d", "none", "-s", "Collections.sym", "Collections.bas"],
+            "args": ["-L", "..", "-d", "_brt", "-s", "Collections.sym", "Collections.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/src/lib/Collections",
             "environment": [],

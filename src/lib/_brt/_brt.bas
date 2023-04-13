@@ -127,6 +127,7 @@ PUBLIC CLASS Object
 
 END CLASS
 
+
 ' dynamic array support
 
 PUBLIC TYPE _DARRAY_BOUNDS_T

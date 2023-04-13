@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     59
+#define SYM_VERSION     60
 
 E_module g_builtinsModule = NULL;
 
@@ -624,22 +624,14 @@ static bool E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_t
 
 static void E_serializeTyProc(TAB_table modTable, Ty_proc proc);
 
-static void E_serializeImplements(TAB_table modTable, Ty_implements implements)
-{
-    uint16_t cnt=0;
-    for (Ty_implements impl = implements; impl; impl=impl->next)
-        cnt++;
-    fwrite_u2(modf, cnt);
-    for (Ty_implements impl = implements; impl; impl=impl->next)
-    {
-        E_serializeTyRef(modTable, impl->intf);
-        // FIXME
-        assert(FALSE);
-    }
-}
-
 static void E_serializeMember(TAB_table modTable, Ty_member member)
 {
+    if (!member)
+    {
+        fwrite_u1(modf, 0);
+        return;
+    }
+    fwrite_u1(modf, 1);
     fwrite_u1(modf, member->kind);
     switch (member->kind)
     {
@@ -662,6 +654,19 @@ static void E_serializeMember(TAB_table modTable, Ty_member member)
             E_serializeTyProc(modTable, member->u.property.getter);
             E_serializeTyProc(modTable, member->u.property.setter);
             break;
+    }
+}
+
+static void E_serializeImplements(TAB_table modTable, Ty_implements implements)
+{
+    uint16_t cnt=0;
+    for (Ty_implements impl = implements; impl; impl=impl->next)
+        cnt++;
+    fwrite_u2(modf, cnt);
+    for (Ty_implements impl = implements; impl; impl=impl->next)
+    {
+        E_serializeTyRef(modTable, impl->intf);
+        E_serializeMember(modTable, impl->vTablePtr);
     }
 }
 
@@ -1260,20 +1265,11 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, isExtern, offset, libBase, tyClsPtr, isVirtual);
 }
 
-static Ty_implements E_deserializeImplements(TAB_table modTable, FILE *modf)
-{
-    uint16_t cnt=fread_u2(modf);
-    for (int i=0; i<cnt; i++)
-    {
-        // FIXME: implement
-        assert(FALSE);
-    }
-
-    return NULL;
-}
-
 static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
 {
+    uint8_t present = fread_u1(modf);
+    if (!present)
+        return NULL;
     uint8_t fkind = fread_u1(modf);
     switch (fkind)
     {
@@ -1309,6 +1305,22 @@ static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
             assert(FALSE);
     }
     return NULL;
+}
+
+static Ty_implements E_deserializeImplements(TAB_table modTable, FILE *modf)
+{
+    Ty_implements res = NULL;
+    uint16_t cnt=fread_u2(modf);
+    for (int i=0; i<cnt; i++)
+    {
+        Ty_ty intf = E_deserializeTyRef(modTable, modf);
+        Ty_member vTablePtr = E_deserializeMember(modTable, modf);
+        Ty_implements implements = Ty_Implements (intf, vTablePtr);
+        implements->next = res;
+        res = implements;
+    }
+
+    return res;
 }
 
 static void E_deserializeMembers(TAB_table modTable, FILE *modf, Ty_memberList list)
