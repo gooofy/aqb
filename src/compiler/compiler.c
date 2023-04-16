@@ -341,7 +341,10 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                             }
                             case CG_ptrNode:
                             {
-                                AS_assembleDataPtr (obj, n->u.label);
+                                if (n->u.label)
+                                    AS_assembleDataPtr (obj, n->u.label);
+                                else
+                                    AS_assembleData32 (obj->dataSeg, 0);
                                 break;
                             }
                         }

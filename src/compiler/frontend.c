@@ -6866,21 +6866,48 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
             // merge base interface members
             for (Ty_member member = tyBase->u.interface.members->first; member; member=member->next)
             {
-                assert (member->kind == Ty_recMethod);
-                Ty_member member2 = Ty_findEntry (tyIntf, member->u.method->proc->name, /*checkBase=*/FALSE);
-
-                if (member2)
+                Ty_member member2 = Ty_findEntry (tyIntf, member->name, /*checkBase=*/FALSE);
+                switch (member->kind)
                 {
-                    if (!matchProcSignatures(member->u.method->proc, member2->u.method->proc))
-                        return EM_error ((*tkn)->pos, "Method %s.%s vs %s.%s signature mismatch",
-                                         S_name (tyIntf->u.interface.name), S_name(member2->u.method->proc->name),
-                                         S_name (tyBase->u.interface.name), S_name(member->u.method->proc->name));
-                }
-                else
-                {
-                    Ty_method method = Ty_Method (member->u.method->proc, tyIntf->u.interface.virtualMethodCnt++);
-                    member2 = Ty_MemberMethod (member->visibility, method);
-                    Ty_addMember (tyIntf->u.interface.members, member2);
+                    case Ty_recMethod:
+                    {
+                        if (member2)
+                        {
+                            if (!matchProcSignatures(member->u.method->proc, member2->u.method->proc))
+                                return EM_error ((*tkn)->pos, "Method %s.%s vs %s.%s signature mismatch",
+                                                 S_name (tyIntf->u.interface.name), S_name(member2->u.method->proc->name),
+                                                 S_name (tyBase->u.interface.name), S_name(member->u.method->proc->name));
+                        }
+                        else
+                        {
+                            Ty_method method = Ty_Method (member->u.method->proc, tyIntf->u.interface.virtualMethodCnt++);
+                            member2 = Ty_MemberMethod (member->visibility, method);
+                            Ty_addMember (tyIntf->u.interface.members, member2);
+                        }
+                        break;
+                    }
+                    case Ty_recProperty:
+                    {
+                        if (member2)
+                        {
+                            // FIXME: implement
+                            assert (FALSE);
+                            //if (!matchProcSignatures(member->u.property->proc, member2->u.property->proc))
+                            //    return EM_error ((*tkn)->pos, "Method %s.%s vs %s.%s signature mismatch",
+                            //                     S_name (tyIntf->u.interface.name), S_name(member2->u.property->proc->name),
+                            //                     S_name (tyBase->u.interface.name), S_name(member->u.property->proc->name));
+                        }
+                        else
+                        {
+                            Ty_method getter = member->u.property.getter ? Ty_Method (member->u.property.getter->proc, tyIntf->u.interface.virtualMethodCnt++) : NULL;
+                            Ty_method setter = member->u.property.setter ? Ty_Method (member->u.property.setter->proc, tyIntf->u.interface.virtualMethodCnt++) : NULL;
+                            member2 = Ty_MemberProperty (member->visibility, member->name, member->u.property.ty, setter, getter);
+                            Ty_addMember (tyIntf->u.interface.members, member2);
+                        }
+                        break;
+                    }
+                    default:
+                        assert (FALSE);
                 }
             }
 
@@ -7096,52 +7123,147 @@ static void _assembleVTables (Ty_ty tyCls)
         vtlabel = Temp_namedlabel(strprintf (UP_frontend, "__intf_vtable_%s_%s",
                                                           S_name(tyCls->u.cls.name),
                                                           S_name(implements->intf->u.interface.name)));
-        CG_frag vtableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+        CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
         int32_t offset = implements->vTablePtr->u.field.uiOffset;
-        CG_dataFragAddConst (vtableFrag, Ty_ConstInt(Ty_Long(), offset));
+        CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_Long(), offset));
 
         Ty_ty tyIntf = implements->intf;
 
-        int idx=0;
         for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
         {
-            assert (intfMember->u.method->vTableIdx == idx++);
-
-            Ty_proc intfProc = intfMember->u.method->proc;
-            assert (intfMember->u.method->vTableIdx >= 0);
-
-            Ty_member member = Ty_findEntry (tyCls, intfProc->name, /*checkbase=*/TRUE);
-            if (!member || (member->kind != Ty_recMethod))
+            switch (intfMember->kind)
             {
-                EM_error (0, "Class %s is missing an implementation for %s.%s",
-                          S_name(tyCls->u.cls.name),
-                          S_name(tyIntf->u.interface.name),
-                          S_name(intfProc->name));
-                continue;
-            }
-            if (member->u.method->vTableIdx < 0)
-            {
-                EM_error (0, "Class %s: implementation for %s.%s needs to be declared as virtual",
-                          S_name(tyCls->u.cls.name),
-                          S_name(tyIntf->u.interface.name),
-                          S_name(intfProc->name));
-                continue;
-            }
-            Ty_proc proc = member->u.method->proc;
-            if (!matchProcSignatures (proc, intfProc))
-            {
-                EM_error (0, "Class %s: implementation for %s.%s signature mismatch",
-                          S_name(tyCls->u.cls.name),
-                          S_name(tyIntf->u.interface.name),
-                          S_name(intfProc->name));
-                continue;
-            }
+                case Ty_recMethod:
+                {
+                    Ty_proc intfProc = intfMember->u.method->proc;
+                    assert (intfMember->u.method->vTableIdx >= 0);
 
-            CG_dataFragAddPtr (vtableFrag, proc->label);
+                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
+                    if (!member || (member->kind != Ty_recMethod))
+                    {
+                        EM_error (0, "Class %s is missing an implementation for %s.%s",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+
+                    if (member->u.method->vTableIdx < 0)
+                    {
+                        EM_error (0, "Class %s: implementation for %s.%s needs to be declared as virtual",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+                    Ty_proc proc = member->u.method->proc;
+                    if (!matchProcSignatures (proc, intfProc))
+                    {
+                        EM_error (0, "Class %s: implementation for %s.%s signature mismatch",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+
+                    CG_dataFragSetPtr (vTableFrag, proc->label, intfMember->u.method->vTableIdx+1);
+                    break;
+                }
+                case Ty_recProperty:
+                {
+                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
+                    if (!member || (member->kind != Ty_recProperty))
+                    {
+                        EM_error (0, "Class %s is missing an implementation for property %s.%s",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfMember->name));
+                        continue;
+                    }
+
+                    Ty_method intfSetter = intfMember->u.property.setter;
+                    if (intfSetter)
+                    {
+                        Ty_proc intfProc = intfSetter->proc;
+                        assert (intfSetter->vTableIdx >= 0);
+
+                        if (!member->u.property.setter)
+                        {
+                            EM_error (0, "Class %s is missing a setter implementation for property %s.%s",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        if (member->u.property.setter->vTableIdx < 0)
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s setter needs to be declared as virtual",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        Ty_proc proc = member->u.property.setter->proc;
+                        if (!matchProcSignatures (proc, intfProc))
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s setter signature mismatch",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        CG_dataFragSetPtr (vTableFrag, proc->label, intfSetter->vTableIdx+1);
+                    }
+
+                    Ty_method intfGetter = intfMember->u.property.getter;
+                    if (intfGetter)
+                    {
+                        Ty_proc intfProc = intfGetter->proc;
+                        assert (intfGetter->vTableIdx >= 0);
+
+                        if (!member->u.property.getter)
+                        {
+                            EM_error (0, "Class %s is missing a getter implementation for property %s.%s",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        if (member->u.property.getter->vTableIdx < 0)
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s getter needs to be declared as virtual",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        Ty_proc proc = member->u.property.getter->proc;
+                        if (!matchProcSignatures (proc, intfProc))
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s getter signature mismatch",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        CG_dataFragSetPtr (vTableFrag, proc->label, intfGetter->vTableIdx+1);
+                    }
+
+                    break;
+                }
+                default:
+                    assert (FALSE);
+            }
 
         }
 
-        // add code to __init function that assigns vtableptr
+        // add code to __init function that assigns vTableptr
 
         CG_item objVTablePtr = frame->formals->first->item; // <this>
         CG_transField(il, 0, frame, &objVTablePtr, implements->vTablePtr);
