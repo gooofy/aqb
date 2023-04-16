@@ -229,21 +229,30 @@ void Ty_fieldCalcOffset (Ty_ty ty, Ty_member field)
     }
 }
 
-Ty_member Ty_MemberMethod (Ty_visibility visibility, Ty_proc method, int16_t vTableIdx)
+Ty_method Ty_Method (Ty_proc method, int16_t vTableIdx)
+{
+    Ty_method p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->proc      = method;
+    p->vTableIdx = vTableIdx;
+
+    return p;
+}
+
+Ty_member Ty_MemberMethod (Ty_visibility visibility, Ty_method method)
 {
     Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->next               = NULL;
     p->kind               = Ty_recMethod;
-    p->name               = method->name;
+    p->name               = method->proc->name;
     p->visibility         = visibility;
-    p->u.method.proc      = method;
-    p->u.method.vTableIdx = vTableIdx;
+    p->u.method           = method;
 
     return p;
 }
 
-Ty_member Ty_MemberProperty (Ty_visibility visibility, S_symbol name, Ty_ty tyProp, Ty_proc setter, Ty_proc getter)
+Ty_member Ty_MemberProperty (Ty_visibility visibility, S_symbol name, Ty_ty tyProp, Ty_method setter, Ty_method getter)
 {
     Ty_member p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -710,7 +719,7 @@ Ty_formal Ty_Formal(S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode 
     return p;
 }
 
-Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner, bool isVirtual)
+Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner)
 {
     Ty_proc p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -730,7 +739,6 @@ Ty_proc Ty_Proc(Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_sym
     p->offset     = offset;
     p->libBase    = libBase;
     p->tyOwner    = tyOwner;
-    p->isVirtual  = isVirtual;
     p->hasBody    = FALSE;
 
     return p;

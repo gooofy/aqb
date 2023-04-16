@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     60
+#define SYM_VERSION     61
 
 E_module g_builtinsModule = NULL;
 
@@ -490,15 +490,17 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
-                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method.proc);
+                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method->proc);
                         break;
                     case Ty_recField:
                         ok &= E_tyFindTypes (smod, type_tab, entry->u.field.ty);
                         break;
                     case Ty_recProperty:
                         ok &= E_tyFindTypes (smod, type_tab, entry->u.property.ty);
-                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.getter);
-                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.setter);
+                        if (entry->u.property.getter)
+                            ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.getter->proc);
+                        if (entry->u.property.setter)
+                            ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.setter->proc);
                         break;
                 }
             }
@@ -515,7 +517,7 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                 switch (entry->kind)
                 {
                     case Ty_recMethod:
-                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method.proc);
+                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method->proc);
                         break;
                     default:
                         assert(FALSE);
@@ -637,8 +639,8 @@ static void E_serializeMember(TAB_table modTable, Ty_member member)
     {
         case Ty_recMethod:
             fwrite_u1(modf, member->visibility);
-            E_serializeTyProc(modTable, member->u.method.proc);
-            fwrite_i2(modf, member->u.method.vTableIdx);
+            E_serializeTyProc(modTable, member->u.method->proc);
+            fwrite_i2(modf, member->u.method->vTableIdx);
             break;
         case Ty_recField:
             fwrite_u1(modf, member->visibility);
@@ -651,8 +653,10 @@ static void E_serializeMember(TAB_table modTable, Ty_member member)
             fwrite_u1(modf, member->visibility);
             strserialize(modf, S_name(member->name));
             E_serializeTyRef(modTable, member->u.property.ty);
-            E_serializeTyProc(modTable, member->u.property.getter);
-            E_serializeTyProc(modTable, member->u.property.setter);
+            E_serializeTyProc(modTable, member->u.property.getter ? member->u.property.getter->proc : NULL);
+            fwrite_i2(modf, member->u.property.getter ? member->u.property.getter->vTableIdx : -1);
+            E_serializeTyProc(modTable, member->u.property.setter ? member->u.property.setter->proc : NULL);
+            fwrite_i2(modf, member->u.property.setter ? member->u.property.setter->vTableIdx : -1);
             break;
     }
 }
@@ -840,7 +844,6 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     {
         fwrite_u1(modf, FALSE);
     }
-    fwrite_u1(modf, proc->isVirtual);
 }
 
 static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
@@ -1260,9 +1263,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     if (tyClsPtrPresent)
         tyClsPtr = E_deserializeTyRef(modTable, modf);
 
-    bool isVirtual = fread_u1(modf);
-
-    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, isExtern, offset, libBase, tyClsPtr, isVirtual);
+    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, isExtern, offset, libBase, tyClsPtr);
 }
 
 static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
@@ -1278,7 +1279,8 @@ static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
             uint8_t visibility = fread_u1(modf);
             Ty_proc proc = E_deserializeTyProc(modTable, modf);
             int16_t vTableIdx = fread_i2(modf);
-            return Ty_MemberMethod (visibility, proc, vTableIdx);
+            Ty_method method = Ty_Method (proc, vTableIdx);
+            return Ty_MemberMethod (visibility, method);
         }
         case Ty_recField:
         {
@@ -1298,8 +1300,10 @@ static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
             string  name       = strdeserialize(UP_env, modf);
             Ty_ty   t          = E_deserializeTyRef(modTable, modf);
             Ty_proc getter     = E_deserializeTyProc(modTable, modf);
+            int16_t getterVIX  = fread_i2(modf);
             Ty_proc setter     = E_deserializeTyProc(modTable, modf);
-            return Ty_MemberProperty (visibility, S_Symbol(name), t, setter, getter);
+            int16_t setterVIX  = fread_i2(modf);
+            return Ty_MemberProperty (visibility, S_Symbol(name), t, Ty_Method(setter, setterVIX), Ty_Method(getter, getterVIX));
         }
         default:
             assert(FALSE);

@@ -146,9 +146,9 @@ int32_t         CG_getConstInt      (CG_item *item);
 double          CG_getConstFloat    (CG_item *item);
 bool            CG_getConstBool     (CG_item *item);
 
-void            CG_loadVal          (AS_instrList code, S_pos pos, CG_item *item);
+void            CG_loadVal          (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
 void            CG_loadRef          (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
-void            CG_loadCond         (AS_instrList code, S_pos pos, CG_item *item);
+void            CG_loadCond         (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
 
 CG_itemList     CG_ItemList         (void);
 CG_itemListNode CG_itemListAppend   (CG_itemList il);
@@ -166,7 +166,7 @@ void            CG_dataFragSetPtr   (CG_frag dataFrag, Temp_label label, int idx
 CG_fragList     CG_FragList         (CG_frag head, CG_fragList tail);
 
 void            CG_transBinOp       (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG_item *left, CG_item *right, Ty_ty ty);
-void            CG_transRelOp       (AS_instrList code, S_pos pos, CG_relOp o, CG_item *left, CG_item *right);
+void            CG_transRelOp       (AS_instrList code, S_pos pos, CG_frame frame, CG_relOp o, CG_item *left, CG_item *right);
 void            CG_transIndex       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *array, CG_item *idx);
 void            CG_transField       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry);
 void            CG_transProperty    (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry);
@@ -179,10 +179,11 @@ void            CG_transPostCond    (AS_instrList code, S_pos pos, CG_item *left
 void            CG_transAssignment  (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right);
 void            CG_transCall        (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, CG_itemList args, CG_item *result);
 void            CG_transCallPtr     (AS_instrList code, S_pos pos, CG_frame frame, Ty_proc proc, CG_item *procPtr, CG_itemList args, CG_item *result);
+bool            CG_transMethodCall  (AS_instrList code, S_pos pos, CG_frame frame, Ty_method method, CG_itemList args, CG_item *result);
 void            CG_transNOP         (AS_instrList code, S_pos pos) ;
-void            CG_transDeRef       (AS_instrList code, S_pos pos, CG_item *item);
+void            CG_transDeRef       (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item);
 
-void            CG_castItem         (AS_instrList code, S_pos pos, CG_item *item, Ty_ty to_ty);
+void            CG_castItem         (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, Ty_ty to_ty);
 
 void            CG_procEntryExit    (S_pos pos, CG_frame frame, AS_instrList body, CG_item *returnVar, Temp_label exitlbl, bool is_main, bool expt);
 void            CG_procEntryExitAS  (CG_frag frag);

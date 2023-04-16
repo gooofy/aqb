@@ -36,7 +36,7 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-int CO_compile(string sourcefn, string module_name, string symfn, string objfn, string binfn,
+int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn, string objfn, string binfn,
                string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode)
 {
     static CG_fragList     frags;
@@ -137,6 +137,28 @@ int CO_compile(string sourcefn, string module_name, string symfn, string objfn, 
         if (EM_anyErrors)
             CO_exit(EXIT_FAILURE);
     }
+
+    /*
+     * generate C stub file
+     */
+
+    if (cstubfn)
+    {
+        if (FE_writeCStubFile(cstubfn))
+        {
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n%s written.\n", cstubfn);
+        }
+        else
+        {
+            LOG_printf (LOG_ERROR, "\n** ERROR: failed to write C stub file %s .\n", cstubfn);
+            CO_exit(EXIT_FAILURE);
+        }
+
+        // unresolved forwarded types will result in error messages here
+        if (EM_anyErrors)
+            CO_exit(EXIT_FAILURE);
+    }
+
 
     if (!asm_gas_fn && !asm_asmpro_fn && !binfn)
         CO_exit(0);

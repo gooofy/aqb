@@ -15,7 +15,9 @@ Improvements:
     * compiler: NEW operator added
     * compiler: EXTENDS, BASE, IMPLEMENTS keywords added (OOP inheritance)
     * compiler: support for virtual functions added (OOP)
+    * compiler: support for interfaces added (OOP)
     * compiler: PROPERTY support added (OOP)
+    * compiler: support for virtual properties added (OOP)
     * compiler: [breaking] CLASS/END CLASS, INTERFACE/END INTERFACE added
     * compiler: generate proper error message when a constant is assigned to (#24)
 

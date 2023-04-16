@@ -81,6 +81,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
 	fprintf(stderr, "    -B <foo.s>   create vasm source file\n");
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
+	fprintf(stderr, "    -S <foo.c>   create C stub file\n");
 	fprintf(stderr, "    -I           interface module (no code)\n");
 	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
 	fprintf(stderr, "    -p <foo>     create hunk object file\n");
@@ -189,23 +190,18 @@ static void deinit(void)
 
 int main (int argc, char *argv[])
 {
-	static string sourcefn = NULL;
-    static string module_name;
-    static char   asm_gas_fn[PATH_MAX];
-    static char   asm_asmpro_fn[PATH_MAX];
-    static char   asm_vasm_fn[PATH_MAX];
-    static int    optind;
-    static bool   write_sym = FALSE;
-    static bool   write_asmpro = FALSE;
-    static bool   write_vasm = FALSE;
-    static bool   write_asmgas = FALSE;
-    static bool   write_obj = FALSE;
-    static bool   write_bin = FALSE;
-    static bool   launch_ide = TRUE;
-    static bool   hasCode = TRUE;
-    static char   symfn[PATH_MAX];
-    static char   objfn[PATH_MAX];
-    static char   binfn[PATH_MAX];
+	string sourcefn = NULL;
+    string module_name = NULL;
+    int    optind;
+    bool   launch_ide = TRUE;
+    bool   hasCode = TRUE;
+    string symfn=NULL;
+    string cstubfn=NULL;
+    string objfn=NULL;
+    string binfn=NULL;
+    string asm_gas_fn=NULL;
+    string asm_asmpro_fn=NULL;
+    string asm_vasm_fn=NULL;
 
 #ifdef __amigaos__
     check_amigaos_env();
@@ -237,9 +233,6 @@ int main (int argc, char *argv[])
     OPT_init();
 
     OPT_addModulePath(aqb_lib);
-
-    asm_gas_fn[0]=0;
-    asm_asmpro_fn[0]=0;
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
 	{
@@ -276,8 +269,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (asm_gas_fn, argv[optind], PATH_MAX);
-                write_asmgas = TRUE;
+                asm_gas_fn = argv[optind];
                 launch_ide = FALSE;
 				break;
         	case 'A':
@@ -287,8 +279,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (asm_asmpro_fn, argv[optind], PATH_MAX);
-                write_asmpro = TRUE;
+                asm_asmpro_fn = argv[optind];
                 launch_ide = FALSE;
 				break;
         	case 'B':
@@ -298,8 +289,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (asm_vasm_fn, argv[optind], PATH_MAX);
-                write_vasm = TRUE;
+                asm_vasm_fn = argv[optind];
                 launch_ide = FALSE;
 				break;
         	case 's':
@@ -309,8 +299,17 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (symfn, argv[optind], PATH_MAX);
-                write_sym = TRUE;
+                symfn = argv[optind];
+                launch_ide = FALSE;
+				break;
+        	case 'S':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                cstubfn = argv[optind];
                 launch_ide = FALSE;
 				break;
         	case 'o':
@@ -320,8 +319,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (binfn, argv[optind], PATH_MAX);
-                write_bin = TRUE;
+                binfn = argv[optind];
                 launch_ide = FALSE;
 				break;
         	case 'p':
@@ -331,8 +329,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                strncpy (objfn, argv[optind], PATH_MAX);
-                write_obj = TRUE;
+                objfn = argv[optind];
                 launch_ide = FALSE;
 				break;
         	case 'v':
@@ -451,12 +448,13 @@ int main (int argc, char *argv[])
 
     return CO_compile(sourcefn,
                       module_name,
-                      write_sym ? symfn : NULL,
-                      write_obj ? objfn : NULL,
-                      write_bin ? binfn : NULL,
-                      write_asmgas ? asm_gas_fn : NULL,
-                      write_asmpro ? asm_asmpro_fn : NULL,
-                      write_vasm ? asm_vasm_fn : NULL,
+                      symfn,
+                      cstubfn,
+                      objfn,
+                      binfn,
+                      asm_gas_fn,
+                      asm_asmpro_fn,
+                      asm_vasm_fn,
                       hasCode);
 }
 

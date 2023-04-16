@@ -10,6 +10,7 @@ typedef struct Ty_proc_         *Ty_proc;
 typedef struct Ty_member_       *Ty_member;
 typedef struct Ty_memberList_   *Ty_memberList;
 typedef struct Ty_implements_   *Ty_implements;
+typedef struct Ty_method_       *Ty_method;
 
 #include "temp.h"
 
@@ -101,7 +102,6 @@ struct Ty_proc_
     int32_t          offset;
     string           libBase;
     Ty_ty            tyOwner;   // methods only: pointer to class or interface this method belongs to
-    bool             isVirtual;
     bool             hasBody;
 };
 
@@ -113,18 +113,15 @@ struct Ty_member_
     Ty_visibility                                      visibility;
     union
     {
-        struct {
-            Ty_proc       proc;
-            int16_t       vTableIdx;
-        }                                              method;
+        Ty_method                                      method;
         struct {
             uint32_t      uiOffset;
             Ty_ty         ty;
         }                                              field;
         struct {
             Ty_ty         ty;
-            Ty_proc       getter;
-            Ty_proc       setter;
+            Ty_method     getter;
+            Ty_method     setter;
         }                                              property;
     } u;
 };
@@ -139,6 +136,12 @@ struct Ty_implements_
     Ty_implements   next;
     Ty_ty           intf;
     Ty_member       vTablePtr;
+};
+
+struct Ty_method_
+{
+    Ty_proc   proc;
+    int16_t   vTableIdx;
 };
 
 Ty_ty           Ty_Bool(void);
@@ -172,14 +175,15 @@ bool            Ty_checkImplements   (Ty_ty ty, Ty_ty tyInf);
 bool            Ty_checkInherits     (Ty_ty tyChild, Ty_ty tyParent);
 Ty_member       Ty_MemberField       (Ty_visibility visibility, S_symbol name, Ty_ty fieldType);
 void            Ty_fieldCalcOffset   (Ty_ty ty, Ty_member field);
-Ty_member       Ty_MemberMethod      (Ty_visibility visibility, Ty_proc method, int16_t vTableIdx);
-Ty_member       Ty_MemberProperty    (Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
+Ty_method       Ty_Method            (Ty_proc method, int16_t vTableIdx);
+Ty_member       Ty_MemberMethod      (Ty_visibility visibility, Ty_method method);
+Ty_member       Ty_MemberProperty    (Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_method setter, Ty_method getter);
 Ty_memberList   Ty_MemberList        (void);
 void            Ty_addMember         (Ty_memberList memberList, Ty_member member);
 Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner, bool isVirtual);
+Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner);
 
 Ty_const        Ty_ConstBool         (Ty_ty ty, bool     b);
 Ty_const        Ty_ConstInt          (Ty_ty ty, int32_t  i);
