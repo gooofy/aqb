@@ -17,19 +17,40 @@ static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
         case Ty_single    : fprintf (cstubf, "FLOAT  "); break;
         case Ty_double    : fprintf (cstubf, "DOUBLE "); break;
         case Ty_string    : fprintf (cstubf, "STRPTR "); break;
-        case Ty_sarray    : fprintf (cstubf, "*"); _writeStubTyRef (cstubf, ty->u.sarray.elementTy); break;
+        case Ty_sarray    : _writeStubTyRef (cstubf, ty->u.sarray.elementTy); fprintf (cstubf, "*"); break;
         case Ty_darray    : fprintf (cstubf, "DARRAY "); break;
-        //case Ty_record    : fprintf (cstubf, ""); break;
-        case Ty_pointer   : fprintf (cstubf, "*"); _writeStubTyRef (cstubf, ty->u.pointer); break;
+        case Ty_record    : fprintf (cstubf, "%s ", S_name(ty->u.record.name)); break;
+        case Ty_pointer   : _writeStubTyRef (cstubf, ty->u.pointer); fprintf (cstubf, "*"); break;
         case Ty_void      : fprintf (cstubf, "VOID   "); break;
         //case Ty_forwardPtr: fprintf (cstubf, ""); break;
         //case Ty_procPtr   : fprintf (cstubf, ""); break;
         case Ty_class     : fprintf (cstubf, "%s ", S_name(ty->u.cls.name)); break;
-        //case Ty_interface : fprintf (cstubf, ""); break;
+        case Ty_interface     : fprintf (cstubf, "%s ", S_name(ty->u.interface.name)); break;
         //case Ty_toLoad    : fprintf (cstubf, ""); break;
         //case Ty_prc       : fprintf (cstubf, ""); break;
         default:
             fprintf (cstubf, "?kind=%d ", ty->kind);
+    }
+}
+
+static void _writeStubTypedefsFlat (FILE *cstubf, S_scope scope)
+{
+    TAB_iter i = S_Iter(scope);
+    S_symbol sym;
+    E_enventry x;
+    while (TAB_next(i, (void **) &sym, (void **)&x))
+    {
+        if (x->kind != E_typeEntry)
+            continue;
+        Ty_ty ty = x->u.ty;
+        switch (ty->kind)
+        {
+            case Ty_record    : fprintf (cstubf, "typedef struct %s_ %s;\n", S_name(ty->u.record.name), S_name(ty->u.record.name)); break;
+            case Ty_class     : fprintf (cstubf, "typedef struct %s_ %s;\n", S_name(ty->u.cls.name), S_name(ty->u.cls.name)); break;
+            case Ty_interface : fprintf (cstubf, "typedef void %s;\n", S_name(ty->u.interface.name)); break;
+            default:
+                continue;
+        }
     }
 }
 
@@ -53,12 +74,12 @@ static void _writeStubDeclClass (FILE *cstubf, Ty_ty ty)
 {
     assert (ty->kind == Ty_class);
 
-    fprintf (cstubf, "typedef struct\n");
+    fprintf (cstubf, "struct %s_\n", S_name(ty->u.cls.name));
     fprintf (cstubf, "{\n");
 
     _writeStubDeclClassRec (cstubf, ty);
 
-    fprintf (cstubf, "} %s;\n", S_name(ty->u.cls.name));
+    fprintf (cstubf, "};\n");
     fprintf (cstubf, "\n");
 }
 
@@ -66,11 +87,15 @@ static void _writeStubDeclType (FILE *cstubf, S_symbol name, Ty_ty ty)
 {
     switch (ty->kind)
     {
+        case Ty_record:
+            assert(FALSE); // FIXME: implement
+            break;
         case Ty_class:
             _writeStubDeclClass (cstubf, ty);
             break;
         default:
-            fprintf (cstubf, "// FIXME: type %s kind %d\n\n", S_name (name), ty->kind);
+            // fprintf (cstubf, "// FIXME: type %s kind %d\n\n", S_name (name), ty->kind);
+            return;
     }
 }
 
@@ -190,16 +215,62 @@ static void _collectITableEntriesClass (FILE *cstubf, Ty_ty tyCls, int *idx)
 
     for (Ty_member member=tyCls->u.cls.members->first; member; member=member->next)
     {
-        if ( (member->kind != Ty_recMethod) || (member->u.method->vTableIdx<0) )
-            continue;
+        switch (member->kind)
+        {
+            case Ty_recMethod:
+            {
+                int vTableIdx = member->u.method->vTableIdx;
+                if ( vTableIdx < 0 )
+                    continue;
 
-        if (member->u.method->vTableIdx < VTABLE_MAX_ENTRIES)
-            vtable_entries[member->u.method->vTableIdx] = S_name(member->u.method->proc->label);
-        else
-            fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
+                if (vTableIdx < VTABLE_MAX_ENTRIES)
+                    vtable_entries[vTableIdx] = S_name(member->u.method->proc->label);
+                else
+                    fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
 
-        if (member->u.method->vTableIdx == *idx)
-            *idx = *idx + 1;
+                if (vTableIdx > *idx)
+                    *idx = vTableIdx;
+
+                break;
+            }
+            case Ty_recProperty:
+            {
+                Ty_method setter = member->u.property.setter;
+                if (setter)
+                {
+                    int vTableIdx = member->u.property.setter->vTableIdx;
+                    if ( vTableIdx < 0 )
+                        continue;
+
+                    if (vTableIdx < VTABLE_MAX_ENTRIES)
+                        vtable_entries[vTableIdx] = S_name(member->u.property.setter->proc->label);
+                    else
+                        fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
+
+                    if (vTableIdx > *idx)
+                        *idx = vTableIdx;
+                }
+
+                Ty_method getter = member->u.property.getter;
+                if (getter)
+                {
+                    int vTableIdx = member->u.property.getter->vTableIdx;
+                    if ( vTableIdx < 0 )
+                        continue;
+
+                    if (vTableIdx < VTABLE_MAX_ENTRIES)
+                        vtable_entries[vTableIdx] = S_name(member->u.property.getter->proc->label);
+                    else
+                        fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
+
+                    if (vTableIdx > *idx)
+                        *idx = vTableIdx;
+                }
+                break;
+            }
+            default:
+                continue;
+        }
     }
 }
 
@@ -219,11 +290,11 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
 
         // compute vtable for the class itself, taking base classes into account
 
-        int idx=0;
+        int idx=-1;
         _collectITableEntriesClass (cstubf, tyCls, &idx);
 
         fprintf (cstubf, "static void * _%s_vtable[] = {\n", S_name(tyCls->u.cls.name));
-        for (int i=0; i<idx; i++)
+        for (int i=0; i<=idx; i++)
         {
             if (vtable_entries[i])
                 fprintf (cstubf, "    %s", vtable_entries[i]);
@@ -238,31 +309,98 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
 
         // compute vtables for each implemented interface
 
+        idx = 0;
         for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
         {
+            Ty_ty tyIntf = implements->intf;
+
+            for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
+            {
+                switch (intfMember->kind)
+                {
+                    case Ty_recMethod:
+                    {
+                        int vTableIdx = intfMember->u.method->vTableIdx;
+                        if (vTableIdx > idx)
+                            idx = vTableIdx;
+
+                        Ty_proc intfProc = intfMember->u.method->proc;
+
+                        Ty_member member = Ty_findEntry (tyCls, intfProc->name, /*checkbase=*/TRUE);
+                        if (!member || (member->kind != Ty_recMethod))
+                        {
+                            assert(FALSE);
+                            continue;
+                        }
+                        Ty_proc proc = member->u.method->proc;
+
+                        vtable_entries[vTableIdx] = S_name(proc->label);
+
+                        break;
+                    }
+                    case Ty_recProperty:
+                    {
+                        Ty_method setter = intfMember->u.property.setter;
+                        if (setter)
+                        {
+                            int vTableIdx = setter->vTableIdx;
+                            if (vTableIdx > idx)
+                                idx = vTableIdx;
+
+                            Ty_proc intfProc = setter->proc;
+
+                            Ty_member member = Ty_findEntry (tyCls, intfProc->name, /*checkbase=*/TRUE);
+                            if (!member || (member->kind != Ty_recProperty))
+                            {
+                                assert(FALSE);
+                                continue;
+                            }
+                            Ty_proc proc = member->u.property.setter->proc;
+
+                            vtable_entries[vTableIdx] = S_name(proc->label);
+                        }
+                        Ty_method getter = intfMember->u.property.getter;
+                        if (getter)
+                        {
+                            int vTableIdx = getter->vTableIdx;
+                            if (vTableIdx > idx)
+                                idx = vTableIdx;
+
+                            Ty_proc intfProc = getter->proc;
+
+                            Ty_member member = Ty_findEntry (tyCls, intfProc->name, /*checkbase=*/TRUE);
+                            if (!member || (member->kind != Ty_recProperty))
+                            {
+                                assert(FALSE);
+                                continue;
+                            }
+                            Ty_proc proc = member->u.property.getter->proc;
+
+                            vtable_entries[vTableIdx] = S_name(proc->label);
+                        }
+                        break;
+                    }
+                    default:
+                        continue;
+                }
+            }
+
             fprintf (cstubf, "static void * __intf_vtable_%s_%s[] = {\n",
                              S_name(tyCls->u.cls.name),
                              S_name(implements->intf->u.interface.name));
 
-            Ty_ty tyIntf = implements->intf;
+            // first entry for interface vtable is this pointer offset
 
-            int idx=0;
-            for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
+            fprintf (cstubf, "    (void *) (intptr_t) %d,\n", implements->vTablePtr->u.field.uiOffset);
+
+
+            for (int i=0; i<=idx; i++)
             {
-                assert (intfMember->u.method->vTableIdx == idx++);
-
-                Ty_proc intfProc = intfMember->u.method->proc;
-
-                Ty_member member = Ty_findEntry (tyCls, intfProc->name, /*checkbase=*/TRUE);
-                if (!member || (member->kind != Ty_recMethod))
-                {
-                    assert(FALSE);
-                    continue;
-                }
-                Ty_proc proc = member->u.method->proc;
-
-                fprintf (cstubf, "    %s", S_name(proc->label));
-                if (intfMember->next)
+                if (vtable_entries[i])
+                    fprintf (cstubf, "    (void *) %s", vtable_entries[i]);
+                else
+                    fprintf (cstubf, "    NULL");
+                if (i<idx)
                     fprintf (cstubf, ",\n");
                 else
                     fprintf (cstubf, "\n");
@@ -313,8 +451,11 @@ bool CS_writeCStubFile(string cstubfn, E_module mod)
     if (!cstubf)
         return FALSE;
 
-    fprintf (cstubf, "// C stub generated by AQB Compiler " VERSION " \n");
+    fprintf (cstubf, "// C stub generated by AQB Compiler " VERSION "\n");
     fprintf (cstubf, "// Module: %s\n\n", S_name(mod->name));
+
+    _writeStubTypedefsFlat       (cstubf, mod->env->u.scopes.tenv);
+    fprintf (cstubf, "\n");
 
     // _writeStubDeclsFlat       (cstubf, mod->env->u.scopes.vfcenv);
     _writeStubDeclsFlat       (cstubf, mod->env->u.scopes.tenv);

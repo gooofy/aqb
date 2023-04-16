@@ -7030,7 +7030,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (tyOther)
             EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
-        sle->u.typeDecl.ty = Ty_Record(FE_mod->name);
+        sle->u.typeDecl.ty = Ty_Record(FE_mod->name, sType);
 
         E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
         if (sle->u.typeDecl.udtVis == Ty_visPublic)

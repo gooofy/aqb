@@ -85,13 +85,14 @@ void Ty_init(void)
 
 static uint32_t g_uid = 23;
 
-Ty_ty Ty_Record (S_symbol mod)
+Ty_ty Ty_Record (S_symbol mod, S_symbol name)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind                  = Ty_record;
     p->u.record.entries      = Ty_MemberList();
     p->u.record.uiSize       = 0;
+    p->u.record.name         = name;
     p->mod                   = mod;
     p->uid                   = g_uid++;
 

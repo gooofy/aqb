@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     61
+#define SYM_VERSION     62
 
 E_module g_builtinsModule = NULL;
 
@@ -519,6 +519,12 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
                     case Ty_recMethod:
                         ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method->proc);
                         break;
+                    case Ty_recProperty:
+                        if (entry->u.property.setter)
+                                ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.setter->proc);
+                        if (entry->u.property.getter)
+                                ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.getter->proc);
+                        break;
                     default:
                         assert(FALSE);
                 }
@@ -700,6 +706,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
             break;
         case Ty_record:
         {
+            strserialize(modf, S_name(ty->u.record.name));
             fwrite_u4(modf, ty->u.record.uiSize);
             uint16_t cnt=0;
             for (Ty_member entry = ty->u.record.entries->first; entry; entry=entry->next)
@@ -1464,6 +1471,7 @@ E_module E_loadModule(S_symbol sModule)
 
             case Ty_record:
             {
+                ty->u.record.name = S_Symbol(strdeserialize(UP_env, modf));
                 ty->u.record.uiSize = fread_u4(modf);
 
                 uint16_t cnt=fread_u2(modf);

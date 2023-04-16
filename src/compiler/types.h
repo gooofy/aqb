@@ -28,7 +28,8 @@ struct Ty_ty_
     union
     {
         Ty_ty                                                                 pointer;
-        struct {uint32_t       uiSize;
+        struct {S_symbol       name;
+                uint32_t       uiSize;
                 Ty_memberList  entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
         struct {Ty_ty elementTy;                                            } darray;
@@ -167,7 +168,7 @@ Ty_ty           Ty_Prc               (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr           (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
 
-Ty_ty           Ty_Record            (S_symbol mod);
+Ty_ty           Ty_Record            (S_symbol mod, S_symbol name);
 Ty_ty           Ty_Interface         (S_symbol mod, S_symbol name);
 Ty_ty           Ty_Class             (S_symbol mod, S_symbol name, Ty_ty baseClass);
 Ty_implements   Ty_Implements        (Ty_ty intf, Ty_member vTablePtr);
