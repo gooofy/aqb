@@ -375,7 +375,7 @@ static S_symbol S_IMPLEMENTS;
 static S_symbol S_VIRTUAL;
 
 static S_symbol S_ToString;
-static S_symbol S_OBJECT;
+static S_symbol S_CObject;
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -6732,16 +6732,16 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
     else
     {
-        // every class except Object itself inherits from Object implicitly
+        // every class except CObject itself inherits from Object implicitly
 
-        if (sType != S_OBJECT)
+        if (sType != S_CObject)
         {
-            tyBase = E_resolveType(g_sleStack->env, S_OBJECT);
+            tyBase = E_resolveType(g_sleStack->env, S_CObject);
 
             if (!tyBase)
-                EM_error ((*tkn)->pos, "Base type %s not found.", S_name(S_OBJECT));
+                EM_error ((*tkn)->pos, "Base type %s not found.", S_name(S_CObject));
             if (tyBase->kind != Ty_class)
-                EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(S_OBJECT));
+                EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(S_CObject));
         }
     }
 
@@ -6750,7 +6750,7 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (!tyBase)
     {
-        S_symbol sVTablePtr = S_Symbol("_vtableptr");
+        S_symbol sVTablePtr = S_Symbol("_vTablePtr");
         Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTablePtr, Ty_VTablePtr());
         Ty_fieldCalcOffset (tyCls, vTablePtr);
         Ty_addMember (tyCls->u.cls.members, vTablePtr);
@@ -7104,7 +7104,7 @@ static void _assembleVTables (Ty_ty tyCls)
         CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_ULong(), 0));
     }
 
-    // add code to __init function that assigns vtableptr
+    // add code to __init function that assigns vTablePtr
 
     CG_item objVTablePtr = frame->formals->first->item; // <this>
     CG_transField(il, 0, frame, &objVTablePtr, tyCls->u.cls.vTablePtr);
@@ -9377,7 +9377,7 @@ void FE_boot(void)
     S_VIRTUAL         = defineKeyword("VIRTUAL");
 
     S_ToString        = S_Symbol("ToString");
-    S_OBJECT          = S_Symbol("OBJECT");
+    S_CObject         = S_Symbol("CObject");
 }
 
 void FE_init(void)

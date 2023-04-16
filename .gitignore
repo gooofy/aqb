@@ -64,6 +64,7 @@ src/lib/*.sym
 src/lib/_brt/*.sym
 src/lib/_brt/alibtest
 src/lib/_brt/dyna.asm
+src/lib/_brt/_brt_stub.c
 src/lib/_aqb/*.s
 src/lib/_aqb/*.sym
 src/lib/_aqb/simple_timer.c

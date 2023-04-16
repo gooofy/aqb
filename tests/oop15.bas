@@ -4,7 +4,7 @@
 
 OPTION EXPLICIT
 
-' myb inherits from Object implicitly
+' myb inherits from CObject implicitly
 CLASS myb
 
     field1 AS INTEGER
@@ -36,7 +36,7 @@ CLASS myc EXTENDS myb
 
     ' override ToString()
     DECLARE VIRTUAL FUNCTION ToString() AS STRING
-    DECLARE VIRTUAL FUNCTION Equals(BYREF obj2 AS Object) AS BOOLEAN
+    DECLARE VIRTUAL FUNCTION Equals(BYVAL obj2 AS CObject PTR) AS BOOLEAN
     DECLARE VIRTUAL FUNCTION GetHashCode () AS ULONG
 
 END CLASS
@@ -51,9 +51,9 @@ FUNCTION myc.ToString() AS STRING
 
 END FUNCTION
 
-FUNCTION myc.Equals(BYREF obj2 AS Object) AS BOOLEAN
+FUNCTION myc.Equals(BYVAL obj2 AS CObject PTR) AS BOOLEAN
 
-    DIM myc2 AS myc PTR = CAST (myc PTR, @obj2)
+    DIM myc2 AS myc PTR = CAST (myc PTR, obj2)
 
     RETURN myc2->retrieve() = retrieve()
 
@@ -69,7 +69,7 @@ END FUNCTION
 
 DIM s AS STRING
 
-DIM o1 AS Object PTR = NEW Object()
+DIM o1 AS CObject PTR = NEW CObject()
 DIM o2 AS myb PTR = NEW myb(23)
 DIM o3 AS myc PTR = NEW myc(23)
 
@@ -97,7 +97,7 @@ ASSERT s = "< 23>"
 'TRACE "o3 <> o2 -> ";o2<>o3
 ASSERT o2 <> o3
 ' TRACE "o3->Equals(o2) -> ";o3->Equals(*o2)
-ASSERT o3->Equals(*o2)
+ASSERT o3->Equals(o2)
 
 '
 ' test GetHashCode()

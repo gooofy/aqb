@@ -1,69 +1,16 @@
 '
-' OOP test 17: interface virtual properties
+' Collections Test 1: ArrayList
 '
 
 OPTION EXPLICIT
 
-INTERFACE i1
-
-    DECLARE VIRTUAL PROPERTY Value AS INTEGER
-    DECLARE VIRTUAL PROPERTY Value (BYVAL v AS INTEGER)
-
-END INTERFACE
-
-INTERFACE i2 IMPLEMENTS i1
-
-    DECLARE VIRTUAL FUNCTION Square() AS INTEGER
-
-END INTERFACE
-
-CLASS myb IMPLEMENTS i2
-
-    field1 AS INTEGER
-
-    DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
-
-    DECLARE VIRTUAL PROPERTY Value AS INTEGER
-    DECLARE VIRTUAL PROPERTY Value (BYVAL v AS INTEGER)
-
-    DECLARE VIRTUAL FUNCTION Square() AS INTEGER
-
-END CLASS
-
-CONSTRUCTOR myb (BYVAL initValue AS INTEGER)
-    field1 = initValue
-END CONSTRUCTOR
-
-PROPERTY myb.Value (BYVAL v AS INTEGER)
-    field1 = v
-END SUB
-
-PROPERTY myb.Value() AS INTEGER
-    RETURN field1
-END FUNCTION
-
-FUNCTION myb.Square() AS INTEGER
-    RETURN field1 * field1
-END FUNCTION
+IMPORT Collections
 
 '
 ' main
 '
 
-DIM o1 AS myb PTR = NEW myb(23)
+'DIM s AS STRING
 
-DIM i AS INTEGER
+DIM o1 AS ArrayList PTR = NEW ArrayList()
 
-i = o1->Value
-'TRACE i
-ASSERT i=23
-
-o1->Value=42
-
-i = o1->Value
-'TRACE i
-ASSERT i=42
-
-i = o1->Square()
-'Trace i
-ASSERT i = 1764

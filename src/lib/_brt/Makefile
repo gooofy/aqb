@@ -2,7 +2,7 @@ include ../../../config.mk
 
 .PHONY: clean all diss
 
-all: startup.o _brt.a _brt.sym
+all: _brt_stub.c startup.o _brt.a _brt.sym
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
@@ -29,6 +29,9 @@ diss: startup.o
 %.asm: %.c
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
+_brt_stub.c: _brt.bas
+	$(AQB) -L .. -d none -S $@ $<
+
 clean:
-	rm -f *.o alibtest _brt.a *.sym *.asm aqb.log
+	rm -f *.o alibtest _brt.a *.sym *.asm aqb.log _brt_stub.c
 

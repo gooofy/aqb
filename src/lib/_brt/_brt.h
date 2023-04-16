@@ -245,15 +245,16 @@ ULONG  VALULNG_ (UBYTE *s);
  * OOP
  */
 
-typedef struct
-{
-    void ***_vTablePtr;
-} Object_t;
+typedef struct CObject_ CObject;
 
-void  _Object___init      (Object_t *self);
-char *_Object_ToString_   (Object_t *self);
-BOOL  _Object_Equals_     (Object_t *self, Object_t *pObjB);
-ULONG _Object_GetHashCode (Object_t *self);
+struct CObject_
+{
+    VOID   ***_vTablePtr;
+};
+
+STRPTR _CObject_ToString_ (CObject *THIS);
+BOOL   _CObject_Equals_ (CObject *THIS, CObject *obj);
+ULONG  _CObject_GetHashCode_ (CObject *THIS);
 
 /*
  * dynamic array support

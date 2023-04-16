@@ -33,6 +33,12 @@ static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
     }
 }
 
+static char *_clabel (Temp_label label)
+{
+    char *l = S_name(label);
+    return &l[1]; // skip first "_"
+}
+
 static void _writeStubTypedefsFlat (FILE *cstubf, S_scope scope)
 {
     TAB_iter i = S_Iter(scope);
@@ -83,12 +89,33 @@ static void _writeStubDeclClass (FILE *cstubf, Ty_ty ty)
     fprintf (cstubf, "\n");
 }
 
+static void _writeStubDeclRecord (FILE *cstubf, Ty_ty ty)
+{
+    assert (ty->kind == Ty_record);
+
+    fprintf (cstubf, "struct %s_\n", S_name(ty->u.cls.name));
+    fprintf (cstubf, "{\n");
+
+    for (Ty_member member=ty->u.record.entries->first; member; member=member->next)
+    {
+        if (member->kind != Ty_recField)
+            continue;
+
+        fprintf (cstubf, "    ");
+        _writeStubTyRef (cstubf, member->u.field.ty);
+        fprintf (cstubf, "%s;\n", S_name(member->name));
+    }
+
+    fprintf (cstubf, "};\n");
+    fprintf (cstubf, "\n");
+}
+
 static void _writeStubDeclType (FILE *cstubf, S_symbol name, Ty_ty ty)
 {
     switch (ty->kind)
     {
         case Ty_record:
-            assert(FALSE); // FIXME: implement
+            _writeStubDeclRecord (cstubf, ty);
             break;
         case Ty_class:
             _writeStubDeclClass (cstubf, ty);
@@ -107,8 +134,6 @@ static void _writeStubDeclsFlat (FILE *cstubf, S_scope scope)
     while (TAB_next(i, (void **) &sym, (void **)&x))
     {
         LOG_printf (LOG_DEBUG, "_writeStubDeclsFlat: generating decl stub for entry name=%s\n", S_name(x->sym));
-        //fwrite_u1 (modf, x->kind);
-        //strserialize(modf, S_name(x->sym));
         switch (x->kind)
         {
             case E_vfcEntry:
@@ -117,8 +142,6 @@ static void _writeStubDeclsFlat (FILE *cstubf, S_scope scope)
                 if (CG_isConst(&x->u.var))
                 {
                     fprintf (cstubf, "// FIXME: const %s\n", S_name (x->sym));
-                    //E_serializeTyRef(modTable, ty);
-                    //E_serializeTyConst(modTable, CG_getConst(&x->u.var));
                 }
                 else
                 {
@@ -127,14 +150,11 @@ static void _writeStubDeclsFlat (FILE *cstubf, S_scope scope)
                         Ty_proc proc = ty->u.proc;
                         assert (proc->visibility == Ty_visPublic);
                         fprintf (cstubf, "// FIXME: proc %s\n", S_name (proc->name));
-                        //fwrite_u1 (modf, vfcFunc);
-                        //E_serializeTyProc(modTable, proc);
                     }
                     else
                     {
                         fprintf (cstubf, "// FIXME: var %s\n", S_name (x->sym));
                         assert(CG_isVar(&x->u.var));
-                        //E_serializeTyRef(modTable, ty);
                     }
                 }
                 break;
@@ -155,38 +175,88 @@ static void _writeFormal (FILE *cstubf, Ty_formal formal)
     fprintf (cstubf, "%s%s%s", formal->mode==Ty_byRef ? "*":"", S_name(formal->name), formal->next ? ", ":"");
 }
 
-static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc)
+static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc, bool writeBody)
 {
     if (proc->returnTy)
         _writeStubTyRef (cstubf, proc->returnTy);
     else
         fprintf (cstubf, "VOID ");
 
-    fprintf (cstubf, "%s (", S_name(proc->label));
+    fprintf (cstubf, "%s (", _clabel(proc->label));
 
     for (Ty_formal formal=proc->formals; formal; formal=formal->next)
     {
         _writeFormal (cstubf, formal);
     }
 
-    fprintf (cstubf, ");\n");
-}
+    fprintf (cstubf, ")");
 
-static void _writeStubMethodsRec (FILE *cstubf, Ty_ty tyCls)
-{
-    if (tyCls->u.cls.baseType)
-        _writeStubMethodsRec (cstubf, tyCls->u.cls.baseType);
-
-    for (Ty_member member=tyCls->u.cls.members->first; member; member=member->next)
+    if (writeBody)
     {
-        if (member->kind != Ty_recMethod)
-            continue;
+        fprintf (cstubf, "\n{\n");
+        fprintf (cstubf, "    _aqb_assert (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", S_name(tyCls->u.cls.name), S_name(proc->name));
 
-        _writeStubMethod (cstubf, tyCls, member->u.method->proc);
+        if (proc->returnTy && proc->returnTy->kind != Ty_void)
+        {
+            switch (proc->returnTy->kind)
+            {
+                case Ty_bool      : fprintf (cstubf, "    return FALSE;\n"); break;
+                case Ty_byte      : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_ubyte     : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_integer   : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_uinteger  : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_long      : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_ulong     : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_single    : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_double    : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_string    : fprintf (cstubf, "    return NULL;\n"); break;
+                //case Ty_sarray    : fprintf (cstubf, ""); break;
+                //case Ty_darray    : fprintf (cstubf, ""); break;
+                //case Ty_record    : fprintf (cstubf, ""); break;
+                case Ty_pointer   : fprintf (cstubf, "    return NULL;\n"); break;
+                //case Ty_void      : fprintf (cstubf, ""); break;
+                //case Ty_class     : fprintf (cstubf, ""); break;
+                //case Ty_interface : fprintf (cstubf, ""); break;
+                default:
+                    fprintf (cstubf, "?kind=%d\n", proc->returnTy->kind);
+            }
+        }
+
+        fprintf (cstubf, "}\n\n");
+    }
+    else
+    {
+        fprintf (cstubf, ";\n");
     }
 }
 
-static void _writeStubMethods (FILE *cstubf, S_scope scope)
+static void _writeStubMethodsRec (FILE *cstubf, Ty_ty tyCls, bool writeBody)
+{
+    if (tyCls->u.cls.baseType)
+        _writeStubMethodsRec (cstubf, tyCls->u.cls.baseType, writeBody);
+
+    for (Ty_member member=tyCls->u.cls.members->first; member; member=member->next)
+    {
+        switch (member->kind)
+        {
+            case Ty_recMethod:
+                _writeStubMethod (cstubf, tyCls, member->u.method->proc, writeBody);
+                break;
+
+            case Ty_recProperty:
+                if (member->u.property.setter)
+                    _writeStubMethod (cstubf, tyCls, member->u.property.setter->proc, writeBody);
+                if (member->u.property.getter)
+                    _writeStubMethod (cstubf, tyCls, member->u.property.getter->proc, writeBody);
+                break;
+
+            default:
+                continue;
+        }
+    }
+}
+
+static void _writeStubMethods (FILE *cstubf, S_scope scope, bool writeBody)
 {
     TAB_iter i = S_Iter(scope);
     S_symbol sym;
@@ -200,8 +270,7 @@ static void _writeStubMethods (FILE *cstubf, S_scope scope)
         if (ty->kind != Ty_class)
             continue;
 
-        LOG_printf (LOG_DEBUG, "_writeStubMethods: generating method stub for entry name=%s\n", S_name(x->sym));
-        _writeStubMethodsRec (cstubf, ty);
+        _writeStubMethodsRec (cstubf, ty, writeBody);
     }
 }
 
@@ -224,7 +293,7 @@ static void _collectITableEntriesClass (FILE *cstubf, Ty_ty tyCls, int *idx)
                     continue;
 
                 if (vTableIdx < VTABLE_MAX_ENTRIES)
-                    vtable_entries[vTableIdx] = S_name(member->u.method->proc->label);
+                    vtable_entries[vTableIdx] = _clabel(member->u.method->proc->label);
                 else
                     fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
 
@@ -243,7 +312,7 @@ static void _collectITableEntriesClass (FILE *cstubf, Ty_ty tyCls, int *idx)
                         continue;
 
                     if (vTableIdx < VTABLE_MAX_ENTRIES)
-                        vtable_entries[vTableIdx] = S_name(member->u.property.setter->proc->label);
+                        vtable_entries[vTableIdx] = _clabel(member->u.property.setter->proc->label);
                     else
                         fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
 
@@ -259,7 +328,7 @@ static void _collectITableEntriesClass (FILE *cstubf, Ty_ty tyCls, int *idx)
                         continue;
 
                     if (vTableIdx < VTABLE_MAX_ENTRIES)
-                        vtable_entries[vTableIdx] = S_name(member->u.property.getter->proc->label);
+                        vtable_entries[vTableIdx] = _clabel(member->u.property.getter->proc->label);
                     else
                         fprintf (cstubf, "// *** ERROR: %s vtable overflow!\n", S_name(tyCls->u.cls.name));
 
@@ -297,10 +366,10 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
         for (int i=0; i<=idx; i++)
         {
             if (vtable_entries[i])
-                fprintf (cstubf, "    %s", vtable_entries[i]);
+                fprintf (cstubf, "    (void*) %s", vtable_entries[i]);
             else
                 fprintf (cstubf, "    NULL");
-            if (i<idx-1)
+            if (i<idx)
                 fprintf (cstubf, ",\n");
             else
                 fprintf (cstubf, "\n");
@@ -334,7 +403,7 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
                         }
                         Ty_proc proc = member->u.method->proc;
 
-                        vtable_entries[vTableIdx] = S_name(proc->label);
+                        vtable_entries[vTableIdx] = _clabel(proc->label);
 
                         break;
                     }
@@ -357,7 +426,7 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
                             }
                             Ty_proc proc = member->u.property.setter->proc;
 
-                            vtable_entries[vTableIdx] = S_name(proc->label);
+                            vtable_entries[vTableIdx] = _clabel(proc->label);
                         }
                         Ty_method getter = intfMember->u.property.getter;
                         if (getter)
@@ -376,7 +445,7 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
                             }
                             Ty_proc proc = member->u.property.getter->proc;
 
-                            vtable_entries[vTableIdx] = S_name(proc->label);
+                            vtable_entries[vTableIdx] = _clabel(proc->label);
                         }
                         break;
                     }
@@ -424,16 +493,15 @@ static void _writeStubInits (FILE *cstubf, S_scope scope)
         if (tyCls->kind != Ty_class)
             continue;
 
-        fprintf (cstubf, "void * _%s___init (%s *self)\n", S_name(tyCls->u.cls.name), S_name(tyCls->u.cls.name));
+        fprintf (cstubf, "void _%s___init (%s *THIS)\n", S_name(tyCls->u.cls.name), S_name(tyCls->u.cls.name));
         fprintf (cstubf, "{\n");
-        fprintf (cstubf, "    self->_vTablePtr = (void ***) &_%s_vtable;\n", S_name(tyCls->u.cls.name));
+        fprintf (cstubf, "    THIS->_vTablePtr = (void ***) &_%s_vtable;\n", S_name(tyCls->u.cls.name));
 
         // compute vtables for each implemented interface
 
         for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
         {
-            fprintf (cstubf, "    self->__intf_vtable_%s_%s = &__intf_vtable_%s_%s;\n",
-                             S_name(tyCls->u.cls.name),
+            fprintf (cstubf, "    THIS->__intf_vtable_%s = (void ***) &__intf_vtable_%s_%s;\n",
                              S_name(implements->intf->u.interface.name),
                              S_name(tyCls->u.cls.name),
                              S_name(implements->intf->u.interface.name));
@@ -461,8 +529,9 @@ bool CS_writeCStubFile(string cstubfn, E_module mod)
     _writeStubDeclsFlat       (cstubf, mod->env->u.scopes.tenv);
     // _writeStubDeclsOverloaded (cstubf, mod->env->u.scopes.senv);
 
-    _writeStubMethods (cstubf, mod->env->u.scopes.tenv);
-
+    _writeStubMethods (cstubf, mod->env->u.scopes.tenv, /*writeBody=*/FALSE);
+    fprintf (cstubf, "\n");
+    _writeStubMethods (cstubf, mod->env->u.scopes.tenv, /*writeBody=*/TRUE);
     fprintf (cstubf, "\n");
 
     _writeStubITables (cstubf, mod->env->u.scopes.tenv);
