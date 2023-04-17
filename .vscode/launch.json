@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
-            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/cond1.bas.s", "-o", "/tmp/cond1", "tests/oop15.bas"],
+            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/cond1.bas.s", "-o", "/tmp/cond1", "tests/exp3.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -33,6 +33,26 @@
                 "-B", "foo.S", "-p", "foo.o", "-o", "foo", "foo.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/tests/insights/link",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "OSExec",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "..", "-I", "-d", "_brt", "-s", "OSExec.sym", "OSExec.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/lib/OSExec",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

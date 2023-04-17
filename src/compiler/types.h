@@ -20,7 +20,7 @@ struct Ty_ty_
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
            Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
-           Ty_void, Ty_forwardPtr, Ty_procPtr,
+           Ty_any, Ty_forwardPtr, Ty_procPtr,
            Ty_class, Ty_interface,
            Ty_toLoad, Ty_prc } kind;
            // Ty_toLoad: used for module loading in env.c
@@ -155,8 +155,8 @@ Ty_ty           Ty_ULong(void);
 Ty_ty           Ty_Single(void);
 Ty_ty           Ty_Double(void);
 Ty_ty           Ty_String(void);
-Ty_ty           Ty_Void(void);
-Ty_ty           Ty_VoidPtr(void);
+Ty_ty           Ty_Any(void);
+Ty_ty           Ty_AnyPtr(void);
 Ty_ty           Ty_VTableTy(void);
 Ty_ty           Ty_VTablePtr(void);
 

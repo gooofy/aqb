@@ -33,17 +33,17 @@ END TYPE
 
 PUBLIC TYPE Hook
     REM FIXME? AS MinNode     h_MinNode
-    AS VOID PTR           h_MinNode_mln_Succ
-    AS VOID PTR           h_MinNode_mln_Pred
+    AS ANY PTR            h_MinNode_mln_Succ
+    AS ANY PTR            h_MinNode_mln_Pred
 
     AS FUNCTION AS ULONG  h_Entry
     AS FUNCTION AS ULONG  h_SubEntry
 
-    AS VOID PTR           h_Data
+    AS ANY PTR            h_Data
 END TYPE
 
 PUBLIC TYPE NamedObject
-    AS VOID PTR     no_Object
+    AS ANY PTR      no_Object
 END TYPE
 
 PUBLIC CONST AS UINTEGER ANO_NameSpace     = 4000
@@ -81,11 +81,11 @@ PUBLIC CONST AS ULONG    PKCTRL_FLIPBIT    = &H98000000
 
 PUBLIC CONST AS UINTEGER PACK_ENDTABLE     = 0
 
-PUBLIC EXTERN UtilityBase AS VOID PTR
+PUBLIC EXTERN UtilityBase AS ANY PTR
 
 PUBLIC DECLARE EXTERN FUNCTION AllocateTagItems     (numItems AS ULONG                                                    ) AS TagItem PTR LIB  -66 UtilityBase (d0)
 PUBLIC DECLARE EXTERN SUB      Amiga2Date           (amigaTime AS ULONG, date AS ClockData PTR                            )                LIB -120 UtilityBase (d0, a0)
-PUBLIC DECLARE EXTERN FUNCTION CallHookPkt          (hook AS Hook PTR, object AS VOID PTR, paramPacket AS VOID PTR        ) AS ULONG       LIB -102 UtilityBase (a0, a2, a1)
+PUBLIC DECLARE EXTERN FUNCTION CallHookPkt          (hook AS Hook PTR, object AS ANY PTR , paramPacket AS ANY PTR         ) AS ULONG       LIB -102 UtilityBase (a0, a2, a1)
 PUBLIC DECLARE EXTERN FUNCTION CheckDate            (date AS ClockData PTR                                                ) AS ULONG       LIB -132 UtilityBase (a0)
 PUBLIC DECLARE EXTERN FUNCTION CloneTagItems        (tagList AS TagItem PTR                                               ) AS TagItem PTR LIB  -72 UtilityBase (a0)
 PUBLIC DECLARE EXTERN FUNCTION Date2Amiga           (date AS ClockData PTR                                                ) AS ULONG       LIB -126 UtilityBase (a0)
@@ -95,7 +95,7 @@ PUBLIC DECLARE EXTERN FUNCTION FindTagItem          (tagVal AS ULONG, tagList AS
 PUBLIC DECLARE EXTERN SUB      FreeTagItems         (tagList AS TagItem PTR                                               )                LIB  -78 UtilityBase (a0)
 PUBLIC DECLARE EXTERN FUNCTION GetTagData           (tagVal AS ULONG, defaultVal AS ULONG, tagList AS TagItem PTR         ) AS ULONG       LIB  -36 UtilityBase (d0, d1, a0)
 PUBLIC DECLARE EXTERN SUB      MapTags              (tagList AS TagItem PTR, mapList AS TagItem PTR, includeMiss AS LONG  )                LIB  -60 UtilityBase (a0, a1, d0)
-PUBLIC DECLARE EXTERN FUNCTION NextTagItem          (tagListPtr AS VOID PTR                                               ) AS TagItem PTR LIB  -48 UtilityBase (a0)
+PUBLIC DECLARE EXTERN FUNCTION NextTagItem          (tagListPtr AS ANY PTR                                                ) AS TagItem PTR LIB  -48 UtilityBase (a0)
 PUBLIC DECLARE EXTERN FUNCTION PackBoolTags         (initialFlags AS ULONG, tagList AS TagItem PTR, boolMap AS TagItem PTR) AS ULONG       LIB  -42 UtilityBase (d0, a0, a1)
 PUBLIC DECLARE EXTERN SUB      RefreshTagItemClones (cloneList AS TagItem PTR, origList AS TagItem PTR                    )                LIB  -84 UtilityBase (a0, a1)
 PUBLIC DECLARE EXTERN FUNCTION SDivMod32            (dividend AS LONG, divisor AS LONG                                    ) AS LONG        LIB -150 UtilityBase (d0, d1)

@@ -39,13 +39,13 @@ Ty_ty Ty_Double(void) {return &tydouble;}
 static struct Ty_ty_ tystring = {Ty_string};
 Ty_ty Ty_String(void) {return &tystring;}
 
-static struct Ty_ty_ tyvoid = {Ty_void};
-Ty_ty Ty_Void(void) {return &tyvoid;}
+static struct Ty_ty_ tyany = {Ty_any};
+Ty_ty Ty_Any(void) {return &tyany;}
 
-static struct Ty_ty_ tyvoidptr = {Ty_pointer, {&tyvoid}};
-Ty_ty Ty_VoidPtr(void) {return &tyvoidptr;}
+static struct Ty_ty_ tyanyptr = {Ty_pointer, {&tyany}};
+Ty_ty Ty_AnyPtr(void) {return &tyanyptr;}
 
-static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyvoidptr, 0, -1, 0}}};
+static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyanyptr, 0, -1, 0}}};
 Ty_ty Ty_VTableTy(void) {return &tyvtable;}
 static struct Ty_ty_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 Ty_ty Ty_VTablePtr(void) {return &tyvtableptr;}
@@ -62,8 +62,8 @@ void Ty_init(void)
     tysingle.uid    =  8;
     tydouble.uid    =  9;
     tystring.uid    = 10;
-    tyvoid.uid      = 11;
-    tyvoidptr.uid   = 12;
+    tyany.uid       = 11;
+    tyanyptr.uid    = 12;
     tyvtable.uid    = 13;
     tyvtableptr.uid = 14;
 
@@ -77,8 +77,8 @@ void Ty_init(void)
     tysingle.mod    = NULL;
     tydouble.mod    = NULL;
     tystring.mod    = NULL;
-    tyvoid.mod      = NULL;
-    tyvoidptr.mod   = NULL;
+    tyany.mod       = NULL;
+    tyanyptr.mod    = NULL;
     tyvtable.mod    = NULL;
     tyvtableptr.mod = NULL;
 }
@@ -432,7 +432,7 @@ void Ty_computeSize(Ty_ty ty)
         case Ty_ulong:    break;
         case Ty_single:   break;
         case Ty_double:   break;
-        case Ty_void:     break;
+        case Ty_any:      break;
         case Ty_forwardPtr:
         case Ty_toLoad:
         case Ty_prc:
@@ -667,8 +667,8 @@ static string _toString(Ty_ty t, int depth)
             return strprintf (UP_types, "pointer(%s)", _toString(t->u.pointer, depth));
         case Ty_string:
             return "string";
-        case Ty_void:
-            return "void";
+        case Ty_any:
+            return "any";
         case Ty_forwardPtr:
             return "forwardPtr";
         case Ty_procPtr:

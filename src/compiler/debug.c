@@ -1005,7 +1005,7 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
             case Ty_interface:
             case Ty_pointer:
             case Ty_string:
-            case Ty_void:
+            case Ty_any:
             case Ty_forwardPtr:
             case Ty_procPtr:
             case Ty_toLoad:
@@ -1034,7 +1034,7 @@ static void _print_variable (IDE_instance ed, uint8_t *p, S_symbol sym, Ty_ty ty
             case Ty_interface:
             case Ty_pointer:
             case Ty_string:
-            case Ty_void:
+            case Ty_any:
             case Ty_forwardPtr:
             case Ty_procPtr:
             case Ty_toLoad:

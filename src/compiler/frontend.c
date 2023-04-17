@@ -480,7 +480,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -515,7 +515,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -548,7 +548,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -581,7 +581,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -614,7 +614,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -645,7 +645,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -676,7 +676,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -707,7 +707,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -736,7 +736,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -784,35 +784,9 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             assert(0);
             *res = ty1;
             return FALSE;
-        case Ty_void:
-            switch (ty2->kind)
-            {
-                case Ty_bool:
-                case Ty_byte:
-                case Ty_ubyte:
-                case Ty_integer:
-                case Ty_uinteger:
-                case Ty_long:
-                case Ty_ulong:
-                case Ty_single:
-                case Ty_double:
-                case Ty_sarray:
-                case Ty_darray:
-                case Ty_record:
-                case Ty_class:
-                case Ty_interface:
-                case Ty_pointer:
-                case Ty_string:
-                case Ty_forwardPtr:
-                case Ty_prc:
-                case Ty_procPtr:
-                case Ty_toLoad:
-                    *res = ty1;
-                    return FALSE;
-                case Ty_void:
-                    *res = ty1;
-                    return TRUE;
-            }
+        case Ty_any:
+            *res = ty1;
+            return ty2->kind == Ty_any;
         case Ty_procPtr:
             switch (ty2->kind)
             {
@@ -832,7 +806,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_string:
                 case Ty_forwardPtr:
-                case Ty_void:
+                case Ty_any:
                 case Ty_toLoad:
                 case Ty_prc:
                     *res = ty1;
@@ -842,7 +816,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return TRUE;
                 case Ty_pointer:
                     *res = ty1;
-                    return ty2->u.pointer->kind == Ty_void;
+                    return ty2->u.pointer->kind == Ty_any;
             }
     }
     *res = ty1;
@@ -879,12 +853,12 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
             if (Ty_isInt(tyFrom))
                 return TRUE;
 
-            if ( (tyFrom->kind == Ty_procPtr) && (tyTo->u.pointer->kind == Ty_void) )
+            if ( (tyFrom->kind == Ty_procPtr) && (tyTo->u.pointer->kind == Ty_any) )
                 return TRUE;
 
             if (tyFrom->kind == Ty_string)
             {
-                if (  (tyTo->u.pointer->kind == Ty_void)
+                if (  (tyTo->u.pointer->kind == Ty_any)
                    || (tyTo->u.pointer->kind == Ty_byte)
                    || (tyTo->u.pointer->kind == Ty_ubyte))
                     return TRUE;
@@ -892,12 +866,12 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
             }
 
 			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
-			if ((tyFrom->kind==Ty_darray) && (tyTo->kind==Ty_pointer) && (tyTo->u.pointer->kind==Ty_void))
+			if ((tyFrom->kind==Ty_darray) && (tyTo->kind==Ty_pointer) && (tyTo->u.pointer->kind==Ty_any))
 				return TRUE;
 
             if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if ((tyTo->u.pointer->kind == Ty_void) || (tyFrom->u.pointer->kind == Ty_void))
+            if ((tyTo->u.pointer->kind == Ty_any) || (tyFrom->u.pointer->kind == Ty_any))
                 return TRUE;
 
             // OOP: child -> base class assignment is legal
@@ -948,8 +922,27 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
 
             return TRUE;
         }
-        case Ty_void:
-            return tyFrom->kind == Ty_void;
+        case Ty_any:
+            switch (tyFrom->kind)
+            {
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_string:
+                case Ty_forwardPtr:
+                case Ty_any:
+                case Ty_procPtr:
+                case Ty_pointer:
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
         case Ty_record:
             return FALSE; // unless identical, see above
         case Ty_string:
@@ -957,7 +950,7 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
                 return TRUE;    // allow string const passing to tag data
             if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if (  (tyFrom->u.pointer->kind == Ty_void)
+            if (  (tyFrom->u.pointer->kind == Ty_any)
                || (tyFrom->u.pointer->kind == Ty_byte)
                || (tyFrom->u.pointer->kind == Ty_ubyte))
                 return TRUE;
@@ -979,6 +972,7 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
         default:
             assert(0);
     }
+    return FALSE;
 }
 
 static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
@@ -1779,7 +1773,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, proc->returnTy->kind == Ty_void ? NULL : exp);
+            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, proc->returnTy ? exp : NULL);
             ty = CG_ty(exp);
             continue;
         }
@@ -2691,7 +2685,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
         }
         else
         {
-            returnTy = Ty_Void();
+            returnTy = NULL;
         }
 
         Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
@@ -4224,7 +4218,7 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
     CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_HeapPtrItem (&n->item, dataLabel, Ty_VoidPtr());
+    CG_HeapPtrItem (&n->item, dataLabel, Ty_AnyPtr());
     CG_loadRef(g_sleStack->code, /*pos=*/0, g_sleStack->frame, &n->item);
     CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
 
@@ -5343,7 +5337,7 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
         Ty_proc proc = (*formal)->ty->u.procPtr;
         S_symbol name = (*tkn)->u.sym;
 
-        if (proc->returnTy->kind == Ty_void)
+        if (!proc->returnTy)
         {
             E_enventryList lx = E_resolveSub(g_sleStack->env, name);
             if (lx)
@@ -5977,7 +5971,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
             return FALSE;
     }
 
-    returnTy = Ty_Void();
+    returnTy = NULL;
     if (isSym(*tkn, S_AS))
     {
         *tkn = (*tkn)->next;
@@ -6038,7 +6032,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
             return FALSE;
     }
 
-    returnTy = Ty_Void();
+    returnTy = NULL;
     if (isSym(*tkn, S_AS))
     {
         *tkn = (*tkn)->next;
@@ -6188,7 +6182,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
             returnTy = Ty_inferType(S_name(name));
     }
     else
-        returnTy = Ty_Void();
+        returnTy = NULL;
 
     if (isSym(*tkn, S_STATIC))
     {
@@ -6222,11 +6216,11 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         if (e->kind == Ty_recMethod)
             decl = e->u.method->proc;
         else
-            decl = proc->returnTy->kind == Ty_void ? e->u.property.setter->proc : e->u.property.getter->proc;
+            decl = proc->returnTy ? e->u.property.getter->proc : e->u.property.setter->proc;
     }
     else
     {
-        if ( (proc->returnTy->kind != Ty_void))
+        if (proc->returnTy)
         {
             CG_item d;
             Ty_member entry;
@@ -6323,7 +6317,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
     else
     {
         decl = proc;
-        if (proc->returnTy->kind == Ty_void)
+        if (!proc->returnTy)
         {
             E_declareSub (g_sleStack->env, proc->name, proc);
             if (proc->visibility == Ty_visPublic)
@@ -6396,7 +6390,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     AS_instrList body = AS_InstrList();
 
     // function return var
-    if (proc->returnTy->kind != Ty_void)
+    if (proc->returnTy)
     {
         CG_allocVar (&returnVar, funFrame, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
         CG_item zero;
@@ -6776,7 +6770,7 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
             Ty_ty tyIntf = E_resolveType(g_sleStack->env, sIntf);
             if (!tyIntf)
-                EM_error ((*tkn)->pos, "Interface %s not found.", S_name(sIntf));
+                return EM_error ((*tkn)->pos, "Interface %s not found.", S_name(sIntf));
             if (tyIntf->kind != Ty_interface)
                 EM_error ((*tkn)->pos, "%s is not an interface.", S_name(sIntf));
 
@@ -7081,7 +7075,7 @@ static void _assembleVTables (Ty_ty tyCls)
                                     formals,
                                     /*isVariadic=*/FALSE,
                                     /*isStatic=*/FALSE,
-                                    /*returnTy=*/Ty_Void(),
+                                    /*returnTy=*/NULL,
                                     /*forward=*/FALSE,
                                     /*isExtern=*/FALSE,
                                     /*offset=*/0,
@@ -7110,7 +7104,7 @@ static void _assembleVTables (Ty_ty tyCls)
     CG_transField(il, 0, frame, &objVTablePtr, tyCls->u.cls.vTablePtr);
 
     CG_item classVTablePtr;
-    CG_HeapPtrItem (&classVTablePtr, vtlabel, Ty_VoidPtr());
+    CG_HeapPtrItem (&classVTablePtr, vtlabel, Ty_AnyPtr());
     CG_loadRef (il, 0, frame, &classVTablePtr);
     classVTablePtr.kind = IK_inReg;
 
@@ -7269,7 +7263,7 @@ static void _assembleVTables (Ty_ty tyCls)
         CG_transField(il, 0, frame, &objVTablePtr, implements->vTablePtr);
 
         CG_item intfVTablePtr;
-        CG_HeapPtrItem (&intfVTablePtr, vtlabel, Ty_VoidPtr());
+        CG_HeapPtrItem (&intfVTablePtr, vtlabel, Ty_AnyPtr());
         CG_loadRef (il, 0, frame, &intfVTablePtr);
         intfVTablePtr.kind = IK_inReg;
 
@@ -7439,7 +7433,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 case FE_propertyUDTEntry:
                 {
                     Ty_ty propTy = f->u.property.proc->returnTy;
-                    bool isSub = propTy->kind == Ty_void;
+                    bool isSub = propTy == NULL;
 
                     // check signature, determine property type
 
@@ -8601,10 +8595,10 @@ static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next;
 
     exp->kind = IK_inReg;
-    exp->ty = Ty_VoidPtr();
+    exp->ty = Ty_AnyPtr();
 
     CG_item z;
-    CG_ZeroItem (&z, Ty_VoidPtr());
+    CG_ZeroItem (&z, Ty_AnyPtr());
 
     CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, CG_eq, exp, &z);
 
@@ -8729,7 +8723,7 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
-    Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
+    Ty_procKind kind = retTy ? Ty_pkFunction : Ty_pkSub;
     Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
 
     if (kind == Ty_pkSub)
@@ -8750,69 +8744,69 @@ static void registerBuiltins(void)
 {
     g_parsefs = TAB_empty(UP_frontend);
 
-    declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim               , Ty_Void());
-    declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim             , Ty_Void());
-    declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint             , Ty_Void());
-    declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin          , Ty_Void());
-    declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd            , Ty_Void());
-    declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin           , Ty_Void());
-    declareBuiltinProc(S_ELSE         , /*extraSyms=*/ NULL      , stmtIfElse            , Ty_Void());
-    declareBuiltinProc(S_ELSEIF       , /*extraSyms=*/ NULL      , stmtIfElse            , Ty_Void());
-    declareBuiltinProc(S_END          , /*extraSyms=*/ NULL      , stmtEnd               , Ty_Void());
-    declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd               , Ty_Void());
-    declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert            , Ty_Void());
-    declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption            , Ty_Void());
-    declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_PROPERTY     , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall              , Ty_Void());
-    declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl         , Ty_Void());
-    declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl        , Ty_Void());
-    declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl          , Ty_Void());
-    declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin     , Ty_Void());
-    declareBuiltinProc(S_INTERFACE    , /*extraSyms=*/ NULL      , stmtInterfaceDeclBegin, Ty_Void());
-    declareBuiltinProc(S_CLASS        , /*extraSyms=*/ NULL      , stmtClassDeclBegin    , Ty_Void());
-    declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic            , Ty_Void());
-    declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin        , Ty_Void());
-    declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd          , Ty_Void());
-    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet               , Ty_Void());
-    declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit              , Ty_Void());
-    declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue          , Ty_Void());
-    declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo                , Ty_Void());
-    declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop              , Ty_Void());
-    declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect            , Ty_Void());
-    declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase              , Ty_Void());
-    declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn            , Ty_Void());
-    declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate     , Ty_Void());
-    declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate     , Ty_Void());
-    declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport            , Ty_Void());
-    declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng            , Ty_Void());
-    declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng            , Ty_Void());
-    declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint            , Ty_Void());
-    declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr            , Ty_Void());
-    declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto              , Ty_Void());
-    declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub             , Ty_Void());
-    declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase             , Ty_Void());
-    declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData              , Ty_Void());
-    declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead              , Ty_Void());
-    declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore           , Ty_Void());
-    declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput         , Ty_Void());
-    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput             , Ty_Void());
-    declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen              , Ty_Void());
-    declareBuiltinProc(S_CLOSE        , /*extraSyms=*/ NULL      , stmtClose             , Ty_Void());
+    declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim               , NULL);
+    declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim             , NULL);
+    declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint             , NULL);
+    declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin          , NULL);
+    declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd            , NULL);
+    declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin           , NULL);
+    declareBuiltinProc(S_ELSE         , /*extraSyms=*/ NULL      , stmtIfElse            , NULL);
+    declareBuiltinProc(S_ELSEIF       , /*extraSyms=*/ NULL      , stmtIfElse            , NULL);
+    declareBuiltinProc(S_END          , /*extraSyms=*/ NULL      , stmtEnd               , NULL);
+    declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd               , NULL);
+    declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert            , NULL);
+    declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption            , NULL);
+    declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_PROPERTY     , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall              , NULL);
+    declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl         , NULL);
+    declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl        , NULL);
+    declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl          , NULL);
+    declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin     , NULL);
+    declareBuiltinProc(S_INTERFACE    , /*extraSyms=*/ NULL      , stmtInterfaceDeclBegin, NULL);
+    declareBuiltinProc(S_CLASS        , /*extraSyms=*/ NULL      , stmtClassDeclBegin    , NULL);
+    declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic            , NULL);
+    declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin        , NULL);
+    declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd          , NULL);
+    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet               , NULL);
+    declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit              , NULL);
+    declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue          , NULL);
+    declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo                , NULL);
+    declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop              , NULL);
+    declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect            , NULL);
+    declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase              , NULL);
+    declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn            , NULL);
+    declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate     , NULL);
+    declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate     , NULL);
+    declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport            , NULL);
+    declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng            , NULL);
+    declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng            , NULL);
+    declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint            , NULL);
+    declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr            , NULL);
+    declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto              , NULL);
+    declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub             , NULL);
+    declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase             , NULL);
+    declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData              , NULL);
+    declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead              , NULL);
+    declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore           , NULL);
+    declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput         , NULL);
+    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput             , NULL);
+    declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen              , NULL);
+    declareBuiltinProc(S_CLOSE        , /*extraSyms=*/ NULL      , stmtClose             , NULL);
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf             , Ty_ULong());
-    declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr             , Ty_VoidPtr());
+    declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr             , Ty_AnyPtr());
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast               , Ty_ULong());
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar          , Ty_String());
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound             , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound             , Ty_ULong());
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull             , Ty_Bool());
-    declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace             , Ty_Void());
-    declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak             , Ty_Void());
-    declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear             , Ty_Void());
-    declareBuiltinProc(S_WRITE        , /*extraSyms=*/ NULL      , stmtWrite             , Ty_Void());
+    declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace             , NULL);
+    declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak             , NULL);
+    declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear             , NULL);
+    declareBuiltinProc(S_WRITE        , /*extraSyms=*/ NULL      , stmtWrite             , NULL);
 }
 
 //
@@ -9179,7 +9173,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
             E_enventry func = lx->first->e;
             CG_itemList arglist = CG_ItemList();
             CG_itemListNode n = CG_itemListAppend(arglist);
-            CG_HeapPtrItem (&n->item, g_dataRestoreLabel, Ty_VoidPtr());
+            CG_HeapPtrItem (&n->item, g_dataRestoreLabel, Ty_AnyPtr());
             CG_loadRef(initCode, /*pos=*/0, frame, &n->item);
             CG_transCall (initCode, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
             AS_instrListPrependList (g_prog, initCode);

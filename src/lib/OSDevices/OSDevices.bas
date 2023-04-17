@@ -286,7 +286,7 @@ CONST AS UBYTE IESUBCLASS_TABLET = &H02
 CONST AS UBYTE IESUBCLASS_NEWTABLET = &H03
 
 TYPE IEPointerPixel
-    AS VOID PTR    iepp_Screen
+    AS ANY PTR     iepp_Screen
     AS INTEGER     X
     AS INTEGER     Y
 END TYPE
@@ -456,7 +456,7 @@ CONST AS INTEGER MAXTABS = 80
 
 TYPE ConUnit
     AS MsgPort      cu_MP
-    AS VOID PTR     cu_Window
+    AS ANY PTR      cu_Window
     AS INTEGER      cu_XCP
     AS INTEGER      cu_YCP
     AS INTEGER      cu_XMax
@@ -479,10 +479,10 @@ TYPE ConUnit
     AS BYTE         cu_AOLPen
     AS BYTE         cu_DrawMode
     AS BYTE         cu_Obsolete1
-    AS VOID PTR     cu_Obsolete2
+    AS ANY PTR      cu_Obsolete2
     AS UBYTE        cu_Minterms(7)
     REM FIXME AS TextFont PTR    cu_Font
-    AS VOID PTR     cu_Font
+    AS ANY PTR      cu_Font
     AS UBYTE        cu_AlgoStyle
     AS UBYTE        cu_TxFlags
     AS UINTEGER     cu_TxHeight
@@ -924,8 +924,8 @@ TYPE IODRPReq
     AS UINTEGER        io_Command
     AS UBYTE           io_Flags
     AS BYTE            io_Error
-    AS VOID PTR        io_RastPort
-    AS VOID PTR        io_ColorMap
+    AS ANY PTR         io_RastPort
+    AS ANY PTR         io_ColorMap
     AS ULONG           io_Modes
     AS UINTEGER        io_SrcX
     AS UINTEGER        io_SrcY
@@ -943,8 +943,8 @@ TYPE IODRPTagsReq
     AS UINTEGER     io_Command
     AS UBYTE     io_Flags
     AS BYTE     io_Error
-    AS VOID PTR    io_RastPort
-    AS VOID PTR    io_ColorMap
+    AS ANY PTR     io_RastPort
+    AS ANY PTR     io_ColorMap
     AS ULONG     io_Modes
     AS UINTEGER     io_SrcX
     AS UINTEGER     io_SrcY
@@ -1062,10 +1062,10 @@ END TYPE
 TYPE PrtErrMsg
     AS ULONG     pe_Version
     AS ULONG     pe_ErrorLevel
-    AS VOID PTR  pe_Window
-    AS VOID PTR  pe_ES
+    AS ANY PTR   pe_Window
+    AS ANY PTR   pe_ES
     AS ULONG PTR pe_IDCMP
-    AS VOID PTR  pe_ArgList
+    AS ANY PTR   pe_ArgList
 END TYPE
 
 CONST AS INTEGER PDHOOK_VERSION = 1
@@ -1078,21 +1078,21 @@ TYPE IOPrefsReq
     AS UBYTE     io_Flags
     AS BYTE     io_Error
     REM FIXME AS PrinterTxtPrefs PTR    io_TxtPrefs
-    AS VOID PTR    io_TxtPrefs
+    AS ANY PTR     io_TxtPrefs
     REM FIXME AS PrinterUnitPrefs PTR    io_UnitPrefs
-    AS VOID PTR    io_UnitPrefs
+    AS ANY PTR     io_UnitPrefs
     REM FIXME AS PrinterDeviceUnitPrefs PTR    io_DevUnitPrefs
-    AS VOID PTR    io_DevUnitPrefs
+    AS ANY PTR     io_DevUnitPrefs
     REM AS PrinterGfxPrefs PTR    io_GfxPrefs
-    AS VOID PTR    io_GfxPrefs
+    AS ANY PTR     io_GfxPrefs
 END TYPE
 
 TYPE DeviceData
     AS Library    dd_Device
-    AS VOID PTR   dd_Segment
-    AS VOID PTR   dd_ExecBase
-    AS VOID PTR   dd_CmdVectors
-    AS VOID PTR   dd_CmdBytes
+    AS ANY PTR    dd_Segment
+    AS ANY PTR    dd_ExecBase
+    AS ANY PTR    dd_CmdVectors
+    AS ANY PTR    dd_CmdBytes
     AS UINTEGER   dd_NumCommands
 END TYPE
 
@@ -1128,9 +1128,9 @@ TYPE PrinterData
     AS PrinterSegment PTR  pd_SegmentData
     AS UBYTE PTR           pd_PrintBuf
     REM FIXME AS LONG     (*pd_PWrite)()
-    AS VOID PTR            pd_PWrite
+    AS ANY PTR             pd_PWrite
     REM AS LONG     (*pd_PBothReady)()
-    AS VOID PTR            pd_PBothRead
+    AS ANY PTR             pd_PBothRead
     AS IOExtPar            pd_p0
     AS IOExtPar            pd_p1
     AS timerequest         pd_TIOR
@@ -1145,13 +1145,13 @@ TYPE PrinterData
     REM FIXME AS UBYTE               pd_Stk(P_STKSIZE-1)
     REM FIXME AS PrinterUnit PTR     pd_PUnit
     REM FIXME REM FIXME AS LONG     (*pd_PRead)()
-    REM FIXME AS VOID PTR            pd_PRead
+    REM FIXME AS ANY PTR             pd_PRead
     REM FIXME REM FIXME AS LONG     (*pd_CallErrHook)()
-    REM FIXME AS VOID PTR            pd_CallErrHook
+    REM FIXME AS ANY PTR             pd_CallErrHook
     REM FIXME AS ULONG               pd_UnitNumber
     REM FIXME AS STRING              pd_DriverName
     REM FIXME REM FIXME AS LONG     (*pd_PQuery)()
-    REM FIXME AS VOID PTR            pd_PQuery
+    REM FIXME AS ANY PTR             pd_PQuery
 END TYPE
 
 CONST AS UBYTE PPCB_GFX = 0
@@ -1183,7 +1183,7 @@ TYPE PrinterExtendedData
     AS SUB          ped_Init
     AS SUB          ped_Expunge
     REM FIXME AS LONG     (*ped_Open)()
-    AS VOID PTR     ped_Open
+    AS ANY PTR      ped_Open
     AS SUB          ped_Close
     AS UBYTE        ped_PrinterClass
     AS UBYTE        ped_ColorClass
@@ -1196,17 +1196,17 @@ TYPE PrinterExtendedData
     AS UINTEGER     ped_YDotsInch
     AS STRING PTR   ped_Commands
     REM FIXME AS LONG     (*ped_DoSpecial)()
-    AS VOID PTR     ped_DoSpecial
+    AS ANY PTR      ped_DoSpecial
     REM FIXME AS LONG     (*ped_Render)()
-    AS VOID PTR     ped_Render
+    AS ANY PTR      ped_Render
     AS LONG         ped_TimeoutSecs
     AS STRING PTR   ped_8BitChars
     AS LONG         ped_PrintMode
     REM FIXME AS LONG     (*ped_ConvFunc)()
-    AS VOID PTR     ped_ConvFunc
+    AS ANY PTR      ped_ConvFunc
     AS TagItem PTR  ped_TagList
     REM FIXME AS LONG     (*ped_DoPreferences)()
-    AS VOID PTR     ped_DoPreferences
+    AS ANY PTR      ped_DoPreferences
     AS SUB          ped_CallErrHook
 END TYPE
 
@@ -1255,9 +1255,9 @@ CONST AS UBYTE PCMWHITE    = PCMBLACK
 
 TYPE PrtInfo
     REM FIXME AS LONG     (*pi_render)()
-    AS VOID PTR     pi_render
-    AS VOID PTR     pi_rp
-    AS VOID PTR     pi_temprp
+    AS ANY PTR      pi_render
+    AS ANY PTR      pi_rp
+    AS ANY PTR      pi_temprp
     AS UINTEGER PTR pi_RowBuf
     AS UINTEGER PTR pi_HamBuf
     AS ULONG PTR    pi_ColorMap

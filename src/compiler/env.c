@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     62
+#define SYM_VERSION     66
 
 E_module g_builtinsModule = NULL;
 
@@ -53,7 +53,7 @@ void E_declareVFC (E_env env, S_symbol sym, CG_item *var)
 void E_declareSub (E_env env, S_symbol sym, Ty_proc proc)
 {
     assert(env->kind == E_scopesEnv);
-    assert (proc->returnTy->kind == Ty_void);
+    assert (!proc->returnTy);
 
     E_enventry p = U_poolAlloc (UP_env, sizeof(*p));
 
@@ -451,7 +451,7 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
         case Ty_ulong:
         case Ty_single:
         case Ty_double:
-        case Ty_void:
+        case Ty_any:
         case Ty_string:
             break;
         case Ty_forwardPtr:
@@ -765,7 +765,7 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_ulong:
         case Ty_single:
         case Ty_double:
-        case Ty_void:
+        case Ty_any:
         case Ty_string:
             break;
         case Ty_forwardPtr:
@@ -837,7 +837,11 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
     }
     fwrite_u1(modf, proc->isVariadic);
     fwrite_u1(modf, proc->isStatic);
-    E_serializeTyRef(modTable, proc->returnTy);
+    if (proc->returnTy)
+    {
+        assert(proc->kind == Ty_pkFunction);
+        E_serializeTyRef(modTable, proc->returnTy);
+    }
     fwrite_u1(modf, proc->isExtern);
     fwrite_u4(modf, proc->offset);
     if (proc->offset)
@@ -1245,11 +1249,15 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     }
     uint8_t isVariadic = fread_u1(modf);
     uint8_t isStatic = fread_u1(modf);
-    Ty_ty returnTy = E_deserializeTyRef(modTable, modf);
-    if (!returnTy)
+    Ty_ty returnTy = NULL;
+    if (kind == Ty_pkFunction)
     {
-        LOG_printf(LOG_INFO, "failed to read function return type.\n");
-        return NULL;
+        returnTy = E_deserializeTyRef(modTable, modf);
+        if (!returnTy)
+        {
+            LOG_printf(LOG_INFO, "failed to read function return type.\n");
+            return NULL;
+        }
     }
     uint8_t isExtern = fread_u1(modf);
     // warning: Ty_toString can be quite expensive memory-wise!
@@ -1546,7 +1554,6 @@ E_module E_loadModule(S_symbol sModule)
             case Ty_ulong:    break;
             case Ty_single:   break;
             case Ty_double:   break;
-            case Ty_void:     break;
             case Ty_string:   break;
             default:
                 assert(0);
@@ -1720,8 +1727,8 @@ void E_init(void)
     declare_builtin_type("SINGLE"  , Ty_Single());
     declare_builtin_type("DOUBLE"  , Ty_Double());
     declare_builtin_type("STRING"  , Ty_String());
-    declare_builtin_type("VOID"    , Ty_Void());
-    declare_builtin_type(NULL      , Ty_VoidPtr());
+    declare_builtin_type("ANY"     , Ty_Any());
+    declare_builtin_type(NULL      , Ty_AnyPtr());
     declare_builtin_type(NULL      , Ty_VTableTy());
     declare_builtin_type(NULL      , Ty_VTablePtr());
 

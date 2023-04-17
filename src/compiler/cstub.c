@@ -21,7 +21,7 @@ static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
         case Ty_darray    : fprintf (cstubf, "DARRAY "); break;
         case Ty_record    : fprintf (cstubf, "%s ", S_name(ty->u.record.name)); break;
         case Ty_pointer   : _writeStubTyRef (cstubf, ty->u.pointer); fprintf (cstubf, "*"); break;
-        case Ty_void      : fprintf (cstubf, "VOID   "); break;
+        case Ty_any       : fprintf (cstubf, "VOID   "); break;
         //case Ty_forwardPtr: fprintf (cstubf, ""); break;
         //case Ty_procPtr   : fprintf (cstubf, ""); break;
         case Ty_class     : fprintf (cstubf, "%s ", S_name(ty->u.cls.name)); break;
@@ -196,7 +196,7 @@ static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc, bool writ
         fprintf (cstubf, "\n{\n");
         fprintf (cstubf, "    _aqb_assert (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", S_name(tyCls->u.cls.name), S_name(proc->name));
 
-        if (proc->returnTy && proc->returnTy->kind != Ty_void)
+        if (proc->returnTy && proc->returnTy)
         {
             switch (proc->returnTy->kind)
             {

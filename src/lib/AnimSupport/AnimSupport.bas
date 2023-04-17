@@ -14,7 +14,7 @@ PUBLIC CONST AS INTEGER AE_SPRITE             = 301
 
 PUBLIC TYPE SPRITE_t
     AS SPRITE_t PTR     prev, next
-    AS VOID PTR         posctldata
+    AS ANY PTR          posctldata
     AS UINTEGER         width
     AS UINTEGER         height
 END TYPE
@@ -45,7 +45,7 @@ PUBLIC DECLARE EXTERN SUB      GELS REPAINT
 
 PUBLIC TYPE BOB_t
     AS BOB_t PTR        prev, next
-    AS VOID PTR         rp
+    AS ANY PTR          rp
     ' FIXME: struct Bob      bob
     ' FIXME: struct VSprite  vsprite
 END TYPE

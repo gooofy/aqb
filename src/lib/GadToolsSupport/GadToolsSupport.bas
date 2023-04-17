@@ -16,7 +16,7 @@ CLASS GTGADGET
 
         DECLARE EXTERN CONSTRUCTOR (BYVAL label AS STRING, _
                                     _COORD2(BYVAL s1 AS BOOLEAN, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                    BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                    BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY x1 AS INTEGER
         DECLARE EXTERN PROPERTY x1 (BYVAL x AS INTEGER)
@@ -45,7 +45,7 @@ CLASS GTGADGET
         AS SUB (BYVAL GTGADGET PTR, BYVAL UINTEGER) gadgetdown_cb
         AS SUB (BYVAL GTGADGET PTR, BYVAL UINTEGER) gadgetmove_cb
 
-        AS VOID PTR user_data
+        AS ANY PTR  user_data
         AS ULONG    underscore
 
     PRIVATE:
@@ -57,7 +57,7 @@ CLASS GTGADGET
         AS Gadget PTR     gad
         AS Window PTR     win
 
-        AS VOID PTR       deploy_cb
+        AS ANY PTR        deploy_cb
 
 
 END CLASS
@@ -67,7 +67,7 @@ CLASS GTBUTTON EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR (BYVAL label AS STRING, _
                                     _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                    BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                    BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL b AS BOOLEAN)
@@ -86,7 +86,7 @@ CLASS GTCHECKBOX EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR (BYVAL label AS STRING, _
                                     _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                    BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                    BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL b AS BOOLEAN)
@@ -110,7 +110,7 @@ CLASS GTSLIDER EXTENDS GTGADGET
 
         DECLARE EXTERN CONSTRUCTOR (BYVAL label AS STRING, BYVAL min AS INTEGER, BYVAL max AS INTEGER, BYVAL level AS INTEGER, BYVAL freedom AS ULONG, _
                                     _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                    BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                    BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL b AS BOOLEAN)
@@ -158,7 +158,7 @@ CLASS GTTEXT EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL text AS STRING, _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY text AS STRING
         DECLARE EXTERN PROPERTY text (BYVAL value AS STRING)
@@ -198,7 +198,7 @@ CLASS GTSCROLLER EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL top AS INTEGER, BYVAL total AS INTEGER, BYVAL visible AS INTEGER, BYVAL freedom AS ULONG,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)
@@ -242,7 +242,7 @@ CLASS GTSTRING EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)
@@ -286,7 +286,7 @@ CLASS GTINTEGER EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)
@@ -330,7 +330,7 @@ CLASS GTNUMBER EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL number AS LONG,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY number AS LONG
         DECLARE EXTERN PROPERTY number (BYVAL value AS LONG)
@@ -374,7 +374,7 @@ CLASS GTMX EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL labels AS STRING PTR,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)
@@ -410,7 +410,7 @@ CLASS GTCYCLE EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL labels AS STRING PTR,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                              BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                              BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)
@@ -434,7 +434,7 @@ CLASS GTPALETTE EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL numColors AS UINTEGER,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)
@@ -474,7 +474,7 @@ CLASS GTLISTVIEW EXTENDS GTGADGET
     PUBLIC:
         DECLARE EXTERN CONSTRUCTOR ( BYVAL label AS STRING, BYVAL labels AS ExecList PTR,  _
                                      _COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), _
-                                     BYVAL user_data AS VOID PTR=NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
+                                     BYVAL user_data AS ANY PTR =NULL, BYVAL flags AS ULONG=0, BYVAL underscore AS ULONG=95)
 
         DECLARE EXTERN PROPERTY disabled AS BOOLEAN
         DECLARE EXTERN PROPERTY disabled (BYVAL value AS BOOLEAN)

@@ -304,13 +304,13 @@ static enum Temp_w CG_tySize(Ty_ty ty)
         case Ty_forwardPtr:
         case Ty_procPtr:
         case Ty_string:
+        case Ty_any:
             return Temp_w_L;
         case Ty_sarray:
         case Ty_darray:
         case Ty_class:
         case Ty_interface:
         case Ty_record:
-        case Ty_void:
         case Ty_toLoad:
         case Ty_prc:
             assert(0);
@@ -436,7 +436,7 @@ Ty_ty CG_ty(CG_item *item)
     switch (item->kind)
     {
         case IK_none:
-            return Ty_Void();
+            return Ty_Any();
         case IK_const:
         case IK_inFrame:
         case IK_inReg:
@@ -448,7 +448,7 @@ Ty_ty CG_ty(CG_item *item)
             return item->ty;
     }
     assert(FALSE);
-    return Ty_Void();
+    return Ty_Any();
 }
 
 enum Temp_w CG_itemSize(CG_item *item)
@@ -1183,7 +1183,7 @@ void CG_loadRef (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
 
             AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_AnDn_Ofp, w, item->u.inReg, NULL,                       //     move.x item.t, tmpVar.o(fp)
                                                   NULL, tmpVar.u.inFrameR.offset, NULL));
-            CG_TempItem (item, Ty_VoidPtr());
+            CG_TempItem (item, Ty_AnyPtr());
             AS_instrListAppend(code, AS_InstrEx (pos, AS_LEA_Ofp_An, Temp_w_L, NULL, item->u.inReg,                    //     lea tmpVar.o(fp), item.t
                                                  NULL, tmpVar.u.inFrameR.offset, NULL));
             VarPtr (item, item->u.inReg, ty);
@@ -3593,7 +3593,7 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_method
 {
     CG_item thisRef = args->first->item;
 
-    if (method->proc->returnTy->kind != Ty_void)
+    if (method->proc->returnTy)
     {
         CG_TempItem (result, method->proc->returnTy);
     }
@@ -3650,7 +3650,7 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_method
 
                 CG_item intfThis = thisRef;
                 assert(intfThis.kind==IK_varPtr);
-                intfThis.ty = Ty_VoidPtr();
+                intfThis.ty = Ty_AnyPtr();
                 intfThis.kind = IK_inReg;
                 CG_loadVal(code, pos, frame, &intfThis);
                 CG_transBinOp (code, pos, frame, CG_minus, &intfThis, &this_offset, intfThis.ty);
@@ -4479,6 +4479,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_long:
                         case Ty_ulong:
                         case Ty_pointer:
+                        case Ty_any:
                             switch (dialect)
                             {
                                 case AS_dialect_gas:    fprintf(out, "    dc.l  %d\n", c->u.i); break;
@@ -4499,7 +4500,6 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_class:
                         case Ty_interface:
                         case Ty_record:
-                        case Ty_void:
                         case Ty_forwardPtr:
                         case Ty_prc:
                         case Ty_procPtr:

@@ -14,3 +14,7 @@ IMPORT Collections
 
 DIM o1 AS ArrayList PTR = NEW ArrayList()
 
+o1->SetAt (0, NEW CString ("Hubba"))
+
+
+

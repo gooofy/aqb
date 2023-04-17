@@ -28,7 +28,7 @@ TYPE Layer
     AS UINTEGER        Flags
     AS BitMap PTR      SuperBitMap
     AS ClipRect PTR    SuperClipRect
-    AS VOID PTR        Window
+    AS ANY PTR         Window
     AS INTEGER         Scroll_X,Scroll_Y
     AS ClipRect PTR    cr,cr2,crnew
     AS ClipRect PTR    SuperSaveClipRects
@@ -51,8 +51,8 @@ TYPE ClipRect
     AS Layer PTR       lobs
     AS BitMap PTR      BitMap
     AS Rectangle       bounds
-    AS void PTR        _p1
-    AS void PTR        _p2
+    AS ANY  PTR        _p1
+    AS ANY  PTR        _p2
     AS LONG            reserved
     AS LONG            Flags
 END TYPE
@@ -98,16 +98,16 @@ TYPE ColorMap
     AS UBYTE                Flags
     AS UBYTE                Type
     AS UINTEGER             Count
-    AS VOID PTR             ColorTable
+    AS ANY PTR              ColorTable
     AS ViewPortExtra PTR    cm_vpe
-    AS VOID PTR             LowColorBits
+    AS ANY PTR              LowColorBits
     AS UBYTE                TransparencyPlane
     AS UBYTE                SpriteResolution
     AS UBYTE                SpriteResDefault
     AS UBYTE                AuxFlags
     AS ViewPort PTR         cm_vp
-    AS VOID PTR             NormalDisplayInfo
-    AS VOID PTR             CoerceDisplayInfo
+    AS ANY PTR              NormalDisplayInfo
+    AS ANY PTR              CoerceDisplayInfo
     AS TagItem PTR          cm_batch_items
     AS ULONG                VPModeID
     AS PaletteExtra PTR     PalExtra
@@ -298,8 +298,8 @@ END TYPE
 
 TYPE VecInfo
     AS QueryHeader  Header
-    AS VOID PTR     Vec
-    AS VOID PTR     Data
+    AS ANY PTR      Vec
+    AS ANY PTR      Data
     AS UINTEGER     Type
     AS UINTEGER     pad(2)
     AS ULONG        reserved(1)
@@ -371,7 +371,7 @@ TYPE AnimComp
     AS AnimComp PTR   NextSeq
     AS AnimComp PTR   PrevSeq
     REM FIXME AS INTEGER     (*AnimCRoutine) __CLIB_PROTOTYPE((struct AnimComp *))
-    AS VOID PTR       AnimCRoutine
+    AS ANY PTR        AnimCRoutine
     AS INTEGER        YTrans
     AS INTEGER        XTrans
     AS AnimOb PTR     HeadOb
@@ -387,7 +387,7 @@ TYPE AnimOb
     AS INTEGER        YAccel, XAccel
     AS INTEGER        RingYTrans, RingXTrans
     REM FIXME AS INTEGER     (*AnimORoutine) __CLIB_PROTOTYPE((struct AnimOb *))
-    AS VOID PTR       AnimORoutine
+    AS ANY PTR        AnimORoutine
     AS AnimComp PTR   HeadComp
     AS INTEGER        AUserExt
 END TYPE
@@ -404,7 +404,7 @@ CONST AS INTEGER B2BOBBER   = 2
 
 TYPE collTable
     REM FIXME AS LONG     (*collPtrs[16]) __CLIB_PROTOTYPE((struct VSprite *,struct VSprite *))
-    AS VOID PTR collPtrs(15)
+    AS ANY PTR  collPtrs(15)
 END TYPE
 
 TYPE ExtendedNode
@@ -437,26 +437,26 @@ TYPE MonitorSpec
     AS UINTEGER     min_row
     AS SpecialMonitor PTR    ms_Special
     AS UINTEGER     ms_OpenCount
-    AS VOID PTR ms_transform
-    AS VOID PTR ms_translate
-    AS VOID PTR ms_scale
+    AS ANY PTR  ms_transform
+    AS ANY PTR  ms_translate
+    AS ANY PTR  ms_scale
     REM FIXME AS LONG     (*ms_transform)()
     REM FIXME AS LONG     (*ms_translate)()
     REM FIXME AS LONG     (*ms_scale)()
     AS UINTEGER     ms_xoffset
     AS UINTEGER     ms_yoffset
     AS Rectangle     ms_LegalView
-    AS VOID PTR ms_maxoscan
-    AS VOID PTR ms_videoscan
+    AS ANY PTR  ms_maxoscan
+    AS ANY PTR  ms_videoscan
     REM FIXME AS LONG     (*ms_maxoscan)()
     REM FIXME AS LONG     (*ms_videoscan)()
     AS UINTEGER     DeniseMinDisplayColumn
     AS ULONG     DisplayCompatible
     AS List     DisplayInfoDataBase
     AS SignalSemaphore     DisplayInfoDataBaseSemaphore
-    AS VOID PTR ms_MrgCop
-    AS VOID PTR ms_LoadView
-    AS VOID PTR ms_KillView
+    AS ANY PTR  ms_MrgCop
+    AS ANY PTR  ms_LoadView
+    AS ANY PTR  ms_KillView
     REM FIXME AS LONG     (*ms_MrgCop)()
     REM FIXME AS LONG     (*ms_LoadView)()
     REM FIXME AS LONG     (*ms_KillView)()
@@ -624,7 +624,7 @@ TYPE GfxBase
     AS List     MonitorList
     AS MonitorSpec PTR    default_monitor
     AS SignalSemaphore PTR    MonitorListSemaphore
-    AS VOID PTR    DisplayInfoDataBase
+    AS ANY PTR     DisplayInfoDataBase
     AS UINTEGER     TopLine
     AS SignalSemaphore PTR    ActiViewCprSemaphore
     AS ULONG PTR    UtilBase
@@ -645,16 +645,16 @@ TYPE GfxBase
     AS UBYTE     Bugs
     AS ULONG PTR    gb_LayersBase
     AS ULONG     ColorMask
-    AS VOID PTR     IVector
-    AS VOID PTR     IData
+    AS ANY PTR      IVector
+    AS ANY PTR      IData
     AS ULONG     SpecialCounter
-    AS VOID PTR     DBList
+    AS ANY PTR      DBList
     AS UINTEGER     MonitorFlags
     AS UBYTE     ScanDoubledSprites
     AS UBYTE     BP3Bits
     AS AnalogSignalInterval     MonitorVBlank
     AS MonitorSpec PTR    natural_monitor
-    AS VOID PTR     ProgData
+    AS ANY PTR      ProgData
     AS UBYTE     ExtSprites
     AS UBYTE     pad3
     AS UINTEGER     GfxFlags
@@ -734,11 +734,11 @@ CONST AS ULONG BMA_FLAGS = 12
 TYPE Isrvstr
     AS Node     is_Node
     AS Isrvstr PTR    Iptr
-    AS VOID PTR code
-    AS VOID PTR ccode
+    AS ANY PTR  code
+    AS ANY PTR  ccode
     REM FIXME AS LONG     (*code)()
-    REM FIXME AS LONG     (*ccode) __CLIB_PROTOTYPE((VOID PTR))
-    AS VOID PTR     Carg
+    REM FIXME AS LONG     (*ccode) __CLIB_PROTOTYPE((ANY PTR ))
+    AS ANY PTR      Carg
 END TYPE
 
 CONST AS UINTEGER LAYERSIMPLE            = 1
@@ -761,13 +761,13 @@ TYPE Layer_Info
     AS SignalSemaphore Lock
     AS MinList         gs_Head
     AS INTEGER         PrivateReserve3
-    AS VOID PTR        PrivateReserve4
+    AS ANY PTR         PrivateReserve4
     AS UINTEGER        Flags
     AS BYTE            fatten_count
     AS BYTE            LockLayersCount
     AS INTEGER         PrivateReserve5
-    AS VOID PTR        BlankHook
-    AS VOID PTR        LayerInfo_extra
+    AS ANY PTR         BlankHook
+    AS ANY PTR         LayerInfo_extra
 END TYPE
 
 CONST AS UINTEGER NEWLAYERINFO_CALLED = 1
@@ -1048,7 +1048,7 @@ TYPE GelsInfo
     AS INTEGER PTR    lastColor
     AS collTable PTR  collHandler
     AS INTEGER        leftmost, rightmost, topmost, bottommost
-    AS VOID PTR     firstBlissObj,lastBlissObj
+    AS ANY PTR      firstBlissObj,lastBlissObj
 END TYPE
 
 TYPE RastPort
@@ -1079,8 +1079,8 @@ TYPE RastPort
     AS UINTEGER     TxWidth
     AS UINTEGER     TxBaseline
     AS INTEGER     TxSpacing
-    AS VOID PTR     RP_User
-    REM FIXME AS VOID PTR PTR    RP_User
+    AS ANY PTR      RP_User
+    REM FIXME AS ANY PTR  PTR    RP_User
     AS ULONG     longreserved(1)
 END TYPE
 
@@ -1214,11 +1214,11 @@ TYPE TextFont
     AS UINTEGER     tf_Accessors
     AS UBYTE     tf_LoChar
     AS UBYTE     tf_HiChar
-    AS VOID PTR     tf_CharData
+    AS ANY PTR      tf_CharData
     AS UINTEGER     tf_Modulo
-    AS VOID PTR     tf_CharLoc
-    AS VOID PTR     tf_CharSpace
-    AS VOID PTR     tf_CharKern
+    AS ANY PTR      tf_CharLoc
+    AS ANY PTR      tf_CharSpace
+    AS ANY PTR      tf_CharKern
 END TYPE
 
 CONST AS UBYTE TE0B_NOREMFONT = 0
@@ -1258,7 +1258,7 @@ TYPE ColorTextFont
     AS UBYTE     ctf_PlanePick
     AS UBYTE     ctf_PlaneOnOff
     AS ColorFontColors PTR    ctf_ColorFontColors
-    AS VOID PTR     ctf_CharData(7)
+    AS ANY PTR      ctf_CharData(7)
 END TYPE
 
 TYPE TextExtent
@@ -1355,8 +1355,8 @@ TYPE ViewPortExtra
     AS ExtendedNode     n
     AS ViewPort PTR    ViewPort
     AS Rectangle     DisplayClip
-    AS VOID PTR     VecTable
-    AS VOID PTR     DriverData(1)
+    AS ANY PTR      VecTable
+    AS ANY PTR      DriverData(1)
     AS UINTEGER     Flags
     AS Point     Origin(1)
     AS ULONG     cop1ptr
@@ -1464,19 +1464,19 @@ CONST AS ULONG MCOP_NO_MEM = 1
 CONST AS ULONG MCOP_NOP = 2
 
 TYPE DBufInfo
-    AS VOID PTR     dbi_Link1
+    AS ANY PTR      dbi_Link1
     AS ULONG     dbi_Count1
     AS Message     dbi_SafeMessage
-    AS VOID PTR     dbi_UserData1
-    AS VOID PTR     dbi_Link2
+    AS ANY PTR      dbi_UserData1
+    AS ANY PTR      dbi_Link2
     AS ULONG     dbi_Count2
     AS Message     dbi_DispMessage
 
-    AS VOID PTR     dbi_UserData2
+    AS ANY PTR      dbi_UserData2
     AS ULONG     dbi_MatchLong
-    AS VOID PTR     dbi_CopPtr1
-    AS VOID PTR     dbi_CopPtr2
-    AS VOID PTR     dbi_CopPtr3
+    AS ANY PTR      dbi_CopPtr1
+    AS ANY PTR      dbi_CopPtr2
+    AS ANY PTR      dbi_CopPtr3
     AS UINTEGER     dbi_BeamPos1
     AS UINTEGER     dbi_BeamPos2
 END TYPE

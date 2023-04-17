@@ -315,6 +315,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                                     case Ty_long:
                                     case Ty_ulong:
                                     case Ty_pointer:
+                                    case Ty_any:
                                         AS_assembleData32 (obj->dataSeg, c->u.i);
                                         break;
                                     case Ty_single:
@@ -328,7 +329,6 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                                     case Ty_class:
                                     case Ty_interface:
                                     case Ty_record:
-                                    case Ty_void:
                                     case Ty_forwardPtr:
                                     case Ty_prc:
                                     case Ty_procPtr:

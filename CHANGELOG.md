@@ -19,6 +19,7 @@ Improvements:
     * compiler: PROPERTY support added (OOP)
     * compiler: support for virtual properties added (OOP)
     * compiler: [breaking] CLASS/END CLASS, INTERFACE/END INTERFACE added
+    * compiler: [breaking] introduced new ANY, removed VOID type
     * compiler: generate proper error message when a constant is assigned to (#24)
 
 Bug Fixes:
