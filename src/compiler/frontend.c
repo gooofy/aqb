@@ -823,7 +823,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
     return FALSE;
 }
 
-static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
+static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
 {
     if (tyTo == tyFrom)
         return TRUE;
@@ -846,14 +846,17 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
                 return FALSE;
             return TRUE;
         case Ty_darray:
+
+			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
+			if ((tyFrom->kind==Ty_pointer) && (tyFrom->u.pointer->kind==Ty_any))
+				return TRUE;
+
             if (tyFrom->kind != Ty_darray)
                 return FALSE;
+
             return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
         case Ty_pointer:
             if (Ty_isInt(tyFrom))
-                return TRUE;
-
-            if ( (tyFrom->kind == Ty_procPtr) && (tyTo->u.pointer->kind == Ty_any) )
                 return TRUE;
 
             if (tyFrom->kind == Ty_string)
@@ -865,10 +868,6 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
                 return FALSE;
             }
 
-			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
-			if ((tyFrom->kind==Ty_darray) && (tyTo->kind==Ty_pointer) && (tyTo->u.pointer->kind==Ty_any))
-				return TRUE;
-
             if (tyFrom->kind != Ty_pointer)
                 return FALSE;
             if ((tyTo->u.pointer->kind == Ty_any) || (tyFrom->u.pointer->kind == Ty_any))
@@ -877,20 +876,24 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
             // OOP: child -> base class assignment is legal
             if ( (tyTo->u.pointer->kind == Ty_class) && (tyFrom->u.pointer->kind == Ty_class) )
             {
-                Ty_ty tyr1 = tyTo->u.pointer;
-                Ty_ty tyr2 = tyFrom->u.pointer;
-                while (tyr1 && (tyr1 != tyr2) && (tyr1->u.cls.baseType))
-                    tyr1 = tyr1->u.cls.baseType;
-                return tyr1 == tyr2;
+                Ty_ty tyClsTo = tyTo->u.pointer;
+                Ty_ty tyClsFrom = tyFrom->u.pointer;
+                while (tyClsFrom && (tyClsFrom != tyClsTo) && (tyClsFrom->u.cls.baseType))
+                    tyClsFrom = tyClsFrom->u.cls.baseType;
+                return tyClsTo == tyClsFrom;
             }
 
             // OOP: class -> implemented interface assignment is legal
             if ( (tyTo->u.pointer->kind == Ty_class) && (tyFrom->u.pointer->kind == Ty_interface) )
                 return Ty_checkImplements (tyTo->u.pointer, tyFrom->u.pointer);
 
-            return compatible_ty(tyTo->u.pointer, tyFrom->u.pointer);
+            return compatible_ty(tyFrom->u.pointer, tyTo->u.pointer);
         case Ty_procPtr:
         {
+            // procPtr := NULL is allowed
+            if ( (tyFrom->kind == Ty_pointer) && (tyFrom->u.pointer->kind == Ty_any) )
+                return TRUE;
+
             if (tyFrom->kind != Ty_procPtr)
                 return FALSE;
 
@@ -898,26 +901,26 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
                  (!tyTo->u.procPtr->returnTy && tyFrom->u.procPtr->returnTy) )
                  return FALSE;
 
-            if (tyTo->u.procPtr->returnTy && !compatible_ty(tyTo->u.procPtr->returnTy, tyFrom->u.procPtr->returnTy))
+            if (tyTo->u.procPtr->returnTy && !compatible_ty(tyFrom->u.procPtr->returnTy, tyTo->u.procPtr->returnTy))
                 return FALSE;
 
-            Ty_formal f1 = tyTo->u.procPtr->formals;
-            Ty_formal f2 = tyFrom->u.procPtr->formals;
-            while (f1)
+            Ty_formal formalTo = tyTo->u.procPtr->formals;
+            Ty_formal formalFrom = tyFrom->u.procPtr->formals;
+            while (formalTo)
             {
-                if (!f2)
+                if (!formalFrom)
                     return FALSE;
 
-                if (f1->mode != f2->mode)
+                if (formalTo->mode != formalFrom->mode)
                     return FALSE;
 
-                if (!compatible_ty(f1->ty, f2->ty))
+                if (!compatible_ty(formalFrom->ty, formalTo->ty))
                     return FALSE;
 
-                f1 = f1->next;
-                f2 = f2->next;
+                formalTo = formalTo->next;
+                formalFrom = formalFrom->next;
             }
-            if (f2)
+            if (formalFrom)
                 return FALSE;
 
             return TRUE;
@@ -964,7 +967,7 @@ static bool compatible_ty(Ty_ty tyTo, Ty_ty tyFrom)
 
         case Ty_class:
             if (tyFrom->kind == Ty_class)
-                return Ty_checkInherits (tyFrom, tyTo);
+                return Ty_checkInherits (/*child=*/tyFrom, /*parent=*/tyTo);
             return FALSE;
             break;
 
@@ -1198,7 +1201,7 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
             break;
         if (f->mode != f2->mode)
             break;
-        if (!compatible_ty(f2->ty, f->ty))
+        if (!compatible_ty(f->ty, f2->ty))
             break;
         f = f->next;
     }
@@ -5066,7 +5069,7 @@ static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                     }
                 }
 
-                if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
+                if (!compatible_ty(CG_ty(&iln->item), formal->ty))
                 {
                     EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
                     return FALSE;

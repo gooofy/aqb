@@ -7,21 +7,21 @@ static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
 {
     switch (ty->kind)
     {
-        case Ty_bool      : fprintf (cstubf, "BOOL   "); break;
-        case Ty_byte      : fprintf (cstubf, "BYTE   "); break;
-        case Ty_ubyte     : fprintf (cstubf, "UBYTE  "); break;
-        case Ty_integer   : fprintf (cstubf, "WORD   "); break;
-        case Ty_uinteger  : fprintf (cstubf, "UWORD  "); break;
-        case Ty_long      : fprintf (cstubf, "LONG   "); break;
-        case Ty_ulong     : fprintf (cstubf, "ULONG  "); break;
-        case Ty_single    : fprintf (cstubf, "FLOAT  "); break;
-        case Ty_double    : fprintf (cstubf, "DOUBLE "); break;
-        case Ty_string    : fprintf (cstubf, "STRPTR "); break;
+        case Ty_bool      : fprintf (cstubf, "BOOL     "); break;
+        case Ty_byte      : fprintf (cstubf, "BYTE     "); break;
+        case Ty_ubyte     : fprintf (cstubf, "UBYTE    "); break;
+        case Ty_integer   : fprintf (cstubf, "WORD     "); break;
+        case Ty_uinteger  : fprintf (cstubf, "UWORD    "); break;
+        case Ty_long      : fprintf (cstubf, "LONG     "); break;
+        case Ty_ulong     : fprintf (cstubf, "ULONG    "); break;
+        case Ty_single    : fprintf (cstubf, "FLOAT    "); break;
+        case Ty_double    : fprintf (cstubf, "DOUBLE   "); break;
+        case Ty_string    : fprintf (cstubf, "STRPTR   "); break;
         case Ty_sarray    : _writeStubTyRef (cstubf, ty->u.sarray.elementTy); fprintf (cstubf, "*"); break;
-        case Ty_darray    : fprintf (cstubf, "DARRAY "); break;
+        case Ty_darray    : fprintf (cstubf, "DARRAY   "); break;
         case Ty_record    : fprintf (cstubf, "%s ", S_name(ty->u.record.name)); break;
         case Ty_pointer   : _writeStubTyRef (cstubf, ty->u.pointer); fprintf (cstubf, "*"); break;
-        case Ty_any       : fprintf (cstubf, "VOID   "); break;
+        case Ty_any       : fprintf (cstubf, "intptr_t "); break;
         //case Ty_forwardPtr: fprintf (cstubf, ""); break;
         //case Ty_procPtr   : fprintf (cstubf, ""); break;
         case Ty_class     : fprintf (cstubf, "%s ", S_name(ty->u.cls.name)); break;
@@ -209,6 +209,7 @@ static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc, bool writ
                 case Ty_ulong     : fprintf (cstubf, "    return 0;\n"); break;
                 case Ty_single    : fprintf (cstubf, "    return 0;\n"); break;
                 case Ty_double    : fprintf (cstubf, "    return 0;\n"); break;
+                case Ty_any       : fprintf (cstubf, "    return 0;\n"); break;
                 case Ty_string    : fprintf (cstubf, "    return NULL;\n"); break;
                 //case Ty_sarray    : fprintf (cstubf, ""); break;
                 //case Ty_darray    : fprintf (cstubf, ""); break;
@@ -362,11 +363,11 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
         int idx=-1;
         _collectITableEntriesClass (cstubf, tyCls, &idx);
 
-        fprintf (cstubf, "static void * _%s_vtable[] = {\n", S_name(tyCls->u.cls.name));
+        fprintf (cstubf, "static intptr_t _%s_vtable[] = {\n", S_name(tyCls->u.cls.name));
         for (int i=0; i<=idx; i++)
         {
             if (vtable_entries[i])
-                fprintf (cstubf, "    (void*) %s", vtable_entries[i]);
+                fprintf (cstubf, "    (intptr_t) %s", vtable_entries[i]);
             else
                 fprintf (cstubf, "    NULL");
             if (i<idx)
@@ -454,19 +455,19 @@ static void _writeStubITables (FILE *cstubf, S_scope scope)
                 }
             }
 
-            fprintf (cstubf, "static void * __intf_vtable_%s_%s[] = {\n",
+            fprintf (cstubf, "static intptr_t __intf_vtable_%s_%s[] = {\n",
                              S_name(tyCls->u.cls.name),
                              S_name(implements->intf->u.interface.name));
 
             // first entry for interface vtable is this pointer offset
 
-            fprintf (cstubf, "    (void *) (intptr_t) %d,\n", implements->vTablePtr->u.field.uiOffset);
+            fprintf (cstubf, "    %d,\n", implements->vTablePtr->u.field.uiOffset);
 
 
             for (int i=0; i<=idx; i++)
             {
                 if (vtable_entries[i])
-                    fprintf (cstubf, "    (void *) %s", vtable_entries[i]);
+                    fprintf (cstubf, "    (intptr_t) %s", vtable_entries[i]);
                 else
                     fprintf (cstubf, "    NULL");
                 if (i<idx)
@@ -495,13 +496,13 @@ static void _writeStubInits (FILE *cstubf, S_scope scope)
 
         fprintf (cstubf, "void _%s___init (%s *THIS)\n", S_name(tyCls->u.cls.name), S_name(tyCls->u.cls.name));
         fprintf (cstubf, "{\n");
-        fprintf (cstubf, "    THIS->_vTablePtr = (void ***) &_%s_vtable;\n", S_name(tyCls->u.cls.name));
+        fprintf (cstubf, "    THIS->_vTablePtr = (intptr_t **) &_%s_vtable;\n", S_name(tyCls->u.cls.name));
 
         // compute vtables for each implemented interface
 
         for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
         {
-            fprintf (cstubf, "    THIS->__intf_vtable_%s = (void ***) &__intf_vtable_%s_%s;\n",
+            fprintf (cstubf, "    THIS->__intf_vtable_%s = (intptr_t **) &__intf_vtable_%s_%s;\n",
                              S_name(implements->intf->u.interface.name),
                              S_name(tyCls->u.cls.name),
                              S_name(implements->intf->u.interface.name));

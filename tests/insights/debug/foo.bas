@@ -6,6 +6,7 @@ OPTION EXPLICIT
 
 IMPORT Collections
 
+PUBLIC DECLARE EXTERN SUB      PATTERN              (BYVAL lineptrn AS UINTEGER = &HFFFF, BYREF areaptrn() AS INTEGER = NULL)
 '
 ' main
 '
@@ -14,7 +15,7 @@ IMPORT Collections
 
 DIM o1 AS ArrayList PTR = NEW ArrayList()
 
-o1->SetAt (0, NEW CString ("Hubba"))
+o1->SetAt (0, "Hubba")
 
 
 

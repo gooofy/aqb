@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     66
+#define SYM_VERSION     67
 
 E_module g_builtinsModule = NULL;
 

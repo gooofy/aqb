@@ -45,7 +45,7 @@ Ty_ty Ty_Any(void) {return &tyany;}
 static struct Ty_ty_ tyanyptr = {Ty_pointer, {&tyany}};
 Ty_ty Ty_AnyPtr(void) {return &tyanyptr;}
 
-static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyanyptr, 0, -1, 0}}};
+static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyany, 0, -1, 0}}};
 Ty_ty Ty_VTableTy(void) {return &tyvtable;}
 static struct Ty_ty_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 Ty_ty Ty_VTablePtr(void) {return &tyvtableptr;}
@@ -488,6 +488,7 @@ int Ty_size(Ty_ty t)
         case Ty_prc:
         case Ty_procPtr:
         case Ty_string:
+        case Ty_any:
              return 4;
         case Ty_double:
              return 8;
