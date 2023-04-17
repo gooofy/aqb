@@ -1155,6 +1155,31 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
             }
             return TRUE;
 
+        case Ty_any:
+            switch (tyTo->kind)
+            {
+                case Ty_any:
+                    item->ty = tyTo;
+                    return TRUE;
+
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_uinteger:
+                case Ty_integer:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_string:
+                case Ty_pointer:
+                case Ty_procPtr:
+                    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
+
         default:
             assert(0);
     }
@@ -9192,6 +9217,21 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     _checkLeftoverForwards(g_sleStack->env->u.scopes.vfcenv);
     _checkLeftoverForwards(g_sleStack->env->u.scopes.tenv);
     _checkLeftoverForwardSubs(g_sleStack->env->u.scopes.senv);
+
+    // check for unfinished SLEs
+    switch (g_sleStack->kind)
+    {
+        case FE_sleTop: // ok
+            break;
+        case FE_sleProc:
+        case FE_sleDo:
+        case FE_sleFor:
+        case FE_sleWhile:
+        case FE_sleSelect:
+        case FE_sleType:
+        case FE_sleIf:
+            EM_error (g_sleStack->pos, "unfinished statement");
+    }
 
     slePop();
 

@@ -14,6 +14,7 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	    opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
 	    oop1.bas oop2.bas oop3.bas oop4.bas oop5.bas oop6.bas oop7.bas oop8.bas oop9.bas \
 		oop10.bas oop11.bas oop12.bas oop13.bas oop14.bas oop15.bas oop16.bas oop17.bas \
+	    coll1.bas \
 	    scopes1.bas scopes2.bas scopes3.bas \
  	    string1.bas string2.bas string3.bas string4.bas string5.bas string6.bas \
  	    subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \

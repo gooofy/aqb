@@ -15,12 +15,14 @@ all:	foo.hunk
 
 foo.hunk:	foo.bas
 	$(AQB) -L $(AQBLIBS) -d $(AQBRT) -A $(ASMProsrctmp) -o foo.hunk $(EXAMPLE).bas || exit 1
-	cp foo.hunk ${AMIGA_X}
 
-run:
+$(EMUDIR)/foo.hunk: foo.hunk
+	cp foo.hunk $(EMUDIR)
+
+run: $(EMUDIR)/foo.hunk
 	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/foo.hunk"
 
 clean:
-	rm -f "$(WORKDIR)/foo.hunk"
+	rm -f "$(EMUDIR)/foo.hunk"
 	rm -f aqb.log $(ASMProsrctmp) foo.hunk foo.s $(ASMProsrc)
 

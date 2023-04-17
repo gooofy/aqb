@@ -1,3 +1,5 @@
+//#define ENABLE_DPRINTF
+
 #include "Collections.h"
 
 #include <exec/memory.h>
@@ -27,45 +29,74 @@ BOOL _ArrayList_Equals_ (ArrayList *self, ArrayList *pObjB)
     return self == pObjB;
 }
 
-ULONG _ArrayList_GetHashCode_ (ArrayList *self)
+LONG _ArrayList_GetHashCode_ (ArrayList *self)
 {
     // FIXME
     return (intptr_t) self;
 }
 
-VOID   _ArrayList_CONSTRUCTOR (ArrayList *THIS, ULONG  capacity)
+VOID   _ArrayList_CONSTRUCTOR (ArrayList *THIS, LONG  capacity)
 {
-    THIS->_items = (intptr_t *) ALLOCATE_(capacity * sizeof(intptr_t), MEMF_ANY);
+    LONG capa = capacity>0 ? capacity : DEFAULT_CAPACITY;
+    THIS->_items = (intptr_t *) ALLOCATE_(capa * sizeof(intptr_t), MEMF_ANY);
     THIS->_size = 0;
-    THIS->_capacity = capacity;
+    THIS->_capacity = capa;
 }
 
-ULONG    _ArrayList_Count_ (ArrayList *THIS)
+LONG    _ArrayList_Count_ (ArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Count");
-    return 0;
+    return THIS->_size;
 }
 
-VOID _ArrayList_capacity (ArrayList *THIS, ULONG    c)
+static void _ensureCapacity (ArrayList *THIS, LONG capa, BOOL force)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.capacity");
+    DPRINTF ("_ensureCapacity: THIS->_capacity=%d, capa=%d\n", THIS->_capacity, capa);
+    if (!force && THIS->_capacity >= capa)
+        return;
+
+    //if (capa < THIS->_size)
+    //    ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+
+    LONG newcap = force ? capa : THIS->_capacity;
+    while (newcap < capa)
+        newcap *= 2;
+
+    intptr_t *newitems = (intptr_t *) ALLOCATE_(newcap * sizeof(intptr_t), MEMF_ANY);
+    if (THIS->_size>0)
+        CopyMem (THIS->_items, newitems, THIS->_size*sizeof(intptr_t));
+    intptr_t *olditems = THIS->_items;
+    THIS->_items = newitems;
+    DEALLOCATE (olditems);
+
+    THIS->_capacity = newcap;
 }
 
-ULONG    _ArrayList_capacity_ (ArrayList *THIS)
+VOID _ArrayList_capacity (ArrayList *THIS, LONG c)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.capacity");
-    return 0;
+    _ensureCapacity(THIS, c, /*force=*/TRUE);
 }
 
-intptr_t _ArrayList_GetAt_ (ArrayList *THIS, ULONG    index)
+LONG _ArrayList_capacity_ (ArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.GetAt");
-    return 0;
+    return THIS->_capacity;
 }
 
-VOID _ArrayList_SetAt (ArrayList *THIS, ULONG    index, intptr_t obj)
+intptr_t _ArrayList_GetAt_ (ArrayList *THIS, LONG index)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.SetAt");
+    if ( (index<0) || (index >= THIS->_size) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    intptr_t *p = &THIS->_items[index];
+    return *p;
+}
+
+VOID _ArrayList_SetAt (ArrayList *THIS, LONG index, intptr_t obj)
+{
+    if ( (index<0) || (index >= THIS->_size) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    intptr_t *p = &THIS->_items[index];
+    *p = obj;
 }
 
 IEnumerator *_ArrayList_GetEnumerator_ (ArrayList *THIS)
@@ -80,21 +111,34 @@ CObject *_ArrayList_Clone_ (ArrayList *THIS)
     return NULL;
 }
 
-ULONG    _ArrayList_Add_ (ArrayList *THIS, intptr_t obj)
+LONG _ArrayList_Add_ (ArrayList *THIS, intptr_t obj)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Add");
-    return 0;
+    if (THIS->_size >= THIS->_capacity)
+        _ensureCapacity(THIS, THIS->_size + 1, /*force=*/FALSE);
+
+    LONG i = THIS->_size++;
+
+    _ArrayList_SetAt (THIS, i, obj);
+
+    return i;
 }
 
-BOOL     _ArrayList_Contains_ (ArrayList *THIS, intptr_t value)
+BOOL _ArrayList_Contains_ (ArrayList *THIS, intptr_t value)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Contains");
+    for (LONG i=0; i<THIS->_size; i++)
+    {
+        intptr_t *p = &THIS->_items[i];
+        if (*p == value)
+            return TRUE;
+    }
     return FALSE;
 }
 
 VOID _ArrayList_CLEAR (ArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.CLEAR");
+    for (LONG i=0; i<THIS->_size; i++)
+        THIS->_items[i]=0; // make sure GC can free those
+    THIS->_size=0;
 }
 
 BOOL     _ArrayList_IsReadOnly_ (ArrayList *THIS)
@@ -103,19 +147,27 @@ BOOL     _ArrayList_IsReadOnly_ (ArrayList *THIS)
     return FALSE;
 }
 
-BOOL     _ArrayList_IsFixedSize_ (ArrayList *THIS)
+BOOL _ArrayList_IsFixedSize_ (ArrayList *THIS)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.IsFixedSize");
     return FALSE;
 }
 
-ULONG    _ArrayList_IndexOf_ (ArrayList *THIS, intptr_t value)
+LONG _ArrayList_IndexOf_ (ArrayList *THIS, intptr_t value, LONG startIndex, LONG count)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.IndexOf");
-    return 0;
+    LONG max_i = count >= 0 ? startIndex + count - 1 : THIS->_size;
+    if (max_i >= THIS->_size)
+        max_i = THIS->_size-1;
+    for (LONG i=startIndex; i<=max_i; i++)
+    {
+        intptr_t *p = &THIS->_items[i];
+        if (*p == value)
+            return i;
+    }
+    return -1;
 }
 
-VOID _ArrayList_Insert (ArrayList *THIS, ULONG    index, intptr_t value)
+VOID _ArrayList_Insert (ArrayList *THIS, LONG    index, intptr_t value)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Insert");
 }
@@ -125,7 +177,7 @@ VOID _ArrayList_Remove (ArrayList *THIS, intptr_t value)
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Remove");
 }
 
-VOID _ArrayList_RemoveAt (ArrayList *THIS, ULONG    index)
+VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG    index)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.RemoveAt");
 }

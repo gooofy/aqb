@@ -27,15 +27,15 @@ o1->Add("bar")
 o1->Add("baz")
 
 s = o1->GetAt (0)
-TRACE s
+'TRACE s
 ASSERT s = "foo"
 
 s = o1->GetAt (1)
-TRACE s
+'TRACE s
 ASSERT s = "bar"
 
 s = o1->GetAt (2)
-TRACE s
+'TRACE s
 ASSERT s = "baz"
 
 '
@@ -59,7 +59,7 @@ o1->SetAt (1, s2)
 
 'TRACE "3"
 s = o1->GetAt (1)
-TRACE s
+'TRACE s
 ASSERT s=s2
 
 ASSERT o1->Contains(s2)
@@ -98,7 +98,7 @@ NEXT i
 ASSERT o1->Count=42
 FOR i AS INTEGER = 0 TO 41
     s = o1->GetAt(i)
-    TRACE i, s
+    'TRACE i, s
     ASSERT s="BLUBBER"
 NEXT i
 

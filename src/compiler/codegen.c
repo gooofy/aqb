@@ -4292,6 +4292,30 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         assert(0);
                 }
                 break;
+
+            case Ty_any:              // any ->
+                switch (to_ty->kind)
+                {
+                    case Ty_bool:
+                    case Ty_byte:
+                    case Ty_ubyte:
+                    case Ty_integer:
+                    case Ty_uinteger:
+                    case Ty_long:
+                    case Ty_ulong:
+                    case Ty_pointer:
+                    case Ty_string:
+                    case Ty_procPtr:
+                    case Ty_single:
+                        CG_loadVal (code, pos, frame, item);
+                        item->ty = to_ty;
+                        break;
+                    default:
+                        EM_error(pos, "*** codegen.c : CG_castItem: internal error: cannot cast any to type kind %d", to_ty->kind);
+                        assert(0);
+                }
+                break;
+
             default:
                 EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", from_ty->kind);
                 assert(0);
