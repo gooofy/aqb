@@ -86,6 +86,8 @@ src/lib/OSGadTools/OSGadTools.sym
 src/lib/OSGraphics/OSGraphics.sym
 src/lib/OSHardware/OSHardware.sym
 src/lib/OSIntuition/OSIntuition.sym
+src/lib/Collections/Collections.sym
+src/lib/Collections/stub.c
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
 src/tools/os2aqb/libcalls.py
@@ -119,6 +121,7 @@ tests/insights/footprint/foo.s
 tests/insights/footprint/*.txt
 tests/insights/debug/dump.txt
 tests/insights/debug/foo.hunk
+tests/insights/debug/foo.asm
 tests/insights/footprint/foo
 tests/insights/link/foo
 tests/insights/link/foo.S
