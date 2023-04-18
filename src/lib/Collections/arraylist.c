@@ -142,15 +142,13 @@ VOID _ArrayList_CLEAR (ArrayList *THIS)
     THIS->_size=0;
 }
 
-BOOL     _ArrayList_IsReadOnly_ (ArrayList *THIS)
+BOOL _ArrayList_IsReadOnly_ (ArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.IsReadOnly");
     return FALSE;
 }
 
 BOOL _ArrayList_IsFixedSize_ (ArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.IsFixedSize");
     return FALSE;
 }
 
@@ -168,9 +166,25 @@ LONG _ArrayList_IndexOf_ (ArrayList *THIS, intptr_t value, LONG startIndex, LONG
     return -1;
 }
 
-VOID _ArrayList_Insert (ArrayList *THIS, LONG    index, intptr_t value)
+VOID _ArrayList_Insert (ArrayList *THIS, LONG index, intptr_t value)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Insert");
+    if ( (index<0) || (index > THIS->_size) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    if (THIS->_size >= THIS->_capacity)
+        _ensureCapacity(THIS, THIS->_size + 1, /*force=*/FALSE);
+
+    // make room for new element
+
+    intptr_t *pDest = &THIS->_items[THIS->_size];
+    for (LONG i=THIS->_size; i>index; i--)
+    {
+        intptr_t *pSrc = &THIS->_items[i-1];
+        *pDest--=*pSrc;
+    }
+
+    *pDest = value;
+    THIS->_size++;
 }
 
 VOID _ArrayList_Remove (ArrayList *THIS, intptr_t value)

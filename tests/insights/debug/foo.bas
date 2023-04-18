@@ -53,4 +53,22 @@ s = o1->ToString()
 TRACE s
 ASSERT s="ArrayList[ 1,  9,  10, ...]"
 
+'
+' test IsReadOnly, IsFixedSize
+'
+
+ASSERT NOT o1->IsReadOnly
+ASSERT NOT o1->IsFixedSize
+
+'
+' test insert
+'
+
+o1->Insert (1, 2)
+TRACE o1->Count, o1->ToString()
+ASSERT o1->Count = 5
+ASSERT o1->Contains(2)
+ASSERT o1->IndexOf(2)=1
+ASSERT o1->IndexOf(11)=4
+
 
