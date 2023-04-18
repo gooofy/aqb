@@ -29,7 +29,7 @@ o1->Add(10)
 o1->Add(11)
 
 i = o1->GetAt (0)
-TRACE i
+'TRACE i
 ASSERT i = 1
 
 '
@@ -50,7 +50,7 @@ ASSERT NOT o1->Contains(42)
 '
 
 s = o1->ToString()
-TRACE s
+'TRACE s
 ASSERT s="ArrayList[ 1,  9,  10, ...]"
 
 

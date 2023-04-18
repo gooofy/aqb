@@ -441,6 +441,22 @@ void Ty_computeSize(Ty_ty ty)
     }
 }
 
+bool Ty_isSigned(Ty_ty ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_byte:
+        case Ty_integer:
+        case Ty_long:
+        case Ty_single:
+        case Ty_double:
+            return TRUE;
+        default:
+            return FALSE;
+    }
+    return FALSE;
+}
+
 Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));

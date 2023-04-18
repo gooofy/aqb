@@ -9,31 +9,32 @@
 
 #define DEFAULT_CAPACITY 4
 
-char *_ArrayList_ToString_(ArrayList *self)
+char *_ArrayList_ToString_(ArrayList *THIS)
 {
-    // FIXME
-    // 'obj@0xXXXXXXXX\0' -> 15 chars
-    UBYTE *str2 = ALLOCATE_(15, MEMF_ANY);
-    str2[0]='o';
-    str2[1]='b';
-    str2[2]='j';
-    str2[3]='@';
-    _astr_itoa_ext ((intptr_t)self, &str2[4], 16, FALSE);
-    str2[14]=0;
-    return (char *) str2;
+    STRPTR res = (STRPTR) "ArrayList[";
+    LONG maxi = THIS->_size > 3 ? maxi=2 : THIS->_size-1;
+    for (LONG i=0; i<=maxi; i++)
+    {
+        res = __astr_concat (res, _u4toa_(_ArrayList_GetAt_(THIS, i)));
+        if (i<THIS->_size-1)
+            res = __astr_concat (res, (STRPTR)", ");
+    }
+    if (maxi<THIS->_size-1)
+        res = __astr_concat (res, (STRPTR)"...");
+    res = __astr_concat (res, (STRPTR)"]");
+
+    return (char *) res;
 }
 
-BOOL _ArrayList_Equals_ (ArrayList *self, ArrayList *pObjB)
-{
-    // FIXME
-    return self == pObjB;
-}
-
-LONG _ArrayList_GetHashCode_ (ArrayList *self)
-{
-    // FIXME
-    return (intptr_t) self;
-}
+//BOOL _ArrayList_Equals_ (ArrayList *self, ArrayList *pObjB)
+//{
+//    return self == pObjB;
+//}
+//
+//LONG _ArrayList_GetHashCode_ (ArrayList *self)
+//{
+//    return (intptr_t) self;
+//}
 
 VOID   _ArrayList_CONSTRUCTOR (ArrayList *THIS, LONG  capacity)
 {
@@ -184,7 +185,7 @@ VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG    index)
 
 
 static intptr_t _ArrayList_vtable[] = {
-    (intptr_t) _CObject_ToString_,
+    (intptr_t) _ArrayList_ToString_,
     (intptr_t) _CObject_Equals_,
     (intptr_t) _CObject_GetHashCode_,
     (intptr_t) _ArrayList_Count_,

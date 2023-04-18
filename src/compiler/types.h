@@ -192,8 +192,9 @@ Ty_const        Ty_ConstUInt         (Ty_ty ty, uint32_t u);
 Ty_const        Ty_ConstFloat        (Ty_ty ty, double   f);
 Ty_const        Ty_ConstString       (Ty_ty ty, string   s);
 
-int             Ty_size              (Ty_ty t);
+int             Ty_size              (Ty_ty ty);
 void            Ty_computeSize       (Ty_ty ty);
+bool            Ty_isSigned          (Ty_ty ty);
 
 void            Ty_defineRange       (Ty_ty ty, char lstart, char lend);
 Ty_ty           Ty_inferType         (string varname);

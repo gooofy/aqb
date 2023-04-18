@@ -1012,27 +1012,30 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
             break;
 
         case Ty_byte:
+        case Ty_integer:
+        case Ty_long:
         case Ty_ubyte:
         case Ty_uinteger:
-        case Ty_integer:
-            if (tyTo->kind == Ty_pointer)
-            {
-                CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
-                return TRUE;
-            }
-            /* fallthrough */
-        case Ty_long:
+            // FIXME: remove because ANY type should be used instead
+            //if (tyTo->kind == Ty_pointer)
+            //{
+            //    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+            //    return TRUE;
+            //}
+            ///* fallthrough */
         case Ty_ulong:
             if ( (tyTo->kind == Ty_single) || (tyTo->kind == Ty_double) || (tyTo->kind == Ty_bool) )
             {
                 CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                 return TRUE;
             }
-            if (tyTo->kind == Ty_pointer)
-            {
-                item->ty = tyTo;
-                return TRUE;
-            }
+
+            // FIXME: remove because ANY type should be used instead
+            //if (tyTo->kind == Ty_pointer)
+            //{
+            //    item->ty = tyTo;
+            //    return TRUE;
+            //}
 
             if (Ty_size(tyFrom) == Ty_size(tyTo))
             {
@@ -1048,14 +1051,16 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
                 case Ty_integer:
                 case Ty_long:
                 case Ty_ulong:
-                    if (Ty_size(tyFrom) == Ty_size(tyTo))
-                    {
-                        item->ty = tyTo;
-                        return TRUE;
-                    }
-
                     CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                     return TRUE;
+                case Ty_any:
+                    if (Ty_isSigned(tyFrom))
+                        CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, Ty_Long());
+                    else
+                        CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, Ty_ULong());
+                    item->ty = tyTo;
+                    return TRUE;
+
                 default:
                     return FALSE;
             }

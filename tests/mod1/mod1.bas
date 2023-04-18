@@ -48,5 +48,5 @@ setfp p
 CALL g_p (16, 7)
 ASSERT vfoo = 23
 
-ASSERT MathTransBase <> 0
+ASSERT MathTransBase <> NULL
 

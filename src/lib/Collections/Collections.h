@@ -25,8 +25,8 @@ struct ArrayList_
 
 void  _ArrayList___init      (ArrayList *self);
 char *_ArrayList_ToString_   (ArrayList *self);
-BOOL  _ArrayList_Equals_     (ArrayList *self, ArrayList *pObjB);
-ULONG _ArrayList_GetHashCode (ArrayList *self);
+//BOOL  _ArrayList_Equals_     (ArrayList *self, ArrayList *pObjB);
+//ULONG _ArrayList_GetHashCode (ArrayList *self);
 
 VOID _ArrayList_CONSTRUCTOR (ArrayList *THIS, LONG    capacity);
 LONG    _ArrayList_Count_ (ArrayList *THIS);
