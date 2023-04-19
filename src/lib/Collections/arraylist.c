@@ -189,12 +189,30 @@ VOID _ArrayList_Insert (ArrayList *THIS, LONG index, intptr_t value)
 
 VOID _ArrayList_Remove (ArrayList *THIS, intptr_t value)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Remove");
+    for (LONG i=0; i<THIS->_size; i++)
+    {
+        intptr_t *p = &THIS->_items[i];
+        if (*p==value)
+        {
+            _ArrayList_RemoveAt (THIS, i);
+            return;
+        }
+    }
 }
 
-VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG    index)
+VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG index)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.RemoveAt");
+    if ( (index<0) || (index > THIS->_size) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    intptr_t *pDest = &THIS->_items[index];
+    for (LONG i=index+1; i<THIS->_size; i++)
+    {
+        intptr_t *pSrc = &THIS->_items[i];
+        *pDest++ = *pSrc;
+    }
+    *pDest=0;
+    THIS->_size--;
 }
 
 

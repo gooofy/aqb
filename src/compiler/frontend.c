@@ -785,8 +785,24 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             *res = ty1;
             return FALSE;
         case Ty_any:
-            *res = ty1;
-            return ty2->kind == Ty_any;
+            *res = ty2;
+            switch (ty2->kind)
+            {
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_pointer:
+                case Ty_forwardPtr:
+                case Ty_procPtr:
+                case Ty_single:
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            return FALSE;
         case Ty_procPtr:
             switch (ty2->kind)
             {
@@ -2741,6 +2757,8 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
         }
 
         *ty = resolveTypeDescIdent(pos, sType, ptr, allowForwardPtr);
+        if (*ty==NULL)
+            return FALSE;
     }
 
     return TRUE;

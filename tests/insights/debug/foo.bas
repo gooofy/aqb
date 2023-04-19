@@ -61,7 +61,7 @@ ASSERT NOT o1->IsReadOnly
 ASSERT NOT o1->IsFixedSize
 
 '
-' test insert
+' test Insert
 '
 
 o1->Insert (1, 2)
@@ -70,5 +70,26 @@ ASSERT o1->Count = 5
 ASSERT o1->Contains(2)
 ASSERT o1->IndexOf(2)=1
 ASSERT o1->IndexOf(11)=4
+
+'
+' test Remove
+'
+
+o1->Remove (9)
+ASSERT o1->Count = 4
+ASSERT o1->Contains(2)
+ASSERT NOT o1->Contains(9)
+
+'
+' test RemoveAt
+'
+o1->RemoveAt(1)
+s = o1->ToString()
+TRACE s
+ASSERT NOT o1->Contains(2)
+ASSERT o1->Count = 3
+ASSERT o1->GetAt(0)=1
+ASSERT o1->GetAt(1)=10
+ASSERT o1->GetAt(2)=11
 
 

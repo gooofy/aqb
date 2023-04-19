@@ -122,6 +122,7 @@ tests/insights/footprint/*.txt
 tests/insights/debug/dump.txt
 tests/insights/debug/foo.hunk
 tests/insights/debug/foo.asm
+tests/insights/debug/lxa.log
 tests/insights/footprint/foo
 tests/insights/link/foo
 tests/insights/link/foo.S
