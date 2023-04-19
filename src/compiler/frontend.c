@@ -872,8 +872,8 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
 
             return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
         case Ty_pointer:
-            if (Ty_isInt(tyFrom))
-                return TRUE;
+            //if (Ty_isInt(tyFrom))
+            //    return TRUE;
 
             if (tyFrom->kind == Ty_string)
             {
@@ -886,24 +886,26 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
 
             if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if ((tyTo->u.pointer->kind == Ty_any) || (tyFrom->u.pointer->kind == Ty_any))
+            
+            Ty_ty tyFromPtr = tyFrom->u.pointer;
+            Ty_ty tyToPtr = tyTo->u.pointer;
+
+            if ((tyToPtr->kind == Ty_any) || (tyFromPtr->kind == Ty_any))
                 return TRUE;
 
             // OOP: child -> base class assignment is legal
-            if ( (tyTo->u.pointer->kind == Ty_class) && (tyFrom->u.pointer->kind == Ty_class) )
+            if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_class) )
             {
-                Ty_ty tyClsTo = tyTo->u.pointer;
-                Ty_ty tyClsFrom = tyFrom->u.pointer;
-                while (tyClsFrom && (tyClsFrom != tyClsTo) && (tyClsFrom->u.cls.baseType))
-                    tyClsFrom = tyClsFrom->u.cls.baseType;
-                return tyClsTo == tyClsFrom;
+                while (tyFromPtr && (tyFromPtr != tyToPtr) && (tyFromPtr->u.cls.baseType))
+                    tyFromPtr = tyFromPtr->u.cls.baseType;
+                return tyToPtr == tyFromPtr;
             }
 
             // OOP: class -> implemented interface assignment is legal
-            if ( (tyTo->u.pointer->kind == Ty_class) && (tyFrom->u.pointer->kind == Ty_interface) )
-                return Ty_checkImplements (tyTo->u.pointer, tyFrom->u.pointer);
+            if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_interface) )
+                return Ty_checkImplements (tyToPtr, tyFromPtr);
 
-            return compatible_ty(tyFrom->u.pointer, tyTo->u.pointer);
+            return compatible_ty(tyFromPtr, tyToPtr);
         case Ty_procPtr:
         {
             // procPtr := NULL is allowed
@@ -1142,36 +1144,26 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
                 Ty_ty tyFromPtr = tyFrom->u.pointer;
                 Ty_ty tyToPtr   = tyTo->u.pointer;
 
-                switch (tyFromPtr->kind)
+                if ((tyFromPtr->kind == Ty_class) && (tyToPtr->kind == Ty_interface))
                 {
-                    case Ty_class:
-                        if (tyToPtr->kind == Ty_interface)
-                        {
-                            Ty_implements implements = tyFromPtr->u.cls.implements;
-                            while (implements)
-                            {
-                                if (implements->intf == tyToPtr)
-                                    break;
-                                implements=implements->next;
-                            }
-                            if (!implements)
-                                return FALSE;
-                            CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
-                            CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
-                            assert (item->kind == IK_varPtr);
-                            item->kind = IK_inReg;
-                            item->ty = tyTo;
-                        }
-                        else
-                        {
-                            item->ty = tyTo;
-                        }
-                        break;
-                    case Ty_interface:
-                        assert(FALSE); // FIXME: implement
-                        break;
-                    default:
-                        item->ty = tyTo;
+                    Ty_implements implements = tyFromPtr->u.cls.implements;
+                    while (implements)
+                    {
+                        if (implements->intf == tyToPtr)
+                            break;
+                        implements=implements->next;
+                    }
+                    if (!implements)
+                        return FALSE;
+                    CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
+                    CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+                    assert (item->kind == IK_varPtr);
+                    item->kind = IK_inReg;
+                    item->ty = tyTo;
+                }
+                else
+                {
+                    item->ty = tyTo;
                 }
             }
             return TRUE;
@@ -2819,6 +2811,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     if (!t)
         t = Ty_inferType(S_name(sVar));
     assert(t);
+
+    if (!Ty_isAllocatable(t))
+        return EM_error (pos, "Cannot allocate variables of this type");
 
     if (dims)
     {

@@ -1,5 +1,5 @@
 '
-' Collections Test 2: ArrayList class, part 2
+' Collections Test 3: ArrayList iterators
 '
 
 OPTION EXPLICIT
@@ -19,77 +19,18 @@ DIM i AS INTEGER
 
 DIM o1 AS ArrayList PTR = NEW ArrayList()
 
-'
-' test Add, GetAt
-'
+FOR i = 1 TO 10
+    o1->Add(i)
+NEXT i
 
-o1->Add(1)
-o1->Add(9)
-o1->Add(10)
-o1->Add(11)
-
-i = o1->GetAt (0)
-TRACE i
-ASSERT i = 1
+TRACE o1
+ASSERT o1->Count = 10
 
 '
-' test Count
+' enumerate
 '
 
-ASSERT o1->Count = 4
+DIM e AS IEnumerator PTR
 
-'
-' test contains
-'
-
-ASSERT o1->Contains(9)
-ASSERT NOT o1->Contains(42)
-
-'
-' test ToString
-'
-
-s = o1->ToString()
-TRACE s
-ASSERT s="ArrayList[ 1,  9,  10, ...]"
-
-'
-' test IsReadOnly, IsFixedSize
-'
-
-ASSERT NOT o1->IsReadOnly
-ASSERT NOT o1->IsFixedSize
-
-'
-' test Insert
-'
-
-o1->Insert (1, 2)
-TRACE o1->Count, o1->ToString()
-ASSERT o1->Count = 5
-ASSERT o1->Contains(2)
-ASSERT o1->IndexOf(2)=1
-ASSERT o1->IndexOf(11)=4
-
-'
-' test Remove
-'
-
-o1->Remove (9)
-ASSERT o1->Count = 4
-ASSERT o1->Contains(2)
-ASSERT NOT o1->Contains(9)
-
-'
-' test RemoveAt
-'
-o1->RemoveAt(1)
-s = o1->ToString()
-TRACE s
-ASSERT NOT o1->Contains(2)
-ASSERT o1->Count = 3
-ASSERT o1->GetAt(0)=1
-ASSERT o1->GetAt(1)=10
-ASSERT o1->GetAt(2)=11
-
+e = o1->GetEnumerator()
 

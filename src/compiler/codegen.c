@@ -415,7 +415,7 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
 
     int size = Ty_size(ty);
 
-    frame->locals_offset -= Ty_size(ty);
+    frame->locals_offset -= size;
     // alignment
     frame->locals_offset -= size % 2;
 

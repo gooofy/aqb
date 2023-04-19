@@ -457,6 +457,37 @@ bool Ty_isSigned(Ty_ty ty)
     return FALSE;
 }
 
+bool Ty_isAllocatable (Ty_ty ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_bool:
+        case Ty_byte:
+        case Ty_ubyte:
+        case Ty_integer:
+        case Ty_uinteger:
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_single:
+        case Ty_pointer:
+        case Ty_procPtr:
+        case Ty_string:
+        case Ty_double:
+        case Ty_darray:
+        case Ty_sarray:
+        case Ty_record:
+        case Ty_class:
+        case Ty_any:
+            return TRUE;
+        case Ty_interface:
+        case Ty_forwardPtr:
+        case Ty_toLoad:
+        case Ty_prc:
+            return FALSE;
+    }
+    return FALSE;
+}
+
 Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
