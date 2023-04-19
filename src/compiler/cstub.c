@@ -25,7 +25,8 @@ static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
         //case Ty_forwardPtr: fprintf (cstubf, ""); break;
         //case Ty_procPtr   : fprintf (cstubf, ""); break;
         case Ty_class     : fprintf (cstubf, "%s ", S_name(ty->u.cls.name)); break;
-        case Ty_interface     : fprintf (cstubf, "%s ", S_name(ty->u.interface.name)); break;
+        //case Ty_interface     : fprintf (cstubf, "intptr_t ** ", S_name(ty->u.interface.name)); break;
+        case Ty_interface     : fprintf (cstubf, "intptr_t ** "); break;
         //case Ty_toLoad    : fprintf (cstubf, ""); break;
         //case Ty_prc       : fprintf (cstubf, ""); break;
         default:

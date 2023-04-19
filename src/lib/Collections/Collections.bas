@@ -129,12 +129,21 @@ PUBLIC CLASS ArrayList IMPLEMENTS IList, ICloneable
 
 END CLASS
 
-'PUBLIC CLASS CString IMPLEMENTS IComparable, IEnumerable, ICloneable
-'
-'    PUBLIC:
-'
-'        DECLARE EXTERN CONSTRUCTOR (BYVAL str AS STRING)
-'
-'END CLASS
+PUBLIC CLASS ArrayListEnumerator IMPLEMENTS IEnumerator
 
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL list AS ArrayList PTR)
+
+        DECLARE EXTERN VIRTUAL FUNCTION MoveNext() AS BOOLEAN
+        DECLARE EXTERN VIRTUAL PROPERTY Current AS ANY
+        DECLARE EXTERN VIRTUAL SUB      Reset()
+
+    PRIVATE:
+
+        AS ArrayList PTR _list
+        AS LONG          _index
+        AS ANY           _currentElement
+
+END CLASS
 

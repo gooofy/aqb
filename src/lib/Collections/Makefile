@@ -20,7 +20,7 @@ stub.c: Collections.bas
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
-Collections.a: Collections.o arraylist.o
+Collections.a: Collections.o ArrayList.o ArrayListEnumerator.o
 	$(AR_AMIGAOS) -crs Collections.a $^
 	pushd .. && rm -f Collections.a && ln -s Collections/Collections.a && popd
 	cp $@ $(DISTDIR)/lib

@@ -36,18 +36,18 @@ DIM e AS IEnumerator PTR
 
 e = o1->GetEnumerator()
 
-TRACE "enumerating..."
+'TRACE "enumerating..."
 
 DIM AS INTEGER cnt=0, sum=0
 
 WHILE e->MoveNext()
     i = e->Current
-    TRACE "element: "; i
+    'TRACE "element: "; i
     cnt=cnt+1
     sum=sum+i
 WEND
 
-TRACE "done. sum=";sum;", cnt=";cnt
+'TRACE "done. sum=";sum;", cnt=";cnt
 
 ASSERT cnt=11
 ASSERT sum=97
@@ -61,15 +61,13 @@ e->Reset()
 cnt=0 : sum=0
 WHILE e->MoveNext()
     i = e->Current
-    TRACE "element: "; i
+    'TRACE "element: "; i
     cnt=cnt+1
     sum=sum+i
 WEND
 
-TRACE "done. sum=";sum;", cnt=";cnt
+'TRACE "done. sum=";sum;", cnt=";cnt
 
 ASSERT cnt=11
 ASSERT sum=97
-
-
 

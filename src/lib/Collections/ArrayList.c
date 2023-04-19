@@ -100,10 +100,14 @@ VOID _ArrayList_SetAt (ArrayList *THIS, LONG index, intptr_t obj)
     *p = obj;
 }
 
-IEnumerator *_ArrayList_GetEnumerator_ (ArrayList *THIS)
+intptr_t ***_ArrayList_GetEnumerator_ (ArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.GetEnumerator");
-    return NULL;
+    ArrayListEnumerator *e = (ArrayListEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+
+    _ArrayListEnumerator___init (e);
+    _ArrayListEnumerator_CONSTRUCTOR (e, THIS);
+
+    return &e->__intf_vtable_IEnumerator;
 }
 
 CObject *_ArrayList_Clone_ (ArrayList *THIS)

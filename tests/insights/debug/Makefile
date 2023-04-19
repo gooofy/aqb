@@ -11,7 +11,7 @@ ASMProsrc="${AMIGA_X}/foo.asm"
 
 .PHONY:	run clean
 
-all:	foo.hunk
+all:	foo.hunk $(EMUDIR)/foo.hunk
 
 foo.hunk:	foo.bas
 	$(AQB) -L $(AQBLIBS) -d $(AQBRT) -A $(ASMProsrctmp) -o foo.hunk $(EXAMPLE).bas || exit 1
