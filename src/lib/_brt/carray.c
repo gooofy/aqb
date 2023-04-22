@@ -186,7 +186,7 @@ LONG _CArray_Capacity_ (CArray *THIS)
     return _CArray_UBOUND_ (THIS, 1) - _CArray_LBOUND_ (THIS, 1) + 1;
 }
 
-intptr_t _CArray_GetAt_ (CArray *THIS, LONG     index)
+intptr_t _CArray_GetAt_ (CArray *THIS, LONG index)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -258,39 +258,50 @@ intptr_t ** *_CArray_GetEnumerator_ (CArray *THIS)
     return &e->__intf_vtable_IEnumerator;
 }
 
-LONG     _CArray_Add_ (CArray *THIS, intptr_t obj)
+LONG _CArray_Add_ (CArray *THIS, intptr_t obj)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Add");
-    return 0;
+    ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    return -1;
 }
 
-BOOL     _CArray_Contains_ (CArray *THIS, intptr_t value)
+BOOL _CArray_Contains_ (CArray *THIS, intptr_t value)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Contains");
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    for ( LONG i=THIS->_bounds[0].lbound; i<= THIS->_bounds[0].ubound; i++)
+    {
+        intptr_t v = _CArray_GetAt_ (THIS, i);
+        if (v == value)
+            return TRUE;
+    }
     return FALSE;
 }
 
-VOID _CArray_CLEAR (CArray *THIS)
+BOOL _CArray_IsReadOnly_ (CArray *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.CLEAR");
-}
-
-BOOL     _CArray_IsReadOnly_ (CArray *THIS)
-{
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.IsReadOnly");
     return FALSE;
 }
 
-BOOL     _CArray_IsFixedSize_ (CArray *THIS)
+BOOL _CArray_IsFixedSize_ (CArray *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.IsFixedSize");
-    return FALSE;
+    return TRUE;
 }
 
-LONG     _CArray_IndexOf_ (CArray *THIS, intptr_t value, LONG     startIndex, LONG     Count)
+LONG _CArray_IndexOf_ (CArray *THIS, intptr_t value, LONG startIndex, LONG count)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.IndexOf");
-    return 0;
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    if (startIndex < THIS->_bounds[0].lbound)
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    LONG upper_i = count >= 0 ? startIndex + count - 1 : THIS->_bounds[0].ubound;
+    for ( LONG i=startIndex; i<= upper_i; i++)
+    {
+        intptr_t v = _CArray_GetAt_ (THIS, i);
+        if (v == value)
+            return i;
+    }
+    return -1;
 }
 
 VOID _CArray_Insert (CArray *THIS, LONG     index, intptr_t value)

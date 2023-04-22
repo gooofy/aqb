@@ -24,6 +24,18 @@ NEXT i
 ASSERT a.Count = 10
 ASSERT a.Capacity = 10
 
+' test Contains, IndexOf
+
+ASSERT a.Contains(64)
+ASSERT NOT a.Contains(65)
+ASSERT a.IndexOf(64)=8
+ASSERT a.IndexOf(65)=-1
+
+' test IsReadOnly, IsFixedSize
+
+ASSERT NOT a.IsReadOnly
+ASSERT a.IsFixedSize
+
 ' test enumeration
 
 DIM e AS IEnumerator PTR
