@@ -260,29 +260,79 @@ ULONG  _CObject_GetHashCode_ (CObject *THIS);
  * dynamic array support
  */
 
-typedef struct
+typedef struct CArray_ CArray;
+typedef struct CArrayBounds_ CArrayBounds;
+typedef struct CArrayEnumerator_ CArrayEnumerator;
+
+struct CArray_
 {
-    ULONG   lbound, ubound, numElements;
-} _DARRAY_BOUNDS_T;
+    intptr_t **_vTablePtr;
+    intptr_t **__intf_vtable_IList;
+    intptr_t **__intf_vtable_ICollection;
+    intptr_t **__intf_vtable_IEnumerable;
+    intptr_t **__intf_vtable_ICloneable;
+    BYTE    *_data;
+    UWORD    _numDims;
+    LONG     _elementSize;
+    LONG     _dataSize;
+    CArrayBounds *_bounds;
+};
 
-typedef struct
+struct CArrayBounds_
 {
-    APTR              data;
-    UWORD             numDims;
-    ULONG             elementSize;
-    ULONG             dataSize;
-    _DARRAY_BOUNDS_T *bounds;
-} _DARRAY_T;
+    LONG     lbound;
+    LONG     ubound;
+    LONG     numElements;
+};
 
-void  __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize);
-void  __DARRAY_T_REDIM    (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...);
-void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
-WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
-WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
-void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
-void  __DARRAY_T_ERASE    (_DARRAY_T *self);
-void  __DARRAY_T_CLEAR    (_DARRAY_T *self);
+struct CArrayEnumerator_
+{
+    intptr_t **_vTablePtr;
+    intptr_t **__intf_vtable_IEnumerator;
+    CArray *_array;
+    LONG     _index;
+    intptr_t _currentElement;
+};
 
+//void  __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize);
+//void  __DARRAY_T_REDIM    (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...);
+//void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
+//WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
+//WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
+//void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
+//void  __DARRAY_T_ERASE    (_DARRAY_T *self);
+//void  __DARRAY_T_CLEAR    (_DARRAY_T *self);
+
+VOID        _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *list);
+BOOL        _CArrayEnumerator_MoveNext_   (CArrayEnumerator *THIS);
+intptr_t    _CArrayEnumerator_Current_    (CArrayEnumerator *THIS);
+VOID        _CArrayEnumerator_Reset       (CArrayEnumerator *THIS);
+
+void        _CArray___init                (CArray *THIS);
+VOID        _CArray_CONSTRUCTOR           (CArray *THIS, LONG     elementSize);
+VOID        _CArray_REDIM                 (CArray *THIS, UWORD numDims, BOOL preserve, ...);
+intptr_t   *_CArray_IDXPTR_               (CArray *THIS, UWORD    dimCnt, ...);
+LONG        _CArray_LBOUND_               (CArray *THIS, WORD     d);
+LONG        _CArray_UBOUND_               (CArray *THIS, WORD     d);
+VOID        _CArray_COPY                  (CArray *THIS, CArray *darray);
+VOID        _CArray_ERASE                 (CArray *THIS);
+LONG        _CArray_Count_                (CArray *THIS);
+VOID        _CArray_capacity              (CArray *THIS, LONG     c);
+LONG        _CArray_capacity_             (CArray *THIS);
+intptr_t    _CArray_GetAt_                (CArray *THIS, LONG     index);
+VOID        _CArray_SetAt                 (CArray *THIS, LONG     index, intptr_t obj);
+intptr_t ***_CArray_GetEnumerator_        (CArray *THIS);
+LONG        _CArray_Add_                  (CArray *THIS, intptr_t obj);
+BOOL        _CArray_Contains_             (CArray *THIS, intptr_t value);
+VOID        _CArray_CLEAR                 (CArray *THIS);
+BOOL        _CArray_IsReadOnly_           (CArray *THIS);
+BOOL        _CArray_IsFixedSize_          (CArray *THIS);
+LONG        _CArray_IndexOf_              (CArray *THIS, intptr_t value, LONG     startIndex, LONG     Count);
+VOID        _CArray_Insert                (CArray *THIS, LONG     index, intptr_t value);
+VOID        _CArray_Remove                (CArray *THIS, intptr_t value);
+VOID        _CArray_RemoveAt              (CArray *THIS, LONG     index);
+VOID        _CArray_RemoveAll             (CArray *THIS);
+CObject    *_CArray_Clone_                (CArray *THIS);
 
 // DATA / READ / RESTORE support
 

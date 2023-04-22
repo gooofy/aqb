@@ -46,13 +46,13 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "OSExec",
+            "name": "OSGadTools",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
-            "args": ["-L", "..", "-I", "-d", "_brt", "-s", "OSExec.sym", "OSExec.bas"],
+            "args": ["-L", "..", "-I", "-d", "_brt", "-s", "OSGadTools.sym", "OSGadTools.bas"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/src/lib/OSExec",
+            "cwd": "${workspaceFolder}/src/lib/OSGadTools",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -73,6 +73,26 @@
             "args": ["-L", "..", "-I", "-d", "_brt", "-s", "OSUtility.sym", "OSUtility.bas"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/src/lib/OSUtility",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "OSExec",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "..", "-I", "-d", "_brt", "-s", "OSExec.sym", "OSExec.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/lib/OSExec",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

@@ -1,75 +1,32 @@
-'
-' Collections Test 3: ArrayList iterators
-'
-
 OPTION EXPLICIT
 
-IMPORT Collections
+DIM AS INTEGER i=42
+DIM AS INTEGER a(1)
 
-'
-' main
-'
+TRACE "CLEAR ..."
 
-DIM s AS STRING
-DIM i AS INTEGER
+CLEAR ,,1024
 
-'
-' try a simple list of integers
-'
+TRACE "stack size: ", FRE(-2)
+ASSERT FRE(-2)=1024
 
-DIM o1 AS ArrayList PTR = NEW ArrayList()
+REM TRACE i, a(0), a(1)
+ASSERT i=42
+ASSERT a(0)=0
+ASSERT a(1)=0
 
-o1->Add(42)
+i=23
+a(0)=1 : a(1)=2
 
-FOR i = 1 TO 10
-    o1->Add(i)
-NEXT i
+REM TRACE i, a(0), a(1)
+ASSERT i=23
+ASSERT a(0)=1
+ASSERT a(1)=2
 
-'TRACE o1
-'ASSERT o1->Count = 10
+CLEAR
 
-'
-' enumerate
-'
-
-DIM e AS IEnumerator PTR
-
-e = o1->GetEnumerator()
-
-TRACE "enumerating..."
-
-DIM AS INTEGER cnt=0, sum=0
-
-WHILE e->MoveNext()
-    i = e->Current
-    TRACE "element: "; i
-    cnt=cnt+1
-    sum=sum+i
-WEND
-
-TRACE "done. sum=";sum;", cnt=";cnt
-
-ASSERT cnt=11
-ASSERT sum=97
-
-'
-' test Reset
-'
-
-e->Reset()
-
-cnt=0 : sum=0
-WHILE e->MoveNext()
-    i = e->Current
-    TRACE "element: "; i
-    cnt=cnt+1
-    sum=sum+i
-WEND
-
-TRACE "done. sum=";sum;", cnt=";cnt
-
-ASSERT cnt=11
-ASSERT sum=97
-
-
+REM TRACE i, a(0), a(1)
+ASSERT i=42
+ASSERT a(0)=0
+ASSERT a(1)=0
 

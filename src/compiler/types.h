@@ -32,7 +32,7 @@ struct Ty_ty_
                 uint32_t       uiSize;
                 Ty_memberList  entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
-        struct {Ty_ty elementTy;                                            } darray;
+        struct {Ty_ty elementTy; Ty_ty tyCArray;                            } darray;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
@@ -161,7 +161,7 @@ Ty_ty           Ty_VTableTy(void);
 Ty_ty           Ty_VTablePtr(void);
 
 Ty_ty           Ty_SArray            (S_symbol mod, Ty_ty ty, int start, int end);
-Ty_ty           Ty_DArray            (S_symbol mod, Ty_ty elementTy);
+Ty_ty           Ty_DArray            (S_symbol mod, Ty_ty elementTy, Ty_ty tyCArray);
 Ty_ty           Ty_Pointer           (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_ForwardPtr        (S_symbol mod, S_symbol sType);
 Ty_ty           Ty_Prc               (S_symbol mod, Ty_proc proc);

@@ -39,13 +39,13 @@ intptr_t  ***_ArrayList_GetEnumerator_ (ArrayList *THIS);
 CObject     *_ArrayList_Clone_         (ArrayList *THIS);
 LONG         _ArrayList_Add_           (ArrayList *THIS, intptr_t obj);
 BOOL         _ArrayList_Contains_      (ArrayList *THIS, intptr_t value);
-VOID         _ArrayList_CLEAR          (ArrayList *THIS);
 BOOL         _ArrayList_IsReadOnly_    (ArrayList *THIS);
 BOOL         _ArrayList_IsFixedSize_   (ArrayList *THIS);
 LONG         _ArrayList_IndexOf_       (ArrayList *THIS, intptr_t value, LONG startIndex, LONG count);
 VOID         _ArrayList_Insert         (ArrayList *THIS, LONG    index, intptr_t value);
 VOID         _ArrayList_Remove         (ArrayList *THIS, intptr_t value);
 VOID         _ArrayList_RemoveAt       (ArrayList *THIS, LONG    index);
+VOID         _ArrayList_RemoveAll      (ArrayList *THIS);
 
 struct ArrayListEnumerator_
 {

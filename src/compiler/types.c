@@ -7,8 +7,6 @@
 #include "types.h"
 #include "logger.h"
 
-#define _DARRAY_T_SIZE 18
-
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
 
@@ -504,12 +502,13 @@ Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
     return p;
 }
 
-Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy)
+Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy, Ty_ty tyCArray)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind               = Ty_darray;
     p->u.darray.elementTy = elementTy;
+    p->u.darray.tyCArray  = tyCArray;
     p->mod                = mod;
     p->uid                = g_uid++;
 
@@ -540,7 +539,7 @@ int Ty_size(Ty_ty t)
         case Ty_double:
              return 8;
         case Ty_darray:
-            return _DARRAY_T_SIZE;
+            return t->u.darray.tyCArray->u.cls.uiSize;
         case Ty_sarray:
             return t->u.sarray.uiSize;
         case Ty_record:

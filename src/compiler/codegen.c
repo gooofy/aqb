@@ -793,9 +793,9 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
         }
 
         // run __aqb_clear
-        S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
-        CG_transCall (initCode, pos, frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
+        //S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
+        //Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        //CG_transCall (initCode, pos, frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
 
         AS_instrListPrependList (body, initCode);
     }
@@ -3369,6 +3369,7 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
         }
         case Ty_record:
         case Ty_class:
+        case Ty_darray:
         {
             switch (recordPtr->kind)
             {
@@ -3611,12 +3612,16 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_method
     else
     {
         // call virtual method via vtable entry
-        switch (thisRef.ty->kind)
+        Ty_ty tyThis = thisRef.ty;
+        switch (tyThis->kind)
         {
+            case Ty_darray:
+                tyThis = tyThis->u.darray.tyCArray;
+                /* fall through */
             case Ty_class:
             {
                 CG_item methodPtr = thisRef;
-                Ty_member vtpm = thisRef.ty->u.cls.vTablePtr;
+                Ty_member vtpm = tyThis->u.cls.vTablePtr;
                 CG_transField   (code, pos, frame, &methodPtr, vtpm);
                 CG_transDeRef (code, pos, frame, &methodPtr);
                 CG_item idx;

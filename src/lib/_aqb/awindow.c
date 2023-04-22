@@ -1658,7 +1658,7 @@ void AREA_OUTLINE(BOOL enabled)
         _g_cur_rp->Flags &= ~AREAOUTLINE;
 }
 
-void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
+void PATTERN (unsigned short lineptrn, CArray *areaptrn)
 {
     _aqb_get_output (/*needGfx=*/TRUE);
 
@@ -1668,13 +1668,13 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
 
     if (areaptrn)
     {
-        if (areaptrn->numDims != 1)
+        if (areaptrn->_numDims != 1)
         {
             ERROR(AE_PATTERN);
             return;
         }
 
-        ULONG n = areaptrn->bounds[0].ubound - areaptrn->bounds[0].lbound + 1;
+        ULONG n = areaptrn->_bounds[0].ubound - areaptrn->_bounds[0].lbound + 1;
         //_debug_puts((STRPTR)"PATTERN area: n="); _debug_puts2(n);
 
         // log2
@@ -1684,7 +1684,7 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
         //_debug_puts((STRPTR)", ptSz="); _debug_puts2(ptSz); _debug_putnl();
         //_debug_puts((STRPTR)"AreaPtrn[0]="); _debug_putu4(*((ULONG*)areaptrn->data)); _debug_putnl();
 
-        _g_cur_rp->AreaPtrn = areaptrn->data;
+        _g_cur_rp->AreaPtrn = (UWORD *) areaptrn->_data;
         _g_cur_rp->AreaPtSz = ptSz;
     }
 }

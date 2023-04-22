@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     67
+#define SYM_VERSION     69
 
 E_module g_builtinsModule = NULL;
 
@@ -467,6 +467,7 @@ static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
             break;
         case Ty_darray:
             ok &= E_tyFindTypes (smod, type_tab, ty->u.darray.elementTy);
+            ok &= E_tyFindTypes (smod, type_tab, ty->u.darray.tyCArray);
             break;
         case Ty_record:
         {
@@ -567,6 +568,7 @@ static bool E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
                 if (CG_isConst(&x->u.var))
                 {
                     ok &= E_tyFindTypes (smod, type_tab, ty);
+                    ok &= E_tyFindTypes (smod, type_tab, CG_getConst(&x->u.var)->ty);
                 }
                 else
                 {
@@ -696,7 +698,8 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
     switch (ty->kind)
     {
         case Ty_darray:
-            E_serializeTyRef(modTable, ty->u.sarray.elementTy);
+            E_serializeTyRef(modTable, ty->u.darray.elementTy);
+            E_serializeTyRef(modTable, ty->u.darray.tyCArray);
             break;
         case Ty_sarray:
             fwrite_u4(modf, ty->u.sarray.uiSize);
@@ -1318,7 +1321,7 @@ static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)
             int16_t getterVIX  = fread_i2(modf);
             Ty_proc setter     = E_deserializeTyProc(modTable, modf);
             int16_t setterVIX  = fread_i2(modf);
-            return Ty_MemberProperty (visibility, S_Symbol(name), t, Ty_Method(setter, setterVIX), Ty_Method(getter, getterVIX));
+            return Ty_MemberProperty (visibility, S_Symbol(name), t, setter ? Ty_Method(setter, setterVIX) : NULL, getter ? Ty_Method(getter, getterVIX) : NULL);
         }
         default:
             assert(FALSE);
@@ -1468,6 +1471,7 @@ E_module E_loadModule(S_symbol sModule)
         {
             case Ty_darray:
                 ty->u.darray.elementTy = E_deserializeTyRef(modTable, modf);
+                ty->u.darray.tyCArray  = E_deserializeTyRef(modTable, modf);
                 break;
 
             case Ty_sarray:
@@ -1734,5 +1738,7 @@ void E_init(void)
 
     declare_builtin_const("TRUE",  Ty_ConstBool(Ty_Bool(), TRUE));
     declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));
+
+    declare_builtin_const("NULL",  Ty_ConstInt (Ty_AnyPtr(), 0));
 }
 

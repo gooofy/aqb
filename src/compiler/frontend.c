@@ -17,6 +17,7 @@ const char *FE_filename = NULL;
 
 // contains public env entries for export
 E_module FE_mod = NULL;
+static E_module _g_modDefault = NULL; // default module specified on compiler commandline, NULL when compiling _brt
 
 // map of builtin subs and functions that special parse functions:
 static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -24,8 +25,8 @@ static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, 
 // program we're compiling right now, can also be used to prepend static constructor calls
 static AS_instrList g_prog;
 
-// static initializers will get added here, will be called on startup and by CLEAR
-static AS_instrList g_varInitIL;
+// static initializers will get added here, will be called by CLEAR
+static AS_instrList g_clearIL;
 
 // DATA statement support
 static Temp_label g_dataRestoreLabel;
@@ -261,7 +262,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 107
+#define MAX_KEYWORDS 106
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -340,7 +341,6 @@ static S_symbol S_CONSTRUCTOR;
 static S_symbol S_LBOUND;
 static S_symbol S_UBOUND;
 static S_symbol S_PROTECTED;
-static S_symbol S__DARRAY_T;
 static S_symbol S_REDIM;
 static S_symbol S_PRESERVE;
 static S_symbol S__ISNULL;
@@ -374,8 +374,31 @@ static S_symbol S_CLASS;
 static S_symbol S_IMPLEMENTS;
 static S_symbol S_VIRTUAL;
 
+// internal fixed symbols that are not keywords (and thus get not highlighted in the editor)
+
 static S_symbol S_ToString;
 static S_symbol S_CObject;
+static S_symbol S_CArray;
+static S_symbol S_RemoveAll;
+static S_symbol S_IDXPTR;
+static S_symbol S__aqb_clear;
+static S_symbol S_COPY;
+
+// CArray _brt type (cached by _TyCArray())
+static Ty_ty      g_tyCArray=NULL;
+static Ty_ty _tyCArray(void)
+{
+    if (g_tyCArray)
+        return g_tyCArray;
+
+    Ty_ty g_tyCArray = E_resolveType(g_sleStack->env, S_CArray);
+    if (!g_tyCArray || (g_tyCArray->kind != Ty_class))
+    {
+        EM_error(0, "internal error: CArray type not found.");
+        assert(FALSE);
+    }
+    return g_tyCArray;
+}
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -1034,13 +1057,12 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
         case Ty_long:
         case Ty_ubyte:
         case Ty_uinteger:
-            // FIXME: remove because ANY type should be used instead
-            //if (tyTo->kind == Ty_pointer)
-            //{
-            //    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
-            //    return TRUE;
-            //}
-            ///* fallthrough */
+            if ((tyTo->kind == Ty_pointer) && explicit)
+            {
+                CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+                return TRUE;
+            }
+            /* fallthrough */
         case Ty_ulong:
             if ( (tyTo->kind == Ty_single) || (tyTo->kind == Ty_double) || (tyTo->kind == Ty_bool) )
             {
@@ -1248,44 +1270,29 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
     return TRUE;
 }
 
-#if 0
-static bool transCallBuiltinSub(S_pos pos, string builtinName, CG_itemList arglist, CG_item *exp)
+static bool transCallBuiltinMethod(S_pos pos, Ty_ty tyCls, S_symbol builtinMethod, CG_itemList arglist, AS_instrList initInstrs, CG_item *res)
 {
-    S_symbol fsym = S_Symbol(builtinName);
-    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-    if (!lx)
-        return EM_error(pos, "builtin %s not found.", S_name(fsym));
-    E_enventry entry = lx->first->e;
-    Ty_proc proc = entry->u.proc;
+    assert (tyCls->kind == Ty_class);
 
-    *exp = Tr_callExp(arglist, proc);
-    return TRUE;
-}
-#endif
-static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, CG_itemList arglist, AS_instrList initInstrs, CG_item *res)
-{
-    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
-    if (!tyClass || (tyClass->kind != Ty_class))
-        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
-
-    Ty_member entry = Ty_findEntry(tyClass, builtinMethod, /*checkbase=*/TRUE);
+    Ty_member entry = Ty_findEntry(tyCls, builtinMethod, /*checkbase=*/TRUE);
     if (!entry || (entry->kind != Ty_recMethod))
-        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
+        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(tyCls->u.cls.name), S_name(builtinMethod));
 
     Ty_method method = entry->u.method;
     CG_transMethodCall(initInstrs, pos, g_sleStack->frame, method, arglist, res);
     return TRUE;
 }
 
-static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, AS_instrList initInstrs)
-{
-    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
-    if (!tyClass || (tyClass->kind != Ty_class))
-        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
-
-    CG_transCall(initInstrs, pos, g_sleStack->frame, tyClass->u.cls.constructor, arglist, NULL);
-    return TRUE;
-}
+// FIXME
+//static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, AS_instrList initInstrs)
+//{
+//    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
+//    if (!tyClass || (tyClass->kind != Ty_class))
+//        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
+//
+//    CG_transCall(initInstrs, pos, g_sleStack->frame, tyClass->u.cls.constructor, arglist, NULL);
+//    return TRUE;
+//}
 
 static void transBinOp (S_pos pos, CG_binOp oper, CG_item *e1, CG_item *e2)
 {
@@ -1587,9 +1594,9 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                 CG_UIntItem(&nDimCnt->item, dimCnt, Ty_UInteger());
                 CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &nDimCnt->item);
 
-                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR"), arglist, g_sleStack->code, exp))
+                if (!transCallBuiltinMethod((*tkn)->pos, ty->u.darray.tyCArray, S_IDXPTR, arglist, g_sleStack->code, exp))
                     return FALSE;
-                //CG_castItem (g_sleStack->code, (*tkn)->pos, exp, ty->u.darray.elementTy);
+
                 exp->ty = ty->u.darray.elementTy;
                 exp->kind = IK_varPtr;
             }
@@ -1870,9 +1877,29 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     return TRUE;
 }
 
+static bool transInitObject (S_pos pos, Ty_ty tyCls, CG_itemList constructorAssignedArgs, CG_item *thisRef, AS_instrList code)
+{
+    // __init call
+
+    CG_itemList initArglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(initArglist);
+    n->item = *thisRef;
+    CG_transCall (code, pos, g_sleStack->frame, tyCls->u.cls.__init, /*args=*/initArglist, /*result=*/NULL);
+
+    // CONSTRUCTOR call
+
+    if (tyCls->u.cls.constructor)
+    {
+        CG_transCall (code, pos, g_sleStack->frame, tyCls->u.cls.constructor, constructorAssignedArgs, NULL);
+    }
+
+    return TRUE;
+}
+
 // creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
 static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
 {
+    S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "new"
 
     if ((*tkn)->kind != S_IDENT)
@@ -1907,23 +1934,16 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
     // cast ALLOCATE result to properly typed ptr
     Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
     if (!convert_ty(thisPtr, 0, tyClassPtr, /*explicit=*/TRUE))
-        return EM_error(0, "new: internal error: cannot convert this pointer");
+        return EM_error(pos, "new: internal error: cannot convert this pointer");
 
     // this ref
 
     CG_item thisRef = *thisPtr;
-    CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &thisRef);
     thisRef.kind = IK_varPtr;
     thisRef.ty   = tyCls;
 
-    // __init call
-
-    CG_itemList initArglist = CG_ItemList();
-    n = CG_itemListAppend(initArglist);
-    n->item = thisRef;
-    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyCls->u.cls.__init, /*args=*/initArglist, /*result=*/NULL);
-
-    // constructor call
+    // constructor arguments
 
     CG_itemList constructorAssignedArgs = CG_ItemList();
     if ((*tkn)->kind == S_LPAREN)
@@ -1932,7 +1952,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
 
         if (tyCls->u.cls.constructor)
         {
-            if (!transActualArgs(tkn, tyCls->u.cls.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, tyCls->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
         }
 
@@ -1940,16 +1960,8 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
             return EM_error((*tkn)->pos, "new: ) expected here");
         *tkn = (*tkn)->next; // skip ')'
     }
-    else
-    {
-        CG_itemListNode iln = CG_itemListPrepend (constructorAssignedArgs);
-        iln->item = thisRef;
-    }
 
-    if (tyCls->u.cls.constructor)
-        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyCls->u.cls.constructor, constructorAssignedArgs, NULL);
-
-    return TRUE;
+    return transInitObject (pos, tyCls, constructorAssignedArgs, &thisRef, g_sleStack->code);
 }
 
 // atom ::= ( expDesignator
@@ -2799,7 +2811,7 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
 
             CG_transAssignment (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, var, init);
             if ( (statc || !g_sleStack->prev) && CG_isConst(init))
-                CG_transAssignment ( g_varInitIL, pos, NULL, var, init);
+                CG_transAssignment ( g_clearIL, pos, NULL, var, init);
         }
 
     }
@@ -2846,7 +2858,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         else
         {
             // dyanmic, safe QB-like dynamic array
-            t = Ty_DArray(FE_mod->name, t);
+            t = Ty_DArray(FE_mod->name, t, _tyCArray());
 
         }
     }
@@ -2931,9 +2943,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
      * run constructor / assign initial value
      */
 
-    CG_itemList constructorAssignedArgs = NULL;
     if ((*tkn)->kind == S_EQUALS)
     {
+        CG_itemList constructorAssignedArgs = NULL;
         if (t->kind == Ty_darray)
             return EM_error ((*tkn)->pos, "DArray initial value assingment is not supported yet.");
 
@@ -2969,7 +2981,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     }
     else
     {
-        if (t->kind==Ty_darray)
+        if (_g_modDefault && (t->kind==Ty_darray))  // no CArrayList when compiling _brt
         {
             uint16_t numDims = 0;
             for (FE_dim dim=dims; dim; dim=dim->next)
@@ -2982,25 +2994,38 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             AS_instrList initInstrs = NULL;
             if (!initDone)
             {
-                // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+                initInstrs = AS_InstrList();
+
+                // call __init, CONSTRUCTOR
                 CG_itemList arglist = CG_ItemList();
+
+                CG_item thisRef = var;
+                CG_loadRef(initInstrs, pos, g_sleStack->frame, &thisRef);
                 CG_itemListNode n = CG_itemListAppend(arglist);
-                n->item = var;
-                CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &n->item);
+                n->item = thisRef;
+
                 n = CG_itemListAppend(arglist);
                 CG_UIntItem(&n->item, Ty_size(t->u.darray.elementTy), Ty_ULong());
-                initInstrs = AS_InstrList();
-                if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, initInstrs))
+
+                if (!transInitObject (pos, t->u.darray.tyCArray, arglist, &thisRef, initInstrs))
                     return FALSE;
 
-                // static / main var ? -> add call to __DARRAY_T_CLEAR (_DARRAY_T *self) to CLEAR varInitCode
+                // static / main var ? -> add call to this.RemoveAll()
                 if (statc || !g_sleStack->prev)
                 {
                     arglist = CG_ItemList();
                     n = CG_itemListAppend(arglist);
                     n->item = var;
-                    CG_loadRef(g_varInitIL, pos, NULL, &n->item);
-                    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("CLEAR"), arglist, g_varInitIL, /*res=*/NULL))
+                    CG_loadRef(initInstrs, pos, NULL, &n->item);
+                    if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_RemoveAll, arglist, initInstrs, /*res=*/NULL))
+                        return FALSE;
+
+                    // and again in __aqb_clear when CLEAR is called:
+                    arglist = CG_ItemList();
+                    n = CG_itemListAppend(arglist);
+                    n->item = var;
+                    CG_loadRef(g_clearIL, pos, NULL, &n->item);
+                    if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_RemoveAll, arglist, g_clearIL, /*res=*/NULL))
                         return FALSE;
                 }
             }
@@ -3015,10 +3040,10 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 n->item = var;
                 CG_loadRef (initInstrs, pos, g_sleStack->frame, &n->item);
                 n = CG_itemListAppend(arglist);
-                CG_BoolItem(&n->item, preserve, Ty_Bool());
+                CG_UIntItem(&n->item, numDims, Ty_UInteger());
                 CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
                 n = CG_itemListAppend(arglist);
-                CG_UIntItem(&n->item, numDims, Ty_UInteger());
+                CG_BoolItem(&n->item, preserve, Ty_Bool());
                 CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
@@ -3043,7 +3068,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     CG_UIntItem(&n->item, end , Ty_ULong());
                     CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
                 }
-                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM"), arglist, initInstrs, /*res=*/NULL))
+                if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_REDIM, arglist, initInstrs, /*res=*/NULL))
                     return FALSE;
             }
             if (initInstrs)
@@ -3280,7 +3305,7 @@ static bool transErase (S_pos pos, S_symbol sVar)
     CG_itemListNode n = CG_itemListAppend(arglist);
     n->item = var;
     CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &n->item);
-    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE"), arglist, g_sleStack->code, /*res=*/NULL))
+    if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_ERASE, arglist, g_sleStack->code, /*res=*/NULL))
         return FALSE;
 
     return TRUE;
@@ -5886,7 +5911,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     {
                         if (mode != Ty_byRef)
                             return EM_error((*tkn)->pos, "Arrays must be passed by reference.");
-                        ty = Ty_DArray (FE_mod->name, ty);
+                        ty = Ty_DArray(FE_mod->name, ty, _tyCArray());
                     }
 
                     Ty_ty plainTy = ty;
@@ -7054,7 +7079,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
                 {
                     return EM_error(pos, "Fixed boundaries for dynamic array UDTs are not supported.");
                 }
-                ty = Ty_DArray(FE_mod->name, ty);
+                ty = Ty_DArray(FE_mod->name, ty, _tyCArray());
             }
         }
 
@@ -8452,8 +8477,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
     {
         // call __aqb_clear
 
-        S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, S__aqb_clear, /*extraSyms=*/NULL, /*label=*/S__aqb_clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
 
@@ -8700,7 +8724,7 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
             n->item = dimExp;
             CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol(isUpper ? "UBOUND" : "LBOUND"), arglist, g_sleStack->code, exp))
+            if (!transCallBuiltinMethod((*tkn)->pos, ty->u.darray.tyCArray, isUpper ? S_UBOUND : S_LBOUND, arglist, g_sleStack->code, exp))
                 return FALSE;
             return TRUE;
         }
@@ -8955,7 +8979,7 @@ static bool statementOrAssignment(S_tkn *tkn)
             n->item = ex;
             CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol("COPY"), arglist, g_sleStack->code, /*res=*/NULL))
+            if (!transCallBuiltinMethod((*tkn)->pos, ty_left->u.darray.tyCArray, S_COPY, arglist, g_sleStack->code, /*res=*/NULL))
                 return FALSE;
         }
     }
@@ -9122,13 +9146,13 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     E_import(FE_mod, g_builtinsModule);
     if (strcmp (OPT_default_module, "none"))
     {
-        E_module modDefault = E_loadModule(S_Symbol(OPT_default_module));
-        if (!modDefault)
+        _g_modDefault = E_loadModule(S_Symbol(OPT_default_module));
+        if (!_g_modDefault)
         {
             EM_error (0, "***ERROR: failed to load %s !", OPT_default_module);
             return NULL;
         }
-        E_import(FE_mod, modDefault);
+        E_import(FE_mod, _g_modDefault);
     }
 
     E_env env = E_EnvScopes(FE_mod->env);  // main()/init() env
@@ -9140,7 +9164,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     g_prog = g_sleStack->code;
 
     // static initializers
-    g_varInitIL = AS_InstrList();
+    g_clearIL = AS_InstrList();
 
     // DATA statement support
     g_dataRestoreLabel = Temp_newlabel();
@@ -9258,13 +9282,12 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     // generate __aqb_clear():
     if (is_main)
     {
-        if (!g_varInitIL->first)
-            CG_transNOP (g_varInitIL, 0);
-        Temp_label label = Temp_namedlabel(AQB_CLEAR_NAME);
-        CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
+        if (!g_clearIL->first)
+            CG_transNOP (g_clearIL, 0);
+        CG_frame frame = CG_Frame(0, S__aqb_clear, NULL, /*statc=*/TRUE);
         CG_procEntryExit(0,
                          frame,
-                         g_varInitIL,
+                         g_clearIL,
                          /*returnVar=*/NULL,
                          /*exitlbl=*/ NULL,
                          /*is_main=*/FALSE,
@@ -9397,7 +9420,6 @@ void FE_boot(void)
     S_LBOUND          = defineKeyword("LBOUND");
     S_UBOUND          = defineKeyword("UBOUND");
     S_PROTECTED       = defineKeyword("PROTECTED");
-    S__DARRAY_T       = defineKeyword("_DARRAY_T");
     S_REDIM           = defineKeyword("REDIM");
     S_PRESERVE        = defineKeyword("PRESERVE");
     S__ISNULL         = defineKeyword("_ISNULL");
@@ -9433,6 +9455,11 @@ void FE_boot(void)
 
     S_ToString        = S_Symbol("ToString");
     S_CObject         = S_Symbol("CObject");
+    S_CArray          = S_Symbol("CArray");
+    S_RemoveAll       = S_Symbol("RemoveAll");
+    S_IDXPTR          = S_Symbol("IDXPTR");
+    S__aqb_clear      = S_Symbol("__aqb_clear");
+    S_COPY            = S_Symbol("COPY");
 }
 
 void FE_init(void)

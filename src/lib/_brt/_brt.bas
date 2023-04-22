@@ -127,33 +127,154 @@ PUBLIC CLASS CObject
 
 END CLASS
 
+' OOP support: common interfaces
+
+PUBLIC INTERFACE IEnumerator
+
+    PUBLIC:
+
+        DECLARE VIRTUAL FUNCTION MoveNext() AS BOOLEAN
+        DECLARE VIRTUAL PROPERTY Current AS ANY
+        DECLARE VIRTUAL SUB      Reset()
+
+END INTERFACE
+
+PUBLIC INTERFACE IEnumerable
+
+    PUBLIC:
+
+        DECLARE VIRTUAL FUNCTION GetEnumerator () AS IEnumerator PTR
+
+END INTERFACE
+
+PUBLIC INTERFACE ICollection IMPLEMENTS IEnumerable
+
+    PUBLIC:
+
+        DECLARE VIRTUAL PROPERTY Count AS LONG
+
+END INTERFACE
+
+PUBLIC INTERFACE IList IMPLEMENTS ICollection
+
+    PUBLIC:
+
+        DECLARE VIRTUAL FUNCTION GetAt (BYVAL index AS LONG) AS ANY
+        DECLARE VIRTUAL SUB      SetAt (BYVAL index AS LONG, BYVAL obj AS ANY)
+
+        ' add an item to the list, exact position is implementation dependant
+        ' return value is the position the new element was inserted in
+        DECLARE VIRTUAL FUNCTION Add (BYVAL obj AS ANY) AS LONG
+
+        ' return whether the list contains a particular item
+        DECLARE VIRTUAL FUNCTION Contains (BYVAL value AS ANY) AS BOOLEAN
+
+        DECLARE VIRTUAL PROPERTY IsReadOnly AS BOOLEAN
+
+        DECLARE VIRTUAL PROPERTY IsFixedSize AS BOOLEAN
+
+        ' return the index of a particular item, if it is in the list
+        ' return -1 if the item isn't in the list
+        DECLARE VIRTUAL FUNCTION IndexOf (BYVAL value AS ANY, BYVAL startIndex AS LONG=0, BYVAL count AS LONG=-1) AS LONG
+
+        ' insert value into the list at position index.
+        ' index must be non-negative and less than or equal to the
+        ' number of elements in the list.  If index equals the number
+        ' of items in the list, then value is appended to the end
+        DECLARE VIRTUAL SUB Insert (BYVAL index AS LONG, BYVAL value AS ANY)
+
+        ' remove an item from the list
+        DECLARE VIRTUAL SUB Remove (BYVAL value AS ANY)
+
+        ' remove the item at position index
+        DECLARE VIRTUAL SUB RemoveAt (BYVAL index AS LONG)
+
+        ' remove all items from the list
+        DECLARE VIRTUAL SUB RemoveAll
+
+END INTERFACE
+
+PUBLIC INTERFACE ICloneable
+
+    PUBLIC:
+
+        DECLARE VIRTUAL FUNCTION Clone () AS CObject PTR
+
+END INTERFACE
+
+PUBLIC INTERFACE IComparable
+
+    PUBLIC:
+
+        DECLARE VIRTUAL FUNCTION CompareTo (BYVAL obj AS CObject PTR) AS INTEGER
+
+END INTERFACE
 
 ' dynamic array support
 
-PUBLIC TYPE _DARRAY_BOUNDS_T
+PUBLIC TYPE CArrayBounds
     PUBLIC:
-        AS ULONG lbound, ubound, numElements
+        AS LONG lbound, ubound, numElements
 END TYPE
 
-PUBLIC CLASS _DARRAY_T
+PUBLIC CLASS CArray IMPLEMENTS IList, ICloneable
 
     PUBLIC:
-        DECLARE EXTERN CONSTRUCTOR (BYVAL elementSize AS ULONG)
+        DECLARE EXTERN CONSTRUCTOR     (BYVAL elementSize AS LONG=4)
 
+        ' compiler api:
         DECLARE EXTERN SUB      REDIM  (BYVAL numDims AS UINTEGER, BYVAL preserve AS BOOLEAN, ...)
         DECLARE EXTERN FUNCTION IDXPTR (BYVAL dimCnt AS UINTEGER, ...) AS ANY PTR
-        DECLARE EXTERN FUNCTION LBOUND (BYVAL d AS INTEGER) AS INTEGER
-        DECLARE EXTERN FUNCTION UBOUND (BYVAL d AS INTEGER) AS INTEGER
-        DECLARE EXTERN SUB      COPY   (BYREF darray AS _DARRAY_T)
+        DECLARE EXTERN FUNCTION LBOUND (BYVAL d AS INTEGER) AS LONG
+        DECLARE EXTERN FUNCTION UBOUND (BYVAL d AS INTEGER) AS LONG
+        DECLARE EXTERN SUB      COPY   (BYREF darray AS CArray)
         DECLARE EXTERN SUB      ERASE  ()
-        DECLARE EXTERN SUB      CLEAR  ()
+
+        ' IList interface:
+        DECLARE EXTERN VIRTUAL PROPERTY Count AS LONG
+        DECLARE EXTERN VIRTUAL PROPERTY Capacity AS LONG
+        DECLARE EXTERN VIRTUAL PROPERTY Capacity (BYVAL c AS LONG)
+        DECLARE EXTERN VIRTUAL FUNCTION GetAt (BYVAL index AS LONG) AS ANY
+        DECLARE EXTERN VIRTUAL SUB      SetAt (BYVAL index AS LONG, BYVAL obj AS ANY)
+        DECLARE EXTERN VIRTUAL FUNCTION GetEnumerator () AS IEnumerator PTR
+        DECLARE EXTERN VIRTUAL FUNCTION Add (BYVAL obj AS ANY) AS LONG
+        DECLARE EXTERN VIRTUAL FUNCTION Contains (BYVAL value AS ANY) AS BOOLEAN
+        DECLARE EXTERN VIRTUAL PROPERTY IsReadOnly AS BOOLEAN
+        DECLARE EXTERN VIRTUAL PROPERTY IsFixedSize AS BOOLEAN
+        DECLARE EXTERN VIRTUAL FUNCTION IndexOf (BYVAL value AS ANY, BYVAL startIndex AS LONG=0, BYVAL count AS LONG=-1) AS LONG
+        DECLARE EXTERN VIRTUAL SUB      Insert (BYVAL index AS LONG, BYVAL value AS ANY)
+        DECLARE EXTERN VIRTUAL SUB      Remove (BYVAL value AS ANY)
+        DECLARE EXTERN VIRTUAL SUB      RemoveAt (BYVAL index AS LONG)
+        DECLARE EXTERN VIRTUAL SUB      RemoveAll
+
+        ' ICloneable interface:
+        DECLARE EXTERN VIRTUAL FUNCTION Clone () AS CObject PTR
 
     PRIVATE:
 
-        AS ANY PTR             data
-        AS UINTEGER             numDims
-        AS ULONG                elementSize
-        AS _DARRAY_BOUNDS_T PTR bounds
+        AS ANY PTR          _data
+        AS UINTEGER         _numDims
+        AS LONG             _elementSize
+        AS LONG             _dataSize
+        AS CArrayBounds PTR _bounds
+
+END CLASS
+
+PUBLIC CLASS CArrayEnumerator IMPLEMENTS IEnumerator
+
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL list AS CArray PTR)
+
+        DECLARE EXTERN VIRTUAL FUNCTION MoveNext() AS BOOLEAN
+        DECLARE EXTERN VIRTUAL PROPERTY Current AS ANY
+        DECLARE EXTERN VIRTUAL SUB      Reset()
+
+    PRIVATE:
+
+        AS CArray PTR _array
+        AS LONG       _index
+        AS ANY        _currentElement
 
 END CLASS
 
@@ -241,8 +362,6 @@ PUBLIC DECLARE EXTERN SUB      SYSTEM
 PUBLIC DECLARE EXTERN FUNCTION TIMER         () AS SINGLE
 PUBLIC DECLARE EXTERN FUNCTION DATE$         ()
 PUBLIC DECLARE EXTERN SUB      SLEEP FOR     (BYVAL s AS SINGLE)
-
-PUBLIC CONST AS ANY PTR NULL = 0
 
 PUBLIC EXTERN g_stdout AS ANY PTR
 

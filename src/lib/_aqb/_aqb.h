@@ -176,7 +176,7 @@ void   PAINT                  (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
 void   AREA                   (BOOL s, SHORT x, SHORT y);
 void   AREA_OUTLINE           (BOOL enabled);
 void   AREAFILL               (SHORT mode);
-void   PATTERN                (USHORT lineptrn, _DARRAY_T *areaptrn);
+void   PATTERN                (USHORT lineptrn, CArray *areaptrn);
 void   PATTERN_RESTORE        (void);
 
 char  *INKEY_                 (void);
@@ -237,7 +237,7 @@ struct WAVE_
 WAVE_t *_wave_alloc          (BYTE *data,
                               ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
                               ULONG samplesPerSec, SHORT ctOctave, FLOAT volume);
-WAVE_t *WAVE_                (_DARRAY_T *data,
+WAVE_t *WAVE_                (CArray *data,
                               ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
                               ULONG samplesPerSec, SHORT ctOctave, FLOAT volume);
 void    WAVE                 (SHORT channel, WAVE_t *wave);

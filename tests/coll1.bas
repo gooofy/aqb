@@ -81,10 +81,10 @@ ASSERT o1->IndexOf (s2, 1)=1
 ASSERT o1->IndexOf ("not there")=-1
 
 '
-' test Clear
+' test RemoveAll
 '
 
-o1->Clear()
+o1->RemoveAll()
 ASSERT o1->Count=0
 
 '

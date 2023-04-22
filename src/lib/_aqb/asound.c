@@ -270,24 +270,24 @@ void SOUND (FLOAT freq, FLOAT duration, SHORT vol, SHORT channel)
     }
 }
 
-WAVE_t *WAVE_ (_DARRAY_T *data,
+WAVE_t *WAVE_ (CArray *data,
                ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
                ULONG samplesPerSec, SHORT ctOctave, FLOAT volume)
 {
-    if (!data || (data->numDims != 1) || (data->elementSize != 1) )
+    if (!data || (data->_numDims != 1) || (data->_elementSize != 1) )
     {
         ERROR(AE_AUDIO);
         return NULL;
     }
 
-    BYTE *d = AllocVec(data->dataSize, MEMF_CHIP | MEMF_CLEAR);
+    BYTE *d = AllocVec(data->_dataSize, MEMF_CHIP | MEMF_CLEAR);
     if (!d)
     {
         ERROR(AE_AUDIO);
         return NULL;
     }
 
-    CopyMem (data->data, d, data->dataSize);
+    CopyMem (data->_data, d, data->_dataSize);
 
     return _wave_alloc(d, oneShotHiSamples, repeatHiSamples, samplesPerHiCycle, samplesPerSec, ctOctave, volume);
 }

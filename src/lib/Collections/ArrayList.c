@@ -72,12 +72,12 @@ static void _ensureCapacity (ArrayList *THIS, LONG capa, BOOL force)
     THIS->_capacity = newcap;
 }
 
-VOID _ArrayList_capacity (ArrayList *THIS, LONG c)
+VOID _ArrayList_Capacity (ArrayList *THIS, LONG c)
 {
     _ensureCapacity(THIS, c, /*force=*/TRUE);
 }
 
-LONG _ArrayList_capacity_ (ArrayList *THIS)
+LONG _ArrayList_Capacity_ (ArrayList *THIS)
 {
     return THIS->_capacity;
 }
@@ -139,7 +139,7 @@ BOOL _ArrayList_Contains_ (ArrayList *THIS, intptr_t value)
     return FALSE;
 }
 
-VOID _ArrayList_CLEAR (ArrayList *THIS)
+VOID _ArrayList_RemoveAll (ArrayList *THIS)
 {
     for (LONG i=0; i<THIS->_size; i++)
         THIS->_items[i]=0; // make sure GC can free those
@@ -219,27 +219,26 @@ VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG index)
     THIS->_size--;
 }
 
-
 static intptr_t _ArrayList_vtable[] = {
     (intptr_t) _ArrayList_ToString_,
     (intptr_t) _CObject_Equals_,
     (intptr_t) _CObject_GetHashCode_,
     (intptr_t) _ArrayList_Count_,
-    (intptr_t) _ArrayList_capacity_,
-    (intptr_t) _ArrayList_capacity,
+    (intptr_t) _ArrayList_Capacity_,
+    (intptr_t) _ArrayList_Capacity,
     (intptr_t) _ArrayList_GetAt_,
     (intptr_t) _ArrayList_SetAt,
     (intptr_t) _ArrayList_GetEnumerator_,
     (intptr_t) _ArrayList_Clone_,
     (intptr_t) _ArrayList_Add_,
     (intptr_t) _ArrayList_Contains_,
-    (intptr_t) _ArrayList_CLEAR,
     (intptr_t) _ArrayList_IsReadOnly_,
     (intptr_t) _ArrayList_IsFixedSize_,
     (intptr_t) _ArrayList_IndexOf_,
     (intptr_t) _ArrayList_Insert,
     (intptr_t) _ArrayList_Remove,
-    (intptr_t) _ArrayList_RemoveAt
+    (intptr_t) _ArrayList_RemoveAt,
+    (intptr_t) _ArrayList_RemoveAll
 };
 
 static intptr_t __intf_vtable_ArrayList_ICloneable[] = {
@@ -266,13 +265,13 @@ static intptr_t __intf_vtable_ArrayList_IList[] = {
     (intptr_t) _ArrayList_SetAt,
     (intptr_t) _ArrayList_Add_,
     (intptr_t) _ArrayList_Contains_,
-    (intptr_t) _ArrayList_CLEAR,
     (intptr_t) _ArrayList_IsReadOnly_,
     (intptr_t) _ArrayList_IsFixedSize_,
     (intptr_t) _ArrayList_IndexOf_,
     (intptr_t) _ArrayList_Insert,
     (intptr_t) _ArrayList_Remove,
-    (intptr_t) _ArrayList_RemoveAt
+    (intptr_t) _ArrayList_RemoveAt,
+    (intptr_t) _ArrayList_RemoveAll
 };
 
 void _ArrayList___init (ArrayList *THIS)
@@ -283,5 +282,4 @@ void _ArrayList___init (ArrayList *THIS)
     THIS->__intf_vtable_ICollection = (intptr_t **) &__intf_vtable_ArrayList_ICollection;
     THIS->__intf_vtable_IList = (intptr_t **) &__intf_vtable_ArrayList_IList;
 }
-
 
