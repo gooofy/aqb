@@ -167,21 +167,23 @@ VOID _CArray_ERASE (CArray *THIS)
     THIS->_bounds      = NULL;
 }
 
-LONG     _CArray_Count_ (CArray *THIS)
+LONG _CArray_Count_ (CArray *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Count");
-    return 0;
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    return _CArray_UBOUND_ (THIS, 1) - _CArray_LBOUND_ (THIS, 1) + 1;
 }
 
 VOID _CArray_Capacity (CArray *THIS, LONG     c)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Capacity");
+    ERROR (ERR_ILLEGAL_FUNCTION_CALL);
 }
 
-LONG     _CArray_Capacity_ (CArray *THIS)
+LONG _CArray_Capacity_ (CArray *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Capacity");
-    return 0;
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    return _CArray_UBOUND_ (THIS, 1) - _CArray_LBOUND_ (THIS, 1) + 1;
 }
 
 intptr_t _CArray_GetAt_ (CArray *THIS, LONG     index)

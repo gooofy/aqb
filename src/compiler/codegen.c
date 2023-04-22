@@ -1093,24 +1093,9 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
             }
 
             CG_item thisRef;
-            thisRef.kind    = IK_inReg;
-            thisRef.ty      = item->u.property.thisTy;
-            thisRef.u.inReg = item->u.property.thisReg;
-            switch (thisRef.ty->kind)
-            {
-                case Ty_pointer:
-                    // turn this into a varRef
-                    CG_loadVal (code, pos, frame, &thisRef);
-                    thisRef.kind = IK_varPtr;
-                    thisRef.ty   = thisRef.ty->u.pointer;
-                    break;
-                case Ty_record:
-                case Ty_class:
-                    CG_loadRef (code, pos, frame, &thisRef);
-                    break;
-                default:
-                    assert(FALSE);
-            }
+            thisRef.kind     = IK_varPtr;
+            thisRef.ty       = item->u.property.thisTy;
+            thisRef.u.varPtr = item->u.property.thisReg;
 
             CG_itemList     args = CG_ItemList();
             CG_itemListNode iln  = CG_itemListPrepend (args);
@@ -3399,23 +3384,56 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
     }
 }
 
-void CG_transProperty (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry)
+void CG_transProperty (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordItem, Ty_member entry)
 {
     // we have to delay code generation here until we know whether we need to call the getter or the setter
 
-    CG_item res;
-    res.kind                = IK_property;
-    res.ty                  = entry->u.property.ty;
-    res.u.property.thisTy   = recordPtr->ty;
-    res.u.property.p        = entry;
+    Ty_ty ty = recordItem->ty;
 
-    // prepare this ref
-    CG_loadVal (code, pos, frame, recordPtr);
-    // FIXME: remove recordPtr->kind = IK_varPtr;
-    // FIXME: remove recordPtr->ty   = tyClass;
-    res.u.property.thisReg = recordPtr->u.inReg;
+    switch (ty->kind)
+    {
+        case Ty_pointer:
+        {
+            CG_item res;
+            res.kind                = IK_property;
+            res.ty                  = entry->u.property.ty;
+            res.u.property.thisTy   = ty->u.pointer;
+            res.u.property.p        = entry;
 
-    *recordPtr = res;
+            // prepare this ref
+            CG_loadVal (code, pos, frame, recordItem);
+            assert (recordItem->kind == IK_inReg);
+            res.u.property.thisReg = recordItem->u.inReg;
+
+            *recordItem = res;
+            break;
+        }
+        case Ty_darray:
+            ty = ty->u.darray.tyCArray;
+            recordItem->ty = ty;
+            /* fall through */
+        case Ty_class:
+        {
+            CG_item res;
+            res.kind                = IK_property;
+            res.ty                  = entry->u.property.ty;
+            res.u.property.thisTy   = ty;
+            res.u.property.p        = entry;
+
+            // prepare this ref
+            CG_loadRef (code, pos, frame, recordItem);
+            assert (recordItem->kind == IK_varPtr);
+            res.u.property.thisReg = recordItem->u.varPtr;
+
+            *recordItem = res;
+            break;
+        }
+
+
+        default:
+            assert(FALSE);
+    }
+
 }
 
 void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)
@@ -3687,24 +3705,9 @@ static void _call_property_setter (AS_instrList code, S_pos pos, CG_frame frame,
     CG_loadVal (code, pos, frame, right);
 
     CG_item thisRef;
-    thisRef.kind    = IK_inReg;
-    thisRef.ty      = left->u.property.thisTy;
-    thisRef.u.inReg = left->u.property.thisReg;
-    switch (thisRef.ty->kind)
-    {
-        case Ty_pointer:
-            // turn this into a varRef
-            CG_loadVal (code, pos, frame, &thisRef);
-            thisRef.kind = IK_varPtr;
-            thisRef.ty   = thisRef.ty->u.pointer;
-            break;
-        case Ty_record:
-        case Ty_class:
-            CG_loadRef (code, pos, frame, &thisRef);
-            break;
-        default:
-            assert(FALSE);
-    }
+    thisRef.kind     = IK_varPtr;
+    thisRef.ty       = left->u.property.thisTy;
+    thisRef.u.varPtr = left->u.property.thisReg;
 
     CG_itemList     args = CG_ItemList();
     CG_itemListNode iln  = CG_itemListPrepend (args);

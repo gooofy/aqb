@@ -18,6 +18,12 @@ FOR i AS INTEGER = 0 TO 9
     ASSERT j = i*i
 NEXT i
 
+' test Count, Capacity
+
+' TRACE a.Count
+ASSERT a.Count = 10
+ASSERT a.Capacity = 10
+
 ' test enumeration
 
 DIM e AS IEnumerator PTR
