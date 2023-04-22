@@ -1497,6 +1497,7 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                     break;
                 case Ty_record:
                 case Ty_class:
+                case Ty_darray:
                     CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
                     break;
                 default:
@@ -1636,8 +1637,11 @@ static bool selector(S_tkn *tkn, CG_item *exp)
             S_symbol sym = (*tkn)->u.sym;
             *tkn = (*tkn)->next;
 
-            if ( ( ty->kind != Ty_record ) && (ty->kind != Ty_class) && (ty->kind != Ty_interface) )
-                return EM_error(pos, "record, class or interface type expected");
+            if ( ( ty->kind != Ty_record ) && (ty->kind != Ty_class) && (ty->kind != Ty_interface) && (ty->kind != Ty_darray) )
+                return EM_error(pos, "record, class, array or interface type expected");
+
+            if (ty->kind == Ty_darray)
+                ty = ty->u.darray.tyCArray;
 
             Ty_member entry = Ty_findEntry(ty, sym, /*checkbase=*/TRUE);
             if (!entry)
@@ -1657,10 +1661,13 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             if ( (ty->kind != Ty_pointer) || !ty->u.pointer || (    (ty->u.pointer->kind != Ty_record)
                                                                  && (ty->u.pointer->kind != Ty_class)
-                                                                 && (ty->u.pointer->kind != Ty_interface) ) )
-                return EM_error(pos, "record, class or interface pointer type expected");
+                                                                 && (ty->u.pointer->kind != Ty_interface)
+                                                                 && (ty->u.pointer->kind != Ty_darray)) )
+                return EM_error(pos, "record, class, array or interface pointer type expected");
 
             ty = ty->u.pointer;
+            if (ty->kind == Ty_darray)
+                ty = ty->u.darray.tyCArray;
 
             Ty_member entry = Ty_findEntry(ty, sym, /*checkbase=*/TRUE);
             if (!entry)
