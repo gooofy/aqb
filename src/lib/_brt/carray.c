@@ -186,19 +186,74 @@ LONG     _CArray_Capacity_ (CArray *THIS)
 
 intptr_t _CArray_GetAt_ (CArray *THIS, LONG     index)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.GetAt");
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    if ( (index<THIS->_bounds[0].lbound) || (index > THIS->_bounds[0].ubound) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    BYTE *praw = THIS->_data + (index-THIS->_bounds[0].lbound)*THIS->_elementSize;
+    switch (THIS->_elementSize)
+    {
+        case 1:
+        {
+            return *praw;
+        }
+        case 2:
+        {
+            WORD *p = (WORD*)praw;
+            return *p;
+        }
+        case 4:
+        {
+            LONG *p = (LONG*)praw;
+            return *p;
+        }
+        default:
+            ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    }
     return 0;
 }
 
-VOID _CArray_SetAt (CArray *THIS, LONG     index, intptr_t obj)
+VOID _CArray_SetAt (CArray *THIS, LONG index, intptr_t obj)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.SetAt");
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    if ( (index<THIS->_bounds[0].lbound) || (index > THIS->_bounds[0].ubound) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    BYTE *praw = THIS->_data + (index-THIS->_bounds[0].lbound)*THIS->_elementSize;
+    switch (THIS->_elementSize)
+    {
+        case 1:
+        {
+            *praw=obj & 0xff;
+            break;
+        }
+        case 2:
+        {
+            WORD *p = (WORD*)praw;
+            *p = obj & 0xffff;
+            break;
+        }
+        case 4:
+        {
+            LONG *p = (LONG*)praw;
+            *p = obj;
+            break;
+        }
+        default:
+            ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+    }
 }
 
 intptr_t ** *_CArray_GetEnumerator_ (CArray *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.GetEnumerator");
-    return NULL;
+    CArrayEnumerator *e = (CArrayEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+
+    _CArrayEnumerator___init (e);
+    _CArrayEnumerator_CONSTRUCTOR (e, THIS);
+
+    return &e->__intf_vtable_IEnumerator;
 }
 
 LONG     _CArray_Add_ (CArray *THIS, intptr_t obj)
@@ -265,9 +320,11 @@ CObject *_CArray_Clone_ (CArray *THIS)
     return NULL;
 }
 
-VOID _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *list)
+VOID _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArrayEnumerator.CONSTRUCTOR");
+    THIS->_array          = array;
+    THIS->_index          = -1;
+    THIS->_currentElement = 0;
 }
 
 BOOL     _CArrayEnumerator_MoveNext_ (CArrayEnumerator *THIS)

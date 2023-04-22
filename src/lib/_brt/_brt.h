@@ -294,15 +294,7 @@ struct CArrayEnumerator_
     intptr_t _currentElement;
 };
 
-//void  __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize);
-//void  __DARRAY_T_REDIM    (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...);
-//void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
-//WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
-//WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
-//void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
-//void  __DARRAY_T_ERASE    (_DARRAY_T *self);
-//void  __DARRAY_T_CLEAR    (_DARRAY_T *self);
-
+VOID        _CArrayEnumerator___init      (CArrayEnumerator *THIS);
 VOID        _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *list);
 BOOL        _CArrayEnumerator_MoveNext_   (CArrayEnumerator *THIS);
 intptr_t    _CArrayEnumerator_Current_    (CArrayEnumerator *THIS);
