@@ -18,6 +18,16 @@ FOR i AS INTEGER = 0 TO 9
     ASSERT j = i*i
 NEXT i
 
+' test clone
+
+DIM b AS CArray PTR = CAST(CArray PTR, a.Clone())
+
+FOR i AS INTEGER = 0 TO 9
+    DIM j AS INTEGER = b->GetAt(i)
+    ' TRACE j
+    ASSERT j = i*i
+NEXT i
+
 ' test Count, Capacity
 
 ' TRACE a.Count

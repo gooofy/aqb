@@ -188,11 +188,13 @@ LONG _CArray_Capacity_ (CArray *THIS)
 
 intptr_t _CArray_GetAt_ (CArray *THIS, LONG index)
 {
+    DPRINTF ("_CArray_GetAt_: index=%ld\n", index);
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
     if ( (index<THIS->_bounds[0].lbound) || (index > THIS->_bounds[0].ubound) )
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
 
+    DPRINTF ("_CArray_GetAt_: bounds[0]=%d..%d\n", THIS->_bounds[0].lbound, THIS->_bounds[0].ubound);
     BYTE *praw = THIS->_data + (index-THIS->_bounds[0].lbound)*THIS->_elementSize;
     switch (THIS->_elementSize)
     {
@@ -251,6 +253,8 @@ VOID _CArray_SetAt (CArray *THIS, LONG index, intptr_t obj)
 intptr_t ** *_CArray_GetEnumerator_ (CArray *THIS)
 {
     CArrayEnumerator *e = (CArrayEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+    if (!e)
+        ERROR (ERR_OUT_OF_MEMORY);
 
     _CArrayEnumerator___init (e);
     _CArrayEnumerator_CONSTRUCTOR (e, THIS);
@@ -366,8 +370,32 @@ VOID _CArray_RemoveAll (CArray *THIS)
 
 CObject *_CArray_Clone_ (CArray *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Clone");
-    return NULL;
+    CArray *e = (CArray *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+    if (!e)
+        ERROR (ERR_OUT_OF_MEMORY);
+
+    _CArray___init (e);
+    _CArray_CONSTRUCTOR (e, THIS->_elementSize);
+
+    e->_data = ALLOCATE_ (THIS->_dataSize, MEMF_ANY);
+    if (!e->_data)
+        ERROR (ERR_OUT_OF_MEMORY);
+    e->_dataSize = THIS->_dataSize;
+    CopyMem (THIS->_data, e->_data, THIS->_dataSize);
+
+    e->_numDims = THIS->_numDims;
+    e->_bounds = ALLOCATE_ (sizeof (CArrayBounds) * e->_numDims, 0);
+    if (!e->_bounds)
+        ERROR (ERR_OUT_OF_MEMORY);
+
+    for (UWORD iDim=0; iDim<THIS->_numDims; iDim++)
+    {
+        e->_bounds[iDim].lbound      = THIS->_bounds[iDim].lbound;
+        e->_bounds[iDim].ubound      = THIS->_bounds[iDim].ubound;
+        e->_bounds[iDim].numElements = THIS->_bounds[iDim].numElements;
+    }
+
+    return (CObject*) e;
 }
 
 VOID _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
