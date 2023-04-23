@@ -304,19 +304,56 @@ LONG _CArray_IndexOf_ (CArray *THIS, intptr_t value, LONG startIndex, LONG count
     return -1;
 }
 
-VOID _CArray_Insert (CArray *THIS, LONG     index, intptr_t value)
+VOID _CArray_Insert (CArray *THIS, LONG index, intptr_t value)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Insert");
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+
+    if (index < THIS->_bounds[0].lbound)
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    // make room for new element
+
+    for (LONG i=THIS->_bounds[0].ubound; i>index; i--)
+    {
+        intptr_t v = _CArray_GetAt_ (THIS, i-1);
+        _CArray_SetAt (THIS, i, v);
+    }
+    _CArray_SetAt (THIS, index, value);
 }
 
 VOID _CArray_Remove (CArray *THIS, intptr_t value)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.Remove");
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+
+    for ( LONG i=THIS->_bounds[0].lbound; i<= THIS->_bounds[0].ubound; i++)
+    {
+        intptr_t v = _CArray_GetAt_ (THIS, i);
+        if (v == value)
+        {
+            _CArray_RemoveAt (THIS, i);
+            return;
+        }
+    }
 }
 
-VOID _CArray_RemoveAt (CArray *THIS, LONG     index)
+VOID _CArray_RemoveAt (CArray *THIS, LONG index)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArray.RemoveAt");
+    if (THIS->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+
+    LONG lbound = THIS->_bounds[0].lbound;
+    LONG ubound = THIS->_bounds[0].ubound;
+
+    if ( (index<lbound) || (index>ubound) )
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+
+    for (LONG i=index+1; i<=ubound; i++)
+    {
+        _CArray_SetAt (THIS, i-1, _CArray_GetAt_ (THIS, i));
+    }
+    _CArray_SetAt (THIS, ubound, 0);
 }
 
 VOID _CArray_RemoveAll (CArray *THIS)

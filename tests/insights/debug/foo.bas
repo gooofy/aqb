@@ -27,6 +27,7 @@ ASSERT a.Capacity = 10
 ' test Contains, IndexOf
 
 ASSERT a.Contains(64)
+ASSERT a.Contains(81)
 ASSERT NOT a.Contains(65)
 ASSERT a.IndexOf(64)=8
 ASSERT a.IndexOf(65)=-1
@@ -35,6 +36,46 @@ ASSERT a.IndexOf(65)=-1
 
 ASSERT NOT a.IsReadOnly
 ASSERT a.IsFixedSize
+
+' test Insert
+
+a.Insert (2, 23)
+'FOR i AS INTEGER = 0 TO 9
+'    DIM j AS INTEGER = a.GetAt(i)
+'    TRACE j
+'NEXT i
+
+ASSERT a.Contains(64)
+ASSERT NOT a.Contains(128)
+ASSERT a.Contains(23)
+ASSERT a.IndexOf(23)=2
+ASSERT a.IndexOf(64)=9
+
+' test Remove, RemoveAt
+
+a.RemoveAt(9)
+'FOR i AS INTEGER = 0 TO 9
+'    DIM j AS INTEGER = a.GetAt(i)
+'    TRACE j
+'NEXT i
+'TRACE
+
+ASSERT NOT a.Contains(64)
+ASSERT NOT a.Contains(128)
+ASSERT a.Contains(23)
+ASSERT a.IndexOf(49)=8
+ASSERT a.IndexOf(64)=-1
+ASSERT a(9)=0
+
+a.Remove(25)
+'FOR i AS INTEGER = 0 TO 9
+'    DIM j AS INTEGER = a.GetAt(i)
+'    TRACE j
+'NEXT i
+ASSERT NOT a.Contains(64)
+ASSERT NOT a.Contains(25)
+ASSERT a.Contains(23)
+ASSERT a.IndexOf(49)=7
 
 ' test enumeration
 
