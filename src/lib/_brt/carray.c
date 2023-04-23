@@ -401,25 +401,38 @@ CObject *_CArray_Clone_ (CArray *THIS)
 VOID _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
 {
     THIS->_array          = array;
-    THIS->_index          = -1;
+    LONG lbound = THIS->_array->_bounds[0].lbound;
+    THIS->_index          = lbound-1;
     THIS->_currentElement = 0;
 }
 
-BOOL     _CArrayEnumerator_MoveNext_ (CArrayEnumerator *THIS)
+BOOL _CArrayEnumerator_MoveNext_ (CArrayEnumerator *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArrayEnumerator.MoveNext");
+    if (THIS->_array->_numDims != 1)
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+
+    LONG ubound = THIS->_array->_bounds[0].ubound;
+
+    if (THIS->_index < ubound)
+    {
+        THIS->_currentElement = _CArray_GetAt_ (THIS->_array, ++THIS->_index);
+        return TRUE;
+    }
+
+    THIS->_currentElement = NULL;
+    THIS->_index = ubound;
     return FALSE;
 }
 
 intptr_t _CArrayEnumerator_Current_ (CArrayEnumerator *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArrayEnumerator.Current");
-    return 0;
+    return THIS->_currentElement;
 }
 
 VOID _CArrayEnumerator_Reset (CArrayEnumerator *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArrayEnumerator.Reset");
+    THIS->_currentElement = NULL;
+    THIS->_index = -1;
 }
 
 static intptr_t _CArrayEnumerator_vtable[] = {
