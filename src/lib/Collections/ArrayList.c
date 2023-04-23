@@ -9,13 +9,13 @@
 
 #define DEFAULT_CAPACITY 4
 
-char *_ArrayList_ToString_(ArrayList *THIS)
+char *_CArrayList_ToString_(CArrayList *THIS)
 {
-    STRPTR res = (STRPTR) "ArrayList[";
+    STRPTR res = (STRPTR) "CArrayList[";
     LONG maxi = THIS->_size > 3 ? maxi=2 : THIS->_size-1;
     for (LONG i=0; i<=maxi; i++)
     {
-        res = __astr_concat (res, _u4toa_(_ArrayList_GetAt_(THIS, i)));
+        res = __astr_concat (res, _u4toa_(_CArrayList_GetAt_(THIS, i)));
         if (i<THIS->_size-1)
             res = __astr_concat (res, (STRPTR)", ");
     }
@@ -26,17 +26,17 @@ char *_ArrayList_ToString_(ArrayList *THIS)
     return (char *) res;
 }
 
-//BOOL _ArrayList_Equals_ (ArrayList *self, ArrayList *pObjB)
+//BOOL _CArrayList_Equals_ (CArrayList *self, CArrayList *pObjB)
 //{
 //    return self == pObjB;
 //}
 //
-//LONG _ArrayList_GetHashCode_ (ArrayList *self)
+//LONG _CArrayList_GetHashCode_ (CArrayList *self)
 //{
 //    return (intptr_t) self;
 //}
 
-VOID   _ArrayList_CONSTRUCTOR (ArrayList *THIS, LONG  capacity)
+VOID   _CArrayList_CONSTRUCTOR (CArrayList *THIS, LONG  capacity)
 {
     LONG capa = capacity>0 ? capacity : DEFAULT_CAPACITY;
     THIS->_items = (intptr_t *) ALLOCATE_(capa * sizeof(intptr_t), MEMF_ANY);
@@ -44,12 +44,12 @@ VOID   _ArrayList_CONSTRUCTOR (ArrayList *THIS, LONG  capacity)
     THIS->_capacity = capa;
 }
 
-LONG    _ArrayList_Count_ (ArrayList *THIS)
+LONG    _CArrayList_Count_ (CArrayList *THIS)
 {
     return THIS->_size;
 }
 
-static void _ensureCapacity (ArrayList *THIS, LONG capa, BOOL force)
+static void _ensureCapacity (CArrayList *THIS, LONG capa, BOOL force)
 {
     DPRINTF ("_ensureCapacity: THIS->_capacity=%d, capa=%d\n", THIS->_capacity, capa);
     if (!force && THIS->_capacity >= capa)
@@ -72,17 +72,17 @@ static void _ensureCapacity (ArrayList *THIS, LONG capa, BOOL force)
     THIS->_capacity = newcap;
 }
 
-VOID _ArrayList_Capacity (ArrayList *THIS, LONG c)
+VOID _CArrayList_Capacity (CArrayList *THIS, LONG c)
 {
     _ensureCapacity(THIS, c, /*force=*/TRUE);
 }
 
-LONG _ArrayList_Capacity_ (ArrayList *THIS)
+LONG _CArrayList_Capacity_ (CArrayList *THIS)
 {
     return THIS->_capacity;
 }
 
-intptr_t _ArrayList_GetAt_ (ArrayList *THIS, LONG index)
+intptr_t _CArrayList_GetAt_ (CArrayList *THIS, LONG index)
 {
     if ( (index<0) || (index >= THIS->_size) )
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -91,7 +91,7 @@ intptr_t _ArrayList_GetAt_ (ArrayList *THIS, LONG index)
     return *p;
 }
 
-VOID _ArrayList_SetAt (ArrayList *THIS, LONG index, intptr_t obj)
+VOID _CArrayList_SetAt (CArrayList *THIS, LONG index, intptr_t obj)
 {
     if ( (index<0) || (index >= THIS->_size) )
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -100,35 +100,35 @@ VOID _ArrayList_SetAt (ArrayList *THIS, LONG index, intptr_t obj)
     *p = obj;
 }
 
-intptr_t ***_ArrayList_GetEnumerator_ (ArrayList *THIS)
+intptr_t ***_CArrayList_GetEnumerator_ (CArrayList *THIS)
 {
-    ArrayListEnumerator *e = (ArrayListEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+    CArrayListEnumerator *e = (CArrayListEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
 
-    _ArrayListEnumerator___init (e);
-    _ArrayListEnumerator_CONSTRUCTOR (e, THIS);
+    _CArrayListEnumerator___init (e);
+    _CArrayListEnumerator_CONSTRUCTOR (e, THIS);
 
     return &e->__intf_vtable_IEnumerator;
 }
 
-CObject *_ArrayList_Clone_ (ArrayList *THIS)
+CObject *_CArrayList_Clone_ (CArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: ArrayList.Clone");
+    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArrayList.Clone");
     return NULL;
 }
 
-LONG _ArrayList_Add_ (ArrayList *THIS, intptr_t obj)
+LONG _CArrayList_Add_ (CArrayList *THIS, intptr_t obj)
 {
     if (THIS->_size >= THIS->_capacity)
         _ensureCapacity(THIS, THIS->_size + 1, /*force=*/FALSE);
 
     LONG i = THIS->_size++;
 
-    _ArrayList_SetAt (THIS, i, obj);
+    _CArrayList_SetAt (THIS, i, obj);
 
     return i;
 }
 
-BOOL _ArrayList_Contains_ (ArrayList *THIS, intptr_t value)
+BOOL _CArrayList_Contains_ (CArrayList *THIS, intptr_t value)
 {
     for (LONG i=0; i<THIS->_size; i++)
     {
@@ -139,24 +139,24 @@ BOOL _ArrayList_Contains_ (ArrayList *THIS, intptr_t value)
     return FALSE;
 }
 
-VOID _ArrayList_RemoveAll (ArrayList *THIS)
+VOID _CArrayList_RemoveAll (CArrayList *THIS)
 {
     for (LONG i=0; i<THIS->_size; i++)
         THIS->_items[i]=0; // make sure GC can free those
     THIS->_size=0;
 }
 
-BOOL _ArrayList_IsReadOnly_ (ArrayList *THIS)
+BOOL _CArrayList_IsReadOnly_ (CArrayList *THIS)
 {
     return FALSE;
 }
 
-BOOL _ArrayList_IsFixedSize_ (ArrayList *THIS)
+BOOL _CArrayList_IsFixedSize_ (CArrayList *THIS)
 {
     return FALSE;
 }
 
-LONG _ArrayList_IndexOf_ (ArrayList *THIS, intptr_t value, LONG startIndex, LONG count)
+LONG _CArrayList_IndexOf_ (CArrayList *THIS, intptr_t value, LONG startIndex, LONG count)
 {
     LONG max_i = count >= 0 ? startIndex + count - 1 : THIS->_size;
     if (max_i >= THIS->_size)
@@ -170,7 +170,7 @@ LONG _ArrayList_IndexOf_ (ArrayList *THIS, intptr_t value, LONG startIndex, LONG
     return -1;
 }
 
-VOID _ArrayList_Insert (ArrayList *THIS, LONG index, intptr_t value)
+VOID _CArrayList_Insert (CArrayList *THIS, LONG index, intptr_t value)
 {
     if ( (index<0) || (index > THIS->_size) )
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -191,20 +191,20 @@ VOID _ArrayList_Insert (ArrayList *THIS, LONG index, intptr_t value)
     THIS->_size++;
 }
 
-VOID _ArrayList_Remove (ArrayList *THIS, intptr_t value)
+VOID _CArrayList_Remove (CArrayList *THIS, intptr_t value)
 {
     for (LONG i=0; i<THIS->_size; i++)
     {
         intptr_t *p = &THIS->_items[i];
         if (*p==value)
         {
-            _ArrayList_RemoveAt (THIS, i);
+            _CArrayList_RemoveAt (THIS, i);
             return;
         }
     }
 }
 
-VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG index)
+VOID _CArrayList_RemoveAt (CArrayList *THIS, LONG index)
 {
     if ( (index<0) || (index > THIS->_size) )
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -219,67 +219,67 @@ VOID _ArrayList_RemoveAt (ArrayList *THIS, LONG index)
     THIS->_size--;
 }
 
-static intptr_t _ArrayList_vtable[] = {
-    (intptr_t) _ArrayList_ToString_,
+static intptr_t _CArrayList_vtable[] = {
+    (intptr_t) _CArrayList_ToString_,
     (intptr_t) _CObject_Equals_,
     (intptr_t) _CObject_GetHashCode_,
-    (intptr_t) _ArrayList_Count_,
-    (intptr_t) _ArrayList_Capacity_,
-    (intptr_t) _ArrayList_Capacity,
-    (intptr_t) _ArrayList_GetAt_,
-    (intptr_t) _ArrayList_SetAt,
-    (intptr_t) _ArrayList_GetEnumerator_,
-    (intptr_t) _ArrayList_Clone_,
-    (intptr_t) _ArrayList_Add_,
-    (intptr_t) _ArrayList_Contains_,
-    (intptr_t) _ArrayList_IsReadOnly_,
-    (intptr_t) _ArrayList_IsFixedSize_,
-    (intptr_t) _ArrayList_IndexOf_,
-    (intptr_t) _ArrayList_Insert,
-    (intptr_t) _ArrayList_Remove,
-    (intptr_t) _ArrayList_RemoveAt,
-    (intptr_t) _ArrayList_RemoveAll
+    (intptr_t) _CArrayList_Count_,
+    (intptr_t) _CArrayList_Capacity_,
+    (intptr_t) _CArrayList_Capacity,
+    (intptr_t) _CArrayList_GetAt_,
+    (intptr_t) _CArrayList_SetAt,
+    (intptr_t) _CArrayList_GetEnumerator_,
+    (intptr_t) _CArrayList_Clone_,
+    (intptr_t) _CArrayList_Add_,
+    (intptr_t) _CArrayList_Contains_,
+    (intptr_t) _CArrayList_IsReadOnly_,
+    (intptr_t) _CArrayList_IsFixedSize_,
+    (intptr_t) _CArrayList_IndexOf_,
+    (intptr_t) _CArrayList_Insert,
+    (intptr_t) _CArrayList_Remove,
+    (intptr_t) _CArrayList_RemoveAt,
+    (intptr_t) _CArrayList_RemoveAll
 };
 
-static intptr_t __intf_vtable_ArrayList_ICloneable[] = {
+static intptr_t __intf_vtable_CArrayList_ICloneable[] = {
     16,
-    (intptr_t) _ArrayList_Clone_
+    (intptr_t) _CArrayList_Clone_
 };
 
-static intptr_t __intf_vtable_ArrayList_IEnumerable[] = {
+static intptr_t __intf_vtable_CArrayList_IEnumerable[] = {
     12,
-    (intptr_t) _ArrayList_GetEnumerator_
+    (intptr_t) _CArrayList_GetEnumerator_
 };
 
-static intptr_t __intf_vtable_ArrayList_ICollection[] = {
+static intptr_t __intf_vtable_CArrayList_ICollection[] = {
     8,
-    (intptr_t) _ArrayList_GetEnumerator_,
-    (intptr_t) _ArrayList_Count_
+    (intptr_t) _CArrayList_GetEnumerator_,
+    (intptr_t) _CArrayList_Count_
 };
 
-static intptr_t __intf_vtable_ArrayList_IList[] = {
+static intptr_t __intf_vtable_CArrayList_IList[] = {
     4,
-    (intptr_t) _ArrayList_GetEnumerator_,
-    (intptr_t) _ArrayList_Count_,
-    (intptr_t) _ArrayList_GetAt_,
-    (intptr_t) _ArrayList_SetAt,
-    (intptr_t) _ArrayList_Add_,
-    (intptr_t) _ArrayList_Contains_,
-    (intptr_t) _ArrayList_IsReadOnly_,
-    (intptr_t) _ArrayList_IsFixedSize_,
-    (intptr_t) _ArrayList_IndexOf_,
-    (intptr_t) _ArrayList_Insert,
-    (intptr_t) _ArrayList_Remove,
-    (intptr_t) _ArrayList_RemoveAt,
-    (intptr_t) _ArrayList_RemoveAll
+    (intptr_t) _CArrayList_GetEnumerator_,
+    (intptr_t) _CArrayList_Count_,
+    (intptr_t) _CArrayList_GetAt_,
+    (intptr_t) _CArrayList_SetAt,
+    (intptr_t) _CArrayList_Add_,
+    (intptr_t) _CArrayList_Contains_,
+    (intptr_t) _CArrayList_IsReadOnly_,
+    (intptr_t) _CArrayList_IsFixedSize_,
+    (intptr_t) _CArrayList_IndexOf_,
+    (intptr_t) _CArrayList_Insert,
+    (intptr_t) _CArrayList_Remove,
+    (intptr_t) _CArrayList_RemoveAt,
+    (intptr_t) _CArrayList_RemoveAll
 };
 
-void _ArrayList___init (ArrayList *THIS)
+void _CArrayList___init (CArrayList *THIS)
 {
-    THIS->_vTablePtr = (intptr_t **) &_ArrayList_vtable;
-    THIS->__intf_vtable_ICloneable = (intptr_t **) &__intf_vtable_ArrayList_ICloneable;
-    THIS->__intf_vtable_IEnumerable = (intptr_t **) &__intf_vtable_ArrayList_IEnumerable;
-    THIS->__intf_vtable_ICollection = (intptr_t **) &__intf_vtable_ArrayList_ICollection;
-    THIS->__intf_vtable_IList = (intptr_t **) &__intf_vtable_ArrayList_IList;
+    THIS->_vTablePtr = (intptr_t **) &_CArrayList_vtable;
+    THIS->__intf_vtable_ICloneable = (intptr_t **) &__intf_vtable_CArrayList_ICloneable;
+    THIS->__intf_vtable_IEnumerable = (intptr_t **) &__intf_vtable_CArrayList_IEnumerable;
+    THIS->__intf_vtable_ICollection = (intptr_t **) &__intf_vtable_CArrayList_ICollection;
+    THIS->__intf_vtable_IList = (intptr_t **) &__intf_vtable_CArrayList_IList;
 }
 

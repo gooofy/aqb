@@ -1,5 +1,5 @@
 '
-' Collections Test 3: ArrayList iterators
+' Collections Test 3: CArrayList iterators
 '
 
 OPTION EXPLICIT
@@ -17,7 +17,7 @@ DIM i AS INTEGER
 ' try a simple list of integers
 '
 
-DIM o1 AS ArrayList PTR = NEW ArrayList()
+DIM o1 AS CArrayList PTR = NEW CArrayList()
 
 o1->Add(42)
 

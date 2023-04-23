@@ -1,7 +1,7 @@
 OPTION EXPLICIT
 OPTION PRIVATE
 
-PUBLIC CLASS ArrayList IMPLEMENTS IList, ICloneable
+PUBLIC CLASS CArrayList IMPLEMENTS IList, ICloneable
 
     PUBLIC:
 
@@ -45,11 +45,11 @@ PUBLIC CLASS ArrayList IMPLEMENTS IList, ICloneable
 
 END CLASS
 
-PUBLIC CLASS ArrayListEnumerator IMPLEMENTS IEnumerator
+PUBLIC CLASS CArrayListEnumerator IMPLEMENTS IEnumerator
 
     PUBLIC:
 
-        DECLARE EXTERN CONSTRUCTOR (BYVAL list AS ArrayList PTR)
+        DECLARE EXTERN CONSTRUCTOR (BYVAL list AS CArrayList PTR)
 
         DECLARE EXTERN VIRTUAL FUNCTION MoveNext() AS BOOLEAN
         DECLARE EXTERN VIRTUAL PROPERTY Current AS ANY
@@ -57,9 +57,9 @@ PUBLIC CLASS ArrayListEnumerator IMPLEMENTS IEnumerator
 
     PRIVATE:
 
-        AS ArrayList PTR _list
-        AS LONG          _index
-        AS ANY           _currentElement
+        AS CArrayList PTR _list
+        AS LONG           _index
+        AS ANY            _currentElement
 
 END CLASS
 

@@ -1,5 +1,5 @@
 '
-' Collections Test 2: ArrayList class, part 2
+' Collections Test 2: CArrayList class, part 2
 '
 
 OPTION EXPLICIT
@@ -17,7 +17,7 @@ DIM i AS INTEGER
 ' try a simple list of integers
 '
 
-DIM o1 AS ArrayList PTR = NEW ArrayList()
+DIM o1 AS CArrayList PTR = NEW CArrayList()
 
 '
 ' test Add, GetAt
@@ -51,7 +51,7 @@ ASSERT NOT o1->Contains(42)
 
 s = o1->ToString()
 'TRACE s
-ASSERT s="ArrayList[ 1,  9,  10, ...]"
+ASSERT s="CArrayList[ 1,  9,  10, ...]"
 
 '
 ' test IsReadOnly, IsFixedSize

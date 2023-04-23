@@ -1,5 +1,5 @@
 '
-' Collections Test 1: ArrayList class, part 1
+' Collections Test 1: CArrayList class, part 1
 '
 
 OPTION EXPLICIT
@@ -16,7 +16,7 @@ DIM s AS STRING
 ' try a simple string list
 '
 
-DIM o1 AS ArrayList PTR = NEW ArrayList()
+DIM o1 AS CArrayList PTR = NEW CArrayList()
 
 '
 ' test Add, GetAt
