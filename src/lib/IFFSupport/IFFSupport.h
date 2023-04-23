@@ -7,7 +7,7 @@
  * IFF / ILBM support
  */
 
-#define AE_IFF                      200
+#define ERR_IFF              500
 
 #define mskNone                0
 #define mskHasMask             1

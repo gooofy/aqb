@@ -2,7 +2,13 @@
 
 OPTION EXPLICIT
 
-PUBLIC CONST AS INTEGER AE_IFF = 200
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- ERROR codes for IFFSupport 5xx
+' --
+' --------------------------------------------------------------------------------------------------------
+
+PUBLIC CONST AS INTEGER ERR_IFF = 500
 
 PUBLIC TYPE ILBM_META_t
 

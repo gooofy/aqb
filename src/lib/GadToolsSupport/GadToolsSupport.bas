@@ -2,6 +2,12 @@ OPTION EXPLICIT
 
 IMPORT OSGadTools
 
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- ERROR codes for GadToolsSupport 4xx
+' --
+' --------------------------------------------------------------------------------------------------------
+
 CONST AE_GTG_CREATE   AS INTEGER = 400
 CONST AE_GTG_MODIFY   AS INTEGER = 401
 CONST AE_GTG_DEPLOY   AS INTEGER = 402

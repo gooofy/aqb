@@ -9,6 +9,12 @@ OPTION PRIVATE
 
 PUBLIC EXTERN ERR AS INTEGER
 
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- ERROR codes for _brt  0xx
+' --
+' --------------------------------------------------------------------------------------------------------
+
 PUBLIC CONST AS INTEGER ERR_OUT_OF_DATA             =   4
 PUBLIC CONST AS INTEGER ERR_ILLEGAL_FUNCTION_CALL   =   5
 PUBLIC CONST AS INTEGER ERR_OUT_OF_MEMORY           =   7

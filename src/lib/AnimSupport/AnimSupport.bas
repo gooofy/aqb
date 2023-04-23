@@ -7,6 +7,12 @@ IMPORT IFFSupport
 OPTION EXPLICIT
 OPTION PRIVATE
 
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- ERROR codes for AnimSupport 3xx
+' --
+' --------------------------------------------------------------------------------------------------------
+
 PUBLIC CONST AS INTEGER AE_BOB                = 300
 PUBLIC CONST AS INTEGER AE_SPRITE             = 301
 
