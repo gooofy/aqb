@@ -1,10 +1,26 @@
 '
-' dyn array list/iterator interface test
+' ExecList test
 '
 
 OPTION EXPLICIT
 
-DIM AS INTEGER a( 9)
+IMPORT Collections
+
+DIM AS CExecList a = CExecList(NT_USER)
+
+'
+' test Add / GetAt
+'
+
+FOR i AS INTEGER = 0 TO 9
+    a.Add(i)
+NEXT i
+
+FOR i AS INTEGER = 0 TO 9
+    DIM j AS INTEGER = a.GetAt(i)
+    'TRACE j
+    ASSERT j = i
+NEXT i
 
 ' test SetAt/GetAt
 
@@ -18,21 +34,20 @@ FOR i AS INTEGER = 0 TO 9
     ASSERT j = i*i
 NEXT i
 
-' test clone
+'' test clone
+'
+'DIM b AS CArray PTR = CAST(CArray PTR, a.Clone())
+'
+'FOR i AS INTEGER = 0 TO 9
+'    DIM j AS INTEGER = b->GetAt(i)
+'    ' TRACE j
+'    ASSERT j = i*i
+'NEXT i
 
-DIM b AS CArray PTR = CAST(CArray PTR, a.Clone())
-
-FOR i AS INTEGER = 0 TO 9
-    DIM j AS INTEGER = b->GetAt(i)
-    ' TRACE j
-    ASSERT j = i*i
-NEXT i
-
-' test Count, Capacity
+' test Count
 
 ' TRACE a.Count
 ASSERT a.Count = 10
-ASSERT a.Capacity = 10
 
 ' test Contains, IndexOf
 
@@ -45,7 +60,7 @@ ASSERT a.IndexOf(65)=-1
 ' test IsReadOnly, IsFixedSize
 
 ASSERT NOT a.IsReadOnly
-ASSERT a.IsFixedSize
+ASSERT NOT a.IsFixedSize
 
 ' test Insert
 
@@ -54,6 +69,7 @@ a.Insert (2, 23)
 '    DIM j AS INTEGER = a.GetAt(i)
 '    TRACE j
 'NEXT i
+'TRACE
 
 ASSERT a.Contains(64)
 ASSERT NOT a.Contains(128)
@@ -75,7 +91,7 @@ ASSERT NOT a.Contains(128)
 ASSERT a.Contains(23)
 ASSERT a.IndexOf(49)=8
 ASSERT a.IndexOf(64)=-1
-ASSERT a(9)=0
+ASSERT a.GetAt(9)=81
 
 a.Remove(25)
 'FOR i AS INTEGER = 0 TO 9
@@ -87,45 +103,44 @@ ASSERT NOT a.Contains(25)
 ASSERT a.Contains(23)
 ASSERT a.IndexOf(49)=7
 
-' test enumeration
-
-DIM e AS IEnumerator PTR
-
-e = a.GetEnumerator()
-
-'TRACE "enumerating..."
-
-DIM AS INTEGER cnt=0, sum=0
-
-WHILE e->MoveNext()
-    DIM AS INTEGER i = e->Current
-    'TRACE "element: "; i
-    cnt=cnt+1
-    sum=sum+i
-WEND
-
-'TRACE "done. sum=";sum;", cnt=";cnt
-
-ASSERT cnt=10
-ASSERT sum=138
-
+'' test enumeration
 '
-' test Reset
+'DIM e AS IEnumerator PTR
 '
-
-e->Reset()
-
-cnt=0 : sum=0
-WHILE e->MoveNext()
-    DIM AS INTEGER i = e->Current
-    'TRACE "element: "; i
-    cnt=cnt+1
-    sum=sum+i
-WEND
-
-'TRACE "done. sum=";sum;", cnt=";cnt
-
-ASSERT cnt=10
-ASSERT sum=138
-
+'e = a.GetEnumerator()
+'
+''TRACE "enumerating..."
+'
+'DIM AS INTEGER cnt=0, sum=0
+'
+'WHILE e->MoveNext()
+'    DIM AS INTEGER i = e->Current
+'    'TRACE "element: "; i
+'    cnt=cnt+1
+'    sum=sum+i
+'WEND
+'
+''TRACE "done. sum=";sum;", cnt=";cnt
+'
+'ASSERT cnt=10
+'ASSERT sum=138
+'
+''
+'' test Reset
+''
+'
+'e->Reset()
+'
+'cnt=0 : sum=0
+'WHILE e->MoveNext()
+'    DIM AS INTEGER i = e->Current
+'    'TRACE "element: "; i
+'    cnt=cnt+1
+'    sum=sum+i
+'WEND
+'
+''TRACE "done. sum=";sum;", cnt=";cnt
+'
+'ASSERT cnt=10
+'ASSERT sum=138
 
