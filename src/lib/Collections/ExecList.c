@@ -30,10 +30,35 @@ VOID _CExecList_AddNode_ (CExecList *THIS, CExecNode *n)
     AddTail (&THIS->l, &n->n.n);
 }
 
+static ExecNodeAny *_CExecList_GetENAAt (CExecList *THIS, LONG index)
+{
+    struct Node *node;
+    LONG i = 0;
+    for ( node = THIS->l.lh_Head ; node->ln_Succ != NULL ; node = node->ln_Succ )
+    {
+        if (i==index)
+        {
+            break;
+        }
+        i++;
+    }
+
+    if (!node)
+    {
+        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+        return NULL;
+    }
+
+    ExecNodeAny *ena = (ExecNodeAny *) node;
+    return ena;
+}
+
 CExecNode *_CExecList_GetNodeAt_ (CExecList *THIS, LONG index)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecList.GetNodeAt");
-    return NULL;
+    ExecNodeAny *ena = _CExecList_GetENAAt (THIS, index);
+    if (!ena)
+        return NULL;
+    return ena->enode;
 }
 
 intptr_t ** *_CExecList_GetEnumerator_ (CExecList *THIS)
@@ -59,24 +84,9 @@ LONG _CExecList_Count_ (CExecList *THIS)
 
 intptr_t _CExecList_GetAt_ (CExecList *THIS, LONG index)
 {
-    struct Node *node;
-    LONG i = 0;
-    for ( node = THIS->l.lh_Head ; node->ln_Succ != NULL ; node = node->ln_Succ )
-    {
-        if (i==index)
-        {
-            break;
-        }
-        i++;
-    }
-
-    if (!node)
-    {
-        ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
+    ExecNodeAny *ena = _CExecList_GetENAAt (THIS, index);
+    if (!ena)
         return 0;
-    }
-
-    ExecNodeAny *ena = (ExecNodeAny *) node;
     return ena->value;
 }
 
@@ -261,26 +271,24 @@ struct Node *_CExecNode_ExecNode_ (CExecNode *THIS)
     return NULL;
 }
 
-VOID _CExecNode_TYPE (CExecNode *THIS, UBYTE    *t)
+VOID _CExecNode_TYPE (CExecNode *THIS, UBYTE t)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.TYPE");
 }
 
-UBYTE    _CExecNode_TYPE_ (CExecNode *THIS)
+UBYTE _CExecNode_TYPE_ (CExecNode *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.TYPE");
-    return 0;
+    return THIS->n.n.ln_Type;
 }
 
-VOID _CExecNode_Pri (CExecNode *THIS, STRPTR   *s)
+VOID _CExecNode_Pri (CExecNode *THIS, BYTE b)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.Pri");
 }
 
-STRPTR   _CExecNode_Pri_ (CExecNode *THIS)
+BYTE _CExecNode_Pri_ (CExecNode *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.Pri");
-    return NULL;
+    return THIS->n.n.ln_Pri;
 }
 
 VOID _CExecNode_Name (CExecNode *THIS, STRPTR   *s)
@@ -290,8 +298,7 @@ VOID _CExecNode_Name (CExecNode *THIS, STRPTR   *s)
 
 STRPTR   _CExecNode_Name_ (CExecNode *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.Name");
-    return NULL;
+    return (STRPTR) THIS->n.n.ln_Name;
 }
 
 VOID _CExecListEnumerator_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list)

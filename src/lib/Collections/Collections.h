@@ -121,10 +121,10 @@ CObject     *_CExecList_Clone_         (CExecList *THIS);
 VOID         _CExecNode___init         (CExecNode *THIS);
 VOID         _CExecNode_CONSTRUCTOR    (CExecNode *THIS, intptr_t value, UBYTE    ln_Type, BYTE     ln_Pri, STRPTR   ln_Name);
 struct Node *_CExecNode_ExecNode_      (CExecNode *THIS);
-VOID         _CExecNode_TYPE           (CExecNode *THIS, UBYTE    *t);
+VOID         _CExecNode_TYPE           (CExecNode *THIS, UBYTE     t);
 UBYTE        _CExecNode_TYPE_          (CExecNode *THIS);
-VOID         _CExecNode_Pri            (CExecNode *THIS, STRPTR   *s);
-STRPTR       _CExecNode_Pri_           (CExecNode *THIS);
+VOID         _CExecNode_Pri            (CExecNode *THIS, BYTE      b);
+BYTE         _CExecNode_Pri_           (CExecNode *THIS);
 VOID         _CExecNode_Name           (CExecNode *THIS, STRPTR   *s);
 STRPTR       _CExecNode_Name_          (CExecNode *THIS);
 
