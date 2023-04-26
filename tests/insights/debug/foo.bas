@@ -50,7 +50,7 @@ ASSERT NOT o1->Contains(42)
 '
 
 s = o1->ToString()
-TRACE s
+'TRACE s
 ASSERT s="CArrayList[ 1,  9,  10, ...]"
 
 '
@@ -92,4 +92,16 @@ ASSERT o1->GetAt(0)=1
 ASSERT o1->GetAt(1)=10
 ASSERT o1->GetAt(2)=11
 
+'
+' test Clone()
+'
 
+DIM AS CArrayList PTR o2 = CAST(CArrayList PTR, o1->Clone())
+
+' TRACE o2->ToString()
+
+ASSERT NOT o2->Contains(2)
+ASSERT o2->Count = 3
+ASSERT o2->GetAt(0)=1
+ASSERT o2->GetAt(1)=10
+ASSERT o2->GetAt(2)=11
