@@ -236,13 +236,12 @@ static intptr_t _CArrayList_vtable[] = {
     (intptr_t) _CArrayList_ToString_,
     (intptr_t) _CObject_Equals_,
     (intptr_t) _CObject_GetHashCode_,
-    (intptr_t) _CArrayList_Count_,
     (intptr_t) _CArrayList_Capacity_,
     (intptr_t) _CArrayList_Capacity,
+    (intptr_t) _CArrayList_GetEnumerator_,
+    (intptr_t) _CArrayList_Count_,
     (intptr_t) _CArrayList_GetAt_,
     (intptr_t) _CArrayList_SetAt,
-    (intptr_t) _CArrayList_GetEnumerator_,
-    (intptr_t) _CArrayList_Clone_,
     (intptr_t) _CArrayList_Add_,
     (intptr_t) _CArrayList_Contains_,
     (intptr_t) _CArrayList_IsReadOnly_,
@@ -251,7 +250,8 @@ static intptr_t _CArrayList_vtable[] = {
     (intptr_t) _CArrayList_Insert,
     (intptr_t) _CArrayList_Remove,
     (intptr_t) _CArrayList_RemoveAt,
-    (intptr_t) _CArrayList_RemoveAll
+    (intptr_t) _CArrayList_RemoveAll,
+    (intptr_t) _CArrayList_Clone_
 };
 
 static intptr_t __intf_vtable_CArrayList_ICloneable[] = {

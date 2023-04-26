@@ -1,149 +1,95 @@
 '
-' ExecList test
+' Collections Test 2: CArrayList class, part 2
 '
 
 OPTION EXPLICIT
 
 IMPORT Collections
 
-DIM AS CExecList a = CExecList(NT_USER)
-
 '
-' test Add / GetAt
+' main
 '
 
-FOR i AS INTEGER = 0 TO 9
-    a.Add(i)
-NEXT i
+DIM s AS STRING
+DIM i AS INTEGER
 
-FOR i AS INTEGER = 0 TO 9
-    DIM j AS INTEGER = a.GetAt(i)
-    'TRACE j
-    ASSERT j = i
-NEXT i
-
-' test SetAt/GetAt
-
-FOR i AS INTEGER = 0 TO 9
-    a.SetAt(i, i*i)
-NEXT i
-
-FOR i AS INTEGER = 0 TO 9
-    DIM j AS INTEGER = a.GetAt(i)
-    'TRACE j
-    ASSERT j = i*i
-NEXT i
-
-'' test clone
 '
-'DIM b AS CArray PTR = CAST(CArray PTR, a.Clone())
+' try a simple list of integers
 '
-'FOR i AS INTEGER = 0 TO 9
-'    DIM j AS INTEGER = b->GetAt(i)
-'    ' TRACE j
-'    ASSERT j = i*i
-'NEXT i
 
+DIM o1 AS CArrayList PTR = NEW CArrayList()
+
+'
+' test Add, GetAt
+'
+
+o1->Add(1)
+o1->Add(9)
+o1->Add(10)
+o1->Add(11)
+
+i = o1->GetAt (0)
+'TRACE i
+ASSERT i = 1
+
+'
 ' test Count
+'
 
-' TRACE a.Count
-ASSERT a.Count = 10
+ASSERT o1->Count = 4
 
-' test Contains, IndexOf
+'
+' test contains
+'
 
-ASSERT a.Contains(64)
-ASSERT a.Contains(81)
-ASSERT NOT a.Contains(65)
-ASSERT a.IndexOf(64)=8
-ASSERT a.IndexOf(65)=-1
+ASSERT o1->Contains(9)
+ASSERT NOT o1->Contains(42)
 
+'
+' test ToString
+'
+
+s = o1->ToString()
+TRACE s
+ASSERT s="CArrayList[ 1,  9,  10, ...]"
+
+'
 ' test IsReadOnly, IsFixedSize
+'
 
-ASSERT NOT a.IsReadOnly
-ASSERT NOT a.IsFixedSize
+ASSERT NOT o1->IsReadOnly
+ASSERT NOT o1->IsFixedSize
 
+'
 ' test Insert
-
-a.Insert (2, 23)
-'FOR i AS INTEGER = 0 TO 9
-'    DIM j AS INTEGER = a.GetAt(i)
-'    TRACE j
-'NEXT i
-'TRACE
-
-ASSERT a.Contains(64)
-ASSERT NOT a.Contains(128)
-ASSERT a.Contains(23)
-ASSERT a.IndexOf(23)=2
-ASSERT a.IndexOf(64)=9
-ASSERT a.Count = 11
-
-' test Remove, RemoveAt
-
-a.RemoveAt(9)
-'FOR i AS INTEGER = 0 TO 9
-'    DIM j AS INTEGER = a.GetAt(i)
-'    TRACE j
-'NEXT i
-'TRACE
-
-ASSERT NOT a.Contains(64)
-ASSERT NOT a.Contains(128)
-ASSERT a.Contains(23)
-ASSERT a.IndexOf(49)=8
-ASSERT a.IndexOf(64)=-1
-ASSERT a.GetAt(9)=81
-ASSERT a.Count = 10
-
-a.Remove(25)
-'FOR i AS INTEGER = 0 TO 9
-'    DIM j AS INTEGER = a.GetAt(i)
-'    TRACE j
-'NEXT i
-ASSERT NOT a.Contains(64)
-ASSERT NOT a.Contains(25)
-ASSERT a.Contains(23)
-ASSERT a.IndexOf(49)=7
-ASSERT a.Count = 9
-
-' test enumeration
-
-DIM e AS IEnumerator PTR
-
-e = a.GetEnumerator()
-
-'TRACE "enumerating..."
-
-DIM AS INTEGER cnt=0, sum=0
-
-WHILE e->MoveNext()
-    DIM AS INTEGER i = e->Current
-    'TRACE "element: "; i
-    cnt=cnt+1
-    sum=sum+i
-WEND
-
-'TRACE "done. sum=";sum;", cnt=";cnt
-
-ASSERT cnt=9
-ASSERT sum=219
-
-'
-' test Reset
 '
 
-e->Reset()
+o1->Insert (1, 2)
+'TRACE o1->Count, o1->ToString()
+ASSERT o1->Count = 5
+ASSERT o1->Contains(2)
+ASSERT o1->IndexOf(2)=1
+ASSERT o1->IndexOf(11)=4
 
-cnt=0 : sum=0
-WHILE e->MoveNext()
-    DIM AS INTEGER i = e->Current
-    'TRACE "element: "; i
-    cnt=cnt+1
-    sum=sum+i
-WEND
+'
+' test Remove
+'
 
-'TRACE "done. sum=";sum;", cnt=";cnt
+o1->Remove (9)
+ASSERT o1->Count = 4
+ASSERT o1->Contains(2)
+ASSERT NOT o1->Contains(9)
 
-ASSERT cnt=9
-ASSERT sum=219
+'
+' test RemoveAt
+'
+o1->RemoveAt(1)
+s = o1->ToString()
+'TRACE s
+ASSERT NOT o1->Contains(2)
+ASSERT o1->Count = 3
+ASSERT o1->GetAt(0)=1
+ASSERT o1->GetAt(1)=10
+ASSERT o1->GetAt(2)=11
+
 
