@@ -14,29 +14,29 @@ REM callbacks
 
 SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
     SYSTEM
-END SUB    
+END SUB
 
 SUB lvcb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     TRACE "LV cb: code=";code;", selected=";lv->selected
     cy->active = lv->selected
     mx->active = lv->selected
-END SUB    
+END SUB
 
 SUB mxcb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     TRACE "MX cb: code=";code;", active="; mx->active
     cy->active = mx->active
-    lv->selected = mx->active    
-END SUB    
+    lv->selected = mx->active
+END SUB
 
 SUB plcb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
-    TRACE "PL cb: code=";code;", color=";pl->color    
-END SUB    
+    TRACE "PL cb: code=";code;", color=";pl->color
+END SUB
 
 SUB cycb(BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
     TRACE "CY cb: code=";code;", active="; cy->active
     mx->active = cy->active
-    lv->selected = mx->active    
-END SUB    
+    lv->selected = mx->active
+END SUB
 
 WINDOW 1, "GadTools Tutorial 6"
 ON WINDOW CLOSE CALL 1, winCloseCB
@@ -57,10 +57,10 @@ lv->selected = 0
 REM create a MX gadget
 
 DIM AS STRING mxlabels(STATIC 3)
-mxlabels(0)="First" 
-mxlabels(1)="Second" 
-mxlabels(2)="Third" 
-mxlabels(3)=NULL 
+mxlabels(0)="First"
+mxlabels(1)="Second"
+mxlabels(2)="Third"
+mxlabels(3)=NULL
 
 mx = NEW GTMX ("MX", @mxlabels(0), (350, 20)-(450, 42))
 
