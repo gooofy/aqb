@@ -40,6 +40,8 @@ VOID   _CArrayList_CONSTRUCTOR (CArrayList *THIS, LONG  capacity)
 {
     LONG capa = capacity>0 ? capacity : DEFAULT_CAPACITY;
     THIS->_items = (intptr_t *) ALLOCATE_(capa * sizeof(intptr_t), MEMF_ANY);
+    if (!THIS->_items)
+        ERROR (ERR_OUT_OF_MEMORY);
     THIS->_size = 0;
     THIS->_capacity = capa;
 }
@@ -103,6 +105,8 @@ VOID _CArrayList_SetAt (CArrayList *THIS, LONG index, intptr_t obj)
 intptr_t ***_CArrayList_GetEnumerator_ (CArrayList *THIS)
 {
     CArrayListEnumerator *e = (CArrayListEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+    if (!e)
+        ERROR (ERR_OUT_OF_MEMORY);
 
     _CArrayListEnumerator___init (e);
     _CArrayListEnumerator_CONSTRUCTOR (e, THIS);
