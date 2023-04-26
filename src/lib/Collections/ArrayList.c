@@ -116,8 +116,17 @@ intptr_t ***_CArrayList_GetEnumerator_ (CArrayList *THIS)
 
 CObject *_CArrayList_Clone_ (CArrayList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CArrayList.Clone");
-    return NULL;
+    CArrayList *e = (CArrayList *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+    if (!e)
+        ERROR (ERR_OUT_OF_MEMORY);
+
+    _CArrayList___init (e);
+    _CArrayList_CONSTRUCTOR (e, THIS->_capacity);
+
+    CopyMem (THIS->_items, e->_items, THIS->_size * sizeof(intptr_t));
+    e->_size = THIS->_size;
+
+    return (CObject*) e;
 }
 
 LONG _CArrayList_Add_ (CArrayList *THIS, intptr_t obj)
