@@ -23,14 +23,14 @@ struct List *_CExecList_ExecList_ (CExecList *THIS)
     return NULL;
 }
 
-VOID _CExecList_AddNode_ (CExecList *THIS, struct Node *n)
+VOID _CExecList_AddNode_ (CExecList *THIS, CExecNode *n)
 {
     // DPRINTF ("_ExecList_AddTail: l=0x%08lx, n=0x%08lx\n", l, n);
 
-    AddTail (&THIS->l, n);
+    AddTail (&THIS->l, &n->n.n);
 }
 
-struct Node *_CExecList_GetNodeAt_ (CExecList *THIS, LONG     index)
+CExecNode *_CExecList_GetNodeAt_ (CExecList *THIS, LONG index)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecList.GetNodeAt");
     return NULL;
@@ -38,8 +38,14 @@ struct Node *_CExecList_GetNodeAt_ (CExecList *THIS, LONG     index)
 
 intptr_t ** *_CExecList_GetEnumerator_ (CExecList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecList.GetEnumerator");
-    return NULL;
+    CExecListEnumerator *e = (CExecListEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
+    if (!e)
+        ERROR (ERR_OUT_OF_MEMORY);
+
+    _CExecListEnumerator___init (e);
+    _CExecListEnumerator_CONSTRUCTOR (e, THIS);
+
+    return &e->__intf_vtable_IEnumerator;
 }
 
 LONG _CExecList_Count_ (CExecList *THIS)
@@ -106,7 +112,7 @@ LONG _CExecList_Add_ (CExecList *THIS, intptr_t value)
     _CExecNode___init (en);
     _CExecNode_CONSTRUCTOR (en, value, /*ln_Type=*/NT_USER, /*ln_Pri=*/0, /*ln_name=*/NULL);
 
-    _CExecList_AddNode_ (THIS, &en->n.n);
+    _CExecList_AddNode_ (THIS, en);
 
     return 0; // not support for CExecLists (too costly)
 }
@@ -240,6 +246,7 @@ VOID _CExecNode_CONSTRUCTOR (CExecNode *THIS, intptr_t value, UBYTE    ln_Type, 
 {
     //DPRINTF ("_CExecNode_CONSTRUCTOR: n=0x%08lx, ln_Type=%d, ln_Pri=%d, ln_Name=%s\n", n, ln_Type, ln_Pri, ln_Name ? ln_
 
+    THIS->n.enode     = THIS;
     THIS->n.value     = value;
     THIS->n.n.ln_Succ = NULL;
     THIS->n.n.ln_Pred = NULL;
@@ -285,6 +292,58 @@ STRPTR   _CExecNode_Name_ (CExecNode *THIS)
 {
     _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.Name");
     return NULL;
+}
+
+VOID _CExecListEnumerator_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list)
+{
+    THIS->_list           = list;
+    THIS->_currentElement = NULL;
+}
+
+BOOL _CExecListEnumerator_MoveNext_ (CExecListEnumerator *THIS)
+{
+    DPRINTF ("_CExecListEnumerator_MoveNext_: THIS=0x%08lx, THIS->_currentElement=0x%08lx\n",
+             THIS, THIS->_currentElement);
+    struct Node *node;
+    if (!THIS->_currentElement)
+    {
+        node = THIS->_list->l.lh_Head;
+        DPRINTF("_CExecListEnumerator_MoveNext_: -> moved to head, node=0x%08lx\n", node);
+    }
+    else
+    {
+        node = &THIS->_currentElement->n.n;
+        if (!node->ln_Succ)
+            return FALSE;
+        node = node->ln_Succ;
+    }
+
+    if (!node->ln_Succ)
+    {
+        DPRINTF("_CExecListEnumerator_MoveNext_: -> already past the end of the list\n");
+        return FALSE;
+    }
+
+    ExecNodeAny *ena = (ExecNodeAny *) node;
+    THIS->_currentElement = ena->enode;
+    return TRUE;
+}
+
+intptr_t _CExecListEnumerator_Current_ (CExecListEnumerator *THIS)
+{
+    if (!THIS->_currentElement)
+        return 0;
+
+    ExecNodeAny *ena = &THIS->_currentElement->n;
+    if (!ena->n.ln_Succ)
+        return 0;
+
+    return ena->value;
+}
+
+VOID _CExecListEnumerator_Reset (CExecListEnumerator *THIS)
+{
+    THIS->_currentElement = NULL;
 }
 
 static intptr_t _CExecList_vtable[] = {
@@ -357,6 +416,22 @@ static intptr_t _CExecNode_vtable[] = {
     (intptr_t) _CExecNode_Name
 };
 
+static intptr_t _CExecListEnumerator_vtable[] = {
+    (intptr_t) _CObject_ToString_,
+    (intptr_t) _CObject_Equals_,
+    (intptr_t) _CObject_GetHashCode_,
+    (intptr_t) _CExecListEnumerator_MoveNext_,
+    (intptr_t) _CExecListEnumerator_Current_,
+    (intptr_t) _CExecListEnumerator_Reset
+};
+
+static intptr_t __intf_vtable_CExecListEnumerator_IEnumerator[] = {
+    4,
+    (intptr_t) _CExecListEnumerator_MoveNext_,
+    (intptr_t) _CExecListEnumerator_Current_,
+    (intptr_t) _CExecListEnumerator_Reset
+};
+
 void _CExecList___init (CExecList *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CExecList_vtable;
@@ -369,5 +444,11 @@ void _CExecList___init (CExecList *THIS)
 void _CExecNode___init (CExecNode *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CExecNode_vtable;
+}
+
+void _CExecListEnumerator___init (CExecListEnumerator *THIS)
+{
+    THIS->_vTablePtr = (intptr_t **) &_CExecListEnumerator_vtable;
+    THIS->__intf_vtable_IEnumerator = (intptr_t **) &__intf_vtable_CExecListEnumerator_IEnumerator;
 }
 

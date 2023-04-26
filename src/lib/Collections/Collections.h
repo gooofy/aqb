@@ -62,9 +62,10 @@ BOOL      _CArrayListEnumerator_MoveNext_   (CArrayListEnumerator *THIS);
 intptr_t  _CArrayListEnumerator_Current_    (CArrayListEnumerator *THIS);
 VOID      _CArrayListEnumerator_Reset       (CArrayListEnumerator *THIS);
 
-typedef struct CExecList_   CExecList;
-typedef struct CExecNode_   CExecNode;
-typedef struct ExecNodeAny_ ExecNodeAny;
+typedef struct CExecList_           CExecList;
+typedef struct CExecNode_           CExecNode;
+typedef struct ExecNodeAny_         ExecNodeAny;
+typedef struct CExecListEnumerator_ CExecListEnumerator;
 
 struct CExecList_
 {
@@ -78,8 +79,9 @@ struct CExecList_
 
 struct ExecNodeAny_
 {
-    struct Node n;
-    intptr_t    value;
+    struct Node  n;
+    CExecNode   *enode;
+    intptr_t     value;
 };
 
 struct CExecNode_
@@ -88,11 +90,19 @@ struct CExecNode_
     ExecNodeAny   n;
 };
 
+struct CExecListEnumerator_
+{
+    intptr_t    **_vTablePtr;
+    intptr_t    **__intf_vtable_IEnumerator;
+    CExecList    *_list;
+    CExecNode    *_currentElement;
+};
+
 VOID         _CExecList___init         (CExecList *THIS);
 VOID         _CExecList_CONSTRUCTOR    (CExecList *THIS, UBYTE    lh_Type);
 struct List *_CExecList_ExecList_      (CExecList *THIS);
-VOID         _CExecList_AddNode_       (CExecList *THIS, struct Node *n);
-struct Node *_CExecList_GetNodeAt_     (CExecList *THIS, LONG     index);
+VOID         _CExecList_AddNode_       (CExecList *THIS, CExecNode *en);
+CExecNode   *_CExecList_GetNodeAt_     (CExecList *THIS, LONG     index);
 intptr_t  ***_CExecList_GetEnumerator_ (CExecList *THIS);
 LONG         _CExecList_Count_         (CExecList *THIS);
 intptr_t     _CExecList_GetAt_         (CExecList *THIS, LONG     index);
@@ -117,6 +127,12 @@ VOID         _CExecNode_Pri            (CExecNode *THIS, STRPTR   *s);
 STRPTR       _CExecNode_Pri_           (CExecNode *THIS);
 VOID         _CExecNode_Name           (CExecNode *THIS, STRPTR   *s);
 STRPTR       _CExecNode_Name_          (CExecNode *THIS);
+
+VOID         _CExecListEnumerator___init      (CExecListEnumerator *THIS);
+VOID         _CExecListEnumerator_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list);
+BOOL         _CExecListEnumerator_MoveNext_   (CExecListEnumerator *THIS);
+intptr_t     _CExecListEnumerator_Current_    (CExecListEnumerator *THIS);
+VOID         _CExecListEnumerator_Reset       (CExecListEnumerator *THIS);
 
 #endif // HAVE_COLLECTIONS_H
 

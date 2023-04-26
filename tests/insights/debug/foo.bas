@@ -76,6 +76,7 @@ ASSERT NOT a.Contains(128)
 ASSERT a.Contains(23)
 ASSERT a.IndexOf(23)=2
 ASSERT a.IndexOf(64)=9
+ASSERT a.Count = 11
 
 ' test Remove, RemoveAt
 
@@ -92,6 +93,7 @@ ASSERT a.Contains(23)
 ASSERT a.IndexOf(49)=8
 ASSERT a.IndexOf(64)=-1
 ASSERT a.GetAt(9)=81
+ASSERT a.Count = 10
 
 a.Remove(25)
 'FOR i AS INTEGER = 0 TO 9
@@ -102,45 +104,46 @@ ASSERT NOT a.Contains(64)
 ASSERT NOT a.Contains(25)
 ASSERT a.Contains(23)
 ASSERT a.IndexOf(49)=7
+ASSERT a.Count = 9
 
-'' test enumeration
+' test enumeration
+
+DIM e AS IEnumerator PTR
+
+e = a.GetEnumerator()
+
+'TRACE "enumerating..."
+
+DIM AS INTEGER cnt=0, sum=0
+
+WHILE e->MoveNext()
+    DIM AS INTEGER i = e->Current
+    'TRACE "element: "; i
+    cnt=cnt+1
+    sum=sum+i
+WEND
+
+'TRACE "done. sum=";sum;", cnt=";cnt
+
+ASSERT cnt=9
+ASSERT sum=219
+
 '
-'DIM e AS IEnumerator PTR
+' test Reset
 '
-'e = a.GetEnumerator()
-'
-''TRACE "enumerating..."
-'
-'DIM AS INTEGER cnt=0, sum=0
-'
-'WHILE e->MoveNext()
-'    DIM AS INTEGER i = e->Current
-'    'TRACE "element: "; i
-'    cnt=cnt+1
-'    sum=sum+i
-'WEND
-'
-''TRACE "done. sum=";sum;", cnt=";cnt
-'
-'ASSERT cnt=10
-'ASSERT sum=138
-'
-''
-'' test Reset
-''
-'
-'e->Reset()
-'
-'cnt=0 : sum=0
-'WHILE e->MoveNext()
-'    DIM AS INTEGER i = e->Current
-'    'TRACE "element: "; i
-'    cnt=cnt+1
-'    sum=sum+i
-'WEND
-'
-''TRACE "done. sum=";sum;", cnt=";cnt
-'
-'ASSERT cnt=10
-'ASSERT sum=138
+
+e->Reset()
+
+cnt=0 : sum=0
+WHILE e->MoveNext()
+    DIM AS INTEGER i = e->Current
+    'TRACE "element: "; i
+    cnt=cnt+1
+    sum=sum+i
+WEND
+
+'TRACE "done. sum=";sum;", cnt=";cnt
+
+ASSERT cnt=9
+ASSERT sum=219
 

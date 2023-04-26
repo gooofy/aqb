@@ -80,8 +80,9 @@ END CLASS
 ' --------------------------------------------------------------------------------------------------------
 
 PUBLIC TYPE ExecNodeAny
-        AS Node n
-        AS ANY  value
+        AS Node    n
+        AS ANY PTR enode ' points back to the CExecNode instance which owns this ExecNodeAny
+        AS ANY     value
 END TYPE
 
 PUBLIC CLASS CExecNode
@@ -114,8 +115,8 @@ PUBLIC CLASS CExecList IMPLEMENTS IList, ICloneable
 
         DECLARE EXTERN VIRTUAL PROPERTY ExecList AS List PTR
 
-        DECLARE EXTERN VIRTUAL SUB      AddNode (n AS Node)
-        DECLARE EXTERN VIRTUAL FUNCTION GetNodeAt (BYVAL index AS LONG) AS Node PTR
+        DECLARE EXTERN VIRTUAL SUB      AddNode   (BYVAL n AS CExecNode PTR)
+        DECLARE EXTERN VIRTUAL FUNCTION GetNodeAt (BYVAL index AS LONG) AS CExecNode PTR
 
         ' IEnumerable
 
@@ -155,6 +156,23 @@ PUBLIC CLASS CExecList IMPLEMENTS IList, ICloneable
 
     PRIVATE:
         AS List l
+
+END CLASS
+
+PUBLIC CLASS CExecListEnumerator IMPLEMENTS IEnumerator
+
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL list AS CExecList PTR)
+
+        DECLARE EXTERN VIRTUAL FUNCTION MoveNext() AS BOOLEAN
+        DECLARE EXTERN VIRTUAL PROPERTY Current AS ANY
+        DECLARE EXTERN VIRTUAL SUB      Reset()
+
+    PRIVATE:
+
+        AS CExecList PTR  _list
+        AS CExecNode PTR  _currentElement
 
 END CLASS
 
