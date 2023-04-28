@@ -18,7 +18,7 @@ NEXT i
 
 FOR i AS INTEGER = 0 TO 9
     DIM n AS CExecNode PTR = a.GetNodeAt(i)
-    TRACE CAST(INTEGER, n->Value), n->Type, n->Name
+    'TRACE CAST(INTEGER, n->Value), n->Type, n->Name
 
     ' test node property getters
 

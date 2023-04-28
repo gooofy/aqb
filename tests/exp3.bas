@@ -10,7 +10,7 @@ DIM AS SUB (BYVAL INTEGER) s1
 
 SUB mys (BYVAL i AS INTEGER)
 
-    TRACE "mys called, i=";i
+    ' TRACE "mys called, i=";i
 
     g = i
 

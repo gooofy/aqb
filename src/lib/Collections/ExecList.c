@@ -283,8 +283,7 @@ VOID _CExecNode_CONSTRUCTOR (CExecNode *THIS, intptr_t value, UBYTE ln_Type, BYT
 
 struct Node *_CExecNode_ExecNode_ (CExecNode *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.ExecNode");
-    return NULL;
+    return &THIS->n.n;
 }
 
 VOID _CExecNode_TYPE (CExecNode *THIS, UBYTE t)
