@@ -273,7 +273,7 @@ struct Node *_CExecNode_ExecNode_ (CExecNode *THIS)
 
 VOID _CExecNode_TYPE (CExecNode *THIS, UBYTE t)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.TYPE");
+    THIS->n.n.ln_Type = t;
 }
 
 UBYTE _CExecNode_TYPE_ (CExecNode *THIS)
@@ -283,7 +283,7 @@ UBYTE _CExecNode_TYPE_ (CExecNode *THIS)
 
 VOID _CExecNode_Pri (CExecNode *THIS, BYTE b)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.Pri");
+    THIS->n.n.ln_Pri = b;
 }
 
 BYTE _CExecNode_Pri_ (CExecNode *THIS)
@@ -291,14 +291,24 @@ BYTE _CExecNode_Pri_ (CExecNode *THIS)
     return THIS->n.n.ln_Pri;
 }
 
-VOID _CExecNode_Name (CExecNode *THIS, STRPTR   *s)
+VOID _CExecNode_Name (CExecNode *THIS, STRPTR *s)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecNode.Name");
+    THIS->n.n.ln_Name = (char *)s;
 }
 
 STRPTR   _CExecNode_Name_ (CExecNode *THIS)
 {
     return (STRPTR) THIS->n.n.ln_Name;
+}
+
+VOID _CExecNode_value (CExecNode *THIS, intptr_t v)
+{
+    THIS->n.value = v;
+}
+
+intptr_t _CExecNode_value_ (CExecNode *THIS)
+{
+    return THIS->n.value;
 }
 
 VOID _CExecListEnumerator_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list)
@@ -420,7 +430,9 @@ static intptr_t _CExecNode_vtable[] = {
     (intptr_t) _CExecNode_Pri_,
     (intptr_t) _CExecNode_Pri,
     (intptr_t) _CExecNode_Name_,
-    (intptr_t) _CExecNode_Name
+    (intptr_t) _CExecNode_Name,
+    (intptr_t) _CExecNode_value_,
+    (intptr_t) _CExecNode_value
 };
 
 static intptr_t _CExecListEnumerator_vtable[] = {

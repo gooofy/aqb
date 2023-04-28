@@ -127,6 +127,8 @@ VOID         _CExecNode_Pri            (CExecNode *THIS, BYTE      b);
 BYTE         _CExecNode_Pri_           (CExecNode *THIS);
 VOID         _CExecNode_Name           (CExecNode *THIS, STRPTR   *s);
 STRPTR       _CExecNode_Name_          (CExecNode *THIS);
+VOID         _CExecNode_value          (CExecNode *THIS, intptr_t v);
+intptr_t     _CExecNode_value_         (CExecNode *THIS);
 
 VOID         _CExecListEnumerator___init      (CExecListEnumerator *THIS);
 VOID         _CExecListEnumerator_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list);
