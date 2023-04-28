@@ -21,9 +21,9 @@
 
 extern struct Library    *GadToolsBase ;
 
-static struct Gadget *_gtstring_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+static struct Gadget *_gtstring_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
-    GTSTRING_t *gt = (GTSTRING_t *)gtg;
+    CGTString *gt = (CGTString *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -58,13 +58,13 @@ static struct Gadget *_gtstring_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, 
     return gtg->gad;
 }
 
-void _GTSTRING_CONSTRUCTOR (GTSTRING_t *this,
+void _CGTString_CONSTRUCTOR (CGTString *this,
                             CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTSTRING_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _GTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    DPRINTF("_CGTString_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
+    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtstring_deploy_cb;
     this->disabled        = FALSE;
     this->immediate       = FALSE;
@@ -76,9 +76,9 @@ void _GTSTRING_CONSTRUCTOR (GTSTRING_t *this,
     this->replaceMode     = FALSE;
 }
 
-BOOL _GTSTRING_disabled_ (GTSTRING_t *this)
+BOOL _CGTString_disabled_ (CGTString *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GA_Disabled, (intptr_t)&u, TAG_DONE);
@@ -87,107 +87,119 @@ BOOL _GTSTRING_disabled_ (GTSTRING_t *this)
     }
     return this->disabled;
 }
-void _GTSTRING_disabled (GTSTRING_t *this, BOOL disabled)
+void _CGTString_disabled (CGTString *this, BOOL disabled)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
 }
 
-BOOL _GTSTRING_immediate_ (GTSTRING_t *this)
+BOOL _CGTString_immediate_ (CGTString *this)
 {
     return this->immediate;
 }
-void _GTSTRING_immediate (GTSTRING_t *this, BOOL immediate)
+void _CGTString_immediate (CGTString *this, BOOL immediate)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Immediate, immediate, TAG_DONE);
     }
     this->immediate = immediate;
 }
 
-BOOL _GTSTRING_tabCycle_ (GTSTRING_t *this)
+BOOL _CGTStringabCycle_ (CGTString *this)
 {
     return this->tabCycle;
 }
-void _GTSTRING_tabCycle (GTSTRING_t *this, BOOL tabCycle)
+void _CGTStringabCycle (CGTString *this, BOOL tabCycle)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_TabCycle, tabCycle, TAG_DONE);
     }
     this->tabCycle = tabCycle;
 }
 
-CONST_STRPTR _GTSTRING_str_ (GTSTRING_t *this)
+CONST_STRPTR _CGTString_str_ (CGTString *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         struct StringInfo * si = (struct StringInfo *)this->gadget.gad->SpecialInfo;
         return si->Buffer;
     }
     return this->str;
 }
-void _GTSTRING_str (GTSTRING_t *this, CONST_STRPTR str)
+void _CGTString_str (CGTString *this, CONST_STRPTR str)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTST_String, (intptr_t) str, TAG_DONE);
     }
     this->str = str;
 }
 
-USHORT _GTSTRING_maxChars_ (GTSTRING_t *this)
+USHORT _CGTString_maxChars_ (CGTString *this)
 {
     return this->maxChars;
 }
-void _GTSTRING_maxChars (GTSTRING_t *this, USHORT maxChars)
+void _CGTString_maxChars (CGTString *this, USHORT maxChars)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTST_MaxChars, maxChars, TAG_DONE);
     }
     this->maxChars = maxChars;
 }
 
-BOOL _GTSTRING_exitHelp_ (GTSTRING_t *this)
+BOOL _CGTString_exitHelp_ (CGTString *this)
 {
     return this->exitHelp;
 }
-void _GTSTRING_exitHelp (GTSTRING_t *this, BOOL exitHelp)
+void _CGTString_exitHelp (CGTString *this, BOOL exitHelp)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, STRINGA_ExitHelp, exitHelp, TAG_DONE);
     }
     this->exitHelp = exitHelp;
 }
 
-CONST_STRPTR _GTSTRING_justification_ (GTSTRING_t *this)
+CONST_STRPTR _CGTString_justification_ (CGTString *this)
 {
     return this->justification;
 }
-void _GTSTRING_justification (GTSTRING_t *this, CONST_STRPTR justification)
+void _CGTString_justification (CGTString *this, CONST_STRPTR justification)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, STRINGA_Justification, (intptr_t) justification, TAG_DONE);
     }
     this->justification = justification;
 }
 
-BOOL _GTSTRING_replaceMode_ (GTSTRING_t *this)
+BOOL _CGTString_replaceMode_ (CGTString *this)
 {
     return this->replaceMode;
 }
-void _GTSTRING_replaceMode (GTSTRING_t *this, BOOL replaceMode)
+void _CGTString_replaceMode (CGTString *this, BOOL replaceMode)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, STRINGA_ReplaceMode, replaceMode, TAG_DONE);
     }
     this->replaceMode = replaceMode;
 }
+
+static intptr_t _CGTString_vtable[] = {
+    (intptr_t) _CObject_ToString_,
+    (intptr_t) _CObject_Equals_,
+    (intptr_t) _CObject_GetHashCode_
+};
+
+void _CGTString___init (CGTString *THIS)
+{
+    THIS->gadget._vTablePtr = (intptr_t **) &_CGTString_vtable;
+}
+

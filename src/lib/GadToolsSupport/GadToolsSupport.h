@@ -125,12 +125,12 @@ void _CGTCheckBox_scaled    (CGTCheckBox *this, BOOL scaled);
 
 /***********************************************************************************
  *
- * GTSLIDER
+ * CGTSlider
  *
  ***********************************************************************************/
 
-typedef struct GTSLIDER_   GTSLIDER;
-struct GTSLIDER_
+typedef struct CGTSlider_   CGTSlider;
+struct CGTSlider_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -142,51 +142,51 @@ struct GTSLIDER_
     BOOL            immediate, relVerify;
 };
 
-void _GTSLIDER_CONSTRUCTOR (GTSLIDER *this, CONST_STRPTR label,
+void _CGTSlider_CONSTRUCTOR (CGTSlider *this, CONST_STRPTR label,
                             SHORT min, SHORT max, SHORT level, ULONG orient,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-// GTSLIDER properties
-BOOL          _GTSLIDER_disabled_ (GTSLIDER *this);
-void          _GTSLIDER_disabled  (GTSLIDER *this, BOOL disabled);
+// CGTSlider properties
+BOOL          _CGTSlider_disabled_ (CGTSlider *this);
+void          _CGTSlider_disabled  (CGTSlider *this, BOOL disabled);
 
-SHORT         _GTSLIDER_min_ (GTSLIDER *this);
-void          _GTSLIDER_min  (GTSLIDER *this, SHORT i);
+SHORT         _CGTSlider_min_ (CGTSlider *this);
+void          _CGTSlider_min  (CGTSlider *this, SHORT i);
 
-SHORT         _GTSLIDER_max_ (GTSLIDER *this);
-void          _GTSLIDER_max  (GTSLIDER *this, SHORT i);
+SHORT         _CGTSlider_max_ (CGTSlider *this);
+void          _CGTSlider_max  (CGTSlider *this, SHORT i);
 
-SHORT         _GTSLIDER_level_ (GTSLIDER *this);
-void          _GTSLIDER_level  (GTSLIDER *this, SHORT i);
+SHORT         _CGTSlider_level_ (CGTSlider *this);
+void          _CGTSlider_level  (CGTSlider *this, SHORT i);
 
-SHORT         _GTSLIDER_maxLevelLen_ (GTSLIDER *this);
-void          _GTSLIDER_maxLevelLen  (GTSLIDER *this, SHORT i);
+SHORT         _CGTSlider_maxLevelLen_ (CGTSlider *this);
+void          _CGTSlider_maxLevelLen  (CGTSlider *this, SHORT i);
 
-CONST_STRPTR  _GTSLIDER_levelFormat_ (GTSLIDER *this);
-void          _GTSLIDER_levelFormat  (GTSLIDER *this, CONST_STRPTR s);
+CONST_STRPTR  _CGTSlider_levelFormat_ (CGTSlider *this);
+void          _CGTSlider_levelFormat  (CGTSlider *this, CONST_STRPTR s);
 
-ULONG         _GTSLIDER_levelPlace_ (GTSLIDER *this);
-void          _GTSLIDER_levelPlace  (GTSLIDER *this, ULONG u);
+ULONG         _CGTSlider_levelPlace_ (CGTSlider *this);
+void          _CGTSlider_levelPlace  (CGTSlider *this, ULONG u);
 
-BOOL          _GTSLIDER_immediate_ (GTSLIDER *this);
-void          _GTSLIDER_immediate  (GTSLIDER *this, BOOL b);
+BOOL          _CGTSlider_immediate_ (CGTSlider *this);
+void          _CGTSlider_immediate  (CGTSlider *this, BOOL b);
 
-BOOL          _GTSLIDER_relVerify_ (GTSLIDER *this);
-void          _GTSLIDER_relVerify  (GTSLIDER *this, BOOL b);
+BOOL          _CGTSlider_relVerify_ (CGTSlider *this);
+void          _CGTSlider_relVerify  (CGTSlider *this, BOOL b);
 
-ULONG         _GTSLIDER_freedom_ (GTSLIDER *this);
-void          _GTSLIDER_freedom  (GTSLIDER *this, ULONG u);
+ULONG         _CGTSlider_freedom_ (CGTSlider *this);
+void          _CGTSlider_freedom  (CGTSlider *this, ULONG u);
 
 /***********************************************************************************
  *
- * GTTEXT
+ * CGTText
  *
  ***********************************************************************************/
 
-typedef struct GTTEXT_ GTTEXT;
+typedef struct CGTText_ CGTText;
 
-struct GTTEXT_
+struct CGTText_
 {
     CGTGadget      gadget;
     CONST_STRPTR    text;
@@ -198,40 +198,40 @@ struct GTTEXT_
     BOOL            clipped;
 };
 
-void _GTTEXT_CONSTRUCTOR (GTTEXT *this, CONST_STRPTR label, CONST_STRPTR text,
+void _CGTText_CONSTRUCTOR (CGTText *this, CONST_STRPTR label, CONST_STRPTR text,
                           BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                           void *user_data, ULONG flags, ULONG underscore);
 
-CONST_STRPTR           _GTTEXT_text_ (GTTEXT *this);
-void                   _GTTEXT_text  (GTTEXT *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTText_text_ (CGTText *this);
+void                   _CGTText_text  (CGTText *this, CONST_STRPTR value);
 
-BOOL                   _GTTEXT_copyText_ (GTTEXT *this);
-void                   _GTTEXT_copyText  (GTTEXT *this, BOOL value);
+BOOL                   _CGTText_copyText_ (CGTText *this);
+void                   _CGTText_copyText  (CGTText *this, BOOL value);
 
-BOOL                   _GTTEXT_border_ (GTTEXT *this);
-void                   _GTTEXT_border  (GTTEXT *this, BOOL value);
+BOOL                   _CGTText_border_ (CGTText *this);
+void                   _CGTText_border  (CGTText *this, BOOL value);
 
-UBYTE                  _GTTEXT_frontPen_ (GTTEXT *this);
-void                   _GTTEXT_frontPen  (GTTEXT *this, UBYTE value);
+UBYTE                  _CGTText_frontPen_ (CGTText *this);
+void                   _CGTText_frontPen  (CGTText *this, UBYTE value);
 
-UBYTE                  _GTTEXT_backPen_ (GTTEXT *this);
-void                   _GTTEXT_backPen  (GTTEXT *this, UBYTE value);
+UBYTE                  _CGTText_backPen_ (CGTText *this);
+void                   _CGTText_backPen  (CGTText *this, UBYTE value);
 
-UBYTE                  _GTTEXT_justification_ (GTTEXT *this);
-void                   _GTTEXT_justification  (GTTEXT *this, UBYTE value);
+UBYTE                  _CGTText_justification_ (CGTText *this);
+void                   _CGTText_justification  (CGTText *this, UBYTE value);
 
-BOOL                   _GTTEXT_clipped_ (GTTEXT *this);
-void                   _GTTEXT_clipped  (GTTEXT *this, BOOL value);
+BOOL                   _CGTText_clipped_ (CGTText *this);
+void                   _CGTText_clipped  (CGTText *this, BOOL value);
 
 /***********************************************************************************
  *
- * GTSCROLLER
+ * CGTScroller
  *
  ***********************************************************************************/
 
-typedef struct GTSCROLLER_ GTSCROLLER;
+typedef struct CGTScroller_ CGTScroller;
 
-struct GTSCROLLER_
+struct CGTScroller_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -244,44 +244,44 @@ struct GTSCROLLER_
     ULONG           freedom;
 };
 
-void _GTSCROLLER_CONSTRUCTOR (GTSCROLLER *this, CONST_STRPTR label,
+void _CGTScroller_CONSTRUCTOR (CGTScroller *this, CONST_STRPTR label,
                               SHORT top, SHORT total, SHORT visible, ULONG freedom,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTSCROLLER_disabled_ (GTSCROLLER *this);
-void                   _GTSCROLLER_disabled  (GTSCROLLER *this, BOOL value);
+BOOL                   _CGTScroller_disabled_ (CGTScroller *this);
+void                   _CGTScroller_disabled  (CGTScroller *this, BOOL value);
 
-BOOL                   _GTSCROLLER_relVerify_ (GTSCROLLER *this);
-void                   _GTSCROLLER_relVerify  (GTSCROLLER *this, BOOL value);
+BOOL                   _CGTScroller_relVerify_ (CGTScroller *this);
+void                   _CGTScroller_relVerify  (CGTScroller *this, BOOL value);
 
-BOOL                   _GTSCROLLER_immediate_ (GTSCROLLER *this);
-void                   _GTSCROLLER_immediate  (GTSCROLLER *this, BOOL value);
+BOOL                   _CGTScroller_immediate_ (CGTScroller *this);
+void                   _CGTScroller_immediate  (CGTScroller *this, BOOL value);
 
-SHORT                  _GTSCROLLER_top_ (GTSCROLLER *this);
-void                   _GTSCROLLER_top  (GTSCROLLER *this, SHORT value);
+SHORT                  _CGTScroller_top_ (CGTScroller *this);
+void                   _CGTScroller_top  (CGTScroller *this, SHORT value);
 
-SHORT                  _GTSCROLLER_total_ (GTSCROLLER *this);
-void                   _GTSCROLLER_total  (GTSCROLLER *this, SHORT value);
+SHORT                  _CGTScroller_total_ (CGTScroller *this);
+void                   _CGTScroller_total  (CGTScroller *this, SHORT value);
 
-BOOL                   _GTSCROLLER_visible_ (GTSCROLLER *this);
-void                   _GTSCROLLER_visible  (GTSCROLLER *this, BOOL value);
+BOOL                   _CGTScroller_visible_ (CGTScroller *this);
+void                   _CGTScroller_visible  (CGTScroller *this, BOOL value);
 
-USHORT                 _GTSCROLLER_arrows_ (GTSCROLLER *this);
-void                   _GTSCROLLER_arrows  (GTSCROLLER *this, USHORT value);
+USHORT                 _CGTScroller_arrows_ (CGTScroller *this);
+void                   _CGTScroller_arrows  (CGTScroller *this, USHORT value);
 
-ULONG                  _GTSCROLLER_freedom_ (GTSCROLLER *this);
-void                   _GTSCROLLER_freedom  (GTSCROLLER *this, ULONG value);
+ULONG                  _CGTScroller_freedom_ (CGTScroller *this);
+void                   _CGTScroller_freedom  (CGTScroller *this, ULONG value);
 
 /***********************************************************************************
  *
- * GTSTRING
+ * CGTString
  *
  ***********************************************************************************/
 
-typedef struct GTSTRING_ GTSTRING;
+typedef struct CGTString_ CGTString;
 
-struct GTSTRING_
+struct CGTString_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -294,44 +294,44 @@ struct GTSTRING_
     BOOL            replaceMode;
 };
 
-void _GTSTRING_CONSTRUCTOR (GTSTRING *this,
+void _CGTString_CONSTRUCTOR (CGTString *this,
                             CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTSTRING_disabled_ (GTSTRING *this);
-void                   _GTSTRING_disabled  (GTSTRING *this, BOOL value);
+BOOL                   _CGTString_disabled_ (CGTString *this);
+void                   _CGTString_disabled  (CGTString *this, BOOL value);
 
-BOOL                   _GTSTRING_immediate_ (GTSTRING *this);
-void                   _GTSTRING_immediate  (GTSTRING *this, BOOL value);
+BOOL                   _CGTString_immediate_ (CGTString *this);
+void                   _CGTString_immediate  (CGTString *this, BOOL value);
 
-BOOL                   _GTSTRING_tabCycle_ (GTSTRING *this);
-void                   _GTSTRING_tabCycle  (GTSTRING *this, BOOL value);
+BOOL                   _CGTString_tabCycle_ (CGTString *this);
+void                   _CGTString_tabCycle  (CGTString *this, BOOL value);
 
-CONST_STRPTR           _GTSTRING_str_ (GTSTRING *this);
-void                   _GTSTRING_str  (GTSTRING *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTString_str_ (CGTString *this);
+void                   _CGTString_str  (CGTString *this, CONST_STRPTR value);
 
-USHORT                 _GTSTRING_maxChars_ (GTSTRING *this);
-void                   _GTSTRING_maxChars  (GTSTRING *this, USHORT value);
+USHORT                 _CGTString_maxChars_ (CGTString *this);
+void                   _CGTString_maxChars  (CGTString *this, USHORT value);
 
-BOOL                   _GTSTRING_exitHelp_ (GTSTRING *this);
-void                   _GTSTRING_exitHelp  (GTSTRING *this, BOOL value);
+BOOL                   _CGTString_exitHelp_ (CGTString *this);
+void                   _CGTString_exitHelp  (CGTString *this, BOOL value);
 
-CONST_STRPTR           _GTSTRING_justification_ (GTSTRING *this);
-void                   _GTSTRING_justification  (GTSTRING *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTString_justification_ (CGTString *this);
+void                   _CGTString_justification  (CGTString *this, CONST_STRPTR value);
 
-BOOL                   _GTSTRING_replaceMode_ (GTSTRING *this);
-void                   _GTSTRING_replaceMode  (GTSTRING *this, BOOL value);
+BOOL                   _CGTString_replaceMode_ (CGTString *this);
+void                   _CGTString_replaceMode  (CGTString *this, BOOL value);
 
 /***********************************************************************************
  *
- * GTINTEGER
+ * CGTInteger
  *
  ***********************************************************************************/
 
-typedef struct GTINTEGER_ GTINTEGER;
+typedef struct CGTInteger_ CGTInteger;
 
-struct GTINTEGER_
+struct CGTInteger_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -344,44 +344,44 @@ struct GTINTEGER_
     BOOL            replaceMode;
 };
 
-void _GTINTEGER_CONSTRUCTOR (GTINTEGER *this,
+void _CGTInteger_CONSTRUCTOR (CGTInteger *this,
                             CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTINTEGER_disabled_ (GTINTEGER *this);
-void                   _GTINTEGER_disabled  (GTINTEGER *this, BOOL value);
+BOOL                   _CGTInteger_disabled_ (CGTInteger *this);
+void                   _CGTInteger_disabled  (CGTInteger *this, BOOL value);
 
-BOOL                   _GTINTEGER_immediate_ (GTINTEGER *this);
-void                   _GTINTEGER_immediate  (GTINTEGER *this, BOOL value);
+BOOL                   _CGTInteger_immediate_ (CGTInteger *this);
+void                   _CGTInteger_immediate  (CGTInteger *this, BOOL value);
 
-BOOL                   _GTINTEGER_tabCycle_ (GTINTEGER *this);
-void                   _GTINTEGER_tabCycle  (GTINTEGER *this, BOOL value);
+BOOL                   _CGTInteger_tabCycle_ (CGTInteger *this);
+void                   _CGTInteger_tabCycle  (CGTInteger *this, BOOL value);
 
-LONG                   _GTINTEGER_number_ (GTINTEGER *this);
-void                   _GTINTEGER_number  (GTINTEGER *this, LONG value);
+LONG                   _CGTInteger_number_ (CGTInteger *this);
+void                   _CGTInteger_number  (CGTInteger *this, LONG value);
 
-USHORT                 _GTINTEGER_maxChars_ (GTINTEGER *this);
-void                   _GTINTEGER_maxChars  (GTINTEGER *this, USHORT value);
+USHORT                 _CGTInteger_maxChars_ (CGTInteger *this);
+void                   _CGTInteger_maxChars  (CGTInteger *this, USHORT value);
 
-BOOL                   _GTINTEGER_exitHelp_ (GTINTEGER *this);
-void                   _GTINTEGER_exitHelp  (GTINTEGER *this, BOOL value);
+BOOL                   _CGTInteger_exitHelp_ (CGTInteger *this);
+void                   _CGTInteger_exitHelp  (CGTInteger *this, BOOL value);
 
-CONST_STRPTR           _GTINTEGER_justification_ (GTINTEGER *this);
-void                   _GTINTEGER_justification  (GTINTEGER *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTInteger_justification_ (CGTInteger *this);
+void                   _CGTInteger_justification  (CGTInteger *this, CONST_STRPTR value);
 
-BOOL                   _GTINTEGER_replaceMode_ (GTINTEGER *this);
-void                   _GTINTEGER_replaceMode  (GTINTEGER *this, BOOL value);
+BOOL                   _CGTInteger_replaceMode_ (CGTInteger *this);
+void                   _CGTInteger_replaceMode  (CGTInteger *this, BOOL value);
 
 /***********************************************************************************
  *
- * GTNUMBER
+ * CGTNumber
  *
  ***********************************************************************************/
 
-typedef struct GTNUMBER_ GTNUMBER;
+typedef struct CGTNumber_ CGTNumber;
 
-struct GTNUMBER_
+struct CGTNumber_
 {
     CGTGadget      gadget;
     LONG            number;
@@ -394,44 +394,44 @@ struct GTNUMBER_
     BOOL            clipped;
 };
 
-void _GTNUMBER_CONSTRUCTOR (GTNUMBER *this,
+void _CGTNumber_CONSTRUCTOR (CGTNumber *this,
                             CONST_STRPTR label, LONG number,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-LONG                   _GTNUMBER_number_ (GTNUMBER *this);
-void                   _GTNUMBER_number  (GTNUMBER *this, LONG value);
+LONG                   _CGTNumber_number_ (CGTNumber *this);
+void                   _CGTNumber_number  (CGTNumber *this, LONG value);
 
-BOOL                   _GTNUMBER_border_ (GTNUMBER *this);
-void                   _GTNUMBER_border  (GTNUMBER *this, BOOL value);
+BOOL                   _CGTNumber_border_ (CGTNumber *this);
+void                   _CGTNumber_border  (CGTNumber *this, BOOL value);
 
-UBYTE                  _GTNUMBER_frontPen_ (GTNUMBER *this);
-void                   _GTNUMBER_frontPen  (GTNUMBER *this, UBYTE value);
+UBYTE                  _CGTNumber_frontPen_ (CGTNumber *this);
+void                   _CGTNumber_frontPen  (CGTNumber *this, UBYTE value);
 
-UBYTE                  _GTNUMBER_backPen_ (GTNUMBER *this);
-void                   _GTNUMBER_backPen  (GTNUMBER *this, UBYTE value);
+UBYTE                  _CGTNumber_backPen_ (CGTNumber *this);
+void                   _CGTNumber_backPen  (CGTNumber *this, UBYTE value);
 
-UBYTE                  _GTNUMBER_justification_ (GTNUMBER *this);
-void                   _GTNUMBER_justification  (GTNUMBER *this, UBYTE value);
+UBYTE                  _CGTNumber_justification_ (CGTNumber *this);
+void                   _CGTNumber_justification  (CGTNumber *this, UBYTE value);
 
-CONST_STRPTR           _GTNUMBER_format_ (GTNUMBER *this);
-void                   _GTNUMBER_format  (GTNUMBER *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTNumber_format_ (CGTNumber *this);
+void                   _CGTNumber_format  (CGTNumber *this, CONST_STRPTR value);
 
-ULONG                  _GTNUMBER_maxNumberLen_ (GTNUMBER *this);
-void                   _GTNUMBER_maxNumberLen  (GTNUMBER *this, ULONG value);
+ULONG                  _CGTNumber_maxNumberLen_ (CGTNumber *this);
+void                   _CGTNumber_maxNumberLen  (CGTNumber *this, ULONG value);
 
-BOOL                   _GTNUMBER_clipped_ (GTNUMBER *this);
-void                   _GTNUMBER_clipped  (GTNUMBER *this, BOOL value);
+BOOL                   _CGTNumber_clipped_ (CGTNumber *this);
+void                   _CGTNumber_clipped  (CGTNumber *this, BOOL value);
 
 /***********************************************************************************
  *
- * GTMX
+ * CGTMX
  *
  ***********************************************************************************/
 
-typedef struct GTMX_ GTMX;
+typedef struct CGTMX_ CGTMX;
 
-struct GTMX_
+struct CGTMX_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -442,38 +442,38 @@ struct GTMX_
     ULONG           titlePlace;
 };
 
-void _GTMX_CONSTRUCTOR (GTMX *this,
+void _CGTMX_CONSTRUCTOR (CGTMX *this,
                             CONST_STRPTR label, CONST_STRPTR * labels, 
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTMX_disabled_ (GTMX *this);
-void                   _GTMX_disabled  (GTMX *this, BOOL value);
+BOOL                   _CGTMX_disabled_ (CGTMX *this);
+void                   _CGTMX_disabled  (CGTMX *this, BOOL value);
 
-CONST_STRPTR *         _GTMX_labels_ (GTMX *this);
-void                   _GTMX_labels  (GTMX *this, CONST_STRPTR * value);
+CONST_STRPTR *         _CGTMX_labels_ (CGTMX *this);
+void                   _CGTMX_labels  (CGTMX *this, CONST_STRPTR * value);
 
-USHORT                 _GTMX_active_ (GTMX *this);
-void                   _GTMX_active  (GTMX *this, USHORT value);
+USHORT                 _CGTMX_active_ (CGTMX *this);
+void                   _CGTMX_active  (CGTMX *this, USHORT value);
 
-USHORT                 _GTMX_spacing_ (GTMX *this);
-void                   _GTMX_spacing  (GTMX *this, USHORT value);
+USHORT                 _CGTMX_spacing_ (CGTMX *this);
+void                   _CGTMX_spacing  (CGTMX *this, USHORT value);
 
-BOOL                   _GTMX_scaled_ (GTMX *this);
-void                   _GTMX_scaled  (GTMX *this, BOOL value);
+BOOL                   _CGTMX_scaled_ (CGTMX *this);
+void                   _CGTMX_scaled  (CGTMX *this, BOOL value);
 
-ULONG                  _GTMX_titlePlace_ (GTMX *this);
-void                   _GTMX_titlePlace  (GTMX *this, ULONG value);
+ULONG                  _CGTMX_titlePlace_ (CGTMX *this);
+void                   _CGTMX_titlePlace  (CGTMX *this, ULONG value);
 
 /***********************************************************************************
  *
- * GTCYCLE
+ * CGTCycle
  *
  ***********************************************************************************/
 
-typedef struct GTCYCLE_ GTCYCLE;
+typedef struct CGTCycle_ CGTCycle;
 
-struct GTCYCLE_
+struct CGTCycle_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -481,29 +481,29 @@ struct GTCYCLE_
     USHORT          active;
 };
 
-void _GTCYCLE_CONSTRUCTOR (GTCYCLE *this,
+void _CGTCycle_CONSTRUCTOR (CGTCycle *this,
                             CONST_STRPTR label, CONST_STRPTR * labels,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTCYCLE_disabled_ (GTCYCLE *this);
-void                   _GTCYCLE_disabled  (GTCYCLE *this, BOOL value);
+BOOL                   _CGTCycle_disabled_ (CGTCycle *this);
+void                   _CGTCycle_disabled  (CGTCycle *this, BOOL value);
 
-CONST_STRPTR *         _GTCYCLE_labels_ (GTCYCLE *this);
-void                   _GTCYCLE_labels  (GTCYCLE *this, CONST_STRPTR * value);
+CONST_STRPTR *         _CGTCycle_labels_ (CGTCycle *this);
+void                   _CGTCycle_labels  (CGTCycle *this, CONST_STRPTR * value);
 
-USHORT                 _GTCYCLE_active_ (GTCYCLE *this);
-void                   _GTCYCLE_active  (GTCYCLE *this, USHORT value);
+USHORT                 _CGTCycle_active_ (CGTCycle *this);
+void                   _CGTCycle_active  (CGTCycle *this, USHORT value);
 
 /***********************************************************************************
  *
- * GTPALETTE
+ * CGTPalette
  *
  ***********************************************************************************/
 
-typedef struct GTPALETTE_ GTPALETTE;
+typedef struct CGTPalette_ CGTPalette;
 
-struct GTPALETTE_
+struct CGTPalette_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -516,41 +516,41 @@ struct GTPALETTE_
     USHORT          numColors;
 };
 
-void _GTPALETTE_CONSTRUCTOR (GTPALETTE *this,
+void _CGTPalette_CONSTRUCTOR (CGTPalette *this,
                             CONST_STRPTR label, USHORT numColors, 
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTPALETTE_disabled_ (GTPALETTE *this);
-void                   _GTPALETTE_disabled  (GTPALETTE *this, BOOL value);
+BOOL                   _CGTPalette_disabled_ (CGTPalette *this);
+void                   _CGTPalette_disabled  (CGTPalette *this, BOOL value);
 
-UBYTE                  _GTPALETTE_color_ (GTPALETTE *this);
-void                   _GTPALETTE_color  (GTPALETTE *this, UBYTE value);
+UBYTE                  _CGTPalette_color_ (CGTPalette *this);
+void                   _CGTPalette_color  (CGTPalette *this, UBYTE value);
 
-UBYTE                  _GTPALETTE_colorOffset_ (GTPALETTE *this);
-void                   _GTPALETTE_colorOffset  (GTPALETTE *this, UBYTE value);
+UBYTE                  _CGTPalette_colorOffset_ (CGTPalette *this);
+void                   _CGTPalette_colorOffset  (CGTPalette *this, UBYTE value);
 
-USHORT                 _GTPALETTE_indicatorWidth_ (GTPALETTE *this);
-void                   _GTPALETTE_indicatorWidth  (GTPALETTE *this, USHORT value);
+USHORT                 _CGTPalette_indicatorWidth_ (CGTPalette *this);
+void                   _CGTPalette_indicatorWidth  (CGTPalette *this, USHORT value);
 
-USHORT                 _GTPALETTE_indicatorHeight_ (GTPALETTE *this);
-void                   _GTPALETTE_indicatorHeight  (GTPALETTE *this, USHORT value);
+USHORT                 _CGTPalette_indicatorHeight_ (CGTPalette *this);
+void                   _CGTPalette_indicatorHeight  (CGTPalette *this, USHORT value);
 
-UBYTE *                _GTPALETTE_colorTable_ (GTPALETTE *this);
-void                   _GTPALETTE_colorTable  (GTPALETTE *this, UBYTE * value);
+UBYTE *                _CGTPalette_colorTable_ (CGTPalette *this);
+void                   _CGTPalette_colorTable  (CGTPalette *this, UBYTE * value);
 
-USHORT                 _GTPALETTE_numColors_ (GTPALETTE *this);
-void                   _GTPALETTE_numColors  (GTPALETTE *this, USHORT value);
+USHORT                 _CGTPalette_numColors_ (CGTPalette *this);
+void                   _CGTPalette_numColors  (CGTPalette *this, USHORT value);
 
 /***********************************************************************************
  *
- * GTLISTVIEW
+ * CGTListView
  *
  ***********************************************************************************/
 
-typedef struct GTLISTVIEW_ GTLISTVIEW;
+typedef struct CGTListView_ CGTListView;
 
-struct GTLISTVIEW_
+struct CGTListView_
 {
     CGTGadget      gadget;
     BOOL            disabled;
@@ -562,31 +562,31 @@ struct GTLISTVIEW_
     USHORT          spacing;
 };
 
-void _GTLISTVIEW_CONSTRUCTOR (GTLISTVIEW *this,
-                              CONST_STRPTR label, struct List * labels,
+void _CGTListView_CONSTRUCTOR (CGTListView *this,
+                              CONST_STRPTR label, CExecList *labels,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _GTLISTVIEW_disabled_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_disabled  (GTLISTVIEW *this, BOOL value);
+BOOL                   _CGTListView_disabled_ (CGTListView *this);
+void                   _CGTListView_disabled  (CGTListView *this, BOOL value);
 
-SHORT                  _GTLISTVIEW_makeVisible_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_makeVisible  (GTLISTVIEW *this, SHORT value);
+SHORT                  _CGTListView_makeVisible_ (CGTListView *this);
+void                   _CGTListView_makeVisible  (CGTListView *this, SHORT value);
 
-struct List *          _GTLISTVIEW_labels_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_labels  (GTLISTVIEW *this, struct List * value);
+CExecList             *_CGTListView_labels_ (CGTListView *this);
+void                   _CGTListView_labels  (CGTListView *this, CExecList * value);
 
-BOOL                   _GTLISTVIEW_readOnly_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_readOnly  (GTLISTVIEW *this, BOOL value);
+BOOL                   _CGTListView_readOnly_ (CGTListView *this);
+void                   _CGTListView_readOnly  (CGTListView *this, BOOL value);
 
-USHORT                 _GTLISTVIEW_scrollWidth_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_scrollWidth  (GTLISTVIEW *this, USHORT value);
+USHORT                 _CGTListView_scrollWidth_ (CGTListView *this);
+void                   _CGTListView_scrollWidth  (CGTListView *this, USHORT value);
 
-USHORT                 _GTLISTVIEW_selected_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_selected  (GTLISTVIEW *this, USHORT value);
+USHORT                 _CGTListView_selected_ (CGTListView *this);
+void                   _CGTListView_selected  (CGTListView *this, USHORT value);
 
-USHORT                 _GTLISTVIEW_spacing_ (GTLISTVIEW *this);
-void                   _GTLISTVIEW_spacing  (GTLISTVIEW *this, USHORT value);
+USHORT                 _CGTListView_spacing_ (CGTListView *this);
+void                   _CGTListView_spacing  (CGTListView *this, USHORT value);
 
 
 /********************************************

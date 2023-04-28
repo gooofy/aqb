@@ -465,125 +465,15 @@ static void _GadToolsSupport_shutdown(void)
     DPRINTF ("_GadToolsSupport_shutdown done\n");
 }
 
-static intptr_t _GTTEXT_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTSCROLLER_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
 static intptr_t _CGTGadget_vtable[] = {
     (intptr_t) _CObject_ToString_,
     (intptr_t) _CObject_Equals_,
     (intptr_t) _CObject_GetHashCode_
 };
 
-static intptr_t _GTNUMBER_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTINTEGER_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTMX_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTCYCLE_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTPALETTE_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTSTRING_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTSLIDER_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-static intptr_t _GTLISTVIEW_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
-};
-
-void _GTTEXT___init (GTTEXT *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTTEXT_vtable;
-}
-
-void _GTSCROLLER___init (GTSCROLLER *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTSCROLLER_vtable;
-}
-
 void _CGTGadget___init (CGTGadget *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CGTGadget_vtable;
-}
-
-void _GTNUMBER___init (GTNUMBER *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTNUMBER_vtable;
-}
-
-void _GTINTEGER___init (GTINTEGER *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTINTEGER_vtable;
-}
-
-void _GTMX___init (GTMX *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTMX_vtable;
-}
-
-void _GTCYCLE___init (GTCYCLE *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTCYCLE_vtable;
-}
-
-void _GTPALETTE___init (GTPALETTE *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTPALETTE_vtable;
-}
-
-void _GTSTRING___init (GTSTRING *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTSTRING_vtable;
-}
-
-void _GTSLIDER___init (GTSLIDER *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTSLIDER_vtable;
-}
-
-void _GTLISTVIEW___init (GTLISTVIEW *THIS)
-{
-    THIS->gadget._vTablePtr = (intptr_t **) &_GTLISTVIEW_vtable;
 }
 
 void _GadToolsSupport_init(void)

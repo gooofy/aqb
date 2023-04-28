@@ -3,7 +3,7 @@ include ../config.mk
 AQBFLAGS     = -L ../src/lib
 AQBFLAGS_OPT = -O -L ../src/lib
 
-SRCS = GadToolsTutorial1.bas GadToolsTutorial2.bas
+SRCS = GadToolsTutorial1.bas GadToolsTutorial2.bas GadToolsTutorial3.bas
 
 ASMDIR_AMIGAOS_DEMO = aqb_tutorial/asm
 OBJDIR_AMIGAOS_DEMO = aqb_tutorial/obj

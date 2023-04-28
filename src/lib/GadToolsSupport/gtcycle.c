@@ -21,9 +21,9 @@
 
 extern struct Library    *GadToolsBase ;
 
-static struct Gadget *_gtcycle_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+static struct Gadget *_gtcycle_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
-    GTCYCLE_t *gt = (GTCYCLE_t *)gtg;
+    CGTCycle *gt = (CGTCycle *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -53,22 +53,22 @@ static struct Gadget *_gtcycle_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, A
     return gtg->gad;
 }
 
-void _GTCYCLE_CONSTRUCTOR (GTCYCLE_t *this,
+void _CGTCycle_CONSTRUCTOR (CGTCycle *this,
                            CONST_STRPTR label, CONST_STRPTR * labels,
                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                            void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTCYCLE_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _GTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    DPRINTF("_CGTCycle_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
+    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtcycle_deploy_cb;
     this->labels           = labels;
     this->disabled         = FALSE;
     this->active           = 0;
 }
 
-BOOL _GTCYCLE_disabled_ (GTCYCLE_t *this)
+BOOL _CGTCycle_disabled_ (CGTCycle *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GA_Disabled, (intptr_t)&u, TAG_DONE);
@@ -77,18 +77,18 @@ BOOL _GTCYCLE_disabled_ (GTCYCLE_t *this)
     }
     return this->disabled;
 }
-void _GTCYCLE_disabled (GTCYCLE_t *this, BOOL disabled)
+void _CGTCycle_disabled (CGTCycle *this, BOOL disabled)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
 }
 
-CONST_STRPTR * _GTCYCLE_labels_ (GTCYCLE_t *this)
+CONST_STRPTR * _CGTCycle_labels_ (CGTCycle *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTCY_Labels, (intptr_t)&u, TAG_DONE);
@@ -97,18 +97,18 @@ CONST_STRPTR * _GTCYCLE_labels_ (GTCYCLE_t *this)
     }
     return this->labels;
 }
-void _GTCYCLE_labels (GTCYCLE_t *this, CONST_STRPTR * labels)
+void _CGTCycle_labels (CGTCycle *this, CONST_STRPTR * labels)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCY_Labels, (intptr_t) labels, TAG_DONE);
     }
     this->labels = labels;
 }
 
-USHORT _GTCYCLE_active_ (GTCYCLE_t *this)
+USHORT _CGTCycle_active_ (CGTCycle *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTCY_Active, (intptr_t)&u, TAG_DONE);
@@ -117,11 +117,23 @@ USHORT _GTCYCLE_active_ (GTCYCLE_t *this)
     }
     return this->active;
 }
-void _GTCYCLE_active (GTCYCLE_t *this, USHORT active)
+void _CGTCycle_active (CGTCycle *this, USHORT active)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCY_Active, active, TAG_DONE);
     }
     this->active = active;
 }
+
+static intptr_t _CGTCycle_vtable[] = {
+    (intptr_t) _CObject_ToString_,
+    (intptr_t) _CObject_Equals_,
+    (intptr_t) _CObject_GetHashCode_
+};
+
+void _CGTCycle___init (CGTCycle *THIS)
+{
+    THIS->gadget._vTablePtr = (intptr_t **) &_CGTCycle_vtable;
+}
+

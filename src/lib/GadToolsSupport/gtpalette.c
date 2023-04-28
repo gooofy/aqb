@@ -21,9 +21,9 @@
 
 extern struct Library    *GadToolsBase ;
 
-static struct Gadget *_gtpalette_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+static struct Gadget *_gtpalette_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
-    GTPALETTE_t *gt = (GTPALETTE_t *)gtg;
+    CGTPalette *gt = (CGTPalette *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -58,13 +58,13 @@ static struct Gadget *_gtpalette_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad,
     return gtg->gad;
 }
 
-void _GTPALETTE_CONSTRUCTOR (GTPALETTE_t *this,
+void _CGTPalette_CONSTRUCTOR (CGTPalette *this,
                             CONST_STRPTR label, USHORT numColors,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTPALETTE_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _GTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    DPRINTF("_CGTPalette_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
+    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtpalette_deploy_cb;
     this->disabled        = FALSE;
     this->color           = 1;
@@ -75,9 +75,9 @@ void _GTPALETTE_CONSTRUCTOR (GTPALETTE_t *this,
     this->numColors       = numColors;
 }
 
-BOOL _GTPALETTE_disabled_ (GTPALETTE_t *this)
+BOOL _CGTPalette_disabled_ (CGTPalette *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GA_Disabled, (intptr_t)&u, TAG_DONE);
@@ -86,31 +86,31 @@ BOOL _GTPALETTE_disabled_ (GTPALETTE_t *this)
     }
     return this->disabled;
 }
-void _GTPALETTE_disabled (GTPALETTE_t *this, BOOL disabled)
+void _CGTPalette_disabled (CGTPalette *this, BOOL disabled)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
 }
 
-USHORT _GTPALETTE_depth_ (GTPALETTE_t *this)
+USHORT _CGTPalette_depth_ (CGTPalette *this)
 {
     return this->depth;
 }
-void _GTPALETTE_depth (GTPALETTE_t *this, USHORT depth)
+void _CGTPalette_depth (CGTPalette *this, USHORT depth)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_Depth, depth, TAG_DONE);
     }
     this->depth = depth;
 }
 
-UBYTE _GTPALETTE_color_ (GTPALETTE_t *this)
+UBYTE _CGTPalette_color_ (CGTPalette *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTPA_Color, (intptr_t)&u, TAG_DONE);
@@ -119,18 +119,18 @@ UBYTE _GTPALETTE_color_ (GTPALETTE_t *this)
     }
     return this->color;
 }
-void _GTPALETTE_color (GTPALETTE_t *this, UBYTE color)
+void _CGTPalette_color (CGTPalette *this, UBYTE color)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_Color, color, TAG_DONE);
     }
     this->color = color;
 }
 
-UBYTE _GTPALETTE_colorOffset_ (GTPALETTE_t *this)
+UBYTE _CGTPalette_colorOffset_ (CGTPalette *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTPA_ColorOffset, (intptr_t)&u, TAG_DONE);
@@ -139,44 +139,44 @@ UBYTE _GTPALETTE_colorOffset_ (GTPALETTE_t *this)
     }
     return this->colorOffset;
 }
-void _GTPALETTE_colorOffset (GTPALETTE_t *this, UBYTE colorOffset)
+void _CGTPalette_colorOffset (CGTPalette *this, UBYTE colorOffset)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_ColorOffset, colorOffset, TAG_DONE);
     }
     this->colorOffset = colorOffset;
 }
 
-USHORT _GTPALETTE_indicatorWidth_ (GTPALETTE_t *this)
+USHORT _CGTPalette_indicatorWidth_ (CGTPalette *this)
 {
     return this->indicatorWidth;
 }
-void _GTPALETTE_indicatorWidth (GTPALETTE_t *this, USHORT indicatorWidth)
+void _CGTPalette_indicatorWidth (CGTPalette *this, USHORT indicatorWidth)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_IndicatorWidth, indicatorWidth, TAG_DONE);
     }
     this->indicatorWidth = indicatorWidth;
 }
 
-USHORT _GTPALETTE_indicatorHeight_ (GTPALETTE_t *this)
+USHORT _CGTPalette_indicatorHeight_ (CGTPalette *this)
 {
     return this->indicatorHeight;
 }
-void _GTPALETTE_indicatorHeight (GTPALETTE_t *this, USHORT indicatorHeight)
+void _CGTPalette_indicatorHeight (CGTPalette *this, USHORT indicatorHeight)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_IndicatorHeight, indicatorHeight, TAG_DONE);
     }
     this->indicatorHeight = indicatorHeight;
 }
 
-UBYTE * _GTPALETTE_colorTable_ (GTPALETTE_t *this)
+UBYTE * _CGTPalette_colorTable_ (CGTPalette *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
+    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTPA_ColorTable, (intptr_t)&u, TAG_DONE);
@@ -185,24 +185,36 @@ UBYTE * _GTPALETTE_colorTable_ (GTPALETTE_t *this)
     }
     return this->colorTable;
 }
-void _GTPALETTE_colorTable (GTPALETTE_t *this, UBYTE * colorTable)
+void _CGTPalette_colorTable (CGTPalette *this, UBYTE * colorTable)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_ColorTable, (intptr_t)colorTable, TAG_DONE);
     }
     this->colorTable = colorTable;
 }
 
-USHORT _GTPALETTE_numColors_ (GTPALETTE_t *this)
+USHORT _CGTPalette_numColors_ (CGTPalette *this)
 {
     return this->numColors;
 }
-void _GTPALETTE_numColors (GTPALETTE_t *this, USHORT numColors)
+void _CGTPalette_numColors (CGTPalette *this, USHORT numColors)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_NumColors, numColors, TAG_DONE);
     }
     this->numColors = numColors;
 }
+
+static intptr_t _CGTPalette_vtable[] = {
+    (intptr_t) _CObject_ToString_,
+    (intptr_t) _CObject_Equals_,
+    (intptr_t) _CObject_GetHashCode_
+};
+
+void _CGTPalette___init (CGTPalette *THIS)
+{
+    THIS->gadget._vTablePtr = (intptr_t **) &_CGTPalette_vtable;
+}
+
