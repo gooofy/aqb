@@ -22,9 +22,9 @@
 extern struct Library    *GadToolsBase ;
 
 
-struct Gadget *_gtbutton_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+struct Gadget *_gtbutton_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
-    GTBUTTON_t *button = (GTBUTTON_t *)gtg;
+    CGTButton *button = (CGTButton *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -53,37 +53,48 @@ struct Gadget *_gtbutton_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vi
     return gtg->gad;
 }
 
-void _GTBUTTON_CONSTRUCTOR (GTBUTTON_t *this, CONST_STRPTR label,
+void _CGTButton_CONSTRUCTOR (CGTButton *this, CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTBUTTON_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, label=%s\n", this, x1, y1, x2, y2, label ? label : "NULL");
-    _GTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    DPRINTF("_CGTButton_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, label=%s\n", this, x1, y1, x2, y2, label ? label : "NULL");
+    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtbutton_deploy_cb;
     this->disabled         = FALSE;
 }
 
-BOOL _GTBUTTON_disabled_ (GTBUTTON_t *this)
+BOOL _CGTButton_disabled_ (CGTButton *this)
 {
     return this->disabled;
 }
-void _GTBUTTON_disabled (GTBUTTON_t *this, BOOL disabled)
+void _CGTButton_disabled (CGTButton *this, BOOL disabled)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     this->disabled = disabled;
 }
 
-BOOL _GTBUTTON_immediate_ (GTBUTTON_t *this)
+BOOL _CGTButton_immediate_ (CGTButton *this)
 {
     return this->immediate;
 }
-void _GTBUTTON_immediate (GTBUTTON_t *this, BOOL immediate)
+void _CGTButton_immediate (CGTButton *this, BOOL immediate)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGadget_deployed_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Immediate, immediate, TAG_DONE);
     }
     this->immediate = immediate;
+}
+
+static intptr_t _CGTButton_vtable[] = {
+    (intptr_t) _CObject_ToString_,
+    (intptr_t) _CObject_Equals_,
+    (intptr_t) _CObject_GetHashCode_
+};
+
+void _CGTButton___init (CGTButton *THIS)
+{
+    THIS->gadget._vTablePtr = (intptr_t **) &_CGTButton_vtable;
 }
 

@@ -4,31 +4,31 @@ OPTION EXPLICIT
 
 IMPORT GadToolsSupport
 
-DIM SHARED AS GTBUTTON   PTR button
-DIM SHARED AS GTCHECKBOX PTR cb1, cb2
+DIM SHARED AS CGTButton   PTR button
+DIM SHARED AS CGTCheckBox PTR cb1, cb2
 
 REM callbacks
 
-SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
+SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS ANY PTR)
     SYSTEM
-END SUB    
+END SUB
 
-SUB invertCB (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
-    
+SUB invertCB (BYVAL g AS CGTGadget PTR, BYVAL code AS UINTEGER)
+
     TRACE "GTG UP cb called for gid ";g->id
-    
-    TRACE "inverting checkbox selection"
-    
-    cb1->checked = NOT cb1->checked    
-    cb2->checked = NOT cb2->checked    
-    
-END SUB    
 
-SUB updateStatus (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+    TRACE "inverting checkbox selection"
+
+    cb1->checked = NOT cb1->checked
+    cb2->checked = NOT cb2->checked
+
+END SUB
+
+SUB updateStatus (BYVAL g AS CGTGadget PTR, BYVAL code AS UINTEGER)
     TRACE "GTG UP cb called for gid ";g->id;", code=";code
     TRACE "   status of cb1 is ";cb1->checked
-    TRACE "   status of cb2 is ";cb2->checked    
-END SUB    
+    TRACE "   status of cb2 is ";cb2->checked
+END SUB
 
 REM create a simple window, connect close button callback
 
@@ -37,9 +37,9 @@ ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create our gadgets (one button and two checkboxes)
 
-button = NEW GTBUTTON   ("_Invert"    , ( 15, 126) - (114, 146)) 
-cb1    = NEW GTCHECKBOX ("Checkbox _1", (115,  20) - (135,  40))
-cb2    = NEW GTCHECKBOX ("Checkbox _2", (115,  45) - (135,  65))
+button = NEW CGTButton   ("_Invert"    , ( 15, 126) - (114, 146))
+cb1    = NEW CGTCheckBox ("Checkbox _1", (115,  20) - (135,  40))
+cb2    = NEW CGTCheckBox ("Checkbox _2", (115,  45) - (135,  65))
 
 REM preselect cb2
 
@@ -57,7 +57,5 @@ REM message loop
 
 WHILE TRUE
     SLEEP
-WEND    
-
-
+WEND
 

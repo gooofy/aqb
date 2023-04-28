@@ -6,7 +6,7 @@ IMPORT GadToolsSupport
 
 REM GTGADGETUP callback
 
-SUB buttonCB (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
+SUB buttonCB (BYVAL g AS CGTGadget PTR, BYVAL code AS UINTEGER)
 
     TRACE "buttonCB called."
 
@@ -14,7 +14,7 @@ SUB buttonCB (BYVAL g AS GTGADGET PTR, BYVAL code AS UINTEGER)
 
 END SUB
 
-SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
+SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS ANY PTR)
     TRACE "window close cb called, wid=";wid
     SYSTEM
 END SUB
@@ -24,9 +24,9 @@ ON WINDOW CLOSE CALL 1, winCloseCB
 
 REM create a simple button gadget
 
-DIM AS GTBUTTON PTR gadget
+DIM AS CGTButton PTR gadget
 
-gadget = NEW GTBUTTON ("QUIT", (15, 26)-(114, 56))
+gadget = NEW CGTButton ("QUIT", (15, 26)-(114, 56))
 
 REM connect our callback
 

@@ -2,7 +2,7 @@ include ../../../config.mk
 
 .PHONY: clean all
 
-all: GadToolsSupport.a GadToolsSupport.sym
+all: stub.c GadToolsSupport.a GadToolsSupport.sym
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) -I../_aqb $< -o $@
@@ -18,6 +18,9 @@ GadToolsSupport.a: GadToolsSupport.o gtbutton.o gtcheckbox.o gtslider.o gttext.o
 	$(AR_AMIGAOS) -crs GadToolsSupport.a $^
 	pushd .. && rm -f GadToolsSupport.a && ln -s GadToolsSupport/GadToolsSupport.a && popd
 	cp $@ $(DISTDIR)/lib
+
+stub.c: GadToolsSupport.bas
+	$(AQB) -L .. -d _brt -S $@ $<
 
 %.asm: %.c
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) -I../_aqb $< -o $@
