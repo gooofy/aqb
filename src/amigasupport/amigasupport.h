@@ -12,6 +12,10 @@ void              ASUP_delete_port   (struct MsgPort *port);
 struct IORequest *ASUP_create_ext_io (CONST struct MsgPort * port, LONG io_size);
 void              ASUP_delete_ext_io (struct IORequest * io);
 
+#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
+                    (l)->lh_Tail = NULL, \
+                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
+
 // post-1.3 stuff
 
 #define ASUP_DoPkt5(res2, port, action, arg1, arg2, arg3, arg4, arg5) ASUP_DoPkt(res2, port, action, (LONG)(arg1), (LONG)(arg2), (LONG)(arg3), (LONG)(arg4), (LONG)(arg5), 0, 0)

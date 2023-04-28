@@ -46,3 +46,30 @@ FOR i AS INTEGER = 0 TO 9
     ASSERT n->Pri = 0
 NEXT i
 
+'
+' test Clone()
+'
+
+DIM AS CExecList PTR b
+
+b = CAST (CExecList PTR, a.Clone())
+
+ASSERT b->Count = 10
+
+FOR i AS INTEGER = 0 TO 9
+    DIM n AS CExecNode PTR = b->GetNodeAt(i)
+
+    ASSERT n->Type = i*i
+    ASSERT n->Name = "blubber"
+    ASSERT n->Value = i
+    ASSERT n->Pri = 0
+NEXT i
+
+
+'
+' test RemoveAll
+'
+
+b->RemoveAll()
+ASSERT b->Count=0
+

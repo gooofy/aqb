@@ -215,6 +215,10 @@ struct IOStdReq  *_autil_create_std_io (struct MsgPort *port);
 void              _autil_delete_ext_io (struct IORequest *ioreq);
 void              _autil_begin_io      (struct IORequest *iorequest);
 
+#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
+                    (l)->lh_Tail = NULL, \
+                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
+
 /*
  * STR$ support
  */

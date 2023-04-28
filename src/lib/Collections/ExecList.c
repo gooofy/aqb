@@ -7,20 +7,15 @@
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
-
 VOID _CExecList_CONSTRUCTOR (CExecList *THIS, UBYTE lh_Type)
 {
-
-    THIS->l.lh_TailPred = (struct Node *) &THIS->l;
-    THIS->l.lh_Head     = (struct Node *) &THIS->l.lh_Tail;
-    THIS->l.lh_Tail     = 0;
+    NEWLIST (&THIS->l);
     THIS->l.lh_Type     = lh_Type;
 }
 
 struct List *_CExecList_ExecList_ (CExecList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecList.ExecList");
-    return NULL;
+    return &THIS->l;
 }
 
 VOID _CExecList_AddNode_ (CExecList *THIS, CExecNode *n)
@@ -243,16 +238,37 @@ VOID _CExecList_RemoveAt (CExecList *THIS, LONG index)
 
 VOID _CExecList_RemoveAll (CExecList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecList.RemoveAll");
+    NEWLIST (&THIS->l);
 }
 
 CObject *_CExecList_Clone_ (CExecList *THIS)
 {
-    _aqb_assert (FALSE, (STRPTR) "FIXME: implement: CExecList.Clone");
-    return NULL;
+    CExecList *l = (CExecList *)ALLOCATE_(sizeof (*l), MEMF_ANY);
+    if (!l)
+        ERROR (ERR_OUT_OF_MEMORY);
+
+    _CExecList___init (l);
+    _CExecList_CONSTRUCTOR (l, THIS->l.lh_Type);
+
+    struct Node *node;
+    for ( node = THIS->l.lh_Head ; node->ln_Succ != NULL ; node = node->ln_Succ )
+    {
+        ExecNodeAny *ena = (ExecNodeAny *) node;
+        CExecNode   *enode = ena->enode;
+
+        CExecNode *enode2 = (CExecNode *)ALLOCATE_(sizeof (*enode2), MEMF_ANY);
+        if (!enode2)
+            ERROR (ERR_OUT_OF_MEMORY);
+
+        _CExecNode___init (enode2);
+        _CExecNode_CONSTRUCTOR (enode2, enode->n.value, enode->n.n.ln_Type, enode->n.n.ln_Pri, (STRPTR)enode->n.n.ln_Name);
+
+        _CExecList_AddNode_ (l, enode2);
+    }
+    return (CObject *)l;
 }
 
-VOID _CExecNode_CONSTRUCTOR (CExecNode *THIS, intptr_t value, UBYTE    ln_Type, BYTE     ln_Pri, STRPTR   ln_Name)
+VOID _CExecNode_CONSTRUCTOR (CExecNode *THIS, intptr_t value, UBYTE ln_Type, BYTE ln_Pri, STRPTR ln_Name)
 {
     //DPRINTF ("_CExecNode_CONSTRUCTOR: n=0x%08lx, ln_Type=%d, ln_Pri=%d, ln_Name=%s\n", n, ln_Type, ln_Pri, ln_Name ? ln_
 
