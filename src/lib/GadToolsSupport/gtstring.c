@@ -140,11 +140,11 @@ void _CGTString_str (CGTString *this, CONST_STRPTR str)
     this->str = str;
 }
 
-USHORT _CGTString_maxChars_ (CGTString *this)
+USHORT _CGTString_MaxChars_ (CGTString *this)
 {
     return this->maxChars;
 }
-void _CGTString_maxChars (CGTString *this, USHORT maxChars)
+void _CGTString_MaxChars (CGTString *this, USHORT maxChars)
 {
     if (_CGTGadget_deployed_ (&this->gadget))
     {

@@ -39,7 +39,7 @@ void _CGTGadget_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR txt,
                             void *user_data, ULONG flags, ULONG underscore)
 {
 
-    DPRINTF("_CGTGadget_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, txt=%s\n", this, x1, y1, txt ? txt : "NULL");
+    DPRINTF("_CGTGadget_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, txt=%s\n", this, x1, y1, txt ? txt : (CONST_STRPTR)"NULL");
 
     gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
 
@@ -145,67 +145,18 @@ BOOL _CGTGadget_deployed_ (CGTGadget *this)
     return this->gad != NULL;
 }
 
-
-#if 0
-BOOL GTGSELECTED_ (GTGADGET_t *g)
-{
-    DPRINTF ("GTGSELECTED_ called\n");
-
-    if (!g || !g->gad)
-    {
-		DPRINTF ("GTGSELECTED_: invalid gadget\n");
-		ERROR(AE_GTG_SELECTED);
-		return FALSE;
-    }
-
-    return g->gad->Flags & GFLG_SELECTED;
-}
-
-STRPTR GTGBUFFER_ (GTGADGET_t *g)
-{
-    DPRINTF ("GTGBUFFER_ called\n");
-
-    if (!g || !g->gad)
-    {
-		DPRINTF ("GTGBUFFER_: invalid gadget\n");
-		ERROR(AE_GTG_BUFFER);
-		return FALSE;
-    }
-
-    struct StringInfo * si = (struct StringInfo *)g->gad->SpecialInfo;
-
-    return si->Buffer;
-}
-
-LONG GTGNUM_ (GTGADGET_t *g)
-{
-    DPRINTF ("GTGNUM_ called\n");
-
-    if (!g || !g->gad)
-    {
-		DPRINTF ("GTGNUM_: invalid gadget\n");
-		ERROR(AE_GTG_NUM);
-		return FALSE;
-    }
-
-    struct StringInfo * si = (struct StringInfo *)g->gad->SpecialInfo;
-
-    return si->LongInt;
-}
-#endif
-
 static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
 {
     if (ext->deployed)
     {
-		DPRINTF ("GTGADGETS_FREE: was deployed\n");
+		DPRINTF ("_gtgadgets_free: was deployed\n");
         RemoveGList (_g_cur_win, ext->gadList, -1);
         ext->deployed = FALSE;
     }
 
     if (ext->gadList)
     {
-		DPRINTF ("GTGADGETS_FREE: g_gadList not null\n");
+		DPRINTF ("_gtgadgets_free: g_gadList not null\n");
         FreeGadgets (ext->gadList);
         ext->gadList = NULL;
     }
@@ -382,7 +333,6 @@ void GTGADGETS_DEPLOY (void)
     ext->deployed = TRUE;
 }
 
-#if 0
 void GTGADGETS_FREE (void)
 {
     DPRINTF ("GADGETS_FREE called\n");
@@ -406,46 +356,6 @@ void GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y
     else
         DrawBevelBox (_g_cur_rp, x1, y1, x2-x1+1, y2-y1+1, GT_VisualInfo, (ULONG) ext->vinfo, TAG_DONE);
 }
-
-void ON_GTG_UP_CALL (CGTGadget *g, gtgadget_cb_t cb, void *user_data)
-{
-    if (!g || !g->gad)
-    {
-		DPRINTF ("ON_GTG_UP_CALL: invalid gadget\n");
-		ERROR(AE_GTG_CALLBACK);
-		return;
-    }
-
-    g->gadgetup_cb        = cb;
-    g->gadgetup_user_data = user_data;
-}
-
-void ON_GTG_DOWN_CALL (CGTGadget *g, gtgadget_cb_t cb, void *user_data)
-{
-    if (!g || !g->gad)
-    {
-		DPRINTF ("ON_GTG_DOWN_CALL: invalid gadget\n");
-		ERROR(AE_GTG_CALLBACK);
-		return;
-    }
-
-    g->gadgetdown_cb        = cb;
-    g->gadgetdown_user_data = user_data;
-}
-
-void ON_GTG_MOVE_CALL (CGTGadget *g, gtgadget_cb_t cb, void *user_data)
-{
-    if (!g || !g->gad)
-    {
-		DPRINTF ("ON_GTG_MOVE_CALL: invalid gadget\n");
-		ERROR(AE_GTG_CALLBACK);
-		return;
-    }
-
-    g->gadgetmove_cb        = cb;
-    g->gadgetmove_user_data = user_data;
-}
-#endif
 
 static void _GadToolsSupport_shutdown(void)
 {

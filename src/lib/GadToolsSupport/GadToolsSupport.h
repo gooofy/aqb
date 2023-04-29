@@ -208,8 +208,8 @@ void                   _CGTText_text  (CGTText *this, CONST_STRPTR value);
 BOOL                   _CGTText_copyText_ (CGTText *this);
 void                   _CGTText_copyText  (CGTText *this, BOOL value);
 
-BOOL                   _CGTText_border_ (CGTText *this);
-void                   _CGTText_border  (CGTText *this, BOOL value);
+BOOL                   _CGTText_Border_ (CGTText *this);
+void                   _CGTText_Border  (CGTText *this, BOOL value);
 
 UBYTE                  _CGTText_frontPen_ (CGTText *this);
 void                   _CGTText_frontPen  (CGTText *this, UBYTE value);
@@ -311,8 +311,8 @@ void                   _CGTString_tabCycle  (CGTString *this, BOOL value);
 CONST_STRPTR           _CGTString_str_ (CGTString *this);
 void                   _CGTString_str  (CGTString *this, CONST_STRPTR value);
 
-USHORT                 _CGTString_maxChars_ (CGTString *this);
-void                   _CGTString_maxChars  (CGTString *this, USHORT value);
+USHORT                 _CGTString_MaxChars_ (CGTString *this);
+void                   _CGTString_MaxChars  (CGTString *this, USHORT value);
 
 BOOL                   _CGTString_exitHelp_ (CGTString *this);
 void                   _CGTString_exitHelp  (CGTString *this, BOOL value);
@@ -402,8 +402,8 @@ void _CGTNumber_CONSTRUCTOR (CGTNumber *this,
 LONG                   _CGTNumber_number_ (CGTNumber *this);
 void                   _CGTNumber_number  (CGTNumber *this, LONG value);
 
-BOOL                   _CGTNumber_border_ (CGTNumber *this);
-void                   _CGTNumber_border  (CGTNumber *this, BOOL value);
+BOOL                   _CGTNumber_Border_ (CGTNumber *this);
+void                   _CGTNumber_Border  (CGTNumber *this, BOOL value);
 
 UBYTE                  _CGTNumber_frontPen_ (CGTNumber *this);
 void                   _CGTNumber_frontPen  (CGTNumber *this, UBYTE value);
@@ -610,8 +610,8 @@ SHORT       _GTGADGET_NEXT_ID (void);
 
 typedef struct
 {
-    CGTGadget        *first;
-    CGTGadget        *last;
+    CGTGadget         *first;
+    CGTGadget         *last;
     struct Gadget     *gad;
     struct Gadget     *gadList;
     APTR              *vinfo;

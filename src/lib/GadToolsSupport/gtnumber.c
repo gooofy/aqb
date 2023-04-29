@@ -96,11 +96,11 @@ void _CGTNumber_number (CGTNumber *this, LONG number)
     this->number = number;
 }
 
-BOOL _CGTNumber_border_ (CGTNumber *this)
+BOOL _CGTNumber_Border_ (CGTNumber *this)
 {
     return this->border;
 }
-void _CGTNumber_border (CGTNumber *this, BOOL border)
+void _CGTNumber_Border (CGTNumber *this, BOOL border)
 {
     if (_CGTGadget_deployed_ (&this->gadget))
     {

@@ -107,11 +107,11 @@ void _CGTText_copyText (CGTText *this, BOOL copyText)
     this->copyText = copyText;
 }
 
-BOOL _CGTText_border_ (CGTText *this)
+BOOL _CGTText_Border_ (CGTText *this)
 {
     return this->border;
 }
-void _CGTText_border (CGTText *this, BOOL border)
+void _CGTText_Border (CGTText *this, BOOL border)
 {
     if (_CGTGadget_deployed_ (&this->gadget))
     {
