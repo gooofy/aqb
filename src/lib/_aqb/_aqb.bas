@@ -39,30 +39,6 @@ PUBLIC CONST AS INTEGER AE_EXEC_LIST         = 126
 
 ' --------------------------------------------------------------------------------------------------------
 ' --
-' -- Exec lists: OOP Wrapper
-' --
-' --------------------------------------------------------------------------------------------------------
-
-PUBLIC CLASS ExecNode
-
-    AS Node n
-
-    DECLARE EXTERN CONSTRUCTOR (BYVAL ln_Type AS UBYTE = 254, BYVAL ln_Pri AS BYTE = 0, BYVAL ln_Name AS STRING = NULL)
-
-END CLASS
-
-PUBLIC CLASS ExecList
-
-    AS List  l
-
-    DECLARE EXTERN CONSTRUCTOR (BYVAL lh_Type AS UBYTE)
-
-    DECLARE EXTERN SUB AddTail (BYVAL n AS ExecNode PTR)
-
-END CLASS
-
-' --------------------------------------------------------------------------------------------------------
-' --
 ' -- tags
 ' --
 ' --------------------------------------------------------------------------------------------------------

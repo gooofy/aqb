@@ -108,7 +108,7 @@ void _CGTPalette_depth (CGTPalette *this, USHORT depth)
     this->depth = depth;
 }
 
-UBYTE _CGTPalette_color_ (CGTPalette *this)
+UBYTE _CGTPalette_COLOR_ (CGTPalette *this)
 {
     if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
@@ -119,7 +119,7 @@ UBYTE _CGTPalette_color_ (CGTPalette *this)
     }
     return this->color;
 }
-void _CGTPalette_color (CGTPalette *this, UBYTE color)
+void _CGTPalette_COLOR (CGTPalette *this, UBYTE color)
 {
     if (_CGTGadget_deployed_ (&this->gadget))
     {

@@ -19,10 +19,6 @@
 #include <clib/utility_protos.h>
 #include <inline/utility.h>
 
-#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
-                    /*(l)->lh_Tail = NULL,*/ \
-                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
-
 extern struct UtilityBase   *UtilityBase;
 
 // not using Intuition's AllocRemember here because we want minimal dependencies for the AQB core module

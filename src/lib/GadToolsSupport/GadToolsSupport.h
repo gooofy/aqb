@@ -524,8 +524,8 @@ void _CGTPalette_CONSTRUCTOR (CGTPalette *this,
 BOOL                   _CGTPalette_disabled_ (CGTPalette *this);
 void                   _CGTPalette_disabled  (CGTPalette *this, BOOL value);
 
-UBYTE                  _CGTPalette_color_ (CGTPalette *this);
-void                   _CGTPalette_color  (CGTPalette *this, UBYTE value);
+UBYTE                  _CGTPalette_COLOR_ (CGTPalette *this);
+void                   _CGTPalette_COLOR  (CGTPalette *this, UBYTE value);
 
 UBYTE                  _CGTPalette_colorOffset_ (CGTPalette *this);
 void                   _CGTPalette_colorOffset  (CGTPalette *this, UBYTE value);

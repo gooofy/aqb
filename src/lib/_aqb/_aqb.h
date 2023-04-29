@@ -45,28 +45,6 @@ extern struct Library       *DiskfontBase;
 #define AE_EXEC_LIST                126
 
 /*
- * Exec lists: OOP Wrapper
- */
-
-typedef struct
-{
-    struct Node n;
-
-
-} ExecNode;
-
-void _ExecNode___init__ (ExecNode *n, UBYTE ln_Type, BYTE ln_Pri, STRPTR ln_Name);
-
-typedef struct
-{
-    struct List  l;
-
-} ExecList;
-
-void _ExecList___init__ (ExecList *l, UBYTE lh_Type);
-void _ExecList_AddTail  (ExecList *l, ExecNode *n);
-
-/*
  * tags
  */
 

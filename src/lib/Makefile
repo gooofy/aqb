@@ -4,7 +4,7 @@ include ../../config.mk
         OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools _aqb GadToolsSupport
 
 all: _brt minbrt OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools \
-      _aqb IFFSupport AnimSupport GadToolsSupport Collections
+      _aqb IFFSupport AnimSupport Collections GadToolsSupport
 
 _brt:
 	cd _brt ; make all
