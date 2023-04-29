@@ -17,6 +17,8 @@ DIM AS PALETTE_t cmap
 
 ILBM LOAD BITMAP picFileName,,, @meta, @cmap
 
+TRACE "Bitmap meta info: w=";meta.w;", h=";meta.h;", nPlanes=";meta.nPlanes;", viewModes=";meta.viewModes
+
 REM create a matching custom bitmap, screen and borderless window
 
 DIM AS BITMAP_t PTR bm = BITMAP (meta.w, meta.h, meta.nPlanes)
