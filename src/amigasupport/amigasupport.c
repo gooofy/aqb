@@ -17,10 +17,6 @@
 extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 
-#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
-                    /*(l)->lh_Tail = NULL,*/ \
-                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
-
 struct MsgPort *ASUP_create_port(STRPTR name, LONG pri)
 {
     struct MsgPort *port = NULL;
