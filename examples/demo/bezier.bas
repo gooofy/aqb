@@ -10,11 +10,11 @@ DIM SHARED AS SINGLE rX ( STATIC N ), rY ( STATIC N )
 
 FUNCTION pointhit ( BYVAL mx AS INTEGER, BYVAL my AS INTEGER ) AS INTEGER
     FOR i AS INTEGER = 0 TO N
-        ' PRINT i; ":"; pX ( i ); "/"; pY ( i ); " vs "; mx; "/"; my; "   "
+        'TRACE i; ": pX/pY="; pX ( i ); "/"; pY ( i ); " vs mx/my="; mx; "/"; my; "   "
         IF ( pX(i) - BS ) <= mx AND ( pX(i) + BS ) >= mx THEN
-            ' PRINT "xhit"
+            'TRACE "xhit"
             IF pY(i) - BS <= my AND pY(i) + BS >= my THEN
-                ' PRINT "yhit"
+                'TRACE "yhit"
                 RETURN i
             END IF
         END IF
@@ -72,15 +72,18 @@ DIM SHARED AS INTEGER phit = -1
 
 SUB mousecb (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS ANY PTR)
 
-    IF MOUSE(0) < 0 THEN
+    'TRACE "mousecb, MOUSE(0)=";MOUSE(0)
 
-        LOCATE 1, 1
+    IF MOUSE(0) < 0 THEN
 
         phit = pointhit ( mx, my )
 
-        'PRINT "HIT:"; phit; ",mx="; mx; ", my="; my
+        'LOCATE 1, 1
+        'TRACE "MOUSE(0)<0, phit="; phit; ",mx="; mx; ", my="; my
 
     ELSE
+
+        'TRACE "MOUSE(0)>=0, phit="; phit
 
         IF phit >= 0 THEN
 
@@ -112,6 +115,7 @@ SUB mousemovecb (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTE
 END SUB
 
 SUB windowcb (BYVAL wid AS INTEGER, BYVAL ud AS ANY PTR)
+    'TRACE "windowcb"
     SYSTEM
 END SUB
 

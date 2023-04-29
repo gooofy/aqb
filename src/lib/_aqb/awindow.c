@@ -1,3 +1,5 @@
+//#define ENABLE_DPRINTF
+
 #include "_aqb.h"
 #include "../_brt/_brt.h"
 
@@ -718,6 +720,21 @@ LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
     return n;
 }
 
+static WORD _winMouseX(struct Window *win)
+{
+    BOOL gzz = win->Flags & WFLG_GIMMEZEROZERO;
+    //DPRINTF ("_winMouseX: win->Flags=0x%08lx, WFLG_GIMMEZEROZERO=0x%08lx -> gzz=%d\n",
+    //         win->Flags, WFLG_GIMMEZEROZERO, gzz);
+    //DPRINTF ("_winMouseX: win->GZZMouseX=%d, win->MouseX=%d\n",
+    //         win->GZZMouseX, win->MouseX);
+    return gzz ? win->GZZMouseX : win->MouseX;
+}
+
+static WORD _winMouseY(struct Window *win)
+{
+    return win->Flags & WFLG_GIMMEZEROZERO ? win->GZZMouseY : win->MouseY;
+}
+
 static void _handleSignals(BOOL doWait)
 {
     CHKBRK;
@@ -802,6 +819,9 @@ static void _handleSignals(BOOL doWait)
                         break;
 
                     case MOUSEBUTTONS:
+                    {
+                        WORD mx = _winMouseX(win);
+                        WORD my = _winMouseY(win);
                         switch (message->Code)
                         {
                             case SELECTDOWN:
@@ -813,27 +833,29 @@ static void _handleSignals(BOOL doWait)
                                     g_mouse_tv.LeftSeconds = message->Seconds;
                                     g_mouse_tv.LeftMicros  = message->Micros;
                                 }
-                                g_mouse_down_x = message->MouseX;
-                                g_mouse_down_y = message->MouseY;
+                                g_mouse_down_x = mx;
+                                g_mouse_down_y = my;
                                 break;
                             case SELECTUP:
                                 g_mouse_bev  = TRUE;
                                 g_mouse_down = FALSE;
-                                g_mouse_up_x = message->MouseX;
-                                g_mouse_up_y = message->MouseY;
+                                g_mouse_up_x = mx;
+                                g_mouse_up_y = my;
                                 break;
                         }
 
                         if (g_mouse_cb)
                         {
-                            g_mouse_cb(wid, g_mouse_down, message->MouseX, message->MouseY, g_mouse_ud);
+                            g_mouse_cb(wid, g_mouse_down, mx, my, g_mouse_ud);
                         }
                         break;
-
+                    }
                     case MOUSEMOVE:
                         if (g_mouse_motion_cb)
                         {
-                            g_mouse_motion_cb(wid, g_mouse_down, message->MouseX, message->MouseY, g_mouse_ud);
+                            WORD mx = _winMouseX(win);
+                            WORD my = _winMouseY(win);
+                            g_mouse_motion_cb(wid, g_mouse_down, mx, my, g_mouse_ud);
                         }
                         break;
 
@@ -1114,9 +1136,9 @@ WORD MOUSE_ (SHORT n)
             break;
 
         case 1:
-            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZMouseX : _g_cur_win->MouseX;
+            return _winMouseX(_g_cur_win);
         case 2:
-            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZMouseY : _g_cur_win->MouseY;
+            return _winMouseY(_g_cur_win);
 
         case 3:
             return g_mouse_down_x;
