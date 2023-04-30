@@ -321,6 +321,19 @@ string strlower(U_poolId pid, const char *s)
     return p;
 }
 
+string strupper(U_poolId pid, const char *s)
+{
+    int l = strlen(s);
+    string p = U_poolAlloc (pid, l+1);
+    for (int i = 0; i<l; i++)
+    {
+        p[i] = toupper(s[i]);
+    }
+    p[l]=0;
+
+    return p;
+}
+
 #define MAXBUF 1024
 
 string strprintf(U_poolId pid, const char *format, ...)

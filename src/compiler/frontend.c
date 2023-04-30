@@ -3447,34 +3447,34 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             switch (ty->kind)
             {
                 case Ty_string:
-                    fsym = dbg ? S_Symbol("_debug_puts") : S_Symbol("_aio_puts");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS")    : S_Symbol("_AIO_PUTS");
                     break;
                 case Ty_pointer:
-                    fsym = dbg ? S_Symbol("_debug_putu4") :  S_Symbol("_aio_putu4");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
                     break;
                 case Ty_byte:
-                    fsym = dbg ? S_Symbol("_debug_puts1") :  S_Symbol("_aio_puts1");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS1")   : S_Symbol("_AIO_PUTS1");
                     break;
                 case Ty_ubyte:
-                    fsym = dbg ? S_Symbol("_debug_putu1") :  S_Symbol("_aio_putu1");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU1")   : S_Symbol("_AIO_PUTU1");
                     break;
                 case Ty_integer:
-                    fsym = dbg ? S_Symbol("_debug_puts2") :  S_Symbol("_aio_puts2");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS2")   : S_Symbol("_AIO_PUTS2");
                     break;
                 case Ty_uinteger:
-                    fsym = dbg ? S_Symbol("_debug_putu2") :  S_Symbol("_aio_putu2");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU2")   : S_Symbol("_AIO_PUTU2");
                     break;
                 case Ty_long:
-                    fsym = dbg ? S_Symbol("_debug_puts4") :  S_Symbol("_aio_puts4");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS4")   : S_Symbol("_AIO_PUTS4");
                     break;
                 case Ty_ulong:
-                    fsym = dbg ? S_Symbol("_debug_putu4") :  S_Symbol("_aio_putu4");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
                     break;
                 case Ty_single:
-                    fsym = dbg ? S_Symbol("_debug_putf") :  S_Symbol("_aio_putf");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTF")    : S_Symbol("_AIO_PUTF");
                     break;
                 case Ty_bool:
-                    fsym = dbg ? S_Symbol("_debug_putbool") :  S_Symbol("_aio_putbool");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTBOOL") : S_Symbol("_AIO_PUTBOOL");
                     break;
                 default:
                     return EM_error(pos, "unsupported type in print expression list.");
@@ -3505,7 +3505,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 *tkn = (*tkn)->next;
                 if (!dbg || OPT_get (OPTION_DEBUG))
                 {
-                    S_symbol fsym   =  dbg ? S_Symbol("_debug_puttab") : S_Symbol("_aio_puttab");
+                    S_symbol fsym   =  dbg ? S_Symbol("_DEBUG_PUTTAB") : S_Symbol("_AIO_PUTTAB");
                     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                     if (!lx)
                         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3534,7 +3534,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
     {
         if (!dbg || OPT_get (OPTION_DEBUG))
         {
-            S_symbol fsym   = dbg ? S_Symbol("_debug_putnl") : S_Symbol("_aio_putnl");
+            S_symbol fsym   = dbg ? S_Symbol("_DEBUG_PUTNL") : S_Symbol("_AIO_PUTNL");
             E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
             if (!lx)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3606,34 +3606,34 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         switch (ty->kind)
         {
             case Ty_string:
-                fsym = S_Symbol("_aio_writes");
+                fsym = S_Symbol("_AIO_WRITES");
                 break;
             case Ty_pointer:
-                fsym = S_Symbol("_aio_writeu4");
+                fsym = S_Symbol("_AIO_WRITEU4");
                 break;
             case Ty_byte:
-                fsym = S_Symbol("_aio_writes1");
+                fsym = S_Symbol("_AIO_WRITES1");
                 break;
             case Ty_ubyte:
-                fsym = S_Symbol("_aio_writeu1");
+                fsym = S_Symbol("_AIO_WRITEU1");
                 break;
             case Ty_integer:
-                fsym = S_Symbol("_aio_writes2");
+                fsym = S_Symbol("_AIO_WRITES2");
                 break;
             case Ty_uinteger:
-                fsym = S_Symbol("_aio_writeu2");
+                fsym = S_Symbol("_AIO_WRITEU2");
                 break;
             case Ty_long:
-                fsym = S_Symbol("_aio_writes4");
+                fsym = S_Symbol("_AIO_WRITES4");
                 break;
             case Ty_ulong:
-                fsym = S_Symbol("_aio_writeu4");
+                fsym = S_Symbol("_AIO_WRITEU4");
                 break;
             case Ty_single:
-                fsym = S_Symbol("_aio_writef");
+                fsym = S_Symbol("_AIO_WRITEF");
                 break;
             case Ty_bool:
-                fsym = S_Symbol("_aio_writebool");
+                fsym = S_Symbol("_AIO_WRITEBOOL");
                 break;
             default:
                 return EM_error(pos, "unsupported type in write expression list.");
@@ -3659,7 +3659,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
                 if (isLogicalEOL(*tkn))
                     return EM_error(pos, "WRITE: expression expected here.");
 
-                S_symbol fsym   = S_Symbol("_aio_writecomma");
+                S_symbol fsym   = S_Symbol("_AIO_WRITECOMMA");
                 E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3678,7 +3678,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
     }
 
-    S_symbol fsym   = S_Symbol("_aio_putnl");
+    S_symbol fsym   = S_Symbol("_AIO_PUTNL");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3704,7 +3704,7 @@ static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (OPT_get (OPTION_DEBUG))
     {
-        S_symbol fsym =  S_Symbol("_debug_break");
+        S_symbol fsym =  S_Symbol("_DEBUG_BREAK");
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3727,31 +3727,31 @@ static bool inputVar(S_tkn *tkn, CG_item exFNo)
     switch (ty->kind)
     {
         case Ty_string:
-            fsym = S_Symbol("_aio_inputs");
+            fsym = S_Symbol("_AIO_INPUTS");
             break;
         case Ty_pointer:
-            fsym = S_Symbol("_aio_inputu4");
+            fsym = S_Symbol("_AIO_INPUTU4");
             break;
         case Ty_byte:
-            fsym = S_Symbol("_aio_inputs1");
+            fsym = S_Symbol("_AIO_INPUTS1");
             break;
         case Ty_ubyte:
-            fsym = S_Symbol("_aio_inputu1");
+            fsym = S_Symbol("_AIO_INPUTU1");
             break;
         case Ty_integer:
-            fsym = S_Symbol("_aio_inputs2");
+            fsym = S_Symbol("_AIO_INPUTS2");
             break;
         case Ty_uinteger:
-            fsym = S_Symbol("_aio_inputu2");
+            fsym = S_Symbol("_AIO_INPUTU2");
             break;
         case Ty_long:
-            fsym = S_Symbol("_aio_inputs4");
+            fsym = S_Symbol("_AIO_INPUTS4");
             break;
         case Ty_ulong:
-            fsym = S_Symbol("_aio_inputu4");
+            fsym = S_Symbol("_AIO_INPUTU4");
             break;
         case Ty_single:
-            fsym = S_Symbol("_aio_inputf");
+            fsym = S_Symbol("_AIO_INPUTF");
             break;
         default:
             return EM_error((*tkn)->pos, "unsupported type in INPUT expression list.");
@@ -3922,7 +3922,7 @@ static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
         assert(FALSE); // FIXME: implement
     }
 
-    S_symbol fsym = S_Symbol("_aio_open");
+    S_symbol fsym = S_Symbol("_AIO_OPEN");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3952,7 +3952,7 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "CLOSE"
 
-    S_symbol fsym = S_Symbol("_aio_close");
+    S_symbol fsym = S_Symbol("_AIO_CLOSE");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -4217,20 +4217,20 @@ static bool transRead(S_pos pos, CG_item *var)
         case Ty_byte:
         case Ty_bool:
         case Ty_ubyte:
-            fsym = S_Symbol("_aqb_read1");
+            fsym = S_Symbol("_AQB_READ1");
             break;
         case Ty_integer:
         case Ty_uinteger:
-            fsym = S_Symbol("_aqb_read2");
+            fsym = S_Symbol("_AQB_READ2");
             break;
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
         case Ty_single:
-            fsym = S_Symbol("_aqb_read4");
+            fsym = S_Symbol("_AQB_READ4");
             break;
         case Ty_string:
-            fsym = S_Symbol("_aqb_readStr");
+            fsym = S_Symbol("_AQB_READSTR");
             break;
         default:
             return EM_error(pos, "READ: unsupported type.");
@@ -4289,7 +4289,7 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 		dataLabel = g_dataRestoreLabel;
 	}
 
-    S_symbol fsym = S_Symbol("_aqb_restore");
+    S_symbol fsym = S_Symbol("_AQB_RESTORE");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -5989,6 +5989,18 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
     return TRUE;
 }
 
+static string _generate_proc_label (S_symbol sCls, S_symbol sName, bool isFunction)
+{
+    string label = strconcat(UP_frontend, "_", strupper(UP_frontend, Ty_removeTypeSuffix(S_name(sName))));
+
+    if (sCls)
+        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, strupper(UP_frontend, S_name(sCls)), label));
+
+    if (isFunction)
+        label = strconcat(UP_frontend, label, "_");
+
+    return label;
+}
 
 // udtProperty ::= PROPERTY ident [ "." ident ] [ parameterList ] [ AS typeDesc ]
 static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, Ty_proc *proc)
@@ -5998,7 +6010,6 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
     bool         isVariadic = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
-    string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
 
@@ -6039,8 +6050,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         *tkn = (*tkn)->next;
     }
 
-    // determine label, deal with implicit "this" arg
-    label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
+    // deal with implicit "this" arg
     FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
 
     if ((*tkn)->kind == S_LPAREN)
@@ -6057,12 +6067,14 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
             return EM_error((*tkn)->pos, "return type descriptor expected here.");
 
-        label = strconcat(UP_frontend, label, "_");
+        //label = strconcat(UP_frontend, label, "_");
     }
     else
     {
         kind  = Ty_pkSub;
     }
+
+    string label = _generate_proc_label (sCls, name, returnTy != NULL);
 
     *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
@@ -6078,7 +6090,6 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
     bool         isStatic   = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
-    string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
 
@@ -6121,9 +6132,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
     }
 
     // determine label
-    label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
-    if (kind==Ty_pkFunction)
-        label = strconcat(UP_frontend, label, "_");
+    string label = _generate_proc_label (sCls, name, returnTy != NULL);
 
     *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
@@ -6143,7 +6152,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     bool         isStatic   = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
-    string       label      = NULL;
+    //string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
 
@@ -6211,16 +6220,9 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
 
     // determine label, deal with implicit "this" arg
     if (sCls)
-    {
-        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
         FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
-    }
-    else
-    {
-        label = strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)));
-    }
-    if (kind==Ty_pkFunction)
-        label = strconcat(UP_frontend, label, "_");
+
+    string label = _generate_proc_label (sCls, name, kind==Ty_pkFunction);
 
     // look for extra SUB syms
     if ((kind == Ty_pkSub) && !sCls)
@@ -6236,7 +6238,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
             {
                 extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
             }
-            label = strconcat(UP_frontend, label, strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+            label = strconcat(UP_frontend, label, strconcat(UP_frontend, "_", strupper(UP_frontend, Ty_removeTypeSuffix(S_name((*tkn)->u.sym)))));
             *tkn = (*tkn)->next;
         }
     }
@@ -7146,7 +7148,7 @@ static void _assembleVTables (Ty_ty tyCls)
 
     Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
-    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___init", S_name(tyCls->u.cls.name)));
+    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___init", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
     tyCls->u.cls.__init = Ty_Proc  (Ty_visPublic, Ty_pkConstructor, S_Symbol("__init"),
                                     /*extraSyms=*/NULL,
                                     label,
@@ -9460,10 +9462,10 @@ void FE_boot(void)
     S_IMPLEMENTS      = defineKeyword("IMPLEMENTS");
     S_VIRTUAL         = defineKeyword("VIRTUAL");
 
-    S_ToString        = S_Symbol("ToString");
-    S_CObject         = S_Symbol("CObject");
-    S_CArray          = S_Symbol("CArray");
-    S_RemoveAll       = S_Symbol("RemoveAll");
+    S_ToString        = S_Symbol("TOSTRING");
+    S_CObject         = S_Symbol("COBJECT");
+    S_CArray          = S_Symbol("CARRAY");
+    S_RemoveAll       = S_Symbol("REMOVEALL");
     S_IDXPTR          = S_Symbol("IDXPTR");
     S__aqb_clear      = S_Symbol("__aqb_clear");
     S_COPY            = S_Symbol("COPY");

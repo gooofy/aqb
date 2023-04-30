@@ -1401,10 +1401,10 @@ static BOOL _awindow_gets(UBYTE *buf, USHORT buf_len, BOOL do_nl)
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         _aio_init();
-        _aio_set_dos_cursor_visible (TRUE);
+        _AIO_SET_DOS_CURSOR_VISIBLE (TRUE);
         LONG bytes = Read(g_stdin, (CONST APTR) buf, buf_len);
         buf[bytes-1] = '\0';
-        _aio_set_dos_cursor_visible (FALSE);
+        _AIO_SET_DOS_CURSOR_VISIBLE (FALSE);
     }
     else
     {

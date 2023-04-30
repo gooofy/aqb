@@ -7,7 +7,8 @@ SRCS = GadToolsTutorial1.bas GadToolsTutorial2.bas GadToolsTutorial3.bas GadTool
 	   GadToolsTutorial5.bas GadToolsTutorial6.bas \
 	   BitmapDraw.bas BOBDemo1.bas BOBDemo2.bas CtrlC.bas CustomPointer.bas \
 	   Debug.bas FontTutorial.bas \
-	   ILBMBitmap.bas ILBMShow.bas
+	   ILBMBitmap.bas ILBMShow.bas \
+	   SoundDemo1.bas SoundDemo2.bas
 
 ASMDIR_AMIGAOS_DEMO = aqb_tutorial/asm
 OBJDIR_AMIGAOS_DEMO = aqb_tutorial/obj

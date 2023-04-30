@@ -53,34 +53,34 @@ struct Gadget *_gtbutton_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vin
     return gtg->gad;
 }
 
-void _CGTButton_CONSTRUCTOR (CGTButton *this, CONST_STRPTR label,
-                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                            void *user_data, ULONG flags, ULONG underscore)
+void _CGTBUTTON_CONSTRUCTOR (CGTButton *this, CONST_STRPTR label,
+                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                             void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_CGTButton_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, label=%s\n", this, x1, y1, x2, y2, label ? label : "NULL");
-    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtbutton_deploy_cb;
     this->disabled         = FALSE;
 }
 
-BOOL _CGTButton_disabled_ (CGTButton *this)
+BOOL _CGTBUTTON_DISABLED_ (CGTButton *this)
 {
     return this->disabled;
 }
-void _CGTButton_disabled (CGTButton *this, BOOL disabled)
+void _CGTBUTTON_DISABLED (CGTButton *this, BOOL disabled)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     this->disabled = disabled;
 }
 
-BOOL _CGTButton_immediate_ (CGTButton *this)
+BOOL _CGTBUTTON_IMMEDIATE_ (CGTButton *this)
 {
     return this->immediate;
 }
-void _CGTButton_immediate (CGTButton *this, BOOL immediate)
+void _CGTBUTTON_IMMEDIATE (CGTButton *this, BOOL immediate)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Immediate, immediate, TAG_DONE);
     }
@@ -88,12 +88,12 @@ void _CGTButton_immediate (CGTButton *this, BOOL immediate)
 }
 
 static intptr_t _CGTButton_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
 };
 
-void _CGTButton___init (CGTButton *THIS)
+void _CGTBUTTON___init (CGTButton *THIS)
 {
     THIS->gadget._vTablePtr = (intptr_t **) &_CGTButton_vtable;
 }

@@ -8,7 +8,7 @@
 
 #include <inline/exec.h>
 
-VOID _CArray_CONSTRUCTOR (CArray *THIS, LONG elementSize)
+VOID _CARRAY_CONSTRUCTOR (CArray *THIS, LONG elementSize)
 {
     THIS->_data        = NULL;
     THIS->_numDims     = 0;
@@ -17,7 +17,7 @@ VOID _CArray_CONSTRUCTOR (CArray *THIS, LONG elementSize)
     THIS->_bounds      = NULL;
 }
 
-VOID _CArray_REDIM (CArray *THIS, UWORD numDims, BOOL preserve, ...)
+VOID _CARRAY_REDIM (CArray *THIS, UWORD numDims, BOOL preserve, ...)
 {
     va_list valist;
 
@@ -61,11 +61,11 @@ VOID _CArray_REDIM (CArray *THIS, UWORD numDims, BOOL preserve, ...)
     }
     else
     {
-        _CArray_RemoveAll (THIS);
+        _CARRAY_REMOVEALL (THIS);
     }
 }
 
-intptr_t *_CArray_IDXPTR_ (CArray *THIS, UWORD dimCnt, ...)
+intptr_t *_CARRAY_IDXPTR_ (CArray *THIS, UWORD dimCnt, ...)
 {
     if (!THIS->_data)
         ERROR (ERR_SUBSCRIPT_OUT_OF_RANGE);
@@ -102,7 +102,7 @@ intptr_t *_CArray_IDXPTR_ (CArray *THIS, UWORD dimCnt, ...)
     return (void*) ptr;
 }
 
-LONG     _CArray_LBOUND_ (CArray *THIS, WORD     d)
+LONG     _CARRAY_LBOUND_ (CArray *THIS, WORD     d)
 {
     if (d<=0)
         return 1;
@@ -116,7 +116,7 @@ LONG     _CArray_LBOUND_ (CArray *THIS, WORD     d)
     return THIS->_bounds[d-1].lbound;
 }
 
-LONG     _CArray_UBOUND_ (CArray *THIS, WORD     d)
+LONG     _CARRAY_UBOUND_ (CArray *THIS, WORD     d)
 {
     if (d<=0)
         return THIS->_numDims;
@@ -130,7 +130,7 @@ LONG     _CArray_UBOUND_ (CArray *THIS, WORD     d)
     return THIS->_bounds[d-1].ubound;
 }
 
-VOID _CArray_COPY (CArray *THIS, CArray *a)
+VOID _CARRAY_COPY (CArray *THIS, CArray *a)
 {
     if (a->_numDims != THIS->_numDims)
         ERROR (ERR_INCOMPATIBLE_ARRAY);
@@ -153,7 +153,7 @@ VOID _CArray_COPY (CArray *THIS, CArray *a)
     CopyMem(a->_data, THIS->_data, toCopy);
 }
 
-VOID _CArray_ERASE (CArray *THIS)
+VOID _CARRAY_ERASE (CArray *THIS)
 {
     if (THIS->_data)
     {
@@ -167,26 +167,26 @@ VOID _CArray_ERASE (CArray *THIS)
     THIS->_bounds      = NULL;
 }
 
-LONG _CArray_Count_ (CArray *THIS)
+LONG _CARRAY_COUNT_ (CArray *THIS)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
-    return _CArray_UBOUND_ (THIS, 1) - _CArray_LBOUND_ (THIS, 1) + 1;
+    return _CARRAY_UBOUND_ (THIS, 1) - _CARRAY_LBOUND_ (THIS, 1) + 1;
 }
 
-VOID _CArray_Capacity (CArray *THIS, LONG     c)
+VOID _CARRAY_CAPACITY (CArray *THIS, LONG     c)
 {
     ERROR (ERR_ILLEGAL_FUNCTION_CALL);
 }
 
-LONG _CArray_Capacity_ (CArray *THIS)
+LONG _CARRAY_CAPACITY_ (CArray *THIS)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
-    return _CArray_UBOUND_ (THIS, 1) - _CArray_LBOUND_ (THIS, 1) + 1;
+    return _CARRAY_UBOUND_ (THIS, 1) - _CARRAY_LBOUND_ (THIS, 1) + 1;
 }
 
-intptr_t _CArray_GetAt_ (CArray *THIS, LONG index)
+intptr_t _CARRAY_GETAT_ (CArray *THIS, LONG index)
 {
     DPRINTF ("_CArray_GetAt_: index=%ld\n", index);
     if (THIS->_numDims != 1)
@@ -218,7 +218,7 @@ intptr_t _CArray_GetAt_ (CArray *THIS, LONG index)
     return 0;
 }
 
-VOID _CArray_SetAt (CArray *THIS, LONG index, intptr_t obj)
+VOID _CARRAY_SETAT (CArray *THIS, LONG index, intptr_t obj)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -250,48 +250,48 @@ VOID _CArray_SetAt (CArray *THIS, LONG index, intptr_t obj)
     }
 }
 
-intptr_t ** *_CArray_GetEnumerator_ (CArray *THIS)
+intptr_t ** *_CARRAY_GETENUMERATOR_ (CArray *THIS)
 {
     CArrayEnumerator *e = (CArrayEnumerator *)ALLOCATE_(sizeof (*e), MEMF_ANY);
     if (!e)
         ERROR (ERR_OUT_OF_MEMORY);
 
-    _CArrayEnumerator___init (e);
-    _CArrayEnumerator_CONSTRUCTOR (e, THIS);
+    _CARRAYENUMERATOR___init (e);
+    _CARRAYENUMERATOR_CONSTRUCTOR (e, THIS);
 
     return &e->__intf_vtable_IEnumerator;
 }
 
-LONG _CArray_Add_ (CArray *THIS, intptr_t obj)
+LONG _CARRAY_ADD_ (CArray *THIS, intptr_t obj)
 {
     ERROR (ERR_ILLEGAL_FUNCTION_CALL);
     return -1;
 }
 
-BOOL _CArray_Contains_ (CArray *THIS, intptr_t value)
+BOOL _CARRAY_CONTAINS_ (CArray *THIS, intptr_t value)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
     for ( LONG i=THIS->_bounds[0].lbound; i<= THIS->_bounds[0].ubound; i++)
     {
-        intptr_t v = _CArray_GetAt_ (THIS, i);
+        intptr_t v = _CARRAY_GETAT_ (THIS, i);
         if (v == value)
             return TRUE;
     }
     return FALSE;
 }
 
-BOOL _CArray_IsReadOnly_ (CArray *THIS)
+BOOL _CARRAY_ISREADONLY_ (CArray *THIS)
 {
     return FALSE;
 }
 
-BOOL _CArray_IsFixedSize_ (CArray *THIS)
+BOOL _CARRAY_ISFIXEDSIZE_ (CArray *THIS)
 {
     return TRUE;
 }
 
-LONG _CArray_IndexOf_ (CArray *THIS, intptr_t value, LONG startIndex, LONG count)
+LONG _CARRAY_INDEXOF_ (CArray *THIS, intptr_t value, LONG startIndex, LONG count)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -301,14 +301,14 @@ LONG _CArray_IndexOf_ (CArray *THIS, intptr_t value, LONG startIndex, LONG count
     LONG upper_i = count >= 0 ? startIndex + count - 1 : THIS->_bounds[0].ubound;
     for ( LONG i=startIndex; i<= upper_i; i++)
     {
-        intptr_t v = _CArray_GetAt_ (THIS, i);
+        intptr_t v = _CARRAY_GETAT_ (THIS, i);
         if (v == value)
             return i;
     }
     return -1;
 }
 
-VOID _CArray_Insert (CArray *THIS, LONG index, intptr_t value)
+VOID _CARRAY_INSERT (CArray *THIS, LONG index, intptr_t value)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -320,29 +320,29 @@ VOID _CArray_Insert (CArray *THIS, LONG index, intptr_t value)
 
     for (LONG i=THIS->_bounds[0].ubound; i>index; i--)
     {
-        intptr_t v = _CArray_GetAt_ (THIS, i-1);
-        _CArray_SetAt (THIS, i, v);
+        intptr_t v = _CARRAY_GETAT_ (THIS, i-1);
+        _CARRAY_SETAT (THIS, i, v);
     }
-    _CArray_SetAt (THIS, index, value);
+    _CARRAY_SETAT (THIS, index, value);
 }
 
-VOID _CArray_Remove (CArray *THIS, intptr_t value)
+VOID _CARRAY_REMOVE (CArray *THIS, intptr_t value)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
 
     for ( LONG i=THIS->_bounds[0].lbound; i<= THIS->_bounds[0].ubound; i++)
     {
-        intptr_t v = _CArray_GetAt_ (THIS, i);
+        intptr_t v = _CARRAY_GETAT_ (THIS, i);
         if (v == value)
         {
-            _CArray_RemoveAt (THIS, i);
+            _CARRAY_REMOVEAT (THIS, i);
             return;
         }
     }
 }
 
-VOID _CArray_RemoveAt (CArray *THIS, LONG index)
+VOID _CARRAY_REMOVEAT (CArray *THIS, LONG index)
 {
     if (THIS->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -355,12 +355,12 @@ VOID _CArray_RemoveAt (CArray *THIS, LONG index)
 
     for (LONG i=index+1; i<=ubound; i++)
     {
-        _CArray_SetAt (THIS, i-1, _CArray_GetAt_ (THIS, i));
+        _CARRAY_SETAT (THIS, i-1, _CARRAY_GETAT_ (THIS, i));
     }
-    _CArray_SetAt (THIS, ubound, 0);
+    _CARRAY_SETAT (THIS, ubound, 0);
 }
 
-VOID _CArray_RemoveAll (CArray *THIS)
+VOID _CARRAY_REMOVEALL (CArray *THIS)
 {
     if (!THIS->_data || !THIS->_dataSize)
         return;
@@ -368,14 +368,14 @@ VOID _CArray_RemoveAll (CArray *THIS)
     _MEMSET ((BYTE *)THIS->_data, 0, THIS->_dataSize);
 }
 
-CObject *_CArray_Clone_ (CArray *THIS)
+CObject *_CARRAY_CLONE_ (CArray *THIS)
 {
     CArray *e = (CArray *)ALLOCATE_(sizeof (*e), MEMF_ANY);
     if (!e)
         ERROR (ERR_OUT_OF_MEMORY);
 
-    _CArray___init (e);
-    _CArray_CONSTRUCTOR (e, THIS->_elementSize);
+    _CARRAY___init (e);
+    _CARRAY_CONSTRUCTOR (e, THIS->_elementSize);
 
     e->_data = ALLOCATE_ (THIS->_dataSize, MEMF_ANY);
     if (!e->_data)
@@ -398,7 +398,7 @@ CObject *_CArray_Clone_ (CArray *THIS)
     return (CObject*) e;
 }
 
-VOID _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
+VOID _CARRAYENUMERATOR_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
 {
     THIS->_array          = array;
     LONG lbound = THIS->_array->_bounds[0].lbound;
@@ -406,7 +406,7 @@ VOID _CArrayEnumerator_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
     THIS->_currentElement = 0;
 }
 
-BOOL _CArrayEnumerator_MoveNext_ (CArrayEnumerator *THIS)
+BOOL _CARRAYENUMERATOR_MOVENEXT_ (CArrayEnumerator *THIS)
 {
     if (THIS->_array->_numDims != 1)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -415,7 +415,7 @@ BOOL _CArrayEnumerator_MoveNext_ (CArrayEnumerator *THIS)
 
     if (THIS->_index < ubound)
     {
-        THIS->_currentElement = _CArray_GetAt_ (THIS->_array, ++THIS->_index);
+        THIS->_currentElement = _CARRAY_GETAT_ (THIS->_array, ++THIS->_index);
         return TRUE;
     }
 
@@ -424,90 +424,90 @@ BOOL _CArrayEnumerator_MoveNext_ (CArrayEnumerator *THIS)
     return FALSE;
 }
 
-intptr_t _CArrayEnumerator_Current_ (CArrayEnumerator *THIS)
+intptr_t _CARRAYENUMERATOR_CURRENT_ (CArrayEnumerator *THIS)
 {
     return THIS->_currentElement;
 }
 
-VOID _CArrayEnumerator_Reset (CArrayEnumerator *THIS)
+VOID _CARRAYENUMERATOR_RESET (CArrayEnumerator *THIS)
 {
     THIS->_currentElement = NULL;
     THIS->_index = -1;
 }
 
 static intptr_t _CArrayEnumerator_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_,
-    (intptr_t) _CArrayEnumerator_MoveNext_,
-    (intptr_t) _CArrayEnumerator_Current_,
-    (intptr_t) _CArrayEnumerator_Reset
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_,
+    (intptr_t) _CARRAYENUMERATOR_MOVENEXT_,
+    (intptr_t) _CARRAYENUMERATOR_CURRENT_,
+    (intptr_t) _CARRAYENUMERATOR_RESET
 };
 
 static intptr_t __intf_vtable_CArrayEnumerator_IEnumerator[] = {
     4,
-    (intptr_t) _CArrayEnumerator_MoveNext_,
-    (intptr_t) _CArrayEnumerator_Current_,
-    (intptr_t) _CArrayEnumerator_Reset
+    (intptr_t) _CARRAYENUMERATOR_MOVENEXT_,
+    (intptr_t) _CARRAYENUMERATOR_CURRENT_,
+    (intptr_t) _CARRAYENUMERATOR_RESET
 };
 
 static intptr_t _CArray_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_,
-    (intptr_t) _CArray_Count_,
-    (intptr_t) _CArray_Capacity_,
-    (intptr_t) _CArray_Capacity,
-    (intptr_t) _CArray_GetAt_,
-    (intptr_t) _CArray_SetAt,
-    (intptr_t) _CArray_GetEnumerator_,
-    (intptr_t) _CArray_Add_,
-    (intptr_t) _CArray_Contains_,
-    (intptr_t) _CArray_IsReadOnly_,
-    (intptr_t) _CArray_IsFixedSize_,
-    (intptr_t) _CArray_IndexOf_,
-    (intptr_t) _CArray_Insert,
-    (intptr_t) _CArray_Remove,
-    (intptr_t) _CArray_RemoveAt,
-    (intptr_t) _CArray_RemoveAll,
-    (intptr_t) _CArray_Clone_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_,
+    (intptr_t) _CARRAY_COUNT_,
+    (intptr_t) _CARRAY_CAPACITY_,
+    (intptr_t) _CARRAY_CAPACITY,
+    (intptr_t) _CARRAY_GETAT_,
+    (intptr_t) _CARRAY_SETAT,
+    (intptr_t) _CARRAY_GETENUMERATOR_,
+    (intptr_t) _CARRAY_ADD_,
+    (intptr_t) _CARRAY_CONTAINS_,
+    (intptr_t) _CARRAY_ISREADONLY_,
+    (intptr_t) _CARRAY_ISFIXEDSIZE_,
+    (intptr_t) _CARRAY_INDEXOF_,
+    (intptr_t) _CARRAY_INSERT,
+    (intptr_t) _CARRAY_REMOVE,
+    (intptr_t) _CARRAY_REMOVEAT,
+    (intptr_t) _CARRAY_REMOVEALL,
+    (intptr_t) _CARRAY_CLONE_
 };
 
 static intptr_t __intf_vtable_CArray_ICloneable[] = {
     16,
-    (intptr_t) _CArray_Clone_
+    (intptr_t) _CARRAY_CLONE_
 };
 
 static intptr_t __intf_vtable_CArray_IEnumerable[] = {
     12,
-    (intptr_t) _CArray_GetEnumerator_
+    (intptr_t) _CARRAY_GETENUMERATOR_
 };
 
 static intptr_t __intf_vtable_CArray_ICollection[] = {
     8,
-    (intptr_t) _CArray_GetEnumerator_,
-    (intptr_t) _CArray_Count_
+    (intptr_t) _CARRAY_GETENUMERATOR_,
+    (intptr_t) _CARRAY_COUNT_
 };
 
 static intptr_t __intf_vtable_CArray_IList[] = {
     4,
-    (intptr_t) _CArray_GetEnumerator_,
-    (intptr_t) _CArray_Count_,
-    (intptr_t) _CArray_GetAt_,
-    (intptr_t) _CArray_SetAt,
-    (intptr_t) _CArray_Add_,
-    (intptr_t) _CArray_Contains_,
-    (intptr_t) _CArray_IsReadOnly_,
-    (intptr_t) _CArray_IsFixedSize_,
-    (intptr_t) _CArray_IndexOf_,
-    (intptr_t) _CArray_Insert,
-    (intptr_t) _CArray_Remove,
-    (intptr_t) _CArray_RemoveAt,
-    (intptr_t) _CArray_RemoveAll
+    (intptr_t) _CARRAY_GETENUMERATOR_,
+    (intptr_t) _CARRAY_COUNT_,
+    (intptr_t) _CARRAY_GETAT_,
+    (intptr_t) _CARRAY_SETAT,
+    (intptr_t) _CARRAY_ADD_,
+    (intptr_t) _CARRAY_CONTAINS_,
+    (intptr_t) _CARRAY_ISREADONLY_,
+    (intptr_t) _CARRAY_ISFIXEDSIZE_,
+    (intptr_t) _CARRAY_INDEXOF_,
+    (intptr_t) _CARRAY_INSERT,
+    (intptr_t) _CARRAY_REMOVE,
+    (intptr_t) _CARRAY_REMOVEAT,
+    (intptr_t) _CARRAY_REMOVEALL
 };
 
 
-void _CArray___init (CArray *THIS)
+void _CARRAY___init (CArray *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CArray_vtable;
     THIS->__intf_vtable_ICloneable = (intptr_t **) &__intf_vtable_CArray_ICloneable;
@@ -516,7 +516,7 @@ void _CArray___init (CArray *THIS)
     THIS->__intf_vtable_IList = (intptr_t **) &__intf_vtable_CArray_IList;
 }
 
-void _CArrayEnumerator___init (CArrayEnumerator *THIS)
+void _CARRAYENUMERATOR___init (CArrayEnumerator *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CArrayEnumerator_vtable;
     THIS->__intf_vtable_IEnumerator = (intptr_t **) &__intf_vtable_CArrayEnumerator_IEnumerator;

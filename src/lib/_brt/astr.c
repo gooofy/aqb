@@ -524,56 +524,56 @@ const UBYTE *_astr_strchr(const UBYTE *s, UBYTE c)
     return NULL;
 }
 
-UBYTE *_s1toa_   (BYTE   b)
+UBYTE *_S1TOA_   (BYTE   b)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(b, buf, 10);
     return _astr_dup(buf);
 }
 
-UBYTE *_s2toa_   (SHORT  i)
+UBYTE *_S2TOA_   (SHORT  i)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(i, buf, 10);
     return _astr_dup(buf);
 }
 
-UBYTE *_s4toa_   (LONG   l)
+UBYTE *_S4TOA_   (LONG   l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
     return _astr_dup(buf);
 }
 
-UBYTE *_u1toa_   (UBYTE  b)
+UBYTE *_U1TOA_   (UBYTE  b)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(b, buf, 10);
     return _astr_dup(buf);
 }
 
-UBYTE *_u2toa_   (USHORT i)
+UBYTE *_U2TOA_   (USHORT i)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(i, buf, 10);
     return _astr_dup(buf);
 }
 
-UBYTE *_u4toa_   (ULONG  l)
+UBYTE *_U4TOA_   (ULONG  l)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(l, buf, 10);
     return _astr_dup(buf);
 }
 
-UBYTE *_ftoa_    (FLOAT  f)
+UBYTE *_FTOA_    (FLOAT  f)
 {
     UBYTE buf[MAXBUF];
     _astr_ftoa(f, buf);
     return _astr_dup(buf);
 }
 
-UBYTE *_booltoa_ (BOOL   b)
+UBYTE *_BOOLTOA_ (BOOL   b)
 {
     return b ? (UBYTE *)"TRUE" : (UBYTE *)"FALSE";
 }

@@ -40,22 +40,22 @@ VOID _CArrayListEnumerator_Reset (CArrayListEnumerator *THIS)
 }
 
 static intptr_t _CArrayListEnumerator_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_,
-    (intptr_t) _CArrayListEnumerator_MoveNext_,
-    (intptr_t) _CArrayListEnumerator_Current_,
-    (intptr_t) _CArrayListEnumerator_Reset
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_,
+    (intptr_t) _CARRAYLISTENUMERATOR_MOVENEXT_,
+    (intptr_t) _CARRAYLISTENUMERATOR_CURRENT_,
+    (intptr_t) _CARRAYLISTENUMERATOR_RESET
 };
 
 static intptr_t __intf_vtable_CArrayListEnumerator_IEnumerator[] = {
     4,
-    (intptr_t) _CArrayListEnumerator_MoveNext_,
-    (intptr_t) _CArrayListEnumerator_Current_,
-    (intptr_t) _CArrayListEnumerator_Reset
+    (intptr_t) _CARRAYLISTENUMERATOR_MOVENEXT_,
+    (intptr_t) _CARRAYLISTENUMERATOR_CURRENT_,
+    (intptr_t) _CARRAYLISTENUMERATOR_RESET
 };
 
-void _CArrayListEnumerator___init (CArrayListEnumerator *THIS)
+void _CARRAYLISTENUMERATOR___init (CArrayListEnumerator *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CArrayListEnumerator_vtable;
     THIS->__intf_vtable_IEnumerator = (intptr_t **) &__intf_vtable_CArrayListEnumerator_IEnumerator;

@@ -5,7 +5,7 @@
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
-STRPTR _CObject_ToString_ (CObject *THIS)
+STRPTR _COBJECT_TOSTRING_ (CObject *THIS)
 {
     // 'obj@0xXXXXXXXX\0' -> 15 chars
     UBYTE *str2 = ALLOCATE_(15, MEMF_ANY);
@@ -18,23 +18,23 @@ STRPTR _CObject_ToString_ (CObject *THIS)
     return (STRPTR) str2;
 }
 
-BOOL _CObject_Equals_ (CObject *THIS, CObject *obj)
+BOOL _COBJECT_EQUALS_ (CObject *THIS, CObject *obj)
 {
     return THIS == obj;
 }
 
-ULONG _CObject_GetHashCode_ (CObject *THIS)
+ULONG _COBJECT_GETHASHCODE_ (CObject *THIS)
 {
     return (intptr_t) THIS;
 }
 
 static void * _CObject_vtable[] = {
-    (void*) _CObject_ToString_,
-    (void*) _CObject_Equals_,
-    (void*) _CObject_GetHashCode_
+    (void*) _COBJECT_TOSTRING_,
+    (void*) _COBJECT_EQUALS_,
+    (void*) _COBJECT_GETHASHCODE_
 };
 
-void _CObject___init (CObject *THIS)
+void _COBJECT___init (CObject *THIS)
 {
     THIS->_vTablePtr = (void ***) &_CObject_vtable;
 }

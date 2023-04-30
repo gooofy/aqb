@@ -34,7 +34,7 @@ SHORT _GTGADGET_NEXT_ID (void)
     return ext->id++;
 }
 
-void _CGTGadget_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR txt,
+void _CGTGADGET_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR txt,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
@@ -76,71 +76,71 @@ void _CGTGadget_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR txt,
     this->gadgetmove_cb    = NULL;
 }
 
-SHORT _CGTGadget_x1_ (CGTGadget *this)
+SHORT _CGTGADGET_X1_ (CGTGadget *this)
 {
     return this->ng.ng_LeftEdge;
 }
-void _CGTGadget_x1 (CGTGadget *this, SHORT x1)
+void _CGTGADGET_X1 (CGTGadget *this, SHORT x1)
 {
     this->ng.ng_LeftEdge = x1;
 }
 
-SHORT _CGTGadget_y1_ (CGTGadget *this)
+SHORT _CGTGADGET_Y1_ (CGTGadget *this)
 {
     return this->ng.ng_TopEdge;
 }
-void _CGTGadget_y1 (CGTGadget *this, SHORT y1)
+void _CGTGADGET_Y1 (CGTGadget *this, SHORT y1)
 {
     this->ng.ng_TopEdge = y1;
 }
 
-SHORT _CGTGadget_x2_ (CGTGadget *this)
+SHORT _CGTGADGET_X2_ (CGTGadget *this)
 {
     return this->ng.ng_LeftEdge + this->ng.ng_Width - 1;
 }
-void _CGTGadget_x2 (CGTGadget *this, SHORT x2)
+void _CGTGADGET_X2 (CGTGadget *this, SHORT x2)
 {
     this->ng.ng_Width = x2-this->ng.ng_LeftEdge+1;
 }
 
-SHORT _CGTGadget_y2_ (CGTGadget *this)
+SHORT _CGTGADGET_Y2_ (CGTGadget *this)
 {
     return this->ng.ng_TopEdge + this->ng.ng_Height - 1;
 }
-void _CGTGadget_y2 (CGTGadget *this, SHORT y2)
+void _CGTGADGET_Y2 (CGTGadget *this, SHORT y2)
 {
     this->ng.ng_Height = y2-this->ng.ng_TopEdge+1;
 }
 
-CONST_STRPTR _CGTGadget_text_ (CGTGadget *this)
+CONST_STRPTR _CGTGADGET_TEXT_ (CGTGadget *this)
 {
     return this->ng.ng_GadgetText;
 }
-void _CGTGadget_text (CGTGadget *this, STRPTR text)
+void _CGTGADGET_TEXT (CGTGadget *this, STRPTR text)
 {
     DPRINTF ("_CGTGadget_text: text=%s\n", text ? (char*)text : "NULL");
     this->ng.ng_GadgetText = text;
 }
 
-SHORT  _CGTGadget_id_ (CGTGadget *this)
+SHORT  _CGTGADGET_ID_ (CGTGadget *this)
 {
     return this->ng.ng_GadgetID;
 }
-void _CGTGadget_id (CGTGadget *this, SHORT id)
+void _CGTGADGET_ID (CGTGadget *this, SHORT id)
 {
     this->ng.ng_GadgetID = id;
 }
 
-ULONG _CGTGadget_flags_ (CGTGadget *this)
+ULONG _CGTGADGET_FLAGS_ (CGTGadget *this)
 {
     return this->ng.ng_Flags;
 }
-void _CGTGadget_flags (CGTGadget *this, ULONG flags)
+void _CGTGADGET_FLAGS (CGTGadget *this, ULONG flags)
 {
     this->ng.ng_Flags = flags;
 }
 
-BOOL _CGTGadget_deployed_ (CGTGadget *this)
+BOOL _CGTGADGET_DEPLOYED_ (CGTGadget *this)
 {
     return this->gad != NULL;
 }
@@ -376,12 +376,12 @@ static void _GadToolsSupport_shutdown(void)
 }
 
 static intptr_t _CGTGadget_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
 };
 
-void _CGTGadget___init (CGTGadget *THIS)
+void _CGTGADGET___init (CGTGadget *THIS)
 {
     THIS->_vTablePtr = (intptr_t **) &_CGTGadget_vtable;
 }

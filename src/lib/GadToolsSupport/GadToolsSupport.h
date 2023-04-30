@@ -50,26 +50,26 @@ struct CGTGadget_
     gtgadget_deploy_cb_t  deploy_cb;
 };
 
-void _CGTGadget_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR label,
+void _CGTGADGET_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
 // CGTGadget properties
-SHORT        _CGTGadget_x1_        (CGTGadget *this);
-void         _CGTGadget_x1         (CGTGadget *this, SHORT x1);
-SHORT        _CGTGadget_y1_        (CGTGadget *this);
-void         _CGTGadget_y1         (CGTGadget *this, SHORT y1);
-SHORT        _CGTGadget_x2_        (CGTGadget *this);
-void         _CGTGadget_x2         (CGTGadget *this, SHORT x2);
-SHORT        _CGTGadget_y2_        (CGTGadget *this);
-void         _CGTGadget_y2         (CGTGadget *this, SHORT y2);
-CONST_STRPTR _CGTGadget_text_      (CGTGadget *this);
-void         _CGTGadget_text       (CGTGadget *this, STRPTR text);
-SHORT        _CGTGadget_id_        (CGTGadget *this);
-void         _CGTGadget_id         (CGTGadget *this, SHORT id);
-ULONG        _CGTGadget_flags_     (CGTGadget *this);
-void         _CGTGadget_flags      (CGTGadget *this, ULONG flags);
-BOOL         _CGTGadget_deployed_  (CGTGadget *this);
+SHORT        _CGTGADGET_X1_        (CGTGadget *this);
+void         _CGTGADGET_X1         (CGTGadget *this, SHORT x1);
+SHORT        _CGTGADGET_Y1_        (CGTGadget *this);
+void         _CGTGADGET_Y1         (CGTGadget *this, SHORT y1);
+SHORT        _CGTGADGET_X2_        (CGTGadget *this);
+void         _CGTGADGET_X2         (CGTGadget *this, SHORT x2);
+SHORT        _CGTGADGET_Y2_        (CGTGadget *this);
+void         _CGTGADGET_Y2         (CGTGadget *this, SHORT y2);
+CONST_STRPTR _CGTGADGET_TEXT_      (CGTGadget *this);
+void         _CGTGADGET_TEXT       (CGTGadget *this, STRPTR text);
+SHORT        _CGTGADGET_ID_        (CGTGadget *this);
+void         _CGTGADGET_ID         (CGTGadget *this, SHORT id);
+ULONG        _CGTGADGET_FLAGS_     (CGTGadget *this);
+void         _CGTGADGET_FLAGS      (CGTGadget *this, ULONG flags);
+BOOL         _CGTGADGET_DEPLOYED_  (CGTGadget *this);
 
 /***********************************************************************************
  *
@@ -85,16 +85,16 @@ struct CGTButton_
     BOOL            immediate;
 };
 
-void _CGTButton_CONSTRUCTOR (CGTButton *this, CONST_STRPTR label,
+void _CGTBUTTON_CONSTRUCTOR (CGTButton *this, CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
 // CGTButton properties
-BOOL _CGTButton_disabled_ (CGTButton *this);
-void _CGTButton_disabled  (CGTButton *this, BOOL disabled);
+BOOL _CGTBUTTON_DISABLED_  (CGTButton *this);
+void _CGTBUTTON_DISABLED   (CGTButton *this, BOOL disabled);
 
-BOOL _CGTButton_immediate_ (CGTButton *this);
-void _CGTButton_immediate  (CGTButton *this, BOOL value);
+BOOL _CGTBUTTON_IMMEDIATE_ (CGTButton *this);
+void _CGTBUTTON_IMMEDIATE  (CGTButton *this, BOOL value);
 
 /***********************************************************************************
  *
@@ -111,17 +111,17 @@ struct CGTCheckBox_
     BOOL            scaled;
 };
 
-void _CGTCheckBox_CONSTRUCTOR (CGTCheckBox *this, CONST_STRPTR label,
+void _CGTCHECKBOX_CONSTRUCTOR (CGTCheckBox *this, CONST_STRPTR label,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore);
 
 // CGTCheckBox properties
-BOOL _CGTCheckBox_disabled_ (CGTCheckBox *this);
-void _CGTCheckBox_disabled  (CGTCheckBox *this, BOOL disabled);
-BOOL _CGTCheckBox_CHECKED_  (CGTCheckBox *this);
-void _CGTCheckBox_CHECKED   (CGTCheckBox *this, BOOL checked);
-BOOL _CGTCheckBox_scaled_   (CGTCheckBox *this);
-void _CGTCheckBox_scaled    (CGTCheckBox *this, BOOL scaled);
+BOOL _CGTCHECKBOX_DISABLED_ (CGTCheckBox *this);
+void _CGTCHECKBOX_DISABLED  (CGTCheckBox *this, BOOL disabled);
+BOOL _CGTCHECKBOX_CHECKED_  (CGTCheckBox *this);
+void _CGTCHECKBOX_CHECKED   (CGTCheckBox *this, BOOL checked);
+BOOL _CGTCHECKBOX_SCALED_   (CGTCheckBox *this);
+void _CGTCHECKBOX_SCALED    (CGTCheckBox *this, BOOL scaled);
 
 /***********************************************************************************
  *
@@ -142,41 +142,41 @@ struct CGTSlider_
     BOOL            immediate, relVerify;
 };
 
-void _CGTSlider_CONSTRUCTOR (CGTSlider *this, CONST_STRPTR label,
+void _CGTSLIDER_CONSTRUCTOR (CGTSlider *this, CONST_STRPTR label,
                             SHORT min, SHORT max, SHORT level, ULONG orient,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
 // CGTSlider properties
-BOOL          _CGTSlider_disabled_ (CGTSlider *this);
-void          _CGTSlider_disabled  (CGTSlider *this, BOOL disabled);
+BOOL          _CGTSLIDER_DISABLED_    (CGTSlider *this);
+void          _CGTSLIDER_DISABLED     (CGTSlider *this, BOOL disabled);
 
-SHORT         _CGTSlider_min_ (CGTSlider *this);
-void          _CGTSlider_min  (CGTSlider *this, SHORT i);
+SHORT         _CGTSLIDER_MIN_         (CGTSlider *this);
+void          _CGTSLIDER_MIN          (CGTSlider *this, SHORT i);
 
-SHORT         _CGTSlider_max_ (CGTSlider *this);
-void          _CGTSlider_max  (CGTSlider *this, SHORT i);
+SHORT         _CGTSLIDER_MAX_         (CGTSlider *this);
+void          _CGTSLIDER_MAX          (CGTSlider *this, SHORT i);
 
-SHORT         _CGTSlider_level_ (CGTSlider *this);
-void          _CGTSlider_level  (CGTSlider *this, SHORT i);
+SHORT         _CGTSLIDER_LEVEL_       (CGTSlider *this);
+void          _CGTSLIDER_LEVEL        (CGTSlider *this, SHORT i);
 
-SHORT         _CGTSlider_maxLevelLen_ (CGTSlider *this);
-void          _CGTSlider_maxLevelLen  (CGTSlider *this, SHORT i);
+SHORT         _CGTSLIDER_MAXLEVELLEN_ (CGTSlider *this);
+void          _CGTSLIDER_MAXLEVELLEN  (CGTSlider *this, SHORT i);
 
-CONST_STRPTR  _CGTSlider_levelFormat_ (CGTSlider *this);
-void          _CGTSlider_levelFormat  (CGTSlider *this, CONST_STRPTR s);
+CONST_STRPTR  _CGTSLIDER_LEVELFORMAT_ (CGTSlider *this);
+void          _CGTSLIDER_LEVELFORMAT  (CGTSlider *this, CONST_STRPTR s);
 
-ULONG         _CGTSlider_levelPlace_ (CGTSlider *this);
-void          _CGTSlider_levelPlace  (CGTSlider *this, ULONG u);
+ULONG         _CGTSLIDER_LEVELPLACE_  (CGTSlider *this);
+void          _CGTSLIDER_LEVELPLACE   (CGTSlider *this, ULONG u);
 
-BOOL          _CGTSlider_immediate_ (CGTSlider *this);
-void          _CGTSlider_immediate  (CGTSlider *this, BOOL b);
+BOOL          _CGTSLIDER_IMMEDIATE_   (CGTSlider *this);
+void          _CGTSLIDER_IMMEDIATE    (CGTSlider *this, BOOL b);
 
-BOOL          _CGTSlider_relVerify_ (CGTSlider *this);
-void          _CGTSlider_relVerify  (CGTSlider *this, BOOL b);
+BOOL          _CGTSLIDER_RELVERIFY_   (CGTSlider *this);
+void          _CGTSLIDER_RELVERIFY    (CGTSlider *this, BOOL b);
 
-ULONG         _CGTSlider_freedom_ (CGTSlider *this);
-void          _CGTSlider_freedom  (CGTSlider *this, ULONG u);
+ULONG         _CGTSLIDER_FREEDOM_     (CGTSlider *this);
+void          _CGTSLIDER_FREEDOM      (CGTSlider *this, ULONG u);
 
 /***********************************************************************************
  *
@@ -198,30 +198,30 @@ struct CGTText_
     BOOL            clipped;
 };
 
-void _CGTText_CONSTRUCTOR (CGTText *this, CONST_STRPTR label, CONST_STRPTR text,
+void _CGTTEXT_CONSTRUCTOR (CGTText *this, CONST_STRPTR label, CONST_STRPTR text,
                           BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                           void *user_data, ULONG flags, ULONG underscore);
 
-CONST_STRPTR           _CGTText_text_ (CGTText *this);
-void                   _CGTText_text  (CGTText *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTTEXT_TEXT_          (CGTText *this);
+void                   _CGTTEXT_TEXT           (CGTText *this, CONST_STRPTR value);
 
-BOOL                   _CGTText_copyText_ (CGTText *this);
-void                   _CGTText_copyText  (CGTText *this, BOOL value);
+BOOL                   _CGTTEXT_COPYTEXT_      (CGTText *this);
+void                   _CGTTEXT_COPYTEXT       (CGTText *this, BOOL value);
 
-BOOL                   _CGTText_Border_ (CGTText *this);
-void                   _CGTText_Border  (CGTText *this, BOOL value);
+BOOL                   _CGTTEXT_BORDER_        (CGTText *this);
+void                   _CGTTEXT_BORDER         (CGTText *this, BOOL value);
 
-UBYTE                  _CGTText_frontPen_ (CGTText *this);
-void                   _CGTText_frontPen  (CGTText *this, UBYTE value);
+UBYTE                  _CGTTEXT_FRONTPEN_      (CGTText *this);
+void                   _CGTTEXT_FRONTPEN       (CGTText *this, UBYTE value);
 
-UBYTE                  _CGTText_backPen_ (CGTText *this);
-void                   _CGTText_backPen  (CGTText *this, UBYTE value);
+UBYTE                  _CGTTEXT_BACKPEN_       (CGTText *this);
+void                   _CGTTEXT_BACKPEN        (CGTText *this, UBYTE value);
 
-UBYTE                  _CGTText_justification_ (CGTText *this);
-void                   _CGTText_justification  (CGTText *this, UBYTE value);
+UBYTE                  _CGTTEXT_JUSTIFICATION_ (CGTText *this);
+void                   _CGTTEXT_JUSTIFICATION  (CGTText *this, UBYTE value);
 
-BOOL                   _CGTText_clipped_ (CGTText *this);
-void                   _CGTText_clipped  (CGTText *this, BOOL value);
+BOOL                   _CGTTEXT_CLIPPED_       (CGTText *this);
+void                   _CGTTEXT_CLIPPED        (CGTText *this, BOOL value);
 
 /***********************************************************************************
  *
@@ -244,34 +244,34 @@ struct CGTScroller_
     ULONG           freedom;
 };
 
-void _CGTScroller_CONSTRUCTOR (CGTScroller *this, CONST_STRPTR label,
+void _CGTSCROLLER_CONSTRUCTOR (CGTScroller *this, CONST_STRPTR label,
                               SHORT top, SHORT total, SHORT visible, ULONG freedom,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTScroller_disabled_ (CGTScroller *this);
-void                   _CGTScroller_disabled  (CGTScroller *this, BOOL value);
+BOOL                   _CGTSCROLLER_DISABLED_  (CGTScroller *this);
+void                   _CGTSCROLLER_DISABLED   (CGTScroller *this, BOOL value);
 
-BOOL                   _CGTScroller_relVerify_ (CGTScroller *this);
-void                   _CGTScroller_relVerify  (CGTScroller *this, BOOL value);
+BOOL                   _CGTSCROLLER_RELVERIFY_ (CGTScroller *this);
+void                   _CGTSCROLLER_RELVERIFY  (CGTScroller *this, BOOL value);
 
-BOOL                   _CGTScroller_immediate_ (CGTScroller *this);
-void                   _CGTScroller_immediate  (CGTScroller *this, BOOL value);
+BOOL                   _CGTSCROLLER_IMMEDIATE_ (CGTScroller *this);
+void                   _CGTSCROLLER_IMMEDIATE  (CGTScroller *this, BOOL value);
 
-SHORT                  _CGTScroller_top_ (CGTScroller *this);
-void                   _CGTScroller_top  (CGTScroller *this, SHORT value);
+SHORT                  _CGTSCROLLER_TOP_       (CGTScroller *this);
+void                   _CGTSCROLLER_TOP        (CGTScroller *this, SHORT value);
 
-SHORT                  _CGTScroller_total_ (CGTScroller *this);
-void                   _CGTScroller_total  (CGTScroller *this, SHORT value);
+SHORT                  _CGTSCROLLER_TOTAL_     (CGTScroller *this);
+void                   _CGTSCROLLER_TOTAL      (CGTScroller *this, SHORT value);
 
-BOOL                   _CGTScroller_visible_ (CGTScroller *this);
-void                   _CGTScroller_visible  (CGTScroller *this, BOOL value);
+BOOL                   _CGTSCROLLER_VISIBLE_   (CGTScroller *this);
+void                   _CGTSCROLLER_VISIBLE    (CGTScroller *this, BOOL value);
 
-USHORT                 _CGTScroller_arrows_ (CGTScroller *this);
-void                   _CGTScroller_arrows  (CGTScroller *this, USHORT value);
+USHORT                 _CGTSCROLLER_ARROWS_    (CGTScroller *this);
+void                   _CGTSCROLLER_ARROWS     (CGTScroller *this, USHORT value);
 
-ULONG                  _CGTScroller_freedom_ (CGTScroller *this);
-void                   _CGTScroller_freedom  (CGTScroller *this, ULONG value);
+ULONG                  _CGTSCROLLER_FREEDOM_   (CGTScroller *this);
+void                   _CGTSCROLLER_FREEDOM    (CGTScroller *this, ULONG value);
 
 /***********************************************************************************
  *
@@ -294,34 +294,34 @@ struct CGTString_
     BOOL            replaceMode;
 };
 
-void _CGTString_CONSTRUCTOR (CGTString *this,
+void _CGTSTRING_CONSTRUCTOR (CGTString *this,
                             CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTString_disabled_ (CGTString *this);
-void                   _CGTString_disabled  (CGTString *this, BOOL value);
+BOOL                   _CGTSTRING_DISABLED_      (CGTString *this);
+void                   _CGTSTRING_DISABLED       (CGTString *this, BOOL value);
 
-BOOL                   _CGTString_immediate_ (CGTString *this);
-void                   _CGTString_immediate  (CGTString *this, BOOL value);
+BOOL                   _CGTSTRING_IMMEDIATE_     (CGTString *this);
+void                   _CGTSTRING_IMMEDIATE      (CGTString *this, BOOL value);
 
-BOOL                   _CGTString_tabCycle_ (CGTString *this);
-void                   _CGTString_tabCycle  (CGTString *this, BOOL value);
+BOOL                   _CGTSTRING_TABCYCLE_      (CGTString *this);
+void                   _CGTSTRING_TABCYCLE       (CGTString *this, BOOL value);
 
-CONST_STRPTR           _CGTString_str_ (CGTString *this);
-void                   _CGTString_str  (CGTString *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTSTRING_STR_           (CGTString *this);
+void                   _CGTSTRING_STR            (CGTString *this, CONST_STRPTR value);
 
-USHORT                 _CGTString_MaxChars_ (CGTString *this);
-void                   _CGTString_MaxChars  (CGTString *this, USHORT value);
+USHORT                 _CGTSTRING_MAXCHARS_      (CGTString *this);
+void                   _CGTSTRING_MAXCHARS       (CGTString *this, USHORT value);
 
-BOOL                   _CGTString_exitHelp_ (CGTString *this);
-void                   _CGTString_exitHelp  (CGTString *this, BOOL value);
+BOOL                   _CGTSTRING_EXITHELP_      (CGTString *this);
+void                   _CGTSTRING_EXITHELP       (CGTString *this, BOOL value);
 
-CONST_STRPTR           _CGTString_justification_ (CGTString *this);
-void                   _CGTString_justification  (CGTString *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTSTRING_JUSTIFICATION_ (CGTString *this);
+void                   _CGTSTRING_JUSTIFICATION  (CGTString *this, CONST_STRPTR value);
 
-BOOL                   _CGTString_replaceMode_ (CGTString *this);
-void                   _CGTString_replaceMode  (CGTString *this, BOOL value);
+BOOL                   _CGTSTRING_REPLACEMODE_   (CGTString *this);
+void                   _CGTSTRING_REPLACEMODE    (CGTString *this, BOOL value);
 
 /***********************************************************************************
  *
@@ -344,34 +344,34 @@ struct CGTInteger_
     BOOL            replaceMode;
 };
 
-void _CGTInteger_CONSTRUCTOR (CGTInteger *this,
+void _CGTINTEGER_CONSTRUCTOR (CGTInteger *this,
                             CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTInteger_disabled_ (CGTInteger *this);
-void                   _CGTInteger_disabled  (CGTInteger *this, BOOL value);
+BOOL                   _CGTINTEGER_DISABLED_      (CGTInteger *this);
+void                   _CGTINTEGER_DISABLED       (CGTInteger *this, BOOL value);
 
-BOOL                   _CGTInteger_immediate_ (CGTInteger *this);
-void                   _CGTInteger_immediate  (CGTInteger *this, BOOL value);
+BOOL                   _CGTINTEGER_IMMEDIATE_     (CGTInteger *this);
+void                   _CGTINTEGER_IMMEDIATE      (CGTInteger *this, BOOL value);
 
-BOOL                   _CGTInteger_tabCycle_ (CGTInteger *this);
-void                   _CGTInteger_tabCycle  (CGTInteger *this, BOOL value);
+BOOL                   _CGTINTEGER_TABCYCLE_      (CGTInteger *this);
+void                   _CGTINTEGER_TABCYCLE       (CGTInteger *this, BOOL value);
 
-LONG                   _CGTInteger_number_ (CGTInteger *this);
-void                   _CGTInteger_number  (CGTInteger *this, LONG value);
+LONG                   _CGTINTEGER_NUMBER_        (CGTInteger *this);
+void                   _CGTINTEGER_NUMBER         (CGTInteger *this, LONG value);
 
-USHORT                 _CGTInteger_maxChars_ (CGTInteger *this);
-void                   _CGTInteger_maxChars  (CGTInteger *this, USHORT value);
+USHORT                 _CGTINTEGER_MAXCHARS_      (CGTInteger *this);
+void                   _CGTINTEGER_MAXCHARS       (CGTInteger *this, USHORT value);
 
-BOOL                   _CGTInteger_exitHelp_ (CGTInteger *this);
-void                   _CGTInteger_exitHelp  (CGTInteger *this, BOOL value);
+BOOL                   _CGTINTEGER_EXITHELP_      (CGTInteger *this);
+void                   _CGTINTEGER_EXITHELP       (CGTInteger *this, BOOL value);
 
-CONST_STRPTR           _CGTInteger_justification_ (CGTInteger *this);
-void                   _CGTInteger_justification  (CGTInteger *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTINTEGER_JUSTIFICATION_ (CGTInteger *this);
+void                   _CGTINTEGER_JUSTIFICATION  (CGTInteger *this, CONST_STRPTR value);
 
-BOOL                   _CGTInteger_replaceMode_ (CGTInteger *this);
-void                   _CGTInteger_replaceMode  (CGTInteger *this, BOOL value);
+BOOL                   _CGTINTEGER_REPLACEMODE_   (CGTInteger *this);
+void                   _CGTINTEGER_REPLACEMODE    (CGTInteger *this, BOOL value);
 
 /***********************************************************************************
  *
@@ -394,34 +394,34 @@ struct CGTNumber_
     BOOL            clipped;
 };
 
-void _CGTNumber_CONSTRUCTOR (CGTNumber *this,
+void _CGTNUMBER_CONSTRUCTOR (CGTNumber *this,
                             CONST_STRPTR label, LONG number,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-LONG                   _CGTNumber_number_ (CGTNumber *this);
-void                   _CGTNumber_number  (CGTNumber *this, LONG value);
+LONG                   _CGTNUMBER_NUMBER_        (CGTNumber *this);
+void                   _CGTNUMBER_NUMBER         (CGTNumber *this, LONG value);
 
-BOOL                   _CGTNumber_Border_ (CGTNumber *this);
-void                   _CGTNumber_Border  (CGTNumber *this, BOOL value);
+BOOL                   _CGTNUMBER_BORDER_        (CGTNumber *this);
+void                   _CGTNUMBER_BORDER         (CGTNumber *this, BOOL value);
 
-UBYTE                  _CGTNumber_frontPen_ (CGTNumber *this);
-void                   _CGTNumber_frontPen  (CGTNumber *this, UBYTE value);
+UBYTE                  _CGTNUMBER_FRONTPEN_      (CGTNumber *this);
+void                   _CGTNUMBER_FRONTPEN       (CGTNumber *this, UBYTE value);
 
-UBYTE                  _CGTNumber_backPen_ (CGTNumber *this);
-void                   _CGTNumber_backPen  (CGTNumber *this, UBYTE value);
+UBYTE                  _CGTNUMBER_BACKPEN_       (CGTNumber *this);
+void                   _CGTNUMBER_BACKPEN        (CGTNumber *this, UBYTE value);
 
-UBYTE                  _CGTNumber_justification_ (CGTNumber *this);
-void                   _CGTNumber_justification  (CGTNumber *this, UBYTE value);
+UBYTE                  _CGTNUMBER_JUSTIFICATION_ (CGTNumber *this);
+void                   _CGTNUMBER_JUSTIFICATION  (CGTNumber *this, UBYTE value);
 
-CONST_STRPTR           _CGTNumber_format_ (CGTNumber *this);
-void                   _CGTNumber_format  (CGTNumber *this, CONST_STRPTR value);
+CONST_STRPTR           _CGTNUMBER_FORMAT_        (CGTNumber *this);
+void                   _CGTNUMBER_FORMAT         (CGTNumber *this, CONST_STRPTR value);
 
-ULONG                  _CGTNumber_maxNumberLen_ (CGTNumber *this);
-void                   _CGTNumber_maxNumberLen  (CGTNumber *this, ULONG value);
+ULONG                  _CGTNUMBER_MAXNUMBERLEN_  (CGTNumber *this);
+void                   _CGTNUMBER_MAXNUMBERLEN   (CGTNumber *this, ULONG value);
 
-BOOL                   _CGTNumber_clipped_ (CGTNumber *this);
-void                   _CGTNumber_clipped  (CGTNumber *this, BOOL value);
+BOOL                   _CGTNUMBER_CLIPPED_       (CGTNumber *this);
+void                   _CGTNUMBER_CLIPPED        (CGTNumber *this, BOOL value);
 
 /***********************************************************************************
  *
@@ -443,27 +443,27 @@ struct CGTMX_
 };
 
 void _CGTMX_CONSTRUCTOR (CGTMX *this,
-                            CONST_STRPTR label, CONST_STRPTR * labels, 
-                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                            void *user_data, ULONG flags, ULONG underscore);
+                         CONST_STRPTR label, CONST_STRPTR * labels,
+                         BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                         void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTMX_disabled_ (CGTMX *this);
-void                   _CGTMX_disabled  (CGTMX *this, BOOL value);
+BOOL                   _CGTMX_DISABLED_   (CGTMX *this);
+void                   _CGTMX_DISABLED    (CGTMX *this, BOOL value);
 
-CONST_STRPTR *         _CGTMX_labels_ (CGTMX *this);
-void                   _CGTMX_labels  (CGTMX *this, CONST_STRPTR * value);
+CONST_STRPTR *         _CGTMX_LABELS_     (CGTMX *this);
+void                   _CGTMX_LABELS      (CGTMX *this, CONST_STRPTR * value);
 
-USHORT                 _CGTMX_active_ (CGTMX *this);
-void                   _CGTMX_active  (CGTMX *this, USHORT value);
+USHORT                 _CGTMX_ACTIVE_     (CGTMX *this);
+void                   _CGTMX_ACTIVE      (CGTMX *this, USHORT value);
 
-USHORT                 _CGTMX_spacing_ (CGTMX *this);
-void                   _CGTMX_spacing  (CGTMX *this, USHORT value);
+USHORT                 _CGTMX_SPACING_    (CGTMX *this);
+void                   _CGTMX_SPACING     (CGTMX *this, USHORT value);
 
-BOOL                   _CGTMX_scaled_ (CGTMX *this);
-void                   _CGTMX_scaled  (CGTMX *this, BOOL value);
+BOOL                   _CGTMX_SCALED_     (CGTMX *this);
+void                   _CGTMX_SCALED      (CGTMX *this, BOOL value);
 
-ULONG                  _CGTMX_titlePlace_ (CGTMX *this);
-void                   _CGTMX_titlePlace  (CGTMX *this, ULONG value);
+ULONG                  _CGTMX_TITLEPLACE_ (CGTMX *this);
+void                   _CGTMX_TITLEPLACE  (CGTMX *this, ULONG value);
 
 /***********************************************************************************
  *
@@ -481,19 +481,19 @@ struct CGTCycle_
     USHORT          active;
 };
 
-void _CGTCycle_CONSTRUCTOR (CGTCycle *this,
+void _CGTCYCLE_CONSTRUCTOR (CGTCycle *this,
                             CONST_STRPTR label, CONST_STRPTR * labels,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTCycle_disabled_ (CGTCycle *this);
-void                   _CGTCycle_disabled  (CGTCycle *this, BOOL value);
+BOOL                   _CGTCYCLE_DISABLED_ (CGTCycle *this);
+void                   _CGTCYCLE_DISABLED  (CGTCycle *this, BOOL value);
 
-CONST_STRPTR *         _CGTCycle_labels_ (CGTCycle *this);
-void                   _CGTCycle_labels  (CGTCycle *this, CONST_STRPTR * value);
+CONST_STRPTR *         _CGTCYCLE_LABELS_   (CGTCycle *this);
+void                   _CGTCYCLE_LABELS    (CGTCycle *this, CONST_STRPTR * value);
 
-USHORT                 _CGTCycle_active_ (CGTCycle *this);
-void                   _CGTCycle_active  (CGTCycle *this, USHORT value);
+USHORT                 _CGTCYCLE_ACTIVE_   (CGTCycle *this);
+void                   _CGTCYCLE_ACTIVE    (CGTCycle *this, USHORT value);
 
 /***********************************************************************************
  *
@@ -516,31 +516,31 @@ struct CGTPalette_
     USHORT          numColors;
 };
 
-void _CGTPalette_CONSTRUCTOR (CGTPalette *this,
-                            CONST_STRPTR label, USHORT numColors, 
-                            BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                            void *user_data, ULONG flags, ULONG underscore);
+void _CGTPALETTE_CONSTRUCTOR (CGTPalette *this,
+                              CONST_STRPTR label, USHORT numColors,
+                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                              void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTPalette_disabled_ (CGTPalette *this);
-void                   _CGTPalette_disabled  (CGTPalette *this, BOOL value);
+BOOL                   _CGTPALETTE_DISABLED_         (CGTPalette *this);
+void                   _CGTPALETTE_DISABLED          (CGTPalette *this, BOOL value);
 
-UBYTE                  _CGTPalette_COLOR_ (CGTPalette *this);
-void                   _CGTPalette_COLOR  (CGTPalette *this, UBYTE value);
+UBYTE                  _CGTPALETTE_COLOR_            (CGTPalette *this);
+void                   _CGTPALETTE_COLOR             (CGTPalette *this, UBYTE value);
 
-UBYTE                  _CGTPalette_colorOffset_ (CGTPalette *this);
-void                   _CGTPalette_colorOffset  (CGTPalette *this, UBYTE value);
+UBYTE                  _CGTPALETTE_COLOROFFSET_      (CGTPalette *this);
+void                   _CGTPALETTE_COLOROFFSET       (CGTPalette *this, UBYTE value);
 
-USHORT                 _CGTPalette_indicatorWidth_ (CGTPalette *this);
-void                   _CGTPalette_indicatorWidth  (CGTPalette *this, USHORT value);
+USHORT                 _CGTPALETTE_INDICATORWIDTH_   (CGTPalette *this);
+void                   _CGTPALETTE_INDICATORWIDTH    (CGTPalette *this, USHORT value);
 
-USHORT                 _CGTPalette_indicatorHeight_ (CGTPalette *this);
-void                   _CGTPalette_indicatorHeight  (CGTPalette *this, USHORT value);
+USHORT                 _CGTPALETTE_INDICATORHEIGHT_  (CGTPalette *this);
+void                   _CGTPALETTE_INDICATORHEIGHT   (CGTPalette *this, USHORT value);
 
-UBYTE *                _CGTPalette_colorTable_ (CGTPalette *this);
-void                   _CGTPalette_colorTable  (CGTPalette *this, UBYTE * value);
+UBYTE *                _CGTPALETTE_COLORTABLE_       (CGTPalette *this);
+void                   _CGTPALETTE_COLORTABLE        (CGTPalette *this, UBYTE * value);
 
-USHORT                 _CGTPalette_numColors_ (CGTPalette *this);
-void                   _CGTPalette_numColors  (CGTPalette *this, USHORT value);
+USHORT                 _CGTPALETTE_NUMCOLORS_        (CGTPalette *this);
+void                   _CGTPALETTE_NUMCOLORS         (CGTPalette *this, USHORT value);
 
 /***********************************************************************************
  *
@@ -562,31 +562,31 @@ struct CGTListView_
     USHORT          spacing;
 };
 
-void _CGTListView_CONSTRUCTOR (CGTListView *this,
-                              CONST_STRPTR label, CExecList *labels,
-                              BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
-                              void *user_data, ULONG flags, ULONG underscore);
+void _CGTLISTVIEW_CONSTRUCTOR (CGTListView *this,
+                               CONST_STRPTR label, CExecList *labels,
+                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
+                               void *user_data, ULONG flags, ULONG underscore);
 
-BOOL                   _CGTListView_disabled_ (CGTListView *this);
-void                   _CGTListView_disabled  (CGTListView *this, BOOL value);
+BOOL                   _CGTLISTVIEW_DISABLED_    (CGTListView *this);
+void                   _CGTLISTVIEW_DISABLED     (CGTListView *this, BOOL value);
 
-SHORT                  _CGTListView_makeVisible_ (CGTListView *this);
-void                   _CGTListView_makeVisible  (CGTListView *this, SHORT value);
+SHORT                  _CGTLISTVIEW_MAKEVISIBLE_ (CGTListView *this);
+void                   _CGTLISTVIEW_MAKEVISIBLE  (CGTListView *this, SHORT value);
 
-CExecList             *_CGTListView_labels_ (CGTListView *this);
-void                   _CGTListView_labels  (CGTListView *this, CExecList * value);
+CExecList             *_CGTLISTVIEW_LABELS_      (CGTListView *this);
+void                   _CGTLISTVIEW_LABELS       (CGTListView *this, CExecList * value);
 
-BOOL                   _CGTListView_readOnly_ (CGTListView *this);
-void                   _CGTListView_readOnly  (CGTListView *this, BOOL value);
+BOOL                   _CGTLISTVIEW_READONLY_    (CGTListView *this);
+void                   _CGTLISTVIEW_READONLY     (CGTListView *this, BOOL value);
 
-USHORT                 _CGTListView_scrollWidth_ (CGTListView *this);
-void                   _CGTListView_scrollWidth  (CGTListView *this, USHORT value);
+USHORT                 _CGTLISTVIEW_SCROLLWIDTH_ (CGTListView *this);
+void                   _CGTLISTVIEW_SCROLLWIDTH  (CGTListView *this, USHORT value);
 
-USHORT                 _CGTListView_selected_ (CGTListView *this);
-void                   _CGTListView_selected  (CGTListView *this, USHORT value);
+USHORT                 _CGTLISTVIEW_SELECTED_    (CGTListView *this);
+void                   _CGTLISTVIEW_SELECTED     (CGTListView *this, USHORT value);
 
-USHORT                 _CGTListView_spacing_ (CGTListView *this);
-void                   _CGTListView_spacing  (CGTListView *this, USHORT value);
+USHORT                 _CGTLISTVIEW_SPACING_     (CGTListView *this);
+void                   _CGTLISTVIEW_SPACING      (CGTListView *this, USHORT value);
 
 
 /********************************************

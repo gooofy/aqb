@@ -58,13 +58,13 @@ static struct Gadget *_gtstring_deploy_cb (CGTGadget *gtg, struct Gadget *gad, A
     return gtg->gad;
 }
 
-void _CGTString_CONSTRUCTOR (CGTString *this,
+void _CGTSTRING_CONSTRUCTOR (CGTString *this,
                             CONST_STRPTR label,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_CGTString_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtstring_deploy_cb;
     this->disabled        = FALSE;
     this->immediate       = FALSE;
@@ -76,9 +76,9 @@ void _CGTString_CONSTRUCTOR (CGTString *this,
     this->replaceMode     = FALSE;
 }
 
-BOOL _CGTString_disabled_ (CGTString *this)
+BOOL _CGTSTRING_DISABLED_ (CGTString *this)
 {
-    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GA_Disabled, (intptr_t)&u, TAG_DONE);
@@ -87,105 +87,105 @@ BOOL _CGTString_disabled_ (CGTString *this)
     }
     return this->disabled;
 }
-void _CGTString_disabled (CGTString *this, BOOL disabled)
+void _CGTSTRING_DISABLED (CGTString *this, BOOL disabled)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
 }
 
-BOOL _CGTString_immediate_ (CGTString *this)
+BOOL _CGTSTRING_IMMEDIATE_ (CGTString *this)
 {
     return this->immediate;
 }
-void _CGTString_immediate (CGTString *this, BOOL immediate)
+void _CGTSTRING_IMMEDIATE (CGTString *this, BOOL immediate)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Immediate, immediate, TAG_DONE);
     }
     this->immediate = immediate;
 }
 
-BOOL _CGTStringabCycle_ (CGTString *this)
+BOOL _CGTSTRINGABCYCLE_ (CGTString *this)
 {
     return this->tabCycle;
 }
-void _CGTStringabCycle (CGTString *this, BOOL tabCycle)
+void _CGTSTRINGABCYCLE (CGTString *this, BOOL tabCycle)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_TabCycle, tabCycle, TAG_DONE);
     }
     this->tabCycle = tabCycle;
 }
 
-CONST_STRPTR _CGTString_str_ (CGTString *this)
+CONST_STRPTR _CGTSTRING_STR_ (CGTString *this)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         struct StringInfo * si = (struct StringInfo *)this->gadget.gad->SpecialInfo;
         return si->Buffer;
     }
     return this->str;
 }
-void _CGTString_str (CGTString *this, CONST_STRPTR str)
+void _CGTSTRING_STR (CGTString *this, CONST_STRPTR str)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTST_String, (intptr_t) str, TAG_DONE);
     }
     this->str = str;
 }
 
-USHORT _CGTString_MaxChars_ (CGTString *this)
+USHORT _CGTSTRING_MAXCHARS_ (CGTString *this)
 {
     return this->maxChars;
 }
-void _CGTString_MaxChars (CGTString *this, USHORT maxChars)
+void _CGTSTRING_MAXCHARS (CGTString *this, USHORT maxChars)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTST_MaxChars, maxChars, TAG_DONE);
     }
     this->maxChars = maxChars;
 }
 
-BOOL _CGTString_exitHelp_ (CGTString *this)
+BOOL _CGTSTRING_EXITHELP_ (CGTString *this)
 {
     return this->exitHelp;
 }
-void _CGTString_exitHelp (CGTString *this, BOOL exitHelp)
+void _CGTSTRING_EXITHELP (CGTString *this, BOOL exitHelp)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, STRINGA_ExitHelp, exitHelp, TAG_DONE);
     }
     this->exitHelp = exitHelp;
 }
 
-CONST_STRPTR _CGTString_justification_ (CGTString *this)
+CONST_STRPTR _CGTSTRING_JUSTIFICATION_ (CGTString *this)
 {
     return this->justification;
 }
-void _CGTString_justification (CGTString *this, CONST_STRPTR justification)
+void _CGTSTRING_JUSTIFICATION (CGTString *this, CONST_STRPTR justification)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, STRINGA_Justification, (intptr_t) justification, TAG_DONE);
     }
     this->justification = justification;
 }
 
-BOOL _CGTString_replaceMode_ (CGTString *this)
+BOOL _CGTSTRING_REPLACEMODE_ (CGTString *this)
 {
     return this->replaceMode;
 }
-void _CGTString_replaceMode (CGTString *this, BOOL replaceMode)
+void _CGTSTRING_REPLACEMODE (CGTString *this, BOOL replaceMode)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, STRINGA_ReplaceMode, replaceMode, TAG_DONE);
     }
@@ -193,12 +193,12 @@ void _CGTString_replaceMode (CGTString *this, BOOL replaceMode)
 }
 
 static intptr_t _CGTString_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
 };
 
-void _CGTString___init (CGTString *THIS)
+void _CGTSTRING___init (CGTString *THIS)
 {
     THIS->gadget._vTablePtr = (intptr_t **) &_CGTString_vtable;
 }

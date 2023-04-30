@@ -1,74 +1,113 @@
 '
-' coll5: ExecList test part 2
+' Collections Test 1: CArrayList class, part 1
 '
 
 OPTION EXPLICIT
 
 IMPORT Collections
 
-DIM AS CExecList a = CExecList(NT_USER)
-
 '
-' test AddNode / GetNodeAt
+' main
 '
 
-FOR i AS INTEGER = 0 TO 9
-    a.AddNode(new CExecNode (i*i, i, 0, "hubba") )
-NEXT i
-
-FOR i AS INTEGER = 0 TO 9
-    DIM n AS CExecNode PTR = a.GetNodeAt(i)
-    TRACE CAST(INTEGER, n->Value), n->Type, n->Name
-
-    ' test node property getters
-
-    ASSERT n->Type = i
-    ASSERT n->Name = "hubba"
-    ASSERT n->Value = i*i
-    ASSERT n->Pri = 0
-
-    ' test node property setters
-
-    n->Value = i
-    n->Type = i*i
-    n->Pri = 0
-    n->Name = "blubber"
-NEXT i
-
-' check if node property setters worked
-
-FOR i AS INTEGER = 0 TO 9
-    DIM n AS CExecNode PTR = a.GetNodeAt(i)
-
-    ASSERT n->Type = i*i
-    ASSERT n->Name = "blubber"
-    ASSERT n->Value = i
-    ASSERT n->Pri = 0
-NEXT i
+DIM s AS STRING
 
 '
-' test Clone()
+' try a simple string list
 '
 
-DIM AS CExecList PTR b
+DIM o1 AS CArrayList PTR = NEW CArrayList()
 
-b = CAST (CExecList PTR, a.Clone())
+'
+' test Add, GetAt
+'
 
-ASSERT b->Count = 10
+o1->Add("foo")
+o1->Add("bar")
+o1->Add("baz")
 
-FOR i AS INTEGER = 0 TO 9
-    DIM n AS CExecNode PTR = b->GetNodeAt(i)
+s = o1->GetAt (0)
+'TRACE s
+ASSERT s = "foo"
 
-    ASSERT n->Type = i*i
-    ASSERT n->Name = "blubber"
-    ASSERT n->Value = i
-    ASSERT n->Pri = 0
-NEXT i
+s = o1->GetAt (1)
+'TRACE s
+ASSERT s = "bar"
+
+s = o1->GetAt (2)
+'TRACE s
+ASSERT s = "baz"
+
+'
+' test Count
+'
+
+ASSERT o1->Count = 3
+
+'
+' test contains
+'
+
+DIM s2 AS STRING = "hubba"
+ASSERT NOT o1->Contains(s2)
+
+'
+' test SetAt
+'
+
+o1->SetAt (1, s2)
+
+'TRACE "3"
+s = o1->GetAt (1)
+'TRACE s
+ASSERT s=s2
+
+ASSERT o1->Contains(s2)
+
+'
+' test capacity getter
+'
+
+ASSERT o1->Capacity >= 3
+
+'
+' test IndexOf
+'
+ASSERT o1->IndexOf (s2)=1
+ASSERT o1->IndexOf (s2, 0, 1)=-1
+ASSERT o1->IndexOf (s2, 0, 2)=1
+ASSERT o1->IndexOf (s2, 2)=-1
+ASSERT o1->IndexOf (s2, 1)=1
+ASSERT o1->IndexOf ("not there")=-1
 
 '
 ' test RemoveAll
 '
 
-b->RemoveAll()
-ASSERT b->Count=0
+o1->RemoveAll()
+ASSERT o1->Count=0
+
+'
+' test Add again, this time cause several capacity upgrades
+'
+
+FOR i AS INTEGER = 1 TO 42
+    o1->Add("BLUBBER")
+NEXT i
+
+ASSERT o1->Count=42
+FOR i AS INTEGER = 0 TO 41
+    s = o1->GetAt(i)
+    'TRACE i, s
+    ASSERT s="BLUBBER"
+NEXT i
+
+ASSERT o1->Capacity >= 42
+
+'
+' test capacity setter
+'
+
+o1->Capacity=42
+ASSERT o1->Capacity=42
 

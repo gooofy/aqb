@@ -122,6 +122,7 @@ string strconcat      (U_poolId pid, const char *s1, const char*s2); // allocate
 
 string strprintf      (U_poolId pid, const char *format, ...); // allocates mem for resulting string
 string strlower       (U_poolId pid, const char *s);  // allocates mem for resulting string
+string strupper       (U_poolId pid, const char *s);  // allocates mem for resulting string
 
 int    strcicmp       (string a, string b); // string ignore case compare
 

@@ -289,29 +289,29 @@ static void vdprintf(const char *format, va_list args)
 
 			if (flags & ZEROPADFLAG) /* print sign and that like */
 				for (i = 0; i < size1; i++)
-					_debug_putc(buffer1[i]);
+					_DEBUG_PUTC(buffer1[i]);
 
 			if (!(flags & LALIGNFLAG)) /* Pad left */
 				for (i = 0; i < pad; i++)
-					_debug_putc(flags&ZEROPADFLAG?'0':' ');
+					_DEBUG_PUTC(flags&ZEROPADFLAG?'0':' ');
 
 			if (!(flags & ZEROPADFLAG)) /* print sign if not zero padded */
 				for (i = 0; i < size1; i++)
-					_debug_putc(buffer1[i]);
+					_DEBUG_PUTC(buffer1[i]);
 
 			for (i = size2; i < preci; i++) /* extend to precision */
-				_debug_putc('0');
+				_DEBUG_PUTC('0');
 
 			for (i = 0; i < size2; i++) /* print body */
-				_debug_putc(buffer2[i]);
+				_DEBUG_PUTC(buffer2[i]);
 
 			if (flags & LALIGNFLAG) /* Pad right */
 				for (i = 0; i < pad; i++)
-					_debug_putc(' ');
+					_DEBUG_PUTC(' ');
 
 			format = ptr;
 		} else
-			_debug_putc(*format++);
+			_DEBUG_PUTC(*format++);
 	}
 }
 

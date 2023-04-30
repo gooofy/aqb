@@ -24,28 +24,28 @@ struct CArrayList_
     LONG    _capacity;
 };
 
-void  _CArrayList___init      (CArrayList *self);
-char *_CArrayList_ToString_   (CArrayList *self);
+void  _CARRAYLIST___init      (CArrayList *self);
+char *_CARRAYLIST_TOSTRING_   (CArrayList *self);
 //BOOL  _CArrayList_Equals_     (CArrayList *self, CArrayList *pObjB);
 //ULONG _CArrayList_GetHashCode (CArrayList *self);
 
-VOID         _CArrayList_CONSTRUCTOR    (CArrayList *THIS, LONG    capacity);
-LONG         _CArrayList_Count_         (CArrayList *THIS);
-VOID         _CArrayList_capacity       (CArrayList *THIS, LONG    c);
-LONG         _CArrayList_capacity_      (CArrayList *THIS);
-intptr_t     _CArrayList_GetAt_         (CArrayList *THIS, LONG    index);
-VOID         _CArrayList_SetAt          (CArrayList *THIS, LONG    index, intptr_t obj);
-intptr_t  ***_CArrayList_GetEnumerator_ (CArrayList *THIS);
-CObject     *_CArrayList_Clone_         (CArrayList *THIS);
-LONG         _CArrayList_Add_           (CArrayList *THIS, intptr_t obj);
-BOOL         _CArrayList_Contains_      (CArrayList *THIS, intptr_t value);
-BOOL         _CArrayList_IsReadOnly_    (CArrayList *THIS);
-BOOL         _CArrayList_IsFixedSize_   (CArrayList *THIS);
-LONG         _CArrayList_IndexOf_       (CArrayList *THIS, intptr_t value, LONG startIndex, LONG count);
-VOID         _CArrayList_Insert         (CArrayList *THIS, LONG    index, intptr_t value);
-VOID         _CArrayList_Remove         (CArrayList *THIS, intptr_t value);
-VOID         _CArrayList_RemoveAt       (CArrayList *THIS, LONG    index);
-VOID         _CArrayList_RemoveAll      (CArrayList *THIS);
+VOID         _CARRAYLIST_CONSTRUCTOR    (CArrayList *THIS, LONG    capacity);
+LONG         _CARRAYLIST_COUNT_         (CArrayList *THIS);
+VOID         _CARRAYLIST_CAPACITY       (CArrayList *THIS, LONG    c);
+LONG         _CARRAYLIST_CAPACITY_      (CArrayList *THIS);
+intptr_t     _CARRAYLIST_GETAT_         (CArrayList *THIS, LONG    index);
+VOID         _CARRAYLIST_SETAT          (CArrayList *THIS, LONG    index, intptr_t obj);
+intptr_t  ***_CARRAYLIST_GETENUMERATOR_ (CArrayList *THIS);
+CObject     *_CARRAYLIST_CLONE_         (CArrayList *THIS);
+LONG         _CARRAYLIST_ADD_           (CArrayList *THIS, intptr_t obj);
+BOOL         _CARRAYLIST_CONTAINS_      (CArrayList *THIS, intptr_t value);
+BOOL         _CARRAYLIST_ISREADONLY_    (CArrayList *THIS);
+BOOL         _CARRAYLIST_ISFIXEDSIZE_   (CArrayList *THIS);
+LONG         _CARRAYLIST_INDEXOF_       (CArrayList *THIS, intptr_t value, LONG startIndex, LONG count);
+VOID         _CARRAYLIST_INSERT         (CArrayList *THIS, LONG    index, intptr_t value);
+VOID         _CARRAYLIST_REMOVE         (CArrayList *THIS, intptr_t value);
+VOID         _CARRAYLIST_REMOVEAT       (CArrayList *THIS, LONG    index);
+VOID         _CARRAYLIST_REMOVEALL      (CArrayList *THIS);
 
 struct CArrayListEnumerator_
 {
@@ -56,11 +56,11 @@ struct CArrayListEnumerator_
     intptr_t _currentElement;
 };
 
-void      _CArrayListEnumerator___init      (CArrayListEnumerator *THIS);
-VOID      _CArrayListEnumerator_CONSTRUCTOR (CArrayListEnumerator *THIS, CArrayList *list);
-BOOL      _CArrayListEnumerator_MoveNext_   (CArrayListEnumerator *THIS);
-intptr_t  _CArrayListEnumerator_Current_    (CArrayListEnumerator *THIS);
-VOID      _CArrayListEnumerator_Reset       (CArrayListEnumerator *THIS);
+void      _CARRAYLISTENUMERATOR___init      (CArrayListEnumerator *THIS);
+VOID      _CARRAYLISTENUMERATOR_CONSTRUCTOR (CArrayListEnumerator *THIS, CArrayList *list);
+BOOL      _CARRAYLISTENUMERATOR_MOVENEXT_   (CArrayListEnumerator *THIS);
+intptr_t  _CARRAYLISTENUMERATOR_CURRENT_    (CArrayListEnumerator *THIS);
+VOID      _CARRAYLISTENUMERATOR_RESET       (CArrayListEnumerator *THIS);
 
 typedef struct CExecList_           CExecList;
 typedef struct CExecNode_           CExecNode;
@@ -98,43 +98,43 @@ struct CExecListEnumerator_
     CExecNode    *_currentElement;
 };
 
-VOID         _CExecList___init         (CExecList *THIS);
-VOID         _CExecList_CONSTRUCTOR    (CExecList *THIS, UBYTE    lh_Type);
-struct List *_CExecList_ExecList_      (CExecList *THIS);
-VOID         _CExecList_AddNode_       (CExecList *THIS, CExecNode *en);
-CExecNode   *_CExecList_GetNodeAt_     (CExecList *THIS, LONG     index);
-intptr_t  ***_CExecList_GetEnumerator_ (CExecList *THIS);
-LONG         _CExecList_Count_         (CExecList *THIS);
-intptr_t     _CExecList_GetAt_         (CExecList *THIS, LONG     index);
-VOID         _CExecList_SetAt          (CExecList *THIS, LONG     index, intptr_t obj);
-LONG         _CExecList_Add_           (CExecList *THIS, intptr_t obj);
-BOOL         _CExecList_Contains_      (CExecList *THIS, intptr_t value);
-BOOL         _CExecList_IsReadOnly_    (CExecList *THIS);
-BOOL         _CExecList_IsFixedSize_   (CExecList *THIS);
-LONG         _CExecList_IndexOf_       (CExecList *THIS, intptr_t value, LONG     startIndex, LONG     Count);
-VOID         _CExecList_Insert         (CExecList *THIS, LONG     index, intptr_t value);
-VOID         _CExecList_Remove         (CExecList *THIS, intptr_t value);
-VOID         _CExecList_RemoveAt       (CExecList *THIS, LONG     index);
-VOID         _CExecList_RemoveAll      (CExecList *THIS);
-CObject     *_CExecList_Clone_         (CExecList *THIS);
+VOID         _CEXECLIST___init         (CExecList *THIS);
+VOID         _CEXECLIST_CONSTRUCTOR    (CExecList *THIS, UBYTE    lh_Type);
+struct List *_CEXECLIST_EXECLIST_      (CExecList *THIS);
+VOID         _CEXECLIST_ADDNODE_       (CExecList *THIS, CExecNode *en);
+CExecNode   *_CEXECLIST_GETNODEAT_     (CExecList *THIS, LONG     index);
+intptr_t  ***_CEXECLIST_GETENUMERATOR_ (CExecList *THIS);
+LONG         _CEXECLIST_COUNT_         (CExecList *THIS);
+intptr_t     _CEXECLIST_GETAT_         (CExecList *THIS, LONG     index);
+VOID         _CEXECLIST_SETAT          (CExecList *THIS, LONG     index, intptr_t obj);
+LONG         _CEXECLIST_ADD_           (CExecList *THIS, intptr_t obj);
+BOOL         _CEXECLIST_CONTAINS_      (CExecList *THIS, intptr_t value);
+BOOL         _CEXECLIST_ISREADONLY_    (CExecList *THIS);
+BOOL         _CEXECLIST_ISFIXEDSIZE_   (CExecList *THIS);
+LONG         _CEXECLIST_INDEXOF_       (CExecList *THIS, intptr_t value, LONG     startIndex, LONG     Count);
+VOID         _CEXECLIST_INSERT         (CExecList *THIS, LONG     index, intptr_t value);
+VOID         _CEXECLIST_REMOVE         (CExecList *THIS, intptr_t value);
+VOID         _CEXECLIST_REMOVEAT       (CExecList *THIS, LONG     index);
+VOID         _CEXECLIST_REMOVEALL      (CExecList *THIS);
+CObject     *_CEXECLIST_CLONE_         (CExecList *THIS);
 
-VOID         _CExecNode___init         (CExecNode *THIS);
-VOID         _CExecNode_CONSTRUCTOR    (CExecNode *THIS, intptr_t value, UBYTE    ln_Type, BYTE     ln_Pri, STRPTR   ln_Name);
-struct Node *_CExecNode_ExecNode_      (CExecNode *THIS);
-VOID         _CExecNode_TYPE           (CExecNode *THIS, UBYTE     t);
-UBYTE        _CExecNode_TYPE_          (CExecNode *THIS);
-VOID         _CExecNode_Pri            (CExecNode *THIS, BYTE      b);
-BYTE         _CExecNode_Pri_           (CExecNode *THIS);
-VOID         _CExecNode_Name           (CExecNode *THIS, STRPTR   *s);
-STRPTR       _CExecNode_Name_          (CExecNode *THIS);
-VOID         _CExecNode_value          (CExecNode *THIS, intptr_t v);
-intptr_t     _CExecNode_value_         (CExecNode *THIS);
+VOID         _CEXECNODE___init         (CExecNode *THIS);
+VOID         _CEXECNODE_CONSTRUCTOR    (CExecNode *THIS, intptr_t value, UBYTE    ln_Type, BYTE     ln_Pri, STRPTR   ln_Name);
+struct Node *_CEXECNODE_EXECNODE_      (CExecNode *THIS);
+VOID         _CEXECNODE_TYPE           (CExecNode *THIS, UBYTE     t);
+UBYTE        _CEXECNODE_TYPE_          (CExecNode *THIS);
+VOID         _CEXECNODE_PRI            (CExecNode *THIS, BYTE      b);
+BYTE         _CEXECNODE_PRI_           (CExecNode *THIS);
+VOID         _CEXECNODE_NAME           (CExecNode *THIS, STRPTR   *s);
+STRPTR       _CEXECNODE_NAME_          (CExecNode *THIS);
+VOID         _CEXECNODE_VALUE          (CExecNode *THIS, intptr_t v);
+intptr_t     _CEXECNODE_VALUE_         (CExecNode *THIS);
 
-VOID         _CExecListEnumerator___init      (CExecListEnumerator *THIS);
-VOID         _CExecListEnumerator_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list);
-BOOL         _CExecListEnumerator_MoveNext_   (CExecListEnumerator *THIS);
-intptr_t     _CExecListEnumerator_Current_    (CExecListEnumerator *THIS);
-VOID         _CExecListEnumerator_Reset       (CExecListEnumerator *THIS);
+VOID         _CEXECLISTENUMERATOR___init      (CExecListEnumerator *THIS);
+VOID         _CEXECLISTENUMERATOR_CONSTRUCTOR (CExecListEnumerator *THIS, CExecList *list);
+BOOL         _CEXECLISTENUMERATOR_MOVENEXT_   (CExecListEnumerator *THIS);
+intptr_t     _CEXECLISTENUMERATOR_CURRENT_    (CExecListEnumerator *THIS);
+VOID         _CEXECLISTENUMERATOR_RESET       (CExecListEnumerator *THIS);
 
 #endif // HAVE_COLLECTIONS_H
 

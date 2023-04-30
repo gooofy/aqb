@@ -57,13 +57,13 @@ static struct Gadget *_gttext_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APT
     return gtg->gad;
 }
 
-void _CGTText_CONSTRUCTOR (CGTText *this, CONST_STRPTR label,
+void _CGTTEXT_CONSTRUCTOR (CGTText *this, CONST_STRPTR label,
                           CONST_STRPTR text,
                           BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                           void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_CGTText_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gttext_deploy_cb;
     this->text            = text;
     this->copyText        = FALSE;
@@ -74,9 +74,9 @@ void _CGTText_CONSTRUCTOR (CGTText *this, CONST_STRPTR label,
     this->clipped         = TRUE;
 }
 
-CONST_STRPTR _CGTText_text_ (CGTText *this)
+CONST_STRPTR _CGTTEXT_TEXT_ (CGTText *this)
 {
-    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTTX_Text, (intptr_t)&u, TAG_DONE);
@@ -85,87 +85,87 @@ CONST_STRPTR _CGTText_text_ (CGTText *this)
     }
     return this->text;
 }
-void _CGTText_text (CGTText *this, CONST_STRPTR text)
+void _CGTTEXT_TEXT (CGTText *this, CONST_STRPTR text)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_Text, (intptr_t) text, TAG_DONE);
     }
     this->text = text;
 }
 
-BOOL _CGTText_copyText_ (CGTText *this)
+BOOL _CGTTEXT_COPYTEXT_ (CGTText *this)
 {
     return this->copyText;
 }
-void _CGTText_copyText (CGTText *this, BOOL copyText)
+void _CGTTEXT_COPYTEXT (CGTText *this, BOOL copyText)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_CopyText, copyText, TAG_DONE);
     }
     this->copyText = copyText;
 }
 
-BOOL _CGTText_Border_ (CGTText *this)
+BOOL _CGTTEXT_BORDER_ (CGTText *this)
 {
     return this->border;
 }
-void _CGTText_Border (CGTText *this, BOOL border)
+void _CGTTEXT_BORDER (CGTText *this, BOOL border)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_Border, border, TAG_DONE);
     }
     this->border = border;
 }
 
-UBYTE _CGTText_frontPen_ (CGTText *this)
+UBYTE _CGTTEXT_FRONTPEN_ (CGTText *this)
 {
     return this->frontPen;
 }
-void _CGTText_frontPen (CGTText *this, UBYTE frontPen)
+void _CGTTEXT_FRONTPEN (CGTText *this, UBYTE frontPen)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_FrontPen, frontPen, TAG_DONE);
     }
     this->frontPen = frontPen;
 }
 
-UBYTE _CGTText_backPen_ (CGTText *this)
+UBYTE _CGTTEXT_BACKPEN_ (CGTText *this)
 {
     return this->backPen;
 }
-void _CGTText_backPen (CGTText *this, UBYTE backPen)
+void _CGTTEXT_BACKPEN (CGTText *this, UBYTE backPen)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_BackPen, backPen, TAG_DONE);
     }
     this->backPen = backPen;
 }
 
-UBYTE _CGTText_justification_ (CGTText *this)
+UBYTE _CGTTEXT_JUSTIFICATION_ (CGTText *this)
 {
     return this->justification;
 }
-void _CGTText_justification (CGTText *this, UBYTE justification)
+void _CGTTEXT_JUSTIFICATION (CGTText *this, UBYTE justification)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_Justification, justification, TAG_DONE);
     }
     this->justification = justification;
 }
 
-BOOL _CGTText_clipped_ (CGTText *this)
+BOOL _CGTTEXT_CLIPPED_ (CGTText *this)
 {
     return this->clipped;
 }
-void _CGTText_clipped (CGTText *this, BOOL clipped)
+void _CGTTEXT_CLIPPED (CGTText *this, BOOL clipped)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTTX_Clipped, clipped, TAG_DONE);
     }
@@ -173,12 +173,12 @@ void _CGTText_clipped (CGTText *this, BOOL clipped)
 }
 
 static intptr_t _CGTText_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
 };
 
-void _CGTText___init (CGTText *THIS)
+void _CGTTEXT___init (CGTText *THIS)
 {
     THIS->gadget._vTablePtr = (intptr_t **) &_CGTText_vtable;
 }

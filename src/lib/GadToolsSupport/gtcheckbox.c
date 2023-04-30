@@ -50,41 +50,41 @@ static struct Gadget *_gtcheckbox_deploy_cb (CGTGadget *gtg, struct Gadget *gad,
     return gtg->gad;
 }
 
-void _CGTCheckBox_CONSTRUCTOR (CGTCheckBox *this, CONST_STRPTR label,
+void _CGTCHECKBOX_CONSTRUCTOR (CGTCheckBox *this, CONST_STRPTR label,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_CGTCheckBox_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d, label=%s\n", this, x1, y1, x2, y2, label ? label : "NULL");
-    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtcheckbox_deploy_cb;
     this->disabled         = FALSE;
     this->checked          = FALSE;
     this->scaled           = FALSE;
 }
 
-BOOL _CGTCheckBox_disabled_ (CGTCheckBox *this)
+BOOL _CGTCHECKBOX_DISABLED_ (CGTCheckBox *this)
 {
     return this->disabled;
 }
-void _CGTCheckBox_disabled (CGTCheckBox *this, BOOL disabled)
+void _CGTCHECKBOX_DISABLED (CGTCheckBox *this, BOOL disabled)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     this->disabled = disabled;
 }
 
-BOOL _CGTCheckBox_CHECKED_ (CGTCheckBox *this)
+BOOL _CGTCHECKBOX_CHECKED_ (CGTCheckBox *this)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
         return this->gadget.gad->Flags & GFLG_SELECTED;
     return this->checked;
 }
 
-void _CGTCheckBox_CHECKED (CGTCheckBox *this, BOOL checked)
+void _CGTCHECKBOX_CHECKED (CGTCheckBox *this, BOOL checked)
 {
     DPRINTF ("_CGTCheckBox_checked: this=0x%08x, checked=%d, size=%d\n", this, checked, sizeof (CGTCheckBox));
     #if 1
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         DPRINTF ("_CGTCheckBox_checked: is deployed, gad=0x%08x\n", this->gadget.gad);
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCB_Checked, checked, TAG_DONE);
@@ -94,25 +94,25 @@ void _CGTCheckBox_CHECKED (CGTCheckBox *this, BOOL checked)
     #endif
 }
 
-BOOL _CGTCheckBox_scaled_ (CGTCheckBox *this)
+BOOL _CGTCHECKBOX_SCALED_ (CGTCheckBox *this)
 {
     return this->scaled;
 }
 
-void _CGTCheckBox_scaled (CGTCheckBox *this, BOOL scaled)
+void _CGTCHECKBOX_SCALED (CGTCheckBox *this, BOOL scaled)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTCB_Scaled, scaled, TAG_DONE);
     this->scaled = scaled;
 }
 
 static intptr_t _CGTCheckBox_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
 };
 
-void _CGTCheckBox___init (CGTCheckBox *THIS)
+void _CGTCHECKBOX___init (CGTCheckBox *THIS)
 {
     THIS->gadget._vTablePtr = (intptr_t **) &_CGTCheckBox_vtable;
 }

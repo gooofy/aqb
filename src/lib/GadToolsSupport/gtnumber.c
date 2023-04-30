@@ -58,13 +58,13 @@ static struct Gadget *_gtnumber_deploy_cb (CGTGadget *gtg, struct Gadget *gad, A
     return gtg->gad;
 }
 
-void _CGTNumber_CONSTRUCTOR (CGTNumber *this,
+void _CGTNUMBER_CONSTRUCTOR (CGTNumber *this,
                             CONST_STRPTR label, LONG number,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
     DPRINTF("_CGTNumber_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _CGTGadget_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtnumber_deploy_cb;
     this->number          = number;
     this->border          = TRUE;
@@ -76,9 +76,9 @@ void _CGTNumber_CONSTRUCTOR (CGTNumber *this,
     this->clipped         = TRUE;
 }
 
-LONG _CGTNumber_number_ (CGTNumber *this)
+LONG _CGTNUMBER_NUMBER_ (CGTNumber *this)
 {
-    if (_CGTGadget_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTNM_Number, (intptr_t)&u, TAG_DONE);
@@ -87,100 +87,100 @@ LONG _CGTNumber_number_ (CGTNumber *this)
     }
     return this->number;
 }
-void _CGTNumber_number (CGTNumber *this, LONG number)
+void _CGTNUMBER_NUMBER (CGTNumber *this, LONG number)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_Number, number, TAG_DONE);
     }
     this->number = number;
 }
 
-BOOL _CGTNumber_Border_ (CGTNumber *this)
+BOOL _CGTNUMBER_BORDER_ (CGTNumber *this)
 {
     return this->border;
 }
-void _CGTNumber_Border (CGTNumber *this, BOOL border)
+void _CGTNUMBER_BORDER (CGTNumber *this, BOOL border)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_Border, border, TAG_DONE);
     }
     this->border = border;
 }
 
-UBYTE _CGTNumber_frontPen_ (CGTNumber *this)
+UBYTE _CGTNUMBER_FRONTPEN_ (CGTNumber *this)
 {
     return this->frontPen;
 }
-void _CGTNumber_frontPen (CGTNumber *this, UBYTE frontPen)
+void _CGTNUMBER_FRONTPEN (CGTNumber *this, UBYTE frontPen)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_FrontPen, frontPen, TAG_DONE);
     }
     this->frontPen = frontPen;
 }
 
-UBYTE _CGTNumber_backPen_ (CGTNumber *this)
+UBYTE _CGTNUMBER_BACKPEN_ (CGTNumber *this)
 {
     return this->backPen;
 }
-void _CGTNumber_backPen (CGTNumber *this, UBYTE backPen)
+void _CGTNUMBER_BACKPEN (CGTNumber *this, UBYTE backPen)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_BackPen, backPen, TAG_DONE);
     }
     this->backPen = backPen;
 }
 
-UBYTE _CGTNumber_justification_ (CGTNumber *this)
+UBYTE _CGTNUMBER_JUSTIFICATION_ (CGTNumber *this)
 {
     return this->justification;
 }
-void _CGTNumber_justification (CGTNumber *this, UBYTE justification)
+void _CGTNUMBER_JUSTIFICATION (CGTNumber *this, UBYTE justification)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_Justification, justification, TAG_DONE);
     }
     this->justification = justification;
 }
 
-CONST_STRPTR _CGTNumber_format_ (CGTNumber *this)
+CONST_STRPTR _CGTNUMBER_FORMAT_ (CGTNumber *this)
 {
     return this->format;
 }
-void _CGTNumber_format (CGTNumber *this, CONST_STRPTR format)
+void _CGTNUMBER_FORMAT (CGTNumber *this, CONST_STRPTR format)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_Format, (intptr_t) format, TAG_DONE);
     }
     this->format = format;
 }
 
-ULONG _CGTNumber_maxNumberLen_ (CGTNumber *this)
+ULONG _CGTNUMBER_MAXNUMBERLEN_ (CGTNumber *this)
 {
     return this->maxNumberLen;
 }
-void _CGTNumber_maxNumberLen (CGTNumber *this, ULONG maxNumberLen)
+void _CGTNUMBER_MAXNUMBERLEN (CGTNumber *this, ULONG maxNumberLen)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_MaxNumberLen, maxNumberLen, TAG_DONE);
     }
     this->maxNumberLen = maxNumberLen;
 }
 
-BOOL _CGTNumber_clipped_ (CGTNumber *this)
+BOOL _CGTNUMBER_CLIPPED_ (CGTNumber *this)
 {
     return this->clipped;
 }
-void _CGTNumber_clipped (CGTNumber *this, BOOL clipped)
+void _CGTNUMBER_CLIPPED (CGTNumber *this, BOOL clipped)
 {
-    if (_CGTGadget_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTNM_Clipped, clipped, TAG_DONE);
     }
@@ -188,12 +188,12 @@ void _CGTNumber_clipped (CGTNumber *this, BOOL clipped)
 }
 
 static intptr_t _CGTNumber_vtable[] = {
-    (intptr_t) _CObject_ToString_,
-    (intptr_t) _CObject_Equals_,
-    (intptr_t) _CObject_GetHashCode_
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
 };
 
-void _CGTNumber___init (CGTNumber *THIS)
+VOID _CGTNUMBER___init (CGTNumber *THIS)
 {
     THIS->gadget._vTablePtr = (intptr_t **) &_CGTNumber_vtable;
 }
