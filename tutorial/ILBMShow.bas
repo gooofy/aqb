@@ -9,6 +9,7 @@ OPTION EXPLICIT
 IMPORT IFFSupport
 
 DIM AS STRING picFileName = "PROGDIR:imgs/hope.iff"
+' DIM AS STRING picFileName = "SYS:x/hope.iff"
 
 REM read meta and palette information only for now
 
@@ -29,7 +30,7 @@ AW_FLAG_SIMPLE_REFRESH OR AW_FLAG_BORDERLESS OR AW_FLAG_ACTIVATE, 1
 
 REM now load the image body into our custom screen bitmap
 
-ILBM LOAD BITMAP "PROGDIR:imgs/hope.iff",bm
+ILBM LOAD BITMAP picFileName,bm
 
 REM WAIT FOR MOUSE BUTTON
 

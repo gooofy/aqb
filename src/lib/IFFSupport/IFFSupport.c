@@ -1,4 +1,4 @@
-
+//#define ENABLE_DPRINTF
 #include "IFFSupport.h"
 
 #include <clib/dos_protos.h>
@@ -41,9 +41,14 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
     ILBM_META_t myMeta;
     PALETTE_t myPalette;
 
+    DPRINTF ("_ilbm_read: fh=0x%08lx, bmRef=0x%08lx, scid=%d, pMeta=0x%08lx, pPalette=0x%08lx\n",
+             fh, bmRef, scid, pMeta, pPalette);
     if (!pMeta)
         pMeta = &myMeta;
-    pMeta->viewMode = 0;
+    DPRINTF ("_ilbm_read: pMeta before: nPlanes=%d, masking=%d, compression=%d, pad1=%d, transparentColor=%d, pageWidth=0x%04x, pageHeight=0x%04x, viewModes=0x%08lx\n",
+             (WORD) pMeta->nPlanes, (WORD) pMeta->masking, (WORD) pMeta->compression, (WORD) pMeta->pad1,
+             pMeta->transparentColor, pMeta->pageWidth, pMeta->pageHeight, pMeta->viewModes);
+    pMeta->viewModes = 0;
 
     if (!pPalette && (scid >=0))
         pPalette = &myPalette;
@@ -121,9 +126,10 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                     return;
                 }
 
-                ULONG l = Read (f, &pMeta->viewMode, clen);
+                ULONG l = Read (f, &pMeta->viewModes, clen);
                 if (l!=clen)
                     ERROR(ERR_IFF);
+                DPRINTF ("_ilbm_read: CAMG: viewModes=0x%08lx\n", pMeta->viewModes);
             }
             else
             {
@@ -282,13 +288,13 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                             }
                         }
 
-                        DPRINTF ("_ilbm_read BODY decoding done\n");
+                        DPRINTF ("_ilbm_read: BODY decoding done\n");
 
                         DEALLOCATE(src);
                     }
                     else
                     {
-                        DPRINTF ("_ilbm_read skipping %d bytes\n", clen);
+                        DPRINTF ("_ilbm_read: skipping %d bytes\n", clen);
                         Seek (f, clen, OFFSET_CURRENT);
                     }
                 }

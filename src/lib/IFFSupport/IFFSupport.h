@@ -30,7 +30,7 @@ typedef struct
 
     // CAMG (optional)
 
-    ULONG       viewMode;
+    ULONG       viewModes;
 
 } ILBM_META_t;
 

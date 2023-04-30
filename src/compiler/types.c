@@ -207,22 +207,30 @@ void Ty_fieldCalcOffset (Ty_ty ty, Ty_member field)
     assert (field->kind == Ty_recField);
 
     // 68k alignment
-    unsigned int s = Ty_size(field->u.field.ty);
-    //if (s>1 && (recordType->u.record.uiSize % 2))
-    //    recordType->u.record.uiSize++;
-    if (s<2)
-        s=2;
+    //if (s<2)
+    //    s=2;
 
+    unsigned int s = Ty_size(field->u.field.ty);
     switch (ty->kind)
     {
         case Ty_record:
+        {
+            // 68k alignment
+            if (s>1 && (ty->u.record.uiSize % 2))
+                ty->u.record.uiSize++;
             field->u.field.uiOffset   = ty->u.record.uiSize;
             ty->u.record.uiSize += s;
             break;
+        }
         case Ty_class:
+        {
+            // 68k alignment
+            if (s>1 && (ty->u.cls.uiSize % 2))
+                ty->u.cls.uiSize++;
             field->u.field.uiOffset   = ty->u.cls.uiSize;
             ty->u.cls.uiSize += s;
             break;
+        }
         default:
             assert(FALSE);
     }
