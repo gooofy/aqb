@@ -17,6 +17,12 @@ CONST AE_GTG_CALLBACK AS INTEGER = 404
 CONST AE_GTG_BUFFER   AS INTEGER = 405
 CONST AE_GTG_NUM      AS INTEGER = 406
 
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- GadTools Gadgets OOP Wrappers
+' --
+' --------------------------------------------------------------------------------------------------------
+
 CLASS CGTGadget
 
     PUBLIC:
@@ -518,6 +524,12 @@ END CLASS
 
 DECLARE EXTERN SUB      GTGADGETS DEPLOY
 DECLARE EXTERN SUB      GTGADGETS FREE
+
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- Misc
+' --
+' --------------------------------------------------------------------------------------------------------
 
 DECLARE EXTERN SUB      GTG DRAW BEVEL BOX (_COORD2(BYVAL s1 AS BOOLEAN=FALSE, BYVAL x1 AS INTEGER, BYVAL y1 AS INTEGER, BYVAL s2 AS BOOLEAN=FALSE, BYVAL x2 AS INTEGER, BYVAL y2 AS INTEGER), BYVAL recessed AS BOOLEAN = FALSE)
 
