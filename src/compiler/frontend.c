@@ -894,6 +894,12 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
                 return FALSE;
 
             return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
+
+        case Ty_forwardPtr:
+            if ( (tyFrom->kind == Ty_string) || (tyFrom->kind == Ty_pointer) || (tyFrom->kind == Ty_forwardPtr) )
+                return TRUE;
+            return FALSE;
+
         case Ty_pointer:
             //if (Ty_isInt(tyFrom))
             //    return TRUE;
@@ -909,7 +915,7 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
 
             if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            
+
             Ty_ty tyFromPtr = tyFrom->u.pointer;
             Ty_ty tyToPtr = tyTo->u.pointer;
 
@@ -5907,7 +5913,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     {
                         *tkn = (*tkn)->next;
 
-                        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
+                        if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty))
                             return EM_error((*tkn)->pos, "argument type descriptor expected here.");
                     }
 
@@ -9007,6 +9013,19 @@ static bool nextch (char *ch, void *u)
     return n==1;
 }
 
+static void _checkLeftoverForwardPtrsInFormals(Ty_proc proc)
+{
+    for (Ty_formal formal = proc->formals; formal; formal=formal->next)
+    {
+        if (formal->ty->kind != Ty_forwardPtr)
+            continue;
+        Ty_ty tyForward = E_resolveType(g_sleStack->env, formal->ty->u.sForward);
+        if (!tyForward)
+            EM_error(0, "unresolved forward type of formal %s.%s", S_name(proc->name), S_name(formal->name));
+        formal->ty = Ty_Pointer(FE_mod->name, tyForward);
+    }
+}
+
 static void _checkLeftoverForwards(S_scope env)
 {
     TAB_iter i = S_Iter(env);
@@ -9073,12 +9092,24 @@ static void _checkLeftoverForwards(S_scope env)
                                 case Ty_recMethod:
                                     if (!member->u.method->proc->hasBody && !member->u.method->proc->isExtern)
                                         EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
+                                    else
+                                        _checkLeftoverForwardPtrsInFormals (member->u.method->proc);
                                     break;
                                 case Ty_recProperty:
-                                    if (member->u.property.getter && !member->u.property.getter->proc->hasBody && !member->u.property.getter->proc->isExtern)
-                                        EM_error(0, "missing implementation of getter for %s.%s", S_name(sym), S_name(member->name));
-                                    if (member->u.property.setter && !member->u.property.setter->proc->hasBody && !member->u.property.setter->proc->isExtern)
-                                        EM_error(0, "missing implementation of setter for %s.%s", S_name(sym), S_name(member->name));
+                                    if (member->u.property.getter)
+                                    {
+                                        if (!member->u.property.getter->proc->hasBody && !member->u.property.getter->proc->isExtern)
+                                            EM_error(0, "missing implementation of getter for %s.%s", S_name(sym), S_name(member->name));
+                                        else
+                                            _checkLeftoverForwardPtrsInFormals (member->u.property.getter->proc);
+                                    }
+                                    if (member->u.property.setter)
+                                    {
+                                        if (!member->u.property.setter->proc->hasBody && !member->u.property.setter->proc->isExtern)
+                                            EM_error(0, "missing implementation of setter for %s.%s", S_name(sym), S_name(member->name));
+                                        else
+                                            _checkLeftoverForwardPtrsInFormals (member->u.property.setter->proc);
+                                    }
                                     break;
                             }
                         }
