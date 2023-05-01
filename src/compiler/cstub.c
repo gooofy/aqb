@@ -195,7 +195,7 @@ static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc, bool writ
     if (writeBody)
     {
         fprintf (cstubf, "\n{\n");
-        fprintf (cstubf, "    _aqb_assert (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", S_name(tyCls->u.cls.name), S_name(proc->name));
+        fprintf (cstubf, "    _AQB_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", S_name(tyCls->u.cls.name), S_name(proc->name));
 
         if (proc->returnTy && proc->returnTy)
         {
@@ -495,7 +495,7 @@ static void _writeStubInits (FILE *cstubf, S_scope scope)
         if (tyCls->kind != Ty_class)
             continue;
 
-        fprintf (cstubf, "void _%s___init (%s *THIS)\n", S_name(tyCls->u.cls.name), S_name(tyCls->u.cls.name));
+        fprintf (cstubf, "void _%s___init (%s *THIS)\n", strupper(UP_codegen, S_name(tyCls->u.cls.name)), S_name(tyCls->u.cls.name));
         fprintf (cstubf, "{\n");
         fprintf (cstubf, "    THIS->_vTablePtr = (intptr_t **) &_%s_vtable;\n", S_name(tyCls->u.cls.name));
 
