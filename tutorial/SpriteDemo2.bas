@@ -24,7 +24,7 @@ COLOR 3
 
 FOR x AS INTEGER = 10 TO 630 STEP 3
     LINE (x, 10)-(320,190)
-NEXT x    
+NEXT x
 
 COLOR 1
 
@@ -33,7 +33,7 @@ PRINT "Press mouse button to quit"
 
 REM main loop: sprite animation, event handling happens during VWAIT
 
-SUB doQuit
+SUB doQuit (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS ANY PTR)
     SYSTEM
 END SUB
 ON MOUSE CALL doQuit
@@ -45,17 +45,17 @@ DIM AS INTEGER x=100, y=100
 WHILE TRUE
     VWAIT
     SPRITE MOVE 1, (x, y)
-    
+
     x = x + vx
     y = y + vy
-    
+
     IF (x>500) OR (x<10) THEN
-        vx = -vx        
+        vx = -vx
     END IF
-    
+
     IF (y>170) OR (y<20) THEN
         vy = -vy
     END IF
-    
+
 WEND
 

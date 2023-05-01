@@ -56,27 +56,27 @@ BOB SHOW gorilla(curBOB)
 WHILE TRUE
     VWAIT
     BOB MOVE gorilla(curBOB), (x, y)
-    
+
     x = x + vx
     y = y + vy
-    
+
     IF x MOD 10 = 0 THEN
-        
-        BOB HIDE gorilla(curBOB)        
+
+        BOB HIDE gorilla(curBOB)
         curBOB = (curBOB+1) MOD 3
-        BOB MOVE gorilla(curBOB), (x, y)        
-        BOB SHOW gorilla(curBOB)        
-        
-    END IF        
-    
-    IF (x>500) OR (x<10) THEN
-        vx = -vx        
+        BOB MOVE gorilla(curBOB), (x, y)
+        BOB SHOW gorilla(curBOB)
+
     END IF
-    
+
+    IF (x>500) OR (x<10) THEN
+        vx = -vx
+    END IF
+
     IF (y>170) OR (y<20) THEN
         vy = -vy
     END IF
-    
-    GELS REPAINT    
+
+    GELS REPAINT
 WEND
 
