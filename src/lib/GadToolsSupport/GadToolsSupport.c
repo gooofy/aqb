@@ -26,11 +26,52 @@
 
 extern struct Library    *GadToolsBase ;
 
-gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
+static gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
+
+static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
+{
+    if (ext->deployed)
+    {
+		DPRINTF ("_gtgadgets_free: was deployed\n");
+        RemoveGList (_g_cur_win, ext->gadList, -1);
+        ext->deployed = FALSE;
+    }
+
+    if (ext->gadList)
+    {
+		DPRINTF ("_gtgadgets_free: g_gadList not null\n");
+        FreeGadgets (ext->gadList);
+        ext->gadList = NULL;
+    }
+}
+
+static void window_close_cb (short win_id, void *ud)
+{
+    DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
+
+    gt_win_ext_t *ext = &_g_gt_win_ext[win_id-1];
+    struct Window *win = _aqb_get_win(win_id);
+    _gtgadgets_free (win, ext);
+}
+
+gt_win_ext_t * _gt_get_ext (SHORT win_id)
+{
+    _aqb_get_output (/*needGfx=*/TRUE);
+    gt_win_ext_t *ext = &_g_gt_win_ext[win_id-1];
+
+	if (!ext->close_cb_installed)
+	{
+		DPRINTF ("_gt_get_ext: installing custom close callback for the current window\n");
+		_window_add_close_cb (window_close_cb, NULL);
+		ext->close_cb_installed = TRUE;
+	}
+
+    return ext;
+}
 
 SHORT _GTGADGET_NEXT_ID (void)
 {
-    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = _gt_get_ext(_g_cur_win_id);
     return ext->id++;
 }
 
@@ -41,7 +82,7 @@ void _CGTGADGET_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR txt,
 
     DPRINTF("_CGTGadget_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, txt=%s\n", this, x1, y1, txt ? txt : (CONST_STRPTR)"NULL");
 
-    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = _gt_get_ext(_g_cur_win_id);
 
     if (ext->deployed)
     {
@@ -145,32 +186,6 @@ BOOL _CGTGADGET_DEPLOYED_ (CGTGadget *this)
     return this->gad != NULL;
 }
 
-static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
-{
-    if (ext->deployed)
-    {
-		DPRINTF ("_gtgadgets_free: was deployed\n");
-        RemoveGList (_g_cur_win, ext->gadList, -1);
-        ext->deployed = FALSE;
-    }
-
-    if (ext->gadList)
-    {
-		DPRINTF ("_gtgadgets_free: g_gadList not null\n");
-        FreeGadgets (ext->gadList);
-        ext->gadList = NULL;
-    }
-}
-
-static void window_close_cb (short win_id, void *ud)
-{
-    DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
-
-    gt_win_ext_t *ext = &_g_gt_win_ext[win_id];
-    struct Window *win = _aqb_get_win(win_id);
-    _gtgadgets_free (win, ext);
-}
-
 static BOOL window_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *message, window_refresh_cb_t refresh_cb, void *refresh_ud)
 {
     BOOL handled = FALSE;
@@ -260,7 +275,7 @@ void GTGADGETS_DEPLOY (void)
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = _gt_get_ext(_g_cur_win_id);
 
     if (ext->deployed)
     {
@@ -271,13 +286,6 @@ void GTGADGETS_DEPLOY (void)
         ClearScreen(_g_cur_rp);
         ext->deployed = FALSE;
     }
-
-	if (!ext->close_cb_installed)
-	{
-		DPRINTF ("GTGADGETS_DEPLOY: installing custom close callback for the current window\n");
-		_window_add_close_cb (window_close_cb, NULL);
-		ext->close_cb_installed = TRUE;
-	}
 
     if (!ext->vinfo)
     {
@@ -339,7 +347,7 @@ void GTGADGETS_FREE (void)
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = _gt_get_ext(_g_cur_win_id);
 
     _gtgadgets_free (_g_cur_win, ext);
 }
@@ -350,7 +358,7 @@ void GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y
 
     _aqb_get_output (/*needGfx=*/TRUE);
 
-    gt_win_ext_t *ext = &_g_gt_win_ext[_g_cur_win_id];
+    gt_win_ext_t *ext = _gt_get_ext(_g_cur_win_id);
     if (recessed)
         DrawBevelBox (_g_cur_rp, x1, y1, x2-x1+1, y2-y1+1, GTBB_Recessed, TRUE, GT_VisualInfo, (ULONG) ext->vinfo, TAG_DONE);
     else

@@ -505,9 +505,8 @@ typedef struct CGTPalette_ CGTPalette;
 
 struct CGTPalette_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
-    USHORT          depth;
     UBYTE           color;
     UBYTE           colorOffset;
     USHORT          indicatorWidth;
@@ -622,7 +621,7 @@ typedef struct
     SHORT              id;
 } gt_win_ext_t;
 
-extern gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
+gt_win_ext_t *_gt_get_ext (SHORT win_id);
 
 #endif
 

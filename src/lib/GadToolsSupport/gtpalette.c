@@ -1,3 +1,5 @@
+#define ENABLE_DPRINTF
+
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
 
@@ -25,13 +27,16 @@ static struct Gadget *_gtpalette_deploy_cb (CGTGadget *gtg, struct Gadget *gad, 
 {
     CGTPalette *gt = (CGTPalette *)gtg;
 
+    DPRINTF ("GTPalette deploy: color=%d, colorOffset=%d, iw=%d, ih=%d, colorTable=0x%08lx, numColors=%d\n",
+             (int)gt->color, (int)gt->colorOffset, gt->indicatorWidth, gt->indicatorHeight,
+             (intptr_t)gt->colorTable, gt->numColors);
+
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
 
     gtg->gad = CreateGadget (PALETTE_KIND, gad, &gtg->ng,
                              GT_Underscore   , gtg->underscore,
                              GA_Disabled     , gt->disabled,
-                             GTPA_Depth      , gt->depth,
                              GTPA_Color      , gt->color,
                              GTPA_ColorOffset , gt->colorOffset,
                              GTPA_IndicatorWidth , gt->indicatorWidth,
@@ -93,19 +98,6 @@ void _CGTPALETTE_DISABLED (CGTPalette *this, BOOL disabled)
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
-}
-
-USHORT _CGTPALETTE_DEPTH_ (CGTPalette *this)
-{
-    return this->depth;
-}
-void _CGTPALETTE_DEPTH (CGTPalette *this, USHORT depth)
-{
-    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
-    {
-        GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTPA_Depth, depth, TAG_DONE);
-    }
-    this->depth = depth;
 }
 
 UBYTE _CGTPALETTE_COLOR_ (CGTPalette *this)
