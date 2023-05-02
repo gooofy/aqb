@@ -52,7 +52,7 @@
 #define EXT_FLAG_LOCAL         0x20
 
 #define MAX_BUF               1024
-#define MAX_NUM_HUNKS           64
+#define MAX_NUM_HUNKS          128 
 
 #define ENABLE_SYMBOL_HUNK
 
