@@ -10,7 +10,8 @@ SRCS = GadToolsTutorial1.bas GadToolsTutorial2.bas GadToolsTutorial3.bas GadTool
 	   ILBMBitmap.bas ILBMShow.bas \
 	   SoundDemo1.bas SoundDemo2.bas SoundDemo3.bas \
 	   SpriteDemo1.bas SpriteDemo2.bas SpriteDemo3.bas \
-	   TagListTutorial.bas
+	   TagListTutorial.bas \
+	   MenuTutorial1.bas
 
 ASMDIR_AMIGAOS_DEMO = aqb_tutorial/asm
 OBJDIR_AMIGAOS_DEMO = aqb_tutorial/obj
@@ -39,7 +40,7 @@ $(OBJS) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
 $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o
-	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/AnimSupport.a ../src/lib/GadToolsSupport.a ../src/lib/Collections.a ../src/lib/IFFSupport.a ../src/lib/OSGadTools.a ../src/lib/_brt/_brt.a ../src/lib/_aqb/_aqb.a -o $@
+	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/AnimSupport.a ../src/lib/GadToolsSupport.a ../src/lib/IntuiSupport.a ../src/lib/Collections.a ../src/lib/IFFSupport.a ../src/lib/OSGadTools.a ../src/lib/_brt/_brt.a ../src/lib/_aqb/_aqb.a -o $@
 	$(STRIP_AMIGAOS) $@
 
 $(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)/%.s : %.bas
@@ -49,7 +50,7 @@ $(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIG
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
 $(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO_OPT)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o
-	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/AnimSupport.a  ../src/lib/GadToolsSupport.a ../src/lib/Collections.a ../src/lib/IFFSupport.a ../src/lib/OSGadTools.a ../src/lib/_brt/_brt.a ../src/lib/_aqb/_aqb.a -o $@
+	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/AnimSupport.a  ../src/lib/GadToolsSupport.a ../src/lib/IntuiSupport.a ../src/lib/Collections.a ../src/lib/IFFSupport.a ../src/lib/OSGadTools.a ../src/lib/_brt/_brt.a ../src/lib/_aqb/_aqb.a -o $@
 	$(STRIP_AMIGAOS) $@
 
 clean:

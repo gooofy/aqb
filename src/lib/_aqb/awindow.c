@@ -338,10 +338,10 @@ void WINDOW_CLOSE(short id)
     _g_winlist[id-1].win=NULL;
 }
 
-void _window_add_close_cb (window_close_cb_t cb, void *ud)
+void _window_add_close_cb (SHORT win_id, window_close_cb_t cb, void *ud)
 {
 #ifdef ENABLE_DEBUG
-    DPRINTF ("_window_add_close_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
+    DPRINTF ("_window_add_close_cb win_id=%d, cb=0x%08lx\n", win_id, cb);
 #endif
     win_close_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
     if (!node)
@@ -349,16 +349,16 @@ void _window_add_close_cb (window_close_cb_t cb, void *ud)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = _g_winlist[_g_cur_win_id-1].close_cbs;
+    node->next = _g_winlist[win_id-1].close_cbs;
     node->cb   = cb;
     node->ud   = ud;
-    _g_winlist[_g_cur_win_id-1].close_cbs = node;
+    _g_winlist[win_id-1].close_cbs = node;
 }
 
-void _window_add_msg_cb (window_msg_cb_t cb)
+void _window_add_msg_cb (SHORT win_id, window_msg_cb_t cb)
 {
 #ifdef ENABLE_DEBUG
-    DPRINTF ("_window_add_msg_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
+    DPRINTF ("_window_add_msg_cb win_id=%d, cb=0x%08lx\n", win_id, cb);
 #endif
     win_msg_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
     if (!node)
@@ -366,9 +366,9 @@ void _window_add_msg_cb (window_msg_cb_t cb)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = _g_winlist[_g_cur_win_id-1].msg_cbs;
+    node->next = _g_winlist[win_id-1].msg_cbs;
     node->cb   = cb;
-    _g_winlist[_g_cur_win_id-1].msg_cbs = node;
+    _g_winlist[win_id-1].msg_cbs = node;
 }
 
 /*
@@ -493,7 +493,7 @@ enum _aqb_output_type  _aqb_get_output (BOOL needGfx)
 
 struct Window *_aqb_get_win (SHORT wid)
 {
-    struct Window *win = _g_winlist[wid].win;
+    struct Window *win = _g_winlist[wid-1].win;
     return win;
 }
 

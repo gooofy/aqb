@@ -227,7 +227,7 @@ void SPRITE_FREE (SPRITE_t *sprite)
 
     for (SHORT i=0; i<MAX_NUM_WINDOWS; i++)
     {
-        struct Window *win = _aqb_get_win(i);
+        struct Window *win = _aqb_get_win(i+1);
         if (!win || (win->Pointer != sprite->posctldata))
             continue;
         ClearPointer (win);
@@ -349,7 +349,7 @@ void GELS_INIT (UBYTE sprRsrvd)
                             switch (ot)
                             {
                                 case _aqb_ot_window:
-                                    _window_add_close_cb (_win_gels_cleanup_cb, NULL);
+                                    _window_add_close_cb (_g_cur_win_id, _win_gels_cleanup_cb, NULL);
                                     break;
                                 case  _aqb_ot_screen:
                                     // FIXME

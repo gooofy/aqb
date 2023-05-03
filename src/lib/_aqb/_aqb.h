@@ -118,8 +118,8 @@ enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
 struct Window         *_aqb_get_win    (SHORT wid);
 SHORT                  _aqb_get_win_id (struct Window *win);
 
-void   _window_add_close_cb   (window_close_cb_t cb, void *ud);
-void   _window_add_msg_cb     (window_msg_cb_t cb);
+void   _window_add_close_cb   (SHORT win_id, window_close_cb_t cb, void *ud);
+void   _window_add_msg_cb     (SHORT win_id, window_msg_cb_t cb);
 
 void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);
 void   SCREEN_CLOSE           (SHORT id);

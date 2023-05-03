@@ -1,10 +1,11 @@
 include ../../config.mk
 
 .PHONY: clean _brt minbrt IFFSupport AnimSupport Collections \
-        OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools _aqb GadToolsSupport
+        OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools \
+		_aqb GadToolsSupport IntuiSupport
 
 all: _brt minbrt OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools \
-      _aqb IFFSupport AnimSupport Collections GadToolsSupport
+     _aqb IFFSupport AnimSupport Collections IntuiSupport GadToolsSupport
 
 _brt:
 	cd _brt ; make all
@@ -42,6 +43,9 @@ OSIntuition:
 OSGadTools:
 	cd OSGadTools ; make all
 
+IntuiSupport:
+	cd IntuiSupport ; make all
+
 GadToolsSupport:
 	cd GadToolsSupport ; make all
 
@@ -67,3 +71,4 @@ clean:
 	cd OSUtility ; make clean
 	cd OSGadTools ; make clean
 	cd GadToolsSupport ; make clean
+	cd IntuiSupport ; make clean

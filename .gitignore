@@ -77,6 +77,8 @@ src/lib/IFFSupport/*.sym
 src/lib/AnimSupport/*.sym
 src/lib/OSGadToolsConsts/*.sym
 src/lib/OSUtility/*.sym
+src/lib/IntuiSupport/IntuiSupport.sym
+src/lib/IntuiSupport/stub.c
 src/lib/GadToolsSupport/GadToolsSupport.sym
 src/lib/GadToolsSupport/foo.bas
 src/lib/GadToolsSupport/foo.h

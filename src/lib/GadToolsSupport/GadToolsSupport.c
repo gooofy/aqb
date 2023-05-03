@@ -61,8 +61,8 @@ gt_win_ext_t * _gt_get_ext (SHORT win_id)
 
 	if (!ext->close_cb_installed)
 	{
-		DPRINTF ("_gt_get_ext: installing custom close callback for the current window\n");
-		_window_add_close_cb (window_close_cb, NULL);
+		DPRINTF ("_gt_get_ext: installing custom close callback, win_id=%d\n", win_id);
+		_window_add_close_cb (win_id, window_close_cb, NULL);
 		ext->close_cb_installed = TRUE;
 	}
 
@@ -328,7 +328,7 @@ void GTGADGETS_DEPLOY (void)
     if (!ext->msg_cb_installed)
     {
         DPRINTF ("GTGADGETS_DEPLOY: installing custom msg callback for the current window\n");
-        _window_add_msg_cb (window_msg_cb);
+        _window_add_msg_cb (_g_cur_win_id, window_msg_cb);
         ext->msg_cb_installed = TRUE;
     }
 
