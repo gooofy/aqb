@@ -280,7 +280,9 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         g_nw.Type     = WBENCHSCREEN;
     }
 
-    struct Window *win = (struct Window *)OpenWindow(&g_nw);
+    //struct Window *win = (struct Window *)OpenWindow(&g_nw);
+
+    struct Window *win = OpenWindowTags (&g_nw, WA_NewLookMenus, TRUE, TAG_DONE);
 
     if (!win)
     {

@@ -76,6 +76,7 @@ VOID _CMENU_ADDITEM (CMenu *THIS, CMenuItem *item)
     }
     else
     {
+        THIS->_menu.FirstItem = &item->_item;
         THIS->_firstItem = THIS->_lastItem = item;
     }
 }
@@ -84,6 +85,22 @@ VOID _CMENU_REMOVEALLITEMS (CMenu *THIS)
 {
     THIS->_firstItem = NULL;
     THIS->_lastItem = NULL;
+}
+
+static void _layoutItems (struct RastPort *tmprp, CMenuItem *citem)
+{
+    SHORT y=0;
+    while (citem)
+    {
+        citem->_item.LeftEdge=0;
+        citem->_item.TopEdge=y;
+        citem->_item.Width=100;
+        citem->_item.Height=10;
+
+        y += 10;
+
+        citem=citem->_nextItem;
+    }
 }
 
 VOID _CMENU_DEPLOY (CMenu *THIS)
@@ -109,6 +126,9 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
         menu->LeftEdge = x;
         menu->Width    = TextLength (&tmprp, menu->MenuName, LEN_ (menu->MenuName))
                          + 2 * (ext->screen->BarHBorder - ext->screen->BarVBorder);
+
+        _layoutItems (&tmprp, cmenu->_firstItem);
+
 
         x += menu->Width + ext->screen_font->tf_XSize;
     }
