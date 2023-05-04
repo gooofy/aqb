@@ -92,8 +92,9 @@ VOID               _CMENUITEM_ADDSUBITEM    (CMenuItem *THIS, CMenuItem *SubItem
 VOID               _CMENUITEM_REMOVESUBITEMS(CMenuItem *THIS);
 VOID               _CMENUITEM_NEXTITEM      (CMenuItem *THIS, CMenuItem *i);
 CMenuItem         *_CMENUITEM_NEXTITEM_     (CMenuItem *THIS);
+VOID               _CMENUITEM_BBOX          (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2);
 
-VOID               _CMENU_CONSTRUCTOR      (CMenu *THIS, STRPTR   Name);
+VOID               _CMENU_CONSTRUCTOR      (CMenu *THIS, STRPTR Name, CMenu *prevMenu);
 VOID               _CMENU_NEXTMENU         (CMenu *THIS, CMenu *x);
 CMenu             *_CMENU_NEXTMENU_        (CMenu *THIS);
 VOID               _CMENU_FIRSTITEM        (CMenu *THIS, CMenuItem *i);

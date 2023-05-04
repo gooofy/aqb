@@ -1,4 +1,4 @@
-// #define ENABLE_DPRINTF
+#define ENABLE_DPRINTF
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
@@ -28,6 +28,8 @@ VOID _CMENUITEM_CONSTRUCTOR (CMenuItem *THIS, STRPTR text, CMenu *parent)
     THIS->_item.SelectFill    = NULL;
     THIS->_item.Command       = 0;
     THIS->_item.SubItem       = NULL;
+    THIS->_subItem            = NULL;
+    THIS->_nextItem           = NULL;
 
     if (text)
         _CMENUITEM_TEXT (THIS, text);
@@ -63,6 +65,9 @@ VOID _CMENUITEM_TEXT (CMenuItem *THIS, STRPTR s)
     }
 
     it->IText = s;
+
+    DPRINTF ("_CMENUITEM_TEXT: THIS=0x%08lx, it=0x%08lx -> %s, NextText=0x%08lx, SelectFill=0x%08lx\n",
+             THIS, it, s, it->NextText, THIS->_item.SelectFill);
 }
 
 STRPTR   _CMENUITEM_TEXT_ (CMenuItem *THIS)
@@ -223,6 +228,103 @@ CMenuItem *_CMENUITEM_NEXTITEM_ (CMenuItem *THIS)
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.NextItem");
     return NULL;
 }
+
+static struct TextFont *_itext_setfont (struct RastPort *rp, const struct TextAttr *tattr)
+{
+    if (!tattr)
+        return NULL;
+
+    struct TextFont *font = OpenFont(tattr);
+    if (!font)
+        return NULL;
+
+    SetFont (rp, font);
+    SetSoftStyle (rp, tattr->ta_Style, 0xff);
+
+    return font;
+}
+
+static void _itext_bbox (struct IntuiText *itext, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
+{
+    struct TextExtent te;
+    struct RastPort rp;
+    InitRastPort (&rp);
+
+    *x1 = 32000;
+    *y1 = 32000;
+    *x2 = -32000;
+    *y2 = -32000;
+
+    while (itext)
+    {
+        struct TextFont *font = _itext_setfont (&rp, itext->ITextFont);
+
+        TextExtent (&rp, itext->IText, LEN_(itext->IText), &te);
+
+        if (font)
+            CloseFont(font);
+
+        DPRINTF ("_itext_bbox: extent of 0x%08lx (%s): %dx%d\n", (intptr_t)itext, itext->IText, te.te_Width, te.te_Height);
+
+        WORD tx1 = itext->LeftEdge;
+        WORD ty1 = itext->TopEdge;
+
+        WORD tx2 = tx1+te.te_Width  - 1;
+        WORD ty2 = ty1+te.te_Height - 1;
+
+        if (tx1<*x1)
+            *x1 = tx1;
+        if (ty1<*y1)
+            *y1 = ty1;
+        if (tx2>*x2)
+            *x2 = tx2;
+        if (ty2>*y2)
+            *y2 = ty2;
+
+        DPRINTF ("_itext_bbox: itext->NextText=0x%08lx\n", (intptr_t)itext->NextText);
+        itext = itext->NextText;
+    }
+    DPRINTF ("_itext_bbox done.\n");
+}
+
+VOID _CMENUITEM_BBOX (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
+{
+    *x1 = 32000;
+    *y1 = 32000;
+    *x2 = -32000;
+    *y2 = -32000;
+
+    if (THIS->_item.Flags & ITEMTEXT)
+    {
+        struct IntuiText *itext = (struct IntuiText *) THIS->_item.ItemFill;
+
+        DPRINTF ("_CMENUITEM_BBOX: THIS=0x%08lx, itext=0x%08lx, SelectFill=0x%08lx\n",
+                 THIS, itext, THIS->_item.SelectFill);
+
+        WORD tx1, ty1, tx2, ty2;
+        _itext_bbox (itext, &tx1, &ty1, &tx2, &ty2);
+        *x1 = tx1; *y1=ty1; *x2=tx2; *y2=ty2;
+
+        itext = (struct IntuiText *) THIS->_item.SelectFill;
+        if (itext)
+        {
+            _itext_bbox (itext, &tx1, &ty1, &tx2, &ty2);
+            if (tx1<*x1)
+                *x1 = tx1;
+            if (ty1<*y1)
+                *y1 = ty1;
+            if (tx2>*x2)
+                *x2 = tx2;
+            if (ty2>*y2)
+                *y2 = ty2;
+        }
+    }
+    else
+    {
+        _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.BBOX for images");
+    }
+}
+
 
 static intptr_t _CMenuItem_vtable[] = {
     (intptr_t) _COBJECT_TOSTRING_,

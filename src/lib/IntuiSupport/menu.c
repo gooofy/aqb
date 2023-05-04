@@ -1,4 +1,4 @@
-// #define ENABLE_DPRINTF
+#define ENABLE_DPRINTF
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
@@ -18,7 +18,7 @@
 #include <clib/graphics_protos.h>
 #include <inline/graphics.h>
 
-VOID _CMENU_CONSTRUCTOR (CMenu *THIS, STRPTR Name)
+VOID _CMENU_CONSTRUCTOR (CMenu *THIS, STRPTR Name, CMenu *prevMenu)
 {
     _aqb_get_output (/*needGfx=*/TRUE);
 
@@ -31,6 +31,12 @@ VOID _CMENU_CONSTRUCTOR (CMenu *THIS, STRPTR Name)
     THIS->_menu.Flags     = MENUENABLED;
     THIS->_menu.MenuName  = Name;
     THIS->_menu.FirstItem = NULL;
+
+    if (prevMenu)
+    {
+        prevMenu->_nextMenu = THIS;
+        prevMenu->_menu.NextMenu = &THIS->_menu;
+    }
 }
 
 VOID _CMENU_NEXTMENU (CMenu *THIS, CMenu *x)
@@ -87,20 +93,42 @@ VOID _CMENU_REMOVEALLITEMS (CMenu *THIS)
     THIS->_lastItem = NULL;
 }
 
-static void _layoutItems (struct RastPort *tmprp, CMenuItem *citem)
+#define ITEM_MIN_HEIGHT 8
+
+static void _layoutItems (CMenuItem *cfirstitem)
 {
-    SHORT y=0;
-    while (citem)
+    SHORT y = 0;
+    UWORD maxw = 0;
+    for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
     {
-        citem->_item.LeftEdge=0;
-        citem->_item.TopEdge=y;
-        citem->_item.Width=100;
-        citem->_item.Height=10;
+        SHORT ix1, iy1, ix2, iy2;
+        _CMENUITEM_BBOX (citem, &ix1, &iy1, &ix2, &iy2);
 
-        y += 10;
+        DPRINTF ("_layoutItems: bbox: %d/%d - %d/%d\n", ix1,iy1, ix2,iy2);
 
-        citem=citem->_nextItem;
+        SHORT iw = ix2-ix1+1;
+        SHORT ih = iy2-iy1+1;
+        DPRINTF ("_layoutItems: ->iw=%d, ih=%d\n", iw, ih);
+
+        if (ih<ITEM_MIN_HEIGHT)
+            ih = ITEM_MIN_HEIGHT;
+
+        citem->_item.LeftEdge = 0;
+        citem->_item.TopEdge  = y;
+        citem->_item.Width    = ix1+iw;
+        citem->_item.Height   = iy1+ih+1;
+
+        DPRINTF ("_layoutItems: ->item at %d/%d, %dx%d\n",
+                 citem->_item.LeftEdge, citem->_item.TopEdge, citem->_item.Width, citem->_item.Height);
+        y += iy1+ih+1;
+        if (citem->_item.Width>maxw)
+            maxw = citem->_item.Width;
     }
+
+    // make all items the same (full) width
+    for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
+        citem->_item.Width    = maxw;
+
 }
 
 VOID _CMENU_DEPLOY (CMenu *THIS)
@@ -112,6 +140,7 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
     // scratch rastport for text/font measurements
     struct RastPort  tmprp;
     InitRastPort(&tmprp);
+    SetFont (&tmprp, ext->screen_font);
 
     UWORD x = 2;
 
@@ -119,7 +148,6 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
     {
         struct Menu *menu = &cmenu->_menu;
 
-        SetFont (&tmprp, ext->screen_font);
 
         menu->TopEdge  = 0;
         menu->Height   = ext->screen_font->tf_YSize;
@@ -127,8 +155,7 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
         menu->Width    = TextLength (&tmprp, menu->MenuName, LEN_ (menu->MenuName))
                          + 2 * (ext->screen->BarHBorder - ext->screen->BarVBorder);
 
-        _layoutItems (&tmprp, cmenu->_firstItem);
-
+        _layoutItems (cmenu->_firstItem);
 
         x += menu->Width + ext->screen_font->tf_XSize;
     }
