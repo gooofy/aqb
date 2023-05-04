@@ -3943,6 +3943,10 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                     case Ty_single:
                         CG_FloatItem (item, i, to_ty);
                         return;
+                    case Ty_double:
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4001,6 +4005,10 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         return;
                     case Ty_single:
                         return;
+                    case Ty_double:
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4047,8 +4055,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         item->ty = to_ty;
                         break;
                     case Ty_double:
-                        assert(FALSE); // FIXME
-                        break;
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4086,8 +4095,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         item->ty = to_ty;
                         break;
                     case Ty_double:
-                        assert(FALSE); // FIXME
-                        break;
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4126,8 +4136,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         item->ty = to_ty;
                         break;
                     case Ty_double:
-                        assert(FALSE); // FIXME
-                        break;
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4159,8 +4170,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         item->ty = to_ty;
                         break;
                     case Ty_double:
-                        assert(FALSE); // FIXME
-                        break;
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4194,8 +4206,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         item->ty = to_ty;
                         break;
                     case Ty_double:
-                        assert(FALSE); // FIXME
-                        break;
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4223,8 +4236,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         item->ty = to_ty;
                         break;
                     case Ty_double:
-                        assert(FALSE); // FIXME
-                        break;
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: unknown type kind %d", to_ty->kind);
                         assert(0);
@@ -4252,14 +4266,19 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
                         break;
 
+                    case Ty_double:
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         assert(FALSE); // FIXME
                 }
                 break;
 
             case Ty_double:             // double ->
-                assert(FALSE); // FIXME
-                break;
+                // FIXME: implement double precision fp support
+                EM_error(pos, "double precision floating point is unsupported");
+                return;
 
             case Ty_pointer:            // pointer ->
                 switch (to_ty->kind)
@@ -4309,6 +4328,10 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         CG_loadVal (code, pos, frame, item);
                         item->ty = to_ty;
                         break;
+                    case Ty_double:
+                        // FIXME: implement double precision fp support
+                        EM_error(pos, "double precision floating point is unsupported");
+                        return;
                     default:
                         EM_error(pos, "*** codegen.c : CG_castItem: internal error: cannot cast any to type kind %d", to_ty->kind);
                         assert(0);

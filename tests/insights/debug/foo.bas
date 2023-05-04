@@ -1,17 +1,9 @@
 OPTION EXPLICIT
 
-DIM SHARED AS Integer t = 2
-DIM SHARED AS Integer z = 3
+DIM SHARED colr AS Integer
 
-t = z + (1 - z) * z ' okay
-t = (1 - z) ' okay
-
-SUB Crash(x AS Integer) REM
-    t = x
-    t = (1 - x) ' CRASH!
-    t = (-x + 1)
-    t = (1 + x) ' CRASH!
-    t = (x + 1)
-    t = x + (1 - x) * x ' CRASH!
+SUB test (split AS Integer)
+    colr = split + 4 REM this works
+    colr = 16 - split REM this leads to crash
 END SUB
 
