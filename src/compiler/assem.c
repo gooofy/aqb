@@ -642,11 +642,11 @@ void AS_sprint(string str, AS_instr i, AS_dialect dialect)
         case AS_MOVE_ILabel_AnDn:
             instrformat(str, "    move`w   #`l, `d", i, dialect);      break;
         case AS_MOVE_Label_AnDn:
-            instrformat(str, "    move`w    `l, `d", i, dialect);      break;
+            instrformat(str, "    move`w   `l, `d", i, dialect);      break;
         case AS_MOVE_Label_Ofp:
             instrformat(str, "    move`w    `l, `o(a5)", i, dialect);      break;
         case AS_MOVE_AnDn_Label:
-            instrformat(str, "    move`w    `s, `l", i, dialect);      break;
+            instrformat(str, "    move`w   `s, `l", i, dialect);      break;
         case AS_MOVE_Imm_Label:
             instrformat(str, "    move`w   #`i, `l", i, dialect);      break;
         case AS_MOVEM_Rs_PDsp:
@@ -1106,44 +1106,27 @@ static uint16_t REG_MASK_PREDECR[AS_NUM_REGISTERS] = {
     0x0100  // d7
 };
 
-#if 0 // FIXME: remove
-static bool calcLabelOffset (AS_segment seg, TAB_table labels, Temp_label l, int16_t *offset)
-{
-    AS_labelInfo li = TAB_look (labels, l);
-    if (!li)
-        return FALSE;
-    if (!li->defined)
-        return FALSE;
-    int32_t o = li->offset - seg->mem_pos;
-    if ((o>32767) || (o<-32768))
-        return FALSE;
-    *offset = o;
-    return TRUE;
-}
 
-static bool isLabelExternal (AS_segment seg, TAB_table labels, Temp_label l)
-{
-    AS_labelInfo li = TAB_look (labels, l);
-    if (!li)
-        return FALSE;
-    if (!li->defined)
-        return TRUE;
-    return FALSE;
-}
-#endif
 
 static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool displacement)
 {
     AS_labelInfo li = TAB_look (labels, l);
     if (!li)
     {
+        AS_labelFixup fixup = U_poolAlloc (UP_assem, sizeof (*fixup));
+
+        fixup->next         = NULL;
+        fixup->seg          = seg;
+        fixup->offset       = seg->mem_pos;
+        fixup->displacement = displacement;
+
         li = U_poolAlloc (UP_assem, sizeof (*li));
 
         li->defined      = FALSE;
-        li->displacement = displacement;
-        li->offset       = seg->mem_pos;
+        li->seg          = NULL;
+        li->offset       = 0;
+        li->fixups       = fixup;
         li->label        = l;
-        li->seg          = seg;
         li->ty           = NULL;
 
         TAB_enter (labels, l, li);
@@ -1175,17 +1158,19 @@ static bool emit_Label (AS_segment seg, TAB_table labels, Temp_label l, bool dis
         }
         else
         {
-            uint32_t offset = seg->mem_pos;
+            AS_labelFixup fixup = U_poolAlloc (UP_assem, sizeof (*fixup));
+
+            fixup->next         = li->fixups;
+            fixup->seg          = seg;
+            fixup->offset       = seg->mem_pos;
+            fixup->displacement = displacement;
+
+            li->fixups = fixup;
+
             if (displacement)
-            {
-                assert (li->offset < 65535); // FIXME
-                emit_u2 (seg, li->offset);
-            }
+                emit_u2 (seg, 0);
             else
-            {
-                emit_u4 (seg, li->offset);
-            }
-            li->offset = offset;
+                emit_u4 (seg, 0);
         }
     }
     return TRUE;
@@ -1206,39 +1191,36 @@ static bool defineLabel (AS_object obj, Temp_label label, AS_segment seg, uint32
         // fixup
 
         AS_segment codeSeg = obj->codeSeg;
-        uint32_t fix_loc = li->offset;
-        while (fix_loc)
+        for (AS_labelFixup fu=li->fixups; fu; fu=fu->next)
         {
-            LOG_printf (LOG_DEBUG, "assem: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fix_loc, offset);
-            uint32_t next_fix_loc = 0;
-            if (li->displacement)
+            LOG_printf (LOG_DEBUG, "assem: FIXUP label=%s at 0x%zx -> %zd\n", S_name(label), fu->offset, offset);
+            if (fu->displacement)
             {
-                uint16_t *p = (uint16_t *) (codeSeg->mem+fix_loc);
-                next_fix_loc = ENDIAN_SWAP_16(*p);
-                uint16_t o = (uint16_t) (offset-fix_loc);
+                assert (fu->seg == seg);
+                uint16_t *p = (uint16_t *) (codeSeg->mem+fu->offset);
+                uint16_t o = (uint16_t) (offset-fu->offset);
                 *p = ENDIAN_SWAP_16(o);
             }
             else
             {
-                uint32_t *p = (uint32_t *) (codeSeg->mem+fix_loc);
-                next_fix_loc = ENDIAN_SWAP_32(*p);
+                uint32_t *p = (uint32_t *) (fu->seg->mem+fu->offset);
                 *p = ENDIAN_SWAP_32(offset);
-                AS_segmentAddReloc32 (UP_assem, codeSeg, seg, fix_loc);
+                AS_segmentAddReloc32 (UP_assem, fu->seg, seg, fu->offset);
             }
-            fix_loc = next_fix_loc;
         }
+
     }
     else
     {
         li = U_poolAlloc (UP_assem, sizeof (*li));
-        li->displacement = FALSE;
         TAB_enter (obj->labels, label, li);
     }
 
     li->defined = TRUE;
-    li->label   = label;
     li->seg     = seg;
     li->offset  = offset;
+    li->fixups  = NULL;
+    li->label   = label;
     li->ty      = ty;
 
     if (expt)
@@ -2380,6 +2362,11 @@ void AS_assembleDataString (AS_segment seg, string data)
     emit_u1(seg, 0);
 }
 
+void AS_assembleDataPtr (AS_object obj, Temp_label label)
+{
+    emit_Label (obj->dataSeg, obj->labels, label, /*displacement=*/FALSE);
+}
+
 void AS_assembleBSSAlign2 (AS_segment seg)
 {
     if (seg->mem_pos % 2)
@@ -2394,7 +2381,6 @@ void AS_assembleBSS (AS_segment seg, uint32_t size)
 void AS_resolveLabels (U_poolId pid, AS_object obj)
 {
     LOG_printf(LOG_DEBUG, "assem: AS_resolveLabels\n");
-    AS_segment seg = obj->codeSeg;
 
     TAB_iter i = TAB_Iter(obj->labels);
 
@@ -2404,22 +2390,21 @@ void AS_resolveLabels (U_poolId pid, AS_object obj)
     {
         if (!li->defined)
         {
-            if (li->displacement)
-            {
-                EM_error(0, "assem: undefined label %s\n", Temp_labelstring(l));
-                continue;
-            }
-
 #if LOG_LEVEL == LOG_DEBUG
             LOG_printf(LOG_DEBUG, "AS_resolveLabels: XREF %s\n", S_name (l));
 #endif
-            uint32_t off = li->offset;
-            while (off)
+            
+            for (AS_labelFixup fu=li->fixups; fu; fu=fu->next)
             {
-                AS_segmentAddRef (UP_assem, seg, l, off, Temp_w_L);
-                uint32_t next_off = ENDIAN_SWAP_32(*((uint32_t *) (seg->mem+off)));
-                *((uint32_t *) (seg->mem+off)) = 0;
-                off = next_off;
+                if (fu->displacement)
+                {
+                    EM_error(0, "assem: undefined label %s\n", Temp_labelstring(l));
+                    continue;
+                }
+
+                uint32_t *p = (uint32_t *) (fu->seg->mem+fu->offset);
+                *p = 0;
+                AS_segmentAddRef (UP_assem, fu->seg, l, fu->offset, Temp_w_L);
             }
         }
 

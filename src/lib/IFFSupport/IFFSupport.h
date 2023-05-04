@@ -7,7 +7,7 @@
  * IFF / ILBM support
  */
 
-#define AE_IFF                      200
+#define ERR_IFF              500
 
 #define mskNone                0
 #define mskHasMask             1
@@ -30,7 +30,7 @@ typedef struct
 
     // CAMG (optional)
 
-    ULONG       viewMode;
+    ULONG       viewModes;
 
 } ILBM_META_t;
 

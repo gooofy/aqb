@@ -24,8 +24,8 @@ TYPE MenuItem
     AS INTEGER         Width, Height
     AS UINTEGER        Flags
     AS LONG            MutualExclude
-    AS VOID PTR        ItemFill
-    AS VOID PTR        SelectFill
+    AS ANY PTR         ItemFill
+    AS ANY PTR         SelectFill
     AS BYTE            Command
     AS MenuItem PTR    SubItem
     AS UINTEGER        NextSelect
@@ -82,13 +82,13 @@ TYPE Gadget
     AS UINTEGER     Flags
     AS UINTEGER     Activation
     AS UINTEGER     GadgetType
-    AS VOID PTR     GadgetRender
-    AS VOID PTR     SelectRender
+    AS ANY PTR      GadgetRender
+    AS ANY PTR      SelectRender
     AS IntuiText PTR    GadgetText
     AS LONG     MutualExclude
-    AS VOID PTR     SpecialInfo
+    AS ANY PTR      SpecialInfo
     AS UINTEGER     GadgetID
-    AS VOID PTR     UserData
+    AS ANY PTR      UserData
 END TYPE
 
 TYPE ExtGadget
@@ -98,13 +98,13 @@ TYPE ExtGadget
     AS UINTEGER         Flags
     AS UINTEGER         Activation
     AS UINTEGER         GadgetType
-    AS VOID PTR         GadgetRender
-    AS VOID PTR         SelectRender
+    AS ANY PTR          GadgetRender
+    AS ANY PTR          SelectRender
     AS IntuiText PTR    GadgetText
     AS LONG             MutualExclude
-    AS VOID PTR         SpecialInfo
+    AS ANY PTR          SpecialInfo
     AS UINTEGER         GadgetID
-    AS VOID PTR         UserData
+    AS ANY PTR          UserData
     AS ULONG            MoreFlags
     AS INTEGER          BoundsLeftEdge
     AS INTEGER          BoundsTopEdge
@@ -378,7 +378,7 @@ TYPE IntuiMessage
     AS ULONG     Class
     AS UINTEGER     Code
     AS UINTEGER     Qualifier
-    AS VOID PTR     IAddress
+    AS ANY PTR      IAddress
     AS INTEGER     MouseX, MouseY
     AS ULONG     Seconds, Micros
     AS Window PTR    IDCMPWindow
@@ -789,8 +789,8 @@ CONST AS UINTEGER AUTODRAWMODE  = JAM2
 CONST AS UINTEGER AUTOLEFTEDGE  = 6
 CONST AS UINTEGER AUTOTOPEDGE   = 3
 
-CONST AS VOID PTR AUTOITEXTFONT = NULL
-CONST AS VOID PTR AUTONEXTTEXT  = NULL
+CONST AS ANY PTR  AUTOITEXTFONT = NULL
+CONST AS ANY PTR  AUTONEXTTEXT  = NULL
 
 CONST AS UINTEGER SELECTUP       = IECODE_LBUTTON  OR  IECODE_UP_PREFIX
 CONST AS UINTEGER SELECTDOWN     = IECODE_LBUTTON

@@ -1,3 +1,5 @@
+//#define ENABLE_DPRINTF
+
 #include "_aqb.h"
 #include "../_brt/_brt.h"
 
@@ -278,7 +280,9 @@ void WINDOW(SHORT id, UBYTE *title, BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT 
         g_nw.Type     = WBENCHSCREEN;
     }
 
-    struct Window *win = (struct Window *)OpenWindow(&g_nw);
+    //struct Window *win = (struct Window *)OpenWindow(&g_nw);
+
+    struct Window *win = OpenWindowTags (&g_nw, WA_NewLookMenus, TRUE, TAG_DONE);
 
     if (!win)
     {
@@ -336,10 +340,10 @@ void WINDOW_CLOSE(short id)
     _g_winlist[id-1].win=NULL;
 }
 
-void _window_add_close_cb (window_close_cb_t cb, void *ud)
+void _window_add_close_cb (SHORT win_id, window_close_cb_t cb, void *ud)
 {
 #ifdef ENABLE_DEBUG
-    DPRINTF ("_window_add_close_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
+    DPRINTF ("_window_add_close_cb win_id=%d, cb=0x%08lx\n", win_id, cb);
 #endif
     win_close_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
     if (!node)
@@ -347,16 +351,16 @@ void _window_add_close_cb (window_close_cb_t cb, void *ud)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = _g_winlist[_g_cur_win_id-1].close_cbs;
+    node->next = _g_winlist[win_id-1].close_cbs;
     node->cb   = cb;
     node->ud   = ud;
-    _g_winlist[_g_cur_win_id-1].close_cbs = node;
+    _g_winlist[win_id-1].close_cbs = node;
 }
 
-void _window_add_msg_cb (window_msg_cb_t cb)
+void _window_add_msg_cb (SHORT win_id, window_msg_cb_t cb)
 {
 #ifdef ENABLE_DEBUG
-    DPRINTF ("_window_add_msg_cb _g_cur_win_id=%d, cb=0x%08lx\n", _g_cur_win_id, cb);
+    DPRINTF ("_window_add_msg_cb win_id=%d, cb=0x%08lx\n", win_id, cb);
 #endif
     win_msg_cb_node_t node = ALLOCATE_(sizeof (*node), 0);
     if (!node)
@@ -364,9 +368,9 @@ void _window_add_msg_cb (window_msg_cb_t cb)
         ERROR (AE_WIN_CLOSE);
         return;
     }
-    node->next = _g_winlist[_g_cur_win_id-1].msg_cbs;
+    node->next = _g_winlist[win_id-1].msg_cbs;
     node->cb   = cb;
-    _g_winlist[_g_cur_win_id-1].msg_cbs = node;
+    _g_winlist[win_id-1].msg_cbs = node;
 }
 
 /*
@@ -491,7 +495,7 @@ enum _aqb_output_type  _aqb_get_output (BOOL needGfx)
 
 struct Window *_aqb_get_win (SHORT wid)
 {
-    struct Window *win = _g_winlist[wid].win;
+    struct Window *win = _g_winlist[wid-1].win;
     return win;
 }
 
@@ -718,6 +722,21 @@ LONG deadKeyConvert(struct IntuiMessage *msg, UBYTE *kbuffer, LONG kbsize)
     return n;
 }
 
+static WORD _winMouseX(struct Window *win)
+{
+    BOOL gzz = win->Flags & WFLG_GIMMEZEROZERO;
+    //DPRINTF ("_winMouseX: win->Flags=0x%08lx, WFLG_GIMMEZEROZERO=0x%08lx -> gzz=%d\n",
+    //         win->Flags, WFLG_GIMMEZEROZERO, gzz);
+    //DPRINTF ("_winMouseX: win->GZZMouseX=%d, win->MouseX=%d\n",
+    //         win->GZZMouseX, win->MouseX);
+    return gzz ? win->GZZMouseX : win->MouseX;
+}
+
+static WORD _winMouseY(struct Window *win)
+{
+    return win->Flags & WFLG_GIMMEZEROZERO ? win->GZZMouseY : win->MouseY;
+}
+
 static void _handleSignals(BOOL doWait)
 {
     CHKBRK;
@@ -802,6 +821,9 @@ static void _handleSignals(BOOL doWait)
                         break;
 
                     case MOUSEBUTTONS:
+                    {
+                        WORD mx = _winMouseX(win);
+                        WORD my = _winMouseY(win);
                         switch (message->Code)
                         {
                             case SELECTDOWN:
@@ -813,27 +835,29 @@ static void _handleSignals(BOOL doWait)
                                     g_mouse_tv.LeftSeconds = message->Seconds;
                                     g_mouse_tv.LeftMicros  = message->Micros;
                                 }
-                                g_mouse_down_x = message->MouseX;
-                                g_mouse_down_y = message->MouseY;
+                                g_mouse_down_x = mx;
+                                g_mouse_down_y = my;
                                 break;
                             case SELECTUP:
                                 g_mouse_bev  = TRUE;
                                 g_mouse_down = FALSE;
-                                g_mouse_up_x = message->MouseX;
-                                g_mouse_up_y = message->MouseY;
+                                g_mouse_up_x = mx;
+                                g_mouse_up_y = my;
                                 break;
                         }
 
                         if (g_mouse_cb)
                         {
-                            g_mouse_cb(wid, g_mouse_down, message->MouseX, message->MouseY, g_mouse_ud);
+                            g_mouse_cb(wid, g_mouse_down, mx, my, g_mouse_ud);
                         }
                         break;
-
+                    }
                     case MOUSEMOVE:
                         if (g_mouse_motion_cb)
                         {
-                            g_mouse_motion_cb(wid, g_mouse_down, message->MouseX, message->MouseY, g_mouse_ud);
+                            WORD mx = _winMouseX(win);
+                            WORD my = _winMouseY(win);
+                            g_mouse_motion_cb(wid, g_mouse_down, mx, my, g_mouse_ud);
                         }
                         break;
 
@@ -1114,9 +1138,9 @@ WORD MOUSE_ (SHORT n)
             break;
 
         case 1:
-            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZMouseX : _g_cur_win->MouseX;
+            return _winMouseX(_g_cur_win);
         case 2:
-            return _g_cur_win->Flags & WFLG_GIMMEZEROZERO ? _g_cur_win->GZZMouseY : _g_cur_win->MouseY;
+            return _winMouseY(_g_cur_win);
 
         case 3:
             return g_mouse_down_x;
@@ -1379,10 +1403,10 @@ static BOOL _awindow_gets(UBYTE *buf, USHORT buf_len, BOOL do_nl)
     if (_aqb_get_output (/*needGfx=*/FALSE) == _aqb_ot_console)
     {
         _aio_init();
-        _aio_set_dos_cursor_visible (TRUE);
+        _AIO_SET_DOS_CURSOR_VISIBLE (TRUE);
         LONG bytes = Read(g_stdin, (CONST APTR) buf, buf_len);
         buf[bytes-1] = '\0';
-        _aio_set_dos_cursor_visible (FALSE);
+        _AIO_SET_DOS_CURSOR_VISIBLE (FALSE);
     }
     else
     {
@@ -1658,7 +1682,7 @@ void AREA_OUTLINE(BOOL enabled)
         _g_cur_rp->Flags &= ~AREAOUTLINE;
 }
 
-void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
+void PATTERN (unsigned short lineptrn, CArray *areaptrn)
 {
     _aqb_get_output (/*needGfx=*/TRUE);
 
@@ -1668,13 +1692,13 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
 
     if (areaptrn)
     {
-        if (areaptrn->numDims != 1)
+        if (areaptrn->_numDims != 1)
         {
             ERROR(AE_PATTERN);
             return;
         }
 
-        ULONG n = areaptrn->bounds[0].ubound - areaptrn->bounds[0].lbound + 1;
+        ULONG n = areaptrn->_bounds[0].ubound - areaptrn->_bounds[0].lbound + 1;
         //_debug_puts((STRPTR)"PATTERN area: n="); _debug_puts2(n);
 
         // log2
@@ -1684,7 +1708,7 @@ void PATTERN (unsigned short lineptrn, _DARRAY_T *areaptrn)
         //_debug_puts((STRPTR)", ptSz="); _debug_puts2(ptSz); _debug_putnl();
         //_debug_puts((STRPTR)"AreaPtrn[0]="); _debug_putu4(*((ULONG*)areaptrn->data)); _debug_putnl();
 
-        _g_cur_rp->AreaPtrn = areaptrn->data;
+        _g_cur_rp->AreaPtrn = (UWORD *) areaptrn->_data;
         _g_cur_rp->AreaPtSz = ptSz;
     }
 }

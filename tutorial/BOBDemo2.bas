@@ -23,7 +23,7 @@ ILBM LOAD BITMAP "PROGDIR:imgs/gorilla.iff", gorillaBM, 1
 
 FOR i AS INTEGER = 0 TO 2
     gorilla(i) = BOB (gorillaBM, (i*32,0) - (i*32+31, 31))
-NEXT i    
+NEXT i
 
 REM draw something on the background
 
@@ -31,7 +31,7 @@ COLOR 6
 
 FOR x AS INTEGER = 10 TO 630 STEP 3
     LINE (x, 10)-(320,190)
-NEXT x    
+NEXT x
 
 COLOR 5
 
@@ -40,7 +40,7 @@ PRINT "Press mouse button to quit"
 
 REM main loop: bob animation, event handling happens during VWAIT
 
-SUB doQuit
+SUB doQuit (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS ANY PTR)
     SYSTEM
 END SUB
 ON MOUSE CALL doQuit
@@ -56,27 +56,27 @@ BOB SHOW gorilla(curBOB)
 WHILE TRUE
     VWAIT
     BOB MOVE gorilla(curBOB), (x, y)
-    
+
     x = x + vx
     y = y + vy
-    
+
     IF x MOD 10 = 0 THEN
-        
-        BOB HIDE gorilla(curBOB)        
+
+        BOB HIDE gorilla(curBOB)
         curBOB = (curBOB+1) MOD 3
-        BOB MOVE gorilla(curBOB), (x, y)        
-        BOB SHOW gorilla(curBOB)        
-        
-    END IF        
-    
-    IF (x>500) OR (x<10) THEN
-        vx = -vx        
+        BOB MOVE gorilla(curBOB), (x, y)
+        BOB SHOW gorilla(curBOB)
+
     END IF
-    
+
+    IF (x>500) OR (x<10) THEN
+        vx = -vx
+    END IF
+
     IF (y>170) OR (y<20) THEN
         vy = -vy
     END IF
-    
-    GELS REPAINT    
+
+    GELS REPAINT
 WEND
 

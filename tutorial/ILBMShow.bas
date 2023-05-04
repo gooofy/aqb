@@ -9,6 +9,7 @@ OPTION EXPLICIT
 IMPORT IFFSupport
 
 DIM AS STRING picFileName = "PROGDIR:imgs/hope.iff"
+' DIM AS STRING picFileName = "SYS:x/hope.iff"
 
 REM read meta and palette information only for now
 
@@ -16,6 +17,8 @@ DIM AS ILBM_META_t meta
 DIM AS PALETTE_t cmap
 
 ILBM LOAD BITMAP picFileName,,, @meta, @cmap
+
+TRACE "Bitmap meta info: w=";meta.w;", h=";meta.h;", nPlanes=";meta.nPlanes;", viewModes=";meta.viewModes
 
 REM create a matching custom bitmap, screen and borderless window
 
@@ -27,11 +30,11 @@ AW_FLAG_SIMPLE_REFRESH OR AW_FLAG_BORDERLESS OR AW_FLAG_ACTIVATE, 1
 
 REM now load the image body into our custom screen bitmap
 
-ILBM LOAD BITMAP "PROGDIR:imgs/hope.iff",bm
+ILBM LOAD BITMAP picFileName,bm
 
 REM WAIT FOR MOUSE BUTTON
 
-SUB doQuit (BYVAL wid AS INTEGER, BYVAL b AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS VOID PTR)
+SUB doQuit (BYVAL wid AS INTEGER, BYVAL b AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS ANY PTR)
     SYSTEM
 END SUB
 ON MOUSE CALL doQuit

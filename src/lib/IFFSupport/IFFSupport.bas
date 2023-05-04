@@ -2,7 +2,13 @@
 
 OPTION EXPLICIT
 
-PUBLIC CONST AS INTEGER AE_IFF = 200
+' --------------------------------------------------------------------------------------------------------
+' --
+' -- ERROR codes for IFFSupport 5xx
+' --
+' --------------------------------------------------------------------------------------------------------
+
+PUBLIC CONST AS INTEGER ERR_IFF = 500
 
 PUBLIC TYPE ILBM_META_t
 
@@ -24,23 +30,23 @@ PUBLIC TYPE ILBM_META_t
 
 END TYPE
 
-PUBLIC DECLARE SUB ILBM LOAD BITMAP  (BYVAL path AS STRING, _
-                                      BYREF bm AS BITMAP_t PTR = NULL, _
-                                      BYVAL scid AS INTEGER=-1, _
-                                      BYVAL pMETA AS ILBM_META_t PTR = NULL, _
-                                      BYVAL pPalette AS PALETTE_t PTR = NULL, _
-                                      BYVAL cont AS BOOLEAN = FALSE)
+PUBLIC DECLARE EXTERN SUB ILBM LOAD BITMAP  (BYVAL path AS STRING, _
+                                             BYREF bm AS BITMAP_t PTR = NULL, _
+                                             BYVAL scid AS INTEGER=-1, _
+                                             BYVAL pMETA AS ILBM_META_t PTR = NULL, _
+                                             BYVAL pPalette AS PALETTE_t PTR = NULL, _
+                                             BYVAL cont AS BOOLEAN = FALSE)
 
-PUBLIC DECLARE SUB ILBM READ BITMAP  (_FNO(BYVAL fno AS UINTEGER), _
-                                      BYREF bm AS BITMAP_t PTR = NULL, _
-                                      BYVAL scid AS INTEGER=-1, _
-                                      BYVAL pMETA AS ILBM_META_t PTR = NULL, _
-                                      BYVAL pPalette AS PALETTE_t PTR = NULL, _
-                                      BYVAL cont AS BOOLEAN = FALSE)
+PUBLIC DECLARE EXTERN SUB ILBM READ BITMAP  (_FNO(BYVAL fno AS UINTEGER), _
+                                             BYREF bm AS BITMAP_t PTR = NULL, _
+                                             BYVAL scid AS INTEGER=-1, _
+                                             BYVAL pMETA AS ILBM_META_t PTR = NULL, _
+                                             BYVAL pPalette AS PALETTE_t PTR = NULL, _
+                                             BYVAL cont AS BOOLEAN = FALSE)
 
-PUBLIC DECLARE SUB IFF8SVX LOAD WAVE (BYVAL path AS STRING, _
-                                      BYREF w AS WAVE_t PTR)
+PUBLIC DECLARE EXTERN SUB IFF8SVX LOAD WAVE (BYVAL path AS STRING, _
+                                             BYREF w AS WAVE_t PTR)
 
-PUBLIC DECLARE SUB IFF8SVX READ WAVE (_FNO(BYVAL fno AS UINTEGER), _
-                                      BYREF w AS WAVE_t PTR)
+PUBLIC DECLARE EXTERN SUB IFF8SVX READ WAVE (_FNO(BYVAL fno AS UINTEGER), _
+                                             BYREF w AS WAVE_t PTR)
 

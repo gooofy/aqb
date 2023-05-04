@@ -1,0 +1,80 @@
+'
+' OOP test 16: virtual properties
+'
+
+OPTION EXPLICIT
+
+CLASS myb
+
+    field1 AS INTEGER
+
+    DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
+
+    DECLARE VIRTUAL PROPERTY Value AS INTEGER
+    DECLARE VIRTUAL PROPERTY Value (BYVAL v AS INTEGER)
+
+END CLASS
+
+CONSTRUCTOR myb (BYVAL initValue AS INTEGER)
+    field1 = initValue
+END CONSTRUCTOR
+
+PROPERTY myb.Value (BYVAL v AS INTEGER)
+    field1 = v
+END SUB
+
+PROPERTY myb.Value() AS INTEGER
+    RETURN field1
+END FUNCTION
+
+CLASS myc EXTENDS myb
+
+    DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
+
+    DECLARE VIRTUAL PROPERTY Value AS INTEGER
+    DECLARE VIRTUAL PROPERTY Value (BYVAL v AS INTEGER)
+
+END CLASS
+
+CONSTRUCTOR myc (BYVAL initValue AS INTEGER)
+    field1 = initValue
+END CONSTRUCTOR
+
+PROPERTY myc.Value (BYVAL v AS INTEGER)
+    field1 = v+1
+END SUB
+
+PROPERTY myc.Value() AS INTEGER
+    RETURN field1*field1
+END FUNCTION
+
+'
+' main
+'
+
+DIM o1 AS myb PTR = NEW myb(23)
+
+DIM i AS INTEGER
+
+i = o1->Value
+'TRACE i
+ASSERT i=23
+
+o1->Value=42
+
+i = o1->Value
+'TRACE i
+ASSERT i=42
+
+DIM o2 AS myb PTR = NEW myc(23)
+
+i = o2->Value
+'TRACE i
+ASSERT i=529
+
+o2->Value=41
+
+i = o2->Value
+'TRACE i
+ASSERT i=1764
+

@@ -13,6 +13,8 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 		loop9.bas loop10.bas loop11.bas loop12.bas loop13.bas loop14.bas loop15.bas \
 	    opbool.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
 	    oop1.bas oop2.bas oop3.bas oop4.bas oop5.bas oop6.bas oop7.bas oop8.bas oop9.bas \
+		oop10.bas oop11.bas oop12.bas oop13.bas oop14.bas oop15.bas oop16.bas oop17.bas \
+	    coll1.bas coll2.bas coll3.bas coll4.bas coll5.bas \
 	    scopes1.bas scopes2.bas scopes3.bas \
  	    string1.bas string2.bas string3.bas string4.bas string5.bas string6.bas \
  	    subtest1.bas subtest2.bas subtest3.bas subtest4.bas subtest5.bas \
@@ -23,8 +25,8 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 	    types1.bas types2.bas types3.bas types4.bas types5.bas types6.bas types7.bas \
 	    var1.bas var2.bas \
 	    sarray1.bas sarray2.bas sarray3.bas sarray4.bas sarray5.bas sarray6.bas \
-	    darray1.bas darray2.bas darray3.bas darray4.bas darray5.bas darray6.bas darray7.bas \
-		darray8.bas darray9.bas darray10.bas \
+	    carray1.bas carray2.bas carray3.bas carray4.bas carray5.bas carray6.bas carray7.bas \
+		carray8.bas carray9.bas carray10.bas carray11.bas \
 	    io1.bas io2.bas io3.bas io4.bas io5.bas io6.bas io7.bas
 
 ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
@@ -89,12 +91,12 @@ runtests:
 	BN="subtest11" ; echo "echo $$BN optimized" >> $(EMUDIR)/runtests ; echo "aqb_tests/$$BN/$$BN" >> $(EMUDIR)/runtests
 	# cat $(EMUDIR)/runtests
 
-test:
+test: all
 	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN" || break ; done
 	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" || break ; done
 
 single:
-	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/oop9"
+	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/oop10"
 
 clean:
 	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)

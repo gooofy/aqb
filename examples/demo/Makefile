@@ -32,7 +32,7 @@ $(OBJS) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
 $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO)/%.o
-	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $< ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a ../../src/lib/IFFSupport/IFFSupport.a -o $@
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $< ../../src/lib/IFFSupport/IFFSupport.a ../../src/lib/_aqb/_aqb.a ../../src/lib/_brt/_brt.a -o $@
 	$(STRIP_AMIGAOS) $@
 
 $(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_DEMO_OPT)/%.s : %.bas
@@ -42,7 +42,7 @@ $(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIG
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
 $(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_DEMO_OPT)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_DEMO_OPT)/%.o
-	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $< ../../src/lib/_brt/_brt.a ../../src/lib/_aqb/_aqb.a ../../src/lib/IFFSupport/IFFSupport.a -o $@
+	$(LD_AMIGAOS) ../../src/lib/_brt/startup.o $< ../../src/lib/IFFSupport/IFFSupport.a ../../src/lib/_aqb/_aqb.a ../../src/lib/_brt/_brt.a -o $@
 	$(STRIP_AMIGAOS) $@
 
 clean:

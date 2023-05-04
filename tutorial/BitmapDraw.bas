@@ -32,13 +32,13 @@ REM finish
 LOCATE 12, 26
 PRINT "Press mouse button to quit"
 
-SUB doQuit
+SUB doQuit (BYVAL wid AS INTEGER, BYVAL button AS BOOLEAN, BYVAL mx AS INTEGER, BYVAL my AS INTEGER, BYVAL ud AS ANY PTR)
     SYSTEM
 END SUB
 ON MOUSE CALL doQuit
 MOUSE ON
 
 WHILE TRUE
-    SLEEP    
+    SLEEP
 WEND
 

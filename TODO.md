@@ -139,6 +139,10 @@ Guenter Bartsch <guenter@zamia.org>
 - DONE show compiler error messages
 - \_\_\_\_ terminal: use uint16\_t where possible
 
+## Debugger
+
+- source level step/next
+
 ## Core Commands
 
 - DONE ABS()

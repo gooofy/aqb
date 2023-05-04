@@ -252,7 +252,7 @@ TYPE MsgPort
     AS Node        mp_Node
     AS UBYTE       mp_Flags
     AS UBYTE       mp_SigBit
-    AS void PTR    mp_SigTask
+    AS ANY PTR     mp_SigTask
     AS List        mp_MsgList
 END TYPE
 
@@ -287,12 +287,12 @@ CONST AS BYTE IOERR_SELFTEST     = -7
 
 TYPE Interrupt
     AS Node     is_Node
-    AS VOID PTR is_Data
+    AS ANY PTR  is_Data
     AS SUB      is_Code
 END TYPE
 
 TYPE IntVector
-    AS VOID PTR    iv_Data
+    AS ANY PTR     iv_Data
     AS SUB         iv_Code
     AS Node PTR    iv_Node
 END TYPE
@@ -319,23 +319,23 @@ TYPE Task
     AS ULONG        tc_SigExcept
     AS UINTEGER     tc_TrapAlloc
     AS UINTEGER     tc_TrapAble
-    AS VOID PTR     tc_ExceptData
-    AS VOID PTR     tc_ExceptCode
-    AS VOID PTR     tc_TrapData
-    AS VOID PTR     tc_TrapCode
-    AS VOID PTR     tc_SPReg
-    AS VOID PTR     tc_SPLower
-    AS VOID PTR     tc_SPUpper
+    AS ANY PTR      tc_ExceptData
+    AS ANY PTR      tc_ExceptCode
+    AS ANY PTR      tc_TrapData
+    AS ANY PTR      tc_TrapCode
+    AS ANY PTR      tc_SPReg
+    AS ANY PTR      tc_SPLower
+    AS ANY PTR      tc_SPUpper
     AS SUB          tc_Switch
     AS SUB          tc_Launch
     AS List         tc_MemEntry
-    AS VOID PTR     tc_UserData
+    AS ANY PTR      tc_UserData
 END TYPE
 
 TYPE StackSwapStruct
-    AS VOID PTR     stk_Lower
+    AS ANY PTR      stk_Lower
     AS ULONG        stk_Upper
-    AS VOID PTR     stk_Pointer
+    AS ANY PTR      stk_Pointer
 END TYPE
 
 CONST AS UBYTE TB_PROCTIME    = 0
@@ -381,16 +381,16 @@ TYPE ExecBase
     AS UINTEGER    SoftVer
     AS INTEGER     LowMemChkSum
     AS ULONG       ChkBase
-    AS VOID PTR    ColdCapture
-    AS VOID PTR    CoolCapture
-    AS VOID PTR    WarmCapture
-    AS VOID PTR    SysStkUpper
-    AS VOID PTR    SysStkLower
+    AS ANY PTR     ColdCapture
+    AS ANY PTR     CoolCapture
+    AS ANY PTR     WarmCapture
+    AS ANY PTR     SysStkUpper
+    AS ANY PTR     SysStkLower
     AS ULONG       MaxLocMem
-    AS VOID PTR    DebugEntry
-    AS VOID PTR    DebugData
-    AS VOID PTR    AlertData
-    AS VOID PTR    MaxExtMem
+    AS ANY PTR     DebugEntry
+    AS ANY PTR     DebugData
+    AS ANY PTR     AlertData
+    AS ANY PTR     MaxExtMem
     AS UINTEGER    ChkSum
     AS IntVector   IntVects(15)
     AS Task PTR    ThisTask
@@ -403,10 +403,10 @@ TYPE ExecBase
     AS BYTE        TDNestCnt
     AS UINTEGER    AttnFlags
     AS UINTEGER    AttnResched
-    AS VOID PTR    ResModules
-    AS VOID PTR    TaskTrapCode
-    AS VOID PTR    TaskExceptCode
-    AS VOID PTR    TaskExitCode
+    AS ANY PTR     ResModules
+    AS ANY PTR     TaskTrapCode
+    AS ANY PTR     TaskExceptCode
+    AS ANY PTR     TaskExitCode
     AS ULONG       TaskSigAlloc
     AS UINTEGER    TaskTrapAlloc
     AS List        MemList
@@ -422,20 +422,20 @@ TYPE ExecBase
     AS UBYTE       VBlankFrequency
     AS UBYTE       PowerSupplyFrequency
     AS List        SemaphoreList
-    AS VOID PTR    KickMemPtr
-    AS VOID PTR    KickTagPtr
-    AS VOID PTR    KickCheckSum
+    AS ANY PTR     KickMemPtr
+    AS ANY PTR     KickTagPtr
+    AS ANY PTR     KickCheckSum
     AS UINTEGER    ex_Pad0
     AS ULONG       ex_LaunchPoint
-    AS VOID PTR    ex_RamLibPrivate
+    AS ANY PTR     ex_RamLibPrivate
     AS ULONG       ex_EClockFrequency
     AS ULONG       ex_CacheControl
     AS ULONG       ex_TaskID
     AS ULONG       ex_Reserved1(4)
-    AS VOID PTR    ex_MMULock
+    AS ANY PTR     ex_MMULock
     AS ULONG       ex_Reserved2(2)
     AS MinList     ex_MemHandlers
-    AS VOID PTR    ex_MemHandler
+    AS ANY PTR     ex_MemHandler
 END TYPE
 
 CONST AS UINTEGER AFB_68010         = 0
@@ -492,7 +492,7 @@ TYPE IOStdReq
     AS BYTE         io_Error
     AS ULONG        io_Actual
     AS ULONG        io_Length
-    AS VOID PTR     io_Data
+    AS ANY PTR      io_Data
     AS ULONG        io_Offset
 END TYPE
 
@@ -521,8 +521,8 @@ TYPE MemHeader
     AS Node         mh_Node
     AS UINTEGER     mh_Attributes
     AS MemChunk PTR mh_First
-    AS VOID PTR     mh_Lower
-    AS VOID PTR     mh_Upper
+    AS ANY PTR      mh_Lower
+    AS ANY PTR      mh_Upper
     AS ULONG        mh_Free
 END TYPE
 
@@ -537,7 +537,7 @@ TYPE MemList
     AS MemEntry     ml_ME(0)
 END TYPE
 
-CONST AS ULONG MEMF_ANY         = 0
+CONST AS ULONG MEMF_VOID        = 0
 CONST AS ULONG MEMF_PUBLIC      = 1 SHL 0
 CONST AS ULONG MEMF_CHIP        = 1 SHL 1
 CONST AS ULONG MEMF_FAST        = 1 SHL 2
@@ -567,14 +567,14 @@ DIM AS LONG MEM_TRY_AGAIN   = 1
 TYPE Resident
     AS UINTEGER        rt_MatchWord
     AS Resident PTR    rt_MatchTag
-    AS VOID PTR        rt_EndSkip
+    AS ANY PTR         rt_EndSkip
     AS UBYTE           rt_Flags
     AS UBYTE           rt_Version
     AS UBYTE           rt_Type
     AS BYTE            rt_Pri
     AS STRING          rt_Name
     AS STRING          rt_IdString
-    AS VOID PTR        rt_Init
+    AS ANY PTR         rt_Init
 END TYPE
 
 CONST AS UINTEGER RTC_MATCHWORD = &H4AFC

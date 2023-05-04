@@ -52,7 +52,7 @@
 #define EXT_FLAG_LOCAL         0x20
 
 #define MAX_BUF               1024
-#define MAX_NUM_HUNKS           64
+#define MAX_NUM_HUNKS          128 
 
 #define ENABLE_SYMBOL_HUNK
 
@@ -639,7 +639,7 @@ static bool fread_ty (FILE *f, Ty_ty *ty)
         case Ty_record:
         case Ty_pointer:
         case Ty_string:
-        case Ty_void:
+        case Ty_any:
         case Ty_forwardPtr:
         case Ty_procPtr:
         case Ty_toLoad:

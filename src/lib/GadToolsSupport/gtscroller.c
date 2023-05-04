@@ -23,9 +23,9 @@
 
 extern struct Library    *GadToolsBase ;
 
-static struct Gadget *_gtscroller_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+static struct Gadget *_gtscroller_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
-    GTSCROLLER_t *gt = (GTSCROLLER_t *)gtg;
+    CGTScroller *gt = (CGTScroller *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -60,13 +60,13 @@ static struct Gadget *_gtscroller_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad
     return gtg->gad;
 }
 
-void _GTSCROLLER_CONSTRUCTOR (GTSCROLLER_t *this, CONST_STRPTR label,
+void _CGTSCROLLER_CONSTRUCTOR (CGTScroller *this, CONST_STRPTR label,
                               SHORT top, SHORT total, SHORT visible, ULONG freedom,
                               BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                               void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTSCROLLER_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _GTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    DPRINTF("_CGTScroller_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtscroller_deploy_cb;
     this->top             = top;
     this->total           = total;
@@ -75,12 +75,12 @@ void _GTSCROLLER_CONSTRUCTOR (GTSCROLLER_t *this, CONST_STRPTR label,
     this->relVerify       = FALSE;
     this->immediate       = FALSE;
     this->arrows          = 18;
-    DPRINTF("__GTSCROLLER_CONSTRUCTOR: top=%d, total=%d, visible=%d\n", top, total, visible);
+    DPRINTF("__CGTScroller_CONSTRUCTOR: top=%d, total=%d, visible=%d\n", top, total, visible);
 }
 
-BOOL _GTSCROLLER_disabled_ (GTSCROLLER_t *this)
+BOOL _CGTSCROLLER_DISABLED_ (CGTScroller *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GA_Disabled, (intptr_t)&u, TAG_DONE);
@@ -89,44 +89,44 @@ BOOL _GTSCROLLER_disabled_ (GTSCROLLER_t *this)
     }
     return this->disabled;
 }
-void _GTSCROLLER_disabled (GTSCROLLER_t *this, BOOL disabled)
+void _CGTSCROLLER_DISABLED (CGTScroller *this, BOOL disabled)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
 }
 
-BOOL _GTSCROLLER_relVerify_ (GTSCROLLER_t *this)
+BOOL _CGTSCROLLER_RELVERIFY_ (CGTScroller *this)
 {
     return this->relVerify;
 }
-void _GTSCROLLER_relVerify (GTSCROLLER_t *this, BOOL relVerify)
+void _CGTSCROLLER_RELVERIFY (CGTScroller *this, BOOL relVerify)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_RelVerify, relVerify, TAG_DONE);
     }
     this->relVerify = relVerify;
 }
 
-BOOL _GTSCROLLER_immediate_ (GTSCROLLER_t *this)
+BOOL _CGTSCROLLER_IMMEDIATE_ (CGTScroller *this)
 {
     return this->immediate;
 }
-void _GTSCROLLER_immediate (GTSCROLLER_t *this, BOOL immediate)
+void _CGTSCROLLER_IMMEDIATE (CGTScroller *this, BOOL immediate)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Immediate, immediate, TAG_DONE);
     }
     this->immediate = immediate;
 }
 
-SHORT _GTSCROLLER_top_ (GTSCROLLER_t *this)
+SHORT _CGTSCROLLER_TOP_ (CGTScroller *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTSC_Top, (intptr_t)&u, TAG_DONE);
@@ -135,18 +135,18 @@ SHORT _GTSCROLLER_top_ (GTSCROLLER_t *this)
     }
     return this->top;
 }
-void _GTSCROLLER_top (GTSCROLLER_t *this, SHORT top)
+void _CGTSCROLLER_TOP (CGTScroller *this, SHORT top)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTSC_Top, top, TAG_DONE);
     }
     this->top = top;
 }
 
-SHORT _GTSCROLLER_total_ (GTSCROLLER_t *this)
+SHORT _CGTSCROLLER_TOTAL_ (CGTScroller *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTSC_Total, (intptr_t)&u, TAG_DONE);
@@ -155,18 +155,18 @@ SHORT _GTSCROLLER_total_ (GTSCROLLER_t *this)
     }
     return this->total;
 }
-void _GTSCROLLER_total (GTSCROLLER_t *this, SHORT total)
+void _CGTSCROLLER_TOTAL (CGTScroller *this, SHORT total)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTSC_Total, total, TAG_DONE);
     }
     this->total = total;
 }
 
-BOOL _GTSCROLLER_visible_ (GTSCROLLER_t *this)
+BOOL _CGTSCROLLER_VISIBLE_ (CGTScroller *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTSC_Visible, (intptr_t)&u, TAG_DONE);
@@ -175,37 +175,49 @@ BOOL _GTSCROLLER_visible_ (GTSCROLLER_t *this)
     }
     return this->visible;
 }
-void _GTSCROLLER_visible (GTSCROLLER_t *this, BOOL visible)
+void _CGTSCROLLER_VISIBLE (CGTScroller *this, BOOL visible)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTSC_Visible, visible, TAG_DONE);
     }
     this->visible = visible;
 }
 
-USHORT _GTSCROLLER_arrows_ (GTSCROLLER_t *this)
+USHORT _CGTSCROLLER_ARROWS_ (CGTScroller *this)
 {
     return this->arrows;
 }
-void _GTSCROLLER_arrows (GTSCROLLER_t *this, USHORT arrows)
+void _CGTSCROLLER_ARROWS (CGTScroller *this, USHORT arrows)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTSC_Arrows, arrows, TAG_DONE);
     }
     this->arrows = arrows;
 }
 
-ULONG _GTSCROLLER_freedom_ (GTSCROLLER_t *this)
+ULONG _CGTSCROLLER_FREEDOM_ (CGTScroller *this)
 {
     return this->freedom;
 }
-void _GTSCROLLER_freedom (GTSCROLLER_t *this, ULONG freedom)
+void _CGTSCROLLER_FREEDOM (CGTScroller *this, ULONG freedom)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, PGA_Freedom, freedom, TAG_DONE);
     }
     this->freedom = freedom;
 }
+
+static intptr_t _CGTScroller_vtable[] = {
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
+};
+
+void _CGTSCROLLER___init (CGTScroller *THIS)
+{
+    THIS->gadget._vTablePtr = (intptr_t **) &_CGTScroller_vtable;
+}
+

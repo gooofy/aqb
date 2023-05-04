@@ -7,6 +7,7 @@
 #include "errormsg.h"
 #include "types.h"
 #include "env.h"
+#include "cstub.h"
 #include "options.h"
 #include "table.h"
 #include "symbol.h"
@@ -16,6 +17,7 @@ const char *FE_filename = NULL;
 
 // contains public env entries for export
 E_module FE_mod = NULL;
+static E_module _g_modDefault = NULL; // default module specified on compiler commandline, NULL when compiling _brt
 
 // map of builtin subs and functions that special parse functions:
 static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp)
@@ -23,8 +25,8 @@ static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, 
 // program we're compiling right now, can also be used to prepend static constructor calls
 static AS_instrList g_prog;
 
-// static initializers will get added here, will be called on startup and by CLEAR
-static AS_instrList g_varInitIL;
+// static initializers will get added here, will be called by CLEAR
+static AS_instrList g_clearIL;
 
 // DATA statement support
 static Temp_label g_dataRestoreLabel;
@@ -80,8 +82,8 @@ struct FE_udtEntry_
     union
     {
         struct { S_symbol name; FE_dim dims; Ty_ty ty; } fieldr;
-        Ty_proc methodr;
-        Ty_proc property;
+        struct { Ty_proc proc; bool isVirtual; } methodr;
+        struct { Ty_proc proc; bool isVirtual; } property;
     } u;
 
     FE_udtEntry next;
@@ -223,26 +225,28 @@ static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_
     return p;
 }
 
-static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc method)
+static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc proc, bool isVirtual)
 {
     FE_udtEntry p = U_poolAlloc(UP_frontend, sizeof(*p));
 
-    p->kind      = FE_methodUDTEntry;
-    p->pos       = pos;
-    p->u.methodr = method;
-    p->next      = NULL;
+    p->kind                = FE_methodUDTEntry;
+    p->pos                 = pos;
+    p->u.methodr.proc      = proc;
+    p->u.methodr.isVirtual = isVirtual;
+    p->next                = NULL;
 
     return p;
 }
 
-static FE_udtEntry FE_UDTEntryProperty(S_pos pos, Ty_proc method)
+static FE_udtEntry FE_UDTEntryProperty(S_pos pos, Ty_proc proc, bool isVirtual)
 {
     FE_udtEntry p = U_poolAlloc(UP_frontend, sizeof(*p));
 
-    p->kind       = FE_propertyUDTEntry;
-    p->pos        = pos;
-    p->u.property = method;
-    p->next       = NULL;
+    p->kind                 = FE_propertyUDTEntry;
+    p->pos                  = pos;
+    p->u.property.proc      = proc;
+    p->u.property.isVirtual = isVirtual;
+    p->next                 = NULL;
 
     return p;
 }
@@ -337,7 +341,6 @@ static S_symbol S_CONSTRUCTOR;
 static S_symbol S_LBOUND;
 static S_symbol S_UBOUND;
 static S_symbol S_PROTECTED;
-static S_symbol S__DARRAY_T;
 static S_symbol S_REDIM;
 static S_symbol S_PRESERVE;
 static S_symbol S__ISNULL;
@@ -369,6 +372,33 @@ static S_symbol S_PROPERTY;
 static S_symbol S_INTERFACE;
 static S_symbol S_CLASS;
 static S_symbol S_IMPLEMENTS;
+static S_symbol S_VIRTUAL;
+
+// internal fixed symbols that are not keywords (and thus get not highlighted in the editor)
+
+static S_symbol S_ToString;
+static S_symbol S_CObject;
+static S_symbol S_CArray;
+static S_symbol S_RemoveAll;
+static S_symbol S_IDXPTR;
+static S_symbol S__aqb_clear;
+static S_symbol S_COPY;
+
+// CArray _brt type (cached by _TyCArray())
+static Ty_ty      g_tyCArray=NULL;
+static Ty_ty _tyCArray(void)
+{
+    if (g_tyCArray)
+        return g_tyCArray;
+
+    Ty_ty g_tyCArray = E_resolveType(g_sleStack->env, S_CArray);
+    if (!g_tyCArray || (g_tyCArray->kind != Ty_class))
+    {
+        EM_error(0, "internal error: CArray type not found.");
+        assert(FALSE);
+    }
+    return g_tyCArray;
+}
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
 {
@@ -473,7 +503,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -508,7 +538,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -541,7 +571,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -574,7 +604,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -607,7 +637,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -638,7 +668,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -669,7 +699,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -700,7 +730,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -729,7 +759,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_void:
+                case Ty_any:
                 case Ty_pointer:
                 case Ty_string:
                 case Ty_forwardPtr:
@@ -777,35 +807,25 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             assert(0);
             *res = ty1;
             return FALSE;
-        case Ty_void:
+        case Ty_any:
+            *res = ty2;
             switch (ty2->kind)
             {
-                case Ty_bool:
                 case Ty_byte:
                 case Ty_ubyte:
                 case Ty_integer:
                 case Ty_uinteger:
                 case Ty_long:
                 case Ty_ulong:
-                case Ty_single:
-                case Ty_double:
-                case Ty_sarray:
-                case Ty_darray:
-                case Ty_record:
-                case Ty_class:
-                case Ty_interface:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
-                case Ty_prc:
                 case Ty_procPtr:
-                case Ty_toLoad:
-                    *res = ty1;
-                    return FALSE;
-                case Ty_void:
-                    *res = ty1;
+                case Ty_single:
                     return TRUE;
+                default:
+                    return FALSE;
             }
+            return FALSE;
         case Ty_procPtr:
             switch (ty2->kind)
             {
@@ -825,7 +845,7 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_string:
                 case Ty_forwardPtr:
-                case Ty_void:
+                case Ty_any:
                 case Ty_toLoad:
                 case Ty_prc:
                     *res = ty1;
@@ -835,19 +855,19 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return TRUE;
                 case Ty_pointer:
                     *res = ty1;
-                    return ty2->u.pointer->kind == Ty_void;
+                    return ty2->u.pointer->kind == Ty_any;
             }
     }
     *res = ty1;
     return FALSE;
 }
 
-static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
+static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
 {
-    if (ty1 == ty2)
+    if (tyTo == tyFrom)
         return TRUE;
 
-    switch (ty1->kind)
+    switch (tyTo->kind)
     {
         case Ty_long:
         case Ty_ulong:
@@ -857,122 +877,170 @@ static bool compatible_ty(Ty_ty ty1, Ty_ty ty2)
         case Ty_ubyte:
         case Ty_single:
         case Ty_bool:
-            return ty2->kind == ty1->kind;
+            return tyFrom->kind == tyTo->kind;
         case Ty_sarray:
-            if (ty2->kind != Ty_sarray)
+            if (tyFrom->kind != Ty_sarray)
                 return FALSE;
-            if (ty2->u.sarray.uiSize != ty1->u.sarray.uiSize)
+            if (tyFrom->u.sarray.uiSize != tyTo->u.sarray.uiSize)
                 return FALSE;
             return TRUE;
         case Ty_darray:
-            if (ty2->kind != Ty_darray)
+
+			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
+			if ((tyFrom->kind==Ty_pointer) && (tyFrom->u.pointer->kind==Ty_any))
+				return TRUE;
+
+            if (tyFrom->kind != Ty_darray)
                 return FALSE;
-            return compatible_ty(ty2->u.darray.elementTy, ty1->u.darray.elementTy);;
+
+            return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
+
+        case Ty_forwardPtr:
+            if ( (tyFrom->kind == Ty_string) || (tyFrom->kind == Ty_pointer) || (tyFrom->kind == Ty_forwardPtr) )
+                return TRUE;
+            return FALSE;
+
         case Ty_pointer:
-            if (Ty_isInt(ty2))
-                return TRUE;
+            //if (Ty_isInt(tyFrom))
+            //    return TRUE;
 
-            if ( (ty2->kind == Ty_procPtr) && (ty1->u.pointer->kind == Ty_void) )
-                return TRUE;
-
-            if (ty2->kind == Ty_string)
+            if (tyFrom->kind == Ty_string)
             {
-                if (  (ty1->u.pointer->kind == Ty_void)
-                   || (ty1->u.pointer->kind == Ty_byte)
-                   || (ty1->u.pointer->kind == Ty_ubyte))
+                if (  (tyTo->u.pointer->kind == Ty_any)
+                   || (tyTo->u.pointer->kind == Ty_byte)
+                   || (tyTo->u.pointer->kind == Ty_ubyte))
                     return TRUE;
                 return FALSE;
             }
 
-			// FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
-			if ((ty2->kind==Ty_darray) && (ty1->kind==Ty_pointer) && (ty1->u.pointer->kind==Ty_void))
-				return TRUE;
-
-            if (ty2->kind != Ty_pointer)
+            if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if ((ty1->u.pointer->kind == Ty_void) || (ty2->u.pointer->kind == Ty_void))
+
+            Ty_ty tyFromPtr = tyFrom->u.pointer;
+            Ty_ty tyToPtr = tyTo->u.pointer;
+
+            if ((tyToPtr->kind == Ty_any) || (tyFromPtr->kind == Ty_any))
                 return TRUE;
 
             // OOP: child -> base class assignment is legal
-            if ( (ty1->u.pointer->kind == Ty_class) && (ty2->u.pointer->kind == Ty_class) )
+            if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_class) )
             {
-                Ty_ty tyr1 = ty1->u.pointer;
-                Ty_ty tyr2 = ty2->u.pointer;
-                while (tyr1 && (tyr1 != tyr2) && (tyr1->u.cls.baseType))
-                    tyr1 = tyr1->u.cls.baseType;
-                return tyr1 == tyr2;
+                while (tyFromPtr && (tyFromPtr != tyToPtr) && (tyFromPtr->u.cls.baseType))
+                    tyFromPtr = tyFromPtr->u.cls.baseType;
+                return tyToPtr == tyFromPtr;
             }
 
-            return compatible_ty(ty1->u.pointer, ty2->u.pointer);
+            // OOP: class -> implemented interface assignment is legal
+            if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_interface) )
+                return Ty_checkImplements (tyToPtr, tyFromPtr);
+
+            return compatible_ty(tyFromPtr, tyToPtr);
         case Ty_procPtr:
         {
-            if (ty2->kind != Ty_procPtr)
+            // procPtr := NULL is allowed
+            if ( (tyFrom->kind == Ty_pointer) && (tyFrom->u.pointer->kind == Ty_any) )
+                return TRUE;
+
+            if (tyFrom->kind != Ty_procPtr)
                 return FALSE;
 
-            if ( (ty1->u.procPtr->returnTy && !ty2->u.procPtr->returnTy) ||
-                 (!ty1->u.procPtr->returnTy && ty2->u.procPtr->returnTy) )
+            if ( (tyTo->u.procPtr->returnTy && !tyFrom->u.procPtr->returnTy) ||
+                 (!tyTo->u.procPtr->returnTy && tyFrom->u.procPtr->returnTy) )
                  return FALSE;
 
-            if (ty1->u.procPtr->returnTy && !compatible_ty(ty1->u.procPtr->returnTy, ty2->u.procPtr->returnTy))
+            if (tyTo->u.procPtr->returnTy && !compatible_ty(tyFrom->u.procPtr->returnTy, tyTo->u.procPtr->returnTy))
                 return FALSE;
 
-            Ty_formal f1 = ty1->u.procPtr->formals;
-            Ty_formal f2 = ty2->u.procPtr->formals;
-            while (f1)
+            Ty_formal formalTo = tyTo->u.procPtr->formals;
+            Ty_formal formalFrom = tyFrom->u.procPtr->formals;
+            while (formalTo)
             {
-                if (!f2)
+                if (!formalFrom)
                     return FALSE;
 
-                if (f1->mode != f2->mode)
+                if (formalTo->mode != formalFrom->mode)
                     return FALSE;
 
-                if (!compatible_ty(f1->ty, f2->ty))
+                if (!compatible_ty(formalFrom->ty, formalTo->ty))
                     return FALSE;
 
-                f1 = f1->next;
-                f2 = f2->next;
+                formalTo = formalTo->next;
+                formalFrom = formalFrom->next;
             }
-            if (f2)
+            if (formalFrom)
                 return FALSE;
 
             return TRUE;
         }
-        case Ty_void:
-            return ty2->kind == Ty_void;
+        case Ty_any:
+            switch (tyFrom->kind)
+            {
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_integer:
+                case Ty_uinteger:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_string:
+                case Ty_forwardPtr:
+                case Ty_any:
+                case Ty_procPtr:
+                case Ty_pointer:
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
         case Ty_record:
             return FALSE; // unless identical, see above
         case Ty_string:
-            if (ty2->kind == Ty_ulong)
+            if (tyFrom->kind == Ty_ulong)
                 return TRUE;    // allow string const passing to tag data
-            if (ty2->kind != Ty_pointer)
+            if (tyFrom->kind != Ty_pointer)
                 return FALSE;
-            if (  (ty2->u.pointer->kind == Ty_void)
-               || (ty2->u.pointer->kind == Ty_byte)
-               || (ty2->u.pointer->kind == Ty_ubyte))
+            if (  (tyFrom->u.pointer->kind == Ty_any)
+               || (tyFrom->u.pointer->kind == Ty_byte)
+               || (tyFrom->u.pointer->kind == Ty_ubyte))
                 return TRUE;
             return FALSE;
+
+        case Ty_interface:
+            if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
+                return Ty_checkImplements (tyFrom, tyTo);
+            return FALSE;
+            break;
+
+        case Ty_class:
+            if (tyFrom->kind == Ty_class)
+                return Ty_checkInherits (/*child=*/tyFrom, /*parent=*/tyTo);
+            return FALSE;
+            break;
+
 
         default:
             assert(0);
     }
+    return FALSE;
 }
 
-static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
+static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
 {
-    Ty_ty ty1 = CG_ty(item);
+    Ty_ty tyFrom = CG_ty(item);
 
-    if (ty1 == ty2)
+    if (tyFrom == tyTo)
     {
         return TRUE;
     }
 
-    switch (ty1->kind)
+    switch (tyFrom->kind)
     {
         case Ty_bool:
-            switch (ty2->kind)
+            switch (tyTo->kind)
             {
                 case Ty_bool:
-                    item->ty = ty2;
+                    item->ty = tyTo;
                     return TRUE;
 
                 case Ty_byte:
@@ -983,7 +1051,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                    CG_castItem(g_sleStack->code, pos, item, ty2);
+                    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                     return TRUE;
                 default:
                     return FALSE;
@@ -991,35 +1059,37 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
             break;
 
         case Ty_byte:
+        case Ty_integer:
+        case Ty_long:
         case Ty_ubyte:
         case Ty_uinteger:
-        case Ty_integer:
-            if (ty2->kind == Ty_pointer)
+            if ((tyTo->kind == Ty_pointer) && explicit)
             {
-                CG_castItem(g_sleStack->code, pos, item, ty2);
+                CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                 return TRUE;
             }
             /* fallthrough */
-        case Ty_long:
         case Ty_ulong:
-            if ( (ty2->kind == Ty_single) || (ty2->kind == Ty_double) || (ty2->kind == Ty_bool) )
+            if ( (tyTo->kind == Ty_single) || (tyTo->kind == Ty_double) || (tyTo->kind == Ty_bool) )
             {
-                CG_castItem (g_sleStack->code, pos, item, ty2);
-                return TRUE;
-            }
-            if (ty2->kind == Ty_pointer)
-            {
-                item->ty = ty2;
+                CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                 return TRUE;
             }
 
-            if (Ty_size(ty1) == Ty_size(ty2))
+            // FIXME: remove because ANY type should be used instead
+            //if (tyTo->kind == Ty_pointer)
+            //{
+            //    item->ty = tyTo;
+            //    return TRUE;
+            //}
+
+            if (Ty_size(tyFrom) == Ty_size(tyTo))
             {
-                item->ty = ty2;
+                item->ty = tyTo;
                 return TRUE;
             }
 
-            switch (ty2->kind)
+            switch (tyTo->kind)
             {
                 case Ty_byte:
                 case Ty_ubyte:
@@ -1027,14 +1097,16 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_integer:
                 case Ty_long:
                 case Ty_ulong:
-                    if (Ty_size(ty1) == Ty_size(ty2))
-                    {
-                        item->ty = ty2;
-                        return TRUE;
-                    }
-
-                    CG_castItem(g_sleStack->code, pos, item, ty2);
+                    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                     return TRUE;
+                case Ty_any:
+                    if (Ty_isSigned(tyFrom))
+                        CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, Ty_Long());
+                    else
+                        CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, Ty_ULong());
+                    item->ty = tyTo;
+                    return TRUE;
+
                 default:
                     return FALSE;
             }
@@ -1042,13 +1114,13 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
 
         case Ty_single:
         case Ty_double:
-            if (ty1->kind == ty2->kind)
+            if (tyFrom->kind == tyTo->kind)
             {
-                item->ty = ty2;
+                item->ty = tyTo;
                 return TRUE;
             }
 
-            switch (ty2->kind)
+            switch (tyTo->kind)
             {
                 case Ty_bool:
                 case Ty_byte:
@@ -1059,7 +1131,7 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
                 case Ty_ulong:
                 case Ty_single:
                 case Ty_double:
-                    CG_castItem (g_sleStack->code, pos, item, ty2);
+                    CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                     return TRUE;
 
                 default:
@@ -1069,21 +1141,85 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty ty2, bool explicit)
 
         case Ty_sarray:
         case Ty_darray:
-        case Ty_pointer:
         case Ty_procPtr:
         case Ty_string:
         case Ty_record:
-            if (!compatible_ty(ty1, ty2))
+            if (!compatible_ty(tyFrom, tyTo))
             {
                 if (explicit)
                 {
-                    CG_castItem (g_sleStack->code, pos, item, ty2);
+                    CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
                     return TRUE;
                 }
                 return FALSE;
             }
-            item->ty = ty2;
+            item->ty = tyTo;
             return TRUE;
+
+        case Ty_pointer:
+            if (!compatible_ty(tyFrom, tyTo) || explicit)
+            {
+                if (explicit)
+                {
+                    CG_castItem (g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+                    return TRUE;
+                }
+                return FALSE;
+            }
+            else
+            {
+                // OOP: take care of pointer offset class <--> interface
+                Ty_ty tyFromPtr = tyFrom->u.pointer;
+                Ty_ty tyToPtr   = tyTo->u.pointer;
+
+                if ((tyFromPtr->kind == Ty_class) && (tyToPtr->kind == Ty_interface))
+                {
+                    Ty_implements implements = tyFromPtr->u.cls.implements;
+                    while (implements)
+                    {
+                        if (implements->intf == tyToPtr)
+                            break;
+                        implements=implements->next;
+                    }
+                    if (!implements)
+                        return FALSE;
+                    CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
+                    CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+                    assert (item->kind == IK_varPtr);
+                    item->kind = IK_inReg;
+                    item->ty = tyTo;
+                }
+                else
+                {
+                    item->ty = tyTo;
+                }
+            }
+            return TRUE;
+
+        case Ty_any:
+            switch (tyTo->kind)
+            {
+                case Ty_any:
+                    item->ty = tyTo;
+                    return TRUE;
+
+                case Ty_bool:
+                case Ty_byte:
+                case Ty_ubyte:
+                case Ty_uinteger:
+                case Ty_integer:
+                case Ty_long:
+                case Ty_ulong:
+                case Ty_single:
+                case Ty_string:
+                case Ty_pointer:
+                case Ty_procPtr:
+                    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
+                    return TRUE;
+                default:
+                    return FALSE;
+            }
+            break;
 
         default:
             assert(0);
@@ -1131,7 +1267,7 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
             break;
         if (f->mode != f2->mode)
             break;
-        if (!compatible_ty(f2->ty, f->ty))
+        if (!compatible_ty(f->ty, f2->ty))
             break;
         f = f->next;
     }
@@ -1140,47 +1276,29 @@ static bool matchProcSignatures (Ty_proc proc, Ty_proc proc2)
     return TRUE;
 }
 
-#if 0
-static bool transCallBuiltinSub(S_pos pos, string builtinName, CG_itemList arglist, CG_item *exp)
+static bool transCallBuiltinMethod(S_pos pos, Ty_ty tyCls, S_symbol builtinMethod, CG_itemList arglist, AS_instrList initInstrs, CG_item *res)
 {
-    S_symbol fsym = S_Symbol(builtinName);
-    E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
-    if (!lx)
-        return EM_error(pos, "builtin %s not found.", S_name(fsym));
-    E_enventry entry = lx->first->e;
-    Ty_proc proc = entry->u.proc;
+    assert (tyCls->kind == Ty_class);
 
-    *exp = Tr_callExp(arglist, proc);
-    return TRUE;
-}
-#endif
-static bool transCallBuiltinMethod(S_pos pos, S_symbol builtinClass, S_symbol builtinMethod, CG_itemList arglist, AS_instrList initInstrs, CG_item *res)
-{
-    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
-    if (!tyClass || (tyClass->kind != Ty_class))
-        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
-
-    Ty_member entry = Ty_findEntry(tyClass, builtinMethod, /*checkbase=*/TRUE);
+    Ty_member entry = Ty_findEntry(tyCls, builtinMethod, /*checkbase=*/TRUE);
     if (!entry || (entry->kind != Ty_recMethod))
-        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(builtinClass), S_name(builtinMethod));
+        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(tyCls->u.cls.name), S_name(builtinMethod));
 
-    Ty_proc proc = entry->u.method;
-    CG_transCall(initInstrs, pos, g_sleStack->frame, proc, arglist, res);
+    Ty_method method = entry->u.method;
+    CG_transMethodCall(initInstrs, pos, g_sleStack->frame, method, arglist, res);
     return TRUE;
 }
 
-static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, AS_instrList initInstrs)
-{
-    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
-    if (!tyClass || (tyClass->kind != Ty_class))
-        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
-
-    if (!tyClass->u.cls.constructor)
-        return EM_error(pos, "builtin type %s does not have constructor.", S_name(builtinClass));
-
-    CG_transCall(initInstrs, pos, g_sleStack->frame, tyClass->u.cls.constructor, arglist, NULL);
-    return TRUE;
-}
+// FIXME
+//static bool transCallBuiltinConstructor(S_pos pos, S_symbol builtinClass, CG_itemList arglist, AS_instrList initInstrs)
+//{
+//    Ty_ty tyClass = E_resolveType(g_sleStack->env, builtinClass);
+//    if (!tyClass || (tyClass->kind != Ty_class))
+//        return EM_error(pos, "builtin type %s not found.", S_name(builtinClass));
+//
+//    CG_transCall(initInstrs, pos, g_sleStack->frame, tyClass->u.cls.constructor, arglist, NULL);
+//    return TRUE;
+//}
 
 static void transBinOp (S_pos pos, CG_binOp oper, CG_item *e1, CG_item *e2)
 {
@@ -1233,7 +1351,7 @@ static void transRelOp (S_pos pos, CG_relOp oper, CG_item *e1, CG_item *e2)
         EM_error(pos, "operand type mismatch (right)");
         return;
     }
-    CG_transRelOp (g_sleStack->code, pos, oper, e1, e2);
+    CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, oper, e1, e2);
 }
 
 static bool transConst(S_pos pos, Ty_ty t, CG_item *item)
@@ -1379,38 +1497,27 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
             {
                 case Ty_pointer:
                     // turn this into a varRef
-                    CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
+                    CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
                     thisRef.kind = IK_varPtr;
                     thisRef.ty   = exp->ty->u.pointer;
                     break;
                 case Ty_record:
                 case Ty_class:
+                case Ty_darray:
                     CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
                     break;
                 default:
                     assert(FALSE);
             }
 
-            if (!transActualArgs(tkn, entry->u.method, assignedArgs,  /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, entry->u.method->proc, assignedArgs,  /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
             if ((*tkn)->kind != S_RPAREN)
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            if (entry->u.method->returnTy->kind != Ty_void)
-            {
-                CG_TempItem (exp, entry->u.method->returnTy);
-            }
-            else
-            {
-                CG_NoneItem (exp);
-                exp = NULL;
-            }
-
-            CG_transCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method, assignedArgs, exp);
-
-            return TRUE;
+            return CG_transMethodCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method, assignedArgs, exp);
         }
 
         case Ty_recField:
@@ -1474,7 +1581,7 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                     return EM_error((*tkn)->pos, "array index type mismatch");
                 n = CG_itemListAppend(arglist);
                 n->item = idx;
-                CG_loadVal (g_sleStack->code, (*tkn)->pos, &n->item);
+                CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
 
                 dimCnt++;
 
@@ -1487,16 +1594,16 @@ static bool selector(S_tkn *tkn, CG_item *exp)
                         return EM_error((*tkn)->pos, "array index type mismatch");
                     n = CG_itemListAppend(arglist);
                     n->item = idx;
-                    CG_loadVal (g_sleStack->code, (*tkn)->pos, &n->item);
+                    CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
                     dimCnt++;
                 }
 
                 CG_UIntItem(&nDimCnt->item, dimCnt, Ty_UInteger());
-                CG_loadVal (g_sleStack->code, (*tkn)->pos, &nDimCnt->item);
+                CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &nDimCnt->item);
 
-                if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol ("IDXPTR"), arglist, g_sleStack->code, exp))
+                if (!transCallBuiltinMethod((*tkn)->pos, ty->u.darray.tyCArray, S_IDXPTR, arglist, g_sleStack->code, exp))
                     return FALSE;
-                //CG_castItem (g_sleStack->code, (*tkn)->pos, exp, ty->u.darray.elementTy);
+
                 exp->ty = ty->u.darray.elementTy;
                 exp->kind = IK_varPtr;
             }
@@ -1536,8 +1643,11 @@ static bool selector(S_tkn *tkn, CG_item *exp)
             S_symbol sym = (*tkn)->u.sym;
             *tkn = (*tkn)->next;
 
-            if ( ( ty->kind != Ty_record ) && (ty->kind != Ty_class) && (ty->kind != Ty_interface) )
-                return EM_error(pos, "record, class or interface type expected");
+            if ( ( ty->kind != Ty_record ) && (ty->kind != Ty_class) && (ty->kind != Ty_interface) && (ty->kind != Ty_darray) )
+                return EM_error(pos, "record, class, array or interface type expected");
+
+            if (ty->kind == Ty_darray)
+                ty = ty->u.darray.tyCArray;
 
             Ty_member entry = Ty_findEntry(ty, sym, /*checkbase=*/TRUE);
             if (!entry)
@@ -1557,10 +1667,13 @@ static bool selector(S_tkn *tkn, CG_item *exp)
 
             if ( (ty->kind != Ty_pointer) || !ty->u.pointer || (    (ty->u.pointer->kind != Ty_record)
                                                                  && (ty->u.pointer->kind != Ty_class)
-                                                                 && (ty->u.pointer->kind != Ty_interface) ) )
-                return EM_error(pos, "record, class or interface pointer type expected");
+                                                                 && (ty->u.pointer->kind != Ty_interface)
+                                                                 && (ty->u.pointer->kind != Ty_darray)) )
+                return EM_error(pos, "record, class, array or interface pointer type expected");
 
             ty = ty->u.pointer;
+            if (ty->kind == Ty_darray)
+                ty = ty->u.darray.tyCArray;
 
             Ty_member entry = Ty_findEntry(ty, sym, /*checkbase=*/TRUE);
             if (!entry)
@@ -1721,7 +1834,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 return EM_error((*tkn)->pos, ") expected.");
             *tkn = (*tkn)->next;
 
-            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, proc->returnTy->kind == Ty_void ? NULL : exp);
+            CG_transCallPtr (g_sleStack->code, pos, g_sleStack->frame, proc, exp, assignedArgs, proc->returnTy ? exp : NULL);
             ty = CG_ty(exp);
             continue;
         }
@@ -1770,16 +1883,36 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     {
         if (ty->kind != Ty_pointer)
             return EM_error(pos, "This object cannot be dereferenced.");
-        CG_transDeRef (g_sleStack->code, pos, exp);
+        CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, exp);
         ty = CG_ty(exp);
     }
 
     return TRUE;
 }
 
-// creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
-static bool creatorExpression(S_tkn *tkn, CG_item *exp)
+static bool transInitObject (S_pos pos, Ty_ty tyCls, CG_itemList constructorAssignedArgs, CG_item *thisRef, AS_instrList code)
 {
+    // __init call
+
+    CG_itemList initArglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(initArglist);
+    n->item = *thisRef;
+    CG_transCall (code, pos, g_sleStack->frame, tyCls->u.cls.__init, /*args=*/initArglist, /*result=*/NULL);
+
+    // CONSTRUCTOR call
+
+    if (tyCls->u.cls.constructor)
+    {
+        CG_transCall (code, pos, g_sleStack->frame, tyCls->u.cls.constructor, constructorAssignedArgs, NULL);
+    }
+
+    return TRUE;
+}
+
+// creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
+static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
+{
+    S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "new"
 
     if ((*tkn)->kind != S_IDENT)
@@ -1787,53 +1920,52 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
 
     S_symbol sClass = (*tkn)->u.sym;
 
-    Ty_ty tyClass = E_resolveType(g_sleStack->env, sClass);
-    if (!tyClass || (tyClass->kind != Ty_class))
+    Ty_ty tyCls = E_resolveType(g_sleStack->env, sClass);
+    if (!tyCls || (tyCls->kind != Ty_class))
         return EM_error((*tkn)->pos, "new: unknown class");
-
-    /*
-     * generate allocation code
-     */
-
-    CG_itemList arglist = CG_ItemList();
-    CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_UIntItem (&n->item, tyClass->u.cls.uiSize, Ty_UInteger());
-    n = CG_itemListAppend(arglist);
-    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
-
-    S_symbol allocSym = S_Symbol("ALLOCATE");
-    CG_item procPtr;
-    Ty_member entry;
-    if (!E_resolveVFC(g_sleStack->env, allocSym, /*checkParents=*/TRUE, &procPtr, &entry))
-        return EM_error((*tkn)->pos, "builtin %s not found.", S_name(allocSym));
-    Ty_ty ty = CG_ty(&procPtr);
-    assert(ty->kind == Ty_prc);
-    CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, ty->u.proc, arglist, exp);
-
-    // cast ALLOCATE result to properly typed ptr
-    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyClass);
-    if (!convert_ty(exp, (*tkn)->pos, tyClassPtr, /*explicit=*/TRUE))
-        return EM_error((*tkn)->pos, "new: internal error");
 
     *tkn = (*tkn)->next;
 
-    // constructor call, if any
+    // ALLOCATE() memory for our new object
 
-    // turn this into a varRef
-    CG_item thisRef = *exp;
-    CG_loadVal (g_sleStack->code, (*tkn)->pos, &thisRef);
+    S_symbol allocSym = S_Symbol("ALLOCATE");
+    CG_item allocProcPtr;
+    Ty_member allocEntry;
+    if (!E_resolveVFC(g_sleStack->env, allocSym, /*checkParents=*/TRUE, &allocProcPtr, &allocEntry))
+        return EM_error(0, "builtin %s not found.", S_name(allocSym));
+    Ty_ty allocTy = CG_ty(&allocProcPtr);
+    assert(allocTy->kind == Ty_prc);
+
+    CG_itemList allocArglist = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(allocArglist);
+    CG_UIntItem (&n->item, tyCls->u.cls.uiSize, Ty_UInteger());
+    n = CG_itemListAppend(allocArglist);
+    CG_UIntItem (&n->item, 0 /*MFM_ANY*/, Ty_UInteger());
+
+    CG_transCall (g_sleStack->code, 0, g_sleStack->frame, allocTy->u.proc, allocArglist, thisPtr);
+
+    // cast ALLOCATE result to properly typed ptr
+    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
+    if (!convert_ty(thisPtr, 0, tyClassPtr, /*explicit=*/TRUE))
+        return EM_error(pos, "new: internal error: cannot convert this pointer");
+
+    // this ref
+
+    CG_item thisRef = *thisPtr;
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &thisRef);
     thisRef.kind = IK_varPtr;
-    thisRef.ty   = tyClass;
+    thisRef.ty   = tyCls;
 
-    CG_itemList constructorAssignedArgs = NULL;
+    // constructor arguments
+
+    CG_itemList constructorAssignedArgs = CG_ItemList();
     if ((*tkn)->kind == S_LPAREN)
     {
         *tkn = (*tkn)->next; // skip '('
-        constructorAssignedArgs = CG_ItemList();
 
-        if (tyClass->u.cls.constructor)
+        if (tyCls->u.cls.constructor)
         {
-            if (!transActualArgs(tkn, tyClass->u.cls.constructor, constructorAssignedArgs, &thisRef, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, tyCls->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
                 return FALSE;
         }
 
@@ -1842,10 +1974,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *exp)
         *tkn = (*tkn)->next; // skip ')'
     }
 
-    if (tyClass->u.cls.constructor)
-        CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, tyClass->u.cls.constructor, constructorAssignedArgs, NULL);
-
-    return TRUE;
+    return transInitObject (pos, tyCls, constructorAssignedArgs, &thisRef, g_sleStack->code);
 }
 
 // atom ::= ( expDesignator
@@ -1977,7 +2106,7 @@ static bool negNotExpression(S_tkn *tkn, CG_item *exp)
                     return FALSE;
 
                 if ((CG_ty (exp)->kind == Ty_bool) && ! CG_isConst(exp))
-                    CG_loadCond (g_sleStack->code, pos, exp);
+                    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, exp);
 
                 if (exp->kind == IK_cond)
                     exp->u.condR.postCond = !exp->u.condR.postCond;
@@ -2310,7 +2439,7 @@ static bool logAndExpression(S_tkn *tkn, CG_item *exp)
              */
 
             if (CG_ty (exp)->kind == Ty_bool)
-                CG_loadCond (g_sleStack->code, pos, exp);
+                CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, exp);
 
             if (exp->kind == IK_cond)
             {
@@ -2321,7 +2450,7 @@ static bool logAndExpression(S_tkn *tkn, CG_item *exp)
                     return FALSE;
 
                 if (CG_ty (&right)->kind == Ty_bool)
-                    CG_loadCond (g_sleStack->code, pos, &right);
+                    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &right);
 
                 if (right.kind == IK_cond)
                     CG_transPostCond (g_sleStack->code, pos, &right, /*positive=*/TRUE);
@@ -2364,7 +2493,7 @@ static bool logOrExpression(S_tkn *tkn, CG_item *exp)
         if (!done)
         {
             if (CG_ty (exp)->kind == Ty_bool)
-                CG_loadCond (g_sleStack->code, pos, exp);
+                CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, exp);
 
             if (exp->kind == IK_cond)
             {
@@ -2376,7 +2505,7 @@ static bool logOrExpression(S_tkn *tkn, CG_item *exp)
                     return FALSE;
 
                 if (CG_ty (&right)->kind == Ty_bool)
-                    CG_loadCond (g_sleStack->code, pos, &right);
+                    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &right);
 
                 if (right.kind == IK_cond)
                     CG_transPostCond (g_sleStack->code, pos, &right, /*positive=*/FALSE);
@@ -2519,10 +2648,17 @@ static bool arrayDimensions (S_tkn *tkn, FE_dim *dims)
 }
 
 // typeDesc ::= ( Identifier [PTR]
-//              | (SUB | FUNCTION) [ "(" [ [ BYVAL | BYREF ] typeDesc ( "," [ BYVAL | BYREF ] typeDesc )*] ")" ] [ "AS" typeDesc ] )
+//              | [ EXTERN ] (SUB | FUNCTION) [ "(" [ [ BYVAL | BYREF ] typeDesc ( "," [ BYVAL | BYREF ] typeDesc )*] ")" ] [ "AS" typeDesc ] )
 static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
 {
     S_pos    pos = (*tkn)->pos;
+
+    bool isExtern = FALSE;
+    if (isSym (*tkn, S_EXTERN))
+    {
+        isExtern = TRUE;
+        *tkn = (*tkn)->next;
+    }
 
     if (isSym (*tkn, S_SUB) || isSym (*tkn, S_FUNCTION))
     {
@@ -2615,10 +2751,10 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
         }
         else
         {
-            returnTy = Ty_Void();
+            returnTy = NULL;
         }
 
-        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
         *ty = Ty_ProcPtr(FE_mod->name, proc);
     }
     else
@@ -2638,6 +2774,8 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
         }
 
         *ty = resolveTypeDescIdent(pos, sType, ptr, allowForwardPtr);
+        if (*ty==NULL)
+            return FALSE;
     }
 
     return TRUE;
@@ -2648,16 +2786,31 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
     Ty_ty t = CG_ty(var);
     assert (CG_isVar(var));
 
-    // assign initial value or run constructor ?
+    // assign initial value or run __init/constructor ?
 
     if (t->kind == Ty_class)
     {
         if (init)
             return EM_error(pos, "class initializers are not supported yet."); // FIXME: freebasic allows this for single-arg constructors
+
+        // run __init
+        CG_item thisRef = *var;
+        CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &thisRef);
+        CG_itemList initArgs = CG_ItemList();
+        CG_itemListNode n = CG_itemListAppend(initArgs);
+        n->item = thisRef;
+        CG_transCall (g_sleStack->code, pos, g_sleStack->frame, t->u.cls.__init, /*args=*/initArgs, /*result=*/NULL);
+
+        // run constructor, if any
+
         if (t->u.cls.constructor)
         {
             if (!constructorAssignedArgs)
-                return EM_error(pos, "Missing constructor call."); // FIXME: call 0-arg constructor if available
+            {
+                constructorAssignedArgs = CG_ItemList();
+                if (!transActualArgs(/*tkn=*/NULL, t->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/TRUE))
+                    return FALSE;
+            }
 
             CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
         }
@@ -2671,7 +2824,7 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
 
             CG_transAssignment (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, var, init);
             if ( (statc || !g_sleStack->prev) && CG_isConst(init))
-                CG_transAssignment ( g_varInitIL, pos, NULL, var, init);
+                CG_transAssignment ( g_clearIL, pos, NULL, var, init);
         }
 
     }
@@ -2683,6 +2836,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     if (!t)
         t = Ty_inferType(S_name(sVar));
     assert(t);
+
+    if (!Ty_isAllocatable(t))
+        return EM_error (pos, "Cannot allocate variables of this type");
 
     if (dims)
     {
@@ -2715,7 +2871,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         else
         {
             // dyanmic, safe QB-like dynamic array
-            t = Ty_DArray(FE_mod->name, t);
+            t = Ty_DArray(FE_mod->name, t, _tyCArray());
 
         }
     }
@@ -2800,9 +2956,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
      * run constructor / assign initial value
      */
 
-    CG_itemList constructorAssignedArgs = NULL;
     if ((*tkn)->kind == S_EQUALS)
     {
+        CG_itemList constructorAssignedArgs = NULL;
         if (t->kind == Ty_darray)
             return EM_error ((*tkn)->pos, "DArray initial value assingment is not supported yet.");
 
@@ -2838,7 +2994,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     }
     else
     {
-        if (t->kind==Ty_darray)
+        if (_g_modDefault && (t->kind==Ty_darray))  // no CArrayList when compiling _brt
         {
             uint16_t numDims = 0;
             for (FE_dim dim=dims; dim; dim=dim->next)
@@ -2851,25 +3007,38 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             AS_instrList initInstrs = NULL;
             if (!initDone)
             {
-                // call __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize)
+                initInstrs = AS_InstrList();
+
+                // call __init, CONSTRUCTOR
                 CG_itemList arglist = CG_ItemList();
+
+                CG_item thisRef = var;
+                CG_loadRef(initInstrs, pos, g_sleStack->frame, &thisRef);
                 CG_itemListNode n = CG_itemListAppend(arglist);
-                n->item = var;
-                CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &n->item);
+                n->item = thisRef;
+
                 n = CG_itemListAppend(arglist);
                 CG_UIntItem(&n->item, Ty_size(t->u.darray.elementTy), Ty_ULong());
-                initInstrs = AS_InstrList();
-                if (!transCallBuiltinConstructor(pos, S__DARRAY_T, arglist, initInstrs))
+
+                if (!transInitObject (pos, t->u.darray.tyCArray, arglist, &thisRef, initInstrs))
                     return FALSE;
 
-                // static / main var ? -> add call to __DARRAY_T_CLEAR (_DARRAY_T *self) to CLEAR varInitCode
+                // static / main var ? -> add call to this.RemoveAll()
                 if (statc || !g_sleStack->prev)
                 {
                     arglist = CG_ItemList();
                     n = CG_itemListAppend(arglist);
                     n->item = var;
-                    CG_loadRef(g_varInitIL, pos, NULL, &n->item);
-                    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("CLEAR"), arglist, g_varInitIL, /*res=*/NULL))
+                    CG_loadRef(initInstrs, pos, NULL, &n->item);
+                    if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_RemoveAll, arglist, initInstrs, /*res=*/NULL))
+                        return FALSE;
+
+                    // and again in __aqb_clear when CLEAR is called:
+                    arglist = CG_ItemList();
+                    n = CG_itemListAppend(arglist);
+                    n->item = var;
+                    CG_loadRef(g_clearIL, pos, NULL, &n->item);
+                    if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_RemoveAll, arglist, g_clearIL, /*res=*/NULL))
                         return FALSE;
                 }
             }
@@ -2884,11 +3053,11 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 n->item = var;
                 CG_loadRef (initInstrs, pos, g_sleStack->frame, &n->item);
                 n = CG_itemListAppend(arglist);
-                CG_BoolItem(&n->item, preserve, Ty_Bool());
-                CG_loadVal (initInstrs, pos, &n->item);
-                n = CG_itemListAppend(arglist);
                 CG_UIntItem(&n->item, numDims, Ty_UInteger());
-                CG_loadVal (initInstrs, pos, &n->item);
+                CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
+                n = CG_itemListAppend(arglist);
+                CG_BoolItem(&n->item, preserve, Ty_Bool());
+                CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
                 for (FE_dim dim=dims; dim; dim=dim->next)
                 {
                     uint32_t start, end;
@@ -2907,12 +3076,12 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                     end = CG_getConstInt(&dim->idxEnd);
                     n = CG_itemListAppend(arglist);
                     CG_UIntItem(&n->item, start, Ty_ULong());
-                    CG_loadVal (initInstrs, pos, &n->item);
+                    CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
                     n = CG_itemListAppend(arglist);
                     CG_UIntItem(&n->item, end , Ty_ULong());
-                    CG_loadVal (initInstrs, pos, &n->item);
+                    CG_loadVal (initInstrs, pos, g_sleStack->frame, &n->item);
                 }
-                if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("REDIM"), arglist, initInstrs, /*res=*/NULL))
+                if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_REDIM, arglist, initInstrs, /*res=*/NULL))
                     return FALSE;
             }
             if (initInstrs)
@@ -3149,7 +3318,7 @@ static bool transErase (S_pos pos, S_symbol sVar)
     CG_itemListNode n = CG_itemListAppend(arglist);
     n->item = var;
     CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, &n->item);
-    if (!transCallBuiltinMethod(pos, S__DARRAY_T, S_Symbol ("ERASE"), arglist, g_sleStack->code, /*res=*/NULL))
+    if (!transCallBuiltinMethod(pos, t->u.darray.tyCArray, S_ERASE, arglist, g_sleStack->code, /*res=*/NULL))
         return FALSE;
 
     return TRUE;
@@ -3246,50 +3415,72 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
 
         if (!dbg || OPT_get (OPTION_DEBUG))
         {
+            Ty_ty ty = CG_ty(&ex);
+            if ( (ty->kind == Ty_pointer) && (ty->u.pointer->kind == Ty_class) )
+            {
+                // call ToString() Method
+                Ty_ty tyCls = ty->u.pointer;
+                // turn this pointer into a varRef
+                CG_item thisRef = ex;
+                CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
+                thisRef.kind = IK_varPtr;
+                thisRef.ty   = tyCls;
+
+                Ty_member entry = Ty_findEntry(tyCls, S_ToString, /*checkbase=*/TRUE);
+                if (!entry)
+                    return EM_error(pos, "ToString() method not found!");
+
+                CG_itemList arglist = CG_ItemList();
+                CG_itemListNode n = CG_itemListAppend(arglist);
+                n->item = thisRef;
+
+                CG_transMethodCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, entry->u.method, arglist, &ex);
+                ty = CG_ty(&ex);
+            }
+
             CG_itemList arglist = CG_ItemList();
             CG_itemListNode n;
             if (!dbg)
             {
                 n = CG_itemListAppend(arglist);
                 n->item = exFNo;
-                CG_loadVal (g_sleStack->code, pos, &n->item);
+                CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
             }
             n = CG_itemListAppend(arglist);
             n->item = ex;
-            CG_loadVal (g_sleStack->code, pos, &n->item);
+            CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
             S_symbol   fsym    = NULL;                   // put* function sym to call
-            Ty_ty      ty      = CG_ty(&ex);
             switch (ty->kind)
             {
                 case Ty_string:
-                    fsym = dbg ? S_Symbol("_debug_puts") : S_Symbol("_aio_puts");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS")    : S_Symbol("_AIO_PUTS");
                     break;
                 case Ty_pointer:
-                    fsym = dbg ? S_Symbol("_debug_putu4") :  S_Symbol("_aio_putu4");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
                     break;
                 case Ty_byte:
-                    fsym = dbg ? S_Symbol("_debug_puts1") :  S_Symbol("_aio_puts1");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS1")   : S_Symbol("_AIO_PUTS1");
                     break;
                 case Ty_ubyte:
-                    fsym = dbg ? S_Symbol("_debug_putu1") :  S_Symbol("_aio_putu1");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU1")   : S_Symbol("_AIO_PUTU1");
                     break;
                 case Ty_integer:
-                    fsym = dbg ? S_Symbol("_debug_puts2") :  S_Symbol("_aio_puts2");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS2")   : S_Symbol("_AIO_PUTS2");
                     break;
                 case Ty_uinteger:
-                    fsym = dbg ? S_Symbol("_debug_putu2") :  S_Symbol("_aio_putu2");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU2")   : S_Symbol("_AIO_PUTU2");
                     break;
                 case Ty_long:
-                    fsym = dbg ? S_Symbol("_debug_puts4") :  S_Symbol("_aio_puts4");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTS4")   : S_Symbol("_AIO_PUTS4");
                     break;
                 case Ty_ulong:
-                    fsym = dbg ? S_Symbol("_debug_putu4") :  S_Symbol("_aio_putu4");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
                     break;
                 case Ty_single:
-                    fsym = dbg ? S_Symbol("_debug_putf") :  S_Symbol("_aio_putf");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTF")    : S_Symbol("_AIO_PUTF");
                     break;
                 case Ty_bool:
-                    fsym = dbg ? S_Symbol("_debug_putbool") :  S_Symbol("_aio_putbool");
+                    fsym = dbg ? S_Symbol("_DEBUG_PUTBOOL") : S_Symbol("_AIO_PUTBOOL");
                     break;
                 default:
                     return EM_error(pos, "unsupported type in print expression list.");
@@ -3320,7 +3511,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 *tkn = (*tkn)->next;
                 if (!dbg || OPT_get (OPTION_DEBUG))
                 {
-                    S_symbol fsym   =  dbg ? S_Symbol("_debug_puttab") : S_Symbol("_aio_puttab");
+                    S_symbol fsym   =  dbg ? S_Symbol("_DEBUG_PUTTAB") : S_Symbol("_AIO_PUTTAB");
                     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                     if (!lx)
                         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3331,7 +3522,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                         CG_itemListNode n;
                         n = CG_itemListAppend(arglist);
                         n->item = exFNo;
-                        CG_loadVal (g_sleStack->code, pos, &n->item);
+                        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
                     }
                     CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
                 }
@@ -3349,7 +3540,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
     {
         if (!dbg || OPT_get (OPTION_DEBUG))
         {
-            S_symbol fsym   = dbg ? S_Symbol("_debug_putnl") : S_Symbol("_aio_putnl");
+            S_symbol fsym   = dbg ? S_Symbol("_DEBUG_PUTNL") : S_Symbol("_AIO_PUTNL");
             E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
             if (!lx)
                 return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3360,7 +3551,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
                 CG_itemListNode n;
                 n = CG_itemListAppend(arglist);
                 n->item = exFNo;
-                CG_loadVal (g_sleStack->code, pos, &n->item);
+                CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
             }
             CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
         }
@@ -3412,43 +3603,43 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         CG_itemListNode n;
         n = CG_itemListAppend(arglist);
         n->item = exFNo;
-        CG_loadVal (g_sleStack->code, pos, &n->item);
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
         n = CG_itemListAppend(arglist);
         n->item = ex;
-        CG_loadVal (g_sleStack->code, pos, &n->item);
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
         S_symbol   fsym    = NULL;                   // write* function sym to call
         Ty_ty      ty      = CG_ty(&ex);
         switch (ty->kind)
         {
             case Ty_string:
-                fsym = S_Symbol("_aio_writes");
+                fsym = S_Symbol("_AIO_WRITES");
                 break;
             case Ty_pointer:
-                fsym = S_Symbol("_aio_writeu4");
+                fsym = S_Symbol("_AIO_WRITEU4");
                 break;
             case Ty_byte:
-                fsym = S_Symbol("_aio_writes1");
+                fsym = S_Symbol("_AIO_WRITES1");
                 break;
             case Ty_ubyte:
-                fsym = S_Symbol("_aio_writeu1");
+                fsym = S_Symbol("_AIO_WRITEU1");
                 break;
             case Ty_integer:
-                fsym = S_Symbol("_aio_writes2");
+                fsym = S_Symbol("_AIO_WRITES2");
                 break;
             case Ty_uinteger:
-                fsym = S_Symbol("_aio_writeu2");
+                fsym = S_Symbol("_AIO_WRITEU2");
                 break;
             case Ty_long:
-                fsym = S_Symbol("_aio_writes4");
+                fsym = S_Symbol("_AIO_WRITES4");
                 break;
             case Ty_ulong:
-                fsym = S_Symbol("_aio_writeu4");
+                fsym = S_Symbol("_AIO_WRITEU4");
                 break;
             case Ty_single:
-                fsym = S_Symbol("_aio_writef");
+                fsym = S_Symbol("_AIO_WRITEF");
                 break;
             case Ty_bool:
-                fsym = S_Symbol("_aio_writebool");
+                fsym = S_Symbol("_AIO_WRITEBOOL");
                 break;
             default:
                 return EM_error(pos, "unsupported type in write expression list.");
@@ -3474,7 +3665,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
                 if (isLogicalEOL(*tkn))
                     return EM_error(pos, "WRITE: expression expected here.");
 
-                S_symbol fsym   = S_Symbol("_aio_writecomma");
+                S_symbol fsym   = S_Symbol("_AIO_WRITECOMMA");
                 E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
                 if (!lx)
                     return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3483,7 +3674,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
                 CG_itemListNode n;
                 n = CG_itemListAppend(arglist);
                 n->item = exFNo;
-                CG_loadVal (g_sleStack->code, pos, &n->item);
+                CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
                 CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
 
                 break;
@@ -3493,7 +3684,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
     }
 
-    S_symbol fsym   = S_Symbol("_aio_putnl");
+    S_symbol fsym   = S_Symbol("_AIO_PUTNL");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3502,7 +3693,7 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_itemListNode n;
     n = CG_itemListAppend(arglist);
     n->item = exFNo;
-    CG_loadVal (g_sleStack->code, pos, &n->item);
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
     CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
 
     return TRUE;
@@ -3519,7 +3710,7 @@ static bool stmtBreak(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     if (OPT_get (OPTION_DEBUG))
     {
-        S_symbol fsym =  S_Symbol("_debug_break");
+        S_symbol fsym =  S_Symbol("_DEBUG_BREAK");
         E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
         if (!lx)
             return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3542,31 +3733,31 @@ static bool inputVar(S_tkn *tkn, CG_item exFNo)
     switch (ty->kind)
     {
         case Ty_string:
-            fsym = S_Symbol("_aio_inputs");
+            fsym = S_Symbol("_AIO_INPUTS");
             break;
         case Ty_pointer:
-            fsym = S_Symbol("_aio_inputu4");
+            fsym = S_Symbol("_AIO_INPUTU4");
             break;
         case Ty_byte:
-            fsym = S_Symbol("_aio_inputs1");
+            fsym = S_Symbol("_AIO_INPUTS1");
             break;
         case Ty_ubyte:
-            fsym = S_Symbol("_aio_inputu1");
+            fsym = S_Symbol("_AIO_INPUTU1");
             break;
         case Ty_integer:
-            fsym = S_Symbol("_aio_inputs2");
+            fsym = S_Symbol("_AIO_INPUTS2");
             break;
         case Ty_uinteger:
-            fsym = S_Symbol("_aio_inputu2");
+            fsym = S_Symbol("_AIO_INPUTU2");
             break;
         case Ty_long:
-            fsym = S_Symbol("_aio_inputs4");
+            fsym = S_Symbol("_AIO_INPUTS4");
             break;
         case Ty_ulong:
-            fsym = S_Symbol("_aio_inputu4");
+            fsym = S_Symbol("_AIO_INPUTU4");
             break;
         case Ty_single:
-            fsym = S_Symbol("_aio_inputf");
+            fsym = S_Symbol("_AIO_INPUTF");
             break;
         default:
             return EM_error((*tkn)->pos, "unsupported type in INPUT expression list.");
@@ -3737,7 +3928,7 @@ static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
         assert(FALSE); // FIXME: implement
     }
 
-    S_symbol fsym = S_Symbol("_aio_open");
+    S_symbol fsym = S_Symbol("_AIO_OPEN");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3746,14 +3937,14 @@ static bool stmtOpen(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_itemListNode n;
     n = CG_itemListAppend(arglist);
     n->item = expFName;
-    CG_loadVal (g_sleStack->code, pos, &n->item);
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
     n = CG_itemListAppend(arglist);
     CG_IntItem (&n->item, mode, Ty_Integer());
     n = CG_itemListAppend(arglist);
     CG_IntItem (&n->item, access, Ty_Integer());
     n = CG_itemListAppend(arglist);
     n->item = expFNo;
-    CG_loadVal (g_sleStack->code, pos, &n->item);
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
     n = CG_itemListAppend(arglist);
     CG_IntItem (&n->item, recordLen, Ty_Integer());
     CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
@@ -3767,7 +3958,7 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_pos pos = (*tkn)->pos;
     *tkn = (*tkn)->next; // skip "CLOSE"
 
-    S_symbol fsym = S_Symbol("_aio_close");
+    S_symbol fsym = S_Symbol("_AIO_CLOSE");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
@@ -3794,7 +3985,7 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
         CG_itemListNode n;
         n = CG_itemListAppend(arglist);
         n->item = expFNo;
-        CG_loadVal (g_sleStack->code, pos, &n->item);
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
         CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
 
         if ((*tkn)->kind == S_COMMA)
@@ -3811,7 +4002,7 @@ static bool stmtClose(S_tkn *tkn, E_enventry e, CG_item *exp)
             CG_itemListNode n;
             n = CG_itemListAppend(arglist);
             n->item = expFNo;
-            CG_loadVal (g_sleStack->code, pos, &n->item);
+            CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
             CG_transCall(g_sleStack->code, pos, g_sleStack->frame, func->u.proc, arglist, NULL);
         }
     }
@@ -4032,20 +4223,20 @@ static bool transRead(S_pos pos, CG_item *var)
         case Ty_byte:
         case Ty_bool:
         case Ty_ubyte:
-            fsym = S_Symbol("_aqb_read1");
+            fsym = S_Symbol("_AQB_READ1");
             break;
         case Ty_integer:
         case Ty_uinteger:
-            fsym = S_Symbol("_aqb_read2");
+            fsym = S_Symbol("_AQB_READ2");
             break;
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
         case Ty_single:
-            fsym = S_Symbol("_aqb_read4");
+            fsym = S_Symbol("_AQB_READ4");
             break;
         case Ty_string:
-            fsym = S_Symbol("_aqb_readStr");
+            fsym = S_Symbol("_AQB_READSTR");
             break;
         default:
             return EM_error(pos, "READ: unsupported type.");
@@ -4104,14 +4295,14 @@ static bool stmtRestore(S_tkn *tkn, E_enventry e, CG_item *exp)
 		dataLabel = g_dataRestoreLabel;
 	}
 
-    S_symbol fsym = S_Symbol("_aqb_restore");
+    S_symbol fsym = S_Symbol("_AQB_RESTORE");
     E_enventryList lx = E_resolveSub(g_sleStack->env, fsym);
     if (!lx)
         return EM_error(pos, "builtin %s not found.", S_name(fsym));
     E_enventry func = lx->first->e;
     CG_itemList arglist = CG_ItemList();
     CG_itemListNode n = CG_itemListAppend(arglist);
-    CG_HeapPtrItem (&n->item, dataLabel, Ty_VoidPtr());
+    CG_HeapPtrItem (&n->item, dataLabel, Ty_AnyPtr());
     CG_loadRef(g_sleStack->code, /*pos=*/0, g_sleStack->frame, &n->item);
     CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
 
@@ -4126,8 +4317,8 @@ static void _insertBreakCheck(S_pos pos)
     CG_item zero;
     CG_externalVar (&test, "_break_status", Ty_Integer());
     CG_ZeroItem (&zero, Ty_Integer());
-    CG_transRelOp (g_sleStack->code, pos, CG_ne, &test, &zero);
-    CG_loadCond (g_sleStack->code, pos, &test);
+    CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, CG_ne, &test, &zero);
+    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &test);
     Temp_label l = Temp_namedlabel("___handle_break");
     CG_transJSR(g_sleStack->code, pos, l);
     CG_transLabel (g_sleStack->code, pos, test.u.condR.l);
@@ -4233,8 +4424,8 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, loopVar, &fromItem);
     CG_item cond = *loopVar;
-    CG_transRelOp (g_sleStack->code, pos, sle->u.forLoop.upwards ? CG_le : CG_ge, &cond, &sle->u.forLoop.toItem);
-    CG_loadCond (g_sleStack->code, pos, &cond);
+    CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, sle->u.forLoop.upwards ? CG_le : CG_ge, &cond, &sle->u.forLoop.toItem);
+    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &cond);
     CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
     sle->exitlbl = cond.u.condR.l;
     sle->u.forLoop.lHead = Temp_newlabel();
@@ -4265,8 +4456,8 @@ static bool stmtForEnd_(S_pos pos, S_symbol varSym)
     CG_transBinOp      (g_sleStack->code, pos, g_sleStack->frame, CG_plus, &v, &sle->u.forLoop.stepItem, CG_ty(&v));
     CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &sle->u.forLoop.var, &v);
     CG_item cond = sle->u.forLoop.var;
-    CG_transRelOp      (g_sleStack->code, pos, sle->u.forLoop.upwards ? CG_le : CG_ge, &cond, &sle->u.forLoop.toItem);
-    CG_loadCond (g_sleStack->code, pos, &cond);
+    CG_transRelOp      (g_sleStack->code, pos, g_sleStack->frame, sle->u.forLoop.upwards ? CG_le : CG_ge, &cond, &sle->u.forLoop.toItem);
+    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &cond);
     CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
     CG_transJump       (g_sleStack->code, pos, sle->u.forLoop.lHead);
     CG_transLabel      (g_sleStack->code, pos, cond.u.condR.l);
@@ -4362,7 +4553,7 @@ static bool stmtIfBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!convert_ty(&test, pos, Ty_Bool(), /*explicit=*/FALSE))
         return EM_error(pos, "IF: Boolean expression expected here.");
 
-    CG_loadCond (g_sleStack->code, pos, &test);
+    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &test);
     CG_transPostCond (g_sleStack->code, pos, &test, /*positive=*/ TRUE);
 
     sle->u.ifStmt.lElse  = test.u.condR.l;
@@ -4502,7 +4693,7 @@ static bool stmtIfElse(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!convert_ty(&test, pos, Ty_Bool(), /*explicit=*/FALSE))
             return EM_error(pos, "IF: Boolean expression expected here.");
 
-        CG_loadCond (g_sleStack->code, pos, &test);
+        CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &test);
         CG_transPostCond (g_sleStack->code, pos, &test, /*positive=*/ TRUE);
         sle->u.ifStmt.lElse  = test.u.condR.l;
 
@@ -4694,7 +4885,7 @@ static bool stmtCase(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!convert_ty(&test, pos, Ty_Bool(), /*explicit=*/FALSE))
             return EM_error(pos, "IF: Boolean expression expected here.");
 
-        CG_loadCond (sle->code, pos, &test);
+        CG_loadCond (sle->code, pos, g_sleStack->frame, &test);
         CG_transPostCond (sle->code, pos, &test, /*positive=*/ TRUE);
 
         sle->u.selectStmt.lNext  = test.u.condR.l;
@@ -4714,7 +4905,6 @@ static void stmtProcEnd_(void)
     CG_procEntryExit(sle->pos,
                      sle->frame,
                      sle->code,
-                     sle->frame->formals,
                      &sle->returnVar,
                      sle->exitlbl,
                      /*is_main=*/FALSE,
@@ -4845,7 +5035,7 @@ static bool stmtAssert(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_itemListNode n = CG_itemListAppend(arglist);
     if (!expression(tkn, &n->item))
         return EM_error((*tkn)->pos, "Assert: expression expected here.");
-    CG_loadVal (g_sleStack->code, pos, &n->item);
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
 
     n = CG_itemListAppend(arglist);
     CG_StringItem (g_sleStack->code, pos, &n->item, EM_format(pos, "assertion failed." /* FIXME: add expression str */));
@@ -4960,7 +5150,7 @@ static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                     }
                 }
 
-                if (!compatible_ty(formal->ty, CG_ty(&iln->item)))
+                if (!compatible_ty(CG_ty(&iln->item), formal->ty))
                 {
                     EM_error(pos, "%s: BYREF parameter type mismatch", S_name(formal->name));
                     return FALSE;
@@ -5026,7 +5216,7 @@ static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
                     EM_error(pos, "%s: parameter type mismatch", S_name(formal->name));
                     return FALSE;
                 }
-                CG_loadVal (g_sleStack->code, pos, &iln->item);
+                CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &iln->item);
                 break;
             }
         }
@@ -5039,7 +5229,7 @@ static bool transAssignArg(S_pos pos, CG_itemList assignedArgs, Ty_formal formal
             EM_error(pos, "variadic parameter type mismatch");
             return FALSE;
         }
-        CG_loadVal (g_sleStack->code, pos, &iln->item);
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &iln->item);
     }
     return TRUE;
 }
@@ -5231,7 +5421,7 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
         Ty_proc proc = (*formal)->ty->u.procPtr;
         S_symbol name = (*tkn)->u.sym;
 
-        if (proc->returnTy->kind == Ty_void)
+        if (!proc->returnTy)
         {
             E_enventryList lx = E_resolveSub(g_sleStack->env, name);
             if (lx)
@@ -5723,7 +5913,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     {
                         *tkn = (*tkn)->next;
 
-                        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty))
+                        if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty))
                             return EM_error((*tkn)->pos, "argument type descriptor expected here.");
                     }
 
@@ -5734,7 +5924,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     {
                         if (mode != Ty_byRef)
                             return EM_error((*tkn)->pos, "Arrays must be passed by reference.");
-                        ty = Ty_DArray (FE_mod->name, ty);
+                        ty = Ty_DArray(FE_mod->name, ty, _tyCArray());
                     }
 
                     Ty_ty plainTy = ty;
@@ -5805,16 +5995,27 @@ static bool parameterList(S_tkn *tkn, FE_paramList paramList, bool *variadic)
     return TRUE;
 }
 
+static string _generate_proc_label (S_symbol sCls, S_symbol sName, bool isFunction)
+{
+    string label = strconcat(UP_frontend, "_", strupper(UP_frontend, Ty_removeTypeSuffix(S_name(sName))));
+
+    if (sCls)
+        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, strupper(UP_frontend, S_name(sCls)), label));
+
+    if (isFunction)
+        label = strconcat(UP_frontend, label, "_");
+
+    return label;
+}
 
 // udtProperty ::= PROPERTY ident [ "." ident ] [ parameterList ] [ AS typeDesc ]
-static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
+static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkFunction;
     S_symbol     name;
     bool         isVariadic = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
-    string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
 
@@ -5855,8 +6056,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         *tkn = (*tkn)->next;
     }
 
-    // determine label, deal with implicit "this" arg
-    label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
+    // deal with implicit "this" arg
     FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
 
     if ((*tkn)->kind == S_LPAREN)
@@ -5865,7 +6065,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
             return FALSE;
     }
 
-    returnTy = Ty_Void();
+    returnTy = NULL;
     if (isSym(*tkn, S_AS))
     {
         *tkn = (*tkn)->next;
@@ -5873,20 +6073,22 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
         if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
             return EM_error((*tkn)->pos, "return type descriptor expected here.");
 
-        label = strconcat(UP_frontend, label, "_");
+        //label = strconcat(UP_frontend, label, "_");
     }
     else
     {
         kind  = Ty_pkSub;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    string label = _generate_proc_label (sCls, name, returnTy != NULL);
+
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
     return TRUE;
 }
 
 // propertyHeader ::= PROPERTY ident "." ident [ parameterList ] [ AS typeDesc ]
-static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_proc *proc)
+static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool isExtern, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
@@ -5894,7 +6096,6 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
     bool         isStatic   = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
-    string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
 
@@ -5926,7 +6127,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
             return FALSE;
     }
 
-    returnTy = Ty_Void();
+    returnTy = NULL;
     if (isSym(*tkn, S_AS))
     {
         *tkn = (*tkn)->next;
@@ -5937,17 +6138,18 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, Ty_p
     }
 
     // determine label
-    label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
-    if (kind==Ty_pkFunction)
-        label = strconcat(UP_frontend, label, "_");
+    string label = _generate_proc_label (sCls, name, returnTy != NULL);
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
     return TRUE;
 }
 
-// procHeader ::= ( ( SUB ident ( ident* | "." ident) | FUNCTION ident [ "." ident ] | CONSTRUCTOR [ ident ] ) [ parameterList ] [ AS typeDesc ] [ STATIC ]
-static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, Ty_proc *proc)
+// procHeader ::= ( SUB ident ( ident* | "." ident)
+//                | FUNCTION ident [ "." ident ]
+//                | CONSTRUCTOR [ ident ] )
+//                                                      [ parameterList ] [ AS typeDesc ] [ STATIC ]
+static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
@@ -5956,7 +6158,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     bool         isStatic   = FALSE;
     FE_paramList paramList  = FE_ParamList();
     Ty_ty        returnTy   = NULL;
-    string       label      = NULL;
+    //string       label      = NULL;
     S_symbol     sCls       = NULL;
     Ty_ty        tyCls      = NULL;
 
@@ -5965,6 +6167,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     {
         sCls       = g_sleStack->u.typeDecl.sType;
         tyCls      = g_sleStack->u.typeDecl.ty;
+
     }
 
     if (isSym(*tkn, S_SUB) || isSym(*tkn, S_FUNCTION))
@@ -6017,22 +6220,15 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         }
         else
         {
-            return EM_error((*tkn)->pos, "SUB, FUNCTION, CONSTRUCTOR or PROPERTY expected here.");
+            return EM_error((*tkn)->pos, "SUB, FUNCTION or CONSTRUCTOR expected here.");
         }
     }
 
     // determine label, deal with implicit "this" arg
     if (sCls)
-    {
-        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)))));
         FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
-    }
-    else
-    {
-        label = strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name(name)));
-    }
-    if (kind==Ty_pkFunction)
-        label = strconcat(UP_frontend, label, "_");
+
+    string label = _generate_proc_label (sCls, name, kind==Ty_pkFunction);
 
     // look for extra SUB syms
     if ((kind == Ty_pkSub) && !sCls)
@@ -6048,7 +6244,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
             {
                 extra_syms = extra_syms_last = S_Symlist((*tkn)->u.sym, NULL);
             }
-            label = strconcat(UP_frontend, label, strconcat(UP_frontend, "_", Ty_removeTypeSuffix(S_name((*tkn)->u.sym))));
+            label = strconcat(UP_frontend, label, strconcat(UP_frontend, "_", strupper(UP_frontend, Ty_removeTypeSuffix(S_name((*tkn)->u.sym)))));
             *tkn = (*tkn)->next;
         }
     }
@@ -6072,7 +6268,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
             returnTy = Ty_inferType(S_name(name));
     }
     else
-        returnTy = Ty_Void();
+        returnTy = NULL;
 
     if (isSym(*tkn, S_STATIC))
     {
@@ -6080,7 +6276,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
     return TRUE;
 }
@@ -6091,11 +6287,11 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
 {
     Ty_proc decl=NULL;
 
-    if (proc->tyCls)
+    if (proc->tyOwner)
     {
         // methods and constructors _must_ have a declaration
 
-        Ty_member e = Ty_findEntry (proc->tyCls, proc->name, /*checkBase=*/FALSE);
+        Ty_member e = Ty_findEntry (proc->tyOwner, proc->name, /*checkBase=*/FALSE);
 
         if (!e || ( (e->kind != Ty_recMethod) && (e->kind != Ty_recProperty)) )
         {
@@ -6104,13 +6300,13 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         }
 
         if (e->kind == Ty_recMethod)
-            decl = e->u.method;
+            decl = e->u.method->proc;
         else
-            decl = proc->returnTy->kind == Ty_void ? e->u.property.setter : e->u.property.getter;
+            decl = proc->returnTy ? e->u.property.getter->proc : e->u.property.setter->proc;
     }
     else
     {
-        if ( (proc->returnTy->kind != Ty_void))
+        if (proc->returnTy)
         {
             CG_item d;
             Ty_member entry;
@@ -6124,7 +6320,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
                         EM_error(pos, "Symbol has already been declared in this scope and is not a FUNCTION.");
                         return NULL;
                     }
-                    decl = entry->u.method;
+                    decl = entry->u.method->proc;
                 }
                 else
                 {
@@ -6199,16 +6395,19 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         }
         if (!matchProcSignatures (proc, decl))
         {
-            EM_error (pos, "Function declaration vs definition mismatch.");
+            EM_error (pos, "Sub or function declaration vs definition mismatch.");
             return NULL;
         }
+        decl->hasBody = TRUE;
     }
     else
     {
         decl = proc;
-        if (proc->returnTy->kind == Ty_void)
+        if (!proc->returnTy)
         {
-            E_declareSub (FE_mod->env, proc->name, proc);
+            E_declareSub (g_sleStack->env, proc->name, proc);
+            if (proc->visibility == Ty_visPublic)
+                E_declareSub (FE_mod->env, proc->name, proc);
         }
         else
         {
@@ -6246,12 +6445,12 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     Ty_proc proc;
     if (isSym(*tkn, S_PROPERTY))
     {
-        if (!propertyHeader(tkn, pos, visibility, &proc))
+        if (!propertyHeader(tkn, pos, visibility, /*isExtern=*/FALSE, &proc))
             return FALSE;
     }
     else
     {
-        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
+        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, /*isExtern=*/FALSE, &proc))
             return FALSE;
     }
     proc->hasBody = TRUE;
@@ -6263,7 +6462,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     E_env lenv = FE_mod->env;
     E_env wenv = NULL;
 
-    if (proc->tyCls)
+    if (proc->tyOwner)
         lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
     lenv = E_EnvScopes(lenv);   // local variables, consts etc.
 
@@ -6277,7 +6476,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     AS_instrList body = AS_InstrList();
 
     // function return var
-    if (proc->returnTy->kind != Ty_void)
+    if (proc->returnTy)
     {
         CG_allocVar (&returnVar, funFrame, /*name=*/NULL, /*expt=*/FALSE, proc->returnTy);
         CG_item zero;
@@ -6301,12 +6500,13 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
+// procDecl ::=  [ PRIVATE | PUBLIC ] DECLARE [EXTERN] procHeader [ LIB exprOffset identLibBase "(" [ ident ( "," ident)* ] ")"
 static bool stmtProcDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     Ty_proc       proc=NULL;
     S_pos         pos        = (*tkn)->pos;
     Ty_visibility visibility = OPT_get(OPTION_PRIVATE) ? Ty_visPrivate : Ty_visPublic;
+    bool          isExtern   = FALSE;
 
     if (isSym(*tkn, S_PRIVATE))
     {
@@ -6324,7 +6524,13 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     *tkn = (*tkn)->next; // consume "DECLARE"
 
-    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, &proc))
+    if (isSym(*tkn, S_EXTERN))
+    {
+        isExtern = TRUE;
+        *tkn = (*tkn)->next;
+    }
+
+    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, isExtern, &proc))
         return FALSE;
     proc = checkProcMultiDecl(pos, proc);
     if (!proc)
@@ -6523,6 +6729,31 @@ static bool stmtConstDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void _clsAddIntfImplRecursive(Ty_ty tyCls, Ty_ty tyIntf)
+{
+    for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
+    {
+        if (implements->intf == tyIntf)
+            return; // we already know this interface
+    }
+    
+    S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", S_name(tyIntf->u.interface.name)));
+
+    Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTableEntry, Ty_VTablePtr());
+    Ty_fieldCalcOffset (tyCls, vTablePtr);
+    Ty_addMember (tyCls->u.cls.members, vTablePtr);
+
+    Ty_implements implements = Ty_Implements (tyIntf, vTablePtr);
+
+    implements->next = tyCls->u.cls.implements;
+    tyCls->u.cls.implements = implements;
+
+    // recursion over sub-interface -> squash all of them down into a linear list
+
+    for (Ty_implements implements = tyIntf->u.interface.implements; implements; implements=implements->next)
+        _clsAddIntfImplRecursive (tyCls, implements->intf);
+}
+
 // classDeclBegin ::= [ PUBLIC | PRIVATE ] CLASS Identifier [ EXTENDS Identifier ] [ IMPLEMENTS Identifier ( "," Identifier )* ] 
 static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
@@ -6556,10 +6787,10 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_symbol sType = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
-        sle->u.typeDecl.sType = sType;
-        Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
-        if (tyOther)
-            EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
+    sle->u.typeDecl.sType = sType;
+    Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
+    if (tyOther)
+        EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
     Ty_ty tyBase = NULL;
     if (isSym(*tkn, S_EXTENDS))
@@ -6571,6 +6802,7 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         S_symbol sBaseType = (*tkn)->u.sym;
 
         tyBase = E_resolveType(g_sleStack->env, sBaseType);
+
         if (!tyBase)
             EM_error ((*tkn)->pos, "Base type %s not found.", S_name(sBaseType));
         if (tyBase->kind != Ty_class)
@@ -6578,31 +6810,69 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
         *tkn = (*tkn)->next;
     }
+    else
+    {
+        // every class except CObject itself inherits from Object implicitly
 
-    sle->u.typeDecl.ty = Ty_Class(FE_mod->name, tyBase);
+        if (sType != S_CObject)
+        {
+            tyBase = E_resolveType(g_sleStack->env, S_CObject);
+
+            if (!tyBase)
+                EM_error ((*tkn)->pos, "Base type %s not found.", S_name(S_CObject));
+            if (tyBase->kind != Ty_class)
+                EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(S_CObject));
+        }
+    }
+
+    Ty_ty tyCls = Ty_Class(FE_mod->name, sType, tyBase);
+    sle->u.typeDecl.ty = tyCls;
+
+    if (!tyBase)
+    {
+        S_symbol sVTablePtr = S_Symbol("_vTablePtr");
+        Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTablePtr, Ty_VTablePtr());
+        Ty_fieldCalcOffset (tyCls, vTablePtr);
+        Ty_addMember (tyCls->u.cls.members, vTablePtr);
+        tyCls->u.cls.vTablePtr = vTablePtr;
+    }
+    else
+    {
+        // take base class vtable entries into account
+        tyCls->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
+        tyCls->u.cls.virtualMethodCnt = tyBase->u.cls.virtualMethodCnt;
+    }
 
     if (isSym(*tkn, S_IMPLEMENTS))
     {
-        // FIXME: implement
-        assert(FALSE);
-        //*tkn = (*tkn)->next;
-        //if ((*tkn)->kind != S_IDENT)
-        //    return EM_error((*tkn)->pos, "base type identifier expected here.");
+        *tkn = (*tkn)->next;
 
-        //S_symbol sBaseType = (*tkn)->u.sym;
+        do
+        {
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "interface identifier expected here.");
 
-        //tyBase = E_resolveType(g_sleStack->env, sBaseType);
-        //if (!tyBase)
-        //    EM_error ((*tkn)->pos, "Base type %s not found.", S_name(sBaseType));
-        //if (tyBase->kind != Ty_class)
-        //    EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(sBaseType));
+            S_symbol sIntf = (*tkn)->u.sym;
 
-        //*tkn = (*tkn)->next;
+            Ty_ty tyIntf = E_resolveType(g_sleStack->env, sIntf);
+            if (!tyIntf)
+                return EM_error ((*tkn)->pos, "Interface %s not found.", S_name(sIntf));
+            if (tyIntf->kind != Ty_interface)
+                EM_error ((*tkn)->pos, "%s is not an interface.", S_name(sIntf));
+
+            _clsAddIntfImplRecursive (tyCls, tyIntf);
+
+            *tkn = (*tkn)->next;
+            if ((*tkn)->kind != S_COMMA)
+                break;
+            *tkn = (*tkn)->next;
+
+        } while (TRUE);
     }
 
-    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, tyCls);
     if (sle->u.typeDecl.udtVis == Ty_visPublic)
-        E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+        E_declareType(FE_mod->env, sle->u.typeDecl.sType, tyCls);
 
     sle->u.typeDecl.eFirst    = NULL;
     sle->u.typeDecl.eLast     = NULL;
@@ -6643,35 +6913,97 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     S_symbol sType = (*tkn)->u.sym;
     *tkn = (*tkn)->next;
 
-        sle->u.typeDecl.sType = sType;
-        Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
-        if (tyOther)
-            EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
+    sle->u.typeDecl.sType = sType;
+    Ty_ty tyOther = E_resolveType(g_sleStack->env, sle->u.typeDecl.sType);
+    if (tyOther)
+        EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
+
+    Ty_ty tyIntf = Ty_Interface(FE_mod->name, sType);
+    sle->u.typeDecl.ty = tyIntf;
 
     if (isSym(*tkn, S_IMPLEMENTS))
     {
-        // FIXME: implement
-        assert(FALSE);
-        //*tkn = (*tkn)->next;
-        //if ((*tkn)->kind != S_IDENT)
-        //    return EM_error((*tkn)->pos, "base type identifier expected here.");
+        *tkn = (*tkn)->next;
 
-        //S_symbol sBaseType = (*tkn)->u.sym;
+        do
+        {
+            if ((*tkn)->kind != S_IDENT)
+                return EM_error((*tkn)->pos, "base interface identifier expected here.");
 
-        //tyBase = E_resolveType(g_sleStack->env, sBaseType);
-        //if (!tyBase)
-        //    EM_error ((*tkn)->pos, "Base type %s not found.", S_name(sBaseType));
-        //if (tyBase->kind != Ty_class)
-        //    EM_error ((*tkn)->pos, "Base type %s is not a class.", S_name(sBaseType));
+            S_symbol sBaseType = (*tkn)->u.sym;
 
-        //*tkn = (*tkn)->next;
+            Ty_ty tyBase = E_resolveType(g_sleStack->env, sBaseType);
+            if (!tyBase)
+                return EM_error ((*tkn)->pos, "Base interface %s not found.", S_name(sBaseType));
+            if (tyBase->kind != Ty_interface)
+                return EM_error ((*tkn)->pos, "Base type %s is not an interface.", S_name(sBaseType));
+
+            Ty_implements implements = Ty_Implements (tyBase, /*vTablePtr=*/NULL);
+
+            implements->next = tyIntf->u.interface.implements;
+            tyIntf->u.interface.implements = implements;
+
+            // merge base interface members
+            for (Ty_member member = tyBase->u.interface.members->first; member; member=member->next)
+            {
+                Ty_member member2 = Ty_findEntry (tyIntf, member->name, /*checkBase=*/FALSE);
+                switch (member->kind)
+                {
+                    case Ty_recMethod:
+                    {
+                        if (member2)
+                        {
+                            if (!matchProcSignatures(member->u.method->proc, member2->u.method->proc))
+                                return EM_error ((*tkn)->pos, "Method %s.%s vs %s.%s signature mismatch",
+                                                 S_name (tyIntf->u.interface.name), S_name(member2->u.method->proc->name),
+                                                 S_name (tyBase->u.interface.name), S_name(member->u.method->proc->name));
+                        }
+                        else
+                        {
+                            Ty_method method = Ty_Method (member->u.method->proc, tyIntf->u.interface.virtualMethodCnt++);
+                            member2 = Ty_MemberMethod (member->visibility, method);
+                            Ty_addMember (tyIntf->u.interface.members, member2);
+                        }
+                        break;
+                    }
+                    case Ty_recProperty:
+                    {
+                        if (member2)
+                        {
+                            // FIXME: implement
+                            assert (FALSE);
+                            //if (!matchProcSignatures(member->u.property->proc, member2->u.property->proc))
+                            //    return EM_error ((*tkn)->pos, "Method %s.%s vs %s.%s signature mismatch",
+                            //                     S_name (tyIntf->u.interface.name), S_name(member2->u.property->proc->name),
+                            //                     S_name (tyBase->u.interface.name), S_name(member->u.property->proc->name));
+                        }
+                        else
+                        {
+                            Ty_method getter = member->u.property.getter ? Ty_Method (member->u.property.getter->proc, tyIntf->u.interface.virtualMethodCnt++) : NULL;
+                            Ty_method setter = member->u.property.setter ? Ty_Method (member->u.property.setter->proc, tyIntf->u.interface.virtualMethodCnt++) : NULL;
+                            member2 = Ty_MemberProperty (member->visibility, member->name, member->u.property.ty, setter, getter);
+                            Ty_addMember (tyIntf->u.interface.members, member2);
+                        }
+                        break;
+                    }
+                    default:
+                        assert (FALSE);
+                }
+            }
+
+            *tkn = (*tkn)->next;
+
+            if ((*tkn)->kind != S_COMMA)
+                break;
+            *tkn = (*tkn)->next;
+
+        } while (TRUE);
+
     }
 
-    sle->u.typeDecl.ty = Ty_Interface(FE_mod->name);
-
-    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+    E_declareType(g_sleStack->env, sle->u.typeDecl.sType, tyIntf);
     if (sle->u.typeDecl.udtVis == Ty_visPublic)
-        E_declareType(FE_mod->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
+        E_declareType(FE_mod->env, sle->u.typeDecl.sType, tyIntf);
 
     sle->u.typeDecl.eFirst    = NULL;
     sle->u.typeDecl.eLast     = NULL;
@@ -6762,7 +7094,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
                 {
                     return EM_error(pos, "Fixed boundaries for dynamic array UDTs are not supported.");
                 }
-                ty = Ty_DArray(FE_mod->name, ty);
+                ty = Ty_DArray(FE_mod->name, ty, _tyCArray());
             }
         }
 
@@ -6778,7 +7110,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (tyOther)
             EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
-        sle->u.typeDecl.ty = Ty_Record(FE_mod->name);
+        sle->u.typeDecl.ty = Ty_Record(FE_mod->name, sType);
 
         E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
         if (sle->u.typeDecl.udtVis == Ty_visPublic)
@@ -6791,12 +7123,253 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
+{
+    if (tyCls->u.cls.baseType)
+        _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
+
+    for (Ty_member member=tyCls->u.cls.members->first; member; member=member->next)
+    {
+        switch (member->kind)
+        {
+            case Ty_recMethod:
+                if (member->u.method->vTableIdx >= 0)
+                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx);
+                break;
+            case Ty_recProperty:
+                if (member->u.property.getter && member->u.property.getter->vTableIdx >= 0)
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx);
+                if (member->u.property.setter && member->u.property.setter->vTableIdx >= 0)
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.setter->proc->label, member->u.property.setter->vTableIdx);
+                break;
+            default:
+                continue;
+        }
+    }
+}
+
+static void _assembleVTables (Ty_ty tyCls)
+{
+    // generate __init method which allocates memory and assigns the vtable pointers in this class
+
+    Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+    //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
+    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___init", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+    tyCls->u.cls.__init = Ty_Proc  (Ty_visPublic, Ty_pkConstructor, S_Symbol("__init"),
+                                    /*extraSyms=*/NULL,
+                                    label,
+                                    formals,
+                                    /*isVariadic=*/FALSE,
+                                    /*isStatic=*/FALSE,
+                                    /*returnTy=*/NULL,
+                                    /*forward=*/FALSE,
+                                    /*isExtern=*/FALSE,
+                                    /*offset=*/0,
+                                    /*libBase=*/NULL,
+                                    /*tyCls=*/tyCls);
+
+    CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
+    AS_instrList il = AS_InstrList();
+
+    // assemble vtable for tyCls
+
+    Temp_label vtlabel = Temp_namedlabel(strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(tyCls->u.cls.name), "__vtable")));
+    CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+
+    _assembleClassVTable (vTableFrag, tyCls);
+
+    if (!tyCls->u.cls.virtualMethodCnt)
+    {
+        // ensure vtable always exists
+        CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_ULong(), 0));
+    }
+
+    // add code to __init function that assigns vTablePtr
+
+    CG_item objVTablePtr = frame->formals->first->item; // <this>
+    CG_transField(il, 0, frame, &objVTablePtr, tyCls->u.cls.vTablePtr);
+
+    CG_item classVTablePtr;
+    CG_HeapPtrItem (&classVTablePtr, vtlabel, Ty_AnyPtr());
+    CG_loadRef (il, 0, frame, &classVTablePtr);
+    classVTablePtr.kind = IK_inReg;
+
+    CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
+
+    // assemble and assign vtables for each implemented interface
+
+    for (Ty_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
+    {
+        vtlabel = Temp_namedlabel(strprintf (UP_frontend, "__intf_vtable_%s_%s",
+                                                          S_name(tyCls->u.cls.name),
+                                                          S_name(implements->intf->u.interface.name)));
+        CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+        int32_t offset = implements->vTablePtr->u.field.uiOffset;
+        CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_Long(), offset));
+
+        Ty_ty tyIntf = implements->intf;
+
+        for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
+        {
+            switch (intfMember->kind)
+            {
+                case Ty_recMethod:
+                {
+                    Ty_proc intfProc = intfMember->u.method->proc;
+                    assert (intfMember->u.method->vTableIdx >= 0);
+
+                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
+                    if (!member || (member->kind != Ty_recMethod))
+                    {
+                        EM_error (0, "Class %s is missing an implementation for %s.%s",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+
+                    if (member->u.method->vTableIdx < 0)
+                    {
+                        EM_error (0, "Class %s: implementation for %s.%s needs to be declared as virtual",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+                    Ty_proc proc = member->u.method->proc;
+                    if (!matchProcSignatures (proc, intfProc))
+                    {
+                        EM_error (0, "Class %s: implementation for %s.%s signature mismatch",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+
+                    CG_dataFragSetPtr (vTableFrag, proc->label, intfMember->u.method->vTableIdx+1);
+                    break;
+                }
+                case Ty_recProperty:
+                {
+                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
+                    if (!member || (member->kind != Ty_recProperty))
+                    {
+                        EM_error (0, "Class %s is missing an implementation for property %s.%s",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfMember->name));
+                        continue;
+                    }
+
+                    Ty_method intfSetter = intfMember->u.property.setter;
+                    if (intfSetter)
+                    {
+                        Ty_proc intfProc = intfSetter->proc;
+                        assert (intfSetter->vTableIdx >= 0);
+
+                        if (!member->u.property.setter)
+                        {
+                            EM_error (0, "Class %s is missing a setter implementation for property %s.%s",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        if (member->u.property.setter->vTableIdx < 0)
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s setter needs to be declared as virtual",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        Ty_proc proc = member->u.property.setter->proc;
+                        if (!matchProcSignatures (proc, intfProc))
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s setter signature mismatch",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        CG_dataFragSetPtr (vTableFrag, proc->label, intfSetter->vTableIdx+1);
+                    }
+
+                    Ty_method intfGetter = intfMember->u.property.getter;
+                    if (intfGetter)
+                    {
+                        Ty_proc intfProc = intfGetter->proc;
+                        assert (intfGetter->vTableIdx >= 0);
+
+                        if (!member->u.property.getter)
+                        {
+                            EM_error (0, "Class %s is missing a getter implementation for property %s.%s",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        if (member->u.property.getter->vTableIdx < 0)
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s getter needs to be declared as virtual",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        Ty_proc proc = member->u.property.getter->proc;
+                        if (!matchProcSignatures (proc, intfProc))
+                        {
+                            EM_error (0, "Class %s: implementation for %s.%s getter signature mismatch",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        CG_dataFragSetPtr (vTableFrag, proc->label, intfGetter->vTableIdx+1);
+                    }
+
+                    break;
+                }
+                default:
+                    assert (FALSE);
+            }
+
+        }
+
+        // add code to __init function that assigns vTableptr
+
+        CG_item objVTablePtr = frame->formals->first->item; // <this>
+        CG_transField(il, 0, frame, &objVTablePtr, implements->vTablePtr);
+
+        CG_item intfVTablePtr;
+        CG_HeapPtrItem (&intfVTablePtr, vtlabel, Ty_AnyPtr());
+        CG_loadRef (il, 0, frame, &intfVTablePtr);
+        intfVTablePtr.kind = IK_inReg;
+
+        CG_transAssignment (il, 0, frame, &objVTablePtr, &intfVTablePtr);
+    }
+
+    CG_procEntryExit(0,
+                     frame,
+                     il,
+                     /*returnVar=*/NULL,
+                     /*exitlbl=*/ NULL,
+                     /*is_main=*/FALSE,
+                     /*expt=*/TRUE);
+}
+
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
-//                   | procDecl
-//                   | udtProperty
+//                   | DECLARE [ EXTERN ] [ VIRTUAL ] ( procHeader | udtProperty )
 //                   | [ PUBLIC | PRIVATE | PROTECTED ] ":"
-//                   | END TYPE
+//                   | END ( TYPE | CLASS | INTERFACE )
 //                   )
 static bool stmtTypeDeclField(S_tkn *tkn)
 {
@@ -6855,67 +7428,227 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     if (re)
                         return EM_error (f->pos, "Duplicate UDT entry.");
 
-                    if ( (sle->u.typeDecl.ty->kind != Ty_record) && (sle->u.typeDecl.ty->kind != Ty_class) )
-                        return EM_error (f->pos, "Only record and class types can have fields");
-
-                    re = Ty_addField (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.fieldr.name, t, /*calcOffset=*/TRUE);
+                    re = Ty_MemberField (sle->u.typeDecl.memberVis, f->u.fieldr.name, t);
+                    Ty_fieldCalcOffset (sle->u.typeDecl.ty, re);
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_record:
+                            Ty_addMember (sle->u.typeDecl.ty->u.record.entries, re);
+                            break;
+                        case Ty_class:
+                            Ty_addMember (sle->u.typeDecl.ty->u.cls.members, re);
+                            break;
+                        default:
+                            return EM_error (f->pos, "Only record and class types can have fields");
+                    }
                     break;
                 }
                 case FE_methodUDTEntry:
                 {
-                    Ty_member re = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr->name, /*checkbase=*/FALSE);
-                    if (re)
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_interface:
+                            break;
+                        case Ty_class:
+                            break;
+                        default:
+                            return EM_error (f->pos, "Only interface and class types can have methods");
+                    }
+
+                    Ty_member member = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr.proc->name, /*checkbase=*/FALSE);
+                    if (member)
                         return EM_error (f->pos, "Duplicate UDT entry.");
-                    if ( (sle->u.typeDecl.ty->kind != Ty_interface) && (sle->u.typeDecl.ty->kind != Ty_class) )
-                        return EM_error (f->pos, "Only interface and class types can have methods");
-                    re = Ty_addMethod (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.methodr->name, f->u.methodr);
-                    if (!re)
-                        return FALSE;
+
+                    // check existing entries: is this an override?
+                    int16_t vTableIdx = -1;
+                    if (sle->u.typeDecl.ty->kind == Ty_class)
+                    {
+                        member = Ty_findEntry (sle->u.typeDecl.ty, f->u.methodr.proc->name, /*checkbase=*/TRUE);
+                        if (member)
+                        {
+                            if (member->kind != Ty_recMethod)
+                                return EM_error (f->pos, "%s is already declared as something other than a method",
+                                                 S_name(f->u.methodr.proc->name));
+
+                            if (f->u.methodr.isVirtual)
+                            {
+                                if (member->u.method->vTableIdx<0)
+                                    return EM_error (f->pos, "%s: only virtual methods can be overriden",
+                                                     S_name(f->u.methodr.proc->name));
+
+                                if (!matchProcSignatures (f->u.methodr.proc, member->u.method->proc))
+                                    return EM_error (f->pos, "%s: virtual method override signature mismatch",
+                                                     S_name(f->u.methodr.proc->name));
+
+                                vTableIdx = member->u.method->vTableIdx;
+                            }
+                        }
+                    }
+
+                    if ( f->u.methodr.isVirtual && (vTableIdx<0))
+                    {
+                        switch (sle->u.typeDecl.ty->kind)
+                        {
+                            case Ty_interface:
+                                vTableIdx = sle->u.typeDecl.ty->u.interface.virtualMethodCnt++;
+                                break;
+                            case Ty_class:
+                                vTableIdx = sle->u.typeDecl.ty->u.cls.virtualMethodCnt++;
+                                break;
+                            default:
+                                assert(FALSE);
+                        }
+                    }
+
+                    Ty_method method = Ty_Method(f->u.methodr.proc, vTableIdx);
+                    member = Ty_MemberMethod (sle->u.typeDecl.memberVis, method);
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_interface:
+                            Ty_addMember (sle->u.typeDecl.ty->u.interface.members, member);
+                            break;
+                        case Ty_class:
+                            Ty_addMember (sle->u.typeDecl.ty->u.cls.members, member);
+                            break;
+                        default:
+                            assert(FALSE);
+                    }
+
                     break;
                 }
                 case FE_propertyUDTEntry:
                 {
-                    bool isSub = f->u.property->returnTy->kind == Ty_void;
-                    Ty_member re = Ty_findEntry (sle->u.typeDecl.ty, f->u.property->name, /*checkbase=*/FALSE);
+                    Ty_ty propTy = f->u.property.proc->returnTy;
+                    bool isSub = propTy == NULL;
+
+                    // check signature, determine property type
+
+                    if (isSub)
+                    {
+                        // setter has to have exactly one argument besides <this>
+                        if (!f->u.property.proc->formals->next || f->u.property.proc->formals->next->next)
+                            return EM_error (f->pos, "property setter has to have exactly one argument");
+                        propTy = f->u.property.proc->formals->next->ty;
+                    }
+                    else
+                    {
+                        // getter has no arguments besides <this>
+                        if (f->u.property.proc->formals->next)
+                            return EM_error (f->pos, "property getter connot have arguments");
+                    }
+
+                    switch (sle->u.typeDecl.ty->kind)
+                    {
+                        case Ty_interface:
+                            break;
+                        case Ty_class:
+                            break;
+                        default:
+                            return EM_error (f->pos, "Only interface and class types can have properties");
+                    }
+
+                    // check existing entries: is this an override?
+                    int16_t vTableIdx = -1;
+                    Ty_member oldMember = NULL;
+                    if (sle->u.typeDecl.ty->kind == Ty_class)
+                    {
+                        oldMember = Ty_findEntry (sle->u.typeDecl.ty, f->u.property.proc->name, /*checkbase=*/TRUE);
+                        if (oldMember)
+                        {
+                            if (oldMember->kind != Ty_recProperty)
+                                return EM_error (f->pos, "%s is already declared as something other than a property",
+                                                 S_name(f->u.property.proc->name));
+
+                            if (!compatible_ty(oldMember->u.property.ty, propTy))
+                                return EM_error (f->pos, "%s: property type mismatch", S_name(f->u.property.proc->name));
+
+                            if (f->u.property.isVirtual)
+                            {
+                                if (isSub)
+                                {
+                                    if (oldMember->u.property.setter)
+                                    {
+                                        if (oldMember->u.property.setter->vTableIdx<0)
+                                            return EM_error (f->pos, "%s: only virtual properties can be overriden",
+                                                             S_name(f->u.property.proc->name));
+
+                                        vTableIdx = oldMember->u.property.setter->vTableIdx;
+                                    }
+                                }
+                                else
+                                {
+                                    if (oldMember->u.property.getter)
+                                    {
+                                        if (oldMember->u.property.getter->vTableIdx<0)
+                                            return EM_error (f->pos, "%s: only virtual properties can be overriden",
+                                                             S_name(f->u.property.proc->name));
+
+                                        vTableIdx = oldMember->u.property.getter->vTableIdx;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if ( f->u.property.isVirtual && (vTableIdx<0))
+                    {
+                        switch (sle->u.typeDecl.ty->kind)
+                        {
+                            case Ty_interface:
+                                vTableIdx = sle->u.typeDecl.ty->u.interface.virtualMethodCnt++;
+                                break;
+                            case Ty_class:
+                                vTableIdx = sle->u.typeDecl.ty->u.cls.virtualMethodCnt++;
+                                break;
+                            default:
+                                assert(FALSE);
+                        }
+                    }
+
+                    Ty_method method = Ty_Method(f->u.property.proc, vTableIdx);
+
+                    Ty_member re = Ty_findEntry (sle->u.typeDecl.ty, f->u.property.proc->name, /*checkbase=*/FALSE);
                     if (re)
                     {
                         if (re->kind != Ty_recProperty)
                             return EM_error (f->pos, "Not a property.");
 
-                        Ty_ty ty=NULL;
                         if (isSub)
-                        {
-                            if (re->u.property.setter)
-                                return EM_error (f->pos, "Duplicate property setter.");
-                            re->u.property.setter = f->u.property;
-                            Ty_ty ty = re->u.property.setter->formals->next->ty;
-                            if (!compatible_ty(ty, re->u.property.ty))
-                                return EM_error (f->pos, "property setter/getter types do not match");
-                        }
+                            re->u.property.setter = method;
                         else
-                        {
-                            if (re->u.property.getter)
-                                return EM_error (f->pos, "Duplicate property getter.");
-                            re->u.property.getter = f->u.property;
-                            ty = re->u.property.getter->returnTy;
-                            if (!compatible_ty(ty, re->u.property.ty))
-                                return EM_error (f->pos, "property setter/getter types do not match");
-                        }
+                            re->u.property.getter = method;
                     }
                     else
                     {
-                        Ty_ty ty=NULL;
-                        if (isSub)
-                            ty = f->u.property->formals->next->ty;
-                        else
-                            ty = f->u.property->returnTy;
-                        re = Ty_addProperty (sle->u.typeDecl.ty, sle->u.typeDecl.memberVis, f->u.property->name,
-                                             ty, isSub ? f->u.property : NULL, isSub ? NULL : f->u.property);
+                        Ty_method oldGetter = oldMember ? oldMember->u.property.getter : NULL;
+                        Ty_method oldSetter = oldMember ? oldMember->u.property.setter : NULL;
+                        re = Ty_MemberProperty (sle->u.typeDecl.memberVis, f->u.property.proc->name,
+                                                propTy, isSub ? method : oldSetter, isSub ? oldGetter : method);
+                        switch (sle->u.typeDecl.ty->kind)
+                        {
+                            case Ty_interface:
+                                Ty_addMember (sle->u.typeDecl.ty->u.interface.members, re);
+                                break;
+                            case Ty_class:
+                                Ty_addMember (sle->u.typeDecl.ty->u.cls.members, re);
+                                break;
+                            default:
+                                assert(FALSE);
+                        }
                     }
                     break;
                 }
             }
         }
+
+        // assemble vtables for classes
+        // prepend vtable set instruction to class construtor
+
+        if (sle->u.typeDecl.ty->kind == Ty_class)
+        {
+            _assembleVTables (sle->u.typeDecl.ty);
+        }
+
         return TRUE;
     }
 
@@ -6998,23 +7731,61 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             S_pos mpos = (*tkn)->pos;
             *tkn = (*tkn)->next; // consume "DECLARE"
 
+            bool isExtern=FALSE;
+            if (isSym(*tkn, S_EXTERN))
+            {
+                isExtern = TRUE;
+                *tkn = (*tkn)->next;
+            }
+
+            bool isVirtual=FALSE;
+            if (isSym(*tkn, S_VIRTUAL))
+            {
+                isVirtual = TRUE;
+                *tkn = (*tkn)->next;
+            }
+
             FE_udtEntry e;
 
             if (isSym (*tkn, S_PROPERTY))
             {
                 Ty_proc proc=NULL;
-                if (!udtProperty(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
+                if (!udtProperty(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, isExtern, &proc))
                     return FALSE;
-                e = FE_UDTEntryProperty(mpos, proc);
+                e = FE_UDTEntryProperty(mpos, proc, isVirtual);
             }
             else
             {
                 Ty_proc proc=NULL;
-                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, &proc))
+                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, isExtern, &proc))
                     return FALSE;
-                e = FE_UDTEntryMethod(mpos, proc);
-                if (proc->kind == Ty_pkConstructor)
-                    g_sleStack->u.typeDecl.ty->u.cls.constructor = proc;
+                e = FE_UDTEntryMethod(mpos, proc, isVirtual);
+                switch (g_sleStack->u.typeDecl.ty->kind)
+                {
+                    case Ty_class:
+                        if (proc->kind == Ty_pkConstructor)
+                        {
+                            g_sleStack->u.typeDecl.ty->u.cls.constructor = proc;
+                        }
+                        break;
+
+                    case Ty_interface:
+
+                        switch (proc->kind)
+                        {
+                            case Ty_pkSub:
+                            case Ty_pkFunction:
+                                if (!isVirtual)
+                                    return EM_error((*tkn)->pos, "interface: only virtual subs and functions allowed");
+                                break;
+                            default:
+                                return EM_error((*tkn)->pos, "interface: only functions and subs allowed");
+                        }
+
+                        break;
+                    default:
+                        assert(FALSE);
+                }
             }
 
             if (g_sleStack->u.typeDecl.eFirst)
@@ -7092,7 +7863,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                 }
                 else
                 {
-                        return FALSE;
+                    return FALSE;
                 }
             }
         }
@@ -7158,7 +7929,7 @@ static bool stmtWhileBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (!convert_ty(&ex, pos, Ty_Bool(), /*explicit=*/FALSE))
         return EM_error(pos, "WHILE: boolean expression expected.");
 
-    CG_loadCond (g_sleStack->code, pos, &ex);
+    CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &ex);
     CG_transPostCond (g_sleStack->code, pos, &ex, /*positive=*/ TRUE);
     sle->exitlbl = ex.u.condR.l;
 
@@ -7351,7 +8122,7 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
             return EM_error(pos, "DO UNTIL: boolean expression expected.");
         sle->u.doLoop.condAtEntry = TRUE;
 
-        CG_loadCond (g_sleStack->code, pos, &cond);
+        CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &cond);
         CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ FALSE);
         sle->exitlbl = cond.u.condR.l;
     }
@@ -7367,7 +8138,7 @@ static bool stmtDo(S_tkn *tkn, E_enventry e, CG_item *exp)
                 return EM_error(pos, "DO WHILE: boolean expression expected.");
             sle->u.doLoop.condAtEntry = TRUE;
 
-            CG_loadCond (g_sleStack->code, pos, &cond);
+            CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &cond);
             CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
             sle->exitlbl = cond.u.condR.l;
         }
@@ -7410,7 +8181,7 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (!convert_ty(&cond, pos, Ty_Bool(), /*explicit=*/FALSE))
             return EM_error(pos, "LOOP UNTIL: boolean expression expected.");
 
-        CG_loadCond (g_sleStack->code, pos, &cond);
+        CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &cond);
         CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ TRUE);
         CG_transJump  (g_sleStack->code, pos, sle->exitlbl);
         CG_transLabel (g_sleStack->code, pos, cond.u.condR.l);
@@ -7429,7 +8200,7 @@ static bool stmtLoop(S_tkn *tkn, E_enventry e, CG_item *exp)
             if (!convert_ty(&cond, pos, Ty_Bool(), /*explicit=*/FALSE))
                 return EM_error(pos, "LOOP WHILE: boolean expression expected.");
 
-            CG_loadCond (g_sleStack->code, pos, &cond);
+            CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &cond);
             CG_transPostCond (g_sleStack->code, pos, &cond, /*positive=*/ FALSE);
             CG_transJump  (g_sleStack->code, pos, sle->exitlbl);
             CG_transLabel (g_sleStack->code, pos, cond.u.condR.l);
@@ -7721,8 +8492,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
     {
         // call __aqb_clear
 
-        S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, S__aqb_clear, /*extraSyms=*/NULL, /*label=*/S__aqb_clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
 
@@ -7770,7 +8540,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next;
 
     Ty_ty ty = CG_ty(exp);
-    CG_castItem(g_sleStack->code, pos, exp, Ty_Pointer(FE_mod->name, ty->u.pointer));
+    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, exp, Ty_Pointer(FE_mod->name, ty->u.pointer));
 
     return TRUE;
 }
@@ -7837,7 +8607,7 @@ static bool funStrDollar(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_itemListNode n = CG_itemListAppend(arglist);
     if (!expression(tkn, &n->item))
         return EM_error((*tkn)->pos, "STR$: (numeric) expression expected here.");
-    CG_loadVal (g_sleStack->code, pos, &n->item);
+    CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
 
     if ((*tkn)->kind != S_RPAREN)
         return EM_error((*tkn)->pos, ") expected.");
@@ -7910,12 +8680,12 @@ static bool funIsNull(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next;
 
     exp->kind = IK_inReg;
-    exp->ty = Ty_VoidPtr();
+    exp->ty = Ty_AnyPtr();
 
     CG_item z;
-    CG_ZeroItem (&z, Ty_VoidPtr());
+    CG_ZeroItem (&z, Ty_AnyPtr());
 
-    CG_transRelOp (g_sleStack->code, pos, CG_eq, exp, &z);
+    CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, CG_eq, exp, &z);
 
     return TRUE;
 }
@@ -7967,9 +8737,9 @@ static bool transArrayBound(S_tkn *tkn, bool isUpper, CG_item *exp)
             CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
             n = CG_itemListAppend(arglist);
             n->item = dimExp;
-            CG_loadVal (g_sleStack->code, pos, &n->item);
+            CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol(isUpper ? "UBOUND" : "LBOUND"), arglist, g_sleStack->code, exp))
+            if (!transCallBuiltinMethod((*tkn)->pos, ty->u.darray.tyCArray, isUpper ? S_UBOUND : S_LBOUND, arglist, g_sleStack->code, exp))
                 return FALSE;
             return TRUE;
         }
@@ -8038,8 +8808,8 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
-    Ty_procKind kind = retTy->kind == Ty_void ? Ty_pkSub : Ty_pkFunction;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
+    Ty_procKind kind = retTy ? Ty_pkFunction : Ty_pkSub;
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
 
     if (kind == Ty_pkSub)
     {
@@ -8059,69 +8829,69 @@ static void registerBuiltins(void)
 {
     g_parsefs = TAB_empty(UP_frontend);
 
-    declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim               , Ty_Void());
-    declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim             , Ty_Void());
-    declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint             , Ty_Void());
-    declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin          , Ty_Void());
-    declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd            , Ty_Void());
-    declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin           , Ty_Void());
-    declareBuiltinProc(S_ELSE         , /*extraSyms=*/ NULL      , stmtIfElse            , Ty_Void());
-    declareBuiltinProc(S_ELSEIF       , /*extraSyms=*/ NULL      , stmtIfElse            , Ty_Void());
-    declareBuiltinProc(S_END          , /*extraSyms=*/ NULL      , stmtEnd               , Ty_Void());
-    declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd               , Ty_Void());
-    declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert            , Ty_Void());
-    declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption            , Ty_Void());
-    declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_PROPERTY     , /*extraSyms=*/ NULL      , stmtProcBegin         , Ty_Void());
-    declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall              , Ty_Void());
-    declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl         , Ty_Void());
-    declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl        , Ty_Void());
-    declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl          , Ty_Void());
-    declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin     , Ty_Void());
-    declareBuiltinProc(S_INTERFACE    , /*extraSyms=*/ NULL      , stmtInterfaceDeclBegin, Ty_Void());
-    declareBuiltinProc(S_CLASS        , /*extraSyms=*/ NULL      , stmtClassDeclBegin    , Ty_Void());
-    declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic            , Ty_Void());
-    declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin        , Ty_Void());
-    declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd          , Ty_Void());
-    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet               , Ty_Void());
-    declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit              , Ty_Void());
-    declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue          , Ty_Void());
-    declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo                , Ty_Void());
-    declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop              , Ty_Void());
-    declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect            , Ty_Void());
-    declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase              , Ty_Void());
-    declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn            , Ty_Void());
-    declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate     , Ty_Void());
-    declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate     , Ty_Void());
-    declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport            , Ty_Void());
-    declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng            , Ty_Void());
-    declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng            , Ty_Void());
-    declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint            , Ty_Void());
-    declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr            , Ty_Void());
-    declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto              , Ty_Void());
-    declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub             , Ty_Void());
-    declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase             , Ty_Void());
-    declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData              , Ty_Void());
-    declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead              , Ty_Void());
-    declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore           , Ty_Void());
-    declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput         , Ty_Void());
-    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput             , Ty_Void());
-    declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen              , Ty_Void());
-    declareBuiltinProc(S_CLOSE        , /*extraSyms=*/ NULL      , stmtClose             , Ty_Void());
+    declareBuiltinProc(S_DIM          , /*extraSyms=*/ NULL      , stmtDim               , NULL);
+    declareBuiltinProc(S_REDIM        , /*extraSyms=*/ NULL      , stmtReDim             , NULL);
+    declareBuiltinProc(S_PRINT        , /*extraSyms=*/ NULL      , stmtPrint             , NULL);
+    declareBuiltinProc(S_FOR          , /*extraSyms=*/ NULL      , stmtForBegin          , NULL);
+    declareBuiltinProc(S_NEXT         , /*extraSyms=*/ NULL      , stmtForEnd            , NULL);
+    declareBuiltinProc(S_IF           , /*extraSyms=*/ NULL      , stmtIfBegin           , NULL);
+    declareBuiltinProc(S_ELSE         , /*extraSyms=*/ NULL      , stmtIfElse            , NULL);
+    declareBuiltinProc(S_ELSEIF       , /*extraSyms=*/ NULL      , stmtIfElse            , NULL);
+    declareBuiltinProc(S_END          , /*extraSyms=*/ NULL      , stmtEnd               , NULL);
+    declareBuiltinProc(S_ENDIF        , /*extraSyms=*/ NULL      , stmtEnd               , NULL);
+    declareBuiltinProc(S_ASSERT       , /*extraSyms=*/ NULL      , stmtAssert            , NULL);
+    declareBuiltinProc(S_OPTION       , /*extraSyms=*/ NULL      , stmtOption            , NULL);
+    declareBuiltinProc(S_SUB          , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_FUNCTION     , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_CONSTRUCTOR  , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_PROPERTY     , /*extraSyms=*/ NULL      , stmtProcBegin         , NULL);
+    declareBuiltinProc(S_CALL         , /*extraSyms=*/ NULL      , stmtCall              , NULL);
+    declareBuiltinProc(S_CONST        , /*extraSyms=*/ NULL      , stmtConstDecl         , NULL);
+    declareBuiltinProc(S_EXTERN       , /*extraSyms=*/ NULL      , stmtExternDecl        , NULL);
+    declareBuiltinProc(S_DECLARE      , /*extraSyms=*/ NULL      , stmtProcDecl          , NULL);
+    declareBuiltinProc(S_TYPE         , /*extraSyms=*/ NULL      , stmtTypeDeclBegin     , NULL);
+    declareBuiltinProc(S_INTERFACE    , /*extraSyms=*/ NULL      , stmtInterfaceDeclBegin, NULL);
+    declareBuiltinProc(S_CLASS        , /*extraSyms=*/ NULL      , stmtClassDeclBegin    , NULL);
+    declareBuiltinProc(S_STATIC       , /*extraSyms=*/ NULL      , stmtStatic            , NULL);
+    declareBuiltinProc(S_WHILE        , /*extraSyms=*/ NULL      , stmtWhileBegin        , NULL);
+    declareBuiltinProc(S_WEND         , /*extraSyms=*/ NULL      , stmtWhileEnd          , NULL);
+    declareBuiltinProc(S_LET          , /*extraSyms=*/ NULL      , stmtLet               , NULL);
+    declareBuiltinProc(S_EXIT         , /*extraSyms=*/ NULL      , stmtExit              , NULL);
+    declareBuiltinProc(S_CONTINUE     , /*extraSyms=*/ NULL      , stmtContinue          , NULL);
+    declareBuiltinProc(S_DO           , /*extraSyms=*/ NULL      , stmtDo                , NULL);
+    declareBuiltinProc(S_LOOP         , /*extraSyms=*/ NULL      , stmtLoop              , NULL);
+    declareBuiltinProc(S_SELECT       , /*extraSyms=*/ NULL      , stmtSelect            , NULL);
+    declareBuiltinProc(S_CASE         , /*extraSyms=*/ NULL      , stmtCase              , NULL);
+    declareBuiltinProc(S_RETURN       , /*extraSyms=*/ NULL      , stmtReturn            , NULL);
+    declareBuiltinProc(S_PRIVATE      , /*extraSyms=*/ NULL      , stmtPublicPrivate     , NULL);
+    declareBuiltinProc(S_PUBLIC       , /*extraSyms=*/ NULL      , stmtPublicPrivate     , NULL);
+    declareBuiltinProc(S_IMPORT       , /*extraSyms=*/ NULL      , stmtImport            , NULL);
+    declareBuiltinProc(S_DEFSNG       , /*extraSyms=*/ NULL      , stmtDefsng            , NULL);
+    declareBuiltinProc(S_DEFLNG       , /*extraSyms=*/ NULL      , stmtDeflng            , NULL);
+    declareBuiltinProc(S_DEFINT       , /*extraSyms=*/ NULL      , stmtDefint            , NULL);
+    declareBuiltinProc(S_DEFSTR       , /*extraSyms=*/ NULL      , stmtDefstr            , NULL);
+    declareBuiltinProc(S_GOTO         , /*extraSyms=*/ NULL      , stmtGoto              , NULL);
+    declareBuiltinProc(S_GOSUB        , /*extraSyms=*/ NULL      , stmtGosub             , NULL);
+    declareBuiltinProc(S_ERASE        , /*extraSyms=*/ NULL      , stmtErase             , NULL);
+    declareBuiltinProc(S_DATA         , /*extraSyms=*/ NULL      , stmtData              , NULL);
+    declareBuiltinProc(S_READ         , /*extraSyms=*/ NULL      , stmtRead              , NULL);
+    declareBuiltinProc(S_RESTORE      , /*extraSyms=*/ NULL      , stmtRestore           , NULL);
+    declareBuiltinProc(S_LINE         , S_Symlist (S_INPUT, NULL), stmtLineInput         , NULL);
+    declareBuiltinProc(S_INPUT        , /*extraSyms=*/ NULL      , stmtInput             , NULL);
+    declareBuiltinProc(S_OPEN         , /*extraSyms=*/ NULL      , stmtOpen              , NULL);
+    declareBuiltinProc(S_CLOSE        , /*extraSyms=*/ NULL      , stmtClose             , NULL);
 
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf             , Ty_ULong());
-    declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr             , Ty_VoidPtr());
+    declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr             , Ty_AnyPtr());
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast               , Ty_ULong());
     declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar          , Ty_String());
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound             , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound             , Ty_ULong());
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull             , Ty_Bool());
-    declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace             , Ty_Void());
-    declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak             , Ty_Void());
-    declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear             , Ty_Void());
-    declareBuiltinProc(S_WRITE        , /*extraSyms=*/ NULL      , stmtWrite             , Ty_Void());
+    declareBuiltinProc(S_TRACE        , /*extraSyms=*/ NULL      , stmtTrace             , NULL);
+    declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak             , NULL);
+    declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear             , NULL);
+    declareBuiltinProc(S_WRITE        , /*extraSyms=*/ NULL      , stmtWrite             , NULL);
 }
 
 //
@@ -8224,7 +8994,7 @@ static bool statementOrAssignment(S_tkn *tkn)
             n->item = ex;
             CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &n->item);
 
-            if (!transCallBuiltinMethod((*tkn)->pos, S__DARRAY_T, S_Symbol("COPY"), arglist, g_sleStack->code, /*res=*/NULL))
+            if (!transCallBuiltinMethod((*tkn)->pos, ty_left->u.darray.tyCArray, S_COPY, arglist, g_sleStack->code, /*res=*/NULL))
                 return FALSE;
         }
     }
@@ -8241,6 +9011,133 @@ static bool nextch (char *ch, void *u)
 {
     int n = fread(ch, 1, 1, (FILE *) u);
     return n==1;
+}
+
+static void _checkLeftoverForwardPtrsInFormals(Ty_proc proc)
+{
+    for (Ty_formal formal = proc->formals; formal; formal=formal->next)
+    {
+        if (formal->ty->kind != Ty_forwardPtr)
+            continue;
+        Ty_ty tyForward = E_resolveType(g_sleStack->env, formal->ty->u.sForward);
+        if (!tyForward)
+            EM_error(0, "unresolved forward type of formal %s.%s", S_name(proc->name), S_name(formal->name));
+        formal->ty = Ty_Pointer(FE_mod->name, tyForward);
+    }
+}
+
+static void _checkLeftoverForwards(S_scope env)
+{
+    TAB_iter i = S_Iter(env);
+    S_symbol sym;
+    E_enventry x;
+    while (TAB_next(i, (void **) &sym, (void **)&x))
+    {
+        switch (x->kind)
+        {
+            case E_vfcEntry:
+            {
+                Ty_ty ty = CG_ty(&x->u.var);
+                if (ty->kind == Ty_prc)
+                {
+                    Ty_proc proc = ty->u.proc;
+                    if (!proc->hasBody && !proc->isExtern)
+                        EM_error(0, "missing implementation of %s", S_name(proc->name));
+                }
+                break;
+            }
+            case E_procEntry:
+            {
+                assert(FALSE); // see _checkLeftoverForwardSubs()
+                break;
+            }
+            case E_typeEntry:
+            {
+                Ty_ty ty = x->u.ty;
+                switch (ty->kind)
+                {
+                    case Ty_record:
+                        for (Ty_member member = ty->u.record.entries->first; member; member=member->next)
+                        {
+                            if (member->kind != Ty_recField)
+                                continue;
+                            if (member->u.field.ty->kind == Ty_forwardPtr)
+                            {
+                                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(member->name));
+                                Ty_ty tyForward = E_resolveType(g_sleStack->env, member->u.field.ty->u.sForward);
+                                if (!tyForward)
+                                    EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
+
+                                member->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
+                            }
+                        }
+                        break;
+
+                    case Ty_class:
+                        for (Ty_member member = ty->u.cls.members->first; member; member=member->next)
+                        {
+                            switch (member->kind)
+                            {
+                                case Ty_recField:
+                                    if (member->u.field.ty->kind == Ty_forwardPtr)
+                                    {
+                                        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(member->name));
+                                        Ty_ty tyForward = E_resolveType(g_sleStack->env, member->u.field.ty->u.sForward);
+                                        if (!tyForward)
+                                            EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
+
+                                        member->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
+                                    }
+                                    break;
+                                case Ty_recMethod:
+                                    if (!member->u.method->proc->hasBody && !member->u.method->proc->isExtern)
+                                        EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
+                                    else
+                                        _checkLeftoverForwardPtrsInFormals (member->u.method->proc);
+                                    break;
+                                case Ty_recProperty:
+                                    if (member->u.property.getter)
+                                    {
+                                        if (!member->u.property.getter->proc->hasBody && !member->u.property.getter->proc->isExtern)
+                                            EM_error(0, "missing implementation of getter for %s.%s", S_name(sym), S_name(member->name));
+                                        else
+                                            _checkLeftoverForwardPtrsInFormals (member->u.property.getter->proc);
+                                    }
+                                    if (member->u.property.setter)
+                                    {
+                                        if (!member->u.property.setter->proc->hasBody && !member->u.property.setter->proc->isExtern)
+                                            EM_error(0, "missing implementation of setter for %s.%s", S_name(sym), S_name(member->name));
+                                        else
+                                            _checkLeftoverForwardPtrsInFormals (member->u.property.setter->proc);
+                                    }
+                                    break;
+                            }
+                        }
+                        break;
+
+                    default:
+                        continue;
+                }
+            }
+        }
+    }
+}
+
+static void _checkLeftoverForwardSubs(S_scope env)
+{
+    TAB_iter i = S_Iter(env);
+    S_symbol sym;
+    E_enventryList lx;
+    while (TAB_next(i, (void **) &sym, (void **)&lx))
+    {
+        for (E_enventryListNode xn=lx->first; xn; xn=xn->next)
+        {
+            E_enventry e = xn->e;
+            assert(e->kind == E_procEntry);
+            if (!e->u.proc->hasBody && !e->u.proc->isExtern)
+                EM_error(0, "missing implementation of %s", S_name(xn->e->u.proc->name));
+        }
+    }
 }
 
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*
@@ -8289,13 +9186,13 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     E_import(FE_mod, g_builtinsModule);
     if (strcmp (OPT_default_module, "none"))
     {
-        E_module modDefault = E_loadModule(S_Symbol(OPT_default_module));
-        if (!modDefault)
+        _g_modDefault = E_loadModule(S_Symbol(OPT_default_module));
+        if (!_g_modDefault)
         {
             EM_error (0, "***ERROR: failed to load %s !", OPT_default_module);
             return NULL;
         }
-        E_import(FE_mod, modDefault);
+        E_import(FE_mod, _g_modDefault);
     }
 
     E_env env = E_EnvScopes(FE_mod->env);  // main()/init() env
@@ -8307,7 +9204,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     g_prog = g_sleStack->code;
 
     // static initializers
-    g_varInitIL = AS_InstrList();
+    g_clearIL = AS_InstrList();
 
     // DATA statement support
     g_dataRestoreLabel = Temp_newlabel();
@@ -8386,7 +9283,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
             E_enventry func = lx->first->e;
             CG_itemList arglist = CG_ItemList();
             CG_itemListNode n = CG_itemListAppend(arglist);
-            CG_HeapPtrItem (&n->item, g_dataRestoreLabel, Ty_VoidPtr());
+            CG_HeapPtrItem (&n->item, g_dataRestoreLabel, Ty_AnyPtr());
             CG_loadRef(initCode, /*pos=*/0, frame, &n->item);
             CG_transCall (initCode, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
             AS_instrListPrependList (g_prog, initCode);
@@ -8397,56 +9294,25 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         }
     }
 
-    // resolve leftover forward ptrs
+    // resolve leftover forward ptrs, unimplemented (member) functions
 
-    TAB_iter i = S_Iter(g_sleStack->env->u.scopes.tenv);
-    S_symbol sym;
-    E_enventry x;
-    while (TAB_next(i, (void **) &sym, (void **)&x))
+    _checkLeftoverForwards(g_sleStack->env->u.scopes.vfcenv);
+    _checkLeftoverForwards(g_sleStack->env->u.scopes.tenv);
+    _checkLeftoverForwardSubs(g_sleStack->env->u.scopes.senv);
+
+    // check for unfinished SLEs
+    switch (g_sleStack->kind)
     {
-        if (x->kind != E_typeEntry)
-            continue;
-
-        Ty_ty ty = x->u.ty;
-        switch (ty->kind)
-        {
-            case Ty_record:
-                for (Ty_member member = ty->u.record.entries; member; member=member->next)
-                {
-                    if (member->kind != Ty_recField)
-                        continue;
-                    if (member->u.field.ty->kind == Ty_forwardPtr)
-                    {
-                        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(member->name));
-                        Ty_ty tyForward = E_resolveType(g_sleStack->env, member->u.field.ty->u.sForward);
-                        if (!tyForward)
-                            EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
-
-                        member->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
-                    }
-                }
-                break;
-
-            case Ty_class:
-                for (Ty_member member = ty->u.cls.members; member; member=member->next)
-                {
-                    if (member->kind != Ty_recField)
-                        continue;
-                    if (member->u.field.ty->kind == Ty_forwardPtr)
-                    {
-                        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(member->name));
-                        Ty_ty tyForward = E_resolveType(g_sleStack->env, member->u.field.ty->u.sForward);
-                        if (!tyForward)
-                            EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
-
-                        member->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
-                    }
-                }
-                break;
-
-            default:
-                continue;
-        }
+        case FE_sleTop: // ok
+            break;
+        case FE_sleProc:
+        case FE_sleDo:
+        case FE_sleFor:
+        case FE_sleWhile:
+        case FE_sleSelect:
+        case FE_sleType:
+        case FE_sleIf:
+            EM_error (g_sleStack->pos, "unfinished statement");
     }
 
     slePop();
@@ -8456,14 +9322,12 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     // generate __aqb_clear():
     if (is_main)
     {
-        if (!g_varInitIL->first)
-            CG_transNOP (g_varInitIL, 0);
-        Temp_label label = Temp_namedlabel(AQB_CLEAR_NAME);
-        CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
+        if (!g_clearIL->first)
+            CG_transNOP (g_clearIL, 0);
+        CG_frame frame = CG_Frame(0, S__aqb_clear, NULL, /*statc=*/TRUE);
         CG_procEntryExit(0,
                          frame,
-                         g_varInitIL,
-                         frame->formals,
+                         g_clearIL,
                          /*returnVar=*/NULL,
                          /*exitlbl=*/ NULL,
                          /*is_main=*/FALSE,
@@ -8475,7 +9339,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     if (!g_prog->first)
         CG_transNOP (g_prog, 0);
 
-    CG_procEntryExit (0, frame, g_prog, /*formals=*/NULL, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+    CG_procEntryExit (0, frame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
 
     // stack size (used in _brt stackswap)
 
@@ -8495,6 +9359,11 @@ bool FE_writeSymFile(string symfn, bool hasCode)
 {
     FE_mod->hasCode = hasCode;
     return E_saveModule(symfn, FE_mod);
+}
+
+bool FE_writeCStubFile(string cstubfn)
+{
+    return CS_writeCStubFile(cstubfn, FE_mod);
 }
 
 static S_symbol defineKeyword (char *s)
@@ -8591,7 +9460,6 @@ void FE_boot(void)
     S_LBOUND          = defineKeyword("LBOUND");
     S_UBOUND          = defineKeyword("UBOUND");
     S_PROTECTED       = defineKeyword("PROTECTED");
-    S__DARRAY_T       = defineKeyword("_DARRAY_T");
     S_REDIM           = defineKeyword("REDIM");
     S_PRESERVE        = defineKeyword("PRESERVE");
     S__ISNULL         = defineKeyword("_ISNULL");
@@ -8623,6 +9491,15 @@ void FE_boot(void)
     S_INTERFACE       = defineKeyword("INTERFACE");
     S_CLASS           = defineKeyword("CLASS");
     S_IMPLEMENTS      = defineKeyword("IMPLEMENTS");
+    S_VIRTUAL         = defineKeyword("VIRTUAL");
+
+    S_ToString        = S_Symbol("TOSTRING");
+    S_CObject         = S_Symbol("COBJECT");
+    S_CArray          = S_Symbol("CARRAY");
+    S_RemoveAll       = S_Symbol("REMOVEALL");
+    S_IDXPTR          = S_Symbol("IDXPTR");
+    S__aqb_clear      = S_Symbol("__aqb_clear");
+    S_COPY            = S_Symbol("COPY");
 }
 
 void FE_init(void)

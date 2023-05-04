@@ -7,8 +7,10 @@ typedef struct Ty_ty_           *Ty_ty;
 typedef struct Ty_const_        *Ty_const;
 typedef struct Ty_formal_       *Ty_formal;
 typedef struct Ty_proc_         *Ty_proc;
-typedef struct Ty_member_  *Ty_member;
-typedef struct Ty_intfList_     *Ty_intfList;
+typedef struct Ty_member_       *Ty_member;
+typedef struct Ty_memberList_   *Ty_memberList;
+typedef struct Ty_implements_   *Ty_implements;
+typedef struct Ty_method_       *Ty_method;
 
 #include "temp.h"
 
@@ -18,7 +20,7 @@ struct Ty_ty_
            Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
            Ty_single, Ty_double,
            Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
-           Ty_void, Ty_forwardPtr, Ty_procPtr,
+           Ty_any, Ty_forwardPtr, Ty_procPtr,
            Ty_class, Ty_interface,
            Ty_toLoad, Ty_prc } kind;
            // Ty_toLoad: used for module loading in env.c
@@ -26,20 +28,27 @@ struct Ty_ty_
     union
     {
         Ty_ty                                                                 pointer;
-        struct {uint32_t       uiSize;
-                Ty_member      entries;                                     } record;
+        struct {S_symbol       name;
+                uint32_t       uiSize;
+                Ty_memberList  entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
-        struct {Ty_ty elementTy;                                            } darray;
+        struct {Ty_ty elementTy; Ty_ty tyCArray;                            } darray;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
-        struct {Ty_ty          baseType;
-                Ty_intfList    implements;
-                Ty_proc        constructor;
+        struct {S_symbol       name;
                 uint32_t       uiSize;
-                Ty_member      members;                                     } cls;
-        struct {Ty_intfList    implements;
-                Ty_member      members;                                     } interface;
+                Ty_ty          baseType;
+                Ty_implements  implements;
+                Ty_proc        constructor;
+                Ty_proc        __init;
+                Ty_memberList  members;
+                int16_t        virtualMethodCnt;
+                Ty_member      vTablePtr;                                   } cls;
+        struct {S_symbol       name;
+                Ty_implements  implements;
+                Ty_memberList  members;
+                int16_t        virtualMethodCnt;                            } interface;
     } u;
 
     // serialization / symbol file / import / export support:
@@ -83,44 +92,57 @@ struct Ty_proc_
     Ty_procKind      kind;
     Ty_visibility    visibility;
     S_symbol         name;
-    S_symlist        extraSyms; // for subs that use more than on sym, e.g. WINDOW CLOSE
+    S_symlist        extraSyms;  // for subs that use more than on sym, e.g. WINDOW CLOSE
     Temp_label       label;
     Ty_formal        formals;
     bool             isVariadic;
     bool             isStatic;
     Ty_ty            returnTy;
     bool             forward;
+    bool             isExtern;
     int32_t          offset;
     string           libBase;
-    Ty_ty            tyCls;    // methods only: pointer to class (for now: record) type
+    Ty_ty            tyOwner;   // methods only: pointer to class or interface this method belongs to
     bool             hasBody;
 };
 
 struct Ty_member_
 {
-    Ty_member                                     next;
+    Ty_member                                          next;
     enum { Ty_recMethod, Ty_recField, Ty_recProperty } kind;
     S_symbol                                           name;
     Ty_visibility                                      visibility;
     union
     {
-        Ty_proc                                        method;
+        Ty_method                                      method;
         struct {
             uint32_t      uiOffset;
             Ty_ty         ty;
         }                                              field;
         struct {
             Ty_ty         ty;
-            Ty_proc       getter;
-            Ty_proc       setter;
+            Ty_method     getter;
+            Ty_method     setter;
         }                                              property;
     } u;
 };
 
-struct Ty_intfList_
+struct Ty_memberList_
 {
-    Ty_intfList     next;
+    Ty_member   first, last;
+};
+
+struct Ty_implements_
+{
+    Ty_implements   next;
     Ty_ty           intf;
+    Ty_member       vTablePtr;
+};
+
+struct Ty_method_
+{
+    Ty_proc   proc;
+    int16_t   vTableIdx;
 };
 
 Ty_ty           Ty_Bool(void);
@@ -133,28 +155,36 @@ Ty_ty           Ty_ULong(void);
 Ty_ty           Ty_Single(void);
 Ty_ty           Ty_Double(void);
 Ty_ty           Ty_String(void);
-Ty_ty           Ty_Void(void);
-Ty_ty           Ty_VoidPtr(void);
+Ty_ty           Ty_Any(void);
+Ty_ty           Ty_AnyPtr(void);
+Ty_ty           Ty_VTableTy(void);
+Ty_ty           Ty_VTablePtr(void);
 
 Ty_ty           Ty_SArray            (S_symbol mod, Ty_ty ty, int start, int end);
-Ty_ty           Ty_DArray            (S_symbol mod, Ty_ty elementTy);
+Ty_ty           Ty_DArray            (S_symbol mod, Ty_ty elementTy, Ty_ty tyCArray);
 Ty_ty           Ty_Pointer           (S_symbol mod, Ty_ty ty);
 Ty_ty           Ty_ForwardPtr        (S_symbol mod, S_symbol sType);
 Ty_ty           Ty_Prc               (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr           (S_symbol mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
 
-Ty_ty           Ty_Record            (S_symbol mod);
-Ty_ty           Ty_Interface         (S_symbol mod);
-Ty_ty           Ty_Class             (S_symbol mod, Ty_ty baseClass);
-void            Ty_implements        (Ty_ty clsIntfType, Ty_ty intf);
-Ty_member       Ty_addField          (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty fieldType, bool calcOffset);
-Ty_member       Ty_addMethod         (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_proc method);
-Ty_member       Ty_addProperty       (Ty_ty ty, Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_proc setter, Ty_proc getter);
+Ty_ty           Ty_Record            (S_symbol mod, S_symbol name);
+Ty_ty           Ty_Interface         (S_symbol mod, S_symbol name);
+Ty_ty           Ty_Class             (S_symbol mod, S_symbol name, Ty_ty baseClass);
+Ty_implements   Ty_Implements        (Ty_ty intf, Ty_member vTablePtr);
+bool            Ty_checkImplements   (Ty_ty ty, Ty_ty tyInf);
+bool            Ty_checkInherits     (Ty_ty tyChild, Ty_ty tyParent);
+Ty_member       Ty_MemberField       (Ty_visibility visibility, S_symbol name, Ty_ty fieldType);
+void            Ty_fieldCalcOffset   (Ty_ty ty, Ty_member field);
+Ty_method       Ty_Method            (Ty_proc method, int16_t vTableIdx);
+Ty_member       Ty_MemberMethod      (Ty_visibility visibility, Ty_method method);
+Ty_member       Ty_MemberProperty    (Ty_visibility visibility, S_symbol name, Ty_ty propType, Ty_method setter, Ty_method getter);
+Ty_memberList   Ty_MemberList        (void);
+void            Ty_addMember         (Ty_memberList memberList, Ty_member member);
 Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, int32_t offset, string libBase, Ty_ty tyCls);
+Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner);
 
 Ty_const        Ty_ConstBool         (Ty_ty ty, bool     b);
 Ty_const        Ty_ConstInt          (Ty_ty ty, int32_t  i);
@@ -162,8 +192,10 @@ Ty_const        Ty_ConstUInt         (Ty_ty ty, uint32_t u);
 Ty_const        Ty_ConstFloat        (Ty_ty ty, double   f);
 Ty_const        Ty_ConstString       (Ty_ty ty, string   s);
 
-int             Ty_size              (Ty_ty t);
+int             Ty_size              (Ty_ty ty);
 void            Ty_computeSize       (Ty_ty ty);
+bool            Ty_isSigned          (Ty_ty ty);
+bool            Ty_isAllocatable     (Ty_ty ty);
 
 void            Ty_defineRange       (Ty_ty ty, char lstart, char lend);
 Ty_ty           Ty_inferType         (string varname);

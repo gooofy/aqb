@@ -45,28 +45,6 @@ extern struct Library       *DiskfontBase;
 #define AE_EXEC_LIST                126
 
 /*
- * Exec lists: OOP Wrapper
- */
-
-typedef struct
-{
-    struct Node n;
-
-
-} ExecNode;
-
-void _ExecNode___init__ (ExecNode *n, UBYTE ln_Type, BYTE ln_Pri, STRPTR ln_Name);
-
-typedef struct
-{
-    struct List  l;
-
-} ExecList;
-
-void _ExecList___init__ (ExecList *l, UBYTE lh_Type);
-void _ExecList_AddTail  (ExecList *l, ExecNode *n);
-
-/*
  * tags
  */
 
@@ -140,8 +118,8 @@ enum _aqb_output_type  _aqb_get_output (BOOL needGfx);
 struct Window         *_aqb_get_win    (SHORT wid);
 SHORT                  _aqb_get_win_id (struct Window *win);
 
-void   _window_add_close_cb   (window_close_cb_t cb, void *ud);
-void   _window_add_msg_cb     (window_msg_cb_t cb);
+void   _window_add_close_cb   (SHORT win_id, window_close_cb_t cb, void *ud);
+void   _window_add_msg_cb     (SHORT win_id, window_msg_cb_t cb);
 
 void   SCREEN                 (SHORT id, SHORT width, SHORT height, SHORT depth, UWORD mode, UBYTE *title, BITMAP_t *bm);
 void   SCREEN_CLOSE           (SHORT id);
@@ -176,7 +154,7 @@ void   PAINT                  (BOOL s, SHORT x, SHORT y, SHORT pc, SHORT bc);
 void   AREA                   (BOOL s, SHORT x, SHORT y);
 void   AREA_OUTLINE           (BOOL enabled);
 void   AREAFILL               (SHORT mode);
-void   PATTERN                (USHORT lineptrn, _DARRAY_T *areaptrn);
+void   PATTERN                (USHORT lineptrn, CArray *areaptrn);
 void   PATTERN_RESTORE        (void);
 
 char  *INKEY_                 (void);
@@ -237,7 +215,7 @@ struct WAVE_
 WAVE_t *_wave_alloc          (BYTE *data,
                               ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
                               ULONG samplesPerSec, SHORT ctOctave, FLOAT volume);
-WAVE_t *WAVE_                (_DARRAY_T *data,
+WAVE_t *WAVE_                (CArray *data,
                               ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
                               ULONG samplesPerSec, SHORT ctOctave, FLOAT volume);
 void    WAVE                 (SHORT channel, WAVE_t *wave);

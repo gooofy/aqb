@@ -291,8 +291,8 @@ FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 
     // instead, it just rounds the two operands
 
-    LONG a = clng_(divident);
-    LONG b = clng_(divisor);
+    LONG a = CLNG_(divident);
+    LONG b = CLNG_(divisor);
 
     return SPFlt(a % b);
 }
@@ -308,24 +308,24 @@ FLOAT __aqb_mod(FLOAT divident, FLOAT divisor)
 */
 
 
-SHORT fix_(FLOAT f)
+SHORT FIX_(FLOAT f)
 {
     return SPFix(f);
 }
 
-SHORT int_(FLOAT f)
+SHORT INT_(FLOAT f)
 {
     return SPFix(SPFloor(f));
 }
 
-SHORT cint_(FLOAT f)
+SHORT CINT_(FLOAT f)
 {
 	if (SPCmp(f, g_zero)<0)
 		return SPFix(SPSub(g_one_half, f));
     return SPFix(SPAdd(f, g_one_half));
 }
 
-LONG clng_(FLOAT f)
+LONG CLNG_(FLOAT f)
 {
 	if (SPCmp(f, g_zero)<0)
 		return SPFix(SPSub(g_one_half, f));
@@ -334,71 +334,71 @@ LONG clng_(FLOAT f)
 
 FLOAT __aqb_intdiv_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(a / b);
 }
 
 FLOAT __aqb_shl_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(a << b);
 }
 
 FLOAT __aqb_shr_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(a >> b);
 }
 
 FLOAT __aqb_xor_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(a ^ b);
 }
 
 FLOAT __aqb_eqv_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(~(a ^ b));
 }
 
 FLOAT __aqb_imp_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(~a | b);
 }
 
 FLOAT __aqb_not_single(FLOAT af)
 {
-    LONG a = clng_(af);
+    LONG a = CLNG_(af);
 
     return SPFlt(~a);
 }
 
 FLOAT __aqb_and_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(a & b);
 }
 
 FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
 {
-    LONG a = clng_(af);
-    LONG b = clng_(bf);
+    LONG a = CLNG_(af);
+    LONG b = CLNG_(bf);
 
     return SPFlt(a | b);
 }

@@ -1,4 +1,4 @@
-
+//#define ENABLE_DPRINTF
 #include "IFFSupport.h"
 
 #include <clib/dos_protos.h>
@@ -41,9 +41,14 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
     ILBM_META_t myMeta;
     PALETTE_t myPalette;
 
+    DPRINTF ("_ilbm_read: fh=0x%08lx, bmRef=0x%08lx, scid=%d, pMeta=0x%08lx, pPalette=0x%08lx\n",
+             fh, bmRef, scid, pMeta, pPalette);
     if (!pMeta)
         pMeta = &myMeta;
-    pMeta->viewMode = 0;
+    DPRINTF ("_ilbm_read: pMeta before: nPlanes=%d, masking=%d, compression=%d, pad1=%d, transparentColor=%d, pageWidth=0x%04x, pageHeight=0x%04x, viewModes=0x%08lx\n",
+             (WORD) pMeta->nPlanes, (WORD) pMeta->masking, (WORD) pMeta->compression, (WORD) pMeta->pad1,
+             pMeta->transparentColor, pMeta->pageWidth, pMeta->pageHeight, pMeta->viewModes);
+    pMeta->viewModes = 0;
 
     if (!pPalette && (scid >=0))
         pPalette = &myPalette;
@@ -54,7 +59,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
     LONG l = Read (f, &cid, 4);
     if ((l != 4) || (cid != IFF_FORM))
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -64,14 +69,14 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
     l = Read (f, &clen, 4);
     if (l != 4)
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
     l = Read (f, &cid, 4);
     if ((l != 4) || (cid != IFF_ILBM))
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -91,7 +96,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
         l = Read (f, &clen, 4);
         if (l != 4)
         {
-            ERROR(AE_IFF);
+            ERROR(ERR_IFF);
             return;
         }
 
@@ -101,13 +106,13 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
         {
             if (!clen || (clen > sizeof (ILBM_META_t)) )
             {
-                ERROR(AE_IFF);
+                ERROR(ERR_IFF);
                 return;
             }
 
             ULONG l = Read (f, pMeta, clen);
             if (l!=clen)
-                ERROR(AE_IFF);
+                ERROR(ERR_IFF);
             DPRINTF ("_ilbm_read: BMHD: w=%d, h=%d, x=%d, y=%d, nPlanes=%d, masking=%d, compression=%d\n",
                      pMeta->w, pMeta->h, pMeta->x, pMeta->y, pMeta->nPlanes, pMeta->masking, pMeta->compression);
         }
@@ -117,13 +122,14 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
             {
                 if (clen != 4)
                 {
-                    ERROR(AE_IFF);
+                    ERROR(ERR_IFF);
                     return;
                 }
 
-                ULONG l = Read (f, &pMeta->viewMode, clen);
+                ULONG l = Read (f, &pMeta->viewModes, clen);
                 if (l!=clen)
-                    ERROR(AE_IFF);
+                    ERROR(ERR_IFF);
+                DPRINTF ("_ilbm_read: CAMG: viewModes=0x%08lx\n", pMeta->viewModes);
             }
             else
             {
@@ -131,7 +137,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                 {
                     if (!clen)
                     {
-                        ERROR(AE_IFF);
+                        ERROR(ERR_IFF);
                         return;
                     }
                     DPRINTF ("_ilbm_read CMAP len=%ld\n", clen);
@@ -139,7 +145,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                     UBYTE *buf = ALLOCATE_(clen, 0);
                     if (!buf)
                     {
-                        ERROR(AE_IFF);
+                        ERROR(ERR_IFF);
                         return;
                     }
 
@@ -147,7 +153,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                     if (l!=clen)
                     {
                         DEALLOCATE(buf);
-                        ERROR(AE_IFF);
+                        ERROR(ERR_IFF);
                         return;
                     }
 
@@ -170,7 +176,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                     {
                         if (!clen)
                         {
-                            ERROR(AE_IFF);
+                            ERROR(ERR_IFF);
                             return;
                         }
                         DPRINTF ("_ilbm_read BODY len=%ld\n", clen);
@@ -196,7 +202,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                             DPRINTF ("_ilbm_read BODY: invalid bm dims %d x %d : %d vs %d x %d : %d\n",
                                      (signed int) bm->width, (signed int) bm->height, (signed int) bm->bm.Depth,
                                      (signed int) pMeta->w, (signed int) pMeta->h, depth);
-                            ERROR(AE_IFF);
+                            ERROR(ERR_IFF);
                             return;
                         }
 
@@ -205,7 +211,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                         BYTE *src = ALLOCATE_(clen, 0);
                         if (!src)
                         {
-                            ERROR(AE_IFF);
+                            ERROR(ERR_IFF);
                             return;
                         }
 
@@ -213,7 +219,7 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                         if (l!=clen)
                         {
                             DEALLOCATE(src);
-                            ERROR(AE_IFF);
+                            ERROR(ERR_IFF);
                             return;
                         }
 
@@ -282,13 +288,13 @@ void _ilbm_read (struct FileHandle *fh, BITMAP_t **bmRef, SHORT scid, ILBM_META_
                             }
                         }
 
-                        DPRINTF ("_ilbm_read BODY decoding done\n");
+                        DPRINTF ("_ilbm_read: BODY decoding done\n");
 
                         DEALLOCATE(src);
                     }
                     else
                     {
-                        DPRINTF ("_ilbm_read skipping %d bytes\n", clen);
+                        DPRINTF ("_ilbm_read: skipping %d bytes\n", clen);
                         Seek (f, clen, OFFSET_CURRENT);
                     }
                 }
@@ -305,7 +311,7 @@ void ILBM_LOAD_BITMAP (STRPTR path, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMet
     if (!fh)
     {
         DPRINTF ("ILBM_LOAD_BITMAP open failed.\n");
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -319,7 +325,7 @@ void ILBM_READ_BITMAP (USHORT fno, BITMAP_t **bm, SHORT scid, ILBM_META_t *pMeta
     struct FileHandle *fh = _aio_getfh(fno);
     if (!fh)
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -355,7 +361,7 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
     LONG l = Read (f, &cid, 4);
     if ((l != 4) || (cid != IFF_FORM))
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -365,14 +371,14 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
     l = Read (f, &clen, 4);
     if (l != 4)
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
     l = Read (f, &cid, 4);
     if ((l != 4) || (cid != IFF_8SVX))
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -396,7 +402,7 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
         l = Read (f, &clen, 4);
         if (l != 4)
         {
-            ERROR(AE_IFF);
+            ERROR(ERR_IFF);
             return;
         }
 
@@ -408,13 +414,13 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
         {
             if (!clen || (clen > sizeof (VHDR_t)) )
             {
-                ERROR(AE_IFF);
+                ERROR(ERR_IFF);
                 return;
             }
 
             ULONG l = Read (f, &meta, clen);
             if (l!=clen)
-                ERROR(AE_IFF);
+                ERROR(ERR_IFF);
             DPRINTF ("_8svx_read: VHDR: oneShotHiSamples=%d, repeatHiSamples=%d\n",
                      meta.oneShotHiSamples, meta.repeatHiSamples);
             DPRINTF ("                : samplesPerHiCycle=%d\n",
@@ -427,7 +433,7 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
             if (meta.sCompression)
             {
                 DPRINTF ("_8svx_read: sCompression not supported\n");
-                ERROR(AE_IFF);
+                ERROR(ERR_IFF);
                 return;
             }
 
@@ -441,19 +447,19 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
                 if (!meta_valid)
                 {
                     DPRINTF ("_8svx_read: BODY encountered, but meta data is not valid\n");
-                    ERROR(AE_IFF);
+                    ERROR(ERR_IFF);
                     return;
                 }
 
                 BYTE *data = AllocVec(clen, MEMF_CHIP | MEMF_CLEAR);
                 if (!data)
                 {
-                    ERROR(AE_IFF);
+                    ERROR(ERR_IFF);
                     return;
                 }
                 ULONG l = Read (f, data, clen);
                 if (l!=clen)
-                    ERROR(AE_IFF);
+                    ERROR(ERR_IFF);
 
                 FLOAT volume = SPDiv (SPFlt (0x10000), SPFlt (volume));
 
@@ -479,7 +485,7 @@ void IFF8SVX_LOAD_WAVE (STRPTR path, WAVE_t **w)
     if (!fh)
     {
         DPRINTF ("IFF8SVX_LOAD_WAVE open failed.\n");
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 
@@ -493,7 +499,7 @@ void IFF8SVX_READ_WAVE (USHORT fno, WAVE_t **w)
     struct FileHandle *fh = _aio_getfh(fno);
     if (!fh)
     {
-        ERROR(AE_IFF);
+        ERROR(ERR_IFF);
         return;
     }
 

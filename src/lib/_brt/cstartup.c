@@ -55,7 +55,7 @@ static char *g_inputHandlerName = "AQB CTRL-C input event handler";
 
 ULONG *_g_stack = NULL;
 
-void _debug_putc(const char c)
+void _DEBUG_PUTC(const char c)
 {
     if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
 	{
@@ -81,7 +81,7 @@ void _debug_putc(const char c)
     }
 }
 
-void _debug_puts(const UBYTE *s)
+void _DEBUG_PUTS(const UBYTE *s)
 {
     if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
 	{
@@ -108,87 +108,87 @@ void _debug_puts(const UBYTE *s)
 	}
 }
 
-void _debug_puts1(BYTE s)
+void _DEBUG_PUTS1(BYTE s)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(s, buf, 10);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_puts2(SHORT s)
+void _DEBUG_PUTS2(SHORT s)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(s, buf, 10);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_puts4(LONG l)
+void _DEBUG_PUTS4(LONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_putu1(UBYTE num)
+void _DEBUG_PUTU1(UBYTE num)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(num, buf, 10);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_putu2(UWORD num)
+void _DEBUG_PUTU2(UWORD num)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(num, buf, 10);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_putu4(ULONG l)
+void _DEBUG_PUTU4(ULONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(l, buf, 10);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_puthex(ULONG l)
+void _DEBUG_PUTHEX(ULONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(l, buf, 16);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_putf(FLOAT f)
+void _DEBUG_PUTF(FLOAT f)
 {
     UBYTE buf[MAXBUF];
     _astr_ftoa(f, buf);
-    _debug_puts(buf);
+    _DEBUG_PUTS(buf);
 }
 
-void _debug_putbool(BOOL b)
+void _DEBUG_PUTBOOL(BOOL b)
 {
-    _debug_puts(b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+    _DEBUG_PUTS(b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
 }
 
-void _debug_puttab(void)
+void _DEBUG_PUTTAB(void)
 {
-    _debug_putc('\t');
+    _DEBUG_PUTC('\t');
 }
 
-void _debug_putnl(void)
+void _DEBUG_PUTNL(void)
 {
-    _debug_putc('\n');
+    _DEBUG_PUTC('\n');
 }
 
-void _debug_cls(void)
+void _DEBUG_CLS(void)
 {
-    _debug_putc('\f');
+    _DEBUG_PUTC('\f');
 }
 
 asm(
 "   .text\n"
 "   .align 2\n"
-"   .globl  __debug_break\n"
-"   __debug_break:\n"
+"   .globl  __DEBUG_BREAK\n"
+"   __DEBUG_BREAK:\n"
 "		link    a5, #0;\n"
 "		trap    #1;\n"
 "		unlk    a5;\n"
@@ -422,7 +422,7 @@ void _c_atexit(void)
 void _cshutdown (LONG return_code, UBYTE *msg)
 {
     if (msg && DOSBase)
-        _debug_puts(msg);
+        _DEBUG_PUTS(msg);
 
     _autil_exit(return_code);
 }

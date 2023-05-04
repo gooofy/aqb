@@ -64,6 +64,7 @@ src/lib/*.sym
 src/lib/_brt/*.sym
 src/lib/_brt/alibtest
 src/lib/_brt/dyna.asm
+src/lib/_brt/_brt_stub.c
 src/lib/_aqb/*.s
 src/lib/_aqb/*.sym
 src/lib/_aqb/simple_timer.c
@@ -76,15 +77,20 @@ src/lib/IFFSupport/*.sym
 src/lib/AnimSupport/*.sym
 src/lib/OSGadToolsConsts/*.sym
 src/lib/OSUtility/*.sym
+src/lib/IntuiSupport/IntuiSupport.sym
+src/lib/IntuiSupport/stub.c
 src/lib/GadToolsSupport/GadToolsSupport.sym
 src/lib/GadToolsSupport/foo.bas
 src/lib/GadToolsSupport/foo.h
+src/lib/GadToolsSupport/stub.c
 src/lib/OSDevices/OSDevices.sym
 src/lib/OSExec/OSExec.sym
 src/lib/OSGadTools/OSGadTools.sym
 src/lib/OSGraphics/OSGraphics.sym
 src/lib/OSHardware/OSHardware.sym
 src/lib/OSIntuition/OSIntuition.sym
+src/lib/Collections/Collections.sym
+src/lib/Collections/stub.c
 src/tools/ffputils/ffputils
 src/tools/os2aqb/*.bas
 src/tools/os2aqb/libcalls.py
@@ -118,6 +124,8 @@ tests/insights/footprint/foo.s
 tests/insights/footprint/*.txt
 tests/insights/debug/dump.txt
 tests/insights/debug/foo.hunk
+tests/insights/debug/foo.asm
+tests/insights/debug/lxa.log
 tests/insights/footprint/foo
 tests/insights/link/foo
 tests/insights/link/foo.S

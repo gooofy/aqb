@@ -1670,6 +1670,7 @@ static bool _compile(IDE_instance ed)
     CO_compile(ed->sourcefn,
                ed->module_name,
                /*symfn=*/ NULL,
+               /*cstubfn=*/ NULL,
                /*objfn=*/ NULL,
                ed->binfn,
                /*asm_gas_fn=*/ NULL,

@@ -40,7 +40,7 @@ _aio_locate_cb_t _aio_locate_cb = NULL;
 
 static BPTR g_stdout, g_stdin;
 
-void _aio_puts (USHORT fno, const UBYTE *s)
+void _AIO_PUTS (USHORT fno, const UBYTE *s)
 {
     if (fno)
     {
@@ -66,7 +66,7 @@ void _aio_puts (USHORT fno, const UBYTE *s)
     Write(g_stdout, (CONST APTR) s, l);
 }
 
-void _aio_set_dos_cursor_visible (BOOL visible)
+void _AIO_SET_DOS_CURSOR_VISIBLE (BOOL visible)
 {
     static UBYTE csr_on[]   = { CSI, '1', ' ', 'p', '\0' };
     static UBYTE csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
@@ -75,89 +75,89 @@ void _aio_set_dos_cursor_visible (BOOL visible)
     Write(g_stdout, (CONST APTR) c, LEN_(c));
 }
 
-void _aio_putnl(USHORT fno)
+void _AIO_PUTNL(USHORT fno)
 {
-    _aio_puts(fno, (UBYTE*)"\n");
+    _AIO_PUTS(fno, (UBYTE*)"\n");
 }
 
-void _aio_puttab(USHORT fno)
+void _AIO_PUTTAB(USHORT fno)
 {
-    _aio_puts(fno, (UBYTE*)"\t");
+    _AIO_PUTS(fno, (UBYTE*)"\t");
 }
 
-void _aio_puts4(USHORT fno, LONG num)
-{
-    UBYTE buf[MAXBUF];
-
-    _astr_itoa(num, buf, 10);
-
-    _aio_puts(fno, buf);
-}
-
-void _aio_puts2(USHORT fno, short num)
+void _AIO_PUTS4(USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_puts1(USHORT fno, UBYTE num)
+void _AIO_PUTS2(USHORT fno, short num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 10);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putu4(USHORT fno, ULONG num)
+void _AIO_PUTS1(USHORT fno, UBYTE num)
+{
+    UBYTE buf[MAXBUF];
+
+    _astr_itoa(num, buf, 10);
+
+    _AIO_PUTS(fno, buf);
+}
+
+void _AIO_PUTU4(USHORT fno, ULONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putu2(USHORT fno, USHORT num)
+void _AIO_PUTU2(USHORT fno, USHORT num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putu1(USHORT fno, UBYTE num)
+void _AIO_PUTU1(USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa(num, buf, 10);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_puthex(USHORT fno, LONG num)
+void _AIO_PUTHEX(USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 16);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putbin(USHORT fno, LONG num)
+void _AIO_PUTBIN(USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa(num, buf, 2);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putuhex(USHORT fno, ULONG l)
+void _AIO_PUTUHEX(USHORT fno, ULONG l)
 {
     UBYTE buf[MAXBUF];
     ULONG digit;
@@ -173,22 +173,22 @@ void _aio_putuhex(USHORT fno, ULONG l)
     }
     buf[8] = 0;
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putf(USHORT fno, FLOAT f)
+void _AIO_PUTF(USHORT fno, FLOAT f)
 {
     //DPRINTF ("_aio_putf: fno=%d\n", fno);
     //Delay(200);
     UBYTE buf[40];
     _astr_ftoa(f, buf);
     //DPRINTF ("_aio_putf: -> _aio_puts buf=%s\n", buf); Delay(200);
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_putbool(USHORT fno, BOOL b)
+void _AIO_PUTBOOL(USHORT fno, BOOL b)
 {
-    _aio_puts(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+    _AIO_PUTS(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
 }
 
 /*********************************************************
@@ -197,85 +197,85 @@ void _aio_putbool(USHORT fno, BOOL b)
  *
  *********************************************************/
 
-void _aio_writes4 (USHORT fno, LONG num)
+void _AIO_WRITES4 (USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writes2 (USHORT fno, short num)
+void _AIO_WRITES2 (USHORT fno, short num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writes1 (USHORT fno, UBYTE num)
+void _AIO_WRITES1 (USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writeu4 (USHORT fno, ULONG num)
+void _AIO_WRITEU4 (USHORT fno, ULONG num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writeu2 (USHORT fno, USHORT num)
+void _AIO_WRITEU2 (USHORT fno, USHORT num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writeu1 (USHORT fno, UBYTE num)
+void _AIO_WRITEU1 (USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
     _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
 
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writef (USHORT fno, FLOAT f)
+void _AIO_WRITEF (USHORT fno, FLOAT f)
 {
     //DPRINTF ("_aio_writef: fno=%d\n", fno);
     //Delay(200);
     UBYTE buf[40];
     _astr_ftoa_ext (f, buf, /*leading_space=*/FALSE);
     //DPRINTF ("_aio_writef: -> _aio_writes buf=%s\n", buf); Delay(200);
-    _aio_puts(fno, buf);
+    _AIO_PUTS(fno, buf);
 }
 
-void _aio_writebool (USHORT fno, BOOL b)
+void _AIO_WRITEBOOL (USHORT fno, BOOL b)
 {
-    _aio_puts(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+    _AIO_PUTS(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
 }
 
-void _aio_writes (USHORT fno, const UBYTE *str)
+void _AIO_WRITES (USHORT fno, const UBYTE *str)
 {
-    _aio_puts(fno, (STRPTR)"\"");
-    _aio_puts(fno, str);
-    _aio_puts(fno, (STRPTR)"\"");
+    _AIO_PUTS(fno, (STRPTR)"\"");
+    _AIO_PUTS(fno, str);
+    _AIO_PUTS(fno, (STRPTR)"\"");
 }
 
-void _aio_writecomma (USHORT fno, BOOL b)
+void _AIO_WRITECOMMA (USHORT fno, BOOL b)
 {
-    _aio_puts(fno, (STRPTR)",");
+    _AIO_PUTS(fno, (STRPTR)",");
 }
 
 /*********************************************************
@@ -346,15 +346,15 @@ static void _aio_gets (UBYTE *buf, USHORT buf_len, BOOL do_nl)
         return;
     }
 
-    _aio_set_dos_cursor_visible (TRUE);
+    _AIO_SET_DOS_CURSOR_VISIBLE (TRUE);
     LONG bytes = Read(g_stdin, (CONST APTR) buf, MAX_LINE_LEN);
     buf[bytes-1] = '\0';
-    _aio_set_dos_cursor_visible (FALSE);
+    _AIO_SET_DOS_CURSOR_VISIBLE (FALSE);
 
     DPRINTF ("_aio_gets: buf=%s\n", buf);
 }
 
-void _aio_line_input (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
+void _AIO_LINE_INPUT (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
 {
     static UBYTE buf[MAX_LINE_LEN+1];
 
@@ -386,7 +386,7 @@ void _aio_line_input (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
     }
 
     if (prompt)
-        _aio_puts(/*fno=*/0, prompt);
+        _AIO_PUTS(/*fno=*/0, prompt);
 
     _aio_gets (buf, MAX_LINE_LEN, do_nl);
 
@@ -550,14 +550,14 @@ fini:
         _input_skip_delimiter (fno);
 }
 
-void _aio_console_input (BOOL qm, UBYTE *prompt, BOOL do_nl)
+void _AIO_CONSOLE_INPUT (BOOL qm, UBYTE *prompt, BOOL do_nl)
 {
     DPRINTF ("aio: _aio_console_input qm=%d, prompt=%s, do_nl=%d\n", qm, prompt ? (char *)prompt : "NULL", do_nl);
 
     if (prompt)
-        _aio_puts (/*fno=*/0, prompt);
+        _AIO_PUTS (/*fno=*/0, prompt);
     if (qm)
-        _aio_puts (/*fno=*/0, (STRPTR)"?");
+        _AIO_PUTS (/*fno=*/0, (STRPTR)"?");
 
     fileinfo_t *fi = g_fis[0];
 
@@ -590,7 +590,7 @@ void _aio_console_input (BOOL qm, UBYTE *prompt, BOOL do_nl)
     //_input_getch(/*fno=*/0);
 }
 
-void _aio_inputs1 (USHORT fno, BYTE   *v)
+void _AIO_INPUTS1 (USHORT fno, BYTE   *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -601,7 +601,7 @@ void _aio_inputs1 (USHORT fno, BYTE   *v)
     *v = VALINT_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputu1 (USHORT fno, UBYTE  *v)
+void _AIO_INPUTU1 (USHORT fno, UBYTE  *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -612,7 +612,7 @@ void _aio_inputu1 (USHORT fno, UBYTE  *v)
     *v = VALINT_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputs2 (USHORT fno, SHORT  *v)
+void _AIO_INPUTS2 (USHORT fno, SHORT  *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -623,7 +623,7 @@ void _aio_inputs2 (USHORT fno, SHORT  *v)
     *v = VALINT_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputu2 (USHORT fno, USHORT *v)
+void _AIO_INPUTU2 (USHORT fno, USHORT *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -634,7 +634,7 @@ void _aio_inputu2 (USHORT fno, USHORT *v)
     *v = VALUINT_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputs4 (USHORT fno, LONG   *v)
+void _AIO_INPUTS4 (USHORT fno, LONG   *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -645,7 +645,7 @@ void _aio_inputs4 (USHORT fno, LONG   *v)
     *v = VALLNG_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputu4 (USHORT fno, ULONG  *v)
+void _AIO_INPUTU4 (USHORT fno, ULONG  *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -656,7 +656,7 @@ void _aio_inputu4 (USHORT fno, ULONG  *v)
     *v = VALULNG_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputf  (USHORT fno, FLOAT  *v)
+void _AIO_INPUTF  (USHORT fno, FLOAT  *v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -664,11 +664,11 @@ void _aio_inputf  (USHORT fno, FLOAT  *v)
         return;
     }
     _input_next_token (fno);
-    DPRINTF ("_aio_inputf: token=%s\n", g_fis[fno]->input_token);
+    DPRINTF ("_AIO_INPUTF: token=%s\n", g_fis[fno]->input_token);
     *v = VAL_ (g_fis[fno]->input_token);
 }
 
-void _aio_inputs (USHORT fno, UBYTE **v)
+void _AIO_INPUTS (USHORT fno, UBYTE **v)
 {
     if ( (fno >=AIO_MAX_FILES) || !g_fis[fno] )
     {
@@ -679,7 +679,7 @@ void _aio_inputs (USHORT fno, UBYTE **v)
     *v = _astr_dup(g_fis[fno]->input_token);
 }
 
-void _aio_open (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen)
+void _AIO_OPEN (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen)
 {
     DPRINTF ("_aio_open: fname=%s, mode=%d, access=%d, fno=%d, rl=%d\n",
              fname, mode, access, fno, recordlen);
@@ -736,7 +736,7 @@ void _aio_init(void)
     g_stdout = Output();
     g_stdin  = Input();
 
-	_aio_set_dos_cursor_visible (FALSE);
+	_AIO_SET_DOS_CURSOR_VISIBLE (FALSE);
 
     for (UWORD i=0; i<AIO_MAX_FILES; i++)
         g_fis[i] = NULL;
@@ -749,7 +749,7 @@ static void _close (USHORT fno)
     g_fis[fno] = NULL;
 }
 
-void _aio_close (USHORT fno)
+void _AIO_CLOSE (USHORT fno)
 {
     DPRINTF ("_aio_close: fno=%d\n", fno);
     if (!fno)
@@ -833,6 +833,6 @@ void _aio_shutdown(void)
             Close (g_fis[i]->fhBPTR);
     }
 
-	_aio_set_dos_cursor_visible (TRUE);
+	_AIO_SET_DOS_CURSOR_VISIBLE (TRUE);
 }
 

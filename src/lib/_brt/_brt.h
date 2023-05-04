@@ -27,20 +27,20 @@ void _autil_shutdown(void);
 
 // BASIC error handling, utils
 
-void _debug_putc   (const char c);
-void _debug_puts   (const UBYTE *s);
-void _debug_puts1  (BYTE s);
-void _debug_puts2  (SHORT s);
-void _debug_puts4  (LONG l);
-void _debug_putu1  (UBYTE num);
-void _debug_putu2  (UWORD num);
-void _debug_putu4  (ULONG num);
-void _debug_puthex (ULONG num);
-void _debug_putf   (FLOAT f);
-void _debug_puttab (void);
-void _debug_putnl  (void);
-void _debug_cls    (void);
-void _debug_break  (void);
+void _DEBUG_PUTC   (const char c);
+void _DEBUG_PUTS   (const UBYTE *s);
+void _DEBUG_PUTS1  (BYTE s);
+void _DEBUG_PUTS2  (SHORT s);
+void _DEBUG_PUTS4  (LONG l);
+void _DEBUG_PUTU1  (UBYTE num);
+void _DEBUG_PUTU2  (UWORD num);
+void _DEBUG_PUTU4  (ULONG num);
+void _DEBUG_PUTHEX (ULONG num);
+void _DEBUG_PUTF   (FLOAT f);
+void _DEBUG_PUTTAB (void);
+void _DEBUG_PUTNL  (void);
+void _DEBUG_CLS    (void);
+void _DEBUG_BREAK  (void);
 
 // #define ENABLE_DPRINTF
 
@@ -68,7 +68,7 @@ void dprintf(const char *format, ...);
 #define ERR_IO_ERROR                  57
 #define ERR_BAD_FILE_NAME             64
 
-void   _aqb_assert   (BOOL b, const UBYTE *msg);
+void   _AQB_ASSERT   (BOOL b, const UBYTE *msg);
 void   ERROR         (SHORT errcode);
 void   RESUME_NEXT   (void);
 void   ON_ERROR_CALL (void (*cb)(void));
@@ -164,12 +164,12 @@ void __handle_break(void);
 
 void _amath_init(void);
 
-FLOAT mod_  (FLOAT divident, FLOAT divisor);
+//FLOAT MOD_  (FLOAT divident, FLOAT divisor);
 
-SHORT fix_  (FLOAT f);
-SHORT int_  (FLOAT f);
-SHORT cint_ (FLOAT f);
-LONG  clng_ (FLOAT a);
+SHORT FIX_  (FLOAT f);
+SHORT INT_  (FLOAT f);
+SHORT CINT_ (FLOAT f);
+LONG  CLNG_ (FLOAT a);
 
 FLOAT __aqb_shl_single(FLOAT a, FLOAT b);
 FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
@@ -215,18 +215,22 @@ struct IOStdReq  *_autil_create_std_io (struct MsgPort *port);
 void              _autil_delete_ext_io (struct IORequest *ioreq);
 void              _autil_begin_io      (struct IORequest *iorequest);
 
+#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
+                    (l)->lh_Tail = NULL, \
+                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
+
 /*
  * STR$ support
  */
 
-UBYTE *_s1toa_   (BYTE   b);
-UBYTE *_s2toa_   (SHORT  i);
-UBYTE *_s4toa_   (LONG   l);
-UBYTE *_u1toa_   (UBYTE  b);
-UBYTE *_u2toa_   (USHORT i);
-UBYTE *_u4toa_   (ULONG  l);
-UBYTE *_ftoa_    (FLOAT  f);
-UBYTE *_booltoa_ (BOOL   b);
+UBYTE *_S1TOA_   (BYTE   b);
+UBYTE *_S2TOA_   (SHORT  i);
+UBYTE *_S4TOA_   (LONG   l);
+UBYTE *_U1TOA_   (UBYTE  b);
+UBYTE *_U2TOA_   (USHORT i);
+UBYTE *_U4TOA_   (ULONG  l);
+UBYTE *_FTOA_    (FLOAT  f);
+UBYTE *_BOOLTOA_ (BOOL   b);
 
 /*
  * VAL* support
@@ -242,40 +246,97 @@ LONG   VALLNG_  (UBYTE *s);
 ULONG  VALULNG_ (UBYTE *s);
 
 /*
+ * OOP
+ */
+
+typedef struct CObject_ CObject;
+
+struct CObject_
+{
+    VOID   ***_vTablePtr;
+};
+
+STRPTR _COBJECT_TOSTRING_ (CObject *THIS);
+BOOL   _COBJECT_EQUALS_ (CObject *THIS, CObject *obj);
+ULONG  _COBJECT_GETHASHCODE_ (CObject *THIS);
+
+/*
  * dynamic array support
  */
 
-typedef struct
+typedef struct CArray_ CArray;
+typedef struct CArrayBounds_ CArrayBounds;
+typedef struct CArrayEnumerator_ CArrayEnumerator;
+
+struct CArray_
 {
-    ULONG   lbound, ubound, numElements;
-} _DARRAY_BOUNDS_T;
+    intptr_t **_vTablePtr;
+    intptr_t **__intf_vtable_IList;
+    intptr_t **__intf_vtable_ICollection;
+    intptr_t **__intf_vtable_IEnumerable;
+    intptr_t **__intf_vtable_ICloneable;
+    BYTE    *_data;
+    UWORD    _numDims;
+    LONG     _elementSize;
+    LONG     _dataSize;
+    CArrayBounds *_bounds;
+};
 
-typedef struct
+struct CArrayBounds_
 {
-    APTR              data;
-    UWORD             numDims;
-    ULONG             elementSize;
-    ULONG             dataSize;
-    _DARRAY_BOUNDS_T *bounds;
-} _DARRAY_T;
+    LONG     lbound;
+    LONG     ubound;
+    LONG     numElements;
+};
 
-void  __DARRAY_T___init__ (_DARRAY_T *self, ULONG elementSize);
-void  __DARRAY_T_REDIM    (_DARRAY_T *self, BOOL preserve, UWORD numDims, ...);
-void *__DARRAY_T_IDXPTR_  (_DARRAY_T *self, UWORD dimCnt, ...);
-WORD  __DARRAY_T_LBOUND_  (_DARRAY_T *self, WORD d);
-WORD  __DARRAY_T_UBOUND_  (_DARRAY_T *self, WORD d);
-void  __DARRAY_T_COPY     (_DARRAY_T *self, _DARRAY_T *a);
-void  __DARRAY_T_ERASE    (_DARRAY_T *self);
-void  __DARRAY_T_CLEAR    (_DARRAY_T *self);
+struct CArrayEnumerator_
+{
+    intptr_t **_vTablePtr;
+    intptr_t **__intf_vtable_IEnumerator;
+    CArray *_array;
+    LONG     _index;
+    intptr_t _currentElement;
+};
 
+VOID        _CARRAYENUMERATOR___init      (CArrayEnumerator *THIS);
+VOID        _CARRAYENUMERATOR_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *list);
+BOOL        _CARRAYENUMERATOR_MOVENEXT_   (CArrayEnumerator *THIS);
+intptr_t    _CARRAYENUMERATOR_CURRENT_    (CArrayEnumerator *THIS);
+VOID        _CARRAYENUMERATOR_RESET       (CArrayEnumerator *THIS);
+
+void        _CARRAY___init                (CArray *THIS);
+VOID        _CARRAY_CONSTRUCTOR           (CArray *THIS, LONG     elementSize);
+VOID        _CARRAY_REDIM                 (CArray *THIS, UWORD numDims, BOOL preserve, ...);
+intptr_t   *_CARRAY_IDXPTR_               (CArray *THIS, UWORD    dimCnt, ...);
+LONG        _CARRAY_LBOUND_               (CArray *THIS, WORD     d);
+LONG        _CARRAY_UBOUND_               (CArray *THIS, WORD     d);
+VOID        _CARRAY_COPY                  (CArray *THIS, CArray *darray);
+VOID        _CARRAY_ERASE                 (CArray *THIS);
+LONG        _CARRAY_COUNT_                (CArray *THIS);
+VOID        _CARRAY_CAPACITY              (CArray *THIS, LONG     c);
+LONG        _CARRAY_CAPACITY_             (CArray *THIS);
+intptr_t    _CARRAY_GETAT_                (CArray *THIS, LONG     index);
+VOID        _CARRAY_SETAT                 (CArray *THIS, LONG     index, intptr_t obj);
+intptr_t ***_CARRAY_GETENUMERATOR_        (CArray *THIS);
+LONG        _CARRAY_ADD_                  (CArray *THIS, intptr_t obj);
+BOOL        _CARRAY_CONTAINS_             (CArray *THIS, intptr_t value);
+VOID        _CARRAY_CLEAR                 (CArray *THIS);
+BOOL        _CARRAY_ISREADONLY_           (CArray *THIS);
+BOOL        _CARRAY_ISFIXEDSIZE_          (CArray *THIS);
+LONG        _CARRAY_INDEXOF_              (CArray *THIS, intptr_t value, LONG     startIndex, LONG     Count);
+VOID        _CARRAY_INSERT                (CArray *THIS, LONG     index, intptr_t value);
+VOID        _CARRAY_REMOVE                (CArray *THIS, intptr_t value);
+VOID        _CARRAY_REMOVEAT              (CArray *THIS, LONG     index);
+VOID        _CARRAY_REMOVEALL             (CArray *THIS);
+CObject    *_CARRAY_CLONE_                (CArray *THIS);
 
 // DATA / READ / RESTORE support
 
-void _aqb_restore (void *p);
-void _aqb_read1   (void *v);
-void _aqb_read2   (void *v);
-void _aqb_read4   (void *v);
-void _aqb_readStr (void *v);
+void _AQB_RESTORE (void *p);
+void _AQB_READ1   (void *v);
+void _AQB_READ2   (void *v);
+void _AQB_READ4   (void *v);
+void _AQB_READSTR (void *v);
 
 /*
  * PRINT / INPUT / terminal statement support
@@ -297,49 +358,49 @@ extern _autil_sleep_for_cb_t _autil_sleep_for_cb;
 void _aio_init                   (void);
 void _aio_shutdown               (void);
 
-void _aio_puts4                  (USHORT fno, LONG num);
-void _aio_puts2                  (USHORT fno, SHORT num);
-void _aio_puts1                  (USHORT fno, UBYTE num);
-void _aio_putu4                  (USHORT fno, ULONG num);
-void _aio_putu2                  (USHORT fno, USHORT num);
-void _aio_putu1                  (USHORT fno, UBYTE num);
-void _aio_puthex                 (USHORT fno, LONG num);
-void _aio_putuhex                (USHORT fno, ULONG l);
-void _aio_putbin                 (USHORT fno, LONG num);
-void _aio_putf                   (USHORT fno, FLOAT f);
-void _aio_putbool                (USHORT fno, BOOL b);
+void _AIO_PUTS4                  (USHORT fno, LONG num);
+void _AIO_PUTS2                  (USHORT fno, SHORT num);
+void _AIO_PUTS1                  (USHORT fno, UBYTE num);
+void _AIO_PUTU4                  (USHORT fno, ULONG num);
+void _AIO_PUTU2                  (USHORT fno, USHORT num);
+void _AIO_PUTU1                  (USHORT fno, UBYTE num);
+void _AIO_PUTHEX                 (USHORT fno, LONG num);
+void _AIO_PUTUHEX                (USHORT fno, ULONG l);
+void _AIO_PUTBIN                 (USHORT fno, LONG num);
+void _AIO_PUTF                   (USHORT fno, FLOAT f);
+void _AIO_PUTBOOL                (USHORT fno, BOOL b);
 
-void _aio_puts                   (USHORT fno, const UBYTE *str);
+void _AIO_PUTS                   (USHORT fno, const UBYTE *str);
 
-void _aio_putnl                  (USHORT fno);
-void _aio_puttab                 (USHORT fno);
+void _AIO_PUTNL                  (USHORT fno);
+void _AIO_PUTTAB                 (USHORT fno);
 
 struct FileHandle *_aio_getfh    (USHORT fno);
 
-void _aio_writes4                (USHORT fno, LONG num);
-void _aio_writes2                (USHORT fno, SHORT num);
-void _aio_writes1                (USHORT fno, UBYTE num);
-void _aio_writeu4                (USHORT fno, ULONG num);
-void _aio_writeu2                (USHORT fno, USHORT num);
-void _aio_writeu1                (USHORT fno, UBYTE num);
-void _aio_writef                 (USHORT fno, FLOAT f);
-void _aio_writebool              (USHORT fno, BOOL b);
-void _aio_writes                 (USHORT fno, const UBYTE *str);
-void _aio_writecomma             (USHORT fno, BOOL b);
+void _AIO_WRITES4                (USHORT fno, LONG num);
+void _AIO_WRITES2                (USHORT fno, SHORT num);
+void _AIO_WRITES1                (USHORT fno, UBYTE num);
+void _AIO_WRITEU4                (USHORT fno, ULONG num);
+void _AIO_WRITEU2                (USHORT fno, USHORT num);
+void _AIO_WRITEU1                (USHORT fno, UBYTE num);
+void _AIO_WRITEF                 (USHORT fno, FLOAT f);
+void _AIO_WRITEBOOL              (USHORT fno, BOOL b);
+void _AIO_WRITES                 (USHORT fno, const UBYTE *str);
+void _AIO_WRITECOMMA             (USHORT fno, BOOL b);
 
 // [ LINE ] INPUT support:
 
-void _aio_line_input             (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl);
-void _aio_console_input          (BOOL qm, UBYTE *prompt, BOOL do_nl);
-void _aio_inputs1                (USHORT fno, BYTE   *v);
-void _aio_inputu1                (USHORT fno, UBYTE  *v);
-void _aio_inputs2                (USHORT fno, SHORT  *v);
-void _aio_inputu2                (USHORT fno, USHORT *v);
-void _aio_inputs4                (USHORT fno, LONG   *v);
-void _aio_inputu4                (USHORT fno, ULONG  *v);
-void _aio_inputf                 (USHORT fno, FLOAT  *v);
-void _aio_inputs                 (USHORT fno, UBYTE  **v);
-void _aio_set_dos_cursor_visible (BOOL visible);
+void _AIO_LINE_INPUT             (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl);
+void _AIO_CONSOLE_INPUT          (BOOL qm, UBYTE *prompt, BOOL do_nl);
+void _AIO_INPUTS1                (USHORT fno, BYTE   *v);
+void _AIO_INPUTU1                (USHORT fno, UBYTE  *v);
+void _AIO_INPUTS2                (USHORT fno, SHORT  *v);
+void _AIO_INPUTU2                (USHORT fno, USHORT *v);
+void _AIO_INPUTS4                (USHORT fno, LONG   *v);
+void _AIO_INPUTU4                (USHORT fno, ULONG  *v);
+void _AIO_INPUTF                 (USHORT fno, FLOAT  *v);
+void _AIO_INPUTS                 (USHORT fno, UBYTE  **v);
+void _AIO_SET_DOS_CURSOR_VISIBLE (BOOL visible);
 
 void  LOCATE                     (SHORT l, SHORT c);
 void  CLS                        (void);
@@ -354,8 +415,8 @@ void  CLS                        (void);
 #define FILE_ACCESS_WRITE     1
 #define FILE_ACCESS_READWRITE 2
 
-void _aio_open  (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen);
-void _aio_close (USHORT fno);
+void _AIO_OPEN  (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen);
+void _AIO_CLOSE (USHORT fno);
 
 BOOL EOF_       (USHORT fno);
 

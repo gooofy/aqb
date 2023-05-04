@@ -19,10 +19,6 @@
 #include <clib/utility_protos.h>
 #include <inline/utility.h>
 
-#define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
-                    /*(l)->lh_Tail = NULL,*/ \
-                    (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
-
 extern struct UtilityBase   *UtilityBase;
 
 // not using Intuition's AllocRemember here because we want minimal dependencies for the AQB core module
@@ -85,13 +81,13 @@ void _MEMSET (BYTE *dst, BYTE c, ULONG n)
     }
 }
 
-void _aqb_assert (BOOL b, const UBYTE *msg)
+void _AQB_ASSERT (BOOL b, const UBYTE *msg)
 {
     if (b)
         return;
 
-    _debug_puts(msg);
-    _debug_puts((UBYTE *)"\n");
+    _DEBUG_PUTS(msg);
+    _DEBUG_PUTS((UBYTE *)"\n");
 
     if (_startup_mode == STARTUP_DEBUG)
     {
@@ -124,8 +120,8 @@ void ERROR (SHORT errcode)
     }
     else
     {
-        _debug_puts((UBYTE*)"*** unhandled runtime error code: "); _debug_puts2(errcode);
-        _debug_puts((UBYTE*)"\n");
+        _DEBUG_PUTS((UBYTE*)"*** unhandled runtime error code: "); _DEBUG_PUTS2(errcode);
+        _DEBUG_PUTS((UBYTE*)"\n");
     }
 
     if (!_do_resume)

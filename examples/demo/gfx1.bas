@@ -8,7 +8,7 @@ OPTION EXPLICIT
 
 DIM SHARED finished AS BOOLEAN = FALSE
 
-SUB HandleWindow (BYVAL wid AS INTEGER, BYVAL ud AS VOID PTR)
+SUB HandleWindow (BYVAL wid AS INTEGER, BYVAL ud AS ANY PTR)
     finished = TRUE
     PRINT "HandleWindow() called"
 END SUB
@@ -35,10 +35,10 @@ NEXT i
 PRINT
 
 FOR c AS INTEGER = 0 TO 3
-    
+
     LINE ( c * 60, 33 ) - ( c * 60 + 59, 48 ), 3 - c, BF
     LINE ( c * 60, 33 ) - ( c * 60 + 59, 48 ), c, B
-    
+
 NEXT c
 
 FOR x AS INTEGER = 1 TO 600 STEP 5

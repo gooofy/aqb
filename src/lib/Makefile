@@ -1,8 +1,11 @@
 include ../../config.mk
 
-.PHONY: clean _brt minbrt IFFSupport AnimSupport OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools _aqb GadToolsSupport
+.PHONY: clean _brt minbrt IFFSupport AnimSupport Collections \
+        OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools \
+		_aqb GadToolsSupport IntuiSupport
 
-all: _brt minbrt OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools _aqb IFFSupport AnimSupport GadToolsSupport
+all: _brt minbrt OSExec OSUtility OSHardware OSGraphics OSDevices OSIntuition OSGadTools \
+     _aqb IFFSupport AnimSupport Collections IntuiSupport GadToolsSupport
 
 _brt:
 	cd _brt ; make all
@@ -40,8 +43,14 @@ OSIntuition:
 OSGadTools:
 	cd OSGadTools ; make all
 
+IntuiSupport:
+	cd IntuiSupport ; make all
+
 GadToolsSupport:
 	cd GadToolsSupport ; make all
+
+Collections:
+	cd Collections ; make all
 
 clean:
 	rm -f *.sym *.o *.a
@@ -53,6 +62,7 @@ clean:
 	cd minbrt ; make clean
 	cd IFFSupport ; make clean
 	cd AnimSupport ; make clean
+	cd Collections ; make clean
 	cd OSExec ; make clean
 	cd OSHardware ; make clean
 	cd OSGraphics ; make clean
@@ -61,3 +71,4 @@ clean:
 	cd OSUtility ; make clean
 	cd OSGadTools ; make clean
 	cd GadToolsSupport ; make clean
+	cd IntuiSupport ; make clean

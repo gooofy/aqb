@@ -1,27 +1,9 @@
-'
-' SUB pointer assignment
-'
-
 OPTION EXPLICIT
 
-DIM SHARED g AS INTEGER
+DIM SHARED colr AS Integer
 
-DIM AS SUB (BYVAL INTEGER) s1
-
-SUB mys (BYVAL i AS INTEGER)
-
-    TRACE "mys called, i=";i
-
-    g = i
-
+SUB test (split AS Integer)
+    colr = split + 4 REM this works
+    colr = 16 - split REM this leads to crash
 END SUB
-
-g = 23
-
-s1 = mys
-
-s1(42)
-
-ASSERT g=42
-
 

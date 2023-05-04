@@ -21,9 +21,9 @@
 
 extern struct Library    *GadToolsBase ;
 
-static struct Gadget *_gtlistview_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
+static struct Gadget *_gtlistview_deploy_cb (CGTGadget *gtg, struct Gadget *gad, APTR vinfo, struct TextAttr *ta)
 {
-    GTLISTVIEW_t *gt = (GTLISTVIEW_t *)gtg;
+    CGTListView *gt = (CGTListView *)gtg;
 
     gtg->ng.ng_VisualInfo = vinfo;
     gtg->ng.ng_TextAttr   = ta;
@@ -32,7 +32,7 @@ static struct Gadget *_gtlistview_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad
                              GT_Underscore    , gtg->underscore,
                              GA_Disabled      , gt->disabled,
                              GTLV_MakeVisible , gt->makeVisible,
-                             GTLV_Labels      , (intptr_t) gt->labels,
+                             GTLV_Labels      , (intptr_t) &gt->labels->l,
                              GTLV_ReadOnly    , gt->readOnly,
                              GTLV_ScrollWidth , gt->scrollWidth,
                              GTLV_Selected    , gt->selected,
@@ -58,13 +58,13 @@ static struct Gadget *_gtlistview_deploy_cb (GTGADGET_t *gtg, struct Gadget *gad
     return gtg->gad;
 }
 
-void _GTLISTVIEW_CONSTRUCTOR (GTLISTVIEW_t *this,
-                            CONST_STRPTR label, struct List * labels,
+void _CGTLISTVIEW_CONSTRUCTOR (CGTListView *this,
+                            CONST_STRPTR label, CExecList *labels,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_GTLISTVIEW_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
-    _GTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
+    DPRINTF("_CGTListView_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
+    _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtlistview_deploy_cb;
     this->labels          = labels;
     this->disabled        = FALSE;
@@ -75,9 +75,9 @@ void _GTLISTVIEW_CONSTRUCTOR (GTLISTVIEW_t *this,
     this->spacing         = 0;
 }
 
-BOOL _GTLISTVIEW_disabled_ (GTLISTVIEW_t *this)
+BOOL _CGTLISTVIEW_DISABLED_ (CGTListView *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GA_Disabled, (intptr_t)&u, TAG_DONE);
@@ -86,18 +86,18 @@ BOOL _GTLISTVIEW_disabled_ (GTLISTVIEW_t *this)
     }
     return this->disabled;
 }
-void _GTLISTVIEW_disabled (GTLISTVIEW_t *this, BOOL disabled)
+void _CGTLISTVIEW_DISABLED (CGTListView *this, BOOL disabled)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GA_Disabled, disabled, TAG_DONE);
     }
     this->disabled = disabled;
 }
 
-SHORT _GTLISTVIEW_makeVisible_ (GTLISTVIEW_t *this)
+SHORT _CGTLISTVIEW_MAKEVISIBLE_ (CGTListView *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=39))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTLV_MakeVisible, (intptr_t)&u, TAG_DONE);
@@ -106,64 +106,64 @@ SHORT _GTLISTVIEW_makeVisible_ (GTLISTVIEW_t *this)
     }
     return this->makeVisible;
 }
-void _GTLISTVIEW_makeVisible (GTLISTVIEW_t *this, SHORT makeVisible)
+void _CGTLISTVIEW_MAKEVISIBLE (CGTListView *this, SHORT makeVisible)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTLV_MakeVisible, makeVisible, TAG_DONE);
     }
     this->makeVisible = makeVisible;
 }
 
-struct List * _GTLISTVIEW_labels_ (GTLISTVIEW_t *this)
+CExecList * _CGTLISTVIEW_LABELS_ (CGTListView *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTLV_Labels, (intptr_t)&u, TAG_DONE);
         if (n==1)
-            return (struct List *) u;
+            return (CExecList *) u;
     }
     return this->labels;
 }
-void _GTLISTVIEW_labels (GTLISTVIEW_t *this, struct List * labels)
+void _CGTLISTVIEW_LABELS (CGTListView *this, CExecList * labels)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTLV_Labels, (intptr_t) labels, TAG_DONE);
     }
     this->labels = labels;
 }
 
-BOOL _GTLISTVIEW_readOnly_ (GTLISTVIEW_t *this)
+BOOL _CGTLISTVIEW_READONLY_ (CGTListView *this)
 {
     return this->readOnly;
 }
-void _GTLISTVIEW_readOnly (GTLISTVIEW_t *this, BOOL readOnly)
+void _CGTLISTVIEW_READONLY (CGTListView *this, BOOL readOnly)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTLV_ReadOnly, readOnly, TAG_DONE);
     }
     this->readOnly = readOnly;
 }
 
-USHORT _GTLISTVIEW_scrollWidth_ (GTLISTVIEW_t *this)
+USHORT _CGTLISTVIEW_SCROLLWIDTH_ (CGTListView *this)
 {
     return this->scrollWidth;
 }
-void _GTLISTVIEW_scrollWidth (GTLISTVIEW_t *this, USHORT scrollWidth)
+void _CGTLISTVIEW_SCROLLWIDTH (CGTListView *this, USHORT scrollWidth)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTLV_ScrollWidth, scrollWidth, TAG_DONE);
     }
     this->scrollWidth = scrollWidth;
 }
 
-USHORT _GTLISTVIEW_selected_ (GTLISTVIEW_t *this)
+USHORT _CGTLISTVIEW_SELECTED_ (CGTListView *this)
 {
-    if (_GTGADGET_deployed_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget) && (GadToolsBase->lib_Version>=36))
     {
         ULONG u;
         LONG n = GT_GetGadgetAttrs(this->gadget.gad, this->gadget.win, NULL, GTLV_Selected, (intptr_t)&u, TAG_DONE);
@@ -172,24 +172,36 @@ USHORT _GTLISTVIEW_selected_ (GTLISTVIEW_t *this)
     }
     return this->selected;
 }
-void _GTLISTVIEW_selected (GTLISTVIEW_t *this, USHORT selected)
+void _CGTLISTVIEW_SELECTED (CGTListView *this, USHORT selected)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, GTLV_Selected, selected, TAG_DONE);
     }
     this->selected = selected;
 }
 
-USHORT _GTLISTVIEW_spacing_ (GTLISTVIEW_t *this)
+USHORT _CGTLISTVIEW_SPACING_ (CGTListView *this)
 {
     return this->spacing;
 }
-void _GTLISTVIEW_spacing (GTLISTVIEW_t *this, USHORT spacing)
+void _CGTLISTVIEW_SPACING (CGTListView *this, USHORT spacing)
 {
-    if (_GTGADGET_deployed_ (&this->gadget))
+    if (_CGTGADGET_DEPLOYED_ (&this->gadget))
     {
         GT_SetGadgetAttrs (this->gadget.gad, this->gadget.win, NULL, LAYOUTA_Spacing, spacing, TAG_DONE);
     }
     this->spacing = spacing;
 }
+
+static intptr_t _CGTListView_vtable[] = {
+    (intptr_t) _COBJECT_TOSTRING_,
+    (intptr_t) _COBJECT_EQUALS_,
+    (intptr_t) _COBJECT_GETHASHCODE_
+};
+
+void _CGTLISTVIEW___init (CGTListView *THIS)
+{
+    THIS->gadget._vTablePtr = (intptr_t **) &_CGTListView_vtable;
+}
+

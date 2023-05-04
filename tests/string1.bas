@@ -5,7 +5,7 @@
 OPTION EXPLICIT
 
 ' clib/exec_protos.h:VOID CopyMem( CONST APTR source, APTR dest, ULONG size );
-DECLARE SUB CopyMem (BYVAL src AS VOID PTR, BYVAL dst AS VOID PTR, BYVAL size AS ULONG) LIB -624 SysBase (a0, a1, d0)
+DECLARE EXTERN SUB CopyMem (BYVAL src AS ANY PTR , BYVAL dst AS ANY PTR , BYVAL size AS ULONG) LIB -624 SysBase (a0, a1, d0)
 
 FUNCTION STRDUP (s AS STRING) AS STRING
 

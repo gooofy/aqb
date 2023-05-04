@@ -1,6 +1,6 @@
 ' test external vars
 
-ASSERT DOSBase <> 0
+ASSERT DOSBase <> NULL
 
 ' PRINT intuitionbase
 
