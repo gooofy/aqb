@@ -1202,6 +1202,7 @@ void CG_loadCond (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         case IK_inHeap:
         case IK_inFrame:
         case IK_property:
+        case IK_varPtr:
         {
             CG_item zero;
             CG_ZeroItem (&zero, CG_ty(item));
