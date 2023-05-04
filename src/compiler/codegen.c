@@ -1355,10 +1355,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             break;
 
 
-                        case IK_inFrame:                                // c + v
-                        case IK_inReg:
-                        case IK_inHeap:
-                        case IK_varPtr:
+                        default:                                        // c + v
                             CG_loadVal (code, pos, frame, right);
                             switch (ty->kind)
                             {
@@ -1384,8 +1381,6 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             }
                             break;
 
-                        default:
-                            assert(FALSE);
                     }
                     break;
 
@@ -1414,10 +1409,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             break;
 
 
-                        case IK_inFrame:                                // c - v
-                        case IK_inReg:
-                        case IK_inHeap:
-                        case IK_varPtr:
+                        default:                                        // c - v
                             CG_loadVal (code, pos, frame, right);
                             switch (ty->kind)
                             {
@@ -1449,8 +1441,6 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             }
                             break;
 
-                        default:
-                            assert(FALSE);
                     }
                     break;
 
