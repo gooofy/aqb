@@ -2692,7 +2692,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
                     }
                 }
 
-                if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty2))
+                if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty2))
                     return EM_error((*tkn)->pos, "argument type descriptor expected here.");
 
                 if (mode == Ty_byRef)
@@ -2722,7 +2722,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
                         }
                     }
 
-                    if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &ty2))
+                    if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &ty2))
                         return EM_error((*tkn)->pos, "argument type descriptor expected here.");
 
                     if (mode == Ty_byRef)
@@ -6070,7 +6070,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
     {
         *tkn = (*tkn)->next;
 
-        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
+        if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &returnTy))
             return EM_error((*tkn)->pos, "return type descriptor expected here.");
 
         //label = strconcat(UP_frontend, label, "_");
@@ -6132,7 +6132,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
     {
         *tkn = (*tkn)->next;
 
-        if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
+        if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &returnTy))
             return EM_error((*tkn)->pos, "return type descriptor expected here.");
         kind = Ty_pkFunction;
     }
@@ -6261,7 +6261,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         {
             *tkn = (*tkn)->next;
 
-            if (!typeDesc(tkn, /*allowForwardPtr=*/FALSE, &returnTy))
+            if (!typeDesc(tkn, /*allowForwardPtr=*/TRUE, &returnTy))
                 return EM_error((*tkn)->pos, "return type descriptor expected here.");
         }
         if (!returnTy)
@@ -9013,17 +9013,23 @@ static bool nextch (char *ch, void *u)
     return n==1;
 }
 
-static void _checkLeftoverForwardPtrsInFormals(Ty_proc proc)
+static Ty_ty _resolveForwardPtr(Ty_ty tyForward)
+{
+    if (tyForward->kind != Ty_forwardPtr)
+        return tyForward;
+    Ty_ty tyResolved = E_resolveType(g_sleStack->env, tyForward->u.sForward);
+    if (!tyResolved)
+        EM_error(0, "unresolved forward pointer of %s", S_name(tyForward->u.sForward));
+    return tyResolved;
+}
+
+static void _resolveForwardPtrsInProc(Ty_proc proc)
 {
     for (Ty_formal formal = proc->formals; formal; formal=formal->next)
-    {
-        if (formal->ty->kind != Ty_forwardPtr)
-            continue;
-        Ty_ty tyForward = E_resolveType(g_sleStack->env, formal->ty->u.sForward);
-        if (!tyForward)
-            EM_error(0, "unresolved forward type of formal %s.%s", S_name(proc->name), S_name(formal->name));
-        formal->ty = Ty_Pointer(FE_mod->name, tyForward);
-    }
+        formal->ty = _resolveForwardPtr(formal->ty);
+
+    if (proc->returnTy)
+        proc->returnTy = _resolveForwardPtr(proc->returnTy);
 }
 
 static void _checkLeftoverForwards(S_scope env)
@@ -9093,22 +9099,23 @@ static void _checkLeftoverForwards(S_scope env)
                                     if (!member->u.method->proc->hasBody && !member->u.method->proc->isExtern)
                                         EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
                                     else
-                                        _checkLeftoverForwardPtrsInFormals (member->u.method->proc);
+                                        _resolveForwardPtrsInProc (member->u.method->proc);
                                     break;
                                 case Ty_recProperty:
+                                    member->u.property.ty = _resolveForwardPtr(member->u.property.ty);
                                     if (member->u.property.getter)
                                     {
                                         if (!member->u.property.getter->proc->hasBody && !member->u.property.getter->proc->isExtern)
                                             EM_error(0, "missing implementation of getter for %s.%s", S_name(sym), S_name(member->name));
                                         else
-                                            _checkLeftoverForwardPtrsInFormals (member->u.property.getter->proc);
+                                            _resolveForwardPtrsInProc (member->u.property.getter->proc);
                                     }
                                     if (member->u.property.setter)
                                     {
                                         if (!member->u.property.setter->proc->hasBody && !member->u.property.setter->proc->isExtern)
                                             EM_error(0, "missing implementation of setter for %s.%s", S_name(sym), S_name(member->name));
                                         else
-                                            _checkLeftoverForwardPtrsInFormals (member->u.property.setter->proc);
+                                            _resolveForwardPtrsInProc (member->u.property.setter->proc);
                                     }
                                     break;
                             }
