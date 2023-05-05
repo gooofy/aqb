@@ -9019,8 +9019,11 @@ static Ty_ty _resolveForwardPtr(Ty_ty tyForward)
         return tyForward;
     Ty_ty tyResolved = E_resolveType(g_sleStack->env, tyForward->u.sForward);
     if (!tyResolved)
+    {
         EM_error(0, "unresolved forward pointer of %s", S_name(tyForward->u.sForward));
-    return tyResolved;
+        return tyForward;
+    }
+    return Ty_Pointer(FE_mod->name, tyResolved);
 }
 
 static void _resolveForwardPtrsInProc(Ty_proc proc)
