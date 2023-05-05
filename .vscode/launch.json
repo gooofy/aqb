@@ -25,6 +25,26 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
+            "name": "tutorial",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/foo.bas.s", "-o", "/tmp/foo", "tutorial/MenuTutorial1.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
             "name": "link",
             "type": "cppdbg",
             "request": "launch",

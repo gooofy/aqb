@@ -12,6 +12,7 @@
 
 typedef struct CIntuiText_ CIntuiText;
 typedef struct CMenuItem_ CMenuItem;
+typedef struct CMenuItemText_ CMenuItemText;
 typedef struct CMenu_ CMenu;
 
 typedef void (*intuisupport_cb_t)(CMenuItem *item);
@@ -26,6 +27,19 @@ struct CMenuItem_
 {
     intptr_t          **_vTablePtr;
     intuisupport_cb_t   _cb;
+    intptr_t            _userData;
+    CMenu              *_parent;
+    struct MenuItem     _item;
+    CMenuItem          *_subItem;
+    CMenuItem          *_nextItem;
+};
+
+struct CMenuItemText_
+{
+    intptr_t          **_vTablePtr;
+    intuisupport_cb_t   _cb;
+    intptr_t            _userData;
+    CMenu              *_parent;
     struct MenuItem     _item;
     CMenuItem          *_subItem;
     CMenuItem          *_nextItem;
@@ -39,7 +53,6 @@ struct CMenu_
     CMenuItem          *_lastItem;
     CMenu              *_nextMenu;
     SHORT               _win_id;
-    //struct Window      *_window;
 };
 
 VOID               _CINTUITEXT_CONSTRUCTOR (CIntuiText *THIS, STRPTR   text);
@@ -61,19 +74,7 @@ VOID               _CINTUITEXT_NEXTTEXT    (CIntuiText *THIS, CIntuiText *B);
 CIntuiText        *_CINTUITEXT_NEXTTEXT_   (CIntuiText *THIS);
 struct IntuiText  *_CINTUITEXT_INTUITEXT_  (CIntuiText *THIS);
 
-VOID               _CMENUITEM_CONSTRUCTOR   (CMenuItem *THIS, STRPTR   text, CMenu *Parent);
-VOID               _CMENUITEM_TEXT          (CMenuItem *THIS, STRPTR   s);
-STRPTR             _CMENUITEM_TEXT_         (CMenuItem *THIS);
-VOID               _CMENUITEM_TEXTSELECTED  (CMenuItem *THIS, STRPTR   s);
-STRPTR             _CMENUITEM_TEXTSELECTED_ (CMenuItem *THIS);
-VOID               _CMENUITEM_ITEXT         (CMenuItem *THIS, struct IntuiText *s);
-struct IntuiText  *_CMENUITEM_ITEXT_        (CMenuItem *THIS);
-VOID               _CMENUITEM_ITEXTSELECTED (CMenuItem *THIS, struct IntuiText *s);
-struct IntuiText  *_CMENUITEM_ITEXTSELECTED_(CMenuItem *THIS);
-VOID               _CMENUITEM_IMAGE         (CMenuItem *THIS, struct Image *s);
-struct Image      *_CMENUITEM_IMAGE_        (CMenuItem *THIS);
-VOID               _CMENUITEM_IMAGESELECTED (CMenuItem *THIS, struct Image *s);
-struct Image      *_CMENUITEM_IMAGESELECTED_(CMenuItem *THIS);
+VOID               _CMENUITEM_CONSTRUCTOR   (CMenuItem *THIS, CMenu *parent, intptr_t userData);
 VOID               _CMENUITEM_CHECKIT       (CMenuItem *THIS, BOOL     B);
 BOOL               _CMENUITEM_CHECKIT_      (CMenuItem *THIS);
 VOID               _CMENUITEM_CHECKED       (CMenuItem *THIS, BOOL     B);
@@ -93,6 +94,17 @@ VOID               _CMENUITEM_REMOVESUBITEMS(CMenuItem *THIS);
 VOID               _CMENUITEM_NEXTITEM      (CMenuItem *THIS, CMenuItem *i);
 CMenuItem         *_CMENUITEM_NEXTITEM_     (CMenuItem *THIS);
 VOID               _CMENUITEM_BBOX          (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2);
+
+VOID               _CMENUITEMTEXT___init         (CMenuItemText *THIS);
+VOID               _CMENUITEMTEXT_CONSTRUCTOR    (CMenuItemText *THIS, STRPTR text, CMenu *parent, intptr_t userData);
+VOID               _CMENUITEMTEXT_TEXT           (CMenuItemText *THIS, STRPTR s);
+STRPTR             _CMENUITEMTEXT_TEXT_          (CMenuItemText *THIS);
+VOID               _CMENUITEMTEXT_TEXTSELECTED   (CMenuItemText *THIS, STRPTR s);
+STRPTR             _CMENUITEMTEXT_TEXTSELECTED_  (CMenuItemText *THIS);
+VOID               _CMENUITEMTEXT_ITEXT          (CMenuItemText *THIS, struct IntuiText *s);
+struct IntuiText  *_CMENUITEMTEXT_ITEXT_         (CMenuItemText *THIS);
+VOID               _CMENUITEMTEXT_ITEXTSELECTED  (CMenuItemText *THIS, struct IntuiText *s);
+struct IntuiText  *_CMENUITEMTEXT_ITEXTSELECTED_ (CMenuItemText *THIS);
 
 VOID               _CMENU_CONSTRUCTOR      (CMenu *THIS, STRPTR Name, CMenu *prevMenu);
 VOID               _CMENU_NEXTMENU         (CMenu *THIS, CMenu *x);

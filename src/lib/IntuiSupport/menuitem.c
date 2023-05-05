@@ -18,9 +18,11 @@
 #include <clib/graphics_protos.h>
 #include <inline/graphics.h>
 
-VOID _CMENUITEM_CONSTRUCTOR (CMenuItem *THIS, STRPTR text, CMenu *parent)
+VOID _CMENUITEM_CONSTRUCTOR (CMenuItem *THIS, CMenu *parent, intptr_t userData)
 {
     THIS->_cb                 = NULL;
+    THIS->_userData           = userData;
+    THIS->_parent             = parent;
     THIS->_item.NextItem      = NULL;
     THIS->_item.Flags         = ITEMENABLED | HIGHCOMP ;
     THIS->_item.MutualExclude = 0;
@@ -31,104 +33,8 @@ VOID _CMENUITEM_CONSTRUCTOR (CMenuItem *THIS, STRPTR text, CMenu *parent)
     THIS->_subItem            = NULL;
     THIS->_nextItem           = NULL;
 
-    if (text)
-        _CMENUITEM_TEXT (THIS, text);
-
     if (parent)
         _CMENU_ADDITEM (parent, THIS);
-}
-
-VOID _CMENUITEM_TEXT (CMenuItem *THIS, STRPTR s)
-{
-    if (!(THIS->_item.Flags & ITEMTEXT))
-    {
-        THIS->_item.ItemFill   = NULL;
-        THIS->_item.SelectFill = NULL;
-    }
-
-    struct IntuiText *it = THIS->_item.ItemFill;
-
-    if (!it)
-    {
-        it = (struct IntuiText*) ALLOCATE_ (sizeof(*it), 0);
-        intuis_win_ext_t *ext = _IntuiSupport_get_ext(_g_cur_win_id);
-        it->FrontPen = ext->draw_info->dri_Pens[BARDETAILPEN];
-        it->BackPen  = ext->draw_info->dri_Pens[BARBLOCKPEN];
-        it->DrawMode = JAM1;
-        it->LeftEdge = 1;
-        it->TopEdge  = 0;
-        it->IText    = NULL;
-        it->NextText = NULL;
-
-        THIS->_item.ItemFill = it;
-        THIS->_item.Flags |= ITEMTEXT;
-    }
-
-    it->IText = s;
-
-    DPRINTF ("_CMENUITEM_TEXT: THIS=0x%08lx, it=0x%08lx -> %s, NextText=0x%08lx, SelectFill=0x%08lx\n",
-             THIS, it, s, it->NextText, THIS->_item.SelectFill);
-}
-
-STRPTR   _CMENUITEM_TEXT_ (CMenuItem *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.text");
-    return NULL;
-}
-
-VOID _CMENUITEM_TEXTSELECTED (CMenuItem *THIS, STRPTR   s)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.textSelected");
-}
-
-STRPTR   _CMENUITEM_TEXTSELECTED_ (CMenuItem *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.textSelected");
-    return NULL;
-}
-
-VOID _CMENUITEM_ITEXT (CMenuItem *THIS, struct IntuiText *s)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.IText");
-}
-
-struct IntuiText *_CMENUITEM_ITEXT_ (CMenuItem *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.IText");
-    return NULL;
-}
-
-VOID _CMENUITEM_ITEXTSELECTED (CMenuItem *THIS, struct IntuiText *s)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.iTextSelected");
-}
-
-struct IntuiText *_CMENUITEM_ITEXTSELECTED_ (CMenuItem *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.iTextSelected");
-    return NULL;
-}
-
-VOID _CMENUITEM_IMAGE (CMenuItem *THIS, struct Image *s)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.Image");
-}
-
-struct Image *_CMENUITEM_IMAGE_ (CMenuItem *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.Image");
-    return NULL;
-}
-
-VOID _CMENUITEM_IMAGESELECTED (CMenuItem *THIS, struct Image *s)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.imageSelected");
-}
-
-struct Image *_CMENUITEM_IMAGESELECTED_ (CMenuItem *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.imageSelected");
-    return NULL;
 }
 
 VOID _CMENUITEM_CHECKIT (CMenuItem *THIS, BOOL     B)
@@ -329,7 +235,7 @@ VOID _CMENUITEM_BBOX (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
 static intptr_t _CMenuItem_vtable[] = {
     (intptr_t) _COBJECT_TOSTRING_,
     (intptr_t) _COBJECT_EQUALS_,
-    (intptr_t) _COBJECT_GETHASHCODE_
+    (intptr_t) _COBJECT_GETHASHCODE_,
 };
 
 void _CMENUITEM___init (CMenuItem *THIS)

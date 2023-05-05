@@ -62,32 +62,12 @@ END CLASS
 ' --
 ' --------------------------------------------------------------------------------------------------------
 
+' base class for all menu items
 CLASS CMenuItem
 
     PUBLIC:
 
-        DECLARE EXTERN CONSTRUCTOR (BYVAL text AS string = NULL, BYVAL parent AS CMenu PTR = NULL)
-
-        ' NOTE: you can either have an IntuiText or Image based 
-        '       MenuItem, not both at the same time
-
-        DECLARE EXTERN PROPERTY text AS string
-        DECLARE EXTERN PROPERTY text (BYVAL s AS string)
-
-        DECLARE EXTERN PROPERTY textSelected AS string
-        DECLARE EXTERN PROPERTY textSelected (BYVAL s AS string)
-
-        DECLARE EXTERN PROPERTY iText AS IntuiText PTR
-        DECLARE EXTERN PROPERTY iText (BYVAL s AS IntuiText PTR)
-
-        DECLARE EXTERN PROPERTY iTextSelected AS IntuiText PTR
-        DECLARE EXTERN PROPERTY iTextSelected (BYVAL s AS IntuiText PTR)
-
-        DECLARE EXTERN PROPERTY image AS Image PTR
-        DECLARE EXTERN PROPERTY image (BYVAL s AS Image PTR)
-
-        DECLARE EXTERN PROPERTY imageSelected AS Image PTR
-        DECLARE EXTERN PROPERTY imageSelected (BYVAL s AS Image PTR)
+        DECLARE EXTERN CONSTRUCTOR (BYVAL parent AS CMenu PTR, BYVAL userData AS ANY = 0)
 
         DECLARE EXTERN PROPERTY checkit AS BOOLEAN
         DECLARE EXTERN PROPERTY checkit (BYVAL b AS BOOLEAN)
@@ -116,15 +96,42 @@ CLASS CMenuItem
         DECLARE EXTERN PROPERTY nextItem AS CMenuItem PTR
         DECLARE EXTERN PROPERTY nextItem (BYVAL i AS CMenuItem PTR)
 
+        DECLARE EXTERN PROPERTY parent AS CMenu PTR
+
         DECLARE EXTERN SUB bbox (BYREF x1 AS INTEGER, BYREF y1 AS INTEGER, BYREF x2 AS INTEGER, BYREF y2 AS INTEGER)
 
         AS SUB (BYVAL CMenuItem PTR) cb
 
-    PRIVATE:
+    PUBLIC:
 
+        AS ANY           _userData
+
+    PROTECTED:
+
+        AS CMENU PTR     _parent
         AS MenuItem      _item
         AS CMenuItem PTR _subItem
         AS CMenuItem PTR _nextItem
+
+END CLASS
+
+CLASS CMenuItemText EXTENDS CMenuItem
+
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL text AS string, BYVAL parent AS CMenu PTR, BYVAL userData AS ANY = 0)
+
+        DECLARE EXTERN PROPERTY text AS string
+        DECLARE EXTERN PROPERTY text (BYVAL s AS string)
+
+        DECLARE EXTERN PROPERTY textSelected AS string
+        DECLARE EXTERN PROPERTY textSelected (BYVAL s AS string)
+
+        DECLARE EXTERN PROPERTY iText AS IntuiText PTR
+        DECLARE EXTERN PROPERTY iText (BYVAL s AS IntuiText PTR)
+
+        DECLARE EXTERN PROPERTY iTextSelected AS IntuiText PTR
+        DECLARE EXTERN PROPERTY iTextSelected (BYVAL s AS IntuiText PTR)
 
 END CLASS
 
