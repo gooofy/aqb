@@ -418,6 +418,7 @@ void _autil_shutdown(void)
             g_mem = mem_next;
             continue;
         }
+        _MEMSET ((BYTE*)g_mem->mem, 0xEF, g_mem->size);
 #endif
         FreeMem(g_mem->mem, g_mem->size);
         FreeMem(g_mem, sizeof (*g_mem));
