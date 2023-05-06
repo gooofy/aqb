@@ -289,10 +289,10 @@ static enum Temp_w CG_tySize(Ty_ty ty)
 {
     switch (ty->kind)
     {
-        case Ty_bool:
         case Ty_byte:
         case Ty_ubyte:
             return Temp_w_B;
+        case Ty_bool:
         case Ty_integer:
         case Ty_uinteger:
             return Temp_w_W;

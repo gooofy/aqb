@@ -4221,10 +4221,10 @@ static bool transRead(S_pos pos, CG_item *var)
     switch (ty->kind)
     {
         case Ty_byte:
-        case Ty_bool:
         case Ty_ubyte:
             fsym = S_Symbol("_AQB_READ1");
             break;
+        case Ty_bool:
         case Ty_integer:
         case Ty_uinteger:
             fsym = S_Symbol("_AQB_READ2");

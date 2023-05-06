@@ -527,10 +527,10 @@ int Ty_size(Ty_ty t)
 {
     switch (t->kind)
     {
-        case Ty_bool:
         case Ty_byte:
         case Ty_ubyte:
              return 1;
+        case Ty_bool:
         case Ty_integer:
         case Ty_uinteger:
              return 2;
