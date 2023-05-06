@@ -330,8 +330,8 @@ void WINDOW_CLOSE(short id)
 
     if (_g_winlist[id-1].win->RPort->TmpRas)
     {
-        FreeVec ((PLANEPTR) _g_winlist[id-1].win->RPort->TmpRas->RasPtr);
-        FreeVec (_g_winlist[id-1].win->RPort->TmpRas);
+        DEALLOCATE ((PLANEPTR) _g_winlist[id-1].win->RPort->TmpRas->RasPtr);
+        DEALLOCATE (_g_winlist[id-1].win->RPort->TmpRas);
     }
 #ifdef ENABLE_DEBUG
     DPRINTF ("WINDOW_CLOSE id=%d CloseWindow(0x%08lx)\n", id, _g_winlist[id-1].win);
@@ -1544,7 +1544,7 @@ void COLOR(short fg, short bg, short o, short drmd)
 
 static void allocTmpRas(void)
 {
-    struct TmpRas *aTmpRas = AllocVec(sizeof(*aTmpRas), MEMF_CLEAR);
+    struct TmpRas *aTmpRas = ALLOCATE_(sizeof(*aTmpRas), MEMF_CLEAR);
     if (!aTmpRas)
     {
         ERROR(AE_PAINT);
@@ -1552,21 +1552,21 @@ static void allocTmpRas(void)
     }
 
 #ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"allocTmpRas: AllocVec aTmpRas ->"); _debug_putu4((ULONG)aTmpRas); _debug_putnl();
+    _debug_puts((STRPTR)"allocTmpRas: ALLOCATE_ aTmpRas ->"); _debug_putu4((ULONG)aTmpRas); _debug_putnl();
 #endif
     ULONG rassize = RASSIZE (_g_cur_win->Width, _g_cur_win->Height);
 
     //_debug_puts((STRPTR)"allocTmpRas: rassize="); _debug_putu4(rassize);
     //_debug_putnl();
 
-    PLANEPTR amem = AllocVec (rassize, MEMF_CHIP|MEMF_CLEAR);
+    PLANEPTR amem = ALLOCATE_ (rassize, MEMF_CHIP|MEMF_CLEAR);
     if (!amem)
     {
         ERROR(AE_PAINT);
         return;
     }
 #ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"allocTmpRas: AllocVec amem ->"); _debug_putu4((ULONG)amem); _debug_putnl();
+    _debug_puts((STRPTR)"allocTmpRas: ALLOCATE_ amem ->"); _debug_putu4((ULONG)amem); _debug_putnl();
 #endif
     InitTmpRas (aTmpRas, amem, rassize);
     _g_cur_rp->TmpRas = aTmpRas;
@@ -1742,25 +1742,25 @@ void BITMAP_FREE (BITMAP_t *bm)
 
     if (bm->mask)
     {
-        FreeVec(bm->mask);
+        DEALLOCATE(bm->mask);
         bm->mask = NULL;
     }
 
 	if (bm->continous)
 	{
-	   FreeVec(bm->bm.Planes[0]);
+	   DEALLOCATE(bm->bm.Planes[0]);
 	   bm->bm.Planes[0] = NULL;
 	}
 	else
 	{
 		for (SHORT plane_num = 0; plane_num < bm->bm.Depth; plane_num++)
 		{
-		   FreeRaster(bm->bm.Planes[plane_num], bm->width, bm->height);
+		   DEALLOCATE(bm->bm.Planes[plane_num]);
 		   bm->bm.Planes[plane_num] = NULL;
 		}
 	}
 
-    FreeVec (bm);
+    DEALLOCATE (bm);
 }
 
 BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
@@ -1769,7 +1769,7 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
     DPRINTF ("BITMAP_: allocating new bitmap, width=%d, height=%d, depth=%d, cont=%d\n", width, height, depth, cont);
 #endif
 
-    BITMAP_t *bm = AllocVec(sizeof(*bm), MEMF_CLEAR);
+    BITMAP_t *bm = ALLOCATE_(sizeof(*bm), MEMF_CLEAR);
     if (!bm)
     {
         ERROR(AE_BLIT);
@@ -1792,7 +1792,7 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 	if (cont)
 	{
 		ULONG rs = RASSIZE (width, height);
-		BYTE *p = AllocVec (rs * depth, MEMF_CHIP | MEMF_CLEAR);
+		BYTE *p = ALLOCATE_ (rs * depth, MEMF_CHIP | MEMF_CLEAR);
 		if (!p)
 		{
 #ifdef ENABLE_DEBUG
@@ -1811,7 +1811,7 @@ BITMAP_t *BITMAP_ (SHORT width, SHORT height, SHORT depth, BOOL cont)
 	{
 		for (SHORT plane_num = 0; plane_num < depth; plane_num++)
 		{
-			bm->bm.Planes[plane_num] = (PLANEPTR)AllocRaster(width, height);
+			bm->bm.Planes[plane_num] = (PLANEPTR)ALLOCATE_(RASSIZE(width, height), MEMF_PUBLIC|MEMF_CHIP);
 			if (!bm->bm.Planes[plane_num])
 			{
 				ERROR(AE_BLIT);
@@ -1863,7 +1863,7 @@ void BITMAP_MASK (BITMAP_t *bm)
     ULONG rs = RASSIZE (bm->width, bm->height);
     if (!bm->mask)
     {
-        bm->mask = AllocVec (rs, MEMF_CHIP);
+        bm->mask = ALLOCATE_ (rs, MEMF_CHIP);
         if (!bm->mask)
         {
             ERROR(AE_BLIT);
@@ -2011,7 +2011,7 @@ void FONT_FREE (FONT_t *font)
     if (font->dfh)
         _freeFont (font->dfh);
 
-    FreeVec (font);
+    DEALLOCATE (font);
 }
 
 FONT_t *FONT_ (UBYTE *font_name, SHORT font_size, UBYTE *font_dir)
@@ -2076,7 +2076,7 @@ FONT_t *FONT_ (UBYTE *font_name, SHORT font_size, UBYTE *font_dir)
 	}
 
 
-    FONT_t *font = AllocVec(sizeof(*font), MEMF_CLEAR);
+    FONT_t *font = ALLOCATE_(sizeof(*font), MEMF_CLEAR);
     if (!font)
     {
         ERROR(AE_FONT);

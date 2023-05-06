@@ -691,6 +691,7 @@ void _AIO_OPEN (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT rec
         return;
     }
 
+    // FIXME: ensure fi is freed on exit!
     fileinfo_t *fi = AllocVec(sizeof(*fi), MEMF_CLEAR);
     if (!fi)
     {

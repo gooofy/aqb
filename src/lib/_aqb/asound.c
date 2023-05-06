@@ -33,7 +33,7 @@ WAVE_t *_wave_alloc (BYTE *data,
                      ULONG oneShotHiSamples, ULONG repeatHiSamples, ULONG samplesPerHiCycle,
                      ULONG samplesPerSec, SHORT ctOctave, FLOAT volume)
 {
-    WAVE_t *wave = AllocVec(sizeof(*wave), MEMF_CLEAR);
+    WAVE_t *wave = ALLOCATE_(sizeof(*wave), MEMF_CLEAR);
     if (!wave)
     {
         ERROR(AE_AUDIO);
@@ -71,7 +71,7 @@ static BOOL _init_audio_device(int channel)
 
     for (int i = 0; i<NUM_IO; i++)
     {
-        g_audioIO[channel][i] = (struct IOAudio *) AllocVec ( sizeof (struct IOAudio), MEMF_PUBLIC | MEMF_CLEAR );
+        g_audioIO[channel][i] = (struct IOAudio *) ALLOCATE_ ( sizeof (struct IOAudio), MEMF_PUBLIC | MEMF_CLEAR );
 
         if (!g_audioIO[channel][i])
         {
@@ -80,7 +80,7 @@ static BOOL _init_audio_device(int channel)
             return FALSE;
         }
     }
-    g_cmdIO[channel] = (struct IOAudio *) AllocVec ( sizeof (struct IOAudio), MEMF_PUBLIC | MEMF_CLEAR );
+    g_cmdIO[channel] = (struct IOAudio *) ALLOCATE_ ( sizeof (struct IOAudio), MEMF_PUBLIC | MEMF_CLEAR );
     if (!g_cmdIO[channel])
     {
         DPRINTF ("failed to allocate IOAudio struct (cmd)\n");
@@ -108,7 +108,7 @@ static BOOL _init_audio_device(int channel)
 
     if (!g_wave[channel])
     {
-        BYTE *data = AllocVec(16, MEMF_CHIP | MEMF_CLEAR);
+        BYTE *data = ALLOCATE_(16, MEMF_CHIP | MEMF_CLEAR);
         if (!data)
         {
             ERROR(AE_AUDIO);
@@ -280,7 +280,7 @@ WAVE_t *WAVE_ (CArray *data,
         return NULL;
     }
 
-    BYTE *d = AllocVec(data->_dataSize, MEMF_CHIP | MEMF_CLEAR);
+    BYTE *d = ALLOCATE_(data->_dataSize, MEMF_CHIP | MEMF_CLEAR);
     if (!d)
     {
         ERROR(AE_AUDIO);
@@ -309,9 +309,9 @@ void WAVE_FREE (WAVE_t *wave)
 	}
 
 	if (wave->data)
-	   FreeVec(wave->data);
+	   DEALLOCATE(wave->data);
 
-    FreeVec (wave);
+    DEALLOCATE (wave);
 }
 
 void WAVE (SHORT channel, WAVE_t *wave)
@@ -460,10 +460,10 @@ void _asound_shutdown (void)
         for (int io=0; io<NUM_IO; io++)
         {
             if (g_audioIO[i][io])
-                FreeVec (g_audioIO[i][io]);
+                DEALLOCATE (g_audioIO[i][io]);
         }
         if (g_cmdIO[i])
-            FreeVec (g_cmdIO[i]);
+            DEALLOCATE (g_cmdIO[i]);
     }
     WAVE_t *wave = g_wave_first;
     while (wave)

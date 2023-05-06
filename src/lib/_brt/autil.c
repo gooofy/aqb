@@ -1,4 +1,7 @@
 
+#define ENABLE_DPRINTF
+#define MEMDEBUG
+
 #include "_brt.h"
 
 #include <exec/types.h>
@@ -29,8 +32,17 @@ struct AQB_memrec_
 {
     AQB_memrec next;
     ULONG      size;
+#ifdef MEMDEBUG
+    ULONG      marker1;
+#endif
     APTR      *mem;
+#ifdef MEMDEBUG
+    ULONG      marker2;
+#endif
 };
+
+#define MARKER1 0xAFFE1234
+#define MARKER2 0xCAFEBABE
 
 static AQB_memrec g_mem = NULL;
 
@@ -41,11 +53,10 @@ APTR ALLOCATE_(ULONG size, ULONG flags)
 {
     AQB_memrec mem_prev = g_mem;
 
-    DPRINTF ("ALLOCATE_: size=%ld, flags=%ld\n", size, flags);
-
     g_mem = (AQB_memrec) AllocMem (sizeof(*g_mem), 0);
     if (!g_mem)
     {
+        DPRINTF ("ALLOCATE_: OOM1\n");
         g_mem = mem_prev;
         return NULL;
     }
@@ -53,13 +64,22 @@ APTR ALLOCATE_(ULONG size, ULONG flags)
     g_mem->mem = (APTR) AllocMem (size, flags);
     if (!g_mem->mem)
     {
+        DPRINTF ("ALLOCATE_: OOM1\n");
         FreeMem(g_mem, sizeof (*g_mem));
         g_mem = mem_prev;
         return NULL;
     }
 
+    DPRINTF ("ALLOCATE_: size=%ld, flags=%ld -> 0x%08lx\n", size, flags, g_mem->mem);
+
     g_mem->size = size;
     g_mem->next = mem_prev;
+
+#ifdef MEMDEBUG
+    g_mem->marker1 = MARKER1;
+    g_mem->marker2 = MARKER2;
+    _MEMSET ((BYTE*)g_mem->mem, 0xEF, size);
+#endif
 
     return g_mem->mem;
 }
@@ -379,12 +399,30 @@ void _autil_init(void)
 
 void _autil_shutdown(void)
 {
+    DPRINTF ("_autil_shutdown: freeing memory...\n");
     while (g_mem)
     {
         AQB_memrec mem_next = g_mem->next;
+
+#ifdef MEMDEBUG
+        DPRINTF ("_autil_shutdown: freeing %ld bytes at 0x%08lx\n", g_mem->size, g_mem->mem);
+        if (g_mem->marker1 != MARKER1)
+        {
+            DPRINTF("_autil_shutdown: *** ERROR: corruptet memlist, marker1 damaged\n");
+            g_mem = mem_next;
+            continue;
+        }
+        if (g_mem->marker2 != MARKER2)
+        {
+            DPRINTF("_autil_shutdown: *** ERROR: corruptet memlist, marker2 damaged\n");
+            g_mem = mem_next;
+            continue;
+        }
+#endif
         FreeMem(g_mem->mem, g_mem->size);
         FreeMem(g_mem, sizeof (*g_mem));
         g_mem = mem_next;
     }
+    DPRINTF ("_autil_shutdown: freeing memory... done.\n");
 }
 
