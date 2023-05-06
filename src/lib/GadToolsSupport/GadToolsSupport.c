@@ -1,4 +1,11 @@
-// #define ENABLE_DPRINTF
+#define ENABLE_DPRINTF
+//#define ENABLE_SLOWDOWN
+
+#ifdef ENABLE_SLOWDOWN
+    #define SLOWDOWN Delay(50);
+#else
+    #define SLOWDOWN
+#endif
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
@@ -21,8 +28,8 @@
 #include <clib/gadtools_protos.h>
 #include <inline/gadtools.h>
 
-//#include <clib/dos_protos.h>
-//#include <inline/dos.h>
+#include <clib/dos_protos.h>
+#include <inline/dos.h>
 
 extern struct Library    *GadToolsBase ;
 
@@ -30,6 +37,7 @@ static gt_win_ext_t    _g_gt_win_ext[MAX_NUM_WINDOWS];
 
 static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
 {
+    DPRINTF("_gtgadgets_free 1\n"); SLOWDOWN;
     if (ext->deployed)
     {
 		DPRINTF ("_gtgadgets_free: was deployed\n");
@@ -37,17 +45,20 @@ static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
         ext->deployed = FALSE;
     }
 
+    DPRINTF("_gtgadgets_free 2\n"); SLOWDOWN;
     if (ext->gadList)
     {
-		DPRINTF ("_gtgadgets_free: g_gadList not null\n");
+		DPRINTF ("_gtgadgets_free: g_gadList not null: 0x%08lx\n", ext->gadList);
         FreeGadgets (ext->gadList);
         ext->gadList = NULL;
     }
+    DPRINTF("_gtgadgets_free 3\n"); SLOWDOWN;
 }
 
 static void window_close_cb (short win_id, void *ud)
 {
     DPRINTF ("GadToolsSupport: window_close_cb called on win #%d\n", win_id);
+    SLOWDOWN;
 
     gt_win_ext_t *ext = &_g_gt_win_ext[win_id-1];
     struct Window *win = _aqb_get_win(win_id);
@@ -105,8 +116,10 @@ void _CGTGADGET_CONSTRUCTOR (CGTGadget *this, CONST_STRPTR txt,
     this->ng.ng_Width      = x2-x1+1;
     this->ng.ng_Height     = y2-y1+1;
     this->ng.ng_GadgetText = (STRPTR) txt;
+    this->ng.ng_TextAttr   = NULL; // to be filled in deploy()
     this->ng.ng_GadgetID   = _GTGADGET_NEXT_ID();
     this->ng.ng_Flags      = flags;
+    this->ng.ng_VisualInfo = NULL; // to be filled in deploy()
     this->ng.ng_UserData   = this;
     this->gad              = NULL;
     this->win              = _g_cur_win;
@@ -305,7 +318,9 @@ void GTGADGETS_DEPLOY (void)
     }
 
     struct Gadget **pGadList = &ext->gadList;
-    //DPRINTF("_GTGADGET_DEPLOY: CreateContext(), ext->gadList=0x%08lx, pGadList=0x%08lx\n", ext->gadList, pGadList);
+    DPRINTF("_GTGADGET_DEPLOY: CreateContext(), ext->gadList=0x%08lx, pGadList=0x%08lx\n", ext->gadList, pGadList);
+    if (ext->gadList != NULL)
+        DPRINTF("__GTGADGET_DEPLOY: *** ERROR: ext->gadList != NULL on deploy!\n");
     ext->gad = CreateContext (pGadList);
     if (!ext->gad)
     {
@@ -367,20 +382,20 @@ void GTG_DRAW_BEVEL_BOX (BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y
 
 static void _GadToolsSupport_shutdown(void)
 {
-    DPRINTF ("_GadToolsSupport_shutdown called\n");
+    DPRINTF ("_GadToolsSupport_shutdown called\n"); SLOWDOWN;
 
     for (int i=0; i<MAX_NUM_WINDOWS; i++)
     {
-        DPRINTF ("_GadToolsSupport_shutdown window #%d\n", i);
+        DPRINTF ("_GadToolsSupport_shutdown window #%d\n", i); SLOWDOWN;
         gt_win_ext_t *ext = &_g_gt_win_ext[i];
         if (ext->vinfo)
         {
-            DPRINTF ("_GadToolsSupport_shutdown FreeVisualInfo()\n");
+            DPRINTF ("_GadToolsSupport_shutdown FreeVisualInfo()\n"); SLOWDOWN;
             FreeVisualInfo (ext->vinfo);
         }
     }
 
-    DPRINTF ("_GadToolsSupport_shutdown done\n");
+    DPRINTF ("_GadToolsSupport_shutdown done\n"); SLOWDOWN;
 }
 
 static intptr_t _CGTGadget_vtable[] = {
