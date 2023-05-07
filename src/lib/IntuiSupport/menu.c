@@ -74,15 +74,15 @@ BOOL     _CMENU_ENABLED_ (CMenu *THIS)
 
 VOID _CMENU_ADDITEM (CMenu *THIS, CMenuItem *item)
 {
-    item->_item.NextItem = NULL;
+    item->_item._item.NextItem = NULL;
     if (THIS->_lastItem)
     {
-        THIS->_lastItem->_item.NextItem = &item->_item;
+        THIS->_lastItem->_item._item.NextItem = &item->_item._item;
         THIS->_lastItem = THIS->_lastItem->_nextItem = item;
     }
     else
     {
-        THIS->_menu.FirstItem = &item->_item;
+        THIS->_menu.FirstItem = &item->_item._item;
         THIS->_firstItem = THIS->_lastItem = item;
     }
 }
@@ -113,22 +113,50 @@ static void _layoutItems (CMenuItem *cfirstitem)
         if (ih<ITEM_MIN_HEIGHT)
             ih = ITEM_MIN_HEIGHT;
 
-        citem->_item.LeftEdge = 0;
-        citem->_item.TopEdge  = y;
-        citem->_item.Width    = ix1+iw;
-        citem->_item.Height   = iy1+ih+1;
+        citem->_item._item.LeftEdge = 0;
+        citem->_item._item.TopEdge  = y;
+        citem->_item._item.Width    = ix1+iw;
+        citem->_item._item.Height   = iy1+ih+1;
 
         DPRINTF ("_layoutItems: ->item at %d/%d, %dx%d\n",
-                 citem->_item.LeftEdge, citem->_item.TopEdge, citem->_item.Width, citem->_item.Height);
+                 citem->_item._item.LeftEdge, citem->_item._item.TopEdge, citem->_item._item.Width, citem->_item._item.Height);
         y += iy1+ih+1;
-        if (citem->_item.Width>maxw)
-            maxw = citem->_item.Width;
+        if (citem->_item._item.Width>maxw)
+            maxw = citem->_item._item.Width;
     }
 
     // make all items the same (full) width
     for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
-        citem->_item.Width    = maxw;
+        citem->_item._item.Width    = maxw;
 
+}
+
+static BOOL _menu_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *msg, window_refresh_cb_t refresh_cb, void *refresh_ud)
+{
+    //DPRINTF ("_menu_msg_cb: msg->Class=0x%08lx\n", msg->Class);
+    if (msg->Class == IDCMP_MENUPICK)
+    {
+        intuis_win_ext_t *ext        = _IntuiSupport_get_ext(wid+1);
+        UWORD             menuNumber = msg->Code;
+
+        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNumber=%d\n", wid, menuNumber);
+
+        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNum=%d, itemNum=%d, subNum=%d\n",
+        //         wid, MENUNUM(menuNumber), ITEMNUM(menuNumber), SUBNUM(menuNumber));
+
+        MenuItemUD *item = (MenuItemUD*) ItemAddress(&ext->deployedMenu->_menu, menuNumber);
+
+        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, item=0x%08lx\n", item);
+
+        CMenuItem *citem = item->_wrapper;
+        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, citem=0x%08lx, cb=0x%08lx\n", citem, citem->_cb);
+
+        if (citem->_cb)
+            citem->_cb(citem);
+
+        return TRUE;
+    }
+    return FALSE;
 }
 
 VOID _CMENU_DEPLOY (CMenu *THIS)
@@ -162,6 +190,18 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
 
     struct Window *win = _aqb_get_win (THIS->_win_id);
     SetMenuStrip (win, &THIS->_menu);
+
+    DPRINTF ("CMENU_DEPLOY: before IDCMPFlags=0x%08lx\n", win->IDCMPFlags);
+    ModifyIDCMP (win, win->IDCMPFlags | IDCMP_MENUPICK);
+    DPRINTF ("CMENU_DEPLOY: after  IDCMPFlags=0x%08lx\n", win->IDCMPFlags);
+
+    if (!ext->menu_msg_cb_installed)
+    {
+        DPRINTF ("CMENU_DEPLOY: installing custom msg callback for wid #%d\n", _g_cur_win_id);
+                _window_add_msg_cb (_g_cur_win_id, _menu_msg_cb);
+        ext->menu_msg_cb_installed = TRUE;
+    }
+    ext->deployedMenu = THIS;
 }
 
 VOID _CMENU_UNDEPLOY (CMenu *THIS)

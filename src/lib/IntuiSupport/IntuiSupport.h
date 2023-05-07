@@ -14,6 +14,7 @@ typedef struct CIntuiText_ CIntuiText;
 typedef struct CMenuItem_ CMenuItem;
 typedef struct CMenuItemText_ CMenuItemText;
 typedef struct CMenu_ CMenu;
+typedef struct MenuItemUD_ MenuItemUD;
 
 typedef void (*intuisupport_cb_t)(CMenuItem *item);
 
@@ -23,13 +24,19 @@ struct CIntuiText_
     struct IntuiText   *_intuiText;
 };
 
+struct MenuItemUD_
+{
+    struct MenuItem     _item;
+    CMenuItem          *_wrapper;
+};
+
 struct CMenuItem_
 {
     intptr_t          **_vTablePtr;
     intuisupport_cb_t   _cb;
     intptr_t            _userData;
     CMenu              *_parent;
-    struct MenuItem     _item;
+    MenuItemUD          _item;
     CMenuItem          *_subItem;
     CMenuItem          *_nextItem;
 };
@@ -40,7 +47,7 @@ struct CMenuItemText_
     intuisupport_cb_t   _cb;
     intptr_t            _userData;
     CMenu              *_parent;
-    struct MenuItem     _item;
+    MenuItemUD          _item;
     CMenuItem          *_subItem;
     CMenuItem          *_nextItem;
 };
@@ -125,6 +132,7 @@ typedef struct
     struct DrawInfo  *draw_info;
     CMenu            *deployedMenu;
     BOOL              close_cb_installed;
+    BOOL              menu_msg_cb_installed;
 } intuis_win_ext_t;
 
 intuis_win_ext_t *_IntuiSupport_get_ext(short win_id);

@@ -1,4 +1,5 @@
 //#define ENABLE_DPRINTF
+//#define ENABLE_DEBUG
 
 #include "_aqb.h"
 #include "../_brt/_brt.h"
@@ -33,8 +34,6 @@
 
 #include <libraries/diskfont.h>
 #include <inline/diskfont.h>
-
-// #define ENABLE_DEBUG
 
 #define MAXINPUTBUF 1024
 
@@ -1552,7 +1551,7 @@ static void allocTmpRas(void)
     }
 
 #ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"allocTmpRas: ALLOCATE_ aTmpRas ->"); _debug_putu4((ULONG)aTmpRas); _debug_putnl();
+    DPRINTF("allocTmpRas: ALLOCATE_ aTmpRas -> 0x%08lx\n", aTmpRas);
 #endif
     ULONG rassize = RASSIZE (_g_cur_win->Width, _g_cur_win->Height);
 
@@ -1566,7 +1565,7 @@ static void allocTmpRas(void)
         return;
     }
 #ifdef ENABLE_DEBUG
-    _debug_puts((STRPTR)"allocTmpRas: ALLOCATE_ amem ->"); _debug_putu4((ULONG)amem); _debug_putnl();
+    DPRINTF("allocTmpRas: ALLOCATE_ amem -> 0x%08lx\n", amem);
 #endif
     InitTmpRas (aTmpRas, amem, rassize);
     _g_cur_rp->TmpRas = aTmpRas;

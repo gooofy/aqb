@@ -9,6 +9,11 @@ SUB winCloseCB (BYVAL wid AS INTEGER, BYVAL ud AS ANY PTR)
     SYSTEM
 END SUB
 
+SUB menuQuitCB (BYVAL item AS CMenuItem PTR)
+    TRACE "menuQuitCB called"
+    SYSTEM
+END SUB
+
 WINDOW 1, "Menu Tutorial 1"
 ON WINDOW CLOSE CALL 1, winCloseCB
 
@@ -16,6 +21,7 @@ DIM AS CMenu menu1         = CMenu         ("First Menu")
 DIM AS CMenuItemText item1 = CMenuItemText ("Foobar", @menu1)
 DIM AS CMenuItemText item2 = CMenuItemText ("This is a very wide item", @menu1)
 DIM AS CMenuItemText item3 = CMenuItemText ("Quit", @menu1)
+item3.cb = menuQuitCB
 
 DIM AS CMenu menu2         = CMenu         ("Second Menu", @menu1)
 DIM AS CMenuItemText item4 = CMenuItemText ("An item for the second menu", @menu2)

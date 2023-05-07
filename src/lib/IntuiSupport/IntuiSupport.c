@@ -82,11 +82,12 @@ void _IntuiSupport_init(void)
     {
         intuis_win_ext_t *ext = &_g_intuis_win_ext[i];
 
-        ext->screen             = NULL;
-        ext->screen_font        = NULL;
-        ext->draw_info          = NULL;
-        ext->deployedMenu       = NULL;
-        ext->close_cb_installed = FALSE;
+        ext->screen                  = NULL;
+        ext->screen_font             = NULL;
+        ext->draw_info               = NULL;
+        ext->deployedMenu            = NULL;
+        ext->close_cb_installed      = FALSE;
+        ext->menu_msg_cb_installed   = FALSE;
     }
 
     ON_EXIT_CALL(_IntuiSupport_shutdown);

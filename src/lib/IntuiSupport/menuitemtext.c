@@ -23,7 +23,7 @@ VOID _CMENUITEMTEXT_CONSTRUCTOR (CMenuItemText *THIS, STRPTR text, CMenu *parent
 {
     _CMENUITEM_CONSTRUCTOR ((CMenuItem *) THIS, parent, userData);
 
-    THIS->_item.Flags |= ITEMTEXT;
+    THIS->_item._item.Flags |= ITEMTEXT;
 
     if (!text)
         text = NULL;
@@ -33,13 +33,13 @@ VOID _CMENUITEMTEXT_CONSTRUCTOR (CMenuItemText *THIS, STRPTR text, CMenu *parent
 
 VOID _CMENUITEMTEXT_TEXT (CMenuItemText *THIS, STRPTR   s)
 {
-    if (!(THIS->_item.Flags & ITEMTEXT))
+    if (!(THIS->_item._item.Flags & ITEMTEXT))
     {
-        THIS->_item.ItemFill   = NULL;
-        THIS->_item.SelectFill = NULL;
+        THIS->_item._item.ItemFill   = NULL;
+        THIS->_item._item.SelectFill = NULL;
     }
 
-    struct IntuiText *it = THIS->_item.ItemFill;
+    struct IntuiText *it = THIS->_item._item.ItemFill;
 
     if (!it)
     {
@@ -53,19 +53,19 @@ VOID _CMENUITEMTEXT_TEXT (CMenuItemText *THIS, STRPTR   s)
         it->IText    = NULL;
         it->NextText = NULL;
 
-        THIS->_item.ItemFill = it;
-        THIS->_item.Flags |= ITEMTEXT;
+        THIS->_item._item.ItemFill = it;
+        THIS->_item._item.Flags |= ITEMTEXT;
     }
 
     it->IText = s;
 
     DPRINTF ("_CMENUITEMTEXT_TEXT: THIS=0x%08lx, it=0x%08lx -> %s, NextText=0x%08lx, SelectFill=0x%08lx\n",
-             THIS, it, s, it->NextText, THIS->_item.SelectFill);
+             THIS, it, s, it->NextText, THIS->_item._item.SelectFill);
 }
 
 STRPTR   _CMENUITEMTEXT_TEXT_ (CMenuItemText *THIS)
 {
-    struct IntuiText *it = THIS->_item.ItemFill;
+    struct IntuiText *it = THIS->_item._item.ItemFill;
     if (!it)
         return (STRPTR) "";
     return it->IText;

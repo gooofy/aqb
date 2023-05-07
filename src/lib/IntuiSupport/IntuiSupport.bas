@@ -62,6 +62,11 @@ END CLASS
 ' --
 ' --------------------------------------------------------------------------------------------------------
 
+TYPE MenuItemUD
+    AS MenuItem      _item
+    AS CMenuItem PTR _wrapper   ' link back to the CMenuItem object that owns this MenuItem
+END TYPE
+
 ' base class for all menu items
 CLASS CMenuItem
 
@@ -109,7 +114,7 @@ CLASS CMenuItem
     PROTECTED:
 
         AS CMENU PTR     _parent
-        AS MenuItem      _item
+        AS MenuItemUD    _item
         AS CMenuItem PTR _subItem
         AS CMenuItem PTR _nextItem
 

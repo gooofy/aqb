@@ -20,18 +20,19 @@
 
 VOID _CMENUITEM_CONSTRUCTOR (CMenuItem *THIS, CMenu *parent, intptr_t userData)
 {
-    THIS->_cb                 = NULL;
-    THIS->_userData           = userData;
-    THIS->_parent             = parent;
-    THIS->_item.NextItem      = NULL;
-    THIS->_item.Flags         = ITEMENABLED | HIGHCOMP ;
-    THIS->_item.MutualExclude = 0;
-    THIS->_item.ItemFill      = NULL;
-    THIS->_item.SelectFill    = NULL;
-    THIS->_item.Command       = 0;
-    THIS->_item.SubItem       = NULL;
-    THIS->_subItem            = NULL;
-    THIS->_nextItem           = NULL;
+    THIS->_cb                       = NULL;
+    THIS->_userData                 = userData;
+    THIS->_parent                   = parent;
+    THIS->_item._item.NextItem      = NULL;
+    THIS->_item._item.Flags         = ITEMENABLED | HIGHCOMP ;
+    THIS->_item._item.MutualExclude = 0;
+    THIS->_item._item.ItemFill      = NULL;
+    THIS->_item._item.SelectFill    = NULL;
+    THIS->_item._item.Command       = 0;
+    THIS->_item._item.SubItem       = NULL;
+    THIS->_item._wrapper            = THIS;
+    THIS->_subItem                  = NULL;
+    THIS->_nextItem                 = NULL;
 
     if (parent)
         _CMENU_ADDITEM (parent, THIS);
@@ -200,18 +201,18 @@ VOID _CMENUITEM_BBOX (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
     *x2 = -32000;
     *y2 = -32000;
 
-    if (THIS->_item.Flags & ITEMTEXT)
+    if (THIS->_item._item.Flags & ITEMTEXT)
     {
-        struct IntuiText *itext = (struct IntuiText *) THIS->_item.ItemFill;
+        struct IntuiText *itext = (struct IntuiText *) THIS->_item._item.ItemFill;
 
         DPRINTF ("_CMENUITEM_BBOX: THIS=0x%08lx, itext=0x%08lx, SelectFill=0x%08lx\n",
-                 THIS, itext, THIS->_item.SelectFill);
+                 THIS, itext, THIS->_item._item.SelectFill);
 
         WORD tx1, ty1, tx2, ty2;
         _itext_bbox (itext, &tx1, &ty1, &tx2, &ty2);
         *x1 = tx1; *y1=ty1; *x2=tx2; *y2=ty2;
 
-        itext = (struct IntuiText *) THIS->_item.SelectFill;
+        itext = (struct IntuiText *) THIS->_item._item.SelectFill;
         if (itext)
         {
             _itext_bbox (itext, &tx1, &ty1, &tx2, &ty2);
