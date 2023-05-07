@@ -1,3 +1,5 @@
+//#define ENABLE_DPRINTF
+
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
 
@@ -63,7 +65,8 @@ void _CGTSTRING_CONSTRUCTOR (CGTString *this,
                             BOOL s1, SHORT x1, SHORT y1, BOOL s2, SHORT x2, SHORT y2,
                             void *user_data, ULONG flags, ULONG underscore)
 {
-    DPRINTF("_CGTString_CONSTRUCTOR: this=0x%08lx, x1=%d, y1=%d, x2=%d, y2=%d\n", this, x1, y1, x2, y2);
+    DPRINTF("_CGTString_CONSTRUCTOR: this=0x%08lx (size=%d), x1=%d, y1=%d, x2=%d, y2=%d\n",
+            this, sizeof(*this), x1, y1, x2, y2);
     _CGTGADGET_CONSTRUCTOR (&this->gadget, label, s1, x1, y1, s2, x2, y2, user_data, flags, underscore);
     this->gadget.deploy_cb = _gtstring_deploy_cb;
     this->disabled        = FALSE;
