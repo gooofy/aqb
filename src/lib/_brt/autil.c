@@ -1,6 +1,6 @@
 
-#define ENABLE_DPRINTF
-#define MEMDEBUG
+//#define ENABLE_DPRINTF
+//#define MEMDEBUG
 
 #include "_brt.h"
 
