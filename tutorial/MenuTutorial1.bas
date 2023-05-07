@@ -21,6 +21,7 @@ DIM AS CMenu menu1         = CMenu         ("First Menu")
 DIM AS CMenuItemText item1 = CMenuItemText ("Foobar", @menu1)
 DIM AS CMenuItemText item2 = CMenuItemText ("This is a very wide item", @menu1)
 DIM AS CMenuItemText item3 = CMenuItemText ("Quit", @menu1)
+item3.command = ASC("Q")
 item3.cb = menuQuitCB
 
 DIM AS CMenu menu2         = CMenu         ("Second Menu", @menu1)

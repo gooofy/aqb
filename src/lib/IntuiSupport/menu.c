@@ -95,10 +95,12 @@ VOID _CMENU_REMOVEALLITEMS (CMenu *THIS)
 
 #define ITEM_MIN_HEIGHT 8
 
-static void _layoutItems (CMenuItem *cfirstitem)
+static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT char_size, struct RastPort *tmprp)
 {
     SHORT y = 0;
     UWORD maxw = 0;
+    USHORT maxCommCharWidth = 0;
+
     for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
     {
         SHORT ix1, iy1, ix2, iy2;
@@ -113,7 +115,7 @@ static void _layoutItems (CMenuItem *cfirstitem)
         if (ih<ITEM_MIN_HEIGHT)
             ih = ITEM_MIN_HEIGHT;
 
-        citem->_item._item.LeftEdge = 0;
+        citem->_item._item.LeftEdge = char_size/2;
         citem->_item._item.TopEdge  = y;
         citem->_item._item.Width    = ix1+iw;
         citem->_item._item.Height   = iy1+ih+1;
@@ -123,11 +125,22 @@ static void _layoutItems (CMenuItem *cfirstitem)
         y += iy1+ih+1;
         if (citem->_item._item.Width>maxw)
             maxw = citem->_item._item.Width;
+
+        if (citem->_item._item.Flags & COMMSEQ)
+        {
+            USHORT commCharWidth = TextLength(tmprp, (STRPTR)&(citem->_item._item.Command),1);
+            if (commCharWidth > maxCommCharWidth)
+                maxCommCharWidth = commCharWidth;
+        }
     }
 
     // make all items the same (full) width
+    USHORT width = maxw + char_size;
+    if (maxCommCharWidth)
+        width += maxCommCharWidth + ext->draw_info->dri_AmigaKey->Width;
+
     for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
-        citem->_item._item.Width    = maxw;
+        citem->_item._item.Width    = width;
 
 }
 
@@ -170,6 +183,8 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
     InitRastPort(&tmprp);
     SetFont (&tmprp, ext->screen_font);
 
+    USHORT char_size = TextLength(&tmprp, (STRPTR)"n", 1);
+
     UWORD x = 2;
 
     for (CMenu *cmenu=THIS; cmenu; cmenu=cmenu->_nextMenu)
@@ -183,9 +198,9 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
         menu->Width    = TextLength (&tmprp, menu->MenuName, LEN_ (menu->MenuName))
                          + 2 * (ext->screen->BarHBorder - ext->screen->BarVBorder);
 
-        _layoutItems (cmenu->_firstItem);
+        _layoutItems (ext, cmenu->_firstItem, char_size, &tmprp);
 
-        x += menu->Width + ext->screen_font->tf_XSize;
+        x += menu->Width + 2*char_size;
     }
 
     struct Window *win = _aqb_get_win (THIS->_win_id);

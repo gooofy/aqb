@@ -82,15 +82,18 @@ BOOL     _CMENUITEM_ENABLED_ (CMenuItem *THIS)
     return FALSE;
 }
 
-VOID _CMENUITEM_COMMAND (CMenuItem *THIS, BYTE     B)
+VOID _CMENUITEM_COMMAND (CMenuItem *THIS, BYTE command)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.Command");
+    THIS->_item._item.Command = command;
+    if (command)
+        THIS->_item._item.Flags |= COMMSEQ;
+    else
+        THIS->_item._item.Flags &= ~COMMSEQ;
 }
 
 BYTE     _CMENUITEM_COMMAND_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.Command");
-    return 0;
+    return THIS->_item._item.Command;
 }
 
 VOID _CMENUITEM_MUTUALEXCLUDE (CMenuItem *THIS, LONG     B)
