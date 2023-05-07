@@ -1,4 +1,4 @@
-#define ENABLE_DPRINTF
+//#define ENABLE_DPRINTF
 //#define ENABLE_SLOWDOWN
 
 #ifdef ENABLE_SLOWDOWN
@@ -41,7 +41,7 @@ static void _gtgadgets_free (struct Window *win, gt_win_ext_t *ext)
     if (ext->deployed)
     {
 		DPRINTF ("_gtgadgets_free: was deployed\n");
-        RemoveGList (_g_cur_win, ext->gadList, -1);
+        RemoveGList (win, ext->gadList, -1);
         ext->deployed = FALSE;
     }
 
