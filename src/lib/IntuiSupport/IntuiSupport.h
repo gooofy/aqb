@@ -13,6 +13,7 @@
 typedef struct CIntuiText_ CIntuiText;
 typedef struct CMenuItem_ CMenuItem;
 typedef struct CMenuItemText_ CMenuItemText;
+typedef struct CMenuItemSeparator_ CMenuItemSeparator;
 typedef struct CMenu_ CMenu;
 typedef struct MenuItemUD_ MenuItemUD;
 
@@ -42,6 +43,17 @@ struct CMenuItem_
 };
 
 struct CMenuItemText_
+{
+    intptr_t          **_vTablePtr;
+    intuisupport_cb_t   _cb;
+    intptr_t            _userData;
+    CMenu              *_parent;
+    MenuItemUD          _item;
+    CMenuItem          *_subItem;
+    CMenuItem          *_nextItem;
+};
+
+struct CMenuItemSeparator_
 {
     intptr_t          **_vTablePtr;
     intuisupport_cb_t   _cb;
@@ -112,6 +124,9 @@ VOID               _CMENUITEMTEXT_ITEXT          (CMenuItemText *THIS, struct In
 struct IntuiText  *_CMENUITEMTEXT_ITEXT_         (CMenuItemText *THIS);
 VOID               _CMENUITEMTEXT_ITEXTSELECTED  (CMenuItemText *THIS, struct IntuiText *s);
 struct IntuiText  *_CMENUITEMTEXT_ITEXTSELECTED_ (CMenuItemText *THIS);
+
+VOID               _CMENUITEMSEPARATOR_CONSTRUCTOR (CMenuItemSeparator *THIS, CMenu *Parent, intptr_t UserData);
+void               _CMENUITEMSEPARATOR___init      (CMenuItemSeparator *THIS);
 
 VOID               _CMENU_CONSTRUCTOR      (CMenu *THIS, STRPTR Name, CMenu *prevMenu);
 VOID               _CMENU_NEXTMENU         (CMenu *THIS, CMenu *x);

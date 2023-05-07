@@ -44,14 +44,17 @@ VOID _CMENUITEMTEXT_TEXT (CMenuItemText *THIS, STRPTR   s)
     if (!it)
     {
         it = (struct IntuiText*) ALLOCATE_ (sizeof(*it), 0);
+        if (!it)
+            ERROR (ERR_OUT_OF_MEMORY);
         intuis_win_ext_t *ext = _IntuiSupport_get_ext(_g_cur_win_id);
-        it->FrontPen = ext->draw_info->dri_Pens[BARDETAILPEN];
-        it->BackPen  = ext->draw_info->dri_Pens[BARBLOCKPEN];
-        it->DrawMode = JAM1;
-        it->LeftEdge = 1;
-        it->TopEdge  = 0;
-        it->IText    = NULL;
-        it->NextText = NULL;
+        it->FrontPen  = ext->draw_info->dri_Pens[BARDETAILPEN];
+        it->BackPen   = ext->draw_info->dri_Pens[BARBLOCKPEN];
+        it->DrawMode  = JAM1;
+        it->LeftEdge  = 1;
+        it->TopEdge   = 0;
+        it->ITextFont = NULL;
+        it->IText     = NULL;
+        it->NextText  = NULL;
 
         THIS->_item._item.ItemFill = it;
         THIS->_item._item.Flags |= ITEMTEXT;

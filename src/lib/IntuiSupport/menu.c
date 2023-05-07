@@ -112,8 +112,14 @@ static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT c
         SHORT ih = iy2-iy1+1;
         DPRINTF ("_layoutItems: ->iw=%d, ih=%d\n", iw, ih);
 
-        if (ih<ITEM_MIN_HEIGHT)
-            ih = ITEM_MIN_HEIGHT;
+        if (citem->_item._item.Flags & COMMSEQ)
+        {
+            USHORT commCharWidth = TextLength(tmprp, (STRPTR)&(citem->_item._item.Command),1);
+            if (commCharWidth > maxCommCharWidth)
+                maxCommCharWidth = commCharWidth;
+            if (ih<ITEM_MIN_HEIGHT)
+                ih = ITEM_MIN_HEIGHT;
+        }
 
         citem->_item._item.LeftEdge = char_size/2;
         citem->_item._item.TopEdge  = y;
@@ -126,12 +132,6 @@ static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT c
         if (citem->_item._item.Width>maxw)
             maxw = citem->_item._item.Width;
 
-        if (citem->_item._item.Flags & COMMSEQ)
-        {
-            USHORT commCharWidth = TextLength(tmprp, (STRPTR)&(citem->_item._item.Command),1);
-            if (commCharWidth > maxCommCharWidth)
-                maxCommCharWidth = commCharWidth;
-        }
     }
 
     // make all items the same (full) width
@@ -140,9 +140,65 @@ static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT c
         width += maxCommCharWidth + ext->draw_info->dri_AmigaKey->Width;
 
     for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
+    {
         citem->_item._item.Width    = width;
+        // separator bar?
+        if (citem->_item._item.Flags == HIGHNONE)
+        {
+            struct Image *img = (struct Image *) citem->_item._item.ItemFill;
+            if (!img->ImageData)
+                img->Width = width - char_size;
+        }
+    }
 
 }
+
+#ifdef ENABLE_DPRINTF
+static void _dumpMenuStrip(struct Menu *menu)
+{
+    DPRINTF("_dumpMenuStrip: menu %s at %d/%d: %dx%d [ (%d/%d)-(%d/%d) ]\n",
+            menu->MenuName, menu->LeftEdge, menu->TopEdge, menu->Width, menu->Height,
+            menu->JazzX, menu->JazzY, menu->BeatX, menu->BeatY);
+
+
+    for (struct MenuItem *item = menu->FirstItem; item; item=item->NextItem)
+    {
+        DPRINTF("_dumpMenuStrip:    item at %d/%d: %dx%d\n",
+                item->LeftEdge, item->TopEdge, item->Width, item->Height);
+
+        if (item->Flags & ITEMTEXT)
+        {
+            for (struct IntuiText *itext = (struct IntuiText *)item->ItemFill; itext; itext=itext->NextText)
+            {
+                DPRINTF("_dumpMenuStrip:        itext %s at %d/%d\n",
+                        itext->IText, itext->LeftEdge, itext->TopEdge);
+            }
+            for (struct IntuiText *itext = (struct IntuiText *)item->SelectFill; itext; itext=itext->NextText)
+            {
+                DPRINTF("_dumpMenuStrip:        itext %s at %d/%d\n",
+                        itext->IText, itext->LeftEdge, itext->TopEdge);
+            }
+        }
+        else
+        {
+            for (struct Image *img = (struct Image *)item->ItemFill; img; img=img->NextImage)
+            {
+                DPRINTF("_dumpMenuStrip:        image at %d/%d: %dx%d\n",
+                        img->LeftEdge, img->TopEdge, img->Width, img->Height);
+            }
+            for (struct Image *img = (struct Image *)item->SelectFill; img; img=img->NextImage)
+            {
+                DPRINTF("_dumpMenuStrip:        select image at %d/%d: %dx%d\n",
+                        img->LeftEdge, img->TopEdge, img->Width, img->Height);
+            }
+        }
+    }
+
+    if (menu->NextMenu)
+        _dumpMenuStrip(menu->NextMenu);
+}
+
+#endif
 
 static BOOL _menu_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *msg, window_refresh_cb_t refresh_cb, void *refresh_ud)
 {
@@ -152,7 +208,10 @@ static BOOL _menu_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *ms
         intuis_win_ext_t *ext        = _IntuiSupport_get_ext(wid+1);
         UWORD             menuNumber = msg->Code;
 
-        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNumber=%d\n", wid, menuNumber);
+        if (menuNumber==MENUNULL)
+            return FALSE;
+
+        DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNumber=%d\n", wid, menuNumber);
 
         //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNum=%d, itemNum=%d, subNum=%d\n",
         //         wid, MENUNUM(menuNumber), ITEMNUM(menuNumber), SUBNUM(menuNumber));
@@ -164,6 +223,9 @@ static BOOL _menu_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *ms
         CMenuItem *citem = item->_wrapper;
         //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, citem=0x%08lx, cb=0x%08lx\n", citem, citem->_cb);
 
+#ifdef ENABLE_DPRINTF
+        _dumpMenuStrip(&citem->_parent->_menu);
+#endif
         if (citem->_cb)
             citem->_cb(citem);
 
@@ -203,8 +265,17 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
         x += menu->Width + 2*char_size;
     }
 
+#ifdef ENABLE_DPRINTF
+    _dumpMenuStrip(&THIS->_menu);
+#endif
+
+    DPRINTF("CMENU_DEPLOY: SetMenuStrip\n");
     struct Window *win = _aqb_get_win (THIS->_win_id);
     SetMenuStrip (win, &THIS->_menu);
+
+#ifdef ENABLE_DPRINTF
+    _dumpMenuStrip(&THIS->_menu);
+#endif
 
     DPRINTF ("CMENU_DEPLOY: before IDCMPFlags=0x%08lx\n", win->IDCMPFlags);
     ModifyIDCMP (win, win->IDCMPFlags | IDCMP_MENUPICK);

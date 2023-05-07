@@ -197,6 +197,38 @@ static void _itext_bbox (struct IntuiText *itext, WORD *x1, WORD *y1, WORD *x2, 
     DPRINTF ("_itext_bbox done.\n");
 }
 
+static void _img_bbox (struct Image *img, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
+{
+    *x1 = 32000;
+    *y1 = 32000;
+    *x2 = -32000;
+    *y2 = -32000;
+
+    while (img)
+    {
+        DPRINTF ("_img_bbox: extent of 0x%08lx: %dx%d\n", (intptr_t)img, img->Width, img->Height);
+
+        WORD tx1 = img->LeftEdge;
+        WORD ty1 = img->TopEdge;
+
+        WORD tx2 = tx1 + img->Width  - 1;
+        WORD ty2 = ty1 + img->Height + 2 - 1;
+
+        if (tx1<*x1)
+            *x1 = tx1;
+        if (ty1<*y1)
+            *y1 = ty1;
+        if (tx2>*x2)
+            *x2 = tx2;
+        if (ty2>*y2)
+            *y2 = ty2;
+
+        DPRINTF ("_img_bbox: img->NextImage=0x%08lx\n", (intptr_t)img->NextImage);
+        img = img->NextImage;
+    }
+    DPRINTF ("_img_bbox done.\n");
+}
+
 VOID _CMENUITEM_BBOX (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
 {
     *x1 = 32000;
@@ -231,7 +263,28 @@ VOID _CMENUITEM_BBOX (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2)
     }
     else
     {
-        _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.BBOX for images");
+        struct Image *img = (struct Image *) THIS->_item._item.ItemFill;
+
+        DPRINTF ("_CMENUITEM_BBOX: THIS=0x%08lx, img=0x%08lx, SelectFill=0x%08lx\n",
+                 THIS, img, THIS->_item._item.SelectFill);
+
+        WORD tx1, ty1, tx2, ty2;
+        _img_bbox (img, &tx1, &ty1, &tx2, &ty2);
+        *x1 = tx1; *y1=ty1; *x2=tx2; *y2=ty2;
+
+        img = (struct Image *) THIS->_item._item.SelectFill;
+        if (img)
+        {
+            _img_bbox (img, &tx1, &ty1, &tx2, &ty2);
+            if (tx1<*x1)
+                *x1 = tx1;
+            if (ty1<*y1)
+                *y1 = ty1;
+            if (tx2>*x2)
+                *x2 = tx2;
+            if (ty2>*y2)
+                *y2 = ty2;
+        }
     }
 }
 

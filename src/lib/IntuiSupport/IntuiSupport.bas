@@ -140,6 +140,14 @@ CLASS CMenuItemText EXTENDS CMenuItem
 
 END CLASS
 
+CLASS CMenuItemSeparator EXTENDS CMenuItem
+
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL parent AS CMenu PTR, BYVAL userData AS ANY = 0)
+
+END CLASS
+
 CLASS CMenu
 
     PUBLIC:
