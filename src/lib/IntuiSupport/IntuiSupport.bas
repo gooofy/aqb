@@ -72,7 +72,7 @@ CLASS CMenuItem
 
     PUBLIC:
 
-        DECLARE EXTERN CONSTRUCTOR (BYVAL parent AS CMenu PTR, BYVAL userData AS ANY = 0)
+        DECLARE EXTERN CONSTRUCTOR (BYVAL parent AS CMenu PTR=NULL, BYVAL userData AS ANY = 0)
 
         DECLARE EXTERN PROPERTY checkit AS BOOLEAN
         DECLARE EXTERN PROPERTY checkit (BYVAL b AS BOOLEAN)
@@ -124,7 +124,7 @@ CLASS CMenuItemText EXTENDS CMenuItem
 
     PUBLIC:
 
-        DECLARE EXTERN CONSTRUCTOR (BYVAL text AS string, BYVAL parent AS CMenu PTR, BYVAL userData AS ANY = 0)
+        DECLARE EXTERN CONSTRUCTOR (BYVAL text AS string, BYVAL parent AS CMenu PTR=NULL, BYVAL command AS BYTE=0, BYVAL userData AS ANY = 0)
 
         DECLARE EXTERN PROPERTY text AS string
         DECLARE EXTERN PROPERTY text (BYVAL s AS string)

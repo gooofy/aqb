@@ -19,7 +19,7 @@
 #include <inline/graphics.h>
 
 
-VOID _CMENUITEMTEXT_CONSTRUCTOR (CMenuItemText *THIS, STRPTR text, CMenu *parent, intptr_t userData)
+VOID _CMENUITEMTEXT_CONSTRUCTOR (CMenuItemText *THIS, STRPTR text, CMenu *parent, BYTE cmd, intptr_t userData)
 {
     _CMENUITEM_CONSTRUCTOR ((CMenuItem *) THIS, parent, userData);
 
@@ -27,8 +27,11 @@ VOID _CMENUITEMTEXT_CONSTRUCTOR (CMenuItemText *THIS, STRPTR text, CMenu *parent
 
     if (!text)
         text = NULL;
+    else
+        _CMENUITEMTEXT_TEXT (THIS, text);
 
-    _CMENUITEMTEXT_TEXT (THIS, text);
+    if (cmd)
+        _CMENUITEM_COMMAND ((CMenuItem *)THIS, cmd);
 }
 
 VOID _CMENUITEMTEXT_TEXT (CMenuItemText *THIS, STRPTR   s)

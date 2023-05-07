@@ -95,7 +95,7 @@ VOID _CMENU_REMOVEALLITEMS (CMenu *THIS)
 
 #define ITEM_MIN_HEIGHT 8
 
-static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT char_size, struct RastPort *tmprp)
+static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT left_margin, USHORT char_size, struct RastPort *tmprp)
 {
     SHORT y = 0;
     UWORD maxw = 0;
@@ -121,7 +121,7 @@ static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT c
                 ih = ITEM_MIN_HEIGHT;
         }
 
-        citem->_item._item.LeftEdge = char_size/2;
+        citem->_item._item.LeftEdge = left_margin + char_size/2;
         citem->_item._item.TopEdge  = y;
         citem->_item._item.Width    = ix1+iw;
         citem->_item._item.Height   = iy1+ih+1;
@@ -151,19 +151,18 @@ static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT c
         }
     }
 
+    // layout sub menus, if any
+    for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
+    {
+        if (citem->_subItem)
+            _layoutItems (ext, citem->_subItem, width * 3/4, char_size, tmprp);
+    }
 }
 
 #ifdef ENABLE_DPRINTF
-static void _dumpMenuStrip(struct Menu *menu)
+static void _dumpMenuItem(struct MenuItem *item, char *prefix)
 {
-    DPRINTF("_dumpMenuStrip: menu %s at %d/%d: %dx%d [ (%d/%d)-(%d/%d) ]\n",
-            menu->MenuName, menu->LeftEdge, menu->TopEdge, menu->Width, menu->Height,
-            menu->JazzX, menu->JazzY, menu->BeatX, menu->BeatY);
-
-
-    for (struct MenuItem *item = menu->FirstItem; item; item=item->NextItem)
-    {
-        DPRINTF("_dumpMenuStrip:    item at %d/%d: %dx%d\n",
+        DPRINTF("_dumpMenuStrip:    %s item at %d/%d: %dx%d\n", prefix,
                 item->LeftEdge, item->TopEdge, item->Width, item->Height);
 
         if (item->Flags & ITEMTEXT)
@@ -192,6 +191,19 @@ static void _dumpMenuStrip(struct Menu *menu)
                         img->LeftEdge, img->TopEdge, img->Width, img->Height);
             }
         }
+}
+static void _dumpMenuStrip(struct Menu *menu)
+{
+    DPRINTF("_dumpMenuStrip: menu %s at %d/%d: %dx%d [ (%d/%d)-(%d/%d) ]\n",
+            menu->MenuName, menu->LeftEdge, menu->TopEdge, menu->Width, menu->Height,
+            menu->JazzX, menu->JazzY, menu->BeatX, menu->BeatY);
+
+
+    for (struct MenuItem *item = menu->FirstItem; item; item=item->NextItem)
+    {
+        _dumpMenuItem (item, "");
+        for (struct MenuItem *subItem = item->SubItem; subItem; subItem=subItem->NextItem)
+            _dumpMenuItem (subItem, "SUB");
     }
 
     if (menu->NextMenu)
@@ -213,15 +225,15 @@ static BOOL _menu_msg_cb (SHORT wid, struct Window *win, struct IntuiMessage *ms
 
         DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNumber=%d\n", wid, menuNumber);
 
-        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNum=%d, itemNum=%d, subNum=%d\n",
-        //         wid, MENUNUM(menuNumber), ITEMNUM(menuNumber), SUBNUM(menuNumber));
+        DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, wid=%d, menuNum=%d, itemNum=%d, subNum=%d\n",
+                 wid, MENUNUM(menuNumber), ITEMNUM(menuNumber), SUBNUM(menuNumber));
 
         MenuItemUD *item = (MenuItemUD*) ItemAddress(&ext->deployedMenu->_menu, menuNumber);
 
-        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, item=0x%08lx\n", item);
+        DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, item=0x%08lx\n", item);
 
         CMenuItem *citem = item->_wrapper;
-        //DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, citem=0x%08lx, cb=0x%08lx\n", citem, citem->_cb);
+        DPRINTF ("_menu_msg_cb: IDCMP_MENUPICK, citem=0x%08lx, cb=0x%08lx\n", citem, citem->_cb);
 
 #ifdef ENABLE_DPRINTF
         _dumpMenuStrip(&citem->_parent->_menu);
@@ -260,7 +272,7 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
         menu->Width    = TextLength (&tmprp, menu->MenuName, LEN_ (menu->MenuName))
                          + 2 * (ext->screen->BarHBorder - ext->screen->BarVBorder);
 
-        _layoutItems (ext, cmenu->_firstItem, char_size, &tmprp);
+        _layoutItems (ext, cmenu->_firstItem, /*left_margin=*/0, char_size, &tmprp);
 
         x += menu->Width + 2*char_size;
     }

@@ -118,9 +118,24 @@ UWORD    _CMENUITEM_HIGHFLAGS_ (CMenuItem *THIS)
     return 0;
 }
 
-VOID _CMENUITEM_ADDSUBITEM (CMenuItem *THIS, CMenuItem *SubItem)
+VOID _CMENUITEM_ADDSUBITEM (CMenuItem *THIS, CMenuItem *subItem)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.addSubItem");
+    CMenuItem *last = THIS->_subItem;
+    while (last && last->_nextItem)
+        last = last->_nextItem;
+    if (!last)
+    {
+        THIS->_subItem = subItem;
+        THIS->_item._item.SubItem = &subItem->_item._item;
+    }
+    else
+    {
+        last->_nextItem = subItem;
+        last->_item._item.NextItem = &subItem->_item._item;
+    }
+    subItem->_item._item.NextItem = NULL;
+    subItem->_nextItem = NULL;
+    subItem->_parent = THIS->_parent;
 }
 
 VOID _CMENUITEM_REMOVESUBITEMS (CMenuItem *THIS)

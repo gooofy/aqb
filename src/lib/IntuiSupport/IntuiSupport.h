@@ -115,7 +115,7 @@ CMenuItem         *_CMENUITEM_NEXTITEM_     (CMenuItem *THIS);
 VOID               _CMENUITEM_BBOX          (CMenuItem *THIS, WORD *x1, WORD *y1, WORD *x2, WORD *y2);
 
 VOID               _CMENUITEMTEXT___init         (CMenuItemText *THIS);
-VOID               _CMENUITEMTEXT_CONSTRUCTOR    (CMenuItemText *THIS, STRPTR text, CMenu *parent, intptr_t userData);
+VOID               _CMENUITEMTEXT_CONSTRUCTOR    (CMenuItemText *THIS, STRPTR text, CMenu *parent, BYTE cmd, intptr_t userData);
 VOID               _CMENUITEMTEXT_TEXT           (CMenuItemText *THIS, STRPTR s);
 STRPTR             _CMENUITEMTEXT_TEXT_          (CMenuItemText *THIS);
 VOID               _CMENUITEMTEXT_TEXTSELECTED   (CMenuItemText *THIS, STRPTR s);
