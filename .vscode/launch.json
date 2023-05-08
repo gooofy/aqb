@@ -25,6 +25,26 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
+            "name": "tutorial",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "src/lib", "-d", "_brt", "-a", "/tmp/foo.bas.s", "-o", "/tmp/foo", "tutorial/MenuTutorial1.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
             "name": "link",
             "type": "cppdbg",
             "request": "launch",
@@ -232,6 +252,26 @@
             "args": ["-L", "${workspaceFolder}/src/lib", "-d", "_aqb", "-a", "/tmp/foo.s", "-o", "/tmp/foo", "GadToolsTutorial4.bas"],
             "stopAtEntry": false,
             "cwd": "/home/guenter/media/emu/amiga/FS-UAE/hdd/system/x",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "banana",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "${workspaceFolder}/src/lib", "-d", "_aqb", "-O", "-a", "/tmp/foo.s", "-v", "-o", "/tmp/foo", "banana.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/examples/demo",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

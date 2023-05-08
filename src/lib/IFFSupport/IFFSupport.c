@@ -451,7 +451,7 @@ void _8svx_read (struct FileHandle *fh, WAVE_t **w)
                     return;
                 }
 
-                BYTE *data = AllocVec(clen, MEMF_CHIP | MEMF_CLEAR);
+                BYTE *data = ALLOCATE_(clen, MEMF_CHIP | MEMF_CLEAR);
                 if (!data)
                 {
                     ERROR(ERR_IFF);

@@ -289,10 +289,10 @@ static enum Temp_w CG_tySize(Ty_ty ty)
 {
     switch (ty->kind)
     {
-        case Ty_bool:
         case Ty_byte:
         case Ty_ubyte:
             return Temp_w_B;
+        case Ty_bool:
         case Ty_integer:
         case Ty_uinteger:
             return Temp_w_W;
@@ -3931,9 +3931,9 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                 switch (to_ty->kind)
                 {
                     case Ty_bool:
+                        return;
                     case Ty_byte:
                     case Ty_ubyte:
-                        return;
                     case Ty_integer:
                     case Ty_uinteger:
                     case Ty_long:
@@ -4031,12 +4031,10 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         return;
                     case Ty_byte:
                     case Ty_ubyte:
-                        item->ty = to_ty;
-                        break;
                     case Ty_integer:
                     case Ty_uinteger:
                         CG_loadVal (code, pos, frame, item);
-                        AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_W, NULL, item->u.inReg));    //     ext.w   t
+                        //AS_instrListAppend(code, AS_Instr (pos, AS_EXT_Dn, Temp_w_W, NULL, item->u.inReg));    //     ext.w   t
                         item->ty = to_ty;
                         break;
                     case Ty_long:
@@ -4067,12 +4065,12 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
             case Ty_byte:               // byte ->
                 switch (to_ty->kind)
                 {
-                    case Ty_bool:
                     case Ty_byte:
                     case Ty_ubyte:
                         CG_loadVal (code, pos, frame, item);
                         item->ty = to_ty;
                         break;
+                    case Ty_bool:
                     case Ty_integer:
                     case Ty_uinteger:
                         CG_loadVal (code, pos, frame, item);
@@ -4107,12 +4105,12 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
             case Ty_ubyte:              // ubyte ->
                 switch (to_ty->kind)
                 {
-                    case Ty_bool:
                     case Ty_byte:
                     case Ty_ubyte:
                         CG_loadVal (code, pos, frame, item);
                         item->ty = to_ty;
                         break;
+                    case Ty_bool:
                     case Ty_integer:
                     case Ty_uinteger:
                         CG_loadVal (code, pos, frame, item);
@@ -4254,7 +4252,7 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                         CG_loadVal (code, pos, frame, item);
                         emitRegCall (code, pos, "_MathBase", LVOSPFix, CG_RAL(item->u.inReg, AS_regs[AS_TEMP_D0], NULL), to_ty, item);
                         AS_instrListAppend(code, AS_Instr(pos, AS_TST_Dn, Temp_w_L, item->u.inReg, NULL));    // tst.l r
-                        AS_instrListAppend(code, AS_Instr(pos, AS_SNE_Dn, Temp_w_B, NULL, item->u.inReg));    // sne.b r
+                        AS_instrListAppend(code, AS_Instr(pos, AS_SNE_Dn, Temp_w_W, NULL, item->u.inReg));    // sne.w r
                         break;
                     case Ty_byte:
                     case Ty_ubyte:

@@ -80,7 +80,7 @@ BOOL         _CGTGADGET_DEPLOYED_  (CGTGadget *this);
 typedef struct CGTButton_   CGTButton;
 struct CGTButton_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     BOOL            immediate;
 };
@@ -105,7 +105,7 @@ void _CGTBUTTON_IMMEDIATE  (CGTButton *this, BOOL value);
 typedef struct CGTCheckBox_ CGTCheckBox;
 struct CGTCheckBox_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     BOOL            checked;
     BOOL            scaled;
@@ -132,7 +132,7 @@ void _CGTCHECKBOX_SCALED    (CGTCheckBox *this, BOOL scaled);
 typedef struct CGTSlider_   CGTSlider;
 struct CGTSlider_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     SHORT           min, max, level;
     ULONG           freedom;
@@ -188,7 +188,7 @@ typedef struct CGTText_ CGTText;
 
 struct CGTText_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     CONST_STRPTR    text;
     BOOL            copyText;
     BOOL            border;
@@ -233,7 +233,7 @@ typedef struct CGTScroller_ CGTScroller;
 
 struct CGTScroller_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     BOOL            relVerify;
     BOOL            immediate;
@@ -283,7 +283,7 @@ typedef struct CGTString_ CGTString;
 
 struct CGTString_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     BOOL            immediate;
     BOOL            tabCycle;
@@ -383,7 +383,7 @@ typedef struct CGTNumber_ CGTNumber;
 
 struct CGTNumber_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     LONG            number;
     BOOL            border;
     UBYTE           frontPen;
@@ -433,7 +433,7 @@ typedef struct CGTMX_ CGTMX;
 
 struct CGTMX_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     CONST_STRPTR *  labels;
     USHORT          active;
@@ -475,7 +475,7 @@ typedef struct CGTCycle_ CGTCycle;
 
 struct CGTCycle_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     CONST_STRPTR *  labels;
     USHORT          active;
@@ -551,7 +551,7 @@ typedef struct CGTListView_ CGTListView;
 
 struct CGTListView_
 {
-    CGTGadget      gadget;
+    CGTGadget       gadget;
     BOOL            disabled;
     SHORT           makeVisible;
     CExecList      *labels;

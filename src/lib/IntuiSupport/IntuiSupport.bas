@@ -62,14 +62,69 @@ END CLASS
 ' --
 ' --------------------------------------------------------------------------------------------------------
 
+TYPE MenuItemUD
+    AS MenuItem      _item
+    AS CMenuItem PTR _wrapper   ' link back to the CMenuItem object that owns this MenuItem
+END TYPE
+
+' base class for all menu items
 CLASS CMenuItem
 
     PUBLIC:
 
-        DECLARE EXTERN CONSTRUCTOR (BYVAL text AS string = NULL, BYVAL parent AS CMenu PTR = NULL)
+        DECLARE EXTERN CONSTRUCTOR (BYVAL parent AS CMenu PTR=NULL, BYVAL userData AS ANY = 0)
 
-        ' NOTE: you can either have an IntuiText or Image based 
-        '       MenuItem, not both at the same time
+        DECLARE EXTERN PROPERTY CheckIt AS BOOLEAN
+        DECLARE EXTERN PROPERTY CheckIt (BYVAL b AS BOOLEAN)
+
+        DECLARE EXTERN PROPERTY Checked AS BOOLEAN
+        DECLARE EXTERN PROPERTY Checked (BYVAL b AS BOOLEAN)
+
+        DECLARE EXTERN PROPERTY Toggle AS BOOLEAN
+        DECLARE EXTERN PROPERTY Toggle (BYVAL b AS BOOLEAN)
+
+        DECLARE EXTERN PROPERTY Enabled AS BOOLEAN
+        DECLARE EXTERN PROPERTY Enabled (BYVAL b AS BOOLEAN)
+
+        DECLARE EXTERN PROPERTY Command AS BYTE
+        DECLARE EXTERN PROPERTY Command (BYVAL b AS BYTE)
+
+        DECLARE EXTERN PROPERTY MutualExclude AS LONG
+        DECLARE EXTERN PROPERTY MutualExclude (BYVAL b AS LONG)
+
+        DECLARE EXTERN PROPERTY HighFlags AS UINTEGER
+        DECLARE EXTERN PROPERTY HighFlags (BYVAL b AS UINTEGER)
+
+        DECLARE EXTERN SUB AddSubItem (BYVAL subItem AS CMenuItem PTR)
+        DECLARE EXTERN SUB RemoveSubItems ()
+
+        DECLARE EXTERN PROPERTY NextItem AS CMenuItem PTR
+        DECLARE EXTERN PROPERTY NextItem (BYVAL i AS CMenuItem PTR)
+
+        DECLARE EXTERN PROPERTY Parent AS CMenu PTR
+
+        DECLARE EXTERN SUB BBox (BYREF x1 AS INTEGER, BYREF y1 AS INTEGER, BYREF x2 AS INTEGER, BYREF y2 AS INTEGER)
+
+        AS SUB (BYVAL CMenuItem PTR) cb
+
+    PUBLIC:
+
+        AS ANY           _userData
+
+    PROTECTED:
+
+        AS CMenu PTR     _parent
+        AS MenuItemUD    _item
+        AS CMenuItem PTR _subItem
+        AS CMenuItem PTR _nextItem
+
+END CLASS
+
+CLASS CMenuItemText EXTENDS CMenuItem
+
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL text AS string, BYVAL parent AS CMenu PTR=NULL, BYVAL command AS BYTE=0, BYVAL userData AS ANY = 0)
 
         DECLARE EXTERN PROPERTY text AS string
         DECLARE EXTERN PROPERTY text (BYVAL s AS string)
@@ -83,46 +138,13 @@ CLASS CMenuItem
         DECLARE EXTERN PROPERTY iTextSelected AS IntuiText PTR
         DECLARE EXTERN PROPERTY iTextSelected (BYVAL s AS IntuiText PTR)
 
-        DECLARE EXTERN PROPERTY image AS Image PTR
-        DECLARE EXTERN PROPERTY image (BYVAL s AS Image PTR)
+END CLASS
 
-        DECLARE EXTERN PROPERTY imageSelected AS Image PTR
-        DECLARE EXTERN PROPERTY imageSelected (BYVAL s AS Image PTR)
+CLASS CMenuItemSeparator EXTENDS CMenuItem
 
-        DECLARE EXTERN PROPERTY checkit AS BOOLEAN
-        DECLARE EXTERN PROPERTY checkit (BYVAL b AS BOOLEAN)
+    PUBLIC:
 
-        DECLARE EXTERN PROPERTY checked AS BOOLEAN
-        DECLARE EXTERN PROPERTY checked (BYVAL b AS BOOLEAN)
-
-        DECLARE EXTERN PROPERTY toggle AS BOOLEAN
-        DECLARE EXTERN PROPERTY toggle (BYVAL b AS BOOLEAN)
-
-        DECLARE EXTERN PROPERTY enabled AS BOOLEAN
-        DECLARE EXTERN PROPERTY enabled (BYVAL b AS BOOLEAN)
-
-        DECLARE EXTERN PROPERTY command AS BYTE
-        DECLARE EXTERN PROPERTY command (BYVAL b AS BYTE)
-
-        DECLARE EXTERN PROPERTY mutualExclude AS LONG
-        DECLARE EXTERN PROPERTY mutualExclude (BYVAL b AS LONG)
-
-        DECLARE EXTERN PROPERTY highFlags AS UINTEGER
-        DECLARE EXTERN PROPERTY highFlags (BYVAL b AS UINTEGER)
-
-        DECLARE EXTERN SUB addSubItem (BYVAL subItem AS CMenuItem PTR)
-        DECLARE EXTERN SUB removeSubItems ()
-
-        DECLARE EXTERN PROPERTY nextItem AS CMenuItem PTR
-        DECLARE EXTERN PROPERTY nextItem (BYVAL i AS CMenuItem PTR)
-
-        AS SUB (BYVAL CMenuItem PTR) cb
-
-    PRIVATE:
-
-        AS MenuItem      _item
-        AS CMenuItem PTR _subItem
-        AS CMenuItem PTR _nextItem
+        DECLARE EXTERN CONSTRUCTOR (BYVAL parent AS CMenu PTR, BYVAL userData AS ANY = 0)
 
 END CLASS
 

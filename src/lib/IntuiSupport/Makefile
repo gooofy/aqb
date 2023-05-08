@@ -14,7 +14,7 @@ IntuiSupport.sym : IntuiSupport.bas
 	cp $@ $(DISTDIR)/lib
 	rm -f $(DISTDIR)/lib/*.uaem
 
-IntuiSupport.a: IntuiSupport.o menu.o menuitem.o
+IntuiSupport.a: IntuiSupport.o menu.o menuitemtext.o menuitemseparator.o menuitem.o
 	$(AR_AMIGAOS) -crs IntuiSupport.a $^
 	pushd .. && rm -f IntuiSupport.a && ln -s IntuiSupport/IntuiSupport.a && popd
 	cp $@ $(DISTDIR)/lib
