@@ -1,4 +1,4 @@
-#define ENABLE_DPRINTF
+//#define ENABLE_DPRINTF
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
@@ -133,31 +133,30 @@ VOID _CMENUITEM_COMMAND (CMenuItem *THIS, BYTE command)
         THIS->_item._item.Flags &= ~COMMSEQ;
 }
 
-BYTE     _CMENUITEM_COMMAND_ (CMenuItem *THIS)
+BYTE _CMENUITEM_COMMAND_ (CMenuItem *THIS)
 {
     return THIS->_item._item.Command;
 }
 
-VOID _CMENUITEM_MUTUALEXCLUDE (CMenuItem *THIS, LONG     B)
+VOID _CMENUITEM_MUTUALEXCLUDE (CMenuItem *THIS, LONG mx)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.MutualExclude");
+    THIS->_item._item.MutualExclude = mx;
 }
 
-LONG     _CMENUITEM_MUTUALEXCLUDE_ (CMenuItem *THIS)
+LONG _CMENUITEM_MUTUALEXCLUDE_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.MutualExclude");
-    return 0;
+    return THIS->_item._item.MutualExclude;
 }
 
-VOID _CMENUITEM_HIGHFLAGS (CMenuItem *THIS, UWORD    B)
+VOID _CMENUITEM_HIGHFLAGS (CMenuItem *THIS, UWORD flags)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.HIGHFLAGS");
+    THIS->_item._item.Flags &= ~HIGHFLAGS;
+    THIS->_item._item.Flags |= flags & HIGHFLAGS;
 }
 
-UWORD    _CMENUITEM_HIGHFLAGS_ (CMenuItem *THIS)
+UWORD _CMENUITEM_HIGHFLAGS_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.HIGHFLAGS");
-    return 0;
+    return THIS->_item._item.Flags & HIGHFLAGS;
 }
 
 VOID _CMENUITEM_ADDSUBITEM (CMenuItem *THIS, CMenuItem *subItem)

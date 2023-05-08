@@ -1,5 +1,5 @@
-#define ENABLE_DPRINTF
-#define ENABLE_MENUDUMP
+//#define ENABLE_DPRINTF
+//#define ENABLE_MENUDUMP
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"

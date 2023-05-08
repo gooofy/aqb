@@ -38,7 +38,11 @@ itemQuit.cb = menuQuitCB
 DIM AS CMenu menu2 = CMenu ("Settings", @menu1)
 DIM AS CMenuItemText itemCreateIcons = CMenuItemText ("Create Icons?", @menu2)
 itemCreateIcons.CheckIt = TRUE : itemCreateIcons.Checked = TRUE : itemCreateIcons.Toggle = TRUE
-
+separator= NEW CMenuItemSeparator (@menu2)
+DIM AS CMenuItemText itemMX1 = CMenuItemText ("mx 1", @menu2)
+itemMX1.CheckIt = TRUE : itemMX1.Checked = TRUE : itemMX1.Toggle = TRUE : itemMX1.MutualExclude = 8
+DIM AS CMenuItemText itemMX2 = CMenuItemText ("mx 2", @menu2)
+itemMX2.CheckIt = TRUE : itemMX2.Checked = FALSE : itemMX2.Toggle = TRUE : itemMX2.MutualExclude = 4
 
 menu1.deploy()
 
