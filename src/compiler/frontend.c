@@ -3412,6 +3412,7 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
 
         if (!expression(tkn, &ex))
             return EM_error(pos, "expression expected here.");
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &ex);
 
         if (!dbg || OPT_get (OPTION_DEBUG))
         {
@@ -3448,7 +3449,6 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             }
             n = CG_itemListAppend(arglist);
             n->item = ex;
-            CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
             S_symbol   fsym    = NULL;                   // put* function sym to call
             switch (ty->kind)
             {

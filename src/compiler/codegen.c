@@ -464,7 +464,7 @@ enum Temp_w CG_itemSize(CG_item *item)
         case IK_inHeap:
             return CG_tySize (item->ty);
         case IK_cond:
-            return Temp_w_B;
+            return Temp_w_W;
         default:
             assert(FALSE);
     }
