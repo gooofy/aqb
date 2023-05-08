@@ -71,15 +71,17 @@ BOOL     _CMENUITEM_TOGGLE_ (CMenuItem *THIS)
     return FALSE;
 }
 
-VOID _CMENUITEM_ENABLED (CMenuItem *THIS, BOOL     B)
+VOID _CMENUITEM_ENABLED (CMenuItem *THIS, BOOL enabled)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.enabled");
+    if (enabled)
+        THIS->_item._item.Flags |= ITEMENABLED;
+    else
+        THIS->_item._item.Flags &= ~ITEMENABLED;
 }
 
-BOOL     _CMENUITEM_ENABLED_ (CMenuItem *THIS)
+BOOL _CMENUITEM_ENABLED_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.enabled");
-    return FALSE;
+    return THIS->_item._item.Flags & ITEMENABLED;
 }
 
 VOID _CMENUITEM_COMMAND (CMenuItem *THIS, BYTE command)

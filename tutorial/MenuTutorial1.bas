@@ -28,11 +28,14 @@ DIM AS CMenuItemText      itemPrint   = CMenuItemText ("Print", @menu1)
 itemPrint.addSubItem (NEW CMenuItemText ("NLQ"))
 itemPrint.addSubItem (NEW CMenuItemText ("Draft"))
 
+DIM AS CMenuItemText      itemFax     = CMenuItemText ("FAX", @menu1)
+itemFax.Enabled = FALSE
+
 separator = NEW CMenuItemSeparator (@menu1)
 DIM AS CMenuItemText      itemQuit    = CMenuItemText ("Quit", @menu1, ASC("Q"))
 itemQuit.cb = menuQuitCB
 
-DIM AS CMenu menu2         = CMenu         ("Second Menu", @menu1)
+DIM AS CMenu menu2         = CMenu         ("Settings", @menu1)
 DIM AS CMenuItemText item5 = CMenuItemText ("An item for the second menu", @menu2)
 
 menu1.deploy()
