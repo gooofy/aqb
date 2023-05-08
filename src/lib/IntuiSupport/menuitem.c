@@ -127,6 +127,28 @@ VOID _CMENUITEM_ADDSUBITEM (CMenuItem *THIS, CMenuItem *subItem)
     {
         THIS->_subItem = subItem;
         THIS->_item._item.SubItem = &subItem->_item._item;
+
+        // add » Symbol as second IntuiText
+        if (THIS->_item._item.Flags & ITEMTEXT)
+        {
+            struct IntuiText *itext = (struct IntuiText *) THIS->_item._item.ItemFill;
+            if (itext)
+            {
+                intuis_win_ext_t *ext = _IntuiSupport_get_ext(THIS->_parent->_win_id);
+                struct IntuiText *at = (struct IntuiText *) ALLOCATE_(sizeof(*at), 0);
+                if (!at)
+                    ERROR (ERR_OUT_OF_MEMORY);
+                at->FrontPen  = ext->draw_info->dri_Pens[BARDETAILPEN];
+                at->BackPen   = 0;
+                at->DrawMode  = JAM1;
+                at->LeftEdge  = 0;
+                at->TopEdge   = 1;
+                at->ITextFont = NULL;
+                at->IText     = (STRPTR) "»";
+                at->NextText  = NULL;
+                itext->NextText = at;
+            }
+        }
     }
     else
     {

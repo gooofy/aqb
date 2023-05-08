@@ -1,4 +1,5 @@
 #define ENABLE_DPRINTF
+#define ENABLE_MENUDUMP
 
 #include "../_aqb/_aqb.h"
 #include "../_brt/_brt.h"
@@ -155,11 +156,24 @@ static void _layoutItems (intuis_win_ext_t *ext, CMenuItem *cfirstitem, USHORT l
     for (CMenuItem *citem=cfirstitem; citem; citem=citem->_nextItem)
     {
         if (citem->_subItem)
+        {
             _layoutItems (ext, citem->_subItem, width * 3/4, char_size, tmprp);
+
+            // » placement
+
+            struct MenuItem *item = &citem->_item._item;
+            if ((item->Flags & ITEMTEXT) && (item->ItemFill))
+            {
+                struct IntuiText *itext = (struct IntuiText *)item->ItemFill;
+                itext = itext->NextText;
+                if (itext)
+                    itext->LeftEdge = width - 2 - IntuiTextLength (itext);
+            }
+        }
     }
 }
 
-#ifdef ENABLE_DPRINTF
+#ifdef ENABLE_MENUDUMP
 static void _dumpMenuItem(struct MenuItem *item, char *prefix)
 {
         DPRINTF("_dumpMenuStrip:    %s item at %d/%d: %dx%d\n", prefix,
@@ -277,7 +291,7 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
         x += menu->Width + 2*char_size;
     }
 
-#ifdef ENABLE_DPRINTF
+#ifdef ENABLE_MENUDUMP
     _dumpMenuStrip(&THIS->_menu);
 #endif
 
@@ -285,7 +299,7 @@ VOID _CMENU_DEPLOY (CMenu *THIS)
     struct Window *win = _aqb_get_win (THIS->_win_id);
     SetMenuStrip (win, &THIS->_menu);
 
-#ifdef ENABLE_DPRINTF
+#ifdef ENABLE_MENUDUMP
     _dumpMenuStrip(&THIS->_menu);
 #endif
 
