@@ -35,8 +35,10 @@ separator = NEW CMenuItemSeparator (@menu1)
 DIM AS CMenuItemText      itemQuit    = CMenuItemText ("Quit", @menu1, ASC("Q"))
 itemQuit.cb = menuQuitCB
 
-DIM AS CMenu menu2         = CMenu         ("Settings", @menu1)
-DIM AS CMenuItemText item5 = CMenuItemText ("An item for the second menu", @menu2)
+DIM AS CMenu menu2 = CMenu ("Settings", @menu1)
+DIM AS CMenuItemText itemCreateIcons = CMenuItemText ("Create Icons?", @menu2)
+itemCreateIcons.CheckIt = TRUE : itemCreateIcons.Checked = TRUE : itemCreateIcons.Toggle = TRUE
+
 
 menu1.deploy()
 

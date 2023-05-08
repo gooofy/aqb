@@ -38,37 +38,77 @@ VOID _CMENUITEM_CONSTRUCTOR (CMenuItem *THIS, CMenu *parent, intptr_t userData)
         _CMENU_ADDITEM (parent, THIS);
 }
 
-VOID _CMENUITEM_CHECKIT (CMenuItem *THIS, BOOL     B)
+VOID _CMENUITEM_CHECKIT (CMenuItem *THIS, BOOL b)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.CHECKIT");
+    intuis_win_ext_t *ext = _IntuiSupport_get_ext(THIS->_parent->_win_id);
+    USHORT cw = ext->draw_info->dri_CheckMark->Width;
+
+    struct MenuItem *item = &THIS->_item._item;
+    if (b)
+    {
+        item->Flags |= CHECKIT;
+
+        if (item->ItemFill)
+        {
+            DPRINTF ("_CMENUITEM_CHECKIT: moving CHECKIT item %d pixels to the right\n", cw);
+
+            if (item->Flags & ITEMTEXT)
+            {
+                struct IntuiText *itext = (struct IntuiText *)item->ItemFill;
+                itext->LeftEdge += cw;
+                if (item->SelectFill)
+                {
+                    itext = (struct IntuiText *)item->SelectFill;
+                    itext->LeftEdge += cw;
+                }
+            }
+            else
+            {
+                struct Image *img = (struct Image *)item->ItemFill;
+                img->LeftEdge += cw;
+                if (item->SelectFill)
+                {
+                    img = (struct Image *)item->SelectFill;
+                    img->LeftEdge += cw;
+                }
+            }
+        }
+    }
+    else
+    {
+        THIS->_item._item.Flags &= ~CHECKIT;
+    }
 }
 
-BOOL     _CMENUITEM_CHECKIT_ (CMenuItem *THIS)
+BOOL _CMENUITEM_CHECKIT_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.CHECKIT");
-    return FALSE;
+    return THIS->_item._item.Flags & CHECKIT;
 }
 
-VOID _CMENUITEM_CHECKED (CMenuItem *THIS, BOOL     B)
+VOID _CMENUITEM_CHECKED (CMenuItem *THIS, BOOL b)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.CHECKED");
+    if (b)
+        THIS->_item._item.Flags |= CHECKED;
+    else
+        THIS->_item._item.Flags &= ~CHECKED;
 }
 
-BOOL     _CMENUITEM_CHECKED_ (CMenuItem *THIS)
+BOOL _CMENUITEM_CHECKED_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.CHECKED");
-    return FALSE;
+    return THIS->_item._item.Flags & CHECKED;
 }
 
-VOID _CMENUITEM_TOGGLE (CMenuItem *THIS, BOOL     B)
+VOID _CMENUITEM_TOGGLE (CMenuItem *THIS, BOOL b)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.toggle");
+    if (b)
+        THIS->_item._item.Flags |= MENUTOGGLE;
+    else
+        THIS->_item._item.Flags &= ~MENUTOGGLE;
 }
 
-BOOL     _CMENUITEM_TOGGLE_ (CMenuItem *THIS)
+BOOL _CMENUITEM_TOGGLE_ (CMenuItem *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CMenuItem.toggle");
-    return FALSE;
+    return THIS->_item._item.Flags & MENUTOGGLE;
 }
 
 VOID _CMENUITEM_ENABLED (CMenuItem *THIS, BOOL enabled)
