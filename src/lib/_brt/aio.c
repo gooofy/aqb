@@ -1,3 +1,4 @@
+//#define ENABLE_DPRINTF
 
 #include "_brt.h"
 
@@ -188,6 +189,7 @@ void _AIO_PUTF(USHORT fno, FLOAT f)
 
 void _AIO_PUTBOOL(USHORT fno, BOOL b)
 {
+    DPRINTF("_AIO_PUTBOOL fno=%d, b=%d\n", fno, b);
     _AIO_PUTS(fno, b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
 }
 
