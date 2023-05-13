@@ -1,3 +1,4 @@
+//#define ENABLE_DPRINTF
 #include "_brt.h"
 
 #include <exec/types.h>
@@ -315,7 +316,9 @@ SHORT FIX_(FLOAT f)
 
 SHORT INT_(FLOAT f)
 {
-    return SPFix(SPFloor(f));
+    SHORT res = SPFix(SPFloor(f));
+    DPRINTF("INT_: res=%d\n", res);
+    return res;
 }
 
 SHORT CINT_(FLOAT f)
