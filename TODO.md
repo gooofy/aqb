@@ -20,8 +20,8 @@ Guenter Bartsch <guenter@zamia.org>
     * varargs
 
 - OOP
-    * interfaces
-    * virtual functions
+    * DONE interfaces
+    * DONE virtual functions
 
 - enums
 
@@ -138,6 +138,9 @@ Guenter Bartsch <guenter@zamia.org>
 - DONE goto line
 - DONE show compiler error messages
 - \_\_\_\_ terminal: use uint16\_t where possible
+
+- support for modules written in BASIC
+- project tree / multi-file/-module projects
 
 ## Debugger
 
