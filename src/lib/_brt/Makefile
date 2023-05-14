@@ -17,6 +17,9 @@ _brt.sym : _brt.bas
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 
+%.o : %.S
+	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
+
 _brt.a: cstartup.o astr.o amath.o autil.o carray.o data.o dprintf.o aio.o oop.o memmove.o bcopy.o
 	$(AR_AMIGAOS) -crs _brt.a $^
 	pushd .. && rm -f startup.o _brt.a && ln -s _brt/startup.o && ln -s _brt/_brt.a && popd

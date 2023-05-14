@@ -13,25 +13,26 @@
  * TODO: handle commandline
  */
 
-    .set SysBase, 4
+
+    #define SysBase 4
 
     /* exec.library */
 
-    .set FindTask , -294
-    .set WaitPort , -384
-    .set GetMsg   , -372
-    .set ReplyMsg , -378
-    .set Forbid   , -132
-    .set StackSwap, -732
+    #define FindTask  -294
+    #define WaitPort  -384
+    #define GetMsg    -372
+    #define ReplyMsg  -378
+    #define Forbid    -132
+    #define StackSwap -732
 
     /* structs */
 
-    .set pr_CLI    , 172
-    .set pr_MsgPort,  92
+    #define pr_CLI     172
+    #define pr_MsgPort  92
 
-    .set dbg_sig,     24
-    .set dbg_code,    34
-    .set dbg_exitFn,  30
+    #define dbg_sig     24
+    #define dbg_code    34
+    #define dbg_exitFn  30
 
 .text
     .globl  _start

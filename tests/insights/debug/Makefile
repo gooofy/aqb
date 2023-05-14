@@ -22,6 +22,9 @@ $(EMUDIR)/foo.hunk: foo.hunk
 run: $(EMUDIR)/foo.hunk
 	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/foo.hunk"
 
+debug: $(EMUDIR)/foo.hunk
+	$(LXA) -b __aqb_main -r $(LXA_ROM) "$(WORKDIR)/foo.hunk"
+
 clean:
 	rm -f "$(EMUDIR)/foo.hunk"
 	rm -f aqb.log $(ASMProsrctmp) foo.hunk foo.s $(ASMProsrc)
