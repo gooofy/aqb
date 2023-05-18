@@ -1,3 +1,5 @@
+//#define ENABLE_DPRINTF
+
 #include "_brt.h"
 
 #include <exec/memory.h>
@@ -16,8 +18,6 @@
 
 #define MAXBUF 40
 
-//#define DEBUG
-
 extern struct UtilityBase   *UtilityBase;
 
 /* A utility function to reverse a string  */
@@ -35,7 +35,7 @@ static void reverse(UBYTE *str, LONG length)
     }
 }
 
-void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space)
+void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space, BOOL positive_sign)
 {
     LONG i = 0;
     BOOL isNegative = FALSE;
@@ -74,7 +74,14 @@ void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space)
     else
     {
         if (leading_space)
+        {
             str[i++] = ' ';
+        }
+        else
+        {
+            if (positive_sign)
+                str[i++] = '+';
+        }
     }
 
     str[i] = '\0'; // Append string terminator
@@ -85,10 +92,10 @@ void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space)
 
 void _astr_itoa(LONG num, UBYTE* str, LONG base)
 {
-    _astr_itoa_ext(num, str, base, /*leading_space=*/TRUE);
+    _astr_itoa_ext(num, str, base, /*leading_space=*/TRUE, /*positive_sign=*/FALSE);
 }
 
-void _astr_utoa_ext(ULONG num, UBYTE* str, ULONG base, BOOL leading_space)
+void _astr_utoa_ext(ULONG num, UBYTE* str, ULONG base, BOOL leading_space, BOOL positive_sign)
 {
     int i = 0;
 
@@ -111,7 +118,14 @@ void _astr_utoa_ext(ULONG num, UBYTE* str, ULONG base, BOOL leading_space)
     }
 
     if (leading_space)
+    {
         str[i++] = ' ';  // Append space (not negative)
+    }
+    else
+    {
+        if (positive_sign)
+            str[i++] = '+';
+    }
     str[i] = '\0'; // Append string terminator
 
     // Reverse the string
@@ -120,7 +134,7 @@ void _astr_utoa_ext(ULONG num, UBYTE* str, ULONG base, BOOL leading_space)
 
 void _astr_utoa(ULONG num, UBYTE* str, ULONG base)
 {
-    _astr_utoa_ext(num, str, base, /*leading_space=*/TRUE);
+    _astr_utoa_ext(num, str, base, /*leading_space=*/TRUE, /*positive_sign=*/FALSE);
 }
 
 ULONG LEN_(const UBYTE *str)
@@ -343,75 +357,90 @@ static FLOAT g_1en15, g_1en7, g_1en3, g_1en1, g_05, g_m1;
 // normalizes the value between 1e-5 and 1e7 and returns the exponent
 static SHORT normalizeFloat(FLOAT *value)
 {
-
     SHORT exponent = 0;
 
-    if (*value >= g_positiveExpThreshold)
+    DPRINTF("normalizeFloat: SPCmp(g_0, *value)=%d, SPCmp(g_negativeExpThreshold, *value)=%d\n",
+            SPCmp(g_0, *value),
+            SPCmp(g_negativeExpThreshold, *value));
+
+    if (SPCmp(*value, g_positiveExpThreshold) >= 0)
     {
-        if (*value >= g_1e16)
+        DPRINTF("normalizeFloat: >= g_positiveExpThreshold\n", exponent);
+        if (SPCmp (*value, g_1e16) > 0)
         {
-            *value /= g_1e16;
+            DPRINTF("normalizeFloat: *1\n");
+            *value = SPDiv (g_1e16, *value);
             exponent += 16;
         }
-        if (*value >= g_1e8)
+        if (SPCmp (*value, g_1e8) > 0)
         {
-            *value /= g_1e8;
+            DPRINTF("normalizeFloat: *2, *value=%ld\n", SPFix(*value));
+            *value = SPDiv (g_1e8, *value);
+            DPRINTF("normalizeFloat: *2, -> *value=%ld\n", SPFix(*value));
             exponent += 8;
         }
-        if (*value >= g_1e4)
+        if (SPCmp (*value, g_1e4) > 0)
         {
-            *value /= g_1e4;
+            DPRINTF("normalizeFloat: *3\n");
+            *value = SPDiv (g_1e4, *value);
             exponent += 4;
         }
-        if (*value >= g_1e2)
+        if (SPCmp (*value, g_1e2) > 0)
         {
-            *value /= g_1e2;
+            DPRINTF("normalizeFloat: *4\n");
+            *value = SPDiv (g_1e2, *value);
             exponent += 2;
         }
-        if (*value >= g_1e1)
+        if (SPCmp (*value, g_1e1) > 0)
         {
-            *value /= g_1e1;
+            DPRINTF("normalizeFloat: *5\n");
+            *value = SPDiv (g_1e1, *value);
             exponent += 1;
         }
     }
 
-    if ( (g_0 > *value ) && (g_negativeExpThreshold <= *value) )
+    //if ( g_negativeExpThreshold <= *value )
+    if (SPCmp (*value, g_negativeExpThreshold) <= 0 )
     {
-        if (g_1en15 < *value)
+        DPRINTF("normalizeFloat: _negativeExpThreshold\n", exponent);
+        if (SPCmp (g_1en15, *value)>0)
         {
-            *value *= g_1e16;
+            DPRINTF("normalizeFloat: .1\n");
+            *value = SPMul (*value, g_1e16);
             exponent -= 16;
         }
-        if (g_1en7 < *value)
+        if (SPCmp (g_1en7, *value)>0)
         {
-            *value *= g_1e8;
+            DPRINTF("normalizeFloat: .2\n");
+            *value = SPMul (*value, g_1e8);
             exponent -= 8;
         }
-        if (g_1en3 < *value)
+        if (SPCmp (g_1en3, *value)>0)
         {
-            *value *= g_1e4;
+            DPRINTF("normalizeFloat: .3\n");
+            *value = SPMul (*value, g_1e4);
             exponent -= 4;
         }
-        if (g_1en1 < *value)
+        if (SPCmp (g_1en1, *value)>0)
         {
-            *value *= g_1e2;
+            DPRINTF("normalizeFloat: .4\n");
+            *value = SPMul (*value, g_1e2);
             exponent -= 2;
         }
-        if (g_1 < *value)
+        if (SPCmp (g_1, *value)>0)
         {
-            *value *= g_1e1;
+            DPRINTF("normalizeFloat: .5\n");
+            *value = SPMul (*value, g_1e1);
             exponent -= 1;
         }
     }
 
-#ifdef DEBUG
-    _debug_puts((STRPTR) "exponent:"); _debug_puts4(exponent); _debug_putnl();
-#endif
+    DPRINTF("normalizeFloat: exponent: %ld\n", exponent);
 
     return exponent;
 }
 
-void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
+void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space, BOOL positive_sign)
 {
     BOOL negative = FALSE;
 
@@ -419,10 +448,13 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
     {
         value = SPMul(value, g_m1);
         negative = TRUE;
-#ifdef DEBUG
-        _debug_puts((STRPTR) "negative.\n");
-#endif
+        DPRINTF("negative.\n");
     }
+
+#ifdef ENABLE_DPRINTF
+    uint32_t *p = (uint32_t *)&value;
+    DPRINTF ("_astr_ftoa_ext: value=0x%08lx\n", *p);
+#endif
 
     /*
      * split float into integral part, decimal part and exponent
@@ -436,15 +468,11 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
 
     integralPart = SPFix(value);
     FLOAT remainder = SPSub(SPFlt(integralPart), value);
-#ifdef DEBUG
-    _debug_puts((STRPTR)"integralPart:"); _debug_puts4(integralPart); _debug_putnl();
-#endif
+    DPRINTF ("integralPart: %ld\n", integralPart);
 
     remainder *= g_1e9;
     decimalPart = SPFix(remainder);
-#ifdef DEBUG
-    _debug_puts((STRPTR)"decimalPart:"); _debug_puts4(decimalPart); _debug_putnl();
-#endif
+    DPRINTF ("decimalPart: %ld\n", decimalPart);
 
     // rounding
     remainder -= SPFlt(decimalPart);
@@ -467,9 +495,16 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
      * produce ascii string
      */
 
-    _astr_itoa_ext(integralPart, &buf[0], 10, /*leading_space=*/ leading_space ? TRUE : negative);
+    _astr_itoa_ext(integralPart, &buf[0], 10, /*leading_space=*/ leading_space || positive_sign ? TRUE : negative, /*positive_sign=*/FALSE);
     if (negative)
+    {
         buf[0] = '-';
+    }
+    else
+    {
+        if (positive_sign)
+            buf[0] = '+';
+    }
 
     if (decimalPart)
     {
@@ -503,14 +538,14 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space)
     {
         ULONG l = LEN_(buf);
         buf[l] = 'e'; buf[l+1] = '-';
-        _astr_itoa(exponent, &buf[l+1], 10);
+        _astr_itoa_ext(exponent, &buf[l+1], 10, /*leading_space=*/FALSE, /*positive_sign=*/TRUE);
     }
 }
 
 
 void _astr_ftoa(FLOAT value, UBYTE *buf)
 {
-    _astr_ftoa_ext (value, buf, /*leading_space=*/TRUE);
+    _astr_ftoa_ext (value, buf, /*leading_space=*/TRUE, /*positive_sign=*/FALSE);
 }
 
 const UBYTE *_astr_strchr(const UBYTE *s, UBYTE c)

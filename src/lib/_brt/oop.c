@@ -13,7 +13,7 @@ STRPTR _COBJECT_TOSTRING_ (CObject *THIS)
     str2[1]='b';
     str2[2]='j';
     str2[3]='@';
-    _astr_itoa_ext ((intptr_t)THIS, &str2[4], 16, FALSE);
+    _astr_itoa_ext ((intptr_t)THIS, &str2[4], 16, FALSE, /*positive_sign=*/FALSE);
     str2[14]=0;
     return (STRPTR) str2;
 }

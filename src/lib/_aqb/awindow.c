@@ -1364,11 +1364,11 @@ static BOOL _awindow_locate (SHORT l, SHORT c)
 
         UBYTE buf[20];
         buf[0] = CSI;
-        _astr_itoa_ext(l, &buf[1], 10, /*leading_space=*/FALSE);
+        _astr_itoa_ext(l, &buf[1], 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
         int l = LEN_(buf);
         buf[l] = ';';
         l++;
-        _astr_itoa_ext(c, &buf[l], 10, /*leading_space=*/FALSE);
+        _astr_itoa_ext(c, &buf[l], 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
         l = LEN_(buf);
         buf[l] = 'H';
         buf[l+1] = 0;
@@ -2082,7 +2082,7 @@ FONT_t *FONT_ (UBYTE *font_name, SHORT font_size, UBYTE *font_dir)
 		static char font_path[256];
 		static char str_font_size[10];
 
-		_astr_itoa_ext (font_size, (STRPTR) str_font_size, 10, /*leading_space=*/FALSE);
+		_astr_itoa_ext (font_size, (STRPTR) str_font_size, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
 		ULONG l = LEN_(font_dir);
 		ULONG l2 = LEN_(font_name);

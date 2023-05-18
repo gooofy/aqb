@@ -203,7 +203,7 @@ void _AIO_WRITES4 (USHORT fno, LONG num)
 {
     UBYTE buf[MAXBUF];
 
-    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     _AIO_PUTS(fno, buf);
 }
@@ -212,7 +212,7 @@ void _AIO_WRITES2 (USHORT fno, short num)
 {
     UBYTE buf[MAXBUF];
 
-    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     _AIO_PUTS(fno, buf);
 }
@@ -221,7 +221,7 @@ void _AIO_WRITES1 (USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
-    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+    _astr_itoa_ext(num, buf, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     _AIO_PUTS(fno, buf);
 }
@@ -230,7 +230,7 @@ void _AIO_WRITEU4 (USHORT fno, ULONG num)
 {
     UBYTE buf[MAXBUF];
 
-    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     _AIO_PUTS(fno, buf);
 }
@@ -239,7 +239,7 @@ void _AIO_WRITEU2 (USHORT fno, USHORT num)
 {
     UBYTE buf[MAXBUF];
 
-    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     _AIO_PUTS(fno, buf);
 }
@@ -248,7 +248,7 @@ void _AIO_WRITEU1 (USHORT fno, UBYTE num)
 {
     UBYTE buf[MAXBUF];
 
-    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE);
+    _astr_utoa_ext(num, buf, 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     _AIO_PUTS(fno, buf);
 }
@@ -258,7 +258,7 @@ void _AIO_WRITEF (USHORT fno, FLOAT f)
     //DPRINTF ("_aio_writef: fno=%d\n", fno);
     //Delay(200);
     UBYTE buf[40];
-    _astr_ftoa_ext (f, buf, /*leading_space=*/FALSE);
+    _astr_ftoa_ext (f, buf, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
     //DPRINTF ("_aio_writef: -> _aio_writes buf=%s\n", buf); Delay(200);
     _AIO_PUTS(fno, buf);
 }
@@ -813,12 +813,12 @@ void LOCATE (SHORT line, SHORT col)
 
     UBYTE buf[20];
     buf[0] = CSI;
-    _astr_itoa_ext(line, &buf[1], 10, /*leading_space=*/FALSE);
+    _astr_itoa_ext(line, &buf[1], 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
     int l = LEN_(buf);
     buf[l] = ';';
     l++;
-    _astr_itoa_ext(col, &buf[l], 10, /*leading_space=*/FALSE);
+    _astr_itoa_ext(col, &buf[l], 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
     l = LEN_(buf);
     buf[l] = 'H';
     buf[l+1] = 0;

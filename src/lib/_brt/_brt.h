@@ -183,12 +183,12 @@ FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
 
 void _astr_init           (void);
 
-void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space);
+void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space, BOOL positive_sign);
 void _astr_itoa           (LONG num, UBYTE *str, LONG base);
 void _astr_utoa           (ULONG num, UBYTE* str, ULONG base);
-void _astr_utoa_ext       (ULONG num, UBYTE* str, ULONG base, BOOL leading_space);
+void _astr_utoa_ext       (ULONG num, UBYTE* str, ULONG base, BOOL leading_space, BOOL positive_sign);
 void _astr_ftoa           (FLOAT value, UBYTE *buf);
-void _astr_ftoa_ext       (FLOAT value, UBYTE *buf, BOOL leading_space);
+void _astr_ftoa_ext       (FLOAT value, UBYTE *buf, BOOL leading_space, BOOL positive_sign);
 
 UBYTE *_astr_dup          (const UBYTE *str);
 SHORT __astr_cmp          (const UBYTE* s1, const UBYTE* s2);
