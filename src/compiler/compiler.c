@@ -294,7 +294,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                         switch (n->kind)
                         {
                             case CG_labelNode:
-                                if (!AS_assembleDataLabel (obj, n->u.label, /*expt=*/FALSE, /*ty=*/NULL))
+                                if (!AS_assembleDataLabel (obj, n->u.l.label, n->u.l.expt, /*ty=*/NULL))
                                     CO_exit(EXIT_FAILURE);
                                 break;
                             case CG_constNode:
@@ -341,8 +341,8 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                             }
                             case CG_ptrNode:
                             {
-                                if (n->u.label)
-                                    AS_assembleDataPtr (obj, n->u.label);
+                                if (n->u.ptr)
+                                    AS_assembleDataPtr (obj, n->u.ptr);
                                 else
                                     AS_assembleData32 (obj->dataSeg, 0);
                                 break;

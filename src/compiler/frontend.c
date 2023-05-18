@@ -413,7 +413,7 @@ static inline bool isLogicalEOL(S_tkn tkn)
 static void transDataAddLabel(Temp_label l)
 {
     Temp_label dataLabel = Temp_namedlabel(strprintf(UP_frontend, "__data_%s", S_name(l)));
-    CG_dataFragAddLabel (g_dataFrag, dataLabel);
+    CG_dataFragAddLabel (g_dataFrag, dataLabel, /*expt=*/FALSE);
 }
 
 static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp);
@@ -9281,9 +9281,18 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     LOG_printf (LOG_DEBUG, "parsing done.\n");
     //U_delay(1000);
 
-    // if DATA statements were used, we have to restore the global data read ptr at the beginning of the code
-    if (g_dataFrag->u.data.size)
+    if (is_main)
     {
+        // add end marker + label to dataFrage, thereby guaranteering it always
+        // exists and data read/restore statements generate proper out of data errors
+
+        Temp_label dataEndLabel = Temp_namedlabel(strprintf(UP_frontend, "__data__end"));
+        CG_dataFragAddLabel (g_dataFrag, dataEndLabel, /*expt=*/TRUE);
+        CG_dataFragAddConst (g_dataFrag, Ty_ConstUInt (Ty_ULong(), 0xcafebabe));
+
+        // restore the global data read ptr at the beginning of the code
+        assert (g_dataFrag->u.data.size);
+
         AS_instrList initCode = AS_InstrList();
 
         S_symbol fsym = S_Symbol("_aqb_restore");
@@ -9302,6 +9311,11 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         {
             EM_error(/*pos=*/0, "builtin %s not found.", S_name(fsym));
         }
+    }
+    else
+    {
+        if (g_dataFrag->u.data.size)
+            EM_error(/*pos=*/0, "DATA / RESTORE statements are not supported in modules");
     }
 
     // resolve leftover forward ptrs, unimplemented (member) functions

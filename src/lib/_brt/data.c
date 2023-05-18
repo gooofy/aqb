@@ -1,3 +1,5 @@
+#define ENABLE_DPRINTF
+
 #include "_brt.h"
 
 #include <exec/types.h>
@@ -7,15 +9,21 @@
 // DATA / READ / RESTORE support
 
 static void *g_data_ptr=NULL;
+extern uint32_t *_data__end;
 
 void _AQB_RESTORE (void *p)
 {
     g_data_ptr = p;
 }
 
+static inline BOOL _check_out_of_data(void)
+{
+    return !g_data_ptr || ((intptr_t)g_data_ptr >= (intptr_t)&_data__end);
+}
+
 void _AQB_READ1 (void *v)
 {
-    if (!g_data_ptr)
+    if (_check_out_of_data())
     {
         ERROR (ERR_OUT_OF_DATA);
         return;
@@ -30,7 +38,9 @@ void _AQB_READ1 (void *v)
 
 void _AQB_READ2 (void *v)
 {
-    if (!g_data_ptr)
+    //DPRINTF ("_AQB_READ2: g_data_ptr=0x%08lx, _data__end=0x%08lx\n",
+    //         g_data_ptr, _data__end);
+    if (_check_out_of_data())
     {
         ERROR (ERR_OUT_OF_DATA);
         return;
@@ -43,7 +53,7 @@ void _AQB_READ2 (void *v)
 
 void _AQB_READ4 (void *v)
 {
-    if (!g_data_ptr)
+    if (_check_out_of_data())
     {
         ERROR (ERR_OUT_OF_DATA);
         return;
@@ -59,7 +69,7 @@ void _AQB_READ4 (void *v)
 void _AQB_READSTR (void *v)
 {
     UBYTE buf[MAX_STRING_LEN];
-    if (!g_data_ptr)
+    if (_check_out_of_data())
     {
         ERROR (ERR_OUT_OF_DATA);
         return;
@@ -67,7 +77,7 @@ void _AQB_READSTR (void *v)
 
     UBYTE c = 0xff;
     LONG l = 0;
-    while (c && (l<MAX_STRING_LEN-1))
+    while (c && (l<MAX_STRING_LEN-1) && !_check_out_of_data())
     {
         c = buf[l] = *((char *)g_data_ptr);
         // _debug_puts("_aqb_readStr: c="); _debug_puts2(c); _debug_putnl();

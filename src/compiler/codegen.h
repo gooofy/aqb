@@ -96,8 +96,9 @@ struct CG_dataFragNode_
     enum {CG_labelNode, CG_constNode, CG_ptrNode} kind;
     union
     {
-        Temp_label label;   // label + ptr kind
-        Ty_const   c;       // const       kind
+        struct { Temp_label label; bool expt; } l; // label  kind
+        Temp_label ptr;                            // ptr    kind
+        Ty_const   c;                              // const  kind
     } u;
     CG_dataFragNode next;
 };
@@ -159,7 +160,7 @@ CG_frag         CG_ProcFrag         (S_pos pos, Temp_label label, bool expt, AS_
 CG_frag         CG_DataFrag         (Temp_label label, bool expt, int size, Ty_ty ty);
 
 void            CG_dataFragAddConst (CG_frag dataFrag, Ty_const c);
-void            CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label);
+void            CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label, bool expt);
 void            CG_dataFragAddPtr   (CG_frag dataFrag, Temp_label label);
 void            CG_dataFragSetPtr   (CG_frag dataFrag, Temp_label label, int idx);
 

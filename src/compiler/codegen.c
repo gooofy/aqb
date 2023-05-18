@@ -700,15 +700,16 @@ void CG_dataFragAddConst (CG_frag dataFrag, Ty_const c)
     dataFrag->u.data.size++;
 }
 
-void CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label)
+void CG_dataFragAddLabel (CG_frag dataFrag, Temp_label label, bool expt)
 {
     assert(dataFrag->kind == CG_dataFrag);
 
     CG_dataFragNode f = U_poolAlloc (UP_codegen, sizeof(*f));
 
-    f->kind    = CG_labelNode;
-    f->u.label = label;
-    f->next    = NULL;
+    f->kind      = CG_labelNode;
+    f->u.l.label = label;
+    f->u.l.expt  = expt;
+    f->next      = NULL;
 
     if (dataFrag->u.data.init)
         dataFrag->u.data.initLast = dataFrag->u.data.initLast->next = f;
@@ -723,7 +724,7 @@ void CG_dataFragAddPtr (CG_frag dataFrag, Temp_label label)
     CG_dataFragNode f = U_poolAlloc (UP_codegen, sizeof(*f));
 
     f->kind    = CG_ptrNode;
-    f->u.label = label;
+    f->u.ptr   = label;
     f->next    = NULL;
 
     if (dataFrag->u.data.init)
@@ -751,7 +752,7 @@ void CG_dataFragSetPtr (CG_frag dataFrag, Temp_label label, int idx)
     }
     assert (init);
     assert (init->kind == CG_ptrNode);
-    init->u.label = label;
+    init->u.ptr = label;
 }
 
 CG_fragList CG_FragList (CG_frag head, CG_fragList tail)
@@ -4500,7 +4501,22 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
             switch (n->kind)
             {
                 case CG_labelNode:
-                    fprintf(out, "%s:\n", Temp_labelstring(n->u.label));
+                    fprintf(out, "%s:\n", Temp_labelstring(n->u.l.label));
+                    if (n->u.l.expt)
+                    {
+                        switch (dialect)
+                        {
+                            case AS_dialect_gas:
+                            case AS_dialect_vasm:
+                                fprintf(out, ".globl %s\n\n", Temp_labelstring(n->u.l.label));
+                                break;
+                            case AS_dialect_ASMPro:
+                                fprintf(out, "    XDEF %s\n\n", Temp_labelstring(n->u.l.label));
+                                break;
+                            default:
+                                assert(FALSE);
+                        }
+                    }
                     break;
                 case CG_constNode:
                 {
@@ -4559,9 +4575,9 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                 case CG_ptrNode:
                     switch (dialect)
                     {
-                        case AS_dialect_gas:    fprintf(out, "    dc.l  %s\n", n->u.label ? S_name(n->u.label) : "0"); break;
-                        case AS_dialect_vasm:   fprintf(out, "    .long %s\n", n->u.label ? S_name(n->u.label) : "0"); break;
-                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  %s\n", n->u.label ? S_name(n->u.label) : "0"); break;
+                        case AS_dialect_gas:    fprintf(out, "    dc.l  %s\n", n->u.ptr ? S_name(n->u.ptr) : "0"); break;
+                        case AS_dialect_vasm:   fprintf(out, "    .long %s\n", n->u.ptr ? S_name(n->u.ptr) : "0"); break;
+                        case AS_dialect_ASMPro: fprintf(out, "    dc.l  %s\n", n->u.ptr ? S_name(n->u.ptr) : "0"); break;
                         default:
                             assert(FALSE);
                     }

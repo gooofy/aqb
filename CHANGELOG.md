@@ -39,6 +39,7 @@ Bug Fixes:
     * runtime: fix FFP to string conversion bugs
     * adapted to bebbo's current GCC
     * compiler: fix FFP power for negative operands (#50)
+    * compiler: OUT OF DATA ERROR detection for DATA statements (#51)
 
 Requirements:
     * OS 3.1 (V39)
