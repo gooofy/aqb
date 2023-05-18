@@ -162,6 +162,9 @@ void __handle_break(void);
  * amath
  */
 
+#define INTEGER_MIN -32768
+#define INTEGER_MAX 32767
+
 void _amath_init(void);
 
 //FLOAT MOD_  (FLOAT divident, FLOAT divisor);

@@ -528,12 +528,13 @@ static BOOL _awindow_cls (void)
  */
 void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, short bf)
 {
+    DPRINTF ("LINE s1=%d, x1=%d, y1=%d\n", (int)s1, (int)x1, (int)y1);
     _aqb_get_output (/*needGfx=*/TRUE);
 
     BYTE fgPen=_g_cur_rp->FgPen;
-    if (x1<0)
+    if (x1==INTEGER_MIN)
         x1 = _g_cur_rp->cp_x;
-    if (y1<0)
+    if (y1==INTEGER_MIN)
         y1 = _g_cur_rp->cp_y;
 
     if (s1)
@@ -546,6 +547,9 @@ void LINE(BOOL s1, short x1, short y1, BOOL s2, short x2, short y2, short c, sho
         x2 += _g_cur_rp->cp_x;
         y2 += _g_cur_rp->cp_y;
     }
+
+    DPRINTF ("LINE drawing from x1=%d, y1=%d\n", (int)x1, (int)y1);
+
     if (c >= 0)
         SetAPen(_g_cur_rp, c);
     if (bf & 1)

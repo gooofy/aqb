@@ -1875,6 +1875,9 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                         case Ty_byte:
                         case Ty_long:
                         case Ty_integer:
+                        case Ty_ubyte:
+                        case Ty_ulong:
+                        case Ty_uinteger:
                             CG_IntItem(left, -CG_getConstInt(left), ty);
                             break;
                         case Ty_single:
