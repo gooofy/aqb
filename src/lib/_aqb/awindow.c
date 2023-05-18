@@ -1029,6 +1029,45 @@ void ON_WINDOW_REFRESH_CALL (SHORT id, window_refresh_cb_t cb, void *ud)
     aqbw->aqb_refresh_ud = ud;
 }
 
+static void _get_screen_visible_size (WORD *visWidth, WORD *visHeight)
+{
+    ULONG mid;
+    *visWidth  = 0;
+    *visHeight = 0;
+
+    DPRINTF ("_get_screen_visible_size\n");
+
+    struct Screen *sc = _g_cur_scr;
+    if (!_g_cur_scr)
+    {
+        DPRINTF ("_get_screen_visible_size -> public screen\n");
+        sc = LockPubScreen (NULL); // default public screen
+        if (!sc)
+        {
+            DPRINTF ("_get_screen_visible_size: LockPubScreen failed\n");
+            return;
+        }
+    }
+
+    mid = GetVPModeID(&sc->ViewPort);
+
+    struct DimensionInfo di;
+    if (!GetDisplayInfoData(NULL, (APTR)&di, sizeof(di), DTAG_DIMS, mid))
+        goto fail;
+
+    WORD maxW = di.TxtOScan.MaxX - di.TxtOScan.MinX + 1;
+    WORD maxH = di.TxtOScan.MaxY - di.TxtOScan.MinY + 1;
+
+    DPRINTF ("_get_screen_visible_size -> maxW=%d, maxH=%d\n", maxW, maxH);
+
+    *visWidth  = sc->Width > maxW ? maxW : sc->Width;
+    *visHeight = sc->Height > maxH ? maxH : sc->Height;
+
+fail:
+    if (!_g_cur_scr)
+        UnlockPubScreen(NULL, sc);
+}
+
 ULONG WINDOW_(short n)
 {
     switch(n)
@@ -1082,6 +1121,18 @@ ULONG WINDOW_(short n)
         case 14:                                // 14: input file handle (AQB)
             return (ULONG) g_stdin;
 
+        case 15:                                // 15: screen visible width (AQB)
+        {
+            WORD visWidth, visHeight;
+            _get_screen_visible_size (&visWidth, &visHeight);
+            return (ULONG) visWidth;
+        }
+        case 16:                                // 16: screen visible height (AQB)
+        {
+            WORD visWidth, visHeight;
+            _get_screen_visible_size (&visWidth, &visHeight);
+            return (ULONG) visHeight;
+        }
     }
     return 0;
 }

@@ -795,4 +795,6 @@ return information about a window. n is one of
     * 12: text width
     * 13: text height
     * 14: input file handle
+    * 15: screen visible width
+    * 16: screen visible height
 
