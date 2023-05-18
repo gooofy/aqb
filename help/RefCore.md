@@ -34,15 +34,16 @@ Syntax:
 
 Try to allocate `size` number of bytes of memory, return pointer to allocated memory block if ok, NULL otherwise.
 
-Flags is a combination of
-    * 0 MEMF\_ANY
-    * 1 MEMF\_PUBLIC
-    * 2 MEMF\_CHIP
-    * 4 MEMF\_FAST
-    * 256 MEMF\_LOCAL
-    * 512 MEMF\_24BITDMA
-    * 1024 MEMF\_KICK
-    * 65536 MEMF\_CLEAR
+`flags` is a combination of
+
+	* 0 MEMF_ANY
+	* 1 MEMF_PUBLIC
+	* 2 MEMF_CHIP
+	* 4 MEMF_FAST
+	* 256 MEMF_LOCAL
+	* 512 MEMF_24BITDMA
+	* 1024 MEMF_KICK
+	* 65536 MEMF_CLEAR
 
 ## ASC()
 
@@ -119,7 +120,7 @@ call a SUB or FUNCTION.
 
 Syntax:
 
-    CAST "(" typedesc "," expr ")
+    CAST "(" typedesc "," expr ")"
 
 casts an expression to a different data type
 
@@ -484,12 +485,12 @@ Syntax:
 
 return the amount of free memory
 
-    * -2: stack size
-    * -1: chip + fast mem
-    *  0: chip mem
-    *  1: fast mem
-    *  2: largest chip mem
-    *  3: largest fast mem
+	* -2: stack size
+	* -1: chip + fast mem
+	*  0: chip mem
+	*  1: fast mem
+	*  2: largest chip mem
+	*  3: largest fast mem
 
 
 ## GOTO
@@ -962,10 +963,9 @@ Syntax:
 returns a random number with a value between 0 (inclusive) and 1
 (exclusive).
 
-* n = 0: return the last value returned
-* n < 0: reset the pseudo random number generator to the built-in seed
-* n > 0: the sequence of numbers generated will not change unless RANDOMIZE
-         is initiated
+	* n = 0: return the last value returned
+	* n < 0: reset the pseudo random number generator to the built-in seed
+	* n > 0: the sequence of numbers generated will not change unless RANDOMIZE is initiated
 
 
 ## SELECT CASE
@@ -1226,5 +1226,4 @@ Syntax:
 print the listed expressions to given file stream, separated by comma.
 Numeric values will be printed without a leading space,
 string values will be enclosed in "".
-
 

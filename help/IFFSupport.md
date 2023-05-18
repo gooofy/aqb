@@ -12,18 +12,18 @@ Syntax:
 load a bitmap from an IFF ILBM file
 
 Arguments:
-	* path: pathname of the file to load the bitmap from
-	* bmPtr: reference to a bitmap pointer, image data will be stored in
-			 this bitmap. If the referenced pointer is NULL, a bitmap will
-	         be allocated for you.
-	* scid: screen id - if given, colors will be applied to it
-	* pMETA: pointer to metadata
-	* pPalette: pointer to a palette
-    * cont: if TRUE, allocate bitplanes in a continous memory area suitable for BOBs
+ * path: pathname of the file to load the bitmap from
+ * bmPtr: reference to a bitmap pointer, image data will be stored in
+             this bitmap. If the referenced pointer is NULL, a bitmap will
+             be allocated for you.
+ * scid: screen id - if given, colors will be applied to it
+ * pMETA: pointer to metadata
+ * pPalette: pointer to a palette
+ * cont: if TRUE, allocate bitplanes in a continous memory area suitable for BOBs
 
 Example:
 
-	DIM AS BITMAP\_t PTR dragon = NULL
+	DIM AS BITMAP_t PTR dragon = NULL
 
 	ILBM LOAD BITMAP "PROGDIR:imgs/dragon.iff", dragon, 1
 
@@ -35,7 +35,7 @@ Syntax:
 
 load a bitmap from an IFF ILBM file stream. See ILBM LOAD BITMAP for details.
 
-## ILBM\_META\_t
+## ILBM_META_t
 
 Structure of IFF ILBM image meta data information:
 
@@ -69,12 +69,12 @@ Syntax:
 load an instrument from an IFF 8SVX file
 
 Arguments:
-    * path: pathname of the file to load the instrument from
-    * w: reference to a WAVE\_t pointer
+ * path: pathname of the file to load the instrument from
+ * w: reference to a WAVE_t pointer
 
 Example:
 
-    DIM AS WAVE\_t PTR w = NULL
+    DIM AS WAVE_t PTR w = NULL
     IFF8SVX LOAD WAVE "PROGDIR:/8svx/BassGt.8svx", w
 
 

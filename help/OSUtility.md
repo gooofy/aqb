@@ -3,11 +3,12 @@
 
 OSUtility is a low level utility.library AQB interface.
 
-CONST AS LONG TAGFILTER\_AND        = 0
-CONST AS LONG TAGFILTER\_NOT        = 1
+```
+CONST AS LONG TAGFILTER_AND        = 0
+CONST AS LONG TAGFILTER_NOT        = 1
 
-CONST AS LONG MAP\_REMOVE\_NOT\_FOUND = 0
-CONST AS LONG MAP\_KEEP\_NOT\_FOUND   = 1
+CONST AS LONG MAP_REMOVE_NOT_FOUND = 0
+CONST AS LONG MAP_KEEP_NOT_FOUND   = 1
 
 TYPE ClockData
     AS UINTEGER     sec
@@ -20,14 +21,14 @@ TYPE ClockData
 END TYPE
 
 TYPE Hook
-    REM FIXME? AS MinNode     h\_MinNode
-    AS VOID PTR           h\_MinNode\_mln\_Succ
-    AS VOID PTR           h\_MinNode\_mln\_Pred
+    REM FIXME? AS MinNode     h_MinNode
+    AS VOID PTR           h_MinNode_mln_Succ
+    AS VOID PTR           h_MinNode_mln_Pred
 
-    AS FUNCTION AS ULONG  h\_Entry
-    AS FUNCTION AS ULONG  h\_SubEntry
+    AS FUNCTION AS ULONG  h_Entry
+    AS FUNCTION AS ULONG  h_SubEntry
 
-    AS VOID PTR           h\_Data
+    AS VOID PTR           h_Data
 END TYPE
 
 PUBLIC EXTERN UtilityBase AS VOID PTR
@@ -56,5 +57,5 @@ DECLARE FUNCTION ToLower              (character AS UBYTE                       
 DECLARE FUNCTION ToUpper              (character AS UBYTE                                                   ) AS UBYTE       LIB -174 UtilityBase (d0)
 DECLARE FUNCTION UDivMod32            (dividend AS ULONG, divisor AS ULONG                                  ) AS ULONG       LIB -156 UtilityBase (d0, d1)
 DECLARE FUNCTION UMult32              (factor1 AS ULONG, factor2 AS ULONG                                   ) AS ULONG       LIB -144 UtilityBase (d0, d1)
-
+```
 
