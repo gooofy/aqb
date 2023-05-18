@@ -1,7 +1,6 @@
 include ../config.mk
 
 AQBFLAGS     = -L ../src/lib -d _brt
-AQBFLAGS_OPT = -O -L ../src/lib -d _brt
 
 SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 		const1.bas const2.bas const3.bas constprop.bas \
@@ -36,22 +35,14 @@ ASMDIR_AMIGAOS_TESTS = aqb_tests/asm
 OBJDIR_AMIGAOS_TESTS = aqb_tests/obj
 BINDIR_AMIGAOS_TESTS = aqb_tests/bin
 
-ASMDIR_AMIGAOS_TESTS_OPT = aqb_tests_opt/asm
-OBJDIR_AMIGAOS_TESTS_OPT = aqb_tests_opt/obj
-BINDIR_AMIGAOS_TESTS_OPT = aqb_tests_opt/bin
-
 #ASMS = $(patsubst %,${EMUDIR}/${ASMDIR_AMIGAOS_TESTS}/%.s,$(basename $(SRCS)))
 #OBJS = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_TESTS}/%.o,$(basename $(SRCS)))
 BINS = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS}/%,$(basename $(SRCS)))
 
-#ASMS_OPT = $(patsubst %,${EMUDIR}/${ASMDIR_AMIGAOS_TESTS_OPT}/%.s,$(basename $(SRCS)))
-#OBJS_OPT = $(patsubst %,${EMUDIR}/${OBJDIR_AMIGAOS_TESTS_OPT}/%.o,$(basename $(SRCS)))
-BINS_OPT = $(patsubst %,${EMUDIR}/${BINDIR_AMIGAOS_TESTS_OPT}/%,$(basename $(SRCS)))
-
 .PHONY: clean all mod1 subtest11 dirs runtests
-.PRECIOUS: $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s $(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
+.PRECIOUS: $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)/%.s
 
-all: dirs $(BINS) $(BINS_OPT) mod1 subtest11 runtests
+all: dirs $(BINS) mod1 subtest11 runtests
 
 $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : %.bas
 	$(AQB) $(AQBFLAGS) -a $(EMUDIR)/${ASMDIR_AMIGAOS_TESTS}/$<.s -o $@ $<
@@ -63,19 +54,6 @@ $(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : %.bas
 #	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
 #
 #$(BINS) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)/%.o
-#	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/_brt/_brt.a -o $@
-#	$(STRIP_AMIGAOS) $@
-
-$(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/% : %.bas
-	$(AQB) $(AQBFLAGS_OPT) -a $(EMUDIR)/${ASMDIR_AMIGAOS_TESTS_OPT}/$<.s -o $@ $<
-
-#$(ASMS_OPT) : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)/%.s : %.bas
-#	$(AQB) $(AQBFLAGS_OPT) -a $@ $<
-#
-#$(OBJS_OPT) : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)/%.o : $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)/%.s
-#	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@
-#
-#$(BINS_OPT) : $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/% : $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)/%.o
 #	$(LD_AMIGAOS) ../src/lib/_brt/startup.o $< ../src/lib/_brt/_brt.a -o $@
 #	$(STRIP_AMIGAOS) $@
 
@@ -96,7 +74,6 @@ runtests:
 
 test: all
 	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/$$BN" || break ; done
-	for t in $(BINS); do BN=`basename $$t` ; echo "$(LXA) -r $(LXA_ROM) \"$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN\"" ; $(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)/$$BN" || break ; done
 
 single:
 	$(LXA) -r $(LXA_ROM) "$(WORKDIR)/$(BINDIR_AMIGAOS_TESTS)/opbool2"
@@ -105,9 +82,6 @@ clean:
 	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)
 	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)
 	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)
-	rm -rf $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)
-	rm -rf $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)
-	rm -rf $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)
 	cd mod1 ; make clean
 	cd subtest11 ; make clean
 
@@ -115,7 +89,4 @@ dirs:
 	mkdir -p $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS)
 	mkdir -p $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS)
 	mkdir -p $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS)
-	mkdir -p $(EMUDIR)/$(ASMDIR_AMIGAOS_TESTS_OPT)
-	mkdir -p $(EMUDIR)/$(OBJDIR_AMIGAOS_TESTS_OPT)
-	mkdir -p $(EMUDIR)/$(BINDIR_AMIGAOS_TESTS_OPT)
 

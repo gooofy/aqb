@@ -3,7 +3,7 @@
  *
  * Licensed under the MIT License
  *
- * Copyright (c) 2020, 2021 G. Bartsch
+ * Copyright (c) 2020, 2021, 2022, 2023 G. Bartsch
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,6 @@ extern struct DOSBase       *DOSBase;
 #include "frontend.h"
 #include "errormsg.h"
 #include "codegen.h"
-#include "regalloc.h"
 #include "options.h"
 #include "env.h"
 #include "link.h"
@@ -76,7 +75,6 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "usage: %s [ options ] <program.bas>\n", argv[0]);
     fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
 	fprintf(stderr, "    -L <dir>     look in <dir> for modules\n");
-	fprintf(stderr, "    -O           enable optimizer\n");
 	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
 	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
 	fprintf(stderr, "    -B <foo.s>   create vasm source file\n");
@@ -255,9 +253,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 OPT_addModulePath(argv[optind]);
-				break;
-        	case 'O':
-				OPT_set(OPTION_RACOLOR, TRUE);
 				break;
         	case 'I':
 				hasCode = FALSE;

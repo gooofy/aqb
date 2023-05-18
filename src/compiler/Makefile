@@ -3,7 +3,7 @@ include ../../config.mk
 SRCS = 	aqb.c scanner.c hashmap.c util.c frontend.c ide.c ide_con.c options.c \
 		errormsg.c symbol.c link.c linscan.c ui_linux.c ui_amiga.c debug.c \
 		temp.c assem.c env.c types.c compiler.c logger.c dis68k.c \
-		codegen.c regalloc.c liveness.c color.c flowgraph.c table.c tui.c \
+		codegen.c table.c tui.c \
 		cstub.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))

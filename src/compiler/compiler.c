@@ -9,7 +9,7 @@
 #include "codegen.h"
 #include "env.h"
 #include "frontend.h"
-#include "regalloc.h"
+#include "linscan.h"
 #include "errormsg.h"
 #include "options.h"
 #include "link.h"
@@ -188,7 +188,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         LOG_printf(OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "<<<<<<<<<<<<<<<<<<<<< Proc %s AS stmt list after codegen, before regalloc.\n", Temp_labelstring(label));
         U_memstat();
 
-        if (!RA_regAlloc(frame, body) || EM_anyErrors)
+        if (!LS_regalloc(frame, body) || EM_anyErrors)
         {
             LOG_printf (LOG_ERROR, "\n\nregister allocation failed - exiting.\n");
             CO_exit(EXIT_FAILURE);

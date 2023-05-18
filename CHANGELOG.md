@@ -21,6 +21,7 @@ Improvements:
     * compiler: [breaking] CLASS/END CLASS, INTERFACE/END INTERFACE added
     * compiler: [breaking] introduced new ANY, removed VOID type
     * compiler: generate proper error message when a constant is assigned to (#24)
+    * compiler: always linear scan for register allocation instead of graph coloring
 
 Bug Fixes:
 
@@ -37,6 +38,7 @@ Bug Fixes:
     * linker: fix common symbols
     * runtime: fix FFP to string conversion bugs
     * adapted to bebbo's current GCC
+    * compiler: fix FFP power for negative operands (#50)
 
 Requirements:
     * OS 3.1 (V39)
