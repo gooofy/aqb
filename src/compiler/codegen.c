@@ -1856,9 +1856,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     emitBinOpJsr (code, pos, frame, "___pow_u4", left, right, ty);
                                     return;
                                 case Ty_single:
-                                    CG_loadVal (code, pos, frame, left);
-                                    CG_loadVal (code, pos, frame, right);
-                                    emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    emitBinOpJsr (code, pos, frame, "___pow_single", left, right, ty);
+                                    //CG_loadVal (code, pos, frame, left);
+                                    //CG_loadVal (code, pos, frame, right);
+                                    //emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     return;
                                 default:
                                     assert(FALSE);
@@ -2715,9 +2716,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     break;
                                 }
                                 case Ty_single:
-                                    CG_loadVal (code, pos, frame, left);
-                                    CG_loadVal (code, pos, frame, right);
-                                    emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    emitBinOpJsr (code, pos, frame, "___pow_single", left, right, ty);
+                                    //CG_loadVal (code, pos, frame, left);
+                                    //CG_loadVal (code, pos, frame, right);
+                                    //emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     return;
                                 default:
                                     assert(FALSE);
@@ -2749,9 +2751,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     emitBinOpJsr (code, pos, frame, "___pow_u4", left, right, ty);
                                     return;
                                 case Ty_single:
-                                    CG_loadVal (code, pos, frame, left);
-                                    CG_loadVal (code, pos, frame, right);
-                                    emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
+                                    emitBinOpJsr (code, pos, frame, "___pow_single", left, right, ty);
+                                    //CG_loadVal (code, pos, frame, left);
+                                    //CG_loadVal (code, pos, frame, right);
+                                    //emitRegCall (code, pos, "_MathTransBase", LVOSPPow, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     return;
                                 default:
                                     assert(FALSE);

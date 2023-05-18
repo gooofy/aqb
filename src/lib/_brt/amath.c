@@ -7,6 +7,9 @@
 #include <clib/mathffp_protos.h>
 #include <inline/mathffp.h>
 
+#include <clib/mathtrans_protos.h>
+#include <inline/mathtrans.h>
+
 static FLOAT g_one_half, g_zero, g_65535, g_100;
 
 /*
@@ -406,6 +409,21 @@ FLOAT __aqb_or_single(FLOAT af, FLOAT bf)
     return SPFlt(a | b);
 }
 
+FLOAT __pow_single(FLOAT base, FLOAT exp)
+{
+    FLOAT z = SPPow(exp, base);
+
+    LONG e = SPFix(exp);
+    if ((e % 2)==1)
+    {
+        if (SPTst(base)<0)
+            z = SPNeg(z);
+    }
+    //DPRINTF ("amath: pow(): e=%ld\n", e);
+
+    return z;
+}
+
 // gcc FLOAT -> FFP support
 
 FLOAT __floatsisf(SItype a)
@@ -528,5 +546,7 @@ void _amath_init(void)
     g_65535     = SPFlt(65535);
     g_lastRnd   = RND_(g_65535);
     g_rangeSeed = INITIAL_RND_SEED;
+    //g_one       = SPFlt(1);
+    //g_negone    = SPFlt(-1);
 }
 

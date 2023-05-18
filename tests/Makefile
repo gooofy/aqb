@@ -11,7 +11,10 @@ SRCS = cond1.bas cond2.bas cond3.bas cond4.bas cond5.bas cond6.bas \
 		extcall2.bas \
 		loop1.bas loop2.bas loop3.bas loop4.bas loop5.bas loop6.bas loop7.bas loop8.bas \
 		loop9.bas loop10.bas loop11.bas loop12.bas loop13.bas loop14.bas loop15.bas \
-	    opbool1.bas opbool2.bas opbyte.bas opint.bas oplong.bas opsingle.bas opubyte.bas opuint.bas opulong.bas \
+	    opbool1.bas opbool2.bas \
+		opbyte.bas opint.bas oplong.bas \
+		opsingle1.bas opsingle2.bas \
+		opubyte.bas opuint.bas opulong.bas \
 	    oop1.bas oop2.bas oop3.bas oop4.bas oop5.bas oop6.bas oop7.bas oop8.bas oop9.bas \
 		oop10.bas oop11.bas oop12.bas oop13.bas oop14.bas oop15.bas oop16.bas oop17.bas \
 	    coll1.bas coll2.bas coll3.bas coll4.bas coll5.bas \
