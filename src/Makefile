@@ -1,6 +1,6 @@
-.PHONY: clean all compiler lib amigasupport commonrt
+.PHONY: clean all compiler lib amigasupport
 
-all: amigasupport compiler lib commonrt
+all: amigasupport compiler lib
 
 amigasupport:
 	cd amigasupport ; make all
@@ -11,11 +11,7 @@ compiler:
 lib:
 	cd lib ; make all
 
-commonrt:
-	cd commonrt ; make all
-
 clean:
 	cd amigasupport ; make clean
 	cd compiler ; make clean
 	cd lib ; make clean
-	cd commonrt ; make clean
