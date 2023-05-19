@@ -1,6 +1,12 @@
 #ifndef HAVE_BRT_H
 #define HAVE_BRT_H
 
+/**********************************************************************
+ **                                                                  **
+ **  _brt: BASIC runtime, minimal AQB runtime module                 **
+ **                                                                  **
+ **********************************************************************/
+
 #include <exec/types.h>
 #include <clib/dos_protos.h>
 
@@ -8,6 +14,113 @@ extern struct ExecBase      *SysBase;
 extern struct DOSBase       *DOSBase;
 extern struct MathBase      *MathBase;
 extern struct MathTransBase *MathTransBase;
+
+/********************************************************************
+ *                                                                  *
+ *  startup / init                                                  *
+ *  --------------                                                  *
+ *                                                                  *
+ *  startup.S   - call _cstartup()                                  *
+ *              - do a stack swap if requested                      * 
+ *              - call _aqb_main()                                  *
+ *                                                                  *
+ *  _cstartup() - open libraries                                    *
+ *              - call _autil_init()                                *
+ *              - setup CTRL-C handler                              *
+ *              - call _astr_init(), _amath_init(), _aio_init()     *
+ *                                                                  *
+ *                                                                  *
+ *  shutdown / exit                                                 *
+ *  ---------------                                                 *
+ *                                                                  *
+ *  _autil_exit() is implemented in startup.S.                      *
+ *  _autil_exit() calls _c_atexit()                                 *
+ *                                                                  *
+ *  _c_atexit() - run exit handlers registered via ON_EXIT_CALL()   *
+ *              - remove CTRL-C handler                             *
+ *              - run _aio_shutdown, _autil_shutdown                *
+ *              - close libraries                                   *
+ *                                                                  *
+ *  _cshutdown() - print error message if possible                  *
+ *               - call _autil_exit()                               *
+ *                                                                  *
+ *                                                                  *
+ *  stack swap                                                      *
+ *  ----------                                                      *
+ *                                                                  *
+ *  if _aqb_stack_size in nonzero, a custom stack will be allocated *
+ *  for the application. AllocVec() is done in _cstartup,           *
+ *  Exec's StackSwap() is then called from startup.s                *
+ *                                                                  *
+ *  FIXME: check for current stack size, swap stack only if         *
+ *         _aqb_stack_size is larger then what we have already      *
+ *                                                                  *
+ ********************************************************************/
+
+void _cstartup       (void);             // implemented in cstartup.c, called by startup.S
+
+void _autil_init     (void);
+void _amath_init     (void);
+void _astr_init      (void);
+void _aio_init       (void);
+
+void  _cshutdown     (LONG return_code, UBYTE *msg); // implemented in cstartup.c, calls _autil_exit()
+void _autil_exit     (LONG return_code); // implemented in startup.S
+void _c_atexit       (void);             // implemented in cstartup.c, called by _autil_exit()
+void ON_EXIT_CALL    (void (*cb)(void)); // register exit handler to be called from _c_atexit()
+void _autil_shutdown (void);
+void _aio_shutdown   (void);
+
+void SYSTEM          (void);             // BASIC command, calls _autil_exit(0)
+
+// stack swap support
+extern ULONG         _aqb_stack_size;
+extern ULONG        *_g_stack;
+
+// startup mode
+#define STARTUP_CLI    1    // started from shell/cli
+#define STARTUP_WBENCH 2    // started from workbench
+#define STARTUP_DEBUG  3    // started from debugger/ide
+
+extern USHORT   _startup_mode;
+
+/********************************************************************
+ *                                                                  *
+ * CTRL-C / CTRL-D (DEBUG) BREAK handling                           *
+ *                                                                  *
+ * _brt installs an input handler (via input.device) which will     *
+ * (just) the set _break_status global variable when a              *
+ * CTRL-C/CTRL-D input event occurs.                                *
+ *                                                                  *
+ * the application needs to check for this condition at strategic   *
+ * locations regularly and call __handle_break() or handle break    *
+ * conditions internally. _aqb will do this during signal handling  *
+ * (i.e. SLEEP) automatically, for example.                         *
+ *                                                                  * 
+ * The CHKBRK macro is provided for convenience.                    *
+ *                                                                  *
+ * __handle_break() will call the break_handler first if one is     *
+ * registered via atbreak(). If this returns false or no            *
+ * break_handler is registered, __handle_break() will either        *
+ * generate a debugger TRAP if a debugger is connected or           *
+ * _autil_exit() otherwise.                                         *
+ *                                                                  *
+ ********************************************************************/
+
+#define BREAK_CTRL_C    1
+#define BREAK_CTRL_D    2
+
+extern USHORT _break_status;
+
+#define CHKBRK if (_break_status) __handle_break()
+
+void __handle_break(void);
+
+/********************************************************************
+ *                                                                  *
+ *  memory management                                               *
+ *                                                                  *
+ ********************************************************************/
 
 APTR   ALLOCATE_   (ULONG size, ULONG flags);
 void   DEALLOCATE  (APTR ptr);
@@ -22,10 +135,13 @@ UBYTE  PEEK_       (ULONG adr);
 USHORT PEEKW_      (ULONG adr);
 ULONG  PEEKL_      (ULONG adr);
 
-void _autil_init(void);
-void _autil_shutdown(void);
+/********************************************************************
+ *                                                                  *
+ *  debug / trace utils                                             *
+ *                                                                  *
+ ********************************************************************/
 
-// BASIC error handling, utils
+void   _AQB_ASSERT   (BOOL b, const UBYTE *msg);
 
 void _DEBUG_PUTC   (const char c);
 void _DEBUG_PUTS   (const UBYTE *s);
@@ -50,12 +166,17 @@ void dprintf(const char *format, ...);
 
 #define DPRINTF(...) dprintf(__VA_ARGS__)
 
-
 #else
 
 #define DPRINTF(...)
 
 #endif
+
+/********************************************************************
+ *                                                                  *
+ *  BASIC error handling                                            *
+ *                                                                  *
+ ********************************************************************/
 
 #define ERR_OUT_OF_DATA                4
 #define ERR_ILLEGAL_FUNCTION_CALL      5
@@ -68,30 +189,18 @@ void dprintf(const char *format, ...);
 #define ERR_IO_ERROR                  57
 #define ERR_BAD_FILE_NAME             64
 
-void   _AQB_ASSERT   (BOOL b, const UBYTE *msg);
 void   ERROR         (SHORT errcode);
 void   RESUME_NEXT   (void);
 void   ON_ERROR_CALL (void (*cb)(void));
-void   ON_EXIT_CALL  (void (*cb)(void));
 void   ON_BREAK_CALL (void (*cb)(void));
-void   _autil_exit   (LONG return_code); // implemented in startup.s
 
-void   _cshutdown    (LONG return_code, UBYTE *msg); // implemented in cstartup.c
-
-FLOAT  TIMER_        (void);
-STRPTR DATE_         (void);
-void   SLEEP_FOR     (FLOAT s);
-
-void   SYSTEM        (void);
-
-// program startup mode / debugger connection
-
-#define STARTUP_CLI    1    // started from shell/cli
-#define STARTUP_WBENCH 2    // started from workbench
-#define STARTUP_DEBUG  3    // started from debugger/ide
-
-extern USHORT   _startup_mode;
 extern BOOL     _do_resume;     // set by RESUME NEXT
+
+/********************************************************************
+ *                                                                  *
+ *  debugger connection                                             *
+ *                                                                  *
+ ********************************************************************/
 
 #define DEBUG_SIG 0xDECA11ED
 
@@ -117,41 +226,7 @@ struct DebugMsg
 
 extern struct DebugMsg *__StartupMsg;
 
-// stack swap support
-
-extern ULONG                   _aqb_stack_size;
-extern ULONG                  *_g_stack;
-
-// CTRL-C / CTRL-D (DEBUG) BREAK handling
-
-#define BREAK_CTRL_C    1
-#define BREAK_CTRL_D    2
-
-extern USHORT _break_status;
-
-#define CHKBRK if (_break_status) __handle_break()
-
-void __handle_break(void);
-
 //void *memset (void *dst, register int c, register int n);
-
-#if 0  // exec has these already
-
-#define BOOL char
-
-#define TRUE   1
-#define FALSE  0
-
-#define BYTE   char
-#define UBYTE  unsigned char
-
-#define SHORT  short
-#define USHORT unsigned short
-
-#define LONG   long
-#define ULONG  unsigned long
-
-#endif
 
 //typedef long int SFVALUE;
 #ifndef SItype
@@ -159,13 +234,19 @@ void __handle_break(void);
 #endif
 
 /*
+ * time and date
+ */
+
+FLOAT  TIMER_        (void);
+STRPTR DATE_         (void);
+void   SLEEP_FOR     (FLOAT s);
+
+/*
  * amath
  */
 
 #define INTEGER_MIN -32768
 #define INTEGER_MAX 32767
-
-void _amath_init(void);
 
 //FLOAT MOD_  (FLOAT divident, FLOAT divisor);
 
@@ -180,8 +261,6 @@ FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
 /*
  * string handling
  */
-
-void _astr_init           (void);
 
 void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space, BOOL positive_sign);
 void _astr_itoa           (LONG num, UBYTE *str, LONG base);
@@ -357,9 +436,6 @@ extern _aio_gets_cb_t        _aio_gets_cb;
 extern _aio_cls_cb_t         _aio_cls_cb;
 extern _aio_locate_cb_t      _aio_locate_cb;
 extern _autil_sleep_for_cb_t _autil_sleep_for_cb;
-
-void _aio_init                   (void);
-void _aio_shutdown               (void);
 
 void _AIO_PUTS4                  (USHORT fno, LONG num);
 void _AIO_PUTS2                  (USHORT fno, SHORT num);
