@@ -19,6 +19,9 @@ const char *FE_filename = NULL;
 E_module FE_mod = NULL;
 static E_module _g_modDefault = NULL; // default module specified on compiler commandline, NULL when compiling _brt
 
+// global / static variables
+static CG_frame g_globalFrame = NULL;
+
 // map of builtin subs and functions that special parse functions:
 static TAB_table g_parsefs; // proc -> bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp)
 
@@ -457,7 +460,7 @@ static void autovar (CG_item *var, S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty type
     if (frame->statc)
     {
         string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), s);
-        CG_allocVar (var, CG_globalFrame(), varId, /*expt=*/FALSE, t);
+        CG_allocVar (var, g_globalFrame, varId, /*expt=*/FALSE, t);
     }
     else
     {
@@ -2916,7 +2919,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             if (external)
                 CG_externalVar (&var, S_name(sVar), t);
             else
-                CG_allocVar    (&var, CG_globalFrame(), S_name(sVar), /*expt=*/!isPrivate, t);
+                CG_allocVar    (&var, g_globalFrame, S_name(sVar), /*expt=*/!isPrivate, t);
 
             E_declareVFC(FE_mod->env, sVar, &var);
         }
@@ -2942,7 +2945,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             if (statc || g_sleStack->frame->statc)
             {
                 string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(g_sleStack->frame->name), "_"), S_name(sVar));
-                CG_allocVar (&var, CG_globalFrame(), varId, /*expt=*/FALSE, t);
+                CG_allocVar (&var, g_globalFrame, varId, /*expt=*/FALSE, t);
             }
             else
             {
@@ -4355,7 +4358,7 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (frame->statc)
         {
             string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), S_name(sLoopVar));
-            CG_allocVar(loopVar, CG_globalFrame(), varId, /*expt=*/FALSE, varTy);
+            CG_allocVar(loopVar, g_globalFrame, varId, /*expt=*/FALSE, varTy);
         }
         else
         {
@@ -9168,9 +9171,19 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         label = Temp_namedlabel(strprintf(UP_frontend, "__%s_init", module_name));
     }
 
-    CG_frame frame = CG_Frame(0, label, NULL, /*statc=*/TRUE);
+    /*
+     * g_globalFrame is where static variables end up (possibly being visible to the linker by their label)
+     */
 
-    assert(frame); // FIXME: remove
+    g_globalFrame = CG_Frame(0, /*name=*/NULL, /*formals=*/NULL, /*statc=*/TRUE);
+    g_globalFrame->globl = TRUE;
+
+    /*
+     * moduleFrame is for module-global (possibly anonymous/temp) variables that
+     * still reside within _aqb_main()'s or __<module>_init()'s stack frame
+     */
+
+    CG_frame moduleFrame = CG_Frame (0, label, /*formals=*/NULL, /*statc=*/TRUE);
 
     /*
      * nested envs / scopes (example)
@@ -9210,7 +9223,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     g_sleStack = NULL;
     CG_item rv;
     CG_NoneItem(&rv);
-    slePush(FE_sleTop, /*pos=*/0, frame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
+    slePush(FE_sleTop, /*pos=*/0, moduleFrame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
     g_prog = g_sleStack->code;
 
     // static initializers
@@ -9303,7 +9316,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
             CG_itemList arglist = CG_ItemList();
             CG_itemListNode n = CG_itemListAppend(arglist);
             CG_HeapPtrItem (&n->item, g_dataRestoreLabel, Ty_AnyPtr());
-            CG_loadRef(initCode, /*pos=*/0, frame, &n->item);
+            CG_loadRef(initCode, /*pos=*/0, moduleFrame, &n->item);
             CG_transCall (initCode, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
             AS_instrListPrependList (g_prog, initCode);
         }
@@ -9363,7 +9376,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     if (!g_prog->first)
         CG_transNOP (g_prog, 0);
 
-    CG_procEntryExit (0, frame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+    CG_procEntryExit (0, moduleFrame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
 
     // stack size (used in _brt stackswap)
 

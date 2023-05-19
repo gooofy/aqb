@@ -153,13 +153,6 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
     return f;
 }
 
-static CG_frame global_frame = NULL;
-
-CG_frame CG_globalFrame (void)
-{
-    return global_frame;
-}
-
 void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset)
 {
     //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo starts\n");
@@ -4697,15 +4690,5 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
 void CG_init (void)
 {
     g_fragList = NULL;
-
-    global_frame = U_poolAlloc (UP_codegen, sizeof(*global_frame));
-
-    global_frame->name          = NULL;
-    global_frame->statc         = TRUE;
-    global_frame->statc_labels  = hashmap_new(UP_codegen); // used to make static var labels unique
-    global_frame->formals       = NULL;
-    global_frame->globl         = TRUE;
-    global_frame->locals_offset = 0;
-    global_frame->vars          = NULL;
 }
 

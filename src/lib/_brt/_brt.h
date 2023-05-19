@@ -96,7 +96,7 @@ extern USHORT   _startup_mode;
  * locations regularly and call __handle_break() or handle break    *
  * conditions internally. _aqb will do this during signal handling  *
  * (i.e. SLEEP) automatically, for example.                         *
- *                                                                  * 
+ *                                                                  *
  * The CHKBRK macro is provided for convenience.                    *
  *                                                                  *
  * __handle_break() will call the break_handler first if one is     *
@@ -126,6 +126,8 @@ APTR   ALLOCATE_   (ULONG size, ULONG flags);
 void   DEALLOCATE  (APTR ptr);
 void   _MEMSET     (BYTE *dst, BYTE c, ULONG n);
 ULONG  FRE_        (SHORT x);
+
+void   GC_RUN      (void);
 
 void   POKE        (ULONG adr, UBYTE  b);
 void   POKEW       (ULONG adr, USHORT w);

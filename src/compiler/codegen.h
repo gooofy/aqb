@@ -120,7 +120,6 @@ struct CG_ral_
 CG_ral          CG_RAL              (Temp_temp arg, Temp_temp reg, CG_ral next);
 
 CG_frame        CG_Frame            (S_pos pos, Temp_label name, Ty_formal formals, bool statc);
-CG_frame        CG_globalFrame      (void);
 void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, Ty_ty ty, int offset);
 
 void            CG_ConstItem        (CG_item *item, Ty_const c);
