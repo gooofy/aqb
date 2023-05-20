@@ -594,10 +594,11 @@ void Ty_defineRange(Ty_ty ty, char lstart, char lend)
 }
 
 // infer type from the var name
-Ty_ty Ty_inferType(string varname)
+Ty_ty Ty_inferType(S_symbol s)
 {
-    int  l = strlen(varname);
-    char postfix = varname[l-1];
+    string varname = S_name(s);
+    int    l       = strlen(varname);
+    char   postfix = varname[l-1];
 
     switch (postfix)
     {

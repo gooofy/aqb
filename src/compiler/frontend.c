@@ -451,20 +451,19 @@ static void autovar (CG_item *var, S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty type
             return ;
     }
 
-    string s = S_name(v);
-    Ty_ty t = typeHint ? typeHint : Ty_inferType(s);
+    Ty_ty t = typeHint ? typeHint : Ty_inferType(v);
 
     if (OPT_get(OPTION_EXPLICIT) && !typeHint)
-        EM_error(pos, "undeclared identifier %s", s);
+        EM_error(pos, "undeclared identifier %s", S_name(v));
 
     if (frame->statc)
     {
-        string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), s);
-        CG_allocVar (var, g_globalFrame, varId, /*expt=*/FALSE, t);
+        string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), S_name(v));
+        CG_allocVar (var, g_globalFrame, S_Symbol(varId), /*expt=*/FALSE, t);
     }
     else
     {
-        CG_allocVar (var, frame, s, /*expt=*/FALSE, t);
+        CG_allocVar (var, frame, v, /*expt=*/FALSE, t);
     }
 
     E_declareVFC(g_sleStack->env, v, var);
@@ -1371,7 +1370,7 @@ static bool transConst(S_pos pos, Ty_ty t, CG_item *item)
 static bool transConstDecl(S_pos pos, S_pos posExp, Ty_ty t, S_symbol name, CG_item *item, bool isPrivate)
 {
     if (!t)
-        t = Ty_inferType(S_name(name));
+        t = Ty_inferType(name);
 
     if (!transConst(posExp, t, item))
         return FALSE;
@@ -2837,7 +2836,7 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
 static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool preserve, bool redim, bool external, bool isPrivate, FE_dim dims)
 {
     if (!t)
-        t = Ty_inferType(S_name(sVar));
+        t = Ty_inferType(sVar);
     assert(t);
 
     if (!Ty_isAllocatable(t))
@@ -2917,9 +2916,9 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         if (CG_isNone(&var))
         {
             if (external)
-                CG_externalVar (&var, S_name(sVar), t);
+                CG_externalVar (&var, sVar, t);
             else
-                CG_allocVar    (&var, g_globalFrame, S_name(sVar), /*expt=*/!isPrivate, t);
+                CG_allocVar    (&var, g_globalFrame, sVar, /*expt=*/!isPrivate, t);
 
             E_declareVFC(FE_mod->env, sVar, &var);
         }
@@ -2945,11 +2944,11 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
             if (statc || g_sleStack->frame->statc)
             {
                 string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(g_sleStack->frame->name), "_"), S_name(sVar));
-                CG_allocVar (&var, g_globalFrame, varId, /*expt=*/FALSE, t);
+                CG_allocVar (&var, g_globalFrame, S_Symbol(varId), /*expt=*/FALSE, t);
             }
             else
             {
-                CG_allocVar (&var, g_sleStack->frame, S_name(sVar), /*expt=*/FALSE, t);
+                CG_allocVar (&var, g_sleStack->frame, sVar, /*expt=*/FALSE, t);
             }
             E_declareVFC (g_sleStack->env, sVar, &var);
         }
@@ -4318,7 +4317,7 @@ static void _insertBreakCheck(S_pos pos)
 
     CG_item test;
     CG_item zero;
-    CG_externalVar (&test, "_break_status", Ty_Integer());
+    CG_externalVar (&test, S_Symbol("_break_status"), Ty_Integer());
     CG_ZeroItem (&zero, Ty_Integer());
     CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, CG_ne, &test, &zero);
     CG_loadCond (g_sleStack->code, pos, g_sleStack->frame, &test);
@@ -4358,11 +4357,11 @@ static bool stmtForBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (frame->statc)
         {
             string varId = strconcat(UP_frontend, strconcat(UP_frontend, Temp_labelstring(frame->name), "_"), S_name(sLoopVar));
-            CG_allocVar(loopVar, g_globalFrame, varId, /*expt=*/FALSE, varTy);
+            CG_allocVar(loopVar, g_globalFrame, S_Symbol(varId), /*expt=*/FALSE, varTy);
         }
         else
         {
-            CG_allocVar(loopVar, frame, S_name(sLoopVar), /*expt=*/FALSE, varTy);
+            CG_allocVar(loopVar, frame, sLoopVar, /*expt=*/FALSE, varTy);
         }
         E_declareVFC(lenv, sLoopVar, loopVar);
     }
@@ -5921,7 +5920,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     }
 
                     if (!ty)
-                        ty = Ty_inferType(S_name(name));
+                        ty = Ty_inferType(name);
 
                     if (isArray)
                     {
@@ -6268,7 +6267,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
                 return EM_error((*tkn)->pos, "return type descriptor expected here.");
         }
         if (!returnTy)
-            returnTy = Ty_inferType(S_name(name));
+            returnTy = Ty_inferType(name);
     }
     else
         returnTy = NULL;
@@ -7848,7 +7847,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     }
                     else
                     {
-                        ty = Ty_inferType(S_name(sField));
+                        ty = Ty_inferType(sField);
                     }
 
                     if (!isLogicalEOL(*tkn))
@@ -9161,21 +9160,11 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     userLabels  = TAB_empty(UP_frontend);
 
-    Temp_label label;
-    if (is_main)
-    {
-        label = Temp_namedlabel(AQB_MAIN_NAME);
-    }
-    else
-    {
-        label = Temp_namedlabel(strprintf(UP_frontend, "__%s_init", module_name));
-    }
-
     /*
      * g_globalFrame is where static variables end up (possibly being visible to the linker by their label)
      */
 
-    g_globalFrame = CG_Frame(0, /*name=*/NULL, /*formals=*/NULL, /*statc=*/TRUE);
+    g_globalFrame = CG_Frame(0, /*name=*/is_main ? Temp_namedlabel(strprintf(UP_frontend, "__main_globals")) : Temp_namedlabel(strprintf(UP_frontend, "__%s_globals", module_name)), /*formals=*/NULL, /*statc=*/TRUE);
     g_globalFrame->globl = TRUE;
 
     /*
@@ -9183,7 +9172,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
      * still reside within _aqb_main()'s or __<module>_init()'s stack frame
      */
 
-    CG_frame moduleFrame = CG_Frame (0, label, /*formals=*/NULL, /*statc=*/TRUE);
+    CG_frame moduleFrame = CG_Frame (0, is_main ? Temp_namedlabel(AQB_MAIN_NAME) : Temp_namedlabel(strprintf(UP_frontend, "__%s_init", module_name)), /*formals=*/NULL, /*statc=*/TRUE);
 
     /*
      * nested envs / scopes (example)
@@ -9385,6 +9374,10 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__aqb_stack_size"), /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
         CG_dataFragAddConst (stackSizeFrag, Ty_ConstUInt (Ty_ULong(), g_stack_size));
     }
+
+    // generate frame descriptors
+
+    CG_genFrameDesc (g_globalFrame);
 
     LOG_printf (LOG_DEBUG, "frontend processing done.\n");
     //U_delay(1000);

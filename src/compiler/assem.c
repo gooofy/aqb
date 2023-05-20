@@ -2287,6 +2287,8 @@ bool AS_assembleCode (AS_object obj, AS_instrList il, bool expt, CG_frame frame)
 
         for (CG_frameVarInfo fvi = frame->vars; fvi; fvi=fvi->next)
         {
+            if (!fvi->sym)  // anonymous/temp variable
+                continue;
             LOG_printf (LOG_DEBUG, "assem: adding frame var info fvi=0x%08lx\n", fvi);
             LOG_printf (LOG_DEBUG, "assem: frame debug info: %s\n", S_name (fvi->sym));
             AS_frameMapAddFVI (UP_assem, fmn, fvi->sym, fvi->ty, fvi->offset);

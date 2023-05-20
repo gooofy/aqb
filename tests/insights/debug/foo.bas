@@ -1,6 +1,20 @@
 OPTION EXPLICIT
 
-DIM AS INTEGER a, b
+CLASS myc
+
+    field1 AS INTEGER
+
+    'DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
+
+    'DECLARE FUNCTION Square() AS INTEGER
+
+END CLASS
+
+DIM SHARED AS INTEGER a, b
+
+DIM SHARED AS myc PTR p1
+
+p1 = NEW myc
 
 TRACE "Calling the garbage collector..."
 

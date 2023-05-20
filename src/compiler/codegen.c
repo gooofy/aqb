@@ -153,7 +153,7 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, Ty_formal formals, bool statc)
     return f;
 }
 
-void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset)
+void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset, Temp_label label)
 {
     //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo starts\n");
     CG_frameVarInfo fvi = U_poolAlloc (UP_codegen, sizeof(*fvi));
@@ -162,10 +162,39 @@ void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset)
     fvi->sym     = sym;
     fvi->ty      = ty;
     fvi->offset  = offset;
+    fvi->label   = label;
 
     frame->vars = fvi;
 
     //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo ends.\n");
+}
+
+CG_frag CG_genFrameDesc (CG_frame frame)
+{
+    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "%s_desc", Temp_labelstring(frame->name)));
+    CG_frag descFrag = CG_DataFrag(label, /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
+
+    for (CG_frameVarInfo vi = frame->vars; vi; vi=vi->next)
+    {
+        uint32_t kind = vi->ty->kind;
+        if (vi->label)
+            kind |= 0x8000;
+        CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), kind));
+        if (vi->label)
+            CG_dataFragAddPtr   (descFrag, vi->label);
+        else
+            CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_ULong(), vi->offset));
+        // FIXME
+        //switch (vi->ty->kind)
+        //{
+        //   Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
+        //   Ty_any, Ty_forwardPtr, Ty_procPtr,
+        //   Ty_class, Ty_interface,
+        //   Ty_toLoad, Ty_prc } kind;
+        //}
+    }
+    CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), -1));
+    return descFrag;
 }
 
 void CG_ConstItem (CG_item *item, Ty_const c)
@@ -333,12 +362,13 @@ static void CG_CondItem (CG_item *item, Temp_label l, AS_instr bxx, bool postCon
 }
 
 // replace type suffix, convert to lower cases
-static string varname_to_label(string varname)
+static string varname_to_label(S_symbol s)
 {
-    int  l        = strlen(varname);
-    char postfix  = varname[l-1];
-    string res    = varname;
-    string suffix = NULL;
+    string varname  = S_name(s);
+    int    l        = strlen(varname);
+    char   postfix  = varname[l-1];
+    string res      = varname;
+    string suffix   = NULL;
 
     switch (postfix)
     {
@@ -371,14 +401,14 @@ static string varname_to_label(string varname)
     return res;
 }
 
-void CG_externalVar (CG_item *item, string name, Ty_ty ty)
+void CG_externalVar (CG_item *item, S_symbol name, Ty_ty ty)
 {
     Temp_label label = Temp_namedlabel(varname_to_label(name));
 
     InHeap (item, label, ty);
 }
 
-void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty ty)
+void CG_allocVar (CG_item *item, CG_frame frame, S_symbol name, bool expt, Ty_ty ty)
 {
     if (frame->globl) // global var?
     {
@@ -401,21 +431,21 @@ void CG_allocVar (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty t
 
         InHeap (item, label, ty);
 
-        return;
+        CG_addFrameVarInfo (frame, name, ty, /*offset=*/0, /*label=*/label);
     }
+    else
+    {
+        // local var
 
-    // local var
+        int size = Ty_size(ty);
 
-    int size = Ty_size(ty);
+        frame->locals_offset -= size;
+        // alignment
+        frame->locals_offset -= size % 2;
 
-    frame->locals_offset -= size;
-    // alignment
-    frame->locals_offset -= size % 2;
-
-    InFrame (item, frame->locals_offset, ty);
-
-    if (name && OPT_get (OPTION_DEBUG))
-        CG_addFrameVarInfo (frame, S_Symbol(name), ty, /*offset=*/frame->locals_offset);
+        InFrame (item, frame->locals_offset, ty);
+        CG_addFrameVarInfo (frame, name, ty, /*offset=*/frame->locals_offset, /*label=*/NULL);
+    }
 }
 
 int CG_itemOffset (CG_item *item)

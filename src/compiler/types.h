@@ -198,7 +198,7 @@ bool            Ty_isSigned          (Ty_ty ty);
 bool            Ty_isAllocatable     (Ty_ty ty);
 
 void            Ty_defineRange       (Ty_ty ty, char lstart, char lend);
-Ty_ty           Ty_inferType         (string varname);
+Ty_ty           Ty_inferType         (S_symbol varname);
 string          Ty_removeTypeSuffix  (string varname);
 string          Ty_toString          (Ty_ty t); // debugging purposes only!
 

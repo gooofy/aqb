@@ -1660,7 +1660,7 @@ E_module E_loadModule(S_symbol sModule)
                             LOG_printf(LOG_ERROR, "%s: failed to read variable type.\n", symfn);
                             goto fail;
                         }
-                        CG_externalVar (&var, name, ty);
+                        CG_externalVar (&var, sym, ty);
                         break;
                     }
                 }

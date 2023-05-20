@@ -68,6 +68,7 @@ struct CG_frameVarInfo_
     S_symbol         sym;
     Ty_ty            ty;
     int              offset;
+    Temp_label       label;
 };
 
 struct CG_frame_
@@ -120,7 +121,8 @@ struct CG_ral_
 CG_ral          CG_RAL              (Temp_temp arg, Temp_temp reg, CG_ral next);
 
 CG_frame        CG_Frame            (S_pos pos, Temp_label name, Ty_formal formals, bool statc);
-void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, Ty_ty ty, int offset);
+void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, Ty_ty ty, int offset, Temp_label label);
+CG_frag         CG_genFrameDesc     (CG_frame frame);
 
 void            CG_ConstItem        (CG_item *item, Ty_const c);
 void            CG_BoolItem         (CG_item *item, bool b, Ty_ty ty);
@@ -133,8 +135,8 @@ void            CG_ZeroItem         (CG_item *item, Ty_ty ty);
 void            CG_OneItem          (CG_item *item, Ty_ty ty);
 void            CG_TempItem         (CG_item *item, Ty_ty ty);
 void            CG_NoneItem         (CG_item *item);
-void            CG_externalVar      (CG_item *item, string name, Ty_ty ty);
-void            CG_allocVar         (CG_item *item, CG_frame frame, string name, bool expt, Ty_ty ty);
+void            CG_externalVar      (CG_item *item, S_symbol name, Ty_ty ty);
+void            CG_allocVar         (CG_item *item, CG_frame frame, S_symbol name, bool expt, Ty_ty ty);
 int             CG_itemOffset       (CG_item *item);
 Ty_ty           CG_ty               (CG_item *item);
 enum Temp_w     CG_itemSize         (CG_item *item);
