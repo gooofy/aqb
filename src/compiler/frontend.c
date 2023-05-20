@@ -9028,16 +9028,18 @@ static Ty_ty _resolveForwardPtr(Ty_ty tyForward)
     return Ty_Pointer(FE_mod, tyResolved);
 }
 
-static void _resolveForwardPtrsInProc(Ty_proc proc)
+static void _checkLeftoverForwardPointers(void)
 {
-    for (Ty_formal formal = proc->formals; formal; formal=formal->next)
-        formal->ty = _resolveForwardPtr(formal->ty);
-
-    if (proc->returnTy)
-        proc->returnTy = _resolveForwardPtr(proc->returnTy);
+    TAB_iter iter = TAB_Iter(FE_mod->tyTable);
+    void *key;
+    Ty_ty ty;
+    while (TAB_next(iter, &key, (void **)&ty))
+    {
+        _resolveForwardPtr(ty);
+    }
 }
 
-static void _checkLeftoverForwards(S_scope env)
+static void _checkLeftoverForwardFuncs(S_scope env)
 {
     TAB_iter i = S_Iter(env);
     S_symbol sym;
@@ -9067,44 +9069,16 @@ static void _checkLeftoverForwards(S_scope env)
                 Ty_ty ty = x->u.ty;
                 switch (ty->kind)
                 {
-                    case Ty_record:
-                        for (Ty_member member = ty->u.record.entries->first; member; member=member->next)
-                        {
-                            if (member->kind != Ty_recField)
-                                continue;
-                            if (member->u.field.ty->kind == Ty_forwardPtr)
-                            {
-                                LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(member->name));
-                                Ty_ty tyForward = E_resolveType(g_sleStack->env, member->u.field.ty->u.sForward);
-                                if (!tyForward)
-                                    EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
-
-                                member->u.field.ty = Ty_Pointer(FE_mod, tyForward);
-                            }
-                        }
-                        break;
-
                     case Ty_class:
                         for (Ty_member member = ty->u.cls.members->first; member; member=member->next)
                         {
                             switch (member->kind)
                             {
                                 case Ty_recField:
-                                    if (member->u.field.ty->kind == Ty_forwardPtr)
-                                    {
-                                        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "checking type %s.%s\n", S_name(sym), S_name(member->name));
-                                        Ty_ty tyForward = E_resolveType(g_sleStack->env, member->u.field.ty->u.sForward);
-                                        if (!tyForward)
-                                            EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
-
-                                        member->u.field.ty = Ty_Pointer(FE_mod, tyForward);
-                                    }
                                     break;
                                 case Ty_recMethod:
                                     if (!member->u.method->proc->hasBody && !member->u.method->proc->isExtern)
                                         EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
-                                    else
-                                        _resolveForwardPtrsInProc (member->u.method->proc);
                                     break;
                                 case Ty_recProperty:
                                     member->u.property.ty = _resolveForwardPtr(member->u.property.ty);
@@ -9112,15 +9086,11 @@ static void _checkLeftoverForwards(S_scope env)
                                     {
                                         if (!member->u.property.getter->proc->hasBody && !member->u.property.getter->proc->isExtern)
                                             EM_error(0, "missing implementation of getter for %s.%s", S_name(sym), S_name(member->name));
-                                        else
-                                            _resolveForwardPtrsInProc (member->u.property.getter->proc);
                                     }
                                     if (member->u.property.setter)
                                     {
                                         if (!member->u.property.setter->proc->hasBody && !member->u.property.setter->proc->isExtern)
                                             EM_error(0, "missing implementation of setter for %s.%s", S_name(sym), S_name(member->name));
-                                        else
-                                            _resolveForwardPtrsInProc (member->u.property.setter->proc);
                                     }
                                     break;
                             }
@@ -9322,9 +9292,9 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     // resolve leftover forward ptrs, unimplemented (member) functions
 
-    _checkLeftoverForwards(g_sleStack->env->u.scopes.vfcenv);
-    _checkLeftoverForwards(g_sleStack->env->u.scopes.tenv);
+    _checkLeftoverForwardFuncs(g_sleStack->env->u.scopes.vfcenv);
     _checkLeftoverForwardSubs(g_sleStack->env->u.scopes.senv);
+    _checkLeftoverForwardPointers();
 
     // check for unfinished SLEs
     switch (g_sleStack->kind)

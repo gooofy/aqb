@@ -1339,6 +1339,9 @@ E_module E_loadModule(S_symbol sModule)
             case Ty_procPtr:
                 ty->u.procPtr = E_deserializeTyProc(modTable, modf);
                 break;
+            case Ty_prc:
+                ty->u.proc = E_deserializeTyProc(modTable, modf);
+                break;
 
             case Ty_bool:     break;
             case Ty_byte:     break;
