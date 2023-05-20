@@ -16,6 +16,8 @@
 #define SYM_MAGIC       0x53425141  // AQBS
 #define SYM_VERSION     69
 
+#define MIN_TYPE_UID    256         // leave room for built-in types
+
 E_module g_builtinsModule = NULL;
 
 typedef enum { vfcFunc, vfcConst, vfcVar } vfcKind;
@@ -273,6 +275,18 @@ void E_import(E_module mod, E_module mod2)
     E_envListAppend(mod->env->parents, mod2->env);
 }
 
+uint32_t E_moduleAddType (E_module mod, Ty_ty ty)
+{
+    uint32_t uid = mod->tyUID++;
+    TAB_enter (mod->tyTable, (void *) (intptr_t) uid, ty);
+    return uid;
+}
+
+S_symbol E_moduleName (E_module mod)
+{
+    return mod->name;
+}
+
 E_module E_Module(S_symbol name)
 {
     E_module p = U_poolAlloc (UP_env, sizeof(*p));
@@ -280,6 +294,7 @@ E_module E_Module(S_symbol name)
     p->name        = name;
     p->env         = E_EnvScopes(NULL);
     p->tyTable     = TAB_empty(UP_env);
+    p->tyUID       = MIN_TYPE_UID;
 
     return p;
 }
@@ -410,226 +425,6 @@ static void E_serializeTyConst(TAB_table modTable, Ty_const c)
         default:
             assert(0);
     }
-}
-
-static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty);
-
-static bool E_tyFindTypesInProc(S_symbol smod, TAB_table type_tab, Ty_proc proc)
-{
-    if (!proc)
-        return TRUE;
-    bool ok = TRUE;
-    for (Ty_formal formals = proc->formals; formals; formals=formals->next)
-        ok &= E_tyFindTypes (smod, type_tab, formals->ty);
-    if (proc->returnTy)
-        ok &= E_tyFindTypes (smod, type_tab, proc->returnTy);
-    if (proc->tyOwner)
-        ok &= E_tyFindTypes (smod, type_tab, proc->tyOwner);
-    return ok;
-}
-
-static bool E_tyFindTypes (S_symbol smod, TAB_table type_tab, Ty_ty ty)
-{
-    if (ty->mod != smod)
-        return TRUE;
-
-    // already handled? (avoid recursion)
-    if (TAB_look(type_tab, (void *) (intptr_t) ty->uid))
-        return TRUE;
-
-    bool ok = TRUE;
-
-    TAB_enter (type_tab, (void *) (intptr_t) ty->uid, ty);
-    switch (ty->kind)
-    {
-        case Ty_bool:
-        case Ty_byte:
-        case Ty_ubyte:
-        case Ty_integer:
-        case Ty_uinteger:
-        case Ty_long:
-        case Ty_ulong:
-        case Ty_single:
-        case Ty_double:
-        case Ty_any:
-        case Ty_string:
-            break;
-        case Ty_forwardPtr:
-            EM_error (0, "unresolved forwarded type (%s)", S_name (ty->u.sForward));
-            ok = FALSE;
-            break;
-        case Ty_toLoad:
-            EM_error (0, "unresolved toLoad type");
-            ok = FALSE;
-            break;
-        case Ty_sarray:
-            ok &= E_tyFindTypes (smod, type_tab, ty->u.sarray.elementTy);
-            break;
-        case Ty_darray:
-            ok &= E_tyFindTypes (smod, type_tab, ty->u.darray.elementTy);
-            ok &= E_tyFindTypes (smod, type_tab, ty->u.darray.tyCArray);
-            break;
-        case Ty_record:
-        {
-            for (Ty_member entry=ty->u.record.entries->first; entry; entry=entry->next)
-            {
-                switch (entry->kind)
-                {
-                    case Ty_recField:
-                        ok &= E_tyFindTypes (smod, type_tab, entry->u.field.ty);
-                        break;
-                    default:
-                        assert(FALSE);
-                }
-            }
-            break;
-        }
-        case Ty_class:
-        {
-            for (Ty_member entry=ty->u.cls.members->first; entry; entry=entry->next)
-            {
-                switch (entry->kind)
-                {
-                    case Ty_recMethod:
-                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method->proc);
-                        break;
-                    case Ty_recField:
-                        ok &= E_tyFindTypes (smod, type_tab, entry->u.field.ty);
-                        break;
-                    case Ty_recProperty:
-                        ok &= E_tyFindTypes (smod, type_tab, entry->u.property.ty);
-                        if (entry->u.property.getter)
-                            ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.getter->proc);
-                        if (entry->u.property.setter)
-                            ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.setter->proc);
-                        break;
-                }
-            }
-            ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.cls.__init);
-            if (ty->u.cls.constructor)
-                ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.cls.constructor);
-
-            break;
-        }
-        case Ty_interface:
-        {
-            for (Ty_member entry=ty->u.interface.members->first; entry; entry=entry->next)
-            {
-                switch (entry->kind)
-                {
-                    case Ty_recMethod:
-                        ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.method->proc);
-                        break;
-                    case Ty_recProperty:
-                        if (entry->u.property.setter)
-                                ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.setter->proc);
-                        if (entry->u.property.getter)
-                                ok &= E_tyFindTypesInProc (smod, type_tab, entry->u.property.getter->proc);
-                        break;
-                    default:
-                        assert(FALSE);
-                }
-            }
-            break;
-        }
-        case Ty_pointer:
-            ok &= E_tyFindTypes (smod, type_tab, ty->u.pointer);
-            break;
-        case Ty_procPtr:
-            ok &= E_tyFindTypesInProc(smod, type_tab, ty->u.procPtr);
-            break;
-        case Ty_prc:
-            for (Ty_formal formals = ty->u.proc->formals; formals; formals=formals->next)
-                ok &= E_tyFindTypes (smod, type_tab, formals->ty);
-
-            if (ty->u.proc->returnTy)
-                ok &= E_tyFindTypes (smod, type_tab, ty->u.proc->returnTy);
-            if (ty->u.proc->tyOwner)
-                ok &= E_tyFindTypes (smod, type_tab, ty->u.proc->tyOwner);
-            break;
-    }
-
-    return ok;
-}
-
-static bool E_findTypesFlat(S_symbol smod, S_scope scope, TAB_table type_tab)
-{
-    TAB_iter i = S_Iter(scope);
-    S_symbol sym;
-    E_enventry x;
-    bool ok = TRUE;
-    while (TAB_next(i, (void **) &sym, (void **)&x))
-    {
-        switch (x->kind)
-        {
-            case E_vfcEntry:
-            {
-                Ty_ty ty = CG_ty(&x->u.var);
-                if (CG_isConst(&x->u.var))
-                {
-                    ok &= E_tyFindTypes (smod, type_tab, ty);
-                    ok &= E_tyFindTypes (smod, type_tab, CG_getConst(&x->u.var)->ty);
-                }
-                else
-                {
-                    if (ty->kind == Ty_prc)
-                    {
-                        Ty_proc proc = ty->u.proc;
-                        for (Ty_formal formal=proc->formals; formal; formal = formal->next)
-                        {
-                            ok &= E_tyFindTypes (smod, type_tab, formal->ty);
-                        }
-                        ok &= E_tyFindTypes (smod, type_tab, proc->returnTy);
-                    }
-                    else
-                    {
-                        assert (CG_isVar(&x->u.var));
-                        ok &= E_tyFindTypes (smod, type_tab, ty);
-                    }
-                }
-                break;
-            }
-            case E_procEntry:
-                assert(0); // no subs allowed in this scope
-                break;
-            case E_typeEntry:
-                ok &= E_tyFindTypes (smod, type_tab, x->u.ty);
-                break;
-        }
-    }
-    return ok;
-}
-
-static bool E_findTypesOverloaded(S_symbol smod, S_scope scope, TAB_table type_tab)
-{
-    TAB_iter i = S_Iter(scope);
-    S_symbol sym;
-    E_enventryList xl;
-    bool ok = TRUE;
-    while (TAB_next(i, (void **) &sym, (void **)&xl))
-    {
-        for (E_enventryListNode xn=xl->first; xn; xn=xn->next)
-        {
-            E_enventry x = xn->e;
-            switch (x->kind)
-            {
-                case E_procEntry:
-                    for (Ty_formal formal=x->u.proc->formals; formal; formal = formal->next)
-                    {
-                        ok &= E_tyFindTypes (smod, type_tab, formal->ty);
-                    }
-                    if (x->u.proc->returnTy)
-                        ok &= E_tyFindTypes (smod, type_tab, x->u.proc->returnTy);
-                    break;
-
-                case E_typeEntry:
-                case E_vfcEntry:
-                    assert(0); // -> use E_findTypesFlat() instead
-                    break;
-            }
-        }
-    }
-    return ok;
 }
 
 static void E_serializeTyProc(TAB_table modTable, Ty_proc proc);
@@ -956,14 +751,14 @@ bool E_saveModule(string modfn, E_module mod)
     // module table (used in type serialization for module referencing)
     TAB_table modTable;  // S_symbol moduleName -> int mid
     modTable = TAB_empty(UP_env);
-    TAB_enter (modTable, mod->name, (void *) (intptr_t) 2);
+    TAB_enter (modTable, mod, (void *) (intptr_t) 2);
     TAB_iter iter = TAB_Iter(g_modCache);
     S_symbol sym;
     E_module m2;
     uint16_t mid = 3;
     while (TAB_next (iter, (void **)&sym, (void**) &m2))
     {
-        TAB_enter(modTable, m2->name, (void *) (intptr_t) mid);
+        TAB_enter(modTable, m2, (void *) (intptr_t) mid);
 
         fwrite_u2(modf, mid);
         strserialize(modf, S_name(m2->name));
@@ -975,17 +770,13 @@ bool E_saveModule(string modfn, E_module mod)
     mid = 0; fwrite_u2(modf, 0);  // end marker
 
     // serialize types
-    TAB_table type_tab = TAB_empty(UP_env);
-    E_findTypesFlat(mod->name, mod->env->u.scopes.vfcenv, type_tab);
-    E_findTypesFlat(mod->name, mod->env->u.scopes.tenv, type_tab);
-    E_findTypesOverloaded(mod->name, mod->env->u.scopes.senv, type_tab);
 
-    iter = TAB_Iter(type_tab);
+    iter = TAB_Iter(mod->tyTable);
     void *key;
     Ty_ty ty;
     while (TAB_next(iter, &key, (void **)&ty))
     {
-        assert (ty->mod == mod->name);
+        assert (ty->mod == mod);
         // warning: Ty_toString can be quite expensive memory-wise!
         // LOG_printf(LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
         E_serializeType(modTable, ty);
@@ -1084,7 +875,7 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
     Ty_ty ty = TAB_look(m->tyTable, (void *) (intptr_t) tuid);
     if (!ty)
     {
-        ty = Ty_ToLoad(m->name, tuid);
+        ty = Ty_ToLoad(m, tuid);
         TAB_enter (m->tyTable, (void *) (intptr_t) tuid, ty);
         //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> toLoad\n", mid, S_name(m->name), tuid);
     }
@@ -1458,7 +1249,7 @@ E_module E_loadModule(S_symbol sModule)
         Ty_ty ty = TAB_look(mod->tyTable, (void *) (intptr_t) tuid);
         if (!ty)
         {
-            ty = Ty_ToLoad(mod->name, tuid);
+            ty = Ty_ToLoad(mod, tuid);
             TAB_enter (mod->tyTable, (void *) (intptr_t) tuid, ty);
         }
 
@@ -1632,7 +1423,7 @@ E_module E_loadModule(S_symbol sModule)
                             LOG_printf(LOG_ERROR, "%s: failed to read function proc.\n", symfn);
                             goto fail;
                         }
-                        CG_HeapPtrItem (&var, proc->label, Ty_Prc(mod->name, proc));
+                        CG_HeapPtrItem (&var, proc->label, Ty_Prc(mod, proc));
                         break;
                     }
                     case vfcConst:

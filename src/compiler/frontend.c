@@ -1239,7 +1239,7 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
         // forward pointer ?
         if (allowForwardPtr && ptr)
         {
-            t = Ty_ForwardPtr(FE_mod->name, typeId);
+            t = Ty_ForwardPtr(FE_mod, typeId);
         }
         else
         {
@@ -1250,7 +1250,7 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
     {
         if (ptr)
         {
-            t = Ty_Pointer(FE_mod->name, t);
+            t = Ty_Pointer(FE_mod, t);
         }
     }
     return t;
@@ -1531,7 +1531,7 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                 if (!tyForward)
                     return EM_error(pos, "failed to resolve forward type of field");
 
-                entry->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
+                entry->u.field.ty = Ty_Pointer(FE_mod, tyForward);
             }
 
             CG_transField(g_sleStack->code, pos, g_sleStack->frame, exp, entry);
@@ -1790,7 +1790,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
                 if (entry->kind != E_procEntry)
                     return EM_error(pos, "SUB identifier expected here");
 
-                CG_HeapPtrItem (exp, entry->u.proc->label, Ty_ProcPtr (FE_mod->name, entry->u.proc));
+                CG_HeapPtrItem (exp, entry->u.proc->label, Ty_ProcPtr (FE_mod, entry->u.proc));
                 CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, exp);
                 exp->kind = IK_inReg;
 
@@ -1861,7 +1861,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     {
 
         CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, exp);
-        exp->ty = Ty_Pointer(FE_mod->name, exp->ty);
+        exp->ty = Ty_Pointer(FE_mod, exp->ty);
         exp->kind = IK_inReg;
 
 #if 0
@@ -1947,7 +1947,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
     CG_transCall (g_sleStack->code, 0, g_sleStack->frame, allocTy->u.proc, allocArglist, thisPtr);
 
     // cast ALLOCATE result to properly typed ptr
-    Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
+    Ty_ty tyClassPtr = Ty_Pointer(FE_mod, tyCls);
     if (!convert_ty(thisPtr, 0, tyClassPtr, /*explicit=*/TRUE))
         return EM_error(pos, "new: internal error: cannot convert this pointer");
 
@@ -2757,7 +2757,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
         }
 
         Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
-        *ty = Ty_ProcPtr(FE_mod->name, proc);
+        *ty = Ty_ProcPtr(FE_mod, proc);
     }
     else
     {
@@ -2867,13 +2867,13 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 if (!CG_isConst(&dim->idxEnd))
                     return EM_error(pos, "Constant array bounds expected.");
                 end = CG_getConstInt(&dim->idxEnd);
-                t = Ty_SArray(FE_mod->name, t, start, end);
+                t = Ty_SArray(FE_mod, t, start, end);
             }
         }
         else
         {
             // dyanmic, safe QB-like dynamic array
-            t = Ty_DArray(FE_mod->name, t, _tyCArray());
+            t = Ty_DArray(FE_mod, t, _tyCArray());
 
         }
     }
@@ -5926,7 +5926,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     {
                         if (mode != Ty_byRef)
                             return EM_error((*tkn)->pos, "Arrays must be passed by reference.");
-                        ty = Ty_DArray(FE_mod->name, ty, _tyCArray());
+                        ty = Ty_DArray(FE_mod, ty, _tyCArray());
                     }
 
                     Ty_ty plainTy = ty;
@@ -6414,7 +6414,7 @@ static Ty_proc checkProcMultiDecl(S_pos pos, Ty_proc proc)
         else
         {
             CG_item item;
-            CG_HeapPtrItem (&item, proc->label, Ty_Prc(FE_mod->name, proc));
+            CG_HeapPtrItem (&item, proc->label, Ty_Prc(FE_mod, proc));
 
             E_declareVFC (g_sleStack->env, proc->name, &item);
             if (proc->visibility == Ty_visPublic)
@@ -6827,7 +6827,7 @@ static bool stmtClassDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         }
     }
 
-    Ty_ty tyCls = Ty_Class(FE_mod->name, sType, tyBase);
+    Ty_ty tyCls = Ty_Class(FE_mod, sType, tyBase);
     sle->u.typeDecl.ty = tyCls;
 
     if (!tyBase)
@@ -6920,7 +6920,7 @@ static bool stmtInterfaceDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (tyOther)
         EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
-    Ty_ty tyIntf = Ty_Interface(FE_mod->name, sType);
+    Ty_ty tyIntf = Ty_Interface(FE_mod, sType);
     sle->u.typeDecl.ty = tyIntf;
 
     if (isSym(*tkn, S_IMPLEMENTS))
@@ -7087,7 +7087,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
                     if (!CG_isConst(&dim->idxEnd))
                         return EM_error(pos, "Constant array bounds expected.");
                     end = CG_getConstInt(&dim->idxEnd);
-                    ty = Ty_SArray(FE_mod->name, ty, start, end);
+                    ty = Ty_SArray(FE_mod, ty, start, end);
                 }
             }
             else
@@ -7096,7 +7096,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
                 {
                     return EM_error(pos, "Fixed boundaries for dynamic array UDTs are not supported.");
                 }
-                ty = Ty_DArray(FE_mod->name, ty, _tyCArray());
+                ty = Ty_DArray(FE_mod, ty, _tyCArray());
             }
         }
 
@@ -7112,7 +7112,7 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (tyOther)
             EM_error ((*tkn)->pos, "Type %s is already defined here.", S_name(sle->u.typeDecl.sType));
 
-        sle->u.typeDecl.ty = Ty_Record(FE_mod->name, sType);
+        sle->u.typeDecl.ty = Ty_Record(FE_mod, sType);
 
         E_declareType(g_sleStack->env, sle->u.typeDecl.sType, sle->u.typeDecl.ty);
         if (sle->u.typeDecl.udtVis == Ty_visPublic)
@@ -7423,7 +7423,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                         if (!CG_isConst(&dim->idxEnd))
                             return EM_error(f->pos, "Constant array bounds expected.");
                         end = CG_getConstInt(&dim->idxEnd);
-                        t = Ty_SArray(FE_mod->name, t, start, end);
+                        t = Ty_SArray(FE_mod, t, start, end);
                     }
 
                     Ty_member re = Ty_findEntry(sle->u.typeDecl.ty, f->u.fieldr.name, /*checkbase=*/FALSE);
@@ -8542,7 +8542,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next;
 
     Ty_ty ty = CG_ty(exp);
-    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, exp, Ty_Pointer(FE_mod->name, ty->u.pointer));
+    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, exp, Ty_Pointer(FE_mod, ty->u.pointer));
 
     return TRUE;
 }
@@ -8820,7 +8820,7 @@ static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef
     else
     {
         CG_item p;
-        CG_ZeroItem (&p, Ty_Prc(g_builtinsModule->name, proc));
+        CG_ZeroItem (&p, Ty_Prc(g_builtinsModule, proc));
         E_declareVFC (g_builtinsModule->env, sym, &p);
     }
 
@@ -9025,7 +9025,7 @@ static Ty_ty _resolveForwardPtr(Ty_ty tyForward)
         EM_error(0, "unresolved forward pointer of %s", S_name(tyForward->u.sForward));
         return tyForward;
     }
-    return Ty_Pointer(FE_mod->name, tyResolved);
+    return Ty_Pointer(FE_mod, tyResolved);
 }
 
 static void _resolveForwardPtrsInProc(Ty_proc proc)
@@ -9079,7 +9079,7 @@ static void _checkLeftoverForwards(S_scope env)
                                 if (!tyForward)
                                     EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
 
-                                member->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
+                                member->u.field.ty = Ty_Pointer(FE_mod, tyForward);
                             }
                         }
                         break;
@@ -9097,7 +9097,7 @@ static void _checkLeftoverForwards(S_scope env)
                                         if (!tyForward)
                                             EM_error(0, "unresolved forward type of field %s.%s", S_name(sym), S_name(member->name));
 
-                                        member->u.field.ty = Ty_Pointer(FE_mod->name, tyForward);
+                                        member->u.field.ty = Ty_Pointer(FE_mod, tyForward);
                                     }
                                     break;
                                 case Ty_recMethod:

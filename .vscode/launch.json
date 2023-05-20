@@ -186,6 +186,26 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
+            "name": "mod1",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
+            "args": ["-L", "../../src/lib", "-d", "_brt", "-s", "/tmp/foo.sym", "-o", "foo", "foo.bas"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/tests/mod1",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
             "name": "mod2",
             "type": "cppdbg",
             "request": "launch",

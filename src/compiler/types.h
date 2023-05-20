@@ -12,6 +12,11 @@ typedef struct Ty_memberList_   *Ty_memberList;
 typedef struct Ty_implements_   *Ty_implements;
 typedef struct Ty_method_       *Ty_method;
 
+// declarations stolen from env.h to avoid cyclic dependencies
+typedef struct E_module_        *E_module;
+uint32_t E_moduleAddType (E_module mod, Ty_ty ty);
+S_symbol E_moduleName    (E_module mod);
+
 #include "temp.h"
 
 struct Ty_ty_
@@ -52,7 +57,7 @@ struct Ty_ty_
     } u;
 
     // serialization / symbol file / import / export support:
-    S_symbol mod; // module this type is defined in, NULL to indicate built-in type
+    E_module mod; // module this type is defined in, NULL to indicate built-in type
     uint32_t uid; // unique id of this type within the module it is defined in
 };
 
@@ -160,17 +165,17 @@ Ty_ty           Ty_AnyPtr(void);
 Ty_ty           Ty_VTableTy(void);
 Ty_ty           Ty_VTablePtr(void);
 
-Ty_ty           Ty_SArray            (S_symbol mod, Ty_ty ty, int start, int end);
-Ty_ty           Ty_DArray            (S_symbol mod, Ty_ty elementTy, Ty_ty tyCArray);
-Ty_ty           Ty_Pointer           (S_symbol mod, Ty_ty ty);
-Ty_ty           Ty_ForwardPtr        (S_symbol mod, S_symbol sType);
-Ty_ty           Ty_Prc               (S_symbol mod, Ty_proc proc);
-Ty_ty           Ty_ProcPtr           (S_symbol mod, Ty_proc proc);
-Ty_ty           Ty_ToLoad            (S_symbol mod, uint32_t uid);
+Ty_ty           Ty_SArray            (E_module mod, Ty_ty ty, int start, int end);
+Ty_ty           Ty_DArray            (E_module mod, Ty_ty elementTy, Ty_ty tyCArray);
+Ty_ty           Ty_Pointer           (E_module mod, Ty_ty ty);
+Ty_ty           Ty_ForwardPtr        (E_module mod, S_symbol sType);
+Ty_ty           Ty_Prc               (E_module mod, Ty_proc proc);
+Ty_ty           Ty_ProcPtr           (E_module mod, Ty_proc proc);
+Ty_ty           Ty_ToLoad            (E_module mod, uint32_t uid);
 
-Ty_ty           Ty_Record            (S_symbol mod, S_symbol name);
-Ty_ty           Ty_Interface         (S_symbol mod, S_symbol name);
-Ty_ty           Ty_Class             (S_symbol mod, S_symbol name, Ty_ty baseClass);
+Ty_ty           Ty_Record            (E_module mod, S_symbol name);
+Ty_ty           Ty_Interface         (E_module mod, S_symbol name);
+Ty_ty           Ty_Class             (E_module mod, S_symbol name, Ty_ty baseClass);
 Ty_implements   Ty_Implements        (Ty_ty intf, Ty_member vTablePtr);
 bool            Ty_checkImplements   (Ty_ty ty, Ty_ty tyInf);
 bool            Ty_checkInherits     (Ty_ty tyChild, Ty_ty tyParent);

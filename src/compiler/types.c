@@ -81,9 +81,7 @@ void Ty_init(void)
     tyvtableptr.mod = NULL;
 }
 
-static uint32_t g_uid = 23;
-
-Ty_ty Ty_Record (S_symbol mod, S_symbol name)
+Ty_ty Ty_Record (E_module mod, S_symbol name)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -92,12 +90,12 @@ Ty_ty Ty_Record (S_symbol mod, S_symbol name)
     p->u.record.uiSize       = 0;
     p->u.record.name         = name;
     p->mod                   = mod;
-    p->uid                   = g_uid++;
+    p->uid                   = E_moduleAddType (mod, p);
 
     return p;
 }
 
-Ty_ty Ty_Interface (S_symbol mod, S_symbol name)
+Ty_ty Ty_Interface (E_module mod, S_symbol name)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -107,12 +105,12 @@ Ty_ty Ty_Interface (S_symbol mod, S_symbol name)
     p->u.interface.implements       = NULL;
     p->u.interface.virtualMethodCnt = 0;
     p->mod                          = mod;
-    p->uid                          = g_uid++;
+    p->uid                          = E_moduleAddType (mod, p);
 
     return p;
 }
 
-Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
+Ty_ty Ty_Class (E_module mod, S_symbol name, Ty_ty baseType)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -127,7 +125,7 @@ Ty_ty Ty_Class (S_symbol mod, S_symbol name, Ty_ty baseType)
     p->u.cls.virtualMethodCnt = 0;
     p->u.cls.vTablePtr        = NULL;
     p->mod                    = mod;
-    p->uid                    = g_uid++;
+    p->uid                    = E_moduleAddType (mod, p);
 
     return p;
 }
@@ -349,55 +347,55 @@ Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
     return NULL;
 }
 
-Ty_ty Ty_Pointer(S_symbol mod, Ty_ty ty)
+Ty_ty Ty_Pointer(E_module mod, Ty_ty ty)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_pointer;
     p->u.pointer = ty;
     p->mod       = mod;
-    p->uid       = g_uid++;
+    p->uid       = E_moduleAddType (mod, p);
 
     return p;
 }
 
-Ty_ty Ty_ForwardPtr(S_symbol mod, S_symbol sType)
+Ty_ty Ty_ForwardPtr(E_module mod, S_symbol sType)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind       = Ty_forwardPtr;
     p->u.sForward = sType;
     p->mod        = mod;
-    p->uid        = g_uid++;
+    p->uid        = E_moduleAddType (mod, p);
 
     return p;
 }
 
-Ty_ty Ty_Prc(S_symbol mod, Ty_proc proc)
+Ty_ty Ty_Prc(E_module mod, Ty_proc proc)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_prc;
     p->u.proc    = proc;
     p->mod       = mod;
-    p->uid       = g_uid++;
+    p->uid       = E_moduleAddType (mod, p);
 
     return p;
 }
 
-Ty_ty Ty_ProcPtr(S_symbol mod, Ty_proc proc)
+Ty_ty Ty_ProcPtr(E_module mod, Ty_proc proc)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
     p->kind      = Ty_procPtr;
     p->u.procPtr = proc;
     p->mod       = mod;
-    p->uid       = g_uid++;
+    p->uid       = E_moduleAddType (mod, p);
 
     return p;
 }
 
-Ty_ty Ty_ToLoad(S_symbol mod, uint32_t uid)
+Ty_ty Ty_ToLoad(E_module mod, uint32_t uid)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -494,7 +492,7 @@ bool Ty_isAllocatable (Ty_ty ty)
     return FALSE;
 }
 
-Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
+Ty_ty Ty_SArray(E_module mod, Ty_ty ty, int start, int end)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -503,14 +501,14 @@ Ty_ty Ty_SArray(S_symbol mod, Ty_ty ty, int start, int end)
     p->u.sarray.iStart    = start;
     p->u.sarray.iEnd      = end;
     p->mod                = mod;
-    p->uid                = g_uid++;
+    p->uid                = E_moduleAddType (mod, p);
 
     Ty_computeSize(p);
 
     return p;
 }
 
-Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy, Ty_ty tyCArray)
+Ty_ty Ty_DArray(E_module mod, Ty_ty elementTy, Ty_ty tyCArray)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
 
@@ -518,7 +516,7 @@ Ty_ty Ty_DArray(S_symbol mod, Ty_ty elementTy, Ty_ty tyCArray)
     p->u.darray.elementTy = elementTy;
     p->u.darray.tyCArray  = tyCArray;
     p->mod                = mod;
-    p->uid                = g_uid++;
+    p->uid                = E_moduleAddType (mod, p);
 
     return p;
 }
@@ -683,22 +681,22 @@ static string _toString(Ty_ty t, int depth)
         case Ty_double:
             return "double";
         case Ty_darray:
-            return strprintf (UP_types, "darray([%s:%d]%s)", S_name (t->mod), t->uid, _toString(t->u.darray.elementTy, depth+1));
+            return strprintf (UP_types, "darray([%s:%d]%s)", S_name (E_moduleName(t->mod)), t->uid, _toString(t->u.darray.elementTy, depth+1));
         case Ty_sarray:
-            return strprintf (UP_types, "sarray([%s:%d]%s)", S_name (t->mod), t->uid, _toString(t->u.sarray.elementTy, depth+1));
+            return strprintf (UP_types, "sarray([%s:%d]%s)", S_name (E_moduleName(t->mod)), t->uid, _toString(t->u.sarray.elementTy, depth+1));
         case Ty_class:
         {
-            string res = strprintf (UP_types, "class ([%s:%d]", S_name (t->mod), t->uid);
+            string res = strprintf (UP_types, "class ([%s:%d]", S_name (E_moduleName(t->mod)), t->uid);
             return strconcat (UP_types, res, ")");
         }
         case Ty_interface:
         {
-            string res = strprintf (UP_types, "interface ([%s:%d]", S_name (t->mod), t->uid);
+            string res = strprintf (UP_types, "interface ([%s:%d]", S_name (E_moduleName(t->mod)), t->uid);
             return strconcat (UP_types, res, ")");
         }
         case Ty_record:
         {
-            string res = strprintf (UP_types, "record ([%s:%d]", S_name (t->mod), t->uid);
+            string res = strprintf (UP_types, "record ([%s:%d]", S_name (E_moduleName(t->mod)), t->uid);
 #if 0
             TAB_iter i = S_Iter(t->u.record.scope);
             S_symbol sym;
