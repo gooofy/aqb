@@ -7,6 +7,8 @@
 #include "types.h"
 #include "logger.h"
 
+#include "env.h"
+
 static struct Ty_ty_ tybool = {Ty_bool};
 Ty_ty Ty_Bool(void) {return &tybool;}
 
@@ -92,6 +94,9 @@ Ty_ty Ty_Record (E_module mod, S_symbol name)
     p->mod                   = mod;
     p->uid                   = E_moduleAddType (mod, p);
 
+    // lookup ptr right away to resolve potential forward ptrs
+    E_getPointerTy (mod, p);
+
     return p;
 }
 
@@ -106,6 +111,9 @@ Ty_ty Ty_Interface (E_module mod, S_symbol name)
     p->u.interface.virtualMethodCnt = 0;
     p->mod                          = mod;
     p->uid                          = E_moduleAddType (mod, p);
+
+    // lookup ptr right away to resolve potential forward ptrs
+    E_getPointerTy (mod, p);
 
     return p;
 }
@@ -126,6 +134,9 @@ Ty_ty Ty_Class (E_module mod, S_symbol name, Ty_ty baseType)
     p->u.cls.vTablePtr        = NULL;
     p->mod                    = mod;
     p->uid                    = E_moduleAddType (mod, p);
+
+    // lookup ptr right away to resolve potential forward ptrs
+    E_getPointerTy (mod, p);
 
     return p;
 }
@@ -347,30 +358,6 @@ Ty_member Ty_findEntry (Ty_ty ty, S_symbol name, bool checkBase)
     return NULL;
 }
 
-Ty_ty Ty_Pointer(E_module mod, Ty_ty ty)
-{
-    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
-
-    p->kind      = Ty_pointer;
-    p->u.pointer = ty;
-    p->mod       = mod;
-    p->uid       = E_moduleAddType (mod, p);
-
-    return p;
-}
-
-Ty_ty Ty_ForwardPtr(E_module mod, S_symbol sType)
-{
-    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
-
-    p->kind       = Ty_forwardPtr;
-    p->u.sForward = sType;
-    p->mod        = mod;
-    p->uid        = E_moduleAddType (mod, p);
-
-    return p;
-}
-
 Ty_ty Ty_Prc(E_module mod, Ty_proc proc)
 {
     Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
@@ -490,6 +477,26 @@ bool Ty_isAllocatable (Ty_ty ty)
             return FALSE;
     }
     return FALSE;
+}
+
+S_symbol Ty_name (Ty_ty ty)
+{
+    S_symbol sTy = NULL;
+    switch (ty->kind)
+    {
+        case Ty_record:
+            sTy = ty->u.record.name;
+            break;
+        case Ty_class:
+            sTy = ty->u.cls.name;
+            break;
+        case Ty_interface:
+            sTy = ty->u.interface.name;
+            break;
+        default:
+            break;
+    }
+    return sTy;
 }
 
 Ty_ty Ty_SArray(E_module mod, Ty_ty ty, int start, int end)

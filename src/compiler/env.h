@@ -91,9 +91,11 @@ struct E_module_
 {
     S_symbol    name;
     E_env       env;
-    TAB_table   tyTable; // tuid -> Ty_ty, table of all types declared in this module
-    uint32_t    tyUID;   // unique type ids within this module, used in serialization
-    bool        hasCode; // true -> name + ".a" static library exists that should be linked to our binary
+    TAB_table   tyTable;    // tuid -> Ty_ty, table of all types declared in this module
+    TAB_table   ptrCache;   // S_symbol -> Ty_ty, cache of all (possible forward) ptrs
+    TAB_table   ptrCacheTy; // Ty_ty    -> Ty_ty, cache of all (possible forward) ptrs
+    uint32_t    tyUID;      // unique type ids within this module, used in serialization
+    bool        hasCode;    // true -> name + ".a" static library exists that should be linked to our binary
 };
 
 E_module   E_Module(S_symbol name);               /* create a new, empty module named <name>                     */
@@ -102,6 +104,8 @@ extern E_module g_builtinsModule;
 
 void       E_import(E_module mod, E_module mod2);    /* import mod2 into mod's namespace                         */
 uint32_t   E_moduleAddType (E_module mod, Ty_ty ty); /* add ty to mod's tyTable, return unique type id           */
+Ty_ty      E_getPointer    (E_module mod, S_symbol sTy); /* get a pointer to sTy from the cache, create one if not there yet */
+Ty_ty      E_getPointerTy  (E_module mod, Ty_ty ty); /* get a pointer to sTy from the cache, create one if not there yet */
 S_symbol   E_moduleName    (E_module mod);           /* simply returns mod->name, used in types.c                */
 
 FILE      *E_openModuleFile (string filename);    /* look for <filename> in module directories                   */

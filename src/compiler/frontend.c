@@ -1239,7 +1239,7 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
         // forward pointer ?
         if (allowForwardPtr && ptr)
         {
-            t = Ty_ForwardPtr(FE_mod, typeId);
+            t = E_getPointer(FE_mod, typeId);
         }
         else
         {
@@ -1250,7 +1250,7 @@ static Ty_ty resolveTypeDescIdent(S_pos pos, S_symbol typeId, bool ptr, bool all
     {
         if (ptr)
         {
-            t = Ty_Pointer(FE_mod, t);
+            t = E_getPointerTy(FE_mod, t);
         }
     }
     return t;
@@ -1526,13 +1526,7 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
         {
             Ty_ty fty = entry->u.field.ty;
             if (fty->kind == Ty_forwardPtr)
-            {
-                Ty_ty tyForward = E_resolveType(g_sleStack->env, fty->u.sForward);
-                if (!tyForward)
-                    return EM_error(pos, "failed to resolve forward type of field");
-
-                entry->u.field.ty = Ty_Pointer(FE_mod, tyForward);
-            }
+                return EM_error(pos, "failed to resolve forward type of field");
 
             CG_transField(g_sleStack->code, pos, g_sleStack->frame, exp, entry);
             return TRUE;
@@ -1861,16 +1855,8 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
     {
 
         CG_loadRef (g_sleStack->code, pos, g_sleStack->frame, exp);
-        exp->ty = Ty_Pointer(FE_mod, exp->ty);
+        exp->ty = E_getPointerTy(FE_mod, exp->ty);
         exp->kind = IK_inReg;
-
-#if 0
-        if (ty->kind == Ty_prc)
-        {
-            *exp = Tr_heapPtrExp(pos, ty->u.proc->label, Ty_ProcPtr(FE_mod->name, ty->u.proc));
-            ty = CG_ty(*exp);
-        }
-#endif
     }
     else
     {
@@ -1947,7 +1933,7 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
     CG_transCall (g_sleStack->code, 0, g_sleStack->frame, allocTy->u.proc, allocArglist, thisPtr);
 
     // cast ALLOCATE result to properly typed ptr
-    Ty_ty tyClassPtr = Ty_Pointer(FE_mod, tyCls);
+    Ty_ty tyClassPtr = E_getPointerTy(FE_mod, tyCls);
     if (!convert_ty(thisPtr, 0, tyClassPtr, /*explicit=*/TRUE))
         return EM_error(pos, "new: internal error: cannot convert this pointer");
 
@@ -8542,7 +8528,7 @@ static bool funVarPtr(S_tkn *tkn, E_enventry e, CG_item *exp)
     *tkn = (*tkn)->next;
 
     Ty_ty ty = CG_ty(exp);
-    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, exp, Ty_Pointer(FE_mod, ty->u.pointer));
+    CG_castItem(g_sleStack->code, pos, g_sleStack->frame, exp, E_getPointerTy(FE_mod, ty->u.pointer));
 
     return TRUE;
 }
@@ -9015,19 +9001,6 @@ static bool nextch (char *ch, void *u)
     return n==1;
 }
 
-static Ty_ty _resolveForwardPtr(Ty_ty tyForward)
-{
-    if (tyForward->kind != Ty_forwardPtr)
-        return tyForward;
-    Ty_ty tyResolved = E_resolveType(g_sleStack->env, tyForward->u.sForward);
-    if (!tyResolved)
-    {
-        EM_error(0, "unresolved forward pointer of %s", S_name(tyForward->u.sForward));
-        return tyForward;
-    }
-    return Ty_Pointer(FE_mod, tyResolved);
-}
-
 static void _checkLeftoverForwardPointers(void)
 {
     TAB_iter iter = TAB_Iter(FE_mod->tyTable);
@@ -9035,7 +9008,8 @@ static void _checkLeftoverForwardPointers(void)
     Ty_ty ty;
     while (TAB_next(iter, &key, (void **)&ty))
     {
-        _resolveForwardPtr(ty);
+        if (ty->kind == Ty_forwardPtr)
+            EM_error(0, "unresolved forward pointer of %s", S_name(ty->u.sForward));
     }
 }
 
@@ -9081,7 +9055,6 @@ static void _checkLeftoverForwardFuncs(S_scope env)
                                         EM_error(0, "missing implementation of method %s.%s", S_name(sym), S_name(member->name));
                                     break;
                                 case Ty_recProperty:
-                                    member->u.property.ty = _resolveForwardPtr(member->u.property.ty);
                                     if (member->u.property.getter)
                                     {
                                         if (!member->u.property.getter->proc->hasBody && !member->u.property.getter->proc->isExtern)

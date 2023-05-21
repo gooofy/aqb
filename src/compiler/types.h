@@ -12,22 +12,35 @@ typedef struct Ty_memberList_   *Ty_memberList;
 typedef struct Ty_implements_   *Ty_implements;
 typedef struct Ty_method_       *Ty_method;
 
-// declarations stolen from env.h to avoid cyclic dependencies
+// declaration stolen from env.h to avoid cyclic dependencies
 typedef struct E_module_        *E_module;
-uint32_t E_moduleAddType (E_module mod, Ty_ty ty);
-S_symbol E_moduleName    (E_module mod);
 
 #include "temp.h"
 
 struct Ty_ty_
 {
-    enum { Ty_bool,
-           Ty_byte, Ty_ubyte, Ty_integer, Ty_uinteger, Ty_long, Ty_ulong,
-           Ty_single, Ty_double,
-           Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
-           Ty_any, Ty_forwardPtr, Ty_procPtr,
-           Ty_class, Ty_interface,
-           Ty_toLoad, Ty_prc } kind;
+    enum { Ty_bool,         //  0
+           Ty_byte,         //  1
+           Ty_ubyte,        //  2
+           Ty_integer,      //  3
+           Ty_uinteger,     //  4
+           Ty_long,         //  5
+           Ty_ulong,        //  6
+           Ty_single,       //  7
+           Ty_double,       //  8
+           Ty_sarray,       //  9
+           Ty_darray,       // 10
+           Ty_record,       // 11
+           Ty_pointer,      // 12
+           Ty_string,       // 13
+           Ty_any,          // 14
+           Ty_forwardPtr,   // 15
+           Ty_procPtr,      // 16
+           Ty_class,        // 17
+           Ty_interface,    // 18
+           Ty_toLoad,       // 19
+           Ty_prc           // 20
+           } kind;
            // Ty_toLoad: used for module loading in env.c
 
     union
@@ -167,8 +180,6 @@ Ty_ty           Ty_VTablePtr(void);
 
 Ty_ty           Ty_SArray            (E_module mod, Ty_ty ty, int start, int end);
 Ty_ty           Ty_DArray            (E_module mod, Ty_ty elementTy, Ty_ty tyCArray);
-Ty_ty           Ty_Pointer           (E_module mod, Ty_ty ty);
-Ty_ty           Ty_ForwardPtr        (E_module mod, S_symbol sType);
 Ty_ty           Ty_Prc               (E_module mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr           (E_module mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (E_module mod, uint32_t uid);
@@ -201,6 +212,7 @@ int             Ty_size              (Ty_ty ty);
 void            Ty_computeSize       (Ty_ty ty);
 bool            Ty_isSigned          (Ty_ty ty);
 bool            Ty_isAllocatable     (Ty_ty ty);
+S_symbol        Ty_name              (Ty_ty ty); // return type's name, if any, NULL otherwise
 
 void            Ty_defineRange       (Ty_ty ty, char lstart, char lend);
 Ty_ty           Ty_inferType         (S_symbol varname);

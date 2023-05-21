@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     69
+#define SYM_VERSION     71
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -279,7 +279,66 @@ uint32_t E_moduleAddType (E_module mod, Ty_ty ty)
 {
     uint32_t uid = mod->tyUID++;
     TAB_enter (mod->tyTable, (void *) (intptr_t) uid, ty);
+    //LOG_printf(LOG_DEBUG, "env: E_moduleAddType: mod=%s ty=0x%08lx tuid=%d kind=%d\n",
+    //                      S_name(mod->name), (intptr_t)ty, uid, ty->kind);
     return uid;
+}
+
+Ty_ty E_getPointer (E_module mod, S_symbol sTy)
+{
+    Ty_ty p = TAB_look(mod->ptrCache, sTy);
+    if (p)
+        return p;
+
+    // create a forward pointer, for now
+
+    p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->kind       = Ty_forwardPtr;
+    p->u.sForward = sTy;
+    p->mod        = mod;
+    p->uid        = E_moduleAddType (mod, p);
+
+    TAB_enter (mod->ptrCache, sTy, p);
+
+    return p;
+}
+
+Ty_ty E_getPointerTy (E_module mod, Ty_ty ty)
+{
+    Ty_ty p = TAB_look(mod->ptrCacheTy, ty);
+    if (p)
+        return p;
+
+    // do we have a corresponding forward ptr? if so, resolve it right now
+
+    S_symbol sTy = Ty_name(ty);
+
+    if (sTy)
+    {
+        p = TAB_look(mod->ptrCache, sTy);
+        if (p)
+        {
+            assert (p->kind == Ty_forwardPtr);
+            p->kind = Ty_pointer;
+            p->u.pointer = ty;
+            TAB_enter (mod->ptrCacheTy, ty, p);
+            return p;
+        }
+    }
+
+    p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->kind      = Ty_pointer;
+    p->u.pointer = ty;
+    p->mod       = mod;
+    p->uid       = E_moduleAddType (mod, p);
+
+    TAB_enter (mod->ptrCacheTy, ty, p);
+    if (sTy)
+        TAB_enter (mod->ptrCache, sTy, p);
+
+    return p;
 }
 
 S_symbol E_moduleName (E_module mod)
@@ -294,6 +353,8 @@ E_module E_Module(S_symbol name)
     p->name        = name;
     p->env         = E_EnvScopes(NULL);
     p->tyTable     = TAB_empty(UP_env);
+    p->ptrCache    = TAB_empty(UP_env);
+    p->ptrCacheTy  = TAB_empty(UP_env);
     p->tyUID       = MIN_TYPE_UID;
 
     return p;
@@ -684,6 +745,7 @@ static void E_serializeEnventriesFlat (TAB_table modTable, S_scope scope)
                         assert (proc->visibility == Ty_visPublic);
                         fwrite_u1 (modf, vfcFunc);
                         E_serializeTyProc(modTable, proc);
+                        E_serializeTyRef(modTable, ty);
                     }
                     else
                     {
@@ -877,11 +939,13 @@ static Ty_ty E_deserializeTyRef(TAB_table modTable, FILE *modf)
     {
         ty = Ty_ToLoad(m, tuid);
         TAB_enter (m->tyTable, (void *) (intptr_t) tuid, ty);
-        //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> toLoad\n", mid, S_name(m->name), tuid);
+        //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> toLoad, ty=0x%08lx\n",
+        //                      mid, S_name(m->name), tuid, (intptr_t) ty);
     }
     else
     {
-        //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> already loaded, kind is %d\n", mid, S_name(m->name), tuid, ty->kind);
+        //LOG_printf(LOG_DEBUG, "env: E_deserializeTyRef %d(%s):%d -> already loaded, kind is %d, 0x%08lx\n",
+        //                      mid, S_name(m->name), tuid, ty->kind, (intptr_t)ty);
     }
 
     // warning: Ty_toString can be quite expensive memory-wise!
@@ -1256,7 +1320,8 @@ E_module E_loadModule(S_symbol sModule)
         int kind = fread_u1(modf); // do not set ty->kind right away so toString() will not run into unitialized values in case of record types
         ty->kind = Ty_toLoad;
 
-        //LOG_printf (LOG_DEBUG, "%s: reading type tuid=%d kind=%d\n", S_name(sModule), tuid, kind);
+        //LOG_printf (LOG_DEBUG, "%s: reading type 0x%08lx tuid=%d kind=%d\n",
+        //                       S_name(sModule), (intptr_t) ty, tuid, kind);
 
         switch (kind)
         {
@@ -1358,9 +1423,18 @@ E_module E_loadModule(S_symbol sModule)
                 break;
         }
         ty->kind = kind;
-        //LOG_printf (LOG_DEBUG, "%s: finished reading type tuid=%d\n", S_name(sModule), tuid);
+        //LOG_printf (LOG_DEBUG, "%s: finished reading type 0x%08lx, tuid=%d, kind=%d, name=%s\n",
+        //            S_name(sModule), (intptr_t) ty, tuid, kind,
+        //            Ty_name(ty) != NULL ? S_name(Ty_name(ty)) : "null");
         // warning: Ty_toString can be quite expensive memory-wise!
         //LOG_printf (LOG_DEBUG, "%s: read type tuid=%d %s\n", S_name(sModule), tuid, Ty_toString(ty));
+        if (kind == Ty_pointer)
+        {
+            TAB_enter (mod->ptrCacheTy, ty->u.pointer, ty);
+            S_symbol sTy = Ty_name(ty->u.pointer);
+            if (sTy)
+                TAB_enter (mod->ptrCache, sTy, ty);
+        }
     }
 
     // check type table for unresolve ToLoad entries
@@ -1408,7 +1482,7 @@ E_module E_loadModule(S_symbol sModule)
         }
         S_symbol sym = S_Symbol(name);
 
-        LOG_printf (LOG_DEBUG, "%s: reading env entry name=%s\n", S_name(sModule), name);
+        LOG_printf (LOG_DEBUG, "%s: reading env entry name=%s, kind=%d\n", S_name(sModule), name, kind);
 
         switch (kind)
         {
@@ -1426,7 +1500,8 @@ E_module E_loadModule(S_symbol sModule)
                             LOG_printf(LOG_ERROR, "%s: failed to read function proc.\n", symfn);
                             goto fail;
                         }
-                        CG_HeapPtrItem (&var, proc->label, Ty_Prc(mod, proc));
+                        Ty_ty ty = E_deserializeTyRef(modTable, modf);
+                        CG_HeapPtrItem (&var, proc->label, ty);
                         break;
                     }
                     case vfcConst:
@@ -1482,6 +1557,7 @@ E_module E_loadModule(S_symbol sModule)
                 }
                 // warning: Ty_toString can be quite expensive memory-wise!
                 // LOG_printf (LOG_DEBUG, "   %s", Ty_toString(ty));
+                //LOG_printf (LOG_DEBUG, "   type %s, ty=0x%08lx, tuid=%d, kind=%d\n", name, (intptr_t) ty, ty->uid, ty->kind);
                 E_declareType (mod->env, sym, ty);
                 break;
             }
