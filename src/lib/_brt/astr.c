@@ -148,6 +148,35 @@ ULONG LEN_(const UBYTE *str)
     return l;
 }
 
+UBYTE *SPACE_(SHORT length)
+{
+    UBYTE s[length+1];
+    for (int i=0; i<length; i++)
+        s[i] = 32;
+    s[length] = 0;
+    return _astr_dup(s);
+}
+
+UBYTE *SPC_(SHORT length)
+{
+    return SPACE_(length);
+}
+
+UBYTE *STRING_(SHORT length, UBYTE *str)
+{
+    int l = LEN_(str);
+    if (!l)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return 0;
+    }
+    UBYTE s[length+1];
+    for (int i=0; i<length; i++)
+        s[i] = str[0];
+    s[length] = 0;
+    return _astr_dup(s);
+}
+
 UBYTE *CHR_(LONG codepoint)
 {
     UBYTE s[2];
