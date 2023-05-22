@@ -17,7 +17,8 @@ examples:
 
 help:	README.md
 	$(MD2AGUIDE) README.md > README.utf
-	iconv -t "iso-8859-1" -f "UTF-8" README.utf -o README.guide	
+	iconv -t "iso-8859-1" -f "UTF-8" README.utf -o README.guide
+	rm README.utf
 	cp README.guide $(DISTDIR)
 	cd help ; make all
 
