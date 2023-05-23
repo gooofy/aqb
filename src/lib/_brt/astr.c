@@ -62,7 +62,7 @@ void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space, BOOL po
     while (num != 0)
     {
         int rem = num % base;
-        str[i++] = (rem > 9)? (rem-10) + 'a' : rem + '0';
+        str[i++] = (rem > 9) ? (rem-10) + 'a' : rem + '0';
         num = num/base;
     }
 
@@ -606,6 +606,30 @@ UBYTE *_S4TOA_   (LONG   l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
+    return _astr_dup(buf);
+}
+
+UBYTE *HEX_   (LONG   l)
+{
+    UBYTE buf[MAXBUF];
+    if (l < 0) { l = -l; }
+    _astr_itoa_ext(l, buf, 16, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+
+UBYTE *OCT_   (LONG   l)
+{
+    UBYTE buf[MAXBUF];
+    if (l < 0) { l = -l; }
+    _astr_itoa_ext(l, buf, 8, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+
+UBYTE *BIN_   (LONG   l)
+{
+    UBYTE buf[MAXBUF];
+    if (l < 0) { l = -l; }
+    _astr_itoa_ext(l, buf, 2, FALSE, FALSE);
     return _astr_dup(buf);
 }
 
