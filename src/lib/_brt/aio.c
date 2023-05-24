@@ -104,7 +104,7 @@ void _AIO_PUTS2(USHORT fno, short num)
     _AIO_PUTS(fno, buf);
 }
 
-void _AIO_PUTS1(USHORT fno, UBYTE num)
+void _AIO_PUTS1(USHORT fno, BYTE num)
 {
     UBYTE buf[MAXBUF];
 
@@ -217,7 +217,7 @@ void _AIO_WRITES2 (USHORT fno, short num)
     _AIO_PUTS(fno, buf);
 }
 
-void _AIO_WRITES1 (USHORT fno, UBYTE num)
+void _AIO_WRITES1 (USHORT fno, BYTE num)
 {
     UBYTE buf[MAXBUF];
 

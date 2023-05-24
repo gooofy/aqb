@@ -21,7 +21,7 @@ extern struct MathTransBase *MathTransBase;
  *  --------------                                                  *
  *                                                                  *
  *  startup.S   - call _cstartup()                                  *
- *              - do a stack swap if requested                      * 
+ *              - do a stack swap if requested                      *
  *              - call _aqb_main()                                  *
  *                                                                  *
  *  _cstartup() - open libraries                                    *
@@ -439,17 +439,17 @@ extern _aio_cls_cb_t         _aio_cls_cb;
 extern _aio_locate_cb_t      _aio_locate_cb;
 extern _autil_sleep_for_cb_t _autil_sleep_for_cb;
 
-void _AIO_PUTS4                  (USHORT fno, LONG num);
-void _AIO_PUTS2                  (USHORT fno, SHORT num);
-void _AIO_PUTS1                  (USHORT fno, UBYTE num);
-void _AIO_PUTU4                  (USHORT fno, ULONG num);
+void _AIO_PUTS4                  (USHORT fno, LONG   num);
+void _AIO_PUTS2                  (USHORT fno, SHORT  num);
+void _AIO_PUTS1                  (USHORT fno, BYTE   num);
+void _AIO_PUTU4                  (USHORT fno, ULONG  num);
 void _AIO_PUTU2                  (USHORT fno, USHORT num);
-void _AIO_PUTU1                  (USHORT fno, UBYTE num);
-void _AIO_PUTHEX                 (USHORT fno, LONG num);
-void _AIO_PUTUHEX                (USHORT fno, ULONG l);
-void _AIO_PUTBIN                 (USHORT fno, LONG num);
-void _AIO_PUTF                   (USHORT fno, FLOAT f);
-void _AIO_PUTBOOL                (USHORT fno, BOOL b);
+void _AIO_PUTU1                  (USHORT fno, UBYTE  num);
+void _AIO_PUTHEX                 (USHORT fno, LONG   num);
+void _AIO_PUTUHEX                (USHORT fno, ULONG  l);
+void _AIO_PUTBIN                 (USHORT fno, LONG   num);
+void _AIO_PUTF                   (USHORT fno, FLOAT  f);
+void _AIO_PUTBOOL                (USHORT fno, BOOL  b);
 
 void _AIO_PUTS                   (USHORT fno, const UBYTE *str);
 
@@ -458,16 +458,16 @@ void _AIO_PUTTAB                 (USHORT fno);
 
 struct FileHandle *_aio_getfh    (USHORT fno);
 
-void _AIO_WRITES4                (USHORT fno, LONG num);
-void _AIO_WRITES2                (USHORT fno, SHORT num);
-void _AIO_WRITES1                (USHORT fno, UBYTE num);
-void _AIO_WRITEU4                (USHORT fno, ULONG num);
+void _AIO_WRITES4                (USHORT fno, LONG   num);
+void _AIO_WRITES2                (USHORT fno, SHORT  num);
+void _AIO_WRITES1                (USHORT fno, BYTE   num);
+void _AIO_WRITEU4                (USHORT fno, ULONG  num);
 void _AIO_WRITEU2                (USHORT fno, USHORT num);
-void _AIO_WRITEU1                (USHORT fno, UBYTE num);
-void _AIO_WRITEF                 (USHORT fno, FLOAT f);
-void _AIO_WRITEBOOL              (USHORT fno, BOOL b);
+void _AIO_WRITEU1                (USHORT fno, UBYTE  num);
+void _AIO_WRITEF                 (USHORT fno, FLOAT  f);
+void _AIO_WRITEBOOL              (USHORT fno, BOOL   b);
 void _AIO_WRITES                 (USHORT fno, const UBYTE *str);
-void _AIO_WRITECOMMA             (USHORT fno, BOOL b);
+void _AIO_WRITECOMMA             (USHORT fno, BOOL   b);
 
 // [ LINE ] INPUT support:
 
