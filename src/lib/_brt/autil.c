@@ -182,6 +182,36 @@ FLOAT TIMER_ (void)
 	return res;
 }
 
+STRPTR TIME_ (void)
+{
+    struct DateStamp datetime;
+    LONG             seconds;
+    struct ClockData cd;
+
+    DateStamp(&datetime);
+
+    seconds = datetime.ds_Days*24*60*60 + datetime.ds_Minute*60 + datetime.ds_Tick/TICKS_PER_SECOND;
+
+    DPRINTF ("DATE$: seconds=%ld\n", seconds);
+
+    Amiga2Date (seconds, &cd);
+
+    DPRINTF ("DATE$: %02d-%02d-%04d %02d:%02d:%02d\n", cd.month, cd.mday, cd.year, cd.hour, cd.min, cd.sec);
+
+    char buf[8] = "00:00:00";
+
+    buf[0] = '0' + cd.hour/10;
+    buf[1] = '0' + cd.hour%10;
+
+    buf[3] = '0' + cd.min/10;
+    buf[4] = '0' + cd.min%10;
+
+    buf[6] = '0' + cd.sec/10;
+    buf[7] = '0' + cd.sec%10;
+
+    return _astr_dup((STRPTR)buf);
+}
+
 STRPTR DATE_ (void)
 {
     struct DateStamp datetime;

@@ -996,6 +996,19 @@ Case Expression syntax:
     | IS ( '=' | '>' | '<' | '<>' | '<=' | '>=' ) expression )
 
 
+## SGN()
+
+Syntax:
+
+    SGN "(" x ")
+
+returns the sign of a numeric expression
+
+	* x = 0: return 0
+	* x < 0: return -1
+	* x > 0: return 1
+
+
 ## SIN()
 
 Syntax:
@@ -1022,6 +1035,24 @@ Syntax:
 
 Suspend program for the specified number of seconds (floating point value,
 so fractions of seconds are supported).
+
+
+## SPACE$()
+
+Syntax:
+
+    SPACE$ "(" n ")"
+
+returns a string of space characters of a given length
+
+
+## SPC()
+
+Syntax:
+
+    SPC "(" n ")"
+
+returns a string of space characters of a given length
 
 
 ## SQR()
@@ -1056,6 +1087,24 @@ return a string representation (the same one that is used in PRINT output)
 of a given numeric expression
 
 
+## STRING$()
+
+Syntax:
+
+    STRING$ "(" l "," s ")"
+
+returns a string of characters using the first character of the string of a given length
+
+Example:
+
+    DIM AS STRING s, s1
+
+    s = "Monday"
+
+    s1 = STRING$(4, s)
+    ASSERT s1="MMMM"
+
+
 ## SYSTEM
 
 Syntax:
@@ -1072,6 +1121,17 @@ Syntax:
     TAN "(" a ")"
 
 obtain the tangent of the floating point number
+
+
+## TIME$
+
+Syntax:
+
+    TIME$
+
+returns a string representation of the current time
+
+time format used is hh:mm:ss
 
 
 ## TIMER()

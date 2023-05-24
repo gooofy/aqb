@@ -538,6 +538,15 @@ void RANDOMIZE (FLOAT seed)
     // _debug_putnl();
 }
 
+int SGN_(FLOAT n)
+{
+    if (n > g_zero)
+	return 1;
+    if (n < g_zero)
+	return -1;
+    return 0;
+}
+
 void _amath_init(void)
 {
     g_one_half  = SPDiv(SPFlt(2), SPFlt(1));

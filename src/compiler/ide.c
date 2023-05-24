@@ -55,6 +55,8 @@ static S_symbol S_END;
 static S_symbol S_ENDIF;
 static S_symbol S_SUB;
 static S_symbol S_FUNCTION;
+static S_symbol S_CLASS;
+static S_symbol S_CONSTRUCTOR;
 static S_symbol S_FOR;
 static S_symbol S_NEXT;
 static S_symbol S_DO;
@@ -755,6 +757,11 @@ static IDE_line _buf2line (IDE_instance ed)
                             state = STAUI_SUB;
                             fold_start = TRUE;
                         }
+                        else if (sym == S_CONSTRUCTOR)
+                        {
+                            state = STAUI_SUB;
+                            fold_start = TRUE;
+                        }
                         else if (sym == S_FOR)
                         {
                             state = STAUI_LOOP;
@@ -771,6 +778,11 @@ static IDE_line _buf2line (IDE_instance ed)
                             post_indent++;
                         }
                         else if (sym == S_TYPE)
+                        {
+                            state = STAUI_TYPE;
+                            post_indent++;
+                        }
+                        else if (sym == S_CLASS)
                         {
                             state = STAUI_TYPE;
                             post_indent++;
@@ -809,7 +821,7 @@ static IDE_line _buf2line (IDE_instance ed)
                         }
                         break;
                     case STAUI_END:
-                        if ((sym == S_SUB) || (sym == S_FUNCTION))
+                        if ((sym == S_SUB) || (sym == S_FUNCTION) || (sym == S_CONSTRUCTOR))
                             fold_end = TRUE;
                         break;
                     case STAUI_THEN:
@@ -2428,24 +2440,26 @@ void IDE_open (string sourcefn)
     UI_init();
 
     // indentation support
-    S_IF       = S_Symbol("IF"      );
-    S_ELSEIF   = S_Symbol("ELSEIF"  );
-    S_ELSE     = S_Symbol("ELSE"    );
-    S_THEN     = S_Symbol("THEN"    );
-    S_END      = S_Symbol("END"     );
-    S_ENDIF    = S_Symbol("ENDIF"   );
-    S_SUB      = S_Symbol("SUB"     );
-    S_FUNCTION = S_Symbol("FUNCTION");
-    S_FOR      = S_Symbol("FOR"     );
-    S_NEXT     = S_Symbol("NEXT"    );
-    S_DO       = S_Symbol("DO"      );
-    S_LOOP     = S_Symbol("LOOP"    );
-    S_WHILE    = S_Symbol("WHILE"   );
-    S_WEND     = S_Symbol("WEND"    );
-    S_SELECT   = S_Symbol("SELECT"  );
-    S_CASE     = S_Symbol("CASE"    );
-    S_REM      = S_Symbol("REM"     );
-    S_TYPE     = S_Symbol("TYPE"    );
+    S_IF          = S_Symbol("IF"         );
+    S_ELSEIF      = S_Symbol("ELSEIF"     );
+    S_ELSE        = S_Symbol("ELSE"       );
+    S_THEN        = S_Symbol("THEN"       );
+    S_END         = S_Symbol("END"        );
+    S_ENDIF       = S_Symbol("ENDIF"      );
+    S_SUB         = S_Symbol("SUB"        );
+    S_FUNCTION    = S_Symbol("FUNCTION"   );
+    S_CONSTRUCTOR = S_Symbol("CONSTRUCTOR");
+    S_FOR         = S_Symbol("FOR"        );
+    S_NEXT        = S_Symbol("NEXT"       );
+    S_DO          = S_Symbol("DO"         );
+    S_LOOP        = S_Symbol("LOOP"       );
+    S_WHILE       = S_Symbol("WHILE"      );
+    S_WEND        = S_Symbol("WEND"       );
+    S_SELECT      = S_Symbol("SELECT"     );
+    S_CASE        = S_Symbol("CASE"       );
+    S_REM         = S_Symbol("REM"        );
+    S_TYPE        = S_Symbol("TYPE"       );
+    S_CLASS       = S_Symbol("CLASS"      );
 
     g_keywords = TAB_empty (UP_ide);
     for (int i =0; i<FE_num_keywords; i++)

@@ -62,7 +62,7 @@ void _astr_itoa_ext(LONG num, UBYTE* str, LONG base, BOOL leading_space, BOOL po
     while (num != 0)
     {
         int rem = num % base;
-        str[i++] = (rem > 9)? (rem-10) + 'a' : rem + '0';
+        str[i++] = (rem > 9) ? (rem-10) + 'a' : rem + '0';
         num = num/base;
     }
 
@@ -146,6 +146,35 @@ ULONG LEN_(const UBYTE *str)
         l++;
     }
     return l;
+}
+
+UBYTE *SPACE_(SHORT length)
+{
+    UBYTE s[length+1];
+    for (int i=0; i<length; i++)
+        s[i] = 32;
+    s[length] = 0;
+    return _astr_dup(s);
+}
+
+UBYTE *SPC_(SHORT length)
+{
+    return SPACE_(length);
+}
+
+UBYTE *STRING_(SHORT length, UBYTE *str)
+{
+    int l = LEN_(str);
+    if (!l)
+    {
+        ERROR (ERR_ILLEGAL_FUNCTION_CALL);
+        return 0;
+    }
+    UBYTE s[length+1];
+    for (int i=0; i<length; i++)
+        s[i] = str[0];
+    s[length] = 0;
+    return _astr_dup(s);
 }
 
 UBYTE *CHR_(LONG codepoint)
@@ -577,6 +606,30 @@ UBYTE *_S4TOA_   (LONG   l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
+    return _astr_dup(buf);
+}
+
+UBYTE *HEX_   (LONG   l)
+{
+    UBYTE buf[MAXBUF];
+    if (l < 0) { l = -l; }
+    _astr_itoa_ext(l, buf, 16, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+
+UBYTE *OCT_   (LONG   l)
+{
+    UBYTE buf[MAXBUF];
+    if (l < 0) { l = -l; }
+    _astr_itoa_ext(l, buf, 8, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+
+UBYTE *BIN_   (LONG   l)
+{
+    UBYTE buf[MAXBUF];
+    if (l < 0) { l = -l; }
+    _astr_itoa_ext(l, buf, 2, FALSE, FALSE);
     return _astr_dup(buf);
 }
 
