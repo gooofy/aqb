@@ -55,6 +55,13 @@ Guenter Bartsch <guenter@zamia.org>
 
 - support for IEEE Single and Double floating point
 
+- syntax improvements
+
+    - END WHILE in addition to WEND (vb.net compatibility)
+    - string functions without the $ suffix (vb.net compatibility)
+    - ++, --, +=, -= assignment operators
+
+
 ## Runtime
 
 - do stackswap only on demand
