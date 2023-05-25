@@ -12,6 +12,7 @@ Improvements:
     * runtime: GadToolsSupport module added
     * runtime: TEXTEXTEND statement added
     * runtime: WINDOW() function: retrieve current screen's visible width and height (#49)
+    * runtime: SGN, SPC, SPACE$, STRING$, TIME$, DATE$, HEX$, OCT$, BIN$ functions added (thanks @blackborn66!)
     * compiler: support for variadic function argument passing
     * compiler: NEW operator added
     * compiler: EXTENDS, BASE, IMPLEMENTS keywords added (OOP inheritance)

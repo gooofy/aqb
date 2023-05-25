@@ -192,11 +192,11 @@ STRPTR TIME_ (void)
 
     seconds = datetime.ds_Days*24*60*60 + datetime.ds_Minute*60 + datetime.ds_Tick/TICKS_PER_SECOND;
 
-    DPRINTF ("DATE$: seconds=%ld\n", seconds);
+    DPRINTF ("TIME$: seconds=%ld\n", seconds);
 
     Amiga2Date (seconds, &cd);
 
-    DPRINTF ("DATE$: %02d-%02d-%04d %02d:%02d:%02d\n", cd.month, cd.mday, cd.year, cd.hour, cd.min, cd.sec);
+    DPRINTF ("TIME$: %02d-%02d-%04d %02d:%02d:%02d\n", cd.month, cd.mday, cd.year, cd.hour, cd.min, cd.sec);
 
     char buf[8] = "00:00:00";
 
@@ -222,7 +222,8 @@ STRPTR DATE_ (void)
 
     seconds = datetime.ds_Days*24*60*60 + datetime.ds_Minute*60 + datetime.ds_Tick/TICKS_PER_SECOND;
 
-    DPRINTF ("DATE$: seconds=%ld\n", seconds);
+    DPRINTF ("DATE$: datetime.ds_Days=%ld, datetime.ds_Minute=%ld, datetime.ds_Tick=%ld -> seconds=%ld\n",
+             datetime.ds_Days, datetime.ds_Minute, datetime.ds_Tick, seconds);
 
     Amiga2Date (seconds, &cd);
 
