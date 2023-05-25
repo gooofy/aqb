@@ -264,7 +264,7 @@ Guenter Bartsch <guenter@zamia.org>
 - \_\_\_\_ SHARED
 - DONE SIN()
 - DONE SPACE$()
-- DONE SPC()
+- DONE SPC()    // FIXME: move cursor right instead of inserting spaces
 - DONE SQR()
 - DONE STATIC
 - DONE STR$()

@@ -275,5 +275,5 @@ https://github.com/gooofy/aqb
 ## Authors
 
 * Günter Bartsch (https://github.com/gooofy) Main Author
-* S. Hi (https://github.com/blackborn66) Bugfixes, Documentation, Testing, Feedback
+* S. Hi (https://github.com/blackborn66) Bugfixes, Runtime improvements, IDE improvements, Documentation, Testing, Feedback
 
