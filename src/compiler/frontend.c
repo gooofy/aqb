@@ -265,7 +265,7 @@ static TAB_table userLabels=NULL; // Temp_label->TRUE, line numbers, explicit la
  *
  *******************************************************************/
 
-#define MAX_KEYWORDS 106
+#define MAX_KEYWORDS 107
 
 S_symbol FE_keywords[MAX_KEYWORDS];
 int FE_num_keywords;
@@ -376,6 +376,7 @@ static S_symbol S_INTERFACE;
 static S_symbol S_CLASS;
 static S_symbol S_IMPLEMENTS;
 static S_symbol S_VIRTUAL;
+static S_symbol S_SWAP;
 
 // internal fixed symbols that are not keywords (and thus get not highlighted in the editor)
 
@@ -3685,6 +3686,43 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
     CG_transCall (g_sleStack->code, /*pos=*/pos, g_sleStack->frame, func->u.proc, arglist, NULL);
 
     return TRUE;
+}
+
+static bool stmtSwap(S_tkn *tkn, E_enventry e, CG_item *exp)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "SWAP"
+
+    CG_item var1, var2;
+    if (!expDesignator(tkn, &var1, /*isVARPTR=*/ FALSE, /*leftHandSide=*/TRUE))
+        return FALSE;
+
+    if ((*tkn)->kind != S_COMMA)
+        return EM_error((*tkn)->pos, "SWAP: , expected here.");
+    *tkn = (*tkn)->next;
+
+    if (!expDesignator(tkn, &var2, /*isVARPTR=*/ FALSE, /*leftHandSide=*/TRUE))
+        return FALSE;
+
+    CG_item val1, val2;
+    val1 = var1;
+    //CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, &val1);
+    val2 = var2;
+    //CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, &val2);
+
+    Ty_ty t1 = var1.ty;
+    Ty_ty t2 = var2.ty;
+    if (t1->kind != t2->kind)
+        return EM_error(pos, "SWAP: type mismatch");
+
+    CG_item tmp;
+    CG_TempItem (&tmp, t1);
+
+    CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &tmp, &val1);
+    CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &var1, &val2);
+    CG_transAssignment (g_sleStack->code, pos, g_sleStack->frame, &var2, &tmp);
+
+    return isLogicalEOL(*tkn);
 }
 
 // break ::= BREAK
@@ -8880,6 +8918,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_BREAK        , /*extraSyms=*/ NULL      , stmtBreak             , NULL);
     declareBuiltinProc(S_CLEAR        , /*extraSyms=*/ NULL      , stmtClear             , NULL);
     declareBuiltinProc(S_WRITE        , /*extraSyms=*/ NULL      , stmtWrite             , NULL);
+    declareBuiltinProc(S_SWAP         , /*extraSyms=*/ NULL      , stmtSwap              , NULL);
 }
 
 //
@@ -9465,6 +9504,7 @@ void FE_boot(void)
     S_CLASS           = defineKeyword("CLASS");
     S_IMPLEMENTS      = defineKeyword("IMPLEMENTS");
     S_VIRTUAL         = defineKeyword("VIRTUAL");
+    S_SWAP            = defineKeyword("SWAP");
 
     S_ToString        = S_Symbol("TOSTRING");
     S_CObject         = S_Symbol("COBJECT");

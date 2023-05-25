@@ -12,7 +12,7 @@ ASSERT g=23
 
 SWAP f, g
 
-TRACE f, g
+'TRACE f, g
 
 ASSERT f=23
 ASSERT g=42
@@ -29,7 +29,7 @@ ASSERT y = 2.5
 
 SWAP x, y
 
-TRACE x, y
+'TRACE x, y
 
 ASSERT x = 2.5
 ASSERT y = 1.5
@@ -46,7 +46,7 @@ assert s2 = "BOMMEL"
 
 SWAP s1, s2
 
-TRACE s1, s2
+'TRACE s1, s2
 
 assert s1 = "BOMMEL"
 assert s2 = "HUBBA"

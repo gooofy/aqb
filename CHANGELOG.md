@@ -24,6 +24,7 @@ Improvements:
     * compiler: [breaking] introduced new ANY, removed VOID type
     * compiler: generate proper error message when a constant is assigned to (#24)
     * compiler: always linear scan for register allocation instead of graph coloring
+    * compiler: SWAP statement implemented
 
 Bug Fixes:
 

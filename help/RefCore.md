@@ -1105,6 +1105,26 @@ Example:
     ASSERT s1="MMMM"
 
 
+## SWAP
+
+Syntax:
+
+    SWAP a "," b
+
+exchange the values of two variables
+
+Example:
+
+    OPTION EXPLICIT
+
+    DIM f AS INTEGER = 42
+    DIM g AS INTEGER = 23
+
+    SWAP f, g
+
+    TRACE f, g
+
+
 ## SYSTEM
 
 Syntax:

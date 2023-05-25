@@ -270,7 +270,7 @@ Guenter Bartsch <guenter@zamia.org>
 - DONE STR$()
 - DONE STRING$()
 - \_\_\_\_ SUB
-- \_\_\_\_ SWAP
+- DONE SWAP
 - DONE SYSTEM
 - \_\_\_\_ TAB()
 - DONE TAN()
