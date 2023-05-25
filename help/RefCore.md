@@ -100,6 +100,15 @@ Example:
     END CONSTRUCTOR
 
 
+## BIN$()
+
+Syntax:
+
+    BIN$ "(" expr ")"
+
+return a string representation of the binary value of a given numeric expression
+
+
 ## BREAK
 
 Syntax:
@@ -511,6 +520,15 @@ Syntax:
 jump to a subroutine at line label or a line number in the program
 
 
+## HEX$()
+
+Syntax:
+
+    HEX$ "(" expr ")"
+
+return a string representation of the hexadecimal value of a given numeric expression
+
+
 ## IF ... THEN
 
 Syntax A:
@@ -732,6 +750,15 @@ Syntax:
     NOT expr
 
 return logical not of expr
+
+
+## OCT$()
+
+Syntax:
+
+    OCT$ "(" expr ")"
+
+return a string representation of the octal value of a given numeric expression
 
 
 ## ON ERROR

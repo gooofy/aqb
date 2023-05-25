@@ -609,27 +609,24 @@ UBYTE *_S4TOA_   (LONG   l)
     return _astr_dup(buf);
 }
 
-UBYTE *HEX_   (LONG   l)
+UBYTE *HEX_   (ULONG   l)
 {
     UBYTE buf[MAXBUF];
-    if (l < 0) { l = -l; }
-    _astr_itoa_ext(l, buf, 16, FALSE, FALSE);
+    _astr_utoa_ext(l, buf, 16, FALSE, FALSE);
     return _astr_dup(buf);
 }
 
-UBYTE *OCT_   (LONG   l)
+UBYTE *OCT_   (ULONG   l)
 {
     UBYTE buf[MAXBUF];
-    if (l < 0) { l = -l; }
-    _astr_itoa_ext(l, buf, 8, FALSE, FALSE);
+    _astr_utoa_ext(l, buf, 8, FALSE, FALSE);
     return _astr_dup(buf);
 }
 
-UBYTE *BIN_   (LONG   l)
+UBYTE *BIN_   (ULONG   l)
 {
     UBYTE buf[MAXBUF];
-    if (l < 0) { l = -l; }
-    _astr_itoa_ext(l, buf, 2, FALSE, FALSE);
+    _astr_utoa_ext(l, buf, 2, FALSE, FALSE);
     return _astr_dup(buf);
 }
 
