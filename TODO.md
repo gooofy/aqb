@@ -53,6 +53,8 @@ Guenter Bartsch <guenter@zamia.org>
 
 - create Icons for Binaries
 
+- support for IEEE Single and Double floating point
+
 ## Runtime
 
 - do stackswap only on demand
