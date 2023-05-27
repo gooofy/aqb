@@ -435,6 +435,7 @@ VOID _CARRAYENUMERATOR_RESET (CArrayEnumerator *THIS)
     THIS->_index = -1;
 }
 
+#if 0
 static intptr_t _CArrayEnumerator_vtable[] = {
     (intptr_t) _COBJECT_TOSTRING_,
     (intptr_t) _COBJECT_EQUALS_,
@@ -521,4 +522,4 @@ void _CARRAYENUMERATOR___init (CArrayEnumerator *THIS)
     THIS->_vTablePtr = (intptr_t **) &_CArrayEnumerator_vtable;
     THIS->__intf_vtable_IEnumerator = (intptr_t **) &__intf_vtable_CArrayEnumerator_IEnumerator;
 }
-
+#endif

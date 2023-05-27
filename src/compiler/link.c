@@ -899,6 +899,10 @@ bool LI_segmentListReadObjectFile (U_poolId pid, LI_segmentList sl, string sourc
                 if (!load_hunk_ext(pid, sourcefn, f, sl->commonSyms))
                     return FALSE;
                 break;
+            case HUNK_TYPE_DEBUG:
+                if (!load_hunk_debug(pid, sourcefn, f))
+                    return FALSE;
+                break;
             case HUNK_TYPE_END:
                 if (!g_hunk_cur)
                 {

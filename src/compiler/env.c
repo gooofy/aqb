@@ -298,6 +298,7 @@ Ty_ty E_getPointer (E_module mod, S_symbol sTy)
     p->u.sForward = sTy;
     p->mod        = mod;
     p->uid        = E_moduleAddType (mod, p);
+    p->tdLabel    = NULL;
 
     TAB_enter (mod->ptrCache, sTy, p);
 
@@ -333,6 +334,7 @@ Ty_ty E_getPointerTy (E_module mod, Ty_ty ty)
     p->u.pointer = ty;
     p->mod       = mod;
     p->uid       = E_moduleAddType (mod, p);
+    p->tdLabel   = NULL;
 
     TAB_enter (mod->ptrCacheTy, ty, p);
     if (sTy)

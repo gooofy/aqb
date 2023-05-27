@@ -28,6 +28,7 @@ ULONG _COBJECT_GETHASHCODE_ (CObject *THIS)
     return (intptr_t) THIS;
 }
 
+#if 0
 static void * _CObject_vtable[] = {
     (void*) _COBJECT_TOSTRING_,
     (void*) _COBJECT_EQUALS_,
@@ -38,5 +39,5 @@ void _COBJECT___init (CObject *THIS)
 {
     THIS->_vTablePtr = (void ***) &_CObject_vtable;
 }
-
+#endif
 

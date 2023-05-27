@@ -169,32 +169,189 @@ void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, Ty_ty ty, int offset, Tem
     //LOG_printf (LOG_DEBUG, "codegen: CG_addFrameVarInfo ends.\n");
 }
 
+static Temp_label getTypeLabel (Ty_ty ty)
+{
+    assert (ty->mod);
+    Temp_label label = ty->tdLabel;
+    if (!label)
+    {
+        switch (ty->kind)
+        {
+            case Ty_record:
+                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
+                                                                S_name(ty->mod->name),
+                                                                S_name(ty->u.record.name)));
+                break;
+            case Ty_interface:
+                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
+                                                                S_name(ty->mod->name),
+                                                                S_name(ty->u.interface.name)));
+                break;
+            case Ty_class:
+                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
+                                                                S_name(ty->mod->name),
+                                                                S_name(ty->u.cls.name)));
+                break;
+            case Ty_pointer:
+                if (ty->u.pointer->kind != Ty_pointer && ty->u.pointer->mod)
+                    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%s",
+                                                                    S_name(ty->mod->name),
+                                                                    S_name(getTypeLabel (ty->u.pointer))));
+                else
+                    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%08x",
+                                                                    S_name(ty->mod->name),
+                                                                    ty->uid));
+                break;
+
+            //case Ty_sarray:
+            //case Ty_darray:
+            //case Ty_pointer:
+            //case Ty_procPtr:
+            //case Ty_string:
+            //    CG_dataFragAddPtr (descFrag, getTypeLabel (ty));
+            //    break;
+
+            //case Ty_forwardPtr:
+            //case Ty_toLoad:
+            //case Ty_prc:
+            //    assert(FALSE);
+            //    break;
+            default:
+                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%08x",
+                                                                S_name(ty->mod->name),
+                                                                ty->uid));
+                break;
+        }
+    }
+    return label;
+}
+
+#define TYPEREF_FLAG_LABEL   0x8000
+#define TYPEREF_FLAG_BUILTIN 0x4000
+
+static void genTypeRef (CG_frag descFrag, Ty_ty ty, bool hasLabel)
+{
+    uint32_t kind = ty->kind;
+    if (hasLabel)
+        kind |= TYPEREF_FLAG_LABEL;
+    if (ty->mod)
+    {
+        CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), kind));
+        switch (ty->kind)
+        {
+            case Ty_sarray:
+            case Ty_darray:
+            case Ty_record:
+            case Ty_pointer:
+            case Ty_procPtr:
+            case Ty_class:
+            case Ty_string:
+                CG_dataFragAddPtr (descFrag, getTypeLabel (ty));
+                break;
+
+            case Ty_forwardPtr:
+            case Ty_toLoad:
+            case Ty_prc:
+                assert(FALSE);
+                break;
+            default:
+                break;
+        }
+    }
+    else
+    {
+        CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), kind | TYPEREF_FLAG_BUILTIN));
+        CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_UInteger(), ty->uid));
+    }
+}
+
 CG_frag CG_genFrameDesc (CG_frame frame)
 {
-    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "%s_desc", Temp_labelstring(frame->name)));
+    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__framedesc_%s", Temp_labelstring(frame->name)));
     CG_frag descFrag = CG_DataFrag(label, /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
 
     for (CG_frameVarInfo vi = frame->vars; vi; vi=vi->next)
     {
-        uint32_t kind = vi->ty->kind;
-        if (vi->label)
-            kind |= 0x8000;
-        CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), kind));
+        genTypeRef (descFrag, vi->ty, /*hasLabel = */ vi->label != NULL);
         if (vi->label)
             CG_dataFragAddPtr   (descFrag, vi->label);
         else
             CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_ULong(), vi->offset));
-        // FIXME
-        //switch (vi->ty->kind)
-        //{
-        //   Ty_sarray, Ty_darray, Ty_record, Ty_pointer, Ty_string,
-        //   Ty_any, Ty_forwardPtr, Ty_procPtr,
-        //   Ty_class, Ty_interface,
-        //   Ty_toLoad, Ty_prc } kind;
-        //}
     }
     CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), -1));
     return descFrag;
+}
+
+void CG_genTypeDesc (Ty_ty ty)
+{
+    // only non-primitive, non-proc types need type descriptors, for now
+    switch (ty->kind)
+    {
+        case Ty_class:
+        case Ty_pointer:
+        case Ty_sarray:
+        case Ty_darray:
+        case Ty_record:
+        case Ty_string:
+            break;
+
+        default:
+            return;
+    }
+
+    Temp_label label = getTypeLabel (ty);
+    CG_frag descFrag = CG_DataFrag(label, /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
+
+    uint32_t kind = ty->kind;
+    CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), kind));
+    switch (ty->kind)
+    {
+        case Ty_class:
+        {
+            if (ty->u.cls.baseType)
+                CG_dataFragAddPtr (descFrag, getTypeLabel (ty->u.cls.baseType));
+            else
+                CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_ULong(), 0));
+
+            for (Ty_member member = ty->u.cls.members->first; member; member=member->next)
+            {
+                if (member->kind != Ty_recField)
+                    continue;
+                genTypeRef (descFrag, member->u.field.ty, /*hasLabel=*/FALSE);
+                CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_ULong(), member->u.field.uiOffset));
+            }
+            CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), -1));
+            break;
+        }
+        case Ty_record:
+        {
+            for (Ty_member member = ty->u.record.entries->first; member; member=member->next)
+            {
+                if (member->kind != Ty_recField)
+                    continue;
+                genTypeRef (descFrag, member->u.field.ty, /*hasLabel=*/FALSE);
+                CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_ULong(), member->u.field.uiOffset));
+            }
+            CG_dataFragAddConst (descFrag, Ty_ConstInt (Ty_Integer(), -1));
+            break;
+        }
+        case Ty_pointer:
+            genTypeRef (descFrag, ty->u.pointer, /*hasLabel=*/FALSE);
+            break;
+        case Ty_sarray:
+        case Ty_darray:
+        case Ty_string:
+            assert(FALSE);
+            break;
+
+        case Ty_forwardPtr:
+        case Ty_toLoad:
+            assert(FALSE);
+            break;
+
+        default:
+            break;
+    }
 }
 
 void CG_ConstItem (CG_item *item, Ty_const c)

@@ -70,8 +70,9 @@ struct Ty_ty_
     } u;
 
     // serialization / symbol file / import / export support:
-    E_module mod; // module this type is defined in, NULL to indicate built-in type
-    uint32_t uid; // unique id of this type within the module it is defined in
+    E_module   mod;     // module this type is defined in, NULL to indicate built-in type
+    uint32_t   uid;     // unique id of this type within the module it is defined in
+    Temp_label tdLabel; // type descriptor label (caching only)
 };
 
 struct Ty_const_

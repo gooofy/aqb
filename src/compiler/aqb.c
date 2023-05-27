@@ -81,6 +81,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
 	fprintf(stderr, "    -S <foo.c>   create C stub file\n");
 	fprintf(stderr, "    -I           interface module (no code)\n");
+	fprintf(stderr, "    -N           no not generate a module init function\n");
 	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
 	fprintf(stderr, "    -p <foo>     create hunk object file\n");
 	fprintf(stderr, "    -v           verbose\n");
@@ -193,6 +194,7 @@ int main (int argc, char *argv[])
     int    optind;
     bool   launch_ide = TRUE;
     bool   hasCode = TRUE;
+    bool   noInitFn = FALSE;
     string symfn=NULL;
     string cstubfn=NULL;
     string objfn=NULL;
@@ -256,6 +258,9 @@ int main (int argc, char *argv[])
 				break;
         	case 'I':
 				hasCode = FALSE;
+				break;
+        	case 'N':
+				noInitFn = TRUE;
 				break;
         	case 'a':
                 optind++;
@@ -450,6 +455,7 @@ int main (int argc, char *argv[])
                       asm_gas_fn,
                       asm_asmpro_fn,
                       asm_vasm_fn,
-                      hasCode);
+                      hasCode,
+                      noInitFn);
 }
 

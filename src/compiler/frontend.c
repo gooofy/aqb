@@ -9135,7 +9135,7 @@ static void _checkLeftoverForwardSubs(S_scope env)
 }
 
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*
-CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name)
+CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name, bool noInitFn)
 {
     FE_filename = filename;
     S_init (UP_frontend, /*keep_source=*/TRUE, nextch, inf, /*filter_comments=*/TRUE);
@@ -9342,12 +9342,15 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
                          /*expt=*/TRUE);
     }
 
-    // generate __aqb_main():
+    // generate __aqb_main() or __<module_init()
 
-    if (!g_prog->first)
-        CG_transNOP (g_prog, 0);
+    if (!noInitFn)
+    {
+        if (!g_prog->first)
+            CG_transNOP (g_prog, 0);
 
-    CG_procEntryExit (0, moduleFrame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+        CG_procEntryExit (0, moduleFrame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+    }
 
     // stack size (used in _brt stackswap)
 
@@ -9357,7 +9360,15 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         CG_dataFragAddConst (stackSizeFrag, Ty_ConstUInt (Ty_ULong(), g_stack_size));
     }
 
-    // generate frame descriptors
+    // generate type and frame descriptors
+
+    TAB_iter iter = TAB_Iter(FE_mod->tyTable);
+    void *key;
+    Ty_ty ty;
+    while (TAB_next(iter, &key, (void **)&ty))
+    {
+        CG_genTypeDesc (ty);
+    }
 
     CG_genFrameDesc (g_globalFrame);
 

@@ -1,53 +1,26 @@
 OPTION EXPLICIT
 
-'
-' integer
-'
+CLASS myc
 
-DIM f AS INTEGER = 42
-DIM g AS INTEGER = 23
+    field1 AS INTEGER
 
-ASSERT f=42
-ASSERT g=23
+    'DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
 
-SWAP f, g
+    'DECLARE FUNCTION Square() AS INTEGER
 
-TRACE f, g
+END CLASS
 
-ASSERT f=23
-ASSERT g=42
+DIM SHARED AS INTEGER a, b
 
-'
-' single
-'
+DIM SHARED AS myc PTR p1
 
-DIM x AS SINGLE = 1.5
-DIM y AS SINGLE = 2.5
+p1 = NEW myc
 
-ASSERT x = 1.5
-ASSERT y = 2.5
+TRACE "Calling the garbage collector..."
 
-SWAP x, y
+GC RUN
 
-TRACE x, y
+TRACE "GC finished."
 
-ASSERT x = 2.5
-ASSERT y = 1.5
 
-'
-' string
-'
-
-DIM s1 AS STRING = "HUBBA"
-DIM s2 AS STRING = "BOMMEL"
-
-assert s1 = "HUBBA"
-assert s2 = "BOMMEL"
-
-SWAP s1, s2
-
-TRACE s1, s2
-
-assert s1 = "BOMMEL"
-assert s2 = "HUBBA"
 

@@ -37,7 +37,7 @@ void CO_exit(int return_code)
 }
 
 int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn, string objfn, string binfn,
-               string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode)
+               string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode, bool noInitFn)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
@@ -105,7 +105,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
 		CO_exit(EXIT_FAILURE);
 	}
 
-	frags = FE_sourceProgram(sourcef, sourcefn, /*is_main=*/!symfn, module_name);
+	frags = FE_sourceProgram(sourcef, sourcefn, /*is_main=*/!symfn, module_name, noInitFn);
 	fclose(sourcef);
 
     if (EM_anyErrors)
@@ -125,7 +125,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
     {
         if (FE_writeSymFile(symfn, hasCode))
         {
-            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n%s written.\n", symfn);
+            LOG_printf (LOG_INFO, "created symbol file: %s\n", symfn);
         }
         else
         {
@@ -216,6 +216,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         }
         CG_writeASMFile (out, frags, AS_dialect_gas);
         fclose(out);
+        LOG_printf (LOG_INFO, "created GNU style asm file: %s\n", asm_gas_fn);
     }
 
     if (asm_asmpro_fn)
@@ -228,6 +229,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         }
         CG_writeASMFile (out, frags, AS_dialect_ASMPro);
         fclose(out);
+        LOG_printf (LOG_INFO, "created ASMPro style asm file: %s\n", asm_asmpro_fn);
     }
 
     if (asm_vasm_fn)
@@ -240,6 +242,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         }
         CG_writeASMFile (out, frags, AS_dialect_vasm);
         fclose(out);
+        LOG_printf (LOG_INFO, "created vasm style asm file: %s\n", asm_vasm_fn);
     }
 
     if (!binfn && !objfn)
@@ -373,7 +376,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         LI_segmentWriteObjectFile (obj, objfn);
 
     if (!binfn)
-        CO_exit(EXIT_FAILURE);
+        CO_exit(0);
 
     /*
      * machine code generation (link phase)

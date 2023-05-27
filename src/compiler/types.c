@@ -93,6 +93,7 @@ Ty_ty Ty_Record (E_module mod, S_symbol name)
     p->u.record.name         = name;
     p->mod                   = mod;
     p->uid                   = E_moduleAddType (mod, p);
+    p->tdLabel               = NULL;
 
     // lookup ptr right away to resolve potential forward ptrs
     E_getPointerTy (mod, p);
@@ -111,6 +112,7 @@ Ty_ty Ty_Interface (E_module mod, S_symbol name)
     p->u.interface.virtualMethodCnt = 0;
     p->mod                          = mod;
     p->uid                          = E_moduleAddType (mod, p);
+    p->tdLabel                      = NULL;
 
     // lookup ptr right away to resolve potential forward ptrs
     E_getPointerTy (mod, p);
@@ -134,6 +136,7 @@ Ty_ty Ty_Class (E_module mod, S_symbol name, Ty_ty baseType)
     p->u.cls.vTablePtr        = NULL;
     p->mod                    = mod;
     p->uid                    = E_moduleAddType (mod, p);
+    p->tdLabel                = NULL;
 
     // lookup ptr right away to resolve potential forward ptrs
     E_getPointerTy (mod, p);
@@ -366,6 +369,7 @@ Ty_ty Ty_Prc(E_module mod, Ty_proc proc)
     p->u.proc    = proc;
     p->mod       = mod;
     p->uid       = E_moduleAddType (mod, p);
+    p->tdLabel   = NULL;
 
     return p;
 }
@@ -378,6 +382,7 @@ Ty_ty Ty_ProcPtr(E_module mod, Ty_proc proc)
     p->u.procPtr = proc;
     p->mod       = mod;
     p->uid       = E_moduleAddType (mod, p);
+    p->tdLabel   = NULL;
 
     return p;
 }
@@ -389,6 +394,7 @@ Ty_ty Ty_ToLoad(E_module mod, uint32_t uid)
     p->kind                = Ty_toLoad;
     p->mod                 = mod;
     p->uid                 = uid;
+    p->tdLabel             = NULL;
 
     return p;
 }
@@ -509,6 +515,7 @@ Ty_ty Ty_SArray(E_module mod, Ty_ty ty, int start, int end)
     p->u.sarray.iEnd      = end;
     p->mod                = mod;
     p->uid                = E_moduleAddType (mod, p);
+    p->tdLabel            = NULL;
 
     Ty_computeSize(p);
 
@@ -524,6 +531,7 @@ Ty_ty Ty_DArray(E_module mod, Ty_ty elementTy, Ty_ty tyCArray)
     p->u.darray.tyCArray  = tyCArray;
     p->mod                = mod;
     p->uid                = E_moduleAddType (mod, p);
+    p->tdLabel            = NULL;
 
     return p;
 }
