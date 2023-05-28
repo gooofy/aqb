@@ -33,7 +33,7 @@ static inline void *_nextULong (void *p, ULONG *w)
 static inline void *_nextPtr (intptr_t *p, intptr_t *w)
 {
     intptr_t *pw = p;
-    *w = *p++;
+    *w = *pw++;
     return pw;
 }
 
@@ -49,9 +49,9 @@ static void _gc_scan_frame (void *pDesc)
         if (kind == -1)
             return;
 
-        BOOL hasLabel = kind & TYPEREF_FLAG_LABEL;
+        BOOL hasLabel = (kind & TYPEREF_FLAG_LABEL) != 0;
         kind &= ~TYPEREF_FLAG_LABEL;
-        BOOL isBuiltin = kind & TYPEREF_FLAG_BUILTIN;
+        BOOL isBuiltin = (kind & TYPEREF_FLAG_BUILTIN) != 0;
         kind &= ~TYPEREF_FLAG_BUILTIN;
 
         UWORD uid=0;
@@ -68,8 +68,8 @@ static void _gc_scan_frame (void *pDesc)
         ULONG addr;
         pDesc = _nextULong (pDesc, &addr);
 
-        DPRINTF ("_gc_scan_frame: kind=%d, hasLabel=%d, isBuiltin=%d, uid=%d, pSubDesc=0x%08lx\n",
-                 kind, hasLabel, isBuiltin, uid, pSubDesc);
+        DPRINTF ("_gc_scan_frame: kind=%2d, hasLabel=%d, isBuiltin=%d, uid=%04d, pSubDesc=0x%08lx, pDesc=0x%08lx\n",
+                 kind, hasLabel, isBuiltin, uid, pSubDesc, pDesc);
     }
 }
 
