@@ -142,6 +142,15 @@ PUBLIC DECLARE EXTERN SUB      RANDOMIZE (BYVAL seed AS SINGLE)
 
 PUBLIC CLASS CObject
 
+    PRIVATE:
+
+        ' GC and dynamic typing support, *DO NOT TOUCH!*
+        DECLARE VIRTUAL FUNCTION __gc_scan (BYVAL gc AS ANY PTR)
+
+        AS ANY PTR __gc_next, __gc_prev
+        AS UBYTE   __gc_color
+        AS ANY PTR __type_desc
+
     PUBLIC:
 
         DECLARE EXTERN VIRTUAL FUNCTION ToString    ()                         AS STRING

@@ -82,6 +82,7 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "    -S <foo.c>   create C stub file\n");
 	fprintf(stderr, "    -I           interface module (no code)\n");
 	fprintf(stderr, "    -N           no not generate a module init function\n");
+	fprintf(stderr, "    -E           no not generate a gc scan functions\n");
 	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
 	fprintf(stderr, "    -p <foo>     create hunk object file\n");
 	fprintf(stderr, "    -v           verbose\n");
@@ -195,6 +196,7 @@ int main (int argc, char *argv[])
     bool   launch_ide = TRUE;
     bool   hasCode = TRUE;
     bool   noInitFn = FALSE;
+    bool   gcScanExtern = FALSE;
     string symfn=NULL;
     string cstubfn=NULL;
     string objfn=NULL;
@@ -261,6 +263,9 @@ int main (int argc, char *argv[])
 				break;
         	case 'N':
 				noInitFn = TRUE;
+				break;
+        	case 'E':
+				gcScanExtern = TRUE;
 				break;
         	case 'a':
                 optind++;
@@ -456,6 +461,7 @@ int main (int argc, char *argv[])
                       asm_asmpro_fn,
                       asm_vasm_fn,
                       hasCode,
-                      noInitFn);
+                      noInitFn,
+                      gcScanExtern);
 }
 

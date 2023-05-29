@@ -8,7 +8,7 @@ all: _brt_stub.c startup.o _brt.a _brt.sym
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
 _brt.sym _brt.o _brt.s : _brt.bas
-	$(AQB) -d none -N -s _brt.sym -a _brt.asm -p _brt.o $<
+	$(AQB) -d none -N -E -s _brt.sym -a _brt.asm -p _brt.o $<
 	pushd .. && rm -f _brt.sym && ln -s _brt/_brt.sym && popd
 	cp $< $(DISTDIR)/libsrc
 	cp $@ $(DISTDIR)/lib
@@ -33,7 +33,7 @@ diss: startup.o
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
 _brt_stub.c: _brt.bas
-	$(AQB) -L .. -d none -S $@ $<
+	$(AQB) -L .. -N -E -d none -S $@ $<
 
 clean:
 	rm -f *.o alibtest _brt.a *.sym *.asm aqb.log _brt_stub.c

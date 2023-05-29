@@ -9,7 +9,8 @@
 extern const char *FE_filename;
 extern E_module    FE_mod;
 
-CG_fragList     FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name, bool noInitFn);
+CG_fragList     FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name, bool noInitFn,
+                                 bool gcScanExtern);
 
 bool            FE_writeSymFile   (string symfn, bool hasCode);
 bool            FE_writeCStubFile (string cstubfn);

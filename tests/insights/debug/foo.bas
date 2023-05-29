@@ -1,8 +1,13 @@
 OPTION EXPLICIT
 
+'CLASS myc2
+'    field1 AS INTEGER
+'END CLASS
+
 CLASS myc
 
     field1 AS INTEGER
+    'field2 AS myc PTR
 
     'DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
 

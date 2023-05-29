@@ -14,6 +14,7 @@
 #include "logger.h"
 
 const char *FE_filename = NULL;
+static bool _g_gcScanExtern = FALSE;
 
 // contains public env entries for export
 E_module FE_mod = NULL;
@@ -387,6 +388,7 @@ static S_symbol S_RemoveAll;
 static S_symbol S_IDXPTR;
 static S_symbol S__aqb_clear;
 static S_symbol S_COPY;
+static S_symbol S_GC;
 
 // CArray _brt type (cached by _TyCArray())
 static Ty_ty      g_tyCArray=NULL;
@@ -6762,7 +6764,7 @@ static void _clsAddIntfImplRecursive(Ty_ty tyCls, Ty_ty tyIntf)
         if (implements->intf == tyIntf)
             return; // we already know this interface
     }
-    
+
     S_symbol sVTableEntry = S_Symbol (strconcat (UP_frontend, "__intf_vtable_", S_name(tyIntf->u.interface.name)));
 
     Ty_member vTablePtr = Ty_MemberField (Ty_visProtected, sVTableEntry, Ty_VTablePtr());
@@ -7149,10 +7151,73 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls)
+{
+    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_scan", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+
+    if (!_g_gcScanExtern)
+    {
+
+        Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+        formals = Ty_Formal(S_GC, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+
+        //Ty_proc scanfn = Ty_Proc (Ty_visPrivate, Ty_pkSub, S_Symbol("__gc_scan"),
+        //                          /*extraSyms=*/NULL,
+        //                          label,
+        //                          formals,
+        //                          /*isVariadic=*/FALSE,
+        //                          /*isStatic=*/FALSE,
+        //                          /*returnTy=*/NULL,
+        //                          /*forward=*/FALSE,
+        //                          /*isExtern=*/FALSE,
+        //                          /*offset=*/0,
+        //                          /*libBase=*/NULL,
+        //                          /*tyCls=*/tyCls);
+
+        CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
+        AS_instrList il = AS_InstrList();
+
+        for (Ty_member member = tyCls->u.cls.members->first; member; member=member->next)
+        {
+            if (member->kind != Ty_recField)
+                continue;
+
+            switch (member->u.field.ty->kind)
+            {
+                case Ty_sarray:
+                case Ty_darray:
+                case Ty_record:
+                case Ty_pointer:
+                case Ty_string:
+                case Ty_any:
+                case Ty_class:
+                    assert(FALSE); // FIXME: implement
+                default:
+                    continue;
+            }
+        }
+
+        if (!il->first)
+            CG_transNOP (il, 0);
+
+        CG_procEntryExit(0,
+                         frame,
+                         il,
+                         /*returnVar=*/NULL,
+                         /*exitlbl=*/ NULL,
+                         /*is_main=*/FALSE,
+                         /*expt=*/TRUE);
+    }
+
+    return label;
+}
+
 static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
 {
     if (tyCls->u.cls.baseType)
+    {
         _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
+    }
 
     for (Ty_member member=tyCls->u.cls.members->first; member; member=member->next)
     {
@@ -7172,6 +7237,7 @@ static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
                 continue;
         }
     }
+
 }
 
 static void _assembleVTables (Ty_ty tyCls)
@@ -7221,6 +7287,9 @@ static void _assembleVTables (Ty_ty tyCls)
     classVTablePtr.kind = IK_inReg;
 
     CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
+
+    // vTable entry #0 is special: it contains the garbage collector's gc_scan virtual function
+    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod(tyCls), 0);
 
     // assemble and assign vtables for each implemented interface
 
@@ -9135,9 +9204,12 @@ static void _checkLeftoverForwardSubs(S_scope env)
 }
 
 // sourceProgram ::= ( [ ( number | ident ":" ) ] sourceLine )*
-CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name, bool noInitFn)
+CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, string module_name, bool noInitFn,
+                             bool gcScanExtern)
 {
     FE_filename = filename;
+    _g_gcScanExtern = gcScanExtern;
+
     S_init (UP_frontend, /*keep_source=*/TRUE, nextch, inf, /*filter_comments=*/TRUE);
 
     userLabels  = TAB_empty(UP_frontend);
@@ -9524,6 +9596,7 @@ void FE_boot(void)
     S_IDXPTR          = S_Symbol("IDXPTR");
     S__aqb_clear      = S_Symbol("__aqb_clear");
     S_COPY            = S_Symbol("COPY");
+    S_GC              = S_Symbol("GC");
 }
 
 void FE_init(void)

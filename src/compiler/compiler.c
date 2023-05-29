@@ -37,7 +37,8 @@ void CO_exit(int return_code)
 }
 
 int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn, string objfn, string binfn,
-               string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode, bool noInitFn)
+               string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode, bool noInitFn,
+               bool gcScanExtern)
 {
     static CG_fragList     frags;
 	static FILE           *sourcef;
@@ -105,7 +106,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
 		CO_exit(EXIT_FAILURE);
 	}
 
-	frags = FE_sourceProgram(sourcef, sourcefn, /*is_main=*/!symfn, module_name, noInitFn);
+	frags = FE_sourceProgram(sourcef, sourcefn, /*is_main=*/!symfn, module_name, noInitFn, gcScanExtern);
 	fclose(sourcef);
 
     if (EM_anyErrors)

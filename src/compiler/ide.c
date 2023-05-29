@@ -1689,7 +1689,8 @@ static bool _compile(IDE_instance ed)
                /*asm_asmpro_fn=*/ NULL,
                /*asm_vasm_fn=*/ NULL,
                /*hasCode=*/ TRUE,
-               /*noInitFn=*/ FALSE);
+               /*noInitFn=*/ FALSE,
+               /*gcScanExtern=*/ FALSE);
 
     //LOG_printf (LOG_INFO, "\n*** press any key to continue ***\n\n");
     //UI_waitkey ();
