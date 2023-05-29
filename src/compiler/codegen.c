@@ -272,7 +272,11 @@ CG_frag CG_genFrameDesc (CG_frame frame)
 
     for (CG_frameVarInfo vi = frame->vars; vi; vi=vi->next)
     {
-        genTypeRef (descFrag, vi->ty, /*hasLabel = */ vi->label != NULL);
+        Ty_ty ty = vi->ty;
+        if (ty->kind != Ty_pointer)
+            continue;
+
+        genTypeRef (descFrag, ty->u.pointer, /*hasLabel = */ vi->label != NULL);
         if (vi->label)
             CG_dataFragAddPtr   (descFrag, vi->label);
         else
