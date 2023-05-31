@@ -78,9 +78,12 @@ Example:
 
 Syntax:
 
-    POINTER SPRITE sprite
+    POINTER SPRITE sprite [, [xoffset], [yoffset]]
 
 use sprite as a custom mouse pointer in the current window
+default offset is 0, 0 and means the reference point is in the upper left corner
+negative values moves the pointer to left and up (not the reference point)
+-8, -8 moves the middle of a 16 by 16 pixel pointer to the reference point
 
 ## POINTER CLEAR
 
