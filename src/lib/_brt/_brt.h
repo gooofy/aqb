@@ -27,7 +27,8 @@ extern struct MathTransBase *MathTransBase;
  *  _cstartup() - open libraries                                    *
  *              - call _autil_init()                                *
  *              - setup CTRL-C handler                              *
- *              - call _astr_init(), _amath_init(), _aio_init()     *
+ *              - call _astr_init(), _amath_init(), _aio_init(),    *
+ *                gc_init()                                         *
  *                                                                  *
  *                                                                  *
  *  shutdown / exit                                                 *
@@ -63,6 +64,7 @@ void _autil_init     (void);
 void _amath_init     (void);
 void _astr_init      (void);
 void _aio_init       (void);
+void _gc_init        (void);
 
 void  _cshutdown     (LONG return_code, UBYTE *msg); // implemented in cstartup.c, calls _autil_exit()
 void _autil_exit     (LONG return_code); // implemented in startup.S
@@ -126,8 +128,6 @@ APTR   ALLOCATE_   (ULONG size, ULONG flags);
 void   DEALLOCATE  (APTR ptr);
 void   _MEMSET     (BYTE *dst, BYTE c, ULONG n);
 ULONG  FRE_        (SHORT x);
-
-void   GC_RUN      (void);
 
 void   POKE        (ULONG adr, UBYTE  b);
 void   POKEW       (ULONG adr, USHORT w);
@@ -215,14 +215,14 @@ struct DebugMsg
 {
     struct Message  msg;
     struct MsgPort *port;
-    ULONG           debug_sig;					// 24
-    UWORD           debug_cmd;					// 28
-    ULONG           debug_exitFn;               // 30
+    ULONG           debug_sig;                     // 24
+    UWORD           debug_cmd;                     // 28
+    ULONG           debug_exitFn;                  // 30
     union
     {
-        ULONG   err;    // START return msg		// 34
-        char    c;      // putc					// 34
-        char   *str;    // puts					// 34
+        ULONG   err;    // START return msg        // 34
+        char    c;      // putc                    // 34
+        char   *str;    // puts                    // 34
     }u;
 };
 
@@ -329,20 +329,32 @@ USHORT VALUINT_ (UBYTE *s);
 LONG   VALLNG_  (UBYTE *s);
 ULONG  VALULNG_ (UBYTE *s);
 
-/*
- * OOP
- */
+/********************************************************************
+ *                                                                  *
+ *  OOP, Garbage Collector Interface (gc)                           *
+ *                                                                  *
+ ********************************************************************/
 
 typedef struct CObject_ CObject;
+typedef struct _gc_s    _gc_t;
 
 struct CObject_
 {
-    VOID   ***_vTablePtr;
+    VOID    ***_vTablePtr;
+
+    CObject   *__gc_next, *__gc_prev;
+    UBYTE      __gc_color;
 };
 
-STRPTR _COBJECT_TOSTRING_ (CObject *THIS);
-BOOL   _COBJECT_EQUALS_ (CObject *THIS, CObject *obj);
+void   _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
+STRPTR _COBJECT_TOSTRING_    (CObject *THIS);
+BOOL   _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
 ULONG  _COBJECT_GETHASHCODE_ (CObject *THIS);
+
+void   _gc_visit             (CObject *obj, _gc_t *gc);
+void   GC_RUN                (void);
+void   GC_REGISTER           (CObject *obj);
+
 
 /*
  * dynamic array support

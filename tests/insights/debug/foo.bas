@@ -22,10 +22,14 @@ DIM SHARED AS myc PTR p1
 p1 = NEW myc
 
 TRACE "Calling the garbage collector..."
-
-GC RUN
-
+GC_RUN
 TRACE "GC finished."
 
+TRACE "p1 = NULL"
 
+p1 = NULL
+
+TRACE "Calling the garbage collector..."
+GC_RUN
+TRACE "GC finished."
 

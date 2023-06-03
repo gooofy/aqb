@@ -1965,7 +1965,25 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
         *tkn = (*tkn)->next; // skip ')'
     }
 
-    return transInitObject (pos, tyCls, constructorAssignedArgs, &thisRef, g_sleStack->code);
+    if (!transInitObject (pos, tyCls, constructorAssignedArgs, &thisRef, g_sleStack->code))
+        return FALSE;
+
+    // register the new object with the garbage collector
+
+    S_symbol gcRegSym = S_Symbol("GC_REGISTER");
+    E_enventryList lx = E_resolveSub(g_sleStack->env, gcRegSym);
+    if (!lx)
+        return EM_error(0, "builtin %s not found.", S_name(gcRegSym));
+
+    E_enventry gcRegSub = lx->first->e;
+
+    CG_itemList gcRegArglist = CG_ItemList();
+    n = CG_itemListAppend(gcRegArglist);
+    n->item = *thisPtr;
+
+    CG_transCall (g_sleStack->code, pos, g_sleStack->frame, gcRegSub->u.proc, gcRegArglist, /*result=*/NULL);
+
+    return TRUE;
 }
 
 // atom ::= ( expDesignator
@@ -7214,6 +7232,8 @@ static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls)
 
 static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
 {
+    CG_dataFragSetPtr (vTableFrag, CG_getTypeDescLabel (tyCls), 0);
+
     if (tyCls->u.cls.baseType)
     {
         _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
@@ -7225,13 +7245,13 @@ static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
         {
             case Ty_recMethod:
                 if (member->u.method->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx);
+                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx+1);
                 break;
             case Ty_recProperty:
                 if (member->u.property.getter && member->u.property.getter->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx);
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx+1);
                 if (member->u.property.setter && member->u.property.setter->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.property.setter->proc->label, member->u.property.setter->vTableIdx);
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.setter->proc->label, member->u.property.setter->vTableIdx+1);
                 break;
             default:
                 continue;
@@ -7288,8 +7308,8 @@ static void _assembleVTables (Ty_ty tyCls)
 
     CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
 
-    // vTable entry #0 is special: it contains the garbage collector's gc_scan virtual function
-    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod(tyCls), 0);
+    // vTable entry #1 is special: it contains the garbage collector's gc_scan virtual function
+    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod(tyCls), 1);
 
     // assemble and assign vtables for each implemented interface
 
@@ -9442,7 +9462,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         CG_genTypeDesc (ty);
     }
 
-    CG_genFrameDesc (g_globalFrame);
+    CG_genGCFrameDesc (g_globalFrame);
 
     LOG_printf (LOG_DEBUG, "frontend processing done.\n");
     //U_delay(1000);

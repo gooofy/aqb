@@ -520,6 +520,8 @@ void _cstartup (void)
     DoIO((struct IORequest *)g_inputReqBlk);
     g_InputHandlerInstalled = TRUE;
 
+    _gc_init();
+
     _astr_init();
 
     _amath_init();

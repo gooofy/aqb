@@ -5,6 +5,11 @@
 #include <clib/exec_protos.h>
 #include <inline/exec.h>
 
+void _COBJECT___gc_scan (CObject *THIS, _gc_t *gc)
+{
+    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _COBJECT___gc_scan");
+}
+
 STRPTR _COBJECT_TOSTRING_ (CObject *THIS)
 {
     // 'obj@0xXXXXXXXX\0' -> 15 chars
