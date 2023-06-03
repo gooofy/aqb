@@ -11,9 +11,12 @@
 /*
  * AQB garbage collector
  *
- * this is an incremental, precise garbage collector using compiler support to find roots and pointers
+ * this is an incremental (TODO: concurrent), precise garbage collector
+ * using compiler support to find roots and pointers
  *
- * based on μgc https://github.com/bullno1/ugc by Bach Le
+ * based on Damien Doligez and Georges Gonthier:
+ * Portable, unobtrusive garbage collection for multiprocessor systems.
+ * In POPL 1994.
  *
  */
 
@@ -33,8 +36,9 @@ typedef enum
 
 struct _gc_s
 {
-    CObject  *heap_start, *heap_end;
+    CObject  *heap_start, *heap_end, *p;
     eGCState  state;
+    BOOL      dirty;
 };
 
 #define TYPEREF_FLAG_LABEL   0x8000
@@ -148,17 +152,59 @@ void GC_STEP (void)
             // scan roots
             _gc_scan_frame (&_framedesc___main_globals, &_g_gc);
             // FIXME: scan stack(s)
+            _g_gc.dirty = FALSE;
+            _g_gc.p     = _g_gc.heap_start;
             _g_gc.state = GC_MARK;
             break;
 
         case GC_MARK:
-            // FIXME: implement
-            _g_gc.state = GC_SWEEP;
+            if (!_g_gc.p)
+            {
+                if (_g_gc.dirty)
+                {
+                    // re-scan
+                    _g_gc.dirty = FALSE;
+                    _g_gc.p     = _g_gc.heap_start;
+                }
+                else
+                {
+                    _g_gc.state = GC_SWEEP;
+                    _g_gc.p     = _g_gc.heap_start;
+                }
+            }
+            else
+            {
+                if (_g_gc.p->__gc_color == GC_GRAY)
+                {
+                    DPRINTF ("GC_MARK: scanning obj 0x%08lx\n", _g_gc.p);
+                    // FIXME: implement
+                    _g_gc.p->__gc_color = GC_BLACK;
+                }
+                _g_gc.p = _g_gc.p->__gc_next;
+            }
             break;
 
         case GC_SWEEP:
-            // FIXME
-            _g_gc.state = GC_IDLE;
+            if (!_g_gc.p)
+            {
+                DPRINTF ("GC_SWEEP: sweep done.\n");
+                _g_gc.state = GC_IDLE;
+            }
+            else
+            {
+                if (_g_gc.p->__gc_color == GC_WHITE)
+                {
+                    DPRINTF ("GC_SWEEP: freeing object 0x%08lx\n",
+                             _g_gc.p);
+                    // FIXME: implement
+                }
+                else
+                {
+                    // prepare for next scan
+                    _g_gc.p->__gc_color = GC_WHITE;
+                }
+                _g_gc.p = _g_gc.p->__gc_next;
+            }
             break;
     }
 }

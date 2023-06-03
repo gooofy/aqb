@@ -15,6 +15,8 @@ CLASS myc
 
 END CLASS
 
+TRACE "main starts..."
+
 DIM SHARED AS INTEGER a, b
 
 DIM SHARED AS myc PTR p1
