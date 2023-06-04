@@ -1,13 +1,13 @@
 OPTION EXPLICIT
 
-'CLASS myc2
-'    field1 AS INTEGER
-'END CLASS
+CLASS myc2
+    field1 AS INTEGER
+END CLASS
 
 CLASS myc
 
     field1 AS INTEGER
-    'field2 AS myc PTR
+    field2 AS myc2 PTR
 
     'DECLARE CONSTRUCTOR (BYVAL initValue AS INTEGER)
 
@@ -25,21 +25,28 @@ p1 = NEW myc
 p2 = p1
 p3 = NEW myc
 
+p1->field2 = NEW myc2
+
 TRACE "Calling the garbage collector..."
 GC_RUN
 TRACE "GC finished."
 
 TRACE "p1 = NULL"
-
 p1 = NULL
 
 TRACE "Calling the garbage collector..."
 GC_RUN
 TRACE "GC finished."
 
-TRACE "p1 = NULL"
-
+TRACE "p2 = NULL"
 p2 = NULL
+
+TRACE "Calling the garbage collector..."
+GC_RUN
+TRACE "GC finished."
+
+TRACE "p3 = NULL"
+p3 = NULL
 
 TRACE "Calling the garbage collector..."
 GC_RUN

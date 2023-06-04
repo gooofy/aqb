@@ -18,6 +18,12 @@
  * Portable, unobtrusive garbage collection for multiprocessor systems.
  * In POPL 1994.
  *
+ * TODO
+ * - call gc_scan virtual method
+ * - write barrier
+ * - finalizers
+ * - scan stack(s)
+ * - concurrent gc
  */
 
 typedef enum
@@ -113,6 +119,22 @@ static void _gc_mark_gray (CObject *obj, _gc_t *gc)
         obj->__gc_color = GC_GRAY;
 }
 
+// called by gc_scan methods
+void GC_MARK_BLACK (CObject *obj)
+{
+    if (!obj)
+        return;
+    DPRINTF ("GC_MARK_BLACK: obj=0x%08lx\n", obj);
+    if (obj->__gc_color != GC_BLACK)
+    {
+        if (obj->__gc_color == GC_WHITE)
+        {
+            obj->__gc_color = GC_GRAY;
+            _g_gc.dirty = TRUE;
+        }
+    }
+}
+
 static void _gc_scan_frame (void *pDesc, _gc_t *gc)
 {
     while (TRUE)
@@ -183,8 +205,15 @@ void GC_STEP (void)
             {
                 if (_g_gc.p->__gc_color == GC_GRAY)
                 {
-                    DPRINTF ("GC_MARK: scanning obj 0x%08lx\n", _g_gc.p);
-                    // FIXME: implement
+                    intptr_t *vtable = (intptr_t *) _g_gc.p->_vTablePtr;
+
+                    DPRINTF ("GC_MARK: scanning obj 0x%08lx, vtable=0x%08lx\n", _g_gc.p, vtable);
+                    //for (int i=0; i<5; i++)
+                    //    DPRINTF ("      vtable[%d]=0x%08lx\n", i, vtable[i]);
+
+                    _gc_scan_t sfn = (_gc_scan_t) vtable[1];
+                    sfn(_g_gc.p);
+
                     _g_gc.p->__gc_color = GC_BLACK;
                 }
                 _g_gc.p = _g_gc.p->__gc_next;
@@ -244,7 +273,7 @@ void GC_RUN (void)
 
 CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
 {
-    CObject *obj = (CObject *) AllocVec (size, flags);
+    CObject *obj = (CObject *) AllocVec (size, flags | MEMF_CLEAR);
     if (!obj)
     {
         DPRINTF ("GC_ALLOCATE_: OOM1\n"); // FIXME: run gc cycle, try again
