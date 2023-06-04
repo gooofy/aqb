@@ -37,6 +37,7 @@ struct UtilityBase   *UtilityBase   = NULL;
 
 static BOOL autil_init_done = FALSE;
 static BOOL aio_init_done   = FALSE;
+static BOOL gc_init_done    = FALSE;
 
 struct Task             *_autil_task             = NULL;
 static struct IOStdReq  *g_inputReqBlk           = NULL;
@@ -356,6 +357,15 @@ void _c_atexit(void)
         _aio_shutdown();
     }
 
+    if (gc_init_done)
+    {
+#ifdef ENABLE_DEBUG
+        DPRINTF("_c_atexit: _gc_shutdown\n");
+        //Delay(50);
+#endif
+        _gc_shutdown();
+    }
+
     if (autil_init_done)
     {
 #ifdef ENABLE_DEBUG
@@ -521,6 +531,7 @@ void _cstartup (void)
     g_InputHandlerInstalled = TRUE;
 
     _gc_init();
+    gc_init_done = TRUE;
 
     _astr_init();
 

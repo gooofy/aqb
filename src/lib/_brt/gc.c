@@ -36,8 +36,15 @@ typedef enum
 
 struct _gc_s
 {
-    CObject  *heap_start, *heap_end, *p;
+    // objects allocated by GC_ALLOCATE_(), but not GC_REGISTER()ed yet
+    CObject  *unreg;
+    // registered objects go here:
+    CObject  *heap_start, *heap_end;
+    // heap iterator used in incremental mark/sweep
+    CObject  *p;
+    // incremental collector state
     eGCState  state;
+    // mark cycle will re-start until one is completed with dirty==FALSE
     BOOL      dirty;
 };
 
@@ -196,14 +203,28 @@ void GC_STEP (void)
                 {
                     DPRINTF ("GC_SWEEP: freeing object 0x%08lx\n",
                              _g_gc.p);
-                    // FIXME: implement
+
+                    // unregister
+                    Forbid();
+                    CObject *obj = _g_gc.p;
+                    _g_gc.p = _g_gc.p->__gc_next;
+                    if (obj->__gc_next)
+                        obj->__gc_next->__gc_prev = obj->__gc_prev;
+                    else
+                        _g_gc.heap_end = obj->__gc_prev;
+                    if (obj->__gc_prev)
+                        obj->__gc_prev->__gc_next = obj->__gc_next;
+                    else
+                        _g_gc.heap_start = obj->__gc_next;
+                    Permit();
+                    FreeVec(obj);
                 }
                 else
                 {
                     // prepare for next scan
                     _g_gc.p->__gc_color = GC_WHITE;
+                    _g_gc.p = _g_gc.p->__gc_next;
                 }
-                _g_gc.p = _g_gc.p->__gc_next;
             }
             break;
     }
@@ -221,27 +242,86 @@ void GC_RUN (void)
         GC_STEP();
 }
 
+CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
+{
+    CObject *obj = (CObject *) AllocVec (size, flags);
+    if (!obj)
+    {
+        DPRINTF ("GC_ALLOCATE_: OOM1\n"); // FIXME: run gc cycle, try again
+        ERROR (ERR_OUT_OF_MEMORY);
+        return NULL;
+    }
+
+    DPRINTF ("GC_ALLOCATE_: size=%ld, flags=%ld -> 0x%08lx\n", size, flags, obj);
+
+    Forbid();
+    obj->__gc_next = _g_gc.unreg;
+    if (_g_gc.unreg)
+        _g_gc.unreg = _g_gc.unreg->__gc_prev = obj;
+    else
+        _g_gc.unreg = obj;
+    obj->__gc_prev = NULL;
+    Permit();
+
+    return obj;
+}
+
 void GC_REGISTER (CObject *p)
 {
     DPRINTF ("GC_REGISTER: registering new heap object: 0x%08lx\n", p);
 
     Forbid();
 
+    // remove from unreg list
+    if (p->__gc_prev)
+        p->__gc_prev->__gc_next = p->__gc_next;
+    else
+        _g_gc.unreg = p->__gc_next;
+
+    // append to heap
     p->__gc_next = NULL;
     p->__gc_prev = _g_gc.heap_end;
-    p->__gc_color = GC_BLACK;
-
     if (_g_gc.heap_end)
         _g_gc.heap_end = _g_gc.heap_end->__gc_next = p;
     else
         _g_gc.heap_end = _g_gc.heap_start = p;
+
+    p->__gc_color = GC_BLACK;
 
     Permit();
 }
 
 void _gc_init (void)
 {
-    _g_gc.state = GC_IDLE;
-    _g_gc.heap_end = _g_gc.heap_start = NULL;
+    _g_gc.unreg      = NULL;
+    _g_gc.heap_start = NULL;
+    _g_gc.heap_end   = NULL;
+    _g_gc.p          = NULL;
+    _g_gc.state      = GC_IDLE;
+    _g_gc.dirty      = FALSE;
+}
+
+void _gc_shutdown (void)
+{
+    DPRINTF("_gc_shutdown: freeing heap objects\n");
+
+    CObject *p = _g_gc.heap_start;
+    while (p)
+    {
+        DPRINTF ("GC_shutdown: freeing object 0x%08lx\n", p);
+        CObject *n = p->__gc_next;
+        FreeVec (p);
+        p = n;
+    }
+
+    DPRINTF("_gc_shutdown: freeing unregistered objects\n");
+
+    p = _g_gc.unreg;
+    while (p)
+    {
+        CObject *n = p->__gc_next;
+        FreeVec (p);
+        p = n;
+    }
 }
 

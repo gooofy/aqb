@@ -1917,9 +1917,9 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
 
     *tkn = (*tkn)->next;
 
-    // ALLOCATE() memory for our new object
+    // GC_ALLOCATE() memory for our new object
 
-    S_symbol allocSym = S_Symbol("ALLOCATE");
+    S_symbol allocSym = S_Symbol("GC_ALLOCATE");
     CG_item allocProcPtr;
     Ty_member allocEntry;
     if (!E_resolveVFC(g_sleStack->env, allocSym, /*checkParents=*/TRUE, &allocProcPtr, &allocEntry))

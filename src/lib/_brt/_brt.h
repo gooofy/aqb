@@ -72,6 +72,7 @@ void _c_atexit       (void);             // implemented in cstartup.c, called by
 void ON_EXIT_CALL    (void (*cb)(void)); // register exit handler to be called from _c_atexit()
 void _autil_shutdown (void);
 void _aio_shutdown   (void);
+void _gc_shutdown    (void);
 
 void SYSTEM          (void);             // BASIC command, calls _autil_exit(0)
 
@@ -346,15 +347,14 @@ struct CObject_
     UBYTE      __gc_color;
 };
 
-void   _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
-STRPTR _COBJECT_TOSTRING_    (CObject *THIS);
-BOOL   _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
-ULONG  _COBJECT_GETHASHCODE_ (CObject *THIS);
+void     _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
+STRPTR   _COBJECT_TOSTRING_    (CObject *THIS);
+BOOL     _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
+ULONG    _COBJECT_GETHASHCODE_ (CObject *THIS);
 
-void   _gc_visit             (CObject *obj, _gc_t *gc);
-void   GC_RUN                (void);
-void   GC_REGISTER           (CObject *obj);
-
+void     GC_RUN                (void);
+void     GC_REGISTER           (CObject *obj);
+CObject *GC_ALLOCATE_          (ULONG size, ULONG flags);
 
 /*
  * dynamic array support
