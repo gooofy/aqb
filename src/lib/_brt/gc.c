@@ -20,9 +20,9 @@
  *
  * TODO
  * [ DONE ] - call gc_scan virtual method
+ * [ DONE ] - scan stack(s)
  * - write barrier
  * - finalizers
- * - scan stack(s)
  * - concurrent gc
  */
 
