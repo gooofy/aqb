@@ -356,6 +356,7 @@ void     GC_RUN                (void);
 void     GC_REGISTER           (CObject *obj);
 CObject *GC_ALLOCATE_          (ULONG size, ULONG flags);
 void     GC_MARK_BLACK         (CObject *obj);
+BOOL     GC_REACHABLE_         (CObject *obj);
 
 typedef void (*_gc_scan_t)     (CObject *obj);
 

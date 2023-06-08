@@ -9,6 +9,14 @@
 
 static CG_fragList g_fragList = NULL;
 
+// GC's frame descriptor table for the current module, entries:
+// <proc_entry_label> <proc_exit_label> <framedesc>
+// <proc_entry_label> <proc_exit_label> <framedesc>
+// ...
+// NULL
+
+static CG_frag    g_fdTableFrag;
+
 /*
  *   m68k frame layout used by this compiler
  *
@@ -946,6 +954,9 @@ CG_fragList CG_FragList (CG_frag head, CG_fragList tail)
 
 CG_fragList CG_getResult(void)
 {
+    // g_fdTableFrag end marker
+    CG_dataFragAddConst (g_fdTableFrag, Ty_ConstUInt (Ty_ULong(), 0));
+
     return g_fragList;
 }
 
@@ -980,13 +991,13 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
         AS_instrListPrependList (body, initCode);
     }
 
-    if (exitlbl)
-    {
-        // we need to generate NOPs between consecutive labels because flowgraph.c cannot handle those
-        if (body->last && (body->last->instr->mn == AS_LABEL))
-            AS_instrListAppend (body, AS_Instr(pos, AS_NOP, Temp_w_NONE, NULL, NULL));                        //     nop
-        AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, Temp_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
-    }
+    assert (exitlbl);
+
+    // FIXME: remove, flowgraph is gone now
+    //// we need to generate NOPs between consecutive labels because flowgraph.c cannot handle those
+    //if (body->last && (body->last->instr->mn == AS_LABEL))
+    //    AS_instrListAppend (body, AS_Instr(pos, AS_NOP, Temp_w_NONE, NULL, NULL));                        //     nop
+    AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, Temp_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
 
     if (returnVar && (returnVar->kind != IK_none))
     {
@@ -995,9 +1006,16 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
         CG_transAssignment (body, pos, frame, &d0Item, returnVar);    // d0 := returnVar
     }
 
-
     CG_frag frag = CG_ProcFrag(pos, frame->name, expt, body, frame);
     g_fragList   = CG_FragList(frag, g_fragList);
+
+    // GC's frame descriptor + fd table entry
+
+    CG_frag fdFrag = CG_genGCFrameDesc (frame);
+    CG_dataFragAddPtr (g_fdTableFrag, frame->name);
+    CG_dataFragAddPtr (g_fdTableFrag, exitlbl);
+    CG_dataFragAddPtr (g_fdTableFrag, fdFrag->u.data.label);
+
 }
 
 void CG_procEntryExitAS (CG_frag frag)
@@ -4873,8 +4891,16 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
     }
 }
 
-void CG_init (void)
+Temp_label CG_fdTableLabel(string module_name)
+{
+    return Temp_namedlabel(strprintf(UP_frontend, "__%s_fd_table", module_name));
+}
+
+void CG_init (string module_name)
 {
     g_fragList = NULL;
+
+    // frame descriptor table, our GC uses this to scan roots in task stacks
+    g_fdTableFrag = CG_DataFrag(CG_fdTableLabel(module_name), /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
 }
 

@@ -59,7 +59,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
     FE_init();
 
     AS_init();
-    CG_init();
+    CG_init(module_name);
     E_init();
 
     if (setjmp(g_exit_jmp_buf))

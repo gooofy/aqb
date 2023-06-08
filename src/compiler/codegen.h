@@ -125,6 +125,7 @@ void            CG_addFrameVarInfo  (CG_frame frame, S_symbol sym, Ty_ty ty, int
 CG_frag         CG_genGCFrameDesc   (CG_frame frame);
 void            CG_genTypeDesc      (Ty_ty ty);
 Temp_label      CG_getTypeDescLabel (Ty_ty ty);
+Temp_label      CG_fdTableLabel     (string module_name);
 
 void            CG_ConstItem        (CG_item *item, Ty_const c);
 void            CG_BoolItem         (CG_item *item, bool b, Ty_ty ty);
@@ -195,6 +196,6 @@ void            CG_procEntryExitAS  (CG_frag frag);
 CG_fragList     CG_getResult        (void);
 void            CG_writeASMFile     (FILE *out, CG_fragList frags, AS_dialect dialect);
 
-void            CG_init             (void);
+void            CG_init             (string module_name);
 
 #endif

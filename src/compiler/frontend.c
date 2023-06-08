@@ -387,6 +387,7 @@ static S_symbol S_CArray;
 static S_symbol S_RemoveAll;
 static S_symbol S_IDXPTR;
 static S_symbol S__aqb_clear;
+static S_symbol S__aqb_clear_exit;
 static S_symbol S_COPY;
 static S_symbol S_GC;
 
@@ -1173,31 +1174,33 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
             }
             else
             {
-                // OOP: take care of pointer offset class <--> interface
-                Ty_ty tyFromPtr = tyFrom->u.pointer;
-                Ty_ty tyToPtr   = tyTo->u.pointer;
+                if (tyTo->kind == Ty_pointer)
+                {
+                    // OOP: take care of pointer offset class <--> interface
+                    Ty_ty tyFromPtr = tyFrom->u.pointer;
+                    Ty_ty tyToPtr   = tyTo->u.pointer;
 
-                if ((tyFromPtr->kind == Ty_class) && (tyToPtr->kind == Ty_interface))
-                {
-                    Ty_implements implements = tyFromPtr->u.cls.implements;
-                    while (implements)
+                    if ((tyFromPtr->kind == Ty_class) && (tyToPtr->kind == Ty_interface))
                     {
-                        if (implements->intf == tyToPtr)
-                            break;
-                        implements=implements->next;
+                        Ty_implements implements = tyFromPtr->u.cls.implements;
+                        while (implements)
+                        {
+                            if (implements->intf == tyToPtr)
+                                break;
+                            implements=implements->next;
+                        }
+                        if (!implements)
+                            return FALSE;
+                        CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
+                        CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
+                        assert (item->kind == IK_varPtr);
+                        item->kind = IK_inReg;
+                        item->ty = tyTo;
+                        return TRUE;
                     }
-                    if (!implements)
-                        return FALSE;
-                    CG_transDeRef (g_sleStack->code, pos, g_sleStack->frame, item);
-                    CG_transField (g_sleStack->code, pos, g_sleStack->frame, item, implements->vTablePtr);
-                    assert (item->kind == IK_varPtr);
-                    item->kind = IK_inReg;
-                    item->ty = tyTo;
                 }
-                else
-                {
-                    item->ty = tyTo;
-                }
+
+                item->ty = tyTo;
             }
             return TRUE;
 
@@ -7171,7 +7174,8 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
 
 static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
 {
-    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_scan", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+    Temp_label label     = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_scan", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_scan_exit", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
 
     if (!_g_gcScanExtern)
     {
@@ -7206,19 +7210,31 @@ static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
                 if (member->kind != Ty_recField)
                     continue;
 
-                switch (member->u.field.ty->kind)
+                Ty_ty ty = member->u.field.ty;
+
+                switch (ty->kind)
                 {
                     case Ty_pointer:
                     {
-                        // FIXME: inline?
-                        CG_itemList gcMarkBlackArglist = CG_ItemList();
+                        switch (ty->u.pointer->kind)
+                        {
+                            case Ty_class:
+                            {
+                                // FIXME: inline?
+                                CG_itemList gcMarkBlackArglist = CG_ItemList();
 
-                        CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
-                        n->item = frame->formals->first->item; // <this>
-                        CG_transField(il, pos, frame, &n->item, member);
-                        CG_loadVal (il, pos, frame, &n->item);
+                                CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
+                                n->item = frame->formals->first->item; // <this>
+                                CG_transField(il, pos, frame, &n->item, member);
+                                CG_loadVal (il, pos, frame, &n->item);
 
-                        CG_transCall (il, pos, frame, gcMarkBlackSub->u.proc, gcMarkBlackArglist, /*result=*/NULL);
+                                CG_transCall (il, pos, frame, gcMarkBlackSub->u.proc, gcMarkBlackArglist, /*result=*/NULL);
+                                break;
+                            }
+
+                            default:
+                                assert(FALSE);
+                        }
                         break;
                     }
 
@@ -7241,7 +7257,7 @@ static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
                              frame,
                              il,
                              /*returnVar=*/NULL,
-                             /*exitlbl=*/ NULL,
+                             /*exitlbl=*/ exitlabel,
                              /*is_main=*/FALSE,
                              /*expt=*/TRUE);
         }
@@ -7290,7 +7306,8 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
 
     Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
-    Temp_label label = Temp_namedlabel(strprintf(UP_frontend, "__%s___init", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+    Temp_label label     = Temp_namedlabel(strprintf(UP_frontend, "__%s___init", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_frontend, "__%s___init_exit", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
     tyCls->u.cls.__init = Ty_Proc  (Ty_visPublic, Ty_pkConstructor, S_Symbol("__init"),
                                     /*extraSyms=*/NULL,
                                     label,
@@ -7499,7 +7516,7 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
                      frame,
                      il,
                      /*returnVar=*/NULL,
-                     /*exitlbl=*/ NULL,
+                     /*exitlbl=*/ exitlabel,
                      /*is_main=*/FALSE,
                      /*expt=*/TRUE);
 }
@@ -9384,7 +9401,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     if (is_main)
     {
-        // add end marker + label to dataFrage, thereby guaranteering it always
+        // add end marker + label to dataFrag, thereby guaranteering it always
         // exists and data read/restore statements generate proper out of data errors
 
         Temp_label dataEndLabel = Temp_namedlabel(strprintf(UP_frontend, "__data__end"));
@@ -9454,7 +9471,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
                          frame,
                          g_clearIL,
                          /*returnVar=*/NULL,
-                         /*exitlbl=*/ NULL,
+                         /*exitlbl=*/ S__aqb_clear_exit,
                          /*is_main=*/FALSE,
                          /*expt=*/TRUE);
     }
@@ -9466,7 +9483,8 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         if (!g_prog->first)
             CG_transNOP (g_prog, 0);
 
-        CG_procEntryExit (0, moduleFrame, g_prog, /*returnVar=*/NULL, /*exitlbl=*/ NULL, is_main, /*expt=*/TRUE);
+        Temp_label exitlbl = Temp_namedlabel(strprintf(UP_frontend, "__%s_init_exit", is_main ? "__main" : module_name));
+        CG_procEntryExit (0, moduleFrame, g_prog, /*returnVar=*/NULL, exitlbl, is_main, /*expt=*/TRUE);
     }
 
     // stack size (used in _brt stackswap)
@@ -9488,6 +9506,16 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
     }
 
     CG_genGCFrameDesc (g_globalFrame);
+
+    // generate toplevel fd table:
+    if (is_main)
+    {
+        CG_frag frag = CG_DataFrag(Temp_namedlabel("___top_fd_table"), /*expt=*/TRUE, /*size=*/0, /*ty=*/NULL);
+        for (E_moduleListNode mln = E_getLoadedModuleList(); mln; mln=mln->next)
+            CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(mln->m->name)));
+        CG_dataFragAddPtr (frag, CG_fdTableLabel(module_name));
+        CG_dataFragAddConst (frag, Ty_ConstUInt (Ty_ULong(), 0)); // end marker
+    }
 
     LOG_printf (LOG_DEBUG, "frontend processing done.\n");
     //U_delay(1000);
@@ -9640,6 +9668,7 @@ void FE_boot(void)
     S_RemoveAll       = S_Symbol("REMOVEALL");
     S_IDXPTR          = S_Symbol("IDXPTR");
     S__aqb_clear      = S_Symbol("__aqb_clear");
+    S__aqb_clear_exit = S_Symbol("__aqb_clear_exit");
     S_COPY            = S_Symbol("COPY");
     S_GC              = S_Symbol("GC");
 }

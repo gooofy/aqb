@@ -19,7 +19,7 @@
  * In POPL 1994.
  *
  * TODO
- * - call gc_scan virtual method
+ * [ DONE ] - call gc_scan virtual method
  * - write barrier
  * - finalizers
  * - scan stack(s)
@@ -135,7 +135,7 @@ void GC_MARK_BLACK (CObject *obj)
     }
 }
 
-static void _gc_scan_frame (void *pDesc, _gc_t *gc)
+static void _gc_scan_frame (void *pDesc, uint8_t *fp)
 {
     while (TRUE)
     {
@@ -150,19 +150,26 @@ static void _gc_scan_frame (void *pDesc, _gc_t *gc)
         intptr_t p;
         pDesc = _nextPtr (pDesc, &p);
 
-        DPRINTF ("_gc_scan_frame: kind=%2d, hasLabel=%d, p=0x%08lx\n",
-                 kind, hasLabel, p);
+        CObject *pObj;
+
+        if (hasLabel)
+            pObj = (CObject *)p;
+        else
+            pObj = (CObject *) (fp + p);
+
+        DPRINTF ("_gc_scan_frame: kind=%2d, hasLabel=%d, p=0x%08lx, pObj=0x%08lx\n",
+                 kind, hasLabel, p, pObj);
 
         switch (kind)
         {
             case Ty_class:
-                _gc_mark_gray ((CObject *)p, gc);
+                _gc_mark_gray (pObj, &_g_gc);
                 break;
             case Ty_pointer:
             {
-                CObject *p2 = *((CObject **)p);
+                CObject *p2 = *((CObject **)pObj);
                 if (p2)
-                    _gc_mark_gray (p2, gc);
+                    _gc_mark_gray (p2, &_g_gc);
                 break;
             }
             default:
@@ -172,6 +179,58 @@ static void _gc_scan_frame (void *pDesc, _gc_t *gc)
     }
 }
 
+extern intptr_t __top_fd_table;
+
+static void _gc_scan_stack(uint8_t *fp, intptr_t pc)
+{
+    for (intptr_t *fdp = &__top_fd_table; *fdp; fdp++)
+    {
+        //DPRINTF ("__top_fd_table entry: fdp=0x%08lx, *fdp=0x%08lx\n", fdp, *fdp);
+
+        intptr_t *lp = (intptr_t*) *fdp;
+
+        while (TRUE)
+        {
+            intptr_t proc_start = *lp++;
+            if (!proc_start)
+                break;
+            intptr_t proc_end       = *lp++;
+            uint8_t *proc_framedesc = (uint8_t *) *lp++;
+            //DPRINTF("    proc_start=0x%08lx, proc_end=0x%08lx, fd=0x%08lx\n", proc_start, proc_end, proc_framedesc);
+
+            if ( (proc_start <= pc) && (proc_end >= pc) )
+            {
+                //DPRINTF("        *** MATCH ***\n");
+                _gc_scan_frame (proc_framedesc, fp);
+                return;
+            }
+        }
+    }
+    //asm volatile("illegal");
+}
+
+static void _gc_scan_stacks (void)
+{
+    intptr_t fp;
+    asm volatile("move.l a5,%0" : "=r" (fp));
+    DPRINTF ("_gc_scan_stacks: fp=0x%08lx\n", fp);
+    intptr_t *p = (intptr_t*) (intptr_t) fp;
+
+    for (int i = 0; i<256; i++)
+    {
+        uint8_t *fp = (uint8_t *) *p++;
+        intptr_t pc = *p++;
+
+        if (!fp)
+            break;
+
+        //DPRINTF ("_gc_scan_stacks: fp=0x%08lx, pc=0x%08lx\n", fp, pc);
+
+        _gc_scan_stack (fp, pc);
+
+        p = (intptr_t*) fp;
+    }
+}
 
 void GC_STEP (void)
 {
@@ -179,7 +238,8 @@ void GC_STEP (void)
     {
         case GC_IDLE:
             // scan roots
-            _gc_scan_frame (&_framedesc___main_globals, &_g_gc);
+            _gc_scan_frame (&_framedesc___main_globals, NULL);
+            _gc_scan_stacks();
             // FIXME: scan stack(s)
             _g_gc.dirty = FALSE;
             _g_gc.p     = _g_gc.heap_start;
@@ -318,6 +378,18 @@ void GC_REGISTER (CObject *p)
     p->__gc_color = GC_BLACK;
 
     Permit();
+}
+
+BOOL GC_REACHABLE_ (CObject *obj)
+{
+    CObject *p = _g_gc.heap_start;
+    while (p)
+    {
+        if (p==obj)
+            return TRUE;
+        p = p->__gc_next;
+    }
+    return FALSE;
 }
 
 void _gc_init (void)
