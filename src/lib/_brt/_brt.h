@@ -344,6 +344,7 @@ struct CObject_
     VOID    ***_vTablePtr;
 
     CObject   *__gc_next, *__gc_prev;
+    ULONG      __gc_size;
     UBYTE      __gc_color;
 };
 

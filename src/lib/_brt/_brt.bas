@@ -153,6 +153,7 @@ PUBLIC CLASS CObject
         DECLARE VIRTUAL FUNCTION __gc_scan (BYVAL gc AS ANY PTR)
 
         AS ANY PTR __gc_next, __gc_prev
+        AS ULONG   __gc_size
         AS UBYTE   __gc_color
 
     PUBLIC:
