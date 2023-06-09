@@ -11,27 +11,15 @@
 /*
  * AQB garbage collector
  *
- * this is an incremental (TODO: concurrent), precise garbage collector
+ * this is a precise, mark and sweep, stop-the-world garbage collector
  * using compiler support to find roots and pointers
- *
- * based on Damien Doligez and Georges Gonthier:
- * Portable, unobtrusive garbage collection for multiprocessor systems.
- * In POPL 1994.
  *
  * TODO
  * [ DONE ] - call gc_scan virtual method
  * [ DONE ] - scan stack(s)
- * - write barrier
  * - finalizers
- * - concurrent gc
+ * - stop other tasks/threads
  */
-
-typedef enum
-{
-    GC_IDLE,
-    GC_MARK,
-    GC_SWEEP
-} eGCState;
 
 typedef enum
 {
@@ -46,12 +34,8 @@ struct _gc_s
     CObject  *unreg;
     // registered objects go here:
     CObject  *heap_start, *heap_end;
-    // heap iterator used in incremental mark/sweep
-    CObject  *p;
-    // incremental collector state
-    eGCState  state;
-    // mark cycle will re-start until one is completed with dirty==FALSE
-    BOOL      dirty;
+    // mark phase will keep iterating until not dirty
+    BOOL dirty;
 };
 
 #define TYPEREF_FLAG_LABEL   0x8000
@@ -232,103 +216,82 @@ static void _gc_scan_stacks (void)
     }
 }
 
-void GC_STEP (void)
-{
-    switch (_g_gc.state)
-    {
-        case GC_IDLE:
-            // scan roots
-            _gc_scan_frame (&_framedesc___main_globals, NULL);
-            _gc_scan_stacks();
-            // FIXME: scan stack(s)
-            _g_gc.dirty = FALSE;
-            _g_gc.p     = _g_gc.heap_start;
-            _g_gc.state = GC_MARK;
-            break;
-
-        case GC_MARK:
-            if (!_g_gc.p)
-            {
-                if (_g_gc.dirty)
-                {
-                    // re-scan
-                    _g_gc.dirty = FALSE;
-                    _g_gc.p     = _g_gc.heap_start;
-                }
-                else
-                {
-                    _g_gc.state = GC_SWEEP;
-                    _g_gc.p     = _g_gc.heap_start;
-                }
-            }
-            else
-            {
-                if (_g_gc.p->__gc_color == GC_GRAY)
-                {
-                    intptr_t *vtable = (intptr_t *) _g_gc.p->_vTablePtr;
-
-                    DPRINTF ("GC_MARK: scanning obj 0x%08lx, vtable=0x%08lx\n", _g_gc.p, vtable);
-                    //for (int i=0; i<5; i++)
-                    //    DPRINTF ("      vtable[%d]=0x%08lx\n", i, vtable[i]);
-
-                    _gc_scan_t sfn = (_gc_scan_t) vtable[1];
-                    sfn(_g_gc.p);
-
-                    _g_gc.p->__gc_color = GC_BLACK;
-                }
-                _g_gc.p = _g_gc.p->__gc_next;
-            }
-            break;
-
-        case GC_SWEEP:
-            if (!_g_gc.p)
-            {
-                DPRINTF ("GC_SWEEP: sweep done.\n");
-                _g_gc.state = GC_IDLE;
-            }
-            else
-            {
-                if (_g_gc.p->__gc_color == GC_WHITE)
-                {
-                    DPRINTF ("GC_SWEEP: freeing object 0x%08lx\n",
-                             _g_gc.p);
-
-                    // unregister
-                    Forbid();
-                    CObject *obj = _g_gc.p;
-                    _g_gc.p = _g_gc.p->__gc_next;
-                    if (obj->__gc_next)
-                        obj->__gc_next->__gc_prev = obj->__gc_prev;
-                    else
-                        _g_gc.heap_end = obj->__gc_prev;
-                    if (obj->__gc_prev)
-                        obj->__gc_prev->__gc_next = obj->__gc_next;
-                    else
-                        _g_gc.heap_start = obj->__gc_next;
-                    Permit();
-                    FreeVec(obj);
-                }
-                else
-                {
-                    // prepare for next scan
-                    _g_gc.p->__gc_color = GC_WHITE;
-                    _g_gc.p = _g_gc.p->__gc_next;
-                }
-            }
-            break;
-    }
-}
 
 // garbage collector main entry
 void GC_RUN (void)
 {
     DPRINTF ("GC_RUN: starts, _framedesc___main_globals=0x%08lx\n", _framedesc___main_globals);
 
-    if (_g_gc.state == GC_IDLE)
-        GC_STEP();
+    /*
+     * scan roots
+     */
 
-    while (_g_gc.state != GC_IDLE)
-        GC_STEP();
+    _gc_scan_frame (&_framedesc___main_globals, NULL);
+    _gc_scan_stacks();
+
+    /*
+     * mark
+     */
+
+    while (TRUE)
+    {
+        _g_gc.dirty = FALSE;
+
+        for (CObject *obj = _g_gc.heap_start; obj; obj = obj->__gc_next)
+        {
+
+            if (obj->__gc_color == GC_GRAY)
+            {
+                intptr_t *vtable = (intptr_t *) obj->_vTablePtr;
+
+                DPRINTF ("GC_MARK: scanning obj=0x%08lx, vtable=0x%08lx\n", obj, vtable);
+                //for (int i=0; i<5; i++)
+                //    DPRINTF ("      vtable[%d]=0x%08lx\n", i, vtable[i]);
+
+                _gc_scan_t sfn = (_gc_scan_t) vtable[1];
+                sfn(obj);
+
+                obj->__gc_color = GC_BLACK;
+            }
+        }
+
+        if (!_g_gc.dirty)
+            break;
+    }
+
+    /*
+     * sweep
+     */
+
+    CObject *obj = _g_gc.heap_start;
+    while (obj)
+    {
+        if (obj->__gc_color == GC_WHITE)
+        {
+            DPRINTF ("GC_SWEEP: freeing object 0x%08lx\n", obj);
+
+            // unregister
+            //Forbid();
+            CObject *obj_next = obj->__gc_next;
+            if (obj->__gc_next)
+                obj->__gc_next->__gc_prev = obj->__gc_prev;
+            else
+                _g_gc.heap_end = obj->__gc_prev;
+            if (obj->__gc_prev)
+                obj->__gc_prev->__gc_next = obj->__gc_next;
+            else
+                _g_gc.heap_start = obj->__gc_next;
+            //Permit();
+            FreeVec(obj);
+            obj = obj_next;
+        }
+        else
+        {
+            // prepare for next scan
+            obj->__gc_color = GC_WHITE;
+            obj = obj->__gc_next;
+        }
+    }
 }
 
 CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
@@ -336,21 +299,26 @@ CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
     CObject *obj = (CObject *) AllocVec (size, flags | MEMF_CLEAR);
     if (!obj)
     {
-        DPRINTF ("GC_ALLOCATE_: OOM1\n"); // FIXME: run gc cycle, try again
-        ERROR (ERR_OUT_OF_MEMORY);
-        return NULL;
+        GC_RUN();
+        obj = (CObject *) AllocVec (size, flags | MEMF_CLEAR);
+        if (!obj)
+        {
+            DPRINTF ("GC_ALLOCATE_: OOM1\n");
+            ERROR (ERR_OUT_OF_MEMORY);
+            return NULL;
+        }
     }
 
     DPRINTF ("GC_ALLOCATE_: size=%ld, flags=%ld -> 0x%08lx\n", size, flags, obj);
 
-    Forbid();
+    //Forbid();
     obj->__gc_next = _g_gc.unreg;
     if (_g_gc.unreg)
         _g_gc.unreg = _g_gc.unreg->__gc_prev = obj;
     else
         _g_gc.unreg = obj;
     obj->__gc_prev = NULL;
-    Permit();
+    //Permit();
 
     return obj;
 }
@@ -375,7 +343,7 @@ void GC_REGISTER (CObject *p)
     else
         _g_gc.heap_end = _g_gc.heap_start = p;
 
-    p->__gc_color = GC_BLACK;
+    p->__gc_color = GC_WHITE;
 
     Permit();
 }
@@ -397,8 +365,6 @@ void _gc_init (void)
     _g_gc.unreg      = NULL;
     _g_gc.heap_start = NULL;
     _g_gc.heap_end   = NULL;
-    _g_gc.p          = NULL;
-    _g_gc.state      = GC_IDLE;
     _g_gc.dirty      = FALSE;
 }
 
