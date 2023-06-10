@@ -51,6 +51,7 @@ struct Ty_ty_
                 Ty_memberList  entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
         struct {Ty_ty elementTy; Ty_ty tyCArray;                            } darray;
+        struct {Ty_ty tyCString;                                            } string;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
@@ -173,14 +174,15 @@ Ty_ty           Ty_Long(void);
 Ty_ty           Ty_ULong(void);
 Ty_ty           Ty_Single(void);
 Ty_ty           Ty_Double(void);
-Ty_ty           Ty_String(void);
 Ty_ty           Ty_Any(void);
 Ty_ty           Ty_AnyPtr(void);
 Ty_ty           Ty_VTableTy(void);
 Ty_ty           Ty_VTablePtr(void);
+Ty_ty           Ty_UBytePtr(void);
 
 Ty_ty           Ty_SArray            (E_module mod, Ty_ty ty, int start, int end);
 Ty_ty           Ty_DArray            (E_module mod, Ty_ty elementTy, Ty_ty tyCArray);
+Ty_ty           Ty_String            (E_module mod, Ty_ty tyCString);
 Ty_ty           Ty_Prc               (E_module mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr           (E_module mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (E_module mod, uint32_t uid);
@@ -216,7 +218,6 @@ bool            Ty_isAllocatable     (Ty_ty ty);
 S_symbol        Ty_name              (Ty_ty ty); // return type's name, if any, NULL otherwise
 
 void            Ty_defineRange       (Ty_ty ty, char lstart, char lend);
-Ty_ty           Ty_inferType         (S_symbol varname);
 string          Ty_removeTypeSuffix  (string varname);
 string          Ty_toString          (Ty_ty t); // debugging purposes only!
 

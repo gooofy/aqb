@@ -362,6 +362,37 @@ BOOL     GC_REACHABLE_         (CObject *obj);
 typedef void (*_gc_scan_t)     (CObject *obj);
 
 /*
+ * string support
+ */
+
+typedef struct CString_ CString;
+struct CString_
+{
+    intptr_t **_vTablePtr;
+    intptr_t  *__gc_next;
+    intptr_t  *__gc_prev;
+    ULONG      __gc_size;
+    UBYTE      __gc_color;
+    intptr_t **__intf_vtable_IComparable;
+    intptr_t **__intf_vtable_ICloneable;
+    UBYTE     *_str;
+    ULONG      _len;
+    ULONG      _hashcode;
+    BOOL       _owned;
+};
+
+VOID     _CSTRING_CONSTRUCTOR  (CString *THIS, intptr_t str, BOOL     owned);
+UBYTE    _CSTRING_GETCHARAT_   (CString *THIS, ULONG    idx);
+ULONG    _CSTRING_LENGTH_      (CString *THIS);
+UBYTE   *_CSTRING_STR_         (CString *THIS);
+CObject *_CSTRING_CLONE_       (CString *THIS);
+WORD     _CSTRING_COMPARETO_   (CString *THIS, CObject *obj);
+STRPTR   _CSTRING_TOSTRING_    (CString *THIS);
+BOOL     _CSTRING_EQUALS_      (CString *THIS, CObject *obj);
+ULONG    _CSTRING_GETHASHCODE_ (CString *THIS);
+
+
+/*
  * dynamic array support
  */
 

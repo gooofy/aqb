@@ -384,6 +384,7 @@ static S_symbol S_SWAP;
 static S_symbol S_ToString;
 static S_symbol S_CObject;
 static S_symbol S_CArray;
+static S_symbol S_CString;
 static S_symbol S_RemoveAll;
 static S_symbol S_IDXPTR;
 static S_symbol S__aqb_clear;
@@ -391,20 +392,77 @@ static S_symbol S__aqb_clear_exit;
 static S_symbol S_COPY;
 static S_symbol S_GC;
 
+// string type based on _brt's CString type (cached by _TyCString())
+static Ty_ty g_tyString=NULL;
+static Ty_ty _tyString(void)
+{
+    if (g_tyString)
+        return g_tyString;
+
+    Ty_ty tyCString = E_resolveType(g_sleStack->env, S_CString);
+    if (!tyCString || (tyCString->kind != Ty_class))
+    {
+        EM_error(0, "internal error: CString type not found.");
+        assert(FALSE);
+    }
+
+    g_tyString = Ty_String (FE_mod, tyCString);
+
+    return g_tyString;
+}
+
 // CArray _brt type (cached by _TyCArray())
-static Ty_ty      g_tyCArray=NULL;
+static Ty_ty g_tyCArray=NULL;
 static Ty_ty _tyCArray(void)
 {
     if (g_tyCArray)
         return g_tyCArray;
 
-    Ty_ty g_tyCArray = E_resolveType(g_sleStack->env, S_CArray);
+    g_tyCArray = E_resolveType(g_sleStack->env, S_CArray);
     if (!g_tyCArray || (g_tyCArray->kind != Ty_class))
     {
         EM_error(0, "internal error: CArray type not found.");
         assert(FALSE);
     }
     return g_tyCArray;
+}
+
+static Ty_ty _inferTypeFromVarName(S_symbol s)
+{
+    string varname = S_name(s);
+    int    l       = strlen(varname);
+    char   postfix = varname[l-1];
+
+    switch (postfix)
+    {
+        case '$':
+            return _tyString();
+        case '%':
+            return Ty_Integer();
+        case '&':
+            return Ty_Long();
+        case '!':
+            return Ty_Single();
+        case '#':
+            return Ty_Double();
+    }
+
+    // no postfix -> check def*-ranges
+    for (Ty_defRange dr=defRanges; dr; dr=dr->next)
+    {
+        char firstc = tolower(varname[0]);
+        if (!dr->lend)
+        {
+            if (firstc==dr->lstart)
+                return dr->ty;
+        }
+        else
+        {
+            if ( (firstc>=dr->lstart) && (firstc<=dr->lend))
+                return dr->ty;
+        }
+    }
+    return Ty_Single();
 }
 
 static inline bool isSym(S_tkn tkn, S_symbol sym)
@@ -455,7 +513,7 @@ static void autovar (CG_item *var, S_symbol v, S_pos pos, S_tkn *tkn, Ty_ty type
             return ;
     }
 
-    Ty_ty t = typeHint ? typeHint : Ty_inferType(v);
+    Ty_ty t = typeHint ? typeHint : _inferTypeFromVarName(v);
 
     if (OPT_get(OPTION_EXPLICIT) && !typeHint)
         EM_error(pos, "undeclared identifier %s", S_name(v));
@@ -1376,7 +1434,7 @@ static bool transConst(S_pos pos, Ty_ty t, CG_item *item)
 static bool transConstDecl(S_pos pos, S_pos posExp, Ty_ty t, S_symbol name, CG_item *item, bool isPrivate)
 {
     if (!t)
-        t = Ty_inferType(name);
+        t = _inferTypeFromVarName(name);
 
     if (!transConst(posExp, t, item))
         return FALSE;
@@ -2846,7 +2904,7 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
 static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool shared, bool statc, bool preserve, bool redim, bool external, bool isPrivate, FE_dim dims)
 {
     if (!t)
-        t = Ty_inferType(sVar);
+        t = _inferTypeFromVarName(sVar);
     assert(t);
 
     if (!Ty_isAllocatable(t))
@@ -3900,7 +3958,7 @@ static bool stmtInput(S_tkn *tkn, E_enventry e, CG_item *exp)
         if (prompt)
             CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
         else
-            CG_ZeroItem(&n->item, Ty_String());
+            CG_ZeroItem(&n->item, Ty_UBytePtr());
         n = CG_itemListAppend(arglist);
         CG_BoolItem(&n->item, do_nl, Ty_Bool());
         CG_transCall (g_sleStack->code, /*pos=*/0, g_sleStack->frame, func->u.proc, arglist, NULL);
@@ -4127,7 +4185,7 @@ static bool stmtLineInput(S_tkn *tkn, E_enventry e, CG_item *exp)
     if (prompt)
         CG_StringItem(g_sleStack->code, pos, &n->item, prompt);
     else
-        CG_ZeroItem(&n->item, Ty_String());
+        CG_ZeroItem(&n->item, Ty_UBytePtr());
     n = CG_itemListAppend(arglist);
     n->item = var;
     n = CG_itemListAppend(arglist);
@@ -4226,10 +4284,10 @@ static bool dataItem(S_tkn *tkn)
             return _dataItemNumeric(tkn, /*neg=*/ FALSE);
 
         case S_IDENT:
-			c = Ty_ConstString (Ty_String(), S_name((*tkn)->u.sym));
+			c = Ty_ConstString (Ty_UBytePtr(), S_name((*tkn)->u.sym));
             break;
         case S_STRING:
-			c = Ty_ConstString (Ty_String(), String(UP_frontend, (*tkn)->u.str));
+			c = Ty_ConstString (Ty_UBytePtr(), String(UP_frontend, (*tkn)->u.str));
             break;
         default:
             return EM_error((*tkn)->pos, "DATA: numeric or string literal expected here.");
@@ -5967,7 +6025,7 @@ static bool paramDecl(S_tkn *tkn, FE_paramList pl)
                     }
 
                     if (!ty)
-                        ty = Ty_inferType(name);
+                        ty = _inferTypeFromVarName(name);
 
                     if (isArray)
                     {
@@ -6314,7 +6372,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
                 return EM_error((*tkn)->pos, "return type descriptor expected here.");
         }
         if (!returnTy)
-            returnTy = Ty_inferType(name);
+            returnTy = _inferTypeFromVarName(name);
     }
     else
         returnTy = NULL;
@@ -8002,7 +8060,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     }
                     else
                     {
-                        ty = Ty_inferType(sField);
+                        ty = _inferTypeFromVarName(sField);
                     }
 
                     if (!isLogicalEOL(*tkn))
@@ -8577,7 +8635,7 @@ static bool stmtDefstr(S_tkn *tkn, E_enventry e, CG_item *exp)
 
     *tkn = (*tkn)->next; // consume "DEFSTR"
 
-    return letterRanges(pos, tkn, Ty_String());
+    return letterRanges(pos, tkn, _tyString());
 }
 
 // stmtGoto ::= GOTO ( num | ident )
@@ -9041,7 +9099,7 @@ static void registerBuiltins(void)
     declareBuiltinProc(S_SIZEOF       , /*extraSyms=*/ NULL      , funSizeOf             , Ty_ULong());
     declareBuiltinProc(S_VARPTR       , /*extraSyms=*/ NULL      , funVarPtr             , Ty_AnyPtr());
     declareBuiltinProc(S_CAST         , /*extraSyms=*/ NULL      , funCast               , Ty_ULong());
-    declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar          , Ty_String());
+    declareBuiltinProc(S_STRDOLLAR    , /*extraSyms=*/ NULL      , funStrDollar          , _tyString());
     declareBuiltinProc(S_LBOUND       , /*extraSyms=*/ NULL      , funLBound             , Ty_ULong());
     declareBuiltinProc(S_UBOUND       , /*extraSyms=*/ NULL      , funUBound             , Ty_ULong());
     declareBuiltinProc(S__ISNULL      , /*extraSyms=*/ NULL      , funIsNull             , Ty_Bool());
@@ -9665,6 +9723,7 @@ void FE_boot(void)
     S_ToString        = S_Symbol("TOSTRING");
     S_CObject         = S_Symbol("COBJECT");
     S_CArray          = S_Symbol("CARRAY");
+    S_CString         = S_Symbol("CSTRING");
     S_RemoveAll       = S_Symbol("REMOVEALL");
     S_IDXPTR          = S_Symbol("IDXPTR");
     S__aqb_clear      = S_Symbol("__aqb_clear");

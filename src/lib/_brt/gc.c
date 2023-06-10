@@ -24,7 +24,7 @@
  * - stop other tasks/threads
  */
 
-#define DEFAULT_HEAP_LIMIT      32*1024
+#define DEFAULT_HEAP_LIMIT      16*1024
 #define DEFAULT_ALLOC_LIMIT     128
 
 typedef enum
@@ -43,7 +43,7 @@ struct _gc_s
     // heap statistics, used to determine when to auto-run our gc
     uint32_t heap_size;     // total heap size (sum of all GC_ALLOCed objects)
     uint32_t alloc_cnt;     // number of GC_ALLOCs since last GC_RUN
-    // gc will auto-run when these limits are
+    // gc will auto-run when these limits are reached
     uint32_t heap_limit;
     uint32_t alloc_limit;
     // mark phase will keep iterating until not dirty

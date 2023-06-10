@@ -128,7 +128,7 @@ PUBLIC DECLARE EXTERN SUB      GC_REGISTER   (BYVAL p AS CObject PTR)
 PUBLIC DECLARE EXTERN FUNCTION GC_ALLOCATE   (BYVAL size AS ULONG, BYVAL flags AS ULONG=0) AS ANY PTR
 PUBLIC DECLARE EXTERN SUB      GC_MARK_BLACK (BYVAL p AS CObject PTR) ' called gc_scan methods
 PUBLIC DECLARE EXTERN FUNCTION GC_REACHABLE  (BYVAL p AS CObject PTR) AS BOOLEAN ' test/debug purposes
-
+PUBLIC DECLARE EXTERN SUB      GC_OPTIONS    (BYVAL heap_limit AS ULONG=16*1024, BYVAL alloc_limit AS ULONG=128)
 
 PUBLIC DECLARE EXTERN SUB POKE  (BYVAL adr AS ULONG, BYVAL b AS UBYTE)
 PUBLIC DECLARE EXTERN SUB POKEW (BYVAL adr AS ULONG, BYVAL w AS UINTEGER)
@@ -246,6 +246,38 @@ PUBLIC INTERFACE IComparable
         DECLARE VIRTUAL FUNCTION CompareTo (BYVAL obj AS CObject PTR) AS INTEGER
 
 END INTERFACE
+
+' string support
+
+PUBLIC CLASS CString IMPLEMENTS IComparable, ICloneable
+
+    PUBLIC:
+
+        DECLARE EXTERN CONSTRUCTOR (BYVAL str AS UBYTE PTR, BYVAL owned AS BOOLEAN)
+
+        DECLARE EXTERN FUNCTION GetCharAt (BYVAL idx AS ULONG) AS UBYTE
+
+        DECLARE EXTERN PROPERTY Length AS ULONG
+        DECLARE EXTERN PROPERTY Str    AS UBYTE PTR
+
+        ' ICloneable interface:
+        DECLARE EXTERN VIRTUAL FUNCTION Clone () AS CObject PTR
+
+        ' IComparable interface:
+        DECLARE VIRTUAL FUNCTION CompareTo (BYVAL obj AS CObject PTR) AS INTEGER
+
+        ' CObject overrides:
+        DECLARE EXTERN VIRTUAL FUNCTION ToString    ()                         AS STRING
+        DECLARE EXTERN VIRTUAL FUNCTION Equals      (BYVAL obj AS CObject PTR) AS BOOLEAN
+        DECLARE EXTERN VIRTUAL FUNCTION GetHashCode ()                         AS ULONG
+
+    PRIVATE:
+        AS UBYTE PTR _str
+        AS ULONG     _len
+        AS ULONG     _hashcode
+        AS BOOLEAN   _owned   ' TRUE -> will deallocate() _str in finalizer
+
+END CLASS
 
 ' dynamic array support
 

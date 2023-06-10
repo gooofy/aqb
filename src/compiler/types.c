@@ -36,9 +36,6 @@ Ty_ty Ty_Single(void) {return &tysingle;}
 static struct Ty_ty_ tydouble = {Ty_double};
 Ty_ty Ty_Double(void) {return &tydouble;}
 
-static struct Ty_ty_ tystring = {Ty_string};
-Ty_ty Ty_String(void) {return &tystring;}
-
 static struct Ty_ty_ tyany = {Ty_any};
 Ty_ty Ty_Any(void) {return &tyany;}
 
@@ -49,6 +46,9 @@ static struct Ty_ty_ tyvtable = {Ty_sarray, { .sarray={&tyany, 0, -1, 0}}};
 Ty_ty Ty_VTableTy(void) {return &tyvtable;}
 static struct Ty_ty_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 Ty_ty Ty_VTablePtr(void) {return &tyvtableptr;}
+
+static struct Ty_ty_ tyubyteptr = {Ty_pointer, {&tyubyte}};
+Ty_ty Ty_UBytePtr(void) {return &tyubyteptr;}
 
 void Ty_init(void)
 {
@@ -61,11 +61,11 @@ void Ty_init(void)
     tyulong.uid     =  7;
     tysingle.uid    =  8;
     tydouble.uid    =  9;
-    tystring.uid    = 10;
-    tyany.uid       = 11;
-    tyanyptr.uid    = 12;
-    tyvtable.uid    = 13;
-    tyvtableptr.uid = 14;
+    tyany.uid       = 10;
+    tyanyptr.uid    = 11;
+    tyvtable.uid    = 12;
+    tyvtableptr.uid = 13;
+    tyubyteptr.uid  = 14;
 
     tybool.mod      = NULL;
     tybyte.mod      = NULL;
@@ -76,11 +76,11 @@ void Ty_init(void)
     tyulong.mod     = NULL;
     tysingle.mod    = NULL;
     tydouble.mod    = NULL;
-    tystring.mod    = NULL;
     tyany.mod       = NULL;
     tyanyptr.mod    = NULL;
     tyvtable.mod    = NULL;
     tyvtableptr.mod = NULL;
+    tyubyteptr.mod  = NULL;
 }
 
 Ty_ty Ty_Record (E_module mod, S_symbol name)
@@ -604,45 +604,6 @@ void Ty_defineRange(Ty_ty ty, char lstart, char lend)
     {
         defRangesLast = defRanges = p;
     }
-}
-
-// infer type from the var name
-Ty_ty Ty_inferType(S_symbol s)
-{
-    string varname = S_name(s);
-    int    l       = strlen(varname);
-    char   postfix = varname[l-1];
-
-    switch (postfix)
-    {
-        case '$':
-            return Ty_String();
-        case '%':
-            return Ty_Integer();
-        case '&':
-            return Ty_Long();
-        case '!':
-            return Ty_Single();
-        case '#':
-            return Ty_Double();
-    }
-
-    // no postfix -> check def*-ranges
-    for (Ty_defRange dr=defRanges; dr; dr=dr->next)
-    {
-        char firstc = tolower(varname[0]);
-        if (!dr->lend)
-        {
-            if (firstc==dr->lstart)
-                return dr->ty;
-        }
-        else
-        {
-            if ( (firstc>=dr->lstart) && (firstc<=dr->lend))
-                return dr->ty;
-        }
-    }
-    return Ty_Single();
 }
 
 string Ty_removeTypeSuffix(string varname)

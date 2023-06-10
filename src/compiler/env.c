@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     71
+#define SYM_VERSION     72
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -1602,11 +1602,11 @@ void E_init(void)
     declare_builtin_type("ULONG"   , Ty_ULong());
     declare_builtin_type("SINGLE"  , Ty_Single());
     declare_builtin_type("DOUBLE"  , Ty_Double());
-    declare_builtin_type("STRING"  , Ty_String());
     declare_builtin_type("ANY"     , Ty_Any());
     declare_builtin_type(NULL      , Ty_AnyPtr());
     declare_builtin_type(NULL      , Ty_VTableTy());
     declare_builtin_type(NULL      , Ty_VTablePtr());
+    declare_builtin_type(NULL      , Ty_UBytePtr());
 
     declare_builtin_const("TRUE",  Ty_ConstBool(Ty_Bool(), TRUE));
     declare_builtin_const("FALSE", Ty_ConstBool(Ty_Bool(), FALSE));
