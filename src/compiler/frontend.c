@@ -406,7 +406,7 @@ static Ty_ty _tyString(void)
         assert(FALSE);
     }
 
-    g_tyString = Ty_String (FE_mod, tyCString);
+    g_tyString = Ty_Pointer (FE_mod, tyCString);
 
     return g_tyString;
 }
@@ -425,6 +425,40 @@ static Ty_ty _tyCArray(void)
         assert(FALSE);
     }
     return g_tyCArray;
+}
+
+// DEF* support
+
+typedef struct FE_defRange_ *FE_defRange;
+struct FE_defRange_
+{
+    Ty_ty          ty;
+    char           lstart;
+    char           lend;
+    FE_defRange    next;
+};
+
+static FE_defRange _g_defRanges=NULL;
+static FE_defRange _g_defRangesLast=NULL;
+
+static void _defineRange(Ty_ty ty, char lstart, char lend)
+{
+    FE_defRange p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->ty     = ty;
+    p->lstart = lstart;
+    p->lend   = lend;
+    p->next   = NULL;
+
+    if (_g_defRangesLast)
+    {
+        _g_defRangesLast->next = p;
+        _g_defRangesLast = p;
+    }
+    else
+    {
+        _g_defRangesLast = _g_defRanges = p;
+    }
 }
 
 static Ty_ty _inferTypeFromVarName(S_symbol s)
@@ -448,7 +482,7 @@ static Ty_ty _inferTypeFromVarName(S_symbol s)
     }
 
     // no postfix -> check def*-ranges
-    for (Ty_defRange dr=defRanges; dr; dr=dr->next)
+    for (FE_defRange dr=_g_defRanges; dr; dr=dr->next)
     {
         char firstc = tolower(varname[0]);
         if (!dr->lend)
@@ -569,7 +603,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -604,7 +637,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -637,7 +669,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -670,7 +701,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -703,7 +733,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -734,7 +763,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -765,7 +793,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -796,7 +823,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -825,7 +851,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_interface:
                 case Ty_any:
                 case Ty_pointer:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_prc:
                 case Ty_procPtr:
@@ -863,9 +888,10 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                     return FALSE;
             }
             break;
-        case Ty_string:
-            *res = ty1;
-            return FALSE;
+        //FIXME
+        //case Ty_string:
+        //    *res = ty1;
+        //    return FALSE;
         case Ty_toLoad:
         case Ty_prc:
             assert(0);
@@ -907,7 +933,6 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
                 case Ty_record:
                 case Ty_class:
                 case Ty_interface:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_any:
                 case Ty_toLoad:
@@ -960,22 +985,21 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
             return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
 
         case Ty_forwardPtr:
-            if ( (tyFrom->kind == Ty_string) || (tyFrom->kind == Ty_pointer) || (tyFrom->kind == Ty_forwardPtr) )
+            if ( (tyFrom->kind == Ty_pointer) || (tyFrom->kind == Ty_forwardPtr) )
                 return TRUE;
             return FALSE;
 
         case Ty_pointer:
-            //if (Ty_isInt(tyFrom))
-            //    return TRUE;
 
-            if (tyFrom->kind == Ty_string)
-            {
-                if (  (tyTo->u.pointer->kind == Ty_any)
-                   || (tyTo->u.pointer->kind == Ty_byte)
-                   || (tyTo->u.pointer->kind == Ty_ubyte))
-                    return TRUE;
-                return FALSE;
-            }
+            // FIXME: deal with strings?
+            //if (tyFrom->kind == Ty_string)
+            //{
+            //    if (  (tyTo->u.pointer->kind == Ty_any)
+            //       || (tyTo->u.pointer->kind == Ty_byte)
+            //       || (tyTo->u.pointer->kind == Ty_ubyte))
+            //        return TRUE;
+            //    return FALSE;
+            //}
 
             if (tyFrom->kind != Ty_pointer)
                 return FALSE;
@@ -1047,7 +1071,6 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
                 case Ty_long:
                 case Ty_ulong:
                 case Ty_single:
-                case Ty_string:
                 case Ty_forwardPtr:
                 case Ty_any:
                 case Ty_procPtr:
@@ -1059,16 +1082,17 @@ static bool compatible_ty(Ty_ty tyFrom, Ty_ty tyTo)
             break;
         case Ty_record:
             return FALSE; // unless identical, see above
-        case Ty_string:
-            if (tyFrom->kind == Ty_ulong)
-                return TRUE;    // allow string const passing to tag data
-            if (tyFrom->kind != Ty_pointer)
-                return FALSE;
-            if (  (tyFrom->u.pointer->kind == Ty_any)
-               || (tyFrom->u.pointer->kind == Ty_byte)
-               || (tyFrom->u.pointer->kind == Ty_ubyte))
-                return TRUE;
-            return FALSE;
+        //FIXME:
+        //case Ty_string:
+        //    if (tyFrom->kind == Ty_ulong)
+        //        return TRUE;    // allow string const passing to tag data
+        //    if (tyFrom->kind != Ty_pointer)
+        //        return FALSE;
+        //    if (  (tyFrom->u.pointer->kind == Ty_any)
+        //       || (tyFrom->u.pointer->kind == Ty_byte)
+        //       || (tyFrom->u.pointer->kind == Ty_ubyte))
+        //        return TRUE;
+        //    return FALSE;
 
         case Ty_interface:
             if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
@@ -1206,7 +1230,6 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
         case Ty_sarray:
         case Ty_darray:
         case Ty_procPtr:
-        case Ty_string:
         case Ty_record:
             if (!compatible_ty(tyFrom, tyTo))
             {
@@ -1277,7 +1300,6 @@ static bool convert_ty (CG_item *item, S_pos pos, Ty_ty tyTo, bool explicit)
                 case Ty_long:
                 case Ty_ulong:
                 case Ty_single:
-                case Ty_string:
                 case Ty_pointer:
                 case Ty_procPtr:
                     CG_castItem(g_sleStack->code, pos, g_sleStack->frame, item, tyTo);
@@ -1534,8 +1556,7 @@ static bool transSelIndex(S_pos pos, CG_item *e, CG_item *idx)
     Ty_ty ty = CG_ty(e);
     if ( (ty->kind != Ty_sarray)  &&
          (ty->kind != Ty_darray)  &&
-         (ty->kind != Ty_pointer) &&
-         (ty->kind != Ty_string)    )
+         (ty->kind != Ty_pointer) )
     {
         EM_error(pos, "string, array or pointer type expected");
         return FALSE;
@@ -3522,9 +3543,10 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             S_symbol   fsym    = NULL;                   // put* function sym to call
             switch (ty->kind)
             {
-                case Ty_string:
-                    fsym = dbg ? S_Symbol("_DEBUG_PUTS")    : S_Symbol("_AIO_PUTS");
-                    break;
+                // FIXME: handle string pointers
+                //case Ty_string:
+                //    fsym = dbg ? S_Symbol("_DEBUG_PUTS")    : S_Symbol("_AIO_PUTS");
+                //    break;
                 case Ty_pointer:
                     fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
                     break;
@@ -3681,9 +3703,10 @@ static bool stmtWrite(S_tkn *tkn, E_enventry e, CG_item *exp)
         Ty_ty      ty      = CG_ty(&ex);
         switch (ty->kind)
         {
-            case Ty_string:
-                fsym = S_Symbol("_AIO_WRITES");
-                break;
+            //FIXME
+            //case Ty_string:
+            //    fsym = S_Symbol("_AIO_WRITES");
+            //    break;
             case Ty_pointer:
                 fsym = S_Symbol("_AIO_WRITEU4");
                 break;
@@ -3839,9 +3862,10 @@ static bool inputVar(S_tkn *tkn, CG_item exFNo)
     Ty_ty      ty      = CG_ty(&var)->u.pointer;
     switch (ty->kind)
     {
-        case Ty_string:
-            fsym = S_Symbol("_AIO_INPUTS");
-            break;
+        // FIXME
+        //case Ty_string:
+        //    fsym = S_Symbol("_AIO_INPUTS");
+        //    break;
         case Ty_pointer:
             fsym = S_Symbol("_AIO_INPUTU4");
             break;
@@ -4342,9 +4366,10 @@ static bool transRead(S_pos pos, CG_item *var)
         case Ty_single:
             fsym = S_Symbol("_AQB_READ4");
             break;
-        case Ty_string:
-            fsym = S_Symbol("_AQB_READSTR");
-            break;
+        // FIXME
+        //case Ty_string:
+        //    fsym = S_Symbol("_AQB_READSTR");
+        //    break;
         default:
             return EM_error(pos, "READ: unsupported type.");
     }
@@ -7299,7 +7324,6 @@ static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
                     case Ty_sarray:
                     case Ty_darray:
                     case Ty_record:
-                    case Ty_string:
                     case Ty_any:
                     case Ty_class:
                         assert(FALSE); // FIXME: implement
@@ -8576,7 +8600,7 @@ static bool letterRanges(S_pos pos, S_tkn *tkn, Ty_ty ty)
             return FALSE;
         *tkn = (*tkn)->next;
     }
-    Ty_defineRange(ty, tolower(lstart), tolower(lend));
+    _defineRange(ty, tolower(lstart), tolower(lend));
 
     while ((*tkn)->kind == S_COMMA)
     {

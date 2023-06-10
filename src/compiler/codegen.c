@@ -398,7 +398,7 @@ void CG_StringItem (AS_instrList code, S_pos pos, CG_item *item, string str)
     CG_frag frag = CG_StringFrag(strLabel, str);
     g_fragList = CG_FragList(frag, g_fragList);
 
-    Ty_ty ty = Ty_String();
+    Ty_ty ty = Ty_UBytePtr();
     CG_TempItem (item, ty);
     AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_ILabel_AnDn, Temp_w_L, NULL,                            //     move.l #strLabel, item.t
                                          item->u.inReg, NULL, 0, strLabel));
@@ -420,7 +420,6 @@ void CG_ZeroItem (CG_item *item, Ty_ty ty)
         case Ty_integer:
         case Ty_long:
         case Ty_pointer:
-        case Ty_string:
         case Ty_prc:
         case Ty_procPtr:
             CG_ConstItem (item, Ty_ConstInt(ty, 0));
@@ -451,7 +450,6 @@ void CG_OneItem (CG_item *item, Ty_ty ty)
         case Ty_integer:
         case Ty_long:
         case Ty_pointer:
-        case Ty_string:
         case Ty_prc:
         case Ty_procPtr:
             CG_ConstItem (item, Ty_ConstInt(ty, 1));
@@ -489,7 +487,6 @@ static enum Temp_w CG_tySize(Ty_ty ty)
         case Ty_pointer:
         case Ty_forwardPtr:
         case Ty_procPtr:
-        case Ty_string:
         case Ty_any:
             return Temp_w_L;
         case Ty_sarray:
@@ -2562,9 +2559,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_single:
                                     emitRegCall (code, pos, "_MathBase", LVOSPAdd, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
                                     break;
-                                case Ty_string:
-                                    emitBinOpJsr (code, pos, frame, "___astr_concat", left, right, ty);
-                                    break;
+                                //FIXME
+                                //case Ty_string:
+                                //    emitBinOpJsr (code, pos, frame, "___astr_concat", left, right, ty);
+                                //    break;
 
                                 default:
                                     assert(FALSE);

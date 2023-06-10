@@ -32,14 +32,13 @@ struct Ty_ty_
            Ty_darray,       // 10
            Ty_record,       // 11
            Ty_pointer,      // 12
-           Ty_string,       // 13
-           Ty_any,          // 14
-           Ty_forwardPtr,   // 15
-           Ty_procPtr,      // 16
-           Ty_class,        // 17
-           Ty_interface,    // 18
-           Ty_toLoad,       // 19
-           Ty_prc           // 20
+           Ty_any,          // 13
+           Ty_forwardPtr,   // 14
+           Ty_procPtr,      // 15
+           Ty_class,        // 16
+           Ty_interface,    // 17
+           Ty_toLoad,       // 18
+           Ty_prc           // 19
            } kind;
            // Ty_toLoad: used for module loading in env.c
 
@@ -51,7 +50,6 @@ struct Ty_ty_
                 Ty_memberList  entries;                                     } record;
         struct {Ty_ty elementTy; int iStart; int iEnd; uint32_t uiSize;     } sarray;
         struct {Ty_ty elementTy; Ty_ty tyCArray;                            } darray;
-        struct {Ty_ty tyCString;                                            } string;
         S_symbol                                                              sForward;
         Ty_proc                                                               proc;
         Ty_proc                                                               procPtr;
@@ -180,9 +178,9 @@ Ty_ty           Ty_VTableTy(void);
 Ty_ty           Ty_VTablePtr(void);
 Ty_ty           Ty_UBytePtr(void);
 
+Ty_ty           Ty_Pointer           (E_module mod, Ty_ty tyTarget);
 Ty_ty           Ty_SArray            (E_module mod, Ty_ty ty, int start, int end);
 Ty_ty           Ty_DArray            (E_module mod, Ty_ty elementTy, Ty_ty tyCArray);
-Ty_ty           Ty_String            (E_module mod, Ty_ty tyCString);
 Ty_ty           Ty_Prc               (E_module mod, Ty_proc proc);
 Ty_ty           Ty_ProcPtr           (E_module mod, Ty_proc proc);
 Ty_ty           Ty_ToLoad            (E_module mod, uint32_t uid);

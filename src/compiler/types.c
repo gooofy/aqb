@@ -418,7 +418,6 @@ void Ty_computeSize(Ty_ty ty)
             return;
 
         case Ty_pointer:  break;
-        case Ty_string:   break;
         case Ty_procPtr:  break;
         case Ty_bool:     break;
         case Ty_byte:     break;
@@ -468,7 +467,6 @@ bool Ty_isAllocatable (Ty_ty ty)
         case Ty_single:
         case Ty_pointer:
         case Ty_procPtr:
-        case Ty_string:
         case Ty_double:
         case Ty_darray:
         case Ty_sarray:
@@ -503,6 +501,19 @@ S_symbol Ty_name (Ty_ty ty)
             break;
     }
     return sTy;
+}
+
+Ty_ty Ty_Pointer (E_module mod, Ty_ty tyTarget)
+{
+    Ty_ty p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->kind               = Ty_pointer;
+    p->u.pointer          = tyTarget;
+    p->mod                = mod;
+    p->uid                = E_moduleAddType (mod, p);
+    p->tdLabel            = NULL;
+
+    return p;
 }
 
 Ty_ty Ty_SArray(E_module mod, Ty_ty ty, int start, int end)
@@ -554,7 +565,6 @@ int Ty_size(Ty_ty t)
         case Ty_forwardPtr:
         case Ty_prc:
         case Ty_procPtr:
-        case Ty_string:
         case Ty_any:
              return 4;
         case Ty_double:
@@ -572,38 +582,6 @@ int Ty_size(Ty_ty t)
             return 4;
     }
     return 4;
-}
-
-typedef struct Ty_defRange_ *Ty_defRange;
-struct Ty_defRange_
-{
-    Ty_ty          ty;
-    char           lstart;
-    char           lend;
-    Ty_defRange    next;
-};
-
-static Ty_defRange defRanges=NULL;
-static Ty_defRange defRangesLast=NULL;
-
-void Ty_defineRange(Ty_ty ty, char lstart, char lend)
-{
-    Ty_defRange p = U_poolAlloc(UP_types, sizeof(*p));
-
-    p->ty     = ty;
-    p->lstart = lstart;
-    p->lend   = lend;
-    p->next   = NULL;
-
-    if (defRangesLast)
-    {
-        defRangesLast->next = p;
-        defRangesLast = p;
-    }
-    else
-    {
-        defRangesLast = defRanges = p;
-    }
 }
 
 string Ty_removeTypeSuffix(string varname)
@@ -695,8 +673,6 @@ static string _toString(Ty_ty t, int depth)
         }
         case Ty_pointer:
             return strprintf (UP_types, "pointer(%s)", _toString(t->u.pointer, depth));
-        case Ty_string:
-            return "string";
         case Ty_any:
             return "any";
         case Ty_forwardPtr:

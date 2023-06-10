@@ -464,7 +464,6 @@ static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect d
                         case Ty_uinteger:
                         case Ty_long:
                         case Ty_ulong:
-                        case Ty_string:
                         case Ty_pointer:
                             pos += sprintf(&str[pos], "%d", instr->imm->u.i);
                             break;
@@ -975,7 +974,6 @@ static int32_t getConstInt (Ty_const c)
         case Ty_long:
         case Ty_ulong:
         case Ty_pointer:
-        case Ty_string:
             return c->u.i;
         case Ty_single:
         case Ty_double:
@@ -1290,7 +1288,6 @@ static void emit_Imm (AS_segment seg, enum Temp_w w, Ty_const imm)
                 case Ty_uinteger:
                 case Ty_long:
                 case Ty_ulong:
-                case Ty_string:
                 case Ty_pointer:
                     emit_i4 (seg, getConstInt (imm));
                     break;

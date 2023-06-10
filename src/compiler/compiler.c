@@ -325,9 +325,10 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                                     case Ty_single:
                                         AS_assembleData32 (obj->dataSeg, encode_ffp(c->u.f));
                                         break;
-                                    case Ty_string:
-                                        AS_assembleDataString (obj->dataSeg, c->u.s);
-                                        break;
+                                    //FIXME
+                                    //case Ty_string:
+                                    //    AS_assembleDataString (obj->dataSeg, c->u.s);
+                                    //    break;
                                     case Ty_sarray:
                                     case Ty_darray:
                                     case Ty_class:

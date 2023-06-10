@@ -627,7 +627,6 @@ static void E_serializeType(TAB_table modTable, Ty_ty ty)
         case Ty_single:
         case Ty_double:
         case Ty_any:
-        case Ty_string:
             break;
         case Ty_forwardPtr:
             EM_error (0, "tried to serialize forwarded type (%s)", S_name (ty->u.sForward));
@@ -1419,7 +1418,6 @@ E_module E_loadModule(S_symbol sModule)
             case Ty_ulong:    break;
             case Ty_single:   break;
             case Ty_double:   break;
-            case Ty_string:   break;
             default:
                 assert(0);
                 break;

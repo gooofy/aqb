@@ -638,7 +638,6 @@ static bool fread_ty (FILE *f, Ty_ty *ty)
         case Ty_darray:
         case Ty_record:
         case Ty_pointer:
-        case Ty_string:
         case Ty_any:
         case Ty_forwardPtr:
         case Ty_procPtr:
