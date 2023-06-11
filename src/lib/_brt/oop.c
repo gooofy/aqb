@@ -10,6 +10,11 @@ void _COBJECT___gc_scan (CObject *THIS, _gc_t *gc)
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _COBJECT___gc_scan");
 }
 
+VOID _COBJECT___gc_finalize (CObject *THIS)
+{
+    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: COBJECT gc_finalize");
+}
+
 CString *_COBJECT_TOSTRING_ (CObject *THIS)
 {
     // 'obj@0xXXXXXXXX\0' -> 15 chars

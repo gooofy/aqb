@@ -3,6 +3,8 @@
 #include "logger.h"
 #include "options.h"
 
+//#define GENERATE_VTABLES
+
 static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
 {
     switch (ty->kind)
@@ -176,6 +178,22 @@ static void _writeFormal (FILE *cstubf, Ty_formal formal)
     fprintf (cstubf, "%s%s%s", formal->mode==Ty_byRef ? "*":"", S_name(formal->name), formal->next ? ", ":"");
 }
 
+static void _writeStubSpecial (FILE *cstubf, Ty_ty tyCls, bool writeBody, char *methodName)
+{
+    fprintf (cstubf, "VOID _%s___%s (%s *THIS)", S_name(tyCls->u.cls.name), methodName, S_name(tyCls->u.cls.name));
+
+    if (writeBody)
+    {
+        fprintf (cstubf, "\n{\n");
+        fprintf (cstubf, "    _AQB_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s %s\");\n", S_name(tyCls->u.cls.name), methodName);
+        fprintf (cstubf, "}\n\n");
+    }
+    else
+    {
+        fprintf (cstubf, ";\n");
+    }
+}
+
 static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc, bool writeBody)
 {
     if (proc->returnTy)
@@ -272,9 +290,13 @@ static void _writeStubMethods (FILE *cstubf, S_scope scope, bool writeBody)
         if (ty->kind != Ty_class)
             continue;
 
+        _writeStubSpecial (cstubf, ty, writeBody, "gc_scan");
+        _writeStubSpecial (cstubf, ty, writeBody, "gc_finalize");
         _writeStubMethodsRec (cstubf, ty, writeBody);
     }
 }
+
+#ifdef GENERATE_VTABLES
 
 #define VTABLE_MAX_ENTRIES 128
 static char *vtable_entries[VTABLE_MAX_ENTRIES];
@@ -512,6 +534,7 @@ static void _writeStubInits (FILE *cstubf, S_scope scope)
         fprintf (cstubf, "}\n\n");
     }
 }
+#endif // GENERATE_VTABLES
 
 bool CS_writeCStubFile(string cstubfn, E_module mod)
 {
@@ -536,9 +559,11 @@ bool CS_writeCStubFile(string cstubfn, E_module mod)
     _writeStubMethods (cstubf, mod->env->u.scopes.tenv, /*writeBody=*/TRUE);
     fprintf (cstubf, "\n");
 
+#ifdef GENERATE_VTABLES
     _writeStubITables (cstubf, mod->env->u.scopes.tenv);
 
     _writeStubInits (cstubf, mod->env->u.scopes.tenv);
+#endif // GENERATE_VTABLES
 
     fclose(cstubf);
 

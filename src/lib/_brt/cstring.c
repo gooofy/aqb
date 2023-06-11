@@ -13,6 +13,10 @@ void _CSTRING___gc_scan (CObject *THIS, void *gc)
     // nothing to do here
 }
 
+VOID _CSTRING___gc_finalize (CString *THIS)
+{
+    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CSTRING gc_finalize");
+}
 
 VOID _CSTRING_CONSTRUCTOR (CString *THIS, CONST_STRPTR str, BOOL owned)
 {

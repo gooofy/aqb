@@ -3837,7 +3837,7 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, Ty_method
                 CG_transField   (code, pos, frame, &methodPtr, vtpm);
                 CG_transDeRef (code, pos, frame, &methodPtr);
                 CG_item idx;
-                CG_IntItem (&idx, method->vTableIdx+1, Ty_Integer());
+                CG_IntItem (&idx, method->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM, Ty_Integer());
                 CG_transIndex  (code, pos, frame, &methodPtr, &idx);
                 CG_transCallPtr (code, pos, frame, method->proc, &methodPtr, args, result);
                 break;

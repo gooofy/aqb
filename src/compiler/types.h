@@ -163,6 +163,16 @@ struct Ty_method_
     int16_t   vTableIdx;
 };
 
+// the first three class vtable entries are special:
+// #0: type desc pointer
+// #1: garbage collector's gc_scan virtual function
+// #2: garbage collector's gc_finalize virtual function
+
+#define VTABLE_SPECIAL_ENTRY_NUM       3
+#define VTABLE_SPECIAL_ENTRY_TYPEDESC  0
+#define VTABLE_SPECIAL_ENTRY_GCSCAN    1
+#define VTABLE_SPECIAL_ENTRY_GCFINAL   2
+
 Ty_ty           Ty_Bool(void);
 Ty_ty           Ty_Byte(void);
 Ty_ty           Ty_UByte(void);

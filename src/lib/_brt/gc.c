@@ -20,7 +20,7 @@
  * TODO
  * [ DONE ] - call gc_scan virtual method
  * [ DONE ] - scan stack(s)
- * - finalizers
+ * [ DONE ] - finalizers
  * - stop other tasks/threads
  */
 
@@ -309,6 +309,15 @@ void GC_RUN (void)
             _g_gc.heap_size -= obj->__gc_size;
             if (_g_gc.heap_size<0)
                 _g_gc.heap_size = 0; // this shouldn't happen, but just to be safe
+
+            // run finalizer
+            intptr_t *vtable = (intptr_t *) obj->_vTablePtr;
+
+            DPRINTF ("GC_SWEEP: running finalizer for obj=0x%08lx, vtable=0x%08lx, next=0x%08lx\n", obj, vtable, obj->__gc_next);
+
+            _gc_finalize_t ffn = (_gc_finalize_t) vtable[2];
+            ffn(obj);
+
             //Permit();
             FreeMem(obj, obj->__gc_size);
             //memset (obj, 0xef, obj->__gc_size);

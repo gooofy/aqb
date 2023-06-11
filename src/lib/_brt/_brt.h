@@ -175,6 +175,7 @@ BOOL     GC_REACHABLE_         (CObject *obj);
 // FIXME: PUBLIC DECLARE EXTERN SUB      GC_OPTIONS    (BYVAL heap_limit AS ULONG=16*1024, BYVAL alloc_limit AS ULONG=128)
 
 typedef void (*_gc_scan_t)     (CObject *obj);
+typedef void (*_gc_finalize_t) (CObject *obj);
 
 /********************************************************************
  *                                                                  *

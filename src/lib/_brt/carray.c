@@ -13,6 +13,11 @@ void _CARRAY___gc_scan (CObject *THIS, void *gc)
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _CARRAY___gc_scan");
 }
 
+VOID _CARRAY___gc_finalize (CArray *THIS)
+{
+    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CARRAY gc_finalize");
+}
+
 VOID _CARRAY_CONSTRUCTOR (CArray *THIS, LONG elementSize)
 {
     THIS->_data        = NULL;
@@ -407,6 +412,12 @@ void _CARRAYENUMERATOR___gc_scan (CObject *THIS, void *gc)
 {
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _CARRAYENUMERATOR___gc_scan");
 }
+
+VOID _CARRAYENUMERATOR___gc_finalize (CArrayEnumerator *THIS)
+{
+    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CArrayEnumerator gc_finalize");
+}
+
 
 VOID _CARRAYENUMERATOR_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
 {

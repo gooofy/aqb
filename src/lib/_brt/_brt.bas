@@ -38,9 +38,7 @@ PUBLIC CLASS CObject
 
     PRIVATE:
 
-        ' GC and dynamic typing support, *DO NOT TOUCH!*
-        DECLARE VIRTUAL FUNCTION __gc_scan (BYVAL gc AS ANY PTR)
-
+        ' GC support *DO NOT TOUCH!*
         AS ANY PTR __gc_next, __gc_prev
         AS ULONG   __gc_size
         AS UBYTE   __gc_color

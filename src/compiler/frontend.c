@@ -7294,6 +7294,34 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
+static Temp_label _assembleClassGCFinalizeMethod (Ty_ty tyCls, S_pos pos)
+{
+    Temp_label label     = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_finalize", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_finalize_exit", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
+
+    if (!_g_gcScanExtern)
+    {
+
+        Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+        formals = Ty_Formal(S_GC, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+
+        CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
+        AS_instrList il = AS_InstrList();
+
+        CG_transNOP (il, 0);
+
+        CG_procEntryExit(0,
+                         frame,
+                         il,
+                         /*returnVar=*/NULL,
+                         /*exitlbl=*/ exitlabel,
+                         /*is_main=*/FALSE,
+                         /*expt=*/TRUE);
+    }
+
+    return label;
+}
+
 static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
 {
     Temp_label label     = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_scan", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
@@ -7310,19 +7338,6 @@ static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
 
             Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
             formals = Ty_Formal(S_GC, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
-
-            //Ty_proc scanfn = Ty_Proc (Ty_visPrivate, Ty_pkSub, S_Symbol("__gc_scan"),
-            //                          /*extraSyms=*/NULL,
-            //                          label,
-            //                          formals,
-            //                          /*isVariadic=*/FALSE,
-            //                          /*isStatic=*/FALSE,
-            //                          /*returnTy=*/NULL,
-            //                          /*forward=*/FALSE,
-            //                          /*isExtern=*/FALSE,
-            //                          /*offset=*/0,
-            //                          /*libBase=*/NULL,
-            //                          /*tyCls=*/tyCls);
 
             CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
             AS_instrList il = AS_InstrList();
@@ -7393,8 +7408,6 @@ static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
 
 static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
 {
-    CG_dataFragSetPtr (vTableFrag, CG_getTypeDescLabel (tyCls), 0);
-
     if (tyCls->u.cls.baseType)
     {
         _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
@@ -7406,13 +7419,13 @@ static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
         {
             case Ty_recMethod:
                 if (member->u.method->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx+1);
+                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
                 break;
             case Ty_recProperty:
                 if (member->u.property.getter && member->u.property.getter->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx+1);
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
                 if (member->u.property.setter && member->u.property.setter->vTableIdx >= 0)
-                    CG_dataFragSetPtr (vTableFrag, member->u.property.setter->proc->label, member->u.property.setter->vTableIdx+1);
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.setter->proc->label, member->u.property.setter->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
                 break;
             default:
                 continue;
@@ -7423,7 +7436,7 @@ static void _assembleClassVTable (CG_frag vTableFrag, Ty_ty tyCls)
 
 static void _assembleVTables (Ty_ty tyCls, S_pos pos)
 {
-    // generate __init method which allocates memory and assigns the vtable pointers in this class
+    // generate __init method which assigns the vTable pointers in this class
 
     Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
@@ -7451,6 +7464,11 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
     CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
 
     _assembleClassVTable (vTableFrag, tyCls);
+    // set up vTable special entries
+    CG_dataFragSetPtr (vTableFrag, CG_getTypeDescLabel           (tyCls)     , VTABLE_SPECIAL_ENTRY_TYPEDESC);
+    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod    (tyCls, pos), VTABLE_SPECIAL_ENTRY_GCSCAN);
+    CG_dataFragSetPtr (vTableFrag, _assembleClassGCFinalizeMethod(tyCls, pos), VTABLE_SPECIAL_ENTRY_GCFINAL);
+
 
     if (!tyCls->u.cls.virtualMethodCnt)
     {
@@ -7469,9 +7487,6 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
     classVTablePtr.kind = IK_inReg;
 
     CG_transAssignment (il, 0, frame, &objVTablePtr, &classVTablePtr);
-
-    // vTable entry #1 is special: it contains the garbage collector's gc_scan virtual function
-    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod(tyCls, pos), 1);
 
     // assemble and assign vtables for each implemented interface
 
