@@ -56,7 +56,7 @@ static char *g_inputHandlerName = "AQB CTRL-C input event handler";
 
 ULONG *_g_stack = NULL;
 
-void _DEBUG_PUTC(const char c)
+void _DEBUG_PUTC(UBYTE c)
 {
     if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
 	{
@@ -82,7 +82,7 @@ void _DEBUG_PUTC(const char c)
     }
 }
 
-void _DEBUG_PUTS(const UBYTE *s)
+void __debug_puts(CONST_STRPTR s)
 {
     if ((_startup_mode == STARTUP_DEBUG) && g_dbgPort)
 	{
@@ -105,69 +105,74 @@ void _DEBUG_PUTS(const UBYTE *s)
     else
     {
 		if (_debug_stdout)
-			Write(_debug_stdout, (CONST APTR) s, LEN_(s));
+			Write(_debug_stdout, (CONST APTR) s, _astr_len((STRPTR)s));
 	}
+}
+
+void _DEBUG_PUTS(const CString *s)
+{
+    __debug_puts (s->_str);
 }
 
 void _DEBUG_PUTS1(BYTE s)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(s, buf, 10);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTS2(SHORT s)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(s, buf, 10);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTS4(LONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTU1(UBYTE num)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(num, buf, 10);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTU2(UWORD num)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(num, buf, 10);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTU4(ULONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(l, buf, 10);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTHEX(ULONG l)
 {
     UBYTE buf[MAXBUF];
     _astr_utoa(l, buf, 16);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTF(FLOAT f)
 {
     UBYTE buf[MAXBUF];
     _astr_ftoa(f, buf);
-    _DEBUG_PUTS(buf);
+    __debug_puts(buf);
 }
 
 void _DEBUG_PUTBOOL(BOOL b)
 {
-    _DEBUG_PUTS(b ? (UBYTE*)"TRUE" : (UBYTE*)"FALSE");
+    __debug_puts(b ? (STRPTR)"TRUE" : (STRPTR)"FALSE");
 }
 
 void _DEBUG_PUTTAB(void)
@@ -432,7 +437,7 @@ void _c_atexit(void)
 void _cshutdown (LONG return_code, UBYTE *msg)
 {
     if (msg && DOSBase)
-        _DEBUG_PUTS(msg);
+        __debug_puts(msg);
 
     _autil_exit(return_code);
 }

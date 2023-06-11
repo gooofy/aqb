@@ -265,7 +265,7 @@ static void vdprintf(const char *format, va_list args)
 				break;
 			case 's':
 				buffer2 = va_arg(args, char *);
-				size2 = LEN_((STRPTR)buffer2);
+				size2 = _astr_len((STRPTR)buffer2);
 				size2 = size2 <= preci ? size2 : preci;
 				preci = 0;
 				break;

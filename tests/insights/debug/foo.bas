@@ -9,3 +9,6 @@ DIM SHARED AS ANY wp
 
 DIM SHARED AS STRING s = "hubba"
 
+TRACE s
+
+

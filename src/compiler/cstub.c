@@ -16,7 +16,7 @@ static void _writeStubTyRef (FILE *cstubf, Ty_ty ty)
         case Ty_ulong     : fprintf (cstubf, "ULONG    "); break;
         case Ty_single    : fprintf (cstubf, "FLOAT    "); break;
         case Ty_double    : fprintf (cstubf, "DOUBLE   "); break;
-        case Ty_string    : fprintf (cstubf, "STRPTR   "); break;
+        // FIXME case Ty_string    : fprintf (cstubf, "STRPTR   "); break;
         case Ty_sarray    : _writeStubTyRef (cstubf, ty->u.sarray.elementTy); fprintf (cstubf, "*"); break;
         case Ty_darray    : fprintf (cstubf, "DARRAY   "); break;
         case Ty_record    : fprintf (cstubf, "%s ", S_name(ty->u.record.name)); break;
@@ -211,7 +211,7 @@ static void _writeStubMethod (FILE *cstubf, Ty_ty tyCls, Ty_proc proc, bool writ
                 case Ty_single    : fprintf (cstubf, "    return 0;\n"); break;
                 case Ty_double    : fprintf (cstubf, "    return 0;\n"); break;
                 case Ty_any       : fprintf (cstubf, "    return 0;\n"); break;
-                case Ty_string    : fprintf (cstubf, "    return NULL;\n"); break;
+                // FIXME case Ty_string    : fprintf (cstubf, "    return NULL;\n"); break;
                 //case Ty_sarray    : fprintf (cstubf, ""); break;
                 //case Ty_darray    : fprintf (cstubf, ""); break;
                 //case Ty_record    : fprintf (cstubf, ""); break;

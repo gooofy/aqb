@@ -3336,27 +3336,28 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_frame frame, CG_relOp ro, C
                     CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
                     break;
                 }
-                case Ty_string:
-                {
-                    CG_loadVal (code, pos, frame, right);
-                    Temp_label l = Temp_newlabel();
+                // FIXME
+                //case Ty_string:
+                //{
+                //    CG_loadVal (code, pos, frame, right);
+                //    Temp_label l = Temp_newlabel();
 
-                    CG_itemListNode iln;
-                    CG_itemList args = CG_ItemList();
-                    iln = CG_itemListAppend (args); iln->item = *left;
-                    iln = CG_itemListAppend (args); iln->item = *right;
-                    int arg_cnt = munchArgsStack(pos, code, 0, args);
-                    Temp_label lcmp = Temp_namedlabel("___astr_cmp");
-                    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, Temp_w_NONE, NULL, NULL, 0, 0, lcmp,    // jsr   ___astr_cmp
-                                                          AS_callersaves(), NULL));
-                    munchCallerRestoreStack(pos, code, arg_cnt);
-                    AS_instrListAppend (code, AS_Instr (pos, AS_TST_Dn, Temp_w_W, AS_regs[AS_TEMP_D0], NULL));       //     tst.w  d0
-                    AS_instr bxx = AS_InstrEx (pos, relOp2mnS(relNegated(ro)), Temp_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
-                    AS_instrListAppend (code, bxx);
+                //    CG_itemListNode iln;
+                //    CG_itemList args = CG_ItemList();
+                //    iln = CG_itemListAppend (args); iln->item = *left;
+                //    iln = CG_itemListAppend (args); iln->item = *right;
+                //    int arg_cnt = munchArgsStack(pos, code, 0, args);
+                //    Temp_label lcmp = Temp_namedlabel("___astr_cmp");
+                //    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, Temp_w_NONE, NULL, NULL, 0, 0, lcmp,    // jsr   ___astr_cmp
+                //                                          AS_callersaves(), NULL));
+                //    munchCallerRestoreStack(pos, code, arg_cnt);
+                //    AS_instrListAppend (code, AS_Instr (pos, AS_TST_Dn, Temp_w_W, AS_regs[AS_TEMP_D0], NULL));       //     tst.w  d0
+                //    AS_instr bxx = AS_InstrEx (pos, relOp2mnS(relNegated(ro)), Temp_w_NONE, NULL, NULL, NULL, 0, l); //     bxx    l
+                //    AS_instrListAppend (code, bxx);
 
-                    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
-                    break;
-                }
+                //    CG_CondItem (left, l, bxx, /*postCond=*/ TRUE, Ty_Bool());
+                //    break;
+                //}
                 default:
                     assert(FALSE);
             }
@@ -3373,7 +3374,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
 
     switch (t->kind)
     {
-        case Ty_string:
+        // FIXME case Ty_string:
         case Ty_pointer:
         {
             Ty_ty et = (t->kind == Ty_pointer) ? t->u.pointer : Ty_UByte();
@@ -4494,7 +4495,6 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
 
             case Ty_sarray:
             case Ty_procPtr:
-            case Ty_string:
                 switch (to_ty->kind)
                 {
                     case Ty_long:
@@ -4502,7 +4502,6 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                     case Ty_sarray:
                     case Ty_pointer:
                     case Ty_procPtr:
-                    case Ty_string:
                         assert(FALSE); // FIXME
                         // return CG_Ex(T_Cast(pos, unEx(pos, item), from_ty, to_ty));
                     default:
@@ -4522,7 +4521,6 @@ void CG_castItem (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item, T
                     case Ty_long:
                     case Ty_ulong:
                     case Ty_pointer:
-                    case Ty_string:
                     case Ty_procPtr:
                     case Ty_single:
                         CG_loadVal (code, pos, frame, item);
@@ -4753,9 +4751,10 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_single:
                             fprintf(out, "    dc.l %d /* %f */\n", encode_ffp(c->u.f), c->u.f);
                             break;
-                        case Ty_string:
-                            fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
-                            break;
+                        // FIXME
+                        //case Ty_string:
+                        //    fprintf(out, "    .ascii \"%s\"\n", expand_escapes(c->u.s));
+                        //    break;
                         case Ty_sarray:
                         case Ty_darray:
                         case Ty_class:

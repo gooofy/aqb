@@ -10,7 +10,7 @@ void _COBJECT___gc_scan (CObject *THIS, _gc_t *gc)
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _COBJECT___gc_scan");
 }
 
-STRPTR _COBJECT_TOSTRING_ (CObject *THIS)
+CString *_COBJECT_TOSTRING_ (CObject *THIS)
 {
     // 'obj@0xXXXXXXXX\0' -> 15 chars
     UBYTE *str2 = ALLOCATE_(15, MEMF_ANY);
@@ -20,7 +20,7 @@ STRPTR _COBJECT_TOSTRING_ (CObject *THIS)
     str2[3]='@';
     _astr_itoa_ext ((intptr_t)THIS, &str2[4], 16, FALSE, /*positive_sign=*/FALSE);
     str2[14]=0;
-    return (STRPTR) str2;
+    return __CREATE_CSTRING_(str2, /*owned=*/TRUE);
 }
 
 BOOL _COBJECT_EQUALS_ (CObject *THIS, CObject *obj)

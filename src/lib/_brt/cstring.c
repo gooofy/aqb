@@ -1,4 +1,4 @@
-//#define ENABLE_DPRINTF
+#define ENABLE_DPRINTF
 #include "_brt.h"
 #include <stdarg.h>
 
@@ -14,9 +14,14 @@ void _CSTRING___gc_scan (CObject *THIS, void *gc)
 }
 
 
-VOID _CSTRING_CONSTRUCTOR (CString *THIS, intptr_t str, BOOL     owned)
+VOID _CSTRING_CONSTRUCTOR (CString *THIS, CONST_STRPTR str, BOOL owned)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CString.CONSTRUCTOR");
+    DPRINTF ("CString constructor: str=%s, owned=%d\n", str, owned);
+
+    THIS->_str      = str;
+    THIS->_len      = _astr_len((UBYTE*) str);
+    THIS->_hashcode = CRC32_((UBYTE*) str, THIS->_len);
+    THIS->_owned    = owned;
 }
 
 UBYTE    _CSTRING_GETCHARAT_ (CString *THIS, ULONG    idx)
@@ -31,7 +36,7 @@ ULONG    _CSTRING_LENGTH_ (CString *THIS)
     return 0;
 }
 
-UBYTE *_CSTRING_STR_ (CString *THIS)
+CONST_STRPTR _CSTRING_STR_ (CString *THIS)
 {
     return THIS->_str;
 }
@@ -48,10 +53,9 @@ WORD _CSTRING_COMPARETO_ (CString *THIS, CObject *obj)
     return 0;
 }
 
-STRPTR   _CSTRING_TOSTRING_ (CString *THIS)
+CString *_CSTRING_TOSTRING_ (CString *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CString.TOSTRING");
-    return NULL;
+    return THIS;
 }
 
 BOOL     _CSTRING_EQUALS_ (CString *THIS, CObject *obj)
@@ -64,5 +68,18 @@ ULONG    _CSTRING_GETHASHCODE_ (CString *THIS)
 {
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CString.GetHashCode");
     return 0;
+}
+
+CString *__CREATE_CSTRING_ (CONST_STRPTR str, BOOL owned)
+{
+    CString *obj = (CString *)GC_ALLOCATE_(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
+    if (!obj)
+        ERROR (ERR_OUT_OF_MEMORY);
+
+    _CSTRING___init (obj);
+    _CSTRING_CONSTRUCTOR (obj, str, owned);
+    GC_REGISTER ((CObject *)obj);
+
+    return obj;
 }
 

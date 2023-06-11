@@ -137,6 +137,7 @@ void _astr_utoa(ULONG num, UBYTE* str, ULONG base)
     _astr_utoa_ext(num, str, base, /*leading_space=*/TRUE, /*positive_sign=*/FALSE);
 }
 
+#if 0
 ULONG LEN_(const UBYTE *str)
 {
     int l = 0;
@@ -164,7 +165,7 @@ UBYTE *SPC_(SHORT length)
 
 UBYTE *STRING_(SHORT length, UBYTE *str)
 {
-    int l = LEN_(str);
+    int l = _astr_len(str);
     if (!l)
     {
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -193,7 +194,7 @@ SHORT ASC_(const UBYTE *str)
         return 0;
     }
 
-    int l = LEN_(str);
+    int l = _astr_len(str);
     if (!l)
     {
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
@@ -211,7 +212,7 @@ UBYTE *MID_(const UBYTE *str, SHORT n, SHORT m)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
         return _astr_dup((STRPTR)"");
     }
-    int l = LEN_(str);
+    int l = _astr_len(str);
     n--;
     if (n>=l)
         return _astr_dup((STRPTR)"");
@@ -233,7 +234,7 @@ UBYTE *UCASE_ (const UBYTE *s)
         return _astr_dup((STRPTR)"");
     }
     UBYTE *s2 = _astr_dup(s);
-    int l = LEN_(s2);
+    int l = _astr_len(s2);
     for (int i=0; i<l; i++)
         s2[i] =ToUpper(s[i]);
 
@@ -248,7 +249,7 @@ UBYTE *LCASE_ (const UBYTE *s)
         return _astr_dup((STRPTR)"");
     }
     UBYTE *s2 = _astr_dup(s);
-    int l = LEN_(s2);
+    int l = _astr_len(s2);
     for (int i=0; i<l; i++)
         s2[i] =ToLower(s[i]);
 
@@ -263,7 +264,7 @@ UBYTE *LEFT_ (const UBYTE *s, SHORT n)
         return _astr_dup((STRPTR)"");
     }
 
-    int l = LEN_(s);
+    int l = _astr_len(s);
     if (n>l)
         n = l;
 
@@ -281,12 +282,13 @@ UBYTE *RIGHT_ (const UBYTE *s, SHORT n)
         ERROR (ERR_ILLEGAL_FUNCTION_CALL);
         return _astr_dup((STRPTR)"");
     }
-    int l = LEN_(s);
+    int l = _astr_len(s);
     if (n>l)
         n = l;
 
     return MID_(s, l-n+1, -1);
 }
+#endif
 
 const UBYTE *_astr_strstr(const UBYTE *s1, const UBYTE *s2)
 {
@@ -310,7 +312,7 @@ const UBYTE *_astr_strstr(const UBYTE *s1, const UBYTE *s2)
     return NULL;
 }
 
-
+#if 0
 SHORT INSTR_ (SHORT n, const UBYTE *x, const UBYTE *y)
 {
     n-=1;
@@ -320,7 +322,7 @@ SHORT INSTR_ (SHORT n, const UBYTE *x, const UBYTE *y)
         return 0;
     }
 
-    int l = LEN_(x);
+    int l = _astr_len(x);
     if (n>=l)
 	{
         return 0;
@@ -334,10 +336,22 @@ SHORT INSTR_ (SHORT n, const UBYTE *x, const UBYTE *y)
 
 	return s-x+1+n;
 }
+#endif
+
+ULONG _astr_len (const UBYTE *str)
+{
+    ULONG l = 0;
+    while (*str)
+    {
+        str++;
+        l++;
+    }
+    return l;
+}
 
 UBYTE *_astr_dup(const UBYTE* str)
 {
-    ULONG l = LEN_(str);
+    ULONG l = _astr_len(str);
     UBYTE *str2 = ALLOCATE_(l+1, MEMF_ANY);
     CopyMem((APTR)str, (APTR)str2, l+1);
     return str2;
@@ -355,8 +369,8 @@ SHORT __astr_cmp(const UBYTE* s1, const UBYTE* s2)
 
 UBYTE *__astr_concat (const UBYTE *a, const UBYTE *b)
 {
-    ULONG la = LEN_(a);
-    ULONG lb = LEN_(b);
+    ULONG la = _astr_len(a);
+    ULONG lb = _astr_len(b);
     UBYTE *str2 = ALLOCATE_(la+lb+1, MEMF_ANY);
     CopyMem((APTR)a, (APTR)str2, la);
     CopyMem((APTR)b, (APTR)str2+la, lb+1);
@@ -559,13 +573,13 @@ void _astr_ftoa_ext(FLOAT value, UBYTE *buf, BOOL leading_space, BOOL positive_s
         *--ptr = '.';
 
         // and dump it in the right order
-        ULONG l = LEN_(buf);
-        CopyMem((APTR) ptr, (APTR) &buf[l], LEN_(ptr)+1);
+        ULONG l = _astr_len(buf);
+        CopyMem((APTR) ptr, (APTR) &buf[l], _astr_len(ptr)+1);
     }
 
     if (exponent != 0)
     {
-        ULONG l = LEN_(buf);
+        ULONG l = _astr_len(buf);
         buf[l] = 'e'; buf[l+1] = '-';
         _astr_itoa_ext(exponent, &buf[l+1], 10, /*leading_space=*/FALSE, /*positive_sign=*/TRUE);
     }
@@ -588,6 +602,7 @@ const UBYTE *_astr_strchr(const UBYTE *s, UBYTE c)
     return NULL;
 }
 
+#if 0
 UBYTE *_S1TOA_   (BYTE   b)
 {
     UBYTE buf[MAXBUF];
@@ -606,27 +621,6 @@ UBYTE *_S4TOA_   (LONG   l)
 {
     UBYTE buf[MAXBUF];
     _astr_itoa(l, buf, 10);
-    return _astr_dup(buf);
-}
-
-UBYTE *HEX_   (ULONG   l)
-{
-    UBYTE buf[MAXBUF];
-    _astr_utoa_ext(l, buf, 16, FALSE, FALSE);
-    return _astr_dup(buf);
-}
-
-UBYTE *OCT_   (ULONG   l)
-{
-    UBYTE buf[MAXBUF];
-    _astr_utoa_ext(l, buf, 8, FALSE, FALSE);
-    return _astr_dup(buf);
-}
-
-UBYTE *BIN_   (ULONG   l)
-{
-    UBYTE buf[MAXBUF];
-    _astr_utoa_ext(l, buf, 2, FALSE, FALSE);
     return _astr_dup(buf);
 }
 
@@ -663,10 +657,33 @@ UBYTE *_BOOLTOA_ (BOOL   b)
     return b ? (UBYTE *)"TRUE" : (UBYTE *)"FALSE";
 }
 
+UBYTE *HEX_   (ULONG   l)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa_ext(l, buf, 16, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+
+UBYTE *OCT_   (ULONG   l)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa_ext(l, buf, 8, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+
+UBYTE *BIN_   (ULONG   l)
+{
+    UBYTE buf[MAXBUF];
+    _astr_utoa_ext(l, buf, 2, FALSE, FALSE);
+    return _astr_dup(buf);
+}
+#endif
+
 /*
  * VAL* support
  */
 
+#if 0
 LONG _str2i4_ (UBYTE *str, LONG len, LONG base)
 {
     LONG v = 0;
@@ -760,7 +777,7 @@ static UBYTE *_val_handle_prefix(UBYTE *s, LONG *base, LONG *len)
     while ( (*p == ' ') || (*p == '\t') )
         p++;
 
-    *len = LEN_(p);
+    *len = _astr_len(p);
     if (!(*len))
         return s;
 
@@ -1066,6 +1083,7 @@ FLOAT VAL_ (UBYTE *s)
 
     return _str2f_(s, len, base);
 }
+#endif
 
 #ifdef __amigaos__
 #pragma GCC push_options

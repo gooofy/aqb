@@ -51,7 +51,7 @@ void _AIO_PUTS (USHORT fno, const UBYTE *s)
             ERROR(ERR_BAD_FILE_NUMBER);
             return;
         }
-        ULONG l = LEN_(s);
+        ULONG l = _astr_len(s);
         Write(g_fis[fno]->fhBPTR, (CONST APTR) s, l);
         return;
     }
@@ -63,7 +63,7 @@ void _AIO_PUTS (USHORT fno, const UBYTE *s)
     }
 
     DPRINTF ("_aio_puts: fno=%d -> CLI, s='%s'\n", fno, s);
-    ULONG l = LEN_(s);
+    ULONG l = _astr_len(s);
     Write(g_stdout, (CONST APTR) s, l);
 }
 
@@ -73,7 +73,7 @@ void _AIO_SET_DOS_CURSOR_VISIBLE (BOOL visible)
     static UBYTE csr_off[]  = { CSI, '0', ' ', 'p', '\0' };
 
     UBYTE *c = visible ? csr_on : csr_off;
-    Write(g_stdout, (CONST APTR) c, LEN_(c));
+    Write(g_stdout, (CONST APTR) c, _astr_len(c));
 }
 
 void _AIO_PUTNL(USHORT fno)
@@ -395,6 +395,7 @@ void _AIO_LINE_INPUT (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl)
     *s = _astr_dup (buf);
 }
 
+#if 0
 static BOOL _is_whitespace (char c)
 {
     return (c == ' ') || (c == '\t');
@@ -551,6 +552,7 @@ fini:
     if (skip_delim)
         _input_skip_delimiter (fno);
 }
+#endif
 
 void _AIO_CONSOLE_INPUT (BOOL qm, UBYTE *prompt, BOOL do_nl)
 {
@@ -586,11 +588,13 @@ void _AIO_CONSOLE_INPUT (BOOL qm, UBYTE *prompt, BOOL do_nl)
     _aio_gets (fi->input_buffer, MAX_INPUT_BUF, do_nl);
 
     fi->input_pos = 0;
-    fi->input_len = LEN_(fi->input_buffer);
+    fi->input_len = _astr_len(fi->input_buffer);
     fi->eof       = FALSE;
 
     //_input_getch(/*fno=*/0);
 }
+
+#if 0
 
 void _AIO_INPUTS1 (USHORT fno, BYTE   *v)
 {
@@ -680,6 +684,7 @@ void _AIO_INPUTS (USHORT fno, UBYTE **v)
     _input_next_token (fno);
     *v = _astr_dup(g_fis[fno]->input_token);
 }
+#endif
 
 void _AIO_OPEN (UBYTE *fname, USHORT mode, USHORT access, USHORT fno, USHORT recordlen)
 {
@@ -815,11 +820,11 @@ void LOCATE (SHORT line, SHORT col)
     buf[0] = CSI;
     _astr_itoa_ext(line, &buf[1], 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
 
-    int l = LEN_(buf);
+    int l = _astr_len(buf);
     buf[l] = ';';
     l++;
     _astr_itoa_ext(col, &buf[l], 10, /*leading_space=*/FALSE, /*positive_sign=*/FALSE);
-    l = LEN_(buf);
+    l = _astr_len(buf);
     buf[l] = 'H';
     buf[l+1] = 0;
 

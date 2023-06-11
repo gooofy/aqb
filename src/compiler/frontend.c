@@ -400,15 +400,26 @@ static Ty_ty _tyString(void)
         return g_tyString;
 
     Ty_ty tyCString = E_resolveType(g_sleStack->env, S_CString);
-    if (!tyCString || (tyCString->kind != Ty_class))
+    if (!tyCString)
     {
-        EM_error(0, "internal error: CString type not found.");
-        assert(FALSE);
+        // this happens during bootstrapping
+        return E_getPointer (FE_mod, S_CString);
     }
 
-    g_tyString = Ty_Pointer (FE_mod, tyCString);
+    assert (tyCString->kind == Ty_class);
+    g_tyString = E_getPointerTy (FE_mod, tyCString);
 
     return g_tyString;
+}
+
+static bool _isString (Ty_ty ty)
+{
+    if (ty->kind != Ty_pointer)
+        return FALSE;
+    Ty_ty tyCls = ty->u.pointer;
+    if (tyCls->kind != Ty_class)
+        return FALSE;
+    return tyCls->u.cls.name == S_CString;
 }
 
 // CArray _brt type (cached by _TyCArray())
@@ -1502,7 +1513,7 @@ static bool transContinueExit(S_pos pos, bool isExit, FE_nestedStmt n)
 static bool expExpression(S_tkn *tkn, CG_item *exp);
 static bool relExpression(S_tkn *tkn, CG_item *exp);
 static bool expression(S_tkn *tkn, CG_item *exp);
-static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item *thisRef, bool defaultsOnly);
+static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, bool defaultsOnly);
 static bool statementOrAssignment(S_tkn *tkn);
 
 static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
@@ -1525,7 +1536,7 @@ static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
     {
         *tkn = (*tkn)->next;
 
-        if (!transActualArgs(tkn, proc, assignedArgs, /*thisRef=*/NULL, /*defaultsOnly=*/FALSE))
+        if (!transActualArgs(tkn, proc, assignedArgs, /*defaultsOnly=*/FALSE))
             return FALSE;
 
         if ((*tkn)->kind != S_RPAREN)
@@ -1534,7 +1545,7 @@ static bool transFunctionCall(S_tkn *tkn, CG_item *exp)
     }
     else
     {
-        if (!transActualArgs(tkn, proc, assignedArgs, /*thisRef=*/NULL, /*defaultsOnly=*/TRUE))
+        if (!transActualArgs(tkn, proc, assignedArgs, /*defaultsOnly=*/TRUE))
             return FALSE;
     }
 
@@ -1597,8 +1608,11 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
                     assert(FALSE);
             }
 
-            if (!transActualArgs(tkn, entry->u.method->proc, assignedArgs,  /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, entry->u.method->proc, assignedArgs, /*defaultsOnly=*/FALSE))
                 return FALSE;
+
+            CG_itemListNode thisNode = CG_itemListPrepend (assignedArgs);
+            thisNode->item = thisRef;
 
             if ((*tkn)->kind != S_RPAREN)
                 return EM_error((*tkn)->pos, ") expected.");
@@ -1908,7 +1922,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
             *tkn = (*tkn)->next;    // skip "("
 
             CG_itemList assignedArgs = CG_ItemList();
-            if (!transActualArgs(tkn, proc, assignedArgs, /*thisRef=*/NULL, /*defaultsOnly=*/FALSE))
+            if (!transActualArgs(tkn, proc, assignedArgs, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
             if ((*tkn)->kind != S_RPAREN)
@@ -1982,23 +1996,8 @@ static bool transInitObject (S_pos pos, Ty_ty tyCls, CG_itemList constructorAssi
     return TRUE;
 }
 
-// creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
-static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
+static bool _newObject (S_pos pos, Ty_ty tyCls, CG_itemList constructorAssignedArgs, CG_item *thisPtr)
 {
-    S_pos pos = (*tkn)->pos;
-    *tkn = (*tkn)->next; // skip "new"
-
-    if ((*tkn)->kind != S_IDENT)
-        return EM_error((*tkn)->pos, "new: class identifier expected here");
-
-    S_symbol sClass = (*tkn)->u.sym;
-
-    Ty_ty tyCls = E_resolveType(g_sleStack->env, sClass);
-    if (!tyCls || (tyCls->kind != Ty_class))
-        return EM_error((*tkn)->pos, "new: unknown class");
-
-    *tkn = (*tkn)->next;
-
     // GC_ALLOCATE() memory for our new object
 
     S_symbol allocSym = S_Symbol("GC_ALLOCATE");
@@ -2029,23 +2028,9 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
     thisRef.kind = IK_varPtr;
     thisRef.ty   = tyCls;
 
-    // constructor arguments
 
-    CG_itemList constructorAssignedArgs = CG_ItemList();
-    if ((*tkn)->kind == S_LPAREN)
-    {
-        *tkn = (*tkn)->next; // skip '('
-
-        if (tyCls->u.cls.constructor)
-        {
-            if (!transActualArgs(tkn, tyCls->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
-                return FALSE;
-        }
-
-        if ((*tkn)->kind != S_RPAREN)
-            return EM_error((*tkn)->pos, "new: ) expected here");
-        *tkn = (*tkn)->next; // skip ')'
-    }
+    CG_itemListNode thisNode = CG_itemListPrepend (constructorAssignedArgs);
+    thisNode->item = thisRef;
 
     if (!transInitObject (pos, tyCls, constructorAssignedArgs, &thisRef, g_sleStack->code))
         return FALSE;
@@ -2066,6 +2051,44 @@ static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
     CG_transCall (g_sleStack->code, pos, g_sleStack->frame, gcRegSub->u.proc, gcRegArglist, /*result=*/NULL);
 
     return TRUE;
+}
+
+// creatorExpression ::= 'new' Identifier [ "(" actualArgs ")" ]
+static bool creatorExpression(S_tkn *tkn, CG_item *thisPtr)
+{
+    S_pos pos = (*tkn)->pos;
+    *tkn = (*tkn)->next; // skip "new"
+
+    if ((*tkn)->kind != S_IDENT)
+        return EM_error((*tkn)->pos, "new: class identifier expected here");
+
+    S_symbol sClass = (*tkn)->u.sym;
+
+    Ty_ty tyCls = E_resolveType(g_sleStack->env, sClass);
+    if (!tyCls || (tyCls->kind != Ty_class))
+        return EM_error((*tkn)->pos, "new: unknown class");
+
+    *tkn = (*tkn)->next;
+
+    // constructor arguments
+
+    CG_itemList constructorAssignedArgs = CG_ItemList();
+    if ((*tkn)->kind == S_LPAREN)
+    {
+        *tkn = (*tkn)->next; // skip '('
+
+        if (tyCls->u.cls.constructor)
+        {
+            if (!transActualArgs(tkn, tyCls->u.cls.constructor, constructorAssignedArgs, /*defaultsOnly=*/FALSE))
+                return FALSE;
+        }
+
+        if ((*tkn)->kind != S_RPAREN)
+            return EM_error((*tkn)->pos, "new: ) expected here");
+        *tkn = (*tkn)->next; // skip ')'
+    }
+
+    return _newObject(pos, tyCls, constructorAssignedArgs, thisPtr);
 }
 
 // atom ::= ( expDesignator
@@ -2146,9 +2169,24 @@ static bool atom(S_tkn *tkn, CG_item *exp)
             break;
         }
         case S_STRING:
-            CG_StringItem (g_sleStack->code, pos, exp, (*tkn)->u.str);
+        {
+            // new CString (str)
+            Ty_ty tyCls = E_resolveType(g_sleStack->env, S_CString);
+            if (!tyCls || (tyCls->kind != Ty_class))
+                return EM_error((*tkn)->pos, "internal error: CString not found or not a class");
+
+            CG_itemList constructorArgs = CG_ItemList();
+            CG_itemListNode n = CG_itemListAppend(constructorArgs);
+            CG_StringItem (g_sleStack->code, pos, &n->item, (*tkn)->u.str);
+            n = CG_itemListAppend(constructorArgs);
+            CG_BoolItem (&n->item, FALSE, Ty_Bool()); // owned
+
+            if (!_newObject (pos, tyCls, constructorArgs, exp))
+                return FALSE;
+
             *tkn = (*tkn)->next;
             break;
+        }
         case S_LPAREN:
             *tkn = (*tkn)->next;
             if (!expression(tkn, exp))
@@ -2899,9 +2937,12 @@ static bool transVarInit(S_pos pos, CG_item *var, CG_item *init, bool statc, CG_
             if (!constructorAssignedArgs)
             {
                 constructorAssignedArgs = CG_ItemList();
-                if (!transActualArgs(/*tkn=*/NULL, t->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/TRUE))
+                if (!transActualArgs(/*tkn=*/NULL, t->u.cls.constructor, constructorAssignedArgs, /*defaultsOnly=*/TRUE))
                     return FALSE;
             }
+
+            CG_itemListNode thisNode = CG_itemListPrepend (constructorAssignedArgs);
+            thisNode->item = thisRef;
 
             CG_transCall (statc ? g_prog : g_sleStack->code, pos, g_sleStack->frame, t->u.cls.constructor, constructorAssignedArgs, NULL);
         }
@@ -3067,8 +3108,11 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
                 CG_item thisRef = var;
                 CG_loadRef(g_sleStack->code, pos, g_sleStack->frame, &thisRef);
                 constructorAssignedArgs = CG_ItemList();
-                if (!transActualArgs(tkn, t->u.cls.constructor, constructorAssignedArgs, /*thisRef=*/&thisRef, /*defaultsOnly=*/FALSE))
+                if (!transActualArgs(tkn, t->u.cls.constructor, constructorAssignedArgs, /*defaultsOnly=*/FALSE))
                     return FALSE;
+
+                CG_itemListNode thisNode = CG_itemListPrepend (constructorAssignedArgs);
+                thisNode->item = thisRef;
 
                 if ((*tkn)->kind != S_RPAREN)
                     return EM_error((*tkn)->pos, ") expected.");
@@ -3543,13 +3587,14 @@ static bool _stmtPrint(S_tkn *tkn, E_enventry e, CG_item *exp, bool dbg)
             S_symbol   fsym    = NULL;                   // put* function sym to call
             switch (ty->kind)
             {
-                // FIXME: handle string pointers
-                //case Ty_string:
-                //    fsym = dbg ? S_Symbol("_DEBUG_PUTS")    : S_Symbol("_AIO_PUTS");
-                //    break;
                 case Ty_pointer:
-                    fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
+                {
+                    if (_isString (ty))
+                        fsym = dbg ? S_Symbol("_DEBUG_PUTS")    : S_Symbol("_AIO_PUTS");
+                    else
+                        fsym = dbg ? S_Symbol("_DEBUG_PUTU4")   : S_Symbol("_AIO_PUTU4");
                     break;
+                }
                 case Ty_byte:
                     fsym = dbg ? S_Symbol("_DEBUG_PUTS1")   : S_Symbol("_AIO_PUTS1");
                     break;
@@ -5613,17 +5658,10 @@ static bool transAssignArgExp(S_tkn *tkn, CG_itemList assignedArgs, Ty_formal *f
 }
 
 // actualArgs ::= [ expression ] ( ',' [ expression ] )*
-static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, CG_item *thisRef, bool defaultsOnly)
+static bool transActualArgs(S_tkn *tkn, Ty_proc proc, CG_itemList assignedArgs, bool defaultsOnly)
 {
     Ty_formal  formal = proc->formals;
     bool       ok     = TRUE;
-
-    if (thisRef)
-    {
-        CG_itemListNode iln = CG_itemListPrepend (assignedArgs);
-        iln->item = *thisRef;
-        formal = formal->next;
-    }
 
     if (!defaultsOnly)
     {
@@ -5842,7 +5880,7 @@ static bool transSubCall(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
 
     CG_itemList assignedArgs = CG_ItemList();
-    if (!transActualArgs(tkn, proc, assignedArgs, /*thisRef=*/NULL, /*defaultsOnly=*/FALSE))
+    if (!transActualArgs(tkn, proc, assignedArgs, /*defaultsOnly=*/FALSE))
         return FALSE;
 
     if (!isLogicalEOL(*tkn) && !isSym(*tkn, S_ELSE))
@@ -8616,7 +8654,7 @@ static bool letterRanges(S_pos pos, S_tkn *tkn, Ty_ty ty)
                 return FALSE;
             *tkn = (*tkn)->next;
         }
-        Ty_defineRange(ty, tolower(lstart), tolower(lend));
+        _defineRange(ty, tolower(lstart), tolower(lend));
     }
 
     return TRUE;
@@ -9391,7 +9429,13 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
 
     FE_mod     = E_Module(S_Symbol(module_name));
 
-    registerBuiltins();
+    E_env env = E_EnvScopes(FE_mod->env);  // main()/init() env
+
+    g_sleStack = NULL;
+    CG_item rv;
+    CG_NoneItem(&rv);
+    slePush(FE_sleTop, /*pos=*/0, moduleFrame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
+    g_prog = g_sleStack->code;
 
     E_import(FE_mod, g_builtinsModule);
     if (strcmp (OPT_default_module, "none"))
@@ -9405,13 +9449,7 @@ CG_fragList FE_sourceProgram(FILE *inf, const char *filename, bool is_main, stri
         E_import(FE_mod, _g_modDefault);
     }
 
-    E_env env = E_EnvScopes(FE_mod->env);  // main()/init() env
-
-    g_sleStack = NULL;
-    CG_item rv;
-    CG_NoneItem(&rv);
-    slePush(FE_sleTop, /*pos=*/0, moduleFrame, env, AS_InstrList(), /*exitlbl=*/NULL, /*contlbl=*/NULL, rv);
-    g_prog = g_sleStack->code;
+    registerBuiltins();
 
     // static initializers
     g_clearIL = AS_InstrList();

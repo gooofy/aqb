@@ -121,7 +121,166 @@ void __handle_break(void);
 
 /********************************************************************
  *                                                                  *
- *  memory management                                               *
+ *  BASIC error handling                                            *
+ *                                                                  *
+ ********************************************************************/
+
+#define ERR_OUT_OF_DATA                4
+#define ERR_ILLEGAL_FUNCTION_CALL      5
+#define ERR_OUT_OF_MEMORY              7
+#define ERR_SUBSCRIPT_OUT_OF_RANGE     9
+#define ERR_INCOMPATIBLE_ARRAY        10
+
+#define ERR_BAD_FILE_NUMBER           52
+#define ERR_BAD_FILE_MODE             54
+#define ERR_IO_ERROR                  57
+#define ERR_BAD_FILE_NAME             64
+
+void   ERROR         (SHORT errcode);
+void   RESUME_NEXT   (void);
+void   ON_ERROR_CALL (void (*cb)(void));
+void   ON_BREAK_CALL (void (*cb)(void));
+
+extern BOOL     _do_resume;     // set by RESUME NEXT
+
+/********************************************************************
+ *                                                                  *
+ *  OOP, Garbage Collector Interface (gc)                           *
+ *                                                                  *
+ ********************************************************************/
+
+typedef struct CObject_ CObject;
+typedef struct CString_ CString;
+typedef struct _gc_s    _gc_t;
+
+struct CObject_
+{
+    VOID    ***_vTablePtr;
+
+    CObject   *__gc_next, *__gc_prev;
+    ULONG      __gc_size;
+    UBYTE      __gc_color;
+};
+
+void     _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
+CString *_COBJECT_TOSTRING_    (CObject *THIS);
+BOOL     _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
+ULONG    _COBJECT_GETHASHCODE_ (CObject *THIS);
+
+void     GC_RUN                (void);
+void     GC_REGISTER           (CObject *obj);
+CObject *GC_ALLOCATE_          (ULONG size, ULONG flags);
+void     GC_MARK_BLACK         (CObject *obj);
+BOOL     GC_REACHABLE_         (CObject *obj);
+// FIXME: PUBLIC DECLARE EXTERN SUB      GC_OPTIONS    (BYVAL heap_limit AS ULONG=16*1024, BYVAL alloc_limit AS ULONG=128)
+
+typedef void (*_gc_scan_t)     (CObject *obj);
+
+/********************************************************************
+ *                                                                  *
+ *  string support                                                  *
+ *                                                                  *
+ ********************************************************************/
+
+struct CString_
+{
+    intptr_t     **_vTablePtr;
+    intptr_t      *__gc_next;
+    intptr_t      *__gc_prev;
+    ULONG          __gc_size;
+    UBYTE          __gc_color;
+    intptr_t     **__intf_vtable_IComparable;
+    intptr_t     **__intf_vtable_ICloneable;
+    CONST_STRPTR   _str;
+    ULONG          _len;
+    ULONG          _hashcode;
+    BOOL           _owned;
+};
+
+void          _CSTRING___init       (CString *THIS);
+VOID          _CSTRING_CONSTRUCTOR  (CString *THIS, CONST_STRPTR str, BOOL owned);
+UBYTE         _CSTRING_GETCHARAT_   (CString *THIS, ULONG    idx);
+ULONG         _CSTRING_LENGTH_      (CString *THIS);
+CONST_STRPTR  _CSTRING_STR_         (CString *THIS);
+CObject      *_CSTRING_CLONE_       (CString *THIS);
+WORD          _CSTRING_COMPARETO_   (CString *THIS, CObject *obj);
+CString      *_CSTRING_TOSTRING_    (CString *THIS);
+BOOL          _CSTRING_EQUALS_      (CString *THIS, CObject *obj);
+ULONG         _CSTRING_GETHASHCODE_ (CString *THIS);
+
+// utility function, creates a CString object from a cstring
+CString      *__CREATE_CSTRING_     (CONST_STRPTR str, BOOL owned);
+
+/*
+ * internal string utils
+ */
+
+void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space, BOOL positive_sign);
+void _astr_itoa           (LONG num, UBYTE *str, LONG base);
+void _astr_utoa           (ULONG num, UBYTE* str, ULONG base);
+void _astr_utoa_ext       (ULONG num, UBYTE* str, ULONG base, BOOL leading_space, BOOL positive_sign);
+void _astr_ftoa           (FLOAT value, UBYTE *buf);
+void _astr_ftoa_ext       (FLOAT value, UBYTE *buf, BOOL leading_space, BOOL positive_sign);
+
+ULONG        _astr_len     (const UBYTE *str);
+UBYTE       *_astr_dup     (const UBYTE *str);
+SHORT        __astr_cmp    (const UBYTE *s1, const UBYTE *s2);
+const UBYTE *_astr_strchr  (const UBYTE *s, UBYTE c);
+UBYTE       *__astr_concat (const UBYTE *a, const UBYTE *b);
+
+/*
+ * STR$ support
+ */
+
+// FIXME UBYTE *_S1TOA_   (BYTE   b);
+// FIXME UBYTE *_S2TOA_   (SHORT  i);
+// FIXME UBYTE *_S4TOA_   (LONG   l);
+// FIXME UBYTE *_U1TOA_   (UBYTE  b);
+// FIXME UBYTE *_U2TOA_   (USHORT i);
+// FIXME UBYTE *_U4TOA_   (ULONG  l);
+// FIXME UBYTE *_FTOA_    (FLOAT  f);
+// FIXME UBYTE *_BOOLTOA_ (BOOL   b);
+
+// HEX$, OCT$, BIN$ support
+
+// FIXME UBYTE *HEX_   (ULONG   l);
+// FIXME UBYTE *OCT_   (ULONG   l);
+// FIXME UBYTE *BIN_   (ULONG   l);
+
+/*
+ * VAL* support
+ */
+
+// FIXME LONG _str2i4_ (UBYTE *str, LONG len, LONG base);
+// FIXME FLOAT _str2f_ (UBYTE *str, LONG len, LONG base);
+
+// FIXME FLOAT  VAL_     (UBYTE *s);
+// FIXME SHORT  VALINT_  (UBYTE *s);
+// FIXME USHORT VALUINT_ (UBYTE *s);
+// FIXME LONG   VALLNG_  (UBYTE *s);
+// FIXME ULONG  VALULNG_ (UBYTE *s);
+
+/*
+ * BASIC string functions
+ */
+
+// FIXME ULONG  LEN_               (const UBYTE *str);
+// FIXME UBYTE *SPACE_(SHORT length);
+// FIXME UBYTE *SPC_(SHORT length);
+// FIXME UBYTE *STRING_(SHORT length, UBYTE *str);
+// FIXME UBYTE  *CHR_              (LONG codepoint);
+// FIXME SHORT  ASC_               (const UBYTE *str);
+// FIXME UBYTE  *MID_              (const UBYTE *str, SHORT n, SHORT m);
+// FIXME UBYTE *UCASE_             (const UBYTE *s);
+// FIXME UBYTE *LCASE_             (const UBYTE *s);
+// FIXME UBYTE *LEFT_              (const UBYTE *s, SHORT n);
+// FIXME UBYTE *RIGHT_             (const UBYTE *s, SHORT n);
+// FIXME SHORT  INSTR              (SHORT n, const UBYTE *x, const UBYTE *y);
+
+
+/********************************************************************
+ *                                                                  *
+ *  dynamic memory                                                  *
  *                                                                  *
  ********************************************************************/
 
@@ -138,6 +297,8 @@ UBYTE  PEEK_       (ULONG adr);
 USHORT PEEKW_      (ULONG adr);
 ULONG  PEEKL_      (ULONG adr);
 
+ULONG  CRC32_      (const UBYTE *p, ULONG len);
+
 /********************************************************************
  *                                                                  *
  *  debug / trace utils                                             *
@@ -146,8 +307,9 @@ ULONG  PEEKL_      (ULONG adr);
 
 void   _AQB_ASSERT   (BOOL b, const UBYTE *msg);
 
-void _DEBUG_PUTC   (const char c);
-void _DEBUG_PUTS   (const UBYTE *s);
+void _DEBUG_PUTC   (UBYTE c);
+void __debug_puts  (CONST_STRPTR s);
+void _DEBUG_PUTS   (const CString *s);
 void _DEBUG_PUTS1  (BYTE s);
 void _DEBUG_PUTS2  (SHORT s);
 void _DEBUG_PUTS4  (LONG l);
@@ -174,30 +336,6 @@ void dprintf(const char *format, ...);
 #define DPRINTF(...)
 
 #endif
-
-/********************************************************************
- *                                                                  *
- *  BASIC error handling                                            *
- *                                                                  *
- ********************************************************************/
-
-#define ERR_OUT_OF_DATA                4
-#define ERR_ILLEGAL_FUNCTION_CALL      5
-#define ERR_OUT_OF_MEMORY              7
-#define ERR_SUBSCRIPT_OUT_OF_RANGE     9
-#define ERR_INCOMPATIBLE_ARRAY        10
-
-#define ERR_BAD_FILE_NUMBER           52
-#define ERR_BAD_FILE_MODE             54
-#define ERR_IO_ERROR                  57
-#define ERR_BAD_FILE_NAME             64
-
-void   ERROR         (SHORT errcode);
-void   RESUME_NEXT   (void);
-void   ON_ERROR_CALL (void (*cb)(void));
-void   ON_BREAK_CALL (void (*cb)(void));
-
-extern BOOL     _do_resume;     // set by RESUME NEXT
 
 /********************************************************************
  *                                                                  *
@@ -262,32 +400,6 @@ FLOAT __aqb_shl_single(FLOAT a, FLOAT b);
 FLOAT __aqb_shr_single(FLOAT a, FLOAT b);
 
 /*
- * string handling
- */
-
-void _astr_itoa_ext       (LONG num, UBYTE *str, LONG base, BOOL leading_space, BOOL positive_sign);
-void _astr_itoa           (LONG num, UBYTE *str, LONG base);
-void _astr_utoa           (ULONG num, UBYTE* str, ULONG base);
-void _astr_utoa_ext       (ULONG num, UBYTE* str, ULONG base, BOOL leading_space, BOOL positive_sign);
-void _astr_ftoa           (FLOAT value, UBYTE *buf);
-void _astr_ftoa_ext       (FLOAT value, UBYTE *buf, BOOL leading_space, BOOL positive_sign);
-
-UBYTE *_astr_dup          (const UBYTE *str);
-SHORT __astr_cmp          (const UBYTE* s1, const UBYTE* s2);
-const UBYTE *_astr_strchr (const UBYTE *s, UBYTE c);
-UBYTE *__astr_concat      (const UBYTE *a, const UBYTE *b);
-
-ULONG  LEN_               (const UBYTE *str);
-UBYTE  *CHR_              (LONG codepoint);
-SHORT  ASC_               (const UBYTE *str);
-UBYTE  *MID_              (const UBYTE *str, SHORT n, SHORT m);
-UBYTE *UCASE_             (const UBYTE *s);
-UBYTE *LCASE_             (const UBYTE *s);
-UBYTE *LEFT_              (const UBYTE *s, SHORT n);
-UBYTE *RIGHT_             (const UBYTE *s, SHORT n);
-SHORT  INSTR              (SHORT n, const UBYTE *x, const UBYTE *y);
-
-/*
  * utils
  */
 
@@ -303,93 +415,6 @@ void              _autil_begin_io      (struct IORequest *iorequest);
 #define NEWLIST(l) ((l)->lh_Head = (struct Node *)&(l)->lh_Tail, \
                     (l)->lh_Tail = NULL, \
                     (l)->lh_TailPred = (struct Node *)&(l)->lh_Head)
-
-/*
- * STR$ support
- */
-
-UBYTE *_S1TOA_   (BYTE   b);
-UBYTE *_S2TOA_   (SHORT  i);
-UBYTE *_S4TOA_   (LONG   l);
-UBYTE *_U1TOA_   (UBYTE  b);
-UBYTE *_U2TOA_   (USHORT i);
-UBYTE *_U4TOA_   (ULONG  l);
-UBYTE *_FTOA_    (FLOAT  f);
-UBYTE *_BOOLTOA_ (BOOL   b);
-
-/*
- * VAL* support
- */
-
-LONG _str2i4_ (UBYTE *str, LONG len, LONG base);
-FLOAT _str2f_ (UBYTE *str, LONG len, LONG base);
-
-FLOAT  VAL_     (UBYTE *s);
-SHORT  VALINT_  (UBYTE *s);
-USHORT VALUINT_ (UBYTE *s);
-LONG   VALLNG_  (UBYTE *s);
-ULONG  VALULNG_ (UBYTE *s);
-
-/********************************************************************
- *                                                                  *
- *  OOP, Garbage Collector Interface (gc)                           *
- *                                                                  *
- ********************************************************************/
-
-typedef struct CObject_ CObject;
-typedef struct _gc_s    _gc_t;
-
-struct CObject_
-{
-    VOID    ***_vTablePtr;
-
-    CObject   *__gc_next, *__gc_prev;
-    ULONG      __gc_size;
-    UBYTE      __gc_color;
-};
-
-void     _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
-STRPTR   _COBJECT_TOSTRING_    (CObject *THIS);
-BOOL     _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
-ULONG    _COBJECT_GETHASHCODE_ (CObject *THIS);
-
-void     GC_RUN                (void);
-void     GC_REGISTER           (CObject *obj);
-CObject *GC_ALLOCATE_          (ULONG size, ULONG flags);
-void     GC_MARK_BLACK         (CObject *obj);
-BOOL     GC_REACHABLE_         (CObject *obj);
-
-typedef void (*_gc_scan_t)     (CObject *obj);
-
-/*
- * string support
- */
-
-typedef struct CString_ CString;
-struct CString_
-{
-    intptr_t **_vTablePtr;
-    intptr_t  *__gc_next;
-    intptr_t  *__gc_prev;
-    ULONG      __gc_size;
-    UBYTE      __gc_color;
-    intptr_t **__intf_vtable_IComparable;
-    intptr_t **__intf_vtable_ICloneable;
-    UBYTE     *_str;
-    ULONG      _len;
-    ULONG      _hashcode;
-    BOOL       _owned;
-};
-
-VOID     _CSTRING_CONSTRUCTOR  (CString *THIS, intptr_t str, BOOL     owned);
-UBYTE    _CSTRING_GETCHARAT_   (CString *THIS, ULONG    idx);
-ULONG    _CSTRING_LENGTH_      (CString *THIS);
-UBYTE   *_CSTRING_STR_         (CString *THIS);
-CObject *_CSTRING_CLONE_       (CString *THIS);
-WORD     _CSTRING_COMPARETO_   (CString *THIS, CObject *obj);
-STRPTR   _CSTRING_TOSTRING_    (CString *THIS);
-BOOL     _CSTRING_EQUALS_      (CString *THIS, CObject *obj);
-ULONG    _CSTRING_GETHASHCODE_ (CString *THIS);
 
 
 /*
@@ -521,14 +546,14 @@ void _AIO_WRITECOMMA             (USHORT fno, BOOL   b);
 
 void _AIO_LINE_INPUT             (USHORT fno, UBYTE *prompt, UBYTE **s, BOOL do_nl);
 void _AIO_CONSOLE_INPUT          (BOOL qm, UBYTE *prompt, BOOL do_nl);
-void _AIO_INPUTS1                (USHORT fno, BYTE   *v);
-void _AIO_INPUTU1                (USHORT fno, UBYTE  *v);
-void _AIO_INPUTS2                (USHORT fno, SHORT  *v);
-void _AIO_INPUTU2                (USHORT fno, USHORT *v);
-void _AIO_INPUTS4                (USHORT fno, LONG   *v);
-void _AIO_INPUTU4                (USHORT fno, ULONG  *v);
-void _AIO_INPUTF                 (USHORT fno, FLOAT  *v);
-void _AIO_INPUTS                 (USHORT fno, UBYTE  **v);
+// FIXME void _AIO_INPUTS1                (USHORT fno, BYTE   *v);
+// FIXME void _AIO_INPUTU1                (USHORT fno, UBYTE  *v);
+// FIXME void _AIO_INPUTS2                (USHORT fno, SHORT  *v);
+// FIXME void _AIO_INPUTU2                (USHORT fno, USHORT *v);
+// FIXME void _AIO_INPUTS4                (USHORT fno, LONG   *v);
+// FIXME void _AIO_INPUTU4                (USHORT fno, ULONG  *v);
+// FIXME void _AIO_INPUTF                 (USHORT fno, FLOAT  *v);
+// FIXME void _AIO_INPUTS                 (USHORT fno, UBYTE  **v);
 void _AIO_SET_DOS_CURSOR_VISIBLE (BOOL visible);
 
 void  LOCATE                     (SHORT l, SHORT c);
