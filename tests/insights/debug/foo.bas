@@ -11,4 +11,9 @@ DIM SHARED AS STRING s = "hubba"
 
 TRACE s
 
+TRACE "calling the GC..."
+
+GC_RUN
+
+
 

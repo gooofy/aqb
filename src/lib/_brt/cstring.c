@@ -10,7 +10,7 @@
 
 void _CSTRING___gc_scan (CObject *THIS, void *gc)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _CSTRING___gc_scan");
+    // nothing to do here
 }
 
 
