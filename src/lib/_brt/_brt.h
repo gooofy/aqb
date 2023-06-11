@@ -209,7 +209,7 @@ BOOL          _CSTRING_EQUALS_      (CString *THIS, CObject *obj);
 ULONG         _CSTRING_GETHASHCODE_ (CString *THIS);
 
 // utility function, creates a CString object from a cstring
-CString      *__CREATE_CSTRING_     (CONST_STRPTR str, BOOL owned);
+CString      *_CREATE_CSTRING_     (CONST_STRPTR str, BOOL owned);
 
 /*
  * internal string utils

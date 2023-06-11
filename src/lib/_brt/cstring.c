@@ -70,7 +70,7 @@ ULONG    _CSTRING_GETHASHCODE_ (CString *THIS)
     return 0;
 }
 
-CString *__CREATE_CSTRING_ (CONST_STRPTR str, BOOL owned)
+CString *_CREATE_CSTRING_ (CONST_STRPTR str, BOOL owned)
 {
     CString *obj = (CString *)GC_ALLOCATE_(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
     if (!obj)

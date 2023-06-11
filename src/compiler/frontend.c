@@ -391,6 +391,7 @@ static S_symbol S__aqb_clear;
 static S_symbol S__aqb_clear_exit;
 static S_symbol S_COPY;
 static S_symbol S_GC;
+static S_symbol S__CREATE_CSTRING;
 
 // string type based on _brt's CString type (cached by _TyCString())
 static Ty_ty g_tyString=NULL;
@@ -2170,19 +2171,19 @@ static bool atom(S_tkn *tkn, CG_item *exp)
         }
         case S_STRING:
         {
-            // new CString (str)
-            Ty_ty tyCls = E_resolveType(g_sleStack->env, S_CString);
-            if (!tyCls || (tyCls->kind != Ty_class))
-                return EM_error((*tkn)->pos, "internal error: CString not found or not a class");
+            CG_item createCStringProcPtr;
+            Ty_member createCStringEntry;
+            if (!E_resolveVFC(g_sleStack->env, S__CREATE_CSTRING, /*checkParents=*/TRUE, &createCStringProcPtr, &createCStringEntry))
+                return EM_error(pos, "builtin %s not found.", S_name(S__CREATE_CSTRING));
+            Ty_ty createCStringTy = CG_ty(&createCStringProcPtr);
 
-            CG_itemList constructorArgs = CG_ItemList();
-            CG_itemListNode n = CG_itemListAppend(constructorArgs);
+            CG_itemList args = CG_ItemList();
+            CG_itemListNode n = CG_itemListAppend(args);
             CG_StringItem (g_sleStack->code, pos, &n->item, (*tkn)->u.str);
-            n = CG_itemListAppend(constructorArgs);
+            n = CG_itemListAppend(args);
             CG_BoolItem (&n->item, FALSE, Ty_Bool()); // owned
 
-            if (!_newObject (pos, tyCls, constructorArgs, exp))
-                return FALSE;
+            CG_transCall (g_sleStack->code, pos, g_sleStack->frame, createCStringTy->u.proc, args, /*result=*/exp);
 
             *tkn = (*tkn)->next;
             break;
@@ -9792,6 +9793,7 @@ void FE_boot(void)
     S__aqb_clear_exit = S_Symbol("__aqb_clear_exit");
     S_COPY            = S_Symbol("COPY");
     S_GC              = S_Symbol("GC");
+    S__CREATE_CSTRING = S_Symbol("_CREATE_CSTRING");
 }
 
 void FE_init(void)

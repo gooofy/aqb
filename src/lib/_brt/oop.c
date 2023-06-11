@@ -20,7 +20,7 @@ CString *_COBJECT_TOSTRING_ (CObject *THIS)
     str2[3]='@';
     _astr_itoa_ext ((intptr_t)THIS, &str2[4], 16, FALSE, /*positive_sign=*/FALSE);
     str2[14]=0;
-    return __CREATE_CSTRING_(str2, /*owned=*/TRUE);
+    return _CREATE_CSTRING_(str2, /*owned=*/TRUE);
 }
 
 BOOL _COBJECT_EQUALS_ (CObject *THIS, CObject *obj)

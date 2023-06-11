@@ -225,7 +225,7 @@ END CLASS
 ' FIXME PUBLIC DECLARE EXTERN FUNCTION STRING$ (BYVAL n AS INTEGER, BYVAL s AS STRING) AS STRING
 
 ' utility function, intended for use by the compiler and C runtime
-PUBLIC DECLARE EXTERN FUNCTION _CREATE_CSTRING_ (BYVAL str AS UBYTE PTR, BYVAL owned AS BOOLEAN) AS CString PTR
+PUBLIC DECLARE EXTERN FUNCTION _CREATE_CSTRING (BYVAL str AS UBYTE PTR, BYVAL owned AS BOOLEAN) AS CString PTR
 
 ' --------------------------------------------------------------------------------------------------------
 ' --
