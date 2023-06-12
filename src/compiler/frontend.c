@@ -7294,34 +7294,6 @@ static bool stmtTypeDeclBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     return TRUE;
 }
 
-static Temp_label _assembleClassGCFinalizeMethod (Ty_ty tyCls, S_pos pos)
-{
-    Temp_label label     = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_finalize", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
-    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_finalize_exit", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
-
-    if (!_g_gcScanExtern)
-    {
-
-        Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
-        formals = Ty_Formal(S_GC, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
-
-        CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
-        AS_instrList il = AS_InstrList();
-
-        CG_transNOP (il, 0);
-
-        CG_procEntryExit(0,
-                         frame,
-                         il,
-                         /*returnVar=*/NULL,
-                         /*exitlbl=*/ exitlabel,
-                         /*is_main=*/FALSE,
-                         /*expt=*/TRUE);
-    }
-
-    return label;
-}
-
 static Temp_label _assembleClassGCScanMethod (Ty_ty tyCls, S_pos pos)
 {
     Temp_label label     = Temp_namedlabel(strprintf(UP_frontend, "__%s___gc_scan", strupper(UP_frontend, S_name(tyCls->u.cls.name))));
@@ -7467,7 +7439,6 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
     // set up vTable special entries
     CG_dataFragSetPtr (vTableFrag, CG_getTypeDescLabel           (tyCls)     , VTABLE_SPECIAL_ENTRY_TYPEDESC);
     CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod    (tyCls, pos), VTABLE_SPECIAL_ENTRY_GCSCAN);
-    CG_dataFragSetPtr (vTableFrag, _assembleClassGCFinalizeMethod(tyCls, pos), VTABLE_SPECIAL_ENTRY_GCFINAL);
 
 
     if (!tyCls->u.cls.virtualMethodCnt)

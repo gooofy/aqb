@@ -413,12 +413,6 @@ void _CARRAYENUMERATOR___gc_scan (CObject *THIS, void *gc)
     _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: _CARRAYENUMERATOR___gc_scan");
 }
 
-VOID _CARRAYENUMERATOR___gc_finalize (CArrayEnumerator *THIS)
-{
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CArrayEnumerator gc_finalize");
-}
-
-
 VOID _CARRAYENUMERATOR_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *array)
 {
     THIS->_array          = array;

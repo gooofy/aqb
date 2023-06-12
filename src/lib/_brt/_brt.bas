@@ -45,6 +45,8 @@ PUBLIC CLASS CObject
 
     PUBLIC:
 
+        DECLARE EXTERN VIRTUAL Sub      Finalize    ()
+
         DECLARE EXTERN VIRTUAL FUNCTION ToString    ()                         AS STRING
         DECLARE EXTERN VIRTUAL FUNCTION Equals      (BYVAL obj AS CObject PTR) AS BOOLEAN
         DECLARE EXTERN VIRTUAL FUNCTION GetHashCode ()                         AS ULONG
@@ -159,6 +161,9 @@ PUBLIC CLASS CString IMPLEMENTS IComparable, ICloneable
 
         DECLARE EXTERN PROPERTY Length AS ULONG
         DECLARE EXTERN PROPERTY Str    AS UBYTE PTR
+
+        ' CObject overrides
+        DECLARE EXTERN VIRTUAL Sub Finalize ()
 
         ' ICloneable interface:
         DECLARE EXTERN VIRTUAL FUNCTION Clone () AS CObject PTR

@@ -291,7 +291,7 @@ static void _writeStubMethods (FILE *cstubf, S_scope scope, bool writeBody)
             continue;
 
         _writeStubSpecial (cstubf, ty, writeBody, "gc_scan");
-        _writeStubSpecial (cstubf, ty, writeBody, "gc_finalize");
+        //_writeStubSpecial (cstubf, ty, writeBody, "gc_finalize");
         _writeStubMethodsRec (cstubf, ty, writeBody);
     }
 }
