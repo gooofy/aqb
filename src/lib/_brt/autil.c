@@ -1,6 +1,6 @@
 
 //#define ENABLE_DPRINTF
-//#define MEMDEBUG
+#define MEMDEBUG
 
 #include "_brt.h"
 
@@ -24,69 +24,104 @@
 
 extern struct UtilityBase   *UtilityBase;
 
-// not using Intuition's AllocRemember here because we want minimal dependencies for the AQB core module
+#ifdef MEMDEBUG
+    #define MR_MEM_OFFSET (12+4)
+    #define MR_OVERHEAD   (12+8)
+#else // MEMDEBUG
+    #define MR_MEM_OFFSET (12)
+    #define MR_OVERHEAD   (12)
+#endif // MEMDEBUG
 
 typedef struct AQB_memrec_ *AQB_memrec;
 
 struct AQB_memrec_
 {
-    AQB_memrec next;
+    AQB_memrec next, prev;
     ULONG      size;
 #ifdef MEMDEBUG
     ULONG      marker1;
 #endif
-    APTR      *mem;
-#ifdef MEMDEBUG
-    ULONG      marker2;
-#endif
+    ULONG      mem;
+    // if MEMDEBUG, we have a ULONG marker2 after the mem block
 };
 
 #define MARKER1 0xAFFE1234
 #define MARKER2 0xCAFEBABE
 
-static AQB_memrec g_mem = NULL;
+static AQB_memrec g_mem_first, g_mem_last = NULL;
 
 _autil_sleep_for_cb_t _autil_sleep_for_cb = NULL;
 static FLOAT g_fp50, g_fp60;
 
 APTR ALLOCATE_(ULONG size, ULONG flags)
 {
-    AQB_memrec mem_prev = g_mem;
 
-    g_mem = (AQB_memrec) AllocMem (sizeof(*g_mem), 0);
-    if (!g_mem)
+    DPRINTF ("ALLOCATE: size=%ld, flags=0x%08lx\n", size, flags);
+
+    AQB_memrec mr = (AQB_memrec) AllocMem (size + MR_OVERHEAD, flags);
+    if (!mr)
     {
         DPRINTF ("ALLOCATE_: OOM1\n");
-        g_mem = mem_prev;
         return NULL;
     }
 
-    g_mem->mem = (APTR) AllocMem (size, flags);
-    if (!g_mem->mem)
-    {
-        DPRINTF ("ALLOCATE_: OOM1\n");
-        FreeMem(g_mem, sizeof (*g_mem));
-        g_mem = mem_prev;
-        return NULL;
-    }
+    mr->next = NULL;
+    mr->prev = g_mem_last;
+    mr->size = size;
 
-    DPRINTF ("ALLOCATE_: size=%ld, flags=%ld -> 0x%08lx\n", size, flags, g_mem->mem);
+    if (g_mem_last)
+        g_mem_last = g_mem_last->next = mr;
+    else
+        g_mem_first = g_mem_last = mr;
 
-    g_mem->size = size;
-    g_mem->next = mem_prev;
+    BYTE *res = (BYTE *) &mr->mem;
 
 #ifdef MEMDEBUG
-    g_mem->marker1 = MARKER1;
-    g_mem->marker2 = MARKER2;
-    _MEMSET ((BYTE*)g_mem->mem, 0xEF, size);
+    mr->marker1 = MARKER1;
+
+    ULONG *m2 = (ULONG*)(res + size);
+    *m2 = MARKER2;
+
+    _MEMSET (res, 0xEF, size);
 #endif
 
-    return g_mem->mem;
+    DPRINTF ("ALLOCATE: res=0x%08lx, mr=0x%08lx\n", res, mr);
+
+    return (APTR) res;
 }
 
 void DEALLOCATE (APTR ptr)
 {
-    // FIXME: implement.
+    BYTE *p = (BYTE*)ptr;
+    AQB_memrec mr = (AQB_memrec) (p - MR_MEM_OFFSET);
+    ULONG size = mr->size;
+
+    DPRINTF ("DEALLOCATE: p=0x%08lx, mr=0x%08lx, size=%ld\n", p, mr, size);
+
+#ifdef MEMDEBUG
+    _AQB_ASSERT (mr->marker1 == MARKER1, (STRPTR) "DEALLOCATE: MARKER1 damaged");
+    //DPRINTF ("DEALLOCATE: mr->marker1=0x%08lx\n", mr->marker1);
+    ULONG *m2 = (ULONG*)(p + size);
+    //DPRINTF ("DEALLOCATE: m2=0x%08lx\n", m2);
+    _AQB_ASSERT (*m2 == MARKER2, (STRPTR) "DEALLOCATE: MARKER2 damaged");
+    //DPRINTF ("DEALLOCATE: *m2=0x%08lx\n", *m2);
+#endif
+
+    if (mr->next)
+        mr->next->prev = mr->prev;
+    else
+        g_mem_last = mr->prev;
+
+    if (mr->prev)
+        mr->prev->next = mr->next;
+    else
+        g_mem_first = mr->next;
+
+#ifdef MEMDEBUG
+    _MEMSET ((BYTE*)mr, 0xEF, size+MR_OVERHEAD);
+#endif
+
+    FreeMem ((APTR)mr, size+MR_OVERHEAD);
 }
 
 void _MEMSET (BYTE *dst, BYTE c, ULONG n)
@@ -542,29 +577,32 @@ void _autil_init(void)
 void _autil_shutdown(void)
 {
     DPRINTF ("_autil_shutdown: freeing memory...\n");
-    while (g_mem)
+    AQB_memrec mr = g_mem_first;
+    while (mr)
     {
-        AQB_memrec mem_next = g_mem->next;
+        AQB_memrec mr_next = mr->next;
+        ULONG size = mr->size;
 
+        DPRINTF ("_autil_shutdown: freeing %ld+%ld bytes, mr=0x%08lx\n", size, MR_OVERHEAD, mr);
 #ifdef MEMDEBUG
-        DPRINTF ("_autil_shutdown: freeing %ld bytes at 0x%08lx\n", g_mem->size, g_mem->mem);
-        if (g_mem->marker1 != MARKER1)
+        if (mr->marker1 != MARKER1)
         {
             DPRINTF("_autil_shutdown: *** ERROR: corruptet memlist, marker1 damaged\n");
-            g_mem = mem_next;
+            mr = mr_next;
             continue;
         }
-        if (g_mem->marker2 != MARKER2)
+        BYTE *p = (BYTE*)&mr->mem;
+        ULONG *m2 = (ULONG*)(p + size);
+        if (*m2 != MARKER2)
         {
             DPRINTF("_autil_shutdown: *** ERROR: corruptet memlist, marker2 damaged\n");
-            g_mem = mem_next;
+            mr = mr_next;
             continue;
         }
-        _MEMSET ((BYTE*)g_mem->mem, 0xEF, g_mem->size);
+
+        FreeMem ((APTR)mr, size+MR_OVERHEAD);
 #endif
-        FreeMem(g_mem->mem, g_mem->size);
-        FreeMem(g_mem, sizeof (*g_mem));
-        g_mem = mem_next;
+        mr = mr_next;
     }
     DPRINTF ("_autil_shutdown: freeing memory... done.\n");
 }

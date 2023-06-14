@@ -1,19 +1,16 @@
 '
-' GC test 4: cstring
+' test allocate/deallocate
 '
 
 OPTION EXPLICIT
 
-' ANY is not traced so we can use it as a weak pointer for test assertions
-DIM SHARED AS ANY wp
+DIM SHARED AS ANY PTR wp1, wp2, wp3
 
-DIM SHARED AS STRING s = "hubba"
+wp1 = ALLOCATE (512)
+wp2 = ALLOCATE (512)
+wp3 = ALLOCATE (512)
 
-TRACE s
-
-TRACE "calling the GC..."
-
-GC_RUN
-
+DEALLOCATE (wp2)
+DEALLOCATE (wp1)
 
 
