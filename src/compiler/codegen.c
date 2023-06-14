@@ -975,7 +975,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
 
             S_symbol initializer = S_Symbol(strprintf(UP_codegen, "__%s_init", S_name(m2->name)));
 
-            Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+            Ty_proc init_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, initializer, /*extraSyms=*/NULL, /*label=*/initializer, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*isShared=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
 
             CG_transCall (initCode, pos, frame, init_proc, /*args=*/NULL, /* result=*/ NULL);
         }

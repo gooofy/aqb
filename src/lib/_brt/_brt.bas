@@ -155,6 +155,8 @@ PUBLIC CLASS CString IMPLEMENTS IComparable, ICloneable
 
     PUBLIC:
 
+        DECLARE EXTERN SHARED FUNCTION Create (BYVAL str AS UBYTE PTR, BYVAL owned AS BOOLEAN) AS CString PTR
+
         DECLARE EXTERN CONSTRUCTOR (BYVAL str AS UBYTE PTR, BYVAL owned AS BOOLEAN)
 
         DECLARE EXTERN FUNCTION GetCharAt (BYVAL idx AS ULONG) AS UBYTE
@@ -163,7 +165,7 @@ PUBLIC CLASS CString IMPLEMENTS IComparable, ICloneable
         DECLARE EXTERN PROPERTY Str    AS UBYTE PTR
 
         ' CObject overrides
-        DECLARE EXTERN VIRTUAL Sub Finalize ()
+        DECLARE EXTERN VIRTUAL SUB Finalize ()
 
         ' ICloneable interface:
         DECLARE EXTERN VIRTUAL FUNCTION Clone () AS CObject PTR
@@ -180,7 +182,7 @@ PUBLIC CLASS CString IMPLEMENTS IComparable, ICloneable
         AS UBYTE PTR _str
         AS ULONG     _len
         AS ULONG     _hashcode
-        AS BOOLEAN   _owned   ' TRUE -> will deallocate() _str in finalizer
+        AS BOOLEAN   _owned   ' TRUE -> will DEALLOCATE() _str in finalizer
 
 END CLASS
 

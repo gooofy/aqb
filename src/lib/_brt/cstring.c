@@ -15,7 +15,8 @@ void _CSTRING___gc_scan (CObject *THIS, void *gc)
 
 VOID _CSTRING_FINALIZE (CString *THIS)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CSTRING Finalize()");
+    if (THIS->_owned)
+        DEALLOCATE ((APTR)THIS->_str);
 }
 
 VOID _CSTRING_CONSTRUCTOR (CString *THIS, CONST_STRPTR str, BOOL owned)
@@ -86,4 +87,5 @@ CString *_CREATE_CSTRING_ (CONST_STRPTR str, BOOL owned)
 
     return obj;
 }
+
 

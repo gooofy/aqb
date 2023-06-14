@@ -14,7 +14,7 @@
 #include "logger.h"
 
 #define SYM_MAGIC       0x53425141  // AQBS
-#define SYM_VERSION     72
+#define SYM_VERSION     74
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -703,6 +703,7 @@ static void E_serializeTyProc(TAB_table modTable, Ty_proc proc)
         E_serializeTyRef(modTable, proc->returnTy);
     }
     fwrite_u1(modf, proc->isExtern);
+    fwrite_u1(modf, proc->isShared);
     fwrite_u4(modf, proc->offset);
     if (proc->offset)
         strserialize(modf, proc->libBase);
@@ -1119,6 +1120,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
         }
     }
     uint8_t isExtern = fread_u1(modf);
+    uint8_t isShared = fread_u1(modf);
     // warning: Ty_toString can be quite expensive memory-wise!
     // LOG_printf (LOG_DEBUG, "      return type: %s\n", Ty_toString (returnTy));
     int32_t offset = fread_i4(modf);
@@ -1137,7 +1139,7 @@ static Ty_proc E_deserializeTyProc(TAB_table modTable, FILE *modf)
     if (tyClsPtrPresent)
         tyClsPtr = E_deserializeTyRef(modTable, modf);
 
-    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, isExtern, offset, libBase, tyClsPtr);
+    return Ty_Proc(visibility, kind, name, extra_syms, label, formals, isVariadic, isStatic, returnTy, /*forward=*/FALSE, isExtern, isShared, offset, libBase, tyClsPtr);
 }
 
 static Ty_member E_deserializeMember(TAB_table modTable, FILE *modf)

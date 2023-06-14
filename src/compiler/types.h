@@ -121,6 +121,7 @@ struct Ty_proc_
     int32_t          offset;
     string           libBase;
     Ty_ty            tyOwner;   // methods only: pointer to class or interface this method belongs to
+    bool             isShared;  // methods only: VB:shared/C#:static method?
     bool             hasBody;
 };
 
@@ -209,7 +210,7 @@ void            Ty_addMember         (Ty_memberList memberList, Ty_member member
 Ty_member       Ty_findEntry         (Ty_ty ty, S_symbol name, bool checkBase);
 
 Ty_formal       Ty_Formal            (S_symbol name, Ty_ty ty, Ty_const defaultExp, Ty_formalMode mode, Ty_formalParserHint ph, Temp_temp reg);
-Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, int32_t offset, string libBase, Ty_ty tyOwner);
+Ty_proc         Ty_Proc              (Ty_visibility visibility, Ty_procKind kind, S_symbol name, S_symlist extraSyms, Temp_label label, Ty_formal formals, bool isVariadic, bool isStatic, Ty_ty returnTy, bool forward, bool isExtern, bool isShared, int32_t offset, string libBase, Ty_ty tyOwner);
 
 Ty_const        Ty_ConstBool         (Ty_ty ty, bool     b);
 Ty_const        Ty_ConstInt          (Ty_ty ty, int32_t  i);

@@ -86,7 +86,7 @@ struct FE_udtEntry_
     union
     {
         struct { S_symbol name; FE_dim dims; Ty_ty ty; } fieldr;
-        struct { Ty_proc proc; bool isVirtual; } methodr;
+        struct { Ty_proc proc; bool isVirtual; bool isShared; } methodr;
         struct { Ty_proc proc; bool isVirtual; } property;
     } u;
 
@@ -229,7 +229,7 @@ static FE_udtEntry FE_UDTEntryField(S_pos pos, S_symbol sField, FE_dim dims, Ty_
     return p;
 }
 
-static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc proc, bool isVirtual)
+static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc proc, bool isVirtual, bool isShared)
 {
     FE_udtEntry p = U_poolAlloc(UP_frontend, sizeof(*p));
 
@@ -237,6 +237,7 @@ static FE_udtEntry FE_UDTEntryMethod(S_pos pos, Ty_proc proc, bool isVirtual)
     p->pos                 = pos;
     p->u.methodr.proc      = proc;
     p->u.methodr.isVirtual = isVirtual;
+    p->u.methodr.isShared  = isShared;
     p->next                = NULL;
 
     return p;
@@ -881,29 +882,26 @@ static bool coercion (Ty_ty ty1, Ty_ty ty2, Ty_ty *res)
             assert(0); // FIXME
             *res = ty1;
             return FALSE;
-        case Ty_pointer:
         case Ty_forwardPtr:
-            switch (ty2->kind)
-            {
-                case Ty_byte:
-                case Ty_ubyte:
-                case Ty_integer:
-                case Ty_uinteger:
-                case Ty_long:
-                case Ty_ulong:
-                case Ty_pointer:
-                case Ty_forwardPtr:
-                    *res = ty1;
-                    return TRUE;
-                default:
-                    *res = ty1;
-                    return FALSE;
-            }
-            break;
-        //FIXME
-        //case Ty_string:
-        //    *res = ty1;
-        //    return FALSE;
+        case Ty_pointer:
+            return FALSE;
+            // FIXME switch (ty2->kind)
+            // FIXME {
+            // FIXME     case Ty_byte:
+            // FIXME     case Ty_ubyte:
+            // FIXME     case Ty_integer:
+            // FIXME     case Ty_uinteger:
+            // FIXME     case Ty_long:
+            // FIXME     case Ty_ulong:
+            // FIXME     case Ty_pointer:
+            // FIXME     case Ty_forwardPtr:
+            // FIXME         *res = ty1;
+            // FIXME         return TRUE;
+            // FIXME     default:
+            // FIXME         *res = ty1;
+            // FIXME         return FALSE;
+            // FIXME }
+            // FIXME break;
         case Ty_toLoad:
         case Ty_prc:
             assert(0);
@@ -1408,6 +1406,21 @@ static void transBinOp (S_pos pos, CG_binOp oper, CG_item *e1, CG_item *e2)
 
     if (ty2)
     {
+
+        // special case: string append
+        if (_isString(ty1) || _isString(ty2))
+        {
+            if ( (oper != CG_plus) || !_isString(ty1) || !_isString(ty2) )
+            {
+                EM_error(pos, "illegal string operation");
+                return;
+            }
+
+            assert (FALSE); // FIXME: implement string concatenation
+
+            return;
+        }
+
         if (!coercion(ty1, ty2, &resTy)) {
             EM_error(pos, "operands type mismatch [1]");
             return;
@@ -1591,29 +1604,32 @@ static bool transSelRecord(S_pos pos, S_tkn *tkn, Ty_member entry, CG_item *exp)
 
             CG_itemList assignedArgs = CG_ItemList();
 
-            CG_item thisRef = *exp;
-            switch (exp->ty->kind)
-            {
-                case Ty_pointer:
-                    // turn this into a varRef
-                    CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
-                    thisRef.kind = IK_varPtr;
-                    thisRef.ty   = exp->ty->u.pointer;
-                    break;
-                case Ty_record:
-                case Ty_class:
-                case Ty_darray:
-                    CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
-                    break;
-                default:
-                    assert(FALSE);
-            }
-
             if (!transActualArgs(tkn, entry->u.method->proc, assignedArgs, /*defaultsOnly=*/FALSE))
                 return FALSE;
 
-            CG_itemListNode thisNode = CG_itemListPrepend (assignedArgs);
-            thisNode->item = thisRef;
+            if (!entry->u.method->proc->isShared)
+            {
+                CG_item thisRef = *exp;
+                switch (exp->ty->kind)
+                {
+                    case Ty_pointer:
+                        // turn this into a varRef
+                        CG_loadVal (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
+                        thisRef.kind = IK_varPtr;
+                        thisRef.ty   = exp->ty->u.pointer;
+                        break;
+                    case Ty_record:
+                    case Ty_class:
+                    case Ty_darray:
+                        CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, &thisRef);
+                        break;
+                    default:
+                        assert(FALSE);
+                }
+
+                CG_itemListNode thisNode = CG_itemListPrepend (assignedArgs);
+                thisNode->item = thisRef;
+            }
 
             if ((*tkn)->kind != S_RPAREN)
                 return EM_error((*tkn)->pos, ") expected.");
@@ -1872,29 +1888,69 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
         else
         {
 
-            // SUB pointer ?
-            E_enventryList el = NULL;
-            if (!leftHandSide)
-                el = E_resolveSub(g_sleStack->env, sym);
-            if (el)
+            // class type -> shared method call?
+
+            Ty_ty tyCls = E_resolveType(g_sleStack->env, sym);
+            if (tyCls && (tyCls->kind == Ty_class))
             {
-                if (el->first->next)
-                    return EM_error(pos, "ambigous SUB reference");
-                E_enventry entry = el->first->e;
-                if (entry->kind != E_procEntry)
-                    return EM_error(pos, "SUB identifier expected here");
-
-                CG_HeapPtrItem (exp, entry->u.proc->label, Ty_ProcPtr (FE_mod, entry->u.proc));
-                CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, exp);
-                exp->kind = IK_inReg;
-
                 *tkn = (*tkn)->next;
+                if ((*tkn)->kind != S_PERIOD)
+                    return EM_error(pos, ". expected here (SHARED method call)");
+                *tkn = (*tkn)->next;
+
+                if ((*tkn)->kind != S_IDENT)
+                    return EM_error(pos, "Method identifier expected here (SHARED method call)");
+
+                S_symbol s = (*tkn)->u.sym;
+                Ty_member m = Ty_findEntry (tyCls, s, /*checkBase=*/TRUE);
+                if (!m)
+                    return EM_error(pos, "Member %s not found in %s", S_name(s), S_name(tyCls->u.cls.name));
+
+                if ( (m->kind != Ty_recMethod) || !m->u.method->proc->isShared)
+                    return EM_error(pos, "SHARED Method identifier expected here");
+                *tkn = (*tkn)->next;
+
+                CG_itemList assignedArgs = CG_ItemList();
+
+                if ((*tkn)->kind != S_LPAREN)
+                    return EM_error((*tkn)->pos, "( expected here (method call)");
+                *tkn = (*tkn)->next;
+
+                if (!transActualArgs(tkn, m->u.method->proc, assignedArgs, /*defaultsOnly=*/FALSE))
+                    return FALSE;
+
+                if ((*tkn)->kind != S_RPAREN)
+                    return EM_error((*tkn)->pos, ") expected.");
+                *tkn = (*tkn)->next;
+
+                return CG_transMethodCall(g_sleStack->code, (*tkn)->pos, g_sleStack->frame, m->u.method, assignedArgs, exp);
             }
             else
             {
-                // implicit variable
-                autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
-                *tkn = (*tkn)->next;
+                // SUB pointer ?
+                E_enventryList el = NULL;
+                if (!leftHandSide)
+                    el = E_resolveSub(g_sleStack->env, sym);
+                if (el)
+                {
+                    if (el->first->next)
+                        return EM_error(pos, "ambigous SUB reference");
+                    E_enventry entry = el->first->e;
+                    if (entry->kind != E_procEntry)
+                        return EM_error(pos, "SUB identifier expected here");
+
+                    CG_HeapPtrItem (exp, entry->u.proc->label, Ty_ProcPtr (FE_mod, entry->u.proc));
+                    CG_loadRef (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, exp);
+                    exp->kind = IK_inReg;
+
+                    *tkn = (*tkn)->next;
+                }
+                else
+                {
+                    // implicit variable
+                    autovar (exp, sym, pos, tkn, /*typeHint=*/NULL);
+                    *tkn = (*tkn)->next;
+                }
             }
         }
     }
@@ -2884,7 +2940,7 @@ static bool typeDesc (S_tkn *tkn, bool allowForwardPtr, Ty_ty *ty)
             returnTy = NULL;
         }
 
-        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
+        Ty_proc proc = Ty_Proc(Ty_visPublic, kind, /*name=*/ NULL, /*extra_syms=*/NULL, /*label=*/NULL, paramList->first, /*isVariadic=*/FALSE, /*isStatic=*/ FALSE, returnTy, /*forward=*/ FALSE, isExtern, /*isShared=*/FALSE, /*offset=*/ 0, /*libBase=*/ NULL, /*tyCls=*/NULL);
         *ty = Ty_ProcPtr(FE_mod, proc);
     }
     else
@@ -6253,7 +6309,7 @@ static bool udtProperty(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool fo
 
     string label = _generate_proc_label (sCls, name, returnTy != NULL);
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, /*isStatic=*/FALSE, returnTy, forward, isExtern, /*isShared=*/FALSE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
     return TRUE;
 }
@@ -6311,7 +6367,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
     // determine label
     string label = _generate_proc_label (sCls, name, returnTy != NULL);
 
-    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, /*extra_syms=*/NULL, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, /*forward=*/TRUE, isExtern, /*isShared=*/FALSE, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
     return TRUE;
 }
@@ -6320,7 +6376,7 @@ static bool propertyHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool
 //                | FUNCTION ident [ "." ident ]
 //                | CONSTRUCTOR [ ident ] )
 //                                                      [ parameterList ] [ AS typeDesc ] [ STATIC ]
-static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, Ty_proc *proc)
+static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool forward, bool isExtern, bool isShared, Ty_proc *proc)
 {
     Ty_procKind  kind       = Ty_pkSub;
     S_symbol     name;
@@ -6365,6 +6421,12 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
                 return EM_error ((*tkn)->pos, "method identifier expected here.");
             name = (*tkn)->u.sym;
             *tkn = (*tkn)->next;
+
+            Ty_member m = Ty_findEntry (tyCls, name, /*checkBase=*/FALSE);
+            if (!m || (m->kind != Ty_recMethod))
+                return EM_error ((*tkn)->pos, "method identifier expected here.");
+
+            isShared = m->u.method->proc->isShared;
         }
     }
     else
@@ -6396,7 +6458,7 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
     }
 
     // determine label, deal with implicit "this" arg
-    if (sCls)
+    if (sCls && !isShared)
         FE_ParamListAppend(paramList, Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL));
 
     string label = _generate_proc_label (sCls, name, kind==Ty_pkFunction);
@@ -6447,7 +6509,8 @@ static bool procHeader(S_tkn *tkn, S_pos pos, Ty_visibility visibility, bool for
         *tkn = (*tkn)->next;
     }
 
-    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first, isVariadic, isStatic, returnTy, forward, isExtern, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
+    *proc = Ty_Proc(visibility, kind, name, extra_syms, Temp_namedlabel(label), paramList->first,
+                    isVariadic, isStatic, returnTy, forward, isExtern, isShared, /*offset=*/ 0, /*libBase=*/ NULL, tyCls);
 
     return TRUE;
 }
@@ -6621,7 +6684,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     }
     else
     {
-        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, /*isExtern=*/FALSE, &proc))
+        if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, /*isExtern=*/FALSE, /*isShared=*/FALSE, &proc))
             return FALSE;
     }
     proc->hasBody = TRUE;
@@ -6633,7 +6696,7 @@ static bool stmtProcBegin(S_tkn *tkn, E_enventry e, CG_item *exp)
     E_env lenv = FE_mod->env;
     E_env wenv = NULL;
 
-    if (proc->tyOwner)
+    if (proc->tyOwner && !proc->isShared)
         lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
     lenv = E_EnvScopes(lenv);   // local variables, consts etc.
 
@@ -6701,7 +6764,7 @@ static bool stmtProcDecl(S_tkn *tkn, E_enventry e, CG_item *exp)
         *tkn = (*tkn)->next;
     }
 
-    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, isExtern, &proc))
+    if (!procHeader(tkn, pos, visibility, /*forward=*/TRUE, isExtern, /*isShared=*/FALSE, &proc))
         return FALSE;
     proc = checkProcMultiDecl(pos, proc);
     if (!proc)
@@ -7423,6 +7486,7 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
                                     /*returnTy=*/NULL,
                                     /*forward=*/FALSE,
                                     /*isExtern=*/FALSE,
+                                    /*isShared=*/FALSE,
                                     /*offset=*/0,
                                     /*libBase=*/NULL,
                                     /*tyCls=*/tyCls);
@@ -7630,7 +7694,7 @@ static void _assembleVTables (Ty_ty tyCls, S_pos pos)
 
 // typeDeclField ::= ( Identifier [ "(" arrayDimensions ")" ] [ AS typeDesc ]
 //                   | AS typeDesc Identifier [ "(" arrayDimensions ")" ] ( "," Identifier [ "(" arrayDimensions ")" ]
-//                   | DECLARE [ EXTERN ] [ VIRTUAL ] ( procHeader | udtProperty )
+//                   | DECLARE [ EXTERN ] [ VIRTUAL | SHARED ] ( procHeader | udtProperty )
 //                   | [ PUBLIC | PRIVATE | PROTECTED ] ":"
 //                   | END ( TYPE | CLASS | INTERFACE )
 //                   )
@@ -8003,10 +8067,19 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             }
 
             bool isVirtual=FALSE;
+            bool isShared=FALSE;
             if (isSym(*tkn, S_VIRTUAL))
             {
                 isVirtual = TRUE;
                 *tkn = (*tkn)->next;
+            }
+            else
+            {
+                if (isSym(*tkn, S_SHARED))
+                {
+                    isShared = TRUE;
+                    *tkn = (*tkn)->next;
+                }
             }
 
             FE_udtEntry e;
@@ -8021,9 +8094,9 @@ static bool stmtTypeDeclField(S_tkn *tkn)
             else
             {
                 Ty_proc proc=NULL;
-                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, isExtern, &proc))
+                if (!procHeader(tkn, (*tkn)->pos, g_sleStack->u.typeDecl.memberVis, /*forward=*/TRUE, isExtern, isShared, &proc))
                     return FALSE;
-                e = FE_UDTEntryMethod(mpos, proc, isVirtual);
+                e = FE_UDTEntryMethod(mpos, proc, isVirtual, isShared);
                 switch (g_sleStack->u.typeDecl.ty->kind)
                 {
                     case Ty_class:
@@ -8756,7 +8829,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
     {
         // call __aqb_clear
 
-        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, S__aqb_clear, /*extraSyms=*/NULL, /*label=*/S__aqb_clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
+        Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, S__aqb_clear, /*extraSyms=*/NULL, /*label=*/S__aqb_clear, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/NULL, /*forward=*/FALSE, /*isExtern=*/TRUE, /*isShared=*/FALSE, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
         CG_transCall (g_sleStack->code, (*tkn)->pos, g_sleStack->frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
     }
 
@@ -9073,7 +9146,7 @@ static bool funUBound(S_tkn *tkn, E_enventry e, CG_item *exp)
 static void declareBuiltinProc (S_symbol sym, S_symlist extraSyms, bool (*parsef)(S_tkn *tkn, E_enventry e, CG_item *exp), Ty_ty retTy)
 {
     Ty_procKind kind = retTy ? Ty_pkFunction : Ty_pkSub;
-    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*isExtern=*/TRUE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
+    Ty_proc proc = Ty_Proc(Ty_visPrivate, kind, sym, extraSyms, /*label=*/NULL, /*formals=*/NULL, /*isVariadic=*/FALSE, /*isStatic=*/FALSE, /*returnTy=*/retTy, /*forward=*/TRUE, /*isExtern=*/TRUE, /*isShared=*/FALSE, /*offset=*/0, /*libBase=*/0, /*tyClsPtr=*/NULL);
 
     if (kind == Ty_pkSub)
     {
