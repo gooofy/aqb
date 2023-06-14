@@ -209,8 +209,9 @@ CString      *_CSTRING_TOSTRING_    (CString *THIS);
 BOOL          _CSTRING_EQUALS_      (CString *THIS, CObject *obj);
 ULONG         _CSTRING_GETHASHCODE_ (CString *THIS);
 
-// utility function, creates a CString object from a cstring
-CString      *_CREATE_CSTRING_     (CONST_STRPTR str, BOOL owned);
+// CString's static methods
+CString *_CSTRING_CREATE_ (UBYTE    *str, BOOL     owned);
+CString *_CSTRING_CONCAT_ (CString *str1, CString *str2);
 
 /*
  * internal string utils

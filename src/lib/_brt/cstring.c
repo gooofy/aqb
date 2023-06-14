@@ -75,7 +75,7 @@ ULONG    _CSTRING_GETHASHCODE_ (CString *THIS)
     return 0;
 }
 
-CString *_CREATE_CSTRING_ (CONST_STRPTR str, BOOL owned)
+CString *_CSTRING_CREATE_ (UBYTE *str, BOOL owned)
 {
     CString *obj = (CString *)GC_ALLOCATE_(sizeof (*obj), MEMF_PUBLIC | MEMF_CLEAR);
     if (!obj)
@@ -88,4 +88,10 @@ CString *_CREATE_CSTRING_ (CONST_STRPTR str, BOOL owned)
     return obj;
 }
 
+CString *_CSTRING_CONCAT_ (CString *str1, CString *str2)
+{
+    DPRINTF ("CString.Concat (%s, %s)\n", str1->_str, str2->_str);
+
+    return _CSTRING_CREATE_ (__astr_concat (str1->_str, str2->_str), /*owned=*/TRUE);
+}
 

@@ -392,7 +392,8 @@ static S_symbol S__aqb_clear;
 static S_symbol S__aqb_clear_exit;
 static S_symbol S_COPY;
 static S_symbol S_GC;
-static S_symbol S__CREATE_CSTRING;
+static S_symbol S_CREATE;
+static S_symbol S_CONCAT;
 
 // string type based on _brt's CString type (cached by _TyCString())
 static Ty_ty g_tyString=NULL;
@@ -1416,7 +1417,16 @@ static void transBinOp (S_pos pos, CG_binOp oper, CG_item *e1, CG_item *e2)
                 return;
             }
 
-            assert (FALSE); // FIXME: implement string concatenation
+            CG_itemList args = CG_ItemList();
+            CG_itemListNode n = CG_itemListAppend(args);
+            n->item = *e1;
+            CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
+            n = CG_itemListAppend(args);
+            n->item = *e2;
+            CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
+
+            if (!transCallBuiltinMethod(pos, _tyString()->u.pointer, S_CONCAT, args, g_sleStack->code, /*res=*/e1))
+                EM_error (pos, "illegal string concatenation");
 
             return;
         }
@@ -2227,19 +2237,14 @@ static bool atom(S_tkn *tkn, CG_item *exp)
         }
         case S_STRING:
         {
-            CG_item createCStringProcPtr;
-            Ty_member createCStringEntry;
-            if (!E_resolveVFC(g_sleStack->env, S__CREATE_CSTRING, /*checkParents=*/TRUE, &createCStringProcPtr, &createCStringEntry))
-                return EM_error(pos, "builtin %s not found.", S_name(S__CREATE_CSTRING));
-            Ty_ty createCStringTy = CG_ty(&createCStringProcPtr);
-
             CG_itemList args = CG_ItemList();
             CG_itemListNode n = CG_itemListAppend(args);
             CG_StringItem (g_sleStack->code, pos, &n->item, (*tkn)->u.str);
             n = CG_itemListAppend(args);
             CG_BoolItem (&n->item, FALSE, Ty_Bool()); // owned
 
-            CG_transCall (g_sleStack->code, pos, g_sleStack->frame, createCStringTy->u.proc, args, /*result=*/exp);
+            if (!transCallBuiltinMethod(pos, _tyString()->u.pointer, S_CREATE, args, g_sleStack->code, /*res=*/exp))
+                return FALSE;
 
             *tkn = (*tkn)->next;
             break;
@@ -9852,7 +9857,8 @@ void FE_boot(void)
     S__aqb_clear_exit = S_Symbol("__aqb_clear_exit");
     S_COPY            = S_Symbol("COPY");
     S_GC              = S_Symbol("GC");
-    S__CREATE_CSTRING = S_Symbol("_CREATE_CSTRING");
+    S_CREATE          = S_Symbol("CREATE");
+    S_CONCAT          = S_Symbol("CONCAT");
 }
 
 void FE_init(void)

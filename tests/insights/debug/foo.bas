@@ -1,51 +1,29 @@
 '
-' OOP test 18: shared methods
+' GC test 4: cstring
 '
 
 OPTION EXPLICIT
 
-DIM SHARED AS INTEGER res
+' ANY is not traced so we can use it as a weak pointer for test assertions
+DIM SHARED AS ANY wp
 
-CLASS myc
+DIM SHARED AS STRING s = "hubba"
 
-    DECLARE SHARED FUNCTION f1(BYVAL a AS INTEGER, BYVAL b AS INTEGER) AS INTEGER
-    DECLARE SHARED SUB      s1(BYVAL a AS INTEGER, BYVAL b AS INTEGER)
+TRACE s
 
-END CLASS
+TRACE "calling the GC..."
 
-FUNCTION myc.f1 (BYVAL a AS INTEGER, BYVAL b AS INTEGER) AS INTEGER
+GC_RUN
 
-    RETURN a+b
+s = s + " abcde"
 
-END FUNCTION
+TRACE s
 
-SUB myc.s1 (BYVAL a AS INTEGER, BYVAL b AS INTEGER)
+s = CString.Concat (s, "abcde")
 
-    res = a+b
+TRACE s
 
-END SUB
-
-' call via class type
-
-'TRACE myc.f1 (23, 19)
-ASSERT myc.f1 (23, 19) = 42
-
-myc.s1 (23,19)
-'TRACE res
-ASSERT res=42
-
-' call via object
-
-DIM AS myc o1
-
-'TRACE o1.f1 (23, 19)
-ASSERT o1.f1 (23, 19) = 42
-
-o1.s1 (23,19)
-'TRACE res
-ASSERT res=42
-
-
+GC_RUN
 
 
 
