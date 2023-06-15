@@ -161,11 +161,14 @@ struct CObject_
     ULONG      __gc_size;
     UBYTE      __gc_color;
 };
+extern ULONG *_td__brt_COBJECT;
 
 void     _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
 CString *_COBJECT_TOSTRING_    (CObject *THIS);
 BOOL     _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
 ULONG    _COBJECT_GETHASHCODE_ (CObject *THIS);
+
+BOOL     __instanceof          (CObject *obj, ULONG **td);
 
 void     GC_RUN                (void);
 void     GC_REGISTER           (CObject *obj);
@@ -176,6 +179,15 @@ BOOL     GC_REACHABLE_         (CObject *obj);
 
 typedef void (*_gc_scan_t)     (CObject *obj);
 typedef void (*_gc_finalize_t) (CObject *obj);
+
+// collection interface type descriptors
+
+extern ULONG *_td__brt_IComparable;
+extern ULONG *_td__brt_ICloneable;
+extern ULONG *_td__brt_IList;
+extern ULONG *_td__brt_ICollection;
+extern ULONG *_td__brt_IEnumerable;
+extern ULONG *_td__brt_IEnumerator;
 
 /********************************************************************
  *                                                                  *
@@ -197,6 +209,8 @@ struct CString_
     ULONG          _hashcode;
     BOOL           _owned;
 };
+extern ULONG *_td__brt_CSTRING;
+
 
 void          _CSTRING___init       (CString *THIS);
 VOID          _CSTRING_CONSTRUCTOR  (CString *THIS, CONST_STRPTR str, BOOL owned);
@@ -456,6 +470,9 @@ struct CArrayEnumerator_
     LONG     _index;
     intptr_t _currentElement;
 };
+
+extern ULONG *_td__brt_CArrayEnumerator;
+extern ULONG *_td__brt_CARRAY;
 
 VOID        _CARRAYENUMERATOR___init      (CArrayEnumerator *THIS);
 VOID        _CARRAYENUMERATOR_CONSTRUCTOR (CArrayEnumerator *THIS, CArray *list);

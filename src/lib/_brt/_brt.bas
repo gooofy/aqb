@@ -173,7 +173,7 @@ PUBLIC CLASS CString IMPLEMENTS IComparable, ICloneable
         DECLARE EXTERN VIRTUAL FUNCTION Clone () AS CObject PTR
 
         ' IComparable interface:
-        DECLARE VIRTUAL FUNCTION CompareTo (BYVAL obj AS CObject PTR) AS INTEGER
+        DECLARE EXTERN VIRTUAL FUNCTION CompareTo (BYVAL obj AS CObject PTR) AS INTEGER
 
         ' CObject overrides:
         DECLARE EXTERN VIRTUAL FUNCTION ToString    ()                         AS STRING

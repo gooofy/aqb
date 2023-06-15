@@ -2559,10 +2559,6 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                 case Ty_single:
                                     emitRegCall (code, pos, "_MathBase", LVOSPAdd, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D1], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D0], NULL)), ty, left);
                                     break;
-                                //FIXME
-                                //case Ty_string:
-                                //    emitBinOpJsr (code, pos, frame, "___astr_concat", left, right, ty);
-                                //    break;
 
                                 default:
                                     assert(FALSE);

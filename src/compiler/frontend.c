@@ -394,6 +394,7 @@ static S_symbol S_COPY;
 static S_symbol S_GC;
 static S_symbol S_CREATE;
 static S_symbol S_CONCAT;
+static S_symbol S_COMPARETO;
 
 // string type based on _brt's CString type (cached by _TyCString())
 static Ty_ty g_tyString=NULL;
@@ -1458,6 +1459,37 @@ static void transRelOp (S_pos pos, CG_relOp oper, CG_item *e1, CG_item *e2)
     Ty_ty  ty1    = CG_ty(e1);
     Ty_ty  ty2    = CG_ty(e2);
     Ty_ty  resTy;
+
+    // special case: string comparison
+    if (_isString(ty1) || _isString(ty2))
+    {
+        if ( !_isString(ty1) || !_isString(ty2) )
+        {
+            EM_error(pos, "illegal string comparison");
+            return;
+        }
+
+        CG_itemList args = CG_ItemList();
+        CG_itemListNode n = CG_itemListAppend(args);
+        n->item = *e1;
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
+        // turn pointer into this ref
+        n->item.kind = IK_varPtr;
+        n->item.ty   = n->item.ty->u.pointer;
+        n = CG_itemListAppend(args);
+        n->item = *e2;
+        CG_loadVal (g_sleStack->code, pos, g_sleStack->frame, &n->item);
+
+        if (!transCallBuiltinMethod(pos, _tyString()->u.pointer, S_COMPARETO, args, g_sleStack->code, /*res=*/e1))
+            EM_error (pos, "illegal string concatenation");
+
+        CG_item zero;
+        CG_ZeroItem (&zero, Ty_Integer());
+
+        CG_transRelOp (g_sleStack->code, pos, g_sleStack->frame, oper, e1, &zero);
+
+        return;
+    }
 
     if (!coercion(ty1, ty2, &resTy))
     {
@@ -9859,6 +9891,7 @@ void FE_boot(void)
     S_GC              = S_Symbol("GC");
     S_CREATE          = S_Symbol("CREATE");
     S_CONCAT          = S_Symbol("CONCAT");
+    S_COMPARETO       = S_Symbol("COMPARETO");
 }
 
 void FE_init(void)

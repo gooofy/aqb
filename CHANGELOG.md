@@ -13,6 +13,7 @@ Improvements:
     * runtime: TEXTEXTEND statement added
     * runtime: WINDOW() function: retrieve current screen's visible width and height (#49)
     * runtime: SGN, SPC, SPACE$, STRING$, TIME$, DATE$, HEX$, OCT$, BIN$ functions added (thanks @blackborn66!)
+    * runtime: garbage collector
     * compiler: support for variadic function argument passing
     * compiler: NEW operator added
     * compiler: EXTENDS, BASE, IMPLEMENTS keywords added (OOP inheritance)
@@ -21,8 +22,10 @@ Improvements:
     * compiler: PROPERTY support added (OOP)
     * compiler: support for virtual properties added (OOP)
     * compiler: support for shared methods added (OOP)
+    * compiler: runtime type information (OOP)
     * compiler: [breaking] CLASS/END CLASS, INTERFACE/END INTERFACE added
     * compiler: [breaking] introduced new ANY, removed VOID type
+    * compiler: [breaking] CObject PTR string representation
     * compiler: generate proper error message when a constant is assigned to (#24)
     * compiler: always linear scan for register allocation instead of graph coloring
     * compiler: SWAP statement implemented

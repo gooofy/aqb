@@ -54,8 +54,20 @@ CObject *_CSTRING_CLONE_ (CString *THIS)
 
 WORD _CSTRING_COMPARETO_ (CString *THIS, CObject *obj)
 {
-    _AQB_ASSERT (FALSE, (STRPTR) "FIXME: implement: CString.CompareTo");
-    return 0;
+    //DPRINTF ("_CSTRING_COMPARETO_: obj=0x%08lx is a cstring ? %d\n", obj, __instanceof(obj, &_td__brt_CSTRING));
+    //DPRINTF ("_CSTRING_COMPARETO_: obj=0x%08lx is a cobject ? %d\n", obj, __instanceof(obj, &_td__brt_COBJECT));
+    //DPRINTF ("_CSTRING_COMPARETO_: obj=0x%08lx is a IComparable ? %d\n", obj, __instanceof(obj, &_td__brt_IComparable));
+    //DPRINTF ("_CSTRING_COMPARETO_: obj=0x%08lx is a ICollection ? %d\n", obj, __instanceof(obj, &_td__brt_ICollection));
+
+    if (!__instanceof(obj, &_td__brt_CSTRING))
+    {
+        DPRINTF ("_CSTRING_COMPARETO_: obj=0x%08lx is not a cstring\n", obj);
+        return 0;
+    }
+
+    CString *str2 = (CString *)obj;
+    DPRINTF ("_CSTRING_COMPARETO_: _str=%s =? str2=%s\n", THIS->_str, str2->_str);
+    return __astr_cmp (THIS->_str, str2->_str);
 }
 
 CString *_CSTRING_TOSTRING_ (CString *THIS)

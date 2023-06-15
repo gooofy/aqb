@@ -19,6 +19,8 @@ s = s + " abcde"
 
 TRACE s
 
+ASSERT s = "hubba abcde"
+
 s = CString.Concat (s, "abcde")
 
 TRACE s

@@ -1,3 +1,4 @@
+//#define ENABLE_DPRINTF
 #include "_brt.h"
 
 #include <exec/memory.h>
@@ -38,16 +39,33 @@ ULONG _COBJECT_GETHASHCODE_ (CObject *THIS)
     return (intptr_t) THIS;
 }
 
-#if 0
-static void * _CObject_vtable[] = {
-    (void*) _COBJECT_TOSTRING_,
-    (void*) _COBJECT_EQUALS_,
-    (void*) _COBJECT_GETHASHCODE_
-};
-
-void _COBJECT___init (CObject *THIS)
+static BOOL _in_td (ULONG **objtd, ULONG **td)
 {
-    THIS->_vTablePtr = (void ***) &_CObject_vtable;
-}
-#endif
+    if (objtd==td)
+        return TRUE;
+    
+    while (TRUE)
+    {
+        ULONG **parent = (ULONG **) (intptr_t) *td++;
+        if (!parent)
+            return FALSE;
+        if (_in_td (objtd, parent))
+            return TRUE;
+    }
 
+    return FALSE;
+}
+
+BOOL __instanceof (CObject *obj, ULONG **td)
+{
+    intptr_t *vtable = (intptr_t *) obj->_vTablePtr;
+    ULONG **objtd = (ULONG**) vtable[0];
+
+    DPRINTF ("__instanceof: obj=0x%08lx, objtd=0x%08lx, td=0x%08lx\n",
+             obj, objtd, td);
+
+    return _in_td (td, objtd);
+
+    // FIXME
+    return td == objtd;
+}
