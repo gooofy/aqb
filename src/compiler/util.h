@@ -100,7 +100,7 @@ static inline int roundUp(int numToRound, int multiple)
 typedef enum
 {
     UP_frontend, UP_types, UP_temp, UP_assem, UP_codegen, UP_env, UP_flowgraph, UP_linscan, UP_symbol,
-    UP_regalloc, UP_liveness, UP_link, UP_ide, UP_options, UP_runChild, UP_numPools
+    UP_link, UP_ide, UP_options, UP_runChild, UP_numPools
 } U_poolId;
 
 void *U_poolAlloc          (U_poolId pid, size_t size);
