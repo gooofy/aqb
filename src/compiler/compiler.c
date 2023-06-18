@@ -71,10 +71,8 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         U_poolReset (UP_types);
 
         U_poolReset (UP_temp);
-        U_poolReset (UP_flowgraph);
         U_poolReset (UP_linscan);
         //U_poolReset (UP_symbol);
-        //U_poolReset (UP_strings); // FIXME: remove string pool
         U_poolReset (UP_link);
 
         //E_deInit();
