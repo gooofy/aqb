@@ -16,7 +16,7 @@ extern struct DOSBase       *DOSBase;
 static char g_pref_fn[PATH_MAX];
 static int  g_pref_colorscheme  = 0;
 static int  g_opt               = DEFAULT_OPTS;
-static bool g_changed           = FALSE;
+static bool g_changed           = false;
 
 void OPT_set(int opt, bool onoff)
 {
@@ -34,7 +34,7 @@ bool OPT_get(int opt)
 void OPT_reset (void)
 {
     g_opt = DEFAULT_OPTS;
-    g_changed = TRUE;
+    g_changed = true;
 }
 
 int OPT_prefGetInt (int pref)
@@ -45,8 +45,8 @@ int OPT_prefGetInt (int pref)
             return g_pref_colorscheme;
     }
 
-    assert(FALSE);
-    return FALSE;
+    assert(false);
+    return false;
 }
 
 void OPT_prefSetInt (int pref, int i)
@@ -57,9 +57,9 @@ void OPT_prefSetInt (int pref, int i)
             g_pref_colorscheme = i;
             break;
         default:
-            assert(FALSE);
+            assert(false);
     }
-    g_changed = TRUE;
+    g_changed = true;
 }
 
 string OPT_default_module = OPT_DEFAULT_MODULE;

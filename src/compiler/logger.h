@@ -7,10 +7,10 @@
 #define LOG_INFO   1
 #define LOG_ERROR  2
 
-//#define LOG_LEVEL LOG_DEBUG
-#define LOG_LEVEL LOG_INFO
+#define LOG_LEVEL LOG_DEBUG
+//#define LOG_LEVEL LOG_INFO
 
-#define LOG_FILENAME "aqb.log"
+#define LOG_FILENAME "acs.log"
 
 typedef void (*LOG_cb_t)(uint8_t lvl, char *fmt, ...);
 extern LOG_cb_t LOG_cb;

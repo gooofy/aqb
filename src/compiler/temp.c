@@ -120,20 +120,20 @@ bool Temp_tempSetContains(Temp_tempSet ts, Temp_temp t)
     for (; ts; ts=ts->tail)
     {
         if (ts->temp == t)
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 Temp_tempSet Temp_tempSetAdd (Temp_tempSet ts, Temp_temp t, bool *bAdded)
 {
     if (Temp_tempSetContains (ts, t))
     {
-        *bAdded = FALSE;
+        *bAdded = false;
         return ts;
     }
 
-    *bAdded = TRUE;
+    *bAdded = true;
     return Temp_TempSet (t, ts);
 }
 

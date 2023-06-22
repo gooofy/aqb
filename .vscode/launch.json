@@ -146,13 +146,13 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "_brt",
+            "name": "_urt",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/x86_64-linux/bin/aqb",
-            "args": ["-d", "none", "-s", "_brt.sym", "_brt.bas"],
+            "program": "${workspaceFolder}/target/x86_64-linux/bin/acs",
+            "args": ["-d", "none", "-s", "_urt.sym", "_urt.cs"],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/src/lib/_brt",
+            "cwd": "${workspaceFolder}/src/lib/_urt",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

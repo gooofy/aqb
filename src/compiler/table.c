@@ -59,7 +59,7 @@ bool TAB_next(TAB_iter iter, void **key, void **value)
             }
         }
         if (!iter->nextb)
-            return FALSE;
+            return false;
     }
 
     assert(iter->nextb);
@@ -68,7 +68,7 @@ bool TAB_next(TAB_iter iter, void **key, void **value)
     *value = iter->nextb->value;
 
     iter->nextb = iter->nextb->next;
-    return TRUE;
+    return true;
 }
 
 static binder Binder(U_poolId pid, void *key, void *value, binder next)

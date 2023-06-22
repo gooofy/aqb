@@ -1,3 +1,5 @@
+#define ENABLE_DEBUG
+
 #include <ctype.h>
 #include <stdint.h>
 #include <math.h>
@@ -7,126 +9,82 @@
 #include "errormsg.h"
 #include "options.h"
 #include "symbol.h"
+#include "logger.h"
 
-#define MAX_TOKENS      256
-#define MAX_STRINGS      16
-#define MAX_STRING_LEN 1024
+S_tkn_t S_tkn;
 
-static nextch_cb_t   g_cb = NULL;
-static void         *g_user_data = NULL;
+static FILE         *g_sourcef;
 
 static char          g_ch;
-static bool          g_eof = TRUE;
-static int           g_line, g_col;
-static bool          g_eol = FALSE;
-static S_pos         g_pos = 0;
-
-static struct S_tkn_ g_tkns[MAX_TOKENS];
-static int           g_tkns_i=0;
-static char          g_strings[MAX_STRINGS][MAX_STRING_LEN];
-static int           g_strings_i=0;
-
-static S_symbol      g_sym_rem;
+static bool          g_eof = true;
+static uint16_t      g_line, g_col;
+static bool          g_eol = false;
+static char          g_str[MAX_LINE_LEN];
 
 static char          g_cur_line[MAX_LINE_LEN];
-static int           g_cur_line_num;
-static bool          g_filter_comments;
 
-static bool          g_keep_source;
-static U_poolId      g_pid;
 static TAB_table     g_src;     // line number -> string
 
 static void remember_pos(void)
 {
-    g_pos = (g_col << 16) | g_line;
+    S_tkn.pos.col  = g_col;
+    S_tkn.pos.line = g_line;
 }
 
-int S_getcol(S_pos pos)
+#ifdef ENABLE_DEBUG
+static void _print_token(void)
 {
-    return pos >> 16;
-}
-int S_getline(S_pos pos)
-{
-    return pos & 0xffff;
-}
-
-static S_tkn S_Tkn(int kind)
-{
-    if (g_tkns_i>=MAX_TOKENS)
+    switch (S_tkn.kind)
     {
-        assert(FALSE);
-        return NULL;
-    }
-
-    S_tkn p = &g_tkns[g_tkns_i];
-    g_tkns_i++;
-
-    p->next = NULL;
-    p->pos  = g_pos;
-    p->kind = kind;
-
-    return p;
-}
-
-static void print_tkn(S_tkn tkn)
-{
-    switch (tkn->kind)
-    {
-        case S_ERRTKN:     printf("[ERR]");       break;
-        case S_EOL:        printf("[EOL]");       break;
-        case S_LCOMMENT:   printf("[LCOMMENT %s]", tkn->u.str); break;
-        case S_RCOMMENT:   printf("[RCOMMENT %s]", tkn->u.str); break;
-        case S_IDENT:      printf("[IDENT %s]",  S_name(tkn->u.sym)); break;
-        case S_STRING:     printf("[STRING %s]", tkn->u.str);         break;
-        case S_COLON:      printf("[COLON]");     break;
-        case S_SEMICOLON:  printf("[SEMICOLON]"); break;
-        case S_COMMA:      printf("[COMMA]");     break;
-        case S_INUM:       printf("[INUM %d]", tkn->u.literal.inum);  break;
-        case S_FNUM:       printf("[FNUM %f]", tkn->u.literal.fnum);  break;
-        case S_MINUS:      printf("[MINUS]");     break;
-        case S_LPAREN:     printf("[LPAREN]");    break;
-        case S_RPAREN:     printf("[RPAREN]");    break;
-        case S_EQUALS:     printf("[EQUALS]");    break;
-        case S_EXP:        printf("[EXP]");       break;
-        case S_ASTERISK:   printf("[ASTERISK]");  break;
-        case S_SLASH:      printf("[SLASH]");     break;
-        case S_BACKSLASH:  printf("[BACKSLASH]"); break;
-        case S_PLUS:       printf("[PLUS]");      break;
-        case S_GREATER:    printf("[GREATER]");   break;
-        case S_LESS:       printf("[LESS]");      break;
-        case S_HASH:       printf("[HASH]");      break;
-        case S_NOTEQ:      printf("[NOTEQ]");     break;
-        case S_LESSEQ:     printf("[LESSEQ]");    break;
-        case S_GREATEREQ:  printf("[GREATEREQ]"); break;
-        case S_POINTER:    printf("[POINTER]");   break;
-        case S_PERIOD:     printf("[PERIOD]");    break;
-        case S_AT:         printf("[AT]");        break;
-        case S_LBRACKET:   printf("[LBRACKET]");  break;
-        case S_RBRACKET:   printf("[RBRACKET]");  break;
-        case S_TRIPLEDOTS: printf("[TRIPLEDOTS]");break;
+        case S_IDENT    : LOG_printf(LOG_DEBUG, "[IDENT %s]",  S_name(S_tkn.u.sym)); break;
+        case S_STRING   : LOG_printf(LOG_DEBUG, "[STRING %s]", S_tkn.u.str); break;
+        case S_EOF      : LOG_printf(LOG_DEBUG, "[EOF]"); break;
+        case S_PERIOD   : LOG_printf(LOG_DEBUG, "."); break;
+        case S_LBRACE   : LOG_printf(LOG_DEBUG, "{"); break;
+        case S_RBRACE   : LOG_printf(LOG_DEBUG, "}"); break;
+        case S_SEMICOLON: LOG_printf(LOG_DEBUG, ";"); break;
+        case S_COLON    : LOG_printf(LOG_DEBUG, ":"); break;
+        case S_COMMA    : LOG_printf(LOG_DEBUG, ","); break;
+        case S_ASTERISK : LOG_printf(LOG_DEBUG, "*"); break;
+        case S_LESS     : LOG_printf(LOG_DEBUG, "<"); break;
+        case S_LBRACKET : LOG_printf(LOG_DEBUG, "["); break;
+        case S_RBRACKET : LOG_printf(LOG_DEBUG, "]"); break;
+        case S_LPAREN   : LOG_printf(LOG_DEBUG, "("); break;
+        case S_RPAREN   : LOG_printf(LOG_DEBUG, ")"); break;
     }
 }
-static void print_tkns(S_tkn tkn)
+#else
+static inline void _print_token(void)
 {
-    printf("\n      TOKENS: ");
-    while (tkn)
-    {
-        print_tkn(tkn);
-        tkn = tkn->next;
-        if (tkn)
-            printf(" ");
-    }
-    printf("\n");
+}
+#endif
+
+//static void print_tkns(S_tkn tkn)
+//{
+//    printf("\n      TOKENS: ");
+//    while (tkn)
+//    {
+//        print_tkn(tkn);
+//        tkn = tkn->next;
+//        if (tkn)
+//            printf(" ");
+//    }
+//    printf("\n");
+//}
+
+static bool nextch (void)
+{
+    int n = fread(&g_ch, 1, 1, g_sourcef);
+    return n==1;
 }
 
 static void getch(void)
 {
     if (g_eol)
     {
-        g_eol = FALSE;
+        g_eol = false;
         g_col = 1;
-        if (g_keep_source)
-            TAB_enter (g_src, (void *) (long) g_line, String(g_pid, g_cur_line));
+        TAB_enter (g_src, (void *) (long) g_line, String(UP_frontend, g_cur_line));
         g_line++;
     }
     else
@@ -134,12 +92,12 @@ static void getch(void)
         g_col++;
     }
 
-    g_eof = !g_cb(&g_ch, g_user_data);
+    g_eof = !nextch();
     if (!g_eof)
     {
         if (g_ch == '\n')
         {
-            g_eol = TRUE;
+            g_eol = true;
         }
         else
         {
@@ -148,22 +106,11 @@ static void getch(void)
                 g_cur_line[g_col-1] = g_ch;
                 g_cur_line[g_col]   = 0;
             }
-            if (g_col==1)
-                g_cur_line_num = g_line;
         }
     }
 }
 
-char *S_getcurline(void)
-{
-    return g_cur_line;
-}
-
-int S_getcurlinenum(void)
-{
-    return g_cur_line_num;
-}
-
+#if 0
 static bool get_digit(int *digit, int base)
 {
     char ch = toupper(g_ch);
@@ -175,15 +122,18 @@ static bool get_digit(int *digit, int base)
         if ((ch>='A') && (ch<='F'))
             d = ch-'A'+10;
         else
-            return FALSE;
+            return false;
     if (d>=base)
-        return FALSE;
+        return false;
     *digit = d;
-    return TRUE;
+    return true;
 }
+#endif
 
-static S_tkn number(int base, S_tkn tkn, bool dp)
+#if 0
+static void number(int base, bool dp)
 {
+    assert(false);
     int    d;
     if (!tkn)
         tkn = S_Tkn(S_INUM);
@@ -222,7 +172,7 @@ static S_tkn number(int base, S_tkn tkn, bool dp)
         }
         if ( (g_ch == 'e') || (g_ch == 'E') )
         {
-            bool negative = FALSE;
+            bool negative = false;
             if (tkn->kind == S_INUM)
             {
                 tkn->kind = S_FNUM;
@@ -231,7 +181,7 @@ static S_tkn number(int base, S_tkn tkn, bool dp)
             getch();
             if (g_ch=='-')
             {
-                negative = TRUE;
+                negative = true;
                 getch();
             }
             else
@@ -286,414 +236,165 @@ static S_tkn number(int base, S_tkn tkn, bool dp)
 
     return tkn;
 }
+#endif
 
-static S_tkn handle_comment(bool line_comment)
+#if 0
+static void handle_comment(bool line_comment)
 {
-    if (g_filter_comments)
-    {
-        // printf ("skipping comment:\n");
-        while (!g_eof && (g_ch != '\n'))
-        {
-            // printf ("%c", g_ch);
-            getch();
-        }
-        // printf ("\ncomment done. eof: %d\n", g_eof);
-        return NULL;
-    }
-
-    if (g_strings_i >= MAX_STRINGS)
-        return NULL;
-
-    char *str = g_strings[g_strings_i];
-    int l = 0;
-    S_tkn tkn = S_Tkn(line_comment ? S_LCOMMENT: S_RCOMMENT);
+    // printf ("skipping comment:\n");
     while (!g_eof && (g_ch != '\n'))
     {
-        str[l] = g_ch;
-        l++;
+        // printf ("%c", g_ch);
         getch();
     }
-    str[l] = '\0';
-    tkn->u.str = str;
-
-    return tkn;
+    // printf ("\ncomment done. eof: %d\n", g_eof);
 }
+#endif
 
 
-static S_tkn ident(char ch)
+static void identifier(void)
 {
     int l = 0;
 
-    if (g_strings_i >= MAX_STRINGS)
-        return NULL;
-    char *str = g_strings[g_strings_i];
+    S_tkn.kind = S_IDENT;
 
-    S_tkn tkn = S_Tkn(S_IDENT);
-
-    str[l] = ch;
-    l++;
-    while (S_isIDCont(g_ch) && !g_eof)
+    while (true)
     {
-        str[l] = g_ch;
+        g_str[l] = g_ch;
         l++;
         getch();
-    }
-
-    // type marker?
-    switch (g_ch)
-    {
-        case '%':
-        case '&':
-        case '!':
-        case '#':
-        case '$':
-            str[l] = g_ch;
-            l++;
-            getch();
+        if (!S_isIDCont(g_ch) || g_eof)
             break;
     }
-    str[l] = '\0';
 
-    tkn->u.sym = S_Symbol(str);
+    g_str[l] = '\0';
 
-    return tkn;
+    S_tkn.u.sym = S_Symbol(g_str);
 }
 
-static S_tkn next_token(void)
+bool S_nextToken (void)
 {
-    while (TRUE)
+    while (true)
     {
-        // skip whitespace, line continuations
-        while ((S_isWhitespace(g_ch) || g_ch=='_') && !g_eof)
-        {
-            if (g_ch=='_')
-            {
-                getch();
-                if (g_ch == '\r')
-                    getch();
-                if (g_ch == '\n')
-                    getch();
-                else
-                    return ident('_');
-            }
-            else
-            {
-                getch();
-            }
-        }
-
-        // handle line comments
-        if (!g_eof && (g_ch == '\''))
+        // skip whitespace
+        while (S_isWhitespace(g_ch) && !g_eof)
         {
             getch();
-            S_tkn tkn = handle_comment(/*line_comment=*/TRUE);
-            if (!g_filter_comments)
-                return tkn;
         }
 
         if (g_eof)
-            return NULL;
+        {
+            S_tkn.kind = S_EOF;
+            return false;
+        }
+
+        // handle comments
+        //if (!g_eof && (g_ch == '/'))
+        //{
+        //    getch();
+        //    assert(false); // FIXME: implement
+        //    //handle_comment(/*line_comment=*/true);
+        //}
+
+        //if (g_eof)
+        //    return false;
 
         remember_pos();
 
         if (S_isIDStart(g_ch))
         {
-            char ch = g_ch; getch();
-            S_tkn tkn = ident(ch);
-            if (tkn->u.sym == g_sym_rem)
-            {
-                S_tkn tkn = handle_comment(/*line_comment=*/FALSE);
-                if (!g_filter_comments)
-                    return tkn;
-                if (g_eof)
-                    return NULL;
-                g_tkns_i--;
-                continue;
-            }
-            else
-            {
-                return tkn;
-            }
-        }
-        if (S_isDigit(g_ch))
-        {
-            return number (10, NULL, /*dp=*/FALSE);
-        }
-
-        S_tkn tkn;
-
-        switch (g_ch)
-        {
-            case '"':
-            {
-                if (g_strings_i >= MAX_STRINGS)
-                    return NULL;
-                char *str = g_strings[g_strings_i];
-                g_strings_i++;
-                int l = 0;
-
-                tkn = S_Tkn(S_STRING);
-                tkn->u.str = str;
-                getch();
-
-                while ( (g_ch != '"') && !g_eof )
-                {
-                    str[l] = g_ch;
-                    l++;
-                    getch();
-                }
-                if (g_ch == '"')
-                    getch();
-                str[l] = '\0';
-                break;
-            }
-            case '\n':
-                tkn = S_Tkn(S_EOL);
-                getch();
-                break;
-            case ':':
-                tkn = S_Tkn(S_COLON);
-                getch();
-                break;
-            case ';':
-                tkn = S_Tkn(S_SEMICOLON);
-                getch();
-                break;
-            case ',':
-                tkn = S_Tkn(S_COMMA);
-                getch();
-                break;
-            case '(':
-                tkn = S_Tkn(S_LPAREN);
-                getch();
-                break;
-            case ')':
-                tkn = S_Tkn(S_RPAREN);
-                getch();
-                break;
-            case '[':
-                tkn = S_Tkn(S_LBRACKET);
-                getch();
-                break;
-            case ']':
-                tkn = S_Tkn(S_RBRACKET);
-                getch();
-                break;
-            case '=':
-                tkn = S_Tkn(S_EQUALS);
-                getch();
-                break;
-            case '@':
-                tkn = S_Tkn(S_AT);
-                getch();
-                break;
-            case '-':
-                tkn = S_Tkn(S_MINUS);
-                getch();
-                if (g_ch == '>')
-                {
-                    tkn->kind = S_POINTER;
-                    getch();
-                }
-                break;
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                return number(10, NULL, /*dp=*/FALSE);
-
-            case '&':   // binary, octal and hex literals
-                tkn = S_Tkn(S_INUM);
-                getch();
-                switch (g_ch)
-                {
-                    case 'b':
-                    case 'B':
-                        getch();
-                        number(2, tkn, /*dp=*/FALSE);
-                        break;
-                    case 'o':
-                    case 'O':
-                        getch();
-                        number(8, tkn, /*dp=*/FALSE);
-                        break;
-                    case 'h':
-                    case 'H':
-                        getch();
-                        number(16, tkn, /*dp=*/FALSE);
-                        break;
-                    default:
-                        EM_error(tkn->pos, "lexer error: invalid literal type character");
-                        getch();
-                        number(10, tkn, /*dp=*/FALSE);
-                        break;
-                }
-                break;
-            case '^':
-                tkn = S_Tkn(S_EXP);
-                getch();
-                break;
-            case '*':
-                tkn = S_Tkn(S_ASTERISK);
-                getch();
-                break;
-            case '/':
-                tkn = S_Tkn(S_SLASH);
-                getch();
-                break;
-            case '\\':
-                tkn = S_Tkn(S_BACKSLASH);
-                getch();
-                break;
-            case '+':
-                tkn = S_Tkn(S_PLUS);
-                getch();
-                break;
-            case '.':
-                tkn = S_Tkn(S_PERIOD);
-                getch();
-                if (S_isDigit(g_ch))
-                    return number(10, NULL, /*dp=*/TRUE);
-                if (g_ch == '.')
-                {
-                    getch();
-                    if (g_ch == '.')
-                    {
-                        tkn = S_Tkn(S_TRIPLEDOTS);
-                        getch();
-                    }
-                    else
-                    {
-                        tkn = S_Tkn(S_ERRTKN);
-                    }
-                }
-                break;
-            case '>':
-                tkn = S_Tkn(S_GREATER);
-                getch();
-                if (g_ch == '=')
-                {
-                    tkn->kind = S_GREATEREQ;
-                    getch();
-                }
-                break;
-            case '<':
-                tkn = S_Tkn(S_LESS);
-                getch();
-                if (g_ch == '=')
-                {
-                    tkn->kind = S_LESSEQ;
-                    getch();
-                }
-                else
-                {
-                    if (g_ch == '>')
-                    {
-                        tkn->kind = S_NOTEQ;
-                        getch();
-                    }
-                }
-                break;
-            case '#':
-                tkn = S_Tkn(S_HASH);
-                getch();
-                break;
-            default:
-                tkn = S_Tkn(S_ERRTKN);
-                getch();
-        }
-
-        return tkn;
-    }
-}
-
-
-S_tkn S_nextline(void)
-{
-    if (g_eof)
-        return NULL;
-
-    S_tkn first_tkn=NULL, last_tkn=NULL;
-    g_tkns_i    = 0;
-    g_strings_i = 0;
-
-    while (TRUE)
-    {
-        S_tkn tkn = next_token();
-
-        if (!tkn)
-        {
-            if (!first_tkn)
-                return NULL;
-            tkn = S_Tkn(S_EOL);
+            identifier();
+            goto done;
         }
         else
         {
-            if ((tkn->kind == S_EOL) && !first_tkn)
+            switch (g_ch)
             {
-                g_tkns_i    = 0;
-                continue;
+                case '.':
+                    getch();
+                    S_tkn.kind = S_PERIOD;
+                    goto done;
+                case '{':
+                    getch();
+                    S_tkn.kind = S_LBRACE;
+                    goto done;
+                case '}':
+                    getch();
+                    S_tkn.kind = S_RBRACE;
+                    goto done;
+                case '(':
+                    getch();
+                    S_tkn.kind = S_LPAREN;
+                    goto done;
+                case ')':
+                    getch();
+                    S_tkn.kind = S_RPAREN;
+                    goto done;
+                case '[':
+                    getch();
+                    S_tkn.kind = S_LBRACKET;
+                    goto done;
+                case ']':
+                    getch();
+                    S_tkn.kind = S_RBRACKET;
+                    goto done;
+                case ';':
+                    getch();
+                    S_tkn.kind = S_SEMICOLON;
+                    goto done;
+                case ':':
+                    getch();
+                    S_tkn.kind = S_COLON;
+                    goto done;
+                case ',':
+                    getch();
+                    S_tkn.kind = S_COMMA;
+                    goto done;
+                case '*':
+                    getch();
+                    S_tkn.kind = S_ASTERISK;
+                    goto done;
+                case '<':
+                    getch();
+                    S_tkn.kind = S_LESS;
+                    goto done;
+                default:
+                    LOG_printf (LOG_ERROR, "lexer error: invalid char '%c' (0x%02x)\n", g_ch, g_ch);
+                    assert(false); // FIXME
             }
         }
-
-        if (last_tkn)
-        {
-            last_tkn->next = tkn;
-            last_tkn = tkn;
-        }
-        else
-        {
-            first_tkn = last_tkn = tkn;
-        }
-
-        if ((tkn->kind == S_EOL) || (tkn->kind == S_COLON))
-        {
-            break;
-        }
     }
 
-    if (OPT_get(OPTION_VERBOSE))
-    {
-        if (g_keep_source)
-            printf ("%5d %s", g_line-1, S_getSourceLine(g_line-1));
-        print_tkns(first_tkn);
-    }
+done:
+    _print_token();
 
-    return first_tkn;
+    return true;
 }
 
-void S_init(U_poolId pid, bool keep_source, nextch_cb_t cb, void *user_data, bool filter_comments)
+void S_init(FILE *sourcef)
 {
-    g_pid             = pid;
-    g_keep_source     = keep_source;
-    if (g_keep_source)
-        g_src         = TAB_empty(pid);
-    g_sym_rem = S_Symbol("REM");
+    g_src             = TAB_empty(UP_frontend);
 
-    g_cb              = cb;
-    g_user_data       = user_data;
-    g_eof             = FALSE;
-    g_eol             = FALSE;
+    g_sourcef         = sourcef;
+    g_eof             = false;
+    g_eol             = false;
     g_line            = 1;
     g_col             = 0;
 
     g_cur_line[0]     = 0;
-    g_cur_line_num    = 0;
-    g_filter_comments = filter_comments;
 
     getch();
+    S_nextToken();
 }
 
 string  S_getSourceLine (int line)
 {
     if (!line)
         return "";
+    if (line == g_line)
+        return g_cur_line;
+
     string s = TAB_look (g_src, (void*) (long) line);
     return s ? s : "";
 }
+

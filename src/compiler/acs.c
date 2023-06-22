@@ -1,5 +1,5 @@
 /*
- * AQB: AmigaQuickBasic
+ * ACS: Amiga C#
  *
  * Licensed under the MIT License
  *
@@ -55,24 +55,23 @@ extern struct DOSBase       *DOSBase;
 
 #endif
 
-#include "frontend.h"
+#include "parser.h"
 #include "errormsg.h"
-#include "codegen.h"
+//#include "codegen.h"
 #include "options.h"
-#include "env.h"
-#include "link.h"
-#include "ide.h"
+//#include "env.h"
+//#include "link.h"
 #include "compiler.h"
 #include "logger.h"
 
 char aqb_home[PATH_MAX];
 char aqb_lib[PATH_MAX];
 char aqb_help[PATH_MAX];
-bool aqb_wbstart = FALSE;
+bool aqb_wbstart = false;
 
 static void print_usage(char *argv[])
 {
-	fprintf(stderr, "usage: %s [ options ] <program.bas>\n", argv[0]);
+	fprintf(stderr, "usage: %s [ options ] <program.cs>\n", argv[0]);
     fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
 	fprintf(stderr, "    -L <dir>     look in <dir> for modules\n");
 	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
@@ -193,10 +192,9 @@ int main (int argc, char *argv[])
 	string sourcefn = NULL;
     string module_name = NULL;
     int    optind;
-    bool   launch_ide = TRUE;
-    bool   hasCode = TRUE;
-    bool   noInitFn = FALSE;
-    bool   gcScanExtern = FALSE;
+    bool   hasCode = true;
+    bool   noInitFn = false;
+    bool   gcScanExtern = false;
     string symfn=NULL;
     string cstubfn=NULL;
     string objfn=NULL;
@@ -230,8 +228,8 @@ int main (int argc, char *argv[])
 
     U_init();
     SYM_init();
-    FE_boot();
-    E_boot();
+    PA_boot();
+    // FIXME E_boot();
     OPT_init();
 
     OPT_addModulePath(aqb_lib);
@@ -259,13 +257,13 @@ int main (int argc, char *argv[])
                 OPT_addModulePath(argv[optind]);
 				break;
         	case 'I':
-				hasCode = FALSE;
+				hasCode = false;
 				break;
         	case 'N':
-				noInitFn = TRUE;
+				noInitFn = true;
 				break;
         	case 'E':
-				gcScanExtern = TRUE;
+				gcScanExtern = true;
 				break;
         	case 'a':
                 optind++;
@@ -275,7 +273,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 asm_gas_fn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 'A':
                 optind++;
@@ -285,7 +282,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 asm_asmpro_fn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 'B':
                 optind++;
@@ -295,7 +291,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 asm_vasm_fn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 's':
                 optind++;
@@ -305,7 +300,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 symfn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 'S':
                 optind++;
@@ -315,7 +309,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 cstubfn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 'o':
                 optind++;
@@ -325,7 +318,6 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 binfn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 'p':
                 optind++;
@@ -335,10 +327,9 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 objfn = argv[optind];
-                launch_ide = FALSE;
 				break;
         	case 'v':
-				OPT_set(OPTION_VERBOSE, TRUE);
+				OPT_set(OPTION_VERBOSE, true);
 				break;
         	case 'V':
                 fprintf (stderr, PROGRAM_NAME_SHORT " " VERSION " " COPYRIGHT "\n" LICENSE "\n");
@@ -353,7 +344,7 @@ int main (int argc, char *argv[])
 #ifdef __amigaos__
     if (argc == 0)  // workbench launch
     {
-        aqb_wbstart = TRUE;
+        aqb_wbstart = true;
         struct WBStartup *wb_msg = (struct WBStartup *) argv;
 		struct WBArg *wbarg = wb_msg->sm_ArgList;
         for (uint16_t i=0; i < wb_msg->sm_NumArgs; i++, wbarg++)
@@ -383,11 +374,8 @@ int main (int argc, char *argv[])
     {
         if (argc == optind)
         {
-            if (!launch_ide)
-            {
-                print_usage(argv);
-                exit(EXIT_FAILURE);
-            }
+            print_usage(argv);
+            exit(EXIT_FAILURE);
         }
         else
         {
@@ -404,11 +392,8 @@ int main (int argc, char *argv[])
 
     if (argc==optind)
     {
-        if (!launch_ide)
-        {
-            print_usage(argv);
-            exit(EXIT_FAILURE);
-        }
+        print_usage(argv);
+        exit(EXIT_FAILURE);
     }
     else
     {
@@ -421,13 +406,6 @@ int main (int argc, char *argv[])
     }
 #endif
 
-    // run interactive IDE ? (experimental)
-    if (launch_ide)
-    {
-        IDE_open(sourcefn);
-        exit(0);
-    }
-
     /* filename.bas -> module name, module search path */
     {
         int l = strlen(sourcefn);
@@ -436,11 +414,11 @@ int main (int argc, char *argv[])
         if (l<4)
             l = 4;
 
-        module_name = basename(String(UP_env, sourcefn));
+        module_name = basename(String(UP_ir, sourcefn));
         l = strlen(module_name);
         module_name[l-4] = 0;
 
-        OPT_addModulePath(dirname(String(UP_env, sourcefn)));
+        OPT_addModulePath(dirname(String(UP_ir, sourcefn)));
     }
 
     // run compiler from commandline

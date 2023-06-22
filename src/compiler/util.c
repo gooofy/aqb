@@ -68,8 +68,8 @@ struct U_memRec_
     void      *mem;
 };
 
-static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "ENV", "FLOWGRAPH", "LINSCAN", "SYMBOL",
-                                                "REGALLOC", "LIVENESS", "LINK", "IDE", "OPTIONS", "RUN_CHILD" };
+static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "IR", "LINSCAN", "SYMBOL",
+                                                "LINK", "IDE", "OPTIONS", "RUN_CHILD" };
 static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
 static float      g_start_time;
 
@@ -238,7 +238,7 @@ static void U_poolFree (U_poolId pid, bool destroy)
 
 void U_poolReset (U_poolId pid)
 {
-    U_poolFree(pid, /*destroy=*/FALSE);
+    U_poolFree(pid, /*destroy=*/false);
 
 #ifndef MEM_PROFILING
     U_memPool pool = g_pools[pid];
@@ -392,13 +392,13 @@ bool str2int(string str, int *i)
     assert (str);
     int res = 0;
     char *c = str;
-    bool negative = FALSE;
-    bool first = TRUE;
+    bool negative = false;
+    bool first = true;
     while (*c)
     {
         if (first && (*c=='-'))
         {
-            negative = TRUE;
+            negative = true;
             c++;
             continue;
         }
@@ -420,14 +420,14 @@ bool str2int(string str, int *i)
             case '\n':
                 break;
             default:
-                return FALSE;
+                return false;
         }
         c++;
     }
     if (negative)
         res *= -1;
     *i = res;
-    return TRUE;
+    return true;
 }
 
 
@@ -639,7 +639,7 @@ bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ..
     char *s = buf;
     char *c = buf;
     uint16_t i=0;
-    bool finished = FALSE;
+    bool finished = false;
     while (!finished && (i<MAX_BODY_LINES))
     {
         if ( (*c=='\n') || (*c==0) )
@@ -668,7 +668,7 @@ bool U_request (struct Window *win, char *posTxt, char *negTxt, char* format, ..
         }
     }
 
-    bool res = FALSE;
+    bool res = false;
 
     itNeg.IText  = (STRPTR) negTxt;
     itPos.IText  = (STRPTR) posTxt;
@@ -684,7 +684,7 @@ void U_deinit (void)
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit.\n");
     for (int i=0; i<UP_numPools; i++)
     {
-        U_poolFree(i, /*destroy=*/TRUE);
+        U_poolFree(i, /*destroy=*/true);
     }
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "U_deinit done.\n");
     //U_delay(1000);

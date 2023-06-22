@@ -12,10 +12,10 @@
 
 #include "util.h"
 #include "errormsg.h"
-#include "frontend.h"
+#include "parser.h"
 #include "logger.h"
 
-static bool enable_ansi=FALSE;
+static bool enable_ansi=false;
 
 #ifdef __amigaos__
 
@@ -33,7 +33,7 @@ static bool enable_ansi=FALSE;
 
 #define MAX_ERROR_LEN 1024
 
-bool     EM_anyErrors = FALSE;
+bool     EM_anyErrors = false;
 char     EM_firstError[MAX_ERROR_LEN];
 uint16_t EM_firstErrorLine;
 uint16_t EM_firstErrorCol;
@@ -45,8 +45,8 @@ bool EM_error(S_pos pos, char *message,...)
 
     if (enable_ansi)
         LOG_printf(LOG_ERROR, ANSI_BOLD);
-    if (FE_filename) LOG_printf(LOG_ERROR, "%s:", FE_filename);
-    LOG_printf(LOG_ERROR, "%d:%d: ", S_getline(pos), S_getcol(pos));
+    if (PA_filename) LOG_printf(LOG_ERROR, "%s:", PA_filename);
+    LOG_printf(LOG_ERROR, "%d:%d: ", pos.line, pos.col);
     if (enable_ansi)
         LOG_printf(LOG_ERROR, ANSI_COLOR_ERROR);
     LOG_printf(LOG_ERROR, "error: ");
@@ -57,24 +57,21 @@ bool EM_error(S_pos pos, char *message,...)
     va_end(ap);
     LOG_printf(LOG_ERROR, "%s\n", buf);
 
-    if (S_getcurlinenum() == S_getline(pos))
-    {
-        LOG_printf(LOG_ERROR,  "    %s\n    ", S_getcurline());
-        for (int i=1; i<S_getcol(pos); i++)
-            LOG_printf(LOG_ERROR,  " ");
-        LOG_printf(LOG_ERROR,  "^\n");
-    }
+    LOG_printf(LOG_ERROR,  "    %s\n    ", S_getSourceLine(pos.line));
+    for (int i=1; i<pos.col; i++)
+        LOG_printf(LOG_ERROR,  " ");
+    LOG_printf(LOG_ERROR,  "^\n");
 
     if (!EM_anyErrors)
     {
-        EM_firstErrorLine = S_getline(pos);
-        EM_firstErrorCol  = S_getcol(pos);
+        EM_firstErrorLine = pos.line;
+        EM_firstErrorCol  = pos.col;
         strncpy (EM_firstError, buf, MAX_ERROR_LEN);
     }
 
-    EM_anyErrors=TRUE;
+    EM_anyErrors=true;
 
-    return FALSE;
+    return false;
 }
 
 string EM_format(S_pos pos, char *message,...)
@@ -86,16 +83,16 @@ string EM_format(S_pos pos, char *message,...)
     vsnprintf(buf, MAX_ERROR_LEN, message, ap);
     va_end(ap);
 
-    if (FE_filename)
-        return strprintf(UP_frontend, "%s:%d:%d: %s", FE_filename, S_getline(pos), S_getcol(pos), buf);
-    return strprintf(UP_frontend, "%d:%d: %s", S_getline(pos), S_getcol(pos), buf);
+    if (PA_filename)
+        return strprintf(UP_frontend, "%s:%d:%d: %s", PA_filename, pos.line, pos.col, buf);
+    return strprintf(UP_frontend, "%d:%d: %s", pos.line, pos.col, buf);
 }
 
 void EM_init(void)
 {
-    EM_anyErrors = FALSE;
+    EM_anyErrors = false;
 #ifdef __amigaos__
-    enable_ansi = TRUE;
+    enable_ansi = true;
 #else
     enable_ansi = isatty(fileno(stdout));
 #endif

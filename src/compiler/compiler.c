@@ -6,13 +6,13 @@
 #include <setjmp.h>
 
 #include "compiler.h"
-#include "codegen.h"
-#include "env.h"
-#include "frontend.h"
-#include "linscan.h"
+//#include "codegen.h"
+//#include "env.h"
+#include "parser.h"
+//#include "linscan.h"
 #include "errormsg.h"
 #include "options.h"
-#include "link.h"
+//#include "link.h"
 #include "logger.h"
 
 #ifdef __amigaos__
@@ -40,7 +40,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
                string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode, bool noInitFn,
                bool gcScanExtern)
 {
-    static CG_fragList     frags;
+    //static CG_fragList     frags;
 	static FILE           *sourcef;
 
     float startTime = U_getTime();
@@ -53,30 +53,26 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
 
     // init environment
 
-    Temp_init();
-    Ty_init();
+    //Temp_init();
+    //Ty_init();
     EM_init();
-    FE_init();
+    PA_init();
 
-    AS_init();
-    CG_init(module_name);
-    E_init();
+    //AS_init();
+    //CG_init(module_name);
+    //E_init();
 
     if (setjmp(g_exit_jmp_buf))
     {
-        U_poolReset (UP_env);
+        U_poolReset (UP_ir);
         U_poolReset (UP_codegen);
         U_poolReset (UP_assem);
         U_poolReset (UP_frontend);
         U_poolReset (UP_types);
 
         U_poolReset (UP_temp);
-        U_poolReset (UP_flowgraph);
         U_poolReset (UP_linscan);
         //U_poolReset (UP_symbol);
-        U_poolReset (UP_regalloc);
-        U_poolReset (UP_liveness);
-        //U_poolReset (UP_strings); // FIXME: remove string pool
         U_poolReset (UP_link);
 
         //E_deInit();
@@ -106,7 +102,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
 		CO_exit(EXIT_FAILURE);
 	}
 
-	frags = FE_sourceProgram(sourcef, sourcefn, /*is_main=*/!symfn, module_name, noInitFn, gcScanExtern);
+	PA_compilation_unit(sourcef, sourcefn);
 	fclose(sourcef);
 
     if (EM_anyErrors)
@@ -118,6 +114,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nsemantics worked.\n");
     U_memstat();
 
+#if 0
     /*
      * generate symbol file
      */
@@ -435,6 +432,7 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
     }
 
     LI_segmentListWriteLoadFile (sl, binfn);
+#endif
 
     float endTime = U_getTime();
     LOG_printf (LOG_INFO, "\ncompilation finished, took %ds.\n", (int)(endTime-startTime));

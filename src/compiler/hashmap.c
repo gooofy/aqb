@@ -155,7 +155,11 @@ static unsigned long crc32(const unsigned char *s, unsigned int len)
     crc32val = 0;
     for (i = 0;  i < len;  i ++)
     {
+#ifdef HASHMAP_CASE_SENSITIVE
+        char c = s[i];
+#else
         char c = tolower(s[i]);
+#endif
         crc32val = crc32_tab[(crc32val ^ c) & 0xff] ^ (crc32val >> 8);
     }
     return crc32val;
@@ -252,7 +256,7 @@ int hashmap_rehash(map_t in)
         if (!old_data[i].key)
             continue;
 
-		status = hashmap_put(m, old_data[i].key, old_data[i].data, /*copy_key=*/FALSE);
+		status = hashmap_put(m, old_data[i].key, old_data[i].data, /*copy_key=*/false);
 		if (status != MAP_OK)
 			return status;
 	}

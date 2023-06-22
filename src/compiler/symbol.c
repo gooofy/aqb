@@ -13,9 +13,9 @@ struct S_symbol_
 
 static S_symbol mksymbol(string name)
 {
-    S_symbol s=U_poolAlloc (UP_symbol, sizeof(*s));
+    S_symbol s = U_poolAlloc (UP_symbol, sizeof(*s));
 
-    s->name           = String(UP_symbol, name);
+    s->name = String(UP_symbol, name);
 
     return s;
 }
@@ -34,7 +34,7 @@ S_symbol S_Symbol(string name)
     if (res != MAP_OK)
     {
         sym = mksymbol(name);
-        hashmap_put(hashtable, sym->name, sym, /*copy_key=*/FALSE);
+        hashmap_put(hashtable, sym->name, sym, /*copy_key=*/false);
     }
     return sym;
 }
