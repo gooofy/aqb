@@ -286,9 +286,9 @@ IR_type _type(void)
  * parameter_list
  *   : '(' (parameter (',' parameter)*)? ')'
  *   ;
-     parameter
-       : attribute_list* modifier* type? (identifier_token | '__arglist') equals_value_clause?
-         ;
+ * parameter
+ *   : attribute_list* modifier* type (identifier | '__arglist') equals_value_clause?
+ *   ;
  */
 static void _parameter_list(void)
 {
@@ -300,6 +300,10 @@ static void _parameter_list(void)
     S_nextToken();
     while (S_tkn.kind != S_RPAREN)
     {
+        if (S_tkn.kind == S_LBRACKET)
+            _attributes();
+        uint32_t mods=0;
+        while (_modifier (&mods));
         assert(false);
     }
     S_nextToken();
