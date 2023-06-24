@@ -361,12 +361,10 @@ static IR_formal _parameter(void)
 
 /*
  * method_declaration
- *     : method_header method_body
- *     ;
- * method_header
- *     : type identifier type_parameter_list?
- *       '(' parameter_list? ')' type_parameter_constraints_clause*
- *     ;
+ *   : type identifier type_parameter_list? parameter_list
+ *     type_parameter_constraint_clause*
+ *     (block | ';')
+ *   ;
  */
 
 static IR_proc _method_declaration (uint32_t mods)
@@ -454,6 +452,23 @@ static IR_proc _method_declaration (uint32_t mods)
 
     proc->formals  = formals;
     proc->returnTy = retTy;
+
+    if (S_tkn.kind == S_LBRACE)
+    {
+        // FIXME: _block()
+        assert(false);
+    }
+    else
+    {
+        if (S_tkn.kind == S_SEMICOLON)
+        {
+            S_nextToken();
+        }
+        else
+        {
+            EM_error (S_tkn.pos, "method declaration: ; expected here");
+        }
+    }
 
     return proc;
 }
