@@ -12,7 +12,7 @@ typedef enum {
     S_EOF, S_IDENT, S_STRING,
     S_PERIOD, S_SEMICOLON, S_COLON, S_COMMA, S_ASTERISK,
     S_LPAREN, S_RPAREN, S_LBRACE, S_RBRACE, S_LBRACKET, S_RBRACKET, 
-    S_LESS
+    S_EQUALS, S_LESS
 
     //S_ERRTKN, S_EOL,
     //S_IDENT, S_STRING, S_COLON, S_SEMICOLON, S_COMMA, S_INUM, S_FNUM, S_MINUS,
@@ -68,6 +68,6 @@ bool    S_nextToken (void);
 
 string  S_getSourceLine (int line);
 
-void    S_init(FILE *sourcef);
+void    S_init(const char *sourcefn, FILE *sourcef);
 
 #endif

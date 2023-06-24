@@ -204,6 +204,13 @@ void *U_poolCalloc (U_poolId pid, size_t nmemb, size_t len)
     return p;
 }
 
+void *U_poolAllocZero (U_poolId pid, size_t size)
+{
+    void *p = U_poolAlloc(pid, size);
+    memset (p, 0, size);
+    return p;
+}
+
 static void U_poolFree (U_poolId pid, bool destroy)
 {
     U_memPool pool = g_pools[pid];

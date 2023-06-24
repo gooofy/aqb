@@ -101,6 +101,7 @@ typedef enum
 } U_poolId;
 
 void *U_poolAlloc          (U_poolId pid, size_t size);
+void *U_poolAllocZero      (U_poolId pid, size_t size);
 void *U_poolCalloc         (U_poolId pid, size_t nmemb, size_t len);
 void *U_poolNonChunkAlloc  (U_poolId pid, size_t size);
 void *U_poolNonChunkCAlloc (U_poolId pid, size_t size);

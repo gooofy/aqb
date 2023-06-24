@@ -13,6 +13,7 @@
 
 S_tkn_t S_tkn;
 
+static const char   *g_sourcefn;
 static FILE         *g_sourcef;
 
 static char          g_ch;
@@ -46,6 +47,7 @@ static void _print_token(void)
         case S_COLON    : LOG_printf(LOG_DEBUG, ":"); break;
         case S_COMMA    : LOG_printf(LOG_DEBUG, ","); break;
         case S_ASTERISK : LOG_printf(LOG_DEBUG, "*"); break;
+        case S_EQUALS   : LOG_printf(LOG_DEBUG, "="); break;
         case S_LESS     : LOG_printf(LOG_DEBUG, "<"); break;
         case S_LBRACKET : LOG_printf(LOG_DEBUG, "["); break;
         case S_RBRACKET : LOG_printf(LOG_DEBUG, "]"); break;
@@ -358,8 +360,12 @@ bool S_nextToken (void)
                     getch();
                     S_tkn.kind = S_LESS;
                     goto done;
+                case '=':
+                    getch();
+                    S_tkn.kind = S_EQUALS;
+                    goto done;
                 default:
-                    LOG_printf (LOG_ERROR, "lexer error: invalid char '%c' (0x%02x)\n", g_ch, g_ch);
+                    LOG_printf (LOG_ERROR, "%s:%d: lexer: invalid char '%c' (0x%02x)\n", g_sourcefn, g_line, g_ch, g_ch);
                     assert(false); // FIXME
             }
         }
@@ -371,10 +377,11 @@ done:
     return true;
 }
 
-void S_init(FILE *sourcef)
+void S_init(const char *sourcefn, FILE *sourcef)
 {
     g_src             = TAB_empty(UP_frontend);
 
+    g_sourcefn        = sourcefn;
     g_sourcef         = sourcef;
     g_eof             = false;
     g_eol             = false;
