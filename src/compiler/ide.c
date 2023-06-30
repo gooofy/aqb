@@ -336,7 +336,7 @@ static void _itoa(uint16_t num, char* buf, uint16_t width)
 {
     uint16_t i = 0;
 
-    /* Handle 0 explicitely, otherwise empty string is printed for 0 */
+    /* Handle 0 explicitly, otherwise empty string is printed for 0 */
     if (num == 0)
     {
         for (uint16_t j=1; j<width; j++)

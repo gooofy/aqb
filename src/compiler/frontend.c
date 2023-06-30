@@ -1780,7 +1780,7 @@ static bool expDesignator(S_tkn *tkn, CG_item *exp, bool isVARPTR, bool leftHand
             if (el)
             {
                 if (el->first->next)
-                    return EM_error(pos, "ambigous SUB reference");
+                    return EM_error(pos, "ambiguous SUB reference");
                 E_enventry entry = el->first->e;
                 if (entry->kind != E_procEntry)
                     return EM_error(pos, "SUB identifier expected here");
@@ -2859,7 +2859,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
         }
         else
         {
-            // dyanmic, safe QB-like dynamic array
+            // dynamic, safe QB-like dynamic array
             t = Ty_DArray(FE_mod, t, _tyCArray());
 
         }
@@ -2949,7 +2949,7 @@ static bool transVarDecl(S_tkn *tkn, S_pos pos, S_symbol sVar, Ty_ty t, bool sha
     {
         CG_itemList constructorAssignedArgs = NULL;
         if (t->kind == Ty_darray)
-            return EM_error ((*tkn)->pos, "DArray initial value assingment is not supported yet.");
+            return EM_error ((*tkn)->pos, "DArray initial value assignment is not supported yet.");
 
         *tkn = (*tkn)->next;
 
@@ -7499,7 +7499,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                             if (f->u.methodr.isVirtual)
                             {
                                 if (member->u.method->vTableIdx<0)
-                                    return EM_error (f->pos, "%s: only virtual methods can be overriden",
+                                    return EM_error (f->pos, "%s: only virtual methods can be overridden",
                                                      S_name(f->u.methodr.proc->name));
 
                                 if (!matchProcSignatures (f->u.methodr.proc, member->u.method->proc))
@@ -7560,7 +7560,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                     {
                         // getter has no arguments besides <this>
                         if (f->u.property.proc->formals->next)
-                            return EM_error (f->pos, "property getter connot have arguments");
+                            return EM_error (f->pos, "property getter cannot have arguments");
                     }
 
                     switch (sle->u.typeDecl.ty->kind)
@@ -7595,7 +7595,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                                     if (oldMember->u.property.setter)
                                     {
                                         if (oldMember->u.property.setter->vTableIdx<0)
-                                            return EM_error (f->pos, "%s: only virtual properties can be overriden",
+                                            return EM_error (f->pos, "%s: only virtual properties can be overridden",
                                                              S_name(f->u.property.proc->name));
 
                                         vTableIdx = oldMember->u.property.setter->vTableIdx;
@@ -7606,7 +7606,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
                                     if (oldMember->u.property.getter)
                                     {
                                         if (oldMember->u.property.getter->vTableIdx<0)
-                                            return EM_error (f->pos, "%s: only virtual properties can be overriden",
+                                            return EM_error (f->pos, "%s: only virtual properties can be overridden",
                                                              S_name(f->u.property.proc->name));
 
                                         vTableIdx = oldMember->u.property.getter->vTableIdx;
@@ -7668,7 +7668,7 @@ static bool stmtTypeDeclField(S_tkn *tkn)
         }
 
         // assemble vtables for classes
-        // prepend vtable set instruction to class construtor
+        // prepend vtable set instruction to class constructor
 
         if (sle->u.typeDecl.ty->kind == Ty_class)
         {
@@ -8514,7 +8514,7 @@ static bool stmtClear(S_tkn *tkn, E_enventry e, CG_item *exp)
 {
     *tkn = (*tkn)->next; // consume "CLEAR"
 
-    if (g_sleStack->prev || g_sleStack->code->first) // small optimization: if CLEAR appears right at the beginning of main, we do not need to call it since it is called implicitely anyway
+    if (g_sleStack->prev || g_sleStack->code->first) // small optimization: if CLEAR appears right at the beginning of main, we do not need to call it since it is called implicitly anyway
     {
         // call __aqb_clear
 
