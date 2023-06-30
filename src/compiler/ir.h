@@ -13,6 +13,10 @@ typedef struct IR_namespace_       *IR_namespace;
 typedef struct IR_formal_          *IR_formal;
 typedef struct IR_proc_            *IR_proc;
 typedef struct IR_type_            *IR_type;
+typedef struct IR_implements_      *IR_implements;
+typedef struct IR_memberList_      *IR_memberList;
+typedef struct IR_member_          *IR_member;
+typedef struct IR_method_          *IR_method;
 
 struct IR_assembly_
 {
@@ -49,6 +53,7 @@ struct IR_proc_
     bool             isStatic;
     bool             isExtern;
 };
+
 struct IR_type_
 {
     enum { Ty_bool,         //  0
@@ -74,26 +79,69 @@ struct IR_type_
            } kind;
     union
     {
-        S_symbol     unresolved;
+        S_symbol                                                              unresolved;
+        struct {S_symbol       name;
+                IR_visibility  visibility;
+                bool           isStatic;
+                uint32_t       uiSize;
+                IR_type        baseType;
+                IR_implements  implements;
+                IR_proc        constructor;
+                IR_proc        __init;
+                IR_memberList  members;
+                int16_t        virtualMethodCnt;
+                IR_member      vTablePtr;                                   } cls;
     } u;
 };
 
-//struct IR_name_
-//{
-//    S_symbol    sym;
-//};
+struct IR_member_
+{
+    IR_member                                          next;
+    enum { IR_recMethod, IR_recField, IR_recProperty } kind;
+    S_symbol                                           name;
+    IR_visibility                                      visibility;
+    union
+    {
+        IR_method                                      method;
+        struct {
+            uint32_t      uiOffset;
+            IR_type       ty;
+        }                                              field;
+        struct {
+            IR_type       ty;
+            IR_method     getter;
+            IR_method     setter;
+        }                                              property;
+    } u;
+};
+
+struct IR_memberList_
+{
+    IR_member   first, last;
+};
+
+struct IR_method_
+{
+    IR_proc   proc;
+    int16_t   vTableIdx;
+};
 
 IR_assembly        IR_Assembly          (S_symbol name);
 IR_namespace       IR_Namespace         (S_symbol name, IR_namespace parent);
 IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name);
 IR_type            IR_namesResolveType  (IR_namespace names , S_symbol name);
 
-
 IR_formal          IR_Formal            (S_symbol name, IR_type type);
 IR_proc            IR_Proc              (IR_visibility visibility, IR_procKind kind, S_symbol name, bool isExtern, bool isStatic);
 
 IR_type            IR_TypeUnresolved    (S_symbol name);
-IR_type            IR_TypeClass         (IR_assembly assembly, S_symbol name, IR_type baseClass);
+
+IR_method          IR_Method            (IR_proc proc);
+
+IR_memberList      IR_MemberList        (void);
+IR_member          IR_MemberMethod      (IR_visibility visibility, IR_method method);
+void               IR_addMember         (IR_memberList memberList, IR_member member);
+
 
 // built-in types
 //IR_type            IR_TypeVoid          (void);

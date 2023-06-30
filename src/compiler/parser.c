@@ -544,7 +544,22 @@ class_member_declaration
 
 static void _class_declaration (uint32_t mods)
 {
-    // FIXME: check mods
+    IR_visibility visibility = IR_visInternal;
+    bool isStatic = false;
+
+    if (_check_modifier(&mods, MODF_PUBLIC))
+        visibility = IR_visPublic;
+    if (_check_modifier(&mods, MODF_PROTECTED))
+        visibility = IR_visProtected;
+    if (_check_modifier(&mods, MODF_PRIVATE))
+        visibility = IR_visPrivate;
+    if (_check_modifier(&mods, MODF_INTERNAL))
+        visibility = IR_visInternal;
+    if (_check_modifier(&mods, MODF_STATIC))
+        isStatic = true;
+
+    if (mods)
+        _report_leftover_mods (mods);
 
     S_nextToken(); // skip "class"
 
@@ -554,7 +569,24 @@ static void _class_declaration (uint32_t mods)
         return;
     }
     S_symbol name = S_tkn.u.sym;
+
+    IR_type t = IR_namesResolveType (_g_names, name);
+    if (t->kind != Ty_unresolved)
+        EM_error (S_tkn.pos, "%s already exists in this namespace");
     S_nextToken();
+
+    t->kind                   = Ty_class;
+    t->u.cls.name             = name;
+    t->u.cls.visibility       = visibility;
+    t->u.cls.isStatic         = isStatic;
+    t->u.cls.uiSize           = 0;
+    t->u.cls.baseType         = NULL;
+    t->u.cls.implements       = NULL;
+    t->u.cls.constructor      = NULL;
+    t->u.cls.__init           = NULL;
+    t->u.cls.members          = IR_MemberList();
+    t->u.cls.virtualMethodCnt = 0;
+    t->u.cls.vTablePtr        = NULL;
 
     if (S_tkn.kind == S_LESS)
     {
@@ -583,8 +615,6 @@ static void _class_declaration (uint32_t mods)
 
     LOG_printf (LOG_DEBUG, "class declaration, name=%s\n", S_name(name));
 
-    
-
     while (S_tkn.kind != S_RBRACE)
     {
 
@@ -596,7 +626,11 @@ static void _class_declaration (uint32_t mods)
 
         if (S_tkn.kind == S_IDENT)
         {
-            _method_declaration (mods);
+            IR_proc proc = _method_declaration (mods);
+
+            IR_method method = IR_Method(proc);
+            IR_member member = IR_MemberMethod (visibility, method);
+            IR_addMember (t->u.cls.members, member);
         }
         else
             assert(false); // FIXME
