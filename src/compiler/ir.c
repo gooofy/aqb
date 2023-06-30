@@ -1,35 +1,49 @@
 #include "ir.h"
 
-IR_compilationUnit IR_CompilationUnit(void)
+IR_assembly IR_Assembly(S_symbol name)
 {
-    IR_compilationUnit cu = U_poolAllocZero (UP_ir, sizeof (*cu));
+    IR_assembly assembly = U_poolAllocZero (UP_ir, sizeof (*assembly));
 
-    cu->names_root = IR_Namespace(NULL);
+    assembly->name       = name;
+    assembly->names_root = IR_Namespace(/*name=*/NULL, /*parent=*/NULL);
 
-    return cu;
+    return assembly;
 }
 
-IR_namespace IR_Namespace (S_symbol name)
+IR_namespace IR_Namespace (S_symbol name, IR_namespace parent)
 {
     IR_namespace names = U_poolAllocZero (UP_ir, sizeof (*names));
 
-    names->next        = NULL;
     names->name        = name;
-	names->names_first = NULL;
-    names->names_last  = NULL;
-    names->types_first = NULL;
-    names->types_last  = NULL;
+    names->parent      = parent;
+	names->names       = TAB_empty (UP_ir);
+	names->types       = TAB_empty (UP_ir);
 
     return names;
 }
 
-void IR_namespaceAddNames (IR_namespace parent, IR_namespace names)
+IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name)
 {
-    names->next = NULL;
-    if (parent->names_last)
-        parent->names_last = parent->names_last->next = names;
-    else
-        parent->names_first = parent->names_last = names;
+    IR_namespace names = (IR_namespace) TAB_look(parent->names, name);
+    if (names)
+        return names;
+
+    names = IR_Namespace (name, parent);
+    TAB_enter (parent->names, name, names);
+
+    return names;
+}
+
+IR_type IR_namesResolveType (IR_namespace names, S_symbol name)
+{
+    IR_type t = (IR_type) TAB_look(names->types, name);
+    if (t)
+        return t;
+
+    t = IR_TypeUnresolved (name);
+    TAB_enter (names->types, name, t);
+    
+    return t;
 }
 
 IR_formal IR_Formal (S_symbol name, IR_type type)
@@ -55,21 +69,22 @@ IR_proc IR_Proc (IR_visibility visibility, IR_procKind kind, S_symbol name, bool
     return p;
 }
 
-IR_type IR_Type (IR_name name)
+IR_type IR_TypeUnresolved (S_symbol name)
 {
     IR_type t = U_poolAllocZero (UP_ir, sizeof (*t));
 
-    t->name = name;
+    t->kind         = Ty_unresolved;
+    t->u.unresolved = name;
 
     return t;
 }
 
-IR_name IR_Name (S_symbol sym)
-{
-    IR_name n = U_poolAllocZero (UP_ir, sizeof (*n));
-
-    n->sym = sym;
-
-    return n;
-}
+//IR_name IR_Name (S_symbol sym)
+//{
+//    IR_name n = U_poolAllocZero (UP_ir, sizeof (*n));
+//
+//    n->sym = sym;
+//
+//    return n;
+//}
 

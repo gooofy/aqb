@@ -4,7 +4,9 @@
 #include "errormsg.h"
 #include "logger.h"
 
-const char *PA_filename;
+const  char        *PA_filename;
+static IR_assembly  _g_assembly;
+static IR_namespace _g_names;
 
 // type modifier flags
 #define MODF_NEW       0x00000001
@@ -57,12 +59,12 @@ static bool isSym(S_symbol sym)
     return (S_tkn.kind == S_IDENT) && (S_tkn.u.sym == sym);
 }
 
-static void _namespace_member_declaration (IR_namespace names);
+static void _namespace_member_declaration ();
 
 /* namespace_body : '{' namespace_member_declaration* '}' ;
  */
 
-static void _namespace_body (IR_namespace names)
+static void _namespace_body ()
 {
     if (S_tkn.kind != S_LBRACE)
     {
@@ -78,7 +80,7 @@ static void _namespace_body (IR_namespace names)
             EM_error (S_tkn.pos, "unexpected end of source in namespace body");
             return;
         }
-        _namespace_member_declaration(names);
+        _namespace_member_declaration();
     }
 
     S_nextToken(); // skip }
@@ -92,7 +94,7 @@ static void _namespace_body (IR_namespace names)
  *     : identifier ('.' identifier)*
  *     ;
  */
-static void _namespace_declaration (IR_namespace parent)
+static void _namespace_declaration ()
 {
     S_nextToken(); // skip "namespace"
 
@@ -102,8 +104,9 @@ static void _namespace_declaration (IR_namespace parent)
         return;
     }
 
-    IR_namespace names = IR_Namespace (S_tkn.u.sym);
-    IR_namespaceAddNames (parent, names);
+    IR_namespace parent = _g_names;
+
+    _g_names = IR_namesResolveNames (parent, S_tkn.u.sym);
     S_nextToken();
 
     while (S_tkn.kind == S_PERIOD)
@@ -112,10 +115,12 @@ static void _namespace_declaration (IR_namespace parent)
         assert(false);
     }
 
-    _namespace_body (names);
+    _namespace_body ();
 
     if (S_tkn.kind == S_SEMICOLON)
         S_nextToken();
+
+    _g_names = parent;
 }
 
 /* FIXME: add amiga library call support
@@ -255,6 +260,7 @@ static void _report_leftover_mods (uint32_t mods)
     if (mods & MODF_REF)       EM_error (S_tkn.pos, "unsupported modifier: ref");
 }
 
+#if 0
 /*
  * name : identifier type_argument_list? ( '.' identifier type_argument_list? ) *
  */
@@ -283,21 +289,59 @@ IR_name _name(void)
 
     return name;
 }
+#endif
 
 /*
  * type : name ( '[' (expression (',' expression)*)? ']' | '*'+ )? ;
  */
 IR_type _type(void)
 {
+    IR_namespace names = NULL;
+
     if (isSym(S_VOID))
     {
         S_nextToken();
         return NULL;
     }
 
-    IR_name name = _name();
-    IR_type t = IR_Type(name);
+    // name : identifier type_argument_list? ( '.' identifier type_argument_list? ) *
+    if (S_tkn.kind != S_IDENT)
+    {
+        EM_error (S_tkn.pos, "type: identifier expected here");
+        return NULL;
+    }
+
+    S_symbol name = S_tkn.u.sym;
     S_nextToken();
+    if (S_tkn.kind == S_LESS)
+    {
+        // FIXME
+        EM_error (S_tkn.pos, "sorry, generics are not supported yet");
+        return NULL;
+    }
+
+    while (S_tkn.kind == S_PERIOD)
+    {
+        S_nextToken();
+        if (S_tkn.kind != S_IDENT)
+        {
+            EM_error (S_tkn.pos, "type: identifier expected here");
+            return NULL;
+        }
+        S_symbol n2 = S_tkn.u.sym;
+        S_nextToken();
+        if (S_tkn.kind == S_LESS)
+        {
+            // FIXME
+            EM_error (S_tkn.pos, "sorry, generics are not supported yet");
+            return NULL;
+        }
+
+        names = IR_namesResolveNames (names, name);
+        name = n2;
+    }
+
+    IR_type t = IR_namesResolveType (names ? names : _g_names, name);
 
     if (S_tkn.kind == S_LBRACKET)
     {
@@ -539,6 +583,8 @@ static void _class_declaration (uint32_t mods)
 
     LOG_printf (LOG_DEBUG, "class declaration, name=%s\n", S_name(name));
 
+    
+
     while (S_tkn.kind != S_RBRACE)
     {
 
@@ -590,15 +636,13 @@ delegate_declaration
  *                                          )
  *                                          ;
  */
-static void _type_declaration (IR_namespace names)
+static void _type_declaration ()
 {
     if (S_tkn.kind == S_LBRACKET)
         _attributes();
 
     uint32_t mods=0;
     while (_modifier (&mods));
-
-    LOG_printf (LOG_INFO, "mods=0x%08lx\n", mods);
 
     if (isSym(S_CLASS))
     {
@@ -634,15 +678,15 @@ static void _type_declaration (IR_namespace names)
  *     | type_declaration
  *     ;
  */
-static void _namespace_member_declaration (IR_namespace names)
+static void _namespace_member_declaration ()
 {
     if (isSym(S_NAMESPACE))
     {
-        _namespace_declaration (names);
+        _namespace_declaration ();
     }
     else
     {
-        _type_declaration (names);
+        _type_declaration ();
     }
 }
 
@@ -652,13 +696,13 @@ static void _namespace_member_declaration (IR_namespace names)
  *       namespace_member_declaration*
  *     ;
  */
-IR_compilationUnit PA_compilation_unit(FILE *sourcef, const char *sourcefn)
+void PA_compilation_unit(IR_assembly assembly, FILE *sourcef, const char *sourcefn)
 {
     PA_filename = sourcefn;
+    _g_assembly = assembly;
+    _g_names    = assembly->names_root;
 
     S_init (sourcefn, sourcef);
-
-    IR_compilationUnit cu = IR_CompilationUnit();
 
     if (isSym(S_USING))
     {
@@ -668,10 +712,8 @@ IR_compilationUnit PA_compilation_unit(FILE *sourcef, const char *sourcefn)
     }
     else
     {
-        _namespace_member_declaration (cu->names_root);
+        _namespace_member_declaration ();
     }
-
-    return cu;
 }
 
 void PA_boot(void)

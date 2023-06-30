@@ -150,7 +150,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/acs",
-            "args": ["-d", "none", "-s", "_urt.sym", "_urt.cs"],
+            "args": ["urt", "_urt.cs"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/src/lib/_urt",
             "environment": [],

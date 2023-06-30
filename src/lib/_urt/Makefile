@@ -2,17 +2,19 @@ include ../../../config.mk
 
 .PHONY: clean all diss
 
-all: _urt_stub.c startup.o _urt.a _urt.sym
+#all: _urt_stub.c startup.o _urt.a _urt.sym
+all: _urt.sym
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
 _urt.sym _urt.o _urt.s : _urt.cs
-	$(ACS) -d none -N -E -s _urt.sym -a _urt.asm -p _urt.o $<
-	pushd .. && rm -f _urt.sym && ln -s _urt/_urt.sym && popd
-	cp $< $(DISTDIR)/libsrc
-	cp $@ $(DISTDIR)/lib
-	rm -f $(DISTDIR)/lib/*.uaem
+	$(ACS) _urt $<
+	#$(ACS) -d none -N -E -s _urt.sym -a _urt.asm -p _urt.o $<
+	#pushd .. && rm -f _urt.sym && ln -s _urt/_urt.sym && popd
+	#cp $< $(DISTDIR)/libsrc
+	#cp $@ $(DISTDIR)/lib
+	#rm -f $(DISTDIR)/lib/*.uaem
 
 %.o : %.s
 	$(AS_AMIGAOS) $(ASFLAGS_AMIGAOS) $< -o $@

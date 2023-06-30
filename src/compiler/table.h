@@ -6,10 +6,6 @@
 /*
  * table.h - generic hash table
  *
- * No algorithm should use these functions directly, because
- *  programming with void* is too error-prone.  Instead,
- *  each module should make "wrapper" functions that take
- *  well-typed arguments and call the TAB_ functions.
  */
 
 typedef struct TAB_table_ *TAB_table;

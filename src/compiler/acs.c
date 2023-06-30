@@ -71,21 +71,21 @@ bool aqb_wbstart = false;
 
 static void print_usage(char *argv[])
 {
-	fprintf(stderr, "usage: %s [ options ] <program.cs>\n", argv[0]);
-    fprintf(stderr, "    -d <module>  load <module> implicitly, default: \"_aqb\", specify \"none\" to disable\n");
-	fprintf(stderr, "    -L <dir>     look in <dir> for modules\n");
-	fprintf(stderr, "    -a <foo.s>   create gas source file\n");
-	fprintf(stderr, "    -A <foo.s>   create ASMOne/ASMPro source file\n");
-	fprintf(stderr, "    -B <foo.s>   create vasm source file\n");
-	fprintf(stderr, "    -s <foo.sym> create symbol file\n");
-	fprintf(stderr, "    -S <foo.c>   create C stub file\n");
-	fprintf(stderr, "    -I           interface module (no code)\n");
-	fprintf(stderr, "    -N           no not generate a module init function\n");
-	fprintf(stderr, "    -E           no not generate a gc scan functions\n");
-	fprintf(stderr, "    -o <foo>     create hunk binary file\n");
-	fprintf(stderr, "    -p <foo>     create hunk object file\n");
-	fprintf(stderr, "    -v           verbose\n");
-	fprintf(stderr, "    -V           display version info\n");
+	fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
+    //fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
+	//fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
+	//fprintf(stderr, "    -a            create gas source file\n");
+	//fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
+	//fprintf(stderr, "    -B            create vasm source file\n");
+	//fprintf(stderr, "    -s            create symbol file\n");
+	//fprintf(stderr, "    -S            create C stub file\n");
+	//fprintf(stderr, "    -I            interface assembly (no code)\n");
+	//fprintf(stderr, "    -N            no not generate a assembly init function\n");
+	//fprintf(stderr, "    -E            no not generate a gc scan functions\n");
+	//fprintf(stderr, "    -o <foo>      create hunk binary file\n");
+	//fprintf(stderr, "    -p <foo>      create hunk object file\n");
+	fprintf(stderr, "    -v            verbose\n");
+	fprintf(stderr, "    -V            display version info\n");
 }
 
 #ifdef __amigaos__
@@ -190,18 +190,18 @@ static void deinit(void)
 int main (int argc, char *argv[])
 {
 	string sourcefn = NULL;
-    string module_name = NULL;
+    string assembly_name = NULL;
     int    optind;
-    bool   hasCode = true;
-    bool   noInitFn = false;
-    bool   gcScanExtern = false;
-    string symfn=NULL;
-    string cstubfn=NULL;
-    string objfn=NULL;
-    string binfn=NULL;
-    string asm_gas_fn=NULL;
-    string asm_asmpro_fn=NULL;
-    string asm_vasm_fn=NULL;
+    //bool   hasCode = true;
+    //bool   noInitFn = false;
+    //bool   gcScanExtern = false;
+    //string symfn=NULL;
+    //string cstubfn=NULL;
+    //string objfn=NULL;
+    //string binfn=NULL;
+    //string asm_gas_fn=NULL;
+    //string asm_asmpro_fn=NULL;
+    //string asm_vasm_fn=NULL;
 
 #ifdef __amigaos__
     check_amigaos_env();
@@ -238,96 +238,97 @@ int main (int argc, char *argv[])
 	{
         switch (argv[optind][1])
 		{
-        	case 'd':
+        	case 'l':
                 optind++;
                 if (optind >= argc)
                 {
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                OPT_default_module = argv[optind];
+                assert(false); // FIXME: load assembly
+                //OPT_default_module = argv[optind];
 				break;
-        	case 'L':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                OPT_addModulePath(argv[optind]);
-				break;
-        	case 'I':
-				hasCode = false;
-				break;
-        	case 'N':
-				noInitFn = true;
-				break;
-        	case 'E':
-				gcScanExtern = true;
-				break;
-        	case 'a':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                asm_gas_fn = argv[optind];
-				break;
-        	case 'A':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                asm_asmpro_fn = argv[optind];
-				break;
-        	case 'B':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                asm_vasm_fn = argv[optind];
-				break;
-        	case 's':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                symfn = argv[optind];
-				break;
-        	case 'S':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                cstubfn = argv[optind];
-				break;
-        	case 'o':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                binfn = argv[optind];
-				break;
-        	case 'p':
-                optind++;
-                if (optind >= argc)
-                {
-                    print_usage(argv);
-                    exit(EXIT_FAILURE);
-                }
-                objfn = argv[optind];
-				break;
+        	//case 'L':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    OPT_addModulePath(argv[optind]);
+			//	break;
+        	//case 'I':
+			//	hasCode = false;
+			//	break;
+        	//case 'N':
+			//	noInitFn = true;
+			//	break;
+        	//case 'E':
+			//	gcScanExtern = true;
+			//	break;
+        	//case 'a':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    asm_gas_fn = argv[optind];
+			//	break;
+        	//case 'A':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    asm_asmpro_fn = argv[optind];
+			//	break;
+        	//case 'B':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    asm_vasm_fn = argv[optind];
+			//	break;
+        	//case 's':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    symfn = argv[optind];
+			//	break;
+        	//case 'S':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    cstubfn = argv[optind];
+			//	break;
+        	//case 'o':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    binfn = argv[optind];
+			//	break;
+        	//case 'p':
+            //    optind++;
+            //    if (optind >= argc)
+            //    {
+            //        print_usage(argv);
+            //        exit(EXIT_FAILURE);
+            //    }
+            //    objfn = argv[optind];
+			//	break;
         	case 'v':
 				OPT_set(OPTION_VERBOSE, true);
 				break;
@@ -341,87 +342,12 @@ int main (int argc, char *argv[])
         }
     }
 
-#ifdef __amigaos__
-    if (argc == 0)  // workbench launch
-    {
-        aqb_wbstart = true;
-        struct WBStartup *wb_msg = (struct WBStartup *) argv;
-		struct WBArg *wbarg = wb_msg->sm_ArgList;
-        for (uint16_t i=0; i < wb_msg->sm_NumArgs; i++, wbarg++)
-		{
-            if ((i>0) && (*wbarg->wa_Name))
-			{
-				if (wbarg->wa_Lock)
-				{
-					static char pb[256];
-					if (ASUP_NameFromLock (wbarg->wa_Lock, (STRPTR)pb, 256))
-					{
-						if (AddPart((STRPTR)pb, (STRPTR)wbarg->wa_Name, 256))
-						{
-							sourcefn = (string) &pb;
-							break;
-						}
-					}
-				}
-				else
-				{
-					sourcefn = (string)wbarg->wa_Name;
-				}
-			}
-		}
-    }
-    else
-    {
-        if (argc == optind)
-        {
-            print_usage(argv);
-            exit(EXIT_FAILURE);
-        }
-        else
-        {
-            if (argc != (optind+1))
-            {
-                print_usage(argv);
-                exit(EXIT_FAILURE);
-            }
-            sourcefn = argv[optind];
-        }
-    }
-
-#else
-
     if (argc==optind)
     {
         print_usage(argv);
         exit(EXIT_FAILURE);
     }
-    else
-    {
-        if (argc != (optind+1))
-        {
-            print_usage(argv);
-            exit(EXIT_FAILURE);
-        }
-        sourcefn = argv[optind];
-    }
-#endif
-
-    /* filename.bas -> module name, module search path */
-    {
-        int l = strlen(sourcefn);
-        if (l>1024)
-            l = 1024;
-        if (l<4)
-            l = 4;
-
-        module_name = basename(String(UP_ir, sourcefn));
-        l = strlen(module_name);
-        module_name[l-4] = 0;
-
-        OPT_addModulePath(dirname(String(UP_ir, sourcefn)));
-    }
-
-    // run compiler from commandline
+    assembly_name = argv[optind++];
 
 #if LOG_LEVEL == LOG_DEBUG
     logf = fopen (LOG_FILENAME, "a");
@@ -429,17 +355,26 @@ int main (int argc, char *argv[])
 	atexit (deinit);
     LOG_init (log_cb);
 
-    return CO_compile(sourcefn,
-                      module_name,
-                      symfn,
-                      cstubfn,
-                      objfn,
-                      binfn,
-                      asm_gas_fn,
-                      asm_asmpro_fn,
-                      asm_vasm_fn,
-                      hasCode,
-                      noInitFn,
-                      gcScanExtern);
+    IR_assembly assembly = CO_AssemblyInit (S_Symbol(assembly_name));
+
+    while (optind < argc)
+    {
+        sourcefn = argv[optind++];
+
+        CO_AssemblyParse (assembly, sourcefn);
+    }
+
+    //return CO_compile(sourcefn,
+    //                  module_name,
+    //                  symfn,
+    //                  cstubfn,
+    //                  objfn,
+    //                  binfn,
+    //                  asm_gas_fn,
+    //                  asm_asmpro_fn,
+    //                  asm_vasm_fn,
+    //                  hasCode,
+    //                  noInitFn,
+    //                  gcScanExtern);
 }
 

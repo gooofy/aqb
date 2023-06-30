@@ -29,6 +29,8 @@ extern struct ExecBase      *SysBase;
 
 static jmp_buf g_exit_jmp_buf;
 static int     g_return_code = 0;
+static float   g_startTime;
+
 
 void CO_exit(int return_code)
 {
@@ -36,14 +38,9 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn, string objfn, string binfn,
-               string asm_gas_fn, string asm_asmpro_fn, string asm_vasm_fn, bool hasCode, bool noInitFn,
-               bool gcScanExtern)
+IR_assembly CO_AssemblyInit  (S_symbol name)
 {
-    //static CG_fragList     frags;
-	static FILE           *sourcef;
-
-    float startTime = U_getTime();
+    g_startTime   = U_getTime();
 #ifdef __amigaos__
     U_memstat();
     LOG_printf (LOG_INFO, "\ncompilation starts, %d bytes free...\n\n", AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST));
@@ -87,8 +84,18 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
         U_memstat();
         LOG_printf (LOG_INFO, "%d bytes free.\n", AvailMem(MEMF_CHIP) + AvailMem(MEMF_FAST));
 #endif
-        return g_return_code;
+        return NULL;
     }
+
+    IR_assembly assembly = IR_Assembly (name);
+
+    return assembly;
+}
+
+void CO_AssemblyParse (IR_assembly assembly, string sourcefn)
+{
+    //static CG_fragList     frags;
+	static FILE           *sourcef;
 
     /*
      * frontend: parsing + semantics
@@ -102,8 +109,8 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
 		CO_exit(EXIT_FAILURE);
 	}
 
-	PA_compilation_unit(sourcef, sourcefn);
-	fclose(sourcef);
+	PA_compilation_unit (assembly, sourcef, sourcefn);
+	fclose (sourcef);
 
     if (EM_anyErrors)
     {
@@ -435,11 +442,9 @@ int CO_compile(string sourcefn, string module_name, string symfn, string cstubfn
 #endif
 
     float endTime = U_getTime();
-    LOG_printf (LOG_INFO, "\ncompilation finished, took %ds.\n", (int)(endTime-startTime));
+    LOG_printf (LOG_INFO, "\ncompilation finished, took %ds.\n", (int)(endTime-g_startTime));
 
     CO_exit(0);
-
-    return 0;
 }
 
 
