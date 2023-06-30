@@ -106,7 +106,7 @@ struct IDE_instance_
     int16_t            con_rows, con_cols;                          // current size of console view
     char               con_buf  [MAX_CON_LINES][MAX_CON_LINE_LEN];
     char               con_style[MAX_CON_LINES][MAX_CON_LINE_LEN];
-    int16_t            con_line, con_col;                           // curent caret line/col in console buffer
+    int16_t            con_line, con_col;                           // current caret line/col in console buffer
 };
 
 /*

@@ -122,7 +122,7 @@ Syntax:
 
     BOB "(" bm  [ "," "(" x1 "," y1 ")" "-" "(" x2 "," y2 ")" ] ")"
 
-create a new BOB from a bitmap. Important: the bitmap must have been created in continous mode.
+create a new BOB from a bitmap. Important: the bitmap must have been created in continuous mode.
 
 Example:
 

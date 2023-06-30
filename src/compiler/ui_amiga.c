@@ -512,7 +512,7 @@ static uint16_t nextEvent(void)
             //LOG_printf (LOG_DEBUG, "ui_amiga: nextEvent(): Wait...\n");
             signals = Wait(windowsig|debugsig);
             state = esGetWin;
-            /* fall trough */
+            /* fall through */
         case esGetWin:
             if (signals & windowsig)
             {
@@ -672,7 +672,7 @@ static uint16_t nextEvent(void)
             {
                     state = esGetDebug;
             }
-            /* fall trough */
+            /* fall through */
         case esGetDebug:
             if (signals & debugsig)
             {

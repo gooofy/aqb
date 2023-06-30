@@ -1317,7 +1317,7 @@ E_module E_loadModule(S_symbol sModule)
             TAB_enter (mod->tyTable, (void *) (intptr_t) tuid, ty);
         }
 
-        int kind = fread_u1(modf); // do not set ty->kind right away so toString() will not run into unitialized values in case of record types
+        int kind = fread_u1(modf); // do not set ty->kind right away so toString() will not run into uninitialized values in case of record types
         ty->kind = Ty_toLoad;
 
         //LOG_printf (LOG_DEBUG, "%s: reading type 0x%08lx tuid=%d kind=%d\n",

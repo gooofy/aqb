@@ -78,7 +78,7 @@ Syntax:
     BITMAP "(" width, height, depth [ , cont ] ")"
 
 allocate an offscreen bitmap buffer. If cont is TRUE, planes will be
-allocated in one continous memory space suitable for BOBs.
+allocated in one continuous memory space suitable for BOBs.
 
 Example:
 
@@ -715,7 +715,7 @@ Syntax:
 
 	WAVE FREE w
 
-Free ressources allocated for waveform w. Use with caution: ensure w isn't used
+Free resources allocated for waveform w. Use with caution: ensure w isn't used
 in any audio channel anymore.
 
 

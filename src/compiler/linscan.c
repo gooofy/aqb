@@ -178,7 +178,7 @@ static bool updateTempInterval (Temp_temp t, int idx, bool needsAReg, bool needs
 static void computeLiveIntervals (AS_instrList il)
 {
     /*
-     * determine naive occurence intervals, instr line numbering
+     * determine naive occurrence intervals, instr line numbering
      */
 
     {
