@@ -312,6 +312,7 @@ IR_type _type(void)
     }
 
     S_symbol name = S_tkn.u.sym;
+    S_pos    pos  = S_tkn.pos;
     S_nextToken();
     if (S_tkn.kind == S_LESS)
     {
@@ -341,7 +342,7 @@ IR_type _type(void)
         name = n2;
     }
 
-    IR_type t = IR_namesResolveType (names ? names : _g_names, name);
+    IR_type t = IR_namesResolveType (pos, names ? names : _g_names, name);
 
     if (S_tkn.kind == S_LBRACKET)
     {
@@ -563,19 +564,22 @@ static void _class_declaration (uint32_t mods)
 
     S_nextToken(); // skip "class"
 
+    S_pos pos = S_tkn.pos;
+
     if (S_tkn.kind != S_IDENT)
     {
-        EM_error (S_tkn.pos, "class identifier expected here");
+        EM_error (pos, "class identifier expected here");
         return;
     }
     S_symbol name = S_tkn.u.sym;
 
-    IR_type t = IR_namesResolveType (_g_names, name);
+    IR_type t = IR_namesResolveType (pos, _g_names, name);
     if (t->kind != Ty_unresolved)
         EM_error (S_tkn.pos, "%s already exists in this namespace");
     S_nextToken();
 
     t->kind                   = Ty_class;
+    t->pos                    = pos;
     t->u.cls.name             = name;
     t->u.cls.visibility       = visibility;
     t->u.cls.isStatic         = isStatic;
@@ -587,6 +591,9 @@ static void _class_declaration (uint32_t mods)
     t->u.cls.members          = IR_MemberList();
     t->u.cls.virtualMethodCnt = 0;
     t->u.cls.vTablePtr        = NULL;
+
+    IR_definition def = IR_DefinitionType (_g_names, name, t);
+    IR_assemblyAdd (_g_assembly, def);
 
     if (S_tkn.kind == S_LESS)
     {
@@ -730,11 +737,11 @@ static void _namespace_member_declaration ()
  *       namespace_member_declaration*
  *     ;
  */
-void PA_compilation_unit(IR_assembly assembly, FILE *sourcef, const char *sourcefn)
+void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *sourcef, const char *sourcefn)
 {
     PA_filename = sourcefn;
     _g_assembly = assembly;
-    _g_names    = assembly->names_root;
+    _g_names    = names_root;
 
     S_init (sourcefn, sourcef);
 

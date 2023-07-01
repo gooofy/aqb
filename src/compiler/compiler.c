@@ -6,6 +6,7 @@
 #include <setjmp.h>
 
 #include "compiler.h"
+#include "semantics.h"
 //#include "codegen.h"
 //#include "env.h"
 #include "parser.h"
@@ -92,13 +93,13 @@ IR_assembly CO_AssemblyInit  (S_symbol name)
     return assembly;
 }
 
-void CO_AssemblyParse (IR_assembly assembly, string sourcefn)
+void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, string sourcefn)
 {
     //static CG_fragList     frags;
 	static FILE           *sourcef;
 
     /*
-     * frontend: parsing + semantics
+     * frontend: parsing
      */
 
     LOG_printf (LOG_INFO, "PASS 1: parser\n");
@@ -109,12 +110,26 @@ void CO_AssemblyParse (IR_assembly assembly, string sourcefn)
 		CO_exit(EXIT_FAILURE);
 	}
 
-	PA_compilation_unit (assembly, sourcef, sourcefn);
+	PA_compilation_unit (assembly, names_root, sourcef, sourcefn);
 	fclose (sourcef);
 
     if (EM_anyErrors)
     {
         LOG_printf (LOG_ERROR, "\n\nfrontend processing failed - exiting.\n");
+        CO_exit(EXIT_FAILURE);
+    }
+
+    LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nparsing worked.\n");
+
+    /*
+     * semantics
+     */
+
+    SEM_elaborate (assembly);
+
+    if (EM_anyErrors)
+    {
+        LOG_printf (LOG_ERROR, "\n\nsemantics failed - exiting.\n");
         CO_exit(EXIT_FAILURE);
     }
 

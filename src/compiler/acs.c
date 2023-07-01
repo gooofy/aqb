@@ -355,13 +355,14 @@ int main (int argc, char *argv[])
 	atexit (deinit);
     LOG_init (log_cb);
 
-    IR_assembly assembly = CO_AssemblyInit (S_Symbol(assembly_name));
+    IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
+    IR_namespace names_root = IR_Namespace(/*name=*/NULL, /*parent=*/NULL);
 
     while (optind < argc)
     {
         sourcefn = argv[optind++];
 
-        CO_AssemblyParse (assembly, sourcefn);
+        CO_AssemblyParse (assembly, names_root, sourcefn);
     }
 
     //return CO_compile(sourcefn,

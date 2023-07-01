@@ -3,12 +3,14 @@
 
 #include "util.h"
 #include "symbol.h"
+#include "scanner.h"
 
 /*
  * AQB Intermediate Representation
  */
 
 typedef struct IR_assembly_        *IR_assembly;
+typedef struct IR_definition_      *IR_definition;
 typedef struct IR_namespace_       *IR_namespace;
 typedef struct IR_formal_          *IR_formal;
 typedef struct IR_proc_            *IR_proc;
@@ -21,7 +23,20 @@ typedef struct IR_method_          *IR_method;
 struct IR_assembly_
 {
     S_symbol      name;
-    IR_namespace  names_root;
+    IR_definition def_first, def_last;
+};
+
+struct IR_definition_
+{
+    enum { IR_defType, IR_defProc } kind;
+    IR_namespace  names;
+    S_symbol      name;
+    union
+    {
+        IR_type     ty;
+        IR_proc     proc;
+    } u;
+    IR_definition next;
 };
 
 struct IR_namespace_
@@ -77,6 +92,7 @@ struct IR_type_
            Ty_unresolved,   // 18 also used when loading assemblies
            Ty_prc           // 19
            } kind;
+    S_pos pos;
     union
     {
         S_symbol                                                              unresolved;
@@ -127,14 +143,18 @@ struct IR_method_
 };
 
 IR_assembly        IR_Assembly          (S_symbol name);
+void               IR_assemblyAdd       (IR_assembly assembly, IR_definition def);
+IR_definition      IR_DefinitionType    (IR_namespace names, S_symbol name, IR_type type);
+IR_definition      IR_DefinitionProc    (IR_namespace names, S_symbol name, IR_proc proc);
+
 IR_namespace       IR_Namespace         (S_symbol name, IR_namespace parent);
 IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name);
-IR_type            IR_namesResolveType  (IR_namespace names , S_symbol name);
+IR_type            IR_namesResolveType  (S_pos pos, IR_namespace names , S_symbol name);
 
 IR_formal          IR_Formal            (S_symbol name, IR_type type);
 IR_proc            IR_Proc              (IR_visibility visibility, IR_procKind kind, S_symbol name, bool isExtern, bool isStatic);
 
-IR_type            IR_TypeUnresolved    (S_symbol name);
+IR_type            IR_TypeUnresolved    (S_pos pos, S_symbol name);
 
 IR_method          IR_Method            (IR_proc proc);
 
