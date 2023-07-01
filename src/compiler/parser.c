@@ -732,6 +732,43 @@ static void _namespace_member_declaration ()
 }
 
 /*
+ * using_directive
+ * : 'using' (identifier '=' identifier ('.' identifier)*
+ *           | identifier ('.' identifier)* ) ';'
+ * ;
+ */
+
+static void _using_directive (void)
+{
+    S_nextToken(); // skip USING
+
+    if (S_tkn.kind != S_IDENT)
+    {
+        EM_error (S_tkn.pos, "using: identifier expected here");
+        return;
+    }
+
+    //S_symbol n1 = S_tkn.u.sym;
+    S_nextToken();
+
+    if (S_tkn.kind == S_EQUALS)
+    {
+        // using alias
+        S_nextToken();
+        assert(false); // FIXME: implement
+    }
+    else
+    {
+        assert(false); // FIXME: implement
+    }
+
+    if (S_tkn.kind != S_SEMICOLON)
+        EM_error (S_tkn.pos, "using: ; expected here");
+    else
+        S_nextToken();
+}
+
+/*
  * compilation_unit
  *     : using_directive*
  *       namespace_member_declaration*
@@ -747,9 +784,7 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
     if (isSym(S_USING))
     {
-        // FIXME: implement!
-        EM_error (S_tkn.pos, "sorry, using statements are not supported yet");
-        assert(false);
+        _using_directive();
     }
     else
     {

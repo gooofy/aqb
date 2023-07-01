@@ -47,6 +47,7 @@ static void _print_token(void)
         case S_COLON    : LOG_printf(LOG_DEBUG, ":"); break;
         case S_COMMA    : LOG_printf(LOG_DEBUG, ","); break;
         case S_ASTERISK : LOG_printf(LOG_DEBUG, "*"); break;
+        case S_SLASH    : LOG_printf(LOG_DEBUG, "/"); break;
         case S_EQUALS   : LOG_printf(LOG_DEBUG, "="); break;
         case S_LESS     : LOG_printf(LOG_DEBUG, "<"); break;
         case S_LBRACKET : LOG_printf(LOG_DEBUG, "["); break;
@@ -291,12 +292,27 @@ bool S_nextToken (void)
         }
 
         // handle comments
-        //if (!g_eof && (g_ch == '/'))
-        //{
-        //    getch();
-        //    assert(false); // FIXME: implement
-        //    //handle_comment(/*line_comment=*/true);
-        //}
+        if (!g_eof && (g_ch == '/'))
+        {
+            getch();
+            // FIXME: handle block comments
+            if (g_eof || (g_ch != '/'))
+            {
+                S_tkn.kind = S_SLASH;
+                goto done;
+            }
+            getch();
+            // line comment
+            while (!g_eof)
+            {
+                if (g_ch == '\n')
+                {
+                    break;
+                }
+                getch();
+            }
+            continue;
+        }
 
         //if (g_eof)
         //    return false;
