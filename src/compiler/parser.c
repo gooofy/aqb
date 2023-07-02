@@ -7,6 +7,7 @@
 const  char        *PA_filename;
 static IR_assembly  _g_assembly;
 static IR_namespace _g_names;
+static IR_using     _g_usings_first=NULL, _g_usings_last=NULL;
 
 // type modifier flags
 #define MODF_NEW       0x00000001
@@ -732,9 +733,46 @@ static void _namespace_member_declaration ()
 }
 
 /*
+ * name : identifier ('.' identifier)*
+ */
+
+static IR_name _name (S_symbol s1)
+{
+    if (!s1)
+    {
+        if (S_tkn.kind != S_IDENT)
+        {
+            EM_error (S_tkn.pos, "name: identifier expected here");
+            return NULL;
+        }
+        s1 = S_tkn.u.sym;
+        S_nextToken();
+    }
+
+    IR_name name = IR_Name (s1);
+
+    while (S_tkn.kind == S_PERIOD)
+    {
+        S_nextToken();
+        if (S_tkn.kind == S_IDENT)
+        {
+            IR_nameAddSym (name, S_tkn.u.sym);
+            S_nextToken();
+        }
+        else
+        {
+            EM_error (S_tkn.pos, "name: identifier expected here");
+            break;
+        }
+    }
+
+    return name;
+}
+
+/*
  * using_directive
- * : 'using' (identifier '=' identifier ('.' identifier)*
- *           | identifier ('.' identifier)* ) ';'
+ * : 'using' (identifier '=' name
+ *           | name) ';'
  * ;
  */
 
@@ -748,19 +786,32 @@ static void _using_directive (void)
         return;
     }
 
-    //S_symbol n1 = S_tkn.u.sym;
+    S_symbol n1 = S_tkn.u.sym;
     S_nextToken();
+
+    IR_using u;
 
     if (S_tkn.kind == S_EQUALS)
     {
         // using alias
         S_nextToken();
-        assert(false); // FIXME: implement
+        IR_name n = _name(NULL);
+        if (!n)
+            return;
+        u = IR_Using (n, /*alias=*/n1);
     }
     else
     {
-        assert(false); // FIXME: implement
+        IR_name n = _name (n1);
+        if (!n)
+            return;
+        u = IR_Using (n, /*alias=*/NULL);
     }
+
+    if (_g_usings_last)
+        _g_usings_last = _g_usings_last->next = u;
+    else
+        _g_usings_first = _g_usings_last = u;
 
     if (S_tkn.kind != S_SEMICOLON)
         EM_error (S_tkn.pos, "using: ; expected here");

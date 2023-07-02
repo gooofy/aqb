@@ -1,5 +1,5 @@
 //using System;
-using string = System.String
+using string = System.String;
 
 namespace System
 {

@@ -46,6 +46,45 @@ IR_definition IR_DefinitionProc (IR_namespace names, S_symbol name, IR_proc proc
     return def;
 }
 
+IR_name IR_Name (S_symbol sym)
+{
+    IR_name n = U_poolAllocZero (UP_ir, sizeof (*n));
+
+    n->first = n->last = IR_SymNode (sym);
+
+    return n;
+}
+
+void IR_nameAddSym (IR_name name, S_symbol sym)
+{
+    IR_symNode n = IR_SymNode (sym);
+    if (name->last)
+        name->last = name->last->next = n;
+    else
+        name->first = name->last = n;
+}
+
+IR_symNode IR_SymNode (S_symbol sym)
+{
+    IR_symNode n = U_poolAllocZero (UP_ir, sizeof (*n));
+
+    n->sym  = sym;
+    n->next = NULL;
+
+    return n;
+}
+
+IR_using IR_Using (IR_name name, S_symbol alias)
+{
+    IR_using u = U_poolAllocZero (UP_ir, sizeof (*u));
+
+    u->name  = name;
+    u->alias = alias;
+    u->next  = NULL;
+
+    return u;
+}
+
 IR_namespace IR_Namespace (S_symbol name, IR_namespace parent)
 {
     IR_namespace names = U_poolAllocZero (UP_ir, sizeof (*names));

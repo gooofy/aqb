@@ -11,7 +11,12 @@
 
 typedef struct IR_assembly_        *IR_assembly;
 typedef struct IR_definition_      *IR_definition;
+
 typedef struct IR_namespace_       *IR_namespace;
+typedef struct IR_name_            *IR_name;
+typedef struct IR_symNode_         *IR_symNode;
+typedef struct IR_using_           *IR_using;
+
 typedef struct IR_formal_          *IR_formal;
 typedef struct IR_proc_            *IR_proc;
 typedef struct IR_type_            *IR_type;
@@ -37,6 +42,24 @@ struct IR_definition_
         IR_proc     proc;
     } u;
     IR_definition next;
+};
+
+struct IR_name_
+{
+    IR_symNode  first, last;
+};
+
+struct IR_symNode_
+{
+    S_symbol    sym;
+    IR_symNode  next;
+};
+
+struct IR_using_
+{
+    IR_name   name;
+    S_symbol  alias;
+    IR_using  next;
 };
 
 struct IR_namespace_
@@ -146,6 +169,12 @@ IR_assembly        IR_Assembly          (S_symbol name);
 void               IR_assemblyAdd       (IR_assembly assembly, IR_definition def);
 IR_definition      IR_DefinitionType    (IR_namespace names, S_symbol name, IR_type type);
 IR_definition      IR_DefinitionProc    (IR_namespace names, S_symbol name, IR_proc proc);
+
+IR_name            IR_Name              (S_symbol sym);
+void               IR_nameAddSym        (IR_name name, S_symbol sym);
+IR_symNode         IR_SymNode           (S_symbol sym);
+
+IR_using           IR_Using             (IR_name name, S_symbol alias);
 
 IR_namespace       IR_Namespace         (S_symbol name, IR_namespace parent);
 IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name);
