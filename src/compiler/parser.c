@@ -54,13 +54,22 @@ static S_symbol S_OVERRIDE;
 static S_symbol S_ASYNC;
 static S_symbol S_VOID;
 static S_symbol S___arglist;
+static S_symbol S_IF;
+static S_symbol S_SWITCH;
+static S_symbol S_WHILE;
+static S_symbol S_DO;
+static S_symbol S_FOR;
+static S_symbol S_FOREACH;
 
 static bool isSym(S_symbol sym)
 {
     return (S_tkn.kind == S_IDENT) && (S_tkn.u.sym == sym);
 }
 
-static void _namespace_member_declaration ();
+static void           _block                        (IR_stmtList sl);
+static void           _namespace_member_declaration ();
+static IR_name        _name                         (S_symbol s1, S_pos pos);
+static IR_expression  _expression                   (IR_name n1);
 
 /* namespace_body : '{' namespace_member_declaration* '}' ;
  */
@@ -406,6 +415,210 @@ static IR_formal _parameter(void)
 }
 
 /*
+ * argument : expression
+ */
+
+static void _argument (void)
+{
+    _expression(/*n1=*/ NULL);
+}
+
+/*
+ * argument_list : '(' (argument (',' argument)*)? ')'
+ */
+
+static void _argument_list (void)
+{
+    assert (S_tkn.kind == S_LPAREN);
+    S_nextToken(); // skip (
+
+    if (S_tkn.kind != S_RPAREN)
+        _argument();
+    while (S_tkn.kind == S_COMMA)
+    {
+        S_nextToken();
+        _argument();
+    }
+    if (S_tkn.kind == S_RPAREN)
+        S_nextToken(); // skip )
+    else
+        EM_error (S_tkn.pos, "argument list: ) expected here.");
+}
+
+/*
+ * invocation_expression : primary_expression argument_list
+ */
+static IR_expression _invocation_expression (IR_name n)
+{
+    S_pos pos;
+    if (!n)
+    {
+        pos = S_tkn.pos;
+        assert(false); // FIXME
+    }
+    else
+    {
+        pos = n->pos;
+    }
+
+    IR_expression expr = IR_Expression (IR_expCall, pos);
+
+    _argument_list();
+
+    return expr;
+}
+
+/*
+ * object_creation_expression : 'new' type ( '(' argument_list? ')' )? object_or_collection_initializer?
+ *
+ * assignment : unary_expression assignment_operator expression
+*/
+
+static IR_expression _expression (IR_name n1)
+{
+    if (!n1)
+    {
+
+        switch (S_tkn.kind)
+        {
+            case S_STRING:
+            {
+                IR_expression expr = IR_Expression (IR_expLiteralString, S_tkn.pos);
+                expr->u.stringLiteral = S_tkn.u.str;
+                S_nextToken();
+                return expr;
+            }
+            case S_IDENT:
+                n1 = _name(NULL, S_tkn.pos);
+                break;
+            default:
+                assert(false); // FIXME
+        }
+    }
+
+    switch (S_tkn.kind)
+    {
+        case S_LPAREN:
+            return _invocation_expression (n1);
+
+        default:
+            assert(false); // FIXME
+    }
+
+    assert(false);
+    return NULL;
+}
+
+/*
+ * statement: ( block
+              | ';'
+              | local_constant_declaration ';'
+
+              | if_statement
+              | switch_statement
+              | while_statement
+              | do_statement
+              | for_statement
+              | foreach_statement
+
+              | local_variable_declaration ';'
+              | expression ';'
+
+              )
+
+local_constant_declaration : 'const' type constant_declarator (',' constant_declarator)* ';'
+constant_declarator : identifier '=' constant_expression
+
+
+local_variable_declaration : type local_variable_declarator ( ',' local_variable_declarator )*
+local_variable_declarator : identifier ( '=' local_variable_initializer )?
+
+*/
+
+static void _statement (IR_stmtList sl)
+{
+    switch (S_tkn.kind)
+    {
+        case S_LBRACE:
+            _block(sl);
+            return;
+        case S_SEMICOLON:
+            S_nextToken();
+            return;
+        case S_IDENT:
+            if (S_tkn.u.sym == S_IF)
+            {
+                assert(false); // FIXME: implement
+            }
+            else if (S_tkn.u.sym == S_SWITCH)
+            {
+                assert(false); // FIXME: implement
+            }
+            else if (S_tkn.u.sym == S_WHILE)
+            {
+                assert(false); // FIXME: implement
+            }
+            else if (S_tkn.u.sym == S_DO)
+            {
+                assert(false); // FIXME: implement
+            }
+            else if (S_tkn.u.sym == S_FOR)
+            {
+                assert(false); // FIXME: implement
+            }
+            else if (S_tkn.u.sym == S_FOREACH)
+            {
+                assert(false); // FIXME: implement
+            }
+            else
+            {
+                S_pos pos = S_tkn.pos;
+                // variable declaration or expression?
+                IR_name name = _name (NULL, pos);
+                if (S_tkn.kind == S_IDENT)
+                {
+                    assert(false); // FIXME: implement local variable declaration
+                }
+                else
+                {
+                    IR_expression expr = _expression (name);
+                    if (S_tkn.kind == S_SEMICOLON)
+                        S_nextToken();
+                    else
+                        EM_error (S_tkn.pos, "expression statement: ; expected here.");
+                    IR_statement stmt = IR_Statement (IR_stmtExpression, pos);
+                    stmt->u.expr = expr;
+                    IR_stmtListAppend (sl, stmt);
+                }
+            }
+            break;
+        default:
+            EM_error (S_tkn.pos, "statement: unexpected or unimplemented token encountered.");
+            assert(false); // FIXME : implement
+            break;
+    }
+}
+
+/*
+ * block : '{' statement* '}' ;
+ */
+
+static void _block (IR_stmtList sl)
+{
+    S_nextToken(); // skip {
+
+    while ((S_tkn.kind != S_RBRACE) && (S_tkn.kind != S_EOF))
+    {
+        _statement(sl);
+    }
+
+    if (S_tkn.kind == S_RBRACE)
+        S_nextToken();
+    else
+        EM_error (S_tkn.pos, "block: } expected here.");
+}
+
+/*
  * method_declaration
  *   : type identifier type_parameter_list? parameter_list
  *     type_parameter_constraint_clause*
@@ -499,10 +712,11 @@ static IR_proc _method_declaration (uint32_t mods)
     proc->formals  = formals;
     proc->returnTy = retTy;
 
+    proc->sl = IR_StmtList ();
+
     if (S_tkn.kind == S_LBRACE)
     {
-        // FIXME: _block()
-        assert(false);
+        _block(proc->sl);
     }
     else
     {
@@ -736,7 +950,7 @@ static void _namespace_member_declaration ()
  * name : identifier ('.' identifier)*
  */
 
-static IR_name _name (S_symbol s1)
+static IR_name _name (S_symbol s1, S_pos pos)
 {
     if (!s1)
     {
@@ -749,7 +963,7 @@ static IR_name _name (S_symbol s1)
         S_nextToken();
     }
 
-    IR_name name = IR_Name (s1);
+    IR_name name = IR_Name (s1, pos);
 
     while (S_tkn.kind == S_PERIOD)
     {
@@ -786,6 +1000,7 @@ static void _using_directive (void)
         return;
     }
 
+    S_pos pos = S_tkn.pos;
     S_symbol n1 = S_tkn.u.sym;
     S_nextToken();
 
@@ -795,14 +1010,14 @@ static void _using_directive (void)
     {
         // using alias
         S_nextToken();
-        IR_name n = _name(NULL);
+        IR_name n = _name(NULL, S_tkn.pos);
         if (!n)
             return;
         u = IR_Using (n, /*alias=*/n1);
     }
     else
     {
-        IR_name n = _name (n1);
+        IR_name n = _name (n1, pos);
         if (!n)
             return;
         u = IR_Using (n, /*alias=*/NULL);
@@ -833,13 +1048,16 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
     S_init (sourcefn, sourcef);
 
-    if (isSym(S_USING))
+    while (S_tkn.kind != S_EOF)
     {
-        _using_directive();
-    }
-    else
-    {
-        _namespace_member_declaration ();
+        if (isSym(S_USING))
+        {
+            _using_directive();
+        }
+        else
+        {
+            _namespace_member_declaration ();
+        }
     }
 }
 
@@ -871,6 +1089,12 @@ void PA_boot(void)
     S_ASYNC     = S_Symbol("async");
     S_VOID      = S_Symbol("void");
     S___arglist = S_Symbol("__arglist");
+    S_IF        = S_Symbol("if");
+    S_SWITCH    = S_Symbol("switch");
+    S_WHILE     = S_Symbol("while");
+    S_DO        = S_Symbol("do");
+    S_FOR       = S_Symbol("for");
+    S_FOREACH   = S_Symbol("foreach");
 }
 
 void PA_init(void)

@@ -62,23 +62,13 @@ static inline void _print_token(void)
 }
 #endif
 
-//static void print_tkns(S_tkn tkn)
-//{
-//    printf("\n      TOKENS: ");
-//    while (tkn)
-//    {
-//        print_tkn(tkn);
-//        tkn = tkn->next;
-//        if (tkn)
-//            printf(" ");
-//    }
-//    printf("\n");
-//}
-
 static bool nextch (void)
 {
     int n = fread(&g_ch, 1, 1, g_sourcef);
-    return n==1;
+    if (n==1)
+        return true;
+    g_ch = 0;
+    return false;
 }
 
 static void getch(void)
@@ -241,21 +231,7 @@ static void number(int base, bool dp)
 }
 #endif
 
-#if 0
-static void handle_comment(bool line_comment)
-{
-    // printf ("skipping comment:\n");
-    while (!g_eof && (g_ch != '\n'))
-    {
-        // printf ("%c", g_ch);
-        getch();
-    }
-    // printf ("\ncomment done. eof: %d\n", g_eof);
-}
-#endif
-
-
-static void identifier(void)
+static void _identifier(void)
 {
     int l = 0;
 
@@ -273,6 +249,44 @@ static void identifier(void)
     g_str[l] = '\0';
 
     S_tkn.u.sym = S_Symbol(g_str);
+}
+
+static void _string(void)
+{
+    int l = 0;
+
+    S_tkn.kind = S_STRING;
+
+    getch(); // skip "
+
+    bool quoted = false;
+
+    while (!g_eof)
+    {
+        if (g_ch == '\\')
+        {
+            quoted = true;
+            getch();
+            continue;
+        }
+
+        if (!quoted && (g_ch== '"'))
+        {
+            getch();
+            break;
+        }
+
+        if (l<MAX_LINE_LEN-1)
+        {
+            g_str[l] = g_ch;
+            l++;
+        }
+        getch();
+        quoted = false;
+    }
+
+    g_str[l] = 0;
+    S_tkn.u.str = String (UP_frontend, g_str);
 }
 
 bool S_nextToken (void)
@@ -321,13 +335,17 @@ bool S_nextToken (void)
 
         if (S_isIDStart(g_ch))
         {
-            identifier();
+            _identifier();
             goto done;
         }
         else
         {
             switch (g_ch)
             {
+                case '"':
+                    getch();
+                    _string();
+                    goto done;
                 case '.':
                     getch();
                     S_tkn.kind = S_PERIOD;

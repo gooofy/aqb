@@ -46,11 +46,12 @@ IR_definition IR_DefinitionProc (IR_namespace names, S_symbol name, IR_proc proc
     return def;
 }
 
-IR_name IR_Name (S_symbol sym)
+IR_name IR_Name (S_symbol sym, S_pos pos)
 {
     IR_name n = U_poolAllocZero (UP_ir, sizeof (*n));
 
     n->first = n->last = IR_SymNode (sym);
+    n->pos   = pos;
 
     return n;
 }
@@ -195,5 +196,44 @@ void IR_addMember (IR_memberList memberList, IR_member member)
     else
         memberList->first = memberList->last = member;
     member->next = NULL;
+}
+
+IR_stmtList IR_StmtList (void)
+{
+    IR_stmtList sl = U_poolAllocZero (UP_ir, sizeof (*sl));
+
+    sl->first = NULL;
+    sl->last  = NULL;
+
+    return sl;
+}
+
+void IR_stmtListAppend (IR_stmtList sl, IR_statement stmt)
+{
+    if (sl->last)
+        sl->last = sl->last->next = stmt;
+    else
+        sl->first = sl->last = stmt;
+    stmt->next = NULL;
+}
+
+IR_statement IR_Statement (IR_stmtKind kind, S_pos pos)
+{
+    IR_statement stmt = U_poolAllocZero (UP_ir, sizeof (*stmt));
+
+    stmt->kind = kind;
+    stmt->pos  = pos;
+
+    return stmt;
+}
+
+IR_expression IR_Expression (IR_exprKind kind, S_pos pos)
+{
+    IR_expression exp = U_poolAllocZero (UP_ir, sizeof (*exp));
+
+    exp->kind = kind;
+    exp->pos  = pos;
+
+    return exp;
 }
 

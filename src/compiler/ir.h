@@ -25,6 +25,12 @@ typedef struct IR_memberList_      *IR_memberList;
 typedef struct IR_member_          *IR_member;
 typedef struct IR_method_          *IR_method;
 
+typedef struct IR_argumentList_    *IR_argumentList;
+
+typedef struct IR_stmtList_        *IR_stmtList;
+typedef struct IR_statement_       *IR_statement;
+typedef struct IR_expression_      *IR_expression;
+
 struct IR_assembly_
 {
     S_symbol      name;
@@ -47,6 +53,7 @@ struct IR_definition_
 struct IR_name_
 {
     IR_symNode  first, last;
+    S_pos       pos;
 };
 
 struct IR_symNode_
@@ -90,6 +97,7 @@ struct IR_proc_
     IR_type          returnTy;
     bool             isStatic;
     bool             isExtern;
+    IR_stmtList      sl;
 };
 
 struct IR_type_
@@ -165,12 +173,41 @@ struct IR_method_
     int16_t   vTableIdx;
 };
 
+struct IR_stmtList_
+{
+    IR_statement    first, last;
+};
+
+typedef enum { IR_stmtExpression } IR_stmtKind;
+
+struct IR_statement_
+{
+    IR_stmtKind kind;
+    S_pos pos;
+    union {
+        IR_expression   expr;
+    } u;
+    IR_statement next;
+};
+
+typedef enum { IR_expCall, IR_expLiteralString } IR_exprKind;
+
+struct IR_expression_
+{
+    IR_exprKind kind;
+    S_pos pos;
+    union {
+        string                                       stringLiteral;
+        struct { IR_name name; IR_argumentList al; } call;
+    } u;
+};
+
 IR_assembly        IR_Assembly          (S_symbol name);
 void               IR_assemblyAdd       (IR_assembly assembly, IR_definition def);
 IR_definition      IR_DefinitionType    (IR_namespace names, S_symbol name, IR_type type);
 IR_definition      IR_DefinitionProc    (IR_namespace names, S_symbol name, IR_proc proc);
 
-IR_name            IR_Name              (S_symbol sym);
+IR_name            IR_Name              (S_symbol sym, S_pos pos);
 void               IR_nameAddSym        (IR_name name, S_symbol sym);
 IR_symNode         IR_SymNode           (S_symbol sym);
 
@@ -191,11 +228,15 @@ IR_memberList      IR_MemberList        (void);
 IR_member          IR_MemberMethod      (IR_visibility visibility, IR_method method);
 void               IR_addMember         (IR_memberList memberList, IR_member member);
 
+IR_stmtList        IR_StmtList          (void);
+void               IR_stmtListAppend    (IR_stmtList sl, IR_statement stmt);
+
+IR_statement       IR_Statement         (IR_stmtKind kind, S_pos pos);
+
+IR_expression      IR_Expression        (IR_exprKind kind, S_pos pos);
 
 // built-in types
 //IR_type            IR_TypeVoid          (void);
-
-//IR_name            IR_Name              (S_symbol sym);
 
 #endif
 
