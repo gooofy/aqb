@@ -1,5 +1,7 @@
 //using System;
-using string = System.String;
+
+// this one is built in now:
+// using string = System.String;
 
 namespace System
 {

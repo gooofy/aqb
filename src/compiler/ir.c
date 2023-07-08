@@ -1,4 +1,5 @@
 #include "ir.h"
+#include "errormsg.h"
 
 IR_assembly IR_Assembly(S_symbol name)
 {
@@ -75,12 +76,13 @@ IR_symNode IR_SymNode (S_symbol sym)
     return n;
 }
 
-IR_using IR_Using (IR_name name, S_symbol alias)
+IR_using IR_Using (S_symbol alias, IR_type type, IR_namespace names)
 {
     IR_using u = U_poolAllocZero (UP_ir, sizeof (*u));
 
-    u->name  = name;
     u->alias = alias;
+    u->names = names;
+    u->type  = type;
     u->next  = NULL;
 
     return u;
@@ -98,10 +100,10 @@ IR_namespace IR_Namespace (S_symbol name, IR_namespace parent)
     return names;
 }
 
-IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name)
+IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCreate)
 {
     IR_namespace names = (IR_namespace) TAB_look(parent->names, name);
-    if (names)
+    if (names || !doCreate)
         return names;
 
     names = IR_Namespace (name, parent);
@@ -110,11 +112,24 @@ IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name)
     return names;
 }
 
-IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name)
+IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate)
 {
     IR_type t = (IR_type) TAB_look(names->types, name);
-    if (t)
+    if (t || !doCreate)
         return t;
+
+    // apply using declarations
+    for (IR_using u=usings; u; u=u->next)
+    {
+        if (u->alias == name)
+        {
+            if (u->type)
+                return u->type;
+            EM_error (pos, "sorry");
+            assert(false); // FIXME
+        }
+        assert(false); // FIXME
+    }
 
     t = IR_TypeUnresolved (pos, name);
     TAB_enter (names->types, name, t);

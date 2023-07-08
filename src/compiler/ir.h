@@ -64,8 +64,15 @@ struct IR_symNode_
 
 struct IR_using_
 {
-    IR_name   name;
-    S_symbol  alias;
+    //bool         isAlias;
+    //union {
+    //    struct { S_symbol alias; IR_type type; } alias;
+    //} u;
+    //IR_name   name;
+    S_symbol     alias;     // NULL -> using-namespace-directive
+    IR_namespace names;
+    IR_type      type;      // alias only
+
     IR_using  next;
 };
 
@@ -211,11 +218,11 @@ IR_name            IR_Name              (S_symbol sym, S_pos pos);
 void               IR_nameAddSym        (IR_name name, S_symbol sym);
 IR_symNode         IR_SymNode           (S_symbol sym);
 
-IR_using           IR_Using             (IR_name name, S_symbol alias);
+IR_using           IR_Using             (S_symbol alias, IR_type type, IR_namespace names);
 
 IR_namespace       IR_Namespace         (S_symbol name, IR_namespace parent);
-IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name);
-IR_type            IR_namesResolveType  (S_pos pos, IR_namespace names , S_symbol name);
+IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCreate);
+IR_type            IR_namesResolveType  (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
 
 IR_formal          IR_Formal            (S_symbol name, IR_type type);
 IR_proc            IR_Proc              (IR_visibility visibility, IR_procKind kind, S_symbol name, bool isExtern, bool isStatic);

@@ -66,6 +66,7 @@ src/lib/_brt/alibtest
 src/lib/_brt/dyna.asm
 src/lib/_brt/_brt_stub.c
 src/lib/_brt/_brt.asm
+src/lib/_urt/acs.log
 src/lib/_aqb/*.s
 src/lib/_aqb/*.sym
 src/lib/_aqb/simple_timer.c
@@ -127,6 +128,7 @@ tests/insights/debug/dump.txt
 tests/insights/debug/foo.hunk
 tests/insights/debug/foo.asm
 tests/insights/debug/lxa.log
+tests/insights/debug/acs.log
 tests/insights/footprint/foo
 tests/insights/link/foo
 tests/insights/link/foo.S

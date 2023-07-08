@@ -67,19 +67,19 @@ static bool isSym(S_symbol sym)
 }
 
 static void           _block                        (IR_stmtList sl);
-static void           _namespace_member_declaration ();
+static bool           _namespace_member_declaration ();
 static IR_name        _name                         (S_symbol s1, S_pos pos);
 static IR_expression  _expression                   (IR_name n1);
 
 /* namespace_body : '{' namespace_member_declaration* '}' ;
  */
 
-static void _namespace_body ()
+static bool _namespace_body (void)
 {
     if (S_tkn.kind != S_LBRACE)
     {
         EM_error (S_tkn.pos, "{ expected");
-        return;
+        return false;
     }
     S_nextToken();
 
@@ -88,12 +88,14 @@ static void _namespace_body ()
         if (S_tkn.kind == S_EOF)
         {
             EM_error (S_tkn.pos, "unexpected end of source in namespace body");
-            return;
+            return false;
         }
-        _namespace_member_declaration();
+        if (!_namespace_member_declaration())
+            return false;
     }
 
     S_nextToken(); // skip }
+    return true;
 }
 
 /*
@@ -104,33 +106,37 @@ static void _namespace_body ()
  *     : identifier ('.' identifier)*
  *     ;
  */
-static void _namespace_declaration ()
+static bool _namespace_declaration (void)
 {
     S_nextToken(); // skip "namespace"
 
     if (S_tkn.kind != S_IDENT)
     {
         EM_error (S_tkn.pos, "namespace identifier expected here");
-        return;
+        return false;
     }
 
     IR_namespace parent = _g_names;
 
-    _g_names = IR_namesResolveNames (parent, S_tkn.u.sym);
+    _g_names = IR_namesResolveNames (parent, S_tkn.u.sym, /*doCreate=*/true);
     S_nextToken();
 
     while (S_tkn.kind == S_PERIOD)
     {
-        // FIXME: implement!
+        EM_error (S_tkn.pos, "sorry");
+        //fflush(stdout);
+        //// FIXME: implement!
         assert(false);
     }
 
-    _namespace_body ();
+    if (!_namespace_body ())
+        return false;
 
     if (S_tkn.kind == S_SEMICOLON)
         S_nextToken();
 
     _g_names = parent;
+    return true;
 }
 
 /* FIXME: add amiga library call support
@@ -348,11 +354,11 @@ IR_type _type(void)
             return NULL;
         }
 
-        names = IR_namesResolveNames (names, name);
+        names = IR_namesResolveNames (names, name, /*doCreate=*/true);
         name = n2;
     }
 
-    IR_type t = IR_namesResolveType (pos, names ? names : _g_names, name);
+    IR_type t = IR_namesResolveType (pos, names ? names : _g_names, name, names ? NULL : _g_usings_first, /*doCreate=*/true);
 
     if (S_tkn.kind == S_LBRACKET)
     {
@@ -788,7 +794,7 @@ static void _class_declaration (uint32_t mods)
     }
     S_symbol name = S_tkn.u.sym;
 
-    IR_type t = IR_namesResolveType (pos, _g_names, name);
+    IR_type t = IR_namesResolveType (pos, _g_names, name, /*usings=*/NULL, /*doCreate=*/ true);
     if (t->kind != Ty_unresolved)
         EM_error (S_tkn.pos, "%s already exists in this namespace");
     S_nextToken();
@@ -892,7 +898,7 @@ delegate_declaration
  *                                          )
  *                                          ;
  */
-static void _type_declaration ()
+static bool _type_declaration ()
 {
     if (S_tkn.kind == S_LBRACKET)
         _attributes();
@@ -925,7 +931,10 @@ static void _type_declaration ()
         assert(false);
     }
     else
-        EM_error (S_tkn.pos, "syntax error in type declaration");
+    {
+        return EM_error (S_tkn.pos, "syntax error in type declaration");
+    }
+    return true;
 }
 
 /*
@@ -934,15 +943,15 @@ static void _type_declaration ()
  *     | type_declaration
  *     ;
  */
-static void _namespace_member_declaration ()
+static bool _namespace_member_declaration (void)
 {
     if (isSym(S_NAMESPACE))
     {
-        _namespace_declaration ();
+        return _namespace_declaration ();
     }
     else
     {
-        _type_declaration ();
+        return _type_declaration ();
     }
 }
 
@@ -983,6 +992,14 @@ static IR_name _name (S_symbol s1, S_pos pos)
     return name;
 }
 
+static void _add_using (IR_using u)
+{
+    if (_g_usings_last)
+        _g_usings_last = _g_usings_last->next = u;
+    else
+        _g_usings_first = _g_usings_last = u;
+}
+
 /*
  * using_directive
  * : 'using' (identifier '=' name
@@ -1000,33 +1017,66 @@ static void _using_directive (void)
         return;
     }
 
-    S_pos pos = S_tkn.pos;
-    S_symbol n1 = S_tkn.u.sym;
+    S_pos    pos   = S_tkn.pos;
+    S_symbol alias = NULL;
+    S_symbol n1    = S_tkn.u.sym;
     S_nextToken();
 
-    IR_using u;
+    IR_namespace names = _g_names;
+    IR_type      type  = NULL;
 
     if (S_tkn.kind == S_EQUALS)
     {
         // using alias
+        alias = n1;
         S_nextToken();
-        IR_name n = _name(NULL, S_tkn.pos);
-        if (!n)
-            return;
-        u = IR_Using (n, /*alias=*/n1);
     }
     else
     {
-        IR_name n = _name (n1, pos);
-        if (!n)
-            return;
-        u = IR_Using (n, /*alias=*/NULL);
+        names = IR_namesResolveNames (names, n1, /*doCreate=*/false);
+        if (!names)
+            EM_error (pos, "using: failed to resolve %s", S_name (n1));
     }
 
-    if (_g_usings_last)
-        _g_usings_last = _g_usings_last->next = u;
-    else
-        _g_usings_first = _g_usings_last = u;
+    // name : identifier ('.' identifier)*
+
+    while (names)
+    {
+        if (S_tkn.kind != S_IDENT)
+        {
+            EM_error (S_tkn.pos, "using alias: identifier expected here");
+            names = NULL;
+            break;
+        }
+
+        S_symbol sym = S_tkn.u.sym;
+        pos   = S_tkn.pos;
+        S_nextToken();
+
+        type = IR_namesResolveType (pos, names, sym, /*usings=*/NULL, /*doCreate=*/false);
+        if (type)
+        {
+            names = NULL;
+            break;
+        }
+        names = IR_namesResolveNames (names, sym, /*doCreate=*/false);
+        if (!names)
+        {
+            EM_error (pos, "using: failed to resolve alias");
+            break;
+        }
+        if (S_tkn.kind != S_PERIOD)
+            break;
+        S_nextToken();
+    }
+
+    if (type || names)
+    {
+        IR_using u = IR_Using (alias, type, names);
+
+        if (u)
+            _add_using (u);
+    }
 
     if (S_tkn.kind != S_SEMICOLON)
         EM_error (S_tkn.pos, "using: ; expected here");
@@ -1048,6 +1098,13 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
     S_init (sourcefn, sourcef);
 
+    // builtin:
+    // using string = System.String;
+
+    IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
+    IR_using u = IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"), NULL,  /*doCreate=*/true), NULL);
+    _add_using (u);
+
     while (S_tkn.kind != S_EOF)
     {
         if (isSym(S_USING))
@@ -1056,7 +1113,8 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
         }
         else
         {
-            _namespace_member_declaration ();
+            if (!_namespace_member_declaration ())
+                break;
         }
     }
 }
