@@ -137,28 +137,85 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
     return t;
 }
 
-IR_formal IR_Formal (S_symbol name, IR_type type)
+int IR_TypeSize (IR_type ty)
+{
+    switch (ty->kind)
+    {
+        case Ty_byte:
+        case Ty_ubyte:
+             return 1;
+        case Ty_bool:
+        case Ty_integer:
+        case Ty_uinteger:
+             return 2;
+        case Ty_long:
+        case Ty_ulong:
+        case Ty_single:
+        case Ty_pointer:
+        case Ty_forwardPtr:
+        case Ty_prc:
+        case Ty_procPtr:
+        case Ty_any:
+             return 4;
+        case Ty_double:
+             return 8;
+        //case Ty_darray:
+        //    return ty->u.darray.tyCArray->u.cls.uiSize;
+        //case Ty_sarray:
+        //    return ty->u.sarray.uiSize;
+        //case Ty_record:
+        //    return ty->u.record.uiSize;
+        case Ty_class:
+            return ty->u.cls.uiSize;
+        default:
+            assert(0);
+            return 4;
+    }
+    return 4;
+}
+
+IR_formal IR_Formal (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg)
 {
     IR_formal p = U_poolAllocZero (UP_ir, sizeof (*p));
 
     p->name = name;
     p->type = type;
+    p->mode = mode;
+    p->reg  = reg;
 
     return p;
 }
 
-IR_proc IR_Proc (IR_visibility visibility, IR_procKind kind, S_symbol name, bool isExtern, bool isStatic)
+IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic)
 {
     IR_proc p = U_poolAllocZero (UP_ir, sizeof (*p));
 
+    p->pos        = pos;
     p->visibility = visibility;
     p->kind       = kind;
+    p->tyOwner    = tyOwner;
     p->name       = name;
     p->isExtern   = isExtern;
     p->isStatic   = isStatic;
 
     return p;
 }
+
+string IR_generateProcLabel (S_symbol sCls, S_symbol sName)
+{
+    string label = strconcat(UP_frontend, "_", S_name(sName));
+
+    if (sCls)
+        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), label));
+
+    // FIXME: append signature for overloading support
+    //if (isFunction)
+    //    label = strconcat(UP_frontend, label, "_");
+
+    return label;
+}
+
+
 
 IR_type IR_TypeUnresolved (S_pos pos, S_symbol name)
 {

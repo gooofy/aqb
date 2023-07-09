@@ -1,4 +1,5 @@
 #include "semantics.h"
+#include "codegen.h"
 #include "errormsg.h"
 
 static void _elaborateType (IR_type ty);
@@ -11,6 +12,46 @@ static void _elaborateProc (IR_proc proc)
     {
         _elaborateType (formal->type);
     }
+
+    if (!proc->isExtern)
+    {
+
+        CG_frame  funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
+        //CG_item   returnVar;
+        //CG_NoneItem (&returnVar);
+
+        assert(funFrame);
+        assert(false); // FIXME
+
+#if 0
+        E_env lenv = FE_mod->env;
+        E_env wenv = NULL;
+
+        if (proc->tyOwner && !proc->isShared)
+            lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
+        lenv = E_EnvScopes(lenv);   // local variables, consts etc.
+
+        CG_itemListNode iln = funFrame->formals->first;
+        for (Ty_formal formals = proc->formals;
+             formals; formals = formals->next, iln = iln->next)
+        {
+            E_declareVFC(lenv, formals->name, &iln->item);
+        }
+
+        AS_instrList body = AS_InstrList();
+
+        FE_SLE sle  = g_sleStack;
+        slePop();
+
+        CG_procEntryExit(sle->pos,
+                         sle->frame,
+                         sle->code,
+                         &sle->returnVar,
+                         sle->exitlbl,
+                         /*is_main=*/FALSE,
+#endif
+    }
+
 }
 
 static void _elaborateMethod (IR_method method, IR_type tyCls)

@@ -7,7 +7,7 @@
 
 #include "compiler.h"
 #include "semantics.h"
-//#include "codegen.h"
+#include "codegen.h"
 //#include "env.h"
 #include "parser.h"
 //#include "linscan.h"
@@ -39,7 +39,7 @@ void CO_exit(int return_code)
     longjmp (g_exit_jmp_buf, 1);
 }
 
-IR_assembly CO_AssemblyInit  (S_symbol name)
+IR_assembly CO_AssemblyInit (S_symbol name)
 {
     g_startTime   = U_getTime();
 #ifdef __amigaos__
@@ -57,7 +57,7 @@ IR_assembly CO_AssemblyInit  (S_symbol name)
     PA_init();
 
     //AS_init();
-    //CG_init(module_name);
+    CG_init(S_name(name));
     //E_init();
 
     if (setjmp(g_exit_jmp_buf))

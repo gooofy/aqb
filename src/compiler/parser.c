@@ -411,7 +411,7 @@ static IR_formal _parameter(void)
         S_symbol name = S_tkn.u.sym;
         S_nextToken();
 
-        par = IR_Formal(name, t);
+        par = IR_Formal(name, t, IR_byVal, /*reg=*/NULL);
 
         if (S_tkn.kind == S_EQUALS)
             assert(false); // FIXME
@@ -632,7 +632,7 @@ static void _block (IR_stmtList sl)
  *   ;
  */
 
-static IR_proc _method_declaration (uint32_t mods)
+static IR_proc _method_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
 {
     IR_visibility visibility = IR_visPrivate;
     bool          isStatic   = false;
@@ -669,7 +669,7 @@ static IR_proc _method_declaration (uint32_t mods)
     S_symbol name = S_tkn.u.sym;
     S_nextToken();
 
-    IR_proc proc = IR_Proc (visibility, IR_pkFunction, name, isExtern, isStatic);
+    IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
 
     if (S_tkn.kind == S_LESS)
     {
@@ -717,6 +717,8 @@ static IR_proc _method_declaration (uint32_t mods)
 
     proc->formals  = formals;
     proc->returnTy = retTy;
+
+    proc->label = Temp_namedlabel(IR_generateProcLabel (tyOwner ? tyOwner->u.cls.name:NULL, name));
 
     proc->sl = IR_StmtList ();
 
@@ -845,6 +847,7 @@ static void _class_declaration (uint32_t mods)
 
     while (S_tkn.kind != S_RBRACE)
     {
+        S_pos pos = S_tkn.pos;
 
         if (S_tkn.kind == S_LBRACKET)
             _attributes();
@@ -854,7 +857,7 @@ static void _class_declaration (uint32_t mods)
 
         if (S_tkn.kind == S_IDENT)
         {
-            IR_proc proc = _method_declaration (mods);
+            IR_proc proc = _method_declaration (pos, mods, t);
 
             IR_method method = IR_Method(proc);
             IR_member member = IR_MemberMethod (visibility, method);

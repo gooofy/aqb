@@ -4,6 +4,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "scanner.h"
+#include "temp.h"
 
 /*
  * AQB Intermediate Representation
@@ -19,7 +20,6 @@ typedef struct IR_using_           *IR_using;
 
 typedef struct IR_formal_          *IR_formal;
 typedef struct IR_proc_            *IR_proc;
-typedef struct IR_type_            *IR_type;
 typedef struct IR_implements_      *IR_implements;
 typedef struct IR_memberList_      *IR_memberList;
 typedef struct IR_member_          *IR_member;
@@ -30,6 +30,9 @@ typedef struct IR_argumentList_    *IR_argumentList;
 typedef struct IR_stmtList_        *IR_stmtList;
 typedef struct IR_statement_       *IR_statement;
 typedef struct IR_expression_      *IR_expression;
+
+typedef struct IR_type_            *IR_type;
+typedef struct IR_const_           *IR_const;
 
 struct IR_assembly_
 {
@@ -85,11 +88,15 @@ struct IR_namespace_
     TAB_table    types; // symbol -> IR_type
 };
 
+typedef enum {IR_byRef, IR_byVal} IR_formalMode;
+
 struct IR_formal_
 {
-    S_symbol     name;
-    IR_type      type;
-    IR_formal    next;
+    S_symbol      name;
+    IR_type       type;
+    IR_formalMode mode;
+    Temp_temp     reg;
+    IR_formal     next;
 };
 
 typedef enum {IR_pkFunction, IR_pkConstructor, IR_pkDestructor} IR_procKind;
@@ -97,11 +104,14 @@ typedef enum {IR_visPrivate, IR_visPublic, IR_visProtected, IR_visInternal} IR_v
 
 struct IR_proc_
 {
+    S_pos            pos;
     IR_procKind      kind;
     IR_visibility    visibility;
     S_symbol         name;
+    IR_type          tyOwner;   // methods only: pointer to class or interface this method belongs to
     IR_formal        formals;
     IR_type          returnTy;
+    Temp_label       label;
     bool             isStatic;
     bool             isExtern;
     IR_stmtList      sl;
@@ -145,6 +155,19 @@ struct IR_type_
                 IR_memberList  members;
                 int16_t        virtualMethodCnt;
                 IR_member      vTablePtr;                                   } cls;
+    } u;
+};
+
+struct IR_const_
+{
+    IR_type ty;
+    union
+    {
+        bool      b;
+        int32_t   i;
+        uint32_t  u;
+        double    f;
+        string    s;
     } u;
 };
 
@@ -224,10 +247,12 @@ IR_namespace       IR_Namespace         (S_symbol name, IR_namespace parent);
 IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCreate);
 IR_type            IR_namesResolveType  (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
 
-IR_formal          IR_Formal            (S_symbol name, IR_type type);
-IR_proc            IR_Proc              (IR_visibility visibility, IR_procKind kind, S_symbol name, bool isExtern, bool isStatic);
+IR_formal          IR_Formal            (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
+IR_proc            IR_Proc              (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
+string             IR_generateProcLabel (S_symbol sCls, S_symbol sName);
 
 IR_type            IR_TypeUnresolved    (S_pos pos, S_symbol name);
+int                IR_TypeSize          (IR_type ty);
 
 IR_method          IR_Method            (IR_proc proc);
 
