@@ -4,6 +4,33 @@
 
 static void _elaborateType (IR_type ty);
 
+static void _elaborateExpression (IR_expression expr)
+{
+    switch (expr->kind)
+    {
+        case IR_expCall:
+            assert(false); // FIXME
+            break;
+        case IR_expLiteralString:
+            assert(false); // FIXME
+            break;
+        default:
+            assert(false); // FIXME
+    }
+}
+
+static void _elaborateStmt (IR_statement stmt)
+{
+    switch (stmt->kind)
+    {
+        case IR_stmtExpression:
+            _elaborateExpression (stmt->u.expr);
+            break;
+        default:
+            assert(false);
+    }
+}
+
 static void _elaborateProc (IR_proc proc)
 {
     if (proc->returnTy)
@@ -18,21 +45,24 @@ static void _elaborateProc (IR_proc proc)
 
         CG_frame  funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
 
-#if 0
-        E_env lenv = FE_mod->env;
-        E_env wenv = NULL;
+        //E_env lenv = FE_mod->env;
+        //E_env wenv = NULL;
 
-        if (proc->tyOwner && !proc->isShared)
-            lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
-        lenv = E_EnvScopes(lenv);   // local variables, consts etc.
+        if (proc->tyOwner && !proc->isStatic)
+        {
+            // FIXME lenv = wenv = E_EnvWith(lenv, funFrame->formals->first->item); // this. ref
+            assert(false);
+        }
+
+        // FIXME lenv = E_EnvScopes(lenv);   // local variables, consts etc.
 
         CG_itemListNode iln = funFrame->formals->first;
-        for (Ty_formal formals = proc->formals;
+        for (IR_formal formals = proc->formals;
              formals; formals = formals->next, iln = iln->next)
         {
-            E_declareVFC(lenv, formals->name, &iln->item);
+            assert(false);
+            //E_declareVFC(lenv, formals->name, &iln->item);
         }
-#endif
 
         AS_instrList code = AS_InstrList();
         Temp_label exitlbl = Temp_newlabel();
@@ -50,7 +80,10 @@ static void _elaborateProc (IR_proc proc)
             CG_NoneItem (&returnVar);
         }
 
-
+        for (IR_statement stmt=proc->sl->first; stmt; stmt=stmt->next)
+        {
+            _elaborateStmt (stmt);
+        }
 
         CG_procEntryExit(proc->pos,
                          funFrame,
@@ -59,9 +92,7 @@ static void _elaborateProc (IR_proc proc)
                          exitlbl,
                          /*is_main=*/false,
                          /*expt=*/proc->visibility == IR_visPublic);
-        assert(false); // FIXME
     }
-
 }
 
 static void _elaborateMethod (IR_method method, IR_type tyCls)
