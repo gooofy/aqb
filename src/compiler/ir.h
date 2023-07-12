@@ -119,26 +119,32 @@ struct IR_proc_
 
 struct IR_type_
 {
-    enum { Ty_bool,         //  0
-           Ty_byte,         //  1
-           Ty_ubyte,        //  2
-           Ty_integer,      //  3
-           Ty_uinteger,     //  4
-           Ty_long,         //  5
-           Ty_ulong,        //  6
-           Ty_single,       //  7
-           Ty_double,       //  8
-           Ty_sarray,       //  9
-           Ty_darray,       // 10
-           Ty_record,       // 11
-           Ty_pointer,      // 12
-           Ty_any,          // 13
-           Ty_forwardPtr,   // 14
-           Ty_procPtr,      // 15
-           Ty_class,        // 16
-           Ty_interface,    // 17
-           Ty_unresolved,   // 18 also used when loading assemblies
-           Ty_prc           // 19
+    enum { Ty_unresolved,   //  0 also used when loading assemblies
+
+           Ty_bool,         //  1
+           Ty_byte,         //  2
+           Ty_ubyte,        //  3
+           Ty_integer,      //  4
+           Ty_uinteger,     //  5
+           Ty_long,         //  6
+           Ty_ulong,        //  7
+           Ty_single,       //  8
+           Ty_double,       //  9
+
+           Ty_class,        // 10
+           Ty_interface,    // 11
+
+           Ty_reference,    // 12 a reference is a pointer to a class or interface that is tracked by our GC
+
+           //Ty_sarray,       //  9
+           //Ty_darray,       // 10
+
+           //Ty_record,       // 11
+           //Ty_pointer,      // 12
+
+           //Ty_any,          // 13
+           //Ty_procPtr,      // 15
+           //Ty_prc           // 19
            } kind;
     S_pos pos;
     union
@@ -155,6 +161,7 @@ struct IR_type_
                 IR_memberList  members;
                 int16_t        virtualMethodCnt;
                 IR_member      vTablePtr;                                   } cls;
+        IR_type                                                               ref;
     } u;
 };
 
@@ -252,7 +259,13 @@ IR_proc            IR_Proc              (S_pos pos, IR_visibility visibility, IR
 string             IR_generateProcLabel (S_symbol sCls, S_symbol sName);
 
 IR_type            IR_TypeUnresolved    (S_pos pos, S_symbol name);
-int                IR_TypeSize          (IR_type ty);
+int                IR_typeSize          (IR_type ty);
+
+IR_const           IR_ConstBool         (IR_type ty, bool     b);
+IR_const           IR_ConstInt          (IR_type ty, int32_t  i);
+IR_const           IR_ConstUInt         (IR_type ty, uint32_t u);
+IR_const           IR_ConstFloat        (IR_type ty, double   f);
+IR_const           IR_ConstString       (IR_type ty, string   s);
 
 IR_method          IR_Method            (IR_proc proc);
 
@@ -269,6 +282,15 @@ IR_expression      IR_Expression        (IR_exprKind kind, S_pos pos);
 
 // built-in types
 //IR_type            IR_TypeVoid          (void);
+IR_type            IR_TypeBool          (void);
+IR_type            IR_TypeByte          (void);
+IR_type            IR_TypeUByte         (void);
+IR_type            IR_TypeInteger       (void);
+IR_type            IR_TypeUInteger      (void);
+IR_type            IR_TypeLong          (void);
+IR_type            IR_TypeULong         (void);
+IR_type            IR_TypeSingle        (void);
+IR_type            IR_TypeDouble        (void);
 
 #endif
 

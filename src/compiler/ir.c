@@ -137,7 +137,7 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
     return t;
 }
 
-int IR_TypeSize (IR_type ty)
+int IR_typeSize (IR_type ty)
 {
     switch (ty->kind)
     {
@@ -151,11 +151,10 @@ int IR_TypeSize (IR_type ty)
         case Ty_long:
         case Ty_ulong:
         case Ty_single:
-        case Ty_pointer:
-        case Ty_forwardPtr:
-        case Ty_prc:
-        case Ty_procPtr:
-        case Ty_any:
+        case Ty_reference:
+        //case Ty_prc:
+        //case Ty_procPtr:
+        //case Ty_any:
              return 4;
         case Ty_double:
              return 8;
@@ -172,6 +171,56 @@ int IR_TypeSize (IR_type ty)
             return 4;
     }
     return 4;
+}
+
+IR_const IR_ConstBool (IR_type ty, bool b)
+{
+    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->ty  = ty;
+    p->u.b = b;
+
+    return p;
+}
+
+IR_const IR_ConstInt (IR_type ty, int32_t i)
+{
+    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->ty  = ty;
+    p->u.i = i;
+
+    return p;
+}
+
+IR_const IR_ConstUInt (IR_type ty, uint32_t u)
+{
+    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->ty  = ty;
+    p->u.u = u;
+
+    return p;
+}
+
+IR_const IR_ConstFloat (IR_type ty, double f)
+{
+    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->ty  = ty;
+    p->u.f = f;
+
+    return p;
+}
+
+IR_const IR_ConstString (IR_type ty, string s)
+{
+    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+
+    p->ty  = ty;
+    p->u.s = s;
+
+    return p;
 }
 
 IR_formal IR_Formal (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg)
@@ -308,4 +357,46 @@ IR_expression IR_Expression (IR_exprKind kind, S_pos pos)
 
     return exp;
 }
+
+static struct IR_type_ tybool = {Ty_bool};
+IR_type IR_TypeBool(void) {return &tybool;}
+
+static struct IR_type_ tybyte = {Ty_byte};
+IR_type IR_TypeByte(void) {return &tybyte;}
+
+static struct IR_type_ tyubyte = {Ty_ubyte};
+IR_type IR_TypeUByte(void) {return &tyubyte;}
+
+static struct IR_type_ tyinteger = {Ty_integer};
+IR_type IR_TypeInteger(void) {return &tyinteger;}
+
+static struct IR_type_ tyuinteger = {Ty_uinteger};
+IR_type IR_TypeUInteger(void) {return &tyuinteger;}
+
+static struct IR_type_ tylong = {Ty_long};
+IR_type IR_TypeLong(void) {return &tylong;}
+
+static struct IR_type_ tyulong = {Ty_ulong};
+IR_type IR_TypeULong(void) {return &tyulong;}
+
+static struct IR_type_ tysingle = {Ty_single};
+IR_type IR_TypeSingle(void) {return &tysingle;}
+
+static struct IR_type_ tydouble = {Ty_double};
+IR_type IR_TypeDouble(void) {return &tydouble;}
+
+//static struct IR_type_ tyany = {Ty_any};
+//IR_type IR_TypeAny(void) {return &tyany;}
+//
+//static struct IR_type_ tyanyptr = {Ty_pointer, {&tyany}};
+//IR_type IR_TypeAnyPtr(void) {return &tyanyptr;}
+//
+//static struct IR_type_ tyvtable = {Ty_sarray, { .sarray={&tyany, 0, -1, 0}}};
+//IR_type IR_TypeVTableTy(void) {return &tyvtable;}
+//static struct IR_type_ tyvtableptr = {Ty_pointer, {&tyvtable}};
+//IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
+//
+//static struct IR_type_ tyubyteptr = {Ty_pointer, {&tyubyte}};
+//IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
+
 

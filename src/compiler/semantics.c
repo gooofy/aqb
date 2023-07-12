@@ -17,11 +17,6 @@ static void _elaborateProc (IR_proc proc)
     {
 
         CG_frame  funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
-        //CG_item   returnVar;
-        //CG_NoneItem (&returnVar);
-
-        assert(funFrame);
-        assert(false); // FIXME
 
 #if 0
         E_env lenv = FE_mod->env;
@@ -37,19 +32,34 @@ static void _elaborateProc (IR_proc proc)
         {
             E_declareVFC(lenv, formals->name, &iln->item);
         }
-
-        AS_instrList body = AS_InstrList();
-
-        FE_SLE sle  = g_sleStack;
-        slePop();
-
-        CG_procEntryExit(sle->pos,
-                         sle->frame,
-                         sle->code,
-                         &sle->returnVar,
-                         sle->exitlbl,
-                         /*is_main=*/FALSE,
 #endif
+
+        AS_instrList code = AS_InstrList();
+        Temp_label exitlbl = Temp_newlabel();
+        CG_item   returnVar;
+
+        if (proc->returnTy)
+        {
+            CG_allocVar (&returnVar, funFrame, /*name=*/NULL, /*expt=*/false, proc->returnTy);
+            CG_item zero;
+            CG_ZeroItem (&zero, proc->returnTy);
+            CG_transAssignment (code, proc->pos, funFrame, &returnVar, &zero);
+        }
+        else
+        {
+            CG_NoneItem (&returnVar);
+        }
+
+
+
+        CG_procEntryExit(proc->pos,
+                         funFrame,
+                         code,
+                         &returnVar,
+                         exitlbl,
+                         /*is_main=*/false,
+                         /*expt=*/proc->visibility == IR_visPublic);
+        assert(false); // FIXME
     }
 
 }
@@ -104,19 +114,26 @@ static void _elaborateType (IR_type ty)
             _elaborateClass (ty);
             break;
 
+        case Ty_interface:
+            assert(false);
+            break;
+
+        case Ty_reference:
+            _elaborateType (ty->u.ref);
+            break;
+
         case Ty_unresolved:
             EM_error (ty->pos, "unresolved type: %s", S_name (ty->u.unresolved));
             break;
 
-        case Ty_sarray:
-        case Ty_darray:
-        case Ty_record:
-        case Ty_pointer:
-        case Ty_any:
-        case Ty_forwardPtr:
-        case Ty_procPtr:
-        case Ty_interface:
-        case Ty_prc:
+        //case Ty_sarray:
+        //case Ty_darray:
+        //case Ty_record:
+        //case Ty_pointer:
+        //case Ty_any:
+        //case Ty_forwardPtr:
+        //case Ty_procPtr:
+        //case Ty_prc:
             assert(false);
     }
 }
