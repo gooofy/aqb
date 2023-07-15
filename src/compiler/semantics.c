@@ -2,14 +2,25 @@
 #include "codegen.h"
 #include "errormsg.h"
 
-static void _elaborateType (IR_type ty);
+static void _elaborateType (IR_type ty, IR_using usings);
 
-static void _elaborateExpression (IR_expression expr)
+static void _elaborateExprCall (IR_expression expr, IR_using usings)
+{
+    // resolve name
+
+    IR_method m = IR_namesResolveMethod (expr->u.call.name, usings);
+
+    assert(m);
+
+    assert(false); // FIXME
+}
+
+static void _elaborateExpression (IR_expression expr, IR_using usings)
 {
     switch (expr->kind)
     {
         case IR_expCall:
-            assert(false); // FIXME
+            _elaborateExprCall (expr, usings);
             break;
         case IR_expLiteralString:
             assert(false); // FIXME
@@ -19,25 +30,25 @@ static void _elaborateExpression (IR_expression expr)
     }
 }
 
-static void _elaborateStmt (IR_statement stmt)
+static void _elaborateStmt (IR_statement stmt, IR_using usings)
 {
     switch (stmt->kind)
     {
         case IR_stmtExpression:
-            _elaborateExpression (stmt->u.expr);
+            _elaborateExpression (stmt->u.expr, usings);
             break;
         default:
             assert(false);
     }
 }
 
-static void _elaborateProc (IR_proc proc)
+static void _elaborateProc (IR_proc proc, IR_using usings)
 {
     if (proc->returnTy)
-        _elaborateType (proc->returnTy);
+        _elaborateType (proc->returnTy, usings);
     for (IR_formal formal = proc->formals; formal; formal=formal->next)
     {
-        _elaborateType (formal->type);
+        _elaborateType (formal->type, usings);
     }
 
     if (!proc->isExtern)
@@ -82,7 +93,7 @@ static void _elaborateProc (IR_proc proc)
 
         for (IR_statement stmt=proc->sl->first; stmt; stmt=stmt->next)
         {
-            _elaborateStmt (stmt);
+            _elaborateStmt (stmt, usings);
         }
 
         CG_procEntryExit(proc->pos,
@@ -95,13 +106,13 @@ static void _elaborateProc (IR_proc proc)
     }
 }
 
-static void _elaborateMethod (IR_method method, IR_type tyCls)
+static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
 {
-    _elaborateProc (method->proc);
+    _elaborateProc (method->proc, usings);
     // FIXME: virtual methods, vtables
 }
 
-static void _elaborateClass (IR_type ty)
+static void _elaborateClass (IR_type ty, IR_using usings)
 {
     assert (ty->kind == Ty_class);
 
@@ -116,7 +127,7 @@ static void _elaborateClass (IR_type ty)
         switch (member->kind)
         {
             case IR_recMethod:
-                _elaborateMethod (member->u.method, ty);
+                _elaborateMethod (member->u.method, ty, usings);
                 break;
             case IR_recField:
                 assert(false); break; // FIXME
@@ -126,7 +137,7 @@ static void _elaborateClass (IR_type ty)
     }
 }
 
-static void _elaborateType (IR_type ty)
+static void _elaborateType (IR_type ty, IR_using usings)
 {
     switch (ty->kind)
     {
@@ -142,7 +153,7 @@ static void _elaborateType (IR_type ty)
             break;
 
         case Ty_class:
-            _elaborateClass (ty);
+            _elaborateClass (ty, usings);
             break;
 
         case Ty_interface:
@@ -150,7 +161,7 @@ static void _elaborateType (IR_type ty)
             break;
 
         case Ty_reference:
-            _elaborateType (ty->u.ref);
+            _elaborateType (ty->u.ref, usings);
             break;
 
         case Ty_unresolved:
@@ -176,7 +187,7 @@ void SEM_elaborate (IR_assembly assembly)
         switch (def->kind)
         {
             case IR_defType:
-                _elaborateType (def->u.ty);
+                _elaborateType (def->u.ty, def->usings);
                 break;
             case IR_defProc:
                 // FIXME: implement

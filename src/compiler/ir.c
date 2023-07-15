@@ -21,11 +21,12 @@ void IR_assemblyAdd (IR_assembly assembly, IR_definition def)
     def->next = NULL;
 }
 
-IR_definition IR_DefinitionType (IR_namespace names, S_symbol name, IR_type type)
+IR_definition IR_DefinitionType (IR_using usings, IR_namespace names, S_symbol name, IR_type type)
 {
     IR_definition def = U_poolAllocZero (UP_ir, sizeof (*def));
 
     def->kind       = IR_defType;
+    def->usings     = usings;
     def->names      = names;
     def->name       = name;
     def->u.ty       = type;
@@ -34,11 +35,12 @@ IR_definition IR_DefinitionType (IR_namespace names, S_symbol name, IR_type type
     return def;
 }
 
-IR_definition IR_DefinitionProc (IR_namespace names, S_symbol name, IR_proc proc)
+IR_definition IR_DefinitionProc (IR_using usings, IR_namespace names, S_symbol name, IR_proc proc)
 {
     IR_definition def = U_poolAllocZero (UP_ir, sizeof (*def));
 
     def->kind       = IR_defProc;
+    def->usings     = usings;
     def->names      = names;
     def->name       = name;
     def->u.proc     = proc;
@@ -135,6 +137,11 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
     TAB_enter (names->types, name, t);
 
     return t;
+}
+
+IR_method IR_namesResolveMethod (IR_name name, IR_using usings)
+{
+    assert(false);
 }
 
 int IR_typeSize (IR_type ty)
@@ -356,6 +363,35 @@ IR_expression IR_Expression (IR_exprKind kind, S_pos pos)
     exp->pos  = pos;
 
     return exp;
+}
+
+IR_argumentList IR_ArgumentList (void)
+{
+    IR_argumentList al = U_poolAllocZero (UP_ir, sizeof (*al));
+
+    al->first = NULL;
+    al->last  = NULL;
+
+    return al;
+}
+
+void IR_argumentListAppend (IR_argumentList al, IR_argument a)
+{
+    if (al->last)
+        al->last = al->last->next = a;
+    else
+        al->first = al->last = a;
+    a->next = NULL;
+}
+
+IR_argument IR_Argument (IR_expression expr)
+{
+    IR_argument a = U_poolAllocZero (UP_ir, sizeof (a));
+
+    a->e    = expr;
+    a->next = NULL;
+
+    return a;
 }
 
 static struct IR_type_ tybool = {Ty_bool};

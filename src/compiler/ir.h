@@ -26,6 +26,7 @@ typedef struct IR_member_          *IR_member;
 typedef struct IR_method_          *IR_method;
 
 typedef struct IR_argumentList_    *IR_argumentList;
+typedef struct IR_argument_        *IR_argument;
 
 typedef struct IR_stmtList_        *IR_stmtList;
 typedef struct IR_statement_       *IR_statement;
@@ -43,6 +44,7 @@ struct IR_assembly_
 struct IR_definition_
 {
     enum { IR_defType, IR_defProc } kind;
+    IR_using      usings;
     IR_namespace  names;
     S_symbol      name;
     union
@@ -239,58 +241,74 @@ struct IR_expression_
     } u;
 };
 
-IR_assembly        IR_Assembly          (S_symbol name);
-void               IR_assemblyAdd       (IR_assembly assembly, IR_definition def);
-IR_definition      IR_DefinitionType    (IR_namespace names, S_symbol name, IR_type type);
-IR_definition      IR_DefinitionProc    (IR_namespace names, S_symbol name, IR_proc proc);
+struct IR_argumentList_
+{
+    IR_argument     first, last;
+};
 
-IR_name            IR_Name              (S_symbol sym, S_pos pos);
-void               IR_nameAddSym        (IR_name name, S_symbol sym);
-IR_symNode         IR_SymNode           (S_symbol sym);
+struct IR_argument_
+{
+    IR_expression   e;
+    IR_argument     next;
+};
 
-IR_using           IR_Using             (S_symbol alias, IR_type type, IR_namespace names);
+IR_assembly        IR_Assembly           (S_symbol name);
+void               IR_assemblyAdd        (IR_assembly assembly, IR_definition def);
+IR_definition      IR_DefinitionType     (IR_using usings, IR_namespace names, S_symbol name, IR_type type);
+IR_definition      IR_DefinitionProc     (IR_using usings, IR_namespace names, S_symbol name, IR_proc proc);
 
-IR_namespace       IR_Namespace         (S_symbol name, IR_namespace parent);
-IR_namespace       IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCreate);
-IR_type            IR_namesResolveType  (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
+IR_name            IR_Name               (S_symbol sym, S_pos pos);
+void               IR_nameAddSym         (IR_name name, S_symbol sym);
+IR_symNode         IR_SymNode            (S_symbol sym);
 
-IR_formal          IR_Formal            (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
-IR_proc            IR_Proc              (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
-string             IR_generateProcLabel (S_symbol sCls, S_symbol sName);
+IR_using           IR_Using              (S_symbol alias, IR_type type, IR_namespace names);
 
-IR_type            IR_TypeUnresolved    (S_pos pos, S_symbol name);
-int                IR_typeSize          (IR_type ty);
+IR_namespace       IR_Namespace          (S_symbol name, IR_namespace parent);
+IR_namespace       IR_namesResolveNames  (IR_namespace parent, S_symbol name, bool doCreate);
+IR_type            IR_namesResolveType   (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
 
-IR_const           IR_ConstBool         (IR_type ty, bool     b);
-IR_const           IR_ConstInt          (IR_type ty, int32_t  i);
-IR_const           IR_ConstUInt         (IR_type ty, uint32_t u);
-IR_const           IR_ConstFloat        (IR_type ty, double   f);
-IR_const           IR_ConstString       (IR_type ty, string   s);
+IR_method          IR_namesResolveMethod (IR_name name, IR_using usings);
 
-IR_method          IR_Method            (IR_proc proc);
+IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
+IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
+string             IR_generateProcLabel  (S_symbol sCls, S_symbol sName);
 
-IR_memberList      IR_MemberList        (void);
-IR_member          IR_MemberMethod      (IR_visibility visibility, IR_method method);
-void               IR_addMember         (IR_memberList memberList, IR_member member);
+IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol name);
+int                IR_typeSize           (IR_type ty);
 
-IR_stmtList        IR_StmtList          (void);
-void               IR_stmtListAppend    (IR_stmtList sl, IR_statement stmt);
+IR_const           IR_ConstBool          (IR_type ty, bool     b);
+IR_const           IR_ConstInt           (IR_type ty, int32_t  i);
+IR_const           IR_ConstUInt          (IR_type ty, uint32_t u);
+IR_const           IR_ConstFloat         (IR_type ty, double   f);
+IR_const           IR_ConstString        (IR_type ty, string   s);
 
-IR_statement       IR_Statement         (IR_stmtKind kind, S_pos pos);
+IR_method          IR_Method             (IR_proc proc);
 
-IR_expression      IR_Expression        (IR_exprKind kind, S_pos pos);
+IR_memberList      IR_MemberList         (void);
+IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);
+void               IR_addMember          (IR_memberList memberList, IR_member member);
+
+IR_stmtList        IR_StmtList           (void);
+void               IR_stmtListAppend     (IR_stmtList sl, IR_statement stmt);
+
+IR_statement       IR_Statement          (IR_stmtKind kind, S_pos pos);
+
+IR_expression      IR_Expression         (IR_exprKind kind, S_pos pos);
+
+IR_argumentList    IR_ArgumentList       (void);
+void               IR_argumentListAppend (IR_argumentList al, IR_argument a);
+IR_argument        IR_Argument           (IR_expression expr);
 
 // built-in types
-//IR_type            IR_TypeVoid          (void);
-IR_type            IR_TypeBool          (void);
-IR_type            IR_TypeByte          (void);
-IR_type            IR_TypeUByte         (void);
-IR_type            IR_TypeInteger       (void);
-IR_type            IR_TypeUInteger      (void);
-IR_type            IR_TypeLong          (void);
-IR_type            IR_TypeULong         (void);
-IR_type            IR_TypeSingle        (void);
-IR_type            IR_TypeDouble        (void);
+IR_type            IR_TypeBool           (void);
+IR_type            IR_TypeByte           (void);
+IR_type            IR_TypeUByte          (void);
+IR_type            IR_TypeInteger        (void);
+IR_type            IR_TypeUInteger       (void);
+IR_type            IR_TypeLong           (void);
+IR_type            IR_TypeULong          (void);
+IR_type            IR_TypeSingle         (void);
+IR_type            IR_TypeDouble         (void);
 
 #endif
 

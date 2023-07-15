@@ -424,31 +424,36 @@ static IR_formal _parameter(void)
  * argument : expression
  */
 
-static void _argument (void)
+static void _argument (IR_argumentList al)
 {
-    _expression(/*n1=*/ NULL);
+    IR_expression e = _expression(/*n1=*/ NULL);
+    IR_argumentListAppend (al, IR_Argument (e));
 }
 
 /*
  * argument_list : '(' (argument (',' argument)*)? ')'
  */
 
-static void _argument_list (void)
+static IR_argumentList _argument_list (void)
 {
+    IR_argumentList al = IR_ArgumentList();
+
     assert (S_tkn.kind == S_LPAREN);
     S_nextToken(); // skip (
 
     if (S_tkn.kind != S_RPAREN)
-        _argument();
+        _argument(al);
     while (S_tkn.kind == S_COMMA)
     {
         S_nextToken();
-        _argument();
+        _argument(al);
     }
     if (S_tkn.kind == S_RPAREN)
         S_nextToken(); // skip )
     else
         EM_error (S_tkn.pos, "argument list: ) expected here.");
+
+    return al;
 }
 
 /*
@@ -469,7 +474,8 @@ static IR_expression _invocation_expression (IR_name n)
 
     IR_expression expr = IR_Expression (IR_expCall, pos);
 
-    _argument_list();
+    expr->u.call.name = n;
+    expr->u.call.al   = _argument_list();
 
     return expr;
 }
@@ -815,7 +821,7 @@ static void _class_declaration (uint32_t mods)
     t->u.cls.virtualMethodCnt = 0;
     t->u.cls.vTablePtr        = NULL;
 
-    IR_definition def = IR_DefinitionType (_g_names, name, t);
+    IR_definition def = IR_DefinitionType (_g_usings_first, _g_names, name, t);
     IR_assemblyAdd (_g_assembly, def);
 
     if (S_tkn.kind == S_LESS)
