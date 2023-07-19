@@ -139,9 +139,65 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
     return t;
 }
 
-IR_method IR_namesResolveMethod (IR_name name, IR_using usings)
+IR_member IR_namesResolveMember (IR_name name, IR_using usings)
 {
-    assert(false);
+    IR_namespace names = NULL;
+    IR_type      t     = NULL;
+
+    IR_symNode n = name->first;
+
+    for (IR_using u=usings; u; u=u->next)
+    {
+        if (u->alias)
+        {
+            if (n->sym != u->alias)
+                continue;
+            if (u->type)
+            {
+                t = u->type;
+                break;
+            }
+            names = u->names;
+            break;
+        }
+        else
+        {
+            if (u->names->name == n->sym)
+            {
+                names = u->names;
+                break;
+            }
+        }
+    }
+
+    if (!t)
+    {
+        if (!names)
+            return NULL;
+
+        n = n->next;
+        while (n)
+        {
+            IR_namespace names2 = IR_namesResolveNames (names, n->sym, /*doCreate=*/false);
+            if (names2)
+            {
+                names = names2;
+                n = n->next;
+            }
+            else
+            {
+                t = IR_namesResolveType (name->pos, names, n->sym, /*usings=*/NULL, /*doCreate=*/false);
+                if (!t)
+                    return NULL;
+                n = n->next;
+                break;
+            }
+        }
+    }
+
+    IR_member mem = IR_findMember (t, n->sym);
+
+    return mem;
 }
 
 int IR_typeSize (IR_type ty)
@@ -324,6 +380,29 @@ void IR_addMember (IR_memberList memberList, IR_member member)
     else
         memberList->first = memberList->last = member;
     member->next = NULL;
+}
+
+IR_member IR_findMember (IR_type ty, S_symbol sym)
+{
+    IR_memberList ml = NULL;
+    switch (ty->kind)
+    {
+        case Ty_class:
+            ml = ty->u.cls.members;
+            break;
+        default:
+            return NULL;
+    }
+
+    IR_member m = ml->first;
+    while (m)
+    {
+        if (m->name == sym)
+            return m;
+        m = m->next;
+    }
+
+    return NULL;
 }
 
 IR_stmtList IR_StmtList (void)

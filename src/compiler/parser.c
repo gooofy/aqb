@@ -1049,15 +1049,8 @@ static void _using_directive (void)
 
     // name : identifier ('.' identifier)*
 
-    while (names)
+    while (S_tkn.kind == S_IDENT)
     {
-        if (S_tkn.kind != S_IDENT)
-        {
-            EM_error (S_tkn.pos, "using alias: identifier expected here");
-            names = NULL;
-            break;
-        }
-
         S_symbol sym = S_tkn.u.sym;
         pos   = S_tkn.pos;
         S_nextToken();

@@ -267,7 +267,7 @@ IR_namespace       IR_Namespace          (S_symbol name, IR_namespace parent);
 IR_namespace       IR_namesResolveNames  (IR_namespace parent, S_symbol name, bool doCreate);
 IR_type            IR_namesResolveType   (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
 
-IR_method          IR_namesResolveMethod (IR_name name, IR_using usings);
+IR_member          IR_namesResolveMember (IR_name name, IR_using usings);
 
 IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
@@ -287,6 +287,7 @@ IR_method          IR_Method             (IR_proc proc);
 IR_memberList      IR_MemberList         (void);
 IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
+IR_member          IR_findMember         (IR_type ty, S_symbol sym);
 
 IR_stmtList        IR_StmtList           (void);
 void               IR_stmtListAppend     (IR_stmtList sl, IR_statement stmt);

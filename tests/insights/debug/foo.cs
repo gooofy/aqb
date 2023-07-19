@@ -1,4 +1,3 @@
-//using System;
 
 // this one is built in now:
 // using string = System.String;
@@ -15,6 +14,8 @@ namespace System
         public extern static void WriteLine(string value);
     }
 }
+
+using System;
 
 namespace ConsoleApp10
 {

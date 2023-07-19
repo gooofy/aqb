@@ -8,8 +8,15 @@ static void _elaborateExprCall (IR_expression expr, IR_using usings)
 {
     // resolve name
 
-    IR_method m = IR_namesResolveMethod (expr->u.call.name, usings);
+    IR_member mem = IR_namesResolveMember (expr->u.call.name, usings);
 
+    if (!mem || mem->kind != IR_recMethod)
+    {
+        EM_error (expr->u.call.name->pos, "failed to resolve method");
+        return;
+    }
+
+    IR_method m = mem->u.method;
     assert(m);
 
     assert(false); // FIXME
