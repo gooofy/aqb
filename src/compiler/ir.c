@@ -114,6 +114,11 @@ IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCr
     return names;
 }
 
+void IR_namesAddType (IR_namespace names, S_symbol name, IR_type t)
+{
+    TAB_enter (names->types, name, t);
+}
+
 IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate)
 {
     IR_type t = (IR_type) TAB_look(names->types, name);
@@ -123,18 +128,24 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
     // apply using declarations
     for (IR_using u=usings; u; u=u->next)
     {
-        if (u->alias == name)
+        if (u->alias)
         {
-            if (u->type)
-                return u->type;
-            EM_error (pos, "sorry");
+            if (u->alias == name)
+            {
+                if (u->type)
+                    return u->type;
+                EM_error (pos, "sorry");
+                assert(false); // FIXME
+            }
+        }
+        else
+        {
             assert(false); // FIXME
         }
-        assert(false); // FIXME
     }
 
     t = IR_TypeUnresolved (pos, name);
-    TAB_enter (names->types, name, t);
+    IR_namesAddType (names, name, t);
 
     return t;
 }
@@ -465,7 +476,7 @@ void IR_argumentListAppend (IR_argumentList al, IR_argument a)
 
 IR_argument IR_Argument (IR_expression expr)
 {
-    IR_argument a = U_poolAllocZero (UP_ir, sizeof (a));
+    IR_argument a = U_poolAllocZero (UP_ir, sizeof (*a));
 
     a->e    = expr;
     a->next = NULL;

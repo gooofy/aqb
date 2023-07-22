@@ -1106,6 +1106,8 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
     IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
     IR_using u = IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"), NULL,  /*doCreate=*/true), NULL);
     _add_using (u);
+    u = IR_Using (S_Symbol ("char"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Char"), NULL,  /*doCreate=*/true), NULL);
+    _add_using (u);
 
     while (S_tkn.kind != S_EOF)
     {

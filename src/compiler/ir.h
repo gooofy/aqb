@@ -266,6 +266,7 @@ IR_using           IR_Using              (S_symbol alias, IR_type type, IR_names
 IR_namespace       IR_Namespace          (S_symbol name, IR_namespace parent);
 IR_namespace       IR_namesResolveNames  (IR_namespace parent, S_symbol name, bool doCreate);
 IR_type            IR_namesResolveType   (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
+void               IR_namesAddType       (IR_namespace names, S_symbol name, IR_type type);
 
 IR_member          IR_namesResolveMember (IR_name name, IR_using usings);
 

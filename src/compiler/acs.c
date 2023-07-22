@@ -187,6 +187,16 @@ static void deinit(void)
 #endif
 }
 
+static IR_namespace _bootstrap_root_names(void)
+{
+    IR_namespace root = IR_Namespace(/*name=*/NULL, /*parent=*/NULL);
+
+    IR_namespace sys_names = IR_namesResolveNames (root, S_Symbol ("System"), /*doCreate=*/true);
+    IR_namesAddType (sys_names, S_Symbol ("Char"), IR_TypeUByte());
+
+    return root;
+}
+
 int main (int argc, char *argv[])
 {
 	string sourcefn = NULL;
@@ -356,7 +366,7 @@ int main (int argc, char *argv[])
     LOG_init (log_cb);
 
     IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
-    IR_namespace names_root = IR_Namespace(/*name=*/NULL, /*parent=*/NULL);
+    IR_namespace names_root = _bootstrap_root_names();
 
     while (optind < argc)
     {

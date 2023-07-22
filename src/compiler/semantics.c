@@ -3,6 +3,7 @@
 #include "errormsg.h"
 
 static void _elaborateType (IR_type ty, IR_using usings);
+static void _elaborateExpression (IR_expression expr, IR_using usings);
 
 static void _elaborateExprCall (IR_expression expr, IR_using usings)
 {
@@ -18,6 +19,15 @@ static void _elaborateExprCall (IR_expression expr, IR_using usings)
 
     IR_method m = mem->u.method;
     assert(m);
+
+    //CG_itemList args = CG_ItemList();
+
+    for (IR_argument a = expr->u.call.al->first; a; a=a->next)
+    {
+        _elaborateExpression (a->e, usings);
+    }
+
+
 
     assert(false); // FIXME
 }
