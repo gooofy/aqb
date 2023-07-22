@@ -1,6 +1,8 @@
 #include "ir.h"
 #include "errormsg.h"
 
+static TAB_table   _g_ptrCache; // IR_type -> IR_type
+
 IR_assembly IR_Assembly(S_symbol name)
 {
     IR_assembly assembly = U_poolAllocZero (UP_ir, sizeof (*assembly));
@@ -114,11 +116,6 @@ IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCr
     return names;
 }
 
-void IR_namesAddType (IR_namespace names, S_symbol name, IR_type t)
-{
-    TAB_enter (names->types, name, t);
-}
-
 IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate)
 {
     IR_type t = (IR_type) TAB_look(names->types, name);
@@ -148,6 +145,11 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
     IR_namesAddType (names, name, t);
 
     return t;
+}
+
+void IR_namesAddType (IR_namespace names, S_symbol name, IR_type t)
+{
+    TAB_enter (names->types, name, t);
 }
 
 IR_member IR_namesResolveMember (IR_name name, IR_using usings)
@@ -338,8 +340,6 @@ string IR_generateProcLabel (S_symbol sCls, S_symbol sName)
     return label;
 }
 
-
-
 IR_type IR_TypeUnresolved (S_pos pos, S_symbol name)
 {
     IR_type t = U_poolAllocZero (UP_ir, sizeof (*t));
@@ -349,6 +349,23 @@ IR_type IR_TypeUnresolved (S_pos pos, S_symbol name)
     t->u.unresolved = name;
 
     return t;
+}
+
+IR_type IR_getPointer (S_pos pos, IR_type ty)
+{
+    IR_type p = TAB_look(_g_ptrCache, ty);
+    if (p)
+        return p;
+
+    p = U_poolAllocZero (UP_ir, sizeof (*p));
+
+    p->kind      = Ty_pointer;
+    p->pos       = pos;
+    p->u.pointer = ty;
+
+    TAB_enter (_g_ptrCache, ty, p);
+
+    return p;
 }
 
 IR_method IR_Method  (IR_proc proc)
@@ -525,4 +542,8 @@ IR_type IR_TypeDouble(void) {return &tydouble;}
 //static struct IR_type_ tyubyteptr = {Ty_pointer, {&tyubyte}};
 //IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
 
+void IR_init(void)
+{
+    _g_ptrCache = TAB_empty(UP_ir);
+}
 

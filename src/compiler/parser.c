@@ -366,7 +366,8 @@ IR_type _type(void)
     }
     else if (S_tkn.kind == S_ASTERISK)
     {
-        assert(false);
+        t = IR_getPointer (pos, t);
+        S_nextToken();
     }
 
     return t;
@@ -865,9 +866,12 @@ static void _class_declaration (uint32_t mods)
         {
             IR_proc proc = _method_declaration (pos, mods, t);
 
-            IR_method method = IR_Method(proc);
-            IR_member member = IR_MemberMethod (visibility, method);
-            IR_addMember (t->u.cls.members, member);
+            if (proc)
+            {
+                IR_method method = IR_Method(proc);
+                IR_member member = IR_MemberMethod (visibility, method);
+                IR_addMember (t->u.cls.members, member);
+            }
         }
         else
             assert(false); // FIXME

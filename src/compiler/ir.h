@@ -137,18 +137,19 @@ struct IR_type_
            Ty_interface,    // 11
 
            Ty_reference,    // 12 a reference is a pointer to a class or interface that is tracked by our GC
+           Ty_pointer,      // 13
 
            //Ty_sarray,       //  9
            //Ty_darray,       // 10
 
            //Ty_record,       // 11
-           //Ty_pointer,      // 12
 
            //Ty_any,          // 13
            //Ty_procPtr,      // 15
            //Ty_prc           // 19
            } kind;
     S_pos pos;
+    bool  elaborated;
     union
     {
         S_symbol                                                              unresolved;
@@ -164,6 +165,7 @@ struct IR_type_
                 int16_t        virtualMethodCnt;
                 IR_member      vTablePtr;                                   } cls;
         IR_type                                                               ref;
+        IR_type                                                               pointer;
     } u;
 };
 
@@ -275,6 +277,7 @@ IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, I
 string             IR_generateProcLabel  (S_symbol sCls, S_symbol sName);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol name);
+IR_type            IR_getPointer         (S_pos pos, IR_type ty);
 int                IR_typeSize           (IR_type ty);
 
 IR_const           IR_ConstBool          (IR_type ty, bool     b);
@@ -311,6 +314,8 @@ IR_type            IR_TypeLong           (void);
 IR_type            IR_TypeULong          (void);
 IR_type            IR_TypeSingle         (void);
 IR_type            IR_TypeDouble         (void);
+
+void               IR_init               (void);
 
 #endif
 

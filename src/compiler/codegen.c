@@ -534,7 +534,7 @@ static enum Temp_w CG_tySize(IR_type ty)
         case Ty_single:
         case Ty_double:
         case Ty_reference:
-        //case Ty_forwardPtr:
+        case Ty_pointer:
         //case Ty_procPtr:
         //case Ty_any:
             return Temp_w_L;
@@ -4775,6 +4775,7 @@ static void writeASMData(FILE * out, CG_frag df, AS_dialect dialect)
                         case Ty_long:
                         case Ty_ulong:
                         case Ty_reference:
+                        case Ty_pointer:
                         //case Ty_any:
                             switch (dialect)
                             {

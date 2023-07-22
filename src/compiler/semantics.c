@@ -156,6 +156,10 @@ static void _elaborateClass (IR_type ty, IR_using usings)
 
 static void _elaborateType (IR_type ty, IR_using usings)
 {
+    if (ty->elaborated)
+        return;
+    ty->elaborated = true;
+
     switch (ty->kind)
     {
         case Ty_bool:
@@ -179,6 +183,10 @@ static void _elaborateType (IR_type ty, IR_using usings)
 
         case Ty_reference:
             _elaborateType (ty->u.ref, usings);
+            break;
+
+        case Ty_pointer:
+            _elaborateType (ty->u.pointer, usings);
             break;
 
         case Ty_unresolved:
