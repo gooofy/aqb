@@ -257,8 +257,6 @@ static void _string(void)
 
     S_tkn.kind = S_STRING;
 
-    getch(); // skip "
-
     bool quoted = false;
 
     while (!g_eof)
