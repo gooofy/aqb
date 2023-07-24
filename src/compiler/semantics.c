@@ -3,9 +3,9 @@
 #include "errormsg.h"
 
 static void _elaborateType (IR_type ty, IR_using usings);
-static void _elaborateExpression (IR_expression expr, IR_using usings);
+static void _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame);
 
-static void _elaborateExprCall (IR_expression expr, IR_using usings)
+static void _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
 {
     // resolve name
 
@@ -24,7 +24,7 @@ static void _elaborateExprCall (IR_expression expr, IR_using usings)
 
     for (IR_argument a = expr->u.call.al->first; a; a=a->next)
     {
-        _elaborateExpression (a->e, usings);
+        _elaborateExpression (a->e, usings, code, frame);
     }
 
 
@@ -32,27 +32,41 @@ static void _elaborateExprCall (IR_expression expr, IR_using usings)
     assert(false); // FIXME
 }
 
-static void _elaborateExpression (IR_expression expr, IR_using usings)
+static void _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
+{
+    CG_itemList args = CG_ItemList();
+    CG_itemListNode n = CG_itemListAppend(args);
+    CG_StringItem (code, expr->pos, &n->item, expr->u.stringLiteral);
+    n = CG_itemListAppend(args);
+    CG_BoolItem (&n->item, false, IR_TypeBool()); // owned
+
+    //if (!transCallBuiltinMethod(pos, _tyString()->u.pointer, S_CREATE, args, code, /*res=*/exp))
+    //    return;
+
+    assert(false); // FIXME
+}
+
+static void _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
 {
     switch (expr->kind)
     {
         case IR_expCall:
-            _elaborateExprCall (expr, usings);
+            _elaborateExprCall (expr, usings, code, frame);
             break;
         case IR_expLiteralString:
-            assert(false); // FIXME
+            _elaborateExprStringLiteral (expr, usings, code, frame);
             break;
         default:
             assert(false); // FIXME
     }
 }
 
-static void _elaborateStmt (IR_statement stmt, IR_using usings)
+static void _elaborateStmt (IR_statement stmt, IR_using usings, AS_instrList code, CG_frame frame)
 {
     switch (stmt->kind)
     {
         case IR_stmtExpression:
-            _elaborateExpression (stmt->u.expr, usings);
+            _elaborateExpression (stmt->u.expr, usings, code, frame);
             break;
         default:
             assert(false);
@@ -71,7 +85,7 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
     if (!proc->isExtern)
     {
 
-        CG_frame  funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
+        CG_frame funFrame = CG_Frame (proc->pos, proc->label, proc->formals, proc->isStatic);
 
         //E_env lenv = FE_mod->env;
         //E_env wenv = NULL;
@@ -110,7 +124,7 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
 
         for (IR_statement stmt=proc->sl->first; stmt; stmt=stmt->next)
         {
-            _elaborateStmt (stmt, usings);
+            _elaborateStmt (stmt, usings, code, funFrame);
         }
 
         CG_procEntryExit(proc->pos,

@@ -538,9 +538,9 @@ IR_type IR_TypeDouble(void) {return &tydouble;}
 //IR_type IR_TypeVTableTy(void) {return &tyvtable;}
 //static struct IR_type_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 //IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
-//
-//static struct IR_type_ tyubyteptr = {Ty_pointer, {&tyubyte}};
-//IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
+
+static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, true, {&tyubyte}};
+IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
 
 void IR_init(void)
 {

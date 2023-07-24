@@ -152,6 +152,7 @@ struct IR_type_
     bool  elaborated;
     union
     {
+        IR_type                                                               pointer;
         S_symbol                                                              unresolved;
         struct {S_symbol       name;
                 IR_visibility  visibility;
@@ -165,7 +166,6 @@ struct IR_type_
                 int16_t        virtualMethodCnt;
                 IR_member      vTablePtr;                                   } cls;
         IR_type                                                               ref;
-        IR_type                                                               pointer;
     } u;
 };
 
@@ -314,6 +314,8 @@ IR_type            IR_TypeLong           (void);
 IR_type            IR_TypeULong          (void);
 IR_type            IR_TypeSingle         (void);
 IR_type            IR_TypeDouble         (void);
+
+IR_type            IR_TypeUBytePtr       (void);
 
 void               IR_init               (void);
 

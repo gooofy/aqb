@@ -443,19 +443,19 @@ void CG_FloatItem (CG_item *item, double f, IR_type ty)
     CG_ConstItem (item, IR_ConstFloat(ty, f));
 }
 
-#if 0
 void CG_StringItem (AS_instrList code, S_pos pos, CG_item *item, string str)
 {
     Temp_label strLabel = Temp_newlabel();
     CG_frag frag = CG_StringFrag(strLabel, str);
     g_fragList = CG_FragList(frag, g_fragList);
 
-    IR_type ty = Ty_UBytePtr();
+    IR_type ty = IR_TypeUBytePtr();
     CG_TempItem (item, ty);
     AS_instrListAppend(code, AS_InstrEx (pos, AS_MOVE_ILabel_AnDn, Temp_w_L, NULL,                            //     move.l #strLabel, item.t
                                          item->u.inReg, NULL, 0, strLabel));
 }
 
+#if 0
 void CG_HeapPtrItem (CG_item *item, Temp_label label, IR_type ty)
 {
     InHeap (item, label, ty);
