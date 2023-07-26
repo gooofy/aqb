@@ -291,7 +291,7 @@ IR_method          IR_Method             (IR_proc proc);
 IR_memberList      IR_MemberList         (void);
 IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
-IR_member          IR_findMember         (IR_type ty, S_symbol sym);
+IR_member          IR_findMember         (IR_type ty, S_symbol sym, bool checkBase);
 
 IR_stmtList        IR_StmtList           (void);
 void               IR_stmtListAppend     (IR_stmtList sl, IR_statement stmt);

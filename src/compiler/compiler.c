@@ -126,7 +126,8 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, string sou
      * semantics
      */
 
-    SEM_elaborate (assembly);
+    LOG_printf (LOG_INFO, "PASS 2: semantics\n");
+    SEM_elaborate (assembly, names_root);
 
     if (EM_anyErrors)
     {

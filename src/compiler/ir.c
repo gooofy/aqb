@@ -208,7 +208,7 @@ IR_member IR_namesResolveMember (IR_name name, IR_using usings)
         }
     }
 
-    IR_member mem = IR_findMember (t, n->sym);
+    IR_member mem = IR_findMember (t, n->sym, /*checkBase=*/true);
 
     return mem;
 }
@@ -410,7 +410,7 @@ void IR_addMember (IR_memberList memberList, IR_member member)
     member->next = NULL;
 }
 
-IR_member IR_findMember (IR_type ty, S_symbol sym)
+IR_member IR_findMember (IR_type ty, S_symbol sym, bool checkBase)
 {
     IR_memberList ml = NULL;
     switch (ty->kind)
@@ -418,6 +418,8 @@ IR_member IR_findMember (IR_type ty, S_symbol sym)
         case Ty_class:
             ml = ty->u.cls.members;
             break;
+        case Ty_reference:
+            return IR_findMember (ty->u.ref, sym, checkBase);
         default:
             return NULL;
     }
@@ -428,6 +430,19 @@ IR_member IR_findMember (IR_type ty, S_symbol sym)
         if (m->name == sym)
             return m;
         m = m->next;
+    }
+
+    if (checkBase)
+    {
+        switch (ty->kind)
+        {
+            case Ty_class:
+                if (ty->u.cls.baseType)
+                    return IR_findMember (ty->u.cls.baseType, sym, true);
+                break;
+            default:
+                return NULL;
+        }
     }
 
     return NULL;

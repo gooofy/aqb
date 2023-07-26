@@ -803,11 +803,12 @@ static void _class_declaration (uint32_t mods)
     }
     S_symbol name = S_tkn.u.sym;
 
-    IR_type t = IR_namesResolveType (pos, _g_names, name, /*usings=*/NULL, /*doCreate=*/ true);
-    if (t->kind != Ty_unresolved)
+    IR_type tyRef = IR_namesResolveType (pos, _g_names, name, /*usings=*/NULL, /*doCreate=*/ true);
+    if (tyRef->kind != Ty_unresolved)
         EM_error (S_tkn.pos, "%s already exists in this namespace");
     S_nextToken();
 
+    IR_type t = IR_TypeUnresolved (pos, name);
     t->kind                   = Ty_class;
     t->pos                    = pos;
     t->u.cls.name             = name;
@@ -821,6 +822,9 @@ static void _class_declaration (uint32_t mods)
     t->u.cls.members          = IR_MemberList();
     t->u.cls.virtualMethodCnt = 0;
     t->u.cls.vTablePtr        = NULL;
+
+    tyRef->kind  = Ty_reference;
+    tyRef->u.ref = t;
 
     IR_definition def = IR_DefinitionType (_g_usings_first, _g_names, name, t);
     IR_assemblyAdd (_g_assembly, def);

@@ -59,7 +59,7 @@ extern struct DOSBase       *DOSBase;
 #include "errormsg.h"
 //#include "codegen.h"
 #include "options.h"
-//#include "env.h"
+#include "semantics.h"
 //#include "link.h"
 #include "compiler.h"
 #include "logger.h"
@@ -240,7 +240,7 @@ int main (int argc, char *argv[])
     U_init();
     SYM_init();
     PA_boot();
-    // FIXME E_boot();
+    SEM_boot();
     OPT_init();
 
     OPT_addModulePath(aqb_lib);

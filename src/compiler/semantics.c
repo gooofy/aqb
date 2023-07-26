@@ -2,8 +2,27 @@
 #include "codegen.h"
 #include "errormsg.h"
 
+static S_symbol S_CREATE;
+
+// string type based on _urt's String class caching
+static IR_type _g_tyString=NULL;
+
 static void _elaborateType (IR_type ty, IR_using usings);
 static void _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame);
+
+static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
+                                    AS_instrList code, CG_frame frame, CG_item *res)
+{
+    assert (tyCls->kind == Ty_class);
+
+    IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
+    if (!entry || (entry->kind != IR_recMethod))
+        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(tyCls->u.cls.name), S_name(builtinMethod));
+
+    IR_method method = entry->u.method;
+    CG_transMethodCall(code, pos, frame, method, arglist, res);
+    return true;
+}
 
 static void _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
 {
@@ -28,7 +47,6 @@ static void _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrLis
     }
 
 
-
     assert(false); // FIXME
 }
 
@@ -40,8 +58,9 @@ static void _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBool()); // owned
 
-    //if (!transCallBuiltinMethod(pos, _tyString()->u.pointer, S_CREATE, args, code, /*res=*/exp))
-    //    return;
+    CG_item res;
+    if (!_transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_CREATE, args, code, frame, &res))
+        return;
 
     assert(false); // FIXME
 }
@@ -219,8 +238,16 @@ static void _elaborateType (IR_type ty, IR_using usings)
     }
 }
 
-void SEM_elaborate (IR_assembly assembly)
+void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 {
+    // resolve string type upfront
+
+    IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
+    _g_tyString = IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"), NULL, /*doCreate=*/false);
+    assert (_g_tyString);
+
+    // elaborate semantics
+
     for (IR_definition def=assembly->def_first; def; def=def->next)
     {
         switch (def->kind)
@@ -236,4 +263,8 @@ void SEM_elaborate (IR_assembly assembly)
     }
 }
 
+void SEM_boot(void)
+{
+    S_CREATE     = S_Symbol("Create");
+}
 
