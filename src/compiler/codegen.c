@@ -1149,14 +1149,12 @@ static CG_relOp relNegated(CG_relOp r)
     return 0;
 }
 
-#if 0
-
 static void munchCallerRestoreStack(S_pos pos, AS_instrList code, int cnt)
 {
     if (cnt)
     {
         AS_instrListAppend(code, AS_InstrEx2 (pos, AS_ADD_Imm_sp, Temp_w_L, NULL,                            // add.l #(cnt*F_wordSize), sp
-                                              NULL, IR_ConstUInt(Ty_ULong(), cnt * AS_WORD_SIZE), 0, NULL,
+                                              NULL, IR_ConstUInt(IR_TypeULong(), cnt * AS_WORD_SIZE), 0, NULL,
                                               NULL, AS_callersaves()));
     }
     else
@@ -1188,7 +1186,7 @@ static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
                 IR_type ty = CG_ty (e);
                 if (IR_typeSize(ty)==1)
                     AS_instrListAppend(code, AS_InstrEx(pos, AS_AND_Imm_Dn, Temp_w_L, NULL, e->u.inReg,               // and.l   #255, r
-                                                        IR_ConstUInt(Ty_ULong(), 255), 0, NULL));
+                                                        IR_ConstUInt(IR_TypeULong(), 255), 0, NULL));
             }
             else
             {
@@ -1202,7 +1200,6 @@ static int munchArgsStack(S_pos pos, AS_instrList code, int i, CG_itemList args)
 
     return cnt;
 }
-#endif // 0
 
 void CG_loadVal (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
 {
@@ -3786,9 +3783,9 @@ void CG_transPostCond (AS_instrList code, S_pos pos, CG_item *item, bool positiv
 
 void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, IR_proc proc, CG_itemList args, CG_item *result)
 {
-    assert(false); // FIXME
-    //Temp_label lab = proc->label;
+    Temp_label lab = proc->label;
 
+    // FIXME
     //if (proc->libBase)
     //{
     //    CG_ral    ral    = NULL;
@@ -3804,17 +3801,17 @@ void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, IR_proc proc, C
     //}
     //else
     //{
-    //    int arg_cnt = munchArgsStack(pos, code, 0, args);
-    //    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, Temp_w_NONE, NULL, NULL, 0, 0, lab,    // jsr   lab
-    //                                          AS_callersaves(), NULL));
-    //    munchCallerRestoreStack(pos, code, arg_cnt);
-    //    if (result)
-    //    {
-    //        CG_item d0Item;
-    //        InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
-    //        CG_TempItem (result, proc->returnTy);
-    //        CG_transAssignment (code, pos, frame, result, &d0Item);
-    //    }
+    int arg_cnt = munchArgsStack(pos, code, 0, args);
+    AS_instrListAppend (code, AS_InstrEx2(pos, AS_JSR_Label, Temp_w_NONE, NULL, NULL, 0, 0, lab,    // jsr   lab
+                                          AS_callersaves(), NULL));
+    munchCallerRestoreStack(pos, code, arg_cnt);
+    if (result)
+    {
+        CG_item d0Item;
+        InReg (&d0Item, AS_regs[AS_TEMP_D0], proc->returnTy);
+        CG_TempItem (result, proc->returnTy);
+        CG_transAssignment (code, pos, frame, result, &d0Item);
+    }
     //}
 }
 
@@ -3837,8 +3834,6 @@ void CG_transCallPtr (AS_instrList code, S_pos pos, CG_frame frame, IR_proc proc
 
 bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method method, CG_itemList args, CG_item *result)
 {
-    CG_item thisRef = args->first->item;
-
     if (method->proc->returnTy)
     {
         CG_TempItem (result, method->proc->returnTy);
@@ -3856,6 +3851,8 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method
     }
     else
     {
+        CG_item thisRef = args->first->item;
+
         // call virtual method via vtable entry
         IR_type tyThis = thisRef.ty;
         switch (tyThis->kind)

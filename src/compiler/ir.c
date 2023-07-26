@@ -230,7 +230,7 @@ int IR_typeSize (IR_type ty)
         case Ty_reference:
         //case Ty_prc:
         //case Ty_procPtr:
-        //case Ty_any:
+        case Ty_pointer:
              return 4;
         case Ty_double:
              return 8;

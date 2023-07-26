@@ -8,7 +8,7 @@ static S_symbol S_CREATE;
 static IR_type _g_tyString=NULL;
 
 static void _elaborateType (IR_type ty, IR_using usings);
-static void _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame);
+static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res);
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
                                     AS_instrList code, CG_frame frame, CG_item *res)
@@ -24,7 +24,7 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
     return true;
 }
 
-static void _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
+static bool _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res)
 {
     // resolve name
 
@@ -33,24 +33,33 @@ static void _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrLis
     if (!mem || mem->kind != IR_recMethod)
     {
         EM_error (expr->u.call.name->pos, "failed to resolve method");
-        return;
+        return false;
     }
 
     IR_method m = mem->u.method;
     assert(m);
 
-    //CG_itemList args = CG_ItemList();
+    IR_proc proc = m->proc;
+    CG_itemList args = CG_ItemList();
+
+    if (!proc->isStatic)
+    {
+        // FIXME: this reference
+        assert(false);
+    }
 
     for (IR_argument a = expr->u.call.al->first; a; a=a->next)
     {
-        _elaborateExpression (a->e, usings, code, frame);
+        CG_itemListNode n = CG_itemListAppend(args);
+        if (!_elaborateExpression (a->e, usings, code, frame, &n->item))
+            return false;
     }
 
-
-    assert(false); // FIXME
+    return CG_transMethodCall(code, expr->pos, frame, m, args, res);
 }
 
-static void _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
+static bool _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame,
+                                         CG_item *res)
 {
     CG_itemList args = CG_ItemList();
     CG_itemListNode n = CG_itemListAppend(args);
@@ -58,26 +67,23 @@ static void _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBool()); // owned
 
-    CG_item res;
-    if (!_transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_CREATE, args, code, frame, &res))
-        return;
-
-    assert(false); // FIXME
+    return _transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_CREATE, args, code, frame, res);
 }
 
-static void _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame)
+static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res)
 {
     switch (expr->kind)
     {
         case IR_expCall:
-            _elaborateExprCall (expr, usings, code, frame);
-            break;
+            return _elaborateExprCall (expr, usings, code, frame, res);
+
         case IR_expLiteralString:
-            _elaborateExprStringLiteral (expr, usings, code, frame);
-            break;
+            return _elaborateExprStringLiteral (expr, usings, code, frame, res);
+
         default:
             assert(false); // FIXME
     }
+    return false;
 }
 
 static void _elaborateStmt (IR_statement stmt, IR_using usings, AS_instrList code, CG_frame frame)
@@ -85,8 +91,11 @@ static void _elaborateStmt (IR_statement stmt, IR_using usings, AS_instrList cod
     switch (stmt->kind)
     {
         case IR_stmtExpression:
-            _elaborateExpression (stmt->u.expr, usings, code, frame);
+        {
+            CG_item res;
+            _elaborateExpression (stmt->u.expr, usings, code, frame, &res);
             break;
+        }
         default:
             assert(false);
     }
