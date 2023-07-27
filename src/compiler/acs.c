@@ -74,8 +74,8 @@ static void print_usage(char *argv[])
 	fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
     //fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
 	//fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
-	//fprintf(stderr, "    -a            create gas source file\n");
-	//fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
+	fprintf(stderr, "    -a            create gas source file\n");
+	fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
 	//fprintf(stderr, "    -B            create vasm source file\n");
 	//fprintf(stderr, "    -s            create symbol file\n");
 	//fprintf(stderr, "    -S            create C stub file\n");
@@ -200,7 +200,6 @@ static IR_namespace _bootstrap_root_names(void)
 
 int main (int argc, char *argv[])
 {
-	string sourcefn = NULL;
     string assembly_name = NULL;
     int    optind;
     //bool   hasCode = true;
@@ -277,24 +276,24 @@ int main (int argc, char *argv[])
         	//case 'E':
 			//	gcScanExtern = true;
 			//	break;
-        	//case 'a':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    asm_gas_fn = argv[optind];
-			//	break;
-        	//case 'A':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    asm_asmpro_fn = argv[optind];
-			//	break;
+        	case 'a':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_asm_gas_fn = argv[optind];
+				break;
+        	case 'A':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_asm_asmpro_fn = argv[optind];
+				break;
         	//case 'B':
             //    optind++;
             //    if (optind >= argc)
@@ -369,12 +368,12 @@ int main (int argc, char *argv[])
     IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
     IR_namespace names_root = _bootstrap_root_names();
 
-    while (optind < argc)
-    {
-        sourcefn = argv[optind++];
+    //while (optind < argc)
+    //{
+    //    sourcefn = argv[optind++];
 
-        CO_AssemblyParse (assembly, names_root, sourcefn);
-    }
+    CO_AssemblyParse (assembly, names_root, argc-optind, &argv[optind]);
+    //}
 
     //return CO_compile(sourcefn,
     //                  module_name,

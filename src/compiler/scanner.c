@@ -13,6 +13,8 @@
 
 S_tkn_t S_tkn;
 
+S_pos S_noPos = {0,0};
+
 static const char   *g_sourcefn;
 static FILE         *g_sourcef;
 

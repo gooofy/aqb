@@ -2,7 +2,7 @@ include ../../config.mk
 
 SRCS = 	acs.c scanner.c parser.c semantics.c hashmap.c util.c options.c \
 		errormsg.c symbol.c ir.c codegen.c assem.c \
-		temp.c compiler.c logger.c \
+		temp.c compiler.c logger.c linscan.c \
 		table.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))

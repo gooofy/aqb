@@ -1035,8 +1035,6 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
 
 }
 
-#if 0
-
 void CG_procEntryExitAS (CG_frag frag)
 {
     assert (frag->kind == CG_procFrag);
@@ -1051,9 +1049,9 @@ void CG_procEntryExitAS (CG_frag frag)
     // entry code
 
     if (frame_size > 32767)
-        EM_error(0, "Sorry, frame size is too large.");     // FIXME
+        EM_error(S_noPos, "Sorry, frame size is too large.");     // FIXME
 
-    int pos_end   = body->last  ? body->last->instr->pos : 0;
+    S_pos pos_end   = body->last  ? body->last->instr->pos : S_noPos;
 
     // determine clobbered registers
     int regs = 0;
@@ -1072,7 +1070,7 @@ void CG_procEntryExitAS (CG_frag frag)
         AS_instrListPrepend (body, AS_InstrEx(pos_start, AS_MOVEM_Rs_PDsp, Temp_w_L,                         //      movem.l   regs, -(sp)
                                               NULL, NULL, NULL, regs, NULL));
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LINK_fp, Temp_w_W, NULL, NULL,                   //      link fp, #-frameSize
-                                           IR_ConstInt(Ty_Integer(), -frame_size), 0, NULL));
+                                           IR_ConstInt(IR_TypeInteger(), -frame_size), 0, NULL));
     AS_instrListPrepend (body, AS_InstrEx (pos_start, AS_LABEL, Temp_w_NONE, NULL, NULL, 0, 0, frame->name));// label:
     // FIXME AS_instrListPrepend (body, AS_Instr (pos_start, AS_NOP, Temp_w_NONE, NULL, NULL));                       //      nop    ; just make sure we do not have two consecutive labels
 
@@ -1084,6 +1082,8 @@ void CG_procEntryExitAS (CG_frag frag)
     AS_instrListAppend (body, AS_Instr (pos_end, AS_UNLK_fp, Temp_w_NONE, NULL, NULL));                      //      unlk fp
     AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, Temp_w_NONE, NULL, NULL));                          //      rts
 }
+
+#if 0
 
 static int ipow(int base, int exp)
 {

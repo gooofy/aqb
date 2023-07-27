@@ -14,7 +14,7 @@ ASMProsrc="${AMIGA_X}/foo.asm"
 all:	foo.hunk $(EMUDIR)/foo.hunk
 
 $(EXAMPLE).hunk:	$(EXAMPLE).cs
-	$(ACS) $(EXAMPLE) $(EXAMPLE).cs || exit 1
+	$(ACS) -A $(ASMProsrctmp) $(EXAMPLE) $(EXAMPLE).cs || exit 1
 	# $(ACS) -L $(AQBLIBS) -d $(AQBRT) -A $(ASMProsrctmp) -o foo.hunk $(EXAMPLE).cs || exit 1
 
 $(EMUDIR)/foo.hunk: foo.hunk

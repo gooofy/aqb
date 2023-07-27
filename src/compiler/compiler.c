@@ -10,7 +10,7 @@
 #include "codegen.h"
 //#include "env.h"
 #include "parser.h"
-//#include "linscan.h"
+#include "linscan.h"
 #include "errormsg.h"
 #include "options.h"
 //#include "link.h"
@@ -94,30 +94,36 @@ IR_assembly CO_AssemblyInit (S_symbol name)
     return assembly;
 }
 
-void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, string sourcefn)
+void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, char *argv[])
 {
     //static CG_fragList     frags;
-	static FILE           *sourcef;
 
     /*
      * frontend: parsing
      */
 
     LOG_printf (LOG_INFO, "PASS 1: parser\n");
-	sourcef = fopen(sourcefn, "r");
-	if (!sourcef)
-	{
-		LOG_printf (LOG_ERROR, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
-		CO_exit(EXIT_FAILURE);
-	}
-
-	PA_compilation_unit (assembly, names_root, sourcef, sourcefn);
-	fclose (sourcef);
-
-    if (EM_anyErrors)
+    for (int i=0; i<argc; i++)
     {
-        LOG_printf (LOG_ERROR, "\n\nfrontend processing failed - exiting.\n");
-        CO_exit(EXIT_FAILURE);
+        string sourcefn = argv[i];
+        static FILE  *sourcef;
+
+        LOG_printf (LOG_INFO, "        < %s\n", sourcefn);
+
+        sourcef = fopen(sourcefn, "r");
+        if (!sourcef)
+        {
+            LOG_printf (LOG_ERROR, "failed to read %s: %s\n\n", sourcefn, strerror(errno));
+            CO_exit(EXIT_FAILURE);
+        }
+        PA_compilation_unit (assembly, names_root, sourcef, sourcefn);
+        fclose (sourcef);
+
+        if (EM_anyErrors)
+        {
+            LOG_printf (LOG_ERROR, "\n\nfrontend processing failed - exiting.\n");
+            CO_exit(EXIT_FAILURE);
+        }
     }
 
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nparsing worked.\n");
@@ -180,9 +186,9 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, string sou
         if (EM_anyErrors)
             CO_exit(EXIT_FAILURE);
     }
+#endif
 
-
-    if (!asm_gas_fn && !asm_asmpro_fn && !binfn)
+    if (!OPT_asm_gas_fn && !OPT_asm_asmpro_fn && !OPT_bin_fn)
         CO_exit(0);
 
     /*
@@ -190,7 +196,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, string sou
      */
 
     LOG_printf (LOG_INFO, "PASS 2: register allocation\n");
-    for (CG_fragList fl=frags; fl; fl=fl->tail)
+    for (CG_fragList fl=CG_getResult(); fl; fl=fl->tail)
     {
         CG_frag frag = fl->head;
         if (frag->kind != CG_procFrag)
@@ -228,32 +234,33 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, string sou
      * generate target assembly code
      */
 
-    if (asm_gas_fn)
+    if (OPT_asm_gas_fn)
     {
-        FILE *out = fopen(asm_gas_fn, "w");
+        FILE *out = fopen(OPT_asm_gas_fn, "w");
         if (!out)
         {
-            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", asm_gas_fn);
+            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", OPT_asm_gas_fn);
             CO_exit(EXIT_FAILURE);
         }
-        CG_writeASMFile (out, frags, AS_dialect_gas);
+        CG_writeASMFile (out, CG_getResult(), AS_dialect_gas);
         fclose(out);
-        LOG_printf (LOG_INFO, "created GNU style asm file: %s\n", asm_gas_fn);
+        LOG_printf (LOG_INFO, "created GNU style asm file: %s\n", OPT_asm_gas_fn);
     }
 
-    if (asm_asmpro_fn)
+    if (OPT_asm_asmpro_fn)
     {
-        FILE *out = fopen(asm_asmpro_fn, "w");
+        FILE *out = fopen(OPT_asm_asmpro_fn, "w");
         if (!out)
         {
-            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", asm_asmpro_fn);
+            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", OPT_asm_asmpro_fn);
             CO_exit(EXIT_FAILURE);
         }
-        CG_writeASMFile (out, frags, AS_dialect_ASMPro);
+        CG_writeASMFile (out, CG_getResult(), AS_dialect_ASMPro);
         fclose(out);
-        LOG_printf (LOG_INFO, "created ASMPro style asm file: %s\n", asm_asmpro_fn);
+        LOG_printf (LOG_INFO, "created ASMPro style asm file: %s\n", OPT_asm_asmpro_fn);
     }
 
+#if 0
     if (asm_vasm_fn)
     {
         FILE *out = fopen(asm_vasm_fn, "w");

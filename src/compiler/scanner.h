@@ -25,7 +25,7 @@ typedef enum {
 
 typedef struct { uint16_t col; uint16_t line; } S_pos;
 
-// FIXME extern S_pos S_noPos;
+extern S_pos S_noPos;
 
 typedef enum { S_thNone, S_thSingle, S_thDouble, S_thInteger, S_thLong, S_thUInteger, S_thULong } S_typeHint;
 
