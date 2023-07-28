@@ -1000,7 +1000,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
         //     CG_transCall (initCode, pos, frame, init_proc, /*args=*/NULL, /* result=*/ NULL);
         // }
 
-        // // run __aqb_clear
+        // // run __acs_clear
         // //S_symbol clear = S_Symbol(AQB_CLEAR_NAME);
         // //Ty_proc clear_proc = Ty_Proc(Ty_visPublic, Ty_pkSub, clear, /*extraSyms=*/NULL, /*label=*/clear, /*formals=*/NULL, /*isVariadic=*/false, /*isStatic=*/false, /*returnTy=*/NULL, /*forward=*/false, /*isExtern=*/true, /*offset=*/0, /*libBase=*/NULL, /*tyClsPtr=*/NULL);
         // //CG_transCall (initCode, pos, frame, clear_proc, /*args=*/NULL, /* result=*/ NULL);
@@ -1869,7 +1869,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     if (o==CG_div)
                                         emitRegCall (code, pos, "_MathBase", LVOSPDiv, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     else // intDiv
-                                        emitBinOpJsr (code, pos, frame, "___aqb_intdiv_single", left, right, ty);
+                                        emitBinOpJsr (code, pos, frame, "___acs_intdiv_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -1928,7 +1928,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                                                               CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_mod", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_mod", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -1976,7 +1976,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_shl_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_shl_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2024,7 +2024,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_shr_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_shr_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2163,7 +2163,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_xor_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_xor_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2249,7 +2249,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_eqv_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_eqv_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2334,7 +2334,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_imp_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_imp_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2442,7 +2442,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_and_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_and_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2510,7 +2510,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x right, left
                                     break;
                                 case Ty_single:
-                                    emitBinOpJsr (code, pos, frame, "___aqb_or_single", left, right, ty);
+                                    emitBinOpJsr (code, pos, frame, "___acs_or_single", left, right, ty);
                                     break;
                                 default:
                                     assert(false);
@@ -2846,7 +2846,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             if (o==CG_div)
                                 emitRegCall (code, pos, "_MathBase", LVOSPDiv, CG_RAL(left->u.inReg, AS_regs[AS_TEMP_D0], CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             else // intDiv
-                                emitBinOpJsr (code, pos, frame, "___aqb_intdiv_single", left, right, ty);
+                                emitBinOpJsr (code, pos, frame, "___acs_intdiv_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -2880,7 +2880,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                                                       CG_RAL(right->u.inReg, AS_regs[AS_TEMP_D1], NULL)), ty, left);
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_mod", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_mod", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3004,7 +3004,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsl.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_shl_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_shl_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3027,7 +3027,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_LSR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // lsr.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_shr_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_shr_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3068,7 +3068,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_EOR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // eor.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_xor_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_xor_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3092,7 +3092,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn   , w, NULL          , left->u.inReg)); // not.x left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_eqv_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_eqv_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3116,7 +3116,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn , w, right->u.inReg, left->u.inReg)); // or.x   right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_imp_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_imp_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3137,7 +3137,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_NOT_Dn, w, NULL, left->u.inReg));             // not.x left
                             break;
                         case Ty_single:
-                            emitUnaryOpJsr (code, pos, frame, "___aqb_not_single", left, ty);
+                            emitUnaryOpJsr (code, pos, frame, "___acs_not_single", left, ty);
                             break;
                         default:
                             assert(false);
@@ -3165,7 +3165,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_AND_Dn_Dn, w, right->u.inReg, left->u.inReg)); // and.x right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_and_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_and_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -3190,7 +3190,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             AS_instrListAppend (code, AS_Instr (pos, AS_OR_Dn_Dn, w, right->u.inReg, left->u.inReg)); // or.x  right, left
                             break;
                         case Ty_single:
-                            emitBinOpJsr (code, pos, frame, "___aqb_or_single", left, right, ty);
+                            emitBinOpJsr (code, pos, frame, "___acs_or_single", left, right, ty);
                             break;
                         default:
                             assert(false);
@@ -4873,7 +4873,7 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
             break;
         case AS_dialect_ASMPro:
             // fprintf(out, "    INCLUDE prolog.asm\n\n");
-            fprintf(out, "    SECTION aqbcode, CODE\n\n");
+            fprintf(out, "    SECTION acscode, CODE\n\n");
             break;
         default:
             assert(false);
@@ -4893,7 +4893,7 @@ void CG_writeASMFile (FILE *out, CG_fragList frags, AS_dialect dialect)
             fprintf(out, "\n\n.data\n\n");
             break;
         case AS_dialect_ASMPro:
-            fprintf(out, "\n\n    SECTION aqbdata, DATA\n\n");
+            fprintf(out, "\n\n    SECTION acsdata, DATA\n\n");
             break;
         default:
             assert(false);
