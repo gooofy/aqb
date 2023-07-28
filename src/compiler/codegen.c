@@ -983,8 +983,9 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
 
     if (is_main)
     {
-        assert(false); // FIXME
-        // // run module initializers
+        assert(false);
+        // FIXME
+        // // run assembly initializers
         // AS_instrList initCode = AS_InstrList();
         // for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
         // {
@@ -1010,10 +1011,6 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
 
     assert (exitlbl);
 
-    // FIXME: remove, flowgraph is gone now
-    //// we need to generate NOPs between consecutive labels because flowgraph.c cannot handle those
-    //if (body->last && (body->last->instr->mn == AS_LABEL))
-    //    AS_instrListAppend (body, AS_Instr(pos, AS_NOP, Temp_w_NONE, NULL, NULL));                        //     nop
     AS_instrListAppend (body, AS_InstrEx(pos, AS_LABEL, Temp_w_NONE, NULL, NULL, 0, 0, exitlbl));         // exitlbl:
 
     if (returnVar && (returnVar->kind != IK_none))

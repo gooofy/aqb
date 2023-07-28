@@ -2,7 +2,8 @@
 #include "codegen.h"
 #include "errormsg.h"
 
-static S_symbol S_CREATE;
+static S_symbol S_Create;
+static S_symbol S_Main;
 
 // string type based on _urt's String class caching
 static IR_type _g_tyString=NULL;
@@ -67,7 +68,7 @@ static bool _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBool()); // owned
 
-    return _transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_CREATE, args, code, frame, res);
+    return _transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_Create, args, code, frame, res);
 }
 
 static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res)
@@ -155,12 +156,14 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
             _elaborateStmt (stmt, usings, code, funFrame);
         }
 
+        bool is_main = (proc->name == S_Main) && proc->isStatic;
+
         CG_procEntryExit(proc->pos,
                          funFrame,
                          code,
                          &returnVar,
                          exitlbl,
-                         /*is_main=*/false,
+                         is_main,
                          /*expt=*/proc->visibility == IR_visPublic);
     }
 }
@@ -274,6 +277,7 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
 void SEM_boot(void)
 {
-    S_CREATE     = S_Symbol("Create");
+    S_Create     = S_Symbol("Create");
+    S_Main       = S_Symbol("Main"  );
 }
 
