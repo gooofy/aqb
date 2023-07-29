@@ -983,7 +983,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
 
     if (is_main)
     {
-        assert(false);
+        // assert(false);
         // FIXME
         // // run assembly initializers
         // AS_instrList initCode = AS_InstrList();

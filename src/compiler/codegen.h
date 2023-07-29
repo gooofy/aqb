@@ -141,7 +141,7 @@ void            CG_NoneItem         (CG_item *item);
 void            CG_externalVar      (CG_item *item, S_symbol name, IR_type ty);
 void            CG_allocVar         (CG_item *item, CG_frame frame, S_symbol name, bool expt, IR_type ty);
 int             CG_itemOffset       (CG_item *item);
-IR_type           CG_ty               (CG_item *item);
+IR_type         CG_ty               (CG_item *item);
 enum Temp_w     CG_itemSize         (CG_item *item);
 bool            CG_isVar            (CG_item *item);
 bool            CG_isConst          (CG_item *item);

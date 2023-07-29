@@ -1,6 +1,8 @@
 #include "ir.h"
 #include "errormsg.h"
 
+static S_symbol S_Main;
+
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
 
 IR_assembly IR_Assembly(S_symbol name)
@@ -326,12 +328,21 @@ IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type 
     return p;
 }
 
-string IR_generateProcLabel (S_symbol sCls, S_symbol sName)
+bool IR_procIsMain (IR_proc proc)
 {
-    string label = strconcat(UP_frontend, "_", S_name(sName));
+    bool is_main = (proc->name == S_Main) && proc->isStatic;
+    return is_main;
+}
 
-    if (sCls)
-        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sCls), label));
+string IR_procGenerateLabel (IR_proc proc, S_symbol sClsOwner)
+{
+    if (IR_procIsMain (proc))
+        return _MAIN_LABEL;
+
+    string label = strconcat(UP_frontend, "_", S_name(proc->name));
+
+    if (sClsOwner)
+        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sClsOwner), label));
 
     // FIXME: append signature for overloading support
     //if (isFunction)
@@ -560,5 +571,6 @@ IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
 void IR_init(void)
 {
     _g_ptrCache = TAB_empty(UP_ir);
+    S_Main = S_Symbol("Main");
 }
 

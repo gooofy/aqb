@@ -10,6 +10,8 @@
  * AQB Intermediate Representation
  */
 
+#define _MAIN_LABEL  "__acs_main"
+
 typedef struct IR_assembly_        *IR_assembly;
 typedef struct IR_definition_      *IR_definition;
 
@@ -274,7 +276,8 @@ IR_member          IR_namesResolveMember (IR_name name, IR_using usings);
 
 IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
-string             IR_generateProcLabel  (S_symbol sCls, S_symbol sName);
+bool               IR_procIsMain         (IR_proc proc);
+string             IR_procGenerateLabel  (IR_proc proc, S_symbol sClsOwner);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol name);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);

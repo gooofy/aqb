@@ -725,7 +725,7 @@ static IR_proc _method_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
     proc->formals  = formals;
     proc->returnTy = retTy;
 
-    proc->label = Temp_namedlabel(IR_generateProcLabel (tyOwner ? tyOwner->u.cls.name:NULL, name));
+    proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyOwner ? tyOwner->u.cls.name:NULL));
 
     proc->sl = IR_StmtList ();
 

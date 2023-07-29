@@ -3,7 +3,6 @@
 #include "errormsg.h"
 
 static S_symbol S_Create;
-static S_symbol S_Main;
 
 // string type based on _urt's String class caching
 static IR_type _g_tyString=NULL;
@@ -156,14 +155,12 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
             _elaborateStmt (stmt, usings, code, funFrame);
         }
 
-        bool is_main = (proc->name == S_Main) && proc->isStatic;
-
         CG_procEntryExit(proc->pos,
                          funFrame,
                          code,
                          &returnVar,
                          exitlbl,
-                         is_main,
+                         IR_procIsMain (proc),
                          /*expt=*/proc->visibility == IR_visPublic);
     }
 }
@@ -278,6 +275,5 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 void SEM_boot(void)
 {
     S_Create     = S_Symbol("Create");
-    S_Main       = S_Symbol("Main"  );
 }
 
