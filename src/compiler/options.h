@@ -8,10 +8,10 @@
  * shell environment
  */
 
-extern char aqb_home[PATH_MAX];
-extern char aqb_lib[PATH_MAX];
-extern char aqb_help[PATH_MAX];
-extern bool aqb_wbstart;
+extern char acs_home[PATH_MAX];
+extern char acs_lib[PATH_MAX];
+//extern char acs_help[PATH_MAX];
+extern bool acs_wbstart;
 
 /*
  * compiler options
@@ -37,7 +37,7 @@ void OPT_reset       (void);                // reset all compiler options to the
 //void OPT_prefSetInt  (int pref, int i);
 
 /*
- * module search path
+ * assembly search path
  */
 
 typedef struct OPT_dirSearchPath_ *OPT_dirSearchPath;
@@ -48,12 +48,13 @@ struct OPT_dirSearchPath_
     OPT_dirSearchPath next;
 };
 
-void              OPT_addModulePath (string path);          /* look for symbol files in directory <path>                   */
-OPT_dirSearchPath OPT_getModulePath (void);
+void              OPT_assemblyAddPath  (string path);       // look for assembly files in directory <path
+OPT_dirSearchPath OPT_assemblyGetPath  (void);
+FILE             *OPT_assemblyOpenFile (string filename);   // look through search paths, try to open <filename>
 
-//#define AQB_CLEAR_NAME "__aqb_clear"
+//#define AQB_CLEAR_NAME "__acs_clear"
 
-//#define OPT_DEFAULT_MODULE "_aqb"
+//#define OPT_DEFAULT_MODULE "_acs"
 
 // global compiler command line options
 

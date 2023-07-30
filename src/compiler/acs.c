@@ -64,16 +64,16 @@ extern struct DOSBase       *DOSBase;
 #include "compiler.h"
 #include "logger.h"
 
-char aqb_home[PATH_MAX];
-char aqb_lib[PATH_MAX];
-char aqb_help[PATH_MAX];
-bool aqb_wbstart = false;
+char acs_home[PATH_MAX];
+char acs_lib[PATH_MAX];
+//char acs_help[PATH_MAX];
+bool acs_wbstart = false;
 
 static void print_usage(char *argv[])
 {
     fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
     //fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
-    //fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
+    fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
     fprintf(stderr, "    -a            create gas source file\n");
     fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
     fprintf(stderr, "    -B            create vasm source file\n");
@@ -131,24 +131,24 @@ static void check_amigaos_env(void)
      * get home (installation) directory
      */
 
-    if (!ASUP_NameFromLock(aqbProc->pr_HomeDir, (STRPTR)aqb_home, PATH_MAX))
+    if (!ASUP_NameFromLock(aqbProc->pr_HomeDir, (STRPTR)acs_home, PATH_MAX))
     {
-        U_request (NULL, NULL, "OK", "Failed to determine AQB installation dir: %d", IoErr());
+        U_request (NULL, NULL, "OK", "Failed to determine ACS installation dir: %d", IoErr());
         exit(EXIT_FAILURE);
     }
-    //printf ("detected aqb_home: %s\n", aqb_home);
-    strncpy (aqb_lib, aqb_home, PATH_MAX);
-    if (!AddPart ((STRPTR) aqb_lib, (STRPTR) "lib", PATH_MAX))
+    //printf ("detected acs_home: %s\n", acs_home);
+    strncpy (acs_lib, acs_home, PATH_MAX);
+    if (!AddPart ((STRPTR) acs_lib, (STRPTR) "lib", PATH_MAX))
     {
-        U_request (NULL, NULL, "OK", "Failed to determine AQB library dir: %d", IoErr());
+        U_request (NULL, NULL, "OK", "Failed to determine ACS library dir: %d", IoErr());
         exit(EXIT_FAILURE);
     }
-    strncpy (aqb_help, aqb_home, PATH_MAX);
-    if (!AddPart ((STRPTR) aqb_help, (STRPTR) "help", PATH_MAX))
-    {
-        U_request (NULL, NULL, "OK", "Failed to determine AQB help dir: %d", IoErr());
-        exit(EXIT_FAILURE);
-    }
+    //strncpy (acs_help, acs_home, PATH_MAX);
+    //if (!AddPart ((STRPTR) acs_help, (STRPTR) "help", PATH_MAX))
+    //{
+    //    U_request (NULL, NULL, "OK", "Failed to determine ACS help dir: %d", IoErr());
+    //    exit(EXIT_FAILURE);
+    //}
 }
 #endif
 
@@ -209,22 +209,22 @@ int main (int argc, char *argv[])
 #ifdef __amigaos__
     check_amigaos_env();
 #else
-    char *aqb_env = getenv ("AQB");
-    if (aqb_env)
+    char *acs_env = getenv ("ACS");
+    if (acs_env)
     {
-        strncpy (aqb_home, aqb_env, PATH_MAX);
+        strncpy (acs_home, acs_env, PATH_MAX);
         // FIXME: path does not conform to linux fs hier
-        snprintf (aqb_lib, PATH_MAX, "%s/src/lib", aqb_env);
-        //printf ("aqb_home: %s\n", aqb_home);
-        if (snprintf (aqb_help, PATH_MAX, "%s/help", aqb_home)<0)
-        {
-            fprintf (stderr, "AQB: failed to compose help path.\n\n");
-            exit(EXIT_FAILURE);
-        }
+        snprintf (acs_lib, PATH_MAX, "%s/src/lib", acs_env);
+        //printf ("acs_home: %s\n", acs_home);
+        //if (snprintf (acs_help, PATH_MAX, "%s/help", acs_home)<0)
+        //{
+        //    fprintf (stderr, "ACS: failed to compose help path.\n\n");
+        //    exit(EXIT_FAILURE);
+        //}
     }
     else
     {
-        fprintf (stderr, "AQB: env var not set.\n\n");
+        fprintf (stderr, "ACS: env var not set.\n\n");
         exit(EXIT_FAILURE);
     }
 #endif
@@ -235,7 +235,7 @@ int main (int argc, char *argv[])
     SEM_boot();
     OPT_init();
 
-    OPT_addModulePath(aqb_lib);
+    OPT_assemblyAddPath(acs_lib);
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
     {
@@ -251,15 +251,15 @@ int main (int argc, char *argv[])
                 assert(false); // FIXME: load assembly
                 //OPT_default_module = argv[optind];
                 break;
-            //case 'L':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    OPT_addModulePath(argv[optind]);
-            //    break;
+            case 'L':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_assemblyAddPath(argv[optind]);
+                break;
             //case 'I':
             //    hasCode = false;
             //    break;

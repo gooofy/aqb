@@ -71,29 +71,49 @@ void OPT_reset (void)
 
 // string OPT_default_module = OPT_DEFAULT_MODULE;
 
-static OPT_dirSearchPath g_moduleSP=NULL, g_moduleSPLast=NULL;
+static OPT_dirSearchPath g_assemblySP=NULL, g_assemblySPLast=NULL;
 
-void OPT_addModulePath(string path)
+void OPT_assemblyAddPath (string path)
 {
     OPT_dirSearchPath p = U_poolAlloc (UP_options, sizeof(*p));
 
     p->path      = String(UP_options, path);
     p->next      = NULL;
 
-    if (g_moduleSP)
+    if (g_assemblySP)
     {
-        g_moduleSPLast->next = p;
-        g_moduleSPLast = p;
+        g_assemblySPLast->next = p;
+        g_assemblySPLast = p;
     }
     else
     {
-        g_moduleSP = g_moduleSPLast = p;
+        g_assemblySP = g_assemblySPLast = p;
     }
 }
 
 OPT_dirSearchPath OPT_getModulePath (void)
 {
-    return g_moduleSP;
+    return g_assemblySP;
+}
+
+FILE *OPT_assemblyOpenFile (string filename)
+{
+    for (OPT_dirSearchPath sp=OPT_getModulePath(); sp; sp=sp->next)
+    {
+        char modfn[PATH_MAX];
+
+        snprintf(modfn, PATH_MAX, "%s/%s", sp->path, filename);
+
+        LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "trying to load %s from %s ...\n", filename, modfn);
+
+        FILE *f = fopen(modfn, "r");
+        if (f)
+        {
+            LOG_printf (LOG_DEBUG, "%s opened for reading\n", modfn);
+            return f;
+        }
+    }
+    return NULL;
 }
 
 void OPT_init(void)
