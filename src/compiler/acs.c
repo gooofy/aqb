@@ -71,21 +71,21 @@ bool aqb_wbstart = false;
 
 static void print_usage(char *argv[])
 {
-	fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
+    fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
     //fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
-	//fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
-	fprintf(stderr, "    -a            create gas source file\n");
-	fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
-	//fprintf(stderr, "    -B            create vasm source file\n");
-	//fprintf(stderr, "    -s            create symbol file\n");
-	//fprintf(stderr, "    -S            create C stub file\n");
-	//fprintf(stderr, "    -I            interface assembly (no code)\n");
-	//fprintf(stderr, "    -N            no not generate a assembly init function\n");
-	//fprintf(stderr, "    -E            no not generate a gc scan functions\n");
-	//fprintf(stderr, "    -o <foo>      create hunk binary file\n");
-	//fprintf(stderr, "    -p <foo>      create hunk object file\n");
-	fprintf(stderr, "    -v            verbose\n");
-	fprintf(stderr, "    -V            display version info\n");
+    //fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
+    fprintf(stderr, "    -a            create gas source file\n");
+    fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
+    fprintf(stderr, "    -B            create vasm source file\n");
+    //fprintf(stderr, "    -s            create symbol file\n");
+    //fprintf(stderr, "    -S            create C stub file\n");
+    //fprintf(stderr, "    -I            interface assembly (no code)\n");
+    //fprintf(stderr, "    -N            no not generate a assembly init function\n");
+    //fprintf(stderr, "    -E            no not generate a gc scan functions\n");
+    fprintf(stderr, "    -o <foo>      create hunk binary file\n");
+    fprintf(stderr, "    -p <foo>      create hunk object file\n");
+    fprintf(stderr, "    -v            verbose\n");
+    fprintf(stderr, "    -V            display version info\n");
 }
 
 #ifdef __amigaos__
@@ -163,7 +163,7 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
     static char buf[1024];
     vsnprintf (buf, 1024, fmt, args);
     va_end(args);
-	if (lvl >= LOG_INFO)
+    if (lvl >= LOG_INFO)
     {
         printf ("%s", buf);
         fflush (stdout);
@@ -171,8 +171,8 @@ static void log_cb (uint8_t lvl, char *fmt, ...)
 #if LOG_LEVEL == LOG_DEBUG
     if (logf)
     {
-	    fprintf (logf, "%s", buf);
-	    fflush (logf);
+        fprintf (logf, "%s", buf);
+        fflush (logf);
     }
 #endif
 }
@@ -182,7 +182,7 @@ static void deinit(void)
     OPT_deinit();
     U_deinit();
 #if LOG_LEVEL == LOG_DEBUG
-	fclose (logf);
+    fclose (logf);
     logf = NULL;
 #endif
 }
@@ -205,13 +205,6 @@ int main (int argc, char *argv[])
     //bool   hasCode = true;
     //bool   noInitFn = false;
     //bool   gcScanExtern = false;
-    //string symfn=NULL;
-    //string cstubfn=NULL;
-    //string objfn=NULL;
-    //string binfn=NULL;
-    //string asm_gas_fn=NULL;
-    //string asm_asmpro_fn=NULL;
-    //string asm_vasm_fn=NULL;
 
 #ifdef __amigaos__
     check_amigaos_env();
@@ -245,10 +238,10 @@ int main (int argc, char *argv[])
     OPT_addModulePath(aqb_lib);
 
     for (optind = 1; optind < argc && argv[optind][0] == '-'; optind++)
-	{
+    {
         switch (argv[optind][1])
-		{
-        	case 'l':
+        {
+            case 'l':
                 optind++;
                 if (optind >= argc)
                 {
@@ -257,8 +250,8 @@ int main (int argc, char *argv[])
                 }
                 assert(false); // FIXME: load assembly
                 //OPT_default_module = argv[optind];
-				break;
-        	//case 'L':
+                break;
+            //case 'L':
             //    optind++;
             //    if (optind >= argc)
             //    {
@@ -266,17 +259,17 @@ int main (int argc, char *argv[])
             //        exit(EXIT_FAILURE);
             //    }
             //    OPT_addModulePath(argv[optind]);
-			//	break;
-        	//case 'I':
-			//	hasCode = false;
-			//	break;
-        	//case 'N':
-			//	noInitFn = true;
-			//	break;
-        	//case 'E':
-			//	gcScanExtern = true;
-			//	break;
-        	case 'a':
+            //    break;
+            //case 'I':
+            //    hasCode = false;
+            //    break;
+            //case 'N':
+            //    noInitFn = true;
+            //    break;
+            //case 'E':
+            //    gcScanExtern = true;
+            //    break;
+            case 'a':
                 optind++;
                 if (optind >= argc)
                 {
@@ -284,8 +277,8 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 OPT_asm_gas_fn = argv[optind];
-				break;
-        	case 'A':
+                break;
+            case 'A':
                 optind++;
                 if (optind >= argc)
                 {
@@ -293,17 +286,17 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 OPT_asm_asmpro_fn = argv[optind];
-				break;
-        	//case 'B':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    asm_vasm_fn = argv[optind];
-			//	break;
-        	//case 's':
+                break;
+            case 'B':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_asm_vasm_fn = argv[optind];
+                break;
+            //case 's':
             //    optind++;
             //    if (optind >= argc)
             //    {
@@ -311,8 +304,8 @@ int main (int argc, char *argv[])
             //        exit(EXIT_FAILURE);
             //    }
             //    symfn = argv[optind];
-			//	break;
-        	//case 'S':
+            //    break;
+            //case 'S':
             //    optind++;
             //    if (optind >= argc)
             //    {
@@ -320,35 +313,35 @@ int main (int argc, char *argv[])
             //        exit(EXIT_FAILURE);
             //    }
             //    cstubfn = argv[optind];
-			//	break;
-        	//case 'o':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    binfn = argv[optind];
-			//	break;
-        	//case 'p':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    objfn = argv[optind];
-			//	break;
-        	case 'v':
-				OPT_set(OPTION_VERBOSE, true);
-				break;
-        	case 'V':
+            //    break;
+            case 'o':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_binfn = argv[optind];
+                break;
+            case 'p':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_objfn = argv[optind];
+                break;
+            case 'v':
+                OPT_set(OPTION_VERBOSE, true);
+                break;
+            case 'V':
                 fprintf (stderr, PROGRAM_NAME_SHORT " " VERSION " " COPYRIGHT "\n" LICENSE "\n");
                 exit(0);
-				break;
-        	default:
-				print_usage(argv);
-	            exit(EXIT_FAILURE);
+                break;
+            default:
+                print_usage(argv);
+                exit(EXIT_FAILURE);
         }
     }
 
@@ -362,7 +355,7 @@ int main (int argc, char *argv[])
 #if LOG_LEVEL == LOG_DEBUG
     logf = fopen (LOG_FILENAME, "a");
 #endif
-	atexit (deinit);
+    atexit (deinit);
     LOG_init (log_cb);
 
     IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));

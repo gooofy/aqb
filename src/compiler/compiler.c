@@ -13,7 +13,7 @@
 #include "linscan.h"
 #include "errormsg.h"
 #include "options.h"
-//#include "link.h"
+#include "link.h"
 #include "logger.h"
 
 #ifdef __amigaos__
@@ -195,7 +195,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
      * register allocation
      */
 
-    LOG_printf (LOG_INFO, "PASS 2: register allocation\n");
+    LOG_printf (LOG_INFO, "PASS 3: register allocation\n");
     for (CG_fragList fl=CG_getResult(); fl; fl=fl->tail)
     {
         CG_frag frag = fl->head;
@@ -244,7 +244,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         }
         CG_writeASMFile (out, CG_getResult(), AS_dialect_gas);
         fclose(out);
-        LOG_printf (LOG_INFO, "created GNU style asm file: %s\n", OPT_asm_gas_fn);
+        LOG_printf (LOG_INFO, "        created GNU style asm file: %s\n", OPT_asm_gas_fn);
     }
 
     if (OPT_asm_asmpro_fn)
@@ -257,34 +257,33 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         }
         CG_writeASMFile (out, CG_getResult(), AS_dialect_ASMPro);
         fclose(out);
-        LOG_printf (LOG_INFO, "created ASMPro style asm file: %s\n", OPT_asm_asmpro_fn);
+        LOG_printf (LOG_INFO, "        created ASMPro style asm file: %s\n", OPT_asm_asmpro_fn);
     }
 
-#if 0
-    if (asm_vasm_fn)
+    if (OPT_asm_vasm_fn)
     {
-        FILE *out = fopen(asm_vasm_fn, "w");
+        FILE *out = fopen(OPT_asm_vasm_fn, "w");
         if (!out)
         {
-            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", asm_vasm_fn);
+            LOG_printf (LOG_ERROR, "\n\nfailed to open asm file %s for writing.\n", OPT_asm_vasm_fn);
             CO_exit(EXIT_FAILURE);
         }
-        CG_writeASMFile (out, frags, AS_dialect_vasm);
+        CG_writeASMFile (out, CG_getResult(), AS_dialect_vasm);
         fclose(out);
-        LOG_printf (LOG_INFO, "created vasm style asm file: %s\n", asm_vasm_fn);
+        LOG_printf (LOG_INFO, "        created vasm style asm file: %s\n", OPT_asm_vasm_fn);
     }
 
-    if (!binfn && !objfn)
+    if (!OPT_binfn && !OPT_objfn)
         CO_exit(0);
 
     /*
      * machine code generation (assembly phase)
      */
 
-    LOG_printf (LOG_INFO, "PASS 3: assembler\n");
-    AS_object obj = AS_Object(binfn, "aqb");
+    LOG_printf (LOG_INFO, "PASS 4: assembler\n");
+    AS_object obj = AS_Object(OPT_binfn, "acs");
 
-    for (CG_fragList fl=frags; fl; fl=fl->tail)
+    for (CG_fragList fl=CG_getResult(); fl; fl=fl->tail)
     {
         CG_frag frag = fl->head;
         switch (frag->kind)
@@ -331,14 +330,14 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                 break;
                             case CG_constNode:
                             {
-                                Ty_const c = n->u.c;
+                                IR_const c = n->u.c;
                                 switch (c->ty->kind)
                                 {
                                     case Ty_bool:
                                     case Ty_byte:
                                     case Ty_ubyte:
                                         // FIXME AS_assembleData8 (obj->dataSeg, c->u.b);
-                                        assert(FALSE);
+                                        assert(false);
                                         break;
                                     case Ty_uinteger:
                                     case Ty_integer:
@@ -347,7 +346,8 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                     case Ty_long:
                                     case Ty_ulong:
                                     case Ty_pointer:
-                                    case Ty_any:
+                                    case Ty_reference:
+                                    // FIXME case Ty_any:
                                         AS_assembleData32 (obj->dataSeg, c->u.i);
                                         break;
                                     case Ty_single:
@@ -357,15 +357,15 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                     //case Ty_string:
                                     //    AS_assembleDataString (obj->dataSeg, c->u.s);
                                     //    break;
-                                    case Ty_sarray:
-                                    case Ty_darray:
+                                    //case Ty_sarray:
+                                    //case Ty_darray:
                                     case Ty_class:
                                     case Ty_interface:
-                                    case Ty_record:
-                                    case Ty_forwardPtr:
-                                    case Ty_prc:
-                                    case Ty_procPtr:
-                                    case Ty_toLoad:
+                                    //case Ty_record:
+                                    case Ty_unresolved:
+                                    //case Ty_prc:
+                                    //case Ty_procPtr:
+                                    //case Ty_toLoad:
                                     case Ty_double:
                                         assert(0);
                                         break;
@@ -390,7 +390,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
 
                 break;
             default:
-                assert(FALSE); // FIXME
+                assert(false); // FIXME
         }
     }
 
@@ -402,17 +402,21 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         CO_exit(EXIT_FAILURE);
     }
 
-    if (objfn)
-        LI_segmentWriteObjectFile (obj, objfn);
+    if (OPT_objfn)
+    {
+        LI_segmentWriteObjectFile (obj, OPT_objfn);
+        LOG_printf (LOG_INFO, "        created hunk object file: %s\n", OPT_objfn);
+    }
 
-    if (!binfn)
+#if 0
+    if (!OPT_binfn)
         CO_exit(0);
 
     /*
      * machine code generation (link phase)
      */
 
-    LOG_printf (LOG_INFO, "PASS 4: linker\n");
+    LOG_printf (LOG_INFO, "PASS 5: linker\n");
     LI_segmentList sl = LI_SegmentList();
 
     LOG_printf (LOG_INFO, "        reading startup.o\n");

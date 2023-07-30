@@ -21,6 +21,9 @@ static int  g_opt               = DEFAULT_OPTS;
 string OPT_bin_fn        = NULL;
 string OPT_asm_gas_fn    = NULL;
 string OPT_asm_asmpro_fn = NULL;
+string OPT_asm_vasm_fn   = NULL;
+string OPT_binfn         = NULL;
+string OPT_objfn         = NULL;
 
 void OPT_set(int opt, bool onoff)
 {

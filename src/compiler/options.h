@@ -61,6 +61,9 @@ OPT_dirSearchPath OPT_getModulePath (void);
 extern string OPT_bin_fn;
 extern string OPT_asm_gas_fn;
 extern string OPT_asm_asmpro_fn;
+extern string OPT_asm_vasm_fn;
+extern string OPT_binfn;
+extern string OPT_objfn;
 
 void OPT_init(void);
 void OPT_deinit(void);
