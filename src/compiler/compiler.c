@@ -89,7 +89,7 @@ IR_assembly CO_AssemblyInit (S_symbol name)
         return NULL;
     }
 
-    IR_assembly assembly = IR_Assembly (name);
+    IR_assembly assembly = IR_Assembly (name, OPT_hasCode);
 
     return assembly;
 }
@@ -408,7 +408,6 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         LOG_printf (LOG_INFO, "        created hunk object file: %s\n", OPT_objfn);
     }
 
-#if 0
     if (!OPT_binfn)
         CO_exit(0);
 
@@ -420,7 +419,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
     LI_segmentList sl = LI_SegmentList();
 
     LOG_printf (LOG_INFO, "        reading startup.o\n");
-    FILE *fObj = E_openModuleFile ("startup.o");
+    FILE *fObj = OPT_assemblyOpenFile ("startup.o");
     if (!fObj)
     {
         LOG_printf (LOG_ERROR, "*** ERROR: failed to open startup.o\n\n");
@@ -438,21 +437,21 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
     if (obj->dataSeg)
         LI_segmentListAppend (sl, obj->dataSeg);
 
-    for (E_moduleListNode n = E_getLoadedModuleList(); n; n=n->next)
+    for (IR_assembly a = IR_getLoadedAssembliesList(); a; a=a->next)
     {
-        if (!n->m->hasCode)
+        if (!a->hasCode)
             continue;
 
         static char mod_fn[PATH_MAX];
-        snprintf (mod_fn, PATH_MAX, "%s.a", S_name (n->m->name));
+        snprintf (mod_fn, PATH_MAX, "%s.a", S_name (a->name));
         LOG_printf (LOG_INFO, "        reading %s\n", mod_fn);
-        fObj = E_openModuleFile (mod_fn);
+        fObj = OPT_assemblyOpenFile (mod_fn);
         if (!fObj)
         {
             LOG_printf (LOG_ERROR, "*** ERROR: failed to open %s\n\n", mod_fn);
             CO_exit(EXIT_FAILURE);
         }
-        if (!LI_segmentListReadObjectFile (UP_link, sl, S_name(n->m->name), fObj))
+        if (!LI_segmentListReadObjectFile (UP_link, sl, S_name(a->name), fObj))
         {
             fclose(fObj);
             CO_exit(EXIT_FAILURE);
@@ -466,8 +465,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         CO_exit(EXIT_FAILURE);
     }
 
-    LI_segmentListWriteLoadFile (sl, binfn);
-#endif
+    LI_segmentListWriteLoadFile (sl, OPT_binfn);
 
     float endTime = U_getTime();
     LOG_printf (LOG_INFO, "\ncompilation finished, took %ds.\n", (int)(endTime-g_startTime));

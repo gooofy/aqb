@@ -260,9 +260,9 @@ int main (int argc, char *argv[])
                 }
                 OPT_assemblyAddPath(argv[optind]);
                 break;
-            //case 'I':
-            //    hasCode = false;
-            //    break;
+            case 'I':
+                OPT_hasCode = false;
+                break;
             //case 'N':
             //    noInitFn = true;
             //    break;

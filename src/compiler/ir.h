@@ -7,7 +7,7 @@
 #include "temp.h"
 
 /*
- * AQB Intermediate Representation
+ * ACS Intermediate Representation
  */
 
 #define _MAIN_LABEL  "__acs_main"
@@ -40,7 +40,9 @@ typedef struct IR_const_           *IR_const;
 struct IR_assembly_
 {
     S_symbol      name;
+    bool          hasCode;
     IR_definition def_first, def_last;
+    IR_assembly   next;
 };
 
 struct IR_definition_
@@ -256,7 +258,9 @@ struct IR_argument_
     IR_argument     next;
 };
 
-IR_assembly        IR_Assembly           (S_symbol name);
+IR_assembly        IR_getLoadedAssembliesList (void);
+
+IR_assembly        IR_Assembly           (S_symbol name, bool hasCode);
 void               IR_assemblyAdd        (IR_assembly assembly, IR_definition def);
 IR_definition      IR_DefinitionType     (IR_using usings, IR_namespace names, S_symbol name, IR_type type);
 IR_definition      IR_DefinitionProc     (IR_using usings, IR_namespace names, S_symbol name, IR_proc proc);

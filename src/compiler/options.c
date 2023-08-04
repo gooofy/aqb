@@ -24,6 +24,7 @@ string OPT_asm_asmpro_fn = NULL;
 string OPT_asm_vasm_fn   = NULL;
 string OPT_binfn         = NULL;
 string OPT_objfn         = NULL;
+bool   OPT_hasCode       = true;
 
 void OPT_set(int opt, bool onoff)
 {

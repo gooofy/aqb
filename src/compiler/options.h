@@ -65,6 +65,7 @@ extern string OPT_asm_asmpro_fn;
 extern string OPT_asm_vasm_fn;
 extern string OPT_binfn;
 extern string OPT_objfn;
+extern bool   OPT_hasCode;
 
 void OPT_init(void);
 void OPT_deinit(void);
