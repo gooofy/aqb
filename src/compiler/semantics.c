@@ -65,7 +65,7 @@ static bool _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS
     CG_itemListNode n = CG_itemListAppend(args);
     CG_StringItem (code, expr->pos, &n->item, expr->u.stringLiteral);
     n = CG_itemListAppend(args);
-    CG_BoolItem (&n->item, false, IR_TypeBool()); // owned
+    CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
     return _transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_Create, args, code, frame, res);
 }
@@ -204,13 +204,13 @@ static void _elaborateType (IR_type ty, IR_using usings)
 
     switch (ty->kind)
     {
-        case Ty_bool:
+        case Ty_boolean:
         case Ty_byte:
-        case Ty_ubyte:
-        case Ty_integer:
-        case Ty_uinteger:
-        case Ty_long:
-        case Ty_ulong:
+        case Ty_sbyte:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_int32:
+        case Ty_uint32:
         case Ty_single:
         case Ty_double:
             break;

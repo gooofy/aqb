@@ -623,13 +623,13 @@ static bool fread_ty (FILE *f, IR_type *ty)
     }
     switch (ty_kind)
     {
-        case Ty_bool:     *ty = IR_TypeBool()    ; break;
+        case Ty_boolean:  *ty = IR_TypeBoolean() ; break;
         case Ty_byte:     *ty = IR_TypeByte()    ; break;
-        case Ty_ubyte:    *ty = IR_TypeUByte()   ; break;
-        case Ty_integer:  *ty = IR_TypeInteger() ; break;
-        case Ty_uinteger: *ty = IR_TypeUInteger(); break;
-        case Ty_long:     *ty = IR_TypeLong()    ; break;
-        case Ty_ulong:    *ty = IR_TypeULong()   ; break;
+        case Ty_sbyte:    *ty = IR_TypeSByte()   ; break;
+        case Ty_int16:    *ty = IR_TypeInt16()   ; break;
+        case Ty_uint16:   *ty = IR_TypeUInt16()  ; break;
+        case Ty_int32:    *ty = IR_TypeInt32()   ; break;
+        case Ty_uint32:   *ty = IR_TypeUInt32()  ; break;
         case Ty_single:   *ty = IR_TypeSingle()  ; break;
         case Ty_double:   *ty = IR_TypeDouble()  ; break;
 

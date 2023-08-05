@@ -127,13 +127,13 @@ struct IR_type_
 {
     enum { Ty_unresolved,   //  0 also used when loading assemblies
 
-           Ty_bool,         //  1
+           Ty_boolean,      //  1
            Ty_byte,         //  2
-           Ty_ubyte,        //  3
-           Ty_integer,      //  4
-           Ty_uinteger,     //  5
-           Ty_long,         //  6
-           Ty_ulong,        //  7
+           Ty_sbyte,        //  3
+           Ty_int16,        //  4
+           Ty_uint16,       //  5
+           Ty_int32,        //  6
+           Ty_uint32,       //  7
            Ty_single,       //  8
            Ty_double,       //  9
 
@@ -312,13 +312,13 @@ void               IR_argumentListAppend (IR_argumentList al, IR_argument a);
 IR_argument        IR_Argument           (IR_expression expr);
 
 // built-in types
-IR_type            IR_TypeBool           (void);
+IR_type            IR_TypeBoolean        (void);
 IR_type            IR_TypeByte           (void);
-IR_type            IR_TypeUByte          (void);
-IR_type            IR_TypeInteger        (void);
-IR_type            IR_TypeUInteger       (void);
-IR_type            IR_TypeLong           (void);
-IR_type            IR_TypeULong          (void);
+IR_type            IR_TypeSByte          (void);
+IR_type            IR_TypeInt16          (void);
+IR_type            IR_TypeUInt16         (void);
+IR_type            IR_TypeInt32          (void);
+IR_type            IR_TypeUInt32         (void);
 IR_type            IR_TypeSingle         (void);
 IR_type            IR_TypeDouble         (void);
 

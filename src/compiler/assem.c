@@ -455,15 +455,15 @@ static void instrformat(string str, string strTmpl, AS_instr instr, AS_dialect d
                 {
                     switch (instr->imm->ty->kind)
                     {
-                        case Ty_bool:
+                        case Ty_boolean:
                             pos += sprintf(&str[pos], "%d", instr->imm->u.b ? -1 : 0);
                             break;
                         case Ty_byte:
-                        case Ty_ubyte:
-                        case Ty_integer:
-                        case Ty_uinteger:
-                        case Ty_long:
-                        case Ty_ulong:
+                        case Ty_sbyte:
+                        case Ty_int16:
+                        case Ty_uint16:
+                        case Ty_int32:
+                        case Ty_uint32:
                         case Ty_reference:
                             pos += sprintf(&str[pos], "%d", instr->imm->u.i);
                             break;
@@ -854,10 +854,10 @@ static bool is8BitConst (IR_const c)
 
     assert (    ( c->ty->kind == Ty_byte     )
              || ( c->ty->kind == Ty_ubyte    )
-             || ( c->ty->kind == Ty_integer  )
-             || ( c->ty->kind == Ty_uinteger )
-             || ( c->ty->kind == Ty_long     )
-             || ( c->ty->kind == Ty_ulong    ) );
+             || ( c->ty->kind == Ty_int16  )
+             || ( c->ty->kind == Ty_uint16 )
+             || ( c->ty->kind == Ty_int32     )
+             || ( c->ty->kind == Ty_uint32    ) );
 
     return (c->u.i >=-128) && (c->u.i <= 127);
 }
@@ -965,14 +965,14 @@ static int32_t getConstInt (IR_const c)
 {
     switch (c->ty->kind)
     {
-        case Ty_bool:
+        case Ty_boolean:
             return c->u.b ? -1 : 0;
         case Ty_byte:
-        case Ty_ubyte:
-        case Ty_integer:
-        case Ty_uinteger:
-        case Ty_long:
-        case Ty_ulong:
+        case Ty_sbyte:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_int32:
+        case Ty_uint32:
         case Ty_reference:
             return c->u.i;
         case Ty_single:
@@ -1281,13 +1281,13 @@ static void emit_Imm (AS_segment seg, enum Temp_w w, IR_const imm)
         {
             switch (imm->ty->kind)
             {
-                case Ty_bool:
+                case Ty_boolean:
                 case Ty_byte:
-                case Ty_ubyte:
-                case Ty_integer:
-                case Ty_uinteger:
-                case Ty_long:
-                case Ty_ulong:
+                case Ty_sbyte:
+                case Ty_int16:
+                case Ty_uint16:
+                case Ty_int32:
+                case Ty_uint32:
                 case Ty_reference:
                     emit_i4 (seg, getConstInt (imm));
                     break;

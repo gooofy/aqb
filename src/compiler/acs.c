@@ -192,8 +192,16 @@ static IR_namespace _bootstrap_root_names(void)
     IR_namespace root = IR_Namespace(/*name=*/NULL, /*parent=*/NULL);
 
     IR_namespace sys_names = IR_namesResolveNames (root, S_Symbol ("System"), /*doCreate=*/true);
-    IR_namesAddType (sys_names, S_Symbol ("Char"), IR_TypeUByte());
-    IR_namesAddType (sys_names, S_Symbol ("Bool"), IR_TypeBool());
+    IR_namesAddType (sys_names, S_Symbol ("Char"   ), IR_TypeByte()   );
+    IR_namesAddType (sys_names, S_Symbol ("SByte"  ), IR_TypeSByte()  );
+    IR_namesAddType (sys_names, S_Symbol ("Int16"  ), IR_TypeInt16()  );
+    IR_namesAddType (sys_names, S_Symbol ("Int32"  ), IR_TypeInt32()  );
+    IR_namesAddType (sys_names, S_Symbol ("Byte"   ), IR_TypeByte()   );
+    IR_namesAddType (sys_names, S_Symbol ("UInt16" ), IR_TypeUInt16() );
+    IR_namesAddType (sys_names, S_Symbol ("UInt32" ), IR_TypeUInt32() );
+    IR_namesAddType (sys_names, S_Symbol ("Boolean"), IR_TypeBoolean());
+    IR_namesAddType (sys_names, S_Symbol ("Single" ), IR_TypeSingle() );
+    IR_namesAddType (sys_names, S_Symbol ("Double" ), IR_TypeDouble() );
 
     return root;
 }

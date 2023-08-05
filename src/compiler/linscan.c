@@ -593,7 +593,7 @@ static void linearScan (CG_frame f, AS_instrList il)
         else
         {
             CG_item *item = &g_ivs[i]->local;
-            CG_allocVar (item, f, /*name=*/NULL, /*expt=*/false, IR_TypeULong());
+            CG_allocVar (item, f, /*name=*/NULL, /*expt=*/false, IR_TypeUInt32());
             TAB_enter (g_spilledLocals, t, item);
 #ifdef ENABLE_DEBUG
             printf("LS: assigned spilled %s to local fp offset %d\n", Temp_strprint(t), CG_itemOffset(item));

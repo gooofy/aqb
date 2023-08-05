@@ -23,7 +23,7 @@ namespace ConsoleApp10
     class Program
     {
        // static void Main(string[] args)
-       static void Main()
+       static int Main()
        {
            System.Console.WriteLine("Hello World!");
        }

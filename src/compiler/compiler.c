@@ -333,18 +333,18 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
                                 IR_const c = n->u.c;
                                 switch (c->ty->kind)
                                 {
-                                    case Ty_bool:
+                                    case Ty_boolean:
                                     case Ty_byte:
-                                    case Ty_ubyte:
+                                    case Ty_sbyte:
                                         // FIXME AS_assembleData8 (obj->dataSeg, c->u.b);
                                         assert(false);
                                         break;
-                                    case Ty_uinteger:
-                                    case Ty_integer:
+                                    case Ty_uint16:
+                                    case Ty_int16:
                                         AS_assembleData16 (obj->dataSeg, c->u.i);
                                         break;
-                                    case Ty_long:
-                                    case Ty_ulong:
+                                    case Ty_int32:
+                                    case Ty_uint32:
                                     case Ty_pointer:
                                     case Ty_reference:
                                     // FIXME case Ty_any:

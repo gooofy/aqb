@@ -228,14 +228,14 @@ int IR_typeSize (IR_type ty)
     switch (ty->kind)
     {
         case Ty_byte:
-        case Ty_ubyte:
+        case Ty_sbyte:
              return 1;
-        case Ty_bool:
-        case Ty_integer:
-        case Ty_uinteger:
+        case Ty_boolean:
+        case Ty_int16:
+        case Ty_uint16:
              return 2;
-        case Ty_long:
-        case Ty_ulong:
+        case Ty_int32:
+        case Ty_uint32:
         case Ty_single:
         case Ty_reference:
         //case Ty_prc:
@@ -535,26 +535,26 @@ IR_argument IR_Argument (IR_expression expr)
     return a;
 }
 
-static struct IR_type_ tybool = {Ty_bool};
-IR_type IR_TypeBool(void) {return &tybool;}
+static struct IR_type_ tyboolean = {Ty_boolean};
+IR_type IR_TypeBoolean(void) {return &tyboolean;}
 
 static struct IR_type_ tybyte = {Ty_byte};
 IR_type IR_TypeByte(void) {return &tybyte;}
 
-static struct IR_type_ tyubyte = {Ty_ubyte};
-IR_type IR_TypeUByte(void) {return &tyubyte;}
+static struct IR_type_ tysbyte = {Ty_sbyte};
+IR_type IR_TypeSByte(void) {return &tysbyte;}
 
-static struct IR_type_ tyinteger = {Ty_integer};
-IR_type IR_TypeInteger(void) {return &tyinteger;}
+static struct IR_type_ tyint16 = {Ty_int16};
+IR_type IR_TypeInt16(void) {return &tyint16;}
 
-static struct IR_type_ tyuinteger = {Ty_uinteger};
-IR_type IR_TypeUInteger(void) {return &tyuinteger;}
+static struct IR_type_ tyuint16 = {Ty_uint16};
+IR_type IR_TypeUInt16(void) {return &tyuint16;}
 
-static struct IR_type_ tylong = {Ty_long};
-IR_type IR_TypeLong(void) {return &tylong;}
+static struct IR_type_ tyint32 = {Ty_int32};
+IR_type IR_TypeInt32(void) {return &tyint32;}
 
-static struct IR_type_ tyulong = {Ty_ulong};
-IR_type IR_TypeULong(void) {return &tyulong;}
+static struct IR_type_ tyuint32 = {Ty_uint32};
+IR_type IR_TypeUInt32(void) {return &tyuint32;}
 
 static struct IR_type_ tysingle = {Ty_single};
 IR_type IR_TypeSingle(void) {return &tysingle;}
@@ -573,7 +573,7 @@ IR_type IR_TypeDouble(void) {return &tydouble;}
 //static struct IR_type_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 //IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
 
-static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, true, {&tyubyte}};
+static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, true, {&tybyte}};
 IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
 
 void IR_init(void)

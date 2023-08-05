@@ -1112,9 +1112,15 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
     // using string = System.String;
 
     IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
-    _add_using (IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("char"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Char"  ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("bool"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Bool"  ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"   ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("char"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Char"     ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("bool"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Boolean"  ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("sbyte" ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("SByte"    ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("byte"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Byte"     ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("short" ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Int16"    ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("ushort"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("UInt16"   ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("int"   ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Int32"    ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("uint"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("UInt32"   ), NULL,  /*doCreate=*/true), NULL));
 
     while (S_tkn.kind != S_EOF)
     {
