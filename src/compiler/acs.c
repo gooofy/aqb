@@ -72,18 +72,19 @@ bool acs_wbstart = false;
 static void print_usage(char *argv[])
 {
     fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
-    //fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
+    fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
     fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
     fprintf(stderr, "    -a            create gas source file\n");
     fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
     fprintf(stderr, "    -B            create vasm source file\n");
-    //fprintf(stderr, "    -s            create symbol file\n");
+    fprintf(stderr, "    -s            create symbol file\n");
     //fprintf(stderr, "    -S            create C stub file\n");
     //fprintf(stderr, "    -I            interface assembly (no code)\n");
     //fprintf(stderr, "    -N            no not generate a assembly init function\n");
     //fprintf(stderr, "    -E            no not generate a gc scan functions\n");
     fprintf(stderr, "    -o <foo>      create hunk binary file\n");
     fprintf(stderr, "    -p <foo>      create hunk object file\n");
+    fprintf(stderr, "    -T <n>        stack size for the generated program\n");
     fprintf(stderr, "    -v            verbose\n");
     fprintf(stderr, "    -V            display version info\n");
 }
@@ -256,8 +257,12 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                assert(false); // FIXME: load assembly
-                //OPT_default_module = argv[optind];
+                IR_assembly a = IR_loadAssembly (S_Symbol (argv[optind]));
+                if (!a)
+                {
+                    fprintf (stderr, "*** error: failed to load assembly '%s'.\n\n", argv[optind]);
+                    exit(EXIT_FAILURE);
+                }
                 break;
             case 'L':
                 optind++;
@@ -304,15 +309,15 @@ int main (int argc, char *argv[])
                 }
                 OPT_asm_vasm_fn = argv[optind];
                 break;
-            //case 's':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    symfn = argv[optind];
-            //    break;
+            case 's':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_sym_fn = argv[optind];
+                break;
             //case 'S':
             //    optind++;
             //    if (optind >= argc)
@@ -339,6 +344,15 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 OPT_objfn = argv[optind];
+                break;
+            case 'T':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_stackSize = atoi(argv[optind]);
                 break;
             case 'v':
                 OPT_set(OPTION_VERBOSE, true);

@@ -1020,7 +1020,7 @@ void CG_procEntryExit(S_pos pos, CG_frame frame, AS_instrList body, CG_item *ret
         CG_transAssignment (body, pos, frame, &d0Item, returnVar);    // d0 := returnVar
     }
 
-    CG_frag frag = CG_ProcFrag(pos, frame->name, expt, body, frame);
+    CG_frag frag = CG_ProcFrag(pos, frame->name, expt || is_main, body, frame);
     g_fragList   = CG_FragList(frag, g_fragList);
 
     // GC's frame descriptor + fd table entry

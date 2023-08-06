@@ -4,7 +4,7 @@ include ../../../config.mk
 
 #all: _urt_stub.c startup.o _urt.a _urt.sym
 #all: _urt.sym
-all: startup
+all: startup _urt.a
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
@@ -23,7 +23,8 @@ _urt.sym _urt.o _urt.s : _urt.cs
 %.o : %.S
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
-_urt.a: cstartup.o _urt.o astr.o cstring.o amath.o autil.o carray.o data.o dprintf.o aio.o oop.o memmove.o bcopy.o gc.o
+#_urt.a: cstartup.o _urt.o astr.o cstring.o amath.o autil.o carray.o data.o dprintf.o aio.o oop.o memmove.o bcopy.o gc.o
+_urt.a: cstartup.o astr.o amath.o autil.o dprintf.o memmove.o bcopy.o gc.o
 	$(AR_AMIGAOS) -crs _urt.a $^
 	pushd .. && rm -f _urt.a && ln -s _urt/_urt.a && popd
 	cp $@ $(DISTDIR)/lib

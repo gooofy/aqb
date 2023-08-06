@@ -6,6 +6,7 @@ static S_symbol S_Main;
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
 
 static IR_assembly _g_loadedAssembliesFirst = NULL;
+static IR_assembly _g_loadedAssembliesLast  = NULL;
 
 IR_assembly IR_getLoadedAssembliesList (void)
 {
@@ -575,6 +576,21 @@ IR_type IR_TypeDouble(void) {return &tydouble;}
 
 static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, true, {&tybyte}};
 IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
+
+IR_assembly IR_loadAssembly (S_symbol name)
+{
+    // FIXME: for now, we just create an empty assembly
+    IR_assembly a = IR_Assembly (name, /*hasCode=*/ true);
+
+    if (_g_loadedAssembliesLast)
+        _g_loadedAssembliesLast = _g_loadedAssembliesLast->next = a;
+    else
+        _g_loadedAssembliesFirst = _g_loadedAssembliesLast = a;
+
+    //assert(false); // FIXME
+
+    return a;
+}
 
 void IR_init(void)
 {

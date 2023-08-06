@@ -58,14 +58,15 @@ FILE             *OPT_assemblyOpenFile (string filename);   // look through sear
 
 // global compiler command line options
 
-//extern string OPT_default_module;
-extern string OPT_bin_fn;
-extern string OPT_asm_gas_fn;
-extern string OPT_asm_asmpro_fn;
-extern string OPT_asm_vasm_fn;
-extern string OPT_binfn;
-extern string OPT_objfn;
-extern bool   OPT_hasCode;
+extern string   OPT_sym_fn;
+extern string   OPT_bin_fn;
+extern string   OPT_asm_gas_fn;
+extern string   OPT_asm_asmpro_fn;
+extern string   OPT_asm_vasm_fn;
+extern string   OPT_binfn;
+extern string   OPT_objfn;
+extern bool     OPT_hasCode;
+extern uint32_t OPT_stackSize;
 
 void OPT_init(void);
 void OPT_deinit(void);

@@ -1,6 +1,7 @@
 #include "semantics.h"
 #include "codegen.h"
 #include "errormsg.h"
+#include "options.h"
 
 static S_symbol S_Create;
 
@@ -269,6 +270,15 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
                 assert(false);
                 break;
         }
+    }
+
+    // main module? -> communicate stack size to runtime
+
+    bool is_main = !OPT_sym_fn;
+    if (is_main)
+    {
+        CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__acs_stack_size"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+        CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
     }
 }
 

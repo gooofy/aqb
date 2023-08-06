@@ -18,13 +18,15 @@ extern struct DOSBase       *DOSBase;
 static int  g_opt               = DEFAULT_OPTS;
 //static bool g_changed           = false;
 
-string OPT_bin_fn        = NULL;
-string OPT_asm_gas_fn    = NULL;
-string OPT_asm_asmpro_fn = NULL;
-string OPT_asm_vasm_fn   = NULL;
-string OPT_binfn         = NULL;
-string OPT_objfn         = NULL;
-bool   OPT_hasCode       = true;
+string   OPT_sym_fn        = NULL;
+string   OPT_bin_fn        = NULL;
+string   OPT_asm_gas_fn    = NULL;
+string   OPT_asm_asmpro_fn = NULL;
+string   OPT_asm_vasm_fn   = NULL;
+string   OPT_binfn         = NULL;
+string   OPT_objfn         = NULL;
+bool     OPT_hasCode       = true;
+uint32_t OPT_stackSize     = 0;
 
 void OPT_set(int opt, bool onoff)
 {
