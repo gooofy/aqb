@@ -18,7 +18,7 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
 
     IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
     if (!entry || (entry->kind != IR_recMethod))
-        return EM_error(pos, "builtin type %s's %s is not a method.", S_name(tyCls->u.cls.name), S_name(builtinMethod));
+        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name), S_name(builtinMethod));
 
     IR_method method = entry->u.method;
     CG_transMethodCall(code, pos, frame, method, arglist, res);

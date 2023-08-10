@@ -811,7 +811,7 @@ static void _class_declaration (uint32_t mods)
     IR_type t = IR_TypeUnresolved (pos, name);
     t->kind                   = Ty_class;
     t->pos                    = pos;
-    t->u.cls.name             = name;
+    t->u.cls.name             = IR_NamespaceName (_g_names, name, pos);
     t->u.cls.visibility       = visibility;
     t->u.cls.isStatic         = isStatic;
     t->u.cls.uiSize           = 0;

@@ -72,6 +72,40 @@ IR_name IR_Name (S_symbol sym, S_pos pos)
     return n;
 }
 
+IR_name IR_NamespaceName (IR_namespace names, S_symbol sym, S_pos pos)
+{
+    IR_name name = IR_Name (names->name, pos);
+
+    IR_namespace n = names->parent;
+    while (n)
+    {
+        IR_symNode sn = IR_SymNode (n->name);
+
+        sn->next = name->first;
+        name->first = sn;
+
+        n = n->parent;
+    }
+
+    IR_nameAddSym (name, sym);
+
+    return name;
+}
+
+string IR_name2string (IR_name name)
+{
+    string res = NULL;
+
+    for (IR_symNode sn=name->first; sn; sn=sn->next)
+    {
+        if (res)
+            res = strconcat(UP_frontend, res, strconcat(UP_frontend, ".", S_name(sn->sym)));
+        else
+            res = S_name (sn->sym);
+    }
+    return res;
+}
+
 void IR_nameAddSym (IR_name name, S_symbol sym)
 {
     IR_symNode n = IR_SymNode (sym);
@@ -343,15 +377,23 @@ bool IR_procIsMain (IR_proc proc)
     return is_main;
 }
 
-string IR_procGenerateLabel (IR_proc proc, S_symbol sClsOwner)
+string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
 {
     if (IR_procIsMain (proc))
         return _MAIN_LABEL;
 
     string label = strconcat(UP_frontend, "_", S_name(proc->name));
 
-    if (sClsOwner)
-        label = strconcat(UP_frontend, "__", strconcat(UP_frontend, S_name(sClsOwner), label));
+    if (clsOwnerName)
+    {
+        string prefix = "";
+        for (IR_symNode n = clsOwnerName->first; n; n=n->next)
+        {
+            if (n->sym)
+                prefix = strconcat(UP_frontend, prefix, strconcat(UP_frontend, "_", S_name(n->sym)));
+        }
+        label = strconcat(UP_frontend, "_", strconcat(UP_frontend, prefix, label));
+    }
 
     // FIXME: append signature for overloading support
     //if (isFunction)

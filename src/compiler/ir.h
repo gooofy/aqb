@@ -158,7 +158,7 @@ struct IR_type_
     {
         IR_type                                                               pointer;
         S_symbol                                                              unresolved;
-        struct {S_symbol       name;
+        struct {IR_name        name;
                 IR_visibility  visibility;
                 bool           isStatic;
                 uint32_t       uiSize;
@@ -267,6 +267,8 @@ IR_definition      IR_DefinitionType     (IR_using usings, IR_namespace names, S
 IR_definition      IR_DefinitionProc     (IR_using usings, IR_namespace names, S_symbol name, IR_proc proc);
 
 IR_name            IR_Name               (S_symbol sym, S_pos pos);
+IR_name            IR_NamespaceName      (IR_namespace names, S_symbol sym, S_pos pos);
+string             IR_name2string        (IR_name name);
 void               IR_nameAddSym         (IR_name name, S_symbol sym);
 IR_symNode         IR_SymNode            (S_symbol sym);
 
@@ -282,7 +284,7 @@ IR_member          IR_namesResolveMember (IR_name name, IR_using usings);
 IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
 bool               IR_procIsMain         (IR_proc proc);
-string             IR_procGenerateLabel  (IR_proc proc, S_symbol sClsOwner);
+string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol name);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);
