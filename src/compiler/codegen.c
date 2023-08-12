@@ -106,13 +106,6 @@ static void InFrame (CG_item *item, int offset, IR_type ty)
     item->u.inFrameR.offset = offset;
 }
 
-static void InFrameRef (CG_item *item, int offset, IR_type ty)
-{
-    item->kind              = IK_inFrameRef;
-    item->ty                = ty;
-    item->u.inFrameR.offset = offset;
-}
-
 static void InReg (CG_item *item, Temp_temp reg, IR_type ty)
 {
     item->kind    = IK_inReg;
@@ -171,29 +164,16 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, IR_formal formals, bool statc)
         }
         else
         {
-            switch (formal->mode)
+            int size = IR_typeSize(formal->type);
+            if (size>4)
             {
-                case IR_byRef:
-                    InFrameRef (&n->item, offset, formal->type);
-                    offset += 4;
-                    break;
-                case IR_byVal:
-                {
-                    int size = IR_typeSize(formal->type);
-                    if (size>4)
-                    {
-                        EM_error(pos, "cannot pass arguments of this type by value");
-                        size=4;
-                    }
-                    // gcc seems to push 4 bytes regardless of type (int, long, ...)
-                    offset += 4-size;
-                    InFrame (&n->item, offset, formal->type);
-                    offset += size;
-                    break;
-                }
-                default:
-                    assert(false);
+                EM_error(pos, "cannot pass arguments of this type by value");
+                size=4;
             }
+            // gcc seems to push 4 bytes regardless of type (int, long, ...)
+            offset += 4-size;
+            InFrame (&n->item, offset, formal->type);
+            offset += size;
         }
     }
 
@@ -455,12 +435,10 @@ void CG_StringItem (AS_instrList code, S_pos pos, CG_item *item, string str)
                                          item->u.inReg, NULL, 0, strLabel));
 }
 
-#if 0
 void CG_HeapPtrItem (CG_item *item, Temp_label label, IR_type ty)
 {
     InHeap (item, label, ty);
 }
-#endif // 0
 
 void CG_ZeroItem (CG_item *item, IR_type ty)
 {
@@ -3550,8 +3528,9 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
             assert (false);
     }
 }
+#endif // 0
 
-void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, Ty_member entry)
+void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordPtr, IR_member entry)
 {
     IR_type t = CG_ty(recordPtr);
 
@@ -3563,14 +3542,14 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
             uint32_t off = entry->u.field.uiOffset;
             if (off)
                 AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, Temp_w_L, NULL, recordPtr->u.inReg,   // add.l #off, recordPtr
-                                                      IR_ConstInt(Ty_Long(), off), 0, NULL));
+                                                      IR_ConstInt(IR_TypeInt32(), off), 0, NULL));
             recordPtr->kind = IK_varPtr;
             recordPtr->ty   = entry->u.field.ty;
             break;
         }
-        case Ty_record:
+        // FIXME case Ty_record:
         case Ty_class:
-        case Ty_darray:
+        // FIXME case Ty_darray:
         {
             switch (recordPtr->kind)
             {
@@ -3584,7 +3563,7 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
                     uint32_t off = entry->u.field.uiOffset;
                     if (off)
                         AS_instrListAppend (code, AS_InstrEx (pos, AS_ADD_Imm_AnDn, Temp_w_L, NULL, recordPtr->u.varPtr,   // add.l #off, recordPtr
-                                                              IR_ConstInt(Ty_Long(), off), 0, NULL));
+                                                              IR_ConstInt(IR_TypeInt32(), off), 0, NULL));
                     recordPtr->ty                 = entry->u.field.ty;
                     break;
                 }
@@ -3599,6 +3578,8 @@ void CG_transField (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recor
             break;
     }
 }
+
+#if 0
 
 void CG_transProperty (AS_instrList code, S_pos pos, CG_frame frame, CG_item *recordItem, Ty_member entry)
 {

@@ -344,14 +344,14 @@ IR_const IR_ConstString (IR_type ty, string s)
     return p;
 }
 
-IR_formal IR_Formal (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg)
+IR_formal IR_Formal (S_symbol name, IR_type type, IR_expression defaultExp, Temp_temp reg)
 {
     IR_formal p = U_poolAllocZero (UP_ir, sizeof (*p));
 
-    p->name = name;
-    p->type = type;
-    p->mode = mode;
-    p->reg  = reg;
+    p->name       = name;
+    p->type       = type;
+    p->defaultExp = defaultExp;
+    p->reg        = reg;
 
     return p;
 }
@@ -411,6 +411,13 @@ IR_type IR_TypeUnresolved (S_pos pos, S_symbol name)
     t->u.unresolved = name;
 
     return t;
+}
+
+IR_type IR_getReference (S_pos pos, IR_type ty)
+{
+    // FIXME: implement
+    assert(false);
+    return NULL;
 }
 
 IR_type IR_getPointer (S_pos pos, IR_type ty)
@@ -618,6 +625,9 @@ IR_type IR_TypeDouble(void) {return &tydouble;}
 
 static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, true, {&tybyte}};
 IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
+
+static struct IR_type_ tyuint32ptr = {Ty_pointer, {0,0}, true, {&tyuint32}};
+IR_type IR_TypeUInt32Ptr(void) {return &tyuint32ptr;}
 
 IR_assembly IR_loadAssembly (S_symbol name)
 {

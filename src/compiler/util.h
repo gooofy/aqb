@@ -12,8 +12,8 @@
 
 typedef char *string;
 
-#define VERSION            "0.9.0alpha2"
-#define PROGRAM_DATE       "18.06.2023"
+#define VERSION            "0.1.0alpha1"
+#define PROGRAM_DATE       "Aug 12th, 2023"
 #define COPYRIGHT          "(C) 2020, 2021, 2022, 2023 by G. Bartsch"
 #define PROGRAM_NAME_SHORT "ACS"
 #define PROGRAM_NAME_LONG  "ACS Amiga C#"
@@ -97,7 +97,7 @@ static inline int roundUp(int numToRound, int multiple)
 typedef enum
 {
     UP_frontend, UP_types, UP_temp, UP_assem, UP_codegen, UP_ir, UP_linscan, UP_symbol,
-    UP_link, UP_ide, UP_options, UP_runChild, UP_numPools
+    UP_link, UP_options, UP_runChild, UP_numPools
 } U_poolId;
 
 void *U_poolAlloc          (U_poolId pid, size_t size);

@@ -81,7 +81,7 @@ static void print_usage(char *argv[])
     //fprintf(stderr, "    -S            create C stub file\n");
     //fprintf(stderr, "    -I            interface assembly (no code)\n");
     //fprintf(stderr, "    -N            no not generate a assembly init function\n");
-    //fprintf(stderr, "    -E            no not generate a gc scan functions\n");
+    fprintf(stderr, "    -E            no not generate gc scan functions\n");
     fprintf(stderr, "    -o <foo>      create hunk binary file\n");
     fprintf(stderr, "    -p <foo>      create hunk object file\n");
     fprintf(stderr, "    -T <n>        stack size for the generated program\n");
@@ -279,9 +279,9 @@ int main (int argc, char *argv[])
             //case 'N':
             //    noInitFn = true;
             //    break;
-            //case 'E':
-            //    gcScanExtern = true;
-            //    break;
+            case 'E':
+                OPT_gcScanExtern = true;
+                break;
             case 'a':
                 optind++;
                 if (optind >= argc)

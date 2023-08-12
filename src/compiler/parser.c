@@ -412,7 +412,7 @@ static IR_formal _parameter(void)
         S_symbol name = S_tkn.u.sym;
         S_nextToken();
 
-        par = IR_Formal(name, t, IR_byVal, /*reg=*/NULL);
+        par = IR_Formal(name, t, /*defaultExp=*/NULL/*FIXME*/, /*reg=*/NULL);
 
         if (S_tkn.kind == S_EQUALS)
             assert(false); // FIXME

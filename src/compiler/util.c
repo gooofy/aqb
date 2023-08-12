@@ -69,7 +69,7 @@ struct U_memRec_
 };
 
 static char      *g_pool_names[UP_numPools] = { "FRONTEND", "TYPES", "TEMP", "ASSEM", "CODEGEN", "IR", "LINSCAN", "SYMBOL",
-                                                "LINK", "IDE", "OPTIONS", "RUN_CHILD" };
+                                                "LINK", "OPTIONS", "RUN_CHILD" };
 static U_memPool  g_pools[UP_numPools] = { NULL, NULL };
 static float      g_start_time;
 

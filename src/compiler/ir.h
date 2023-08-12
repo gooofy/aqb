@@ -94,13 +94,11 @@ struct IR_namespace_
     TAB_table    types; // symbol -> IR_type
 };
 
-typedef enum {IR_byRef, IR_byVal} IR_formalMode;
-
 struct IR_formal_
 {
     S_symbol      name;
     IR_type       type;
-    IR_formalMode mode;
+    IR_expression defaultExp;
     Temp_temp     reg;
     IR_formal     next;
 };
@@ -122,6 +120,15 @@ struct IR_proc_
     bool             isExtern;
     IR_stmtList      sl;
 };
+
+
+// the first 2 class vtable entries are special:
+// #0: type desc pointer
+// #1: garbage collector's gc_scan virtual function
+
+#define VTABLE_SPECIAL_ENTRY_NUM       2
+#define VTABLE_SPECIAL_ENTRY_TYPEDESC  0
+#define VTABLE_SPECIAL_ENTRY_GCSCAN    1
 
 struct IR_type_
 {
@@ -212,6 +219,13 @@ struct IR_memberList_
     IR_member   first, last;
 };
 
+struct IR_implements_
+{
+    IR_implements   next;
+    IR_type         intf;
+    IR_member       vTablePtr;
+};
+
 struct IR_method_
 {
     IR_proc   proc;
@@ -281,12 +295,13 @@ void               IR_namesAddType       (IR_namespace names, S_symbol name, IR_
 
 IR_member          IR_namesResolveMember (IR_name name, IR_using usings);
 
-IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_formalMode mode, Temp_temp reg);
+IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_expression defaultExp, Temp_temp reg);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
 bool               IR_procIsMain         (IR_proc proc);
 string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
 
 IR_type            IR_TypeUnresolved     (S_pos pos, S_symbol name);
+IR_type            IR_getReference       (S_pos pos, IR_type ty);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);
 int                IR_typeSize           (IR_type ty);
 
@@ -326,6 +341,7 @@ IR_type            IR_TypeSingle         (void);
 IR_type            IR_TypeDouble         (void);
 
 IR_type            IR_TypeUBytePtr       (void);
+IR_type            IR_TypeUInt32Ptr      (void);
 
 void               IR_init               (void);
 

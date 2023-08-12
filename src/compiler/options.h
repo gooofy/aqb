@@ -67,6 +67,7 @@ extern string   OPT_binfn;
 extern string   OPT_objfn;
 extern bool     OPT_hasCode;
 extern uint32_t OPT_stackSize;
+extern bool     OPT_gcScanExtern;
 
 void OPT_init(void);
 void OPT_deinit(void);

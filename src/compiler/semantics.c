@@ -4,6 +4,7 @@
 #include "options.h"
 
 static S_symbol S_Create;
+static S_symbol S_this;
 
 // string type based on _urt's String class caching
 static IR_type _g_tyString=NULL;
@@ -172,6 +173,344 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
     // FIXME: virtual methods, vtables
 }
 
+static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
+{
+    if (tyCls->u.cls.baseType)
+    {
+        _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
+    }
+
+    for (IR_member member=tyCls->u.cls.members->first; member; member=member->next)
+    {
+        switch (member->kind)
+        {
+            case IR_recMethod:
+                if (member->u.method->vTableIdx >= 0)
+                    CG_dataFragSetPtr (vTableFrag, member->u.method->proc->label, member->u.method->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+                break;
+            case IR_recProperty:
+                if (member->u.property.getter && member->u.property.getter->vTableIdx >= 0)
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.getter->proc->label, member->u.property.getter->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+                if (member->u.property.setter && member->u.property.setter->vTableIdx >= 0)
+                    CG_dataFragSetPtr (vTableFrag, member->u.property.setter->proc->label, member->u.property.setter->vTableIdx+VTABLE_SPECIAL_ENTRY_NUM);
+                break;
+            default:
+                continue;
+        }
+    }
+}
+
+static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string clsLabel)
+{
+    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan", clsLabel));
+    //Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
+
+    if (!OPT_gcScanExtern)
+    {
+        // FIXME
+        assert(false);
+#if 0
+        S_symbol gcMarkBlackSym = S_Symbol("GC_MARK_BLACK");
+        E_enventryList lx = E_resolveSub(g_sleStack->env, gcMarkBlackSym);
+        if (lx)
+        {
+            E_enventry gcMarkBlackSub = lx->first->e;
+
+            Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+            formals = Ty_Formal(S_GC, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+
+            CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
+            AS_instrList il = AS_InstrList();
+
+            for (Ty_member member = tyCls->u.cls.members->first; member; member=member->next)
+            {
+                if (member->kind != Ty_recField)
+                    continue;
+
+                Ty_ty ty = member->u.field.ty;
+
+                switch (ty->kind)
+                {
+                    case Ty_pointer:
+                    {
+                        switch (ty->u.pointer->kind)
+                        {
+                            case Ty_class:
+                            {
+                                // FIXME: inline?
+                                CG_itemList gcMarkBlackArglist = CG_ItemList();
+
+                                CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
+                                n->item = frame->formals->first->item; // <this>
+                                CG_transField(il, pos, frame, &n->item, member);
+                                CG_loadVal (il, pos, frame, &n->item);
+
+                                CG_transCall (il, pos, frame, gcMarkBlackSub->u.proc, gcMarkBlackArglist, /*result=*/NULL);
+                                break;
+                            }
+
+                            default:
+                                assert(FALSE);
+                        }
+                        break;
+                    }
+
+                    case Ty_sarray:
+                    case Ty_darray:
+                    case Ty_record:
+                    case Ty_any:
+                    case Ty_class:
+                        assert(FALSE); // FIXME: implement
+                    default:
+                        continue;
+                }
+            }
+
+            if (!il->first)
+                CG_transNOP (il, 0);
+
+            CG_procEntryExit(0,
+                             frame,
+                             il,
+                             /*returnVar=*/NULL,
+                             /*exitlbl=*/ exitlabel,
+                             /*is_main=*/FALSE,
+                             /*expt=*/TRUE);
+        }
+        else
+        {
+            EM_error(pos, "builtin %s not found.", S_name(gcMarkBlackSym));
+        }
+#endif // 0
+    }
+
+    return label;
+}
+
+static void _assembleVTables (IR_type tyCls)
+{
+    S_pos pos = tyCls->pos;
+    IR_type tyClsRef = IR_getReference (pos, tyCls);
+
+    // generate __init method which assigns the vTable pointers in this class
+
+    IR_formal formals = IR_Formal(S_this, tyClsRef, /*defaultExp=*/NULL, /*reg=*/NULL);
+    //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
+    string clsLabel = IR_name2string (tyCls->u.cls.name);
+    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___init", clsLabel));
+    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___init_exit", clsLabel));
+
+    IR_proc proc = IR_Proc (pos, IR_visPublic, IR_pkConstructor, tyCls, S_Symbol("__init"),
+                                   /*isExtern=*/false, /*isStatic=*/false);
+    proc->formals = formals;
+    proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyCls->u.cls.name));
+
+    tyCls->u.cls.__init = proc;
+
+    CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
+    AS_instrList il = AS_InstrList();
+
+    // assemble vtable for tyCls
+
+    Temp_label vtlabel = Temp_namedlabel(strconcat(UP_ir, "__", strconcat(UP_ir, clsLabel, "__vtable")));
+    CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/false, /*size=*/0, /*ty=*/NULL);
+
+    _assembleClassVTable (vTableFrag, tyCls);
+    // set up vTable special entries
+    CG_dataFragSetPtr (vTableFrag, CG_getTypeDescLabel           (tyCls)               , VTABLE_SPECIAL_ENTRY_TYPEDESC);
+    CG_dataFragSetPtr (vTableFrag, _assembleClassGCScanMethod    (tyCls, pos, clsLabel), VTABLE_SPECIAL_ENTRY_GCSCAN);
+
+
+    if (!tyCls->u.cls.virtualMethodCnt)
+    {
+        // ensure vtable always exists
+        CG_dataFragAddConst (vTableFrag, IR_ConstInt(IR_TypeUInt32(), 0));
+    }
+
+    // add code to __init function that assigns vTablePtr
+
+    CG_item objVTablePtr = frame->formals->first->item; // <this>
+    CG_transField(il, pos, frame, &objVTablePtr, tyCls->u.cls.vTablePtr);
+
+    CG_item classVTablePtr;
+    CG_HeapPtrItem (&classVTablePtr, vtlabel, IR_TypeUInt32Ptr());
+    CG_loadRef (il, pos, frame, &classVTablePtr);
+    classVTablePtr.kind = IK_inReg;
+
+    CG_transAssignment (il, pos, frame, &objVTablePtr, &classVTablePtr);
+
+    // assemble and assign vtables for each implemented interface
+
+    for (IR_implements implements = tyCls->u.cls.implements; implements; implements=implements->next)
+    {
+        // FIXME
+        assert(false);
+#if 0
+        vtlabel = Temp_namedlabel(strprintf (UP_ir, "__intf_vtable_%s_%s", clsLabel,
+                                             S_name(implements->intf->u.interface.name)));
+        CG_frag vTableFrag = CG_DataFrag (vtlabel, /*expt=*/FALSE, /*size=*/0, /*ty=*/NULL);
+        int32_t offset = implements->vTablePtr->u.field.uiOffset;
+        CG_dataFragAddConst (vTableFrag, Ty_ConstInt(Ty_Long(), offset));
+
+        Ty_ty tyIntf = implements->intf;
+
+        for (Ty_member intfMember = tyIntf->u.interface.members->first; intfMember; intfMember=intfMember->next)
+        {
+            switch (intfMember->kind)
+            {
+                case Ty_recMethod:
+                {
+                    Ty_proc intfProc = intfMember->u.method->proc;
+                    assert (intfMember->u.method->vTableIdx >= 0);
+
+                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
+                    if (!member || (member->kind != Ty_recMethod))
+                    {
+                        EM_error (pos, "Class %s is missing an implementation for %s.%s",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+
+                    if (member->u.method->vTableIdx < 0)
+                    {
+                        EM_error (pos, "Class %s: implementation for %s.%s needs to be declared as virtual",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+                    Ty_proc proc = member->u.method->proc;
+                    if (!matchProcSignatures (proc, intfProc))
+                    {
+                        EM_error (pos, "Class %s: implementation for %s.%s signature mismatch",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfProc->name));
+                        continue;
+                    }
+
+                    CG_dataFragSetPtr (vTableFrag, proc->label, intfMember->u.method->vTableIdx+1);
+                    break;
+                }
+                case Ty_recProperty:
+                {
+                    Ty_member member = Ty_findEntry (tyCls, intfMember->name, /*checkbase=*/TRUE);
+                    if (!member || (member->kind != Ty_recProperty))
+                    {
+                        EM_error (pos, "Class %s is missing an implementation for property %s.%s",
+                                  S_name(tyCls->u.cls.name),
+                                  S_name(tyIntf->u.interface.name),
+                                  S_name(intfMember->name));
+                        continue;
+                    }
+
+                    Ty_method intfSetter = intfMember->u.property.setter;
+                    if (intfSetter)
+                    {
+                        Ty_proc intfProc = intfSetter->proc;
+                        assert (intfSetter->vTableIdx >= 0);
+
+                        if (!member->u.property.setter)
+                        {
+                            EM_error (pos, "Class %s is missing a setter implementation for property %s.%s",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        if (member->u.property.setter->vTableIdx < 0)
+                        {
+                            EM_error (pos, "Class %s: implementation for %s.%s setter needs to be declared as virtual",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        Ty_proc proc = member->u.property.setter->proc;
+                        if (!matchProcSignatures (proc, intfProc))
+                        {
+                            EM_error (pos, "Class %s: implementation for %s.%s setter signature mismatch",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        CG_dataFragSetPtr (vTableFrag, proc->label, intfSetter->vTableIdx+1);
+                    }
+
+                    Ty_method intfGetter = intfMember->u.property.getter;
+                    if (intfGetter)
+                    {
+                        Ty_proc intfProc = intfGetter->proc;
+                        assert (intfGetter->vTableIdx >= 0);
+
+                        if (!member->u.property.getter)
+                        {
+                            EM_error (pos, "Class %s is missing a getter implementation for property %s.%s",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        if (member->u.property.getter->vTableIdx < 0)
+                        {
+                            EM_error (pos, "Class %s: implementation for %s.%s getter needs to be declared as virtual",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        Ty_proc proc = member->u.property.getter->proc;
+                        if (!matchProcSignatures (proc, intfProc))
+                        {
+                            EM_error (pos, "Class %s: implementation for %s.%s getter signature mismatch",
+                                      S_name(tyCls->u.cls.name),
+                                      S_name(tyIntf->u.interface.name),
+                                      S_name(intfProc->name));
+                            continue;
+                        }
+
+                        CG_dataFragSetPtr (vTableFrag, proc->label, intfGetter->vTableIdx+1);
+                    }
+
+                    break;
+                }
+                default:
+                    assert (FALSE);
+            }
+
+        }
+#endif // 0
+
+        // add code to __init function that assigns vTableptr
+
+        CG_item objVTablePtr = frame->formals->first->item; // <this>
+        CG_transField(il, pos, frame, &objVTablePtr, implements->vTablePtr);
+
+        CG_item intfVTablePtr;
+        CG_HeapPtrItem (&intfVTablePtr, vtlabel, IR_TypeUInt32Ptr());
+        CG_loadRef (il, pos, frame, &intfVTablePtr);
+        intfVTablePtr.kind = IK_inReg;
+
+        CG_transAssignment (il, pos, frame, &objVTablePtr, &intfVTablePtr);
+    }
+
+    CG_procEntryExit(pos,
+                     frame,
+                     il,
+                     /*returnVar=*/NULL,
+                     /*exitlbl=*/ exitlabel,
+                     /*is_main=*/false,
+                     /*expt=*/true);
+}
+
 static void _elaborateClass (IR_type ty, IR_using usings)
 {
     assert (ty->kind == Ty_class);
@@ -195,6 +534,8 @@ static void _elaborateClass (IR_type ty, IR_using usings)
                 assert(false); break; // FIXME
         }
     }
+
+    _assembleVTables (ty);
 }
 
 static void _elaborateType (IR_type ty, IR_using usings)
@@ -285,5 +626,6 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 void SEM_boot(void)
 {
     S_Create     = S_Symbol("Create");
+    S_this       = S_Symbol("this");
 }
 

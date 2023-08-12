@@ -27,6 +27,7 @@ string   OPT_binfn         = NULL;
 string   OPT_objfn         = NULL;
 bool     OPT_hasCode       = true;
 uint32_t OPT_stackSize     = 0;
+bool     OPT_gcScanExtern  = false;
 
 void OPT_set(int opt, bool onoff)
 {
