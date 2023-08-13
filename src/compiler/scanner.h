@@ -54,7 +54,7 @@ static inline bool S_isWhitespace(char ch)
 
 static inline bool S_isIDStart(char ch)
 {
-    return ((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) ;
+    return ((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) || (ch == '_') ;
 }
 
 static inline bool S_isDigit(char ch)

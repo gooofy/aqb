@@ -389,7 +389,7 @@ string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
 
     if (clsOwnerName)
     {
-        string prefix = IR_name2string (clsOwnerName, /*underscoreSeparator=*/false);
+        string prefix = IR_name2string (clsOwnerName, /*underscoreSeparator=*/true);
         label = strconcat(UP_frontend, "_", strconcat(UP_frontend, prefix, label));
     }
 

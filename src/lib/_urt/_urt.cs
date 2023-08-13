@@ -3,6 +3,22 @@
 
 namespace System
 {
+    // every class inherits from Object which is declared here
+    public class Object
+    {
+
+        // GC support *DO NOT TOUCH!*
+        private Object __gc_next, __gc_prev;
+        private uint   __gc_size;
+        private byte   __gc_color;
+
+        public extern virtual void Finalize ();
+
+        public extern virtual string ToString ();
+        public extern virtual bool Equals (object obj);
+        public extern virtual int GetHashCode ();
+    }
+
     //public sealed partial class String : IComparable, IEnumerable, IConvertible
     public class String
     {

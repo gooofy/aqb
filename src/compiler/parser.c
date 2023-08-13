@@ -637,9 +637,14 @@ static void _block (IR_stmtList sl)
  *     type_parameter_constraint_clause*
  *     (block | ';')
  *   ;
+ * field_declaration
+ *   : type variable_declarator (',' variable_declarator)* ';'
+ *   ;
+ * variable_declarator
+ *   : identifier_token bracketed_argument_list? equals_value_clause?
  */
 
-static IR_proc _method_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
+static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
 {
     IR_visibility visibility = IR_visPrivate;
     bool          isStatic   = false;
@@ -676,8 +681,6 @@ static IR_proc _method_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
     S_symbol name = S_tkn.u.sym;
     S_nextToken();
 
-    IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
-
     if (S_tkn.kind == S_LESS)
     {
         // FIXME: implement generics
@@ -685,67 +688,83 @@ static IR_proc _method_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
         return NULL;
     }
 
-    /*
-     * parameter_list
-     *   : '(' (parameter (',' parameter)*)? ')'
-     *   ;
-     */
-
-    IR_formal formals      = NULL;
-    IR_formal formals_last = NULL;
-
-    if (S_tkn.kind != S_LPAREN)
+    if (S_tkn.kind == S_LPAREN)
     {
-        EM_error (S_tkn.pos, "method declaration: ( expected here");
-        return NULL;
-    }
-    S_nextToken();
-    while (S_tkn.kind != S_RPAREN)
-    {
-        IR_formal f = _parameter();
-        if (!f)
-            return NULL;
-        if (formals_last)
-            formals_last = formals_last->next = f;
-        else
-            formals = formals_last = f;
-        f->next = NULL;
-        if (S_tkn.kind != S_RPAREN)
+
+        IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
+
+
+        /*
+         * parameter_list
+         *   : '(' (parameter (',' parameter)*)? ')'
+         *   ;
+         */
+
+        IR_formal formals      = NULL;
+        IR_formal formals_last = NULL;
+
+        if (S_tkn.kind != S_LPAREN)
         {
-            if (S_tkn.kind != S_COMMA)
-            {
-                EM_error (S_tkn.pos, "method declaration: , expected here");
-                return NULL;
-            }
-            S_nextToken();
+            EM_error (S_tkn.pos, "method declaration: ( expected here");
+            return NULL;
         }
-    }
-    S_nextToken();
+        S_nextToken();
+        while (S_tkn.kind != S_RPAREN)
+        {
+            IR_formal f = _parameter();
+            if (!f)
+                return NULL;
+            if (formals_last)
+                formals_last = formals_last->next = f;
+            else
+                formals = formals_last = f;
+            f->next = NULL;
+            if (S_tkn.kind != S_RPAREN)
+            {
+                if (S_tkn.kind != S_COMMA)
+                {
+                    EM_error (S_tkn.pos, "method declaration: , expected here");
+                    return NULL;
+                }
+                S_nextToken();
+            }
+        }
+        S_nextToken();
 
-    proc->formals  = formals;
-    proc->returnTy = retTy;
+        proc->formals  = formals;
+        proc->returnTy = retTy;
 
-    proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyOwner ? tyOwner->u.cls.name:NULL));
+        proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyOwner ? tyOwner->u.cls.name:NULL));
 
-    proc->sl = IR_StmtList ();
+        proc->sl = IR_StmtList ();
 
-    if (S_tkn.kind == S_LBRACE)
-    {
-        _block(proc->sl);
+        if (S_tkn.kind == S_LBRACE)
+        {
+            _block(proc->sl);
+        }
+        else
+        {
+            if (S_tkn.kind == S_SEMICOLON)
+            {
+                S_nextToken();
+            }
+            else
+            {
+                EM_error (S_tkn.pos, "method declaration: ; expected here");
+            }
+        }
+
+        IR_method method = IR_Method(proc);
+        IR_member member = IR_MemberMethod (visibility, method);
+
+        return member;
     }
     else
     {
-        if (S_tkn.kind == S_SEMICOLON)
-        {
-            S_nextToken();
-        }
-        else
-        {
-            EM_error (S_tkn.pos, "method declaration: ; expected here");
-        }
-    }
+        // field declaration
 
-    return proc;
+        assert(false); // FIXME
+    }
 }
 
 /*
@@ -868,14 +887,9 @@ static void _class_declaration (uint32_t mods)
 
         if (S_tkn.kind == S_IDENT)
         {
-            IR_proc proc = _method_declaration (pos, mods, t);
+            IR_member member = _method_or_field_declaration (pos, mods, t);
+            IR_addMember (t->u.cls.members, member);
 
-            if (proc)
-            {
-                IR_method method = IR_Method(proc);
-                IR_member member = IR_MemberMethod (visibility, method);
-                IR_addMember (t->u.cls.members, member);
-            }
         }
         else
             assert(false); // FIXME
