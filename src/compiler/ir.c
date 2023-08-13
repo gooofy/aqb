@@ -4,6 +4,7 @@
 static S_symbol S_Main;
 
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
+static TAB_table   _g_refCache; // IR_type -> IR_type
 
 static IR_assembly _g_loadedAssembliesFirst = NULL;
 static IR_assembly _g_loadedAssembliesLast  = NULL;
@@ -92,14 +93,16 @@ IR_name IR_NamespaceName (IR_namespace names, S_symbol sym, S_pos pos)
     return name;
 }
 
-string IR_name2string (IR_name name)
+string IR_name2string (IR_name name, bool underscoreSeparator)
 {
     string res = NULL;
 
     for (IR_symNode sn=name->first; sn; sn=sn->next)
     {
+        if (!sn->sym)
+            continue;
         if (res)
-            res = strconcat(UP_frontend, res, strconcat(UP_frontend, ".", S_name(sn->sym)));
+            res = strconcat(UP_frontend, res, strconcat(UP_frontend, underscoreSeparator ? "_" : ".", S_name(sn->sym)));
         else
             res = S_name (sn->sym);
     }
@@ -386,12 +389,7 @@ string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
 
     if (clsOwnerName)
     {
-        string prefix = "";
-        for (IR_symNode n = clsOwnerName->first; n; n=n->next)
-        {
-            if (n->sym)
-                prefix = strconcat(UP_frontend, prefix, strconcat(UP_frontend, "_", S_name(n->sym)));
-        }
+        string prefix = IR_name2string (clsOwnerName, /*underscoreSeparator=*/false);
         label = strconcat(UP_frontend, "_", strconcat(UP_frontend, prefix, label));
     }
 
@@ -415,9 +413,19 @@ IR_type IR_TypeUnresolved (S_pos pos, S_symbol name)
 
 IR_type IR_getReference (S_pos pos, IR_type ty)
 {
-    // FIXME: implement
-    assert(false);
-    return NULL;
+    IR_type p = TAB_look(_g_refCache, ty);
+    if (p)
+        return p;
+
+    p = U_poolAllocZero (UP_ir, sizeof (*p));
+
+    p->kind      = Ty_reference;
+    p->pos       = pos;
+    p->u.pointer = ty;
+
+    TAB_enter (_g_refCache, ty, p);
+
+    return p;
 }
 
 IR_type IR_getPointer (S_pos pos, IR_type ty)
@@ -468,6 +476,54 @@ IR_member IR_MemberMethod (IR_visibility visibility, IR_method method)
     m->u.method    = method;
 
     return m;
+}
+
+IR_member IR_MemberField (IR_visibility visibility, S_symbol name, IR_type fieldType)
+{
+    IR_member m = U_poolAllocZero (UP_ir, sizeof (*m));
+
+    m->next               = NULL;
+    m->kind               = IR_recField;
+    m->name               = name;
+    m->visibility         = visibility;
+    m->u.field.uiOffset   = 0;
+    m->u.field.ty         = fieldType;
+
+    return m;
+}
+
+void IR_fieldCalcOffset (IR_type ty, IR_member field)
+{
+    assert (field->kind == IR_recField);
+
+    // 68k alignment
+    //if (s<2)
+    //    s=2;
+
+    unsigned int s = IR_typeSize(field->u.field.ty);
+    switch (ty->kind)
+    {
+        //case IR_record:
+        //{
+        //    // 68k alignment
+        //    if (s>1 && (ty->u.record.uiSize % 2))
+        //        ty->u.record.uiSize++;
+        //    field->u.field.uiOffset   = ty->u.record.uiSize;
+        //    ty->u.record.uiSize += s;
+        //    break;
+        //}
+        case Ty_class:
+        {
+            // 68k alignment
+            if (s>1 && (ty->u.cls.uiSize % 2))
+                ty->u.cls.uiSize++;
+            field->u.field.uiOffset   = ty->u.cls.uiSize;
+            ty->u.cls.uiSize += s;
+            break;
+        }
+        default:
+            assert(false);
+    }
 }
 
 void IR_addMember (IR_memberList memberList, IR_member member)
@@ -629,6 +685,9 @@ IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
 static struct IR_type_ tyuint32ptr = {Ty_pointer, {0,0}, true, {&tyuint32}};
 IR_type IR_TypeUInt32Ptr(void) {return &tyuint32ptr;}
 
+static struct IR_type_ tyvtableptr = {Ty_pointer, {0,0}, true, {&tyuint32ptr/*FIXME*/}};
+IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
+
 IR_assembly IR_loadAssembly (S_symbol name)
 {
     // FIXME: for now, we just create an empty assembly
@@ -647,6 +706,7 @@ IR_assembly IR_loadAssembly (S_symbol name)
 void IR_init(void)
 {
     _g_ptrCache = TAB_empty(UP_ir);
+    _g_refCache = TAB_empty(UP_ir);
     S_Main = S_Symbol("Main");
 }
 

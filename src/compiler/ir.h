@@ -178,6 +178,7 @@ struct IR_type_
                 IR_member      vTablePtr;                                   } cls;
         IR_type                                                               ref;
     } u;
+    Temp_label tdLabel; // type descriptor label (caching only)
 };
 
 struct IR_const_
@@ -282,7 +283,7 @@ IR_definition      IR_DefinitionProc     (IR_using usings, IR_namespace names, S
 
 IR_name            IR_Name               (S_symbol sym, S_pos pos);
 IR_name            IR_NamespaceName      (IR_namespace names, S_symbol sym, S_pos pos);
-string             IR_name2string        (IR_name name);
+string             IR_name2string        (IR_name name, bool underscoreSeparator);
 void               IR_nameAddSym         (IR_name name, S_symbol sym);
 IR_symNode         IR_SymNode            (S_symbol sym);
 
@@ -315,6 +316,8 @@ IR_method          IR_Method             (IR_proc proc);
 
 IR_memberList      IR_MemberList         (void);
 IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);
+IR_member          IR_MemberField        (IR_visibility visibility, S_symbol name, IR_type fieldType);
+void               IR_fieldCalcOffset    (IR_type ty, IR_member field);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
 IR_member          IR_findMember         (IR_type ty, S_symbol sym, bool checkBase);
 
@@ -342,6 +345,7 @@ IR_type            IR_TypeDouble         (void);
 
 IR_type            IR_TypeUBytePtr       (void);
 IR_type            IR_TypeUInt32Ptr      (void);
+IR_type            IR_TypeVTablePtr      (void);
 
 void               IR_init               (void);
 

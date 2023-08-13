@@ -3,11 +3,14 @@
 #include "errormsg.h"
 #include "options.h"
 
+static S_symbol S__vTablePtr;
 static S_symbol S_Create;
 static S_symbol S_this;
 
 // string type based on _urt's String class caching
 static IR_type _g_tyString=NULL;
+
+IR_namespace _g_names_root=NULL;
 
 static void _elaborateType (IR_type ty, IR_using usings);
 static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res);
@@ -19,7 +22,7 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
 
     IR_member entry = IR_findMember (tyCls, builtinMethod, /*checkBase=*/true);
     if (!entry || (entry->kind != IR_recMethod))
-        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name), S_name(builtinMethod));
+        return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/false), S_name(builtinMethod));
 
     IR_method method = entry->u.method;
     CG_transMethodCall(code, pos, frame, method, arglist, res);
@@ -296,7 +299,7 @@ static void _assembleVTables (IR_type tyCls)
 
     IR_formal formals = IR_Formal(S_this, tyClsRef, /*defaultExp=*/NULL, /*reg=*/NULL);
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
-    string clsLabel = IR_name2string (tyCls->u.cls.name);
+    string clsLabel = IR_name2string (tyCls->u.cls.name, /*underscoreSeparator=*/true);
     Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___init", clsLabel));
     Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___init_exit", clsLabel));
 
@@ -511,31 +514,68 @@ static void _assembleVTables (IR_type tyCls)
                      /*expt=*/true);
 }
 
-static void _elaborateClass (IR_type ty, IR_using usings)
+static void _elaborateClass (IR_type tyCls, IR_using usings)
 {
-    assert (ty->kind == Ty_class);
+    assert (tyCls->kind == Ty_class);
 
-    assert (!ty->u.cls.baseType);    // FIXME: implement
-    assert (!ty->u.cls.implements);  // FIXME: implement
-    assert (!ty->u.cls.constructor); // FIXME: implement
+    IR_type tyBase = tyCls->u.cls.baseType;
 
-    // elaborate members
+    assert (!tyBase);                   // FIXME: implement
+    assert (!tyCls->u.cls.implements);  // FIXME: implement
+    assert (!tyCls->u.cls.constructor); // FIXME: implement
 
-    for (IR_member member = ty->u.cls.members->first; member; member=member->next)
+    /*
+     * elaborate fields
+     */
+
+    // vtables come first
+
+    if (!tyBase)
+    {
+        IR_member vTablePtr = IR_MemberField (IR_visProtected, S__vTablePtr, IR_TypeVTablePtr());
+        IR_fieldCalcOffset (tyCls, vTablePtr);
+        IR_addMember (tyCls->u.cls.members, vTablePtr);
+        tyCls->u.cls.vTablePtr = vTablePtr;
+    }
+    else
+    {
+        // take base class vtable entries into account
+        tyCls->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
+        tyCls->u.cls.virtualMethodCnt = tyBase->u.cls.virtualMethodCnt;
+    }
+
+    // FIXME: interface vTables!
+
+    // elaborate other fields
+
+    for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
+    {
+        if (member->kind != IR_recField)
+            continue;
+        if (member == tyCls->u.cls.vTablePtr)
+            break;
+        assert(false); // FIXME : implement
+    }
+
+    /*
+     * elaborate methods
+     */
+
+    for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
     {
         switch (member->kind)
         {
             case IR_recMethod:
-                _elaborateMethod (member->u.method, ty, usings);
+                _elaborateMethod (member->u.method, tyCls, usings);
                 break;
             case IR_recField:
-                assert(false); break; // FIXME
+                continue;
             case IR_recProperty:
                 assert(false); break; // FIXME
         }
     }
 
-    _assembleVTables (ty);
+    _assembleVTables (tyCls);
 }
 
 static void _elaborateType (IR_type ty, IR_using usings)
@@ -591,6 +631,8 @@ static void _elaborateType (IR_type ty, IR_using usings)
 
 void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 {
+    _g_names_root = names_root;
+
     // resolve string type upfront
 
     IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
@@ -625,7 +667,9 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
 void SEM_boot(void)
 {
+    S__vTablePtr = S_Symbol("_vTablePtr");
     S_Create     = S_Symbol("Create");
     S_this       = S_Symbol("this");
+    //N_System_GC_MarkBlack = IR_Name (S_symbol sym, S_pos pos);
 }
 

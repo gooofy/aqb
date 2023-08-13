@@ -203,38 +203,35 @@ void CG_addFrameVarInfo (CG_frame frame, S_symbol sym, IR_type ty, int offset, T
 
 Temp_label CG_getTypeDescLabel (IR_type ty)
 {
-    assert(false); // FIXME
-#if 0
-    assert (ty->mod);
     Temp_label label = ty->tdLabel;
     if (!label)
     {
         switch (ty->kind)
         {
-            case Ty_record:
-                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
-                                                                S_name(ty->mod->name),
-                                                                S_name(ty->u.record.name)));
-                break;
-            case Ty_interface:
-                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
-                                                                S_name(ty->mod->name),
-                                                                S_name(ty->u.interface.name)));
-                break;
+            //case Ty_record:
+            //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
+            //                                                    S_name(ty->mod->name),
+            //                                                    S_name(ty->u.record.name)));
+            //    break;
+            //case Ty_interface:
+            //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
+            //                                                    S_name(ty->mod->name),
+            //                                                    S_name(ty->u.interface.name)));
+            //    break;
             case Ty_class:
-                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%s",
-                                                                S_name(ty->mod->name),
-                                                                S_name(ty->u.cls.name)));
+                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s",
+                                                                IR_name2string (ty->u.cls.name, /*underscoreSeparator=*/true)));
                 break;
             case Ty_reference:
-                if (ty->u.pointer->kind != Ty_reference && ty->u.pointer->mod)
-                    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%s",
-                                                                    S_name(ty->mod->name),
-                                                                    S_name(CG_getTypeDescLabel (ty->u.pointer))));
-                else
-                    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%08x",
-                                                                    S_name(ty->mod->name),
-                                                                    ty->uid));
+                assert(false); // FIXME
+                //if (ty->u.pointer->kind != Ty_reference && ty->u.pointer->mod)
+                //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%s",
+                //                                                    S_name(ty->mod->name),
+                //                                                    S_name(CG_getTypeDescLabel (ty->u.pointer))));
+                //else
+                //    ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_ptr_%08x",
+                //                                                    S_name(ty->mod->name),
+                //                                                    ty->uid));
                 break;
 
             //case Ty_sarray:
@@ -251,15 +248,14 @@ Temp_label CG_getTypeDescLabel (IR_type ty)
             //    assert(false);
             //    break;
             default:
-                ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%08x",
-                                                                S_name(ty->mod->name),
-                                                                ty->uid));
+                assert(false); // FIXME
+                //ty->tdLabel = label = Temp_namedlabel(strprintf(UP_frontend, "__td_%s_%08x",
+                //                                                S_name(ty->mod->name),
+                //                                                ty->uid));
                 break;
         }
     }
     return label;
-#endif
-    return NULL;
 }
 
 #define TYPEREF_FLAG_LABEL   0x8000
