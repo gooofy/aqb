@@ -770,26 +770,52 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     {
         // field declaration
 
-        if (S_tkn.kind == S_LBRACKET)
+        while (true)
         {
-            EM_error (S_tkn.pos, "sorry, arrays are not supported yet"); // FIXME
-            return;
+
+            if (S_tkn.kind == S_LBRACKET)
+            {
+                EM_error (S_tkn.pos, "sorry, arrays are not supported yet"); // FIXME
+                return;
+            }
+
+            if (S_tkn.kind == S_EQUALS)
+            {
+                EM_error (S_tkn.pos, "sorry, field initializers are not supported yet"); // FIXME
+                return;
+            }
+
+            if (S_tkn.kind == S_EQUALS)
+            {
+                EM_error (S_tkn.pos, "sorry, multiple field declarations are not supported yet"); // FIXME
+                return;
+            }
+
+            IR_member member = IR_MemberField (visibility, name, ty);
+            IR_addMember (ml, member);
+
+            if (S_tkn.kind != S_COMMA)
+                break;
+
+            S_nextToken();
+
+            if (S_tkn.kind != S_IDENT)
+            {
+                EM_error (S_tkn.pos, "field identifier expected here");
+                return;
+            }
+
+            name = S_tkn.u.sym;
+            S_nextToken();
         }
 
-        if (S_tkn.kind == S_EQUALS)
+        if (S_tkn.kind != S_SEMICOLON)
         {
-            EM_error (S_tkn.pos, "sorry, field initializers are not supported yet"); // FIXME
+            EM_error (S_tkn.pos, "field declaration: semicolon expected here");
             return;
         }
+        S_nextToken();
 
-        if (S_tkn.kind == S_EQUALS)
-        {
-            EM_error (S_tkn.pos, "sorry, multiple field declarations are not supported yet"); // FIXME
-            return;
-        }
-        
-        IR_member member = IR_MemberField (visibility, name, ty);
-        IR_addMember (ml, member);
     }
 }
 
