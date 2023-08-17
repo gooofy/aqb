@@ -642,9 +642,16 @@ static void _block (IR_stmtList sl)
  *   ;
  * variable_declarator
  *   : identifier_token bracketed_argument_list? equals_value_clause?
+ *   ;
+ * bracketed_argument_list
+ *   : '[' argument (',' argument)* ']'
+ *   ;
+ * equals_value_clause
+ *   : '=' expression
+ *   ;
  */
 
-static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type tyOwner)
+static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t mods, IR_type tyOwner)
 {
     IR_visibility visibility = IR_visPrivate;
     bool          isStatic   = false;
@@ -667,15 +674,15 @@ static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type
     if (mods)
     {
         _report_leftover_mods (mods);
-        return NULL;
+        return;
     }
 
-    IR_type retTy = _type();
+    IR_type ty = _type();
 
     if (S_tkn.kind != S_IDENT)
     {
         EM_error (S_tkn.pos, "method identifier expected here");
-        return NULL;
+        return;
     }
 
     S_symbol name = S_tkn.u.sym;
@@ -685,7 +692,7 @@ static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type
     {
         // FIXME: implement generics
         EM_error (S_tkn.pos, "sorry, generics are not supported yet");
-        return NULL;
+        return;
     }
 
     if (S_tkn.kind == S_LPAREN)
@@ -706,14 +713,14 @@ static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type
         if (S_tkn.kind != S_LPAREN)
         {
             EM_error (S_tkn.pos, "method declaration: ( expected here");
-            return NULL;
+            return;
         }
         S_nextToken();
         while (S_tkn.kind != S_RPAREN)
         {
             IR_formal f = _parameter();
             if (!f)
-                return NULL;
+                return;
             if (formals_last)
                 formals_last = formals_last->next = f;
             else
@@ -724,7 +731,7 @@ static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type
                 if (S_tkn.kind != S_COMMA)
                 {
                     EM_error (S_tkn.pos, "method declaration: , expected here");
-                    return NULL;
+                    return;
                 }
                 S_nextToken();
             }
@@ -732,7 +739,7 @@ static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type
         S_nextToken();
 
         proc->formals  = formals;
-        proc->returnTy = retTy;
+        proc->returnTy = ty;
 
         proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyOwner ? tyOwner->u.cls.name:NULL));
 
@@ -757,13 +764,32 @@ static IR_member _method_or_field_declaration (S_pos pos, uint32_t mods, IR_type
         IR_method method = IR_Method(proc);
         IR_member member = IR_MemberMethod (visibility, method);
 
-        return member;
+        IR_addMember (ml, member);
     }
     else
     {
         // field declaration
 
-        assert(false); // FIXME
+        if (S_tkn.kind == S_LBRACKET)
+        {
+            EM_error (S_tkn.pos, "sorry, arrays are not supported yet"); // FIXME
+            return;
+        }
+
+        if (S_tkn.kind == S_EQUALS)
+        {
+            EM_error (S_tkn.pos, "sorry, field initializers are not supported yet"); // FIXME
+            return;
+        }
+
+        if (S_tkn.kind == S_EQUALS)
+        {
+            EM_error (S_tkn.pos, "sorry, multiple field declarations are not supported yet"); // FIXME
+            return;
+        }
+        
+        IR_member member = IR_MemberField (visibility, name, ty);
+        IR_addMember (ml, member);
     }
 }
 
@@ -887,12 +913,13 @@ static void _class_declaration (uint32_t mods)
 
         if (S_tkn.kind == S_IDENT)
         {
-            IR_member member = _method_or_field_declaration (pos, mods, t);
-            IR_addMember (t->u.cls.members, member);
-
+            _method_or_field_declaration (t->u.cls.members, pos, mods, t);
         }
         else
+        {
+            EM_error (S_tkn.pos, "sorry, only field or method members are supported yet");
             assert(false); // FIXME
+        }
     }
 
     S_nextToken(); // skip }
