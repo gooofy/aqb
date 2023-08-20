@@ -15,7 +15,7 @@ namespace System
         public extern virtual void Finalize ();
 
         public extern virtual string ToString ();
-        public extern virtual bool Equals (object obj);
+        public extern virtual bool Equals (Object obj);
         public extern virtual int GetHashCode ();
     }
 

@@ -445,11 +445,12 @@ IR_type IR_getPointer (S_pos pos, IR_type ty)
     return p;
 }
 
-IR_method IR_Method  (IR_proc proc)
+IR_method IR_Method  (IR_proc proc, bool isVirtual)
 {
     IR_method m = U_poolAllocZero (UP_ir, sizeof (*m));
 
     m->proc      = proc;
+    m->isVirtual = isVirtual;
     m->vTableIdx = -1;
 
     return m;

@@ -656,6 +656,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     IR_visibility visibility = IR_visPrivate;
     bool          isStatic   = false;
     bool          isExtern   = false;
+    bool          isVirtual  = false;
 
     if (_check_modifier(&mods, MODF_PUBLIC))
         visibility = IR_visPublic;
@@ -670,6 +671,8 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         isExtern = true;
     if (_check_modifier(&mods, MODF_STATIC))
         isStatic = true;
+    if (_check_modifier(&mods, MODF_VIRTUAL))
+        isVirtual = true;
 
     if (mods)
     {
@@ -698,8 +701,14 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
     if (S_tkn.kind == S_LPAREN)
     {
 
-        IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
+        IR_member member = IR_findMember (tyOwner, name, /*checkbase=*/false);
+        if (member)
+        {
+            EM_error (pos, "Duplicate UDT entry.");
+            return;
+        }
 
+        IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
 
         /*
          * parameter_list
@@ -761,8 +770,8 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
             }
         }
 
-        IR_method method = IR_Method(proc);
-        IR_member member = IR_MemberMethod (visibility, method);
+        IR_method method = IR_Method(proc, isVirtual);
+        member = IR_MemberMethod (visibility, method);
 
         IR_addMember (ml, member);
     }

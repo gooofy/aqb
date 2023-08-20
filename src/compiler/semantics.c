@@ -172,8 +172,66 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
 
 static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
 {
+    S_pos pos = method->proc->pos;
+
     _elaborateProc (method->proc, usings);
-    // FIXME: virtual methods, vtables
+
+    // check existing entries: is this an override?
+    int16_t vTableIdx = -1;
+    if (tyCls->kind == Ty_class)
+    {
+        IR_member member = NULL;
+
+        if (tyCls->u.cls.baseType)
+            member = IR_findMember (tyCls->u.cls.baseType, method->proc->name, /*checkbase=*/true);
+        if (member)
+        {
+            if (member->kind != IR_recMethod)
+            {
+                EM_error (pos, "%s is already declared as something other than a method",
+                          S_name(method->proc->name));
+                return;
+            }
+
+            if (method->isVirtual)
+            {
+                if (member->u.method->vTableIdx<0)
+                {
+                    EM_error (pos, "%s: only virtual methods can be overriden",
+                              S_name(method->proc->name));
+                    return;
+                }
+
+                assert(false); // FIXME
+
+                //if (!matchProcSignatures (f->u.methodr.proc, member->u.method->proc))
+                //{
+                //    EM_error (pos, "%s: virtual method override signature mismatch",
+                //              S_name(method->proc->name));
+                //    return;
+                //}
+
+                vTableIdx = member->u.method->vTableIdx;
+            }
+        }
+    }
+
+    if ( method->isVirtual && (vTableIdx<0))
+    {
+        switch (tyCls->kind)
+        {
+            //case Ty_interface:
+            //    vTableIdx = tyCls->u.interface.virtualMethodCnt++;
+            //    break;
+            case Ty_class:
+                vTableIdx = tyCls->u.cls.virtualMethodCnt++;
+                break;
+            default:
+                assert(false);
+        }
+    }
+
+    method->vTableIdx = vTableIdx;
 }
 
 static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
@@ -554,7 +612,8 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
             continue;
         if (member == tyCls->u.cls.vTablePtr)
             break;
-        assert(false); // FIXME : implement
+        _elaborateType (member->u.field.ty, usings);
+        IR_fieldCalcOffset (tyCls, member);
     }
 
     /*

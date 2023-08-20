@@ -230,6 +230,7 @@ struct IR_implements_
 struct IR_method_
 {
     IR_proc   proc;
+    bool      isVirtual;
     int16_t   vTableIdx;
 };
 
@@ -312,7 +313,7 @@ IR_const           IR_ConstUInt          (IR_type ty, uint32_t u);
 IR_const           IR_ConstFloat         (IR_type ty, double   f);
 IR_const           IR_ConstString        (IR_type ty, string   s);
 
-IR_method          IR_Method             (IR_proc proc);
+IR_method          IR_Method             (IR_proc proc, bool isVirtual);
 
 IR_memberList      IR_MemberList         (void);
 IR_member          IR_MemberMethod       (IR_visibility visibility, IR_method method);
