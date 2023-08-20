@@ -82,8 +82,11 @@ IR_name IR_NamespaceName (IR_namespace names, S_symbol sym, S_pos pos)
     {
         IR_symNode sn = IR_SymNode (n->name);
 
-        sn->next = name->first;
-        name->first = sn;
+		if (sn->sym)
+        {
+            sn->next = name->first;
+            name->first = sn;
+        }
 
         n = n->parent;
     }

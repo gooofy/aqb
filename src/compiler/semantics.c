@@ -6,11 +6,226 @@
 static S_symbol S__vTablePtr;
 static S_symbol S_Create;
 static S_symbol S_this;
+static S_symbol S_Object;
+static S_symbol S_System;
+static S_symbol S_String;
 
-// string type based on _urt's String class caching
+static IR_namespace _g_names_root=NULL;
+static IR_namespace _g_sys_names=NULL;
+
+// System.Object / System.String type caching
+static IR_type _g_tyObject=NULL;
 static IR_type _g_tyString=NULL;
 
-IR_namespace _g_names_root=NULL;
+static IR_type _getObjectType(void)
+{
+    if (!_g_tyObject)
+    {
+        _g_tyObject = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Object, NULL, /*doCreate=*/false);
+        assert (_g_tyObject);
+    }
+    return _g_tyObject;
+}
+
+static IR_type _getStringType(void)
+{
+    if (!_g_tyString)
+    {
+        _g_tyString = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_String, NULL, /*doCreate=*/false);
+        assert (_g_tyString);
+    }
+    return _g_tyString;
+}
+
+static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
+{
+    if (tyTo == tyFrom)
+        return true;
+
+    switch (tyTo->kind)
+    {
+        case Ty_int32:
+        case Ty_uint32:
+        case Ty_int16:
+        case Ty_uint16:
+        case Ty_byte:
+        case Ty_sbyte:
+        case Ty_single:
+        case Ty_boolean:
+            return tyFrom->kind == tyTo->kind;
+        // FIXME
+        //case Ty_sarray:
+        //    if (tyFrom->kind != Ty_sarray)
+        //        return FALSE;
+        //    if (tyFrom->u.sarray.uiSize != tyTo->u.sarray.uiSize)
+        //        return FALSE;
+        //    return TRUE;
+        // FIXME
+        //case Ty_darray:
+
+        //    // FIXME? darrays are compatible with NULL ptr to allow for optional darray arguments in procs ... maybe we need a better solution for this?
+        //    if ((tyFrom->kind==Ty_pointer) && (tyFrom->u.pointer->kind==Ty_any))
+        //        return TRUE;
+
+        //    if (tyFrom->kind != Ty_darray)
+        //        return FALSE;
+
+        //    return compatible_ty(tyFrom->u.darray.elementTy, tyTo->u.darray.elementTy);
+
+        // FIXME
+        //case Ty_forwardPtr:
+        //    if ( (tyFrom->kind == Ty_pointer) || (tyFrom->kind == Ty_forwardPtr) )
+        //        return TRUE;
+        //    return FALSE;
+
+        // FIXME
+        //case Ty_pointer:
+
+        //    // FIXME: deal with strings?
+        //    //if (tyFrom->kind == Ty_string)
+        //    //{
+        //    //    if (  (tyTo->u.pointer->kind == Ty_any)
+        //    //       || (tyTo->u.pointer->kind == Ty_byte)
+        //    //       || (tyTo->u.pointer->kind == Ty_ubyte))
+        //    //        return TRUE;
+        //    //    return FALSE;
+        //    //}
+
+        //    if (tyFrom->kind != Ty_pointer)
+        //        return FALSE;
+
+        //    Ty_ty tyFromPtr = tyFrom->u.pointer;
+        //    Ty_ty tyToPtr = tyTo->u.pointer;
+
+        //    if ((tyToPtr->kind == Ty_any) || (tyFromPtr->kind == Ty_any))
+        //        return TRUE;
+
+        //    // OOP: child -> base class assignment is legal
+        //    if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_class) )
+        //    {
+        //        while (tyFromPtr && (tyFromPtr != tyToPtr) && (tyFromPtr->u.cls.baseType))
+        //            tyFromPtr = tyFromPtr->u.cls.baseType;
+        //        return tyToPtr == tyFromPtr;
+        //    }
+
+        //    // OOP: class -> implemented interface assignment is legal
+        //    if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_interface) )
+        //        return Ty_checkImplements (tyToPtr, tyFromPtr);
+
+        //    return compatible_ty(tyFromPtr, tyToPtr);
+        // FIXME
+        //case Ty_procPtr:
+        //{
+        //    // procPtr := NULL is allowed
+        //    if ( (tyFrom->kind == Ty_pointer) && (tyFrom->u.pointer->kind == Ty_any) )
+        //        return TRUE;
+
+        //    if (tyFrom->kind != Ty_procPtr)
+        //        return FALSE;
+
+        //    if ( (tyTo->u.procPtr->returnTy && !tyFrom->u.procPtr->returnTy) ||
+        //         (!tyTo->u.procPtr->returnTy && tyFrom->u.procPtr->returnTy) )
+        //         return FALSE;
+
+        //    if (tyTo->u.procPtr->returnTy && !compatible_ty(tyFrom->u.procPtr->returnTy, tyTo->u.procPtr->returnTy))
+        //        return FALSE;
+
+        //    Ty_formal formalTo = tyTo->u.procPtr->formals;
+        //    Ty_formal formalFrom = tyFrom->u.procPtr->formals;
+        //    while (formalTo)
+        //    {
+        //        if (!formalFrom)
+        //            return FALSE;
+
+        //        if (formalTo->mode != formalFrom->mode)
+        //            return FALSE;
+
+        //        if (!compatible_ty(formalFrom->ty, formalTo->ty))
+        //            return FALSE;
+
+        //        formalTo = formalTo->next;
+        //        formalFrom = formalFrom->next;
+        //    }
+        //    if (formalFrom)
+        //        return FALSE;
+
+        //    return TRUE;
+        //}
+        // FIXME
+        //case Ty_any:
+        //    switch (tyFrom->kind)
+        //    {
+        //        case Ty_bool:
+        //        case Ty_byte:
+        //        case Ty_ubyte:
+        //        case Ty_integer:
+        //        case Ty_uinteger:
+        //        case Ty_long:
+        //        case Ty_ulong:
+        //        case Ty_single:
+        //        case Ty_forwardPtr:
+        //        case Ty_any:
+        //        case Ty_procPtr:
+        //        case Ty_pointer:
+        //            return TRUE;
+        //        default:
+        //            return FALSE;
+        //    }
+        //    break;
+        // FIXME
+        //case Ty_record:
+        //    return FALSE; // unless identical, see above
+        ////FIXME:
+        ////case Ty_string:
+        ////    if (tyFrom->kind == Ty_ulong)
+        ////        return TRUE;    // allow string const passing to tag data
+        ////    if (tyFrom->kind != Ty_pointer)
+        ////        return FALSE;
+        ////    if (  (tyFrom->u.pointer->kind == Ty_any)
+        ////       || (tyFrom->u.pointer->kind == Ty_byte)
+        ////       || (tyFrom->u.pointer->kind == Ty_ubyte))
+        ////        return TRUE;
+        ////    return FALSE;
+
+        // FIXME
+        //case Ty_interface:
+        //    if ((tyFrom->kind == Ty_interface) || (tyFrom->kind == Ty_class))
+        //        return Ty_checkImplements (tyFrom, tyTo);
+        //    return FALSE;
+        //    break;
+
+        // FIXME
+        //case Ty_class:
+        //    if (tyFrom->kind == Ty_class)
+        //        return Ty_checkInherits (/*child=*/tyFrom, /*parent=*/tyTo);
+        //    return FALSE;
+        //    break;
+
+        default:
+            assert(0);
+    }
+    return false;
+}
+
+static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
+{
+    // check proc signature
+    if (!compatible_ty(proc2->returnTy, proc->returnTy))
+        return false;
+    IR_formal f = proc->formals;
+    IR_formal f2=proc2->formals;
+    for (; f2; f2=f2->next)
+    {
+        if (!f)
+            break;
+        if (!compatible_ty(f->type, f2->type))
+            break;
+        f = f->next;
+    }
+    if (f || f2)
+        return false;
+    return true;
+}
 
 static void _elaborateType (IR_type ty, IR_using usings);
 static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res);
@@ -72,7 +287,7 @@ static bool _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
-    return _transCallBuiltinMethod(expr->pos, _g_tyString->u.ref, S_Create, args, code, frame, res);
+    return _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args, code, frame, res);
 }
 
 static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res)
@@ -180,13 +395,13 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
     int16_t vTableIdx = -1;
     if (tyCls->kind == Ty_class)
     {
-        IR_member member = NULL;
+        IR_member existingMember = NULL;
 
         if (tyCls->u.cls.baseType)
-            member = IR_findMember (tyCls->u.cls.baseType, method->proc->name, /*checkbase=*/true);
-        if (member)
+            existingMember = IR_findMember (tyCls->u.cls.baseType, method->proc->name, /*checkbase=*/true);
+        if (existingMember)
         {
-            if (member->kind != IR_recMethod)
+            if (existingMember->kind != IR_recMethod)
             {
                 EM_error (pos, "%s is already declared as something other than a method",
                           S_name(method->proc->name));
@@ -195,23 +410,21 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
 
             if (method->isVirtual)
             {
-                if (member->u.method->vTableIdx<0)
+                if (!existingMember->u.method->isVirtual)
                 {
                     EM_error (pos, "%s: only virtual methods can be overriden",
                               S_name(method->proc->name));
                     return;
                 }
 
-                assert(false); // FIXME
+                if (!matchProcSignatures (method->proc, existingMember->u.method->proc))
+                {
+                    EM_error (pos, "%s: virtual method override signature mismatch",
+                              S_name(method->proc->name));
+                    return;
+                }
 
-                //if (!matchProcSignatures (f->u.methodr.proc, member->u.method->proc))
-                //{
-                //    EM_error (pos, "%s: virtual method override signature mismatch",
-                //              S_name(method->proc->name));
-                //    return;
-                //}
-
-                vTableIdx = member->u.method->vTableIdx;
+                vTableIdx = existingMember->u.method->vTableIdx;
             }
         }
     }
@@ -236,6 +449,8 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
 
 static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 {
+    assert (tyCls->kind == Ty_class);
+
     if (tyCls->u.cls.baseType)
     {
         _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
@@ -263,7 +478,7 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 
 static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string clsLabel)
 {
-    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan", clsLabel));
+    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "_%s___gc_scan", clsLabel));
     //Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
 
     if (!OPT_gcScanExtern)
@@ -576,9 +791,23 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
 {
     assert (tyCls->kind == Ty_class);
 
+    //S_pos pos = tyCls->pos;
+
     IR_type tyBase = tyCls->u.cls.baseType;
 
-    assert (!tyBase);                   // FIXME: implement
+    // every class except System.Object itself inherits from Object implicitly
+
+    if (!tyBase)
+    {
+        if (   (tyCls->u.cls.name->first->sym != S_System)
+            || (tyCls->u.cls.name->last->sym != S_Object)
+            || (tyCls->u.cls.name->first->next != tyCls->u.cls.name->last))
+            tyCls->u.cls.baseType = tyBase = _getObjectType()->u.ref;
+    }
+
+    if (tyBase)
+        _elaborateType (tyBase, usings);
+
     assert (!tyCls->u.cls.implements);  // FIXME: implement
     assert (!tyCls->u.cls.constructor); // FIXME: implement
 
@@ -633,8 +862,6 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
                 assert(false); break; // FIXME
         }
     }
-
-    _assembleVTables (tyCls);
 }
 
 static void _elaborateType (IR_type ty, IR_using usings)
@@ -694,9 +921,7 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
     // resolve string type upfront
 
-    IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
-    _g_tyString = IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"), NULL, /*doCreate=*/false);
-    assert (_g_tyString);
+    _g_sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
 
     // elaborate semantics
 
@@ -714,6 +939,17 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
         }
     }
 
+    // assemble class vTables
+
+    for (IR_definition def=assembly->def_first; def; def=def->next)
+    {
+        if (def->kind != IR_defType)
+            continue;
+        if (def->u.ty->kind != Ty_class)
+            continue;
+        _assembleVTables (def->u.ty);
+    }
+
     // main module? -> communicate stack size to runtime
 
     bool is_main = !OPT_sym_fn;
@@ -729,6 +965,9 @@ void SEM_boot(void)
     S__vTablePtr = S_Symbol("_vTablePtr");
     S_Create     = S_Symbol("Create");
     S_this       = S_Symbol("this");
+    S_Object     = S_Symbol("Object");
+    S_System     = S_Symbol("System");
+    S_String     = S_Symbol("String");
     //N_System_GC_MarkBlack = IR_Name (S_symbol sym, S_pos pos);
 }
 
