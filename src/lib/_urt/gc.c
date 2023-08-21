@@ -37,9 +37,9 @@ typedef enum
 struct _gc_s
 {
     // objects allocated by GC_ALLOCATE_(), but not GC_REGISTER()ed yet
-    CObject  *unreg;
+    System_Object  *unreg;
     // registered objects go here:
-    CObject  *heap_start, *heap_end;
+    System_Object  *heap_start, *heap_end;
     // heap statistics, used to determine when to auto-run our gc
     uint32_t heap_size;     // total heap size (sum of all GC_ALLOCed objects)
     uint32_t alloc_cnt;     // number of GC_ALLOCs since last GC_RUN
@@ -116,7 +116,7 @@ static inline void *_nextPtr (intptr_t *p, intptr_t *w)
 #ifdef ENABLE_HEAP_DUMP
 static void _gc_dump_heap(void)
 {
-    for (CObject *obj = _g_gc.heap_start; obj; obj = obj->__gc_next)
+    for (System_Object *obj = _g_gc.heap_start; obj; obj = obj->__gc_next)
         DPRINTF ("GC HEAP: obj=0x%08lx, next=0x%08lx\n", obj, obj->__gc_next);
 }
 #else
@@ -125,7 +125,7 @@ static inline void _gc_dump_heap(void)
 }
 #endif
 
-static void _gc_mark_gray (CObject *obj, _gc_t *gc)
+static void _gc_mark_gray (System_Object *obj, _gc_t *gc)
 {
     DPRINTF ("_gc_mark_gray: obj=0x%08lx\n", obj);
     if (obj->__gc_color == GC_WHITE)
@@ -133,7 +133,7 @@ static void _gc_mark_gray (CObject *obj, _gc_t *gc)
 }
 
 // called by gc_scan methods
-void GC_MARK_BLACK (CObject *obj)
+void GC_MARK_BLACK (System_Object *obj)
 {
     if (!obj)
         return;
@@ -163,12 +163,12 @@ static void _gc_scan_frame (void *pDesc, uint8_t *fp)
         intptr_t p;
         pDesc = _nextPtr (pDesc, &p);
 
-        CObject *pObj;
+        System_Object *pObj;
 
         if (hasLabel)
-            pObj = (CObject *)p;
+            pObj = (System_Object *)p;
         else
-            pObj = (CObject *) (fp + p);
+            pObj = (System_Object *) (fp + p);
 
         DPRINTF ("_gc_scan_frame: kind=%2d, hasLabel=%d, p=0x%08lx, pObj=0x%08lx\n",
                  kind, hasLabel, p, pObj);
@@ -180,7 +180,7 @@ static void _gc_scan_frame (void *pDesc, uint8_t *fp)
                 break;
             case Ty_pointer:
             {
-                CObject *p2 = *((CObject **)pObj);
+                System_Object *p2 = *((System_Object **)pObj);
                 if (p2)
                     _gc_mark_gray (p2, &_g_gc);
                 break;
@@ -266,7 +266,7 @@ void GC_RUN (void)
     {
         _g_gc.dirty = FALSE;
 
-        for (CObject *obj = _g_gc.heap_start; obj; obj = obj->__gc_next)
+        for (System_Object *obj = _g_gc.heap_start; obj; obj = obj->__gc_next)
         {
             DPRINTF ("GC_MARK: obj=0x%08lx, next=0x%08lx\n", obj, obj->__gc_next);
 
@@ -293,7 +293,7 @@ void GC_RUN (void)
      * sweep
      */
 
-    CObject *obj = _g_gc.heap_start;
+    System_Object *obj = _g_gc.heap_start;
     while (obj)
     {
         if (obj->__gc_color == GC_WHITE)
@@ -302,7 +302,7 @@ void GC_RUN (void)
 
             // unregister
             //Forbid();
-            CObject *obj_next = obj->__gc_next;
+            System_Object *obj_next = obj->__gc_next;
             if (obj->__gc_next)
                 obj->__gc_next->__gc_prev = obj->__gc_prev;
             else
@@ -337,7 +337,7 @@ void GC_RUN (void)
     }
 }
 
-CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
+System_Object *GC_ALLOCATE_ (ULONG size, ULONG flags)
 {
     DPRINTF ("GC_ALLOCATE_: size=%ld, flags=%ld ...\n", size, flags);
 
@@ -352,11 +352,11 @@ CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
     }
 
     _gc_dump_heap();
-    CObject *obj = (CObject *) AllocMem (size, flags | MEMF_CLEAR);
+    System_Object *obj = (System_Object *) AllocMem (size, flags | MEMF_CLEAR);
     if (!obj)
     {
         GC_RUN();
-        obj = (CObject *) AllocMem (size, flags | MEMF_CLEAR);
+        obj = (System_Object *) AllocMem (size, flags | MEMF_CLEAR);
         if (!obj)
         {
             DPRINTF ("GC_ALLOCATE_: OOM1\n");
@@ -382,7 +382,7 @@ CObject *GC_ALLOCATE_ (ULONG size, ULONG flags)
     return obj;
 }
 
-void GC_REGISTER (CObject *p)
+void GC_REGISTER (System_Object *p)
 {
     DPRINTF ("GC_REGISTER: registering new heap object: 0x%08lx, size=%ld\n", p, p->__gc_size);
 
@@ -413,9 +413,9 @@ void GC_REGISTER (CObject *p)
     //Permit();
 }
 
-BOOL GC_REACHABLE_ (CObject *obj)
+BOOL GC_REACHABLE_ (System_Object *obj)
 {
-    CObject *p = _g_gc.heap_start;
+    System_Object *p = _g_gc.heap_start;
     while (p)
     {
         if (p==obj)
@@ -441,11 +441,11 @@ void _gc_shutdown (void)
 {
     DPRINTF("_gc_shutdown: freeing heap objects\n");
 
-    CObject *p = _g_gc.heap_start;
+    System_Object *p = _g_gc.heap_start;
     while (p)
     {
         DPRINTF ("GC_shutdown: freeing object 0x%08lx, size=%ld\n", p, p->__gc_size);
-        CObject *n = p->__gc_next;
+        System_Object *n = p->__gc_next;
         FreeMem (p, p->__gc_size);
         p = n;
     }
@@ -455,7 +455,7 @@ void _gc_shutdown (void)
     p = _g_gc.unreg;
     while (p)
     {
-        CObject *n = p->__gc_next;
+        System_Object *n = p->__gc_next;
         FreeMem (p, p->__gc_size);
         p = n;
     }

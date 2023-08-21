@@ -149,36 +149,39 @@ extern BOOL     _do_resume;     // set by RESUME NEXT
  *                                                                  *
  ********************************************************************/
 
-typedef struct CObject_ CObject;
-typedef struct CString_ CString;
-typedef struct _gc_s    _gc_t;
+typedef struct System_Object_  System_Object;
+typedef struct System_String_  System_String;
+typedef struct System_Console_ System_Console;
+typedef struct _gc_s           _gc_t;
 
-struct CObject_
+struct System_Object_
 {
-    VOID    ***_vTablePtr;
+    ULONG         **_vTablePtr;
 
-    CObject   *__gc_next, *__gc_prev;
-    ULONG      __gc_size;
-    UBYTE      __gc_color;
+    System_Object  *__gc_next;
+    System_Object  *__gc_prev;
+    ULONG           __gc_size;
+    UBYTE           __gc_color;
 };
+
 extern ULONG *_td__urt_COBJECT;
 
-void     _COBJECT___gc_scan    (CObject *THIS, _gc_t *gc);
-CString *_COBJECT_TOSTRING_    (CObject *THIS);
-BOOL     _COBJECT_EQUALS_      (CObject *THIS, CObject *obj);
-ULONG    _COBJECT_GETHASHCODE_ (CObject *THIS);
+void           _COBJECT___gc_scan    (System_Object *THIS, _gc_t *gc);
+System_String *_COBJECT_TOSTRING_    (System_Object *THIS);
+BOOL           _COBJECT_EQUALS_      (System_Object *THIS, System_Object *obj);
+ULONG          _COBJECT_GETHASHCODE_ (System_Object *THIS);
 
-BOOL     __instanceof          (CObject *obj, ULONG **td);
+BOOL     __instanceof          (System_Object *obj, ULONG **td);
 
 void     GC_RUN                (void);
-void     GC_REGISTER           (CObject *obj);
-CObject *GC_ALLOCATE_          (ULONG size, ULONG flags);
-void     GC_MARK_BLACK         (CObject *obj);
-BOOL     GC_REACHABLE_         (CObject *obj);
+void     GC_REGISTER           (System_Object *obj);
+System_Object *GC_ALLOCATE_          (ULONG size, ULONG flags);
+void     GC_MARK_BLACK         (System_Object *obj);
+BOOL     GC_REACHABLE_         (System_Object *obj);
 // FIXME: PUBLIC DECLARE EXTERN SUB      GC_OPTIONS    (BYVAL heap_limit AS ULONG=16*1024, BYVAL alloc_limit AS ULONG=128)
 
-typedef void (*_gc_scan_t)     (CObject *obj);
-typedef void (*_gc_finalize_t) (CObject *obj);
+typedef void (*_gc_scan_t)     (System_Object *obj);
+typedef void (*_gc_finalize_t) (System_Object *obj);
 
 /*
  * internal string utils

@@ -6,7 +6,8 @@
 
 const  char        *PA_filename;
 static IR_assembly  _g_assembly;
-static IR_namespace _g_names;
+static IR_namespace _g_names; // current namespace
+static IR_namespace _g_sys_names;
 static IR_using     _g_usings_first=NULL, _g_usings_last=NULL;
 
 // type modifier flags
@@ -60,6 +61,9 @@ static S_symbol S_WHILE;
 static S_symbol S_DO;
 static S_symbol S_FOR;
 static S_symbol S_FOREACH;
+static S_symbol S_System;
+static S_symbol S_Object;
+static S_symbol S__vTablePtr;
 
 static bool isSym(S_symbol sym)
 {
@@ -70,6 +74,19 @@ static void           _block                        (IR_stmtList sl);
 static bool           _namespace_member_declaration ();
 static IR_name        _name                         (S_symbol s1, S_pos pos);
 static IR_expression  _expression                   (IR_name n1);
+
+// System.Object type caching
+static IR_type _g_tyObject=NULL;
+
+static IR_type _getObjectType(void)
+{
+    if (!_g_tyObject)
+    {
+        _g_tyObject = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Object, NULL, /*doCreate=*/false);
+        assert (_g_tyObject);
+    }
+    return _g_tyObject;
+}
 
 /* namespace_body : '{' namespace_member_declaration* '}' ;
  */
@@ -888,26 +905,7 @@ static void _class_declaration (uint32_t mods)
         EM_error (S_tkn.pos, "%s already exists in this namespace");
     S_nextToken();
 
-    IR_type t = IR_TypeUnresolved (pos, name);
-    t->kind                   = Ty_class;
-    t->pos                    = pos;
-    t->u.cls.name             = IR_NamespaceName (_g_names, name, pos);
-    t->u.cls.visibility       = visibility;
-    t->u.cls.isStatic         = isStatic;
-    t->u.cls.uiSize           = 0;
-    t->u.cls.baseType         = NULL;
-    t->u.cls.implements       = NULL;
-    t->u.cls.constructor      = NULL;
-    t->u.cls.__init           = NULL;
-    t->u.cls.members          = IR_MemberList();
-    t->u.cls.virtualMethodCnt = 0;
-    t->u.cls.vTablePtr        = NULL;
-
-    tyRef->kind  = Ty_reference;
-    tyRef->u.ref = t;
-
-    IR_definition def = IR_DefinitionType (_g_usings_first, _g_names, name, t);
-    IR_assemblyAdd (_g_assembly, def);
+    IR_name fqn  = IR_NamespaceName (_g_names, name, pos);
 
     if (S_tkn.kind == S_LESS)
     {
@@ -915,10 +913,20 @@ static void _class_declaration (uint32_t mods)
         return;
     }
 
+    IR_type tyBase = NULL;
     if (S_tkn.kind == S_COLON)
     {
         EM_error (S_tkn.pos, "sorry, base classes and interfaces are not supported yet"); // FIXME
         return;
+    }
+    else
+    {
+        // every class except System.Object itself inherits from Object implicitly
+
+        if (   (fqn->first->sym  != S_System)
+            || (fqn->last->sym   != S_Object)
+            || (fqn->first->next != fqn->last))
+            tyBase = _getObjectType()->u.ref;
     }
 
     if (isSym(S_WHERE))
@@ -926,6 +934,37 @@ static void _class_declaration (uint32_t mods)
         EM_error (S_tkn.pos, "sorry, type parameter constraints are not supported yet"); // FIXME
         return;
     }
+
+    IR_type t = IR_TypeUnresolved (pos, name);
+    t->kind                   = Ty_class;
+    t->pos                    = pos;
+    t->u.cls.name             = fqn;
+    t->u.cls.visibility       = visibility;
+    t->u.cls.isStatic         = isStatic;
+    t->u.cls.uiSize           = 0;
+    t->u.cls.baseType         = tyBase;
+    t->u.cls.implements       = NULL;
+    t->u.cls.constructor      = NULL;
+    t->u.cls.__init           = NULL;
+    t->u.cls.members          = IR_MemberList();
+    t->u.cls.virtualMethodCnt = 0;
+
+    // vTablePtr has to be the very first field
+    if (!tyBase)
+    {
+        t->u.cls.vTablePtr = IR_MemberField (IR_visProtected, S__vTablePtr, IR_TypeVTablePtr());
+        IR_addMember (t->u.cls.members, t->u.cls.vTablePtr);
+    }
+    else
+    {
+        t->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
+    }
+
+    tyRef->kind  = Ty_reference;
+    tyRef->u.ref = t;
+
+    IR_definition def = IR_DefinitionType (_g_usings_first, _g_names, name, t);
+    IR_assemblyAdd (_g_assembly, def);
 
     if (S_tkn.kind != S_LBRACE)
     {
@@ -1187,16 +1226,16 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
     // builtin:
     // using string = System.String;
 
-    IR_namespace sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
-    _add_using (IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("String"   ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("char"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Char"     ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("bool"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Boolean"  ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("sbyte" ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("SByte"    ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("byte"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Byte"     ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("short" ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Int16"    ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("ushort"), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("UInt16"   ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("int"   ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("Int32"    ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("uint"  ), IR_namesResolveType (S_tkn.pos, sys_names, S_Symbol ("UInt32"   ), NULL,  /*doCreate=*/true), NULL));
+    _g_sys_names = IR_namesResolveNames (names_root, S_System, /*doCreate=*/true);
+    _add_using (IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("String"   ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("char"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Char"     ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("bool"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Boolean"  ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("sbyte" ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("SByte"    ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("byte"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Byte"     ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("short" ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Int16"    ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("ushort"), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("UInt16"   ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("int"   ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Int32"    ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("uint"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("UInt32"   ), NULL,  /*doCreate=*/true), NULL));
 
     while (S_tkn.kind != S_EOF)
     {
@@ -1214,38 +1253,41 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
 void PA_boot(void)
 {
-    S_USING     = S_Symbol("using");
-    S_NAMESPACE = S_Symbol("namespace");
-    S_NEW       = S_Symbol("new");
-    S_PUBLIC    = S_Symbol("public");
-    S_PROTECTED = S_Symbol("protected");
-    S_INTERNAL  = S_Symbol("internal");
-    S_PRIVATE   = S_Symbol("private");
-    S_ABSTRACT  = S_Symbol("abstract");
-    S_SEALED    = S_Symbol("sealed");
-    S_STATIC    = S_Symbol("static");
-    S_READONLY  = S_Symbol("readonly");
-    S_UNSAFE    = S_Symbol("unsafe");
-    S_REF       = S_Symbol("ref");
-    S_PARTIAL   = S_Symbol("partial");
-    S_CLASS     = S_Symbol("class");
-    S_STRUCT    = S_Symbol("struct");
-    S_INTERFACE = S_Symbol("interface");
-    S_ENUM      = S_Symbol("enum");
-    S_DELEGATE  = S_Symbol("delegate");
-    S_WHERE     = S_Symbol("where");
-    S_EXTERN    = S_Symbol("extern");
-    S_VIRTUAL   = S_Symbol("virtual");
-    S_OVERRIDE  = S_Symbol("override");
-    S_ASYNC     = S_Symbol("async");
-    S_VOID      = S_Symbol("void");
-    S___arglist = S_Symbol("__arglist");
-    S_IF        = S_Symbol("if");
-    S_SWITCH    = S_Symbol("switch");
-    S_WHILE     = S_Symbol("while");
-    S_DO        = S_Symbol("do");
-    S_FOR       = S_Symbol("for");
-    S_FOREACH   = S_Symbol("foreach");
+    S_USING      = S_Symbol("using");
+    S_NAMESPACE  = S_Symbol("namespace");
+    S_NEW        = S_Symbol("new");
+    S_PUBLIC     = S_Symbol("public");
+    S_PROTECTED  = S_Symbol("protected");
+    S_INTERNAL   = S_Symbol("internal");
+    S_PRIVATE    = S_Symbol("private");
+    S_ABSTRACT   = S_Symbol("abstract");
+    S_SEALED     = S_Symbol("sealed");
+    S_STATIC     = S_Symbol("static");
+    S_READONLY   = S_Symbol("readonly");
+    S_UNSAFE     = S_Symbol("unsafe");
+    S_REF        = S_Symbol("ref");
+    S_PARTIAL    = S_Symbol("partial");
+    S_CLASS      = S_Symbol("class");
+    S_STRUCT     = S_Symbol("struct");
+    S_INTERFACE  = S_Symbol("interface");
+    S_ENUM       = S_Symbol("enum");
+    S_DELEGATE   = S_Symbol("delegate");
+    S_WHERE      = S_Symbol("where");
+    S_EXTERN     = S_Symbol("extern");
+    S_VIRTUAL    = S_Symbol("virtual");
+    S_OVERRIDE   = S_Symbol("override");
+    S_ASYNC      = S_Symbol("async");
+    S_VOID       = S_Symbol("void");
+    S___arglist  = S_Symbol("__arglist");
+    S_IF         = S_Symbol("if");
+    S_SWITCH     = S_Symbol("switch");
+    S_WHILE      = S_Symbol("while");
+    S_DO         = S_Symbol("do");
+    S_FOR        = S_Symbol("for");
+    S_FOREACH    = S_Symbol("foreach");
+    S_System     = S_Symbol("System");
+    S_Object     = S_Symbol("Object");
+    S__vTablePtr = S_Symbol("_vTablePtr");
 }
 
 void PA_init(void)

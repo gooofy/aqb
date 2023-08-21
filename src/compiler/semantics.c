@@ -3,10 +3,8 @@
 #include "errormsg.h"
 #include "options.h"
 
-static S_symbol S__vTablePtr;
 static S_symbol S_Create;
 static S_symbol S_this;
-static S_symbol S_Object;
 static S_symbol S_System;
 static S_symbol S_String;
 
@@ -14,18 +12,7 @@ static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
 // System.Object / System.String type caching
-static IR_type _g_tyObject=NULL;
 static IR_type _g_tyString=NULL;
-
-static IR_type _getObjectType(void)
-{
-    if (!_g_tyObject)
-    {
-        _g_tyObject = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Object, NULL, /*doCreate=*/false);
-        assert (_g_tyObject);
-    }
-    return _g_tyObject;
-}
 
 static IR_type _getStringType(void)
 {
@@ -795,16 +782,6 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
 
     IR_type tyBase = tyCls->u.cls.baseType;
 
-    // every class except System.Object itself inherits from Object implicitly
-
-    if (!tyBase)
-    {
-        if (   (tyCls->u.cls.name->first->sym != S_System)
-            || (tyCls->u.cls.name->last->sym != S_Object)
-            || (tyCls->u.cls.name->first->next != tyCls->u.cls.name->last))
-            tyCls->u.cls.baseType = tyBase = _getObjectType()->u.ref;
-    }
-
     if (tyBase)
         _elaborateType (tyBase, usings);
 
@@ -815,19 +792,9 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
      * elaborate fields
      */
 
-    // vtables come first
-
-    if (!tyBase)
+    // take base class vtable entries into account
+    if (tyBase)
     {
-        IR_member vTablePtr = IR_MemberField (IR_visProtected, S__vTablePtr, IR_TypeVTablePtr());
-        IR_fieldCalcOffset (tyCls, vTablePtr);
-        IR_addMember (tyCls->u.cls.members, vTablePtr);
-        tyCls->u.cls.vTablePtr = vTablePtr;
-    }
-    else
-    {
-        // take base class vtable entries into account
-        tyCls->u.cls.vTablePtr = tyBase->u.cls.vTablePtr;
         tyCls->u.cls.virtualMethodCnt = tyBase->u.cls.virtualMethodCnt;
     }
 
@@ -839,8 +806,6 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
     {
         if (member->kind != IR_recField)
             continue;
-        if (member == tyCls->u.cls.vTablePtr)
-            break;
         _elaborateType (member->u.field.ty, usings);
         IR_fieldCalcOffset (tyCls, member);
     }
@@ -921,7 +886,7 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
     // resolve string type upfront
 
-    _g_sys_names = IR_namesResolveNames (names_root, S_Symbol ("System"), /*doCreate=*/true);
+    _g_sys_names = IR_namesResolveNames (names_root, S_System, /*doCreate=*/true);
 
     // elaborate semantics
 
@@ -962,10 +927,8 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
 void SEM_boot(void)
 {
-    S__vTablePtr = S_Symbol("_vTablePtr");
     S_Create     = S_Symbol("Create");
     S_this       = S_Symbol("this");
-    S_Object     = S_Symbol("Object");
     S_System     = S_Symbol("System");
     S_String     = S_Symbol("String");
     //N_System_GC_MarkBlack = IR_Name (S_symbol sym, S_pos pos);

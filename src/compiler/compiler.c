@@ -176,7 +176,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
     {
         if (CS_writeCStubFile(assembly))
         {
-            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "        %s written.\n", OPT_cstub_fn);
+            LOG_printf (LOG_INFO, "        created C stub file: %s\n", OPT_cstub_fn);
         }
         else
         {
