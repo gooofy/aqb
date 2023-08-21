@@ -4,13 +4,13 @@ include ../../../config.mk
 
 #all: _urt_stub.c startup.o _urt.a _urt.sym
 #all: _urt.sym
-all: startup _urt.a _urt.o
+all: startup _urt.a _urt.o _urt_stub.c
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
-_urt.sym _urt.o _urt.asm : _urt.cs
-	$(ACS) -E -A _urt.asm -p _urt.o _urt $<
+_urt.sym _urt.o _urt.asm _urt_stub.c: _urt.cs
+	$(ACS) -E -S _urt_stub.c -A _urt.asm -p _urt.o _urt $<
 	#$(ACS) -d none -N -E -s _urt.sym -a _urt.asm -p _urt.o $<
 	#pushd .. && rm -f _urt.sym && ln -s _urt/_urt.sym && popd
 	#cp $< $(DISTDIR)/libsrc
@@ -39,8 +39,8 @@ diss: startup.o
 %.asm: %.c
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
-_urt_stub.c: _urt.cs
-	$(ACS) -L .. -N -E -d none -S $@ $<
+#_urt_stub.c: _urt.cs
+#	$(ACS) -L .. -N -E -d none -S $@ $<
 
 clean:
 	rm -f *.o alibtest _urt.a *.sym *.asm aqb.log _urt_stub.c

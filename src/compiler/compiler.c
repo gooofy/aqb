@@ -15,6 +15,7 @@
 #include "options.h"
 #include "link.h"
 #include "logger.h"
+#include "cstub.h"
 
 #ifdef __amigaos__
 #include <exec/types.h>
@@ -165,20 +166,21 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         if (EM_anyErrors)
             CO_exit(EXIT_FAILURE);
     }
+#endif
 
     /*
      * generate C stub file
      */
 
-    if (cstubfn)
+    if (OPT_cstub_fn)
     {
-        if (FE_writeCStubFile(cstubfn))
+        if (CS_writeCStubFile(assembly))
         {
-            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n%s written.\n", cstubfn);
+            LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "        %s written.\n", OPT_cstub_fn);
         }
         else
         {
-            LOG_printf (LOG_ERROR, "\n** ERROR: failed to write C stub file %s .\n", cstubfn);
+            LOG_printf (LOG_ERROR, "\n** ERROR: failed to write C stub file %s .\n", OPT_cstub_fn);
             CO_exit(EXIT_FAILURE);
         }
 
@@ -186,7 +188,6 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         if (EM_anyErrors)
             CO_exit(EXIT_FAILURE);
     }
-#endif
 
     if (!OPT_asm_gas_fn && !OPT_asm_asmpro_fn && !OPT_bin_fn)
         CO_exit(0);

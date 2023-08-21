@@ -25,6 +25,7 @@ string   OPT_asm_asmpro_fn = NULL;
 string   OPT_asm_vasm_fn   = NULL;
 string   OPT_binfn         = NULL;
 string   OPT_objfn         = NULL;
+string   OPT_cstub_fn      = NULL;
 bool     OPT_hasCode       = true;
 uint32_t OPT_stackSize     = 0;
 bool     OPT_gcScanExtern  = false;

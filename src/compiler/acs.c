@@ -78,7 +78,7 @@ static void print_usage(char *argv[])
     fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
     fprintf(stderr, "    -B            create vasm source file\n");
     fprintf(stderr, "    -s            create symbol file\n");
-    //fprintf(stderr, "    -S            create C stub file\n");
+    fprintf(stderr, "    -S            create C stub file\n");
     //fprintf(stderr, "    -I            interface assembly (no code)\n");
     //fprintf(stderr, "    -N            no not generate a assembly init function\n");
     fprintf(stderr, "    -E            no not generate gc scan functions\n");
@@ -318,15 +318,15 @@ int main (int argc, char *argv[])
                 }
                 OPT_sym_fn = argv[optind];
                 break;
-            //case 'S':
-            //    optind++;
-            //    if (optind >= argc)
-            //    {
-            //        print_usage(argv);
-            //        exit(EXIT_FAILURE);
-            //    }
-            //    cstubfn = argv[optind];
-            //    break;
+            case 'S':
+                optind++;
+                if (optind >= argc)
+                {
+                    print_usage(argv);
+                    exit(EXIT_FAILURE);
+                }
+                OPT_cstub_fn = argv[optind];
+                break;
             case 'o':
                 optind++;
                 if (optind >= argc)

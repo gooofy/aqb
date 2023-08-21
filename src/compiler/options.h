@@ -65,6 +65,7 @@ extern string   OPT_asm_asmpro_fn;
 extern string   OPT_asm_vasm_fn;
 extern string   OPT_binfn;
 extern string   OPT_objfn;
+extern string   OPT_cstub_fn;
 extern bool     OPT_hasCode;
 extern uint32_t OPT_stackSize;
 extern bool     OPT_gcScanExtern;
