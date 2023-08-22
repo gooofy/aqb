@@ -64,6 +64,7 @@ static S_symbol S_FOREACH;
 static S_symbol S_System;
 static S_symbol S_Object;
 static S_symbol S__vTablePtr;
+static S_symbol S_this;
 
 static bool isSym(S_symbol sym)
 {
@@ -717,6 +718,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
 
     if (S_tkn.kind == S_LPAREN)
     {
+        S_nextToken();
 
         IR_member member = IR_findMember (tyOwner, name, /*checkbase=*/false);
         if (member)
@@ -736,12 +738,13 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         IR_formal formals      = NULL;
         IR_formal formals_last = NULL;
 
-        if (S_tkn.kind != S_LPAREN)
+        /* this reference ? */
+        if (!isStatic)
         {
-            EM_error (S_tkn.pos, "method declaration: ( expected here");
-            return;
+            IR_formal fThis = IR_Formal (S_this, IR_getReference (pos, tyOwner), /*defaultExp=*/NULL, /*reg=*/NULL);
+            formals = formals_last = fThis;
         }
-        S_nextToken();
+
         while (S_tkn.kind != S_RPAREN)
         {
             IR_formal f = _parameter();
@@ -1288,6 +1291,7 @@ void PA_boot(void)
     S_System     = S_Symbol("System");
     S_Object     = S_Symbol("Object");
     S__vTablePtr = S_Symbol("_vTablePtr");
+    S_this       = S_Symbol("this");
 }
 
 void PA_init(void)

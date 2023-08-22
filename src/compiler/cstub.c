@@ -176,7 +176,7 @@ static void _writeFormal (FILE *cstubf, IR_formal formal)
 
 static void _writeStubSpecial (FILE *cstubf, IR_type tyCls, bool writeBody, char *methodName)
 {
-    fprintf (cstubf, "VOID _%s___%s (%s *THIS, _gc_t *gc)", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), methodName, IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true));
+    fprintf (cstubf, "VOID _%s___%s (%s *this, _gc_t *gc)", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), methodName, IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true));
 
     if (writeBody)
     {
