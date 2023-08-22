@@ -164,20 +164,49 @@ struct System_Object_
     UBYTE           __gc_color;
 };
 
-extern ULONG *_td__urt_COBJECT;
+// extern ULONG *_td__urt_COBJECT;
 
-void           _COBJECT___gc_scan    (System_Object *THIS, _gc_t *gc);
-System_String *_COBJECT_TOSTRING_    (System_Object *THIS);
-BOOL           _COBJECT_EQUALS_      (System_Object *THIS, System_Object *obj);
-ULONG          _COBJECT_GETHASHCODE_ (System_Object *THIS);
+VOID          _System_Object___gc_scan   (System_Object *this, _gc_t *gc);
+VOID           System_Object_Finalize    (System_Object *this);
+System_String *System_Object_ToString    (System_Object *this);
+BOOL           System_Object_Equals      (System_Object *this, System_Object *obj);
+LONG           System_Object_GetHashCode (System_Object *this);
 
-BOOL     __instanceof          (System_Object *obj, ULONG **td);
+BOOL           __instanceof              (System_Object *obj, ULONG **td);
 
-void     GC_RUN                (void);
-void     GC_REGISTER           (System_Object *obj);
+struct System_String_
+{
+    ULONG         **_vTablePtr;
+    System_Object  *__gc_next;
+    System_Object  *__gc_prev;
+    ULONG           __gc_size;
+    UBYTE           __gc_color;
+    UBYTE          *_str;
+    ULONG           _len;
+    ULONG           _hashcode;
+    BOOL            _owned;
+};
+
+VOID           _System_String___gc_scan (System_String *this, _gc_t *gc);
+System_String *System_String_Create     (UBYTE *initialBuffer, BOOL owned);
+
+struct System_Console_
+{
+    ULONG         **_vTablePtr;
+    System_Object *__gc_next;
+    System_Object *__gc_prev;
+    ULONG          __gc_size;
+    UBYTE          __gc_color;
+};
+
+VOID _System_Console___gc_scan (System_Console *this, _gc_t *gc);
+VOID System_Console_WriteLine  (System_String *value);
+
+void           GC_RUN                (void);
+void           GC_REGISTER           (System_Object *obj);
 System_Object *GC_ALLOCATE_          (ULONG size, ULONG flags);
-void     GC_MARK_BLACK         (System_Object *obj);
-BOOL     GC_REACHABLE_         (System_Object *obj);
+void           GC_MARK_BLACK         (System_Object *obj);
+BOOL           GC_REACHABLE_         (System_Object *obj);
 // FIXME: PUBLIC DECLARE EXTERN SUB      GC_OPTIONS    (BYVAL heap_limit AS ULONG=16*1024, BYVAL alloc_limit AS ULONG=128)
 
 typedef void (*_gc_scan_t)     (System_Object *obj);

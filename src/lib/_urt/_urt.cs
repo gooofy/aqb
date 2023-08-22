@@ -23,6 +23,11 @@ namespace System
     public class String
     {
         public extern static String Create (char *initialBuffer, bool owned);
+
+        private char    *_str;
+        private uint     _len;
+        private uint     _hashcode;
+        private bool     _owned;   // true -> will DEALLOCATE() _str in finalizer
     }
 
     public static class Console

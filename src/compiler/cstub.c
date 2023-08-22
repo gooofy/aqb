@@ -230,6 +230,7 @@ static void _writeStubMethod (FILE *cstubf, IR_type tyCls, IR_proc proc, bool wr
                 //case Ty_darray    : fprintf (cstubf, ""); break;
                 //case Ty_record    : fprintf (cstubf, ""); break;
                 case Ty_pointer   : fprintf (cstubf, "    return NULL;\n"); break;
+                case Ty_reference : fprintf (cstubf, "    return NULL;\n"); break;
                 //case Ty_void      : fprintf (cstubf, ""); break;
                 //case Ty_class     : fprintf (cstubf, ""); break;
                 //case Ty_interface : fprintf (cstubf, ""); break;
