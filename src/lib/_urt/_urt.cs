@@ -8,9 +8,10 @@ namespace System
     {
 
         // GC support *DO NOT TOUCH!*
-        private Object __gc_next, __gc_prev;
-        private uint   __gc_size;
-        private byte   __gc_color;
+        private Object *__gc_next;
+        private Object *__gc_prev;
+        private uint    __gc_size;
+        private byte    __gc_color;
 
         public extern virtual void Finalize ();
 

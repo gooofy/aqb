@@ -166,11 +166,11 @@ struct System_Object_
 
 // extern ULONG *_td__urt_COBJECT;
 
-VOID          _System_Object___gc_scan   (System_Object *this, _gc_t *gc);
-VOID           System_Object_Finalize    (System_Object *this);
-System_String *System_Object_ToString    (System_Object *this);
-BOOL           System_Object_Equals      (System_Object *this, System_Object *obj);
-LONG           System_Object_GetHashCode (System_Object *this);
+VOID           _System_Object___gc_scan   (System_Object *this, _gc_t *gc);
+VOID           _System_Object_Finalize    (System_Object *this);
+System_String *_System_Object_ToString    (System_Object *this);
+BOOL           _System_Object_Equals      (System_Object *this, System_Object *obj);
+LONG           _System_Object_GetHashCode (System_Object *this);
 
 BOOL           __instanceof              (System_Object *obj, ULONG **td);
 
@@ -188,7 +188,7 @@ struct System_String_
 };
 
 VOID           _System_String___gc_scan (System_String *this, _gc_t *gc);
-System_String *System_String_Create     (UBYTE *initialBuffer, BOOL owned);
+System_String *_System_String_Create     (UBYTE *initialBuffer, BOOL owned);
 
 struct System_Console_
 {
@@ -200,7 +200,7 @@ struct System_Console_
 };
 
 VOID _System_Console___gc_scan (System_Console *this, _gc_t *gc);
-VOID System_Console_WriteLine  (System_String *value);
+VOID _System_Console_WriteLine  (System_String *value);
 
 void           GC_RUN                (void);
 void           GC_REGISTER           (System_Object *obj);

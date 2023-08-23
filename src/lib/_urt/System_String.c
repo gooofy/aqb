@@ -5,7 +5,7 @@ VOID _System_String___gc_scan (System_String *this, _gc_t *gc)
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_String gc_scan");
 }
 
-System_String *System_String_Create (UBYTE    *initialBuffer, BOOL     owned)
+System_String *_System_String_Create (UBYTE    *initialBuffer, BOOL     owned)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_String.Create");
     return NULL;

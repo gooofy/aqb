@@ -465,7 +465,7 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 
 static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string clsLabel)
 {
-    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "_%s___gc_scan", clsLabel));
+    Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan", clsLabel));
     //Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
 
     if (!OPT_gcScanExtern)
@@ -922,6 +922,15 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
     {
         CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__acs_stack_size"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
         CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
+    }
+
+    // generate type descriptors
+
+    for (IR_definition def=assembly->def_first; def; def=def->next)
+    {
+        if (def->kind != IR_defType)
+            continue;
+        CG_genTypeDesc (def->u.ty);
     }
 }
 

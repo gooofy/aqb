@@ -338,8 +338,6 @@ CG_frag CG_genGCFrameDesc (CG_frame frame)
 
 void CG_genTypeDesc (IR_type ty)
 {
-    assert(false); // FIXME
-#if 0
     // only class and interface types need type descriptors, for now
     switch (ty->kind)
     {
@@ -356,7 +354,7 @@ void CG_genTypeDesc (IR_type ty)
             }
             else
             {
-                CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeLong(), 0));
+                CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
             }
 
             // interfaces
@@ -365,27 +363,27 @@ void CG_genTypeDesc (IR_type ty)
                 Temp_label intfLabel = CG_getTypeDescLabel (i->intf);
                 CG_dataFragAddPtr (descFrag, intfLabel);
             }
-            CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
+            CG_dataFragAddConst (descFrag, IR_ConstInt (IR_TypeInt32(), 0));
             break;
         }
         case Ty_interface:
         {
-            Temp_label label = CG_getTypeDescLabel (ty);
-            CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+            assert(false); // FIXME
+            //Temp_label label = CG_getTypeDescLabel (ty);
+            //CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
 
-            // interfaces
-            for (Ty_implements i=ty->u.interface.implements; i; i=i->next)
-            {
-                Temp_label intfLabel = CG_getTypeDescLabel (i->intf);
-                CG_dataFragAddPtr (descFrag, intfLabel);
-            }
-            CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
+            //// interfaces
+            //for (IR_implements i=ty->u.interface.implements; i; i=i->next)
+            //{
+            //    Temp_label intfLabel = CG_getTypeDescLabel (i->intf);
+            //    CG_dataFragAddPtr (descFrag, intfLabel);
+            //}
+            //CG_dataFragAddConst (descFrag, IR_ConstInt (Ty_Long(), 0));
             break;
         }
         default:
             return;
     }
-#endif
 }
 
 void CG_ConstItem (CG_item *item, IR_const c)
