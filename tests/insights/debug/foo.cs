@@ -30,6 +30,11 @@ namespace System
     {
         public extern static void WriteLine(string value);
     }
+
+    public static class GC
+    {
+        public extern static void _MarkBlack (Object *obj);
+    }
 }
 
 using System;

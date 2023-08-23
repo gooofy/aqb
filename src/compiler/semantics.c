@@ -7,12 +7,16 @@ static S_symbol S_Create;
 static S_symbol S_this;
 static S_symbol S_System;
 static S_symbol S_String;
+static S_symbol S_gc;
+static S_symbol S_GC;
+static S_symbol S__MarkBlack;
 
 static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
-// System.Object / System.String type caching
-static IR_type _g_tyString=NULL;
+// System.String / System.GC type caching
+static IR_type _g_tyString   = NULL;
+static IR_type _g_tySystemGC = NULL;
 
 static IR_type _getStringType(void)
 {
@@ -22,6 +26,16 @@ static IR_type _getStringType(void)
         assert (_g_tyString);
     }
     return _g_tyString;
+}
+
+static IR_type _getSystemGCType(void)
+{
+    if (!_g_tySystemGC)
+    {
+        _g_tySystemGC = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_GC, NULL, /*doCreate=*/false);
+        assert (_g_tySystemGC);
+    }
+    return _g_tySystemGC;
 }
 
 static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
@@ -466,85 +480,82 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string clsLabel)
 {
     Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan", clsLabel));
-    //Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
+    Temp_label exitlabel = Temp_namedlabel(strprintf(UP_ir, "__%s___gc_scan_exit", clsLabel));
 
     if (!OPT_gcScanExtern)
     {
-        // FIXME
-        assert(false);
-#if 0
-        S_symbol gcMarkBlackSym = S_Symbol("GC_MARK_BLACK");
-        E_enventryList lx = E_resolveSub(g_sleStack->env, gcMarkBlackSym);
-        if (lx)
+        //IR_member entry = IR_findMember (_g_clsSystemGC, S__MarkBlack, /*checkBase=*/true);
+        //S_symbol gcMarkBlackSym = S_Symbol("GC_MARK_BLACK");
+        //E_enventryList lx = E_resolveSub(g_sleStack->env, gcMarkBlackSym);
+        //if (lx)
+        //{
+        //    E_enventry gcMarkBlackSub = lx->first->e;
+
+        IR_formal formals = IR_Formal(S_this, IR_getReference(pos, tyCls), /*defaultExp=*/NULL, /*reg=*/NULL);
+        formals = IR_Formal(S_gc, _getSystemGCType(), /*defaultExp=*/NULL, /*reg=*/NULL);
+
+        CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
+        AS_instrList il = AS_InstrList();
+
+        for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
         {
-            E_enventry gcMarkBlackSub = lx->first->e;
+            if (member->kind != IR_recField)
+                continue;
 
-            Ty_formal formals = Ty_Formal(S_THIS, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
-            formals = Ty_Formal(S_GC, tyCls, /*defaultExp=*/NULL, Ty_byRef, Ty_phNone, /*reg=*/NULL);
+            IR_type ty = member->u.field.ty;
 
-            CG_frame frame = CG_Frame(0, label, formals, /*statc=*/TRUE);
-            AS_instrList il = AS_InstrList();
-
-            for (Ty_member member = tyCls->u.cls.members->first; member; member=member->next)
+            switch (ty->kind)
             {
-                if (member->kind != Ty_recField)
-                    continue;
-
-                Ty_ty ty = member->u.field.ty;
-
-                switch (ty->kind)
+                case Ty_reference:
                 {
-                    case Ty_pointer:
+                    switch (ty->u.ref->kind)
                     {
-                        switch (ty->u.pointer->kind)
+                        case Ty_class:
                         {
-                            case Ty_class:
-                            {
-                                // FIXME: inline?
-                                CG_itemList gcMarkBlackArglist = CG_ItemList();
+                            // FIXME: inline?
+                            CG_itemList gcMarkBlackArglist = CG_ItemList();
 
-                                CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
-                                n->item = frame->formals->first->item; // <this>
-                                CG_transField(il, pos, frame, &n->item, member);
-                                CG_loadVal (il, pos, frame, &n->item);
+                            CG_itemListNode n = CG_itemListAppend(gcMarkBlackArglist);
+                            n->item = frame->formals->first->item; // <this>
+                            CG_transField(il, pos, frame, &n->item, member);
+                            CG_loadVal (il, pos, frame, &n->item);
 
-                                CG_transCall (il, pos, frame, gcMarkBlackSub->u.proc, gcMarkBlackArglist, /*result=*/NULL);
-                                break;
-                            }
-
-                            default:
-                                assert(FALSE);
+                            _transCallBuiltinMethod(pos, _getSystemGCType()->u.ref, S__MarkBlack, gcMarkBlackArglist, il, frame, /*result=*/NULL);
+                            break;
                         }
-                        break;
+
+                        default:
+                            assert(false);
                     }
-
-                    case Ty_sarray:
-                    case Ty_darray:
-                    case Ty_record:
-                    case Ty_any:
-                    case Ty_class:
-                        assert(FALSE); // FIXME: implement
-                    default:
-                        continue;
+                    break;
                 }
+
+                // FIXME case Ty_sarray:
+                // FIXME case Ty_darray:
+                // FIXME case Ty_record:
+                // FIXME case Ty_any:
+                case Ty_class:
+                    assert(false); // FIXME: implement
+                default:
+                    continue;
             }
-
-            if (!il->first)
-                CG_transNOP (il, 0);
-
-            CG_procEntryExit(0,
-                             frame,
-                             il,
-                             /*returnVar=*/NULL,
-                             /*exitlbl=*/ exitlabel,
-                             /*is_main=*/FALSE,
-                             /*expt=*/TRUE);
         }
-        else
-        {
-            EM_error(pos, "builtin %s not found.", S_name(gcMarkBlackSym));
-        }
-#endif // 0
+
+        if (!il->first)
+            CG_transNOP (il, pos);
+
+        CG_procEntryExit(pos,
+                         frame,
+                         il,
+                         /*returnVar=*/NULL,
+                         /*exitlbl=*/ exitlabel,
+                         /*is_main=*/false,
+                         /*expt=*/true);
+        //}
+        //else
+        //{
+        //    EM_error(pos, "builtin %s not found.", S_name(gcMarkBlackSym));
+        //}
     }
 
     return label;
@@ -940,6 +951,8 @@ void SEM_boot(void)
     S_this       = S_Symbol("this");
     S_System     = S_Symbol("System");
     S_String     = S_Symbol("String");
-    //N_System_GC_MarkBlack = IR_Name (S_symbol sym, S_pos pos);
+    S_GC         = S_Symbol("GC");
+    S_gc         = S_Symbol("gc");
+    S__MarkBlack = S_Symbol("_MarkBlack");
 }
 

@@ -152,7 +152,7 @@ extern BOOL     _do_resume;     // set by RESUME NEXT
 typedef struct System_Object_  System_Object;
 typedef struct System_String_  System_String;
 typedef struct System_Console_ System_Console;
-typedef struct _gc_s           _gc_t;
+typedef struct System_GC_      System_GC;
 
 struct System_Object_
 {
@@ -166,7 +166,7 @@ struct System_Object_
 
 // extern ULONG *_td__urt_COBJECT;
 
-VOID           _System_Object___gc_scan   (System_Object *this, _gc_t *gc);
+VOID           _System_Object___gc_scan   (System_Object *this, System_GC *gc);
 VOID           _System_Object_Finalize    (System_Object *this);
 System_String *_System_Object_ToString    (System_Object *this);
 BOOL           _System_Object_Equals      (System_Object *this, System_Object *obj);
@@ -187,7 +187,7 @@ struct System_String_
     BOOL            _owned;
 };
 
-VOID           _System_String___gc_scan (System_String *this, _gc_t *gc);
+VOID           _System_String___gc_scan (System_String *this, System_GC *gc);
 System_String *_System_String_Create     (UBYTE *initialBuffer, BOOL owned);
 
 struct System_Console_
@@ -199,7 +199,7 @@ struct System_Console_
     UBYTE          __gc_color;
 };
 
-VOID _System_Console___gc_scan (System_Console *this, _gc_t *gc);
+VOID _System_Console___gc_scan (System_Console *this, System_GC *gc);
 VOID _System_Console_WriteLine  (System_String *value);
 
 void           GC_RUN                (void);

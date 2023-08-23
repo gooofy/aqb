@@ -1,6 +1,6 @@
 #include "_urt.h"
 
-VOID _System_Object___gc_scan (System_Object *this, _gc_t *gc)
+VOID _System_Object___gc_scan (System_Object *this, System_GC *gc)
 {
     _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_Object gc_scan");
 }

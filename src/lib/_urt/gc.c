@@ -12,7 +12,7 @@
 #include <inline/exec.h>
 
 /*
- * AQB garbage collector
+ * ACS garbage collector
  *
  * this is a precise, mark and sweep, stop-the-world garbage collector
  * using compiler support to find roots and pointers
@@ -34,7 +34,7 @@ typedef enum
     GC_BLACK
 } eGCColor;
 
-struct _gc_s
+struct System_GC_
 {
     // objects allocated by GC_ALLOCATE_(), but not GC_REGISTER()ed yet
     System_Object  *unreg;
@@ -80,7 +80,7 @@ enum { Ty_unresolved,   //  0 also used when loading assemblies
        //Ty_prc           // 19
        } kind;
 
-static _gc_t _g_gc;
+static System_GC _g_gc;
 
 // compiler interface
 extern void *_framedesc___main_globals;
@@ -125,7 +125,7 @@ static inline void _gc_dump_heap(void)
 }
 #endif
 
-static void _gc_mark_gray (System_Object *obj, _gc_t *gc)
+static void _gc_mark_gray (System_Object *obj, System_GC *gc)
 {
     DPRINTF ("_gc_mark_gray: obj=0x%08lx\n", obj);
     if (obj->__gc_color == GC_WHITE)
