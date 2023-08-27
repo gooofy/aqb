@@ -18,17 +18,18 @@ extern struct DOSBase       *DOSBase;
 static int  g_opt               = DEFAULT_OPTS;
 //static bool g_changed           = false;
 
-string   OPT_sym_fn        = NULL;
-string   OPT_bin_fn        = NULL;
-string   OPT_asm_gas_fn    = NULL;
-string   OPT_asm_asmpro_fn = NULL;
-string   OPT_asm_vasm_fn   = NULL;
-string   OPT_binfn         = NULL;
-string   OPT_objfn         = NULL;
-string   OPT_cstub_fn      = NULL;
-bool     OPT_hasCode       = true;
-uint32_t OPT_stackSize     = 0;
-bool     OPT_gcScanExtern  = false;
+string   OPT_sym_fn         = NULL;
+string   OPT_bin_fn         = NULL;
+string   OPT_asm_gas_fn     = NULL;
+string   OPT_asm_asmpro_fn  = NULL;
+string   OPT_asm_vasm_fn    = NULL;
+string   OPT_binfn          = NULL;
+string   OPT_objfn          = NULL;
+string   OPT_cstub_fn       = NULL;
+bool     OPT_hasCode        = true;
+uint32_t OPT_stackSize      = 0;
+bool     OPT_gcScanExtern   = false;
+bool     OPT_dumpAssemblies = false;
 
 void OPT_set(int opt, bool onoff)
 {
@@ -76,11 +77,12 @@ void OPT_reset (void)
 
 // string OPT_default_module = OPT_DEFAULT_MODULE;
 
-static OPT_dirSearchPath g_assemblySP=NULL, g_assemblySPLast=NULL;
+static OPT_pathList g_assemblySP=NULL, g_assemblySPLast=NULL;
+static OPT_pathList g_assemblies=NULL, g_assembliesLast=NULL;
 
 void OPT_assemblyAddPath (string path)
 {
-    OPT_dirSearchPath p = U_poolAlloc (UP_options, sizeof(*p));
+    OPT_pathList p = U_poolAlloc (UP_options, sizeof(*p));
 
     p->path      = String(UP_options, path);
     p->next      = NULL;
@@ -96,14 +98,14 @@ void OPT_assemblyAddPath (string path)
     }
 }
 
-OPT_dirSearchPath OPT_getModulePath (void)
+OPT_pathList OPT_assemblyGetPath (void)
 {
     return g_assemblySP;
 }
 
 FILE *OPT_assemblyOpenFile (string filename)
 {
-    for (OPT_dirSearchPath sp=OPT_getModulePath(); sp; sp=sp->next)
+    for (OPT_pathList sp=OPT_assemblyGetPath(); sp; sp=sp->next)
     {
         char modfn[PATH_MAX];
 
@@ -120,6 +122,30 @@ FILE *OPT_assemblyOpenFile (string filename)
     }
     return NULL;
 }
+
+void OPT_assembliesAdd (string path)
+{
+    OPT_pathList p = U_poolAlloc (UP_options, sizeof(*p));
+
+    p->path      = String(UP_options, path);
+    p->next      = NULL;
+
+    if (g_assemblies)
+    {
+        g_assembliesLast->next = p;
+        g_assembliesLast = p;
+    }
+    else
+    {
+        g_assemblies = g_assembliesLast = p;
+    }
+}
+
+OPT_pathList OPT_assembliesGet (void)
+{
+    return g_assemblies;
+}
+
 
 void OPT_init(void)
 {

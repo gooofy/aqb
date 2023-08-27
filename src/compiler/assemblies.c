@@ -261,50 +261,6 @@ bool IR_saveAssembly (IR_assembly assembly, string symfn)
     for (IR_definition def = assembly->def_first; def; def=def->next)
         _serializeIRDefinition(def);
 
-
-#if 0
-    // module table (used in type serialization for module referencing)
-    TAB_table modTable;  // S_symbol moduleName -> int mid
-    modTable = TAB_empty(UP_env);
-    TAB_enter (modTable, mod, (void *) (intptr_t) 2);
-    TAB_iter iter = TAB_Iter(g_modCache);
-    S_symbol sym;
-    E_module m2;
-    uint16_t mid = 3;
-    while (TAB_next (iter, (void **)&sym, (void**) &m2))
-    {
-        TAB_enter(modTable, m2, (void *) (intptr_t) mid);
-
-        fwrite_u2(symf, mid);
-        strserialize(symf, S_name(m2->name));
-
-        LOG_printf(LOG_DEBUG, "env: E_saveModule(%s) imported module: [%d] -> %s\n", S_name(mod->name), mid, S_name(m2->name));
-
-        mid++;
-    }
-    mid = 0; fwrite_u2(symf, 0);  // end marker
-
-    // serialize types
-
-    iter = TAB_Iter(mod->tyTable);
-    void *key;
-    Ty_ty ty;
-    while (TAB_next(iter, &key, (void **)&ty))
-    {
-        assert (ty->mod == mod);
-        // warning: Ty_toString can be quite expensive memory-wise!
-        // LOG_printf(LOG_DEBUG, "env: E_saveModule(%s) type entry: [%s:%d] -> %s\n", S_name(mod->name), ty->mod ? S_name(ty->mod) : "BUILTIN", ty->uid, Ty_toString(ty));
-        E_serializeType(modTable, ty);
-    }
-
-    fwrite_u4 (symf, 0);                      // types end marker
-
-    // serialize enventries
-    E_serializeEnventriesFlat (modTable, mod->env->u.scopes.vfcenv);
-    E_serializeEnventriesFlat (modTable, mod->env->u.scopes.tenv);
-    E_serializeEnventriesOverloaded (modTable, mod->env->u.scopes.senv);
-#endif // 0
-
     fclose(symf);
 
     return true;
@@ -312,6 +268,15 @@ bool IR_saveAssembly (IR_assembly assembly, string symfn)
 
 IR_assembly IR_loadAssembly (S_symbol name)
 {
+    char symfn[PATH_MAX];
+    snprintf(symfn, PATH_MAX, "%s.sym", S_name(name));
+    symf = OPT_assemblyOpenFile (symfn);
+    if (!symf)
+    {
+        LOG_printf (LOG_ERROR, "failed to read symbol file %s\n", symfn);
+        return NULL;
+    }
+
     // FIXME: for now, we just create an empty assembly
     IR_assembly a = IR_Assembly (name, /*hasCode=*/ true);
 

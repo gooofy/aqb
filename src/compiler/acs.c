@@ -74,12 +74,13 @@ static void print_usage(char *argv[])
     fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
     fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
     fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
+    fprintf(stderr, "    -P            print symbol information for each loaded assembly\n");
     fprintf(stderr, "    -a            create gas source file\n");
     fprintf(stderr, "    -A            create ASMOne/ASMPro source file\n");
     fprintf(stderr, "    -B            create vasm source file\n");
     fprintf(stderr, "    -s            create symbol file\n");
     fprintf(stderr, "    -S            create C stub file\n");
-    //fprintf(stderr, "    -I            interface assembly (no code)\n");
+    fprintf(stderr, "    -I            interface assembly (no code)\n");
     //fprintf(stderr, "    -N            no not generate a assembly init function\n");
     fprintf(stderr, "    -E            no not generate gc scan functions\n");
     fprintf(stderr, "    -o <foo>      create hunk binary file\n");
@@ -257,12 +258,7 @@ int main (int argc, char *argv[])
                     print_usage(argv);
                     exit(EXIT_FAILURE);
                 }
-                IR_assembly a = IR_loadAssembly (S_Symbol (argv[optind]));
-                if (!a)
-                {
-                    fprintf (stderr, "*** error: failed to load assembly '%s'.\n\n", argv[optind]);
-                    exit(EXIT_FAILURE);
-                }
+                OPT_assembliesAdd (argv[optind]);
                 break;
             case 'L':
                 optind++;
@@ -272,6 +268,9 @@ int main (int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 OPT_assemblyAddPath(argv[optind]);
+                break;
+            case 'P':
+                OPT_dumpAssemblies = true;
                 break;
             case 'I':
                 OPT_hasCode = false;
@@ -382,6 +381,17 @@ int main (int argc, char *argv[])
 
     IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
     IR_namespace names_root = _bootstrap_root_names();
+
+    for (OPT_pathList assemblies = OPT_assembliesGet(); assemblies; assemblies=assemblies->next)
+    {
+        IR_assembly a = IR_loadAssembly (S_Symbol (assemblies->path));
+        LOG_printf (LOG_INFO, "loading assembly %s\n", assemblies->path);
+        if (!a)
+        {
+            fprintf (stderr, "*** error: failed to load assembly '%s'.\n\n", assemblies->path);
+            exit(EXIT_FAILURE);
+        }
+    }
 
     //while (optind < argc)
     //{

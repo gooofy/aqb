@@ -38,23 +38,30 @@ void OPT_reset       (void);                // reset all compiler options to the
 
 /*
  * assembly search path
+ * assemblies to load
  */
 
-typedef struct OPT_dirSearchPath_ *OPT_dirSearchPath;
+typedef struct OPT_pathList_ *OPT_pathList;
 
-struct OPT_dirSearchPath_
+struct OPT_pathList_
 {
-    string            path;
-    OPT_dirSearchPath next;
+    string       path;
+    OPT_pathList next;
 };
 
-void              OPT_assemblyAddPath  (string path);       // look for assembly files in directory <path
-OPT_dirSearchPath OPT_assemblyGetPath  (void);
-FILE             *OPT_assemblyOpenFile (string filename);   // look through search paths, try to open <filename>
+void         OPT_assemblyAddPath  (string path);       // look for assembly files in directory <path
+OPT_pathList OPT_assemblyGetPath  (void);
+FILE        *OPT_assemblyOpenFile (string filename);   // look through search paths, try to open <filename>
+
+void         OPT_assembliesAdd    (string path);
+OPT_pathList OPT_assembliesGet    (void);
 
 //#define AQB_CLEAR_NAME "__acs_clear"
 
 //#define OPT_DEFAULT_MODULE "_acs"
+
+
+
 
 // global compiler command line options
 
@@ -69,6 +76,7 @@ extern string   OPT_cstub_fn;
 extern bool     OPT_hasCode;
 extern uint32_t OPT_stackSize;
 extern bool     OPT_gcScanExtern;
+extern bool     OPT_dumpAssemblies;
 
 void OPT_init(void);
 void OPT_deinit(void);
