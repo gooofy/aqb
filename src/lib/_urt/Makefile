@@ -4,13 +4,13 @@ include ../../../config.mk
 
 #all: _urt_stub.c startup.o _urt.a _urt.sym
 #all: _urt.sym
-all: startup _urt.a _urt.o _urt_stub.c
+all: _urt_stub.c startup _urt.a _urt.o
 
 %.o : %.c
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
-_urt.sym _urt.o _urt.asm _urt_stub.c: _urt.cs
-	$(ACS) -E -S _urt_stub.c -A _urt.asm -p _urt.o _urt $<
+_urt.sym _urt.o _urt.asm: _urt.cs
+	$(ACS) -E -s _urt.sym -S _urt_stub.c -A _urt.asm -p _urt.o _urt $<
 	#$(ACS) -d none -N -E -s _urt.sym -a _urt.asm -p _urt.o $<
 	#pushd .. && rm -f _urt.sym && ln -s _urt/_urt.sym && popd
 	#cp $< $(DISTDIR)/libsrc
@@ -24,7 +24,7 @@ _urt.sym _urt.o _urt.asm _urt_stub.c: _urt.cs
 	$(CC_AMIGAOS) -c $(CFLAGS_AMIGAOS) $< -o $@
 
 #_urt.a: cstartup.o _urt.o astr.o cstring.o amath.o autil.o carray.o data.o dprintf.o aio.o oop.o memmove.o bcopy.o gc.o
-_urt.a:  System_Console.o System_String.o System_Object.o cstartup.o astr.o amath.o autil.o dprintf.o memmove.o bcopy.o gc.o
+_urt.a:  System_Console.o System_String.o System_Object.o cstartup.o _urt.o astr.o amath.o autil.o dprintf.o memmove.o bcopy.o gc.o
 	$(AR_AMIGAOS) -crs _urt.a $^
 	pushd .. && rm -f _urt.a && ln -s _urt/_urt.a && popd
 	cp $@ $(DISTDIR)/lib
@@ -39,8 +39,8 @@ diss: startup.o
 %.asm: %.c
 	$(CC_AMIGAOS) -S $(CFLAGS_AMIGAOS) $< -o $@
 
-#_urt_stub.c: _urt.cs
-#	$(ACS) -L .. -N -E -d none -S $@ $<
+_urt_stub.c: _urt.cs
+	$(ACS) -E -S _urt_stub.c _urt $<
 
 clean:
 	rm -f *.o alibtest _urt.a *.sym *.asm aqb.log _urt_stub.c

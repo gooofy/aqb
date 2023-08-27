@@ -3,7 +3,7 @@ include ../../config.mk
 SRCS = 	acs.c scanner.c parser.c semantics.c hashmap.c util.c options.c \
 		errormsg.c symbol.c ir.c codegen.c assem.c \
 		temp.c compiler.c logger.c linscan.c link.c cstub.c \
-		table.c
+		assemblies.c table.c
 
 OBJS_AMIGAOS := $(patsubst %,${OBJDIR_AMIGAOS}/%.o,$(basename $(SRCS)))
 OBJS_LINUX   := $(patsubst %,${OBJDIR_LINUX}/%.o,$(basename $(SRCS)))

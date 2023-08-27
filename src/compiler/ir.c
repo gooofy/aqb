@@ -6,14 +6,6 @@ static S_symbol S_Main;
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
 static TAB_table   _g_refCache; // IR_type -> IR_type
 
-static IR_assembly _g_loadedAssembliesFirst = NULL;
-static IR_assembly _g_loadedAssembliesLast  = NULL;
-
-IR_assembly IR_getLoadedAssembliesList (void)
-{
-    return _g_loadedAssembliesFirst;
-}
-
 IR_assembly IR_Assembly (S_symbol name, bool hasCode)
 {
     IR_assembly assembly = U_poolAllocZero (UP_ir, sizeof (*assembly));
@@ -691,21 +683,6 @@ IR_type IR_TypeUInt32Ptr(void) {return &tyuint32ptr;}
 
 static struct IR_type_ tyvtableptr = {Ty_pointer, {0,0}, true, {&tyuint32ptr/*FIXME*/}};
 IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
-
-IR_assembly IR_loadAssembly (S_symbol name)
-{
-    // FIXME: for now, we just create an empty assembly
-    IR_assembly a = IR_Assembly (name, /*hasCode=*/ true);
-
-    if (_g_loadedAssembliesLast)
-        _g_loadedAssembliesLast = _g_loadedAssembliesLast->next = a;
-    else
-        _g_loadedAssembliesFirst = _g_loadedAssembliesLast = a;
-
-    //assert(false); // FIXME
-
-    return a;
-}
 
 void IR_init(void)
 {

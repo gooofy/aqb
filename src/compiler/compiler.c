@@ -145,20 +145,19 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
     LOG_printf (OPT_get(OPTION_VERBOSE) ? LOG_INFO : LOG_DEBUG, "\n\nsemantics worked.\n");
     U_memstat();
 
-#if 0
     /*
      * generate symbol file
      */
 
-    if (symfn)
+    if (OPT_sym_fn)
     {
-        if (FE_writeSymFile(symfn, hasCode))
+        if (IR_saveAssembly(assembly, OPT_sym_fn))
         {
-            LOG_printf (LOG_INFO, "created symbol file: %s\n", symfn);
+            LOG_printf (LOG_INFO, "created symbol file: %s\n", OPT_sym_fn);
         }
         else
         {
-            LOG_printf (LOG_ERROR, "\n** ERROR: failed to write symbol file %s .\n", symfn);
+            LOG_printf (LOG_ERROR, "\n** ERROR: failed to write symbol file %s .\n", OPT_sym_fn);
             CO_exit(EXIT_FAILURE);
         }
 
@@ -166,7 +165,6 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
         if (EM_anyErrors)
             CO_exit(EXIT_FAILURE);
     }
-#endif
 
     /*
      * generate C stub file

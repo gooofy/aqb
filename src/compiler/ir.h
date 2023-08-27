@@ -276,6 +276,7 @@ struct IR_argument_
 
 IR_assembly        IR_getLoadedAssembliesList (void);
 IR_assembly        IR_loadAssembly            (S_symbol name);
+bool               IR_saveAssembly            (IR_assembly assembly, string symfn);
 
 IR_assembly        IR_Assembly           (S_symbol name, bool hasCode);
 void               IR_assemblyAdd        (IR_assembly assembly, IR_definition def);
