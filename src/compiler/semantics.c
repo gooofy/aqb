@@ -891,7 +891,7 @@ static void _elaborateType (IR_type ty, IR_using usings)
     }
 }
 
-void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
+void SEM_elaborate (IR_namespace names_root)
 {
     _g_names_root = names_root;
 
@@ -899,49 +899,61 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
     _g_sys_names = IR_namesResolveNames (names_root, S_System, /*doCreate=*/true);
 
+    IR_assembly assemblies = IR_getLoadedAssembliesList ();
+
     // elaborate semantics
 
-    for (IR_definition def=assembly->def_first; def; def=def->next)
+    // phase I: resolve names
+
+    for (IR_assembly assembly=assemblies; assembly; assembly=assembly->next)
     {
-        switch (def->kind)
+        for (IR_definition def=assembly->def_first; def; def=def->next)
         {
-            case IR_defType:
-                _elaborateType (def->u.ty, def->usings);
-                break;
-            case IR_defProc:
-                // FIXME: implement
-                assert(false);
-                break;
+            switch (def->kind)
+            {
+                case IR_defType:
+                    _elaborateType (def->u.ty, def->usings);
+                    break;
+                case IR_defProc:
+                    // FIXME: implement
+                    assert(false);
+                    break;
+            }
         }
     }
 
-    // assemble class vTables
+    // pase II: vTables, main module, tds
 
-    for (IR_definition def=assembly->def_first; def; def=def->next)
+    for (IR_assembly assembly=assemblies; assembly; assembly=assembly->next)
     {
-        if (def->kind != IR_defType)
-            continue;
-        if (def->u.ty->kind != Ty_class)
-            continue;
-        _assembleVTables (def->u.ty);
-    }
+        // assemble class vTables
 
-    // main module? -> communicate stack size to runtime
+        for (IR_definition def=assembly->def_first; def; def=def->next)
+        {
+            if (def->kind != IR_defType)
+                continue;
+            if (def->u.ty->kind != Ty_class)
+                continue;
+            _assembleVTables (def->u.ty);
+        }
 
-    bool is_main = !OPT_sym_fn;
-    if (is_main)
-    {
-        CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__acs_stack_size"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
-        CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
-    }
+        // main module? -> communicate stack size to runtime
 
-    // generate type descriptors
+        bool is_main = !OPT_sym_fn;
+        if (is_main)
+        {
+            CG_frag stackSizeFrag = CG_DataFrag(/*label=*/Temp_namedlabel("__acs_stack_size"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+            CG_dataFragAddConst (stackSizeFrag, IR_ConstUInt (IR_TypeUInt32(), OPT_stackSize));
+        }
 
-    for (IR_definition def=assembly->def_first; def; def=def->next)
-    {
-        if (def->kind != IR_defType)
-            continue;
-        CG_genTypeDesc (def->u.ty);
+        // generate type descriptors
+
+        for (IR_definition def=assembly->def_first; def; def=def->next)
+        {
+            if (def->kind != IR_defType)
+                continue;
+            CG_genTypeDesc (def->u.ty);
+        }
     }
 }
 

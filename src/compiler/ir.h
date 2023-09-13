@@ -150,13 +150,13 @@ struct IR_type_
            Ty_reference,    // 12 a reference is a pointer to a class or interface that is tracked by our GC
            Ty_pointer,      // 13
 
-           //Ty_sarray,       //  9
-           //Ty_darray,       // 10
+           //Ty_sarray,       // 14 
+           //Ty_darray,       // 15
 
-           //Ty_record,       // 11
+           //Ty_record,       // 16
 
-           //Ty_any,          // 13
-           //Ty_procPtr,      // 15
+           //Ty_any,          // 17
+           //Ty_procPtr,      // 18
            //Ty_prc           // 19
            } kind;
     S_pos pos;
@@ -275,10 +275,11 @@ struct IR_argument_
 };
 
 IR_assembly        IR_getLoadedAssembliesList (void);
-IR_assembly        IR_loadAssembly            (S_symbol name);
+IR_assembly        IR_loadAssembly            (S_symbol name, IR_namespace names_root);
+IR_assembly        IR_createAssembly          (S_symbol name, bool has_code);
 bool               IR_saveAssembly            (IR_assembly assembly, string symfn);
 
-IR_assembly        IR_Assembly           (S_symbol name, bool hasCode);
+//IR_assembly        IR_Assembly           (S_symbol name, bool hasCode);
 void               IR_assemblyAdd        (IR_assembly assembly, IR_definition def);
 IR_definition      IR_DefinitionType     (IR_using usings, IR_namespace names, S_symbol name, IR_type type);
 IR_definition      IR_DefinitionProc     (IR_using usings, IR_namespace names, S_symbol name, IR_proc proc);

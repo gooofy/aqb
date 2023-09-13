@@ -90,7 +90,7 @@ IR_assembly CO_AssemblyInit (S_symbol name)
         return NULL;
     }
 
-    IR_assembly assembly = IR_Assembly (name, OPT_hasCode);
+    IR_assembly assembly = IR_createAssembly (name, OPT_hasCode);
 
     return assembly;
 }
@@ -134,7 +134,7 @@ void CO_AssemblyParse (IR_assembly assembly, IR_namespace names_root, int argc, 
      */
 
     LOG_printf (LOG_INFO, "PASS 2: semantics\n");
-    SEM_elaborate (assembly, names_root);
+    SEM_elaborate (names_root);
 
     if (EM_anyErrors)
     {

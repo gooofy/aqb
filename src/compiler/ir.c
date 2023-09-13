@@ -6,18 +6,6 @@ static S_symbol S_Main;
 static TAB_table   _g_ptrCache; // IR_type -> IR_type
 static TAB_table   _g_refCache; // IR_type -> IR_type
 
-IR_assembly IR_Assembly (S_symbol name, bool hasCode)
-{
-    IR_assembly assembly = U_poolAllocZero (UP_ir, sizeof (*assembly));
-
-    assembly->name       = name;
-    assembly->hasCode    = hasCode;
-    assembly->def_first  = NULL;
-    assembly->def_last   = NULL;
-
-    return assembly;
-}
-
 void IR_assemblyAdd (IR_assembly assembly, IR_definition def)
 {
     if (assembly->def_last)

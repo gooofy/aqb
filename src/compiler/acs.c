@@ -384,7 +384,7 @@ int main (int argc, char *argv[])
 
     for (OPT_pathList assemblies = OPT_assembliesGet(); assemblies; assemblies=assemblies->next)
     {
-        IR_assembly a = IR_loadAssembly (S_Symbol (assemblies->path));
+        IR_assembly a = IR_loadAssembly (S_Symbol (assemblies->path), names_root);
         LOG_printf (LOG_INFO, "loading assembly %s\n", assemblies->path);
         if (!a)
         {
