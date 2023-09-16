@@ -23,6 +23,9 @@ namespace System
     //public sealed partial class String : IComparable, IEnumerable, IConvertible
     public class String
     {
+        // FIXME: constructor support
+        //public extern String (char *initialBuffer, bool owned);
+
         public extern static String Create (char *initialBuffer, bool owned);
 
         private char    *_str;

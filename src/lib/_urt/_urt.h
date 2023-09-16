@@ -27,7 +27,7 @@ extern struct MathTransBase *MathTransBase;
  *  _cstartup() - open libraries                                    *
  *              - call _autil_init()                                *
  *              - setup CTRL-C handler                              *
- *              - call _astr_init(), _amath_init(), _aio_init(),    *
+ *              - call _astr_init(), _amath_init(), _console_init(),*
  *                gc_init()                                         *
  *                                                                  *
  *                                                                  *
@@ -58,23 +58,23 @@ extern struct MathTransBase *MathTransBase;
  *                                                                  *
  ********************************************************************/
 
-void _cstartup       (void);             // implemented in cstartup.c, called by startup.S
+void _cstartup         (void);             // implemented in cstartup.c, called by startup.S
 
-void _autil_init     (void);
-void _amath_init     (void);
-void _astr_init      (void);
-void _aio_init       (void);
-void _gc_init        (void);
+void _autil_init       (void);
+void _amath_init       (void);
+void _astr_init        (void);
+void _console_init     (void);
+void _gc_init          (void);
 
-void  _cshutdown     (LONG return_code, UBYTE *msg); // implemented in cstartup.c, calls _autil_exit()
-void _autil_exit     (LONG return_code); // implemented in startup.S
-void _c_atexit       (void);             // implemented in cstartup.c, called by _autil_exit()
-void ON_EXIT_CALL    (void (*cb)(void)); // register exit handler to be called from _c_atexit()
-void _autil_shutdown (void);
-void _aio_shutdown   (void);
-void _gc_shutdown    (void);
+void  _cshutdown       (LONG return_code, UBYTE *msg); // implemented in cstartup.c, calls _autil_exit()
+void _autil_exit       (LONG return_code); // implemented in startup.S
+void _c_atexit         (void);             // implemented in cstartup.c, called by _autil_exit()
+void ON_EXIT_CALL      (void (*cb)(void)); // register exit handler to be called from _c_atexit()
+void _autil_shutdown   (void);
+void _console_shutdown (void);
+void _gc_shutdown      (void);
 
-void SYSTEM          (void);             // BASIC command, calls _autil_exit(0)
+void SYSTEM            (void);             // BASIC command, calls _autil_exit(0)
 
 // stack swap support
 extern ULONG         _acs_stack_size;
@@ -187,7 +187,8 @@ struct System_String_
     BOOL            _owned;
 };
 
-VOID           _System_String___gc_scan (System_String *this, System_GC *gc);
+VOID           _System_String___init     (System_String *this);
+VOID           _System_String___gc_scan  (System_String *this, System_GC *gc);
 System_String *_System_String_Create     (UBYTE *initialBuffer, BOOL owned);
 
 struct System_Console_
@@ -297,8 +298,8 @@ ULONG  FRE_        (SHORT x);
 //UBYTE  PEEK_       (ULONG adr);
 //USHORT PEEKW_      (ULONG adr);
 //ULONG  PEEKL_      (ULONG adr);
-//
-//ULONG  CRC32_      (const UBYTE *p, ULONG len);
+
+ULONG  CRC32_      (const UBYTE *p, ULONG len);
 
 /********************************************************************
  *                                                                  *
