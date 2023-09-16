@@ -36,7 +36,7 @@ struct MathTransBase *MathTransBase = NULL;
 struct UtilityBase   *UtilityBase   = NULL;
 
 static BOOL autil_init_done = FALSE;
-static BOOL aio_init_done   = FALSE;
+//static BOOL aio_init_done   = FALSE;
 static BOOL gc_init_done    = FALSE;
 
 struct Task             *_autil_task             = NULL;
@@ -353,14 +353,14 @@ void _c_atexit(void)
         _autil_delete_port(g_inputPort);
     }
 
-    if (aio_init_done)
-    {
-#ifdef ENABLE_DEBUG
-        DPRINTF("_c_atexit: _aio_shutdown\n");
-        //Delay(50);
-#endif
-        _aio_shutdown();
-    }
+//    if (aio_init_done)
+//    {
+//#ifdef ENABLE_DEBUG
+//        DPRINTF("_c_atexit: _aio_shutdown\n");
+//        //Delay(50);
+//#endif
+//        _aio_shutdown();
+//    }
 
     if (gc_init_done)
     {
@@ -542,8 +542,8 @@ void _cstartup (void)
 
     _amath_init();
 
-    _aio_init();
-    aio_init_done = TRUE;
+    //_aio_init();
+    //aio_init_done = TRUE;
 }
 
 

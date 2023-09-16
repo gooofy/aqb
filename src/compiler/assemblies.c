@@ -500,33 +500,50 @@ static IR_memberList _deserializeIRMemberList (void)
     return ml;
 }
 
-static IR_type _deserializeIRType(void)
+static void _deserializeIRType(IR_type ty)
 {
-    IR_type ty = U_poolAllocZero (UP_ir, sizeof (*ty));
-    ty->kind = fread_u1();
-    ty->elaborated = true;
+    assert (ty->kind == Ty_unresolved);
+    uint8_t kind = fread_u1();
 
-    switch (ty->kind)
+    switch (kind)
     {
         case Ty_pointer:
+            ty->kind = kind;
             ty->u.pointer = _deserializeIRTypeRef ();
+            ty->elaborated = true;
             break;
         case Ty_class:
-            ty->u.cls.name = _deserializeIRName ();
-            ty->u.cls.visibility = fread_u1 ();
-            ty->u.cls.isStatic = fread_u1 ();
-            ty->u.cls.uiSize = fread_u4 ();
-            ty->u.cls.baseType = _deserializeIRTypeRef ();
-            //assert (!ty->u.cls.implements); // FIXME
-            ty->u.cls.constructor = _deserializeIRProc ();
-            ty->u.cls.__init = _deserializeIRProc ();
-            ty->u.cls.members = _deserializeIRMemberList ();
-            ty->u.cls.virtualMethodCnt = fread_u2 ();
+        {
+            IR_type tyCls = U_poolAllocZero (UP_ir, sizeof (*tyCls));
+            tyCls->kind = Ty_class;
+            tyCls->u.cls.name = _deserializeIRName ();
+            tyCls->u.cls.visibility = fread_u1 ();
+            tyCls->u.cls.isStatic = fread_u1 ();
+            tyCls->u.cls.uiSize = fread_u4 ();
+            tyCls->u.cls.baseType = _deserializeIRTypeRef ();
+            //assert (!tyCls->u.cls.implements); // FIXME
+            tyCls->u.cls.constructor = _deserializeIRProc ();
+            tyCls->u.cls.__init = _deserializeIRProc ();
+            tyCls->u.cls.members = _deserializeIRMemberList ();
+            tyCls->u.cls.virtualMethodCnt = fread_u2 ();
+            // take care of vTablePtr
+            if (!tyCls->u.cls.baseType)
+            {
+                tyCls->u.cls.vTablePtr = tyCls->u.cls.members->first;
+            }
+            else
+            {
+                tyCls->u.cls.vTablePtr = tyCls->u.cls.baseType->u.cls.vTablePtr;
+            }
+            tyCls->elaborated = true;
+            ty->kind  = Ty_reference;
+            ty->u.ref = tyCls;
+            ty->elaborated = true;
             break;
+        }
         default:
             assert(false);
     }
-    return ty;
 }
 
 static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)
@@ -540,8 +557,11 @@ static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)
     switch (def_kind)
     {
         case IR_defType:
-            def->u.ty = _deserializeIRType();
+        {
+            def->u.ty = IR_namesResolveType (S_noPos, def->names, def->name, /*usings=*/NULL, /*doCreate=*/true);
+            _deserializeIRType(def->u.ty);
             break;
+        }
         case IR_defProc:
             assert(false); // FIXME
             break;
@@ -605,9 +625,9 @@ IR_assembly IR_loadAssembly (S_symbol name, IR_namespace names_root)
 IR_assembly IR_createAssembly (S_symbol name, bool has_code)
 {
     IR_assembly a = _IR_Assembly (name, has_code);
-    if (_g_loadedAssembliesLast)
-        _g_loadedAssembliesLast = _g_loadedAssembliesLast->next = a;
-    else
-        _g_loadedAssembliesFirst = _g_loadedAssembliesLast = a;
+    //if (_g_loadedAssembliesLast)
+    //    _g_loadedAssembliesLast = _g_loadedAssembliesLast->next = a;
+    //else
+    //    _g_loadedAssembliesFirst = _g_loadedAssembliesLast = a;
     return a;
 }

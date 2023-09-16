@@ -393,6 +393,9 @@ int main (int argc, char *argv[])
         }
     }
 
+    //LOG_printf (LOG_INFO, "assembly semantics\n");
+    //SEM_elaborate (names_root);
+
     //while (optind < argc)
     //{
     //    sourcefn = argv[optind++];

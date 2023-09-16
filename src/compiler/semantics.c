@@ -891,7 +891,7 @@ static void _elaborateType (IR_type ty, IR_using usings)
     }
 }
 
-void SEM_elaborate (IR_namespace names_root)
+void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 {
     _g_names_root = names_root;
 
@@ -899,14 +899,14 @@ void SEM_elaborate (IR_namespace names_root)
 
     _g_sys_names = IR_namesResolveNames (names_root, S_System, /*doCreate=*/true);
 
-    IR_assembly assemblies = IR_getLoadedAssembliesList ();
+    //IR_assembly assemblies = IR_getLoadedAssembliesList ();
 
     // elaborate semantics
 
     // phase I: resolve names
 
-    for (IR_assembly assembly=assemblies; assembly; assembly=assembly->next)
-    {
+    //for (=assemblies; assembly; assembly=assembly->next)
+    //{
         for (IR_definition def=assembly->def_first; def; def=def->next)
         {
             switch (def->kind)
@@ -920,12 +920,12 @@ void SEM_elaborate (IR_namespace names_root)
                     break;
             }
         }
-    }
+    //}
 
     // pase II: vTables, main module, tds
 
-    for (IR_assembly assembly=assemblies; assembly; assembly=assembly->next)
-    {
+    //for (IR_assembly assembly=assemblies; assembly; assembly=assembly->next)
+    //{
         // assemble class vTables
 
         for (IR_definition def=assembly->def_first; def; def=def->next)
@@ -954,7 +954,18 @@ void SEM_elaborate (IR_namespace names_root)
                 continue;
             CG_genTypeDesc (def->u.ty);
         }
-    }
+
+        // generate toplevel fd table:
+
+        if (is_main)
+        {
+            CG_frag frag = CG_DataFrag(Temp_namedlabel("___top_fd_table"), /*expt=*/true, /*size=*/0, /*ty=*/NULL);
+            for (IR_assembly mln = IR_getLoadedAssembliesList(); mln; mln=mln->next)
+                CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(mln->name)));
+            CG_dataFragAddPtr (frag, CG_fdTableLabel(S_name(assembly->name)));
+            CG_dataFragAddConst (frag, IR_ConstUInt (IR_TypeUInt32(), 0)); // end marker
+        }
+    //}
 }
 
 void SEM_boot(void)

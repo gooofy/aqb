@@ -83,7 +83,7 @@ enum { Ty_unresolved,   //  0 also used when loading assemblies
 static System_GC _g_gc;
 
 // compiler interface
-extern void *_framedesc___main_globals;
+// FIXME extern void *_framedesc___main_globals;
 
 static inline void *_nextWord (void *p, WORD *w)
 {
@@ -249,13 +249,14 @@ static void _gc_scan_stacks (void)
 // garbage collector main entry
 void GC_RUN (void)
 {
-    DPRINTF ("GC_RUN: starts, _framedesc___main_globals=0x%08lx\n", _framedesc___main_globals);
+    // FIXME DPRINTF ("GC_RUN: starts, _framedesc___main_globals=0x%08lx\n", _framedesc___main_globals);
+    DPRINTF ("GC_RUN: starts\n");
 
     /*
      * scan roots
      */
 
-    _gc_scan_frame (&_framedesc___main_globals, NULL);
+    // FIXME _gc_scan_frame (&_framedesc___main_globals, NULL);
     _gc_scan_stacks();
 
     /*
@@ -459,5 +460,10 @@ void _gc_shutdown (void)
         FreeMem (p, p->__gc_size);
         p = n;
     }
+}
+
+VOID _System_GC___gc_scan (System_GC *this, System_GC *gc)
+{
+    _ACS_ASSERT (FALSE, (STRPTR) "FIXME: implement: System_GC gc_scan");
 }
 
