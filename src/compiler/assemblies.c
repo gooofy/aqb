@@ -81,16 +81,15 @@ static void fwrite_u1(uint8_t u)
         _asss_fail ("write error");
 }
 
-static void _serializeIRNamespace(IR_namespace names)
+static void _serializeIRNamespace(IR_namespace names, bool cont)
 {
     if (names->parent && names->parent->name)
     {
-        _serializeIRNamespace (names->parent);
-        fwrite_u1 ('.');
+        _serializeIRNamespace (names->parent, /*cont=*/true);
     }
     if (names->name)
         strserialize (symf, S_name(names->name));
-    fwrite_u1 (0);
+    fwrite_u1 (cont ? '.' : 0);
 }
 
 static void _serializeIRName (IR_name name)
@@ -240,7 +239,7 @@ static void _serializeIRType (IR_type ty)
 static void _serializeIRDefinition (IR_definition def)
 {
     fwrite_u1 (def->kind);
-    _serializeIRNamespace(def->names);
+    _serializeIRNamespace(def->names, /*cont=*/false);
     strserialize (symf, S_name(def->name));
     switch(def->kind)
     {
@@ -582,6 +581,13 @@ static IR_assembly _IR_Assembly (S_symbol name, bool hasCode)
     return assembly;
 }
 
+static void _dumpIRDefinition (IR_definition def)
+{
+    LOG_printf (LOG_INFO, "    %s %s\n",
+                def->kind == IR_defType ? "type" : "proc",
+                IR_name2string (IR_NamespaceName (def->names, def->name, S_noPos), /*underscoreSeparator=*/false));
+}
+
 IR_assembly IR_loadAssembly (S_symbol name, IR_namespace names_root)
 {
     _g_names_root = names_root;
@@ -617,6 +623,9 @@ IR_assembly IR_loadAssembly (S_symbol name, IR_namespace names_root)
         if (def_kind == 255) break;
         IR_definition def = _deserializeIRDefinition (a, def_kind);
         IR_assemblyAdd (a, def);
+
+        if (OPT_get(OPTION_VERBOSE))
+            _dumpIRDefinition (def);
     }
 
     return a;

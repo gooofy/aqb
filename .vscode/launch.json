@@ -330,7 +330,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/target/x86_64-linux/bin/acs",
             //"args": ["-L", "${workspaceFolder}/src/lib", "-d", "_brt", "-A", "foo.asm", "-o", "foo.hunk", "foo.bas"],
-            "args": ["-L", "../../../src/lib", "-l", "_urt", "-A", "foo.asm", "-o", "foo.hunk", "foo", "foo.cs"],
+            "args": ["-v", "-L", "../../../src/lib", "-l", "_urt", "-A", "foo.asm", "-o", "foo.hunk", "foo", "foo.cs"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/tests/insights/debug",
             "environment": [],

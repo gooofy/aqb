@@ -73,11 +73,6 @@ struct IR_symNode_
 
 struct IR_using_
 {
-    //bool         isAlias;
-    //union {
-    //    struct { S_symbol alias; IR_type type; } alias;
-    //} u;
-    //IR_name   name;
     S_symbol     alias;     // NULL -> using-namespace-directive
     IR_namespace names;
     IR_type      type;      // alias only
@@ -251,15 +246,18 @@ struct IR_statement_
     IR_statement next;
 };
 
-typedef enum { IR_expCall, IR_expLiteralString } IR_exprKind;
+typedef enum { IR_expCall, IR_expLiteralString, IR_expSym, IR_expSelector, IR_expConst } IR_exprKind;
 
 struct IR_expression_
 {
     IR_exprKind kind;
     S_pos pos;
     union {
-        string                                       stringLiteral;
-        struct { IR_name name; IR_argumentList al; } call;
+        string                                             stringLiteral;
+        struct { IR_expression fun; IR_argumentList al; }  call;
+        S_symbol                                           sym;
+        struct { S_symbol sym; IR_expression e; }          selector;
+        IR_const                                           c;
     } u;
 };
 
@@ -330,6 +328,7 @@ void               IR_stmtListAppend     (IR_stmtList sl, IR_statement stmt);
 IR_statement       IR_Statement          (IR_stmtKind kind, S_pos pos);
 
 IR_expression      IR_Expression         (IR_exprKind kind, S_pos pos);
+IR_expression      IR_name2expr          (IR_name n);
 
 IR_argumentList    IR_ArgumentList       (void);
 void               IR_argumentListAppend (IR_argumentList al, IR_argument a);

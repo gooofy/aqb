@@ -71,7 +71,7 @@ bool acs_wbstart = false;
 
 static void print_usage(char *argv[])
 {
-    fprintf(stderr, "usage: %s [ options ] <assembly-name> <src1.cs> [ <src2.cs> ... ]\n", argv[0]);
+    fprintf(stderr, "usage: %s [ options ] [ <assembly-name> <src1.cs> [ <src2.cs> ... ] ]\n", argv[0]);
     fprintf(stderr, "    -l <assembly> load <assembly> (can be specified more than once)\n");
     fprintf(stderr, "    -L <dir>      look in <dir> for assemblies\n");
     fprintf(stderr, "    -P            print symbol information for each loaded assembly\n");
@@ -241,6 +241,7 @@ int main (int argc, char *argv[])
 
     U_init();
     SYM_init();
+    S_boot();
     PA_boot();
     SEM_boot();
     OPT_init();
@@ -366,20 +367,12 @@ int main (int argc, char *argv[])
         }
     }
 
-    if (argc==optind)
-    {
-        print_usage(argv);
-        exit(EXIT_FAILURE);
-    }
-    assembly_name = argv[optind++];
-
 #if LOG_LEVEL == LOG_DEBUG
     logf = fopen (LOG_FILENAME, "a");
 #endif
     atexit (deinit);
     LOG_init (log_cb);
 
-    IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
     IR_namespace names_root = _bootstrap_root_names();
 
     for (OPT_pathList assemblies = OPT_assembliesGet(); assemblies; assemblies=assemblies->next)
@@ -392,6 +385,11 @@ int main (int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
+
+    if (argc==optind)
+        exit(0);
+    assembly_name = argv[optind++];
+    IR_assembly assembly    = CO_AssemblyInit (S_Symbol(assembly_name));
 
     //LOG_printf (LOG_INFO, "assembly semantics\n");
     //SEM_elaborate (names_root);

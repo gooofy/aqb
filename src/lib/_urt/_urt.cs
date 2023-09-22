@@ -46,4 +46,11 @@ namespace System
     }
 }
 
+namespace System.Diagnostics
+{
+    public static class Debug
+    {
+        public extern static void Assert (bool condition);
+    }
+}
 

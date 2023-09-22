@@ -18,7 +18,7 @@ typedef struct CG_fragList_      *CG_fragList;
 typedef enum
 {
     IK_none, IK_const, IK_inFrame, IK_inReg, IK_inHeap, IK_cond,
-    IK_varPtr, IK_inFrameRef, IK_property
+    IK_varPtr, IK_inFrameRef, IK_member
 } CG_itemKind;
 
 typedef enum
@@ -46,7 +46,7 @@ struct CG_item_
         struct { Temp_label l;                                     }   inHeap;
         struct { Temp_label l; AS_instrList fixUps; bool postCond; }   condR;
         Temp_temp                                                      varPtr;
-        struct { Temp_temp thisReg; IR_type thisTy; IR_member p;   }   property;
+        struct { Temp_temp thisReg; IR_type thisTy; IR_member m;   }   member;
     } u;
 };
 

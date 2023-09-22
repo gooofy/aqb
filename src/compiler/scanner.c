@@ -27,6 +27,7 @@ static char          g_str[MAX_LINE_LEN];
 static char          g_cur_line[MAX_LINE_LEN];
 
 static TAB_table     g_src;     // line number -> string
+static TAB_table     g_syms;    // S_symbol -> S_token
 
 static void remember_pos(void)
 {
@@ -39,23 +40,48 @@ static void _print_token(void)
 {
     switch (S_tkn.kind)
     {
-        case S_IDENT    : LOG_printf(LOG_DEBUG, "[IDENT %s]",  S_name(S_tkn.u.sym)); break;
-        case S_STRING   : LOG_printf(LOG_DEBUG, "[STRING %s]", S_tkn.u.str); break;
-        case S_EOF      : LOG_printf(LOG_DEBUG, "[EOF]"); break;
-        case S_PERIOD   : LOG_printf(LOG_DEBUG, "."); break;
-        case S_LBRACE   : LOG_printf(LOG_DEBUG, "{"); break;
-        case S_RBRACE   : LOG_printf(LOG_DEBUG, "}"); break;
-        case S_SEMICOLON: LOG_printf(LOG_DEBUG, ";"); break;
-        case S_COLON    : LOG_printf(LOG_DEBUG, ":"); break;
-        case S_COMMA    : LOG_printf(LOG_DEBUG, ","); break;
-        case S_ASTERISK : LOG_printf(LOG_DEBUG, "*"); break;
-        case S_SLASH    : LOG_printf(LOG_DEBUG, "/"); break;
-        case S_EQUALS   : LOG_printf(LOG_DEBUG, "="); break;
-        case S_LESS     : LOG_printf(LOG_DEBUG, "<"); break;
-        case S_LBRACKET : LOG_printf(LOG_DEBUG, "["); break;
-        case S_RBRACKET : LOG_printf(LOG_DEBUG, "]"); break;
-        case S_LPAREN   : LOG_printf(LOG_DEBUG, "("); break;
-        case S_RPAREN   : LOG_printf(LOG_DEBUG, ")"); break;
+        case S_IDENT         : LOG_printf(LOG_DEBUG, "[IDENT %s]",  S_name(S_tkn.u.sym)); break;
+        case S_STRING        : LOG_printf(LOG_DEBUG, "[STRING %s]", S_tkn.u.str); break;
+        case S_EOF           : LOG_printf(LOG_DEBUG, "[EOF]"); break;
+        case S_PERIOD        : LOG_printf(LOG_DEBUG, "."); break;
+        case S_LBRACE        : LOG_printf(LOG_DEBUG, "{"); break;
+        case S_RBRACE        : LOG_printf(LOG_DEBUG, "}"); break;
+        case S_SEMICOLON     : LOG_printf(LOG_DEBUG, ";"); break;
+        case S_COLON         : LOG_printf(LOG_DEBUG, ":"); break;
+        case S_COMMA         : LOG_printf(LOG_DEBUG, ","); break;
+        case S_ASTERISK      : LOG_printf(LOG_DEBUG, "*"); break;
+        case S_SLASH         : LOG_printf(LOG_DEBUG, "/"); break;
+        case S_QUESTIONMARK  : LOG_printf(LOG_DEBUG, "?"); break;
+        case S_PLUS          : LOG_printf(LOG_DEBUG, "+"); break;
+        case S_MINUS         : LOG_printf(LOG_DEBUG, "-"); break;
+        case S_DIV           : LOG_printf(LOG_DEBUG, "/"); break;
+        case S_MOD           : LOG_printf(LOG_DEBUG, "%"); break;
+        case S_AND           : LOG_printf(LOG_DEBUG, "&"); break;
+        case S_OR            : LOG_printf(LOG_DEBUG, "|"); break;
+        case S_EOR           : LOG_printf(LOG_DEBUG, "^"); break;
+        case S_LSHIFT        : LOG_printf(LOG_DEBUG, "<<"); break;
+        case S_RSHIFT        : LOG_printf(LOG_DEBUG, ">>"); break;
+        case S_EQUALS        : LOG_printf(LOG_DEBUG, "="); break;
+        case S_LESS          : LOG_printf(LOG_DEBUG, "<"); break;
+        case S_GREATER       : LOG_printf(LOG_DEBUG, ">"); break;
+        case S_LBRACKET      : LOG_printf(LOG_DEBUG, "["); break;
+        case S_RBRACKET      : LOG_printf(LOG_DEBUG, "]"); break;
+        case S_LPAREN        : LOG_printf(LOG_DEBUG, "("); break;
+        case S_RPAREN        : LOG_printf(LOG_DEBUG, ")"); break;
+        case S_PLUSEQUALS    : LOG_printf(LOG_DEBUG, "+="); break;
+        case S_MINUSEQUALS   : LOG_printf(LOG_DEBUG, "-="); break;
+        case S_MULEQUALS     : LOG_printf(LOG_DEBUG, "*="); break;
+        case S_DIVEQUALS     : LOG_printf(LOG_DEBUG, "/="); break;
+        case S_MODEQUALS     : LOG_printf(LOG_DEBUG, "%="); break;
+        case S_ANDEQUALS     : LOG_printf(LOG_DEBUG, "&="); break;
+        case S_OREQUALS      : LOG_printf(LOG_DEBUG, "|="); break;
+        case S_EOREQUALS     : LOG_printf(LOG_DEBUG, "^="); break;
+        case S_LSHIFTEQUALS  : LOG_printf(LOG_DEBUG, "<<="); break;
+        case S_RSHIFTEQUALS  : LOG_printf(LOG_DEBUG, ">>="); break;
+        case S_PLUSPLUS      : LOG_printf(LOG_DEBUG, "++"); break;
+        case S_MINUSMINUS    : LOG_printf(LOG_DEBUG, "--"); break;
+        case S_TRUE          : LOG_printf(LOG_DEBUG, "true"); break;
+        case S_FALSE         : LOG_printf(LOG_DEBUG, "false"); break;
     }
 }
 #else
@@ -251,6 +277,11 @@ static void _identifier(void)
     g_str[l] = '\0';
 
     S_tkn.u.sym = S_Symbol(g_str);
+
+    // known id ?
+    void *sid = TAB_look (g_syms, S_tkn.u.sym);
+    if (sid)
+        S_tkn.kind = (intptr_t) sid;
 }
 
 static void _string(void)
@@ -389,14 +420,126 @@ bool S_nextToken (void)
                 case '*':
                     getch();
                     S_tkn.kind = S_ASTERISK;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_MULEQUALS;
+                    }
                     goto done;
                 case '<':
                     getch();
                     S_tkn.kind = S_LESS;
+                    if (g_ch=='<')
+                    {
+                        getch();
+                        S_tkn.kind = S_LSHIFT;
+                        if (g_ch=='=')
+                        {
+                            getch();
+                            S_tkn.kind = S_LSHIFTEQUALS;
+                        }
+                    }
+                    goto done;
+                case '>':
+                    getch();
+                    S_tkn.kind = S_GREATER;
+                    if (g_ch=='<')
+                    {
+                        getch();
+                        S_tkn.kind = S_RSHIFT;
+                        if (g_ch=='=')
+                        {
+                            getch();
+                            S_tkn.kind = S_RSHIFTEQUALS;
+                        }
+                    }
                     goto done;
                 case '=':
                     getch();
                     S_tkn.kind = S_EQUALS;
+                    goto done;
+                case '?':
+                    getch();
+                    S_tkn.kind = S_QUESTIONMARK;
+                    goto done;
+                case '+':
+                    getch();
+                    S_tkn.kind = S_PLUS;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_PLUSEQUALS;
+                    }
+                    else
+                    {
+                        if (g_ch == '+')
+                        {
+                            getch();
+                            S_tkn.kind = S_PLUSPLUS;
+                        }
+                    }
+                    goto done;
+                case '-':
+                    getch();
+                    S_tkn.kind = S_MINUS;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_MINUSEQUALS;
+                    }
+                    else
+                    {
+                        if (g_ch == '-')
+                        {
+                            getch();
+                            S_tkn.kind = S_MINUSMINUS;
+                        }
+                    }
+                    goto done;
+                case '/':
+                    getch();
+                    S_tkn.kind = S_DIV;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_DIVEQUALS;
+                    }
+                    goto done;
+                case '%':
+                    getch();
+                    S_tkn.kind = S_MOD;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_MODEQUALS;
+                    }
+                    goto done;
+                case '&':
+                    getch();
+                    S_tkn.kind = S_AND;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_ANDEQUALS;
+                    }
+                    goto done;
+                case '|':
+                    getch();
+                    S_tkn.kind = S_OR;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_OREQUALS;
+                    }
+                    goto done;
+                case '^':
+                    getch();
+                    S_tkn.kind = S_EOR;
+                    if (g_ch == '=')
+                    {
+                        getch();
+                        S_tkn.kind = S_EOREQUALS;
+                    }
                     goto done;
                 default:
                     LOG_printf (LOG_ERROR, "%s:%d: lexer: invalid char '%c' (0x%02x)\n", g_sourcefn, g_line, g_ch, g_ch);
@@ -437,5 +580,13 @@ string  S_getSourceLine (int line)
 
     string s = TAB_look (g_src, (void*) (long) line);
     return s ? s : "";
+}
+
+void S_boot(void)
+{
+    g_syms = TAB_empty (UP_symbol);
+
+    TAB_enter (g_syms, S_Symbol("true") , (void *) (intptr_t) S_TRUE);
+    TAB_enter (g_syms, S_Symbol("false"), (void *) (intptr_t) S_FALSE);
 }
 

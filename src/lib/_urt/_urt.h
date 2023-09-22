@@ -149,10 +149,11 @@ extern BOOL     _do_resume;     // set by RESUME NEXT
  *                                                                  *
  ********************************************************************/
 
-typedef struct System_Object_  System_Object;
-typedef struct System_String_  System_String;
-typedef struct System_Console_ System_Console;
-typedef struct System_GC_      System_GC;
+typedef struct System_Object_            System_Object;
+typedef struct System_String_            System_String;
+typedef struct System_Console_           System_Console;
+typedef struct System_Diagnostics_Debug_ System_Diagnostics_Debug;
+typedef struct System_GC_                System_GC;
 
 struct System_Object_
 {
@@ -202,6 +203,18 @@ struct System_Console_
 
 VOID _System_Console___gc_scan (System_Console *this, System_GC *gc);
 VOID _System_Console_WriteLine  (System_String *value);
+
+struct System_Diagnostics_Debug_
+{
+    ULONG    **_vTablePtr;
+    System_Object **__gc_next;
+    System_Object **__gc_prev;
+    ULONG    __gc_size;
+    UBYTE    __gc_color;
+};
+
+VOID _System_Diagnostics_Debug___gc_scan (System_Diagnostics_Debug *this, System_GC *gc);
+VOID _System_Diagnostics_Debug_Assert    (BOOL condition, System_String *compiler_msg); // FIXME: compiler_msg special
 
 void           GC_RUN                (void);
 void           GC_REGISTER           (System_Object *obj);

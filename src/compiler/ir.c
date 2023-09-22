@@ -596,6 +596,32 @@ IR_expression IR_Expression (IR_exprKind kind, S_pos pos)
     return exp;
 }
 
+IR_expression IR_name2expr (IR_name n)
+{
+    IR_expression eLast = NULL;
+    for (IR_symNode sn=n->first; sn; sn=sn->next)
+    {
+        if (!sn->sym)
+            continue;
+
+        if (eLast)
+        {
+            IR_expression e = IR_Expression (IR_expSelector, n->pos);
+            e->u.selector.sym = sn->sym;
+            e->u.selector.e   = eLast;
+            eLast = e;
+        }
+        else
+        {
+            IR_expression e = IR_Expression (IR_expSym, n->pos);
+            e->u.sym = sn->sym;
+            eLast = e;
+        }
+    }
+
+    return eLast;
+}
+
 IR_argumentList IR_ArgumentList (void)
 {
     IR_argumentList al = U_poolAllocZero (UP_ir, sizeof (*al));

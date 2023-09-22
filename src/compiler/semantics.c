@@ -2,6 +2,36 @@
 #include "codegen.h"
 #include "errormsg.h"
 #include "options.h"
+#include "parser.h"
+
+typedef struct SEM_context_ *SEM_context;
+typedef struct SEM_item_     SEM_item;
+
+struct SEM_context_
+{
+    IR_using      usings;
+    AS_instrList  code;
+    CG_frame      frame;
+    Temp_label    exitlbl;
+    CG_item      *returnVar;
+};
+
+typedef enum
+{
+    SIK_member, SIK_cg, SIK_namespace, SIK_type
+} SEM_itemKind;
+
+struct SEM_item_
+{
+    SEM_itemKind      kind;
+    union
+    {
+        CG_item                                                        cg;
+        struct { Temp_temp thisReg; IR_type thisTy; IR_member m;   }   member;
+        IR_namespace                                                   names;
+        IR_type                                                        type;
+    } u;
+};
 
 static S_symbol S_Create;
 static S_symbol S_this;
@@ -10,6 +40,9 @@ static S_symbol S_String;
 static S_symbol S_gc;
 static S_symbol S_GC;
 static S_symbol S__MarkBlack;
+static S_symbol S_Assert;
+static S_symbol S_Debug;
+static S_symbol S_Diagnostics;
 
 static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
@@ -37,6 +70,49 @@ static IR_type _getSystemGCType(void)
     }
     return _g_tySystemGC;
 }
+
+static SEM_context _SEM_Context (IR_using usings, AS_instrList code, CG_frame frame)
+{
+    SEM_context context = U_poolAllocZero (UP_ir, sizeof (*context));
+
+    context->usings = usings;
+    context->code   = code;
+    context->frame  = frame;
+
+    return context;
+}
+
+//static bool _resolveSym (SEM_context context, S_symbol sym, SEM_item *res)
+//{
+//    for (IR_using u=context->usings; u; u=u->next)
+//    {
+//        if (u->alias)
+//        {
+//            if (sym != u->alias)
+//                continue;
+//            if (u->type)
+//            {
+//                res->kind   = SIK_type;
+//                res->u.type = u->type;
+//                return true;
+//            }
+//            res->kind    = SIK_namespace;
+//            res->u.names = u->names;
+//            return true;
+//        }
+//        else
+//        {
+//            if (u->names->name == sym)
+//            {
+//                res->kind    = SIK_namespace;
+//                res->u.names = u->names;
+//                return true;
+//            }
+//        }
+//    }
+//
+//    return false;
+//}
 
 static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
 {
@@ -229,10 +305,10 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
 }
 
 static void _elaborateType (IR_type ty, IR_using usings);
-static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res);
+static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
-                                    AS_instrList code, CG_frame frame, CG_item *res)
+                                    AS_instrList code, CG_frame frame, SEM_item *res)
 {
     assert (tyCls->kind == Ty_class);
 
@@ -241,24 +317,43 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
         return EM_error(pos, "builtin type %s's %s is not a method.", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/false), S_name(builtinMethod));
 
     IR_method method = entry->u.method;
-    CG_transMethodCall(code, pos, frame, method, arglist, res);
+    res->kind = SIK_cg;
+    CG_transMethodCall(code, pos, frame, method, arglist, &res->u.cg);
     return true;
 }
 
-static bool _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res)
+// FIXME
+static bool _isDebugAssert (SEM_item *fun)
 {
-    // resolve name
+    if (fun->kind != SIK_member)
+        return false;
+    if (fun->u.member.m->name != S_Assert)
+        return false;
+    if (fun->u.member.thisTy->kind != Ty_reference || fun->u.member.thisTy->u.ref->kind != Ty_class)
+        return false;
+    IR_name n = fun->u.member.thisTy->u.ref->u.cls.name;
+    if (!n->first->next || !n->first->next->next || (n->first->next->next != n->last) )
+        return false;
+    if ((n->first->sym != S_System) || (n->last->sym != S_Debug) || (n->first->next->sym != S_Diagnostics))
+        return false;
+    return true;
+}
 
-    IR_member mem = IR_namesResolveMember (expr->u.call.name, usings);
-
-    if (!mem || mem->kind != IR_recMethod)
+static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    SEM_item fun;
+    if (!_elaborateExpression (expr->u.call.fun, context, &fun))
     {
-        EM_error (expr->u.call.name->pos, "failed to resolve method");
+        EM_error (expr->u.call.fun->pos, "failed to elaborate method");
+        return false;
+    }
+    if ((fun.kind != SIK_member) || (fun.u.member.m->kind != IR_recMethod))
+    {
+        EM_error (expr->u.call.fun->pos, "tried to call something that is not a method");
         return false;
     }
 
-    IR_method m = mem->u.method;
-    assert(m);
+    IR_method m = fun.u.member.m->u.method;
 
     IR_proc proc = m->proc;
     CG_itemList args = CG_ItemList();
@@ -272,34 +367,192 @@ static bool _elaborateExprCall (IR_expression expr, IR_using usings, AS_instrLis
     for (IR_argument a = expr->u.call.al->first; a; a=a->next)
     {
         CG_itemListNode n = CG_itemListAppend(args);
-        if (!_elaborateExpression (a->e, usings, code, frame, &n->item))
+        SEM_item item;
+        if (!_elaborateExpression (a->e, context, &item))
             return false;
+        assert (item.kind == SIK_cg); // FIXME
+        n->item = item.u.cg;
     }
 
-    return CG_transMethodCall(code, expr->pos, frame, m, args, res);
+    // FIXME: Debug.Assert special
+    if (_isDebugAssert (&fun))
+    {
+        CG_itemList args2 = CG_ItemList();
+        CG_itemListNode n = CG_itemListAppend(args2);
+        CG_StringItem (context->code, expr->pos, &n->item, strprintf (UP_ir, "%s:%d:%d: debug assertion failed", PA_filename ? PA_filename : "???", expr->pos.line, expr->pos.col));
+        n = CG_itemListAppend(args2);
+        CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
+
+        n = CG_itemListAppend(args);
+        SEM_item semStr;
+        _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args2, context->code, context->frame, &semStr);
+        n->item = semStr.u.cg;
+    }
+
+    res->kind = SIK_cg;
+    return CG_transMethodCall(context->code, expr->pos, context->frame, m, args, &res->u.cg);
 }
 
-static bool _elaborateExprStringLiteral (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame,
-                                         CG_item *res)
+static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context, SEM_item *res)
 {
     CG_itemList args = CG_ItemList();
     CG_itemListNode n = CG_itemListAppend(args);
-    CG_StringItem (code, expr->pos, &n->item, expr->u.stringLiteral);
+    CG_StringItem (context->code, expr->pos, &n->item, expr->u.stringLiteral);
     n = CG_itemListAppend(args);
     CG_BoolItem (&n->item, false, IR_TypeBoolean()); // owned
 
-    return _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args, code, frame, res);
+    return _transCallBuiltinMethod(expr->pos, _getStringType()->u.ref, S_Create, args, context->code, context->frame, res);
 }
 
-static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrList code, CG_frame frame, CG_item *res)
+static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    // is this a namespace ?
+
+    S_symbol sym = expr->u.selector.sym;
+    for (IR_using u=context->usings; u; u=u->next)
+    {
+        if (u->alias)
+            continue;
+
+        if (u->names->name == sym)
+        {
+            IR_expression ep = expr->u.selector.e;
+            IR_namespace  np = u->names->parent;
+
+            while (ep && np)
+            {
+                if (ep->kind != IR_expSelector)
+                    break;
+                if (ep->u.selector.sym != np->name)
+                    break;
+                ep = ep->u.selector.e;
+                np = np->parent;
+            }
+
+            if (!ep && ( !np || (!np->parent && !np->name) ) )
+            {
+                res->kind    = SIK_namespace;
+                res->u.names = u->names;
+                return true;
+            }
+        }
+    }
+
+    SEM_item parent;
+    if (!_elaborateExpression (expr->u.selector.e, context, &parent))
+        return false;
+
+    switch (parent.kind)
+    {
+        case SIK_namespace:
+        {
+            IR_type t = IR_namesResolveType (expr->pos, parent.u.names, sym, /*usings=*/NULL, /*doCreate=*/false);
+            if (t)
+            {
+                res->kind   = SIK_type;
+                res->u.type = t;
+                return true;
+            }
+            EM_error (expr->pos, "failed to resolve %s in namespace %s",
+                      IR_name2string (IR_NamespaceName(parent.u.names, sym, expr->pos), /*underscoreSeparator=*/false));
+            return false;
+        }
+        case SIK_type:
+        {
+            IR_member member = IR_findMember (parent.u.type, sym, /*checkBase=*/true);
+            if (member)
+            {
+                res->kind = SIK_member;
+                res->u.member.thisReg = NULL;
+                res->u.member.thisTy  = parent.u.type;
+                res->u.member.m       = member;
+                return true;
+            }
+            EM_error (expr->pos, "failed to resolve %s [1]", S_name (sym)); 
+            break;
+        }
+        default:
+            // FIXME: implement
+            assert(false);
+    }
+
+
+    return false;
+}
+
+static bool _elaborateExprSym (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    S_symbol sym = expr->u.sym;
+    // FIXME: lookup local contxt symbols
+
+    // is this a namespace or a type in an imported namespace?
+    for (IR_using u=context->usings; u; u=u->next)
+    {
+        if (u->alias)
+        {
+            if (sym != u->alias)
+                continue;
+            if (u->type)
+            {
+                res->kind   = SIK_type;
+                res->u.type = u->type;
+                return true;
+            }
+            res->kind    = SIK_namespace;
+            res->u.names = u->names;
+            return true;
+        }
+        else
+        {
+            IR_type t = IR_namesResolveType (expr->pos, u->names, sym, /*usings=*/NULL, /*doCreate=*/false);
+            if (t)
+            {
+                res->kind   = SIK_type;
+                res->u.type = t;
+                return true;
+            }
+
+            if (u->names->parent && u->names->parent->name)
+                continue;
+            if (u->names->name == sym)
+            {
+                res->kind    = SIK_namespace;
+                res->u.names = u->names;
+                return true;
+            }
+        }
+    }
+
+    EM_error (expr->pos, "failed to resolve %s [2]", S_name (sym));
+    return false;
+}
+
+static bool _elaborateExprConst (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    res->kind = SIK_cg;
+    CG_ConstItem (&res->u.cg, expr->u.c);
+
+    return true;
+}
+
+static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res)
 {
     switch (expr->kind)
     {
         case IR_expCall:
-            return _elaborateExprCall (expr, usings, code, frame, res);
+            return _elaborateExprCall (expr, context, res);
 
         case IR_expLiteralString:
-            return _elaborateExprStringLiteral (expr, usings, code, frame, res);
+            return _elaborateExprStringLiteral (expr, context, res);
+
+        case IR_expSelector:
+            return _elaborateExprSelector (expr, context, res);
+
+        case IR_expSym:
+            return _elaborateExprSym (expr, context, res);
+
+        case IR_expConst:
+            return _elaborateExprConst (expr, context, res);
 
         default:
             assert(false); // FIXME
@@ -307,14 +560,14 @@ static bool _elaborateExpression (IR_expression expr, IR_using usings, AS_instrL
     return false;
 }
 
-static void _elaborateStmt (IR_statement stmt, IR_using usings, AS_instrList code, CG_frame frame)
+static void _elaborateStmt (IR_statement stmt, SEM_context context)
 {
     switch (stmt->kind)
     {
         case IR_stmtExpression:
         {
-            CG_item res;
-            _elaborateExpression (stmt->u.expr, usings, code, frame, &res);
+            SEM_item res;
+            _elaborateExpression (stmt->u.expr, context, &res);
             break;
         }
         default:
@@ -356,8 +609,9 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
         }
 
         AS_instrList code = AS_InstrList();
-        Temp_label exitlbl = Temp_newlabel();
-        CG_item   returnVar;
+        SEM_context context = _SEM_Context (usings, code, funFrame);
+        context->exitlbl = Temp_newlabel();
+        CG_item returnVar;
 
         if (proc->returnTy)
         {
@@ -371,16 +625,18 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
             CG_NoneItem (&returnVar);
         }
 
+        context->returnVar = &returnVar;
+
         for (IR_statement stmt=proc->sl->first; stmt; stmt=stmt->next)
         {
-            _elaborateStmt (stmt, usings, code, funFrame);
+            _elaborateStmt (stmt, context);
         }
 
         CG_procEntryExit(proc->pos,
                          funFrame,
                          code,
                          &returnVar,
-                         exitlbl,
+                         context->exitlbl,
                          IR_procIsMain (proc),
                          /*expt=*/proc->visibility == IR_visPublic);
     }
@@ -970,12 +1226,15 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 
 void SEM_boot(void)
 {
-    S_Create     = S_Symbol("Create");
-    S_this       = S_Symbol("this");
-    S_System     = S_Symbol("System");
-    S_String     = S_Symbol("String");
-    S_GC         = S_Symbol("GC");
-    S_gc         = S_Symbol("gc");
-    S__MarkBlack = S_Symbol("_MarkBlack");
+    S_Create      = S_Symbol("Create");
+    S_this        = S_Symbol("this");
+    S_System      = S_Symbol("System");
+    S_String      = S_Symbol("String");
+    S_GC          = S_Symbol("GC");
+    S_gc          = S_Symbol("gc");
+    S__MarkBlack  = S_Symbol("_MarkBlack");
+    S_Assert      = S_Symbol("Assert");
+    S_Debug       = S_Symbol("Debug");
+    S_Diagnostics = S_Symbol("Diagnostics");
 }
 

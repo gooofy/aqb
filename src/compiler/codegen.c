@@ -617,7 +617,7 @@ IR_type CG_ty(CG_item *item)
         case IK_cond:
         case IK_varPtr:
         case IK_inFrameRef:
-        case IK_property:
+        case IK_member:
             return item->ty;
     }
     assert(false);
@@ -1266,30 +1266,44 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
             break;
         }
 
-        case IK_property:
+        case IK_member:
         {
-            // call getter
+            // call method
 
             IR_type ty = CG_ty(item);
-            IR_method getter = item->u.property.p->u.property.getter;
-
-            if (!getter)
+            IR_member m = item->u.member.m;
+            IR_method method=NULL;
+            switch (m->kind)
             {
-                EM_error(pos, "property has no getter");
+                case IR_recMethod:
+                    method = m->u.method;
+                    break;
+                case IR_recField:
+                    assert(false);
+                    break;
+                case IR_recProperty:
+                    method = m->u.property.getter;
+                    break;
+
+            }
+
+            if (!method)
+            {
+                EM_error(pos, "property has no method");
                 return;
             }
 
             CG_item thisRef;
             thisRef.kind     = IK_varPtr;
-            thisRef.ty       = item->u.property.thisTy;
-            thisRef.u.varPtr = item->u.property.thisReg;
+            thisRef.ty       = item->u.member.thisTy;
+            thisRef.u.varPtr = item->u.member.thisReg;
 
             CG_itemList     args = CG_ItemList();
             CG_itemListNode iln  = CG_itemListPrepend (args);
             iln->item = thisRef;
 
             CG_TempItem (item, ty);
-            CG_transMethodCall (code, pos, frame, getter, args, item);
+            CG_transMethodCall (code, pos, frame, method, args, item);
 
             break;
         }
@@ -1389,7 +1403,7 @@ void CG_loadCond (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
         case IK_inReg:
         case IK_inHeap:
         case IK_inFrame:
-        case IK_property:
+        // FIXME case IK_member:
         case IK_varPtr:
         {
             CG_item zero;
@@ -3252,7 +3266,7 @@ void CG_transRelOp (AS_instrList code, S_pos pos, CG_frame frame, CG_relOp ro, C
         case IK_inHeap:
         case IK_varPtr:
         case IK_inFrameRef:
-        case IK_property:
+        // case IK_property: FIXME
             CG_loadVal (code, pos, frame, left);
 
             switch (ty->kind)
@@ -3890,9 +3904,9 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method
 
 static void _call_property_setter (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
 {
-    assert (left->kind == IK_property);
+    assert ((left->kind == IK_member) && (left->u.member.m->kind == IR_recProperty));
 
-    IR_method setter = left->u.property.p->u.property.setter;
+    IR_method setter = left->u.member.m->u.property.setter;
 
     if (!setter)
     {
@@ -3904,8 +3918,8 @@ static void _call_property_setter (AS_instrList code, S_pos pos, CG_frame frame,
 
     CG_item thisRef;
     thisRef.kind     = IK_varPtr;
-    thisRef.ty       = left->u.property.thisTy;
-    thisRef.u.varPtr = left->u.property.thisReg;
+    thisRef.ty       = left->u.member.thisTy;
+    thisRef.u.varPtr = left->u.member.thisReg;
 
     CG_itemList     args = CG_ItemList();
     CG_itemListNode iln  = CG_itemListPrepend (args);
@@ -3965,7 +3979,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_RAn, w, NULL, left->u.varPtr,
                                                           right->u.c, 0, NULL));                                      // move.x #right, (left)
                     break;
-                case IK_property:
+                case IK_member:
                     _call_property_setter (code, pos, frame, left, right);
                     break;
                 case IK_const:
@@ -3980,7 +3994,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
         case IK_cond:
         case IK_varPtr:
         case IK_inFrameRef:
-        case IK_property:
+        // FIXME case IK_property:
             CG_loadVal (code, pos, frame, right);
             // fall through
         case IK_inReg:
@@ -4004,7 +4018,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     CG_loadRef (code, pos, frame, left);
                     AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, right->u.inReg, left->u.varPtr));   // move.x right.t, (left)
                     break;
-                case IK_property:
+                case IK_member:
                     _call_property_setter (code, pos, frame, left, right);
                     break;
                 case IK_const:
@@ -4047,7 +4061,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                                                           NULL, right->u.inFrameR.offset, NULL));
                     break;
 
-                case IK_property:
+                case IK_member:
                     _call_property_setter (code, pos, frame, left, right);
                     break;
 
@@ -4093,7 +4107,7 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                                                           NULL, left->u.inFrameR.offset, right->u.inHeap.l));
                     break;
 
-                case IK_property:
+                case IK_member:
                     _call_property_setter (code, pos, frame, left, right);
                     break;
 

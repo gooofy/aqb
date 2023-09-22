@@ -141,10 +141,14 @@ static bool _namespace_declaration (void)
 
     while (S_tkn.kind == S_PERIOD)
     {
-        EM_error (S_tkn.pos, "sorry");
-        //fflush(stdout);
-        //// FIXME: implement!
-        assert(false);
+        S_nextToken();
+        if (S_tkn.kind != S_IDENT)
+        {
+            EM_error (S_tkn.pos, "namespace identifier expected here");
+            return false;
+        }
+        _g_names = IR_namesResolveNames (_g_names, S_tkn.u.sym, /*doCreate=*/true);
+        S_nextToken();
     }
 
     if (!_namespace_body ())
@@ -478,66 +482,351 @@ static IR_argumentList _argument_list (void)
 /*
  * invocation_expression : primary_expression argument_list
  */
-static IR_expression _invocation_expression (IR_name n)
+static IR_expression _invocation_expression (IR_expression eFunc)
 {
     S_pos pos;
-    if (!n)
+    if (!eFunc)
     {
         pos = S_tkn.pos;
         assert(false); // FIXME
     }
     else
     {
-        pos = n->pos;
+        pos = eFunc->pos;
     }
 
-    IR_expression expr = IR_Expression (IR_expCall, pos);
+    IR_expression eCall = IR_Expression (IR_expCall, pos);
 
-    expr->u.call.name = n;
-    expr->u.call.al   = _argument_list();
+    eCall->u.call.fun = eFunc;
+    eCall->u.call.al  = _argument_list();
 
-    return expr;
+    return eCall;
 }
 
 /*
  * object_creation_expression : 'new' type ( '(' argument_list? ')' )? object_or_collection_initializer?
  *
  * assignment : unary_expression assignment_operator expression
-*/
+ *
+ *
+ *
+ *
+ *
+ * conditional_and_expression
+ *     : inclusive_or_expression
+ *     | conditional_and_expression '&&' inclusive_or_expression
+ *     ;
+ *
+ * inclusive_or_expression
+ *     : exclusive_or_expression
+ *     | inclusive_or_expression '|' exclusive_or_expression
+ *     ;
+ *
+ * exclusive_or_expression
+ *     : and_expression
+ *     | exclusive_or_expression '^' and_expression
+ *     ;
+ *
+ * and_expression
+ *     : equality_expression
+ *     | and_expression '&' equality_expression
+ *     ;
+ *
+ * equality_expression
+ *     : relational_expression
+ *     | equality_expression '==' relational_expression
+ *     | equality_expression '!=' relational_expression
+ *     ;
+ *
+ * relational_expression
+ *     : shift_expression
+ *     | relational_expression '<' shift_expression
+ *     | relational_expression '>' shift_expression
+ *     | relational_expression '<=' shift_expression
+ *     | relational_expression '>=' shift_expression
+ *     | relational_expression 'is' type
+ *     | relational_expression 'is' pattern
+ *     | relational_expression 'as' type
+ *     ;
+ *
+ * shift_expression
+ *     : additive_expression
+ *     | shift_expression '<<' additive_expression
+ *     | shift_expression right_shift additive_expression
+ *     ;
+ *
+ * additive_expression
+ *     : multiplicative_expression
+ *     | additive_expression '+' multiplicative_expression
+ *     | additive_expression '-' multiplicative_expression
+ *     ;
+ *
+ * multiplicative_expression
+ *     : unary_expression
+ *     | multiplicative_expression '*' unary_expression
+ *     | multiplicative_expression '/' unary_expression
+ *     | multiplicative_expression '%' unary_expression
+ *     ;
+ *
+ * unary_expression
+ *     : primary_expression
+ *     | '+' unary_expression
+ *     | '-' unary_expression
+ *     | '!' unary_expression
+ *     | '~' unary_expression
+ *     | pre_increment_expression
+ *     | pre_decrement_expression
+ *     | cast_expression
+ *     | await_expression
+ *     | pointer_indirection_expression
+ *     | addressof_expression
+ *     ;
+ *
+ * array_creation_expression
+ *     : 'new' non_array_type '[' expression_list ']' rank_specifier* array_initializer?
+ *     | 'new' array_type array_initializer
+ *     | 'new' rank_specifier array_initializer
+ *     ;
+ *
+ * object_creation_expression
+ *     : 'new' type '(' argument_list? ')' object_or_collection_initializer?
+ *     | 'new' type object_or_collection_initializer
+ *     ;
+ *
+ * object_or_collection_initializer
+ *     : object_initializer
+ *     | collection_initializer
+ *     ;
+ * 
+ * object_initializer
+ *     : '{' member_initializer_list? '}'
+ *     | '{' member_initializer_list ',' '}'
+ *     ;
+ * 
+ * collection_initializer
+ *     : '{' element_initializer_list '}'
+ *     | '{' element_initializer_list ',' '}'
+ *     ;
+ * 
+ * array_initializer
+ *     : '{' variable_initializer_list? '}'
+ *     | '{' variable_initializer_list ',' '}'
+ *     ;
+ *
+ * primary_expression
+ *     : primary_no_array_creation_expression
+ *     | array_creation_expression
+ *     ;
+ *
+ * primary_no_array_creation_expression
+ *     : literal
+ *     | interpolated_string_expression
+ *     | simple_name
+ *     | parenthesized_expression
+ *     | tuple_expression
+ *     | member_access
+ *     | null_conditional_member_access
+ *     | invocation_expression
+ *     | element_access
+ *     | null_conditional_element_access
+ *     | this_access
+ *     | base_access
+ *     | post_increment_expression
+ *     | post_decrement_expression
+ *     | object_creation_expression
+ *     | delegate_creation_expression
+ *     | anonymous_object_creation_expression
+ *     | typeof_expression
+ *     | sizeof_expression
+ *     | checked_expression
+ *     | unchecked_expression
+ *     | default_value_expression
+ *     | nameof_expression
+ *     | anonymous_method_expression
+ *     | pointer_member_access     // unsafe code support
+ *     | pointer_element_access    // unsafe code support
+ *     | stackalloc_expression
+ *     ;
 
-static IR_expression _expression (IR_name n1)
+simple_name
+    : identifier type_argument_list?
+    ;
+
+member_access
+    : primary_expression '.' identifier type_argument_list?
+    | predefined_type '.' identifier type_argument_list?
+    | qualified_alias_member '.' identifier type_argument_list?
+    ;
+
+invocation_expression
+    : primary_expression '(' argument_list? ')'
+    ;
+
+element_access
+    : primary_no_array_creation_expression '[' argument_list ']'
+    ;
+
+post_increment_expression
+    : primary_expression '++'
+    ;
+
+post_decrement_expression
+    : primary_expression '--'
+    ;
+
+
+
+ */
+
+/*
+ * creation expression : 'new' ... TODO
+ */
+
+/*
+ * primary_expression :
+ *                    ( literal
+ *                    | creation_expression
+ *                    | '(' expression ')'
+ *                    | identifier [ type_argument_list ]
+ *                    )
+ *                    { ( '.' identifier [ type_argument_list ]
+ *                      | '[' argument_list ']'
+ *                      | '(' [ argument_list ] ')'
+ *                      | '++'
+ *                      | '--' }
+ */
+
+static IR_expression _primary_expression (IR_name n1)
 {
-    if (!n1)
+    IR_expression expr;
+    if (n1 || S_tkn.kind == S_IDENT)
     {
-
+        if (n1)
+        {
+            expr = IR_name2expr (n1);
+        }
+        else
+        {
+            expr = IR_Expression (IR_expSym, S_tkn.pos);
+            expr->u.sym = S_tkn.u.sym;
+            S_nextToken();
+        }
+    }
+    else
+    {
         switch (S_tkn.kind)
         {
             case S_STRING:
             {
-                IR_expression expr = IR_Expression (IR_expLiteralString, S_tkn.pos);
+                expr = IR_Expression (IR_expLiteralString, S_tkn.pos);
                 expr->u.stringLiteral = S_tkn.u.str;
                 S_nextToken();
-                return expr;
-            }
-            case S_IDENT:
-                n1 = _name(NULL, S_tkn.pos);
                 break;
+            }
+            case S_TRUE:
+            {
+                expr = IR_Expression (IR_expConst, S_tkn.pos);
+                expr->u.c = IR_ConstBool (IR_TypeBoolean(), true);
+                S_nextToken();
+                break;
+            }
+            case S_FALSE:
+            {
+                expr = IR_Expression (IR_expConst, S_tkn.pos);
+                expr->u.c = IR_ConstBool (IR_TypeBoolean(), false);
+                S_nextToken();
+                break;
+            }
             default:
+                EM_error (S_tkn.pos, "sorry #23");
                 assert(false); // FIXME
         }
     }
 
-    switch (S_tkn.kind)
+    while (true)
     {
-        case S_LPAREN:
-            return _invocation_expression (n1);
 
-        default:
-            assert(false); // FIXME
+        switch (S_tkn.kind)
+        {
+            case S_LPAREN:
+                expr = _invocation_expression (expr);
+                break;
+
+            case S_PERIOD:
+                EM_error (S_tkn.pos, "sorry #24");
+                assert(false); // FIXME
+                return expr;
+
+            case S_LBRACKET:
+                EM_error (S_tkn.pos, "sorry #25");
+                assert(false); // FIXME
+                return expr;
+
+            case S_PLUSPLUS:
+                EM_error (S_tkn.pos, "sorry #26");
+                assert(false); // FIXME
+                return expr;
+
+            case S_MINUSMINUS:
+                EM_error (S_tkn.pos, "sorry #27");
+                assert(false); // FIXME
+                return expr;
+
+            default:
+                return expr;
+        }
     }
 
-    assert(false);
-    return NULL;
+    return expr;
+}
+
+/*
+ * conditional_or_expression
+ *     : conditional_and_expression
+ *     | conditional_or_expression '||' conditional_and_expression
+ *     ;
+ */
+static IR_expression _conditional_or_expression (IR_name n1)
+{
+    // FIXME FIXME
+    return _primary_expression (n1);
+}
+
+/*
+ * expression : conditional_or_expression [ ( '?' expression ':' expression
+ *                                          | assignment_operator expression ) ]
+ */
+
+static IR_expression _expression (IR_name n1)
+{
+    IR_expression e = _conditional_or_expression (n1);
+
+    switch (S_tkn.kind)
+    {
+        case S_QUESTIONMARK:
+            // FIXME
+            EM_error (S_tkn.pos, "sorry, conditional expressions are not supported yet");
+            return e;
+
+        case S_EQUALS:       // =
+        case S_PLUSEQUALS:   // +=
+        case S_MINUSEQUALS:  // -=
+        case S_MULEQUALS:    // *=
+        case S_DIVEQUALS:    // /=
+        case S_MODEQUALS:    // %=
+        case S_ANDEQUALS:    // &=
+        case S_OREQUALS:     // |=
+        case S_EOREQUALS:    // ^=
+        case S_LSHIFTEQUALS: // <<=
+        case S_RSHIFTEQUALS: // >>=
+            // FIXME
+            EM_error (S_tkn.pos, "sorry, assignment expressions are not supported yet");
+            return e;
+        default:
+            break; // ok
+    }
+
+    return e;
 }
 
 /*
@@ -1165,18 +1454,31 @@ static void _using_directive (void)
         // using alias
         alias = n1;
         S_nextToken();
-    }
-    else
-    {
-        names = IR_namesResolveNames (names, n1, /*doCreate=*/false);
-        if (!names)
-            EM_error (pos, "using: failed to resolve %s", S_name (n1));
+
+        if (S_tkn.kind != S_IDENT)
+        {
+            EM_error (S_tkn.pos, "using: identifier expected here");
+            return;
+        }
+        n1    = S_tkn.u.sym;
+        S_nextToken();
     }
 
     // name : identifier ('.' identifier)*
 
-    while (S_tkn.kind == S_IDENT)
+    names = IR_namesResolveNames (names, n1, /*doCreate=*/false);
+    if (!names)
+        EM_error (pos, "using: failed to resolve %s", S_name (n1));
+
+    while (S_tkn.kind == S_PERIOD)
     {
+        S_nextToken();
+
+        if (S_tkn.kind != S_IDENT)
+        {
+            EM_error (S_tkn.pos, "using: identifier expected here");
+            return;
+        }
         S_symbol sym = S_tkn.u.sym;
         pos   = S_tkn.pos;
         S_nextToken();
@@ -1190,12 +1492,9 @@ static void _using_directive (void)
         names = IR_namesResolveNames (names, sym, /*doCreate=*/false);
         if (!names)
         {
-            EM_error (pos, "using: failed to resolve alias");
+            EM_error (pos, "using: failed to resolve namespace");
             break;
         }
-        if (S_tkn.kind != S_PERIOD)
-            break;
-        S_nextToken();
     }
 
     if (type || names)
