@@ -617,7 +617,6 @@ IR_type CG_ty(CG_item *item)
         case IK_cond:
         case IK_varPtr:
         case IK_inFrameRef:
-        case IK_member:
             return item->ty;
     }
     assert(false);
@@ -1266,47 +1265,47 @@ void CG_loadVal (AS_instrList code, S_pos pos, CG_frame frame, CG_item *item)
             break;
         }
 
-        case IK_member:
-        {
-            // call method
+        //case IK_member:
+        //{
+        //    // call method
 
-            IR_type ty = CG_ty(item);
-            IR_member m = item->u.member.m;
-            IR_method method=NULL;
-            switch (m->kind)
-            {
-                case IR_recMethod:
-                    method = m->u.method;
-                    break;
-                case IR_recField:
-                    assert(false);
-                    break;
-                case IR_recProperty:
-                    method = m->u.property.getter;
-                    break;
+        //    IR_type ty = CG_ty(item);
+        //    IR_member m = item->u.member.m;
+        //    IR_method method=NULL;
+        //    switch (m->kind)
+        //    {
+        //        case IR_recMethod:
+        //            method = m->u.method;
+        //            break;
+        //        case IR_recField:
+        //            assert(false);
+        //            break;
+        //        case IR_recProperty:
+        //            method = m->u.property.getter;
+        //            break;
 
-            }
+        //    }
 
-            if (!method)
-            {
-                EM_error(pos, "property has no method");
-                return;
-            }
+        //    if (!method)
+        //    {
+        //        EM_error(pos, "property has no method");
+        //        return;
+        //    }
 
-            CG_item thisRef;
-            thisRef.kind     = IK_varPtr;
-            thisRef.ty       = item->u.member.thisTy;
-            thisRef.u.varPtr = item->u.member.thisReg;
+        //    CG_item thisRef;
+        //    thisRef.kind     = IK_varPtr;
+        //    thisRef.ty       = item->u.member.thisTy;
+        //    thisRef.u.varPtr = item->u.member.thisReg;
 
-            CG_itemList     args = CG_ItemList();
-            CG_itemListNode iln  = CG_itemListPrepend (args);
-            iln->item = thisRef;
+        //    CG_itemList     args = CG_ItemList();
+        //    CG_itemListNode iln  = CG_itemListPrepend (args);
+        //    iln->item = thisRef;
 
-            CG_TempItem (item, ty);
-            CG_transMethodCall (code, pos, frame, method, args, item);
+        //    CG_TempItem (item, ty);
+        //    CG_transMethodCall (code, pos, frame, method, args, item);
 
-            break;
-        }
+        //    break;
+        //}
 
         default:
             assert(false);
@@ -3902,34 +3901,34 @@ bool CG_transMethodCall (AS_instrList code, S_pos pos, CG_frame frame, IR_method
     return true;
 }
 
-static void _call_property_setter (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
-{
-    assert ((left->kind == IK_member) && (left->u.member.m->kind == IR_recProperty));
-
-    IR_method setter = left->u.member.m->u.property.setter;
-
-    if (!setter)
-    {
-        EM_error(pos, "property has no setter");
-        return;
-    }
-
-    CG_loadVal (code, pos, frame, right);
-
-    CG_item thisRef;
-    thisRef.kind     = IK_varPtr;
-    thisRef.ty       = left->u.member.thisTy;
-    thisRef.u.varPtr = left->u.member.thisReg;
-
-    CG_itemList     args = CG_ItemList();
-    CG_itemListNode iln  = CG_itemListPrepend (args);
-    iln->item = thisRef;
-
-    iln = CG_itemListAppend (args);
-    iln->item = *right;
-
-    CG_transMethodCall (code, pos, frame, setter, args, NULL);
-}
+//static void _call_property_setter (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
+//{
+//    assert ((left->kind == IK_member) && (left->u.member.m->kind == IR_recProperty));
+//
+//    IR_method setter = left->u.member.m->u.property.setter;
+//
+//    if (!setter)
+//    {
+//        EM_error(pos, "property has no setter");
+//        return;
+//    }
+//
+//    CG_loadVal (code, pos, frame, right);
+//
+//    CG_item thisRef;
+//    thisRef.kind     = IK_varPtr;
+//    thisRef.ty       = left->u.member.thisTy;
+//    thisRef.u.varPtr = left->u.member.thisReg;
+//
+//    CG_itemList     args = CG_ItemList();
+//    CG_itemListNode iln  = CG_itemListPrepend (args);
+//    iln->item = thisRef;
+//
+//    iln = CG_itemListAppend (args);
+//    iln->item = *right;
+//
+//    CG_transMethodCall (code, pos, frame, setter, args, NULL);
+//}
 
 // left := right
 void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *left, CG_item *right)
@@ -3979,9 +3978,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     AS_instrListAppend (code, AS_InstrEx (pos, AS_MOVE_Imm_RAn, w, NULL, left->u.varPtr,
                                                           right->u.c, 0, NULL));                                      // move.x #right, (left)
                     break;
-                case IK_member:
-                    _call_property_setter (code, pos, frame, left, right);
-                    break;
+                //case IK_member:
+                //    _call_property_setter (code, pos, frame, left, right);
+                //    break;
                 case IK_const:
                     EM_error (pos, "cannot assign to constants");
                     return;
@@ -4018,9 +4017,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                     CG_loadRef (code, pos, frame, left);
                     AS_instrListAppend (code, AS_Instr (pos, AS_MOVE_AnDn_RAn, w, right->u.inReg, left->u.varPtr));   // move.x right.t, (left)
                     break;
-                case IK_member:
-                    _call_property_setter (code, pos, frame, left, right);
-                    break;
+                //case IK_member:
+                //    _call_property_setter (code, pos, frame, left, right);
+                //    break;
                 case IK_const:
                     EM_error (pos, "cannot assign to constants");
                     return;
@@ -4061,9 +4060,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                                                           NULL, right->u.inFrameR.offset, NULL));
                     break;
 
-                case IK_member:
-                    _call_property_setter (code, pos, frame, left, right);
-                    break;
+                //case IK_member:
+                //    _call_property_setter (code, pos, frame, left, right);
+                //    break;
 
                 case IK_const:
                     EM_error (pos, "cannot assign to constants");
@@ -4107,9 +4106,9 @@ void CG_transAssignment (AS_instrList code, S_pos pos, CG_frame frame, CG_item *
                                                           NULL, left->u.inFrameR.offset, right->u.inHeap.l));
                     break;
 
-                case IK_member:
-                    _call_property_setter (code, pos, frame, left, right);
-                    break;
+                //case IK_member:
+                //    _call_property_setter (code, pos, frame, left, right);
+                //    break;
 
                 case IK_const:
                     EM_error (pos, "cannot assign to constants");
