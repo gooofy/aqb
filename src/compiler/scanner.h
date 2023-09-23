@@ -27,8 +27,41 @@ typedef enum {
     S_PLUSPLUS,     // ++
     S_MINUSMINUS,   // --
 
-    S_TRUE,         // true
-    S_FALSE         // false
+    // C# keywords
+    S_TRUE,
+    S_FALSE,
+    S_USING,
+    S_NAMESPACE,
+    S_NEW,
+    S_PUBLIC,
+    S_PROTECTED,
+    S_INTERNAL,
+    S_PRIVATE,
+    S_ABSTRACT,
+    S_SEALED,
+    S_STATIC,
+    S_READONLY,
+    S_UNSAFE,
+    S_REF,
+    S_PARTIAL,
+    S_CLASS,
+    S_STRUCT,
+    S_INTERFACE,
+    S_ENUM,
+    S_DELEGATE,
+    S_WHERE,
+    S_EXTERN,
+    S_VIRTUAL,
+    S_OVERRIDE,
+    S_ASYNC,
+    S_VOID,
+    S___arglist,
+    S_IF,
+    S_SWITCH,
+    S_WHILE,
+    S_DO,
+    S_FOR,
+    S_FOREACH,
 } S_token;
 
 typedef struct { uint16_t col; uint16_t line; } S_pos;

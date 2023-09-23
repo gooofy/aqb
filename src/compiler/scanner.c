@@ -82,6 +82,38 @@ static void _print_token(void)
         case S_MINUSMINUS    : LOG_printf(LOG_DEBUG, "--"); break;
         case S_TRUE          : LOG_printf(LOG_DEBUG, "true"); break;
         case S_FALSE         : LOG_printf(LOG_DEBUG, "false"); break;
+        case S_USING         : LOG_printf(LOG_DEBUG, "using"); break;
+        case S_NAMESPACE     : LOG_printf(LOG_DEBUG, "namespace"); break;
+        case S_NEW           : LOG_printf(LOG_DEBUG, "new"); break;
+        case S_PUBLIC        : LOG_printf(LOG_DEBUG, "public"); break;
+        case S_PROTECTED     : LOG_printf(LOG_DEBUG, "protected"); break;
+        case S_INTERNAL      : LOG_printf(LOG_DEBUG, "internal"); break;
+        case S_PRIVATE       : LOG_printf(LOG_DEBUG, "private"); break;
+        case S_ABSTRACT      : LOG_printf(LOG_DEBUG, "abstract"); break;
+        case S_SEALED        : LOG_printf(LOG_DEBUG, "sealed"); break;
+        case S_STATIC        : LOG_printf(LOG_DEBUG, "static"); break;
+        case S_READONLY      : LOG_printf(LOG_DEBUG, "readonly"); break;
+        case S_UNSAFE        : LOG_printf(LOG_DEBUG, "unsafe"); break;
+        case S_REF           : LOG_printf(LOG_DEBUG, "ref"); break;
+        case S_PARTIAL       : LOG_printf(LOG_DEBUG, "partial"); break;
+        case S_CLASS         : LOG_printf(LOG_DEBUG, "class"); break;
+        case S_STRUCT        : LOG_printf(LOG_DEBUG, "struct"); break;
+        case S_INTERFACE     : LOG_printf(LOG_DEBUG, "interface"); break;
+        case S_ENUM          : LOG_printf(LOG_DEBUG, "enum"); break;
+        case S_DELEGATE      : LOG_printf(LOG_DEBUG, "delegate"); break;
+        case S_WHERE         : LOG_printf(LOG_DEBUG, "where"); break;
+        case S_EXTERN        : LOG_printf(LOG_DEBUG, "extern"); break;
+        case S_VIRTUAL       : LOG_printf(LOG_DEBUG, "virtual"); break;
+        case S_OVERRIDE      : LOG_printf(LOG_DEBUG, "override"); break;
+        case S_ASYNC         : LOG_printf(LOG_DEBUG, "async"); break;
+        case S_VOID          : LOG_printf(LOG_DEBUG, "void"); break;
+        case S___arglist     : LOG_printf(LOG_DEBUG, "___arglist"); break;
+        case S_IF            : LOG_printf(LOG_DEBUG, "_if"); break;
+        case S_SWITCH        : LOG_printf(LOG_DEBUG, "_switch"); break;
+        case S_WHILE         : LOG_printf(LOG_DEBUG, "_while"); break;
+        case S_DO            : LOG_printf(LOG_DEBUG, "_do"); break;
+        case S_FOR           : LOG_printf(LOG_DEBUG, "_for"); break;
+        case S_FOREACH       : LOG_printf(LOG_DEBUG, "_foreach"); break;
     }
 }
 #else
@@ -586,7 +618,39 @@ void S_boot(void)
 {
     g_syms = TAB_empty (UP_symbol);
 
-    TAB_enter (g_syms, S_Symbol("true") , (void *) (intptr_t) S_TRUE);
-    TAB_enter (g_syms, S_Symbol("false"), (void *) (intptr_t) S_FALSE);
+    TAB_enter (g_syms, S_Symbol("true"         ), (void *) (intptr_t) S_TRUE);
+    TAB_enter (g_syms, S_Symbol("false"        ), (void *) (intptr_t) S_FALSE);
+    TAB_enter (g_syms, S_Symbol("using"        ), (void *) (intptr_t) S_USING);
+    TAB_enter (g_syms, S_Symbol("namespace"    ), (void *) (intptr_t) S_NAMESPACE);
+    TAB_enter (g_syms, S_Symbol("new"          ), (void *) (intptr_t) S_NEW);
+    TAB_enter (g_syms, S_Symbol("public"       ), (void *) (intptr_t) S_PUBLIC);
+    TAB_enter (g_syms, S_Symbol("protected"    ), (void *) (intptr_t) S_PROTECTED);
+    TAB_enter (g_syms, S_Symbol("internal"     ), (void *) (intptr_t) S_INTERNAL);
+    TAB_enter (g_syms, S_Symbol("private"      ), (void *) (intptr_t) S_PRIVATE);
+    TAB_enter (g_syms, S_Symbol("abstract"     ), (void *) (intptr_t) S_ABSTRACT);
+    TAB_enter (g_syms, S_Symbol("sealed"       ), (void *) (intptr_t) S_SEALED);
+    TAB_enter (g_syms, S_Symbol("static"       ), (void *) (intptr_t) S_STATIC);
+    TAB_enter (g_syms, S_Symbol("readonly"     ), (void *) (intptr_t) S_READONLY);
+    TAB_enter (g_syms, S_Symbol("unsafe"       ), (void *) (intptr_t) S_UNSAFE);
+    TAB_enter (g_syms, S_Symbol("ref"          ), (void *) (intptr_t) S_REF);
+    TAB_enter (g_syms, S_Symbol("partial"      ), (void *) (intptr_t) S_PARTIAL);
+    TAB_enter (g_syms, S_Symbol("class"        ), (void *) (intptr_t) S_CLASS);
+    TAB_enter (g_syms, S_Symbol("struct"       ), (void *) (intptr_t) S_STRUCT);
+    TAB_enter (g_syms, S_Symbol("interface"    ), (void *) (intptr_t) S_INTERFACE);
+    TAB_enter (g_syms, S_Symbol("enum"         ), (void *) (intptr_t) S_ENUM);
+    TAB_enter (g_syms, S_Symbol("delegate"     ), (void *) (intptr_t) S_DELEGATE);
+    TAB_enter (g_syms, S_Symbol("where"        ), (void *) (intptr_t) S_WHERE);
+    TAB_enter (g_syms, S_Symbol("extern"       ), (void *) (intptr_t) S_EXTERN);
+    TAB_enter (g_syms, S_Symbol("virtual"      ), (void *) (intptr_t) S_VIRTUAL);
+    TAB_enter (g_syms, S_Symbol("override"     ), (void *) (intptr_t) S_OVERRIDE);
+    TAB_enter (g_syms, S_Symbol("async"        ), (void *) (intptr_t) S_ASYNC);
+    TAB_enter (g_syms, S_Symbol("void"         ), (void *) (intptr_t) S_VOID);
+    TAB_enter (g_syms, S_Symbol("S___arglist"  ), (void *) (intptr_t) S___arglist);
+    TAB_enter (g_syms, S_Symbol("S_IF"         ), (void *) (intptr_t) S_IF       );
+    TAB_enter (g_syms, S_Symbol("S_SWITCH"     ), (void *) (intptr_t) S_SWITCH   );
+    TAB_enter (g_syms, S_Symbol("S_WHILE"      ), (void *) (intptr_t) S_WHILE    );
+    TAB_enter (g_syms, S_Symbol("S_DO"         ), (void *) (intptr_t) S_DO       );
+    TAB_enter (g_syms, S_Symbol("S_FOR"        ), (void *) (intptr_t) S_FOR      );
+    TAB_enter (g_syms, S_Symbol("S_FOREACH"    ), (void *) (intptr_t) S_FOREACH  );
 }
 

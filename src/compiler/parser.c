@@ -28,48 +28,10 @@ static IR_using     _g_usings_first=NULL, _g_usings_last=NULL;
 #define MODF_PARTIAL   0x00004000
 #define MODF_REF       0x00008000
 
-static S_symbol S_USING;
-static S_symbol S_NAMESPACE;
-static S_symbol S_NAMESPACE ;
-static S_symbol S_NEW       ;
-static S_symbol S_PUBLIC    ;
-static S_symbol S_PROTECTED ;
-static S_symbol S_INTERNAL  ;
-static S_symbol S_PRIVATE   ;
-static S_symbol S_ABSTRACT  ;
-static S_symbol S_SEALED    ;
-static S_symbol S_STATIC    ;
-static S_symbol S_READONLY  ;
-static S_symbol S_UNSAFE    ;
-static S_symbol S_REF;
-static S_symbol S_PARTIAL;
-static S_symbol S_CLASS;
-static S_symbol S_STRUCT;
-static S_symbol S_INTERFACE;
-static S_symbol S_ENUM;
-static S_symbol S_DELEGATE;
-static S_symbol S_WHERE;
-static S_symbol S_EXTERN;
-static S_symbol S_VIRTUAL;
-static S_symbol S_OVERRIDE;
-static S_symbol S_ASYNC;
-static S_symbol S_VOID;
-static S_symbol S___arglist;
-static S_symbol S_IF;
-static S_symbol S_SWITCH;
-static S_symbol S_WHILE;
-static S_symbol S_DO;
-static S_symbol S_FOR;
-static S_symbol S_FOREACH;
 static S_symbol S_System;
 static S_symbol S_Object;
 static S_symbol S__vTablePtr;
 static S_symbol S_this;
-
-static bool isSym(S_symbol sym)
-{
-    return (S_tkn.kind == S_IDENT) && (S_tkn.u.sym == sym);
-}
 
 static void           _block                        (IR_stmtList sl);
 static bool           _namespace_member_declaration ();
@@ -226,45 +188,43 @@ static void _attributes (void)
  */
 static bool _modifier (uint32_t *mods)
 {
-    if (S_tkn.kind != S_IDENT)
-        return false;
-
-    if (S_tkn.u.sym == S_NEW)
-        *mods |= MODF_NEW;
-    else if (S_tkn.u.sym == S_PUBLIC)
-        *mods |= MODF_PUBLIC;
-    else if (S_tkn.u.sym == S_PROTECTED)
-        *mods |= MODF_PROTECTED;
-    else if (S_tkn.u.sym == S_INTERNAL)
-        *mods |= MODF_INTERNAL;
-    else if (S_tkn.u.sym == S_PRIVATE)
-        *mods |= MODF_PRIVATE;
-    else if (S_tkn.u.sym == S_STATIC)
-        *mods |= MODF_STATIC;
-    else if (S_tkn.u.sym == S_VIRTUAL)
-        *mods |= MODF_VIRTUAL;
-    else if (S_tkn.u.sym == S_SEALED)
-        *mods |= MODF_SEALED;
-    else if (S_tkn.u.sym == S_OVERRIDE)
-        *mods |= MODF_OVERRIDE;
-    else if (S_tkn.u.sym == S_ABSTRACT)
-        *mods |= MODF_ABSTRACT;
-    else if (S_tkn.u.sym == S_READONLY)
-        *mods |= MODF_READONLY;
-    else if (S_tkn.u.sym == S_EXTERN)
-        *mods |= MODF_EXTERN;
-    else if (S_tkn.u.sym == S_ASYNC)
-        *mods |= MODF_ASYNC;
-    else if (S_tkn.u.sym == S_UNSAFE)
-        *mods |= MODF_UNSAFE;
-    else if (S_tkn.u.sym == S_PARTIAL)
-        *mods |= MODF_PARTIAL;
-    else if (S_tkn.u.sym == S_REF)
-        *mods |= MODF_REF;
-    else if (S_tkn.u.sym == S_READONLY)
-        *mods |= MODF_READONLY;
-    else
-        return false;
+    switch (S_tkn.kind)
+    {
+        case S_NEW:
+            *mods |= MODF_NEW; break;
+        case S_PUBLIC:
+            *mods |= MODF_PUBLIC; break;
+        case S_PROTECTED:
+            *mods |= MODF_PROTECTED; break;
+        case S_INTERNAL:
+            *mods |= MODF_INTERNAL; break;
+        case S_PRIVATE:
+            *mods |= MODF_PRIVATE; break;
+        case S_STATIC:
+            *mods |= MODF_STATIC; break;
+        case S_VIRTUAL:
+            *mods |= MODF_VIRTUAL; break;
+        case S_SEALED:
+            *mods |= MODF_SEALED; break;
+        case S_OVERRIDE:
+            *mods |= MODF_OVERRIDE; break;
+        case S_ABSTRACT:
+            *mods |= MODF_ABSTRACT; break;
+        case S_READONLY:
+            *mods |= MODF_READONLY; break;
+        case S_EXTERN:
+            *mods |= MODF_EXTERN; break;
+        case S_ASYNC:
+            *mods |= MODF_ASYNC; break;
+        case S_UNSAFE:
+            *mods |= MODF_UNSAFE; break;
+        case S_PARTIAL:
+            *mods |= MODF_PARTIAL; break;
+        case S_REF:
+            *mods |= MODF_REF; break;
+        default:
+            return false;
+    }
 
     S_nextToken();
 
@@ -336,7 +296,7 @@ IR_type _type(void)
 {
     IR_namespace names = NULL;
 
-    if (isSym(S_VOID))
+    if (S_tkn.kind == S_VOID)
     {
         S_nextToken();
         return NULL;
@@ -416,7 +376,7 @@ static IR_formal _parameter(void)
 
     IR_formal par = NULL;
 
-    if (isSym(S___arglist))
+    if (S_tkn.kind == S___arglist)
     {
         assert (false); // FIXME
     }
@@ -865,32 +825,25 @@ static void _statement (IR_stmtList sl)
         case S_SEMICOLON:
             S_nextToken();
             return;
+        case S_IF:
+            assert(false); // FIXME: implement
+            break;
+        case S_SWITCH:
+            assert(false); // FIXME: implement
+            break;
+        case S_WHILE:
+            assert(false); // FIXME: implement
+            break;
+        case S_DO:
+            assert(false); // FIXME: implement
+            break;
+        case S_FOR:
+            assert(false); // FIXME: implement
+            break;
+        case S_FOREACH:
+            assert(false); // FIXME: implement
+            break;
         case S_IDENT:
-            if (S_tkn.u.sym == S_IF)
-            {
-                assert(false); // FIXME: implement
-            }
-            else if (S_tkn.u.sym == S_SWITCH)
-            {
-                assert(false); // FIXME: implement
-            }
-            else if (S_tkn.u.sym == S_WHILE)
-            {
-                assert(false); // FIXME: implement
-            }
-            else if (S_tkn.u.sym == S_DO)
-            {
-                assert(false); // FIXME: implement
-            }
-            else if (S_tkn.u.sym == S_FOR)
-            {
-                assert(false); // FIXME: implement
-            }
-            else if (S_tkn.u.sym == S_FOREACH)
-            {
-                assert(false); // FIXME: implement
-            }
-            else
             {
                 S_pos pos = S_tkn.pos;
                 // variable declaration or expression?
@@ -1221,7 +1174,7 @@ static void _class_declaration (uint32_t mods)
             tyBase = _getObjectType()->u.ref;
     }
 
-    if (isSym(S_WHERE))
+    if (S_tkn.kind == S_WHERE)
     {
         EM_error (S_tkn.pos, "sorry, type parameter constraints are not supported yet"); // FIXME
         return;
@@ -1277,7 +1230,7 @@ static void _class_declaration (uint32_t mods)
         uint32_t mods=0;
         while (_modifier (&mods));
 
-        if (S_tkn.kind == S_IDENT)
+        if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
         {
             _method_or_field_declaration (t->u.cls.members, pos, mods, t);
         }
@@ -1330,33 +1283,29 @@ static bool _type_declaration ()
     uint32_t mods=0;
     while (_modifier (&mods));
 
-    if (isSym(S_CLASS))
+    switch (S_tkn.kind)
     {
-        _class_declaration (mods);
-    }
-    else if (isSym (S_STRUCT))
-    {
-        // FIXME: implement
-        assert(false);
-    }
-    else if (isSym (S_INTERFACE))
-    {
-        // FIXME: implement
-        assert(false);
-    }
-    else if (isSym (S_ENUM))
-    {
-        // FIXME: implement
-        assert(false);
-    }
-    else if (isSym (S_DELEGATE))
-    {
-        // FIXME: implement
-        assert(false);
-    }
-    else
-    {
-        return EM_error (S_tkn.pos, "syntax error in type declaration");
+        case S_CLASS:
+            _class_declaration (mods);
+            break;
+        case S_STRUCT:
+            // FIXME: implement
+            assert(false);
+            break;
+        case S_INTERFACE:
+            // FIXME: implement
+            assert(false);
+            break;
+        case S_ENUM:
+            // FIXME: implement
+            assert(false);
+            break;
+        case S_DELEGATE:
+            // FIXME: implement
+            assert(false);
+            break;
+        default:
+            return EM_error (S_tkn.pos, "syntax error in type declaration");
     }
     return true;
 }
@@ -1369,7 +1318,7 @@ static bool _type_declaration ()
  */
 static bool _namespace_member_declaration (void)
 {
-    if (isSym(S_NAMESPACE))
+    if (S_tkn.kind == S_NAMESPACE)
     {
         return _namespace_declaration ();
     }
@@ -1541,7 +1490,7 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
     while (S_tkn.kind != S_EOF)
     {
-        if (isSym(S_USING))
+        if (S_tkn.kind == S_USING)
         {
             _using_directive();
         }
@@ -1555,38 +1504,6 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 
 void PA_boot(void)
 {
-    S_USING      = S_Symbol("using");
-    S_NAMESPACE  = S_Symbol("namespace");
-    S_NEW        = S_Symbol("new");
-    S_PUBLIC     = S_Symbol("public");
-    S_PROTECTED  = S_Symbol("protected");
-    S_INTERNAL   = S_Symbol("internal");
-    S_PRIVATE    = S_Symbol("private");
-    S_ABSTRACT   = S_Symbol("abstract");
-    S_SEALED     = S_Symbol("sealed");
-    S_STATIC     = S_Symbol("static");
-    S_READONLY   = S_Symbol("readonly");
-    S_UNSAFE     = S_Symbol("unsafe");
-    S_REF        = S_Symbol("ref");
-    S_PARTIAL    = S_Symbol("partial");
-    S_CLASS      = S_Symbol("class");
-    S_STRUCT     = S_Symbol("struct");
-    S_INTERFACE  = S_Symbol("interface");
-    S_ENUM       = S_Symbol("enum");
-    S_DELEGATE   = S_Symbol("delegate");
-    S_WHERE      = S_Symbol("where");
-    S_EXTERN     = S_Symbol("extern");
-    S_VIRTUAL    = S_Symbol("virtual");
-    S_OVERRIDE   = S_Symbol("override");
-    S_ASYNC      = S_Symbol("async");
-    S_VOID       = S_Symbol("void");
-    S___arglist  = S_Symbol("__arglist");
-    S_IF         = S_Symbol("if");
-    S_SWITCH     = S_Symbol("switch");
-    S_WHILE      = S_Symbol("while");
-    S_DO         = S_Symbol("do");
-    S_FOR        = S_Symbol("for");
-    S_FOREACH    = S_Symbol("foreach");
     S_System     = S_Symbol("System");
     S_Object     = S_Symbol("Object");
     S__vTablePtr = S_Symbol("_vTablePtr");
