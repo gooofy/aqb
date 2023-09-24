@@ -171,7 +171,7 @@ static void _writeStubDeclsFlat (FILE *cstubf, IR_definition defs)
 static void _writeFormal (FILE *cstubf, IR_formal formal)
 {
     _writeStubTyRef (cstubf, formal->type);
-    fprintf (cstubf, "%s%s", S_name(formal->name), formal->next ? ", ":"");
+    fprintf (cstubf, "%s%s", S_name(formal->id), formal->next ? ", ":"");
 }
 
 static void _writeStubSpecial (FILE *cstubf, IR_type tyCls, bool writeBody, char *methodName)

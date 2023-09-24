@@ -627,7 +627,7 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
 
         context->returnVar = &returnVar;
 
-        for (IR_statement stmt=proc->sl->first; stmt; stmt=stmt->next)
+        for (IR_statement stmt=proc->block->first; stmt; stmt=stmt->next)
         {
             _elaborateStmt (stmt, context);
         }
@@ -747,8 +747,8 @@ static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string c
         //{
         //    E_enventry gcMarkBlackSub = lx->first->e;
 
-        IR_formal formals = IR_Formal(S_this, IR_getReference(pos, tyCls), /*defaultExp=*/NULL, /*reg=*/NULL);
-        formals = IR_Formal(S_gc, _getSystemGCType(), /*defaultExp=*/NULL, /*reg=*/NULL);
+        IR_formal formals = IR_Formal(S_noPos, S_this, IR_getReference(pos, tyCls), /*defaultExp=*/NULL, /*reg=*/NULL);
+        formals = IR_Formal(S_noPos, S_gc, _getSystemGCType(), /*defaultExp=*/NULL, /*reg=*/NULL);
 
         CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
         AS_instrList il = AS_InstrList();
@@ -824,7 +824,7 @@ static void _assembleVTables (IR_type tyCls)
 
     // generate __init method which assigns the vTable pointers in this class
 
-    IR_formal formals = IR_Formal(S_this, tyClsRef, /*defaultExp=*/NULL, /*reg=*/NULL);
+    IR_formal formals = IR_Formal(S_noPos, S_this, tyClsRef, /*defaultExp=*/NULL, /*reg=*/NULL);
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
     string clsLabel = IR_name2string (tyCls->u.cls.name, /*underscoreSeparator=*/true);
     Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___init", clsLabel));

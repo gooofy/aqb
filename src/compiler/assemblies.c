@@ -141,7 +141,7 @@ static void _serializeIRTypeRef (IR_type ty)
 
 static void _serializeIRFormal (IR_formal formal)
 {
-    strserialize (symf, S_name(formal->name));
+    strserialize (symf, S_name(formal->id));
     _serializeIRTypeRef(formal->type);
     assert (!formal->defaultExp); // FIXME
     if (formal->reg)
@@ -365,7 +365,12 @@ static IR_type _createIRType (IR_name name)
         sn = sn->next;
     }
 
-    IR_type ty = IR_namesResolveType (S_noPos, names, sn->sym, /*usings=*/NULL, /*doCreate=*/true);
+    IR_type ty = IR_namesResolveType (S_noPos, names, sn->sym, /*checkParent=*/false, /*usings=*/NULL);
+    if (!ty)
+    {
+        ty = IR_TypeUnresolved (S_noPos, sn->sym);
+        IR_namesAddType (names, sn->sym, ty);
+    }
 
     return ty;
 }
@@ -416,7 +421,7 @@ static IR_type _deserializeIRTypeRef (void)
 static IR_formal _deserializeIRFormal (void)
 {
     IR_formal formal = U_poolAllocZero (UP_ir, sizeof (*formal));
-    formal->name = S_Symbol (strdeserialize (UP_ir, symf));
+    formal->id = S_Symbol (strdeserialize (UP_ir, symf));
     formal->type = _deserializeIRTypeRef();
     // assert (!formal->defaultExp); // FIXME
     uint8_t reg_present = fread_u1();
@@ -557,8 +562,15 @@ static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)
     {
         case IR_defType:
         {
-            def->u.ty = IR_namesResolveType (S_noPos, def->names, def->name, /*usings=*/NULL, /*doCreate=*/true);
-            _deserializeIRType(def->u.ty);
+            IR_type ty = IR_namesResolveType (S_noPos, def->names, def->name, /*checkParent=*/false, /*usings=*/NULL);
+            assert (!ty || ty->kind == Ty_unresolved);
+            if (!ty)
+            {
+                ty = IR_TypeUnresolved (S_noPos, def->name);
+                IR_namesAddType (def->names, def->name, ty);
+            }
+            def->u.ty = ty;
+            _deserializeIRType(ty);
             break;
         }
         case IR_defProc:

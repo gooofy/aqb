@@ -42,6 +42,7 @@ static void _print_token(void)
     {
         case S_IDENT         : LOG_printf(LOG_DEBUG, "[IDENT %s]",  S_name(S_tkn.u.sym)); break;
         case S_STRING        : LOG_printf(LOG_DEBUG, "[STRING %s]", S_tkn.u.str); break;
+        case S_INUM          : LOG_printf(LOG_DEBUG, "[INUM %d]", S_tkn.u.literal.inum); break;
         case S_EOF           : LOG_printf(LOG_DEBUG, "[EOF]"); break;
         case S_PERIOD        : LOG_printf(LOG_DEBUG, "."); break;
         case S_LBRACE        : LOG_printf(LOG_DEBUG, "{"); break;
@@ -50,20 +51,27 @@ static void _print_token(void)
         case S_COLON         : LOG_printf(LOG_DEBUG, ":"); break;
         case S_COMMA         : LOG_printf(LOG_DEBUG, ","); break;
         case S_ASTERISK      : LOG_printf(LOG_DEBUG, "*"); break;
-        case S_SLASH         : LOG_printf(LOG_DEBUG, "/"); break;
         case S_QUESTIONMARK  : LOG_printf(LOG_DEBUG, "?"); break;
         case S_PLUS          : LOG_printf(LOG_DEBUG, "+"); break;
         case S_MINUS         : LOG_printf(LOG_DEBUG, "-"); break;
-        case S_DIV           : LOG_printf(LOG_DEBUG, "/"); break;
+        case S_SLASH         : LOG_printf(LOG_DEBUG, "/"); break;
         case S_MOD           : LOG_printf(LOG_DEBUG, "%"); break;
+        case S_NEG           : LOG_printf(LOG_DEBUG, "~"); break;
         case S_AND           : LOG_printf(LOG_DEBUG, "&"); break;
+        case S_LAND          : LOG_printf(LOG_DEBUG, "&&"); break;
         case S_OR            : LOG_printf(LOG_DEBUG, "|"); break;
+        case S_LOR           : LOG_printf(LOG_DEBUG, "||"); break;
         case S_EOR           : LOG_printf(LOG_DEBUG, "^"); break;
+        case S_NOT           : LOG_printf(LOG_DEBUG, "!"); break;
         case S_LSHIFT        : LOG_printf(LOG_DEBUG, "<<"); break;
         case S_RSHIFT        : LOG_printf(LOG_DEBUG, ">>"); break;
         case S_EQUALS        : LOG_printf(LOG_DEBUG, "="); break;
+        case S_EEQUALS       : LOG_printf(LOG_DEBUG, "=="); break;
+        case S_NEQUALS       : LOG_printf(LOG_DEBUG, "!="); break;
         case S_LESS          : LOG_printf(LOG_DEBUG, "<"); break;
+        case S_LESSEQ        : LOG_printf(LOG_DEBUG, "<="); break;
         case S_GREATER       : LOG_printf(LOG_DEBUG, ">"); break;
+        case S_GREATEREQ     : LOG_printf(LOG_DEBUG, ">="); break;
         case S_LBRACKET      : LOG_printf(LOG_DEBUG, "["); break;
         case S_RBRACKET      : LOG_printf(LOG_DEBUG, "]"); break;
         case S_LPAREN        : LOG_printf(LOG_DEBUG, "("); break;
@@ -108,12 +116,16 @@ static void _print_token(void)
         case S_ASYNC         : LOG_printf(LOG_DEBUG, "async"); break;
         case S_VOID          : LOG_printf(LOG_DEBUG, "void"); break;
         case S___arglist     : LOG_printf(LOG_DEBUG, "___arglist"); break;
-        case S_IF            : LOG_printf(LOG_DEBUG, "_if"); break;
-        case S_SWITCH        : LOG_printf(LOG_DEBUG, "_switch"); break;
-        case S_WHILE         : LOG_printf(LOG_DEBUG, "_while"); break;
-        case S_DO            : LOG_printf(LOG_DEBUG, "_do"); break;
-        case S_FOR           : LOG_printf(LOG_DEBUG, "_for"); break;
-        case S_FOREACH       : LOG_printf(LOG_DEBUG, "_foreach"); break;
+        case S_IF            : LOG_printf(LOG_DEBUG, "if"); break;
+        case S_SWITCH        : LOG_printf(LOG_DEBUG, "switch"); break;
+        case S_WHILE         : LOG_printf(LOG_DEBUG, "while"); break;
+        case S_DO            : LOG_printf(LOG_DEBUG, "do"); break;
+        case S_FOR           : LOG_printf(LOG_DEBUG, "for"); break;
+        case S_FOREACH       : LOG_printf(LOG_DEBUG, "foreach"); break;
+        case S_VAR           : LOG_printf(LOG_DEBUG, "var"); break;
+        case S_AWAIT         : LOG_printf(LOG_DEBUG, "await"); break;
+        case S_IS            : LOG_printf(LOG_DEBUG, "is"); break;
+        case S_AS            : LOG_printf(LOG_DEBUG, "as"); break;
     }
 }
 #else
@@ -163,7 +175,6 @@ static void getch(void)
     }
 }
 
-#if 0
 static bool get_digit(int *digit, int base)
 {
     char ch = toupper(g_ch);
@@ -181,115 +192,109 @@ static bool get_digit(int *digit, int base)
     *digit = d;
     return true;
 }
-#endif
 
-#if 0
-static void number(int base, bool dp)
+static void _number(void)
 {
-    assert(false);
-    int    d;
-    if (!tkn)
-        tkn = S_Tkn(S_INUM);
+    int     base = 10;
 
-    tkn->u.literal.inum = 0;
+    S_tkn.kind = S_INUM;
 
-    if (!dp)
+    S_tkn.u.literal.inum = 0;
+
+    int d=0;
+    get_digit(&d, base);
+    getch();
+
+    // 0x ?
+    if (!d && (g_ch == 'x'))
     {
-        while (get_digit(&d, base))
-        {
-            tkn->u.literal.inum = d + tkn->u.literal.inum*base;
-            getch();
-        }
-    }
-    if (g_ch == '!')
-    {
+        base = 16;
         getch();
-        tkn->kind = S_FNUM;
-        tkn->u.literal.fnum = tkn->u.literal.inum;
     }
     else
     {
-        if (dp || (g_ch == '.'))
-        {
-            double m = 1.0 / base;
-            tkn->kind = S_FNUM;
-            tkn->u.literal.fnum = tkn->u.literal.inum;
-            if (!dp)
-                getch();
-            while (get_digit(&d, base))
-            {
-                tkn->u.literal.fnum += ((double) d) * m;
-                m /= base;
-                getch();
-            }
-        }
-        if ( (g_ch == 'e') || (g_ch == 'E') )
-        {
-            bool negative = false;
-            if (tkn->kind == S_INUM)
-            {
-                tkn->kind = S_FNUM;
-                tkn->u.literal.fnum = tkn->u.literal.inum;
-            }
-            getch();
-            if (g_ch=='-')
-            {
-                negative = true;
-                getch();
-            }
-            else
-            {
-               if (g_ch=='+')
-                getch();
-            }
-            int e = 0;
-            while (get_digit(&d, base))
-            {
-                e = d + e*base;
-                getch();
-            }
-            if (negative)
-                e = -1 * e;
-            tkn->u.literal.fnum *= pow(base, e);
-        }
+        S_tkn.u.literal.inum = d;
+    }
+
+    while (get_digit(&d, base))
+    {
+        S_tkn.u.literal.inum = d + S_tkn.u.literal.inum*base;
+        getch();
+    }
+
+    if (g_ch == '.')
+    {
+        assert (false); // FIXME
+        //double m = 1.0 / base;
+        //tkn->kind = S_FNUM;
+        //tkn->u.literal.fnum = tkn->u.literal.inum;
+        //if (!dp)
+        //    getch();
+        //while (get_digit(&d, base))
+        //{
+        //    tkn->u.literal.fnum += ((double) d) * m;
+        //    m /= base;
+        //    getch();
+        //}
+    }
+    if ( (g_ch == 'e') || (g_ch == 'E') )
+    {
+        assert (false); // FIXME
+        //bool negative = false;
+        //if (tkn->kind == S_INUM)
+        //{
+        //    tkn->kind = S_FNUM;
+        //    tkn->u.literal.fnum = tkn->u.literal.inum;
+        //}
+        //getch();
+        //if (g_ch=='-')
+        //{
+        //    negative = true;
+        //    getch();
+        //}
+        //else
+        //{
+        //   if (g_ch=='+')
+        //    getch();
+        //}
+        //int e = 0;
+        //while (get_digit(&d, base))
+        //{
+        //    e = d + e*base;
+        //    getch();
+        //}
+        //if (negative)
+        //    e = -1 * e;
+        //tkn->u.literal.fnum *= pow(base, e);
     }
 
     // type suffix?
     switch (g_ch)
     {
-        case '!':
-        case 'F':
-        case 'f':
-            tkn->u.literal.typeHint = S_thSingle;
+        case 'u':
+        case 'U':
+            S_tkn.u.literal.typeHint = S_thUnsigned;
             getch();
-            break;
-        case '#':
-            tkn->u.literal.typeHint = S_thDouble;
-            getch();
+            if ((g_ch=='l') || (g_ch=='L'))
+            {
+                S_tkn.u.literal.typeHint = S_thULong;
+                getch();
+            }
             break;
         case 'L':
         case 'l':
-        case '&':
-            tkn->u.literal.typeHint = S_thLong;
+            S_tkn.u.literal.typeHint = S_thLong;
             getch();
-            break;
-        case 'U':
-        case 'u':
-            tkn->u.literal.typeHint = S_thUInteger;
-            getch();
-            if ((g_ch == 'l') || (g_ch == 'L'))
+            if ((g_ch=='u') || (g_ch=='U'))
             {
-                tkn->u.literal.typeHint = S_thULong;
+                S_tkn.u.literal.typeHint = S_thULong;
                 getch();
             }
             break;
         default:
-            tkn->u.literal.typeHint = S_thNone;
+            S_tkn.u.literal.typeHint = S_thNone;
     }
-
-    return tkn;
 }
-#endif
 
 static void _identifier(void)
 {
@@ -403,6 +408,11 @@ bool S_nextToken (void)
         }
         else
         {
+            if (S_isDigit(g_ch))
+            {
+                _number ();
+                goto done;
+            }
             switch (g_ch)
             {
                 case '"':
@@ -471,6 +481,11 @@ bool S_nextToken (void)
                             S_tkn.kind = S_LSHIFTEQUALS;
                         }
                     }
+                    else if (g_ch=='=')
+                    {
+                        getch();
+                        S_tkn.kind = S_LESSEQ;
+                    }
                     goto done;
                 case '>':
                     getch();
@@ -485,10 +500,29 @@ bool S_nextToken (void)
                             S_tkn.kind = S_RSHIFTEQUALS;
                         }
                     }
+                    else if (g_ch=='=')
+                    {
+                        getch();
+                        S_tkn.kind = S_GREATEREQ;
+                    }
                     goto done;
                 case '=':
                     getch();
                     S_tkn.kind = S_EQUALS;
+                    if (g_ch=='=')
+                    {
+                        getch();
+                        S_tkn.kind = S_EEQUALS;
+                    }
+                    goto done;
+                case '!':
+                    getch();
+                    S_tkn.kind = S_NOT;
+                    if (g_ch=='=')
+                    {
+                        getch();
+                        S_tkn.kind = S_NEQUALS;
+                    }
                     goto done;
                 case '?':
                     getch();
@@ -530,7 +564,7 @@ bool S_nextToken (void)
                     goto done;
                 case '/':
                     getch();
-                    S_tkn.kind = S_DIV;
+                    S_tkn.kind = S_SLASH;
                     if (g_ch == '=')
                     {
                         getch();
@@ -546,6 +580,10 @@ bool S_nextToken (void)
                         S_tkn.kind = S_MODEQUALS;
                     }
                     goto done;
+                case '~':
+                    getch();
+                    S_tkn.kind = S_NEG;
+                    goto done;
                 case '&':
                     getch();
                     S_tkn.kind = S_AND;
@@ -553,6 +591,11 @@ bool S_nextToken (void)
                     {
                         getch();
                         S_tkn.kind = S_ANDEQUALS;
+                    }
+                    else if (g_ch == '&')
+                    {
+                        getch();
+                        S_tkn.kind = S_LAND;
                     }
                     goto done;
                 case '|':
@@ -562,6 +605,11 @@ bool S_nextToken (void)
                     {
                         getch();
                         S_tkn.kind = S_OREQUALS;
+                    }
+                    else if (g_ch == '|')
+                    {
+                        getch();
+                        S_tkn.kind = S_LOR;
                     }
                     goto done;
                 case '^':
@@ -645,12 +693,16 @@ void S_boot(void)
     TAB_enter (g_syms, S_Symbol("override"     ), (void *) (intptr_t) S_OVERRIDE);
     TAB_enter (g_syms, S_Symbol("async"        ), (void *) (intptr_t) S_ASYNC);
     TAB_enter (g_syms, S_Symbol("void"         ), (void *) (intptr_t) S_VOID);
-    TAB_enter (g_syms, S_Symbol("S___arglist"  ), (void *) (intptr_t) S___arglist);
-    TAB_enter (g_syms, S_Symbol("S_IF"         ), (void *) (intptr_t) S_IF       );
-    TAB_enter (g_syms, S_Symbol("S_SWITCH"     ), (void *) (intptr_t) S_SWITCH   );
-    TAB_enter (g_syms, S_Symbol("S_WHILE"      ), (void *) (intptr_t) S_WHILE    );
-    TAB_enter (g_syms, S_Symbol("S_DO"         ), (void *) (intptr_t) S_DO       );
-    TAB_enter (g_syms, S_Symbol("S_FOR"        ), (void *) (intptr_t) S_FOR      );
-    TAB_enter (g_syms, S_Symbol("S_FOREACH"    ), (void *) (intptr_t) S_FOREACH  );
+    TAB_enter (g_syms, S_Symbol("__arglist"    ), (void *) (intptr_t) S___arglist);
+    TAB_enter (g_syms, S_Symbol("if"           ), (void *) (intptr_t) S_IF       );
+    TAB_enter (g_syms, S_Symbol("switch"       ), (void *) (intptr_t) S_SWITCH   );
+    TAB_enter (g_syms, S_Symbol("while"        ), (void *) (intptr_t) S_WHILE    );
+    TAB_enter (g_syms, S_Symbol("do"           ), (void *) (intptr_t) S_DO       );
+    TAB_enter (g_syms, S_Symbol("for"          ), (void *) (intptr_t) S_FOR      );
+    TAB_enter (g_syms, S_Symbol("foreach"      ), (void *) (intptr_t) S_FOREACH  );
+    TAB_enter (g_syms, S_Symbol("var"          ), (void *) (intptr_t) S_VAR      );
+    TAB_enter (g_syms, S_Symbol("await"        ), (void *) (intptr_t) S_AWAIT    );
+    TAB_enter (g_syms, S_Symbol("as"           ), (void *) (intptr_t) S_AS);
+    TAB_enter (g_syms, S_Symbol("is"           ), (void *) (intptr_t) S_IS);
 }
 

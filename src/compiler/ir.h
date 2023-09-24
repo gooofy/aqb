@@ -16,11 +16,13 @@ typedef struct IR_assembly_        *IR_assembly;
 typedef struct IR_definition_      *IR_definition;
 
 typedef struct IR_namespace_       *IR_namespace;
+typedef struct IR_namesEntry_      *IR_namesEntry;
 typedef struct IR_name_            *IR_name;
 typedef struct IR_symNode_         *IR_symNode;
 typedef struct IR_using_           *IR_using;
 
 typedef struct IR_formal_          *IR_formal;
+typedef struct IR_variable_        *IR_variable;
 typedef struct IR_proc_            *IR_proc;
 typedef struct IR_implements_      *IR_implements;
 typedef struct IR_memberList_      *IR_memberList;
@@ -30,7 +32,7 @@ typedef struct IR_method_          *IR_method;
 typedef struct IR_argumentList_    *IR_argumentList;
 typedef struct IR_argument_        *IR_argument;
 
-typedef struct IR_stmtList_        *IR_stmtList;
+typedef struct IR_block_           *IR_block;
 typedef struct IR_statement_       *IR_statement;
 typedef struct IR_expression_      *IR_expression;
 
@@ -80,22 +82,45 @@ struct IR_using_
     IR_using  next;
 };
 
+typedef enum { IR_neNames, IR_neType, IR_neFormal, IR_neVar } IR_neKind;
+
+struct IR_namesEntry_
+{
+    IR_neKind kind;
+
+    union
+    {
+        IR_namespace    names;
+        IR_type         type;
+        IR_formal       formal;
+        IR_variable     var;
+    } u;
+};
+
 struct IR_namespace_
 {
     S_symbol     name;
     IR_namespace parent;
 
-    TAB_table    names; // symbol -> IR_namespace
-    TAB_table    types; // symbol -> IR_type
+    TAB_table    entries; // symbol -> IR_namesEntry
 };
 
 struct IR_formal_
 {
-    S_symbol      name;
+    S_pos         pos;
+    S_symbol      id;
     IR_type       type;
     IR_expression defaultExp;
     Temp_temp     reg;
     IR_formal     next;
+};
+
+struct IR_variable_
+{
+    S_pos         pos;
+    S_symbol      id;
+    IR_type       type;
+    IR_expression initExp;
 };
 
 typedef enum {IR_pkFunction, IR_pkConstructor, IR_pkDestructor} IR_procKind;
@@ -113,7 +138,7 @@ struct IR_proc_
     Temp_label       label;
     bool             isStatic;
     bool             isExtern;
-    IR_stmtList      sl;
+    IR_block         block;
 };
 
 
@@ -229,12 +254,14 @@ struct IR_method_
     int16_t   vTableIdx;
 };
 
-struct IR_stmtList_
+struct IR_block_
 {
+    S_pos           pos;
+    IR_namespace    names;
     IR_statement    first, last;
 };
 
-typedef enum { IR_stmtExpression } IR_stmtKind;
+typedef enum { IR_stmtExpression, IR_stmtBlock } IR_stmtKind;
 
 struct IR_statement_
 {
@@ -242,11 +269,14 @@ struct IR_statement_
     S_pos pos;
     union {
         IR_expression   expr;
+        IR_block        block;
     } u;
     IR_statement next;
 };
 
-typedef enum { IR_expCall, IR_expLiteralString, IR_expSym, IR_expSelector, IR_expConst } IR_exprKind;
+typedef enum { IR_expCall, IR_expLiteralString, IR_expSym, IR_expSelector, IR_expConst,
+               IR_expADD, IR_expSUB,
+               IR_expEQU, IR_expNEQ} IR_exprKind;
 
 struct IR_expression_
 {
@@ -258,6 +288,7 @@ struct IR_expression_
         S_symbol                                           sym;
         struct { S_symbol sym; IR_expression e; }          selector;
         IR_const                                           c;
+        struct { IR_expression a; IR_expression b; }       binop;
     } u;
 };
 
@@ -291,13 +322,17 @@ IR_symNode         IR_SymNode            (S_symbol sym);
 IR_using           IR_Using              (S_symbol alias, IR_type type, IR_namespace names);
 
 IR_namespace       IR_Namespace          (S_symbol name, IR_namespace parent);
-IR_namespace       IR_namesResolveNames  (IR_namespace parent, S_symbol name, bool doCreate);
-IR_type            IR_namesResolveType   (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate);
-void               IR_namesAddType       (IR_namespace names, S_symbol name, IR_type type);
+IR_namesEntry      IR_NamesEntry         (IR_neKind kind);
+IR_namespace       IR_namesResolveNames  (IR_namespace parent, S_symbol id, bool doCreate);
+IR_type            IR_namesResolveType   (S_pos pos, IR_namespace names, S_symbol id, bool checkParent, IR_using usings);
+void               IR_namesAddType       (IR_namespace names, S_symbol id, IR_type type);
+void               IR_namesAddVariable   (IR_namespace names, S_symbol id, IR_variable var);
 
 IR_member          IR_namesResolveMember (IR_name name, IR_using usings);
 
-IR_formal          IR_Formal             (S_symbol name, IR_type type, IR_expression defaultExp, Temp_temp reg);
+IR_variable        IR_Variable           (S_pos pos, S_symbol id, IR_type ty, IR_expression initExpr);
+
+IR_formal          IR_Formal             (S_pos pos, S_symbol id, IR_type ty, IR_expression defaultExp, Temp_temp reg);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic);
 bool               IR_procIsMain         (IR_proc proc);
 string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
@@ -322,8 +357,8 @@ void               IR_fieldCalcOffset    (IR_type ty, IR_member field);
 void               IR_addMember          (IR_memberList memberList, IR_member member);
 IR_member          IR_findMember         (IR_type ty, S_symbol sym, bool checkBase);
 
-IR_stmtList        IR_StmtList           (void);
-void               IR_stmtListAppend     (IR_stmtList sl, IR_statement stmt);
+IR_block           IR_Block              (S_pos pos, IR_namespace parent);
+void               IR_blockAppendStmt    (IR_block block, IR_statement stmt);
 
 IR_statement       IR_Statement          (IR_stmtKind kind, S_pos pos);
 

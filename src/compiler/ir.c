@@ -115,6 +115,8 @@ IR_using IR_Using (S_symbol alias, IR_type type, IR_namespace names)
 {
     IR_using u = U_poolAllocZero (UP_ir, sizeof (*u));
 
+    assert (names || type);
+
     u->alias = alias;
     u->names = names;
     u->type  = type;
@@ -129,29 +131,43 @@ IR_namespace IR_Namespace (S_symbol name, IR_namespace parent)
 
     names->name        = name;
     names->parent      = parent;
-    names->names       = TAB_empty (UP_ir);
-    names->types       = TAB_empty (UP_ir);
+    names->entries     = TAB_empty (UP_ir);
 
     return names;
+}
+
+IR_namesEntry IR_NamesEntry (IR_neKind kind)
+{
+    IR_namesEntry ne = U_poolAllocZero (UP_ir, sizeof (*ne));
+
+    ne->kind = kind;
+
+    return ne;
 }
 
 IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCreate)
 {
-    IR_namespace names = (IR_namespace) TAB_look(parent->names, name);
-    if (names || !doCreate)
-        return names;
+    IR_namesEntry entry = (IR_namesEntry) TAB_look(parent->entries, name);
 
-    names = IR_Namespace (name, parent);
-    TAB_enter (parent->names, name, names);
+    if (entry && (entry->kind == IR_neNames))
+        return entry->u.names;
+
+    if (!doCreate)
+        return NULL;
+
+    IR_namespace names = IR_Namespace (name, parent);
+    entry = IR_NamesEntry (IR_neNames);
+    entry->u.names = names;
+    TAB_enter (parent->entries, name, entry);
 
     return names;
 }
 
-IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_using usings, bool doCreate)
+IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, bool checkParent, IR_using usings)
 {
-    IR_type t = (IR_type) TAB_look(names->types, name);
-    if (t || !doCreate)
-        return t;
+    IR_namesEntry e = (IR_namesEntry) TAB_look(names->entries, name);
+    if (e && e->kind == IR_neType)
+        return e->u.type;
 
     // apply using declarations
     for (IR_using u=usings; u; u=u->next)
@@ -172,15 +188,24 @@ IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, IR_us
         }
     }
 
-    t = IR_TypeUnresolved (pos, name);
-    IR_namesAddType (names, name, t);
+    if (checkParent && names->parent)
+        return IR_namesResolveType (pos, names->parent, name, /*checkParent=*/true, /*usings=*/NULL);
 
-    return t;
+    return NULL;
 }
 
-void IR_namesAddType (IR_namespace names, S_symbol name, IR_type t)
+void IR_namesAddType (IR_namespace names, S_symbol id, IR_type t)
 {
-    TAB_enter (names->types, name, t);
+    IR_namesEntry e = IR_NamesEntry (IR_neType);
+    e->u.type = t;
+    TAB_enter (names->entries, id, e);
+}
+
+void IR_namesAddVariable (IR_namespace names, S_symbol id, IR_variable var)
+{
+    IR_namesEntry e = IR_NamesEntry (IR_neVar);
+    e->u.var = var;
+    TAB_enter (names->entries, id, e);
 }
 
 IR_member IR_namesResolveMember (IR_name name, IR_using usings)
@@ -330,11 +355,24 @@ IR_const IR_ConstString (IR_type ty, string s)
     return p;
 }
 
-IR_formal IR_Formal (S_symbol name, IR_type type, IR_expression defaultExp, Temp_temp reg)
+IR_variable IR_Variable (S_pos pos, S_symbol id, IR_type ty, IR_expression initExp)
+{
+    IR_variable v = U_poolAllocZero (UP_ir, sizeof (*v));
+
+    v->pos     = pos;
+    v->id      = id;
+    v->type    = ty;
+    v->initExp = initExp;
+
+    return v;
+}
+
+IR_formal IR_Formal (S_pos pos, S_symbol id, IR_type type, IR_expression defaultExp, Temp_temp reg)
 {
     IR_formal p = U_poolAllocZero (UP_ir, sizeof (*p));
 
-    p->name       = name;
+    p->pos        = pos;
+    p->id         = id;
     p->type       = type;
     p->defaultExp = defaultExp;
     p->reg        = reg;
@@ -557,22 +595,24 @@ IR_member IR_findMember (IR_type ty, S_symbol sym, bool checkBase)
     return NULL;
 }
 
-IR_stmtList IR_StmtList (void)
+IR_block IR_Block (S_pos pos, IR_namespace parent)
 {
-    IR_stmtList sl = U_poolAllocZero (UP_ir, sizeof (*sl));
+    IR_block block = U_poolAllocZero (UP_ir, sizeof (*block));
 
-    sl->first = NULL;
-    sl->last  = NULL;
+    block->pos   = pos;
+    block->names = IR_Namespace (/*name=*/NULL, parent);
+    block->first = NULL;
+    block->last  = NULL;
 
-    return sl;
+    return block;
 }
 
-void IR_stmtListAppend (IR_stmtList sl, IR_statement stmt)
+void IR_blockAppendStmt (IR_block block, IR_statement stmt)
 {
-    if (sl->last)
-        sl->last = sl->last->next = stmt;
+    if (block->last)
+        block->last = block->last->next = stmt;
     else
-        sl->first = sl->last = stmt;
+        block->first = block->last = stmt;
     stmt->next = NULL;
 }
 

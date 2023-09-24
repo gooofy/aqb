@@ -6,8 +6,7 @@
 
 const  char        *PA_filename;
 static IR_assembly  _g_assembly;
-static IR_namespace _g_names; // current namespace
-static IR_namespace _g_sys_names;
+static IR_namespace _g_sys_names; /* System. namespace */
 static IR_using     _g_usings_first=NULL, _g_usings_last=NULL;
 
 // type modifier flags
@@ -33,8 +32,8 @@ static S_symbol S_Object;
 static S_symbol S__vTablePtr;
 static S_symbol S_this;
 
-static void           _block                        (IR_stmtList sl);
-static bool           _namespace_member_declaration ();
+static IR_block       _block                        (IR_namespace parent);
+static bool           _namespace_member_declaration (IR_namespace names);
 static IR_name        _name                         (S_symbol s1, S_pos pos);
 static IR_expression  _expression                   (IR_name n1);
 
@@ -45,7 +44,7 @@ static IR_type _getObjectType(void)
 {
     if (!_g_tyObject)
     {
-        _g_tyObject = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Object, NULL, /*doCreate=*/false);
+        _g_tyObject = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Object, /*checkParent=*/false, NULL);
         assert (_g_tyObject);
     }
     return _g_tyObject;
@@ -54,7 +53,7 @@ static IR_type _getObjectType(void)
 /* namespace_body : '{' namespace_member_declaration* '}' ;
  */
 
-static bool _namespace_body (void)
+static bool _namespace_body (IR_namespace names)
 {
     if (S_tkn.kind != S_LBRACE)
     {
@@ -70,7 +69,7 @@ static bool _namespace_body (void)
             EM_error (S_tkn.pos, "unexpected end of source in namespace body");
             return false;
         }
-        if (!_namespace_member_declaration())
+        if (!_namespace_member_declaration(names))
             return false;
     }
 
@@ -86,7 +85,7 @@ static bool _namespace_body (void)
  *     : identifier ('.' identifier)*
  *     ;
  */
-static bool _namespace_declaration (void)
+static bool _namespace_declaration (IR_namespace parent)
 {
     S_nextToken(); // skip "namespace"
 
@@ -96,9 +95,7 @@ static bool _namespace_declaration (void)
         return false;
     }
 
-    IR_namespace parent = _g_names;
-
-    _g_names = IR_namesResolveNames (parent, S_tkn.u.sym, /*doCreate=*/true);
+    IR_namespace names = IR_namesResolveNames (parent, S_tkn.u.sym, /*doCreate=*/true);
     S_nextToken();
 
     while (S_tkn.kind == S_PERIOD)
@@ -109,17 +106,16 @@ static bool _namespace_declaration (void)
             EM_error (S_tkn.pos, "namespace identifier expected here");
             return false;
         }
-        _g_names = IR_namesResolveNames (_g_names, S_tkn.u.sym, /*doCreate=*/true);
+        names = IR_namesResolveNames (names, S_tkn.u.sym, /*doCreate=*/true);
         S_nextToken();
     }
 
-    if (!_namespace_body ())
+    if (!_namespace_body (names))
         return false;
 
     if (S_tkn.kind == S_SEMICOLON)
         S_nextToken();
 
-    _g_names = parent;
     return true;
 }
 
@@ -292,42 +288,50 @@ IR_name _name(void)
 /*
  * type : name ( '[' (expression (',' expression)*)? ']' | '*'+ )? ;
  */
-IR_type _type(void)
+IR_type _type(IR_name nameLookahead, IR_namespace parent)
 {
-    IR_namespace names = NULL;
+    IR_namespace names  = parent;
+    IR_using     usings = _g_usings_first;
+    IR_type      t      = NULL;
+    S_pos        pos    = S_tkn.pos;
 
-    if (S_tkn.kind == S_VOID)
+    if (nameLookahead)
     {
-        S_nextToken();
-        return NULL;
+        pos = nameLookahead->pos;
+
+        IR_symNode sn = nameLookahead->first;
+        bool checkParent = true;
+        while (sn->next)
+        {
+            names = IR_namesResolveNames (names, sn->sym, /*doCreate=*/false);
+            if (!names)
+            {
+                EM_error (pos, "type: namespace not found");
+                return NULL;
+            }
+            usings = NULL;
+            checkParent = false;
+            sn = sn->next;
+        }
+
+        t = IR_namesResolveType (pos, names, sn->sym, checkParent, usings);
     }
-
-    // name : identifier type_argument_list? ( '.' identifier type_argument_list? ) *
-    if (S_tkn.kind != S_IDENT)
+    else
     {
-        EM_error (S_tkn.pos, "type: identifier expected here");
-        return NULL;
-    }
+        if (S_tkn.kind == S_VOID)
+        {
+            S_nextToken();
+            return NULL;
+        }
 
-    S_symbol name = S_tkn.u.sym;
-    S_pos    pos  = S_tkn.pos;
-    S_nextToken();
-    if (S_tkn.kind == S_LESS)
-    {
-        // FIXME
-        EM_error (S_tkn.pos, "sorry, generics are not supported yet");
-        return NULL;
-    }
-
-    while (S_tkn.kind == S_PERIOD)
-    {
-        S_nextToken();
+        // name : identifier type_argument_list? ( '.' identifier type_argument_list? ) *
         if (S_tkn.kind != S_IDENT)
         {
             EM_error (S_tkn.pos, "type: identifier expected here");
             return NULL;
         }
-        S_symbol n2 = S_tkn.u.sym;
+
+        S_symbol name = S_tkn.u.sym;
         S_nextToken();
         if (S_tkn.kind == S_LESS)
         {
@@ -336,11 +340,43 @@ IR_type _type(void)
             return NULL;
         }
 
-        names = IR_namesResolveNames (names, name, /*doCreate=*/true);
-        name = n2;
+        bool checkParent = true;
+        while (S_tkn.kind == S_PERIOD)
+        {
+            S_nextToken();
+            if (S_tkn.kind != S_IDENT)
+            {
+                EM_error (S_tkn.pos, "type: identifier expected here");
+                return NULL;
+            }
+            S_symbol n2 = S_tkn.u.sym;
+            S_nextToken();
+            if (S_tkn.kind == S_LESS)
+            {
+                // FIXME
+                EM_error (S_tkn.pos, "sorry, generics are not supported yet");
+                return NULL;
+            }
+
+            names = IR_namesResolveNames (names, name, /*doCreate=*/false);
+            if (!names)
+            {
+                EM_error (S_tkn.pos, "type: namespace not found");
+                return NULL;
+            }
+            usings = NULL;
+            checkParent = false;
+            name = n2;
+        }
+
+        t = IR_namesResolveType (pos, names, name, checkParent, usings);
     }
 
-    IR_type t = IR_namesResolveType (pos, names ? names : _g_names, name, names ? NULL : _g_usings_first, /*doCreate=*/true);
+    if (!t)
+    {
+        EM_error (pos, "type expected here");
+        return NULL;
+    }
 
     if (S_tkn.kind == S_LBRACKET)
     {
@@ -363,7 +399,7 @@ IR_type _type(void)
  *   : '=' expression
  *   ;
  */
-static IR_formal _parameter(void)
+static IR_formal _parameter(IR_namespace names)
 {
     if (S_tkn.kind == S_LBRACKET)
         _attributes();
@@ -383,7 +419,7 @@ static IR_formal _parameter(void)
     else
     {
 
-        IR_type t = _type();
+        IR_type t = _type(/*nameLookahead=*/NULL, names);
 
         if (S_tkn.kind != S_IDENT)
         {
@@ -391,10 +427,8 @@ static IR_formal _parameter(void)
             return NULL;
         }
 
-        S_symbol name = S_tkn.u.sym;
+        par = IR_Formal (S_tkn.pos, S_tkn.u.sym, t, /*defaultExp=*/NULL/*FIXME*/, /*reg=*/NULL);
         S_nextToken();
-
-        par = IR_Formal(name, t, /*defaultExp=*/NULL/*FIXME*/, /*reg=*/NULL);
 
         if (S_tkn.kind == S_EQUALS)
             assert(false); // FIXME
@@ -468,80 +502,6 @@ static IR_expression _invocation_expression (IR_expression eFunc)
  *
  * assignment : unary_expression assignment_operator expression
  *
- *
- *
- *
- *
- * conditional_and_expression
- *     : inclusive_or_expression
- *     | conditional_and_expression '&&' inclusive_or_expression
- *     ;
- *
- * inclusive_or_expression
- *     : exclusive_or_expression
- *     | inclusive_or_expression '|' exclusive_or_expression
- *     ;
- *
- * exclusive_or_expression
- *     : and_expression
- *     | exclusive_or_expression '^' and_expression
- *     ;
- *
- * and_expression
- *     : equality_expression
- *     | and_expression '&' equality_expression
- *     ;
- *
- * equality_expression
- *     : relational_expression
- *     | equality_expression '==' relational_expression
- *     | equality_expression '!=' relational_expression
- *     ;
- *
- * relational_expression
- *     : shift_expression
- *     | relational_expression '<' shift_expression
- *     | relational_expression '>' shift_expression
- *     | relational_expression '<=' shift_expression
- *     | relational_expression '>=' shift_expression
- *     | relational_expression 'is' type
- *     | relational_expression 'is' pattern
- *     | relational_expression 'as' type
- *     ;
- *
- * shift_expression
- *     : additive_expression
- *     | shift_expression '<<' additive_expression
- *     | shift_expression right_shift additive_expression
- *     ;
- *
- * additive_expression
- *     : multiplicative_expression
- *     | additive_expression '+' multiplicative_expression
- *     | additive_expression '-' multiplicative_expression
- *     ;
- *
- * multiplicative_expression
- *     : unary_expression
- *     | multiplicative_expression '*' unary_expression
- *     | multiplicative_expression '/' unary_expression
- *     | multiplicative_expression '%' unary_expression
- *     ;
- *
- * unary_expression
- *     : primary_expression
- *     | '+' unary_expression
- *     | '-' unary_expression
- *     | '!' unary_expression
- *     | '~' unary_expression
- *     | pre_increment_expression
- *     | pre_decrement_expression
- *     | cast_expression
- *     | await_expression
- *     | pointer_indirection_expression
- *     | addressof_expression
- *     ;
- *
  * array_creation_expression
  *     : 'new' non_array_type '[' expression_list ']' rank_specifier* array_initializer?
  *     | 'new' array_type array_initializer
@@ -557,17 +517,17 @@ static IR_expression _invocation_expression (IR_expression eFunc)
  *     : object_initializer
  *     | collection_initializer
  *     ;
- * 
+ *
  * object_initializer
  *     : '{' member_initializer_list? '}'
  *     | '{' member_initializer_list ',' '}'
  *     ;
- * 
+ *
  * collection_initializer
  *     : '{' element_initializer_list '}'
  *     | '{' element_initializer_list ',' '}'
  *     ;
- * 
+ *
  * array_initializer
  *     : '{' variable_initializer_list? '}'
  *     | '{' variable_initializer_list ',' '}'
@@ -625,16 +585,6 @@ invocation_expression
 element_access
     : primary_no_array_creation_expression '[' argument_list ']'
     ;
-
-post_increment_expression
-    : primary_expression '++'
-    ;
-
-post_decrement_expression
-    : primary_expression '--'
-    ;
-
-
 
  */
 
@@ -697,6 +647,35 @@ static IR_expression _primary_expression (IR_name n1)
                 S_nextToken();
                 break;
             }
+            case S_INUM:
+            {
+                expr = IR_Expression (IR_expConst, S_tkn.pos);
+                int64_t i = S_tkn.u.literal.inum;
+                switch (S_tkn.u.literal.typeHint)
+                {
+                    case S_thSingle:
+                    case S_thDouble:
+                        assert(false);
+                        break;
+                    case S_thNone:  // FIXME: 64 bit support?
+                        if (i<=2147483647)
+                            expr->u.c = IR_ConstInt (IR_TypeInt32(), i);
+                        else
+                            expr->u.c = IR_ConstUInt (IR_TypeUInt32(), i);
+                        break;
+                    case S_thUnsigned:  // FIXME: 64 bit support?
+                        expr->u.c = IR_ConstUInt (IR_TypeUInt32(), i);
+                        break;
+                    case S_thLong:  // FIXME: 64 bit support?
+                        expr->u.c = IR_ConstInt (IR_TypeInt32(), i);
+                        break;
+                    case S_thULong:  // FIXME: 64 bit support?
+                        expr->u.c = IR_ConstUInt (IR_TypeUInt32(), i);
+                        break;
+                }
+                S_nextToken();
+                break;
+            }
             default:
                 EM_error (S_tkn.pos, "sorry #23");
                 assert(false); // FIXME
@@ -741,15 +720,254 @@ static IR_expression _primary_expression (IR_name n1)
 }
 
 /*
- * conditional_or_expression
- *     : conditional_and_expression
- *     | conditional_or_expression '||' conditional_and_expression
- *     ;
+ * unary_expression ::= ( ( '+' | '-' | '!' | '~' | '++' | '--' | '(' type ')' | 'await' | '*' | '&' ) unary_expression
+ *                      | primary_expression )
+ */
+
+static IR_expression _unary_expression (IR_name n1)
+{
+    switch (S_tkn.kind)
+    {
+        case S_PLUS:
+            EM_error (S_tkn.pos, "sorry #38");
+            assert(false); break; // FIXME
+        case S_MINUS:
+            EM_error (S_tkn.pos, "sorry #39");
+            assert(false); break; // FIXME
+        case S_NOT:
+            EM_error (S_tkn.pos, "sorry #40");
+            assert(false); break; // FIXME
+        case S_NEG:
+            EM_error (S_tkn.pos, "sorry #41");
+            assert(false); break; // FIXME
+        case S_PLUSPLUS:
+            EM_error (S_tkn.pos, "sorry #42");
+            assert(false); break; // FIXME
+        case S_MINUSMINUS:
+            EM_error (S_tkn.pos, "sorry #43");
+            assert(false); break; // FIXME
+        // FIXME: cast needs lookahead
+        //case S_LPAREN:
+        //    EM_error (S_tkn.pos, "sorry #44");
+        //    assert(false); break; // FIXME
+        case S_AWAIT:
+            EM_error (S_tkn.pos, "sorry #45");
+            assert(false); break; // FIXME
+        case S_ASTERISK:
+            EM_error (S_tkn.pos, "sorry #46");
+            assert(false); break; // FIXME
+        case S_AND:
+            EM_error (S_tkn.pos, "sorry #47");
+            assert(false); break; // FIXME
+        default:
+            return _primary_expression (n1);
+    }
+
+    assert(false);
+    return NULL;
+}
+
+/*
+ * multiplicative_expression ::= unary_expression { ('*'|'/'|'%') unary_expression }
+ */
+
+static IR_expression _multiplicative_expression (IR_name n1)
+{
+    IR_expression e = _unary_expression(n1);
+
+    while ( (S_tkn.kind == S_ASTERISK) || (S_tkn.kind == S_SLASH) || (S_tkn.kind == S_MOD) )
+    {
+        S_nextToken();
+        // IR_expression e = _unary_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #28");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * additive_expression ::= multiplicative_expression { ('+'|'-') multiplicative_expression }
+ */
+
+static IR_expression _additive_expression (IR_name n1)
+{
+    IR_expression e = _multiplicative_expression(n1);
+
+    while ( (S_tkn.kind == S_PLUS) || (S_tkn.kind == S_MINUS) )
+    {
+        S_pos pos = S_tkn.pos;
+        IR_exprKind op = S_tkn.kind == S_PLUS ? IR_expADD : IR_expSUB;
+        S_nextToken();
+        IR_expression e2 = _multiplicative_expression(NULL);
+
+        IR_expression res = IR_Expression (op, pos);
+        res->u.binop.a = e;
+        res->u.binop.b = e2;
+
+        e = res;
+    }
+
+    return e;
+}
+/*
+ * shift_expression ::= additive_expression { ('<<' | '>>') additive_expression }
+ */
+
+static IR_expression _shift_expression (IR_name n1)
+{
+    IR_expression e = _additive_expression(n1);
+
+    while ( (S_tkn.kind == S_LSHIFT) || (S_tkn.kind == S_RSHIFT) )
+    {
+        S_nextToken();
+        // IR_expression e = _additive_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #30");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * relational_expression ::= shift_expression { ( '<' shift_expression
+ *                                              | '>' shift_expression
+ *                                              | '<=' shift_expression
+ *                                              | '>=' shift_expression
+ *                                              | 'is' ( type | pattern)
+ *                                              | 'as' type ) }
+ */
+
+static IR_expression _relational_expression (IR_name n1)
+{
+    IR_expression e = _shift_expression(n1);
+
+    while (   (S_tkn.kind == S_LESS   ) || (S_tkn.kind == S_LESSEQ)
+           || (S_tkn.kind == S_GREATER) || (S_tkn.kind == S_GREATER)
+           || (S_tkn.kind == S_IS)      || (S_tkn.kind == S_AS)     )
+    {
+        S_nextToken();
+        // IR_expression e = _shift_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #31");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * equality_expression ::= relational_expression { ( '==' | '!=' ) relational_expression }
+ */
+
+static IR_expression _equality_expression (IR_name n1)
+{
+    IR_expression e = _relational_expression(n1);
+
+    while ((S_tkn.kind == S_EEQUALS) || (S_tkn.kind == S_NEQUALS))
+    {
+        S_pos pos = S_tkn.pos;
+        IR_exprKind op = S_tkn.kind == S_EEQUALS ? IR_expEQU : IR_expNEQ;
+        S_nextToken();
+        IR_expression e2 = _relational_expression(NULL);
+
+        IR_expression res = IR_Expression (op, pos);
+        res->u.binop.a = e;
+        res->u.binop.b = e2;
+
+        e = res;
+    }
+
+    return e;
+}
+
+/*
+ * and_expression ::= equality_expression { '&' equality_expression }
+ */
+static IR_expression _and_expression (IR_name n1)
+{
+    IR_expression e = _equality_expression(n1);
+
+    while (S_tkn.kind == S_AND)
+    {
+        S_nextToken();
+        // IR_expression e = _equality_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #33");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * exclusive_or_expression ::= and_expression { '^' and_expression }
+ */
+static IR_expression _exclusive_or_expression (IR_name n1)
+{
+    IR_expression e = _and_expression(n1);
+
+    while (S_tkn.kind == S_EOR)
+    {
+        S_nextToken();
+        // IR_expression e = _and_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #34");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * inclusive_or_expression ::= exclusive_or_expression { '|' exclusive_or_expression }
+ */
+static IR_expression _inclusive_or_expression (IR_name n1)
+{
+    IR_expression e = _exclusive_or_expression(n1);
+
+    while (S_tkn.kind == S_OR)
+    {
+        S_nextToken();
+        // IR_expression e = _exclusive_or_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #35");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * conditional_and_expression ::= inclusive_or_expression { '&&' inclusive_or_expression }
+ */
+static IR_expression _conditional_and_expression (IR_name n1)
+{
+    IR_expression e = _inclusive_or_expression(n1);
+
+    while (S_tkn.kind == S_LAND)
+    {
+        S_nextToken();
+        // IR_expression e = _inclusive_or_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #36");
+        assert(false); // FIXME
+    }
+
+    return e;
+}
+
+/*
+ * conditional_or_expression ::= conditional_and_expression { '||' conditional_and_expression }
  */
 static IR_expression _conditional_or_expression (IR_name n1)
 {
-    // FIXME FIXME
-    return _primary_expression (n1);
+    IR_expression e = _conditional_and_expression(n1);
+
+    while (S_tkn.kind == S_LOR)
+    {
+        S_nextToken();
+        // IR_expression e = _conditional_and_expression(NULL);
+        EM_error (S_tkn.pos, "sorry #37");
+        assert(false); // FIXME
+    }
+
+    return e;
 }
 
 /*
@@ -790,6 +1008,80 @@ static IR_expression _expression (IR_name n1)
 }
 
 /*
+ * local_variable_declarator ::= identifier [ '=' (expression | 'ref' variable_reference | array_initializer) ]
+ */
+
+static void _local_variable_declarator (IR_type ty, IR_namespace names)
+{
+    if (S_tkn.kind != S_IDENT)
+    {
+        EM_error (S_tkn.pos, "local variable declarator: identifier expected");
+        return;
+    }
+
+    S_symbol id  = S_tkn.u.sym;
+    S_pos    pos = S_tkn.pos;
+    S_nextToken();
+
+    IR_expression initExpr = NULL;
+
+    if (S_tkn.kind == S_EQUALS)
+    {
+        S_nextToken();
+
+        switch (S_tkn.kind)
+        {
+            case S_REF:
+                // FIXME
+                EM_error (S_tkn.pos, "local variable declarator: sorry, ref is not supported yet.");
+                return;
+            case S_LBRACE:
+                // FIXME
+                EM_error (S_tkn.pos, "local variable declarator: sorry, array initializers are not supported yet.");
+                return;
+            default:
+                initExpr = _expression (NULL);
+        }
+    }
+
+    IR_variable v = IR_Variable (pos, id, ty, initExpr);
+
+    IR_namesAddVariable (names, id, v);
+}
+
+/*
+ * local_variable_declaration ::= [ 'ref' ['readonly'] ] ( type | 'var' )
+ *                                [ local_variable_declarator { ',' local_variable_declarator } ]
+ */
+static void _local_variable_declaration (IR_name tyName, IR_namespace names)
+{
+    if (!tyName && S_tkn.kind == S_REF)
+    {
+        EM_error (S_tkn.pos, "local variable declaration: ref var support is not implemented yet, sorry.");
+        assert(false);
+        return;
+    }
+
+    if (S_tkn.kind == S_VAR)
+    {
+        EM_error (S_tkn.pos, "local variable declaration: var keyword support is not implemented yet, sorry.");
+        assert(false);
+        return;
+    }
+
+    IR_type ty = _type (tyName, names);
+    if (!ty)
+        return;
+
+    _local_variable_declarator (ty, names);
+    while (S_tkn.kind == S_COMMA)
+    {
+        S_nextToken();
+        _local_variable_declarator (ty, names);
+    }
+}
+
+/*
  * statement: ( block
               | ';'
               | local_constant_declaration ';'
@@ -808,20 +1100,19 @@ static IR_expression _expression (IR_name n1)
 
 local_constant_declaration : 'const' type constant_declarator (',' constant_declarator)* ';'
 constant_declarator : identifier '=' constant_expression
-
-
-local_variable_declaration : type local_variable_declarator ( ',' local_variable_declarator )*
-local_variable_declarator : identifier ( '=' local_variable_initializer )?
-
 */
 
-static void _statement (IR_stmtList sl)
+static void _statement (IR_block block)
 {
     switch (S_tkn.kind)
     {
         case S_LBRACE:
-            _block(sl);
+        {
+            IR_statement stmt = IR_Statement (IR_stmtBlock, S_tkn.pos);
+            stmt->u.block = _block(block->names);
+            IR_blockAppendStmt (block, stmt);
             return;
+        }
         case S_SEMICOLON:
             S_nextToken();
             return;
@@ -850,7 +1141,11 @@ static void _statement (IR_stmtList sl)
                 IR_name name = _name (NULL, pos);
                 if (S_tkn.kind == S_IDENT)
                 {
-                    assert(false); // FIXME: implement local variable declaration
+                    _local_variable_declaration (name, block->names);
+                    if (S_tkn.kind == S_SEMICOLON)
+                        S_nextToken();
+                    else
+                        EM_error (S_tkn.pos, "local variable declaration: ; expected here.");
                 }
                 else
                 {
@@ -861,7 +1156,7 @@ static void _statement (IR_stmtList sl)
                         EM_error (S_tkn.pos, "expression statement: ; expected here.");
                     IR_statement stmt = IR_Statement (IR_stmtExpression, pos);
                     stmt->u.expr = expr;
-                    IR_stmtListAppend (sl, stmt);
+                    IR_blockAppendStmt (block, stmt);
                 }
             }
             break;
@@ -876,19 +1171,22 @@ static void _statement (IR_stmtList sl)
  * block : '{' statement* '}' ;
  */
 
-static void _block (IR_stmtList sl)
+static IR_block _block (IR_namespace parent)
 {
+    IR_block block = IR_Block (S_tkn.pos, parent);
     S_nextToken(); // skip {
 
     while ((S_tkn.kind != S_RBRACE) && (S_tkn.kind != S_EOF))
     {
-        _statement(sl);
+        _statement(block);
     }
 
     if (S_tkn.kind == S_RBRACE)
         S_nextToken();
     else
         EM_error (S_tkn.pos, "block: } expected here.");
+
+    return block;
 }
 
 /*
@@ -911,7 +1209,7 @@ static void _block (IR_stmtList sl)
  *   ;
  */
 
-static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t mods, IR_type tyOwner)
+static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t mods, IR_type tyOwner, IR_namespace parent)
 {
     IR_visibility visibility = IR_visPrivate;
     bool          isStatic   = false;
@@ -940,7 +1238,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         return;
     }
 
-    IR_type ty = _type();
+    IR_type ty = _type(/*nameLookahead=*/NULL, parent);
 
     if (S_tkn.kind != S_IDENT)
     {
@@ -971,6 +1269,8 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
 
         IR_proc proc = IR_Proc (pos, visibility, IR_pkFunction, tyOwner, name, isExtern, isStatic);
 
+        proc->block = IR_Block (pos, parent);
+
         /*
          * parameter_list
          *   : '(' (parameter (',' parameter)*)? ')'
@@ -983,13 +1283,13 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         /* this reference ? */
         if (!isStatic)
         {
-            IR_formal fThis = IR_Formal (S_this, IR_getReference (pos, tyOwner), /*defaultExp=*/NULL, /*reg=*/NULL);
+            IR_formal fThis = IR_Formal (pos, S_this, IR_getReference (pos, tyOwner), /*defaultExp=*/NULL, /*reg=*/NULL);
             formals = formals_last = fThis;
         }
 
         while (S_tkn.kind != S_RPAREN)
         {
-            IR_formal f = _parameter();
+            IR_formal f = _parameter(proc->block->names);
             if (!f)
                 return;
             if (formals_last)
@@ -1014,11 +1314,12 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
 
         proc->label = Temp_namedlabel(IR_procGenerateLabel (proc, tyOwner ? tyOwner->u.cls.name:NULL));
 
-        proc->sl = IR_StmtList ();
-
         if (S_tkn.kind == S_LBRACE)
         {
-            _block(proc->sl);
+            IR_block b = _block (proc->block->names);
+            IR_statement stmt = IR_Statement (IR_stmtBlock, S_tkn.pos);
+            stmt->u.block = b;
+            IR_blockAppendStmt (proc->block, stmt);
         }
         else
         {
@@ -1115,7 +1416,7 @@ class_member_declaration
     ;
 */
 
-static void _class_declaration (uint32_t mods)
+static void _class_declaration (uint32_t mods, IR_namespace parent)
 {
     IR_visibility visibility = IR_visInternal;
     bool isStatic = false;
@@ -1145,12 +1446,20 @@ static void _class_declaration (uint32_t mods)
     }
     S_symbol name = S_tkn.u.sym;
 
-    IR_type tyRef = IR_namesResolveType (pos, _g_names, name, /*usings=*/NULL, /*doCreate=*/ true);
-    if (tyRef->kind != Ty_unresolved)
-        EM_error (S_tkn.pos, "%s already exists in this namespace");
+    IR_type tyRef = IR_namesResolveType (pos, parent, name, /*checkParent=*/false, /*usings=*/NULL);
+    if (tyRef)
+    {
+        if (tyRef->kind != Ty_unresolved)
+            EM_error (S_tkn.pos, "%s already exists in this namespace");
+    }
+    else
+    {
+        tyRef = IR_TypeUnresolved (pos, name);
+        IR_namesAddType (parent, name, tyRef);
+    }
     S_nextToken();
 
-    IR_name fqn  = IR_NamespaceName (_g_names, name, pos);
+    IR_name fqn  = IR_NamespaceName (parent, name, pos);
 
     if (S_tkn.kind == S_LESS)
     {
@@ -1208,8 +1517,10 @@ static void _class_declaration (uint32_t mods)
     tyRef->kind  = Ty_reference;
     tyRef->u.ref = t;
 
-    IR_definition def = IR_DefinitionType (_g_usings_first, _g_names, name, t);
+    IR_definition def = IR_DefinitionType (_g_usings_first, parent, name, t);
     IR_assemblyAdd (_g_assembly, def);
+
+    IR_namespace names = IR_Namespace (/*name=*/NULL, parent);
 
     if (S_tkn.kind != S_LBRACE)
     {
@@ -1232,7 +1543,7 @@ static void _class_declaration (uint32_t mods)
 
         if ((S_tkn.kind == S_IDENT) || (S_tkn.kind == S_VOID))
         {
-            _method_or_field_declaration (t->u.cls.members, pos, mods, t);
+            _method_or_field_declaration (t->u.cls.members, pos, mods, t, names);
         }
         else
         {
@@ -1275,7 +1586,7 @@ delegate_declaration
  *                                          )
  *                                          ;
  */
-static bool _type_declaration ()
+static bool _type_declaration (IR_namespace parent)
 {
     if (S_tkn.kind == S_LBRACKET)
         _attributes();
@@ -1286,7 +1597,7 @@ static bool _type_declaration ()
     switch (S_tkn.kind)
     {
         case S_CLASS:
-            _class_declaration (mods);
+            _class_declaration (mods, parent);
             break;
         case S_STRUCT:
             // FIXME: implement
@@ -1316,15 +1627,15 @@ static bool _type_declaration ()
  *     | type_declaration
  *     ;
  */
-static bool _namespace_member_declaration (void)
+static bool _namespace_member_declaration (IR_namespace names)
 {
     if (S_tkn.kind == S_NAMESPACE)
     {
-        return _namespace_declaration ();
+        return _namespace_declaration (names);
     }
     else
     {
-        return _type_declaration ();
+        return _type_declaration (names);
     }
 }
 
@@ -1380,7 +1691,7 @@ static void _add_using (IR_using u)
  * ;
  */
 
-static void _using_directive (void)
+static void _using_directive (IR_namespace parent)
 {
     S_nextToken(); // skip USING
 
@@ -1395,7 +1706,7 @@ static void _using_directive (void)
     S_symbol n1    = S_tkn.u.sym;
     S_nextToken();
 
-    IR_namespace names = _g_names;
+    IR_namespace names = parent;
     IR_type      type  = NULL;
 
     if (S_tkn.kind == S_EQUALS)
@@ -1432,7 +1743,7 @@ static void _using_directive (void)
         pos   = S_tkn.pos;
         S_nextToken();
 
-        type = IR_namesResolveType (pos, names, sym, /*usings=*/NULL, /*doCreate=*/false);
+        type = IR_namesResolveType (pos, names, sym, /*checkParent=*/false, /*usings=*/NULL);
         if (type)
         {
             names = NULL;
@@ -1470,7 +1781,6 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
 {
     PA_filename = sourcefn;
     _g_assembly = assembly;
-    _g_names    = names_root;
 
     S_init (sourcefn, sourcef);
 
@@ -1478,25 +1788,25 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
     // using string = System.String;
 
     _g_sys_names = IR_namesResolveNames (names_root, S_System, /*doCreate=*/true);
-    _add_using (IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("String"   ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("char"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Char"     ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("bool"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Boolean"  ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("sbyte" ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("SByte"    ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("byte"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Byte"     ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("short" ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Int16"    ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("ushort"), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("UInt16"   ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("int"   ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Int32"    ), NULL,  /*doCreate=*/true), NULL));
-    _add_using (IR_Using (S_Symbol ("uint"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("UInt32"   ), NULL,  /*doCreate=*/true), NULL));
+    _add_using (IR_Using (S_Symbol ("string"), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("String"   ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("char"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Char"     ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("bool"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Boolean"  ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("sbyte" ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("SByte"    ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("byte"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Byte"     ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("short" ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Int16"    ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("ushort"), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("UInt16"   ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("int"   ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("Int32"    ), /*checkParent=*/false, NULL), NULL));
+    _add_using (IR_Using (S_Symbol ("uint"  ), IR_namesResolveType (S_tkn.pos, _g_sys_names, S_Symbol ("UInt32"   ), /*checkParent=*/false, NULL), NULL));
 
     while (S_tkn.kind != S_EOF)
     {
         if (S_tkn.kind == S_USING)
         {
-            _using_directive();
+            _using_directive(names_root);
         }
         else
         {
-            if (!_namespace_member_declaration ())
+            if (!_namespace_member_declaration (names_root))
                 break;
         }
     }

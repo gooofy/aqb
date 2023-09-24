@@ -9,11 +9,39 @@
 #define MAX_LINE_LEN   8192
 
 typedef enum {
-    S_EOF, S_IDENT, S_STRING,
-    S_PERIOD, S_SEMICOLON, S_COLON, S_COMMA,
-    S_LPAREN, S_RPAREN, S_LBRACE, S_RBRACE, S_LBRACKET, S_RBRACKET, 
-    S_EQUALS, S_LESS, S_GREATER, S_AND, S_OR, S_EOR,
-    S_SLASH, S_QUESTIONMARK, S_PLUS, S_MINUS, S_ASTERISK, S_DIV, S_MOD, S_LSHIFT, S_RSHIFT,
+    S_EOF, S_IDENT, S_STRING, S_INUM,
+    S_PERIOD,       // .
+    S_SEMICOLON,    // ;
+    S_COLON,        // :
+    S_COMMA,        // ,
+    S_LPAREN,       // (
+    S_RPAREN,       // )
+    S_LBRACE,       // {
+    S_RBRACE,       // }
+    S_LBRACKET,     // [
+    S_RBRACKET,     // ]
+    S_EQUALS,       // =
+    S_EEQUALS,      // ==
+    S_NEQUALS,      // !=
+    S_LESS,         // <
+    S_LESSEQ,       // <=
+    S_GREATER,      // >
+    S_GREATEREQ,    // >=
+    S_AND,          // &
+    S_LAND,         // &&
+    S_OR,           // |
+    S_LOR,          // ||
+    S_EOR,          // ^
+    S_NOT,          // !
+    S_SLASH,        // /
+    S_QUESTIONMARK, // ?
+    S_PLUS,         // +
+    S_MINUS,        // -
+    S_ASTERISK,     // *
+    S_MOD,          // %
+    S_NEG,          // ~
+    S_LSHIFT,       // <<
+    S_RSHIFT,       // >>
     S_PLUSEQUALS,   // +=
     S_MINUSEQUALS,  // -=
     S_MULEQUALS,    // *=
@@ -62,13 +90,17 @@ typedef enum {
     S_DO,
     S_FOR,
     S_FOREACH,
+    S_VAR,
+    S_AWAIT,
+    S_IS,
+    S_AS,
 } S_token;
 
 typedef struct { uint16_t col; uint16_t line; } S_pos;
 
 extern S_pos S_noPos;
 
-typedef enum { S_thNone, S_thSingle, S_thDouble, S_thInteger, S_thLong, S_thUInteger, S_thULong } S_typeHint;
+typedef enum { S_thNone, S_thSingle, S_thDouble, S_thUnsigned, S_thLong, S_thULong } S_typeHint;
 
 typedef struct
 {
@@ -77,7 +109,7 @@ typedef struct
     union
     {
         struct {
-            int32_t    inum;
+            int64_t    inum;
             double     fnum;
             S_typeHint typeHint;
         }                             literal;

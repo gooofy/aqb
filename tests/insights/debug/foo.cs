@@ -6,11 +6,16 @@ namespace ConsoleApp10
 {
     class Program
     {
-       // static void Main(string[] args)
-       static void Main()
-       {
-           System.Console.WriteLine("Hello World!");
-           Debug.Assert(false);
-       }
+        // static void Main(string[] args)
+        static void Main()
+        {
+            int a = 10;
+            int b = 32;
+
+            int c = a + b;
+
+            System.Console.WriteLine("Hello World!");
+            Debug.Assert(c==42);
+        }
     }
 }
