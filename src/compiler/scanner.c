@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 
 #include "scanner.h"
 #include "util.h"
@@ -660,6 +661,36 @@ string  S_getSourceLine (int line)
 
     string s = TAB_look (g_src, (void*) (long) line);
     return s ? s : "";
+}
+
+void S_recordState (S_state *s)
+{
+    s->tkn      = S_tkn;
+    s->ch       = g_ch;
+    s->eof      = g_eof;
+    s->line     = g_line;
+    s->col      = g_col;
+    s->eol      = g_eol;
+
+    memcpy (s->str     , g_str     , MAX_LINE_LEN);
+    memcpy (s->cur_line, g_cur_line, MAX_LINE_LEN);
+
+    s->offset   = ftell (g_sourcef);
+}
+
+void S_restoreState (S_state *s)
+{
+    S_tkn  = s->tkn;
+    g_ch   = s->ch;
+    g_eof  = s->eof;
+    g_line = s->line;
+    g_col  = s->col;
+    g_eol  = s->eol;
+
+    memcpy (g_str     , s->str     , MAX_LINE_LEN);
+    memcpy (g_cur_line, s->cur_line, MAX_LINE_LEN);
+
+    fseek (g_sourcef, s->offset, SEEK_SET);
 }
 
 void S_boot(void)

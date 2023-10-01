@@ -120,6 +120,19 @@ typedef struct
 
 extern S_tkn_t S_tkn; 
 
+typedef struct S_state_ S_state;
+struct S_state_
+{
+    S_tkn_t       tkn;
+    char          ch;
+    bool          eof;
+    uint16_t      line, col;
+    bool          eol;
+    char          str[MAX_LINE_LEN];
+    char          cur_line[MAX_LINE_LEN];
+    long          offset;
+};
+
 static inline bool S_isWhitespace(char ch)
 {
     return (ch == ' ') || (ch == '\t') || (ch == '\r') || (ch == '\n');
@@ -145,6 +158,9 @@ bool    S_nextToken (void);
 string  S_getSourceLine (int line);
 
 void    S_init(const char *sourcefn, FILE *sourcef);
+
+void    S_recordState  (S_state *s);
+void    S_restoreState (S_state *s);
 
 void    S_boot(void);
 

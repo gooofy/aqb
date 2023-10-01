@@ -15,28 +15,26 @@ void IR_assemblyAdd (IR_assembly assembly, IR_definition def)
     def->next = NULL;
 }
 
-IR_definition IR_DefinitionType (IR_using usings, IR_namespace names, S_symbol name, IR_type type)
+IR_definition IR_DefinitionType (IR_namespace names, S_symbol id, IR_type type)
 {
     IR_definition def = U_poolAllocZero (UP_ir, sizeof (*def));
 
     def->kind       = IR_defType;
-    def->usings     = usings;
     def->names      = names;
-    def->name       = name;
+    def->id         = id;
     def->u.ty       = type;
     def->next       = NULL;
 
     return def;
 }
 
-IR_definition IR_DefinitionProc (IR_using usings, IR_namespace names, S_symbol name, IR_proc proc)
+IR_definition IR_DefinitionProc (IR_namespace names, S_symbol id, IR_proc proc)
 {
     IR_definition def = U_poolAllocZero (UP_ir, sizeof (*def));
 
     def->kind       = IR_defProc;
-    def->usings     = usings;
     def->names      = names;
-    def->name       = name;
+    def->id         = id;
     def->u.proc     = proc;
     def->next       = NULL;
 
@@ -53,14 +51,14 @@ IR_name IR_Name (S_symbol sym, S_pos pos)
     return n;
 }
 
-IR_name IR_NamespaceName (IR_namespace names, S_symbol sym, S_pos pos)
+IR_name IR_NamespaceName (IR_namespace names, S_symbol id, S_pos pos)
 {
-    IR_name name = IR_Name (names->name, pos);
+    IR_name name = IR_Name (names->id, pos);
 
     IR_namespace n = names->parent;
     while (n)
     {
-        IR_symNode sn = IR_SymNode (n->name);
+        IR_symNode sn = IR_SymNode (n->id);
 
 		if (sn->sym)
         {
@@ -71,7 +69,7 @@ IR_name IR_NamespaceName (IR_namespace names, S_symbol sym, S_pos pos)
         n = n->parent;
     }
 
-    IR_nameAddSym (name, sym);
+    IR_nameAddSym (name, id);
 
     return name;
 }
@@ -111,27 +109,26 @@ IR_symNode IR_SymNode (S_symbol sym)
     return n;
 }
 
-IR_using IR_Using (S_symbol alias, IR_type type, IR_namespace names)
+IR_using IR_Using (S_symbol alias, IR_type ty, IR_namespace names)
 {
     IR_using u = U_poolAllocZero (UP_ir, sizeof (*u));
 
-    assert (names || type);
+    assert (names || ty);
 
     u->alias = alias;
     u->names = names;
-    u->type  = type;
+    u->ty    = ty;
     u->next  = NULL;
 
     return u;
 }
 
-IR_namespace IR_Namespace (S_symbol name, IR_namespace parent)
+IR_namespace IR_Namespace (S_symbol id, IR_namespace parent)
 {
     IR_namespace names = U_poolAllocZero (UP_ir, sizeof (*names));
 
-    names->name        = name;
+    names->id          = id;
     names->parent      = parent;
-    names->entries     = TAB_empty (UP_ir);
 
     return names;
 }
@@ -145,128 +142,94 @@ IR_namesEntry IR_NamesEntry (IR_neKind kind)
     return ne;
 }
 
-IR_namespace IR_namesResolveNames (IR_namespace parent, S_symbol name, bool doCreate)
+void IR_namesAddUsing (IR_namespace names, IR_using u)
 {
-    IR_namesEntry entry = (IR_namesEntry) TAB_look(parent->entries, name);
-
-    if (entry && (entry->kind == IR_neNames))
-        return entry->u.names;
-
-    if (!doCreate)
-        return NULL;
-
-    IR_namespace names = IR_Namespace (name, parent);
-    entry = IR_NamesEntry (IR_neNames);
-    entry->u.names = names;
-    TAB_enter (parent->entries, name, entry);
-
-    return names;
+    if (names->usingsLast)
+        names->usingsLast = names->usingsLast->next = u;
+    else
+        names->usingsFirst = names->usingsLast = u;
 }
 
-IR_type IR_namesResolveType (S_pos pos, IR_namespace names, S_symbol name, bool checkParent, IR_using usings)
+static void _namesAddEntry (IR_namespace names, IR_namesEntry e)
 {
-    IR_namesEntry e = (IR_namesEntry) TAB_look(names->entries, name);
-    if (e && e->kind == IR_neType)
-        return e->u.type;
-
-    // apply using declarations
-    for (IR_using u=usings; u; u=u->next)
-    {
-        if (u->alias)
-        {
-            if (u->alias == name)
-            {
-                if (u->type)
-                    return u->type;
-                EM_error (pos, "sorry");
-                assert(false); // FIXME
-            }
-        }
-        else
-        {
-            assert(false); // FIXME
-        }
-    }
-
-    if (checkParent && names->parent)
-        return IR_namesResolveType (pos, names->parent, name, /*checkParent=*/true, /*usings=*/NULL);
-
-    return NULL;
+    if (names->entriesLast)
+        names->entriesLast = names->entriesLast->next = e;
+    else
+        names->entriesLast = names->entriesFirst = e;
 }
 
 void IR_namesAddType (IR_namespace names, S_symbol id, IR_type t)
 {
     IR_namesEntry e = IR_NamesEntry (IR_neType);
+
+    e->id     = id;
     e->u.type = t;
-    TAB_enter (names->entries, id, e);
+
+    _namesAddEntry (names, e);
 }
 
-void IR_namesAddVariable (IR_namespace names, S_symbol id, IR_variable var)
+void IR_namesAddFormal (IR_namespace names, IR_formal formal)
+{
+    IR_namesEntry e = IR_NamesEntry (IR_neFormal);
+
+    e->id       = formal->id;
+    e->u.formal = formal;
+
+    _namesAddEntry (names, e);
+}
+
+void IR_namesAddVariable (IR_namespace names, IR_variable var)
 {
     IR_namesEntry e = IR_NamesEntry (IR_neVar);
+
+    e->id    = var->id;
     e->u.var = var;
-    TAB_enter (names->entries, id, e);
+
+    _namesAddEntry (names, e);
 }
 
-IR_member IR_namesResolveMember (IR_name name, IR_using usings)
+void IR_namesAddMember (IR_namespace names, IR_member member)
 {
-    IR_namespace names = NULL;
-    IR_type      t     = NULL;
+    IR_namesEntry e = IR_NamesEntry (IR_neMember);
 
-    IR_symNode n = name->first;
+    e->id       = member->id;
+    e->u.member = member;
 
-    for (IR_using u=usings; u; u=u->next)
+    _namesAddEntry (names, e);
+}
+
+IR_namespace IR_namesLookupNames (IR_namespace parent, S_symbol id, bool doCreate)
+{
+    for (IR_namesEntry entry = parent->entriesFirst; entry; entry=entry->next)
     {
-        if (u->alias)
-        {
-            if (n->sym != u->alias)
-                continue;
-            if (u->type)
-            {
-                t = u->type;
-                break;
-            }
-            names = u->names;
-            break;
-        }
-        else
-        {
-            if (u->names->name == n->sym)
-            {
-                names = u->names;
-                break;
-            }
-        }
+        if ((entry->id==id) && (entry->kind == IR_neNames))
+            return entry->u.names;
     }
 
-    if (!t)
-    {
-        if (!names)
-            return NULL;
+    if (!doCreate)
+        return NULL;
 
-        n = n->next;
-        while (n)
-        {
-            IR_namespace names2 = IR_namesResolveNames (names, n->sym, /*doCreate=*/false);
-            if (names2)
-            {
-                names = names2;
-                n = n->next;
-            }
-            else
-            {
-                t = IR_namesResolveType (name->pos, names, n->sym, /*usings=*/NULL, /*doCreate=*/false);
-                if (!t)
-                    return NULL;
-                n = n->next;
-                break;
-            }
-        }
+    IR_namespace names = IR_Namespace (id, parent);
+
+    IR_namesEntry entry = IR_NamesEntry (IR_neNames);
+
+    entry->id      = id;
+    entry->u.names = names;
+
+    _namesAddEntry (parent, entry);
+
+    return names;
+}
+
+IR_type IR_namesLookupType (IR_namespace names, S_symbol id)
+{
+    for (IR_namesEntry entry = names->entriesFirst; entry; entry=entry->next)
+    {
+        if ((entry->id==id) && (entry->kind == IR_neType))
+            return entry->u.type;
     }
 
-    IR_member mem = IR_findMember (t, n->sym, /*checkBase=*/true);
-
-    return mem;
+    return NULL;
 }
 
 int IR_typeSize (IR_type ty)
@@ -305,9 +268,18 @@ int IR_typeSize (IR_type ty)
     return 4;
 }
 
+IR_typeDesignator IR_TypeDesignator (IR_name name)
+{
+    IR_typeDesignator td = U_poolAllocZero(UP_types, sizeof(*td));
+
+    td->name = name;
+
+    return td;
+}
+
 IR_const IR_ConstBool (IR_type ty, bool b)
 {
-    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+    IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.b = b;
@@ -317,7 +289,7 @@ IR_const IR_ConstBool (IR_type ty, bool b)
 
 IR_const IR_ConstInt (IR_type ty, int32_t i)
 {
-    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+    IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.i = i;
@@ -327,7 +299,7 @@ IR_const IR_ConstInt (IR_type ty, int32_t i)
 
 IR_const IR_ConstUInt (IR_type ty, uint32_t u)
 {
-    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+    IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.u = u;
@@ -337,7 +309,7 @@ IR_const IR_ConstUInt (IR_type ty, uint32_t u)
 
 IR_const IR_ConstFloat (IR_type ty, double f)
 {
-    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+    IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.f = f;
@@ -347,7 +319,7 @@ IR_const IR_ConstFloat (IR_type ty, double f)
 
 IR_const IR_ConstString (IR_type ty, string s)
 {
-    IR_const p = U_poolAlloc(UP_types, sizeof(*p));
+    IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
 
     p->ty  = ty;
     p->u.s = s;
@@ -355,32 +327,32 @@ IR_const IR_ConstString (IR_type ty, string s)
     return p;
 }
 
-IR_variable IR_Variable (S_pos pos, S_symbol id, IR_type ty, IR_expression initExp)
+IR_variable IR_Variable (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression initExp)
 {
     IR_variable v = U_poolAllocZero (UP_ir, sizeof (*v));
 
     v->pos     = pos;
     v->id      = id;
-    v->type    = ty;
+    v->td      = td;
     v->initExp = initExp;
 
     return v;
 }
 
-IR_formal IR_Formal (S_pos pos, S_symbol id, IR_type type, IR_expression defaultExp, Temp_temp reg)
+IR_formal IR_Formal (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg)
 {
-    IR_formal p = U_poolAllocZero (UP_ir, sizeof (*p));
+    IR_formal f = U_poolAllocZero (UP_ir, sizeof (*f));
 
-    p->pos        = pos;
-    p->id         = id;
-    p->type       = type;
-    p->defaultExp = defaultExp;
-    p->reg        = reg;
+    f->pos        = pos;
+    f->id         = id;
+    f->td         = td;
+    f->defaultExp = defaultExp;
+    f->reg        = reg;
 
-    return p;
+    return f;
 }
 
-IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol name, bool isExtern, bool isStatic)
+IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic)
 {
     IR_proc p = U_poolAllocZero (UP_ir, sizeof (*p));
 
@@ -388,7 +360,7 @@ IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type 
     p->visibility = visibility;
     p->kind       = kind;
     p->tyOwner    = tyOwner;
-    p->name       = name;
+    p->id         = id;
     p->isExtern   = isExtern;
     p->isStatic   = isStatic;
 
@@ -397,7 +369,7 @@ IR_proc IR_Proc (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type 
 
 bool IR_procIsMain (IR_proc proc)
 {
-    bool is_main = (proc->name == S_Main) && proc->isStatic;
+    bool is_main = (proc->id == S_Main) && proc->isStatic;
     return is_main;
 }
 
@@ -406,7 +378,7 @@ string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
     if (IR_procIsMain (proc))
         return _MAIN_LABEL;
 
-    string label = strconcat(UP_frontend, "_", S_name(proc->name));
+    string label = strconcat(UP_frontend, "_", S_name(proc->id));
 
     if (clsOwnerName)
     {
@@ -421,13 +393,13 @@ string IR_procGenerateLabel (IR_proc proc, IR_name clsOwnerName)
     return label;
 }
 
-IR_type IR_TypeUnresolved (S_pos pos, S_symbol name)
+IR_type IR_TypeUnresolved (S_pos pos, S_symbol id)
 {
     IR_type t = U_poolAllocZero (UP_ir, sizeof (*t));
 
     t->kind         = Ty_unresolved;
     t->pos          = pos;
-    t->u.unresolved = name;
+    t->u.unresolved = id;
 
     return t;
 }
@@ -493,23 +465,23 @@ IR_member IR_MemberMethod (IR_visibility visibility, IR_method method)
 
     m->next        = NULL;
     m->kind        = IR_recMethod;
-    m->name        = method->proc->name;
+    m->id          = method->proc->id;
     m->visibility  = visibility;
     m->u.method    = method;
 
     return m;
 }
 
-IR_member IR_MemberField (IR_visibility visibility, S_symbol name, IR_type fieldType)
+IR_member IR_MemberField (IR_visibility visibility, S_symbol id, IR_typeDesignator td)
 {
     IR_member m = U_poolAllocZero (UP_ir, sizeof (*m));
 
     m->next               = NULL;
     m->kind               = IR_recField;
-    m->name               = name;
+    m->id                 = id;
     m->visibility         = visibility;
     m->u.field.uiOffset   = 0;
-    m->u.field.ty         = fieldType;
+    m->u.field.td         = td;
 
     return m;
 }
@@ -557,7 +529,7 @@ void IR_addMember (IR_memberList memberList, IR_member member)
     member->next = NULL;
 }
 
-IR_member IR_findMember (IR_type ty, S_symbol sym, bool checkBase)
+IR_member IR_findMember (IR_type ty, S_symbol id, bool checkBase)
 {
     IR_memberList ml = NULL;
     switch (ty->kind)
@@ -566,7 +538,7 @@ IR_member IR_findMember (IR_type ty, S_symbol sym, bool checkBase)
             ml = ty->u.cls.members;
             break;
         case Ty_reference:
-            return IR_findMember (ty->u.ref, sym, checkBase);
+            return IR_findMember (ty->u.ref, id, checkBase);
         default:
             return NULL;
     }
@@ -574,7 +546,7 @@ IR_member IR_findMember (IR_type ty, S_symbol sym, bool checkBase)
     IR_member m = ml->first;
     while (m)
     {
-        if (m->name == sym)
+        if (m->id == id)
             return m;
         m = m->next;
     }
@@ -584,8 +556,8 @@ IR_member IR_findMember (IR_type ty, S_symbol sym, bool checkBase)
         switch (ty->kind)
         {
             case Ty_class:
-                if (ty->u.cls.baseType)
-                    return IR_findMember (ty->u.cls.baseType, sym, true);
+                if (ty->u.cls.baseTy)
+                    return IR_findMember (ty->u.cls.baseTy, id, true);
                 break;
             default:
                 return NULL;
@@ -647,14 +619,14 @@ IR_expression IR_name2expr (IR_name n)
         if (eLast)
         {
             IR_expression e = IR_Expression (IR_expSelector, n->pos);
-            e->u.selector.sym = sn->sym;
-            e->u.selector.e   = eLast;
+            e->u.selector.id = sn->sym;
+            e->u.selector.e  = eLast;
             eLast = e;
         }
         else
         {
             IR_expression e = IR_Expression (IR_expSym, n->pos);
-            e->u.sym = sn->sym;
+            e->u.id = sn->sym;
             eLast = e;
         }
     }
@@ -729,13 +701,13 @@ IR_type IR_TypeDouble(void) {return &tydouble;}
 //static struct IR_type_ tyvtableptr = {Ty_pointer, {&tyvtable}};
 //IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
 
-static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, true, {&tybyte}};
+static struct IR_type_ tyubyteptr = {Ty_pointer, {0,0}, {&tybyte}};
 IR_type IR_TypeUBytePtr(void) {return &tyubyteptr;}
 
-static struct IR_type_ tyuint32ptr = {Ty_pointer, {0,0}, true, {&tyuint32}};
+static struct IR_type_ tyuint32ptr = {Ty_pointer, {0,0}, {&tyuint32}};
 IR_type IR_TypeUInt32Ptr(void) {return &tyuint32ptr;}
 
-static struct IR_type_ tyvtableptr = {Ty_pointer, {0,0}, true, {&tyuint32ptr/*FIXME*/}};
+static struct IR_type_ tyvtableptr = {Ty_pointer, {0,0}, {&tyuint32ptr/*FIXME*/}};
 IR_type IR_TypeVTablePtr(void) {return &tyvtableptr;}
 
 void IR_init(void)

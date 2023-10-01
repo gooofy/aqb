@@ -83,12 +83,12 @@ static void fwrite_u1(uint8_t u)
 
 static void _serializeIRNamespace(IR_namespace names, bool cont)
 {
-    if (names->parent && names->parent->name)
+    if (names->parent && names->parent->id)
     {
         _serializeIRNamespace (names->parent, /*cont=*/true);
     }
-    if (names->name)
-        strserialize (symf, S_name(names->name));
+    if (names->id)
+        strserialize (symf, S_name(names->id));
     fwrite_u1 (cont ? '.' : 0);
 }
 
@@ -125,7 +125,6 @@ static void _serializeIRTypeRef (IR_type ty)
             break;
 
         case Ty_class:
-            assert(ty->elaborated);
             _serializeIRName (ty->u.cls.name);
             break;
         case Ty_reference:
@@ -142,7 +141,7 @@ static void _serializeIRTypeRef (IR_type ty)
 static void _serializeIRFormal (IR_formal formal)
 {
     strserialize (symf, S_name(formal->id));
-    _serializeIRTypeRef(formal->type);
+    _serializeIRTypeRef(formal->ty);
     assert (!formal->defaultExp); // FIXME
     if (formal->reg)
     {
@@ -166,7 +165,7 @@ static void _serializeIRProc (IR_proc proc)
     }
     fwrite_u1(proc->kind);
     fwrite_u1(proc->visibility);
-    strserialize (symf, S_name(proc->name));
+    strserialize (symf, S_name(proc->id));
     uint8_t cnt=0;
     for (IR_formal f=proc->formals; f; f=f->next)
         cnt++;
@@ -190,7 +189,7 @@ static void _serializeIRMemberList (IR_memberList members)
     for (IR_member member=members->first; member; member=member->next)
     {
         fwrite_u1(member->kind);
-        strserialize (symf, S_name(member->name));
+        strserialize (symf, S_name(member->id));
         fwrite_u1(member->visibility);
         switch (member->kind)
         {
@@ -212,7 +211,6 @@ static void _serializeIRMemberList (IR_memberList members)
 
 static void _serializeIRType (IR_type ty)
 {
-    assert(ty->elaborated);
     fwrite_u1 (ty->kind);
     switch (ty->kind)
     {
@@ -224,7 +222,7 @@ static void _serializeIRType (IR_type ty)
             fwrite_u1 (ty->u.cls.visibility);
             fwrite_u1 (ty->u.cls.isStatic ? 1 : 0);
             fwrite_u4 (ty->u.cls.uiSize);
-            _serializeIRTypeRef (ty->u.cls.baseType);
+            _serializeIRTypeRef (ty->u.cls.baseTy);
             assert (!ty->u.cls.implements); // FIXME
             _serializeIRProc (ty->u.cls.constructor);
             _serializeIRProc (ty->u.cls.__init);
@@ -240,7 +238,7 @@ static void _serializeIRDefinition (IR_definition def)
 {
     fwrite_u1 (def->kind);
     _serializeIRNamespace(def->names, /*cont=*/false);
-    strserialize (symf, S_name(def->name));
+    strserialize (symf, S_name(def->id));
     switch(def->kind)
     {
         case IR_defType:
@@ -328,7 +326,7 @@ static IR_namespace _deserializeIRNamespace()
     {
         char *n = strdeserialize (UP_ir, symf);
         S_symbol name = S_Symbol (n);
-        names = IR_namesResolveNames (names, name, /*doCreate=*/true);
+        names = IR_namesLookupNames (names, name, /*doCreate=*/true);
         uint8_t c = fread_u1();
         if (!c)
             break;
@@ -361,11 +359,11 @@ static IR_type _createIRType (IR_name name)
     while (sn->next)
     {
         if (sn->sym)
-            names = IR_namesResolveNames (names, sn->sym, /*doCreate=*/true);
+            names = IR_namesLookupNames (names, sn->sym, /*doCreate=*/true);
         sn = sn->next;
     }
 
-    IR_type ty = IR_namesResolveType (S_noPos, names, sn->sym, /*checkParent=*/false, /*usings=*/NULL);
+    IR_type ty = IR_namesLookupType (names, sn->sym);
     if (!ty)
     {
         ty = IR_TypeUnresolved (S_noPos, sn->sym);
@@ -402,7 +400,6 @@ static IR_type _deserializeIRTypeRef (void)
     IR_type ty = U_poolAllocZero (UP_ir, sizeof (*ty));
     ty->kind = kind;
     ty->pos = S_noPos;
-    ty->elaborated = false;
     switch (kind)
     {
         case Ty_reference:
@@ -422,7 +419,7 @@ static IR_formal _deserializeIRFormal (void)
 {
     IR_formal formal = U_poolAllocZero (UP_ir, sizeof (*formal));
     formal->id = S_Symbol (strdeserialize (UP_ir, symf));
-    formal->type = _deserializeIRTypeRef();
+    formal->ty = _deserializeIRTypeRef();
     // assert (!formal->defaultExp); // FIXME
     uint8_t reg_present = fread_u1();
     if (reg_present)
@@ -451,7 +448,7 @@ static IR_proc _deserializeIRProc (void)
     IR_proc proc = U_poolAllocZero (UP_ir, sizeof (*proc));
     proc->kind = kind;
     proc->visibility = fread_u1();
-    proc->name = S_Symbol (strdeserialize (UP_ir, symf));
+    proc->id = S_Symbol (strdeserialize (UP_ir, symf));
     int cnt = fread_u1();
     IR_formal flast = NULL;
     for (int i=0; i<cnt; i++)
@@ -477,7 +474,7 @@ static IR_memberList _deserializeIRMemberList (void)
     {
         IR_member member = U_poolAllocZero (UP_ir, sizeof (*member));
         member->kind = fread_u1();
-        member->name = S_Symbol (strdeserialize (UP_ir, symf));
+        member->id = S_Symbol (strdeserialize (UP_ir, symf));
         member->visibility = fread_u1();
         switch (member->kind)
         {
@@ -514,7 +511,6 @@ static void _deserializeIRType(IR_type ty)
         case Ty_pointer:
             ty->kind = kind;
             ty->u.pointer = _deserializeIRTypeRef ();
-            ty->elaborated = true;
             break;
         case Ty_class:
         {
@@ -524,25 +520,23 @@ static void _deserializeIRType(IR_type ty)
             tyCls->u.cls.visibility = fread_u1 ();
             tyCls->u.cls.isStatic = fread_u1 ();
             tyCls->u.cls.uiSize = fread_u4 ();
-            tyCls->u.cls.baseType = _deserializeIRTypeRef ();
+            tyCls->u.cls.baseTy = _deserializeIRTypeRef ();
             //assert (!tyCls->u.cls.implements); // FIXME
             tyCls->u.cls.constructor = _deserializeIRProc ();
             tyCls->u.cls.__init = _deserializeIRProc ();
             tyCls->u.cls.members = _deserializeIRMemberList ();
             tyCls->u.cls.virtualMethodCnt = fread_u2 ();
             // take care of vTablePtr
-            if (!tyCls->u.cls.baseType)
+            if (!tyCls->u.cls.baseTy)
             {
                 tyCls->u.cls.vTablePtr = tyCls->u.cls.members->first;
             }
             else
             {
-                tyCls->u.cls.vTablePtr = tyCls->u.cls.baseType->u.cls.vTablePtr;
+                tyCls->u.cls.vTablePtr = tyCls->u.cls.baseTy->u.cls.vTablePtr;
             }
-            tyCls->elaborated = true;
             ty->kind  = Ty_reference;
             ty->u.ref = tyCls;
-            ty->elaborated = true;
             break;
         }
         default:
@@ -556,18 +550,18 @@ static IR_definition _deserializeIRDefinition (IR_assembly a, uint8_t def_kind)
 
     def->kind  = def_kind;
     def->names = _deserializeIRNamespace ();
-    def->name  = S_Symbol(strdeserialize (UP_ir, symf));
+    def->id    = S_Symbol(strdeserialize (UP_ir, symf));
 
     switch (def_kind)
     {
         case IR_defType:
         {
-            IR_type ty = IR_namesResolveType (S_noPos, def->names, def->name, /*checkParent=*/false, /*usings=*/NULL);
+            IR_type ty = IR_namesLookupType (def->names, def->id);
             assert (!ty || ty->kind == Ty_unresolved);
             if (!ty)
             {
-                ty = IR_TypeUnresolved (S_noPos, def->name);
-                IR_namesAddType (def->names, def->name, ty);
+                ty = IR_TypeUnresolved (S_noPos, def->id);
+                IR_namesAddType (def->names, def->id, ty);
             }
             def->u.ty = ty;
             _deserializeIRType(ty);
@@ -597,7 +591,7 @@ static void _dumpIRDefinition (IR_definition def)
 {
     LOG_printf (LOG_INFO, "    %s %s\n",
                 def->kind == IR_defType ? "type" : "proc",
-                IR_name2string (IR_NamespaceName (def->names, def->name, S_noPos), /*underscoreSeparator=*/false));
+                IR_name2string (IR_NamespaceName (def->names, def->id, S_noPos), /*underscoreSeparator=*/false));
 }
 
 IR_assembly IR_loadAssembly (S_symbol name, IR_namespace names_root)

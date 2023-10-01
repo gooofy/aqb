@@ -9,11 +9,13 @@ typedef struct SEM_item_     SEM_item;
 
 struct SEM_context_
 {
-    IR_using      usings;
+    SEM_context   parent;
+    IR_namespace  names;
     AS_instrList  code;
     CG_frame      frame;
     Temp_label    exitlbl;
-    CG_item      *returnVar;
+    CG_item       returnVar;
+    TAB_table     entries; // symbol -> SEM_item
 };
 
 typedef enum
@@ -44,7 +46,7 @@ static S_symbol S_Assert;
 static S_symbol S_Debug;
 static S_symbol S_Diagnostics;
 
-static IR_namespace _g_names_root=NULL;
+//static IR_namespace _g_names_root=NULL;
 static IR_namespace _g_sys_names=NULL;
 
 // System.String / System.GC type caching
@@ -55,7 +57,7 @@ static IR_type _getStringType(void)
 {
     if (!_g_tyString)
     {
-        _g_tyString = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_String, NULL, /*doCreate=*/false);
+        _g_tyString = IR_namesLookupType (_g_sys_names, S_String);
         assert (_g_tyString);
     }
     return _g_tyString;
@@ -65,54 +67,54 @@ static IR_type _getSystemGCType(void)
 {
     if (!_g_tySystemGC)
     {
-        _g_tySystemGC = IR_namesResolveType (S_tkn.pos, _g_sys_names, S_GC, NULL, /*doCreate=*/false);
+        _g_tySystemGC = IR_namesLookupType (_g_sys_names, S_GC);
         assert (_g_tySystemGC);
     }
     return _g_tySystemGC;
 }
 
-static SEM_context _SEM_Context (IR_using usings, AS_instrList code, CG_frame frame)
+static SEM_context _SEM_Context (SEM_context parent)
 {
     SEM_context context = U_poolAllocZero (UP_ir, sizeof (*context));
 
-    context->usings = usings;
-    context->code   = code;
-    context->frame  = frame;
+    context->parent  = parent;
+    context->entries = TAB_empty (UP_ir);
+
+    if (parent)
+    {
+        context->names     = parent->names;
+        context->code      = parent->code;
+        context->frame     = parent->frame;
+        context->exitlbl   = parent->exitlbl;
+        context->returnVar = parent->returnVar;
+    }
 
     return context;
 }
 
-//static bool _resolveSym (SEM_context context, S_symbol sym, SEM_item *res)
-//{
-//    for (IR_using u=context->usings; u; u=u->next)
-//    {
-//        if (u->alias)
-//        {
-//            if (sym != u->alias)
-//                continue;
-//            if (u->type)
-//            {
-//                res->kind   = SIK_type;
-//                res->u.type = u->type;
-//                return true;
-//            }
-//            res->kind    = SIK_namespace;
-//            res->u.names = u->names;
-//            return true;
-//        }
-//        else
-//        {
-//            if (u->names->name == sym)
-//            {
-//                res->kind    = SIK_namespace;
-//                res->u.names = u->names;
-//                return true;
-//            }
-//        }
-//    }
-//
-//    return false;
-//}
+static SEM_item *_SEM_Item (SEM_itemKind kind)
+{
+    SEM_item *item = U_poolAllocZero (UP_ir, sizeof (*item));
+
+    item->kind = kind;
+
+    return item;
+}
+
+static bool _contextResolveSym (SEM_context context, S_symbol sym, SEM_item *res)
+{
+    SEM_item *i2 = (SEM_item *) TAB_look (context->entries, sym);
+    if (i2)
+    {
+        *res = *i2;
+        return true;
+    }
+
+    if (context->parent)
+        return _contextResolveSym (context->parent, sym, res);
+
+    return false;
+}
 
 static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
 {
@@ -180,8 +182,8 @@ static bool compatible_ty(IR_type tyFrom, IR_type tyTo)
         //    // OOP: child -> base class assignment is legal
         //    if ( (tyToPtr->kind == Ty_class) && (tyFromPtr->kind == Ty_class) )
         //    {
-        //        while (tyFromPtr && (tyFromPtr != tyToPtr) && (tyFromPtr->u.cls.baseType))
-        //            tyFromPtr = tyFromPtr->u.cls.baseType;
+        //        while (tyFromPtr && (tyFromPtr != tyToPtr) && (tyFromPtr->u.cls.baseTy))
+        //            tyFromPtr = tyFromPtr->u.cls.baseTy;
         //        return tyToPtr == tyFromPtr;
         //    }
 
@@ -295,7 +297,7 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
     {
         if (!f)
             break;
-        if (!compatible_ty(f->type, f2->type))
+        if (!compatible_ty(f->ty, f2->ty))
             break;
         f = f->next;
     }
@@ -304,7 +306,7 @@ static bool matchProcSignatures (IR_proc proc, IR_proc proc2)
     return true;
 }
 
-static void _elaborateType (IR_type ty, IR_using usings);
+static IR_type _elaborateType (IR_typeDesignator td, IR_namespace names);
 static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_item *res);
 
 static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMethod, CG_itemList arglist,
@@ -322,12 +324,86 @@ static bool _transCallBuiltinMethod(S_pos pos, IR_type tyCls, S_symbol builtinMe
     return true;
 }
 
+static bool _convertTy (CG_item *item, S_pos pos, IR_type tyTo, bool explicit)
+{
+    IR_type tyFrom = CG_ty(item);
+
+    if (tyFrom == tyTo)
+    {
+        return true;
+    }
+    assert(false); // FIXME
+    return false;
+}
+
+static bool _coercion (IR_type tyA, IR_type tyB, IR_type *tyRes)
+{
+    if (tyA==tyB)
+    {
+        *tyRes = tyA;
+        return true;
+    }
+    assert(false); // FIXME
+    return false;
+}
+
+static void _elaborateNames (IR_namespace names, SEM_context context)
+{
+    for (IR_namesEntry e = names->entriesFirst; e; e=e->next)
+    {
+        switch (e->kind)
+        {
+            case IR_neNames:
+            case IR_neType:
+            case IR_neFormal:
+            case IR_neMember:
+                assert(false); // FIXME
+                break;
+            case IR_neVar:
+            {
+                IR_variable v = e->u.var;
+                if (!v->ty)
+                    v->ty = _elaborateType (v->td, names);
+                SEM_item *se = _SEM_Item (SIK_cg);
+                CG_allocVar (&se->u.cg, context->frame, v->id, /*expt=*/false, v->ty);
+                TAB_enter (context->entries, v->id, se);
+
+                // FIXME: run constructor?
+
+                if (v->initExp)
+                {
+                    S_pos pos = v->initExp->pos;
+                    SEM_item initExp;
+                    if (!_elaborateExpression (v->initExp, context, &initExp))
+                    {
+                        EM_error(pos, "failed to elaborate init expression");
+                        continue;
+                    }
+                    if (initExp.kind != SIK_cg)
+                    {
+                        EM_error(pos, "init expression expected");
+                        continue;
+                    }
+                    if (!_convertTy(&initExp.u.cg, pos, v->ty, /*explicit=*/false))
+                    {
+                        EM_error(pos, "initializer type mismatch");
+                        continue;
+                    }
+
+                    CG_transAssignment (context->code, pos, context->frame, &se->u.cg, &initExp.u.cg);
+                }
+                break;
+            }
+        }
+    }
+}
+
 // FIXME
 static bool _isDebugAssert (SEM_item *fun)
 {
     if (fun->kind != SIK_member)
         return false;
-    if (fun->u.member.m->name != S_Assert)
+    if (fun->u.member.m->id != S_Assert)
         return false;
     if (fun->u.member.thisTy->kind != Ty_reference || fun->u.member.thisTy->u.ref->kind != Ty_class)
         return false;
@@ -341,15 +417,16 @@ static bool _isDebugAssert (SEM_item *fun)
 
 static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_item *res)
 {
+    S_pos pos = expr->pos;
     SEM_item fun;
     if (!_elaborateExpression (expr->u.call.fun, context, &fun))
     {
-        EM_error (expr->u.call.fun->pos, "failed to elaborate method");
+        EM_error (pos, "failed to elaborate method");
         return false;
     }
     if ((fun.kind != SIK_member) || (fun.u.member.m->kind != IR_recMethod))
     {
-        EM_error (expr->u.call.fun->pos, "tried to call something that is not a method");
+        EM_error (pos, "tried to call something that is not a method");
         return false;
     }
 
@@ -364,14 +441,19 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         assert(false);
     }
 
+    IR_formal f = proc->formals;
     for (IR_argument a = expr->u.call.al->first; a; a=a->next)
     {
+        assert(f);
+        assert (!f->reg); // FIXME
+        assert (!f->defaultExp); // FIXME
         CG_itemListNode n = CG_itemListAppend(args);
         SEM_item item;
         if (!_elaborateExpression (a->e, context, &item))
             return false;
         assert (item.kind == SIK_cg); // FIXME
         n->item = item.u.cg;
+        CG_loadVal (context->code, pos, context->frame, &n->item);
     }
 
     // FIXME: Debug.Assert special
@@ -406,34 +488,38 @@ static bool _elaborateExprStringLiteral (IR_expression expr, SEM_context context
 
 static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM_item *res)
 {
+    S_symbol id = expr->u.selector.id;
+
     // is this a namespace ?
 
-    S_symbol sym = expr->u.selector.sym;
-    for (IR_using u=context->usings; u; u=u->next)
+    for (IR_namespace names = context->names; names; names=names->parent)
     {
-        if (u->alias)
-            continue;
-
-        if (u->names->name == sym)
+        for (IR_using u=names->usingsFirst; u; u=u->next)
         {
-            IR_expression ep = expr->u.selector.e;
-            IR_namespace  np = u->names->parent;
+            if (u->alias)
+                continue;
 
-            while (ep && np)
+            if (u->names->id == id)
             {
-                if (ep->kind != IR_expSelector)
-                    break;
-                if (ep->u.selector.sym != np->name)
-                    break;
-                ep = ep->u.selector.e;
-                np = np->parent;
-            }
+                IR_expression ep = expr->u.selector.e;
+                IR_namespace  np = u->names->parent;
 
-            if (!ep && ( !np || (!np->parent && !np->name) ) )
-            {
-                res->kind    = SIK_namespace;
-                res->u.names = u->names;
-                return true;
+                while (ep && np)
+                {
+                    if (ep->kind != IR_expSelector)
+                        break;
+                    if (ep->u.selector.id != np->id)
+                        break;
+                    ep = ep->u.selector.e;
+                    np = np->parent;
+                }
+
+                if (!ep && ( !np || (!np->parent && !np->id) ) )
+                {
+                    res->kind    = SIK_namespace;
+                    res->u.names = u->names;
+                    return true;
+                }
             }
         }
     }
@@ -446,20 +532,20 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
     {
         case SIK_namespace:
         {
-            IR_type t = IR_namesResolveType (expr->pos, parent.u.names, sym, /*usings=*/NULL, /*doCreate=*/false);
+            IR_type t = IR_namesLookupType (parent.u.names, id);
             if (t)
             {
                 res->kind   = SIK_type;
                 res->u.type = t;
                 return true;
             }
-            EM_error (expr->pos, "failed to resolve %s in namespace %s",
-                      IR_name2string (IR_NamespaceName(parent.u.names, sym, expr->pos), /*underscoreSeparator=*/false));
+            EM_error (expr->pos, "failed to resolve %s",
+                      IR_name2string (IR_NamespaceName(parent.u.names, id, expr->pos), /*underscoreSeparator=*/false));
             return false;
         }
         case SIK_type:
         {
-            IR_member member = IR_findMember (parent.u.type, sym, /*checkBase=*/true);
+            IR_member member = IR_findMember (parent.u.type, id, /*checkBase=*/true);
             if (member)
             {
                 res->kind = SIK_member;
@@ -468,7 +554,7 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
                 res->u.member.m       = member;
                 return true;
             }
-            EM_error (expr->pos, "failed to resolve %s [1]", S_name (sym)); 
+            EM_error (expr->pos, "failed to resolve %s [1]", S_name (id)); 
             break;
         }
         default:
@@ -476,54 +562,79 @@ static bool _elaborateExprSelector (IR_expression expr, SEM_context context, SEM
             assert(false);
     }
 
-
     return false;
 }
 
 static bool _elaborateExprSym (IR_expression expr, SEM_context context, SEM_item *res)
 {
-    S_symbol sym = expr->u.sym;
-    // FIXME: lookup local contxt symbols
+    S_symbol id = expr->u.id;
 
-    // is this a namespace or a type in an imported namespace?
-    for (IR_using u=context->usings; u; u=u->next)
+    // lookup context symbols first
+
+    if (_contextResolveSym (context, id, res))
+        return true;
+
+    // FIXME: remove
+#if 0
+    // is this a type?
+    IR_type ty = _namesResolveType (expr->pos, context->names, expr->u.id);
+    if (ty)
     {
-        if (u->alias)
-        {
-            if (sym != u->alias)
-                continue;
-            if (u->type)
-            {
-                res->kind   = SIK_type;
-                res->u.type = u->type;
-                return true;
-            }
-            res->kind    = SIK_namespace;
-            res->u.names = u->names;
-            return true;
-        }
-        else
-        {
-            IR_type t = IR_namesResolveType (expr->pos, u->names, sym, /*usings=*/NULL, /*doCreate=*/false);
-            if (t)
-            {
-                res->kind   = SIK_type;
-                res->u.type = t;
-                return true;
-            }
+        assert(false); // FIXME
+        return false;
+    }
 
-            if (u->names->parent && u->names->parent->name)
-                continue;
-            if (u->names->name == sym)
+    // is this a namespace?
+    IR_namespace names = _namesResolveNames (expr->pos, context->names, expr->u.id);
+    if (names)
+    {
+        assert(false); // FIXME
+        return false;
+    }
+#endif
+
+    for (IR_namespace names = context->names; names; names=names->parent)
+    {
+        // is this a namespace or a type in an imported namespace?
+        for (IR_using u=names->usingsFirst; u; u=u->next)
+        {
+            if (u->alias)
             {
+                if (id != u->alias)
+                    continue;
+                if (u->ty)
+                {
+                    res->kind   = SIK_type;
+                    res->u.type = u->ty;
+                    return true;
+                }
                 res->kind    = SIK_namespace;
                 res->u.names = u->names;
                 return true;
             }
+            else
+            {
+                IR_type t = IR_namesLookupType (u->names, id);
+                if (t)
+                {
+                    res->kind   = SIK_type;
+                    res->u.type = t;
+                    return true;
+                }
+
+                if (u->names->parent && u->names->parent->id)
+                    continue;
+                if (u->names->id == id)
+                {
+                    res->kind    = SIK_namespace;
+                    res->u.names = u->names;
+                    return true;
+                }
+            }
         }
     }
 
-    EM_error (expr->pos, "failed to resolve %s [2]", S_name (sym));
+    EM_error (expr->pos, "failed to resolve %s [2]", S_name (id));
     return false;
 }
 
@@ -531,6 +642,94 @@ static bool _elaborateExprConst (IR_expression expr, SEM_context context, SEM_it
 {
     res->kind = SIK_cg;
     CG_ConstItem (&res->u.cg, expr->u.c);
+
+    return true;
+}
+
+static bool _elaborateExprBinary (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    SEM_item b;
+    S_pos    pos = expr->pos;
+
+    if (!_elaborateExpression (expr->u.binop.a, context, res))
+        return EM_error (pos, "expression expected here.");
+
+    if (res->kind != SIK_cg)
+        return EM_error (pos, "expression expected here.");
+
+    if (!_elaborateExpression (expr->u.binop.b, context, &b))
+        return EM_error (pos, "expression expected here.");
+
+    if (b.kind != SIK_cg)
+        return EM_error (pos, "expression expected here.");
+
+    IR_type tyA     = CG_ty(&res->u.cg);
+    IR_type tyB     = CG_ty(&b.u.cg);
+
+    IR_type tyRes;
+    if (!_coercion(tyA, tyB, &tyRes))
+        return EM_error(pos, "operands type mismatch [1]");
+
+    if (!_convertTy(&res->u.cg, pos, tyRes, /*explicit=*/false))
+        return EM_error(pos, "operand type mismatch (left)");
+
+    if (!_convertTy(&b.u.cg, pos, tyRes, /*explicit=*/false))
+        return EM_error(pos, "operand type mismatch (right)");
+
+    CG_binOp oper;
+    switch (expr->kind)
+    {
+        case IR_expADD: oper = CG_plus ; break;
+        case IR_expSUB: oper = CG_minus; break;
+        default:
+            return EM_error (pos, "sorry, this binary operation has not been implemented yet");
+    }
+
+    CG_transBinOp (context->code, pos, context->frame, oper, &res->u.cg, &b.u.cg, tyRes);
+
+    return true;
+}
+
+static bool _elaborateExprComparison (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    SEM_item b;
+    S_pos    pos = expr->pos;
+
+    if (!_elaborateExpression (expr->u.binop.a, context, res))
+        return EM_error (pos, "expression expected here.");
+
+    if (res->kind != SIK_cg)
+        return EM_error (pos, "expression expected here.");
+
+    if (!_elaborateExpression (expr->u.binop.b, context, &b))
+        return EM_error (pos, "expression expected here.");
+
+    if (b.kind != SIK_cg)
+        return EM_error (pos, "expression expected here.");
+
+    IR_type tyA     = CG_ty(&res->u.cg);
+    IR_type tyB     = CG_ty(&b.u.cg);
+
+    IR_type tyRes;
+    if (!_coercion(tyA, tyB, &tyRes))
+        return EM_error(pos, "operands type mismatch [1]");
+
+    if (!_convertTy(&res->u.cg, pos, tyRes, /*explicit=*/false))
+        return EM_error(pos, "operand type mismatch (left)");
+
+    if (!_convertTy(&b.u.cg, pos, tyRes, /*explicit=*/false))
+        return EM_error(pos, "operand type mismatch (right)");
+
+    CG_relOp oper;
+    switch (expr->kind)
+    {
+        case IR_expEQU: oper = CG_eq; break;
+        case IR_expNEQ: oper = CG_ne; break;
+        default:
+            return EM_error (pos, "sorry, this compariosn operation has not been implemented yet");
+    }
+
+    CG_transRelOp (context->code, pos, context->frame, oper, &res->u.cg, &b.u.cg);
 
     return true;
 }
@@ -554,13 +753,21 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
         case IR_expConst:
             return _elaborateExprConst (expr, context, res);
 
+        case IR_expADD:
+        case IR_expSUB:
+            return _elaborateExprBinary (expr, context, res);
+
+        case IR_expEQU:
+        case IR_expNEQ:
+            return _elaborateExprComparison (expr, context, res);
+
         default:
             assert(false); // FIXME
     }
     return false;
 }
 
-static void _elaborateStmt (IR_statement stmt, SEM_context context)
+static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace names)
 {
     switch (stmt->kind)
     {
@@ -570,18 +777,29 @@ static void _elaborateStmt (IR_statement stmt, SEM_context context)
             _elaborateExpression (stmt->u.expr, context, &res);
             break;
         }
+        case IR_stmtBlock:
+        {
+            SEM_context ctx = _SEM_Context (context);
+            _elaborateNames (stmt->u.block->names, ctx);
+            for (IR_statement stmt2 = stmt->u.block->first; stmt2; stmt2=stmt2->next)
+            {
+                _elaborateStmt (stmt2, ctx, stmt->u.block->names);
+            }
+            break;
+        }
         default:
             assert(false);
     }
 }
 
-static void _elaborateProc (IR_proc proc, IR_using usings)
+static void _elaborateProc (IR_proc proc, IR_namespace parent)
 {
-    if (proc->returnTy)
-        _elaborateType (proc->returnTy, usings);
+    if (!proc->returnTy)
+        proc->returnTy = _elaborateType (proc->returnTd, parent);
     for (IR_formal formal = proc->formals; formal; formal=formal->next)
     {
-        _elaborateType (formal->type, usings);
+        if (!formal->ty)
+            formal->ty = _elaborateType (formal->td, parent);
     }
 
     if (!proc->isExtern)
@@ -609,44 +827,46 @@ static void _elaborateProc (IR_proc proc, IR_using usings)
         }
 
         AS_instrList code = AS_InstrList();
-        SEM_context context = _SEM_Context (usings, code, funFrame);
+        SEM_context context = _SEM_Context (/*parent=*/NULL);
+        context->code    = code;
+        context->frame   = funFrame;
         context->exitlbl = Temp_newlabel();
-        CG_item returnVar;
 
         if (proc->returnTy)
         {
-            CG_allocVar (&returnVar, funFrame, /*name=*/NULL, /*expt=*/false, proc->returnTy);
+            CG_allocVar (&context->returnVar, funFrame, /*name=*/NULL, /*expt=*/false, proc->returnTy);
             CG_item zero;
             CG_ZeroItem (&zero, proc->returnTy);
-            CG_transAssignment (code, proc->pos, funFrame, &returnVar, &zero);
+            CG_transAssignment (code, proc->pos, funFrame, &context->returnVar, &zero);
         }
         else
         {
-            CG_NoneItem (&returnVar);
+            CG_NoneItem (&context->returnVar);
         }
 
-        context->returnVar = &returnVar;
+        context->names = proc->block->names;
+        _elaborateNames (proc->block->names, context);
 
         for (IR_statement stmt=proc->block->first; stmt; stmt=stmt->next)
         {
-            _elaborateStmt (stmt, context);
+            _elaborateStmt (stmt, context, proc->block->names);
         }
 
         CG_procEntryExit(proc->pos,
                          funFrame,
                          code,
-                         &returnVar,
+                         &context->returnVar,
                          context->exitlbl,
                          IR_procIsMain (proc),
                          /*expt=*/proc->visibility == IR_visPublic);
     }
 }
 
-static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
+static void _elaborateMethod (IR_method method, IR_type tyCls, IR_namespace parent)
 {
     S_pos pos = method->proc->pos;
 
-    _elaborateProc (method->proc, usings);
+    _elaborateProc (method->proc, parent);
 
     // check existing entries: is this an override?
     int16_t vTableIdx = -1;
@@ -654,14 +874,14 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
     {
         IR_member existingMember = NULL;
 
-        if (tyCls->u.cls.baseType)
-            existingMember = IR_findMember (tyCls->u.cls.baseType, method->proc->name, /*checkbase=*/true);
+        if (tyCls->u.cls.baseTy)
+            existingMember = IR_findMember (tyCls->u.cls.baseTy, method->proc->id, /*checkbase=*/true);
         if (existingMember)
         {
             if (existingMember->kind != IR_recMethod)
             {
                 EM_error (pos, "%s is already declared as something other than a method",
-                          S_name(method->proc->name));
+                          S_name(method->proc->id));
                 return;
             }
 
@@ -670,14 +890,14 @@ static void _elaborateMethod (IR_method method, IR_type tyCls, IR_using usings)
                 if (!existingMember->u.method->isVirtual)
                 {
                     EM_error (pos, "%s: only virtual methods can be overriden",
-                              S_name(method->proc->name));
+                              S_name(method->proc->id));
                     return;
                 }
 
                 if (!matchProcSignatures (method->proc, existingMember->u.method->proc))
                 {
                     EM_error (pos, "%s: virtual method override signature mismatch",
-                              S_name(method->proc->name));
+                              S_name(method->proc->id));
                     return;
                 }
 
@@ -708,9 +928,9 @@ static void _assembleClassVTable (CG_frag vTableFrag, IR_type tyCls)
 {
     assert (tyCls->kind == Ty_class);
 
-    if (tyCls->u.cls.baseType)
+    if (tyCls->u.cls.baseTy)
     {
-        _assembleClassVTable (vTableFrag, tyCls->u.cls.baseType);
+        _assembleClassVTable (vTableFrag, tyCls->u.cls.baseTy);
     }
 
     for (IR_member member=tyCls->u.cls.members->first; member; member=member->next)
@@ -747,8 +967,11 @@ static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string c
         //{
         //    E_enventry gcMarkBlackSub = lx->first->e;
 
-        IR_formal formals = IR_Formal(S_noPos, S_this, IR_getReference(pos, tyCls), /*defaultExp=*/NULL, /*reg=*/NULL);
-        formals = IR_Formal(S_noPos, S_gc, _getSystemGCType(), /*defaultExp=*/NULL, /*reg=*/NULL);
+        IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+        formals->ty = IR_getReference(pos, tyCls);
+
+        formals->next = IR_Formal(S_noPos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+        formals->next->ty = _getSystemGCType();
 
         CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
         AS_instrList il = AS_InstrList();
@@ -824,7 +1047,8 @@ static void _assembleVTables (IR_type tyCls)
 
     // generate __init method which assigns the vTable pointers in this class
 
-    IR_formal formals = IR_Formal(S_noPos, S_this, tyClsRef, /*defaultExp=*/NULL, /*reg=*/NULL);
+    IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+    formals->ty = tyClsRef;
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
     string clsLabel = IR_name2string (tyCls->u.cls.name, /*underscoreSeparator=*/true);
     Temp_label label     = Temp_namedlabel(strprintf(UP_ir, "__%s___init", clsLabel));
@@ -1041,16 +1265,17 @@ static void _assembleVTables (IR_type tyCls)
                      /*expt=*/true);
 }
 
-static void _elaborateClass (IR_type tyCls, IR_using usings)
+static void _elaborateClass (IR_type tyCls, IR_namespace parent)
 {
     assert (tyCls->kind == Ty_class);
 
     //S_pos pos = tyCls->pos;
 
-    IR_type tyBase = tyCls->u.cls.baseType;
 
-    if (tyBase)
-        _elaborateType (tyBase, usings);
+    if (tyCls->u.cls.baseTd)
+        tyCls->u.cls.baseTy = _elaborateType (tyCls->u.cls.baseTd, parent);
+
+    IR_type tyBase = tyCls->u.cls.baseTy;
 
     assert (!tyCls->u.cls.implements);  // FIXME: implement
     assert (!tyCls->u.cls.constructor); // FIXME: implement
@@ -1067,14 +1292,27 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
 
     // FIXME: interface vTables!
 
-    // elaborate other fields
+    IR_namespace names = IR_Namespace (/*name=*/NULL, parent);
+
+    // elaborate other members
 
     for (IR_member member = tyCls->u.cls.members->first; member; member=member->next)
     {
-        if (member->kind != IR_recField)
-            continue;
-        _elaborateType (member->u.field.ty, usings);
-        IR_fieldCalcOffset (tyCls, member);
+        switch (member->kind)
+        {
+            case IR_recField:
+                if (!member->u.field.ty)
+                    member->u.field.ty = _elaborateType (member->u.field.td, names);
+                IR_fieldCalcOffset (tyCls, member);
+                break;
+            case IR_recProperty:
+                if (!member->u.property.ty)
+                    member->u.property.ty = _elaborateType (member->u.property.td, names);
+                break;
+            default:
+                break;
+        }
+        IR_namesAddMember (names, member);
     }
 
     /*
@@ -1086,7 +1324,7 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
         switch (member->kind)
         {
             case IR_recMethod:
-                _elaborateMethod (member->u.method, tyCls, usings);
+                _elaborateMethod (member->u.method, tyCls, names);
                 break;
             case IR_recField:
                 continue;
@@ -1096,64 +1334,217 @@ static void _elaborateClass (IR_type tyCls, IR_using usings)
     }
 }
 
-static void _elaborateType (IR_type ty, IR_using usings)
+static IR_type _namesResolveType (S_pos pos, IR_namespace names, S_symbol id)
 {
-    if (ty->elaborated)
-        return;
-    ty->elaborated = true;
+    IR_type ty = IR_namesLookupType (names, id);
+    if (ty)
+        return ty;
 
-    switch (ty->kind)
+    // apply using declarations
+    for (IR_namespace names2=names; names2; names2=names2->parent)
     {
-        case Ty_boolean:
-        case Ty_byte:
-        case Ty_sbyte:
-        case Ty_int16:
-        case Ty_uint16:
-        case Ty_int32:
-        case Ty_uint32:
-        case Ty_single:
-        case Ty_double:
-            break;
-
-        case Ty_class:
-            _elaborateClass (ty, usings);
-            break;
-
-        case Ty_interface:
-            assert(false);
-            break;
-
-        case Ty_reference:
-            _elaborateType (ty->u.ref, usings);
-            break;
-
-        case Ty_pointer:
-            _elaborateType (ty->u.pointer, usings);
-            break;
-
-        case Ty_unresolved:
-            EM_error (ty->pos, "unresolved type: %s", S_name (ty->u.unresolved));
-            break;
-
-        //case Ty_sarray:
-        //case Ty_darray:
-        //case Ty_record:
-        //case Ty_pointer:
-        //case Ty_any:
-        //case Ty_forwardPtr:
-        //case Ty_procPtr:
-        //case Ty_prc:
-            assert(false);
+        for (IR_using u=names2->usingsFirst; u; u=u->next)
+        {
+            if (u->alias)
+            {
+                if (u->alias == id)
+                {
+                    if (u->ty)
+                        return u->ty;
+                    EM_error (pos, "sorry");
+                    assert(false); // FIXME
+                }
+            }
+            else
+            {
+                ty = IR_namesLookupType (u->names, id);
+                if (ty)
+                    return ty;
+            }
+        }
     }
+
+    // FIXME ?
+    //if (names->parent)
+    //    return _namesResolveType (pos, names->parent, id);
+
+    return NULL;
+}
+
+// FIXME: remove?
+#if 0
+static IR_namespace _namesResolveNames (S_pos pos, IR_namespace parent, S_symbol id)
+{
+    IR_namespace names = IR_namesLookupNames (parent, id);
+    if (names)
+        return names;
+
+    // apply using declarations
+    for (IR_namespace parent2=parent; parent2; parent2=parent2->parent)
+    {
+        for (IR_using u=parent2->usingsFirst; u; u=u->next)
+        {
+            if (u->alias)
+            {
+                if (u->alias == id)
+                {
+                    if (u->ty)
+                        continue;
+                    return u->names;
+                }
+            }
+            else
+            {
+                names = IR_namesLookupType (u->names, id);
+                if (ty)
+                    return ty;
+            }
+        }
+    }
+
+    // FIXME ?
+    //if (names->parent)
+    //    return _namesResolveType (pos, names->parent, id);
+
+    return NULL;
+}
+#endif
+
+static IR_type _elaborateType (IR_typeDesignator td, IR_namespace names)
+{
+    if (!td->name)
+        return NULL; // void
+
+    IR_name name = td->name;
+
+    // simple id?
+    if (!name->first->next)
+    {
+        IR_type t = _namesResolveType (name->pos, names, name->first->sym);
+        if (t)
+            return t;
+    }
+
+    assert(false);
+    return NULL; // FIXME
+#if 0
+IR_member IR_namesResolveMember (IR_name name, IR_using usings)
+{
+    IR_namespace names = NULL;
+    IR_type      t     = NULL;
+
+    IR_symNode n = name->first;
+
+    for (IR_using u=usings; u; u=u->next)
+    {
+        if (u->alias)
+        {
+            if (n->sym != u->alias)
+                continue;
+            if (u->ty)
+            {
+                t = u->ty;
+                break;
+            }
+            names = u->names;
+            break;
+        }
+        else
+        {
+            if (u->names->id == n->sym)
+            {
+                names = u->names;
+                break;
+            }
+        }
+    }
+
+    if (!t)
+    {
+        if (!names)
+            return NULL;
+
+        n = n->next;
+        while (n)
+        {
+            IR_namespace names2 = IR_namesResolveNames (names, n->sym, /*doCreate=*/false);
+            if (names2)
+            {
+                names = names2;
+                n = n->next;
+            }
+            else
+            {
+                t = IR_namesResolveType (name->pos, names, n->sym, /*usings=*/NULL, /*doCreate=*/false);
+                if (!t)
+                    return NULL;
+                n = n->next;
+                break;
+            }
+        }
+    }
+
+    IR_member mem = IR_findMember (t, n->sym, /*checkBase=*/true);
+
+    return mem;
+}
+#endif
+    //if (ty->elaborated)
+    //    return;
+    //ty->elaborated = true;
+
+    //switch (ty->kind)
+    //{
+    //    case Ty_boolean:
+    //    case Ty_byte:
+    //    case Ty_sbyte:
+    //    case Ty_int16:
+    //    case Ty_uint16:
+    //    case Ty_int32:
+    //    case Ty_uint32:
+    //    case Ty_single:
+    //    case Ty_double:
+    //        break;
+
+    //    case Ty_class:
+    //        _elaborateClass (ty, usings);
+    //        break;
+
+    //    case Ty_interface:
+    //        assert(false);
+    //        break;
+
+    //    case Ty_reference:
+    //        _elaborateType (ty->u.ref, usings);
+    //        break;
+
+    //    case Ty_pointer:
+    //        _elaborateType (ty->u.pointer, usings);
+    //        break;
+
+    //    case Ty_unresolved:
+    //        EM_error (ty->pos, "unresolved type: %s", S_name (ty->u.unresolved));
+    //        break;
+
+    //    //case Ty_sarray:
+    //    //case Ty_darray:
+    //    //case Ty_record:
+    //    //case Ty_pointer:
+    //    //case Ty_any:
+    //    //case Ty_forwardPtr:
+    //    //case Ty_procPtr:
+    //    //case Ty_prc:
+    //        assert(false);
+    //}
 }
 
 void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
 {
-    _g_names_root = names_root;
+    //_g_names_root = names_root;
 
     // resolve string type upfront
 
-    _g_sys_names = IR_namesResolveNames (names_root, S_System, /*doCreate=*/true);
+    _g_sys_names = IR_namesLookupNames (names_root, S_System, /*doCreate=*/true);
 
     //IR_assembly assemblies = IR_getLoadedAssembliesList ();
 
@@ -1168,7 +1559,14 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
             switch (def->kind)
             {
                 case IR_defType:
-                    _elaborateType (def->u.ty, def->usings);
+                    switch (def->u.ty->kind)
+                    {
+                        case Ty_class:
+                            _elaborateClass (def->u.ty, names_root);
+                            break;
+                        default:
+                            assert(false);
+                    }
                     break;
                 case IR_defProc:
                     // FIXME: implement

@@ -160,11 +160,11 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, IR_formal formals, bool statc)
         CG_itemListNode n = CG_itemListAppend (acl);
         if (formal->reg)
         {
-            InReg (&n->item, formal->reg, formal->type);
+            InReg (&n->item, formal->reg, formal->ty);
         }
         else
         {
-            int size = IR_typeSize(formal->type);
+            int size = IR_typeSize(formal->ty);
             if (size>4)
             {
                 EM_error(pos, "cannot pass arguments of this type by value");
@@ -172,7 +172,7 @@ CG_frame CG_Frame (S_pos pos, Temp_label name, IR_formal formals, bool statc)
             }
             // gcc seems to push 4 bytes regardless of type (int, long, ...)
             offset += 4-size;
-            InFrame (&n->item, offset, formal->type);
+            InFrame (&n->item, offset, formal->ty);
             offset += size;
         }
     }
@@ -347,9 +347,9 @@ void CG_genTypeDesc (IR_type ty)
             CG_frag descFrag = CG_DataFrag(label, /*expt=*/true, /*size=*/0, /*ty=*/NULL);
 
             // base type
-            if (ty->u.cls.baseType)
+            if (ty->u.cls.baseTy)
             {
-                Temp_label baseLabel = CG_getTypeDescLabel (ty->u.cls.baseType);
+                Temp_label baseLabel = CG_getTypeDescLabel (ty->u.cls.baseTy);
                 CG_dataFragAddPtr (descFrag, baseLabel);
             }
             else
@@ -1051,7 +1051,6 @@ void CG_procEntryExitAS (CG_frag frag)
     AS_instrListAppend (body, AS_Instr (pos_end, AS_RTS, Temp_w_NONE, NULL, NULL));                          //      rts
 }
 
-#if 0
 
 static int ipow(int base, int exp)
 {
@@ -1068,7 +1067,6 @@ static int ipow(int base, int exp)
 
     return result;
 }
-#endif // 0
 
 static enum AS_mn relOp2mnS (CG_relOp c)
 {
@@ -1424,7 +1422,6 @@ static bool isConstZero (CG_item *item)
     return !CG_getConstBool (item);
 }
 
-#if 0
 /* emit a binary op that requires calling a subroutine */
 static void emitBinOpJsr(AS_instrList code, S_pos pos, CG_frame frame, string sub_name, CG_item *left, CG_item *right, IR_type ty)
 {
@@ -1468,7 +1465,6 @@ static void emitUnaryOpJsr(AS_instrList code, S_pos pos, CG_frame frame, string 
     InReg (&d0Item, AS_regs[AS_TEMP_D0], ty);
     CG_transAssignment (code, pos, frame, left, &d0Item);
 }
-#endif
 
 /*
  * emit a subroutine call passing arguments in processor registers
@@ -1517,7 +1513,6 @@ static void emitRegCall(AS_instrList code, S_pos pos, string strName, int lvo, C
     }
 }
 
-#if 0
 // result in left!
 void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG_item *left, CG_item *right, IR_type ty)
 {
@@ -1706,7 +1701,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         case 8:                         // v * 8 = v << 3
                                         {
                                             *left = *right;
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 3);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 3);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #3, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -1714,7 +1709,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         case 16:                         // v * 16 = v << 4
                                         {
                                             *left = *right;
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 4);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 4);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #4, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -1722,7 +1717,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         case 32:                         // v * 32 = v << 5
                                         {
                                             *left = *right;
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 5);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 5);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #5, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -1730,7 +1725,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         case 64:                         // v * 64 = v << 6
                                         {
                                             *left = *right;
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 6);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 6);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #6, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -1738,7 +1733,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         case 128:                         // v * 128 = v << 7
                                         {
                                             *left = *right;
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 7);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 7);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #7, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -1746,7 +1741,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         case 256:                         // v * 256 = v << 8
                                         {
                                             *left = *right;
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 8);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 8);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #8, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -2221,8 +2216,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             switch (ty->kind)
                             {
                                 case Ty_boolean:
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2254,7 +2249,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     CG_IntItem(left, !lb || rb, ty);
                                     break;
                                 }
-                                case Ty_ubyte:
+                                case Ty_byte:
                                 {
                                     uint8_t li = CG_getConstInt (left);
                                     uint8_t ri = CG_getConstInt (right);
@@ -2278,7 +2273,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     CG_IntItem(left, li, ty);
                                     break;
                                 }
-                                case Ty_byte:
+                                case Ty_sbyte:
                                 case Ty_int16:
                                 case Ty_int32:
                                 {
@@ -2306,8 +2301,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             switch (ty->kind)
                             {
                                 case Ty_boolean:
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2332,7 +2327,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             CG_BoolItem(left, !CG_getConstBool(left), ty);
                             break;
 
-                        case Ty_ubyte:
+                        case Ty_byte:
                         {
                             uint8_t li = CG_getConstInt (left);
                             li = ~li;
@@ -2353,7 +2348,7 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             CG_IntItem(left, li, ty);
                             break;
                         }
-                        case Ty_byte:
+                        case Ty_sbyte:
                         case Ty_int16:
                         case Ty_int32:
                             CG_IntItem(left, ~CG_getConstInt(left), ty);
@@ -2385,8 +2380,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     CG_IntItem(left, lb && rb, ty);
                                     break;
                                 }
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2415,8 +2410,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             switch (ty->kind)
                             {
                                 case Ty_boolean:
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2453,8 +2448,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                     CG_IntItem(left, lb || rb, ty);
                                     break;
                                 }
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2483,8 +2478,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             switch (ty->kind)
                             {
                                 case Ty_boolean:
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2526,8 +2521,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
 
                             switch (ty->kind)
                             {
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2556,8 +2551,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             CG_loadVal (code, pos, frame, right);
                             switch (ty->kind)
                             {
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2591,8 +2586,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
 
                             switch (ty->kind)
                             {
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2620,8 +2615,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             CG_loadVal (code, pos, frame, right);
                             switch (ty->kind)
                             {
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2658,8 +2653,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             CG_loadVal (code, pos, frame, left);
                             switch (ty->kind)
                             {
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2679,42 +2674,42 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                             return;
                                         case 8:                         // v * 8 = v << 3
                                         {
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 3);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 3);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #3, left
                                                                                   nb, 0, NULL));
                                             return;
                                         }
                                         case 16:                         // v * 16 = v << 4
                                         {
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 4);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 4);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #4, left
                                                                                   nb, 0, NULL));
                                             return;
                                         }
                                         case 32:                         // v * 32 = v << 5
                                         {
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 5);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 5);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #5, left
                                                                                   nb, 0, NULL));
                                             return;
                                         }
                                         case 64:                         // v * 64 = v << 6
                                         {
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 6);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 6);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #6, left
                                                                                   nb, 0, NULL));
                                             return;
                                         }
                                         case 128:                         // v * 128 = v << 7
                                         {
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 7);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 7);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #7, left
                                                                                   nb, 0, NULL));
                                             return;
                                         }
                                         case 256:                         // v * 256 = v << 8
                                         {
-                                            IR_const nb = IR_ConstInt (Ty_UByte(), 8);
+                                            IR_const nb = IR_ConstInt (IR_TypeByte(), 8);
                                             AS_instrListAppend (code, AS_InstrEx (pos, AS_ASL_Imm_Dn, w, NULL, left->u.inReg,         // asl.w  #8, left
                                                                                   nb, 0, NULL));
                                             return;
@@ -2723,10 +2718,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
 
                                     switch (ty->kind)
                                     {
-                                        case Ty_byte:
+                                        case Ty_sbyte:
                                             emitBinOpJsr (code, pos, frame, "___mul_s1", left, right, ty);
                                             break;
-                                        case Ty_ubyte:
+                                        case Ty_byte:
                                             emitBinOpJsr (code, pos, frame, "___mul_u1", left, right, ty);
                                             break;
                                         case Ty_int16:
@@ -2767,10 +2762,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                             CG_loadVal (code, pos, frame, right);
                             switch (ty->kind)
                             {
-                                case Ty_byte:
+                                case Ty_sbyte:
                                     emitBinOpJsr (code, pos, frame, "___mul_s1", left, right, ty);
                                     break;
-                                case Ty_ubyte:
+                                case Ty_byte:
                                     emitBinOpJsr (code, pos, frame, "___mul_u1", left, right, ty);
                                     break;
                                 case Ty_int16:
@@ -2805,10 +2800,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     CG_loadVal (code, pos, frame, right);
                     switch (ty->kind)
                     {
-                        case Ty_byte:
+                        case Ty_sbyte:
                             emitBinOpJsr (code, pos, frame, "___div_s1", left, right, ty);
                             break;
-                        case Ty_ubyte:
+                        case Ty_byte:
                             emitBinOpJsr (code, pos, frame, "___div_u1", left, right, ty);
                             break;
                         case Ty_int16:
@@ -2840,10 +2835,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     CG_loadVal (code, pos, frame, right);
                     switch (ty->kind)
                     {
-                        case Ty_byte:
+                        case Ty_sbyte:
                             emitBinOpJsr (code, pos, frame, "___mod_s1", left, right, ty);
                             break;
-                        case Ty_ubyte:
+                        case Ty_byte:
                             emitBinOpJsr (code, pos, frame, "___mod_u1", left, right, ty);
                             break;
                         case Ty_int16:
@@ -2876,8 +2871,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
 
                             switch (ty->kind)
                             {
+                                case Ty_sbyte:
                                 case Ty_byte:
-                                case Ty_ubyte:
                                 case Ty_int16:
                                 case Ty_uint16:
                                 case Ty_int32:
@@ -2895,10 +2890,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                                         default:
                                             switch (ty->kind)
                                             {
-                                                case Ty_byte:
+                                                case Ty_sbyte:
                                                     emitBinOpJsr (code, pos, frame, "___pow_s1", left, right, ty);
                                                     return;
-                                                case Ty_ubyte:
+                                                case Ty_byte:
                                                     emitBinOpJsr (code, pos, frame, "___pow_u1", left, right, ty);
                                                     return;
                                                 case Ty_int16:
@@ -2936,10 +2931,10 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                         case IK_inFrameRef:
                             switch (ty->kind)
                             {
-                                case Ty_byte:
+                                case Ty_sbyte:
                                     emitBinOpJsr (code, pos, frame, "___pow_s1", left, right, ty);
                                     return;
-                                case Ty_ubyte:
+                                case Ty_byte:
                                     emitBinOpJsr (code, pos, frame, "___pow_u1", left, right, ty);
                                     return;
                                 case Ty_int16:
@@ -2975,8 +2970,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     CG_loadVal (code, pos, frame, right);
                     switch (ty->kind)
                     {
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_int32:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASL_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asl.x right, left
@@ -2998,8 +2993,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     CG_loadVal (code, pos, frame, right);
                     switch (ty->kind)
                     {
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_int32:
                             AS_instrListAppend (code, AS_Instr (pos, AS_ASR_Dn_Dn, w, right->u.inReg, left->u.inReg));    // asr.x right, left
@@ -3041,8 +3036,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     switch (ty->kind)
                     {
                         case Ty_boolean:
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_uint16:
                         case Ty_int32:
@@ -3064,8 +3059,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     switch (ty->kind)
                     {
                         case Ty_boolean:
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_uint16:
                         case Ty_int32:
@@ -3088,8 +3083,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     switch (ty->kind)
                     {
                         case Ty_boolean:
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_uint16:
                         case Ty_int32:
@@ -3110,8 +3105,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     switch (ty->kind)
                     {
                         case Ty_boolean:
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_uint16:
                         case Ty_int32:
@@ -3138,8 +3133,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     switch (ty->kind)
                     {
                         case Ty_boolean:
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_uint16:
                         case Ty_int32:
@@ -3163,8 +3158,8 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
                     switch (ty->kind)
                     {
                         case Ty_boolean:
+                        case Ty_sbyte:
                         case Ty_byte:
-                        case Ty_ubyte:
                         case Ty_int16:
                         case Ty_uint16:
                         case Ty_int32:
@@ -3188,7 +3183,6 @@ void CG_transBinOp (AS_instrList code, S_pos pos, CG_frame frame, CG_binOp o, CG
             assert(false);
     }
 }
-#endif // 0
 
 // result in left!
 void CG_transRelOp (AS_instrList code, S_pos pos, CG_frame frame, CG_relOp ro, CG_item *left, CG_item *right)
@@ -3384,7 +3378,7 @@ void CG_transIndex (AS_instrList code, S_pos pos, CG_frame frame, CG_item *ape, 
         // FIXME case Ty_string:
         case Ty_reference:
         {
-            IR_type et = (t->kind == Ty_reference) ? t->u.pointer : Ty_UByte();
+            IR_type et = (t->kind == Ty_reference) ? t->u.pointer : IR_TypeByte();
             CG_loadVal (code, pos, frame, ape);
             switch (idx->kind)
             {

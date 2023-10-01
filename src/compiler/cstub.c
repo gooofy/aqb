@@ -63,8 +63,8 @@ static void _writeStubTypedefsFlat (FILE *cstubf, IR_definition defs)
 
 static void _writeStubDeclClassRec (FILE *cstubf, IR_type tyCls)
 {
-    if (tyCls->u.cls.baseType)
-        _writeStubDeclClassRec (cstubf, tyCls->u.cls.baseType);
+    if (tyCls->u.cls.baseTy)
+        _writeStubDeclClassRec (cstubf, tyCls->u.cls.baseTy);
 
     for (IR_member member=tyCls->u.cls.members->first; member; member=member->next)
     {
@@ -73,7 +73,7 @@ static void _writeStubDeclClassRec (FILE *cstubf, IR_type tyCls)
 
         fprintf (cstubf, "    ");
         _writeStubTyRef (cstubf, member->u.field.ty);
-        fprintf (cstubf, "%s;\n", S_name(member->name));
+        fprintf (cstubf, "%s;\n", S_name(member->id));
     }
 }
 
@@ -134,12 +134,12 @@ static void _writeStubDeclsFlat (FILE *cstubf, IR_definition defs)
 {
     for (IR_definition def=defs; def; def=def->next)
     {
-        LOG_printf (LOG_DEBUG, "_writeStubDeclsFlat: generating decl stub for entry name=%s\n", S_name(def->name));
+        LOG_printf (LOG_DEBUG, "_writeStubDeclsFlat: generating decl stub for entry name=%s\n", S_name(def->id));
         switch (def->kind)
         {
             case IR_defProc:
             {
-                fprintf (cstubf, "// FIXME: proc %s\n", S_name (def->name));
+                fprintf (cstubf, "// FIXME: proc %s\n", S_name (def->id));
                 //IR_type ty = CG_ty(&x->u.var);
                 //if (CG_isConst(&x->u.var))
                 //{
@@ -162,7 +162,7 @@ static void _writeStubDeclsFlat (FILE *cstubf, IR_definition defs)
                 break;
             }
             case IR_defType:
-                _writeStubDeclType(cstubf, def->name, def->u.ty);
+                _writeStubDeclType(cstubf, def->id, def->u.ty);
                 break;
         }
     }
@@ -170,7 +170,7 @@ static void _writeStubDeclsFlat (FILE *cstubf, IR_definition defs)
 
 static void _writeFormal (FILE *cstubf, IR_formal formal)
 {
-    _writeStubTyRef (cstubf, formal->type);
+    _writeStubTyRef (cstubf, formal->ty);
     fprintf (cstubf, "%s%s", S_name(formal->id), formal->next ? ", ":"");
 }
 
@@ -209,7 +209,7 @@ static void _writeStubMethod (FILE *cstubf, IR_type tyCls, IR_proc proc, bool wr
     if (writeBody)
     {
         fprintf (cstubf, "\n{\n");
-        fprintf (cstubf, "    _ACS_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), S_name(proc->name));
+        fprintf (cstubf, "    _ACS_ASSERT (FALSE, (STRPTR) \"FIXME: implement: %s.%s\");\n", IR_name2string(tyCls->u.cls.name, /*underscoreSeparator=*/true), S_name(proc->id));
 
         if (proc->returnTy && proc->returnTy)
         {
@@ -249,8 +249,8 @@ static void _writeStubMethod (FILE *cstubf, IR_type tyCls, IR_proc proc, bool wr
 
 static void _writeStubMethodsRec (FILE *cstubf, IR_type tyCls, bool writeBody)
 {
-    if (tyCls->u.cls.baseType)
-        _writeStubMethodsRec (cstubf, tyCls->u.cls.baseType, writeBody);
+    if (tyCls->u.cls.baseTy)
+        _writeStubMethodsRec (cstubf, tyCls->u.cls.baseTy, writeBody);
 
     for (IR_member member=tyCls->u.cls.members->first; member; member=member->next)
     {
