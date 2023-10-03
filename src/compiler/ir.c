@@ -277,6 +277,13 @@ IR_typeDesignator IR_TypeDesignator (IR_name name)
     return td;
 }
 
+IR_typeDesignatorArrayDim IR_TypeDesignatorArrayDim (void)
+{
+    IR_typeDesignatorArrayDim ad = U_poolAllocZero(UP_types, sizeof(*ad));
+
+    return ad;
+}
+
 IR_const IR_ConstBool (IR_type ty, bool b)
 {
     IR_const p = U_poolAllocZero(UP_types, sizeof(*p));
@@ -339,7 +346,7 @@ IR_variable IR_Variable (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expres
     return v;
 }
 
-IR_formal IR_Formal (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg)
+IR_formal IR_Formal (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg, bool isParams)
 {
     IR_formal f = U_poolAllocZero (UP_ir, sizeof (*f));
 
@@ -348,6 +355,7 @@ IR_formal IR_Formal (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression
     f->td         = td;
     f->defaultExp = defaultExp;
     f->reg        = reg;
+    f->isParams   = isParams;
 
     return f;
 }

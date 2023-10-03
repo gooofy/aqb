@@ -28,6 +28,8 @@ namespace System
 
         public extern static String Create (char *initialBuffer, bool owned);
 
+        public extern static String Format (String format, params object[] args);
+
         private char    *_str;
         private uint     _len;
         private uint     _hashcode;

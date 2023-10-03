@@ -26,6 +26,7 @@ static IR_namespace _g_sys_names; /* System. namespace */
 #define MODF_ASYNC     0x00002000
 #define MODF_PARTIAL   0x00004000
 #define MODF_REF       0x00008000
+#define MODF_PARAMS    0x00010000
 
 static S_symbol S_System;
 static S_symbol S_Object;
@@ -219,6 +220,8 @@ static bool _modifier (uint32_t *mods)
             *mods |= MODF_PARTIAL; break;
         case S_REF:
             *mods |= MODF_REF; break;
+        case S_PARAMS:
+            *mods |= MODF_PARAMS; break;
         default:
             return false;
     }
@@ -253,6 +256,7 @@ static void _report_leftover_mods (uint32_t mods)
     if (mods & MODF_ASYNC)     EM_error (S_tkn.pos, "unsupported modifier: async");
     if (mods & MODF_PARTIAL)   EM_error (S_tkn.pos, "unsupported modifier: partial");
     if (mods & MODF_REF)       EM_error (S_tkn.pos, "unsupported modifier: ref");
+    if (mods & MODF_PARAMS)    EM_error (S_tkn.pos, "unsupported modifier: params");
 }
 
 /*
@@ -307,7 +311,7 @@ static IR_name _name (void)
 
 
 /*
- * type : ( "void" | name [ '[' [ expression { ',' expression } ] ']' ] | { '*' } )
+ * type : ( "void" | name [ '[' [ expression { ',' expression } ] ']' | { '*' } ] )
  */
 IR_typeDesignator _type(void)
 {
@@ -322,112 +326,47 @@ IR_typeDesignator _type(void)
     if (!n)
         return NULL;
 
-    assert(false); // FIXME
-    return NULL;
-    //IR_namespace names  = parent;
-    //IR_using     usings = _g_usings_first;
-    //IR_type      t      = NULL;
-    //S_pos        pos    = S_tkn.pos;
+    IR_typeDesignator td = IR_TypeDesignator (n);
+    if (S_tkn.kind == S_LBRACKET)
+    {
+        S_nextToken();
+        IR_typeDesignatorArrayDim adFirst = IR_TypeDesignatorArrayDim();
+        IR_typeDesignatorArrayDim adLast  = adFirst;
 
-    //if (nameLookahead)
-    //{
-    //    pos = nameLookahead->pos;
+        if (S_tkn.kind != S_RBRACKET)
+        {
+            adLast->e = _expression();
 
-    //    IR_symNode sn = nameLookahead->first;
-    //    bool checkParent = true;
-    //    while (sn->next)
-    //    {
-    //        names = IR_namesResolveNames (names, sn->sym, /*doCreate=*/false);
-    //        if (!names)
-    //        {
-    //            EM_error (pos, "type: namespace not found");
-    //            return NULL;
-    //        }
-    //        usings = NULL;
-    //        checkParent = false;
-    //        sn = sn->next;
-    //    }
+            while (S_tkn.kind == S_COMMA)
+            {
+                S_nextToken();
+                adLast = adLast->next = IR_TypeDesignatorArrayDim();
+                adLast->e = _expression();
+            }
+        }
 
-    //    t = IR_namesResolveType (pos, names, sn->sym, checkParent, usings);
-    //}
-    //else
-    //{
-    //    if (S_tkn.kind == S_VOID)
-    //    {
-    //        S_nextToken();
-    //        return NULL;
-    //    }
+        if (S_tkn.kind == S_RBRACKET)
+            S_nextToken();
+        else
+            EM_error (S_tkn.pos, "] expected here");
 
-    //    // name : identifier type_argument_list? ( '.' identifier type_argument_list? ) *
-    //    if (S_tkn.kind != S_IDENT)
-    //    {
-    //        EM_error (S_tkn.pos, "type: identifier expected here");
-    //        return NULL;
-    //    }
+        td->arrayDims = adFirst;
+    }
+    else
+    {
+        while (S_tkn.kind == S_ASTERISK)
+        {
+            td->numPointers++;
+            S_nextToken();
+        }
+    }
 
-    //    S_symbol name = S_tkn.u.sym;
-    //    S_nextToken();
-    //    if (S_tkn.kind == S_LESS)
-    //    {
-    //        // FIXME
-    //        EM_error (S_tkn.pos, "sorry, generics are not supported yet");
-    //        return NULL;
-    //    }
-
-    //    bool checkParent = true;
-    //    while (S_tkn.kind == S_PERIOD)
-    //    {
-    //        S_nextToken();
-    //        if (S_tkn.kind != S_IDENT)
-    //        {
-    //            EM_error (S_tkn.pos, "type: identifier expected here");
-    //            return NULL;
-    //        }
-    //        S_symbol n2 = S_tkn.u.sym;
-    //        S_nextToken();
-    //        if (S_tkn.kind == S_LESS)
-    //        {
-    //            // FIXME
-    //            EM_error (S_tkn.pos, "sorry, generics are not supported yet");
-    //            return NULL;
-    //        }
-
-    //        names = IR_namesResolveNames (names, name, /*doCreate=*/false);
-    //        if (!names)
-    //        {
-    //            EM_error (S_tkn.pos, "type: namespace not found");
-    //            return NULL;
-    //        }
-    //        usings = NULL;
-    //        checkParent = false;
-    //        name = n2;
-    //    }
-
-    //    t = IR_namesResolveType (pos, names, name, checkParent, usings);
-    //}
-
-    //if (!t)
-    //{
-    //    EM_error (pos, "type expected here");
-    //    return NULL;
-    //}
-
-    //if (S_tkn.kind == S_LBRACKET)
-    //{
-    //    assert(false);
-    //}
-    //else if (S_tkn.kind == S_ASTERISK)
-    //{
-    //    t = IR_getPointer (pos, t);
-    //    S_nextToken();
-    //}
-
-    //return t;
+    return td;
 }
 
 /*
  * parameter
- *   : attribute_list* modifier* (type identifier equals_value_clause? | '__arglist')
+ *   : attribute_list* modifier* type identifier equals_value_clause?
  *   ;
  * equals_value_clause
  *   : '=' expression
@@ -440,33 +379,25 @@ static IR_formal _parameter(IR_namespace names)
     uint32_t mods=0;
     while (_modifier (&mods));
 
-    // FIXME
-    if (mods)
-        assert(false);
+    bool isParams = false;
+    if (_check_modifier(&mods, MODF_PARAMS))
+        isParams = true;
 
     IR_formal par = NULL;
 
-    if (S_tkn.kind == S___arglist)
+    IR_typeDesignator td = _type();
+
+    if (S_tkn.kind != S_IDENT)
     {
-        assert (false); // FIXME
+        EM_error (S_tkn.pos, "parameter name expected here");
+        return NULL;
     }
-    else
-    {
 
-        IR_typeDesignator td = _type();
+    par = IR_Formal (S_tkn.pos, S_tkn.u.sym, td, /*defaultExp=*/NULL/*FIXME*/, /*reg=*/NULL, isParams);
+    S_nextToken();
 
-        if (S_tkn.kind != S_IDENT)
-        {
-            EM_error (S_tkn.pos, "parameter name expected here");
-            return NULL;
-        }
-
-        par = IR_Formal (S_tkn.pos, S_tkn.u.sym, td, /*defaultExp=*/NULL/*FIXME*/, /*reg=*/NULL);
-        S_nextToken();
-
-        if (S_tkn.kind == S_EQUALS)
-            assert(false); // FIXME
-    }
+    if (S_tkn.kind == S_EQUALS)
+        assert(false); // FIXME
 
     return par;
 }
@@ -1495,7 +1426,7 @@ static void _method_or_field_declaration (IR_memberList ml, S_pos pos, uint32_t 
         /* this reference ? */
         if (!isStatic)
         {
-            IR_formal fThis = IR_Formal (pos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+            IR_formal fThis = IR_Formal (pos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
             fThis->ty = IR_getReference (pos, tyOwner);
             formals = formals_last = fThis;
             IR_namesAddFormal (proc->block->names, fThis);
@@ -1962,6 +1893,7 @@ void PA_compilation_unit(IR_assembly assembly, IR_namespace names_root, FILE *so
     // using string = System.String;
 
     _g_sys_names = IR_namesLookupNames (names_root, S_System, /*doCreate=*/true);
+    IR_namesAddUsing (names_root, IR_Using (S_Symbol ("object"), IR_namesLookupType (_g_sys_names, S_Symbol ("Object"   )), NULL));
     IR_namesAddUsing (names_root, IR_Using (S_Symbol ("string"), IR_namesLookupType (_g_sys_names, S_Symbol ("String"   )), NULL));
     IR_namesAddUsing (names_root, IR_Using (S_Symbol ("char"  ), IR_namesLookupType (_g_sys_names, S_Symbol ("Char"     )), NULL));
     IR_namesAddUsing (names_root, IR_Using (S_Symbol ("bool"  ), IR_namesLookupType (_g_sys_names, S_Symbol ("Boolean"  )), NULL));

@@ -204,6 +204,7 @@ static IR_namespace _bootstrap_root_names(void)
     IR_namesAddType (sys_names, S_Symbol ("Boolean"), IR_TypeBoolean());
     IR_namesAddType (sys_names, S_Symbol ("Single" ), IR_TypeSingle() );
     IR_namesAddType (sys_names, S_Symbol ("Double" ), IR_TypeDouble() );
+    IR_namesAddType (sys_names, S_Symbol ("Object" ), IR_TypeUnresolved(S_noPos, S_Symbol("Object")) );
     IR_namesAddType (sys_names, S_Symbol ("String" ), IR_TypeUnresolved(S_noPos, S_Symbol("String")) );
 
     return root;

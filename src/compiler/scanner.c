@@ -116,7 +116,7 @@ static void _print_token(void)
         case S_OVERRIDE      : LOG_printf(LOG_DEBUG, "override"); break;
         case S_ASYNC         : LOG_printf(LOG_DEBUG, "async"); break;
         case S_VOID          : LOG_printf(LOG_DEBUG, "void"); break;
-        case S___arglist     : LOG_printf(LOG_DEBUG, "___arglist"); break;
+        case S_PARAMS        : LOG_printf(LOG_DEBUG, "params"); break;
         case S_IF            : LOG_printf(LOG_DEBUG, "if"); break;
         case S_SWITCH        : LOG_printf(LOG_DEBUG, "switch"); break;
         case S_WHILE         : LOG_printf(LOG_DEBUG, "while"); break;
@@ -724,7 +724,7 @@ void S_boot(void)
     TAB_enter (g_syms, S_Symbol("override"     ), (void *) (intptr_t) S_OVERRIDE);
     TAB_enter (g_syms, S_Symbol("async"        ), (void *) (intptr_t) S_ASYNC);
     TAB_enter (g_syms, S_Symbol("void"         ), (void *) (intptr_t) S_VOID);
-    TAB_enter (g_syms, S_Symbol("__arglist"    ), (void *) (intptr_t) S___arglist);
+    TAB_enter (g_syms, S_Symbol("params"       ), (void *) (intptr_t) S_PARAMS);
     TAB_enter (g_syms, S_Symbol("if"           ), (void *) (intptr_t) S_IF       );
     TAB_enter (g_syms, S_Symbol("switch"       ), (void *) (intptr_t) S_SWITCH   );
     TAB_enter (g_syms, S_Symbol("while"        ), (void *) (intptr_t) S_WHILE    );

@@ -116,6 +116,7 @@ struct IR_formal_
     S_symbol          id;
     IR_typeDesignator td;
     IR_type           ty;
+    bool              isParams;
     IR_expression     defaultExp;
     Temp_temp         reg;
     IR_formal         next;
@@ -367,7 +368,7 @@ IR_type            IR_namesLookupType    (IR_namespace names, S_symbol id);
 
 IR_variable        IR_Variable           (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression initExpr);
 
-IR_formal          IR_Formal             (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg);
+IR_formal          IR_Formal             (S_pos pos, S_symbol id, IR_typeDesignator td, IR_expression defaultExp, Temp_temp reg, bool isParams);
 IR_proc            IR_Proc               (S_pos pos, IR_visibility visibility, IR_procKind kind, IR_type tyOwner, S_symbol id, bool isExtern, bool isStatic);
 bool               IR_procIsMain         (IR_proc proc);
 string             IR_procGenerateLabel  (IR_proc proc, IR_name clsOwnerName);
@@ -377,7 +378,8 @@ IR_type            IR_getReference       (S_pos pos, IR_type ty);
 IR_type            IR_getPointer         (S_pos pos, IR_type ty);
 int                IR_typeSize           (IR_type ty);
 
-IR_typeDesignator  IR_TypeDesignator     (IR_name name);
+IR_typeDesignator         IR_TypeDesignator         (IR_name name);
+IR_typeDesignatorArrayDim IR_TypeDesignatorArrayDim (void);
 
 IR_const           IR_ConstBool          (IR_type ty, bool     b);
 IR_const           IR_ConstInt           (IR_type ty, int32_t  i);

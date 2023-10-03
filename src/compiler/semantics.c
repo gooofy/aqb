@@ -451,6 +451,7 @@ static bool _elaborateExprCall (IR_expression expr, SEM_context context, SEM_ite
         assert(f);
         assert (!f->reg); // FIXME
         assert (!f->defaultExp); // FIXME
+        assert (!f->isParams); // FIXME
         CG_itemListNode n = CG_itemListAppend(args);
         SEM_item item;
         if (!_elaborateExpression (a->e, context, &item))
@@ -1057,10 +1058,10 @@ static Temp_label _assembleClassGCScanMethod (IR_type tyCls, S_pos pos, string c
         //{
         //    E_enventry gcMarkBlackSub = lx->first->e;
 
-        IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+        IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
         formals->ty = IR_getReference(pos, tyCls);
 
-        formals->next = IR_Formal(S_noPos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+        formals->next = IR_Formal(S_noPos, S_gc, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
         formals->next->ty = _getSystemGCType();
 
         CG_frame frame = CG_Frame(pos, label, formals, /*statc=*/true);
@@ -1137,7 +1138,7 @@ static void _assembleVTables (IR_type tyCls)
 
     // generate __init method which assigns the vTable pointers in this class
 
-    IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL);
+    IR_formal formals = IR_Formal(S_noPos, S_this, /*td=*/NULL, /*defaultExp=*/NULL, /*reg=*/NULL, /*isParams=*/false);
     formals->ty = tyClsRef;
     //Ty_ty tyClassPtr = Ty_Pointer(FE_mod->name, tyCls);
     string clsLabel = IR_name2string (tyCls->u.cls.name, /*underscoreSeparator=*/true);
@@ -1454,9 +1455,8 @@ static IR_type _namesResolveType (S_pos pos, IR_namespace names, S_symbol id)
         }
     }
 
-    // FIXME ?
-    //if (names->parent)
-    //    return _namesResolveType (pos, names->parent, id);
+    if (names->parent)
+        return _namesResolveType (pos, names->parent, id);
 
     return NULL;
 }
@@ -1652,7 +1652,7 @@ void SEM_elaborate (IR_assembly assembly, IR_namespace names_root)
                     switch (def->u.ty->kind)
                     {
                         case Ty_class:
-                            _elaborateClass (def->u.ty, names_root);
+                            _elaborateClass (def->u.ty, def->names);
                             break;
                         default:
                             assert(false);

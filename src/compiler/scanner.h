@@ -83,7 +83,7 @@ typedef enum {
     S_OVERRIDE,
     S_ASYNC,
     S_VOID,
-    S___arglist,
+    S_PARAMS,
     S_IF,
     S_SWITCH,
     S_WHILE,

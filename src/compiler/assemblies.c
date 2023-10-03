@@ -6,7 +6,7 @@
 #include "assem.h"
 
 #define SYM_MAGIC       0x41435359  // ACSY
-#define SYM_VERSION     5
+#define SYM_VERSION     6
 
 #define MIN_TYPE_UID    256         // leave room for built-in types
 
@@ -154,6 +154,7 @@ static void _serializeIRFormal (IR_formal formal)
     {
         fwrite_u1 (false);
     }
+    fwrite_u1 (formal->isParams ? 1:0);
 }
 
 static void _serializeIRProc (IR_proc proc)
@@ -437,6 +438,7 @@ static IR_formal _deserializeIRFormal (void)
             return NULL;
         }
     }
+    formal->isParams = fread_u1();
     return formal;
 }
 
