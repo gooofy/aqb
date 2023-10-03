@@ -36,6 +36,7 @@ static IR_block       _block                        (IR_namespace parent);
 static bool           _namespace_member_declaration (IR_namespace names);
 static IR_name        _name                         (void);
 static IR_expression  _expression                   (void);
+static IR_statement   _statement                    (IR_namespace names);
 
 // System.Object type caching
 static IR_type _g_tyObject=NULL;
@@ -749,14 +750,22 @@ static IR_expression _primary_expression (void)
                 return expr;
 
             case S_PLUSPLUS:
-                EM_error (S_tkn.pos, "sorry #26");
-                assert(false); // FIXME
-                return expr;
+            {
+                IR_expression e2 = IR_Expression (IR_expINCR, S_tkn.pos);
+                e2->u.unop = expr;
+                expr = e2;
+                S_nextToken();
+                break;
+            }
 
             case S_MINUSMINUS:
-                EM_error (S_tkn.pos, "sorry #27");
-                assert(false); // FIXME
-                return expr;
+            {
+                IR_expression e2 = IR_Expression (IR_expDECR, S_tkn.pos);
+                e2->u.unop = expr;
+                expr = e2;
+                S_nextToken();
+                break;
+            }
 
             default:
                 return expr;
@@ -888,15 +897,39 @@ static IR_expression _shift_expression (void)
 static IR_expression _relational_expression (void)
 {
     IR_expression e = _shift_expression();
+    if (!e)
+        return NULL;
 
     while (   (S_tkn.kind == S_LESS   ) || (S_tkn.kind == S_LESSEQ)
-           || (S_tkn.kind == S_GREATER) || (S_tkn.kind == S_GREATER)
+           || (S_tkn.kind == S_GREATER) || (S_tkn.kind == S_GREATEREQ)
            || (S_tkn.kind == S_IS)      || (S_tkn.kind == S_AS)     )
     {
+        S_pos pos = S_tkn.pos;
+        IR_exprKind op;
+
+        switch (S_tkn.kind)
+        {
+            case S_LESS     : op = IR_expLT; break;
+            case S_LESSEQ   : op = IR_expLTEQ; break;
+            case S_GREATER  : op = IR_expGT; break;
+            case S_GREATEREQ: op = IR_expGTEQ; break;
+            //case S_IS:
+            //case S_AS:
+            default:
+                EM_error (pos, "sorry #31");
+                assert(false); // FIXME
+        }
+
         S_nextToken();
-        // IR_expression e = _shift_expression(NULL);
-        EM_error (S_tkn.pos, "sorry #31");
-        assert(false); // FIXME
+        IR_expression e2 = _shift_expression();
+        if (!e2)
+            return NULL;
+
+        IR_expression res = IR_Expression (op, pos);
+        res->u.binop.a = e;
+        res->u.binop.b = e2;
+
+        e = res;
     }
 
     return e;
@@ -1141,6 +1174,142 @@ static bool _local_variable_declaration (IR_typeDesignator td, IR_namespace name
     return true;
 }
 
+static IR_statement _variable_declaration_or_expression (IR_namespace names)
+{
+    if (S_tkn.kind == S_IDENT)
+    {
+        S_state state;
+        S_recordState(&state);
+
+        // variable declaration or expression?
+        IR_name name = _name ();
+        if (S_tkn.kind == S_IDENT)
+        {
+            IR_typeDesignator td = IR_TypeDesignator(name);
+            _local_variable_declaration (td, names);
+            return NULL;
+        }
+
+        S_restoreState(&state);
+    }
+
+    IR_expression expr = _expression ();
+    if (expr)
+    {
+        IR_statement stmt = IR_Statement (IR_stmtExpression, expr->pos);
+        stmt->u.expr = expr;
+        return stmt;
+    }
+    return NULL;
+}
+
+/*
+ * 'for' '(' [ variable_declaration | expression { ',' expression } ] ';' [ expression ] ';' [ expression { ',' expression } ] ')' statement
+ */
+
+static IR_statement _for_statement (IR_namespace names)
+{
+    IR_statement forStmt = IR_Statement (IR_stmtForLoop, S_tkn.pos);
+    S_nextToken(); // skip 'for'
+
+    if (S_tkn.kind != S_LPAREN)
+    {
+        EM_error (S_tkn.pos, "for: '(' expected here");
+        return NULL;
+    }
+    S_nextToken();
+
+    forStmt->u.forLoop.outer = IR_Block (S_tkn.pos, names);
+
+    if (S_tkn.kind != S_SEMICOLON)
+    {
+        IR_statement stmt = _variable_declaration_or_expression (forStmt->u.forLoop.outer->names);
+        if (stmt)
+            IR_blockAppendStmt (forStmt->u.forLoop.outer, stmt);
+    }
+
+    while (S_tkn.kind == S_COMMA)
+    {
+        S_nextToken();
+        IR_expression expr = _expression ();
+        if (expr)
+        {
+            IR_statement stmt = IR_Statement (IR_stmtExpression, expr->pos);
+            stmt->u.expr = expr;
+            IR_blockAppendStmt (forStmt->u.forLoop.outer, stmt);
+        }
+        else
+        {
+            EM_error (S_tkn.pos, "for: expression expected here");
+            return NULL;
+        }
+    }
+
+    if (S_tkn.kind != S_SEMICOLON)
+    {
+        EM_error (S_tkn.pos, "for: ';' expected here");
+        return NULL;
+    }
+    S_nextToken();
+
+    if (S_tkn.kind != S_SEMICOLON)
+    {
+        forStmt->u.forLoop.cond = _expression ();
+        if (!forStmt->u.forLoop.cond)
+        {
+            EM_error (S_tkn.pos, "for: expression expected here");
+            return NULL;
+        }
+    }
+
+    if (S_tkn.kind != S_SEMICOLON)
+    {
+        EM_error (S_tkn.pos, "for: ';' expected here");
+        return NULL;
+    }
+    S_nextToken();
+
+    if (S_tkn.kind != S_RPAREN)
+    {
+        forStmt->u.forLoop.incr = IR_Block (S_tkn.pos, forStmt->u.forLoop.outer->names);
+        IR_expression expr = _expression ();
+        if (!expr)
+        {
+            EM_error (S_tkn.pos, "for: expression expected here");
+            return NULL;
+        }
+
+        IR_statement stmt = IR_Statement (IR_stmtExpression, expr->pos);
+        stmt->u.expr = expr;
+        IR_blockAppendStmt (forStmt->u.forLoop.incr, stmt);
+
+        while (S_tkn.kind == S_COMMA)
+        {
+            S_nextToken();
+            IR_expression expr = _expression ();
+            if (!expr)
+            {
+                EM_error (S_tkn.pos, "for: expression expected here");
+                return NULL;
+            }
+            stmt = IR_Statement (IR_stmtExpression, expr->pos);
+            stmt->u.expr = expr;
+            IR_blockAppendStmt (forStmt->u.forLoop.incr, stmt);
+        }
+    }
+
+    if (S_tkn.kind != S_RPAREN)
+    {
+        EM_error (S_tkn.pos, "for: ')' expected here");
+        return NULL;
+    }
+    S_nextToken();
+
+    forStmt->u.forLoop.body = _statement (forStmt->u.forLoop.outer->names);
+
+    return forStmt;
+}
+
 /*
  * statement: ( block
               | ';'
@@ -1162,20 +1331,19 @@ local_constant_declaration : 'const' type constant_declarator (',' constant_decl
 constant_declarator : identifier '=' constant_expression
 */
 
-static void _statement (IR_block block)
+static IR_statement _statement (IR_namespace names)
 {
     switch (S_tkn.kind)
     {
         case S_LBRACE:
         {
             IR_statement stmt = IR_Statement (IR_stmtBlock, S_tkn.pos);
-            stmt->u.block = _block(block->names);
-            IR_blockAppendStmt (block, stmt);
-            return;
+            stmt->u.block = _block(names);
+            return stmt;
         }
         case S_SEMICOLON:
             S_nextToken();
-            return;
+            return NULL;
         case S_IF:
             assert(false); // FIXME: implement
             break;
@@ -1189,41 +1357,19 @@ static void _statement (IR_block block)
             assert(false); // FIXME: implement
             break;
         case S_FOR:
-            assert(false); // FIXME: implement
-            break;
+            return _for_statement(names);
         case S_FOREACH:
             assert(false); // FIXME: implement
             break;
         case S_IDENT:
-            {
-                S_pos pos = S_tkn.pos;
-                S_state state;
-                S_recordState(&state);
-                // variable declaration or expression?
-                IR_name name = _name ();
-                if (S_tkn.kind == S_IDENT)
-                {
-                    IR_typeDesignator td = IR_TypeDesignator(name);
-                    _local_variable_declaration (td, block->names);
-                    if (S_tkn.kind == S_SEMICOLON)
-                        S_nextToken();
-                    else
-                        EM_error (S_tkn.pos, "local variable declaration: ; expected here.");
-                }
-                else
-                {
-                    S_restoreState(&state);
-                    IR_expression expr = _expression ();
-                    if (S_tkn.kind == S_SEMICOLON)
-                        S_nextToken();
-                    else
-                        EM_error (S_tkn.pos, "expression statement: ; expected here.");
-                    IR_statement stmt = IR_Statement (IR_stmtExpression, pos);
-                    stmt->u.expr = expr;
-                    IR_blockAppendStmt (block, stmt);
-                }
-            }
-            break;
+        {
+            IR_statement stmt = _variable_declaration_or_expression (names);
+            if (S_tkn.kind == S_SEMICOLON)
+                S_nextToken();
+            else
+                EM_error (S_tkn.pos, "; expected here.");
+            return stmt;
+        }
         default:
             EM_error (S_tkn.pos, "statement: unexpected or unimplemented token encountered.");
             assert(false); // FIXME : implement
@@ -1242,7 +1388,9 @@ static IR_block _block (IR_namespace parent)
 
     while ((S_tkn.kind != S_RBRACE) && (S_tkn.kind != S_EOF))
     {
-        _statement(block);
+        IR_statement stmt = _statement(block->names);
+        if (stmt)
+            IR_blockAppendStmt (block, stmt);
     }
 
     if (S_tkn.kind == S_RBRACE)

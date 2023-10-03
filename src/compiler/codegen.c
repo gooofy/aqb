@@ -3633,12 +3633,14 @@ void CG_transProperty (AS_instrList code, S_pos pos, CG_frame frame, CG_item *re
     }
 
 }
+#endif // 0
 
 void CG_transJump  (AS_instrList code, S_pos pos, Temp_label l)
 {
     AS_instrListAppend(code,AS_InstrEx(pos, AS_BRA, Temp_w_NONE, NULL, NULL, 0, 0, l));            //     bra    l
 }
 
+#if 0
 void CG_transJSR  (AS_instrList code, S_pos pos, Temp_label l)
 {
     // since we have no idea what it is we're calling here, we have to assume
@@ -3711,6 +3713,7 @@ void CG_transMergeCond (AS_instrList code, S_pos pos, CG_frame frame, CG_item *l
         *left = temp;
     }
 }
+#endif // 0
 
 void CG_transPostCond (AS_instrList code, S_pos pos, CG_item *item, bool positive)
 {
@@ -3758,7 +3761,6 @@ void CG_transPostCond (AS_instrList code, S_pos pos, CG_item *item, bool positiv
     item->u.condR.fixUps   = AS_InstrList();
     AS_instrListAppend (item->u.condR.fixUps, bra);
 }
-#endif // 0
 
 void CG_transCall (AS_instrList code, S_pos pos, CG_frame frame, IR_proc proc, CG_itemList args, CG_item *result)
 {

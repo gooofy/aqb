@@ -16,6 +16,9 @@ namespace ConsoleApp10
 
             System.Console.WriteLine("Hello World!");
             Debug.Assert(c==42);
+
+            for (int i=0; i<3; i++)
+                System.Console.WriteLine("loop");
         }
     }
 }

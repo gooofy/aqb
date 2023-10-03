@@ -288,22 +288,27 @@ struct IR_block_
     IR_statement    first, last;
 };
 
-typedef enum { IR_stmtExpression, IR_stmtBlock } IR_stmtKind;
+typedef enum { IR_stmtExpression, IR_stmtBlock, IR_stmtForLoop } IR_stmtKind;
 
 struct IR_statement_
 {
     IR_stmtKind kind;
     S_pos pos;
     union {
-        IR_expression   expr;
-        IR_block        block;
+        IR_expression                    expr;
+        IR_block                         block;
+        struct { IR_block      outer;
+                 IR_expression cond;
+                 IR_statement  body;
+                 IR_block      incr; }   forLoop;
     } u;
     IR_statement next;
 };
 
 typedef enum { IR_expCall, IR_expLiteralString, IR_expSym, IR_expSelector, IR_expConst,
                IR_expADD, IR_expSUB,
-               IR_expEQU, IR_expNEQ} IR_exprKind;
+               IR_expEQU, IR_expNEQ, IR_expLT, IR_expLTEQ, IR_expGT, IR_expGTEQ,
+               IR_expINCR, IR_expDECR } IR_exprKind;
 
 struct IR_expression_
 {
@@ -316,6 +321,7 @@ struct IR_expression_
         struct { S_symbol id; IR_expression e; }           selector;
         IR_const                                           c;
         struct { IR_expression a; IR_expression b; }       binop;
+        IR_expression                                      unop;
     } u;
 };
 

@@ -14,6 +14,8 @@ struct SEM_context_
     AS_instrList  code;
     CG_frame      frame;
     Temp_label    exitlbl;
+    Temp_label    contlbl;
+    Temp_label    breaklbl;
     CG_item       returnVar;
     TAB_table     entries; // symbol -> SEM_item
 };
@@ -86,6 +88,8 @@ static SEM_context _SEM_Context (SEM_context parent)
         context->code      = parent->code;
         context->frame     = parent->frame;
         context->exitlbl   = parent->exitlbl;
+        context->contlbl   = parent->contlbl;
+        context->breaklbl  = parent->breaklbl;
         context->returnVar = parent->returnVar;
     }
 
@@ -690,6 +694,40 @@ static bool _elaborateExprBinary (IR_expression expr, SEM_context context, SEM_i
     return true;
 }
 
+static bool _elaborateExprIncrDecr (IR_expression expr, SEM_context context, SEM_item *res)
+{
+    S_pos    pos = expr->pos;
+
+    if (!_elaborateExpression (expr->u.unop, context, res))
+        return EM_error (pos, "expression expected here.");
+
+    if (res->kind != SIK_cg)
+        return EM_error (pos, "expression expected here.");
+
+    CG_item a = res->u.cg;
+    CG_loadVal (context->code, pos, context->frame, &a);
+
+    IR_type tyRes = CG_ty(&res->u.cg);
+    CG_item one;
+    CG_OneItem (&one, tyRes);
+
+    CG_binOp oper;
+    switch (expr->kind)
+    {
+        case IR_expINCR: oper = CG_plus ; break;
+        case IR_expDECR: oper = CG_minus; break;
+        default:
+            assert(false);
+    }
+
+    CG_transBinOp (context->code, pos, context->frame, oper, &a, &one, tyRes);
+    CG_transAssignment (context->code, pos, context->frame, &res->u.cg, &a);
+
+    res->u.cg = a;
+
+    return true;
+}
+
 static bool _elaborateExprComparison (IR_expression expr, SEM_context context, SEM_item *res)
 {
     SEM_item b;
@@ -723,10 +761,17 @@ static bool _elaborateExprComparison (IR_expression expr, SEM_context context, S
     CG_relOp oper;
     switch (expr->kind)
     {
-        case IR_expEQU: oper = CG_eq; break;
-        case IR_expNEQ: oper = CG_ne; break;
+        case IR_expEQU : oper = CG_eq; break;
+        case IR_expNEQ : oper = CG_ne; break;
+        case IR_expLT  : oper = CG_lt; break;
+        case IR_expLTEQ: oper = CG_le; break;
+        case IR_expGT  : oper = CG_gt; break;
+        case IR_expGTEQ: oper = CG_ge; break;
+
         default:
-            return EM_error (pos, "sorry, this compariosn operation has not been implemented yet");
+            EM_error (pos, "sorry, this comparison operation has not been implemented yet");
+            assert(false); // FIXME
+            return false;
     }
 
     CG_transRelOp (context->code, pos, context->frame, oper, &res->u.cg, &b.u.cg);
@@ -759,12 +804,33 @@ static bool _elaborateExpression (IR_expression expr, SEM_context context, SEM_i
 
         case IR_expEQU:
         case IR_expNEQ:
+        case IR_expLT:
+        case IR_expLTEQ:
+        case IR_expGT:
+        case IR_expGTEQ:
             return _elaborateExprComparison (expr, context, res);
+
+        case IR_expINCR:
+        case IR_expDECR:
+            return _elaborateExprIncrDecr (expr, context, res);
 
         default:
             assert(false); // FIXME
     }
     return false;
+}
+
+static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace names);
+
+static SEM_context _elaborateBlock (IR_block block, SEM_context context)
+{
+    SEM_context ctx = _SEM_Context (context);
+    _elaborateNames (block->names, ctx);
+    for (IR_statement stmt2 = block->first; stmt2; stmt2=stmt2->next)
+    {
+        _elaborateStmt (stmt2, ctx, block->names);
+    }
+    return ctx;
 }
 
 static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace names)
@@ -778,13 +844,35 @@ static void _elaborateStmt (IR_statement stmt, SEM_context context, IR_namespace
             break;
         }
         case IR_stmtBlock:
+            _elaborateBlock (stmt->u.block, context);
+            break;
+
+        case IR_stmtForLoop:
         {
-            SEM_context ctx = _SEM_Context (context);
-            _elaborateNames (stmt->u.block->names, ctx);
-            for (IR_statement stmt2 = stmt->u.block->first; stmt2; stmt2=stmt2->next)
-            {
-                _elaborateStmt (stmt2, ctx, stmt->u.block->names);
-            }
+            SEM_context ctx = _elaborateBlock (stmt->u.forLoop.outer, context);
+            Temp_label toplbl = Temp_newlabel();
+            ctx->contlbl  = Temp_newlabel();
+            ctx->breaklbl = Temp_newlabel();
+            CG_transLabel (ctx->code, stmt->pos, toplbl);
+
+            SEM_item c;
+            _elaborateExpression (stmt->u.forLoop.cond, ctx, &c);
+            assert (c.kind == SIK_cg);
+            CG_loadCond (ctx->code, stmt->pos, ctx->frame, &c.u.cg);
+            CG_transPostCond (ctx->code, stmt->pos, &c.u.cg, /*positive=*/false);
+            CG_transJump     (ctx->code, stmt->pos, ctx->breaklbl);
+            CG_transLabel    (ctx->code, stmt->pos, c.u.cg.u.condR.l);
+
+            _elaborateStmt (stmt->u.forLoop.body, ctx, stmt->u.forLoop.outer->names);
+
+            CG_transLabel    (ctx->code, stmt->pos, ctx->contlbl);
+
+            _elaborateBlock (stmt->u.forLoop.incr, ctx);
+
+            CG_transJump     (ctx->code, stmt->pos, toplbl);
+
+            CG_transLabel    (ctx->code, stmt->pos, ctx->breaklbl);
+
             break;
         }
         default:
@@ -828,9 +916,11 @@ static void _elaborateProc (IR_proc proc, IR_namespace parent)
 
         AS_instrList code = AS_InstrList();
         SEM_context context = _SEM_Context (/*parent=*/NULL);
-        context->code    = code;
-        context->frame   = funFrame;
-        context->exitlbl = Temp_newlabel();
+        context->code     = code;
+        context->frame    = funFrame;
+        context->exitlbl  = Temp_newlabel();
+        context->contlbl  = NULL;
+        context->breaklbl = NULL;
 
         if (proc->returnTy)
         {
